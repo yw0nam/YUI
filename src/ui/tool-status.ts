@@ -52,6 +52,10 @@ export function createToolStatus({ toolEl, toolLabel }: ToolStatusElements): Too
   function showTool(toolId: string): void {
     if (disposed) return;
     clearToolTimer();
+    // A re-show interrupting a dismissal must cancel that fade outright — its stale settle
+    // landing later could otherwise hide the chip again before is-visible is even back.
+    cancelFade?.();
+    cancelFade = null;
     toolLabel.textContent = getToolLabel(toolId);
     toolEl.dataset.state = "running";
     toolEl.hidden = false;
