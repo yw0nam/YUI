@@ -7,7 +7,6 @@
  */
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { IDLE_TIMEOUT_MS } from "../dispatcher/backend-caller";
 import { setLocale, t } from "./i18n";
 import {
   isSettingsFixable,
@@ -29,16 +28,14 @@ describe("turnErrorMessage", () => {
   });
 
   it("maps network_stall to the stall message, distinct from the network one", () => {
-    const seconds = IDLE_TIMEOUT_MS / 1000;
-    expect(turnErrorMessage("network_stall")).toBe(t("input.error_stall", { seconds }));
+    expect(turnErrorMessage("network_stall")).toBe(t("input.error_stall"));
     expect(turnErrorMessage("network_stall")).not.toBe(turnErrorMessage("network_drop"));
   });
 
-  it("renders the watchdog deadline from IDLE_TIMEOUT_MS in every locale (no stale hardcoded figure)", () => {
-    const seconds = String(IDLE_TIMEOUT_MS / 1000);
+  it("renders the same stall message in every locale (no stage-specific figure)", () => {
     for (const locale of ["en", "ko", "ja"] as const) {
       setLocale(locale);
-      expect(turnErrorMessage("network_stall")).toContain(seconds);
+      expect(turnErrorMessage("network_stall")).toBe(t("input.error_stall"));
     }
   });
 
