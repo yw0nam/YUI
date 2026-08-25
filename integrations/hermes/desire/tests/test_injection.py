@@ -1,6 +1,7 @@
 import copy
 import hashlib
 import json
+import logging
 from datetime import timedelta
 
 import desire_state
@@ -540,3 +541,100 @@ def test_last_well_formed_client_context_wins(desire_plugin, state_dir, at, stat
     )
     desire_plugin._inject(request=request_with(text), now=now)
     assert read_json(state_dir / "drives.json")["last_interaction_at"] == now.isoformat()
+
+
+def test_debug_event_logs_injected_pass_with_ids(desire_plugin, state_dir, at, caplog):
+    now = at("2026-08-25T12:00:00+09:00")
+    caplog.set_level(logging.DEBUG, logger=desire_plugin.__name__)
+    request = request_with(context("trigger: user message"))
+
+    result = desire_plugin._inject(
+        request=request, now=now, api_request_id="req-1", turn_id="turn-1", session_id="sess-1"
+    )
+
+    assert result is not None
+    records = [record for record in caplog.records if record.name == desire_plugin.__name__]
+    assert len(records) == 1
+    message = records[0].getMessage()
+    assert "outcome=injected" in message
+    assert "interaction=True" in message
+    assert "shape=messages/str" in message
+    assert "cache_hit=False" in message
+    assert "api_request_id=req-1 turn_id=turn-1 session_id=sess-1" in message
+
+
+def test_debug_event_logs_cache_hit_on_repeat_call(desire_plugin, state_dir, at, caplog):
+    now = at("2026-08-25T12:00:00+09:00")
+    caplog.set_level(logging.DEBUG, logger=desire_plugin.__name__)
+    request = request_with(context("trigger: user message"))
+
+    desire_plugin._inject(request=request, now=now)
+    caplog.clear()
+    desire_plugin._inject(request=request, now=now)
+
+    records = [record for record in caplog.records if record.name == desire_plugin.__name__]
+    assert len(records) == 1
+    message = records[0].getMessage()
+    assert "outcome=injected" in message
+    assert "cache_hit=True" in message
+
+
+def test_debug_event_logs_skip_reasons(desire_plugin, state_dir, at, caplog):
+    now = at("2026-08-25T12:00:00+09:00")
+    caplog.set_level(logging.DEBUG, logger=desire_plugin.__name__)
+
+    caplog.clear()
+    desire_plugin._inject(request={"messages": [{"role": "assistant", "content": "hi"}]}, now=now)
+    message = caplog.records[-1].getMessage()
+    assert "outcome=skipped" in message
+    assert "reason=no-user-text" in message
+
+    caplog.clear()
+    desire_plugin._inject(request={}, now=now)
+    message = caplog.records[-1].getMessage()
+    assert "outcome=skipped" in message
+    assert "reason=no-messages" in message
+
+    caplog.clear()
+    injected_text = (
+        "hello\n\n<desire_state>\n"
+        "drives: social 0/100 (low) | curiosity 50/100 (mid) | accomplishment 50/100 (mid)\n"
+        "</desire_state>"
+    )
+    desire_plugin._inject(request=request_with(injected_text), now=now)
+    message = caplog.records[-1].getMessage()
+    assert "outcome=skipped" in message
+    assert "reason=already-injected" in message
+
+
+def test_debug_event_logs_error_on_forced_failure(desire_plugin, state_dir, at, caplog, monkeypatch):
+    now = at("2026-08-25T12:00:00+09:00")
+    monkeypatch.setattr(desire_plugin, "_build_desire_block", lambda *args, **kwargs: 1 / 0)
+    caplog.set_level(logging.DEBUG, logger=desire_plugin.__name__)
+    request = request_with(context("trigger: user message"))
+
+    result = desire_plugin._inject(request=request, now=now)
+
+    assert result is None
+    records = [record for record in caplog.records if record.name == desire_plugin.__name__]
+    assert len(records) == 1
+    assert "outcome=error" in records[0].getMessage()
+
+
+def test_debug_event_never_leaks_user_text_or_drive_values(
+    desire_plugin, state_dir, at, state_helpers, caplog
+):
+    now = at("2026-08-25T12:00:00+09:00")
+    seed_drives(state_dir, now, state_helpers, curiosity=31.9, accomplishment=55.8)
+    caplog.set_level(logging.DEBUG, logger=desire_plugin.__name__)
+    text = context("trigger: user message", tail="my secret sentence 12345")
+
+    result = desire_plugin._inject(request=request_with(text), now=now)
+
+    assert result is not None
+    records = [record for record in caplog.records if record.name == desire_plugin.__name__]
+    assert len(records) == 1
+    message = records[0].getMessage()
+    for leak in ("secret", "12345", "<desire_state>", "drives:", "31", "55"):
+        assert leak not in message
+    assert "\n" not in message
