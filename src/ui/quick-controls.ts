@@ -750,8 +750,8 @@ export function createQuickControls({
     fillerSettings.setLanguage(lang);
     // When language changes, immediately update both textareas to new language's pool (before store subscription).
     const pool = fillerSettings.get().customPools[lang];
-    if (fillerFirstTextareaEl) fillerFirstTextareaEl.value = pool ? pool.first.join("\n") : "";
-    if (fillerRepeatTextareaEl) fillerRepeatTextareaEl.value = pool ? pool.repeat.join("\n") : "";
+    if (fillerFirstTextareaEl) fillerFirstTextareaEl.value = (pool?.first ?? []).join("\n");
+    if (fillerRepeatTextareaEl) fillerRepeatTextareaEl.value = (pool?.repeat ?? []).join("\n");
     if (focus) fillerLangBtns[clamped]?.focus();
   }
 

@@ -1,9 +1,44 @@
 {
   "gap_ms": 7000,
   "gap_jitter_ms": 1500,
+  "max_repeats": 3,
+  "gap_growth": 2,
   "pools": {
-    "ja": { "first": ["うーん…", "そうだね…"], "repeat": ["ええと…", "ちょっと待ってね…", "なるほど…"] },
-    "en": { "first": ["Let me think...", "Hmm..."], "repeat": ["Well...", "Just a sec...", "Let me see..."] },
-    "ko": { "first": ["음…", "그건…"], "repeat": ["글쎄…", "잠깐만…", "어디 보자…"] }
+    "ja": {
+      "first": ["うーん…", "そうだね…"],
+      "repeat": ["ええと…", "ちょっと待ってね…", "なるほど…"],
+      "long_wait": ["ちょっと時間かかってるね…もう少し待ってて。"],
+      "tool": {
+        "_default": ["ちょっと調べてみるね…", "確認してみるよ。"],
+        "terminal": ["ターミナルを動かしてみるね。"],
+        "web_search": ["検索してみるね。"]
+      },
+      "timeout": ["ごめん、返事が来なくて諦めちゃった。もう一回言ってくれる?"],
+      "unreachable": ["今つながらないみたい。サーバー確認してくれる?"]
+    },
+    "en": {
+      "first": ["Let me think...", "Hmm..."],
+      "repeat": ["Well...", "Just a sec...", "Let me see..."],
+      "long_wait": ["This is taking a bit — hang tight."],
+      "tool": {
+        "_default": ["Let me check on that...", "Let me look into it."],
+        "terminal": ["Let me run that in a terminal."],
+        "web_search": ["Let me search for that."]
+      },
+      "timeout": ["Sorry, I gave up waiting for a reply — can you say that again?"],
+      "unreachable": ["I can't connect right now. Can you check the server?"]
+    },
+    "ko": {
+      "first": ["음…", "그건…"],
+      "repeat": ["글쎄…", "잠깐만…", "어디 보자…"],
+      "long_wait": ["좀 오래 걸리네… 조금만 더 기다려 줘."],
+      "tool": {
+        "_default": ["잠깐 찾아볼게…", "확인 좀 해볼게."],
+        "terminal": ["터미널 좀 돌려볼게."],
+        "web_search": ["검색해 볼게."]
+      },
+      "timeout": ["미안, 답이 너무 오래 안 와서 포기했어. 다시 말해 줄래?"],
+      "unreachable": ["지금 연결이 안 돼. 서버 좀 확인해 줄래?"]
+    }
   }
 }

@@ -308,8 +308,8 @@ export function createReflect(deps: ReflectDeps): Reflect {
     fillerLangSegEl.style.setProperty("--seg", String(idx));
     // Two textareas — show current language's customPool (first/repeat) line by line (empty if not set).
     const pool = s.customPools[s.language];
-    fillerFirstTextareaEl.value = pool ? pool.first.join("\n") : "";
-    fillerRepeatTextareaEl.value = pool ? pool.repeat.join("\n") : "";
+    fillerFirstTextareaEl.value = (pool?.first ?? []).join("\n");
+    fillerRepeatTextareaEl.value = (pool?.repeat ?? []).join("\n");
   }
 
   // Language picker — reflects current display language onto selected seg.
