@@ -200,6 +200,12 @@ def _rewrite(kwargs, event):
     return {"request": rewritten, "source": "yui-desire", "reason": "desire-state"}
 
 
+def _safe_id(value):
+    if value is None:
+        return None
+    return str(value)[:64].replace("\n", " ").replace("\r", " ")
+
+
 def _log_event(event, kwargs):
     try:
         logger.debug(
@@ -211,9 +217,9 @@ def _log_event(event, kwargs):
             event["interaction"],
             event["shape"],
             event["cache_hit"],
-            kwargs.get("api_request_id"),
-            kwargs.get("turn_id"),
-            kwargs.get("session_id"),
+            _safe_id(kwargs.get("api_request_id")),
+            _safe_id(kwargs.get("turn_id")),
+            _safe_id(kwargs.get("session_id")),
         )
     except Exception:  # noqa: BLE001, S110 - logging must never affect request delivery
         pass
@@ -224,8 +230,9 @@ def _inject(**kwargs):
     event = {"outcome": "skipped", "reason": None, "interaction": None, "shape": None, "cache_hit": None}
     try:
         return _rewrite(kwargs, event)
-    except Exception:  # noqa: BLE001 - middleware must fail open for every plugin failure
+    except Exception as exc:  # noqa: BLE001 - middleware must fail open for every plugin failure
         event["outcome"] = "error"
+        event["reason"] = type(exc).__name__
         return None
     finally:
         _log_event(event, kwargs)
