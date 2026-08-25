@@ -292,6 +292,21 @@ describe("createFillerLoop — onToolRunning()", () => {
     expect(deps.timers.hasPending()).toBe(false);
   });
 
+  it("still speaks the pending phrase when the tool's own done arrives during the gap", () => {
+    const deps = makeDeps({
+      getPools: () => pool({ tool: { web_search: ["searching"] } }),
+    });
+    const loop = createFillerLoop(deps);
+
+    loop.start();
+    loop.onUtteranceDone();
+    loop.onToolRunning("web_search");
+    loop.onActivity(); // tool_status done — the phrase is still thinking-window filler
+    deps.timers.advance(700);
+
+    expect(deps.spoken).toEqual(["first-a", "searching"]);
+  });
+
   it("re-arms long_wait after the tool phrase", () => {
     const deps = makeDeps({
       getPools: () => pool({ tool: { web_search: ["searching"] }, long_wait: ["long-wait-a"] }),

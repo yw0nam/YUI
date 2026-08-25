@@ -51,7 +51,7 @@ export interface FillerLoopDeps {
 export interface FillerLoop {
   start(): void;
   onUtteranceDone(): void;
-  /** A tool call started running — speaks an acknowledgment and (re)arms long_wait. */
+  /** A tool call started running — queues its acknowledgment for after the current utterance + a short pause. */
   onToolRunning(toolId: string): void;
   /** Non-tool progress (tool done/idle, an express cue) — postpones a pending long_wait. */
   onActivity(): void;
