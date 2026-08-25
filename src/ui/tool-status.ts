@@ -25,6 +25,8 @@ export interface ToolStatusElements {
 }
 
 const TOOL_DONE_HOLD_MS = 1500;
+// Exceeds the chip's own --yui-dur-out (650ms) dismiss transition — see fade-out.ts's default.
+const TOOL_FADE_FALLBACK_MS = 900;
 
 export function createToolStatus({ toolEl, toolLabel }: ToolStatusElements): ToolStatus {
   let toolHideTimer: ReturnType<typeof setTimeout> | null = null;
@@ -79,10 +81,14 @@ export function createToolStatus({ toolEl, toolLabel }: ToolStatusElements): Too
     toolEl.classList.remove("is-visible");
     toolEl.classList.add("is-hiding");
     cancelFade?.();
-    cancelFade = afterFadeOut(toolEl, () => {
-      cancelFade = null;
-      if (!toolEl.classList.contains("is-visible")) toolEl.hidden = true;
-    });
+    cancelFade = afterFadeOut(
+      toolEl,
+      () => {
+        cancelFade = null;
+        if (!toolEl.classList.contains("is-visible")) toolEl.hidden = true;
+      },
+      TOOL_FADE_FALLBACK_MS,
+    );
   }
 
   function dispose(): void {

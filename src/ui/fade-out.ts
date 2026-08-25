@@ -6,17 +6,22 @@
  * can land before the fade finishes.
  */
 
-// Fallback for environments where the transition never fires. A rAF (next frame ~16ms) is
-// shorter than the fade (--yui-dur 200ms / -fast 140ms / -dur-out 650ms) and would cut it off,
-// so the timer must exceed the longest one in use.
-const FADE_FALLBACK_MS = 900; // ponytail: safety net exceeding the --yui-dur/-fast/-dur-out ceiling
+// Default fallback for environments where the transition never fires. A rAF (next frame ~16ms) is
+// shorter than the fade (--yui-dur 200ms / -fast 140ms) and would cut it off, so the timer must
+// exceed that ceiling. A caller whose own transition runs longer (e.g. --yui-dur-out) passes its
+// own fallbackMs instead of raising this default for everyone.
+const FADE_FALLBACK_MS = 400; // ponytail: safety net exceeding the --yui-dur/-fast ceiling
 
 /**
  * Runs `settle` once — on the element's opacity transitionend, or on the fallback timer.
  * Returns a cancel handle that calls off both without running `settle` (for a dispose landing mid-fade).
  */
-export function afterFadeOut(el: HTMLElement, settle: () => void): () => void {
-  const fallback = setTimeout(run, FADE_FALLBACK_MS);
+export function afterFadeOut(
+  el: HTMLElement,
+  settle: () => void,
+  fallbackMs = FADE_FALLBACK_MS,
+): () => void {
+  const fallback = setTimeout(run, fallbackMs);
 
   function run(): void {
     clearTimeout(fallback);
