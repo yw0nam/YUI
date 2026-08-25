@@ -60,10 +60,24 @@ function synthInputs(): string[] {
 
 const wired: VoicePipeline[] = [];
 
+interface SetupSurfaces {
+  beginSpeech: ReturnType<typeof vi.fn>;
+  pushSpeech: ReturnType<typeof vi.fn>;
+  endSpeech: ReturnType<typeof vi.fn>;
+  finishSpeech: ReturnType<typeof vi.fn>;
+}
+
 function setup(
   getSettings: () => FillerSettings,
   subscribe?: (cb: (s: FillerSettings) => void) => () => void,
-): VoicePipeline {
+  opts?: { ttsEnabled?: boolean },
+): { voice: VoicePipeline; surfaces: SetupSurfaces } {
+  const surfaces: SetupSurfaces = {
+    beginSpeech: vi.fn(),
+    pushSpeech: vi.fn(),
+    endSpeech: vi.fn(),
+    finishSpeech: vi.fn(),
+  };
   const voice = wireVoicePipeline({
     renderer: {
       setMouthOpen: vi.fn(),
@@ -72,12 +86,7 @@ function setup(
       applyDirective: vi.fn(),
       playMotion: vi.fn(),
     },
-    surfaces: {
-      beginSpeech: vi.fn(),
-      pushSpeech: vi.fn(),
-      endSpeech: vi.fn(),
-      finishSpeech: vi.fn(),
-    },
+    surfaces,
     turnLog: createTurnLog(),
     getEndpoints: () => ({
       chat_base_url: "http://chat.test/v1",
@@ -89,12 +98,13 @@ function setup(
       gap_ms: 0,
       gap_jitter_ms: 0,
       max_repeats: 3,
-      gap_growth: 2, long_wait_ms: 40000,
+      gap_growth: 2,
+      long_wait_ms: 40000,
       pools: {},
     }),
     getTtsApiKey: vi.fn().mockResolvedValue(undefined),
     getSttApiKey: vi.fn().mockResolvedValue(undefined),
-    ttsSettings: { get: () => ({ enabled: true }) },
+    ttsSettings: { get: () => ({ enabled: opts?.ttsEnabled ?? true }) },
     lipsyncSettings: { get: () => ({ gain: 1 }) },
     fillerSettings: { get: getSettings, subscribe },
     vadSettings: { get: () => ({ silenceMs: 1_500, bargeIn: false }) },
@@ -103,7 +113,7 @@ function setup(
     onVoiceSegment: vi.fn(),
   });
   wired.push(voice);
-  return voice;
+  return { voice, surfaces };
 }
 
 function settingsOf(customPool: FillerPool): FillerSettings {
@@ -117,21 +127,21 @@ describe("speakFailure", () => {
   });
 
   it("network_stall speaks a phrase from the timeout pool and ends the utterance", async () => {
-    const voice = setup(() => settingsOf(pool({ timeout: [TIMEOUT_PHRASE] })));
+    const { voice } = setup(() => settingsOf(pool({ timeout: [TIMEOUT_PHRASE] })));
     voice.speakFailure("network_stall");
     await vi.waitFor(() => expect(mocks.sink.play).toHaveBeenCalled());
     expect(synthInputs()).toContain(TIMEOUT_PHRASE);
   });
 
   it("network_drop speaks a phrase from the unreachable pool", async () => {
-    const voice = setup(() => settingsOf(pool({ unreachable: [UNREACHABLE_PHRASE] })));
+    const { voice } = setup(() => settingsOf(pool({ unreachable: [UNREACHABLE_PHRASE] })));
     voice.speakFailure("network_drop");
     await vi.waitFor(() => expect(mocks.sink.play).toHaveBeenCalled());
     expect(synthInputs()).toContain(UNREACHABLE_PHRASE);
   });
 
   it("does nothing for a reason other than network_stall/network_drop", async () => {
-    const voice = setup(() =>
+    const { voice } = setup(() =>
       settingsOf(pool({ timeout: [TIMEOUT_PHRASE], unreachable: [UNREACHABLE_PHRASE] })),
     );
     voice.speakFailure("not_configured");
@@ -144,9 +154,22 @@ describe("speakFailure", () => {
   });
 
   it("does nothing when the pool for that tier is empty", async () => {
-    const voice = setup(() => settingsOf(pool()));
+    const { voice } = setup(() => settingsOf(pool()));
     voice.speakFailure("network_stall");
     await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(mocks.sink.play).not.toHaveBeenCalled();
+  });
+
+  it("still shows the bubble (beginSpeech/pushSpeech) on the TTS-skip path — no audio, but the text renders", async () => {
+    const { voice, surfaces } = setup(
+      () => settingsOf(pool({ timeout: [TIMEOUT_PHRASE] })),
+      undefined,
+      { ttsEnabled: false }, // synth always rejects with the TTS_SKIP sentinel
+    );
+    voice.speakFailure("network_stall");
+    await vi.waitFor(() => expect(surfaces.finishSpeech).toHaveBeenCalled());
+    expect(surfaces.beginSpeech).toHaveBeenCalled();
+    expect(surfaces.pushSpeech).toHaveBeenCalledWith(TIMEOUT_PHRASE);
     expect(mocks.sink.play).not.toHaveBeenCalled();
   });
 });
@@ -175,7 +198,7 @@ describe("prewarmFailureLines", () => {
   });
 
   it("skips a sentence already cached — a later speakFailure serves it without a new synth call", async () => {
-    const voice = setup(() => settingsOf(pool({ timeout: [TIMEOUT_PHRASE] })));
+    const { voice } = setup(() => settingsOf(pool({ timeout: [TIMEOUT_PHRASE] })));
     await vi.advanceTimersByTimeAsync(2000);
     const before = synthCalls().length;
     expect(before).toBeGreaterThanOrEqual(1);

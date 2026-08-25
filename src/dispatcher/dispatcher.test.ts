@@ -1666,6 +1666,43 @@ describe("dispatcher — onUserTurnFailed seam (issue #274)", () => {
     d.stop();
   });
 
+  // A proactive/schedule turn failing must never reach speakFailure — bootstrap-configured.ts
+  // calls voice.speakFailure(reason) unconditionally from this same sink, and nothing there
+  // re-checks the trigger kind, so the gate has to hold here.
+  it("does NOT fire for a proactive turn (window_sit), even on failure — speakFailure must never see it", async () => {
+    const { d, sink } = makeDispatcherWithFailedTurnSink();
+    d.start();
+    bus.push(
+      env({
+        event_name: "proactive.window_sit",
+        dnd_override: undefined,
+        source: "timer_scheduler",
+      }),
+    );
+    await vi.advanceTimersByTimeAsync(20);
+    callDeferred[0].resolve("network_stall");
+    await vi.advanceTimersByTimeAsync(20);
+    expect(sink).not.toHaveBeenCalled();
+    d.stop();
+  });
+
+  it("does NOT fire for a schedule turn (daily_checkin), even on failure — speakFailure must never see it", async () => {
+    const { d, sink } = makeDispatcherWithFailedTurnSink();
+    d.start();
+    bus.push(
+      env({
+        event_name: "schedule.daily_checkin",
+        dnd_override: undefined,
+        source: "timer_scheduler",
+      }),
+    );
+    await vi.advanceTimersByTimeAsync(20);
+    callDeferred[0].resolve("network_drop");
+    await vi.advanceTimersByTimeAsync(20);
+    expect(sink).not.toHaveBeenCalled();
+    d.stop();
+  });
+
   it("does NOT fire when the outcome is superseded_by_user", async () => {
     const { d, sink } = makeDispatcherWithFailedTurnSink();
     d.start();
