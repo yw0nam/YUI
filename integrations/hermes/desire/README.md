@@ -44,6 +44,15 @@ roll it back.
 
 ## Install
 
+The install procedure is also packaged as a Hermes skill at `skills/yui-desire-install/SKILL.md`. Registering the
+`skills/` directory in the profile `config.yaml` makes the agent able to run the install itself:
+
+```yaml
+skills:
+  external_dirs:
+    - <abs>/integrations/hermes/desire/skills
+```
+
 On the Hermes host, clone the YUI repository and link the plugin directory into the Hermes plugin directory:
 
 ```bash
@@ -105,3 +114,8 @@ uv run pytest
 uv run ruff format --check .
 uv run ruff check .
 ```
+
+With `logging.level: DEBUG` in the Hermes profile `config.yaml`, every middleware pass writes one
+`yui-desire llm_request …` line to `~/.hermes/logs/agent.log` carrying only outcome, skip reason, trigger
+class, request shape, cache-hit status, and the Hermes request/turn/session ids — never the desire block,
+drive levels, or user text.

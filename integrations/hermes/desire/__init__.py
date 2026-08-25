@@ -8,12 +8,16 @@ correctness, only the prompt-cache byte-stability optimization.
 
 import copy
 import hashlib
+import logging
 import re
 from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
 
 from . import desire_state
 
+logger = logging.getLogger(__name__)
+
+_VERSION = "0.1.0"
 KST = ZoneInfo("Asia/Seoul")
 _TEXT_TYPES = ("text", "input_text")
 _CLIENT_CONTEXT = re.compile(r"<client_context>\n(?:(?!</?client_context>).)*?</client_context>", re.DOTALL)
@@ -101,91 +105,134 @@ def _build_desire_block(drives, outbox, now):
     return desire_state.serialize_desire_block(levels, active), tuple(item["id"] for item in active)
 
 
+def _rewrite(kwargs, event):
+    global _turn_cache
+    request = kwargs["request"]
+    now = desire_state.normalize_now(kwargs.get("now") or datetime.now(KST))
+    key = "messages" if isinstance(request.get("messages"), list) else "input"
+    messages = request.get(key)
+    if not isinstance(messages, list):
+        event["reason"] = "no-messages"
+        return None
+
+    user_index = next(
+        (
+            index
+            for index in range(len(messages) - 1, -1, -1)
+            if isinstance(messages[index], dict) and messages[index].get("role") == "user"
+        ),
+        None,
+    )
+    if user_index is None or _last_text_carrier(messages[user_index]) is None:
+        event["reason"] = "no-user-text"
+        return None
+
+    content = messages[user_index].get("content")
+    event["shape"] = f"{key}/{'str' if isinstance(content, str) else 'list'}"
+
+    original_text = _message_text(messages[user_index])
+    if _already_injected(original_text):
+        event["reason"] = "already-injected"
+        return None
+
+    state_dir = desire_state.resolve_state_dir()
+    text_hash = hashlib.sha256(original_text.encode("utf-8")).hexdigest()
+    cache_key = (str(state_dir.resolve()), text_hash)
+
+    initialized = (state_dir / "state.lock").exists() or any(
+        (state_dir / name).exists() for name in _STATE_FILES
+    )
+    if initialized:
+        with desire_state.state_lock(state_dir):
+            drives = desire_state.read_drives_snapshot(state_dir, now)
+            outbox = desire_state.read_jsonl(state_dir / "outbox.jsonl")
+    else:
+        drives = desire_state.default_drives(now)
+        outbox = []
+
+    staged_drives = copy.deepcopy(drives)
+    interaction = _is_interaction(original_text)
+    event["interaction"] = interaction
+    interaction_changed = False
+    if interaction and drives.get("last_interaction_hash") != text_hash:
+        staged_drives["last_interaction_hash"] = text_hash
+        last_interaction = desire_state.parse_timestamp(drives["last_interaction_at"])
+        if now - last_interaction > timedelta(minutes=5):
+            staged_drives["last_interaction_at"] = now.astimezone(KST).isoformat()
+        interaction_changed = True
+
+    cached = _turn_cache
+    cache_hit = cached is not None and cached["key"] == cache_key and now - cached["last_hit"] <= _CACHE_TTL
+    event["cache_hit"] = cache_hit
+    if cache_hit:
+        block = cached["block"]
+        included_ids = cached["included_ids"]
+    else:
+        block, included_ids = _build_desire_block(staged_drives, outbox, now)
+
+    rewritten = copy.deepcopy(request)
+    rewritten_messages = rewritten[key]
+    carrier, carrier_key = _last_text_carrier(rewritten_messages[user_index])
+    carrier[carrier_key] += "\n\n" + block
+
+    with desire_state.state_lock(state_dir):
+        committed_state = desire_state.bootstrap_locked(state_dir, now)
+        if interaction_changed:
+            current_drives = committed_state["drives"]
+            if current_drives.get("last_interaction_hash") != text_hash:
+                drives_to_write = copy.deepcopy(current_drives)
+                drives_to_write["last_interaction_hash"] = text_hash
+                last_interaction = desire_state.parse_timestamp(current_drives["last_interaction_at"])
+                if now - last_interaction > timedelta(minutes=5):
+                    drives_to_write["last_interaction_at"] = now.isoformat()
+                desire_state.write_json_atomic(state_dir / "drives.json", drives_to_write)
+
+        desire_state.stamp_outbox(state_dir / "outbox.jsonl", included_ids, now)
+
+        _turn_cache = {
+            "key": cache_key,
+            "block": block,
+            "included_ids": included_ids,
+            "last_hit": now,
+        }
+
+    event["outcome"] = "injected"
+    return {"request": rewritten, "source": "yui-desire", "reason": "desire-state"}
+
+
+def _safe_id(value):
+    if value is None:
+        return None
+    return str(value)[:64].replace("\n", " ").replace("\r", " ")
+
+
+def _log_event(event, kwargs):
+    try:
+        logger.debug(
+            "yui-desire llm_request plugin=yui-desire/%s outcome=%s reason=%s interaction=%s "
+            "shape=%s cache_hit=%s api_request_id=%s turn_id=%s session_id=%s",
+            _VERSION,
+            event["outcome"],
+            event["reason"],
+            event["interaction"],
+            event["shape"],
+            event["cache_hit"],
+            _safe_id(kwargs.get("api_request_id")),
+            _safe_id(kwargs.get("turn_id")),
+            _safe_id(kwargs.get("session_id")),
+        )
+    except Exception:  # noqa: BLE001, S110 - logging must never affect request delivery
+        pass
+
+
 def _inject(**kwargs):
     """Return a rewritten provider request, or fail open with ``None``."""
-    global _turn_cache
+    event = {"outcome": "skipped", "reason": None, "interaction": None, "shape": None, "cache_hit": None}
     try:
-        request = kwargs["request"]
-        now = desire_state.normalize_now(kwargs.get("now") or datetime.now(KST))
-        key = "messages" if isinstance(request.get("messages"), list) else "input"
-        messages = request.get(key)
-        if not isinstance(messages, list):
-            return None
-
-        user_index = next(
-            (
-                index
-                for index in range(len(messages) - 1, -1, -1)
-                if isinstance(messages[index], dict) and messages[index].get("role") == "user"
-            ),
-            None,
-        )
-        if user_index is None or _last_text_carrier(messages[user_index]) is None:
-            return None
-        original_text = _message_text(messages[user_index])
-        if _already_injected(original_text):
-            return None
-
-        state_dir = desire_state.resolve_state_dir()
-        text_hash = hashlib.sha256(original_text.encode("utf-8")).hexdigest()
-        cache_key = (str(state_dir.resolve()), text_hash)
-
-        initialized = (state_dir / "state.lock").exists() or any(
-            (state_dir / name).exists() for name in _STATE_FILES
-        )
-        if initialized:
-            with desire_state.state_lock(state_dir):
-                drives = desire_state.read_drives_snapshot(state_dir, now)
-                outbox = desire_state.read_jsonl(state_dir / "outbox.jsonl")
-        else:
-            drives = desire_state.default_drives(now)
-            outbox = []
-
-        staged_drives = copy.deepcopy(drives)
-        interaction_changed = False
-        if _is_interaction(original_text) and drives.get("last_interaction_hash") != text_hash:
-            staged_drives["last_interaction_hash"] = text_hash
-            last_interaction = desire_state.parse_timestamp(drives["last_interaction_at"])
-            if now - last_interaction > timedelta(minutes=5):
-                staged_drives["last_interaction_at"] = now.astimezone(KST).isoformat()
-            interaction_changed = True
-
-        cached = _turn_cache
-        cache_hit = (
-            cached is not None and cached["key"] == cache_key and now - cached["last_hit"] <= _CACHE_TTL
-        )
-        if cache_hit:
-            block = cached["block"]
-            included_ids = cached["included_ids"]
-        else:
-            block, included_ids = _build_desire_block(staged_drives, outbox, now)
-
-        rewritten = copy.deepcopy(request)
-        rewritten_messages = rewritten[key]
-        carrier, carrier_key = _last_text_carrier(rewritten_messages[user_index])
-        carrier[carrier_key] += "\n\n" + block
-
-        with desire_state.state_lock(state_dir):
-            committed_state = desire_state.bootstrap_locked(state_dir, now)
-            if interaction_changed:
-                current_drives = committed_state["drives"]
-                if current_drives.get("last_interaction_hash") != text_hash:
-                    drives_to_write = copy.deepcopy(current_drives)
-                    drives_to_write["last_interaction_hash"] = text_hash
-                    last_interaction = desire_state.parse_timestamp(current_drives["last_interaction_at"])
-                    if now - last_interaction > timedelta(minutes=5):
-                        drives_to_write["last_interaction_at"] = now.isoformat()
-                    desire_state.write_json_atomic(state_dir / "drives.json", drives_to_write)
-
-            desire_state.stamp_outbox(state_dir / "outbox.jsonl", included_ids, now)
-
-            _turn_cache = {
-                "key": cache_key,
-                "block": block,
-                "included_ids": included_ids,
-                "last_hit": now,
-            }
-
-        return {"request": rewritten, "source": "yui-desire", "reason": "desire-state"}
-    except Exception:  # noqa: BLE001 - middleware must fail open for every plugin failure
+        return _rewrite(kwargs, event)
+    except Exception as exc:  # noqa: BLE001 - middleware must fail open for every plugin failure
+        event["outcome"] = "error"
+        event["reason"] = type(exc).__name__
         return None
+    finally:
+        _log_event(event, kwargs)
