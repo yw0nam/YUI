@@ -388,6 +388,24 @@ def test_serialize_desire_block_marks_pent_up_day_boundaries(at):
     assert "- [2026-08-22 12:00] (waited 3d, bursting) bursting" in block
 
 
+def test_release_outbox_item_preserves_bytes_of_untouched_lines(state_dir):
+    path = state_dir / "outbox.jsonl"
+    valid_a = json.dumps({"id": "a", "created_at": "2026-08-25T12:00:00+09:00"}).encode("utf-8")
+    malformed_crlf = b'{"id": "broken", "created_at": \r\n'
+    invalid_utf8 = b"\xff\xfe{broken"
+    valid_b = json.dumps({"id": "b", "created_at": "2026-08-25T12:00:00+09:00"}).encode("utf-8")
+    original = valid_a + b"\n" + malformed_crlf + b"\n" + invalid_utf8 + b"\n" + valid_b + b"\n"
+    path.write_bytes(original)
+
+    assert desire_state.release_outbox_item(path, "a") is True
+
+    assert path.read_bytes() == malformed_crlf + b"\n" + invalid_utf8 + b"\n" + valid_b + b"\n"
+
+    assert desire_state.release_outbox_item(path, "b") is True
+
+    assert path.read_bytes() == malformed_crlf + b"\n" + invalid_utf8 + b"\n"
+
+
 def test_malformed_jsonl_is_skipped_and_unterminated_tail_is_separated(state_dir, at):
     now = at("2026-08-25T12:00:00+09:00")
     path = state_dir / "outbox.jsonl"
