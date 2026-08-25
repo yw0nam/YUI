@@ -307,6 +307,43 @@ describe("createFillerLoop — onToolRunning()", () => {
     expect(deps.spoken).toEqual(["first-a", "searching"]);
   });
 
+  it("keeps scheduling when speak() completes playback synchronously (a phrase that submits no audio)", () => {
+    // An emoji-only phrase reaches pipeline.end() with nothing submitted, so onPlaybackEnd — and
+    // thus onUtteranceDone — fires inside the speak() call itself.
+    const deps = makeDeps({
+      getPools: () => pool({ first: ["🙂"], tool: { web_search: ["searching"] } }),
+    });
+    const loop = createFillerLoop({
+      ...deps,
+      speak: (text) => {
+        deps.spoken.push(text);
+        loop.onUtteranceDone();
+      },
+    });
+
+    loop.start(); // "🙂" completes re-entrantly; nothing is in flight afterwards
+    loop.onToolRunning("web_search");
+    deps.timers.advance(700);
+
+    expect(deps.spoken).toEqual(["🙂", "searching"]);
+  });
+
+  it("three unknown tools starting while one utterance plays yield a single _default phrase", () => {
+    const deps = makeDeps({
+      getPools: () => pool({ tool: { _default: ["checking…", "looking into it…"] } }),
+    });
+    const loop = createFillerLoop(deps);
+    loop.start(); // in flight
+    loop.onToolRunning("mystery_tool_a");
+    loop.onToolRunning("mystery_tool_b");
+    loop.onToolRunning("mystery_tool_c");
+    loop.onUtteranceDone();
+    deps.timers.advance(700);
+
+    expect(deps.spoken.length).toBe(2); // first phrase + one _default phrase, not three
+    expect(["checking…", "looking into it…"]).toContain(deps.spoken[1]);
+  });
+
   it("re-arms long_wait after the tool phrase", () => {
     const deps = makeDeps({
       getPools: () => pool({ tool: { web_search: ["searching"] }, long_wait: ["long-wait-a"] }),
