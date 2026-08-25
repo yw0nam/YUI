@@ -57,7 +57,7 @@ function validConfig(): AppConfig {
       },
       attachments: ATTACHMENT_LIMITS_DEFAULTS,
     },
-    filler: { gap_ms: 1_000, gap_jitter_ms: 100, pools: {} },
+    filler: { gap_ms: 1_000, gap_jitter_ms: 100, max_repeats: 3, gap_growth: 2, pools: {} },
     hotkeys: { summon_global: "CmdOrCtrl+Shift+Y" },
     screen: {
       prev_dwell_ms: 600000,

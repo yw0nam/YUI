@@ -774,7 +774,7 @@ describe("deriveBrokerPayload", () => {
         rate_limit: { window_ms: 0, tier2_max: 0, tier3_max: 0, overall_max: 0, cooldown_ms: 0 },
         attachments: ATTACHMENT_LIMITS_DEFAULTS,
       },
-      filler: { gap_ms: 0, gap_jitter_ms: 0, pools: {} },
+      filler: { gap_ms: 0, gap_jitter_ms: 0, max_repeats: 3, gap_growth: 2, pools: {} },
       hotkeys: { summon_global: "" },
       screen: {
         prev_dwell_ms: 600000,

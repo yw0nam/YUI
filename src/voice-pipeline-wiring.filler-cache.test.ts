@@ -80,7 +80,7 @@ function setup(
       stt_base_url: "http://stt.test/v1",
       tts_base_url: "http://tts.test",
     }),
-    getFillerConfig: () => ({ gap_ms: gapMs, gap_jitter_ms: 0, pools: {} }),
+    getFillerConfig: () => ({ gap_ms: gapMs, gap_jitter_ms: 0, max_repeats: 1000, gap_growth: 1, pools: {} }),
     getTtsApiKey: vi.fn().mockResolvedValue(undefined),
     getSttApiKey: vi.fn().mockResolvedValue(undefined),
     ttsSettings: { get: () => ({ enabled: true }) },

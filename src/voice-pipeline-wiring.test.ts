@@ -15,6 +15,9 @@ const mocks = vi.hoisted(() => {
   const fillerLoop = {
     start: vi.fn(),
     onUtteranceDone: vi.fn(),
+    onToolRunning: vi.fn(),
+    onActivity: vi.fn(),
+    onSynthFailure: vi.fn(),
     stop: vi.fn(),
   };
   const sttVad = {
@@ -84,7 +87,7 @@ vi.mock("./io/voice-import", () => ({
   fileStemFromPath: (path: string) => path,
 }));
 
-import type { FillerConfig } from "./config/load";
+import type { FillerConfig, FillerPool } from "./config/load";
 import type { EndpointsConfig } from "./contract";
 import type { BusEnvelope } from "./dispatcher/event-bus";
 import { createTurnLog } from "./dispatcher/turn";
@@ -105,6 +108,10 @@ const noopLog = { debug: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn() }
 // In-memory Storage stand-in shared by two speakerSelection instances, so they behave like the
 // same localStorage two real windows would share (jsdom/window are not available in this file's
 // node test environment).
+function fillerPool(overrides: Partial<FillerPool> = {}): FillerPool {
+  return { first: [], repeat: [], long_wait: [], tool: {}, timeout: [], unreachable: [], ...overrides };
+}
+
 function sharedLocalStorage(): Storage {
   const backing = new Map<string, string>();
   return {
@@ -144,7 +151,9 @@ function setup() {
   let fillerConfig: FillerConfig = {
     gap_ms: 1_000,
     gap_jitter_ms: 100,
-    pools: { ja: { first: ["first"], repeat: ["repeat"] } },
+    max_repeats: 3,
+    gap_growth: 2,
+    pools: { ja: fillerPool({ first: ["first"], repeat: ["repeat"] }) },
   };
   const fillerSettings = {
     enabled: true,
@@ -298,20 +307,24 @@ describe("wireVoicePipeline", () => {
 
   it("reports whether either effective filler pool is non-empty", () => {
     const state = setup();
-    state.setFillerConfig({ gap_ms: 1, gap_jitter_ms: 0, pools: {} });
+    state.setFillerConfig({ gap_ms: 1, gap_jitter_ms: 0, max_repeats: 3, gap_growth: 2, pools: {} });
     expect(state.voice.turnOutput.hasFiller()).toBe(false);
 
     state.setFillerConfig({
       gap_ms: 1,
       gap_jitter_ms: 0,
-      pools: { ja: { first: ["first"], repeat: [] } },
+      max_repeats: 3,
+      gap_growth: 2,
+      pools: { ja: fillerPool({ first: ["first"], repeat: [] }) },
     });
     expect(state.voice.turnOutput.hasFiller()).toBe(true);
 
     state.setFillerConfig({
       gap_ms: 1,
       gap_jitter_ms: 0,
-      pools: { ja: { first: [], repeat: ["repeat"] } },
+      max_repeats: 3,
+      gap_growth: 2,
+      pools: { ja: fillerPool({ first: [], repeat: ["repeat"] }) },
     });
     expect(state.voice.turnOutput.hasFiller()).toBe(true);
   });
@@ -509,7 +522,9 @@ describe("wireVoicePipeline", () => {
         getFillerConfig: () => ({
           gap_ms: 1_000,
           gap_jitter_ms: 100,
-          pools: { ja: { first: ["first"], repeat: ["repeat"] } },
+          max_repeats: 3,
+          gap_growth: 2,
+          pools: { ja: fillerPool({ first: ["first"], repeat: ["repeat"] }) },
         }),
         getTtsApiKey: vi.fn().mockResolvedValue(undefined),
         getSttApiKey: vi.fn().mockResolvedValue(undefined),
@@ -552,7 +567,9 @@ describe("wireVoicePipeline", () => {
     state.setFillerConfig({
       gap_ms: 1_000,
       gap_jitter_ms: 100,
-      pools: { ja: { first: ["first"], repeat: ["another"] } },
+      max_repeats: 3,
+      gap_growth: 2,
+      pools: { ja: fillerPool({ first: ["first"], repeat: ["another"] }) },
     });
 
     // The untouched phrase keeps its audio.
@@ -563,7 +580,9 @@ describe("wireVoicePipeline", () => {
     state.setFillerConfig({
       gap_ms: 1_000,
       gap_jitter_ms: 100,
-      pools: { ja: { first: ["first"], repeat: ["repeat"] } },
+      max_repeats: 3,
+      gap_growth: 2,
+      pools: { ja: fillerPool({ first: ["first"], repeat: ["repeat"] }) },
     });
     await synth("repeat");
     expect(synthCalls()).toHaveLength(3);
@@ -585,9 +604,19 @@ describe("wireVoicePipeline", () => {
     state.setGain(5);
     expect(sinkOptions.getGain!()).toBe(5);
 
-    expect(fillerOptions().getTiming()).toEqual({ gapMs: 1_000, jitterMs: 100 });
-    state.setFillerConfig({ gap_ms: 2_000, gap_jitter_ms: 250, pools: {} });
-    expect(fillerOptions().getTiming()).toEqual({ gapMs: 2_000, jitterMs: 250 });
+    expect(fillerOptions().getTiming()).toEqual({
+      gapMs: 1_000,
+      jitterMs: 100,
+      maxRepeats: 3,
+      gapGrowth: 2,
+    });
+    state.setFillerConfig({ gap_ms: 2_000, gap_jitter_ms: 250, max_repeats: 5, gap_growth: 1.5, pools: {} });
+    expect(fillerOptions().getTiming()).toEqual({
+      gapMs: 2_000,
+      jitterMs: 250,
+      maxRepeats: 5,
+      gapGrowth: 1.5,
+    });
 
     await state.voice.createSttEngine();
     const sttOptions = mocks.captured.sttVad as SttVadOptions;
