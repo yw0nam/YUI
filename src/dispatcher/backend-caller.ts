@@ -454,7 +454,7 @@ export function createBackendCaller(deps: BackendCallerDeps): BackendCaller {
               case "express":
                 // Pass the entire cue as-is — TTS pipeline applies audio-timed at sentence playback.
                 deps.turnOutput?.cue(ev.args);
-                deps.turnOutput?.activity();
+                deps.turnOutput?.activity(turn.id);
                 cueStreamed = true;
                 break;
               case "usage":
@@ -466,7 +466,7 @@ export function createBackendCaller(deps: BackendCallerDeps): BackendCaller {
                 // Do not call endThinking (:551): tool_status does not break thinking.
                 log.debug("tool_status", { state: ev.status.state, tool_id: ev.status.tool_id });
                 deps.onToolStatus?.(ev.status);
-                deps.turnOutput?.toolStatus(ev.status.state, ev.status.tool_id);
+                deps.turnOutput?.toolStatus(turn.id, ev.status.state, ev.status.tool_id);
                 toolRunning = ev.status.state === "running";
                 break;
               case "completed":

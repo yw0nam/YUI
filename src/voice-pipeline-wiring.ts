@@ -195,13 +195,15 @@ export function wireVoicePipeline(deps: VoicePipelineDeps): VoicePipeline {
     end: () => speechPlayback.onSpeechEnd(),
     abort: () => speechPlayback.abort(),
     cue: (args) => speechPlayback.setCue(args),
-    toolStatus: (state, toolId) => {
-      if (thinkingTurnId === null) return;
+    toolStatus: (turnId, state, toolId) => {
+      // Ignores an event from a turn other than the one currently thinking — a superseded turn's
+      // late tool_status must not reach whichever newer turn's filler loop is now running.
+      if (turnId !== thinkingTurnId) return;
       if (state === "running") fillerLoop?.onToolRunning(toolId ?? DEFAULT_TOOL_KEY);
       else fillerLoop?.onActivity();
     },
-    activity: () => {
-      if (thinkingTurnId === null) return;
+    activity: (turnId) => {
+      if (turnId !== thinkingTurnId) return;
       fillerLoop?.onActivity();
     },
   };
