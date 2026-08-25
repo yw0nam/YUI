@@ -163,6 +163,15 @@ export function wireVoicePipeline(deps: VoicePipelineDeps): VoicePipeline {
     end: () => speechPlayback.onSpeechEnd(),
     abort: () => speechPlayback.abort(),
     cue: (args) => speechPlayback.setCue(args),
+    toolStatus: (state, toolId) => {
+      if (thinkingTurnId === null) return;
+      if (state === "running") fillerLoop?.onToolRunning(toolId ?? "");
+      else fillerLoop?.onActivity();
+    },
+    activity: () => {
+      if (thinkingTurnId === null) return;
+      fillerLoop?.onActivity();
+    },
   };
 
   async function createSttEngine(): Promise<SttVad> {
