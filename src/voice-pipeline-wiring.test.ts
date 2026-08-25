@@ -631,6 +631,51 @@ describe("wireVoicePipeline", () => {
     expect(mocks.fillerLoop.onUtteranceDone).toHaveBeenCalledOnce();
   });
 
+  describe("turnOutput.toolStatus / turnOutput.activity", () => {
+    it("toolStatus('running', id) calls fillerLoop.onToolRunning(id) while thinking", () => {
+      const { voice } = setup();
+      voice.turnOutput.thinkingStart(1);
+      voice.turnOutput.toolStatus("running", "terminal");
+      expect(mocks.fillerLoop.onToolRunning).toHaveBeenCalledWith("terminal");
+    });
+
+    it("toolStatus('done'|'idle'|'error') calls fillerLoop.onActivity() while thinking", () => {
+      const { voice } = setup();
+      voice.turnOutput.thinkingStart(1);
+      voice.turnOutput.toolStatus("done");
+      voice.turnOutput.toolStatus("idle");
+      voice.turnOutput.toolStatus("error");
+      expect(mocks.fillerLoop.onActivity).toHaveBeenCalledTimes(3);
+      expect(mocks.fillerLoop.onToolRunning).not.toHaveBeenCalled();
+    });
+
+    it("activity() calls fillerLoop.onActivity() while thinking", () => {
+      const { voice } = setup();
+      voice.turnOutput.thinkingStart(1);
+      voice.turnOutput.activity();
+      expect(mocks.fillerLoop.onActivity).toHaveBeenCalledOnce();
+    });
+
+    it("ignores toolStatus/activity when no turn is thinking", () => {
+      const { voice } = setup();
+      voice.turnOutput.toolStatus("running", "terminal");
+      voice.turnOutput.activity();
+      expect(mocks.fillerLoop.onToolRunning).not.toHaveBeenCalled();
+      expect(mocks.fillerLoop.onActivity).not.toHaveBeenCalled();
+    });
+
+    it("ignores toolStatus/activity once thinking has ended", () => {
+      const { voice } = setup();
+      voice.turnOutput.thinkingStart(1);
+      voice.turnOutput.thinkingEnd(1);
+      vi.clearAllMocks();
+      voice.turnOutput.toolStatus("running", "terminal");
+      voice.turnOutput.activity();
+      expect(mocks.fillerLoop.onToolRunning).not.toHaveBeenCalled();
+      expect(mocks.fillerLoop.onActivity).not.toHaveBeenCalled();
+    });
+  });
+
   it("wires STT callbacks, state, credentials, and a live endpoints getter (#611)", async () => {
     const state = setup();
     const snapshot = endpoints({ stt_base_url: "http://snapshot.test/v1" });
