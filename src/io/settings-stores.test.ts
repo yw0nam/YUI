@@ -49,6 +49,7 @@ describe("createSettingsStores", () => {
       "gazeSettings",
       "hintSettings",
       "railCollapsedSettings",
+      "sectionsSettings",
       "guardrailsSettings",
       "idleMotionSettings",
       "expressMotionSettings",
@@ -138,6 +139,22 @@ describe("createSettingsStores", () => {
     expect(localStorage.getItem("yui.express_motions")).toBe(
       JSON.stringify({ disabled: ["dance"] }),
     );
+    localStorage.clear();
+  });
+
+  it("broadcasts collapsed-sections state across windows", () => {
+    const stores = createSettingsStores();
+
+    expect(broadcastSyncStores(stores)).toContain(stores.sectionsSettings);
+  });
+
+  it("persists closed sections under yui.sections", () => {
+    localStorage.clear();
+    const stores = createSettingsStores();
+
+    stores.sectionsSettings.setClosed("vrm", true);
+
+    expect(localStorage.getItem("yui.sections")).toBe(JSON.stringify({ closed: ["vrm"] }));
     localStorage.clear();
   });
 

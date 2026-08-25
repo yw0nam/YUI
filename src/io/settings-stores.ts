@@ -28,6 +28,7 @@ import {
 import { createScheduleSettings, localStorageScheduleStorage } from "./schedule-settings";
 import { createScreenKnobSettings, localStorageScreenKnobStorage } from "./screen-settings";
 import { createScreenshotSettings, localStorageScreenshotStorage } from "./screenshot-settings";
+import { createSectionsSettings, localStorageSectionsStorage } from "./sections-settings";
 import {
   createSessionDiagnosticsStore,
   localStorageSessionDiagnosticsStorage,
@@ -140,6 +141,10 @@ export function createSettingsStores(opts?: { locale?: CueLocale }) {
   const railCollapsedSettings = createFlagSettings(false, {
     storage: localStorageStore("yui.quickControls.railCollapsed"),
   });
+  // Quick Controls collapsible sections: ids the user closed. Absent ⇒ open (today's layout).
+  const sectionsSettings = createSectionsSettings({
+    storage: localStorageSectionsStorage(),
+  });
   // User-edited guardrail rate-limit caps: localStorage overrides the bundled config (0 = fallback).
   const guardrailsSettings = createGuardrailsSettings({
     storage: localStorageGuardrailsStorage(),
@@ -183,6 +188,7 @@ export function createSettingsStores(opts?: { locale?: CueLocale }) {
     gazeSettings,
     hintSettings,
     railCollapsedSettings,
+    sectionsSettings,
     guardrailsSettings,
     idleMotionSettings,
     expressMotionSettings,
@@ -231,6 +237,7 @@ export const SYNC_MODE: Record<keyof SettingsStores, SyncMode> = {
   gazeSettings: "broadcast",
   hintSettings: "local",
   railCollapsedSettings: "broadcast",
+  sectionsSettings: "broadcast",
   guardrailsSettings: "broadcast",
   idleMotionSettings: "broadcast",
   expressMotionSettings: "broadcast",
