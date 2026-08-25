@@ -175,4 +175,21 @@ describe("createQuickControls — collapsible sections", () => {
 
     qc.dispose();
   });
+
+  it("a store change made while the panel is closed reflects into the DOM on reopen", () => {
+    const sectionsSettings = createSectionsSettings();
+    const qc = buildQc({ sectionsSettings });
+    qc.open();
+    qc.close();
+
+    // Edit lands while closed (subscription is gated on popover.isOpen()) — panel markup is built
+    // once, so nothing re-syncs the DOM until the next open() reflect batch runs.
+    sectionsSettings.setClosed("vrm", true);
+
+    qc.open();
+    const vrm = sectionsOf(qc.el).find((s) => s.dataset.section === "vrm")!;
+    expect(vrm.open).toBe(false);
+
+    qc.dispose();
+  });
 });

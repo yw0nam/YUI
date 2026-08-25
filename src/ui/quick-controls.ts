@@ -647,6 +647,7 @@ export function createQuickControls({
       reflect.reflectChatType();
       reflect.reflectChatPreset();
       reflect.reflectSession();
+      sections.reflect();
       // The confirm is static markup — disarm it so a reopen never lands on the destructive pill.
       hideSessionConfirm();
       history?.render();
