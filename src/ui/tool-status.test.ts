@@ -56,6 +56,12 @@ describe("showTool — tool_id label resolution", () => {
     expect(label?.textContent).toBe("Some unknown tool…");
   });
 
+  it("humanizes an mcp__<server>__<tool> id from its tool name alone", () => {
+    s.showTool("mcp__memory_layer__search_memory");
+    const label = mount.querySelector(".yui-tool__label");
+    expect(label?.textContent).toBe("Search memory…");
+  });
+
   it("makes tool chip visible", () => {
     s.showTool("web_search");
     const toolEl = mount.querySelector(".yui-tool");
