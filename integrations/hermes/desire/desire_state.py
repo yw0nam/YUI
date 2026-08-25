@@ -18,7 +18,7 @@ KST = ZoneInfo("Asia/Seoul")
 CURIOSITY_RATE = 3.0
 ACCOMPLISHMENT_RATE = 2.0
 SOCIAL_RATE = 5.0
-OUTBOX_ACTIVE_MINUTES = 15
+OUTBOX_EXPIRY_DAYS = 7
 CAPS = {"signals": 3, "issues": 2, "self_comments": 1}
 EVENT_DOSES = {
     "learned": {"curiosity": 30.0},
@@ -411,16 +411,19 @@ def valid_outbox_item(item: object) -> bool:
 
 
 def active_outbox(items: list[dict], now: datetime) -> list[dict]:
+    """Return every valid item younger than the seven-day expiry.
+
+    Surfacing (see ``stamp_outbox``) no longer retires an item; it stays pent-up until it is
+    explicitly released (``act.py outbox --release``) or ages past ``OUTBOX_EXPIRY_DAYS``.
+    """
+
     now = normalize_now(now)
     active = []
     for item in items:
         if not valid_outbox_item(item):
             continue
-        surfaced_at = item.get("surfaced_at")
-        if (
-            surfaced_at is None
-            or parse_timestamp(surfaced_at) + timedelta(minutes=OUTBOX_ACTIVE_MINUTES) > now
-        ):
+        created_at = parse_timestamp(item["created_at"])
+        if created_at + timedelta(days=OUTBOX_EXPIRY_DAYS) > now:
             active.append(item)
     return active
 

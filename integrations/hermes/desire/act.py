@@ -165,6 +165,19 @@ def _outbox_list(now):
     return 0
 
 
+def _outbox_release(item_id, why, now):
+    state_dir = desire_state.resolve_state_dir()
+    with desire_state.state_lock(state_dir):
+        items = desire_state.read_jsonl(state_dir / "outbox.jsonl")
+        remaining = [item for item in items if item.get("id") != item_id]
+        if len(remaining) == len(items):
+            print("unknown outbox item", file=sys.stderr)
+            return 1
+        desire_state.write_jsonl_atomic(state_dir / "outbox.jsonl", remaining)
+        _audit(state_dir, now, "outbox_released", id=item_id, why=why)
+    return 0
+
+
 def _parser():
     parser = argparse.ArgumentParser(description=__doc__)
     commands = parser.add_subparsers(dest="command", required=True)
@@ -189,7 +202,10 @@ def _parser():
     feedback_group.add_argument("--set", metavar="ISO")
 
     outbox = commands.add_parser("outbox")
-    outbox.add_argument("--list", action="store_true", required=True)
+    outbox_group = outbox.add_mutually_exclusive_group(required=True)
+    outbox_group.add_argument("--list", action="store_true")
+    outbox_group.add_argument("--release", metavar="ID")
+    outbox.add_argument("--why")
     return parser
 
 
@@ -219,7 +235,9 @@ def main(argv=None, *, now=None, opener=urllib_request.urlopen):
         return 0
     if args.command == "feedback":
         return _feedback("get" if args.get else "set", args.set, now)
-    return _outbox_list(now)
+    if args.list:
+        return _outbox_list(now)
+    return _outbox_release(args.release, args.why, now)
 
 
 if __name__ == "__main__":
