@@ -157,6 +157,8 @@ export function createHintTooltip(deps: HintTooltipDeps): HintTooltip {
   function handleClick(e: MouseEvent): void {
     const target = findClosestTarget(e.target);
     if (target?.hasAttribute("data-tip-pin") && root.contains(target)) {
+      // A hint dot inside a collapsible section's <summary> would otherwise also toggle the section.
+      e.preventDefault();
       togglePin(target);
       return;
     }

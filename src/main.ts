@@ -189,6 +189,7 @@ async function bootstrap(): Promise<BootstrapHandle> {
     cameraSettings,
     gazeSettings,
     railCollapsedSettings,
+    sectionsSettings,
     guardrailsSettings,
     bubblePersistSettings,
     chatHistoryStore,
@@ -311,6 +312,7 @@ async function bootstrap(): Promise<BootstrapHandle> {
         }
       },
       railCollapsedSettings,
+      sectionsSettings,
       transcript: chatHistoryStore,
       // Same instances the dispatcher reads through, so "start fresh" takes effect on the next turn.
       sessionStore,

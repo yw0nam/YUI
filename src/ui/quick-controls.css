@@ -361,7 +361,9 @@
   color: var(--yui-text-mute);
 }
 
-.yui-quick__section:first-child {
+/* Every heading now lives inside its own <summary>, so it is always ":first-child" there —
+   scope the reduced top margin to the tab's actual first section instead. */
+.yui-tabpanel > .yui-section:first-child .yui-quick__section {
   margin-top: 0.2rem;
 }
 
@@ -369,6 +371,35 @@
   height: 1px;
   margin: 0.75rem 0.15rem 0.2rem;
   background: var(--yui-edge);
+}
+
+/* ── Collapsible section (native <details>) — same "›" chevron marker as .yui-endpoints'.
+   Its heading (.yui-quick__section / .yui-field-row__label) keeps its own look unchanged. ── */
+.yui-section > summary {
+  display: flex;
+  align-items: baseline;
+  gap: 0.3rem;
+  list-style: none;
+  cursor: pointer;
+  user-select: none;
+}
+
+.yui-section > summary::-webkit-details-marker {
+  display: none;
+}
+
+.yui-section > summary::before {
+  content: "›";
+  flex: none;
+  font-size: 0.85rem;
+  line-height: 1;
+  color: var(--yui-text-mute);
+  transform: rotate(0deg);
+  transition: transform var(--yui-dur-fast) var(--yui-ease);
+}
+
+.yui-section[open] > summary::before {
+  transform: rotate(90deg);
 }
 
 /* ── `?` after a section label ── */
@@ -1047,7 +1078,7 @@
   margin: 1.1rem 0.15rem 0.5rem;
 }
 
-.yui-quick--window .yui-quick__section:first-child {
+.yui-quick--window .yui-tabpanel > .yui-section:first-child .yui-quick__section {
   margin-top: 0;
 }
 
@@ -1196,7 +1227,8 @@
   .yui-vrm[aria-busy="true"] .yui-vrm__tick::after {
     animation: none;
   }
-  .yui-endpoints > summary::before {
+  .yui-endpoints > summary::before,
+  .yui-section > summary::before {
     transition: none;
   }
   .yui-meter__fill {

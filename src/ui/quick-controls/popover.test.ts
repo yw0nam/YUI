@@ -157,4 +157,51 @@ describe("createPopover — focus management", () => {
 
     pop.dispose();
   });
+
+  it("excludes controls inside a collapsed <details> section, but keeps its <summary> reachable", () => {
+    // Mirror a collapsed Quick Controls section — its body is present in the DOM but not focusable.
+    const root = document.createElement("div");
+    root.className = "yui-quick";
+    const before = document.createElement("button");
+    before.type = "button";
+    before.textContent = "before";
+    const details = document.createElement("details");
+    details.className = "yui-section";
+    // No `open` attribute — collapsed.
+    const summary = document.createElement("summary");
+    summary.textContent = "heading";
+    const inside = document.createElement("button");
+    inside.type = "button";
+    inside.textContent = "inside";
+    details.append(summary, inside);
+    root.append(before, details);
+
+    const scrim = document.createElement("div");
+    const pop = createPopover({
+      mount,
+      root,
+      scrim,
+      bar: null,
+      isWindow: false,
+      onOpen: () => {},
+      onClose: () => {},
+    });
+    pop.open();
+
+    // Forward Tab: wraps from the last reachable control (the collapsed section's own summary)
+    // back to the first — never lands on the button hidden inside its collapsed body.
+    summary.focus();
+    document.dispatchEvent(new KeyboardEvent("keydown", { key: "Tab", bubbles: true }));
+    expect(document.activeElement).toBe(before);
+    expect(document.activeElement).not.toBe(inside);
+
+    // Shift+Tab from the first control wraps to the summary, not the hidden button.
+    before.focus();
+    document.dispatchEvent(
+      new KeyboardEvent("keydown", { key: "Tab", shiftKey: true, bubbles: true }),
+    );
+    expect(document.activeElement).toBe(summary);
+
+    pop.dispose();
+  });
 });

@@ -65,6 +65,8 @@ interface PanelHtmlOptions {
   showHistory: boolean;
   /** Initial collapsed state of the sections rail, read from localStorage before first paint. */
   railCollapsed: boolean;
+  /** Ids of collapsible sections closed on first paint, read from localStorage before first paint. */
+  closedSections: ReadonlySet<string>;
 }
 
 export function buildPanelHtml(o: PanelHtmlOptions): string {
@@ -83,8 +85,14 @@ export function buildPanelHtml(o: PanelHtmlOptions): string {
     showDevtools,
     showHistory,
     railCollapsed,
+    closedSections,
   } = o;
   const visibleSwitchRows = switchRows.filter((row) => row.isVisible);
+
+  // Native <details> attribute for a collapsible section — open unless its id was persisted closed.
+  function sectionOpenAttr(id: string): string {
+    return closedSections.has(id) ? "" : " open";
+  }
 
   function switchRowHtml(row: SwitchRow, indent: number): string {
     const pad = " ".repeat(indent);
@@ -236,7 +244,8 @@ ${pad}</div>`;
   // The min-gap slider carries the .yui-gain markup; the four thresholds are numeric rows.
   const screenHtml = showScreen
     ? `
-        <span class="yui-quick__section">${t("screen.section")}${hintDotHtml("screen.hint")}</span>
+        <details class="yui-section" data-section="screen"${sectionOpenAttr("screen")}>
+        <summary><span class="yui-quick__section">${t("screen.section")}${hintDotHtml("screen.hint")}</span></summary>
 ${switchRowsHtml("react", 8, "screen")}
         <div class="yui-screen-knobs" hidden>
           <div class="yui-gain">
@@ -259,6 +268,7 @@ ${SCREEN_KNOB_FIELDS.map((f) =>
 ).join("")}
           <p class="yui-field-hint">${t("screen.foot")}</p>
         </div>
+        </details>
         <div class="yui-quick__divider" aria-hidden="true"></div>`
     : "";
 
@@ -266,18 +276,21 @@ ${SCREEN_KNOB_FIELDS.map((f) =>
   const rateLimitHtml = showRateLimits
     ? `
         <div class="yui-quick__divider" aria-hidden="true"></div>
-        <span class="yui-quick__section">${t("reactions.rate_title")}${hintDotHtml("reactions.rate_hint_text")}</span>
+        <details class="yui-section" data-section="reactions-rate"${sectionOpenAttr("reactions-rate")}>
+        <summary><span class="yui-quick__section">${t("reactions.rate_title")}${hintDotHtml("reactions.rate_hint_text")}</span></summary>
         <p class="yui-field-hint">${t("reactions.rate_hint")}</p>
 ${RATE_LIMIT_FIELDS.map((f) =>
   numRowHtml({ id: f.id, labelKey: f.labelKey, subKey: f.subKey, min: 1, max: RATE_LIMIT_MAX }),
-).join("")}`
+).join("")}
+        </details>`
     : "";
 
   // Session section (window-only) — token occupancy readout.
   const sessionHtml = hasSession
     ? `
       <div class="yui-quick__divider" aria-hidden="true"></div>
-      <span class="yui-quick__section">${t("session.section")}</span>
+      <details class="yui-section" data-section="session"${sectionOpenAttr("session")}>
+      <summary><span class="yui-quick__section">${t("session.section")}</span></summary>
       <div class="yui-session">
         <div class="yui-session__stat">
           <div class="yui-session__statline">
@@ -285,7 +298,8 @@ ${RATE_LIMIT_FIELDS.map((f) =>
             <span class="yui-session__value"></span>
           </div>
         </div>
-      </div>`
+      </div>
+      </details>`
     : "";
 
   // Start-fresh footer under the session list. Reset is race-safe via pet window thunk.
@@ -374,36 +388,37 @@ ${RATE_LIMIT_FIELDS.map((f) =>
       <div class="yui-quick__body">
 
       <div class="yui-tabpanel" role="tabpanel" id="yui-panel-talk" aria-labelledby="yui-tab-talk" tabindex="0">
-        <div class="yui-field-row">
-          <span class="yui-field-row__label">${t("reasoning.label")}</span>
+        <details class="yui-field-row yui-section" data-section="reasoning"${sectionOpenAttr("reasoning")}>
+          <summary><span class="yui-field-row__label">${t("reasoning.label")}</span></summary>
           <span class="yui-field-row__sub">${t("reasoning.sub")}</span>
           <div class="yui-seg" role="radiogroup" aria-label="${t("reasoning.label")}" style="--seg:0;">
             <span class="yui-seg__ind" aria-hidden="true"></span>
             ${segButtonsHtml}
           </div>
-        </div>
-        <div class="yui-field-row">
-          <span class="yui-field-row__label">${t("language.label")}</span>
+        </details>
+        <details class="yui-field-row yui-section" data-section="language"${sectionOpenAttr("language")}>
+          <summary><span class="yui-field-row__label">${t("language.label")}</span></summary>
           <span class="yui-field-row__sub">${t("language.sub")}</span>
           <div class="yui-seg yui-lang-seg" role="radiogroup" aria-label="${t("language.aria")}" style="--seg:0;">
             <span class="yui-seg__ind" aria-hidden="true"></span>
             ${langButtonsHtml}
           </div>
-        </div>
-        <div class="yui-field-row">
-          <span class="yui-field-row__label">${t("instructions.label")}</span>
+        </details>
+        <details class="yui-field-row yui-section" data-section="instructions"${sectionOpenAttr("instructions")}>
+          <summary><span class="yui-field-row__label">${t("instructions.label")}</span></summary>
           <span class="yui-field-row__sub">${t("instructions.sub")}</span>
           <div class="yui-textarea-wrap">
             <textarea class="yui-textarea" spellcheck="false" rows="4" maxlength="${INSTRUCTIONS_MAX_LEN}" aria-label="${t("instructions.label")}"></textarea>
           </div>
           <button class="yui-reset" type="button">${t("instructions.reset")}</button>
-        </div>${switchRowsHtml("talk", 8) ? `\n${switchRowsHtml("talk", 8)}` : ""}
+        </details>${switchRowsHtml("talk", 8) ? `\n${switchRowsHtml("talk", 8)}` : ""}
         ${
           switchRowsHtml("talk", 10, "filler")
             ? `
         <div class="yui-quick__divider" aria-hidden="true"></div>
-        <span class="yui-quick__section">${t("filler.section")}</span>
-        <div class="yui-filler">
+        <details class="yui-section" data-section="filler"${sectionOpenAttr("filler")}>
+          <summary><span class="yui-quick__section">${t("filler.section")}</span></summary>
+          <div class="yui-filler">
 ${switchRowsHtml("talk", 10, "filler")}
           <div class="yui-field-row">
             <span class="yui-field-row__label">${t("filler.lang_label")}</span>
@@ -431,13 +446,15 @@ ${switchRowsHtml("talk", 10, "filler")}
             </div>
           </div>
           <p class="yui-field-hint yui-filler-hint">${t("filler.hint")}</p>
-        </div>`
+        </div>
+        </details>`
             : ""
         }
       </div>
 
       <div class="yui-tabpanel" role="tabpanel" id="yui-panel-char" aria-labelledby="yui-tab-char" tabindex="0" hidden>
-        <span class="yui-quick__section">${t("vrm.section")}</span>
+        <details class="yui-section" data-section="vrm"${sectionOpenAttr("vrm")}>
+        <summary><span class="yui-quick__section">${t("vrm.section")}</span></summary>
         <div class="yui-vrm-scroll">
           <div class="yui-vrms" role="radiogroup" aria-label="${t("vrm.group_aria")}"></div>
         </div>
@@ -454,10 +471,12 @@ ${switchRowsHtml("talk", 10, "filler")}
             <span>${t("vrm.import_error")}</span>
           </p>
         </div>
+        </details>
 
         <div class="yui-quick__divider" aria-hidden="true"></div>
 
-        <span class="yui-quick__section">${t("expression.section")}</span>
+        <details class="yui-section" data-section="expression"${sectionOpenAttr("expression")}>
+        <summary><span class="yui-quick__section">${t("expression.section")}</span></summary>
         <div class="yui-gain">
           <div class="yui-gain__head">
             <span class="yui-gain__label">
@@ -473,13 +492,16 @@ ${switchRowsHtml("talk", 10, "filler")}
           <input class="yui-gain__slider yui-lipsync-gain__slider" type="range" aria-label="${t("expression.mouth_aria")}" />
           <span class="yui-gain__hint">${t("expression.mouth_hint")}</span>
         </div>
+        </details>
         ${
           showIdleMotion
             ? `
         <div class="yui-idle-motion">
           <div class="yui-quick__divider" aria-hidden="true"></div>
-          <span class="yui-quick__section">${t("idle_motion.section")}</span>
-          <div class="yui-motions" role="group" aria-label="${t("idle_motion.group_aria")}"></div>
+          <details class="yui-section" data-section="idle-motion"${sectionOpenAttr("idle-motion")}>
+            <summary><span class="yui-quick__section">${t("idle_motion.section")}</span></summary>
+            <div class="yui-motions" role="group" aria-label="${t("idle_motion.group_aria")}"></div>
+          </details>
         </div>`
             : ""
         }
@@ -488,9 +510,11 @@ ${switchRowsHtml("talk", 10, "filler")}
             ? `
         <div class="yui-express-motion">
           <div class="yui-quick__divider" aria-hidden="true"></div>
-          <span class="yui-quick__section">${t("express_motion.section")}</span>
-          <p class="yui-express__sub">${t("express_motion.sub")}</p>
-          <div class="yui-express" role="group" aria-label="${t("express_motion.group_aria")}"></div>
+          <details class="yui-section" data-section="express-motion"${sectionOpenAttr("express-motion")}>
+            <summary><span class="yui-quick__section">${t("express_motion.section")}</span></summary>
+            <p class="yui-express__sub">${t("express_motion.sub")}</p>
+            <div class="yui-express" role="group" aria-label="${t("express_motion.group_aria")}"></div>
+          </details>
         </div>`
             : ""
         }
@@ -498,11 +522,13 @@ ${switchRowsHtml("talk", 10, "filler")}
           showViewpoint
             ? `
         <div class="yui-quick__divider" aria-hidden="true"></div>
-        <span class="yui-quick__section">${t("viewpoint.section")}</span>
-        <div class="yui-field-row">
-          <span class="yui-field-row__sub">${t("viewpoint.sub")}</span>
-          <button class="yui-reset yui-viewpoint-reset" type="button">${t("viewpoint.reset")}</button>
-        </div>`
+        <details class="yui-section" data-section="viewpoint"${sectionOpenAttr("viewpoint")}>
+          <summary><span class="yui-quick__section">${t("viewpoint.section")}</span></summary>
+          <div class="yui-field-row">
+            <span class="yui-field-row__sub">${t("viewpoint.sub")}</span>
+            <button class="yui-reset yui-viewpoint-reset" type="button">${t("viewpoint.reset")}</button>
+          </div>
+        </details>`
             : ""
         }
       </div>
@@ -556,10 +582,13 @@ ${switchRowsHtml("input", 8, "after-vad")}
         <div class="yui-loop-cue-section"></div>
         <div class="yui-cue-sections"></div>
         <div class="yui-quick__divider" aria-hidden="true"></div>
-        <span class="yui-quick__section">${t("reactions.watchers_title")}</span>
+        <details class="yui-section" data-section="reactions-watchers"${sectionOpenAttr("reactions-watchers")}>
+        <summary><span class="yui-quick__section">${t("reactions.watchers_title")}</span></summary>
 ${switchRowsHtml("react", 8) || "        "}
+        </details>
         <div class="yui-quick__divider" aria-hidden="true"></div>
-        <span class="yui-quick__section">${t("workflows.title")}</span>
+        <details class="yui-section" data-section="workflows"${sectionOpenAttr("workflows")}>
+        <summary><span class="yui-quick__section">${t("workflows.title")}</span></summary>
         <p class="yui-field-hint">${t("workflows.sub")}</p>
         <div class="yui-wf-list"></div>
         <div class="yui-wf-add">
@@ -583,10 +612,13 @@ ${switchRowsHtml("react", 8) || "        "}
             </button>
           </div>
         </div>
+        </details>
         <div class="yui-quick__divider" aria-hidden="true"></div>
-        <span class="yui-quick__section">${t("reactions.shared_title")}</span>
+        <details class="yui-section" data-section="reactions-shared"${sectionOpenAttr("reactions-shared")}>
+        <summary><span class="yui-quick__section">${t("reactions.shared_title")}</span></summary>
         ${showPresence ? numRowHtml({ id: "yui-presence", labelKey: "reactions.presence_label", subKey: "reactions.presence_sub", min: 10, max: 3600, suffixKey: "reactions.seconds_suffix", hintKey: "reactions.restart_hint" }) : ""}
         ${showPacerGap ? numRowHtml({ id: "yui-pacer-gap", labelKey: "reactions.pacer_gap_label", subKey: "reactions.pacer_gap_sub", min: 0, max: 180, suffixKey: "reactions.minutes_suffix", hintKey: "reactions.pacer_gap_hint" }) : ""}
+        </details>
         ${rateLimitHtml}
       </div>
 
@@ -650,10 +682,12 @@ ${switchRowsHtml("react", 8) || "        "}
         </details>
 
         <div class="yui-quick__divider" aria-hidden="true"></div>
-        <span class="yui-quick__section">${t("perf.section")}</span>
+        <details class="yui-section" data-section="perf"${sectionOpenAttr("perf")}>
+        <summary><span class="yui-quick__section">${t("perf.section")}</span></summary>
 ${switchRowsHtml("advanced", 8)}${
   visibleSwitchRows.filter((row) => row.tab === "advanced").length === 1 ? "\n        " : ""
 }
+        </details>
         ${sessionHtml}
         ${
           showDevtools

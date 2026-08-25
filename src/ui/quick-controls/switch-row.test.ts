@@ -43,6 +43,7 @@ function render(switchRows: readonly SwitchRow[]): HTMLElement {
     showDevtools: false,
     showHistory: false,
     railCollapsed: false,
+    closedSections: new Set(),
   });
   return root;
 }
