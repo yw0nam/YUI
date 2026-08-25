@@ -18,7 +18,7 @@ def request_with(text, *, key="messages"):
     return {"model": "test", key: [{"role": "user", "content": text}], "metadata": {"keep": [1, 2]}}
 
 
-def seed_drives(state_dir, now, state_helpers, *, curiosity=31.9, accomplishment=55.8, social_hours=14.4):
+def seed_drives(state_dir, now, state_helpers, *, curiosity=31.9, accomplishment=55.8, social_hours=4.8):
     write_json, _, _, _ = state_helpers
     desire_state.bootstrap(now)
     write_json(
@@ -100,7 +100,7 @@ def test_canonical_block_with_waited_marker_is_idempotent(desire_plugin):
         "hello\n\n<desire_state>\n"
         "drives: social 0/100 (low) | curiosity 50/100 (mid) | accomplishment 50/100 (mid)\n"
         "pent-up (1):\n"
-        "- [2026-08-22 12:00] (waited 3d, bursting) speak when possible\n"
+        "- [2026-08-24 18:00] (waited 18h, bursting) speak when possible\n"
         "</desire_state>"
     )
 
@@ -273,7 +273,7 @@ def test_surface_stamps_once_and_items_stay_active_regardless_of_surfaced_at(
         [
             item("new", now, "new"),
             item("long_surfaced", now - timedelta(days=1), "surfaced a day ago", now - timedelta(days=1)),
-            item("boundary", now - timedelta(days=6, hours=23), "almost expired"),
+            item("boundary", now - timedelta(hours=47), "almost expired"),
         ],
     )
     result = desire_plugin._inject(request=request_with("turn one"), now=now)
@@ -424,7 +424,7 @@ def test_cache_expiry_is_sliding_and_gap_over_ten_minutes_rebuilds(
     )
     assert first == at_nine == at_eighteen
     assert after_gap != first
-    assert "curiosity 91/100 (high)" in after_gap
+    assert "curiosity 94/100 (high)" in after_gap
 
 
 def test_forced_build_failure_is_fail_open_and_has_zero_state_mutation(

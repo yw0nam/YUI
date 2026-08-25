@@ -15,10 +15,12 @@ from pathlib import Path
 from zoneinfo import ZoneInfo
 
 KST = ZoneInfo("Asia/Seoul")
-CURIOSITY_RATE = 3.0
-ACCOMPLISHMENT_RATE = 2.0
-SOCIAL_RATE = 5.0
-OUTBOX_EXPIRY_DAYS = 7
+CURIOSITY_RATE = 9.0
+ACCOMPLISHMENT_RATE = 6.0
+SOCIAL_RATE = 15.0
+OUTBOX_EXPIRY = timedelta(hours=48)
+PENT_UP_HEAVY = timedelta(hours=6)
+PENT_UP_BURSTING = timedelta(hours=18)
 CAPS = {"signals": 3, "issues": 2, "self_comments": 1}
 EVENT_DOSES = {
     "learned": {"curiosity": 30.0},
@@ -26,7 +28,7 @@ EVENT_DOSES = {
     "shipped": {"accomplishment": 40.0},
     "praised": {"accomplishment": 25.0},
 }
-EVENT_DAILY_CAPS = {"learned": 3, "progressed": 3, "shipped": 2, "praised": 2}
+EVENT_DAILY_CAPS = {"learned": 6, "progressed": 6, "shipped": 4, "praised": 4}
 
 _lock_guard = threading.RLock()
 _lock_local = threading.local()
@@ -444,10 +446,10 @@ def valid_outbox_item(item: object) -> bool:
 
 
 def active_outbox(items: list[dict], now: datetime) -> list[dict]:
-    """Return every valid item younger than the seven-day expiry.
+    """Return every valid item younger than ``OUTBOX_EXPIRY``.
 
-    Surfacing (see ``stamp_outbox``) no longer retires an item; it stays pent-up until it is
-    explicitly released (``act.py outbox --release``) or ages past ``OUTBOX_EXPIRY_DAYS``.
+    Surfacing (see ``stamp_outbox``) does not retire an item; it stays pent-up until it is
+    explicitly released (``act.py outbox --release``) or ages past ``OUTBOX_EXPIRY``.
     """
 
     now = normalize_now(now)
@@ -456,12 +458,12 @@ def active_outbox(items: list[dict], now: datetime) -> list[dict]:
         if not valid_outbox_item(item):
             continue
         age = now - parse_timestamp(item["created_at"])
-        if timedelta(0) <= age < timedelta(days=OUTBOX_EXPIRY_DAYS):
+        if timedelta(0) <= age < OUTBOX_EXPIRY:
             active.append(item)
     return active
 
 
-_FORGED_MARKER_PREFIX = re.compile(r"^\(waited \d+d, (?:heavy|bursting)\)\s*")
+_FORGED_MARKER_PREFIX = re.compile(r"^\(waited \d+h, (?:heavy|bursting)\)\s*")
 
 
 def sanitize_note(note: object) -> str:
@@ -493,12 +495,13 @@ def serialize_desire_block(levels: dict[str, float], items: list[dict], now: dat
         for item in ordered:
             created_at = parse_timestamp(item["created_at"])
             timestamp = created_at.strftime("%Y-%m-%d %H:%M")
-            waited_days = int((now - created_at).total_seconds() // timedelta(days=1).total_seconds())
+            waited = now - created_at
+            waited_hours = int(waited.total_seconds() // 3600)
             marker = ""
-            if waited_days >= 3:
-                marker = f"(waited {waited_days}d, bursting) "
-            elif waited_days >= 1:
-                marker = f"(waited {waited_days}d, heavy) "
+            if waited >= PENT_UP_BURSTING:
+                marker = f"(waited {waited_hours}h, bursting) "
+            elif waited >= PENT_UP_HEAVY:
+                marker = f"(waited {waited_hours}h, heavy) "
             lines.append(f"- [{timestamp}] {marker}{sanitize_note(item.get('note', ''))}")
     lines.append("</desire_state>")
     return "\n".join(lines)

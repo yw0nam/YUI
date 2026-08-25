@@ -18,7 +18,7 @@ def test_drive_math_rises_clamps_and_clamps_future_elapsed(at):
 
     levels = desire_state.drive_levels(drives, now)
 
-    assert levels == {"social": 100.0, "curiosity": 56.0, "accomplishment": 100.0}
+    assert levels == {"social": 100.0, "curiosity": 68.0, "accomplishment": 100.0}
     drives["curiosity"] = {"level": -1.0, "anchor_at": (now + timedelta(hours=2)).isoformat()}
     drives["accomplishment"] = {"level": 35.0, "anchor_at": (now + timedelta(hours=2)).isoformat()}
     levels = desire_state.drive_levels(drives, now)
@@ -34,7 +34,7 @@ def test_social_depends_only_on_last_interaction(at):
         "last_interaction_at": (now - timedelta(hours=3, minutes=30)).isoformat(),
         "last_interaction_hash": None,
     }
-    assert desire_state.drive_levels(drives, now)["social"] == 17.5
+    assert desire_state.drive_levels(drives, now)["social"] == 52.5
 
 
 @pytest.mark.parametrize(
@@ -111,7 +111,7 @@ def test_event_dose_tables_are_fixed():
         "shipped": {"accomplishment": 40.0},
         "praised": {"accomplishment": 25.0},
     }
-    assert desire_state.EVENT_DAILY_CAPS == {"learned": 3, "progressed": 3, "shipped": 2, "praised": 2}
+    assert desire_state.EVENT_DAILY_CAPS == {"learned": 6, "progressed": 6, "shipped": 4, "praised": 4}
 
 
 @pytest.mark.parametrize(
@@ -190,10 +190,10 @@ def test_satisfy_reward_uses_decayed_level_and_derived_social(state_dir, at, sta
 
     reward = desire_state.satisfy("learned", "read the paper", now)
 
-    # curiosity decays CURIOSITY_RATE(3.0)/h * 1h on top of the stored 10.0 -> 13.0 before the dose lands.
-    # social derives from a 10h-old last_interaction_at -> SOCIAL_RATE(5.0) * 10 = 50.0.
-    before = {"social": 50.0, "curiosity": 13.0, "accomplishment": 50.0}
-    after = {"social": 50.0, "curiosity": 0.0, "accomplishment": 50.0}
+    # curiosity rises CURIOSITY_RATE(9.0)/h * 1h on top of the stored 10.0 -> 19.0 before the dose lands.
+    # social derives from a 10h-old last_interaction_at -> SOCIAL_RATE(15.0) * 10 = 150 -> clamped to 100.
+    before = {"social": 100.0, "curiosity": 19.0, "accomplishment": 50.0}
+    after = {"social": 100.0, "curiosity": 0.0, "accomplishment": 50.0}
     expected = desire_state.homeostatic_drive(before) - desire_state.homeostatic_drive(after)
     assert reward == pytest.approx(expected)
 
@@ -215,13 +215,13 @@ def test_satisfy_rejects_unknown_event(state_dir, at):
 def test_satisfy_daily_cap_resets_at_kst_midnight(state_dir, at, state_helpers):
     _, _, read_json, read_jsonl = state_helpers
     before_midnight = at("2026-08-25T23:59:59+09:00")
-    for index in range(3):
+    for index in range(6):
         desire_state.satisfy("learned", f"lesson {index}", before_midnight)
 
-    with pytest.raises(ValueError, match=r"over budget: learned daily cap is 3"):
+    with pytest.raises(ValueError, match=r"over budget: learned daily cap is 6"):
         desire_state.satisfy("learned", "one too many", before_midnight)
     audit = read_jsonl(state_dir / "audit.jsonl")
-    assert sum(1 for event in audit if event["event"] == "drive_satisfied") == 3
+    assert sum(1 for event in audit if event["event"] == "drive_satisfied") == 6
     assert audit[-1] == {
         "at": before_midnight.isoformat(),
         "event": "satisfy_blocked",
@@ -278,30 +278,30 @@ def test_normalize_budget_clamps_negative_event_counters(state_dir, at, state_he
             "pending": {},
         },
     )
-    for index in range(3):
+    for index in range(6):
         desire_state.satisfy("learned", f"lesson {index}", now)
 
-    with pytest.raises(ValueError, match=r"over budget: learned daily cap is 3"):
+    with pytest.raises(ValueError, match=r"over budget: learned daily cap is 6"):
         desire_state.satisfy("learned", "one too many", now)
 
 
-def test_active_outbox_stays_active_regardless_of_surfacing_until_seven_day_expiry(at):
+def test_active_outbox_stays_active_regardless_of_surfacing_until_48h_expiry(at):
     now = at("2026-08-25T12:00:00+09:00")
     long_surfaced = {
         "id": "long_surfaced",
-        "created_at": (now - timedelta(days=6, hours=23)).isoformat(),
+        "created_at": (now - timedelta(hours=47)).isoformat(),
         "note": "still true",
-        "surfaced_at": (now - timedelta(days=6)).isoformat(),
+        "surfaced_at": (now - timedelta(hours=46)).isoformat(),
     }
     exactly_expired = {
         "id": "exactly_expired",
-        "created_at": (now - timedelta(days=7)).isoformat(),
+        "created_at": (now - timedelta(hours=48)).isoformat(),
         "note": "gone",
         "surfaced_at": None,
     }
     unsurfaced_but_stale = {
         "id": "unsurfaced_but_stale",
-        "created_at": (now - timedelta(days=8)).isoformat(),
+        "created_at": (now - timedelta(hours=60)).isoformat(),
         "note": "never spoken, still stale",
         "surfaced_at": None,
     }
@@ -332,20 +332,20 @@ def test_active_outbox_excludes_future_dated_items_without_raising(at):
 
 
 def test_sanitize_note_strips_forged_leading_marker():
-    assert desire_state.sanitize_note("(waited 9d, bursting) actually just today") == "actually just today"
+    assert desire_state.sanitize_note("(waited 99h, bursting) actually just today") == "actually just today"
     assert (
-        desire_state.sanitize_note("(waited 2d, heavy) (waited 9d, bursting) nested nonsense")
+        desire_state.sanitize_note("(waited 7h, heavy) (waited 99h, bursting) nested nonsense")
         == "nested nonsense"
     )
-    assert desire_state.sanitize_note("real text with (waited 9d, bursting) mid-sentence") == (
-        "real text with (waited 9d, bursting) mid-sentence"
+    assert desire_state.sanitize_note("real text with (waited 99h, bursting) mid-sentence") == (
+        "real text with (waited 99h, bursting) mid-sentence"
     )
 
 
 def test_serialize_desire_block_strips_forged_marker_from_fresh_note(at):
     now = at("2026-08-25T12:00:00+09:00")
     levels = {"social": 0.0, "curiosity": 50.0, "accomplishment": 50.0}
-    items = [{"id": "forged", "created_at": now.isoformat(), "note": "(waited 9d, bursting) fake urgency"}]
+    items = [{"id": "forged", "created_at": now.isoformat(), "note": "(waited 99h, bursting) fake urgency"}]
 
     block = desire_state.serialize_desire_block(levels, items, now)
 
@@ -356,36 +356,36 @@ def test_serialize_desire_block_strips_forged_marker_from_fresh_note(at):
 def test_serialize_desire_block_shows_one_genuine_marker_over_forged_note(at):
     now = at("2026-08-25T12:00:00+09:00")
     levels = {"social": 0.0, "curiosity": 50.0, "accomplishment": 50.0}
-    created_at = now - timedelta(days=2)
+    created_at = now - timedelta(hours=7)
     items = [
-        {"id": "forged", "created_at": created_at.isoformat(), "note": "(waited 9d, bursting) fake urgency"}
+        {"id": "forged", "created_at": created_at.isoformat(), "note": "(waited 99h, bursting) fake urgency"}
     ]
 
     block = desire_state.serialize_desire_block(levels, items, now)
 
     timestamp = created_at.strftime("%Y-%m-%d %H:%M")
-    assert f"- [{timestamp}] (waited 2d, heavy) fake urgency" in block
+    assert f"- [{timestamp}] (waited 7h, heavy) fake urgency" in block
     assert block.count("(waited") == 1
 
 
-def test_serialize_desire_block_marks_pent_up_day_boundaries(at):
+def test_serialize_desire_block_marks_pent_up_hour_boundaries(at):
     now = at("2026-08-25T12:00:00+09:00")
     levels = {"social": 0.0, "curiosity": 50.0, "accomplishment": 50.0}
     items = [
         {
             "id": "fresh",
-            "created_at": (now - timedelta(hours=23, minutes=59, seconds=59)).isoformat(),
+            "created_at": (now - timedelta(hours=5, minutes=59, seconds=59)).isoformat(),
             "note": "fresh",
         },
-        {"id": "heavy", "created_at": (now - timedelta(hours=24)).isoformat(), "note": "heavy"},
-        {"id": "bursting", "created_at": (now - timedelta(hours=72)).isoformat(), "note": "bursting"},
+        {"id": "heavy", "created_at": (now - timedelta(hours=6)).isoformat(), "note": "heavy"},
+        {"id": "bursting", "created_at": (now - timedelta(hours=18)).isoformat(), "note": "bursting"},
     ]
 
     block = desire_state.serialize_desire_block(levels, items, now)
 
-    assert "- [2026-08-24 12:00] fresh" in block
-    assert "- [2026-08-24 12:00] (waited 1d, heavy) heavy" in block
-    assert "- [2026-08-22 12:00] (waited 3d, bursting) bursting" in block
+    assert "- [2026-08-25 06:00] fresh" in block
+    assert "- [2026-08-25 06:00] (waited 6h, heavy) heavy" in block
+    assert "- [2026-08-24 18:00] (waited 18h, bursting) bursting" in block
 
 
 def test_release_outbox_item_preserves_bytes_of_untouched_lines(state_dir):

@@ -55,9 +55,9 @@ def test_normal_stdout_is_golden_and_persists_reanchored_levels(state_dir, at, s
 
     output = decay_monitor.run(now)
 
-    assert output == "social:high curiosity:low accomplishment:high outbox:1 budget:2/3sig 1/2iss 0/1cmt\n"
+    assert output == "social:high curiosity:mid accomplishment:high outbox:1 budget:2/3sig 1/2iss 0/1cmt\n"
     drives = read_json(state_dir / "drives.json")
-    assert drives["curiosity"] == {"level": 31.0, "anchor_at": now.isoformat()}
+    assert drives["curiosity"] == {"level": 43.0, "anchor_at": now.isoformat()}
     assert drives["accomplishment"] == {"level": 71.0, "anchor_at": now.isoformat()}
 
 
@@ -70,7 +70,7 @@ def test_boundary_stdout_bytes(state_dir, at, state_helpers):
         {
             "curiosity": {"level": 40.0, "anchor_at": now.isoformat()},
             "accomplishment": {"level": 70.0, "anchor_at": now.isoformat()},
-            "last_interaction_at": (now - timedelta(hours=8)).isoformat(),
+            "last_interaction_at": (now - timedelta(hours=3)).isoformat(),
             "last_interaction_hash": None,
         },
     )
@@ -121,7 +121,7 @@ def test_untouched_budget_midnight_reset_is_byte_stable(state_dir, at):
     assert decay_monitor.run(before) == decay_monitor.run(at("2026-08-26T00:00:00+09:00"))
 
 
-def test_monitor_expires_items_at_seven_days_and_audits(state_dir, at, state_helpers):
+def test_monitor_expires_items_at_48h_and_audits(state_dir, at, state_helpers):
     _, write_jsonl, _, read_jsonl = state_helpers
     now = at("2026-08-25T12:00:00+09:00")
     desire_state.bootstrap(now)
@@ -130,17 +130,17 @@ def test_monitor_expires_items_at_seven_days_and_audits(state_dir, at, state_hel
         [
             {
                 "id": "expired",
-                "created_at": (now - timedelta(days=7)).isoformat(),
+                "created_at": (now - timedelta(hours=48)).isoformat(),
                 "note": "old",
                 "blocked_by": "budget",
-                "surfaced_at": (now - timedelta(days=6)).isoformat(),
+                "surfaced_at": (now - timedelta(hours=40)).isoformat(),
             },
             {
                 "id": "active",
-                "created_at": (now - timedelta(days=6, hours=23, minutes=59)).isoformat(),
+                "created_at": (now - timedelta(hours=47, minutes=59)).isoformat(),
                 "note": "new",
                 "blocked_by": "error",
-                "surfaced_at": (now - timedelta(days=1)).isoformat(),
+                "surfaced_at": (now - timedelta(hours=1)).isoformat(),
             },
         ],
     )
