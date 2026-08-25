@@ -685,34 +685,34 @@ describe("wireVoicePipeline", () => {
   });
 
   describe("turnOutput.toolStatus / turnOutput.activity", () => {
-    it("toolStatus('running', id) calls fillerLoop.onToolRunning(id) while thinking", () => {
+    it("toolStatus(turnId, 'running', id) calls fillerLoop.onToolRunning(id) while that turn is thinking", () => {
       const { voice } = setup();
       voice.turnOutput.thinkingStart(1);
-      voice.turnOutput.toolStatus("running", "terminal");
+      voice.turnOutput.toolStatus(1, "running", "terminal");
       expect(mocks.fillerLoop.onToolRunning).toHaveBeenCalledWith("terminal");
     });
 
-    it("toolStatus('done'|'idle'|'error') calls fillerLoop.onActivity() while thinking", () => {
+    it("toolStatus(turnId, 'done'|'idle'|'error') calls fillerLoop.onActivity() while that turn is thinking", () => {
       const { voice } = setup();
       voice.turnOutput.thinkingStart(1);
-      voice.turnOutput.toolStatus("done");
-      voice.turnOutput.toolStatus("idle");
-      voice.turnOutput.toolStatus("error");
+      voice.turnOutput.toolStatus(1, "done");
+      voice.turnOutput.toolStatus(1, "idle");
+      voice.turnOutput.toolStatus(1, "error");
       expect(mocks.fillerLoop.onActivity).toHaveBeenCalledTimes(3);
       expect(mocks.fillerLoop.onToolRunning).not.toHaveBeenCalled();
     });
 
-    it("activity() calls fillerLoop.onActivity() while thinking", () => {
+    it("activity(turnId) calls fillerLoop.onActivity() while that turn is thinking", () => {
       const { voice } = setup();
       voice.turnOutput.thinkingStart(1);
-      voice.turnOutput.activity();
+      voice.turnOutput.activity(1);
       expect(mocks.fillerLoop.onActivity).toHaveBeenCalledOnce();
     });
 
     it("ignores toolStatus/activity when no turn is thinking", () => {
       const { voice } = setup();
-      voice.turnOutput.toolStatus("running", "terminal");
-      voice.turnOutput.activity();
+      voice.turnOutput.toolStatus(1, "running", "terminal");
+      voice.turnOutput.activity(1);
       expect(mocks.fillerLoop.onToolRunning).not.toHaveBeenCalled();
       expect(mocks.fillerLoop.onActivity).not.toHaveBeenCalled();
     });
@@ -722,10 +722,29 @@ describe("wireVoicePipeline", () => {
       voice.turnOutput.thinkingStart(1);
       voice.turnOutput.thinkingEnd(1);
       vi.clearAllMocks();
-      voice.turnOutput.toolStatus("running", "terminal");
-      voice.turnOutput.activity();
+      voice.turnOutput.toolStatus(1, "running", "terminal");
+      voice.turnOutput.activity(1);
       expect(mocks.fillerLoop.onToolRunning).not.toHaveBeenCalled();
       expect(mocks.fillerLoop.onActivity).not.toHaveBeenCalled();
+    });
+
+    it("ignores toolStatus/activity from a superseded turn once a newer turn is thinking", () => {
+      const { voice } = setup();
+      voice.turnOutput.thinkingStart(1); // turn A starts thinking
+      voice.turnOutput.thinkingStart(2); // turn B supersedes A before A's late events arrive
+      vi.clearAllMocks();
+
+      // Late events from the superseded turn A must not reach B's filler loop.
+      voice.turnOutput.toolStatus(1, "running", "terminal");
+      voice.turnOutput.activity(1);
+      expect(mocks.fillerLoop.onToolRunning).not.toHaveBeenCalled();
+      expect(mocks.fillerLoop.onActivity).not.toHaveBeenCalled();
+
+      // Turn B's own events still reach it.
+      voice.turnOutput.toolStatus(2, "running", "terminal");
+      voice.turnOutput.activity(2);
+      expect(mocks.fillerLoop.onToolRunning).toHaveBeenCalledWith("terminal");
+      expect(mocks.fillerLoop.onActivity).toHaveBeenCalledOnce();
     });
   });
 
