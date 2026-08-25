@@ -1,19 +1,8 @@
 import { describe, expect, it } from "vitest";
-import type { FillerConfig, FillerPool } from "../config/load";
+import type { FillerConfig } from "../config/load";
 import { effectiveFillerPool, fillerSubmissions, phraseSentences } from "./filler-pool";
 import type { FillerSettings } from "./filler-settings";
-
-function pool(overrides: Partial<FillerPool> = {}): FillerPool {
-  return {
-    first: [],
-    repeat: [],
-    long_wait: [],
-    tool: {},
-    timeout: [],
-    unreachable: [],
-    ...overrides,
-  };
-}
+import { fillerPool as pool } from "./filler-test-helpers";
 
 const cfg: FillerConfig = {
   gap_ms: 5000,

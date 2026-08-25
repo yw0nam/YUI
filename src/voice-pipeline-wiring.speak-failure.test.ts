@@ -5,7 +5,7 @@
  * sink) plays out so a failure phrase's audio can be observed reaching the sink.
  */
 
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, type Mock, vi } from "vitest";
 
 const mocks = vi.hoisted(() => {
   const sink = { play: vi.fn(async () => {}), stop: vi.fn() };
@@ -33,22 +33,12 @@ vi.mock("./io/chat-client", () => ({ selectFetch: mocks.selectFetch }));
 import type { FillerPool } from "./config/load";
 import { createTurnLog } from "./dispatcher/turn";
 import type { FillerSettings } from "./io/filler-settings";
+import { fillerPool as pool } from "./io/filler-test-helpers";
+import type { Surfaces } from "./ui/surfaces";
 import { type VoicePipeline, wireVoicePipeline } from "./voice-pipeline-wiring";
 
 const TIMEOUT_PHRASE = "ごめん、諦めちゃった。";
 const UNREACHABLE_PHRASE = "今つながらないみたい。";
-
-function pool(overrides: Partial<FillerPool> = {}): FillerPool {
-  return {
-    first: [],
-    repeat: [],
-    long_wait: [],
-    tool: {},
-    timeout: [],
-    unreachable: [],
-    ...overrides,
-  };
-}
 
 function synthCalls(): unknown[][] {
   return mocks.fetchImpl.mock.calls.filter(([url]) => String(url).endsWith("/v1/audio/speech"));
@@ -61,10 +51,10 @@ function synthInputs(): string[] {
 const wired: VoicePipeline[] = [];
 
 interface SetupSurfaces {
-  beginSpeech: ReturnType<typeof vi.fn>;
-  pushSpeech: ReturnType<typeof vi.fn>;
-  endSpeech: ReturnType<typeof vi.fn>;
-  finishSpeech: ReturnType<typeof vi.fn>;
+  beginSpeech: Mock<Surfaces["beginSpeech"]>;
+  pushSpeech: Mock<Surfaces["pushSpeech"]>;
+  endSpeech: Mock<Surfaces["endSpeech"]>;
+  finishSpeech: Mock<Surfaces["finishSpeech"]>;
 }
 
 function setup(
