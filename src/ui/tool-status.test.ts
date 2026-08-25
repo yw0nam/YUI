@@ -56,6 +56,12 @@ describe("showTool — tool_id label resolution", () => {
     expect(label?.textContent).toBe("Some unknown tool…");
   });
 
+  it("humanizes an mcp__<server>__<tool> id from its tool name alone", () => {
+    s.showTool("mcp__memory_layer__search_memory");
+    const label = mount.querySelector(".yui-tool__label");
+    expect(label?.textContent).toBe("Search memory…");
+  });
+
   it("makes tool chip visible", () => {
     s.showTool("web_search");
     const toolEl = mount.querySelector(".yui-tool");
@@ -108,11 +114,12 @@ describe("tool chip lifecycle (running → done → hide)", () => {
     expect((el.querySelector(".yui-tool__label") as HTMLElement).textContent).toBe("Searching…");
   });
 
-  it("finishTool sets the chip label to 'Done' — the progressive verb must not linger next to the check", () => {
+  it("finishTool keeps the tool's label through the done state — the name must not be swapped for a generic 'Done'", () => {
     s.showTool("web_search");
     s.finishTool();
     const el = tool();
-    expect((el.querySelector(".yui-tool__label") as HTMLElement).textContent).toBe("Done");
+    expect((el.querySelector(".yui-tool__label") as HTMLElement).textContent).toBe("Searching…");
+    expect(el.dataset.state).toBe("done");
   });
 
   it("finishTool switches a running chip to done then auto-hides after the 1500ms hold", () => {
