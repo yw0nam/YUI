@@ -20,6 +20,13 @@ ACCOMPLISHMENT_RATE = 2.0
 SOCIAL_RATE = 5.0
 OUTBOX_ACTIVE_MINUTES = 15
 CAPS = {"signals": 3, "issues": 2, "self_comments": 1}
+EVENT_DOSES = {
+    "learned": {"curiosity": 30.0},
+    "progressed": {"accomplishment": 15.0},
+    "shipped": {"accomplishment": 40.0},
+    "praised": {"accomplishment": 25.0},
+}
+EVENT_DAILY_CAPS = {"learned": 3, "progressed": 3, "shipped": 2, "praised": 2}
 
 _lock_guard = threading.RLock()
 _lock_local = threading.local()
@@ -208,6 +215,7 @@ def _default_budget(now: datetime) -> dict:
         "signals": 0,
         "issues": 0,
         "self_comments": 0,
+        "events": {},
         "pending": {},
     }
 
@@ -282,7 +290,12 @@ def _validate_budget(value: object) -> dict:
     for key in ("signals", "issues", "self_comments"):
         if not isinstance(value.get(key), int):
             raise TypeError("budget counters must be integers")
-    return value
+    events = value.get("events", {})
+    if not isinstance(events, dict) or any(
+        not isinstance(event, str) or not isinstance(count, int) for event, count in events.items()
+    ):
+        raise TypeError("event budget counters must be integers")
+    return {**value, "events": copy.deepcopy(events)}
 
 
 def _normalize_cursor(value: object) -> dict:
@@ -370,13 +383,16 @@ def normalize_budget(budget: dict, now: datetime) -> dict:
             "signals": 0,
             "issues": 0,
             "self_comments": 0,
+            "events": {},
             "pending": copy.deepcopy(pending),
         }
+    events = budget.get("events") if isinstance(budget.get("events"), dict) else {}
     return {
         "date": budget["date"],
         "signals": int(budget.get("signals", 0)),
         "issues": int(budget.get("issues", 0)),
         "self_comments": int(budget.get("self_comments", 0)),
+        "events": {str(event): int(count) for event, count in events.items()},
         "pending": copy.deepcopy(pending),
     }
 
@@ -415,7 +431,8 @@ def sanitize_note(note: object) -> str:
     return text[:300]
 
 
-def serialize_desire_block(levels: dict[str, float], items: list[dict]) -> str:
+def serialize_desire_block(levels: dict[str, float], items: list[dict], now: datetime) -> str:
+    now = normalize_now(now)
     lines = [
         "<desire_state>",
         (
@@ -430,32 +447,61 @@ def serialize_desire_block(levels: dict[str, float], items: list[dict]) -> str:
     if ordered:
         lines.append(f"pent-up ({len(ordered)}):")
         for item in ordered:
-            timestamp = parse_timestamp(item["created_at"]).strftime("%Y-%m-%d %H:%M")
-            lines.append(f"- [{timestamp}] {sanitize_note(item.get('note', ''))}")
+            created_at = parse_timestamp(item["created_at"])
+            timestamp = created_at.strftime("%Y-%m-%d %H:%M")
+            waited_days = int((now - created_at).total_seconds() // timedelta(days=1).total_seconds())
+            marker = ""
+            if waited_days >= 3:
+                marker = f"(waited {waited_days}d, bursting) "
+            elif waited_days >= 1:
+                marker = f"(waited {waited_days}d, heavy) "
+            lines.append(f"- [{timestamp}] {marker}{sanitize_note(item.get('note', ''))}")
     lines.append("</desire_state>")
     return "\n".join(lines)
 
 
-def satisfy(drive: str, amount: float, why: str, now: datetime) -> None:
+def homeostatic_drive(levels: dict) -> float:
+    return (
+        sum((float(levels[name]) / 100.0) ** 4 for name in ("social", "curiosity", "accomplishment")) ** 0.5
+    )
+
+
+def satisfy(event: str, why: str, now: datetime) -> float:
     now = normalize_now(now)
-    if drive not in ("curiosity", "accomplishment"):
-        raise ValueError(f"drive is not satisfiable: {drive}")
+    if event not in EVENT_DOSES:
+        raise ValueError(f"unknown event: {event}")
     with state_lock() as state_dir:
         state = bootstrap_locked(state_dir, now)
+        budget = normalize_budget(state["budget"], now)
+        count = budget["events"].get(event, 0)
+        cap = EVENT_DAILY_CAPS[event]
+        if count >= cap:
+            raise ValueError(f"over budget: {event} daily cap is {cap}")
+
         drives = state["drives"]
-        current = drive_levels(drives, now)[drive]
-        drives[drive] = {"level": _clamp(current - float(amount)), "anchor_at": now.isoformat()}
+        before = drive_levels(drives, now)
+        after = copy.deepcopy(before)
+        doses = EVENT_DOSES[event]
+        for drive, dose in doses.items():
+            after[drive] = _clamp(before[drive] - dose)
+            drives[drive] = {"level": after[drive], "anchor_at": now.isoformat()}
+        reward = homeostatic_drive(before) - homeostatic_drive(after)
+
+        budget["events"][event] = count + 1
         write_json_atomic(state_dir / "drives.json", drives)
+        write_json_atomic(state_dir / "budget.json", budget)
         _append_jsonl_locked(
             state_dir / "audit.jsonl",
             {
                 "at": now.isoformat(),
                 "event": "drive_satisfied",
-                "drive": drive,
-                "amount": float(amount),
+                "event_type": event,
+                "doses": doses,
+                "reward": round(reward, 4),
                 "why": why,
             },
         )
+        return reward
 
 
 def reservation_is_older_than(pending: dict, cutoff: date) -> bool:

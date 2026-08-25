@@ -29,7 +29,10 @@ _DRIVES_LINE = re.compile(
     r"\((?P<accomplishment_bucket>low|mid|high)\)"
 )
 _PENT_UP_LINE = re.compile(r"pent-up \((?P<count>[1-9]\d*)\):")
-_OUTBOX_LINE = re.compile(r"- \[\d{4}-\d{2}-\d{2} \d{2}:\d{2}\] [^\n]*")
+_OUTBOX_LINE = re.compile(
+    r"- \[\d{4}-\d{2}-\d{2} \d{2}:\d{2}\] "
+    r"(?:\(waited \d+d, (?:heavy|bursting)\) )?[^\n]*"
+)
 _CACHE_TTL = timedelta(minutes=10)
 _STATE_FILES = ("drives.json", "budget.json", "cursor.json", "outbox.jsonl", "audit.jsonl")
 _turn_cache = None
@@ -102,7 +105,7 @@ def _is_interaction(text):
 def _build_desire_block(drives, outbox, now):
     levels = desire_state.drive_levels(drives, now)
     active = desire_state.active_outbox(outbox, now)
-    return desire_state.serialize_desire_block(levels, active), tuple(item["id"] for item in active)
+    return desire_state.serialize_desire_block(levels, active, now), tuple(item["id"] for item in active)
 
 
 def _rewrite(kwargs, event):

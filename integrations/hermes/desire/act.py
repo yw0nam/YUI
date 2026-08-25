@@ -180,8 +180,7 @@ def _parser():
         action.add_argument("--url")
 
     satisfy = commands.add_parser("satisfy")
-    satisfy.add_argument("drive", choices=("curiosity", "accomplishment", "social"))
-    satisfy.add_argument("amount", type=float)
+    satisfy.add_argument("event", choices=desire_state.EVENT_DOSES)
     satisfy.add_argument("--why", required=True)
 
     feedback = commands.add_parser("feedback")
@@ -212,10 +211,11 @@ def main(argv=None, *, now=None, opener=urllib_request.urlopen):
         return _reservation_action(args.command, operation, reservation_id, args.url, now)
     if args.command == "satisfy":
         try:
-            desire_state.satisfy(args.drive, args.amount, args.why, now)
+            reward = desire_state.satisfy(args.event, args.why, now)
         except ValueError as error:
             print(str(error), file=sys.stderr)
             return 1
+        print(f"satisfied {args.event} reward={reward:.4f}")
         return 0
     if args.command == "feedback":
         return _feedback("get" if args.get else "set", args.set, now)
