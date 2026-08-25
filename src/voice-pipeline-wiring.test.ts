@@ -347,6 +347,29 @@ describe("wireVoicePipeline", () => {
     expect(state.voice.turnOutput.hasFiller()).toBe(true);
   });
 
+  it("counts long_wait and tool as filler too — a pool with only those still opens a thinking window", () => {
+    const state = setup();
+    state.setFillerConfig({
+      gap_ms: 1,
+      gap_jitter_ms: 0,
+      max_repeats: 3,
+      gap_growth: 2,
+      long_wait_ms: 40000,
+      pools: { ja: fillerPool({ long_wait: ["still working on it"] }) },
+    });
+    expect(state.voice.turnOutput.hasFiller()).toBe(true);
+
+    state.setFillerConfig({
+      gap_ms: 1,
+      gap_jitter_ms: 0,
+      max_repeats: 3,
+      gap_growth: 2,
+      long_wait_ms: 40000,
+      pools: { ja: fillerPool({ tool: { terminal: ["running it"] } }) },
+    });
+    expect(state.voice.turnOutput.hasFiller()).toBe(true);
+  });
+
   it("skips synth when TTS is off, the server is unset, or no speaker is selected", async () => {
     const state = setup();
     const synth = playbackOptions().pipeline!.synth!;
