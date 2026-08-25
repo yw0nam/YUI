@@ -30,7 +30,7 @@ YUI/
     emotion_registry.json     # emotion id → vrm_expression + fallback
     motions.json              # motion registry
     avatar.json               # VRM avatar config
-    filler.json               # filler motion timing and pool config
+    filler.json               # bounded backed-off filler schedule + first/repeat/long_wait/tool/timeout/unreachable phrase pools
     guardrails.json           # dispatcher cooldown/suppression + attachments caps (max_count, max_image_bytes)
     hotkeys.json              # global summon accelerator (empty = disabled)
     screen.json               # frontmost-transition detector thresholds (dwell/settle/session/gap/quiet)
