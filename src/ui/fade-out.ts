@@ -7,8 +7,9 @@
  */
 
 // Fallback for environments where the transition never fires. A rAF (next frame ~16ms) is
-// shorter than the fade (--yui-dur 200ms / -fast 140ms) and would cut it off, so the timer must exceed that ceiling.
-const FADE_FALLBACK_MS = 400; // ponytail: safety net exceeding the --yui-dur/-fast ceiling
+// shorter than the fade (--yui-dur 200ms / -fast 140ms / -dur-out 650ms) and would cut it off,
+// so the timer must exceed the longest one in use.
+const FADE_FALLBACK_MS = 900; // ponytail: safety net exceeding the --yui-dur/-fast/-dur-out ceiling
 
 /**
  * Runs `settle` once — on the element's opacity transitionend, or on the fallback timer.

@@ -29,7 +29,8 @@
     transform: translateX(-50%) !important;
   }
   .yui-bubble__caret,
-  .yui-tool__dot {
+  .yui-tool__dot,
+  .yui-tool[data-state="done"] {
     animation: none !important;
   }
 }
@@ -358,14 +359,14 @@
   display: inline-flex;
   align-items: center;
   gap: 0.4rem;
-  padding: 0.28rem 0.7rem;
+  padding: 0.38rem 0.9rem;
   border-radius: var(--yui-radius-chip);
   background: var(--yui-scrim-strong);
   border: 1px solid var(--yui-edge);
   box-shadow: var(--yui-float);
 
   color: var(--yui-text-dim);
-  font-size: 0.75rem;
+  font-size: 0.875rem;
   font-weight: 500;
   letter-spacing: 0.02em;
   white-space: nowrap;
@@ -387,9 +388,18 @@
   transform: translate(-50%, 0);
 }
 
+/* Dismissal drifts further away (past the resting position) on a slower transition than appearance. */
+.yui-tool.is-hiding {
+  opacity: 0;
+  transform: translate(-50%, -6px);
+  transition:
+    opacity var(--yui-dur-out) ease-out,
+    transform var(--yui-dur-out) ease-out;
+}
+
 .yui-tool__dot {
-  width: 0.42rem;
-  height: 0.42rem;
+  width: 0.5rem;
+  height: 0.5rem;
   border-radius: 50%;
   background: var(--yui-text-dim);
   /* Subdued opacity pulse — not a spinner, no layout animation */
@@ -406,16 +416,35 @@
   }
 }
 
-/* done — pulse dot solidifies into checkmark (rotated box + two-side border). accent = warmth of completion. */
+/* done — pulse dot solidifies into checkmark (rotated box + two-side border), ok green = completion. */
 .yui-tool[data-state="done"] .yui-tool__dot {
-  width: 0.3rem;
-  height: 0.5rem;
+  width: 0.34rem;
+  height: 0.6rem;
   border-radius: 0;
   background: transparent;
-  border: solid var(--yui-accent);
-  border-width: 0 0.11rem 0.11rem 0;
+  border: solid var(--yui-ok);
+  border-width: 0 0.13rem 0.13rem 0;
   transform: translateY(-0.06rem) rotate(45deg);
   animation: none;
+}
+
+/* done — the chip itself warms with a brief blink before it settles and dismisses. */
+.yui-tool[data-state="done"] {
+  color: var(--yui-text);
+  border-color: var(--yui-ok-soft);
+  animation: yui-chip-blink 0.5s var(--yui-ease) 2;
+}
+
+@keyframes yui-chip-blink {
+  0%,
+  100% {
+    box-shadow: var(--yui-float);
+  }
+  50% {
+    box-shadow:
+      var(--yui-float),
+      0 0 0 3px var(--yui-ok-soft);
+  }
 }
 
 /* ════════════════════════════════════════════════════════════

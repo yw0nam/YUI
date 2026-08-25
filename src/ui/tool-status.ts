@@ -24,7 +24,7 @@ export interface ToolStatusElements {
   toolLabel: HTMLElement;
 }
 
-const TOOL_DONE_HOLD_MS = 500;
+const TOOL_DONE_HOLD_MS = 1500;
 
 export function createToolStatus({ toolEl, toolLabel }: ToolStatusElements): ToolStatus {
   let toolHideTimer: ReturnType<typeof setTimeout> | null = null;
@@ -53,6 +53,8 @@ export function createToolStatus({ toolEl, toolLabel }: ToolStatusElements): Too
     toolLabel.textContent = getToolLabel(toolId);
     toolEl.dataset.state = "running";
     toolEl.hidden = false;
+    // A re-show interrupting a dismissal must re-enter from the fast/near path, not the drifted one.
+    toolEl.classList.remove("is-hiding");
     clearShowFrame();
     showFrame = requestAnimationFrame(() => {
       showFrame = null;
@@ -75,6 +77,7 @@ export function createToolStatus({ toolEl, toolLabel }: ToolStatusElements): Too
     clearToolTimer();
     clearShowFrame();
     toolEl.classList.remove("is-visible");
+    toolEl.classList.add("is-hiding");
     cancelFade?.();
     cancelFade = afterFadeOut(toolEl, () => {
       cancelFade = null;
