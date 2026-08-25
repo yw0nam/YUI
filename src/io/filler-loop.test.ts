@@ -126,7 +126,7 @@ describe("createFillerLoop — the full waiting schedule", () => {
     expect(deps.timers.hasPending()).toBe(false);
   });
 
-  it("after tool activity (no repeats), long_wait fires long_wait_ms after the last activity", () => {
+  it("after tool activity (no repeats), long_wait fires long_wait_ms after the tool phrase is spoken", () => {
     const deps = makeDeps({
       getPools: () => pool({ tool: { terminal: ["ack"] }, long_wait: ["long-wait-a"] }),
       getTiming: () => ({
@@ -139,7 +139,10 @@ describe("createFillerLoop — the full waiting schedule", () => {
     });
     const loop = createFillerLoop(deps);
     loop.start();
-    loop.onToolRunning("terminal"); // arms long_wait 40s from now
+    loop.onUtteranceDone();
+    loop.onToolRunning("terminal"); // arms the tool-gap timer (TOOL_GAP_MS=700ms)
+    deps.timers.advance(700); // tool phrase speaks, then long_wait is armed 40s from now
+    expect(deps.spoken).toContain("ack");
 
     deps.timers.advance(39999);
     expect(deps.spoken).not.toContain("long-wait-a");
@@ -161,9 +164,11 @@ describe("createFillerLoop — onToolRunning()", () => {
     loop.start();
     deps.spoken.length = 0; // drop the first-phrase speak, focus on tool behaviour
 
+    loop.onUtteranceDone();
     loop.onToolRunning("terminal");
     loop.onToolRunning("terminal");
     loop.onToolRunning("terminal");
+    deps.timers.advance(700);
 
     expect(deps.spoken).toEqual(["running the terminal"]);
   });
@@ -176,9 +181,19 @@ describe("createFillerLoop — onToolRunning()", () => {
     loop.start();
     deps.spoken.length = 0;
 
+    // Each tool must clear the gap before the next one starts — pendingToolId only holds one id
+    // at a time, so three tools in flight together would drop all but the last.
+    loop.onUtteranceDone();
     loop.onToolRunning("mystery_tool_a");
+    deps.timers.advance(700);
+
+    loop.onUtteranceDone();
     loop.onToolRunning("mystery_tool_b");
+    deps.timers.advance(700);
+
+    loop.onUtteranceDone();
     loop.onToolRunning("mystery_tool_c");
+    deps.timers.advance(700);
 
     // Draw order depends on the shuffle bag's internals — only the multiset (each phrase once,
     // nothing after the budget is spent) is part of the contract.
@@ -186,7 +201,7 @@ describe("createFillerLoop — onToolRunning()", () => {
     expect([...deps.spoken].sort()).toEqual(["checking…", "looking into it…"].sort());
   });
 
-  it("cancels a pending repeat timer on the first tool event and re-arms long_wait instead", () => {
+  it("cancels a pending repeat timer on the first tool event and re-arms a tool-gap timer instead", () => {
     const deps = makeDeps();
     const loop = createFillerLoop(deps);
     loop.start();
@@ -195,11 +210,11 @@ describe("createFillerLoop — onToolRunning()", () => {
 
     loop.onToolRunning("terminal");
     // A repeat could never legally fire again this turn — advancing far past the old repeat's
-    // due time must not produce a second "repeat-x" speak, only whatever the tool/long_wait path speaks.
+    // due time must not produce a second "repeat-x" speak, only whatever the tool-gap path speaks.
     const before = deps.spoken.length;
-    deps.timers.advance(500); // well short of any repeat/long_wait delay
+    deps.timers.advance(500); // well short of TOOL_GAP_MS (700ms)
     expect(deps.spoken.length).toBe(before);
-    expect(deps.timers.hasPending()).toBe(true); // long_wait now pending
+    expect(deps.timers.hasPending()).toBe(true); // tool-gap timer now pending
   });
 
   it("does nothing when the loop is inactive", () => {
@@ -208,6 +223,141 @@ describe("createFillerLoop — onToolRunning()", () => {
     loop.onToolRunning("terminal");
     expect(deps.spoken).toEqual([]);
     expect(deps.timers.hasPending()).toBe(false);
+  });
+
+  it("waits for the in-flight utterance, then TOOL_GAP_MS, before speaking a tool phrase", () => {
+    const deps = makeDeps({
+      getPools: () => pool({ tool: { web_search: ["searching"] } }),
+    });
+    const loop = createFillerLoop(deps);
+
+    loop.start(); // speaks "first-a"
+    loop.onToolRunning("web_search");
+    expect(deps.spoken).toEqual(["first-a"]); // still in flight, not yet spoken
+
+    deps.timers.advance(700);
+    expect(deps.spoken).toEqual(["first-a"]); // the previous utterance hasn't ended
+
+    loop.onUtteranceDone();
+    deps.timers.advance(699);
+    expect(deps.spoken).toEqual(["first-a"]);
+    deps.timers.advance(1);
+    expect(deps.spoken).toEqual(["first-a", "searching"]);
+  });
+
+  it("speaks after TOOL_GAP_MS when nothing is in flight", () => {
+    const deps = makeDeps({
+      getPools: () => pool({ tool: { web_search: ["searching"] } }),
+    });
+    const loop = createFillerLoop(deps);
+
+    loop.start();
+    loop.onUtteranceDone();
+    loop.onToolRunning("web_search");
+    expect(deps.spoken).toEqual(["first-a"]); // nothing yet
+
+    deps.timers.advance(700);
+    expect(deps.spoken).toEqual(["first-a", "searching"]);
+  });
+
+  it("only the latest of several tools that started before the phrase was spoken is voiced", () => {
+    const deps = makeDeps({
+      getPools: () => pool({ tool: { web_search: ["searching"], terminal: ["running-terminal"] } }),
+    });
+    const loop = createFillerLoop(deps);
+
+    loop.start(); // in flight
+    loop.onToolRunning("web_search");
+    loop.onToolRunning("terminal");
+    loop.onUtteranceDone();
+    deps.timers.advance(700);
+
+    expect(deps.spoken).not.toContain("searching");
+    expect(deps.spoken[deps.spoken.length - 1]).toBe("running-terminal");
+  });
+
+  it("stop() before the gap elapses drops the pending tool phrase", () => {
+    const deps = makeDeps({
+      getPools: () => pool({ tool: { web_search: ["searching"] } }),
+    });
+    const loop = createFillerLoop(deps);
+
+    loop.start();
+    loop.onUtteranceDone();
+    loop.onToolRunning("web_search");
+    loop.stop();
+    deps.timers.advance(5000);
+
+    expect(deps.spoken).not.toContain("searching");
+    expect(deps.timers.hasPending()).toBe(false);
+  });
+
+  it("still speaks the pending phrase when the tool's own done arrives during the gap", () => {
+    const deps = makeDeps({
+      getPools: () => pool({ tool: { web_search: ["searching"] } }),
+    });
+    const loop = createFillerLoop(deps);
+
+    loop.start();
+    loop.onUtteranceDone();
+    loop.onToolRunning("web_search");
+    loop.onActivity(); // tool_status done — the phrase is still thinking-window filler
+    deps.timers.advance(700);
+
+    expect(deps.spoken).toEqual(["first-a", "searching"]);
+  });
+
+  it("keeps scheduling when speak() completes playback synchronously (a phrase that submits no audio)", () => {
+    // An emoji-only phrase reaches pipeline.end() with nothing submitted, so onPlaybackEnd — and
+    // thus onUtteranceDone — fires inside the speak() call itself.
+    const deps = makeDeps({
+      getPools: () => pool({ first: ["🙂"], tool: { web_search: ["searching"] } }),
+    });
+    const loop = createFillerLoop({
+      ...deps,
+      speak: (text) => {
+        deps.spoken.push(text);
+        loop.onUtteranceDone();
+      },
+    });
+
+    loop.start(); // "🙂" completes re-entrantly; nothing is in flight afterwards
+    loop.onToolRunning("web_search");
+    deps.timers.advance(700);
+
+    expect(deps.spoken).toEqual(["🙂", "searching"]);
+  });
+
+  it("three unknown tools starting while one utterance plays yield a single _default phrase", () => {
+    const deps = makeDeps({
+      getPools: () => pool({ tool: { _default: ["checking…", "looking into it…"] } }),
+    });
+    const loop = createFillerLoop(deps);
+    loop.start(); // in flight
+    loop.onToolRunning("mystery_tool_a");
+    loop.onToolRunning("mystery_tool_b");
+    loop.onToolRunning("mystery_tool_c");
+    loop.onUtteranceDone();
+    deps.timers.advance(700);
+
+    expect(deps.spoken.length).toBe(2); // first phrase + one _default phrase, not three
+    expect(["checking…", "looking into it…"]).toContain(deps.spoken[1]);
+  });
+
+  it("re-arms long_wait after the tool phrase", () => {
+    const deps = makeDeps({
+      getPools: () => pool({ tool: { web_search: ["searching"] }, long_wait: ["long-wait-a"] }),
+    });
+    const loop = createFillerLoop(deps);
+
+    loop.start();
+    loop.onUtteranceDone();
+    loop.onToolRunning("web_search");
+    deps.timers.advance(700); // tool phrase speaks, then long_wait is armed
+    expect(deps.spoken).toContain("searching");
+
+    deps.timers.advance(1000); // default longWaitMs from makeDeps()
+    expect(deps.spoken).toContain("long-wait-a");
   });
 });
 
@@ -307,20 +457,28 @@ describe("createFillerLoop — start()", () => {
     expect(deps.timers.hasPending()).toBe(false); // fires exactly once, then nothing follows
   });
 
-  it("resets per-turn state (repeatsSpoken, spoken tool ids, degraded) but not the shuffle bags", () => {
+  it("resets per-turn state (repeatsSpoken, spoken tool ids, degraded, pending tool) but not the shuffle bags", () => {
     const deps = makeDeps({
       getPools: () => pool({ tool: { terminal: ["ack"] } }),
       isCached: () => false,
     });
     const loop = createFillerLoop(deps);
     loop.start();
-    loop.onToolRunning("terminal"); // marks "terminal" spoken this turn
+    loop.onUtteranceDone();
+    loop.onToolRunning("terminal"); // marks "terminal" pending, schedules the tool-gap timer
     loop.onSynthFailure(); // degrades
 
-    loop.stop();
-    loop.start(); // new turn: degraded clears, "terminal" can speak again
+    loop.stop(); // drops the pending tool phrase and cancels its timer
+    loop.start(); // new turn: degraded clears, pendingToolId resets
     deps.spoken.length = 0;
-    loop.onToolRunning("terminal");
+
+    // A leftover pendingToolId from the dropped turn must not resurrect "terminal"'s phrase here.
+    loop.onUtteranceDone();
+    expect(deps.spoken).toEqual([]);
+    expect(deps.timers.hasPending()).toBe(true); // the normal filler repeat is armed instead
+
+    loop.onToolRunning("terminal"); // "terminal" can speak again this turn
+    deps.timers.advance(700);
     expect(deps.spoken).toEqual(["ack"]);
   });
 });
@@ -341,15 +499,19 @@ describe("createFillerLoop — onSynthFailure() degraded mode", () => {
     expect(deps.timers.hasPending()).toBe(true);
   });
 
-  it("in phase tool, re-arms long_wait instead of leaving nothing pending", () => {
+  it("in phase tool, re-arms the tool-gap timer instead of leaving nothing pending", () => {
     const deps = makeDeps({ getPools: () => pool({ tool: { terminal: ["ack"] } }) });
     const loop = createFillerLoop(deps);
     loop.start();
-    loop.onToolRunning("terminal"); // phase=tool, long_wait armed
+    loop.onUtteranceDone();
+    loop.onToolRunning("terminal"); // phase=tool, tool-gap timer armed
     expect(deps.timers.hasPending()).toBe(true);
 
-    loop.onSynthFailure(); // e.g. the tool ack's own synth failed — long_wait must still be armed
+    loop.onSynthFailure(); // e.g. the tool ack's own synth failed — the tool-gap timer must still be armed
     expect(deps.timers.hasPending()).toBe(true);
+
+    deps.timers.advance(700);
+    expect(deps.spoken).toContain("ack"); // pendingToolId survived the re-arm
   });
 
   it("a cold degraded run (nothing cached) self-drives every repeat straight through to long_wait — no hand-called onUtteranceDone after a skip", () => {
@@ -430,6 +592,7 @@ describe("createFillerLoop — stop()", () => {
     loop.onUtteranceDone();
     loop.onToolRunning("terminal");
     loop.onActivity();
+    expect(deps.timers.hasPending()).toBe(false); // no tool-gap timer armed either
     deps.timers.advance(100_000);
     expect(deps.spoken.length).toBe(before);
   });
