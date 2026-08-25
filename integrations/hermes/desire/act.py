@@ -168,12 +168,9 @@ def _outbox_list(now):
 def _outbox_release(item_id, why, now):
     state_dir = desire_state.resolve_state_dir()
     with desire_state.state_lock(state_dir):
-        items = desire_state.read_jsonl(state_dir / "outbox.jsonl")
-        remaining = [item for item in items if item.get("id") != item_id]
-        if len(remaining) == len(items):
+        if not desire_state.release_outbox_item(state_dir / "outbox.jsonl", item_id):
             print("unknown outbox item", file=sys.stderr)
             return 1
-        desire_state.write_jsonl_atomic(state_dir / "outbox.jsonl", remaining)
         _audit(state_dir, now, "outbox_released", id=item_id, why=why)
     return 0
 

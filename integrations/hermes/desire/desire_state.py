@@ -195,6 +195,35 @@ def stamp_outbox(path: Path, item_ids: tuple[str, ...], now: datetime) -> None:
             os.replace(temporary, path)
 
 
+def release_outbox_item(path: Path, item_id: str) -> bool:
+    """Remove one item by id while preserving malformed lines. Returns whether it was found."""
+
+    path = Path(path)
+    with state_lock(path.parent):
+        if not path.exists():
+            return False
+        parts = path.read_text(encoding="utf-8").split("\n")
+        found = False
+        rewritten = []
+        for index, payload in enumerate(parts):
+            ending = "\n" if index < len(parts) - 1 else ""
+            line = payload + ending
+            try:
+                item = json.loads(payload)
+            except (json.JSONDecodeError, UnicodeError):
+                rewritten.append(line)
+                continue
+            if isinstance(item, dict) and item.get("id") == item_id:
+                found = True
+                continue
+            rewritten.append(line)
+        if found:
+            temporary = path.with_name(path.name + ".tmp")
+            temporary.write_text("".join(rewritten), encoding="utf-8", newline="")
+            os.replace(temporary, path)
+        return found
+
+
 def _default_drives(now: datetime) -> dict:
     stamp = now.isoformat()
     return {
@@ -422,15 +451,23 @@ def active_outbox(items: list[dict], now: datetime) -> list[dict]:
     for item in items:
         if not valid_outbox_item(item):
             continue
-        created_at = parse_timestamp(item["created_at"])
-        if created_at + timedelta(days=OUTBOX_EXPIRY_DAYS) > now:
+        age = now - parse_timestamp(item["created_at"])
+        if timedelta(0) <= age < timedelta(days=OUTBOX_EXPIRY_DAYS):
             active.append(item)
     return active
+
+
+_FORGED_MARKER_PREFIX = re.compile(r"^\(waited \d+d, (?:heavy|bursting)\)\s*")
 
 
 def sanitize_note(note: object) -> str:
     text = re.sub(r"[\r\n\v\f\x1c-\x1e\x85\u2028\u2029]+", " ", str(note))
     text = text.replace("<desire_state>", "").replace("</desire_state>", "")
+    while True:
+        stripped = _FORGED_MARKER_PREFIX.sub("", text)
+        if stripped == text:
+            break
+        text = stripped
     return text[:300]
 
 
