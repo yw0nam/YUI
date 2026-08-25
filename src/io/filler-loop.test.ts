@@ -273,12 +273,38 @@ describe("createFillerLoop — start()", () => {
     expect(deps.timers.hasPending()).toBe(true);
   });
 
-  it("does nothing when first and repeat are both empty", () => {
-    const deps = makeDeps({ getPools: () => pool({ first: [], repeat: [] }) });
+  it("does nothing when first, repeat, and long_wait are all empty", () => {
+    const deps = makeDeps({
+      getPools: () => pool({ first: [], repeat: [], long_wait: [] }),
+    });
     const loop = createFillerLoop(deps);
     loop.start();
     expect(deps.spoken).toEqual([]);
     expect(deps.timers.hasPending()).toBe(false);
+  });
+
+  it("arms a timer (through empty repeats to long_wait) when only long_wait is non-empty — a long_wait-only pool must not open a silent, unending thinking window", () => {
+    const deps = makeDeps({
+      getPools: () => pool({ first: [], repeat: [], long_wait: ["long-wait-a"] }),
+      getTiming: () => ({
+        gapMs: 1000,
+        jitterMs: 0,
+        maxRepeats: 2,
+        gapGrowth: 1,
+        longWaitMs: 1000,
+      }),
+    });
+    const loop = createFillerLoop(deps);
+    loop.start();
+    expect(deps.spoken).toEqual([]);
+    expect(deps.timers.hasPending()).toBe(true);
+
+    deps.timers.advance(1000); // empty repeat #0 fires, nothing to speak, self-advances
+    deps.timers.advance(1000); // empty repeat #1 fires, repeats exhausted, self-advances to long_wait
+    deps.timers.advance(1000); // long_wait fires
+
+    expect(deps.spoken).toEqual(["long-wait-a"]);
+    expect(deps.timers.hasPending()).toBe(false); // fires exactly once, then nothing follows
   });
 
   it("resets per-turn state (repeatsSpoken, spoken tool ids, degraded) but not the shuffle bags", () => {
