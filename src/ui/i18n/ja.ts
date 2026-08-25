@@ -12,7 +12,6 @@ const ja: Record<string, string> = {
   "tool.file": "Reading…",
   "tool.read_file": "Reading…",
   "tool.write_file": "Writing…",
-  "tool.done_label": "Done",
 
   // voice state labels
   "voice.state.idle": "待機中",
