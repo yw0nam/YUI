@@ -186,20 +186,17 @@ describe("prewarmFailureLines", () => {
     vi.useRealTimers();
   });
 
-  it("synthesizes every timeout/unreachable sentence once, debounced ~2s after wiring", async () => {
+  it("synthesizes every timeout/unreachable sentence immediately at wire time — no debounce for the first prewarm", async () => {
     setup(() => settingsOf(pool({ timeout: [TIMEOUT_PHRASE], unreachable: [UNREACHABLE_PHRASE] })));
 
-    await vi.advanceTimersByTimeAsync(1999);
-    expect(synthCalls().length).toBe(0);
-
-    await vi.advanceTimersByTimeAsync(1);
+    await vi.advanceTimersByTimeAsync(0); // flushes the synth calls' own microtasks — no timer to wait on
     expect(synthCalls().length).toBe(2);
     expect(synthInputs().sort()).toEqual([TIMEOUT_PHRASE, UNREACHABLE_PHRASE].sort());
   });
 
   it("skips a sentence already cached — a later speakFailure serves it without a new synth call", async () => {
     const { voice } = setup(() => settingsOf(pool({ timeout: [TIMEOUT_PHRASE] })));
-    await vi.advanceTimersByTimeAsync(2000);
+    await vi.advanceTimersByTimeAsync(0); // the first prewarm runs immediately, no debounce
     const before = synthCalls().length;
     expect(before).toBeGreaterThanOrEqual(1);
 
@@ -219,7 +216,7 @@ describe("prewarmFailureLines", () => {
         return () => {};
       },
     );
-    await vi.advanceTimersByTimeAsync(2000);
+    await vi.advanceTimersByTimeAsync(0); // the first prewarm runs immediately, no debounce
     const before = synthCalls().length;
 
     const NEW_PHRASE = "新しい文言。";
@@ -242,7 +239,7 @@ describe("prewarmFailureLines", () => {
         return () => {};
       },
     );
-    await vi.advanceTimersByTimeAsync(2000);
+    await vi.advanceTimersByTimeAsync(0); // the first prewarm runs immediately, no debounce
     const before = synthCalls().length;
 
     // A different settings object, but the same sentence set — nothing to redo.
@@ -263,7 +260,7 @@ describe("prewarmFailureLines", () => {
         return () => {};
       },
     );
-    await vi.advanceTimersByTimeAsync(2000); // let the initial (empty) prewarm settle — nothing to do
+    await vi.advanceTimersByTimeAsync(0); // the initial (empty) prewarm runs immediately — nothing to do
     expect(synthCalls().length).toBe(0);
 
     current = settingsOf(pool({ timeout: ["a"] }));
