@@ -109,9 +109,12 @@ export function wireVoicePipeline(deps: VoicePipelineDeps): VoicePipeline {
   // Guarded twice: a no-op when the sentence set hasn't changed since the last prewarm (so a
   // settings notify that doesn't touch timeout/unreachable costs nothing), and debounced so a
   // burst of edits (typing in the settings textarea) synthesizes once, not once per keystroke.
+  // The very first prewarm (at wire time) skips the debounce — a failure line should already be
+  // cached at startup, not still waiting out a timer nothing has edited yet.
   const PREWARM_DEBOUNCE_MS = 2000;
   let lastPrewarmedKey: string | undefined;
   let prewarmTimer: ReturnType<typeof setTimeout> | undefined;
+  let hasPrewarmedOnce = false;
 
   function prewarmFailureLines(): void {
     const pool = effectiveFiller();
@@ -122,14 +125,20 @@ export function wireVoicePipeline(deps: VoicePipelineDeps): VoicePipeline {
     const key = [...sentences].sort().join("\n");
     if (key === lastPrewarmedKey) return;
     if (prewarmTimer !== undefined) clearTimeout(prewarmTimer);
-    prewarmTimer = setTimeout(() => {
+    const run = (): void => {
       prewarmTimer = undefined;
       lastPrewarmedKey = key;
       for (const sentence of sentences) {
         if (fillerCache.has(sentence)) continue;
         void synth(sentence).catch(() => {});
       }
-    }, PREWARM_DEBOUNCE_MS);
+    };
+    if (!hasPrewarmedOnce) {
+      hasPrewarmedOnce = true;
+      run();
+    } else {
+      prewarmTimer = setTimeout(run, PREWARM_DEBOUNCE_MS);
+    }
   }
   prewarmFailureLines();
   const unsubscribeFillerSettings = deps.fillerSettings.subscribe?.(() => prewarmFailureLines());
