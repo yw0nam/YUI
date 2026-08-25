@@ -114,6 +114,23 @@ describe("createQuickControls — collapsible sections", () => {
     qc.dispose();
   });
 
+  it("only a tab's first section heading matches the reduced-top-margin selector", () => {
+    const qc = buildFullQc();
+    qc.open();
+
+    const byId = new Map(sectionsOf(qc.el).map((s) => [s.dataset.section, s]));
+    const MARGIN_SEL = ".yui-tabpanel > .yui-section:first-child .yui-quick__section";
+    const vrmHeading = byId.get("vrm")!.querySelector(".yui-quick__section")!;
+    const expressionHeading = byId.get("expression")!.querySelector(".yui-quick__section")!;
+
+    // vrm is the char tab's first section — it gets the reduced top margin.
+    expect(vrmHeading.matches(MARGIN_SEL)).toBe(true);
+    // expression follows it in the same tab — it does not.
+    expect(expressionHeading.matches(MARGIN_SEL)).toBe(false);
+
+    qc.dispose();
+  });
+
   it("no section is nested inside another section (each toggles independently)", () => {
     const qc = buildFullQc();
     qc.open();
