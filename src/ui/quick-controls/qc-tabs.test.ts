@@ -454,8 +454,15 @@ describe("createQuickControls — tabs + VAD slider", () => {
     first.value = "うーん\n\nそうだね\n";
     first.dispatchEvent(new Event("input", { bubbles: true }));
 
-    // Empty lines stripped; order preserved; repeat from the other textarea preserved.
-    expect(spy).toHaveBeenCalledWith("ja", { first: ["うーん", "そうだね"], repeat: ["ええと"] });
+    // Empty lines stripped; order preserved; every other field's current (empty) value written alongside.
+    expect(spy).toHaveBeenCalledWith("ja", {
+      first: ["うーん", "そうだね"],
+      repeat: ["ええと"],
+      long_wait: [],
+      timeout: [],
+      unreachable: [],
+      tool: {},
+    });
 
     qc.dispose();
   });
@@ -478,7 +485,14 @@ describe("createQuickControls — tabs + VAD slider", () => {
     repeat.value = "ええと\n\nもう少し\n";
     repeat.dispatchEvent(new Event("input", { bubbles: true }));
 
-    expect(spy).toHaveBeenCalledWith("ja", { first: ["うーん"], repeat: ["ええと", "もう少し"] });
+    expect(spy).toHaveBeenCalledWith("ja", {
+      first: ["うーん"],
+      repeat: ["ええと", "もう少し"],
+      long_wait: [],
+      timeout: [],
+      unreachable: [],
+      tool: {},
+    });
 
     qc.dispose();
   });
@@ -495,7 +509,14 @@ describe("createQuickControls — tabs + VAD slider", () => {
     first.value = "";
     first.dispatchEvent(new Event("input", { bubbles: true }));
 
-    expect(spy).toHaveBeenCalledWith("ja", { first: [], repeat: [] });
+    expect(spy).toHaveBeenCalledWith("ja", {
+      first: [],
+      repeat: [],
+      long_wait: [],
+      timeout: [],
+      unreachable: [],
+      tool: {},
+    });
 
     qc.dispose();
   });
@@ -548,6 +569,116 @@ describe("createQuickControls — tabs + VAD slider", () => {
     const sw = qc.el.querySelector<HTMLButtonElement>(".yui-filler .yui-filler-switch")!;
     fs.setEnabled(false);
     expect(sw.getAttribute("aria-checked")).toBe("false");
+
+    qc.dispose();
+  });
+
+  // ── "More phrases" details (long_wait / timeout / unreachable / tool) ─────────
+
+  it("wraps the four extra tiers in a closed-by-default <details class='yui-filler-more'>", () => {
+    const qc = buildQc({ fillerSettings: makeFillerSettings() });
+    qc.open();
+
+    const details = qc.el.querySelector<HTMLDetailsElement>(".yui-filler .yui-filler-more")!;
+    expect(details).not.toBeNull();
+    expect(details.open).toBe(false);
+    expect(details.querySelector("summary")?.textContent).toBe("더 보기"); // ko locale — see beforeEach
+    for (const cls of [
+      ".yui-filler-long-wait-textarea",
+      ".yui-filler-timeout-textarea",
+      ".yui-filler-unreachable-textarea",
+      ".yui-filler-tool-textarea",
+    ]) {
+      expect(details.querySelector(cls)).not.toBeNull();
+    }
+
+    qc.dispose();
+  });
+
+  it("editing the long_wait/timeout/unreachable textareas writes every other current field alongside", () => {
+    const fs = createFillerSettings({
+      initial: {
+        enabled: true,
+        language: "ja",
+        customPools: { ja: { first: ["うーん"], repeat: ["ええと"] } },
+      },
+    });
+    const spy = vi.spyOn(fs, "setCustomPool");
+    const qc = buildQc({ fillerSettings: fs });
+    qc.open();
+
+    const longWait = qc.el.querySelector<HTMLTextAreaElement>(
+      ".yui-filler .yui-filler-long-wait-textarea",
+    )!;
+    longWait.value = "まだかかりそう";
+    longWait.dispatchEvent(new Event("input", { bubbles: true }));
+
+    expect(spy).toHaveBeenCalledWith("ja", {
+      first: ["うーん"],
+      repeat: ["ええと"],
+      long_wait: ["まだかかりそう"],
+      timeout: [],
+      unreachable: [],
+      tool: {},
+    });
+
+    qc.dispose();
+  });
+
+  it("editing the tool textarea parses '_default' and 'tool_id = phrase' lines into the tool tier", () => {
+    const fs = makeFillerSettings();
+    const spy = vi.spyOn(fs, "setCustomPool");
+    const qc = buildQc({ fillerSettings: fs });
+    qc.open();
+
+    const tool = qc.el.querySelector<HTMLTextAreaElement>(".yui-filler .yui-filler-tool-textarea")!;
+    tool.value = "checking...\nterminal = running it";
+    tool.dispatchEvent(new Event("input", { bubbles: true }));
+
+    expect(spy).toHaveBeenCalledWith("ja", {
+      first: [],
+      repeat: [],
+      long_wait: [],
+      timeout: [],
+      unreachable: [],
+      tool: { _default: ["checking..."], terminal: ["running it"] },
+    });
+
+    qc.dispose();
+  });
+
+  it("reflectFiller serializes the stored tool tier back into '_default' then 'key = phrase' lines", () => {
+    const fs = createFillerSettings({
+      initial: {
+        enabled: true,
+        language: "ja",
+        customPools: {
+          ja: {
+            long_wait: ["まだかかりそう"],
+            timeout: ["諦めちゃった"],
+            unreachable: ["つながらない"],
+            tool: { web_search: ["searching"], _default: ["checking..."] },
+          },
+        },
+      },
+    });
+    const qc = buildQc({ fillerSettings: fs });
+    qc.open();
+
+    const longWait = qc.el.querySelector<HTMLTextAreaElement>(
+      ".yui-filler .yui-filler-long-wait-textarea",
+    )!;
+    const timeout = qc.el.querySelector<HTMLTextAreaElement>(
+      ".yui-filler .yui-filler-timeout-textarea",
+    )!;
+    const unreachable = qc.el.querySelector<HTMLTextAreaElement>(
+      ".yui-filler .yui-filler-unreachable-textarea",
+    )!;
+    const tool = qc.el.querySelector<HTMLTextAreaElement>(".yui-filler .yui-filler-tool-textarea")!;
+    expect(longWait.value).toBe("まだかかりそう");
+    expect(timeout.value).toBe("諦めちゃった");
+    expect(unreachable.value).toBe("つながらない");
+    expect(tool.value).toBe("checking...\nweb_search = searching");
 
     qc.dispose();
   });

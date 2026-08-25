@@ -170,6 +170,30 @@ describe("backend_caller — B5 cue forwarding + tool_status callbacks", () => {
     await caller.call(turnOf(userEnv()));
     expect(toolStatusSink).not.toHaveBeenCalledWith({ state: "idle" });
   });
+
+  it("forwards each streamed tool_status event to turnOutput.toolStatus(turnId, state, tool_id)", async () => {
+    const running = { state: "running" as const, tool_id: "web_search" };
+    const done = { state: "done" as const, tool_id: "web_search" };
+    script.events = [
+      toolStatusEvent(running),
+      toolStatusEvent(done),
+      completedEvent({ speech_text: "" }),
+    ];
+    await caller.call(turnOf(userEnv(), 7));
+    expect(turnOutput.toolStatus).toHaveBeenNthCalledWith(1, 7, "running", "web_search");
+    expect(turnOutput.toolStatus).toHaveBeenNthCalledWith(2, 7, "done", "web_search");
+  });
+
+  it("forwards each streamed express event to turnOutput.activity(turnId)", async () => {
+    script.events = [
+      deltaEvent("hi "),
+      expressEvent({ emotion_id: "happy" }),
+      completedEvent({ speech_text: "hi" }),
+    ];
+    await caller.call(turnOf(userEnv(), 7));
+    expect(turnOutput.activity).toHaveBeenCalledOnce();
+    expect(turnOutput.activity).toHaveBeenCalledWith(7);
+  });
 });
 
 describe("backend_caller — streaming speech deltas (incremental TTS)", () => {

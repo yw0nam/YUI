@@ -1,15 +1,30 @@
 import { describe, expect, it } from "vitest";
-import { validateFiller, validateFillerTier } from "./filler";
+import { validateFiller, validateFillerTier, validateFillerToolTier } from "./filler";
 import { ConfigError } from "./shared";
 
 const FILE = "filler.json";
+
+function basePool(overrides: Record<string, unknown> = {}): Record<string, unknown> {
+  return {
+    first: ["うーん…"],
+    repeat: ["ええと…"],
+    long_wait: ["ちょっと時間かかってるね…"],
+    tool: { _default: ["調べてみるね…"] },
+    timeout: ["ごめん、諦めちゃった。"],
+    unreachable: ["今つながらないみたい。"],
+    ...overrides,
+  };
+}
 
 function baseRaw(overrides: Record<string, unknown> = {}): Record<string, unknown> {
   return {
     gap_ms: 1000,
     gap_jitter_ms: 300,
+    max_repeats: 3,
+    gap_growth: 2,
+    long_wait_ms: 40000,
     pools: {
-      ja: { first: ["うーん…"], repeat: ["ええと…"] },
+      ja: basePool(),
     },
     ...overrides,
   };
@@ -39,19 +54,37 @@ describe("validateFiller — happy path", () => {
   it("accepts all three languages", () => {
     const raw = baseRaw({
       pools: {
-        ja: { first: ["う"], repeat: ["え"] },
-        en: { first: ["Hmm"], repeat: ["Well"] },
-        ko: { first: ["음"], repeat: ["글쎄"] },
+        ja: basePool(),
+        en: basePool({ first: ["Hmm"], repeat: ["Well"] }),
+        ko: basePool({ first: ["음"], repeat: ["글쎄"] }),
       },
     });
     const out = validateFiller(FILE, raw);
     expect(Object.keys(out.pools)).toEqual(["ja", "en", "ko"]);
   });
 
-  it("accepts an empty first/repeat tier (zero-length arrays are valid)", () => {
-    const raw = baseRaw({ pools: { ja: { first: [], repeat: [] } } });
+  it("accepts an empty list tier and an empty tool object (zero-length is valid)", () => {
+    const raw = baseRaw({
+      pools: {
+        ja: basePool({
+          first: [],
+          repeat: [],
+          long_wait: [],
+          tool: {},
+          timeout: [],
+          unreachable: [],
+        }),
+      },
+    });
     const out = validateFiller(FILE, raw);
-    expect(out.pools.ja).toEqual({ first: [], repeat: [] });
+    expect(out.pools.ja).toEqual({
+      first: [],
+      repeat: [],
+      long_wait: [],
+      tool: {},
+      timeout: [],
+      unreachable: [],
+    });
   });
 });
 
@@ -63,7 +96,7 @@ describe("validateFiller — top-level shape", () => {
   });
 });
 
-describe("validateFiller — gap_ms / gap_jitter_ms", () => {
+describe("validateFiller — gap_ms / gap_jitter_ms / max_repeats / gap_growth / long_wait_ms", () => {
   it("rejects a negative gap_ms", () => {
     expectIssue(baseRaw({ gap_ms: -1 }), "gap_ms는 0 이상 유한 number여야 함");
   });
@@ -74,6 +107,35 @@ describe("validateFiller — gap_ms / gap_jitter_ms", () => {
 
   it("rejects a non-finite gap_ms", () => {
     expectIssue(baseRaw({ gap_ms: Number.NaN }), "gap_ms는 0 이상 유한 number여야 함");
+  });
+
+  it("rejects a negative max_repeats", () => {
+    expectIssue(baseRaw({ max_repeats: -1 }), "max_repeats는 0 이상 정수여야 함");
+  });
+
+  it("rejects a non-integer max_repeats", () => {
+    expectIssue(baseRaw({ max_repeats: 1.5 }), "max_repeats는 0 이상 정수여야 함");
+  });
+
+  it("rejects a gap_growth below 1", () => {
+    expectIssue(baseRaw({ gap_growth: 0.5 }), "gap_growth는 1 이상 유한 number여야 함");
+  });
+
+  it("rejects a non-finite gap_growth", () => {
+    expectIssue(baseRaw({ gap_growth: Number.NaN }), "gap_growth는 1 이상 유한 number여야 함");
+  });
+
+  it("rejects a negative long_wait_ms", () => {
+    expectIssue(baseRaw({ long_wait_ms: -1 }), "long_wait_ms는 0 이상 유한 number여야 함");
+  });
+
+  it("rejects a non-finite long_wait_ms", () => {
+    expectIssue(baseRaw({ long_wait_ms: Number.NaN }), "long_wait_ms는 0 이상 유한 number여야 함");
+  });
+
+  it("accepts long_wait_ms and preserves it", () => {
+    const out = validateFiller(FILE, baseRaw({ long_wait_ms: 40000 }));
+    expect(out.long_wait_ms).toBe(40000);
   });
 });
 
@@ -87,28 +149,75 @@ describe("validateFiller — pools", () => {
   });
 
   it("rejects an unknown language key", () => {
-    expectIssue(
-      baseRaw({ pools: { fr: { first: ["x"], repeat: ["y"] } } }),
-      "pools의 알 수 없는 키",
-    );
+    expectIssue(baseRaw({ pools: { fr: basePool() } }), "pools의 알 수 없는 키");
   });
 
   it("rejects a pool entry that isn't an object", () => {
-    expectIssue(baseRaw({ pools: { ja: "nope" } }), "pools.ja는 {first, repeat} 객체여야 함");
+    expectIssue(baseRaw({ pools: { ja: "nope" } }), "pools.ja는 객체여야 함");
   });
 
   it("rejects a first tier that isn't an array", () => {
     expectIssue(
-      baseRaw({ pools: { ja: { first: "x", repeat: [] } } }),
+      baseRaw({ pools: { ja: basePool({ first: "x" }) } }),
       "pools.ja.first는 배열이어야 함",
     );
   });
 
   it("rejects a repeat tier with non-string entries", () => {
     expectIssue(
-      baseRaw({ pools: { ja: { first: [], repeat: [1, 2] } } }),
+      baseRaw({ pools: { ja: basePool({ repeat: [1, 2] }) } }),
       "pools.ja.repeat[0]는 문자열이어야 함",
     );
+  });
+
+  it("rejects a missing long_wait tier — config is ours, tiers must be present", () => {
+    const pool = basePool();
+    delete pool.long_wait;
+    expectIssue(baseRaw({ pools: { ja: pool } }), "pools.ja.long_wait는 배열이어야 함");
+  });
+
+  it("rejects a missing timeout tier", () => {
+    const pool = basePool();
+    delete pool.timeout;
+    expectIssue(baseRaw({ pools: { ja: pool } }), "pools.ja.timeout는 배열이어야 함");
+  });
+
+  it("rejects a missing unreachable tier", () => {
+    const pool = basePool();
+    delete pool.unreachable;
+    expectIssue(baseRaw({ pools: { ja: pool } }), "pools.ja.unreachable는 배열이어야 함");
+  });
+
+  it("rejects a missing tool tier", () => {
+    const pool = basePool();
+    delete pool.tool;
+    expectIssue(baseRaw({ pools: { ja: pool } }), "pools.ja.tool는 객체여야 함");
+  });
+
+  it("rejects a tool tier that isn't an object", () => {
+    expectIssue(
+      baseRaw({ pools: { ja: basePool({ tool: ["nope"] }) } }),
+      "pools.ja.tool는 객체여야 함",
+    );
+  });
+
+  it("rejects a tool tier whose value isn't a string array", () => {
+    expectIssue(
+      baseRaw({ pools: { ja: basePool({ tool: { _default: [1] } }) } }),
+      "pools.ja.tool._default[0]는 문자열이어야 함",
+    );
+  });
+
+  it("accepts multiple tool keys including _default", () => {
+    const out = validateFiller(
+      FILE,
+      baseRaw({
+        pools: {
+          ja: basePool({ tool: { _default: ["a"], terminal: ["b"], web_search: ["c"] } }),
+        },
+      }),
+    );
+    expect(out.pools.ja?.tool).toEqual({ _default: ["a"], terminal: ["b"], web_search: ["c"] });
   });
 });
 
@@ -129,5 +238,28 @@ describe("validateFillerTier — unit", () => {
     const issues: string[] = [];
     expect(validateFillerTier(issues, ["a", 1, "c"], "x")).toEqual([]);
     expect(issues).toEqual(["x[1]는 문자열이어야 함 (받음: 1)"]);
+  });
+});
+
+describe("validateFillerToolTier — unit", () => {
+  it("returns the dict unchanged when every value is a string array", () => {
+    const issues: string[] = [];
+    expect(validateFillerToolTier(issues, { _default: ["a"], terminal: ["b"] }, "x")).toEqual({
+      _default: ["a"],
+      terminal: ["b"],
+    });
+    expect(issues).toEqual([]);
+  });
+
+  it("records an issue and returns {} when not an object", () => {
+    const issues: string[] = [];
+    expect(validateFillerToolTier(issues, "nope", "x")).toEqual({});
+    expect(issues).toEqual(['x는 객체여야 함 (받음: "nope")']);
+  });
+
+  it("records per-key issues and returns {} when any value isn't a string array", () => {
+    const issues: string[] = [];
+    expect(validateFillerToolTier(issues, { terminal: [1] }, "x")).toEqual({});
+    expect(issues).toEqual(["x.terminal[0]는 문자열이어야 함 (받음: 1)"]);
   });
 });

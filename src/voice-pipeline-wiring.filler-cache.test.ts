@@ -33,6 +33,7 @@ vi.mock("./io/chat-client", () => ({ selectFetch: mocks.selectFetch }));
 
 import type { FillerPool } from "./config/load";
 import { createTurnLog } from "./dispatcher/turn";
+import { fillerPool } from "./io/filler-test-helpers";
 import type { SpeakerOption } from "./io/speaker-selection";
 import { type VoicePipeline, wireVoicePipeline } from "./voice-pipeline-wiring";
 
@@ -80,7 +81,14 @@ function setup(
       stt_base_url: "http://stt.test/v1",
       tts_base_url: "http://tts.test",
     }),
-    getFillerConfig: () => ({ gap_ms: gapMs, gap_jitter_ms: 0, pools: {} }),
+    getFillerConfig: () => ({
+      gap_ms: gapMs,
+      gap_jitter_ms: 0,
+      max_repeats: 1000,
+      gap_growth: 1,
+      long_wait_ms: 40000,
+      pools: {},
+    }),
     getTtsApiKey: vi.fn().mockResolvedValue(undefined),
     getSttApiKey: vi.fn().mockResolvedValue(undefined),
     ttsSettings: { get: () => ({ enabled: true }) },
@@ -114,7 +122,7 @@ describe("filler audio cache membership", () => {
   });
 
   it("caches a filler phrase whose emoji the speech path strips before submission", async () => {
-    const voice = setup({ first: [HESITATE], repeat: [] });
+    const voice = setup(fillerPool({ first: [HESITATE], repeat: [] }));
 
     await speak(voice, HESITATE, 1);
     expect(synthCalls()).toBe(1);
@@ -124,7 +132,7 @@ describe("filler audio cache membership", () => {
   });
 
   it("caches every sentence a filler phrase splits into", async () => {
-    const voice = setup({ first: [], repeat: [TWO_SENTENCES] });
+    const voice = setup(fillerPool({ first: [], repeat: [TWO_SENTENCES] }));
 
     await speak(voice, TWO_SENTENCES, 2);
     expect(synthCalls()).toBe(2);
@@ -136,7 +144,7 @@ describe("filler audio cache membership", () => {
   it("keeps filler submissions cue-free when an express cue arrives during thinking", async () => {
     // gap 0 so the loop's repeat lands without waiting; the same phrase in both pools makes the
     // repeat the phrase already cached by the first utterance.
-    const voice = setup({ first: [HESITATE], repeat: [HESITATE] }, 0);
+    const voice = setup(fillerPool({ first: [HESITATE], repeat: [HESITATE] }), 0);
 
     // The turn order the backend caller drives: interrupt, then thinking, then the express cue —
     // which can land before the first speech delta and must stay held until thinking ends.
@@ -156,7 +164,7 @@ describe("filler audio cache membership", () => {
   });
 
   it("still re-synthesizes a response sentence that is not in the pool", async () => {
-    const voice = setup({ first: [HESITATE], repeat: [] });
+    const voice = setup(fillerPool({ first: [HESITATE], repeat: [] }));
 
     await speak(voice, "今日はいい天気だね。", 1);
     await speak(voice, "今日はいい天気だね。", 1);
@@ -174,14 +182,14 @@ describe("filler audio cache invalidation", () => {
   });
 
   it("re-synthesizes only the phrase whose text was edited", async () => {
-    let pool: FillerPool = { first: [PHRASE_A], repeat: [PHRASE_B] };
+    let pool: FillerPool = fillerPool({ first: [PHRASE_A], repeat: [PHRASE_B] });
     const voice = setup(() => pool);
 
     await speak(voice, PHRASE_A, 1);
     await speak(voice, PHRASE_B, 1);
     expect(synthCalls()).toBe(2);
 
-    pool = { first: [PHRASE_A_EDITED], repeat: [PHRASE_B] };
+    pool = fillerPool({ first: [PHRASE_A_EDITED], repeat: [PHRASE_B] });
 
     // The untouched phrase keeps the audio it already has.
     await speak(voice, PHRASE_B, 1);
@@ -194,7 +202,7 @@ describe("filler audio cache invalidation", () => {
 
   it("re-synthesizes every phrase when the speaker revision changes", async () => {
     let revision = 1;
-    const voice = setup({ first: [PHRASE_A], repeat: [PHRASE_B] }, 1_000, () => ({
+    const voice = setup(fillerPool({ first: [PHRASE_A], repeat: [PHRASE_B] }), 1_000, () => ({
       ...SPEAKER,
       revision,
     }));
@@ -211,19 +219,19 @@ describe("filler audio cache invalidation", () => {
   });
 
   it("evicts a phrase that leaves the pool", async () => {
-    let pool: FillerPool = { first: [PHRASE_A], repeat: [PHRASE_B] };
+    let pool: FillerPool = fillerPool({ first: [PHRASE_A], repeat: [PHRASE_B] });
     const voice = setup(() => pool);
 
     await speak(voice, PHRASE_B, 1);
     expect(synthCalls()).toBe(1);
 
     // Out of the pool it is no longer cacheable text and goes straight to the provider.
-    pool = { first: [PHRASE_A], repeat: [] };
+    pool = fillerPool({ first: [PHRASE_A], repeat: [] });
     await speak(voice, PHRASE_B, 1);
     expect(synthCalls()).toBe(2);
 
     // Re-added, it has no audio left to hit.
-    pool = { first: [PHRASE_A], repeat: [PHRASE_B] };
+    pool = fillerPool({ first: [PHRASE_A], repeat: [PHRASE_B] });
     await speak(voice, PHRASE_B, 1);
     expect(synthCalls()).toBe(3);
 

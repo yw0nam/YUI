@@ -11,18 +11,31 @@ import { createPersistedStore, localStorageStore, type PersistedStorage } from "
 export interface FillerSettings {
   enabled: boolean;
   language: FillerLang;
-  customPools: Partial<Record<FillerLang, FillerPool>>;
+  /** Any tier may be absent — an absent tier means "use the config pool" (old stored data stays valid). */
+  customPools: Partial<Record<FillerLang, Partial<FillerPool>>>;
 }
 
 export type FillerStorage = PersistedStorage<FillerSettings>;
 
 const FILLER_LANGS: readonly FillerLang[] = ["ja", "en", "ko"];
+const LIST_TIERS = ["first", "repeat", "long_wait", "timeout", "unreachable"] as const;
 
-function isValidPool(p: unknown): p is FillerPool {
+function isStringArray(v: unknown): v is string[] {
+  return Array.isArray(v) && v.every((x) => typeof x === "string");
+}
+
+function isToolDict(v: unknown): v is Record<string, string[]> {
+  if (v === null || typeof v !== "object" || Array.isArray(v)) return false;
+  return Object.values(v as Record<string, unknown>).every(isStringArray);
+}
+
+function isValidPool(p: unknown): p is Partial<FillerPool> {
   if (p === null || typeof p !== "object" || Array.isArray(p)) return false;
   const o = p as Record<string, unknown>;
-  if (!Array.isArray(o.first) || o.first.some((x) => typeof x !== "string")) return false;
-  if (!Array.isArray(o.repeat) || o.repeat.some((x) => typeof x !== "string")) return false;
+  for (const tier of LIST_TIERS) {
+    if (o[tier] !== undefined && !isStringArray(o[tier])) return false;
+  }
+  if (o.tool !== undefined && !isToolDict(o.tool)) return false;
   return true;
 }
 
@@ -44,12 +57,20 @@ function isValidSettings(v: unknown): v is FillerSettings {
 
 const DEFAULTS: FillerSettings = { enabled: true, language: "ja", customPools: {} };
 
-function copyPool(p: FillerPool): FillerPool {
-  return { first: [...p.first], repeat: [...p.repeat] };
+// Copies only the tiers actually present — an absent tier stays absent (means "use config pool").
+function copyPool(p: Partial<FillerPool>): Partial<FillerPool> {
+  const out: Partial<FillerPool> = {};
+  for (const tier of LIST_TIERS) {
+    if (p[tier] !== undefined) out[tier] = [...p[tier]];
+  }
+  if (p.tool !== undefined) {
+    out.tool = Object.fromEntries(Object.entries(p.tool).map(([k, v]) => [k, [...v]]));
+  }
+  return out;
 }
 
 function copySettings(s: FillerSettings): FillerSettings {
-  const pools: Partial<Record<FillerLang, FillerPool>> = {};
+  const pools: Partial<Record<FillerLang, Partial<FillerPool>>> = {};
   for (const lang of FILLER_LANGS) {
     if (s.customPools[lang] !== undefined) {
       pools[lang] = copyPool(s.customPools[lang]!);
@@ -66,17 +87,41 @@ function tierEqual(a: string[], b: string[]): boolean {
   return true;
 }
 
+// Absent tier == empty tier (both mean "use the config pool").
+function listTierEqual(a: string[] | undefined, b: string[] | undefined): boolean {
+  return tierEqual(a ?? [], b ?? []);
+}
+
+function toolDictEqual(
+  a: Record<string, string[]> | undefined,
+  b: Record<string, string[]> | undefined,
+): boolean {
+  const av = a ?? {};
+  const bv = b ?? {};
+  const aKeys = Object.keys(av);
+  if (aKeys.length !== Object.keys(bv).length) return false;
+  return aKeys.every((k) => bv[k] !== undefined && tierEqual(av[k]!, bv[k]!));
+}
+
+function poolEqual(a: Partial<FillerPool>, b: Partial<FillerPool>): boolean {
+  return (
+    LIST_TIERS.every((tier) => listTierEqual(a[tier], b[tier])) && toolDictEqual(a.tool, b.tool)
+  );
+}
+
+function isEmptyPool(p: Partial<FillerPool>): boolean {
+  return poolEqual(p, {});
+}
+
 function poolsEqual(
-  a: Partial<Record<FillerLang, FillerPool>>,
-  b: Partial<Record<FillerLang, FillerPool>>,
+  a: Partial<Record<FillerLang, Partial<FillerPool>>>,
+  b: Partial<Record<FillerLang, Partial<FillerPool>>>,
 ): boolean {
   for (const lang of FILLER_LANGS) {
     const aPool = a[lang];
     const bPool = b[lang];
     if (aPool === undefined && bPool === undefined) continue;
-    if (aPool === undefined || bPool === undefined) return false;
-    if (!tierEqual(aPool.first, bPool.first) || !tierEqual(aPool.repeat, bPool.repeat))
-      return false;
+    if (!poolEqual(aPool ?? {}, bPool ?? {})) return false;
   }
   return true;
 }
@@ -108,17 +153,11 @@ export function createFillerSettings(opts?: { storage?: FillerStorage; initial?:
       core.commit({ ...core.current(), language });
     },
 
-    setCustomPool(lang: FillerLang, p: FillerPool): void {
+    setCustomPool(lang: FillerLang, p: Partial<FillerPool>): void {
       const current = core.current().customPools[lang];
-      // No-op when unchanged — including unset→both-empty (both mean "use config pool").
-      const bothEmpty = p.first.length === 0 && p.repeat.length === 0;
-      if (
-        current === undefined
-          ? bothEmpty
-          : tierEqual(current.first, p.first) && tierEqual(current.repeat, p.repeat)
-      )
-        return;
-      const newPools: Partial<Record<FillerLang, FillerPool>> = {
+      // No-op when unchanged — including unset→all-empty (both mean "use config pool").
+      if (current === undefined ? isEmptyPool(p) : poolEqual(current, p)) return;
+      const newPools: Partial<Record<FillerLang, Partial<FillerPool>>> = {
         ...core.current().customPools,
         [lang]: copyPool(p),
       };

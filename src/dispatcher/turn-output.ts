@@ -1,4 +1,4 @@
-import type { ExpressArgs } from "../contract";
+import type { ExpressArgs, ToolStatus } from "../contract";
 
 /**
  * Speech lifecycle port between the backend caller and the voice pipeline.
@@ -15,6 +15,11 @@ import type { ExpressArgs } from "../contract";
  * - `abort()` replaces `end()` when the stream died after at least one `delta`.
  * - `cue(args)` carries per-beat express cues while streaming; on the completed-only path it
  *   carries `emotion_text` alone, because `applyDirective` already rendered emotion/motion.
+ * - `toolStatus(turnId, state, toolId?)` carries each streamed tool_status event, independent of
+ *   the UI chip sink — like `thinkingStart`/`thinkingEnd`, `turnId` ties it to the turn it came
+ *   from, so a superseded turn's late event is ignored rather than reaching whichever turn is
+ *   thinking now.
+ * - `activity(turnId)` carries non-tool progress (an express cue) — same turn-id-gated rule.
  */
 export interface TurnOutput {
   interrupt(): void;
@@ -26,4 +31,6 @@ export interface TurnOutput {
   end(): void;
   abort(): void;
   cue(args: ExpressArgs): void;
+  toolStatus(turnId: number, state: ToolStatus["state"], toolId?: string): void;
+  activity(turnId: number): void;
 }

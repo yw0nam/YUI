@@ -37,6 +37,7 @@ vi.mock("./io/chat-client", () => ({ selectFetch: mocks.selectFetch }));
 
 import type { FillerPool } from "./config/load";
 import { createTurnLog } from "./dispatcher/turn";
+import { fillerPool } from "./io/filler-test-helpers";
 import { type VoicePipeline, wireVoicePipeline } from "./voice-pipeline-wiring";
 
 const UNCACHED = "えーっと。";
@@ -89,7 +90,14 @@ function setup(customPool: FillerPool): VoicePipeline {
       tts_base_url: "http://tts.test",
     }),
     // gap 0 so every filler cycle lands on the next macrotask instead of a wall-clock wait.
-    getFillerConfig: () => ({ gap_ms: 0, gap_jitter_ms: 0, pools: {} }),
+    getFillerConfig: () => ({
+      gap_ms: 0,
+      gap_jitter_ms: 0,
+      max_repeats: 1000,
+      gap_growth: 1,
+      long_wait_ms: 40000,
+      pools: {},
+    }),
     getTtsApiKey: vi.fn().mockResolvedValue(undefined),
     getSttApiKey: vi.fn().mockResolvedValue(undefined),
     ttsSettings: { get: () => ({ enabled: true }) },
@@ -125,7 +133,7 @@ describe("filler scheduling after a synth failure with a warm cache", () => {
   });
 
   it("keeps playing cached filler for the rest of the window with no further synth attempts", async () => {
-    const voice = setup({ first: [UNCACHED], repeat: [CACHED] });
+    const voice = setup(fillerPool({ first: [UNCACHED], repeat: [CACHED] }));
 
     await warm(voice, CACHED, 1);
     expect(synthCalls()).toBe(1);
@@ -145,7 +153,7 @@ describe("filler scheduling after a synth failure with a warm cache", () => {
   });
 
   it("does not pick a phrase whose sentences are only partly cached", async () => {
-    const voice = setup({ first: [UNCACHED], repeat: [TWO_SENTENCES] });
+    const voice = setup(fillerPool({ first: [UNCACHED], repeat: [TWO_SENTENCES] }));
 
     // Only the first of the two sentences gets audio.
     await warm(voice, "うーん。", 1);
@@ -165,7 +173,7 @@ describe("filler scheduling after a synth failure with a warm cache", () => {
   });
 
   it("does not pick a phrase that strips to no sentence", async () => {
-    const voice = setup({ first: [UNCACHED], repeat: [EMOJI_ONLY] });
+    const voice = setup(fillerPool({ first: [UNCACHED], repeat: [EMOJI_ONLY] }));
 
     mocks.state.serverDown = true;
     voice.turnOutput.thinkingStart(1);

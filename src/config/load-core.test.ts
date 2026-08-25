@@ -450,14 +450,32 @@ describe("loadConfig — default fetch reader routes through asset resolver", ()
 
 // ── filler.json ─────────────────────────────────────────────────────────────────
 
+function goodFillerPool(overrides: Record<string, unknown> = {}): Record<string, unknown> {
+  return {
+    first: ["うーん…", "そうだね…"],
+    repeat: ["ええと…", "ちょっと待ってね…"],
+    long_wait: ["ちょっと時間かかってるね…"],
+    tool: { _default: ["調べてみるね…"] },
+    timeout: ["ごめん、諦めちゃった。"],
+    unreachable: ["今つながらないみたい。"],
+    ...overrides,
+  };
+}
+
 function goodFillerFixture(): Record<string, unknown> {
   return {
     gap_ms: 1000,
     gap_jitter_ms: 300,
+    max_repeats: 3,
+    gap_growth: 2,
+    long_wait_ms: 40000,
     pools: {
-      ja: { first: ["うーん…", "そうだね…"], repeat: ["ええと…", "ちょっと待ってね…"] },
-      en: { first: ["Let me think...", "Hmm..."], repeat: ["Well...", "Just a sec..."] },
-      ko: { first: ["음…", "그건…"], repeat: ["글쎄…", "잠깐만…"] },
+      ja: goodFillerPool(),
+      en: goodFillerPool({
+        first: ["Let me think...", "Hmm..."],
+        repeat: ["Well...", "Just a sec..."],
+      }),
+      ko: goodFillerPool({ first: ["음…", "그건…"], repeat: ["글쎄…", "잠깐만…"] }),
     },
   };
 }
@@ -473,18 +491,19 @@ describe("loadConfig — filler (accept)", () => {
     const cfg = await loadConfig({ read: readerOf(fillerFixture()) });
     expect(cfg.filler.gap_ms).toBe(1000);
     expect(cfg.filler.gap_jitter_ms).toBe(300);
-    expect(cfg.filler.pools.ja).toEqual({
-      first: ["うーん…", "そうだね…"],
-      repeat: ["ええと…", "ちょっと待ってね…"],
-    });
-    expect(cfg.filler.pools.en).toEqual({
-      first: ["Let me think...", "Hmm..."],
-      repeat: ["Well...", "Just a sec..."],
-    });
-    expect(cfg.filler.pools.ko).toEqual({
-      first: ["음…", "그건…"],
-      repeat: ["글쎄…", "잠깐만…"],
-    });
+    expect(cfg.filler.max_repeats).toBe(3);
+    expect(cfg.filler.gap_growth).toBe(2);
+    expect(cfg.filler.long_wait_ms).toBe(40000);
+    expect(cfg.filler.pools.ja).toEqual(goodFillerPool());
+    expect(cfg.filler.pools.en).toEqual(
+      goodFillerPool({
+        first: ["Let me think...", "Hmm..."],
+        repeat: ["Well...", "Just a sec..."],
+      }),
+    );
+    expect(cfg.filler.pools.ko).toEqual(
+      goodFillerPool({ first: ["음…", "그건…"], repeat: ["글쎄…", "잠깐만…"] }),
+    );
   });
 
   it("pools에 ja만 있어도 통과한다", async () => {
@@ -492,10 +511,13 @@ describe("loadConfig — filler (accept)", () => {
     map["filler.json"] = {
       gap_ms: 1000,
       gap_jitter_ms: 0,
-      pools: { ja: { first: ["うーん…"], repeat: [] } },
+      max_repeats: 0,
+      gap_growth: 1,
+      long_wait_ms: 40000,
+      pools: { ja: goodFillerPool({ first: ["うーん…"], repeat: [] }) },
     };
     const cfg = await loadConfig({ read: readerOf(map) });
-    expect(cfg.filler.pools.ja).toEqual({ first: ["うーん…"], repeat: [] });
+    expect(cfg.filler.pools.ja).toEqual(goodFillerPool({ first: ["うーん…"], repeat: [] }));
     expect(cfg.filler.pools.en).toBeUndefined();
   });
 
@@ -509,15 +531,49 @@ describe("loadConfig — filler (accept)", () => {
     expect(cfg.filler.gap_ms).toBe(0);
   });
 
-  it("first[]와 repeat[] 모두 빈 배열이어도 통과한다(풀에서 선택 안 함)", async () => {
+  it("max_repeats: 0은 통과한다(반복 없음 허용)", async () => {
+    const cfg = await loadConfig({ read: readerOf(fillerFixture({ max_repeats: 0 })) });
+    expect(cfg.filler.max_repeats).toBe(0);
+  });
+
+  it("gap_growth: 1은 통과한다(성장 없음 허용)", async () => {
+    const cfg = await loadConfig({ read: readerOf(fillerFixture({ gap_growth: 1 })) });
+    expect(cfg.filler.gap_growth).toBe(1);
+  });
+
+  it("long_wait_ms: 0은 통과한다(대기 없음 허용)", async () => {
+    const cfg = await loadConfig({ read: readerOf(fillerFixture({ long_wait_ms: 0 })) });
+    expect(cfg.filler.long_wait_ms).toBe(0);
+  });
+
+  it("모든 리스트 tier가 빈 배열이고 tool이 빈 객체여도 통과한다(풀에서 선택 안 함)", async () => {
     const map = goodFixture();
     map["filler.json"] = {
       gap_ms: 500,
       gap_jitter_ms: 100,
-      pools: { en: { first: [], repeat: [] } },
+      max_repeats: 3,
+      gap_growth: 2,
+      long_wait_ms: 40000,
+      pools: {
+        en: goodFillerPool({
+          first: [],
+          repeat: [],
+          long_wait: [],
+          tool: {},
+          timeout: [],
+          unreachable: [],
+        }),
+      },
     };
     const cfg = await loadConfig({ read: readerOf(map) });
-    expect(cfg.filler.pools.en).toEqual({ first: [], repeat: [] });
+    expect(cfg.filler.pools.en).toEqual({
+      first: [],
+      repeat: [],
+      long_wait: [],
+      tool: {},
+      timeout: [],
+      unreachable: [],
+    });
   });
 });
 
@@ -530,7 +586,7 @@ describe("loadConfig — filler (reject)", () => {
 
   it("gap_ms가 없으면 ConfigError", async () => {
     const map = goodFixture();
-    map["filler.json"] = { gap_jitter_ms: 300, pools: { ja: { first: ["うーん…"], repeat: [] } } };
+    map["filler.json"] = { ...goodFillerFixture(), gap_ms: undefined };
     await expect(loadConfig({ read: readerOf(map) })).rejects.toBeInstanceOf(ConfigError);
   });
 
@@ -552,74 +608,140 @@ describe("loadConfig — filler (reject)", () => {
     ).rejects.toBeInstanceOf(ConfigError);
   });
 
-  it("gap_jitter_ms가 없으면 ConfigError", async () => {
-    const map = goodFixture();
-    map["filler.json"] = { gap_ms: 1000, pools: { ja: { first: ["うーん…"], repeat: [] } } };
-    await expect(loadConfig({ read: readerOf(map) })).rejects.toBeInstanceOf(ConfigError);
-  });
-
   it("gap_jitter_ms가 음수이면 ConfigError", async () => {
     await expect(
       loadConfig({ read: readerOf(fillerFixture({ gap_jitter_ms: -1 })) }),
     ).rejects.toBeInstanceOf(ConfigError);
   });
 
+  it("max_repeats가 없으면 ConfigError", async () => {
+    const map = goodFixture();
+    map["filler.json"] = { ...goodFillerFixture(), max_repeats: undefined };
+    await expect(loadConfig({ read: readerOf(map) })).rejects.toBeInstanceOf(ConfigError);
+  });
+
+  it("max_repeats가 음수이면 ConfigError", async () => {
+    await expect(
+      loadConfig({ read: readerOf(fillerFixture({ max_repeats: -1 })) }),
+    ).rejects.toBeInstanceOf(ConfigError);
+  });
+
+  it("max_repeats가 정수가 아니면 ConfigError", async () => {
+    await expect(
+      loadConfig({ read: readerOf(fillerFixture({ max_repeats: 1.5 })) }),
+    ).rejects.toBeInstanceOf(ConfigError);
+  });
+
+  it("gap_growth가 없으면 ConfigError", async () => {
+    const map = goodFixture();
+    map["filler.json"] = { ...goodFillerFixture(), gap_growth: undefined };
+    await expect(loadConfig({ read: readerOf(map) })).rejects.toBeInstanceOf(ConfigError);
+  });
+
+  it("gap_growth가 1 미만이면 ConfigError", async () => {
+    await expect(
+      loadConfig({ read: readerOf(fillerFixture({ gap_growth: 0.5 })) }),
+    ).rejects.toBeInstanceOf(ConfigError);
+  });
+
+  it("long_wait_ms가 없으면 ConfigError", async () => {
+    const map = goodFixture();
+    map["filler.json"] = { ...goodFillerFixture(), long_wait_ms: undefined };
+    await expect(loadConfig({ read: readerOf(map) })).rejects.toBeInstanceOf(ConfigError);
+  });
+
+  it("long_wait_ms가 음수이면 ConfigError", async () => {
+    await expect(
+      loadConfig({ read: readerOf(fillerFixture({ long_wait_ms: -1 })) }),
+    ).rejects.toBeInstanceOf(ConfigError);
+  });
+
+  it("long_wait_ms가 비유한(Infinity)이면 ConfigError", async () => {
+    await expect(
+      loadConfig({ read: readerOf(fillerFixture({ long_wait_ms: Infinity })) }),
+    ).rejects.toBeInstanceOf(ConfigError);
+  });
+
   it("pools가 없으면 ConfigError", async () => {
     const map = goodFixture();
-    map["filler.json"] = { gap_ms: 1000, gap_jitter_ms: 300 };
+    map["filler.json"] = {
+      gap_ms: 1000,
+      gap_jitter_ms: 300,
+      max_repeats: 3,
+      gap_growth: 2,
+      long_wait_ms: 40000,
+    };
     await expect(loadConfig({ read: readerOf(map) })).rejects.toBeInstanceOf(ConfigError);
   });
 
   it("pools가 객체가 아니면 ConfigError", async () => {
-    const map = goodFixture();
-    map["filler.json"] = { gap_ms: 1000, gap_jitter_ms: 300, pools: "ja" };
-    await expect(loadConfig({ read: readerOf(map) })).rejects.toBeInstanceOf(ConfigError);
+    await expect(
+      loadConfig({ read: readerOf(fillerFixture({ pools: "ja" })) }),
+    ).rejects.toBeInstanceOf(ConfigError);
   });
 
   it("pools가 빈 객체이면 ConfigError (최소 한 개 언어 필요)", async () => {
-    const map = goodFixture();
-    map["filler.json"] = { gap_ms: 1000, gap_jitter_ms: 300, pools: {} };
-    await expect(loadConfig({ read: readerOf(map) })).rejects.toBeInstanceOf(ConfigError);
+    await expect(
+      loadConfig({ read: readerOf(fillerFixture({ pools: {} })) }),
+    ).rejects.toBeInstanceOf(ConfigError);
   });
 
   it("pools에 알 수 없는 키(fr)가 있으면 ConfigError", async () => {
-    const map = goodFixture();
-    map["filler.json"] = {
-      gap_ms: 1000,
-      gap_jitter_ms: 300,
-      pools: { ja: { first: ["うーん…"], repeat: [] }, fr: { first: ["hmm…"], repeat: [] } },
-    };
-    await expect(loadConfig({ read: readerOf(map) })).rejects.toBeInstanceOf(ConfigError);
+    await expect(
+      loadConfig({
+        read: readerOf(fillerFixture({ pools: { ja: goodFillerPool(), fr: goodFillerPool() } })),
+      }),
+    ).rejects.toBeInstanceOf(ConfigError);
   });
 
-  it("pools[ja]가 배열(旧 shape)이면 ConfigError — {first,repeat} 객체가 아님", async () => {
-    const map = goodFixture();
-    map["filler.json"] = {
-      gap_ms: 1000,
-      gap_jitter_ms: 300,
-      pools: { ja: ["うーん…", "そうだね…"] },
-    };
-    await expect(loadConfig({ read: readerOf(map) })).rejects.toBeInstanceOf(ConfigError);
+  it("pools[ja]가 배열(旧 shape)이면 ConfigError — 객체가 아님", async () => {
+    await expect(
+      loadConfig({
+        read: readerOf(fillerFixture({ pools: { ja: ["うーん…", "そうだね…"] } })),
+      }),
+    ).rejects.toBeInstanceOf(ConfigError);
   });
 
   it("pools[ja].first가 string[]이 아닌 number[]이면 ConfigError", async () => {
-    const map = goodFixture();
-    map["filler.json"] = {
-      gap_ms: 1000,
-      gap_jitter_ms: 300,
-      pools: { ja: { first: [1, 2], repeat: [] } },
-    };
-    await expect(loadConfig({ read: readerOf(map) })).rejects.toBeInstanceOf(ConfigError);
+    await expect(
+      loadConfig({
+        read: readerOf(fillerFixture({ pools: { ja: goodFillerPool({ first: [1, 2] }) } })),
+      }),
+    ).rejects.toBeInstanceOf(ConfigError);
   });
 
   it("pools[ja].repeat가 string[]이 아닌 number[]이면 ConfigError", async () => {
-    const map = goodFixture();
-    map["filler.json"] = {
-      gap_ms: 1000,
-      gap_jitter_ms: 300,
-      pools: { ja: { first: ["うーん…"], repeat: [1] } },
-    };
-    await expect(loadConfig({ read: readerOf(map) })).rejects.toBeInstanceOf(ConfigError);
+    await expect(
+      loadConfig({
+        read: readerOf(fillerFixture({ pools: { ja: goodFillerPool({ repeat: [1] }) } })),
+      }),
+    ).rejects.toBeInstanceOf(ConfigError);
+  });
+
+  it("pools[ja]에 long_wait tier가 없으면 ConfigError — config는 우리 소유, tier 생략 불가", async () => {
+    const pool = goodFillerPool();
+    delete (pool as Record<string, unknown>).long_wait;
+    await expect(
+      loadConfig({ read: readerOf(fillerFixture({ pools: { ja: pool } })) }),
+    ).rejects.toBeInstanceOf(ConfigError);
+  });
+
+  it("pools[ja]에 tool tier가 없으면 ConfigError", async () => {
+    const pool = goodFillerPool();
+    delete (pool as Record<string, unknown>).tool;
+    await expect(
+      loadConfig({ read: readerOf(fillerFixture({ pools: { ja: pool } })) }),
+    ).rejects.toBeInstanceOf(ConfigError);
+  });
+
+  it("pools[ja].tool의 값이 string[]이 아니면 ConfigError", async () => {
+    await expect(
+      loadConfig({
+        read: readerOf(
+          fillerFixture({ pools: { ja: goodFillerPool({ tool: { _default: [1] } }) } }),
+        ),
+      }),
+    ).rejects.toBeInstanceOf(ConfigError);
   });
 });
 

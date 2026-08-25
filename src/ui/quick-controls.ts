@@ -48,6 +48,7 @@ import {
 } from "./quick-controls/constants";
 import { createEndpointsSection } from "./quick-controls/endpoints-section";
 import { createExpressMotionList } from "./quick-controls/express-motion-section";
+import { parseToolLines, serializeToolLines } from "./quick-controls/filler-tool-lines";
 import { createHintTooltip } from "./quick-controls/hint-tooltip";
 import { createHistorySection } from "./quick-controls/history-section";
 import { createIdleMotionList } from "./quick-controls/idle-motion-section";
@@ -491,6 +492,16 @@ export function createQuickControls({
   const fillerRepeatTextareaEl = el.querySelector<HTMLTextAreaElement>(
     ".yui-filler-repeat-textarea",
   );
+  const fillerLongWaitTextareaEl = el.querySelector<HTMLTextAreaElement>(
+    ".yui-filler-long-wait-textarea",
+  );
+  const fillerTimeoutTextareaEl = el.querySelector<HTMLTextAreaElement>(
+    ".yui-filler-timeout-textarea",
+  );
+  const fillerUnreachableTextareaEl = el.querySelector<HTMLTextAreaElement>(
+    ".yui-filler-unreachable-textarea",
+  );
+  const fillerToolTextareaEl = el.querySelector<HTMLTextAreaElement>(".yui-filler-tool-textarea");
   const fillerLangBtns = fillerLangSegEl
     ? Array.from(fillerLangSegEl.querySelectorAll<HTMLButtonElement>(".yui-seg__btn"))
     : [];
@@ -748,10 +759,16 @@ export function createQuickControls({
     const clamped = Math.min(FILLER_LANGS.length - 1, Math.max(0, index));
     const lang = FILLER_LANGS[clamped];
     fillerSettings.setLanguage(lang);
-    // When language changes, immediately update both textareas to new language's pool (before store subscription).
+    // When language changes, immediately update every textarea to new language's pool (before store subscription).
     const pool = fillerSettings.get().customPools[lang];
-    if (fillerFirstTextareaEl) fillerFirstTextareaEl.value = pool ? pool.first.join("\n") : "";
-    if (fillerRepeatTextareaEl) fillerRepeatTextareaEl.value = pool ? pool.repeat.join("\n") : "";
+    if (fillerFirstTextareaEl) fillerFirstTextareaEl.value = (pool?.first ?? []).join("\n");
+    if (fillerRepeatTextareaEl) fillerRepeatTextareaEl.value = (pool?.repeat ?? []).join("\n");
+    if (fillerLongWaitTextareaEl)
+      fillerLongWaitTextareaEl.value = (pool?.long_wait ?? []).join("\n");
+    if (fillerTimeoutTextareaEl) fillerTimeoutTextareaEl.value = (pool?.timeout ?? []).join("\n");
+    if (fillerUnreachableTextareaEl)
+      fillerUnreachableTextareaEl.value = (pool?.unreachable ?? []).join("\n");
+    if (fillerToolTextareaEl) fillerToolTextareaEl.value = serializeToolLines(pool?.tool ?? {});
     if (focus) fillerLangBtns[clamped]?.focus();
   }
 
@@ -828,13 +845,17 @@ export function createQuickControls({
     });
   }
 
-  // When editing either field, write both fields' current values together so neither clobbers the other.
+  // When editing any one field, write every field's current value together so none clobbers another.
   function handleFillerTextareaInput(): void {
     if (!fillerSettings) return;
     const lang = fillerSettings.get().language;
     fillerSettings.setCustomPool(lang, {
       first: parseFillerLines(fillerFirstTextareaEl),
       repeat: parseFillerLines(fillerRepeatTextareaEl),
+      long_wait: parseFillerLines(fillerLongWaitTextareaEl),
+      timeout: parseFillerLines(fillerTimeoutTextareaEl),
+      unreachable: parseFillerLines(fillerUnreachableTextareaEl),
+      tool: parseToolLines(fillerToolTextareaEl?.value ?? ""),
     });
   }
 
@@ -1271,6 +1292,10 @@ export function createQuickControls({
   langSegEl.addEventListener("keydown", handleLangSegKeydown);
   fillerFirstTextareaEl?.addEventListener("input", handleFillerTextareaInput);
   fillerRepeatTextareaEl?.addEventListener("input", handleFillerTextareaInput);
+  fillerLongWaitTextareaEl?.addEventListener("input", handleFillerTextareaInput);
+  fillerTimeoutTextareaEl?.addEventListener("input", handleFillerTextareaInput);
+  fillerUnreachableTextareaEl?.addEventListener("input", handleFillerTextareaInput);
+  fillerToolTextareaEl?.addEventListener("input", handleFillerTextareaInput);
   voiceSwitchBtn.addEventListener("click", handleVoiceSwitchClick);
   // Gain/VAD sliders are wired inside bindSlider() above; disposeGainSlider/disposeVadSlider tear them down.
   tablistEl.addEventListener("click", handleTabClick);
@@ -1356,6 +1381,10 @@ export function createQuickControls({
     langSegEl.removeEventListener("keydown", handleLangSegKeydown);
     fillerFirstTextareaEl?.removeEventListener("input", handleFillerTextareaInput);
     fillerRepeatTextareaEl?.removeEventListener("input", handleFillerTextareaInput);
+    fillerLongWaitTextareaEl?.removeEventListener("input", handleFillerTextareaInput);
+    fillerTimeoutTextareaEl?.removeEventListener("input", handleFillerTextareaInput);
+    fillerUnreachableTextareaEl?.removeEventListener("input", handleFillerTextareaInput);
+    fillerToolTextareaEl?.removeEventListener("input", handleFillerTextareaInput);
     voiceSwitchBtn.removeEventListener("click", handleVoiceSwitchClick);
     disposeGainSlider();
     disposeVadSlider();

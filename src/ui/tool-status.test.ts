@@ -108,14 +108,26 @@ describe("tool chip lifecycle (running → done → hide)", () => {
     expect((el.querySelector(".yui-tool__label") as HTMLElement).textContent).toBe("Searching…");
   });
 
-  it("finishTool switches a running chip to done then auto-hides", () => {
+  it("finishTool sets the chip label to 'Done' — the progressive verb must not linger next to the check", () => {
+    s.showTool("web_search");
+    s.finishTool();
+    const el = tool();
+    expect((el.querySelector(".yui-tool__label") as HTMLElement).textContent).toBe("Done");
+  });
+
+  it("finishTool switches a running chip to done then auto-hides after the 1500ms hold", () => {
     vi.useFakeTimers();
     s.showTool("web_search");
     s.finishTool();
     const el = tool();
     expect(el.dataset.state).toBe("done");
-    vi.advanceTimersByTime(600);
+
+    // Pins the hold constant: not yet at 1499ms, hidden by 1500ms.
+    vi.advanceTimersByTime(1499);
+    expect(el.classList.contains("is-visible")).toBe(true);
+    vi.advanceTimersByTime(1);
     expect(el.classList.contains("is-visible")).toBe(false);
+
     vi.useRealTimers();
   });
 
@@ -134,11 +146,11 @@ describe("dispose — clears the pending tool-hide timer", () => {
     const toolEl = mount.querySelector(".yui-tool") as HTMLElement;
 
     s.showTool("web_search");
-    s.finishTool(); // arms the 500ms toolHideTimer
+    s.finishTool(); // arms the 1500ms toolHideTimer
     s.dispose();
 
-    // 500ms toolHideTimer + 400ms afterFadeOut fallback, well past both
-    vi.advanceTimersByTime(1000);
+    // 1500ms toolHideTimer + 900ms afterFadeOut fallback, well past both
+    vi.advanceTimersByTime(2600);
 
     expect(toolEl.hidden).toBe(false);
 
@@ -148,7 +160,7 @@ describe("dispose — clears the pending tool-hide timer", () => {
 });
 
 describe("dispose — cancels an in-flight fade fallback", () => {
-  it("stops the 400ms fallback from mutating the chip after teardown mid-fade", () => {
+  it("stops the 900ms fallback from mutating the chip after teardown mid-fade", () => {
     vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
     const mount = document.createElement("div");
     document.body.appendChild(mount);
@@ -156,10 +168,10 @@ describe("dispose — cancels an in-flight fade fallback", () => {
     const toolEl = mount.querySelector(".yui-tool") as HTMLElement;
 
     s.showTool("web_search");
-    s.finishTool(); // arms the 500ms toolHideTimer
-    vi.advanceTimersByTime(500); // toolHideTimer fires -> hideTool() arms the 400ms fade fallback
+    s.finishTool(); // arms the 1500ms toolHideTimer
+    vi.advanceTimersByTime(1500); // toolHideTimer fires -> hideTool() arms the 900ms fade fallback
     s.dispose();
-    vi.advanceTimersByTime(400); // fallback would fire here if not cancelled
+    vi.advanceTimersByTime(900); // fallback would fire here if not cancelled
 
     expect(toolEl.hidden).toBe(false);
 
@@ -180,7 +192,7 @@ describe("disposed guard — late async calls after teardown are no-ops", () => 
     s.dispose();
     s.finishTool(); // late async onToolStatus callback landing after teardown
 
-    vi.advanceTimersByTime(1000);
+    vi.advanceTimersByTime(2600);
     expect(toolEl.dataset.state).toBe("running");
     expect(toolEl.hidden).toBe(false);
 
@@ -210,7 +222,7 @@ describe("tool-status hide fallback", () => {
     el.dispatchEvent(event);
   }
 
-  it("hideTool settles after 400ms without transitionend and repeated stray hides stay harmless", () => {
+  it("hideTool settles after 900ms without transitionend and repeated stray hides stay harmless", () => {
     const tool = mount.querySelector(".yui-tool") as HTMLElement;
     s.showTool("web_search");
 
@@ -218,7 +230,7 @@ describe("tool-status hide fallback", () => {
     s.hideTool();
     expect(tool.hidden).toBe(false);
 
-    vi.advanceTimersByTime(400);
+    vi.advanceTimersByTime(900);
     expect(tool.hidden).toBe(true);
 
     s.showTool("browser");
@@ -260,7 +272,7 @@ describe("tool-status — a frame deferred past the hide", () => {
 
     s.showTool("mcp_tts_express_server_get_ids");
     s.hideTool();
-    vi.advanceTimersByTime(400); // fade fallback settles the chip hidden
+    vi.advanceTimersByTime(900); // fade fallback settles the chip hidden
     flush(); // the window paints again
 
     expect(toolEl.classList.contains("is-visible")).toBe(false);
@@ -277,10 +289,34 @@ describe("tool-status — a frame deferred past the hide", () => {
 
     s.showTool("mcp_tts_express_server_get_ids");
     s.finishTool();
-    vi.advanceTimersByTime(900); // 500ms hold + 400ms fade fallback
+    vi.advanceTimersByTime(2400); // 1500ms hold + 900ms fade fallback
     flush();
 
     expect(toolEl.classList.contains("is-visible")).toBe(false);
+
+    s.dispose();
+    mount.remove();
+  });
+
+  it("re-showing while a dismiss fade is still in flight leaves the chip visible, not hidden by the stale settle", () => {
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+    const { flush } = stubFrames();
+    const { s, mount } = makeSurfaces();
+    const toolEl = mount.querySelector(".yui-tool") as HTMLElement;
+
+    s.showTool("web_search");
+    flush();
+    s.finishTool(); // arms the 1500ms hold
+    vi.advanceTimersByTime(1500); // hold fires -> hideTool() removes is-visible, arms the 900ms fallback
+
+    s.showTool("terminal"); // re-show while the old dismiss fade is still pending — is-visible
+    // isn't back yet (the new show's rAF hasn't run), so the stale settle's own is-visible check
+    // can't save it: only showTool() cancelling the stale fade outright can.
+    vi.advanceTimersByTime(900); // the stale fade's fallback fires here if not cancelled
+    flush(); // now the new show's rAF finally re-adds is-visible
+
+    expect(toolEl.hidden).toBe(false);
+    expect(toolEl.classList.contains("is-visible")).toBe(true);
 
     s.dispose();
     mount.remove();

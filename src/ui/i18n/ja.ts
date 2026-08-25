@@ -12,6 +12,7 @@ const ja: Record<string, string> = {
   "tool.file": "Reading…",
   "tool.read_file": "Reading…",
   "tool.write_file": "Writing…",
+  "tool.done_label": "Done",
 
   // voice state labels
   "voice.state.idle": "待機中",
@@ -145,9 +146,24 @@ const ja: Record<string, string> = {
   "filler.first_sub": "ユーザーのメッセージが届くとすぐに一度再生",
   "filler.first_aria": "最初のセリフ一覧",
   "filler.repeat_label": "繰り返すセリフ",
-  "filler.repeat_sub": "最初のセリフの後、応答が来るまで1秒ごとに再生",
+  "filler.repeat_sub":
+    "最初のセリフの後、間隔を広げながら数回繰り返し、その後は長引いた時のセリフに切り替わります",
   "filler.repeat_aria": "繰り返すセリフ一覧",
-  "filler.hint": "両方の一覧を空にするとデフォルトの文言を使います。1行に1つずつ入力してください。",
+  "filler.hint": "一覧を空にするとデフォルトの文言を使います。1行に1つずつ入力してください。",
+  "filler.more": "もっと見る",
+  "filler.long_wait_label": "長引いた時のセリフ",
+  "filler.long_wait_sub": "繰り返しを使い切ってもまだ返事が来ない時に一度だけ再生",
+  "filler.long_wait_aria": "長引いた時のセリフ一覧",
+  "filler.timeout_label": "タイムアウトのセリフ",
+  "filler.timeout_sub": "返事が長く来なくて諦めた時に再生",
+  "filler.timeout_aria": "タイムアウトのセリフ一覧",
+  "filler.unreachable_label": "接続エラーのセリフ",
+  "filler.unreachable_sub": "サーバーに接続できない時に再生",
+  "filler.unreachable_aria": "接続エラーのセリフ一覧",
+  "filler.tool_label": "ツールのセリフ",
+  "filler.tool_sub":
+    "1行に1つ。「terminal = コマンドを実行するね…」のように書くと特定のツール用、それ以外は共通のフォールバックになります",
+  "filler.tool_aria": "ツールのセリフ一覧",
 
   // language picker
   "language.label": "言語",

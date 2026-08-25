@@ -446,6 +446,40 @@ ${switchRowsHtml("talk", 10, "filler")}
             </div>
           </div>
           <p class="yui-field-hint yui-filler-hint">${t("filler.hint")}</p>
+          <details class="yui-filler-more">
+            <summary>${t("filler.more")}</summary>
+            <div class="yui-field-row">
+              <span class="yui-field-row__label">${t("filler.long_wait_label")}</span>
+              <span class="yui-field-row__sub">${t("filler.long_wait_sub")}</span>
+              <div class="yui-textarea-wrap">
+                <textarea class="yui-textarea yui-filler-long-wait-textarea" spellcheck="false" rows="3" aria-label="${t("filler.long_wait_aria")}"></textarea>
+              </div>
+            </div>
+            <div class="yui-filler__list-sep" aria-hidden="true"></div>
+            <div class="yui-field-row">
+              <span class="yui-field-row__label">${t("filler.timeout_label")}</span>
+              <span class="yui-field-row__sub">${t("filler.timeout_sub")}</span>
+              <div class="yui-textarea-wrap">
+                <textarea class="yui-textarea yui-filler-timeout-textarea" spellcheck="false" rows="3" aria-label="${t("filler.timeout_aria")}"></textarea>
+              </div>
+            </div>
+            <div class="yui-filler__list-sep" aria-hidden="true"></div>
+            <div class="yui-field-row">
+              <span class="yui-field-row__label">${t("filler.unreachable_label")}</span>
+              <span class="yui-field-row__sub">${t("filler.unreachable_sub")}</span>
+              <div class="yui-textarea-wrap">
+                <textarea class="yui-textarea yui-filler-unreachable-textarea" spellcheck="false" rows="3" aria-label="${t("filler.unreachable_aria")}"></textarea>
+              </div>
+            </div>
+            <div class="yui-filler__list-sep" aria-hidden="true"></div>
+            <div class="yui-field-row">
+              <span class="yui-field-row__label">${t("filler.tool_label")}</span>
+              <span class="yui-field-row__sub">${t("filler.tool_sub")}</span>
+              <div class="yui-textarea-wrap">
+                <textarea class="yui-textarea yui-filler-tool-textarea" spellcheck="false" rows="3" aria-label="${t("filler.tool_aria")}"></textarea>
+              </div>
+            </div>
+          </details>
         </div>
         </details>`
             : ""

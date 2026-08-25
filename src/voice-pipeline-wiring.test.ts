@@ -15,6 +15,9 @@ const mocks = vi.hoisted(() => {
   const fillerLoop = {
     start: vi.fn(),
     onUtteranceDone: vi.fn(),
+    onToolRunning: vi.fn(),
+    onActivity: vi.fn(),
+    onSynthFailure: vi.fn(),
     stop: vi.fn(),
   };
   const sttVad = {
@@ -84,7 +87,7 @@ vi.mock("./io/voice-import", () => ({
   fileStemFromPath: (path: string) => path,
 }));
 
-import type { FillerConfig } from "./config/load";
+import type { FillerConfig, FillerPool } from "./config/load";
 import type { EndpointsConfig } from "./contract";
 import type { BusEnvelope } from "./dispatcher/event-bus";
 import { createTurnLog } from "./dispatcher/turn";
@@ -105,6 +108,18 @@ const noopLog = { debug: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn() }
 // In-memory Storage stand-in shared by two speakerSelection instances, so they behave like the
 // same localStorage two real windows would share (jsdom/window are not available in this file's
 // node test environment).
+function fillerPool(overrides: Partial<FillerPool> = {}): FillerPool {
+  return {
+    first: [],
+    repeat: [],
+    long_wait: [],
+    tool: {},
+    timeout: [],
+    unreachable: [],
+    ...overrides,
+  };
+}
+
 function sharedLocalStorage(): Storage {
   const backing = new Map<string, string>();
   return {
@@ -144,7 +159,10 @@ function setup() {
   let fillerConfig: FillerConfig = {
     gap_ms: 1_000,
     gap_jitter_ms: 100,
-    pools: { ja: { first: ["first"], repeat: ["repeat"] } },
+    max_repeats: 3,
+    gap_growth: 2,
+    long_wait_ms: 40000,
+    pools: { ja: fillerPool({ first: ["first"], repeat: ["repeat"] }) },
   };
   const fillerSettings = {
     enabled: true,
@@ -298,20 +316,56 @@ describe("wireVoicePipeline", () => {
 
   it("reports whether either effective filler pool is non-empty", () => {
     const state = setup();
-    state.setFillerConfig({ gap_ms: 1, gap_jitter_ms: 0, pools: {} });
+    state.setFillerConfig({
+      gap_ms: 1,
+      gap_jitter_ms: 0,
+      max_repeats: 3,
+      gap_growth: 2,
+      long_wait_ms: 40000,
+      pools: {},
+    });
     expect(state.voice.turnOutput.hasFiller()).toBe(false);
 
     state.setFillerConfig({
       gap_ms: 1,
       gap_jitter_ms: 0,
-      pools: { ja: { first: ["first"], repeat: [] } },
+      max_repeats: 3,
+      gap_growth: 2,
+      long_wait_ms: 40000,
+      pools: { ja: fillerPool({ first: ["first"], repeat: [] }) },
     });
     expect(state.voice.turnOutput.hasFiller()).toBe(true);
 
     state.setFillerConfig({
       gap_ms: 1,
       gap_jitter_ms: 0,
-      pools: { ja: { first: [], repeat: ["repeat"] } },
+      max_repeats: 3,
+      gap_growth: 2,
+      long_wait_ms: 40000,
+      pools: { ja: fillerPool({ first: [], repeat: ["repeat"] }) },
+    });
+    expect(state.voice.turnOutput.hasFiller()).toBe(true);
+  });
+
+  it("counts long_wait and tool as filler too — a pool with only those still opens a thinking window", () => {
+    const state = setup();
+    state.setFillerConfig({
+      gap_ms: 1,
+      gap_jitter_ms: 0,
+      max_repeats: 3,
+      gap_growth: 2,
+      long_wait_ms: 40000,
+      pools: { ja: fillerPool({ long_wait: ["still working on it"] }) },
+    });
+    expect(state.voice.turnOutput.hasFiller()).toBe(true);
+
+    state.setFillerConfig({
+      gap_ms: 1,
+      gap_jitter_ms: 0,
+      max_repeats: 3,
+      gap_growth: 2,
+      long_wait_ms: 40000,
+      pools: { ja: fillerPool({ tool: { terminal: ["running it"] } }) },
     });
     expect(state.voice.turnOutput.hasFiller()).toBe(true);
   });
@@ -509,7 +563,10 @@ describe("wireVoicePipeline", () => {
         getFillerConfig: () => ({
           gap_ms: 1_000,
           gap_jitter_ms: 100,
-          pools: { ja: { first: ["first"], repeat: ["repeat"] } },
+          max_repeats: 3,
+          gap_growth: 2,
+          long_wait_ms: 40000,
+          pools: { ja: fillerPool({ first: ["first"], repeat: ["repeat"] }) },
         }),
         getTtsApiKey: vi.fn().mockResolvedValue(undefined),
         getSttApiKey: vi.fn().mockResolvedValue(undefined),
@@ -552,7 +609,10 @@ describe("wireVoicePipeline", () => {
     state.setFillerConfig({
       gap_ms: 1_000,
       gap_jitter_ms: 100,
-      pools: { ja: { first: ["first"], repeat: ["another"] } },
+      max_repeats: 3,
+      gap_growth: 2,
+      long_wait_ms: 40000,
+      pools: { ja: fillerPool({ first: ["first"], repeat: ["another"] }) },
     });
 
     // The untouched phrase keeps its audio.
@@ -563,7 +623,10 @@ describe("wireVoicePipeline", () => {
     state.setFillerConfig({
       gap_ms: 1_000,
       gap_jitter_ms: 100,
-      pools: { ja: { first: ["first"], repeat: ["repeat"] } },
+      max_repeats: 3,
+      gap_growth: 2,
+      long_wait_ms: 40000,
+      pools: { ja: fillerPool({ first: ["first"], repeat: ["repeat"] }) },
     });
     await synth("repeat");
     expect(synthCalls()).toHaveLength(3);
@@ -585,9 +648,28 @@ describe("wireVoicePipeline", () => {
     state.setGain(5);
     expect(sinkOptions.getGain!()).toBe(5);
 
-    expect(fillerOptions().getTiming()).toEqual({ gapMs: 1_000, jitterMs: 100 });
-    state.setFillerConfig({ gap_ms: 2_000, gap_jitter_ms: 250, pools: {} });
-    expect(fillerOptions().getTiming()).toEqual({ gapMs: 2_000, jitterMs: 250 });
+    expect(fillerOptions().getTiming()).toEqual({
+      gapMs: 1_000,
+      jitterMs: 100,
+      maxRepeats: 3,
+      gapGrowth: 2,
+      longWaitMs: 40000,
+    });
+    state.setFillerConfig({
+      gap_ms: 2_000,
+      gap_jitter_ms: 250,
+      max_repeats: 5,
+      gap_growth: 1.5,
+      long_wait_ms: 50000,
+      pools: {},
+    });
+    expect(fillerOptions().getTiming()).toEqual({
+      gapMs: 2_000,
+      jitterMs: 250,
+      maxRepeats: 5,
+      gapGrowth: 1.5,
+      longWaitMs: 50000,
+    });
 
     await state.voice.createSttEngine();
     const sttOptions = mocks.captured.sttVad as SttVadOptions;
@@ -600,6 +682,70 @@ describe("wireVoicePipeline", () => {
     setup();
     playbackOptions().onPlaybackEnd!();
     expect(mocks.fillerLoop.onUtteranceDone).toHaveBeenCalledOnce();
+  });
+
+  describe("turnOutput.toolStatus / turnOutput.activity", () => {
+    it("toolStatus(turnId, 'running', id) calls fillerLoop.onToolRunning(id) while that turn is thinking", () => {
+      const { voice } = setup();
+      voice.turnOutput.thinkingStart(1);
+      voice.turnOutput.toolStatus(1, "running", "terminal");
+      expect(mocks.fillerLoop.onToolRunning).toHaveBeenCalledWith("terminal");
+    });
+
+    it("toolStatus(turnId, 'done'|'idle'|'error') calls fillerLoop.onActivity() while that turn is thinking", () => {
+      const { voice } = setup();
+      voice.turnOutput.thinkingStart(1);
+      voice.turnOutput.toolStatus(1, "done");
+      voice.turnOutput.toolStatus(1, "idle");
+      voice.turnOutput.toolStatus(1, "error");
+      expect(mocks.fillerLoop.onActivity).toHaveBeenCalledTimes(3);
+      expect(mocks.fillerLoop.onToolRunning).not.toHaveBeenCalled();
+    });
+
+    it("activity(turnId) calls fillerLoop.onActivity() while that turn is thinking", () => {
+      const { voice } = setup();
+      voice.turnOutput.thinkingStart(1);
+      voice.turnOutput.activity(1);
+      expect(mocks.fillerLoop.onActivity).toHaveBeenCalledOnce();
+    });
+
+    it("ignores toolStatus/activity when no turn is thinking", () => {
+      const { voice } = setup();
+      voice.turnOutput.toolStatus(1, "running", "terminal");
+      voice.turnOutput.activity(1);
+      expect(mocks.fillerLoop.onToolRunning).not.toHaveBeenCalled();
+      expect(mocks.fillerLoop.onActivity).not.toHaveBeenCalled();
+    });
+
+    it("ignores toolStatus/activity once thinking has ended", () => {
+      const { voice } = setup();
+      voice.turnOutput.thinkingStart(1);
+      voice.turnOutput.thinkingEnd(1);
+      vi.clearAllMocks();
+      voice.turnOutput.toolStatus(1, "running", "terminal");
+      voice.turnOutput.activity(1);
+      expect(mocks.fillerLoop.onToolRunning).not.toHaveBeenCalled();
+      expect(mocks.fillerLoop.onActivity).not.toHaveBeenCalled();
+    });
+
+    it("ignores toolStatus/activity from a superseded turn once a newer turn is thinking", () => {
+      const { voice } = setup();
+      voice.turnOutput.thinkingStart(1); // turn A starts thinking
+      voice.turnOutput.thinkingStart(2); // turn B supersedes A before A's late events arrive
+      vi.clearAllMocks();
+
+      // Late events from the superseded turn A must not reach B's filler loop.
+      voice.turnOutput.toolStatus(1, "running", "terminal");
+      voice.turnOutput.activity(1);
+      expect(mocks.fillerLoop.onToolRunning).not.toHaveBeenCalled();
+      expect(mocks.fillerLoop.onActivity).not.toHaveBeenCalled();
+
+      // Turn B's own events still reach it.
+      voice.turnOutput.toolStatus(2, "running", "terminal");
+      voice.turnOutput.activity(2);
+      expect(mocks.fillerLoop.onToolRunning).toHaveBeenCalledWith("terminal");
+      expect(mocks.fillerLoop.onActivity).toHaveBeenCalledOnce();
+    });
   });
 
   it("wires STT callbacks, state, credentials, and a live endpoints getter (#611)", async () => {

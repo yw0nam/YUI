@@ -38,6 +38,7 @@ import {
   SCREEN_MIN_GAP_MIN,
   type ScreenKnobFieldDef,
 } from "./constants";
+import { serializeToolLines } from "./filler-tool-lines";
 import type { SwitchRow } from "./switch-row";
 
 // Format token count as "18.2K" / "18K" / "200K". Below 1000 stays as-is,
@@ -180,6 +181,16 @@ export function createReflect(deps: ReflectDeps): Reflect {
   const fillerRepeatTextareaEl = root.querySelector<HTMLTextAreaElement>(
     ".yui-filler-repeat-textarea",
   );
+  const fillerLongWaitTextareaEl = root.querySelector<HTMLTextAreaElement>(
+    ".yui-filler-long-wait-textarea",
+  );
+  const fillerTimeoutTextareaEl = root.querySelector<HTMLTextAreaElement>(
+    ".yui-filler-timeout-textarea",
+  );
+  const fillerUnreachableTextareaEl = root.querySelector<HTMLTextAreaElement>(
+    ".yui-filler-unreachable-textarea",
+  );
+  const fillerToolTextareaEl = root.querySelector<HTMLTextAreaElement>(".yui-filler-tool-textarea");
   const langSegEl = root.querySelector<HTMLDivElement>(".yui-lang-seg")!;
   const langSegButtons = Array.from(langSegEl.querySelectorAll<HTMLButtonElement>(".yui-seg__btn"));
   const epInputs = new Map<keyof EndpointOverrides, HTMLInputElement>();
@@ -306,10 +317,16 @@ export function createReflect(deps: ReflectDeps): Reflect {
       btn.tabIndex = selected ? 0 : -1;
     });
     fillerLangSegEl.style.setProperty("--seg", String(idx));
-    // Two textareas — show current language's customPool (first/repeat) line by line (empty if not set).
+    // Show current language's customPool, one tier per textarea (empty if not set).
     const pool = s.customPools[s.language];
-    fillerFirstTextareaEl.value = pool ? pool.first.join("\n") : "";
-    fillerRepeatTextareaEl.value = pool ? pool.repeat.join("\n") : "";
+    fillerFirstTextareaEl.value = (pool?.first ?? []).join("\n");
+    fillerRepeatTextareaEl.value = (pool?.repeat ?? []).join("\n");
+    if (fillerLongWaitTextareaEl)
+      fillerLongWaitTextareaEl.value = (pool?.long_wait ?? []).join("\n");
+    if (fillerTimeoutTextareaEl) fillerTimeoutTextareaEl.value = (pool?.timeout ?? []).join("\n");
+    if (fillerUnreachableTextareaEl)
+      fillerUnreachableTextareaEl.value = (pool?.unreachable ?? []).join("\n");
+    if (fillerToolTextareaEl) fillerToolTextareaEl.value = serializeToolLines(pool?.tool ?? {});
   }
 
   // Language picker — reflects current display language onto selected seg.

@@ -6,6 +6,7 @@
  */
 
 import { afterFadeOut } from "./fade-out";
+import { t } from "./i18n";
 import { getToolLabel } from "./tool-labels";
 
 export interface ToolStatus {
@@ -24,7 +25,9 @@ export interface ToolStatusElements {
   toolLabel: HTMLElement;
 }
 
-const TOOL_DONE_HOLD_MS = 500;
+const TOOL_DONE_HOLD_MS = 1500;
+// Exceeds the chip's own --yui-dur-out (650ms) dismiss transition — see fade-out.ts's default.
+const TOOL_FADE_FALLBACK_MS = 900;
 
 export function createToolStatus({ toolEl, toolLabel }: ToolStatusElements): ToolStatus {
   let toolHideTimer: ReturnType<typeof setTimeout> | null = null;
@@ -50,9 +53,15 @@ export function createToolStatus({ toolEl, toolLabel }: ToolStatusElements): Too
   function showTool(toolId: string): void {
     if (disposed) return;
     clearToolTimer();
+    // A re-show interrupting a dismissal must cancel that fade outright — its stale settle
+    // landing later could otherwise hide the chip again before is-visible is even back.
+    cancelFade?.();
+    cancelFade = null;
     toolLabel.textContent = getToolLabel(toolId);
     toolEl.dataset.state = "running";
     toolEl.hidden = false;
+    // A re-show interrupting a dismissal must re-enter from the fast/near path, not the drifted one.
+    toolEl.classList.remove("is-hiding");
     clearShowFrame();
     showFrame = requestAnimationFrame(() => {
       showFrame = null;
@@ -65,6 +74,7 @@ export function createToolStatus({ toolEl, toolLabel }: ToolStatusElements): Too
     if (toolEl.hidden) return;
     clearToolTimer();
     toolEl.dataset.state = "done";
+    toolLabel.textContent = t("tool.done_label");
     toolHideTimer = setTimeout(() => {
       toolHideTimer = null;
       hideTool();
@@ -75,11 +85,16 @@ export function createToolStatus({ toolEl, toolLabel }: ToolStatusElements): Too
     clearToolTimer();
     clearShowFrame();
     toolEl.classList.remove("is-visible");
+    toolEl.classList.add("is-hiding");
     cancelFade?.();
-    cancelFade = afterFadeOut(toolEl, () => {
-      cancelFade = null;
-      if (!toolEl.classList.contains("is-visible")) toolEl.hidden = true;
-    });
+    cancelFade = afterFadeOut(
+      toolEl,
+      () => {
+        cancelFade = null;
+        if (!toolEl.classList.contains("is-visible")) toolEl.hidden = true;
+      },
+      TOOL_FADE_FALLBACK_MS,
+    );
   }
 
   function dispose(): void {
