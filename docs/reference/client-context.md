@@ -445,14 +445,15 @@ total turn length, and every parsed SSE event resets it — including event
 types the client does not otherwise consume. SSE comment lines are stripped
 by the SDK and do not count.
 
-The deadline itself depends on whether speech is currently streaming: while
-no speech text has streamed yet — the initial wait, a tool round, or
-context compaction — the client allows up to 240 seconds of silence. Once
-assistant speech has started streaming, the client allows up to 45 seconds
-between events; a further tool round after speech has started widens the
-deadline back to 240 seconds for its duration. A backend busy with long
-non-streaming work stays alive by emitting any event periodically.
-`response.failed` / `response.incomplete` are terminal errors, not liveness.
+The deadline itself depends on whether the last stream event was assistant
+speech — a text delta or the text-done marker that closes it. After speech,
+the client allows up to 45 seconds of silence. After any other event — the
+initial wait, a tool call, an expression cue, a keepalive, context
+compaction — it allows up to 240 seconds, so a tool round interleaved after
+speech gets the long budget again for its own duration. A backend busy
+with long non-streaming work stays alive by emitting any event
+periodically. `response.failed` / `response.incomplete` are terminal
+errors, not liveness.
 
 ## Rules
 
