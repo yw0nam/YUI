@@ -1,5 +1,6 @@
 import type { AppConfig } from "./config/load";
 import type { EndpointsConfig } from "./contract";
+import type { TurnFailure } from "./dispatcher/backend-caller";
 import type { TurnLog } from "./dispatcher/turn";
 import type { TurnOutput } from "./dispatcher/turn-output";
 import { createWebAudioSink } from "./io/audio-player";
@@ -8,6 +9,7 @@ import { createFillerAudioCache } from "./io/filler-audio-cache";
 import { createFillerLoop, type FillerLoop } from "./io/filler-loop";
 import { effectiveFillerPool, fillerSubmissions, phraseSentences } from "./io/filler-pool";
 import type { FillerSettings } from "./io/filler-settings";
+import { createShuffleBag } from "./io/shuffle-bag";
 import type { SpeakerOption } from "./io/speaker-selection";
 import { createSpeechPlayback, type SpeechPlayback } from "./io/speech-playback";
 import type { SttVad } from "./io/stt-vad";
@@ -34,7 +36,7 @@ interface VoicePipelineDeps {
   getSttApiKey: () => Promise<string | undefined>;
   ttsSettings: { get(): { enabled: boolean } };
   lipsyncSettings: { get(): { gain: number } };
-  fillerSettings: { get(): FillerSettings };
+  fillerSettings: { get(): FillerSettings; subscribe?(cb: (s: FillerSettings) => void): () => void };
   vadSettings: { get(): { silenceMs: number; bargeIn: boolean } };
   speakerSelection: { getActive(): SpeakerOption };
   voiceInputStatus: Pick<VoiceInputStatus, "set">;
@@ -44,6 +46,10 @@ interface VoicePipelineDeps {
 export interface VoicePipeline {
   speechPlayback: SpeechPlayback;
   turnOutput: TurnOutput;
+  /** Speaks a phrase for a failed user turn (network_stall → timeout pool, network_drop →
+   * unreachable pool); every other reason is a no-op. Sibling to turnOutput so bootstrap's
+   * onUserTurnFailed stays a one-liner regardless of the existing inline/voice error routing. */
+  speakFailure: (reason: TurnFailure) => void;
   createSttEngine: () => Promise<SttVad>;
   dispose: () => void;
 }
@@ -92,6 +98,23 @@ export function wireVoicePipeline(deps: VoicePipelineDeps): VoicePipeline {
     if (!provider.isReady()) return Promise.reject(TTS_SKIP);
     return fillerCache.synth(input, signal, opts);
   };
+
+  // Warms the failure lines into fillerCache ahead of ever needing them — a network_stall/drop
+  // is exactly the moment a live TTS round-trip is least welcome. Fire-and-forget: a skip/error
+  // here just means that phrase synthesizes live instead, same as any other uncached filler text.
+  function prewarmFailureLines(): void {
+    const pool = effectiveFiller();
+    const sentences = new Set<string>();
+    for (const phrase of [...pool.timeout, ...pool.unreachable]) {
+      for (const sentence of phraseSentences(phrase)) sentences.add(sentence);
+    }
+    for (const sentence of sentences) {
+      if (fillerCache.has(sentence)) continue;
+      void synth(sentence).catch(() => {});
+    }
+  }
+  prewarmFailureLines();
+  const unsubscribeFillerSettings = deps.fillerSettings.subscribe?.(() => prewarmFailureLines());
 
   // Filler loop speaks via speechPlayback (speak), playback completion (onPlaybackEnd) triggers
   // the loop's next iteration — mutual reference, break the cycle with a forward let.
@@ -174,6 +197,23 @@ export function wireVoicePipeline(deps: VoicePipelineDeps): VoicePipeline {
     },
   };
 
+  // One bag per failure tier, drawn the same way the filler loop draws its own tiers.
+  const timeoutBag = createShuffleBag();
+  const unreachableBag = createShuffleBag();
+
+  function speakFailure(reason: TurnFailure): void {
+    const pool = effectiveFiller();
+    const phrase =
+      reason === "network_stall"
+        ? timeoutBag.draw(pool.timeout)
+        : reason === "network_drop"
+          ? unreachableBag.draw(pool.unreachable)
+          : undefined;
+    if (phrase === undefined) return;
+    turnOutput.speak(phrase);
+    turnOutput.end();
+  }
+
   async function createSttEngine(): Promise<SttVad> {
     const { createSttVad } = await import("./io/stt-vad");
     return createSttVad({
@@ -197,10 +237,12 @@ export function wireVoicePipeline(deps: VoicePipelineDeps): VoicePipeline {
   return {
     speechPlayback,
     turnOutput,
+    speakFailure,
     createSttEngine,
     dispose() {
       fillerLoop?.stop();
       speechPlayback.dispose();
+      unsubscribeFillerSettings?.();
     },
   };
 }

@@ -273,6 +273,7 @@ const realFactories: ConfiguredBootstrapFactories = {
       pacer,
       appendSkipRecord: (record) => appendRecord(record),
       onUserTurnFailed: (reason, source) => {
+        voice.speakFailure(reason);
         const message = turnErrorMessage(reason);
         if (!message) return;
         const action = routeTurnFailure(source, surfaces.isInputOpen());
