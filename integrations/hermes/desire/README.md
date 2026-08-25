@@ -44,6 +44,15 @@ roll it back.
 
 ## Install
 
+The install procedure is also packaged as a Hermes skill at `skills/yui-desire-install/SKILL.md`. Registering the
+`skills/` directory in the profile `config.yaml` makes the agent able to run the install itself:
+
+```yaml
+skills:
+  external_dirs:
+    - <abs>/integrations/hermes/desire/skills
+```
+
 On the Hermes host, clone the YUI repository and link the plugin directory into the Hermes plugin directory:
 
 ```bash
