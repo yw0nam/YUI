@@ -59,7 +59,8 @@ export interface FillerLoop {
   stop(): void;
 }
 
-const DEFAULT_TOOL_KEY = "_default";
+/** The tool tier's fallback key for a tool_id with no dedicated pool entry (or none at all). */
+export const DEFAULT_TOOL_KEY = "_default";
 
 export function createFillerLoop(deps: FillerLoopDeps): FillerLoop {
   const log: Logger = deps.logger ?? createLogger("filler-loop");

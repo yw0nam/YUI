@@ -6,7 +6,7 @@ import type { TurnOutput } from "./dispatcher/turn-output";
 import { createWebAudioSink } from "./io/audio-player";
 import { selectFetch } from "./io/chat-client";
 import { createFillerAudioCache } from "./io/filler-audio-cache";
-import { createFillerLoop, type FillerLoop } from "./io/filler-loop";
+import { DEFAULT_TOOL_KEY, createFillerLoop, type FillerLoop } from "./io/filler-loop";
 import { effectiveFillerPool, fillerSubmissions, phraseSentences } from "./io/filler-pool";
 import type { FillerSettings } from "./io/filler-settings";
 import { createShuffleBag } from "./io/shuffle-bag";
@@ -160,7 +160,12 @@ export function wireVoicePipeline(deps: VoicePipelineDeps): VoicePipeline {
 
   function hasFiller(): boolean {
     const pool = effectiveFiller();
-    return pool.first.length > 0 || pool.repeat.length > 0;
+    return (
+      pool.first.length > 0 ||
+      pool.repeat.length > 0 ||
+      pool.long_wait.length > 0 ||
+      Object.keys(pool.tool).length > 0
+    );
   }
 
   function onThinkingStart(turnId: number): void {
@@ -192,7 +197,7 @@ export function wireVoicePipeline(deps: VoicePipelineDeps): VoicePipeline {
     cue: (args) => speechPlayback.setCue(args),
     toolStatus: (state, toolId) => {
       if (thinkingTurnId === null) return;
-      if (state === "running") fillerLoop?.onToolRunning(toolId ?? "");
+      if (state === "running") fillerLoop?.onToolRunning(toolId ?? DEFAULT_TOOL_KEY);
       else fillerLoop?.onActivity();
     },
     activity: () => {
