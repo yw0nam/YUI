@@ -121,8 +121,9 @@ The line never contains the desire block, drive levels, want text, or user conte
 ## Helper commands
 
 `python3 $YUI/integrations/hermes/desire/act.py --help` lists the actions the prompts use: `signal`, `issue`,
-`comment`, `satisfy`, `feedback`, `outbox`. Daily caps: three signals, two issues, one self-initiated comment,
-reset at KST midnight.
+`comment`, `satisfy`, `feedback`, `outbox`. Daily caps, reset at KST midnight: three signals, two issues, one
+self-initiated comment, and the four `satisfy` events (`learned` 3, `progressed` 3, `shipped` 2, `praised` 2 — see
+the README's Action budgets table for their drive doses).
 
 ## Tests (optional, needs uv)
 
