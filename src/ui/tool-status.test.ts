@@ -291,6 +291,30 @@ describe("tool-status — a frame deferred past the hide", () => {
     mount.remove();
   });
 
+  it("re-showing while a dismiss fade is still in flight leaves the chip visible, not hidden by the stale settle", () => {
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+    const { flush } = stubFrames();
+    const { s, mount } = makeSurfaces();
+    const toolEl = mount.querySelector(".yui-tool") as HTMLElement;
+
+    s.showTool("web_search");
+    flush();
+    s.finishTool(); // arms the 1500ms hold
+    vi.advanceTimersByTime(1500); // hold fires -> hideTool() removes is-visible, arms the 900ms fallback
+
+    s.showTool("terminal"); // re-show while the old dismiss fade is still pending — is-visible
+    // isn't back yet (the new show's rAF hasn't run), so the stale settle's own is-visible check
+    // can't save it: only showTool() cancelling the stale fade outright can.
+    vi.advanceTimersByTime(900); // the stale fade's fallback fires here if not cancelled
+    flush(); // now the new show's rAF finally re-adds is-visible
+
+    expect(toolEl.hidden).toBe(false);
+    expect(toolEl.classList.contains("is-visible")).toBe(true);
+
+    s.dispose();
+    mount.remove();
+  });
+
   it("still shows the chip when the frame runs normally", () => {
     const { flush } = stubFrames();
     const { s, mount } = makeSurfaces();
