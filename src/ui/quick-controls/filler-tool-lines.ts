@@ -28,7 +28,9 @@ export function parseToolLines(text: string): Record<string, string[]> {
 /** Serializes a `tool` tier back to textarea text — `_default` lines first, then `key = phrase` sorted by key. */
 export function serializeToolLines(tool: Record<string, string[]>): string {
   const lines: string[] = [...(tool._default ?? [])];
-  for (const key of Object.keys(tool).filter((k) => k !== "_default").sort()) {
+  for (const key of Object.keys(tool)
+    .filter((k) => k !== "_default")
+    .sort()) {
     for (const phrase of tool[key]!) lines.push(`${key} = ${phrase}`);
   }
   return lines.join("\n");

@@ -36,7 +36,10 @@ interface VoicePipelineDeps {
   getSttApiKey: () => Promise<string | undefined>;
   ttsSettings: { get(): { enabled: boolean } };
   lipsyncSettings: { get(): { gain: number } };
-  fillerSettings: { get(): FillerSettings; subscribe?(cb: (s: FillerSettings) => void): () => void };
+  fillerSettings: {
+    get(): FillerSettings;
+    subscribe?(cb: (s: FillerSettings) => void): () => void;
+  };
   vadSettings: { get(): { silenceMs: number; bargeIn: boolean } };
   speakerSelection: { getActive(): SpeakerOption };
   voiceInputStatus: Pick<VoiceInputStatus, "set">;

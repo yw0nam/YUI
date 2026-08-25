@@ -144,7 +144,8 @@ const ko: Record<string, string> = {
   "filler.first_sub": "유저 메시지가 들어오면 바로 한 번 재생",
   "filler.first_aria": "첫 대사 목록",
   "filler.repeat_label": "반복 대사",
-  "filler.repeat_sub": "첫 대사 뒤, 간격을 늘려가며 몇 번 반복하고 그다음엔 오래 걸릴 때 대사로 넘어가요",
+  "filler.repeat_sub":
+    "첫 대사 뒤, 간격을 늘려가며 몇 번 반복하고 그다음엔 오래 걸릴 때 대사로 넘어가요",
   "filler.repeat_aria": "반복 대사 목록",
   "filler.hint": "목록을 비워두면 기본 문구를 사용해요. 한 줄에 하나씩 입력해요.",
   "filler.more": "더 보기",
@@ -158,7 +159,8 @@ const ko: Record<string, string> = {
   "filler.unreachable_sub": "서버에 연결할 수 없을 때 재생",
   "filler.unreachable_aria": "연결 끊김 대사 목록",
   "filler.tool_label": "도구 대사",
-  "filler.tool_sub": "한 줄에 하나씩. \"terminal = 명령어 실행할게…\"처럼 쓰면 특정 도구용, 그냥 쓰면 공통 대사가 돼요",
+  "filler.tool_sub":
+    '한 줄에 하나씩. "terminal = 명령어 실행할게…"처럼 쓰면 특정 도구용, 그냥 쓰면 공통 대사가 돼요',
   "filler.tool_aria": "도구 대사 목록",
 
   // language picker

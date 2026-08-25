@@ -92,7 +92,10 @@ describe("effectiveFillerPool", () => {
 
   it("falls back to config.tool when custom.tool is empty or absent", () => {
     const s = settings({ language: "ja", customPools: { ja: { tool: {} } } });
-    expect(effectiveFillerPool(s, cfg).tool).toEqual({ _default: ["調べてみるね"], terminal: ["動かすね"] });
+    expect(effectiveFillerPool(s, cfg).tool).toEqual({
+      _default: ["調べてみるね"],
+      terminal: ["動かすね"],
+    });
   });
 
   it("partial custom (only first set) falls back to config for repeat independently", () => {
@@ -106,7 +109,13 @@ describe("effectiveFillerPool", () => {
   });
 
   it("returns every tier empty when neither custom nor config has the language", () => {
-    const bare: FillerConfig = { gap_ms: 5000, gap_jitter_ms: 500, max_repeats: 3, gap_growth: 2, pools: {} };
+    const bare: FillerConfig = {
+      gap_ms: 5000,
+      gap_jitter_ms: 500,
+      max_repeats: 3,
+      gap_growth: 2,
+      pools: {},
+    };
     expect(effectiveFillerPool(settings({ language: "ko" }), bare)).toEqual(pool());
   });
 

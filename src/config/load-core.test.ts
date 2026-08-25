@@ -494,7 +494,10 @@ describe("loadConfig — filler (accept)", () => {
     expect(cfg.filler.gap_growth).toBe(2);
     expect(cfg.filler.pools.ja).toEqual(goodFillerPool());
     expect(cfg.filler.pools.en).toEqual(
-      goodFillerPool({ first: ["Let me think...", "Hmm..."], repeat: ["Well...", "Just a sec..."] }),
+      goodFillerPool({
+        first: ["Let me think...", "Hmm..."],
+        repeat: ["Well...", "Just a sec..."],
+      }),
     );
     expect(cfg.filler.pools.ko).toEqual(
       goodFillerPool({ first: ["음…", "그건…"], repeat: ["글쎄…", "잠깐만…"] }),
@@ -653,9 +656,7 @@ describe("loadConfig — filler (reject)", () => {
   it("pools에 알 수 없는 키(fr)가 있으면 ConfigError", async () => {
     await expect(
       loadConfig({
-        read: readerOf(
-          fillerFixture({ pools: { ja: goodFillerPool(), fr: goodFillerPool() } }),
-        ),
+        read: readerOf(fillerFixture({ pools: { ja: goodFillerPool(), fr: goodFillerPool() } })),
       }),
     ).rejects.toBeInstanceOf(ConfigError);
   });

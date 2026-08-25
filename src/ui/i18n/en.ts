@@ -144,7 +144,8 @@ const en: Record<string, string> = {
   "filler.first_sub": "Plays once immediately when a user message arrives",
   "filler.first_aria": "First line list",
   "filler.repeat_label": "Repeat lines",
-  "filler.repeat_sub": "After the first line, replays a few times with growing pauses, then falls back to the long wait line",
+  "filler.repeat_sub":
+    "After the first line, replays a few times with growing pauses, then falls back to the long wait line",
   "filler.repeat_aria": "Repeat line list",
   "filler.hint": "Leave a list empty to use its default phrases. One per line.",
   "filler.more": "More phrases",
@@ -158,7 +159,8 @@ const en: Record<string, string> = {
   "filler.unreachable_sub": "Plays when the backend can't be reached",
   "filler.unreachable_aria": "Connection lost line list",
   "filler.tool_label": "Tool lines",
-  "filler.tool_sub": "One per line. \"terminal = Running that...\" targets a tool by id; a plain line is the shared fallback",
+  "filler.tool_sub":
+    'One per line. "terminal = Running that..." targets a tool by id; a plain line is the shared fallback',
   "filler.tool_aria": "Tool line list",
 
   // language picker

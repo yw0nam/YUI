@@ -85,7 +85,13 @@ function setup(
       stt_base_url: "http://stt.test/v1",
       tts_base_url: "http://tts.test",
     }),
-    getFillerConfig: () => ({ gap_ms: 0, gap_jitter_ms: 0, max_repeats: 3, gap_growth: 2, pools: {} }),
+    getFillerConfig: () => ({
+      gap_ms: 0,
+      gap_jitter_ms: 0,
+      max_repeats: 3,
+      gap_growth: 2,
+      pools: {},
+    }),
     getTtsApiKey: vi.fn().mockResolvedValue(undefined),
     getSttApiKey: vi.fn().mockResolvedValue(undefined),
     ttsSettings: { get: () => ({ enabled: true }) },
@@ -125,7 +131,9 @@ describe("speakFailure", () => {
   });
 
   it("does nothing for a reason other than network_stall/network_drop", async () => {
-    const voice = setup(() => settingsOf(pool({ timeout: [TIMEOUT_PHRASE], unreachable: [UNREACHABLE_PHRASE] })));
+    const voice = setup(() =>
+      settingsOf(pool({ timeout: [TIMEOUT_PHRASE], unreachable: [UNREACHABLE_PHRASE] })),
+    );
     voice.speakFailure("not_configured");
     voice.speakFailure("parse_error");
     voice.speakFailure("http_4xx_drop");

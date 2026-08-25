@@ -65,7 +65,14 @@ describe("validateFiller — happy path", () => {
   it("accepts an empty list tier and an empty tool object (zero-length is valid)", () => {
     const raw = baseRaw({
       pools: {
-        ja: basePool({ first: [], repeat: [], long_wait: [], tool: {}, timeout: [], unreachable: [] }),
+        ja: basePool({
+          first: [],
+          repeat: [],
+          long_wait: [],
+          tool: {},
+          timeout: [],
+          unreachable: [],
+        }),
       },
     });
     const out = validateFiller(FILE, raw);

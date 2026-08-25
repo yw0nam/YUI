@@ -104,7 +104,9 @@ function toolDictEqual(
 }
 
 function poolEqual(a: Partial<FillerPool>, b: Partial<FillerPool>): boolean {
-  return LIST_TIERS.every((tier) => listTierEqual(a[tier], b[tier])) && toolDictEqual(a.tool, b.tool);
+  return (
+    LIST_TIERS.every((tier) => listTierEqual(a[tier], b[tier])) && toolDictEqual(a.tool, b.tool)
+  );
 }
 
 function isEmptyPool(p: Partial<FillerPool>): boolean {

@@ -109,7 +109,15 @@ const noopLog = { debug: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn() }
 // same localStorage two real windows would share (jsdom/window are not available in this file's
 // node test environment).
 function fillerPool(overrides: Partial<FillerPool> = {}): FillerPool {
-  return { first: [], repeat: [], long_wait: [], tool: {}, timeout: [], unreachable: [], ...overrides };
+  return {
+    first: [],
+    repeat: [],
+    long_wait: [],
+    tool: {},
+    timeout: [],
+    unreachable: [],
+    ...overrides,
+  };
 }
 
 function sharedLocalStorage(): Storage {
@@ -307,7 +315,13 @@ describe("wireVoicePipeline", () => {
 
   it("reports whether either effective filler pool is non-empty", () => {
     const state = setup();
-    state.setFillerConfig({ gap_ms: 1, gap_jitter_ms: 0, max_repeats: 3, gap_growth: 2, pools: {} });
+    state.setFillerConfig({
+      gap_ms: 1,
+      gap_jitter_ms: 0,
+      max_repeats: 3,
+      gap_growth: 2,
+      pools: {},
+    });
     expect(state.voice.turnOutput.hasFiller()).toBe(false);
 
     state.setFillerConfig({
@@ -610,7 +624,13 @@ describe("wireVoicePipeline", () => {
       maxRepeats: 3,
       gapGrowth: 2,
     });
-    state.setFillerConfig({ gap_ms: 2_000, gap_jitter_ms: 250, max_repeats: 5, gap_growth: 1.5, pools: {} });
+    state.setFillerConfig({
+      gap_ms: 2_000,
+      gap_jitter_ms: 250,
+      max_repeats: 5,
+      gap_growth: 1.5,
+      pools: {},
+    });
     expect(fillerOptions().getTiming()).toEqual({
       gapMs: 2_000,
       jitterMs: 250,

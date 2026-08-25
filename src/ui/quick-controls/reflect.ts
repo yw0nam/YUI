@@ -321,7 +321,8 @@ export function createReflect(deps: ReflectDeps): Reflect {
     const pool = s.customPools[s.language];
     fillerFirstTextareaEl.value = (pool?.first ?? []).join("\n");
     fillerRepeatTextareaEl.value = (pool?.repeat ?? []).join("\n");
-    if (fillerLongWaitTextareaEl) fillerLongWaitTextareaEl.value = (pool?.long_wait ?? []).join("\n");
+    if (fillerLongWaitTextareaEl)
+      fillerLongWaitTextareaEl.value = (pool?.long_wait ?? []).join("\n");
     if (fillerTimeoutTextareaEl) fillerTimeoutTextareaEl.value = (pool?.timeout ?? []).join("\n");
     if (fillerUnreachableTextareaEl)
       fillerUnreachableTextareaEl.value = (pool?.unreachable ?? []).join("\n");

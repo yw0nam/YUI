@@ -84,7 +84,13 @@ function setup(): { voice: VoicePipeline; turnLog: ReturnType<typeof createTurnL
       tts_base_url: "http://tts.test",
     }),
     // gap 0 so a rescheduled filler cycle lands on the next macrotask instead of a wall-clock wait.
-    getFillerConfig: () => ({ gap_ms: 0, gap_jitter_ms: 0, max_repeats: 1000, gap_growth: 1, pools: {} }),
+    getFillerConfig: () => ({
+      gap_ms: 0,
+      gap_jitter_ms: 0,
+      max_repeats: 1000,
+      gap_growth: 1,
+      pools: {},
+    }),
     getTtsApiKey: vi.fn().mockResolvedValue(undefined),
     getSttApiKey: vi.fn().mockResolvedValue(undefined),
     ttsSettings: { get: () => ({ enabled: true }) },

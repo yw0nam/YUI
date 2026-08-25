@@ -37,7 +37,8 @@ export function effectiveFillerPool(settings: FillerSettings, config: FillerConf
     out[tier] = customTier && customTier.length > 0 ? customTier : (configPool?.[tier] ?? []);
   }
   const customTool = custom?.tool;
-  out.tool = customTool && Object.keys(customTool).length > 0 ? customTool : (configPool?.tool ?? {});
+  out.tool =
+    customTool && Object.keys(customTool).length > 0 ? customTool : (configPool?.tool ?? {});
   return out;
 }
 
