@@ -89,7 +89,7 @@ function setup(
       gap_ms: 0,
       gap_jitter_ms: 0,
       max_repeats: 3,
-      gap_growth: 2,
+      gap_growth: 2, long_wait_ms: 40000,
       pools: {},
     }),
     getTtsApiKey: vi.fn().mockResolvedValue(undefined),

@@ -161,6 +161,7 @@ function setup() {
     gap_jitter_ms: 100,
     max_repeats: 3,
     gap_growth: 2,
+    long_wait_ms: 40000,
     pools: { ja: fillerPool({ first: ["first"], repeat: ["repeat"] }) },
   };
   const fillerSettings = {
@@ -320,6 +321,7 @@ describe("wireVoicePipeline", () => {
       gap_jitter_ms: 0,
       max_repeats: 3,
       gap_growth: 2,
+      long_wait_ms: 40000,
       pools: {},
     });
     expect(state.voice.turnOutput.hasFiller()).toBe(false);
@@ -329,6 +331,7 @@ describe("wireVoicePipeline", () => {
       gap_jitter_ms: 0,
       max_repeats: 3,
       gap_growth: 2,
+      long_wait_ms: 40000,
       pools: { ja: fillerPool({ first: ["first"], repeat: [] }) },
     });
     expect(state.voice.turnOutput.hasFiller()).toBe(true);
@@ -338,6 +341,7 @@ describe("wireVoicePipeline", () => {
       gap_jitter_ms: 0,
       max_repeats: 3,
       gap_growth: 2,
+      long_wait_ms: 40000,
       pools: { ja: fillerPool({ first: [], repeat: ["repeat"] }) },
     });
     expect(state.voice.turnOutput.hasFiller()).toBe(true);
@@ -538,6 +542,7 @@ describe("wireVoicePipeline", () => {
           gap_jitter_ms: 100,
           max_repeats: 3,
           gap_growth: 2,
+          long_wait_ms: 40000,
           pools: { ja: fillerPool({ first: ["first"], repeat: ["repeat"] }) },
         }),
         getTtsApiKey: vi.fn().mockResolvedValue(undefined),
@@ -583,6 +588,7 @@ describe("wireVoicePipeline", () => {
       gap_jitter_ms: 100,
       max_repeats: 3,
       gap_growth: 2,
+      long_wait_ms: 40000,
       pools: { ja: fillerPool({ first: ["first"], repeat: ["another"] }) },
     });
 
@@ -596,6 +602,7 @@ describe("wireVoicePipeline", () => {
       gap_jitter_ms: 100,
       max_repeats: 3,
       gap_growth: 2,
+      long_wait_ms: 40000,
       pools: { ja: fillerPool({ first: ["first"], repeat: ["repeat"] }) },
     });
     await synth("repeat");
@@ -623,12 +630,14 @@ describe("wireVoicePipeline", () => {
       jitterMs: 100,
       maxRepeats: 3,
       gapGrowth: 2,
+      longWaitMs: 40000,
     });
     state.setFillerConfig({
       gap_ms: 2_000,
       gap_jitter_ms: 250,
       max_repeats: 5,
       gap_growth: 1.5,
+      long_wait_ms: 50000,
       pools: {},
     });
     expect(fillerOptions().getTiming()).toEqual({
@@ -636,6 +645,7 @@ describe("wireVoicePipeline", () => {
       jitterMs: 250,
       maxRepeats: 5,
       gapGrowth: 1.5,
+      longWaitMs: 50000,
     });
 
     await state.voice.createSttEngine();

@@ -22,6 +22,7 @@ function baseRaw(overrides: Record<string, unknown> = {}): Record<string, unknow
     gap_jitter_ms: 300,
     max_repeats: 3,
     gap_growth: 2,
+    long_wait_ms: 40000,
     pools: {
       ja: basePool(),
     },
@@ -95,7 +96,7 @@ describe("validateFiller — top-level shape", () => {
   });
 });
 
-describe("validateFiller — gap_ms / gap_jitter_ms / max_repeats / gap_growth", () => {
+describe("validateFiller — gap_ms / gap_jitter_ms / max_repeats / gap_growth / long_wait_ms", () => {
   it("rejects a negative gap_ms", () => {
     expectIssue(baseRaw({ gap_ms: -1 }), "gap_ms는 0 이상 유한 number여야 함");
   });
@@ -122,6 +123,19 @@ describe("validateFiller — gap_ms / gap_jitter_ms / max_repeats / gap_growth",
 
   it("rejects a non-finite gap_growth", () => {
     expectIssue(baseRaw({ gap_growth: Number.NaN }), "gap_growth는 1 이상 유한 number여야 함");
+  });
+
+  it("rejects a negative long_wait_ms", () => {
+    expectIssue(baseRaw({ long_wait_ms: -1 }), "long_wait_ms는 0 이상 유한 number여야 함");
+  });
+
+  it("rejects a non-finite long_wait_ms", () => {
+    expectIssue(baseRaw({ long_wait_ms: Number.NaN }), "long_wait_ms는 0 이상 유한 number여야 함");
+  });
+
+  it("accepts long_wait_ms and preserves it", () => {
+    const out = validateFiller(FILE, baseRaw({ long_wait_ms: 40000 }));
+    expect(out.long_wait_ms).toBe(40000);
   });
 });
 

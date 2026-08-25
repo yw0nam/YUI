@@ -69,7 +69,7 @@ function makeDeps(overrides: Partial<FillerLoopDeps> = {}): FillerLoopDeps & {
   return {
     speak: (text) => spoken.push(text),
     getPools: () => pool(),
-    getTiming: () => ({ gapMs: 1000, jitterMs: 0, maxRepeats: 3, gapGrowth: 2 }),
+    getTiming: () => ({ gapMs: 1000, jitterMs: 0, maxRepeats: 3, gapGrowth: 2, longWaitMs: 1000 }),
     isCached: () => true,
     setTimeout: timers.setTimeout as typeof globalThis.setTimeout,
     clearTimeout: timers.clearTimeout as typeof globalThis.clearTimeout,
@@ -85,11 +85,11 @@ function makeDeps(overrides: Partial<FillerLoopDeps> = {}): FillerLoopDeps & {
 // ─────────────────────────────────────────────────────────────────────────────
 
 describe("createFillerLoop — the full waiting schedule", () => {
-  it("speaks first, repeat×3, long_wait at t≈0,7,21,49,105s for gap 7000/jitter 0/growth 2/max 3, then nothing follows", () => {
+  it("speaks first, repeat×3 at t≈7/21/49s, long_wait 40s after the last repeat (t≈89s) for gap 7000/jitter 0/growth 2/max 3/long_wait_ms 40000, then nothing follows", () => {
     const deps = makeDeps({
       getPools: () =>
         pool({ first: ["first-a"], repeat: ["repeat-x"], long_wait: ["long-wait-a"] }),
-      getTiming: () => ({ gapMs: 7000, jitterMs: 0, maxRepeats: 3, gapGrowth: 2 }),
+      getTiming: () => ({ gapMs: 7000, jitterMs: 0, maxRepeats: 3, gapGrowth: 2, longWaitMs: 40000 }),
     });
     const loop = createFillerLoop(deps);
 
@@ -108,8 +108,8 @@ describe("createFillerLoop — the full waiting schedule", () => {
     deps.timers.advance(28000);
     expect(deps.spoken).toEqual(["first-a", "repeat-x", "repeat-x", "repeat-x"]);
 
-    loop.onUtteranceDone(); // repeats exhausted (3 == max) — schedules long_wait at gap*growth^3 = 56000ms (t=105s)
-    deps.timers.advance(56000);
+    loop.onUtteranceDone(); // repeats exhausted (3 == max) — schedules long_wait long_wait_ms=40000ms after this (t=89s)
+    deps.timers.advance(40000);
     expect(deps.spoken).toEqual(["first-a", "repeat-x", "repeat-x", "repeat-x", "long-wait-a"]);
 
     // Nothing follows: the long_wait utterance's own onUtteranceDone schedules nothing further,
@@ -118,6 +118,21 @@ describe("createFillerLoop — the full waiting schedule", () => {
     deps.timers.advance(60_000);
     expect(deps.spoken).toEqual(["first-a", "repeat-x", "repeat-x", "repeat-x", "long-wait-a"]);
     expect(deps.timers.hasPending()).toBe(false);
+  });
+
+  it("after tool activity (no repeats), long_wait fires long_wait_ms after the last activity", () => {
+    const deps = makeDeps({
+      getPools: () => pool({ tool: { terminal: ["ack"] }, long_wait: ["long-wait-a"] }),
+      getTiming: () => ({ gapMs: 7000, jitterMs: 0, maxRepeats: 3, gapGrowth: 2, longWaitMs: 40000 }),
+    });
+    const loop = createFillerLoop(deps);
+    loop.start();
+    loop.onToolRunning("terminal"); // arms long_wait 40s from now
+
+    deps.timers.advance(39999);
+    expect(deps.spoken).not.toContain("long-wait-a");
+    deps.timers.advance(1);
+    expect(deps.spoken).toContain("long-wait-a");
   });
 });
 
@@ -191,11 +206,11 @@ describe("createFillerLoop — onToolRunning()", () => {
 describe("createFillerLoop — onActivity()", () => {
   it("restarts a pending long_wait timer from now, so it never fires while activity keeps arriving", () => {
     const deps = makeDeps({
-      getTiming: () => ({ gapMs: 1000, jitterMs: 0, maxRepeats: 0, gapGrowth: 1 }),
+      getTiming: () => ({ gapMs: 1000, jitterMs: 0, maxRepeats: 0, gapGrowth: 1, longWaitMs: 1000 }),
     });
     const loop = createFillerLoop(deps);
     loop.start();
-    loop.onUtteranceDone(); // maxRepeats=0 → schedules long_wait immediately (delay = gapMs*growth^0 = 1000)
+    loop.onUtteranceDone(); // maxRepeats=0 → schedules long_wait immediately (delay = long_wait_ms = 1000)
     expect(deps.timers.hasPending()).toBe(true);
 
     for (let i = 0; i < 5; i++) {
@@ -271,34 +286,52 @@ describe("createFillerLoop — start()", () => {
 // ─────────────────────────────────────────────────────────────────────────────
 
 describe("createFillerLoop — onSynthFailure() degraded mode", () => {
-  it("cancels a pending timer and stops scheduling once cold (nothing cached)", () => {
+  it("re-arms the timer it cancelled instead of leaving nothing pending", () => {
     const deps = makeDeps({ isCached: () => false });
     const loop = createFillerLoop(deps);
     loop.start();
-    loop.onUtteranceDone();
+    loop.onUtteranceDone(); // arms repeat #0
     expect(deps.timers.hasPending()).toBe(true);
 
-    loop.onSynthFailure();
-    expect(deps.timers.hasPending()).toBe(false);
+    loop.onSynthFailure(); // degrades — the cancelled repeat timer must come back, not vanish
+    expect(deps.timers.hasPending()).toBe(true);
   });
 
-  it("skips an uncached phrase silently but still advances the schedule toward long_wait", () => {
-    const deps = makeDeps({
-      getTiming: () => ({ gapMs: 1000, jitterMs: 0, maxRepeats: 1, gapGrowth: 1 }),
-      isCached: (phrase) => phrase === "long-wait-a", // repeat text never cached
-    });
+  it("in phase tool, re-arms long_wait instead of leaving nothing pending", () => {
+    const deps = makeDeps({ getPools: () => pool({ tool: { terminal: ["ack"] } }) });
     const loop = createFillerLoop(deps);
     loop.start();
-    loop.onSynthFailure();
-    deps.spoken.length = 0;
+    loop.onToolRunning("terminal"); // phase=tool, long_wait armed
+    expect(deps.timers.hasPending()).toBe(true);
 
-    loop.onUtteranceDone(); // schedules repeat #0
-    deps.timers.advance(1000); // repeat fires but is skipped (uncached) — repeatsSpoken still advances
-    expect(deps.spoken).toEqual([]);
+    loop.onSynthFailure(); // e.g. the tool ack's own synth failed — long_wait must still be armed
+    expect(deps.timers.hasPending()).toBe(true);
+  });
 
-    loop.onUtteranceDone(); // repeatsSpoken(1) == maxRepeats(1) → schedules long_wait
-    deps.timers.advance(1000);
-    expect(deps.spoken).toEqual(["long-wait-a"]); // long_wait phrase is cached, so it speaks
+  it("a cold degraded run (nothing cached) self-drives every repeat straight through to long_wait — no hand-called onUtteranceDone after a skip", () => {
+    const deps = makeDeps({
+      getTiming: () => ({ gapMs: 1000, jitterMs: 0, maxRepeats: 2, gapGrowth: 1, longWaitMs: 1000 }),
+      isCached: () => false,
+    });
+    const loop = createFillerLoop(deps);
+    loop.start(); // speaks "first-a" — not degraded yet, so this one legitimately plays
+    loop.onSynthFailure(); // degrades — nothing pending yet, no rearm needed
+    loop.onUtteranceDone(); // the real playback-driven call for "first-a" finishing — arms repeat #0
+
+    // From here on nothing calls onUtteranceDone by hand: every uncached phrase is skipped, and
+    // the loop must drive itself forward through the timer callbacks alone. A `hasPending()` check
+    // after every single advance is what actually distinguishes "self-drove to the next step" from
+    // "silently died" — the end state alone (nothing spoken, nothing pending) looks the same either way.
+    deps.timers.advance(1000); // repeat #0 fires, skipped
+    expect(deps.timers.hasPending()).toBe(true); // self-advanced to repeat #1 — did not just die here
+
+    deps.timers.advance(1000); // repeat #1 fires, skipped
+    expect(deps.timers.hasPending()).toBe(true); // self-advanced to long_wait
+
+    deps.timers.advance(1000); // long_wait fires, skipped too (nothing cached)
+    expect(deps.timers.hasPending()).toBe(false); // nothing follows long_wait, by design
+
+    expect(deps.spoken).toEqual(["first-a"]);
   });
 
   it("warns once on entering degraded mode, not per skipped cycle", () => {

@@ -93,7 +93,7 @@ function setup(customPool: FillerPool): VoicePipeline {
       gap_ms: 0,
       gap_jitter_ms: 0,
       max_repeats: 1000,
-      gap_growth: 1,
+      gap_growth: 1, long_wait_ms: 40000,
       pools: {},
     }),
     getTtsApiKey: vi.fn().mockResolvedValue(undefined),
