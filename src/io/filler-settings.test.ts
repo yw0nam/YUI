@@ -35,7 +35,7 @@ function makeMemStorage(): FillerStorage & { _data: FillerSettings | null } {
   };
 }
 
-function pool(first: string[], repeat: string[] = []): FillerPool {
+function pool(first: string[], repeat: string[] = []): Partial<FillerPool> {
   return { first, repeat };
 }
 
@@ -76,6 +76,24 @@ describe("createFillerSettings — priority", () => {
     // validation rejects old shape → falls back to initial
     expect(store.get().language).toBe("en");
     expect(store.get().enabled).toBe(false);
+  });
+
+  it("stored customPools predating the new tiers (only first/repeat) stays valid, not falling back", () => {
+    const storage: FillerStorage = {
+      load: () =>
+        ({
+          enabled: true,
+          language: "ja",
+          customPools: { ja: { first: ["うーん…"], repeat: ["ええと…"] } }, // no long_wait/tool/timeout/unreachable
+        }) as unknown as FillerSettings,
+      save: vi.fn(),
+    };
+    const store = createFillerSettings({
+      storage,
+      initial: { enabled: false, language: "en", customPools: {} },
+    });
+    expect(store.get().language).toBe("ja");
+    expect(store.get().customPools.ja).toEqual({ first: ["うーん…"], repeat: ["ええと…"] });
   });
 
   it("invalid stored value falls back to initial (bad language)", () => {
