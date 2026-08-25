@@ -196,20 +196,24 @@ def stamp_outbox(path: Path, item_ids: tuple[str, ...], now: datetime) -> None:
 
 
 def release_outbox_item(path: Path, item_id: str) -> bool:
-    """Remove one item by id while preserving malformed lines. Returns whether it was found."""
+    """Remove one item by id while preserving every other line's bytes exactly.
+
+    Operates on raw bytes so a malformed line's original line ending (including CRLF) and any
+    invalid-UTF-8 bytes survive untouched. Returns whether the item was found.
+    """
 
     path = Path(path)
     with state_lock(path.parent):
         if not path.exists():
             return False
-        parts = path.read_text(encoding="utf-8").split("\n")
+        parts = path.read_bytes().split(b"\n")
         found = False
         rewritten = []
         for index, payload in enumerate(parts):
-            ending = "\n" if index < len(parts) - 1 else ""
+            ending = b"\n" if index < len(parts) - 1 else b""
             line = payload + ending
             try:
-                item = json.loads(payload)
+                item = json.loads(payload.decode("utf-8"))
             except (json.JSONDecodeError, UnicodeError):
                 rewritten.append(line)
                 continue
@@ -219,7 +223,7 @@ def release_outbox_item(path: Path, item_id: str) -> bool:
             rewritten.append(line)
         if found:
             temporary = path.with_name(path.name + ".tmp")
-            temporary.write_text("".join(rewritten), encoding="utf-8", newline="")
+            temporary.write_bytes(b"".join(rewritten))
             os.replace(temporary, path)
         return found
 
