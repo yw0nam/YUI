@@ -29,6 +29,7 @@ import {
   keepaliveEvent,
   makeLogger,
   makeTurnOutput,
+  speechDoneEvent,
   toolStatusEvent,
   turnOf,
   userEnv,
@@ -210,6 +211,33 @@ describe("backend_caller — idle-gap watchdog", () => {
       completedEvent({ speech_text: "partial done" }),
     ];
     script.gaps = [0, 0, 100_000]; // 100s of silence after tool_status, well under the pre-speech budget
+    const p = caller.call(turnOf(userEnv()));
+    await vi.advanceTimersByTimeAsync(101_000);
+    const res = await p;
+    expect(res).toBe("ok");
+  });
+
+  it("speech_delta → speech_done → 46s silence → stall (speech_done still counts as speech)", async () => {
+    script.events = [deltaEvent("a"), speechDoneEvent("a")];
+    script.hangAt = 2;
+    const p = caller.call(turnOf(userEnv()));
+    await vi.advanceTimersByTimeAsync(SPEECH_IDLE_TIMEOUT_MS + 1_000);
+    const res = await p;
+    expect(res).toBe("network_stall");
+    expect(logger.warn).toHaveBeenCalledWith(
+      "network_stall",
+      expect.objectContaining({ stage: "speech_idle_timeout", idle_ms: SPEECH_IDLE_TIMEOUT_MS }),
+    );
+  });
+
+  it("speech_delta → speech_done → tool_status → 100s silence → no stall (a tool round after the reply finished streaming gets the long budget again)", async () => {
+    script.events = [
+      deltaEvent("partial"),
+      speechDoneEvent("partial"),
+      toolStatusEvent({ state: "running", tool_id: "t1" }),
+      completedEvent({ speech_text: "partial done" }),
+    ];
+    script.gaps = [0, 0, 0, 100_000]; // 100s of silence after tool_status, well under the pre-speech budget
     const p = caller.call(turnOf(userEnv()));
     await vi.advanceTimersByTimeAsync(101_000);
     const res = await p;
