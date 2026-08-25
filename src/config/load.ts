@@ -222,6 +222,9 @@ export interface FillerConfig {
   max_repeats: number;
   /** Multiplier applied to gap_ms per repeat (exponential backoff). */
   gap_growth: number;
+  /** Silence (ms) after the last spoken filler/tool utterance or activity event before the
+   * single long_wait phrase fires — once per turn, un-jittered. */
+  long_wait_ms: number;
   /** Per-language filler phrase pools. */
   pools: Partial<Record<FillerLang, FillerPool>>;
 }

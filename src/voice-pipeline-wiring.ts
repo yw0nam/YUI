@@ -148,6 +148,7 @@ export function wireVoicePipeline(deps: VoicePipelineDeps): VoicePipeline {
       jitterMs: deps.getFillerConfig().gap_jitter_ms,
       maxRepeats: deps.getFillerConfig().max_repeats,
       gapGrowth: deps.getFillerConfig().gap_growth,
+      longWaitMs: deps.getFillerConfig().long_wait_ms,
     }),
     // All-or-nothing: one uncached sentence would put the whole phrase back on the dead server.
     // A phrase that submits nothing (emoji only) is not speakable either.

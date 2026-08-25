@@ -84,6 +84,8 @@ export function validateFiller(file: string, raw: unknown): FillerConfig {
     gap_growth = gap_growth_raw;
   }
 
+  const long_wait_ms = nonNegNum("long_wait_ms");
+
   // pools: object whose keys are restricted to FillerLang; each value is a full FillerPool —
   // every tier required (config is ours, no "old data" concern the way user settings have).
   const rawPools = raw.pools;
@@ -119,5 +121,5 @@ export function validateFiller(file: string, raw: unknown): FillerConfig {
   }
 
   assertValid(file, issues);
-  return { gap_ms, gap_jitter_ms, max_repeats, gap_growth, pools };
+  return { gap_ms, gap_jitter_ms, max_repeats, gap_growth, long_wait_ms, pools };
 }

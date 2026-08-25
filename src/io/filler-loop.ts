@@ -9,7 +9,11 @@
  *   onToolRunning(id)  — moves to phase "tool": speaks that tool's own phrase once per turn (or a
  *                        budgeted _default fallback for an unknown id), then (re)arms long_wait.
  *   onActivity()       — restarts a pending long_wait timer from now (tool_status done/idle, express).
- *   onSynthFailure()   — degrade: speak only what the cache already holds.
+ *
+ * long_wait fires long_wait_ms (un-jittered, config) after the last spoken filler/tool utterance
+ * or activity event — once per turn, regardless of which phase armed it.
+ *   onSynthFailure()   — degrade: speak only what the cache already holds; re-arms whatever
+ *                        timer it had to cancel to get there, so the schedule keeps moving.
  *   stop()             — cancel the pending timer, mark inactive.
  *
  * Pools and timing are read live on each turn so hot-reload takes effect immediately.
@@ -24,7 +28,14 @@ import { createShuffleBag, type ShuffleBag } from "./shuffle-bag";
 export interface FillerLoopDeps {
   speak: (text: string) => void;
   getPools: () => FillerPool;
-  getTiming: () => { gapMs: number; jitterMs: number; maxRepeats: number; gapGrowth: number };
+  getTiming: () => {
+    gapMs: number;
+    jitterMs: number;
+    maxRepeats: number;
+    gapGrowth: number;
+    /** Un-jittered delay (ms) from the last spoken filler/tool utterance or activity event to long_wait. */
+    longWaitMs: number;
+  };
   /** Whether the phrase can be spoken without reaching the TTS server. */
   isCached: (phrase: string) => boolean;
   logger?: Logger;
@@ -82,11 +93,13 @@ export function createFillerLoop(deps: FillerLoopDeps): FillerLoop {
     return bag;
   }
 
-  // Degraded, a drawn phrase is speakable only if its audio is already in hand — silently skipped
-  // otherwise. The schedule still advances either way (see the timer callbacks below).
-  function speakIfAllowed(phrase: string): void {
-    if (degraded && !deps.isCached(phrase)) return;
+  // Degraded, a drawn phrase is speakable only if its audio is already in hand. Returns whether it
+  // actually spoke: a speak() that never happened produces no playback, so no onUtteranceDone will
+  // ever arrive for it — callers that get `false` back must advance the schedule themselves.
+  function speakIfAllowed(phrase: string): boolean {
+    if (degraded && !deps.isCached(phrase)) return false;
     deps.speak(phrase);
+    return true;
   }
 
   function cancelTimer(): void {
@@ -111,15 +124,17 @@ export function createFillerLoop(deps: FillerLoopDeps): FillerLoop {
       pendingKind = undefined;
       if (!active || phase !== "filler" || longWaitFired) return;
       const phrase = repeatBag.draw(deps.getPools().repeat);
-      if (phrase !== undefined) speakIfAllowed(phrase);
+      const spoke = phrase !== undefined && speakIfAllowed(phrase);
       repeatsSpoken++;
+      // Nothing played (empty pool, or a degraded skip) — no onUtteranceDone will ever arrive for
+      // this cycle, so the loop has to drive itself forward instead of waiting on one.
+      if (!spoke) armNextFillerStep();
     }, delay);
   }
 
   function scheduleLongWait(): void {
     cancelTimer();
-    const { gapMs, jitterMs, gapGrowth, maxRepeats } = deps.getTiming();
-    const delay = jitteredDelay(gapMs * gapGrowth ** maxRepeats, jitterMs);
+    const { longWaitMs } = deps.getTiming();
     pendingKind = "long_wait";
     pendingTimer = setTimer(() => {
       pendingTimer = undefined;
@@ -128,7 +143,7 @@ export function createFillerLoop(deps: FillerLoopDeps): FillerLoop {
       longWaitFired = true;
       const phrase = longWaitBag.draw(deps.getPools().long_wait);
       if (phrase !== undefined) speakIfAllowed(phrase);
-    }, delay);
+    }, longWaitMs);
   }
 
   // Arms whatever comes next in phase "filler": another backed-off repeat, or — once max_repeats
@@ -192,11 +207,18 @@ export function createFillerLoop(deps: FillerLoopDeps): FillerLoop {
     },
 
     onSynthFailure() {
+      // A synth failure is orthogonal to what the loop already had scheduled — cancelling here
+      // must not just abandon that timer, so remember its kind and re-arm the same one.
+      const cancelledKind = pendingKind;
       cancelTimer();
-      if (degraded) return;
-      degraded = true;
-      const speakable = deps.getPools().repeat.filter(deps.isCached).length;
-      log.warn("filler_degraded", { speakable });
+      if (!degraded) {
+        degraded = true;
+        const speakable = deps.getPools().repeat.filter(deps.isCached).length;
+        log.warn("filler_degraded", { speakable });
+      }
+      if (!active || longWaitFired) return;
+      if (cancelledKind === "repeat") scheduleRepeat();
+      else if (cancelledKind === "long_wait") scheduleLongWait();
     },
 
     stop() {
