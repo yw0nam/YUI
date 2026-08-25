@@ -5,9 +5,10 @@
  *   start()           — mark active, speak the first phrase (or arm the first repeat), reset
  *                        per-turn state (bags persist across turns for the app's lifetime).
  *   onUtteranceDone()  — in phase "filler", arms the next repeat (backed off by gap_growth) or,
- *                        once max_repeats is spent, arms the single long_wait phrase.
- *   onToolRunning(id)  — moves to phase "tool": speaks that tool's own phrase once per turn (or a
- *                        budgeted _default fallback for an unknown id), then (re)arms long_wait.
+ *                        once max_repeats is spent, arms the single long_wait phrase; if a tool
+ *                        phrase is waiting, arms the tool-gap timer instead.
+ *   onToolRunning(id)  — moves to phase "tool" and remembers the latest id to speak; once nothing
+ *                        is still playing, waits TOOL_GAP_MS before speaking it and re-arming long_wait.
  *   onActivity()       — restarts a pending long_wait timer from now (tool_status done/idle, express).
  *
  * long_wait fires long_wait_ms (un-jittered, config) after the last spoken filler/tool utterance
@@ -62,6 +63,9 @@ export interface FillerLoop {
 /** The tool tier's fallback key for a tool_id with no dedicated pool entry (or none at all). */
 export const DEFAULT_TOOL_KEY = "_default";
 
+/** Pause before a tool phrase so it never glues onto the tail of the previous utterance. */
+const TOOL_GAP_MS = 700;
+
 export function createFillerLoop(deps: FillerLoopDeps): FillerLoop {
   const log: Logger = deps.logger ?? createLogger("filler-loop");
   const setTimer = deps.setTimeout ?? globalThis.setTimeout.bind(globalThis);
@@ -82,8 +86,10 @@ export function createFillerLoop(deps: FillerLoopDeps): FillerLoop {
   let repeatsSpoken = 0;
   let spokenToolIds = new Set<string>();
   let defaultSpokenCount = 0;
+  let speaking = false;
+  let pendingToolId: string | undefined;
   let pendingTimer: ReturnType<typeof setTimer> | undefined;
-  let pendingKind: "repeat" | "long_wait" | undefined;
+  let pendingKind: "repeat" | "long_wait" | "tool" | undefined;
 
   function toolBagFor(id: string): ShuffleBag {
     let bag = toolBags.get(id);
@@ -100,6 +106,7 @@ export function createFillerLoop(deps: FillerLoopDeps): FillerLoop {
   function speakIfAllowed(phrase: string): boolean {
     if (degraded && !deps.isCached(phrase)) return false;
     deps.speak(phrase);
+    speaking = true;
     return true;
   }
 
@@ -154,6 +161,43 @@ export function createFillerLoop(deps: FillerLoopDeps): FillerLoop {
     else scheduleLongWait();
   }
 
+  // Speaks toolId's own phrase once per turn (or a budgeted _default fallback for an unknown id).
+  function speakToolPhrase(toolId: string): void {
+    if (spokenToolIds.has(toolId)) return;
+    spokenToolIds.add(toolId);
+    const pool = deps.getPools();
+    const toolPool = pool.tool[toolId];
+    if (toolPool && toolPool.length > 0) {
+      const phrase = toolBagFor(toolId).draw(toolPool);
+      if (phrase !== undefined) speakIfAllowed(phrase);
+    } else {
+      const defaultPool = pool.tool[DEFAULT_TOOL_KEY] ?? [];
+      if (defaultSpokenCount < defaultPool.length) {
+        const phrase = defaultToolBag.draw(defaultPool);
+        if (phrase !== undefined) {
+          speakIfAllowed(phrase);
+          defaultSpokenCount++;
+        }
+      }
+    }
+  }
+
+  // Waits TOOL_GAP_MS, then speaks whichever tool is still pending (latest wins) and re-arms long_wait.
+  function scheduleToolGap(): void {
+    cancelTimer();
+    pendingKind = "tool";
+    pendingTimer = setTimer(() => {
+      pendingTimer = undefined;
+      pendingKind = undefined;
+      if (!active || longWaitFired) return;
+      const id = pendingToolId;
+      pendingToolId = undefined;
+      if (id === undefined) return;
+      speakToolPhrase(id);
+      scheduleLongWait();
+    }, TOOL_GAP_MS);
+  }
+
   return {
     start() {
       cancelTimer();
@@ -164,6 +208,8 @@ export function createFillerLoop(deps: FillerLoopDeps): FillerLoop {
       repeatsSpoken = 0;
       spokenToolIds = new Set();
       defaultSpokenCount = 0;
+      speaking = false;
+      pendingToolId = undefined;
       const pool = deps.getPools();
       if (pool.first.length > 0) {
         const phrase = firstBag.draw(pool.first);
@@ -176,32 +222,23 @@ export function createFillerLoop(deps: FillerLoopDeps): FillerLoop {
     },
 
     onUtteranceDone() {
-      if (!active || longWaitFired || phase !== "filler") return;
+      speaking = false;
+      if (!active || longWaitFired) return;
+      if (pendingToolId !== undefined) {
+        scheduleToolGap();
+        return;
+      }
+      if (phase !== "filler") return;
       armNextFillerStep();
     },
 
     onToolRunning(toolId) {
       if (!active || longWaitFired) return;
       phase = "tool";
-      if (!spokenToolIds.has(toolId)) {
-        spokenToolIds.add(toolId);
-        const pool = deps.getPools();
-        const toolPool = pool.tool[toolId];
-        if (toolPool && toolPool.length > 0) {
-          const phrase = toolBagFor(toolId).draw(toolPool);
-          if (phrase !== undefined) speakIfAllowed(phrase);
-        } else {
-          const defaultPool = pool.tool[DEFAULT_TOOL_KEY] ?? [];
-          if (defaultSpokenCount < defaultPool.length) {
-            const phrase = defaultToolBag.draw(defaultPool);
-            if (phrase !== undefined) {
-              speakIfAllowed(phrase);
-              defaultSpokenCount++;
-            }
-          }
-        }
-      }
-      scheduleLongWait();
+      pendingToolId = toolId;
+      // Latest wins: an already-pending tool-gap timer reads pendingToolId when it fires, so the
+      // overwrite alone is enough — otherwise arm one once nothing is still playing.
+      if (!speaking && pendingKind !== "tool") scheduleToolGap();
     },
 
     onActivity() {
@@ -222,6 +259,7 @@ export function createFillerLoop(deps: FillerLoopDeps): FillerLoop {
       if (!active || longWaitFired) return;
       if (cancelledKind === "repeat") scheduleRepeat();
       else if (cancelledKind === "long_wait") scheduleLongWait();
+      else if (cancelledKind === "tool") scheduleToolGap();
     },
 
     stop() {
