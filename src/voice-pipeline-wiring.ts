@@ -6,7 +6,7 @@ import type { TurnOutput } from "./dispatcher/turn-output";
 import { createWebAudioSink } from "./io/audio-player";
 import { selectFetch } from "./io/chat-client";
 import { createFillerAudioCache } from "./io/filler-audio-cache";
-import { DEFAULT_TOOL_KEY, createFillerLoop, type FillerLoop } from "./io/filler-loop";
+import { createFillerLoop, DEFAULT_TOOL_KEY, type FillerLoop } from "./io/filler-loop";
 import { effectiveFillerPool, fillerSubmissions, phraseSentences } from "./io/filler-pool";
 import type { FillerSettings } from "./io/filler-settings";
 import { createShuffleBag } from "./io/shuffle-bag";

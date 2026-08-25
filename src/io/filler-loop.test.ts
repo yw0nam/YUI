@@ -89,7 +89,13 @@ describe("createFillerLoop — the full waiting schedule", () => {
     const deps = makeDeps({
       getPools: () =>
         pool({ first: ["first-a"], repeat: ["repeat-x"], long_wait: ["long-wait-a"] }),
-      getTiming: () => ({ gapMs: 7000, jitterMs: 0, maxRepeats: 3, gapGrowth: 2, longWaitMs: 40000 }),
+      getTiming: () => ({
+        gapMs: 7000,
+        jitterMs: 0,
+        maxRepeats: 3,
+        gapGrowth: 2,
+        longWaitMs: 40000,
+      }),
     });
     const loop = createFillerLoop(deps);
 
@@ -123,7 +129,13 @@ describe("createFillerLoop — the full waiting schedule", () => {
   it("after tool activity (no repeats), long_wait fires long_wait_ms after the last activity", () => {
     const deps = makeDeps({
       getPools: () => pool({ tool: { terminal: ["ack"] }, long_wait: ["long-wait-a"] }),
-      getTiming: () => ({ gapMs: 7000, jitterMs: 0, maxRepeats: 3, gapGrowth: 2, longWaitMs: 40000 }),
+      getTiming: () => ({
+        gapMs: 7000,
+        jitterMs: 0,
+        maxRepeats: 3,
+        gapGrowth: 2,
+        longWaitMs: 40000,
+      }),
     });
     const loop = createFillerLoop(deps);
     loop.start();
@@ -206,7 +218,13 @@ describe("createFillerLoop — onToolRunning()", () => {
 describe("createFillerLoop — onActivity()", () => {
   it("restarts a pending long_wait timer from now, so it never fires while activity keeps arriving", () => {
     const deps = makeDeps({
-      getTiming: () => ({ gapMs: 1000, jitterMs: 0, maxRepeats: 0, gapGrowth: 1, longWaitMs: 1000 }),
+      getTiming: () => ({
+        gapMs: 1000,
+        jitterMs: 0,
+        maxRepeats: 0,
+        gapGrowth: 1,
+        longWaitMs: 1000,
+      }),
     });
     const loop = createFillerLoop(deps);
     loop.start();
@@ -310,7 +328,13 @@ describe("createFillerLoop — onSynthFailure() degraded mode", () => {
 
   it("a cold degraded run (nothing cached) self-drives every repeat straight through to long_wait — no hand-called onUtteranceDone after a skip", () => {
     const deps = makeDeps({
-      getTiming: () => ({ gapMs: 1000, jitterMs: 0, maxRepeats: 2, gapGrowth: 1, longWaitMs: 1000 }),
+      getTiming: () => ({
+        gapMs: 1000,
+        jitterMs: 0,
+        maxRepeats: 2,
+        gapGrowth: 1,
+        longWaitMs: 1000,
+      }),
       isCached: () => false,
     });
     const loop = createFillerLoop(deps);
