@@ -95,6 +95,18 @@ def test_canonical_block_shape_treats_unicode_separator_as_note_text(desire_plug
     assert desire_plugin._already_injected(text)
 
 
+def test_canonical_block_with_waited_marker_is_idempotent(desire_plugin):
+    text = (
+        "hello\n\n<desire_state>\n"
+        "drives: social 0/100 (low) | curiosity 50/100 (mid) | accomplishment 50/100 (mid)\n"
+        "pent-up (1):\n"
+        "- [2026-08-22 12:00] (waited 3d, bursting) speak when possible\n"
+        "</desire_state>"
+    )
+
+    assert desire_plugin._already_injected(text)
+
+
 def test_mid_message_mention_and_bare_closing_tag_do_not_suppress(desire_plugin, state_dir, at):
     now = at("2026-08-25T12:00:00+09:00")
     for text in ["I mentioned <desire_state> earlier, okay?", "hello\n</desire_state>"]:

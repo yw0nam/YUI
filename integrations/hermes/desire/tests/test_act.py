@@ -56,6 +56,31 @@ def test_action_and_monitor_share_budget_caps():
     assert desire_state.CAPS == {"signals": 3, "issues": 2, "self_comments": 1}
 
 
+def test_satisfy_prints_event_and_reward(state_dir, at, capsys):
+    result = act.main(
+        ["satisfy", "learned", "--why", "understood reward shaping"],
+        now=at("2026-08-25T12:00:00+09:00"),
+    )
+
+    captured = capsys.readouterr()
+    assert result == 0
+    assert captured.out == "satisfied learned reward=0.1004\n"
+    assert captured.err == ""
+
+
+def test_satisfy_cap_exits_one_with_clear_refusal(state_dir, at, capsys):
+    now = at("2026-08-25T12:00:00+09:00")
+    for index in range(3):
+        assert act.main(["satisfy", "progressed", "--why", f"step {index}"], now=now) == 0
+    capsys.readouterr()
+
+    assert act.main(["satisfy", "progressed", "--why", "extra step"], now=now) == 1
+
+    captured = capsys.readouterr()
+    assert captured.out == ""
+    assert captured.err == "over budget: progressed daily cap is 3\n"
+
+
 def test_signal_defaults_to_yui_agent_ingress_port(state_dir, at, monkeypatch):
     now = at("2026-08-25T12:34:56+09:00")
     calls = []
