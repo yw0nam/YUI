@@ -114,6 +114,17 @@ describe("createQuickControls — collapsible sections", () => {
     qc.dispose();
   });
 
+  it("no section is nested inside another section (each toggles independently)", () => {
+    const qc = buildFullQc();
+    qc.open();
+
+    for (const s of sectionsOf(qc.el)) {
+      expect(s.querySelector("details.yui-section")).toBeNull();
+    }
+
+    qc.dispose();
+  });
+
   it("a stored closed id renders without `open` on first paint (no flash)", () => {
     const qc = buildQc({
       sectionsSettings: createSectionsSettings({ initial: { closed: ["vrm"] } }),
