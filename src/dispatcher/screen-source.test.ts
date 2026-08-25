@@ -482,6 +482,25 @@ describe("screen_source — absence resets the clocks", () => {
   });
 });
 
+describe("screen_source — absence is quiet", () => {
+  it("logs no transition while the same app stays frontmost across away ticks", async () => {
+    const debug = vi.spyOn(console, "debug").mockImplementation(() => {});
+    const s = setup();
+    await s.src.start();
+
+    s.at(0, tick("Code"));
+    debug.mockClear();
+    s.at(5 * MIN, tick("Code", AWAY));
+    s.at(5 * MIN + 5_000, tick("Code", AWAY));
+    s.at(5 * MIN + 10_000, tick("Code", AWAY));
+    expect(debug).not.toHaveBeenCalledWith(
+      expect.stringContaining("transition"),
+      expect.anything(),
+    );
+    debug.mockRestore();
+  });
+});
+
 describe("screen_source — pile-on avoidance", () => {
   it("re-anchors the idle-cue gap on every fire", async () => {
     const s = setup();

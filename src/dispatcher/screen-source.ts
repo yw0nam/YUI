@@ -172,7 +172,7 @@ export function createScreenSource(deps: ScreenSourceDeps): ScreenSource {
     if (present && away) away = false;
 
     // App identity only; the window title never enters the comparison.
-    if (app !== undefined && app !== currentApp) {
+    if (present && app !== undefined && app !== currentApp) {
       pending =
         currentApp !== undefined && appSince !== undefined
           ? { app: currentApp, dwell_ms: t - appSince }
