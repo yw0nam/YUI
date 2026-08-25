@@ -105,16 +105,31 @@ export function wireVoicePipeline(deps: VoicePipelineDeps): VoicePipeline {
   // Warms the failure lines into fillerCache ahead of ever needing them — a network_stall/drop
   // is exactly the moment a live TTS round-trip is least welcome. Fire-and-forget: a skip/error
   // here just means that phrase synthesizes live instead, same as any other uncached filler text.
+  //
+  // Guarded twice: a no-op when the sentence set hasn't changed since the last prewarm (so a
+  // settings notify that doesn't touch timeout/unreachable costs nothing), and debounced so a
+  // burst of edits (typing in the settings textarea) synthesizes once, not once per keystroke.
+  const PREWARM_DEBOUNCE_MS = 2000;
+  let lastPrewarmedKey: string | undefined;
+  let prewarmTimer: ReturnType<typeof setTimeout> | undefined;
+
   function prewarmFailureLines(): void {
     const pool = effectiveFiller();
     const sentences = new Set<string>();
     for (const phrase of [...pool.timeout, ...pool.unreachable]) {
       for (const sentence of phraseSentences(phrase)) sentences.add(sentence);
     }
-    for (const sentence of sentences) {
-      if (fillerCache.has(sentence)) continue;
-      void synth(sentence).catch(() => {});
-    }
+    const key = [...sentences].sort().join("\n");
+    if (key === lastPrewarmedKey) return;
+    if (prewarmTimer !== undefined) clearTimeout(prewarmTimer);
+    prewarmTimer = setTimeout(() => {
+      prewarmTimer = undefined;
+      lastPrewarmedKey = key;
+      for (const sentence of sentences) {
+        if (fillerCache.has(sentence)) continue;
+        void synth(sentence).catch(() => {});
+      }
+    }, PREWARM_DEBOUNCE_MS);
   }
   prewarmFailureLines();
   const unsubscribeFillerSettings = deps.fillerSettings.subscribe?.(() => prewarmFailureLines());
@@ -254,6 +269,7 @@ export function wireVoicePipeline(deps: VoicePipelineDeps): VoicePipeline {
       fillerLoop?.stop();
       speechPlayback.dispose();
       unsubscribeFillerSettings?.();
+      if (prewarmTimer !== undefined) clearTimeout(prewarmTimer);
     },
   };
 }
