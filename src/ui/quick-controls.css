@@ -461,6 +461,44 @@
   line-height: 1.45;
 }
 
+/* ── "More phrases" (long_wait/timeout/unreachable/tool) — collapsible, default closed.
+   Same summary-chevron treatment as .yui-endpoints (endpoints-section.css). ── */
+.yui-filler-more {
+  margin-top: 0.3rem;
+}
+
+.yui-filler-more > summary {
+  list-style: none;
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.34rem;
+  min-height: 1.5rem;
+  padding: 0 0.55rem;
+  color: var(--yui-text-mute);
+  font-size: 0.72rem;
+  font-weight: 600;
+  cursor: pointer;
+  user-select: none;
+}
+
+.yui-filler-more > summary::-webkit-details-marker {
+  display: none;
+}
+
+.yui-filler-more > summary::before {
+  content: "›";
+  align-self: center;
+  display: inline-block;
+  font-size: 0.85rem;
+  line-height: 1;
+  transform: rotate(0deg);
+  transition: transform var(--yui-dur-fast) var(--yui-ease);
+}
+
+.yui-filler-more[open] > summary::before {
+  transform: rotate(90deg);
+}
+
 /* ── Toggle row ── */
 .yui-row {
   display: flex;
@@ -1228,7 +1266,8 @@
     animation: none;
   }
   .yui-endpoints > summary::before,
-  .yui-section > summary::before {
+  .yui-section > summary::before,
+  .yui-filler-more > summary::before {
     transition: none;
   }
   .yui-meter__fill {
