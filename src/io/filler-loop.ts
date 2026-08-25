@@ -168,7 +168,9 @@ export function createFillerLoop(deps: FillerLoopDeps): FillerLoop {
       if (pool.first.length > 0) {
         const phrase = firstBag.draw(pool.first);
         if (phrase !== undefined) speakIfAllowed(phrase);
-      } else if (pool.repeat.length > 0) {
+      } else if (pool.repeat.length > 0 || pool.long_wait.length > 0) {
+        // Even with an empty repeat pool, the self-driving repeat callback (see scheduleRepeat)
+        // carries nothing-to-speak cycles forward until long_wait is reached.
         armNextFillerStep();
       }
     },
