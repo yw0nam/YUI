@@ -252,6 +252,57 @@ def test_comment_uses_its_own_one_per_day_budget(state_dir, at, capsys):
     assert capsys.readouterr().err.strip() == "over budget"
 
 
+def test_outbox_release_removes_item_and_audits(state_dir, at, state_helpers):
+    _, write_jsonl, _, read_jsonl = state_helpers
+    now = at("2026-08-25T12:00:00+09:00")
+    desire_state.bootstrap(now)
+    write_jsonl(
+        state_dir / "outbox.jsonl",
+        [
+            {
+                "id": "keep",
+                "created_at": now.isoformat(),
+                "note": "keep me",
+                "blocked_by": "budget",
+                "surfaced_at": None,
+            },
+            {
+                "id": "gone",
+                "created_at": now.isoformat(),
+                "note": "release me",
+                "blocked_by": "budget",
+                "surfaced_at": None,
+            },
+        ],
+    )
+
+    assert act.main(["outbox", "--release", "gone", "--why", "no longer true"], now=now) == 0
+
+    remaining = desire_state.read_jsonl(state_dir / "outbox.jsonl")
+    assert [item["id"] for item in remaining] == ["keep"]
+    assert read_jsonl(state_dir / "audit.jsonl")[-1] == {
+        "at": now.isoformat(),
+        "event": "outbox_released",
+        "id": "gone",
+        "why": "no longer true",
+    }
+
+
+def test_outbox_release_unknown_id_exits_one(state_dir, at, capsys):
+    now = at("2026-08-25T12:00:00+09:00")
+    desire_state.bootstrap(now)
+
+    assert act.main(["outbox", "--release", "missing"], now=now) == 1
+    assert capsys.readouterr().err.strip() == "unknown outbox item"
+
+
+def test_outbox_list_and_release_are_mutually_exclusive(state_dir, at):
+    import pytest
+
+    with pytest.raises(SystemExit):
+        act.main(["outbox", "--list", "--release", "x"], now=at("2026-08-25T12:00:00+09:00"))
+
+
 def test_feedback_get_set_and_outbox_list(state_dir, at, state_helpers, capsys):
     _, write_jsonl, _, read_jsonl = state_helpers
     now = at("2026-08-25T12:00:00+09:00")

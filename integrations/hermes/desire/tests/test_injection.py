@@ -263,23 +263,40 @@ def test_notes_are_truncated_to_300_characters(desire_plugin, state_dir, at, sta
     assert "x" * 301 not in block
 
 
-def test_surface_stamp_happens_once_and_active_window_is_strict(desire_plugin, state_dir, at, state_helpers):
+def test_surface_stamps_once_and_items_stay_active_regardless_of_surfaced_at(
+    desire_plugin, state_dir, at, state_helpers
+):
     _, write_jsonl, _, read_jsonl = state_helpers
     now = at("2026-08-25T12:00:00+09:00")
     write_jsonl(
         state_dir / "outbox.jsonl",
         [
             item("new", now, "new"),
-            item("inside", now, "inside", now - timedelta(minutes=14, seconds=59)),
-            item("boundary", now, "boundary", now - timedelta(minutes=15)),
+            item("long_surfaced", now - timedelta(days=1), "surfaced a day ago", now - timedelta(days=1)),
+            item("boundary", now - timedelta(days=6, hours=23), "almost expired"),
         ],
     )
     result = desire_plugin._inject(request=request_with("turn one"), now=now)
-    assert "pent-up (2):" in appended_block(result)
+    assert "pent-up (3):" in appended_block(result)
     stored = {value["id"]: value for value in read_jsonl(state_dir / "outbox.jsonl")}
     assert stored["new"]["surfaced_at"] == now.isoformat()
-    assert stored["inside"]["surfaced_at"] == (now - timedelta(minutes=14, seconds=59)).isoformat()
-    assert stored["boundary"]["surfaced_at"] == (now - timedelta(minutes=15)).isoformat()
+    assert stored["long_surfaced"]["surfaced_at"] == (now - timedelta(days=1)).isoformat()
+    assert stored["boundary"]["surfaced_at"] == now.isoformat()
+
+
+def test_pent_up_item_still_appears_after_repeated_surfacing_past_fifteen_minutes(
+    desire_plugin, state_dir, at, state_helpers
+):
+    _, write_jsonl, _, _ = state_helpers
+    now = at("2026-08-25T12:00:00+09:00")
+    write_jsonl(state_dir / "outbox.jsonl", [item("note", now, "still true")])
+
+    first = desire_plugin._inject(request=request_with("turn one"), now=now)
+    assert "pent-up (1):" in appended_block(first)
+
+    later = now + timedelta(minutes=20)
+    second = desire_plugin._inject(request=request_with("turn two"), now=later)
+    assert "pent-up (1):" in appended_block(second)
 
 
 def test_surface_stamp_preserves_malformed_outbox_lines(desire_plugin, state_dir, at):

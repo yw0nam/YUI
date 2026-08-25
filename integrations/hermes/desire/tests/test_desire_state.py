@@ -178,6 +178,35 @@ def test_satisfy_reward_matches_homeostatic_drive_reduction(state_dir, at, state
     assert cross_drive_reward < reward
 
 
+def test_satisfy_reward_uses_decayed_level_and_derived_social(state_dir, at, state_helpers):
+    write_json, _, read_json, _ = state_helpers
+    now = at("2026-08-25T12:00:00+09:00")
+    desire_state.bootstrap(now)
+    drives = read_json(state_dir / "drives.json")
+    drives["curiosity"] = {"level": 10.0, "anchor_at": (now - timedelta(hours=1)).isoformat()}
+    drives["accomplishment"] = {"level": 50.0, "anchor_at": now.isoformat()}
+    drives["last_interaction_at"] = (now - timedelta(hours=10)).isoformat()
+    write_json(state_dir / "drives.json", drives)
+
+    reward = desire_state.satisfy("learned", "read the paper", now)
+
+    # curiosity decays CURIOSITY_RATE(3.0)/h * 1h on top of the stored 10.0 -> 13.0 before the dose lands.
+    # social derives from a 10h-old last_interaction_at -> SOCIAL_RATE(5.0) * 10 = 50.0.
+    before = {"social": 50.0, "curiosity": 13.0, "accomplishment": 50.0}
+    after = {"social": 50.0, "curiosity": 0.0, "accomplishment": 50.0}
+    expected = desire_state.homeostatic_drive(before) - desire_state.homeostatic_drive(after)
+    assert reward == pytest.approx(expected)
+
+    # A satisfy that ignored decay (dosing the stored 10.0) or social (treating it as 0) would not match.
+    ignoring_decay_and_social = desire_state.homeostatic_drive(
+        {"social": 0.0, "curiosity": 10.0, "accomplishment": 50.0}
+    ) - desire_state.homeostatic_drive({"social": 0.0, "curiosity": 0.0, "accomplishment": 50.0})
+    assert reward != pytest.approx(ignoring_decay_and_social)
+
+    drives_after = read_json(state_dir / "drives.json")
+    assert drives_after["curiosity"] == {"level": 0.0, "anchor_at": now.isoformat()}
+
+
 def test_satisfy_rejects_unknown_event(state_dir, at):
     with pytest.raises(ValueError, match="unknown event: comforted"):
         desire_state.satisfy("comforted", "talked", at("2026-08-25T12:00:00+09:00"))
@@ -191,13 +220,95 @@ def test_satisfy_daily_cap_resets_at_kst_midnight(state_dir, at, state_helpers):
 
     with pytest.raises(ValueError, match=r"over budget: learned daily cap is 3"):
         desire_state.satisfy("learned", "one too many", before_midnight)
-    assert len(read_jsonl(state_dir / "audit.jsonl")) == 3
+    audit = read_jsonl(state_dir / "audit.jsonl")
+    assert sum(1 for event in audit if event["event"] == "drive_satisfied") == 3
+    assert audit[-1] == {
+        "at": before_midnight.isoformat(),
+        "event": "satisfy_blocked",
+        "event_type": "learned",
+        "why": "one too many",
+    }
 
     desire_state.satisfy("learned", "new KST day", at("2026-08-26T00:00:00+09:00"))
 
     budget = read_json(state_dir / "budget.json")
     assert budget["date"] == "2026-08-26"
     assert budget["events"] == {"learned": 1}
+
+
+def test_invalid_budget_events_value_is_coerced_not_quarantined(state_dir, at, state_helpers):
+    write_json, _, read_json, read_jsonl = state_helpers
+    now = at("2026-08-25T12:00:00+09:00")
+    desire_state.bootstrap(now)
+    write_json(
+        state_dir / "budget.json",
+        {
+            "date": "2026-08-25",
+            "signals": 1,
+            "issues": 0,
+            "self_comments": 0,
+            "events": ["learned"],
+            "pending": {"resv": {"kind": "issue", "date": "2026-08-25"}},
+        },
+    )
+
+    desire_state.satisfy("learned", "read the paper", now)
+
+    budget = read_json(state_dir / "budget.json")
+    assert budget["signals"] == 1
+    assert budget["pending"] == {"resv": {"kind": "issue", "date": "2026-08-25"}}
+    assert budget["events"] == {"learned": 1}
+    assert not any(
+        event["event"] == "state_corrupt_recovered" for event in read_jsonl(state_dir / "audit.jsonl")
+    )
+
+
+def test_normalize_budget_clamps_negative_event_counters(state_dir, at, state_helpers):
+    write_json, _, _, _ = state_helpers
+    now = at("2026-08-25T12:00:00+09:00")
+    desire_state.bootstrap(now)
+    write_json(
+        state_dir / "budget.json",
+        {
+            "date": "2026-08-25",
+            "signals": 0,
+            "issues": 0,
+            "self_comments": 0,
+            "events": {"learned": -50},
+            "pending": {},
+        },
+    )
+    for index in range(3):
+        desire_state.satisfy("learned", f"lesson {index}", now)
+
+    with pytest.raises(ValueError, match=r"over budget: learned daily cap is 3"):
+        desire_state.satisfy("learned", "one too many", now)
+
+
+def test_active_outbox_stays_active_regardless_of_surfacing_until_seven_day_expiry(at):
+    now = at("2026-08-25T12:00:00+09:00")
+    long_surfaced = {
+        "id": "long_surfaced",
+        "created_at": (now - timedelta(days=6, hours=23)).isoformat(),
+        "note": "still true",
+        "surfaced_at": (now - timedelta(days=6)).isoformat(),
+    }
+    exactly_expired = {
+        "id": "exactly_expired",
+        "created_at": (now - timedelta(days=7)).isoformat(),
+        "note": "gone",
+        "surfaced_at": None,
+    }
+    unsurfaced_but_stale = {
+        "id": "unsurfaced_but_stale",
+        "created_at": (now - timedelta(days=8)).isoformat(),
+        "note": "never spoken, still stale",
+        "surfaced_at": None,
+    }
+
+    active = desire_state.active_outbox([long_surfaced, exactly_expired, unsurfaced_but_stale], now)
+
+    assert [item["id"] for item in active] == ["long_surfaced"]
 
 
 def test_serialize_desire_block_marks_pent_up_day_boundaries(at):
