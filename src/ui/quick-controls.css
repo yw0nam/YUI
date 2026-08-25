@@ -371,6 +371,35 @@
   background: var(--yui-edge);
 }
 
+/* ── Collapsible section (native <details>) — reuses .yui-endpoints' disclosure marker. Its
+   heading (.yui-quick__section / .yui-field-row__label) keeps its own look unchanged. ── */
+.yui-section > summary {
+  display: flex;
+  align-items: baseline;
+  gap: 0.3rem;
+  list-style: none;
+  cursor: pointer;
+  user-select: none;
+}
+
+.yui-section > summary::-webkit-details-marker {
+  display: none;
+}
+
+.yui-section > summary::before {
+  content: "›";
+  flex: none;
+  font-size: 0.85rem;
+  line-height: 1;
+  color: var(--yui-text-mute);
+  transform: rotate(0deg);
+  transition: transform var(--yui-dur-fast) var(--yui-ease);
+}
+
+.yui-section[open] > summary::before {
+  transform: rotate(90deg);
+}
+
 /* ── `?` after a section label ── */
 .yui-hint-dot {
   display: inline-flex;

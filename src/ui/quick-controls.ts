@@ -27,6 +27,7 @@ import type { createScheduleSettings } from "../io/schedule-settings";
 import type { ScreenKnobSettingsStore, ScreenOverrides } from "../io/screen-settings";
 import type { ScreenSourceProvider } from "../io/screen-source-provider";
 import type { createScreenshotSettings } from "../io/screenshot-settings";
+import type { createSectionsSettings } from "../io/sections-settings";
 import type { createSessionDiagnosticsStore } from "../io/session-diagnostics";
 import type { createSessionStore } from "../io/session-store";
 import type { createSpeakerSelection, SpeakerOption } from "../io/speaker-selection";
@@ -53,6 +54,7 @@ import { createIdleMotionList } from "./quick-controls/idle-motion-section";
 import { createMonitorsSection } from "./quick-controls/monitors-section";
 import { createPopover } from "./quick-controls/popover";
 import { createReflect } from "./quick-controls/reflect";
+import { createSections } from "./quick-controls/sections";
 import { createSpeakerList } from "./quick-controls/speaker-list";
 import type { SwitchRow } from "./quick-controls/switch-row";
 import { buildPanelHtml } from "./quick-controls/template";
@@ -72,6 +74,7 @@ type LipsyncSettingsStore = ReturnType<typeof createLipsyncSettings>;
 type VadSettingsStore = ReturnType<typeof createVadSettings>;
 type AgentSettingsStore = ReturnType<typeof createAgentSettings>;
 type EndpointsSettingsStore = ReturnType<typeof createEndpointsSettings>;
+type SectionsSettingsStore = ReturnType<typeof createSectionsSettings>;
 type FillerSettingsStore = ReturnType<typeof createFillerSettings>;
 type VrmSelectionStore = ReturnType<typeof createVrmSelection>;
 type SpeakerSelectionStore = ReturnType<typeof createSpeakerSelection>;
@@ -171,6 +174,8 @@ interface QuickControlsOptions {
   getScreenDefaults?: () => ScreenOverrides | undefined;
   /** Section rail collapse state store. */
   railCollapsedSettings?: FlagSettingsStore;
+  /** Collapsible-sections open/closed state store. */
+  sectionsSettings?: SectionsSettingsStore;
   /** Per-variant idle-motion on/off store. If absent, the idle-motion section won't render. */
   idleMotionSettings?: IdleMotionSettingsStore;
   /** The read-only `idle` catalog entry backing that section (undefined until configs load). */
@@ -388,6 +393,7 @@ export function createQuickControls({
   screenKnobSettings,
   getScreenDefaults,
   railCollapsedSettings,
+  sectionsSettings,
   idleMotionSettings,
   getIdlePool,
   expressMotionSettings,
@@ -437,6 +443,7 @@ export function createQuickControls({
     showDevtools: !isWindow && !!onOpenDevtools,
     showHistory: !!transcript,
     railCollapsed: railCollapsedSettings?.get().enabled ?? false,
+    closedSections: new Set(sectionsSettings?.get().closed ?? []),
   });
 
   const switchBtn = el.querySelector<HTMLButtonElement>(".yui-screenshot-switch")!;
@@ -505,6 +512,7 @@ export function createQuickControls({
   });
   const workflows = createWorkflowsSection({ root: el, store: workflowSettings, log });
   const hintTooltip = createHintTooltip({ root: el });
+  const sections = createSections({ root: el, sectionsSettings });
 
   // History tab (transcript viewer) — rendered only when a transcript store is injected.
   const history = transcript
@@ -1221,6 +1229,10 @@ export function createQuickControls({
       reflect.reflectFiller();
     }
   });
+  // Reflect collapsed-sections store updates to the DOM (includes other-window reloadFromStorage).
+  const unsubscribeSections = sectionsSettings?.subscribe(() => {
+    if (popover.isOpen()) sections.reflect();
+  });
   // Reflect store updates (direct select · other-window reloadFromStorage) to active row.
   // Skip during swap — finally's renderVrms handles final render after loading.
   const unsubscribeVrm = vrmSelection.subscribe(() => {
@@ -1287,6 +1299,7 @@ export function createQuickControls({
     endpoints.dispose();
     workflows.dispose();
     hintTooltip.dispose();
+    sections.dispose();
     history?.dispose();
     scheduleCueList?.destroy();
     proactiveCueList?.destroy();
@@ -1322,6 +1335,7 @@ export function createQuickControls({
     unsubscribeAgent();
     unsubscribeEndpoints();
     unsubscribeFiller?.();
+    unsubscribeSections?.();
     unsubscribeVrm();
     unsubscribeSpk();
     unsubscribeSession?.();

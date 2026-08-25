@@ -111,7 +111,10 @@ describe("createSectionsSettings — validation", () => {
   });
 
   it("rejects garbage (null/string/array) at the top level, falling back to defaults", () => {
-    const storage: SectionsStorage = { load: () => "garbage" as unknown as SectionsSettings, save: vi.fn() };
+    const storage: SectionsStorage = {
+      load: () => "garbage" as unknown as SectionsSettings,
+      save: vi.fn(),
+    };
     const store = createSectionsSettings({ storage });
     expect(store.get().closed).toEqual([]);
   });
