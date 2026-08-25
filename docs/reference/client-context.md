@@ -439,14 +439,20 @@ data: {"type":"response.completed","response":{"id":"resp_1","status":"completed
 
 ## Stream Liveness
 
-The client aborts a turn whose stream stays silent for 45 seconds and drops
-the triggering event. The deadline is an idle gap measured between stream
-events, not a cap on total turn length, and every SSE event resets it —
-including event types the client does not otherwise consume. A backend busy
-with long non-streaming work (context compaction, retrieval) stays alive by
-emitting any event periodically; SSE comment lines are stripped by the SDK
-and do not count. `response.failed` / `response.incomplete` are terminal
-errors, not liveness.
+The client aborts a turn whose stream stalls and drops the triggering event.
+The deadline is an idle gap measured between stream events, not a cap on
+total turn length, and every parsed SSE event resets it — including event
+types the client does not otherwise consume. SSE comment lines are stripped
+by the SDK and do not count.
+
+The deadline itself depends on whether speech is currently streaming: while
+no speech text has streamed yet — the initial wait, a tool round, or
+context compaction — the client allows up to 240 seconds of silence. Once
+assistant speech has started streaming, the client allows up to 45 seconds
+between events; a further tool round after speech has started widens the
+deadline back to 240 seconds for its duration. A backend busy with long
+non-streaming work stays alive by emitting any event periodically.
+`response.failed` / `response.incomplete` are terminal errors, not liveness.
 
 ## Rules
 
