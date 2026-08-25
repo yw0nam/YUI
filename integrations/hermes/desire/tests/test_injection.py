@@ -2,7 +2,9 @@ import copy
 import hashlib
 import json
 import logging
+import re
 from datetime import timedelta
+from pathlib import Path
 
 import desire_state
 
@@ -618,7 +620,9 @@ def test_debug_event_logs_error_on_forced_failure(desire_plugin, state_dir, at, 
     assert result is None
     records = [record for record in caplog.records if record.name == desire_plugin.__name__]
     assert len(records) == 1
-    assert "outcome=error" in records[0].getMessage()
+    message = records[0].getMessage()
+    assert "outcome=error" in message
+    assert "reason=ZeroDivisionError" in message
 
 
 def test_debug_event_never_leaks_user_text_or_drive_values(
@@ -635,6 +639,32 @@ def test_debug_event_never_leaks_user_text_or_drive_values(
     records = [record for record in caplog.records if record.name == desire_plugin.__name__]
     assert len(records) == 1
     message = records[0].getMessage()
-    for leak in ("secret", "12345", "<desire_state>", "drives:", "31", "55"):
-        assert leak not in message
+    assert re.fullmatch(
+        r"yui-desire llm_request plugin=yui-desire/\S+ outcome=\w+ reason=\S+ interaction=\S+ "
+        r"shape=\S+ cache_hit=\S+ api_request_id=\S+ turn_id=\S+ session_id=\S+",
+        message,
+    )
+    assert "secret" not in message
+    assert "12345" not in message
+    assert "<desire_state>" not in message
+
+
+def test_debug_event_sanitizes_correlation_ids(desire_plugin, state_dir, at, caplog):
+    now = at("2026-08-25T12:00:00+09:00")
+    caplog.set_level(logging.DEBUG, logger=desire_plugin.__name__)
+    request = request_with(context("trigger: user message"))
+
+    desire_plugin._inject(request=request, now=now, api_request_id="a\nb")
+
+    records = [record for record in caplog.records if record.name == desire_plugin.__name__]
+    assert len(records) == 1
+    message = records[0].getMessage()
     assert "\n" not in message
+    assert "api_request_id=a b" in message
+
+
+def test_version_matches_plugin_yaml(desire_plugin):
+    plugin_yaml = Path(__file__).parents[1] / "plugin.yaml"
+    match = re.search(r"^version:\s*(\S+)\s*$", plugin_yaml.read_text(encoding="utf-8"), re.MULTILINE)
+    assert match is not None
+    assert desire_plugin._VERSION == match.group(1)
