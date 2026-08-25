@@ -18,7 +18,8 @@ Run every step in order; each step ends with a check. Never copy the plugin out 
 the plugin directory and prompts are read from the repository, so `git pull` updates them in place.
 
 Replace `$YUI` below with the absolute path of the YUI checkout (for example
-`/home/spow12/codes/2026_upper/agents/YUI`).
+`/home/spow12/codes/2026_upper/agents/YUI`) and `<profile>` with the Hermes profile name (for example `natsume2`).
+Every `hermes` command takes `-p <profile>`; without it the CLI acts on the global `~/.hermes` store.
 
 ## When to use
 
@@ -38,10 +39,10 @@ Check: the pull fast-forwards and `integrations/hermes/desire/plugin.yaml` exist
 
 ```bash
 ln -sfn $YUI/integrations/hermes/desire ~/.hermes/plugins/yui-desire
-hermes plugins enable yui-desire
+hermes -p <profile> plugins enable yui-desire
 ```
 
-Check: `hermes plugins list` (run with the same `HERMES_PROFILE`) shows `yui-desire` enabled. Do not grant the plugin built-in tool
+Check: `hermes -p <profile> plugins list` shows `yui-desire` enabled. Do not grant the plugin built-in tool
 override permission; the middleware needs none.
 
 ## 3. Environment
@@ -85,17 +86,17 @@ empty or missing, the monitor could not write there — fix `DESIRE_STATE_DIR` b
 ## 5. Cron jobs
 
 ```bash
-hermes cron create "30m" --name natsume-desire-tick \
+hermes -p <profile> cron create "30m" --name natsume-desire-tick \
   --monitor-script natsume-desire-monitor.sh \
   "Follow the instructions in $YUI/integrations/hermes/desire/prompts/tick.md."
-hermes cron create "0 23 * * 0" --name natsume-desire-reflection \
+hermes -p <profile> cron create "0 23 * * 0" --name natsume-desire-reflection \
   "Follow the instructions in $YUI/integrations/hermes/desire/prompts/reflection.md."
 ```
 
 The tick only wakes a turn when the monitor's one-line summary changes; an unchanged summary suppresses the run.
-Check: both jobs appear in the profile cron store (`~/.hermes/profiles/<profile>/cron/jobs.json`). `hermes cron
-list` reads the global store, so it may not show profile jobs — inspect the file directly. After the first
-30 minutes, the tick job's `last_status` is `ok`.
+Check: `hermes -p <profile> cron list` shows both jobs, the tick one with `Monitor: natsume-desire-monitor.sh`.
+Without `-p`, `hermes cron list` reads the global store and does not show profile jobs. After the first
+30 minutes, the tick job's `last_status` in `~/.hermes/profiles/<profile>/cron/jobs.json` is `ok`.
 
 ## 6. Kickoff (once)
 

@@ -57,7 +57,7 @@ On the Hermes host, clone the YUI repository and link the plugin directory into 
 
 ```bash
 ln -s <abs>/integrations/hermes/desire ~/.hermes/plugins/yui-desire
-hermes plugins enable yui-desire
+hermes -p "$HERMES_PROFILE" plugins enable yui-desire
 ```
 
 Set the deployment environment for the plugin, cron jobs, monitor, and helper commands:
@@ -88,10 +88,10 @@ chmod +x ~/.hermes/scripts/natsume-desire-monitor.sh
 Create the tick and weekly reflection jobs with these commands:
 
 ```bash
-hermes cron create "30m" --name natsume-desire-tick \
+hermes -p "$HERMES_PROFILE" cron create "30m" --name natsume-desire-tick \
   --monitor-script natsume-desire-monitor.sh \
   "Follow the instructions in <abs>/integrations/hermes/desire/prompts/tick.md."
-hermes cron create "0 23 * * 0" --name natsume-desire-reflection \
+hermes -p "$HERMES_PROFILE" cron create "0 23 * * 0" --name natsume-desire-reflection \
   "Follow the instructions in <abs>/integrations/hermes/desire/prompts/reflection.md."
 ```
 
