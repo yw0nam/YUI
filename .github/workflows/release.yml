@@ -77,6 +77,7 @@ jobs:
               tag_name: tag,
               name: tag,
               body,
+              generate_release_notes: true,
               draft: true,
               prerelease: tag.includes('-'),
             })

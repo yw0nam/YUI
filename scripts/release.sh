@@ -67,6 +67,6 @@ git tag -a "v$new" -m "v$new"
 git push --atomic origin main "v$new"
 # The Release workflow drafts the release for the tag and uploads the bundles into it —
 # creating one here too would race it into a duplicate. Publish the draft from GitHub
-# once the builds land (generate the notes from the release page).
+# once the builds land.
 echo "v$new tagged. The Release workflow is drafting the release; publish it once the builds finish:"
 echo "  https://github.com/yw0nam/YUI/releases"
