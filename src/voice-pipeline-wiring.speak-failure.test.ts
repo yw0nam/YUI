@@ -152,25 +152,37 @@ describe("speakFailure", () => {
 });
 
 describe("prewarmFailureLines", () => {
-  beforeEach(() => vi.clearAllMocks());
+  // Real timers would make every one of these wait out the ~2s debounce for real; fake timers let
+  // the debounce itself be pinned precisely and cheaply.
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.useFakeTimers();
+  });
   afterEach(() => {
     for (const voice of wired.splice(0)) voice.dispose();
+    vi.useRealTimers();
   });
 
-  it("synthesizes every timeout/unreachable sentence once at wire time", async () => {
+  it("synthesizes every timeout/unreachable sentence once, debounced ~2s after wiring", async () => {
     setup(() => settingsOf(pool({ timeout: [TIMEOUT_PHRASE], unreachable: [UNREACHABLE_PHRASE] })));
-    await vi.waitFor(() => expect(synthCalls().length).toBeGreaterThanOrEqual(2));
+
+    await vi.advanceTimersByTimeAsync(1999);
+    expect(synthCalls().length).toBe(0);
+
+    await vi.advanceTimersByTimeAsync(1);
     expect(synthCalls().length).toBe(2);
     expect(synthInputs().sort()).toEqual([TIMEOUT_PHRASE, UNREACHABLE_PHRASE].sort());
   });
 
   it("skips a sentence already cached — a later speakFailure serves it without a new synth call", async () => {
     const voice = setup(() => settingsOf(pool({ timeout: [TIMEOUT_PHRASE] })));
-    await vi.waitFor(() => expect(synthCalls().length).toBeGreaterThanOrEqual(1));
+    await vi.advanceTimersByTimeAsync(2000);
     const before = synthCalls().length;
+    expect(before).toBeGreaterThanOrEqual(1);
 
     voice.speakFailure("network_stall");
-    await vi.waitFor(() => expect(mocks.sink.play).toHaveBeenCalled());
+    await vi.advanceTimersByTimeAsync(0); // flushes the speak's own synth/playback microtasks
+    expect(mocks.sink.play).toHaveBeenCalled();
     expect(synthCalls().length).toBe(before);
   });
 
@@ -184,15 +196,67 @@ describe("prewarmFailureLines", () => {
         return () => {};
       },
     );
-    await vi.waitFor(() => expect(synthCalls().length).toBeGreaterThanOrEqual(1));
+    await vi.advanceTimersByTimeAsync(2000);
     const before = synthCalls().length;
 
     const NEW_PHRASE = "新しい文言。";
     current = settingsOf(pool({ timeout: [TIMEOUT_PHRASE], unreachable: [NEW_PHRASE] }));
     notify?.(current);
+    await vi.advanceTimersByTimeAsync(2000);
 
-    await vi.waitFor(() => expect(synthInputs()).toContain(NEW_PHRASE));
+    expect(synthInputs()).toContain(NEW_PHRASE);
     // The already-cached timeout sentence is not resynthesized — only the new one adds a call.
     expect(synthCalls().length).toBe(before + 1);
+  });
+
+  it("does nothing when the sentence set notifies a change but is unchanged since the last prewarm", async () => {
+    let current = settingsOf(pool({ timeout: [TIMEOUT_PHRASE] }));
+    let notify: ((s: FillerSettings) => void) | undefined;
+    setup(
+      () => current,
+      (cb) => {
+        notify = cb;
+        return () => {};
+      },
+    );
+    await vi.advanceTimersByTimeAsync(2000);
+    const before = synthCalls().length;
+
+    // A different settings object, but the same sentence set — nothing to redo.
+    current = settingsOf(pool({ timeout: [TIMEOUT_PHRASE] }));
+    notify?.(current);
+    await vi.advanceTimersByTimeAsync(2000);
+
+    expect(synthCalls().length).toBe(before);
+  });
+
+  it("debounces three rapid settings commits into one synth batch", async () => {
+    let current = settingsOf(pool({ timeout: [] }));
+    let notify: ((s: FillerSettings) => void) | undefined;
+    setup(
+      () => current,
+      (cb) => {
+        notify = cb;
+        return () => {};
+      },
+    );
+    await vi.advanceTimersByTimeAsync(2000); // let the initial (empty) prewarm settle — nothing to do
+    expect(synthCalls().length).toBe(0);
+
+    current = settingsOf(pool({ timeout: ["a"] }));
+    notify?.(current);
+    await vi.advanceTimersByTimeAsync(300); // well inside the debounce window
+    current = settingsOf(pool({ timeout: ["a", "b"] }));
+    notify?.(current);
+    await vi.advanceTimersByTimeAsync(300);
+    current = settingsOf(pool({ timeout: ["a", "b", "c"] }));
+    notify?.(current);
+
+    await vi.advanceTimersByTimeAsync(1900); // still inside the window from the last commit
+    expect(synthCalls().length).toBe(0);
+
+    await vi.advanceTimersByTimeAsync(200); // 2s past the last commit — exactly one batch fires
+    expect(synthCalls().length).toBe(3);
+    expect(synthInputs().sort()).toEqual(["a", "b", "c"]);
   });
 });
