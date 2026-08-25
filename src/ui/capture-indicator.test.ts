@@ -95,7 +95,7 @@ describe("capture-indicator — a11y visibility", () => {
     s.emit(false);
     // Environment with no transitions at all: only the fallback timer removes it from the tree.
     expect(ind.el.hidden).toBe(false);
-    vi.advanceTimersByTime(900);
+    vi.advanceTimersByTime(400);
     expect(ind.el.hidden).toBe(true);
     vi.useRealTimers();
   });

@@ -249,7 +249,7 @@ describe("speech-bubble hide fallback", () => {
     el.dispatchEvent(event);
   }
 
-  it("hideSpeech settles after 900ms without transitionend and repeated stray hides stay harmless", () => {
+  it("hideSpeech settles after 400ms without transitionend and repeated stray hides stay harmless", () => {
     const bubble = mount.querySelector(".yui-bubble") as HTMLElement;
     s.beginSpeech();
 
@@ -257,7 +257,7 @@ describe("speech-bubble hide fallback", () => {
     s.hideSpeech();
     expect(bubble.hidden).toBe(false);
 
-    vi.advanceTimersByTime(900);
+    vi.advanceTimersByTime(400);
     expect(bubble.hidden).toBe(true);
 
     s.beginSpeech();
@@ -268,7 +268,7 @@ describe("speech-bubble hide fallback", () => {
 });
 
 describe("dispose — cancels an in-flight fade fallback", () => {
-  it("stops the 900ms fallback from mutating the bubble after teardown mid-fade", () => {
+  it("stops the 400ms fallback from mutating the bubble after teardown mid-fade", () => {
     vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
     const mount = document.createElement("div");
     document.body.appendChild(mount);
@@ -276,9 +276,9 @@ describe("dispose — cancels an in-flight fade fallback", () => {
     const bubbleEl = mount.querySelector(".yui-bubble") as HTMLElement;
 
     s.beginSpeech();
-    s.hideSpeech(); // arms the 900ms fade fallback
+    s.hideSpeech(); // arms the 400ms fade fallback
     s.dispose();
-    vi.advanceTimersByTime(900); // fallback would fire here if not cancelled
+    vi.advanceTimersByTime(400); // fallback would fire here if not cancelled
 
     expect(bubbleEl.hidden).toBe(false);
 

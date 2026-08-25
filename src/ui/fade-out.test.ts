@@ -46,11 +46,20 @@ describe("afterFadeOut", () => {
     expect(settle).not.toHaveBeenCalled();
   });
 
-  it("settles from the fallback timer when no transition fires", () => {
+  it("settles from the default 400ms fallback timer when no transition fires", () => {
     const settle = vi.fn();
     afterFadeOut(el, settle);
 
-    // The fallback must exceed the longest fade transition in use (--yui-dur-out, 650ms).
+    vi.advanceTimersByTime(399);
+    expect(settle).not.toHaveBeenCalled();
+    vi.advanceTimersByTime(1);
+    expect(settle).toHaveBeenCalledTimes(1);
+  });
+
+  it("accepts a longer fallback for a caller whose own transition outlasts the default", () => {
+    const settle = vi.fn();
+    afterFadeOut(el, settle, 900);
+
     vi.advanceTimersByTime(899);
     expect(settle).not.toHaveBeenCalled();
     vi.advanceTimersByTime(1);
@@ -71,7 +80,7 @@ describe("afterFadeOut", () => {
     const settle = vi.fn();
     afterFadeOut(el, settle);
 
-    vi.advanceTimersByTime(900);
+    vi.advanceTimersByTime(400);
     transitionEnd(el);
     expect(settle).toHaveBeenCalledTimes(1);
   });
@@ -81,7 +90,7 @@ describe("afterFadeOut", () => {
     const cancel = afterFadeOut(el, settle);
 
     cancel();
-    vi.advanceTimersByTime(900);
+    vi.advanceTimersByTime(400);
     expect(settle).not.toHaveBeenCalled();
   });
 
