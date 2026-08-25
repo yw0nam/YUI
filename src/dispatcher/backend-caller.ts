@@ -7,8 +7,9 @@
  *  B1 package_context — Assemble InputContext (user_text + env.timestamp + env.timezone).
  *  B2 POST — io/chat-client.streamChat(config, req, { fetch, apiKey }). SSE owned by chat-client
  *     — not parsed directly here. In-flight abort via AbortSignal. idle-gap watchdog
- *     (FIRST_EVENT_TIMEOUT_MS until the stream is live, then IDLE_TIMEOUT_MS resetting on each event)
- *     aborts stalled calls — normal turns with long thinking/streaming are not killed.
+ *     (PRE_SPEECH_TIMEOUT_MS while the last event wasn't speech, SPEECH_IDLE_TIMEOUT_MS once it
+ *     was, resetting on each event) aborts stalled calls — normal turns with long thinking/tool
+ *     rounds/streaming are not killed.
  *  B3 parse — chat-client's `completed` event already assembled ControlEnvelope.
  *     No completed received → parse_error.
  *  B4 speech gate — speak only when speech_text is not empty. Empty text = silence,
@@ -117,17 +118,19 @@ function isReflexTurn(eventName: string): boolean {
 }
 
 /**
- * Idle-gap watchdog deadline (ms) between stream events, once the stream is live. Stall baseline that
- * resets on each event — not a cap on total elapsed time. Does not kill turns with long thinking/streaming,
- * only aborts stalled turns.
+ * Idle-gap watchdog deadline (ms) applied whenever the last event was assistant speech — a
+ * speech_delta or the speech_done marker that closes it. Stall baseline that resets on each
+ * event, not a cap on total elapsed time.
  */
-export const IDLE_TIMEOUT_MS = 45_000;
+export const SPEECH_IDLE_TIMEOUT_MS = 45_000;
 
 /**
- * Watchdog deadline (ms) for the first stream event. The backend may run context compaction and
- * agent-loop work before it emits anything, so the first wait gets its own budget.
+ * Idle-gap watchdog deadline (ms) applied whenever the last event wasn't speech (speech_delta or
+ * speech_done): the initial wait, and any wait after keepalive/tool_status/express/usage. The
+ * backend may run context compaction or a tool round with no speech in flight, so these waits
+ * get the long budget instead of the streaming-speech one.
  */
-export const FIRST_EVENT_TIMEOUT_MS = 240_000;
+export const PRE_SPEECH_TIMEOUT_MS = 240_000;
 
 /**
  * Whether a chat turn has an address to reach. `""` means not configured — a turn settles
@@ -138,7 +141,7 @@ export function isChatConfigured(cfg: Pick<EndpointsConfig, "chat_base_url">): b
 }
 
 /** Which watchdog budget expired — carried into the network_stall log. */
-type StallStage = "first_event_timeout" | "idle_timeout";
+type StallStage = "pre_speech_timeout" | "speech_idle_timeout";
 
 /** Every outcome a backend call can settle to. */
 export type TurnOutcome =
@@ -214,34 +217,39 @@ export interface BackendCaller {
 
 /**
  * Idle-gap watchdog over a stream: yields events as they arrive, but stops (without
- * throwing) and calls `onIdle` with the expired stage if nothing lands in time. The wait
- * for the very first event gets `firstEvent`; every wait after it gets `interEvent`, reset
- * on each event — so it never kills a turn that keeps making progress, only one that stalls.
+ * throwing) and calls `onIdle` with the expired stage if nothing lands in time. Each wait gets
+ * `budgets.speechIdle` when the previous event was speech (per `isSpeech`), `budgets.preSpeech`
+ * otherwise — reset on each event — so a tool round or compaction gap after speech isn't held to
+ * the short streaming-speech deadline, and only an actual stall aborts the turn.
  */
 async function* withIdleWatchdog<T>(
   source: AsyncIterable<T>,
-  budgets: { firstEvent: number; interEvent: number },
+  budgets: { preSpeech: number; speechIdle: number },
   onIdle: (stage: StallStage) => void,
+  isSpeech: (ev: T) => boolean,
 ): AsyncGenerator<T> {
   const it = source[Symbol.asyncIterator]();
-  let sawEvent = false;
+  let lastWasSpeech = false;
   while (true) {
     const next = it.next();
     let timer: ReturnType<typeof setTimeout>;
     const idle = new Promise<"idle">((resolve) => {
-      timer = setTimeout(() => resolve("idle"), sawEvent ? budgets.interEvent : budgets.firstEvent);
+      timer = setTimeout(
+        () => resolve("idle"),
+        lastWasSpeech ? budgets.speechIdle : budgets.preSpeech,
+      );
     });
     const race = await Promise.race([next.then((r) => ({ done: r.done, value: r.value })), idle]);
     clearTimeout(timer!);
     if (race === "idle") {
-      onIdle(sawEvent ? "idle_timeout" : "first_event_timeout");
+      onIdle(lastWasSpeech ? "speech_idle_timeout" : "pre_speech_timeout");
       // the abandoned `next` will settle once the aborted stream unwinds — swallow it
       // so it doesn't surface as an unhandled rejection.
       next.catch(() => {});
       return;
     }
     if (race.done) return;
-    sawEvent = true;
+    lastWasSpeech = isSpeech(race.value as T);
     yield race.value as T;
   }
 }
@@ -427,11 +435,12 @@ export function createBackendCaller(deps: BackendCallerDeps): BackendCaller {
               fetch: fetchImpl,
               ...(clientTools ? { tools: clientTools } : {}),
             }),
-            { firstEvent: FIRST_EVENT_TIMEOUT_MS, interEvent: IDLE_TIMEOUT_MS },
+            { preSpeech: PRE_SPEECH_TIMEOUT_MS, speechIdle: SPEECH_IDLE_TIMEOUT_MS },
             (stage) => {
               stallStage = stage;
               ac.abort();
             },
+            (ev) => ev.type === "speech_delta" || ev.type === "speech_done",
           )) {
             if (externalSignal?.aborted) break;
             switch (ev.type) {
@@ -486,7 +495,7 @@ export function createBackendCaller(deps: BackendCallerDeps): BackendCaller {
           log.warn("network_stall", {
             stage: stallStage,
             idle_ms:
-              stallStage === "first_event_timeout" ? FIRST_EVENT_TIMEOUT_MS : IDLE_TIMEOUT_MS,
+              stallStage === "pre_speech_timeout" ? PRE_SPEECH_TIMEOUT_MS : SPEECH_IDLE_TIMEOUT_MS,
           });
           return "network_stall";
         }

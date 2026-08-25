@@ -17,8 +17,8 @@ import type { Logger } from "../logger";
 import {
   type BackendCaller,
   createBackendCaller,
-  FIRST_EVENT_TIMEOUT_MS,
-  IDLE_TIMEOUT_MS,
+  PRE_SPEECH_TIMEOUT_MS,
+  SPEECH_IDLE_TIMEOUT_MS,
 } from "./backend-caller";
 import type { BusEnvelope } from "./event-bus";
 import {
@@ -29,6 +29,8 @@ import {
   keepaliveEvent,
   makeLogger,
   makeTurnOutput,
+  speechDoneEvent,
+  toolStatusEvent,
   turnOf,
   userEnv,
 } from "./test-helpers";
@@ -118,39 +120,39 @@ describe("backend_caller — idle-gap watchdog", () => {
     vi.useRealTimers();
   });
 
-  it("first event past IDLE_TIMEOUT_MS but inside the first-event budget → the turn survives and completes", async () => {
+  it("first event past SPEECH_IDLE_TIMEOUT_MS but inside the pre-speech budget → the turn survives and completes", async () => {
     script.events = [deltaEvent("a"), completedEvent({ speech_text: "a" })];
-    script.gaps = [IDLE_TIMEOUT_MS + 1_000, 0];
+    script.gaps = [SPEECH_IDLE_TIMEOUT_MS + 1_000, 0];
     const p = caller.call(turnOf(userEnv()));
-    await vi.advanceTimersByTimeAsync(IDLE_TIMEOUT_MS + 2_000);
+    await vi.advanceTimersByTimeAsync(SPEECH_IDLE_TIMEOUT_MS + 2_000);
     const res = await p;
     expect(res).toBe("ok");
   });
 
-  it("no first event within FIRST_EVENT_TIMEOUT_MS → aborts the request and drops network_stall", async () => {
+  it("no event at all within PRE_SPEECH_TIMEOUT_MS → aborts the request and drops network_stall", async () => {
     script.hangAt = 0;
     script.events = [];
     const p = caller.call(turnOf(userEnv()));
-    await vi.advanceTimersByTimeAsync(FIRST_EVENT_TIMEOUT_MS);
+    await vi.advanceTimersByTimeAsync(PRE_SPEECH_TIMEOUT_MS);
     const res = await p;
     expect(res).toBe("network_stall");
     const [, request] = script.spy.mock.calls[0];
     expect((request.signal as AbortSignal).aborted).toBe(true);
   });
 
-  it("stall after ≥1 delta (mid-stream stall) → aborts, drops network_stall, tears down via turnOutput.abort", async () => {
+  it("stall after ≥1 speech_delta (mid-stream stall) → aborts, drops network_stall, tears down via turnOutput.abort", async () => {
     script.events = [deltaEvent("partial")];
     script.hangAt = 1;
     const p = caller.call(turnOf(userEnv()));
-    await vi.advanceTimersByTimeAsync(IDLE_TIMEOUT_MS + 1_000);
+    await vi.advanceTimersByTimeAsync(SPEECH_IDLE_TIMEOUT_MS + 1_000);
     const res = await p;
     expect(res).toBe("network_stall");
     expect(turnOutput.abort).toHaveBeenCalledTimes(1);
     expect(turnOutput.end).not.toHaveBeenCalled();
   });
 
-  it("resets on every event: many gaps under the deadline never time out, even though their sum exceeds it", async () => {
-    const gap = IDLE_TIMEOUT_MS - 5_000;
+  it("resets on every speech_delta: many gaps under the deadline never time out, even though their sum exceeds it", async () => {
+    const gap = SPEECH_IDLE_TIMEOUT_MS - 5_000;
     script.events = [
       deltaEvent("a"),
       deltaEvent("b"),
@@ -166,15 +168,15 @@ describe("backend_caller — idle-gap watchdog", () => {
 
   it("a single gap just under the deadline still completes normally", async () => {
     script.events = [deltaEvent("a"), completedEvent({ speech_text: "a" })];
-    script.gaps = [IDLE_TIMEOUT_MS - 1_000];
+    script.gaps = [SPEECH_IDLE_TIMEOUT_MS - 1_000];
     const p = caller.call(turnOf(userEnv()));
-    await vi.advanceTimersByTimeAsync(IDLE_TIMEOUT_MS);
+    await vi.advanceTimersByTimeAsync(SPEECH_IDLE_TIMEOUT_MS);
     const res = await p;
     expect(res).toBe("ok");
   });
 
-  it("keepalive events during a long reasoning phase reset the watchdog — no idle_timeout even though the gap to first speech exceeds the deadline", async () => {
-    const gap = IDLE_TIMEOUT_MS - 5_000;
+  it("keepalive events during a long reasoning phase reset the watchdog — no stall even though the gap to first speech exceeds SPEECH_IDLE_TIMEOUT_MS", async () => {
+    const gap = SPEECH_IDLE_TIMEOUT_MS - 5_000;
     script.events = [
       keepaliveEvent(),
       keepaliveEvent(),
@@ -189,27 +191,80 @@ describe("backend_caller — idle-gap watchdog", () => {
     expect(res).toBe("ok");
   });
 
-  it("logs logger.warn('network_stall', { stage: 'idle_timeout', ... }) on a mid-stream gap", async () => {
-    script.events = [deltaEvent("partial")];
-    script.hangAt = 1;
+  it("keepalive → tool_status → 100s silence → no stall, stream continues once the next event arrives", async () => {
+    script.events = [
+      keepaliveEvent(),
+      toolStatusEvent({ state: "running", tool_id: "t1" }),
+      completedEvent({ speech_text: "done" }),
+    ];
+    script.gaps = [0, 0, 100_000]; // 100s of silence after tool_status, well under the pre-speech budget
     const p = caller.call(turnOf(userEnv()));
-    await vi.advanceTimersByTimeAsync(IDLE_TIMEOUT_MS + 1_000);
-    await p;
+    await vi.advanceTimersByTimeAsync(101_000);
+    const res = await p;
+    expect(res).toBe("ok");
+  });
+
+  it("speech_delta → tool_status → 100s silence → no stall (a tool round after speech gets the long budget again)", async () => {
+    script.events = [
+      deltaEvent("partial"),
+      toolStatusEvent({ state: "running", tool_id: "t1" }),
+      completedEvent({ speech_text: "partial done" }),
+    ];
+    script.gaps = [0, 0, 100_000]; // 100s of silence after tool_status, well under the pre-speech budget
+    const p = caller.call(turnOf(userEnv()));
+    await vi.advanceTimersByTimeAsync(101_000);
+    const res = await p;
+    expect(res).toBe("ok");
+  });
+
+  it("speech_delta → speech_done → 46s silence → stall (speech_done still counts as speech)", async () => {
+    script.events = [deltaEvent("a"), speechDoneEvent("a")];
+    script.hangAt = 2;
+    const p = caller.call(turnOf(userEnv()));
+    await vi.advanceTimersByTimeAsync(SPEECH_IDLE_TIMEOUT_MS + 1_000);
+    const res = await p;
+    expect(res).toBe("network_stall");
     expect(logger.warn).toHaveBeenCalledWith(
       "network_stall",
-      expect.objectContaining({ stage: "idle_timeout", idle_ms: IDLE_TIMEOUT_MS }),
+      expect.objectContaining({ stage: "speech_idle_timeout", idle_ms: SPEECH_IDLE_TIMEOUT_MS }),
     );
   });
 
-  it("logs logger.warn('network_stall', { stage: 'first_event_timeout', ... }) when no event ever lands", async () => {
-    script.hangAt = 0;
-    script.events = [];
+  it("speech_delta → speech_done → tool_status → 100s silence → no stall (a tool round after the reply finished streaming gets the long budget again)", async () => {
+    script.events = [
+      deltaEvent("partial"),
+      speechDoneEvent("partial"),
+      toolStatusEvent({ state: "running", tool_id: "t1" }),
+      completedEvent({ speech_text: "partial done" }),
+    ];
+    script.gaps = [0, 0, 0, 100_000]; // 100s of silence after tool_status, well under the pre-speech budget
     const p = caller.call(turnOf(userEnv()));
-    await vi.advanceTimersByTimeAsync(FIRST_EVENT_TIMEOUT_MS);
+    await vi.advanceTimersByTimeAsync(101_000);
+    const res = await p;
+    expect(res).toBe("ok");
+  });
+
+  it("logs logger.warn('network_stall', { stage: 'speech_idle_timeout', ... }) on a mid-stream gap after speech", async () => {
+    script.events = [deltaEvent("partial")];
+    script.hangAt = 1;
+    const p = caller.call(turnOf(userEnv()));
+    await vi.advanceTimersByTimeAsync(SPEECH_IDLE_TIMEOUT_MS + 1_000);
     await p;
     expect(logger.warn).toHaveBeenCalledWith(
       "network_stall",
-      expect.objectContaining({ stage: "first_event_timeout", idle_ms: FIRST_EVENT_TIMEOUT_MS }),
+      expect.objectContaining({ stage: "speech_idle_timeout", idle_ms: SPEECH_IDLE_TIMEOUT_MS }),
+    );
+  });
+
+  it("logs logger.warn('network_stall', { stage: 'pre_speech_timeout', ... }) when no event ever lands", async () => {
+    script.hangAt = 0;
+    script.events = [];
+    const p = caller.call(turnOf(userEnv()));
+    await vi.advanceTimersByTimeAsync(PRE_SPEECH_TIMEOUT_MS);
+    await p;
+    expect(logger.warn).toHaveBeenCalledWith(
+      "network_stall",
+      expect.objectContaining({ stage: "pre_speech_timeout", idle_ms: PRE_SPEECH_TIMEOUT_MS }),
     );
   });
 });

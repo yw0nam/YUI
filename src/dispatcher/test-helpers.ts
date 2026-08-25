@@ -159,6 +159,10 @@ export function deltaEvent(text: string): ChatStreamEvent {
   return { type: "speech_delta", text };
 }
 
+export function speechDoneEvent(text: string): ChatStreamEvent {
+  return { type: "speech_done", text };
+}
+
 export function keepaliveEvent(): ChatStreamEvent {
   return { type: "keepalive" };
 }

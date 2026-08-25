@@ -42,7 +42,7 @@ const ko: Record<string, string> = {
   "input.placeholder": "말 걸기…",
   "input.error_auth": "인증 실패 · API 키 확인",
   "input.error_network": "응답 없음 · 연결 확인",
-  "input.error_stall": "백엔드 응답 멈춤 · {seconds}초 후 시간 초과",
+  "input.error_stall": "백엔드 응답 없음",
   "input.error_parse": "응답 처리 실패",
   "input.error_not_configured": "백엔드 미설정",
   "input.error_open_advanced": "고급 열기",

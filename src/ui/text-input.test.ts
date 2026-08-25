@@ -624,7 +624,7 @@ describe("input error clearing — turn start, manual dismiss, existing paths", 
   }
 
   it("clears a standing error when a turn starts (busy edge)", () => {
-    s.showInputError("Backend stopped responding · timed out after 45s");
+    s.showInputError("boom");
     expect(form().classList.contains("is-error")).toBe(true);
 
     s.setBusy(true);

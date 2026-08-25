@@ -6,7 +6,7 @@
  * anything else renders nothing rather than inventing text.
  */
 
-import { IDLE_TIMEOUT_MS, type TurnFailure } from "../dispatcher/backend-caller";
+import type { TurnFailure } from "../dispatcher/backend-caller";
 import type { UserTurnSource } from "../dispatcher/dispatcher";
 import { t } from "./i18n";
 import type { QuickControlsTab } from "./quick-controls/constants";
@@ -21,8 +21,7 @@ export function turnErrorMessage(reason: TurnFailure): string | undefined {
     case "network_drop":
       return t("input.error_network");
     case "network_stall":
-      // The deadline comes from the watchdog constant so the text can't drift from it.
-      return t("input.error_stall", { seconds: IDLE_TIMEOUT_MS / 1000 });
+      return t("input.error_stall");
     case "parse_error":
       return t("input.error_parse");
     default:
