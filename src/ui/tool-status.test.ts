@@ -108,11 +108,12 @@ describe("tool chip lifecycle (running → done → hide)", () => {
     expect((el.querySelector(".yui-tool__label") as HTMLElement).textContent).toBe("Searching…");
   });
 
-  it("finishTool sets the chip label to 'Done' — the progressive verb must not linger next to the check", () => {
+  it("finishTool keeps the tool's label through the done state — the name must not be swapped for a generic 'Done'", () => {
     s.showTool("web_search");
     s.finishTool();
     const el = tool();
-    expect((el.querySelector(".yui-tool__label") as HTMLElement).textContent).toBe("Done");
+    expect((el.querySelector(".yui-tool__label") as HTMLElement).textContent).toBe("Searching…");
+    expect(el.dataset.state).toBe("done");
   });
 
   it("finishTool switches a running chip to done then auto-hides after the 1500ms hold", () => {
