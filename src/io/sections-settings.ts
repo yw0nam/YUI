@@ -8,7 +8,7 @@
 import { createPersistedStore, localStorageStore, type PersistedStorage } from "./persisted-store";
 
 export interface SectionsSettings {
-  /** Ids of sections collapsed by the user. Ids outside the current vocabulary are ignored on read. */
+  /** Ids of sections collapsed by the user. An id outside the current vocabulary is kept but never matches a rendered section. */
   closed: string[];
 }
 

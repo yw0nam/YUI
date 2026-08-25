@@ -110,9 +110,13 @@ describe("createSectionsSettings — validation", () => {
     expect(store.get().closed).toEqual(["filler"]);
   });
 
-  it("rejects garbage (null/string/array) at the top level, falling back to defaults", () => {
+  it.each([
+    ["null", null],
+    ["a string", "garbage"],
+    ["an array", ["vrm", "filler"]],
+  ] as const)("rejects garbage (%s) at the top level, falling back to defaults", (_label, raw) => {
     const storage: SectionsStorage = {
-      load: () => "garbage" as unknown as SectionsSettings,
+      load: () => raw as unknown as SectionsSettings,
       save: vi.fn(),
     };
     const store = createSectionsSettings({ storage });
