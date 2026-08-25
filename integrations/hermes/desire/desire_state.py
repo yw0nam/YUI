@@ -294,7 +294,7 @@ def _validate_budget(value: object) -> dict:
     if not isinstance(events, dict) or any(
         not isinstance(event, str) or not isinstance(count, int) for event, count in events.items()
     ):
-        raise TypeError("event budget counters must be integers")
+        events = {}
     return {**value, "events": copy.deepcopy(events)}
 
 
@@ -392,7 +392,7 @@ def normalize_budget(budget: dict, now: datetime) -> dict:
         "signals": int(budget.get("signals", 0)),
         "issues": int(budget.get("issues", 0)),
         "self_comments": int(budget.get("self_comments", 0)),
-        "events": {str(event): int(count) for event, count in events.items()},
+        "events": {str(event): max(0, int(count)) for event, count in events.items()},
         "pending": copy.deepcopy(pending),
     }
 
@@ -460,7 +460,7 @@ def serialize_desire_block(levels: dict[str, float], items: list[dict], now: dat
     return "\n".join(lines)
 
 
-def homeostatic_drive(levels: dict) -> float:
+def homeostatic_drive(levels: dict[str, float]) -> float:
     return (
         sum((float(levels[name]) / 100.0) ** 4 for name in ("social", "curiosity", "accomplishment")) ** 0.5
     )
@@ -476,20 +476,26 @@ def satisfy(event: str, why: str, now: datetime) -> float:
         count = budget["events"].get(event, 0)
         cap = EVENT_DAILY_CAPS[event]
         if count >= cap:
+            _append_jsonl_locked(
+                state_dir / "audit.jsonl",
+                {"at": now.isoformat(), "event": "satisfy_blocked", "event_type": event, "why": why},
+            )
             raise ValueError(f"over budget: {event} daily cap is {cap}")
 
         drives = state["drives"]
         before = drive_levels(drives, now)
         after = copy.deepcopy(before)
-        doses = EVENT_DOSES[event]
+        doses = dict(EVENT_DOSES[event])
         for drive, dose in doses.items():
             after[drive] = _clamp(before[drive] - dose)
             drives[drive] = {"level": after[drive], "anchor_at": now.isoformat()}
         reward = homeostatic_drive(before) - homeostatic_drive(after)
 
         budget["events"][event] = count + 1
-        write_json_atomic(state_dir / "drives.json", drives)
+        # Budget commits before drives: a crash after this point costs one unused daily slot,
+        # rather than an uncounted dose that could be applied again past the cap.
         write_json_atomic(state_dir / "budget.json", budget)
+        write_json_atomic(state_dir / "drives.json", drives)
         _append_jsonl_locked(
             state_dir / "audit.jsonl",
             {
