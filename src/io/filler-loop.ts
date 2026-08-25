@@ -105,8 +105,8 @@ export function createFillerLoop(deps: FillerLoopDeps): FillerLoop {
   // ever arrive for it — callers that get `false` back must advance the schedule themselves.
   function speakIfAllowed(phrase: string): boolean {
     if (degraded && !deps.isCached(phrase)) return false;
-    deps.speak(phrase);
     speaking = true;
+    deps.speak(phrase);
     return true;
   }
 
