@@ -7,9 +7,9 @@
  *  B1 package_context — Assemble InputContext (user_text + env.timestamp + env.timezone).
  *  B2 POST — io/chat-client.streamChat(config, req, { fetch, apiKey }). SSE owned by chat-client
  *     — not parsed directly here. In-flight abort via AbortSignal. idle-gap watchdog
- *     (PRE_SPEECH_TIMEOUT_MS while the last event wasn't speech_delta, SPEECH_IDLE_TIMEOUT_MS
- *     once it was, resetting on each event) aborts stalled calls — normal turns with long
- *     thinking/tool rounds/streaming are not killed.
+ *     (PRE_SPEECH_TIMEOUT_MS while the last event wasn't speech, SPEECH_IDLE_TIMEOUT_MS once it
+ *     was, resetting on each event) aborts stalled calls — normal turns with long thinking/tool
+ *     rounds/streaming are not killed.
  *  B3 parse — chat-client's `completed` event already assembled ControlEnvelope.
  *     No completed received → parse_error.
  *  B4 speech gate — speak only when speech_text is not empty. Empty text = silence,
@@ -118,16 +118,17 @@ function isReflexTurn(eventName: string): boolean {
 }
 
 /**
- * Idle-gap watchdog deadline (ms) applied while speech is actively streaming — the wait after a
- * speech_delta. Stall baseline that resets on each event, not a cap on total elapsed time.
+ * Idle-gap watchdog deadline (ms) applied whenever the last event was assistant speech — a
+ * speech_delta or the speech_done marker that closes it. Stall baseline that resets on each
+ * event, not a cap on total elapsed time.
  */
 export const SPEECH_IDLE_TIMEOUT_MS = 45_000;
 
 /**
- * Idle-gap watchdog deadline (ms) applied whenever the last event wasn't speech_delta: the
- * initial wait, and any wait after keepalive/tool_status/express/usage/speech_done. The backend
- * may run context compaction or a tool round with no speech in flight, so these waits get the
- * long budget instead of the streaming-speech one.
+ * Idle-gap watchdog deadline (ms) applied whenever the last event wasn't speech (speech_delta or
+ * speech_done): the initial wait, and any wait after keepalive/tool_status/express/usage. The
+ * backend may run context compaction or a tool round with no speech in flight, so these waits
+ * get the long budget instead of the streaming-speech one.
  */
 export const PRE_SPEECH_TIMEOUT_MS = 240_000;
 
@@ -439,7 +440,7 @@ export function createBackendCaller(deps: BackendCallerDeps): BackendCaller {
               stallStage = stage;
               ac.abort();
             },
-            (ev) => ev.type === "speech_delta",
+            (ev) => ev.type === "speech_delta" || ev.type === "speech_done",
           )) {
             if (externalSignal?.aborted) break;
             switch (ev.type) {
