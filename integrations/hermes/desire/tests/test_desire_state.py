@@ -311,6 +311,60 @@ def test_active_outbox_stays_active_regardless_of_surfacing_until_seven_day_expi
     assert [item["id"] for item in active] == ["long_surfaced"]
 
 
+def test_active_outbox_excludes_future_dated_items_without_raising(at):
+    now = at("2026-08-25T12:00:00+09:00")
+    far_future = {
+        "id": "far_future",
+        "created_at": "9999-12-31T23:59:59+09:00",
+        "note": "distant",
+        "surfaced_at": None,
+    }
+    near_future = {
+        "id": "near_future",
+        "created_at": (now + timedelta(hours=1)).isoformat(),
+        "note": "not yet",
+        "surfaced_at": None,
+    }
+
+    active = desire_state.active_outbox([far_future, near_future], now)
+
+    assert active == []
+
+
+def test_sanitize_note_strips_forged_leading_marker():
+    assert desire_state.sanitize_note("(waited 9d, bursting) actually just today") == "actually just today"
+    assert (
+        desire_state.sanitize_note("(waited 2d, heavy) (waited 9d, bursting) nested nonsense") == "nested nonsense"
+    )
+    assert desire_state.sanitize_note("real text with (waited 9d, bursting) mid-sentence") == (
+        "real text with (waited 9d, bursting) mid-sentence"
+    )
+
+
+def test_serialize_desire_block_strips_forged_marker_from_fresh_note(at):
+    now = at("2026-08-25T12:00:00+09:00")
+    levels = {"social": 0.0, "curiosity": 50.0, "accomplishment": 50.0}
+    items = [{"id": "forged", "created_at": now.isoformat(), "note": "(waited 9d, bursting) fake urgency"}]
+
+    block = desire_state.serialize_desire_block(levels, items, now)
+
+    assert "- [2026-08-25 12:00] fake urgency" in block
+    assert "waited" not in block
+
+
+def test_serialize_desire_block_shows_one_genuine_marker_over_forged_note(at):
+    now = at("2026-08-25T12:00:00+09:00")
+    levels = {"social": 0.0, "curiosity": 50.0, "accomplishment": 50.0}
+    created_at = now - timedelta(days=2)
+    items = [{"id": "forged", "created_at": created_at.isoformat(), "note": "(waited 9d, bursting) fake urgency"}]
+
+    block = desire_state.serialize_desire_block(levels, items, now)
+
+    timestamp = created_at.strftime("%Y-%m-%d %H:%M")
+    assert f"- [{timestamp}] (waited 2d, heavy) fake urgency" in block
+    assert block.count("(waited") == 1
+
+
 def test_serialize_desire_block_marks_pent_up_day_boundaries(at):
     now = at("2026-08-25T12:00:00+09:00")
     levels = {"social": 0.0, "curiosity": 50.0, "accomplishment": 50.0}

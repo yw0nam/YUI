@@ -175,6 +175,41 @@ def test_monitor_keeps_surfaced_item_alive_past_fifteen_minutes(state_dir, at, s
     assert [item["id"] for item in read_jsonl(state_dir / "outbox.jsonl")] == ["fresh"]
 
 
+def test_monitor_removes_future_dated_item_without_raising_and_audits_expired(state_dir, at, state_helpers):
+    _, write_jsonl, _, read_jsonl = state_helpers
+    now = at("2026-08-25T12:00:00+09:00")
+    desire_state.bootstrap(now)
+    write_jsonl(
+        state_dir / "outbox.jsonl",
+        [
+            {
+                "id": "far_future",
+                "created_at": "9999-12-31T23:59:59+09:00",
+                "note": "distant",
+                "blocked_by": "budget",
+                "surfaced_at": None,
+            },
+            {
+                "id": "near_future",
+                "created_at": (now + timedelta(hours=1)).isoformat(),
+                "note": "not yet",
+                "blocked_by": "budget",
+                "surfaced_at": None,
+            },
+        ],
+    )
+
+    decay_monitor.run(now)
+
+    assert read_jsonl(state_dir / "outbox.jsonl") == []
+    expired_ids = {
+        event["item"]["id"]
+        for event in read_jsonl(state_dir / "audit.jsonl")
+        if event["event"] == "outbox_expired"
+    }
+    assert expired_ids == {"far_future", "near_future"}
+
+
 def test_monitor_drops_malformed_outbox_lines_and_audits_count(state_dir, at, state_helpers):
     _, _, _, read_jsonl = state_helpers
     now = at("2026-08-25T12:00:00+09:00")

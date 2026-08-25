@@ -299,6 +299,28 @@ def test_pent_up_item_still_appears_after_repeated_surfacing_past_fifteen_minute
     assert "pent-up (1):" in appended_block(second)
 
 
+def test_future_dated_and_far_future_items_do_not_crash_or_appear(desire_plugin, state_dir, at, state_helpers):
+    _, write_jsonl, _, _ = state_helpers
+    now = at("2026-08-25T12:00:00+09:00")
+    write_jsonl(
+        state_dir / "outbox.jsonl",
+        [
+            {
+                "id": "far_future",
+                "created_at": "9999-12-31T23:59:59+09:00",
+                "note": "distant",
+                "surfaced_at": None,
+            },
+            item("near_future", now + timedelta(hours=1), "not yet"),
+        ],
+    )
+
+    result = desire_plugin._inject(request=request_with("turn"), now=now)
+
+    assert result is not None
+    assert "pent-up" not in appended_block(result)
+
+
 def test_surface_stamp_preserves_malformed_outbox_lines(desire_plugin, state_dir, at):
     now = at("2026-08-25T12:00:00+09:00")
     desire_state.bootstrap(now)

@@ -303,6 +303,23 @@ def test_outbox_list_and_release_are_mutually_exclusive(state_dir, at):
         act.main(["outbox", "--list", "--release", "x"], now=at("2026-08-25T12:00:00+09:00"))
 
 
+def test_outbox_release_preserves_malformed_lines_and_leaves_others_untouched(state_dir, at):
+    now = at("2026-08-25T12:00:00+09:00")
+    desire_state.bootstrap(now)
+    valid_a = json.dumps(
+        {"id": "a", "created_at": now.isoformat(), "note": "a", "blocked_by": "budget", "surfaced_at": None}
+    )
+    valid_b = json.dumps(
+        {"id": "b", "created_at": now.isoformat(), "note": "b", "blocked_by": "budget", "surfaced_at": None}
+    )
+    (state_dir / "outbox.jsonl").write_text(f"{valid_a}\n{{malformed}}\n{valid_b}\n", encoding="utf-8")
+
+    assert act.main(["outbox", "--release", "a"], now=now) == 0
+
+    lines = (state_dir / "outbox.jsonl").read_text(encoding="utf-8").splitlines()
+    assert lines == ["{malformed}", valid_b]
+
+
 def test_feedback_get_set_and_outbox_list(state_dir, at, state_helpers, capsys):
     _, write_jsonl, _, read_jsonl = state_helpers
     now = at("2026-08-25T12:00:00+09:00")
