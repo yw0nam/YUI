@@ -6,6 +6,7 @@
  */
 
 import { afterFadeOut } from "./fade-out";
+import { t } from "./i18n";
 import { getToolLabel } from "./tool-labels";
 
 export interface ToolStatus {
@@ -73,6 +74,7 @@ export function createToolStatus({ toolEl, toolLabel }: ToolStatusElements): Too
     if (toolEl.hidden) return;
     clearToolTimer();
     toolEl.dataset.state = "done";
+    toolLabel.textContent = t("tool.done_label");
     toolHideTimer = setTimeout(() => {
       toolHideTimer = null;
       hideTool();
