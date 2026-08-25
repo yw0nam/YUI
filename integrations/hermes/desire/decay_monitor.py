@@ -33,13 +33,13 @@ def run(now: datetime) -> str:
         dropped += len(outbox) - len(valid)
         active = desire_state.active_outbox(valid, now)
         active_ids = {id(item) for item in active}
-        released = [item for item in valid if id(item) not in active_ids]
+        expired = [item for item in valid if id(item) not in active_ids]
         desire_state.write_jsonl_atomic(outbox_path, active)
 
-        for item in released:
+        for item in expired:
             desire_state.append_jsonl(
                 state_dir / "audit.jsonl",
-                {"at": now.isoformat(), "event": "outbox_released", "item": item},
+                {"at": now.isoformat(), "event": "outbox_expired", "item": item},
             )
         if dropped:
             desire_state.append_jsonl(

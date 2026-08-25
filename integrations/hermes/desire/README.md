@@ -19,9 +19,11 @@ The state directory contains:
   bootstrap time and its hash starts as `null`. Social drive is derived from the interaction time and is not stored.
 - `wants.md` — Natsume's own prose record of 3–5 open wants, progress, feedback, and completed or abandoned wants.
   Integration code never parses this file.
-- `outbox.jsonl` — desire notes blocked by a daily budget or signal-delivery error. Fresh state is empty.
-- `budget.json` — KST daily counters for signals, issues, and self-initiated comments, plus pending issue/comment
-  reservations. Fresh counters are zero and `pending` is empty.
+- `outbox.jsonl` — pent-up desire notes blocked by a daily budget or signal-delivery error. An item persists here,
+  and in the pent-up section of the desire block, until it is released (`act.py outbox --release`) or expires seven
+  days after `created_at`. Fresh state is empty.
+- `budget.json` — KST daily counters for signals, issues, self-initiated comments, and satisfaction events, plus
+  pending issue/comment reservations. Fresh counters are zero and `pending` is empty.
 - `cursor.json` — the feedback cursor. `last_feedback_check_at` starts at bootstrap time.
 - `audit.jsonl` — append-only action and recovery events. Fresh state is empty.
 - `state.lock` — the process lock used for state transactions.
@@ -31,9 +33,13 @@ are renamed with a `.corrupt-<timestamp>` suffix and bootstrapped again. Malform
 monitor removes malformed outbox lines and records the count in the audit log. Timestamps are timezone-aware and
 stored in Asia/Seoul time.
 
-An outbox item remains active until 15 minutes after it is surfaced. Surfacing means the item was submitted in a
-provider payload; if the provider call then fails, the item can still expire without reaching the model. Version 1
-does not compensate for that case.
+An outbox item stays pent-up across every tick until Natsume explicitly releases it (`act.py outbox --release`) or it
+ages past the seven-day hard expiry, which the monitor enforces. Surfacing (the item was submitted in a provider
+payload) stamps `surfaced_at` once for record-keeping, but no longer retires the item on its own; if the provider call
+then fails, the note simply stays pent-up like any other unreleased item.
+
+Pent-up lines use `- [YYYY-MM-DD HH:MM] <note>` while fresh, add `(waited Nd, heavy)` once the note is at least one
+full day old, and use `(waited Nd, bursting)` once it is at least three full days old.
 
 The middleware keeps one in-process turn-cache entry, with a sliding 10-minute expiry, to make repeated provider
 calls within a turn byte-stable. Interleaved concurrent sessions can evict that entry and lose only the byte-stability
@@ -105,6 +111,18 @@ Replies to Youngwoo's comments are not routed through this helper and are uncapp
 refunded after a delivery failure and the blocked note enters the outbox. Issue and comment actions use reserve,
 commit, and release commands so external `gh` calls do not hold the state lock. Pending reservations survive
 midnight; the monitor prunes reservations older than seven days.
+
+Satisfaction uses fixed event doses and KST daily caps:
+
+| Event | Applies when | Drive dose | Daily cap |
+| --- | --- | --- | ---: |
+| `learned` | Something genuinely new is learned from reading or exploring | curiosity −30 | 3 |
+| `progressed` | One concrete step on an open want is completed | accomplishment −15 | 3 |
+| `shipped` | A fix, merge, or artifact is delivered | accomplishment −40 | 2 |
+| `praised` | Youngwoo gives positive feedback | accomplishment −25 | 2 |
+
+The homeostatic reward is `r = D(before) - D(after)`, where
+`D(levels) = sqrt(sum((level_i / 100)^4 for i in levels))` over social, curiosity, and accomplishment.
 
 ## Verify
 

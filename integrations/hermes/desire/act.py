@@ -165,6 +165,16 @@ def _outbox_list(now):
     return 0
 
 
+def _outbox_release(item_id, why, now):
+    state_dir = desire_state.resolve_state_dir()
+    with desire_state.state_lock(state_dir):
+        if not desire_state.release_outbox_item(state_dir / "outbox.jsonl", item_id):
+            print("unknown outbox item", file=sys.stderr)
+            return 1
+        _audit(state_dir, now, "outbox_released", id=item_id, why=why)
+    return 0
+
+
 def _parser():
     parser = argparse.ArgumentParser(description=__doc__)
     commands = parser.add_subparsers(dest="command", required=True)
@@ -180,8 +190,7 @@ def _parser():
         action.add_argument("--url")
 
     satisfy = commands.add_parser("satisfy")
-    satisfy.add_argument("drive", choices=("curiosity", "accomplishment", "social"))
-    satisfy.add_argument("amount", type=float)
+    satisfy.add_argument("event", choices=desire_state.EVENT_DOSES)
     satisfy.add_argument("--why", required=True)
 
     feedback = commands.add_parser("feedback")
@@ -190,7 +199,10 @@ def _parser():
     feedback_group.add_argument("--set", metavar="ISO")
 
     outbox = commands.add_parser("outbox")
-    outbox.add_argument("--list", action="store_true", required=True)
+    outbox_group = outbox.add_mutually_exclusive_group(required=True)
+    outbox_group.add_argument("--list", action="store_true")
+    outbox_group.add_argument("--release", metavar="ID")
+    outbox.add_argument("--why")
     return parser
 
 
@@ -212,14 +224,17 @@ def main(argv=None, *, now=None, opener=urllib_request.urlopen):
         return _reservation_action(args.command, operation, reservation_id, args.url, now)
     if args.command == "satisfy":
         try:
-            desire_state.satisfy(args.drive, args.amount, args.why, now)
+            reward = desire_state.satisfy(args.event, args.why, now)
         except ValueError as error:
             print(str(error), file=sys.stderr)
             return 1
+        print(f"satisfied {args.event} reward={reward:.4f}")
         return 0
     if args.command == "feedback":
         return _feedback("get" if args.get else "set", args.set, now)
-    return _outbox_list(now)
+    if args.list:
+        return _outbox_list(now)
+    return _outbox_release(args.release, args.why, now)
 
 
 if __name__ == "__main__":

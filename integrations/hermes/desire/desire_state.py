@@ -18,8 +18,15 @@ KST = ZoneInfo("Asia/Seoul")
 CURIOSITY_RATE = 3.0
 ACCOMPLISHMENT_RATE = 2.0
 SOCIAL_RATE = 5.0
-OUTBOX_ACTIVE_MINUTES = 15
+OUTBOX_EXPIRY_DAYS = 7
 CAPS = {"signals": 3, "issues": 2, "self_comments": 1}
+EVENT_DOSES = {
+    "learned": {"curiosity": 30.0},
+    "progressed": {"accomplishment": 15.0},
+    "shipped": {"accomplishment": 40.0},
+    "praised": {"accomplishment": 25.0},
+}
+EVENT_DAILY_CAPS = {"learned": 3, "progressed": 3, "shipped": 2, "praised": 2}
 
 _lock_guard = threading.RLock()
 _lock_local = threading.local()
@@ -188,6 +195,39 @@ def stamp_outbox(path: Path, item_ids: tuple[str, ...], now: datetime) -> None:
             os.replace(temporary, path)
 
 
+def release_outbox_item(path: Path, item_id: str) -> bool:
+    """Remove one item by id while preserving every other line's bytes exactly.
+
+    Operates on raw bytes so a malformed line's original line ending (including CRLF) and any
+    invalid-UTF-8 bytes survive untouched. Returns whether the item was found.
+    """
+
+    path = Path(path)
+    with state_lock(path.parent):
+        if not path.exists():
+            return False
+        parts = path.read_bytes().split(b"\n")
+        found = False
+        rewritten = []
+        for index, payload in enumerate(parts):
+            ending = b"\n" if index < len(parts) - 1 else b""
+            line = payload + ending
+            try:
+                item = json.loads(payload.decode("utf-8"))
+            except (json.JSONDecodeError, UnicodeError):
+                rewritten.append(line)
+                continue
+            if isinstance(item, dict) and item.get("id") == item_id:
+                found = True
+                continue
+            rewritten.append(line)
+        if found:
+            temporary = path.with_name(path.name + ".tmp")
+            temporary.write_bytes(b"".join(rewritten))
+            os.replace(temporary, path)
+        return found
+
+
 def _default_drives(now: datetime) -> dict:
     stamp = now.isoformat()
     return {
@@ -208,6 +248,7 @@ def _default_budget(now: datetime) -> dict:
         "signals": 0,
         "issues": 0,
         "self_comments": 0,
+        "events": {},
         "pending": {},
     }
 
@@ -282,7 +323,12 @@ def _validate_budget(value: object) -> dict:
     for key in ("signals", "issues", "self_comments"):
         if not isinstance(value.get(key), int):
             raise TypeError("budget counters must be integers")
-    return value
+    events = value.get("events", {})
+    if not isinstance(events, dict) or any(
+        not isinstance(event, str) or not isinstance(count, int) for event, count in events.items()
+    ):
+        events = {}
+    return {**value, "events": copy.deepcopy(events)}
 
 
 def _normalize_cursor(value: object) -> dict:
@@ -370,13 +416,16 @@ def normalize_budget(budget: dict, now: datetime) -> dict:
             "signals": 0,
             "issues": 0,
             "self_comments": 0,
+            "events": {},
             "pending": copy.deepcopy(pending),
         }
+    events = budget.get("events") if isinstance(budget.get("events"), dict) else {}
     return {
         "date": budget["date"],
         "signals": int(budget.get("signals", 0)),
         "issues": int(budget.get("issues", 0)),
         "self_comments": int(budget.get("self_comments", 0)),
+        "events": {str(event): max(0, int(count)) for event, count in events.items()},
         "pending": copy.deepcopy(pending),
     }
 
@@ -395,27 +444,39 @@ def valid_outbox_item(item: object) -> bool:
 
 
 def active_outbox(items: list[dict], now: datetime) -> list[dict]:
+    """Return every valid item younger than the seven-day expiry.
+
+    Surfacing (see ``stamp_outbox``) no longer retires an item; it stays pent-up until it is
+    explicitly released (``act.py outbox --release``) or ages past ``OUTBOX_EXPIRY_DAYS``.
+    """
+
     now = normalize_now(now)
     active = []
     for item in items:
         if not valid_outbox_item(item):
             continue
-        surfaced_at = item.get("surfaced_at")
-        if (
-            surfaced_at is None
-            or parse_timestamp(surfaced_at) + timedelta(minutes=OUTBOX_ACTIVE_MINUTES) > now
-        ):
+        age = now - parse_timestamp(item["created_at"])
+        if timedelta(0) <= age < timedelta(days=OUTBOX_EXPIRY_DAYS):
             active.append(item)
     return active
+
+
+_FORGED_MARKER_PREFIX = re.compile(r"^\(waited \d+d, (?:heavy|bursting)\)\s*")
 
 
 def sanitize_note(note: object) -> str:
     text = re.sub(r"[\r\n\v\f\x1c-\x1e\x85\u2028\u2029]+", " ", str(note))
     text = text.replace("<desire_state>", "").replace("</desire_state>", "")
+    while True:
+        stripped = _FORGED_MARKER_PREFIX.sub("", text)
+        if stripped == text:
+            break
+        text = stripped
     return text[:300]
 
 
-def serialize_desire_block(levels: dict[str, float], items: list[dict]) -> str:
+def serialize_desire_block(levels: dict[str, float], items: list[dict], now: datetime) -> str:
+    now = normalize_now(now)
     lines = [
         "<desire_state>",
         (
@@ -430,32 +491,67 @@ def serialize_desire_block(levels: dict[str, float], items: list[dict]) -> str:
     if ordered:
         lines.append(f"pent-up ({len(ordered)}):")
         for item in ordered:
-            timestamp = parse_timestamp(item["created_at"]).strftime("%Y-%m-%d %H:%M")
-            lines.append(f"- [{timestamp}] {sanitize_note(item.get('note', ''))}")
+            created_at = parse_timestamp(item["created_at"])
+            timestamp = created_at.strftime("%Y-%m-%d %H:%M")
+            waited_days = int((now - created_at).total_seconds() // timedelta(days=1).total_seconds())
+            marker = ""
+            if waited_days >= 3:
+                marker = f"(waited {waited_days}d, bursting) "
+            elif waited_days >= 1:
+                marker = f"(waited {waited_days}d, heavy) "
+            lines.append(f"- [{timestamp}] {marker}{sanitize_note(item.get('note', ''))}")
     lines.append("</desire_state>")
     return "\n".join(lines)
 
 
-def satisfy(drive: str, amount: float, why: str, now: datetime) -> None:
+def homeostatic_drive(levels: dict[str, float]) -> float:
+    return (
+        sum((float(levels[name]) / 100.0) ** 4 for name in ("social", "curiosity", "accomplishment")) ** 0.5
+    )
+
+
+def satisfy(event: str, why: str, now: datetime) -> float:
     now = normalize_now(now)
-    if drive not in ("curiosity", "accomplishment"):
-        raise ValueError(f"drive is not satisfiable: {drive}")
+    if event not in EVENT_DOSES:
+        raise ValueError(f"unknown event: {event}")
     with state_lock() as state_dir:
         state = bootstrap_locked(state_dir, now)
+        budget = normalize_budget(state["budget"], now)
+        count = budget["events"].get(event, 0)
+        cap = EVENT_DAILY_CAPS[event]
+        if count >= cap:
+            _append_jsonl_locked(
+                state_dir / "audit.jsonl",
+                {"at": now.isoformat(), "event": "satisfy_blocked", "event_type": event, "why": why},
+            )
+            raise ValueError(f"over budget: {event} daily cap is {cap}")
+
         drives = state["drives"]
-        current = drive_levels(drives, now)[drive]
-        drives[drive] = {"level": _clamp(current - float(amount)), "anchor_at": now.isoformat()}
+        before = drive_levels(drives, now)
+        after = copy.deepcopy(before)
+        doses = dict(EVENT_DOSES[event])
+        for drive, dose in doses.items():
+            after[drive] = _clamp(before[drive] - dose)
+            drives[drive] = {"level": after[drive], "anchor_at": now.isoformat()}
+        reward = homeostatic_drive(before) - homeostatic_drive(after)
+
+        budget["events"][event] = count + 1
+        # Budget commits before drives: a crash after this point costs one unused daily slot,
+        # rather than an uncounted dose that could be applied again past the cap.
+        write_json_atomic(state_dir / "budget.json", budget)
         write_json_atomic(state_dir / "drives.json", drives)
         _append_jsonl_locked(
             state_dir / "audit.jsonl",
             {
                 "at": now.isoformat(),
                 "event": "drive_satisfied",
-                "drive": drive,
-                "amount": float(amount),
+                "event_type": event,
+                "doses": doses,
+                "reward": round(reward, 4),
                 "why": why,
             },
         )
+        return reward
 
 
 def reservation_is_older_than(pending: dict, cutoff: date) -> bool:

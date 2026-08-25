@@ -102,7 +102,7 @@ def _is_interaction(text):
 def _build_desire_block(drives, outbox, now):
     levels = desire_state.drive_levels(drives, now)
     active = desire_state.active_outbox(outbox, now)
-    return desire_state.serialize_desire_block(levels, active), tuple(item["id"] for item in active)
+    return desire_state.serialize_desire_block(levels, active, now), tuple(item["id"] for item in active)
 
 
 def _rewrite(kwargs, event):
