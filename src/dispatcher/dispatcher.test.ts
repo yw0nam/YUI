@@ -1048,6 +1048,54 @@ describe("dispatcher — tap emotion revert (touch_emotion_hold_ms)", () => {
     expect(easeEmotionToNeutral).toHaveBeenCalledTimes(1);
   });
 
+  it("cancels a pending tap revert when a pat starts inside the hold window", async () => {
+    dispatcher.start();
+    pushEmotionTap();
+    await vi.advanceTimersByTimeAsync(20);
+    bus.push(
+      env({
+        source: "os_event_watcher",
+        event_name: "user.pat_start",
+        hint_tier: 1,
+        ts: NOW + 20,
+        payload: { motion_id: "head_pat", emotion_id: "relaxed" },
+      }),
+    );
+    await vi.advanceTimersByTimeAsync(20 + TAP_CONFIG.touch_emotion_hold_ms * 2);
+    expect(easeEmotionToNeutral).not.toHaveBeenCalled();
+  });
+
+  it("schedules no revert on release when the pat applied no emotion", async () => {
+    dispatcher.start();
+    bus.push(
+      env({
+        source: "os_event_watcher",
+        event_name: "user.pat_start",
+        hint_tier: 1,
+        payload: { motion_id: "head_pat" },
+      }),
+    );
+    await vi.advanceTimersByTimeAsync(20);
+    bus.push(
+      env({
+        source: "os_event_watcher",
+        event_name: "user.pat_end",
+        hint_tier: 1,
+        ts: NOW + 20,
+      }),
+    );
+    await vi.advanceTimersByTimeAsync(20 + TAP_CONFIG.touch_emotion_hold_ms * 2);
+    expect(applyDirective).toHaveBeenCalledTimes(2);
+    expect(easeEmotionToNeutral).not.toHaveBeenCalled();
+  });
+
+  it("schedules no revert for a release that follows no pat", async () => {
+    dispatcher.start();
+    bus.push(env({ source: "os_event_watcher", event_name: "user.pat_end", hint_tier: 1 }));
+    await vi.advanceTimersByTimeAsync(20 + TAP_CONFIG.touch_emotion_hold_ms * 2);
+    expect(easeEmotionToNeutral).not.toHaveBeenCalled();
+  });
+
   it("schedules no revert for a motion-only tap_region", async () => {
     dispatcher.start();
     bus.push(
