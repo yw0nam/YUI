@@ -30,7 +30,7 @@ A motion id is named for the emotion or state it expresses, with a few patterns:
 | `idle` | ambient | yes (cycle) | Calm ambient baseline — random pool of `calm.vrma` and the three calmest idle variants (see below). `pingpong: true` with `loop_cycles: [1, 3]`: each variant plays forward↔reverse a random 1–3 round trips, then rotates to a fresh variant. | PET_POSE / PET_IDLE / PET_MISC | — |
 | `idle_lively` | oneshot | no | Broker-published random lively-fidget pool (see below). Plays one variant once, then returns to the prior stable motion. | PET_IDLE / UPDATE_2 | — |
 | `drag` | reactive | yes | Pickup reaction while the window is being dragged. `broker_publish: false`. | PET_MISC/PET_DRAGGING | — |
-| `head_pat` | reactive | yes | Head-pat reaction, held for as long as the press stays on the head region. `pingpong: true` (single variant): plays forward↔reverse continuously until the release clears it. `broker_publish: false`. Stand-in clip until a dedicated pat loop lands. | PET_IDLE/PET_IDLE_10 | 11.0s |
+| `head_pat` | reactive | yes | Head-pat reaction, held for as long as the press stays on the head region. `pingpong: true` (single variant): plays forward↔reverse continuously until the release clears it. `broker_publish: false`. Reuses `idle_10.vrma` as the pat loop. | PET_IDLE/PET_IDLE_10 | 11.0s |
 | `falling` | reactive | yes | Falling loop — arms up, spring-bone flutter. Registered but not currently triggered by any code. `broker_publish: false`. | Original (Blender, project author) | 2.5s |
 | `landing` | oneshot | no | Landing impact then settle. Registered but not currently triggered by any code. `broker_publish: false`. | Original (Blender, project author) | 1.8s |
 | `happy` | oneshot | no | Happy reaction. | PET_MISC/PET_HAPPY | — |
