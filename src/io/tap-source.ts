@@ -93,7 +93,9 @@ export function createTapSource(deps: TapSourceDeps): TapSource {
         }
         clicks.push(ts);
 
-        const region = regionAt(pos);
+        // The head belongs to the pat gesture — a tap that lands there is a plain tap.
+        const classified = regionAt(pos);
+        const region = classified === "head" ? null : classified;
 
         if (clicks.length >= deps.config.spam_count) {
           clicks.length = 0;
