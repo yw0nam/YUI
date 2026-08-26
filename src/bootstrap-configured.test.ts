@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 import {
   type ConfiguredBootstrapFactories,
   createConfiguredBootstrap,
+  createPatGesture,
 } from "./bootstrap-configured";
 import { type AppConfig, ATTACHMENT_LIMITS_DEFAULTS } from "./config";
 
@@ -170,5 +171,49 @@ describe("createConfiguredBootstrap", () => {
 
     expect(() => configured.dispose()).toThrow(failure);
     expect(order).toEqual(["last", "throwing", "first"]);
+  });
+});
+
+describe("createPatGesture", () => {
+  function harness() {
+    const hitTest = { suspend: vi.fn(), resume: vi.fn() };
+    const tapSource = {
+      isHeadPoint: vi.fn(() => true),
+      handlePatStart: vi.fn(),
+      handlePatEnd: vi.fn(),
+      handlePatAbort: vi.fn(),
+    };
+    return { hitTest, tapSource, pat: createPatGesture({ hitTest, tapSource, holdMs: () => 300 }) };
+  }
+
+  it("suspends the click-through hit-test for the length of the pat", () => {
+    const { hitTest, tapSource, pat } = harness();
+
+    pat.onStart();
+    expect(hitTest.suspend).toHaveBeenCalledTimes(1);
+    expect(hitTest.resume).not.toHaveBeenCalled();
+    expect(tapSource.handlePatStart).toHaveBeenCalledTimes(1);
+
+    pat.onEnd();
+    expect(hitTest.resume).toHaveBeenCalledTimes(1);
+    expect(tapSource.handlePatEnd).toHaveBeenCalledTimes(1);
+  });
+
+  it("resumes the hit-test when the pat is aborted", () => {
+    const { hitTest, tapSource, pat } = harness();
+
+    pat.onStart();
+    pat.onAbort();
+    expect(hitTest.resume).toHaveBeenCalledTimes(1);
+    expect(tapSource.handlePatAbort).toHaveBeenCalledTimes(1);
+    expect(tapSource.handlePatEnd).not.toHaveBeenCalled();
+  });
+
+  it("classifies the press point through the tap source and reads the hold live", () => {
+    const { tapSource, pat } = harness();
+
+    expect(pat.isPatPoint({ x: 5, y: 6 })).toBe(true);
+    expect(tapSource.isHeadPoint).toHaveBeenCalledWith({ x: 5, y: 6 });
+    expect(pat.holdMs()).toBe(300);
   });
 });
