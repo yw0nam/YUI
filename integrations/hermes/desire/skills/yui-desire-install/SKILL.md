@@ -93,6 +93,10 @@ hermes -p <profile> cron create "0 23 * * 0" --name natsume-desire-reflection \
   "Follow the instructions in $YUI/integrations/hermes/desire/prompts/reflection.md."
 ```
 
+The job prompt is the file reference plus, if needed, the environment values (`HERMES_PROFILE`, `DESIRE_STATE_DIR`,
+`YUI_SIGNALS_URL`) — never a restatement of what the file says; the prompt file is the only place the tick's
+behaviour is written.
+
 The tick only wakes a turn when the monitor's one-line summary changes; an unchanged summary suppresses the run.
 Check: `hermes -p <profile> cron list` shows both jobs, the tick one with `Monitor: natsume-desire-monitor.sh`.
 Without `-p`, `hermes cron list` reads the global store and does not show profile jobs. After the first
