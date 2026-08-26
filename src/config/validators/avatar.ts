@@ -214,7 +214,7 @@ export function validateAvatar(file: string, raw: unknown): AvatarConfig {
           issues.push(`tap.region_motions은 객체여야 함 (받음: ${JSON.stringify(regionMotions)})`);
         } else {
           for (const key of Object.keys(regionMotions)) {
-            if (key !== "chest" && key !== "hips") {
+            if (key !== "head" && key !== "chest" && key !== "hips") {
               issues.push(`tap.region_motions.${key}는 허용되지 않는 키`);
               continue;
             }
@@ -258,7 +258,7 @@ export function validateAvatar(file: string, raw: unknown): AvatarConfig {
         } else {
           const out: NonNullable<TapConfig["region_emotions"]> = {};
           for (const key of Object.keys(regionEmotions)) {
-            if (key !== "chest" && key !== "hips") {
+            if (key !== "head" && key !== "chest" && key !== "hips") {
               issues.push(`tap.region_emotions.${key}는 허용되지 않는 키`);
               continue;
             }
@@ -282,7 +282,7 @@ export function validateAvatar(file: string, raw: unknown): AvatarConfig {
         } else {
           const out: NonNullable<TapConfig["region_cues"]> = {};
           for (const key of Object.keys(regionCues)) {
-            if (key !== "chest" && key !== "hips") {
+            if (key !== "head" && key !== "chest" && key !== "hips") {
               issues.push(`tap.region_cues.${key}는 허용되지 않는 키`);
               continue;
             }
@@ -335,6 +335,15 @@ export function validateAvatar(file: string, raw: unknown): AvatarConfig {
           );
         } else {
           tap.touch_emotion_hold_ms = touchEmotionHoldMs;
+        }
+      }
+
+      const patHoldMs = rawTap.pat_hold_ms;
+      if (patHoldMs !== undefined) {
+        if (typeof patHoldMs !== "number" || !Number.isInteger(patHoldMs) || patHoldMs < 1) {
+          issues.push(`tap.pat_hold_ms는 1 이상 정수여야 함 (받음: ${JSON.stringify(patHoldMs)})`);
+        } else {
+          tap.pat_hold_ms = patHoldMs;
         }
       }
     }

@@ -43,6 +43,15 @@
     "priority": 80,
     "interrupt_policy": "replace"
   },
+  "head_pat": {
+    "vrma_path": "/motions/idle_10.vrma",
+    "pingpong": true,
+    "kind": "reactive",
+    "loop": true,
+    "priority": 80,
+    "interrupt_policy": "replace",
+    "broker_publish": false
+  },
   "falling": {
     "vrma_path": "/motions/falling_loop.vrma",
     "kind": "reactive",

@@ -1,10 +1,14 @@
-export type TapRegion = "chest" | "hips";
+export type TapRegion = "head" | "chest" | "hips";
 export type CssPoint = { x: number; y: number };
 
 export interface TapRegionBones {
+  head: CssPoint | null;
   chest: CssPoint | null;
   hips: CssPoint | null;
 }
+
+/** Nearest-first order — an equal-distance tie resolves to the upper region. */
+const REGIONS: readonly TapRegion[] = ["head", "chest", "hips"];
 
 export function classifyTapRegion(
   pointCss: CssPoint,
@@ -17,11 +21,16 @@ export function classifyTapRegion(
 
   const distanceSquared = (point: CssPoint): number =>
     (pointCss.x - point.x) ** 2 + (pointCss.y - point.y) ** 2;
-  const chestDistance = bones.chest ? distanceSquared(bones.chest) : Number.POSITIVE_INFINITY;
-  const hipsDistance = bones.hips ? distanceSquared(bones.hips) : Number.POSITIVE_INFINITY;
-  const maxDistance = radius ** 2;
 
-  if (chestDistance <= hipsDistance && chestDistance <= maxDistance) return "chest";
-  if (hipsDistance <= maxDistance) return "hips";
-  return null;
+  let nearest: TapRegion | null = null;
+  let nearestDistance = Number.POSITIVE_INFINITY;
+  for (const region of REGIONS) {
+    const bone = bones[region];
+    if (!bone) continue;
+    const distance = distanceSquared(bone);
+    if (distance >= nearestDistance) continue;
+    nearest = region;
+    nearestDistance = distance;
+  }
+  return nearestDistance <= radius ** 2 ? nearest : null;
 }

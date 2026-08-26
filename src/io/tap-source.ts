@@ -41,6 +41,7 @@ function isTapPoints(value: unknown): value is TapPoints {
     typeof points.charHpx === "number" &&
     Number.isFinite(points.charHpx) &&
     points.charHpx > 0 &&
+    (points.head === null || isPoint(points.head)) &&
     (points.chest === null || isPoint(points.chest)) &&
     (points.hips === null || isPoint(points.hips))
   );

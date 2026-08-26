@@ -54,12 +54,13 @@ export interface TapConfig {
   spam_count: number;
   spam_window_ms: number;
   region_radius_frac: number;
-  region_motions: { chest: string; hips: string };
+  region_motions: { head: string; chest: string; hips: string };
   bored_cue: { label: string; context?: string };
   /** Emotion applied alongside the region motion. Absent region → motion only. */
-  region_emotions?: { chest?: string; hips?: string };
+  region_emotions?: { head?: string; chest?: string; hips?: string };
   /** Touch speech cue handed to the backend on a region tap. Absent region → no candidate. */
   region_cues?: {
+    head?: { label: string; context?: string };
     chest?: { label: string; context?: string };
     hips?: { label: string; context?: string };
   };
@@ -67,16 +68,19 @@ export interface TapConfig {
   touch_cue_cooldown_ms: number;
   /** Hold (ms) before a region-tap emotion eases back to neutral. */
   touch_emotion_hold_ms: number;
+  /** Press duration (ms) on the head region before a tap becomes a pat. */
+  pat_hold_ms: number;
 }
 
 export const TAP_DEFAULTS: TapConfig = {
   spam_count: 4,
   spam_window_ms: 3000,
   region_radius_frac: 0.18,
-  region_motions: { chest: "embarrassed", hips: "embarrassed" },
+  region_motions: { head: "head_pat", chest: "embarrassed", hips: "embarrassed" },
   bored_cue: { label: "bored poking" },
   touch_cue_cooldown_ms: 60_000,
   touch_emotion_hold_ms: 4_000,
+  pat_hold_ms: 300,
 };
 
 export interface PeekConfig {
