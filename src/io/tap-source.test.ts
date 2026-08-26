@@ -432,6 +432,38 @@ describe("createTapSource — head pat", () => {
     expect(source.isHeadPoint({ x: 50, y: 22 })).toBe(false);
   });
 
+  it("keeps a short tap on the head a plain tap, with no region reaction or touch cue", () => {
+    const { source, pushed, ambient } = harness(headPoints(), undefined, null, {
+      ...patConfig(),
+      region_cues: { head: { label: "head patted" }, chest: { label: "chest poked" } },
+      region_motions: { head: "head_pat", chest: "shy", hips: "flustered" },
+    });
+    source.handleClick({ x: 50, y: 22 });
+
+    expect(ambient.trigger).toHaveBeenCalledWith("tap_react");
+    expect(pushed).toEqual([
+      {
+        source: "os_event_watcher",
+        event_name: "user.tap",
+        ts: 1_000,
+        hint_tier: 1,
+        dnd_override: true,
+      },
+    ]);
+  });
+
+  it("leaves the head cue cooldown untouched when a head tap falls through to a plain tap", () => {
+    const { source, pushed, setTime } = harness(headPoints(), undefined, null, patConfig());
+    source.handleClick({ x: 50, y: 22 });
+
+    setTime(2_000);
+    source.handlePatStart();
+    setTime(4_000);
+    source.handlePatEnd();
+
+    expect(pushed.filter((env) => env.event_name === "proactive.head_pat")).toHaveLength(1);
+  });
+
   it("starts the pat with the configured head motion and emotion", () => {
     const { source, pushed } = harness(headPoints(), undefined, null, patConfig());
     source.handlePatStart();
