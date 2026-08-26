@@ -123,10 +123,11 @@ const TAP_CONFIG: TapConfig = {
   spam_count: 4,
   spam_window_ms: 3_000,
   region_radius_frac: 0.18,
-  region_motions: { chest: "embarrassed", hips: "embarrassed" },
+  region_motions: { head: "head_pat", chest: "embarrassed", hips: "embarrassed" },
   bored_cue: { label: "bored poking", context: "The user is poking repeatedly." },
   touch_cue_cooldown_ms: 60_000,
   touch_emotion_hold_ms: 4_000,
+  pat_hold_ms: 300,
 };
 
 function makeBackendCaller(): BackendCaller {

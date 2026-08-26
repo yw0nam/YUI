@@ -43,10 +43,11 @@ describe("loadConfig — happy path", () => {
         spam_count: 4,
         spam_window_ms: 3000,
         region_radius_frac: 0.18,
-        region_motions: { chest: "embarrassed", hips: "embarrassed" },
+        region_motions: { head: "head_pat", chest: "embarrassed", hips: "embarrassed" },
         bored_cue: { label: "bored poking" },
         touch_cue_cooldown_ms: 60_000,
         touch_emotion_hold_ms: 4000,
+        pat_hold_ms: 300,
       },
       drag_hold_ms: 5000,
       gesture_cues: {

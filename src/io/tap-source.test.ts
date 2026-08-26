@@ -6,13 +6,14 @@ const config: TapConfig = {
   spam_count: 4,
   spam_window_ms: 3_000,
   region_radius_frac: 0.18,
-  region_motions: { chest: "shy", hips: "flustered" },
+  region_motions: { head: "head_pat", chest: "shy", hips: "flustered" },
   bored_cue: {
     label: "wants attention",
     context: "The user is poking repeatedly.",
   },
   touch_cue_cooldown_ms: 60_000,
   touch_emotion_hold_ms: 4_000,
+  pat_hold_ms: 300,
 };
 
 function harness(
@@ -51,7 +52,7 @@ function harness(
 }
 
 function bothRegionsPoints(): TapPoints {
-  return { chest: { x: 50, y: 60 }, hips: { x: 50, y: 120 }, charHpx: 200 };
+  return { head: null, chest: { x: 50, y: 60 }, hips: { x: 50, y: 120 }, charHpx: 200 };
 }
 
 function touchConfig(): TapConfig {
@@ -84,6 +85,7 @@ describe("createTapSource", () => {
 
   it("maps a region hit to its configured motion without playing the plain cue", () => {
     const { source, pushed, ambient } = harness({
+      head: null,
       chest: { x: 50, y: 60 },
       hips: { x: 50, y: 120 },
       charHpx: 200,
@@ -106,6 +108,7 @@ describe("createTapSource", () => {
   it("suppresses a region tap while its mapped motion is already playing", () => {
     const { source, pushed, ambient } = harness(
       {
+        head: null,
         chest: { x: 50, y: 60 },
         hips: null,
         charHpx: 200,
@@ -123,6 +126,7 @@ describe("createTapSource", () => {
   it("fires a region tap while a different motion is playing", () => {
     const { source, pushed } = harness(
       {
+        head: null,
         chest: { x: 50, y: 60 },
         hips: null,
         charHpx: 200,
@@ -139,6 +143,7 @@ describe("createTapSource", () => {
 
   it("fires a region tap when no motion is playing", () => {
     const { source, pushed } = harness({
+      head: null,
       chest: { x: 50, y: 60 },
       hips: null,
       charHpx: 200,
@@ -153,6 +158,7 @@ describe("createTapSource", () => {
   it("fires a region tap when reading the current motion fails", () => {
     const { source, pushed } = harness(
       {
+        head: null,
         chest: { x: 50, y: 60 },
         hips: null,
         charHpx: 200,
@@ -205,6 +211,7 @@ describe("createTapSource", () => {
     const drainSignals = vi.fn(() => [{ items: [{ id: "buffered" }] }]);
     const { source, pushed, ambient, setTime } = harness(
       {
+        head: null,
         chest: { x: 1, y: 2 },
         hips: null,
         charHpx: 200,
@@ -388,6 +395,7 @@ describe("createTapSource", () => {
 
   it("degrades malformed renderer results to a plain tap without throwing", () => {
     const { source, pushed, ambient } = harness({
+      head: null,
       chest: { x: 0, y: 0 },
       hips: null,
       charHpx: Number.NaN,
