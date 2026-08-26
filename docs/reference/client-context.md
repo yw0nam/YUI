@@ -168,8 +168,8 @@ The label is quoted verbatim (collapsed to one line). The `(user idle Xmin)` cla
 appends only when `idle_elapsed_min` is present (idle-triggered proactive cues); a
 schedule cue never carries it. A second `cue note:` line follows only when
 `cue.context` is present — free-text intent the user authored for that cue. The
-built-in touch and gesture cues (`touch_*`, `tap_bored`, `drag_held`, `window_sit`,
-`peek`) send a label alone unless the user authored a `context` for them in
+built-in touch and gesture cues (`touch_*`, `tap_bored`, `head_pat`, `drag_held`,
+`window_sit`, `peek`) send a label alone unless the user authored a `context` for them in
 `configs/avatar.json`, so most of those turns render just the headline. A proactive
 turn with `idle_elapsed_min` but no cue at all (no configured label) falls back to a
 bare `trigger: proactive (user idle Xmin)`.
@@ -302,6 +302,7 @@ situational detail still lives in the trigger lines above.
 |---|---|
 | `proactive.tap_bored` | `(I keep poking at you)` |
 | `proactive.touch_*` | `(I just poked you)` |
+| `proactive.head_pat` | `(I just patted your head)` |
 | `proactive.drag_held` | `(I keep dragging you around)` |
 | `proactive.window_sit` | `(I just sat you down on a window's edge)` |
 | `proactive.peek` | `(I left you peeking out from the screen edge)` |
