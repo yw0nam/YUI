@@ -103,7 +103,8 @@ export function createTapSource(deps: TapSourceDeps): TapSource {
       const cue = deps.config.region_cues?.head;
       if (!withCue || !cue || ts - lastTouchCueTs < deps.config.touch_cue_cooldown_ms) return;
       lastTouchCueTs = ts;
-      const held = `held for ${Math.round(heldMs / 1000)}s`;
+      // A pat is at least pat_hold_ms long — never report the hold as no time at all.
+      const held = `held for ${Math.max(1, Math.round(heldMs / 1000))}s`;
       deps.bus.push({
         source: "os_event_watcher",
         event_name: "proactive.head_pat",
