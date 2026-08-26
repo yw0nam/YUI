@@ -26,14 +26,14 @@ import { createGuardrails, type Guardrails, type GuardrailsConfig } from "./disp
 import { createProactivePacer } from "./dispatcher/proactive-pacer";
 import { createTurnLog } from "./dispatcher/turn";
 import type { UserInputSource } from "./dispatcher/user-input-source";
-import { initDrag } from "./drag";
+import { initDrag, type PatGesture } from "./drag";
 import { CAMERA_ORBIT_SENSITIVITY } from "./io/camera-settings";
 import { selectFetch } from "./io/chat-client";
 import { createClientToolRegistry, createGenerateExpressTool } from "./io/client-tools";
 import { createCursorTracker } from "./io/cursor-tracker";
 import { createDragHoldSource } from "./io/drag-hold-source";
 import { createFrontmostTracker } from "./io/frontmost-tracker";
-import { createHitTestController } from "./io/hit-test";
+import { createHitTestController, type HitTestController } from "./io/hit-test";
 import { enabledIdleVariants } from "./io/idle-motion-settings";
 import { createPeekState } from "./io/peek-state";
 import { mergeScreen } from "./io/screen-settings";
@@ -41,7 +41,7 @@ import type { ScreenCapturer } from "./io/screen-source-provider";
 import { buildScreenshotBlock } from "./io/screenshot-context";
 import type { SettingsStores } from "./io/settings-stores";
 import type { SummonHotkey } from "./io/summon-hotkey";
-import { createTapSource } from "./io/tap-source";
+import { createTapSource, type TapSource } from "./io/tap-source";
 import { isTauri } from "./io/tauri-env";
 import { subscribeOsEvent } from "./io/tauri-listen";
 import { appendRecord } from "./io/turn-record-log";
@@ -123,6 +123,34 @@ function drain(disposers: Array<() => void>, rethrow: boolean): void {
     }
   }
   if (rethrow && failed) throw firstError;
+}
+
+/**
+ * Head-pat gesture wiring. The press holds the button and moves without starting an OS drag,
+ * so the click-through hit-test stays suspended for its whole length — otherwise a move over a
+ * transparent pixel flips the window to passthrough and the release never reaches the client.
+ */
+export function createPatGesture(deps: {
+  hitTest: Pick<HitTestController, "suspend" | "resume">;
+  tapSource: Pick<TapSource, "isHeadPoint" | "handlePatStart" | "handlePatEnd" | "handlePatAbort">;
+  holdMs: () => number;
+}): PatGesture {
+  return {
+    isPatPoint: deps.tapSource.isHeadPoint,
+    holdMs: deps.holdMs,
+    onStart: () => {
+      deps.hitTest.suspend();
+      deps.tapSource.handlePatStart();
+    },
+    onEnd: () => {
+      deps.hitTest.resume();
+      deps.tapSource.handlePatEnd();
+    },
+    onAbort: () => {
+      deps.hitTest.resume();
+      deps.tapSource.handlePatAbort();
+    },
+  };
 }
 
 const realFactories: ConfiguredBootstrapFactories = {
@@ -436,12 +464,11 @@ const realFactories: ConfiguredBootstrapFactories = {
     register(windowSources.dispose);
     const cleanupDrag = await initDrag(stage, {
       onClick: tapSource.handleClick,
-      pat: {
-        isPatPoint: tapSource.isHeadPoint,
+      pat: createPatGesture({
+        hitTest,
+        tapSource,
         holdMs: () => config.get().avatar.tap.pat_hold_ms,
-        onStart: tapSource.handlePatStart,
-        onEnd: tapSource.handlePatEnd,
-      },
+      }),
       onDragStart: () => {
         hitTest.suspend();
         dragHold.noteDragStart();
