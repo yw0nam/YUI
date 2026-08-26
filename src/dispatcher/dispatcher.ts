@@ -329,6 +329,8 @@ export function createDispatcher(deps: DispatcherDeps): Dispatcher {
   let consecutiveFailures = 0;
   // Pending tap-emotion revert — replaced per emotion tap, cleared on stop.
   let emotionRevertTimer: ReturnType<typeof setTimeout> | null = null;
+  /** Whether the pat currently held applied an emotion — only then does its release revert one. */
+  let patEmotionHeld = false;
   // Wall clock, not the frame clock — since keeps running while the window is hidden.
   let bodyState: BodyState = { posture: { state: "standing" }, since: Date.now() };
 
@@ -583,11 +585,15 @@ export function createDispatcher(deps: DispatcherDeps): Dispatcher {
     applyPeekState(env);
     try {
       renderer.applyDirective(directive);
-      // The pat emotion holds for the whole press — only the release starts the ease-back.
-      if (
-        (env.event_name === "user.tap_region" && directive.emotion) ||
-        env.event_name === "user.pat_end"
-      ) {
+      // The pat emotion holds for the whole press — an earlier tap's revert would clip it,
+      // and only the release eases back, and only what the pat itself applied.
+      if (env.event_name === "user.pat_start") {
+        clearTapEmotionRevert();
+        patEmotionHeld = directive.emotion !== undefined;
+      } else if (env.event_name === "user.pat_end") {
+        if (patEmotionHeld) scheduleTapEmotionRevert();
+        patEmotionHeld = false;
+      } else if (env.event_name === "user.tap_region" && directive.emotion) {
         scheduleTapEmotionRevert();
       }
     } catch (err) {
