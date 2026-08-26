@@ -129,6 +129,17 @@ export function dragHeldEnv(): BusEnvelope {
   };
 }
 
+export function headPatEnv(): BusEnvelope {
+  return {
+    seq_id: 6,
+    source: "os_event_watcher",
+    event_name: "proactive.head_pat",
+    ts: 1_717_000_000_000,
+    payload: { cue_id: "head_pat", label: "head patted", context: "held for 2s" },
+    hint_tier: 2,
+  };
+}
+
 export function windowSitEnv(): BusEnvelope {
   return {
     seq_id: 4,

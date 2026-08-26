@@ -55,6 +55,18 @@ function bothRegionsPoints(): TapPoints {
   return { head: null, chest: { x: 50, y: 60 }, hips: { x: 50, y: 120 }, charHpx: 200 };
 }
 
+function headPoints(): TapPoints {
+  return { head: { x: 50, y: 20 }, chest: { x: 50, y: 60 }, hips: { x: 50, y: 120 }, charHpx: 200 };
+}
+
+function patConfig(): TapConfig {
+  return {
+    ...config,
+    region_emotions: { head: "relaxed" },
+    region_cues: { head: { label: "head patted" } },
+  };
+}
+
 function touchConfig(): TapConfig {
   return {
     ...config,
@@ -403,5 +415,93 @@ describe("createTapSource", () => {
     expect(() => source.handleClick({ x: 0, y: 0 })).not.toThrow();
     expect(ambient.trigger).toHaveBeenCalledOnce();
     expect(pushed[0]?.event_name).toBe("user.tap");
+  });
+});
+
+describe("createTapSource — head pat", () => {
+  it("reports whether a press point falls on the head region", () => {
+    const { source } = harness(headPoints(), undefined, null, patConfig());
+
+    expect(source.isHeadPoint({ x: 50, y: 22 })).toBe(true);
+    expect(source.isHeadPoint({ x: 50, y: 60 })).toBe(false);
+  });
+
+  it("reports no head point when the renderer has no projection", () => {
+    const { source } = harness(null, undefined, null, patConfig());
+
+    expect(source.isHeadPoint({ x: 50, y: 22 })).toBe(false);
+  });
+
+  it("starts the pat with the configured head motion and emotion", () => {
+    const { source, pushed } = harness(headPoints(), undefined, null, patConfig());
+    source.handlePatStart();
+
+    expect(pushed).toEqual([
+      {
+        source: "os_event_watcher",
+        event_name: "user.pat_start",
+        ts: 1_000,
+        hint_tier: 1,
+        dnd_override: true,
+        payload: { motion_id: "head_pat", emotion_id: "relaxed" },
+      },
+    ]);
+  });
+
+  it("ends the pat with a tier1 release and one tier2 cue carrying the rounded hold", () => {
+    const { source, pushed, setTime } = harness(headPoints(), undefined, null, patConfig());
+    source.handlePatStart();
+    setTime(3_400);
+    source.handlePatEnd();
+
+    expect(pushed.slice(1)).toEqual([
+      {
+        source: "os_event_watcher",
+        event_name: "user.pat_end",
+        ts: 3_400,
+        hint_tier: 1,
+        dnd_override: true,
+      },
+      {
+        source: "os_event_watcher",
+        event_name: "proactive.head_pat",
+        ts: 3_400,
+        hint_tier: 2,
+        payload: { cue_id: "head_pat", label: "head patted", context: "held for 2s" },
+      },
+    ]);
+  });
+
+  it("pushes no pat cue when the head region has no configured cue", () => {
+    const { source, pushed, setTime } = harness(headPoints(), undefined, null, config);
+    source.handlePatStart();
+    setTime(3_000);
+    source.handlePatEnd();
+
+    expect(pushed.map((env) => env.event_name)).toEqual(["user.pat_start", "user.pat_end"]);
+  });
+
+  it("shares the touch cue cooldown with region taps", () => {
+    const { source, pushed, setTime } = harness(headPoints(), undefined, null, {
+      ...patConfig(),
+      region_cues: { head: { label: "head patted" }, chest: { label: "chest poked" } },
+    });
+
+    source.handleClick({ x: 50, y: 60 });
+    setTime(2_000);
+    source.handlePatStart();
+    setTime(4_000);
+    source.handlePatEnd();
+
+    expect(pushed.filter((env) => env.hint_tier === 2)).toEqual([
+      expect.objectContaining({ event_name: "proactive.touch_chest" }),
+    ]);
+
+    setTime(70_000);
+    source.handlePatStart();
+    setTime(72_000);
+    source.handlePatEnd();
+
+    expect(pushed.filter((env) => env.event_name === "proactive.head_pat")).toHaveLength(1);
   });
 });

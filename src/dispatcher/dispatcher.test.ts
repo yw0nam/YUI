@@ -495,6 +495,33 @@ describe("dispatcher — routing (§5.1)", () => {
     expect(backendCaller.call as ReturnType<typeof vi.fn>).not.toHaveBeenCalled();
   });
 
+  it("routes user.pat_start (tier1) to the payload motion + emotion", async () => {
+    dispatcher.start();
+    bus.push(
+      env({
+        source: "os_event_watcher",
+        event_name: "user.pat_start",
+        hint_tier: 1,
+        payload: { motion_id: "head_pat", emotion_id: "relaxed" },
+      }),
+    );
+    await vi.advanceTimersByTimeAsync(20);
+    expect(applyDirective).toHaveBeenCalledWith({
+      speech_text: "",
+      motion: { id: "head_pat" },
+      emotion: { id: "relaxed" },
+    });
+    expect(backendCaller.call as ReturnType<typeof vi.fn>).not.toHaveBeenCalled();
+  });
+
+  it("routes user.pat_end (tier1) back to idle", async () => {
+    dispatcher.start();
+    bus.push(env({ source: "os_event_watcher", event_name: "user.pat_end", hint_tier: 1 }));
+    await vi.advanceTimersByTimeAsync(20);
+    expect(applyDirective).toHaveBeenCalledWith({ speech_text: "", motion: null });
+    expect(backendCaller.call as ReturnType<typeof vi.fn>).not.toHaveBeenCalled();
+  });
+
   it("does not classify removed user.tap_spam events", async () => {
     dispatcher.start();
     bus.push(
@@ -989,6 +1016,33 @@ describe("dispatcher — tap emotion revert (touch_emotion_hold_ms)", () => {
     await vi.advanceTimersByTimeAsync(20);
     pushEmotionTap(NOW + 20);
     await vi.advanceTimersByTimeAsync(2_000);
+    expect(easeEmotionToNeutral).not.toHaveBeenCalled();
+    await vi.advanceTimersByTimeAsync(TAP_CONFIG.touch_emotion_hold_ms);
+    expect(easeEmotionToNeutral).toHaveBeenCalledTimes(1);
+  });
+
+  it("holds the pat emotion until the release, then eases it back after touch_emotion_hold_ms", async () => {
+    dispatcher.start();
+    bus.push(
+      env({
+        source: "os_event_watcher",
+        event_name: "user.pat_start",
+        hint_tier: 1,
+        payload: { motion_id: "head_pat", emotion_id: "relaxed" },
+      }),
+    );
+    await vi.advanceTimersByTimeAsync(20 + TAP_CONFIG.touch_emotion_hold_ms * 2);
+    expect(easeEmotionToNeutral).not.toHaveBeenCalled();
+
+    bus.push(
+      env({
+        source: "os_event_watcher",
+        event_name: "user.pat_end",
+        hint_tier: 1,
+        ts: NOW + 1,
+      }),
+    );
+    await vi.advanceTimersByTimeAsync(20);
     expect(easeEmotionToNeutral).not.toHaveBeenCalled();
     await vi.advanceTimersByTimeAsync(TAP_CONFIG.touch_emotion_hold_ms);
     expect(easeEmotionToNeutral).toHaveBeenCalledTimes(1);
