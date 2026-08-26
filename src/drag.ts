@@ -178,14 +178,31 @@ function attachOrbitGesture(
 
 // ─── initDrag ─────────────────────────────────────────────────────────────────
 
+/**
+ * Press-and-hold branch of the click gesture: a primary press that lands on the pat
+ * point and outlives `holdMs` becomes a pat instead of a click, and stays out of the
+ * window-drag path until it is released.
+ */
+export interface PatGesture {
+  /** Whether the press point is over the pattable region (the head). */
+  isPatPoint: (pos: { x: number; y: number }) => boolean;
+  /** Hold (ms) before the press becomes a pat — read at press time so config reload applies. */
+  holdMs: () => number;
+  onStart: () => void;
+  onEnd: () => void;
+}
+
 function attachClickGesture(
   el: EventTarget,
   onClick?: (pos: { x: number; y: number }) => void,
-): { reset: () => void; dispose: () => void } {
+  pat?: PatGesture,
+): { reset: () => void; isPatting: () => boolean; dispose: () => void } {
   let pointerId: number | null = null;
   let startX = 0;
   let startY = 0;
   let crossedThreshold = false;
+  let holdTimer: ReturnType<typeof setTimeout> | null = null;
+  let patting = false;
 
   function detachGesture(): void {
     el.removeEventListener("pointermove", onMove);
@@ -193,9 +210,19 @@ function attachClickGesture(
     el.removeEventListener("pointercancel", onCancel);
   }
 
+  function clearHoldTimer(): void {
+    if (holdTimer === null) return;
+    clearTimeout(holdTimer);
+    holdTimer = null;
+  }
+
   function clearGesture(): void {
     detachGesture();
+    clearHoldTimer();
     pointerId = null;
+    if (!patting) return;
+    patting = false;
+    pat?.onEnd();
   }
 
   function onDown(e: Event): void {
@@ -209,6 +236,13 @@ function attachClickGesture(
     startX = pe.clientX;
     startY = pe.clientY;
     crossedThreshold = false;
+    if (pat?.isPatPoint({ x: pe.clientX, y: pe.clientY })) {
+      holdTimer = setTimeout(() => {
+        holdTimer = null;
+        patting = true;
+        pat.onStart();
+      }, pat.holdMs());
+    }
     el.addEventListener("pointermove", onMove);
     el.addEventListener("pointerup", onUp);
     el.addEventListener("pointercancel", onCancel);
@@ -218,13 +252,15 @@ function attachClickGesture(
     const pe = e as PointerEvent;
     if (pe.pointerId !== pointerId || crossedThreshold) return;
     crossedThreshold = Math.hypot(pe.clientX - startX, pe.clientY - startY) >= DRAG_THRESHOLD_PX;
+    // Travel before the hold elapses is a drag, not a pat.
+    if (crossedThreshold) clearHoldTimer();
   }
 
   function onUp(e: Event): void {
     const pe = e as PointerEvent;
     if (pe.pointerId !== pointerId) return;
     if (pe.button !== undefined && pe.button !== 0) return;
-    const click = !crossedThreshold;
+    const click = !crossedThreshold && !patting;
     clearGesture();
     if (click) onClick?.({ x: pe.clientX, y: pe.clientY });
   }
@@ -237,6 +273,7 @@ function attachClickGesture(
   el.addEventListener("pointerdown", onDown);
   return {
     reset: clearGesture,
+    isPatting: () => patting,
     dispose: () => {
       el.removeEventListener("pointerdown", onDown);
       clearGesture();
@@ -260,6 +297,9 @@ function attachClickGesture(
  *   commits (pointerdown with shiftKey + primary button). Use to suspend hit-test.
  * @param opts.onOrbitEnd - Fired once when the orbit gesture ends (pointerup or
  *   pointercancel). Use to resume hit-test.
+ * @param opts.pat - Press-and-hold branch: a press on the pat point held past
+ *   `holdMs` fires `onStart`, suppresses the window drag for the rest of the press,
+ *   and fires `onEnd` on release. Absent = no pat gesture.
  * @returns A cleanup function. Call it when the surface is torn down.
  */
 export async function initDrag(
@@ -271,12 +311,13 @@ export async function initDrag(
     onOrbit?: (delta: OrbitDelta) => void;
     onOrbitStart?: () => void;
     onOrbitEnd?: () => void;
+    pat?: PatGesture;
   } = {},
 ): Promise<() => void> {
   // Orbit (Shift+left) is pure JS — attach it before the Tauri gate so it works in the
   // browser screenshot-verification surface as well as the packaged pet window.
   const detachOrbit = attachOrbitGesture(el, opts.onOrbit, opts.onOrbitStart, opts.onOrbitEnd);
-  const clickGesture = attachClickGesture(el, opts.onClick);
+  const clickGesture = attachClickGesture(el, opts.onClick, opts.pat);
 
   // Tauri-only: getCurrentWindow() / onScaleChanged / invoke() require the Tauri
   // runtime. In a plain browser (Vite dev — the AI screenshot-verification surface)
@@ -333,7 +374,7 @@ export async function initDrag(
   }
 
   function onPointerMove(e: Event): void {
-    if (started) return;
+    if (started || clickGesture.isPatting()) return;
     const pe = e as PointerEvent;
     if (pe.pointerId !== activePointerId) return;
     const dx = pe.clientX - startX;

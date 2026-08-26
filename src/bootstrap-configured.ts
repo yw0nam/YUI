@@ -436,6 +436,12 @@ const realFactories: ConfiguredBootstrapFactories = {
     register(windowSources.dispose);
     const cleanupDrag = await initDrag(stage, {
       onClick: tapSource.handleClick,
+      pat: {
+        isPatPoint: tapSource.isHeadPoint,
+        holdMs: () => config.get().avatar.tap.pat_hold_ms,
+        onStart: tapSource.handlePatStart,
+        onEnd: tapSource.handlePatEnd,
+      },
       onDragStart: () => {
         hitTest.suspend();
         dragHold.noteDragStart();
