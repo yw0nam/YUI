@@ -504,6 +504,19 @@ describe("createTapSource — head pat", () => {
     ]);
   });
 
+  it("reports a hold shorter than half a second as one second", () => {
+    const { source, pushed, setTime } = harness(headPoints(), undefined, null, patConfig());
+    source.handlePatStart();
+    setTime(1_350);
+    source.handlePatEnd();
+
+    expect(pushed.at(-1)?.payload).toEqual({
+      cue_id: "head_pat",
+      label: "head patted",
+      context: "held for 1s",
+    });
+  });
+
   it("keeps the authored head cue context ahead of the hold duration", () => {
     const { source, pushed, setTime } = harness(headPoints(), undefined, null, {
       ...patConfig(),
