@@ -2,7 +2,12 @@ import type { TapConfig } from "../config/load";
 import type { SignalGroup } from "../contract";
 import type { EventBus } from "../dispatcher/event-bus";
 import { createLogger } from "../logger";
-import { type CssPoint, classifyTapRegion, type TapRegionBones } from "../renderer/tap-region";
+import {
+  type CssPoint,
+  classifyTapRegion,
+  type TapRegion,
+  type TapRegionBones,
+} from "../renderer/tap-region";
 
 const log = createLogger("tap-source");
 
@@ -14,6 +19,10 @@ export interface TapPoints extends TapRegionBones {
 
 export interface TapSource {
   handleClick(pos: CssPoint): void;
+  /** True when a press at `pos` lands on the head region — arms the pat gesture. */
+  isHeadPoint(pos: CssPoint): boolean;
+  handlePatStart(): void;
+  handlePatEnd(): void;
 }
 
 interface TapSourceDeps {
@@ -51,6 +60,18 @@ export function createTapSource(deps: TapSourceDeps): TapSource {
   const now = deps.now ?? Date.now;
   const clicks: number[] = [];
   let lastTouchCueTs = Number.NEGATIVE_INFINITY;
+  let patStartTs: number | null = null;
+
+  function regionAt(pos: CssPoint): TapRegion | null {
+    let points = deps.renderer.getTapPoints();
+    if (points !== null && !isTapPoints(points)) {
+      log.warn("invalid tap projection", points);
+      points = null;
+    }
+    return points
+      ? classifyTapRegion(pos, points, points.charHpx, deps.config.region_radius_frac)
+      : null;
+  }
 
   function pushPlainTap(ts: number): void {
     deps.ambient.trigger("tap_react");
@@ -72,14 +93,7 @@ export function createTapSource(deps: TapSourceDeps): TapSource {
         }
         clicks.push(ts);
 
-        let points = deps.renderer.getTapPoints();
-        if (points !== null && !isTapPoints(points)) {
-          log.warn("invalid tap projection", points);
-          points = null;
-        }
-        const region = points
-          ? classifyTapRegion(pos, points, points.charHpx, deps.config.region_radius_frac)
-          : null;
+        const region = regionAt(pos);
 
         if (clicks.length >= deps.config.spam_count) {
           clicks.length = 0;
@@ -113,7 +127,7 @@ export function createTapSource(deps: TapSourceDeps): TapSource {
           return;
         }
 
-        // ponytail: one cooldown shared across both regions — go per-region if it bites.
+        // ponytail: one cooldown shared across all regions — go per-region if it bites.
         const cue = deps.config.region_cues?.[region];
         if (cue && ts - lastTouchCueTs >= deps.config.touch_cue_cooldown_ms) {
           lastTouchCueTs = ts;
@@ -150,6 +164,67 @@ export function createTapSource(deps: TapSourceDeps): TapSource {
         });
       } catch (error) {
         log.warn("tap handling failed", error);
+      }
+    },
+
+    isHeadPoint(pos) {
+      try {
+        return regionAt(pos) === "head";
+      } catch (error) {
+        log.warn("head classification failed", error);
+        return false;
+      }
+    },
+
+    handlePatStart() {
+      try {
+        patStartTs = now();
+        const emotionId = deps.config.region_emotions?.head;
+        deps.bus.push({
+          source: "os_event_watcher",
+          event_name: "user.pat_start",
+          ts: patStartTs,
+          hint_tier: 1,
+          dnd_override: true,
+          payload: {
+            motion_id: deps.config.region_motions.head,
+            ...(emotionId ? { emotion_id: emotionId } : {}),
+          },
+        });
+      } catch (error) {
+        log.warn("pat start failed", error);
+      }
+    },
+
+    handlePatEnd() {
+      try {
+        const ts = now();
+        const heldMs = patStartTs === null ? 0 : ts - patStartTs;
+        patStartTs = null;
+        deps.bus.push({
+          source: "os_event_watcher",
+          event_name: "user.pat_end",
+          ts,
+          hint_tier: 1,
+          dnd_override: true,
+        });
+
+        const cue = deps.config.region_cues?.head;
+        if (!cue || ts - lastTouchCueTs < deps.config.touch_cue_cooldown_ms) return;
+        lastTouchCueTs = ts;
+        deps.bus.push({
+          source: "os_event_watcher",
+          event_name: "proactive.head_pat",
+          ts,
+          hint_tier: 2,
+          payload: {
+            cue_id: "head_pat",
+            label: cue.label,
+            context: `held for ${Math.round(heldMs / 1000)}s`,
+          },
+        });
+      } catch (error) {
+        log.warn("pat end failed", error);
       }
     },
   };

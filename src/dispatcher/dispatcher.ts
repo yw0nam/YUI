@@ -183,6 +183,8 @@ function classify(env: BusEnvelope): Classification {
     n === "idle.returned" ||
     n === "user.tap" ||
     n === "user.tap_region" ||
+    n === "user.pat_start" ||
+    n === "user.pat_end" ||
     n === "user.window_sit_enter" ||
     n === "user.window_sit_exit" ||
     n === "user.window_sit_drop" ||
@@ -215,7 +217,8 @@ function userTurnSourceOf(env: BusEnvelope): UserTurnSource | undefined {
 /**
  * tier1 event → render directive mapping (local, backend-independent).
  *  - drag_start → play motion "drag" / drag_end → return to idle (motion null).
- *  - user.tap → observability only; tap_region → payload motion.
+ *  - user.tap → observability only; tap_region / pat_start → payload motion.
+ *  - pat_end → return to idle (motion null).
  *  - idle.returned → empty directive (hold).
  * Returning null means no render.
  */
@@ -237,7 +240,10 @@ function tier1Directive(env: BusEnvelope, log: Logger): ControlEnvelope | null {
       return { speech_text: "", motion: null };
     case "user.tap":
       return null;
-    case "user.tap_region": {
+    case "user.pat_end":
+      return { speech_text: "", motion: null };
+    case "user.tap_region":
+    case "user.pat_start": {
       const motionId = env.payload?.motion_id;
       if (typeof motionId !== "string" || motionId.length === 0) {
         log.warn("tap_motion.malformed", { seq_id: env.seq_id, payload: env.payload });
@@ -577,7 +583,13 @@ export function createDispatcher(deps: DispatcherDeps): Dispatcher {
     applyPeekState(env);
     try {
       renderer.applyDirective(directive);
-      if (env.event_name === "user.tap_region" && directive.emotion) scheduleTapEmotionRevert();
+      // The pat emotion holds for the whole press — only the release starts the ease-back.
+      if (
+        (env.event_name === "user.tap_region" && directive.emotion) ||
+        env.event_name === "user.pat_end"
+      ) {
+        scheduleTapEmotionRevert();
+      }
     } catch (err) {
       log.error("tier1.render_error", { error: String(err) });
     }

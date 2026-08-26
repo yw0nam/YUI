@@ -72,6 +72,7 @@ const toolName = (raw: string): string => raw.replace(/\s+/g, " ").trim().slice(
 function backgroundMarker(eventName: string, trigger: TriggerMeta): string {
   if (eventName === "proactive.tap_bored") return "(I keep poking at you)";
   if (eventName.startsWith("proactive.touch_")) return "(I just poked you)";
+  if (eventName === "proactive.head_pat") return "(I just patted your head)";
   if (eventName === "proactive.drag_held") return "(I keep dragging you around)";
   if (eventName === "proactive.window_sit") return "(I just sat you down on a window's edge)";
   if (eventName === "proactive.peek") return "(I left you peeking out from the screen edge)";
@@ -108,6 +109,7 @@ function backgroundMarker(eventName: string, trigger: TriggerMeta): string {
  * Client-only render policy; never sent to the backend.
  */
 const REFLEX_EVENT_NAMES = new Set([
+  "proactive.head_pat",
   "proactive.drag_held",
   "proactive.window_sit",
   "proactive.peek",
