@@ -1035,9 +1035,10 @@ describe.each([
   let isPatPoint: Mock<(pos: { x: number; y: number }) => boolean>;
   let onStart: Mock<() => void>;
   let onEnd: Mock<() => void>;
+  let onAbort: Mock<() => void>;
 
   function pointer(
-    type: "pointerdown" | "pointermove" | "pointerup" | "pointercancel",
+    type: "pointerdown" | "pointermove" | "pointerup" | "pointercancel" | "lostpointercapture",
     {
       clientX = 0,
       clientY = 0,
@@ -1060,6 +1061,7 @@ describe.each([
     isPatPoint = vi.fn(() => true);
     onStart = vi.fn();
     onEnd = vi.fn();
+    onAbort = vi.fn();
     mockInvoke.mockResolvedValue(undefined);
     if (tauri) {
       (globalThis as { __TAURI_INTERNALS__?: unknown }).__TAURI_INTERNALS__ = {};
@@ -1069,7 +1071,7 @@ describe.each([
     cleanup = await initDrag(el, {
       onClick,
       onDragStart,
-      pat: { isPatPoint, holdMs: () => PAT_HOLD_MS, onStart, onEnd },
+      pat: { isPatPoint, holdMs: () => PAT_HOLD_MS, onStart, onEnd, onAbort },
     });
   });
 
@@ -1148,10 +1150,51 @@ describe.each([
     expect(onClick).not.toHaveBeenCalled();
   });
 
-  it("ends an in-progress pat on cleanup", () => {
+  it("ends an in-progress pat on cleanup without offering the release cue", () => {
     pointer("pointerdown");
     vi.advanceTimersByTime(PAT_HOLD_MS);
     cleanup();
+    expect(onAbort).toHaveBeenCalledTimes(1);
+    expect(onEnd).not.toHaveBeenCalled();
+  });
+
+  it("releases a pat stranded by a lost pointer capture", () => {
+    pointer("pointerdown");
+    vi.advanceTimersByTime(PAT_HOLD_MS);
+    pointer("lostpointercapture");
     expect(onEnd).toHaveBeenCalledTimes(1);
+    expect(onClick).not.toHaveBeenCalled();
+
+    // The gesture is disarmed, so the stale pointerup neither re-ends it nor fires a click.
+    pointer("pointerup");
+    expect(onEnd).toHaveBeenCalledTimes(1);
+    expect(onClick).not.toHaveBeenCalled();
+  });
+
+  it("leaves a pat untouched when another pointer loses capture", () => {
+    pointer("pointerdown", { pointerId: 1 });
+    vi.advanceTimersByTime(PAT_HOLD_MS);
+    pointer("lostpointercapture", { pointerId: 2 });
+    expect(onEnd).not.toHaveBeenCalled();
+    pointer("pointerup", { pointerId: 1 });
+    expect(onEnd).toHaveBeenCalledTimes(1);
+  });
+
+  it("arms the gesture even when the hold length cannot be read", () => {
+    cleanup();
+    const holdMs = vi.fn(() => {
+      throw new Error("config unavailable");
+    });
+    el = new EventTarget();
+    return initDrag(el, {
+      onClick,
+      pat: { isPatPoint, holdMs, onStart, onEnd, onAbort },
+    }).then((dispose) => {
+      cleanup = dispose;
+      expect(() => pointer("pointerdown", { clientX: 10, clientY: 20 })).not.toThrow();
+      pointer("pointerup", { clientX: 10, clientY: 20 });
+      expect(onStart).not.toHaveBeenCalled();
+      expect(onClick).toHaveBeenCalledWith({ x: 10, y: 20 });
+    });
   });
 });
