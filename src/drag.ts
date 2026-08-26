@@ -189,7 +189,10 @@ export interface PatGesture {
   /** Hold (ms) before the press becomes a pat — read at press time so config reload applies. */
   holdMs: () => number;
   onStart: () => void;
+  /** Pat released — ends the reaction and lets the release cue fire. */
   onEnd: () => void;
+  /** Surface torn down mid-pat — ends the reaction only, no release cue. */
+  onAbort: () => void;
 }
 
 function attachClickGesture(
@@ -208,6 +211,7 @@ function attachClickGesture(
     el.removeEventListener("pointermove", onMove);
     el.removeEventListener("pointerup", onUp);
     el.removeEventListener("pointercancel", onCancel);
+    el.removeEventListener("lostpointercapture", onLostCapture);
   }
 
   function clearHoldTimer(): void {
@@ -216,13 +220,19 @@ function attachClickGesture(
     holdTimer = null;
   }
 
-  function clearGesture(): void {
+  function endGesture(released: boolean): void {
     detachGesture();
     clearHoldTimer();
     pointerId = null;
     if (!patting) return;
     patting = false;
-    pat?.onEnd();
+    if (released) pat?.onEnd();
+    else pat?.onAbort();
+  }
+
+  /** The press ended on its own — a pat that got this far earned its release cue. */
+  function clearGesture(): void {
+    endGesture(true);
   }
 
   function onDown(e: Event): void {
@@ -236,16 +246,28 @@ function attachClickGesture(
     startX = pe.clientX;
     startY = pe.clientY;
     crossedThreshold = false;
-    if (pat?.isPatPoint({ x: pe.clientX, y: pe.clientY })) {
-      holdTimer = setTimeout(() => {
-        holdTimer = null;
-        patting = true;
-        pat.onStart();
-      }, pat.holdMs());
-    }
+    // Listeners first: a throw while arming the hold must not strand the gesture.
     el.addEventListener("pointermove", onMove);
     el.addEventListener("pointerup", onUp);
     el.addEventListener("pointercancel", onCancel);
+    el.addEventListener("lostpointercapture", onLostCapture);
+    armPatHold(pe);
+  }
+
+  /** A classifier or config read that fails degrades to "no pat" — never to a stranded press. */
+  function armPatHold(pe: PointerEvent): void {
+    const gesture = pat;
+    if (!gesture) return;
+    try {
+      if (!gesture.isPatPoint({ x: pe.clientX, y: pe.clientY })) return;
+      holdTimer = setTimeout(() => {
+        holdTimer = null;
+        patting = true;
+        gesture.onStart();
+      }, gesture.holdMs());
+    } catch (err) {
+      log.warn("pat_arm_failed", { error: String(err) });
+    }
   }
 
   function onMove(e: Event): void {
@@ -270,13 +292,22 @@ function attachClickGesture(
     clearGesture();
   }
 
+  /**
+   * Capture loss without a pointerup — the OS or the click-through hit-test took the
+   * pointer away mid-press. Ends the gesture so a pat can never stay held forever.
+   */
+  function onLostCapture(e: Event): void {
+    if ((e as PointerEvent).pointerId !== pointerId) return;
+    clearGesture();
+  }
+
   el.addEventListener("pointerdown", onDown);
   return {
     reset: clearGesture,
     isPatting: () => patting,
     dispose: () => {
       el.removeEventListener("pointerdown", onDown);
-      clearGesture();
+      endGesture(false);
     },
   };
 }
@@ -299,7 +330,8 @@ function attachClickGesture(
  *   pointercancel). Use to resume hit-test.
  * @param opts.pat - Press-and-hold branch: a press on the pat point held past
  *   `holdMs` fires `onStart`, suppresses the window drag for the rest of the press,
- *   and fires `onEnd` on release. Absent = no pat gesture.
+ *   and fires `onEnd` on release — or `onAbort` when teardown ends it instead.
+ *   Absent = no pat gesture.
  * @returns A cleanup function. Call it when the surface is torn down.
  */
 export async function initDrag(
