@@ -504,6 +504,45 @@ describe("createTapSource — head pat", () => {
     ]);
   });
 
+  it("keeps the authored head cue context ahead of the hold duration", () => {
+    const { source, pushed, setTime } = harness(headPoints(), undefined, null, {
+      ...patConfig(),
+      region_cues: { head: { label: "head patted", context: "React in character." } },
+    });
+    source.handlePatStart();
+    setTime(3_400);
+    source.handlePatEnd();
+
+    expect(pushed.at(-1)?.payload).toEqual({
+      cue_id: "head_pat",
+      label: "head patted",
+      context: "React in character.; held for 2s",
+    });
+  });
+
+  it("ends an aborted pat without pushing the release cue", () => {
+    const { source, pushed, setTime } = harness(headPoints(), undefined, null, patConfig());
+    source.handlePatStart();
+    setTime(3_400);
+    source.handlePatAbort();
+
+    expect(pushed.map((env) => env.event_name)).toEqual(["user.pat_start", "user.pat_end"]);
+  });
+
+  it("leaves the cue cooldown unspent when a pat is aborted", () => {
+    const { source, pushed, setTime } = harness(headPoints(), undefined, null, patConfig());
+    source.handlePatStart();
+    setTime(2_000);
+    source.handlePatAbort();
+
+    setTime(3_000);
+    source.handlePatStart();
+    setTime(5_000);
+    source.handlePatEnd();
+
+    expect(pushed.filter((env) => env.event_name === "proactive.head_pat")).toHaveLength(1);
+  });
+
   it("pushes no pat cue when the head region has no configured cue", () => {
     const { source, pushed, setTime } = harness(headPoints(), undefined, null, config);
     source.handlePatStart();
