@@ -22,7 +22,10 @@ export interface TapSource {
   /** True when a press at `pos` lands on the head region — arms the pat gesture. */
   isHeadPoint(pos: CssPoint): boolean;
   handlePatStart(): void;
+  /** Pat released — ends the reaction and offers the release speech cue. */
   handlePatEnd(): void;
+  /** Pat interrupted by teardown — ends the reaction without a speech cue. */
+  handlePatAbort(): void;
 }
 
 interface TapSourceDeps {
@@ -82,6 +85,39 @@ export function createTapSource(deps: TapSourceDeps): TapSource {
       hint_tier: 1,
       dnd_override: true,
     });
+  }
+
+  function endPat(withCue: boolean): void {
+    try {
+      const ts = now();
+      const heldMs = patStartTs === null ? 0 : ts - patStartTs;
+      patStartTs = null;
+      deps.bus.push({
+        source: "os_event_watcher",
+        event_name: "user.pat_end",
+        ts,
+        hint_tier: 1,
+        dnd_override: true,
+      });
+
+      const cue = deps.config.region_cues?.head;
+      if (!withCue || !cue || ts - lastTouchCueTs < deps.config.touch_cue_cooldown_ms) return;
+      lastTouchCueTs = ts;
+      const held = `held for ${Math.round(heldMs / 1000)}s`;
+      deps.bus.push({
+        source: "os_event_watcher",
+        event_name: "proactive.head_pat",
+        ts,
+        hint_tier: 2,
+        payload: {
+          cue_id: "head_pat",
+          label: cue.label,
+          context: cue.context !== undefined ? `${cue.context}; ${held}` : held,
+        },
+      });
+    } catch (error) {
+      log.warn("pat end failed", error);
+    }
   }
 
   return {
@@ -199,35 +235,11 @@ export function createTapSource(deps: TapSourceDeps): TapSource {
     },
 
     handlePatEnd() {
-      try {
-        const ts = now();
-        const heldMs = patStartTs === null ? 0 : ts - patStartTs;
-        patStartTs = null;
-        deps.bus.push({
-          source: "os_event_watcher",
-          event_name: "user.pat_end",
-          ts,
-          hint_tier: 1,
-          dnd_override: true,
-        });
+      endPat(true);
+    },
 
-        const cue = deps.config.region_cues?.head;
-        if (!cue || ts - lastTouchCueTs < deps.config.touch_cue_cooldown_ms) return;
-        lastTouchCueTs = ts;
-        deps.bus.push({
-          source: "os_event_watcher",
-          event_name: "proactive.head_pat",
-          ts,
-          hint_tier: 2,
-          payload: {
-            cue_id: "head_pat",
-            label: cue.label,
-            context: `held for ${Math.round(heldMs / 1000)}s`,
-          },
-        });
-      } catch (error) {
-        log.warn("pat end failed", error);
-      }
+    handlePatAbort() {
+      endPat(false);
     },
   };
 }
