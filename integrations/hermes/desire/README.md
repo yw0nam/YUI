@@ -101,6 +101,9 @@ hermes -p "$HERMES_PROFILE" cron create "0 23 * * 0" --name natsume-desire-refle
   "Follow the instructions in <abs>/integrations/hermes/desire/prompts/reflection.md."
 ```
 
+The job prompt is the file reference and the three environment values (`HERMES_PROFILE`, `DESIRE_STATE_DIR`,
+`YUI_SIGNALS_URL`), nothing else; the prompt file is the only place the tick's behaviour is written.
+
 Hermes injects a changed monitor summary into the tick prompt. An unchanged summary suppresses the run. Run the
 one-time instructions in `prompts/kickoff.md` after installation to create the initial wants without speaking.
 
