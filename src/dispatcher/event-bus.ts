@@ -74,6 +74,7 @@ const KNOWN_PREFIXES: ReadonlyArray<{ prefix: string; priority: number }> = [
   { prefix: "signals.", priority: 2 },
   { prefix: "periodic_tick", priority: 4 },
   { prefix: "os.", priority: 3 },
+  { prefix: "avatar.", priority: 3 },
 ];
 
 function priorityOf(eventName: string): number | null {

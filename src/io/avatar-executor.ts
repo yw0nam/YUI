@@ -68,6 +68,8 @@ export interface AvatarExecutorDeps {
   getVrm(): { id: string; label: string } | null;
   /** Record that the avatar just relocated on its own — a successful move_to restamps posture. */
   noteAvatarMoved(): void;
+  /** An agent command is about to move the avatar — ambient motion yields to it. */
+  noteAgentMove(): void;
 }
 
 export interface AvatarExecutor {
@@ -204,6 +206,7 @@ export function createAvatarExecutor(deps: AvatarExecutorDeps): AvatarExecutor {
   }
 
   async function runCommand(command: AvatarCommand): Promise<AvatarCommandResult> {
+    deps.noteAgentMove();
     switch (command.action) {
       case "sit_on_window":
         return place({ kind: "sit", app: command.app });

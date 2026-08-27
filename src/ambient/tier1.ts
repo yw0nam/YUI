@@ -61,7 +61,8 @@ interface OneShot {
   startMs: number;
 }
 
-function prefersReducedMotion(): boolean {
+/** Live OS reduced-motion preference. False where matchMedia is unavailable. */
+export function prefersReducedMotion(): boolean {
   try {
     return (
       typeof matchMedia === "function" && matchMedia("(prefers-reduced-motion: reduce)").matches

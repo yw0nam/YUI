@@ -33,6 +33,13 @@ function validConfig(): AppConfig {
         inset_frac: 0.12,
         mirror_side: "right",
       },
+      walk: {
+        interval_min_ms: 60_000,
+        interval_max_ms: 180_000,
+        distance_min_px: 80,
+        distance_max_px: 320,
+        floor_tolerance_px: 8,
+      },
       drag_hold_ms: 5_000,
       gesture_cues: {
         drag_held: { label: "dragged around" },

@@ -1,5 +1,6 @@
 /** Bootstrap wiring helpers extracted from main.ts: VRM + speaker selection stores and their swap/import flows. */
 import type { Tier1Engine } from "./ambient/tier1";
+import { createWalker, type Walker } from "./ambient/walker";
 import {
   type AppConfig,
   type ConfigSection,
@@ -7,8 +8,9 @@ import {
   loadEmotionTextTable,
   type PeekConfig,
   type ScreenConfig,
+  type WalkConfig,
 } from "./config";
-import type { EndpointsConfig, Posture, WindowRect } from "./contract";
+import type { EndpointsConfig, MotionKind, Posture, WindowRect } from "./contract";
 import { createAgentSource } from "./dispatcher/agent-source";
 import type { Dispatcher } from "./dispatcher/dispatcher";
 import type { EventBus } from "./dispatcher/event-bus";
@@ -427,6 +429,82 @@ export function wireSettingsReload(deps: {
 }
 
 /**
+ * Ambient floor walking. Tauri-only — a stroll moves the OS window, so in a plain browser
+ * (Vite dev) this is skipped and bootstrap continues. The returned handle cancels a running
+ * stroll for the owners that outrank ambient (user drag, agent command) and owns teardown.
+ */
+export function wireWalker(deps: {
+  bus: EventBus;
+  renderer: Renderer;
+  getWalkConfig: () => WalkConfig;
+  /** Registry kind of a motion id, for the "nothing else holds the body" gate. */
+  getMotionKind: (id: string) => MotionKind | undefined;
+  isPeeking: () => boolean;
+  isDragging: () => boolean;
+  /** Keep the hit-test cursor mapping accurate while the window translates. */
+  setHitTestMoving: (moving: boolean) => void;
+  log: Logger;
+}): { cancel(): void; dispose(): void } {
+  const { bus, renderer, log } = deps;
+  let walker: Walker | null = null;
+  let disposed = false;
+  const handle = {
+    cancel: () => walker?.cancel(),
+    dispose: () => {
+      disposed = true;
+      walker?.stop();
+    },
+  };
+  if (!isTauri()) return handle;
+  void (async () => {
+    const { availableMonitors, getCurrentWindow } = await import("@tauri-apps/api/window");
+    const { PhysicalPosition } = await import("@tauri-apps/api/dpi");
+    if (disposed) return;
+    const push = (event_name: string): void => {
+      bus.push({ source: "timer_scheduler", event_name, ts: Date.now(), hint_tier: 1 });
+    };
+    walker = createWalker({
+      renderer,
+      getWindow: () => {
+        const win = getCurrentWindow();
+        return {
+          outerPosition: () => win.outerPosition(),
+          outerSize: () => win.outerSize(),
+          scaleFactor: () => win.scaleFactor(),
+          setPositionPhysical: (x, y) => win.setPosition(new PhysicalPosition(x, y)),
+        };
+      },
+      listMonitors: async () =>
+        (await availableMonitors()).map((m) => ({
+          position: { x: m.position.x, y: m.position.y },
+          size: { width: m.size.width, height: m.size.height },
+          workArea: {
+            position: { x: m.workArea.position.x, y: m.workArea.position.y },
+            size: { width: m.workArea.size.width, height: m.workArea.size.height },
+          },
+        })),
+      getConfig: deps.getWalkConfig,
+      currentMotionKind: () => {
+        const current = renderer.getCurrentMotion();
+        return current ? (deps.getMotionKind(current.id) ?? null) : null;
+      },
+      isPeeking: deps.isPeeking,
+      isDragging: deps.isDragging,
+      onStart: () => {
+        deps.setHitTestMoving(true);
+        push("avatar.walk_start");
+      },
+      onEnd: () => {
+        deps.setHitTestMoving(false);
+        push("avatar.walk_end");
+      },
+    });
+    walker.start();
+  })().catch((err) => log.warn("walker_start_failed", { degrade: true, error: String(err) }));
+  return handle;
+}
+
+/**
  * Window-sit drop + ctrl+wheel resize producers, the agent loopback ingress bind, and the
  * avatar RPC executor that answers the ingress's `/avatar/*` bridge.
  * Tauri-only — getCurrentWindow()/invoke/listen require the Tauri runtime; in a plain browser
@@ -446,6 +524,8 @@ export function wireWindowSources(deps: {
   getVrm: () => { id: string; label: string } | null;
   /** Record that the avatar just relocated on its own — a successful move_to restamps posture. */
   noteAvatarMoved: () => void;
+  /** An agent command is taking the avatar — ambient motion yields to it. */
+  noteAgentMove: () => void;
   log: Logger;
 }): {
   noteUserDrag(): void;
@@ -462,6 +542,7 @@ export function wireWindowSources(deps: {
     getPosture,
     getVrm,
     noteAvatarMoved,
+    noteAgentMove,
     log,
   } = deps;
   let windowDropSource: ReturnType<typeof createWindowDropSource> | null = null;
@@ -549,6 +630,7 @@ export function wireWindowSources(deps: {
       getPosture,
       getVrm,
       noteAvatarMoved,
+      noteAgentMove,
     });
     if (disposed) {
       windowDropSource.stop();

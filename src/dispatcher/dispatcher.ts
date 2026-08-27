@@ -189,7 +189,9 @@ function classify(env: BusEnvelope): Classification {
     n === "user.window_sit_exit" ||
     n === "user.window_sit_drop" ||
     n === "user.peek_drop" ||
-    n === "user.peek_exit"
+    n === "user.peek_exit" ||
+    n === "avatar.walk_start" ||
+    n === "avatar.walk_end"
   ) {
     return { tier: 1, target: "tier1" };
   }
@@ -220,6 +222,7 @@ function userTurnSourceOf(env: BusEnvelope): UserTurnSource | undefined {
  *  - user.tap → observability only; tap_region / pat_start → payload motion.
  *  - pat_end → return to idle (motion null).
  *  - idle.returned → empty directive (hold).
+ *  - avatar.walk_* → no render; the ambient walker owns the walk clip and only the posture moves.
  * Returning null means no render.
  */
 function tier1Directive(env: BusEnvelope, log: Logger): ControlEnvelope | null {
@@ -625,9 +628,13 @@ export function createDispatcher(deps: DispatcherDeps): Dispatcher {
       case "user.drag_start":
         next = { state: "dragging" };
         break;
+      case "avatar.walk_start":
+        next = { state: "walking" };
+        break;
       case "user.window_sit_exit":
       case "user.peek_exit":
       case "user.drag_end":
+      case "avatar.walk_end":
         next = { state: "standing" };
         break;
       default:

@@ -524,15 +524,16 @@ describe("validateAvatar — walk", () => {
     expectIssue({ vrm_url: "/v.vrm", walk: { [field]: value } }, `walk.${field}는 0보다 큰`);
   });
 
-  it.each([-1, "8", Number.POSITIVE_INFINITY])(
-    "rejects invalid floor_tolerance_px: %s",
-    (floor_tolerance_px) => {
-      expectIssue(
-        { vrm_url: "/v.vrm", walk: { floor_tolerance_px } },
-        "walk.floor_tolerance_px는 0 이상",
-      );
-    },
-  );
+  it.each([
+    -1,
+    "8",
+    Number.POSITIVE_INFINITY,
+  ])("rejects invalid floor_tolerance_px: %s", (floor_tolerance_px) => {
+    expectIssue(
+      { vrm_url: "/v.vrm", walk: { floor_tolerance_px } },
+      "walk.floor_tolerance_px는 0 이상",
+    );
+  });
 
   it("rejects an inverted interval range", () => {
     expectIssue(

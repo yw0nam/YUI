@@ -324,10 +324,10 @@ describe("configs/motions.json", () => {
     );
   });
 
-  it("registers walk as a looping in-place state for the ambient stroll", () => {
+  it("registers walk as a looping reactive clip the ambient stroll owns end to end", () => {
     expect(m.walk).toEqual({
       vrma_path: "/motions/walk.vrma",
-      kind: "state",
+      kind: "reactive",
       loop: true,
       priority: 55,
       interrupt_policy: "replace",

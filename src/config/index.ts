@@ -33,6 +33,8 @@ export {
   TAP_DEFAULTS,
   type TapConfig,
   TTS_API_KEY_SECRET,
+  WALK_DEFAULTS,
+  type WalkConfig,
 } from "./load";
 
 export {

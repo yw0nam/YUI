@@ -27,6 +27,7 @@ import type { ControlEnvelope, EmotionRegistry, MotionRegistry } from "../contra
 import { createLogger } from "../logger";
 import { type AlphaHitTest, createAlphaHitTest } from "./alpha-hit-test";
 import { routeDirective } from "./apply-directive";
+import { yawAt } from "./body-yaw";
 import {
   CAMERA_AZIMUTH_DEFAULT,
   CAMERA_POLAR_DEFAULT,
@@ -58,6 +59,7 @@ import {
   projectToScreen,
   SEAT_DROP_DEFAULT,
   seatAnchorWorld,
+  worldYPerPixel,
 } from "./perch-geometry";
 import { baselineWhileHeld, suppressWhileHeld } from "./perch-hold";
 import { createPinController, type PinController } from "./pin-controller";
@@ -256,6 +258,17 @@ export interface Renderer {
   /** Select mirrored clips for motions started after this call without restarting playback. */
   setMotionMirror(on: boolean): void;
   /**
+   * Ease the character's root yaw (radians, 0 = camera-facing) to `rad` over `easeMs`.
+   * The ambient stroll turns the body toward its travel direction through this.
+   */
+  setBodyYaw(rad: number, easeMs: number): void;
+  /**
+   * Screen pixels spanning one world metre at the current framing, measured at the
+   * model's depth. null when no VRM is loaded — the stroll derives its ground speed
+   * from this so the feet never slide at any window size or zoom.
+   */
+  getPxPerMetre(): number | null;
+  /**
    * Enable/disable the idle 30fps cap at runtime. Enabled (default) caps ambient-only
    * frames to IDLE_FPS; disabled renders idle frames at full refresh. Pause-on-hidden
    * is always on and unaffected by this toggle.
@@ -331,6 +344,8 @@ export function createRenderer(options: RendererOptions): Renderer {
     mountHeight: () => mount.clientHeight || 1,
   });
   const liveBoxScratch = new THREE.Box3();
+  const pxPerMetreScratch = new THREE.Vector3();
+  const pxPerMetreForward = new THREE.Vector3();
   const liveFeetScratch = new THREE.Vector3();
   const liveHeadScratch = new THREE.Vector3();
 
@@ -493,6 +508,18 @@ export function createRenderer(options: RendererOptions): Renderer {
   const ro = new ResizeObserver(resize);
   ro.observe(mount);
 
+  // ── Root yaw (ambient stroll facing) ──────────────────────────────────
+  // vrm.scene.rotation.y is a channel nothing else writes after load — the mixer
+  // animates bones and the pins own scene.position — so the eased yaw is applied
+  // on top of the model's own base rotation (π for VRM0, 0 for VRM1).
+  let baseYaw = 0;
+  let bodyYaw = 0;
+  let bodyYawFrom = 0;
+  let bodyYawTo = 0;
+  let bodyYawStartMs = 0;
+  let bodyYawDurationMs = 0;
+  let bodyYawConverging = false;
+
   const tickHooks = new Set<TickFn>();
   const clock = new THREE.Clock();
   let elapsed = 0;
@@ -513,6 +540,17 @@ export function createRenderer(options: RendererOptions): Renderer {
     registry: options.emotionRegistry,
     log,
   });
+
+  /** One frame of the root-yaw ease, written absolutely onto the model's base rotation. */
+  function stepBodyYaw(): void {
+    if (!currentVrm) return;
+    if (bodyYawConverging) {
+      const t = elapsed * 1000 - bodyYawStartMs;
+      bodyYaw = yawAt(bodyYawFrom, bodyYawTo, t, bodyYawDurationMs);
+      if (t >= bodyYawDurationMs) bodyYawConverging = false;
+    }
+    currentVrm.scene.rotation.y = baseYaw + bodyYaw;
+  }
 
   /** True while a non-baseline motion clip is actively playing via the mixer. */
   function isMotionActive(): boolean {
@@ -541,7 +579,9 @@ export function createRenderer(options: RendererOptions): Renderer {
       isActive({
         participantsConverging: anyConverging(participants),
         motionActive: isMotionActive(),
-      }) || orbitConverging;
+      }) ||
+      orbitConverging ||
+      bodyYawConverging;
     const now = performance.now();
     if (!shouldRenderFrame(now, lastRenderMs, active, IDLE_FPS, idleThrottleEnabled)) return;
     lastRenderMs = now;
@@ -572,6 +612,7 @@ export function createRenderer(options: RendererOptions): Renderer {
           log.error("mixer_update_error", { error: String(err) });
         }
       }
+      stepBodyYaw();
       // pins/gaze (bones) then emotion/mouth (expression weights) — all before
       // vrm.update so expressionManager.update()/spring bones see this frame's writes.
       stepParticipants(participants, ctx);
@@ -822,6 +863,10 @@ export function createRenderer(options: RendererOptions): Renderer {
     VRMUtils.rotateVRM0(vrm); // If VRM0.0, rotate to +Z front; VRM1.0 is no-op.
 
     disposeCurrent(); // Hotswap: prepare new model fully, then release prior.
+    // The model's own front-facing rotation is the baseline the stroll yaw adds onto.
+    baseYaw = vrm.scene.rotation.y;
+    bodyYaw = 0;
+    bodyYawConverging = false;
     vrmEpoch += 1; // Invalidate async clip loads tied to prior model.
     currentVrm = vrm;
     scene.add(vrm.scene);
@@ -1076,6 +1121,24 @@ export function createRenderer(options: RendererOptions): Renderer {
     },
     setMotionMirror(on) {
       motionMirror = on;
+    },
+    setBodyYaw(rad, easeMs) {
+      if (!Number.isFinite(rad)) return;
+      bodyYawFrom = bodyYaw;
+      bodyYawTo = rad;
+      bodyYawStartMs = elapsed * 1000;
+      bodyYawDurationMs = Number.isFinite(easeMs) ? Math.max(0, easeMs) : 0;
+      bodyYawConverging = true;
+    },
+    getPxPerMetre() {
+      if (!currentVrm || !modelBox) return null;
+      camera.updateMatrixWorld();
+      const depth = modelBox
+        .getCenter(pxPerMetreScratch)
+        .sub(camera.position)
+        .dot(camera.getWorldDirection(pxPerMetreForward));
+      const perPixel = worldYPerPixel(camera, depth, mount.clientHeight || 1);
+      return Number.isFinite(perPixel) && perPixel > 0 ? 1 / perPixel : null;
     },
     setIdleThrottleEnabled(enabled) {
       idleThrottleEnabled = enabled;

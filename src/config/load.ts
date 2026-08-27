@@ -97,6 +97,28 @@ export const PEEK_DEFAULTS: PeekConfig = {
   mirror_side: "right",
 };
 
+/** Ambient floor-stroll knobs. Distances and the floor tolerance are logical px. */
+export interface WalkConfig {
+  /** Shortest gap between stroll attempts. */
+  interval_min_ms: number;
+  /** Longest gap between stroll attempts. */
+  interval_max_ms: number;
+  /** Shortest stroll, before work-area clamping. */
+  distance_min_px: number;
+  /** Longest stroll, before work-area clamping. */
+  distance_max_px: number;
+  /** How far the window bottom may sit from the work-area bottom and still count as grounded. */
+  floor_tolerance_px: number;
+}
+
+export const WALK_DEFAULTS: WalkConfig = {
+  interval_min_ms: 60_000,
+  interval_max_ms: 180_000,
+  distance_min_px: 80,
+  distance_max_px: 320,
+  floor_tolerance_px: 8,
+};
+
 /** Authored label for one reflex-gesture speech candidate. context is optional user-authored intent. */
 export interface GestureCueConfig {
   label: string;
@@ -139,6 +161,8 @@ export interface AvatarConfig {
   tap: TapConfig;
   /** Side-peek geometry and mirroring knobs. Defaults are applied by the validator. */
   peek: PeekConfig;
+  /** Ambient floor-stroll knobs. Defaults are applied by the validator. */
+  walk: WalkConfig;
   /** Drag-hold reflex threshold (ms) — proactive.drag_held fires once a drag has been held this long. */
   drag_hold_ms: number;
   /** Reflex-gesture speech cues (drag-hold / window-sit / peek). Defaults are applied by the validator. */

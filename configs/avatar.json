@@ -29,6 +29,13 @@
     "pat_hold_ms": 300,
     "bored_cue": { "label": "bored poking" }
   },
+  "walk": {
+    "interval_min_ms": 60000,
+    "interval_max_ms": 180000,
+    "distance_min_px": 80,
+    "distance_max_px": 320,
+    "floor_tolerance_px": 8
+  },
   "drag_hold_ms": 5000,
   "gesture_cues": {
     "drag_held": { "label": "dragged around" },

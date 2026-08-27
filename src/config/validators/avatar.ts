@@ -8,6 +8,8 @@ import {
   type PeekConfig,
   TAP_DEFAULTS,
   type TapConfig,
+  WALK_DEFAULTS,
+  type WalkConfig,
 } from "../load";
 import { assertValid, ConfigError, isObject } from "./shared";
 
@@ -394,6 +396,51 @@ export function validateAvatar(file: string, raw: unknown): AvatarConfig {
     }
   }
 
+  const walk: WalkConfig = { ...WALK_DEFAULTS };
+  const rawWalk = raw.walk;
+  if (rawWalk !== undefined) {
+    if (!isObject(rawWalk)) {
+      issues.push(`walk은 객체여야 함 (받음: ${JSON.stringify(rawWalk)})`);
+    } else {
+      for (const field of [
+        "interval_min_ms",
+        "interval_max_ms",
+        "distance_min_px",
+        "distance_max_px",
+      ] as const) {
+        const value = rawWalk[field];
+        if (value === undefined) continue;
+        if (typeof value !== "number" || !Number.isFinite(value) || value <= 0) {
+          issues.push(
+            `walk.${field}는 0보다 큰 유한 number여야 함 (받음: ${JSON.stringify(value)})`,
+          );
+        } else {
+          walk[field] = value;
+        }
+      }
+      const tolerance = rawWalk.floor_tolerance_px;
+      if (tolerance !== undefined) {
+        if (typeof tolerance !== "number" || !Number.isFinite(tolerance) || tolerance < 0) {
+          issues.push(
+            `walk.floor_tolerance_px는 0 이상 유한 number여야 함 (받음: ${JSON.stringify(tolerance)})`,
+          );
+        } else {
+          walk.floor_tolerance_px = tolerance;
+        }
+      }
+      if (walk.interval_min_ms > walk.interval_max_ms) {
+        issues.push(
+          `walk.interval_min_ms는 walk.interval_max_ms 이하여야 함 (받음: ${walk.interval_min_ms} > ${walk.interval_max_ms})`,
+        );
+      }
+      if (walk.distance_min_px > walk.distance_max_px) {
+        issues.push(
+          `walk.distance_min_px는 walk.distance_max_px 이하여야 함 (받음: ${walk.distance_min_px} > ${walk.distance_max_px})`,
+        );
+      }
+    }
+  }
+
   let drag_hold_ms = DRAG_HOLD_MS_DEFAULT;
   const rawDragHoldMs = raw.drag_hold_ms;
   if (rawDragHoldMs !== undefined) {
@@ -494,6 +541,7 @@ export function validateAvatar(file: string, raw: unknown): AvatarConfig {
     vrm_url,
     tap,
     peek,
+    walk,
     drag_hold_ms,
     gesture_cues,
     ...(available !== undefined ? { available } : {}),

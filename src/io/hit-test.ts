@@ -150,6 +150,8 @@ export interface HitTestController {
   suspend(mode?: "capture" | "passthrough", owner?: string): void;
   /** Resume normal toggling when the caller owns the suspension. */
   resume(owner?: string): void;
+  /** While the window is being moved by the client, re-read its origin every tick. */
+  setMoving(moving: boolean): void;
 }
 
 interface HitTestOptions {
@@ -195,7 +197,7 @@ export function createHitTestController(opts: HitTestOptions): HitTestController
   // Mirror drag.ts: inert in a plain browser so Vite/browser dev still boots.
   if (!isTauri()) {
     log.debug("hit_test_disabled", { reason: "non_tauri" });
-    return { start() {}, stop() {}, suspend() {}, resume() {} };
+    return { start() {}, stop() {}, suspend() {}, resume() {}, setMoving() {} };
   }
 
   const getWindow = opts.getWindow ?? createTauriHitTestWindow;
@@ -213,6 +215,8 @@ export function createHitTestController(opts: HitTestOptions): HitTestController
   let running = false;
   let suspended = false;
   let suspendedOwner: string | null = null;
+  // An ambient stroll moves the window every frame — the cached origin goes stale at once.
+  let moving = false;
   let pollHandle: number | null = null;
   let ignoreChain = Promise.resolve();
   // Consecutive poll failures: after this many, degrade to CAPTURE.
@@ -328,7 +332,7 @@ export function createHitTestController(opts: HitTestOptions): HitTestController
       doc.visibilityState === "hidden"
     )
       return;
-    const refreshStatics = cachedOrigin === null || tick % STATIC_REFRESH_TICKS === 0;
+    const refreshStatics = cachedOrigin === null || moving || tick % STATIC_REFRESH_TICKS === 0;
     tick++;
     try {
       let cursor: Vec2;
@@ -423,5 +427,9 @@ export function createHitTestController(opts: HitTestOptions): HitTestController
     setIgnore(false);
   }
 
-  return { start, stop, suspend, resume };
+  function setMoving(next: boolean): void {
+    moving = next;
+  }
+
+  return { start, stop, suspend, resume, setMoving };
 }

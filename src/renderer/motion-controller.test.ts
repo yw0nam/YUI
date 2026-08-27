@@ -716,6 +716,23 @@ describe("window_sit — exit and oneshot-return", () => {
       expect(afterFinish.motion.id).toBe("window_sit");
     }
   });
+
+  it("a p70 oneshot over the real walk clip returns to idle, never back to walk", () => {
+    const mc = createMotionController(realRegistry, { rng: () => 0, baselineId: "idle" });
+    mc.commit(mc.request({ id: "walk" }));
+
+    const happy = mc.request({ id: "happy" });
+    expect(happy.action).toBe("play");
+    mc.commit(happy);
+
+    // The stroll is over the moment its clip is taken — a finishing oneshot must not
+    // resume an in-place walk cycle on a character that is standing still.
+    const afterFinish = mc.finish("happy");
+    expect(afterFinish.action).toBe("play");
+    if (afterFinish.action === "play") {
+      expect(afterFinish.motion.id).toBe("idle");
+    }
+  });
 });
 
 // ─────────────────────────────────────────────────────────────────────────────

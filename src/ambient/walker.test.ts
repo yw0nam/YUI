@@ -11,9 +11,9 @@ import {
   WALK_MOTION_ID,
   WALK_YAW_EASE_MS,
   WALK_YAW_RAD,
-  walkSpeedPxPerSec,
   type WalkerDeps,
   type WalkerMonitor,
+  walkSpeedPxPerSec,
 } from "./walker";
 
 const CFG: WalkConfig = {
@@ -224,6 +224,11 @@ function makeHarness(
     // Let the async window/monitor reads settle before the next frame.
     for (let i = 0; i < 6; i++) await Promise.resolve();
   };
+  /** One frame with no microtask flush — leaves the fire-time reads in flight. */
+  const tickOnly = (dt: number): void => {
+    elapsed += dt;
+    tick?.({ vrm: {} as never, dt, elapsed } as TickContext);
+  };
   /** One frame to arm the interval, then one that lands past it. */
   const skipInterval = async (): Promise<void> => {
     await frame();
@@ -238,6 +243,7 @@ function makeHarness(
     starts,
     ends,
     frame,
+    tickOnly,
     skipInterval,
     setCurrentMotion: (m: { id: string; vrma_path: string } | null) => {
       currentMotion = m;
@@ -365,6 +371,18 @@ describe("createWalker", () => {
     expect(h.positions.length).toBe(movedSoFar);
     h.walker.cancel();
     expect(h.ends).toHaveBeenCalledTimes(1);
+  });
+
+  it("drops a stroll whose plan was still in flight when a cancel landed", async () => {
+    const h = makeHarness();
+    h.walker.start();
+    await h.frame();
+    h.tickOnly(200);
+    h.walker.cancel();
+    await h.frame();
+    expect(h.starts).not.toHaveBeenCalled();
+    expect(h.walker.isWalking()).toBe(false);
+    expect(h.motions).toEqual([]);
   });
 
   it("cancel() outside a stroll reports nothing", () => {

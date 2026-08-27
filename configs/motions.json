@@ -130,6 +130,14 @@
     "interrupt_policy": "ignore",
     "broker_publish": false
   },
+  "walk": {
+    "vrma_path": "/motions/walk.vrma",
+    "kind": "reactive",
+    "loop": true,
+    "priority": 55,
+    "interrupt_policy": "replace",
+    "broker_publish": false
+  },
   "sulk": {
     "vrma_path": "/motions/suneru.vrma",
     "kind": "oneshot",
