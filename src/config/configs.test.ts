@@ -329,10 +329,14 @@ describe("configs/motions.json", () => {
       vrma_path: "/motions/walk.vrma",
       kind: "reactive",
       loop: true,
-      priority: 55,
+      priority: 45,
       interrupt_policy: "replace",
       broker_publish: false,
     });
+  });
+
+  it("keeps walk below thinking so a backend turn takes the clip mid-stroll", () => {
+    expect(m.walk.priority).toBeLessThan(m.thinking.priority);
   });
 
   it("registers the standing-gesture batch as oneshot p70", () => {
