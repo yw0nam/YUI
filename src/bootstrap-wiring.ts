@@ -1,6 +1,6 @@
 /** Bootstrap wiring helpers extracted from main.ts: VRM + speaker selection stores and their swap/import flows. */
 import type { Tier1Engine } from "./ambient/tier1";
-import { createWalker, type Walker } from "./ambient/walker";
+import { createWalker, type Walker, type WalkerWindow } from "./ambient/walker";
 import {
   type AppConfig,
   type ConfigSection,
@@ -465,17 +465,21 @@ export function wireWalker(deps: {
     const push = (event_name: string): void => {
       bus.push({ source: "timer_scheduler", event_name, ts: Date.now(), hint_tier: 1 });
     };
+    // Built once: a stroll asks for this handle on every frame it moves the window.
+    const moveTo = new PhysicalPosition(0, 0);
+    const walkerWindow: WalkerWindow = {
+      outerPosition: () => getCurrentWindow().outerPosition(),
+      outerSize: () => getCurrentWindow().outerSize(),
+      scaleFactor: () => getCurrentWindow().scaleFactor(),
+      setPositionPhysical: (x, y) => {
+        moveTo.x = x;
+        moveTo.y = y;
+        return getCurrentWindow().setPosition(moveTo);
+      },
+    };
     walker = createWalker({
       renderer,
-      getWindow: () => {
-        const win = getCurrentWindow();
-        return {
-          outerPosition: () => win.outerPosition(),
-          outerSize: () => win.outerSize(),
-          scaleFactor: () => win.scaleFactor(),
-          setPositionPhysical: (x, y) => win.setPosition(new PhysicalPosition(x, y)),
-        };
-      },
+      getWindow: () => walkerWindow,
       listMonitors: async () =>
         (await availableMonitors()).map((m) => ({
           position: { x: m.position.x, y: m.position.y },

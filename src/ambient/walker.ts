@@ -170,7 +170,6 @@ export interface Walker {
   /** End a running stroll now and rearm the interval. */
   cancel(): void;
   stop(): void;
-  isWalking(): boolean;
 }
 
 /** Index of the monitor whose bounds contain the point, or null. */
@@ -194,7 +193,13 @@ export function createWalker(deps: WalkerDeps): Walker {
   /** Frame-clock deadline (ms) for the next attempt; negative = needs arming. */
   let nextAtMs = -1;
   /** Live stroll, all in physical px. */
-  let stroll: { x: number; y: number; toX: number; pxPerMetre: number } | null = null;
+  let stroll: {
+    x: number;
+    y: number;
+    toX: number;
+    pxPerMetre: number;
+    win: WalkerWindow;
+  } | null = null;
   /** True while the async fire-time reads are in flight. */
   let starting = false;
   /** Bumped by every cancel/stop so an in-flight begin() drops its plan. */
@@ -266,7 +271,7 @@ export function createWalker(deps: WalkerDeps): Walker {
     renderer.playMotion({ id: WALK_MOTION_ID });
     // A dropped request (perch suppression, dead clip) must not leave a walk_start/walk_end blip.
     if (renderer.getCurrentMotion()?.id !== WALK_MOTION_ID) return;
-    stroll = { x: pos.x, y: pos.y, toX: plan.toX * scale, pxPerMetre: pxPerMetre * scale };
+    stroll = { x: pos.x, y: pos.y, toX: plan.toX * scale, pxPerMetre: pxPerMetre * scale, win };
     renderer.setBodyYaw(plan.direction * WALK_YAW_RAD, WALK_YAW_EASE_MS);
     deps.onStart();
   }
@@ -284,8 +289,7 @@ export function createWalker(deps: WalkerDeps): Walker {
     if (cycleS === null || !(cycleS > 0)) return;
     const speed = walkSpeedPxPerSec(s.pxPerMetre, cycleS);
     s.x = advanceX(s.x, s.toX, speed, Math.min(dt, MAX_STEP_DT_S));
-    void deps
-      .getWindow()
+    void s.win
       .setPositionPhysical(Math.round(s.x), s.y)
       .catch((err) => log.warn("move_failed", { degrade: true, error: String(err) }));
     if (s.x === s.toX) endStroll();
@@ -341,9 +345,6 @@ export function createWalker(deps: WalkerDeps): Walker {
         mql.removeEventListener("change", onReduceChange);
         mql = null;
       }
-    },
-    isWalking() {
-      return stroll !== null;
     },
   };
 }

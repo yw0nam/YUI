@@ -323,7 +323,6 @@ describe("createWalker", () => {
     expect(h.motions).toEqual([{ id: WALK_MOTION_ID }]);
     expect(h.yaws).toEqual([{ rad: -WALK_YAW_RAD, easeMs: WALK_YAW_EASE_MS }]);
     expect(h.starts).toHaveBeenCalledTimes(1);
-    expect(h.walker.isWalking()).toBe(true);
   });
 
   it("yaws the opposite way for a rightward stroll", async () => {
@@ -349,7 +348,6 @@ describe("createWalker", () => {
     expect(h.motions).toEqual([{ id: WALK_MOTION_ID }, null]);
     expect(h.yaws.at(-1)).toEqual({ rad: 0, easeMs: WALK_YAW_EASE_MS });
     expect(h.ends).toHaveBeenCalledTimes(1);
-    expect(h.walker.isWalking()).toBe(false);
   });
 
   it("skips and redraws when the feet are not resting on the work-area floor", async () => {
@@ -420,7 +418,6 @@ describe("createWalker", () => {
     expect(h.motions).toEqual([{ id: WALK_MOTION_ID }]);
     expect(h.yaws.at(-1)).toEqual({ rad: 0, easeMs: WALK_YAW_EASE_MS });
     expect(h.ends).toHaveBeenCalledTimes(1);
-    expect(h.walker.isWalking()).toBe(false);
   });
 
   it("cancel() aborts a running stroll, returns the yaw, and reports the end once", async () => {
@@ -430,7 +427,6 @@ describe("createWalker", () => {
     await h.frame();
     const movedSoFar = h.positions.length;
     h.walker.cancel();
-    expect(h.walker.isWalking()).toBe(false);
     expect(h.motions).toEqual([{ id: WALK_MOTION_ID }, null]);
     expect(h.yaws.at(-1)).toEqual({ rad: 0, easeMs: WALK_YAW_EASE_MS });
     expect(h.ends).toHaveBeenCalledTimes(1);
@@ -448,7 +444,6 @@ describe("createWalker", () => {
     h.walker.cancel();
     await h.frame();
     expect(h.starts).not.toHaveBeenCalled();
-    expect(h.walker.isWalking()).toBe(false);
     expect(h.motions).toEqual([]);
   });
 
@@ -539,7 +534,6 @@ describe("createWalker", () => {
     await h.skipInterval();
     h.walker.stop();
     expect(h.ends).toHaveBeenCalledTimes(1);
-    expect(h.walker.isWalking()).toBe(false);
   });
 
   it("never starts a stroll while prefers-reduced-motion is set", async () => {
@@ -566,9 +560,9 @@ describe("createWalker", () => {
     const h = makeHarness();
     h.walker.start();
     await h.skipInterval();
-    expect(h.walker.isWalking()).toBe(true);
+    expect(h.ends).not.toHaveBeenCalled();
     for (const cb of listeners) cb({ matches: true });
-    expect(h.walker.isWalking()).toBe(false);
+    expect(h.motions).toEqual([{ id: WALK_MOTION_ID }, null]);
     expect(h.ends).toHaveBeenCalledTimes(1);
   });
 
