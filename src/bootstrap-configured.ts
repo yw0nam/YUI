@@ -456,10 +456,17 @@ const realFactories: ConfiguredBootstrapFactories = {
       getMotionKind: (id) => config.get().motions[id]?.kind,
       isPeeking: () => peekStateRef?.active() ?? false,
       isDragging: () => dragging,
+      isBusy: dispatcher.isPipelineBusy,
       setHitTestMoving: (moving) => hitTest.setMoving(moving),
       log,
     });
     register(walker.dispose);
+    // A reflex turn skips the thinking motion, so the motion gate alone would miss it.
+    register(
+      dispatcher.subscribePipelineBusy((busy) => {
+        if (busy) walker.cancel();
+      }),
+    );
 
     const windowSources = wireWindowSources({
       bus,

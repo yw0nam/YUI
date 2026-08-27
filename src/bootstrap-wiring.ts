@@ -441,6 +441,8 @@ export function wireWalker(deps: {
   getMotionKind: (id: string) => MotionKind | undefined;
   isPeeking: () => boolean;
   isDragging: () => boolean;
+  /** A turn is in flight or speech is still playing — ambient movement stays out of the way. */
+  isBusy: () => boolean;
   /** Keep the hit-test cursor mapping accurate while the window translates. */
   setHitTestMoving: (moving: boolean) => void;
   log: Logger;
@@ -490,6 +492,7 @@ export function wireWalker(deps: {
       },
       isPeeking: deps.isPeeking,
       isDragging: deps.isDragging,
+      isBusy: deps.isBusy,
       onStart: () => {
         deps.setHitTestMoving(true);
         push("avatar.walk_start");

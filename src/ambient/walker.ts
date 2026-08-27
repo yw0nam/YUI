@@ -35,6 +35,8 @@ export const WALK_CYCLE_S = 1.37;
 export const WALK_YAW_RAD = Math.PI / 2;
 /** Yaw ease (ms), run concurrently with the motion crossfade at both ends of a stroll. */
 export const WALK_YAW_EASE_MS = 400;
+/** Frame-delta cap (s) — an idle-throttled or backgrounded gap must not teleport the window. */
+export const MAX_STEP_DT_S = 0.1;
 
 /** Delay (ms) until the next stroll attempt. */
 export function nextWalkDelay(cfg: WalkConfig, rng: Rng = Math.random): number {
@@ -60,12 +62,20 @@ export interface WalkGateState {
   dragging: boolean;
   /** The committed motion is the ambient baseline — no speech/thinking/reactive motion holds the body. */
   ambientMotion: boolean;
+  /** A turn is in flight or speech is still playing. Reflex turns skip thinking, so the motion alone misses them. */
+  busy: boolean;
   reducedMotion: boolean;
 }
 
 export function canStartStroll(s: WalkGateState): boolean {
   return (
-    s.onFloor && !s.perched && !s.peeking && !s.dragging && s.ambientMotion && !s.reducedMotion
+    s.onFloor &&
+    !s.perched &&
+    !s.peeking &&
+    !s.dragging &&
+    s.ambientMotion &&
+    !s.busy &&
+    !s.reducedMotion
   );
 }
 
@@ -112,6 +122,13 @@ export interface WalkerWindow {
   setPositionPhysical(x: number, y: number): Promise<void>;
 }
 
+/** Document seam for the hidden-window guard — the renderer parks its rAF while hidden. */
+export interface WalkerDoc {
+  visibilityState: string;
+  addEventListener(type: "visibilitychange", cb: () => void): void;
+  removeEventListener(type: "visibilitychange", cb: () => void): void;
+}
+
 /** One monitor's physical bounds plus its work area. */
 export interface WalkerMonitor {
   position: { x: number; y: number };
@@ -137,6 +154,10 @@ export interface WalkerDeps {
   currentMotionKind(): MotionKind | null;
   isPeeking(): boolean;
   isDragging(): boolean;
+  /** A turn is in flight or speech is still playing. */
+  isBusy(): boolean;
+  /** Defaults to the global document; injected in tests. */
+  doc?: WalkerDoc;
   /** A stroll began — posture goes walking and the hit test follows the moving window. */
   onStart(): void;
   /** The stroll arrived, was cancelled, or lost the clip. */
@@ -182,10 +203,16 @@ export function createWalker(deps: WalkerDeps): Walker {
   let stopped = true;
   let reduce = false;
   let mql: MediaQueryList | null = null;
+  const doc = deps.doc ?? (typeof document === "undefined" ? null : document);
 
   const onReduceChange = (e: MediaQueryListEvent): void => {
     reduce = e.matches;
     if (reduce) endStroll();
+  };
+  // The renderer parks its rAF while hidden, so a stroll left running would strand
+  // the posture at walking and hold the hit test in per-tick mode.
+  const onVisibilityChange = (): void => {
+    if (doc?.visibilityState === "hidden") endStroll();
   };
 
   /** End the stroll and rearm. Leaves the clip alone when something else already took it. */
@@ -224,6 +251,7 @@ export function createWalker(deps: WalkerDeps): Walker {
       peeking: deps.isPeeking(),
       dragging: deps.isDragging(),
       ambientMotion: deps.currentMotionKind() === "ambient",
+      busy: deps.isBusy(),
       reducedMotion: reduce,
     };
     if (!canStartStroll(gate)) return;
@@ -236,13 +264,15 @@ export function createWalker(deps: WalkerDeps): Walker {
       rng,
     });
     if (!plan) return;
+    renderer.playMotion({ id: WALK_MOTION_ID });
+    // A dropped request (perch suppression, dead clip) must not leave a walk_start/walk_end blip.
+    if (renderer.getCurrentMotion()?.id !== WALK_MOTION_ID) return;
     stroll = {
       x: pos.x,
       y: pos.y,
       toX: plan.toX * scale,
       speedPxPerSec: walkSpeedPxPerSec(pxPerMetre) * scale,
     };
-    renderer.playMotion({ id: WALK_MOTION_ID });
     renderer.setBodyYaw(plan.direction * WALK_YAW_RAD, WALK_YAW_EASE_MS);
     deps.onStart();
   }
@@ -255,7 +285,7 @@ export function createWalker(deps: WalkerDeps): Walker {
       endStroll();
       return;
     }
-    s.x = advanceX(s.x, s.toX, s.speedPxPerSec, dt);
+    s.x = advanceX(s.x, s.toX, s.speedPxPerSec, Math.min(dt, MAX_STEP_DT_S));
     void deps
       .getWindow()
       .setPositionPhysical(Math.round(s.x), s.y)
@@ -297,6 +327,7 @@ export function createWalker(deps: WalkerDeps): Walker {
       } catch {
         /* matchMedia unavailable (tests, etc.) — ignore */
       }
+      doc?.addEventListener("visibilitychange", onVisibilityChange);
       unsub = renderer.onTick(tick);
     },
     cancel() {
@@ -307,6 +338,7 @@ export function createWalker(deps: WalkerDeps): Walker {
       endStroll();
       unsub?.();
       unsub = null;
+      doc?.removeEventListener("visibilitychange", onVisibilityChange);
       if (mql) {
         mql.removeEventListener("change", onReduceChange);
         mql = null;
