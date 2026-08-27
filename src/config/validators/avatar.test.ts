@@ -47,8 +47,8 @@ describe("validateAvatar — happy path", () => {
         peek: { label: "peeking" },
       },
       walk: {
-        interval_min_ms: 60_000,
-        interval_max_ms: 180_000,
+        interval_min_ms: 30_000,
+        interval_max_ms: 60_000,
         distance_min_px: 200,
         distance_max_px: 600,
         floor_tolerance_px: 24,
@@ -503,7 +503,7 @@ describe("validateAvatar — walk", () => {
 
     expect(out.walk).toEqual({
       interval_min_ms: 10_000,
-      interval_max_ms: 180_000,
+      interval_max_ms: 60_000,
       distance_min_px: 200,
       distance_max_px: 500,
       floor_tolerance_px: 24,

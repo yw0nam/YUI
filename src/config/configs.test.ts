@@ -84,8 +84,8 @@ describe("configs/avatar.json", () => {
 
   it("carries the ambient walk scheduler knobs", () => {
     expect(a.walk).toEqual({
-      interval_min_ms: 60000,
-      interval_max_ms: 180000,
+      interval_min_ms: 30000,
+      interval_max_ms: 60000,
       distance_min_px: 200,
       distance_max_px: 600,
       floor_tolerance_px: 24,
