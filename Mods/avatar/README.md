@@ -36,7 +36,7 @@ The agent then adds the MCP tool source at `http://localhost:9002/mcp` directly,
 
 | Tool | Description |
 |---|---|
-| `get_body_state()` | Window position + monitor, posture (standing / sitting / peeking / dragging and what it is perched on), loaded VRM, and whether a move is running |
+| `get_body_state()` | Window position + monitor, posture (standing / sitting / peeking / dragging / walking and what it is perched on), loaded VRM, and whether a move is running |
 | `list_perch_targets()` | The client's tracked perch candidates plus the peek edges. Each window carries `app`, `title` and `rect`; `app` and `title` are `null` when the OS reports no name for that window |
 | `sit_on_window(app)` | Sit on the top edge of that app's window (name matched case-insensitively). With several windows of that app, the frontmost one with a reachable top edge wins — a thumbnail covered by a Stage Manager overlay is skipped for the real window behind it |
 | `peek(side)` | Peek around the `"left"` or `"right"` edge of the frontmost window |
