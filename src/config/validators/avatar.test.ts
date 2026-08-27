@@ -49,9 +49,9 @@ describe("validateAvatar — happy path", () => {
       walk: {
         interval_min_ms: 60_000,
         interval_max_ms: 180_000,
-        distance_min_px: 80,
-        distance_max_px: 320,
-        floor_tolerance_px: 8,
+        distance_min_px: 200,
+        distance_max_px: 600,
+        floor_tolerance_px: 24,
       },
     });
   });
@@ -504,9 +504,9 @@ describe("validateAvatar — walk", () => {
     expect(out.walk).toEqual({
       interval_min_ms: 10_000,
       interval_max_ms: 180_000,
-      distance_min_px: 80,
+      distance_min_px: 200,
       distance_max_px: 500,
-      floor_tolerance_px: 8,
+      floor_tolerance_px: 24,
     });
   });
 
@@ -544,7 +544,7 @@ describe("validateAvatar — walk", () => {
 
   it("rejects an inverted distance range", () => {
     expectIssue(
-      { vrm_url: "/v.vrm", walk: { distance_min_px: 400 } },
+      { vrm_url: "/v.vrm", walk: { distance_min_px: 700 } },
       "walk.distance_min_px는 walk.distance_max_px 이하",
     );
   });

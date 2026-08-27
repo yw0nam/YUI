@@ -86,9 +86,9 @@ describe("configs/avatar.json", () => {
     expect(a.walk).toEqual({
       interval_min_ms: 60000,
       interval_max_ms: 180000,
-      distance_min_px: 80,
-      distance_max_px: 320,
-      floor_tolerance_px: 8,
+      distance_min_px: 200,
+      distance_max_px: 600,
+      floor_tolerance_px: 24,
     });
   });
 
