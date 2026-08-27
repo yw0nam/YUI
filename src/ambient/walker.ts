@@ -46,13 +46,14 @@ export function walkSpeedPxPerSec(pxPerMetre: number): number {
   return (pxPerMetre * WALK_METRES_PER_CYCLE) / WALK_CYCLE_S;
 }
 
-/** Whether the window bottom rests on the work-area bottom, within tolerance. */
-export function onFloor(windowBottomPx: number, floorPx: number, tolerancePx: number): boolean {
-  return Math.abs(windowBottomPx - floorPx) <= tolerancePx;
+/** Whether the character's feet rest on the work-area bottom, within tolerance. */
+export function onFloor(feetPx: number, floorPx: number, tolerancePx: number): boolean {
+  return Math.abs(feetPx - floorPx) <= tolerancePx;
 }
 
 /** Everything that can keep a stroll from starting, sampled at fire time. */
 export interface WalkGateState {
+  /** The feet, not the window bottom — the framing margin leaves headroom under the model. */
   onFloor: boolean;
   perched: boolean;
   peeking: boolean;
@@ -121,7 +122,13 @@ export interface WalkerMonitor {
 export interface WalkerDeps {
   renderer: Pick<
     Renderer,
-    "onTick" | "playMotion" | "getCurrentMotion" | "setBodyYaw" | "getPxPerMetre" | "isPerched"
+    | "onTick"
+    | "playMotion"
+    | "getCurrentMotion"
+    | "setBodyYaw"
+    | "getPxPerMetre"
+    | "getCharacterAnchor"
+    | "isPerched"
   >;
   getWindow(): WalkerWindow;
   listMonitors(): Promise<WalkerMonitor[]>;
@@ -196,6 +203,8 @@ export function createWalker(deps: WalkerDeps): Walker {
     const startedAt = generation;
     const cfg = deps.getConfig();
     const pxPerMetre = renderer.getPxPerMetre();
+    // Feet in canvas-local logical px; the window bottom sits well below them.
+    const feet = renderer.getCharacterAnchor();
     const win = deps.getWindow();
     const [pos, size, sf, monitors] = await Promise.all([
       win.outerPosition(),
@@ -210,7 +219,7 @@ export function createWalker(deps: WalkerDeps): Walker {
     const work = monitor.workArea;
     const floorPx = (work.position.y + work.size.height) / scale;
     const gate: WalkGateState = {
-      onFloor: onFloor((pos.y + size.height) / scale, floorPx, cfg.floor_tolerance_px),
+      onFloor: feet !== null && onFloor(pos.y / scale + feet.y, floorPx, cfg.floor_tolerance_px),
       perched: renderer.isPerched(),
       peeking: deps.isPeeking(),
       dragging: deps.isDragging(),
