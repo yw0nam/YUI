@@ -29,8 +29,6 @@ const log = createLogger("walker");
 export const WALK_MOTION_ID = "walk";
 /** Mixamo "Walking" advances this far per cycle at playback rate 1.0. */
 export const WALK_METRES_PER_CYCLE = 1.34;
-/** Length of one Mixamo "Walking" cycle (s). */
-export const WALK_CYCLE_S = 1.37;
 /** Root yaw (rad) toward the travel direction — a quarter turn off camera-facing. */
 export const WALK_YAW_RAD = Math.PI / 2;
 /** Yaw ease (ms), run concurrently with the motion crossfade at both ends of a stroll. */
@@ -43,9 +41,9 @@ export function nextWalkDelay(cfg: WalkConfig, rng: Rng = Math.random): number {
   return randRange(cfg.interval_min_ms, cfg.interval_max_ms, rng);
 }
 
-/** Ground speed (px/s) of the walk clip at a given px-per-metre framing. */
-export function walkSpeedPxPerSec(pxPerMetre: number): number {
-  return (pxPerMetre * WALK_METRES_PER_CYCLE) / WALK_CYCLE_S;
+/** Ground speed (px/s) of the walk clip: one stride per loop of the clip's own cycle. */
+export function walkSpeedPxPerSec(pxPerMetre: number, cycleS: number): number {
+  return (pxPerMetre * WALK_METRES_PER_CYCLE) / cycleS;
 }
 
 /** Whether the character's feet rest on the work-area bottom, within tolerance. */
@@ -144,6 +142,7 @@ export interface WalkerDeps {
     | "getCurrentMotion"
     | "setBodyYaw"
     | "getPxPerMetre"
+    | "getMotionDuration"
     | "getCharacterAnchor"
     | "isPerched"
   >;
@@ -195,7 +194,7 @@ export function createWalker(deps: WalkerDeps): Walker {
   /** Frame-clock deadline (ms) for the next attempt; negative = needs arming. */
   let nextAtMs = -1;
   /** Live stroll, all in physical px. */
-  let stroll: { x: number; y: number; toX: number; speedPxPerSec: number } | null = null;
+  let stroll: { x: number; y: number; toX: number; pxPerMetre: number } | null = null;
   /** True while the async fire-time reads are in flight. */
   let starting = false;
   /** Bumped by every cancel/stop so an in-flight begin() drops its plan. */
@@ -267,12 +266,7 @@ export function createWalker(deps: WalkerDeps): Walker {
     renderer.playMotion({ id: WALK_MOTION_ID });
     // A dropped request (perch suppression, dead clip) must not leave a walk_start/walk_end blip.
     if (renderer.getCurrentMotion()?.id !== WALK_MOTION_ID) return;
-    stroll = {
-      x: pos.x,
-      y: pos.y,
-      toX: plan.toX * scale,
-      speedPxPerSec: walkSpeedPxPerSec(pxPerMetre) * scale,
-    };
+    stroll = { x: pos.x, y: pos.y, toX: plan.toX * scale, pxPerMetre: pxPerMetre * scale };
     renderer.setBodyYaw(plan.direction * WALK_YAW_RAD, WALK_YAW_EASE_MS);
     deps.onStart();
   }
@@ -285,7 +279,11 @@ export function createWalker(deps: WalkerDeps): Walker {
       endStroll();
       return;
     }
-    s.x = advanceX(s.x, s.toX, s.speedPxPerSec, Math.min(dt, MAX_STEP_DT_S));
+    // The clip paces the feet — until it is cached there is no cycle to walk at.
+    const cycleS = renderer.getMotionDuration(WALK_MOTION_ID);
+    if (cycleS === null || !(cycleS > 0)) return;
+    const speed = walkSpeedPxPerSec(s.pxPerMetre, cycleS);
+    s.x = advanceX(s.x, s.toX, speed, Math.min(dt, MAX_STEP_DT_S));
     void deps
       .getWindow()
       .setPositionPhysical(Math.round(s.x), s.y)

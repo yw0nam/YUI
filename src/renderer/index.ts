@@ -264,10 +264,15 @@ export interface Renderer {
   setBodyYaw(rad: number, easeMs: number): void;
   /**
    * Screen pixels spanning one world metre at the current framing, measured at the
-   * model's depth. null when no VRM is loaded — the stroll derives its ground speed
-   * from this so the feet never slide at any window size or zoom.
+   * feet. null when no VRM is loaded — the stroll derives its ground speed from this
+   * so the feet never slide at any window size or zoom.
    */
   getPxPerMetre(): number | null;
+  /**
+   * Cycle length (s) of a registered motion's loaded clip, null until it is cached.
+   * A looping clip repeats on its own duration, which is what a ground speed must divide by.
+   */
+  getMotionDuration(id: string): number | null;
   /**
    * Enable/disable the idle 30fps cap at runtime. Enabled (default) caps ambient-only
    * frames to IDLE_FPS; disabled renders idle frames at full refresh. Pause-on-hidden
@@ -1133,12 +1138,20 @@ export function createRenderer(options: RendererOptions): Renderer {
     getPxPerMetre() {
       if (!currentVrm || !modelBox) return null;
       camera.updateMatrixWorld();
-      const depth = modelBox
-        .getCenter(pxPerMetreScratch)
+      // Measured at the feet — the same point the floor gate and the stroll travel on.
+      const { min, max } = modelBox;
+      const depth = pxPerMetreScratch
+        .set((min.x + max.x) / 2, min.y, (min.z + max.z) / 2)
         .sub(camera.position)
         .dot(camera.getWorldDirection(pxPerMetreForward));
       const perPixel = worldYPerPixel(camera, depth, mount.clientHeight || 1);
       return Number.isFinite(perPixel) && perPixel > 0 ? 1 / perPixel : null;
+    },
+    getMotionDuration(id) {
+      const vrmaPath = motionRegistry?.[id]?.vrma_path;
+      if (!vrmaPath) return null;
+      const clip = clipCache.get(clipCacheKey(vrmaPath, motionMirror));
+      return clip ? clip.duration : null;
     },
     setIdleThrottleEnabled(enabled) {
       idleThrottleEnabled = enabled;
