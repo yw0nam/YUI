@@ -154,6 +154,39 @@ describe("event_bus — proactive.* family", () => {
   });
 });
 
+describe("event_bus — avatar.* family", () => {
+  it.each(["avatar.walk_start", "avatar.walk_end"])(
+    "accepts %s from timer_scheduler (not unknown_event_name-dropped)",
+    (event_name) => {
+      expect(
+        bus.push(env({ source: "timer_scheduler", event_name, ts: NOW, dnd_override: false })),
+      ).toBe(true);
+      expect(bus.snapshot()).toHaveLength(1);
+    },
+  );
+
+  it("gives avatar.* priority 3 — after proactive.* (2), alongside os.*", () => {
+    bus.push(
+      env({
+        source: "timer_scheduler",
+        event_name: "avatar.walk_start",
+        ts: NOW,
+        dnd_override: false,
+      }),
+    );
+    bus.push(
+      env({
+        source: "timer_scheduler",
+        event_name: "proactive.cowork",
+        ts: NOW,
+        dnd_override: false,
+      }),
+    );
+    expect(bus.pop()!.event_name).toBe("proactive.cowork");
+    expect(bus.pop()!.event_name).toBe("avatar.walk_start");
+  });
+});
+
 describe("event_bus — agent.* family", () => {
   it("accepts agent.done from timer_scheduler (not unknown_event_name-dropped)", () => {
     expect(

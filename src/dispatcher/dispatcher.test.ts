@@ -272,6 +272,7 @@ describe("dispatcher — posture", () => {
       { state: "peeking", perched_on: { app: "Messages", window_title: "Alice" } },
     ],
     ["user.drag_start", undefined, { state: "dragging" }],
+    ["avatar.walk_start", undefined, { state: "walking" }],
   ] as const)("derives posture from %s", async (event_name, payload, expected) => {
     dispatcher.start();
     await pushPostureEvent(event_name, payload);
@@ -396,6 +397,23 @@ describe("dispatcher — posture", () => {
     await pushPostureEvent("user.tap_region", { region: "head" });
     await pushPostureEvent("idle.returned");
     expect(dispatcher.getBodyState()).toEqual(sitting);
+  });
+
+  it("returns to standing when the stroll ends", async () => {
+    dispatcher.start();
+    await pushPostureEvent("avatar.walk_start");
+    expect(dispatcher.getPosture()).toEqual({ state: "walking" });
+    await pushPostureEvent("avatar.walk_end");
+    expect(dispatcher.getPosture()).toEqual({ state: "standing" });
+  });
+
+  it("renders nothing and fires no backend turn for a stroll", async () => {
+    dispatcher.start();
+    applyDirective.mockClear();
+    await pushPostureEvent("avatar.walk_start");
+    await pushPostureEvent("avatar.walk_end");
+    expect(applyDirective).not.toHaveBeenCalled();
+    expect(backendCaller.call).not.toHaveBeenCalled();
   });
 
   it("reports standing before any posture event, and again once the avatar stands free", async () => {

@@ -1,6 +1,7 @@
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
+import { agentTriggerableMotionIds } from "../io/broker-client";
 import { validateEndpoints } from "./validators/endpoints";
 import { validateMotions } from "./validators/motions";
 import { validateScreen } from "./validators/screen";
@@ -78,6 +79,16 @@ describe("configs/avatar.json", () => {
       side_in_frac: 0.23,
       inset_frac: 0.12,
       mirror_side: "right",
+    });
+  });
+
+  it("carries the ambient walk scheduler knobs", () => {
+    expect(a.walk).toEqual({
+      interval_min_ms: 60000,
+      interval_max_ms: 180000,
+      distance_min_px: 80,
+      distance_max_px: 320,
+      floor_tolerance_px: 8,
     });
   });
 
@@ -304,6 +315,24 @@ describe("configs/motions.json", () => {
     expect(published).not.toContain("suneru");
     expect(published).not.toContain("thinking");
     expect(published).not.toContain("peek");
+    expect(published).not.toContain("walk");
+  });
+
+  it("keeps walk out of the agent-triggerable vocabulary the broker publishes", () => {
+    expect(agentTriggerableMotionIds(validateMotions("configs/motions.json", m))).not.toContain(
+      "walk",
+    );
+  });
+
+  it("registers walk as a looping in-place state for the ambient stroll", () => {
+    expect(m.walk).toEqual({
+      vrma_path: "/motions/walk.vrma",
+      kind: "state",
+      loop: true,
+      priority: 55,
+      interrupt_policy: "replace",
+      broker_publish: false,
+    });
   });
 
   it("registers the standing-gesture batch as oneshot p70", () => {

@@ -46,6 +46,13 @@ describe("validateAvatar — happy path", () => {
         window_sit: { label: "sat on window" },
         peek: { label: "peeking" },
       },
+      walk: {
+        interval_min_ms: 60_000,
+        interval_max_ms: 180_000,
+        distance_min_px: 80,
+        distance_max_px: 320,
+        floor_tolerance_px: 8,
+      },
     });
   });
 
@@ -484,6 +491,61 @@ describe("validateAvatar — peek", () => {
 
   it.each(["up", true, 1])("rejects invalid mirror_side: %s", (mirror_side) => {
     expectIssue({ vrm_url: "/v.vrm", peek: { mirror_side } }, "peek.mirror_side는 left|right|none");
+  });
+});
+
+describe("validateAvatar — walk", () => {
+  it("merges partial walk blocks over defaults", () => {
+    const out = validateAvatar(FILE, {
+      vrm_url: "/v.vrm",
+      walk: { interval_min_ms: 10_000, distance_max_px: 500 },
+    });
+
+    expect(out.walk).toEqual({
+      interval_min_ms: 10_000,
+      interval_max_ms: 180_000,
+      distance_min_px: 80,
+      distance_max_px: 500,
+      floor_tolerance_px: 8,
+    });
+  });
+
+  it("rejects a non-object walk block", () => {
+    expectIssue({ vrm_url: "/v.vrm", walk: "nope" }, "walk은 객체여야 함");
+  });
+
+  it.each([
+    ["interval_min_ms", 0],
+    ["interval_min_ms", -1],
+    ["interval_max_ms", "60000"],
+    ["distance_min_px", Number.NaN],
+    ["distance_max_px", 0],
+  ])("rejects invalid %s: %s", (field, value) => {
+    expectIssue({ vrm_url: "/v.vrm", walk: { [field]: value } }, `walk.${field}는 0보다 큰`);
+  });
+
+  it.each([-1, "8", Number.POSITIVE_INFINITY])(
+    "rejects invalid floor_tolerance_px: %s",
+    (floor_tolerance_px) => {
+      expectIssue(
+        { vrm_url: "/v.vrm", walk: { floor_tolerance_px } },
+        "walk.floor_tolerance_px는 0 이상",
+      );
+    },
+  );
+
+  it("rejects an inverted interval range", () => {
+    expectIssue(
+      { vrm_url: "/v.vrm", walk: { interval_min_ms: 200_000 } },
+      "walk.interval_min_ms는 walk.interval_max_ms 이하",
+    );
+  });
+
+  it("rejects an inverted distance range", () => {
+    expectIssue(
+      { vrm_url: "/v.vrm", walk: { distance_min_px: 400 } },
+      "walk.distance_min_px는 walk.distance_max_px 이하",
+    );
   });
 });
 

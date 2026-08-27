@@ -55,6 +55,13 @@ describe("loadConfig — happy path", () => {
         window_sit: { label: "sat on window" },
         peek: { label: "peeking" },
       },
+      walk: {
+        interval_min_ms: 60_000,
+        interval_max_ms: 180_000,
+        distance_min_px: 80,
+        distance_max_px: 320,
+        floor_tolerance_px: 8,
+      },
     });
     expect(cfg.emotionRegistry.happy).toEqual({
       vrm_expression: "happy",
