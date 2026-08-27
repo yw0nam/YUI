@@ -74,6 +74,7 @@ describe("canStartStroll", () => {
     peeking: false,
     dragging: false,
     ambientMotion: true,
+    busy: false,
     reducedMotion: false,
   };
 
@@ -87,6 +88,7 @@ describe("canStartStroll", () => {
     ["peeking", { peeking: true }],
     ["dragging", { dragging: true }],
     ["a speech/thinking/reactive motion active", { ambientMotion: false }],
+    ["the pipeline busy (a turn in flight or speech playing)", { busy: true }],
     ["reduced motion", { reducedMotion: true }],
   ])("blocks on %s", (_label, blocker) => {
     expect(canStartStroll({ ...ok, ...blocker })).toBe(false);
@@ -170,6 +172,9 @@ function makeHarness(
     perched?: boolean;
     peeking?: boolean;
     dragging?: boolean;
+    busy?: boolean;
+    /** Models playMotion silently dropping the walk request (perch suppression, dead clip). */
+    motionRefused?: boolean;
     motionKind?: WalkerDeps["currentMotionKind"];
     rng?: () => number;
   } = {},
@@ -184,6 +189,16 @@ function makeHarness(
   };
   const starts = vi.fn();
   const ends = vi.fn();
+  const visibilityListeners = new Set<() => void>();
+  const doc = {
+    visibilityState: "visible",
+    addEventListener: (_t: "visibilitychange", cb: () => void) => {
+      visibilityListeners.add(cb);
+    },
+    removeEventListener: (_t: "visibilitychange", cb: () => void) => {
+      visibilityListeners.delete(cb);
+    },
+  };
 
   const deps: WalkerDeps = {
     renderer: {
@@ -195,6 +210,7 @@ function makeHarness(
       },
       playMotion: (m) => {
         motions.push(m);
+        if (over.motionRefused) return;
         currentMotion = m ? { id: m.id, vrma_path: `/motions/${m.id}.vrma` } : null;
       },
       getCurrentMotion: () => currentMotion,
@@ -221,6 +237,8 @@ function makeHarness(
     currentMotionKind: over.motionKind ?? (() => "ambient"),
     isPeeking: () => over.peeking ?? false,
     isDragging: () => over.dragging ?? false,
+    isBusy: () => over.busy ?? false,
+    doc,
     onStart: starts,
     onEnd: ends,
     rng: over.rng ?? (() => 0),
@@ -258,6 +276,11 @@ function makeHarness(
     setCurrentMotion: (m: { id: string; vrma_path: string } | null) => {
       currentMotion = m;
     },
+    hide: () => {
+      doc.visibilityState = "hidden";
+      for (const cb of visibilityListeners) cb();
+    },
+    visibilityListenerCount: () => visibilityListeners.size,
     hasTick: () => tick !== null,
   };
 }
@@ -359,6 +382,7 @@ describe("createWalker", () => {
     ["peeking", { peeking: true }],
     ["dragging", { dragging: true }],
     ["a reactive motion holds the body", { motionKind: () => "reactive" as const }],
+    ["a turn is in flight or speech is playing", { busy: true }],
   ])("skips while %s", async (_label, over) => {
     const h = makeHarness(over);
     h.walker.start();
@@ -418,6 +442,55 @@ describe("createWalker", () => {
     expect(h.starts).not.toHaveBeenCalled();
     expect(h.walker.isWalking()).toBe(false);
     expect(h.motions).toEqual([]);
+  });
+
+  it("ends a running stroll when the document goes hidden", async () => {
+    const h = makeHarness();
+    h.walker.start();
+    await h.skipInterval();
+    await h.frame();
+    const movedSoFar = h.positions.length;
+
+    h.hide();
+    expect(h.ends).toHaveBeenCalledTimes(1);
+    expect(h.motions).toEqual([{ id: WALK_MOTION_ID }, null]);
+
+    await h.frame();
+    expect(h.positions.length).toBe(movedSoFar);
+  });
+
+  it("drops the visibility listener on stop", () => {
+    const h = makeHarness();
+    h.walker.start();
+    expect(h.visibilityListenerCount()).toBe(1);
+    h.walker.stop();
+    expect(h.visibilityListenerCount()).toBe(0);
+  });
+
+  it("does not report a start when the walk request is refused", async () => {
+    const h = makeHarness({ motionRefused: true });
+    h.walker.start();
+    await h.skipInterval();
+    expect(h.motions).toEqual([{ id: WALK_MOTION_ID }]);
+    expect(h.starts).not.toHaveBeenCalled();
+    expect(h.ends).not.toHaveBeenCalled();
+    expect(h.yaws).toEqual([]);
+
+    await h.frame();
+    expect(h.positions).toEqual([]);
+  });
+
+  it("clamps a long frame delta so a throttled gap does not hop to the destination", async () => {
+    const h = makeHarness();
+    h.walker.start();
+    await h.skipInterval();
+
+    // 5 s of accumulated clock would cover the whole 80 px stroll many times over.
+    await h.frame(5);
+    const x = h.positions.at(-1)!.x;
+    expect(x).toBeGreaterThan(420);
+    expect(x).toBeLessThan(500);
+    expect(h.ends).not.toHaveBeenCalled();
   });
 
   it("cancel() outside a stroll reports nothing", () => {
