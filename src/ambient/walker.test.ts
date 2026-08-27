@@ -44,13 +44,16 @@ describe("nextWalkDelay", () => {
 });
 
 describe("walkSpeedPxPerSec", () => {
-  it("derives the clip's own ground speed from the px-per-metre framing", () => {
-    // Mixamo "Walking": 1.34 m per 1.37 s cycle at playback rate 1.0.
-    expect(walkSpeedPxPerSec(100)).toBeCloseTo((100 * 1.34) / 1.37, 6);
+  it("divides the clip's 1.34 m stride by the cycle length the clip actually loops on", () => {
+    expect(walkSpeedPxPerSec(100, 1.267)).toBeCloseTo((100 * 1.34) / 1.267, 6);
+  });
+
+  it("slows down as the cycle lengthens", () => {
+    expect(walkSpeedPxPerSec(100, 2.534)).toBeCloseTo(walkSpeedPxPerSec(100, 1.267) / 2, 6);
   });
 
   it("scales linearly with the framing so the feet never slide", () => {
-    expect(walkSpeedPxPerSec(600)).toBeCloseTo(walkSpeedPxPerSec(300) * 2, 6);
+    expect(walkSpeedPxPerSec(600, 1.267)).toBeCloseTo(walkSpeedPxPerSec(300, 1.267) * 2, 6);
   });
 });
 
@@ -155,6 +158,8 @@ const MONITOR: WalkerMonitor = {
   workArea: { position: { x: 0, y: 0 }, size: { width: 1920, height: 1500 } },
 };
 
+/** The shipped walk.vrma loops on its own last keyframe, not on a nominal 1.37 s cycle. */
+const CLIP_S = 1.267;
 /** Feet sit this far below the canvas top — the framing margin leaves the rest as headroom. */
 const FEET_Y = 420;
 /** Window sized 400×600 whose FEET (y + FEET_Y = 1500) rest on the floor; its bottom hangs below. */
@@ -173,6 +178,8 @@ function makeHarness(
     peeking?: boolean;
     dragging?: boolean;
     busy?: boolean;
+    /** Duration (s) the walk clip loops on. null models a clip still loading. */
+    clipDuration?: number | null;
     /** Models playMotion silently dropping the walk request (perch suppression, dead clip). */
     motionRefused?: boolean;
     motionKind?: WalkerDeps["currentMotionKind"];
@@ -214,6 +221,7 @@ function makeHarness(
         currentMotion = m ? { id: m.id, vrma_path: `/motions/${m.id}.vrma` } : null;
       },
       getCurrentMotion: () => currentMotion,
+      getMotionDuration: () => (over.clipDuration === undefined ? CLIP_S : over.clipDuration),
       setBodyYaw: (rad, easeMs) => {
         yaws.push({ rad, easeMs });
       },
@@ -490,6 +498,31 @@ describe("createWalker", () => {
     const x = h.positions.at(-1)!.x;
     expect(x).toBeGreaterThan(420);
     expect(x).toBeLessThan(500);
+    expect(h.ends).not.toHaveBeenCalled();
+  });
+
+  it("paces the window at the loaded clip's own cycle, not a nominal one", async () => {
+    const h = makeHarness();
+    h.walker.start();
+    await h.skipInterval();
+
+    // A full clamped frame — a 1/60 s step is too small to separate 1.267 s from 1.37 s.
+    const dt = 0.1;
+    await h.frame(dt);
+    // 300 px/m over a 1.267 s cycle carrying 1.34 m of stride.
+    const expected = WINDOW_POS.x - ((300 * 1.34) / CLIP_S) * dt;
+    expect(h.positions.at(-1)!.x).toBe(Math.round(expected));
+  });
+
+  it("holds position while the walk clip is still loading", async () => {
+    const h = makeHarness({ clipDuration: null });
+    h.walker.start();
+    await h.skipInterval();
+    expect(h.starts).toHaveBeenCalledTimes(1);
+
+    await h.frame();
+    await h.frame();
+    expect(h.positions).toEqual([]);
     expect(h.ends).not.toHaveBeenCalled();
   });
 
