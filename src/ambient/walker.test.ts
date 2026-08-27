@@ -153,13 +153,19 @@ const MONITOR: WalkerMonitor = {
   workArea: { position: { x: 0, y: 0 }, size: { width: 1920, height: 1500 } },
 };
 
+/** Feet sit this far below the canvas top — the framing margin leaves the rest as headroom. */
+const FEET_Y = 420;
+/** Window sized 400×600 whose FEET (y + FEET_Y = 1500) rest on the floor; its bottom hangs below. */
+const WINDOW_POS = { x: 500, y: 1080 };
+
 /**
- * Window at (500, 900) sized 400×600 ⇒ bottom 1500 == the work-area floor.
  * rng () => 0 ⇒ a 60 s interval and an 80 px stroll to the left (destination 420).
  */
 function makeHarness(
   over: {
     position?: { x: number; y: number };
+    /** Canvas-local logical y of the feet anchor. null models an unloaded VRM. */
+    feetY?: number | null;
     pxPerMetre?: number | null;
     perched?: boolean;
     peeking?: boolean;
@@ -196,10 +202,14 @@ function makeHarness(
         yaws.push({ rad, easeMs });
       },
       getPxPerMetre: () => (over.pxPerMetre === undefined ? 300 : over.pxPerMetre),
+      getCharacterAnchor: () => {
+        const y = over.feetY === undefined ? FEET_Y : over.feetY;
+        return y === null ? null : { x: 200, y };
+      },
       isPerched: () => over.perched ?? false,
     },
     getWindow: () => ({
-      outerPosition: async () => over.position ?? { x: 500, y: 900 },
+      outerPosition: async () => over.position ?? WINDOW_POS,
       outerSize: async () => ({ width: 400, height: 600 }),
       scaleFactor: async () => 1,
       setPositionPhysical: async (x, y) => {
@@ -298,11 +308,11 @@ describe("createWalker", () => {
     await h.skipInterval();
     // 80 logical px at ~293 px/s ≈ 0.27 s.
     for (let i = 0; i < 30; i++) await h.frame();
-    expect(h.positions.at(-1)).toEqual({ x: 420, y: 900 });
+    expect(h.positions.at(-1)).toEqual({ x: 420, y: WINDOW_POS.y });
     for (const p of h.positions) {
       expect(p.x).toBeGreaterThanOrEqual(420);
       expect(p.x).toBeLessThanOrEqual(500);
-      expect(p.y).toBe(900);
+      expect(p.y).toBe(WINDOW_POS.y);
     }
     expect(h.positions.length).toBeGreaterThan(5);
     expect(h.motions).toEqual([{ id: WALK_MOTION_ID }, null]);
@@ -311,11 +321,36 @@ describe("createWalker", () => {
     expect(h.walker.isWalking()).toBe(false);
   });
 
-  it("skips and redraws when the window is not resting on the work-area floor", async () => {
+  it("skips and redraws when the feet are not resting on the work-area floor", async () => {
     const h = makeHarness({ position: { x: 500, y: 400 } });
     h.walker.start();
     await h.skipInterval();
     expect(h.motions).toEqual([]);
+    expect(h.starts).not.toHaveBeenCalled();
+  });
+
+  it("skips when the window bottom rests on the floor but the feet float above it", async () => {
+    // Window bottom 900 + 600 = 1500 == the floor, yet the feet project 180px higher.
+    const h = makeHarness({ position: { x: 500, y: 900 } });
+    h.walker.start();
+    await h.skipInterval();
+    expect(h.motions).toEqual([]);
+    expect(h.starts).not.toHaveBeenCalled();
+  });
+
+  it("starts when the feet rest on the floor even though the window bottom hangs below it", async () => {
+    // Feet 1080 + 420 = 1500 == the floor; the window bottom is 180px past the work area.
+    const h = makeHarness();
+    h.walker.start();
+    await h.skipInterval();
+    expect(h.starts).toHaveBeenCalledTimes(1);
+    expect(h.motions).toEqual([{ id: WALK_MOTION_ID }]);
+  });
+
+  it("skips when the feet anchor is unavailable", async () => {
+    const h = makeHarness({ feetY: null });
+    h.walker.start();
+    await h.skipInterval();
     expect(h.starts).not.toHaveBeenCalled();
   });
 
