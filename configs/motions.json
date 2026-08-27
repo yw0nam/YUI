@@ -134,7 +134,7 @@
     "vrma_path": "/motions/walk.vrma",
     "kind": "reactive",
     "loop": true,
-    "priority": 55,
+    "priority": 45,
     "interrupt_policy": "replace",
     "broker_publish": false
   },
