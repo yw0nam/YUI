@@ -695,6 +695,22 @@ describe("createHitTestController — static caching", () => {
     c.stop();
   });
 
+  it("setMoving(true) re-reads the window origin every tick, and setMoving(false) restores caching", async () => {
+    const win = fakeWindow();
+    const { c, poll } = makePassthroughController(win);
+    c.setMoving(true);
+    win.outerPosition.mockClear();
+
+    for (let i = 0; i < 4; i++) await poll();
+    expect(win.outerPosition).toHaveBeenCalledTimes(4);
+
+    c.setMoving(false);
+    win.outerPosition.mockClear();
+    for (let i = 0; i < 3; i++) await poll();
+    expect(win.outerPosition).toHaveBeenCalledTimes(0);
+    c.stop();
+  });
+
   it("a window move invalidates the cached statics before the next tick", async () => {
     const win = fakeWindow();
     const { c, poll } = makePassthroughController(win);

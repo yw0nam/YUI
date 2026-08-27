@@ -19,6 +19,7 @@ import {
   GESTURE_CUES_DEFAULTS,
   PEEK_DEFAULTS,
   TAP_DEFAULTS,
+  WALK_DEFAULTS,
 } from "../config/load";
 import type { MotionRegistry } from "../contract";
 import type { Logger } from "../logger";
@@ -703,6 +704,7 @@ describe("deriveBrokerPayload", () => {
         vrm_url: "/vrms/carlotta.vrm",
         peek: PEEK_DEFAULTS,
         tap: TAP_DEFAULTS,
+        walk: WALK_DEFAULTS,
         drag_hold_ms: DRAG_HOLD_MS_DEFAULT,
         gesture_cues: GESTURE_CUES_DEFAULTS,
       },

@@ -165,7 +165,7 @@ export type ScreenSource =
   | { kind: "window"; app: string; window_title: string };
 
 export interface Posture {
-  state: "standing" | "sitting" | "peeking" | "dragging";
+  state: "standing" | "sitting" | "peeking" | "dragging" | "walking";
   perched_on?: {
     /** Stable app-owner name. */
     app?: string;

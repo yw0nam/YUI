@@ -9,6 +9,7 @@ import {
   wireSummonHotkey,
   wireVoiceInput,
   type wireVrmSelection,
+  wireWalker,
   wireWindowSources,
 } from "./bootstrap-wiring";
 import {
@@ -446,6 +447,27 @@ const realFactories: ConfiguredBootstrapFactories = {
     applyGazeEnabled(gazeSettings.get().enabled);
     register(gazeSettings.subscribe((state) => applyGazeEnabled(state.enabled)));
 
+    // Ambient walking outranks nothing: a drag or an agent command cancels a stroll at once.
+    let dragging = false;
+    const walker = wireWalker({
+      bus,
+      renderer,
+      getWalkConfig: () => config.get().avatar.walk,
+      getMotionKind: (id) => config.get().motions[id]?.kind,
+      isPeeking: () => peekStateRef?.active() ?? false,
+      isDragging: () => dragging,
+      isBusy: dispatcher.isPipelineBusy,
+      setHitTestMoving: (moving) => hitTest.setMoving(moving),
+      log,
+    });
+    register(walker.dispose);
+    // A reflex turn skips the thinking motion, so the motion gate alone would miss it.
+    register(
+      dispatcher.subscribePipelineBusy((busy) => {
+        if (busy) walker.cancel();
+      }),
+    );
+
     const windowSources = wireWindowSources({
       bus,
       renderer,
@@ -459,6 +481,7 @@ const realFactories: ConfiguredBootstrapFactories = {
         return { id: active.id, label: active.label ?? active.id };
       },
       noteAvatarMoved: () => dispatcher.noteAvatarMoved(),
+      noteAgentMove: () => walker.cancel(),
       log,
     });
     register(windowSources.dispose);
@@ -470,6 +493,8 @@ const realFactories: ConfiguredBootstrapFactories = {
         holdMs: () => config.get().avatar.tap.pat_hold_ms,
       }),
       onDragStart: () => {
+        dragging = true;
+        walker.cancel();
         hitTest.suspend();
         dragHold.noteDragStart();
         windowSources.noteUserDrag();
@@ -482,6 +507,7 @@ const realFactories: ConfiguredBootstrapFactories = {
         });
       },
       onDragEnd: () => {
+        dragging = false;
         hitTest.resume();
         dragHold.noteDragEnd();
         windowSources.noteUserDragEnd();

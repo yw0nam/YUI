@@ -60,6 +60,7 @@ function harness(over: Partial<AvatarExecutorDeps> = {}) {
   const perchTargets = vi.fn(async () => TARGETS);
   const posture: Posture = { state: "sitting" };
   const noteAvatarMoved = vi.fn();
+  const noteAgentMove = vi.fn();
 
   const deps: AvatarExecutorDeps = {
     subscribe: (cb) => {
@@ -79,6 +80,7 @@ function harness(over: Partial<AvatarExecutorDeps> = {}) {
     getPosture: () => posture,
     getVrm: () => ({ id: "carlotta", label: "Carlotta" }),
     noteAvatarMoved,
+    noteAgentMove,
     ...over,
   };
 
@@ -117,6 +119,7 @@ function harness(over: Partial<AvatarExecutorDeps> = {}) {
     perchTargets,
     unsubscribe,
     noteAvatarMoved,
+    noteAgentMove,
   };
 }
 
@@ -323,6 +326,27 @@ describe("avatar-executor — move_to", () => {
 
     expect(result).toEqual({ ok: true });
     expect(h.noteAvatarMoved).toHaveBeenCalledTimes(1);
+  });
+
+  it.each([
+    ["move_to", { action: "move_to", spot: "center" }],
+    ["sit_on_window", { action: "sit_on_window", app: "Notes" }],
+    ["peek", { action: "peek", side: "left" }],
+    ["stand_down", { action: "stand_down" }],
+  ])("preempts ambient motion before running %s", async (_label, params) => {
+    const h = harness();
+
+    await h.call("command", params);
+
+    expect(h.noteAgentMove).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not preempt ambient motion for a malformed command", async () => {
+    const h = harness();
+
+    await h.call("command", { action: "nope" });
+
+    expect(h.noteAgentMove).not.toHaveBeenCalled();
   });
 
   it("does not note the move when the monitor index is out of range", async () => {
