@@ -34,10 +34,11 @@ describe("validateAvatar — happy path", () => {
         spam_count: 4,
         spam_window_ms: 3000,
         region_radius_frac: 0.18,
-        region_motions: { chest: "embarrassed", hips: "embarrassed" },
+        region_motions: { head: "head_pat", chest: "embarrassed", hips: "embarrassed" },
         bored_cue: { label: "bored poking" },
         touch_cue_cooldown_ms: 60_000,
         touch_emotion_hold_ms: 4000,
+        pat_hold_ms: 300,
       },
       drag_hold_ms: 5000,
       gesture_cues: {
@@ -237,10 +238,11 @@ describe("validateAvatar — tap", () => {
       spam_count: 6,
       spam_window_ms: 3000,
       region_radius_frac: 0.18,
-      region_motions: { chest: "embarrassed", hips: "wave" },
+      region_motions: { head: "head_pat", chest: "embarrassed", hips: "wave" },
       bored_cue: { label: "custom label" },
       touch_cue_cooldown_ms: 60_000,
       touch_emotion_hold_ms: 4000,
+      pat_hold_ms: 300,
     });
   });
 
@@ -289,8 +291,8 @@ describe("validateAvatar — tap", () => {
       "tap.region_motions은 객체여야 함",
     );
     expectIssue(
-      { vrm_url: "/v.vrm", tap: { region_motions: { head: "wave" } } },
-      "tap.region_motions.head는 허용되지 않는 키",
+      { vrm_url: "/v.vrm", tap: { region_motions: { feet: "wave" } } },
+      "tap.region_motions.feet는 허용되지 않는 키",
     );
     expectIssue(
       { vrm_url: "/v.vrm", tap: { region_motions: { chest: "" } } },
@@ -352,8 +354,8 @@ describe("validateAvatar — tap touch reactions", () => {
       "tap.region_emotions은 객체여야 함",
     );
     expectIssue(
-      { vrm_url: "/v.vrm", tap: { region_emotions: { head: "happy" } } },
-      "tap.region_emotions.head는 허용되지 않는 키",
+      { vrm_url: "/v.vrm", tap: { region_emotions: { feet: "happy" } } },
+      "tap.region_emotions.feet는 허용되지 않는 키",
     );
     expectIssue(
       { vrm_url: "/v.vrm", tap: { region_emotions: { chest: "" } } },
@@ -367,8 +369,8 @@ describe("validateAvatar — tap touch reactions", () => {
       "tap.region_cues은 객체여야 함",
     );
     expectIssue(
-      { vrm_url: "/v.vrm", tap: { region_cues: { head: { label: "a", context: "b" } } } },
-      "tap.region_cues.head는 허용되지 않는 키",
+      { vrm_url: "/v.vrm", tap: { region_cues: { feet: { label: "a", context: "b" } } } },
+      "tap.region_cues.feet는 허용되지 않는 키",
     );
     expectIssue(
       { vrm_url: "/v.vrm", tap: { region_cues: { chest: "nope" } } },
@@ -412,6 +414,29 @@ describe("validateAvatar — tap touch reactions", () => {
       { vrm_url: "/v.vrm", tap: { touch_emotion_hold_ms } },
       "tap.touch_emotion_hold_ms는 1 이상 정수",
     );
+  });
+
+  it("keeps the head region across motions, emotions, and cues", () => {
+    const out = validateAvatar(FILE, {
+      vrm_url: "/v.vrm",
+      tap: {
+        region_motions: { head: "head_pat" },
+        region_emotions: { head: "relaxed" },
+        region_cues: { head: { label: "head patted" } },
+      },
+    });
+    expect(out.tap.region_motions.head).toBe("head_pat");
+    expect(out.tap.region_emotions).toEqual({ head: "relaxed" });
+    expect(out.tap.region_cues).toEqual({ head: { label: "head patted" } });
+  });
+
+  it("keeps a configured pat_hold_ms", () => {
+    const out = validateAvatar(FILE, { vrm_url: "/v.vrm", tap: { pat_hold_ms: 500 } });
+    expect(out.tap.pat_hold_ms).toBe(500);
+  });
+
+  it.each([0, 1.5, "300"])("rejects invalid pat_hold_ms: %s", (pat_hold_ms) => {
+    expectIssue({ vrm_url: "/v.vrm", tap: { pat_hold_ms } }, "tap.pat_hold_ms는 1 이상 정수");
   });
 
   it("accepts a zero cooldown", () => {

@@ -234,8 +234,9 @@ export interface Renderer {
    * is loaded or bones/projection are unavailable.
    */
   getPerchProbe(): { seatPx: { x: number; y: number }; charHpx: number } | null;
-  /** Live chest/hips projections in viewport CSS px plus the character's current screen height. */
+  /** Live head/chest/hips projections in viewport CSS px plus the character's current screen height. */
   getTapPoints(): {
+    head: { x: number; y: number } | null;
     chest: { x: number; y: number } | null;
     hips: { x: number; y: number } | null;
     charHpx: number;
@@ -1048,7 +1049,12 @@ export function createRenderer(options: RendererOptions): Renderer {
         bone ? projectToScreen(bone.getWorldPosition(new THREE.Vector3()), camera, w, h) : null;
       const chest =
         humanoid?.getNormalizedBoneNode("upperChest") ?? humanoid?.getNormalizedBoneNode("chest");
-      return { chest: project(chest), hips: project(pins.hipsBone()), charHpx };
+      return {
+        head: project(head),
+        chest: project(chest),
+        hips: project(pins.hipsBone()),
+        charHpx,
+      };
     },
     setPerchTarget(target) {
       const changed = pins.setPerchTarget(target);

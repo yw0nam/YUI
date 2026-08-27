@@ -1015,3 +1015,186 @@ describe("initDrag — onOrbitStart / onOrbitEnd", () => {
     expect(onOrbitEnd).toHaveBeenCalledTimes(1);
   });
 });
+
+// ─── initDrag — pat gesture (press and hold on the head) ──────────────────────
+// A primary press that lands on the head region and is held past holdMs becomes a
+// pat: the press no longer converts to a window drag, and its release ends the pat
+// instead of firing a click. A release or a threshold-crossing move before holdMs
+// leaves the click / drag gestures untouched.
+
+const PAT_HOLD_MS = 300;
+
+describe.each([
+  ["Tauri", true],
+  ["browser", false],
+] as const)("initDrag — pat gesture (%s)", (_runtime, tauri) => {
+  let el: EventTarget;
+  let cleanup: () => void;
+  let onClick: Mock<(pos: { x: number; y: number }) => void>;
+  let onDragStart: Mock<() => void>;
+  let isPatPoint: Mock<(pos: { x: number; y: number }) => boolean>;
+  let onStart: Mock<() => void>;
+  let onEnd: Mock<() => void>;
+  let onAbort: Mock<() => void>;
+
+  function pointer(
+    type: "pointerdown" | "pointermove" | "pointerup" | "pointercancel" | "lostpointercapture",
+    {
+      clientX = 0,
+      clientY = 0,
+      pointerId = 1,
+      buttons = type === "pointerdown" ? 1 : 0,
+      button = type === "pointerup" ? 0 : -1,
+      shiftKey = false,
+    }: Partial<PointerEvent> = {},
+  ): void {
+    const event = new Event(type, { cancelable: true });
+    Object.assign(event, { clientX, clientY, pointerId, buttons, button, shiftKey });
+    el.dispatchEvent(event);
+  }
+
+  beforeEach(async () => {
+    vi.useFakeTimers();
+    el = new EventTarget();
+    onClick = vi.fn();
+    onDragStart = vi.fn();
+    isPatPoint = vi.fn(() => true);
+    onStart = vi.fn();
+    onEnd = vi.fn();
+    onAbort = vi.fn();
+    mockInvoke.mockResolvedValue(undefined);
+    if (tauri) {
+      (globalThis as { __TAURI_INTERNALS__?: unknown }).__TAURI_INTERNALS__ = {};
+    } else {
+      delete (globalThis as { __TAURI_INTERNALS__?: unknown }).__TAURI_INTERNALS__;
+    }
+    cleanup = await initDrag(el, {
+      onClick,
+      onDragStart,
+      pat: { isPatPoint, holdMs: () => PAT_HOLD_MS, onStart, onEnd, onAbort },
+    });
+  });
+
+  afterEach(() => {
+    cleanup();
+    delete (globalThis as { __TAURI_INTERNALS__?: unknown }).__TAURI_INTERNALS__;
+    vi.useRealTimers();
+    vi.clearAllMocks();
+  });
+
+  it("starts the pat once the press is held past holdMs", () => {
+    pointer("pointerdown", { clientX: 10, clientY: 20 });
+    expect(isPatPoint).toHaveBeenCalledWith({ x: 10, y: 20 });
+    expect(onStart).not.toHaveBeenCalled();
+    vi.advanceTimersByTime(PAT_HOLD_MS);
+    expect(onStart).toHaveBeenCalledTimes(1);
+    expect(onEnd).not.toHaveBeenCalled();
+  });
+
+  it("ends the pat on release and fires no click", () => {
+    pointer("pointerdown");
+    vi.advanceTimersByTime(PAT_HOLD_MS);
+    pointer("pointerup");
+    expect(onEnd).toHaveBeenCalledTimes(1);
+    expect(onClick).not.toHaveBeenCalled();
+  });
+
+  it("keeps a short head press a plain click", () => {
+    pointer("pointerdown", { clientX: 10, clientY: 20 });
+    vi.advanceTimersByTime(PAT_HOLD_MS - 1);
+    pointer("pointerup", { clientX: 10, clientY: 20 });
+    vi.advanceTimersByTime(PAT_HOLD_MS);
+    expect(onStart).not.toHaveBeenCalled();
+    expect(onEnd).not.toHaveBeenCalled();
+    expect(onClick).toHaveBeenCalledWith({ x: 10, y: 20 });
+  });
+
+  it("never arms the pat for a press away from the head", () => {
+    isPatPoint.mockReturnValue(false);
+    pointer("pointerdown", { clientX: 10, clientY: 20 });
+    vi.advanceTimersByTime(PAT_HOLD_MS);
+    expect(onStart).not.toHaveBeenCalled();
+    pointer("pointerup", { clientX: 10, clientY: 20 });
+    expect(onClick).toHaveBeenCalledWith({ x: 10, y: 20 });
+  });
+
+  it("cancels the pat when the press crosses the drag threshold first", () => {
+    pointer("pointerdown");
+    pointer("pointermove", { clientX: 10 });
+    vi.advanceTimersByTime(PAT_HOLD_MS);
+    expect(onStart).not.toHaveBeenCalled();
+    expect(onEnd).not.toHaveBeenCalled();
+    if (tauri) {
+      expect(onDragStart).toHaveBeenCalledTimes(1);
+      expect(mockInvoke).toHaveBeenCalledWith("drag_window");
+    }
+  });
+
+  it("keeps movement during a pat out of the window-drag path", () => {
+    if (!tauri) return;
+    pointer("pointerdown");
+    vi.advanceTimersByTime(PAT_HOLD_MS);
+    pointer("pointermove", { clientX: 40, clientY: 40 });
+    expect(onDragStart).not.toHaveBeenCalled();
+    expect(mockInvoke).not.toHaveBeenCalled();
+    pointer("pointerup", { clientX: 40, clientY: 40 });
+    expect(onEnd).toHaveBeenCalledTimes(1);
+    expect(onClick).not.toHaveBeenCalled();
+  });
+
+  it("ends the pat on pointercancel", () => {
+    pointer("pointerdown");
+    vi.advanceTimersByTime(PAT_HOLD_MS);
+    pointer("pointercancel");
+    expect(onEnd).toHaveBeenCalledTimes(1);
+    expect(onClick).not.toHaveBeenCalled();
+  });
+
+  it("ends an in-progress pat on cleanup without offering the release cue", () => {
+    pointer("pointerdown");
+    vi.advanceTimersByTime(PAT_HOLD_MS);
+    cleanup();
+    expect(onAbort).toHaveBeenCalledTimes(1);
+    expect(onEnd).not.toHaveBeenCalled();
+  });
+
+  it("releases a pat stranded by a lost pointer capture", () => {
+    pointer("pointerdown");
+    vi.advanceTimersByTime(PAT_HOLD_MS);
+    pointer("lostpointercapture");
+    expect(onEnd).toHaveBeenCalledTimes(1);
+    expect(onClick).not.toHaveBeenCalled();
+
+    // The gesture is disarmed, so the stale pointerup neither re-ends it nor fires a click.
+    pointer("pointerup");
+    expect(onEnd).toHaveBeenCalledTimes(1);
+    expect(onClick).not.toHaveBeenCalled();
+  });
+
+  it("leaves a pat untouched when another pointer loses capture", () => {
+    pointer("pointerdown", { pointerId: 1 });
+    vi.advanceTimersByTime(PAT_HOLD_MS);
+    pointer("lostpointercapture", { pointerId: 2 });
+    expect(onEnd).not.toHaveBeenCalled();
+    pointer("pointerup", { pointerId: 1 });
+    expect(onEnd).toHaveBeenCalledTimes(1);
+  });
+
+  it("arms the gesture even when the hold length cannot be read", () => {
+    cleanup();
+    const holdMs = vi.fn(() => {
+      throw new Error("config unavailable");
+    });
+    el = new EventTarget();
+    return initDrag(el, {
+      onClick,
+      pat: { isPatPoint, holdMs, onStart, onEnd, onAbort },
+    }).then((dispose) => {
+      cleanup = dispose;
+      expect(() => pointer("pointerdown", { clientX: 10, clientY: 20 })).not.toThrow();
+      pointer("pointerup", { clientX: 10, clientY: 20 });
+      expect(onStart).not.toHaveBeenCalled();
+      expect(onClick).toHaveBeenCalledWith({ x: 10, y: 20 });
+    });
+  });
+});

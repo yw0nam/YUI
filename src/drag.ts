@@ -178,24 +178,61 @@ function attachOrbitGesture(
 
 // ─── initDrag ─────────────────────────────────────────────────────────────────
 
+/**
+ * Press-and-hold branch of the click gesture: a primary press that lands on the pat
+ * point and outlives `holdMs` becomes a pat instead of a click, and stays out of the
+ * window-drag path until it is released.
+ */
+export interface PatGesture {
+  /** Whether the press point is over the pattable region (the head). */
+  isPatPoint: (pos: { x: number; y: number }) => boolean;
+  /** Hold (ms) before the press becomes a pat — read at press time so config reload applies. */
+  holdMs: () => number;
+  onStart: () => void;
+  /** Pat released — ends the reaction and lets the release cue fire. */
+  onEnd: () => void;
+  /** Surface torn down mid-pat — ends the reaction only, no release cue. */
+  onAbort: () => void;
+}
+
 function attachClickGesture(
   el: EventTarget,
   onClick?: (pos: { x: number; y: number }) => void,
-): { reset: () => void; dispose: () => void } {
+  pat?: PatGesture,
+): { reset: () => void; isPatting: () => boolean; dispose: () => void } {
   let pointerId: number | null = null;
   let startX = 0;
   let startY = 0;
   let crossedThreshold = false;
+  let holdTimer: ReturnType<typeof setTimeout> | null = null;
+  let patting = false;
 
   function detachGesture(): void {
     el.removeEventListener("pointermove", onMove);
     el.removeEventListener("pointerup", onUp);
     el.removeEventListener("pointercancel", onCancel);
+    el.removeEventListener("lostpointercapture", onLostCapture);
   }
 
-  function clearGesture(): void {
+  function clearHoldTimer(): void {
+    if (holdTimer === null) return;
+    clearTimeout(holdTimer);
+    holdTimer = null;
+  }
+
+  function endGesture(released: boolean): void {
     detachGesture();
+    clearHoldTimer();
     pointerId = null;
+    if (!patting) return;
+    patting = false;
+    if (released) pat?.onEnd();
+    else pat?.onAbort();
+  }
+
+  /** The press ended on its own — a pat that got this far earned its release cue. */
+  function clearGesture(): void {
+    endGesture(true);
   }
 
   function onDown(e: Event): void {
@@ -209,22 +246,43 @@ function attachClickGesture(
     startX = pe.clientX;
     startY = pe.clientY;
     crossedThreshold = false;
+    // Listeners first: a throw while arming the hold must not strand the gesture.
     el.addEventListener("pointermove", onMove);
     el.addEventListener("pointerup", onUp);
     el.addEventListener("pointercancel", onCancel);
+    el.addEventListener("lostpointercapture", onLostCapture);
+    armPatHold(pe);
+  }
+
+  /** A classifier or config read that fails degrades to "no pat" — never to a stranded press. */
+  function armPatHold(pe: PointerEvent): void {
+    const gesture = pat;
+    if (!gesture) return;
+    try {
+      if (!gesture.isPatPoint({ x: pe.clientX, y: pe.clientY })) return;
+      holdTimer = setTimeout(() => {
+        holdTimer = null;
+        patting = true;
+        gesture.onStart();
+      }, gesture.holdMs());
+    } catch (err) {
+      log.warn("pat_arm_failed", { error: String(err) });
+    }
   }
 
   function onMove(e: Event): void {
     const pe = e as PointerEvent;
     if (pe.pointerId !== pointerId || crossedThreshold) return;
     crossedThreshold = Math.hypot(pe.clientX - startX, pe.clientY - startY) >= DRAG_THRESHOLD_PX;
+    // Travel before the hold elapses is a drag, not a pat.
+    if (crossedThreshold) clearHoldTimer();
   }
 
   function onUp(e: Event): void {
     const pe = e as PointerEvent;
     if (pe.pointerId !== pointerId) return;
     if (pe.button !== undefined && pe.button !== 0) return;
-    const click = !crossedThreshold;
+    const click = !crossedThreshold && !patting;
     clearGesture();
     if (click) onClick?.({ x: pe.clientX, y: pe.clientY });
   }
@@ -234,12 +292,22 @@ function attachClickGesture(
     clearGesture();
   }
 
+  /**
+   * Capture loss without a pointerup — the OS or the click-through hit-test took the
+   * pointer away mid-press. Ends the gesture so a pat can never stay held forever.
+   */
+  function onLostCapture(e: Event): void {
+    if ((e as PointerEvent).pointerId !== pointerId) return;
+    clearGesture();
+  }
+
   el.addEventListener("pointerdown", onDown);
   return {
     reset: clearGesture,
+    isPatting: () => patting,
     dispose: () => {
       el.removeEventListener("pointerdown", onDown);
-      clearGesture();
+      endGesture(false);
     },
   };
 }
@@ -260,6 +328,10 @@ function attachClickGesture(
  *   commits (pointerdown with shiftKey + primary button). Use to suspend hit-test.
  * @param opts.onOrbitEnd - Fired once when the orbit gesture ends (pointerup or
  *   pointercancel). Use to resume hit-test.
+ * @param opts.pat - Press-and-hold branch: a press on the pat point held past
+ *   `holdMs` fires `onStart`, suppresses the window drag for the rest of the press,
+ *   and fires `onEnd` on release — or `onAbort` when teardown ends it instead.
+ *   Absent = no pat gesture.
  * @returns A cleanup function. Call it when the surface is torn down.
  */
 export async function initDrag(
@@ -271,12 +343,13 @@ export async function initDrag(
     onOrbit?: (delta: OrbitDelta) => void;
     onOrbitStart?: () => void;
     onOrbitEnd?: () => void;
+    pat?: PatGesture;
   } = {},
 ): Promise<() => void> {
   // Orbit (Shift+left) is pure JS — attach it before the Tauri gate so it works in the
   // browser screenshot-verification surface as well as the packaged pet window.
   const detachOrbit = attachOrbitGesture(el, opts.onOrbit, opts.onOrbitStart, opts.onOrbitEnd);
-  const clickGesture = attachClickGesture(el, opts.onClick);
+  const clickGesture = attachClickGesture(el, opts.onClick, opts.pat);
 
   // Tauri-only: getCurrentWindow() / onScaleChanged / invoke() require the Tauri
   // runtime. In a plain browser (Vite dev — the AI screenshot-verification surface)
@@ -333,7 +406,7 @@ export async function initDrag(
   }
 
   function onPointerMove(e: Event): void {
-    if (started) return;
+    if (started || clickGesture.isPatting()) return;
     const pe = e as PointerEvent;
     if (pe.pointerId !== activePointerId) return;
     const dx = pe.clientX - startX;

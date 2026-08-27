@@ -66,6 +66,12 @@ describe("configs/avatar.json", () => {
     expect(shino.source).toBe("bundled");
   });
 
+  it("maps the head region to the press-and-hold pat reaction", () => {
+    expect(a.tap.region_motions.head).toBe("head_pat");
+    expect(a.tap.region_emotions.head).toBe("relaxed");
+    expect(a.tap.pat_hold_ms).toBe(300);
+  });
+
   it("carries side-peek geometry and mirroring defaults", () => {
     expect(a.peek).toEqual({
       side_out_frac: 0.28,
@@ -77,6 +83,7 @@ describe("configs/avatar.json", () => {
 
   it("ships built-in touch/gesture cues as label-only (context is persona judgment, not client data)", () => {
     const builtIn: Array<[string, any]> = [
+      ["tap.region_cues.head", a.tap.region_cues.head],
       ["tap.region_cues.chest", a.tap.region_cues.chest],
       ["tap.region_cues.hips", a.tap.region_cues.hips],
       ["tap.bored_cue", a.tap.bored_cue],
@@ -321,6 +328,17 @@ describe("configs/motions.json", () => {
       interrupt_policy: "replace",
       broker_publish: false,
     });
+  });
+
+  it("registers head_pat as a looping reactive pat motion (broker-excluded, p80)", () => {
+    expect(m.head_pat).toBeDefined();
+    expect(m.head_pat.vrma_path).toBe("/motions/idle_10.vrma");
+    expect(m.head_pat.kind).toBe("reactive");
+    expect(m.head_pat.loop).toBe(true);
+    expect(m.head_pat.pingpong).toBe(true);
+    expect(m.head_pat.priority).toBe(80);
+    expect(m.head_pat.interrupt_policy).toBe("replace");
+    expect(m.head_pat.broker_publish).toBe(false);
   });
 
   it("registers thinking as a looping state TTFT-filler motion (purchased, broker-excluded, p50)", () => {

@@ -16,6 +16,7 @@ import {
   deltaEvent,
   dragHeldEnv,
   expressEvent,
+  headPatEnv,
   makeLogger,
   makeTurnOutput,
   peekEnv,
@@ -509,6 +510,7 @@ describe("backend_caller — TTFT thinking lifecycle", () => {
     ["proactive.drag_held", dragHeldEnv],
     ["proactive.window_sit", windowSitEnv],
     ["proactive.peek", peekEnv],
+    ["proactive.head_pat", headPatEnv],
   ] as const)("reflex turn (%s) skips thinking even when hasFiller true", async (_name, env) => {
     caller = makeCaller(true);
     script.events = [deltaEvent("꺅"), completedEvent({ speech_text: "꺅" })];

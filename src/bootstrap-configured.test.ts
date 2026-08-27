@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 import {
   type ConfiguredBootstrapFactories,
   createConfiguredBootstrap,
+  createPatGesture,
 } from "./bootstrap-configured";
 import { type AppConfig, ATTACHMENT_LIMITS_DEFAULTS } from "./config";
 
@@ -20,10 +21,11 @@ function validConfig(): AppConfig {
         spam_count: 4,
         spam_window_ms: 3_000,
         region_radius_frac: 0.18,
-        region_motions: { chest: "embarrassed", hips: "embarrassed" },
+        region_motions: { head: "head_pat", chest: "embarrassed", hips: "embarrassed" },
         bored_cue: { label: "bored poking" },
         touch_cue_cooldown_ms: 60_000,
         touch_emotion_hold_ms: 4_000,
+        pat_hold_ms: 300,
       },
       peek: {
         side_out_frac: 0.28,
@@ -169,5 +171,49 @@ describe("createConfiguredBootstrap", () => {
 
     expect(() => configured.dispose()).toThrow(failure);
     expect(order).toEqual(["last", "throwing", "first"]);
+  });
+});
+
+describe("createPatGesture", () => {
+  function harness() {
+    const hitTest = { suspend: vi.fn(), resume: vi.fn() };
+    const tapSource = {
+      isHeadPoint: vi.fn(() => true),
+      handlePatStart: vi.fn(),
+      handlePatEnd: vi.fn(),
+      handlePatAbort: vi.fn(),
+    };
+    return { hitTest, tapSource, pat: createPatGesture({ hitTest, tapSource, holdMs: () => 300 }) };
+  }
+
+  it("suspends the click-through hit-test for the length of the pat", () => {
+    const { hitTest, tapSource, pat } = harness();
+
+    pat.onStart();
+    expect(hitTest.suspend).toHaveBeenCalledTimes(1);
+    expect(hitTest.resume).not.toHaveBeenCalled();
+    expect(tapSource.handlePatStart).toHaveBeenCalledTimes(1);
+
+    pat.onEnd();
+    expect(hitTest.resume).toHaveBeenCalledTimes(1);
+    expect(tapSource.handlePatEnd).toHaveBeenCalledTimes(1);
+  });
+
+  it("resumes the hit-test when the pat is aborted", () => {
+    const { hitTest, tapSource, pat } = harness();
+
+    pat.onStart();
+    pat.onAbort();
+    expect(hitTest.resume).toHaveBeenCalledTimes(1);
+    expect(tapSource.handlePatAbort).toHaveBeenCalledTimes(1);
+    expect(tapSource.handlePatEnd).not.toHaveBeenCalled();
+  });
+
+  it("classifies the press point through the tap source and reads the hold live", () => {
+    const { tapSource, pat } = harness();
+
+    expect(pat.isPatPoint({ x: 5, y: 6 })).toBe(true);
+    expect(tapSource.isHeadPoint).toHaveBeenCalledWith({ x: 5, y: 6 });
+    expect(pat.holdMs()).toBe(300);
   });
 });
