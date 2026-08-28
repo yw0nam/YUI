@@ -44,19 +44,6 @@ export const CLIMB_DOWN_MOTION_ID = "climb_down";
 /** Registry id of the touchdown that ends a descent. */
 export const CLIMB_DOWN_LANDING_MOTION_ID = "climb_down_landing";
 
-/** Mixamo "Climbing UP" rises this far per cycle at playback rate 1.0. */
-export const CLIMB_UP_METRES_PER_CYCLE = 0.93;
-/** Mixamo "Climbing_UP_done" rises this far over the whole clip. */
-export const CLIMB_UP_DONE_METRES = 1.38;
-/** Fallback length (s) of the pull-over, for the frames before the clip is cached. */
-export const CLIMB_UP_DONE_S = 3.8;
-/** Mixamo "Climbing Down Wall" descends this far per cycle at playback rate 1.0. */
-export const CLIMB_DOWN_METRES_PER_CYCLE = 1.15;
-/** Mixamo "Climbing Down_landing" descends this far over the whole clip. */
-export const CLIMB_DOWN_LANDING_METRES = 0.25;
-/** Fallback length (s) of the touchdown, for the frames before the clip is cached. */
-export const CLIMB_DOWN_LANDING_S = 1.383;
-
 /** Root yaw (rad) toward the wall — a quarter turn off camera-facing. */
 export const CLIMB_YAW_RAD = Math.PI / 2;
 /** Yaw ease (ms), run concurrently with the motion crossfade at both ends of a climb. */
@@ -275,6 +262,8 @@ export interface ClimberDeps {
     | "setBodyYaw"
     | "getPxPerMetre"
     | "getMotionDuration"
+    | "getMotionTravelY"
+    | "preloadMotion"
     | "getCharacterAnchor"
     | "getPerchProbe"
     | "isPerched"
@@ -330,7 +319,6 @@ interface WallLeg {
   motionId: string;
   /** Physical px per metre — the leg's own projection. */
   pxPerMetre: number;
-  metresPerCycle: number;
   /** Transition clips travel linearly over this many seconds; looping ones pass null. */
   linearS: number | null;
   /** The clip ends by itself, so losing it means the leg is over rather than interrupted. */
@@ -479,10 +467,13 @@ export function createClimber(deps: ClimberDeps): Climber {
       const t = Math.min(l.elapsedS / l.linearS, 1);
       l.y = l.fromY + (l.toY - l.fromY) * t;
     } else {
-      // The clip paces the hands — until it is cached there is no cycle to climb at.
+      // The clip paces the hands with the travel the loader took out of it — until it is
+      // cached there is no cycle to climb at.
       const cycleS = renderer.getMotionDuration(l.motionId);
-      if (cycleS === null || !(cycleS > 0)) return;
-      l.y = advanceX(l.y, l.toY, climbSpeedPxPerSec(l.pxPerMetre, l.metresPerCycle, cycleS), step);
+      const travelM = renderer.getMotionTravelY(l.motionId);
+      if (cycleS === null || !(cycleS > 0) || travelM === null || travelM === 0) return;
+      const speed = climbSpeedPxPerSec(l.pxPerMetre, Math.abs(travelM), cycleS);
+      l.y = advanceX(l.y, l.toY, speed, step);
     }
     void l.win
       .setPositionPhysical(Math.round(l.x), Math.round(l.y))
@@ -541,6 +532,24 @@ export function createClimber(deps: ClimberDeps): Climber {
     return side === "left" ? CLIMB_YAW_RAD : -CLIMB_YAW_RAD;
   }
 
+  /**
+   * Load a transition clip and measure what the window owes it: the travel the loader
+   * detrended out, and the length to spend it over. null when the clip cannot be measured.
+   */
+  async function measureTransition(
+    motionId: string,
+    pxPerMetre: number,
+  ): Promise<{ px: number; seconds: number } | null> {
+    await renderer.preloadMotion(motionId);
+    const travelM = renderer.getMotionTravelY(motionId);
+    const seconds = renderer.getMotionDuration(motionId);
+    if (travelM === null || travelM === 0 || seconds === null || !(seconds > 0)) {
+      log.warn("clip_unmeasurable", { degrade: true, motionId });
+      return null;
+    }
+    return { px: Math.abs(travelM) * pxPerMetre, seconds };
+  }
+
   async function runUp(): Promise<void> {
     const startedAt = generation;
     if (reducedMotion()) return;
@@ -589,9 +598,13 @@ export function createClimber(deps: ClimberDeps): Climber {
     const at = await w.win.outerPosition();
     if (!alive(startedAt)) return endClimb();
     const pxPerMetre = w.pxPerMetre * w.scale;
+    // The window supplies exactly the travel the loader took out of each clip.
+    await renderer.preloadMotion(CLIMB_UP_MOTION_ID);
+    const pull = await measureTransition(CLIMB_UP_DONE_MOTION_ID, pxPerMetre);
+    if (!pull || !alive(startedAt)) return endClimb();
     const rise = (w.floor - picked.topY) * w.scale;
-    const pullPx = Math.min(rise, pxPerMetre * CLIMB_UP_DONE_METRES);
-    const base = { win: w.win, x: at.x, pxPerMetre, metresPerCycle: CLIMB_UP_METRES_PER_CYCLE };
+    const pullPx = Math.min(rise, pull.px);
+    const base = { win: w.win, x: at.x, pxPerMetre };
     let y = at.y;
 
     const loop = await runLeg({
@@ -605,15 +618,15 @@ export function createClimber(deps: ClimberDeps): Climber {
     if (loop !== "done" || !alive(startedAt)) return endClimb();
     y -= rise - pullPx;
 
-    const pull = await runLeg({
+    const pullLeg = await runLeg({
       ...base,
       fromY: y,
       toY: y - pullPx,
       motionId: CLIMB_UP_DONE_MOTION_ID,
-      linearS: renderer.getMotionDuration(CLIMB_UP_DONE_MOTION_ID) ?? CLIMB_UP_DONE_S,
+      linearS: pull.seconds,
       oneshot: true,
     });
-    if (pull !== "done" || !alive(startedAt)) return endClimb();
+    if (pullLeg !== "done" || !alive(startedAt)) return endClimb();
 
     // The window manager can refuse part of the rise, so the ledge offset has to come
     // from where the window actually landed.
@@ -673,12 +686,15 @@ export function createClimber(deps: ClimberDeps): Climber {
     const at = await w.win.outerPosition();
     if (!alive(startedAt)) return endClimb();
     const pxPerMetre = w.pxPerMetre * w.scale;
+    await renderer.preloadMotion(CLIMB_DOWN_MOTION_ID);
+    const land = await measureTransition(CLIMB_DOWN_LANDING_MOTION_ID, pxPerMetre);
+    if (!land || !alive(startedAt)) return endClimb();
     // A window that does not reach the floor ends the climb at its own bottom edge.
     const grounded = picked.bottomY >= w.floor - walkCfg.floor_tolerance_px;
     const drop = ((grounded ? w.floor : picked.bottomY) - picked.topY) * w.scale;
     const hangPx = Math.min(drop, cfg.hang_frac * w.charHpx * w.scale);
-    const landPx = grounded ? Math.min(drop - hangPx, pxPerMetre * CLIMB_DOWN_LANDING_METRES) : 0;
-    const base = { win: w.win, x: at.x, pxPerMetre, metresPerCycle: CLIMB_DOWN_METRES_PER_CYCLE };
+    const landPx = grounded ? Math.min(drop - hangPx, land.px) : 0;
+    const base = { win: w.win, x: at.x, pxPerMetre };
     let y = at.y;
 
     // No clip covers the step off the ledge, so the descent clip crossfades in over a
@@ -711,15 +727,15 @@ export function createClimber(deps: ClimberDeps): Climber {
       return;
     }
 
-    const land = await runLeg({
+    const landLeg = await runLeg({
       ...base,
       fromY: y,
       toY: y + landPx,
       motionId: CLIMB_DOWN_LANDING_MOTION_ID,
-      linearS: renderer.getMotionDuration(CLIMB_DOWN_LANDING_MOTION_ID) ?? CLIMB_DOWN_LANDING_S,
+      linearS: land.seconds,
       oneshot: true,
     });
-    if (land !== "done" || !alive(startedAt)) return endClimb();
+    if (landLeg !== "done" || !alive(startedAt)) return endClimb();
     endClimb();
   }
 

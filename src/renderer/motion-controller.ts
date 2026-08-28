@@ -54,6 +54,8 @@ export interface ResolvedMotion {
   kind: MotionKind;
   priority: number;
   interrupt_policy: InterruptPolicy;
+  /** Strip the clip's baked vertical travel — the mover supplies it instead. */
+  root_lock_y: boolean;
 }
 
 type MotionDecision =
@@ -265,6 +267,7 @@ export function createMotionController(
       kind: entry.kind,
       priority: entry.priority,
       interrupt_policy: entry.interrupt_policy,
+      root_lock_y: !!entry.root_lock_y,
     };
   }
 

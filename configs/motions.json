@@ -70,6 +70,7 @@
   },
   "climb_up": {
     "vrma_path": "/motions/climb_up.vrma",
+    "root_lock_y": true,
     "kind": "reactive",
     "loop": true,
     "priority": 78,
@@ -78,6 +79,7 @@
   },
   "climb_up_done": {
     "vrma_path": "/motions/climb_up_done.vrma",
+    "root_lock_y": true,
     "kind": "oneshot",
     "loop": false,
     "priority": 78,
@@ -86,6 +88,7 @@
   },
   "climb_down": {
     "vrma_path": "/motions/climb_down.vrma",
+    "root_lock_y": true,
     "kind": "reactive",
     "loop": true,
     "priority": 78,
@@ -94,6 +97,7 @@
   },
   "climb_down_landing": {
     "vrma_path": "/motions/climb_down_landing.vrma",
+    "root_lock_y": true,
     "kind": "oneshot",
     "loop": false,
     "priority": 78,

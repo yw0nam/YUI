@@ -285,10 +285,7 @@ describe("validateMotions — root_lock_y", () => {
   });
 
   it("rejects a non-boolean root_lock_y", () => {
-    expectIssue(
-      { idle: baseEntry({ root_lock_y: "true" }) },
-      "root_lock_y는 boolean이어야 함",
-    );
+    expectIssue({ idle: baseEntry({ root_lock_y: "true" }) }, "root_lock_y는 boolean이어야 함");
   });
 });
 

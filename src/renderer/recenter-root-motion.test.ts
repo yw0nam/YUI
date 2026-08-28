@@ -106,7 +106,9 @@ describe("detrendRootY — vertical travel removal", () => {
   ])("returns a copy with no travel for %s", (_label, times, values) => {
     const result = detrendRootY(times, values);
     expect(result.travel).toBe(0);
-    expect(Array.from(result.values)).toEqual(values);
+    expect(result.values).toHaveLength(values.length);
+    // Float32 storage, so compare within its precision rather than exactly.
+    for (const [i, v] of values.entries()) expect(result.values[i]).toBeCloseTo(v, 6);
   });
 
   it("does not mutate the input", () => {

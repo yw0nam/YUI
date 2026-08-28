@@ -1,8 +1,12 @@
 import type { AnimationClip } from "three";
 
-/** vrma_path + mirror flag → clip-cache key. Must match loadClip's key composition. */
-export function clipCacheKey(vrmaPath: string, mirrored: boolean): string {
-  return mirrored ? `${vrmaPath}#mirror` : vrmaPath;
+/**
+ * vrma_path + mirror + root-lock flags → clip-cache key. Must match loadClip's key
+ * composition. The root lock belongs to the registry entry while the cache is keyed by
+ * path, so it has to be in the key: two entries can share one .vrma and disagree on it.
+ */
+export function clipCacheKey(vrmaPath: string, mirrored: boolean, rootLockY = false): string {
+  return `${vrmaPath}${mirrored ? "#mirror" : ""}${rootLockY ? "#ylock" : ""}`;
 }
 
 /**
@@ -19,8 +23,9 @@ export function playbackClip(
   prevClip: AnimationClip | null,
   fadeMs: number,
   cache: Map<string, AnimationClip>,
+  rootLockY = false,
 ): AnimationClip {
-  const cacheKey = clipCacheKey(vrmaPath, mirrored);
+  const cacheKey = clipCacheKey(vrmaPath, mirrored, rootLockY);
   const clip = cache.get(cacheKey)!;
   if (fadeMs <= 0 || !prevClip || prevClip.uuid !== clip.uuid) return clip;
 

@@ -65,7 +65,7 @@ import { baselineWhileHeld, suppressWhileHeld } from "./perch-hold";
 import { createPinController, type PinController } from "./pin-controller";
 import { clampPixelRatio } from "./pixel-ratio";
 import { projectFeetAnchor, type ScreenAnchor } from "./project-anchor";
-import { recenterClipRootMotion } from "./recenter-root-motion";
+import { detrendClipRootY, recenterClipRootMotion } from "./recenter-root-motion";
 import { clipCacheKey, playbackClip } from "./self-crossfade";
 import { clientToStage } from "./stage-coords";
 import {
@@ -274,6 +274,17 @@ export interface Renderer {
    */
   getMotionDuration(id: string): number | null;
   /**
+   * Vertical travel (signed metres) the loader detrended out of a `root_lock_y` clip —
+   * what a mover has to supply by moving the window. null until the clip is cached,
+   * 0 for a clip that keeps its own travel.
+   */
+  getMotionTravelY(id: string): number | null;
+  /**
+   * Load a registered motion's clip into the cache without playing it, so its duration
+   * and travel can be read before the motion starts. Resolves once loaded or given up on.
+   */
+  preloadMotion(id: string): Promise<void>;
+  /**
    * Enable/disable the idle 30fps cap at runtime. Enabled (default) caps ambient-only
    * frames to IDLE_FPS; disabled renders idle frames at full refresh. Pause-on-hidden
    * is always on and unaffected by this toggle.
@@ -431,6 +442,8 @@ export function createRenderer(options: RendererOptions): Renderer {
   let mixer: THREE.AnimationMixer | undefined;
   /** (vrma_path → AnimationClip) cache — clips are VRM-specific so cleared on hotswap. */
   const clipCache = new Map<string, THREE.AnimationClip>();
+  /** Vertical travel (signed metres) detrended out of each cached clip; 0 when not locked. */
+  const clipTravelY = new Map<string, number>();
   const deadClips = createDeadClipRegistry(log);
   /** Currently playing AnimationAction (prev in crossfade). */
   let currentAction: THREE.AnimationAction | undefined;
@@ -661,6 +674,7 @@ export function createRenderer(options: RendererOptions): Renderer {
       mixer = undefined;
     }
     clipCache.clear();
+    clipTravelY.clear();
     motionMirror = false;
     boneNameSwap.clear();
     actionToId.clear();
@@ -684,6 +698,13 @@ export function createRenderer(options: RendererOptions): Renderer {
     alphaHitTest.clearGrab(); // stale silhouette can't outlive its VRM.
   }
 
+  /** Cache key of a registry id's representative clip, under the live mirror state. */
+  function registryClipKey(id: string): string | null {
+    const entry = motionRegistry?.[id];
+    if (!entry) return null;
+    return clipCacheKey(entry.vrma_path, motionMirror, !!entry.root_lock_y);
+  }
+
   /**
    * vrma_path → AnimationClip (current VRM only). Returns immediately on cache hit.
    * Load .vrma via GLTFLoader + VRMAnimationLoaderPlugin → gltf.userData.vrmAnimations[0]
@@ -692,17 +713,20 @@ export function createRenderer(options: RendererOptions): Renderer {
   async function loadClip(
     vrmaPath: string,
     mirrored: boolean,
+    rootLockY = false,
   ): Promise<THREE.AnimationClip | null> {
-    const cacheKey = clipCacheKey(vrmaPath, mirrored);
+    const cacheKey = clipCacheKey(vrmaPath, mirrored, rootLockY);
     const cached = clipCache.get(cacheKey);
     if (cached) return cached;
     if (!currentVrm) return null;
 
     if (mirrored) {
-      const upright = await loadClip(vrmaPath, false);
+      const upright = await loadClip(vrmaPath, false, rootLockY);
       if (!upright) return null;
       const clip = mirrorClipTracks(upright, boneNameSwap);
       clipCache.set(cacheKey, clip);
+      // Mirroring swaps left/right bones; the vertical travel is the upright clip's.
+      clipTravelY.set(cacheKey, clipTravelY.get(clipCacheKey(vrmaPath, false, rootLockY)) ?? 0);
       return clip;
     }
 
@@ -728,6 +752,8 @@ export function createRenderer(options: RendererOptions): Renderer {
     }
     const clip = createVRMAnimationClip(vrmAnimation as never, currentVrm);
     recenterClipRootMotion(clip); // strip baked horizontal root drift so the pet stays centered.
+    // A clip whose rise IS the movement plays in place; the mover supplies the travel.
+    clipTravelY.set(cacheKey, rootLockY ? detrendClipRootY(clip) : 0);
     clipCache.set(cacheKey, clip);
     return clip;
   }
@@ -744,7 +770,7 @@ export function createRenderer(options: RendererOptions): Renderer {
     if (!currentVrm || !mixer) return;
     const epoch = vrmEpoch;
     try {
-      let clip = await loadClip(motion.vrma_path, mirrored);
+      let clip = await loadClip(motion.vrma_path, mirrored, motion.root_lock_y);
       if (!motionStartGeneration.isCurrent(startToken)) return;
       if (!clip) {
         // Real load failure (clip missing/invalid for the live VRM) → fall back to idle.
@@ -764,6 +790,7 @@ export function createRenderer(options: RendererOptions): Renderer {
         prev ? prev.getClip() : null,
         fadeMs,
         clipCache,
+        motion.root_lock_y,
       );
 
       const action = mixer.clipAction(clip);
@@ -1148,10 +1175,19 @@ export function createRenderer(options: RendererOptions): Renderer {
       return Number.isFinite(perPixel) && perPixel > 0 ? 1 / perPixel : null;
     },
     getMotionDuration(id) {
-      const vrmaPath = motionRegistry?.[id]?.vrma_path;
-      if (!vrmaPath) return null;
-      const clip = clipCache.get(clipCacheKey(vrmaPath, motionMirror));
+      const key = registryClipKey(id);
+      const clip = key ? clipCache.get(key) : undefined;
       return clip ? clip.duration : null;
+    },
+    getMotionTravelY(id) {
+      const key = registryClipKey(id);
+      if (!key || !clipCache.has(key)) return null;
+      return clipTravelY.get(key) ?? 0;
+    },
+    async preloadMotion(id) {
+      const entry = motionRegistry?.[id];
+      if (!entry) return;
+      await loadClip(entry.vrma_path, motionMirror, !!entry.root_lock_y);
     },
     setIdleThrottleEnabled(enabled) {
       idleThrottleEnabled = enabled;

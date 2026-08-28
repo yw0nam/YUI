@@ -82,6 +82,12 @@ export interface MotionRegistryEntry {
   loop_cycles?: [number, number];
   /** If false, excluded from broker (agent) vocabulary — local render only. Default true. */
   broker_publish?: boolean;
+  /**
+   * Strip the clip's end-to-end vertical travel, keeping the bob. For a clip whose rise
+   * or fall IS the movement (the climbs): the mover supplies that travel by moving the
+   * window, so leaving it in the clip would play it twice.
+   */
+  root_lock_y?: boolean;
   kind: MotionKind;
   loop: boolean;
   /** 0~100, higher is higher priority. */
