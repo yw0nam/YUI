@@ -63,6 +63,14 @@ describe("clipCacheKey", () => {
     expect(clipCacheKey("calm.vrma", false)).toBe("calm.vrma");
     expect(clipCacheKey("calm.vrma", true)).toBe("calm.vrma#mirror");
   });
+
+  it("appends #ylock only when the root is locked vertically", () => {
+    // The flag lives on the registry entry but the cache is keyed by path, so two
+    // entries sharing one .vrma must not hand each other a detrended clip.
+    expect(clipCacheKey("calm.vrma", false, false)).toBe("calm.vrma");
+    expect(clipCacheKey("calm.vrma", false, true)).toBe("calm.vrma#ylock");
+    expect(clipCacheKey("calm.vrma", true, true)).toBe("calm.vrma#mirror#ylock");
+  });
 });
 
 describe("playbackClip", () => {

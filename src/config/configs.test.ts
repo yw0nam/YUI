@@ -326,6 +326,20 @@ describe("configs/motions.json", () => {
     expect(m[id].priority).toBe(78);
     expect(m[id].interrupt_policy).toBe("replace");
     expect(m[id].broker_publish).toBe(false);
+    // The clips carry their climb as baked hips travel; the window supplies it instead.
+    expect(m[id].root_lock_y).toBe(true);
+  });
+
+  it("locks the root vertically on the climb clips alone", () => {
+    const locked = Object.entries(m)
+      .filter(([, e]: [string, any]) => e.root_lock_y === true)
+      .map(([id]) => id);
+    expect(locked.sort()).toEqual([
+      "climb_down",
+      "climb_down_landing",
+      "climb_up",
+      "climb_up_done",
+    ]);
   });
 
   it("registers sulk as a broker-published oneshot emotion motion", () => {

@@ -4,10 +4,8 @@ import type { MotionKind, WindowRect } from "../contract";
 import type { ScreenMonitor } from "../io/screen-geometry";
 import type { RenderMotionSignal, TickContext, TickFn } from "../renderer";
 import {
-  CLIMB_DOWN_LANDING_METRES,
   CLIMB_DOWN_LANDING_MOTION_ID,
   CLIMB_DOWN_MOTION_ID,
-  CLIMB_UP_DONE_METRES,
   CLIMB_UP_DONE_MOTION_ID,
   CLIMB_UP_MOTION_ID,
   CLIMB_YAW_EASE_MS,
@@ -288,6 +286,18 @@ const MOTION_S: Record<string, number> = {
   climb_down_landing: 1.383,
 };
 
+/** Hips travel (m, signed) the renderer detrended out of each clip, measured off the assets. */
+const MOTION_TRAVEL_M: Record<string, number> = {
+  climb_up: 0.843,
+  climb_up_done: 1.413,
+  climb_down: -1.054,
+  climb_down_landing: -0.237,
+};
+
+/** What the window has to supply for each transition clip, in px at PX_PER_METRE. */
+const PULL_PX = PX_PER_METRE * MOTION_TRAVEL_M.climb_up_done;
+const LAND_PX = PX_PER_METRE * -MOTION_TRAVEL_M.climb_down_landing;
+
 const MOTION_KINDS: Record<string, MotionKind> = {
   idle: "ambient",
   walk: "reactive",
@@ -320,9 +330,14 @@ function makeHarness(
     holdPerchOnRelease?: boolean;
     /** Models the OS clamping the window origin to the work-area top. */
     minY?: number;
+    /** A clip the renderer can never measure — a dead asset, or one with no baked travel. */
+    unmeasurable?: string;
   } = {},
 ) {
   let tick: TickFn | null = null;
+  /** Clips the renderer has loaded — nothing is measurable before it is in here. */
+  const cached = new Set<string>();
+  const preloads: string[] = [];
   const motions: Array<RenderMotionSignal | null> = [];
   const yaws: Array<{ rad: number; easeMs: number }> = [];
   const positions: Array<{ x: number; y: number }> = [];
@@ -367,10 +382,18 @@ function makeHarness(
       },
       playMotion: (m) => {
         motions.push(m);
+        if (m) cached.add(m.id);
         currentMotion = m ? { id: m.id, vrma_path: `/motions/${m.id}.vrma` } : null;
       },
       getCurrentMotion: () => currentMotion,
-      getMotionDuration: (id) => MOTION_S[id] ?? null,
+      // Both measurements read the clip cache, so they answer null until it is warm.
+      getMotionDuration: (id) => (cached.has(id) ? (MOTION_S[id] ?? null) : null),
+      getMotionTravelY: (id) =>
+        cached.has(id) && id !== over.unmeasurable ? (MOTION_TRAVEL_M[id] ?? 0) : null,
+      preloadMotion: async (id) => {
+        preloads.push(id);
+        cached.add(id);
+      },
       setBodyYaw: (rad, easeMs) => {
         yaws.push({ rad, easeMs });
       },
@@ -449,6 +472,7 @@ function makeHarness(
     yaws,
     positions,
     walkTargets,
+    preloads,
     starts,
     sits,
     ends,
@@ -546,10 +570,21 @@ describe("createClimber — up", () => {
     h.climber.start();
     await h.skipInterval();
     await h.runToEnd();
-    // The pull-over covers its own 1.38 m; the loop covers the rest of the 600 px rise.
-    const pullPx = PX_PER_METRE * CLIMB_UP_DONE_METRES;
-    expect(pullPx).toBeCloseTo(414, 6);
-    expect(h.positions.some((p) => Math.abs(p.y - (PERCHED_POS.y + pullPx)) < 1)).toBe(true);
+    // The pull-over covers exactly the travel the renderer detrended out of its clip;
+    // the loop covers the rest of the 600 px rise.
+    expect(h.preloads).toContain(CLIMB_UP_DONE_MOTION_ID);
+    expect(h.positions.some((p) => Math.abs(p.y - (PERCHED_POS.y + PULL_PX)) < 1)).toBe(true);
+  });
+
+  it("paces the wall loop at the clip's own detrended travel per cycle", async () => {
+    const h = makeHarness();
+    h.climber.start();
+    await h.skipInterval();
+    // First frame of the loop leg: travel 0.843 m over a 2.967 s cycle at 300 px/m.
+    const before = h.at().y;
+    await h.frame(0.1);
+    const expected = climbSpeedPxPerSec(PX_PER_METRE, MOTION_TRAVEL_M.climb_up, MOTION_S.climb_up);
+    expect(before - h.at().y).toBeCloseTo(expected * 0.1, 0);
   });
 
   it("reads the ledge offset off where the window actually landed, not where it aimed", async () => {
@@ -579,6 +614,18 @@ describe("createClimber — up", () => {
     expect(h.motions).toEqual([{ id: CLIMB_UP_MOTION_ID }, { id: CLIMB_UP_DONE_MOTION_ID }]);
     expect(h.at()).toEqual(PERCHED_POS);
     expect(h.sits).toHaveBeenCalledTimes(1);
+  });
+
+  it("gives up when the pull-over clip cannot be measured", async () => {
+    const h = makeHarness({ unmeasurable: CLIMB_UP_DONE_MOTION_ID });
+    h.climber.start();
+    await h.skipInterval();
+    await h.runFrames(5);
+
+    expect(h.starts).toHaveBeenCalledWith("up", TARGET);
+    expect(h.ends).toHaveBeenCalledWith("up");
+    expect(h.motions).toEqual([]);
+    expect(h.sits).not.toHaveBeenCalled();
   });
 
   it("never climbs under reduced motion", async () => {
@@ -876,9 +923,8 @@ describe("createClimber — down", () => {
     h.climber.start();
     await h.skipDwell();
     await h.runToEnd();
-    const landPx = PX_PER_METRE * CLIMB_DOWN_LANDING_METRES;
-    expect(landPx).toBeCloseTo(75, 6);
-    expect(h.positions.some((p) => Math.abs(p.y - (1080 - landPx)) < 1)).toBe(true);
+    expect(h.preloads).toContain(CLIMB_DOWN_LANDING_MOTION_ID);
+    expect(h.positions.some((p) => Math.abs(p.y - (1080 - LAND_PX)) < 1)).toBe(true);
   });
 
   it("never descends under reduced motion", async () => {

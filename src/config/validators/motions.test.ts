@@ -273,6 +273,25 @@ describe("validateMotions — pingpong / loop_cycles", () => {
   });
 });
 
+describe("validateMotions — root_lock_y", () => {
+  it("passes root_lock_y through", () => {
+    const out = validateMotions(FILE, { idle: baseEntry({ root_lock_y: true }) });
+    expect(out.idle.root_lock_y).toBe(true);
+  });
+
+  it("leaves root_lock_y absent when the entry omits it", () => {
+    const out = validateMotions(FILE, { idle: baseEntry({}) });
+    expect(out.idle.root_lock_y).toBeUndefined();
+  });
+
+  it("rejects a non-boolean root_lock_y", () => {
+    expectIssue(
+      { idle: baseEntry({ root_lock_y: "true" }) },
+      "root_lock_y는 boolean이어야 함",
+    );
+  });
+});
+
 describe("validateMotions — crossfade_loop", () => {
   it("passes crossfade_loop through when loop:true", () => {
     const entry = baseEntry({ loop: true, crossfade_loop: true });
