@@ -188,6 +188,21 @@ describe("pickClimbTarget", () => {
     expect(pickClimbTarget({ ...base, windows: [outside, TARGET_WINDOW] })).toBeNull();
   });
 
+  it("skips an edge whose stand column hangs off the screen", () => {
+    // Left edge 100: she would stand at 100 - 75 with a 150 wide column reaching to -50.
+    const atEdge = win({ x: 100, width: 400 });
+    const picked = pickClimbTarget({ ...base, feetX: 200, windows: [atEdge] });
+    expect(picked?.side).toBe("right");
+    expect(picked?.edgeX).toBe(500);
+  });
+
+  it("rejects a window whose every wall hangs off the screen", () => {
+    const spanning = win({ x: 100, width: 1750 });
+    expect(
+      pickClimbTarget({ ...base, feetX: 700, maxWalkPx: 2000, windows: [spanning] }),
+    ).toBeNull();
+  });
+
   it("rejects a window on another monitor", () => {
     expect(
       pickClimbTarget({
@@ -213,8 +228,23 @@ describe("pickDescentTarget", () => {
     windowNumber: 42,
     floor: 1500,
     charHpx: CHAR_HPX,
+    monitor: MONITOR_BOUNDS,
     cfg: CFG,
   };
+
+  it("takes the far edge when the nearer one's wall hangs off the screen", () => {
+    // A window against the left of the screen: standing outside its left edge would put
+    // her feet at 37 - 75, off the monitor entirely.
+    const atEdge = win({ x: 37, width: 603 });
+    const picked = pickDescentTarget({ ...base, windows: [atEdge], feetX: 271 });
+    expect(picked?.side).toBe("right");
+    expect(picked?.edgeX).toBe(640);
+  });
+
+  it("returns null when neither wall leaves room on the screen", () => {
+    const spanning = win({ x: 37, width: 1863 });
+    expect(pickDescentTarget({ ...base, windows: [spanning], feetX: 271 })).toBeNull();
+  });
 
   it("takes the nearer edge of the window the perch is armed on", () => {
     expect(pickDescentTarget({ ...base, feetX: 1050 })).toEqual(TARGET);
