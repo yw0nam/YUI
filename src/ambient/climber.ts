@@ -31,7 +31,7 @@ import { createLogger } from "../logger";
 import type { Renderer } from "../renderer";
 import { type Rng, randRange } from "./cues";
 import { prefersReducedMotion } from "./tier1";
-import { advanceX, canStartStroll, MAX_STEP_DT_S, onFloor, type WalkerDoc } from "./walker";
+import { canStartStroll, MAX_STEP_DT_S, onFloor, type WalkerDoc } from "./walker";
 
 const log = createLogger("climber");
 
@@ -148,6 +148,10 @@ export interface ClimbGeometrySample {
   handL_dx: number;
   handR_dx: number;
   feet_dx: number;
+  /** Hips projection y, global — shows the clip's own rise against the window's. */
+  hipsY: number;
+  /** Clip-local playhead (s) the window is following. null when nothing is playing. */
+  clipT: number | null;
 }
 
 export function climbGeometrySample(args: {
@@ -161,9 +165,13 @@ export function climbGeometrySample(args: {
   feet: { x: number; y: number };
   /** Hand anchors in pet-window logical px. */
   hands: { left: { x: number; y: number }; right: { x: number; y: number } };
+  /** Hips anchor y in pet-window logical px. */
+  hipsY: number;
+  /** Clip-local playhead (s), or null when nothing is playing. */
+  clipT: number | null;
   charHpx: number;
 }): ClimbGeometrySample {
-  const { phase, side, edgeX, topY, win, feet, hands, charHpx } = args;
+  const { phase, side, edgeX, topY, win, feet, hands, hipsY, clipT, charHpx } = args;
   const r = Math.round;
   const feetX = win.x + feet.x;
   const handLX = win.x + hands.left.x;
@@ -186,6 +194,8 @@ export function climbGeometrySample(args: {
     handL_dx: inside(handLX),
     handR_dx: inside(handRX),
     feet_dx: inside(feetX),
+    hipsY: r(win.y + hipsY),
+    clipT,
   };
 }
 
@@ -348,9 +358,12 @@ export interface ClimberDeps {
     | "getPxPerMetre"
     | "getMotionDuration"
     | "getMotionTravelY"
+    | "getMotionTravelAt"
+    | "getCurrentMotionTime"
     | "preloadMotion"
     | "getCharacterAnchor"
     | "getHandAnchors"
+    | "getTapPoints"
     | "getPerchProbe"
     | "isPerched"
   >;
@@ -409,8 +422,10 @@ interface WallLeg {
   phase: string;
   /** Physical px per metre — the leg's own projection. */
   pxPerMetre: number;
-  /** Transition clips travel linearly over this many seconds; looping ones pass null. */
+  /** x eases over this many seconds; the hang drives y this way too. null = no easing. */
   linearS: number | null;
+  /** y follows the clip's own rise curve rather than the leg's own clock. */
+  curveY: boolean;
   /** The clip ends by itself, so losing it means the leg is over rather than interrupted. */
   oneshot: boolean;
 }
@@ -452,7 +467,18 @@ export function createClimber(deps: ClimberDeps): Climber {
   let geo: { side: "left" | "right"; edgeX: number; topY: number; scale: number } | null = null;
   let nowMs = 0;
   let leg:
-    | (WallLeg & { x: number; y: number; elapsedS: number; settle: (r: "done" | "lost") => void })
+    | (WallLeg & {
+        x: number;
+        y: number;
+        elapsedS: number;
+        /** Clip travel where the leg picked the curve up — legs can share a running clip. */
+        travel0: number | null;
+        /** Clip playhead last frame, so a loop restart can be counted. */
+        prevT: number;
+        /** Loop restarts so far; each one adds a whole cycle of travel. */
+        wraps: number;
+        settle: (r: "done" | "lost") => void;
+      })
     | null = null;
   /** A descent waiting for the perch it released to actually clear. */
   let releaseWait: { until: number; settle: (cleared: boolean) => void } | null = null;
@@ -526,12 +552,27 @@ export function createClimber(deps: ClimberDeps): Climber {
   /** Run one vertical leg to completion. Resolves "lost" when the climb is cancelled. */
   function runLeg(spec: WallLeg): Promise<"done" | "lost"> {
     if (spec.toY === spec.fromY && spec.toX === spec.fromX) return Promise.resolve("done");
-    if (renderer.getCurrentMotion()?.id !== spec.motionId) {
+    // A leg can inherit a clip that is already running — the descent picks up the one the
+    // hang started — so its travel baseline is where that clip has already got to. A leg
+    // that requests its own clip starts from the clip's first key, whenever it lands.
+    const continuing = renderer.getCurrentMotion()?.id === spec.motionId;
+    const now = continuing ? renderer.getCurrentMotionTime() : null;
+    const travel0 = continuing && now !== null ? renderer.getMotionTravelAt(spec.motionId, now) : 0;
+    if (!continuing) {
       renderer.playMotion({ id: spec.motionId });
       if (renderer.getCurrentMotion()?.id !== spec.motionId) return Promise.resolve("lost");
     }
     return new Promise((settle) => {
-      leg = { ...spec, x: spec.fromX, y: spec.fromY, elapsedS: 0, settle };
+      leg = {
+        ...spec,
+        x: spec.fromX,
+        y: spec.fromY,
+        elapsedS: 0,
+        travel0,
+        prevT: now ?? 0,
+        wraps: 0,
+        settle,
+      };
     });
   }
 
@@ -560,21 +601,41 @@ export function createClimber(deps: ClimberDeps): Climber {
     if (l.linearS !== null) {
       l.elapsedS += step;
       const t = Math.min(l.elapsedS / l.linearS, 1);
-      l.y = l.fromY + (l.toY - l.fromY) * t;
       l.x = l.fromX + (l.toX - l.fromX) * t;
-    } else {
-      // The clip paces the hands with the travel the loader took out of it — until it is
-      // cached there is no cycle to climb at.
-      const cycleS = renderer.getMotionDuration(l.motionId);
-      const travelM = renderer.getMotionTravelY(l.motionId);
-      if (cycleS === null || !(cycleS > 0) || travelM === null || travelM === 0) return;
-      const speed = climbSpeedPxPerSec(l.pxPerMetre, Math.abs(travelM), cycleS);
-      l.y = advanceX(l.y, l.toY, speed, step);
+      // The hang has no clip travel of its own — it is a synthetic slide onto the wall.
+      if (!l.curveY) l.y = l.fromY + (l.toY - l.fromY) * t;
     }
+    if (l.curveY && !advanceOnCurve(l)) return;
     void l.win
       .setPositionPhysical(Math.round(l.x), Math.round(l.y))
       .catch((err) => log.warn("move_failed", { degrade: true, error: String(err) }));
     if (l.y === l.toY && l.x === l.toX) finishLeg("done");
+  }
+
+  /**
+   * Put the window exactly where the clip's own hips have travelled since the leg picked
+   * it up, wraps included. A straight line through the clip would let the body lead the
+   * window through the middle of a rise that is not evenly paced. false until measurable.
+   */
+  function advanceOnCurve(l: NonNullable<typeof leg>): boolean {
+    const t = renderer.getCurrentMotionTime();
+    const at = t === null ? null : renderer.getMotionTravelAt(l.motionId, t);
+    const total = renderer.getMotionTravelY(l.motionId);
+    if (t === null || at === null || total === null || total === 0) return false;
+    if (l.travel0 === null) {
+      // The clip was not measurable when the leg opened; take the baseline now.
+      l.travel0 = at;
+      l.prevT = t;
+    }
+    // A looping clip restarts its playhead; each restart is another whole cycle travelled.
+    if (t < l.prevT) l.wraps += 1;
+    l.prevT = t;
+    const travelled = at + l.wraps * total - l.travel0;
+    const next = l.fromY - travelled * l.pxPerMetre;
+    // Snap on arrival rather than comparing floats that were reached two different ways.
+    const reached = l.toY >= l.fromY ? next >= l.toY : next <= l.toY;
+    l.y = reached ? l.toY : next;
+    return true;
   }
 
   /** Everything both sequences read at plan time, or null when the world is not ready. */
@@ -649,6 +710,8 @@ export function createClimber(deps: ClimberDeps): Climber {
         win: { x: winPhysical.x / g.scale, y: winPhysical.y / g.scale },
         feet,
         hands,
+        hipsY: renderer.getTapPoints()?.hips?.y ?? feet.y,
+        clipT: renderer.getCurrentMotionTime(),
         charHpx: probe.charHpx,
       }),
     );
@@ -743,6 +806,7 @@ export function createClimber(deps: ClimberDeps): Climber {
       motionId: CLIMB_UP_MOTION_ID,
       phase: "climb_up",
       linearS: null,
+      curveY: true,
       oneshot: false,
     });
     if (loop !== "done" || !alive(startedAt)) return endClimb();
@@ -756,6 +820,7 @@ export function createClimber(deps: ClimberDeps): Climber {
       motionId: CLIMB_UP_DONE_MOTION_ID,
       phase: "pull_over",
       linearS: pull.seconds,
+      curveY: true,
       oneshot: true,
     });
     if (pullLeg !== "done" || !alive(startedAt)) return endClimb();
@@ -852,6 +917,7 @@ export function createClimber(deps: ClimberDeps): Climber {
       motionId: CLIMB_DOWN_MOTION_ID,
       phase: "hang",
       linearS: HANG_MS / 1000,
+      curveY: false,
       oneshot: false,
     });
     if (hang !== "done" || !alive(startedAt)) return endClimb();
@@ -864,6 +930,7 @@ export function createClimber(deps: ClimberDeps): Climber {
       motionId: CLIMB_DOWN_MOTION_ID,
       phase: "descend",
       linearS: null,
+      curveY: true,
       oneshot: false,
     });
     if (loop !== "done" || !alive(startedAt)) return endClimb();
@@ -882,6 +949,7 @@ export function createClimber(deps: ClimberDeps): Climber {
       motionId: CLIMB_DOWN_LANDING_MOTION_ID,
       phase: "landing",
       linearS: land.seconds,
+      curveY: true,
       oneshot: true,
     });
     if (landLeg !== "done" || !alive(startedAt)) return endClimb();

@@ -65,7 +65,12 @@ import { baselineWhileHeld, suppressWhileHeld } from "./perch-hold";
 import { createPinController, type PinController } from "./pin-controller";
 import { clampPixelRatio } from "./pixel-ratio";
 import { projectFeetAnchor, type ScreenAnchor } from "./project-anchor";
-import { detrendClipRootY, recenterClipRootMotion } from "./recenter-root-motion";
+import {
+  detrendClipRootY,
+  type RootYCurve,
+  recenterClipRootMotion,
+  sampleRootYCurve,
+} from "./recenter-root-motion";
 import { clipCacheKey, playbackClip } from "./self-crossfade";
 import { clientToStage } from "./stage-coords";
 import {
@@ -286,6 +291,14 @@ export interface Renderer {
    */
   getMotionTravelY(id: string): number | null;
   /**
+   * The same travel at one point in the clip, interpolated between its keyframes —
+   * the curve the clip actually rises on, so a mover can follow it instead of a straight
+   * line. Signed metres from the clip's first key. null until the clip is cached.
+   */
+  getMotionTravelAt(id: string, timeS: number): number | null;
+  /** Clip-local playhead (s) of the committed motion. null when nothing is playing. */
+  getCurrentMotionTime(): number | null;
+  /**
    * Load a registered motion's clip into the cache without playing it, so its duration
    * and travel can be read before the motion starts. Resolves once loaded or given up on.
    */
@@ -450,6 +463,10 @@ export function createRenderer(options: RendererOptions): Renderer {
   const clipCache = new Map<string, THREE.AnimationClip>();
   /** Vertical travel (signed metres) detrended out of each cached clip; 0 when not locked. */
   const clipTravelY = new Map<string, number>();
+  /** The rise each root-locked clip carries, as a curve a mover can follow. */
+  const clipRootCurve = new Map<string, RootYCurve>();
+  /** Hips world y in the loaded VRM's rest pose — where a root-locked clip is anchored. */
+  let restHipsY: number | undefined;
   const deadClips = createDeadClipRegistry(log);
   /** Currently playing AnimationAction (prev in crossfade). */
   let currentAction: THREE.AnimationAction | undefined;
@@ -681,6 +698,8 @@ export function createRenderer(options: RendererOptions): Renderer {
     }
     clipCache.clear();
     clipTravelY.clear();
+    clipRootCurve.clear();
+    restHipsY = undefined;
     motionMirror = false;
     boneNameSwap.clear();
     actionToId.clear();
@@ -758,8 +777,21 @@ export function createRenderer(options: RendererOptions): Renderer {
     }
     const clip = createVRMAnimationClip(vrmAnimation as never, currentVrm);
     recenterClipRootMotion(clip); // strip baked horizontal root drift so the pet stays centered.
-    // A clip whose rise IS the movement plays in place; the mover supplies the travel.
-    clipTravelY.set(cacheKey, rootLockY ? detrendClipRootY(clip) : 0);
+    // A clip whose rise IS the movement plays in place; the mover supplies the travel,
+    // following the curve the clip had rather than a straight line through it.
+    if (rootLockY) {
+      const locked = detrendClipRootY(clip, restHipsY);
+      clipTravelY.set(cacheKey, locked.travel);
+      if (locked.curve) clipRootCurve.set(cacheKey, locked.curve);
+      log.debug("clip.root_locked", {
+        vrma_path: vrmaPath,
+        travel: locked.travel,
+        shift: locked.shift,
+        keys: locked.curve?.times.length ?? 0,
+      });
+    } else {
+      clipTravelY.set(cacheKey, 0);
+    }
     clipCache.set(cacheKey, clip);
     return clip;
   }
@@ -917,6 +949,8 @@ export function createRenderer(options: RendererOptions): Renderer {
     // Full-body fit-to-bounds: measure in rest pose, before idle animates the arms.
     vrm.scene.updateWorldMatrix(true, true);
     modelBox = new THREE.Box3().setFromObject(vrm.scene);
+    // Same moment, same reason: a root-locked clip rests its hips on this height.
+    restHipsY = pins.hipsBone()?.getWorldPosition(new THREE.Vector3()).y;
     fitCamera();
 
     // observability: surface available expressions + whether the lipsync mouth key exists.
@@ -1208,6 +1242,23 @@ export function createRenderer(options: RendererOptions): Renderer {
       const key = registryClipKey(id);
       if (!key || !clipCache.has(key)) return null;
       return clipTravelY.get(key) ?? 0;
+    },
+    getMotionTravelAt(id, timeS) {
+      const key = registryClipKey(id);
+      if (!key || !clipCache.has(key)) return null;
+      const curve = clipRootCurve.get(key);
+      return curve ? sampleRootYCurve(curve, timeS) : 0;
+    },
+    getCurrentMotionTime() {
+      const current = controller?.current();
+      if (!current || !currentAction) return null;
+      const key = registryClipKey(current.id);
+      if (!key) return null;
+      // A start is asynchronous, so the action can still be holding the previous clip —
+      // its playhead would be a different clip's. The crossfade clone counts as ours.
+      const playing = currentAction.getClip();
+      if (playing !== clipCache.get(key) && playing !== clipCache.get(`${key}#xfade`)) return null;
+      return currentAction.time;
     },
     async preloadMotion(id) {
       const entry = motionRegistry?.[id];

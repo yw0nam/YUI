@@ -14,6 +14,7 @@ import { describe, expect, it } from "vitest";
 import {
   detrendClipRootY,
   detrendRootY,
+  type RootYCurve,
   recenterRootTranslation,
   rootYCurve,
   sampleRootYCurve,
@@ -136,8 +137,10 @@ describe("detrendRootY — resting the hips at their own height", () => {
   });
 
   it("leaves a clip that already starts at the rest height alone", () => {
-    const { values, shift } = detrendRootY([0, 1], [0, 0.95, 0, 0, 1.05, 0], 0.95);
-    expect(shift).toBe(0);
+    // Bobs up and comes back, so there is no rise to detrend and no shift to apply.
+    const { values, shift } = detrendRootY([0, 1, 2], [0, 0.95, 0, 0, 1.05, 0, 0, 0.95, 0], 0.95);
+    // Float32 storage, so "no shift" is zero to the precision the track is kept at.
+    expect(shift).toBeCloseTo(0, 6);
     expect(values[1]).toBeCloseTo(0.95, 6);
     expect(values[4]).toBeCloseTo(1.05, 6);
   });
@@ -162,17 +165,17 @@ describe("detrendRootY — resting the hips at their own height", () => {
 });
 
 describe("rootYCurve / sampleRootYCurve", () => {
-  const curve = { times: [0, 1, 2], values: [0, 0.8, 1.0] };
+  const curve = { times: [0, 1, 2], values: [0, 0.5, 1.0] };
 
   it("reads the clip's own rise from its first key", () => {
-    expect(rootYCurve([0, 1, 2], [0, 1.9, 0, 0, 2.7, 0, 0, 2.9, 0])).toEqual(curve);
+    expect(rootYCurve([0, 1, 2], [0, 1.5, 0, 0, 2.0, 0, 0, 2.5, 0])).toEqual(curve);
   });
 
   it("interpolates linearly between keys", () => {
     expect(sampleRootYCurve(curve, 0)).toBeCloseTo(0, 6);
-    expect(sampleRootYCurve(curve, 0.5)).toBeCloseTo(0.4, 6);
-    expect(sampleRootYCurve(curve, 1)).toBeCloseTo(0.8, 6);
-    expect(sampleRootYCurve(curve, 1.5)).toBeCloseTo(0.9, 6);
+    expect(sampleRootYCurve(curve, 0.5)).toBeCloseTo(0.25, 6);
+    expect(sampleRootYCurve(curve, 1)).toBeCloseTo(0.5, 6);
+    expect(sampleRootYCurve(curve, 1.5)).toBeCloseTo(0.75, 6);
     expect(sampleRootYCurve(curve, 2)).toBeCloseTo(1.0, 6);
   });
 
@@ -182,9 +185,9 @@ describe("rootYCurve / sampleRootYCurve", () => {
   });
 
   it("keeps a descent signed negative", () => {
-    const down = rootYCurve([0, 1], [0, 1.9, 0, 0, 0.9, 0]);
+    const down = rootYCurve([0, 1], [0, 2.0, 0, 0, 1.0, 0]);
     expect(down?.values).toEqual([0, -1]);
-    expect(sampleRootYCurve(down!, 0.5)).toBeCloseTo(-0.5, 6);
+    expect(sampleRootYCurve(down as RootYCurve, 0.5)).toBeCloseTo(-0.5, 6);
   });
 
   it("returns null for a track with nothing to follow", () => {
@@ -213,10 +216,10 @@ describe("detrendClipRootY", () => {
 
   it("keeps the removed curve so a mover can follow it instead of guessing", () => {
     const clip = new AnimationClip("climb_up", 2, [
-      new VectorKeyframeTrack("hips.position", [0, 1, 2], [0, 1.0, 0, 0, 1.6, 0, 0, 2.0, 0]),
+      new VectorKeyframeTrack("hips.position", [0, 1, 2], [0, 1.0, 0, 0, 1.5, 0, 0, 2.0, 0]),
     ]);
     const { curve } = detrendClipRootY(clip);
-    expect(curve).toEqual({ times: [0, 1, 2], values: [0, 0.6, 1.0] });
+    expect(curve).toEqual({ times: [0, 1, 2], values: [0, 0.5, 1.0] });
   });
 
   it("rests the hips at the height it is given", () => {

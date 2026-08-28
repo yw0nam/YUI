@@ -501,7 +501,7 @@ function makeHarness(
         head: { x: 200, y: 100 },
         chest: { x: 200, y: 200 },
         hips: { x: 200, y: 320 },
-        charHpx: over.charHpx === undefined ? CHAR_HPX : over.charHpx,
+        charHpx: over.charHpx ?? CHAR_HPX,
       }),
       // Both measurements read the clip cache, so they answer null until it is warm.
       getMotionDuration: (id) => (cached.has(id) ? (MOTION_S[id] ?? null) : null),

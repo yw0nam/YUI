@@ -54,32 +54,89 @@ export function recenterClipRootMotion(clip: AnimationClip): void {
 export function detrendRootY(
   times: ArrayLike<number>,
   values: ArrayLike<number>,
-): { values: Float32Array; travel: number } {
+  restY?: number,
+): { values: Float32Array; travel: number; shift: number } {
   const out = new Float32Array(values);
   const count = times.length;
-  if (count < 2 || values.length !== count * 3) return { values: out, travel: 0 };
+  if (count < 1 || values.length !== count * 3) return { values: out, travel: 0, shift: 0 };
 
-  const span = times[count - 1] - times[0];
-  const travel = out[(count - 1) * 3 + 1] - out[1];
-  if (!(span > 0) || travel === 0) return { values: out, travel: 0 };
-
-  for (let i = 0; i < count; i++) {
-    out[i * 3 + 1] -= travel * ((times[i] - times[0]) / span);
+  const span = count > 1 ? times[count - 1] - times[0] : 0;
+  const rise = count > 1 ? out[(count - 1) * 3 + 1] - out[1] : 0;
+  const travel = span > 0 ? rise : 0;
+  if (travel !== 0) {
+    for (let i = 0; i < count; i++) {
+      out[i * 3 + 1] -= travel * ((times[i] - times[0]) / span);
+    }
   }
-  return { values: out, travel };
+
+  // A climb clip opens wherever its capture did — often a metre above standing — and
+  // that offset would play out in the canvas. Rest the detrended track on the body's
+  // own hips height instead, so only the motion inside the clip shows.
+  const shift = restY === undefined ? 0 : restY - out[1];
+  if (shift !== 0) {
+    for (let i = 0; i < count; i++) out[i * 3 + 1] += shift;
+  }
+  return { values: out, travel, shift };
+}
+
+/** A clip's own vertical rise over time: keyframe times, and metres from the first key. */
+export interface RootYCurve {
+  times: number[];
+  values: number[];
+}
+
+/** The rise a translation track carries, as a curve from its first key. null when it has none. */
+export function rootYCurve(times: ArrayLike<number>, values: ArrayLike<number>): RootYCurve | null {
+  const count = times.length;
+  if (count < 2 || values.length !== count * 3) return null;
+  const out: RootYCurve = { times: [], values: [] };
+  for (let i = 0; i < count; i++) {
+    out.times.push(times[i]);
+    out.values.push(values[i * 3 + 1] - values[1]);
+  }
+  return out;
+}
+
+/** The curve's value at a clip time, interpolated between keys and clamped at both ends. */
+export function sampleRootYCurve(curve: RootYCurve, timeS: number): number {
+  const { times, values } = curve;
+  const last = times.length - 1;
+  if (last < 0) return 0;
+  if (timeS <= times[0]) return values[0];
+  if (timeS >= times[last]) return values[last];
+  let i = 1;
+  while (i < last && times[i] < timeS) i++;
+  const span = times[i] - times[i - 1];
+  if (!(span > 0)) return values[i];
+  const t = (timeS - times[i - 1]) / span;
+  return values[i - 1] + (values[i] - values[i - 1]) * t;
 }
 
 /**
  * Detrend every translation track of a clip in place. Returns the largest travel
  * removed (signed metres) — a VRMA carries one hips track, so that is the clip's own.
  */
-export function detrendClipRootY(clip: AnimationClip): number {
+export function detrendClipRootY(
+  clip: AnimationClip,
+  restY?: number,
+): { travel: number; shift: number; curve: RootYCurve | null } {
   let travel = 0;
+  let shift = 0;
+  let curve: RootYCurve | null = null;
   for (const track of clip.tracks) {
     if (!track.name.endsWith(".position")) continue;
-    const detrended = detrendRootY(track.times, track.values);
+    // Read the rise before detrending — it is what the mover has to supply.
+    const own = rootYCurve(track.times, track.values);
+    const detrended = detrendRootY(track.times, track.values, restY);
     track.values = detrended.values;
-    if (Math.abs(detrended.travel) > Math.abs(travel)) travel = detrended.travel;
+    if (Math.abs(detrended.travel) > Math.abs(travel)) {
+      travel = detrended.travel;
+      shift = detrended.shift;
+      curve = own;
+    } else if (curve === null) {
+      shift = detrended.shift;
+      curve = own;
+    }
   }
-  return travel;
+  return { travel, shift, curve };
 }
