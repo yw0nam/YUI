@@ -45,8 +45,8 @@ describe("loadConfig — avatar.available", () => {
         floor_tolerance_px: 24,
       },
       fall: {
-        gravity_px_s2: 2400,
-        max_speed_px_s: 1800,
+        gravity_px_s2: 1600,
+        max_speed_px_s: 1200,
         min_drop_frac: 0.2,
         cue_cooldown_ms: 60_000,
       },
