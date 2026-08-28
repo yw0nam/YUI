@@ -119,23 +119,44 @@ export const WALK_DEFAULTS: WalkConfig = {
   floor_tolerance_px: 24,
 };
 
+/** Drag-release fall dynamics. Distances and speeds are logical px. */
+export interface FallConfig {
+  /** Downward acceleration while the character falls. */
+  gravity_px_s2: number;
+  /** Terminal velocity the descent never exceeds. */
+  max_speed_px_s: number;
+  /** A drop shorter than this fraction of the on-screen character height snaps instead of falling. */
+  min_drop_frac: number;
+  /** Cooldown (ms) between drop speech candidates. */
+  cue_cooldown_ms: number;
+}
+
+export const FALL_DEFAULTS: FallConfig = {
+  gravity_px_s2: 2400,
+  max_speed_px_s: 1800,
+  min_drop_frac: 0.2,
+  cue_cooldown_ms: 60_000,
+};
+
 /** Authored label for one reflex-gesture speech candidate. context is optional user-authored intent. */
 export interface GestureCueConfig {
   label: string;
   context?: string;
 }
 
-/** Reflex-gesture speech cues — drag-hold / window-sit / peek. */
+/** Reflex-gesture speech cues — drag-hold / window-sit / peek / drop. */
 export interface GestureCuesConfig {
   drag_held: GestureCueConfig;
   window_sit: GestureCueConfig;
   peek: GestureCueConfig;
+  dropped: GestureCueConfig;
 }
 
 export const GESTURE_CUES_DEFAULTS: GestureCuesConfig = {
   drag_held: { label: "dragged around" },
   window_sit: { label: "sat on window" },
   peek: { label: "peeking" },
+  dropped: { label: "dropped from mid-air" },
 };
 
 /** Default drag-hold threshold (ms) before proactive.drag_held fires. */
@@ -163,9 +184,11 @@ export interface AvatarConfig {
   peek: PeekConfig;
   /** Ambient floor-stroll knobs. Defaults are applied by the validator. */
   walk: WalkConfig;
+  /** Drag-release fall knobs. Defaults are applied by the validator. */
+  fall: FallConfig;
   /** Drag-hold reflex threshold (ms) — proactive.drag_held fires once a drag has been held this long. */
   drag_hold_ms: number;
-  /** Reflex-gesture speech cues (drag-hold / window-sit / peek). Defaults are applied by the validator. */
+  /** Reflex-gesture speech cues (drag-hold / window-sit / peek / drop). Defaults are applied by the validator. */
   gesture_cues: GestureCuesConfig;
   /** Cursor gaze-tracking knob. Absent → renderer default (natural preset). Partial values allowed. */
   gaze?: {

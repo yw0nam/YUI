@@ -92,6 +92,8 @@ export interface WindowDropSourceDeps {
   getPeekConfig: () => PeekConfig;
   /** Returns the current reflex-gesture speech cues (window_sit / peek used here). */
   getGestureCues: () => GestureCuesConfig;
+  /** A drag release that neither sat nor peeked — the character is left mid-air. */
+  onDragMiss?: () => void;
   /** Injectable timer fns (fake timers in tests). */
   setInterval?: typeof setInterval;
   clearInterval?: typeof clearInterval;
@@ -657,9 +659,13 @@ export function createWindowDropSource(deps: WindowDropSourceDeps): WindowDropSo
       if (unlisten) return;
       try {
         unlisten = await listen(RELEASE_EVENT, () => {
-          void settle().catch((err) =>
-            log.warn("release_handling_failed", { degrade: true, error: String(err) }),
-          );
+          void settle()
+            .then((outcome) => {
+              if (outcome.kind === "none") deps.onDragMiss?.();
+            })
+            .catch((err) =>
+              log.warn("release_handling_failed", { degrade: true, error: String(err) }),
+            );
         });
       } catch (err) {
         log.warn("listen_subscribe_failed", { degrade: true, error: String(err) });

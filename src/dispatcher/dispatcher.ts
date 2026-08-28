@@ -191,7 +191,8 @@ function classify(env: BusEnvelope): Classification {
     n === "user.peek_drop" ||
     n === "user.peek_exit" ||
     n === "avatar.walk_start" ||
-    n === "avatar.walk_end"
+    n === "avatar.walk_end" ||
+    n === "user.fall_land"
   ) {
     return { tier: 1, target: "tier1" };
   }
@@ -223,6 +224,7 @@ function userTurnSourceOf(env: BusEnvelope): UserTurnSource | undefined {
  *  - pat_end → return to idle (motion null).
  *  - idle.returned → empty directive (hold).
  *  - avatar.walk_* → no render; the ambient walker owns the walk clip and only the posture moves.
+ *  - user.fall_land → no render; the faller owns the falling/landing clips and the posture is unchanged.
  * Returning null means no render.
  */
 function tier1Directive(env: BusEnvelope, log: Logger): ControlEnvelope | null {
@@ -242,6 +244,7 @@ function tier1Directive(env: BusEnvelope, log: Logger): ControlEnvelope | null {
     case "user.peek_exit":
       return { speech_text: "", motion: null };
     case "user.tap":
+    case "user.fall_land":
       return null;
     case "user.pat_end":
       return { speech_text: "", motion: null };

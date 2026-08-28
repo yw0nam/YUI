@@ -2,6 +2,7 @@ import type { Tier1Engine } from "./ambient/tier1";
 import {
   wireBroker,
   wireDispatcherSources,
+  wireFaller,
   wireGuardrailsOverrides,
   wirePeekExitTriggers,
   type wireSpeakerSelection,
@@ -468,6 +469,19 @@ const realFactories: ConfiguredBootstrapFactories = {
       }),
     );
 
+    // A drag release that lands mid-air drops her to the floor; the user outranks it.
+    const faller = wireFaller({
+      bus,
+      renderer,
+      getFallConfig: () => config.get().avatar.fall,
+      getMotionKind: (id) => config.get().motions[id]?.kind,
+      getFloorTolerancePx: () => config.get().avatar.walk.floor_tolerance_px,
+      getGestureCues: () => config.get().avatar.gesture_cues,
+      setHitTestMoving: (moving) => hitTest.setMoving(moving),
+      log,
+    });
+    register(faller.dispose);
+
     const windowSources = wireWindowSources({
       bus,
       renderer,
@@ -481,7 +495,11 @@ const realFactories: ConfiguredBootstrapFactories = {
         return { id: active.id, label: active.label ?? active.id };
       },
       noteAvatarMoved: () => dispatcher.noteAvatarMoved(),
-      noteAgentMove: () => walker.cancel(),
+      noteAgentMove: () => {
+        walker.cancel();
+        faller.cancel();
+      },
+      onDragMiss: () => faller.drop(),
       log,
     });
     register(windowSources.dispose);
@@ -495,6 +513,7 @@ const realFactories: ConfiguredBootstrapFactories = {
       onDragStart: () => {
         dragging = true;
         walker.cancel();
+        faller.cancel();
         hitTest.suspend();
         dragHold.noteDragStart();
         windowSources.noteUserDrag();
