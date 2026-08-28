@@ -162,6 +162,17 @@ export function peekEnv(): BusEnvelope {
   };
 }
 
+export function droppedEnv(): BusEnvelope {
+  return {
+    seq_id: 7,
+    source: "os_event_watcher",
+    event_name: "proactive.dropped",
+    ts: 1_717_000_000_000,
+    payload: { cue_id: "dropped", label: "dropped from mid-air", height_px: 640 },
+    hint_tier: 2,
+  };
+}
+
 export function completedEvent(env: ControlEnvelope, responseId = "resp_new"): ChatStreamEvent {
   return { type: "completed", envelope: env, responseId };
 }

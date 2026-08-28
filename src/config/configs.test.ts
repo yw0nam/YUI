@@ -92,6 +92,15 @@ describe("configs/avatar.json", () => {
     });
   });
 
+  it("carries the drag-release fall dynamics", () => {
+    expect(a.fall).toEqual({
+      gravity_px_s2: 2400,
+      max_speed_px_s: 1800,
+      min_drop_frac: 0.2,
+      cue_cooldown_ms: 60000,
+    });
+  });
+
   it("ships built-in touch/gesture cues as label-only (context is persona judgment, not client data)", () => {
     const builtIn: Array<[string, any]> = [
       ["tap.region_cues.head", a.tap.region_cues.head],
@@ -101,6 +110,7 @@ describe("configs/avatar.json", () => {
       ["gesture_cues.drag_held", a.gesture_cues.drag_held],
       ["gesture_cues.window_sit", a.gesture_cues.window_sit],
       ["gesture_cues.peek", a.gesture_cues.peek],
+      ["gesture_cues.dropped", a.gesture_cues.dropped],
     ];
     for (const [path, cue] of builtIn) {
       expect(cue, path).toBeDefined();
@@ -273,7 +283,7 @@ describe("configs/motions.json", () => {
 
   it("registers the fall sequence: falling (reactive, loop, broker-excluded)", () => {
     expect(m.falling).toBeDefined();
-    expect(m.falling.vrma_path).toBe("/motions/falling_loop.vrma");
+    expect(m.falling.vrma_path).toBe("/motions/falling.vrma");
     expect(m.falling.kind).toBe("reactive");
     expect(m.falling.loop).toBe(true);
     expect(m.falling.priority).toBe(78);
@@ -322,6 +332,10 @@ describe("configs/motions.json", () => {
     expect(agentTriggerableMotionIds(validateMotions("configs/motions.json", m))).not.toContain(
       "walk",
     );
+  });
+
+  it("keeps falling below the drag clip so a pickup takes the body mid-fall", () => {
+    expect(m.falling.priority).toBeLessThan(m.drag.priority);
   });
 
   it("registers walk as a looping reactive clip the ambient stroll owns end to end", () => {

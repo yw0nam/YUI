@@ -54,6 +54,7 @@ describe("loadConfig — happy path", () => {
         drag_held: { label: "dragged around" },
         window_sit: { label: "sat on window" },
         peek: { label: "peeking" },
+        dropped: { label: "dropped from mid-air" },
       },
       walk: {
         interval_min_ms: 30_000,
@@ -61,6 +62,12 @@ describe("loadConfig — happy path", () => {
         distance_min_px: 200,
         distance_max_px: 600,
         floor_tolerance_px: 24,
+      },
+      fall: {
+        gravity_px_s2: 2400,
+        max_speed_px_s: 1800,
+        min_drop_frac: 0.2,
+        cue_cooldown_ms: 60_000,
       },
     });
     expect(cfg.emotionRegistry.happy).toEqual({

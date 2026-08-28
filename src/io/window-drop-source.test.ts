@@ -40,6 +40,7 @@ const AUTHORED_CUES = {
   drag_held: { label: "dragged around", context: "put me down" },
   window_sit: { label: "sat on window", context: "say something fitting" },
   peek: { label: "peeking", context: "say something playful" },
+  dropped: { label: "dropped from mid-air", context: "say something startled" },
 };
 
 /** Minimal in-memory bus capturing pushes. */
@@ -1635,5 +1636,135 @@ describe("window-drop-source — perch targets + release", () => {
     source.release();
 
     expect(pushed.map((e) => e.event_name)).toEqual(["user.window_sit_exit"]);
+  });
+});
+
+describe("window-drop-source — drag miss", () => {
+  it("reports the miss when a release lands the seat over no window", async () => {
+    const renderer = {
+      getPerchProbe: vi.fn(() => ({ seatPx: { x: 40, y: 30 }, charHpx: 200 })),
+      isPerched: vi.fn(() => true),
+    };
+    const invoke = vi.fn(async () => [win({ x: 5000, y: 5000 })]);
+    const getWindow = () => makeWindow({ x: 0, y: 0 }, 1);
+    const { listen, fire } = makeListen();
+    const onDragMiss = vi.fn();
+
+    const source = createWindowDropSource({
+      bus,
+      renderer,
+      invoke,
+      getWindow,
+      listen,
+      onDragMiss,
+    });
+    await source.start();
+    fire({ point: { x: 0, y: 0 } });
+    await settleRelease();
+
+    expect(onDragMiss).toHaveBeenCalledTimes(1);
+  });
+
+  it("reports the miss when the release has no perch probe to place", async () => {
+    const renderer = { getPerchProbe: vi.fn(() => null), isPerched: vi.fn(() => true) };
+    const invoke = vi.fn(async () => [win()]);
+    const getWindow = () => makeWindow({ x: 0, y: 0 }, 1);
+    const { listen, fire } = makeListen();
+    const onDragMiss = vi.fn();
+
+    const source = createWindowDropSource({
+      bus,
+      renderer,
+      invoke,
+      getWindow,
+      listen,
+      onDragMiss,
+    });
+    await source.start();
+    fire({ point: { x: 0, y: 0 } });
+    await settleRelease();
+
+    expect(onDragMiss).toHaveBeenCalledTimes(1);
+  });
+
+  it("stays quiet when the release lands a sit", async () => {
+    const { renderer } = makePerchSource();
+    const invoke = vi.fn(async () => [win()]);
+    const getWindow = () => makeWindow({ x: 520, y: 740 }, 2);
+    const { listen, fire } = makeListen();
+    const onDragMiss = vi.fn();
+
+    const source = createWindowDropSource({
+      bus,
+      renderer,
+      invoke,
+      getWindow,
+      listen,
+      onDragMiss,
+    });
+    await source.start();
+    fire({ point: { x: 0, y: 0 } });
+    await settleRelease();
+
+    expect(pushed.some((e) => e.event_name === "user.window_sit_drop")).toBe(true);
+    expect(onDragMiss).not.toHaveBeenCalled();
+  });
+
+  it("stays quiet when a programmatic placement finds no target", async () => {
+    const { renderer } = makePerchSource();
+    const invoke = vi.fn(async () => [win({ ownerName: "Notes" })]);
+    const getWindow = () => ({
+      outerPosition: vi.fn(async () => ({ x: 520, y: 740 })),
+      scaleFactor: vi.fn(async () => 2),
+      setPositionPhysical: vi.fn(async () => {}),
+    });
+    const { listen } = makeListen();
+    const onDragMiss = vi.fn();
+
+    const source = createWindowDropSource({
+      bus,
+      renderer,
+      invoke,
+      getWindow,
+      listen,
+      onDragMiss,
+    });
+    const result = await source.placeOn({ kind: "sit", app: "Xcode" });
+
+    expect(result).toEqual({ ok: false, reason: "not_found" });
+    expect(onDragMiss).not.toHaveBeenCalled();
+  });
+
+  it("stays quiet when the occlusion poll loses the armed window", async () => {
+    vi.useFakeTimers();
+    try {
+      const { renderer } = makePerchSource();
+      const armed = win({ name: "Armed", windowNumber: 42 });
+      const invoke = vi.fn(async () => [armed]);
+      const getWindow = () => makeWindow({ x: 520, y: 740 }, 2);
+      const { listen, fire } = makeListen();
+      const onDragMiss = vi.fn();
+
+      const source = createWindowDropSource({
+        bus,
+        renderer,
+        invoke,
+        getWindow,
+        listen,
+        onDragMiss,
+      });
+      await source.start();
+      fire({ point: { x: 0, y: 0 } });
+      await settleRelease();
+      onDragMiss.mockClear();
+
+      invoke.mockImplementation(async () => [win({ name: "Stranger", windowNumber: 7 })]);
+      await tick();
+
+      expect(pushed.filter((e) => e.event_name === "user.window_sit_exit")).toHaveLength(1);
+      expect(onDragMiss).not.toHaveBeenCalled();
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });

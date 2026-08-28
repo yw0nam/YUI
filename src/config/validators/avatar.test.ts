@@ -45,6 +45,7 @@ describe("validateAvatar — happy path", () => {
         drag_held: { label: "dragged around" },
         window_sit: { label: "sat on window" },
         peek: { label: "peeking" },
+        dropped: { label: "dropped from mid-air" },
       },
       walk: {
         interval_min_ms: 30_000,
@@ -52,6 +53,12 @@ describe("validateAvatar — happy path", () => {
         distance_min_px: 200,
         distance_max_px: 600,
         floor_tolerance_px: 24,
+      },
+      fall: {
+        gravity_px_s2: 2400,
+        max_speed_px_s: 1800,
+        min_drop_frac: 0.2,
+        cue_cooldown_ms: 60_000,
       },
     });
   });
@@ -550,6 +557,57 @@ describe("validateAvatar — walk", () => {
   });
 });
 
+describe("validateAvatar — fall", () => {
+  it("merges a partial fall block over defaults", () => {
+    const out = validateAvatar(FILE, {
+      vrm_url: "/v.vrm",
+      fall: { gravity_px_s2: 1200, min_drop_frac: 0.5 },
+    });
+
+    expect(out.fall).toEqual({
+      gravity_px_s2: 1200,
+      max_speed_px_s: 1800,
+      min_drop_frac: 0.5,
+      cue_cooldown_ms: 60_000,
+    });
+  });
+
+  it("rejects a non-object fall block", () => {
+    expectIssue({ vrm_url: "/v.vrm", fall: "nope" }, "fall은 객체여야 함");
+  });
+
+  it.each([
+    ["gravity_px_s2", 0],
+    ["gravity_px_s2", -1],
+    ["max_speed_px_s", "1800"],
+    ["max_speed_px_s", Number.POSITIVE_INFINITY],
+  ])("rejects invalid %s: %s", (field, value) => {
+    expectIssue({ vrm_url: "/v.vrm", fall: { [field]: value } }, `fall.${field}는 0보다 큰`);
+  });
+
+  it.each([
+    -0.1,
+    1.5,
+    "0.2",
+    Number.NaN,
+  ])("rejects a min_drop_frac outside [0, 1]: %s", (min_drop_frac) => {
+    expectIssue({ vrm_url: "/v.vrm", fall: { min_drop_frac } }, "fall.min_drop_frac는 [0, 1]");
+  });
+
+  it("accepts the boundary fractions", () => {
+    expect(
+      validateAvatar(FILE, { vrm_url: "/v.vrm", fall: { min_drop_frac: 0 } }).fall.min_drop_frac,
+    ).toBe(0);
+    expect(
+      validateAvatar(FILE, { vrm_url: "/v.vrm", fall: { min_drop_frac: 1 } }).fall.min_drop_frac,
+    ).toBe(1);
+  });
+
+  it.each([-1, "60000", 1.5])("rejects an invalid cue_cooldown_ms: %s", (cue_cooldown_ms) => {
+    expectIssue({ vrm_url: "/v.vrm", fall: { cue_cooldown_ms } }, "fall.cue_cooldown_ms는 0 이상");
+  });
+});
+
 describe("validateAvatar — drag_hold_ms", () => {
   it("defaults to 5000 when absent", () => {
     const out = validateAvatar(FILE, { vrm_url: "/v.vrm" });
@@ -571,6 +629,7 @@ describe("validateAvatar — gesture_cues", () => {
     drag_held: { label: "dragged around", context: "put me down" },
     window_sit: { label: "sat on window", context: "say something" },
     peek: { label: "peeking", context: "say something playful" },
+    dropped: { label: "dropped from mid-air", context: "say something startled" },
   };
 
   it("defaults to the authored label-only cues when absent", () => {
@@ -579,6 +638,7 @@ describe("validateAvatar — gesture_cues", () => {
       drag_held: { label: "dragged around" },
       window_sit: { label: "sat on window" },
       peek: { label: "peeking" },
+      dropped: { label: "dropped from mid-air" },
     });
   });
 
