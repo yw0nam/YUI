@@ -83,9 +83,9 @@ export interface MotionRegistryEntry {
   /** If false, excluded from broker (agent) vocabulary — local render only. Default true. */
   broker_publish?: boolean;
   /**
-   * Strip the clip's end-to-end vertical travel, keeping the bob. For a clip whose rise
-   * or fall IS the movement (the climbs): the mover supplies that travel by moving the
-   * window, so leaving it in the clip would play it twice.
+   * Level the clip's hips-Y track onto the body's rest height, keeping the curve that
+   * came out. For a clip whose rise or fall IS the movement (the climbs): the mover
+   * replays that curve by moving the window, so anything left in the track plays twice.
    */
   root_lock_y?: boolean;
   kind: MotionKind;

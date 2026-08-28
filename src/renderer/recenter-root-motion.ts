@@ -6,9 +6,11 @@
  * offset that drags the pet sideways. Recentering X/Z around their own mean
  * keeps the character on origin while preserving vertical bob and lively sway.
  *
- * Vertical travel is left alone by default — the bob is the point. A clip whose
- * rise is the movement itself, like the climbs, is detrended instead: the travel
- * comes out of the clip and the window supplies it, so it never plays twice.
+ * Vertical motion is left alone by default — the bob is the point. A clip whose rise
+ * IS the movement, like the climbs, has its whole hips-Y curve taken out instead and
+ * kept beside the clip: the mover replays that curve by moving the window, so the two
+ * compose to the authored motion exactly once. Leaving any of it in the track would
+ * play it a second time on top.
  */
 
 import type { AnimationClip } from "three";
@@ -46,10 +48,11 @@ export function recenterClipRootMotion(clip: AnimationClip): void {
 }
 
 /**
- * Remove a track's end-to-end vertical travel by subtracting it linearly over the
- * track's own time span. The bob survives, because it is what deviates from that line,
- * and the last key lands back on the first, so a loop no longer snaps back at the seam.
- * `travel` is the removed rise (signed metres) — what a mover has to supply instead.
+ * Level a track's vertical motion onto one height: `restY` when given, otherwise the
+ * track's own first key. The whole authored curve comes out, so a mover replaying it
+ * is the only thing that lifts the body, and a loop has no seam left to snap at.
+ * `travel` is the rise removed end to end (signed metres) — what the mover has to
+ * supply; `shift` is how far the track had to drop to reach `restY`.
  */
 export function detrendRootY(
   times: ArrayLike<number>,
@@ -63,19 +66,15 @@ export function detrendRootY(
   const span = count > 1 ? times[count - 1] - times[0] : 0;
   const rise = count > 1 ? out[(count - 1) * 3 + 1] - out[1] : 0;
   const travel = span > 0 ? rise : 0;
-  if (travel !== 0) {
-    for (let i = 0; i < count; i++) {
-      out[i * 3 + 1] -= travel * ((times[i] - times[0]) / span);
-    }
-  }
 
   // A climb clip opens wherever its capture did — often a metre above standing — and
-  // that offset would play out in the canvas. Rest the detrended track on the body's
-  // own hips height instead, so only the motion inside the clip shows.
+  // that offset would play out in the canvas. Rest the track on the body's own hips
+  // height instead, so only what the mover supplies shows.
   const shift = restY === undefined ? 0 : restY - out[1];
-  if (shift !== 0) {
-    for (let i = 0; i < count; i++) out[i * 3 + 1] += shift;
-  }
+  // Every key onto that one height: the mover replays the authored curve whole, so
+  // anything left in the track would play on top of it a second time.
+  const level = restY === undefined ? out[1] : restY;
+  for (let i = 0; i < count; i++) out[i * 3 + 1] = level;
   return { values: out, travel, shift };
 }
 
@@ -113,8 +112,9 @@ export function sampleRootYCurve(curve: RootYCurve, timeS: number): number {
 }
 
 /**
- * Detrend every translation track of a clip in place. Returns the largest travel
- * removed (signed metres) — a VRMA carries one hips track, so that is the clip's own.
+ * Level every translation track of a clip in place, and hand back the curve that came
+ * out so a mover can replay it. The largest travel wins — a VRMA carries one hips
+ * track, so that is the clip's own.
  */
 export function detrendClipRootY(
   clip: AnimationClip,
@@ -125,7 +125,7 @@ export function detrendClipRootY(
   let curve: RootYCurve | null = null;
   for (const track of clip.tracks) {
     if (!track.name.endsWith(".position")) continue;
-    // Read the rise before detrending — it is what the mover has to supply.
+    // Read the rise before levelling the track — it is what the mover has to supply.
     const own = rootYCurve(track.times, track.values);
     const detrended = detrendRootY(track.times, track.values, restY);
     track.values = detrended.values;

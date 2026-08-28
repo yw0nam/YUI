@@ -285,7 +285,7 @@ export interface Renderer {
    */
   getMotionDuration(id: string): number | null;
   /**
-   * Vertical travel (signed metres) the loader detrended out of a `root_lock_y` clip —
+   * Vertical travel (signed metres) the loader levelled out of a `root_lock_y` clip —
    * what a mover has to supply by moving the window. null until the clip is cached,
    * 0 for a clip that keeps its own travel.
    */
@@ -461,7 +461,7 @@ export function createRenderer(options: RendererOptions): Renderer {
   let mixer: THREE.AnimationMixer | undefined;
   /** (vrma_path → AnimationClip) cache — clips are VRM-specific so cleared on hotswap. */
   const clipCache = new Map<string, THREE.AnimationClip>();
-  /** Vertical travel (signed metres) detrended out of each cached clip; 0 when not locked. */
+  /** Vertical travel (signed metres) levelled out of each cached clip; 0 when not locked. */
   const clipTravelY = new Map<string, number>();
   /** The rise each root-locked clip carries, as a curve a mover can follow. */
   const clipRootCurve = new Map<string, RootYCurve>();
