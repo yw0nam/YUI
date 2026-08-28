@@ -11,7 +11,13 @@
 
 import { AnimationClip, QuaternionKeyframeTrack, VectorKeyframeTrack } from "three";
 import { describe, expect, it } from "vitest";
-import { detrendClipRootY, detrendRootY, recenterRootTranslation } from "./recenter-root-motion";
+import {
+  detrendClipRootY,
+  detrendRootY,
+  recenterRootTranslation,
+  rootYCurve,
+  sampleRootYCurve,
+} from "./recenter-root-motion";
 
 describe("recenterRootTranslation — horizontal mean removal", () => {
   it("subtracts mean of all X and all Z samples; leaves Y unchanged", () => {
@@ -119,6 +125,74 @@ describe("detrendRootY — vertical travel removal", () => {
   });
 });
 
+describe("detrendRootY — resting the hips at their own height", () => {
+  it("drops a clip that starts far above the rest pose down onto it", () => {
+    // climb_down opens with the hips at 1.9 m; standing rest is 0.95, so without this
+    // the whole clip plays a metre up the canvas and the head leaves the window.
+    const { values, shift } = detrendRootY([0, 1], [0, 1.9, 0, 0, 1.9, 0], 0.95);
+    expect(values[1]).toBeCloseTo(0.95, 6);
+    expect(values[4]).toBeCloseTo(0.95, 6);
+    expect(shift).toBeCloseTo(-0.95, 6);
+  });
+
+  it("leaves a clip that already starts at the rest height alone", () => {
+    const { values, shift } = detrendRootY([0, 1], [0, 0.95, 0, 0, 1.05, 0], 0.95);
+    expect(shift).toBe(0);
+    expect(values[1]).toBeCloseTo(0.95, 6);
+    expect(values[4]).toBeCloseTo(1.05, 6);
+  });
+
+  it("anchors the detrended track, not the raw one", () => {
+    // Rise 1.0 removed first, then the start dropped from 1.9 to 0.95.
+    const { values, travel, shift } = detrendRootY(
+      [0, 1, 2],
+      [0, 1.9, 0, 0, 2.5, 0, 0, 2.9, 0],
+      0.95,
+    );
+    expect(travel).toBeCloseTo(1.0, 6);
+    expect(shift).toBeCloseTo(-0.95, 6);
+    expect(values[1]).toBeCloseTo(0.95, 6);
+    expect(values[4]).toBeCloseTo(1.05, 6);
+    expect(values[7]).toBeCloseTo(0.95, 6);
+  });
+
+  it("reports no shift when no rest height is given", () => {
+    expect(detrendRootY([0, 1], [0, 1.9, 0, 0, 1.9, 0]).shift).toBe(0);
+  });
+});
+
+describe("rootYCurve / sampleRootYCurve", () => {
+  const curve = { times: [0, 1, 2], values: [0, 0.8, 1.0] };
+
+  it("reads the clip's own rise from its first key", () => {
+    expect(rootYCurve([0, 1, 2], [0, 1.9, 0, 0, 2.7, 0, 0, 2.9, 0])).toEqual(curve);
+  });
+
+  it("interpolates linearly between keys", () => {
+    expect(sampleRootYCurve(curve, 0)).toBeCloseTo(0, 6);
+    expect(sampleRootYCurve(curve, 0.5)).toBeCloseTo(0.4, 6);
+    expect(sampleRootYCurve(curve, 1)).toBeCloseTo(0.8, 6);
+    expect(sampleRootYCurve(curve, 1.5)).toBeCloseTo(0.9, 6);
+    expect(sampleRootYCurve(curve, 2)).toBeCloseTo(1.0, 6);
+  });
+
+  it("clamps outside the clip's own span", () => {
+    expect(sampleRootYCurve(curve, -1)).toBeCloseTo(0, 6);
+    expect(sampleRootYCurve(curve, 5)).toBeCloseTo(1.0, 6);
+  });
+
+  it("keeps a descent signed negative", () => {
+    const down = rootYCurve([0, 1], [0, 1.9, 0, 0, 0.9, 0]);
+    expect(down?.values).toEqual([0, -1]);
+    expect(sampleRootYCurve(down!, 0.5)).toBeCloseTo(-0.5, 6);
+  });
+
+  it("returns null for a track with nothing to follow", () => {
+    expect(rootYCurve([0], [0, 1.9, 0])).toBeNull();
+    expect(rootYCurve([0, 1], [1, 2, 3, 4])).toBeNull();
+  });
+});
+
 describe("detrendClipRootY", () => {
   it("detrends every position track in place and reports the travel removed", () => {
     const clip = new AnimationClip("climb_up", 2, [
@@ -126,7 +200,7 @@ describe("detrendClipRootY", () => {
       new QuaternionKeyframeTrack("hips.quaternion", [0, 2], [0, 0, 0, 1, 0, 0, 0, 1]),
     ]);
 
-    const travel = detrendClipRootY(clip);
+    const { travel } = detrendClipRootY(clip);
 
     expect(travel).toBeCloseTo(1.0, 6);
     const position = clip.tracks[0];
@@ -137,10 +211,27 @@ describe("detrendClipRootY", () => {
     expect(Array.from(clip.tracks[1].values)).toEqual([0, 0, 0, 1, 0, 0, 0, 1]);
   });
 
+  it("keeps the removed curve so a mover can follow it instead of guessing", () => {
+    const clip = new AnimationClip("climb_up", 2, [
+      new VectorKeyframeTrack("hips.position", [0, 1, 2], [0, 1.0, 0, 0, 1.6, 0, 0, 2.0, 0]),
+    ]);
+    const { curve } = detrendClipRootY(clip);
+    expect(curve).toEqual({ times: [0, 1, 2], values: [0, 0.6, 1.0] });
+  });
+
+  it("rests the hips at the height it is given", () => {
+    const clip = new AnimationClip("climb_down", 2, [
+      new VectorKeyframeTrack("hips.position", [0, 2], [0, 1.9, 0, 0, 0.9, 0]),
+    ]);
+    const { shift } = detrendClipRootY(clip, 0.95);
+    expect(shift).toBeCloseTo(-0.95, 6);
+    expect(clip.tracks[0].values[1]).toBeCloseTo(0.95, 6);
+  });
+
   it("reports no travel for a clip whose root does not drift vertically", () => {
     const clip = new AnimationClip("idle", 1, [
       new VectorKeyframeTrack("hips.position", [0, 1], [0, 1.0, 0, 0, 1.0, 0]),
     ]);
-    expect(detrendClipRootY(clip)).toBe(0);
+    expect(detrendClipRootY(clip).travel).toBe(0);
   });
 });

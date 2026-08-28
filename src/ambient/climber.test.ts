@@ -253,8 +253,21 @@ describe("climbGeometrySample", () => {
     win: { x: 725, y: 1080 },
     feet: { x: 200, y: 420 },
     hands: { left: { x: 260, y: 300 }, right: { x: 280, y: 260 } },
+    hipsY: 320,
+    clipT: 1.25,
     charHpx: CHAR_HPX,
   };
+
+  it("carries the hips height and the clip playhead so the curve can be checked", () => {
+    const s = climbGeometrySample({ ...base, side: "left", edgeX: 1000 });
+    expect(s.hipsY).toBe(1400);
+    expect(s.clipT).toBeCloseTo(1.25, 6);
+  });
+
+  it("reports a null playhead when no clip is running", () => {
+    const s = climbGeometrySample({ ...base, side: "left", edgeX: 1000, clipT: null });
+    expect(s.clipT).toBeNull();
+  });
 
   it("reports every point in global logical px, rounded", () => {
     const s = climbGeometrySample({ ...base, side: "left", edgeX: 1000 });
@@ -376,6 +389,9 @@ const MOTION_TRAVEL_M: Record<string, number> = {
 const PULL_PX = PX_PER_METRE * MOTION_TRAVEL_M.climb_up_done;
 const LAND_PX = PX_PER_METRE * -MOTION_TRAVEL_M.climb_down_landing;
 
+/** Which clips loop, so the harness clock wraps them the way the mixer would. */
+const MOTION_LOOPS = new Set(["climb_up", "climb_down", "walk", "idle"]);
+
 const MOTION_KINDS: Record<string, MotionKind> = {
   idle: "ambient",
   walk: "reactive",
@@ -410,11 +426,15 @@ function makeHarness(
     minY?: number;
     /** A clip the renderer can never measure — a dead asset, or one with no baked travel. */
     unmeasurable?: string;
+    /** Overrides a clip's hips curve; default is a linear rise across the clip. */
+    travelCurve?: (id: string, t: number) => number;
   } = {},
 ) {
   let tick: TickFn | null = null;
   /** Clips the renderer has loaded — nothing is measurable before it is in here. */
   const cached = new Set<string>();
+  /** Clip-local playhead, reset by a fresh request and wrapped for looping clips. */
+  let clipT = 0;
   const preloads: string[] = [];
   const motions: Array<RenderMotionSignal | null> = [];
   const yaws: Array<{ rad: number; easeMs: number }> = [];
@@ -465,8 +485,24 @@ function makeHarness(
         motions.push(m);
         if (m) cached.add(m.id);
         currentMotion = m ? { id: m.id, vrma_path: `/motions/${m.id}.vrma` } : null;
+        clipT = 0;
       },
       getCurrentMotion: () => currentMotion,
+      getCurrentMotionTime: () => (currentMotion ? clipT : null),
+      getMotionTravelAt: (id, t) => {
+        if (!cached.has(id) || id === over.unmeasurable) return null;
+        if (over.travelCurve) return over.travelCurve(id, t);
+        // Default: the clip rises at a constant rate across its own length.
+        const total = MOTION_TRAVEL_M[id] ?? 0;
+        const duration = MOTION_S[id] ?? 1;
+        return total * Math.min(Math.max(t, 0) / duration, 1);
+      },
+      getTapPoints: () => ({
+        head: { x: 200, y: 100 },
+        chest: { x: 200, y: 200 },
+        hips: { x: 200, y: 320 },
+        charHpx: over.charHpx === undefined ? CHAR_HPX : over.charHpx,
+      }),
       // Both measurements read the clip cache, so they answer null until it is warm.
       getMotionDuration: (id) => (cached.has(id) ? (MOTION_S[id] ?? null) : null),
       getMotionTravelY: (id) =>
@@ -527,6 +563,11 @@ function makeHarness(
   let elapsed = 0;
   const frame = async (dt = 0.1): Promise<void> => {
     elapsed += dt;
+    if (currentMotion) {
+      clipT += dt;
+      const duration = MOTION_S[currentMotion.id];
+      if (duration && MOTION_LOOPS.has(currentMotion.id) && clipT >= duration) clipT -= duration;
+    }
     tick?.({ vrm: {} as never, dt, elapsed } as TickContext);
     for (let i = 0; i < 12; i++) await Promise.resolve();
   };
@@ -724,6 +765,42 @@ describe("createClimber — up", () => {
 
     await h.runToEnd();
     expect(h.at().x).toBe(CORNER_X);
+  });
+
+  it("follows the clip's own hips curve, not a straight line through it", async () => {
+    // A pull-over that lifts 80% of its rise in the first third: the window has to be
+    // front-loaded too, or the hands lead the ledge through the middle of the clip.
+    const frontLoaded = (id: string, t: number): number => {
+      const total = MOTION_TRAVEL_M[id] ?? 0;
+      const duration = MOTION_S[id] ?? 1;
+      const p = Math.min(Math.max(t, 0) / duration, 1);
+      return total * (p <= 1 / 3 ? 0.8 * (p * 3) : 0.8 + 0.2 * ((p - 1 / 3) * 1.5));
+    };
+    const h = makeHarness({ travelCurve: frontLoaded });
+    h.climber.start();
+    await h.skipInterval();
+    // Run to the start of the pull-over leg.
+    for (let i = 0; i < 400 && h.motions.length < 2; i++) await h.frame();
+    const startY = h.at().y;
+
+    // A third of the way through the 3.8 s clip, 80% of the 423.9 px is already spent.
+    await h.runFrames(13);
+    const spent = startY - h.at().y;
+    expect(spent).toBeGreaterThan(PULL_PX * 0.7);
+    expect(spent).toBeLessThan(PULL_PX * 0.95);
+  });
+
+  it("accumulates travel across loop restarts so a long wall still lands", async () => {
+    // A 980 px rise against a 253 px cycle: the loop leg spans more than two restarts.
+    const tall = win({ y: 520, height: 980 });
+    const h = makeHarness({ position: { x: 300, y: 1080 }, windows: [tall] });
+    h.climber.start();
+    await h.skipInterval();
+    await h.runToEnd();
+
+    // Feet on the ledge: window y = topY - anchor.y.
+    expect(h.at().y).toBe(tall.y - ANCHOR.y);
+    expect(h.sits).toHaveBeenCalledTimes(1);
   });
 
   it("samples the hands against the edge while it climbs", async () => {
