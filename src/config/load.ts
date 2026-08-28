@@ -158,6 +158,10 @@ export interface ClimbConfig {
    * width of the column beside the edge that must be clear of windows in front.
    */
   wall_offset_frac: number;
+  /** Shortest walk in along the window's top edge before she sits, from the corner. */
+  ledge_walk_min_frac: number;
+  /** Longest such walk. Clamped at run time to keep the seat on the window. */
+  ledge_walk_max_frac: number;
 }
 
 export const CLIMB_DEFAULTS: ClimbConfig = {
@@ -168,6 +172,8 @@ export const CLIMB_DEFAULTS: ClimbConfig = {
   max_height_frac: 4,
   hang_frac: 0.3,
   wall_offset_frac: 0.3,
+  ledge_walk_min_frac: 0.5,
+  ledge_walk_max_frac: 1.5,
 };
 
 /** Authored label for one reflex-gesture speech candidate. context is optional user-authored intent. */

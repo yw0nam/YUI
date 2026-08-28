@@ -65,6 +65,8 @@ export interface ClimbTarget {
   edgeX: number;
   topY: number;
   bottomY: number;
+  /** Window width — how much ledge there is to walk in along before sitting. */
+  width: number;
   /** Window origin at pick time — the poll's move baseline. */
   rect: { x: number; y: number };
   app: string | null;
@@ -113,6 +115,22 @@ function wallColumn(
  */
 export function wallStandX(edgeX: number, side: "left" | "right", wallOffset: number): number {
   return side === "left" ? edgeX - wallOffset : edgeX + wallOffset;
+}
+
+/**
+ * Where the feet sit on the ledge: `walkIn` in from the climbed edge, clamped so the
+ * seat stays on the window — a sit clip parked on the corner hangs half the body over
+ * the edge. On a window narrower than the character, the middle is the best there is.
+ */
+export function ledgeSeatX(
+  edgeX: number,
+  side: "left" | "right",
+  winW: number,
+  charHpx: number,
+  walkIn: number,
+): number {
+  const room = Math.min(walkIn, Math.max(winW - 0.5 * charHpx, winW / 2));
+  return side === "left" ? edgeX + room : edgeX - room;
 }
 
 /** The corner the character ends up sitting on, just inside the climbed edge. */
@@ -273,6 +291,7 @@ export function pickClimbTarget(args: {
           edgeX,
           topY,
           bottomY,
+          width: win.width,
           rect: { x: win.x, y: win.y },
           app: win.ownerName,
           title: win.name,
@@ -318,6 +337,7 @@ export function pickDescentTarget(args: {
       edgeX,
       topY: win.y,
       bottomY: win.y + win.height,
+      width: win.width,
       rect: { x: win.x, y: win.y },
       app: win.ownerName,
       title: win.name,
@@ -825,11 +845,22 @@ export function createClimber(deps: ClimberDeps): Climber {
     });
     if (pullLeg !== "done" || !alive(startedAt)) return endClimb();
 
+    const ledgeAt = await w.win.outerPosition();
+    if (!alive(startedAt)) return endClimb();
+    logGeometry("ledge", ledgeAt);
+
+    // The pull-over ends on the corner, and a sit pinned there hangs half of some sit
+    // clips over the edge. Walk in along the top before sitting down.
+    const walkIn = randRange(cfg.ledge_walk_min_frac, cfg.ledge_walk_max_frac, rng) * w.charHpx;
+    const seatX = ledgeSeatX(picked.edgeX, picked.side, picked.width, w.charHpx, walkIn);
+    if ((await deps.walker.walkTo(seatX - w.anchorX)) !== "arrived") return endClimb();
+    if (!alive(startedAt)) return endClimb();
+
     // The window manager can refuse part of the rise, so the ledge offset has to come
     // from where the window actually landed.
     const landed = await w.win.outerPosition();
     if (!alive(startedAt)) return endClimb();
-    logGeometry("ledge", landed);
+    logGeometry("seat", landed);
 
     endClimb();
     deps.onSit(picked, picked.topY - landed.y / w.scale);

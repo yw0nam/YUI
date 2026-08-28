@@ -514,7 +514,13 @@ export function validateAvatar(file: string, raw: unknown): AvatarConfig {
           climb[field] = value;
         }
       }
-      for (const field of ["max_height_frac", "hang_frac", "wall_offset_frac"] as const) {
+      for (const field of [
+        "max_height_frac",
+        "hang_frac",
+        "wall_offset_frac",
+        "ledge_walk_min_frac",
+        "ledge_walk_max_frac",
+      ] as const) {
         const value = rawClimb[field];
         if (value === undefined) continue;
         if (typeof value !== "number" || !Number.isFinite(value) || value <= 0) {
@@ -533,6 +539,11 @@ export function validateAvatar(file: string, raw: unknown): AvatarConfig {
       if (climb.perch_dwell_min_ms > climb.perch_dwell_max_ms) {
         issues.push(
           `climb.perch_dwell_min_ms는 climb.perch_dwell_max_ms 이하여야 함 (받음: ${climb.perch_dwell_min_ms} > ${climb.perch_dwell_max_ms})`,
+        );
+      }
+      if (climb.ledge_walk_min_frac > climb.ledge_walk_max_frac) {
+        issues.push(
+          `climb.ledge_walk_min_frac는 climb.ledge_walk_max_frac 이하여야 함 (받음: ${climb.ledge_walk_min_frac} > ${climb.ledge_walk_max_frac})`,
         );
       }
     }

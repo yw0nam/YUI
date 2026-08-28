@@ -15,8 +15,8 @@ import {
   climbGeometrySample,
   climbSpeedPxPerSec,
   climbTargetLost,
-  ledgeSeatX,
   createClimber,
+  ledgeSeatX,
   nextClimbDelay,
   nextDwell,
   pickClimbTarget,
@@ -257,17 +257,17 @@ describe("pickDescentTarget", () => {
 
 describe("ledgeSeatX", () => {
   it("walks in from a left edge by the drawn distance", () => {
-    expect(ledgeSeatX(1000, "left", 400, CHAR_HPX, 300)).toBe(1300);
+    expect(ledgeSeatX(1000, "left", 1000, CHAR_HPX, 300)).toBe(1300);
   });
 
   it("walks in from a right edge the other way", () => {
-    expect(ledgeSeatX(1400, "right", 400, CHAR_HPX, 300)).toBe(1100);
+    expect(ledgeSeatX(1400, "right", 1000, CHAR_HPX, 300)).toBe(1100);
   });
 
-  it("keeps the seat on the window when the draw would overshoot", () => {
-    // 400 wide, 500 tall character: the seat stops at 400 - 250 = 150 in from the edge.
-    expect(ledgeSeatX(1000, "left", 400, CHAR_HPX, 380)).toBe(1150);
-    expect(ledgeSeatX(1400, "right", 400, CHAR_HPX, 380)).toBe(1250);
+  it("keeps half a character clear of the far edge when the draw would overshoot", () => {
+    // 800 wide against a 500 character: the seat stops 250 short of the far edge.
+    expect(ledgeSeatX(1000, "left", 800, CHAR_HPX, 700)).toBe(1550);
+    expect(ledgeSeatX(1800, "right", 800, CHAR_HPX, 700)).toBe(1250);
   });
 
   it("centres her on a window narrower than she is", () => {
@@ -1162,7 +1162,7 @@ describe("createClimber — down", () => {
     expect(h.at()).toEqual({ x: CLIMB_X, y: 1080 });
     for (const p of h.positions) {
       expect(p.x).toBeGreaterThanOrEqual(CLIMB_X);
-      expect(p.x).toBeLessThanOrEqual(CORNER_X);
+      expect(p.x).toBeLessThanOrEqual(SEAT_WIN_X);
       expect(p.y).toBeGreaterThanOrEqual(PERCHED_POS.y);
       expect(p.y).toBeLessThanOrEqual(1080);
     }

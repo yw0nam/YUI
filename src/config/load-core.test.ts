@@ -77,6 +77,8 @@ describe("loadConfig — happy path", () => {
         max_height_frac: 4,
         hang_frac: 0.3,
         wall_offset_frac: 0.3,
+        ledge_walk_min_frac: 0.5,
+        ledge_walk_max_frac: 1.5,
       },
     });
     expect(cfg.emotionRegistry.happy).toEqual({

@@ -68,6 +68,8 @@ describe("validateAvatar — happy path", () => {
         max_height_frac: 4,
         hang_frac: 0.3,
         wall_offset_frac: 0.3,
+        ledge_walk_min_frac: 0.5,
+        ledge_walk_max_frac: 1.5,
       },
     });
   });
@@ -632,6 +634,8 @@ describe("validateAvatar — climb", () => {
       max_height_frac: 4,
       hang_frac: 0.4,
       wall_offset_frac: 0.3,
+      ledge_walk_min_frac: 0.5,
+      ledge_walk_max_frac: 1.5,
     });
   });
 
@@ -652,6 +656,8 @@ describe("validateAvatar — climb", () => {
     ["max_height_frac", 0],
     ["hang_frac", -0.1],
     ["wall_offset_frac", "0.15"],
+    ["ledge_walk_min_frac", 0],
+    ["ledge_walk_max_frac", Number.POSITIVE_INFINITY],
   ])("rejects invalid %s: %s", (field, value) => {
     expectIssue({ vrm_url: "/v.vrm", climb: { [field]: value } }, `climb.${field}는 0보다 큰`);
   });
@@ -667,6 +673,13 @@ describe("validateAvatar — climb", () => {
     expectIssue(
       { vrm_url: "/v.vrm", climb: { perch_dwell_min_ms: 200_000 } },
       "climb.perch_dwell_min_ms는 climb.perch_dwell_max_ms 이하",
+    );
+  });
+
+  it("rejects an inverted ledge-walk range", () => {
+    expectIssue(
+      { vrm_url: "/v.vrm", climb: { ledge_walk_min_frac: 2 } },
+      "climb.ledge_walk_min_frac는 climb.ledge_walk_max_frac 이하",
     );
   });
 });
