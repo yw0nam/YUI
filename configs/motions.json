@@ -53,7 +53,7 @@
     "broker_publish": false
   },
   "falling": {
-    "vrma_path": "/motions/falling_loop.vrma",
+    "vrma_path": "/motions/falling.vrma",
     "kind": "reactive",
     "loop": true,
     "priority": 78,

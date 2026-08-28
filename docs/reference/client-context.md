@@ -173,10 +173,10 @@ appends only when `idle_elapsed_min` is present (idle-triggered proactive cues);
 schedule cue never carries it. A second `cue note:` line follows only when
 `cue.context` is present — free-text intent the user authored for that cue. The
 built-in touch and gesture cues (`touch_*`, `tap_bored`, `head_pat`, `drag_held`,
-`window_sit`, `peek`) send a label alone unless the user authored a `context` for them in
-`configs/avatar.json`, so most of those turns render just the headline. A proactive
-turn with `idle_elapsed_min` but no cue at all (no configured label) falls back to a
-bare `trigger: proactive (user idle Xmin)`.
+`window_sit`, `peek`, `dropped`) send a label alone unless the user authored a `context`
+for them in `configs/avatar.json`, so most of those turns render just the headline. A
+proactive turn with `idle_elapsed_min` but no cue at all (no configured label) falls back
+to a bare `trigger: proactive (user idle Xmin)`.
 
 ### Screen transition
 
@@ -296,11 +296,11 @@ A few `ClientContext` fields carry no rendered line, by design:
 When there is no user utterance, the user input trails the `client_context` block with
 a short, per-`event_name` notice of what fired. The string rides in the user role, so
 it is written from the user's POV: "I" is the user, "you" is the agent. "You" is the
-on-screen VRM avatar — the agent's body — so window_sit/peek markers describe the user
-placing that body (drag & drop) and the agent's body ending up perched or peeking. It
-states what happened, never how to respond (firing ≠ judgment). The string is
-client-only framing so the agent has a concrete stimulus in the user turn; all
-situational detail still lives in the trigger lines above.
+on-screen VRM avatar — the agent's body — so window_sit/peek/dropped markers describe the
+user placing that body (drag & drop) and the agent's body ending up perched, peeking, or
+fallen to the floor. It states what happened, never how to respond (firing ≠ judgment).
+The string is client-only framing so the agent has a concrete stimulus in the user turn;
+all situational detail still lives in the trigger lines above.
 
 | `event_name` | Marker text |
 |---|---|
@@ -310,6 +310,7 @@ situational detail still lives in the trigger lines above.
 | `proactive.drag_held` | `(I keep dragging you around)` |
 | `proactive.window_sit` | `(I just sat you down on a window's edge)` |
 | `proactive.peek` | `(I left you peeking out from the screen edge)` |
+| `proactive.dropped` | `(I just dropped you from mid-air)` |
 | `proactive.screen_app_switched` | `(I just moved over to something else on my screen)` |
 | `proactive.screen_long_session` | `(I've been in the same thing on my screen for a while)` |
 | `proactive.*` (other) | `(I've gone quiet for a while)` |

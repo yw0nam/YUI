@@ -26,6 +26,13 @@ import type {
   AvatarSpot,
   AvatarState,
 } from "./avatar-rpc";
+import {
+  floorPx,
+  groundedWindowY,
+  monitorAt,
+  type PetWindow,
+  type ScreenMonitor,
+} from "./screen-geometry";
 import type {
   PerchTargets,
   PlacementOptions,
@@ -35,21 +42,8 @@ import type {
 
 const log = createLogger("avatar-executor");
 
-/** Inset from a monitor corner for the corner spots (physical px). */
+/** Inset from the work-area edges for the left/right/top spots (physical px). */
 const EDGE_MARGIN_PX = 24;
-
-/** Pet window accessors the executor reads and writes, all in physical px. */
-export interface AvatarExecutorWindow {
-  outerPosition(): Promise<{ x: number; y: number }>;
-  outerSize(): Promise<{ width: number; height: number }>;
-  setPositionPhysical(x: number, y: number): Promise<void>;
-}
-
-/** One monitor's physical bounds. */
-export interface AvatarMonitor {
-  position: { x: number; y: number };
-  size: { width: number; height: number };
-}
 
 export interface AvatarExecutorDeps {
   /** Subscribe to bridged requests (the `avatar-rpc` channel). */
@@ -62,8 +56,10 @@ export interface AvatarExecutorDeps {
     perchTargets(): Promise<PerchTargets>;
     release(): void;
   };
-  getWindow(): AvatarExecutorWindow;
-  listMonitors(): Promise<AvatarMonitor[]>;
+  getWindow(): PetWindow;
+  listMonitors(): Promise<ScreenMonitor[]>;
+  /** Canvas-local logical y of the feet anchor. null when no VRM is loaded. */
+  getFeetOffsetPx(): number | null;
   getPosture(): Posture;
   getVrm(): { id: string; label: string } | null;
   /** Record that the avatar just relocated on its own — a successful move_to restamps posture. */
@@ -126,29 +122,32 @@ function parseCommand(params: unknown): AvatarCommand | null {
 }
 
 /** Index of the monitor whose bounds contain the point, or null. */
-function monitorAt(monitors: AvatarMonitor[], x: number, y: number): number | null {
-  const index = monitors.findIndex(
-    (m) =>
-      x >= m.position.x &&
-      x < m.position.x + m.size.width &&
-      y >= m.position.y &&
-      y < m.position.y + m.size.height,
-  );
-  return index < 0 ? null : index;
+function monitorIndexAt(monitors: ScreenMonitor[], x: number, y: number): number | null {
+  const monitor = monitorAt(monitors, x, y);
+  return monitor === null ? null : monitors.indexOf(monitor);
 }
 
-/** Physical origin that puts a `size` window at `spot` of `monitor`. */
+/**
+ * Physical origin that puts a `size` window at `spot` of `monitor`'s work area.
+ * A bottom spot rests the character's feet on the work-area floor, so the window box
+ * hangs below it by the framing margin; without a feet anchor the box itself lands there.
+ */
 function spotOrigin(
-  monitor: AvatarMonitor,
+  monitor: ScreenMonitor,
   size: { width: number; height: number },
   spot: AvatarSpot,
+  feetOffsetPx: number | null,
+  scale: number,
 ): { x: number; y: number } {
-  const { x: mx, y: my } = monitor.position;
-  const { width: mw, height: mh } = monitor.size;
+  const { x: mx, y: my } = monitor.workArea.position;
+  const { width: mw, height: mh } = monitor.workArea.size;
   const left = mx + EDGE_MARGIN_PX;
   const right = mx + mw - size.width - EDGE_MARGIN_PX;
   const top = my + EDGE_MARGIN_PX;
-  const bottom = my + mh - size.height - EDGE_MARGIN_PX;
+  const bottom =
+    feetOffsetPx === null
+      ? my + mh - size.height
+      : groundedWindowY(floorPx(monitor, scale), feetOffsetPx, scale);
   switch (spot) {
     case "top-left":
       return { x: left, y: top };
@@ -187,10 +186,14 @@ export function createAvatarExecutor(deps: AvatarExecutorDeps): AvatarExecutor {
     const monitors = await listMonitors();
     if (monitors.length === 0) return fail("unsupported");
     const win = getWindow();
-    const [pos, size] = await Promise.all([win.outerPosition(), win.outerSize()]);
+    const [pos, size, sf] = await Promise.all([
+      win.outerPosition(),
+      win.outerSize(),
+      win.scaleFactor(),
+    ]);
     let index: number;
     if (monitor === undefined) {
-      index = monitorAt(monitors, pos.x, pos.y) ?? 0;
+      index = monitorIndexAt(monitors, pos.x, pos.y) ?? 0;
     } else {
       if (monitor < 0 || monitor >= monitors.length) return fail("not_found");
       index = monitor;
@@ -198,8 +201,8 @@ export function createAvatarExecutor(deps: AvatarExecutorDeps): AvatarExecutor {
     if (aborted()) return fail("interrupted");
     // A perch pins the character to a window edge — leave it before relocating.
     perch.release();
-    const origin = spotOrigin(monitors[index], size, spot);
-    await win.setPositionPhysical(origin.x, origin.y);
+    const origin = spotOrigin(monitors[index], size, spot, deps.getFeetOffsetPx(), sf > 0 ? sf : 1);
+    await win.setPositionPhysical(Math.round(origin.x), Math.round(origin.y));
     if (aborted()) return fail("interrupted");
     noteAvatarMoved();
     return { ok: true };
@@ -243,7 +246,7 @@ export function createAvatarExecutor(deps: AvatarExecutorDeps): AvatarExecutor {
     try {
       const pos = await getWindow().outerPosition();
       const monitors = await listMonitors().catch(() => []);
-      return { x: pos.x, y: pos.y, monitor: monitorAt(monitors, pos.x, pos.y) };
+      return { x: pos.x, y: pos.y, monitor: monitorIndexAt(monitors, pos.x, pos.y) };
     } catch (err) {
       log.debug("position_unavailable", { degrade: true, error: String(err) });
       return null;

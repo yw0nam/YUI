@@ -40,11 +40,18 @@ function validConfig(): AppConfig {
         distance_max_px: 320,
         floor_tolerance_px: 8,
       },
+      fall: {
+        gravity_px_s2: 2400,
+        max_speed_px_s: 1800,
+        min_drop_frac: 0.2,
+        cue_cooldown_ms: 60_000,
+      },
       drag_hold_ms: 5_000,
       gesture_cues: {
         drag_held: { label: "dragged around" },
         window_sit: { label: "sat on window" },
         peek: { label: "peeking" },
+        dropped: { label: "dropped from mid-air" },
       },
     },
     emotionRegistry: {},

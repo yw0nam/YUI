@@ -18,6 +18,8 @@ export {
   type ConfigReader,
   type ConfigSection,
   DRAG_HOLD_MS_DEFAULT,
+  FALL_DEFAULTS,
+  type FallConfig,
   GESTURE_CUES_DEFAULTS,
   type GestureCueConfig,
   type GestureCuesConfig,

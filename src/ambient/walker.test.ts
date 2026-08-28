@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { WalkConfig } from "../config/load";
+import type { ScreenMonitor } from "../io/screen-geometry";
 import type { RenderMotionSignal, TickContext, TickFn } from "../renderer";
 import {
   advanceX,
@@ -12,7 +13,6 @@ import {
   WALK_YAW_EASE_MS,
   WALK_YAW_RAD,
   type WalkerDeps,
-  type WalkerMonitor,
   walkSpeedPxPerSec,
 } from "./walker";
 
@@ -152,7 +152,7 @@ describe("advanceX", () => {
 
 // ── runtime loop ──────────────────────────────────────────────────────────────
 
-const MONITOR: WalkerMonitor = {
+const MONITOR: ScreenMonitor = {
   position: { x: 0, y: 0 },
   size: { width: 1920, height: 1600 },
   workArea: { position: { x: 0, y: 0 }, size: { width: 1920, height: 1500 } },

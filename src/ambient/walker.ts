@@ -18,6 +18,7 @@
 import type { WalkConfig } from "../config/load";
 import type { MotionKind } from "../contract";
 import { clampToWorkArea } from "../drag";
+import { floorPx, monitorAt, type PetWindow, type ScreenMonitor } from "../io/screen-geometry";
 import { createLogger } from "../logger";
 import type { Renderer } from "../renderer";
 import { type Rng, randRange } from "./cues";
@@ -112,26 +113,11 @@ export function advanceX(x: number, toX: number, speedPxPerSec: number, dt: numb
   return Math.abs(remaining) <= step ? toX : x + Math.sign(remaining) * step;
 }
 
-/** Pet window accessors the stroll reads and writes. Positions/sizes are physical px. */
-export interface WalkerWindow {
-  outerPosition(): Promise<{ x: number; y: number }>;
-  outerSize(): Promise<{ width: number; height: number }>;
-  scaleFactor(): Promise<number>;
-  setPositionPhysical(x: number, y: number): Promise<void>;
-}
-
 /** Document seam for the hidden-window guard — the renderer parks its rAF while hidden. */
 export interface WalkerDoc {
   visibilityState: string;
   addEventListener(type: "visibilitychange", cb: () => void): void;
   removeEventListener(type: "visibilitychange", cb: () => void): void;
-}
-
-/** One monitor's physical bounds plus its work area. */
-export interface WalkerMonitor {
-  position: { x: number; y: number };
-  size: { width: number; height: number };
-  workArea: { position: { x: number; y: number }; size: { width: number; height: number } };
 }
 
 export interface WalkerDeps {
@@ -146,8 +132,8 @@ export interface WalkerDeps {
     | "getCharacterAnchor"
     | "isPerched"
   >;
-  getWindow(): WalkerWindow;
-  listMonitors(): Promise<WalkerMonitor[]>;
+  getWindow(): PetWindow;
+  listMonitors(): Promise<ScreenMonitor[]>;
   getConfig(): WalkConfig;
   /** Registry kind of the committed motion. null when nothing is playing. */
   currentMotionKind(): MotionKind | null;
@@ -172,19 +158,6 @@ export interface Walker {
   stop(): void;
 }
 
-/** Index of the monitor whose bounds contain the point, or null. */
-function monitorAt(monitors: WalkerMonitor[], x: number, y: number): WalkerMonitor | null {
-  return (
-    monitors.find(
-      (m) =>
-        x >= m.position.x &&
-        x < m.position.x + m.size.width &&
-        y >= m.position.y &&
-        y < m.position.y + m.size.height,
-    ) ?? null
-  );
-}
-
 export function createWalker(deps: WalkerDeps): Walker {
   const { renderer } = deps;
   const rng = deps.rng ?? Math.random;
@@ -198,7 +171,7 @@ export function createWalker(deps: WalkerDeps): Walker {
     y: number;
     toX: number;
     pxPerMetre: number;
-    win: WalkerWindow;
+    win: PetWindow;
   } | null = null;
   /** True while the async fire-time reads are in flight. */
   let starting = false;
@@ -248,9 +221,9 @@ export function createWalker(deps: WalkerDeps): Walker {
     if (!monitor || pxPerMetre === null || !(pxPerMetre > 0)) return;
     const scale = sf > 0 ? sf : 1;
     const work = monitor.workArea;
-    const floorPx = (work.position.y + work.size.height) / scale;
+    const floor = floorPx(monitor, scale);
     const gate: WalkGateState = {
-      onFloor: feet !== null && onFloor(pos.y / scale + feet.y, floorPx, cfg.floor_tolerance_px),
+      onFloor: feet !== null && onFloor(pos.y / scale + feet.y, floor, cfg.floor_tolerance_px),
       perched: renderer.isPerched(),
       peeking: deps.isPeeking(),
       dragging: deps.isDragging(),

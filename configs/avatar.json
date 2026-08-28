@@ -36,11 +36,18 @@
     "distance_max_px": 600,
     "floor_tolerance_px": 24
   },
+  "fall": {
+    "gravity_px_s2": 1600,
+    "max_speed_px_s": 1200,
+    "min_drop_frac": 0.2,
+    "cue_cooldown_ms": 60000
+  },
   "drag_hold_ms": 5000,
   "gesture_cues": {
     "drag_held": { "label": "dragged around" },
     "window_sit": { "label": "sat on window" },
-    "peek": { "label": "peeking" }
+    "peek": { "label": "peeking" },
+    "dropped": { "label": "dropped from mid-air" }
   },
   "gaze": {
     "deadDeg": 2,

@@ -1,9 +1,11 @@
 /** Bootstrap wiring helpers extracted from main.ts: VRM + speaker selection stores and their swap/import flows. */
+import { createFaller, type Faller } from "./ambient/faller";
 import type { Tier1Engine } from "./ambient/tier1";
-import { createWalker, type Walker, type WalkerWindow } from "./ambient/walker";
+import { createWalker, type Walker } from "./ambient/walker";
 import {
   type AppConfig,
   type ConfigSection,
+  type FallConfig,
   type GestureCuesConfig,
   loadEmotionTextTable,
   type PeekConfig,
@@ -39,6 +41,7 @@ import type { GuardrailsSettingsStore } from "./io/guardrails-settings";
 import type { ClampedIntSettingsStore } from "./io/persisted-store";
 import type { ProactiveSettings } from "./io/proactive-settings";
 import type { ScheduleSettings } from "./io/schedule-settings";
+import { type PetWindow, toScreenMonitor } from "./io/screen-geometry";
 import { createSettingsBridge, type SettingsBridge, type WindowKind } from "./io/settings-bridge";
 import {
   broadcastSyncStores,
@@ -467,7 +470,7 @@ export function wireWalker(deps: {
     };
     // Built once: a stroll asks for this handle on every frame it moves the window.
     const moveTo = new PhysicalPosition(0, 0);
-    const walkerWindow: WalkerWindow = {
+    const walkerWindow: PetWindow = {
       outerPosition: () => getCurrentWindow().outerPosition(),
       outerSize: () => getCurrentWindow().outerSize(),
       scaleFactor: () => getCurrentWindow().scaleFactor(),
@@ -480,15 +483,7 @@ export function wireWalker(deps: {
     walker = createWalker({
       renderer,
       getWindow: () => walkerWindow,
-      listMonitors: async () =>
-        (await availableMonitors()).map((m) => ({
-          position: { x: m.position.x, y: m.position.y },
-          size: { width: m.size.width, height: m.size.height },
-          workArea: {
-            position: { x: m.workArea.position.x, y: m.workArea.position.y },
-            size: { width: m.workArea.size.width, height: m.workArea.size.height },
-          },
-        })),
+      listMonitors: async () => (await availableMonitors()).map(toScreenMonitor),
       getConfig: deps.getWalkConfig,
       currentMotionKind: () => {
         const current = renderer.getCurrentMotion();
@@ -508,6 +503,94 @@ export function wireWalker(deps: {
     });
     walker.start();
   })().catch((err) => log.warn("walker_start_failed", { degrade: true, error: String(err) }));
+  return handle;
+}
+
+/**
+ * Falling. Tauri-only — a fall moves the OS window, so in a plain browser (Vite dev) this is
+ * skipped and bootstrap continues. The returned handle triggers a fall from the drag-release
+ * miss, cancels a running one for the user, and owns teardown.
+ */
+export function wireFaller(deps: {
+  bus: EventBus;
+  renderer: Renderer;
+  getFallConfig: () => FallConfig;
+  /** Registry kind of a motion id, for the "only the baseline hands the clip back" gate. */
+  getMotionKind: (id: string) => MotionKind | undefined;
+  /** The walker's grounded tolerance — the same floor line decides "already down". */
+  getFloorTolerancePx: () => number;
+  getGestureCues: () => GestureCuesConfig;
+  /** Keep the hit-test cursor mapping accurate while the window translates. */
+  setHitTestMoving: (moving: boolean) => void;
+  log: Logger;
+}): { drop(): void; cancel(): void; dispose(): void } {
+  const { bus, renderer, log } = deps;
+  let faller: Faller | null = null;
+  let disposed = false;
+  const handle = {
+    drop: () => void faller?.drop(),
+    cancel: () => faller?.cancel(),
+    dispose: () => {
+      disposed = true;
+      faller?.stop();
+    },
+  };
+  if (!isTauri()) return handle;
+  void (async () => {
+    const { availableMonitors, getCurrentWindow } = await import("@tauri-apps/api/window");
+    const { PhysicalPosition } = await import("@tauri-apps/api/dpi");
+    if (disposed) return;
+    // Built once: a fall asks for this handle on every frame it moves the window.
+    const moveTo = new PhysicalPosition(0, 0);
+    const fallerWindow: PetWindow = {
+      outerPosition: () => getCurrentWindow().outerPosition(),
+      outerSize: () => getCurrentWindow().outerSize(),
+      scaleFactor: () => getCurrentWindow().scaleFactor(),
+      setPositionPhysical: (x, y) => {
+        moveTo.x = x;
+        moveTo.y = y;
+        return getCurrentWindow().setPosition(moveTo);
+      },
+    };
+    faller = createFaller({
+      renderer,
+      getWindow: () => fallerWindow,
+      currentMotionKind: () => {
+        const current = renderer.getCurrentMotion();
+        return current ? (deps.getMotionKind(current.id) ?? null) : null;
+      },
+      listMonitors: async () => (await availableMonitors()).map(toScreenMonitor),
+      getConfig: deps.getFallConfig,
+      getFloorTolerancePx: deps.getFloorTolerancePx,
+      onStart: () => deps.setHitTestMoving(true),
+      onEnd: () => deps.setHitTestMoving(false),
+      onLand: (heightPx) => {
+        bus.push({
+          source: "os_event_watcher",
+          event_name: "user.fall_land",
+          ts: Date.now(),
+          hint_tier: 1,
+          dnd_override: true,
+          payload: { height_px: Math.round(heightPx) },
+        });
+      },
+      onCue: (heightPx) => {
+        const cue = deps.getGestureCues().dropped;
+        bus.push({
+          source: "os_event_watcher",
+          event_name: "proactive.dropped",
+          ts: Date.now(),
+          hint_tier: 2,
+          payload: {
+            cue_id: "dropped",
+            label: cue.label,
+            ...(cue.context !== undefined ? { context: cue.context } : {}),
+            height_px: Math.round(heightPx),
+          },
+        });
+      },
+    });
+  })().catch((err) => log.warn("faller_start_failed", { degrade: true, error: String(err) }));
   return handle;
 }
 
@@ -533,6 +616,8 @@ export function wireWindowSources(deps: {
   noteAvatarMoved: () => void;
   /** An agent command is taking the avatar — ambient motion yields to it. */
   noteAgentMove: () => void;
+  /** A drag release that caught nothing — the character falls from where she hangs. */
+  onDragMiss: () => void;
   log: Logger;
 }): {
   noteUserDrag(): void;
@@ -597,6 +682,7 @@ export function wireWindowSources(deps: {
       peekActive,
       getPeekConfig,
       getGestureCues,
+      onDragMiss: deps.onDragMiss,
     });
     windowResizeSource = createWindowResizeSource({
       renderer,
@@ -626,14 +712,12 @@ export function wireWindowSources(deps: {
         return {
           outerPosition: () => win.outerPosition(),
           outerSize: () => win.outerSize(),
+          scaleFactor: () => win.scaleFactor(),
           setPositionPhysical: (x, y) => win.setPosition(new PhysicalPosition(x, y)),
         };
       },
-      listMonitors: async () =>
-        (await availableMonitors()).map((m) => ({
-          position: { x: m.position.x, y: m.position.y },
-          size: { width: m.size.width, height: m.size.height },
-        })),
+      listMonitors: async () => (await availableMonitors()).map(toScreenMonitor),
+      getFeetOffsetPx: () => renderer.getCharacterAnchor()?.y ?? null,
       getPosture,
       getVrm,
       noteAvatarMoved,

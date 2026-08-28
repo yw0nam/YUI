@@ -407,6 +407,18 @@ describe("dispatcher — posture", () => {
     expect(dispatcher.getPosture()).toEqual({ state: "standing" });
   });
 
+  it("leaves the posture standing and renders nothing when a fall lands", async () => {
+    dispatcher.start();
+    applyDirective.mockClear();
+    const before = dispatcher.getBodyState();
+
+    await pushPostureEvent("user.fall_land", { height_px: 640 });
+
+    expect(dispatcher.getBodyState()).toEqual(before);
+    expect(applyDirective).not.toHaveBeenCalled();
+    expect(backendCaller.call).not.toHaveBeenCalled();
+  });
+
   it("renders nothing and fires no backend turn for a stroll", async () => {
     dispatcher.start();
     applyDirective.mockClear();

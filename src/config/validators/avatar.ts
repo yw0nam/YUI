@@ -2,6 +2,8 @@ import {
   type AvatarConfig,
   type AvatarOption,
   DRAG_HOLD_MS_DEFAULT,
+  FALL_DEFAULTS,
+  type FallConfig,
   GESTURE_CUES_DEFAULTS,
   type GestureCuesConfig,
   PEEK_DEFAULTS,
@@ -441,6 +443,55 @@ export function validateAvatar(file: string, raw: unknown): AvatarConfig {
     }
   }
 
+  const fall: FallConfig = { ...FALL_DEFAULTS };
+  const rawFall = raw.fall;
+  if (rawFall !== undefined) {
+    if (!isObject(rawFall)) {
+      issues.push(`fall은 객체여야 함 (받음: ${JSON.stringify(rawFall)})`);
+    } else {
+      for (const field of ["gravity_px_s2", "max_speed_px_s"] as const) {
+        const value = rawFall[field];
+        if (value === undefined) continue;
+        if (typeof value !== "number" || !Number.isFinite(value) || value <= 0) {
+          issues.push(
+            `fall.${field}는 0보다 큰 유한 number여야 함 (받음: ${JSON.stringify(value)})`,
+          );
+        } else {
+          fall[field] = value;
+        }
+      }
+      const minDropFrac = rawFall.min_drop_frac;
+      if (minDropFrac !== undefined) {
+        if (
+          typeof minDropFrac !== "number" ||
+          !Number.isFinite(minDropFrac) ||
+          minDropFrac < 0 ||
+          minDropFrac > 1
+        ) {
+          issues.push(
+            `fall.min_drop_frac는 [0, 1] 범위 유한 number여야 함 (받음: ${JSON.stringify(minDropFrac)})`,
+          );
+        } else {
+          fall.min_drop_frac = minDropFrac;
+        }
+      }
+      const cueCooldownMs = rawFall.cue_cooldown_ms;
+      if (cueCooldownMs !== undefined) {
+        if (
+          typeof cueCooldownMs !== "number" ||
+          !Number.isInteger(cueCooldownMs) ||
+          cueCooldownMs < 0
+        ) {
+          issues.push(
+            `fall.cue_cooldown_ms는 0 이상 정수여야 함 (받음: ${JSON.stringify(cueCooldownMs)})`,
+          );
+        } else {
+          fall.cue_cooldown_ms = cueCooldownMs;
+        }
+      }
+    }
+  }
+
   let drag_hold_ms = DRAG_HOLD_MS_DEFAULT;
   const rawDragHoldMs = raw.drag_hold_ms;
   if (rawDragHoldMs !== undefined) {
@@ -459,6 +510,7 @@ export function validateAvatar(file: string, raw: unknown): AvatarConfig {
     drag_held: { ...GESTURE_CUES_DEFAULTS.drag_held },
     window_sit: { ...GESTURE_CUES_DEFAULTS.window_sit },
     peek: { ...GESTURE_CUES_DEFAULTS.peek },
+    dropped: { ...GESTURE_CUES_DEFAULTS.dropped },
   };
   const rawGestureCues = raw.gesture_cues;
   if (rawGestureCues !== undefined) {
@@ -466,7 +518,7 @@ export function validateAvatar(file: string, raw: unknown): AvatarConfig {
       issues.push(`gesture_cues은 객체여야 함 (받음: ${JSON.stringify(rawGestureCues)})`);
     } else {
       for (const key of Object.keys(rawGestureCues)) {
-        if (key !== "drag_held" && key !== "window_sit" && key !== "peek") {
+        if (key !== "drag_held" && key !== "window_sit" && key !== "peek" && key !== "dropped") {
           issues.push(`gesture_cues.${key}는 허용되지 않는 키`);
           continue;
         }
@@ -542,6 +594,7 @@ export function validateAvatar(file: string, raw: unknown): AvatarConfig {
     tap,
     peek,
     walk,
+    fall,
     drag_hold_ms,
     gesture_cues,
     ...(available !== undefined ? { available } : {}),
