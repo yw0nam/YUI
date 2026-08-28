@@ -60,8 +60,8 @@ const WALL_OFFSET = CFG.wall_offset_frac * CHAR_HPX;
 const CLIMB_X = 1000 - WALL_OFFSET - ANCHOR.x;
 /** Window x that stands her feet on the target's top-left corner — 1000 - 200. */
 const CORNER_X = 1000 - ANCHOR.x;
-/** Where the up sequence leaves the window: on the wall, level with the top edge. */
-const PERCHED_POS = { x: CLIMB_X, y: 480 };
+/** Where the up sequence leaves the window: pulled in over the corner, level with the top edge. */
+const PERCHED_POS = { x: CORNER_X, y: 480 };
 
 function win(over: Partial<WindowRect> = {}): WindowRect {
   return {
@@ -639,7 +639,8 @@ describe("createClimber — up", () => {
     expect(h.motions).toEqual([{ id: CLIMB_UP_MOTION_ID }, { id: CLIMB_UP_DONE_MOTION_ID }]);
     expect(h.at()).toEqual(PERCHED_POS);
     for (const p of h.positions) {
-      expect(p.x).toBe(PERCHED_POS.x);
+      expect(p.x).toBeGreaterThanOrEqual(CLIMB_X);
+      expect(p.x).toBeLessThanOrEqual(CORNER_X);
       expect(p.y).toBeGreaterThanOrEqual(PERCHED_POS.y);
       expect(p.y).toBeLessThanOrEqual(WINDOW_POS.y);
     }
@@ -681,7 +682,7 @@ describe("createClimber — up", () => {
     await h.skipInterval();
     await h.runToEnd();
 
-    expect(h.at()).toEqual({ x: CLIMB_X, y: 600 });
+    expect(h.at()).toEqual({ x: CORNER_X, y: 600 });
     expect(h.sits).toHaveBeenCalledTimes(1);
     expect(h.sits.mock.calls[0][1]).toBeCloseTo(TARGET.topY - 600, 6);
   });
@@ -701,6 +702,28 @@ describe("createClimber — up", () => {
     expect(h.motions).toEqual([{ id: CLIMB_UP_MOTION_ID }, { id: CLIMB_UP_DONE_MOTION_ID }]);
     expect(h.at()).toEqual(PERCHED_POS);
     expect(h.sits).toHaveBeenCalledTimes(1);
+  });
+
+  it("pulls in over the corner during the pull-over so the sit lands on it", async () => {
+    // She climbs the outer face a hand's reach out, then the pull-over carries her back
+    // in over the edge — the mirror of the hang on the way down.
+    const h = makeHarness();
+    h.climber.start();
+    await h.skipInterval();
+
+    // Still out on the wall while the loop leg runs.
+    await h.runFrames(2);
+    expect(h.at().x).toBe(CLIMB_X);
+
+    // Into the pull-over: x eases in and finishes on the corner.
+    for (let i = 0; i < 400 && h.motions.length < 2; i++) await h.frame();
+    await h.runFrames(2);
+    const midway = h.at().x;
+    expect(midway).toBeGreaterThan(CLIMB_X);
+    expect(midway).toBeLessThan(CORNER_X);
+
+    await h.runToEnd();
+    expect(h.at().x).toBe(CORNER_X);
   });
 
   it("samples the hands against the edge while it climbs", async () => {
