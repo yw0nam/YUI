@@ -157,6 +157,8 @@ export interface WindowDropSource {
    * window without pushing anything, because the mover already published the sit.
    */
   adoptSit(windowNumber: number, rect: { x: number; y: number }, charHpx: number): void;
+  /** The window an armed sit is held on. null when nothing, or a peek, is armed. */
+  armedSit(): { windowNumber: number } | null;
   /** Release any armed perch/peek and push the matching exit. */
   release(): void;
 }
@@ -658,6 +660,10 @@ export function createWindowDropSource(deps: WindowDropSourceDeps): WindowDropSo
     perchTargets,
     adoptSit(windowNumber, rect, charHpx) {
       arm("sit", windowNumber, rect, charHpx);
+    },
+    armedSit() {
+      if (armedKind !== "sit" || armedWindowNumber === null) return null;
+      return { windowNumber: armedWindowNumber };
     },
     release() {
       if (armedKind !== null) {

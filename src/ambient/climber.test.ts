@@ -196,8 +196,9 @@ describe("pickDescentTarget", () => {
   it("takes the armed window rather than whatever the feet hang over", () => {
     // In the sit pose the feet dangle below the ledge, so geometry alone would miss it.
     const other = win({ x: 200, width: 400, windowNumber: 7 });
-    expect(pickDescentTarget({ windows: [other, TARGET_WINDOW], windowNumber: 42, feetX: 1050 }))
-      .toEqual(TARGET);
+    expect(
+      pickDescentTarget({ windows: [other, TARGET_WINDOW], windowNumber: 42, feetX: 1050 }),
+    ).toEqual(TARGET);
   });
 
   it("returns null when the armed window is gone from the stack", () => {
@@ -719,12 +720,12 @@ describe("createClimber — down", () => {
   it("puts the feet on the ledge before walking, wherever the drop left the window", async () => {
     // A drag drop leaves the window where the user released it; the renderer only shifts
     // the model for the sit, so the window itself still has to be squared to the edge.
-    const h = perchedHarness({ position: { x: 1100, y: 560 } });
+    const h = perchedHarness({ position: { x: 850, y: 560 } });
     h.climber.start();
     await h.skipDwell();
 
-    // Feet on the top edge = window origin at topY - anchor.y.
-    expect(h.positions[0]).toEqual({ x: 1100, y: TARGET.topY - ANCHOR.y });
+    // Feet on the top edge = window origin at topY - anchor.y, x left where it was.
+    expect(h.positions[0]).toEqual({ x: 850, y: TARGET.topY - ANCHOR.y });
     expect(h.walkTargets).toEqual([800]);
   });
 
@@ -741,7 +742,9 @@ describe("createClimber — down", () => {
   });
 
   it("descends the window the perch is armed on, not the one under the feet", async () => {
-    const h = perchedHarness({ windows: [win({ x: 200, width: 400, windowNumber: 7 }), TARGET_WINDOW] });
+    const h = perchedHarness({
+      windows: [win({ x: 200, width: 400, windowNumber: 7 }), TARGET_WINDOW],
+    });
     h.climber.start();
     await h.skipDwell();
     expect(h.armedSit).toHaveBeenCalled();

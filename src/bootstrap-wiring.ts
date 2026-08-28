@@ -623,6 +623,7 @@ export function wireClimber(deps: {
   faller: { drop(): void };
   dropSource: {
     adoptSit(windowNumber: number, rect: { x: number; y: number }, charHpx: number): void;
+    armedSit(): { windowNumber: number } | null;
     release(): void;
   };
   /** Keep the hit-test cursor mapping accurate while the window translates. */
@@ -739,6 +740,8 @@ export function wireWindowSources(deps: {
   noteUserDragEnd(): void;
   /** Track a sit the character climbed to herself, without pushing a drop envelope. */
   adoptSit(windowNumber: number, rect: { x: number; y: number }, charHpx: number): void;
+  /** The window an armed sit is held on. null when nothing, or a peek, is armed. */
+  armedSit(): { windowNumber: number } | null;
   /** Release the armed perch and push the sit exit. */
   release(): void;
   dispose(): void;
@@ -765,6 +768,7 @@ export function wireWindowSources(deps: {
     noteUserDragEnd: () => avatarExecutor?.noteUserDragEnd(),
     adoptSit: (windowNumber: number, rect: { x: number; y: number }, charHpx: number) =>
       windowDropSource?.adoptSit(windowNumber, rect, charHpx),
+    armedSit: () => windowDropSource?.armedSit() ?? null,
     release: () => windowDropSource?.release(),
     dispose: () => {
       disposed = true;
