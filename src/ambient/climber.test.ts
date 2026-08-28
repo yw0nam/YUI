@@ -352,7 +352,9 @@ function makeHarness(
   const starts = vi.fn();
   const sits = vi.fn();
   const ends = vi.fn();
-  const adoptSit = vi.fn();
+  const adoptSit = vi.fn((windowNumber: number) => {
+    armed = { windowNumber };
+  });
   const drop = vi.fn();
   const walkerCancel = vi.fn();
   let armed: { windowNumber: number } | null = over.perched ? { windowNumber: 42 } : null;
@@ -790,7 +792,9 @@ describe("createClimber — down", () => {
     expect(h.walkTargets).toEqual([800]);
   });
 
-  it("gives up the descent when the perch never clears", async () => {
+  it("gives up the descent when the perch never clears, and takes the sit back", async () => {
+    // release() already disarmed the poll, so without re-adopting it nothing would ever
+    // move her off the ledge again: every later dwell dies at armedSit() being null.
     const h = perchedHarness({ holdPerchOnRelease: true });
     h.climber.start();
     await h.skipDwell();
@@ -798,6 +802,30 @@ describe("createClimber — down", () => {
     expect(h.walkTargets).toEqual([]);
     expect(h.ends).toHaveBeenCalledWith("down");
     expect(h.motions).toEqual([]);
+    expect(h.adoptSit).toHaveBeenCalledWith(42, { x: 1000, y: 900 }, CHAR_HPX);
+  });
+
+  it("retries the descent on the next dwell after a release that never came back", async () => {
+    const h = perchedHarness({ holdPerchOnRelease: true });
+    h.climber.start();
+    await h.skipDwell();
+    await h.runFrames(15);
+    h.release.mockClear();
+
+    // The re-adopted sit is a sit like any other — the dwell rearms behind it.
+    await h.frame();
+    await h.frame(61);
+    expect(h.release).toHaveBeenCalledTimes(1);
+  });
+
+  it("leaves the perch released when a cancel interrupts the release wait", async () => {
+    const h = perchedHarness({ holdPerchOnRelease: true });
+    h.climber.start();
+    await h.skipDwell();
+    await h.runFrames(2);
+    h.climber.cancel();
+    await h.runFrames(2);
+    expect(h.adoptSit).not.toHaveBeenCalled();
   });
 
   it("puts the feet on the ledge before walking, wherever the drop left the window", async () => {

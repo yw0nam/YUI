@@ -607,13 +607,28 @@ describe("createWalker — walkTo", () => {
     for (const p of h.positions) expect(p.y).toBe(WINDOW_POS.y);
   });
 
-  it("reports the walk lost when another motion takes the walk clip", async () => {
-    const h = makeHarness();
+  it("holds the window under a clip that took the walk, then reclaims it and arrives", async () => {
+    // A directed walk belongs to the caller's sequence, so an express clip mid-walk must
+    // not end it — that would strand a descent on the ledge with its perch already gone.
+    let kind: "ambient" | "oneshot" = "ambient";
+    const h = makeHarness({ motionKind: () => kind });
     h.walker.start();
     const walk = h.walker.walkTo(300);
     await h.frame();
+    await h.frame();
+    const held = h.positions.at(-1);
+    expect(held).toBeDefined();
+
+    kind = "oneshot";
     h.setCurrentMotion({ id: "happy", vrma_path: "/motions/happy.vrma" });
-    expect(await settle(h, walk)).toBe("lost");
+    await h.frame();
+    await h.frame();
+    expect(h.positions.at(-1)).toEqual(held);
+
+    kind = "ambient";
+    h.setCurrentMotion({ id: "idle", vrma_path: "/motions/calm.vrma" });
+    expect(await settle(h, walk)).toBe("arrived");
+    expect(h.positions.at(-1)).toEqual({ x: 300, y: WINDOW_POS.y });
   });
 
   it("reports the walk lost when cancel() runs", async () => {
