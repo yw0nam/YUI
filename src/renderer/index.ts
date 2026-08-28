@@ -236,6 +236,12 @@ export interface Renderer {
    * is loaded or bones/projection are unavailable.
    */
   getPerchProbe(): { seatPx: { x: number; y: number }; charHpx: number } | null;
+  /**
+   * Live hand positions in pet-window logical px, projected the same way the feet and
+   * seat anchors are. null with no VRM or no hand bones. Diagnostic: it is how a mover
+   * measures where the hands actually land against the thing they reach for.
+   */
+  getHandAnchors(): { left: { x: number; y: number }; right: { x: number; y: number } } | null;
   /** Live head/chest/hips projections in viewport CSS px plus the character's current screen height. */
   getTapPoints(): {
     head: { x: number; y: number } | null;
@@ -1131,6 +1137,25 @@ export function createRenderer(options: RendererOptions): Renderer {
         chest: project(chest),
         hips: project(pins.hipsBone()),
         charHpx,
+      };
+    },
+    getHandAnchors() {
+      if (!currentVrm) return null;
+      const humanoid = currentVrm.humanoid;
+      const left = humanoid?.getNormalizedBoneNode("leftHand");
+      const right = humanoid?.getNormalizedBoneNode("rightHand");
+      if (!left || !right) return null;
+      const w = mount.clientWidth || 1;
+      const h = mount.clientHeight || 1;
+      camera.updateMatrixWorld();
+      const project = (bone: THREE.Object3D) =>
+        projectToScreen(bone.getWorldPosition(new THREE.Vector3()), camera, w, h);
+      const leftPx = project(left);
+      const rightPx = project(right);
+      if (!leftPx || !rightPx) return null;
+      return {
+        left: { x: leftPx.x, y: leftPx.y },
+        right: { x: rightPx.x, y: rightPx.y },
       };
     },
     setPerchTarget(target) {

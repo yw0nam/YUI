@@ -52,6 +52,8 @@ export const CLIMB_YAW_EASE_MS = 400;
 export const HANG_MS = 400;
 /** Cadence (ms) of the target re-check while a sequence runs. */
 export const TARGET_WATCH_MS = 700;
+/** Cadence (ms) of the diagnostic geometry sample while a leg runs. */
+export const GEOMETRY_LOG_MS = 500;
 /** How long a descent waits for the released perch to clear before giving up (ms). */
 export const RELEASE_WAIT_MS = 1000;
 
@@ -121,6 +123,70 @@ function cornerSeat(
   wallOffset: number,
 ): { x: number; y: number } {
   return { x: edgeX + (side === "left" ? 1 : -1) * 0.5 * wallOffset, y: topY };
+}
+
+/**
+ * One reading of where the body actually is against the wall it is climbing. Every
+ * coordinate is global logical px, rounded; the `_dx` fields measure each point against
+ * the climbed edge with **inside the window positive**, on both sides, so a left wall and
+ * a right wall read the same way. Diagnostic only — nothing decides anything from it.
+ */
+export interface ClimbGeometrySample {
+  phase: string;
+  side: "left" | "right";
+  edgeX: number;
+  topY: number;
+  winX: number;
+  winY: number;
+  feetX: number;
+  feetY: number;
+  handLX: number;
+  handLY: number;
+  handRX: number;
+  handRY: number;
+  charHpx: number;
+  handL_dx: number;
+  handR_dx: number;
+  feet_dx: number;
+}
+
+export function climbGeometrySample(args: {
+  phase: string;
+  side: "left" | "right";
+  edgeX: number;
+  topY: number;
+  /** Pet window origin, global logical px. */
+  win: { x: number; y: number };
+  /** Feet anchor in pet-window logical px. */
+  feet: { x: number; y: number };
+  /** Hand anchors in pet-window logical px. */
+  hands: { left: { x: number; y: number }; right: { x: number; y: number } };
+  charHpx: number;
+}): ClimbGeometrySample {
+  const { phase, side, edgeX, topY, win, feet, hands, charHpx } = args;
+  const r = Math.round;
+  const feetX = win.x + feet.x;
+  const handLX = win.x + hands.left.x;
+  const handRX = win.x + hands.right.x;
+  const inside = (x: number): number => r(side === "left" ? x - edgeX : edgeX - x);
+  return {
+    phase,
+    side,
+    edgeX: r(edgeX),
+    topY: r(topY),
+    winX: r(win.x),
+    winY: r(win.y),
+    feetX: r(feetX),
+    feetY: r(win.y + feet.y),
+    handLX: r(handLX),
+    handLY: r(win.y + hands.left.y),
+    handRX: r(handRX),
+    handRY: r(win.y + hands.right.y),
+    charHpx: r(charHpx),
+    handL_dx: inside(handLX),
+    handR_dx: inside(handRX),
+    feet_dx: inside(feetX),
+  };
 }
 
 /** Delay (ms) until the next climb attempt. */
@@ -284,6 +350,7 @@ export interface ClimberDeps {
     | "getMotionTravelY"
     | "preloadMotion"
     | "getCharacterAnchor"
+    | "getHandAnchors"
     | "getPerchProbe"
     | "isPerched"
   >;
@@ -338,6 +405,8 @@ interface WallLeg {
   fromY: number;
   toY: number;
   motionId: string;
+  /** Name this leg goes by in the geometry log. */
+  phase: string;
   /** Physical px per metre — the leg's own projection. */
   pxPerMetre: number;
   /** Transition clips travel linearly over this many seconds; looping ones pass null. */
@@ -377,7 +446,10 @@ export function createClimber(deps: ClimberDeps): Climber {
   let nextUpAtMs = -1;
   let dwellAtMs = -1;
   let nextWatchAtMs = -1;
+  let nextGeoAtMs = -1;
   let watching = false;
+  /** The wall the running sequence measures itself against. */
+  let geo: { side: "left" | "right"; edgeX: number; topY: number; scale: number } | null = null;
   let nowMs = 0;
   let leg:
     | (WallLeg & { x: number; y: number; elapsedS: number; settle: (r: "done" | "lost") => void })
@@ -402,6 +474,7 @@ export function createClimber(deps: ClimberDeps): Climber {
     const dir = direction;
     direction = null;
     target = null;
+    geo = null;
     // A looping wall clip never ends by itself, and some exits play nothing after it —
     // the faller's silent snap, a drop the hang covered whole. Hand the body back, and
     // leave a finishing oneshot to return to the baseline on its own.
@@ -556,6 +629,32 @@ export function createClimber(deps: ClimberDeps): Climber {
   }
 
   /**
+   * Sample where the hands and feet actually sit against the climbed edge. Diagnostic
+   * only: the stand-off distance is tuned from these numbers, nothing reads them back.
+   */
+  function logGeometry(phase: string, winPhysical: { x: number; y: number }): void {
+    const g = geo;
+    if (!g) return;
+    const feet = renderer.getCharacterAnchor();
+    const hands = renderer.getHandAnchors();
+    const probe = renderer.getPerchProbe();
+    if (!feet || !hands || !probe) return;
+    log.debug(
+      "climb.geometry",
+      climbGeometrySample({
+        phase,
+        side: g.side,
+        edgeX: g.edgeX,
+        topY: g.topY,
+        win: { x: winPhysical.x / g.scale, y: winPhysical.y / g.scale },
+        feet,
+        hands,
+        charHpx: probe.charHpx,
+      }),
+    );
+  }
+
+  /**
    * Load a transition clip and measure what the window owes it: the travel the loader
    * detrended out, and the length to spend it over. null when the clip cannot be measured.
    */
@@ -612,6 +711,7 @@ export function createClimber(deps: ClimberDeps): Climber {
     charHpx = w.charHpx;
     floorY = w.floor;
     direction = "up";
+    geo = { side: picked.side, edgeX: picked.edgeX, topY: picked.topY, scale: w.scale };
     deps.onStart("up", picked);
 
     // Stand a hand's reach outside the window's face: the feet on the edge line would
@@ -623,6 +723,7 @@ export function createClimber(deps: ClimberDeps): Climber {
 
     const at = await w.win.outerPosition();
     if (!alive(startedAt)) return endClimb();
+    logGeometry("approach", at);
     const pxPerMetre = w.pxPerMetre * w.scale;
     // The window supplies exactly the travel the loader took out of each clip.
     await renderer.preloadMotion(CLIMB_UP_MOTION_ID);
@@ -638,6 +739,7 @@ export function createClimber(deps: ClimberDeps): Climber {
       fromY: y,
       toY: y - (rise - pullPx),
       motionId: CLIMB_UP_MOTION_ID,
+      phase: "climb_up",
       linearS: null,
       oneshot: false,
     });
@@ -649,6 +751,7 @@ export function createClimber(deps: ClimberDeps): Climber {
       fromY: y,
       toY: y - pullPx,
       motionId: CLIMB_UP_DONE_MOTION_ID,
+      phase: "pull_over",
       linearS: pull.seconds,
       oneshot: true,
     });
@@ -658,6 +761,7 @@ export function createClimber(deps: ClimberDeps): Climber {
     // from where the window actually landed.
     const landed = await w.win.outerPosition();
     if (!alive(startedAt)) return endClimb();
+    logGeometry("ledge", landed);
 
     endClimb();
     deps.onSit(picked, picked.topY - landed.y / w.scale);
@@ -696,6 +800,7 @@ export function createClimber(deps: ClimberDeps): Climber {
     charHpx = w.charHpx;
     floorY = w.floor;
     direction = "down";
+    geo = { side: picked.side, edgeX: picked.edgeX, topY: picked.topY, scale: w.scale };
     deps.dropSource.release();
     deps.onStart("down", picked);
 
@@ -742,6 +847,7 @@ export function createClimber(deps: ClimberDeps): Climber {
       fromY: y,
       toY: y + hangPx,
       motionId: CLIMB_DOWN_MOTION_ID,
+      phase: "hang",
       linearS: HANG_MS / 1000,
       oneshot: false,
     });
@@ -753,6 +859,7 @@ export function createClimber(deps: ClimberDeps): Climber {
       fromY: y,
       toY: y + (drop - hangPx - landPx),
       motionId: CLIMB_DOWN_MOTION_ID,
+      phase: "descend",
       linearS: null,
       oneshot: false,
     });
@@ -770,6 +877,7 @@ export function createClimber(deps: ClimberDeps): Climber {
       fromY: y,
       toY: y + landPx,
       motionId: CLIMB_DOWN_LANDING_MOTION_ID,
+      phase: "landing",
       linearS: land.seconds,
       oneshot: true,
     });
@@ -780,6 +888,7 @@ export function createClimber(deps: ClimberDeps): Climber {
   function launch(run: () => Promise<void>): void {
     running = true;
     nextWatchAtMs = nowMs + TARGET_WATCH_MS;
+    nextGeoAtMs = nowMs;
     void run()
       .catch((err) => log.warn("climb_failed", { degrade: true, error: String(err) }))
       .finally(() => {
@@ -813,6 +922,10 @@ export function createClimber(deps: ClimberDeps): Climber {
   function tick(ctx: { dt: number; elapsed: number }): void {
     nowMs = ctx.elapsed * 1000;
     if (leg) stepLeg(ctx.dt);
+    if (leg && nowMs >= nextGeoAtMs) {
+      nextGeoAtMs = nowMs + GEOMETRY_LOG_MS;
+      logGeometry(leg.phase, { x: leg.x, y: leg.y });
+    }
     if (releaseWait) {
       if (!renderer.isPerched()) settleReleaseWait(true);
       else if (nowMs >= releaseWait.until) settleReleaseWait(false);
