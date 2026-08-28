@@ -76,6 +76,8 @@ const TARGET_WINDOW = win();
 
 /** Too short to climb itself, but it sits across the target's left wall column. */
 const COLUMN_COVER = win({ x: 900, y: 1300, width: 200, height: 200, windowNumber: 7 });
+/** The same, across the target's right wall column. */
+const RIGHT_COLUMN_COVER = win({ x: 1300, y: 1300, width: 200, height: 200, windowNumber: 8 });
 /** Bottom edge flush with the target's top edge: the column is clear, the corner seat is not. */
 const SEAT_COVER = win({ x: 1000, y: 800, width: 100, height: 100, windowNumber: 7 });
 
@@ -182,7 +184,13 @@ describe("pickClimbTarget", () => {
 });
 
 describe("pickDescentTarget", () => {
-  const base = { windows: [TARGET_WINDOW], windowNumber: 42 };
+  const base = {
+    windows: [TARGET_WINDOW],
+    windowNumber: 42,
+    floor: 1500,
+    charHpx: CHAR_HPX,
+    cfg: CFG,
+  };
 
   it("takes the nearer edge of the window the perch is armed on", () => {
     expect(pickDescentTarget({ ...base, feetX: 1050 })).toEqual(TARGET);
@@ -197,13 +205,29 @@ describe("pickDescentTarget", () => {
     // In the sit pose the feet dangle below the ledge, so geometry alone would miss it.
     const other = win({ x: 200, width: 400, windowNumber: 7 });
     expect(
-      pickDescentTarget({ windows: [other, TARGET_WINDOW], windowNumber: 42, feetX: 1050 }),
+      pickDescentTarget({ ...base, windows: [other, TARGET_WINDOW], feetX: 1050 }),
     ).toEqual(TARGET);
+  });
+
+  it("takes the far edge when the nearer one's wall is covered", () => {
+    expect(
+      pickDescentTarget({ ...base, windows: [COLUMN_COVER, TARGET_WINDOW], feetX: 1050 }),
+    ).toEqual({ ...TARGET, side: "right", edgeX: 1400 });
+  });
+
+  it("returns null when both walls are covered", () => {
+    expect(
+      pickDescentTarget({
+        ...base,
+        windows: [COLUMN_COVER, RIGHT_COLUMN_COVER, TARGET_WINDOW],
+        feetX: 1050,
+      }),
+    ).toBeNull();
   });
 
   it("returns null when the armed window is gone from the stack", () => {
     expect(pickDescentTarget({ ...base, windowNumber: 7, feetX: 1050 })).toBeNull();
-    expect(pickDescentTarget({ windows: [], windowNumber: 42, feetX: 1050 })).toBeNull();
+    expect(pickDescentTarget({ ...base, windows: [], feetX: 1050 })).toBeNull();
   });
 });
 
@@ -658,13 +682,25 @@ describe("createClimber — interruption", () => {
     expect(h.drop).toHaveBeenCalledTimes(1);
   });
 
-  it("ends the climb when the document is hidden", async () => {
+  it("ends the climb and drops her off the wall when the document is hidden", async () => {
+    // The renderer parks its rAF while hidden, so leaving her on the wall would strand
+    // her there until the window comes back.
     const h = makeHarness();
     h.climber.start();
     await h.skipInterval();
     await h.runFrames(3);
     h.hide();
     expect(h.ends).toHaveBeenCalledWith("up");
+    expect(h.drop).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not drop anyone when the document hides with no climb running", async () => {
+    const h = makeHarness();
+    h.climber.start();
+    await h.frame();
+    h.hide();
+    expect(h.drop).not.toHaveBeenCalled();
+    expect(h.ends).not.toHaveBeenCalled();
   });
 });
 
@@ -751,6 +787,24 @@ describe("createClimber — down", () => {
     expect(h.starts).toHaveBeenCalledWith("down", TARGET);
   });
 
+  it("descends the far wall when the nearer one is covered", async () => {
+    const h = perchedHarness({ windows: [COLUMN_COVER, TARGET_WINDOW] });
+    h.climber.start();
+    await h.skipDwell();
+    expect(h.starts).toHaveBeenCalledWith("down", { ...TARGET, side: "right", edgeX: 1400 });
+  });
+
+  it("stays seated when both walls are covered", async () => {
+    const h = perchedHarness({ windows: [COLUMN_COVER, RIGHT_COLUMN_COVER, TARGET_WINDOW] });
+    h.climber.start();
+    await h.skipDwell();
+    await h.runFrames(5);
+
+    expect(h.release).not.toHaveBeenCalled();
+    expect(h.starts).not.toHaveBeenCalled();
+    expect(h.motions).toEqual([]);
+  });
+
   it("hangs off the edge, descends the wall and lands on the floor", async () => {
     const h = perchedHarness();
     h.climber.start();
@@ -785,11 +839,36 @@ describe("createClimber — down", () => {
     await h.skipDwell();
     await h.runToEnd();
 
-    expect(h.motions).toEqual([{ id: CLIMB_DOWN_MOTION_ID }]);
+    // The faller may snap the last stretch without a clip, so the descent loop has to
+    // hand the body back to the baseline itself rather than stay frozen in the wall pose.
+    expect(h.motions).toEqual([{ id: CLIMB_DOWN_MOTION_ID }, null]);
     // Feet stop at the window bottom (1300); the faller covers the rest.
     expect(h.at()).toEqual({ x: 800, y: 880 });
     expect(h.drop).toHaveBeenCalledTimes(1);
     expect(h.ends).toHaveBeenCalledWith("down");
+  });
+
+  it("returns the body to the baseline when the drop is too short for a landing clip", async () => {
+    // Top edge 1350: the whole 150 px drop is the hang, so no landing leg ever runs.
+    const h = perchedHarness({
+      position: { x: 800, y: 930 },
+      windows: [win({ y: 1350, height: 150 })],
+    });
+    h.climber.start();
+    await h.skipDwell();
+    await h.runToEnd();
+
+    expect(h.motions).toEqual([{ id: CLIMB_DOWN_MOTION_ID }, null]);
+    expect(h.ends).toHaveBeenCalledWith("down");
+    expect(h.drop).not.toHaveBeenCalled();
+  });
+
+  it("leaves a finishing oneshot alone at the end of a normal descent", async () => {
+    const h = perchedHarness();
+    h.climber.start();
+    await h.skipDwell();
+    await h.runToEnd();
+    expect(h.motions.at(-1)).toEqual({ id: CLIMB_DOWN_LANDING_MOTION_ID });
   });
 
   it("reaches the landing clip's own displacement before it plays", async () => {
