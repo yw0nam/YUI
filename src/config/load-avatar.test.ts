@@ -57,7 +57,7 @@ describe("loadConfig — avatar.available", () => {
         perch_dwell_max_ms: 120_000,
         max_height_frac: 4,
         hang_frac: 0.3,
-        wall_offset_frac: 0.15,
+        wall_offset_frac: 0.3,
       },
     });
     expect(cfg.avatar.available).toBeUndefined();

@@ -109,7 +109,7 @@ describe("configs/avatar.json", () => {
       perch_dwell_max_ms: 120000,
       max_height_frac: 4,
       hang_frac: 0.3,
-      wall_offset_frac: 0.15,
+      wall_offset_frac: 0.3,
     });
   });
 

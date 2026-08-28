@@ -53,8 +53,14 @@ const ANCHOR = { x: 200, y: 420 };
 const PX_PER_METRE = 300;
 /** Pet window whose feet (500 + 200, 1080 + 420) stand at (700, 1500) — on the floor. */
 const WINDOW_POS = { x: 500, y: 1080 };
-/** Where the up sequence leaves the window: feet on the target's top-left corner. */
-const PERCHED_POS = { x: 800, y: 480 };
+/** Hand reach off the wall: the character stands this far outside the edge she climbs. */
+const WALL_OFFSET = CFG.wall_offset_frac * CHAR_HPX;
+/** Window x that stands her outside the target's left edge — 1000 - 75 - 200. */
+const CLIMB_X = 1000 - WALL_OFFSET - ANCHOR.x;
+/** Window x that stands her feet on the target's top-left corner — 1000 - 200. */
+const CORNER_X = 1000 - ANCHOR.x;
+/** Where the up sequence leaves the window: on the wall, level with the top edge. */
+const PERCHED_POS = { x: CLIMB_X, y: 480 };
 
 function win(over: Partial<WindowRect> = {}): WindowRect {
   return {
@@ -160,6 +166,16 @@ describe("pickClimbTarget", () => {
 
   it("rejects an edge whose corner seat is covered by a window in front", () => {
     expect(pickClimbTarget({ ...base, windows: [SEAT_COVER, TARGET_WINDOW] })).toBeNull();
+  });
+
+  it("checks the column she stands in, outside the edge — not a band straddling it", () => {
+    // Inside the target's own face (1010..1100) is not her column: she stands at
+    // 1000 - 75 and reaches in, so only 850..1000 has to be clear.
+    const inside = win({ x: 1010, y: 1300, width: 90, height: 200, windowNumber: 7 });
+    expect(pickClimbTarget({ ...base, windows: [inside, TARGET_WINDOW] })).toEqual(TARGET);
+
+    const outside = win({ x: 900, y: 1300, width: 90, height: 200, windowNumber: 7 });
+    expect(pickClimbTarget({ ...base, windows: [outside, TARGET_WINDOW] })).toBeNull();
   });
 
   it("rejects a window on another monitor", () => {
@@ -528,20 +544,24 @@ describe("createClimber — up", () => {
     expect(h.starts).not.toHaveBeenCalled();
   });
 
-  it("walks to the wall and reports the start when the interval fires", async () => {
+  it("walks to a hand's reach outside the wall, not onto the edge line", async () => {
+    // Standing with the feet on the edge straddles it and puts the hands inside the
+    // window's face; the reach is what decides where she stands.
     const h = makeHarness();
     h.climber.start();
     await h.skipInterval();
     expect(h.starts).toHaveBeenCalledWith("up", TARGET);
-    expect(h.walkTargets).toEqual([800]);
+    expect(h.walkTargets).toEqual([CLIMB_X]);
     expect(h.yaws[0]).toEqual({ rad: CLIMB_YAW_RAD, easeMs: CLIMB_YAW_EASE_MS });
   });
 
-  it("faces the other way for a right-hand wall", async () => {
+  it("stands outside the other way for a right-hand wall", async () => {
     const h = makeHarness({ position: { x: 1300, y: 1080 } });
     h.climber.start();
     await h.skipInterval();
     expect(h.starts).toHaveBeenCalledWith("up", { ...TARGET, side: "right", edgeX: 1400 });
+    // Outside means to the RIGHT of a right edge: 1400 + 75 - 200.
+    expect(h.walkTargets).toEqual([1400 + WALL_OFFSET - ANCHOR.x]);
     expect(h.yaws[0]).toEqual({ rad: -CLIMB_YAW_RAD, easeMs: CLIMB_YAW_EASE_MS });
   });
 
@@ -596,7 +616,7 @@ describe("createClimber — up", () => {
     await h.skipInterval();
     await h.runToEnd();
 
-    expect(h.at()).toEqual({ x: 800, y: 600 });
+    expect(h.at()).toEqual({ x: CLIMB_X, y: 600 });
     expect(h.sits).toHaveBeenCalledTimes(1);
     expect(h.sits.mock.calls[0][1]).toBeCloseTo(TARGET.topY - 600, 6);
   });
@@ -773,7 +793,7 @@ describe("createClimber — down", () => {
 
     expect(h.release).toHaveBeenCalledTimes(1);
     expect(h.starts).toHaveBeenCalledWith("down", TARGET);
-    expect(h.walkTargets).toEqual([800]);
+    expect(h.walkTargets).toEqual([CORNER_X]);
     expect(h.yaws[0]).toEqual({ rad: CLIMB_YAW_RAD, easeMs: CLIMB_YAW_EASE_MS });
   });
 
@@ -789,7 +809,7 @@ describe("createClimber — down", () => {
 
     h.setPerched(false);
     await h.runFrames(1);
-    expect(h.walkTargets).toEqual([800]);
+    expect(h.walkTargets).toEqual([CORNER_X]);
   });
 
   it("gives up the descent when the perch never clears, and takes the sit back", async () => {
@@ -837,7 +857,7 @@ describe("createClimber — down", () => {
 
     // Feet on the top edge = window origin at topY - anchor.y, x left where it was.
     expect(h.positions[0]).toEqual({ x: 850, y: TARGET.topY - ANCHOR.y });
-    expect(h.walkTargets).toEqual([800]);
+    expect(h.walkTargets).toEqual([CORNER_X]);
   });
 
   it("stays seated when the ledge leaves no room above the work-area top", async () => {
@@ -887,12 +907,17 @@ describe("createClimber — down", () => {
     await h.runToEnd();
 
     expect(h.motions).toEqual([{ id: CLIMB_DOWN_MOTION_ID }, { id: CLIMB_DOWN_LANDING_MOTION_ID }]);
-    expect(h.at()).toEqual({ x: 800, y: 1080 });
+    // The hang carries her off the corner onto the outer face; the rest runs down it.
+    expect(h.at()).toEqual({ x: CLIMB_X, y: 1080 });
     for (const p of h.positions) {
-      expect(p.x).toBe(800);
+      expect(p.x).toBeGreaterThanOrEqual(CLIMB_X);
+      expect(p.x).toBeLessThanOrEqual(CORNER_X);
       expect(p.y).toBeGreaterThanOrEqual(PERCHED_POS.y);
       expect(p.y).toBeLessThanOrEqual(1080);
     }
+    // Only the hang moves x; once on the wall she stays on the outer face.
+    const afterHang = h.positions.slice(5);
+    for (const p of afterHang) expect(p.x).toBe(CLIMB_X);
     expect(h.yaws.at(-1)).toEqual({ rad: 0, easeMs: CLIMB_YAW_EASE_MS });
     expect(h.ends).toHaveBeenCalledWith("down");
     expect(h.drop).not.toHaveBeenCalled();
@@ -907,6 +932,22 @@ describe("createClimber — down", () => {
     expect(h.at().y).toBeCloseTo(PERCHED_POS.y + CFG.hang_frac * CHAR_HPX, 6);
   });
 
+  it("carries her off the corner onto the outer face during the hang", async () => {
+    // She walks the top to the corner, then the hang drops her onto the wall she climbs.
+    const h = perchedHarness();
+    h.climber.start();
+    await h.skipDwell();
+    expect(h.at().x).toBe(CORNER_X);
+
+    await h.runFrames(2);
+    const midway = h.at().x;
+    expect(midway).toBeLessThan(CORNER_X);
+    expect(midway).toBeGreaterThan(CLIMB_X);
+
+    await h.runFrames(2);
+    expect(h.at().x).toBe(CLIMB_X);
+  });
+
   it("hands over to the faller when the window bottom hangs above the floor", async () => {
     const short = win({ height: 400 });
     const h = perchedHarness({ windows: [short] });
@@ -918,7 +959,7 @@ describe("createClimber — down", () => {
     // hand the body back to the baseline itself rather than stay frozen in the wall pose.
     expect(h.motions).toEqual([{ id: CLIMB_DOWN_MOTION_ID }, null]);
     // Feet stop at the window bottom (1300); the faller covers the rest.
-    expect(h.at()).toEqual({ x: 800, y: 880 });
+    expect(h.at()).toEqual({ x: CLIMB_X, y: 880 });
     expect(h.drop).toHaveBeenCalledTimes(1);
     expect(h.ends).toHaveBeenCalledWith("down");
   });
@@ -926,7 +967,7 @@ describe("createClimber — down", () => {
   it("returns the body to the baseline when the drop is too short for a landing clip", async () => {
     // Top edge 1350: the whole 150 px drop is the hang, so no landing leg ever runs.
     const h = perchedHarness({
-      position: { x: 800, y: 930 },
+      position: { x: CORNER_X, y: 930 },
       windows: [win({ y: 1350, height: 150 })],
     });
     h.climber.start();

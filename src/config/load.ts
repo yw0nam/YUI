@@ -163,7 +163,7 @@ export const CLIMB_DEFAULTS: ClimbConfig = {
   perch_dwell_max_ms: 120_000,
   max_height_frac: 4,
   hang_frac: 0.3,
-  wall_offset_frac: 0.15,
+  wall_offset_frac: 0.3,
 };
 
 /** Authored label for one reflex-gesture speech candidate. context is optional user-authored intent. */
