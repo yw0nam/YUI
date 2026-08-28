@@ -65,31 +65,27 @@ describe("recenterRootTranslation — horizontal mean removal", () => {
 });
 
 describe("detrendRootY — vertical travel removal", () => {
-  it("removes the end-to-end rise linearly and reports it", () => {
-    // y 1.0 → 2.0 over 2 s, bobbing 0.1 above the line at the midpoint.
+  it("levels the whole track, not just its end-to-end trend", () => {
+    // y 1.0 → 2.0 over 2 s, bobbing 0.1 above the trend line at the midpoint. The mover
+    // supplies the authored curve whole, so anything left in the track plays twice.
     const { values, travel } = detrendRootY([0, 1, 2], [0, 1.0, 0, 0, 1.6, 0, 0, 2.0, 0]);
     expect(travel).toBeCloseTo(1.0, 6);
     expect(values[1]).toBeCloseTo(1.0, 6);
-    expect(values[4]).toBeCloseTo(1.1, 6);
+    expect(values[4]).toBeCloseTo(1.0, 6);
     expect(values[7]).toBeCloseTo(1.0, 6);
   });
 
-  it("closes the loop seam — the last key lands back on the first", () => {
+  it("leaves a loop with no seam to snap at", () => {
     const { values } = detrendRootY([0, 0.5, 1.5, 2], [0, 1.0, 0, 0, 1.9, 0, 0, 1.2, 0, 0, 2.0, 0]);
     expect(values[10]).toBeCloseTo(values[1], 6);
-  });
-
-  it("keeps the bob, measuring it against the line rather than the first key", () => {
-    // Same rise, but the midpoint dips 0.1 BELOW the line — the dip has to survive.
-    const { values } = detrendRootY([0, 1, 2], [0, 1.0, 0, 0, 1.4, 0, 0, 2.0, 0]);
-    expect(values[4]).toBeCloseTo(0.9, 6);
+    expect(values[4]).toBeCloseTo(values[1], 6);
   });
 
   it("handles a descent, reporting the travel signed", () => {
     const { values, travel } = detrendRootY([0, 1, 2], [0, 2.0, 0, 0, 1.4, 0, 0, 1.0, 0]);
     expect(travel).toBeCloseTo(-1.0, 6);
-    expect(values[7]).toBeCloseTo(values[1], 6);
-    expect(values[4]).toBeCloseTo(1.9, 6);
+    expect(values[4]).toBeCloseTo(2.0, 6);
+    expect(values[7]).toBeCloseTo(2.0, 6);
   });
 
   it("leaves X and Z alone", () => {
@@ -100,10 +96,10 @@ describe("detrendRootY — vertical travel removal", () => {
     expect(values[5]).toBeCloseTo(7, 6);
   });
 
-  it("reports no travel for a track that already ends where it started", () => {
+  it("levels a track that ends where it started, and reports no travel", () => {
     const { values, travel } = detrendRootY([0, 1, 2], [0, 1.0, 0, 0, 1.5, 0, 0, 1.0, 0]);
     expect(travel).toBe(0);
-    expect(values[4]).toBeCloseTo(1.5, 6);
+    expect(values[4]).toBeCloseTo(1.0, 6);
   });
 
   it.each([
@@ -136,26 +132,25 @@ describe("detrendRootY — resting the hips at their own height", () => {
     expect(shift).toBeCloseTo(-0.95, 6);
   });
 
-  it("leaves a clip that already starts at the rest height alone", () => {
-    // Bobs up and comes back, so there is no rise to detrend and no shift to apply.
+  it("needs no shift for a clip that already starts at the rest height", () => {
     const { values, shift } = detrendRootY([0, 1, 2], [0, 0.95, 0, 0, 1.05, 0, 0, 0.95, 0], 0.95);
     // Float32 storage, so "no shift" is zero to the precision the track is kept at.
     expect(shift).toBeCloseTo(0, 6);
     expect(values[1]).toBeCloseTo(0.95, 6);
-    expect(values[4]).toBeCloseTo(1.05, 6);
+    expect(values[4]).toBeCloseTo(0.95, 6);
   });
 
-  it("anchors the detrended track, not the raw one", () => {
-    // Rise 1.0 removed first, then the start dropped from 1.9 to 0.95.
+  it("levels every key onto the rest height, whatever the clip did", () => {
     const { values, travel, shift } = detrendRootY(
       [0, 1, 2],
       [0, 1.9, 0, 0, 2.5, 0, 0, 2.9, 0],
       0.95,
     );
+    // The travel it reports is still the authored rise the mover has to supply.
     expect(travel).toBeCloseTo(1.0, 6);
     expect(shift).toBeCloseTo(-0.95, 6);
     expect(values[1]).toBeCloseTo(0.95, 6);
-    expect(values[4]).toBeCloseTo(1.05, 6);
+    expect(values[4]).toBeCloseTo(0.95, 6);
     expect(values[7]).toBeCloseTo(0.95, 6);
   });
 
@@ -208,7 +203,7 @@ describe("detrendClipRootY", () => {
     expect(travel).toBeCloseTo(1.0, 6);
     const position = clip.tracks[0];
     expect(position.values[1]).toBeCloseTo(1.0, 6);
-    expect(position.values[4]).toBeCloseTo(1.1, 6);
+    expect(position.values[4]).toBeCloseTo(1.0, 6);
     expect(position.values[7]).toBeCloseTo(1.0, 6);
     // The rotation track is untouched.
     expect(Array.from(clip.tracks[1].values)).toEqual([0, 0, 0, 1, 0, 0, 0, 1]);
