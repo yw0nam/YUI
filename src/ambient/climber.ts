@@ -731,6 +731,8 @@ export function createClimber(deps: ClimberDeps): Climber {
     if (!pull || !alive(startedAt)) return endClimb();
     const rise = (w.floor - picked.topY) * w.scale;
     const pullPx = Math.min(rise, pull.px);
+    // The wall runs a hand's reach outside the face; the corner is where the sit belongs.
+    const cornerX = at.x + (picked.edgeX - standX) * w.scale;
     const base = { win: w.win, fromX: at.x, toX: at.x, pxPerMetre };
     let y = at.y;
 
@@ -749,6 +751,7 @@ export function createClimber(deps: ClimberDeps): Climber {
     const pullLeg = await runLeg({
       ...base,
       fromY: y,
+      toX: cornerX,
       toY: y - pullPx,
       motionId: CLIMB_UP_DONE_MOTION_ID,
       phase: "pull_over",
