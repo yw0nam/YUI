@@ -12,6 +12,7 @@ import {
   CLIMB_YAW_RAD,
   type ClimberDeps,
   type ClimbTarget,
+  climbGeometrySample,
   climbSpeedPxPerSec,
   climbTargetLost,
   createClimber,
@@ -245,6 +246,67 @@ describe("pickDescentTarget", () => {
   });
 });
 
+describe("climbGeometrySample", () => {
+  const base = {
+    phase: "climb_up",
+    topY: 900,
+    win: { x: 725, y: 1080 },
+    feet: { x: 200, y: 420 },
+    hands: { left: { x: 260, y: 300 }, right: { x: 280, y: 260 } },
+    charHpx: CHAR_HPX,
+  };
+
+  it("reports every point in global logical px, rounded", () => {
+    const s = climbGeometrySample({ ...base, side: "left", edgeX: 1000 });
+    expect(s.phase).toBe("climb_up");
+    expect(s.winX).toBe(725);
+    expect(s.winY).toBe(1080);
+    // Anchors are pet-window local: 725 + 200, 1080 + 420.
+    expect(s.feetX).toBe(925);
+    expect(s.feetY).toBe(1500);
+    expect(s.handLX).toBe(985);
+    expect(s.handLY).toBe(1380);
+    expect(s.handRX).toBe(1005);
+    expect(s.handRY).toBe(1340);
+    expect(s.charHpx).toBe(CHAR_HPX);
+  });
+
+  it("rounds fractional projections", () => {
+    const s = climbGeometrySample({
+      ...base,
+      side: "left",
+      edgeX: 1000,
+      feet: { x: 200.4, y: 420.6 },
+    });
+    expect(s.feetX).toBe(925);
+    expect(s.feetY).toBe(1501);
+  });
+
+  it("measures a left wall with inside the window positive", () => {
+    const s = climbGeometrySample({ ...base, side: "left", edgeX: 1000 });
+    // Right hand at 1005 has reached 5 px past the edge into the face; feet are outside.
+    expect(s.handRX).toBe(1005);
+    expect(s.handR_dx).toBe(5);
+    expect(s.handL_dx).toBe(-15);
+    expect(s.feet_dx).toBe(-75);
+  });
+
+  it("flips the sign for a right wall so inside stays positive", () => {
+    // Mirror geometry about a right edge at 1400: the same 5 px past the face.
+    const s = climbGeometrySample({
+      ...base,
+      side: "right",
+      edgeX: 1400,
+      win: { x: 1475 - 200, y: 1080 },
+      hands: { left: { x: 140, y: 300 }, right: { x: 120, y: 260 } },
+    });
+    expect(s.handRX).toBe(1395);
+    expect(s.handR_dx).toBe(5);
+    expect(s.handL_dx).toBe(-15);
+    expect(s.feet_dx).toBe(-75);
+  });
+});
+
 describe("climbSpeedPxPerSec", () => {
   it("divides the clip's own stride by the cycle length it loops on", () => {
     expect(climbSpeedPxPerSec(300, 0.93, 2.967)).toBeCloseTo((300 * 0.93) / 2.967, 6);
@@ -371,6 +433,7 @@ function makeHarness(
   const adoptSit = vi.fn((windowNumber: number) => {
     armed = { windowNumber };
   });
+  const handAnchors = vi.fn(() => ({ left: { x: 260, y: 300 }, right: { x: 280, y: 260 } }));
   const drop = vi.fn();
   const walkerCancel = vi.fn();
   let armed: { windowNumber: number } | null = over.perched ? { windowNumber: 42 } : null;
@@ -421,6 +484,7 @@ function makeHarness(
         const charHpx = over.charHpx === undefined ? CHAR_HPX : over.charHpx;
         return charHpx === null ? null : { seatPx: { x: 200, y: 300 }, charHpx };
       },
+      getHandAnchors: handAnchors,
       isPerched: () => perched,
     },
     getWindow: () => ({
@@ -496,6 +560,7 @@ function makeHarness(
     ends,
     adoptSit,
     armedSit,
+    handAnchors,
     release,
     drop,
     walkerCancel,
@@ -636,6 +701,18 @@ describe("createClimber — up", () => {
     expect(h.motions).toEqual([{ id: CLIMB_UP_MOTION_ID }, { id: CLIMB_UP_DONE_MOTION_ID }]);
     expect(h.at()).toEqual(PERCHED_POS);
     expect(h.sits).toHaveBeenCalledTimes(1);
+  });
+
+  it("samples the hands against the edge while it climbs", async () => {
+    // The geometry log is diagnostic only, but it is how the wall offset gets tuned —
+    // if the hand anchors stop being read there is nothing to tune from.
+    const h = makeHarness();
+    h.climber.start();
+    await h.skipInterval();
+    expect(h.handAnchors).toHaveBeenCalled();
+    const atApproach = h.handAnchors.mock.calls.length;
+    await h.runFrames(12);
+    expect(h.handAnchors.mock.calls.length).toBeGreaterThan(atApproach);
   });
 
   it("gives up when the pull-over clip cannot be measured", async () => {
