@@ -204,9 +204,9 @@ describe("pickDescentTarget", () => {
   it("takes the armed window rather than whatever the feet hang over", () => {
     // In the sit pose the feet dangle below the ledge, so geometry alone would miss it.
     const other = win({ x: 200, width: 400, windowNumber: 7 });
-    expect(
-      pickDescentTarget({ ...base, windows: [other, TARGET_WINDOW], feetX: 1050 }),
-    ).toEqual(TARGET);
+    expect(pickDescentTarget({ ...base, windows: [other, TARGET_WINDOW], feetX: 1050 })).toEqual(
+      TARGET,
+    );
   });
 
   it("takes the far edge when the nearer one's wall is covered", () => {

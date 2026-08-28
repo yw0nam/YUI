@@ -203,30 +203,45 @@ export function pickClimbTarget(args: {
 }
 
 /**
- * The wall to climb down from a sit: the window the perch is armed on, and whichever of
- * its side edges is nearer the feet. The sit pose dangles the feet below the ledge, so
- * the window is found by identity, not by where the feet happen to hang.
- * null when the armed window is no longer on screen.
+ * The wall to climb down from a sit: the window the perch is armed on, and its nearest
+ * side edge whose wall column and corner seat are clear of anything in front of it. The
+ * sit pose dangles the feet below the ledge, so the window is found by identity, not by
+ * where the feet happen to hang. null when the window is gone or both walls are covered.
  */
 export function pickDescentTarget(args: {
   windows: WindowRect[];
   windowNumber: number;
   feetX: number;
+  floor: number;
+  charHpx: number;
+  cfg: ClimbConfig;
 }): ClimbTarget | null {
-  const { windows, windowNumber, feetX } = args;
-  const win = windows.find((w) => w.windowNumber === windowNumber);
-  if (!win) return null;
-  const side: "left" | "right" = feetX - win.x <= win.x + win.width - feetX ? "left" : "right";
-  return {
-    windowNumber: win.windowNumber,
-    side,
-    edgeX: side === "left" ? win.x : win.x + win.width,
-    topY: win.y,
-    bottomY: win.y + win.height,
-    rect: { x: win.x, y: win.y },
-    app: win.ownerName,
-    title: win.name,
-  };
+  const { windows, windowNumber, feetX, floor, charHpx, cfg } = args;
+  const index = windows.findIndex((w) => w.windowNumber === windowNumber);
+  if (index < 0) return null;
+  const win = windows[index];
+  const front = windows.slice(0, index);
+  const wallOffset = cfg.wall_offset_frac * charHpx;
+  const sides: Array<{ side: "left" | "right"; edgeX: number }> = [
+    { side: "left", edgeX: win.x },
+    { side: "right", edgeX: win.x + win.width },
+  ];
+  sides.sort((a, b) => Math.abs(a.edgeX - feetX) - Math.abs(b.edgeX - feetX));
+  for (const { side, edgeX } of sides) {
+    if (front.some((w) => overlaps(w, wallColumn(edgeX, win.y, floor, wallOffset)))) continue;
+    if (front.some((w) => containsPoint(w, cornerSeat(edgeX, win.y, side, wallOffset)))) continue;
+    return {
+      windowNumber: win.windowNumber,
+      side,
+      edgeX,
+      topY: win.y,
+      bottomY: win.y + win.height,
+      rect: { x: win.x, y: win.y },
+      app: win.ownerName,
+      title: win.name,
+    };
+  }
+  return null;
 }
 
 /** Whether the wall vanished, slid away, or was covered while the character was on it. */
@@ -329,6 +344,9 @@ const CLIMB_MOTION_IDS = new Set([
   CLIMB_DOWN_LANDING_MOTION_ID,
 ]);
 
+/** The wall clips, which hold the body until something takes it back. */
+const LOOPING_MOTION_IDS = new Set([CLIMB_UP_MOTION_ID, CLIMB_DOWN_MOTION_ID]);
+
 export function createClimber(deps: ClimberDeps): Climber {
   const { renderer } = deps;
   const rng = deps.rng ?? Math.random;
@@ -375,6 +393,11 @@ export function createClimber(deps: ClimberDeps): Climber {
     const dir = direction;
     direction = null;
     target = null;
+    // A looping wall clip never ends by itself, and some exits play nothing after it —
+    // the faller's silent snap, a drop the hang covered whole. Hand the body back, and
+    // leave a finishing oneshot to return to the baseline on its own.
+    const current = renderer.getCurrentMotion();
+    if (current && LOOPING_MOTION_IDS.has(current.id)) renderer.playMotion(null);
     renderer.setBodyYaw(0, CLIMB_YAW_EASE_MS);
     deps.onEnd(dir);
   }
@@ -409,8 +432,13 @@ export function createClimber(deps: ClimberDeps): Climber {
     endClimb();
   }
 
+  // The renderer parks its rAF while hidden, so a climb left running would strand her
+  // on the wall — take her off it the same way a lost target does.
   const onVisibilityChange = (): void => {
-    if (doc?.visibilityState === "hidden") cancel();
+    if (doc?.visibilityState !== "hidden") return;
+    const onWall = direction !== null;
+    cancel();
+    if (onWall) void deps.faller.drop();
   };
 
   /** Run one vertical leg to completion. Resolves "lost" when the climb is cancelled. */
@@ -611,6 +639,9 @@ export function createClimber(deps: ClimberDeps): Climber {
       windows: w.windows,
       windowNumber: sit.windowNumber,
       feetX: w.feetX,
+      floor: w.floor,
+      charHpx: w.charHpx,
+      cfg,
     });
     if (!picked) return;
     // Window origin that stands the feet on the ledge. Above the work area the OS would
