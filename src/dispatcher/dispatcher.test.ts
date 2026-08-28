@@ -273,6 +273,12 @@ describe("dispatcher — posture", () => {
     ],
     ["user.drag_start", undefined, { state: "dragging" }],
     ["avatar.walk_start", undefined, { state: "walking" }],
+    ["avatar.climb_start", { direction: "up", app: "Notes" }, { state: "climbing" }],
+    [
+      "avatar.window_sit",
+      { edge_local_ypx: 420, app: "Notes", window_title: "Meeting notes" },
+      { state: "sitting", perched_on: { app: "Notes", window_title: "Meeting notes" } },
+    ],
   ] as const)("derives posture from %s", async (event_name, payload, expected) => {
     dispatcher.start();
     await pushPostureEvent(event_name, payload);
@@ -417,6 +423,45 @@ describe("dispatcher — posture", () => {
     expect(dispatcher.getBodyState()).toEqual(before);
     expect(applyDirective).not.toHaveBeenCalled();
     expect(backendCaller.call).not.toHaveBeenCalled();
+  });
+
+  it("returns to standing when a climb down ends", async () => {
+    dispatcher.start();
+    await pushPostureEvent("avatar.climb_start", { direction: "down", app: "Notes" });
+    expect(dispatcher.getPosture()).toEqual({ state: "climbing" });
+    await pushPostureEvent("avatar.climb_end", { direction: "down", app: "Notes" });
+    expect(dispatcher.getPosture()).toEqual({ state: "standing" });
+  });
+
+  it("renders nothing and fires no backend turn for a climb", async () => {
+    dispatcher.start();
+    applyDirective.mockClear();
+    await pushPostureEvent("avatar.climb_start", { direction: "up", app: "Notes" });
+    await pushPostureEvent("avatar.climb_end", { direction: "up", app: "Notes" });
+    expect(applyDirective).not.toHaveBeenCalled();
+    expect(backendCaller.call).not.toHaveBeenCalled();
+  });
+
+  it("sits the character on the ledge an ambient climb reached", async () => {
+    dispatcher.start();
+    applyDirective.mockClear();
+    await pushPostureEvent("avatar.window_sit", {
+      edge_local_ypx: 420,
+      app: "Notes",
+      window_title: "Meeting notes",
+    });
+    expect(applyDirective).toHaveBeenCalledTimes(1);
+    expect(applyDirective.mock.calls[0][0].motion).toEqual({ id: "window_sit" });
+    expect(setPerchTarget).toHaveBeenCalledWith({ edgeLocalYpx: 420 });
+    expect(backendCaller.call).not.toHaveBeenCalled();
+  });
+
+  it("drops an ambient window sit that carries no edge", async () => {
+    dispatcher.start();
+    applyDirective.mockClear();
+    await pushPostureEvent("avatar.window_sit", { app: "Notes" });
+    expect(applyDirective).not.toHaveBeenCalled();
+    expect(setPerchTarget).not.toHaveBeenCalled();
   });
 
   it("renders nothing and fires no backend turn for a stroll", async () => {

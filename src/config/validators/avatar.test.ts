@@ -60,6 +60,15 @@ describe("validateAvatar — happy path", () => {
         min_drop_frac: 0.2,
         cue_cooldown_ms: 60_000,
       },
+      climb: {
+        interval_min_ms: 90_000,
+        interval_max_ms: 180_000,
+        perch_dwell_min_ms: 60_000,
+        perch_dwell_max_ms: 120_000,
+        max_height_frac: 4,
+        hang_frac: 0.3,
+        wall_offset_frac: 0.15,
+      },
     });
   });
 
@@ -605,6 +614,60 @@ describe("validateAvatar — fall", () => {
 
   it.each([-1, "60000", 1.5])("rejects an invalid cue_cooldown_ms: %s", (cue_cooldown_ms) => {
     expectIssue({ vrm_url: "/v.vrm", fall: { cue_cooldown_ms } }, "fall.cue_cooldown_ms는 0 이상");
+  });
+});
+
+describe("validateAvatar — climb", () => {
+  it("merges a partial climb block over defaults", () => {
+    const out = validateAvatar(FILE, {
+      vrm_url: "/v.vrm",
+      climb: { interval_min_ms: 30_000, hang_frac: 0.4 },
+    });
+
+    expect(out.climb).toEqual({
+      interval_min_ms: 30_000,
+      interval_max_ms: 180_000,
+      perch_dwell_min_ms: 60_000,
+      perch_dwell_max_ms: 120_000,
+      max_height_frac: 4,
+      hang_frac: 0.4,
+      wall_offset_frac: 0.15,
+    });
+  });
+
+  it("rejects a non-object climb block", () => {
+    expectIssue({ vrm_url: "/v.vrm", climb: "nope" }, "climb은 객체여야 함");
+  });
+
+  it.each([
+    ["interval_min_ms", -1],
+    ["interval_max_ms", "180000"],
+    ["perch_dwell_min_ms", 1.5],
+    ["perch_dwell_max_ms", Number.NaN],
+  ])("rejects invalid %s: %s", (field, value) => {
+    expectIssue({ vrm_url: "/v.vrm", climb: { [field]: value } }, `climb.${field}는 0 이상 정수`);
+  });
+
+  it.each([
+    ["max_height_frac", 0],
+    ["hang_frac", -0.1],
+    ["wall_offset_frac", "0.15"],
+  ])("rejects invalid %s: %s", (field, value) => {
+    expectIssue({ vrm_url: "/v.vrm", climb: { [field]: value } }, `climb.${field}는 0보다 큰`);
+  });
+
+  it("rejects an inverted interval range", () => {
+    expectIssue(
+      { vrm_url: "/v.vrm", climb: { interval_min_ms: 200_000 } },
+      "climb.interval_min_ms는 climb.interval_max_ms 이하",
+    );
+  });
+
+  it("rejects an inverted dwell range", () => {
+    expectIssue(
+      { vrm_url: "/v.vrm", climb: { perch_dwell_min_ms: 200_000 } },
+      "climb.perch_dwell_min_ms는 climb.perch_dwell_max_ms 이하",
+    );
   });
 });
 

@@ -101,6 +101,18 @@ describe("configs/avatar.json", () => {
     });
   });
 
+  it("carries the ambient window-climb knobs", () => {
+    expect(a.climb).toEqual({
+      interval_min_ms: 90000,
+      interval_max_ms: 180000,
+      perch_dwell_min_ms: 60000,
+      perch_dwell_max_ms: 120000,
+      max_height_frac: 4,
+      hang_frac: 0.3,
+      wall_offset_frac: 0.15,
+    });
+  });
+
   it("ships built-in touch/gesture cues as label-only (context is persona judgment, not client data)", () => {
     const builtIn: Array<[string, any]> = [
       ["tap.region_cues.head", a.tap.region_cues.head],
@@ -301,6 +313,21 @@ describe("configs/motions.json", () => {
     expect(m.landing.broker_publish).toBe(false);
   });
 
+  it.each([
+    ["climb_up", "reactive", true],
+    ["climb_up_done", "oneshot", false],
+    ["climb_down", "reactive", true],
+    ["climb_down_landing", "oneshot", false],
+  ])("registers the climb clip %s (%s, broker-excluded)", (id, kind, loop) => {
+    expect(m[id]).toBeDefined();
+    expect(m[id].vrma_path).toBe(`/motions/${id}.vrma`);
+    expect(m[id].kind).toBe(kind);
+    expect(m[id].loop).toBe(loop);
+    expect(m[id].priority).toBe(78);
+    expect(m[id].interrupt_policy).toBe("replace");
+    expect(m[id].broker_publish).toBe(false);
+  });
+
   it("registers sulk as a broker-published oneshot emotion motion", () => {
     expect(m.suneru).toBeUndefined();
     expect(m.sulk).toBeDefined();
@@ -326,6 +353,8 @@ describe("configs/motions.json", () => {
     expect(published).not.toContain("thinking");
     expect(published).not.toContain("peek");
     expect(published).not.toContain("walk");
+    expect(published).not.toContain("climb_up_done");
+    expect(published).not.toContain("climb_down_landing");
   });
 
   it("keeps walk out of the agent-triggerable vocabulary the broker publishes", () => {

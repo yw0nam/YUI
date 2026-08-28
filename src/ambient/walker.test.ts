@@ -576,3 +576,84 @@ describe("createWalker", () => {
     expect(h.starts).toHaveBeenCalledTimes(1);
   });
 });
+
+describe("createWalker — walkTo", () => {
+  /** Run frames until the directed walk settles, or give up. */
+  async function settle(
+    h: ReturnType<typeof makeHarness>,
+    walk: Promise<"arrived" | "lost">,
+  ): Promise<"arrived" | "lost" | "pending"> {
+    let out: "arrived" | "lost" | "pending" = "pending";
+    void walk.then((r) => {
+      out = r;
+    });
+    for (let i = 0; i < 200 && out === "pending"; i++) await h.frame();
+    return out;
+  }
+
+  it("walks to the requested x and reports the arrival", async () => {
+    const h = makeHarness();
+    h.walker.start();
+    expect(await settle(h, h.walker.walkTo(300))).toBe("arrived");
+    expect(h.positions.at(-1)).toEqual({ x: 300, y: WINDOW_POS.y });
+    expect(h.motions).toEqual([{ id: WALK_MOTION_ID }, null]);
+  });
+
+  it("yaws toward the destination and leaves the window's y untouched", async () => {
+    const h = makeHarness();
+    h.walker.start();
+    await settle(h, h.walker.walkTo(900));
+    expect(h.yaws[0]).toEqual({ rad: WALK_YAW_RAD, easeMs: WALK_YAW_EASE_MS });
+    for (const p of h.positions) expect(p.y).toBe(WINDOW_POS.y);
+  });
+
+  it("reports the walk lost when another motion takes the walk clip", async () => {
+    const h = makeHarness();
+    h.walker.start();
+    const walk = h.walker.walkTo(300);
+    await h.frame();
+    h.setCurrentMotion({ id: "happy", vrma_path: "/motions/happy.vrma" });
+    expect(await settle(h, walk)).toBe("lost");
+  });
+
+  it("reports the walk lost when cancel() runs", async () => {
+    const h = makeHarness();
+    h.walker.start();
+    const walk = h.walker.walkTo(300);
+    await h.frame();
+    h.walker.cancel();
+    expect(await walk).toBe("lost");
+  });
+
+  it("keeps the ambient stroll callbacks out of a directed walk", async () => {
+    const h = makeHarness();
+    h.walker.start();
+    await settle(h, h.walker.walkTo(300));
+    expect(h.starts).not.toHaveBeenCalled();
+    expect(h.ends).not.toHaveBeenCalled();
+  });
+
+  it("cancels a running stroll before taking the directed walk", async () => {
+    const h = makeHarness();
+    h.walker.start();
+    await h.skipInterval();
+    expect(h.starts).toHaveBeenCalledTimes(1);
+    expect(await settle(h, h.walker.walkTo(900))).toBe("arrived");
+    expect(h.ends).toHaveBeenCalledTimes(1);
+    expect(h.positions.at(-1)).toEqual({ x: 900, y: WINDOW_POS.y });
+  });
+
+  it("arrives without a clip when the window already sits at the destination", async () => {
+    const h = makeHarness();
+    h.walker.start();
+    expect(await h.walker.walkTo(WINDOW_POS.x)).toBe("arrived");
+    expect(h.motions).toEqual([]);
+  });
+
+  it("skips the floor gate so the same call walks a window top", async () => {
+    const h = makeHarness({ position: { x: 500, y: 400 } });
+    h.walker.start();
+    expect(await settle(h, h.walker.walkTo(300))).toBe("arrived");
+    expect(h.positions.at(-1)).toEqual({ x: 300, y: 400 });
+  });
+});
