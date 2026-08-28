@@ -120,16 +120,19 @@ Where the avatar body is. Always present.
 ```text
 body: peeking on Orca (for 2min)
 body: walking (for 0min)
+body: climbing (for 0min)
 body: standing (for 12min)
 ```
 
 The state is `body_state.posture.state` (`standing` \| `sitting` \| `peeking` \|
-`dragging` \| `walking`); the `on <label>` clause names `posture.perched_on.app` (falling back to
+`dragging` \| `walking` \| `climbing`); the `on <label>` clause names `posture.perched_on.app` (falling back to
 `window_title` when the app didn't resolve) and is omitted when there's no window
-under the avatar — `standing` and `walking` never carry one. `walking` holds for the
+under the avatar — `standing`, `walking` and `climbing` never carry one. `walking` holds for the
 length of one ambient stroll along the work-area bottom and returns to `standing`
 when the stroll ends; the stroll itself fires no turn, so the state is visible on
-whatever turn comes next. The duration is minutes since the
+whatever turn comes next. `climbing` holds for the length of one ambient climb up or
+down a foreign window's side edge: an ascent ends in `sitting` on that window, a
+descent in `standing` on the floor, and neither fires a turn either. The duration is minutes since the
 last posture change (`body_state.since`), or when an agent-driven `move_to` relocates
 it, which returns it to standing — it moves only when the posture itself changes or
 the avatar relocates, not when the same posture is re-affirmed.

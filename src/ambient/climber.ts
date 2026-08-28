@@ -1,0 +1,735 @@
+/**
+ * Climbing — the character occasionally scales a foreign window, sits on its top edge
+ * for a while, then climbs back down.
+ *
+ * Presentation only, no judgment: the climb is a client-scheduled ambient cue and the
+ * backend only ever sees the posture it produces. The VRM stays at scene origin playing
+ * the in-place climb clips while a per-frame loop translates the OS window along the
+ * chosen wall; speeds come from each clip's own displacement through the renderer's
+ * world↔px projection, so the hands never slide at any window size or scale factor.
+ *
+ * A climb is: walk to the wall → face it → `climb_up` up the wall → `climb_up_done`
+ * over the ledge → sit. The descent, which every sit gets — this module's own, a drag
+ * drop, an agent placement — is: release the perch → walk to the nearer edge → face the
+ * wall → drop onto it → `climb_down` → `climb_down_landing` on the floor. A window whose
+ * bottom hangs above the floor hands the last stretch to the faller.
+ *
+ * Ownership is user > agent > ambient, but only a pickup or an agent move cancels: an
+ * express clip taking the body holds the window where it is and the climb clip is
+ * reclaimed once the ambient baseline returns. The target window is re-checked while the
+ * sequence runs; losing it drops the character rather than stranding her on a wall.
+ *
+ * Pure planning/geometry lives in the exported functions; createClimber owns the two
+ * timers, the async window reads, and the per-frame translation.
+ */
+
+import type { ClimbConfig, WalkConfig } from "../config/load";
+import type { MotionKind, WindowRect } from "../contract";
+import { floorPx, monitorAt, type PetWindow, type ScreenMonitor } from "../io/screen-geometry";
+import { MOVE_TH } from "../io/window-drop-source";
+import { createLogger } from "../logger";
+import type { Renderer } from "../renderer";
+import { type Rng, randRange } from "./cues";
+import { prefersReducedMotion } from "./tier1";
+import { advanceX, canStartStroll, MAX_STEP_DT_S, onFloor, type WalkerDoc } from "./walker";
+
+const log = createLogger("climber");
+
+/** Registry id of the looping wall ascent. */
+export const CLIMB_UP_MOTION_ID = "climb_up";
+/** Registry id of the ledge pull-over that ends an ascent. */
+export const CLIMB_UP_DONE_MOTION_ID = "climb_up_done";
+/** Registry id of the looping wall descent. */
+export const CLIMB_DOWN_MOTION_ID = "climb_down";
+/** Registry id of the touchdown that ends a descent. */
+export const CLIMB_DOWN_LANDING_MOTION_ID = "climb_down_landing";
+
+/** Mixamo "Climbing UP" rises this far per cycle at playback rate 1.0. */
+export const CLIMB_UP_METRES_PER_CYCLE = 0.93;
+/** Mixamo "Climbing_UP_done" rises this far over the whole clip. */
+export const CLIMB_UP_DONE_METRES = 1.38;
+/** Fallback length (s) of the pull-over, for the frames before the clip is cached. */
+export const CLIMB_UP_DONE_S = 3.8;
+/** Mixamo "Climbing Down Wall" descends this far per cycle at playback rate 1.0. */
+export const CLIMB_DOWN_METRES_PER_CYCLE = 1.15;
+/** Mixamo "Climbing Down_landing" descends this far over the whole clip. */
+export const CLIMB_DOWN_LANDING_METRES = 0.25;
+/** Fallback length (s) of the touchdown, for the frames before the clip is cached. */
+export const CLIMB_DOWN_LANDING_S = 1.383;
+
+/** Root yaw (rad) toward the wall — a quarter turn off camera-facing. */
+export const CLIMB_YAW_RAD = Math.PI / 2;
+/** Yaw ease (ms), run concurrently with the motion crossfade at both ends of a climb. */
+export const CLIMB_YAW_EASE_MS = 400;
+/** How long the character takes to drop off the ledge onto the wall (ms). */
+export const HANG_MS = 400;
+/** Cadence (ms) of the target re-check while a sequence runs. */
+export const TARGET_WATCH_MS = 700;
+/** How long a descent waits for the released perch to clear before giving up (ms). */
+export const RELEASE_WAIT_MS = 1000;
+
+/** The wall a climb runs on: which window, which side, and the span it covers. */
+export interface ClimbTarget {
+  windowNumber: number;
+  side: "left" | "right";
+  /** Global x (logical px) of the climbed edge. */
+  edgeX: number;
+  topY: number;
+  bottomY: number;
+  /** Window origin at pick time — the poll's move baseline. */
+  rect: { x: number; y: number };
+  app: string | null;
+  title: string | null;
+}
+
+/** An axis-aligned rect in the same global logical px as the window list. */
+interface Box {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
+
+function overlaps(a: Box, b: Box): boolean {
+  return a.x < b.x + b.width && a.x + a.width > b.x && a.y < b.y + b.height && a.y + a.height > b.y;
+}
+
+function containsPoint(a: Box, p: { x: number; y: number }): boolean {
+  return p.x >= a.x && p.x <= a.x + a.width && p.y >= a.y && p.y <= a.y + a.height;
+}
+
+/** The wall column that must stay clear of anything in front of the target. */
+function wallColumn(edgeX: number, topY: number, floor: number, wallOffset: number): Box {
+  return {
+    x: edgeX - wallOffset,
+    y: topY,
+    width: wallOffset * 2,
+    height: Math.max(floor - topY, 0),
+  };
+}
+
+/** The corner the character ends up sitting on, just inside the climbed edge. */
+function cornerSeat(
+  edgeX: number,
+  topY: number,
+  side: "left" | "right",
+  wallOffset: number,
+): { x: number; y: number } {
+  return { x: edgeX + (side === "left" ? 1 : -1) * 0.5 * wallOffset, y: topY };
+}
+
+/** Delay (ms) until the next climb attempt. */
+export function nextClimbDelay(cfg: ClimbConfig, rng: Rng = Math.random): number {
+  return randRange(cfg.interval_min_ms, cfg.interval_max_ms, rng);
+}
+
+/** How long (ms) the character stays seated before climbing back down. */
+export function nextDwell(cfg: ClimbConfig, rng: Rng = Math.random): number {
+  return randRange(cfg.perch_dwell_min_ms, cfg.perch_dwell_max_ms, rng);
+}
+
+/** Wall speed (px/s) of a looping climb clip: one cycle's displacement per cycle length. */
+export function climbSpeedPxPerSec(
+  pxPerMetre: number,
+  metresPerCycle: number,
+  cycleS: number,
+): number {
+  return (pxPerMetre * metresPerCycle) / cycleS;
+}
+
+/**
+ * The wall to climb: the side edge nearest the feet, on the nearest window that is
+ * reachable, the right size, standing-room-topped, unobstructed and on this monitor.
+ * All arguments and results are global logical px. null when nothing qualifies.
+ */
+export function pickClimbTarget(args: {
+  /** Front-to-back, topmost first. */
+  windows: WindowRect[];
+  feetX: number;
+  floor: number;
+  workTop: number;
+  charHpx: number;
+  /** Bounds of the monitor the pet window sits on. */
+  monitor: Box;
+  cfg: ClimbConfig;
+  /** Longest approach walk, borrowed from the stroll's own reach. */
+  maxWalkPx: number;
+}): ClimbTarget | null {
+  const { windows, feetX, floor, workTop, charHpx, monitor, cfg, maxWalkPx } = args;
+  const wallOffset = cfg.wall_offset_frac * charHpx;
+  let best: { target: ClimbTarget; distance: number } | null = null;
+
+  for (const [index, win] of windows.entries()) {
+    const topY = win.y;
+    const bottomY = win.y + win.height;
+    if (bottomY < floor - charHpx) continue;
+    if (win.height < 0.5 * charHpx) continue;
+    if (win.height > cfg.max_height_frac * charHpx) continue;
+    if (topY < workTop + charHpx) continue;
+    const front = windows.slice(0, index);
+    const sides: Array<{ side: "left" | "right"; edgeX: number }> = [
+      { side: "left", edgeX: win.x },
+      { side: "right", edgeX: win.x + win.width },
+    ];
+    sides.sort((a, b) => Math.abs(a.edgeX - feetX) - Math.abs(b.edgeX - feetX));
+    for (const { side, edgeX } of sides) {
+      const distance = Math.abs(edgeX - feetX);
+      if (distance > maxWalkPx) continue;
+      if (best && distance >= best.distance) continue;
+      if (!containsPoint(monitor, { x: edgeX, y: topY })) continue;
+      if (front.some((w) => overlaps(w, wallColumn(edgeX, topY, floor, wallOffset)))) continue;
+      if (front.some((w) => containsPoint(w, cornerSeat(edgeX, topY, side, wallOffset)))) continue;
+      best = {
+        distance,
+        target: {
+          windowNumber: win.windowNumber,
+          side,
+          edgeX,
+          topY,
+          bottomY,
+          rect: { x: win.x, y: win.y },
+          app: win.ownerName,
+          title: win.name,
+        },
+      };
+      break;
+    }
+  }
+  return best?.target ?? null;
+}
+
+/**
+ * The wall to climb down from a sit: the window whose top edge the feet rest on, and
+ * whichever of its side edges is nearer. null when the feet are on no window's edge.
+ */
+export function pickDescentTarget(args: {
+  windows: WindowRect[];
+  feetX: number;
+  feetY: number;
+  tolerancePx: number;
+}): ClimbTarget | null {
+  const { windows, feetX, feetY, tolerancePx } = args;
+  const win = windows.find(
+    (w) => Math.abs(w.y - feetY) <= tolerancePx && feetX >= w.x && feetX <= w.x + w.width,
+  );
+  if (!win) return null;
+  const side: "left" | "right" = feetX - win.x <= win.x + win.width - feetX ? "left" : "right";
+  return {
+    windowNumber: win.windowNumber,
+    side,
+    edgeX: side === "left" ? win.x : win.x + win.width,
+    topY: win.y,
+    bottomY: win.y + win.height,
+    rect: { x: win.x, y: win.y },
+    app: win.ownerName,
+    title: win.name,
+  };
+}
+
+/** Whether the wall vanished, slid away, or was covered while the character was on it. */
+export function climbTargetLost(args: {
+  windows: WindowRect[];
+  target: ClimbTarget;
+  charHpx: number;
+  floor: number;
+  cfg: ClimbConfig;
+}): boolean {
+  const { windows, target, charHpx, floor, cfg } = args;
+  const index = windows.findIndex((w) => w.windowNumber === target.windowNumber);
+  if (index < 0) return true;
+  const win = windows[index];
+  if (Math.abs(win.x - target.rect.x) > MOVE_TH || Math.abs(win.y - target.rect.y) > MOVE_TH) {
+    return true;
+  }
+  const wallOffset = cfg.wall_offset_frac * charHpx;
+  const front = windows.slice(0, index);
+  const column = wallColumn(target.edgeX, target.topY, floor, wallOffset);
+  const seat = cornerSeat(target.edgeX, target.topY, target.side, wallOffset);
+  return front.some((w) => overlaps(w, column) || containsPoint(w, seat));
+}
+
+export interface ClimberDeps {
+  renderer: Pick<
+    Renderer,
+    | "onTick"
+    | "playMotion"
+    | "getCurrentMotion"
+    | "setBodyYaw"
+    | "getPxPerMetre"
+    | "getMotionDuration"
+    | "getCharacterAnchor"
+    | "getPerchProbe"
+    | "isPerched"
+  >;
+  getWindow(): PetWindow;
+  listMonitors(): Promise<ScreenMonitor[]>;
+  /** Foreign windows, front-to-back. */
+  listWindows(): Promise<WindowRect[]>;
+  getConfig(): ClimbConfig;
+  /** The stroll's knobs — the approach reuses its floor tolerance and its reach. */
+  getWalkConfig(): WalkConfig;
+  /** Registry kind of the committed motion. null when nothing is playing. */
+  currentMotionKind(): MotionKind | null;
+  isPeeking(): boolean;
+  isDragging(): boolean;
+  /** A turn is in flight or speech is still playing. */
+  isBusy(): boolean;
+  walker: { walkTo(toX: number): Promise<"arrived" | "lost">; cancel(): void };
+  faller: { drop(): void | Promise<void> };
+  dropSource: {
+    adoptSit(windowNumber: number, rect: { x: number; y: number }, charHpx: number): void;
+    release(): void;
+  };
+  /** A climb began — posture goes climbing and the hit test follows the moving window. */
+  onStart(direction: "up" | "down", target: ClimbTarget): void;
+  /** The ascent reached the ledge — the character sits on the given window-local edge. */
+  onSit(target: ClimbTarget, edgeLocalYpx: number): void;
+  /** The climb finished, was cancelled, or lost its wall. */
+  onEnd(direction: "up" | "down"): void;
+  rng?: Rng;
+  /** Defaults to the OS setting; injected in tests. */
+  reducedMotion?: () => boolean;
+  /** Defaults to the global document; injected in tests. */
+  doc?: WalkerDoc;
+}
+
+export interface Climber {
+  /** Register the frame hook and arm the first interval. */
+  start(): void;
+  /** End a running climb now, leaving the character where she hangs. */
+  cancel(): void;
+  stop(): void;
+}
+
+/** One vertical leg of a climb: which clip paces it, and how far the window travels. */
+interface WallLeg {
+  win: PetWindow;
+  x: number;
+  fromY: number;
+  toY: number;
+  motionId: string;
+  /** Physical px per metre — the leg's own projection. */
+  pxPerMetre: number;
+  metresPerCycle: number;
+  /** Transition clips travel linearly over this many seconds; looping ones pass null. */
+  linearS: number | null;
+}
+
+const CLIMB_MOTION_IDS = new Set([
+  CLIMB_UP_MOTION_ID,
+  CLIMB_UP_DONE_MOTION_ID,
+  CLIMB_DOWN_MOTION_ID,
+  CLIMB_DOWN_LANDING_MOTION_ID,
+]);
+
+export function createClimber(deps: ClimberDeps): Climber {
+  const { renderer } = deps;
+  const rng = deps.rng ?? Math.random;
+  const reducedMotion = deps.reducedMotion ?? prefersReducedMotion;
+  const doc = deps.doc ?? (typeof document === "undefined" ? null : document);
+
+  let unsub: (() => void) | null = null;
+  let stopped = true;
+  /** Bumped by every cancel/stop so an in-flight sequence drops its plan. */
+  let generation = 0;
+  /** A sequence is between onStart and onEnd. */
+  let running = false;
+  let direction: "up" | "down" | null = null;
+  let target: ClimbTarget | null = null;
+  /** Character height and floor line the running sequence was planned against. */
+  let charHpx = 0;
+  let floorY = 0;
+  /** Frame-clock deadlines (ms); negative = needs arming. */
+  let nextUpAtMs = -1;
+  let dwellAtMs = -1;
+  let nextWatchAtMs = -1;
+  let watching = false;
+  let nowMs = 0;
+  let leg:
+    | (WallLeg & { y: number; elapsedS: number; settle: (r: "done" | "lost") => void })
+    | null = null;
+  /** A descent waiting for the perch it released to actually clear. */
+  let releaseWait: { until: number; settle: (cleared: boolean) => void } | null = null;
+
+  function alive(startedAt: number): boolean {
+    return !stopped && generation === startedAt;
+  }
+
+  function finishLeg(outcome: "done" | "lost"): void {
+    const l = leg;
+    if (!l) return;
+    leg = null;
+    l.settle(outcome);
+  }
+
+  /** End the sequence where it stands. Idempotent — a cancel and its unwind share it. */
+  function endClimb(): void {
+    if (!direction) return;
+    const dir = direction;
+    direction = null;
+    target = null;
+    renderer.setBodyYaw(0, CLIMB_YAW_EASE_MS);
+    deps.onEnd(dir);
+  }
+
+  function settleReleaseWait(cleared: boolean): void {
+    const w = releaseWait;
+    if (!w) return;
+    releaseWait = null;
+    w.settle(cleared);
+  }
+
+  /**
+   * A held perch drops every non-state clip, so a descent cannot walk until the exit it
+   * pushed has come back around through the dispatcher.
+   */
+  function awaitRelease(): Promise<boolean> {
+    if (!renderer.isPerched()) return Promise.resolve(true);
+    return new Promise((settle) => {
+      releaseWait = { until: nowMs + RELEASE_WAIT_MS, settle };
+    });
+  }
+
+  function cancel(): void {
+    generation += 1;
+    nextUpAtMs = -1;
+    dwellAtMs = -1;
+    finishLeg("lost");
+    settleReleaseWait(false);
+    const current = renderer.getCurrentMotion();
+    if (current && CLIMB_MOTION_IDS.has(current.id)) renderer.playMotion(null);
+    deps.walker.cancel();
+    endClimb();
+  }
+
+  const onVisibilityChange = (): void => {
+    if (doc?.visibilityState === "hidden") cancel();
+  };
+
+  /** Run one vertical leg to completion. Resolves "lost" when the climb is cancelled. */
+  function runLeg(spec: WallLeg): Promise<"done" | "lost"> {
+    if (spec.toY === spec.fromY) return Promise.resolve("done");
+    if (renderer.getCurrentMotion()?.id !== spec.motionId) {
+      renderer.playMotion({ id: spec.motionId });
+      if (renderer.getCurrentMotion()?.id !== spec.motionId) return Promise.resolve("lost");
+    }
+    return new Promise((settle) => {
+      leg = { ...spec, y: spec.fromY, elapsedS: 0, settle };
+    });
+  }
+
+  /** One frame of wall travel. A clip that is not ours holds the window where it is. */
+  function stepLeg(dt: number): void {
+    const l = leg;
+    if (!l) return;
+    if (renderer.getCurrentMotion()?.id !== l.motionId) {
+      // Only the ambient baseline hands the clip back; anything else is holding the body.
+      if (deps.currentMotionKind() === "ambient") renderer.playMotion({ id: l.motionId });
+      return;
+    }
+    const step = Math.min(dt, MAX_STEP_DT_S);
+    if (l.linearS !== null) {
+      l.elapsedS += step;
+      const t = Math.min(l.elapsedS / l.linearS, 1);
+      l.y = l.fromY + (l.toY - l.fromY) * t;
+    } else {
+      // The clip paces the hands — until it is cached there is no cycle to climb at.
+      const cycleS = renderer.getMotionDuration(l.motionId);
+      if (cycleS === null || !(cycleS > 0)) return;
+      l.y = advanceX(l.y, l.toY, climbSpeedPxPerSec(l.pxPerMetre, l.metresPerCycle, cycleS), step);
+    }
+    void l.win
+      .setPositionPhysical(Math.round(l.x), Math.round(l.y))
+      .catch((err) => log.warn("move_failed", { degrade: true, error: String(err) }));
+    if (l.y === l.toY) finishLeg("done");
+  }
+
+  /** Everything both sequences read at plan time, or null when the world is not ready. */
+  async function survey(startedAt: number): Promise<{
+    win: PetWindow;
+    scale: number;
+    floor: number;
+    workTop: number;
+    feetX: number;
+    feetY: number;
+    /** Feet offset inside the pet window (logical px) — inverts a wall x into a window x. */
+    anchorX: number;
+    charHpx: number;
+    pxPerMetre: number;
+    monitor: ScreenMonitor;
+    windows: WindowRect[];
+  } | null> {
+    const anchor = renderer.getCharacterAnchor();
+    const probe = renderer.getPerchProbe();
+    const pxPerMetre = renderer.getPxPerMetre();
+    const win = deps.getWindow();
+    const [pos, sf, monitors, windows] = await Promise.all([
+      win.outerPosition(),
+      win.scaleFactor(),
+      deps.listMonitors(),
+      deps.listWindows(),
+    ]);
+    if (!alive(startedAt)) return null;
+    if (!anchor || !probe || pxPerMetre === null || !(pxPerMetre > 0)) return null;
+    const monitor = monitorAt(monitors, pos.x, pos.y);
+    if (!monitor) return null;
+    const scale = sf > 0 ? sf : 1;
+    return {
+      win,
+      scale,
+      floor: floorPx(monitor, scale),
+      workTop: monitor.workArea.position.y / scale,
+      feetX: pos.x / scale + anchor.x,
+      feetY: pos.y / scale + anchor.y,
+      anchorX: anchor.x,
+      charHpx: probe.charHpx,
+      pxPerMetre,
+      monitor,
+      windows,
+    };
+  }
+
+  function yawToWall(side: "left" | "right"): number {
+    return side === "left" ? CLIMB_YAW_RAD : -CLIMB_YAW_RAD;
+  }
+
+  async function runUp(): Promise<void> {
+    const startedAt = generation;
+    if (reducedMotion()) return;
+    const cfg = deps.getConfig();
+    const walkCfg = deps.getWalkConfig();
+    const w = await survey(startedAt);
+    if (!w) return;
+    const gate = {
+      onFloor: onFloor(w.feetY, w.floor, walkCfg.floor_tolerance_px),
+      perched: renderer.isPerched(),
+      peeking: deps.isPeeking(),
+      dragging: deps.isDragging(),
+      ambientMotion: deps.currentMotionKind() === "ambient",
+      busy: deps.isBusy(),
+      reducedMotion: false,
+    };
+    if (!canStartStroll(gate)) return;
+    const picked = pickClimbTarget({
+      windows: w.windows,
+      feetX: w.feetX,
+      floor: w.floor,
+      workTop: w.workTop,
+      charHpx: w.charHpx,
+      monitor: {
+        x: w.monitor.position.x / w.scale,
+        y: w.monitor.position.y / w.scale,
+        width: w.monitor.size.width / w.scale,
+        height: w.monitor.size.height / w.scale,
+      },
+      cfg,
+      maxWalkPx: walkCfg.distance_max_px,
+    });
+    if (!picked) return;
+
+    target = picked;
+    charHpx = w.charHpx;
+    floorY = w.floor;
+    direction = "up";
+    deps.onStart("up", picked);
+
+    if ((await deps.walker.walkTo(picked.edgeX - w.anchorX)) !== "arrived") return endClimb();
+    if (!alive(startedAt)) return endClimb();
+    renderer.setBodyYaw(yawToWall(picked.side), CLIMB_YAW_EASE_MS);
+
+    const at = await w.win.outerPosition();
+    if (!alive(startedAt)) return endClimb();
+    const pxPerMetre = w.pxPerMetre * w.scale;
+    const rise = (w.floor - picked.topY) * w.scale;
+    const pullPx = Math.min(rise, pxPerMetre * CLIMB_UP_DONE_METRES);
+    const base = { win: w.win, x: at.x, pxPerMetre, metresPerCycle: CLIMB_UP_METRES_PER_CYCLE };
+    let y = at.y;
+
+    const loop = await runLeg({
+      ...base,
+      fromY: y,
+      toY: y - (rise - pullPx),
+      motionId: CLIMB_UP_MOTION_ID,
+      linearS: null,
+    });
+    if (loop !== "done" || !alive(startedAt)) return endClimb();
+    y -= rise - pullPx;
+
+    const pull = await runLeg({
+      ...base,
+      fromY: y,
+      toY: y - pullPx,
+      motionId: CLIMB_UP_DONE_MOTION_ID,
+      linearS: renderer.getMotionDuration(CLIMB_UP_DONE_MOTION_ID) ?? CLIMB_UP_DONE_S,
+    });
+    if (pull !== "done" || !alive(startedAt)) return endClimb();
+    y -= pullPx;
+
+    endClimb();
+    deps.onSit(picked, picked.topY - y / w.scale);
+    deps.dropSource.adoptSit(picked.windowNumber, picked.rect, w.charHpx);
+    dwellAtMs = -1;
+  }
+
+  async function runDown(): Promise<void> {
+    const startedAt = generation;
+    if (reducedMotion() || deps.isDragging() || deps.isPeeking()) return;
+    const cfg = deps.getConfig();
+    const walkCfg = deps.getWalkConfig();
+    const w = await survey(startedAt);
+    if (!w) return;
+    const picked = pickDescentTarget({
+      windows: w.windows,
+      feetX: w.feetX,
+      feetY: w.feetY,
+      tolerancePx: walkCfg.floor_tolerance_px,
+    });
+    if (!picked) return;
+
+    target = picked;
+    charHpx = w.charHpx;
+    floorY = w.floor;
+    direction = "down";
+    deps.dropSource.release();
+    deps.onStart("down", picked);
+
+    if (!(await awaitRelease()) || !alive(startedAt)) return endClimb();
+    if ((await deps.walker.walkTo(picked.edgeX - w.anchorX)) !== "arrived") return endClimb();
+    if (!alive(startedAt)) return endClimb();
+    renderer.setBodyYaw(yawToWall(picked.side), CLIMB_YAW_EASE_MS);
+
+    const at = await w.win.outerPosition();
+    if (!alive(startedAt)) return endClimb();
+    const pxPerMetre = w.pxPerMetre * w.scale;
+    // A window that does not reach the floor ends the climb at its own bottom edge.
+    const grounded = picked.bottomY >= w.floor - walkCfg.floor_tolerance_px;
+    const drop = ((grounded ? w.floor : picked.bottomY) - picked.topY) * w.scale;
+    const hangPx = Math.min(drop, cfg.hang_frac * w.charHpx * w.scale);
+    const landPx = grounded ? Math.min(drop - hangPx, pxPerMetre * CLIMB_DOWN_LANDING_METRES) : 0;
+    const base = { win: w.win, x: at.x, pxPerMetre, metresPerCycle: CLIMB_DOWN_METRES_PER_CYCLE };
+    let y = at.y;
+
+    // No clip covers the step off the ledge, so the descent clip crossfades in over a
+    // short linear slide that reads as dropping onto the wall.
+    const hang = await runLeg({
+      ...base,
+      fromY: y,
+      toY: y + hangPx,
+      motionId: CLIMB_DOWN_MOTION_ID,
+      linearS: HANG_MS / 1000,
+    });
+    if (hang !== "done" || !alive(startedAt)) return endClimb();
+    y += hangPx;
+
+    const loop = await runLeg({
+      ...base,
+      fromY: y,
+      toY: y + (drop - hangPx - landPx),
+      motionId: CLIMB_DOWN_MOTION_ID,
+      linearS: null,
+    });
+    if (loop !== "done" || !alive(startedAt)) return endClimb();
+    y += drop - hangPx - landPx;
+
+    if (!grounded) {
+      endClimb();
+      void deps.faller.drop();
+      return;
+    }
+
+    const land = await runLeg({
+      ...base,
+      fromY: y,
+      toY: y + landPx,
+      motionId: CLIMB_DOWN_LANDING_MOTION_ID,
+      linearS: renderer.getMotionDuration(CLIMB_DOWN_LANDING_MOTION_ID) ?? CLIMB_DOWN_LANDING_S,
+    });
+    if (land !== "done" || !alive(startedAt)) return endClimb();
+    endClimb();
+  }
+
+  function launch(run: () => Promise<void>): void {
+    running = true;
+    nextWatchAtMs = nowMs + TARGET_WATCH_MS;
+    void run()
+      .catch((err) => log.warn("climb_failed", { degrade: true, error: String(err) }))
+      .finally(() => {
+        running = false;
+      });
+  }
+
+  /** Re-read the stack while the character is committed to a wall she cannot see. */
+  function pumpWatch(): void {
+    if (!target || watching || nowMs < nextWatchAtMs) return;
+    nextWatchAtMs = nowMs + TARGET_WATCH_MS;
+    watching = true;
+    const startedAt = generation;
+    void deps
+      .listWindows()
+      .then((windows) => {
+        if (!alive(startedAt) || !target) return;
+        if (!climbTargetLost({ windows, target, charHpx, floor: floorY, cfg: deps.getConfig() })) {
+          return;
+        }
+        log.debug("target.lost", { windowNumber: target.windowNumber });
+        cancel();
+        void deps.faller.drop();
+      })
+      .catch((err) => log.warn("target_watch_failed", { degrade: true, error: String(err) }))
+      .finally(() => {
+        watching = false;
+      });
+  }
+
+  function tick(ctx: { dt: number; elapsed: number }): void {
+    nowMs = ctx.elapsed * 1000;
+    if (leg) stepLeg(ctx.dt);
+    if (releaseWait) {
+      if (!renderer.isPerched()) settleReleaseWait(true);
+      else if (nowMs >= releaseWait.until) settleReleaseWait(false);
+    }
+    if (running) {
+      pumpWatch();
+      return;
+    }
+    // The dwell belongs to the sit, whoever caused it; the interval belongs to the floor.
+    if (renderer.isPerched()) {
+      nextUpAtMs = -1;
+      if (dwellAtMs < 0) {
+        dwellAtMs = nowMs + nextDwell(deps.getConfig(), rng);
+        return;
+      }
+      if (nowMs < dwellAtMs) return;
+      dwellAtMs = -1;
+      launch(runDown);
+      return;
+    }
+    dwellAtMs = -1;
+    if (nextUpAtMs < 0) {
+      nextUpAtMs = nowMs + nextClimbDelay(deps.getConfig(), rng);
+      return;
+    }
+    if (nowMs < nextUpAtMs) return;
+    nextUpAtMs = nowMs + nextClimbDelay(deps.getConfig(), rng);
+    launch(runUp);
+  }
+
+  return {
+    start() {
+      if (unsub) return;
+      stopped = false;
+      nextUpAtMs = -1;
+      dwellAtMs = -1;
+      doc?.addEventListener("visibilitychange", onVisibilityChange);
+      unsub = renderer.onTick(tick);
+    },
+    cancel,
+    stop() {
+      stopped = true;
+      cancel();
+      unsub?.();
+      unsub = null;
+      doc?.removeEventListener("visibilitychange", onVisibilityChange);
+    },
+  };
+}

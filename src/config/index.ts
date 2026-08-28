@@ -13,6 +13,8 @@ export {
   type AttachmentLimits,
   type AvatarConfig,
   CHAT_API_KEY_SECRET,
+  CLIMB_DEFAULTS,
+  type ClimbConfig,
   CONFIG_FILES,
   ConfigError,
   type ConfigReader,

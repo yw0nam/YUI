@@ -16,6 +16,9 @@
  *   5. hit → user.window_sit_drop { edge_local_ypx } + arm
  *      the poll on target.windowNumber; miss → user.window_sit_exit.
  *
+ * A mover that seated the character itself adopts the same poll through `adoptSit`,
+ * which arms on a window without pushing anything.
+ *
  * Once armed, the poll re-checks ~1.4 Hz whether the target window detached.
  * Sit loses on gone, covered, or moved; peek loses on gone or moved because its
  * target is expected to cover YUI. Loss fires the matching exit through the bus
@@ -48,7 +51,7 @@ const DEFAULT_POLL_MS = 700;
 /** Consecutive lost ticks required for an *ambiguous* loss (covered / moved). */
 const AMBIGUOUS_LOST_TICKS = 2;
 /** Px threshold below which armed-window movement is treated as jitter, not a move. */
-const MOVE_TH = 12;
+export const MOVE_TH = 12;
 
 /** Live perch probe surface the producer needs from the renderer. */
 interface PerchProbeSource {
@@ -149,6 +152,11 @@ export interface WindowDropSource {
   placeOn(request: PlacementRequest, opts?: PlacementOptions): Promise<PlacementResult>;
   /** The current perch candidates. */
   perchTargets(): Promise<PerchTargets>;
+  /**
+   * Track a sit the character reached on her own: arms the occlusion poll on the given
+   * window without pushing anything, because the mover already published the sit.
+   */
+  adoptSit(windowNumber: number, rect: { x: number; y: number }, charHpx: number): void;
   /** Release any armed perch/peek and push the matching exit. */
   release(): void;
 }
@@ -648,6 +656,9 @@ export function createWindowDropSource(deps: WindowDropSourceDeps): WindowDropSo
   return {
     placeOn,
     perchTargets,
+    adoptSit(windowNumber, rect, charHpx) {
+      arm("sit", windowNumber, rect, charHpx);
+    },
     release() {
       if (armedKind !== null) {
         pushArmedExit(armedKind);

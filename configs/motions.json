@@ -68,6 +68,38 @@
     "interrupt_policy": "replace",
     "broker_publish": false
   },
+  "climb_up": {
+    "vrma_path": "/motions/climb_up.vrma",
+    "kind": "reactive",
+    "loop": true,
+    "priority": 78,
+    "interrupt_policy": "replace",
+    "broker_publish": false
+  },
+  "climb_up_done": {
+    "vrma_path": "/motions/climb_up_done.vrma",
+    "kind": "oneshot",
+    "loop": false,
+    "priority": 78,
+    "interrupt_policy": "replace",
+    "broker_publish": false
+  },
+  "climb_down": {
+    "vrma_path": "/motions/climb_down.vrma",
+    "kind": "reactive",
+    "loop": true,
+    "priority": 78,
+    "interrupt_policy": "replace",
+    "broker_publish": false
+  },
+  "climb_down_landing": {
+    "vrma_path": "/motions/climb_down_landing.vrma",
+    "kind": "oneshot",
+    "loop": false,
+    "priority": 78,
+    "interrupt_policy": "replace",
+    "broker_publish": false
+  },
   "happy": {
     "vrma_path": "/motions/happy.vrma",
     "kind": "oneshot",

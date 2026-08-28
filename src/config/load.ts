@@ -138,6 +138,34 @@ export const FALL_DEFAULTS: FallConfig = {
   cue_cooldown_ms: 60_000,
 };
 
+/** Ambient window-climb knobs. Fractions are multiples of the on-screen character height. */
+export interface ClimbConfig {
+  /** Shortest gap between climb attempts. */
+  interval_min_ms: number;
+  /** Longest gap between climb attempts. */
+  interval_max_ms: number;
+  /** Shortest sit before the character climbs back down. */
+  perch_dwell_min_ms: number;
+  /** Longest sit before the character climbs back down. */
+  perch_dwell_max_ms: number;
+  /** Tallest climbable window, as a multiple of the character height. */
+  max_height_frac: number;
+  /** How far the character drops onto the wall during the hang transition. */
+  hang_frac: number;
+  /** Half-width of the wall column that must be clear of windows in front. */
+  wall_offset_frac: number;
+}
+
+export const CLIMB_DEFAULTS: ClimbConfig = {
+  interval_min_ms: 90_000,
+  interval_max_ms: 180_000,
+  perch_dwell_min_ms: 60_000,
+  perch_dwell_max_ms: 120_000,
+  max_height_frac: 4,
+  hang_frac: 0.3,
+  wall_offset_frac: 0.15,
+};
+
 /** Authored label for one reflex-gesture speech candidate. context is optional user-authored intent. */
 export interface GestureCueConfig {
   label: string;
@@ -186,6 +214,8 @@ export interface AvatarConfig {
   walk: WalkConfig;
   /** Drag-release fall knobs. Defaults are applied by the validator. */
   fall: FallConfig;
+  /** Ambient window-climb knobs. Defaults are applied by the validator. */
+  climb: ClimbConfig;
   /** Drag-hold reflex threshold (ms) — proactive.drag_held fires once a drag has been held this long. */
   drag_hold_ms: number;
   /** Reflex-gesture speech cues (drag-hold / window-sit / peek / drop). Defaults are applied by the validator. */
