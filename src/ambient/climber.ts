@@ -672,7 +672,14 @@ export function createClimber(deps: ClimberDeps): Climber {
     deps.dropSource.release();
     deps.onStart("down", picked);
 
-    if (!(await awaitRelease()) || !alive(startedAt)) return endClimb();
+    const released = await awaitRelease();
+    if (!alive(startedAt)) return endClimb();
+    if (!released) {
+      // The exit never came back, so the poll is disarmed while the perch still holds.
+      // Take the sit back, or no later dwell can find a wall to climb down.
+      deps.dropSource.adoptSit(picked.windowNumber, picked.rect, w.charHpx);
+      return endClimb();
+    }
     // A drop leaves the window wherever the user let go — the renderer shifts the model
     // for the sit, not the window — so square the feet to the ledge before walking it.
     const seated = await w.win.outerPosition();

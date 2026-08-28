@@ -304,7 +304,15 @@ export function createWalker(deps: WalkerDeps): Walker {
     const s = stroll;
     if (!s) return;
     if (renderer.getCurrentMotion()?.id !== WALK_MOTION_ID) {
-      endStroll();
+      // An ambient stroll yields the body the moment anything else takes the clip. A
+      // directed walk is one leg of the caller's sequence, so it holds where it is and
+      // reclaims the clip once the ambient baseline hands it back — ending it instead
+      // would strand a caller that has already committed to the walk.
+      if (!s.directed) {
+        endStroll();
+        return;
+      }
+      if (deps.currentMotionKind() === "ambient") renderer.playMotion({ id: WALK_MOTION_ID });
       return;
     }
     // The clip paces the feet — until it is cached there is no cycle to walk at.
