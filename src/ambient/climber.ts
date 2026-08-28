@@ -85,14 +85,32 @@ function containsPoint(a: Box, p: { x: number; y: number }): boolean {
   return p.x >= a.x && p.x <= a.x + a.width && p.y >= a.y && p.y <= a.y + a.height;
 }
 
-/** The wall column that must stay clear of anything in front of the target. */
-function wallColumn(edgeX: number, topY: number, floor: number, wallOffset: number): Box {
+/**
+ * The column the character occupies on the wall: outside the window's face, from the
+ * edge out past where she stands. It has to stay clear of anything in front of the target.
+ */
+function wallColumn(
+  edgeX: number,
+  topY: number,
+  floor: number,
+  wallOffset: number,
+  side: "left" | "right",
+): Box {
+  const width = wallOffset * 2;
   return {
-    x: edgeX - wallOffset,
+    x: side === "left" ? edgeX - width : edgeX,
     y: topY,
-    width: wallOffset * 2,
+    width,
     height: Math.max(floor - topY, 0),
   };
+}
+
+/**
+ * Where the feet stand to climb an edge: a hand's reach outside the window's face, so
+ * the body clears the edge and the hands land on it instead of inside the window.
+ */
+export function wallStandX(edgeX: number, side: "left" | "right", wallOffset: number): number {
+  return side === "left" ? edgeX - wallOffset : edgeX + wallOffset;
 }
 
 /** The corner the character ends up sitting on, just inside the climbed edge. */
@@ -168,7 +186,8 @@ export function pickClimbTarget(args: {
       if (distance > maxWalkPx) continue;
       if (best && distance >= best.distance) continue;
       if (!containsPoint(monitor, { x: edgeX, y: topY })) continue;
-      if (front.some((w) => overlaps(w, wallColumn(edgeX, topY, floor, wallOffset)))) continue;
+      if (front.some((w) => overlaps(w, wallColumn(edgeX, topY, floor, wallOffset, side))))
+        continue;
       if (front.some((w) => containsPoint(w, cornerSeat(edgeX, topY, side, wallOffset)))) continue;
       best = {
         distance,
@@ -215,7 +234,7 @@ export function pickDescentTarget(args: {
   ];
   sides.sort((a, b) => Math.abs(a.edgeX - feetX) - Math.abs(b.edgeX - feetX));
   for (const { side, edgeX } of sides) {
-    if (front.some((w) => overlaps(w, wallColumn(edgeX, win.y, floor, wallOffset)))) continue;
+    if (front.some((w) => overlaps(w, wallColumn(edgeX, win.y, floor, wallOffset, side)))) continue;
     if (front.some((w) => containsPoint(w, cornerSeat(edgeX, win.y, side, wallOffset)))) continue;
     return {
       windowNumber: win.windowNumber,
@@ -248,7 +267,7 @@ export function climbTargetLost(args: {
   }
   const wallOffset = cfg.wall_offset_frac * charHpx;
   const front = windows.slice(0, index);
-  const column = wallColumn(target.edgeX, target.topY, floor, wallOffset);
+  const column = wallColumn(target.edgeX, target.topY, floor, wallOffset, target.side);
   const seat = cornerSeat(target.edgeX, target.topY, target.side, wallOffset);
   return front.some((w) => overlaps(w, column) || containsPoint(w, seat));
 }
@@ -310,10 +329,12 @@ export interface Climber {
   stop(): void;
 }
 
-/** One vertical leg of a climb: which clip paces it, and how far the window travels. */
+/** One leg of a climb: which clip paces it, and how far the window travels. */
 interface WallLeg {
   win: PetWindow;
-  x: number;
+  /** Only a linear leg moves x — the hang, carrying her off the corner onto the face. */
+  fromX: number;
+  toX: number;
   fromY: number;
   toY: number;
   motionId: string;
@@ -359,7 +380,7 @@ export function createClimber(deps: ClimberDeps): Climber {
   let watching = false;
   let nowMs = 0;
   let leg:
-    | (WallLeg & { y: number; elapsedS: number; settle: (r: "done" | "lost") => void })
+    | (WallLeg & { x: number; y: number; elapsedS: number; settle: (r: "done" | "lost") => void })
     | null = null;
   /** A descent waiting for the perch it released to actually clear. */
   let releaseWait: { until: number; settle: (cleared: boolean) => void } | null = null;
@@ -431,13 +452,13 @@ export function createClimber(deps: ClimberDeps): Climber {
 
   /** Run one vertical leg to completion. Resolves "lost" when the climb is cancelled. */
   function runLeg(spec: WallLeg): Promise<"done" | "lost"> {
-    if (spec.toY === spec.fromY) return Promise.resolve("done");
+    if (spec.toY === spec.fromY && spec.toX === spec.fromX) return Promise.resolve("done");
     if (renderer.getCurrentMotion()?.id !== spec.motionId) {
       renderer.playMotion({ id: spec.motionId });
       if (renderer.getCurrentMotion()?.id !== spec.motionId) return Promise.resolve("lost");
     }
     return new Promise((settle) => {
-      leg = { ...spec, y: spec.fromY, elapsedS: 0, settle };
+      leg = { ...spec, x: spec.fromX, y: spec.fromY, elapsedS: 0, settle };
     });
   }
 
@@ -451,6 +472,7 @@ export function createClimber(deps: ClimberDeps): Climber {
       // A oneshot that reached its own end is finished, not interrupted — replaying it
       // would restart the transition. Take the travel it still owed and end the leg.
       if (l.oneshot) {
+        l.x = l.toX;
         l.y = l.toY;
         void l.win
           .setPositionPhysical(Math.round(l.x), Math.round(l.y))
@@ -466,6 +488,7 @@ export function createClimber(deps: ClimberDeps): Climber {
       l.elapsedS += step;
       const t = Math.min(l.elapsedS / l.linearS, 1);
       l.y = l.fromY + (l.toY - l.fromY) * t;
+      l.x = l.fromX + (l.toX - l.fromX) * t;
     } else {
       // The clip paces the hands with the travel the loader took out of it — until it is
       // cached there is no cycle to climb at.
@@ -478,7 +501,7 @@ export function createClimber(deps: ClimberDeps): Climber {
     void l.win
       .setPositionPhysical(Math.round(l.x), Math.round(l.y))
       .catch((err) => log.warn("move_failed", { degrade: true, error: String(err) }));
-    if (l.y === l.toY) finishLeg("done");
+    if (l.y === l.toY && l.x === l.toX) finishLeg("done");
   }
 
   /** Everything both sequences read at plan time, or null when the world is not ready. */
@@ -591,7 +614,10 @@ export function createClimber(deps: ClimberDeps): Climber {
     direction = "up";
     deps.onStart("up", picked);
 
-    if ((await deps.walker.walkTo(picked.edgeX - w.anchorX)) !== "arrived") return endClimb();
+    // Stand a hand's reach outside the window's face: the feet on the edge line would
+    // straddle it and put the hands inside the window.
+    const standX = wallStandX(picked.edgeX, picked.side, cfg.wall_offset_frac * w.charHpx);
+    if ((await deps.walker.walkTo(standX - w.anchorX)) !== "arrived") return endClimb();
     if (!alive(startedAt)) return endClimb();
     renderer.setBodyYaw(yawToWall(picked.side), CLIMB_YAW_EASE_MS);
 
@@ -604,7 +630,7 @@ export function createClimber(deps: ClimberDeps): Climber {
     if (!pull || !alive(startedAt)) return endClimb();
     const rise = (w.floor - picked.topY) * w.scale;
     const pullPx = Math.min(rise, pull.px);
-    const base = { win: w.win, x: at.x, pxPerMetre };
+    const base = { win: w.win, fromX: at.x, toX: at.x, pxPerMetre };
     let y = at.y;
 
     const loop = await runLeg({
@@ -657,6 +683,7 @@ export function createClimber(deps: ClimberDeps): Climber {
       cfg,
     });
     if (!picked) return;
+    const wallOffset = cfg.wall_offset_frac * w.charHpx;
     // Window origin that stands the feet on the ledge. Above the work area the OS would
     // clamp it, so there is nowhere to stand and the sit simply continues.
     const standY = picked.topY - w.anchorY;
@@ -701,13 +728,17 @@ export function createClimber(deps: ClimberDeps): Climber {
     const drop = ((grounded ? w.floor : picked.bottomY) - picked.topY) * w.scale;
     const hangPx = Math.min(drop, cfg.hang_frac * w.charHpx * w.scale);
     const landPx = grounded ? Math.min(drop - hangPx, land.px) : 0;
-    const base = { win: w.win, x: at.x, pxPerMetre };
+    // She walks the top to the corner, so the wall x is a hand's reach further out.
+    const wallX =
+      at.x + (wallStandX(picked.edgeX, picked.side, wallOffset) - picked.edgeX) * w.scale;
+    const base = { win: w.win, fromX: wallX, toX: wallX, pxPerMetre };
     let y = at.y;
 
     // No clip covers the step off the ledge, so the descent clip crossfades in over a
-    // short linear slide that reads as dropping onto the wall.
+    // short linear slide that carries her off the corner onto the wall's outer face.
     const hang = await runLeg({
       ...base,
+      fromX: at.x,
       fromY: y,
       toY: y + hangPx,
       motionId: CLIMB_DOWN_MOTION_ID,

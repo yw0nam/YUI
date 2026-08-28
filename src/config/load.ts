@@ -152,7 +152,11 @@ export interface ClimbConfig {
   max_height_frac: number;
   /** How far the character drops onto the wall during the hang transition. */
   hang_frac: number;
-  /** Half-width of the wall column that must be clear of windows in front. */
+  /**
+   * Hand reach off the wall: how far outside a window's face the character stands to
+   * climb it, so the body clears the edge instead of straddling it. Twice this is the
+   * width of the column beside the edge that must be clear of windows in front.
+   */
   wall_offset_frac: number;
 }
 
