@@ -96,6 +96,7 @@ describe("pickClimbTarget", () => {
     floor: 1500,
     workTop: 100,
     charHpx: CHAR_HPX,
+    anchorY: ANCHOR.y,
     monitor: MONITOR_BOUNDS,
     cfg: CFG,
     maxWalkPx: 600,
@@ -133,8 +134,15 @@ describe("pickClimbTarget", () => {
     expect(pickClimbTarget({ ...base, windows: [win({ y: 600, height: 2100 })] })).toBeNull();
   });
 
-  it("rejects a window with no standing room above its top edge", () => {
-    expect(pickClimbTarget({ ...base, windows: [win({ y: 500, height: 1000 })] })).toBeNull();
+  it("rejects a top edge the pet window cannot reach past the work-area top", () => {
+    // The OS clamps the window origin to the work-area top, so a top edge less than one
+    // feet-offset below it can never take the feet: 519 - 420 = 99 < 100.
+    expect(pickClimbTarget({ ...base, windows: [win({ y: 519, height: 981 })] })).toBeNull();
+  });
+
+  it("accepts a top edge exactly one feet-offset below the work-area top", () => {
+    // 520 - 420 = 100 — grounds the standing room in the feet offset, not the height.
+    expect(pickClimbTarget({ ...base, windows: [win({ y: 520, height: 980 })] })?.topY).toBe(520);
   });
 
   it("rejects an edge whose wall column is covered by a window in front", () => {
@@ -174,9 +182,9 @@ describe("pickClimbTarget", () => {
 });
 
 describe("pickDescentTarget", () => {
-  const base = { windows: [TARGET_WINDOW], feetY: 900, tolerancePx: 24 };
+  const base = { windows: [TARGET_WINDOW], windowNumber: 42 };
 
-  it("takes the nearer edge of the window under the feet", () => {
+  it("takes the nearer edge of the window the perch is armed on", () => {
     expect(pickDescentTarget({ ...base, feetX: 1050 })).toEqual(TARGET);
     expect(pickDescentTarget({ ...base, feetX: 1350 })).toEqual({
       ...TARGET,
@@ -185,9 +193,16 @@ describe("pickDescentTarget", () => {
     });
   });
 
-  it("returns null when no window top edge sits under the feet", () => {
-    expect(pickDescentTarget({ ...base, feetX: 1050, feetY: 1200 })).toBeNull();
-    expect(pickDescentTarget({ ...base, feetX: 200 })).toBeNull();
+  it("takes the armed window rather than whatever the feet hang over", () => {
+    // In the sit pose the feet dangle below the ledge, so geometry alone would miss it.
+    const other = win({ x: 200, width: 400, windowNumber: 7 });
+    expect(pickDescentTarget({ windows: [other, TARGET_WINDOW], windowNumber: 42, feetX: 1050 }))
+      .toEqual(TARGET);
+  });
+
+  it("returns null when the armed window is gone from the stack", () => {
+    expect(pickDescentTarget({ ...base, windowNumber: 7, feetX: 1050 })).toBeNull();
+    expect(pickDescentTarget({ windows: [], windowNumber: 42, feetX: 1050 })).toBeNull();
   });
 });
 
@@ -278,6 +293,8 @@ function makeHarness(
     walkResult?: "arrived" | "lost";
     /** Models a release whose exit envelope has not come back through the dispatcher yet. */
     holdPerchOnRelease?: boolean;
+    /** Models the OS clamping the window origin to the work-area top. */
+    minY?: number;
   } = {},
 ) {
   let tick: TickFn | null = null;
@@ -298,7 +315,10 @@ function makeHarness(
   const adoptSit = vi.fn();
   const drop = vi.fn();
   const walkerCancel = vi.fn();
+  let armed: { windowNumber: number } | null = over.perched ? { windowNumber: 42 } : null;
+  const armedSit = vi.fn(() => armed);
   const release = vi.fn(() => {
+    armed = null;
     if (!over.holdPerchOnRelease) perched = false;
   });
   const visibilityListeners = new Set<() => void>();
@@ -342,8 +362,8 @@ function makeHarness(
       outerSize: async () => ({ width: 400, height: 600 }),
       scaleFactor: async () => 1,
       setPositionPhysical: async (x, y) => {
-        pos = { x, y };
-        positions.push({ x, y });
+        pos = { x, y: over.minY === undefined ? y : Math.max(y, over.minY) };
+        positions.push({ ...pos });
       },
     }),
     listMonitors: async () => [MONITOR],
@@ -365,7 +385,7 @@ function makeHarness(
       cancel: walkerCancel,
     },
     faller: { drop },
-    dropSource: { adoptSit, release },
+    dropSource: { adoptSit, armedSit, release },
     doc,
     onStart: starts,
     onSit: sits,
@@ -408,6 +428,7 @@ function makeHarness(
     sits,
     ends,
     adoptSit,
+    armedSit,
     release,
     drop,
     walkerCancel,
@@ -425,6 +446,7 @@ function makeHarness(
     },
     setPerched: (next: boolean) => {
       perched = next;
+      armed = next ? { windowNumber: 42 } : null;
     },
     setCurrentMotion: (m: { id: string; vrma_path: string } | null) => {
       currentMotion = m;
@@ -503,6 +525,35 @@ describe("createClimber — up", () => {
     const pullPx = PX_PER_METRE * CLIMB_UP_DONE_METRES;
     expect(pullPx).toBeCloseTo(414, 6);
     expect(h.positions.some((p) => Math.abs(p.y - (PERCHED_POS.y + pullPx)) < 1)).toBe(true);
+  });
+
+  it("reads the ledge offset off where the window actually landed, not where it aimed", async () => {
+    // The OS refuses to move the window above 600, so the intended 480 never happens.
+    const h = makeHarness({ minY: 600 });
+    h.climber.start();
+    await h.skipInterval();
+    await h.runToEnd();
+
+    expect(h.at()).toEqual({ x: 800, y: 600 });
+    expect(h.sits).toHaveBeenCalledTimes(1);
+    expect(h.sits.mock.calls[0][1]).toBeCloseTo(TARGET.topY - 600, 6);
+  });
+
+  it("takes a transition leg's remaining travel when its oneshot clip ends first", async () => {
+    const h = makeHarness();
+    h.climber.start();
+    await h.skipInterval();
+    // Into the pull-over, then let the clip finish before its linear travel does.
+    for (let i = 0; i < 400 && h.motions.length < 2; i++) await h.frame();
+    expect(h.motions).toEqual([{ id: CLIMB_UP_MOTION_ID }, { id: CLIMB_UP_DONE_MOTION_ID }]);
+    await h.runFrames(2);
+
+    h.setCurrentMotion({ id: "idle", vrma_path: "/motions/calm.vrma" });
+    await h.runFrames(1);
+    // The leg completes instead of replaying the clip that just ended.
+    expect(h.motions).toEqual([{ id: CLIMB_UP_MOTION_ID }, { id: CLIMB_UP_DONE_MOTION_ID }]);
+    expect(h.at()).toEqual(PERCHED_POS);
+    expect(h.sits).toHaveBeenCalledTimes(1);
   });
 
   it("never climbs under reduced motion", async () => {
@@ -663,6 +714,38 @@ describe("createClimber — down", () => {
     expect(h.walkTargets).toEqual([]);
     expect(h.ends).toHaveBeenCalledWith("down");
     expect(h.motions).toEqual([]);
+  });
+
+  it("puts the feet on the ledge before walking, wherever the drop left the window", async () => {
+    // A drag drop leaves the window where the user released it; the renderer only shifts
+    // the model for the sit, so the window itself still has to be squared to the edge.
+    const h = perchedHarness({ position: { x: 1100, y: 560 } });
+    h.climber.start();
+    await h.skipDwell();
+
+    // Feet on the top edge = window origin at topY - anchor.y.
+    expect(h.positions[0]).toEqual({ x: 1100, y: TARGET.topY - ANCHOR.y });
+    expect(h.walkTargets).toEqual([800]);
+  });
+
+  it("stays seated when the ledge leaves no room above the work-area top", async () => {
+    // Top edge 480: the window would have to sit at 60, above the work area's 100.
+    const h = perchedHarness({ windows: [win({ y: 480, height: 1020 })] });
+    h.climber.start();
+    await h.skipDwell();
+    await h.runFrames(5);
+
+    expect(h.release).not.toHaveBeenCalled();
+    expect(h.starts).not.toHaveBeenCalled();
+    expect(h.motions).toEqual([]);
+  });
+
+  it("descends the window the perch is armed on, not the one under the feet", async () => {
+    const h = perchedHarness({ windows: [win({ x: 200, width: 400, windowNumber: 7 }), TARGET_WINDOW] });
+    h.climber.start();
+    await h.skipDwell();
+    expect(h.armedSit).toHaveBeenCalled();
+    expect(h.starts).toHaveBeenCalledWith("down", TARGET);
   });
 
   it("hangs off the edge, descends the wall and lands on the floor", async () => {

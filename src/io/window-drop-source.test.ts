@@ -1810,4 +1810,37 @@ describe("window-drop-source — adoptSit", () => {
     source.release();
     expect(pushed.map((e) => e.event_name)).toEqual(["user.window_sit_exit"]);
   });
+
+  it("names the armed sit window, and nothing once it is released", () => {
+    const { source } = adopted();
+    expect(source.armedSit()).toEqual({ windowNumber: 42 });
+    source.release();
+    expect(source.armedSit()).toBeNull();
+  });
+
+  it("names no armed sit before anything is armed, or while a peek holds", async () => {
+    const { renderer } = makePerchSource();
+    let pos = { x: 520, y: 740 };
+    const source = createWindowDropSource({
+      bus,
+      renderer,
+      invoke: vi.fn(async () => [win({ ownerName: "Notes" })]),
+      getWindow: () => ({
+        outerPosition: async () => pos,
+        scaleFactor: async () => 2,
+        setPositionPhysical: async (x: number, y: number) => {
+          pos = { x, y };
+        },
+      }),
+      listen: makeListen().listen,
+      peekActive: () => true,
+    });
+    expect(source.armedSit()).toBeNull();
+
+    expect(await source.placeOn({ kind: "peek", side: "left" })).toEqual({
+      ok: true,
+      kind: "peek",
+    });
+    expect(source.armedSit()).toBeNull();
+  });
 });
