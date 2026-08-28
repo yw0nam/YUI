@@ -15,6 +15,7 @@ import {
   climbGeometrySample,
   climbSpeedPxPerSec,
   climbTargetLost,
+  ledgeSeatX,
   createClimber,
   nextClimbDelay,
   nextDwell,
@@ -30,6 +31,9 @@ const CFG: ClimbConfig = {
   max_height_frac: 4,
   hang_frac: 0.3,
   wall_offset_frac: 0.15,
+  // rng () => 0 draws the minimum, so a ledge walk is 0.3 × 500 = 150 px in.
+  ledge_walk_min_frac: 0.3,
+  ledge_walk_max_frac: 1.5,
 };
 
 const WALK_CFG: WalkConfig = {
@@ -60,8 +64,12 @@ const WALL_OFFSET = CFG.wall_offset_frac * CHAR_HPX;
 const CLIMB_X = 1000 - WALL_OFFSET - ANCHOR.x;
 /** Window x that stands her feet on the target's top-left corner — 1000 - 200. */
 const CORNER_X = 1000 - ANCHOR.x;
-/** Where the up sequence leaves the window: pulled in over the corner, level with the top edge. */
-const PERCHED_POS = { x: CORNER_X, y: 480 };
+/** How far in along the ledge she walks before sitting, at rng () => 0. */
+const LEDGE_WALK = CFG.ledge_walk_min_frac * CHAR_HPX;
+/** Window x with her feet on the seat, that far in from the target's left edge. */
+const SEAT_WIN_X = 1000 + LEDGE_WALK - ANCHOR.x;
+/** Where the up sequence leaves the window: seated in from the corner, level with the top. */
+const PERCHED_POS = { x: SEAT_WIN_X, y: 480 };
 
 function win(over: Partial<WindowRect> = {}): WindowRect {
   return {
@@ -92,6 +100,7 @@ const TARGET: ClimbTarget = {
   edgeX: 1000,
   topY: 900,
   bottomY: 1500,
+  width: 400,
   rect: { x: 1000, y: 900 },
   app: "Notes",
   title: "Meeting notes",
@@ -243,6 +252,32 @@ describe("pickDescentTarget", () => {
   it("returns null when the armed window is gone from the stack", () => {
     expect(pickDescentTarget({ ...base, windowNumber: 7, feetX: 1050 })).toBeNull();
     expect(pickDescentTarget({ ...base, windows: [], feetX: 1050 })).toBeNull();
+  });
+});
+
+describe("ledgeSeatX", () => {
+  it("walks in from a left edge by the drawn distance", () => {
+    expect(ledgeSeatX(1000, "left", 400, CHAR_HPX, 300)).toBe(1300);
+  });
+
+  it("walks in from a right edge the other way", () => {
+    expect(ledgeSeatX(1400, "right", 400, CHAR_HPX, 300)).toBe(1100);
+  });
+
+  it("keeps the seat on the window when the draw would overshoot", () => {
+    // 400 wide, 500 tall character: the seat stops at 400 - 250 = 150 in from the edge.
+    expect(ledgeSeatX(1000, "left", 400, CHAR_HPX, 380)).toBe(1150);
+    expect(ledgeSeatX(1400, "right", 400, CHAR_HPX, 380)).toBe(1250);
+  });
+
+  it("centres her on a window narrower than she is", () => {
+    // 200 wide against a 500 character: half the window is the best that is left.
+    expect(ledgeSeatX(1000, "left", 200, CHAR_HPX, 300)).toBe(1100);
+    expect(ledgeSeatX(1200, "right", 200, CHAR_HPX, 300)).toBe(1100);
+  });
+
+  it("leaves a short draw alone", () => {
+    expect(ledgeSeatX(1000, "left", 1000, CHAR_HPX, 120)).toBe(1120);
   });
 });
 
@@ -418,8 +453,10 @@ function makeHarness(
     /** null models a probe the renderer cannot take. */
     charHpx?: number | null;
     pxPerMetre?: number | null;
-    /** What the injected walker reports for the approach walk. */
+    /** What the injected walker reports for every walk. */
     walkResult?: "arrived" | "lost";
+    /** Per-walk outcomes in call order, for a sequence with more than one walk. */
+    walkResults?: Array<"arrived" | "lost">;
     /** Models a release whose exit envelope has not come back through the dispatcher yet. */
     holdPerchOnRelease?: boolean;
     /** Models the OS clamping the window origin to the work-area top. */
@@ -543,8 +580,9 @@ function makeHarness(
     reducedMotion: () => over.reducedMotion ?? false,
     walker: {
       walkTo: async (toX: number) => {
+        const outcome =
+          over.walkResults?.[walkTargets.length] ?? over.walkResult ?? ("arrived" as const);
         walkTargets.push(toX);
-        const outcome = over.walkResult ?? "arrived";
         if (outcome === "arrived") pos = { x: toX, y: pos.y };
         return outcome;
       },
@@ -723,7 +761,7 @@ describe("createClimber — up", () => {
     await h.skipInterval();
     await h.runToEnd();
 
-    expect(h.at()).toEqual({ x: CORNER_X, y: 600 });
+    expect(h.at()).toEqual({ x: SEAT_WIN_X, y: 600 });
     expect(h.sits).toHaveBeenCalledTimes(1);
     expect(h.sits.mock.calls[0][1]).toBeCloseTo(TARGET.topY - 600, 6);
   });
@@ -764,7 +802,43 @@ describe("createClimber — up", () => {
     expect(midway).toBeLessThan(CORNER_X);
 
     await h.runToEnd();
-    expect(h.at().x).toBe(CORNER_X);
+    // The last frame the leg moved: the ledge walk that follows is the walker's.
+    expect(h.positions.at(-1)?.x).toBe(CORNER_X);
+  });
+
+  it("walks in along the ledge before it sits, so the seat is not on the corner", async () => {
+    // Sitting on the corner leaves half of some sit clips hanging past the edge.
+    const h = makeHarness();
+    h.climber.start();
+    await h.skipInterval();
+    await h.runToEnd();
+
+    expect(h.walkTargets).toEqual([CLIMB_X, SEAT_WIN_X]);
+    expect(h.at()).toEqual(PERCHED_POS);
+    expect(h.sits).toHaveBeenCalledTimes(1);
+    expect(h.sits.mock.calls[0][1]).toBeCloseTo(ANCHOR.y, 6);
+    expect(h.adoptSit).toHaveBeenCalledWith(42, { x: 1000, y: 900 }, CHAR_HPX);
+  });
+
+  it("walks in the other way along a right-hand ledge", async () => {
+    const h = makeHarness({ position: { x: 1300, y: 1080 } });
+    h.climber.start();
+    await h.skipInterval();
+    await h.runToEnd();
+    // In from a right edge is leftward: 1400 - 150 - 200.
+    expect(h.walkTargets.at(-1)).toBe(1400 - LEDGE_WALK - ANCHOR.x);
+  });
+
+  it("ends the climb without a sit when the ledge walk is lost", async () => {
+    const h = makeHarness({ walkResults: ["arrived", "lost"] });
+    h.climber.start();
+    await h.skipInterval();
+    await h.runToEnd();
+
+    expect(h.walkTargets).toHaveLength(2);
+    expect(h.ends).toHaveBeenCalledWith("up");
+    expect(h.sits).not.toHaveBeenCalled();
+    expect(h.adoptSit).not.toHaveBeenCalled();
   });
 
   it("follows the clip's own hips curve, not a straight line through it", async () => {
