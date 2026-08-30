@@ -1044,11 +1044,11 @@ describe("createClimber — interruption", () => {
   });
 });
 
-describe("createClimber — down", () => {
-  function perchedHarness(over: Parameters<typeof makeHarness>[0] = {}) {
-    return makeHarness({ position: PERCHED_POS, perched: true, ...over });
-  }
+function perchedHarness(over: Parameters<typeof makeHarness>[0] = {}) {
+  return makeHarness({ position: PERCHED_POS, perched: true, ...over });
+}
 
+describe("createClimber — down", () => {
   it("holds the perch until the dwell elapses", async () => {
     const h = perchedHarness();
     h.climber.start();
@@ -1298,10 +1298,6 @@ describe("createClimber — down", () => {
 });
 
 describe("createClimber — setEnabled", () => {
-  function perchedHarness(over: Parameters<typeof makeHarness>[0] = {}) {
-    return makeHarness({ position: PERCHED_POS, perched: true, ...over });
-  }
-
   it("takes her off the wall and stops scheduling when switched off mid-climb", async () => {
     const h = makeHarness();
     h.climber.start();

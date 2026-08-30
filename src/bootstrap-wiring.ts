@@ -638,6 +638,7 @@ export function wireClimber(deps: {
   const handle = {
     cancel: () => climber?.cancel(),
     setEnabled: (v: boolean) => {
+      if (disposed) return;
       enabled = v;
       climber?.setEnabled(v);
     },
