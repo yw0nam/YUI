@@ -629,12 +629,18 @@ export function wireClimber(deps: {
   /** Keep the hit-test cursor mapping accurate while the window translates. */
   setHitTestMoving: (moving: boolean) => void;
   log: Logger;
-}): { cancel(): void; dispose(): void } {
+}): { cancel(): void; setEnabled(enabled: boolean): void; dispose(): void } {
   const { bus, renderer, log } = deps;
   let climber: Climber | null = null;
   let disposed = false;
+  // Latched here because the inner climber is built asynchronously, after the first toggle.
+  let enabled = true;
   const handle = {
     cancel: () => climber?.cancel(),
+    setEnabled: (v: boolean) => {
+      enabled = v;
+      climber?.setEnabled(v);
+    },
     dispose: () => {
       disposed = true;
       climber?.stop();
@@ -705,7 +711,7 @@ export function wireClimber(deps: {
         push("avatar.window_sit", { edge_local_ypx: edgeLocalYpx, ...where(target) });
       },
     });
-    climber.start();
+    if (enabled && !disposed) climber.start();
   })().catch((err) => log.warn("climber_start_failed", { degrade: true, error: String(err) }));
   return handle;
 }

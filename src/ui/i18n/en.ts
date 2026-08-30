@@ -378,6 +378,9 @@ const en: Record<string, string> = {
   "gaze.label": "Follow cursor",
   "gaze.sub": "The character turns its eyes and head to follow your mouse cursor.",
   "gaze.aria": "Follow cursor",
+  "climb.label": "Window climbing",
+  "climb.sub": "Climbs up and sits on other windows now and then (in development).",
+  "climb.aria": "Window climbing",
   "agentNotify.label": "Agent notifications",
   "agentNotify.sub":
     "Speaks up when a coding agent (Claude Code, opencode, …) finishes a task or needs your input on your machine.",

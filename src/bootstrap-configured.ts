@@ -200,6 +200,7 @@ const realFactories: ConfiguredBootstrapFactories = {
       endpointsSettings,
       cameraSettings,
       gazeSettings,
+      climbSettings,
       hintSettings,
       guardrailsSettings,
       idleMotionSettings,
@@ -525,6 +526,8 @@ const realFactories: ConfiguredBootstrapFactories = {
       log,
     });
     climberRef = climber;
+    climber.setEnabled(climbSettings.get().enabled);
+    register(climbSettings.subscribe((state) => climber.setEnabled(state.enabled)));
     register(climber.dispose);
 
     const cleanupDrag = await initDrag(stage, {

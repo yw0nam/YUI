@@ -432,6 +432,8 @@ export interface Climber {
   start(): void;
   /** End a running climb now, leaving the character where she hangs. */
   cancel(): void;
+  /** Off takes her off the wall and stops scheduling; on starts scheduling again. */
+  setEnabled(enabled: boolean): void;
   stop(): void;
 }
 
@@ -1076,7 +1078,7 @@ export function createClimber(deps: ClimberDeps): Climber {
     launch(runUp);
   }
 
-  return {
+  const handle: Climber = {
     start() {
       if (unsub) return;
       stopped = false;
@@ -1086,6 +1088,16 @@ export function createClimber(deps: ClimberDeps): Climber {
       unsub = renderer.onTick(tick);
     },
     cancel,
+    setEnabled(enabled) {
+      if (enabled) {
+        handle.start();
+        return;
+      }
+      // Switching off while she hangs strands her on the wall — take her off it.
+      const onWall = direction !== null;
+      handle.stop();
+      if (onWall) void deps.faller.drop();
+    },
     stop() {
       stopped = true;
       cancel();
@@ -1094,4 +1106,5 @@ export function createClimber(deps: ClimberDeps): Climber {
       doc?.removeEventListener("visibilitychange", onVisibilityChange);
     },
   };
+  return handle;
 }

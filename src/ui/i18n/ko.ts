@@ -377,6 +377,9 @@ const ko: Record<string, string> = {
   "gaze.label": "커서 따라보기",
   "gaze.sub": "캐릭터가 마우스 커서를 따라 눈과 고개를 움직입니다.",
   "gaze.aria": "커서 따라보기",
+  "climb.label": "창 오르기",
+  "climb.sub": "가끔 다른 창을 타고 올라가 앉습니다. (개발 중 기능)",
+  "climb.aria": "창 오르기",
   "agentNotify.label": "에이전트 알림",
   "agentNotify.sub":
     "Claude Code, opencode 등 코딩 에이전트가 작업을 마치거나 입력이 필요하면 먼저 말합니다.",

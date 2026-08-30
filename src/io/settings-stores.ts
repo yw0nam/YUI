@@ -134,6 +134,8 @@ export function createSettingsStores(opts?: { locale?: CueLocale }) {
   });
   // Cursor gaze-tracking on/off. Default ON. Streams every change (toggle/cross-window) to the renderer.
   const gazeSettings = createFlagSettings(true, { storage: localStorageStore("yui.gaze") });
+  // Ambient window climbing on/off. Default ON. Off takes her off the wall and stops scheduling.
+  const climbSettings = createFlagSettings(true, { storage: localStorageStore("yui.climb") });
   // First-run onboarding hint — flag shown only once.
   // enabled === onboarding hint already seen.
   const hintSettings = createFlagSettings(false, { storage: localStorageStore("yui.hint") });
@@ -186,6 +188,7 @@ export function createSettingsStores(opts?: { locale?: CueLocale }) {
     ttsKeySettings,
     cameraSettings,
     gazeSettings,
+    climbSettings,
     hintSettings,
     railCollapsedSettings,
     sectionsSettings,
@@ -235,6 +238,7 @@ export const SYNC_MODE: Record<keyof SettingsStores, SyncMode> = {
   ttsKeySettings: "broadcast",
   cameraSettings: "broadcast",
   gazeSettings: "broadcast",
+  climbSettings: "broadcast",
   hintSettings: "local",
   railCollapsedSettings: "broadcast",
   sectionsSettings: "broadcast",
