@@ -82,6 +82,12 @@ export interface MotionRegistryEntry {
   loop_cycles?: [number, number];
   /** If false, excluded from broker (agent) vocabulary — local render only. Default true. */
   broker_publish?: boolean;
+  /**
+   * Level the clip's hips-Y track onto the body's rest height, keeping the curve that
+   * came out. For a clip whose rise or fall IS the movement (the climbs): the mover
+   * replays that curve by moving the window, so anything left in the track plays twice.
+   */
+  root_lock_y?: boolean;
   kind: MotionKind;
   loop: boolean;
   /** 0~100, higher is higher priority. */
@@ -165,7 +171,7 @@ export type ScreenSource =
   | { kind: "window"; app: string; window_title: string };
 
 export interface Posture {
-  state: "standing" | "sitting" | "peeking" | "dragging" | "walking";
+  state: "standing" | "sitting" | "peeking" | "dragging" | "walking" | "climbing";
   perched_on?: {
     /** Stable app-owner name. */
     app?: string;

@@ -1,9 +1,11 @@
 /** Bootstrap wiring helpers extracted from main.ts: VRM + speaker selection stores and their swap/import flows. */
+import { type Climber, type ClimbTarget, createClimber } from "./ambient/climber";
 import { createFaller, type Faller } from "./ambient/faller";
 import type { Tier1Engine } from "./ambient/tier1";
 import { createWalker, type Walker } from "./ambient/walker";
 import {
   type AppConfig,
+  type ClimbConfig,
   type ConfigSection,
   type FallConfig,
   type GestureCuesConfig,
@@ -449,11 +451,17 @@ export function wireWalker(deps: {
   /** Keep the hit-test cursor mapping accurate while the window translates. */
   setHitTestMoving: (moving: boolean) => void;
   log: Logger;
-}): { cancel(): void; dispose(): void } {
+}): {
+  walkTo(toX: number): Promise<"arrived" | "lost">;
+  cancel(): void;
+  dispose(): void;
+} {
   const { bus, renderer, log } = deps;
   let walker: Walker | null = null;
   let disposed = false;
   const handle = {
+    walkTo: async (toX: number): Promise<"arrived" | "lost"> =>
+      (await walker?.walkTo(toX)) ?? "lost",
     cancel: () => walker?.cancel(),
     dispose: () => {
       disposed = true;
@@ -595,6 +603,121 @@ export function wireFaller(deps: {
 }
 
 /**
+ * Ambient window climbing. Tauri-only — a climb moves the OS window and reads the foreign
+ * window stack, so in a plain browser (Vite dev) this is skipped and bootstrap continues.
+ * The returned handle cancels a running climb for the user and owns teardown.
+ */
+export function wireClimber(deps: {
+  bus: EventBus;
+  renderer: Renderer;
+  getClimbConfig: () => ClimbConfig;
+  /** The stroll's knobs — the approach reuses its floor tolerance and its reach. */
+  getWalkConfig: () => WalkConfig;
+  /** Registry kind of a motion id, for the "only the baseline hands the clip back" gate. */
+  getMotionKind: (id: string) => MotionKind | undefined;
+  isPeeking: () => boolean;
+  isDragging: () => boolean;
+  /** A turn is in flight or speech is still playing — ambient movement stays out of the way. */
+  isBusy: () => boolean;
+  walker: { walkTo(toX: number): Promise<"arrived" | "lost">; cancel(): void };
+  faller: { drop(): void };
+  dropSource: {
+    adoptSit(windowNumber: number, rect: { x: number; y: number }, charHpx: number): void;
+    armedSit(): { windowNumber: number } | null;
+    release(): void;
+  };
+  /** Keep the hit-test cursor mapping accurate while the window translates. */
+  setHitTestMoving: (moving: boolean) => void;
+  log: Logger;
+}): { cancel(): void; setEnabled(enabled: boolean): void; dispose(): void } {
+  const { bus, renderer, log } = deps;
+  let climber: Climber | null = null;
+  let disposed = false;
+  // Latched here because the inner climber is built asynchronously, after the first toggle.
+  let enabled = true;
+  const handle = {
+    cancel: () => climber?.cancel(),
+    setEnabled: (v: boolean) => {
+      if (disposed) return;
+      enabled = v;
+      climber?.setEnabled(v);
+    },
+    dispose: () => {
+      disposed = true;
+      climber?.stop();
+    },
+  };
+  if (!isTauri()) return handle;
+  void (async () => {
+    const { invoke } = await import("@tauri-apps/api/core");
+    const { availableMonitors, getCurrentWindow } = await import("@tauri-apps/api/window");
+    const { PhysicalPosition } = await import("@tauri-apps/api/dpi");
+    if (disposed) return;
+    const push = (event_name: string, payload: Record<string, unknown>): void => {
+      bus.push({
+        source: "os_event_watcher",
+        event_name,
+        ts: Date.now(),
+        hint_tier: 1,
+        dnd_override: true,
+        payload,
+      });
+    };
+    // The wall the running climb is on — the end envelope names the same window as the start.
+    let wall: ClimbTarget | null = null;
+    const where = (target: ClimbTarget | null): Record<string, unknown> => ({
+      app: target?.app ?? null,
+      window_title: target?.title ?? null,
+    });
+    // Built once: a climb asks for this handle on every frame it moves the window.
+    const moveTo = new PhysicalPosition(0, 0);
+    const climberWindow: PetWindow = {
+      outerPosition: () => getCurrentWindow().outerPosition(),
+      outerSize: () => getCurrentWindow().outerSize(),
+      scaleFactor: () => getCurrentWindow().scaleFactor(),
+      setPositionPhysical: (x, y) => {
+        moveTo.x = x;
+        moveTo.y = y;
+        return getCurrentWindow().setPosition(moveTo);
+      },
+    };
+    climber = createClimber({
+      renderer,
+      getWindow: () => climberWindow,
+      listMonitors: async () => (await availableMonitors()).map(toScreenMonitor),
+      listWindows: () => invoke("list_windows") as Promise<WindowRect[]>,
+      getConfig: deps.getClimbConfig,
+      getWalkConfig: deps.getWalkConfig,
+      currentMotionKind: () => {
+        const current = renderer.getCurrentMotion();
+        return current ? (deps.getMotionKind(current.id) ?? null) : null;
+      },
+      isPeeking: deps.isPeeking,
+      isDragging: deps.isDragging,
+      isBusy: deps.isBusy,
+      walker: deps.walker,
+      faller: deps.faller,
+      dropSource: deps.dropSource,
+      onStart: (dir, target) => {
+        wall = target;
+        deps.setHitTestMoving(true);
+        push("avatar.climb_start", { direction: dir, ...where(target) });
+      },
+      onEnd: (dir) => {
+        deps.setHitTestMoving(false);
+        push("avatar.climb_end", { direction: dir, ...where(wall) });
+        wall = null;
+      },
+      onSit: (target, edgeLocalYpx) => {
+        push("avatar.window_sit", { edge_local_ypx: edgeLocalYpx, ...where(target) });
+      },
+    });
+    if (enabled && !disposed) climber.start();
+  })().catch((err) => log.warn("climber_start_failed", { degrade: true, error: String(err) }));
+  return handle;
+}
+
+/**
  * Window-sit drop + ctrl+wheel resize producers, the agent loopback ingress bind, and the
  * avatar RPC executor that answers the ingress's `/avatar/*` bridge.
  * Tauri-only — getCurrentWindow()/invoke/listen require the Tauri runtime; in a plain browser
@@ -622,6 +745,12 @@ export function wireWindowSources(deps: {
 }): {
   noteUserDrag(): void;
   noteUserDragEnd(): void;
+  /** Track a sit the character climbed to herself, without pushing a drop envelope. */
+  adoptSit(windowNumber: number, rect: { x: number; y: number }, charHpx: number): void;
+  /** The window an armed sit is held on. null when nothing, or a peek, is armed. */
+  armedSit(): { windowNumber: number } | null;
+  /** Release the armed perch and push the sit exit. */
+  release(): void;
   dispose(): void;
 } {
   const {
@@ -644,6 +773,10 @@ export function wireWindowSources(deps: {
   const handle = {
     noteUserDrag: () => avatarExecutor?.noteUserDrag(),
     noteUserDragEnd: () => avatarExecutor?.noteUserDragEnd(),
+    adoptSit: (windowNumber: number, rect: { x: number; y: number }, charHpx: number) =>
+      windowDropSource?.adoptSit(windowNumber, rect, charHpx),
+    armedSit: () => windowDropSource?.armedSit() ?? null,
+    release: () => windowDropSource?.release(),
     dispose: () => {
       disposed = true;
       windowDropSource?.stop();

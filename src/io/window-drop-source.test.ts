@@ -1768,3 +1768,79 @@ describe("window-drop-source — drag miss", () => {
     }
   });
 });
+
+describe("window-drop-source — adoptSit", () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+  });
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  function adopted() {
+    const { renderer } = makePerchSource();
+    const armed = win({ name: "Armed", windowNumber: 42 });
+    const invoke = vi.fn(async () => [armed]);
+    const source = createWindowDropSource({
+      bus,
+      renderer,
+      invoke,
+      getWindow: () => makeWindow({ x: 520, y: 740 }, 2),
+      listen: makeListen().listen,
+    });
+    source.adoptSit(42, { x: armed.x, y: armed.y }, 200);
+    return { source, invoke, armed };
+  }
+
+  it("arms the poll and pushes nothing", async () => {
+    const { invoke } = adopted();
+    expect(pushed).toEqual([]);
+
+    await tick();
+    expect(pushed).toEqual([]);
+
+    // The adopted window vanishing detaches through the sit exit a drop would push.
+    invoke.mockImplementation(async () => []);
+    await tick();
+    expect(pushed.map((e) => e.event_name)).toEqual(["user.window_sit_exit"]);
+  });
+
+  it("releases an adopted sit through the sit exit", () => {
+    const { source } = adopted();
+    source.release();
+    expect(pushed.map((e) => e.event_name)).toEqual(["user.window_sit_exit"]);
+  });
+
+  it("names the armed sit window, and nothing once it is released", () => {
+    const { source } = adopted();
+    expect(source.armedSit()).toEqual({ windowNumber: 42 });
+    source.release();
+    expect(source.armedSit()).toBeNull();
+  });
+
+  it("names no armed sit before anything is armed, or while a peek holds", async () => {
+    const { renderer } = makePerchSource();
+    let pos = { x: 520, y: 740 };
+    const source = createWindowDropSource({
+      bus,
+      renderer,
+      invoke: vi.fn(async () => [win({ ownerName: "Notes" })]),
+      getWindow: () => ({
+        outerPosition: async () => pos,
+        scaleFactor: async () => 2,
+        setPositionPhysical: async (x: number, y: number) => {
+          pos = { x, y };
+        },
+      }),
+      listen: makeListen().listen,
+      peekActive: () => true,
+    });
+    expect(source.armedSit()).toBeNull();
+
+    expect(await source.placeOn({ kind: "peek", side: "left" })).toEqual({
+      ok: true,
+      kind: "peek",
+    });
+    expect(source.armedSit()).toBeNull();
+  });
+});

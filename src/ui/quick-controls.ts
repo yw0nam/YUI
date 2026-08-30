@@ -155,6 +155,8 @@ interface QuickControlsOptions {
   ttsSettings?: FlagSettingsStore;
   /** Cursor gaze (eye contact) on/off store. If absent, that toggle row won't render. */
   gazeSettings?: FlagSettingsStore;
+  /** Ambient window-climbing on/off store. If absent, that toggle row won't render. */
+  climbSettings?: FlagSettingsStore;
   /** Agent notification on/off store. If absent, that toggle row won't render. */
   agentNotifySettings?: AgentNotifySettingsStore;
   /** "Keep bubble until dismissed" on/off store. If absent, that toggle row won't render. */
@@ -205,6 +207,7 @@ type SwitchRowOptions = Pick<
   | "ttsSettings"
   | "vad"
   | "gazeSettings"
+  | "climbSettings"
   | "agentNotifySettings"
   | "fillerSettings"
   | "bubblePersistSettings"
@@ -217,6 +220,7 @@ export function createSwitchRows({
   ttsSettings,
   vad,
   gazeSettings,
+  climbSettings,
   agentNotifySettings,
   fillerSettings,
   bubblePersistSettings,
@@ -312,6 +316,19 @@ export function createSwitchRows({
       logKey: "gaze_toggle",
     },
     {
+      selector: ".yui-climb-switch",
+      labelKey: "climb.label",
+      subKey: "climb.sub",
+      ariaKey: "climb.aria",
+      tab: "advanced",
+      isVisible: !!climbSettings,
+      isAvailable: !!climbSettings,
+      initialEnabled: climbSettings?.get().enabled ?? true,
+      getEnabled: () => climbSettings!.get().enabled,
+      setEnabled: (v) => climbSettings!.setEnabled(v),
+      logKey: "climb_toggle",
+    },
+    {
       selector: ".yui-agentnotify-switch",
       labelKey: "agentNotify.label",
       subKey: "agentNotify.sub",
@@ -384,6 +401,7 @@ export function createQuickControls({
   fillerSettings,
   ttsSettings,
   gazeSettings,
+  climbSettings,
   agentNotifySettings,
   bubblePersistSettings,
   presenceSettings,
@@ -422,6 +440,7 @@ export function createQuickControls({
     ttsSettings,
     vad,
     gazeSettings,
+    climbSettings,
     agentNotifySettings,
     fillerSettings,
     bubblePersistSettings,
@@ -1088,6 +1107,9 @@ export function createQuickControls({
   const unsubscribeGaze = gazeSettings?.subscribe(() => {
     if (popover.isOpen()) reflect.reflectSwitchRows();
   });
+  const unsubscribeClimb = climbSettings?.subscribe(() => {
+    if (popover.isOpen()) reflect.reflectSwitchRows();
+  });
   const unsubscribeBubblePersist = bubblePersistSettings?.subscribe(() => {
     if (popover.isOpen()) reflect.reflectSwitchRows();
   });
@@ -1333,6 +1355,7 @@ export function createQuickControls({
     unsubscribeIdleThrottle();
     unsubscribeTts?.();
     unsubscribeGaze?.();
+    unsubscribeClimb?.();
     unsubscribeBubblePersist?.();
     unsubscribeAgentNotify?.();
     unsubscribePresence?.();

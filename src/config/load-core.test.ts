@@ -69,6 +69,17 @@ describe("loadConfig — happy path", () => {
         min_drop_frac: 0.2,
         cue_cooldown_ms: 60_000,
       },
+      climb: {
+        interval_min_ms: 90_000,
+        interval_max_ms: 180_000,
+        perch_dwell_min_ms: 60_000,
+        perch_dwell_max_ms: 120_000,
+        max_height_frac: 4,
+        hang_frac: 0.3,
+        wall_offset_frac: 0.3,
+        ledge_walk_min_frac: 0.5,
+        ledge_walk_max_frac: 1.5,
+      },
     });
     expect(cfg.emotionRegistry.happy).toEqual({
       vrm_expression: "happy",

@@ -1,6 +1,7 @@
 import type { Tier1Engine } from "./ambient/tier1";
 import {
   wireBroker,
+  wireClimber,
   wireDispatcherSources,
   wireFaller,
   wireGuardrailsOverrides,
@@ -199,6 +200,7 @@ const realFactories: ConfiguredBootstrapFactories = {
       endpointsSettings,
       cameraSettings,
       gazeSettings,
+      climbSettings,
       hintSettings,
       guardrailsSettings,
       idleMotionSettings,
@@ -482,6 +484,8 @@ const realFactories: ConfiguredBootstrapFactories = {
     });
     register(faller.dispose);
 
+    // Set once the climber exists — the drop source is built before it and cancels it.
+    let climberRef: { cancel(): void } | null = null;
     const windowSources = wireWindowSources({
       bus,
       renderer,
@@ -498,11 +502,34 @@ const realFactories: ConfiguredBootstrapFactories = {
       noteAgentMove: () => {
         walker.cancel();
         faller.cancel();
+        climberRef?.cancel();
       },
       onDragMiss: () => faller.drop(),
       log,
     });
     register(windowSources.dispose);
+
+    // Ambient climbing: a wall now and then, a sit on top, then back down to the floor.
+    const climber = wireClimber({
+      bus,
+      renderer,
+      getClimbConfig: () => config.get().avatar.climb,
+      getWalkConfig: () => config.get().avatar.walk,
+      getMotionKind: (id) => config.get().motions[id]?.kind,
+      isPeeking: () => peekStateRef?.active() ?? false,
+      isDragging: () => dragging,
+      isBusy: dispatcher.isPipelineBusy,
+      walker,
+      faller,
+      dropSource: windowSources,
+      setHitTestMoving: (moving) => hitTest.setMoving(moving),
+      log,
+    });
+    climberRef = climber;
+    climber.setEnabled(climbSettings.get().enabled);
+    register(climbSettings.subscribe((state) => climber.setEnabled(state.enabled)));
+    register(climber.dispose);
+
     const cleanupDrag = await initDrag(stage, {
       onClick: tapSource.handleClick,
       pat: createPatGesture({
@@ -514,6 +541,7 @@ const realFactories: ConfiguredBootstrapFactories = {
         dragging = true;
         walker.cancel();
         faller.cancel();
+        climber.cancel();
         hitTest.suspend();
         dragHold.noteDragStart();
         windowSources.noteUserDrag();

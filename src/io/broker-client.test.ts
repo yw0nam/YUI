@@ -15,6 +15,7 @@ import { describe, expect, it, vi } from "vitest";
 import {
   type AppConfig,
   ATTACHMENT_LIMITS_DEFAULTS,
+  CLIMB_DEFAULTS,
   DRAG_HOLD_MS_DEFAULT,
   FALL_DEFAULTS,
   GESTURE_CUES_DEFAULTS,
@@ -707,6 +708,7 @@ describe("deriveBrokerPayload", () => {
         tap: TAP_DEFAULTS,
         walk: WALK_DEFAULTS,
         fall: FALL_DEFAULTS,
+        climb: CLIMB_DEFAULTS,
         drag_hold_ms: DRAG_HOLD_MS_DEFAULT,
         gesture_cues: GESTURE_CUES_DEFAULTS,
       },

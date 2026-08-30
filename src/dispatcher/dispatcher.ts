@@ -192,11 +192,19 @@ function classify(env: BusEnvelope): Classification {
     n === "user.peek_exit" ||
     n === "avatar.walk_start" ||
     n === "avatar.walk_end" ||
+    n === "avatar.climb_start" ||
+    n === "avatar.climb_end" ||
+    n === "avatar.window_sit" ||
     n === "user.fall_land"
   ) {
     return { tier: 1, target: "tier1" };
   }
   return { tier: (env.hint_tier ?? 3) as Tier, target: "drop" };
+}
+
+/** A sit that pins the perch target: the drag drop and the ambient climb's ledge sit. */
+function isSitDrop(eventName: string): boolean {
+  return eventName === "user.window_sit_drop" || eventName === "avatar.window_sit";
 }
 
 function samePosture(a: Posture, b: Posture): boolean {
@@ -224,6 +232,8 @@ function userTurnSourceOf(env: BusEnvelope): UserTurnSource | undefined {
  *  - pat_end → return to idle (motion null).
  *  - idle.returned → empty directive (hold).
  *  - avatar.walk_* → no render; the ambient walker owns the walk clip and only the posture moves.
+ *  - avatar.climb_* → no render; the climber owns the climb clips and only the posture moves.
+ *  - avatar.window_sit → the sit the climber reached on its own, rendered like a drop.
  *  - user.fall_land → no render; the faller owns the falling/landing clips and the posture is unchanged.
  * Returning null means no render.
  */
@@ -236,6 +246,7 @@ function tier1Directive(env: BusEnvelope, log: Logger): ControlEnvelope | null {
     case "user.window_sit_enter":
       return { speech_text: "", motion: { id: "window_sit" } };
     case "user.window_sit_drop":
+    case "avatar.window_sit":
       return { speech_text: "", motion: { id: "window_sit" } };
     case "user.window_sit_exit":
       return { speech_text: "", motion: null };
@@ -245,6 +256,8 @@ function tier1Directive(env: BusEnvelope, log: Logger): ControlEnvelope | null {
       return { speech_text: "", motion: null };
     case "user.tap":
     case "user.fall_land":
+    case "avatar.climb_start":
+    case "avatar.climb_end":
       return null;
     case "user.pat_end":
       return { speech_text: "", motion: null };
@@ -570,7 +583,7 @@ export function createDispatcher(deps: DispatcherDeps): Dispatcher {
   function renderTier1(env: BusEnvelope): void {
     const peekDrop = env.event_name === "user.peek_drop" ? parsePeekDropPayload(env) : null;
     const sitDropEdge =
-      env.event_name === "user.window_sit_drop" &&
+      isSitDrop(env.event_name) &&
       typeof env.payload?.edge_local_ypx === "number" &&
       Number.isFinite(env.payload.edge_local_ypx)
         ? env.payload.edge_local_ypx
@@ -579,7 +592,7 @@ export function createDispatcher(deps: DispatcherDeps): Dispatcher {
       log.warn("peek_drop.malformed", { seq_id: env.seq_id, payload: env.payload });
       return;
     }
-    if (env.event_name === "user.window_sit_drop" && sitDropEdge === null) {
+    if (isSitDrop(env.event_name) && sitDropEdge === null) {
       log.warn("perch_target.malformed", { seq_id: env.seq_id, payload: env.payload });
       return;
     }
@@ -620,6 +633,7 @@ export function createDispatcher(deps: DispatcherDeps): Dispatcher {
     let next: Posture;
     switch (env.event_name) {
       case "user.window_sit_drop":
+      case "avatar.window_sit":
         next = { state: "sitting", ...(perched_on ? { perched_on } : {}) };
         break;
       case "user.window_sit_enter":
@@ -634,10 +648,14 @@ export function createDispatcher(deps: DispatcherDeps): Dispatcher {
       case "avatar.walk_start":
         next = { state: "walking" };
         break;
+      case "avatar.climb_start":
+        next = { state: "climbing" };
+        break;
       case "user.window_sit_exit":
       case "user.peek_exit":
       case "user.drag_end":
       case "avatar.walk_end":
+      case "avatar.climb_end":
         next = { state: "standing" };
         break;
       default:
@@ -656,7 +674,7 @@ export function createDispatcher(deps: DispatcherDeps): Dispatcher {
           ? deps.peek.enter()
           : env.event_name === "user.peek_exit" ||
               env.event_name === "user.drag_start" ||
-              env.event_name === "user.window_sit_drop" ||
+              isSitDrop(env.event_name) ||
               env.event_name === "user.window_sit_enter"
             ? deps.peek.exit()
             : null;
@@ -682,7 +700,8 @@ export function createDispatcher(deps: DispatcherDeps): Dispatcher {
       if (
         env.event_name === "user.peek_exit" ||
         env.event_name === "user.drag_start" ||
-        env.event_name.startsWith("user.window_sit_")
+        env.event_name.startsWith("user.window_sit_") ||
+        env.event_name === "avatar.window_sit"
       ) {
         renderer.setPeekTarget(null);
         renderer.setMotionMirror(false);
@@ -692,7 +711,7 @@ export function createDispatcher(deps: DispatcherDeps): Dispatcher {
         renderer.setPerchTarget(null);
         return;
       }
-      if (env.event_name === "user.window_sit_drop" && sitDropEdge !== null) {
+      if (isSitDrop(env.event_name) && sitDropEdge !== null) {
         renderer.setPerchTarget({ edgeLocalYpx: sitDropEdge });
       }
     } catch (err) {

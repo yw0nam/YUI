@@ -1,6 +1,8 @@
 import {
   type AvatarConfig,
   type AvatarOption,
+  CLIMB_DEFAULTS,
+  type ClimbConfig,
   DRAG_HOLD_MS_DEFAULT,
   FALL_DEFAULTS,
   type FallConfig,
@@ -492,6 +494,61 @@ export function validateAvatar(file: string, raw: unknown): AvatarConfig {
     }
   }
 
+  const climb: ClimbConfig = { ...CLIMB_DEFAULTS };
+  const rawClimb = raw.climb;
+  if (rawClimb !== undefined) {
+    if (!isObject(rawClimb)) {
+      issues.push(`climb은 객체여야 함 (받음: ${JSON.stringify(rawClimb)})`);
+    } else {
+      for (const field of [
+        "interval_min_ms",
+        "interval_max_ms",
+        "perch_dwell_min_ms",
+        "perch_dwell_max_ms",
+      ] as const) {
+        const value = rawClimb[field];
+        if (value === undefined) continue;
+        if (typeof value !== "number" || !Number.isInteger(value) || value < 0) {
+          issues.push(`climb.${field}는 0 이상 정수여야 함 (받음: ${JSON.stringify(value)})`);
+        } else {
+          climb[field] = value;
+        }
+      }
+      for (const field of [
+        "max_height_frac",
+        "hang_frac",
+        "wall_offset_frac",
+        "ledge_walk_min_frac",
+        "ledge_walk_max_frac",
+      ] as const) {
+        const value = rawClimb[field];
+        if (value === undefined) continue;
+        if (typeof value !== "number" || !Number.isFinite(value) || value <= 0) {
+          issues.push(
+            `climb.${field}는 0보다 큰 유한 number여야 함 (받음: ${JSON.stringify(value)})`,
+          );
+        } else {
+          climb[field] = value;
+        }
+      }
+      if (climb.interval_min_ms > climb.interval_max_ms) {
+        issues.push(
+          `climb.interval_min_ms는 climb.interval_max_ms 이하여야 함 (받음: ${climb.interval_min_ms} > ${climb.interval_max_ms})`,
+        );
+      }
+      if (climb.perch_dwell_min_ms > climb.perch_dwell_max_ms) {
+        issues.push(
+          `climb.perch_dwell_min_ms는 climb.perch_dwell_max_ms 이하여야 함 (받음: ${climb.perch_dwell_min_ms} > ${climb.perch_dwell_max_ms})`,
+        );
+      }
+      if (climb.ledge_walk_min_frac > climb.ledge_walk_max_frac) {
+        issues.push(
+          `climb.ledge_walk_min_frac는 climb.ledge_walk_max_frac 이하여야 함 (받음: ${climb.ledge_walk_min_frac} > ${climb.ledge_walk_max_frac})`,
+        );
+      }
+    }
+  }
+
   let drag_hold_ms = DRAG_HOLD_MS_DEFAULT;
   const rawDragHoldMs = raw.drag_hold_ms;
   if (rawDragHoldMs !== undefined) {
@@ -595,6 +652,7 @@ export function validateAvatar(file: string, raw: unknown): AvatarConfig {
     peek,
     walk,
     fall,
+    climb,
     drag_hold_ms,
     gesture_cues,
     ...(available !== undefined ? { available } : {}),

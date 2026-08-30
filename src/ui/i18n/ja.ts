@@ -379,6 +379,9 @@ const ja: Record<string, string> = {
   "gaze.label": "カーソルを追う",
   "gaze.sub": "キャラクターがマウスカーソルの動きに合わせて目と頭を向けます。",
   "gaze.aria": "カーソルを追う",
+  "climb.label": "ウィンドウ登り",
+  "climb.sub": "ときどき他のウィンドウをよじ登って座ります。(開発中の機能)",
+  "climb.aria": "ウィンドウ登り",
   "agentNotify.label": "エージェント通知",
   "agentNotify.sub":
     "Claude Code や opencode などのコーディングエージェントがタスクを終えたとき、または入力が必要なときに先に知らせます。",
