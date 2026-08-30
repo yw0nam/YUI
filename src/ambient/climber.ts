@@ -110,6 +110,15 @@ function wallColumn(
 }
 
 /**
+ * Whether the column she would occupy on this wall fits on the screen. She stands
+ * outside the window's face, so a window against the side of the monitor has a wall
+ * with no floor to stand on — climbing it walks her off the screen.
+ */
+function columnOnMonitor(column: Box, monitor: Box): boolean {
+  return column.x >= monitor.x && column.x + column.width <= monitor.x + monitor.width;
+}
+
+/**
  * Where the feet stand to climb an edge: a hand's reach outside the window's face, so
  * the body clears the edge and the hands land on it instead of inside the window.
  */
@@ -280,8 +289,9 @@ export function pickClimbTarget(args: {
       if (distance > maxWalkPx) continue;
       if (best && distance >= best.distance) continue;
       if (!containsPoint(monitor, { x: edgeX, y: topY })) continue;
-      if (front.some((w) => overlaps(w, wallColumn(edgeX, topY, floor, wallOffset, side))))
-        continue;
+      const column = wallColumn(edgeX, topY, floor, wallOffset, side);
+      if (!columnOnMonitor(column, monitor)) continue;
+      if (front.some((w) => overlaps(w, column))) continue;
       if (front.some((w) => containsPoint(w, cornerSeat(edgeX, topY, side, wallOffset)))) continue;
       best = {
         distance,
@@ -305,9 +315,10 @@ export function pickClimbTarget(args: {
 
 /**
  * The wall to climb down from a sit: the window the perch is armed on, and its nearest
- * side edge whose wall column and corner seat are clear of anything in front of it. The
- * sit pose dangles the feet below the ledge, so the window is found by identity, not by
- * where the feet happen to hang. null when the window is gone or both walls are covered.
+ * side edge whose wall column fits on the monitor and is clear, along with its corner
+ * seat, of anything in front of it. The sit pose dangles the feet below the ledge, so
+ * the window is found by identity, not by where the feet happen to hang. null when the
+ * window is gone or neither wall can be stood on.
  */
 export function pickDescentTarget(args: {
   windows: WindowRect[];
@@ -315,9 +326,11 @@ export function pickDescentTarget(args: {
   feetX: number;
   floor: number;
   charHpx: number;
+  /** Bounds of the monitor the pet window sits on. */
+  monitor: Box;
   cfg: ClimbConfig;
 }): ClimbTarget | null {
-  const { windows, windowNumber, feetX, floor, charHpx, cfg } = args;
+  const { windows, windowNumber, feetX, floor, charHpx, monitor, cfg } = args;
   const index = windows.findIndex((w) => w.windowNumber === windowNumber);
   if (index < 0) return null;
   const win = windows[index];
@@ -329,7 +342,9 @@ export function pickDescentTarget(args: {
   ];
   sides.sort((a, b) => Math.abs(a.edgeX - feetX) - Math.abs(b.edgeX - feetX));
   for (const { side, edgeX } of sides) {
-    if (front.some((w) => overlaps(w, wallColumn(edgeX, win.y, floor, wallOffset, side)))) continue;
+    const column = wallColumn(edgeX, win.y, floor, wallOffset, side);
+    if (!columnOnMonitor(column, monitor)) continue;
+    if (front.some((w) => overlaps(w, column))) continue;
     if (front.some((w) => containsPoint(w, cornerSeat(edgeX, win.y, side, wallOffset)))) continue;
     return {
       windowNumber: win.windowNumber,
@@ -672,6 +687,8 @@ export function createClimber(deps: ClimberDeps): Climber {
     charHpx: number;
     pxPerMetre: number;
     monitor: ScreenMonitor;
+    /** The same monitor in logical px — what the pickers measure walls against. */
+    bounds: Box;
     windows: WindowRect[];
   } | null> {
     const anchor = renderer.getCharacterAnchor();
@@ -701,6 +718,12 @@ export function createClimber(deps: ClimberDeps): Climber {
       charHpx: probe.charHpx,
       pxPerMetre,
       monitor,
+      bounds: {
+        x: monitor.position.x / scale,
+        y: monitor.position.y / scale,
+        width: monitor.size.width / scale,
+        height: monitor.size.height / scale,
+      },
       windows,
     };
   }
@@ -779,12 +802,7 @@ export function createClimber(deps: ClimberDeps): Climber {
       workTop: w.workTop,
       charHpx: w.charHpx,
       anchorY: w.anchorY,
-      monitor: {
-        x: w.monitor.position.x / w.scale,
-        y: w.monitor.position.y / w.scale,
-        width: w.monitor.size.width / w.scale,
-        height: w.monitor.size.height / w.scale,
-      },
+      monitor: w.bounds,
       cfg,
       maxWalkPx: walkCfg.distance_max_px,
     });
@@ -883,6 +901,7 @@ export function createClimber(deps: ClimberDeps): Climber {
       feetX: w.feetX,
       floor: w.floor,
       charHpx: w.charHpx,
+      monitor: w.bounds,
       cfg,
     });
     if (!picked) return;
