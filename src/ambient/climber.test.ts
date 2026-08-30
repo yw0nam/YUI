@@ -13,7 +13,6 @@ import {
   type ClimberDeps,
   type ClimbTarget,
   climbGeometrySample,
-  climbSpeedPxPerSec,
   climbTargetLost,
   createClimber,
   ledgeSeatX,
@@ -382,19 +381,6 @@ describe("climbGeometrySample", () => {
     expect(s.handR_dx).toBe(5);
     expect(s.handL_dx).toBe(-15);
     expect(s.feet_dx).toBe(-75);
-  });
-});
-
-describe("climbSpeedPxPerSec", () => {
-  it("divides the clip's own stride by the cycle length it loops on", () => {
-    expect(climbSpeedPxPerSec(300, 0.93, 2.967)).toBeCloseTo((300 * 0.93) / 2.967, 6);
-  });
-
-  it("scales linearly with the framing so the hands never slide", () => {
-    expect(climbSpeedPxPerSec(600, 0.93, 2.967)).toBeCloseTo(
-      climbSpeedPxPerSec(300, 0.93, 2.967) * 2,
-      6,
-    );
   });
 });
 
@@ -780,7 +766,7 @@ describe("createClimber — up", () => {
     // First frame of the loop leg: travel 0.843 m over a 2.967 s cycle at 300 px/m.
     const before = h.at().y;
     await h.frame(0.1);
-    const expected = climbSpeedPxPerSec(PX_PER_METRE, MOTION_TRAVEL_M.climb_up, MOTION_S.climb_up);
+    const expected = (PX_PER_METRE * MOTION_TRAVEL_M.climb_up) / MOTION_S.climb_up;
     expect(before - h.at().y).toBeCloseTo(expected * 0.1, 0);
   });
 

@@ -236,15 +236,6 @@ export function nextDwell(cfg: ClimbConfig, rng: Rng = Math.random): number {
   return randRange(cfg.perch_dwell_min_ms, cfg.perch_dwell_max_ms, rng);
 }
 
-/** Wall speed (px/s) of a looping climb clip: one cycle's displacement per cycle length. */
-export function climbSpeedPxPerSec(
-  pxPerMetre: number,
-  metresPerCycle: number,
-  cycleS: number,
-): number {
-  return (pxPerMetre * metresPerCycle) / cycleS;
-}
-
 /**
  * The wall to climb: the side edge nearest the feet, on the nearest window that is
  * reachable, the right size, standing-room-topped, unobstructed and on this monitor.
@@ -696,8 +687,7 @@ export function createClimber(deps: ClimberDeps): Climber {
     anchorY: number;
     charHpx: number;
     pxPerMetre: number;
-    monitor: ScreenMonitor;
-    /** The same monitor in logical px — what the pickers measure walls against. */
+    /** The monitor the pet window sits on, in logical px — what the pickers measure walls against. */
     bounds: Box;
     windows: WindowRect[];
   } | null> {
@@ -727,7 +717,6 @@ export function createClimber(deps: ClimberDeps): Climber {
       anchorY: anchor.y,
       charHpx: probe.charHpx,
       pxPerMetre,
-      monitor,
       bounds: {
         x: monitor.position.x / scale,
         y: monitor.position.y / scale,
