@@ -1006,7 +1006,11 @@ describe("createClimber — interruption", () => {
     await h.runFrames(1);
     expect(h.motions.at(-1)).toEqual({ id: CLIMB_UP_MOTION_ID });
     await h.runFrames(3);
-    expect(h.at().y).toBeLessThan(held.y);
+    // The replayed clip restarts at 0: that is a rebase, not a completed cycle, so the
+    // window resumes from where it was held at the clip's own pace.
+    const perFrame = (PX_PER_METRE * MOTION_TRAVEL_M.climb_up * 0.1) / MOTION_S.climb_up;
+    expect(held.y - h.at().y).toBeGreaterThan(0);
+    expect(held.y - h.at().y).toBeLessThanOrEqual(3 * perFrame + 1);
   });
 
   it("cancels and drops when the target vanishes mid-climb", async () => {
