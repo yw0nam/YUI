@@ -313,6 +313,61 @@ describe("createQuickControls — toggles + gain row", () => {
     qc.dispose();
   });
 
+  // ── Window climbing toggle row (Advanced tab) ─────────────────────────────
+
+  it("renders the climb toggle row only when climbSettings is provided, ON by default", () => {
+    const withoutClimb = buildQc();
+    withoutClimb.open();
+    expect(withoutClimb.el.querySelector(".yui-climb-switch")).toBeNull();
+    withoutClimb.dispose();
+
+    const qc = buildQc({ climbSettings: createFlagSettings(true) });
+    qc.open();
+    const climbSwitch = qc.el.querySelector<HTMLButtonElement>(".yui-climb-switch");
+    expect(climbSwitch).not.toBeNull();
+    expect(climbSwitch!.getAttribute("aria-checked")).toBe("true");
+    expect(climbSwitch!.getAttribute("role")).toBe("switch");
+    expect(climbSwitch!.getAttribute("aria-label")).toBe("창 오르기");
+
+    const row = climbSwitch!.closest(".yui-row")!;
+    expect(row.querySelector(".yui-row__label")!.textContent).toContain("창 오르기");
+    qc.dispose();
+  });
+
+  it("clicking the climb switch toggles climbSettings.setEnabled", () => {
+    const climbSettings = createFlagSettings(true);
+    const qc = buildQc({ climbSettings });
+    qc.open();
+
+    const climbSwitch = qc.el.querySelector<HTMLButtonElement>(".yui-climb-switch")!;
+    expect(climbSettings.get().enabled).toBe(true);
+
+    climbSwitch.click();
+    expect(climbSettings.get().enabled).toBe(false);
+    expect(climbSwitch.getAttribute("aria-checked")).toBe("false");
+
+    climbSwitch.click();
+    expect(climbSettings.get().enabled).toBe(true);
+    expect(climbSwitch.getAttribute("aria-checked")).toBe("true");
+
+    qc.dispose();
+  });
+
+  it("external climbSettings.setEnabled reflects on the switch while open", () => {
+    const climbSettings = createFlagSettings(true);
+    const qc = buildQc({ climbSettings });
+    qc.open();
+
+    const climbSwitch = qc.el.querySelector<HTMLButtonElement>(".yui-climb-switch")!;
+    climbSettings.setEnabled(false);
+    expect(climbSwitch.getAttribute("aria-checked")).toBe("false");
+
+    climbSettings.setEnabled(true);
+    expect(climbSwitch.getAttribute("aria-checked")).toBe("true");
+
+    qc.dispose();
+  });
+
   // ── Agent notifications toggle row (Advanced tab) ─────────────────────────
 
   it("renders the agentNotify toggle row only when agentNotifySettings is provided, OFF by default", () => {

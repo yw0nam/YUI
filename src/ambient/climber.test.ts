@@ -1296,3 +1296,49 @@ describe("createClimber — down", () => {
     expect(h.starts).toHaveBeenCalledWith("down", TARGET);
   });
 });
+
+describe("createClimber — setEnabled", () => {
+  function perchedHarness(over: Parameters<typeof makeHarness>[0] = {}) {
+    return makeHarness({ position: PERCHED_POS, perched: true, ...over });
+  }
+
+  it("takes her off the wall and stops scheduling when switched off mid-climb", async () => {
+    const h = makeHarness();
+    h.climber.start();
+    await h.skipInterval();
+    await h.runFrames(3);
+    h.climber.setEnabled(false);
+
+    expect(h.ends).toHaveBeenCalledWith("up");
+    expect(h.drop).toHaveBeenCalledTimes(1);
+    expect(h.hasTick()).toBe(false);
+
+    h.starts.mockClear();
+    await h.skipInterval();
+    expect(h.starts).not.toHaveBeenCalled();
+  });
+
+  it("leaves her seated when switched off on a perch", async () => {
+    const h = perchedHarness();
+    h.climber.start();
+    await h.frame();
+    h.climber.setEnabled(false);
+    await h.skipDwell();
+
+    expect(h.drop).not.toHaveBeenCalled();
+    expect(h.release).not.toHaveBeenCalled();
+    expect(h.starts).not.toHaveBeenCalled();
+    expect(h.motions).toEqual([]);
+  });
+
+  it("resumes scheduling when switched back on", async () => {
+    const h = makeHarness();
+    h.climber.start();
+    h.climber.setEnabled(false);
+    h.climber.setEnabled(true);
+    await h.skipInterval();
+
+    expect(h.hasTick()).toBe(true);
+    expect(h.starts).toHaveBeenCalledWith("up", TARGET);
+  });
+});
