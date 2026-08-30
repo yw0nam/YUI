@@ -592,7 +592,11 @@ export function createClimber(deps: ClimberDeps): Climber {
     // that requests its own clip starts from the clip's first key, whenever it lands.
     const continuing = renderer.getCurrentMotion()?.id === spec.motionId;
     const now = continuing ? renderer.getCurrentMotionTime() : null;
-    const travel0 = continuing && now !== null ? renderer.getMotionTravelAt(spec.motionId, now) : 0;
+    const travel0 = continuing
+      ? now === null
+        ? null
+        : renderer.getMotionTravelAt(spec.motionId, now)
+      : 0;
     if (!continuing) {
       renderer.playMotion({ id: spec.motionId });
       if (renderer.getCurrentMotion()?.id !== spec.motionId) return Promise.resolve("lost");
@@ -629,6 +633,12 @@ export function createClimber(deps: ClimberDeps): Climber {
         finishLeg("done");
         return;
       }
+      // The replayed clip restarts at 0 without having finished its cycle: rebase the
+      // leg on where the hold left the window rather than let the restart count as a wrap.
+      l.fromY = l.y;
+      l.travel0 = null;
+      l.wraps = 0;
+      l.prevT = 0;
       renderer.playMotion({ id: l.motionId });
       return;
     }

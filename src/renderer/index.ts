@@ -750,8 +750,11 @@ export function createRenderer(options: RendererOptions): Renderer {
       if (!upright) return null;
       const clip = mirrorClipTracks(upright, boneNameSwap);
       clipCache.set(cacheKey, clip);
-      // Mirroring swaps left/right bones; the vertical travel is the upright clip's.
-      clipTravelY.set(cacheKey, clipTravelY.get(clipCacheKey(vrmaPath, false, rootLockY)) ?? 0);
+      // Mirroring swaps left/right bones; the vertical travel and its curve are the upright clip's.
+      const uprightKey = clipCacheKey(vrmaPath, false, rootLockY);
+      clipTravelY.set(cacheKey, clipTravelY.get(uprightKey) ?? 0);
+      const curve = clipRootCurve.get(uprightKey);
+      if (curve) clipRootCurve.set(cacheKey, curve);
       return clip;
     }
 
