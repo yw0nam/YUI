@@ -728,6 +728,7 @@ export function createWindowDropSource(deps: WindowDropSourceDeps): WindowDropSo
       arm("sit", windowNumber, rect, charHpx, origin);
     },
     abandonSit() {
+      if (!sitSuspended) return;
       disarm();
     },
     release() {

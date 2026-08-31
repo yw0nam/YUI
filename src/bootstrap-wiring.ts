@@ -566,6 +566,15 @@ export function wirePercher(deps: {
     const { PhysicalPosition } = await import("@tauri-apps/api/dpi");
     if (disposed) return;
     const win = getCurrentWindow();
+    const endWalk = (): void => {
+      deps.setHitTestMoving(false);
+      bus.push({
+        source: "timer_scheduler",
+        event_name: "avatar.walk_end",
+        ts: Date.now(),
+        hint_tier: 1,
+      });
+    };
     percher = createPercher({
       renderer,
       getWindow: () => ({
@@ -592,16 +601,9 @@ export function wirePercher(deps: {
           hint_tier: 1,
         });
       },
-      onWalkEnd: () => {
-        deps.setHitTestMoving(false);
-        bus.push({
-          source: "timer_scheduler",
-          event_name: "avatar.walk_end",
-          ts: Date.now(),
-          hint_tier: 1,
-        });
-      },
-      onWalkCancel: () => deps.setHitTestMoving(false),
+      onWalkEnd: endWalk,
+      // A cancelled stroll still owes the end cue: the posture only leaves walking on it.
+      onWalkCancel: endWalk,
       onSit: (target, edgeLocalYpx) => {
         bus.push({
           source: "os_event_watcher",

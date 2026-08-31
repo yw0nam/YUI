@@ -152,6 +152,7 @@ export function createPercher(deps: PercherDeps): Percher {
     generation++;
     stroll = null;
     dwellAtMs = -1;
+    starting = false;
     suspendedAt = null;
     deps.walker.cancel();
     deps.onWalkEnd();
