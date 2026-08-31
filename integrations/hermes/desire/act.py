@@ -8,6 +8,7 @@ import os
 import sys
 import uuid
 from datetime import datetime
+from urllib import error as urllib_error
 from urllib import request as urllib_request
 from zoneinfo import ZoneInfo
 
@@ -73,7 +74,7 @@ def _deliver(note, now, opener):
             "occurred_at": int(now.timestamp() * 1000),
         },
     }
-    target = os.environ.get("YUI_SIGNALS_URL", desire_state.DEFAULT_SIGNALS_URL)
+    target = os.environ.get("YUI_SIGNALS_URL") or desire_state.DEFAULT_SIGNALS_URL
     outgoing = urllib_request.Request(
         target,
         data=json.dumps(body, ensure_ascii=False, separators=(",", ":")).encode("utf-8"),
@@ -81,14 +82,18 @@ def _deliver(note, now, opener):
         method="POST",
     )
     failure = None
+    connected = True
     try:
         with opener(outgoing, timeout=10) as response:
             status = getattr(response, "status", 200)
             if not 200 <= status < 300:
                 failure = f"HTTP {status}"
+    except urllib_error.HTTPError as error:
+        failure = f"HTTP {error.code}"
     except Exception as error:  # noqa: BLE001 - transport implementations may raise arbitrary errors
+        connected = False
         failure = str(getattr(error, "reason", error)).replace("\r", " ").replace("\n", " ")
-    return event_id, failure
+    return event_id, failure, connected
 
 
 def _signal(note, now, opener):
@@ -102,16 +107,17 @@ def _signal(note, now, opener):
             return 1
         _audit(state_dir, now, "signal_reserved", note=note)
 
-    event_id, failure = _deliver(note, now, opener)
+    event_id, failure, connected = _deliver(note, now, opener)
 
     with desire_state.state_lock(state_dir):
-        desire_state.record_transport(state_dir, failure is None, now)
         if failure is None:
             _audit(state_dir, now, "signal_sent", event_id=event_id, note=note)
+            desire_state.record_transport(state_dir, connected, now)
             return 0
         _refund_signal(state_dir, now, reservation_date)
         desire_state.append_jsonl(state_dir / "outbox.jsonl", _outbox_item(note, "error", now))
         _audit(state_dir, now, "signal_failed", event_id=event_id, reason=failure, note=note)
+        desire_state.record_transport(state_dir, connected, now)
     print(f"signal delivery failed: {failure}", file=sys.stderr)
     return 1
 
@@ -122,17 +128,11 @@ def _outbox_send(item_id, now, opener):
     reservation_date = now.date().isoformat()
     with desire_state.state_lock(state_dir):
         _normalized_state(state_dir, now)
-        item = next(
-            (
-                candidate
-                for candidate in desire_state.read_jsonl(outbox_path)
-                if desire_state.valid_outbox_item(candidate) and candidate.get("id") == item_id
-            ),
-            None,
-        )
+        active = desire_state.active_outbox(desire_state.read_jsonl(outbox_path), now)
+        item = next((candidate for candidate in active if candidate.get("id") == item_id), None)
         if item is None:
             print("unknown outbox item", file=sys.stderr)
-            return 2
+            return 3
         note = item.get("note", "")
         if not _reserve_signal(state_dir, now):
             desire_state.update_outbox_item(outbox_path, item_id, {"blocked_by": "budget"})
@@ -141,25 +141,43 @@ def _outbox_send(item_id, now, opener):
             return 1
         _audit(state_dir, now, "signal_reserved", note=note, outbox_id=item_id)
 
-    event_id, failure = _deliver(note, now, opener)
+    event_id, failure, connected = _deliver(note, now, opener)
 
     with desire_state.state_lock(state_dir):
-        desire_state.record_transport(state_dir, failure is None, now)
         if failure is None:
             desire_state.release_outbox_item(outbox_path, item_id)
             _audit(state_dir, now, "signal_sent", event_id=event_id, note=note, outbox_id=item_id)
+            desire_state.record_transport(state_dir, connected, now)
             return 0
         _refund_signal(state_dir, now, reservation_date)
-        attempts = item.get("attempts")
-        attempts = attempts if isinstance(attempts, int) else 1
-        desire_state.update_outbox_item(
-            outbox_path,
-            item_id,
-            {"blocked_by": "error", "attempts": attempts + 1, "last_failed_at": now.isoformat()},
+        current = next(
+            (
+                candidate
+                for candidate in desire_state.read_jsonl(outbox_path)
+                if isinstance(candidate, dict) and candidate.get("id") == item_id
+            ),
+            None,
         )
-        _audit(
-            state_dir, now, "signal_failed", event_id=event_id, reason=failure, note=note, outbox_id=item_id
-        )
+        if current is None:
+            _audit(state_dir, now, "signal_failed", event_id=event_id, reason=failure, note=note)
+        else:
+            attempts = current.get("attempts")
+            attempts = attempts if isinstance(attempts, int) else 1
+            desire_state.update_outbox_item(
+                outbox_path,
+                item_id,
+                {"blocked_by": "error", "attempts": attempts + 1, "last_failed_at": now.isoformat()},
+            )
+            _audit(
+                state_dir,
+                now,
+                "signal_failed",
+                event_id=event_id,
+                reason=failure,
+                note=note,
+                outbox_id=item_id,
+            )
+        desire_state.record_transport(state_dir, connected, now)
     print(f"signal delivery failed: {failure}", file=sys.stderr)
     return 1
 
@@ -223,11 +241,7 @@ def _outbox_list(now):
     state_dir = desire_state.resolve_state_dir()
     with desire_state.state_lock(state_dir):
         _normalized_state(state_dir, now)
-        values = [
-            item
-            for item in desire_state.read_jsonl(state_dir / "outbox.jsonl")
-            if desire_state.valid_outbox_item(item)
-        ]
+        values = desire_state.active_outbox(desire_state.read_jsonl(state_dir / "outbox.jsonl"), now)
     print(json.dumps(values, ensure_ascii=False))
     return 0
 
@@ -237,7 +251,7 @@ def _outbox_release(item_id, why, now):
     with desire_state.state_lock(state_dir):
         if not desire_state.release_outbox_item(state_dir / "outbox.jsonl", item_id):
             print("unknown outbox item", file=sys.stderr)
-            return 1
+            return 3
         _audit(state_dir, now, "outbox_released", id=item_id, why=why)
     return 0
 

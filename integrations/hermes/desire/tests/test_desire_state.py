@@ -507,3 +507,37 @@ def test_record_transport_tracks_since_and_consecutive_failures(state_dir, at, s
     }
     (state_dir / "transport.json").write_text("{bad", encoding="utf-8")
     assert desire_state.read_transport(state_dir) is None
+
+
+def test_read_transport_rejects_json_valid_non_object(state_dir):
+    (state_dir / "transport.json").write_text("[]", encoding="utf-8")
+    assert desire_state.read_transport(state_dir) is None
+    (state_dir / "transport.json").write_text('"garbage"', encoding="utf-8")
+    assert desire_state.read_transport(state_dir) is None
+
+
+def test_record_transport_quarantines_corrupt_file(state_dir, at, state_helpers):
+    _, _, read_json, read_jsonl = state_helpers
+    now = at("2026-08-25T12:00:00+09:00")
+    (state_dir / "transport.json").write_text("[]", encoding="utf-8")
+
+    value = desire_state.record_transport(state_dir, False, now)
+
+    assert value["state"] == "down"
+    assert read_json(state_dir / "transport.json") == value
+    assert list(state_dir.glob("transport.json.corrupt-*"))
+    assert read_jsonl(state_dir / "audit.jsonl")[-1] == {
+        "at": now.isoformat(),
+        "event": "state_corrupt_recovered",
+        "file": "transport.json",
+    }
+
+
+def test_record_transport_skips_probe_older_than_last_check(state_dir, at, state_helpers):
+    _, _, read_json, _ = state_helpers
+    newer = at("2026-08-25T12:00:00+09:00")
+    older = newer - timedelta(minutes=5)
+
+    recorded = desire_state.record_transport(state_dir, True, newer)
+    assert desire_state.record_transport(state_dir, False, older) == recorded
+    assert read_json(state_dir / "transport.json") == recorded

@@ -265,7 +265,7 @@ def read_transport(state_dir: Path) -> dict | None:
 
     try:
         value = json.loads((Path(state_dir) / "transport.json").read_text(encoding="utf-8"))
-        if value.get("state") not in ("up", "down"):
+        if not isinstance(value, dict) or value.get("state") not in ("up", "down"):
             return None
         parse_timestamp(value["since"])
         return {**value, "failed": int(value.get("failed", 0))}
@@ -274,12 +274,26 @@ def read_transport(state_dir: Path) -> dict | None:
 
 
 def record_transport(state_dir: Path, reachable: bool, now: datetime) -> dict:
-    """Record one delivery or probe outcome; ``since`` marks the start of the current state."""
+    """Record one delivery or probe outcome; ``since`` marks the start of the current state.
+
+    An outcome older than the recorded ``last_checked_at`` is discarded. An unreadable
+    ``transport.json`` is quarantined like the other state files before the rebuild.
+    """
 
     now = normalize_now(now)
     state_dir = Path(state_dir)
+    path = state_dir / "transport.json"
     with state_lock(state_dir):
         previous = read_transport(state_dir)
+        if previous is None and path.exists():
+            _recover_invalid_json_locked(path, None, now)
+            path.unlink(missing_ok=True)
+        if previous is not None:
+            try:
+                if parse_timestamp(previous["last_checked_at"]) > now:
+                    return previous
+            except (KeyError, TypeError, ValueError):
+                pass
         state = "up" if reachable else "down"
         unchanged = previous is not None and previous["state"] == state
         value = {
@@ -288,7 +302,7 @@ def record_transport(state_dir: Path, reachable: bool, now: datetime) -> dict:
             "failed": 0 if reachable else (previous["failed"] if previous else 0) + 1,
             "last_checked_at": now.isoformat(),
         }
-        write_json_atomic(state_dir / "transport.json", value)
+        write_json_atomic(path, value)
         return value
 
 

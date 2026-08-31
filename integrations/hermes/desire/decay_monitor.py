@@ -9,16 +9,18 @@ from urllib.parse import urlsplit
 
 import desire_state
 
+PROBE_TIMEOUT = 2
+
 
 def probe_transport() -> bool:
     """Report whether the YUI signals ingress accepts a TCP connection right now."""
 
-    target = urlsplit(os.environ.get("YUI_SIGNALS_URL", desire_state.DEFAULT_SIGNALS_URL))
+    target = urlsplit(os.environ.get("YUI_SIGNALS_URL") or desire_state.DEFAULT_SIGNALS_URL)
     if not target.hostname:
         return False
     try:
         port = target.port or (443 if target.scheme == "https" else 80)
-        with socket.create_connection((target.hostname, port), timeout=2):
+        with socket.create_connection((target.hostname, port), timeout=PROBE_TIMEOUT):
             return True
     except (OSError, ValueError):
         return False

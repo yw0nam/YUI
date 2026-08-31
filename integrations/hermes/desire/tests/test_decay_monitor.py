@@ -436,3 +436,12 @@ def test_pent_up_stage_follows_the_oldest_active_item(state_dir, at, state_helpe
     )
 
     assert " outbox:2/heavy " in decay_monitor.run(now)
+
+
+def test_probe_falls_back_to_default_url_when_env_is_empty(monkeypatch):
+    from tests.conftest import free_port
+
+    monkeypatch.setenv("YUI_SIGNALS_URL", "")
+    monkeypatch.setattr(desire_state, "DEFAULT_SIGNALS_URL", f"http://127.0.0.1:{free_port()}/signals")
+
+    assert decay_monitor.probe_transport() is False

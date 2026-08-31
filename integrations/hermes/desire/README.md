@@ -134,8 +134,9 @@ without speaking.
 Replies to Youngwoo's comments are not routed through this helper and are uncapped. `signal --note` posts a new
 note; `outbox --send <id>` posts an existing pent-up note and shares the same budget. Signal reservations are
 refunded after a delivery failure; a failed new note enters the outbox with `attempts` 1, and a failed resend
-increments the existing item's `attempts` instead of adding another item. `outbox --send` exits 0 after delivery,
-1 when blocked or failed, and 2 for an unknown id. Issue and comment actions use reserve,
+increments the existing item's `attempts` instead of adding another item. `outbox --list` shows only active
+(unexpired) items and `--send` accepts only their ids. `outbox --send` exits 0 after delivery, 1 when
+blocked or failed, and 3 for an unknown id; `outbox --release` also exits 3 for an unknown id. Issue and comment actions use reserve,
 commit, and release commands so external `gh` calls do not hold the state lock. Pending reservations survive
 midnight; the monitor prunes reservations older than seven days.
 
