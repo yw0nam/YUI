@@ -210,6 +210,10 @@ function makeHarness(
     resumeSit,
     abandonSit,
     release,
+    /** Arm a fresh commit-origin sit, the way a later drop release would. */
+    rearm: () => {
+      armed = true;
+    },
   };
 }
 
@@ -354,6 +358,28 @@ describe("createPercher", () => {
     expect(h.walkerCancel).toHaveBeenCalledTimes(1);
     expect(h.release).toHaveBeenCalledTimes(1);
     expect(h.resumeSit).not.toHaveBeenCalled();
+  });
+
+  it("dwells again on a fresh sit after the host vanished mid-stroll", async () => {
+    const walking = deferred<"arrived" | "lost">();
+    let windows = [HOST];
+    const h = makeHarness({ walk: walking.promise, windows: async () => windows });
+    h.percher.start();
+    await h.frame();
+    await h.frame(1.1);
+    windows = [];
+    await h.frame(0.8);
+    expect(h.release).toHaveBeenCalledTimes(1);
+
+    walking.resolve("arrived");
+    await h.frame();
+    windows = [HOST];
+    h.rearm();
+
+    await h.frame();
+    await h.frame(1.1);
+
+    expect(h.walkTo).toHaveBeenCalledTimes(2);
   });
 
   it("uses the existing exit path after two moved-host samples beyond MOVE_TH", async () => {

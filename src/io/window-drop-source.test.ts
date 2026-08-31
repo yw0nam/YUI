@@ -1854,6 +1854,20 @@ describe("window-drop-source — adoptSit", () => {
     expect(pushed.map((event) => event.event_name)).toEqual(["user.window_sit_exit"]);
   });
 
+  it("leaves a live sit and its poll alone when nothing is suspended", async () => {
+    const { source, renderer, invoke } = adopted();
+    renderer.setPerchTarget.mockClear();
+    invoke.mockClear();
+
+    source.abandonSit();
+
+    expect(source.armedSit()).toEqual({ windowNumber: 42, origin: "adopt" });
+    expect(renderer.setPerchTarget).not.toHaveBeenCalled();
+    await tick();
+    expect(invoke).toHaveBeenCalled();
+    expect(pushed).toEqual([]);
+  });
+
   it("quietly abandons a suspended sit and prevents a later resume", async () => {
     const { source, renderer, invoke } = adopted();
     source.suspendSit();
