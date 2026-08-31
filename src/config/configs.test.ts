@@ -344,12 +344,14 @@ describe("configs/motions.json", () => {
     expect(m[id].root_lock_y).toBe(true);
   });
 
-  it("registers jump beside walk, so a jump replaces the stroll and a pickup replaces it", () => {
+  it("registers jump as a self-ending clip that outranks idle and yields to a pickup", () => {
     expect(m.jump).toBeDefined();
     expect(m.jump.vrma_path).toBe("/motions/jump.vrma");
-    expect(m.jump.kind).toBe("reactive");
+    // It ends by itself, the convention the other self-ending clips already follow.
+    expect(m.jump.kind).toBe("oneshot");
     expect(m.jump.loop).toBe(false);
-    expect(m.jump.priority).toBe(m.walk.priority);
+    // The walk has handed the body back to idle by the time she takes off.
+    expect(m.jump.priority).toBeGreaterThan(m.idle.priority);
     expect(m.jump.priority).toBeLessThan(m.drag.priority);
     expect(m.jump.interrupt_policy).toBe("replace");
     expect(m.jump.broker_publish).toBe(false);
