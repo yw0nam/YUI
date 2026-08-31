@@ -6,6 +6,7 @@ import {
   wireFaller,
   wireGuardrailsOverrides,
   wirePeekExitTriggers,
+  wirePercher,
   type wireSpeakerSelection,
   wireStopControl,
   wireSummonHotkey,
@@ -486,6 +487,7 @@ const realFactories: ConfiguredBootstrapFactories = {
 
     // Set once the climber exists — the drop source is built before it and cancels it.
     let climberRef: { cancel(): void } | null = null;
+    let percherRef: { cancel(): void } | null = null;
     const windowSources = wireWindowSources({
       bus,
       renderer,
@@ -503,11 +505,24 @@ const realFactories: ConfiguredBootstrapFactories = {
         walker.cancel();
         faller.cancel();
         climberRef?.cancel();
+        percherRef?.cancel();
       },
       onDragMiss: () => faller.drop(),
       log,
     });
     register(windowSources.dispose);
+
+    const percher = wirePercher({
+      bus,
+      renderer,
+      getPerchWalkConfig: () => config.get().avatar.perch_walk,
+      walker,
+      dropSource: windowSources,
+      setHitTestMoving: (moving) => hitTest.setMoving(moving),
+      log,
+    });
+    percherRef = percher;
+    register(percher.dispose);
 
     // Ambient climbing: a wall now and then, a sit on top, then back down to the floor.
     const climber = wireClimber({
@@ -542,6 +557,7 @@ const realFactories: ConfiguredBootstrapFactories = {
         walker.cancel();
         faller.cancel();
         climber.cancel();
+        percher.cancel();
         hitTest.suspend();
         dragHold.noteDragStart();
         windowSources.noteUserDrag();

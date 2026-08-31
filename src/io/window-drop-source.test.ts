@@ -23,11 +23,15 @@ import {
 } from "./window-drop-source";
 
 function createWindowDropSource(
-  deps: Omit<WindowDropSourceDeps, "getPeekConfig" | "getGestureCues"> &
-    Partial<Pick<WindowDropSourceDeps, "getPeekConfig" | "getGestureCues">>,
+  deps: Omit<WindowDropSourceDeps, "getPeekConfig" | "getGestureCues" | "renderer"> &
+    Partial<Pick<WindowDropSourceDeps, "getPeekConfig" | "getGestureCues">> & {
+      renderer: Omit<WindowDropSourceDeps["renderer"], "setPerchTarget"> &
+        Partial<Pick<WindowDropSourceDeps["renderer"], "setPerchTarget">>;
+    },
 ) {
   return createWindowDropSourceImpl({
     ...deps,
+    renderer: { setPerchTarget: () => {}, ...deps.renderer },
     getPeekConfig: deps.getPeekConfig ?? (() => PEEK_DEFAULTS),
     getGestureCues: deps.getGestureCues ?? (() => GESTURE_CUES_DEFAULTS),
   });

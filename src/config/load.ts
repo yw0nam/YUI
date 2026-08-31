@@ -119,6 +119,23 @@ export const WALK_DEFAULTS: WalkConfig = {
   floor_tolerance_px: 24,
 };
 
+/** Ambient stroll knobs for a drag-origin window-top perch. */
+export interface PerchWalkConfig {
+  dwell_min_ms: number;
+  dwell_max_ms: number;
+  distance_min_px: number;
+  distance_max_px: number;
+  edge_margin_frac: number;
+}
+
+export const PERCH_WALK_DEFAULTS: PerchWalkConfig = {
+  dwell_min_ms: 45_000,
+  dwell_max_ms: 120_000,
+  distance_min_px: 80,
+  distance_max_px: 400,
+  edge_margin_frac: 0.2,
+};
+
 /** Drag-release fall dynamics. Distances and speeds are logical px. */
 export interface FallConfig {
   /** Downward acceleration while the character falls. */
@@ -222,6 +239,8 @@ export interface AvatarConfig {
   peek: PeekConfig;
   /** Ambient floor-stroll knobs. Defaults are applied by the validator. */
   walk: WalkConfig;
+  /** Ambient stroll knobs for a drag-origin window-top perch. */
+  perch_walk: PerchWalkConfig;
   /** Drag-release fall knobs. Defaults are applied by the validator. */
   fall: FallConfig;
   /** Ambient window-climb knobs. Defaults are applied by the validator. */

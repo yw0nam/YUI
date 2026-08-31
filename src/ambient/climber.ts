@@ -9,10 +9,10 @@
  * world↔px projection, so the hands never slide at any window size or scale factor.
  *
  * A climb is: walk to the wall → face it → `climb_up` up the wall → `climb_up_done`
- * over the ledge → sit. The descent, which every sit gets — this module's own, a drag
- * drop, an agent placement — is: release the perch → walk to the nearer edge → face the
- * wall → drop onto it → `climb_down` → `climb_down_landing` on the floor. A window whose
- * bottom hangs above the floor hands the last stretch to the faller.
+ * over the ledge → sit. A climb-origin sit later descends by releasing the perch, walking
+ * to the nearer edge, facing the wall, and playing `climb_down` then
+ * `climb_down_landing`. A window whose bottom hangs above the floor hands the last stretch
+ * to the faller.
  *
  * Ownership is user > agent > ambient, but only a pickup or an agent move cancels: an
  * express clip taking the body holds the window where it is and the climb clip is
@@ -411,7 +411,7 @@ export interface ClimberDeps {
   dropSource: {
     adoptSit(windowNumber: number, rect: { x: number; y: number }, charHpx: number): void;
     /** The window an armed sit is held on — which wall a descent belongs to. */
-    armedSit(): { windowNumber: number } | null;
+    armedSit(): { windowNumber: number; origin: "commit" | "adopt" } | null;
     release(): void;
   };
   /** A climb began — posture goes climbing and the hit test follows the moving window. */
@@ -893,7 +893,7 @@ export function createClimber(deps: ClimberDeps): Climber {
     const cfg = deps.getConfig();
     const walkCfg = deps.getWalkConfig();
     const sit = deps.dropSource.armedSit();
-    if (!sit) return;
+    if (sit?.origin !== "adopt") return;
     const w = await survey(startedAt);
     if (!w) return;
     const picked = pickDescentTarget({
@@ -1056,9 +1056,13 @@ export function createClimber(deps: ClimberDeps): Climber {
       pumpWatch();
       return;
     }
-    // The dwell belongs to the sit, whoever caused it; the interval belongs to the floor.
+    // The dwell belongs to a climb-origin sit; the interval belongs to the floor.
     if (renderer.isPerched()) {
       nextUpAtMs = -1;
+      if (deps.dropSource.armedSit()?.origin !== "adopt") {
+        dwellAtMs = -1;
+        return;
+      }
       if (dwellAtMs < 0) {
         dwellAtMs = nowMs + nextDwell(deps.getConfig(), rng);
         return;

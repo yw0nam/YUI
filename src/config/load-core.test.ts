@@ -63,6 +63,13 @@ describe("loadConfig — happy path", () => {
         distance_max_px: 600,
         floor_tolerance_px: 24,
       },
+      perch_walk: {
+        dwell_min_ms: 45_000,
+        dwell_max_ms: 120_000,
+        distance_min_px: 80,
+        distance_max_px: 400,
+        edge_margin_frac: 0.2,
+      },
       fall: {
         gravity_px_s2: 1600,
         max_speed_px_s: 1200,

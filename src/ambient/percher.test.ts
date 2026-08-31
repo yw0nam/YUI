@@ -205,7 +205,7 @@ describe("createPercher", () => {
   });
 
   it("re-dwells without suspending on a narrow host window", async () => {
-    const narrow = { ...HOST, width: 210 };
+    const narrow = { ...HOST, x: 1095, width: 210 };
     const h = makeHarness({ windows: async () => [narrow] });
     h.percher.start();
 
