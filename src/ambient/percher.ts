@@ -256,7 +256,6 @@ export function createPercher(deps: PercherDeps): Percher {
     charHpx: number,
     scale: number,
     win: PercherWindow,
-    windows: WindowRect[],
   ): Promise<JumpOutcome> {
     const target = plan.target;
     const outcome = await deps.jumper.jump(plan, { anchor, charHpx, scale }, () => {
@@ -280,6 +279,10 @@ export function createPercher(deps: PercherDeps): Percher {
       deps.onTargetLost();
       return outcome;
     }
+    // The stack she planned against is a walk and a flight old by now; a window that has
+    // slid over the target's top since then bounds this leg.
+    const windows = await deps.listWindows();
+    if (!alive(startedAt)) return "cancelled";
     const targetIndex = windows.findIndex((w) => w.windowNumber === target.windowNumber);
     const span = uncoveredSpan(windows, targetIndex, plan.landingX);
     const leg = planPerchStroll({
@@ -295,7 +298,7 @@ export function createPercher(deps: PercherDeps): Percher {
     if (!leg) deps.renderer.setBodyYaw(0, WALK_YAW_EASE_MS);
     if (leg) {
       // She is standing on the target now, so the last stretch watches that window.
-      await deps.walker.walkTo(leg.centerX - anchor.x, () => {
+      const walked = await deps.walker.walkTo(leg.centerX - anchor.x, () => {
         stroll = {
           host: target,
           nextWatchAtMs: nowMs + PERCH_POLL_MS,
@@ -305,6 +308,13 @@ export function createPercher(deps: PercherDeps): Percher {
       });
       if (!alive(startedAt)) return "cancelled";
       stroll = null;
+      // A leg that never arrived leaves her somewhere along the top rather than on the
+      // seat it was walking to, so nothing is armed and she simply stands there.
+      if (walked !== "arrived") {
+        log.debug("jump_skipped", { reason: "leg_not_arrived" });
+        endWalkCue();
+        return outcome;
+      }
     }
     const applied = await win.outerPosition();
     if (!alive(startedAt)) return "cancelled";
@@ -438,8 +448,7 @@ export function createPercher(deps: PercherDeps): Percher {
       if (jumpTo && walked === "arrived") {
         // Only a refusal leaves her still on the host, with the seat to put back.
         if (
-          (await runJump(startedAt, jumpTo, host, anchor, probe.charHpx, scale, win, windows)) !==
-          "refused"
+          (await runJump(startedAt, jumpTo, host, anchor, probe.charHpx, scale, win)) !== "refused"
         ) {
           return;
         }
