@@ -421,8 +421,13 @@ export function createWindowDropSource(deps: WindowDropSourceDeps): WindowDropSo
       const need = reason === "gone" ? 1 : PERCH_AMBIGUOUS_LOST_TICKS;
       if (lostStreak >= need) {
         pushArmedExit(kind);
-        // The exit leaves the character standing where the seat was; a sit owes a fall.
-        if (kind === "sit") deps.onSitLost?.();
+        if (kind === "sit") {
+          // The exit leaves the character standing where the seat was; a sit owes a fall.
+          // The dispatcher clears the pin on that exit a pump later, too late for a fall
+          // starting here — the perch hold would swallow the falling clip until then.
+          renderer.setPerchTarget(null);
+          deps.onSitLost?.();
+        }
       }
     } else {
       lostStreak = 0;

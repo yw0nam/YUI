@@ -157,6 +157,20 @@ export function createPatGesture(deps: {
   };
 }
 
+/**
+ * The fall a lost sit starts. A descent still inside its window survey resumes on a stale
+ * list and moves the window from under the faller, so the climb lets go before the drop.
+ */
+export function createSitLossFall(deps: {
+  getClimber: () => { cancel(): void } | null;
+  faller: { drop(): void };
+}): () => void {
+  return () => {
+    deps.getClimber()?.cancel();
+    deps.faller.drop();
+  };
+}
+
 const realFactories: ConfiguredBootstrapFactories = {
   async create(cfg, phase1, register) {
     const {
@@ -508,7 +522,7 @@ const realFactories: ConfiguredBootstrapFactories = {
         percherRef?.cancel();
       },
       onDragMiss: () => faller.drop(),
-      onSitLost: () => faller.drop(),
+      onSitLost: createSitLossFall({ getClimber: () => climberRef, faller }),
       log,
     });
     register(windowSources.dispose);
