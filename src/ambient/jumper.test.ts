@@ -219,7 +219,11 @@ function makeJumper(
     tick?.({ vrm: {} as never, dt, elapsed } as TickContext);
     for (let i = 0; i < 12; i++) await Promise.resolve();
   };
-  return { jumper, frame, positions, playMotion, preloadMotion, onTakeoff };
+  /** Something else takes the body — an emote, the thinking hold, a pat. */
+  const steal = () => {
+    playing = "thinking";
+  };
+  return { jumper, frame, positions, playMotion, preloadMotion, onTakeoff, steal };
 }
 
 /** Start the jump; the returned promise settles on whatever a later frame decides. */
@@ -259,16 +263,49 @@ describe("createJumper", () => {
     );
   });
 
-  it("announces the takeoff once, as soon as the clip takes the body", async () => {
+  it("announces the takeoff on the frame the window first moves, not when the clip starts", async () => {
     const h = makeJumper();
     const outcome = flying(h);
+    await h.frame(0.6);
+
+    // The clip has the body, but she is still crouching on the host.
+    expect(h.playMotion).toHaveBeenCalledWith({ id: "jump" });
+    expect(h.onTakeoff).not.toHaveBeenCalled();
+    expect(h.positions).toEqual([]);
+
+    await h.frame(0.1);
+    expect(h.onTakeoff).toHaveBeenCalledTimes(1);
+    expect(h.positions).toHaveLength(1);
+
+    await h.frame(0.5);
+    await expect(outcome).resolves.toBe("landed");
+    expect(h.onTakeoff).toHaveBeenCalledTimes(1);
+  });
+
+  it("refuses the jump when the clip is taken away during the crouch", async () => {
+    const h = makeJumper();
+    const outcome = flying(h);
+    await h.frame(0.2);
+    h.steal();
+
     await h.frame(0.1);
 
-    expect(h.playMotion).toHaveBeenCalledWith({ id: "jump" });
-    expect(h.onTakeoff).toHaveBeenCalledTimes(1);
+    // She never left the host, so the caller still has a seat to put back.
+    await expect(outcome).resolves.toBe("refused");
+    expect(h.positions).toEqual([]);
+    expect(h.onTakeoff).not.toHaveBeenCalled();
+  });
 
-    await h.frame(1.1);
-    await expect(outcome).resolves.toBe("landed");
+  it("strands her in mid-air when the clip is taken away after she has left", async () => {
+    const h = makeJumper();
+    const outcome = flying(h);
+    await h.frame(0.7);
+    expect(h.positions.length).toBeGreaterThan(0);
+    h.steal();
+
+    await h.frame(0.1);
+
+    await expect(outcome).resolves.toBe("lost");
     expect(h.onTakeoff).toHaveBeenCalledTimes(1);
   });
 
