@@ -135,8 +135,9 @@ export interface Jumper {
   /**
    * Cross to `plan.target`, the character already standing on the host's edge at
    * `plan.takeoffX`. `anchor` is the feet offset inside the pet window (logical px).
-   * `onTakeoff` fires once the clip has the body and the target is confirmed — the point
-   * of no return, after which the caller's old seat is gone.
+   * `onTakeoff` fires on the frame her feet actually leave the host — the point of no
+   * return, after which the caller's old seat is gone. A clip taken away before that
+   * comes back `refused`, with her still standing where she started.
    */
   jump(
     plan: JumpPlan,
@@ -156,8 +157,11 @@ interface Flight {
   to: { x: number; y: number };
   /** Apex height above the higher of the two tops, physical px. */
   lift: number;
+  /** The window has moved at least once, so she is off the host and owes a landing. */
+  airborne: boolean;
   /** The landing read is out — later frames leave the window alone until it comes back. */
   landing: boolean;
+  onTakeoff?: () => void;
   settle: (outcome: JumpOutcome) => void;
 }
 
@@ -218,9 +222,10 @@ export function createJumper(deps: JumperDeps): Jumper {
     const f = flight;
     if (!f || f.landing) return;
     // Anything else taking the clip takes the playhead with it, and a window driven off
-    // another clip's time would go anywhere — she is in the air, so hand her to the fall.
+    // another clip's time would go anywhere. Before the first move she is still standing
+    // on the host, so the jump is simply off; after it she is in the air and owes a fall.
     if (renderer.getCurrentMotion()?.id !== JUMP_MOTION_ID) {
-      finish("lost");
+      finish(f.airborne ? "lost" : "refused");
       return;
     }
     const duration = renderer.getMotionDuration(JUMP_MOTION_ID);
@@ -231,6 +236,11 @@ export function createJumper(deps: JumperDeps): Jumper {
     // recovery are danced on the spot.
     if (played < f.cfg.takeoff_frac) return;
     const u = Math.min((played - f.cfg.takeoff_frac) / (f.cfg.land_frac - f.cfg.takeoff_frac), 1);
+    if (!f.airborne) {
+      // Her feet leave the host on this frame, and the seat behind her goes with them.
+      f.airborne = true;
+      f.onTakeoff?.();
+    }
     if (u >= 1) {
       land(f);
       return;
@@ -258,7 +268,6 @@ export function createJumper(deps: JumperDeps): Jumper {
         log.debug("jump_skipped", { reason: "clip_refused" });
         return "refused";
       }
-      onTakeoff?.();
       const cfg = deps.getConfig();
       return new Promise((settle) => {
         flight = {
@@ -271,7 +280,9 @@ export function createJumper(deps: JumperDeps): Jumper {
             y: (plan.target.y - at.anchor.y) * at.scale,
           },
           lift: cfg.apex_lift_frac * at.charHpx * at.scale,
+          airborne: false,
           landing: false,
+          onTakeoff,
           settle,
         };
         unsub = renderer.onTick(tick);
