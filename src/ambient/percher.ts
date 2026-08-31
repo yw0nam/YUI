@@ -286,6 +286,10 @@ export function createPercher(deps: PercherDeps): Percher {
       if (suspended.origin !== "commit") return;
       await win.setPositionPhysical(pos.x, Math.round(standingY * scale));
       if (!alive(startedAt)) return;
+      // Where the window manager actually put the window, which is what decides whether the
+      // feet ended up on the edge or somewhere down the window's face.
+      const stood = await win.outerPosition();
+      if (!alive(startedAt)) return;
       let accepted = false;
       await deps.walker.walkTo(plan.centerX - anchor.x, () => {
         accepted = true;
@@ -295,6 +299,11 @@ export function createPercher(deps: PercherDeps): Percher {
           fromX: Math.round(fromX),
           toX: Math.round(plan.centerX),
           direction: plan.direction,
+          hostTop: host.y,
+          anchorY: anchor.y,
+          standingY: Math.round(standingY),
+          windowY: Math.round(stood.y / scale),
+          scale,
         });
         deps.onWalkStart();
       });
@@ -311,6 +320,7 @@ export function createPercher(deps: PercherDeps): Percher {
         windowNumber: host.windowNumber,
         x: Math.round(applied.x / scale + anchor.x),
         edgeLocalYpx: Math.round(edgeLocalYpx),
+        windowY: Math.round(applied.y / scale),
       });
       deps.onSit(host, edgeLocalYpx);
       rearmDwell();
