@@ -3,6 +3,7 @@ import {
   type ConfiguredBootstrapFactories,
   createConfiguredBootstrap,
   createPatGesture,
+  createSitLossFall,
 } from "./bootstrap-configured";
 import { type AppConfig, ATTACHMENT_LIMITS_DEFAULTS } from "./config";
 
@@ -247,5 +248,33 @@ describe("createPatGesture", () => {
     expect(pat.isPatPoint({ x: 5, y: 6 })).toBe(true);
     expect(tapSource.isHeadPoint).toHaveBeenCalledWith({ x: 5, y: 6 });
     expect(pat.holdMs()).toBe(300);
+  });
+});
+
+describe("createSitLossFall", () => {
+  it("stops a running climb before handing the window to the fall", () => {
+    const order: string[] = [];
+    const climber = { cancel: () => order.push("climber.cancel") };
+    const onSitLost = createSitLossFall({
+      getClimber: () => climber,
+      faller: { drop: () => order.push("faller.drop") },
+    });
+
+    onSitLost();
+
+    // A descent still inside its window survey would resume onto a falling window.
+    expect(order).toEqual(["climber.cancel", "faller.drop"]);
+  });
+
+  it("falls when no climb is running", () => {
+    const order: string[] = [];
+    const onSitLost = createSitLossFall({
+      getClimber: () => null,
+      faller: { drop: () => order.push("faller.drop") },
+    });
+
+    onSitLost();
+
+    expect(order).toEqual(["faller.drop"]);
   });
 });

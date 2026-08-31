@@ -1913,8 +1913,10 @@ describe("window-drop-source — adoptSit", () => {
 // ── Host loss → fall ────────────────────────────────────────────────────────
 //
 // An armed sit that loses its host leaves the character standing in mid-air, so
-// the loss publishes today's exit and then hands the body to the faller. The
-// peek is unchanged, and a deliberate release() never falls.
+// the loss publishes today's exit, drops the renderer's perch pin, and then hands
+// the body to the faller. The pin has to go first: the dispatcher's own clear
+// arrives a pump later, and the perch hold would swallow the falling clip until
+// then. The peek is unchanged, and a deliberate release() never falls.
 describe("window-drop-source — host loss fall", () => {
   beforeEach(() => {
     vi.useFakeTimers();
@@ -1923,13 +1925,16 @@ describe("window-drop-source — host loss fall", () => {
     vi.useRealTimers();
   });
 
-  /** Arm a sit through a real drop, recording exits and the fall call in one order. */
+  /** Arm a sit through a real drop, recording exits, the pin clear and the fall in one order. */
   async function armSit() {
     const probe = makePerchSource();
     const armed = win({ name: "Armed", windowNumber: 42, y: 412 });
     const invoke = vi.fn(async () => [armed]);
     const { listen, fire } = makeListen();
     const order: string[] = [];
+    probe.renderer.setPerchTarget.mockImplementation((target) => {
+      order.push(target === null ? "unpin" : "pin");
+    });
     const onSitLost = vi.fn(() => {
       order.push("fall");
     });
@@ -1962,7 +1967,7 @@ describe("window-drop-source — host loss fall", () => {
     invoke.mockImplementation(async () => []);
     await tick();
 
-    expect(order).toEqual(["user.window_sit_exit", "fall"]);
+    expect(order).toEqual(["user.window_sit_exit", "unpin", "fall"]);
     expect(onSitLost).toHaveBeenCalledTimes(1);
   });
 
@@ -1974,7 +1979,7 @@ describe("window-drop-source — host loss fall", () => {
     expect(onSitLost).not.toHaveBeenCalled();
     await tick();
 
-    expect(order).toEqual(["user.window_sit_exit", "fall"]);
+    expect(order).toEqual(["user.window_sit_exit", "unpin", "fall"]);
     expect(onSitLost).toHaveBeenCalledTimes(1);
   });
 
@@ -1987,7 +1992,7 @@ describe("window-drop-source — host loss fall", () => {
     expect(onSitLost).not.toHaveBeenCalled();
     await tick();
 
-    expect(order).toEqual(["user.window_sit_exit", "fall"]);
+    expect(order).toEqual(["user.window_sit_exit", "unpin", "fall"]);
     expect(onSitLost).toHaveBeenCalledTimes(1);
   });
 
@@ -2010,6 +2015,7 @@ describe("window-drop-source — host loss fall", () => {
     await tick();
 
     expect(pushed.map((event) => event.event_name)).toEqual(["user.window_sit_exit"]);
+    expect(renderer.setPerchTarget).toHaveBeenCalledWith(null);
     expect(onSitLost).toHaveBeenCalledTimes(1);
   });
 
@@ -2018,6 +2024,7 @@ describe("window-drop-source — host loss fall", () => {
     const renderer = {
       getPerchProbe: vi.fn(() => ({ seatPx: { x: 300, y: 300 }, charHpx: 200 })),
       isPerched: vi.fn(() => false),
+      setPerchTarget: vi.fn(),
     };
     const armed = win({ x: 300, y: 100, width: 520, height: 500, windowNumber: 42 });
     const invoke = vi.fn(async () => [armed]);
@@ -2041,14 +2048,16 @@ describe("window-drop-source — host loss fall", () => {
     await tick();
 
     expect(pushed.filter((event) => event.event_name === "user.peek_exit")).toHaveLength(1);
+    expect(renderer.setPerchTarget).not.toHaveBeenCalled();
     expect(onSitLost).not.toHaveBeenCalled();
   });
 
-  it("does not fall on a deliberate release", async () => {
+  it("does not fall or drop the pin on a deliberate release", async () => {
     const { source, onSitLost, order } = await armSit();
 
     source.release();
 
+    // The climber calls release() on purpose when it leaves a sit to descend.
     expect(order).toEqual(["user.window_sit_exit"]);
     expect(onSitLost).not.toHaveBeenCalled();
   });
