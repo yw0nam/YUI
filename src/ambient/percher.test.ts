@@ -320,7 +320,12 @@ describe("createPercher", () => {
   });
 
   it("keeps the target out from under a window covering the host edge", async () => {
-    const h = makeHarness({ windows: async () => [cover(1300, 300, 7), HOST] });
+    // A covering window is a jump candidate too, so the stroll's own draws are named
+    // explicitly rather than left to fall wherever the jump's dice leave them.
+    const h = makeHarness({
+      windows: async () => [cover(1300, 300, 7), HOST],
+      rng: seqRng(0, 1, 1),
+    });
     h.percher.start();
 
     await h.frame();
@@ -344,7 +349,10 @@ describe("createPercher", () => {
   });
 
   it("walks the full edge past a window behind the host", async () => {
-    const h = makeHarness({ windows: async () => [HOST, cover(1300, 300, 7)] });
+    const h = makeHarness({
+      windows: async () => [HOST, cover(1300, 300, 7)],
+      rng: seqRng(0, 1, 1, 0),
+    });
     h.percher.start();
 
     await h.frame();

@@ -70,14 +70,21 @@ export function pickJumpTarget(args: {
     if (gap > jumpCfg.gap_max_width_frac * charWpx) continue;
     if (best && (gap > best.gap || (gap === best.gap && rise >= best.rise))) continue;
 
-    const takeoffX = side === "right" ? host.x + host.width - margin : host.x + margin;
+    const toward = side === "right" ? 1 : -1;
+    // She leaves from the far end of the stretch she can actually walk: the host's own
+    // edge across a clear gap, and a covering window's near edge under one.
+    const takeoffX = side === "right" ? hostSpan.right - margin : hostSpan.left + margin;
     if (!reachable(takeoffX, hostSpan, margin)) continue;
-    // Across a gap she lands just inside the near edge; over an overlap the near edge is
-    // behind her, so she carries one body width past the host's own.
-    const nearEdge = side === "right" ? candidate.x : candidate.x + candidate.width;
-    const inward = side === "right" ? 1 : -1;
-    const landingX: number = gap > 0 ? nearEdge + inward * margin : takeoffX + inward * charWpx;
-    if (!reachable(landingX, uncoveredSpan(windows, index, landingX), margin)) continue;
+    // She comes down on the near end of the candidate's stretch, sampled just inside it
+    // on the side she arrives from — measured anywhere else the span would answer for a
+    // different part of that window's top.
+    const probeX = Math.min(
+      Math.max(takeoffX + toward * (gap + margin), candidate.x + margin),
+      candidate.x + candidate.width - margin,
+    );
+    const landingSpan = uncoveredSpan(windows, index, probeX);
+    const landingX = side === "right" ? landingSpan.left + margin : landingSpan.right - margin;
+    if (!reachable(landingX, landingSpan, margin)) continue;
 
     best = { plan: { target: candidate, side, takeoffX, landingX }, gap, rise };
   }
