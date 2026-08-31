@@ -394,6 +394,7 @@ export function createPercher(deps: PercherDeps): Percher {
             charWpx,
             perchCfg: cfg,
             jumpCfg,
+            minStandingTop: monitor.workArea.position.y / scale + anchor.y,
           });
     const jumpTo = neighbour !== null && rng() < jumpCfg.probability ? neighbour : null;
     const plan = jumpTo

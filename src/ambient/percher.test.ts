@@ -858,13 +858,14 @@ describe("createPercher", () => {
   });
 
   it("skips a neighbour standing on whose top the work area would clamp", async () => {
-    // Work area starts at y 1000; standing on the neighbour's top would need y 580.
+    // The work area starts at y 480, which the host's own top clears exactly; standing on
+    // a neighbour whose top is a hundred px higher would be clamped.
     const h = makeHarness({
-      windows: async () => [HOST, { ...NEIGHBOUR, y: 1400 }],
+      windows: async () => [HOST, { ...NEIGHBOUR, y: 800 }],
       monitors: async () => [
         {
           ...MONITOR,
-          workArea: { position: { x: 0, y: 1000 }, size: { width: 3000, height: 900 } },
+          workArea: { position: { x: 0, y: 480 }, size: { width: 3000, height: 1420 } },
         },
       ],
       jumpProbability: 1,

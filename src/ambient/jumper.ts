@@ -49,8 +49,11 @@ export function pickJumpTarget(args: {
   charWpx: number;
   perchCfg: PerchWalkConfig;
   jumpCfg: JumpConfig;
+  /** Highest window top she can stand on: the work-area top plus the feet offset. */
+  minStandingTop: number;
 }): JumpPlan | null {
-  const { windows, hostIndex, currentX, charHpx, charWpx, perchCfg, jumpCfg } = args;
+  const { windows, hostIndex, currentX, charHpx, charWpx, perchCfg, jumpCfg, minStandingTop } =
+    args;
   const host = windows[hostIndex];
   if (!host) return null;
   const margin = perchCfg.edge_margin_frac * charHpx;
@@ -59,6 +62,9 @@ export function pickJumpTarget(args: {
 
   for (const [index, candidate] of windows.entries()) {
     if (index === hostIndex) continue;
+    // The OS clamps the pet window to the work area, so a top above that line would
+    // leave her feet hanging below the edge she landed on.
+    if (candidate.y < minStandingTop) continue;
     const rise = Math.abs(candidate.y - host.y);
     const limit = candidate.y < host.y ? jumpCfg.height_up_max_frac : jumpCfg.height_down_max_frac;
     if (rise > limit * charHpx) continue;
