@@ -437,6 +437,21 @@ describe("createPercher", () => {
     expect(h.walkTo).not.toHaveBeenCalled();
   });
 
+  it("exits and falls when the host is already gone at stroll start", async () => {
+    const h = makeHarness({ windows: async () => [] });
+    h.percher.start();
+    await h.frame();
+
+    await h.frame(1.1);
+
+    // Nothing was suspended and no walk began, so the exit is the whole of it — and it
+    // still leaves her standing where a window no longer is.
+    expect(h.calls).toEqual(["exit", "fall"]);
+    expect(h.suspendSit).not.toHaveBeenCalled();
+    expect(h.walkTo).not.toHaveBeenCalled();
+    expect(h.onHostLost).toHaveBeenCalledTimes(1);
+  });
+
   it("uses the existing exit path when the host vanishes mid-stroll", async () => {
     const walking = deferred<"arrived" | "lost">();
     let windows = [HOST];
