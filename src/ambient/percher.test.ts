@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import type { PerchWalkConfig } from "../config/load";
-import type { WindowRect } from "../contract";
+import type { MotionKind, WindowRect } from "../contract";
+import type { ScreenMonitor } from "../io/screen-geometry";
 import type { TickContext, TickFn } from "../renderer";
 import { createPercher, nextPerchDwell, type PercherDeps, planPerchStroll } from "./percher";
 
@@ -81,6 +82,12 @@ const HOST: WindowRect = {
   windowNumber: 42,
 };
 
+const MONITOR: ScreenMonitor = {
+  position: { x: 0, y: 0 },
+  size: { width: 3000, height: 2000 },
+  workArea: { position: { x: 0, y: 0 }, size: { width: 3000, height: 1900 } },
+};
+
 function deferred<T>() {
   let resolve!: (value: T) => void;
   const promise = new Promise<T>((done) => {
@@ -93,15 +100,34 @@ function makeHarness(
   over: {
     origin?: "commit" | "adopt";
     walk?: Promise<"arrived" | "lost">;
+    walkAccepted?: boolean;
+    walkMovesTo?: { y: number };
     windows?: () => Promise<WindowRect[]>;
+    monitors?: () => Promise<ScreenMonitor[]>;
+    scaleFactor?: number;
+    initialPos?: { x: number; y: number };
+    setPosition?: (x: number, y: number) => Promise<void>;
+    outerPosition?: () => Promise<{ x: number; y: number }>;
+    reducedMotion?: boolean;
+    busy?: boolean;
+    motionKind?: MotionKind | null;
     rng?: () => number;
   } = {},
 ) {
   let tick: TickFn | null = null;
-  let pos = { x: 1000, y: 600 };
+  let pos = over.initialPos ?? { x: 1000, y: 600 };
   let armed = true;
   const calls: string[] = [];
-  const walkTo = vi.fn((_toX: number) => over.walk ?? Promise.resolve("arrived" as const));
+  const walkTo = vi.fn(
+    (toX: number, onAccepted?: () => void): Promise<"arrived" | "lost"> => {
+      if (over.walkAccepted !== false) onAccepted?.();
+      if (over.walkMovesTo) {
+        const scale = over.scaleFactor ?? 1;
+        pos = { x: toX * scale, y: over.walkMovesTo.y };
+      }
+      return over.walk ?? Promise.resolve(over.walkAccepted === false ? "lost" : "arrived");
+    },
+  );
   const walkerCancel = vi.fn();
   const onWalkCancel = vi.fn();
   const suspendSit = vi.fn(() => {
@@ -116,6 +142,10 @@ function makeHarness(
   });
   const resumeSit = vi.fn((_edgeLocalYpx: number) => {
     calls.push("resume");
+  });
+  const abandonSit = vi.fn(() => {
+    armed = false;
+    calls.push("abandon");
   });
   const release = vi.fn(() => {
     armed = false;
@@ -134,14 +164,16 @@ function makeHarness(
       getPerchProbe: () => ({ seatPx: { x: 200, y: 300 }, charHpx: 500 }),
     },
     getWindow: () => ({
-      outerPosition: async () => ({ ...pos }),
-      scaleFactor: async () => 1,
+      outerPosition: over.outerPosition ?? (async () => ({ ...pos })),
+      scaleFactor: async () => over.scaleFactor ?? 1,
       setPositionPhysical: async (x, y) => {
+        if (over.setPosition) return over.setPosition(x, y);
         pos = { x, y };
         positions.push({ ...pos });
       },
     }),
     listWindows: over.windows ?? (async () => [HOST]),
+    listMonitors: over.monitors ?? (async () => [MONITOR]),
     getConfig: () => CFG,
     walker: { walkTo, cancel: walkerCancel },
     dropSource: {
@@ -149,8 +181,12 @@ function makeHarness(
         armed ? { windowNumber: 42, origin: over.origin ?? ("commit" as const) } : null,
       suspendSit,
       resumeSit,
+      abandonSit,
       release,
     },
+    currentMotionKind: () => over.motionKind ?? "ambient",
+    isBusy: () => over.busy ?? false,
+    reducedMotion: () => over.reducedMotion ?? false,
     onWalkStart: () => calls.push("avatar.walk_start"),
     onWalkEnd: () => calls.push("avatar.walk_end"),
     onWalkCancel,
@@ -174,6 +210,7 @@ function makeHarness(
     onWalkCancel,
     suspendSit,
     resumeSit,
+    abandonSit,
     release,
   };
 }
@@ -187,7 +224,7 @@ describe("createPercher", () => {
     await h.frame(1.1);
 
     expect(h.positions).toContainEqual({ x: 1000, y: 480 });
-    expect(h.walkTo).toHaveBeenCalledWith(1080);
+    expect(h.walkTo).toHaveBeenCalledWith(1080, expect.any(Function));
     expect(h.calls).toEqual([
       "suspend",
       "avatar.walk_start",
@@ -215,6 +252,84 @@ describe("createPercher", () => {
     expect(h.suspendSit).not.toHaveBeenCalled();
     expect(h.walkTo).not.toHaveBeenCalled();
     expect(h.calls).toEqual([]);
+  });
+
+  it.each([
+    ["reduced motion", { reducedMotion: true }],
+    ["pipeline busy", { busy: true }],
+    ["a non-ambient current motion", { motionKind: "reactive" as const }],
+  ])("re-dwells before suspending when blocked by %s", async (_label, gate) => {
+    const h = makeHarness(gate);
+    h.percher.start();
+
+    await h.frame();
+    await h.frame(1.1);
+
+    expect(h.suspendSit).not.toHaveBeenCalled();
+    expect(h.walkTo).not.toHaveBeenCalled();
+    expect(h.calls).toEqual([]);
+  });
+
+  it("keeps the sit when the standing position would be clamped above the work area", async () => {
+    const h = makeHarness({
+      windows: async () => [{ ...HOST, y: 450 }],
+      monitors: async () => [
+        {
+          ...MONITOR,
+          workArea: { position: { x: 0, y: 100 }, size: { width: 3000, height: 1800 } },
+        },
+      ],
+    });
+    h.percher.start();
+
+    await h.frame();
+    await h.frame(1.1);
+
+    expect(h.suspendSit).not.toHaveBeenCalled();
+    expect(h.walkTo).not.toHaveBeenCalled();
+    expect(h.positions).toEqual([]);
+  });
+
+  it("applies scale factor conversions and resumes from the post-walk position", async () => {
+    const h = makeHarness({
+      scaleFactor: 2,
+      initialPos: { x: 1980, y: 1200 },
+      walkMovesTo: { y: 940 },
+      rng: seqRng(0, 1, 0),
+    });
+    h.percher.start();
+
+    await h.frame();
+    await h.frame(1.1);
+
+    expect(h.positions).toContainEqual({ x: 1980, y: 960 });
+    expect(h.walkTo).toHaveBeenCalledWith(1070, expect.any(Function));
+    expect(h.resumeSit).toHaveBeenCalledWith(430);
+    expect(h.calls).toEqual([
+      "suspend",
+      "avatar.walk_start",
+      "avatar.walk_end",
+      "resume",
+      "avatar.window_sit",
+    ]);
+  });
+
+  it("quietly resumes and re-dwells when the directed walk is not accepted", async () => {
+    const h = makeHarness({ walkAccepted: false });
+    h.percher.start();
+
+    await h.frame();
+    await h.frame(1.1);
+
+    expect(h.walkTo).toHaveBeenCalledTimes(1);
+    expect(h.abandonSit).not.toHaveBeenCalled();
+    expect(h.resumeSit).toHaveBeenCalledTimes(1);
+    expect(h.calls).toEqual(["suspend", "resume", "avatar.window_sit"]);
+
+    await h.frame(0.5);
+    expect(h.walkTo).toHaveBeenCalledTimes(1);
+    await h.frame(0.6);
+    expect(h.walkTo).toHaveBeenCalledTimes(2);
   });
 
   it("is inert on a climb-origin adopted perch", async () => {
@@ -286,6 +401,88 @@ describe("createPercher", () => {
 
     expect(stroll.calls).toEqual(before);
     expect(stroll.resumeSit).not.toHaveBeenCalled();
+    expect(stroll.abandonSit).toHaveBeenCalledTimes(1);
     expect(stroll.release).not.toHaveBeenCalled();
+  });
+
+  it("abandons the suspended sit when positioning the stroll throws", async () => {
+    const h = makeHarness({ setPosition: async () => Promise.reject(new Error("move failed")) });
+    h.percher.start();
+
+    await h.frame();
+    await h.frame(1.1);
+
+    expect(h.suspendSit).toHaveBeenCalledTimes(1);
+    expect(h.abandonSit).toHaveBeenCalledTimes(1);
+    expect(h.resumeSit).not.toHaveBeenCalled();
+    expect(h.calls).toEqual(["suspend", "abandon"]);
+  });
+
+  it("abandons the suspended sit when catch-path position recovery also throws", async () => {
+    let positionReads = 0;
+    const h = makeHarness({
+      outerPosition: async () => {
+        positionReads++;
+        if (positionReads > 1) throw new Error("position unavailable");
+        return { x: 1000, y: 600 };
+      },
+      setPosition: async () => Promise.reject(new Error("move failed")),
+    });
+    h.percher.start();
+
+    await h.frame();
+    await h.frame(1.1);
+
+    expect(h.abandonSit).toHaveBeenCalledTimes(1);
+    expect(h.resumeSit).not.toHaveBeenCalled();
+    expect(h.calls).toEqual(["suspend", "abandon"]);
+  });
+
+  it("abandons a suspension when cancelled during standing placement", async () => {
+    const positioned = deferred<void>();
+    const h = makeHarness({ setPosition: async () => positioned.promise });
+    h.percher.start();
+    await h.frame();
+    await h.frame(1.1);
+
+    h.percher.cancel();
+    expect(h.abandonSit).toHaveBeenCalledTimes(1);
+    expect(h.calls).toEqual(["suspend", "abandon"]);
+
+    positioned.resolve();
+    await h.frame();
+    expect(h.walkTo).not.toHaveBeenCalled();
+    expect(h.resumeSit).not.toHaveBeenCalled();
+  });
+
+  it("does not let an older attempt clear the starting state of a newer generation", async () => {
+    const first = deferred<WindowRect[]>();
+    const second = deferred<WindowRect[]>();
+    let survey = 0;
+    const windows = vi.fn(() => {
+      survey++;
+      if (survey === 1) return first.promise;
+      if (survey === 2) return second.promise;
+      return Promise.resolve([HOST]);
+    });
+    const h = makeHarness({ windows });
+    h.percher.start();
+    await h.frame();
+    await h.frame(1.1);
+
+    h.percher.cancel();
+    await h.frame();
+    await h.frame(2.1);
+    await h.frame(0.1);
+    expect(windows).toHaveBeenCalledTimes(2);
+
+    first.resolve([HOST]);
+    await h.frame();
+    await h.frame(1.1);
+    await h.frame(1.1);
+
+    expect(windows).toHaveBeenCalledTimes(2);
+    second.resolve([HOST]);
+    await h.frame();
   });
 });

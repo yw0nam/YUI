@@ -1824,8 +1824,8 @@ describe("window-drop-source — adoptSit", () => {
     expect(source.armedSit()).toBeNull();
   });
 
-  it("quietly suspends and resumes the seat pin while retaining the armed identity", () => {
-    const { source, renderer } = adopted();
+  it("stops polling while suspended and re-arms host-loss polling on resume", async () => {
+    const { source, renderer, invoke } = adopted();
 
     expect(source.suspendSit()).toEqual({
       windowNumber: 42,
@@ -1837,10 +1837,35 @@ describe("window-drop-source — adoptSit", () => {
     expect(source.armedSit()).toEqual({ windowNumber: 42, origin: "adopt" });
     expect(pushed).toEqual([]);
 
+    invoke.mockClear();
+    await tick();
+    await tick();
+    expect(invoke).not.toHaveBeenCalled();
+
     source.resumeSit(420);
 
     expect(renderer.setPerchTarget).toHaveBeenLastCalledWith({ edgeLocalYpx: 420 });
     expect(source.armedSit()).toEqual({ windowNumber: 42, origin: "adopt" });
+    expect(pushed).toEqual([]);
+
+    invoke.mockImplementation(async () => []);
+    await tick();
+    await tick();
+    expect(pushed.map((event) => event.event_name)).toEqual(["user.window_sit_exit"]);
+  });
+
+  it("quietly abandons a suspended sit and prevents a later resume", async () => {
+    const { source, renderer, invoke } = adopted();
+    source.suspendSit();
+    renderer.setPerchTarget.mockClear();
+
+    source.abandonSit();
+    source.resumeSit(420);
+    await tick();
+
+    expect(source.armedSit()).toBeNull();
+    expect(renderer.setPerchTarget).not.toHaveBeenCalled();
+    expect(invoke).not.toHaveBeenCalled();
     expect(pushed).toEqual([]);
   });
 

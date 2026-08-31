@@ -611,6 +611,7 @@ describe("validateAvatar — perch_walk", () => {
     ["distance_min_px", 0],
     ["distance_max_px", Number.POSITIVE_INFINITY],
     ["edge_margin_frac", -0.1],
+    ["edge_margin_frac", 1.1],
   ])("rejects invalid %s: %s", (field, value) => {
     expectIssue({ vrm_url: "/v.vrm", perch_walk: { [field]: value } }, `perch_walk.${field}`);
   });
