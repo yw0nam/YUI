@@ -209,6 +209,11 @@ export interface JumpConfig {
   takeoff_frac: number;
   /** Point in the clip where they reach the neighbour. */
   land_frac: number;
+  /**
+   * How long a flight may run before it is abandoned. The clip paces the arc, so a clip
+   * that never becomes measurable would otherwise leave her hanging for good.
+   */
+  flight_timeout_ms: number;
 }
 
 export const JUMP_DEFAULTS: JumpConfig = {
@@ -219,6 +224,7 @@ export const JUMP_DEFAULTS: JumpConfig = {
   apex_lift_frac: 0.15,
   takeoff_frac: 0.4,
   land_frac: 0.67,
+  flight_timeout_ms: 4000,
 };
 
 /** Authored label for one reflex-gesture speech candidate. context is optional user-authored intent. */

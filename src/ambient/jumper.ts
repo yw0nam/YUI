@@ -157,6 +157,8 @@ interface Flight {
   to: { x: number; y: number };
   /** Apex height above the higher of the two tops, physical px. */
   lift: number;
+  /** Wall-clock the flight has run, against the deadline the clip could stall past. */
+  elapsedS: number;
   /** The window has moved at least once, so she is off the host and owes a landing. */
   airborne: boolean;
   /** The landing read is out — later frames leave the window alone until it comes back. */
@@ -218,13 +220,21 @@ export function createJumper(deps: JumperDeps): Jumper {
       });
   }
 
-  function tick(): void {
+  function tick(ctx: { dt: number }): void {
     const f = flight;
     if (!f || f.landing) return;
+    f.elapsedS += ctx.dt;
     // Anything else taking the clip takes the playhead with it, and a window driven off
     // another clip's time would go anywhere. Before the first move she is still standing
     // on the host, so the jump is simply off; after it she is in the air and owes a fall.
     if (renderer.getCurrentMotion()?.id !== JUMP_MOTION_ID) {
+      finish(f.airborne ? "lost" : "refused");
+      return;
+    }
+    // The clip paces the arc, so a clip that never becomes measurable would hang the
+    // flight for good and take the whole perch loop with it.
+    if (f.elapsedS * 1000 > f.cfg.flight_timeout_ms) {
+      log.warn("flight_timed_out", { degrade: true, airborne: f.airborne });
       finish(f.airborne ? "lost" : "refused");
       return;
     }
@@ -280,6 +290,7 @@ export function createJumper(deps: JumperDeps): Jumper {
             y: (plan.target.y - at.anchor.y) * at.scale,
           },
           lift: cfg.apex_lift_frac * at.charHpx * at.scale,
+          elapsedS: 0,
           airborne: false,
           landing: false,
           onTakeoff,

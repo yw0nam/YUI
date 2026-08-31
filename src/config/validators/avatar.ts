@@ -640,6 +640,20 @@ export function validateAvatar(file: string, raw: unknown): AvatarConfig {
           jump[field] = value;
         }
       }
+      const flightTimeoutMs = rawJump.flight_timeout_ms;
+      if (flightTimeoutMs !== undefined) {
+        if (
+          typeof flightTimeoutMs !== "number" ||
+          !Number.isInteger(flightTimeoutMs) ||
+          flightTimeoutMs <= 0
+        ) {
+          issues.push(
+            `jump.flight_timeout_ms는 0보다 큰 정수여야 함 (받음: ${JSON.stringify(flightTimeoutMs)})`,
+          );
+        } else {
+          jump.flight_timeout_ms = flightTimeoutMs;
+        }
+      }
       if (jump.takeoff_frac >= jump.land_frac) {
         issues.push(
           `jump.takeoff_frac는 jump.land_frac 미만이어야 함 (받음: ${jump.takeoff_frac} >= ${jump.land_frac})`,
