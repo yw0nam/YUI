@@ -361,11 +361,11 @@ export function createPercher(deps: PercherDeps): Percher {
         : pickJumpTarget({
             windows,
             hostIndex,
-            span,
+            currentX: fromX,
             charHpx: probe.charHpx,
             charWpx,
-            margin: cfg.edge_margin_frac * probe.charHpx,
-            cfg: jumpCfg,
+            perchCfg: cfg,
+            jumpCfg,
           });
     const jumpTo = neighbour !== null && rng() < jumpCfg.probability ? neighbour : null;
     const plan = jumpTo
