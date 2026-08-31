@@ -425,6 +425,18 @@ describe("dispatcher — posture", () => {
     expect(backendCaller.call).not.toHaveBeenCalled();
   });
 
+  it("keeps the walking posture and renders nothing when she jumps", async () => {
+    dispatcher.start();
+    await pushPostureEvent("avatar.walk_start");
+    applyDirective.mockClear();
+
+    await pushPostureEvent("avatar.jump");
+
+    expect(dispatcher.getPosture()).toEqual({ state: "walking" });
+    expect(applyDirective).not.toHaveBeenCalled();
+    expect(backendCaller.call).not.toHaveBeenCalled();
+  });
+
   it("returns to standing when a climb down ends", async () => {
     dispatcher.start();
     await pushPostureEvent("avatar.climb_start", { direction: "down", app: "Notes" });
