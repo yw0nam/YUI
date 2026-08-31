@@ -110,7 +110,7 @@ function makeHarness(
     outerPosition?: () => Promise<{ x: number; y: number }>;
     reducedMotion?: boolean;
     busy?: boolean;
-    motionKind?: MotionKind | null;
+    motion?: { id: string; kind: MotionKind | null } | null;
     rng?: () => number;
   } = {},
 ) {
@@ -182,7 +182,9 @@ function makeHarness(
       abandonSit,
       release,
     },
-    currentMotionKind: () => over.motionKind ?? "ambient",
+    currentMotionKind: () => (over.motion === undefined ? "ambient" : (over.motion?.kind ?? null)),
+    currentMotion: () =>
+      over.motion === undefined ? { id: "idle", kind: "ambient" as const } : over.motion,
     isBusy: () => over.busy ?? false,
     reducedMotion: () => over.reducedMotion ?? false,
     onWalkStart: () => calls.push("avatar.walk_start"),
@@ -256,10 +258,22 @@ describe("createPercher", () => {
     expect(h.calls).toEqual([]);
   });
 
+  it("strolls out of the perch hold the sit keeps playing", async () => {
+    const h = makeHarness({ motion: { id: "window_sit", kind: "state" } });
+    h.percher.start();
+
+    await h.frame();
+    await h.frame(1.1);
+
+    expect(h.suspendSit).toHaveBeenCalledTimes(1);
+    expect(h.walkTo).toHaveBeenCalledWith(1080, expect.any(Function));
+  });
+
   it.each([
     ["reduced motion", { reducedMotion: true }],
     ["pipeline busy", { busy: true }],
-    ["a non-ambient current motion", { motionKind: "reactive" as const }],
+    ["a reactive clip", { motion: { id: "head_pat", kind: "reactive" as const } }],
+    ["a thinking hold", { motion: { id: "thinking", kind: "state" as const } }],
   ])("re-dwells before suspending when blocked by %s", async (_label, gate) => {
     const h = makeHarness(gate);
     h.percher.start();
