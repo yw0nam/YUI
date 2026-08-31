@@ -88,7 +88,7 @@ export interface WindowDropSourceDeps {
   /** Resolve the pet window (lazily — `getCurrentWindow()` throws off-Tauri). */
   getWindow: () => DropWindow;
   listen: DropListen;
-  /** Poll cadence in ms (default {@link DEFAULT_POLL_MS}). */
+  /** Poll cadence in ms (default {@link PERCH_POLL_MS}). */
   pollIntervalMs?: number;
   /** Whether side-peek intent is currently active. */
   peekActive?: () => boolean;
@@ -169,6 +169,11 @@ export interface WindowDropSource {
   } | null;
   /** Restore a quietly suspended sit pin and its poll without publishing an event. */
   resumeSit(edgeLocalYpx: number): void;
+  /**
+   * Drop a suspended sit for good: the armed identity goes with it and a later resumeSit
+   * does nothing. Silent — the caller that suspended the sit owns whatever it publishes.
+   */
+  abandonSit(): void;
   /** Release any armed perch/peek and push the matching exit. */
   release(): void;
 }
@@ -721,6 +726,9 @@ export function createWindowDropSource(deps: WindowDropSourceDeps): WindowDropSo
       const origin = armedOrigin;
       renderer.setPerchTarget({ edgeLocalYpx });
       arm("sit", windowNumber, rect, charHpx, origin);
+    },
+    abandonSit() {
+      disarm();
     },
     release() {
       if (armedKind !== null) {

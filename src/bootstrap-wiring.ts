@@ -454,7 +454,7 @@ export function wireWalker(deps: {
   setHitTestMoving: (moving: boolean) => void;
   log: Logger;
 }): {
-  walkTo(toX: number): Promise<"arrived" | "lost">;
+  walkTo(toX: number, onAccepted?: () => void): Promise<"arrived" | "lost">;
   cancel(): void;
   dispose(): void;
 } {
@@ -462,8 +462,8 @@ export function wireWalker(deps: {
   let walker: Walker | null = null;
   let disposed = false;
   const handle = {
-    walkTo: async (toX: number): Promise<"arrived" | "lost"> =>
-      (await walker?.walkTo(toX)) ?? "lost",
+    walkTo: async (toX: number, onAccepted?: () => void): Promise<"arrived" | "lost"> =>
+      (await walker?.walkTo(toX, onAccepted)) ?? "lost",
     cancel: () => walker?.cancel(),
     dispose: () => {
       disposed = true;
@@ -516,12 +516,24 @@ export function wireWalker(deps: {
   return handle;
 }
 
-/** Ambient walking along a drag-origin foreign-window perch. */
+/**
+ * Ambient walking along a foreign-window perch. Every commitSit-origin perch — a user
+ * drag release and an agent placement alike — belongs to this loop: it dwells, strolls
+ * the top edge and sits back down, and never descends on its own. A climb-adopted perch
+ * stays the climber's.
+ */
 export function wirePercher(deps: {
   bus: EventBus;
   renderer: Renderer;
   getPerchWalkConfig: () => PerchWalkConfig;
-  walker: { walkTo(toX: number): Promise<"arrived" | "lost">; cancel(): void };
+  /** Registry kind of a motion id, for the "nothing else holds the body" gate. */
+  getMotionKind: (id: string) => MotionKind | undefined;
+  /** A turn is in flight or speech is still playing — ambient movement stays out of the way. */
+  isBusy: () => boolean;
+  walker: {
+    walkTo(toX: number, onAccepted?: () => void): Promise<"arrived" | "lost">;
+    cancel(): void;
+  };
   dropSource: {
     armedSit(): { windowNumber: number; origin: "commit" | "adopt" } | null;
     suspendSit(): {
@@ -531,6 +543,7 @@ export function wirePercher(deps: {
       charHpx: number;
     } | null;
     resumeSit(edgeLocalYpx: number): void;
+    abandonSit(): void;
     release(): void;
   };
   setHitTestMoving(moving: boolean): void;
@@ -549,7 +562,7 @@ export function wirePercher(deps: {
   if (!isTauri()) return handle;
   void (async () => {
     const { invoke } = await import("@tauri-apps/api/core");
-    const { getCurrentWindow } = await import("@tauri-apps/api/window");
+    const { availableMonitors, getCurrentWindow } = await import("@tauri-apps/api/window");
     const { PhysicalPosition } = await import("@tauri-apps/api/dpi");
     if (disposed) return;
     const win = getCurrentWindow();
@@ -561,9 +574,15 @@ export function wirePercher(deps: {
         setPositionPhysical: (x, y) => win.setPosition(new PhysicalPosition(x, y)),
       }),
       listWindows: () => invoke("list_windows") as Promise<WindowRect[]>,
+      listMonitors: async () => (await availableMonitors()).map(toScreenMonitor),
       getConfig: deps.getPerchWalkConfig,
       walker: deps.walker,
       dropSource: deps.dropSource,
+      currentMotionKind: () => {
+        const current = renderer.getCurrentMotion();
+        return current ? (deps.getMotionKind(current.id) ?? null) : null;
+      },
+      isBusy: deps.isBusy,
       onWalkStart: () => {
         deps.setHitTestMoving(true);
         bus.push({
@@ -840,6 +859,8 @@ export function wireWindowSources(deps: {
   armedSit(): { windowNumber: number; origin: "commit" | "adopt" } | null;
   suspendSit(): ReturnType<ReturnType<typeof createWindowDropSource>["suspendSit"]>;
   resumeSit(edgeLocalYpx: number): void;
+  /** Drop a suspended sit for good, without publishing an exit. */
+  abandonSit(): void;
   /** Release the armed perch and push the sit exit. */
   release(): void;
   dispose(): void;
@@ -869,6 +890,7 @@ export function wireWindowSources(deps: {
     armedSit: () => windowDropSource?.armedSit() ?? null,
     suspendSit: () => windowDropSource?.suspendSit() ?? null,
     resumeSit: (edgeLocalYpx: number) => windowDropSource?.resumeSit(edgeLocalYpx),
+    abandonSit: () => windowDropSource?.abandonSit(),
     release: () => windowDropSource?.release(),
     dispose: () => {
       disposed = true;

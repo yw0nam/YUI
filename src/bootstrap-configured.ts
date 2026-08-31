@@ -516,6 +516,8 @@ const realFactories: ConfiguredBootstrapFactories = {
       bus,
       renderer,
       getPerchWalkConfig: () => config.get().avatar.perch_walk,
+      getMotionKind: (id) => config.get().motions[id]?.kind,
+      isBusy: dispatcher.isPipelineBusy,
       walker,
       dropSource: windowSources,
       setHitTestMoving: (moving) => hitTest.setMoving(moving),

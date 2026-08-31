@@ -478,10 +478,11 @@ export function validateAvatar(file: string, raw: unknown): AvatarConfig {
         if (
           typeof edgeMarginFrac !== "number" ||
           !Number.isFinite(edgeMarginFrac) ||
-          edgeMarginFrac < 0
+          edgeMarginFrac < 0 ||
+          edgeMarginFrac > 1
         ) {
           issues.push(
-            `perch_walk.edge_margin_frac는 0 이상 유한 number여야 함 (받음: ${JSON.stringify(edgeMarginFrac)})`,
+            `perch_walk.edge_margin_frac는 0 이상 1 이하 number여야 함 (받음: ${JSON.stringify(edgeMarginFrac)})`,
           );
         } else {
           perch_walk.edge_margin_frac = edgeMarginFrac;

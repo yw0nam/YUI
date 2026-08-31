@@ -118,16 +118,14 @@ function makeHarness(
   let pos = over.initialPos ?? { x: 1000, y: 600 };
   let armed = true;
   const calls: string[] = [];
-  const walkTo = vi.fn(
-    (toX: number, onAccepted?: () => void): Promise<"arrived" | "lost"> => {
-      if (over.walkAccepted !== false) onAccepted?.();
-      if (over.walkMovesTo) {
-        const scale = over.scaleFactor ?? 1;
-        pos = { x: toX * scale, y: over.walkMovesTo.y };
-      }
-      return over.walk ?? Promise.resolve(over.walkAccepted === false ? "lost" : "arrived");
-    },
-  );
+  const walkTo = vi.fn((toX: number, onAccepted?: () => void): Promise<"arrived" | "lost"> => {
+    if (over.walkAccepted !== false) onAccepted?.();
+    if (over.walkMovesTo) {
+      const scale = over.scaleFactor ?? 1;
+      pos = { x: toX * scale, y: over.walkMovesTo.y };
+    }
+    return over.walk ?? Promise.resolve(over.walkAccepted === false ? "lost" : "arrived");
+  });
   const walkerCancel = vi.fn();
   const onWalkCancel = vi.fn();
   const suspendSit = vi.fn(() => {
