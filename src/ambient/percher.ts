@@ -149,6 +149,7 @@ export function createPercher(deps: PercherDeps): Percher {
 
   function loseHost(startedAt: number): void {
     if (!alive(startedAt) || !stroll) return;
+    log.info("host_lost", { windowNumber: stroll.host.windowNumber });
     generation++;
     stroll = null;
     dwellAtMs = -1;
@@ -193,6 +194,7 @@ export function createPercher(deps: PercherDeps): Percher {
     if (armed?.origin !== "commit") return;
     // The same ownership order the floor stroll keeps: ambient yields to everything else.
     if (reducedMotion() || deps.isBusy() || deps.currentMotionKind() !== "ambient") {
+      log.debug("stroll_skipped", { reason: "gated" });
       rearmDwell();
       return;
     }
@@ -218,11 +220,13 @@ export function createPercher(deps: PercherDeps): Percher {
     const monitor = monitorAt(monitors, pos.x, pos.y);
     const standingY = host.y - anchor.y;
     if (!monitor || standingY < monitor.workArea.position.y / scale) {
+      log.debug("stroll_skipped", { reason: "work_area" });
       rearmDwell();
       return;
     }
+    const fromX = pos.x / scale + anchor.x;
     const plan = planPerchStroll({
-      currentX: pos.x / scale + anchor.x,
+      currentX: fromX,
       winLeft: host.x,
       winRight: host.x + host.width,
       charHpx: probe.charHpx,
@@ -230,6 +234,7 @@ export function createPercher(deps: PercherDeps): Percher {
       rng,
     });
     if (!plan) {
+      log.debug("stroll_skipped", { reason: "no_room" });
       rearmDwell();
       return;
     }
@@ -244,16 +249,28 @@ export function createPercher(deps: PercherDeps): Percher {
       await deps.walker.walkTo(plan.centerX - anchor.x, () => {
         accepted = true;
         stroll = { host, nextWatchAtMs: nowMs + PERCH_POLL_MS, lostStreak: 0, watching: false };
+        log.info("stroll_start", {
+          windowNumber: host.windowNumber,
+          fromX: Math.round(fromX),
+          toX: Math.round(plan.centerX),
+          direction: plan.direction,
+        });
         deps.onWalkStart();
       });
       if (!alive(startedAt)) return;
       stroll = null;
       if (accepted) deps.onWalkEnd();
+      else log.debug("stroll_skipped", { reason: "not_accepted" });
       const applied = await win.outerPosition();
       if (!alive(startedAt)) return;
       const edgeLocalYpx = host.y - applied.y / scale;
       suspendedAt = null;
       deps.dropSource.resumeSit(edgeLocalYpx);
+      log.info("resit", {
+        windowNumber: host.windowNumber,
+        x: Math.round(applied.x / scale + anchor.x),
+        edgeLocalYpx: Math.round(edgeLocalYpx),
+      });
       deps.onSit(host, edgeLocalYpx);
       rearmDwell();
     } finally {
