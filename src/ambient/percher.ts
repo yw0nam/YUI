@@ -247,9 +247,10 @@ export function createPercher(deps: PercherDeps): Percher {
   }
 
   /**
-   * Cross to the neighbour she has just walked to the edge for. The host is left for good
-   * before takeoff — no exit cue, because the seat was not lost, she jumped off it — so a
-   * flight that never arrives leaves her in mid-air for the fall to take.
+   * Cross to the neighbour she has just walked to the edge for. The host is given up on
+   * the takeoff beat and not a moment sooner, so a jump that never leaves the ground still
+   * has a seat to put back, while one that leaves and loses its target hangs in mid-air
+   * for the fall to take.
    */
   async function runJump(
     startedAt: number,
