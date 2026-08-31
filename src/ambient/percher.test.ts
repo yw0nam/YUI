@@ -160,7 +160,9 @@ function makeHarness(
     return over.walk ?? Promise.resolve(over.walkAccepted === false ? "lost" : "arrived");
   });
   const walkerCancel = vi.fn();
-  const onWalkCancel = vi.fn();
+  const onWalkCancel = vi.fn(() => {
+    calls.push("avatar.walk_cancel");
+  });
   const suspendSit = vi.fn(() => {
     if (!armed) return null;
     calls.push("suspend");
@@ -852,7 +854,7 @@ describe("createPercher", () => {
     expect(h.calls.filter((name) => name === "avatar.walk_end")).toHaveLength(1);
   });
 
-  it("hands a mid-air pickup to the jumper and announces nothing itself", async () => {
+  it("closes the walk cue when a pickup catches her mid-air", async () => {
     const flight = deferred<JumpOutcome>();
     const h = makeHarness({
       windows: async () => [HOST, NEIGHBOUR],
@@ -867,13 +869,33 @@ describe("createPercher", () => {
 
     h.percher.cancel();
     expect(h.jumperCancel).toHaveBeenCalledTimes(1);
+    // Nothing watches the host through the arc, so the cue is the only thing that can
+    // leave the posture walking and the hit test in per-tick mode.
+    expect(h.onWalkCancel).toHaveBeenCalledTimes(1);
 
     flight.resolve("cancelled");
     await h.frame();
 
-    expect(h.calls).toEqual(before);
+    expect(h.calls).toEqual([...before, "avatar.walk_cancel"]);
     expect(h.adoptSit).not.toHaveBeenCalled();
     expect(h.onTargetLost).not.toHaveBeenCalled();
+  });
+
+  it("stays quiet when a jump she did not walk to is refused", async () => {
+    const h = makeHarness({
+      windows: async () => [HOST, NEIGHBOUR],
+      jumpProbability: 1,
+      rng: () => 0,
+      arrivedInPlace: true,
+      jumpOutcome: "refused",
+    });
+    h.percher.start();
+
+    await h.frame();
+    await h.frame(1.1);
+
+    // No walk and no jump happened, so no walk cue is owed for either.
+    expect(h.calls).toEqual(["suspend", "resume", "avatar.window_sit"]);
   });
 
   it("does not let an older attempt clear the starting state of a newer generation", async () => {
