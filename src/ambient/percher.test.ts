@@ -130,6 +130,8 @@ function makeHarness(
     walkAccepted?: boolean;
     /** Resolve the walk "arrived" without ever accepting — she is already on the spot. */
     arrivedInPlace?: boolean;
+    /** Outcome of every walk after the first, so a landing leg can fail on its own. */
+    legWalk?: "arrived" | "lost";
     walkMovesTo?: { y: number };
     windows?: () => Promise<WindowRect[]>;
     monitors?: () => Promise<ScreenMonitor[]>;
@@ -151,7 +153,10 @@ function makeHarness(
   let pos = over.initialPos ?? { x: 1000, y: 600 };
   let armed = true;
   const calls: string[] = [];
+  let walks = 0;
   const walkTo = vi.fn((toX: number, onAccepted?: () => void): Promise<"arrived" | "lost"> => {
+    walks++;
+    if (over.legWalk && walks > 1) return Promise.resolve(over.legWalk);
     if (over.walkAccepted !== false && !over.arrivedInPlace) onAccepted?.();
     if (over.walkMovesTo) {
       const scale = over.scaleFactor ?? 1;
@@ -809,6 +814,47 @@ describe("createPercher", () => {
     expect(h.walkTo).toHaveBeenCalledTimes(1);
     expect(h.setBodyYaw).toHaveBeenLastCalledWith(0, 400);
     expect(h.adoptSit).toHaveBeenCalled();
+  });
+
+  it("bounds the landing leg by the stack as it is when she lands, not as it was", async () => {
+    // A window slides over the neighbour's top while she is walking to the takeoff edge,
+    // leaving no room for the landing leg the pre-takeoff stack would have allowed.
+    let reads = 0;
+    const h = makeHarness({
+      windows: async () => {
+        reads++;
+        return reads === 1 ? [HOST, NEIGHBOUR] : [cover(1800, 400, 9), HOST, NEIGHBOUR];
+      },
+      jumpProbability: 1,
+      rng: () => 0,
+    });
+    h.percher.start();
+
+    await h.frame();
+    await h.frame(1.1);
+
+    expect(reads).toBeGreaterThan(1);
+    expect(h.walkTo).toHaveBeenCalledTimes(1);
+    expect(h.adoptSit).toHaveBeenCalledWith(7, { x: 1560, y: 900 }, 500, "commit");
+  });
+
+  it("leaves her standing when the landing leg never arrives", async () => {
+    const h = makeHarness({
+      windows: async () => [HOST, NEIGHBOUR],
+      jumpProbability: 1,
+      rng: () => 0,
+      legWalk: "lost",
+    });
+    h.percher.start();
+
+    await h.frame();
+    await h.frame(1.1);
+
+    expect(h.walkTo).toHaveBeenCalledTimes(2);
+    expect(h.adoptSit).not.toHaveBeenCalled();
+    expect(h.calls).not.toContain("avatar.window_sit");
+    expect(h.calls.filter((name) => name === "avatar.walk_end")).toHaveLength(1);
+    expect(h.release).not.toHaveBeenCalled();
   });
 
   it("faces forward again when the jump is refused", async () => {
