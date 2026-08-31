@@ -8,6 +8,8 @@ import {
   type FallConfig,
   GESTURE_CUES_DEFAULTS,
   type GestureCuesConfig,
+  JUMP_DEFAULTS,
+  type JumpConfig,
   PEEK_DEFAULTS,
   PERCH_WALK_DEFAULTS,
   type PeekConfig,
@@ -605,6 +607,47 @@ export function validateAvatar(file: string, raw: unknown): AvatarConfig {
     }
   }
 
+  const jump: JumpConfig = { ...JUMP_DEFAULTS };
+  const rawJump = raw.jump;
+  if (rawJump !== undefined) {
+    if (!isObject(rawJump)) {
+      issues.push(`jump은 객체여야 함 (받음: ${JSON.stringify(rawJump)})`);
+    } else {
+      for (const field of ["probability", "takeoff_frac", "land_frac"] as const) {
+        const value = rawJump[field];
+        if (value === undefined) continue;
+        if (typeof value !== "number" || !Number.isFinite(value) || value < 0 || value > 1) {
+          issues.push(
+            `jump.${field}는 [0, 1] 범위 유한 number여야 함 (받음: ${JSON.stringify(value)})`,
+          );
+        } else {
+          jump[field] = value;
+        }
+      }
+      for (const field of [
+        "height_up_max_frac",
+        "height_down_max_frac",
+        "gap_max_width_frac",
+        "apex_lift_frac",
+      ] as const) {
+        const value = rawJump[field];
+        if (value === undefined) continue;
+        if (typeof value !== "number" || !Number.isFinite(value) || value <= 0) {
+          issues.push(
+            `jump.${field}는 0보다 큰 유한 number여야 함 (받음: ${JSON.stringify(value)})`,
+          );
+        } else {
+          jump[field] = value;
+        }
+      }
+      if (jump.takeoff_frac >= jump.land_frac) {
+        issues.push(
+          `jump.takeoff_frac는 jump.land_frac 미만이어야 함 (받음: ${jump.takeoff_frac} >= ${jump.land_frac})`,
+        );
+      }
+    }
+  }
+
   let drag_hold_ms = DRAG_HOLD_MS_DEFAULT;
   const rawDragHoldMs = raw.drag_hold_ms;
   if (rawDragHoldMs !== undefined) {
@@ -710,6 +753,7 @@ export function validateAvatar(file: string, raw: unknown): AvatarConfig {
     perch_walk,
     fall,
     climb,
+    jump,
     drag_hold_ms,
     gesture_cues,
     ...(available !== undefined ? { available } : {}),
