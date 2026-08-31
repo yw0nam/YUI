@@ -2013,7 +2013,7 @@ describe("window-drop-source — host loss fall", () => {
       listen: makeListen().listen,
       onSitLost,
     });
-    source.adoptSit(42, { x: armed.x, y: armed.y }, 200);
+    source.adoptSit(42, { x: armed.x, y: armed.y }, 200, "adopt");
 
     invoke.mockImplementation(async () => []);
     await tick();

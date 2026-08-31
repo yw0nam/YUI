@@ -159,9 +159,16 @@ export interface WindowDropSource {
   perchTargets(): Promise<PerchTargets>;
   /**
    * Track a sit the character reached on her own: arms the occlusion poll on the given
-   * window without pushing anything, because the mover already published the sit.
+   * window without pushing anything, because the mover already published the sit. The
+   * origin names who owns the seat afterwards — a climb keeps it, a jump hands it to the
+   * perch loop the same way a drag release would.
    */
-  adoptSit(windowNumber: number, rect: { x: number; y: number }, charHpx: number): void;
+  adoptSit(
+    windowNumber: number,
+    rect: { x: number; y: number },
+    charHpx: number,
+    origin: "commit" | "adopt",
+  ): void;
   /** The window an armed sit is held on. null when nothing, or a peek, is armed. */
   armedSit(): { windowNumber: number; origin: "commit" | "adopt" } | null;
   /** Stop the sit poll and clear the renderer pin without publishing an exit. */
@@ -696,8 +703,8 @@ export function createWindowDropSource(deps: WindowDropSourceDeps): WindowDropSo
   return {
     placeOn,
     perchTargets,
-    adoptSit(windowNumber, rect, charHpx) {
-      arm("sit", windowNumber, rect, charHpx, "adopt");
+    adoptSit(windowNumber, rect, charHpx, origin) {
+      arm("sit", windowNumber, rect, charHpx, origin);
     },
     armedSit() {
       if (armedKind !== "sit" || armedWindowNumber === null || armedOrigin === null) return null;

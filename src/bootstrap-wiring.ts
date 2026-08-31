@@ -735,7 +735,12 @@ export function wireClimber(deps: {
   walker: { walkTo(toX: number): Promise<"arrived" | "lost">; cancel(): void };
   faller: { drop(): void };
   dropSource: {
-    adoptSit(windowNumber: number, rect: { x: number; y: number }, charHpx: number): void;
+    adoptSit(
+      windowNumber: number,
+      rect: { x: number; y: number },
+      charHpx: number,
+      origin: "commit" | "adopt",
+    ): void;
     armedSit(): { windowNumber: number; origin: "commit" | "adopt" } | null;
     release(): void;
   };
@@ -861,7 +866,12 @@ export function wireWindowSources(deps: {
   noteUserDrag(): void;
   noteUserDragEnd(): void;
   /** Track a sit the character climbed to herself, without pushing a drop envelope. */
-  adoptSit(windowNumber: number, rect: { x: number; y: number }, charHpx: number): void;
+  adoptSit(
+    windowNumber: number,
+    rect: { x: number; y: number },
+    charHpx: number,
+    origin: "commit" | "adopt",
+  ): void;
   /** The window an armed sit is held on. null when nothing, or a peek, is armed. */
   armedSit(): { windowNumber: number; origin: "commit" | "adopt" } | null;
   suspendSit(): ReturnType<ReturnType<typeof createWindowDropSource>["suspendSit"]>;
@@ -892,8 +902,12 @@ export function wireWindowSources(deps: {
   const handle = {
     noteUserDrag: () => avatarExecutor?.noteUserDrag(),
     noteUserDragEnd: () => avatarExecutor?.noteUserDragEnd(),
-    adoptSit: (windowNumber: number, rect: { x: number; y: number }, charHpx: number) =>
-      windowDropSource?.adoptSit(windowNumber, rect, charHpx),
+    adoptSit: (
+      windowNumber: number,
+      rect: { x: number; y: number },
+      charHpx: number,
+      origin: "commit" | "adopt",
+    ) => windowDropSource?.adoptSit(windowNumber, rect, charHpx, origin),
     armedSit: () => windowDropSource?.armedSit() ?? null,
     suspendSit: () => windowDropSource?.suspendSit() ?? null,
     resumeSit: (edgeLocalYpx: number) => windowDropSource?.resumeSit(edgeLocalYpx),
