@@ -857,6 +857,28 @@ describe("createPercher", () => {
     expect(h.release).not.toHaveBeenCalled();
   });
 
+  it("skips a neighbour standing on whose top the work area would clamp", async () => {
+    // Work area starts at y 1000; standing on the neighbour's top would need y 580.
+    const h = makeHarness({
+      windows: async () => [HOST, { ...NEIGHBOUR, y: 1400 }],
+      monitors: async () => [
+        {
+          ...MONITOR,
+          workArea: { position: { x: 0, y: 1000 }, size: { width: 3000, height: 900 } },
+        },
+      ],
+      jumpProbability: 1,
+      rng: () => 0,
+    });
+    h.percher.start();
+
+    await h.frame();
+    await h.frame(1.1);
+
+    expect(h.jump).not.toHaveBeenCalled();
+    expect(h.resumeSit).toHaveBeenCalledTimes(1);
+  });
+
   it("faces forward again when the jump is refused", async () => {
     const h = makeHarness({
       windows: async () => [HOST, NEIGHBOUR],

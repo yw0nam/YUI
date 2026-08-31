@@ -53,6 +53,7 @@ function pick(front: WindowRect[], over: Partial<Parameters<typeof pickJumpTarge
     charWpx: CHAR_WPX,
     perchCfg: PERCH_CFG,
     jumpCfg: CFG,
+    minStandingTop: 0,
     ...over,
   });
 }
@@ -111,6 +112,12 @@ describe("pickJumpTarget — height", () => {
     const up = HOST.y - CFG.height_up_max_frac * CHAR_HPX;
     expect(pick([win({ x: 1560, y: up, windowNumber: 7 })])).not.toBeNull();
     expect(pick([win({ x: 1560, y: up - 1, windowNumber: 7 })])).toBeNull();
+  });
+
+  it("refuses a neighbour whose top the work area would clamp her above", () => {
+    const high = win({ x: 1560, y: 800, windowNumber: 7 });
+    expect(pick([high], { minStandingTop: 800 })).not.toBeNull();
+    expect(pick([high], { minStandingTop: 801 })).toBeNull();
   });
 
   it("drops up to a whole character height and no further", () => {
