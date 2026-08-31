@@ -843,7 +843,7 @@ describe("createPercher", () => {
     expect(h.adoptSit).toHaveBeenCalledWith(7, { x: 1560, y: 900 }, 500, "commit");
   });
 
-  it("leaves her standing when the landing leg never arrives", async () => {
+  it("sits her down where a landing leg that never arrived left her", async () => {
     const h = makeHarness({
       windows: async () => [HOST, NEIGHBOUR],
       jumpProbability: 1,
@@ -855,11 +855,14 @@ describe("createPercher", () => {
     await h.frame();
     await h.frame(1.1);
 
+    // She is on the target's top either way, and the seat comes from where she stopped —
+    // leaving her standing there would strand her with nothing scheduled.
     expect(h.walkTo).toHaveBeenCalledTimes(2);
-    expect(h.adoptSit).not.toHaveBeenCalled();
-    expect(h.calls).not.toContain("avatar.window_sit");
+    expect(h.adoptSit).toHaveBeenCalledWith(7, { x: 1560, y: 900 }, 500, "commit");
+    expect(h.calls).toContain("avatar.window_sit");
     expect(h.calls.filter((name) => name === "avatar.walk_end")).toHaveLength(1);
     expect(h.release).not.toHaveBeenCalled();
+    expect(h.setBodyYaw).toHaveBeenLastCalledWith(0, 400);
   });
 
   it("skips a neighbour standing on whose top the work area would clamp", async () => {
