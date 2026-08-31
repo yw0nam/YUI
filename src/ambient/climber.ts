@@ -409,7 +409,12 @@ export interface ClimberDeps {
   walker: { walkTo(toX: number): Promise<"arrived" | "lost">; cancel(): void };
   faller: { drop(): void | Promise<void> };
   dropSource: {
-    adoptSit(windowNumber: number, rect: { x: number; y: number }, charHpx: number): void;
+    adoptSit(
+      windowNumber: number,
+      rect: { x: number; y: number },
+      charHpx: number,
+      origin: "commit" | "adopt",
+    ): void;
     /** The window an armed sit is held on — which wall a descent belongs to. */
     armedSit(): { windowNumber: number; origin: "commit" | "adopt" } | null;
     release(): void;
@@ -883,7 +888,7 @@ export function createClimber(deps: ClimberDeps): Climber {
 
     endClimb();
     deps.onSit(picked, picked.topY - landed.y / w.scale);
-    deps.dropSource.adoptSit(picked.windowNumber, picked.rect, w.charHpx);
+    deps.dropSource.adoptSit(picked.windowNumber, picked.rect, w.charHpx, "adopt");
     dwellAtMs = -1;
   }
 
@@ -928,7 +933,7 @@ export function createClimber(deps: ClimberDeps): Climber {
     if (!released) {
       // The exit never came back, so the poll is disarmed while the perch still holds.
       // Take the sit back, or no later dwell can find a wall to climb down.
-      deps.dropSource.adoptSit(picked.windowNumber, picked.rect, w.charHpx);
+      deps.dropSource.adoptSit(picked.windowNumber, picked.rect, w.charHpx, "adopt");
       return endClimb();
     }
     // A drop leaves the window wherever the user let go — the renderer shifts the model

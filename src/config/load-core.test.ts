@@ -87,6 +87,16 @@ describe("loadConfig — happy path", () => {
         ledge_walk_min_frac: 0.5,
         ledge_walk_max_frac: 1.5,
       },
+      jump: {
+        probability: 0.3,
+        height_up_max_frac: 0.5,
+        height_down_max_frac: 1,
+        gap_max_width_frac: 1.5,
+        apex_lift_frac: 0.15,
+        takeoff_frac: 0.4,
+        land_frac: 0.67,
+        flight_timeout_ms: 4000,
+      },
     });
     expect(cfg.emotionRegistry.happy).toEqual({
       vrm_expression: "happy",

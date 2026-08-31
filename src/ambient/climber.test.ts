@@ -505,9 +505,16 @@ function makeHarness(
   const starts = vi.fn();
   const sits = vi.fn();
   const ends = vi.fn();
-  const adoptSit = vi.fn((windowNumber: number) => {
-    armed = { windowNumber, origin: "adopt" };
-  });
+  const adoptSit = vi.fn(
+    (
+      windowNumber: number,
+      _rect: { x: number; y: number },
+      _charHpx: number,
+      origin: "commit" | "adopt",
+    ) => {
+      armed = { windowNumber, origin };
+    },
+  );
   const handAnchors = vi.fn(() => ({ left: { x: 260, y: 300 }, right: { x: 280, y: 260 } }));
   const drop = vi.fn();
   const walkerCancel = vi.fn();
@@ -749,7 +756,7 @@ describe("createClimber — up", () => {
     expect(h.sits).toHaveBeenCalledTimes(1);
     expect(h.sits.mock.calls[0][0]).toEqual(TARGET);
     expect(h.sits.mock.calls[0][1]).toBeCloseTo(ANCHOR.y, 6);
-    expect(h.adoptSit).toHaveBeenCalledWith(42, { x: 1000, y: 900 }, CHAR_HPX);
+    expect(h.adoptSit).toHaveBeenCalledWith(42, { x: 1000, y: 900 }, CHAR_HPX, "adopt");
   });
 
   it("hands the last stretch of the wall to the pull-over clip", async () => {
@@ -837,7 +844,7 @@ describe("createClimber — up", () => {
     expect(h.at()).toEqual(PERCHED_POS);
     expect(h.sits).toHaveBeenCalledTimes(1);
     expect(h.sits.mock.calls[0][1]).toBeCloseTo(ANCHOR.y, 6);
-    expect(h.adoptSit).toHaveBeenCalledWith(42, { x: 1000, y: 900 }, CHAR_HPX);
+    expect(h.adoptSit).toHaveBeenCalledWith(42, { x: 1000, y: 900 }, CHAR_HPX, "adopt");
   });
 
   it("walks in the other way along a right-hand ledge", async () => {
@@ -1107,7 +1114,7 @@ describe("createClimber — down", () => {
     expect(h.walkTargets).toEqual([]);
     expect(h.ends).toHaveBeenCalledWith("down");
     expect(h.motions).toEqual([]);
-    expect(h.adoptSit).toHaveBeenCalledWith(42, { x: 1000, y: 900 }, CHAR_HPX);
+    expect(h.adoptSit).toHaveBeenCalledWith(42, { x: 1000, y: 900 }, CHAR_HPX, "adopt");
   });
 
   it("retries the descent on the next dwell after a release that never came back", async () => {

@@ -13,7 +13,7 @@
 import * as THREE from "three";
 import { describe, expect, it } from "vitest";
 import { computeCameraFit } from "./camera-fit";
-import { projectFeetAnchor } from "./project-anchor";
+import { projectBoxWidthPx, projectFeetAnchor } from "./project-anchor";
 
 /** Box spanning [cx±sx/2, cy±sy/2, cz±sz/2]. */
 function boxOf(center: [number, number, number], size: [number, number, number]): THREE.Box3 {
@@ -92,5 +92,34 @@ describe("projectFeetAnchor — guards", () => {
   it("empty box ⇒ null", () => {
     const cam = framedCamera(VRM_BOX, 600, 600);
     expect(projectFeetAnchor(new THREE.Box3(), cam, 600, 600)).toBeNull();
+  });
+});
+
+describe("projectBoxWidthPx", () => {
+  const w = 600;
+  const h = 600;
+
+  it("measures the box's own span in canvas pixels", () => {
+    const cam = framedCamera(VRM_BOX, w, h);
+    const px = projectBoxWidthPx(VRM_BOX, cam, w)!;
+    expect(px).toBeGreaterThan(0);
+    expect(px).toBeLessThan(w);
+  });
+
+  it("grows with the box's width at a fixed framing", () => {
+    const cam = framedCamera(VRM_BOX, w, h);
+    const wide = boxOf([0, 0.85, 0], [1, 1.7, 0.3]);
+    expect(projectBoxWidthPx(wide, cam, w)!).toBeGreaterThan(projectBoxWidthPx(VRM_BOX, cam, w)!);
+  });
+
+  it("grows as the camera moves closer", () => {
+    const far = projectBoxWidthPx(VRM_BOX, framedCamera(VRM_BOX, w, h, 1), w)!;
+    const near = projectBoxWidthPx(VRM_BOX, framedCamera(VRM_BOX, w, h, 1.6), w)!;
+    expect(near).toBeGreaterThan(far);
+  });
+
+  it("empty box ⇒ null", () => {
+    const cam = framedCamera(VRM_BOX, w, h);
+    expect(projectBoxWidthPx(new THREE.Box3(), cam, w)).toBeNull();
   });
 });

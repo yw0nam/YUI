@@ -193,6 +193,40 @@ export const CLIMB_DEFAULTS: ClimbConfig = {
   ledge_walk_max_frac: 1.5,
 };
 
+/** Window-to-window jump knobs. Height fractions are multiples of the character height. */
+export interface JumpConfig {
+  /** Chance a planned perch stroll becomes a jump when an eligible neighbour exists. */
+  probability: number;
+  /** How far above the host's top a neighbour's top may sit and still be reachable. */
+  height_up_max_frac: number;
+  /** How far below it. */
+  height_down_max_frac: number;
+  /** Widest gap she will clear, as a multiple of the character's own width. */
+  gap_max_width_frac: number;
+  /** How far above the higher of the two tops the arc peaks. */
+  apex_lift_frac: number;
+  /** Point in the clip where the feet leave the host, as a fraction of its length. */
+  takeoff_frac: number;
+  /** Point in the clip where they reach the neighbour. */
+  land_frac: number;
+  /**
+   * How long a flight may run before it is abandoned. The clip paces the arc, so a clip
+   * that never becomes measurable would otherwise leave her hanging for good.
+   */
+  flight_timeout_ms: number;
+}
+
+export const JUMP_DEFAULTS: JumpConfig = {
+  probability: 0.3,
+  height_up_max_frac: 0.5,
+  height_down_max_frac: 1,
+  gap_max_width_frac: 1.5,
+  apex_lift_frac: 0.15,
+  takeoff_frac: 0.4,
+  land_frac: 0.67,
+  flight_timeout_ms: 4000,
+};
+
 /** Authored label for one reflex-gesture speech candidate. context is optional user-authored intent. */
 export interface GestureCueConfig {
   label: string;
@@ -245,6 +279,8 @@ export interface AvatarConfig {
   fall: FallConfig;
   /** Ambient window-climb knobs. Defaults are applied by the validator. */
   climb: ClimbConfig;
+  /** Window-to-window jump knobs. Defaults are applied by the validator. */
+  jump: JumpConfig;
   /** Drag-hold reflex threshold (ms) — proactive.drag_held fires once a drag has been held this long. */
   drag_hold_ms: number;
   /** Reflex-gesture speech cues (drag-hold / window-sit / peek / drop). Defaults are applied by the validator. */

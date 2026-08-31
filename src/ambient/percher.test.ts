@@ -1,15 +1,10 @@
 import { describe, expect, it, vi } from "vitest";
-import type { PerchWalkConfig } from "../config/load";
+import type { JumpConfig, PerchWalkConfig } from "../config/load";
 import type { MotionKind, WindowRect } from "../contract";
 import type { ScreenMonitor } from "../io/screen-geometry";
 import type { TickContext, TickFn } from "../renderer";
-import {
-  createPercher,
-  nextPerchDwell,
-  type PercherDeps,
-  planPerchStroll,
-  uncoveredSpan,
-} from "./percher";
+import type { JumpOutcome } from "./jumper";
+import { createPercher, nextPerchDwell, type PercherDeps, planPerchStroll } from "./percher";
 
 const CFG: PerchWalkConfig = {
   dwell_min_ms: 1000,
@@ -17,6 +12,17 @@ const CFG: PerchWalkConfig = {
   distance_min_px: 80,
   distance_max_px: 400,
   edge_margin_frac: 0.2,
+};
+
+const JUMP_CFG: JumpConfig = {
+  probability: 0,
+  height_up_max_frac: 0.5,
+  height_down_max_frac: 1,
+  gap_max_width_frac: 1.5,
+  apex_lift_frac: 0.15,
+  takeoff_frac: 0.4,
+  land_frac: 0.67,
+  flight_timeout_ms: 4000,
 };
 
 function seqRng(...values: number[]): () => number {
@@ -99,35 +105,15 @@ function cover(x: number, width: number, windowNumber: number): WindowRect {
   return { ...HOST, x, y: 800, width, height: 400, name: "Cover", windowNumber };
 }
 
-describe("uncoveredSpan", () => {
-  it("keeps the whole host edge when nothing in front reaches it", () => {
-    const below = { ...cover(1300, 300, 7), y: 1000 };
-    expect(uncoveredSpan([below, HOST], 1, 1200)).toEqual({ left: 1000, right: 1500 });
-    expect(uncoveredSpan([cover(2000, 300, 8), HOST], 1, 1200)).toEqual({
-      left: 1000,
-      right: 1500,
-    });
-  });
-
-  it("clips to the nearest covering window on each side of the given x", () => {
-    expect(uncoveredSpan([cover(900, 200, 7), cover(1310, 200, 8), HOST], 2, 1200)).toEqual({
-      left: 1100,
-      right: 1310,
-    });
-  });
-
-  it("ignores windows behind the host", () => {
-    expect(uncoveredSpan([HOST, cover(1300, 300, 7)], 0, 1200)).toEqual({
-      left: 1000,
-      right: 1500,
-    });
-  });
-
-  it("leaves no span at all when the x itself is covered", () => {
-    const span = uncoveredSpan([cover(1150, 200, 7), HOST], 1, 1200);
-    expect(span.left).toBeGreaterThan(span.right);
-  });
-});
+/** A jumpable window a short gap off the host's right edge, tops level. */
+const NEIGHBOUR: WindowRect = {
+  ...HOST,
+  x: 1560,
+  width: 400,
+  name: "Chat",
+  ownerName: "Messages",
+  windowNumber: 7,
+};
 
 function deferred<T>() {
   let resolve!: (value: T) => void;
@@ -142,6 +128,10 @@ function makeHarness(
     origin?: "commit" | "adopt";
     walk?: Promise<"arrived" | "lost">;
     walkAccepted?: boolean;
+    /** Resolve the walk "arrived" without ever accepting — she is already on the spot. */
+    arrivedInPlace?: boolean;
+    /** Outcome of every walk after the first, so a landing leg can fail on its own. */
+    legWalk?: "arrived" | "lost";
     walkMovesTo?: { y: number };
     windows?: () => Promise<WindowRect[]>;
     monitors?: () => Promise<ScreenMonitor[]>;
@@ -153,14 +143,21 @@ function makeHarness(
     busy?: boolean;
     motion?: { id: string; kind: MotionKind | null } | null;
     rng?: () => number;
+    jumpProbability?: number;
+    jump?: Promise<JumpOutcome>;
+    jumpOutcome?: JumpOutcome;
+    charWpx?: number | null;
   } = {},
 ) {
   let tick: TickFn | null = null;
   let pos = over.initialPos ?? { x: 1000, y: 600 };
   let armed = true;
   const calls: string[] = [];
+  let walks = 0;
   const walkTo = vi.fn((toX: number, onAccepted?: () => void): Promise<"arrived" | "lost"> => {
-    if (over.walkAccepted !== false) onAccepted?.();
+    walks++;
+    if (over.legWalk && walks > 1) return Promise.resolve(over.legWalk);
+    if (over.walkAccepted !== false && !over.arrivedInPlace) onAccepted?.();
     if (over.walkMovesTo) {
       const scale = over.scaleFactor ?? 1;
       pos = { x: toX * scale, y: over.walkMovesTo.y };
@@ -168,7 +165,9 @@ function makeHarness(
     return over.walk ?? Promise.resolve(over.walkAccepted === false ? "lost" : "arrived");
   });
   const walkerCancel = vi.fn();
-  const onWalkCancel = vi.fn();
+  const onWalkCancel = vi.fn(() => {
+    calls.push("avatar.walk_cancel");
+  });
   const suspendSit = vi.fn(() => {
     if (!armed) return null;
     calls.push("suspend");
@@ -193,6 +192,34 @@ function makeHarness(
   const onHostLost = vi.fn(() => {
     calls.push("fall");
   });
+  const adoptSit = vi.fn(
+    (
+      _windowNumber: number,
+      _rect: { x: number; y: number },
+      _charHpx: number,
+      _origin: "commit" | "adopt",
+    ) => {
+      armed = true;
+      calls.push("adopt");
+    },
+  );
+  const jump = vi.fn((_plan: unknown, _at: unknown, onTakeoff?: () => void) => {
+    const outcome = over.jump ?? Promise.resolve(over.jumpOutcome ?? "landed");
+    // A refused jump never left the ground, so nothing announces a takeoff.
+    if (over.jumpOutcome !== "refused") {
+      calls.push("jump");
+      onTakeoff?.();
+    }
+    return outcome;
+  });
+  const jumperCancel = vi.fn();
+  const onTargetLost = vi.fn(() => {
+    calls.push("target_lost");
+  });
+  const onTakeoff = vi.fn(() => {
+    calls.push("avatar.jump");
+  });
+  const setBodyYaw = vi.fn();
   const positions: Array<{ x: number; y: number }> = [];
   const deps: PercherDeps = {
     renderer: {
@@ -204,6 +231,8 @@ function makeHarness(
       },
       getCharacterAnchor: () => ({ x: 200, y: 420 }),
       getPerchProbe: () => ({ seatPx: { x: 200, y: 300 }, charHpx: 500 }),
+      getCharacterWidthPx: () => (over.charWpx === undefined ? 160 : over.charWpx),
+      setBodyYaw,
     },
     getWindow: () => ({
       outerPosition: over.outerPosition ?? (async () => ({ ...pos })),
@@ -217,13 +246,16 @@ function makeHarness(
     listWindows: over.windows ?? (async () => [HOST]),
     listMonitors: over.monitors ?? (async () => [MONITOR]),
     getConfig: () => CFG,
+    getJumpConfig: () => ({ ...JUMP_CFG, probability: over.jumpProbability ?? 0 }),
     walker: { walkTo, cancel: walkerCancel },
+    jumper: { jump, cancel: jumperCancel },
     dropSource: {
       armedSit: () =>
         armed ? { windowNumber: 42, origin: over.origin ?? ("commit" as const) } : null,
       suspendSit,
       resumeSit,
       abandonSit,
+      adoptSit,
       release,
     },
     currentMotion: () =>
@@ -235,6 +267,8 @@ function makeHarness(
     onWalkCancel,
     onSit: () => calls.push("avatar.window_sit"),
     onHostLost,
+    onTargetLost,
+    onTakeoff,
     rng: over.rng ?? seqRng(0, 1, 0),
   };
   const percher = createPercher(deps);
@@ -255,8 +289,14 @@ function makeHarness(
     suspendSit,
     resumeSit,
     abandonSit,
+    adoptSit,
     release,
     onHostLost,
+    jump,
+    jumperCancel,
+    onTargetLost,
+    onTakeoff,
+    setBodyYaw,
     /** Arm a fresh commit-origin sit, the way a later drop release would. */
     rearm: () => {
       armed = true;
@@ -291,7 +331,12 @@ describe("createPercher", () => {
   });
 
   it("keeps the target out from under a window covering the host edge", async () => {
-    const h = makeHarness({ windows: async () => [cover(1300, 300, 7), HOST] });
+    // A covering window is a jump candidate too, so the stroll's own draws are named
+    // explicitly rather than left to fall wherever the jump's dice leave them.
+    const h = makeHarness({
+      windows: async () => [cover(1300, 300, 7), HOST],
+      rng: seqRng(0, 1, 1),
+    });
     h.percher.start();
 
     await h.frame();
@@ -315,7 +360,10 @@ describe("createPercher", () => {
   });
 
   it("walks the full edge past a window behind the host", async () => {
-    const h = makeHarness({ windows: async () => [HOST, cover(1300, 300, 7)] });
+    const h = makeHarness({
+      windows: async () => [HOST, cover(1300, 300, 7)],
+      rng: seqRng(0, 1, 1, 0),
+    });
     h.percher.start();
 
     await h.frame();
@@ -594,6 +642,337 @@ describe("createPercher", () => {
     await h.frame();
     expect(h.walkTo).not.toHaveBeenCalled();
     expect(h.resumeSit).not.toHaveBeenCalled();
+  });
+
+  it("walks to the takeoff edge, leaves the old seat behind and takes the neighbour's", async () => {
+    const h = makeHarness({
+      windows: async () => [HOST, NEIGHBOUR],
+      jumpProbability: 1,
+      rng: () => 0,
+    });
+    h.percher.start();
+
+    await h.frame();
+    await h.frame(1.1);
+
+    // The host's right edge less the stroll's own margin, in window coordinates.
+    expect(h.walkTo).toHaveBeenNthCalledWith(1, 1200, expect.any(Function));
+    expect(h.calls).toEqual([
+      "suspend",
+      "avatar.walk_start",
+      "jump",
+      "abandon",
+      "avatar.jump",
+      "avatar.walk_end",
+      "avatar.window_sit",
+      "adopt",
+    ]);
+    expect(h.resumeSit).not.toHaveBeenCalled();
+    // The posture leaves walking once per cycle, whatever the jump did on the way.
+    expect(h.calls.filter((name) => name === "avatar.walk_end")).toHaveLength(1);
+    // The landing leg walks on along the neighbour's own top before sitting down.
+    expect(h.walkTo).toHaveBeenCalledTimes(2);
+    expect(h.adoptSit).toHaveBeenCalledWith(7, { x: 1560, y: 900 }, 500, "commit");
+    expect(h.release).not.toHaveBeenCalled();
+
+    // The seat she landed on is a perch like any other: the dwell runs again on it.
+    h.walkTo.mockClear();
+    await h.frame(0.5);
+    expect(h.walkTo).not.toHaveBeenCalled();
+    await h.frame(0.6);
+    expect(h.walkTo).toHaveBeenCalled();
+  });
+
+  it("strolls the host as usual when the jump does not come up", async () => {
+    const h = makeHarness({ windows: async () => [HOST, NEIGHBOUR] });
+    h.percher.start();
+
+    await h.frame();
+    await h.frame(1.1);
+
+    expect(h.jump).not.toHaveBeenCalled();
+    expect(h.calls).toEqual([
+      "suspend",
+      "avatar.walk_start",
+      "avatar.walk_end",
+      "resume",
+      "avatar.window_sit",
+    ]);
+  });
+
+  it("stays on the host when the character width cannot be measured", async () => {
+    const h = makeHarness({
+      windows: async () => [HOST, NEIGHBOUR],
+      jumpProbability: 1,
+      rng: () => 0,
+      charWpx: null,
+    });
+    h.percher.start();
+
+    await h.frame();
+    await h.frame(1.1);
+
+    expect(h.jump).not.toHaveBeenCalled();
+    expect(h.resumeSit).toHaveBeenCalledTimes(1);
+  });
+
+  it("falls when the target window leaves while she is in the air", async () => {
+    const h = makeHarness({
+      windows: async () => [HOST, NEIGHBOUR],
+      jumpProbability: 1,
+      rng: () => 0,
+      jump: Promise.resolve("lost"),
+    });
+    h.percher.start();
+
+    await h.frame();
+    await h.frame(1.1);
+
+    expect(h.calls).toEqual([
+      "suspend",
+      "avatar.walk_start",
+      "jump",
+      "abandon",
+      "avatar.jump",
+      "avatar.walk_end",
+      "target_lost",
+    ]);
+    expect(h.onTargetLost).toHaveBeenCalledTimes(1);
+    expect(h.adoptSit).not.toHaveBeenCalled();
+    expect(h.resumeSit).not.toHaveBeenCalled();
+    expect(h.release).not.toHaveBeenCalled();
+    // She falls facing forward, not still turned a quarter into the jump.
+    expect(h.setBodyYaw).toHaveBeenCalledWith(0, 400);
+    expect(h.setBodyYaw.mock.invocationCallOrder[0]).toBeLessThan(
+      h.onTargetLost.mock.invocationCallOrder[0],
+    );
+  });
+
+  it("posts the walk she did not need, so a jump from the spot still reads as walking", async () => {
+    const h = makeHarness({
+      windows: async () => [HOST, NEIGHBOUR],
+      jumpProbability: 1,
+      rng: () => 0,
+      arrivedInPlace: true,
+    });
+    h.percher.start();
+
+    await h.frame();
+    await h.frame(1.1);
+
+    // The walker had nothing to do, so the takeoff is what opens the walk cue.
+    expect(h.calls).toEqual([
+      "suspend",
+      "jump",
+      "avatar.walk_start",
+      "abandon",
+      "avatar.jump",
+      "avatar.walk_end",
+      "avatar.window_sit",
+      "adopt",
+    ]);
+  });
+
+  it("re-sits on the host when the jump is refused before she leaves the ground", async () => {
+    const h = makeHarness({
+      windows: async () => [HOST, NEIGHBOUR],
+      jumpProbability: 1,
+      rng: () => 0,
+      jumpOutcome: "refused",
+    });
+    h.percher.start();
+
+    await h.frame();
+    await h.frame(1.1);
+
+    expect(h.calls).toEqual([
+      "suspend",
+      "avatar.walk_start",
+      "avatar.walk_end",
+      "resume",
+      "avatar.window_sit",
+    ]);
+    expect(h.abandonSit).not.toHaveBeenCalled();
+    expect(h.onTargetLost).not.toHaveBeenCalled();
+    expect(h.onTakeoff).not.toHaveBeenCalled();
+    expect(h.adoptSit).not.toHaveBeenCalled();
+
+    // The attempt settled, so the loop is free to try again on the next dwell.
+    h.walkTo.mockClear();
+    await h.frame(1.1);
+    expect(h.walkTo).toHaveBeenCalled();
+  });
+
+  it("faces forward again when the landing leaves no room to walk on", async () => {
+    // Too narrow a neighbour for a landing leg, so nothing else squares her up.
+    const narrow = { ...NEIGHBOUR, width: 250 };
+    const h = makeHarness({
+      windows: async () => [HOST, narrow],
+      jumpProbability: 1,
+      rng: () => 0,
+    });
+    h.percher.start();
+
+    await h.frame();
+    await h.frame(1.1);
+
+    expect(h.walkTo).toHaveBeenCalledTimes(1);
+    expect(h.setBodyYaw).toHaveBeenLastCalledWith(0, 400);
+    expect(h.adoptSit).toHaveBeenCalled();
+  });
+
+  it("bounds the landing leg by the stack as it is when she lands, not as it was", async () => {
+    // A window slides over the neighbour's top while she is walking to the takeoff edge,
+    // leaving no room for the landing leg the pre-takeoff stack would have allowed.
+    let reads = 0;
+    const h = makeHarness({
+      windows: async () => {
+        reads++;
+        return reads === 1 ? [HOST, NEIGHBOUR] : [cover(1800, 400, 9), HOST, NEIGHBOUR];
+      },
+      jumpProbability: 1,
+      rng: () => 0,
+    });
+    h.percher.start();
+
+    await h.frame();
+    await h.frame(1.1);
+
+    expect(reads).toBeGreaterThan(1);
+    expect(h.walkTo).toHaveBeenCalledTimes(1);
+    expect(h.adoptSit).toHaveBeenCalledWith(7, { x: 1560, y: 900 }, 500, "commit");
+  });
+
+  it("sits her down where a landing leg that never arrived left her", async () => {
+    const h = makeHarness({
+      windows: async () => [HOST, NEIGHBOUR],
+      jumpProbability: 1,
+      rng: () => 0,
+      legWalk: "lost",
+    });
+    h.percher.start();
+
+    await h.frame();
+    await h.frame(1.1);
+
+    // She is on the target's top either way, and the seat comes from where she stopped —
+    // leaving her standing there would strand her with nothing scheduled.
+    expect(h.walkTo).toHaveBeenCalledTimes(2);
+    expect(h.adoptSit).toHaveBeenCalledWith(7, { x: 1560, y: 900 }, 500, "commit");
+    expect(h.calls).toContain("avatar.window_sit");
+    expect(h.calls.filter((name) => name === "avatar.walk_end")).toHaveLength(1);
+    expect(h.release).not.toHaveBeenCalled();
+    expect(h.setBodyYaw).toHaveBeenLastCalledWith(0, 400);
+  });
+
+  it("skips a neighbour standing on whose top the work area would clamp", async () => {
+    // The work area starts at y 480, which the host's own top clears exactly; standing on
+    // a neighbour whose top is a hundred px higher would be clamped.
+    const h = makeHarness({
+      windows: async () => [HOST, { ...NEIGHBOUR, y: 800 }],
+      monitors: async () => [
+        {
+          ...MONITOR,
+          workArea: { position: { x: 0, y: 480 }, size: { width: 3000, height: 1420 } },
+        },
+      ],
+      jumpProbability: 1,
+      rng: () => 0,
+    });
+    h.percher.start();
+
+    await h.frame();
+    await h.frame(1.1);
+
+    expect(h.jump).not.toHaveBeenCalled();
+    expect(h.resumeSit).toHaveBeenCalledTimes(1);
+  });
+
+  it("faces forward again when the jump is refused", async () => {
+    const h = makeHarness({
+      windows: async () => [HOST, NEIGHBOUR],
+      jumpProbability: 1,
+      rng: () => 0,
+      jumpOutcome: "refused",
+    });
+    h.percher.start();
+
+    await h.frame();
+    await h.frame(1.1);
+
+    expect(h.setBodyYaw).toHaveBeenCalledWith(0, 400);
+    expect(h.resumeSit).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not watch the host she has left, so its closing announces nothing", async () => {
+    const flight = deferred<JumpOutcome>();
+    let windows = [HOST, NEIGHBOUR];
+    const h = makeHarness({
+      windows: async () => windows,
+      jumpProbability: 1,
+      rng: () => 0,
+      jump: flight.promise,
+    });
+    h.percher.start();
+    await h.frame();
+    await h.frame(1.1);
+    // The host she jumped off closes while she is still in the air.
+    windows = [NEIGHBOUR];
+
+    await h.frame(0.8);
+    await h.frame(0.8);
+
+    expect(h.release).not.toHaveBeenCalled();
+    expect(h.onHostLost).not.toHaveBeenCalled();
+    expect(h.calls).not.toContain("exit");
+
+    flight.resolve("landed");
+    await h.frame();
+    expect(h.calls.filter((name) => name === "avatar.walk_end")).toHaveLength(1);
+  });
+
+  it("closes the walk cue when a pickup catches her mid-air", async () => {
+    const flight = deferred<JumpOutcome>();
+    const h = makeHarness({
+      windows: async () => [HOST, NEIGHBOUR],
+      jumpProbability: 1,
+      rng: () => 0,
+      jump: flight.promise,
+    });
+    h.percher.start();
+    await h.frame();
+    await h.frame(1.1);
+    const before = [...h.calls];
+
+    h.percher.cancel();
+    expect(h.jumperCancel).toHaveBeenCalledTimes(1);
+    // Nothing watches the host through the arc, so the cue is the only thing that can
+    // leave the posture walking and the hit test in per-tick mode.
+    expect(h.onWalkCancel).toHaveBeenCalledTimes(1);
+
+    flight.resolve("cancelled");
+    await h.frame();
+
+    expect(h.calls).toEqual([...before, "avatar.walk_cancel"]);
+    expect(h.adoptSit).not.toHaveBeenCalled();
+    expect(h.onTargetLost).not.toHaveBeenCalled();
+  });
+
+  it("stays quiet when a jump she did not walk to is refused", async () => {
+    const h = makeHarness({
+      windows: async () => [HOST, NEIGHBOUR],
+      jumpProbability: 1,
+      rng: () => 0,
+      arrivedInPlace: true,
+      jumpOutcome: "refused",
+    });
+    h.percher.start();
+
+    await h.frame();
+    await h.frame(1.1);
+
+    // No walk and no jump happened, so no walk cue is owed for either.
+    expect(h.calls).toEqual(["suspend", "resume", "avatar.window_sit"]);
   });
 
   it("does not let an older attempt clear the starting state of a newer generation", async () => {

@@ -531,11 +531,14 @@ const realFactories: ConfiguredBootstrapFactories = {
       bus,
       renderer,
       getPerchWalkConfig: () => config.get().avatar.perch_walk,
+      getJumpConfig: () => config.get().avatar.jump,
       getMotionKind: (id) => config.get().motions[id]?.kind,
       isBusy: dispatcher.isPipelineBusy,
       walker,
       dropSource: windowSources,
       onHostLost: () => faller.drop(),
+      // A jump that loses its target leaves her mid-air, the same as a lost host does.
+      onTargetLost: () => faller.drop(),
       setHitTestMoving: (moving) => hitTest.setMoving(moving),
       log,
     });

@@ -52,12 +52,14 @@ describe("host loss reaches the faller", () => {
       bus: { push: () => {} } as never,
       renderer: {} as never,
       getPerchWalkConfig: () => ({}) as never,
+      getJumpConfig: () => ({}) as never,
       getMotionKind: () => undefined,
       isBusy: () => false,
       walker: { walkTo: async () => "arrived" as const, cancel: () => {} },
       dropSource: {} as never,
       setHitTestMoving: () => {},
       onHostLost: () => faller.drop(),
+      onTargetLost: () => faller.drop(),
       log: noopLog,
     });
     await vi.waitFor(() => expect(createPercher).toHaveBeenCalled());

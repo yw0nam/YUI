@@ -78,6 +78,16 @@ describe("validateAvatar — happy path", () => {
         ledge_walk_min_frac: 0.5,
         ledge_walk_max_frac: 1.5,
       },
+      jump: {
+        probability: 0.3,
+        height_up_max_frac: 0.5,
+        height_down_max_frac: 1,
+        gap_max_width_frac: 1.5,
+        apex_lift_frac: 0.15,
+        takeoff_frac: 0.4,
+        land_frac: 0.67,
+        flight_timeout_ms: 4000,
+      },
     });
   });
 
@@ -740,6 +750,64 @@ describe("validateAvatar — climb", () => {
     expectIssue(
       { vrm_url: "/v.vrm", climb: { ledge_walk_min_frac: 2 } },
       "climb.ledge_walk_min_frac는 climb.ledge_walk_max_frac 이하",
+    );
+  });
+});
+
+describe("validateAvatar — jump", () => {
+  it("merges a partial jump block over defaults", () => {
+    const out = validateAvatar(FILE, {
+      vrm_url: "/v.vrm",
+      jump: { probability: 1, gap_max_width_frac: 2 },
+    });
+
+    expect(out.jump).toEqual({
+      probability: 1,
+      height_up_max_frac: 0.5,
+      height_down_max_frac: 1,
+      gap_max_width_frac: 2,
+      apex_lift_frac: 0.15,
+      takeoff_frac: 0.4,
+      land_frac: 0.67,
+      flight_timeout_ms: 4000,
+    });
+  });
+
+  it.each([0, -1, "4000", 1.5])("rejects an invalid flight_timeout_ms: %s", (value) => {
+    expectIssue(
+      { vrm_url: "/v.vrm", jump: { flight_timeout_ms: value } },
+      "jump.flight_timeout_ms는 0보다 큰 정수",
+    );
+  });
+
+  it("rejects a non-object jump block", () => {
+    expectIssue({ vrm_url: "/v.vrm", jump: "nope" }, "jump은 객체여야 함");
+  });
+
+  it.each([-0.1, 1.1, "0.3", Number.NaN])("rejects an invalid probability: %s", (probability) => {
+    expectIssue({ vrm_url: "/v.vrm", jump: { probability } }, "jump.probability는 [0, 1] 범위");
+  });
+
+  it.each([
+    ["height_up_max_frac", 0],
+    ["height_down_max_frac", -1],
+    ["gap_max_width_frac", "1.5"],
+    ["apex_lift_frac", Number.POSITIVE_INFINITY],
+  ])("rejects invalid %s: %s", (field, value) => {
+    expectIssue({ vrm_url: "/v.vrm", jump: { [field]: value } }, `jump.${field}는 0보다 큰`);
+  });
+
+  it.each([
+    ["takeoff_frac", -0.1],
+    ["land_frac", 1.5],
+  ])("rejects invalid %s: %s", (field, value) => {
+    expectIssue({ vrm_url: "/v.vrm", jump: { [field]: value } }, `jump.${field}는 [0, 1] 범위`);
+  });
+
+  it("rejects an airborne window that ends before it starts", () => {
+    expectIssue(
+      { vrm_url: "/v.vrm", jump: { takeoff_frac: 0.8 } },
+      "jump.takeoff_frac는 jump.land_frac 미만",
     );
   });
 });

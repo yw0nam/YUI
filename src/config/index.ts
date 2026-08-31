@@ -26,6 +26,8 @@ export {
   type GestureCueConfig,
   type GestureCuesConfig,
   type GuardrailsConfig,
+  JUMP_DEFAULTS,
+  type JumpConfig,
   type LoadConfigOptions,
   loadConfig,
   PEEK_DEFAULTS,

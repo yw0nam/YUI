@@ -196,6 +196,7 @@ function classify(env: BusEnvelope): Classification {
     n === "avatar.climb_start" ||
     n === "avatar.climb_end" ||
     n === "avatar.window_sit" ||
+    n === "avatar.jump" ||
     n === "user.fall_land"
   ) {
     return { tier: 1, target: "tier1" };
@@ -236,6 +237,7 @@ function userTurnSourceOf(env: BusEnvelope): UserTurnSource | undefined {
  *  - avatar.climb_* → no render; the climber owns the climb clips and only the posture moves.
  *  - avatar.window_sit → the sit the climber reached on its own, rendered like a drop.
  *  - user.fall_land → no render; the faller owns the falling/landing clips and the posture is unchanged.
+ *  - avatar.jump → no render; the jumper owns the jump clip and the posture stays walking.
  * Returning null means no render.
  */
 function tier1Directive(env: BusEnvelope, log: Logger): ControlEnvelope | null {
@@ -257,6 +259,7 @@ function tier1Directive(env: BusEnvelope, log: Logger): ControlEnvelope | null {
       return { speech_text: "", motion: null };
     case "user.tap":
     case "user.fall_land":
+    case "avatar.jump":
     case "avatar.climb_start":
     case "avatar.climb_end":
       return null;

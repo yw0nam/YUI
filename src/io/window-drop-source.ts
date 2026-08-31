@@ -159,9 +159,16 @@ export interface WindowDropSource {
   perchTargets(): Promise<PerchTargets>;
   /**
    * Track a sit the character reached on her own: arms the occlusion poll on the given
-   * window without pushing anything, because the mover already published the sit.
+   * window without pushing anything, because the mover already published the sit. The
+   * origin names who owns the seat afterwards — a climb keeps it, a jump hands it to the
+   * perch loop the same way a drag release would.
    */
-  adoptSit(windowNumber: number, rect: { x: number; y: number }, charHpx: number): void;
+  adoptSit(
+    windowNumber: number,
+    rect: { x: number; y: number },
+    charHpx: number,
+    origin: "commit" | "adopt",
+  ): void;
   /** The window an armed sit is held on. null when nothing, or a peek, is armed. */
   armedSit(): { windowNumber: number; origin: "commit" | "adopt" } | null;
   /** Stop the sit poll and clear the renderer pin without publishing an exit. */
@@ -205,6 +212,32 @@ export function containsSeat(win: ScreenRect, seat: ScreenPoint): boolean {
     seat.y >= win.y &&
     seat.y <= win.y + win.height
   );
+}
+
+/**
+ * The stretch of the host's top edge reachable from `currentX`, in the z-ordered
+ * front-to-back window list the perch poll reads. A window in front of the host that
+ * reaches that edge detaches the perch the moment the seat lands under it, so it bounds
+ * the walk on whichever side of the seat it lies. A window straddling `currentX` leaves
+ * left past right — the seat is boxed in and there is nothing to walk.
+ */
+export function uncoveredSpan(
+  windows: WindowRect[],
+  hostIndex: number,
+  currentX: number,
+): { left: number; right: number } {
+  const host = windows[hostIndex];
+  let left = host.x;
+  let right = host.x + host.width;
+  for (let i = 0; i < hostIndex; i++) {
+    const w = windows[i];
+    // Its own left edge on the host's edge line asks the one question left: whether this
+    // window reaches that line at all.
+    if (!containsSeat(w, { x: w.x, y: host.y })) continue;
+    if (w.x + w.width > currentX) right = Math.min(right, w.x);
+    if (w.x < currentX) left = Math.max(left, w.x + w.width);
+  }
+  return { left, right };
 }
 
 /**
@@ -696,8 +729,8 @@ export function createWindowDropSource(deps: WindowDropSourceDeps): WindowDropSo
   return {
     placeOn,
     perchTargets,
-    adoptSit(windowNumber, rect, charHpx) {
-      arm("sit", windowNumber, rect, charHpx, "adopt");
+    adoptSit(windowNumber, rect, charHpx, origin) {
+      arm("sit", windowNumber, rect, charHpx, origin);
     },
     armedSit() {
       if (armedKind !== "sit" || armedWindowNumber === null || armedOrigin === null) return null;
