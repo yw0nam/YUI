@@ -190,6 +190,9 @@ function makeHarness(
     armed = false;
     calls.push("exit");
   });
+  const onHostLost = vi.fn(() => {
+    calls.push("fall");
+  });
   const positions: Array<{ x: number; y: number }> = [];
   const deps: PercherDeps = {
     renderer: {
@@ -231,6 +234,7 @@ function makeHarness(
     onWalkEnd: () => calls.push("avatar.walk_end"),
     onWalkCancel,
     onSit: () => calls.push("avatar.window_sit"),
+    onHostLost,
     rng: over.rng ?? seqRng(0, 1, 0),
   };
   const percher = createPercher(deps);
@@ -252,6 +256,7 @@ function makeHarness(
     resumeSit,
     abandonSit,
     release,
+    onHostLost,
     /** Arm a fresh commit-origin sit, the way a later drop release would. */
     rearm: () => {
       armed = true;
@@ -432,6 +437,21 @@ describe("createPercher", () => {
     expect(h.walkTo).not.toHaveBeenCalled();
   });
 
+  it("exits and falls when the host is already gone at stroll start", async () => {
+    const h = makeHarness({ windows: async () => [] });
+    h.percher.start();
+    await h.frame();
+
+    await h.frame(1.1);
+
+    // Nothing was suspended and no walk began, so the exit is the whole of it — and it
+    // still leaves her standing where a window no longer is.
+    expect(h.calls).toEqual(["exit", "fall"]);
+    expect(h.suspendSit).not.toHaveBeenCalled();
+    expect(h.walkTo).not.toHaveBeenCalled();
+    expect(h.onHostLost).toHaveBeenCalledTimes(1);
+  });
+
   it("uses the existing exit path when the host vanishes mid-stroll", async () => {
     const walking = deferred<"arrived" | "lost">();
     let windows = [HOST];
@@ -446,6 +466,9 @@ describe("createPercher", () => {
     expect(h.walkerCancel).toHaveBeenCalledTimes(1);
     expect(h.release).toHaveBeenCalledTimes(1);
     expect(h.resumeSit).not.toHaveBeenCalled();
+    // The exit leaves her standing on nothing, so the fall follows it.
+    expect(h.calls.slice(-3)).toEqual(["avatar.walk_end", "exit", "fall"]);
+    expect(h.onHostLost).toHaveBeenCalledTimes(1);
   });
 
   it("dwells again on a fresh sit after the host vanished mid-stroll", async () => {
@@ -481,11 +504,14 @@ describe("createPercher", () => {
 
     await h.frame(0.8);
     expect(h.release).not.toHaveBeenCalled();
+    expect(h.onHostLost).not.toHaveBeenCalled();
     await h.frame(0.8);
 
     expect(h.walkerCancel).toHaveBeenCalledTimes(1);
     expect(h.release).toHaveBeenCalledTimes(1);
     expect(h.resumeSit).not.toHaveBeenCalled();
+    expect(h.calls.slice(-3)).toEqual(["avatar.walk_end", "exit", "fall"]);
+    expect(h.onHostLost).toHaveBeenCalledTimes(1);
   });
 
   it("cancels user pickup mid-dwell and mid-stroll without leaking late transitions", async () => {
@@ -515,6 +541,9 @@ describe("createPercher", () => {
     expect(stroll.resumeSit).not.toHaveBeenCalled();
     expect(stroll.abandonSit).toHaveBeenCalledTimes(1);
     expect(stroll.release).not.toHaveBeenCalled();
+    // A pickup is not a loss — the drag owns the body, nothing falls.
+    expect(dwell.onHostLost).not.toHaveBeenCalled();
+    expect(stroll.onHostLost).not.toHaveBeenCalled();
   });
 
   it("abandons the suspended sit when positioning the stroll throws", async () => {

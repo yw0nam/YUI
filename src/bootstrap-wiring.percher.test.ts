@@ -34,6 +34,7 @@ async function wire() {
     isBusy: () => false,
     walker: { walkTo: async () => "arrived" as const, cancel: () => {} },
     dropSource: {} as never,
+    onHostLost: () => {},
     setHitTestMoving,
     log: noopLog,
   });

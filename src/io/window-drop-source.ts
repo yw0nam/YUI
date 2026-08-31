@@ -100,6 +100,8 @@ export interface WindowDropSourceDeps {
   getGestureCues: () => GestureCuesConfig;
   /** A drag release that neither sat nor peeked — the character is left mid-air. */
   onDragMiss?: () => void;
+  /** An armed sit lost its host — the seat is gone and the character hangs where it was. */
+  onSitLost?: () => void;
   /** Injectable timer fns (fake timers in tests). */
   setInterval?: typeof setInterval;
   clearInterval?: typeof clearInterval;
@@ -417,7 +419,16 @@ export function createWindowDropSource(deps: WindowDropSourceDeps): WindowDropSo
       lostStreak++;
       // gone is unambiguous (1 tick); covered/moved ride out the debounce.
       const need = reason === "gone" ? 1 : PERCH_AMBIGUOUS_LOST_TICKS;
-      if (lostStreak >= need) pushArmedExit(kind);
+      if (lostStreak >= need) {
+        pushArmedExit(kind);
+        if (kind === "sit") {
+          // The exit leaves the character standing where the seat was; a sit owes a fall.
+          // The dispatcher clears the pin on that exit a pump later, too late for a fall
+          // starting here — the perch hold would swallow the falling clip until then.
+          renderer.setPerchTarget(null);
+          deps.onSitLost?.();
+        }
+      }
     } else {
       lostStreak = 0;
     }

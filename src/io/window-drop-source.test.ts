@@ -1909,3 +1909,156 @@ describe("window-drop-source — adoptSit", () => {
     expect(source.armedSit()).toBeNull();
   });
 });
+
+// ── Host loss → fall ────────────────────────────────────────────────────────
+//
+// An armed sit that loses its host leaves the character standing in mid-air, so
+// the loss publishes today's exit, drops the renderer's perch pin, and then hands
+// the body to the faller. The pin has to go first: the dispatcher's own clear
+// arrives a pump later, and the perch hold would swallow the falling clip until
+// then. The peek is unchanged, and a deliberate release() never falls.
+describe("window-drop-source — host loss fall", () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+  });
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  /** Arm a sit through a real drop, recording exits, the pin clear and the fall in one order. */
+  async function armSit() {
+    const probe = makePerchSource();
+    const armed = win({ name: "Armed", windowNumber: 42, y: 412 });
+    const invoke = vi.fn(async () => [armed]);
+    const { listen, fire } = makeListen();
+    const order: string[] = [];
+    probe.renderer.setPerchTarget.mockImplementation((target) => {
+      order.push(target === null ? "unpin" : "pin");
+    });
+    const onSitLost = vi.fn(() => {
+      order.push("fall");
+    });
+    const source = createWindowDropSource({
+      bus: {
+        push(env) {
+          order.push(env.event_name);
+          return bus.push(env);
+        },
+        pop: () => null,
+        snapshot: () => [],
+      },
+      renderer: probe.renderer,
+      invoke,
+      getWindow: () => makeWindow({ x: 520, y: 740 }, 2),
+      listen,
+      onSitLost,
+    });
+    await source.start();
+    fire({ point: { x: 0, y: 0 } });
+    await settleRelease();
+    expect(pushed.at(-1)?.event_name).toBe("user.window_sit_drop");
+    order.length = 0;
+    return { source, invoke, armed, onSitLost, order };
+  }
+
+  it("falls after the exit when the host is gone", async () => {
+    const { invoke, onSitLost, order } = await armSit();
+
+    invoke.mockImplementation(async () => []);
+    await tick();
+
+    expect(order).toEqual(["user.window_sit_exit", "unpin", "fall"]);
+    expect(onSitLost).toHaveBeenCalledTimes(1);
+  });
+
+  it("falls after the exit when the host moved past the debounce", async () => {
+    const { invoke, armed, onSitLost, order } = await armSit();
+
+    invoke.mockImplementation(async () => [{ ...armed, y: armed.y + 40 }]);
+    await tick();
+    expect(onSitLost).not.toHaveBeenCalled();
+    await tick();
+
+    expect(order).toEqual(["user.window_sit_exit", "unpin", "fall"]);
+    expect(onSitLost).toHaveBeenCalledTimes(1);
+  });
+
+  it("falls after the exit when a window in front covers the seat", async () => {
+    const { invoke, armed, onSitLost, order } = await armSit();
+    const cover = win({ name: "Cover", windowNumber: 99, y: 360, height: 200 });
+
+    invoke.mockImplementation(async () => [cover, armed]);
+    await tick();
+    expect(onSitLost).not.toHaveBeenCalled();
+    await tick();
+
+    expect(order).toEqual(["user.window_sit_exit", "unpin", "fall"]);
+    expect(onSitLost).toHaveBeenCalledTimes(1);
+  });
+
+  it("falls on an adopted sit the same as on a committed one", async () => {
+    const { renderer } = makePerchSource();
+    const armed = win({ name: "Armed", windowNumber: 42 });
+    const invoke = vi.fn(async () => [armed]);
+    const onSitLost = vi.fn();
+    const source = createWindowDropSource({
+      bus,
+      renderer,
+      invoke,
+      getWindow: () => makeWindow({ x: 520, y: 740 }, 2),
+      listen: makeListen().listen,
+      onSitLost,
+    });
+    source.adoptSit(42, { x: armed.x, y: armed.y }, 200);
+
+    invoke.mockImplementation(async () => []);
+    await tick();
+
+    expect(pushed.map((event) => event.event_name)).toEqual(["user.window_sit_exit"]);
+    expect(renderer.setPerchTarget).toHaveBeenCalledWith(null);
+    expect(onSitLost).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not fall when a peek loses its window", async () => {
+    const state = { active: true };
+    const renderer = {
+      getPerchProbe: vi.fn(() => ({ seatPx: { x: 300, y: 300 }, charHpx: 200 })),
+      isPerched: vi.fn(() => false),
+      setPerchTarget: vi.fn(),
+    };
+    const armed = win({ x: 300, y: 100, width: 520, height: 500, windowNumber: 42 });
+    const invoke = vi.fn(async () => [armed]);
+    const { listen, fire } = makeListen();
+    const onSitLost = vi.fn();
+    const source = createWindowDropSource({
+      bus,
+      renderer,
+      invoke,
+      getWindow: () => makeWindow({ x: 0, y: 0 }, 1),
+      listen,
+      peekActive: () => state.active,
+      onSitLost,
+    });
+    await source.start();
+    fire({});
+    await settleRelease();
+    expect(pushed.at(-1)?.event_name).toBe("user.peek_drop");
+
+    invoke.mockImplementation(async () => []);
+    await tick();
+
+    expect(pushed.filter((event) => event.event_name === "user.peek_exit")).toHaveLength(1);
+    expect(renderer.setPerchTarget).not.toHaveBeenCalled();
+    expect(onSitLost).not.toHaveBeenCalled();
+  });
+
+  it("does not fall or drop the pin on a deliberate release", async () => {
+    const { source, onSitLost, order } = await armSit();
+
+    source.release();
+
+    // The climber calls release() on purpose when it leaves a sit to descend.
+    expect(order).toEqual(["user.window_sit_exit"]);
+    expect(onSitLost).not.toHaveBeenCalled();
+  });
+});
