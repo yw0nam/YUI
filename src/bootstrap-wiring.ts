@@ -1,6 +1,7 @@
 /** Bootstrap wiring helpers extracted from main.ts: VRM + speaker selection stores and their swap/import flows. */
 import { type Climber, type ClimbTarget, createClimber } from "./ambient/climber";
 import { createFaller, type Faller } from "./ambient/faller";
+import { createPercher, type Percher } from "./ambient/percher";
 import type { Tier1Engine } from "./ambient/tier1";
 import { createWalker, type Walker } from "./ambient/walker";
 import {
@@ -11,6 +12,7 @@ import {
   type GestureCuesConfig,
   loadEmotionTextTable,
   type PeekConfig,
+  type PerchWalkConfig,
   type ScreenConfig,
   type WalkConfig,
 } from "./config";
@@ -452,7 +454,7 @@ export function wireWalker(deps: {
   setHitTestMoving: (moving: boolean) => void;
   log: Logger;
 }): {
-  walkTo(toX: number): Promise<"arrived" | "lost">;
+  walkTo(toX: number, onAccepted?: () => void): Promise<"arrived" | "lost">;
   cancel(): void;
   dispose(): void;
 } {
@@ -460,8 +462,8 @@ export function wireWalker(deps: {
   let walker: Walker | null = null;
   let disposed = false;
   const handle = {
-    walkTo: async (toX: number): Promise<"arrived" | "lost"> =>
-      (await walker?.walkTo(toX)) ?? "lost",
+    walkTo: async (toX: number, onAccepted?: () => void): Promise<"arrived" | "lost"> =>
+      (await walker?.walkTo(toX, onAccepted)) ?? "lost",
     cancel: () => walker?.cancel(),
     dispose: () => {
       disposed = true;
@@ -511,6 +513,114 @@ export function wireWalker(deps: {
     });
     walker.start();
   })().catch((err) => log.warn("walker_start_failed", { degrade: true, error: String(err) }));
+  return handle;
+}
+
+/**
+ * Ambient walking along a foreign-window perch. Every commitSit-origin perch — a user
+ * drag release and an agent placement alike — belongs to this loop: it dwells, strolls
+ * the top edge and sits back down, and never descends on its own. A climb-adopted perch
+ * stays the climber's.
+ */
+export function wirePercher(deps: {
+  bus: EventBus;
+  renderer: Renderer;
+  getPerchWalkConfig: () => PerchWalkConfig;
+  /** Registry kind of a motion id, for the "nothing else holds the body" gate. */
+  getMotionKind: (id: string) => MotionKind | undefined;
+  /** A turn is in flight or speech is still playing — ambient movement stays out of the way. */
+  isBusy: () => boolean;
+  walker: {
+    walkTo(toX: number, onAccepted?: () => void): Promise<"arrived" | "lost">;
+    cancel(): void;
+  };
+  dropSource: {
+    armedSit(): { windowNumber: number; origin: "commit" | "adopt" } | null;
+    suspendSit(): {
+      windowNumber: number;
+      origin: "commit" | "adopt";
+      rect: { x: number; y: number };
+      charHpx: number;
+    } | null;
+    resumeSit(edgeLocalYpx: number): void;
+    abandonSit(): void;
+    release(): void;
+  };
+  setHitTestMoving(moving: boolean): void;
+  log: Logger;
+}): { cancel(): void; dispose(): void } {
+  const { bus, renderer, log } = deps;
+  let percher: Percher | null = null;
+  let disposed = false;
+  const handle = {
+    cancel: () => percher?.cancel(),
+    dispose: () => {
+      disposed = true;
+      percher?.stop();
+    },
+  };
+  if (!isTauri()) return handle;
+  void (async () => {
+    const { invoke } = await import("@tauri-apps/api/core");
+    const { availableMonitors, getCurrentWindow } = await import("@tauri-apps/api/window");
+    const { PhysicalPosition } = await import("@tauri-apps/api/dpi");
+    if (disposed) return;
+    const win = getCurrentWindow();
+    const endWalk = (): void => {
+      deps.setHitTestMoving(false);
+      bus.push({
+        source: "timer_scheduler",
+        event_name: "avatar.walk_end",
+        ts: Date.now(),
+        hint_tier: 1,
+      });
+    };
+    percher = createPercher({
+      renderer,
+      getWindow: () => ({
+        outerPosition: () => win.outerPosition(),
+        scaleFactor: () => win.scaleFactor(),
+        setPositionPhysical: (x, y) => win.setPosition(new PhysicalPosition(x, y)),
+      }),
+      listWindows: () => invoke("list_windows") as Promise<WindowRect[]>,
+      listMonitors: async () => (await availableMonitors()).map(toScreenMonitor),
+      getConfig: deps.getPerchWalkConfig,
+      walker: deps.walker,
+      dropSource: deps.dropSource,
+      currentMotion: () => {
+        const current = renderer.getCurrentMotion();
+        return current ? { id: current.id, kind: deps.getMotionKind(current.id) ?? null } : null;
+      },
+      isBusy: deps.isBusy,
+      onWalkStart: () => {
+        deps.setHitTestMoving(true);
+        bus.push({
+          source: "timer_scheduler",
+          event_name: "avatar.walk_start",
+          ts: Date.now(),
+          hint_tier: 1,
+        });
+      },
+      onWalkEnd: endWalk,
+      // A cancelled stroll still owes the end cue: the posture only leaves walking on it.
+      onWalkCancel: endWalk,
+      onSit: (target, edgeLocalYpx) => {
+        bus.push({
+          source: "os_event_watcher",
+          event_name: "avatar.window_sit",
+          ts: Date.now(),
+          hint_tier: 1,
+          dnd_override: true,
+          payload: {
+            edge_local_ypx: edgeLocalYpx,
+            app: target.ownerName,
+            window_title: target.name,
+          },
+        });
+      },
+    });
+    percher.start();
+  })().catch((error) => log.warn("percher_start_failed", { degrade: true, error: String(error) }));
   return handle;
 }
 
@@ -623,7 +733,7 @@ export function wireClimber(deps: {
   faller: { drop(): void };
   dropSource: {
     adoptSit(windowNumber: number, rect: { x: number; y: number }, charHpx: number): void;
-    armedSit(): { windowNumber: number } | null;
+    armedSit(): { windowNumber: number; origin: "commit" | "adopt" } | null;
     release(): void;
   };
   /** Keep the hit-test cursor mapping accurate while the window translates. */
@@ -748,7 +858,11 @@ export function wireWindowSources(deps: {
   /** Track a sit the character climbed to herself, without pushing a drop envelope. */
   adoptSit(windowNumber: number, rect: { x: number; y: number }, charHpx: number): void;
   /** The window an armed sit is held on. null when nothing, or a peek, is armed. */
-  armedSit(): { windowNumber: number } | null;
+  armedSit(): { windowNumber: number; origin: "commit" | "adopt" } | null;
+  suspendSit(): ReturnType<ReturnType<typeof createWindowDropSource>["suspendSit"]>;
+  resumeSit(edgeLocalYpx: number): void;
+  /** Drop a suspended sit for good, without publishing an exit. */
+  abandonSit(): void;
   /** Release the armed perch and push the sit exit. */
   release(): void;
   dispose(): void;
@@ -776,6 +890,9 @@ export function wireWindowSources(deps: {
     adoptSit: (windowNumber: number, rect: { x: number; y: number }, charHpx: number) =>
       windowDropSource?.adoptSit(windowNumber, rect, charHpx),
     armedSit: () => windowDropSource?.armedSit() ?? null,
+    suspendSit: () => windowDropSource?.suspendSit() ?? null,
+    resumeSit: (edgeLocalYpx: number) => windowDropSource?.resumeSit(edgeLocalYpx),
+    abandonSit: () => windowDropSource?.abandonSit(),
     release: () => windowDropSource?.release(),
     dispose: () => {
       disposed = true;

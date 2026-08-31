@@ -161,8 +161,10 @@ export interface Walker {
    * Walk to a window x (logical px), no interval and no floor/perch gate — the caller
    * vouches for the surface and owns the posture, so the same call walks the work-area
    * floor and a foreign window's top edge. Cancels a running stroll first.
+   * onAccepted fires once the frame loop owns the walk, so a caller can hold its own
+   * start cue back until the clip is actually running.
    */
-  walkTo(toX: number): Promise<"arrived" | "lost">;
+  walkTo(toX: number, onAccepted?: () => void): Promise<"arrived" | "lost">;
   /** End a running stroll now and rearm the interval. */
   cancel(): void;
   stop(): void;
@@ -275,7 +277,10 @@ export function createWalker(deps: WalkerDeps): Walker {
   }
 
   /** Set up a directed walk. "running" means the frame loop owns it from here. */
-  async function beginWalkTo(toX: number): Promise<"arrived" | "lost" | "running"> {
+  async function beginWalkTo(
+    toX: number,
+    onAccepted?: () => void,
+  ): Promise<"arrived" | "lost" | "running"> {
     const startedAt = generation;
     const pxPerMetre = renderer.getPxPerMetre();
     const win = deps.getWindow();
@@ -296,6 +301,7 @@ export function createWalker(deps: WalkerDeps): Walker {
       directed: true,
     };
     renderer.setBodyYaw(Math.sign(target - pos.x) * WALK_YAW_RAD, WALK_YAW_EASE_MS);
+    onAccepted?.();
     return "running";
   }
 
@@ -363,12 +369,12 @@ export function createWalker(deps: WalkerDeps): Walker {
       doc?.addEventListener("visibilitychange", onVisibilityChange);
       unsub = renderer.onTick(tick);
     },
-    async walkTo(toX) {
+    async walkTo(toX, onAccepted) {
       endStroll();
       starting = true;
       let outcome: "arrived" | "lost" | "running";
       try {
-        outcome = await beginWalkTo(toX);
+        outcome = await beginWalkTo(toX, onAccepted);
       } finally {
         starting = false;
       }

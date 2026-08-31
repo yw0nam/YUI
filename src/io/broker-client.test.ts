@@ -20,6 +20,7 @@ import {
   FALL_DEFAULTS,
   GESTURE_CUES_DEFAULTS,
   PEEK_DEFAULTS,
+  PERCH_WALK_DEFAULTS,
   TAP_DEFAULTS,
   WALK_DEFAULTS,
 } from "../config/load";
@@ -707,6 +708,7 @@ describe("deriveBrokerPayload", () => {
         peek: PEEK_DEFAULTS,
         tap: TAP_DEFAULTS,
         walk: WALK_DEFAULTS,
+        perch_walk: PERCH_WALK_DEFAULTS,
         fall: FALL_DEFAULTS,
         climb: CLIMB_DEFAULTS,
         drag_hold_ms: DRAG_HOLD_MS_DEFAULT,

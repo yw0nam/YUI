@@ -9,7 +9,9 @@ import {
   GESTURE_CUES_DEFAULTS,
   type GestureCuesConfig,
   PEEK_DEFAULTS,
+  PERCH_WALK_DEFAULTS,
   type PeekConfig,
+  type PerchWalkConfig,
   TAP_DEFAULTS,
   type TapConfig,
   WALK_DEFAULTS,
@@ -445,6 +447,60 @@ export function validateAvatar(file: string, raw: unknown): AvatarConfig {
     }
   }
 
+  const perch_walk: PerchWalkConfig = { ...PERCH_WALK_DEFAULTS };
+  const rawPerchWalk = raw.perch_walk;
+  if (rawPerchWalk !== undefined) {
+    if (!isObject(rawPerchWalk)) {
+      issues.push(`perch_walk은 객체여야 함 (받음: ${JSON.stringify(rawPerchWalk)})`);
+    } else {
+      for (const field of ["dwell_min_ms", "dwell_max_ms"] as const) {
+        const value = rawPerchWalk[field];
+        if (value === undefined) continue;
+        if (typeof value !== "number" || !Number.isInteger(value) || value < 0) {
+          issues.push(`perch_walk.${field}는 0 이상 정수여야 함 (받음: ${JSON.stringify(value)})`);
+        } else {
+          perch_walk[field] = value;
+        }
+      }
+      for (const field of ["distance_min_px", "distance_max_px"] as const) {
+        const value = rawPerchWalk[field];
+        if (value === undefined) continue;
+        if (typeof value !== "number" || !Number.isFinite(value) || value <= 0) {
+          issues.push(
+            `perch_walk.${field}는 0보다 큰 유한 number여야 함 (받음: ${JSON.stringify(value)})`,
+          );
+        } else {
+          perch_walk[field] = value;
+        }
+      }
+      const edgeMarginFrac = rawPerchWalk.edge_margin_frac;
+      if (edgeMarginFrac !== undefined) {
+        if (
+          typeof edgeMarginFrac !== "number" ||
+          !Number.isFinite(edgeMarginFrac) ||
+          edgeMarginFrac < 0 ||
+          edgeMarginFrac > 1
+        ) {
+          issues.push(
+            `perch_walk.edge_margin_frac는 0 이상 1 이하 number여야 함 (받음: ${JSON.stringify(edgeMarginFrac)})`,
+          );
+        } else {
+          perch_walk.edge_margin_frac = edgeMarginFrac;
+        }
+      }
+      if (perch_walk.dwell_min_ms > perch_walk.dwell_max_ms) {
+        issues.push(
+          `perch_walk.dwell_min_ms는 perch_walk.dwell_max_ms 이하여야 함 (받음: ${perch_walk.dwell_min_ms} > ${perch_walk.dwell_max_ms})`,
+        );
+      }
+      if (perch_walk.distance_min_px > perch_walk.distance_max_px) {
+        issues.push(
+          `perch_walk.distance_min_px는 perch_walk.distance_max_px 이하여야 함 (받음: ${perch_walk.distance_min_px} > ${perch_walk.distance_max_px})`,
+        );
+      }
+    }
+  }
+
   const fall: FallConfig = { ...FALL_DEFAULTS };
   const rawFall = raw.fall;
   if (rawFall !== undefined) {
@@ -651,6 +707,7 @@ export function validateAvatar(file: string, raw: unknown): AvatarConfig {
     tap,
     peek,
     walk,
+    perch_walk,
     fall,
     climb,
     drag_hold_ms,

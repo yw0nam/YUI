@@ -54,6 +54,13 @@ describe("validateAvatar — happy path", () => {
         distance_max_px: 600,
         floor_tolerance_px: 24,
       },
+      perch_walk: {
+        dwell_min_ms: 45_000,
+        dwell_max_ms: 120_000,
+        distance_min_px: 80,
+        distance_max_px: 400,
+        edge_margin_frac: 0.2,
+      },
       fall: {
         gravity_px_s2: 1600,
         max_speed_px_s: 1200,
@@ -564,6 +571,59 @@ describe("validateAvatar — walk", () => {
     expectIssue(
       { vrm_url: "/v.vrm", walk: { distance_min_px: 700 } },
       "walk.distance_min_px는 walk.distance_max_px 이하",
+    );
+  });
+});
+
+describe("validateAvatar — perch_walk", () => {
+  it("applies perch-walk defaults when the section is absent", () => {
+    expect(validateAvatar(FILE, { vrm_url: "/v.vrm" }).perch_walk).toEqual({
+      dwell_min_ms: 45_000,
+      dwell_max_ms: 120_000,
+      distance_min_px: 80,
+      distance_max_px: 400,
+      edge_margin_frac: 0.2,
+    });
+  });
+
+  it("merges a partial perch-walk block over defaults", () => {
+    expect(
+      validateAvatar(FILE, {
+        vrm_url: "/v.vrm",
+        perch_walk: { dwell_min_ms: 10_000, distance_max_px: 240 },
+      }).perch_walk,
+    ).toEqual({
+      dwell_min_ms: 10_000,
+      dwell_max_ms: 120_000,
+      distance_min_px: 80,
+      distance_max_px: 240,
+      edge_margin_frac: 0.2,
+    });
+  });
+
+  it("rejects a non-object perch-walk block", () => {
+    expectIssue({ vrm_url: "/v.vrm", perch_walk: "nope" }, "perch_walk은 객체여야 함");
+  });
+
+  it.each([
+    ["dwell_min_ms", -1],
+    ["dwell_max_ms", 1.5],
+    ["distance_min_px", 0],
+    ["distance_max_px", Number.POSITIVE_INFINITY],
+    ["edge_margin_frac", -0.1],
+    ["edge_margin_frac", 1.1],
+  ])("rejects invalid %s: %s", (field, value) => {
+    expectIssue({ vrm_url: "/v.vrm", perch_walk: { [field]: value } }, `perch_walk.${field}`);
+  });
+
+  it("rejects inverted dwell and distance ranges", () => {
+    expectIssue(
+      { vrm_url: "/v.vrm", perch_walk: { dwell_min_ms: 130_000 } },
+      "perch_walk.dwell_min_ms는 perch_walk.dwell_max_ms 이하",
+    );
+    expectIssue(
+      { vrm_url: "/v.vrm", perch_walk: { distance_min_px: 500 } },
+      "perch_walk.distance_min_px는 perch_walk.distance_max_px 이하",
     );
   });
 });

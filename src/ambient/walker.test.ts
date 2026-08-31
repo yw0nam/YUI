@@ -640,6 +640,29 @@ describe("createWalker — walkTo", () => {
     expect(await walk).toBe("lost");
   });
 
+  it("reports acceptance once a directed walk enters the frame loop", async () => {
+    const h = makeHarness();
+    const accepted = vi.fn();
+    h.walker.start();
+
+    const walk = h.walker.walkTo(300, accepted);
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(accepted).toHaveBeenCalledTimes(1);
+    expect(await settle(h, walk)).toBe("arrived");
+    expect(accepted).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not report acceptance when a directed walk is refused", async () => {
+    const h = makeHarness({ motionRefused: true });
+    const accepted = vi.fn();
+    h.walker.start();
+
+    expect(await h.walker.walkTo(300, accepted)).toBe("lost");
+    expect(accepted).not.toHaveBeenCalled();
+  });
+
   it("keeps the ambient stroll callbacks out of a directed walk", async () => {
     const h = makeHarness();
     h.walker.start();

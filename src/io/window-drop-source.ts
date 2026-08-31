@@ -46,10 +46,12 @@ const log = createLogger("window-drop");
 /** Tauri event channel carrying the drag-release point (payload unused by the seat hit-test). */
 const RELEASE_EVENT = "window_drop_release";
 
+/** Registry id of the clip that holds the character in place for as long as she is perched. */
+export const PERCH_MOTION_ID = "window_sit";
 /** Poll cadence — ~1.4 Hz keeps detach latency under ~2 ticks (≈1.4 s). */
-const DEFAULT_POLL_MS = 700;
+export const PERCH_POLL_MS = 700;
 /** Consecutive lost ticks required for an *ambiguous* loss (covered / moved). */
-const AMBIGUOUS_LOST_TICKS = 2;
+export const PERCH_AMBIGUOUS_LOST_TICKS = 2;
 /** Px threshold below which armed-window movement is treated as jitter, not a move. */
 export const MOVE_TH = 12;
 
@@ -58,6 +60,7 @@ interface PerchProbeSource {
   getPerchProbe(): { seatPx: { x: number; y: number }; charHpx: number } | null;
   /** Whether the renderer is currently in perch-align mode. */
   isPerched(): boolean;
+  setPerchTarget(target: { edgeLocalYpx: number } | null): void;
 }
 
 /** Tauri window position/scale accessors the producer reads at drop time. */
@@ -87,7 +90,7 @@ export interface WindowDropSourceDeps {
   /** Resolve the pet window (lazily — `getCurrentWindow()` throws off-Tauri). */
   getWindow: () => DropWindow;
   listen: DropListen;
-  /** Poll cadence in ms (default {@link DEFAULT_POLL_MS}). */
+  /** Poll cadence in ms (default {@link PERCH_POLL_MS}). */
   pollIntervalMs?: number;
   /** Whether side-peek intent is currently active. */
   peekActive?: () => boolean;
@@ -158,7 +161,21 @@ export interface WindowDropSource {
    */
   adoptSit(windowNumber: number, rect: { x: number; y: number }, charHpx: number): void;
   /** The window an armed sit is held on. null when nothing, or a peek, is armed. */
-  armedSit(): { windowNumber: number } | null;
+  armedSit(): { windowNumber: number; origin: "commit" | "adopt" } | null;
+  /** Stop the sit poll and clear the renderer pin without publishing an exit. */
+  suspendSit(): {
+    windowNumber: number;
+    origin: "commit" | "adopt";
+    rect: { x: number; y: number };
+    charHpx: number;
+  } | null;
+  /** Restore a quietly suspended sit pin and its poll without publishing an event. */
+  resumeSit(edgeLocalYpx: number): void;
+  /**
+   * Drop a suspended sit for good: the armed identity goes with it and a later resumeSit
+   * does nothing. Silent — the caller that suspended the sit owns whatever it publishes.
+   */
+  abandonSit(): void;
   /** Release any armed perch/peek and push the matching exit. */
   release(): void;
 }
@@ -179,7 +196,7 @@ function cueFields(
 }
 
 /** Point-in-rect: is the seat actually over this window's surface (points). */
-function containsSeat(win: ScreenRect, seat: ScreenPoint): boolean {
+export function containsSeat(win: ScreenRect, seat: ScreenPoint): boolean {
   return (
     seat.x >= win.x &&
     seat.x <= win.x + win.width &&
@@ -236,7 +253,7 @@ function logDropGeometry(
 
 export function createWindowDropSource(deps: WindowDropSourceDeps): WindowDropSource {
   const { bus, renderer, invoke, getWindow, listen } = deps;
-  const pollMs = deps.pollIntervalMs ?? DEFAULT_POLL_MS;
+  const pollMs = deps.pollIntervalMs ?? PERCH_POLL_MS;
   const setIntervalImpl = deps.setInterval ?? setInterval;
   const clearIntervalImpl = deps.clearInterval ?? clearInterval;
   const peekActive = deps.peekActive ?? (() => false);
@@ -249,6 +266,9 @@ export function createWindowDropSource(deps: WindowDropSourceDeps): WindowDropSo
   let armedWindowNumber: number | null = null;
   let armedRect: { x: number; y: number } | null = null;
   let armedKind: "sit" | "peek" | null = null;
+  let armedOrigin: "commit" | "adopt" | null = null;
+  let armedCharHpx = 0;
+  let sitSuspended = false;
   let pollTimer: ReturnType<typeof setInterval> | null = null;
   let lostStreak = 0;
   // Bumped on every (re)arm; a tick captures it before awaiting and discards a
@@ -291,6 +311,9 @@ export function createWindowDropSource(deps: WindowDropSourceDeps): WindowDropSo
     armedWindowNumber = null;
     armedRect = null;
     armedKind = null;
+    armedOrigin = null;
+    armedCharHpx = 0;
+    sitSuspended = false;
     lostStreak = 0;
   }
 
@@ -299,10 +322,14 @@ export function createWindowDropSource(deps: WindowDropSourceDeps): WindowDropSo
     windowNumber: number,
     armRect: { x: number; y: number },
     charHpx: number,
+    origin: "commit" | "adopt" | null,
   ): void {
     armedWindowNumber = windowNumber;
     armedRect = { x: armRect.x, y: armRect.y };
     armedKind = kind;
+    armedOrigin = origin;
+    armedCharHpx = charHpx;
+    sitSuspended = false;
     lostStreak = 0;
     stopPoll();
     pollGen++;
@@ -389,7 +416,7 @@ export function createWindowDropSource(deps: WindowDropSourceDeps): WindowDropSo
       });
       lostStreak++;
       // gone is unambiguous (1 tick); covered/moved ride out the debounce.
-      const need = reason === "gone" ? 1 : AMBIGUOUS_LOST_TICKS;
+      const need = reason === "gone" ? 1 : PERCH_AMBIGUOUS_LOST_TICKS;
       if (lostStreak >= need) pushArmedExit(kind);
     } else {
       lostStreak = 0;
@@ -435,7 +462,7 @@ export function createWindowDropSource(deps: WindowDropSourceDeps): WindowDropSo
         window_title: target.name,
       },
     });
-    arm("sit", target.windowNumber, { x: target.x, y: target.y }, charHpx);
+    arm("sit", target.windowNumber, { x: target.x, y: target.y }, charHpx, "commit");
     return { kind: "sit", app: target.ownerName, window_title: target.name };
   }
 
@@ -479,7 +506,7 @@ export function createWindowDropSource(deps: WindowDropSourceDeps): WindowDropSo
         window_title: target.name,
       },
     });
-    arm("peek", target.windowNumber, { x: target.x, y: target.y }, charHpx);
+    arm("peek", target.windowNumber, { x: target.x, y: target.y }, charHpx, null);
     return { kind: "peek", side, app: target.ownerName, window_title: target.name };
   }
 
@@ -659,11 +686,52 @@ export function createWindowDropSource(deps: WindowDropSourceDeps): WindowDropSo
     placeOn,
     perchTargets,
     adoptSit(windowNumber, rect, charHpx) {
-      arm("sit", windowNumber, rect, charHpx);
+      arm("sit", windowNumber, rect, charHpx, "adopt");
     },
     armedSit() {
-      if (armedKind !== "sit" || armedWindowNumber === null) return null;
-      return { windowNumber: armedWindowNumber };
+      if (armedKind !== "sit" || armedWindowNumber === null || armedOrigin === null) return null;
+      return { windowNumber: armedWindowNumber, origin: armedOrigin };
+    },
+    suspendSit() {
+      if (
+        armedKind !== "sit" ||
+        armedWindowNumber === null ||
+        armedRect === null ||
+        armedOrigin === null
+      ) {
+        return null;
+      }
+      stopPoll();
+      pollGen++;
+      sitSuspended = true;
+      renderer.setPerchTarget(null);
+      return {
+        windowNumber: armedWindowNumber,
+        origin: armedOrigin,
+        rect: { ...armedRect },
+        charHpx: armedCharHpx,
+      };
+    },
+    resumeSit(edgeLocalYpx) {
+      if (
+        !sitSuspended ||
+        armedKind !== "sit" ||
+        armedWindowNumber === null ||
+        armedRect === null ||
+        armedOrigin === null
+      ) {
+        return;
+      }
+      const windowNumber = armedWindowNumber;
+      const rect = { ...armedRect };
+      const charHpx = armedCharHpx;
+      const origin = armedOrigin;
+      renderer.setPerchTarget({ edgeLocalYpx });
+      arm("sit", windowNumber, rect, charHpx, origin);
+    },
+    abandonSit() {
+      if (!sitSuspended) return;
+      disarm();
     },
     release() {
       if (armedKind !== null) {
