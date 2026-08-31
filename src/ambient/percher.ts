@@ -123,6 +123,8 @@ export interface PercherDeps {
   onWalkEnd(): void;
   onWalkCancel(): void;
   onSit(target: WindowRect, edgeLocalYpx: number): void;
+  /** The host went away mid-stroll — the character is left standing on nothing. */
+  onHostLost(): void;
   rng?: Rng;
   /** Defaults to the OS setting; injected in tests. */
   reducedMotion?: () => boolean;
@@ -190,6 +192,7 @@ export function createPercher(deps: PercherDeps): Percher {
     deps.walker.cancel();
     deps.onWalkEnd();
     deps.dropSource.release();
+    deps.onHostLost();
   }
 
   function watchHost(): void {

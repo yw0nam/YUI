@@ -508,6 +508,7 @@ const realFactories: ConfiguredBootstrapFactories = {
         percherRef?.cancel();
       },
       onDragMiss: () => faller.drop(),
+      onSitLost: () => faller.drop(),
       log,
     });
     register(windowSources.dispose);
@@ -520,6 +521,7 @@ const realFactories: ConfiguredBootstrapFactories = {
       isBusy: dispatcher.isPipelineBusy,
       walker,
       dropSource: windowSources,
+      onHostLost: () => faller.drop(),
       setHitTestMoving: (moving) => hitTest.setMoving(moving),
       log,
     });

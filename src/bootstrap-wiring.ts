@@ -546,6 +546,8 @@ export function wirePercher(deps: {
     abandonSit(): void;
     release(): void;
   };
+  /** The stroll's host window went away — the character falls from where she stands. */
+  onHostLost: () => void;
   setHitTestMoving(moving: boolean): void;
   log: Logger;
 }): { cancel(): void; dispose(): void } {
@@ -604,6 +606,7 @@ export function wirePercher(deps: {
       onWalkEnd: endWalk,
       // A cancelled stroll still owes the end cue: the posture only leaves walking on it.
       onWalkCancel: endWalk,
+      onHostLost: deps.onHostLost,
       onSit: (target, edgeLocalYpx) => {
         bus.push({
           source: "os_event_watcher",
@@ -851,6 +854,8 @@ export function wireWindowSources(deps: {
   noteAgentMove: () => void;
   /** A drag release that caught nothing — the character falls from where she hangs. */
   onDragMiss: () => void;
+  /** An armed sit lost its host — the character falls from where the seat was. */
+  onSitLost: () => void;
   log: Logger;
 }): {
   noteUserDrag(): void;
@@ -933,6 +938,7 @@ export function wireWindowSources(deps: {
       getPeekConfig,
       getGestureCues,
       onDragMiss: deps.onDragMiss,
+      onSitLost: deps.onSitLost,
     });
     windowResizeSource = createWindowResizeSource({
       renderer,
