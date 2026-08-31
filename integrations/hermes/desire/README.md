@@ -20,8 +20,14 @@ The state directory contains:
 - `wants.md` — Natsume's own prose record of 3–5 open wants, progress, feedback, and completed or abandoned wants.
   Integration code never parses this file.
 - `outbox.jsonl` — pent-up desire notes blocked by a daily budget or signal-delivery error. An item persists here,
-  and in the pent-up section of the desire block, until it is released (`act.py outbox --release`) or expires 48
-  hours after `created_at`. Fresh state is empty.
+  and in the pent-up section of the desire block, until it is delivered (`act.py outbox --send`), released
+  (`act.py outbox --release`), or expires 48 hours after `created_at`. Each item carries `attempts`, the number of
+  failed deliveries so far, and `last_failed_at`. A failed resend updates the item in place and keeps its
+  `created_at`. Fresh state is empty.
+- `transport.json` — whether the YUI signals ingress is reachable: `state` (`up` or `down`), `since` (when the
+  current state began), `failed` (consecutive failures, zero while up), and `last_checked_at`. The monitor
+  refreshes it every tick with a TCP connect to the `YUI_SIGNALS_URL` host and port, and every signal delivery
+  outcome updates it too. Absent until the first tick or delivery.
 - `budget.json` — KST daily counters for signals, issues, self-initiated comments, and satisfaction events, plus
   pending issue/comment reservations. Fresh counters are zero and `pending` is empty.
 - `cursor.json` — the feedback cursor. `last_feedback_check_at` starts at bootstrap time.
@@ -38,8 +44,12 @@ ages past the 48-hour hard expiry, which the monitor enforces. Surfacing (the it
 payload) stamps `surfaced_at` once for record-keeping, but no longer retires the item on its own; if the provider call
 then fails, the note simply stays pent-up like any other unreleased item.
 
-Pent-up lines use `- [YYYY-MM-DD HH:MM] <note>` while fresh, add `(waited Nh, heavy)` once the note is at least six
-hours old, and use `(waited Nh, bursting)` once it is at least 18 hours old.
+The desire block opens with the drive levels, then `last interaction: YYYY-MM-DD HH:MM (Nh ago)` from the
+interaction time in `drives.json`, then `signal transport: up`, `signal transport: down since YYYY-MM-DD HH:MM
+(N failed)`, or `signal transport: unknown` when `transport.json` is absent. Pent-up lines use
+`- [YYYY-MM-DD HH:MM] <note>` while fresh, add `(waited Nh, heavy)` once the note is at least six hours old, use
+`(waited Nh, bursting)` once it is at least 18 hours old, and end with `(attempts N)` from the second failed
+delivery on.
 
 The middleware keeps one in-process turn-cache entry, with a sliding 10-minute expiry, to make repeated provider
 calls within a turn byte-stable. Interleaved concurrent sessions can evict that entry and lose only the byte-stability
@@ -104,14 +114,29 @@ hermes -p "$HERMES_PROFILE" cron create "0 23 * * 0" --name natsume-desire-refle
 The job prompt is the file reference and the three environment values (`HERMES_PROFILE`, `DESIRE_STATE_DIR`,
 `YUI_SIGNALS_URL`), nothing else; the prompt file is the only place the tick's behaviour is written.
 
-Hermes injects a changed monitor summary into the tick prompt. An unchanged summary suppresses the run. Run the
-one-time instructions in `prompts/kickoff.md` after installation to create the initial wants without speaking.
+Hermes injects a changed monitor summary into the tick prompt. An unchanged summary suppresses the run. The
+summary is one line:
+
+```text
+social:<bucket> curiosity:<bucket> accomplishment:<bucket> outbox:<n>[/<stage>] transport:<up|down> budget:<s>/3sig <i>/2iss <c>/1cmt
+```
+
+Buckets are `low` (below 40), `mid` (below 70), and `high`. `<stage>` is the stage of the oldest active pent-up
+note (`fresh`, `heavy`, `bursting`) and is omitted when the outbox is empty. `transport` is the probe result of
+that tick. The line therefore changes, and the tick runs, when a bucket flips, when the oldest note crosses six or
+18 hours or expires, when the YUI ingress becomes reachable or unreachable, and when a used budget resets at
+midnight. Run the one-time instructions in `prompts/kickoff.md` after installation to create the initial wants
+without speaking.
 
 ## Action budgets
 
 `act.py` enforces caps that reset at KST midnight: three signals, two YUI issues, and one self-initiated comment.
-Replies to Youngwoo's comments are not routed through this helper and are uncapped. Signal reservations are
-refunded after a delivery failure and the blocked note enters the outbox. Issue and comment actions use reserve,
+Replies to Youngwoo's comments are not routed through this helper and are uncapped. `signal --note` posts a new
+note; `outbox --send <id>` posts an existing pent-up note and shares the same budget. Signal reservations are
+refunded after a delivery failure; a failed new note enters the outbox with `attempts` 1, and a failed resend
+increments the existing item's `attempts` instead of adding another item. `outbox --list` shows only active
+(unexpired) items and `--send` accepts only their ids. `outbox --send` exits 0 after delivery, 1 when
+blocked or failed, and 3 for an unknown id; `outbox --release` also exits 3 for an unknown id. Issue and comment actions use reserve,
 commit, and release commands so external `gh` calls do not hold the state lock. Pending reservations survive
 midnight; the monitor prunes reservations older than seven days.
 

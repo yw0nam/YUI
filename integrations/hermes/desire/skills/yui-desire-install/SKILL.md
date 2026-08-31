@@ -72,15 +72,16 @@ chmod +x ~/.hermes/scripts/natsume-desire-monitor.sh
 ```
 
 Check: the last command prints one summary line (for example
-`social:low curiosity:mid accomplishment:mid outbox:0 budget:3/3sig 2/2iss 1/1cmt`) — that exact text is also
-the monitor's fail-safe fallback, so it proves nothing on its own. The real check is the state directory it
-bootstraps:
+`social:low curiosity:mid accomplishment:mid outbox:0 transport:up budget:3/3sig 2/2iss 1/1cmt`). The
+`transport:down` variant of that line is also the monitor's fail-safe fallback, so a `down` line proves nothing
+on its own. The real check is the state directory it bootstraps:
 
 ```bash
 ls "$DESIRE_STATE_DIR"
 ```
 
-must list `drives.json`, `budget.json`, `cursor.json`, `outbox.jsonl`, `audit.jsonl`, and `state.lock`. If it is
+must list `drives.json`, `budget.json`, `cursor.json`, `transport.json`, `outbox.jsonl`, `audit.jsonl`,
+and `state.lock`. If it is
 empty or missing, the monitor could not write there — fix `DESIRE_STATE_DIR` before continuing.
 
 ## 5. Cron jobs

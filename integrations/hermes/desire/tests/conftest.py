@@ -1,5 +1,6 @@
 import importlib.util
 import json
+import socket
 import sys
 from datetime import datetime
 from pathlib import Path
@@ -14,6 +15,30 @@ KST = ZoneInfo("Asia/Seoul")
 def state_dir(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
     monkeypatch.setenv("DESIRE_STATE_DIR", str(tmp_path))
     return tmp_path
+
+
+def free_port() -> int:
+    with socket.socket() as probe:
+        probe.bind(("127.0.0.1", 0))
+        return probe.getsockname()[1]
+
+
+@pytest.fixture(autouse=True)
+def closed_signals_url(monkeypatch: pytest.MonkeyPatch) -> str:
+    url = f"http://127.0.0.1:{free_port()}/signals"
+    monkeypatch.setenv("YUI_SIGNALS_URL", url)
+    return url
+
+
+@pytest.fixture
+def listening_signals_url(monkeypatch: pytest.MonkeyPatch):
+    server = socket.socket()
+    server.bind(("127.0.0.1", 0))
+    server.listen()
+    url = f"http://127.0.0.1:{server.getsockname()[1]}/signals"
+    monkeypatch.setenv("YUI_SIGNALS_URL", url)
+    yield url
+    server.close()
 
 
 @pytest.fixture

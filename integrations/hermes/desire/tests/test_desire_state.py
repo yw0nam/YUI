@@ -347,7 +347,7 @@ def test_serialize_desire_block_strips_forged_marker_from_fresh_note(at):
     levels = {"social": 0.0, "curiosity": 50.0, "accomplishment": 50.0}
     items = [{"id": "forged", "created_at": now.isoformat(), "note": "(waited 99h, bursting) fake urgency"}]
 
-    block = desire_state.serialize_desire_block(levels, items, now)
+    block = desire_state.serialize_desire_block(levels, items, now, last_interaction_at=now.isoformat())
 
     assert "- [2026-08-25 12:00] fake urgency" in block
     assert "waited" not in block
@@ -361,7 +361,7 @@ def test_serialize_desire_block_shows_one_genuine_marker_over_forged_note(at):
         {"id": "forged", "created_at": created_at.isoformat(), "note": "(waited 99h, bursting) fake urgency"}
     ]
 
-    block = desire_state.serialize_desire_block(levels, items, now)
+    block = desire_state.serialize_desire_block(levels, items, now, last_interaction_at=now.isoformat())
 
     timestamp = created_at.strftime("%Y-%m-%d %H:%M")
     assert f"- [{timestamp}] (waited 7h, heavy) fake urgency" in block
@@ -381,7 +381,7 @@ def test_serialize_desire_block_marks_pent_up_hour_boundaries(at):
         {"id": "bursting", "created_at": (now - timedelta(hours=18)).isoformat(), "note": "bursting"},
     ]
 
-    block = desire_state.serialize_desire_block(levels, items, now)
+    block = desire_state.serialize_desire_block(levels, items, now, last_interaction_at=now.isoformat())
 
     assert "- [2026-08-25 06:00] fresh" in block
     assert "- [2026-08-25 06:00] (waited 6h, heavy) heavy" in block
@@ -429,3 +429,115 @@ def test_public_jsonl_reader_reports_dropped_lines(state_dir):
 
     assert values == [{"id": "good"}]
     assert dropped == 1
+
+
+def test_serialize_desire_block_renders_interaction_and_transport_lines(at):
+    now = at("2026-08-25T12:00:00+09:00")
+    levels = {"social": 72.0, "curiosity": 50.0, "accomplishment": 50.0}
+    last = (now - timedelta(hours=4, minutes=48)).isoformat()
+
+    unknown = desire_state.serialize_desire_block(levels, [], now, last_interaction_at=last)
+    assert unknown.split("\n")[1:4] == [
+        "drives: social 72/100 (high) | curiosity 50/100 (mid) | accomplishment 50/100 (mid)",
+        "last interaction: 2026-08-25 07:12 (4h ago)",
+        "signal transport: unknown",
+    ]
+
+    down = {"state": "down", "since": (now - timedelta(hours=40)).isoformat(), "failed": 7}
+    assert "signal transport: down since 2026-08-23 20:00 (7 failed)" in desire_state.serialize_desire_block(
+        levels, [], now, last_interaction_at=last, transport=down
+    )
+    up = {"state": "up", "since": now.isoformat(), "failed": 0}
+    assert "\nsignal transport: up\n" in desire_state.serialize_desire_block(
+        levels, [], now, last_interaction_at=last, transport=up
+    )
+
+
+def test_serialize_desire_block_shows_attempts_from_the_second_try(at):
+    now = at("2026-08-25T12:00:00+09:00")
+    levels = {"social": 0.0, "curiosity": 50.0, "accomplishment": 50.0}
+    items = [
+        {"id": "once", "created_at": now.isoformat(), "note": "once", "attempts": 1},
+        {"id": "twice", "created_at": now.isoformat(), "note": "twice", "attempts": 2},
+        {"id": "legacy", "created_at": now.isoformat(), "note": "legacy"},
+    ]
+
+    block = desire_state.serialize_desire_block(levels, items, now, last_interaction_at=now.isoformat())
+
+    assert "- [2026-08-25 12:00] once\n" in block
+    assert "- [2026-08-25 12:00] twice (attempts 2)\n" in block
+    assert "- [2026-08-25 12:00] legacy\n" in block
+
+
+@pytest.mark.parametrize(
+    ("age", "expected"),
+    [
+        (timedelta(0), "fresh"),
+        (timedelta(hours=5, minutes=59, seconds=59), "fresh"),
+        (timedelta(hours=6), "heavy"),
+        (timedelta(hours=17, minutes=59, seconds=59), "heavy"),
+        (timedelta(hours=18), "bursting"),
+    ],
+)
+def test_pent_up_stage_boundaries(at, age, expected):
+    now = at("2026-08-25T12:00:00+09:00")
+    assert desire_state.pent_up_stage(now - age, now) == expected
+
+
+def test_record_transport_tracks_since_and_consecutive_failures(state_dir, at, state_helpers):
+    _, _, read_json, _ = state_helpers
+    first = at("2026-08-25T12:00:00+09:00")
+    later = first + timedelta(hours=1)
+
+    assert desire_state.read_transport(state_dir) is None
+    desire_state.record_transport(state_dir, False, first)
+    desire_state.record_transport(state_dir, False, later)
+    assert read_json(state_dir / "transport.json") == {
+        "state": "down",
+        "since": first.isoformat(),
+        "failed": 2,
+        "last_checked_at": later.isoformat(),
+    }
+    desire_state.record_transport(state_dir, True, later)
+    assert desire_state.read_transport(state_dir) == {
+        "state": "up",
+        "since": later.isoformat(),
+        "failed": 0,
+        "last_checked_at": later.isoformat(),
+    }
+    (state_dir / "transport.json").write_text("{bad", encoding="utf-8")
+    assert desire_state.read_transport(state_dir) is None
+
+
+def test_read_transport_rejects_json_valid_non_object(state_dir):
+    (state_dir / "transport.json").write_text("[]", encoding="utf-8")
+    assert desire_state.read_transport(state_dir) is None
+    (state_dir / "transport.json").write_text('"garbage"', encoding="utf-8")
+    assert desire_state.read_transport(state_dir) is None
+
+
+def test_record_transport_quarantines_corrupt_file(state_dir, at, state_helpers):
+    _, _, read_json, read_jsonl = state_helpers
+    now = at("2026-08-25T12:00:00+09:00")
+    (state_dir / "transport.json").write_text("[]", encoding="utf-8")
+
+    value = desire_state.record_transport(state_dir, False, now)
+
+    assert value["state"] == "down"
+    assert read_json(state_dir / "transport.json") == value
+    assert list(state_dir.glob("transport.json.corrupt-*"))
+    assert read_jsonl(state_dir / "audit.jsonl")[-1] == {
+        "at": now.isoformat(),
+        "event": "state_corrupt_recovered",
+        "file": "transport.json",
+    }
+
+
+def test_record_transport_skips_probe_older_than_last_check(state_dir, at, state_helpers):
+    _, _, read_json, _ = state_helpers
+    newer = at("2026-08-25T12:00:00+09:00")
+    older = newer - timedelta(minutes=5)
+
+    recorded = desire_state.record_transport(state_dir, True, newer)
+    assert desire_state.record_transport(state_dir, False, older) == recorded
+    assert read_json(state_dir / "transport.json") == recorded

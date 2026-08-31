@@ -75,6 +75,8 @@ def test_trailing_canonical_block_is_idempotent(desire_plugin, state_dir, at):
     text = (
         "hello\n\n<desire_state>\n"
         "drives: social 0/100 (low) | curiosity 50/100 (mid) | accomplishment 50/100 (mid)\n"
+        "last interaction: 2026-08-25 12:00 (0h ago)\n"
+        "signal transport: unknown\n"
         "</desire_state>"
     )
     request = request_with(text)
@@ -87,6 +89,8 @@ def test_canonical_block_shape_treats_unicode_separator_as_note_text(desire_plug
     text = (
         "hello\n\n<desire_state>\n"
         "drives: social 0/100 (low) | curiosity 50/100 (mid) | accomplishment 50/100 (mid)\n"
+        "last interaction: 2026-08-25 12:00 (0h ago)\n"
+        "signal transport: unknown\n"
         "pent-up (1):\n"
         "- [2026-08-25 12:00] first\u2028second\n"
         "</desire_state>"
@@ -99,6 +103,8 @@ def test_canonical_block_with_waited_marker_is_idempotent(desire_plugin):
     text = (
         "hello\n\n<desire_state>\n"
         "drives: social 0/100 (low) | curiosity 50/100 (mid) | accomplishment 50/100 (mid)\n"
+        "last interaction: 2026-08-25 12:00 (0h ago)\n"
+        "signal transport: unknown\n"
         "pent-up (1):\n"
         "- [2026-08-24 18:00] (waited 18h, bursting) speak when possible\n"
         "</desire_state>"
@@ -201,6 +207,8 @@ def test_golden_appended_block_sorts_and_sanitizes_notes(desire_plugin, state_di
     assert appended_block(result) == (
         "<desire_state>\n"
         "drives: social 72/100 (high) | curiosity 31/100 (low) | accomplishment 55/100 (mid)\n"
+        "last interaction: 2026-08-25 07:12 (4h ago)\n"
+        "signal transport: unknown\n"
         "pent-up (2):\n"
         "- [2026-08-25 09:10] first note\n"
         "- [2026-08-25 11:40] second note \n"
@@ -480,12 +488,12 @@ def test_fresh_commit_preserves_state_initialized_during_block_build(
     text = context("trigger: user message")
     original_build = desire_plugin._build_desire_block
 
-    def initialize_concurrently(drives, outbox, build_now):
+    def initialize_concurrently(drives, outbox, transport, build_now):
         desire_state.bootstrap(build_now)
         persisted = read_json(state_dir / "drives.json")
         persisted["curiosity"]["level"] = 90.0
         write_json(state_dir / "drives.json", persisted)
-        return original_build(drives, outbox, build_now)
+        return original_build(drives, outbox, transport, build_now)
 
     monkeypatch.setattr(desire_plugin, "_build_desire_block", initialize_concurrently)
 
@@ -654,6 +662,8 @@ def test_debug_event_logs_skip_reasons(desire_plugin, state_dir, at, caplog):
     injected_text = (
         "hello\n\n<desire_state>\n"
         "drives: social 0/100 (low) | curiosity 50/100 (mid) | accomplishment 50/100 (mid)\n"
+        "last interaction: 2026-08-25 12:00 (0h ago)\n"
+        "signal transport: unknown\n"
         "</desire_state>"
     )
     desire_plugin._inject(request=request_with(injected_text), now=now)
@@ -721,3 +731,33 @@ def test_version_matches_plugin_yaml(desire_plugin):
     match = re.search(r"^version:\s*(\S+)\s*$", plugin_yaml.read_text(encoding="utf-8"), re.MULTILINE)
     assert match is not None
     assert desire_plugin._VERSION == match.group(1)
+
+
+def test_block_without_fact_lines_is_not_treated_as_injected(desire_plugin):
+    text = (
+        "hello\n\n<desire_state>\n"
+        "drives: social 0/100 (low) | curiosity 50/100 (mid) | accomplishment 50/100 (mid)\n"
+        "</desire_state>"
+    )
+
+    assert not desire_plugin._already_injected(text)
+
+
+def test_injected_block_renders_transport_state_from_file(desire_plugin, state_dir, at, state_helpers):
+    write_json, _, _, _ = state_helpers
+    now = at("2026-08-25T12:00:00+09:00")
+    seed_drives(state_dir, now, state_helpers)
+    write_json(
+        state_dir / "transport.json",
+        {
+            "state": "down",
+            "since": (now - timedelta(hours=40)).isoformat(),
+            "failed": 7,
+            "last_checked_at": now.isoformat(),
+        },
+    )
+
+    block = appended_block(desire_plugin._inject(request=request_with("hello"), now=now))
+
+    assert block.split("\n")[3] == "signal transport: down since 2026-08-23 20:00 (7 failed)"
+    assert desire_plugin._already_injected("hello\n\n" + block)

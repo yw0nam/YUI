@@ -28,6 +28,10 @@ _DRIVES_LINE = re.compile(
     r"accomplishment (?P<accomplishment>0|[1-9]\d?|100)/100 "
     r"\((?P<accomplishment_bucket>low|mid|high)\)"
 )
+_LAST_INTERACTION_LINE = re.compile(r"last interaction: \d{4}-\d{2}-\d{2} \d{2}:\d{2} \(\d+h ago\)")
+_TRANSPORT_LINE = re.compile(
+    r"signal transport: (?:up|unknown|down since \d{4}-\d{2}-\d{2} \d{2}:\d{2} \(\d+ failed\))"
+)
 _PENT_UP_LINE = re.compile(r"pent-up \((?P<count>[1-9]\d*)\):")
 _OUTBOX_LINE = re.compile(r"- \[\d{4}-\d{2}-\d{2} \d{2}:\d{2}\] [^\n]*")
 _CACHE_TTL = timedelta(minutes=10)
@@ -72,7 +76,7 @@ def _already_injected(text):
     if opening < 0:
         return False
     lines = stripped[opening + 1 :].split("\n")
-    if len(lines) < 3 or lines[0] != "<desire_state>" or lines[-1] != "</desire_state>":
+    if len(lines) < 5 or lines[0] != "<desire_state>" or lines[-1] != "</desire_state>":
         return False
     drives = _DRIVES_LINE.fullmatch(lines[1])
     if drives is None:
@@ -80,14 +84,16 @@ def _already_injected(text):
     for name in ("social", "curiosity", "accomplishment"):
         if desire_state.bucket(int(drives[name])) != drives[f"{name}_bucket"]:
             return False
-    if len(lines) == 3:
+    if _LAST_INTERACTION_LINE.fullmatch(lines[2]) is None or _TRANSPORT_LINE.fullmatch(lines[3]) is None:
+        return False
+    if len(lines) == 5:
         return True
-    header = _PENT_UP_LINE.fullmatch(lines[2])
+    header = _PENT_UP_LINE.fullmatch(lines[4])
     count = int(header["count"]) if header is not None else 0
     return (
         count > 0
-        and len(lines) == count + 4
-        and all(_OUTBOX_LINE.fullmatch(line) is not None for line in lines[3:-1])
+        and len(lines) == count + 6
+        and all(_OUTBOX_LINE.fullmatch(line) is not None for line in lines[5:-1])
     )
 
 
@@ -99,10 +105,13 @@ def _is_interaction(text):
     return any(_USER_TRIGGER.fullmatch(line.strip()) for line in body.splitlines())
 
 
-def _build_desire_block(drives, outbox, now):
+def _build_desire_block(drives, outbox, transport, now):
     levels = desire_state.drive_levels(drives, now)
     active = desire_state.active_outbox(outbox, now)
-    return desire_state.serialize_desire_block(levels, active, now), tuple(item["id"] for item in active)
+    block = desire_state.serialize_desire_block(
+        levels, active, now, last_interaction_at=drives["last_interaction_at"], transport=transport
+    )
+    return block, tuple(item["id"] for item in active)
 
 
 def _rewrite(kwargs, event):
@@ -146,9 +155,11 @@ def _rewrite(kwargs, event):
         with desire_state.state_lock(state_dir):
             drives = desire_state.read_drives_snapshot(state_dir, now)
             outbox = desire_state.read_jsonl(state_dir / "outbox.jsonl")
+            transport = desire_state.read_transport(state_dir)
     else:
         drives = desire_state.default_drives(now)
         outbox = []
+        transport = None
 
     staged_drives = copy.deepcopy(drives)
     interaction = _is_interaction(original_text)
@@ -168,7 +179,7 @@ def _rewrite(kwargs, event):
         block = cached["block"]
         included_ids = cached["included_ids"]
     else:
-        block, included_ids = _build_desire_block(staged_drives, outbox, now)
+        block, included_ids = _build_desire_block(staged_drives, outbox, transport, now)
 
     rewritten = copy.deepcopy(request)
     rewritten_messages = rewritten[key]
