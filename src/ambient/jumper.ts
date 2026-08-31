@@ -234,19 +234,21 @@ export function createJumper(deps: JumperDeps): Jumper {
 
   function tick(ctx: { dt: number }): void {
     const f = flight;
-    if (!f || f.landing) return;
+    if (!f) return;
+    // Counted above every other guard: a clip that never becomes measurable and a landing
+    // read that never comes back would each hang the flight for good, and the whole perch
+    // loop waits on it.
     f.elapsedS += ctx.dt;
+    if (f.elapsedS * 1000 > f.cfg.flight_timeout_ms) {
+      log.warn("flight_timed_out", { degrade: true, airborne: f.airborne });
+      finish(f.airborne ? "lost" : "refused");
+      return;
+    }
+    if (f.landing) return;
     // Anything else taking the clip takes the playhead with it, and a window driven off
     // another clip's time would go anywhere. Before the first move she is still standing
     // on the host, so the jump is simply off; after it she is in the air and owes a fall.
     if (renderer.getCurrentMotion()?.id !== JUMP_MOTION_ID) {
-      finish(f.airborne ? "lost" : "refused");
-      return;
-    }
-    // The clip paces the arc, so a clip that never becomes measurable would hang the
-    // flight for good and take the whole perch loop with it.
-    if (f.elapsedS * 1000 > f.cfg.flight_timeout_ms) {
-      log.warn("flight_timed_out", { degrade: true, airborne: f.airborne });
       finish(f.airborne ? "lost" : "refused");
       return;
     }
