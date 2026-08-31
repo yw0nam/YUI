@@ -182,7 +182,6 @@ function makeHarness(
       abandonSit,
       release,
     },
-    currentMotionKind: () => (over.motion === undefined ? "ambient" : (over.motion?.kind ?? null)),
     currentMotion: () =>
       over.motion === undefined ? { id: "idle", kind: "ambient" as const } : over.motion,
     isBusy: () => over.busy ?? false,

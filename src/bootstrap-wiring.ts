@@ -587,9 +587,9 @@ export function wirePercher(deps: {
       getConfig: deps.getPerchWalkConfig,
       walker: deps.walker,
       dropSource: deps.dropSource,
-      currentMotionKind: () => {
+      currentMotion: () => {
         const current = renderer.getCurrentMotion();
-        return current ? (deps.getMotionKind(current.id) ?? null) : null;
+        return current ? { id: current.id, kind: deps.getMotionKind(current.id) ?? null } : null;
       },
       isBusy: deps.isBusy,
       onWalkStart: () => {

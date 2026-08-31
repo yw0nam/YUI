@@ -46,6 +46,8 @@ const log = createLogger("window-drop");
 /** Tauri event channel carrying the drag-release point (payload unused by the seat hit-test). */
 const RELEASE_EVENT = "window_drop_release";
 
+/** Registry id of the clip that holds the character in place for as long as she is perched. */
+export const PERCH_MOTION_ID = "window_sit";
 /** Poll cadence — ~1.4 Hz keeps detach latency under ~2 ticks (≈1.4 s). */
 export const PERCH_POLL_MS = 700;
 /** Consecutive lost ticks required for an *ambiguous* loss (covered / moved). */

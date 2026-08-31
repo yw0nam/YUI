@@ -29,6 +29,7 @@
 import type { PeekConfig, TapConfig } from "../config/load";
 import type { BodyState, ControlEnvelope, EmotionId, Posture } from "../contract";
 import { buildPacerSkipRecord, type PacerSkipRecord } from "../io/turn-record-log";
+import { PERCH_MOTION_ID } from "../io/window-drop-source";
 import type { Logger, LogLevel } from "../logger";
 import { createLogger } from "../logger";
 import type { Renderer } from "../renderer";
@@ -244,10 +245,10 @@ function tier1Directive(env: BusEnvelope, log: Logger): ControlEnvelope | null {
     case "user.drag_end":
       return { speech_text: "", motion: null };
     case "user.window_sit_enter":
-      return { speech_text: "", motion: { id: "window_sit" } };
+      return { speech_text: "", motion: { id: PERCH_MOTION_ID } };
     case "user.window_sit_drop":
     case "avatar.window_sit":
-      return { speech_text: "", motion: { id: "window_sit" } };
+      return { speech_text: "", motion: { id: PERCH_MOTION_ID } };
     case "user.window_sit_exit":
       return { speech_text: "", motion: null };
     case "user.peek_drop":

@@ -10,7 +10,12 @@
 import type { PerchWalkConfig } from "../config/load";
 import type { MotionKind, WindowRect } from "../contract";
 import { monitorAt, type ScreenMonitor } from "../io/screen-geometry";
-import { MOVE_TH, PERCH_AMBIGUOUS_LOST_TICKS, PERCH_POLL_MS } from "../io/window-drop-source";
+import {
+  MOVE_TH,
+  PERCH_AMBIGUOUS_LOST_TICKS,
+  PERCH_MOTION_ID,
+  PERCH_POLL_MS,
+} from "../io/window-drop-source";
 import { createLogger } from "../logger";
 import type { TickFn } from "../renderer";
 import { prefersReducedMotion } from "./tier1";
@@ -83,8 +88,8 @@ export interface PercherDeps {
     abandonSit(): void;
     release(): void;
   };
-  /** Registry kind of the committed motion. null when nothing is playing. */
-  currentMotionKind(): MotionKind | null;
+  /** The committed motion and its registry kind. null when nothing is playing. */
+  currentMotion(): { id: string; kind: MotionKind | null } | null;
   /** A turn is in flight or speech is still playing. */
   isBusy(): boolean;
   onWalkStart(): void;
@@ -192,8 +197,13 @@ export function createPercher(deps: PercherDeps): Percher {
     const startedAt = generation;
     const armed = deps.dropSource.armedSit();
     if (armed?.origin !== "commit") return;
-    // The same ownership order the floor stroll keeps: ambient yields to everything else.
-    if (reducedMotion() || deps.isBusy() || deps.currentMotionKind() !== "ambient") {
+    // The same ownership order the floor stroll keeps, except that the perch hold is this
+    // loop's own baseline: it holds the body for as long as the sit lasts, so waiting for it
+    // to end would mean never strolling. Every other clip, its own kind included, still wins.
+    const motion = deps.currentMotion();
+    const baseline =
+      motion !== null && (motion.kind === "ambient" || motion.id === PERCH_MOTION_ID);
+    if (reducedMotion() || deps.isBusy() || !baseline) {
       log.debug("stroll_skipped", { reason: "gated" });
       rearmDwell();
       return;
