@@ -176,7 +176,7 @@
   },
   "jump": {
     "vrma_path": "/motions/jump.vrma",
-    "kind": "reactive",
+    "kind": "oneshot",
     "loop": false,
     "priority": 45,
     "interrupt_policy": "replace",

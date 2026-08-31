@@ -219,7 +219,9 @@ export interface Renderer {
   getCharacterAnchor(): ScreenAnchor | null;
   /**
    * How wide the character stands on screen (px), measured across the model box at the
-   * feet. null if the VRM is not loaded — a jump sizes the gap it will clear by it.
+   * feet. The box is captured at load, so this is her rest-pose width rather than the
+   * live silhouette. null if the VRM is not loaded — a jump sizes the gap it will clear
+   * by it.
    */
   getCharacterWidthPx(): number | null;
   /**
