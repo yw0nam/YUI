@@ -750,11 +750,11 @@ describe("createPercher", () => {
     await h.frame();
     await h.frame(1.1);
 
-    // The walker had nothing to do, so only the jump branch can pair the posture.
+    // The walker had nothing to do, so the takeoff is what opens the walk cue.
     expect(h.calls).toEqual([
       "suspend",
-      "avatar.walk_start",
       "jump",
+      "avatar.walk_start",
       "abandon",
       "avatar.jump",
       "avatar.walk_end",

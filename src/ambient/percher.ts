@@ -145,6 +145,8 @@ export function createPercher(deps: PercherDeps): Percher {
   let starting = false;
   /** Generation holding a suspended sit, if any — whoever owns it must resume or abandon it. */
   let suspendedAt: number | null = null;
+  /** A walk cue is out and owes its close, whether or not a host is being watched. */
+  let walkCueOpen = false;
   let stroll: {
     host: WindowRect;
     nextWatchAtMs: number;
@@ -163,6 +165,26 @@ export function createPercher(deps: PercherDeps): Percher {
     deps.dropSource.abandonSit();
   }
 
+  /** Open the walk cue, once per attempt however many legs it turns out to have. */
+  function startWalkCue(): void {
+    if (walkCueOpen) return;
+    walkCueOpen = true;
+    deps.onWalkStart();
+  }
+
+  function endWalkCue(): void {
+    if (!walkCueOpen) return;
+    walkCueOpen = false;
+    deps.onWalkEnd();
+  }
+
+  /** Close it the interrupted way — the posture and the hit test still need the news. */
+  function cancelWalkCue(): void {
+    if (!walkCueOpen) return;
+    walkCueOpen = false;
+    deps.onWalkCancel();
+  }
+
   function rearmDwell(): void {
     dwellAtMs = nowMs + nextPerchDwell(deps.getConfig(), rng);
   }
@@ -171,12 +193,10 @@ export function createPercher(deps: PercherDeps): Percher {
     generation++;
     dwellAtMs = -1;
     starting = false;
-    if (stroll) {
-      deps.walker.cancel();
-      deps.onWalkCancel();
-    }
+    if (stroll) deps.walker.cancel();
     stroll = null;
     deps.jumper.cancel();
+    cancelWalkCue();
     abandonSuspension();
   }
 
@@ -189,7 +209,7 @@ export function createPercher(deps: PercherDeps): Percher {
     starting = false;
     suspendedAt = null;
     deps.walker.cancel();
-    deps.onWalkEnd();
+    endWalkCue();
     deps.dropSource.release();
     deps.onHostLost();
   }
@@ -242,6 +262,7 @@ export function createPercher(deps: PercherDeps): Percher {
     const outcome = await deps.jumper.jump(plan, { anchor, charHpx, scale }, () => {
       // Point of no return: the clip has the body and the target is confirmed, so the
       // host goes for good. No exit cue — the seat was not lost, she jumped off it.
+      startWalkCue();
       abandonSuspension();
       log.info("jump_start", {
         from: host.windowNumber,
@@ -255,7 +276,7 @@ export function createPercher(deps: PercherDeps): Percher {
     if (outcome === "refused" || outcome === "cancelled") return outcome;
     if (outcome === "lost") {
       log.info("jump_lost", { windowNumber: target.windowNumber });
-      deps.onWalkEnd();
+      endWalkCue();
       deps.onTargetLost();
       return outcome;
     }
@@ -293,7 +314,7 @@ export function createPercher(deps: PercherDeps): Percher {
       x: Math.round(applied.x / scale + anchor.x),
     });
     // The walk ends before the sit lands, so the posture settles on sitting, not standing.
-    deps.onWalkEnd();
+    endWalkCue();
     deps.onSit(target, edgeLocalYpx);
     deps.dropSource.adoptSit(target.windowNumber, { x: target.x, y: target.y }, charHpx, "commit");
     rearmDwell();
@@ -395,6 +416,7 @@ export function createPercher(deps: PercherDeps): Percher {
       let accepted = false;
       const walked = await deps.walker.walkTo(toX - anchor.x, () => {
         accepted = true;
+        startWalkCue();
         stroll = { host, nextWatchAtMs: nowMs + PERCH_POLL_MS, lostStreak: 0, watching: false };
         log.info("stroll_start", {
           windowNumber: host.windowNumber,
@@ -407,17 +429,13 @@ export function createPercher(deps: PercherDeps): Percher {
           windowY: Math.round(stood.y / scale),
           scale,
         });
-        deps.onWalkStart();
       });
       if (!alive(startedAt)) return;
       stroll = null;
       // Arriving is the whole question: a walk resolves "arrived" without accepting when
-      // she already stands on the spot, and the flight still reads as walking.
+      // she already stands on the spot, and a jump from there still owes a walk cue —
+      // which the takeoff opens, so a jump that never leaves owes nothing.
       if (jumpTo && walked === "arrived") {
-        if (!accepted) {
-          accepted = true;
-          deps.onWalkStart();
-        }
         // Only a refusal leaves her still on the host, with the seat to put back.
         if (
           (await runJump(startedAt, jumpTo, host, anchor, probe.charHpx, scale, win, windows)) !==
@@ -430,8 +448,8 @@ export function createPercher(deps: PercherDeps): Percher {
         // her up before she sits back down on the host.
         deps.renderer.setBodyYaw(0, WALK_YAW_EASE_MS);
       }
-      if (accepted) deps.onWalkEnd();
-      else log.debug("stroll_skipped", { reason: "not_accepted" });
+      endWalkCue();
+      if (!accepted) log.debug("stroll_skipped", { reason: "not_accepted" });
       const applied = await win.outerPosition();
       if (!alive(startedAt)) return;
       const edgeLocalYpx = host.y - applied.y / scale;
@@ -449,7 +467,7 @@ export function createPercher(deps: PercherDeps): Percher {
       if (alive(startedAt) && stroll) {
         stroll = null;
         deps.walker.cancel();
-        deps.onWalkEnd();
+        endWalkCue();
       }
       // Anything but a completed re-sit leaves the seat unrecoverable — drop it silently
       // rather than leave the drop source armed on a suspension nobody owns.
