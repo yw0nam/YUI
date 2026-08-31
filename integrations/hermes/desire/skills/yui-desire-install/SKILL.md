@@ -72,7 +72,8 @@ chmod +x ~/.hermes/scripts/natsume-desire-monitor.sh
 ```
 
 Check: the last command prints one summary line (for example
-`social:low curiosity:mid accomplishment:mid outbox:0 transport:up budget:3/3sig 2/2iss 1/1cmt`). The
+`social:low curiosity:mid accomplishment:mid outbox:0 transport:up budget:3/3sig 2/2iss 1/1cmt`). The monitor checks
+transport with an HTTP GET to `YUI_SIGNALS_URL`; any HTTP response counts as up. The
 `transport:down` variant of that line is also the monitor's fail-safe fallback, so a `down` line proves nothing
 on its own. The real check is the state directory it bootstraps:
 

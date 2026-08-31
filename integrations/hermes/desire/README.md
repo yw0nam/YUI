@@ -26,7 +26,7 @@ The state directory contains:
   `created_at`. Fresh state is empty.
 - `transport.json` — whether the YUI signals ingress is reachable: `state` (`up` or `down`), `since` (when the
   current state began), `failed` (consecutive failures, zero while up), and `last_checked_at`. The monitor
-  refreshes it every tick with a TCP connect to the `YUI_SIGNALS_URL` host and port, and every signal delivery
+  refreshes it every tick with an HTTP GET to `YUI_SIGNALS_URL`, treating any HTTP response as reachable, and every signal delivery
   outcome updates it too. Absent until the first tick or delivery.
 - `budget.json` — KST daily counters for signals, issues, self-initiated comments, and satisfaction events, plus
   pending issue/comment reservations. Fresh counters are zero and `pending` is empty.

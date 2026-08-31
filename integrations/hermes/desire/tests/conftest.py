@@ -2,7 +2,9 @@ import importlib.util
 import json
 import socket
 import sys
+import threading
 from datetime import datetime
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from zoneinfo import ZoneInfo
 
@@ -32,13 +34,23 @@ def closed_signals_url(monkeypatch: pytest.MonkeyPatch) -> str:
 
 @pytest.fixture
 def listening_signals_url(monkeypatch: pytest.MonkeyPatch):
-    server = socket.socket()
-    server.bind(("127.0.0.1", 0))
-    server.listen()
-    url = f"http://127.0.0.1:{server.getsockname()[1]}/signals"
+    class NotFoundHandler(BaseHTTPRequestHandler):
+        def do_GET(self):
+            self.send_response(404)
+            self.end_headers()
+
+        def log_message(self, format, *args):
+            pass
+
+    server = ThreadingHTTPServer(("127.0.0.1", 0), NotFoundHandler)
+    worker = threading.Thread(target=server.serve_forever)
+    worker.start()
+    url = f"http://127.0.0.1:{server.server_port}/signals"
     monkeypatch.setenv("YUI_SIGNALS_URL", url)
     yield url
-    server.close()
+    server.shutdown()
+    server.server_close()
+    worker.join()
 
 
 @pytest.fixture
