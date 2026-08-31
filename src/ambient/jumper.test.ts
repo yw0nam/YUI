@@ -81,16 +81,26 @@ describe("pickJumpTarget — reach", () => {
     expect(pick([win({ x: 1500 + 1.5 * CHAR_WPX + 1, windowNumber: 7 })])).toBeNull();
   });
 
-  it("steps one body width past the host edge onto an overlapping window", () => {
-    // Only a window behind the host leaves its top edge walkable to the takeoff point,
-    // and she has to be wider than the two margins to land clear of the host's own.
+  it("hops across a window overlapping the host from in front", () => {
+    // Its near edge is where the host's walkable top stops, so both ends step a margin
+    // off that line: a short hop of two margins onto the window covering her own.
     const over = win({ x: 1400, windowNumber: 7 });
-    const wide = 220;
-    expect(pick([], { windows: [HOST, over], hostIndex: 0, charWpx: wide })).toEqual({
+    expect(pick([over])).toEqual({
       target: over,
       side: "right",
+      takeoffX: 1300,
+      landingX: 1500,
+    });
+  });
+
+  it("hops onto a window the host itself overlaps", () => {
+    // The host covers the near part of its top, so she comes down past the host's edge.
+    const under = win({ x: 1400, windowNumber: 7 });
+    expect(pick([], { windows: [HOST, under], hostIndex: 0 })).toEqual({
+      target: under,
+      side: "right",
       takeoffX: 1400,
-      landingX: 1400 + wide,
+      landingX: 1600,
     });
   });
 });
@@ -110,11 +120,10 @@ describe("pickJumpTarget — height", () => {
 });
 
 describe("pickJumpTarget — reachability", () => {
-  it("refuses a takeoff point outside the stretch she can walk", () => {
-    // A window in front of the host reaches its top edge and cuts the walk short of
-    // the takeoff point; it is too far above the host to be jumped to itself.
-    const cutOff = win({ x: 1300, y: 500, height: 500, windowNumber: 8 });
-    expect(pick([cutOff, win({ x: 1560, windowNumber: 7 })])).toBeNull();
+  it("refuses a takeoff from a ledge with no room to stand a margin inside", () => {
+    // A window in front leaves the host under two margins of walkable top.
+    const squeeze = win({ x: 1150, y: 800, height: 400, windowNumber: 8 });
+    expect(pick([squeeze, win({ x: 1560, windowNumber: 7 })], { currentX: 1050 })).toBeNull();
   });
 
   it("refuses a landing the neighbour has no room to hold inside its own margins", () => {
