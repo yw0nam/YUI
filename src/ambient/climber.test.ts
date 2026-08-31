@@ -475,6 +475,8 @@ function makeHarness(
     walkResults?: Array<"arrived" | "lost">;
     /** Models a release whose exit envelope has not come back through the dispatcher yet. */
     holdPerchOnRelease?: boolean;
+    /** Which scheduler owns an already-held perch. */
+    perchOrigin?: "commit" | "adopt";
     /** Models the OS clamping the window origin to the work-area top. */
     minY?: number;
     /** A clip the renderer can never measure — a dead asset, or one with no baked travel. */
@@ -509,7 +511,9 @@ function makeHarness(
   const handAnchors = vi.fn(() => ({ left: { x: 260, y: 300 }, right: { x: 280, y: 260 } }));
   const drop = vi.fn();
   const walkerCancel = vi.fn();
-  let armed: { windowNumber: number } | null = over.perched ? { windowNumber: 42 } : null;
+  let armed: { windowNumber: number; origin?: "commit" | "adopt" } | null = over.perched
+    ? { windowNumber: 42, origin: over.perchOrigin ?? "adopt" }
+    : null;
   const armedSit = vi.fn(() => armed);
   const release = vi.fn(() => {
     armed = null;
@@ -1049,6 +1053,16 @@ function perchedHarness(over: Parameters<typeof makeHarness>[0] = {}) {
 }
 
 describe("createClimber — down", () => {
+  it("does not dwell or descend a commit-origin perch", async () => {
+    const h = perchedHarness({ perchOrigin: "commit" });
+    h.climber.start();
+    await h.skipDwell();
+
+    expect(h.release).not.toHaveBeenCalled();
+    expect(h.starts).not.toHaveBeenCalled();
+    expect(h.walkTargets).toEqual([]);
+  });
+
   it("holds the perch until the dwell elapses", async () => {
     const h = perchedHarness();
     h.climber.start();

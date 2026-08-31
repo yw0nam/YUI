@@ -639,6 +639,7 @@ function makePerchSource(perched = true) {
     renderer: {
       getPerchProbe: vi.fn(() => ({ seatPx: { x: 40, y: 30 }, charHpx: 200 })),
       isPerched: vi.fn(() => state.perched),
+      setPerchTarget: vi.fn(),
     },
   };
 }
@@ -1343,6 +1344,7 @@ describe("window-drop-source — programmatic placement (agent-driven gestures)"
     const source = createWindowDropSource(makeDeps([win({ ownerName: "Notes" })]));
 
     await source.placeOn({ kind: "sit", app: "Notes" });
+    expect(source.armedSit()).toEqual({ windowNumber: 7, origin: "commit" });
     pushed.length = 0;
     source.release();
 
@@ -1789,7 +1791,7 @@ describe("window-drop-source — adoptSit", () => {
       listen: makeListen().listen,
     });
     source.adoptSit(42, { x: armed.x, y: armed.y }, 200);
-    return { source, invoke, armed };
+    return { source, invoke, armed, renderer };
   }
 
   it("arms the poll and pushes nothing", async () => {
@@ -1813,9 +1815,29 @@ describe("window-drop-source — adoptSit", () => {
 
   it("names the armed sit window, and nothing once it is released", () => {
     const { source } = adopted();
-    expect(source.armedSit()).toEqual({ windowNumber: 42 });
+    expect(source.armedSit()).toEqual({ windowNumber: 42, origin: "adopt" });
     source.release();
     expect(source.armedSit()).toBeNull();
+  });
+
+  it("quietly suspends and resumes the seat pin while retaining the armed identity", () => {
+    const { source, renderer } = adopted();
+
+    expect(source.suspendSit()).toEqual({
+      windowNumber: 42,
+      origin: "adopt",
+      rect: { x: 300, y: 400 },
+      charHpx: 200,
+    });
+    expect(renderer.setPerchTarget).toHaveBeenCalledWith(null);
+    expect(source.armedSit()).toEqual({ windowNumber: 42, origin: "adopt" });
+    expect(pushed).toEqual([]);
+
+    source.resumeSit(420);
+
+    expect(renderer.setPerchTarget).toHaveBeenLastCalledWith({ edgeLocalYpx: 420 });
+    expect(source.armedSit()).toEqual({ windowNumber: 42, origin: "adopt" });
+    expect(pushed).toEqual([]);
   });
 
   it("names no armed sit before anything is armed, or while a peek holds", async () => {
