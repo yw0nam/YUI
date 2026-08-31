@@ -530,24 +530,24 @@ describe("createPercher", () => {
     expect(h.calls).toEqual(["suspend", "abandon"]);
   });
 
-  it("abandons the suspended sit when catch-path position recovery also throws", async () => {
+  it("abandons the suspended sit when the post-walk position read throws", async () => {
     let positionReads = 0;
     const h = makeHarness({
       outerPosition: async () => {
         positionReads++;
-        if (positionReads > 1) throw new Error("position unavailable");
+        if (positionReads > 2) throw new Error("position unavailable");
         return { x: 1000, y: 600 };
       },
-      setPosition: async () => Promise.reject(new Error("move failed")),
     });
     h.percher.start();
 
     await h.frame();
     await h.frame(1.1);
 
+    expect(positionReads).toBe(3);
     expect(h.abandonSit).toHaveBeenCalledTimes(1);
     expect(h.resumeSit).not.toHaveBeenCalled();
-    expect(h.calls).toEqual(["suspend", "abandon"]);
+    expect(h.calls).toEqual(["suspend", "avatar.walk_start", "avatar.walk_end", "abandon"]);
   });
 
   it("abandons a suspension when cancelled during standing placement", async () => {
