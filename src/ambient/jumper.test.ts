@@ -436,6 +436,16 @@ describe("createJumper", () => {
     await h.frame(0.5);
     expect(h.positions).toHaveLength(interrupted);
     expect(h.playMotion).toHaveBeenCalledTimes(1);
+    // A pickup plays its own clip but never unwinds the turn the jump put her in.
+    expect(h.setBodyYaw).toHaveBeenLastCalledWith(0, 400);
+  });
+
+  it("leaves the body alone when there is no flight to cancel", () => {
+    const h = makeJumper();
+
+    h.jumper.cancel();
+
+    expect(h.setBodyYaw).not.toHaveBeenCalled();
   });
 });
 
