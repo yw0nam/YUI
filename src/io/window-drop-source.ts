@@ -196,7 +196,7 @@ function cueFields(
 }
 
 /** Point-in-rect: is the seat actually over this window's surface (points). */
-function containsSeat(win: ScreenRect, seat: ScreenPoint): boolean {
+export function containsSeat(win: ScreenRect, seat: ScreenPoint): boolean {
   return (
     seat.x >= win.x &&
     seat.x <= win.x + win.width &&
