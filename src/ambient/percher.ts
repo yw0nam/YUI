@@ -116,6 +116,7 @@ export interface PercherDeps {
     jump(
       plan: JumpPlan,
       at: { anchor: { x: number; y: number }; charHpx: number; scale: number },
+      onTakeoff?: () => void,
     ): Promise<JumpOutcome>;
     cancel(): void;
   };
@@ -144,6 +145,8 @@ export interface PercherDeps {
   onHostLost(): void;
   /** A jump lost the window it was aimed at — the character is left in mid-air. */
   onTargetLost(): void;
+  /** The jump clip has the body and the old seat is gone — she is committed to the arc. */
+  onTakeoff(): void;
   rng?: Rng;
   /** Defaults to the OS setting; injected in tests. */
   reducedMotion?: () => boolean;
@@ -257,26 +260,28 @@ export function createPercher(deps: PercherDeps): Percher {
     scale: number,
     win: PercherWindow,
     windows: WindowRect[],
-  ): Promise<void> {
-    stroll = null;
-    abandonSuspension();
+  ): Promise<JumpOutcome> {
     const target = plan.target;
-    log.info("jump_start", {
-      from: host.windowNumber,
-      to: target.windowNumber,
-      gap: Math.round(Math.abs(plan.landingX - plan.takeoffX)),
-      dy: Math.round(target.y - host.y),
+    const outcome = await deps.jumper.jump(plan, { anchor, charHpx, scale }, () => {
+      // Point of no return: the clip has the body and the target is confirmed, so the
+      // host goes for good. No exit cue — the seat was not lost, she jumped off it.
+      abandonSuspension();
+      log.info("jump_start", {
+        from: host.windowNumber,
+        to: target.windowNumber,
+        gap: Math.round(Math.abs(plan.landingX - plan.takeoffX)),
+        dy: Math.round(target.y - host.y),
+      });
+      deps.onTakeoff();
     });
-    const outcome = await deps.jumper.jump(plan, { anchor, charHpx, scale });
-    if (!alive(startedAt) || outcome === "cancelled") return;
+    if (!alive(startedAt)) return "cancelled";
+    if (outcome === "refused" || outcome === "cancelled") return outcome;
     if (outcome === "lost") {
       log.info("jump_lost", { windowNumber: target.windowNumber });
       deps.onWalkEnd();
       deps.onTargetLost();
-      return;
+      return outcome;
     }
-    // She is standing on the target now, so the rest of the stroll runs on its top edge.
-    stroll = { host: target, nextWatchAtMs: nowMs + PERCH_POLL_MS, lostStreak: 0, watching: false };
     const targetIndex = windows.findIndex((w) => w.windowNumber === target.windowNumber);
     const span = uncoveredSpan(windows, targetIndex, plan.landingX);
     const leg = planPerchStroll({
@@ -287,20 +292,32 @@ export function createPercher(deps: PercherDeps): Percher {
       cfg: deps.getConfig(),
       rng,
     });
-    if (leg) await deps.walker.walkTo(leg.centerX - anchor.x);
-    if (!alive(startedAt)) return;
-    stroll = null;
+    if (leg) {
+      // She is standing on the target now, so the last stretch watches that window.
+      await deps.walker.walkTo(leg.centerX - anchor.x, () => {
+        stroll = {
+          host: target,
+          nextWatchAtMs: nowMs + PERCH_POLL_MS,
+          lostStreak: 0,
+          watching: false,
+        };
+      });
+      if (!alive(startedAt)) return "cancelled";
+      stroll = null;
+    }
     const applied = await win.outerPosition();
-    if (!alive(startedAt)) return;
+    if (!alive(startedAt)) return "cancelled";
     const edgeLocalYpx = target.y - applied.y / scale;
     log.info("jump_landed", {
       windowNumber: target.windowNumber,
       x: Math.round(applied.x / scale + anchor.x),
     });
+    // The walk ends before the sit lands, so the posture settles on sitting, not standing.
+    deps.onWalkEnd();
     deps.onSit(target, edgeLocalYpx);
     deps.dropSource.adoptSit(target.windowNumber, { x: target.x, y: target.y }, charHpx, "commit");
-    deps.onWalkEnd();
     rearmDwell();
+    return outcome;
   }
 
   async function strollOnce(): Promise<void> {
@@ -413,13 +430,23 @@ export function createPercher(deps: PercherDeps): Percher {
         deps.onWalkStart();
       });
       if (!alive(startedAt)) return;
-      // A walk that never started or never arrived leaves nothing to jump from; the sit
-      // simply comes back the way a skipped stroll's does.
-      if (jumpTo && accepted && walked === "arrived") {
-        await runJump(startedAt, jumpTo, host, anchor, probe.charHpx, scale, win, windows);
-        return;
-      }
       stroll = null;
+      // Arriving is the whole question: a walk resolves "arrived" without accepting when
+      // she already stands on the spot, and the flight still reads as walking.
+      if (jumpTo && walked === "arrived") {
+        if (!accepted) {
+          accepted = true;
+          deps.onWalkStart();
+        }
+        // Only a refusal leaves her still on the host, with the seat to put back.
+        if (
+          (await runJump(startedAt, jumpTo, host, anchor, probe.charHpx, scale, win, windows)) !==
+          "refused"
+        ) {
+          return;
+        }
+        if (!alive(startedAt)) return;
+      }
       if (accepted) deps.onWalkEnd();
       else log.debug("stroll_skipped", { reason: "not_accepted" });
       const applied = await win.outerPosition();

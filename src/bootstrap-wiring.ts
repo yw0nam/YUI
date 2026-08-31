@@ -600,14 +600,6 @@ export function wirePercher(deps: {
       getWindow,
       listWindows,
       getConfig: deps.getJumpConfig,
-      onTakeoff: () => {
-        bus.push({
-          source: "timer_scheduler",
-          event_name: "avatar.jump",
-          ts: Date.now(),
-          hint_tier: 1,
-        });
-      },
     });
     percher = createPercher({
       renderer,
@@ -638,6 +630,14 @@ export function wirePercher(deps: {
       onWalkCancel: endWalk,
       onHostLost: deps.onHostLost,
       onTargetLost: deps.onTargetLost,
+      onTakeoff: () => {
+        bus.push({
+          source: "timer_scheduler",
+          event_name: "avatar.jump",
+          ts: Date.now(),
+          hint_tier: 1,
+        });
+      },
       onSit: (target, edgeLocalYpx) => {
         bus.push({
           source: "os_event_watcher",

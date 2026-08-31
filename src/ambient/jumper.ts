@@ -7,12 +7,12 @@
  * stretch moves the window — the crouch and the recovery play where they are.
  *
  * Eligibility and the arc are pure functions; createJumper owns the clip, the per-frame
- * travel and the watch that catches the target window leaving mid-flight.
+ * travel, and the two reads of the target window that bracket the flight.
  */
 
 import type { JumpConfig, PerchWalkConfig } from "../config/load";
 import type { WindowRect } from "../contract";
-import { MOVE_TH, PERCH_POLL_MS } from "../io/window-drop-source";
+import { MOVE_TH } from "../io/window-drop-source";
 import { createLogger } from "../logger";
 import type { TickFn } from "../renderer";
 import { uncoveredSpan } from "./percher";
@@ -107,29 +107,35 @@ interface JumperWindow {
 export interface JumperDeps {
   renderer: {
     onTick(fn: TickFn): () => void;
+    preloadMotion(id: string): Promise<void>;
     playMotion(motion: { id: string } | null): void;
     getCurrentMotion(): { id: string } | null;
+    getCurrentMotionTime(): number | null;
     getMotionDuration(id: string): number | null;
   };
   getWindow(): JumperWindow;
-  /** Foreign windows, front-to-back — the target is re-read from it in flight. */
+  /** Foreign windows, front-to-back — the target is read from it at both ends of the flight. */
   listWindows(): Promise<WindowRect[]>;
   getConfig(): JumpConfig;
-  /** The clip took the body: the jump is committed and its cue goes out. */
-  onTakeoff(): void;
 }
 
-/** How the flight ended: on the target, in mid-air, or taken over by something else. */
-export type JumpOutcome = "landed" | "lost" | "cancelled";
+/**
+ * How the flight ended. `refused` is the one outcome that never left the ground, so the
+ * caller still owns the seat it was standing on; the others all leave her off it.
+ */
+export type JumpOutcome = "landed" | "lost" | "cancelled" | "refused";
 
 export interface Jumper {
   /**
    * Cross to `plan.target`, the character already standing on the host's edge at
    * `plan.takeoffX`. `anchor` is the feet offset inside the pet window (logical px).
+   * `onTakeoff` fires once the clip has the body and the target is confirmed — the point
+   * of no return, after which the caller's old seat is gone.
    */
   jump(
     plan: JumpPlan,
     at: { anchor: { x: number; y: number }; charHpx: number; scale: number },
+    onTakeoff?: () => void,
   ): Promise<JumpOutcome>;
   /** End a running flight where it hangs, silently. */
   cancel(): void;
@@ -144,9 +150,8 @@ interface Flight {
   to: { x: number; y: number };
   /** Apex height above the higher of the two tops, physical px. */
   lift: number;
-  elapsedS: number;
-  sinceWatchS: number;
-  watching: boolean;
+  /** The landing read is out — later frames leave the window alone until it comes back. */
+  landing: boolean;
   settle: (outcome: JumpOutcome) => void;
 }
 
@@ -166,61 +171,88 @@ export function createJumper(deps: JumperDeps): Jumper {
     f.settle(outcome);
   }
 
-  /** Re-read the stack: the window she is aiming at has to still be where she left it. */
-  function watchTarget(f: Flight, dt: number): void {
-    f.sinceWatchS += dt;
-    if (f.watching || f.sinceWatchS * 1000 < PERCH_POLL_MS) return;
-    f.sinceWatchS = 0;
-    f.watching = true;
+  /**
+   * Whether the window she is aiming at has gone or slid since the plan was made. Read
+   * once before she commits and once as she comes down: the flight is far too short for
+   * a poll, and those are the only two moments the answer changes anything.
+   */
+  async function targetMoved(target: WindowRect): Promise<boolean> {
+    const windows = await deps.listWindows();
+    const now = windows.find((w) => w.windowNumber === target.windowNumber);
+    return !now || Math.abs(now.x - target.x) > MOVE_TH || Math.abs(now.y - target.y) > MOVE_TH;
+  }
+
+  function move(f: Flight, x: number, y: number): void {
+    void f.win
+      .setPositionPhysical(Math.round(x), Math.round(y))
+      .catch((error) => log.warn("move_failed", { degrade: true, error: String(error) }));
+  }
+
+  function land(f: Flight): void {
+    f.landing = true;
     const startedAt = generation;
-    void deps
-      .listWindows()
-      .then((windows) => {
+    void targetMoved(f.plan.target)
+      .then((moved) => {
         if (generation !== startedAt || flight !== f) return;
-        const target = windows.find((w) => w.windowNumber === f.plan.target.windowNumber);
-        const lost =
-          !target ||
-          Math.abs(target.x - f.plan.target.x) > MOVE_TH ||
-          Math.abs(target.y - f.plan.target.y) > MOVE_TH;
-        if (!lost) return;
-        log.info("target_lost", { windowNumber: f.plan.target.windowNumber });
-        finish("lost");
+        if (moved) {
+          log.info("target_lost", { windowNumber: f.plan.target.windowNumber });
+          finish("lost");
+          return;
+        }
+        move(f, f.to.x, f.to.y);
+        finish("landed");
       })
-      .catch((error) => log.warn("target_watch_failed", { degrade: true, error: String(error) }))
-      .finally(() => {
-        f.watching = false;
+      .catch((error) => {
+        log.warn("landing_read_failed", { degrade: true, error: String(error) });
+        if (flight === f) finish("lost");
       });
   }
 
-  function tick(ctx: { dt: number }): void {
+  function tick(): void {
     const f = flight;
-    if (!f) return;
-    f.elapsedS += ctx.dt;
-    watchTarget(f, ctx.dt);
+    if (!f || f.landing) return;
+    // Anything else taking the clip takes the playhead with it, and a window driven off
+    // another clip's time would go anywhere — she is in the air, so hand her to the fall.
+    if (renderer.getCurrentMotion()?.id !== JUMP_MOTION_ID) {
+      finish("lost");
+      return;
+    }
     const duration = renderer.getMotionDuration(JUMP_MOTION_ID);
-    if (duration === null || !(duration > 0)) return;
-    const played = f.elapsedS / duration;
+    const at = renderer.getCurrentMotionTime();
+    if (duration === null || !(duration > 0) || at === null) return;
+    const played = at / duration;
     // Outside the clip's airborne stretch the window holds still: the crouch and the
     // recovery are danced on the spot.
     if (played < f.cfg.takeoff_frac) return;
     const u = Math.min((played - f.cfg.takeoff_frac) / (f.cfg.land_frac - f.cfg.takeoff_frac), 1);
-    const x = f.from.x + (f.to.x - f.from.x) * u;
-    const y = u >= 1 ? f.to.y : jumpArc(u, f.from.y, f.to.y, f.lift);
-    void f.win
-      .setPositionPhysical(Math.round(x), Math.round(y))
-      .catch((error) => log.warn("move_failed", { degrade: true, error: String(error) }));
-    if (u >= 1) finish("landed");
+    if (u >= 1) {
+      land(f);
+      return;
+    }
+    move(f, f.from.x + (f.to.x - f.from.x) * u, jumpArc(u, f.from.y, f.to.y, f.lift));
   }
 
   return {
-    async jump(plan, at) {
+    async jump(plan, at, onTakeoff) {
       const startedAt = generation;
-      renderer.playMotion({ id: JUMP_MOTION_ID });
-      if (renderer.getCurrentMotion()?.id !== JUMP_MOTION_ID) return "lost";
-      deps.onTakeoff();
+      // The clip has to be cached before it plays, or its length is unreadable for the
+      // first frames of the flight and the window would sit out its own arc.
+      await renderer.preloadMotion(JUMP_MOTION_ID);
+      if (generation !== startedAt) return "cancelled";
+      if (await targetMoved(plan.target)) {
+        log.debug("jump_skipped", { reason: "target_moved" });
+        return "refused";
+      }
+      if (generation !== startedAt) return "cancelled";
       const win = deps.getWindow();
       const from = await win.outerPosition();
       if (generation !== startedAt) return "cancelled";
+      renderer.playMotion({ id: JUMP_MOTION_ID });
+      if (renderer.getCurrentMotion()?.id !== JUMP_MOTION_ID) {
+        log.debug("jump_skipped", { reason: "clip_refused" });
+        return "refused";
+      }
+      onTakeoff?.();
       const cfg = deps.getConfig();
       return new Promise((settle) => {
         flight = {
@@ -233,9 +265,7 @@ export function createJumper(deps: JumperDeps): Jumper {
             y: (plan.target.y - at.anchor.y) * at.scale,
           },
           lift: cfg.apex_lift_frac * at.charHpx * at.scale,
-          elapsedS: 0,
-          sinceWatchS: 0,
-          watching: false,
+          landing: false,
           settle,
         };
         unsub = renderer.onTick(tick);
