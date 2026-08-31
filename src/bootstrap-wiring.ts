@@ -546,7 +546,7 @@ export function wirePercher(deps: {
     abandonSit(): void;
     release(): void;
   };
-  /** The stroll's host window went away — the character falls from where she stands. */
+  /** The perch's host window went away — the character falls from where she stands. */
   onHostLost: () => void;
   setHitTestMoving(moving: boolean): void;
   log: Logger;
