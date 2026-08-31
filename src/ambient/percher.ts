@@ -276,6 +276,8 @@ export function createPercher(deps: PercherDeps): Percher {
     if (outcome === "lost") {
       log.info("jump_lost", { windowNumber: target.windowNumber });
       endWalkCue();
+      // Nothing else squares her up on the way down, and she fell out of a turn.
+      deps.renderer.setBodyYaw(0, WALK_YAW_EASE_MS);
       deps.onTargetLost();
       return outcome;
     }
