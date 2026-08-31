@@ -3,7 +3,13 @@ import type { PerchWalkConfig } from "../config/load";
 import type { MotionKind, WindowRect } from "../contract";
 import type { ScreenMonitor } from "../io/screen-geometry";
 import type { TickContext, TickFn } from "../renderer";
-import { createPercher, nextPerchDwell, type PercherDeps, planPerchStroll } from "./percher";
+import {
+  createPercher,
+  nextPerchDwell,
+  type PercherDeps,
+  planPerchStroll,
+  uncoveredSpan,
+} from "./percher";
 
 const CFG: PerchWalkConfig = {
   dwell_min_ms: 1000,
@@ -87,6 +93,41 @@ const MONITOR: ScreenMonitor = {
   size: { width: 3000, height: 2000 },
   workArea: { position: { x: 0, y: 0 }, size: { width: 3000, height: 1900 } },
 };
+
+/** A window reaching across the host's top edge (y 900) at the given x span. */
+function cover(x: number, width: number, windowNumber: number): WindowRect {
+  return { ...HOST, x, y: 800, width, height: 400, name: "Cover", windowNumber };
+}
+
+describe("uncoveredSpan", () => {
+  it("keeps the whole host edge when nothing in front reaches it", () => {
+    const below = { ...cover(1300, 300, 7), y: 1000 };
+    expect(uncoveredSpan([below, HOST], 1, 1200)).toEqual({ left: 1000, right: 1500 });
+    expect(uncoveredSpan([cover(2000, 300, 8), HOST], 1, 1200)).toEqual({
+      left: 1000,
+      right: 1500,
+    });
+  });
+
+  it("clips to the nearest covering window on each side of the given x", () => {
+    expect(uncoveredSpan([cover(900, 200, 7), cover(1310, 200, 8), HOST], 2, 1200)).toEqual({
+      left: 1100,
+      right: 1310,
+    });
+  });
+
+  it("ignores windows behind the host", () => {
+    expect(uncoveredSpan([HOST, cover(1300, 300, 7)], 0, 1200)).toEqual({
+      left: 1000,
+      right: 1500,
+    });
+  });
+
+  it("leaves no span at all when the x itself is covered", () => {
+    const span = uncoveredSpan([cover(1150, 200, 7), HOST], 1, 1200);
+    expect(span.left).toBeGreaterThan(span.right);
+  });
+});
 
 function deferred<T>() {
   let resolve!: (value: T) => void;
@@ -242,6 +283,40 @@ describe("createPercher", () => {
     expect(h.walkTo).not.toHaveBeenCalled();
     await h.frame(0.6);
     expect(h.walkTo).toHaveBeenCalledTimes(1);
+  });
+
+  it("keeps the target out from under a window covering the host edge", async () => {
+    const h = makeHarness({ windows: async () => [cover(1300, 300, 7), HOST] });
+    h.percher.start();
+
+    await h.frame();
+    await h.frame(1.1);
+
+    expect(h.walkTo).toHaveBeenCalledWith(900, expect.any(Function));
+  });
+
+  it("re-dwells without suspending when covers leave no room either way", async () => {
+    const h = makeHarness({
+      windows: async () => [cover(900, 200, 7), cover(1310, 200, 8), HOST],
+    });
+    h.percher.start();
+
+    await h.frame();
+    await h.frame(1.1);
+
+    expect(h.suspendSit).not.toHaveBeenCalled();
+    expect(h.walkTo).not.toHaveBeenCalled();
+    expect(h.calls).toEqual([]);
+  });
+
+  it("walks the full edge past a window behind the host", async () => {
+    const h = makeHarness({ windows: async () => [HOST, cover(1300, 300, 7)] });
+    h.percher.start();
+
+    await h.frame();
+    await h.frame(1.1);
+
+    expect(h.walkTo).toHaveBeenCalledWith(1080, expect.any(Function));
   });
 
   it("re-dwells without suspending on a narrow host window", async () => {
