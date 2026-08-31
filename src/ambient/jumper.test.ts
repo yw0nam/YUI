@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import type { JumpConfig } from "../config/load";
+import type { JumpConfig, PerchWalkConfig } from "../config/load";
 import type { WindowRect } from "../contract";
 import type { TickContext, TickFn } from "../renderer";
 import { createJumper, type JumperDeps, type JumpPlan, jumpArc, pickJumpTarget } from "./jumper";
@@ -14,10 +14,17 @@ const CFG: JumpConfig = {
   land_frac: 0.67,
 };
 
+/** The stroll owns the edge margin the jump keeps: 0.2 x 500 px = 100 px. */
+const PERCH_CFG: PerchWalkConfig = {
+  dwell_min_ms: 1000,
+  dwell_max_ms: 2000,
+  distance_min_px: 80,
+  distance_max_px: 400,
+  edge_margin_frac: 0.2,
+};
+
 const CHAR_HPX = 500;
 const CHAR_WPX = 160;
-/** The stroll's own edge margin at this character height (`edge_margin_frac` 0.2). */
-const MARGIN = 100;
 
 const HOST: WindowRect = {
   x: 1000,
@@ -36,15 +43,15 @@ function win(over: Partial<WindowRect> & { windowNumber: number }): WindowRect {
 }
 
 /** Host last: every other entry is in front of it, the way the perch poll reads the stack. */
-function pick(windows: WindowRect[], over: Partial<Parameters<typeof pickJumpTarget>[0]> = {}) {
+function pick(front: WindowRect[], over: Partial<Parameters<typeof pickJumpTarget>[0]> = {}) {
   return pickJumpTarget({
-    windows: [...windows, HOST],
-    hostIndex: windows.length,
-    span: { left: HOST.x, right: HOST.x + HOST.width },
+    windows: [...front, HOST],
+    hostIndex: front.length,
+    currentX: 1200,
     charHpx: CHAR_HPX,
     charWpx: CHAR_WPX,
-    margin: MARGIN,
-    cfg: CFG,
+    perchCfg: PERCH_CFG,
+    jumpCfg: CFG,
     ...over,
   });
 }
@@ -75,12 +82,15 @@ describe("pickJumpTarget — reach", () => {
   });
 
   it("steps one body width past the host edge onto an overlapping window", () => {
+    // Only a window behind the host leaves its top edge walkable to the takeoff point,
+    // and she has to be wider than the two margins to land clear of the host's own.
     const over = win({ x: 1400, windowNumber: 7 });
-    expect(pick([over], { span: { left: 1000, right: 1400 } })).toEqual({
+    const wide = 220;
+    expect(pick([], { windows: [HOST, over], hostIndex: 0, charWpx: wide })).toEqual({
       target: over,
       side: "right",
       takeoffX: 1400,
-      landingX: 1400 + CHAR_WPX,
+      landingX: 1400 + wide,
     });
   });
 });
@@ -101,18 +111,20 @@ describe("pickJumpTarget — height", () => {
 
 describe("pickJumpTarget — reachability", () => {
   it("refuses a takeoff point outside the stretch she can walk", () => {
-    expect(
-      pick([win({ x: 1560, windowNumber: 7 })], { span: { left: 1000, right: 1300 } }),
-    ).toBeNull();
+    // A window in front of the host reaches its top edge and cuts the walk short of
+    // the takeoff point; it is too far above the host to be jumped to itself.
+    const cutOff = win({ x: 1300, y: 500, height: 500, windowNumber: 8 });
+    expect(pick([cutOff, win({ x: 1560, windowNumber: 7 })])).toBeNull();
   });
 
   it("refuses a landing the neighbour has no room to hold inside its own margins", () => {
     expect(pick([win({ x: 1560, width: 150, windowNumber: 7 })])).toBeNull();
   });
 
-  it("refuses a landing seat covered by a window in front of the neighbour", () => {
+  it("refuses a landing the neighbour's own uncovered span does not reach", () => {
     const target = win({ x: 1560, windowNumber: 7 });
-    // Too far above the host to be jumped to itself, but squarely over the landing seat.
+    // Too far above the host to be jumped to itself, but it straddles the landing seat,
+    // which leaves the neighbour no uncovered stretch there at all.
     const cover = win({ x: 1600, y: 500, height: 500, windowNumber: 8 });
     expect(pick([cover, target])).toBeNull();
   });
