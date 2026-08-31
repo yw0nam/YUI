@@ -64,7 +64,7 @@ import {
 import { baselineWhileHeld, suppressWhileHeld } from "./perch-hold";
 import { createPinController, type PinController } from "./pin-controller";
 import { clampPixelRatio } from "./pixel-ratio";
-import { projectFeetAnchor, type ScreenAnchor } from "./project-anchor";
+import { projectBoxWidthPx, projectFeetAnchor, type ScreenAnchor } from "./project-anchor";
 import {
   detrendClipRootY,
   type RootYCurve,
@@ -217,6 +217,11 @@ export interface Renderer {
    * Changes whenever camera is refit via resize/zoom — used to pin UI input to feet.
    */
   getCharacterAnchor(): ScreenAnchor | null;
+  /**
+   * How wide the character stands on screen (px), measured across the model box at the
+   * feet. null if the VRM is not loaded — a jump sizes the gap it will clear by it.
+   */
+  getCharacterWidthPx(): number | null;
   /**
    * Per-pixel alpha hit test: true when the rendered character pixel under the
    * window-local client CSS-px point (x, y) — e.g. MouseEvent.clientX/clientY — is
@@ -1127,6 +1132,11 @@ export function createRenderer(options: RendererOptions): Renderer {
       if (!modelBox) return null;
       camera.updateMatrixWorld();
       return projectFeetAnchor(modelBox, camera, mount.clientWidth || 1, mount.clientHeight || 1);
+    },
+    getCharacterWidthPx() {
+      if (!modelBox) return null;
+      camera.updateMatrixWorld();
+      return projectBoxWidthPx(modelBox, camera, mount.clientWidth || 1);
     },
     hitTest(x, y) {
       const stage = clientToStage(x, y, mountRect);
