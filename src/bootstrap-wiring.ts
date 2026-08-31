@@ -1,7 +1,8 @@
 /** Bootstrap wiring helpers extracted from main.ts: VRM + speaker selection stores and their swap/import flows. */
 import { type Climber, type ClimbTarget, createClimber } from "./ambient/climber";
 import { createFaller, type Faller } from "./ambient/faller";
-import { createPercher, type Percher } from "./ambient/percher";
+import { createJumper } from "./ambient/jumper";
+import { createPercher, type Percher, type PercherWindow } from "./ambient/percher";
 import type { Tier1Engine } from "./ambient/tier1";
 import { createWalker, type Walker } from "./ambient/walker";
 import {
@@ -10,6 +11,7 @@ import {
   type ConfigSection,
   type FallConfig,
   type GestureCuesConfig,
+  type JumpConfig,
   loadEmotionTextTable,
   type PeekConfig,
   type PerchWalkConfig,
@@ -526,6 +528,7 @@ export function wirePercher(deps: {
   bus: EventBus;
   renderer: Renderer;
   getPerchWalkConfig: () => PerchWalkConfig;
+  getJumpConfig: () => JumpConfig;
   /** Registry kind of a motion id, for the "nothing else holds the body" gate. */
   getMotionKind: (id: string) => MotionKind | undefined;
   /** A turn is in flight or speech is still playing — ambient movement stays out of the way. */
@@ -544,10 +547,18 @@ export function wirePercher(deps: {
     } | null;
     resumeSit(edgeLocalYpx: number): void;
     abandonSit(): void;
+    adoptSit(
+      windowNumber: number,
+      rect: { x: number; y: number },
+      charHpx: number,
+      origin: "commit" | "adopt",
+    ): void;
     release(): void;
   };
   /** The perch's host window went away — the character falls from where she stands. */
   onHostLost: () => void;
+  /** A jump lost the window it was aimed at — the character falls out of mid-air. */
+  onTargetLost: () => void;
   setHitTestMoving(moving: boolean): void;
   log: Logger;
 }): { cancel(): void; dispose(): void } {
@@ -577,17 +588,36 @@ export function wirePercher(deps: {
         hint_tier: 1,
       });
     };
+    const getWindow = (): PercherWindow => ({
+      outerPosition: () => win.outerPosition(),
+      scaleFactor: () => win.scaleFactor(),
+      setPositionPhysical: (x, y) => win.setPosition(new PhysicalPosition(x, y)),
+    });
+    const listWindows = (): Promise<WindowRect[]> =>
+      invoke("list_windows") as Promise<WindowRect[]>;
+    const jumper = createJumper({
+      renderer,
+      getWindow,
+      listWindows,
+      getConfig: deps.getJumpConfig,
+      onTakeoff: () => {
+        bus.push({
+          source: "timer_scheduler",
+          event_name: "avatar.jump",
+          ts: Date.now(),
+          hint_tier: 1,
+        });
+      },
+    });
     percher = createPercher({
       renderer,
-      getWindow: () => ({
-        outerPosition: () => win.outerPosition(),
-        scaleFactor: () => win.scaleFactor(),
-        setPositionPhysical: (x, y) => win.setPosition(new PhysicalPosition(x, y)),
-      }),
-      listWindows: () => invoke("list_windows") as Promise<WindowRect[]>,
+      getWindow,
+      listWindows,
       listMonitors: async () => (await availableMonitors()).map(toScreenMonitor),
       getConfig: deps.getPerchWalkConfig,
+      getJumpConfig: deps.getJumpConfig,
       walker: deps.walker,
+      jumper,
       dropSource: deps.dropSource,
       currentMotion: () => {
         const current = renderer.getCurrentMotion();
@@ -607,6 +637,7 @@ export function wirePercher(deps: {
       // A cancelled stroll still owes the end cue: the posture only leaves walking on it.
       onWalkCancel: endWalk,
       onHostLost: deps.onHostLost,
+      onTargetLost: deps.onTargetLost,
       onSit: (target, edgeLocalYpx) => {
         bus.push({
           source: "os_event_watcher",

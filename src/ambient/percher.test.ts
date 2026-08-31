@@ -652,6 +652,7 @@ describe("createPercher", () => {
     const h = makeHarness({
       windows: async () => [HOST, NEIGHBOUR],
       jumpProbability: 1,
+      rng: () => 0,
     });
     h.percher.start();
 
@@ -666,6 +667,7 @@ describe("createPercher", () => {
       "abandon",
       "jump",
       "avatar.window_sit",
+      "adopt",
       "avatar.walk_end",
     ]);
     expect(h.resumeSit).not.toHaveBeenCalled();
@@ -674,9 +676,12 @@ describe("createPercher", () => {
     expect(h.adoptSit).toHaveBeenCalledWith(7, { x: 1560, y: 900 }, 500, "commit");
     expect(h.release).not.toHaveBeenCalled();
 
+    // The seat she landed on is a perch like any other: the dwell runs again on it.
     h.walkTo.mockClear();
-    await h.frame(1.1);
-    expect(h.walkTo).toHaveBeenCalledTimes(1);
+    await h.frame(0.5);
+    expect(h.walkTo).not.toHaveBeenCalled();
+    await h.frame(0.6);
+    expect(h.walkTo).toHaveBeenCalled();
   });
 
   it("strolls the host as usual when the jump does not come up", async () => {
@@ -700,6 +705,7 @@ describe("createPercher", () => {
     const h = makeHarness({
       windows: async () => [HOST, NEIGHBOUR],
       jumpProbability: 1,
+      rng: () => 0,
       charWpx: null,
     });
     h.percher.start();
@@ -715,6 +721,7 @@ describe("createPercher", () => {
     const h = makeHarness({
       windows: async () => [HOST, NEIGHBOUR],
       jumpProbability: 1,
+      rng: () => 0,
       jump: Promise.resolve("lost"),
     });
     h.percher.start();
@@ -741,6 +748,7 @@ describe("createPercher", () => {
     const h = makeHarness({
       windows: async () => [HOST, NEIGHBOUR],
       jumpProbability: 1,
+      rng: () => 0,
       jump: flight.promise,
     });
     h.percher.start();
