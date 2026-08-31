@@ -33,14 +33,27 @@ describe("perch-walk planning", () => {
       cfg: CFG,
     };
 
-    expect(planPerchStroll({ ...base, rng: seqRng(0, 1) })).toEqual({
+    expect(planPerchStroll({ ...base, rng: () => 1 })).toEqual({
       centerX: 1300,
       direction: 1,
     });
-    expect(planPerchStroll({ ...base, currentX: 1280, rng: seqRng(0, 1) })).toEqual({
+    expect(planPerchStroll({ ...base, currentX: 1280, rng: () => 1 })).toEqual({
       centerX: 1100,
       direction: -1,
     });
+  });
+
+  it("measures room from the current center before clamping the target", () => {
+    expect(
+      planPerchStroll({
+        currentX: 1080,
+        winLeft: 1000,
+        winRight: 1400,
+        charHpx: 500,
+        cfg: CFG,
+        rng: () => 0,
+      }),
+    ).toEqual({ centerX: 1160, direction: 1 });
   });
 
   it("skips a narrow ledge when neither direction has the minimum room", () => {
@@ -90,6 +103,7 @@ function makeHarness(
   const calls: string[] = [];
   const walkTo = vi.fn((_toX: number) => over.walk ?? Promise.resolve("arrived" as const));
   const walkerCancel = vi.fn();
+  const onWalkCancel = vi.fn();
   const suspendSit = vi.fn(() => {
     if (!armed) return null;
     calls.push("suspend");
@@ -139,6 +153,7 @@ function makeHarness(
     },
     onWalkStart: () => calls.push("avatar.walk_start"),
     onWalkEnd: () => calls.push("avatar.walk_end"),
+    onWalkCancel,
     onSit: () => calls.push("avatar.window_sit"),
     rng: over.rng ?? seqRng(0, 1, 0),
   };
@@ -156,6 +171,7 @@ function makeHarness(
     positions,
     walkTo,
     walkerCancel,
+    onWalkCancel,
     suspendSit,
     resumeSit,
     release,
@@ -252,6 +268,7 @@ describe("createPercher", () => {
     dwell.percher.cancel();
     await dwell.frame(10);
     expect(dwell.walkTo).not.toHaveBeenCalled();
+    expect(dwell.onWalkCancel).not.toHaveBeenCalled();
     expect(dwell.calls).toEqual([]);
 
     const walking = deferred<"arrived" | "lost">();
@@ -261,6 +278,7 @@ describe("createPercher", () => {
     await stroll.frame(1.1);
     stroll.percher.cancel();
     expect(stroll.walkerCancel).toHaveBeenCalledTimes(1);
+    expect(stroll.onWalkCancel).toHaveBeenCalledTimes(1);
     const before = [...stroll.calls];
 
     walking.resolve("arrived");
