@@ -315,6 +315,9 @@ export function createJumper(deps: JumperDeps): Jumper {
     },
     cancel() {
       generation++;
+      // Whatever interrupted her plays its own clip but never unwinds the turn the jump
+      // put her in; the walker's reset is no help with no walk of its own live.
+      if (flight) renderer.setBodyYaw(0, WALK_YAW_EASE_MS);
       finish("cancelled");
     },
   };
