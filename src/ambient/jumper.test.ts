@@ -182,6 +182,7 @@ function makeJumper(
   let clipT = 0;
   const positions: Array<{ x: number; y: number }> = [];
   const onTakeoff = vi.fn();
+  const setBodyYaw = vi.fn();
   const preloadMotion = vi.fn(async () => {});
   const playMotion = vi.fn((motion: { id: string } | null) => {
     if (over.accepted === false) return;
@@ -197,6 +198,7 @@ function makeJumper(
       },
       preloadMotion,
       playMotion,
+      setBodyYaw,
       getCurrentMotion: () => (playing ? { id: playing } : null),
       getCurrentMotionTime: () => (over.clipTime === null || !playing ? null : clipT),
       getMotionDuration: () =>
@@ -229,7 +231,7 @@ function makeJumper(
   const steal = () => {
     playing = "thinking";
   };
-  return { jumper, frame, positions, playMotion, preloadMotion, onTakeoff, steal };
+  return { jumper, frame, positions, playMotion, preloadMotion, onTakeoff, setBodyYaw, steal };
 }
 
 /** Start the jump; the returned promise settles on whatever a later frame decides. */
@@ -286,6 +288,25 @@ describe("createJumper", () => {
     await h.frame(0.5);
     await expect(outcome).resolves.toBe("landed");
     expect(h.onTakeoff).toHaveBeenCalledTimes(1);
+  });
+
+  it("turns to face the way she is going as the clip takes the body", async () => {
+    const h = makeJumper();
+    flying(h);
+
+    await h.frame(0.1);
+
+    expect(h.setBodyYaw).toHaveBeenCalledWith(Math.PI / 2, 400);
+  });
+
+  it("turns the other way for a neighbour on the left", async () => {
+    const h = makeJumper();
+    const left = { ...PLAN, side: "left" as const, takeoffX: 1100, landingX: 840 };
+    void h.jumper.jump(left, { anchor: ANCHOR, charHpx: CHAR_HPX, scale: 1 }, h.onTakeoff);
+
+    await h.frame(0.1);
+
+    expect(h.setBodyYaw).toHaveBeenCalledWith(-Math.PI / 2, 400);
   });
 
   it("refuses the jump when the clip is taken away during the crouch", async () => {

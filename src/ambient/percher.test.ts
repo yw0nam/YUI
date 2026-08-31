@@ -212,6 +212,7 @@ function makeHarness(
   const onTakeoff = vi.fn(() => {
     calls.push("avatar.jump");
   });
+  const setBodyYaw = vi.fn();
   const positions: Array<{ x: number; y: number }> = [];
   const deps: PercherDeps = {
     renderer: {
@@ -224,6 +225,7 @@ function makeHarness(
       getCharacterAnchor: () => ({ x: 200, y: 420 }),
       getPerchProbe: () => ({ seatPx: { x: 200, y: 300 }, charHpx: 500 }),
       getCharacterWidthPx: () => (over.charWpx === undefined ? 160 : over.charWpx),
+      setBodyYaw,
     },
     getWindow: () => ({
       outerPosition: over.outerPosition ?? (async () => ({ ...pos })),
@@ -287,6 +289,7 @@ function makeHarness(
     jumperCancel,
     onTargetLost,
     onTakeoff,
+    setBodyYaw,
     /** Arm a fresh commit-origin sit, the way a later drop release would. */
     rearm: () => {
       armed = true;
@@ -786,6 +789,40 @@ describe("createPercher", () => {
     h.walkTo.mockClear();
     await h.frame(1.1);
     expect(h.walkTo).toHaveBeenCalled();
+  });
+
+  it("faces forward again when the landing leaves no room to walk on", async () => {
+    // Too narrow a neighbour for a landing leg, so nothing else squares her up.
+    const narrow = { ...NEIGHBOUR, width: 250 };
+    const h = makeHarness({
+      windows: async () => [HOST, narrow],
+      jumpProbability: 1,
+      rng: () => 0,
+    });
+    h.percher.start();
+
+    await h.frame();
+    await h.frame(1.1);
+
+    expect(h.walkTo).toHaveBeenCalledTimes(1);
+    expect(h.setBodyYaw).toHaveBeenLastCalledWith(0, 400);
+    expect(h.adoptSit).toHaveBeenCalled();
+  });
+
+  it("faces forward again when the jump is refused", async () => {
+    const h = makeHarness({
+      windows: async () => [HOST, NEIGHBOUR],
+      jumpProbability: 1,
+      rng: () => 0,
+      jumpOutcome: "refused",
+    });
+    h.percher.start();
+
+    await h.frame();
+    await h.frame(1.1);
+
+    expect(h.setBodyYaw).toHaveBeenCalledWith(0, 400);
+    expect(h.resumeSit).toHaveBeenCalledTimes(1);
   });
 
   it("does not watch the host she has left, so its closing announces nothing", async () => {
