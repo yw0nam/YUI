@@ -384,6 +384,26 @@ describe("createJumper", () => {
     expect(h.onTakeoff).not.toHaveBeenCalled();
   });
 
+  it("gives up mid-air when the landing read never comes back", async () => {
+    let reads = 0;
+    const h = makeJumper({
+      windows: () => {
+        reads++;
+        // The pre-takeoff read answers; the landing read never does.
+        return reads === 1 ? Promise.resolve([TARGET]) : new Promise<WindowRect[]>(() => {});
+      },
+    });
+    const outcome = flying(h);
+    await h.frame(0.7);
+    await h.frame(0.5);
+    expect(reads).toBe(2);
+
+    await h.frame(2);
+    await h.frame(2);
+
+    await expect(outcome).resolves.toBe("lost");
+  });
+
   it("gives up mid-air when the clip stalls after she has left", async () => {
     let duration: number | null = DURATION;
     const h = makeJumper({ duration: () => duration });
