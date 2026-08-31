@@ -12,7 +12,11 @@
 
 import type { JumpConfig } from "../config/load";
 import type { WindowRect } from "../contract";
-import { containsSeat } from "../io/window-drop-source";
+import { containsSeat, MOVE_TH, PERCH_POLL_MS } from "../io/window-drop-source";
+import { createLogger } from "../logger";
+import type { TickFn } from "../renderer";
+
+const log = createLogger("jumper");
 
 /** Registry id of the clip the whole jump is paced by. */
 export const JUMP_MOTION_ID = "jump";
@@ -66,12 +70,9 @@ export function pickJumpTarget(args: {
     if (takeoffX < span.left || takeoffX > span.right) continue;
     // Across a gap she lands just inside the near edge; over an overlap the near edge is
     // behind her, so she carries one body width past the host's own.
-    const landingX =
-      gap > 0
-        ? side === "right"
-          ? candidate.x + margin
-          : candidate.x + candidate.width - margin
-        : takeoffX + (side === "right" ? charWpx : -charWpx);
+    const nearEdge = side === "right" ? candidate.x : candidate.x + candidate.width;
+    const inward = side === "right" ? 1 : -1;
+    const landingX: number = gap > 0 ? nearEdge + inward * margin : takeoffX + inward * charWpx;
     if (landingX < candidate.x + margin || landingX > candidate.x + candidate.width - margin) {
       continue;
     }
@@ -90,4 +91,153 @@ export function pickJumpTarget(args: {
 export function jumpArc(u: number, from: number, to: number, lift: number): number {
   const apex = lift + Math.abs(to - from) / 2;
   return (1 - u) * from + u * to - 4 * apex * u * (1 - u);
+}
+
+interface JumperWindow {
+  outerPosition(): Promise<{ x: number; y: number }>;
+  setPositionPhysical(x: number, y: number): Promise<void>;
+}
+
+export interface JumperDeps {
+  renderer: {
+    onTick(fn: TickFn): () => void;
+    playMotion(motion: { id: string } | null): void;
+    getCurrentMotion(): { id: string } | null;
+    getMotionDuration(id: string): number | null;
+  };
+  getWindow(): JumperWindow;
+  /** Foreign windows, front-to-back — the target is re-read from it in flight. */
+  listWindows(): Promise<WindowRect[]>;
+  getConfig(): JumpConfig;
+  /** The clip took the body: the jump is committed and its cue goes out. */
+  onTakeoff(): void;
+}
+
+/** How the flight ended: on the target, in mid-air, or taken over by something else. */
+export type JumpOutcome = "landed" | "lost" | "cancelled";
+
+export interface Jumper {
+  /**
+   * Cross to `plan.target`, the character already standing on the host's edge at
+   * `plan.takeoffX`. `anchor` is the feet offset inside the pet window (logical px).
+   */
+  jump(
+    plan: JumpPlan,
+    at: { anchor: { x: number; y: number }; charHpx: number; scale: number },
+  ): Promise<JumpOutcome>;
+  /** End a running flight where it hangs, silently. */
+  cancel(): void;
+}
+
+interface Flight {
+  win: JumperWindow;
+  plan: JumpPlan;
+  cfg: JumpConfig;
+  /** Window origin (physical px) at both ends of the arc. */
+  from: { x: number; y: number };
+  to: { x: number; y: number };
+  /** Apex height above the higher of the two tops, physical px. */
+  lift: number;
+  elapsedS: number;
+  sinceWatchS: number;
+  watching: boolean;
+  settle: (outcome: JumpOutcome) => void;
+}
+
+export function createJumper(deps: JumperDeps): Jumper {
+  const { renderer } = deps;
+  /** Bumped by every cancel so an in-flight jump drops its plan. */
+  let generation = 0;
+  let flight: Flight | null = null;
+  let unsub: (() => void) | null = null;
+
+  function finish(outcome: JumpOutcome): void {
+    const f = flight;
+    if (!f) return;
+    flight = null;
+    unsub?.();
+    unsub = null;
+    f.settle(outcome);
+  }
+
+  /** Re-read the stack: the window she is aiming at has to still be where she left it. */
+  function watchTarget(f: Flight, dt: number): void {
+    f.sinceWatchS += dt;
+    if (f.watching || f.sinceWatchS * 1000 < PERCH_POLL_MS) return;
+    f.sinceWatchS = 0;
+    f.watching = true;
+    const startedAt = generation;
+    void deps
+      .listWindows()
+      .then((windows) => {
+        if (generation !== startedAt || flight !== f) return;
+        const target = windows.find((w) => w.windowNumber === f.plan.target.windowNumber);
+        const lost =
+          !target ||
+          Math.abs(target.x - f.plan.target.x) > MOVE_TH ||
+          Math.abs(target.y - f.plan.target.y) > MOVE_TH;
+        if (!lost) return;
+        log.info("target_lost", { windowNumber: f.plan.target.windowNumber });
+        finish("lost");
+      })
+      .catch((error) => log.warn("target_watch_failed", { degrade: true, error: String(error) }))
+      .finally(() => {
+        f.watching = false;
+      });
+  }
+
+  function tick(ctx: { dt: number }): void {
+    const f = flight;
+    if (!f) return;
+    f.elapsedS += ctx.dt;
+    watchTarget(f, ctx.dt);
+    const duration = renderer.getMotionDuration(JUMP_MOTION_ID);
+    if (duration === null || !(duration > 0)) return;
+    const played = f.elapsedS / duration;
+    // Outside the clip's airborne stretch the window holds still: the crouch and the
+    // recovery are danced on the spot.
+    if (played < f.cfg.takeoff_frac) return;
+    const u = Math.min((played - f.cfg.takeoff_frac) / (f.cfg.land_frac - f.cfg.takeoff_frac), 1);
+    const x = f.from.x + (f.to.x - f.from.x) * u;
+    const y = u >= 1 ? f.to.y : jumpArc(u, f.from.y, f.to.y, f.lift);
+    void f.win
+      .setPositionPhysical(Math.round(x), Math.round(y))
+      .catch((error) => log.warn("move_failed", { degrade: true, error: String(error) }));
+    if (u >= 1) finish("landed");
+  }
+
+  return {
+    async jump(plan, at) {
+      const startedAt = generation;
+      renderer.playMotion({ id: JUMP_MOTION_ID });
+      if (renderer.getCurrentMotion()?.id !== JUMP_MOTION_ID) return "lost";
+      deps.onTakeoff();
+      const win = deps.getWindow();
+      const from = await win.outerPosition();
+      if (generation !== startedAt) return "cancelled";
+      const cfg = deps.getConfig();
+      return new Promise((settle) => {
+        flight = {
+          win,
+          plan,
+          cfg,
+          from,
+          to: {
+            x: (plan.landingX - at.anchor.x) * at.scale,
+            y: (plan.target.y - at.anchor.y) * at.scale,
+          },
+          lift: cfg.apex_lift_frac * at.charHpx * at.scale,
+          elapsedS: 0,
+          sinceWatchS: 0,
+          watching: false,
+          settle,
+        };
+        unsub = renderer.onTick(tick);
+      });
+    },
+    cancel() {
+      generation++;
+      finish("cancelled");
+    },
+  };
 }
