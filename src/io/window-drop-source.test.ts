@@ -1783,7 +1783,7 @@ describe("window-drop-source — adoptSit", () => {
     vi.useRealTimers();
   });
 
-  function adopted() {
+  function adopted(origin: "commit" | "adopt" = "adopt") {
     const { renderer } = makePerchSource();
     const armed = win({ name: "Armed", windowNumber: 42 });
     const invoke = vi.fn(async () => [armed]);
@@ -1794,9 +1794,13 @@ describe("window-drop-source — adoptSit", () => {
       getWindow: () => makeWindow({ x: 520, y: 740 }, 2),
       listen: makeListen().listen,
     });
-    source.adoptSit(42, { x: armed.x, y: armed.y }, 200);
+    source.adoptSit(42, { x: armed.x, y: armed.y }, 200, origin);
     return { source, invoke, armed, renderer };
   }
+
+  it.each(["adopt", "commit"] as const)("arms the seat under its %s origin", (origin) => {
+    expect(adopted(origin).source.armedSit()).toEqual({ windowNumber: 42, origin });
+  });
 
   it("arms the poll and pushes nothing", async () => {
     const { invoke } = adopted();
