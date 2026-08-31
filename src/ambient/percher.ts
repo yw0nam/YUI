@@ -295,9 +295,6 @@ export function createPercher(deps: PercherDeps): Percher {
       cfg: deps.getConfig(),
       rng,
     });
-    // A landing leg turns her back to face forward on its own; without one she would
-    // sit down still side-on from the jump.
-    if (!leg) deps.renderer.setBodyYaw(0, WALK_YAW_EASE_MS);
     if (leg) {
       // She is standing on the target now, so the last stretch watches that window.
       const walked = await deps.walker.walkTo(leg.centerX - anchor.x, () => {
@@ -310,13 +307,10 @@ export function createPercher(deps: PercherDeps): Percher {
       });
       if (!alive(startedAt)) return "cancelled";
       stroll = null;
-      // A leg that never arrived leaves her somewhere along the top rather than on the
-      // seat it was walking to, so nothing is armed and she simply stands there.
-      if (walked !== "arrived") {
-        log.debug("jump_skipped", { reason: "leg_not_arrived" });
-        endWalkCue();
-        return outcome;
-      }
+      // A leg that stopped short still stopped somewhere on the target's top, and the
+      // seat is read from where she actually is — so she sits there rather than being
+      // left standing with nothing armed and nothing scheduled to move her again.
+      if (walked !== "arrived") log.debug("jump_leg_short", { windowNumber: target.windowNumber });
     }
     const applied = await win.outerPosition();
     if (!alive(startedAt)) return "cancelled";
@@ -325,6 +319,9 @@ export function createPercher(deps: PercherDeps): Percher {
       windowNumber: target.windowNumber,
       x: Math.round(applied.x / scale + anchor.x),
     });
+    // A leg that ran squares her up on its way out, but one that never started or never
+    // arrived does not, and she would sit down still side-on from the jump.
+    deps.renderer.setBodyYaw(0, WALK_YAW_EASE_MS);
     // The walk ends before the sit lands, so the posture settles on sitting, not standing.
     endWalkCue();
     deps.onSit(target, edgeLocalYpx);
