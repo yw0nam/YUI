@@ -17,7 +17,7 @@ def test_monitor_wrapper_is_self_locating_for_symlink_installation():
 def test_bootstrap_stdout_is_golden_and_has_one_newline(state_dir, at):
     output = decay_monitor.run(at("2026-08-25T09:00:00+09:00"))
     assert output.encode() == (
-        b"social:low curiosity:mid accomplishment:mid outbox:0 budget:3/3sig 2/2iss 1/1cmt\n"
+        b"social:low curiosity:mid accomplishment:mid outbox:0 transport:down budget:3/3sig 2/2iss 1/1cmt\n"
     )
     assert output.endswith("\n")
     assert not output.endswith("\n\n")
@@ -55,7 +55,10 @@ def test_normal_stdout_is_golden_and_persists_reanchored_levels(state_dir, at, s
 
     output = decay_monitor.run(now)
 
-    assert output == "social:high curiosity:mid accomplishment:high outbox:1 budget:2/3sig 1/2iss 0/1cmt\n"
+    assert (
+        output
+        == "social:high curiosity:mid accomplishment:high outbox:1/fresh transport:down budget:2/3sig 1/2iss 0/1cmt\n"
+    )
     drives = read_json(state_dir / "drives.json")
     assert drives["curiosity"] == {"level": 43.0, "anchor_at": now.isoformat()}
     assert drives["accomplishment"] == {"level": 71.0, "anchor_at": now.isoformat()}
@@ -75,7 +78,7 @@ def test_boundary_stdout_bytes(state_dir, at, state_helpers):
         },
     )
     assert decay_monitor.run(now) == (
-        "social:mid curiosity:mid accomplishment:high outbox:0 budget:3/3sig 2/2iss 1/1cmt\n"
+        "social:mid curiosity:mid accomplishment:high outbox:0 transport:down budget:3/3sig 2/2iss 1/1cmt\n"
     )
 
 
@@ -256,7 +259,9 @@ def test_monitor_reaps_outbox_item_with_invalid_surfaced_at(state_dir, at, state
 
     output = decay_monitor.run(now)
 
-    assert output == "social:low curiosity:mid accomplishment:mid outbox:1 budget:3/3sig 2/2iss 1/1cmt\n"
+    assert output == (
+        "social:low curiosity:mid accomplishment:mid outbox:1/fresh transport:down budget:3/3sig 2/2iss 1/1cmt\n"
+    )
     assert [value["id"] for value in read_jsonl(state_dir / "outbox.jsonl")] == ["valid"]
     assert read_jsonl(state_dir / "audit.jsonl")[-1] == {
         "at": now.isoformat(),
@@ -275,7 +280,7 @@ def test_monitor_main_emits_valid_fallback_summary_on_unexpected_failure(monkeyp
 
     captured = capsys.readouterr()
     assert re.fullmatch(
-        r"social:low curiosity:mid accomplishment:mid outbox:0 "
+        r"social:low curiosity:mid accomplishment:mid outbox:0 transport:down "
         r"budget:3/3sig 2/2iss 1/1cmt\n",
         captured.out,
     )
@@ -291,7 +296,7 @@ def test_monitor_main_falls_back_when_clock_read_fails(monkeypatch, capsys):
 
     assert decay_monitor.main() is None
     assert capsys.readouterr().out == (
-        "social:low curiosity:mid accomplishment:mid outbox:0 budget:3/3sig 2/2iss 1/1cmt\n"
+        "social:low curiosity:mid accomplishment:mid outbox:0 transport:down budget:3/3sig 2/2iss 1/1cmt\n"
     )
 
 
@@ -318,3 +323,116 @@ def test_monitor_prunes_pending_older_than_seven_days(state_dir, at, state_helpe
     assert read_json(state_dir / "budget.json")["pending"] == {
         "boundary": {"kind": "issue", "date": "2026-08-18"}
     }
+
+
+def test_transport_probe_flips_stdout_and_tracks_since_and_failures(
+    state_dir, at, state_helpers, listening_signals_url, closed_signals_url, monkeypatch
+):
+    _, _, read_json, _ = state_helpers
+    first = at("2026-08-25T12:00:00+09:00")
+
+    up = decay_monitor.run(first)
+
+    assert "transport:up " in up
+    assert read_json(state_dir / "transport.json") == {
+        "state": "up",
+        "since": first.isoformat(),
+        "failed": 0,
+        "last_checked_at": first.isoformat(),
+    }
+
+    monkeypatch.setenv("YUI_SIGNALS_URL", closed_signals_url)
+    second = first + timedelta(minutes=30)
+    down = decay_monitor.run(second)
+    assert down != up
+    assert "transport:down " in down
+    assert read_json(state_dir / "transport.json") == {
+        "state": "down",
+        "since": second.isoformat(),
+        "failed": 1,
+        "last_checked_at": second.isoformat(),
+    }
+
+    third = second + timedelta(minutes=30)
+    assert decay_monitor.run(third) == down
+    assert read_json(state_dir / "transport.json") == {
+        "state": "down",
+        "since": second.isoformat(),
+        "failed": 2,
+        "last_checked_at": third.isoformat(),
+    }
+
+    monkeypatch.setenv("YUI_SIGNALS_URL", listening_signals_url)
+    fourth = third + timedelta(minutes=30)
+    assert decay_monitor.run(fourth) == up
+    assert read_json(state_dir / "transport.json") == {
+        "state": "up",
+        "since": fourth.isoformat(),
+        "failed": 0,
+        "last_checked_at": fourth.isoformat(),
+    }
+
+
+def test_pent_up_stage_changes_stdout_exactly_at_hour_boundaries(state_dir, at, state_helpers):
+    write_json, write_jsonl, _, _ = state_helpers
+    created = at("2026-08-25T12:00:00+09:00")
+    desire_state.bootstrap(created)
+    write_json(
+        state_dir / "drives.json",
+        {
+            "curiosity": {"level": 100.0, "anchor_at": created.isoformat()},
+            "accomplishment": {"level": 100.0, "anchor_at": created.isoformat()},
+            "last_interaction_at": (created - timedelta(hours=10)).isoformat(),
+            "last_interaction_hash": None,
+        },
+    )
+    write_jsonl(
+        state_dir / "outbox.jsonl",
+        [
+            {
+                "id": "note",
+                "created_at": created.isoformat(),
+                "note": "wait",
+                "blocked_by": "error",
+                "surfaced_at": None,
+            }
+        ],
+    )
+
+    fresh = decay_monitor.run(created)
+    assert " outbox:1/fresh " in fresh
+    assert decay_monitor.run(created + timedelta(hours=5, minutes=59, seconds=59)) == fresh
+    heavy = decay_monitor.run(created + timedelta(hours=6))
+    assert " outbox:1/heavy " in heavy
+    assert decay_monitor.run(created + timedelta(hours=17, minutes=59, seconds=59)) == heavy
+    bursting = decay_monitor.run(created + timedelta(hours=18))
+    assert " outbox:1/bursting " in bursting
+    assert decay_monitor.run(created + timedelta(hours=47, minutes=59, seconds=59)) == bursting
+    assert " outbox:0 " in decay_monitor.run(created + timedelta(hours=48))
+
+
+def test_pent_up_stage_follows_the_oldest_active_item(state_dir, at, state_helpers):
+    _, write_jsonl, _, _ = state_helpers
+    now = at("2026-08-25T12:00:00+09:00")
+    desire_state.bootstrap(now)
+    write_jsonl(
+        state_dir / "outbox.jsonl",
+        [
+            {
+                "id": "new",
+                "created_at": now.isoformat(),
+                "note": "a",
+                "blocked_by": "error",
+                "surfaced_at": None,
+            },
+            {
+                "id": "old",
+                "created_at": (now - timedelta(hours=7)).isoformat(),
+                "note": "b",
+                "blocked_by": "error",
+                "surfaced_at": None,
+            },
+        ],
+    )
+
+    assert " outbox:2/heavy " in decay_monitor.run(now)

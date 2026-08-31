@@ -128,6 +128,150 @@ def test_signal_post_failure_refunds_and_queues_error(state_dir, at, state_helpe
     assert read_json(state_dir / "budget.json")["signals"] == 0
     item = read_jsonl(state_dir / "outbox.jsonl")[-1]
     assert (item["note"], item["blocked_by"], item["surfaced_at"]) == ("try later", "error", None)
+    assert (item["attempts"], item["last_failed_at"]) == (1, now.isoformat())
+    assert read_json(state_dir / "transport.json") == {
+        "state": "down",
+        "since": now.isoformat(),
+        "failed": 1,
+        "last_checked_at": now.isoformat(),
+    }
+
+
+def test_signal_success_records_transport_up(state_dir, at, state_helpers):
+    _, _, read_json, _ = state_helpers
+    now = at("2026-08-25T12:00:00+09:00")
+
+    assert act.main(["signal", "--note", "hello"], now=now, opener=lambda *a, **k: Response()) == 0
+
+    assert read_json(state_dir / "transport.json") == {
+        "state": "up",
+        "since": now.isoformat(),
+        "failed": 0,
+        "last_checked_at": now.isoformat(),
+    }
+
+
+def pent_up(item_id, created_at, note="pent up", **extra):
+    return {
+        "id": item_id,
+        "created_at": created_at.isoformat(),
+        "note": note,
+        "blocked_by": "error",
+        "surfaced_at": None,
+        **extra,
+    }
+
+
+def test_outbox_send_success_removes_item_audits_and_marks_transport_up(state_dir, at, state_helpers):
+    _, write_jsonl, read_json, read_jsonl = state_helpers
+    now = at("2026-08-25T12:00:00+09:00")
+    desire_state.bootstrap(now)
+    write_jsonl(state_dir / "outbox.jsonl", [pent_up("keep", now, "other"), pent_up("one", now, attempts=2)])
+    calls = []
+
+    def opener(request, timeout):
+        calls.append(json.loads(request.data))
+        return Response()
+
+    assert act.main(["outbox", "--send", "one"], now=now, opener=opener) == 0
+
+    assert calls[0]["signals"] == [{"kind": "desire", "note": "pent up"}]
+    assert [item["id"] for item in read_jsonl(state_dir / "outbox.jsonl")] == ["keep"]
+    assert read_json(state_dir / "budget.json")["signals"] == 1
+    sent = read_jsonl(state_dir / "audit.jsonl")[-1]
+    assert sent == {
+        "at": now.isoformat(),
+        "event": "signal_sent",
+        "event_id": sent["event_id"],
+        "note": "pent up",
+        "outbox_id": "one",
+    }
+    assert read_json(state_dir / "transport.json")["state"] == "up"
+
+
+def test_outbox_send_failure_updates_the_same_item_in_place(state_dir, at, state_helpers, capsys):
+    _, write_jsonl, read_json, read_jsonl = state_helpers
+    created = at("2026-08-25T06:00:00+09:00")
+    now = at("2026-08-25T12:00:00+09:00")
+    desire_state.bootstrap(now)
+    write_jsonl(state_dir / "outbox.jsonl", [pent_up("legacy", created)])
+
+    def failing(*args, **kwargs):
+        raise URLError("offline")
+
+    assert act.main(["outbox", "--send", "legacy"], now=now, opener=failing) == 1
+
+    assert capsys.readouterr().err.strip() == "signal delivery failed: offline"
+    items = read_jsonl(state_dir / "outbox.jsonl")
+    assert len(items) == 1
+    assert items[0] == {
+        **pent_up("legacy", created),
+        "attempts": 2,
+        "last_failed_at": now.isoformat(),
+    }
+    assert read_json(state_dir / "budget.json")["signals"] == 0
+    failed = read_jsonl(state_dir / "audit.jsonl")[-1]
+    assert (failed["event"], failed["outbox_id"], failed["reason"]) == ("signal_failed", "legacy", "offline")
+    assert read_json(state_dir / "transport.json") == {
+        "state": "down",
+        "since": now.isoformat(),
+        "failed": 1,
+        "last_checked_at": now.isoformat(),
+    }
+
+    assert act.main(["outbox", "--send", "legacy"], now=now, opener=failing) == 1
+    assert read_jsonl(state_dir / "outbox.jsonl")[0]["attempts"] == 3
+    assert read_json(state_dir / "transport.json")["failed"] == 2
+
+
+def test_outbox_send_unknown_id_exits_two(state_dir, at, capsys):
+    now = at("2026-08-25T12:00:00+09:00")
+    desire_state.bootstrap(now)
+
+    assert act.main(["outbox", "--send", "missing"], now=now, opener=lambda *a, **k: Response()) == 2
+    assert capsys.readouterr().err.strip() == "unknown outbox item"
+
+
+def test_outbox_send_over_budget_keeps_item_and_skips_post(state_dir, at, state_helpers, capsys):
+    write_json, write_jsonl, read_json, read_jsonl = state_helpers
+    now = at("2026-08-25T12:00:00+09:00")
+    desire_state.bootstrap(now)
+    write_json(
+        state_dir / "budget.json",
+        {"date": "2026-08-25", "signals": 3, "issues": 0, "self_comments": 0, "pending": {}},
+    )
+    write_jsonl(state_dir / "outbox.jsonl", [pent_up("one", now)])
+    calls = []
+
+    assert act.main(["outbox", "--send", "one"], now=now, opener=lambda *a, **k: calls.append(a)) == 1
+
+    assert calls == []
+    assert capsys.readouterr().err.strip() == "over budget"
+    items = read_jsonl(state_dir / "outbox.jsonl")
+    assert [(item["id"], item["blocked_by"]) for item in items] == [("one", "budget")]
+    assert read_json(state_dir / "budget.json")["signals"] == 3
+    blocked = read_jsonl(state_dir / "audit.jsonl")[-1]
+    assert (blocked["event"], blocked["blocked_by"], blocked["outbox_id"]) == (
+        "signal_blocked",
+        "budget",
+        "one",
+    )
+
+
+def test_outbox_send_preserves_malformed_lines(state_dir, at):
+    now = at("2026-08-25T12:00:00+09:00")
+    desire_state.bootstrap(now)
+    valid = json.dumps(pent_up("a", now))
+    (state_dir / "outbox.jsonl").write_text(f"{{malformed}}\n{valid}\n", encoding="utf-8")
+
+    def failing(*args, **kwargs):
+        raise URLError("offline")
+
+    assert act.main(["outbox", "--send", "a"], now=now, opener=failing) == 1
+
+    lines = (state_dir / "outbox.jsonl").read_text(encoding="utf-8").splitlines()
+    assert lines[0] == "{malformed}"
+    assert json.loads(lines[1])["attempts"] == 2
 
 
 def test_signal_refund_does_not_decrement_new_date(state_dir, at, state_helpers):

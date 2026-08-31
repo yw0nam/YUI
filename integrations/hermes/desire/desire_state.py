@@ -15,6 +15,7 @@ from pathlib import Path
 from zoneinfo import ZoneInfo
 
 KST = ZoneInfo("Asia/Seoul")
+DEFAULT_SIGNALS_URL = "http://127.0.0.1:8770/signals"
 CURIOSITY_RATE = 9.0
 ACCOMPLISHMENT_RATE = 6.0
 SOCIAL_RATE = 15.0
@@ -228,6 +229,67 @@ def release_outbox_item(path: Path, item_id: str) -> bool:
             temporary.write_bytes(b"".join(rewritten))
             os.replace(temporary, path)
         return found
+
+
+def update_outbox_item(path: Path, item_id: str, fields: dict) -> bool:
+    """Merge ``fields`` into one item by id, preserving every other line's bytes exactly."""
+
+    path = Path(path)
+    with state_lock(path.parent):
+        if not path.exists():
+            return False
+        parts = path.read_bytes().split(b"\n")
+        found = False
+        rewritten = []
+        for index, payload in enumerate(parts):
+            ending = b"\n" if index < len(parts) - 1 else b""
+            try:
+                item = json.loads(payload.decode("utf-8"))
+            except (json.JSONDecodeError, UnicodeError):
+                rewritten.append(payload + ending)
+                continue
+            if isinstance(item, dict) and item.get("id") == item_id:
+                found = True
+                rewritten.append(json.dumps({**item, **fields}, ensure_ascii=False).encode("utf-8") + ending)
+                continue
+            rewritten.append(payload + ending)
+        if found:
+            temporary = path.with_name(path.name + ".tmp")
+            temporary.write_bytes(b"".join(rewritten))
+            os.replace(temporary, path)
+        return found
+
+
+def read_transport(state_dir: Path) -> dict | None:
+    """Return the recorded signal transport state, or ``None`` when absent or unreadable."""
+
+    try:
+        value = json.loads((Path(state_dir) / "transport.json").read_text(encoding="utf-8"))
+        if value.get("state") not in ("up", "down"):
+            return None
+        parse_timestamp(value["since"])
+        return {**value, "failed": int(value.get("failed", 0))}
+    except (FileNotFoundError, json.JSONDecodeError, KeyError, TypeError, UnicodeError, OSError, ValueError):
+        return None
+
+
+def record_transport(state_dir: Path, reachable: bool, now: datetime) -> dict:
+    """Record one delivery or probe outcome; ``since`` marks the start of the current state."""
+
+    now = normalize_now(now)
+    state_dir = Path(state_dir)
+    with state_lock(state_dir):
+        previous = read_transport(state_dir)
+        state = "up" if reachable else "down"
+        unchanged = previous is not None and previous["state"] == state
+        value = {
+            "state": state,
+            "since": previous["since"] if unchanged else now.isoformat(),
+            "failed": 0 if reachable else (previous["failed"] if previous else 0) + 1,
+            "last_checked_at": now.isoformat(),
+        }
+        write_json_atomic(state_dir / "transport.json", value)
+        return value
 
 
 def _default_drives(now: datetime) -> dict:
@@ -463,6 +525,15 @@ def active_outbox(items: list[dict], now: datetime) -> list[dict]:
     return active
 
 
+def pent_up_stage(created_at: datetime, now: datetime) -> str:
+    waited = normalize_now(now) - normalize_now(created_at)
+    if waited >= PENT_UP_BURSTING:
+        return "bursting"
+    if waited >= PENT_UP_HEAVY:
+        return "heavy"
+    return "fresh"
+
+
 _FORGED_MARKER_PREFIX = re.compile(r"^\(waited \d+h, (?:heavy|bursting)\)\s*")
 
 
@@ -477,8 +548,26 @@ def sanitize_note(note: object) -> str:
     return text[:300]
 
 
-def serialize_desire_block(levels: dict[str, float], items: list[dict], now: datetime) -> str:
+def _transport_line(transport: dict | None) -> str:
+    if transport is None:
+        return "signal transport: unknown"
+    if transport["state"] == "up":
+        return "signal transport: up"
+    since = parse_timestamp(transport["since"]).strftime("%Y-%m-%d %H:%M")
+    return f"signal transport: down since {since} ({transport['failed']} failed)"
+
+
+def serialize_desire_block(
+    levels: dict[str, float],
+    items: list[dict],
+    now: datetime,
+    *,
+    last_interaction_at: str,
+    transport: dict | None = None,
+) -> str:
     now = normalize_now(now)
+    last_interaction = parse_timestamp(last_interaction_at)
+    since_interaction = int(max(0.0, (now - last_interaction).total_seconds()) // 3600)
     lines = [
         "<desire_state>",
         (
@@ -488,6 +577,8 @@ def serialize_desire_block(levels: dict[str, float], items: list[dict], now: dat
             f"accomplishment {displayed_level(levels['accomplishment'])}/100 "
             f"({bucket(levels['accomplishment'])})"
         ),
+        f"last interaction: {last_interaction.strftime('%Y-%m-%d %H:%M')} ({since_interaction}h ago)",
+        _transport_line(transport),
     ]
     ordered = sorted(items, key=lambda item: (item.get("created_at", ""), item.get("id", "")))
     if ordered:
@@ -495,14 +586,12 @@ def serialize_desire_block(levels: dict[str, float], items: list[dict], now: dat
         for item in ordered:
             created_at = parse_timestamp(item["created_at"])
             timestamp = created_at.strftime("%Y-%m-%d %H:%M")
-            waited = now - created_at
-            waited_hours = int(waited.total_seconds() // 3600)
-            marker = ""
-            if waited >= PENT_UP_BURSTING:
-                marker = f"(waited {waited_hours}h, bursting) "
-            elif waited >= PENT_UP_HEAVY:
-                marker = f"(waited {waited_hours}h, heavy) "
-            lines.append(f"- [{timestamp}] {marker}{sanitize_note(item.get('note', ''))}")
+            waited_hours = int((now - created_at).total_seconds() // 3600)
+            stage = pent_up_stage(created_at, now)
+            marker = "" if stage == "fresh" else f"(waited {waited_hours}h, {stage}) "
+            attempts = item.get("attempts")
+            suffix = f" (attempts {attempts})" if isinstance(attempts, int) and attempts >= 2 else ""
+            lines.append(f"- [{timestamp}] {marker}{sanitize_note(item.get('note', ''))}{suffix}")
     lines.append("</desire_state>")
     return "\n".join(lines)
 

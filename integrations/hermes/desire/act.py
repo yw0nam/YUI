@@ -22,12 +22,15 @@ def _audit(state_dir, now, event, **fields):
 
 
 def _outbox_item(note, blocked_by, now):
+    failed = blocked_by == "error"
     return {
         "id": str(uuid.uuid4()),
         "created_at": now.isoformat(),
         "note": desire_state.sanitize_note(note),
         "blocked_by": blocked_by,
         "surfaced_at": None,
+        "attempts": 1 if failed else 0,
+        "last_failed_at": now.isoformat() if failed else None,
     }
 
 
@@ -40,21 +43,25 @@ def _normalized_state(state_dir, now):
     return state
 
 
-def _signal(note, now, opener):
-    state_dir = desire_state.resolve_state_dir()
-    reservation_date = now.date().isoformat()
-    with desire_state.state_lock(state_dir):
-        budget = _normalized_state(state_dir, now)["budget"]
-        if budget["signals"] >= CAPS["signals"]:
-            queued = _outbox_item(note, "budget", now)
-            desire_state.append_jsonl(state_dir / "outbox.jsonl", queued)
-            _audit(state_dir, now, "signal_blocked", blocked_by="budget", note=note)
-            print("over budget", file=sys.stderr)
-            return 1
-        budget["signals"] += 1
-        desire_state.write_json_atomic(state_dir / "budget.json", budget)
-        _audit(state_dir, now, "signal_reserved", note=note)
+def _reserve_signal(state_dir, now):
+    """Take one signal from today's budget. The caller holds the state lock."""
 
+    budget = _normalized_state(state_dir, now)["budget"]
+    if budget["signals"] >= CAPS["signals"]:
+        return False
+    budget["signals"] += 1
+    desire_state.write_json_atomic(state_dir / "budget.json", budget)
+    return True
+
+
+def _refund_signal(state_dir, now, reservation_date):
+    budget = _normalized_state(state_dir, now)["budget"]
+    if budget["date"] == reservation_date:
+        budget["signals"] = max(0, budget["signals"] - 1)
+        desire_state.write_json_atomic(state_dir / "budget.json", budget)
+
+
+def _deliver(note, now, opener):
     event_id = str(uuid.uuid4())
     body = {
         "signals": [{"kind": "desire", "note": note}],
@@ -66,7 +73,7 @@ def _signal(note, now, opener):
             "occurred_at": int(now.timestamp() * 1000),
         },
     }
-    target = os.environ.get("YUI_SIGNALS_URL", "http://127.0.0.1:8770/signals")
+    target = os.environ.get("YUI_SIGNALS_URL", desire_state.DEFAULT_SIGNALS_URL)
     outgoing = urllib_request.Request(
         target,
         data=json.dumps(body, ensure_ascii=False, separators=(",", ":")).encode("utf-8"),
@@ -81,18 +88,78 @@ def _signal(note, now, opener):
                 failure = f"HTTP {status}"
     except Exception as error:  # noqa: BLE001 - transport implementations may raise arbitrary errors
         failure = str(getattr(error, "reason", error)).replace("\r", " ").replace("\n", " ")
+    return event_id, failure
+
+
+def _signal(note, now, opener):
+    state_dir = desire_state.resolve_state_dir()
+    reservation_date = now.date().isoformat()
+    with desire_state.state_lock(state_dir):
+        if not _reserve_signal(state_dir, now):
+            desire_state.append_jsonl(state_dir / "outbox.jsonl", _outbox_item(note, "budget", now))
+            _audit(state_dir, now, "signal_blocked", blocked_by="budget", note=note)
+            print("over budget", file=sys.stderr)
+            return 1
+        _audit(state_dir, now, "signal_reserved", note=note)
+
+    event_id, failure = _deliver(note, now, opener)
 
     with desire_state.state_lock(state_dir):
-        budget = _normalized_state(state_dir, now)["budget"]
+        desire_state.record_transport(state_dir, failure is None, now)
         if failure is None:
             _audit(state_dir, now, "signal_sent", event_id=event_id, note=note)
             return 0
-        if budget["date"] == reservation_date:
-            budget["signals"] = max(0, budget["signals"] - 1)
-            desire_state.write_json_atomic(state_dir / "budget.json", budget)
-        queued = _outbox_item(note, "error", now)
-        desire_state.append_jsonl(state_dir / "outbox.jsonl", queued)
+        _refund_signal(state_dir, now, reservation_date)
+        desire_state.append_jsonl(state_dir / "outbox.jsonl", _outbox_item(note, "error", now))
         _audit(state_dir, now, "signal_failed", event_id=event_id, reason=failure, note=note)
+    print(f"signal delivery failed: {failure}", file=sys.stderr)
+    return 1
+
+
+def _outbox_send(item_id, now, opener):
+    state_dir = desire_state.resolve_state_dir()
+    outbox_path = state_dir / "outbox.jsonl"
+    reservation_date = now.date().isoformat()
+    with desire_state.state_lock(state_dir):
+        _normalized_state(state_dir, now)
+        item = next(
+            (
+                candidate
+                for candidate in desire_state.read_jsonl(outbox_path)
+                if desire_state.valid_outbox_item(candidate) and candidate.get("id") == item_id
+            ),
+            None,
+        )
+        if item is None:
+            print("unknown outbox item", file=sys.stderr)
+            return 2
+        note = item.get("note", "")
+        if not _reserve_signal(state_dir, now):
+            desire_state.update_outbox_item(outbox_path, item_id, {"blocked_by": "budget"})
+            _audit(state_dir, now, "signal_blocked", blocked_by="budget", note=note, outbox_id=item_id)
+            print("over budget", file=sys.stderr)
+            return 1
+        _audit(state_dir, now, "signal_reserved", note=note, outbox_id=item_id)
+
+    event_id, failure = _deliver(note, now, opener)
+
+    with desire_state.state_lock(state_dir):
+        desire_state.record_transport(state_dir, failure is None, now)
+        if failure is None:
+            desire_state.release_outbox_item(outbox_path, item_id)
+            _audit(state_dir, now, "signal_sent", event_id=event_id, note=note, outbox_id=item_id)
+            return 0
+        _refund_signal(state_dir, now, reservation_date)
+        attempts = item.get("attempts")
+        attempts = attempts if isinstance(attempts, int) else 1
+        desire_state.update_outbox_item(
+            outbox_path,
+            item_id,
+            {"blocked_by": "error", "attempts": attempts + 1, "last_failed_at": now.isoformat()},
+        )
+        _audit(
+            state_dir, now, "signal_failed", event_id=event_id, reason=failure, note=note, outbox_id=item_id
+        )
     print(f"signal delivery failed: {failure}", file=sys.stderr)
     return 1
 
@@ -202,6 +269,7 @@ def _parser():
     outbox_group = outbox.add_mutually_exclusive_group(required=True)
     outbox_group.add_argument("--list", action="store_true")
     outbox_group.add_argument("--release", metavar="ID")
+    outbox_group.add_argument("--send", metavar="ID")
     outbox.add_argument("--why")
     return parser
 
@@ -234,6 +302,8 @@ def main(argv=None, *, now=None, opener=urllib_request.urlopen):
         return _feedback("get" if args.get else "set", args.set, now)
     if args.list:
         return _outbox_list(now)
+    if args.send:
+        return _outbox_send(args.send, now, opener)
     return _outbox_release(args.release, args.why, now)
 
 
