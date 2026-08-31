@@ -741,6 +741,11 @@ describe("createPercher", () => {
     expect(h.adoptSit).not.toHaveBeenCalled();
     expect(h.resumeSit).not.toHaveBeenCalled();
     expect(h.release).not.toHaveBeenCalled();
+    // She falls facing forward, not still turned a quarter into the jump.
+    expect(h.setBodyYaw).toHaveBeenCalledWith(0, 400);
+    expect(h.setBodyYaw.mock.invocationCallOrder[0]).toBeLessThan(
+      h.onTargetLost.mock.invocationCallOrder[0],
+    );
   });
 
   it("posts the walk she did not need, so a jump from the spot still reads as walking", async () => {
