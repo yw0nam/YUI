@@ -95,6 +95,7 @@ describe("loadConfig — happy path", () => {
         apex_lift_frac: 0.15,
         takeoff_frac: 0.4,
         land_frac: 0.67,
+        flight_timeout_ms: 4000,
       },
     });
     expect(cfg.emotionRegistry.happy).toEqual({

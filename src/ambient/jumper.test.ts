@@ -12,6 +12,7 @@ const CFG: JumpConfig = {
   apex_lift_frac: 0.15,
   takeoff_frac: 0.4,
   land_frac: 0.67,
+  flight_timeout_ms: 4000,
 };
 
 /** The stroll owns the edge margin the jump keeps: 0.2 x 500 px = 100 px. */
@@ -169,7 +170,7 @@ const TO = { x: 1460, y: 780 };
 
 function makeJumper(
   over: {
-    duration?: number | null;
+    duration?: number | null | (() => number | null);
     clipTime?: null;
     accepted?: boolean;
     windows?: () => Promise<WindowRect[]>;
@@ -198,7 +199,12 @@ function makeJumper(
       playMotion,
       getCurrentMotion: () => (playing ? { id: playing } : null),
       getCurrentMotionTime: () => (over.clipTime === null || !playing ? null : clipT),
-      getMotionDuration: () => (over.duration === undefined ? DURATION : over.duration),
+      getMotionDuration: () =>
+        over.duration === undefined
+          ? DURATION
+          : typeof over.duration === "function"
+            ? over.duration()
+            : over.duration,
     },
     getWindow: () => ({
       outerPosition: async () => ({ ...FROM }),
@@ -335,6 +341,33 @@ describe("createJumper", () => {
     await h.frame(1.2);
 
     expect(h.positions).toEqual([]);
+  });
+
+  it("gives up on a clip whose length never becomes readable", async () => {
+    const h = makeJumper({ duration: null });
+    const outcome = flying(h);
+
+    await h.frame(2);
+    await h.frame(2.1);
+
+    // She never left the host, so the caller keeps the seat rather than falling.
+    await expect(outcome).resolves.toBe("refused");
+    expect(h.positions).toEqual([]);
+    expect(h.onTakeoff).not.toHaveBeenCalled();
+  });
+
+  it("gives up mid-air when the clip stalls after she has left", async () => {
+    let duration: number | null = DURATION;
+    const h = makeJumper({ duration: () => duration });
+    const outcome = flying(h);
+    await h.frame(0.7);
+    expect(h.positions.length).toBeGreaterThan(0);
+    duration = null;
+
+    await h.frame(2);
+    await h.frame(2.1);
+
+    await expect(outcome).resolves.toBe("lost");
   });
 
   it("strands her in mid-air when the target has gone by the time she lands", async () => {

@@ -86,6 +86,7 @@ describe("validateAvatar — happy path", () => {
         apex_lift_frac: 0.15,
         takeoff_frac: 0.4,
         land_frac: 0.67,
+        flight_timeout_ms: 4000,
       },
     });
   });
@@ -768,7 +769,15 @@ describe("validateAvatar — jump", () => {
       apex_lift_frac: 0.15,
       takeoff_frac: 0.4,
       land_frac: 0.67,
+      flight_timeout_ms: 4000,
     });
+  });
+
+  it.each([0, -1, "4000", 1.5])("rejects an invalid flight_timeout_ms: %s", (value) => {
+    expectIssue(
+      { vrm_url: "/v.vrm", jump: { flight_timeout_ms: value } },
+      "jump.flight_timeout_ms는 0보다 큰 정수",
+    );
   });
 
   it("rejects a non-object jump block", () => {

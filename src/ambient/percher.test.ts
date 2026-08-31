@@ -22,6 +22,7 @@ const JUMP_CFG: JumpConfig = {
   apex_lift_frac: 0.15,
   takeoff_frac: 0.4,
   land_frac: 0.67,
+  flight_timeout_ms: 4000,
 };
 
 function seqRng(...values: number[]): () => number {
@@ -780,6 +781,11 @@ describe("createPercher", () => {
     expect(h.onTargetLost).not.toHaveBeenCalled();
     expect(h.onTakeoff).not.toHaveBeenCalled();
     expect(h.adoptSit).not.toHaveBeenCalled();
+
+    // The attempt settled, so the loop is free to try again on the next dwell.
+    h.walkTo.mockClear();
+    await h.frame(1.1);
+    expect(h.walkTo).toHaveBeenCalled();
   });
 
   it("does not watch the host she has left, so its closing announces nothing", async () => {

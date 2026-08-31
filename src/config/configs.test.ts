@@ -124,6 +124,7 @@ describe("configs/avatar.json", () => {
       apex_lift_frac: 0.15,
       takeoff_frac: 0.4,
       land_frac: 0.67,
+      flight_timeout_ms: 4000,
     });
   });
 
