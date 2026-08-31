@@ -12,10 +12,9 @@
 
 import type { JumpConfig, PerchWalkConfig } from "../config/load";
 import type { WindowRect } from "../contract";
-import { MOVE_TH } from "../io/window-drop-source";
+import { MOVE_TH, uncoveredSpan } from "../io/window-drop-source";
 import { createLogger } from "../logger";
 import type { TickFn } from "../renderer";
-import { uncoveredSpan } from "./percher";
 
 const log = createLogger("jumper");
 

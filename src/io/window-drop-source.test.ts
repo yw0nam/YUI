@@ -19,6 +19,7 @@ import type { WindowRect } from "../contract";
 import type { BusEnvelope, EventBus } from "../dispatcher/event-bus";
 import {
   createWindowDropSource as createWindowDropSourceImpl,
+  uncoveredSpan,
   type WindowDropSourceDeps,
 } from "./window-drop-source";
 
@@ -2064,5 +2065,45 @@ describe("window-drop-source — host loss fall", () => {
     // The climber calls release() on purpose when it leaves a sit to descend.
     expect(order).toEqual(["user.window_sit_exit"]);
     expect(onSitLost).not.toHaveBeenCalled();
+  });
+});
+
+/** A window whose top edge a perched walk runs along. */
+const SPAN_HOST: WindowRect = win({ x: 1000, y: 900, width: 500, height: 600, windowNumber: 42 });
+
+/** A window reaching across the host's top edge (y 900) at the given x span. */
+function spanCover(x: number, width: number, windowNumber: number): WindowRect {
+  return { ...SPAN_HOST, x, y: 800, width, height: 400, name: "Cover", windowNumber };
+}
+
+describe("uncoveredSpan", () => {
+  it("keeps the whole host edge when nothing in front reaches it", () => {
+    const below = { ...spanCover(1300, 300, 7), y: 1000 };
+    expect(uncoveredSpan([below, SPAN_HOST], 1, 1200)).toEqual({ left: 1000, right: 1500 });
+    expect(uncoveredSpan([spanCover(2000, 300, 8), SPAN_HOST], 1, 1200)).toEqual({
+      left: 1000,
+      right: 1500,
+    });
+  });
+
+  it("clips to the nearest covering window on each side of the given x", () => {
+    expect(
+      uncoveredSpan([spanCover(900, 200, 7), spanCover(1310, 200, 8), SPAN_HOST], 2, 1200),
+    ).toEqual({
+      left: 1100,
+      right: 1310,
+    });
+  });
+
+  it("ignores windows behind the host", () => {
+    expect(uncoveredSpan([SPAN_HOST, spanCover(1300, 300, 7)], 0, 1200)).toEqual({
+      left: 1000,
+      right: 1500,
+    });
+  });
+
+  it("leaves no span at all when the x itself is covered", () => {
+    const span = uncoveredSpan([spanCover(1150, 200, 7), SPAN_HOST], 1, 1200);
+    expect(span.left).toBeGreaterThan(span.right);
   });
 });

@@ -4,13 +4,7 @@ import type { MotionKind, WindowRect } from "../contract";
 import type { ScreenMonitor } from "../io/screen-geometry";
 import type { TickContext, TickFn } from "../renderer";
 import type { JumpOutcome } from "./jumper";
-import {
-  createPercher,
-  nextPerchDwell,
-  type PercherDeps,
-  planPerchStroll,
-  uncoveredSpan,
-} from "./percher";
+import { createPercher, nextPerchDwell, type PercherDeps, planPerchStroll } from "./percher";
 
 const CFG: PerchWalkConfig = {
   dwell_min_ms: 1000,
@@ -119,36 +113,6 @@ const NEIGHBOUR: WindowRect = {
   ownerName: "Messages",
   windowNumber: 7,
 };
-
-describe("uncoveredSpan", () => {
-  it("keeps the whole host edge when nothing in front reaches it", () => {
-    const below = { ...cover(1300, 300, 7), y: 1000 };
-    expect(uncoveredSpan([below, HOST], 1, 1200)).toEqual({ left: 1000, right: 1500 });
-    expect(uncoveredSpan([cover(2000, 300, 8), HOST], 1, 1200)).toEqual({
-      left: 1000,
-      right: 1500,
-    });
-  });
-
-  it("clips to the nearest covering window on each side of the given x", () => {
-    expect(uncoveredSpan([cover(900, 200, 7), cover(1310, 200, 8), HOST], 2, 1200)).toEqual({
-      left: 1100,
-      right: 1310,
-    });
-  });
-
-  it("ignores windows behind the host", () => {
-    expect(uncoveredSpan([HOST, cover(1300, 300, 7)], 0, 1200)).toEqual({
-      left: 1000,
-      right: 1500,
-    });
-  });
-
-  it("leaves no span at all when the x itself is covered", () => {
-    const span = uncoveredSpan([cover(1150, 200, 7), HOST], 1, 1200);
-    expect(span.left).toBeGreaterThan(span.right);
-  });
-});
 
 function deferred<T>() {
   let resolve!: (value: T) => void;
