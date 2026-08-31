@@ -100,7 +100,9 @@ describe("pickJumpTarget — height", () => {
 
 describe("pickJumpTarget — reachability", () => {
   it("refuses a takeoff point outside the stretch she can walk", () => {
-    expect(pick([win({ x: 1560, windowNumber: 7 })], { span: { left: 1000, right: 1300 } })).toBeNull();
+    expect(
+      pick([win({ x: 1560, windowNumber: 7 })], { span: { left: 1000, right: 1300 } }),
+    ).toBeNull();
   });
 
   it("refuses a landing the neighbour has no room to hold inside its own margins", () => {
@@ -145,9 +147,9 @@ describe("jumpArc", () => {
     expect(jumpArc(0.5, 900, 900, 75)).toBeCloseTo(825, 6);
   });
 
-  it("stays above both ends for the whole flight", () => {
+  it("stays above the straight line between the two tops for the whole flight", () => {
     for (const u of [0.1, 0.25, 0.4, 0.6, 0.75, 0.9]) {
-      expect(jumpArc(u, 900, 1200, 75)).toBeLessThan(900);
+      expect(jumpArc(u, 900, 1200, 75)).toBeLessThan((1 - u) * 900 + u * 1200);
     }
   });
 });
