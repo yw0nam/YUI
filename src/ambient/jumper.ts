@@ -15,6 +15,7 @@ import type { WindowRect } from "../contract";
 import { MOVE_TH, uncoveredSpan } from "../io/window-drop-source";
 import { createLogger } from "../logger";
 import type { TickFn } from "../renderer";
+import { WALK_YAW_EASE_MS, WALK_YAW_RAD } from "./walker";
 
 const log = createLogger("jumper");
 
@@ -70,7 +71,6 @@ export function pickJumpTarget(args: {
     if (gap > jumpCfg.gap_max_width_frac * charWpx) continue;
     if (best && (gap > best.gap || (gap === best.gap && rise >= best.rise))) continue;
 
-    const toward = side === "right" ? 1 : -1;
     // She leaves from the far end of the stretch she can actually walk: the host's own
     // edge across a clear gap, and a covering window's near edge under one.
     const takeoffX = side === "right" ? hostSpan.right - margin : hostSpan.left + margin;
@@ -79,7 +79,7 @@ export function pickJumpTarget(args: {
     // on the side she arrives from — measured anywhere else the span would answer for a
     // different part of that window's top.
     const probeX = Math.min(
-      Math.max(takeoffX + toward * (gap + margin), candidate.x + margin),
+      Math.max(takeoffX + toward(side) * (gap + margin), candidate.x + margin),
       candidate.x + candidate.width - margin,
     );
     const landingSpan = uncoveredSpan(windows, index, probeX);
@@ -89,6 +89,11 @@ export function pickJumpTarget(args: {
     best = { plan: { target: candidate, side, takeoffX, landingX }, gap, rise };
   }
   return best?.plan ?? null;
+}
+
+/** Sign of travel for a jump to either side: right is the direction of growing x. */
+function toward(side: "left" | "right"): 1 | -1 {
+  return side === "right" ? 1 : -1;
 }
 
 /** Whether `x` sits a margin inside an uncovered stretch. An inverted span reaches nothing. */
@@ -115,6 +120,7 @@ export interface JumperDeps {
     onTick(fn: TickFn): () => void;
     preloadMotion(id: string): Promise<void>;
     playMotion(motion: { id: string } | null): void;
+    setBodyYaw(rad: number, easeMs: number): void;
     getCurrentMotion(): { id: string } | null;
     getCurrentMotionTime(): number | null;
     getMotionDuration(id: string): number | null;
@@ -278,6 +284,8 @@ export function createJumper(deps: JumperDeps): Jumper {
         log.debug("jump_skipped", { reason: "clip_refused" });
         return "refused";
       }
+      // She crosses side-on, the way the stroll walks, instead of face-on to the camera.
+      renderer.setBodyYaw(toward(plan.side) * WALK_YAW_RAD, WALK_YAW_EASE_MS);
       const cfg = deps.getConfig();
       return new Promise((settle) => {
         flight = {

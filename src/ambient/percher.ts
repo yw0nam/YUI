@@ -21,6 +21,7 @@ import { createLogger } from "../logger";
 import type { TickFn } from "../renderer";
 import { type JumpOutcome, type JumpPlan, pickJumpTarget } from "./jumper";
 import { prefersReducedMotion } from "./tier1";
+import { WALK_YAW_EASE_MS } from "./walker";
 
 const log = createLogger("percher");
 
@@ -76,6 +77,7 @@ export interface PercherDeps {
     getPerchProbe(): { seatPx: { x: number; y: number }; charHpx: number } | null;
     /** How wide she stands on screen — the gap a jump may clear is measured in it. */
     getCharacterWidthPx(): number | null;
+    setBodyYaw(rad: number, easeMs: number): void;
   };
   getWindow(): PercherWindow;
   listWindows(): Promise<WindowRect[]>;
@@ -267,6 +269,9 @@ export function createPercher(deps: PercherDeps): Percher {
       cfg: deps.getConfig(),
       rng,
     });
+    // A landing leg turns her back to face forward on its own; without one she would
+    // sit down still side-on from the jump.
+    if (!leg) deps.renderer.setBodyYaw(0, WALK_YAW_EASE_MS);
     if (leg) {
       // She is standing on the target now, so the last stretch watches that window.
       await deps.walker.walkTo(leg.centerX - anchor.x, () => {
@@ -421,6 +426,9 @@ export function createPercher(deps: PercherDeps): Percher {
           return;
         }
         if (!alive(startedAt)) return;
+        // The jump turned her toward a neighbour she is not going to after all; square
+        // her up before she sits back down on the host.
+        deps.renderer.setBodyYaw(0, WALK_YAW_EASE_MS);
       }
       if (accepted) deps.onWalkEnd();
       else log.debug("stroll_skipped", { reason: "not_accepted" });
