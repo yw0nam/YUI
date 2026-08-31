@@ -127,6 +127,8 @@ function makeHarness(
     origin?: "commit" | "adopt";
     walk?: Promise<"arrived" | "lost">;
     walkAccepted?: boolean;
+    /** Resolve the walk "arrived" without ever accepting — she is already on the spot. */
+    arrivedInPlace?: boolean;
     walkMovesTo?: { y: number };
     windows?: () => Promise<WindowRect[]>;
     monitors?: () => Promise<ScreenMonitor[]>;
@@ -149,7 +151,7 @@ function makeHarness(
   let armed = true;
   const calls: string[] = [];
   const walkTo = vi.fn((toX: number, onAccepted?: () => void): Promise<"arrived" | "lost"> => {
-    if (over.walkAccepted !== false) onAccepted?.();
+    if (over.walkAccepted !== false && !over.arrivedInPlace) onAccepted?.();
     if (over.walkMovesTo) {
       const scale = over.scaleFactor ?? 1;
       pos = { x: toX * scale, y: over.walkMovesTo.y };
@@ -720,6 +722,31 @@ describe("createPercher", () => {
     expect(h.adoptSit).not.toHaveBeenCalled();
     expect(h.resumeSit).not.toHaveBeenCalled();
     expect(h.release).not.toHaveBeenCalled();
+  });
+
+  it("posts the walk she did not need, so a jump from the spot still reads as walking", async () => {
+    const h = makeHarness({
+      windows: async () => [HOST, NEIGHBOUR],
+      jumpProbability: 1,
+      rng: () => 0,
+      arrivedInPlace: true,
+    });
+    h.percher.start();
+
+    await h.frame();
+    await h.frame(1.1);
+
+    // The walker had nothing to do, so only the jump branch can pair the posture.
+    expect(h.calls).toEqual([
+      "suspend",
+      "avatar.walk_start",
+      "jump",
+      "abandon",
+      "avatar.jump",
+      "avatar.walk_end",
+      "avatar.window_sit",
+      "adopt",
+    ]);
   });
 
   it("re-sits on the host when the jump is refused before she leaves the ground", async () => {
