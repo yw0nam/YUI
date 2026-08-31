@@ -176,6 +176,7 @@ function makeHarness(
     rng?: () => number;
     jumpProbability?: number;
     jump?: Promise<JumpOutcome>;
+    jumpOutcome?: JumpOutcome;
     charWpx?: number | null;
   } = {},
 ) {
@@ -228,13 +229,21 @@ function makeHarness(
       calls.push("adopt");
     },
   );
-  const jump = vi.fn(() => {
-    calls.push("jump");
-    return over.jump ?? Promise.resolve<JumpOutcome>("landed");
+  const jump = vi.fn((_plan: unknown, _at: unknown, onTakeoff?: () => void) => {
+    const outcome = over.jump ?? Promise.resolve(over.jumpOutcome ?? "landed");
+    // A refused jump never left the ground, so nothing announces a takeoff.
+    if (over.jumpOutcome !== "refused") {
+      calls.push("jump");
+      onTakeoff?.();
+    }
+    return outcome;
   });
   const jumperCancel = vi.fn();
   const onTargetLost = vi.fn(() => {
     calls.push("target_lost");
+  });
+  const onTakeoff = vi.fn(() => {
+    calls.push("avatar.jump");
   });
   const positions: Array<{ x: number; y: number }> = [];
   const deps: PercherDeps = {
@@ -283,6 +292,7 @@ function makeHarness(
     onSit: () => calls.push("avatar.window_sit"),
     onHostLost,
     onTargetLost,
+    onTakeoff,
     rng: over.rng ?? seqRng(0, 1, 0),
   };
   const percher = createPercher(deps);
@@ -309,6 +319,7 @@ function makeHarness(
     jump,
     jumperCancel,
     onTargetLost,
+    onTakeoff,
     /** Arm a fresh commit-origin sit, the way a later drop release would. */
     rearm: () => {
       armed = true;
@@ -664,13 +675,16 @@ describe("createPercher", () => {
     expect(h.calls).toEqual([
       "suspend",
       "avatar.walk_start",
-      "abandon",
       "jump",
+      "abandon",
+      "avatar.jump",
+      "avatar.walk_end",
       "avatar.window_sit",
       "adopt",
-      "avatar.walk_end",
     ]);
     expect(h.resumeSit).not.toHaveBeenCalled();
+    // The posture leaves walking once per cycle, whatever the jump did on the way.
+    expect(h.calls.filter((name) => name === "avatar.walk_end")).toHaveLength(1);
     // The landing leg walks on along the neighbour's own top before sitting down.
     expect(h.walkTo).toHaveBeenCalledTimes(2);
     expect(h.adoptSit).toHaveBeenCalledWith(7, { x: 1560, y: 900 }, 500, "commit");
@@ -732,8 +746,9 @@ describe("createPercher", () => {
     expect(h.calls).toEqual([
       "suspend",
       "avatar.walk_start",
-      "abandon",
       "jump",
+      "abandon",
+      "avatar.jump",
       "avatar.walk_end",
       "target_lost",
     ]);
@@ -741,6 +756,58 @@ describe("createPercher", () => {
     expect(h.adoptSit).not.toHaveBeenCalled();
     expect(h.resumeSit).not.toHaveBeenCalled();
     expect(h.release).not.toHaveBeenCalled();
+  });
+
+  it("re-sits on the host when the jump is refused before she leaves the ground", async () => {
+    const h = makeHarness({
+      windows: async () => [HOST, NEIGHBOUR],
+      jumpProbability: 1,
+      rng: () => 0,
+      jumpOutcome: "refused",
+    });
+    h.percher.start();
+
+    await h.frame();
+    await h.frame(1.1);
+
+    expect(h.calls).toEqual([
+      "suspend",
+      "avatar.walk_start",
+      "avatar.walk_end",
+      "resume",
+      "avatar.window_sit",
+    ]);
+    expect(h.abandonSit).not.toHaveBeenCalled();
+    expect(h.onTargetLost).not.toHaveBeenCalled();
+    expect(h.onTakeoff).not.toHaveBeenCalled();
+    expect(h.adoptSit).not.toHaveBeenCalled();
+  });
+
+  it("does not watch the host she has left, so its closing announces nothing", async () => {
+    const flight = deferred<JumpOutcome>();
+    let windows = [HOST, NEIGHBOUR];
+    const h = makeHarness({
+      windows: async () => windows,
+      jumpProbability: 1,
+      rng: () => 0,
+      jump: flight.promise,
+    });
+    h.percher.start();
+    await h.frame();
+    await h.frame(1.1);
+    // The host she jumped off closes while she is still in the air.
+    windows = [NEIGHBOUR];
+
+    await h.frame(0.8);
+    await h.frame(0.8);
+
+    expect(h.release).not.toHaveBeenCalled();
+    expect(h.onHostLost).not.toHaveBeenCalled();
+    expect(h.calls).not.toContain("exit");
+
+    flight.resolve("landed");
+    await h.frame();
+    expect(h.calls.filter((name) => name === "avatar.walk_end")).toHaveLength(1);
   });
 
   it("hands a mid-air pickup to the jumper and announces nothing itself", async () => {

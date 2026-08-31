@@ -161,14 +161,18 @@ const TO = { x: 1460, y: 780 };
 function makeJumper(
   over: {
     duration?: number | null;
+    clipTime?: null;
     accepted?: boolean;
     windows?: () => Promise<WindowRect[]>;
   } = {},
 ) {
   let tick: TickFn | null = null;
   let playing: string | null = null;
+  /** Clip playhead, which only advances once the clip actually has the body. */
+  let clipT = 0;
   const positions: Array<{ x: number; y: number }> = [];
   const onTakeoff = vi.fn();
+  const preloadMotion = vi.fn(async () => {});
   const playMotion = vi.fn((motion: { id: string } | null) => {
     if (over.accepted === false) return;
     playing = motion?.id ?? null;
@@ -181,8 +185,10 @@ function makeJumper(
           tick = null;
         };
       },
+      preloadMotion,
       playMotion,
       getCurrentMotion: () => (playing ? { id: playing } : null),
+      getCurrentMotionTime: () => (over.clipTime === null || !playing ? null : clipT),
       getMotionDuration: () => (over.duration === undefined ? DURATION : over.duration),
     },
     getWindow: () => ({
@@ -193,23 +199,23 @@ function makeJumper(
     }),
     listWindows: over.windows ?? (async () => [TARGET]),
     getConfig: () => CFG,
-    onTakeoff,
   };
   const jumper = createJumper(deps);
   let elapsed = 0;
   const frame = async (dt = 0.1): Promise<void> => {
     // Drain first, so the frame after a jump call sees the tick it subscribed.
     for (let i = 0; i < 12; i++) await Promise.resolve();
+    if (playing) clipT += dt;
     elapsed += dt;
     tick?.({ vrm: {} as never, dt, elapsed } as TickContext);
     for (let i = 0; i < 12; i++) await Promise.resolve();
   };
-  return { jumper, frame, positions, playMotion, onTakeoff };
+  return { jumper, frame, positions, playMotion, preloadMotion, onTakeoff };
 }
 
 /** Start the jump; the returned promise settles on whatever a later frame decides. */
 function flying(h: ReturnType<typeof makeJumper>) {
-  return h.jumper.jump(PLAN, { anchor: ANCHOR, charHpx: CHAR_HPX, scale: 1 });
+  return h.jumper.jump(PLAN, { anchor: ANCHOR, charHpx: CHAR_HPX, scale: 1 }, h.onTakeoff);
 }
 
 describe("createJumper", () => {
@@ -233,7 +239,18 @@ describe("createJumper", () => {
     await expect(outcome).resolves.toBe("landed");
   });
 
-  it("pushes the takeoff cue once, as soon as the clip takes the body", async () => {
+  it("loads the clip before asking for it, so its length is measurable in flight", async () => {
+    const h = makeJumper();
+    flying(h);
+    await h.frame(0.1);
+
+    expect(h.preloadMotion).toHaveBeenCalledWith("jump");
+    expect(h.preloadMotion.mock.invocationCallOrder[0]).toBeLessThan(
+      h.playMotion.mock.invocationCallOrder[0],
+    );
+  });
+
+  it("announces the takeoff once, as soon as the clip takes the body", async () => {
     const h = makeJumper();
     const outcome = flying(h);
     await h.frame(0.1);
@@ -246,17 +263,27 @@ describe("createJumper", () => {
     expect(h.onTakeoff).toHaveBeenCalledTimes(1);
   });
 
-  it("stays put and says nothing when the clip is refused", async () => {
+  it("refuses the jump without taking off when the clip is not accepted", async () => {
     const h = makeJumper({ accepted: false });
 
-    await expect(flying(h)).resolves.toBe("lost");
+    await expect(flying(h)).resolves.toBe("refused");
     await h.frame(1.2);
     expect(h.positions).toEqual([]);
     expect(h.onTakeoff).not.toHaveBeenCalled();
   });
 
-  it("holds the window still while the clip length is unmeasurable", async () => {
-    const h = makeJumper({ duration: null });
+  it("refuses the jump without taking off when the target is gone before takeoff", async () => {
+    const h = makeJumper({ windows: async () => [] });
+
+    await expect(flying(h)).resolves.toBe("refused");
+    await h.frame(1.2);
+    expect(h.playMotion).not.toHaveBeenCalled();
+    expect(h.onTakeoff).not.toHaveBeenCalled();
+    expect(h.positions).toEqual([]);
+  });
+
+  it("holds the window still while the clip playhead is unreadable", async () => {
+    const h = makeJumper({ clipTime: null });
     flying(h);
 
     await h.frame(1.2);
@@ -264,31 +291,28 @@ describe("createJumper", () => {
     expect(h.positions).toEqual([]);
   });
 
-  it("stops mid-air when the target window goes away", async () => {
+  it("strands her in mid-air when the target has gone by the time she lands", async () => {
     let windows = [TARGET];
     const h = makeJumper({ windows: async () => windows });
     const outcome = flying(h);
-    await h.frame(0.6);
+    await h.frame(0.7);
+    expect(h.positions.length).toBeGreaterThan(0);
     windows = [];
 
-    // The poll comes due on the first airborne frame, one move after takeoff.
-    await h.frame(0.1);
-    const stranded = h.positions.length;
-    expect(stranded).toBeGreaterThan(0);
+    await h.frame(0.5);
 
     await expect(outcome).resolves.toBe("lost");
-    await h.frame(0.5);
-    expect(h.positions).toHaveLength(stranded);
+    expect(h.positions.at(-1)).not.toEqual(TO);
   });
 
-  it("stops mid-air when the target window slides away", async () => {
+  it("strands her in mid-air when the target has slid away by the time she lands", async () => {
     let windows = [TARGET];
     const h = makeJumper({ windows: async () => windows });
     const outcome = flying(h);
-    await h.frame(0.6);
+    await h.frame(0.7);
     windows = [{ ...TARGET, x: TARGET.x + 13 }];
 
-    await h.frame(0.1);
+    await h.frame(0.5);
 
     await expect(outcome).resolves.toBe("lost");
   });

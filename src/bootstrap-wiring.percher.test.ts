@@ -81,11 +81,23 @@ describe("wirePercher", () => {
   });
 
   it("announces a takeoff as a tier-1 local avatar event", async () => {
-    const { jumperDeps, pushed } = await wire();
+    const { deps, pushed } = await wire();
 
-    jumperDeps.onTakeoff();
+    deps.onTakeoff();
 
     expect(pushed.map((env) => env.event_name)).toEqual(["avatar.jump"]);
     expect(pushed[0].hint_tier).toBe(1);
+  });
+
+  it("hands the jumper the readers it needs and no cue of its own", async () => {
+    const { jumperDeps } = await wire();
+
+    // The takeoff cue belongs to the percher, which abandons the old seat on the same beat.
+    expect(Object.keys(jumperDeps).sort()).toEqual([
+      "getConfig",
+      "getWindow",
+      "listWindows",
+      "renderer",
+    ]);
   });
 });
