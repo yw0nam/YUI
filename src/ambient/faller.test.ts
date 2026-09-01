@@ -1,4 +1,10 @@
 import { describe, expect, it, vi } from "vitest";
+
+const { log } = vi.hoisted(() => ({
+  log: { info: vi.fn(), warn: vi.fn(), error: vi.fn(), debug: vi.fn() },
+}));
+vi.mock("../logger", () => ({ createLogger: () => log }));
+
 import type { FallConfig } from "../config/load";
 import type { MotionKind, WindowRect } from "../contract";
 import type { ScreenMonitor } from "../io/screen-geometry";
@@ -261,6 +267,7 @@ function makeHarness(
   };
   let clock = 1_000_000;
   let windowReads = 0;
+  log.warn.mockClear();
   const starts = vi.fn();
   const lands = vi.fn();
   const cues = vi.fn();
@@ -697,6 +704,29 @@ describe("createFaller", () => {
 
     expect(h.positions.length).toBe(moved);
     expect(h.lands).not.toHaveBeenCalled();
+  });
+
+  it("falls from a window whose origin hangs off the screen but whose feet do not", async () => {
+    // A pet window straddling the left screen edge: origin at −100, feet at 100.
+    const h = makeHarness({ position: { x: -100, y: WINDOW_POS.y } });
+    await h.faller.drop();
+    await h.fallToFloor();
+
+    expect(h.positions.at(-1)).toEqual({ x: -100, y: GROUNDED_Y });
+    expect(h.lands).toHaveBeenCalledWith({ heightPx: 780, surface: FLOOR });
+  });
+
+  it("says why it skipped a drop whose feet are on no monitor at all", async () => {
+    const h = makeHarness({ position: { x: -3000, y: WINDOW_POS.y } });
+    await h.faller.drop();
+
+    expect(h.motions).toEqual([]);
+    expect(h.positions).toEqual([]);
+    expect(h.starts).not.toHaveBeenCalled();
+    expect(log.warn).toHaveBeenCalledWith(
+      "fall_skipped",
+      expect.objectContaining({ reason: "no_monitor" }),
+    );
   });
 
   it("stop() ends a running fall and refuses further drops", async () => {
