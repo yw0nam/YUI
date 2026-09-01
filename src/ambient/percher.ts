@@ -349,6 +349,11 @@ export function createPercher(deps: PercherDeps): Percher {
     return null;
   }
 
+  /** Whether any of the walked surfaces is still in the stack. */
+  function ledgeStanding(windows: WindowRect[], surfaces: WindowRect[]): boolean {
+    return surfaces.some((surface) => windows.some((w) => w.windowNumber === surface.windowNumber));
+  }
+
   /**
    * Watch whichever of the ledge's windows her feet are over, which changes as she walks
    * across a seam. Nothing under them, a surface dragged away, or one covered where she
@@ -370,8 +375,9 @@ export function createPercher(deps: PercherDeps): Percher {
         const under = underFeet(windows, active.surfaces, feetX);
         if (!under) {
           // The last stretch of a step-off is past the ledge's outer edge, where there is
-          // no surface by construction; the arrival hands her to the fall.
-          if (active.stepOff) return;
+          // no surface by construction; the arrival hands her to the fall. A ledge that has
+          // gone with her feet still on it is the other empty patch, and that one is a loss.
+          if (active.stepOff && ledgeStanding(windows, active.surfaces)) return;
           loseHost(startedAt, active.under);
           return;
         }
@@ -733,12 +739,18 @@ export function createPercher(deps: PercherDeps): Percher {
       endWalkCue();
       if (!accepted) log.debug("stroll_skipped", { reason: "not_accepted" });
       // Which of the ledge's windows the leg left her over decides the seat: the host she
-      // started on, a surface across a seam, or nothing at all. A step-off that did not get
-      // away is none of those — her feet read out past the ledge, and the host is hers.
+      // started on, a surface across a seam, or nothing at all.
       const [applied, arrived] = await Promise.all([win.outerPosition(), deps.listWindows()]);
       if (!alive(startedAt)) return;
       const appliedX = applied.x / scale + anchor.x;
-      if (!stepOff) {
+      if (stepOff) {
+        // Her feet read out past the ledge either way, so the host itself answers it: still
+        // standing and it is hers to sit back on, gone and there is nothing under her.
+        if (!ledgeStanding(arrived, [host])) {
+          loseHost(startedAt, host);
+          return;
+        }
+      } else {
         const under = underFeet(arrived, ledge.surfaces, appliedX);
         if (!under) {
           loseHost(startedAt, host);
