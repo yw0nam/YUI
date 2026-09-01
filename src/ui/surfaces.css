@@ -643,6 +643,38 @@
   opacity: 0.55;
 }
 
+/* ── Pop-out button — the bubble's exit, repeated in the row so a typing session
+   can move to the message window without leaving the field. ── */
+.yui-input__pop {
+  flex: 0 0 auto;
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border: 0;
+  border-radius: var(--yui-radius-chip);
+  background: transparent;
+  color: var(--yui-text-mute);
+  font-size: 0.85rem;
+  line-height: 1;
+  cursor: pointer;
+  transition:
+    color var(--yui-dur-fast) var(--yui-ease),
+    background var(--yui-dur-fast) var(--yui-ease);
+}
+/* display: grid beats the UA's [hidden] rule, so hide it explicitly. */
+.yui-input__pop[hidden] {
+  display: none;
+}
+.yui-input__pop:hover {
+  color: var(--yui-accent);
+  background: var(--yui-accent-faint);
+}
+.yui-input__pop:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px var(--yui-accent-soft);
+}
+
 /* send/stop button — fixed width flex:0 0 auto so form doesn't reflow on icon swap */
 .yui-input__send {
   flex: 0 0 auto;

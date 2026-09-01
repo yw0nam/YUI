@@ -41,14 +41,21 @@ export function createSurfacesRouter({
     | "setAttachmentLimits"
   > => (getMode() === "popped" ? remote : local);
 
-  // Speech left behind on the side being abandoned would hang there with nothing to dismiss it.
+  // Speech left behind on the side being abandoned would hang there with nothing to dismiss it,
+  // and a typing session follows the user across rather than closing under them.
   // The store also carries the window position, so only a real mode change moves anything.
   let lastMode = getMode();
   const unsubscribeMode = subscribeMode((mode) => {
     if (mode === lastMode) return;
     lastMode = mode;
-    if (mode === "popped") local.hideSpeech();
-    else remote.hideSpeech();
+    const left: Pick<Surfaces, "hideSpeech" | "isInputOpen" | "dismissInput"> =
+      mode === "popped" ? local : remote;
+    const entered: Pick<Surfaces, "summonInput"> = mode === "popped" ? remote : local;
+    left.hideSpeech();
+    if (left.isInputOpen()) {
+      left.dismissInput();
+      entered.summonInput();
+    }
   });
 
   return {

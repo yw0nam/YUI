@@ -6,7 +6,7 @@
 
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, type Mock, vi } from "vitest";
 
 // CSS imports are not handled in jsdom — mock them
 vi.mock("./surfaces.css", () => ({}));
@@ -694,13 +694,13 @@ describe("input error clearing — turn start, manual dismiss, existing paths", 
 describe("input row pop-out button", () => {
   let mount: HTMLElement;
   let s: ReturnType<typeof createSurfaces>;
-  let onPop: ReturnType<typeof vi.fn>;
+  let onPop: Mock<() => void>;
 
   beforeEach(() => {
     setLocale("en");
     mount = document.createElement("div");
     document.body.appendChild(mount);
-    onPop = vi.fn();
+    onPop = vi.fn<() => void>();
     s = createSurfaces({ mount, onPop });
   });
 

@@ -14,7 +14,7 @@
 import "./surfaces.css";
 import type { AttachmentLimits } from "../config";
 import { isTauri } from "../io/tauri-env";
-import { t } from "./i18n";
+import { subscribe as subscribeLocale, t } from "./i18n";
 import { createSpeechBubble } from "./speech-bubble";
 import { createTextInput, type InputErrorAction } from "./text-input";
 import { createToolStatus } from "./tool-status";
@@ -84,7 +84,7 @@ interface SurfacesOptions {
   dwellMs?: number;
   /** When it returns true, speech holds until the bubble's close button (or new speech) dismisses it. */
   keepBubbleUntilDismissed?: () => boolean;
-  /** Called when the pop-out button on the bubble is pressed. */
+  /** Called when a pop-out button — on the bubble or on the input row — is pressed. */
   onPop?: () => void;
   /** Called whenever the input's open state settles. */
   onInputOpenChange?: (open: boolean) => void;
@@ -131,6 +131,7 @@ export function createSurfaces({
           spellcheck="false"
         />
         <span class="yui-input__error" role="alert"></span>
+        <button type="button" class="yui-input__pop">⤢</button>
         <button class="yui-input__send" type="submit">
           <span class="icon-send" aria-hidden="true">
             <svg viewBox="0 0 16 16">
@@ -157,6 +158,7 @@ export function createSurfaces({
   const bubbleSr = el.querySelector<HTMLSpanElement>(".yui-bubble__sr")!;
   const bubbleClose = el.querySelector<HTMLButtonElement>(".yui-bubble__close")!;
   const bubblePop = el.querySelector<HTMLButtonElement>(".yui-bubble__pop")!;
+  const inputPop = el.querySelector<HTMLButtonElement>(".yui-input__pop")!;
   const formEl = el.querySelector<HTMLFormElement>(".yui-input")!;
   const field = el.querySelector<HTMLInputElement>(".yui-input__field")!;
   const errorEl = el.querySelector<HTMLSpanElement>(".yui-input__error")!;
@@ -177,15 +179,27 @@ export function createSurfaces({
     onInputOpenChange,
   );
 
-  // Without a second OS window there is nowhere to pop into, so the browser build hides it.
-  bubblePop.hidden = !isTauri();
-  bubblePop.setAttribute("aria-label", t("aria.pop_message"));
-  bubblePop.setAttribute("title", t("aria.pop_message"));
+  // Both exits lead to the same window; without a second OS window there is nowhere
+  // to pop into, so the browser build hides them.
+  const popButtons = [bubblePop, inputPop];
+  for (const button of popButtons) button.hidden = !isTauri();
+
+  // Surfaces aren't remounted on locale change, so the labels are (re)applied here.
+  function applyLocaleLabels(): void {
+    for (const button of popButtons) {
+      button.setAttribute("aria-label", t("aria.pop_message"));
+      button.setAttribute("title", t("aria.pop_message"));
+    }
+  }
+  applyLocaleLabels();
+  const unsubscribeLocale = subscribeLocale(applyLocaleLabels);
+
   const onPopClick = (): void => onPop?.();
-  bubblePop.addEventListener("click", onPopClick);
+  for (const button of popButtons) button.addEventListener("click", onPopClick);
 
   function dispose(): void {
-    bubblePop.removeEventListener("click", onPopClick);
+    unsubscribeLocale();
+    for (const button of popButtons) button.removeEventListener("click", onPopClick);
     bubble.dispose();
     tool.dispose();
     input.dispose();
