@@ -52,7 +52,7 @@ async function wire() {
   await vi.waitFor(() => expect(createFaller).toHaveBeenCalled());
   return {
     deps: createFaller.mock.calls[0][0] as unknown as {
-      onLand(landing: { heightPx: number; surface: unknown }): void;
+      onLand(landing: { heightPx: number; surface: unknown; fell: boolean }): void;
     },
     pushed,
     onWindowLand,
@@ -67,7 +67,7 @@ describe("wireFaller — landing", () => {
   it("names no window on a landing that reached the floor", async () => {
     const { deps, pushed, onWindowLand } = await wire();
 
-    deps.onLand({ heightPx: 780.4, surface: { kind: "floor", y: 1500 } });
+    deps.onLand({ heightPx: 780.4, surface: { kind: "floor", y: 1500 }, fell: true });
 
     expect(pushed).toEqual([
       expect.objectContaining({
@@ -81,7 +81,11 @@ describe("wireFaller — landing", () => {
   it("names the window a landing came down on and hands it to the perch loop", async () => {
     const { deps, pushed, onWindowLand } = await wire();
 
-    deps.onLand({ heightPx: 380, surface: { kind: "window", y: 1100, target: TARGET } });
+    deps.onLand({
+      heightPx: 380,
+      surface: { kind: "window", y: 1100, target: TARGET },
+      fell: true,
+    });
 
     expect(pushed).toEqual([
       expect.objectContaining({
@@ -94,6 +98,19 @@ describe("wireFaller — landing", () => {
         },
       }),
     ]);
+    expect(onWindowLand).toHaveBeenCalledWith(TARGET);
+  });
+
+  it("hands over a snapped window landing without announcing a fall", async () => {
+    const { deps, pushed, onWindowLand } = await wire();
+
+    deps.onLand({
+      heightPx: 60,
+      surface: { kind: "window", y: 1100, target: TARGET },
+      fell: false,
+    });
+
+    expect(pushed).toEqual([]);
     expect(onWindowLand).toHaveBeenCalledWith(TARGET);
   });
 });

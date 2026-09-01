@@ -386,7 +386,7 @@ describe("createFaller", () => {
     expect(last).toBeGreaterThan(first);
 
     expect(h.motions).toEqual([{ id: FALL_MOTION_ID }, { id: LAND_MOTION_ID }]);
-    expect(h.lands).toHaveBeenCalledWith({ heightPx: 780, surface: FLOOR });
+    expect(h.lands).toHaveBeenCalledWith({ heightPx: 780, surface: FLOOR, fell: true });
     expect(h.ends).toHaveBeenCalledTimes(1);
     expect(h.hasTick()).toBe(false);
   });
@@ -415,7 +415,7 @@ describe("createFaller", () => {
     await h.faller.drop();
     expect(h.motions).toEqual([{ id: FALL_MOTION_ID }]);
     await h.fallToFloor();
-    expect(h.lands).toHaveBeenCalledWith({ heightPx: 60, surface: FLOOR });
+    expect(h.lands).toHaveBeenCalledWith({ heightPx: 60, surface: FLOOR, fell: true });
   });
 
   it("does nothing when the feet already rest on the floor", async () => {
@@ -438,7 +438,11 @@ describe("createFaller", () => {
 
     for (let i = 0; i < 120 && h.positions.at(-1)?.y !== 660; i++) await h.frame();
     expect(h.positions.at(-1)).toEqual({ x: 500, y: 660 });
-    expect(h.lands).toHaveBeenCalledWith({ heightPx: 300, surface: { kind: "floor", y: 750 } });
+    expect(h.lands).toHaveBeenCalledWith({
+      heightPx: 300,
+      surface: { kind: "floor", y: 750 },
+      fell: true,
+    });
   });
 
   it("snaps to the floor and still reports the landing under reduced motion", async () => {
@@ -446,7 +450,7 @@ describe("createFaller", () => {
     await h.faller.drop();
     expect(h.positions).toEqual([{ x: WINDOW_POS.x, y: GROUNDED_Y }]);
     expect(h.motions).toEqual([]);
-    expect(h.lands).toHaveBeenCalledWith({ heightPx: 780, surface: FLOOR });
+    expect(h.lands).toHaveBeenCalledWith({ heightPx: 780, surface: FLOOR, fell: true });
     expect(h.cues).toHaveBeenCalledWith(780);
     expect(h.starts).not.toHaveBeenCalled();
   });
@@ -518,7 +522,7 @@ describe("createFaller", () => {
     expect(h.ends).not.toHaveBeenCalled();
 
     await h.fallToFloor();
-    expect(h.lands).toHaveBeenCalledWith({ heightPx: 780, surface: FLOOR });
+    expect(h.lands).toHaveBeenCalledWith({ heightPx: 780, surface: FLOOR, fell: true });
   });
 
   it("cancel() ends a running fall and releases the falling clip", async () => {
@@ -564,7 +568,7 @@ describe("createFaller", () => {
 
     await h.fallToFloor();
     expect(h.positions.at(-1)).toEqual({ x: WINDOW_POS.x, y: GROUNDED_Y });
-    expect(h.lands).toHaveBeenCalledWith({ heightPx: 780, surface: FLOOR });
+    expect(h.lands).toHaveBeenCalledWith({ heightPx: 780, surface: FLOOR, fell: true });
     expect(h.ends).toHaveBeenCalledTimes(1);
   });
 
@@ -588,6 +592,7 @@ describe("createFaller", () => {
     expect(h.lands).toHaveBeenCalledWith({
       heightPx: 380,
       surface: { kind: "window", y: 1100, target: CATCHER },
+      fell: true,
     });
     expect(h.ends).toHaveBeenCalledTimes(1);
   });
@@ -602,6 +607,7 @@ describe("createFaller", () => {
     expect(h.lands).toHaveBeenCalledWith({
       heightPx: 60,
       surface: { kind: "window", y: 1100, target: CATCHER },
+      fell: false,
     });
     // A snap is no drop worth talking about, whatever it landed on.
     expect(h.cues).not.toHaveBeenCalled();
@@ -613,7 +619,7 @@ describe("createFaller", () => {
     await h.fallToFloor();
 
     expect(h.positions.at(-1)).toEqual({ x: WINDOW_POS.x, y: GROUNDED_Y });
-    expect(h.lands).toHaveBeenCalledWith({ heightPx: 780, surface: FLOOR });
+    expect(h.lands).toHaveBeenCalledWith({ heightPx: 780, surface: FLOOR, fell: true });
   });
 
   it("retargets to the floor when the window that would catch her goes away", async () => {
@@ -628,7 +634,7 @@ describe("createFaller", () => {
     await h.fallToFloor();
 
     expect(h.positions.at(-1)).toEqual({ x: WINDOW_POS.x, y: GROUNDED_Y });
-    expect(h.lands).toHaveBeenCalledWith({ heightPx: 780, surface: FLOOR });
+    expect(h.lands).toHaveBeenCalledWith({ heightPx: 780, surface: FLOOR, fell: true });
   });
 
   it("catches a window that slid under her after the drop began", async () => {
@@ -644,6 +650,7 @@ describe("createFaller", () => {
     expect(h.lands).toHaveBeenCalledWith({
       heightPx: 380,
       surface: { kind: "window", y: 1100, target: CATCHER },
+      fell: true,
     });
   });
 
@@ -713,7 +720,7 @@ describe("createFaller", () => {
     await h.fallToFloor();
 
     expect(h.positions.at(-1)).toEqual({ x: -100, y: GROUNDED_Y });
-    expect(h.lands).toHaveBeenCalledWith({ heightPx: 780, surface: FLOOR });
+    expect(h.lands).toHaveBeenCalledWith({ heightPx: 780, surface: FLOOR, fell: true });
   });
 
   it("says why it skipped a drop whose feet are on no monitor at all", async () => {
