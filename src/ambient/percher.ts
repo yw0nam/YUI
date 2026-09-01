@@ -360,6 +360,14 @@ export function createPercher(deps: PercherDeps): Percher {
     const targetIndex = windows.findIndex((w) => w.windowNumber === target.windowNumber);
     if (targetIndex < 0) {
       log.info("perch_landing_lost", { windowNumber: target.windowNumber, from });
+      // A jump onto a window that has since closed leaves her over the gap she crossed, so
+      // the fall takes her the same way a target lost in the air does. A fall has already
+      // come down where it came down: she stands there until something else moves her.
+      if (from === "jump") {
+        endWalkCue();
+        deps.renderer.setBodyYaw(0, WALK_YAW_EASE_MS);
+        deps.onTargetLost();
+      }
       return;
     }
     const span = uncoveredSpan(windows, targetIndex, landingX);
