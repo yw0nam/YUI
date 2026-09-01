@@ -88,6 +88,11 @@ export function planStepOff(opts: {
   return null;
 }
 
+/** Whether a window has slid far enough to no longer be the one a plan was made on. */
+function hasMoved(now: WindowRect, then: { x: number; y: number }): boolean {
+  return Math.abs(now.x - then.x) > MOVE_TH || Math.abs(now.y - then.y) > MOVE_TH;
+}
+
 export interface PercherWindow {
   outerPosition(): Promise<{ x: number; y: number }>;
   scaleFactor(): Promise<number>;
@@ -283,9 +288,7 @@ export function createPercher(deps: PercherDeps): Percher {
           loseHost(startedAt);
           return;
         }
-        const moved =
-          Math.abs(host.x - active.host.x) > MOVE_TH || Math.abs(host.y - active.host.y) > MOVE_TH;
-        active.lostStreak = moved ? active.lostStreak + 1 : 0;
+        active.lostStreak = hasMoved(host, active.host) ? active.lostStreak + 1 : 0;
         if (active.lostStreak >= PERCH_AMBIGUOUS_LOST_TICKS) loseHost(startedAt);
       })
       .catch((error) => log.warn("host_watch_failed", { degrade: true, error: String(error) }))
@@ -358,16 +361,16 @@ export function createPercher(deps: PercherDeps): Percher {
     const windows = await deps.listWindows();
     if (!alive(startedAt)) return;
     const targetIndex = windows.findIndex((w) => w.windowNumber === target.windowNumber);
-    if (targetIndex < 0) {
-      log.info("perch_landing_lost", { windowNumber: target.windowNumber, from });
-      // A jump onto a window that has since closed leaves her over the gap she crossed, so
-      // the fall takes her the same way a target lost in the air does. A fall has already
-      // come down where it came down: she stands there until something else moves her.
-      if (from === "jump") {
-        endWalkCue();
-        deps.renderer.setBodyYaw(0, WALK_YAW_EASE_MS);
-        deps.onTargetLost();
-      }
+    const host = windows[targetIndex];
+    // The window she came to rest on is the one the stack has now. Closed, or slid out from
+    // under her feet, and she is over nothing — which is what the fall is for; sitting her
+    // on the rect it used to have would pin her to mid-air.
+    const lost = host === undefined ? "gone" : hasMoved(host, target) ? "moved" : null;
+    if (lost !== null) {
+      log.info("perch_landing_lost", { windowNumber: target.windowNumber, from, reason: lost });
+      endWalkCue();
+      deps.renderer.setBodyYaw(0, WALK_YAW_EASE_MS);
+      deps.onTargetLost();
       return;
     }
     const span = uncoveredSpan(windows, targetIndex, landingX);
@@ -387,7 +390,7 @@ export function createPercher(deps: PercherDeps): Percher {
       const walked = await deps.walker.walkTo(leg.centerX - anchor.x, () => {
         startWalkCue();
         stroll = {
-          host: target,
+          host,
           nextWatchAtMs: nowMs + PERCH_POLL_MS,
           lostStreak: 0,
           watching: false,
@@ -398,13 +401,13 @@ export function createPercher(deps: PercherDeps): Percher {
       // A leg that stopped short still stopped somewhere on the target's top, and the
       // seat is read from where she actually is — so she sits there rather than being
       // left standing with nothing armed and nothing scheduled to move her again.
-      if (walked !== "arrived") log.debug("perch_leg_short", { windowNumber: target.windowNumber });
+      if (walked !== "arrived") log.debug("perch_leg_short", { windowNumber: host.windowNumber });
     }
     const applied = await win.outerPosition();
     if (!alive(startedAt)) return;
-    const edgeLocalYpx = target.y - applied.y / scale;
+    const edgeLocalYpx = host.y - applied.y / scale;
     log.info("perch_landed", {
-      windowNumber: target.windowNumber,
+      windowNumber: host.windowNumber,
       x: Math.round(applied.x / scale + anchor.x),
       from,
     });
@@ -413,8 +416,8 @@ export function createPercher(deps: PercherDeps): Percher {
     deps.renderer.setBodyYaw(0, WALK_YAW_EASE_MS);
     // The walk ends before the sit lands, so the posture settles on sitting, not standing.
     endWalkCue();
-    deps.onSit(target, edgeLocalYpx);
-    deps.dropSource.adoptSit(target.windowNumber, { x: target.x, y: target.y }, charHpx, "commit");
+    deps.onSit(host, edgeLocalYpx);
+    deps.dropSource.adoptSit(host.windowNumber, { x: host.x, y: host.y }, charHpx, "commit");
     rearmDwell();
   }
 
