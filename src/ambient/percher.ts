@@ -349,6 +349,12 @@ export function createPercher(deps: PercherDeps): Percher {
     return null;
   }
 
+  /** Whether a window raised in front of the surface at `index` reaches over her feet. */
+  function feetCovered(windows: WindowRect[], index: number, feetX: number): boolean {
+    const span = uncoveredSpan(windows, index, feetX);
+    return feetX < span.left || feetX > span.right;
+  }
+
   /** Whether any of the walked surfaces is still in the stack. */
   function ledgeStanding(windows: WindowRect[], surfaces: WindowRect[]): boolean {
     return surfaces.some((surface) => windows.some((w) => w.windowNumber === surface.windowNumber));
@@ -386,8 +392,7 @@ export function createPercher(deps: PercherDeps): Percher {
           loseHost(startedAt, under.recorded);
           return;
         }
-        const span = uncoveredSpan(windows, under.index, feetX);
-        if (feetX < span.left || feetX > span.right) {
+        if (feetCovered(windows, under.index, feetX)) {
           loseHost(startedAt, under.recorded);
           return;
         }
@@ -752,7 +757,8 @@ export function createPercher(deps: PercherDeps): Percher {
         }
       } else {
         const under = underFeet(arrived, ledge.surfaces, appliedX);
-        if (!under) {
+        // A surface raised over between the last poll and this read is no seat either.
+        if (!under || feetCovered(arrived, under.index, appliedX)) {
           loseHost(startedAt, host);
           return;
         }
