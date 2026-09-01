@@ -958,6 +958,34 @@ describe("createPercher", () => {
     expect(h.adoptSit).toHaveBeenCalledWith(7, { x: 1560, y: 900 }, 500, "commit");
   });
 
+  it("seats her on a landing planted a jump margin inside the target's stretch", async () => {
+    // A window in front seams the neighbour's top at 1600, so the jump plans its landing at
+    // 1700 — the margin it walks by (100), less than the room a fall wants (120).
+    const front: WindowRect = {
+      ...HOST,
+      x: 1500,
+      y: 600,
+      width: 100,
+      height: 400,
+      name: "Cover",
+      windowNumber: 9,
+    };
+    const h = makeHarness({
+      windows: async () => [front, HOST, NEIGHBOUR],
+      charWpx: 240,
+      jumpProbability: 1,
+      rng: () => 0,
+    });
+    h.percher.start();
+
+    await h.frame();
+    await h.frame(1.1);
+
+    expect(h.onTargetLost).not.toHaveBeenCalled();
+    expect(h.calls).not.toContain("target_lost");
+    expect(h.adoptSit).toHaveBeenCalledWith(7, { x: 1560, y: 900 }, 500, "commit");
+  });
+
   it("sits her down where a landing leg that never arrived left her", async () => {
     const h = makeHarness({
       windows: async () => [HOST, NEIGHBOUR],
