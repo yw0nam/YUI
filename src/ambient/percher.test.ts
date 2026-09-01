@@ -1367,6 +1367,61 @@ describe("createPercher", () => {
     expect(h.onTargetLost).toHaveBeenCalledTimes(1);
   });
 
+  it("falls out of a pending landing when a window comes up over her feet", async () => {
+    let stack: WindowRect[] = [NEIGHBOUR];
+    const h = makeHarness({
+      windows: async () => stack,
+      initialPos: { x: 1500, y: 480 },
+      armed: false,
+      motion: { id: "landing", kind: "oneshot" },
+    });
+    h.percher.start();
+
+    h.percher.landOn(NEIGHBOUR);
+    // Her feet are at 1700 and want 80 px either side; this takes the lot.
+    stack = [cover(1650, 300, 9), NEIGHBOUR];
+    await h.frame(0.8);
+
+    expect(h.onTargetLost).toHaveBeenCalledTimes(1);
+  });
+
+  it("keeps a pending landing when the window in front clears her standing room", async () => {
+    let stack: WindowRect[] = [NEIGHBOUR];
+    const h = makeHarness({
+      windows: async () => stack,
+      initialPos: { x: 1500, y: 480 },
+      armed: false,
+      motion: { id: "landing", kind: "oneshot" },
+    });
+    h.percher.start();
+
+    h.percher.landOn(NEIGHBOUR);
+    // Its near edge is at 1800, past the 1780 her right foot asks for.
+    stack = [cover(1800, 200, 9), NEIGHBOUR];
+    await h.frame(0.8);
+    expect(h.onTargetLost).not.toHaveBeenCalled();
+
+    h.setMotion({ id: "idle", kind: "ambient" });
+    await h.frame();
+
+    expect(h.adoptSit).toHaveBeenCalledWith(7, { x: 1560, y: 900 }, 500, "commit");
+  });
+
+  it("falls again when the window she landed on is covered by the time it reads", async () => {
+    const h = makeHarness({
+      windows: async () => [cover(1650, 300, 9), NEIGHBOUR],
+      initialPos: { x: 1500, y: 480 },
+      armed: false,
+    });
+    h.percher.start();
+
+    h.percher.landOn(NEIGHBOUR);
+    await h.frame();
+
+    expect(h.adoptSit).not.toHaveBeenCalled();
+    expect(h.onTargetLost).toHaveBeenCalledTimes(1);
+  });
+
   it("keeps a pending landing whose window barely moved and seats her on it", async () => {
     let stack = [HOST, NEIGHBOUR];
     const h = makeHarness({
