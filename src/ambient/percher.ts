@@ -251,7 +251,10 @@ export function createPercher(deps: PercherDeps): Percher {
    */
   let landing: { target: WindowRect; nextWatchAtMs: number; watching: boolean } | null = null;
   let stroll: {
-    host: WindowRect;
+    /** The ledge she is walking, host first — her feet may end on any of them. */
+    surfaces: WindowRect[];
+    /** The surface last found under her feet, as it was when the ledge was measured. */
+    under: WindowRect;
     nextWatchAtMs: number;
     lostStreak: number;
     watching: boolean;
@@ -313,9 +316,9 @@ export function createPercher(deps: PercherDeps): Percher {
     abandonSuspension();
   }
 
-  function loseHost(startedAt: number): void {
-    if (!alive(startedAt) || !stroll) return;
-    log.info("host_lost", { windowNumber: stroll.host.windowNumber });
+  function loseHost(startedAt: number, lost: WindowRect): void {
+    if (!alive(startedAt)) return;
+    log.info("host_lost", { windowNumber: lost.windowNumber });
     generation++;
     stroll = null;
     dwellAtMs = -1;
@@ -327,25 +330,57 @@ export function createPercher(deps: PercherDeps): Percher {
     deps.onHostLost();
   }
 
+  /**
+   * Which of the ledge's windows holds her feet, front-most first in the stack as it is
+   * now, paired with the rect it had when the ledge was measured.
+   */
+  function underFeet(
+    windows: WindowRect[],
+    surfaces: WindowRect[],
+    feetX: number,
+  ): { index: number; fresh: WindowRect; recorded: WindowRect } | null {
+    for (const [index, fresh] of windows.entries()) {
+      const recorded = surfaces.find((s) => s.windowNumber === fresh.windowNumber);
+      if (!recorded || feetX < fresh.x || feetX > fresh.x + fresh.width) continue;
+      return { index, fresh, recorded };
+    }
+    return null;
+  }
+
+  /**
+   * Watch whichever of the ledge's windows her feet are over, which changes as she walks
+   * across a seam. Nothing under them, a surface dragged away, or one covered where she
+   * stands leaves her over nothing, and the published exit hands her to the fall.
+   */
   function watchHost(): void {
     const active = stroll;
     if (!active || active.watching || nowMs < active.nextWatchAtMs) return;
     active.nextWatchAtMs = nowMs + PERCH_POLL_MS;
     active.watching = true;
     const startedAt = generation;
-    void deps
-      .listWindows()
-      .then((windows) => {
-        if (!alive(startedAt) || stroll !== active) return;
-        const host = windows.find(
-          (candidate) => candidate.windowNumber === active.host.windowNumber,
-        );
-        if (!host) {
-          loseHost(startedAt);
+    const win = deps.getWindow();
+    const anchor = deps.renderer.getCharacterAnchor();
+    void Promise.all([deps.listWindows(), win.outerPosition(), win.scaleFactor()])
+      .then(([windows, pos, scaleFactor]) => {
+        if (!alive(startedAt) || stroll !== active || anchor === null) return;
+        const scale = scaleFactor > 0 ? scaleFactor : 1;
+        const feetX = pos.x / scale + anchor.x;
+        const under = underFeet(windows, active.surfaces, feetX);
+        if (!under) {
+          loseHost(startedAt, active.under);
           return;
         }
-        active.lostStreak = hasMoved(host, active.host) ? active.lostStreak + 1 : 0;
-        if (active.lostStreak >= PERCH_AMBIGUOUS_LOST_TICKS) loseHost(startedAt);
+        active.lostStreak = hasMoved(under.fresh, under.recorded) ? active.lostStreak + 1 : 0;
+        if (active.lostStreak >= PERCH_AMBIGUOUS_LOST_TICKS) {
+          loseHost(startedAt, under.recorded);
+          return;
+        }
+        const span = uncoveredSpan(windows, under.index, feetX);
+        if (feetX < span.left || feetX > span.right) {
+          loseHost(startedAt, under.recorded);
+          return;
+        }
+        active.under = under.recorded;
       })
       .catch((error) => log.warn("host_watch_failed", { degrade: true, error: String(error) }))
       .finally(() => {
@@ -394,6 +429,27 @@ export function createPercher(deps: PercherDeps): Percher {
     }
     await settleOn(startedAt, target, plan.landingX, anchor, charHpx, scale, win, "jump");
     return outcome;
+  }
+
+  /**
+   * Take the seat on the window she has come to rest on, pinned to where that window
+   * actually is. Ends the walk and starts the next dwell.
+   */
+  function commitSit(surface: WindowRect, windowY: number, charHpx: number): void {
+    const edgeLocalYpx = surface.y - windowY;
+    // A leg that ran squares her up on its way out, but one that never started or never
+    // arrived does not, and she would sit down still side-on.
+    deps.renderer.setBodyYaw(0, WALK_YAW_EASE_MS);
+    // The walk ends before the sit lands, so the posture settles on sitting, not standing.
+    endWalkCue();
+    deps.onSit(surface, edgeLocalYpx);
+    deps.dropSource.adoptSit(
+      surface.windowNumber,
+      { x: surface.x, y: surface.y },
+      charHpx,
+      "commit",
+    );
+    rearmDwell();
   }
 
   /**
@@ -446,7 +502,8 @@ export function createPercher(deps: PercherDeps): Percher {
       const walked = await deps.walker.walkTo(leg.centerX - anchor.x, () => {
         startWalkCue();
         stroll = {
-          host,
+          surfaces: [host],
+          under: host,
           nextWatchAtMs: nowMs + PERCH_POLL_MS,
           lostStreak: 0,
           watching: false,
@@ -461,20 +518,12 @@ export function createPercher(deps: PercherDeps): Percher {
     }
     const applied = await win.outerPosition();
     if (!alive(startedAt)) return;
-    const edgeLocalYpx = host.y - applied.y / scale;
     log.info("perch_landed", {
       windowNumber: host.windowNumber,
       x: Math.round(applied.x / scale + anchor.x),
       from,
     });
-    // A leg that ran squares her up on its way out, but one that never started or never
-    // arrived does not, and she would sit down still side-on from the jump.
-    deps.renderer.setBodyYaw(0, WALK_YAW_EASE_MS);
-    // The walk ends before the sit lands, so the posture settles on sitting, not standing.
-    endWalkCue();
-    deps.onSit(host, edgeLocalYpx);
-    deps.dropSource.adoptSit(host.windowNumber, { x: host.x, y: host.y }, charHpx, "commit");
-    rearmDwell();
+    commitSit(host, applied.y / scale, charHpx);
   }
 
   /** Read what the tail needs about the body and the screen, then take the seat. */
@@ -545,8 +594,13 @@ export function createPercher(deps: PercherDeps): Percher {
       return;
     }
     const fromX = pos.x / scale + anchor.x;
-    const span = uncoveredSpan(windows, hostIndex, fromX);
     const cfg = deps.getConfig();
+    const ledge = walkableLedge({
+      windows,
+      hostIndex,
+      currentX: fromX,
+      tolerancePx: cfg.level_tolerance_px,
+    });
     const charWpx = deps.renderer.getCharacterWidthPx();
     // A neighbour she could cross to turns the stroll into a walk to the host's edge on
     // that side, now and then. Rolling only once one exists keeps the draw meaningful.
@@ -570,8 +624,8 @@ export function createPercher(deps: PercherDeps): Percher {
       ? null
       : planPerchStroll({
           currentX: fromX,
-          winLeft: span.left,
-          winRight: span.right,
+          winLeft: ledge.left,
+          winRight: ledge.right,
           charHpx: probe.charHpx,
           cfg,
           rng,
@@ -583,7 +637,7 @@ export function createPercher(deps: PercherDeps): Percher {
       neighbour === null && charWpx !== null && rng() < fallCfg.step_off_probability
         ? planStepOff({
             currentX: fromX,
-            span,
+            span: ledge,
             roomPx: fallCfg.land_room_frac * charWpx,
             workArea: {
               left: monitor.workArea.position.x / scale,
@@ -613,7 +667,13 @@ export function createPercher(deps: PercherDeps): Percher {
       const walked = await deps.walker.walkTo(toX - anchor.x, () => {
         accepted = true;
         startWalkCue();
-        stroll = { host, nextWatchAtMs: nowMs + PERCH_POLL_MS, lostStreak: 0, watching: false };
+        stroll = {
+          surfaces: ledge.surfaces,
+          under: host,
+          nextWatchAtMs: nowMs + PERCH_POLL_MS,
+          lostStreak: 0,
+          watching: false,
+        };
         if (stepOff) {
           log.info("step_off_start", {
             windowNumber: host.windowNumber,
@@ -624,6 +684,9 @@ export function createPercher(deps: PercherDeps): Percher {
         }
         log.info("stroll_start", {
           windowNumber: host.windowNumber,
+          ...(ledge.surfaces.length > 1
+            ? { ledge: ledge.surfaces.map((surface) => surface.windowNumber) }
+            : {}),
           fromX: Math.round(fromX),
           toX: Math.round(toX),
           direction: plan?.direction ?? (toX >= fromX ? 1 : -1),
@@ -662,14 +725,32 @@ export function createPercher(deps: PercherDeps): Percher {
       }
       endWalkCue();
       if (!accepted) log.debug("stroll_skipped", { reason: "not_accepted" });
-      const applied = await win.outerPosition();
+      // Which of the ledge's windows the leg left her over decides the seat: the host she
+      // started on, a surface across a seam, or nothing at all.
+      const [applied, arrived] = await Promise.all([win.outerPosition(), deps.listWindows()]);
       if (!alive(startedAt)) return;
+      const appliedX = applied.x / scale + anchor.x;
+      const under = underFeet(arrived, ledge.surfaces, appliedX);
+      if (!under) {
+        loseHost(startedAt, host);
+        return;
+      }
+      if (under.fresh.windowNumber !== host.windowNumber) {
+        abandonSuspension();
+        log.info("perch_crossed", {
+          from: host.windowNumber,
+          to: under.fresh.windowNumber,
+          x: Math.round(appliedX),
+        });
+        commitSit(under.fresh, applied.y / scale, probe.charHpx);
+        return;
+      }
       const edgeLocalYpx = host.y - applied.y / scale;
       suspendedAt = null;
       deps.dropSource.resumeSit(edgeLocalYpx);
       log.info("resit", {
         windowNumber: host.windowNumber,
-        x: Math.round(applied.x / scale + anchor.x),
+        x: Math.round(appliedX),
         edgeLocalYpx: Math.round(edgeLocalYpx),
         windowY: Math.round(applied.y / scale),
       });
