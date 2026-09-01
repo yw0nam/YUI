@@ -69,6 +69,8 @@ def test_bootstrap_creates_all_defaults(state_dir, at, state_helpers):
         "accomplishment": {"level": 50.0, "anchor_at": now.isoformat()},
         "last_interaction_at": now.isoformat(),
         "last_interaction_hash": None,
+        "last_signal_at": None,
+        "last_signal_answered_at": None,
     }
     assert read_json(state_dir / "budget.json") == {
         "date": "2026-08-25",
@@ -497,6 +499,7 @@ def test_record_transport_tracks_since_and_consecutive_failures(state_dir, at, s
         "since": first.isoformat(),
         "failed": 2,
         "last_checked_at": later.isoformat(),
+        "source": "probe",
     }
     desire_state.record_transport(state_dir, True, later)
     assert desire_state.read_transport(state_dir) == {
@@ -504,6 +507,7 @@ def test_record_transport_tracks_since_and_consecutive_failures(state_dir, at, s
         "since": later.isoformat(),
         "failed": 0,
         "last_checked_at": later.isoformat(),
+        "source": "probe",
     }
     (state_dir / "transport.json").write_text("{bad", encoding="utf-8")
     assert desire_state.read_transport(state_dir) is None
@@ -541,3 +545,145 @@ def test_record_transport_skips_probe_older_than_last_check(state_dir, at, state
     recorded = desire_state.record_transport(state_dir, True, newer)
     assert desire_state.record_transport(state_dir, False, older) == recorded
     assert read_json(state_dir / "transport.json") == recorded
+
+
+def test_wake_day_rolls_at_nine_kst(at):
+    assert desire_state.wake_day(at("2026-08-25T08:59:59+09:00")) == "2026-08-24"
+    assert desire_state.wake_day(at("2026-08-25T09:00:00+09:00")) == "2026-08-25"
+    assert desire_state.wake_day(at("2026-08-25T23:59:59+09:00")) == "2026-08-25"
+    assert desire_state.wake_day(at("2026-08-26T00:30:00+09:00")) == "2026-08-25"
+
+
+def test_valid_outbox_item_accepts_a_not_before_string_only(at):
+    now = at("2026-08-25T12:00:00+09:00")
+    base = {"id": "one", "created_at": now.isoformat(), "note": "n"}
+
+    assert desire_state.valid_outbox_item(base)
+    assert desire_state.valid_outbox_item({**base, "not_before": now.isoformat()})
+    assert not desire_state.valid_outbox_item({**base, "not_before": 12})
+    assert not desire_state.valid_outbox_item({**base, "not_before": "not-a-date"})
+
+
+def test_visible_outbox_hides_items_until_not_before(at):
+    now = at("2026-08-25T12:00:00+09:00")
+    plain = {"id": "plain", "created_at": now.isoformat(), "note": "a"}
+    due = {"id": "due", "created_at": now.isoformat(), "note": "b", "not_before": now.isoformat()}
+    postponed = {
+        "id": "postponed",
+        "created_at": now.isoformat(),
+        "note": "c",
+        "not_before": (now + timedelta(hours=1)).isoformat(),
+    }
+    expired = {
+        "id": "expired",
+        "created_at": (now - timedelta(hours=48)).isoformat(),
+        "note": "d",
+        "not_before": (now - timedelta(hours=1)).isoformat(),
+    }
+
+    items = [plain, due, postponed, expired]
+    assert [value["id"] for value in desire_state.visible_outbox(items, now)] == ["plain", "due"]
+    later = now + timedelta(hours=1)
+    assert [value["id"] for value in desire_state.visible_outbox(items, later)] == [
+        "plain",
+        "due",
+        "postponed",
+    ]
+
+
+def test_record_transport_stores_its_source_and_read_tolerates_an_older_file(state_dir, at, state_helpers):
+    write_json, _, read_json, _ = state_helpers
+    now = at("2026-08-25T12:00:00+09:00")
+
+    desire_state.record_transport(state_dir, False, now)
+    assert read_json(state_dir / "transport.json")["source"] == "probe"
+
+    later = now + timedelta(hours=1)
+    assert desire_state.record_transport(state_dir, True, later, source="user-turn")["source"] == "user-turn"
+    assert read_json(state_dir / "transport.json")["source"] == "user-turn"
+
+    write_json(
+        state_dir / "transport.json",
+        {"state": "up", "since": now.isoformat(), "failed": 0, "last_checked_at": now.isoformat()},
+    )
+    assert desire_state.read_transport(state_dir) == {
+        "state": "up",
+        "since": now.isoformat(),
+        "failed": 0,
+        "last_checked_at": now.isoformat(),
+    }
+
+
+def test_default_drives_start_the_signal_stamps_empty(at):
+    now = at("2026-08-25T09:00:00+09:00")
+    drives = desire_state.default_drives(now)
+    assert drives["last_signal_at"] is None
+    assert drives["last_signal_answered_at"] is None
+
+
+def test_bootstrap_keeps_valid_signal_stamps_and_recovers_invalid_ones(state_dir, at, state_helpers):
+    write_json, _, read_json, _ = state_helpers
+    now = at("2026-08-25T12:00:00+09:00")
+    desire_state.bootstrap(now)
+    sent = (now - timedelta(hours=3)).isoformat()
+    stored = read_json(state_dir / "drives.json")
+    write_json(
+        state_dir / "drives.json",
+        {**stored, "last_signal_at": sent, "last_signal_answered_at": None},
+    )
+
+    desire_state.bootstrap(now)
+
+    assert read_json(state_dir / "drives.json")["last_signal_at"] == sent
+    assert desire_state.read_drives_snapshot(state_dir, now)["last_signal_at"] == sent
+
+    write_json(state_dir / "drives.json", {**stored, "last_signal_at": "not-a-date"})
+    desire_state.bootstrap(now)
+    assert read_json(state_dir / "drives.json")["last_signal_at"] is None
+    assert list(state_dir.glob("drives.json.corrupt-*"))
+
+
+def test_serialize_desire_block_renders_the_returned_line_after_the_interaction_line(at):
+    now = at("2026-08-25T12:00:00+09:00")
+    levels = {"social": 72.0, "curiosity": 50.0, "accomplishment": 50.0}
+    last = (now - timedelta(hours=5)).isoformat()
+    held = [{"id": "held", "created_at": last, "note": "I held this"}]
+
+    empty_handed = desire_state.serialize_desire_block(
+        levels, [], now, last_interaction_at=last, transport=None, returned_hours=5
+    )
+    holding = desire_state.serialize_desire_block(
+        levels, held, now, last_interaction_at=last, transport=None, returned_hours=5
+    )
+
+    assert empty_handed.split("\n")[1:5] == [
+        "drives: social 72/100 (high) | curiosity 50/100 (mid) | accomplishment 50/100 (mid)",
+        "last interaction: 2026-08-25 07:00 (5h ago)",
+        "returned: after 5h away",
+        "signal transport: unknown",
+    ]
+    assert holding.split("\n")[3] == "returned: after 5h away (one held note fits here)"
+
+
+def test_serialize_desire_block_renders_the_last_signal_line_after_the_transport_line(at):
+    now = at("2026-08-25T12:00:00+09:00")
+    levels = {"social": 0.0, "curiosity": 50.0, "accomplishment": 50.0}
+    sent = (now - timedelta(hours=3)).isoformat()
+
+    waiting = desire_state.serialize_desire_block(
+        levels, [], now, last_interaction_at=now.isoformat(), last_signal_at=sent
+    )
+    assert waiting.split("\n")[4] == "last signal: 2026-08-25 09:00 — no reply yet (3h)"
+
+    answered = desire_state.serialize_desire_block(
+        levels,
+        [],
+        now,
+        last_interaction_at=now.isoformat(),
+        last_signal_at=sent,
+        last_signal_answered_at=(now - timedelta(hours=1)).isoformat(),
+    )
+    assert answered.split("\n")[4] == "last signal: 2026-08-25 09:00 — answered after 2h"
+
+    silent = desire_state.serialize_desire_block(levels, [], now, last_interaction_at=now.isoformat())
+    assert "last signal:" not in silent

@@ -4,10 +4,11 @@ from __future__ import annotations
 
 import argparse
 import json
+import math
 import os
 import sys
 import uuid
-from datetime import datetime
+from datetime import datetime, timedelta
 from urllib import error as urllib_error
 from urllib import request as urllib_request
 from zoneinfo import ZoneInfo
@@ -42,6 +43,14 @@ def _normalized_state(state_dir, now):
         desire_state.write_json_atomic(state_dir / "budget.json", budget)
     state["budget"] = budget
     return state
+
+
+def _stamp_signal_delivery(state_dir, now):
+    """Record the delivery the middleware compares the next user turn against."""
+
+    drives = desire_state.bootstrap_locked(state_dir, now)["drives"]
+    drives["last_signal_at"] = now.isoformat()
+    desire_state.write_json_atomic(state_dir / "drives.json", drives)
 
 
 def _reserve_signal(state_dir, now):
@@ -112,12 +121,13 @@ def _signal(note, now, opener):
     with desire_state.state_lock(state_dir):
         if failure is None:
             _audit(state_dir, now, "signal_sent", event_id=event_id, note=note)
-            desire_state.record_transport(state_dir, connected, now)
+            _stamp_signal_delivery(state_dir, now)
+            desire_state.record_transport(state_dir, connected, now, source="delivery")
             return 0
         _refund_signal(state_dir, now, reservation_date)
         desire_state.append_jsonl(state_dir / "outbox.jsonl", _outbox_item(note, "error", now))
         _audit(state_dir, now, "signal_failed", event_id=event_id, reason=failure, note=note)
-        desire_state.record_transport(state_dir, connected, now)
+        desire_state.record_transport(state_dir, connected, now, source="delivery")
     print(f"signal delivery failed: {failure}", file=sys.stderr)
     return 1
 
@@ -128,8 +138,8 @@ def _outbox_send(item_id, now, opener):
     reservation_date = now.date().isoformat()
     with desire_state.state_lock(state_dir):
         _normalized_state(state_dir, now)
-        active = desire_state.active_outbox(desire_state.read_jsonl(outbox_path), now)
-        item = next((candidate for candidate in active if candidate.get("id") == item_id), None)
+        visible = desire_state.visible_outbox(desire_state.read_jsonl(outbox_path), now)
+        item = next((candidate for candidate in visible if candidate.get("id") == item_id), None)
         if item is None:
             print("unknown outbox item", file=sys.stderr)
             return 3
@@ -147,7 +157,8 @@ def _outbox_send(item_id, now, opener):
         if failure is None:
             desire_state.release_outbox_item(outbox_path, item_id)
             _audit(state_dir, now, "signal_sent", event_id=event_id, note=note, outbox_id=item_id)
-            desire_state.record_transport(state_dir, connected, now)
+            _stamp_signal_delivery(state_dir, now)
+            desire_state.record_transport(state_dir, connected, now, source="delivery")
             return 0
         _refund_signal(state_dir, now, reservation_date)
         current = next(
@@ -177,7 +188,7 @@ def _outbox_send(item_id, now, opener):
                 note=note,
                 outbox_id=item_id,
             )
-        desire_state.record_transport(state_dir, connected, now)
+        desire_state.record_transport(state_dir, connected, now, source="delivery")
     print(f"signal delivery failed: {failure}", file=sys.stderr)
     return 1
 
@@ -237,22 +248,48 @@ def _feedback(operation, value, now):
         return 0
 
 
+def _listed_item(item, now):
+    """Mark an item the block and ``--send`` cannot reach yet."""
+
+    not_before = item.get("not_before")
+    if not_before is None:
+        return item
+    waiting = desire_state.parse_timestamp(not_before)
+    if waiting <= now:
+        return item
+    return {**item, "postponed_until": waiting.strftime("%Y-%m-%d %H:%M")}
+
+
 def _outbox_list(now):
     state_dir = desire_state.resolve_state_dir()
     with desire_state.state_lock(state_dir):
         _normalized_state(state_dir, now)
         values = desire_state.active_outbox(desire_state.read_jsonl(state_dir / "outbox.jsonl"), now)
-    print(json.dumps(values, ensure_ascii=False))
+    print(json.dumps([_listed_item(value, now) for value in values], ensure_ascii=False))
     return 0
 
 
-def _outbox_release(item_id, why, now):
+def _outbox_disposition(kind, item_id, why, note, until, now):
+    """Apply one disposition to an active pent-up note and record the reason for it."""
+
     state_dir = desire_state.resolve_state_dir()
+    outbox_path = state_dir / "outbox.jsonl"
     with desire_state.state_lock(state_dir):
-        if not desire_state.release_outbox_item(state_dir / "outbox.jsonl", item_id):
+        active = desire_state.active_outbox(desire_state.read_jsonl(outbox_path), now)
+        if not any(item.get("id") == item_id for item in active):
             print("unknown outbox item", file=sys.stderr)
             return 3
-        _audit(state_dir, now, "outbox_released", id=item_id, why=why)
+        extra = {}
+        if kind == "reword":
+            desire_state.update_outbox_item(outbox_path, item_id, {"note": desire_state.sanitize_note(note)})
+        elif kind == "postpone":
+            not_before = (now + timedelta(hours=until)).isoformat()
+            desire_state.update_outbox_item(outbox_path, item_id, {"not_before": not_before})
+            extra["until"] = not_before
+        _audit(state_dir, now, "outbox_disposition", id=item_id, kind=kind, why=why, **extra)
+        if kind == "release":
+            desire_state.release_outbox_item(outbox_path, item_id)
+            _audit(state_dir, now, "outbox_released", id=item_id, why=why)
     return 0
 
 
@@ -282,9 +319,14 @@ def _parser():
     outbox = commands.add_parser("outbox")
     outbox_group = outbox.add_mutually_exclusive_group(required=True)
     outbox_group.add_argument("--list", action="store_true")
-    outbox_group.add_argument("--release", metavar="ID")
     outbox_group.add_argument("--send", metavar="ID")
+    outbox_group.add_argument("--repeat", metavar="ID")
+    outbox_group.add_argument("--reword", metavar="ID")
+    outbox_group.add_argument("--postpone", metavar="ID")
+    outbox_group.add_argument("--release", metavar="ID")
     outbox.add_argument("--why")
+    outbox.add_argument("--note")
+    outbox.add_argument("--until", type=float, default=24.0)
     return parser
 
 
@@ -316,9 +358,23 @@ def main(argv=None, *, now=None, opener=urllib_request.urlopen):
         return _feedback("get" if args.get else "set", args.set, now)
     if args.list:
         return _outbox_list(now)
-    if args.send:
+    if args.send is not None:
         return _outbox_send(args.send, now, opener)
-    return _outbox_release(args.release, args.why, now)
+    kind, item_id = next(
+        (name, getattr(args, name))
+        for name in ("repeat", "reword", "postpone", "release")
+        if getattr(args, name) is not None
+    )
+    if not args.why:
+        print("--why is required for an outbox disposition", file=sys.stderr)
+        return 2
+    if kind == "reword" and not args.note:
+        print("--note is required with --reword", file=sys.stderr)
+        return 2
+    if kind == "postpone" and not (math.isfinite(args.until) and 0 < args.until <= 8760):
+        print("--until must be between 0 and 8760 hours", file=sys.stderr)
+        return 2
+    return _outbox_disposition(kind, item_id, args.why, args.note, args.until, now)
 
 
 if __name__ == "__main__":

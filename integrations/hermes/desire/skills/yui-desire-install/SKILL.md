@@ -72,10 +72,10 @@ chmod +x ~/.hermes/scripts/natsume-desire-monitor.sh
 ```
 
 Check: the last command prints one summary line (for example
-`social:low curiosity:mid accomplishment:mid outbox:0 transport:up budget:3/3sig 2/2iss 1/1cmt`). The monitor checks
-transport with an HTTP GET to `YUI_SIGNALS_URL`; any HTTP response counts as up. The
-`transport:down` variant of that line is also the monitor's fail-safe fallback, so a `down` line proves nothing
-on its own. The real check is the state directory it bootstraps:
+`social:low curiosity:mid accomplishment:mid outbox:0 transport:up budget:3/3sig 2/2iss 1/1cmt day:2026-09-01`).
+The monitor checks transport with an HTTP GET to `YUI_SIGNALS_URL`; any HTTP response counts as up. The
+monitor's fail-safe fallback prints the same shape with `transport:down`, so a `down` line proves nothing on its
+own. The real check is the state directory it bootstraps:
 
 ```bash
 ls "$DESIRE_STATE_DIR"
@@ -88,7 +88,7 @@ empty or missing, the monitor could not write there — fix `DESIRE_STATE_DIR` b
 ## 5. Cron jobs
 
 ```bash
-hermes -p <profile> cron create "30m" --name natsume-desire-tick \
+hermes -p <profile> cron create "10m" --name natsume-desire-tick \
   --monitor-script natsume-desire-monitor.sh \
   "Follow the instructions in $YUI/integrations/hermes/desire/prompts/tick.md."
 hermes -p <profile> cron create "0 23 * * 0" --name natsume-desire-reflection \
@@ -98,10 +98,17 @@ hermes -p <profile> cron create "0 23 * * 0" --name natsume-desire-reflection \
 The job prompt is the file reference and the three environment values (`HERMES_PROFILE`, `DESIRE_STATE_DIR`,
 `YUI_SIGNALS_URL`), nothing else; the prompt file is the only place the tick's behaviour is written.
 
+A job that already exists keeps its own schedule. Read its id from the job list and set the schedule on it:
+
+```bash
+hermes -p <profile> cron list
+hermes -p <profile> cron edit <job_id> --schedule 10m
+```
+
 The tick only wakes a turn when the monitor's one-line summary changes; an unchanged summary suppresses the run.
 Check: `hermes -p <profile> cron list` shows both jobs, the tick one with `Monitor: natsume-desire-monitor.sh`.
 Without `-p`, `hermes cron list` reads the global store and does not show profile jobs. After the first
-30 minutes, the tick job's `last_status` in `~/.hermes/profiles/<profile>/cron/jobs.json` is `ok`.
+10 minutes, the tick job's `last_status` in `~/.hermes/profiles/<profile>/cron/jobs.json` is `ok`.
 
 ## 6. Kickoff (once)
 

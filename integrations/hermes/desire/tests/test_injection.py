@@ -18,7 +18,9 @@ def request_with(text, *, key="messages"):
     return {"model": "test", key: [{"role": "user", "content": text}], "metadata": {"keep": [1, 2]}}
 
 
-def seed_drives(state_dir, now, state_helpers, *, curiosity=31.9, accomplishment=55.8, social_hours=4.8):
+def seed_drives(
+    state_dir, now, state_helpers, *, curiosity=31.9, accomplishment=55.8, social_hours=4.8, **extra
+):
     write_json, _, _, _ = state_helpers
     desire_state.bootstrap(now)
     write_json(
@@ -28,6 +30,7 @@ def seed_drives(state_dir, now, state_helpers, *, curiosity=31.9, accomplishment
             "accomplishment": {"level": accomplishment, "anchor_at": now.isoformat()},
             "last_interaction_at": (now - timedelta(hours=social_hours)).isoformat(),
             "last_interaction_hash": None,
+            **extra,
         },
     )
 
@@ -488,12 +491,12 @@ def test_fresh_commit_preserves_state_initialized_during_block_build(
     text = context("trigger: user message")
     original_build = desire_plugin._build_desire_block
 
-    def initialize_concurrently(drives, outbox, transport, build_now):
+    def initialize_concurrently(drives, outbox, transport, build_now, **kwargs):
         desire_state.bootstrap(build_now)
         persisted = read_json(state_dir / "drives.json")
         persisted["curiosity"]["level"] = 90.0
         write_json(state_dir / "drives.json", persisted)
-        return original_build(drives, outbox, transport, build_now)
+        return original_build(drives, outbox, transport, build_now, **kwargs)
 
     monkeypatch.setattr(desire_plugin, "_build_desire_block", initialize_concurrently)
 
@@ -761,3 +764,256 @@ def test_injected_block_renders_transport_state_from_file(desire_plugin, state_d
 
     assert block.split("\n")[3] == "signal transport: down since 2026-08-23 20:00 (7 failed)"
     assert desire_plugin._already_injected("hello\n\n" + block)
+
+
+def transport_file(state_dir, state_helpers, state, since, *, source="probe"):
+    write_json, _, _, _ = state_helpers
+    write_json(
+        state_dir / "transport.json",
+        {
+            "state": state,
+            "since": since.isoformat(),
+            "failed": 1 if state == "down" else 0,
+            "last_checked_at": since.isoformat(),
+            "source": source,
+        },
+    )
+
+
+def audit_events(state_dir, name):
+    return [
+        value for value in desire_state.read_jsonl(state_dir / "audit.jsonl") if value.get("event") == name
+    ]
+
+
+def test_return_turn_renders_the_line_marks_transport_up_and_audits_once(
+    desire_plugin, state_dir, at, state_helpers
+):
+    _, write_jsonl, read_json, _ = state_helpers
+    now = at("2026-08-25T12:00:00+09:00")
+    seed_drives(state_dir, now, state_helpers, social_hours=5)
+    write_jsonl(state_dir / "outbox.jsonl", [item("held", now - timedelta(hours=4), "I held this")])
+    transport_file(state_dir, state_helpers, "down", now - timedelta(hours=3))
+
+    block = appended_block(
+        desire_plugin._inject(request=request_with(context("trigger: user message")), now=now)
+    )
+
+    assert block.split("\n")[3] == "returned: after 5h away (one held note fits here)"
+    assert desire_plugin._already_injected("hello\n\n" + block)
+    assert read_json(state_dir / "transport.json") == {
+        "state": "up",
+        "since": now.isoformat(),
+        "failed": 0,
+        "last_checked_at": now.isoformat(),
+        "source": "user-turn",
+    }
+    assert audit_events(state_dir, "returned") == [
+        {
+            "at": now.isoformat(),
+            "event": "returned",
+            "away_hours": 5,
+            "pent_up": 1,
+            "transport_before": "down",
+        }
+    ]
+
+    later = now + timedelta(minutes=1)
+    second = appended_block(
+        desire_plugin._inject(request=request_with(context("trigger: user message", "again")), now=later)
+    )
+
+    assert "returned:" not in second
+    assert len(audit_events(state_dir, "returned")) == 1
+
+
+def test_transport_up_since_the_last_interaction_also_counts_as_a_return(
+    desire_plugin, state_dir, at, state_helpers
+):
+    _, _, read_json, _ = state_helpers
+    now = at("2026-08-25T12:00:00+09:00")
+    seed_drives(state_dir, now, state_helpers, social_hours=9)
+    transport_file(state_dir, state_helpers, "up", now - timedelta(hours=2))
+
+    block = appended_block(
+        desire_plugin._inject(request=request_with(context("trigger: user message")), now=now)
+    )
+
+    assert block.split("\n")[3] == "returned: after 9h away"
+    assert audit_events(state_dir, "returned")[0]["transport_before"] == "up"
+    assert read_json(state_dir / "transport.json")["since"] == (now - timedelta(hours=2)).isoformat()
+
+
+def test_transport_up_before_the_last_interaction_is_not_a_return(
+    desire_plugin, state_dir, at, state_helpers
+):
+    now = at("2026-08-25T12:00:00+09:00")
+    seed_drives(state_dir, now, state_helpers, social_hours=2)
+    transport_file(state_dir, state_helpers, "up", now - timedelta(hours=6))
+
+    block = appended_block(
+        desire_plugin._inject(request=request_with(context("trigger: user message")), now=now)
+    )
+
+    assert "returned:" not in block
+    assert audit_events(state_dir, "returned") == []
+
+
+def test_a_cron_turn_never_returns(desire_plugin, state_dir, at, state_helpers):
+    _, _, read_json, _ = state_helpers
+    now = at("2026-08-25T12:00:00+09:00")
+    seed_drives(state_dir, now, state_helpers, social_hours=5)
+    transport_file(state_dir, state_helpers, "down", now - timedelta(hours=3))
+
+    block = appended_block(desire_plugin._inject(request=request_with(context()), now=now))
+
+    assert "returned:" not in block
+    assert audit_events(state_dir, "returned") == []
+    assert read_json(state_dir / "transport.json")["state"] == "down"
+
+
+def test_first_user_turn_after_a_delivery_answers_the_signal(desire_plugin, state_dir, at, state_helpers):
+    _, _, read_json, _ = state_helpers
+    now = at("2026-08-25T12:00:00+09:00")
+    sent = now - timedelta(hours=3)
+    seed_drives(
+        state_dir,
+        now,
+        state_helpers,
+        social_hours=4,
+        last_signal_at=sent.isoformat(),
+        last_signal_answered_at=None,
+    )
+
+    waiting = appended_block(desire_plugin._inject(request=request_with(context()), now=now))
+    assert waiting.split("\n")[4] == "last signal: 2026-08-25 09:00 — no reply yet (3h)"
+    assert read_json(state_dir / "drives.json")["last_signal_answered_at"] is None
+    assert audit_events(state_dir, "signal_answered") == []
+
+    answered = appended_block(
+        desire_plugin._inject(request=request_with(context("trigger: user message")), now=now)
+    )
+
+    assert answered.split("\n")[4] == "last signal: 2026-08-25 09:00 — answered after 3h"
+    assert desire_plugin._already_injected("hello\n\n" + answered)
+    assert read_json(state_dir / "drives.json")["last_signal_answered_at"] == now.isoformat()
+    assert audit_events(state_dir, "signal_answered") == [
+        {
+            "at": now.isoformat(),
+            "event": "signal_answered",
+            "signal_at": sent.isoformat(),
+            "delay_hours": 3,
+        }
+    ]
+
+    later = now + timedelta(hours=1)
+    second = appended_block(
+        desire_plugin._inject(request=request_with(context("trigger: user message", "again")), now=later)
+    )
+    assert second.split("\n")[4] == "last signal: 2026-08-25 09:00 — answered after 3h"
+    assert len(audit_events(state_dir, "signal_answered")) == 1
+
+
+def test_a_signal_sent_after_the_last_answer_waits_again(desire_plugin, state_dir, at, state_helpers):
+    _, _, read_json, _ = state_helpers
+    now = at("2026-08-25T12:00:00+09:00")
+    seed_drives(
+        state_dir,
+        now,
+        state_helpers,
+        social_hours=4,
+        last_signal_at=(now - timedelta(hours=2)).isoformat(),
+        last_signal_answered_at=(now - timedelta(hours=6)).isoformat(),
+    )
+
+    block = appended_block(
+        desire_plugin._inject(request=request_with(context("trigger: user message")), now=now)
+    )
+
+    assert block.split("\n")[4] == "last signal: 2026-08-25 10:00 — answered after 2h"
+    assert read_json(state_dir / "drives.json")["last_signal_answered_at"] == now.isoformat()
+
+
+def test_a_postponed_note_is_hidden_from_the_desire_block(desire_plugin, state_dir, at, state_helpers):
+    _, write_jsonl, _, read_jsonl = state_helpers
+    now = at("2026-08-25T12:00:00+09:00")
+    seed_drives(state_dir, now, state_helpers)
+    postponed = {**item("later", now, "not now"), "not_before": (now + timedelta(hours=1)).isoformat()}
+    write_jsonl(state_dir / "outbox.jsonl", [postponed, item("open", now, "say this")])
+
+    block = appended_block(desire_plugin._inject(request=request_with("hello"), now=now))
+
+    assert "pent-up (1):" in block
+    assert "not now" not in block
+    stored = {value["id"]: value for value in read_jsonl(state_dir / "outbox.jsonl")}
+    assert stored["later"]["surfaced_at"] is None
+
+    due = appended_block(desire_plugin._inject(request=request_with("hello"), now=now + timedelta(hours=1)))
+    assert "pent-up (2):" in due
+
+
+def test_a_return_inside_the_debounce_window_is_committed_once(desire_plugin, state_dir, at, state_helpers):
+    _, _, read_json, _ = state_helpers
+    now = at("2026-08-25T12:00:00+09:00")
+    seed_drives(state_dir, now, state_helpers, social_hours=0)
+    transport_file(state_dir, state_helpers, "down", now + timedelta(minutes=2))
+
+    first = appended_block(
+        desire_plugin._inject(
+            request=request_with(context("trigger: user message")), now=now + timedelta(minutes=4)
+        )
+    )
+
+    assert first.split("\n")[3] == "returned: after 0h away"
+    assert (
+        read_json(state_dir / "drives.json")["last_interaction_at"]
+        == (now + timedelta(minutes=4)).isoformat()
+    )
+
+    second = appended_block(
+        desire_plugin._inject(
+            request=request_with(context("trigger: user message", "again")), now=now + timedelta(minutes=6)
+        )
+    )
+
+    assert "returned:" not in second
+    assert len(audit_events(state_dir, "returned")) == 1
+
+
+def test_a_concurrent_user_turn_commits_the_return_only_once(
+    desire_plugin, state_dir, at, state_helpers, monkeypatch
+):
+    write_json, _, read_json, _ = state_helpers
+    now = at("2026-08-25T12:00:00+09:00")
+    seed_drives(state_dir, now, state_helpers, social_hours=5)
+    transport_file(state_dir, state_helpers, "down", now - timedelta(hours=3))
+    original_build = desire_plugin._build_desire_block
+
+    def return_concurrently(drives, outbox, transport, build_now, **kwargs):
+        persisted = read_json(state_dir / "drives.json")
+        persisted["last_interaction_at"] = build_now.isoformat()
+        persisted["last_interaction_hash"] = "another turn"
+        write_json(state_dir / "drives.json", persisted)
+        desire_state.record_transport(state_dir, True, build_now, source="user-turn")
+        desire_state.append_jsonl(
+            state_dir / "audit.jsonl",
+            {
+                "at": build_now.isoformat(),
+                "event": "returned",
+                "away_hours": 5,
+                "pent_up": 0,
+                "transport_before": "down",
+            },
+        )
+        return original_build(drives, outbox, transport, build_now, **kwargs)
+
+    monkeypatch.setattr(desire_plugin, "_build_desire_block", return_concurrently)
+
+    block = appended_block(
+        desire_plugin._inject(request=request_with(context("trigger: user message")), now=now)
+    )
+
+    assert block.split("\n")[3] == "returned: after 5h away"
+    assert desire_plugin._already_injected("hello\n\n" + block)
+    assert len(audit_events(state_dir, "returned")) == 1
+    assert read_json(state_dir / "transport.json")["state"] == "up"

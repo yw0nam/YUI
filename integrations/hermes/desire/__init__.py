@@ -29,8 +29,12 @@ _DRIVES_LINE = re.compile(
     r"\((?P<accomplishment_bucket>low|mid|high)\)"
 )
 _LAST_INTERACTION_LINE = re.compile(r"last interaction: \d{4}-\d{2}-\d{2} \d{2}:\d{2} \(\d+h ago\)")
+_RETURNED_LINE = re.compile(r"returned: after \d+h away(?: \(one held note fits here\))?")
 _TRANSPORT_LINE = re.compile(
     r"signal transport: (?:up|unknown|down since \d{4}-\d{2}-\d{2} \d{2}:\d{2} \(\d+ failed\))"
+)
+_LAST_SIGNAL_LINE = re.compile(
+    r"last signal: \d{4}-\d{2}-\d{2} \d{2}:\d{2} — (?:answered after \d+h|no reply yet \(\d+h\))"
 )
 _PENT_UP_LINE = re.compile(r"pent-up \((?P<count>[1-9]\d*)\):")
 _OUTBOX_LINE = re.compile(r"- \[\d{4}-\d{2}-\d{2} \d{2}:\d{2}\] [^\n]*")
@@ -84,16 +88,22 @@ def _already_injected(text):
     for name in ("social", "curiosity", "accomplishment"):
         if desire_state.bucket(int(drives[name])) != drives[f"{name}_bucket"]:
             return False
-    if _LAST_INTERACTION_LINE.fullmatch(lines[2]) is None or _TRANSPORT_LINE.fullmatch(lines[3]) is None:
+    if _LAST_INTERACTION_LINE.fullmatch(lines[2]) is None:
         return False
-    if len(lines) == 5:
+    index = 4 if _RETURNED_LINE.fullmatch(lines[3]) is not None else 3
+    if _TRANSPORT_LINE.fullmatch(lines[index]) is None:
+        return False
+    index += 1
+    if _LAST_SIGNAL_LINE.fullmatch(lines[index]) is not None:
+        index += 1
+    if index == len(lines) - 1:
         return True
-    header = _PENT_UP_LINE.fullmatch(lines[4])
+    header = _PENT_UP_LINE.fullmatch(lines[index])
     count = int(header["count"]) if header is not None else 0
     return (
         count > 0
-        and len(lines) == count + 6
-        and all(_OUTBOX_LINE.fullmatch(line) is not None for line in lines[5:-1])
+        and len(lines) == index + count + 2
+        and all(_OUTBOX_LINE.fullmatch(line) is not None for line in lines[index + 1 : -1])
     )
 
 
@@ -105,13 +115,42 @@ def _is_interaction(text):
     return any(_USER_TRIGGER.fullmatch(line.strip()) for line in body.splitlines())
 
 
-def _build_desire_block(drives, outbox, transport, now):
+def _build_desire_block(drives, outbox, transport, now, *, returned_hours=None):
     levels = desire_state.drive_levels(drives, now)
-    active = desire_state.active_outbox(outbox, now)
+    visible = desire_state.visible_outbox(outbox, now)
     block = desire_state.serialize_desire_block(
-        levels, active, now, last_interaction_at=drives["last_interaction_at"], transport=transport
+        levels,
+        visible,
+        now,
+        last_interaction_at=drives["last_interaction_at"],
+        transport=transport,
+        returned_hours=returned_hours,
+        last_signal_at=drives.get("last_signal_at"),
+        last_signal_answered_at=drives.get("last_signal_answered_at"),
     )
-    return block, tuple(item["id"] for item in active)
+    return block, tuple(item["id"] for item in visible)
+
+
+def _returned(transport, last_interaction):
+    """Report whether the ingress was unreachable at any point since the last exchange."""
+    if transport is None:
+        return False
+    return transport["state"] == "down" or desire_state.parse_timestamp(transport["since"]) > last_interaction
+
+
+def _answers_signal(drives):
+    """Report whether this turn is the first user message since the last delivered signal."""
+    signal_at = drives.get("last_signal_at")
+    if not signal_at:
+        return False
+    answered_at = drives.get("last_signal_answered_at")
+    return answered_at is None or desire_state.parse_timestamp(answered_at) < desire_state.parse_timestamp(
+        signal_at
+    )
+
+
+def _whole_hours(since, now):
+    return int(max(0.0, (now - since).total_seconds()) // 3600)
 
 
 def _rewrite(kwargs, event):
@@ -165,12 +204,17 @@ def _rewrite(kwargs, event):
     interaction = _is_interaction(original_text)
     event["interaction"] = interaction
     interaction_changed = False
+    returned_hours = None
     if interaction and drives.get("last_interaction_hash") != text_hash:
         staged_drives["last_interaction_hash"] = text_hash
         last_interaction = desire_state.parse_timestamp(drives["last_interaction_at"])
-        if now - last_interaction > timedelta(minutes=5):
-            staged_drives["last_interaction_at"] = now.astimezone(KST).isoformat()
         interaction_changed = True
+        if _returned(transport, last_interaction):
+            returned_hours = _whole_hours(last_interaction, now)
+        if returned_hours is not None or now - last_interaction > timedelta(minutes=5):
+            staged_drives["last_interaction_at"] = now.isoformat()
+        if _answers_signal(drives):
+            staged_drives["last_signal_answered_at"] = now.isoformat()
 
     cached = _turn_cache
     cache_hit = cached is not None and cached["key"] == cache_key and now - cached["last_hit"] <= _CACHE_TTL
@@ -179,7 +223,9 @@ def _rewrite(kwargs, event):
         block = cached["block"]
         included_ids = cached["included_ids"]
     else:
-        block, included_ids = _build_desire_block(staged_drives, outbox, transport, now)
+        block, included_ids = _build_desire_block(
+            staged_drives, outbox, transport, now, returned_hours=returned_hours
+        )
 
     rewritten = copy.deepcopy(request)
     rewritten_messages = rewritten[key]
@@ -191,12 +237,41 @@ def _rewrite(kwargs, event):
         if interaction_changed:
             current_drives = committed_state["drives"]
             if current_drives.get("last_interaction_hash") != text_hash:
+                answers = _answers_signal(current_drives)
+                current_transport = desire_state.read_transport(state_dir)
+                last_interaction = desire_state.parse_timestamp(current_drives["last_interaction_at"])
+                returns = returned_hours is not None and _returned(current_transport, last_interaction)
                 drives_to_write = copy.deepcopy(current_drives)
                 drives_to_write["last_interaction_hash"] = text_hash
-                last_interaction = desire_state.parse_timestamp(current_drives["last_interaction_at"])
-                if now - last_interaction > timedelta(minutes=5):
+                if returns or now - last_interaction > timedelta(minutes=5):
                     drives_to_write["last_interaction_at"] = now.isoformat()
+                if answers:
+                    drives_to_write["last_signal_answered_at"] = now.isoformat()
                 desire_state.write_json_atomic(state_dir / "drives.json", drives_to_write)
+                if answers:
+                    signal_at = desire_state.parse_timestamp(current_drives["last_signal_at"])
+                    desire_state.append_jsonl(
+                        state_dir / "audit.jsonl",
+                        {
+                            "at": now.isoformat(),
+                            "event": "signal_answered",
+                            "signal_at": current_drives["last_signal_at"],
+                            "delay_hours": _whole_hours(signal_at, now),
+                        },
+                    )
+                if returns:
+                    if current_transport["state"] == "down":
+                        desire_state.record_transport(state_dir, True, now, source="user-turn")
+                    desire_state.append_jsonl(
+                        state_dir / "audit.jsonl",
+                        {
+                            "at": now.isoformat(),
+                            "event": "returned",
+                            "away_hours": _whole_hours(last_interaction, now),
+                            "pent_up": len(included_ids),
+                            "transport_before": current_transport["state"],
+                        },
+                    )
 
         desire_state.stamp_outbox(state_dir / "outbox.jsonl", included_ids, now)
 

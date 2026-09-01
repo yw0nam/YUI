@@ -67,9 +67,10 @@ def run(now: datetime) -> str:
             )
 
         transport = desire_state.record_transport(state_dir, reachable, now)
-        outbox_summary = str(len(active))
-        if active:
-            oldest = min(desire_state.parse_timestamp(item["created_at"]) for item in active)
+        visible = desire_state.visible_outbox(active, now)
+        outbox_summary = str(len(visible))
+        if visible:
+            oldest = min(desire_state.parse_timestamp(item["created_at"]) for item in visible)
             outbox_summary += f"/{desire_state.pent_up_stage(oldest, now)}"
 
         remaining_signals = max(0, desire_state.CAPS["signals"] - budget["signals"])
@@ -81,8 +82,22 @@ def run(now: datetime) -> str:
             f"accomplishment:{desire_state.bucket(levels['accomplishment'])} "
             f"outbox:{outbox_summary} "
             f"transport:{transport['state']} "
-            f"budget:{remaining_signals}/3sig {remaining_issues}/2iss {remaining_comments}/1cmt\n"
+            f"budget:{remaining_signals}/3sig {remaining_issues}/2iss {remaining_comments}/1cmt "
+            f"day:{desire_state.wake_day(now)}\n"
         )
+
+
+def _fallback_summary() -> str:
+    """Name the wake day so a sustained failure still wakes the tick once a day."""
+
+    try:
+        day = desire_state.wake_day(datetime.now(desire_state.KST))
+    except Exception:  # noqa: BLE001 - an unreadable clock still owes the cron a summary
+        day = "unknown"
+    return (
+        "social:low curiosity:mid accomplishment:mid outbox:0 transport:down "
+        f"budget:3/3sig 2/2iss 1/1cmt day:{day}\n"
+    )
 
 
 def main() -> None:
@@ -90,7 +105,7 @@ def main() -> None:
         now = datetime.now(desire_state.KST)
         summary = run(now)
     except Exception:  # noqa: BLE001 - the hash-gated cron must always receive a valid summary
-        summary = "social:low curiosity:mid accomplishment:mid outbox:0 transport:down budget:3/3sig 2/2iss 1/1cmt\n"
+        summary = _fallback_summary()
     print(summary, end="")
 
 
