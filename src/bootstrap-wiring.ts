@@ -529,6 +529,7 @@ export function wirePercher(deps: {
   renderer: Renderer;
   getPerchWalkConfig: () => PerchWalkConfig;
   getJumpConfig: () => JumpConfig;
+  getFallConfig: () => FallConfig;
   /** Registry kind of a motion id, for the "nothing else holds the body" gate. */
   getMotionKind: (id: string) => MotionKind | undefined;
   /** A turn is in flight or speech is still playing — ambient movement stays out of the way. */
@@ -559,6 +560,8 @@ export function wirePercher(deps: {
   onHostLost: () => void;
   /** A jump lost the window it was aimed at — the character falls out of mid-air. */
   onTargetLost: () => void;
+  /** An ambient stroll walked her off the host's edge — the fall takes her from there. */
+  onStepOff: () => void;
   setHitTestMoving(moving: boolean): void;
   log: Logger;
 }): { cancel(): void; landOn(target: WindowRect): void; dispose(): void } {
@@ -609,6 +612,7 @@ export function wirePercher(deps: {
       listMonitors: async () => (await availableMonitors()).map(toScreenMonitor),
       getConfig: deps.getPerchWalkConfig,
       getJumpConfig: deps.getJumpConfig,
+      getFallConfig: deps.getFallConfig,
       walker: deps.walker,
       jumper,
       dropSource: deps.dropSource,
@@ -631,6 +635,7 @@ export function wirePercher(deps: {
       onWalkCancel: endWalk,
       onHostLost: deps.onHostLost,
       onTargetLost: deps.onTargetLost,
+      onStepOff: deps.onStepOff,
       onTakeoff: () => {
         bus.push({
           source: "timer_scheduler",

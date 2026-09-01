@@ -5,9 +5,13 @@
  * The sit pin is suspended for the length of the walk and restored from wherever the
  * window actually landed, so the loop owns the seat the whole time: it either resumes it
  * or abandons it, and only a lost host takes the published exit path.
+ *
+ * A stroll with no window to jump across to now and then walks off the host's nearer edge
+ * instead and lets the fall take her. The same loop takes the seat at the other end: a
+ * fall that comes down on a window top hands it back through landOn().
  */
 
-import type { JumpConfig, PerchWalkConfig } from "../config/load";
+import type { FallConfig, JumpConfig, PerchWalkConfig } from "../config/load";
 import type { MotionKind, WindowRect } from "../contract";
 import { monitorAt, type ScreenMonitor } from "../io/screen-geometry";
 import {
@@ -57,6 +61,23 @@ export function planPerchStroll(opts: {
   return { centerX, direction };
 }
 
+/** Where a step-off walks to: the nearer end of the walkable stretch, and a width past it. */
+export function planStepOff(opts: {
+  currentX: number;
+  span: { left: number; right: number };
+  /** How far past the edge she walks — the same room a landing surface has to offer. */
+  roomPx: number;
+  rng: Rng;
+}): { edge: "left" | "right"; toX: number } | null {
+  const { currentX, span, roomPx, rng } = opts;
+  if (span.right < span.left) return null;
+  const toLeft = currentX - span.left;
+  const toRight = span.right - currentX;
+  const edge =
+    toLeft === toRight ? (rng() < 0.5 ? "left" : "right") : toLeft < toRight ? "left" : "right";
+  return { edge, toX: edge === "left" ? span.left - roomPx : span.right + roomPx };
+}
+
 export interface PercherWindow {
   outerPosition(): Promise<{ x: number; y: number }>;
   scaleFactor(): Promise<number>;
@@ -84,6 +105,8 @@ export interface PercherDeps {
   listMonitors(): Promise<ScreenMonitor[]>;
   getConfig(): PerchWalkConfig;
   getJumpConfig(): JumpConfig;
+  /** The fall's knobs — the step-off rolls against them and walks by their landing room. */
+  getFallConfig(): FallConfig;
   walker: {
     walkTo(toX: number, onAccepted?: () => void): Promise<"arrived" | "lost">;
     cancel(): void;
@@ -123,6 +146,8 @@ export interface PercherDeps {
   onTargetLost(): void;
   /** The jump clip has the body and the old seat is gone — she is committed to the arc. */
   onTakeoff(): void;
+  /** She walked off the host's edge on purpose and is standing on nothing. */
+  onStepOff(): void;
   rng?: Rng;
   /** Defaults to the OS setting; injected in tests. */
   reducedMotion?: () => boolean;
@@ -466,12 +491,24 @@ export function createPercher(deps: PercherDeps): Percher {
           cfg,
           rng,
         });
-    if (!jumpTo && !plan) {
+    // Nowhere to cross to is what makes stepping off the edge the interesting way out,
+    // narrow ledges included. The roll comes last so a stroll draws the same either way.
+    const fallCfg = deps.getFallConfig();
+    const stepOff =
+      neighbour === null && charWpx !== null && rng() < fallCfg.step_off_probability
+        ? planStepOff({
+            currentX: fromX,
+            span,
+            roomPx: fallCfg.land_room_frac * charWpx,
+            rng,
+          })
+        : null;
+    if (!jumpTo && !stepOff && !plan) {
       log.debug("stroll_skipped", { reason: "no_room" });
       rearmDwell();
       return;
     }
-    const toX = jumpTo ? jumpTo.takeoffX : (plan?.centerX ?? fromX);
+    const toX = jumpTo ? jumpTo.takeoffX : (stepOff?.toX ?? plan?.centerX ?? fromX);
     const suspended = deps.dropSource.suspendSit();
     if (!suspended) return;
     suspendedAt = startedAt;
@@ -488,6 +525,14 @@ export function createPercher(deps: PercherDeps): Percher {
         accepted = true;
         startWalkCue();
         stroll = { host, nextWatchAtMs: nowMs + PERCH_POLL_MS, lostStreak: 0, watching: false };
+        if (stepOff) {
+          log.info("step_off_start", {
+            windowNumber: host.windowNumber,
+            edge: stepOff.edge,
+            toX: Math.round(toX),
+          });
+          return;
+        }
         log.info("stroll_start", {
           windowNumber: host.windowNumber,
           fromX: Math.round(fromX),
@@ -502,6 +547,15 @@ export function createPercher(deps: PercherDeps): Percher {
       });
       if (!alive(startedAt)) return;
       stroll = null;
+      // Her feet are past the host's edge now, so the fall the drop starts finds the next
+      // surface below rather than the window she just left. No exit cue: she left on
+      // purpose, and no clip of her own — the fall's own posture takes it from here.
+      if (stepOff && walked === "arrived") {
+        abandonSuspension();
+        endWalkCue();
+        deps.onStepOff();
+        return;
+      }
       // Arriving is the whole question: a walk resolves "arrived" without accepting when
       // she already stands on the spot, and a jump from there still owes a walk cue —
       // which the takeoff opens, so a jump that never leaves owes nothing.
