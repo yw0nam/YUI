@@ -46,6 +46,12 @@ def parse_timestamp(value: str) -> datetime:
     return normalize_now(parsed)
 
 
+def wake_day(now: datetime) -> str:
+    """Return the KST day the tick belongs to; the day rolls at 09:00."""
+
+    return (normalize_now(now) - timedelta(hours=9)).date().isoformat()
+
+
 def resolve_state_dir() -> Path:
     configured = os.environ.get("DESIRE_STATE_DIR")
     if configured:
@@ -273,7 +279,7 @@ def read_transport(state_dir: Path) -> dict | None:
         return None
 
 
-def record_transport(state_dir: Path, reachable: bool, now: datetime) -> dict:
+def record_transport(state_dir: Path, reachable: bool, now: datetime, *, source: str = "probe") -> dict:
     """Record one delivery or probe outcome; ``since`` marks the start of the current state.
 
     An outcome older than the recorded ``last_checked_at`` is discarded. An unreadable
@@ -301,6 +307,7 @@ def record_transport(state_dir: Path, reachable: bool, now: datetime) -> dict:
             "since": previous["since"] if unchanged else now.isoformat(),
             "failed": 0 if reachable else (previous["failed"] if previous else 0) + 1,
             "last_checked_at": now.isoformat(),
+            "source": source,
         }
         write_json_atomic(path, value)
         return value
@@ -313,6 +320,8 @@ def _default_drives(now: datetime) -> dict:
         "accomplishment": {"level": 50.0, "anchor_at": stamp},
         "last_interaction_at": stamp,
         "last_interaction_hash": None,
+        "last_signal_at": None,
+        "last_signal_answered_at": None,
     }
 
 
@@ -380,6 +389,9 @@ def _normalize_drives(value: object) -> dict:
         raise ValueError("last interaction hash must be text or null")
     result["last_interaction_at"] = parse_timestamp(value["last_interaction_at"]).isoformat()
     result["last_interaction_hash"] = interaction_hash
+    for key in ("last_signal_at", "last_signal_answered_at"):
+        stamp = value.get(key)
+        result[key] = parse_timestamp(stamp).isoformat() if stamp is not None else None
     return result
 
 
@@ -513,9 +525,10 @@ def valid_outbox_item(item: object) -> bool:
         return False
     try:
         parse_timestamp(item["created_at"])
-        surfaced_at = item.get("surfaced_at")
-        if surfaced_at is not None:
-            parse_timestamp(surfaced_at)
+        for key in ("surfaced_at", "not_before"):
+            stamp = item.get(key)
+            if stamp is not None:
+                parse_timestamp(stamp)
     except (KeyError, TypeError, ValueError):
         return False
     return True
@@ -537,6 +550,17 @@ def active_outbox(items: list[dict], now: datetime) -> list[dict]:
         if timedelta(0) <= age < OUTBOX_EXPIRY:
             active.append(item)
     return active
+
+
+def visible_outbox(items: list[dict], now: datetime) -> list[dict]:
+    """Return every active item that is not postponed past ``now``."""
+
+    now = normalize_now(now)
+    return [
+        item
+        for item in active_outbox(items, now)
+        if item.get("not_before") is None or parse_timestamp(item["not_before"]) <= now
+    ]
 
 
 def pent_up_stage(created_at: datetime, now: datetime) -> str:
@@ -571,6 +595,17 @@ def _transport_line(transport: dict | None) -> str:
     return f"signal transport: down since {since} ({transport['failed']} failed)"
 
 
+def _last_signal_line(last_signal_at: str, last_signal_answered_at: str | None, now: datetime) -> str:
+    sent = parse_timestamp(last_signal_at)
+    stamp = sent.strftime("%Y-%m-%d %H:%M")
+    answered = parse_timestamp(last_signal_answered_at) if last_signal_answered_at else None
+    if answered is not None and answered >= sent:
+        delay = int((answered - sent).total_seconds() // 3600)
+        return f"last signal: {stamp} — answered after {delay}h"
+    waited = int(max(0.0, (now - sent).total_seconds()) // 3600)
+    return f"last signal: {stamp} — no reply yet ({waited}h)"
+
+
 def serialize_desire_block(
     levels: dict[str, float],
     items: list[dict],
@@ -578,6 +613,9 @@ def serialize_desire_block(
     *,
     last_interaction_at: str,
     transport: dict | None = None,
+    returned_hours: int | None = None,
+    last_signal_at: str | None = None,
+    last_signal_answered_at: str | None = None,
 ) -> str:
     now = normalize_now(now)
     last_interaction = parse_timestamp(last_interaction_at)
@@ -592,8 +630,12 @@ def serialize_desire_block(
             f"({bucket(levels['accomplishment'])})"
         ),
         f"last interaction: {last_interaction.strftime('%Y-%m-%d %H:%M')} ({since_interaction}h ago)",
-        _transport_line(transport),
     ]
+    if returned_hours is not None:
+        lines.append(f"returned: after {returned_hours}h away (one held note fits here)")
+    lines.append(_transport_line(transport))
+    if last_signal_at:
+        lines.append(_last_signal_line(last_signal_at, last_signal_answered_at, now))
     ordered = sorted(items, key=lambda item: (item.get("created_at", ""), item.get("id", "")))
     if ordered:
         lines.append(f"pent-up ({len(ordered)}):")

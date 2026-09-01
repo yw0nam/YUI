@@ -67,9 +67,10 @@ def run(now: datetime) -> str:
             )
 
         transport = desire_state.record_transport(state_dir, reachable, now)
-        outbox_summary = str(len(active))
-        if active:
-            oldest = min(desire_state.parse_timestamp(item["created_at"]) for item in active)
+        visible = desire_state.visible_outbox(active, now)
+        outbox_summary = str(len(visible))
+        if visible:
+            oldest = min(desire_state.parse_timestamp(item["created_at"]) for item in visible)
             outbox_summary += f"/{desire_state.pent_up_stage(oldest, now)}"
 
         remaining_signals = max(0, desire_state.CAPS["signals"] - budget["signals"])
@@ -81,7 +82,8 @@ def run(now: datetime) -> str:
             f"accomplishment:{desire_state.bucket(levels['accomplishment'])} "
             f"outbox:{outbox_summary} "
             f"transport:{transport['state']} "
-            f"budget:{remaining_signals}/3sig {remaining_issues}/2iss {remaining_comments}/1cmt\n"
+            f"budget:{remaining_signals}/3sig {remaining_issues}/2iss {remaining_comments}/1cmt "
+            f"day:{desire_state.wake_day(now)}\n"
         )
 
 
