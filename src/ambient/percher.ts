@@ -476,8 +476,9 @@ export function createPercher(deps: PercherDeps): Percher {
     }
     const scale = scaleFactor > 0 ? scaleFactor : 1;
     // Standing puts the feet on the host's top edge; a window the work area would clamp
-    // off that edge is no surface to walk, so the sit stays.
-    const monitor = monitorAt(monitors, pos.x, pos.y);
+    // off that edge is no surface to walk, so the sit stays. The screen is the one the feet
+    // are on — a window straddling a screen edge has its origin off every monitor.
+    const monitor = monitorAt(monitors, pos.x + anchor.x * scale, pos.y + anchor.y * scale);
     const standingY = host.y - anchor.y;
     if (!monitor || standingY < monitor.workArea.position.y / scale) {
       log.debug("stroll_skipped", { reason: "work_area" });

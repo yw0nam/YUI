@@ -508,6 +508,14 @@ describe("createPercher", () => {
       scaleFactor: 2,
       initialPos: { x: 1980, y: 1200 },
       walkMovesTo: { y: 940 },
+      // Physical bounds twice the logical ones, so the scaled window is on the screen.
+      monitors: async () => [
+        {
+          position: { x: 0, y: 0 },
+          size: { width: 6000, height: 4000 },
+          workArea: { position: { x: 0, y: 0 }, size: { width: 6000, height: 3800 } },
+        },
+      ],
       rng: seqRng(0, 1, 0),
     });
     h.percher.start();
