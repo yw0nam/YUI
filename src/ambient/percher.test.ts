@@ -803,6 +803,35 @@ describe("createPercher", () => {
     );
   });
 
+  it("falls when the window she jumped onto is gone by the time she takes the seat", async () => {
+    let reads = 0;
+    const h = makeHarness({
+      windows: async () => {
+        reads++;
+        return reads === 1 ? [HOST, NEIGHBOUR] : [HOST];
+      },
+      jumpProbability: 1,
+      rng: () => 0,
+    });
+    h.percher.start();
+
+    await h.frame();
+    await h.frame(1.1);
+
+    expect(h.calls).toEqual([
+      "suspend",
+      "avatar.walk_start",
+      "jump",
+      "abandon",
+      "avatar.jump",
+      "avatar.walk_end",
+      "target_lost",
+    ]);
+    expect(h.onTargetLost).toHaveBeenCalledTimes(1);
+    expect(h.adoptSit).not.toHaveBeenCalled();
+    expect(h.setBodyYaw).toHaveBeenLastCalledWith(0, 400);
+  });
+
   it("posts the walk she did not need, so a jump from the spot still reads as walking", async () => {
     const h = makeHarness({
       windows: async () => [HOST, NEIGHBOUR],
