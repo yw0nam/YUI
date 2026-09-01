@@ -561,12 +561,13 @@ export function wirePercher(deps: {
   onTargetLost: () => void;
   setHitTestMoving(moving: boolean): void;
   log: Logger;
-}): { cancel(): void; dispose(): void } {
+}): { cancel(): void; landOn(target: WindowRect): void; dispose(): void } {
   const { bus, renderer, log } = deps;
   let percher: Percher | null = null;
   let disposed = false;
   const handle = {
     cancel: () => percher?.cancel(),
+    landOn: (target: WindowRect) => percher?.landOn(target),
     dispose: () => {
       disposed = true;
       percher?.stop();
@@ -674,6 +675,8 @@ export function wireFaller(deps: {
   getGestureCues: () => GestureCuesConfig;
   /** Keep the hit-test cursor mapping accurate while the window translates. */
   setHitTestMoving: (moving: boolean) => void;
+  /** She came down on a foreign window top — the perch loop takes it from there. */
+  onWindowLand: (target: WindowRect) => void;
   log: Logger;
 }): { drop(): void; cancel(): void; dispose(): void } {
   const { bus, renderer, log } = deps;
@@ -689,6 +692,7 @@ export function wireFaller(deps: {
   };
   if (!isTauri()) return handle;
   void (async () => {
+    const { invoke } = await import("@tauri-apps/api/core");
     const { availableMonitors, getCurrentWindow } = await import("@tauri-apps/api/window");
     const { PhysicalPosition } = await import("@tauri-apps/api/dpi");
     if (disposed) return;
@@ -712,19 +716,27 @@ export function wireFaller(deps: {
         return current ? (deps.getMotionKind(current.id) ?? null) : null;
       },
       listMonitors: async () => (await availableMonitors()).map(toScreenMonitor),
+      listWindows: () => invoke("list_windows") as Promise<WindowRect[]>,
       getConfig: deps.getFallConfig,
       getFloorTolerancePx: deps.getFloorTolerancePx,
       onStart: () => deps.setHitTestMoving(true),
       onEnd: () => deps.setHitTestMoving(false),
-      onLand: (heightPx) => {
+      onLand: ({ heightPx, surface }) => {
+        const target = surface.kind === "window" ? surface.target : null;
         bus.push({
           source: "os_event_watcher",
           event_name: "user.fall_land",
           ts: Date.now(),
           hint_tier: 1,
           dnd_override: true,
-          payload: { height_px: Math.round(heightPx) },
+          payload: {
+            height_px: Math.round(heightPx),
+            landed_on: surface.kind,
+            app: target?.ownerName ?? null,
+            window_title: target?.name ?? null,
+          },
         });
+        if (target) deps.onWindowLand(target);
       },
       onCue: (heightPx) => {
         const cue = deps.getGestureCues().dropped;

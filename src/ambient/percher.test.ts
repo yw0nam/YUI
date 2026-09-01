@@ -984,7 +984,7 @@ describe("createPercher", () => {
   it("takes the seat on the window a fall came down on", async () => {
     // Standing on the neighbour's top edge at x 1700, where the fall left her.
     const h = makeHarness({
-      windows: async () => [NEIGHBOUR],
+      windows: async () => [HOST, NEIGHBOUR],
       initialPos: { x: 1500, y: 480 },
       armed: false,
     });
@@ -1003,7 +1003,7 @@ describe("createPercher", () => {
     h.walkTo.mockClear();
     await h.frame(0.5);
     expect(h.walkTo).not.toHaveBeenCalled();
-    await h.frame(0.6);
+    await h.frame(2);
     expect(h.walkTo).toHaveBeenCalled();
   });
 

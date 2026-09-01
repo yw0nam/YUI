@@ -22,7 +22,7 @@ import {
   STT_API_KEY_SECRET,
   TTS_API_KEY_SECRET,
 } from "./config";
-import type { EndpointsConfig } from "./contract";
+import type { EndpointsConfig, WindowRect } from "./contract";
 import { createBackendCaller, isChatConfigured } from "./dispatcher/backend-caller";
 import { createDispatcher, type Dispatcher } from "./dispatcher/dispatcher";
 import type { EventBus } from "./dispatcher/event-bus";
@@ -486,7 +486,11 @@ const realFactories: ConfiguredBootstrapFactories = {
       }),
     );
 
-    // A drag release that lands mid-air drops her to the floor; the user outranks it.
+    // Set once each loop exists — the drop source and the faller are built before them.
+    let climberRef: { cancel(): void } | null = null;
+    let percherRef: { cancel(): void; landOn(target: WindowRect): void } | null = null;
+
+    // A character left mid-air drops to the first surface below her; the user outranks it.
     const faller = wireFaller({
       bus,
       renderer,
@@ -495,13 +499,11 @@ const realFactories: ConfiguredBootstrapFactories = {
       getFloorTolerancePx: () => config.get().avatar.walk.floor_tolerance_px,
       getGestureCues: () => config.get().avatar.gesture_cues,
       setHitTestMoving: (moving) => hitTest.setMoving(moving),
+      onWindowLand: (target) => percherRef?.landOn(target),
       log,
     });
     register(faller.dispose);
 
-    // Set once the climber exists — the drop source is built before it and cancels it.
-    let climberRef: { cancel(): void } | null = null;
-    let percherRef: { cancel(): void } | null = null;
     const windowSources = wireWindowSources({
       bus,
       renderer,

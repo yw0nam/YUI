@@ -130,6 +130,11 @@ export interface PercherDeps {
 
 export interface Percher {
   start(): void;
+  /**
+   * A fall came down on `target` — take the seat there once the body is back on the
+   * ambient baseline. Ignored if the target is gone by the time the stack is read.
+   */
+  landOn(target: WindowRect): void;
   cancel(): void;
   stop(): void;
 }
@@ -147,6 +152,8 @@ export function createPercher(deps: PercherDeps): Percher {
   let suspendedAt: number | null = null;
   /** A walk cue is out and owes its close, whether or not a host is being watched. */
   let walkCueOpen = false;
+  /** A window a fall put her on, waiting for the body to come back before it is taken. */
+  let landing: WindowRect | null = null;
   let stroll: {
     host: WindowRect;
     nextWatchAtMs: number;
@@ -189,10 +196,20 @@ export function createPercher(deps: PercherDeps): Percher {
     dwellAtMs = nowMs + nextPerchDwell(deps.getConfig(), rng);
   }
 
+  /**
+   * Whether the body is on a clip this loop may take it from: the perch hold is its own
+   * baseline, and every other clip — its own kind included — outranks it.
+   */
+  function onBaseline(): boolean {
+    const motion = deps.currentMotion();
+    return motion !== null && (motion.kind === "ambient" || motion.id === PERCH_MOTION_ID);
+  }
+
   function cancel(): void {
     generation++;
     dwellAtMs = -1;
     starting = false;
+    landing = null;
     if (stroll) deps.walker.cancel();
     stroll = null;
     deps.jumper.cancel();
@@ -281,14 +298,38 @@ export function createPercher(deps: PercherDeps): Percher {
       deps.onTargetLost();
       return outcome;
     }
+    await settleOn(startedAt, target, plan.landingX, anchor, charHpx, scale, win, "jump");
+    return outcome;
+  }
+
+  /**
+   * Take the seat on a window top she is already standing on, whether a jump or a fall put
+   * her there: a short leg along the uncovered stretch, then the sit read from where the
+   * window actually ended up. A target that has gone by the time the stack is read leaves
+   * her standing, for the next drag or agent command to move.
+   */
+  async function settleOn(
+    startedAt: number,
+    target: WindowRect,
+    landingX: number,
+    anchor: { x: number; y: number },
+    charHpx: number,
+    scale: number,
+    win: PercherWindow,
+    from: "jump" | "fall",
+  ): Promise<void> {
     // The stack she planned against is a walk and a flight old by now; a window that has
     // slid over the target's top since then bounds this leg.
     const windows = await deps.listWindows();
-    if (!alive(startedAt)) return "cancelled";
+    if (!alive(startedAt)) return;
     const targetIndex = windows.findIndex((w) => w.windowNumber === target.windowNumber);
-    const span = uncoveredSpan(windows, targetIndex, plan.landingX);
+    if (targetIndex < 0) {
+      log.info("perch_landing_lost", { windowNumber: target.windowNumber, from });
+      return;
+    }
+    const span = uncoveredSpan(windows, targetIndex, landingX);
     const leg = planPerchStroll({
-      currentX: plan.landingX,
+      currentX: landingX,
       winLeft: span.left,
       winRight: span.right,
       charHpx,
@@ -298,6 +339,7 @@ export function createPercher(deps: PercherDeps): Percher {
     if (leg) {
       // She is standing on the target now, so the last stretch watches that window.
       const walked = await deps.walker.walkTo(leg.centerX - anchor.x, () => {
+        startWalkCue();
         stroll = {
           host: target,
           nextWatchAtMs: nowMs + PERCH_POLL_MS,
@@ -305,19 +347,20 @@ export function createPercher(deps: PercherDeps): Percher {
           watching: false,
         };
       });
-      if (!alive(startedAt)) return "cancelled";
+      if (!alive(startedAt)) return;
       stroll = null;
       // A leg that stopped short still stopped somewhere on the target's top, and the
       // seat is read from where she actually is — so she sits there rather than being
       // left standing with nothing armed and nothing scheduled to move her again.
-      if (walked !== "arrived") log.debug("jump_leg_short", { windowNumber: target.windowNumber });
+      if (walked !== "arrived") log.debug("perch_leg_short", { windowNumber: target.windowNumber });
     }
     const applied = await win.outerPosition();
-    if (!alive(startedAt)) return "cancelled";
+    if (!alive(startedAt)) return;
     const edgeLocalYpx = target.y - applied.y / scale;
-    log.info("jump_landed", {
+    log.info("perch_landed", {
       windowNumber: target.windowNumber,
       x: Math.round(applied.x / scale + anchor.x),
+      from,
     });
     // A leg that ran squares her up on its way out, but one that never started or never
     // arrived does not, and she would sit down still side-on from the jump.
@@ -327,7 +370,27 @@ export function createPercher(deps: PercherDeps): Percher {
     deps.onSit(target, edgeLocalYpx);
     deps.dropSource.adoptSit(target.windowNumber, { x: target.x, y: target.y }, charHpx, "commit");
     rearmDwell();
-    return outcome;
+  }
+
+  /** Read what the tail needs about the body and the screen, then take the seat. */
+  async function runLanding(startedAt: number, target: WindowRect): Promise<void> {
+    const anchor = deps.renderer.getCharacterAnchor();
+    const probe = deps.renderer.getPerchProbe();
+    if (!anchor || !probe) return;
+    const win = deps.getWindow();
+    const [pos, scaleFactor] = await Promise.all([win.outerPosition(), win.scaleFactor()]);
+    if (!alive(startedAt)) return;
+    const scale = scaleFactor > 0 ? scaleFactor : 1;
+    await settleOn(
+      startedAt,
+      target,
+      pos.x / scale + anchor.x,
+      anchor,
+      probe.charHpx,
+      scale,
+      win,
+      "fall",
+    );
   }
 
   async function strollOnce(): Promise<void> {
@@ -336,11 +399,8 @@ export function createPercher(deps: PercherDeps): Percher {
     if (armed?.origin !== "commit") return;
     // The same ownership order the floor stroll keeps, except that the perch hold is this
     // loop's own baseline: it holds the body for as long as the sit lasts, so waiting for it
-    // to end would mean never strolling. Every other clip, its own kind included, still wins.
-    const motion = deps.currentMotion();
-    const baseline =
-      motion !== null && (motion.kind === "ambient" || motion.id === PERCH_MOTION_ID);
-    if (reducedMotion() || deps.isBusy() || !baseline) {
+    // to end would mean never strolling.
+    if (reducedMotion() || deps.isBusy() || !onBaseline()) {
       log.debug("stroll_skipped", { reason: "gated" });
       rearmDwell();
       return;
@@ -484,6 +544,19 @@ export function createPercher(deps: PercherDeps): Percher {
     }
   }
 
+  /** Take a pending landing the moment the touchdown clip hands the body back. */
+  function beginLanding(target: WindowRect): void {
+    if (!onBaseline()) return;
+    landing = null;
+    starting = true;
+    const startedAt = generation;
+    void runLanding(startedAt, target)
+      .catch((error) => log.warn("landing_failed", { degrade: true, error: String(error) }))
+      .finally(() => {
+        if (generation === startedAt) starting = false;
+      });
+  }
+
   function tick(ctx: { elapsed: number }): void {
     nowMs = ctx.elapsed * 1000;
     if (stroll) {
@@ -491,6 +564,10 @@ export function createPercher(deps: PercherDeps): Percher {
       return;
     }
     if (starting) return;
+    if (landing) {
+      beginLanding(landing);
+      return;
+    }
     const sit = deps.dropSource.armedSit();
     if (sit?.origin !== "commit") {
       dwellAtMs = -1;
@@ -518,6 +595,11 @@ export function createPercher(deps: PercherDeps): Percher {
       stopped = false;
       dwellAtMs = -1;
       unsub = deps.renderer.onTick(tick);
+    },
+    landOn(target) {
+      if (stopped) return;
+      landing = target;
+      dwellAtMs = -1;
     },
     cancel,
     stop() {
