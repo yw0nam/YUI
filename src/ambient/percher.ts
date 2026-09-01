@@ -366,10 +366,10 @@ export function createPercher(deps: PercherDeps): Percher {
     if (!alive(startedAt)) return;
     const targetIndex = windows.findIndex((w) => w.windowNumber === target.windowNumber);
     const host = windows[targetIndex];
-    // The window she came to rest on is the one the stack has now. Closed, or slid out from
-    // under her feet, and she is over nothing — which is what the fall is for; sitting her
-    // on the rect it used to have would pin her to mid-air.
-    const lost = host === undefined ? "gone" : hasMoved(host, target) ? "moved" : null;
+    // The window she came to rest on is the one the stack has now. Closed, slid out from
+    // under her feet, or covered where she stands, and she is over nothing — which is what
+    // the fall is for; sitting her on the rect it used to have would pin her to mid-air.
+    const lost = landingLoss(windows, targetIndex, target, landingX);
     if (lost !== null) {
       log.info("perch_landing_lost", { windowNumber: target.windowNumber, from, reason: lost });
       endWalkCue();
@@ -635,9 +635,32 @@ export function createPercher(deps: PercherDeps): Percher {
   }
 
   /**
+   * Why the window she came down on is no longer a seat: closed, slid out from under her,
+   * or covered where she stands by a window raised in front of it. Null while it still
+   * holds her — the same standing room the fall measured when it picked the surface, and
+   * skipped when the width or the feet x cannot be read.
+   */
+  function landingLoss(
+    windows: WindowRect[],
+    index: number,
+    target: WindowRect,
+    feetX: number | null,
+  ): "gone" | "moved" | "covered" | null {
+    const now = index < 0 ? undefined : windows[index];
+    if (now === undefined) return "gone";
+    if (hasMoved(now, target)) return "moved";
+    const charWpx = deps.renderer.getCharacterWidthPx();
+    if (feetX === null || charWpx === null) return null;
+    const roomPx = deps.getFallConfig().land_room_frac * charWpx;
+    const span = uncoveredSpan(windows, index, feetX);
+    return feetX - roomPx < span.left || feetX + roomPx > span.right ? "covered" : null;
+  }
+
+  /**
    * Watch the window she came down on while the touchdown clip still holds the body. It is
-   * seconds long, and a window closed or dragged away in that time leaves her over nothing:
-   * the fall starts at once — `falling` outranks the clip — rather than at the clip's end.
+   * seconds long, and a window closed, dragged away or raised over her feet in that time
+   * leaves her over nothing: the fall starts at once — `falling` outranks the clip — rather
+   * than at the clip's end.
    */
   function watchLanding(): void {
     const pending = landing;
@@ -645,12 +668,15 @@ export function createPercher(deps: PercherDeps): Percher {
     pending.nextWatchAtMs = nowMs + PERCH_POLL_MS;
     pending.watching = true;
     const startedAt = generation;
-    void deps
-      .listWindows()
-      .then((windows) => {
+    const win = deps.getWindow();
+    const anchor = deps.renderer.getCharacterAnchor();
+    void Promise.all([deps.listWindows(), win.outerPosition(), win.scaleFactor()])
+      .then(([windows, pos, scaleFactor]) => {
         if (!alive(startedAt) || landing !== pending) return;
-        const now = windows.find((w) => w.windowNumber === pending.target.windowNumber);
-        const lost = now === undefined ? "gone" : hasMoved(now, pending.target) ? "moved" : null;
+        const scale = scaleFactor > 0 ? scaleFactor : 1;
+        const index = windows.findIndex((w) => w.windowNumber === pending.target.windowNumber);
+        const feetX = anchor === null ? null : pos.x / scale + anchor.x;
+        const lost = landingLoss(windows, index, pending.target, feetX);
         if (lost === null) return;
         log.info("landing_lost", { windowNumber: pending.target.windowNumber, reason: lost });
         landing = null;
