@@ -4,7 +4,13 @@ import type { MotionKind, WindowRect } from "../contract";
 import type { ScreenMonitor } from "../io/screen-geometry";
 import type { TickContext, TickFn } from "../renderer";
 import type { JumpOutcome } from "./jumper";
-import { createPercher, nextPerchDwell, type PercherDeps, planPerchStroll } from "./percher";
+import {
+  createPercher,
+  nextPerchDwell,
+  type PercherDeps,
+  planPerchStroll,
+  planStepOff,
+} from "./percher";
 
 const CFG: PerchWalkConfig = {
   dwell_min_ms: 1000,
@@ -89,6 +95,28 @@ describe("perch-walk planning", () => {
         rng: () => 0,
       }),
     ).toBeNull();
+  });
+});
+
+describe("planStepOff", () => {
+  const base = { roomPx: 80, workArea: { left: 0, right: 1728 }, rng: () => 0 };
+
+  it("leaves by the nearer edge while both stay on the screen", () => {
+    expect(planStepOff({ ...base, currentX: 1200, span: { left: 1000, right: 1500 } })).toEqual({
+      edge: "left",
+      toX: 920,
+    });
+  });
+
+  it("leaves by the far edge when the nearer one is off the screen", () => {
+    expect(planStepOff({ ...base, currentX: 100, span: { left: 50, right: 1400 } })).toEqual({
+      edge: "right",
+      toX: 1480,
+    });
+  });
+
+  it("stays on the window when neither edge leads anywhere on the screen", () => {
+    expect(planStepOff({ ...base, currentX: 100, span: { left: 50, right: 1700 } })).toBeNull();
   });
 });
 
@@ -1036,6 +1064,39 @@ describe("createPercher", () => {
     // Both edges sit 105 px away, and the tie goes to the draw.
     expect(h.walkTo).toHaveBeenCalledWith(815, expect.any(Function));
     expect(h.onStepOff).toHaveBeenCalledTimes(1);
+  });
+
+  it("steps off the far edge when the nearer one is past the work area", async () => {
+    // Perched at the right end of a window that reaches the work area's right edge.
+    const h = makeHarness({
+      windows: async () => [{ ...HOST, x: 2000, width: 1000 }],
+      initialPos: { x: 2700, y: 600 },
+      stepOffProbability: 1,
+      rng: () => 0,
+    });
+    h.percher.start();
+
+    await h.frame();
+    await h.frame(1.1);
+
+    expect(h.walkTo).toHaveBeenCalledWith(1720, expect.any(Function));
+    expect(h.onStepOff).toHaveBeenCalledTimes(1);
+  });
+
+  it("strolls instead when neither edge leads anywhere inside the work area", async () => {
+    const h = makeHarness({
+      windows: async () => [{ ...HOST, x: 0, width: 3000 }],
+      stepOffProbability: 1,
+      rng: () => 0,
+    });
+    h.percher.start();
+
+    await h.frame();
+    await h.frame(1.1);
+
+    expect(h.walkTo).toHaveBeenCalledWith(920, expect.any(Function));
+    expect(h.onStepOff).not.toHaveBeenCalled();
+    expect(h.resumeSit).toHaveBeenCalledTimes(1);
   });
 
   it("strolls as usual when a neighbour she could jump to leaves the roll unrolled", async () => {
