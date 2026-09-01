@@ -187,6 +187,8 @@ function makeHarness(
     /** false models a character with no seat — the fall took it. */
     armed?: boolean;
     stepOffProbability?: number;
+    /** null models a VRM the renderer cannot project yet. */
+    anchor?: () => { x: number; y: number } | null;
   } = {},
 ) {
   let tick: TickFn | null = null;
@@ -273,7 +275,7 @@ function makeHarness(
           tick = null;
         };
       },
-      getCharacterAnchor: () => ({ x: 200, y: 420 }),
+      getCharacterAnchor: over.anchor ?? (() => ({ x: 200, y: 420 })),
       getPerchProbe: () => ({ seatPx: { x: 200, y: 300 }, charHpx: 500 }),
       getCharacterWidthPx: () => (over.charWpx === undefined ? 160 : over.charWpx),
       setBodyYaw,
@@ -1156,6 +1158,25 @@ describe("createPercher", () => {
     expect(h.walkTo).not.toHaveBeenCalled();
     await h.frame(2);
     expect(h.walkTo).toHaveBeenCalled();
+  });
+
+  it("keeps a landing whose body reads are not ready and takes it on the next tick", async () => {
+    let reads = 0;
+    const h = makeHarness({
+      windows: async () => [HOST, NEIGHBOUR],
+      initialPos: { x: 1500, y: 480 },
+      armed: false,
+      anchor: () => (++reads === 1 ? null : { x: 200, y: 420 }),
+    });
+    h.percher.start();
+
+    h.percher.landOn(NEIGHBOUR);
+    await h.frame();
+    expect(h.adoptSit).not.toHaveBeenCalled();
+
+    await h.frame();
+
+    expect(h.adoptSit).toHaveBeenCalledWith(7, { x: 1560, y: 900 }, 500, "commit");
   });
 
   it("takes the seat without a walk when the user asked for no motion", async () => {
