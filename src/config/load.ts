@@ -126,6 +126,8 @@ export interface PerchWalkConfig {
   distance_min_px: number;
   distance_max_px: number;
   edge_margin_frac: number;
+  /** Height difference within which a neighbouring window top is one ledge with the host's. */
+  level_tolerance_px: number;
 }
 
 export const PERCH_WALK_DEFAULTS: PerchWalkConfig = {
@@ -134,6 +136,7 @@ export const PERCH_WALK_DEFAULTS: PerchWalkConfig = {
   distance_min_px: 80,
   distance_max_px: 400,
   edge_margin_frac: 0.2,
+  level_tolerance_px: 8,
 };
 
 /** Fall dynamics and the surfaces a fall stops on. Distances and speeds are logical px. */

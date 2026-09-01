@@ -51,9 +51,20 @@ export function pickJumpTarget(args: {
   jumpCfg: JumpConfig;
   /** Highest window top she can stand on: the work-area top plus the feet offset. */
   minStandingTop: number;
+  /** Height difference within which a touching neighbour is walked across instead. */
+  levelTolerancePx: number;
 }): JumpPlan | null {
-  const { windows, hostIndex, currentX, charHpx, charWpx, perchCfg, jumpCfg, minStandingTop } =
-    args;
+  const {
+    windows,
+    hostIndex,
+    currentX,
+    charHpx,
+    charWpx,
+    perchCfg,
+    jumpCfg,
+    minStandingTop,
+    levelTolerancePx,
+  } = args;
   const host = windows[hostIndex];
   if (!host) return null;
   const margin = perchCfg.edge_margin_frac * charHpx;
@@ -74,6 +85,9 @@ export function pickJumpTarget(args: {
     const toLeft = host.x - (candidate.x + candidate.width);
     const side = toRight >= toLeft ? "right" : "left";
     const gap = Math.max(0, side === "right" ? toRight : toLeft);
+    // A neighbour level with the host and touching it is one ledge with it: she walks
+    // across the seam on the stroll, so the jump leaves it to the next-best candidate.
+    if (rise <= levelTolerancePx && gap === 0) continue;
     if (gap > jumpCfg.gap_max_width_frac * charWpx) continue;
     if (best && (gap > best.gap || (gap === best.gap && rise >= best.rise))) continue;
 

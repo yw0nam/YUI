@@ -22,6 +22,7 @@ const PERCH_CFG: PerchWalkConfig = {
   distance_min_px: 80,
   distance_max_px: 400,
   edge_margin_frac: 0.2,
+  level_tolerance_px: 8,
 };
 
 const CHAR_HPX = 500;
@@ -54,6 +55,7 @@ function pick(front: WindowRect[], over: Partial<Parameters<typeof pickJumpTarge
     perchCfg: PERCH_CFG,
     jumpCfg: CFG,
     minStandingTop: 0,
+    levelTolerancePx: 8,
     ...over,
   });
 }
@@ -86,7 +88,7 @@ describe("pickJumpTarget — reach", () => {
   it("hops across a window overlapping the host from in front", () => {
     // Its near edge is where the host's walkable top stops, so both ends step a margin
     // off that line: a short hop of two margins onto the window covering her own.
-    const over = win({ x: 1400, windowNumber: 7 });
+    const over = win({ x: 1400, y: HOST.y - 20, windowNumber: 7 });
     expect(pick([over])).toEqual({
       target: over,
       side: "right",
@@ -97,7 +99,7 @@ describe("pickJumpTarget — reach", () => {
 
   it("hops onto a window the host itself overlaps", () => {
     // The host covers the near part of its top, so she comes down past the host's edge.
-    const under = win({ x: 1400, windowNumber: 7 });
+    const under = win({ x: 1400, y: HOST.y + 20, windowNumber: 7 });
     expect(pick([], { windows: [HOST, under], hostIndex: 0 })).toEqual({
       target: under,
       side: "right",
@@ -144,6 +146,28 @@ describe("pickJumpTarget — reachability", () => {
     // which leaves the neighbour no uncovered stretch there at all.
     const cover = win({ x: 1600, y: 500, height: 500, windowNumber: 8 });
     expect(pick([cover, target])).toBeNull();
+  });
+});
+
+describe("pickJumpTarget — walkable neighbours", () => {
+  it("leaves a level touching neighbour to the stroll and offers the next one", () => {
+    const walkable = win({ x: 1500, windowNumber: 7 });
+    const across = win({ x: 540, windowNumber: 8 });
+    expect(pick([walkable, across])?.target.windowNumber).toBe(8);
+  });
+
+  it("jumps to that neighbour once its top drops a tolerance and a pixel", () => {
+    expect(pick([win({ x: 1500, windowNumber: 7 })])).toBeNull();
+    expect(pick([win({ x: 1500, y: HOST.y + 9, windowNumber: 7 })])?.target.windowNumber).toBe(7);
+  });
+
+  it("leaves it to the stroll even where a covered seam keeps the stroll off it", () => {
+    const walkable = win({ x: 1500, windowNumber: 7 });
+    // Straddles the seam at 1500 and stops the ledge at the host's own edge, so the walk
+    // across never happens. The neighbour still keeps landing room past the cover, and
+    // the jump still leaves it alone: she would come down beside a window in front of her.
+    const seam = win({ x: 1450, y: 500, width: 110, height: 500, windowNumber: 9 });
+    expect(pick([seam, walkable])).toBeNull();
   });
 });
 

@@ -69,6 +69,7 @@ describe("loadConfig — happy path", () => {
         distance_min_px: 80,
         distance_max_px: 400,
         edge_margin_frac: 0.2,
+        level_tolerance_px: 8,
       },
       fall: {
         gravity_px_s2: 1600,

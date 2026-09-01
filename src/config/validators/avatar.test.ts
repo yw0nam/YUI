@@ -60,6 +60,7 @@ describe("validateAvatar — happy path", () => {
         distance_min_px: 80,
         distance_max_px: 400,
         edge_margin_frac: 0.2,
+        level_tolerance_px: 8,
       },
       fall: {
         gravity_px_s2: 1600,
@@ -595,6 +596,7 @@ describe("validateAvatar — perch_walk", () => {
       distance_min_px: 80,
       distance_max_px: 400,
       edge_margin_frac: 0.2,
+      level_tolerance_px: 8,
     });
   });
 
@@ -602,7 +604,7 @@ describe("validateAvatar — perch_walk", () => {
     expect(
       validateAvatar(FILE, {
         vrm_url: "/v.vrm",
-        perch_walk: { dwell_min_ms: 10_000, distance_max_px: 240 },
+        perch_walk: { dwell_min_ms: 10_000, distance_max_px: 240, level_tolerance_px: 0 },
       }).perch_walk,
     ).toEqual({
       dwell_min_ms: 10_000,
@@ -610,6 +612,7 @@ describe("validateAvatar — perch_walk", () => {
       distance_min_px: 80,
       distance_max_px: 240,
       edge_margin_frac: 0.2,
+      level_tolerance_px: 0,
     });
   });
 
@@ -624,6 +627,8 @@ describe("validateAvatar — perch_walk", () => {
     ["distance_max_px", Number.POSITIVE_INFINITY],
     ["edge_margin_frac", -0.1],
     ["edge_margin_frac", 1.1],
+    ["level_tolerance_px", -1],
+    ["level_tolerance_px", "8"],
   ])("rejects invalid %s: %s", (field, value) => {
     expectIssue({ vrm_url: "/v.vrm", perch_walk: { [field]: value } }, `perch_walk.${field}`);
   });
