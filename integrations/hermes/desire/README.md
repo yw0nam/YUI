@@ -55,8 +55,8 @@ interaction time in `drives.json`, then `signal transport: up`, `signal transpor
 
 `returned: after Nh away (one held note fits here)` follows the interaction line on a user-message turn that is the
 first one since the ingress was unreachable — the transport is `down`, or it is `up` with a `since` later than the
-interaction time. That turn also records the transport as `up` with `source: user-turn`, and the interaction commit
-makes the next turn an ordinary one.
+interaction time. That turn also records the transport as `up` with `source: user-turn`, and moves the interaction
+time to itself whatever the gap, so the next turn is an ordinary one.
 
 `last signal: YYYY-MM-DD HH:MM — answered after Nh` follows the transport line once a signal has been delivered and
 a user turn has followed it; until then the same line reads `— no reply yet (Nh)`. The line is absent while
@@ -156,7 +156,8 @@ delivery, 1 when blocked or failed, and 3 for an unknown id.
 
 One pent-up note takes one disposition: `outbox --repeat <id>` keeps it as it is, `outbox --reword <id> --note
 "<text>"` replaces its text in place and keeps its `id`, `created_at`, and `attempts`, `outbox --postpone <id>
-[--until <hours>]` (default 24) hides it until then, and `outbox --release <id>` drops it. All four take a required
+[--until <hours>]` hides it until then (default 24, from more than 0 up to 8760), and `outbox --release <id>`
+drops it. All four take a required
 `--why`, act on active items, append an `outbox_disposition` audit event, exit 2 when `--why` (or `--note` with
 `--reword`) is missing, and exit 3 for an unknown id. Issue and comment actions use reserve,
 commit, and release commands so external `gh` calls do not hold the state lock. Pending reservations survive

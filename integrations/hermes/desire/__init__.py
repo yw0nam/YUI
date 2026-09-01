@@ -208,11 +208,11 @@ def _rewrite(kwargs, event):
     if interaction and drives.get("last_interaction_hash") != text_hash:
         staged_drives["last_interaction_hash"] = text_hash
         last_interaction = desire_state.parse_timestamp(drives["last_interaction_at"])
-        if now - last_interaction > timedelta(minutes=5):
-            staged_drives["last_interaction_at"] = now.astimezone(KST).isoformat()
         interaction_changed = True
         if _returned(transport, last_interaction):
             returned_hours = _whole_hours(last_interaction, now)
+        if returned_hours is not None or now - last_interaction > timedelta(minutes=5):
+            staged_drives["last_interaction_at"] = now.astimezone(KST).isoformat()
         if _answers_signal(drives, now):
             staged_drives["last_signal_answered_at"] = now.astimezone(KST).isoformat()
 
@@ -238,10 +238,12 @@ def _rewrite(kwargs, event):
             current_drives = committed_state["drives"]
             if current_drives.get("last_interaction_hash") != text_hash:
                 answers = _answers_signal(current_drives, now)
+                current_transport = desire_state.read_transport(state_dir)
+                last_interaction = desire_state.parse_timestamp(current_drives["last_interaction_at"])
+                returns = returned_hours is not None and _returned(current_transport, last_interaction)
                 drives_to_write = copy.deepcopy(current_drives)
                 drives_to_write["last_interaction_hash"] = text_hash
-                last_interaction = desire_state.parse_timestamp(current_drives["last_interaction_at"])
-                if now - last_interaction > timedelta(minutes=5):
+                if returns or now - last_interaction > timedelta(minutes=5):
                     drives_to_write["last_interaction_at"] = now.isoformat()
                 if answers:
                     drives_to_write["last_signal_answered_at"] = now.isoformat()
@@ -257,17 +259,17 @@ def _rewrite(kwargs, event):
                             "delay_hours": _whole_hours(signal_at, now),
                         },
                     )
-                if returned_hours is not None:
-                    if transport["state"] == "down":
+                if returns:
+                    if current_transport["state"] == "down":
                         desire_state.record_transport(state_dir, True, now, source="user-turn")
                     desire_state.append_jsonl(
                         state_dir / "audit.jsonl",
                         {
                             "at": now.isoformat(),
                             "event": "returned",
-                            "away_hours": returned_hours,
+                            "away_hours": _whole_hours(last_interaction, now),
                             "pent_up": len(included_ids),
-                            "transport_before": transport["state"],
+                            "transport_before": current_transport["state"],
                         },
                     )
 

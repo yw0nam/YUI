@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import math
 import os
 import sys
 import uuid
@@ -345,18 +346,21 @@ def main(argv=None, *, now=None, opener=urllib_request.urlopen):
         return _feedback("get" if args.get else "set", args.set, now)
     if args.list:
         return _outbox_list(now)
-    if args.send:
+    if args.send is not None:
         return _outbox_send(args.send, now, opener)
     kind, item_id = next(
         (name, getattr(args, name))
         for name in ("repeat", "reword", "postpone", "release")
-        if getattr(args, name)
+        if getattr(args, name) is not None
     )
     if not args.why:
         print("--why is required for an outbox disposition", file=sys.stderr)
         return 2
     if kind == "reword" and not args.note:
         print("--note is required with --reword", file=sys.stderr)
+        return 2
+    if kind == "postpone" and not (math.isfinite(args.until) and 0 < args.until <= 8760):
+        print("--until must be between 0 and 8760 hours", file=sys.stderr)
         return 2
     return _outbox_disposition(kind, item_id, args.why, args.note, args.until, now)
 
