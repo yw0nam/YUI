@@ -255,6 +255,8 @@ export function createPercher(deps: PercherDeps): Percher {
     surfaces: WindowRect[];
     /** The surface last found under her feet, as it was when the ledge was measured. */
     under: WindowRect;
+    /** The leg walks off the ledge on purpose, so an empty patch under the feet is the plan. */
+    stepOff: boolean;
     nextWatchAtMs: number;
     lostStreak: number;
     watching: boolean;
@@ -367,6 +369,9 @@ export function createPercher(deps: PercherDeps): Percher {
         const feetX = pos.x / scale + anchor.x;
         const under = underFeet(windows, active.surfaces, feetX);
         if (!under) {
+          // The last stretch of a step-off is past the ledge's outer edge, where there is
+          // no surface by construction; the arrival hands her to the fall.
+          if (active.stepOff) return;
           loseHost(startedAt, active.under);
           return;
         }
@@ -504,6 +509,7 @@ export function createPercher(deps: PercherDeps): Percher {
         stroll = {
           surfaces: [host],
           under: host,
+          stepOff: false,
           nextWatchAtMs: nowMs + PERCH_POLL_MS,
           lostStreak: 0,
           watching: false,
@@ -670,6 +676,7 @@ export function createPercher(deps: PercherDeps): Percher {
         stroll = {
           surfaces: ledge.surfaces,
           under: host,
+          stepOff: stepOff !== null,
           nextWatchAtMs: nowMs + PERCH_POLL_MS,
           lostStreak: 0,
           watching: false,
@@ -726,24 +733,27 @@ export function createPercher(deps: PercherDeps): Percher {
       endWalkCue();
       if (!accepted) log.debug("stroll_skipped", { reason: "not_accepted" });
       // Which of the ledge's windows the leg left her over decides the seat: the host she
-      // started on, a surface across a seam, or nothing at all.
+      // started on, a surface across a seam, or nothing at all. A step-off that did not get
+      // away is none of those — her feet read out past the ledge, and the host is hers.
       const [applied, arrived] = await Promise.all([win.outerPosition(), deps.listWindows()]);
       if (!alive(startedAt)) return;
       const appliedX = applied.x / scale + anchor.x;
-      const under = underFeet(arrived, ledge.surfaces, appliedX);
-      if (!under) {
-        loseHost(startedAt, host);
-        return;
-      }
-      if (under.fresh.windowNumber !== host.windowNumber) {
-        abandonSuspension();
-        log.info("perch_crossed", {
-          from: host.windowNumber,
-          to: under.fresh.windowNumber,
-          x: Math.round(appliedX),
-        });
-        commitSit(under.fresh, applied.y / scale, probe.charHpx);
-        return;
+      if (!stepOff) {
+        const under = underFeet(arrived, ledge.surfaces, appliedX);
+        if (!under) {
+          loseHost(startedAt, host);
+          return;
+        }
+        if (under.fresh.windowNumber !== host.windowNumber) {
+          abandonSuspension();
+          log.info("perch_crossed", {
+            from: host.windowNumber,
+            to: under.fresh.windowNumber,
+            x: Math.round(appliedX),
+          });
+          commitSit(under.fresh, applied.y / scale, probe.charHpx);
+          return;
+        }
       }
       const edgeLocalYpx = host.y - applied.y / scale;
       suspendedAt = null;
