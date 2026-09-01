@@ -135,6 +135,7 @@ def test_signal_post_failure_refunds_and_queues_error(state_dir, at, state_helpe
         "since": now.isoformat(),
         "failed": 1,
         "last_checked_at": now.isoformat(),
+        "source": "delivery",
     }
 
 
@@ -149,6 +150,7 @@ def test_signal_success_records_transport_up(state_dir, at, state_helpers):
         "since": now.isoformat(),
         "failed": 0,
         "last_checked_at": now.isoformat(),
+        "source": "delivery",
     }
 
 
@@ -218,6 +220,7 @@ def test_outbox_send_failure_updates_the_same_item_in_place(state_dir, at, state
         "since": now.isoformat(),
         "failed": 1,
         "last_checked_at": now.isoformat(),
+        "source": "delivery",
     }
 
     assert act.main(["outbox", "--send", "legacy"], now=now, opener=failing) == 1
@@ -437,7 +440,7 @@ def test_outbox_release_unknown_id_exits_three(state_dir, at, capsys):
     now = at("2026-08-25T12:00:00+09:00")
     desire_state.bootstrap(now)
 
-    assert act.main(["outbox", "--release", "missing"], now=now) == 3
+    assert act.main(["outbox", "--release", "missing", "--why", "gone"], now=now) == 3
     assert capsys.readouterr().err.strip() == "unknown outbox item"
 
 
@@ -445,7 +448,7 @@ def test_outbox_list_and_release_are_mutually_exclusive(state_dir, at):
     import pytest
 
     with pytest.raises(SystemExit):
-        act.main(["outbox", "--list", "--release", "x"], now=at("2026-08-25T12:00:00+09:00"))
+        act.main(["outbox", "--list", "--release", "x", "--why", "both"], now=at("2026-08-25T12:00:00+09:00"))
 
 
 def test_outbox_release_preserves_malformed_lines_and_leaves_others_untouched(state_dir, at):
@@ -459,7 +462,7 @@ def test_outbox_release_preserves_malformed_lines_and_leaves_others_untouched(st
     )
     (state_dir / "outbox.jsonl").write_text(f"{valid_a}\n{{malformed}}\n{valid_b}\n", encoding="utf-8")
 
-    assert act.main(["outbox", "--release", "a"], now=now) == 0
+    assert act.main(["outbox", "--release", "a", "--why", "no longer true"], now=now) == 0
 
     lines = (state_dir / "outbox.jsonl").read_text(encoding="utf-8").splitlines()
     assert lines == ["{malformed}", valid_b]
@@ -516,6 +519,7 @@ def test_http_error_status_does_not_mark_transport_down(state_dir, at, state_hel
         "since": now.isoformat(),
         "failed": 0,
         "last_checked_at": now.isoformat(),
+        "source": "delivery",
     }
 
 
@@ -590,3 +594,193 @@ def test_outbox_send_failure_after_concurrent_release_audits_without_outbox_id(
     failed = [event for event in read_jsonl(state_dir / "audit.jsonl") if event["event"] == "signal_failed"]
     assert len(failed) == 1
     assert "outbox_id" not in failed[0]
+
+
+def test_signal_success_stamps_last_signal_at(state_dir, at, state_helpers):
+    _, _, read_json, _ = state_helpers
+    now = at("2026-08-25T12:00:00+09:00")
+
+    assert act.main(["signal", "--note", "hello"], now=now, opener=lambda *a, **k: Response()) == 0
+
+    assert read_json(state_dir / "drives.json")["last_signal_at"] == now.isoformat()
+
+
+def test_failed_signal_leaves_last_signal_at_empty(state_dir, at, state_helpers):
+    _, _, read_json, _ = state_helpers
+    now = at("2026-08-25T12:00:00+09:00")
+
+    def failing(*args, **kwargs):
+        raise URLError("offline")
+
+    assert act.main(["signal", "--note", "try later"], now=now, opener=failing) == 1
+
+    assert read_json(state_dir / "drives.json")["last_signal_at"] is None
+
+
+def test_outbox_send_success_stamps_last_signal_at(state_dir, at, state_helpers):
+    _, write_jsonl, read_json, _ = state_helpers
+    now = at("2026-08-25T12:00:00+09:00")
+    desire_state.bootstrap(now)
+    write_jsonl(state_dir / "outbox.jsonl", [pent_up("one", now)])
+
+    assert act.main(["outbox", "--send", "one"], now=now, opener=lambda *a, **k: Response()) == 0
+
+    drives = read_json(state_dir / "drives.json")
+    assert drives["last_signal_at"] == now.isoformat()
+    assert drives["last_signal_answered_at"] is None
+
+
+def test_delivery_records_transport_with_the_delivery_source(state_dir, at, state_helpers):
+    _, _, read_json, _ = state_helpers
+    now = at("2026-08-25T12:00:00+09:00")
+
+    assert act.main(["signal", "--note", "hello"], now=now, opener=lambda *a, **k: Response()) == 0
+
+    assert read_json(state_dir / "transport.json")["source"] == "delivery"
+
+
+def test_outbox_repeat_keeps_the_item_unchanged_and_audits(state_dir, at, state_helpers):
+    _, write_jsonl, _, read_jsonl = state_helpers
+    now = at("2026-08-25T12:00:00+09:00")
+    desire_state.bootstrap(now)
+    stored = pent_up("one", now, attempts=2, last_failed_at=now.isoformat())
+    write_jsonl(state_dir / "outbox.jsonl", [stored])
+
+    assert act.main(["outbox", "--repeat", "one", "--why", "still true"], now=now) == 0
+
+    assert read_jsonl(state_dir / "outbox.jsonl") == [stored]
+    assert read_jsonl(state_dir / "audit.jsonl")[-1] == {
+        "at": now.isoformat(),
+        "event": "outbox_disposition",
+        "id": "one",
+        "kind": "repeat",
+        "why": "still true",
+    }
+
+
+def test_outbox_reword_replaces_only_the_note(state_dir, at, state_helpers):
+    _, write_jsonl, _, read_jsonl = state_helpers
+    created = at("2026-08-25T06:00:00+09:00")
+    now = at("2026-08-25T12:00:00+09:00")
+    desire_state.bootstrap(now)
+    write_jsonl(state_dir / "outbox.jsonl", [pent_up("one", created, attempts=2, last_failed_at=None)])
+
+    result = act.main(
+        ["outbox", "--reword", "one", "--note", "said again", "--why", "the return already happened"],
+        now=now,
+    )
+
+    assert result == 0
+    assert read_jsonl(state_dir / "outbox.jsonl") == [
+        pent_up("one", created, "said again", attempts=2, last_failed_at=None)
+    ]
+    assert read_jsonl(state_dir / "audit.jsonl")[-1] == {
+        "at": now.isoformat(),
+        "event": "outbox_disposition",
+        "id": "one",
+        "kind": "reword",
+        "why": "the return already happened",
+    }
+
+
+def test_outbox_postpone_hides_the_item_from_list_and_send_until_not_before(
+    state_dir, at, state_helpers, capsys
+):
+    _, write_jsonl, _, read_jsonl = state_helpers
+    now = at("2026-08-25T12:00:00+09:00")
+    desire_state.bootstrap(now)
+    write_jsonl(state_dir / "outbox.jsonl", [pent_up("one", now)])
+    until = now + timedelta(hours=2)
+
+    result = act.main(["outbox", "--postpone", "one", "--until", "2", "--why", "not the moment"], now=now)
+
+    assert result == 0
+    stored = read_jsonl(state_dir / "outbox.jsonl")[0]
+    assert stored == {**pent_up("one", now), "not_before": until.isoformat()}
+    assert read_jsonl(state_dir / "audit.jsonl")[-1] == {
+        "at": now.isoformat(),
+        "event": "outbox_disposition",
+        "id": "one",
+        "kind": "postpone",
+        "why": "not the moment",
+        "until": until.isoformat(),
+    }
+
+    assert act.main(["outbox", "--list"], now=now) == 0
+    assert json.loads(capsys.readouterr().out) == []
+    assert act.main(["outbox", "--send", "one"], now=now, opener=lambda *a, **k: Response()) == 3
+    assert capsys.readouterr().err.strip() == "unknown outbox item"
+
+    assert act.main(["outbox", "--list"], now=until) == 0
+    assert [value["id"] for value in json.loads(capsys.readouterr().out)] == ["one"]
+    assert act.main(["outbox", "--send", "one"], now=until, opener=lambda *a, **k: Response()) == 0
+
+
+def test_outbox_postpone_defaults_to_twenty_four_hours(state_dir, at, state_helpers):
+    _, write_jsonl, _, read_jsonl = state_helpers
+    now = at("2026-08-25T12:00:00+09:00")
+    desire_state.bootstrap(now)
+    write_jsonl(state_dir / "outbox.jsonl", [pent_up("one", now)])
+
+    assert act.main(["outbox", "--postpone", "one", "--why", "tomorrow"], now=now) == 0
+
+    assert read_jsonl(state_dir / "outbox.jsonl")[0]["not_before"] == (now + timedelta(hours=24)).isoformat()
+
+
+def test_outbox_release_audits_the_disposition_and_the_release(state_dir, at, state_helpers):
+    _, write_jsonl, _, read_jsonl = state_helpers
+    now = at("2026-08-25T12:00:00+09:00")
+    desire_state.bootstrap(now)
+    write_jsonl(state_dir / "outbox.jsonl", [pent_up("one", now)])
+
+    assert act.main(["outbox", "--release", "one", "--why", "he said it first"], now=now) == 0
+
+    assert read_jsonl(state_dir / "outbox.jsonl") == []
+    events = [value for value in read_jsonl(state_dir / "audit.jsonl") if value["event"].startswith("outbox")]
+    assert events == [
+        {
+            "at": now.isoformat(),
+            "event": "outbox_disposition",
+            "id": "one",
+            "kind": "release",
+            "why": "he said it first",
+        },
+        {"at": now.isoformat(), "event": "outbox_released", "id": "one", "why": "he said it first"},
+    ]
+
+
+def test_every_disposition_requires_a_reason(state_dir, at, capsys):
+    now = at("2026-08-25T12:00:00+09:00")
+    desire_state.bootstrap(now)
+
+    for kind in ("--repeat", "--reword", "--postpone", "--release"):
+        assert act.main(["outbox", kind, "one"], now=now) == 2
+        assert capsys.readouterr().err.strip() == "--why is required for an outbox disposition"
+
+    assert act.main(["outbox", "--reword", "one", "--why", "different words"], now=now) == 2
+    assert capsys.readouterr().err.strip() == "--note is required with --reword"
+
+
+def test_every_disposition_exits_three_for_an_unknown_id(state_dir, at, capsys):
+    now = at("2026-08-25T12:00:00+09:00")
+    desire_state.bootstrap(now)
+    arguments = {
+        "--repeat": [],
+        "--reword": ["--note", "again"],
+        "--postpone": [],
+        "--release": [],
+    }
+
+    for kind, extra in arguments.items():
+        assert act.main(["outbox", kind, "missing", *extra, "--why", "gone"], now=now) == 3
+        assert capsys.readouterr().err.strip() == "unknown outbox item"
+
+
+def test_dispositions_are_mutually_exclusive(state_dir, at):
+    import pytest
+
+    with pytest.raises(SystemExit):
+        act.main(
+            ["outbox", "--repeat", "a", "--postpone", "a", "--why", "both"],
+            now=at("2026-08-25T12:00:00+09:00"),
+        )
