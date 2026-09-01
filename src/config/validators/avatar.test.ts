@@ -694,15 +694,17 @@ describe("validateAvatar — fall", () => {
     expectIssue({ vrm_url: "/v.vrm", fall: { cue_cooldown_ms } }, "fall.cue_cooldown_ms는 0 이상");
   });
 
-  it.each([-0.1, 1.5, "0.1", Number.NaN])(
-    "rejects a step_off_probability outside [0, 1]: %s",
-    (step_off_probability) => {
-      expectIssue(
-        { vrm_url: "/v.vrm", fall: { step_off_probability } },
-        "fall.step_off_probability는 [0, 1]",
-      );
-    },
-  );
+  it.each([
+    -0.1,
+    1.5,
+    "0.1",
+    Number.NaN,
+  ])("rejects a step_off_probability outside [0, 1]: %s", (step_off_probability) => {
+    expectIssue(
+      { vrm_url: "/v.vrm", fall: { step_off_probability } },
+      "fall.step_off_probability는 [0, 1]",
+    );
+  });
 
   it("accepts the boundary step-off probabilities", () => {
     expect(

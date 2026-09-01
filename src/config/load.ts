@@ -136,7 +136,7 @@ export const PERCH_WALK_DEFAULTS: PerchWalkConfig = {
   edge_margin_frac: 0.2,
 };
 
-/** Drag-release fall dynamics. Distances and speeds are logical px. */
+/** Fall dynamics and the surfaces a fall stops on. Distances and speeds are logical px. */
 export interface FallConfig {
   /** Downward acceleration while the character falls. */
   gravity_px_s2: number;
@@ -146,6 +146,10 @@ export interface FallConfig {
   min_drop_frac: number;
   /** Cooldown (ms) between drop speech candidates. */
   cue_cooldown_ms: number;
+  /** Standing room either side of the fall a window top needs to catch it, in character widths. */
+  land_room_frac: number;
+  /** Chance a perched stroll with no jumpable neighbour walks off the edge instead. */
+  step_off_probability: number;
 }
 
 export const FALL_DEFAULTS: FallConfig = {
@@ -153,6 +157,8 @@ export const FALL_DEFAULTS: FallConfig = {
   max_speed_px_s: 1200,
   min_drop_frac: 0.2,
   cue_cooldown_ms: 60_000,
+  land_room_frac: 0.5,
+  step_off_probability: 0.1,
 };
 
 /** Ambient window-climb knobs. Fractions are multiples of the on-screen character height. */

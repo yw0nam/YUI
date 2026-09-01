@@ -17,6 +17,8 @@ const CFG: FallConfig = {
   max_speed_px_s: 1800,
   min_drop_frac: 0.2,
   cue_cooldown_ms: 60_000,
+  land_room_frac: 0.5,
+  step_off_probability: 0,
 };
 
 /** Floor tolerance shared with the walker's grounded test. */
