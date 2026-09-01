@@ -950,3 +950,69 @@ def test_a_postponed_note_is_hidden_from_the_desire_block(desire_plugin, state_d
 
     due = appended_block(desire_plugin._inject(request=request_with("hello"), now=now + timedelta(hours=1)))
     assert "pent-up (2):" in due
+
+
+def test_a_return_inside_the_debounce_window_is_committed_once(desire_plugin, state_dir, at, state_helpers):
+    _, _, read_json, _ = state_helpers
+    now = at("2026-08-25T12:00:00+09:00")
+    seed_drives(state_dir, now, state_helpers, social_hours=0)
+    transport_file(state_dir, state_helpers, "down", now + timedelta(minutes=2))
+
+    first = appended_block(
+        desire_plugin._inject(
+            request=request_with(context("trigger: user message")), now=now + timedelta(minutes=4)
+        )
+    )
+
+    assert "returned: after 0h away (one held note fits here)" in first
+    assert (
+        read_json(state_dir / "drives.json")["last_interaction_at"]
+        == (now + timedelta(minutes=4)).isoformat()
+    )
+
+    second = appended_block(
+        desire_plugin._inject(
+            request=request_with(context("trigger: user message", "again")), now=now + timedelta(minutes=6)
+        )
+    )
+
+    assert "returned:" not in second
+    assert len(audit_events(state_dir, "returned")) == 1
+
+
+def test_a_concurrent_user_turn_commits_the_return_only_once(
+    desire_plugin, state_dir, at, state_helpers, monkeypatch
+):
+    write_json, _, read_json, _ = state_helpers
+    now = at("2026-08-25T12:00:00+09:00")
+    seed_drives(state_dir, now, state_helpers, social_hours=5)
+    transport_file(state_dir, state_helpers, "down", now - timedelta(hours=3))
+    original_build = desire_plugin._build_desire_block
+
+    def return_concurrently(drives, outbox, transport, build_now, **kwargs):
+        persisted = read_json(state_dir / "drives.json")
+        persisted["last_interaction_at"] = build_now.isoformat()
+        persisted["last_interaction_hash"] = "another turn"
+        write_json(state_dir / "drives.json", persisted)
+        desire_state.record_transport(state_dir, True, build_now, source="user-turn")
+        desire_state.append_jsonl(
+            state_dir / "audit.jsonl",
+            {
+                "at": build_now.isoformat(),
+                "event": "returned",
+                "away_hours": 5,
+                "pent_up": 0,
+                "transport_before": "down",
+            },
+        )
+        return original_build(drives, outbox, transport, build_now, **kwargs)
+
+    monkeypatch.setattr(desire_plugin, "_build_desire_block", return_concurrently)
+
+    block = appended_block(
+        desire_plugin._inject(request=request_with(context("trigger: user message")), now=now)
+    )
+
+    assert "returned: after 5h away (one held note fits here)" in block
+    assert len(audit_events(state_dir, "returned")) == 1
+    assert read_json(state_dir / "transport.json")["state"] == "up"

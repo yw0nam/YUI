@@ -784,3 +784,32 @@ def test_dispositions_are_mutually_exclusive(state_dir, at):
             ["outbox", "--repeat", "a", "--postpone", "a", "--why", "both"],
             now=at("2026-08-25T12:00:00+09:00"),
         )
+
+
+def test_an_empty_outbox_id_exits_three_instead_of_raising(state_dir, at, capsys):
+    now = at("2026-08-25T12:00:00+09:00")
+    desire_state.bootstrap(now)
+
+    for argv in (
+        ["outbox", "--release", "", "--why", "gone"],
+        ["outbox", "--repeat", "", "--why", "gone"],
+        ["outbox", "--send", ""],
+    ):
+        assert act.main(argv, now=now, opener=lambda *a, **k: Response()) == 3
+        assert capsys.readouterr().err.strip() == "unknown outbox item"
+
+
+def test_postpone_rejects_a_delay_that_is_not_a_positive_number_of_hours(
+    state_dir, at, state_helpers, capsys
+):
+    _, write_jsonl, _, read_jsonl = state_helpers
+    now = at("2026-08-25T12:00:00+09:00")
+    desire_state.bootstrap(now)
+    write_jsonl(state_dir / "outbox.jsonl", [pent_up("one", now)])
+
+    for value in ("0", "-5", "nan", "inf", "1e12"):
+        assert act.main(["outbox", "--postpone", "one", "--until", value, "--why", "later"], now=now) == 2
+        assert capsys.readouterr().err.strip() == "--until must be between 0 and 8760 hours"
+
+    assert "not_before" not in read_jsonl(state_dir / "outbox.jsonl")[0]
+    assert [value["event"] for value in read_jsonl(state_dir / "audit.jsonl")] == []
