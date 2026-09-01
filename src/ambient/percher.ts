@@ -363,14 +363,17 @@ export function createPercher(deps: PercherDeps): Percher {
       return;
     }
     const span = uncoveredSpan(windows, targetIndex, landingX);
-    const leg = planPerchStroll({
-      currentX: landingX,
-      winLeft: span.left,
-      winRight: span.right,
-      charHpx,
-      cfg: deps.getConfig(),
-      rng,
-    });
+    // A user who asked for no motion gets the seat and none of the walk to it.
+    const leg = reducedMotion()
+      ? null
+      : planPerchStroll({
+          currentX: landingX,
+          winLeft: span.left,
+          winRight: span.right,
+          charHpx,
+          cfg: deps.getConfig(),
+          rng,
+        });
     if (leg) {
       // She is standing on the target now, so the last stretch watches that window.
       const walked = await deps.walker.walkTo(leg.centerX - anchor.x, () => {
