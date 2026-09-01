@@ -14,18 +14,23 @@ State lives in `DESIRE_STATE_DIR` when set. Otherwise it resolves to
 
 The state directory contains:
 
-- `drives.json` — curiosity and accomplishment levels and anchors, plus the latest interaction time and hash.
-  Fresh state starts both stored drives at `50.0`, anchored at bootstrap time. The interaction time also starts at
-  bootstrap time and its hash starts as `null`. Social drive is derived from the interaction time and is not stored.
+- `drives.json` — curiosity and accomplishment levels and anchors, plus the latest interaction time and hash and
+  the signal stamps `last_signal_at` (the last delivered signal) and `last_signal_answered_at` (the first user turn
+  after it). Fresh state starts both stored drives at `50.0`, anchored at bootstrap time. The interaction time also
+  starts at bootstrap time, and its hash and both signal stamps start as `null`. Social drive is derived from the
+  interaction time and is not stored.
 - `wants.md` — Natsume's own prose record of 3–5 open wants, progress, feedback, and completed or abandoned wants.
   Integration code never parses this file.
 - `outbox.jsonl` — pent-up desire notes blocked by a daily budget or signal-delivery error. An item persists here,
   and in the pent-up section of the desire block, until it is delivered (`act.py outbox --send`), released
   (`act.py outbox --release`), or expires 48 hours after `created_at`. Each item carries `attempts`, the number of
   failed deliveries so far, and `last_failed_at`. A failed resend updates the item in place and keeps its
-  `created_at`. Fresh state is empty.
+  `created_at`. A postponed item also carries `not_before`, the time it becomes visible again; it keeps ageing
+  toward the same expiry while it is hidden. Fresh state is empty.
 - `transport.json` — whether the YUI signals ingress is reachable: `state` (`up` or `down`), `since` (when the
-  current state began), `failed` (consecutive failures, zero while up), and `last_checked_at`. The monitor
+  current state began), `failed` (consecutive failures, zero while up), `last_checked_at`, and `source`, the
+  evidence behind the record: `probe` from the monitor, `delivery` from a signal delivery, `user-turn` from a user
+  message that reached Hermes through YUI. The monitor
   refreshes it every tick with an HTTP GET to `YUI_SIGNALS_URL`, treating any HTTP response as reachable, and every signal delivery
   outcome updates it too. Absent until the first tick or delivery.
 - `budget.json` — KST daily counters for signals, issues, self-initiated comments, and satisfaction events, plus
@@ -46,7 +51,16 @@ then fails, the note simply stays pent-up like any other unreleased item.
 
 The desire block opens with the drive levels, then `last interaction: YYYY-MM-DD HH:MM (Nh ago)` from the
 interaction time in `drives.json`, then `signal transport: up`, `signal transport: down since YYYY-MM-DD HH:MM
-(N failed)`, or `signal transport: unknown` when `transport.json` is absent. Pent-up lines use
+(N failed)`, or `signal transport: unknown` when `transport.json` is absent.
+
+`returned: after Nh away (one held note fits here)` follows the interaction line on a user-message turn that is the
+first one since the ingress was unreachable — the transport is `down`, or it is `up` with a `since` later than the
+interaction time. That turn also records the transport as `up` with `source: user-turn`, and the interaction commit
+makes the next turn an ordinary one.
+
+`last signal: YYYY-MM-DD HH:MM — answered after Nh` follows the transport line once a signal has been delivered and
+a user turn has followed it; until then the same line reads `— no reply yet (Nh)`. The line is absent while
+`last_signal_at` is `null`. Pent-up lines use
 `- [YYYY-MM-DD HH:MM] <note>` while fresh, add `(waited Nh, heavy)` once the note is at least six hours old, use
 `(waited Nh, bursting)` once it is at least 18 hours old, and end with `(attempts N)` from the second failed
 delivery on.
@@ -104,7 +118,7 @@ chmod +x ~/.hermes/scripts/natsume-desire-monitor.sh
 Create the tick and weekly reflection jobs with these commands:
 
 ```bash
-hermes -p "$HERMES_PROFILE" cron create "30m" --name natsume-desire-tick \
+hermes -p "$HERMES_PROFILE" cron create "10m" --name natsume-desire-tick \
   --monitor-script natsume-desire-monitor.sh \
   "Follow the instructions in <abs>/integrations/hermes/desire/prompts/tick.md."
 hermes -p "$HERMES_PROFILE" cron create "0 23 * * 0" --name natsume-desire-reflection \
@@ -118,15 +132,17 @@ Hermes injects a changed monitor summary into the tick prompt. An unchanged summ
 summary is one line:
 
 ```text
-social:<bucket> curiosity:<bucket> accomplishment:<bucket> outbox:<n>[/<stage>] transport:<up|down> budget:<s>/3sig <i>/2iss <c>/1cmt
+social:<bucket> curiosity:<bucket> accomplishment:<bucket> outbox:<n>[/<stage>] transport:<up|down> budget:<s>/3sig <i>/2iss <c>/1cmt day:<YYYY-MM-DD>
 ```
 
-Buckets are `low` (below 40), `mid` (below 70), and `high`. `<stage>` is the stage of the oldest active pent-up
-note (`fresh`, `heavy`, `bursting`) and is omitted when the outbox is empty. `transport` is the probe result of
-that tick. The line therefore changes, and the tick runs, when a bucket flips, when the oldest note crosses six or
-18 hours or expires, when the YUI ingress becomes reachable or unreachable, and when a used budget resets at
-midnight. Run the one-time instructions in `prompts/kickoff.md` after installation to create the initial wants
-without speaking.
+Buckets are `low` (below 40), `mid` (below 70), and `high`. `<n>` counts the visible pent-up notes and `<stage>` is
+the stage of the oldest of them (`fresh`, `heavy`, `bursting`), omitted when none are visible; a postponed note is
+in neither until its `not_before` passes. `transport` is the probe result of that tick. `day` is the date of the
+current wake day, which rolls at 09:00 KST. The line therefore changes, and the tick runs, when a bucket flips,
+when the oldest visible note crosses six or 18 hours or expires, when a postponed note comes back, when the YUI
+ingress becomes reachable or unreachable, when a used budget resets at midnight, and once every morning. The
+monitor's fail-safe fallback line carries no `day` token. Run the one-time instructions in `prompts/kickoff.md`
+after installation to create the initial wants without speaking.
 
 ## Action budgets
 
@@ -135,8 +151,14 @@ Replies to Youngwoo's comments are not routed through this helper and are uncapp
 note; `outbox --send <id>` posts an existing pent-up note and shares the same budget. Signal reservations are
 refunded after a delivery failure; a failed new note enters the outbox with `attempts` 1, and a failed resend
 increments the existing item's `attempts` instead of adding another item. `outbox --list` shows only active
-(unexpired) items and `--send` accepts only their ids. `outbox --send` exits 0 after delivery, 1 when
-blocked or failed, and 3 for an unknown id; `outbox --release` also exits 3 for an unknown id. Issue and comment actions use reserve,
+(unexpired) items that are not postponed, and `--send` accepts only their ids. `outbox --send` exits 0 after
+delivery, 1 when blocked or failed, and 3 for an unknown id.
+
+One pent-up note takes one disposition: `outbox --repeat <id>` keeps it as it is, `outbox --reword <id> --note
+"<text>"` replaces its text in place and keeps its `id`, `created_at`, and `attempts`, `outbox --postpone <id>
+[--until <hours>]` (default 24) hides it until then, and `outbox --release <id>` drops it. All four take a required
+`--why`, act on active items, append an `outbox_disposition` audit event, exit 2 when `--why` (or `--note` with
+`--reword`) is missing, and exit 3 for an unknown id. Issue and comment actions use reserve,
 commit, and release commands so external `gh` calls do not hold the state lock. Pending reservations survive
 midnight; the monitor prunes reservations older than seven days.
 
