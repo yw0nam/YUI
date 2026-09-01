@@ -192,6 +192,32 @@ describe("createSurfacesRouter", () => {
     expect(local.hideSpeech).toHaveBeenCalledTimes(1);
   });
 
+  it("carries an open input over to the side being entered", () => {
+    vi.mocked(local.isInputOpen).mockReturnValue(true);
+
+    setMode("popped");
+
+    expect(local.dismissInput).toHaveBeenCalledTimes(1);
+    expect(remote.summonInput).toHaveBeenCalledTimes(1);
+  });
+
+  it("carries an open input back when the window docks", () => {
+    setMode("popped");
+    vi.mocked(remote.isInputOpen).mockReturnValue(true);
+
+    setMode("docked");
+
+    expect(remote.dismissInput).toHaveBeenCalledTimes(1);
+    expect(local.summonInput).toHaveBeenCalledTimes(1);
+  });
+
+  it("summons nothing when the abandoned side had no input open", () => {
+    setMode("popped");
+
+    expect(local.dismissInput).not.toHaveBeenCalled();
+    expect(remote.summonInput).not.toHaveBeenCalled();
+  });
+
   // The store also carries the window position, so a drag notifies without changing the mode.
   it("leaves both sides alone when a notification carries the same mode", () => {
     for (const cb of listeners) cb("docked");
