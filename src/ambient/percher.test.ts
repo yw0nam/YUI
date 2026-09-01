@@ -1380,6 +1380,51 @@ describe("createPercher", () => {
     ]);
   });
 
+  it("falls when the host closes under her while the step-off leg is out", async () => {
+    const walking = deferred<"arrived" | "lost">();
+    let windows = [HOST];
+    const h = makeHarness({
+      walk: walking.promise,
+      walkMovesTo: { y: 480 },
+      windows: async () => windows,
+      stepOffProbability: 1,
+      rng: () => 0,
+    });
+    h.percher.start();
+    await h.frame();
+    await h.frame(1.1);
+    // A step-off leaves the ledge standing behind her; with nothing of it left, the empty
+    // patch under her feet is a closed host rather than the far side of the edge.
+    windows = [];
+
+    await h.frame(0.8);
+
+    expect(h.release).toHaveBeenCalledTimes(1);
+    expect(h.onHostLost).toHaveBeenCalledTimes(1);
+    expect(h.calls).toEqual(["suspend", "avatar.walk_start", "avatar.walk_end", "exit", "fall"]);
+  });
+
+  it("falls when the step-off leg is lost onto a host that has closed", async () => {
+    let reads = 0;
+    // The host is there to plan the step-off against and gone by the time the leg ends.
+    const h = makeHarness({
+      walk: Promise.resolve("lost"),
+      walkMovesTo: { y: 480 },
+      windows: async () => (++reads === 1 ? [HOST] : []),
+      stepOffProbability: 1,
+      rng: () => 0,
+    });
+    h.percher.start();
+
+    await h.frame();
+    await h.frame(1.1);
+
+    expect(h.resumeSit).not.toHaveBeenCalled();
+    expect(h.release).toHaveBeenCalledTimes(1);
+    expect(h.onHostLost).toHaveBeenCalledTimes(1);
+    expect(h.calls).toEqual(["suspend", "avatar.walk_start", "avatar.walk_end", "exit", "fall"]);
+  });
+
   it("sits on the level neighbour her leg carried her onto", async () => {
     const h = makeHarness({
       windows: async () => [HOST, LEDGE],
