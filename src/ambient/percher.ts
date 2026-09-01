@@ -88,6 +88,58 @@ export function planStepOff(opts: {
   return null;
 }
 
+/**
+ * The whole stretch she can walk from the host: its own uncovered top, plus every window
+ * whose top is level with it within `tolerancePx` and butts against or overlaps the end
+ * reached so far. Heights are measured against the host itself, so a chain of neighbours
+ * cannot drift further than the tolerance from the surface she started on.
+ */
+export function walkableLedge(args: {
+  /** Front-to-back, topmost first. */
+  windows: WindowRect[];
+  hostIndex: number;
+  currentX: number;
+  tolerancePx: number;
+}): { left: number; right: number; surfaces: WindowRect[] } {
+  const { windows, hostIndex, currentX, tolerancePx } = args;
+  const host = windows[hostIndex];
+  const span = uncoveredSpan(windows, hostIndex, currentX);
+  const surfaces = [host];
+  const taken = new Set([hostIndex]);
+  let { left, right } = span;
+
+  /** The front-most window that carries the ledge past `end`, and how far it carries it. */
+  function beyond(end: number, side: "left" | "right"): { index: number; end: number } | null {
+    for (const [index, candidate] of windows.entries()) {
+      if (taken.has(index)) continue;
+      if (Math.abs(candidate.y - host.y) > tolerancePx) continue;
+      const reaches =
+        side === "right"
+          ? candidate.x <= end && candidate.x + candidate.width > end
+          : candidate.x + candidate.width >= end && candidate.x < end;
+      if (!reaches) continue;
+      // Its own stretch is measured just past the seam: a window in front covering the
+      // seam leaves that stretch short of it, and there is nothing to step onto.
+      const reach = uncoveredSpan(windows, index, side === "right" ? end + 1 : end - 1);
+      if (side === "right" ? reach.left > end : reach.right < end) continue;
+      return { index, end: side === "right" ? reach.right : reach.left };
+    }
+    return null;
+  }
+
+  for (let next = beyond(right, "right"); next; next = beyond(next.end, "right")) {
+    right = next.end;
+    taken.add(next.index);
+    surfaces.push(windows[next.index]);
+  }
+  for (let next = beyond(left, "left"); next; next = beyond(next.end, "left")) {
+    left = next.end;
+    taken.add(next.index);
+    surfaces.push(windows[next.index]);
+  }
+  return { left, right, surfaces };
+}
+
 /** Whether a window has slid far enough to no longer be the one a plan was made on. */
 function hasMoved(now: WindowRect, then: { x: number; y: number }): boolean {
   return Math.abs(now.x - then.x) > MOVE_TH || Math.abs(now.y - then.y) > MOVE_TH;
