@@ -118,6 +118,14 @@ describe("planStepOff", () => {
   it("stays on the window when neither edge leads anywhere on the screen", () => {
     expect(planStepOff({ ...base, currentX: 100, span: { left: 50, right: 1700 } })).toBeNull();
   });
+
+  it("passes an edge landing on the work area's right bound, which is off the screen", () => {
+    // 1648 + 80 is the first x past the last one any monitor contains.
+    expect(planStepOff({ ...base, currentX: 1600, span: { left: 200, right: 1648 } })).toEqual({
+      edge: "left",
+      toX: 120,
+    });
+  });
 });
 
 const HOST: WindowRect = {
