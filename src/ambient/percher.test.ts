@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import type { JumpConfig, PerchWalkConfig } from "../config/load";
+import type { FallConfig, JumpConfig, PerchWalkConfig } from "../config/load";
 import type { MotionKind, WindowRect } from "../contract";
 import type { ScreenMonitor } from "../io/screen-geometry";
 import type { TickContext, TickFn } from "../renderer";
@@ -23,6 +23,15 @@ const JUMP_CFG: JumpConfig = {
   takeoff_frac: 0.4,
   land_frac: 0.67,
   flight_timeout_ms: 4000,
+};
+
+const FALL_CFG: FallConfig = {
+  gravity_px_s2: 1600,
+  max_speed_px_s: 1200,
+  min_drop_frac: 0.2,
+  cue_cooldown_ms: 60_000,
+  land_room_frac: 0.5,
+  step_off_probability: 0,
 };
 
 function seqRng(...values: number[]): () => number {
@@ -149,6 +158,7 @@ function makeHarness(
     charWpx?: number | null;
     /** false models a character with no seat — the fall took it. */
     armed?: boolean;
+    stepOffProbability?: number;
   } = {},
 ) {
   let tick: TickFn | null = null;
@@ -222,6 +232,9 @@ function makeHarness(
   const onTakeoff = vi.fn(() => {
     calls.push("avatar.jump");
   });
+  const onStepOff = vi.fn(() => {
+    calls.push("step_off");
+  });
   const setBodyYaw = vi.fn();
   const positions: Array<{ x: number; y: number }> = [];
   const deps: PercherDeps = {
@@ -250,6 +263,10 @@ function makeHarness(
     listMonitors: over.monitors ?? (async () => [MONITOR]),
     getConfig: () => CFG,
     getJumpConfig: () => ({ ...JUMP_CFG, probability: over.jumpProbability ?? 0 }),
+    getFallConfig: () => ({
+      ...FALL_CFG,
+      step_off_probability: over.stepOffProbability ?? 0,
+    }),
     walker: { walkTo, cancel: walkerCancel },
     jumper: { jump, cancel: jumperCancel },
     dropSource: {
@@ -271,6 +288,7 @@ function makeHarness(
     onHostLost,
     onTargetLost,
     onTakeoff,
+    onStepOff,
     rng: over.rng ?? seqRng(0, 1, 0),
   };
   const percher = createPercher(deps);
@@ -298,6 +316,7 @@ function makeHarness(
     jumperCancel,
     onTargetLost,
     onTakeoff,
+    onStepOff,
     setBodyYaw,
     /** Arm a fresh commit-origin sit, the way a later drop release would. */
     rearm: () => {
@@ -978,6 +997,77 @@ describe("createPercher", () => {
     await h.frame(1.1);
 
     // No walk and no jump happened, so no walk cue is owed for either.
+    expect(h.calls).toEqual(["suspend", "resume", "avatar.window_sit"]);
+  });
+
+  it("walks off the nearer edge and hands her to the fall when the roll comes up", async () => {
+    const h = makeHarness({ stepOffProbability: 1, rng: () => 0 });
+    h.percher.start();
+
+    await h.frame();
+    await h.frame(1.1);
+
+    // The host's left edge is the nearer one; she stops a standing width past it.
+    expect(h.walkTo).toHaveBeenCalledWith(720, expect.any(Function));
+    expect(h.calls).toEqual([
+      "suspend",
+      "avatar.walk_start",
+      "abandon",
+      "avatar.walk_end",
+      "step_off",
+    ]);
+    expect(h.onStepOff).toHaveBeenCalledTimes(1);
+    expect(h.resumeSit).not.toHaveBeenCalled();
+    expect(h.release).not.toHaveBeenCalled();
+  });
+
+  it("steps off a ledge that leaves no room to stroll", async () => {
+    const narrow = { ...HOST, x: 1095, width: 210 };
+    const h = makeHarness({
+      windows: async () => [narrow],
+      stepOffProbability: 1,
+      rng: () => 0,
+    });
+    h.percher.start();
+
+    await h.frame();
+    await h.frame(1.1);
+
+    // Both edges sit 105 px away, and the tie goes to the draw.
+    expect(h.walkTo).toHaveBeenCalledWith(815, expect.any(Function));
+    expect(h.onStepOff).toHaveBeenCalledTimes(1);
+  });
+
+  it("strolls as usual when a neighbour she could jump to leaves the roll unrolled", async () => {
+    const h = makeHarness({
+      windows: async () => [HOST, NEIGHBOUR],
+      stepOffProbability: 1,
+      rng: () => 0,
+    });
+    h.percher.start();
+
+    await h.frame();
+    await h.frame(1.1);
+
+    expect(h.onStepOff).not.toHaveBeenCalled();
+    expect(h.calls).toEqual([
+      "suspend",
+      "avatar.walk_start",
+      "avatar.walk_end",
+      "resume",
+      "avatar.window_sit",
+    ]);
+  });
+
+  it("re-sits when the step-off leg never gets going", async () => {
+    const h = makeHarness({ stepOffProbability: 1, rng: () => 0, walkAccepted: false });
+    h.percher.start();
+
+    await h.frame();
+    await h.frame(1.1);
+
+    expect(h.onStepOff).not.toHaveBeenCalled();
+    expect(h.resumeSit).toHaveBeenCalledTimes(1);
     expect(h.calls).toEqual(["suspend", "resume", "avatar.window_sit"]);
   });
 

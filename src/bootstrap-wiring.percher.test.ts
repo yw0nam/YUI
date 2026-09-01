@@ -39,17 +39,20 @@ async function wire() {
   const pushed: Array<{ event_name: string; hint_tier?: number }> = [];
   const setHitTestMoving = vi.fn();
   const onTargetLost = vi.fn();
+  const onStepOff = vi.fn();
   const handle = wirePercher({
     bus: { push: (env: { event_name: string }) => pushed.push(env) } as never,
     renderer: {} as never,
     getPerchWalkConfig: () => ({}) as never,
     getJumpConfig: () => ({}) as never,
+    getFallConfig: () => ({}) as never,
     getMotionKind: () => undefined,
     isBusy: () => false,
     walker: { walkTo: async () => "arrived" as const, cancel: () => {} },
     dropSource: {} as never,
     onHostLost: () => {},
     onTargetLost,
+    onStepOff,
     setHitTestMoving,
     log: noopLog,
   });
@@ -61,6 +64,7 @@ async function wire() {
     pushed,
     setHitTestMoving,
     onTargetLost,
+    onStepOff,
   };
 }
 
@@ -94,6 +98,15 @@ describe("wirePercher", () => {
 
     expect(pushed.map((env) => env.event_name)).toEqual(["avatar.jump"]);
     expect(pushed[0].hint_tier).toBe(1);
+  });
+
+  it("drops the character when the ambient step-off walks her off the edge", async () => {
+    const { deps, pushed, onStepOff } = await wire();
+
+    deps.onStepOff();
+
+    expect(onStepOff).toHaveBeenCalledTimes(1);
+    expect(pushed).toEqual([]);
   });
 
   it("hands a window a fall came down on to the perch loop", async () => {
