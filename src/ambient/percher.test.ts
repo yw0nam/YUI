@@ -734,6 +734,25 @@ describe("createPercher", () => {
     expect(h.calls).toEqual(["suspend", "avatar.walk_start", "avatar.walk_end", "exit", "fall"]);
   });
 
+  it("uses the existing exit path when the leg ends under a window raised over her feet", async () => {
+    let reads = 0;
+    // Her leg ends at 1200, and the window raised across the host's top since the last poll
+    // reaches over it on either side.
+    const h = makeHarness({
+      windows: async () => (++reads === 1 ? [HOST] : [cover(1150, 200, 9), HOST]),
+    });
+    h.percher.start();
+
+    await h.frame();
+    await h.frame(1.1);
+
+    expect(h.release).toHaveBeenCalledTimes(1);
+    expect(h.onHostLost).toHaveBeenCalledTimes(1);
+    expect(h.resumeSit).not.toHaveBeenCalled();
+    expect(h.adoptSit).not.toHaveBeenCalled();
+    expect(h.calls).toEqual(["suspend", "avatar.walk_start", "avatar.walk_end", "exit", "fall"]);
+  });
+
   it("uses the existing exit path after two moved-host samples beyond MOVE_TH", async () => {
     const walking = deferred<"arrived" | "lost">();
     let windows = [HOST];
