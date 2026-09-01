@@ -1277,7 +1277,7 @@ describe("createPercher", () => {
     expect(h.adoptSit).toHaveBeenCalledWith(7, { x: 1560, y: 900 }, 500, "commit");
   });
 
-  it("leaves her standing when the window she landed on has gone by the time it reads", async () => {
+  it("falls again when the window she landed on has gone by the time it reads", async () => {
     const h = makeHarness({
       windows: async () => [],
       initialPos: { x: 1500, y: 480 },
@@ -1290,8 +1290,40 @@ describe("createPercher", () => {
 
     expect(h.walkTo).not.toHaveBeenCalled();
     expect(h.adoptSit).not.toHaveBeenCalled();
-    expect(h.calls).toEqual([]);
+    expect(h.calls).toEqual(["target_lost"]);
+    expect(h.onTargetLost).toHaveBeenCalledTimes(1);
     expect(h.release).not.toHaveBeenCalled();
+  });
+
+  it("falls again when the window she landed on slid away before the seat was taken", async () => {
+    const h = makeHarness({
+      windows: async () => [{ ...NEIGHBOUR, x: NEIGHBOUR.x + 40 }],
+      initialPos: { x: 1500, y: 480 },
+      armed: false,
+    });
+    h.percher.start();
+
+    h.percher.landOn(NEIGHBOUR);
+    await h.frame();
+
+    expect(h.adoptSit).not.toHaveBeenCalled();
+    expect(h.onTargetLost).toHaveBeenCalledTimes(1);
+  });
+
+  it("takes the seat from the rect the fresh stack gives, not the one she came down on", async () => {
+    // A nudge inside MOVE_TH is the same window, in the place it is in now.
+    const h = makeHarness({
+      windows: async () => [HOST, { ...NEIGHBOUR, x: NEIGHBOUR.x + 5 }],
+      initialPos: { x: 1500, y: 480 },
+      armed: false,
+    });
+    h.percher.start();
+
+    h.percher.landOn(NEIGHBOUR);
+    await h.frame();
+
+    expect(h.adoptSit).toHaveBeenCalledWith(7, { x: 1565, y: 900 }, 500, "commit");
+    expect(h.onTargetLost).not.toHaveBeenCalled();
   });
 
   it("drops a pending landing when the user picks her up first", async () => {
