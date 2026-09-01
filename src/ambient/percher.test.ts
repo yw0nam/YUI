@@ -699,6 +699,41 @@ describe("createPercher", () => {
     expect(h.walkTo).toHaveBeenCalledTimes(2);
   });
 
+  it("uses the existing exit path when a window is raised over the top under her feet", async () => {
+    const walking = deferred<"arrived" | "lost">();
+    let windows = [HOST];
+    const h = makeHarness({ walk: walking.promise, windows: async () => windows });
+    h.percher.start();
+    await h.frame();
+    await h.frame(1.1);
+    // Her feet are at 1200, and this reaches across the host's top on either side of them.
+    windows = [cover(1150, 200, 9), HOST];
+
+    await h.frame(0.8);
+
+    expect(h.walkerCancel).toHaveBeenCalledTimes(1);
+    expect(h.release).toHaveBeenCalledTimes(1);
+    expect(h.resumeSit).not.toHaveBeenCalled();
+    expect(h.calls.slice(-3)).toEqual(["avatar.walk_end", "exit", "fall"]);
+    expect(h.onHostLost).toHaveBeenCalledTimes(1);
+  });
+
+  it("uses the existing exit path when the leg ends with nothing under her feet", async () => {
+    let reads = 0;
+    // The host is there to plan the stroll against and gone by the time the leg ends.
+    const h = makeHarness({ windows: async () => (++reads === 1 ? [HOST] : []) });
+    h.percher.start();
+
+    await h.frame();
+    await h.frame(1.1);
+
+    expect(h.release).toHaveBeenCalledTimes(1);
+    expect(h.onHostLost).toHaveBeenCalledTimes(1);
+    expect(h.resumeSit).not.toHaveBeenCalled();
+    expect(h.adoptSit).not.toHaveBeenCalled();
+    expect(h.calls).toEqual(["suspend", "avatar.walk_start", "avatar.walk_end", "exit", "fall"]);
+  });
+
   it("uses the existing exit path after two moved-host samples beyond MOVE_TH", async () => {
     const walking = deferred<"arrived" | "lost">();
     let windows = [HOST];
