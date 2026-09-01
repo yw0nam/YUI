@@ -38,6 +38,8 @@ const ja: Record<string, string> = {
   "aria.stop": "停止",
   "aria.remove_attachment": "添付を削除",
   "aria.dismiss_bubble": "吹き出しを閉じる",
+  "aria.dock_message": "吹き出しをキャラクターに戻す",
+  "aria.pop_message": "吹き出しをメッセージウィンドウへ",
   "aria.dismiss_error": "エラーを閉じる",
   "input.placeholder": "話しかけてみて…",
   "input.error_auth": "認証失敗 · APIキー確認",
@@ -288,6 +290,9 @@ const ja: Record<string, string> = {
   "bubble_persist.label": "閉じるまで吹き出しを表示",
   "bubble_persist.sub": "自分で閉じるまで吹き出しが消えません",
   "bubble_persist.aria": "閉じるまで吹き出しを表示",
+  "message_window.label": "メッセージウィンドウを分離",
+  "message_window.sub": "吹き出しと入力欄を自由に置ける別ウィンドウに移します",
+  "message_window.aria": "メッセージウィンドウを分離",
 
   // history tab
   "history.current": "現在の会話",

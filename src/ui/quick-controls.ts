@@ -21,6 +21,7 @@ import {
   LIPSYNC_GAIN_MAX,
   LIPSYNC_GAIN_MIN,
 } from "../io/lipsync-settings";
+import type { MessageWindowSettingsStore } from "../io/message-window-settings";
 import type { ClampedIntSettingsStore, FlagSettingsStore } from "../io/persisted-store";
 import type { createProactiveSettings } from "../io/proactive-settings";
 import type { createScheduleSettings } from "../io/schedule-settings";
@@ -31,6 +32,7 @@ import type { createSectionsSettings } from "../io/sections-settings";
 import type { createSessionDiagnosticsStore } from "../io/session-diagnostics";
 import type { createSessionStore } from "../io/session-store";
 import type { createSpeakerSelection, SpeakerOption } from "../io/speaker-selection";
+import { isTauri } from "../io/tauri-env";
 import { type createVadSettings, VAD_SILENCE_MAX, VAD_SILENCE_MIN } from "../io/vad-settings";
 import type { createVrmSelection } from "../io/vrm-selection";
 import type { createWorkflowSettings } from "../io/workflow-settings";
@@ -161,6 +163,8 @@ interface QuickControlsOptions {
   agentNotifySettings?: AgentNotifySettingsStore;
   /** "Keep bubble until dismissed" on/off store. If absent, that toggle row won't render. */
   bubblePersistSettings?: FlagSettingsStore;
+  /** Docked/popped message-window mode store. If absent, that toggle row won't render. */
+  messageWindowSettings?: MessageWindowSettingsStore;
   /** Away detection store. If absent, presence row in Reactions tab won't render. */
   presenceSettings?: ClampedIntSettingsStore;
   /** Global proactive gap store. If absent, that row in the Reactions tab won't render. */
@@ -211,6 +215,7 @@ type SwitchRowOptions = Pick<
   | "agentNotifySettings"
   | "fillerSettings"
   | "bubblePersistSettings"
+  | "messageWindowSettings"
   | "screenSettings"
   | "screenKnobSettings"
 >;
@@ -224,6 +229,7 @@ export function createSwitchRows({
   agentNotifySettings,
   fillerSettings,
   bubblePersistSettings,
+  messageWindowSettings,
   screenSettings,
   screenKnobSettings,
 }: SwitchRowOptions): SwitchRow[] {
@@ -301,6 +307,21 @@ export function createSwitchRows({
       getEnabled: () => bubblePersistSettings!.get().enabled,
       setEnabled: (v) => bubblePersistSettings!.setEnabled(v),
       logKey: "bubble_persist_toggle",
+    },
+    {
+      selector: ".yui-message-window-switch",
+      labelKey: "message_window.label",
+      subKey: "message_window.sub",
+      ariaKey: "message_window.aria",
+      tab: "input",
+      position: "after-vad",
+      // The browser dev build has one window, so there is nothing to pop the surfaces into.
+      isVisible: !!messageWindowSettings && isTauri(),
+      isAvailable: !!messageWindowSettings && isTauri(),
+      initialEnabled: messageWindowSettings?.get().mode === "popped",
+      getEnabled: () => messageWindowSettings!.get().mode === "popped",
+      setEnabled: (v) => messageWindowSettings!.setMode(v ? "popped" : "docked"),
+      logKey: "message_window_toggle",
     },
     {
       selector: ".yui-gaze-switch",
@@ -404,6 +425,7 @@ export function createQuickControls({
   climbSettings,
   agentNotifySettings,
   bubblePersistSettings,
+  messageWindowSettings,
   presenceSettings,
   pacerGapSettings,
   rateLimitSettings,
@@ -444,6 +466,7 @@ export function createQuickControls({
     agentNotifySettings,
     fillerSettings,
     bubblePersistSettings,
+    messageWindowSettings,
     screenSettings,
     screenKnobSettings,
   });
@@ -1113,6 +1136,9 @@ export function createQuickControls({
   const unsubscribeBubblePersist = bubblePersistSettings?.subscribe(() => {
     if (popover.isOpen()) reflect.reflectSwitchRows();
   });
+  const unsubscribeMessageWindow = messageWindowSettings?.subscribe(() => {
+    if (popover.isOpen()) reflect.reflectSwitchRows();
+  });
   const unsubscribeAgentNotify = agentNotifySettings?.subscribe(() => {
     if (popover.isOpen()) {
       reflect.reflectSwitchRows();
@@ -1357,6 +1383,7 @@ export function createQuickControls({
     unsubscribeGaze?.();
     unsubscribeClimb?.();
     unsubscribeBubblePersist?.();
+    unsubscribeMessageWindow?.();
     unsubscribeAgentNotify?.();
     unsubscribePresence?.();
     unsubscribePacerGap?.();

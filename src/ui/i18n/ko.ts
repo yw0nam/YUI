@@ -38,6 +38,8 @@ const ko: Record<string, string> = {
   "aria.stop": "멈추기",
   "aria.remove_attachment": "첨부 제거",
   "aria.dismiss_bubble": "말풍선 닫기",
+  "aria.dock_message": "말풍선을 캐릭터 창으로 되돌리기",
+  "aria.pop_message": "말풍선을 메시지 창으로 분리",
   "aria.dismiss_error": "오류 닫기",
   "input.placeholder": "말 걸기…",
   "input.error_auth": "인증 실패 · API 키 확인",
@@ -286,6 +288,9 @@ const ko: Record<string, string> = {
   "bubble_persist.label": "닫을 때까지 말풍선 유지",
   "bubble_persist.sub": "직접 닫을 때까지 말풍선이 사라지지 않아요",
   "bubble_persist.aria": "닫을 때까지 말풍선 유지",
+  "message_window.label": "메시지 창 분리",
+  "message_window.sub": "말풍선과 입력창을 원하는 자리에 두는 창으로 옮깁니다",
+  "message_window.aria": "메시지 창 분리",
 
   // history tab
   "history.current": "현재 대화",

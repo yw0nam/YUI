@@ -39,6 +39,8 @@ const en: Record<string, string> = {
   "aria.stop": "Stop",
   "aria.remove_attachment": "Remove attachment",
   "aria.dismiss_bubble": "Dismiss speech bubble",
+  "aria.dock_message": "Move speech back to the character",
+  "aria.pop_message": "Move speech to the message window",
   "aria.dismiss_error": "Dismiss error",
   "input.placeholder": "Say something…",
   "input.error_auth": "Auth failed · check API key",
@@ -287,6 +289,9 @@ const en: Record<string, string> = {
   "bubble_persist.label": "Keep bubble until dismissed",
   "bubble_persist.sub": "The speech bubble stays on screen until you close it",
   "bubble_persist.aria": "Keep speech bubble until dismissed",
+  "message_window.label": "Separate message window",
+  "message_window.sub": "Speech and typing live in a window you can drag anywhere",
+  "message_window.aria": "Separate message window",
 
   // history tab
   "history.current": "Current conversation",

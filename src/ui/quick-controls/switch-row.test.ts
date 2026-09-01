@@ -1,7 +1,8 @@
 // @vitest-environment jsdom
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createAgentNotifySettings } from "../../io/agent-notify-settings";
 import { createFillerSettings } from "../../io/filler-settings";
+import { createMessageWindowSettings } from "../../io/message-window-settings";
 import { createFlagSettings } from "../../io/persisted-store";
 import { createScreenKnobSettings } from "../../io/screen-settings";
 import { createVadSettings } from "../../io/vad-settings";
@@ -22,6 +23,7 @@ function makeSwitchRows(): SwitchRow[] {
       initial: { enabled: false, language: "ja", customPools: {} },
     }),
     bubblePersistSettings: createFlagSettings(false),
+    messageWindowSettings: createMessageWindowSettings(),
     screenSettings: createFlagSettings(false),
     screenKnobSettings: createScreenKnobSettings(),
   });
@@ -50,6 +52,15 @@ function render(switchRows: readonly SwitchRow[]): HTMLElement {
 }
 
 describe("SwitchRow descriptor", () => {
+  // The message-window row renders only where a second window can exist.
+  beforeEach(() => {
+    (globalThis as { __TAURI_INTERNALS__?: unknown }).__TAURI_INTERNALS__ = {};
+  });
+
+  afterEach(() => {
+    delete (globalThis as { __TAURI_INTERNALS__?: unknown }).__TAURI_INTERNALS__;
+  });
+
   it("renders and reflects every visible, available descriptor entry", () => {
     const switchRows = makeSwitchRows().map((row, index) => ({
       ...row,

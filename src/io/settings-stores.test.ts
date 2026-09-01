@@ -41,6 +41,7 @@ describe("createSettingsStores", () => {
       "sessionDiagnostics",
       "chatHistoryStore",
       "bubblePersistSettings",
+      "messageWindowSettings",
       "endpointsSettings",
       "chatKeySettings",
       "sttKeySettings",

@@ -73,6 +73,7 @@ async function bootstrap(): Promise<void> {
     sessionDiagnostics,
     chatHistoryStore,
     bubblePersistSettings,
+    messageWindowSettings,
     idleMotionSettings,
     expressMotionSettings,
   } = settingsStores;
@@ -282,6 +283,7 @@ async function bootstrap(): Promise<void> {
       sessionStore,
       transcript: chatHistoryStore,
       bubblePersistSettings,
+      messageWindowSettings,
     });
 
   // quick-controls fully re-mounts on display language change (setLocale → i18n.subscribe).

@@ -292,6 +292,58 @@
   top: 1.2rem;
 }
 
+/* ── Pop-out button — beside the dismiss button, same hover-revealed treatment ──
+   Moves speech into the message window; hidden where there is no second window. */
+.yui-bubble__pop {
+  position: absolute;
+  z-index: 1;
+  top: 0.25rem;
+  right: 1.95rem;
+  display: grid;
+  place-items: center;
+  width: 1.5rem;
+  height: 1.5rem;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: var(--yui-scrim-strong);
+  color: var(--yui-text-mute);
+  font-size: 0.72rem;
+  line-height: 1;
+  cursor: pointer;
+  pointer-events: auto;
+  opacity: 0;
+  transition:
+    opacity var(--yui-dur-fast) var(--yui-ease),
+    color var(--yui-dur-fast) var(--yui-ease);
+}
+/* display: grid beats the UA's [hidden] rule, so hide it explicitly. */
+.yui-bubble__pop[hidden] {
+  display: none;
+}
+
+.yui-bubble:hover .yui-bubble__pop,
+.yui-bubble__pop:focus-visible {
+  opacity: 1;
+}
+
+.yui-bubble.is-held .yui-bubble__pop {
+  opacity: 0.55;
+}
+
+.yui-bubble__pop:hover {
+  color: var(--yui-text);
+}
+
+.yui-bubble__pop:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px var(--yui-accent-soft);
+}
+
+.yui-bubble.is-scrollable .yui-bubble__pop {
+  top: 1.2rem;
+}
+
 /* ── Inline markdown links (inside bubble) ──
    Warm body color + amber-soft underline, ignite to amber on hover/focus (treatment A).
    With pointer-events:auto, only links are clickable inside display-only bubble. */

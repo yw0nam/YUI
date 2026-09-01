@@ -18,6 +18,7 @@ YUI/
   index.html                # Vite entry
   settings.html             # Settings-window Vite entry
   devtools.html             # Developer Tools Vite entry
+  message.html              # Message-window Vite entry
   vite.config.ts            # dev port YUI_DEV_PORT|1420, strictPort, host 127.0.0.1
   biome.json                # Format + lint config (curated rule set)
   .claude/
@@ -43,6 +44,7 @@ YUI/
     drag.ts                 # Main-window drag behavior
     settings-main.ts        # Settings-window entry
     devtools-main.ts        # Developer Tools window entry
+    message-main.ts         # Message-window entry
     contract/               # TS contract types — source of truth (types.ts, index.ts)
     renderer/               # three.js + VRM (index.ts, emotion-resolver.ts, motion-controller.ts)
     io/                     # I/O layer (chat-client.ts, tts-pipeline.ts, stt-vad.ts, etc.)
