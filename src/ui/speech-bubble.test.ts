@@ -8,7 +8,7 @@
  * jsdom reports scrollHeight=0, so we stub it to assert the scroll behavior.
  */
 
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, type Mock, vi } from "vitest";
 
 // CSS imports are not handled in jsdom — mock them
 vi.mock("./surfaces.css", () => ({}));
@@ -756,12 +756,12 @@ describe("keep bubble until dismissed", () => {
 describe("pop-out button — moving speech to the message window", () => {
   let mount: HTMLElement;
   let s: ReturnType<typeof createSurfaces>;
-  let onPop: ReturnType<typeof vi.fn>;
+  let onPop: Mock<() => void>;
 
   beforeEach(() => {
     mount = document.createElement("div");
     document.body.appendChild(mount);
-    onPop = vi.fn();
+    onPop = vi.fn<() => void>();
     s = createSurfaces({ mount, onPop });
   });
 

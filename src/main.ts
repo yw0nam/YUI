@@ -36,10 +36,16 @@ import { createDevtoolsWindowOpener } from "./io/devtools-window";
 import { endpointDefaultsFromConfig, mergeEndpoints } from "./io/endpoints-settings";
 import { mergeGuardrails, rateLimitDefaultsFromConfig } from "./io/guardrails-settings";
 import { enabledIdleVariants } from "./io/idle-motion-settings";
+import { createMessageBridge } from "./io/message-bridge";
+import { createRemoteSurfaces } from "./io/message-remote";
+import { createMessageWindowController, listenTrayToggle } from "./io/message-window";
+import { wireMessageWindowMode } from "./io/message-window-mode";
+import type { MessageWindowMode } from "./io/message-window-settings";
 import { screenDefaultsFromConfig } from "./io/screen-settings";
 import { createSettingsSecretProvider } from "./io/secret-provider";
 import { createSettingsStores } from "./io/settings-stores";
 import { createSettingsWindowOpener } from "./io/settings-window";
+import { isTauri } from "./io/tauri-env";
 import { resolveScreenCapturer, resolveScreenSourceProvider } from "./io/tauri-screen";
 import { wireVoiceListAutoRefresh } from "./io/voice-list-refresh";
 import { removeUserVrm } from "./io/vrm-import";
@@ -57,6 +63,7 @@ import { createCaptureIndicator } from "./ui/capture-indicator";
 import { getLocale, subscribe as subscribeLocale } from "./ui/i18n";
 import { createQuickControls } from "./ui/quick-controls";
 import { createSurfaces } from "./ui/surfaces";
+import { createSurfacesRouter } from "./ui/surfaces-router";
 import { createVoiceInputIndicator } from "./ui/voice-input-indicator";
 import { createVoiceInputStatus } from "./ui/voice-input-status";
 
@@ -135,12 +142,12 @@ async function bootstrap(): Promise<BootstrapHandle> {
   // starting before loadVRM is safe (frames without VRM are no-op).
   const ambient = createTier1Engine(renderer);
   ambient.start();
-  // Read at endSpeech time — the store below is built after the surfaces mount.
-  const surfaces = createSurfaces({
+  // Read at endSpeech time — the stores below are built after the surfaces mount.
+  const localSurfaces = createSurfaces({
     mount: root,
     keepBubbleUntilDismissed: () => settingsStores.bubblePersistSettings.get().enabled,
+    onPop: () => settingsStores.messageWindowSettings.setMode("popped"),
   });
-  register(() => surfaces.dispose());
 
   // Anchor chat input to character's feet (follow reframe). Each frame, receive feet screen coordinates,
   // map to input bottom offset, skip changes below epsilon to reduce var rewrites.
@@ -149,7 +156,7 @@ async function bootstrap(): Promise<BootstrapHandle> {
     const a = renderer.getCharacterAnchor();
     if (!a) {
       if (lastInputBottom !== null) {
-        surfaces.setInputAnchor(null);
+        localSurfaces.setInputAnchor(null);
         lastInputBottom = null;
       }
       return;
@@ -159,7 +166,7 @@ async function bootstrap(): Promise<BootstrapHandle> {
       minBottom: INPUT_ANCHOR_MIN_BOTTOM_PX,
     });
     if (lastInputBottom === null || Math.abs(bottom - lastInputBottom) > INPUT_ANCHOR_EPSILON_PX) {
-      surfaces.setInputAnchor(bottom);
+      localSurfaces.setInputAnchor(bottom);
       lastInputBottom = bottom;
     }
   });
@@ -193,6 +200,7 @@ async function bootstrap(): Promise<BootstrapHandle> {
     sectionsSettings,
     guardrailsSettings,
     bubblePersistSettings,
+    messageWindowSettings,
     chatHistoryStore,
     sessionStore,
     sessionDiagnostics,
@@ -204,6 +212,30 @@ async function bootstrap(): Promise<BootstrapHandle> {
   for (const store of Object.values(settingsStores)) {
     register(() => store.dispose());
   }
+  // One Surfaces for every consumer: the bubble and the input follow the message-window
+  // mode, everything anchored to the character stays in this window.
+  const messageBridge = createMessageBridge(undefined, { windowKind: "pet" });
+  register(() => messageBridge.dispose());
+  const remoteSurfaces = createRemoteSurfaces(messageBridge);
+  // A stale popped mode must not strand speech in a window the browser build cannot open.
+  const messageMode = (): MessageWindowMode =>
+    isTauri() ? messageWindowSettings.get().mode : "docked";
+  const surfaces = createSurfacesRouter({
+    local: localSurfaces,
+    remote: remoteSurfaces,
+    getMode: messageMode,
+    subscribeMode: (cb) => messageWindowSettings.subscribe(() => cb(messageMode())),
+  });
+  register(() => surfaces.dispose());
+  register(
+    wireMessageWindowMode({
+      store: messageWindowSettings,
+      remote: remoteSurfaces,
+      window: createMessageWindowController(messageWindowSettings),
+      listenTrayToggle,
+      getMode: messageMode,
+    }),
+  );
   // Effective endpoints with overrides layered on config.endpoints. Evaluated at call time (hot-reload friendly).
   function getEndpoints(): ReturnType<typeof config.get>["endpoints"] {
     return mergeEndpoints(config.get().endpoints, endpointsSettings.get());
@@ -294,6 +326,7 @@ async function bootstrap(): Promise<BootstrapHandle> {
       workflowSettings,
       agentNotifySettings,
       bubblePersistSettings,
+      messageWindowSettings,
       presenceSettings,
       pacerGapSettings,
       rateLimitSettings: guardrailsSettings,

@@ -72,6 +72,7 @@ const log = createLogger("bootstrap");
 export const INTERACTIVE_OVERLAY_SELECTORS = [
   ".yui-input.is-open",
   ".yui-bubble.is-visible .yui-bubble__close",
+  ".yui-bubble.is-visible .yui-bubble__pop",
   '.yui-voice.is-visible[data-fix="settings"]',
 ] as const;
 

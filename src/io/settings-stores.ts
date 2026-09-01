@@ -15,6 +15,10 @@ import { createGuardrailsSettings, localStorageGuardrailsStorage } from "./guard
 import { createIdleMotionSettings, localStorageIdleMotionStorage } from "./idle-motion-settings";
 import { createLipsyncSettings, localStorageLipsyncStorage } from "./lipsync-settings";
 import {
+  createMessageWindowSettings,
+  localStorageMessageWindowStorage,
+} from "./message-window-settings";
+import {
   createClampedIntSettings,
   createFlagSettings,
   localStorageStore,
@@ -117,6 +121,11 @@ export function createSettingsStores(opts?: { locale?: CueLocale }) {
   const bubblePersistSettings = createFlagSettings(false, {
     storage: localStorageStore("yui.bubble-persist"),
   });
+  // Docked/popped message window plus its last outer position. The pet window reads the mode;
+  // the message window writes its own position, so neither half needs a broadcast.
+  const messageWindowSettings = createMessageWindowSettings({
+    storage: localStorageMessageWindowStorage(),
+  });
   // User-edited endpoint overrides: localStorage overrides the bundled config (empty value = fallback).
   const endpointsSettings = createEndpointsSettings({
     storage: localStorageEndpointsStorage(),
@@ -182,6 +191,7 @@ export function createSettingsStores(opts?: { locale?: CueLocale }) {
     sessionDiagnostics,
     chatHistoryStore,
     bubblePersistSettings,
+    messageWindowSettings,
     endpointsSettings,
     chatKeySettings,
     sttKeySettings,
@@ -232,6 +242,7 @@ export const SYNC_MODE: Record<keyof SettingsStores, SyncMode> = {
   sessionDiagnostics: "reload",
   chatHistoryStore: "broadcast",
   bubblePersistSettings: "broadcast",
+  messageWindowSettings: "local",
   endpointsSettings: "broadcast",
   chatKeySettings: "broadcast",
   sttKeySettings: "broadcast",

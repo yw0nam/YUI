@@ -71,6 +71,7 @@ const BUBBLE_INPUT_GAP_PX = 12;
 export function createTextInput(
   { formEl, field, errorEl, trayEl, attachBtn, picker, sendBtn }: TextInputElements,
   bubble: TextInputBubbleAnchor,
+  onOpenChange?: (open: boolean) => void,
 ): TextInput {
   const submitHandlers: Array<(text: string, images: string[]) => void> = [];
   const stopHandlers: Array<() => void> = [];
@@ -103,6 +104,7 @@ export function createTextInput(
       formEl.classList.add("is-open");
       field.focus();
     });
+    onOpenChange?.(true);
   }
 
   function dismissInput(): void {
@@ -118,6 +120,7 @@ export function createTextInput(
         formEl.classList.remove("is-error", "is-pending");
         errorEl.textContent = "";
         bubble.resetPosition();
+        onOpenChange?.(false);
       }
     };
     formEl.addEventListener("transitionend", onEnd);

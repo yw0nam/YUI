@@ -1,0 +1,127 @@
+/* Message window — the same bubble and input as the pet window, re-laid as a
+   top-left anchored column under a name-plate handle. The window itself is the
+   340px column, so the overlay's absolute positioning gives way to flow. */
+
+.yui-ui--message {
+  position: static;
+  inset: auto;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+  width: 340px;
+  padding: 8px;
+  pointer-events: auto;
+}
+
+/* ── Name plate — the handle, the state tell and the way back to the character ── */
+.yui-plate {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  height: 26px;
+  padding: 0 0.3rem 0 0.6rem;
+  border-radius: var(--yui-radius-chip);
+  background: var(--yui-scrim-strong);
+  border: 1px solid var(--yui-edge);
+  box-shadow: var(--yui-float);
+  cursor: grab;
+}
+.yui-plate:active {
+  cursor: grabbing;
+}
+
+.yui-plate__dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--yui-text-mute);
+  opacity: 0.55;
+}
+.yui-plate.is-live .yui-plate__dot {
+  background: var(--yui-accent);
+  opacity: 1;
+  animation: yui-plate-pulse 1.6s var(--yui-ease) infinite;
+}
+
+@keyframes yui-plate-pulse {
+  50% {
+    opacity: 0.45;
+  }
+}
+
+.yui-plate__name {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--yui-text);
+  text-shadow: var(--yui-text-shadow);
+}
+
+.yui-plate__dock {
+  display: grid;
+  place-items: center;
+  width: 1.25rem;
+  height: 1.25rem;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: var(--yui-scrim-strong);
+  color: var(--yui-text-dim);
+  font-size: 0.72rem;
+  line-height: 1;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity var(--yui-dur-fast) var(--yui-ease);
+}
+.yui-plate:hover .yui-plate__dock {
+  opacity: 0.5;
+}
+.yui-plate__dock:hover,
+.yui-plate__dock:focus-visible {
+  opacity: 1;
+}
+.yui-plate__dock:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px var(--yui-accent-soft);
+}
+
+/* ── Bubble and input in flow ──
+   Both surfaces keep their own material; only the positioning is replaced. */
+.yui-ui--message .yui-bubble {
+  position: static;
+  transform: none;
+  max-width: 100%;
+  max-height: var(--yui-bubble-max-h, 34vh);
+  border-top-left-radius: 6px;
+}
+.yui-ui--message .yui-bubble.is-visible {
+  transform: none;
+}
+/* The lift above the input is a pet-window trick; in flow the column already separates them. */
+.yui-ui--message .yui-bubble.is-above-input {
+  max-height: var(--yui-bubble-max-h, 34vh);
+}
+
+/* The window is already the popped-out one — its bubble offers only the way back. */
+.yui-ui--message .yui-bubble__pop {
+  display: none;
+}
+
+.yui-ui--message .yui-input {
+  position: static;
+  transform: none;
+  width: 100%;
+}
+.yui-ui--message .yui-input.is-open {
+  transform: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .yui-ui--message .yui-bubble,
+  .yui-ui--message .yui-input {
+    transform: none !important;
+  }
+  .yui-plate.is-live .yui-plate__dot {
+    animation: none;
+  }
+}

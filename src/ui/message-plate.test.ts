@@ -7,20 +7,20 @@
  * tell that breathes while speech streams.
  */
 
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, type Mock, vi } from "vitest";
 import { createMessagePlate, type MessagePlate } from "./message-plate";
 
 describe("createMessagePlate", () => {
   let mount: HTMLElement;
-  let onDock: ReturnType<typeof vi.fn>;
-  let startDragging: ReturnType<typeof vi.fn>;
+  let onDock: Mock<() => void>;
+  let startDragging: Mock<() => void>;
   let plate: MessagePlate;
 
   beforeEach(() => {
     mount = document.createElement("div");
     document.body.appendChild(mount);
-    onDock = vi.fn();
-    startDragging = vi.fn();
+    onDock = vi.fn<() => void>();
+    startDragging = vi.fn<() => void>();
     plate = createMessagePlate({ mount, onDock, startDragging });
   });
 

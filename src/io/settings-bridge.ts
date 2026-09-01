@@ -27,7 +27,7 @@ interface VoiceStateSnapshot {
   state: VoiceInputState;
 }
 
-export type WindowKind = "pet" | "settings" | "devtools";
+export type WindowKind = "pet" | "settings" | "devtools" | "message";
 
 export interface BridgeTransport {
   emit(name: string, payload?: unknown): void;
@@ -137,52 +137,72 @@ function newSrcId(): string {
   return c?.randomUUID?.() ?? `${Date.now()}-${Math.floor(Math.random() * 1e9)}`;
 }
 
-export function createSettingsBridge(
+/** Envelope + self-filter + listener bookkeeping, shared by every cross-window bus. */
+export interface BridgeCore {
+  emit(name: string, payload?: unknown): void;
+  on<T>(name: string, cb: (payload: T, from: WindowKind | "unknown") => void): () => void;
+  dispose(): void;
+}
+
+export function createBridgeCore(
   transport: BridgeTransport | undefined,
-  opts: { windowKind: WindowKind },
-): SettingsBridge {
+  windowKind: WindowKind,
+): BridgeCore {
   const t = transport ?? selectTransport();
   const disposers = new Set<() => void>();
   const srcId = newSrcId();
 
-  const safeEmit = (name: string, payload?: unknown): void => {
-    try {
-      t.emit(name, { __src: srcId, __kind: opts.windowKind, payload } satisfies BridgeEnvelope);
-    } catch (err) {
-      log.warn("emit_failed", { error: String(err) });
-    }
-  };
-
-  const on = <T>(
-    name: string,
-    cb: (payload: T, from: WindowKind | "unknown") => void,
-  ): (() => void) => {
-    let off = (): void => {};
-    try {
-      off = t.listen(name, (raw) => {
-        // Valid envelope: ignore if it's our own. If corrupt/legacy, defensively pass it through as-is.
-        const env = raw as Partial<BridgeEnvelope> | undefined;
-        if (env && typeof env.__src === "string") {
-          if (env.__src === srcId) return;
-          cb(env.payload as T, env.__kind ?? "unknown");
-        } else {
-          cb(((raw as { payload?: unknown } | undefined)?.payload ?? raw) as T, "unknown");
-        }
-      });
-    } catch (err) {
-      log.warn("listen_failed", { error: String(err) });
-    }
-    const disposer = (): void => {
-      disposers.delete(disposer);
+  return {
+    emit(name, payload) {
       try {
-        off();
+        t.emit(name, { __src: srcId, __kind: windowKind, payload } satisfies BridgeEnvelope);
       } catch (err) {
-        log.warn("unlisten_failed", { error: String(err) });
+        log.warn("emit_failed", { error: String(err) });
       }
-    };
-    disposers.add(disposer);
-    return disposer;
+    },
+
+    on(name, cb) {
+      let off = (): void => {};
+      try {
+        off = t.listen(name, (raw) => {
+          // Valid envelope: ignore if it's our own. If corrupt/legacy, defensively pass it through as-is.
+          const env = raw as Partial<BridgeEnvelope> | undefined;
+          if (env && typeof env.__src === "string") {
+            if (env.__src === srcId) return;
+            cb(env.payload as never, env.__kind ?? "unknown");
+          } else {
+            cb(((raw as { payload?: unknown } | undefined)?.payload ?? raw) as never, "unknown");
+          }
+        });
+      } catch (err) {
+        log.warn("listen_failed", { error: String(err) });
+      }
+      const disposer = (): void => {
+        disposers.delete(disposer);
+        try {
+          off();
+        } catch (err) {
+          log.warn("unlisten_failed", { error: String(err) });
+        }
+      };
+      disposers.add(disposer);
+      return disposer;
+    },
+
+    dispose() {
+      for (const d of [...disposers]) d();
+      disposers.clear();
+    },
   };
+}
+
+export function createSettingsBridge(
+  transport: BridgeTransport | undefined,
+  opts: { windowKind: WindowKind },
+): SettingsBridge {
+  const core = createBridgeCore(transport, opts.windowKind);
+  const safeEmit = core.emit;
+  const on = core.on;
 
   return {
     emitSettingsChanged() {
@@ -209,9 +229,6 @@ export function createSettingsBridge(
     onVoiceState(cb) {
       return on<VoiceStateSnapshot>(CH_VOICE_STATE, (s) => cb(s));
     },
-    dispose() {
-      for (const d of [...disposers]) d();
-      disposers.clear();
-    },
+    dispose: core.dispose,
   };
 }

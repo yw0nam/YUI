@@ -152,6 +152,9 @@ The primary floating surface (`surfaces.css`). A scrim panel with no tail and no
 ### Text input
 A slim field summoned by hotkey, sliding up from the bottom (`surfaces.css`). Stronger scrim (`oklch(0.19 0.014 70 / 0.82)`), 12px corners, transparent inner field. At rest the border is a hairline; on `:focus-within` it ignites to a Hearth Amber border plus an amber-soft ring, the design's signature warmth moment. Submit failure shows an Ember Red inline message, never a side-stripe.
 
+### Message window
+A separate always-on-top window (`message-window.css`) holding the speech bubble and the text input when the surfaces are popped out of the character window. 340px wide, anchored by its top-left corner and grown downward by its content: a name-plate handle, then the bubble, then the input. The plate is a Strong-Scrim chip carrying a state dot, the name and a hover-revealed ⤓ that docks the surfaces back into the character window; the dot sits Muted-Ash and dim at rest and breathes Hearth Amber while speech streams. The bubble hangs on the plate's left edge with its top-left corner pressed to 6px, and keeps the frost, the caret, the scroll cap and the dismiss button it wears in the character window. Docked mode is the character-window layout plus a hover-revealed ⤢ beside the dismiss button that pops the surfaces back out. The tool-status chip and the capture and voice indicators stay with the character in both modes.
+
 ### Tool-status chip
 A low-emphasis pill (`surfaces.css`) shown while the backend runs a tool. Pill-shaped (999px), Strong-Scrim background, Ash text, a Float shadow, and a calm opacity dot-pulse (no spinner). Amber stays absent while work is in progress; at completion, the dot solidifies into a Hearth Amber checkmark, warming the finish as a small moment.
 
