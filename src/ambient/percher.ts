@@ -636,9 +636,9 @@ export function createPercher(deps: PercherDeps): Percher {
 
   /**
    * Why the window she came down on is no longer a seat: closed, slid out from under her,
-   * or covered where she stands by a window raised in front of it. Null while it still
-   * holds her — the same standing room the fall measured when it picked the surface, and
-   * skipped when the width or the feet x cannot be read.
+   * or covered where she stands by a window raised in front of it. The feet point itself
+   * has to lie on the uncovered stretch; how much room it leaves either side is the walk's
+   * business. Null while the window still holds her, and while the feet x cannot be read.
    */
   function landingLoss(
     windows: WindowRect[],
@@ -649,11 +649,9 @@ export function createPercher(deps: PercherDeps): Percher {
     const now = index < 0 ? undefined : windows[index];
     if (now === undefined) return "gone";
     if (hasMoved(now, target)) return "moved";
-    const charWpx = deps.renderer.getCharacterWidthPx();
-    if (feetX === null || charWpx === null) return null;
-    const roomPx = deps.getFallConfig().land_room_frac * charWpx;
+    if (feetX === null) return null;
     const span = uncoveredSpan(windows, index, feetX);
-    return feetX - roomPx < span.left || feetX + roomPx > span.right ? "covered" : null;
+    return feetX < span.left || feetX > span.right ? "covered" : null;
   }
 
   /**
