@@ -1158,6 +1158,23 @@ describe("createPercher", () => {
     expect(h.walkTo).toHaveBeenCalled();
   });
 
+  it("takes the seat without a walk when the user asked for no motion", async () => {
+    const h = makeHarness({
+      windows: async () => [HOST, NEIGHBOUR],
+      initialPos: { x: 1500, y: 480 },
+      armed: false,
+      reducedMotion: true,
+    });
+    h.percher.start();
+
+    h.percher.landOn(NEIGHBOUR);
+    await h.frame();
+
+    expect(h.walkTo).not.toHaveBeenCalled();
+    expect(h.calls).toEqual(["avatar.window_sit", "adopt"]);
+    expect(h.adoptSit).toHaveBeenCalledWith(7, { x: 1560, y: 900 }, 500, "commit");
+  });
+
   it("waits for the touchdown clip to give the body back before taking the seat", async () => {
     const h = makeHarness({
       windows: async () => [NEIGHBOUR],
