@@ -750,3 +750,54 @@ describe("keep bubble until dismissed", () => {
     expect(bubble().classList.contains("is-visible")).toBe(false);
   });
 });
+
+// The pop-out button rides beside the dismiss button so the one bubble carries both exits:
+// close this utterance, or move speech into the message window for good.
+describe("pop-out button — moving speech to the message window", () => {
+  let mount: HTMLElement;
+  let s: ReturnType<typeof createSurfaces>;
+  let onPop: ReturnType<typeof vi.fn>;
+
+  beforeEach(() => {
+    mount = document.createElement("div");
+    document.body.appendChild(mount);
+    onPop = vi.fn();
+    s = createSurfaces({ mount, onPop });
+  });
+
+  afterEach(() => {
+    s.dispose();
+    mount.remove();
+  });
+
+  const bubble = (): HTMLElement => mount.querySelector(".yui-bubble") as HTMLElement;
+  const popBtn = (): HTMLButtonElement =>
+    mount.querySelector(".yui-bubble__pop") as HTMLButtonElement;
+
+  it("renders a labelled pop button inside the bubble", () => {
+    expect(popBtn()).not.toBeNull();
+    expect(bubble().contains(popBtn())).toBe(true);
+    expect(popBtn().getAttribute("aria-label")).toBeTruthy();
+  });
+
+  it("is registered as an interactive overlay target while the bubble shows", () => {
+    const selector = ".yui-bubble.is-visible .yui-bubble__pop";
+    expect(INTERACTIVE_OVERLAY_SELECTORS).toContain(selector);
+    expect(mount.querySelector(selector)).toBeNull();
+
+    s.beginSpeech();
+    s.pushSpeech("Hello.");
+    s.endSpeech();
+
+    expect(mount.querySelector(selector)).toBe(popBtn());
+  });
+
+  it("reports the pop request on click", () => {
+    popBtn().click();
+    expect(onPop).toHaveBeenCalledTimes(1);
+  });
+
+  it("stays hidden outside Tauri, where there is no second window to pop into", () => {
+    expect(popBtn().hidden).toBe(true);
+  });
+});

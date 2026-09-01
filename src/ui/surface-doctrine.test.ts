@@ -133,3 +133,29 @@ describe("surfaces.css — components with a display rule honour [hidden]", () =
     expect(extractBlock(css, ".yui-tool[hidden]")).toMatch(/display:\s*none/);
   });
 });
+
+// The message window reuses the bubble and the input verbatim, so the frost stays
+// where doctrine puts it — on the bubble — and the plate takes a strong scrim instead.
+describe("message-window.css — the plate is a chip, not a frosted panel", () => {
+  it("adds no backdrop-filter of its own", () => {
+    expect(read("message-window.css")).not.toMatch(/backdrop-filter/);
+  });
+
+  it("styles the plate with scrim-strong", () => {
+    expect(extractBlock(read("message-window.css"), ".yui-plate")).toMatch(
+      /var\(--yui-scrim-strong\)/,
+    );
+  });
+
+  it("takes its live-state color from the accent token, never a literal", () => {
+    const css = read("message-window.css");
+    expect(extractBlock(css, ".yui-plate.is-live .yui-plate__dot")).toMatch(/var\(--yui-accent\)/);
+    expect(css).not.toMatch(/oklch\(/);
+  });
+
+  it("hides the pop button in the window that is already popped out", () => {
+    expect(extractBlock(read("message-window.css"), ".yui-ui--message .yui-bubble__pop")).toMatch(
+      /display:\s*none/,
+    );
+  });
+});

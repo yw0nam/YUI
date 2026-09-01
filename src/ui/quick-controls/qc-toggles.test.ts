@@ -5,6 +5,7 @@ import { createAgentNotifySettings } from "../../io/agent-notify-settings";
 import { createAgentSettings } from "../../io/agent-settings";
 import { createEndpointsSettings } from "../../io/endpoints-settings";
 import { createLipsyncSettings } from "../../io/lipsync-settings";
+import { createMessageWindowSettings } from "../../io/message-window-settings";
 import { createFlagSettings } from "../../io/persisted-store";
 import { createProactiveSettings } from "../../io/proactive-settings";
 import { createScheduleSettings } from "../../io/schedule-settings";
@@ -696,5 +697,74 @@ describe("createQuickControls — toggles + gain row", () => {
     expect(lipsync.get().gain).toBe(2);
     expect(vad.get().silenceMs).toBe(VAD_SILENCE_DEFAULT);
     expect(onGainPreview).not.toHaveBeenCalled();
+  });
+});
+
+// The row moves the persisted mode the pet window reads; the browser dev build has no
+// second window to move into, so it does not render there at all.
+describe("createQuickControls — message-window row", () => {
+  let mount: HTMLElement;
+
+  beforeEach(() => {
+    mount = document.createElement("div");
+    document.body.appendChild(mount);
+    (globalThis as { __TAURI_INTERNALS__?: unknown }).__TAURI_INTERNALS__ = {};
+  });
+
+  afterEach(() => {
+    document.body.innerHTML = "";
+    delete (globalThis as { __TAURI_INTERNALS__?: unknown }).__TAURI_INTERNALS__;
+  });
+
+  it("renders in the Input tab and flips the stored mode", () => {
+    const messageWindowSettings = createMessageWindowSettings();
+    const qc = createQuickControls({ ...defaultQcArgs(mount), messageWindowSettings });
+    qc.open();
+
+    const sw = qc.el.querySelector<HTMLButtonElement>(".yui-message-window-switch")!;
+    expect(qc.el.querySelector<HTMLElement>("#yui-panel-input")!.contains(sw)).toBe(true);
+    expect(sw.getAttribute("aria-checked")).toBe("false");
+
+    sw.click();
+    expect(messageWindowSettings.get().mode).toBe("popped");
+    expect(sw.getAttribute("aria-checked")).toBe("true");
+
+    sw.click();
+    expect(messageWindowSettings.get().mode).toBe("docked");
+
+    qc.dispose();
+  });
+
+  it("reflects an external mode change while open", () => {
+    const messageWindowSettings = createMessageWindowSettings();
+    const qc = createQuickControls({ ...defaultQcArgs(mount), messageWindowSettings });
+    qc.open();
+
+    messageWindowSettings.setMode("popped");
+    expect(
+      qc.el
+        .querySelector<HTMLButtonElement>(".yui-message-window-switch")!
+        .getAttribute("aria-checked"),
+    ).toBe("true");
+
+    qc.dispose();
+  });
+
+  it("is absent when no store is injected", () => {
+    const qc = createQuickControls(defaultQcArgs(mount));
+    qc.open();
+    expect(qc.el.querySelector(".yui-message-window-switch")).toBeNull();
+    qc.dispose();
+  });
+
+  it("is absent outside Tauri, where there is no window to pop out", () => {
+    delete (globalThis as { __TAURI_INTERNALS__?: unknown }).__TAURI_INTERNALS__;
+    const qc = createQuickControls({
+      ...defaultQcArgs(mount),
+      messageWindowSettings: createMessageWindowSettings(),
+    });
+    qc.open();
+    expect(qc.el.querySelector(".yui-message-window-switch")).toBeNull();
+    qc.dispose();
   });
 });
