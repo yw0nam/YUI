@@ -71,7 +71,7 @@ export function planStepOff(opts: {
   span: { left: number; right: number };
   /** How far past the edge she walks — the same room a landing surface has to offer. */
   roomPx: number;
-  /** Logical x range of the work area she has to come down inside. */
+  /** Logical x range she has to come down inside; `right` is the first x past it. */
   workArea: { left: number; right: number };
   rng: Rng;
 }): { edge: "left" | "right"; toX: number } | null {
@@ -83,7 +83,7 @@ export function planStepOff(opts: {
     toLeft === toRight ? (rng() < 0.5 ? "left" : "right") : toLeft < toRight ? "left" : "right";
   for (const edge of [nearer, nearer === "left" ? "right" : "left"] as const) {
     const toX = edge === "left" ? span.left - roomPx : span.right + roomPx;
-    if (toX >= workArea.left && toX <= workArea.right) return { edge, toX };
+    if (toX >= workArea.left && toX < workArea.right) return { edge, toX };
   }
   return null;
 }
