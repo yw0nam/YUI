@@ -509,7 +509,7 @@ export function validateAvatar(file: string, raw: unknown): AvatarConfig {
     if (!isObject(rawFall)) {
       issues.push(`fall은 객체여야 함 (받음: ${JSON.stringify(rawFall)})`);
     } else {
-      for (const field of ["gravity_px_s2", "max_speed_px_s"] as const) {
+      for (const field of ["gravity_px_s2", "max_speed_px_s", "land_room_frac"] as const) {
         const value = rawFall[field];
         if (value === undefined) continue;
         if (typeof value !== "number" || !Number.isFinite(value) || value <= 0) {
@@ -547,6 +547,21 @@ export function validateAvatar(file: string, raw: unknown): AvatarConfig {
           );
         } else {
           fall.cue_cooldown_ms = cueCooldownMs;
+        }
+      }
+      const stepOffProbability = rawFall.step_off_probability;
+      if (stepOffProbability !== undefined) {
+        if (
+          typeof stepOffProbability !== "number" ||
+          !Number.isFinite(stepOffProbability) ||
+          stepOffProbability < 0 ||
+          stepOffProbability > 1
+        ) {
+          issues.push(
+            `fall.step_off_probability는 [0, 1] 범위 유한 number여야 함 (받음: ${JSON.stringify(stepOffProbability)})`,
+          );
+        } else {
+          fall.step_off_probability = stepOffProbability;
         }
       }
     }

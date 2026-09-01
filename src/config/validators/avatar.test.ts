@@ -66,6 +66,8 @@ describe("validateAvatar — happy path", () => {
         max_speed_px_s: 1200,
         min_drop_frac: 0.2,
         cue_cooldown_ms: 60_000,
+        land_room_frac: 0.5,
+        step_off_probability: 0.1,
       },
       climb: {
         interval_min_ms: 90_000,
@@ -650,6 +652,8 @@ describe("validateAvatar — fall", () => {
       max_speed_px_s: 1200,
       min_drop_frac: 0.5,
       cue_cooldown_ms: 60_000,
+      land_room_frac: 0.5,
+      step_off_probability: 0.1,
     });
   });
 
@@ -662,6 +666,8 @@ describe("validateAvatar — fall", () => {
     ["gravity_px_s2", -1],
     ["max_speed_px_s", "1800"],
     ["max_speed_px_s", Number.POSITIVE_INFINITY],
+    ["land_room_frac", 0],
+    ["land_room_frac", "0.5"],
   ])("rejects invalid %s: %s", (field, value) => {
     expectIssue({ vrm_url: "/v.vrm", fall: { [field]: value } }, `fall.${field}는 0보다 큰`);
   });
@@ -686,6 +692,29 @@ describe("validateAvatar — fall", () => {
 
   it.each([-1, "60000", 1.5])("rejects an invalid cue_cooldown_ms: %s", (cue_cooldown_ms) => {
     expectIssue({ vrm_url: "/v.vrm", fall: { cue_cooldown_ms } }, "fall.cue_cooldown_ms는 0 이상");
+  });
+
+  it.each([
+    -0.1,
+    1.5,
+    "0.1",
+    Number.NaN,
+  ])("rejects a step_off_probability outside [0, 1]: %s", (step_off_probability) => {
+    expectIssue(
+      { vrm_url: "/v.vrm", fall: { step_off_probability } },
+      "fall.step_off_probability는 [0, 1]",
+    );
+  });
+
+  it("accepts the boundary step-off probabilities", () => {
+    expect(
+      validateAvatar(FILE, { vrm_url: "/v.vrm", fall: { step_off_probability: 0 } }).fall
+        .step_off_probability,
+    ).toBe(0);
+    expect(
+      validateAvatar(FILE, { vrm_url: "/v.vrm", fall: { step_off_probability: 1 } }).fall
+        .step_off_probability,
+    ).toBe(1);
   });
 });
 

@@ -1,10 +1,16 @@
 import { describe, expect, it, vi } from "vitest";
-import type { JumpConfig, PerchWalkConfig } from "../config/load";
+import type { FallConfig, JumpConfig, PerchWalkConfig } from "../config/load";
 import type { MotionKind, WindowRect } from "../contract";
 import type { ScreenMonitor } from "../io/screen-geometry";
 import type { TickContext, TickFn } from "../renderer";
 import type { JumpOutcome } from "./jumper";
-import { createPercher, nextPerchDwell, type PercherDeps, planPerchStroll } from "./percher";
+import {
+  createPercher,
+  nextPerchDwell,
+  type PercherDeps,
+  planPerchStroll,
+  planStepOff,
+} from "./percher";
 
 const CFG: PerchWalkConfig = {
   dwell_min_ms: 1000,
@@ -23,6 +29,15 @@ const JUMP_CFG: JumpConfig = {
   takeoff_frac: 0.4,
   land_frac: 0.67,
   flight_timeout_ms: 4000,
+};
+
+const FALL_CFG: FallConfig = {
+  gravity_px_s2: 1600,
+  max_speed_px_s: 1200,
+  min_drop_frac: 0.2,
+  cue_cooldown_ms: 60_000,
+  land_room_frac: 0.5,
+  step_off_probability: 0,
 };
 
 function seqRng(...values: number[]): () => number {
@@ -80,6 +95,36 @@ describe("perch-walk planning", () => {
         rng: () => 0,
       }),
     ).toBeNull();
+  });
+});
+
+describe("planStepOff", () => {
+  const base = { roomPx: 80, workArea: { left: 0, right: 1728 }, rng: () => 0 };
+
+  it("leaves by the nearer edge while both stay on the screen", () => {
+    expect(planStepOff({ ...base, currentX: 1200, span: { left: 1000, right: 1500 } })).toEqual({
+      edge: "left",
+      toX: 920,
+    });
+  });
+
+  it("leaves by the far edge when the nearer one is off the screen", () => {
+    expect(planStepOff({ ...base, currentX: 100, span: { left: 50, right: 1400 } })).toEqual({
+      edge: "right",
+      toX: 1480,
+    });
+  });
+
+  it("stays on the window when neither edge leads anywhere on the screen", () => {
+    expect(planStepOff({ ...base, currentX: 100, span: { left: 50, right: 1700 } })).toBeNull();
+  });
+
+  it("passes an edge landing on the work area's right bound, which is off the screen", () => {
+    // 1648 + 80 is the first x past the last one any monitor contains.
+    expect(planStepOff({ ...base, currentX: 1600, span: { left: 200, right: 1648 } })).toEqual({
+      edge: "left",
+      toX: 120,
+    });
   });
 });
 
@@ -147,11 +192,17 @@ function makeHarness(
     jump?: Promise<JumpOutcome>;
     jumpOutcome?: JumpOutcome;
     charWpx?: number | null;
+    /** false models a character with no seat — the fall took it. */
+    armed?: boolean;
+    stepOffProbability?: number;
+    /** null models a VRM the renderer cannot project yet. */
+    anchor?: () => { x: number; y: number } | null;
   } = {},
 ) {
   let tick: TickFn | null = null;
   let pos = over.initialPos ?? { x: 1000, y: 600 };
-  let armed = true;
+  let armed = over.armed ?? true;
+  let motion = over.motion;
   const calls: string[] = [];
   let walks = 0;
   const walkTo = vi.fn((toX: number, onAccepted?: () => void): Promise<"arrived" | "lost"> => {
@@ -219,6 +270,9 @@ function makeHarness(
   const onTakeoff = vi.fn(() => {
     calls.push("avatar.jump");
   });
+  const onStepOff = vi.fn(() => {
+    calls.push("step_off");
+  });
   const setBodyYaw = vi.fn();
   const positions: Array<{ x: number; y: number }> = [];
   const deps: PercherDeps = {
@@ -229,7 +283,7 @@ function makeHarness(
           tick = null;
         };
       },
-      getCharacterAnchor: () => ({ x: 200, y: 420 }),
+      getCharacterAnchor: over.anchor ?? (() => ({ x: 200, y: 420 })),
       getPerchProbe: () => ({ seatPx: { x: 200, y: 300 }, charHpx: 500 }),
       getCharacterWidthPx: () => (over.charWpx === undefined ? 160 : over.charWpx),
       setBodyYaw,
@@ -247,6 +301,10 @@ function makeHarness(
     listMonitors: over.monitors ?? (async () => [MONITOR]),
     getConfig: () => CFG,
     getJumpConfig: () => ({ ...JUMP_CFG, probability: over.jumpProbability ?? 0 }),
+    getFallConfig: () => ({
+      ...FALL_CFG,
+      step_off_probability: over.stepOffProbability ?? 0,
+    }),
     walker: { walkTo, cancel: walkerCancel },
     jumper: { jump, cancel: jumperCancel },
     dropSource: {
@@ -258,8 +316,7 @@ function makeHarness(
       adoptSit,
       release,
     },
-    currentMotion: () =>
-      over.motion === undefined ? { id: "idle", kind: "ambient" as const } : over.motion,
+    currentMotion: () => (motion === undefined ? { id: "idle", kind: "ambient" as const } : motion),
     isBusy: () => over.busy ?? false,
     reducedMotion: () => over.reducedMotion ?? false,
     onWalkStart: () => calls.push("avatar.walk_start"),
@@ -269,6 +326,7 @@ function makeHarness(
     onHostLost,
     onTargetLost,
     onTakeoff,
+    onStepOff,
     rng: over.rng ?? seqRng(0, 1, 0),
   };
   const percher = createPercher(deps);
@@ -296,10 +354,15 @@ function makeHarness(
     jumperCancel,
     onTargetLost,
     onTakeoff,
+    onStepOff,
     setBodyYaw,
     /** Arm a fresh commit-origin sit, the way a later drop release would. */
     rearm: () => {
       armed = true;
+    },
+    /** Hand the body to another clip, or back to the ambient baseline. */
+    setMotion: (next: { id: string; kind: MotionKind | null } | null) => {
+      motion = next;
     },
   };
 }
@@ -413,6 +476,21 @@ describe("createPercher", () => {
     expect(h.calls).toEqual([]);
   });
 
+  it("strolls a perch whose window origin hangs off the screen but whose feet do not", async () => {
+    // Origin at −150 with the feet at 50, on a host reaching the work area's left edge.
+    const h = makeHarness({
+      windows: async () => [{ ...HOST, x: 0, width: 500 }],
+      initialPos: { x: -150, y: 600 },
+    });
+    h.percher.start();
+
+    await h.frame();
+    await h.frame(1.1);
+
+    expect(h.walkTo).toHaveBeenCalledWith(200, expect.any(Function));
+    expect(h.positions).toContainEqual({ x: -150, y: 480 });
+  });
+
   it("keeps the sit when the standing position would be clamped above the work area", async () => {
     const h = makeHarness({
       windows: async () => [{ ...HOST, y: 450 }],
@@ -438,6 +516,14 @@ describe("createPercher", () => {
       scaleFactor: 2,
       initialPos: { x: 1980, y: 1200 },
       walkMovesTo: { y: 940 },
+      // Physical bounds twice the logical ones, so the scaled window is on the screen.
+      monitors: async () => [
+        {
+          position: { x: 0, y: 0 },
+          size: { width: 6000, height: 4000 },
+          workArea: { position: { x: 0, y: 0 }, size: { width: 6000, height: 3800 } },
+        },
+      ],
       rng: seqRng(0, 1, 0),
     });
     h.percher.start();
@@ -748,6 +834,35 @@ describe("createPercher", () => {
     );
   });
 
+  it("falls when the window she jumped onto is gone by the time she takes the seat", async () => {
+    let reads = 0;
+    const h = makeHarness({
+      windows: async () => {
+        reads++;
+        return reads === 1 ? [HOST, NEIGHBOUR] : [HOST];
+      },
+      jumpProbability: 1,
+      rng: () => 0,
+    });
+    h.percher.start();
+
+    await h.frame();
+    await h.frame(1.1);
+
+    expect(h.calls).toEqual([
+      "suspend",
+      "avatar.walk_start",
+      "jump",
+      "abandon",
+      "avatar.jump",
+      "avatar.walk_end",
+      "target_lost",
+    ]);
+    expect(h.onTargetLost).toHaveBeenCalledTimes(1);
+    expect(h.adoptSit).not.toHaveBeenCalled();
+    expect(h.setBodyYaw).toHaveBeenLastCalledWith(0, 400);
+  });
+
   it("posts the walk she did not need, so a jump from the spot still reads as walking", async () => {
     const h = makeHarness({
       windows: async () => [HOST, NEIGHBOUR],
@@ -973,6 +1088,402 @@ describe("createPercher", () => {
 
     // No walk and no jump happened, so no walk cue is owed for either.
     expect(h.calls).toEqual(["suspend", "resume", "avatar.window_sit"]);
+  });
+
+  it("walks off the nearer edge and hands her to the fall when the roll comes up", async () => {
+    const h = makeHarness({ stepOffProbability: 1, rng: () => 0 });
+    h.percher.start();
+
+    await h.frame();
+    await h.frame(1.1);
+
+    // The host's left edge is the nearer one; she stops a standing width past it.
+    expect(h.walkTo).toHaveBeenCalledWith(720, expect.any(Function));
+    expect(h.calls).toEqual([
+      "suspend",
+      "avatar.walk_start",
+      "abandon",
+      "avatar.walk_end",
+      "step_off",
+    ]);
+    expect(h.onStepOff).toHaveBeenCalledTimes(1);
+    expect(h.resumeSit).not.toHaveBeenCalled();
+    expect(h.release).not.toHaveBeenCalled();
+  });
+
+  it("steps off a ledge that leaves no room to stroll", async () => {
+    const narrow = { ...HOST, x: 1095, width: 210 };
+    const h = makeHarness({
+      windows: async () => [narrow],
+      stepOffProbability: 1,
+      rng: () => 0,
+    });
+    h.percher.start();
+
+    await h.frame();
+    await h.frame(1.1);
+
+    // Both edges sit 105 px away, and the tie goes to the draw.
+    expect(h.walkTo).toHaveBeenCalledWith(815, expect.any(Function));
+    expect(h.onStepOff).toHaveBeenCalledTimes(1);
+  });
+
+  it("steps off the far edge when the nearer one is past the work area", async () => {
+    // Perched at the right end of a window that reaches the work area's right edge.
+    const h = makeHarness({
+      windows: async () => [{ ...HOST, x: 2000, width: 1000 }],
+      initialPos: { x: 2700, y: 600 },
+      stepOffProbability: 1,
+      rng: () => 0,
+    });
+    h.percher.start();
+
+    await h.frame();
+    await h.frame(1.1);
+
+    expect(h.walkTo).toHaveBeenCalledWith(1720, expect.any(Function));
+    expect(h.onStepOff).toHaveBeenCalledTimes(1);
+  });
+
+  it("strolls instead when neither edge leads anywhere inside the work area", async () => {
+    const h = makeHarness({
+      windows: async () => [{ ...HOST, x: 0, width: 3000 }],
+      stepOffProbability: 1,
+      rng: () => 0,
+    });
+    h.percher.start();
+
+    await h.frame();
+    await h.frame(1.1);
+
+    expect(h.walkTo).toHaveBeenCalledWith(920, expect.any(Function));
+    expect(h.onStepOff).not.toHaveBeenCalled();
+    expect(h.resumeSit).toHaveBeenCalledTimes(1);
+  });
+
+  it("strolls as usual when a neighbour she could jump to leaves the roll unrolled", async () => {
+    const h = makeHarness({
+      windows: async () => [HOST, NEIGHBOUR],
+      stepOffProbability: 1,
+      rng: () => 0,
+    });
+    h.percher.start();
+
+    await h.frame();
+    await h.frame(1.1);
+
+    expect(h.onStepOff).not.toHaveBeenCalled();
+    expect(h.calls).toEqual([
+      "suspend",
+      "avatar.walk_start",
+      "avatar.walk_end",
+      "resume",
+      "avatar.window_sit",
+    ]);
+  });
+
+  it("re-sits when the step-off leg never gets going", async () => {
+    const h = makeHarness({ stepOffProbability: 1, rng: () => 0, walkAccepted: false });
+    h.percher.start();
+
+    await h.frame();
+    await h.frame(1.1);
+
+    expect(h.onStepOff).not.toHaveBeenCalled();
+    expect(h.resumeSit).toHaveBeenCalledTimes(1);
+    expect(h.calls).toEqual(["suspend", "resume", "avatar.window_sit"]);
+  });
+
+  it("takes the seat on the window a fall came down on", async () => {
+    // Standing on the neighbour's top edge at x 1700, where the fall left her.
+    const h = makeHarness({
+      windows: async () => [HOST, NEIGHBOUR],
+      initialPos: { x: 1500, y: 480 },
+      armed: false,
+    });
+    h.percher.start();
+
+    h.percher.landOn(NEIGHBOUR);
+    await h.frame();
+
+    expect(h.walkTo).toHaveBeenCalledWith(1580, expect.any(Function));
+    expect(h.calls).toEqual(["avatar.walk_start", "avatar.walk_end", "avatar.window_sit", "adopt"]);
+    expect(h.adoptSit).toHaveBeenCalledWith(7, { x: 1560, y: 900 }, 500, "commit");
+    expect(h.setBodyYaw).toHaveBeenLastCalledWith(0, 400);
+    expect(h.release).not.toHaveBeenCalled();
+
+    // The seat she landed on is a perch like any other: the dwell runs on it.
+    h.walkTo.mockClear();
+    await h.frame(0.5);
+    expect(h.walkTo).not.toHaveBeenCalled();
+    await h.frame(2);
+    expect(h.walkTo).toHaveBeenCalled();
+  });
+
+  it("keeps a landing whose body reads are not ready and takes it on the next tick", async () => {
+    let reads = 0;
+    const h = makeHarness({
+      windows: async () => [HOST, NEIGHBOUR],
+      initialPos: { x: 1500, y: 480 },
+      armed: false,
+      anchor: () => (++reads === 1 ? null : { x: 200, y: 420 }),
+    });
+    h.percher.start();
+
+    h.percher.landOn(NEIGHBOUR);
+    await h.frame();
+    expect(h.adoptSit).not.toHaveBeenCalled();
+
+    await h.frame();
+
+    expect(h.adoptSit).toHaveBeenCalledWith(7, { x: 1560, y: 900 }, 500, "commit");
+  });
+
+  it("takes the seat without a walk when the user asked for no motion", async () => {
+    const h = makeHarness({
+      windows: async () => [HOST, NEIGHBOUR],
+      initialPos: { x: 1500, y: 480 },
+      armed: false,
+      reducedMotion: true,
+    });
+    h.percher.start();
+
+    h.percher.landOn(NEIGHBOUR);
+    await h.frame();
+
+    expect(h.walkTo).not.toHaveBeenCalled();
+    expect(h.calls).toEqual(["avatar.window_sit", "adopt"]);
+    expect(h.adoptSit).toHaveBeenCalledWith(7, { x: 1560, y: 900 }, 500, "commit");
+  });
+
+  it("waits for the touchdown clip to give the body back before taking the seat", async () => {
+    const h = makeHarness({
+      windows: async () => [NEIGHBOUR],
+      initialPos: { x: 1500, y: 480 },
+      armed: false,
+      motion: { id: "landing", kind: "oneshot" },
+    });
+    h.percher.start();
+
+    h.percher.landOn(NEIGHBOUR);
+    await h.frame();
+    await h.frame();
+    expect(h.walkTo).not.toHaveBeenCalled();
+
+    h.setMotion({ id: "idle", kind: "ambient" });
+    await h.frame();
+
+    expect(h.walkTo).toHaveBeenCalledTimes(1);
+    expect(h.adoptSit).toHaveBeenCalledWith(7, { x: 1560, y: 900 }, 500, "commit");
+  });
+
+  it("falls again when the window she landed on has gone by the time it reads", async () => {
+    const h = makeHarness({
+      windows: async () => [],
+      initialPos: { x: 1500, y: 480 },
+      armed: false,
+    });
+    h.percher.start();
+
+    h.percher.landOn(NEIGHBOUR);
+    await h.frame();
+
+    expect(h.walkTo).not.toHaveBeenCalled();
+    expect(h.adoptSit).not.toHaveBeenCalled();
+    expect(h.calls).toEqual(["target_lost"]);
+    expect(h.onTargetLost).toHaveBeenCalledTimes(1);
+    expect(h.release).not.toHaveBeenCalled();
+  });
+
+  it("falls again when the window she landed on slid away before the seat was taken", async () => {
+    const h = makeHarness({
+      windows: async () => [{ ...NEIGHBOUR, x: NEIGHBOUR.x + 40 }],
+      initialPos: { x: 1500, y: 480 },
+      armed: false,
+    });
+    h.percher.start();
+
+    h.percher.landOn(NEIGHBOUR);
+    await h.frame();
+
+    expect(h.adoptSit).not.toHaveBeenCalled();
+    expect(h.onTargetLost).toHaveBeenCalledTimes(1);
+  });
+
+  it("takes the seat from the rect the fresh stack gives, not the one she came down on", async () => {
+    // A nudge inside MOVE_TH is the same window, in the place it is in now.
+    const h = makeHarness({
+      windows: async () => [HOST, { ...NEIGHBOUR, x: NEIGHBOUR.x + 5 }],
+      initialPos: { x: 1500, y: 480 },
+      armed: false,
+    });
+    h.percher.start();
+
+    h.percher.landOn(NEIGHBOUR);
+    await h.frame();
+
+    expect(h.adoptSit).toHaveBeenCalledWith(7, { x: 1565, y: 900 }, 500, "commit");
+    expect(h.onTargetLost).not.toHaveBeenCalled();
+  });
+
+  it("falls out of a pending landing when its window closes during the touchdown clip", async () => {
+    let stack = [NEIGHBOUR];
+    const h = makeHarness({
+      windows: async () => stack,
+      initialPos: { x: 1500, y: 480 },
+      armed: false,
+      motion: { id: "landing", kind: "oneshot" },
+    });
+    h.percher.start();
+
+    h.percher.landOn(NEIGHBOUR);
+    await h.frame(0.4);
+    expect(h.onTargetLost).not.toHaveBeenCalled();
+    stack = [];
+    await h.frame(0.4);
+
+    expect(h.onTargetLost).toHaveBeenCalledTimes(1);
+    // The landing is dropped with it: the body coming back changes nothing.
+    h.setMotion({ id: "idle", kind: "ambient" });
+    await h.frame();
+    expect(h.walkTo).not.toHaveBeenCalled();
+    expect(h.adoptSit).not.toHaveBeenCalled();
+  });
+
+  it("falls out of a pending landing when its window is dragged away", async () => {
+    let stack = [NEIGHBOUR];
+    const h = makeHarness({
+      windows: async () => stack,
+      initialPos: { x: 1500, y: 480 },
+      armed: false,
+      motion: { id: "landing", kind: "oneshot" },
+    });
+    h.percher.start();
+
+    h.percher.landOn(NEIGHBOUR);
+    stack = [{ ...NEIGHBOUR, x: NEIGHBOUR.x + 20 }];
+    await h.frame(0.8);
+
+    expect(h.onTargetLost).toHaveBeenCalledTimes(1);
+  });
+
+  it("falls out of a pending landing when a window comes up over her feet", async () => {
+    let stack: WindowRect[] = [NEIGHBOUR];
+    const h = makeHarness({
+      windows: async () => stack,
+      initialPos: { x: 1500, y: 480 },
+      armed: false,
+      motion: { id: "landing", kind: "oneshot" },
+    });
+    h.percher.start();
+
+    h.percher.landOn(NEIGHBOUR);
+    // Her feet are at 1700 and want 80 px either side; this takes the lot.
+    stack = [cover(1650, 300, 9), NEIGHBOUR];
+    await h.frame(0.8);
+
+    expect(h.onTargetLost).toHaveBeenCalledTimes(1);
+  });
+
+  it("keeps a pending landing when the window in front clears her standing room", async () => {
+    let stack: WindowRect[] = [NEIGHBOUR];
+    const h = makeHarness({
+      windows: async () => stack,
+      initialPos: { x: 1500, y: 480 },
+      armed: false,
+      motion: { id: "landing", kind: "oneshot" },
+    });
+    h.percher.start();
+
+    h.percher.landOn(NEIGHBOUR);
+    // Its near edge is at 1800, past the 1780 her right foot asks for.
+    stack = [cover(1800, 200, 9), NEIGHBOUR];
+    await h.frame(0.8);
+    expect(h.onTargetLost).not.toHaveBeenCalled();
+
+    h.setMotion({ id: "idle", kind: "ambient" });
+    await h.frame();
+
+    expect(h.adoptSit).toHaveBeenCalledWith(7, { x: 1560, y: 900 }, 500, "commit");
+  });
+
+  it("falls again when the window she landed on is covered by the time it reads", async () => {
+    const h = makeHarness({
+      windows: async () => [cover(1650, 300, 9), NEIGHBOUR],
+      initialPos: { x: 1500, y: 480 },
+      armed: false,
+    });
+    h.percher.start();
+
+    h.percher.landOn(NEIGHBOUR);
+    await h.frame();
+
+    expect(h.adoptSit).not.toHaveBeenCalled();
+    expect(h.onTargetLost).toHaveBeenCalledTimes(1);
+  });
+
+  it("keeps a pending landing whose window barely moved and seats her on it", async () => {
+    let stack = [HOST, NEIGHBOUR];
+    const h = makeHarness({
+      windows: async () => stack,
+      initialPos: { x: 1500, y: 480 },
+      armed: false,
+      motion: { id: "landing", kind: "oneshot" },
+    });
+    h.percher.start();
+
+    h.percher.landOn(NEIGHBOUR);
+    stack = [HOST, { ...NEIGHBOUR, x: NEIGHBOUR.x + 5 }];
+    await h.frame(0.8);
+    expect(h.onTargetLost).not.toHaveBeenCalled();
+
+    h.setMotion({ id: "idle", kind: "ambient" });
+    await h.frame();
+
+    expect(h.adoptSit).toHaveBeenCalledWith(7, { x: 1565, y: 900 }, 500, "commit");
+  });
+
+  it("watches a pending landing on the poll cadence, one read at a time", async () => {
+    const pending = deferred<WindowRect[]>();
+    let reads = 0;
+    const h = makeHarness({
+      windows: () => {
+        reads++;
+        return reads === 1 ? Promise.resolve([NEIGHBOUR]) : pending.promise;
+      },
+      initialPos: { x: 1500, y: 480 },
+      armed: false,
+      motion: { id: "landing", kind: "oneshot" },
+    });
+    h.percher.start();
+
+    h.percher.landOn(NEIGHBOUR);
+    // Two seconds of frames against a 700 ms cadence: two reads, not twenty.
+    for (let i = 0; i < 20; i++) await h.frame(0.1);
+    expect(reads).toBe(2);
+
+    // The second never came back, so the cadence issues nothing on top of it.
+    await h.frame(0.8);
+    await h.frame(0.8);
+    expect(reads).toBe(2);
+  });
+
+  it("drops a pending landing when the user picks her up first", async () => {
+    const h = makeHarness({
+      windows: async () => [NEIGHBOUR],
+      initialPos: { x: 1500, y: 480 },
+      armed: false,
+      motion: { id: "drag", kind: "reactive" },
+    });
+    h.percher.start();
+
+    h.percher.landOn(NEIGHBOUR);
+    h.percher.cancel();
+    h.setMotion({ id: "idle", kind: "ambient" });
+    await h.frame();
+
+    expect(h.walkTo).not.toHaveBeenCalled();
+    expect(h.adoptSit).not.toHaveBeenCalled();
   });
 
   it("does not let an older attempt clear the starting state of a newer generation", async () => {

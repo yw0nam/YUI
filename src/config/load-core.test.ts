@@ -75,6 +75,8 @@ describe("loadConfig — happy path", () => {
         max_speed_px_s: 1200,
         min_drop_frac: 0.2,
         cue_cooldown_ms: 60_000,
+        land_room_frac: 0.5,
+        step_off_probability: 0.1,
       },
       climb: {
         interval_min_ms: 90_000,

@@ -529,6 +529,7 @@ export function wirePercher(deps: {
   renderer: Renderer;
   getPerchWalkConfig: () => PerchWalkConfig;
   getJumpConfig: () => JumpConfig;
+  getFallConfig: () => FallConfig;
   /** Registry kind of a motion id, for the "nothing else holds the body" gate. */
   getMotionKind: (id: string) => MotionKind | undefined;
   /** A turn is in flight or speech is still playing — ambient movement stays out of the way. */
@@ -559,14 +560,17 @@ export function wirePercher(deps: {
   onHostLost: () => void;
   /** A jump lost the window it was aimed at — the character falls out of mid-air. */
   onTargetLost: () => void;
+  /** An ambient stroll walked her off the host's edge — the fall takes her from there. */
+  onStepOff: () => void;
   setHitTestMoving(moving: boolean): void;
   log: Logger;
-}): { cancel(): void; dispose(): void } {
+}): { cancel(): void; landOn(target: WindowRect): void; dispose(): void } {
   const { bus, renderer, log } = deps;
   let percher: Percher | null = null;
   let disposed = false;
   const handle = {
     cancel: () => percher?.cancel(),
+    landOn: (target: WindowRect) => percher?.landOn(target),
     dispose: () => {
       disposed = true;
       percher?.stop();
@@ -608,6 +612,7 @@ export function wirePercher(deps: {
       listMonitors: async () => (await availableMonitors()).map(toScreenMonitor),
       getConfig: deps.getPerchWalkConfig,
       getJumpConfig: deps.getJumpConfig,
+      getFallConfig: deps.getFallConfig,
       walker: deps.walker,
       jumper,
       dropSource: deps.dropSource,
@@ -630,6 +635,7 @@ export function wirePercher(deps: {
       onWalkCancel: endWalk,
       onHostLost: deps.onHostLost,
       onTargetLost: deps.onTargetLost,
+      onStepOff: deps.onStepOff,
       onTakeoff: () => {
         bus.push({
           source: "timer_scheduler",
@@ -674,6 +680,8 @@ export function wireFaller(deps: {
   getGestureCues: () => GestureCuesConfig;
   /** Keep the hit-test cursor mapping accurate while the window translates. */
   setHitTestMoving: (moving: boolean) => void;
+  /** She came down on a foreign window top — the perch loop takes it from there. */
+  onWindowLand: (target: WindowRect) => void;
   log: Logger;
 }): { drop(): void; cancel(): void; dispose(): void } {
   const { bus, renderer, log } = deps;
@@ -689,6 +697,7 @@ export function wireFaller(deps: {
   };
   if (!isTauri()) return handle;
   void (async () => {
+    const { invoke } = await import("@tauri-apps/api/core");
     const { availableMonitors, getCurrentWindow } = await import("@tauri-apps/api/window");
     const { PhysicalPosition } = await import("@tauri-apps/api/dpi");
     if (disposed) return;
@@ -712,19 +721,30 @@ export function wireFaller(deps: {
         return current ? (deps.getMotionKind(current.id) ?? null) : null;
       },
       listMonitors: async () => (await availableMonitors()).map(toScreenMonitor),
+      listWindows: () => invoke("list_windows") as Promise<WindowRect[]>,
       getConfig: deps.getFallConfig,
       getFloorTolerancePx: deps.getFloorTolerancePx,
       onStart: () => deps.setHitTestMoving(true),
       onEnd: () => deps.setHitTestMoving(false),
-      onLand: (heightPx) => {
-        bus.push({
-          source: "os_event_watcher",
-          event_name: "user.fall_land",
-          ts: Date.now(),
-          hint_tier: 1,
-          dnd_override: true,
-          payload: { height_px: Math.round(heightPx) },
-        });
+      onLand: ({ heightPx, surface, fell }) => {
+        const target = surface.kind === "window" ? surface.target : null;
+        // A snap is a placement rather than a fall: it hands the seat over and says nothing.
+        if (fell) {
+          bus.push({
+            source: "os_event_watcher",
+            event_name: "user.fall_land",
+            ts: Date.now(),
+            hint_tier: 1,
+            dnd_override: true,
+            payload: {
+              height_px: Math.round(heightPx),
+              landed_on: surface.kind,
+              app: target?.ownerName ?? null,
+              window_title: target?.name ?? null,
+            },
+          });
+        }
+        if (target) deps.onWindowLand(target);
       },
       onCue: (heightPx) => {
         const cue = deps.getGestureCues().dropped;

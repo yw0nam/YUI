@@ -2,17 +2,22 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 // wirePercher only builds the loop under Tauri, so capture the deps it hands createPercher
 // and createJumper, and drive the cue callbacks directly.
-const { createPercher, createJumper } = vi.hoisted(() => ({
-  createPercher: vi.fn((_deps: Record<string, () => void>) => ({
-    start: () => {},
-    cancel: () => {},
-    stop: () => {},
-  })),
-  createJumper: vi.fn((_deps: Record<string, () => void>) => ({
-    jump: async () => "landed" as const,
-    cancel: () => {},
-  })),
-}));
+const { createPercher, createJumper, landOn } = vi.hoisted(() => {
+  const landOn = vi.fn();
+  return {
+    landOn,
+    createPercher: vi.fn((_deps: Record<string, () => void>) => ({
+      start: () => {},
+      cancel: () => {},
+      stop: () => {},
+      landOn,
+    })),
+    createJumper: vi.fn((_deps: Record<string, () => void>) => ({
+      jump: async () => "landed" as const,
+      cancel: () => {},
+    })),
+  };
+});
 vi.mock("./ambient/percher", () => ({ createPercher }));
 vi.mock("./ambient/jumper", () => ({ createJumper }));
 vi.mock("@tauri-apps/api/core", () => ({ invoke: vi.fn() }));
@@ -30,30 +35,36 @@ async function wire() {
   vi.stubGlobal("__TAURI_INTERNALS__", {});
   createPercher.mockClear();
   createJumper.mockClear();
+  landOn.mockClear();
   const pushed: Array<{ event_name: string; hint_tier?: number }> = [];
   const setHitTestMoving = vi.fn();
   const onTargetLost = vi.fn();
-  wirePercher({
+  const onStepOff = vi.fn();
+  const handle = wirePercher({
     bus: { push: (env: { event_name: string }) => pushed.push(env) } as never,
     renderer: {} as never,
     getPerchWalkConfig: () => ({}) as never,
     getJumpConfig: () => ({}) as never,
+    getFallConfig: () => ({}) as never,
     getMotionKind: () => undefined,
     isBusy: () => false,
     walker: { walkTo: async () => "arrived" as const, cancel: () => {} },
     dropSource: {} as never,
     onHostLost: () => {},
     onTargetLost,
+    onStepOff,
     setHitTestMoving,
     log: noopLog,
   });
   await vi.waitFor(() => expect(createPercher).toHaveBeenCalled());
   return {
+    handle,
     deps: createPercher.mock.calls[0][0],
     jumperDeps: createJumper.mock.calls[0][0],
     pushed,
     setHitTestMoving,
     onTargetLost,
+    onStepOff,
   };
 }
 
@@ -87,6 +98,24 @@ describe("wirePercher", () => {
 
     expect(pushed.map((env) => env.event_name)).toEqual(["avatar.jump"]);
     expect(pushed[0].hint_tier).toBe(1);
+  });
+
+  it("drops the character when the ambient step-off walks her off the edge", async () => {
+    const { deps, pushed, onStepOff } = await wire();
+
+    deps.onStepOff();
+
+    expect(onStepOff).toHaveBeenCalledTimes(1);
+    expect(pushed).toEqual([]);
+  });
+
+  it("hands a window a fall came down on to the perch loop", async () => {
+    const { handle } = await wire();
+    const target = { windowNumber: 5, name: "Chat", ownerName: "Messages" };
+
+    handle.landOn(target as never);
+
+    expect(landOn).toHaveBeenCalledWith(target);
   });
 
   it("hands the jumper the readers it needs and no cue of its own", async () => {
