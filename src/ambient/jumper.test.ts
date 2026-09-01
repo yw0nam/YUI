@@ -160,6 +160,15 @@ describe("pickJumpTarget — walkable neighbours", () => {
     expect(pick([win({ x: 1500, windowNumber: 7 })])).toBeNull();
     expect(pick([win({ x: 1500, y: HOST.y + 9, windowNumber: 7 })])?.target.windowNumber).toBe(7);
   });
+
+  it("leaves it to the stroll even where a covered seam keeps the stroll off it", () => {
+    const walkable = win({ x: 1500, windowNumber: 7 });
+    // Straddles the seam at 1500 and stops the ledge at the host's own edge, so the walk
+    // across never happens. The neighbour still keeps landing room past the cover, and
+    // the jump still leaves it alone: she would come down beside a window in front of her.
+    const seam = win({ x: 1450, y: 500, width: 110, height: 500, windowNumber: 9 });
+    expect(pick([seam, walkable])).toBeNull();
+  });
 });
 
 describe("pickJumpTarget — winner", () => {
