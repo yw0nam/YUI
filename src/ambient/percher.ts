@@ -61,21 +61,31 @@ export function planPerchStroll(opts: {
   return { centerX, direction };
 }
 
-/** Where a step-off walks to: the nearer end of the walkable stretch, and a width past it. */
+/**
+ * Where a step-off walks to: the nearer end of the walkable stretch, and a width past it.
+ * A spot outside the work area is off the screen she is on, where nothing would catch her
+ * and no floor is in reach, so that edge is passed over for the other one.
+ */
 export function planStepOff(opts: {
   currentX: number;
   span: { left: number; right: number };
   /** How far past the edge she walks — the same room a landing surface has to offer. */
   roomPx: number;
+  /** Logical x range of the work area she has to come down inside. */
+  workArea: { left: number; right: number };
   rng: Rng;
 }): { edge: "left" | "right"; toX: number } | null {
-  const { currentX, span, roomPx, rng } = opts;
+  const { currentX, span, roomPx, workArea, rng } = opts;
   if (span.right < span.left) return null;
   const toLeft = currentX - span.left;
   const toRight = span.right - currentX;
-  const edge =
+  const nearer: "left" | "right" =
     toLeft === toRight ? (rng() < 0.5 ? "left" : "right") : toLeft < toRight ? "left" : "right";
-  return { edge, toX: edge === "left" ? span.left - roomPx : span.right + roomPx };
+  for (const edge of [nearer, nearer === "left" ? "right" : "left"] as const) {
+    const toX = edge === "left" ? span.left - roomPx : span.right + roomPx;
+    if (toX >= workArea.left && toX <= workArea.right) return { edge, toX };
+  }
+  return null;
 }
 
 export interface PercherWindow {
@@ -500,6 +510,10 @@ export function createPercher(deps: PercherDeps): Percher {
             currentX: fromX,
             span,
             roomPx: fallCfg.land_room_frac * charWpx,
+            workArea: {
+              left: monitor.workArea.position.x / scale,
+              right: (monitor.workArea.position.x + monitor.workArea.size.width) / scale,
+            },
             rng,
           })
         : null;
