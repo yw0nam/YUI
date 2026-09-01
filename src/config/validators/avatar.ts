@@ -490,6 +490,20 @@ export function validateAvatar(file: string, raw: unknown): AvatarConfig {
           perch_walk.edge_margin_frac = edgeMarginFrac;
         }
       }
+      const levelTolerance = rawPerchWalk.level_tolerance_px;
+      if (levelTolerance !== undefined) {
+        if (
+          typeof levelTolerance !== "number" ||
+          !Number.isFinite(levelTolerance) ||
+          levelTolerance < 0
+        ) {
+          issues.push(
+            `perch_walk.level_tolerance_px는 0 이상 유한 number여야 함 (받음: ${JSON.stringify(levelTolerance)})`,
+          );
+        } else {
+          perch_walk.level_tolerance_px = levelTolerance;
+        }
+      }
       if (perch_walk.dwell_min_ms > perch_walk.dwell_max_ms) {
         issues.push(
           `perch_walk.dwell_min_ms는 perch_walk.dwell_max_ms 이하여야 함 (받음: ${perch_walk.dwell_min_ms} > ${perch_walk.dwell_max_ms})`,
