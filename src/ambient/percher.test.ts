@@ -10,6 +10,7 @@ import {
   type PercherDeps,
   planPerchStroll,
   planStepOff,
+  walkableLedge,
 } from "./percher";
 
 const CFG: PerchWalkConfig = {
@@ -160,6 +161,73 @@ const NEIGHBOUR: WindowRect = {
   ownerName: "Messages",
   windowNumber: 7,
 };
+
+/** A window whose top sits level with the host's, at the given stretch of x. */
+function level(x: number, width: number, windowNumber: number, y = HOST.y): WindowRect {
+  return { ...HOST, x, y, width, name: "Level", windowNumber };
+}
+
+describe("walkableLedge", () => {
+  const ledge = (windows: WindowRect[], hostIndex: number, currentX = 1200) =>
+    walkableLedge({ windows, hostIndex, currentX, tolerancePx: 8 });
+
+  it("is the host's own uncovered stretch when nothing is level with it", () => {
+    expect(ledge([HOST], 0)).toEqual({ left: 1000, right: 1500, surfaces: [HOST] });
+  });
+
+  it("runs on across a level neighbour touching the host's right edge", () => {
+    const right = level(1500, 400, 7);
+    expect(ledge([HOST, right], 0)).toEqual({ left: 1000, right: 1900, surfaces: [HOST, right] });
+  });
+
+  it("runs on across a level neighbour raised in front of the host", () => {
+    const front = level(1300, 400, 7);
+    expect(ledge([front, HOST], 1)).toEqual({ left: 1000, right: 1700, surfaces: [HOST, front] });
+  });
+
+  it("runs on across a level neighbour reaching the host's left edge", () => {
+    const left = level(600, 400, 7);
+    expect(ledge([HOST, left], 0)).toEqual({ left: 600, right: 1500, surfaces: [HOST, left] });
+  });
+
+  it("leaves a neighbour a tolerance and a pixel off the host's height to the jump", () => {
+    expect(ledge([HOST, level(1500, 400, 7, HOST.y - 9)], 0).right).toBe(1500);
+    expect(ledge([HOST, level(1500, 400, 7, HOST.y + 9)], 0).right).toBe(1500);
+  });
+
+  it("leaves a neighbour a pixel clear of the host to the jump", () => {
+    expect(ledge([HOST, level(1501, 400, 7)], 0).right).toBe(1500);
+  });
+
+  it("chains a third window onto the second", () => {
+    const first = level(1500, 400, 7, HOST.y + 4);
+    const second = level(1900, 400, 8, HOST.y - 4);
+    expect(ledge([HOST, first, second], 0)).toEqual({
+      left: 1000,
+      right: 2300,
+      surfaces: [HOST, first, second],
+    });
+  });
+
+  it("measures every height against the host, so a chain cannot drift off it", () => {
+    const first = level(1500, 400, 7, HOST.y + 6);
+    const second = level(1900, 400, 8, HOST.y + 14);
+    expect(ledge([HOST, first, second], 0)).toEqual({
+      left: 1000,
+      right: 1900,
+      surfaces: [HOST, first],
+    });
+  });
+
+  it("stops at a seam a window in front covers", () => {
+    const behind = level(1500, 400, 7);
+    expect(ledge([cover(1500, 200, 9), HOST, behind], 1)).toEqual({
+      left: 1000,
+      right: 1500,
+      surfaces: [HOST],
+    });
+  });
+});
 
 function deferred<T>() {
   let resolve!: (value: T) => void;
