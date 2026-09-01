@@ -147,11 +147,14 @@ function makeHarness(
     jump?: Promise<JumpOutcome>;
     jumpOutcome?: JumpOutcome;
     charWpx?: number | null;
+    /** false models a character with no seat — the fall took it. */
+    armed?: boolean;
   } = {},
 ) {
   let tick: TickFn | null = null;
   let pos = over.initialPos ?? { x: 1000, y: 600 };
-  let armed = true;
+  let armed = over.armed ?? true;
+  let motion = over.motion;
   const calls: string[] = [];
   let walks = 0;
   const walkTo = vi.fn((toX: number, onAccepted?: () => void): Promise<"arrived" | "lost"> => {
@@ -258,8 +261,7 @@ function makeHarness(
       adoptSit,
       release,
     },
-    currentMotion: () =>
-      over.motion === undefined ? { id: "idle", kind: "ambient" as const } : over.motion,
+    currentMotion: () => (motion === undefined ? { id: "idle", kind: "ambient" as const } : motion),
     isBusy: () => over.busy ?? false,
     reducedMotion: () => over.reducedMotion ?? false,
     onWalkStart: () => calls.push("avatar.walk_start"),
@@ -300,6 +302,10 @@ function makeHarness(
     /** Arm a fresh commit-origin sit, the way a later drop release would. */
     rearm: () => {
       armed = true;
+    },
+    /** Hand the body to another clip, or back to the ambient baseline. */
+    setMotion: (next: { id: string; kind: MotionKind | null } | null) => {
+      motion = next;
     },
   };
 }
@@ -973,6 +979,88 @@ describe("createPercher", () => {
 
     // No walk and no jump happened, so no walk cue is owed for either.
     expect(h.calls).toEqual(["suspend", "resume", "avatar.window_sit"]);
+  });
+
+  it("takes the seat on the window a fall came down on", async () => {
+    // Standing on the neighbour's top edge at x 1700, where the fall left her.
+    const h = makeHarness({
+      windows: async () => [NEIGHBOUR],
+      initialPos: { x: 1500, y: 480 },
+      armed: false,
+    });
+    h.percher.start();
+
+    h.percher.landOn(NEIGHBOUR);
+    await h.frame();
+
+    expect(h.walkTo).toHaveBeenCalledWith(1580, expect.any(Function));
+    expect(h.calls).toEqual(["avatar.walk_start", "avatar.walk_end", "avatar.window_sit", "adopt"]);
+    expect(h.adoptSit).toHaveBeenCalledWith(7, { x: 1560, y: 900 }, 500, "commit");
+    expect(h.setBodyYaw).toHaveBeenLastCalledWith(0, 400);
+    expect(h.release).not.toHaveBeenCalled();
+
+    // The seat she landed on is a perch like any other: the dwell runs on it.
+    h.walkTo.mockClear();
+    await h.frame(0.5);
+    expect(h.walkTo).not.toHaveBeenCalled();
+    await h.frame(0.6);
+    expect(h.walkTo).toHaveBeenCalled();
+  });
+
+  it("waits for the touchdown clip to give the body back before taking the seat", async () => {
+    const h = makeHarness({
+      windows: async () => [NEIGHBOUR],
+      initialPos: { x: 1500, y: 480 },
+      armed: false,
+      motion: { id: "landing", kind: "oneshot" },
+    });
+    h.percher.start();
+
+    h.percher.landOn(NEIGHBOUR);
+    await h.frame();
+    await h.frame();
+    expect(h.walkTo).not.toHaveBeenCalled();
+
+    h.setMotion({ id: "idle", kind: "ambient" });
+    await h.frame();
+
+    expect(h.walkTo).toHaveBeenCalledTimes(1);
+    expect(h.adoptSit).toHaveBeenCalledWith(7, { x: 1560, y: 900 }, 500, "commit");
+  });
+
+  it("leaves her standing when the window she landed on has gone by the time it reads", async () => {
+    const h = makeHarness({
+      windows: async () => [],
+      initialPos: { x: 1500, y: 480 },
+      armed: false,
+    });
+    h.percher.start();
+
+    h.percher.landOn(NEIGHBOUR);
+    await h.frame();
+
+    expect(h.walkTo).not.toHaveBeenCalled();
+    expect(h.adoptSit).not.toHaveBeenCalled();
+    expect(h.calls).toEqual([]);
+    expect(h.release).not.toHaveBeenCalled();
+  });
+
+  it("drops a pending landing when the user picks her up first", async () => {
+    const h = makeHarness({
+      windows: async () => [NEIGHBOUR],
+      initialPos: { x: 1500, y: 480 },
+      armed: false,
+      motion: { id: "drag", kind: "reactive" },
+    });
+    h.percher.start();
+
+    h.percher.landOn(NEIGHBOUR);
+    h.percher.cancel();
+    h.setMotion({ id: "idle", kind: "ambient" });
+    await h.frame();
+
+    expect(h.walkTo).not.toHaveBeenCalled();
+    expect(h.adoptSit).not.toHaveBeenCalled();
   });
 
   it("does not let an older attempt clear the starting state of a newer generation", async () => {
