@@ -468,6 +468,21 @@ describe("createPercher", () => {
     expect(h.calls).toEqual([]);
   });
 
+  it("strolls a perch whose window origin hangs off the screen but whose feet do not", async () => {
+    // Origin at −150 with the feet at 50, on a host reaching the work area's left edge.
+    const h = makeHarness({
+      windows: async () => [{ ...HOST, x: 0, width: 500 }],
+      initialPos: { x: -150, y: 600 },
+    });
+    h.percher.start();
+
+    await h.frame();
+    await h.frame(1.1);
+
+    expect(h.walkTo).toHaveBeenCalledWith(200, expect.any(Function));
+    expect(h.positions).toContainEqual({ x: -150, y: 480 });
+  });
+
   it("keeps the sit when the standing position would be clamped above the work area", async () => {
     const h = makeHarness({
       windows: async () => [{ ...HOST, y: 450 }],
