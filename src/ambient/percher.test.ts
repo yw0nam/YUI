@@ -152,6 +152,11 @@ function cover(x: number, width: number, windowNumber: number): WindowRect {
   return { ...HOST, x, y: 800, width, height: 400, name: "Cover", windowNumber };
 }
 
+/** A window whose top sits level with the host's, at the given stretch of x. */
+function level(x: number, width: number, windowNumber: number, y = HOST.y): WindowRect {
+  return { ...HOST, x, y, width, name: "Level", windowNumber };
+}
+
 /** A jumpable window a short gap off the host's right edge, tops level. */
 const NEIGHBOUR: WindowRect = {
   ...HOST,
@@ -162,10 +167,8 @@ const NEIGHBOUR: WindowRect = {
   windowNumber: 7,
 };
 
-/** A window whose top sits level with the host's, at the given stretch of x. */
-function level(x: number, width: number, windowNumber: number, y = HOST.y): WindowRect {
-  return { ...HOST, x, y, width, name: "Level", windowNumber };
-}
+/** A window butting against the host's right edge, level with it: one ledge with the host. */
+const LEDGE = level(1500, 500, 7);
 
 describe("walkableLedge", () => {
   const ledge = (windows: WindowRect[], hostIndex: number, currentX = 1200) =>
@@ -1289,6 +1292,168 @@ describe("createPercher", () => {
     expect(h.onStepOff).not.toHaveBeenCalled();
     expect(h.resumeSit).toHaveBeenCalledTimes(1);
     expect(h.calls).toEqual(["suspend", "resume", "avatar.window_sit"]);
+  });
+
+  it("sits on the level neighbour her leg carried her onto", async () => {
+    const h = makeHarness({
+      windows: async () => [HOST, LEDGE],
+      walkMovesTo: { y: 480 },
+      rng: seqRng(0, 1, 1, 1),
+    });
+    h.percher.start();
+
+    await h.frame();
+    await h.frame(1.1);
+
+    // The leg reaches 1600, which is 100 px past the seam at the host's right edge.
+    expect(h.walkTo).toHaveBeenCalledWith(1400, expect.any(Function));
+    expect(h.calls).toEqual([
+      "suspend",
+      "avatar.walk_start",
+      "avatar.walk_end",
+      "abandon",
+      "avatar.window_sit",
+      "adopt",
+    ]);
+    expect(h.adoptSit).toHaveBeenCalledWith(7, { x: 1500, y: 900 }, 500, "commit");
+    expect(h.resumeSit).not.toHaveBeenCalled();
+    expect(h.release).not.toHaveBeenCalled();
+
+    // The seat across the seam is a perch like any other: the dwell runs on it.
+    h.walkTo.mockClear();
+    await h.frame(0.5);
+    expect(h.walkTo).not.toHaveBeenCalled();
+    await h.frame(2);
+    expect(h.walkTo).toHaveBeenCalled();
+  });
+
+  it("sits back on the host when the leg stops short of the seam", async () => {
+    const h = makeHarness({
+      windows: async () => [HOST, LEDGE],
+      walkMovesTo: { y: 480 },
+      rng: seqRng(0, 1, 0, 1),
+    });
+    h.percher.start();
+
+    await h.frame();
+    await h.frame(1.1);
+
+    expect(h.walkTo).toHaveBeenCalledWith(1080, expect.any(Function));
+    expect(h.calls).toEqual([
+      "suspend",
+      "avatar.walk_start",
+      "avatar.walk_end",
+      "resume",
+      "avatar.window_sit",
+    ]);
+    expect(h.adoptSit).not.toHaveBeenCalled();
+  });
+
+  it("stays put when the far end of the ledge closes under her feet on the host", async () => {
+    const walking = deferred<"arrived" | "lost">();
+    let windows = [HOST, LEDGE];
+    const h = makeHarness({
+      walk: walking.promise,
+      windows: async () => windows,
+      rng: seqRng(0, 1, 1, 1),
+    });
+    h.percher.start();
+    await h.frame();
+    await h.frame(1.1);
+    windows = [HOST];
+
+    await h.frame(0.8);
+    await h.frame(0.8);
+
+    expect(h.release).not.toHaveBeenCalled();
+    expect(h.onHostLost).not.toHaveBeenCalled();
+  });
+
+  it("stays put when the host closes after her feet have crossed the seam", async () => {
+    const walking = deferred<"arrived" | "lost">();
+    let windows = [HOST, LEDGE];
+    const h = makeHarness({
+      walk: walking.promise,
+      walkMovesTo: { y: 480 },
+      windows: async () => windows,
+      rng: seqRng(0, 1, 1, 1),
+    });
+    h.percher.start();
+    await h.frame();
+    await h.frame(1.1);
+    windows = [LEDGE];
+
+    await h.frame(0.8);
+    await h.frame(0.8);
+
+    expect(h.release).not.toHaveBeenCalled();
+    expect(h.onHostLost).not.toHaveBeenCalled();
+  });
+
+  it("falls when the ledge window under her feet goes", async () => {
+    const walking = deferred<"arrived" | "lost">();
+    let windows = [HOST, LEDGE];
+    const h = makeHarness({
+      walk: walking.promise,
+      walkMovesTo: { y: 480 },
+      windows: async () => windows,
+      rng: seqRng(0, 1, 1, 1),
+    });
+    h.percher.start();
+    await h.frame();
+    await h.frame(1.1);
+    windows = [HOST];
+
+    await h.frame(0.8);
+
+    expect(h.walkerCancel).toHaveBeenCalledTimes(1);
+    expect(h.release).toHaveBeenCalledTimes(1);
+    expect(h.resumeSit).not.toHaveBeenCalled();
+    expect(h.calls.slice(-3)).toEqual(["avatar.walk_end", "exit", "fall"]);
+    expect(h.onHostLost).toHaveBeenCalledTimes(1);
+  });
+
+  it("drops the suspension when a pickup catches her mid-crossing", async () => {
+    const walking = deferred<"arrived" | "lost">();
+    const h = makeHarness({
+      walk: walking.promise,
+      walkMovesTo: { y: 480 },
+      windows: async () => [HOST, LEDGE],
+      rng: seqRng(0, 1, 1, 1),
+    });
+    h.percher.start();
+    await h.frame();
+    await h.frame(1.1);
+
+    h.percher.cancel();
+    expect(h.walkerCancel).toHaveBeenCalledTimes(1);
+    expect(h.onWalkCancel).toHaveBeenCalledTimes(1);
+    expect(h.abandonSit).toHaveBeenCalledTimes(1);
+
+    walking.resolve("arrived");
+    await h.frame();
+
+    expect(h.resumeSit).not.toHaveBeenCalled();
+    expect(h.adoptSit).not.toHaveBeenCalled();
+    expect(h.release).not.toHaveBeenCalled();
+  });
+
+  it("steps off the outer end of the ledge, not the host's own edge", async () => {
+    const h = makeHarness({
+      windows: async () => [HOST, LEDGE],
+      initialPos: { x: 1200, y: 600 },
+      stepOffProbability: 1,
+      rng: () => 0,
+    });
+    h.percher.start();
+
+    await h.frame();
+    await h.frame(1.1);
+
+    // The ledge's left end is 400 px away and the host's right edge only 100, so the
+    // nearer edge is the one the ledge's far end puts there.
+    expect(h.walkTo).toHaveBeenCalledWith(720, expect.any(Function));
+    expect(h.onStepOff).toHaveBeenCalledTimes(1);
   });
 
   it("takes the seat on the window a fall came down on", async () => {
