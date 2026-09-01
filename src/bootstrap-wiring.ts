@@ -726,21 +726,24 @@ export function wireFaller(deps: {
       getFloorTolerancePx: deps.getFloorTolerancePx,
       onStart: () => deps.setHitTestMoving(true),
       onEnd: () => deps.setHitTestMoving(false),
-      onLand: ({ heightPx, surface }) => {
+      onLand: ({ heightPx, surface, fell }) => {
         const target = surface.kind === "window" ? surface.target : null;
-        bus.push({
-          source: "os_event_watcher",
-          event_name: "user.fall_land",
-          ts: Date.now(),
-          hint_tier: 1,
-          dnd_override: true,
-          payload: {
-            height_px: Math.round(heightPx),
-            landed_on: surface.kind,
-            app: target?.ownerName ?? null,
-            window_title: target?.name ?? null,
-          },
-        });
+        // A snap is a placement rather than a fall: it hands the seat over and says nothing.
+        if (fell) {
+          bus.push({
+            source: "os_event_watcher",
+            event_name: "user.fall_land",
+            ts: Date.now(),
+            hint_tier: 1,
+            dnd_override: true,
+            payload: {
+              height_px: Math.round(heightPx),
+              landed_on: surface.kind,
+              app: target?.ownerName ?? null,
+              window_title: target?.name ?? null,
+            },
+          });
+        }
         if (target) deps.onWindowLand(target);
       },
       onCue: (heightPx) => {

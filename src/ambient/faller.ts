@@ -43,6 +43,8 @@ export type LandingSurface =
 export interface FallLanding {
   heightPx: number;
   surface: LandingSurface;
+  /** False for a snap: the seat still changes hands, but nothing fell worth announcing. */
+  fell: boolean;
 }
 
 /**
@@ -228,14 +230,15 @@ export function createFaller(deps: FallerDeps): Faller {
    * Report the touchdown: the signal always, the speech candidate on its own cooldown and
    * only for a drop long enough to have been a fall.
    */
-  function reportLanding(heightPx: number, surface: LandingSurface, cueable: boolean): void {
+  function reportLanding(heightPx: number, surface: LandingSurface, fell: boolean): void {
     log.info("fall_landed", {
       landed_on: surface.kind,
       windowNumber: surface.kind === "window" ? surface.target.windowNumber : null,
       heightPx: Math.round(heightPx),
+      fell,
     });
-    deps.onLand({ heightPx, surface });
-    if (!cueable) return;
+    deps.onLand({ heightPx, surface, fell });
+    if (!fell) return;
     const t = now();
     if (t - lastCueAtMs < deps.getConfig().cue_cooldown_ms) return;
     lastCueAtMs = t;
