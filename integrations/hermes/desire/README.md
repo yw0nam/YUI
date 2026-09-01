@@ -120,7 +120,7 @@ chmod +x ~/.hermes/scripts/natsume-desire-monitor.sh
 Create the tick and weekly reflection jobs with these commands:
 
 ```bash
-hermes -p "$HERMES_PROFILE" cron create "10m" --name natsume-desire-tick \
+hermes -p "$HERMES_PROFILE" cron create "every 10m" --name natsume-desire-tick \
   --monitor-script natsume-desire-monitor.sh \
   "Follow the instructions in <abs>/integrations/hermes/desire/prompts/tick.md."
 hermes -p "$HERMES_PROFILE" cron create "0 23 * * 0" --name natsume-desire-reflection \

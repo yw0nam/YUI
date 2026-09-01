@@ -88,7 +88,7 @@ empty or missing, the monitor could not write there — fix `DESIRE_STATE_DIR` b
 ## 5. Cron jobs
 
 ```bash
-hermes -p <profile> cron create "10m" --name natsume-desire-tick \
+hermes -p <profile> cron create "every 10m" --name natsume-desire-tick \
   --monitor-script natsume-desire-monitor.sh \
   "Follow the instructions in $YUI/integrations/hermes/desire/prompts/tick.md."
 hermes -p <profile> cron create "0 23 * * 0" --name natsume-desire-reflection \
@@ -102,8 +102,10 @@ A job that already exists keeps its own schedule. Read its id from the job list 
 
 ```bash
 hermes -p <profile> cron list
-hermes -p <profile> cron edit <job_id> --schedule 10m
+hermes -p <profile> cron edit <job_id> --schedule "every 10m"
 ```
+
+The schedule keeps the `every` prefix: a bare `10m` runs the job once, ten minutes later.
 
 The tick only wakes a turn when the monitor's one-line summary changes; an unchanged summary suppresses the run.
 Check: `hermes -p <profile> cron list` shows both jobs, the tick one with `Monitor: natsume-desire-monitor.sh`.
