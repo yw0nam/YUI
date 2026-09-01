@@ -339,9 +339,20 @@ export function createFaller(deps: FallerDeps): Faller {
     ]);
     if (stopped || generation !== startedAt) return;
     if (!feet || !probe) return;
-    const monitor = monitorAt(monitors, pos.x, pos.y);
-    if (!monitor) return;
     const scale = sf > 0 ? sf : 1;
+    // The feet are what stands on a surface, and a window straddling a screen edge has its
+    // origin off every monitor while the character is fully on one.
+    const feetPhysicalX = pos.x + feet.x * scale;
+    const feetPhysicalY = pos.y + feet.y * scale;
+    const monitor = monitorAt(monitors, feetPhysicalX, feetPhysicalY);
+    if (!monitor) {
+      log.warn("fall_skipped", {
+        reason: "no_monitor",
+        x: Math.round(feetPhysicalX),
+        y: Math.round(feetPhysicalY),
+      });
+      return;
+    }
     const windowY = pos.y / scale;
     const feetY = windowY + feet.y;
     const feetX = pos.x / scale + feet.x;
