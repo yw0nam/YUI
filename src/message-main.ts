@@ -66,7 +66,6 @@ async function bootstrap(): Promise<void> {
     onDock: () => bridge.emitControl({ op: "dock" }),
     startDragging: () => void startDragging(),
   });
-  surfaces.el.prepend(plate.el);
 
   bridge.onSurface((op) => {
     switch (op.op) {
@@ -89,7 +88,8 @@ async function bootstrap(): Promise<void> {
         surfaces.hideSpeech();
         break;
       case "summon-input":
-        surfaces.summonInput();
+        // A document focus in an unfocused webview leaves the keystrokes with the pet window.
+        void focusWindow().then(() => surfaces.summonInput());
         break;
       case "dismiss-input":
         surfaces.dismissInput();
@@ -114,6 +114,10 @@ async function bootstrap(): Promise<void> {
       case "attachment-limits":
         surfaces.setAttachmentLimits(op.limits);
         break;
+      default: {
+        const unhandled: never = op;
+        log.warn("unhandled_surface_op", { op: JSON.stringify(unhandled) });
+      }
     }
   });
 
@@ -128,18 +132,23 @@ async function bootstrap(): Promise<void> {
 
   // The settings window writes the display language into localStorage; both other windows
   // re-read it on the change signal, and again on focus where the signal is unreliable.
-  const unlistenSettings = settingsBridge.onSettingsChanged(() => reloadLocale());
-  window.addEventListener("focus", reloadLocale);
+  const reloadShared = (): void => {
+    reloadLocale();
+    bubblePersistSettings.reloadFromStorage();
+  };
+  const unlistenSettings = settingsBridge.onSettingsChanged(reloadShared);
+  window.addEventListener("focus", reloadShared);
 
   const disposeWindowWiring = isTauri() ? await wireTauriWindow(surfaces.el) : () => {};
 
   // A window created after the turn began has no limits and no busy state until it asks.
+  // Sent after the window wiring so the surface listener's own registration hop has landed.
   bridge.emitControl({ op: "ready" });
 
   window.addEventListener("beforeunload", () => {
     disposeWindowWiring();
     window.removeEventListener("keydown", onKeydown);
-    window.removeEventListener("focus", reloadLocale);
+    window.removeEventListener("focus", reloadShared);
     unlistenSettings();
     plate.dispose();
     surfaces.dispose();
@@ -148,6 +157,17 @@ async function bootstrap(): Promise<void> {
     messageWindowSettings.dispose();
     bubblePersistSettings.dispose();
   });
+
+  /** Take OS focus so typing lands in this window's field. */
+  async function focusWindow(): Promise<void> {
+    if (!isTauri()) return;
+    try {
+      const { getCurrentWindow } = await import("@tauri-apps/api/window");
+      await getCurrentWindow().setFocus();
+    } catch (error) {
+      log.warn("message_window_focus_failed", { error: String(error) });
+    }
+  }
 
   /** OS-native window drag from the plate. */
   async function startDragging(): Promise<void> {

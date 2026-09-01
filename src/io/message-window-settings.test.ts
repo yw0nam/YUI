@@ -79,6 +79,32 @@ describe("createMessageWindowSettings — setters", () => {
     expect(store.get()).toEqual({ mode: "docked", x: null, y: null });
   });
 
+  // The pet window owns the mode and the message window owns the position, each over
+  // its own instance of the store, so a setter that merged over memory would drop the other's field.
+  it("merges over what storage holds, not over its own copy", () => {
+    const storage = inMemoryStorage();
+    const pet = createMessageWindowSettings({ storage });
+    const messageWindow = createMessageWindowSettings({ storage });
+
+    pet.setMode("popped");
+    messageWindow.setPosition(1200, 400);
+    pet.setMode("docked");
+
+    expect(storage.saved).toEqual({ mode: "docked", x: 1200, y: 400 });
+  });
+
+  it("keeps a mode written by another window when recording a position", () => {
+    const storage = inMemoryStorage();
+    const pet = createMessageWindowSettings({ storage });
+    const messageWindow = createMessageWindowSettings({ storage });
+
+    messageWindow.setPosition(10, 20);
+    pet.setMode("popped");
+    messageWindow.setPosition(30, 40);
+
+    expect(storage.saved).toEqual({ mode: "popped", x: 30, y: 40 });
+  });
+
   it("equals suppresses a redundant write and notify", () => {
     const storage = inMemoryStorage();
     const store = createMessageWindowSettings({ storage });

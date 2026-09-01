@@ -64,6 +64,10 @@ export function createRemoteSurfaces(bridge: MessageBridge): RemoteSurfaces {
         if (limits) bridge.emitSurface({ op: "attachment-limits", limits });
         bridge.emitSurface({ op: "busy", busy });
         break;
+      default: {
+        const unhandled: never = op;
+        void unhandled;
+      }
     }
   });
 

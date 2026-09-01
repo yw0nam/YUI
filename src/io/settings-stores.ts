@@ -121,8 +121,8 @@ export function createSettingsStores(opts?: { locale?: CueLocale }) {
   const bubblePersistSettings = createFlagSettings(false, {
     storage: localStorageStore("yui.bubble-persist"),
   });
-  // Docked/popped message window plus its last outer position. The pet window reads the mode;
-  // the message window writes its own position, so neither half needs a broadcast.
+  // Docked/popped message window plus its last outer position. The mode is edited from the
+  // settings window too, so it broadcasts; the position is merged over storage on every write.
   const messageWindowSettings = createMessageWindowSettings({
     storage: localStorageMessageWindowStorage(),
   });
@@ -242,7 +242,7 @@ export const SYNC_MODE: Record<keyof SettingsStores, SyncMode> = {
   sessionDiagnostics: "reload",
   chatHistoryStore: "broadcast",
   bubblePersistSettings: "broadcast",
-  messageWindowSettings: "local",
+  messageWindowSettings: "broadcast",
   endpointsSettings: "broadcast",
   chatKeySettings: "broadcast",
   sttKeySettings: "broadcast",

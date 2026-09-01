@@ -20,8 +20,8 @@ export const MESSAGE_WINDOW_URL = "message.html";
 export const MESSAGE_WINDOW_TITLE = "YUI";
 /** Fixed column width (logical px) — the bubble and the input size to it. */
 export const MESSAGE_WINDOW_WIDTH = 340;
-/** Height (logical px) of the idle window, where only the name plate shows. */
-export const MESSAGE_WINDOW_HANDLE_HEIGHT = 40;
+/** Height (logical px) of the idle window — the 26px plate inside the column's 8px padding. */
+export const MESSAGE_WINDOW_HANDLE_HEIGHT = 42;
 /** Gap (logical px) between the pet window's right edge and the message window. */
 const MESSAGE_WINDOW_GAP_PX = 12;
 
@@ -55,7 +55,10 @@ export function initialMessageWindowPosition({
           x: pet.position.x + pet.size.width + MESSAGE_WINDOW_GAP_PX * scale,
           y: pet.position.y,
         };
-  const monitor = monitorAt(monitors, pet.position.x, pet.position.y);
+  // A window parked on a second display must be clamped there, not dragged back to the pet's.
+  const monitor =
+    monitorAt(monitors, candidate.x, candidate.y) ??
+    monitorAt(monitors, pet.position.x, pet.position.y);
   if (!monitor || scale <= 0) return candidate;
   const clamped = clampToWorkArea(
     candidate.x / scale,
@@ -75,6 +78,7 @@ export interface MessageWindowEnv {
   /** The already-open message window, or null. */
   getExisting(): Promise<{ show(): Promise<void> } | null>;
   create(position: { x: number; y: number } | null): Promise<void>;
+  /** Where to open, in logical px — the unit the window constructor takes. */
   resolvePosition(): Promise<{ x: number; y: number } | null>;
 }
 
@@ -109,7 +113,7 @@ async function resolveTauriPosition(
     availableMonitors(),
   ]);
   const state = store.get();
-  return initialMessageWindowPosition({
+  const physical = initialMessageWindowPosition({
     stored: { x: state.x, y: state.y },
     pet: {
       position: { x: position.x, y: position.y },
@@ -119,15 +123,11 @@ async function resolveTauriPosition(
     scale,
     size: { width: MESSAGE_WINDOW_WIDTH, height: MESSAGE_WINDOW_HANDLE_HEIGHT },
   });
+  return { x: physical.x / scale, y: physical.y / scale };
 }
 
-/**
- * The stored position is physical px while the constructor's x/y are logical, so a
- * placed window is born hidden and shown once its physical position is set.
- */
 async function createTauriMessageWindow(position: { x: number; y: number } | null): Promise<void> {
   const { WebviewWindow } = await import("@tauri-apps/api/webviewWindow");
-  const { PhysicalPosition } = await import("@tauri-apps/api/dpi");
   const win = new WebviewWindow(MESSAGE_WINDOW_LABEL, {
     url: MESSAGE_WINDOW_URL,
     title: MESSAGE_WINDOW_TITLE,
@@ -140,22 +140,11 @@ async function createTauriMessageWindow(position: { x: number; y: number } | nul
     alwaysOnTop: true,
     skipTaskbar: true,
     focus: false,
-    visible: position === null,
+    ...(position ? { x: position.x, y: position.y } : {}),
   });
-  win.once("tauri://error", (event) =>
+  void win.once("tauri://error", (event) =>
     log.error("message_window_create_error", { error: String(event) }),
   );
-  if (!position) return;
-  void win.once("tauri://created", () => {
-    void (async () => {
-      try {
-        await win.setPosition(new PhysicalPosition(position.x, position.y));
-        await win.show();
-      } catch (error) {
-        log.warn("message_window_place_failed", { error: String(error) });
-      }
-    })();
-  });
 }
 
 /** Pet-window tray visibility signal. Returns a no-op disposer outside Tauri. */
@@ -177,25 +166,46 @@ export function listenTrayToggle(cb: (visible: boolean) => void): () => void {
   };
 }
 
-/** Show/hide handle for the message window, wired to the real Tauri implementation. */
+/**
+ * Show/hide handle for the message window, wired to the real Tauri implementation.
+ * Both halves run on one chain — a second create while the first is still in flight
+ * would be refused by Tauri for the duplicate label.
+ */
 export function createMessageWindowController(store: MessageWindowSettingsStore): {
   open(): void;
   hide(): void;
 } {
+  let chain: Promise<void> = Promise.resolve();
+  const queue = (step: () => Promise<void>): void => {
+    chain = chain.then(step, step);
+  };
+
   return {
     open() {
-      void openMessageWindow({
-        isTauri: isTauri(),
-        getExisting: tauriMessageWindow,
-        create: createTauriMessageWindow,
-        resolvePosition: () => resolveTauriPosition(store),
-      }).catch((error) => log.error("message_window_open_failed", { error: String(error) }));
+      queue(async () => {
+        try {
+          await openMessageWindow({
+            isTauri: isTauri(),
+            getExisting: tauriMessageWindow,
+            create: createTauriMessageWindow,
+            resolvePosition: () => resolveTauriPosition(store),
+          });
+        } catch (error) {
+          // Speech routed to a window that never opened would vanish with no tell.
+          log.error("message_window_open_failed", { error: String(error) });
+          store.setMode("docked");
+        }
+      });
     },
     hide() {
       if (!isTauri()) return;
-      void tauriMessageWindow()
-        .then((win) => win?.hide())
-        .catch((error) => log.warn("message_window_hide_failed", { error: String(error) }));
+      queue(async () => {
+        try {
+          await (await tauriMessageWindow())?.hide();
+        } catch (error) {
+          log.warn("message_window_hide_failed", { error: String(error) });
+        }
+      });
     },
   };
 }

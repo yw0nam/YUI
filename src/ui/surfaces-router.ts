@@ -42,7 +42,11 @@ export function createSurfacesRouter({
   > => (getMode() === "popped" ? remote : local);
 
   // Speech left behind on the side being abandoned would hang there with nothing to dismiss it.
+  // The store also carries the window position, so only a real mode change moves anything.
+  let lastMode = getMode();
   const unsubscribeMode = subscribeMode((mode) => {
+    if (mode === lastMode) return;
+    lastMode = mode;
     if (mode === "popped") local.hideSpeech();
     else remote.hideSpeech();
   });

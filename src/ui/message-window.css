@@ -3,6 +3,7 @@
    340px column, so the overlay's absolute positioning gives way to flow. */
 
 .yui-ui--message {
+  box-sizing: border-box;
   position: static;
   inset: auto;
   display: flex;

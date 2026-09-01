@@ -5,6 +5,9 @@
  * `mode` is read by the pet window to route the bubble and the input; `x`/`y`
  * are the message window's last outer position in physical px, written by that
  * window as it is dragged and null until it has been moved.
+ *
+ * Three windows hold an instance over the one key and each owns different fields,
+ * so both setters merge over what storage holds rather than over their own copy.
  */
 
 import { createPersistedStore, localStorageStore, type PersistedStorage } from "./persisted-store";
@@ -52,12 +55,14 @@ export function createMessageWindowSettings(opts?: {
 
     setMode(mode: MessageWindowMode): void {
       if (!isMode(mode)) return;
+      core.reloadFromStorage();
       core.commit({ ...core.get(), mode });
     },
 
     /** Record the window's outer position (physical px). Ignores a non-finite coordinate. */
     setPosition(x: number, y: number): void {
       if (!Number.isFinite(x) || !Number.isFinite(y)) return;
+      core.reloadFromStorage();
       core.commit({ ...core.get(), x, y });
     },
 

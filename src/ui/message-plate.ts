@@ -32,7 +32,7 @@ export function createMessagePlate({
     <span class="yui-plate__name">YUI</span>
     <button class="yui-plate__dock" type="button">⤓</button>
   `;
-  mount.appendChild(el);
+  mount.prepend(el);
 
   const dockBtn = el.querySelector<HTMLButtonElement>(".yui-plate__dock")!;
 

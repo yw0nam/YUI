@@ -192,6 +192,13 @@ describe("createSurfacesRouter", () => {
     expect(local.hideSpeech).toHaveBeenCalledTimes(1);
   });
 
+  // The store also carries the window position, so a drag notifies without changing the mode.
+  it("leaves both sides alone when a notification carries the same mode", () => {
+    for (const cb of listeners) cb("docked");
+    expect(local.hideSpeech).not.toHaveBeenCalled();
+    expect(remote.hideSpeech).not.toHaveBeenCalled();
+  });
+
   it("fires a submit callback once, whichever side the submit came from", () => {
     const cb = vi.fn();
     router.onSubmit(cb);

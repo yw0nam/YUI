@@ -81,6 +81,19 @@ describe("initialMessageWindowPosition", () => {
     ).toEqual({ x: 1424, y: 600 });
   });
 
+  // A window the user parked on a second display must be clamped there.
+  it("clamps a stored position against the monitor it sits on", () => {
+    const second: ScreenMonitor = {
+      position: { x: 1440, y: 0 },
+      size: { width: 1000, height: 800 },
+      workArea: { position: { x: 1440, y: 0 }, size: { width: 1000, height: 800 } },
+    };
+    expect(place({ stored: { x: 2400, y: 780 }, monitors: [MONITOR, second] })).toEqual({
+      x: 1440 + 1000 - MESSAGE_WINDOW_WIDTH,
+      y: 800 - MESSAGE_WINDOW_HANDLE_HEIGHT,
+    });
+  });
+
   it("keeps the raw position when no monitor holds the pet window", () => {
     expect(place({ stored: { x: -900, y: -900 }, monitors: [] })).toEqual({ x: -900, y: -900 });
   });
