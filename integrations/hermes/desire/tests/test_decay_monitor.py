@@ -1,4 +1,6 @@
 import re
+import socket
+import threading
 from datetime import timedelta
 from pathlib import Path
 
@@ -436,6 +438,29 @@ def test_pent_up_stage_follows_the_oldest_active_item(state_dir, at, state_helpe
     )
 
     assert " outbox:2/heavy " in decay_monitor.run(now)
+
+
+def test_probe_treats_http_404_as_up(listening_signals_url):
+    assert decay_monitor.probe_transport() is True
+
+
+def test_probe_reports_down_when_server_accepts_then_closes(monkeypatch):
+    server = socket.socket()
+    server.bind(("127.0.0.1", 0))
+    server.listen()
+
+    def accept_then_close():
+        connection, _ = server.accept()
+        connection.close()
+
+    worker = threading.Thread(target=accept_then_close)
+    worker.start()
+    monkeypatch.setenv("YUI_SIGNALS_URL", f"http://127.0.0.1:{server.getsockname()[1]}/signals")
+    try:
+        assert decay_monitor.probe_transport() is False
+    finally:
+        server.close()
+        worker.join()
 
 
 def test_probe_falls_back_to_default_url_when_env_is_empty(monkeypatch):
