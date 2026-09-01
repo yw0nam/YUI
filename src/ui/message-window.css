@@ -105,8 +105,11 @@
   max-height: var(--yui-bubble-max-h, 34vh);
 }
 
-/* The window is already the popped-out one — its bubble offers only the way back. */
+/* The window is already the popped-out one — its surfaces offer only the way back. */
 .yui-ui--message .yui-bubble__pop {
+  display: none;
+}
+.yui-ui--message .yui-input__pop {
   display: none;
 }
 

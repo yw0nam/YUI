@@ -6,7 +6,7 @@
 
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, type Mock, vi } from "vitest";
 
 // CSS imports are not handled in jsdom — mock them
 vi.mock("./surfaces.css", () => ({}));
@@ -686,5 +686,74 @@ describe("input error clearing — turn start, manual dismiss, existing paths", 
 
     expect(form().classList.contains("is-error")).toBe(false);
     expect(errorEl().textContent).toBe("");
+  });
+});
+
+// The input row carries the same exit as the bubble: while typing, the user can move
+// speech and the composer into the message window without leaving the field.
+describe("input row pop-out button", () => {
+  let mount: HTMLElement;
+  let s: ReturnType<typeof createSurfaces>;
+  let onPop: Mock<() => void>;
+
+  beforeEach(() => {
+    setLocale("en");
+    mount = document.createElement("div");
+    document.body.appendChild(mount);
+    onPop = vi.fn<() => void>();
+    s = createSurfaces({ mount, onPop });
+  });
+
+  afterEach(() => {
+    s.dispose();
+    mount.remove();
+    setLocale("en");
+    delete (globalThis as { __TAURI_INTERNALS__?: unknown }).__TAURI_INTERNALS__;
+  });
+
+  const popBtn = (): HTMLButtonElement =>
+    mount.querySelector(".yui-input__pop") as HTMLButtonElement;
+
+  it("renders a labelled button in the row, immediately before the send button", () => {
+    const row = mount.querySelector(".yui-input__row") as HTMLElement;
+    expect(popBtn()).not.toBeNull();
+    expect(popBtn().type).toBe("button");
+    expect(row.contains(popBtn())).toBe(true);
+    expect(popBtn().nextElementSibling).toBe(row.querySelector(".yui-input__send"));
+    expect(popBtn().getAttribute("aria-label")).toBe(t("aria.pop_message"));
+    expect(popBtn().getAttribute("title")).toBe(t("aria.pop_message"));
+  });
+
+  it("reports the pop request on click", () => {
+    popBtn().click();
+    expect(onPop).toHaveBeenCalledTimes(1);
+  });
+
+  it("stays hidden outside Tauri, exactly like the bubble's pop button", () => {
+    const bubblePop = mount.querySelector(".yui-bubble__pop") as HTMLButtonElement;
+    expect(popBtn().hidden).toBe(true);
+    expect(popBtn().hidden).toBe(bubblePop.hidden);
+  });
+
+  it("shows in the Tauri runtime, where a second window exists to pop into", () => {
+    (globalThis as { __TAURI_INTERNALS__?: unknown }).__TAURI_INTERNALS__ = {};
+    const other = document.createElement("div");
+    document.body.appendChild(other);
+    const s2 = createSurfaces({ mount: other });
+
+    const rowPop = other.querySelector(".yui-input__pop") as HTMLButtonElement;
+    const bubblePop = other.querySelector(".yui-bubble__pop") as HTMLButtonElement;
+    expect(rowPop.hidden).toBe(false);
+    expect(rowPop.hidden).toBe(bubblePop.hidden);
+
+    s2.dispose();
+    other.remove();
+  });
+
+  it("re-applies its label on locale change (surfaces is not re-mounted)", () => {
+    setLocale("ja");
+    expect(popBtn().getAttribute("aria-label")).toBe(t("aria.pop_message"));
+    expect(popBtn().getAttribute("title")).toBe(t("aria.pop_message"));
+    expect(popBtn().getAttribute("aria-label")).not.toBe("Move speech to the message window");
   });
 });

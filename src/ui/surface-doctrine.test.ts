@@ -132,6 +132,12 @@ describe("surfaces.css — components with a display rule honour [hidden]", () =
     expect(extractBlock(css, ".yui-tool")).toMatch(/display:/);
     expect(extractBlock(css, ".yui-tool[hidden]")).toMatch(/display:\s*none/);
   });
+
+  it(".yui-input__pop sets display:none under [hidden]", () => {
+    const css = read("surfaces.css");
+    expect(extractBlock(css, ".yui-input__pop")).toMatch(/display:/);
+    expect(extractBlock(css, ".yui-input__pop[hidden]")).toMatch(/display:\s*none/);
+  });
 });
 
 // The message window reuses the bubble and the input verbatim, so the frost stays
@@ -169,6 +175,9 @@ describe("message-window.css — the plate is a chip, not a frosted panel", () =
 
   it("hides the pop button in the window that is already popped out", () => {
     expect(extractBlock(read("message-window.css"), ".yui-ui--message .yui-bubble__pop")).toMatch(
+      /display:\s*none/,
+    );
+    expect(extractBlock(read("message-window.css"), ".yui-ui--message .yui-input__pop")).toMatch(
       /display:\s*none/,
     );
   });
