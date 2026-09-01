@@ -304,7 +304,7 @@ describe("configs/motions.json", () => {
     expect(m.window_sit.fade_ms).toBe(700);
     expect(m.window_sit.variant_policy).toBe("random");
     expect(Array.isArray(m.window_sit.variants)).toBe(true);
-    expect(m.window_sit.variants.length).toBe(8);
+    expect(m.window_sit.variants.length).toBe(7);
     for (const v of m.window_sit.variants) {
       expect(v, "window_sit.variant").toMatch(/\.vrma$/);
     }
