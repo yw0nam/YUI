@@ -137,6 +137,12 @@ describe("surfaces.css — components with a display rule honour [hidden]", () =
 // The message window reuses the bubble and the input verbatim, so the frost stays
 // where doctrine puts it — on the bubble — and the plate takes a strong scrim instead.
 describe("message-window.css — the plate is a chip, not a frosted panel", () => {
+  // surfaces.css is injected after this file, so a single-class root rule would lose the
+  // specificity tie to `.yui-ui` and leave the column absolutely positioned.
+  it("qualifies the column rule with both classes", () => {
+    expect(read("message-window.css")).toMatch(/^\.yui-ui\.yui-ui--message\s*\{/m);
+  });
+
   it("adds no backdrop-filter of its own", () => {
     expect(read("message-window.css")).not.toMatch(/backdrop-filter/);
   });
@@ -151,6 +157,14 @@ describe("message-window.css — the plate is a chip, not a frosted panel", () =
     const css = read("message-window.css");
     expect(extractBlock(css, ".yui-plate.is-live .yui-plate__dot")).toMatch(/var\(--yui-accent\)/);
     expect(css).not.toMatch(/oklch\(/);
+  });
+
+  // In flow, a closed input whose display rule outranks [hidden] would hold the column
+  // open at composer height, so the idle window would never shrink back to its handle.
+  it("keeps a closed input out of the flow column", () => {
+    expect(extractBlock(read("message-window.css"), ".yui-ui--message .yui-input[hidden]")).toMatch(
+      /display:\s*none/,
+    );
   });
 
   it("hides the pop button in the window that is already popped out", () => {

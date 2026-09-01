@@ -20,8 +20,8 @@ export const MESSAGE_WINDOW_URL = "message.html";
 export const MESSAGE_WINDOW_TITLE = "YUI";
 /** Fixed column width (logical px) — the bubble and the input size to it. */
 export const MESSAGE_WINDOW_WIDTH = 340;
-/** Height (logical px) of the idle window — the 26px plate inside the column's 8px padding. */
-export const MESSAGE_WINDOW_HANDLE_HEIGHT = 42;
+/** Height (logical px) of the idle window — the 26px plate and its border inside the column's 8px padding. */
+export const MESSAGE_WINDOW_HANDLE_HEIGHT = 44;
 /** Gap (logical px) between the pet window's right edge and the message window. */
 const MESSAGE_WINDOW_GAP_PX = 12;
 
