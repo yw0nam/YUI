@@ -647,17 +647,22 @@ def test_serialize_desire_block_renders_the_returned_line_after_the_interaction_
     now = at("2026-08-25T12:00:00+09:00")
     levels = {"social": 72.0, "curiosity": 50.0, "accomplishment": 50.0}
     last = (now - timedelta(hours=5)).isoformat()
+    held = [{"id": "held", "created_at": last, "note": "I held this"}]
 
-    block = desire_state.serialize_desire_block(
+    empty_handed = desire_state.serialize_desire_block(
         levels, [], now, last_interaction_at=last, transport=None, returned_hours=5
     )
+    holding = desire_state.serialize_desire_block(
+        levels, held, now, last_interaction_at=last, transport=None, returned_hours=5
+    )
 
-    assert block.split("\n")[1:5] == [
+    assert empty_handed.split("\n")[1:5] == [
         "drives: social 72/100 (high) | curiosity 50/100 (mid) | accomplishment 50/100 (mid)",
         "last interaction: 2026-08-25 07:00 (5h ago)",
-        "returned: after 5h away (one held note fits here)",
+        "returned: after 5h away",
         "signal transport: unknown",
     ]
+    assert holding.split("\n")[3] == "returned: after 5h away (one held note fits here)"
 
 
 def test_serialize_desire_block_renders_the_last_signal_line_after_the_transport_line(at):

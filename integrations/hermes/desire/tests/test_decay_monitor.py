@@ -8,6 +8,10 @@ import decay_monitor
 import desire_state
 
 
+def without_day(summary: str) -> str:
+    return re.sub(r" day:\d{4}-\d{2}-\d{2}", "", summary)
+
+
 def test_monitor_wrapper_is_self_locating_for_symlink_installation():
     wrapper = Path(__file__).parents[1] / "scripts/natsume-desire-monitor.sh"
     assert wrapper.read_text(encoding="utf-8").splitlines() == [
@@ -286,7 +290,7 @@ def test_monitor_main_emits_valid_fallback_summary_on_unexpected_failure(monkeyp
     captured = capsys.readouterr()
     assert re.fullmatch(
         r"social:low curiosity:mid accomplishment:mid outbox:0 transport:down "
-        r"budget:3/3sig 2/2iss 1/1cmt\n",
+        r"budget:3/3sig 2/2iss 1/1cmt day:\d{4}-\d{2}-\d{2}\n",
         captured.out,
     )
 
@@ -301,7 +305,8 @@ def test_monitor_main_falls_back_when_clock_read_fails(monkeypatch, capsys):
 
     assert decay_monitor.main() is None
     assert capsys.readouterr().out == (
-        "social:low curiosity:mid accomplishment:mid outbox:0 transport:down budget:3/3sig 2/2iss 1/1cmt\n"
+        "social:low curiosity:mid accomplishment:mid outbox:0 transport:down "
+        "budget:3/3sig 2/2iss 1/1cmt day:unknown\n"
     )
 
 
@@ -416,7 +421,9 @@ def test_pent_up_stage_changes_stdout_exactly_at_hour_boundaries(state_dir, at, 
     assert decay_monitor.run(created + timedelta(hours=17, minutes=59, seconds=59)) == heavy
     bursting = decay_monitor.run(created + timedelta(hours=18))
     assert " outbox:1/bursting " in bursting
-    assert " outbox:1/bursting " in decay_monitor.run(created + timedelta(hours=47, minutes=59, seconds=59))
+    assert without_day(
+        decay_monitor.run(created + timedelta(hours=47, minutes=59, seconds=59))
+    ) == without_day(bursting)
     assert " outbox:0 " in decay_monitor.run(created + timedelta(hours=48))
 
 
@@ -526,3 +533,28 @@ def test_postponed_note_leaves_the_summary_count_until_not_before(state_dir, at,
     assert " outbox:0 " in decay_monitor.run(now)
     assert [value["id"] for value in read_jsonl(state_dir / "outbox.jsonl")] == ["postponed"]
     assert " outbox:1/fresh " in decay_monitor.run(now + timedelta(hours=1))
+
+
+def test_fallback_summary_wakes_the_tick_on_a_new_wake_day(monkeypatch, capsys, at):
+    class FixedClock:
+        moment = at("2026-08-25T12:00:00+09:00")
+
+        @classmethod
+        def now(cls, _timezone):
+            return cls.moment
+
+    def fail(_now):
+        raise OSError("state unavailable")
+
+    monkeypatch.setattr(decay_monitor, "datetime", FixedClock)
+    monkeypatch.setattr(decay_monitor, "run", fail)
+
+    decay_monitor.main()
+    first = capsys.readouterr().out
+    FixedClock.moment = at("2026-08-26T12:00:00+09:00")
+    decay_monitor.main()
+    second = capsys.readouterr().out
+
+    assert first.endswith(" day:2026-08-25\n")
+    assert second.endswith(" day:2026-08-26\n")
+    assert first != second

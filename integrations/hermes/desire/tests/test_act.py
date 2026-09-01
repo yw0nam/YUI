@@ -707,12 +707,12 @@ def test_outbox_postpone_hides_the_item_from_list_and_send_until_not_before(
     }
 
     assert act.main(["outbox", "--list"], now=now) == 0
-    assert json.loads(capsys.readouterr().out) == []
+    assert json.loads(capsys.readouterr().out) == [{**stored, "postponed_until": "2026-08-25 14:00"}]
     assert act.main(["outbox", "--send", "one"], now=now, opener=lambda *a, **k: Response()) == 3
     assert capsys.readouterr().err.strip() == "unknown outbox item"
 
     assert act.main(["outbox", "--list"], now=until) == 0
-    assert [value["id"] for value in json.loads(capsys.readouterr().out)] == ["one"]
+    assert json.loads(capsys.readouterr().out) == [stored]
     assert act.main(["outbox", "--send", "one"], now=until, opener=lambda *a, **k: Response()) == 0
 
 
@@ -813,3 +813,18 @@ def test_postpone_rejects_a_delay_that_is_not_a_positive_number_of_hours(
 
     assert "not_before" not in read_jsonl(state_dir / "outbox.jsonl")[0]
     assert [value["event"] for value in read_jsonl(state_dir / "audit.jsonl")] == []
+
+
+def test_a_postponed_note_can_be_found_and_released_early(state_dir, at, state_helpers, capsys):
+    _, write_jsonl, _, read_jsonl = state_helpers
+    now = at("2026-08-25T12:00:00+09:00")
+    desire_state.bootstrap(now)
+    write_jsonl(state_dir / "outbox.jsonl", [pent_up("one", now)])
+    assert act.main(["outbox", "--postpone", "one", "--until", "2", "--why", "not the moment"], now=now) == 0
+
+    assert act.main(["outbox", "--list"], now=now) == 0
+    listed = json.loads(capsys.readouterr().out)
+    assert [(value["id"], value["postponed_until"]) for value in listed] == [("one", "2026-08-25 14:00")]
+
+    assert act.main(["outbox", "--release", listed[0]["id"], "--why", "he said it first"], now=now) == 0
+    assert read_jsonl(state_dir / "outbox.jsonl") == []

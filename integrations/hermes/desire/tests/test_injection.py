@@ -839,7 +839,7 @@ def test_transport_up_since_the_last_interaction_also_counts_as_a_return(
         desire_plugin._inject(request=request_with(context("trigger: user message")), now=now)
     )
 
-    assert block.split("\n")[3] == "returned: after 9h away (one held note fits here)"
+    assert block.split("\n")[3] == "returned: after 9h away"
     assert audit_events(state_dir, "returned")[0]["transport_before"] == "up"
     assert read_json(state_dir / "transport.json")["since"] == (now - timedelta(hours=2)).isoformat()
 
@@ -964,7 +964,7 @@ def test_a_return_inside_the_debounce_window_is_committed_once(desire_plugin, st
         )
     )
 
-    assert "returned: after 0h away (one held note fits here)" in first
+    assert first.split("\n")[3] == "returned: after 0h away"
     assert (
         read_json(state_dir / "drives.json")["last_interaction_at"]
         == (now + timedelta(minutes=4)).isoformat()
@@ -1013,6 +1013,7 @@ def test_a_concurrent_user_turn_commits_the_return_only_once(
         desire_plugin._inject(request=request_with(context("trigger: user message")), now=now)
     )
 
-    assert "returned: after 5h away (one held note fits here)" in block
+    assert block.split("\n")[3] == "returned: after 5h away"
+    assert desire_plugin._already_injected("hello\n\n" + block)
     assert len(audit_events(state_dir, "returned")) == 1
     assert read_json(state_dir / "transport.json")["state"] == "up"
