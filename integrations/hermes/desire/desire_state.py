@@ -632,7 +632,8 @@ def serialize_desire_block(
         f"last interaction: {last_interaction.strftime('%Y-%m-%d %H:%M')} ({since_interaction}h ago)",
     ]
     if returned_hours is not None:
-        lines.append(f"returned: after {returned_hours}h away (one held note fits here)")
+        held = " (one held note fits here)" if items else ""
+        lines.append(f"returned: after {returned_hours}h away{held}")
     lines.append(_transport_line(transport))
     if last_signal_at:
         lines.append(_last_signal_line(last_signal_at, last_signal_answered_at, now))

@@ -87,12 +87,25 @@ def run(now: datetime) -> str:
         )
 
 
+def _fallback_summary() -> str:
+    """Name the wake day so a sustained failure still wakes the tick once a day."""
+
+    try:
+        day = desire_state.wake_day(datetime.now(desire_state.KST))
+    except Exception:  # noqa: BLE001 - an unreadable clock still owes the cron a summary
+        day = "unknown"
+    return (
+        "social:low curiosity:mid accomplishment:mid outbox:0 transport:down "
+        f"budget:3/3sig 2/2iss 1/1cmt day:{day}\n"
+    )
+
+
 def main() -> None:
     try:
         now = datetime.now(desire_state.KST)
         summary = run(now)
     except Exception:  # noqa: BLE001 - the hash-gated cron must always receive a valid summary
-        summary = "social:low curiosity:mid accomplishment:mid outbox:0 transport:down budget:3/3sig 2/2iss 1/1cmt\n"
+        summary = _fallback_summary()
     print(summary, end="")
 
 

@@ -248,12 +248,24 @@ def _feedback(operation, value, now):
         return 0
 
 
+def _listed_item(item, now):
+    """Mark an item the block and ``--send`` cannot reach yet."""
+
+    not_before = item.get("not_before")
+    if not_before is None:
+        return item
+    waiting = desire_state.parse_timestamp(not_before)
+    if waiting <= now:
+        return item
+    return {**item, "postponed_until": waiting.strftime("%Y-%m-%d %H:%M")}
+
+
 def _outbox_list(now):
     state_dir = desire_state.resolve_state_dir()
     with desire_state.state_lock(state_dir):
         _normalized_state(state_dir, now)
-        values = desire_state.visible_outbox(desire_state.read_jsonl(state_dir / "outbox.jsonl"), now)
-    print(json.dumps(values, ensure_ascii=False))
+        values = desire_state.active_outbox(desire_state.read_jsonl(state_dir / "outbox.jsonl"), now)
+    print(json.dumps([_listed_item(value, now) for value in values], ensure_ascii=False))
     return 0
 
 

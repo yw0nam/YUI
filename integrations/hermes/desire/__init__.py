@@ -29,7 +29,7 @@ _DRIVES_LINE = re.compile(
     r"\((?P<accomplishment_bucket>low|mid|high)\)"
 )
 _LAST_INTERACTION_LINE = re.compile(r"last interaction: \d{4}-\d{2}-\d{2} \d{2}:\d{2} \(\d+h ago\)")
-_RETURNED_LINE = re.compile(r"returned: after \d+h away \(one held note fits here\)")
+_RETURNED_LINE = re.compile(r"returned: after \d+h away(?: \(one held note fits here\))?")
 _TRANSPORT_LINE = re.compile(
     r"signal transport: (?:up|unknown|down since \d{4}-\d{2}-\d{2} \d{2}:\d{2} \(\d+ failed\))"
 )
@@ -138,7 +138,7 @@ def _returned(transport, last_interaction):
     return transport["state"] == "down" or desire_state.parse_timestamp(transport["since"]) > last_interaction
 
 
-def _answers_signal(drives, now):
+def _answers_signal(drives):
     """Report whether this turn is the first user message since the last delivered signal."""
     signal_at = drives.get("last_signal_at")
     if not signal_at:
@@ -212,9 +212,9 @@ def _rewrite(kwargs, event):
         if _returned(transport, last_interaction):
             returned_hours = _whole_hours(last_interaction, now)
         if returned_hours is not None or now - last_interaction > timedelta(minutes=5):
-            staged_drives["last_interaction_at"] = now.astimezone(KST).isoformat()
-        if _answers_signal(drives, now):
-            staged_drives["last_signal_answered_at"] = now.astimezone(KST).isoformat()
+            staged_drives["last_interaction_at"] = now.isoformat()
+        if _answers_signal(drives):
+            staged_drives["last_signal_answered_at"] = now.isoformat()
 
     cached = _turn_cache
     cache_hit = cached is not None and cached["key"] == cache_key and now - cached["last_hit"] <= _CACHE_TTL
@@ -237,7 +237,7 @@ def _rewrite(kwargs, event):
         if interaction_changed:
             current_drives = committed_state["drives"]
             if current_drives.get("last_interaction_hash") != text_hash:
-                answers = _answers_signal(current_drives, now)
+                answers = _answers_signal(current_drives)
                 current_transport = desire_state.read_transport(state_dir)
                 last_interaction = desire_state.parse_timestamp(current_drives["last_interaction_at"])
                 returns = returned_hours is not None and _returned(current_transport, last_interaction)
