@@ -414,7 +414,10 @@ export function createPercher(deps: PercherDeps): Percher {
   async function runLanding(startedAt: number, target: WindowRect): Promise<void> {
     const anchor = deps.renderer.getCharacterAnchor();
     const probe = deps.renderer.getPerchProbe();
+    // A body the renderer cannot project yet leaves the landing where it is, for a later
+    // tick to take — dropping it would strand her standing on the window she came down on.
     if (!anchor || !probe) return;
+    landing = null;
     const win = deps.getWindow();
     const [pos, scaleFactor] = await Promise.all([win.outerPosition(), win.scaleFactor()]);
     if (!alive(startedAt)) return;
@@ -618,7 +621,6 @@ export function createPercher(deps: PercherDeps): Percher {
   /** Take a pending landing the moment the touchdown clip hands the body back. */
   function beginLanding(target: WindowRect): void {
     if (!onBaseline()) return;
-    landing = null;
     starting = true;
     const startedAt = generation;
     void runLanding(startedAt, target)
