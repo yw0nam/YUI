@@ -1326,6 +1326,93 @@ describe("createPercher", () => {
     expect(h.onTargetLost).not.toHaveBeenCalled();
   });
 
+  it("falls out of a pending landing when its window closes during the touchdown clip", async () => {
+    let stack = [NEIGHBOUR];
+    const h = makeHarness({
+      windows: async () => stack,
+      initialPos: { x: 1500, y: 480 },
+      armed: false,
+      motion: { id: "landing", kind: "oneshot" },
+    });
+    h.percher.start();
+
+    h.percher.landOn(NEIGHBOUR);
+    await h.frame(0.4);
+    expect(h.onTargetLost).not.toHaveBeenCalled();
+    stack = [];
+    await h.frame(0.4);
+
+    expect(h.onTargetLost).toHaveBeenCalledTimes(1);
+    // The landing is dropped with it: the body coming back changes nothing.
+    h.setMotion({ id: "idle", kind: "ambient" });
+    await h.frame();
+    expect(h.walkTo).not.toHaveBeenCalled();
+    expect(h.adoptSit).not.toHaveBeenCalled();
+  });
+
+  it("falls out of a pending landing when its window is dragged away", async () => {
+    let stack = [NEIGHBOUR];
+    const h = makeHarness({
+      windows: async () => stack,
+      initialPos: { x: 1500, y: 480 },
+      armed: false,
+      motion: { id: "landing", kind: "oneshot" },
+    });
+    h.percher.start();
+
+    h.percher.landOn(NEIGHBOUR);
+    stack = [{ ...NEIGHBOUR, x: NEIGHBOUR.x + 20 }];
+    await h.frame(0.8);
+
+    expect(h.onTargetLost).toHaveBeenCalledTimes(1);
+  });
+
+  it("keeps a pending landing whose window barely moved and seats her on it", async () => {
+    let stack = [HOST, NEIGHBOUR];
+    const h = makeHarness({
+      windows: async () => stack,
+      initialPos: { x: 1500, y: 480 },
+      armed: false,
+      motion: { id: "landing", kind: "oneshot" },
+    });
+    h.percher.start();
+
+    h.percher.landOn(NEIGHBOUR);
+    stack = [HOST, { ...NEIGHBOUR, x: NEIGHBOUR.x + 5 }];
+    await h.frame(0.8);
+    expect(h.onTargetLost).not.toHaveBeenCalled();
+
+    h.setMotion({ id: "idle", kind: "ambient" });
+    await h.frame();
+
+    expect(h.adoptSit).toHaveBeenCalledWith(7, { x: 1565, y: 900 }, 500, "commit");
+  });
+
+  it("watches a pending landing on the poll cadence, one read at a time", async () => {
+    const pending = deferred<WindowRect[]>();
+    let reads = 0;
+    const h = makeHarness({
+      windows: () => {
+        reads++;
+        return reads === 1 ? Promise.resolve([NEIGHBOUR]) : pending.promise;
+      },
+      initialPos: { x: 1500, y: 480 },
+      armed: false,
+      motion: { id: "landing", kind: "oneshot" },
+    });
+    h.percher.start();
+
+    h.percher.landOn(NEIGHBOUR);
+    // Two seconds of frames against a 700 ms cadence: two reads, not twenty.
+    for (let i = 0; i < 20; i++) await h.frame(0.1);
+    expect(reads).toBe(2);
+
+    // The second never came back, so the cadence issues nothing on top of it.
+    await h.frame(0.8);
+    await h.frame(0.8);
+    expect(reads).toBe(2);
+  });
+
   it("drops a pending landing when the user picks her up first", async () => {
     const h = makeHarness({
       windows: async () => [NEIGHBOUR],
