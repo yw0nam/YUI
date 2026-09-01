@@ -172,7 +172,8 @@ export interface Percher {
   start(): void;
   /**
    * A fall came down on `target` — take the seat there once the body is back on the
-   * ambient baseline. Ignored if the target is gone by the time the stack is read.
+   * ambient baseline. The window is watched until then, and one that closes or slides
+   * away starts the next fall instead.
    */
   landOn(target: WindowRect): void;
   cancel(): void;
@@ -192,8 +193,11 @@ export function createPercher(deps: PercherDeps): Percher {
   let suspendedAt: number | null = null;
   /** A walk cue is out and owes its close, whether or not a host is being watched. */
   let walkCueOpen = false;
-  /** A window a fall put her on, waiting for the body to come back before it is taken. */
-  let landing: WindowRect | null = null;
+  /**
+   * A window a fall put her on, waiting for the body to come back before it is taken. The
+   * touchdown clip runs for seconds, so the window is watched for the whole wait.
+   */
+  let landing: { target: WindowRect; nextWatchAtMs: number; watching: boolean } | null = null;
   let stroll: {
     host: WindowRect;
     nextWatchAtMs: number;
@@ -343,8 +347,8 @@ export function createPercher(deps: PercherDeps): Percher {
   /**
    * Take the seat on a window top she is already standing on, whether a jump or a fall put
    * her there: a short leg along the uncovered stretch, then the sit read from where the
-   * window actually ended up. A target that has gone by the time the stack is read leaves
-   * her standing, for the next drag or agent command to move.
+   * window actually ended up. A target that has closed or moved by the time the stack is
+   * read leaves her over nothing, and the fall takes her.
    */
   async function settleOn(
     startedAt: number,
@@ -630,6 +634,34 @@ export function createPercher(deps: PercherDeps): Percher {
     }
   }
 
+  /**
+   * Watch the window she came down on while the touchdown clip still holds the body. It is
+   * seconds long, and a window closed or dragged away in that time leaves her over nothing:
+   * the fall starts at once — `falling` outranks the clip — rather than at the clip's end.
+   */
+  function watchLanding(): void {
+    const pending = landing;
+    if (!pending || pending.watching || nowMs < pending.nextWatchAtMs) return;
+    pending.nextWatchAtMs = nowMs + PERCH_POLL_MS;
+    pending.watching = true;
+    const startedAt = generation;
+    void deps
+      .listWindows()
+      .then((windows) => {
+        if (!alive(startedAt) || landing !== pending) return;
+        const now = windows.find((w) => w.windowNumber === pending.target.windowNumber);
+        const lost = now === undefined ? "gone" : hasMoved(now, pending.target) ? "moved" : null;
+        if (lost === null) return;
+        log.info("landing_lost", { windowNumber: pending.target.windowNumber, reason: lost });
+        landing = null;
+        deps.onTargetLost();
+      })
+      .catch((error) => log.warn("landing_watch_failed", { degrade: true, error: String(error) }))
+      .finally(() => {
+        pending.watching = false;
+      });
+  }
+
   /** Take a pending landing the moment the touchdown clip hands the body back. */
   function beginLanding(target: WindowRect): void {
     if (!onBaseline()) return;
@@ -650,7 +682,8 @@ export function createPercher(deps: PercherDeps): Percher {
     }
     if (starting) return;
     if (landing) {
-      beginLanding(landing);
+      watchLanding();
+      if (landing) beginLanding(landing.target);
       return;
     }
     const sit = deps.dropSource.armedSit();
@@ -683,7 +716,7 @@ export function createPercher(deps: PercherDeps): Percher {
     },
     landOn(target) {
       if (stopped) return;
-      landing = target;
+      landing = { target, nextWatchAtMs: nowMs + PERCH_POLL_MS, watching: false };
       dwellAtMs = -1;
     },
     cancel,
