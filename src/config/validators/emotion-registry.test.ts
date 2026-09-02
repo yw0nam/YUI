@@ -1,5 +1,7 @@
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
-import { validateEmotionRegistry } from "./emotion-registry";
+import { EMOTION_IDS, validateEmotionRegistry } from "./emotion-registry";
 import { ConfigError } from "./shared";
 
 const FILE = "emotion_registry.json";
@@ -29,21 +31,10 @@ describe("validateEmotionRegistry — happy path", () => {
 
   it("accepts all 10 enum emotion ids", () => {
     const raw = Object.fromEntries(
-      [
-        "neutral",
-        "happy",
-        "angry",
-        "sad",
-        "relaxed",
-        "surprised",
-        "thinking",
-        "curious",
-        "sleepy",
-        "embarrassed",
-      ].map((id) => [id, { vrm_expression: id, fallback: "neutral" }]),
+      [...EMOTION_IDS].map((id) => [id, { vrm_expression: id, fallback: "neutral" }]),
     );
     const out = validateEmotionRegistry(FILE, raw);
-    expect(Object.keys(out)).toHaveLength(10);
+    expect(Object.keys(out)).toHaveLength(EMOTION_IDS.size);
   });
 
   it("accepts an empty registry (no minimum-entries requirement)", () => {
@@ -90,6 +81,23 @@ describe("validateEmotionRegistry — key/entry validation", () => {
     } catch (e) {
       const err = e as ConfigError;
       expect(err.issues.length).toBe(2);
+    }
+  });
+});
+
+describe("configs/emotion_registry.json — the shipped registry", () => {
+  const shipped = validateEmotionRegistry(
+    FILE,
+    JSON.parse(readFileSync(resolve(process.cwd(), "configs", FILE), "utf-8")),
+  );
+
+  it("covers exactly the emotion enum", () => {
+    expect(Object.keys(shipped).sort()).toEqual([...EMOTION_IDS].sort());
+  });
+
+  it("every fallback is a known emotion id", () => {
+    for (const [id, entry] of Object.entries(shipped)) {
+      expect([...EMOTION_IDS], `${id}.fallback`).toContain(entry.fallback);
     }
   });
 });

@@ -21,6 +21,43 @@
   padding-top: 0.1rem;
 }
 
+/* ── "Add from file…" ghost row — reserved/inactive ── */
+.yui-vrm--add,
+.yui-spk--add {
+  color: var(--yui-text-mute);
+  cursor: not-allowed;
+  opacity: 0.62;
+}
+
+.yui-vrm--add:hover,
+.yui-spk--add:hover {
+  background: transparent;
+}
+
+.yui-vrm--add .yui-vrm__tick,
+.yui-spk--add .yui-spk__tick {
+  border-style: dashed;
+  border-color: var(--yui-text-mute);
+}
+
+.yui-vrm--add .yui-vrm__tick::after,
+.yui-spk--add .yui-spk__tick::after {
+  content: "+";
+  width: auto;
+  height: auto;
+  background: transparent;
+  transform: none;
+  color: var(--yui-text-mute);
+  font-size: 0.78rem;
+  line-height: 1;
+}
+
+.yui-vrm--add .yui-vrm__name,
+.yui-spk--add .yui-spk__name {
+  font-size: 0.84rem;
+  font-weight: 500;
+}
+
 /* ── Loading: clicked row shows "swapping…", other rows dimmed/inactive ── */
 .yui-vrm[aria-busy="true"] .yui-vrm__name,
 .yui-spk[aria-busy="true"] .yui-spk__name {
@@ -100,43 +137,6 @@
   font-size: 0.72rem;
   line-height: 1.4;
   color: var(--yui-danger);
-}
-
-/* ── "Add from file…" ghost row — reserved/inactive ── */
-.yui-vrm--add,
-.yui-spk--add {
-  color: var(--yui-text-mute);
-  cursor: not-allowed;
-  opacity: 0.62;
-}
-
-.yui-vrm--add:hover,
-.yui-spk--add:hover {
-  background: transparent;
-}
-
-.yui-vrm--add .yui-vrm__tick,
-.yui-spk--add .yui-spk__tick {
-  border-style: dashed;
-  border-color: var(--yui-text-mute);
-}
-
-.yui-vrm--add .yui-vrm__tick::after,
-.yui-spk--add .yui-spk__tick::after {
-  content: "+";
-  width: auto;
-  height: auto;
-  background: transparent;
-  transform: none;
-  color: var(--yui-text-mute);
-  font-size: 0.78rem;
-  line-height: 1;
-}
-
-.yui-vrm--add .yui-vrm__name,
-.yui-spk--add .yui-spk__name {
-  font-size: 0.84rem;
-  font-weight: 500;
 }
 
 .yui-vrm__soon,

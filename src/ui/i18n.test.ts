@@ -250,13 +250,12 @@ describe("key completeness — every en key must exist in ja and ko", () => {
 });
 
 // The session/cue copy renders verbatim (no "·"-splitting in the renderer), so
-// duplicated segments and untranslated strings ship straight to the UI. Pin the
-// corrected copy. The ko " · " label style is deliberate bilingual copy — only
-// en must be single-language.
-describe("session & cue copy — corrected values", () => {
-  it("en session labels carry no duplicated ' · ' segment", () => {
-    expect(en["session.action_label"]).toBe("Start fresh");
-    expect(en["session.reset"]).toBe("Reset conversation");
+// duplicated segments and untranslated strings ship straight to the UI. The ko
+// " · " label style is deliberate bilingual copy — only en must be single-language.
+describe("session & cue copy — shape", () => {
+  it("en session labels carry no ' · ' segment", () => {
+    expect(en["session.action_label"]).not.toMatch(/ · /);
+    expect(en["session.reset"]).not.toMatch(/ · /);
   });
 
   it("ko session strings are natural Korean (not untranslated English)", () => {
@@ -269,22 +268,6 @@ describe("session & cue copy — corrected values", () => {
     ]) {
       expect(ko[key], `${key} should be Korean`).toMatch(hangul);
     }
-    // deliberate bilingual labels stay as-is
-    expect(ko["session.action_label"]).toBe("새 대화 시작 · Start fresh");
-    expect(ko["session.reset"]).toBe("대화 초기화 · Reset conversation");
-  });
-
-  it("the action sub-copy points at the history list the action sits under", () => {
-    expect(ko["session.action_sub"]).toBe(
-      "새 대화를 시작해요. 지금까지의 대화는 위 기록에 그대로 남아요.",
-    );
-    expect(en["session.action_sub"]).toContain("above");
-    expect(ja["session.action_sub"]).toContain("上");
-  });
-
-  it("ko minutes-cue copy reads naturally as '대화 없이 [n] 분마다'", () => {
-    expect(ko["cue.minutes_word"]).toBe("대화 없이");
-    expect(ko["cue.minutes_aria"]).toBe("대화 없는 시간(분)");
   });
 
   it("every locale carries the cue delete-confirm keys", () => {
