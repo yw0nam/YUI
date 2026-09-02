@@ -37,6 +37,20 @@ def run(now: datetime) -> str:
             drives[name] = {"level": levels[name], "anchor_at": now.isoformat()}
         desire_state.write_json_atomic(state_dir / "drives.json", drives)
 
+        # A fallen bucket keeps its latched token, so a drive the agent just satisfied does not
+        # wake the next tick; a rise re-snapshots every token and counts.
+        monitor = state["monitor"]
+        natural = {name: desire_state.bucket(levels[name]) for name in desire_state.DRIVES}
+        rises = monitor["rises"] + sum(
+            desire_state.BUCKETS.index(natural[name]) > desire_state.BUCKETS.index(monitor["natural"][name])
+            for name in desire_state.DRIVES
+        )
+        latched = dict(natural) if rises > monitor["rises"] else monitor["latched"]
+        desire_state.write_json_atomic(
+            state_dir / "monitor.json",
+            {"latched": latched, "natural": natural, "rises": rises},
+        )
+
         budget = desire_state.normalize_budget(state["budget"], now)
         cutoff = now.date() - timedelta(days=7)
         budget["pending"] = {
@@ -73,17 +87,31 @@ def run(now: datetime) -> str:
             oldest = min(desire_state.parse_timestamp(item["created_at"]) for item in visible)
             outbox_summary += f"/{desire_state.pent_up_stage(oldest, now)}"
 
+        desire_state.append_jsonl(
+            state_dir / "ticks.jsonl",
+            {
+                "at": now.isoformat(),
+                "social": round(levels["social"], 1),
+                "curiosity": round(levels["curiosity"], 1),
+                "accomplishment": round(levels["accomplishment"], 1),
+                "transport": transport["state"],
+                "outbox": len(visible),
+                "last_interaction_at": drives["last_interaction_at"],
+            },
+        )
+
         remaining_signals = max(0, desire_state.CAPS["signals"] - budget["signals"])
         remaining_issues = max(0, desire_state.CAPS["issues"] - budget["issues"])
         remaining_comments = max(0, desire_state.CAPS["self_comments"] - budget["self_comments"])
         return (
-            f"social:{desire_state.bucket(levels['social'])} "
-            f"curiosity:{desire_state.bucket(levels['curiosity'])} "
-            f"accomplishment:{desire_state.bucket(levels['accomplishment'])} "
+            f"social:{latched['social']} "
+            f"curiosity:{latched['curiosity']} "
+            f"accomplishment:{latched['accomplishment']} "
             f"outbox:{outbox_summary} "
             f"transport:{transport['state']} "
             f"budget:{remaining_signals}/3sig {remaining_issues}/2iss {remaining_comments}/1cmt "
-            f"day:{desire_state.wake_day(now)}\n"
+            f"day:{desire_state.wake_day(now)} "
+            f"rises:{rises}\n"
         )
 
 
@@ -96,7 +124,7 @@ def _fallback_summary() -> str:
         day = "unknown"
     return (
         "social:low curiosity:mid accomplishment:mid outbox:0 transport:down "
-        f"budget:3/3sig 2/2iss 1/1cmt day:{day}\n"
+        f"budget:3/3sig 2/2iss 1/1cmt day:{day} rises:0\n"
     )
 
 
