@@ -37,14 +37,14 @@ const TARGET: WindowRect = {
   windowNumber: 5,
 };
 
-async function wire(opts: { enabled?: boolean } = {}) {
+async function wire(opts: { isEnabled?: () => boolean } = {}) {
   vi.stubGlobal("__TAURI_INTERNALS__", {});
   createFaller.mockClear();
   fallerDrop.mockClear();
   const pushed: Array<{ event_name: string; payload?: Record<string, unknown> }> = [];
   const onWindowLand = vi.fn();
   const handle = wireFaller({
-    isEnabled: () => opts.enabled ?? true,
+    isEnabled: opts.isEnabled ?? (() => true),
     bus: { push: (env: { event_name: string }) => pushed.push(env) } as never,
     renderer: {} as never,
     getFallConfig: () => ({}) as never,
@@ -71,16 +71,20 @@ describe("wireFaller — fall toggle", () => {
     vi.unstubAllGlobals();
   });
 
-  it("drops when the fall is on", async () => {
-    const { handle } = await wire({ enabled: true });
+  it("reads the switch on every drop: on drops, off leaves her where she hangs", async () => {
+    let enabled = true;
+    const { handle } = await wire({ isEnabled: () => enabled });
+
     handle.drop();
     expect(fallerDrop).toHaveBeenCalledTimes(1);
-  });
 
-  it("leaves her where she hangs when the fall is off", async () => {
-    const { handle } = await wire({ enabled: false });
+    enabled = false;
     handle.drop();
-    expect(fallerDrop).not.toHaveBeenCalled();
+    expect(fallerDrop).toHaveBeenCalledTimes(1);
+
+    enabled = true;
+    handle.drop();
+    expect(fallerDrop).toHaveBeenCalledTimes(2);
   });
 });
 

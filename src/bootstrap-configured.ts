@@ -159,15 +159,15 @@ export function createPatGesture(deps: {
   };
 }
 
-/**
- * The fall a lost sit starts. A descent still inside its window survey resumes on a stale
- * list and moves the window from under the faller, so the climb lets go before the drop.
- */
 /** With the fall off, a perched stroll never steps off the ledge: nothing would catch her. */
 export function fallConfigFor(fall: FallConfig, enabled: boolean): FallConfig {
   return enabled ? fall : { ...fall, step_off_probability: 0 };
 }
 
+/**
+ * The fall a lost sit starts. A descent still inside its window survey resumes on a stale
+ * list and moves the window from under the faller, so the climb lets go before the drop.
+ */
 export function createSitLossFall(deps: {
   getClimber: () => { cancel(): void } | null;
   faller: { drop(): void };
