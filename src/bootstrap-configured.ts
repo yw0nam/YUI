@@ -19,6 +19,7 @@ import {
   type AppConfig,
   CHAT_API_KEY_SECRET,
   type ConfigStore,
+  type FallConfig,
   STT_API_KEY_SECRET,
   TTS_API_KEY_SECRET,
 } from "./config";
@@ -158,6 +159,11 @@ export function createPatGesture(deps: {
   };
 }
 
+/** With the fall off, a perched stroll never steps off the ledge: nothing would catch her. */
+export function fallConfigFor(fall: FallConfig, enabled: boolean): FallConfig {
+  return enabled ? fall : { ...fall, step_off_probability: 0 };
+}
+
 /**
  * The fall a lost sit starts. A descent still inside its window survey resumes on a stale
  * list and moves the window from under the faller, so the climb lets go before the drop.
@@ -217,6 +223,7 @@ const realFactories: ConfiguredBootstrapFactories = {
       cameraSettings,
       gazeSettings,
       climbSettings,
+      fallSettings,
       hintSettings,
       guardrailsSettings,
       idleMotionSettings,
@@ -495,6 +502,7 @@ const realFactories: ConfiguredBootstrapFactories = {
     const faller = wireFaller({
       bus,
       renderer,
+      isEnabled: () => fallSettings.get().enabled,
       getFallConfig: () => config.get().avatar.fall,
       getMotionKind: (id) => config.get().motions[id]?.kind,
       getFloorTolerancePx: () => config.get().avatar.walk.floor_tolerance_px,
@@ -535,7 +543,7 @@ const realFactories: ConfiguredBootstrapFactories = {
       renderer,
       getPerchWalkConfig: () => config.get().avatar.perch_walk,
       getJumpConfig: () => config.get().avatar.jump,
-      getFallConfig: () => config.get().avatar.fall,
+      getFallConfig: () => fallConfigFor(config.get().avatar.fall, fallSettings.get().enabled),
       getMotionKind: (id) => config.get().motions[id]?.kind,
       isBusy: dispatcher.isPipelineBusy,
       walker,

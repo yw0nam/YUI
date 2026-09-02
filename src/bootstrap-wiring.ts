@@ -672,6 +672,8 @@ export function wirePercher(deps: {
 export function wireFaller(deps: {
   bus: EventBus;
   renderer: Renderer;
+  /** The user's fall switch. Off leaves a mid-air character where she hangs. */
+  isEnabled: () => boolean;
   getFallConfig: () => FallConfig;
   /** Registry kind of a motion id, for the "only the baseline hands the clip back" gate. */
   getMotionKind: (id: string) => MotionKind | undefined;
@@ -688,7 +690,9 @@ export function wireFaller(deps: {
   let faller: Faller | null = null;
   let disposed = false;
   const handle = {
-    drop: () => void faller?.drop(),
+    drop: () => {
+      if (deps.isEnabled()) void faller?.drop();
+    },
     cancel: () => faller?.cancel(),
     dispose: () => {
       disposed = true;

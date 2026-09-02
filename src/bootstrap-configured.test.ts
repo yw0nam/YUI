@@ -4,8 +4,9 @@ import {
   createConfiguredBootstrap,
   createPatGesture,
   createSitLossFall,
+  fallConfigFor,
 } from "./bootstrap-configured";
-import { type AppConfig, ATTACHMENT_LIMITS_DEFAULTS } from "./config";
+import { type AppConfig, ATTACHMENT_LIMITS_DEFAULTS, FALL_DEFAULTS } from "./config";
 
 function validConfig(): AppConfig {
   return {
@@ -261,6 +262,18 @@ describe("createPatGesture", () => {
     expect(pat.isPatPoint({ x: 5, y: 6 })).toBe(true);
     expect(tapSource.isHeadPoint).toHaveBeenCalledWith({ x: 5, y: 6 });
     expect(pat.holdMs()).toBe(300);
+  });
+});
+
+describe("fallConfigFor", () => {
+  const fall = { ...FALL_DEFAULTS, step_off_probability: 0.3 };
+
+  it("passes the config through while the fall is on", () => {
+    expect(fallConfigFor(fall, true)).toBe(fall);
+  });
+
+  it("never steps off the ledge while the fall is off", () => {
+    expect(fallConfigFor(fall, false)).toEqual({ ...fall, step_off_probability: 0 });
   });
 });
 

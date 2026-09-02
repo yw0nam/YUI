@@ -145,6 +145,8 @@ export function createSettingsStores(opts?: { locale?: CueLocale }) {
   const gazeSettings = createFlagSettings(true, { storage: localStorageStore("yui.gaze") });
   // Ambient window climbing on/off. Default ON. Off takes her off the wall and stops scheduling.
   const climbSettings = createFlagSettings(true, { storage: localStorageStore("yui.climb") });
+  // Falling on/off. Default ON. Off leaves a character released mid-air where she was dropped.
+  const fallSettings = createFlagSettings(true, { storage: localStorageStore("yui.fall") });
   // First-run onboarding hint — flag shown only once.
   // enabled === onboarding hint already seen.
   const hintSettings = createFlagSettings(false, { storage: localStorageStore("yui.hint") });
@@ -199,6 +201,7 @@ export function createSettingsStores(opts?: { locale?: CueLocale }) {
     cameraSettings,
     gazeSettings,
     climbSettings,
+    fallSettings,
     hintSettings,
     railCollapsedSettings,
     sectionsSettings,
@@ -250,6 +253,7 @@ export const SYNC_MODE: Record<keyof SettingsStores, SyncMode> = {
   cameraSettings: "broadcast",
   gazeSettings: "broadcast",
   climbSettings: "broadcast",
+  fallSettings: "broadcast",
   hintSettings: "local",
   railCollapsedSettings: "broadcast",
   sectionsSettings: "broadcast",

@@ -3,13 +3,17 @@ import type { WindowRect } from "./contract";
 
 // wireFaller only builds the loop under Tauri, so capture the deps it hands createFaller
 // and drive the landing callback directly.
-const { createFaller } = vi.hoisted(() => ({
-  createFaller: vi.fn((_deps: Record<string, (arg: never) => void>) => ({
-    drop: async () => {},
-    cancel: () => {},
-    stop: () => {},
-  })),
-}));
+const { createFaller, fallerDrop } = vi.hoisted(() => {
+  const fallerDrop = vi.fn(async () => {});
+  return {
+    fallerDrop,
+    createFaller: vi.fn((_deps: Record<string, (arg: never) => void>) => ({
+      drop: fallerDrop,
+      cancel: () => {},
+      stop: () => {},
+    })),
+  };
+});
 vi.mock("./ambient/faller", () => ({ createFaller }));
 vi.mock("@tauri-apps/api/core", () => ({ invoke: vi.fn(async () => []) }));
 vi.mock("@tauri-apps/api/window", () => ({
@@ -33,12 +37,14 @@ const TARGET: WindowRect = {
   windowNumber: 5,
 };
 
-async function wire() {
+async function wire(opts: { isEnabled?: () => boolean } = {}) {
   vi.stubGlobal("__TAURI_INTERNALS__", {});
   createFaller.mockClear();
+  fallerDrop.mockClear();
   const pushed: Array<{ event_name: string; payload?: Record<string, unknown> }> = [];
   const onWindowLand = vi.fn();
-  wireFaller({
+  const handle = wireFaller({
+    isEnabled: opts.isEnabled ?? (() => true),
     bus: { push: (env: { event_name: string }) => pushed.push(env) } as never,
     renderer: {} as never,
     getFallConfig: () => ({}) as never,
@@ -56,8 +62,31 @@ async function wire() {
     },
     pushed,
     onWindowLand,
+    handle,
   };
 }
+
+describe("wireFaller — fall toggle", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it("reads the switch on every drop: on drops, off leaves her where she hangs", async () => {
+    let enabled = true;
+    const { handle } = await wire({ isEnabled: () => enabled });
+
+    handle.drop();
+    expect(fallerDrop).toHaveBeenCalledTimes(1);
+
+    enabled = false;
+    handle.drop();
+    expect(fallerDrop).toHaveBeenCalledTimes(1);
+
+    enabled = true;
+    handle.drop();
+    expect(fallerDrop).toHaveBeenCalledTimes(2);
+  });
+});
 
 describe("wireFaller — landing", () => {
   afterEach(() => {
