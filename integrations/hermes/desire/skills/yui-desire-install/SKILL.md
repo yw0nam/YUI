@@ -72,7 +72,7 @@ chmod +x ~/.hermes/scripts/natsume-desire-monitor.sh
 ```
 
 Check: the last command prints one summary line (for example
-`social:low curiosity:mid accomplishment:mid outbox:0 transport:up budget:3/3sig 2/2iss 1/1cmt day:2026-09-01`).
+`social:low curiosity:mid accomplishment:mid outbox:0 transport:up budget:3/3sig 2/2iss 1/1cmt day:2026-09-01 rises:0`).
 The monitor checks transport with an HTTP GET to `YUI_SIGNALS_URL`; any HTTP response counts as up. The
 monitor's fail-safe fallback prints the same shape with `transport:down`, so a `down` line proves nothing on its
 own. The real check is the state directory it bootstraps:
@@ -81,8 +81,8 @@ own. The real check is the state directory it bootstraps:
 ls "$DESIRE_STATE_DIR"
 ```
 
-must list `drives.json`, `budget.json`, `cursor.json`, `transport.json`, `outbox.jsonl`, `audit.jsonl`,
-and `state.lock`. If it is
+must list `drives.json`, `budget.json`, `cursor.json`, `monitor.json`, `transport.json`, `outbox.jsonl`,
+`audit.jsonl`, `ticks.jsonl`, and `state.lock`. If it is
 empty or missing, the monitor could not write there — fix `DESIRE_STATE_DIR` before continuing.
 
 ## 5. Cron jobs
