@@ -12,7 +12,7 @@ import { createScheduleSettings } from "../../io/schedule-settings";
 import type { createSpeakerSelection, SpeakerOption } from "../../io/speaker-selection";
 import { createVadSettings, VAD_SILENCE_DEFAULT } from "../../io/vad-settings";
 import type { createVrmSelection } from "../../io/vrm-selection";
-import { setLocale } from "../i18n";
+import { setLocale, t } from "../i18n";
 import { createQuickControls, PREVIEW_PEAK_RMS } from "../quick-controls";
 import {
   defaultQcArgs,
@@ -310,6 +310,43 @@ describe("createQuickControls — toggles + gain row", () => {
 
     gazeSettings.setEnabled(true);
     expect(gazeSwitch.getAttribute("aria-checked")).toBe("true");
+
+    qc.dispose();
+  });
+
+  // ── Falling toggle row (Advanced tab) ─────────────────────────────────────
+
+  it("renders the fall toggle row only when fallSettings is provided, ON by default", () => {
+    const withoutFall = buildQc();
+    withoutFall.open();
+    expect(withoutFall.el.querySelector(".yui-fall-switch")).toBeNull();
+    withoutFall.dispose();
+
+    const qc = buildQc({ fallSettings: createFlagSettings(true) });
+    qc.open();
+    const fallSwitch = qc.el.querySelector<HTMLButtonElement>(".yui-fall-switch");
+    expect(fallSwitch).not.toBeNull();
+    expect(fallSwitch!.getAttribute("aria-checked")).toBe("true");
+    expect(fallSwitch!.getAttribute("role")).toBe("switch");
+    expect(fallSwitch!.getAttribute("aria-label")).toBe(t("fall.aria"));
+
+    const row = fallSwitch!.closest(".yui-row")!;
+    expect(row.querySelector(".yui-row__label")!.textContent).toContain(t("fall.label"));
+    qc.dispose();
+  });
+
+  it("clicking the fall switch toggles fallSettings.setEnabled and reflects external changes", () => {
+    const fallSettings = createFlagSettings(true);
+    const qc = buildQc({ fallSettings });
+    qc.open();
+
+    const fallSwitch = qc.el.querySelector<HTMLButtonElement>(".yui-fall-switch")!;
+    fallSwitch.click();
+    expect(fallSettings.get().enabled).toBe(false);
+    expect(fallSwitch.getAttribute("aria-checked")).toBe("false");
+
+    fallSettings.setEnabled(true);
+    expect(fallSwitch.getAttribute("aria-checked")).toBe("true");
 
     qc.dispose();
   });
