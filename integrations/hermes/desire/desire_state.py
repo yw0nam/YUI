@@ -480,7 +480,7 @@ def bootstrap_locked(state_dir: Path, now: datetime) -> dict[str, dict]:
         if normalized != value:
             write_json_atomic(path, normalized)
         loaded[filename.removesuffix(".json")] = normalized
-    for name in ("outbox.jsonl", "audit.jsonl"):
+    for name in ("outbox.jsonl", "audit.jsonl", "ticks.jsonl"):
         (state_dir / name).touch(exist_ok=True)
     return loaded
 

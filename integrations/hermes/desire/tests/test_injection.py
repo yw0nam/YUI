@@ -655,6 +655,7 @@ def test_debug_event_logs_the_trigger_kind(desire_plugin, state_dir, at, caplog)
         context("trigger: screen long_session, in current app 45min"): "trigger=screen",
         context('trigger: agent claude-code done (success), project "yui" (2min ago)'): "trigger=agent",
         context("trigger: signals (2 signals)"): "trigger=signals",
+        context("trigger: api_key=sk-live-SECRET123 \x1b[31mred"): "trigger=other",
         "hello": "trigger=none",
     }
 

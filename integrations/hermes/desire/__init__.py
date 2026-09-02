@@ -23,6 +23,7 @@ _TEXT_TYPES = ("text", "input_text")
 _CLIENT_CONTEXT = re.compile(r"<client_context>\n(?:(?!</?client_context>).)*?</client_context>", re.DOTALL)
 _USER_TRIGGER = re.compile(r"^trigger: user message(?: \(user idle \d+min\))?$")
 _TRIGGER_LINE = re.compile(r"trigger: (?P<kind>\S+)")
+_TRIGGER_KINDS = ("proactive", "screen", "agent", "signals")
 _DRIVES_LINE = re.compile(
     r"drives: social (?P<social>0|[1-9]\d?|100)/100 \((?P<social_bucket>low|mid|high)\) \| "
     r"curiosity (?P<curiosity>0|[1-9]\d?|100)/100 \((?P<curiosity_bucket>low|mid|high)\) \| "
@@ -119,7 +120,7 @@ def _trigger_kind(text):
     for line in lines:
         headline = _TRIGGER_LINE.match(line)
         if headline is not None:
-            return headline["kind"]
+            return headline["kind"] if headline["kind"] in _TRIGGER_KINDS else "other"
     return "none"
 
 

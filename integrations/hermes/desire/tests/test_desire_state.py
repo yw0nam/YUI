@@ -81,8 +81,14 @@ def test_bootstrap_creates_all_defaults(state_dir, at, state_helpers):
         "pending": {},
     }
     assert read_json(state_dir / "cursor.json") == {"last_feedback_check_at": now.isoformat()}
+    assert read_json(state_dir / "monitor.json") == {
+        "latched": {"social": "low", "curiosity": "mid", "accomplishment": "mid"},
+        "natural": {"social": "low", "curiosity": "mid", "accomplishment": "mid"},
+        "rises": 0,
+    }
     assert (state_dir / "outbox.jsonl").read_bytes() == b""
     assert (state_dir / "audit.jsonl").read_bytes() == b""
+    assert (state_dir / "ticks.jsonl").read_bytes() == b""
     assert (state_dir / "state.lock").exists()
 
 
