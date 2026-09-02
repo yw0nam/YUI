@@ -2,7 +2,7 @@ import type { EmotionId, EmotionRegistry, EmotionRegistryEntry } from "../../con
 import { assertValid, ConfigError, isObject } from "./shared";
 
 /** 10 emotion enum values. Registry keys are limited to this set (typo keys fail-loud). */
-const EMOTION_IDS: ReadonlySet<EmotionId> = new Set<EmotionId>([
+export const EMOTION_IDS: ReadonlySet<EmotionId> = new Set<EmotionId>([
   "neutral",
   "happy",
   "angry",

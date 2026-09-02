@@ -439,14 +439,6 @@
   border-left: 2px solid var(--yui-accent-faint);
 }
 
-.yui-screen-knobs .yui-gain {
-  margin-top: 0;
-}
-
-.yui-screen-knobs .yui-field-hint {
-  padding: 0.35rem 0.55rem 0.2rem;
-}
-
 /* ── Thinking fillers — hairline + guide between two lists ── */
 .yui-filler__list-sep {
   height: 1px;
@@ -459,6 +451,10 @@
   color: var(--yui-text-mute);
   padding: 0 0.55rem 0.3rem;
   line-height: 1.45;
+}
+
+.yui-screen-knobs .yui-field-hint {
+  padding: 0.35rem 0.55rem 0.2rem;
 }
 
 /* ── "More phrases" (long_wait/timeout/unreachable/tool) — collapsible, default closed.
@@ -983,6 +979,10 @@
   padding: 0.5rem 0.55rem 0.6rem;
   border-radius: var(--yui-radius-row);
   transition: background var(--yui-dur-fast) var(--yui-ease);
+}
+
+.yui-screen-knobs .yui-gain {
+  margin-top: 0;
 }
 
 .yui-gain:hover {
