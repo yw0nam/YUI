@@ -645,6 +645,26 @@ def test_debug_event_logs_cache_hit_on_repeat_call(desire_plugin, state_dir, at,
     assert "cache_hit=True" in message
 
 
+def test_debug_event_logs_the_trigger_kind(desire_plugin, state_dir, at, caplog):
+    now = at("2026-08-25T12:00:00+09:00")
+    caplog.set_level(logging.DEBUG, logger=desire_plugin.__name__)
+    expected = {
+        context("trigger: user message"): "trigger=user message",
+        context("trigger: user message (user idle 5min)"): "trigger=user message",
+        context('trigger: proactive "head_pat"'): "trigger=proactive",
+        context("trigger: screen long_session, in current app 45min"): "trigger=screen",
+        context('trigger: agent claude-code done (success), project "yui" (2min ago)'): "trigger=agent",
+        context("trigger: signals (2 signals)"): "trigger=signals",
+        context("trigger: api_key=sk-live-SECRET123 \x1b[31mred"): "trigger=other",
+        "hello": "trigger=none",
+    }
+
+    for text, token in expected.items():
+        caplog.clear()
+        desire_plugin._inject(request=request_with(text), now=now)
+        assert token in caplog.records[-1].getMessage()
+
+
 def test_debug_event_logs_skip_reasons(desire_plugin, state_dir, at, caplog):
     now = at("2026-08-25T12:00:00+09:00")
     caplog.set_level(logging.DEBUG, logger=desire_plugin.__name__)
@@ -707,7 +727,7 @@ def test_debug_event_never_leaks_user_text_or_drive_values(
     message = records[0].getMessage()
     assert re.fullmatch(
         r"yui-desire llm_request plugin=yui-desire/\S+ outcome=\w+ reason=\S+ interaction=\S+ "
-        r"shape=\S+ cache_hit=\S+ api_request_id=\S+ turn_id=\S+ session_id=\S+",
+        r"trigger=[\w ]+ shape=\S+ cache_hit=\S+ api_request_id=\S+ turn_id=\S+ session_id=\S+",
         message,
     )
     assert "secret" not in message
@@ -1017,3 +1037,26 @@ def test_a_concurrent_user_turn_commits_the_return_only_once(
     assert desire_plugin._already_injected("hello\n\n" + block)
     assert len(audit_events(state_dir, "returned")) == 1
     assert read_json(state_dir / "transport.json")["state"] == "up"
+
+
+def test_each_new_client_context_block_appends_one_turn_audit_event(
+    desire_plugin, state_dir, at, state_helpers
+):
+    now = at("2026-08-25T12:00:00+09:00")
+    seed_drives(state_dir, now, state_helpers)
+    request = request_with(context('trigger: proactive "head_pat"'))
+
+    desire_plugin._inject(request=copy.deepcopy(request), now=now)
+    desire_plugin._inject(request=copy.deepcopy(request), now=now)
+    desire_plugin._inject(request=copy.deepcopy(request), now=now + timedelta(minutes=20))
+
+    assert audit_events(state_dir, "turn") == [
+        {"at": now.isoformat(), "event": "turn", "trigger": "proactive"}
+    ]
+
+    desire_plugin._inject(request=request_with(context("trigger: user message")), now=now)
+
+    assert [event["trigger"] for event in audit_events(state_dir, "turn")] == [
+        "proactive",
+        "user message",
+    ]

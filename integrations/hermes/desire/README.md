@@ -37,7 +37,14 @@ The state directory contains:
 - `budget.json` — KST daily counters for signals, issues, self-initiated comments, and satisfaction events, plus
   pending issue/comment reservations. Fresh counters are zero and `pending` is empty.
 - `cursor.json` — the feedback cursor. `last_feedback_check_at` starts at bootstrap time.
+- `monitor.json` — the buckets the monitor summary prints and the count of drive rises behind them: `latched` is
+  the bucket printed for each drive, `natural` the bucket each drive actually stood in at the last tick, and
+  `rises` the running number of times a drive has climbed into a higher bucket. Fresh state latches the current
+  buckets with `rises` zero.
 - `audit.jsonl` — append-only action and recovery events. Fresh state is empty.
+- `ticks.jsonl` — one line per monitor tick, holding what the one-line summary discards: `at`, the three
+  drive levels rounded to one decimal, `transport`, `outbox` (the visible pent-up count), and
+  `last_interaction_at`. Fresh state is empty.
 - `state.lock` — the process lock used for state transactions.
 
 JSON state writes are atomic and all state mutations and JSONL appends are lock-protected. Corrupt JSON state files
@@ -134,17 +141,20 @@ Hermes injects a changed monitor summary into the tick prompt. An unchanged summ
 summary is one line:
 
 ```text
-social:<bucket> curiosity:<bucket> accomplishment:<bucket> outbox:<n>[/<stage>] transport:<up|down> budget:<s>/3sig <i>/2iss <c>/1cmt day:<YYYY-MM-DD>
+social:<bucket> curiosity:<bucket> accomplishment:<bucket> outbox:<n>[/<stage>] transport:<up|down> budget:<s>/3sig <i>/2iss <c>/1cmt day:<YYYY-MM-DD> rises:<r>
 ```
 
-Buckets are `low` (below 40), `mid` (below 70), and `high`. `<n>` counts the visible pent-up notes and `<stage>` is
-the stage of the oldest of them (`fresh`, `heavy`, `bursting`), omitted when none are visible; a postponed note is
-in neither until its `not_before` passes. `transport` is the probe result of that tick. `day` is the date of the
-current wake day, which rolls at 09:00 KST, and the fail-safe fallback line names it too. The line therefore
-changes, and the tick runs, when a bucket flips,
-when the oldest visible note crosses six or 18 hours or expires, when a postponed note comes back, when the YUI
-ingress becomes reachable or unreachable, when a used budget resets at midnight, and once every morning. Run the
-one-time instructions in `prompts/kickoff.md` after installation to create the initial wants without speaking.
+Buckets are `low` (below 40), `mid` (below 70), and `high`, and the three drive tokens print the latched buckets
+from `monitor.json`. A drive that falls into a lower bucket keeps the token it had, so a drive the agent has just
+satisfied leaves the whole line unchanged. A drive that stands in a higher bucket than it did at the previous tick
+adds one to `<r>` and reprints all three tokens at their current buckets. `<n>` counts the visible pent-up notes
+and `<stage>` is the stage of the oldest of them (`fresh`, `heavy`, `bursting`), omitted when none are visible; a
+postponed note is in neither until its `not_before` passes. `transport` is the probe result of that tick. `day` is
+the date of the current wake day, which rolls at 09:00 KST, and the fail-safe fallback line names it too. The line
+therefore changes, and the tick runs, when a drive rises into a higher bucket, when the oldest visible note crosses
+six or 18 hours or expires, when a postponed note comes back, when the YUI ingress becomes reachable or
+unreachable, when a used budget resets at midnight, and once every morning. Run the one-time instructions in
+`prompts/kickoff.md` after installation to create the initial wants without speaking.
 
 ## Action budgets
 
@@ -193,5 +203,11 @@ uv run ruff check .
 
 With `logging.level: DEBUG` in the Hermes profile `config.yaml`, every middleware pass writes one
 `yui-desire llm_request …` line to `~/.hermes/logs/agent.log` carrying only outcome, skip reason, trigger
-class, request shape, cache-hit status, and the Hermes request/turn/session ids — never the desire block,
-drive levels, or user text.
+class, the trigger kind read off the headline `trigger:` line of the last `<client_context>` block
+(`trigger=user message`, `proactive`, `screen`, `agent`, `signals`, `other` for any headline outside that
+vocabulary, or `none` without a block), request shape, cache-hit status,
+and the Hermes request/turn/session ids — never the desire block, drive levels, or user text.
+
+Each `<client_context>` block the middleware sees for the first time also appends a `turn` event carrying that
+trigger kind to `audit.jsonl`, whatever the log level. A cache hit or a request repeating the text of the one
+before it appends nothing, so the events count distinct turns.

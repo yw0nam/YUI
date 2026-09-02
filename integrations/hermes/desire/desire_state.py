@@ -23,6 +23,8 @@ OUTBOX_EXPIRY = timedelta(hours=48)
 PENT_UP_HEAVY = timedelta(hours=6)
 PENT_UP_BURSTING = timedelta(hours=18)
 CAPS = {"signals": 3, "issues": 2, "self_comments": 1}
+DRIVES = ("social", "curiosity", "accomplishment")
+BUCKETS = ("low", "mid", "high")
 EVENT_DOSES = {
     "learned": {"curiosity": 30.0},
     "progressed": {"accomplishment": 15.0},
@@ -344,6 +346,12 @@ def _default_cursor(now: datetime) -> dict:
     return {"last_feedback_check_at": now.isoformat()}
 
 
+def _default_monitor(drives: dict, now: datetime) -> dict:
+    levels = drive_levels(drives, now)
+    buckets = {name: bucket(levels[name]) for name in DRIVES}
+    return {"latched": buckets, "natural": dict(buckets), "rises": 0}
+
+
 def load_json(path: Path, default: object, now: datetime) -> object:
     """Load a JSON state file, quarantining and replacing corrupt content."""
 
@@ -427,17 +435,41 @@ def _normalize_cursor(value: object) -> dict:
     return {"last_feedback_check_at": parse_timestamp(value["last_feedback_check_at"]).isoformat()}
 
 
+def _normalize_buckets(value: object) -> dict[str, str]:
+    if not isinstance(value, dict):
+        raise TypeError("monitor buckets must be an object")
+    buckets = {name: value[name] for name in DRIVES}
+    if any(name not in BUCKETS for name in buckets.values()):
+        raise ValueError("unknown bucket name")
+    return buckets
+
+
+def _normalize_monitor(value: object) -> dict:
+    if not isinstance(value, dict):
+        raise TypeError("monitor state must be an object")
+    rises = value["rises"]
+    if isinstance(rises, bool) or not isinstance(rises, int) or rises < 0:
+        raise ValueError("rise count must be a whole number")
+    return {
+        "latched": _normalize_buckets(value["latched"]),
+        "natural": _normalize_buckets(value["natural"]),
+        "rises": rises,
+    }
+
+
 def bootstrap_locked(state_dir: Path, now: datetime) -> dict[str, dict]:
     """Ensure all state files exist. The caller must hold ``state_lock``."""
 
     now = normalize_now(now)
     state_dir = Path(state_dir)
+    loaded = {}
+    # monitor.json comes last: its default latches the buckets of the drives loaded above.
     definitions = (
         ("drives.json", lambda: _default_drives(now), _normalize_drives),
         ("budget.json", lambda: _default_budget(now), _validate_budget),
         ("cursor.json", lambda: _default_cursor(now), _normalize_cursor),
+        ("monitor.json", lambda: _default_monitor(loaded["drives"], now), _normalize_monitor),
     )
-    loaded = {}
     for filename, default, normalizer in definitions:
         path = state_dir / filename
         value = load_json(path, default, now)
@@ -448,7 +480,7 @@ def bootstrap_locked(state_dir: Path, now: datetime) -> dict[str, dict]:
         if normalized != value:
             write_json_atomic(path, normalized)
         loaded[filename.removesuffix(".json")] = normalized
-    for name in ("outbox.jsonl", "audit.jsonl"):
+    for name in ("outbox.jsonl", "audit.jsonl", "ticks.jsonl"):
         (state_dir / name).touch(exist_ok=True)
     return loaded
 

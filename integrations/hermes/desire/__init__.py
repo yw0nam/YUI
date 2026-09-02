@@ -22,6 +22,8 @@ KST = ZoneInfo("Asia/Seoul")
 _TEXT_TYPES = ("text", "input_text")
 _CLIENT_CONTEXT = re.compile(r"<client_context>\n(?:(?!</?client_context>).)*?</client_context>", re.DOTALL)
 _USER_TRIGGER = re.compile(r"^trigger: user message(?: \(user idle \d+min\))?$")
+_TRIGGER_LINE = re.compile(r"trigger: (?P<kind>\S+)")
+_TRIGGER_KINDS = ("proactive", "screen", "agent", "signals")
 _DRIVES_LINE = re.compile(
     r"drives: social (?P<social>0|[1-9]\d?|100)/100 \((?P<social_bucket>low|mid|high)\) \| "
     r"curiosity (?P<curiosity>0|[1-9]\d?|100)/100 \((?P<curiosity_bucket>low|mid|high)\) \| "
@@ -39,7 +41,15 @@ _LAST_SIGNAL_LINE = re.compile(
 _PENT_UP_LINE = re.compile(r"pent-up \((?P<count>[1-9]\d*)\):")
 _OUTBOX_LINE = re.compile(r"- \[\d{4}-\d{2}-\d{2} \d{2}:\d{2}\] [^\n]*")
 _CACHE_TTL = timedelta(minutes=10)
-_STATE_FILES = ("drives.json", "budget.json", "cursor.json", "outbox.jsonl", "audit.jsonl")
+_STATE_FILES = (
+    "drives.json",
+    "budget.json",
+    "cursor.json",
+    "monitor.json",
+    "outbox.jsonl",
+    "audit.jsonl",
+    "ticks.jsonl",
+)
 _turn_cache = None
 
 
@@ -107,12 +117,19 @@ def _already_injected(text):
     )
 
 
-def _is_interaction(text):
+def _trigger_kind(text):
+    """Name what fired the turn, from the headline trigger line of the last well-formed block."""
     blocks = list(_CLIENT_CONTEXT.finditer(text))
     if not blocks:
-        return False
-    body = blocks[-1].group(0)
-    return any(_USER_TRIGGER.fullmatch(line.strip()) for line in body.splitlines())
+        return "none"
+    lines = [line.strip() for line in blocks[-1].group(0).splitlines()]
+    if any(_USER_TRIGGER.fullmatch(line) for line in lines):
+        return "user message"
+    for line in lines:
+        headline = _TRIGGER_LINE.match(line)
+        if headline is not None:
+            return headline["kind"] if headline["kind"] in _TRIGGER_KINDS else "other"
+    return "none"
 
 
 def _build_desire_block(drives, outbox, transport, now, *, returned_hours=None):
@@ -201,7 +218,9 @@ def _rewrite(kwargs, event):
         transport = None
 
     staged_drives = copy.deepcopy(drives)
-    interaction = _is_interaction(original_text)
+    trigger = _trigger_kind(original_text)
+    event["trigger"] = trigger
+    interaction = trigger == "user message"
     event["interaction"] = interaction
     interaction_changed = False
     returned_hours = None
@@ -219,6 +238,7 @@ def _rewrite(kwargs, event):
     cached = _turn_cache
     cache_hit = cached is not None and cached["key"] == cache_key and now - cached["last_hit"] <= _CACHE_TTL
     event["cache_hit"] = cache_hit
+    new_turn = cached is None or cached["key"] != cache_key
     if cache_hit:
         block = cached["block"]
         included_ids = cached["included_ids"]
@@ -282,6 +302,15 @@ def _rewrite(kwargs, event):
             "last_hit": now,
         }
 
+        if new_turn:
+            try:
+                desire_state.append_jsonl(
+                    state_dir / "audit.jsonl",
+                    {"at": now.isoformat(), "event": "turn", "trigger": trigger},
+                )
+            except Exception:  # noqa: BLE001, S110 - the turn trail must never affect delivery
+                pass
+
     event["outcome"] = "injected"
     return {"request": rewritten, "source": "yui-desire", "reason": "desire-state"}
 
@@ -296,11 +325,12 @@ def _log_event(event, kwargs):
     try:
         logger.debug(
             "yui-desire llm_request plugin=yui-desire/%s outcome=%s reason=%s interaction=%s "
-            "shape=%s cache_hit=%s api_request_id=%s turn_id=%s session_id=%s",
+            "trigger=%s shape=%s cache_hit=%s api_request_id=%s turn_id=%s session_id=%s",
             _VERSION,
             event["outcome"],
             event["reason"],
             event["interaction"],
+            event["trigger"],
             event["shape"],
             event["cache_hit"],
             _safe_id(kwargs.get("api_request_id")),
@@ -313,7 +343,14 @@ def _log_event(event, kwargs):
 
 def _inject(**kwargs):
     """Return a rewritten provider request, or fail open with ``None``."""
-    event = {"outcome": "skipped", "reason": None, "interaction": None, "shape": None, "cache_hit": None}
+    event = {
+        "outcome": "skipped",
+        "reason": None,
+        "interaction": None,
+        "trigger": None,
+        "shape": None,
+        "cache_hit": None,
+    }
     try:
         return _rewrite(kwargs, event)
     except Exception as exc:  # noqa: BLE001 - middleware must fail open for every plugin failure
