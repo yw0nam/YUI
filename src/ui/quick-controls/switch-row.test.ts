@@ -18,6 +18,7 @@ function makeSwitchRows(): SwitchRow[] {
     vad: createVadSettings(),
     gazeSettings: createFlagSettings(true),
     climbSettings: createFlagSettings(true),
+    fallSettings: createFlagSettings(true),
     agentNotifySettings: createAgentNotifySettings({ initial: { enabled: true, port: 8770 } }),
     fillerSettings: createFillerSettings({
       initial: { enabled: false, language: "ja", customPools: {} },

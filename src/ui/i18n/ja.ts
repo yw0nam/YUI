@@ -387,6 +387,9 @@ const ja: Record<string, string> = {
   "climb.label": "ウィンドウ登り",
   "climb.sub": "ときどき他のウィンドウをよじ登って座ります。(開発中の機能)",
   "climb.aria": "ウィンドウ登り",
+  "fall.label": "落下",
+  "fall.sub": "空中で放すと、下のウィンドウや床まで落ちます。",
+  "fall.aria": "落下",
   "agentNotify.label": "エージェント通知",
   "agentNotify.sub":
     "Claude Code や opencode などのコーディングエージェントがタスクを終えたとき、または入力が必要なときに先に知らせます。",

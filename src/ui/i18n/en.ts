@@ -386,6 +386,9 @@ const en: Record<string, string> = {
   "climb.label": "Window climbing",
   "climb.sub": "Climbs up and sits on other windows now and then (in development).",
   "climb.aria": "Window climbing",
+  "fall.label": "Falling",
+  "fall.sub": "Released in mid-air, she falls to the window or floor below.",
+  "fall.aria": "Falling",
   "agentNotify.label": "Agent notifications",
   "agentNotify.sub":
     "Speaks up when a coding agent (Claude Code, opencode, …) finishes a task or needs your input on your machine.",

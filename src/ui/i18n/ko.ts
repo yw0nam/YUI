@@ -385,6 +385,9 @@ const ko: Record<string, string> = {
   "climb.label": "창 오르기",
   "climb.sub": "가끔 다른 창을 타고 올라가 앉습니다. (개발 중 기능)",
   "climb.aria": "창 오르기",
+  "fall.label": "떨어지기",
+  "fall.sub": "허공에 놓으면 아래 창이나 바닥까지 떨어집니다.",
+  "fall.aria": "떨어지기",
   "agentNotify.label": "에이전트 알림",
   "agentNotify.sub":
     "Claude Code, opencode 등 코딩 에이전트가 작업을 마치거나 입력이 필요하면 먼저 말합니다.",
