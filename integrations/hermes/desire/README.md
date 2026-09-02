@@ -42,7 +42,7 @@ The state directory contains:
   `rises` the running number of times a drive has climbed into a higher bucket. Fresh state latches the current
   buckets with `rises` zero.
 - `audit.jsonl` — append-only action and recovery events. Fresh state is empty.
-- `ticks.jsonl` — one line per monitor tick, holding the reading the one-line summary throws away: `at`, the three
+- `ticks.jsonl` — one line per monitor tick, holding what the one-line summary discards: `at`, the three
   drive levels rounded to one decimal, `transport`, `outbox` (the visible pent-up count), and
   `last_interaction_at`. Fresh state is empty.
 - `state.lock` — the process lock used for state transactions.

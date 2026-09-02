@@ -4,6 +4,8 @@ import threading
 from datetime import timedelta
 from pathlib import Path
 
+import pytest
+
 import decay_monitor
 import desire_state
 
@@ -161,6 +163,23 @@ def test_a_drive_rising_again_after_a_fall_changes_the_summary(state_dir, at, st
     assert monitor["latched"]["curiosity"] == "high"
 
 
+def test_a_rise_reprints_a_fallen_drive_at_its_current_bucket(state_dir, at, state_helpers):
+    write_json, _, read_json, _ = state_helpers
+    now = at("2026-08-25T12:00:00+09:00")
+    desire_state.bootstrap(now)
+    write_drives(write_json, state_dir, now, curiosity=75.0, accomplishment=50.0, social_hours=1)
+    decay_monitor.run(now)
+    risen = read_json(state_dir / "monitor.json")["rises"]
+
+    write_drives(write_json, state_dir, now, curiosity=20.0, accomplishment=50.0, social_hours=5)
+    output = decay_monitor.run(now)
+
+    assert output.startswith("social:high curiosity:low accomplishment:mid ")
+    monitor = read_json(state_dir / "monitor.json")
+    assert monitor["rises"] == risen + 1
+    assert monitor["latched"] == {"social": "high", "curiosity": "low", "accomplishment": "mid"}
+
+
 def test_bootstrap_latches_the_current_buckets(state_dir, at, state_helpers):
     write_json, _, read_json, _ = state_helpers
     now = at("2026-08-25T12:00:00+09:00")
@@ -178,6 +197,20 @@ def test_bootstrap_latches_the_current_buckets(state_dir, at, state_helpers):
     }
     assert output.startswith("social:high curiosity:high accomplishment:low ")
     assert output.endswith(" rises:0\n")
+
+
+@pytest.mark.parametrize("rises", [-1, True, "3"])
+def test_invalid_rise_count_is_quarantined_and_rebuilt(state_dir, at, state_helpers, rises):
+    write_json, _, read_json, _ = state_helpers
+    now = at("2026-08-25T09:00:00+09:00")
+    desire_state.bootstrap(now)
+    buckets = {"social": "low", "curiosity": "mid", "accomplishment": "mid"}
+    write_json(state_dir / "monitor.json", {"latched": buckets, "natural": buckets, "rises": rises})
+
+    assert decay_monitor.run(now).endswith(" rises:0\n")
+
+    assert read_json(state_dir / "monitor.json")["rises"] == 0
+    assert len(list(state_dir.glob("monitor.json.corrupt-*"))) == 1
 
 
 def test_corrupt_monitor_state_is_quarantined_and_rebuilt(state_dir, at, state_helpers):

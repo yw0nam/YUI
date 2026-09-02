@@ -41,7 +41,15 @@ _LAST_SIGNAL_LINE = re.compile(
 _PENT_UP_LINE = re.compile(r"pent-up \((?P<count>[1-9]\d*)\):")
 _OUTBOX_LINE = re.compile(r"- \[\d{4}-\d{2}-\d{2} \d{2}:\d{2}\] [^\n]*")
 _CACHE_TTL = timedelta(minutes=10)
-_STATE_FILES = ("drives.json", "budget.json", "cursor.json", "outbox.jsonl", "audit.jsonl")
+_STATE_FILES = (
+    "drives.json",
+    "budget.json",
+    "cursor.json",
+    "monitor.json",
+    "outbox.jsonl",
+    "audit.jsonl",
+    "ticks.jsonl",
+)
 _turn_cache = None
 
 
