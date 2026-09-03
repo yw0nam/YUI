@@ -599,6 +599,14 @@ describe("createWalker — walkTo", () => {
     expect(h.motions).toEqual([{ id: WALK_MOTION_ID }, null]);
   });
 
+  it("keeps the walk clip on arrival when the caller will replace it", async () => {
+    // The caller's next clip crossfades straight out of the walk instead of through idle.
+    const h = makeHarness();
+    h.walker.start();
+    expect(await settle(h, h.walker.walkTo(300, undefined, true))).toBe("arrived");
+    expect(h.motions).toEqual([{ id: WALK_MOTION_ID }]);
+  });
+
   it("yaws toward the destination and leaves the window's y untouched", async () => {
     const h = makeHarness();
     h.walker.start();

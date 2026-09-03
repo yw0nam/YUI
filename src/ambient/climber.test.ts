@@ -530,6 +530,8 @@ function makeHarness(
   const walkTargets: number[] = [];
   /** Clip-local time of the current motion when each walkTo arrived. */
   const walkClipTimes: number[] = [];
+  /** Whether each walkTo asked the walker to keep its clip on arrival. */
+  const walkHolds: boolean[] = [];
   let pos = { ...(over.position ?? WINDOW_POS) };
   let windows = over.windows ?? [TARGET_WINDOW];
   let perched = over.perched ?? false;
@@ -641,11 +643,12 @@ function makeHarness(
     isBusy: () => over.busy ?? false,
     reducedMotion: () => over.reducedMotion ?? false,
     walker: {
-      walkTo: async (toX: number) => {
+      walkTo: async (toX: number, _onAccepted?: () => void, holdClip?: boolean) => {
         const outcome =
           over.walkResults?.[walkTargets.length] ?? over.walkResult ?? ("arrived" as const);
         walkTargets.push(toX);
         walkClipTimes.push(clipT);
+        walkHolds.push(holdClip === true);
         if (outcome === "arrived") pos = { x: toX, y: pos.y };
         return outcome;
       },
@@ -697,6 +700,7 @@ function makeHarness(
     positions,
     walkTargets,
     walkClipTimes,
+    walkHolds,
     preloads,
     starts,
     sits,
@@ -884,6 +888,27 @@ describe("createClimber — up", () => {
     expect(h.walkClipTimes[1]).toBeGreaterThanOrEqual(handoff - 1e-6);
     expect(h.walkClipTimes[1]).toBeLessThan(handoff + 0.1);
     expect(h.at()).toEqual(PERCHED_POS);
+  });
+
+  it("keeps the walk clip through the ledge walk so the sit blends straight out of it", async () => {
+    const h = makeHarness();
+    h.climber.start();
+    await h.skipInterval();
+    await h.runToEnd();
+
+    // The approach hands its clip back as usual; the ledge walk holds it for the sit.
+    expect(h.walkHolds).toEqual([false, true]);
+    expect(h.motions.at(-1)).toEqual({ id: CLIMB_UP_DONE_MOTION_ID });
+  });
+
+  it("releases a held walk clip when the climb is cancelled before the sit lands", async () => {
+    const h = makeHarness({ walkResults: ["arrived", "arrived"] });
+    h.climber.start();
+    await h.skipInterval();
+    await h.runToEnd();
+    h.setCurrentMotion({ id: "walk", vrma_path: "/motions/walk.vrma" });
+    h.climber.cancel();
+    expect(h.motions.at(-1)).toBeNull();
   });
 
   it("walks in along the ledge before it sits, so the seat is not on the corner", async () => {
