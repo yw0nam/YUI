@@ -179,12 +179,12 @@ export interface ClimbConfig {
   /** How far the character drops onto the wall during the hang transition. */
   hang_frac: number;
   /**
-   * Hand reach off the wall: how far outside a window's face the character stands to
-   * climb it, so the body clears the edge instead of straddling it. Twice this is the
-   * width of the column beside the edge that must be clear of windows in front.
+   * Hand reach off the wall on the way up: how far outside a window's face the character
+   * stands to climb it, so the body clears the edge instead of straddling it. Twice this
+   * is the width of the column beside the edge that must be clear of windows in front.
    */
   wall_offset_frac: number;
-  /** The same reach for the descent clips, which hang the body further off the wall. */
+  /** The same reach on the way down; the descent clips hang the body further off the wall. */
   descent_wall_offset_frac: number;
   /** Shortest walk in along the window's top edge before she sits, from the corner. */
   ledge_walk_min_frac: number;

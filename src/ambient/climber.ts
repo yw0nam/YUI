@@ -258,6 +258,7 @@ export function pickClimbTarget(args: {
 }): ClimbTarget | null {
   const { windows, feetX, floor, workTop, charHpx, anchorY, monitor, cfg, maxWalkPx } = args;
   const wallOffset = cfg.wall_offset_frac * charHpx;
+  const descentOffset = cfg.descent_wall_offset_frac * charHpx;
   let best: { target: ClimbTarget; distance: number } | null = null;
 
   for (const [index, win] of windows.entries()) {
@@ -282,6 +283,8 @@ export function pickClimbTarget(args: {
       if (!containsPoint(monitor, { x: edgeX, y: topY })) continue;
       const column = wallColumn(edgeX, topY, floor, wallOffset, side);
       if (!columnOnMonitor(column, monitor)) continue;
+      // The descent stands further out: a wall she could not come down is not worth going up.
+      if (!columnOnMonitor(wallColumn(edgeX, topY, floor, descentOffset, side), monitor)) continue;
       if (front.some((w) => overlaps(w, column))) continue;
       if (front.some((w) => containsPoint(w, cornerSeat(edgeX, topY, side, wallOffset)))) continue;
       best = {
@@ -912,7 +915,10 @@ export function createClimber(deps: ClimberDeps): Climber {
       monitor: w.bounds,
       cfg,
     });
-    if (!picked) return;
+    if (!picked) {
+      log.debug("descent.no_wall", { windowNumber: sit.windowNumber });
+      return;
+    }
     const wallOffset = cfg.descent_wall_offset_frac * w.charHpx;
     // Window origin that stands the feet on the ledge. Above the work area the OS would
     // clamp it, so there is nowhere to stand and the sit simply continues.
