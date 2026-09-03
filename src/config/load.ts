@@ -184,6 +184,8 @@ export interface ClimbConfig {
    * width of the column beside the edge that must be clear of windows in front.
    */
   wall_offset_frac: number;
+  /** The same reach for the descent clips, which hang the body further off the wall. */
+  descent_wall_offset_frac: number;
   /** Shortest walk in along the window's top edge before she sits, from the corner. */
   ledge_walk_min_frac: number;
   /** Longest such walk. Clamped at run time to keep the seat on the window. */
@@ -197,7 +199,8 @@ export const CLIMB_DEFAULTS: ClimbConfig = {
   perch_dwell_max_ms: 120_000,
   max_height_frac: 4,
   hang_frac: 0.3,
-  wall_offset_frac: 0.3,
+  wall_offset_frac: 0.17,
+  descent_wall_offset_frac: 0.3,
   ledge_walk_min_frac: 0.5,
   ledge_walk_max_frac: 1.5,
 };

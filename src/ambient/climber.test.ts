@@ -405,7 +405,13 @@ describe("nextClimbDelay / nextDwell", () => {
 });
 
 describe("climbTargetLost", () => {
-  const base = { target: TARGET, charHpx: CHAR_HPX, floor: 1500, cfg: CFG, direction: "up" as const };
+  const base = {
+    target: TARGET,
+    charHpx: CHAR_HPX,
+    floor: 1500,
+    cfg: CFG,
+    direction: "up" as const,
+  };
 
   it("holds while the target sits where it was", () => {
     expect(climbTargetLost({ ...base, windows: [TARGET_WINDOW] })).toBe(false);
@@ -429,8 +435,8 @@ describe("climbTargetLost", () => {
   });
 
   it("watches the wider descent column on the way down", () => {
-    // 800..860 sits inside the 150 px descent column (700..1000) but outside the 75 px climb one.
-    const farCover = win({ x: 800, y: 1300, width: 60, height: 200, windowNumber: 7 });
+    // 750..810 sits inside the descent column (700..1000) but outside the climb one (850..1000).
+    const farCover = win({ x: 750, y: 1300, width: 60, height: 200, windowNumber: 7 });
     expect(climbTargetLost({ ...base, windows: [farCover, TARGET_WINDOW] })).toBe(false);
     expect(
       climbTargetLost({ ...base, direction: "down", windows: [farCover, TARGET_WINDOW] }),

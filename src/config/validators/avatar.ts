@@ -605,6 +605,7 @@ export function validateAvatar(file: string, raw: unknown): AvatarConfig {
         "max_height_frac",
         "hang_frac",
         "wall_offset_frac",
+        "descent_wall_offset_frac",
         "ledge_walk_min_frac",
         "ledge_walk_max_frac",
       ] as const) {

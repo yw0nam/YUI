@@ -326,7 +326,7 @@ export function pickDescentTarget(args: {
   if (index < 0) return null;
   const win = windows[index];
   const front = windows.slice(0, index);
-  const wallOffset = cfg.wall_offset_frac * charHpx;
+  const wallOffset = cfg.descent_wall_offset_frac * charHpx;
   const sides: Array<{ side: "left" | "right"; edgeX: number }> = [
     { side: "left", edgeX: win.x },
     { side: "right", edgeX: win.x + win.width },
@@ -359,15 +359,17 @@ export function climbTargetLost(args: {
   charHpx: number;
   floor: number;
   cfg: ClimbConfig;
+  direction: "up" | "down";
 }): boolean {
-  const { windows, target, charHpx, floor, cfg } = args;
+  const { windows, target, charHpx, floor, cfg, direction } = args;
   const index = windows.findIndex((w) => w.windowNumber === target.windowNumber);
   if (index < 0) return true;
   const win = windows[index];
   if (Math.abs(win.x - target.rect.x) > MOVE_TH || Math.abs(win.y - target.rect.y) > MOVE_TH) {
     return true;
   }
-  const wallOffset = cfg.wall_offset_frac * charHpx;
+  const wallOffset =
+    (direction === "down" ? cfg.descent_wall_offset_frac : cfg.wall_offset_frac) * charHpx;
   const front = windows.slice(0, index);
   const column = wallColumn(target.edgeX, target.topY, floor, wallOffset, target.side);
   const seat = cornerSeat(target.edgeX, target.topY, target.side, wallOffset);
@@ -911,7 +913,7 @@ export function createClimber(deps: ClimberDeps): Climber {
       cfg,
     });
     if (!picked) return;
-    const wallOffset = cfg.wall_offset_frac * w.charHpx;
+    const wallOffset = cfg.descent_wall_offset_frac * w.charHpx;
     // Window origin that stands the feet on the ledge. Above the work area the OS would
     // clamp it, so there is nowhere to stand and the sit simply continues.
     const standY = picked.topY - w.anchorY;
@@ -1032,10 +1034,16 @@ export function createClimber(deps: ClimberDeps): Climber {
     void deps
       .listWindows()
       .then((windows) => {
-        if (!alive(startedAt) || !target) return;
-        if (!climbTargetLost({ windows, target, charHpx, floor: floorY, cfg: deps.getConfig() })) {
-          return;
-        }
+        if (!alive(startedAt) || !target || !direction) return;
+        const lost = climbTargetLost({
+          windows,
+          target,
+          charHpx,
+          floor: floorY,
+          cfg: deps.getConfig(),
+          direction,
+        });
+        if (!lost) return;
         log.debug("target.lost", { windowNumber: target.windowNumber });
         cancel();
         void deps.faller.drop();
