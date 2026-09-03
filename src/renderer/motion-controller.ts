@@ -28,7 +28,7 @@ export interface RenderMotionSignal extends MotionSignal {
   loop?: boolean;
   /** Speed multiplier: 0.25~2.5, default 1.0. */
   speed?: number;
-  /** Crossfade duration in milliseconds, default 200. */
+  /** Crossfade duration in milliseconds, default 500. */
   fade_ms?: number;
 }
 
@@ -161,7 +161,7 @@ export function shouldRestartIdle(
 
 const SPEED_MIN = 0.25;
 const SPEED_MAX = 2.5;
-const DEFAULT_FADE_MS = 200;
+const DEFAULT_FADE_MS = 500;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Factory
@@ -233,7 +233,7 @@ export function createMotionController(
       speed = Math.min(SPEED_MAX, Math.max(SPEED_MIN, speed));
     }
 
-    // fade_ms: signal → entry default → 200, >= 0 (0 is valid).
+    // fade_ms: signal → entry default → 500, >= 0 (0 is valid).
     const fade_ms = signal.fade_ms ?? entry.fade_ms ?? DEFAULT_FADE_MS;
 
     const loop = signal.loop ?? entry.loop;

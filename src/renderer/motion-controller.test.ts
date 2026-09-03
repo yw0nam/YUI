@@ -169,7 +169,7 @@ describe("resolve() — registry defaults applied", () => {
     expect(r!.id).toBe("drag");
     expect(r!.loop).toBe(true);
     expect(r!.speed).toBe(1);
-    expect(r!.fade_ms).toBe(200);
+    expect(r!.fade_ms).toBe(500);
     expect(r!.priority).toBe(80);
     expect(r!.kind).toBe("reactive");
     expect(r!.interrupt_policy).toBe("replace");
@@ -203,10 +203,10 @@ describe("resolve() — registry defaults applied", () => {
     expect(warn).toHaveBeenCalledOnce();
   });
 
-  it("fade default: omitting fade_ms → 200", () => {
+  it("fade default: omitting fade_ms → 500", () => {
     const mc = createMotionController(realRegistry);
     const r = mc.resolve({ id: "drag" });
-    expect(r!.fade_ms).toBe(200);
+    expect(r!.fade_ms).toBe(500);
   });
 
   it("fade_ms:0 is valid and stays 0", () => {
@@ -262,10 +262,10 @@ describe("resolve() — entry-level fade_ms fallback", () => {
     expect(r!.fade_ms).toBe(120);
   });
 
-  it("neither signal nor entry fade_ms → DEFAULT_FADE_MS (200)", () => {
+  it("neither signal nor entry fade_ms → DEFAULT_FADE_MS (500)", () => {
     const mc = createMotionController(fadeRegistry, { rng: () => 0 });
     const r = mc.resolve({ id: "idle" });
-    expect(r!.fade_ms).toBe(200);
+    expect(r!.fade_ms).toBe(500);
   });
 });
 
