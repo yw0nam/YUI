@@ -31,7 +31,7 @@ import { createLogger } from "../logger";
 import type { Renderer } from "../renderer";
 import { type Rng, randRange } from "./cues";
 import { prefersReducedMotion } from "./tier1";
-import { canStartStroll, MAX_STEP_DT_S, onFloor, type WalkerDoc } from "./walker";
+import { canStartStroll, MAX_STEP_DT_S, onFloor, WALK_MOTION_ID, type WalkerDoc } from "./walker";
 
 const log = createLogger("climber");
 
@@ -417,7 +417,10 @@ export interface ClimberDeps {
   isDragging(): boolean;
   /** A turn is in flight or speech is still playing. */
   isBusy(): boolean;
-  walker: { walkTo(toX: number): Promise<"arrived" | "lost">; cancel(): void };
+  walker: {
+    walkTo(toX: number, onAccepted?: () => void, holdClip?: boolean): Promise<"arrived" | "lost">;
+    cancel(): void;
+  };
   faller: { drop(): void | Promise<void> };
   dropSource: {
     adoptSit(
@@ -581,7 +584,9 @@ export function createClimber(deps: ClimberDeps): Climber {
     finishLeg("lost");
     settleReleaseWait(false);
     const current = renderer.getCurrentMotion();
-    if (current && CLIMB_MOTION_IDS.has(current.id)) renderer.playMotion(null);
+    if (current && (CLIMB_MOTION_IDS.has(current.id) || current.id === WALK_MOTION_ID)) {
+      renderer.playMotion(null);
+    }
     deps.walker.cancel();
     endClimb();
   }
@@ -905,7 +910,10 @@ export function createClimber(deps: ClimberDeps): Climber {
     // clips over the edge. Walk in along the top before sitting down.
     const walkIn = randRange(cfg.ledge_walk_min_frac, cfg.ledge_walk_max_frac, rng) * w.charHpx;
     const seatX = ledgeSeatX(picked.edgeX, picked.side, picked.width, w.charHpx, walkIn);
-    if ((await deps.walker.walkTo(seatX - w.anchorX)) !== "arrived") return endClimb();
+    // The sit the dispatcher plays next crossfades straight out of the held walk clip.
+    if ((await deps.walker.walkTo(seatX - w.anchorX, undefined, true)) !== "arrived") {
+      return endClimb();
+    }
     if (!alive(startedAt)) return endClimb();
 
     // The window manager can refuse part of the rise, so the ledge offset has to come
