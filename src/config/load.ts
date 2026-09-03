@@ -179,11 +179,13 @@ export interface ClimbConfig {
   /** How far the character drops onto the wall during the hang transition. */
   hang_frac: number;
   /**
-   * Hand reach off the wall: how far outside a window's face the character stands to
-   * climb it, so the body clears the edge instead of straddling it. Twice this is the
-   * width of the column beside the edge that must be clear of windows in front.
+   * Hand reach off the wall on the way up: how far outside a window's face the character
+   * stands to climb it, so the body clears the edge instead of straddling it. Twice this
+   * is the width of the column beside the edge that must be clear of windows in front.
    */
   wall_offset_frac: number;
+  /** The same reach on the way down; the descent clips hang the body further off the wall. */
+  descent_wall_offset_frac: number;
   /** Shortest walk in along the window's top edge before she sits, from the corner. */
   ledge_walk_min_frac: number;
   /** Longest such walk. Clamped at run time to keep the seat on the window. */
@@ -197,7 +199,8 @@ export const CLIMB_DEFAULTS: ClimbConfig = {
   perch_dwell_max_ms: 120_000,
   max_height_frac: 4,
   hang_frac: 0.3,
-  wall_offset_frac: 0.3,
+  wall_offset_frac: 0.17,
+  descent_wall_offset_frac: 0.3,
   ledge_walk_min_frac: 0.5,
   ledge_walk_max_frac: 1.5,
 };

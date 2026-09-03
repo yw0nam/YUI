@@ -162,9 +162,10 @@ export interface Walker {
    * vouches for the surface and owns the posture, so the same call walks the work-area
    * floor and a foreign window's top edge. Cancels a running stroll first.
    * onAccepted fires once the frame loop owns the walk, so a caller can hold its own
-   * start cue back until the clip is actually running.
+   * start cue back until the clip is actually running. `holdClip` leaves the walk clip
+   * playing on arrival for the caller's next clip to crossfade out of.
    */
-  walkTo(toX: number, onAccepted?: () => void): Promise<"arrived" | "lost">;
+  walkTo(toX: number, onAccepted?: () => void, holdClip?: boolean): Promise<"arrived" | "lost">;
   /** End a running stroll now and rearm the interval. */
   cancel(): void;
   stop(): void;
@@ -186,6 +187,8 @@ export function createWalker(deps: WalkerDeps): Walker {
     win: PetWindow;
     /** A walkTo the caller owns: it reports the outcome itself and holds the posture. */
     directed: boolean;
+    /** Arrival leaves the walk clip to the caller's next clip. */
+    holdClip: boolean;
   } | null = null;
   /** Settles the walkTo promise when a directed walk ends. */
   let resolveWalk: ((outcome: "arrived" | "lost") => void) | null = null;
@@ -215,7 +218,8 @@ export function createWalker(deps: WalkerDeps): Walker {
     if (!s) return;
     stroll = null;
     nextAtMs = -1;
-    if (renderer.getCurrentMotion()?.id === WALK_MOTION_ID) renderer.playMotion(null);
+    const held = s.holdClip && outcome === "arrived";
+    if (!held && renderer.getCurrentMotion()?.id === WALK_MOTION_ID) renderer.playMotion(null);
     renderer.setBodyYaw(0, WALK_YAW_EASE_MS);
     const settle = resolveWalk;
     resolveWalk = null;
@@ -271,6 +275,7 @@ export function createWalker(deps: WalkerDeps): Walker {
       pxPerMetre: pxPerMetre * scale,
       win,
       directed: false,
+      holdClip: false,
     };
     renderer.setBodyYaw(plan.direction * WALK_YAW_RAD, WALK_YAW_EASE_MS);
     deps.onStart();
@@ -279,7 +284,8 @@ export function createWalker(deps: WalkerDeps): Walker {
   /** Set up a directed walk. "running" means the frame loop owns it from here. */
   async function beginWalkTo(
     toX: number,
-    onAccepted?: () => void,
+    onAccepted: (() => void) | undefined,
+    holdClip: boolean,
   ): Promise<"arrived" | "lost" | "running"> {
     const startedAt = generation;
     const pxPerMetre = renderer.getPxPerMetre();
@@ -299,6 +305,7 @@ export function createWalker(deps: WalkerDeps): Walker {
       pxPerMetre: pxPerMetre * scale,
       win,
       directed: true,
+      holdClip,
     };
     renderer.setBodyYaw(Math.sign(target - pos.x) * WALK_YAW_RAD, WALK_YAW_EASE_MS);
     onAccepted?.();
@@ -369,12 +376,12 @@ export function createWalker(deps: WalkerDeps): Walker {
       doc?.addEventListener("visibilitychange", onVisibilityChange);
       unsub = renderer.onTick(tick);
     },
-    async walkTo(toX, onAccepted) {
+    async walkTo(toX, onAccepted, holdClip = false) {
       endStroll();
       starting = true;
       let outcome: "arrived" | "lost" | "running";
       try {
-        outcome = await beginWalkTo(toX, onAccepted);
+        outcome = await beginWalkTo(toX, onAccepted, holdClip);
       } finally {
         starting = false;
       }

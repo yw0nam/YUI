@@ -31,7 +31,7 @@ import { createLogger } from "../logger";
 import type { Renderer } from "../renderer";
 import { type Rng, randRange } from "./cues";
 import { prefersReducedMotion } from "./tier1";
-import { canStartStroll, MAX_STEP_DT_S, onFloor, type WalkerDoc } from "./walker";
+import { canStartStroll, MAX_STEP_DT_S, onFloor, WALK_MOTION_ID, type WalkerDoc } from "./walker";
 
 const log = createLogger("climber");
 
@@ -50,6 +50,12 @@ export const CLIMB_YAW_RAD = Math.PI / 2;
 export const CLIMB_YAW_EASE_MS = 400;
 /** How long the character takes to drop off the ledge onto the wall (ms). */
 export const HANG_MS = 400;
+/**
+ * How long before the pull-over clip ends the ledge walk takes the body. The walk
+ * crossfades out of the clip's settled last stretch; a oneshot left to run out drops
+ * the body through idle first.
+ */
+export const PULL_HANDOFF_S = 0.5;
 /** Cadence (ms) of the target re-check while a sequence runs. */
 export const TARGET_WATCH_MS = 700;
 /** Cadence (ms) of the diagnostic geometry sample while a leg runs. */
@@ -258,6 +264,7 @@ export function pickClimbTarget(args: {
 }): ClimbTarget | null {
   const { windows, feetX, floor, workTop, charHpx, anchorY, monitor, cfg, maxWalkPx } = args;
   const wallOffset = cfg.wall_offset_frac * charHpx;
+  const descentOffset = cfg.descent_wall_offset_frac * charHpx;
   let best: { target: ClimbTarget; distance: number } | null = null;
 
   for (const [index, win] of windows.entries()) {
@@ -282,6 +289,8 @@ export function pickClimbTarget(args: {
       if (!containsPoint(monitor, { x: edgeX, y: topY })) continue;
       const column = wallColumn(edgeX, topY, floor, wallOffset, side);
       if (!columnOnMonitor(column, monitor)) continue;
+      // The descent stands further out: a wall she could not come down is not worth going up.
+      if (!columnOnMonitor(wallColumn(edgeX, topY, floor, descentOffset, side), monitor)) continue;
       if (front.some((w) => overlaps(w, column))) continue;
       if (front.some((w) => containsPoint(w, cornerSeat(edgeX, topY, side, wallOffset)))) continue;
       best = {
@@ -326,7 +335,7 @@ export function pickDescentTarget(args: {
   if (index < 0) return null;
   const win = windows[index];
   const front = windows.slice(0, index);
-  const wallOffset = cfg.wall_offset_frac * charHpx;
+  const wallOffset = cfg.descent_wall_offset_frac * charHpx;
   const sides: Array<{ side: "left" | "right"; edgeX: number }> = [
     { side: "left", edgeX: win.x },
     { side: "right", edgeX: win.x + win.width },
@@ -359,15 +368,17 @@ export function climbTargetLost(args: {
   charHpx: number;
   floor: number;
   cfg: ClimbConfig;
+  direction: "up" | "down";
 }): boolean {
-  const { windows, target, charHpx, floor, cfg } = args;
+  const { windows, target, charHpx, floor, cfg, direction } = args;
   const index = windows.findIndex((w) => w.windowNumber === target.windowNumber);
   if (index < 0) return true;
   const win = windows[index];
   if (Math.abs(win.x - target.rect.x) > MOVE_TH || Math.abs(win.y - target.rect.y) > MOVE_TH) {
     return true;
   }
-  const wallOffset = cfg.wall_offset_frac * charHpx;
+  const wallOffset =
+    (direction === "down" ? cfg.descent_wall_offset_frac : cfg.wall_offset_frac) * charHpx;
   const front = windows.slice(0, index);
   const column = wallColumn(target.edgeX, target.topY, floor, wallOffset, target.side);
   const seat = cornerSeat(target.edgeX, target.topY, target.side, wallOffset);
@@ -406,7 +417,10 @@ export interface ClimberDeps {
   isDragging(): boolean;
   /** A turn is in flight or speech is still playing. */
   isBusy(): boolean;
-  walker: { walkTo(toX: number): Promise<"arrived" | "lost">; cancel(): void };
+  walker: {
+    walkTo(toX: number, onAccepted?: () => void, holdClip?: boolean): Promise<"arrived" | "lost">;
+    cancel(): void;
+  };
   faller: { drop(): void | Promise<void> };
   dropSource: {
     adoptSit(
@@ -461,6 +475,8 @@ interface WallLeg {
   curveY: boolean;
   /** The clip ends by itself, so losing it means the leg is over rather than interrupted. */
   oneshot: boolean;
+  /** End the leg this many seconds before its clip ends, so the next clip blends out of it. */
+  handoffS: number;
 }
 
 const CLIMB_MOTION_IDS = new Set([
@@ -568,7 +584,9 @@ export function createClimber(deps: ClimberDeps): Climber {
     finishLeg("lost");
     settleReleaseWait(false);
     const current = renderer.getCurrentMotion();
-    if (current && CLIMB_MOTION_IDS.has(current.id)) renderer.playMotion(null);
+    if (current && (CLIMB_MOTION_IDS.has(current.id) || current.id === WALK_MOTION_ID)) {
+      renderer.playMotion(null);
+    }
     deps.walker.cancel();
     endClimb();
   }
@@ -639,6 +657,19 @@ export function createClimber(deps: ClimberDeps): Climber {
       l.prevT = 0;
       renderer.playMotion({ id: l.motionId });
       return;
+    }
+    if (l.handoffS > 0) {
+      const t = renderer.getCurrentMotionTime();
+      const duration = renderer.getMotionDuration(l.motionId);
+      if (t !== null && duration !== null && t >= duration - l.handoffS) {
+        l.x = l.toX;
+        l.y = l.toY;
+        void l.win
+          .setPositionPhysical(Math.round(l.x), Math.round(l.y))
+          .catch((err) => log.warn("move_failed", { degrade: true, error: String(err) }));
+        finishLeg("done");
+        return;
+      }
     }
     const step = Math.min(dt, MAX_STEP_DT_S);
     if (l.linearS !== null) {
@@ -852,6 +883,7 @@ export function createClimber(deps: ClimberDeps): Climber {
       linearS: null,
       curveY: true,
       oneshot: false,
+      handoffS: 0,
     });
     if (loop !== "done" || !alive(startedAt)) return endClimb();
     y -= rise - pullPx;
@@ -863,9 +895,10 @@ export function createClimber(deps: ClimberDeps): Climber {
       toY: y - pullPx,
       motionId: CLIMB_UP_DONE_MOTION_ID,
       phase: "pull_over",
-      linearS: pull.seconds,
+      linearS: Math.max(pull.seconds - PULL_HANDOFF_S, MAX_STEP_DT_S),
       curveY: true,
       oneshot: true,
+      handoffS: PULL_HANDOFF_S,
     });
     if (pullLeg !== "done" || !alive(startedAt)) return endClimb();
 
@@ -877,7 +910,10 @@ export function createClimber(deps: ClimberDeps): Climber {
     // clips over the edge. Walk in along the top before sitting down.
     const walkIn = randRange(cfg.ledge_walk_min_frac, cfg.ledge_walk_max_frac, rng) * w.charHpx;
     const seatX = ledgeSeatX(picked.edgeX, picked.side, picked.width, w.charHpx, walkIn);
-    if ((await deps.walker.walkTo(seatX - w.anchorX)) !== "arrived") return endClimb();
+    // The sit the dispatcher plays next crossfades straight out of the held walk clip.
+    if ((await deps.walker.walkTo(seatX - w.anchorX, undefined, true)) !== "arrived") {
+      return endClimb();
+    }
     if (!alive(startedAt)) return endClimb();
 
     // The window manager can refuse part of the rise, so the ledge offset has to come
@@ -910,8 +946,11 @@ export function createClimber(deps: ClimberDeps): Climber {
       monitor: w.bounds,
       cfg,
     });
-    if (!picked) return;
-    const wallOffset = cfg.wall_offset_frac * w.charHpx;
+    if (!picked) {
+      log.debug("descent.no_wall", { windowNumber: sit.windowNumber });
+      return;
+    }
+    const wallOffset = cfg.descent_wall_offset_frac * w.charHpx;
     // Window origin that stands the feet on the ledge. Above the work area the OS would
     // clamp it, so there is nowhere to stand and the sit simply continues.
     const standY = picked.topY - w.anchorY;
@@ -975,6 +1014,7 @@ export function createClimber(deps: ClimberDeps): Climber {
       linearS: HANG_MS / 1000,
       curveY: false,
       oneshot: false,
+      handoffS: 0,
     });
     if (hang !== "done" || !alive(startedAt)) return endClimb();
     y += hangPx;
@@ -988,6 +1028,7 @@ export function createClimber(deps: ClimberDeps): Climber {
       linearS: null,
       curveY: true,
       oneshot: false,
+      handoffS: 0,
     });
     if (loop !== "done" || !alive(startedAt)) return endClimb();
     y += drop - hangPx - landPx;
@@ -1007,6 +1048,7 @@ export function createClimber(deps: ClimberDeps): Climber {
       linearS: land.seconds,
       curveY: true,
       oneshot: true,
+      handoffS: 0,
     });
     if (landLeg !== "done" || !alive(startedAt)) return endClimb();
     endClimb();
@@ -1032,10 +1074,16 @@ export function createClimber(deps: ClimberDeps): Climber {
     void deps
       .listWindows()
       .then((windows) => {
-        if (!alive(startedAt) || !target) return;
-        if (!climbTargetLost({ windows, target, charHpx, floor: floorY, cfg: deps.getConfig() })) {
-          return;
-        }
+        if (!alive(startedAt) || !target || !direction) return;
+        const lost = climbTargetLost({
+          windows,
+          target,
+          charHpx,
+          floor: floorY,
+          cfg: deps.getConfig(),
+          direction,
+        });
+        if (!lost) return;
         log.debug("target.lost", { windowNumber: target.windowNumber });
         cancel();
         void deps.faller.drop();

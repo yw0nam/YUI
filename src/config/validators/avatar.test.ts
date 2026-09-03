@@ -77,7 +77,8 @@ describe("validateAvatar — happy path", () => {
         perch_dwell_max_ms: 120_000,
         max_height_frac: 4,
         hang_frac: 0.3,
-        wall_offset_frac: 0.3,
+        wall_offset_frac: 0.17,
+        descent_wall_offset_frac: 0.3,
         ledge_walk_min_frac: 0.5,
         ledge_walk_max_frac: 1.5,
       },
@@ -737,7 +738,8 @@ describe("validateAvatar — climb", () => {
       perch_dwell_max_ms: 120_000,
       max_height_frac: 4,
       hang_frac: 0.4,
-      wall_offset_frac: 0.3,
+      wall_offset_frac: 0.17,
+      descent_wall_offset_frac: 0.3,
       ledge_walk_min_frac: 0.5,
       ledge_walk_max_frac: 1.5,
     });
@@ -760,6 +762,7 @@ describe("validateAvatar — climb", () => {
     ["max_height_frac", 0],
     ["hang_frac", -0.1],
     ["wall_offset_frac", "0.15"],
+    ["descent_wall_offset_frac", 0],
     ["ledge_walk_min_frac", 0],
     ["ledge_walk_max_frac", Number.POSITIVE_INFINITY],
   ])("rejects invalid %s: %s", (field, value) => {

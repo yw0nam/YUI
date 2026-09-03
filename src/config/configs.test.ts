@@ -111,7 +111,8 @@ describe("configs/avatar.json", () => {
       perch_dwell_max_ms: 120000,
       max_height_frac: 4,
       hang_frac: 0.3,
-      wall_offset_frac: 0.3,
+      wall_offset_frac: 0.17,
+      descent_wall_offset_frac: 0.3,
       ledge_walk_min_frac: 0.5,
       ledge_walk_max_frac: 1.5,
     });
