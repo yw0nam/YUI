@@ -50,6 +50,12 @@ export const CLIMB_YAW_RAD = Math.PI / 2;
 export const CLIMB_YAW_EASE_MS = 400;
 /** How long the character takes to drop off the ledge onto the wall (ms). */
 export const HANG_MS = 400;
+/**
+ * How long before the pull-over clip ends the ledge walk takes the body. The walk
+ * crossfades out of the clip's settled last stretch; a oneshot left to run out drops
+ * the body through idle first.
+ */
+export const PULL_HANDOFF_S = 0.5;
 /** Cadence (ms) of the target re-check while a sequence runs. */
 export const TARGET_WATCH_MS = 700;
 /** Cadence (ms) of the diagnostic geometry sample while a leg runs. */
@@ -466,6 +472,8 @@ interface WallLeg {
   curveY: boolean;
   /** The clip ends by itself, so losing it means the leg is over rather than interrupted. */
   oneshot: boolean;
+  /** End the leg this many seconds before its clip ends, so the next clip blends out of it. */
+  handoffS: number;
 }
 
 const CLIMB_MOTION_IDS = new Set([
@@ -644,6 +652,19 @@ export function createClimber(deps: ClimberDeps): Climber {
       l.prevT = 0;
       renderer.playMotion({ id: l.motionId });
       return;
+    }
+    if (l.handoffS > 0) {
+      const t = renderer.getCurrentMotionTime();
+      const duration = renderer.getMotionDuration(l.motionId);
+      if (t !== null && duration !== null && t >= duration - l.handoffS) {
+        l.x = l.toX;
+        l.y = l.toY;
+        void l.win
+          .setPositionPhysical(Math.round(l.x), Math.round(l.y))
+          .catch((err) => log.warn("move_failed", { degrade: true, error: String(err) }));
+        finishLeg("done");
+        return;
+      }
     }
     const step = Math.min(dt, MAX_STEP_DT_S);
     if (l.linearS !== null) {
@@ -857,6 +878,7 @@ export function createClimber(deps: ClimberDeps): Climber {
       linearS: null,
       curveY: true,
       oneshot: false,
+      handoffS: 0,
     });
     if (loop !== "done" || !alive(startedAt)) return endClimb();
     y -= rise - pullPx;
@@ -868,9 +890,10 @@ export function createClimber(deps: ClimberDeps): Climber {
       toY: y - pullPx,
       motionId: CLIMB_UP_DONE_MOTION_ID,
       phase: "pull_over",
-      linearS: pull.seconds,
+      linearS: Math.max(pull.seconds - PULL_HANDOFF_S, MAX_STEP_DT_S),
       curveY: true,
       oneshot: true,
+      handoffS: PULL_HANDOFF_S,
     });
     if (pullLeg !== "done" || !alive(startedAt)) return endClimb();
 
@@ -983,6 +1006,7 @@ export function createClimber(deps: ClimberDeps): Climber {
       linearS: HANG_MS / 1000,
       curveY: false,
       oneshot: false,
+      handoffS: 0,
     });
     if (hang !== "done" || !alive(startedAt)) return endClimb();
     y += hangPx;
@@ -996,6 +1020,7 @@ export function createClimber(deps: ClimberDeps): Climber {
       linearS: null,
       curveY: true,
       oneshot: false,
+      handoffS: 0,
     });
     if (loop !== "done" || !alive(startedAt)) return endClimb();
     y += drop - hangPx - landPx;
@@ -1015,6 +1040,7 @@ export function createClimber(deps: ClimberDeps): Climber {
       linearS: land.seconds,
       curveY: true,
       oneshot: true,
+      handoffS: 0,
     });
     if (landLeg !== "done" || !alive(startedAt)) return endClimb();
     endClimb();

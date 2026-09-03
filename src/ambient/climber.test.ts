@@ -18,9 +18,9 @@ import {
   ledgeSeatX,
   nextClimbDelay,
   nextDwell,
+  PULL_HANDOFF_S,
   pickClimbTarget,
   pickDescentTarget,
-  PULL_HANDOFF_S,
 } from "./climber";
 
 const CFG: ClimbConfig = {
