@@ -30,6 +30,7 @@ const CFG: ClimbConfig = {
   max_height_frac: 4,
   hang_frac: 0.3,
   wall_offset_frac: 0.15,
+  descent_wall_offset_frac: 0.3,
   // rng () => 0 draws the minimum, so a ledge walk is 0.3 × 500 = 150 px in.
   ledge_walk_min_frac: 0.3,
   ledge_walk_max_frac: 1.5,
@@ -61,6 +62,10 @@ const WINDOW_POS = { x: 500, y: 1080 };
 const WALL_OFFSET = CFG.wall_offset_frac * CHAR_HPX;
 /** Window x that stands her outside the target's left edge — 1000 - 75 - 200. */
 const CLIMB_X = 1000 - WALL_OFFSET - ANCHOR.x;
+/** The descent clip reaches further, so she stands 150 px out to climb down. */
+const DESCENT_OFFSET = CFG.descent_wall_offset_frac * CHAR_HPX;
+/** Window x that stands her outside the target's left edge for the descent — 1000 - 150 - 200. */
+const DESCENT_X = 1000 - DESCENT_OFFSET - ANCHOR.x;
 /** Window x that stands her feet on the target's top-left corner — 1000 - 200. */
 const CORNER_X = 1000 - ANCHOR.x;
 /** How far in along the ledge she walks before sitting, at rng () => 0. */
@@ -240,6 +245,12 @@ describe("pickDescentTarget", () => {
     expect(picked?.edgeX).toBe(640);
   });
 
+  it("measures the screen fit with the descent reach, not the climb's", () => {
+    // Left edge at 100: a 75 px climb column fits, the 150 px descent column runs off.
+    const nearEdge = win({ x: 100, width: 540 });
+    expect(pickDescentTarget({ ...base, windows: [nearEdge], feetX: 150 })?.side).toBe("right");
+  });
+
   it("returns null when neither wall leaves room on the screen", () => {
     const spanning = win({ x: 37, width: 1863 });
     expect(pickDescentTarget({ ...base, windows: [spanning], feetX: 271 })).toBeNull();
@@ -394,7 +405,7 @@ describe("nextClimbDelay / nextDwell", () => {
 });
 
 describe("climbTargetLost", () => {
-  const base = { target: TARGET, charHpx: CHAR_HPX, floor: 1500, cfg: CFG };
+  const base = { target: TARGET, charHpx: CHAR_HPX, floor: 1500, cfg: CFG, direction: "up" as const };
 
   it("holds while the target sits where it was", () => {
     expect(climbTargetLost({ ...base, windows: [TARGET_WINDOW] })).toBe(false);
@@ -415,6 +426,15 @@ describe("climbTargetLost", () => {
 
   it("loses a target whose corner seat was newly covered", () => {
     expect(climbTargetLost({ ...base, windows: [SEAT_COVER, TARGET_WINDOW] })).toBe(true);
+  });
+
+  it("watches the wider descent column on the way down", () => {
+    // 800..860 sits inside the 150 px descent column (700..1000) but outside the 75 px climb one.
+    const farCover = win({ x: 800, y: 1300, width: 60, height: 200, windowNumber: 7 });
+    expect(climbTargetLost({ ...base, windows: [farCover, TARGET_WINDOW] })).toBe(false);
+    expect(
+      climbTargetLost({ ...base, direction: "down", windows: [farCover, TARGET_WINDOW] }),
+    ).toBe(true);
   });
 });
 
@@ -1200,16 +1220,16 @@ describe("createClimber — down", () => {
 
     expect(h.motions).toEqual([{ id: CLIMB_DOWN_MOTION_ID }, { id: CLIMB_DOWN_LANDING_MOTION_ID }]);
     // The hang carries her off the corner onto the outer face; the rest runs down it.
-    expect(h.at()).toEqual({ x: CLIMB_X, y: 1080 });
+    expect(h.at()).toEqual({ x: DESCENT_X, y: 1080 });
     for (const p of h.positions) {
-      expect(p.x).toBeGreaterThanOrEqual(CLIMB_X);
+      expect(p.x).toBeGreaterThanOrEqual(DESCENT_X);
       expect(p.x).toBeLessThanOrEqual(SEAT_WIN_X);
       expect(p.y).toBeGreaterThanOrEqual(PERCHED_POS.y);
       expect(p.y).toBeLessThanOrEqual(1080);
     }
     // Only the hang moves x; once on the wall she stays on the outer face.
     const afterHang = h.positions.slice(5);
-    for (const p of afterHang) expect(p.x).toBe(CLIMB_X);
+    for (const p of afterHang) expect(p.x).toBe(DESCENT_X);
     expect(h.yaws.at(-1)).toEqual({ rad: 0, easeMs: CLIMB_YAW_EASE_MS });
     expect(h.ends).toHaveBeenCalledWith("down");
     expect(h.drop).not.toHaveBeenCalled();
@@ -1234,10 +1254,10 @@ describe("createClimber — down", () => {
     await h.runFrames(2);
     const midway = h.at().x;
     expect(midway).toBeLessThan(CORNER_X);
-    expect(midway).toBeGreaterThan(CLIMB_X);
+    expect(midway).toBeGreaterThan(DESCENT_X);
 
     await h.runFrames(2);
-    expect(h.at().x).toBe(CLIMB_X);
+    expect(h.at().x).toBe(DESCENT_X);
   });
 
   it("hands over to the faller when the window bottom hangs above the floor", async () => {
@@ -1251,7 +1271,7 @@ describe("createClimber — down", () => {
     // hand the body back to the baseline itself rather than stay frozen in the wall pose.
     expect(h.motions).toEqual([{ id: CLIMB_DOWN_MOTION_ID }, null]);
     // Feet stop at the window bottom (1300); the faller covers the rest.
-    expect(h.at()).toEqual({ x: CLIMB_X, y: 880 });
+    expect(h.at()).toEqual({ x: DESCENT_X, y: 880 });
     expect(h.drop).toHaveBeenCalledTimes(1);
     expect(h.ends).toHaveBeenCalledWith("down");
   });
