@@ -126,6 +126,12 @@ describe("pickClimbTarget", () => {
     expect(pickClimbTarget({ ...base, windows: [TARGET_WINDOW] })).toEqual(TARGET);
   });
 
+  it("skips a wall the descent column would not fit beside", () => {
+    // Left edge at 200: the 150 px climb column fits, the 300 px descent column runs off.
+    const nearEdge = win({ x: 200, width: 400 });
+    expect(pickClimbTarget({ ...base, feetX: 250, windows: [nearEdge] })?.side).toBe("right");
+  });
+
   it("takes the right edge when that is the nearer one", () => {
     expect(pickClimbTarget({ ...base, feetX: 1500, windows: [TARGET_WINDOW] })).toEqual({
       ...TARGET,
@@ -246,9 +252,9 @@ describe("pickDescentTarget", () => {
   });
 
   it("measures the screen fit with the descent reach, not the climb's", () => {
-    // Left edge at 100: a 75 px climb column fits, the 150 px descent column runs off.
-    const nearEdge = win({ x: 100, width: 540 });
-    expect(pickDescentTarget({ ...base, windows: [nearEdge], feetX: 150 })?.side).toBe("right");
+    // Left edge at 200: the 150 px climb column fits, the 300 px descent column runs off.
+    const nearEdge = win({ x: 200, width: 440 });
+    expect(pickDescentTarget({ ...base, windows: [nearEdge], feetX: 250 })?.side).toBe("right");
   });
 
   it("returns null when neither wall leaves room on the screen", () => {
@@ -1239,6 +1245,19 @@ describe("createClimber — down", () => {
     expect(h.yaws.at(-1)).toEqual({ rad: 0, easeMs: CLIMB_YAW_EASE_MS });
     expect(h.ends).toHaveBeenCalledWith("down");
     expect(h.drop).not.toHaveBeenCalled();
+  });
+
+  it("drops when the descent column is covered mid-descent", async () => {
+    // 750..810 lies inside the descent column (700..1000) but outside the climb one (850..1000).
+    const farCover = win({ x: 750, y: 1300, width: 60, height: 200, windowNumber: 7 });
+    const h = perchedHarness();
+    h.climber.start();
+    await h.skipDwell();
+    await h.runFrames(8);
+    h.setWindows([farCover, TARGET_WINDOW]);
+    await h.runFrames(10);
+    expect(h.drop).toHaveBeenCalledTimes(1);
+    expect(h.ends).toHaveBeenCalledWith("down");
   });
 
   it("slides down by the hang fraction before the descent loop takes over", async () => {
