@@ -456,7 +456,7 @@ export function wireWalker(deps: {
   setHitTestMoving: (moving: boolean) => void;
   log: Logger;
 }): {
-  walkTo(toX: number, onAccepted?: () => void): Promise<"arrived" | "lost">;
+  walkTo(toX: number, onAccepted?: () => void, holdClip?: boolean): Promise<"arrived" | "lost">;
   cancel(): void;
   dispose(): void;
 } {
@@ -464,8 +464,11 @@ export function wireWalker(deps: {
   let walker: Walker | null = null;
   let disposed = false;
   const handle = {
-    walkTo: async (toX: number, onAccepted?: () => void): Promise<"arrived" | "lost"> =>
-      (await walker?.walkTo(toX, onAccepted)) ?? "lost",
+    walkTo: async (
+      toX: number,
+      onAccepted?: () => void,
+      holdClip?: boolean,
+    ): Promise<"arrived" | "lost"> => (await walker?.walkTo(toX, onAccepted, holdClip)) ?? "lost",
     cancel: () => walker?.cancel(),
     dispose: () => {
       disposed = true;
