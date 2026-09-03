@@ -20,6 +20,7 @@ import {
   nextDwell,
   pickClimbTarget,
   pickDescentTarget,
+  PULL_HANDOFF_S,
 } from "./climber";
 
 const CFG: ClimbConfig = {
@@ -527,6 +528,8 @@ function makeHarness(
   const yaws: Array<{ rad: number; easeMs: number }> = [];
   const positions: Array<{ x: number; y: number }> = [];
   const walkTargets: number[] = [];
+  /** Clip-local time of the current motion when each walkTo arrived. */
+  const walkClipTimes: number[] = [];
   let pos = { ...(over.position ?? WINDOW_POS) };
   let windows = over.windows ?? [TARGET_WINDOW];
   let perched = over.perched ?? false;
@@ -642,6 +645,7 @@ function makeHarness(
         const outcome =
           over.walkResults?.[walkTargets.length] ?? over.walkResult ?? ("arrived" as const);
         walkTargets.push(toX);
+        walkClipTimes.push(clipT);
         if (outcome === "arrived") pos = { x: toX, y: pos.y };
         return outcome;
       },
@@ -692,6 +696,7 @@ function makeHarness(
     yaws,
     positions,
     walkTargets,
+    walkClipTimes,
     preloads,
     starts,
     sits,
@@ -863,6 +868,22 @@ describe("createClimber — up", () => {
     await h.runToEnd();
     // The last frame the leg moved: the ledge walk that follows is the walker's.
     expect(h.positions.at(-1)?.x).toBe(CORNER_X);
+  });
+
+  it("hands the body to the ledge walk before the pull-over clip ends", async () => {
+    // The walk crossfades out of the pull-over's settled last stretch; letting the oneshot
+    // run out would drop the body through idle first.
+    const h = makeHarness();
+    h.climber.start();
+    await h.skipInterval();
+    await h.runToEnd();
+
+    expect(h.motions).toEqual([{ id: CLIMB_UP_MOTION_ID }, { id: CLIMB_UP_DONE_MOTION_ID }]);
+    expect(h.walkTargets).toEqual([CLIMB_X, SEAT_WIN_X]);
+    const handoff = MOTION_S.climb_up_done - PULL_HANDOFF_S;
+    expect(h.walkClipTimes[1]).toBeGreaterThanOrEqual(handoff - 1e-6);
+    expect(h.walkClipTimes[1]).toBeLessThan(handoff + 0.1);
+    expect(h.at()).toEqual(PERCHED_POS);
   });
 
   it("walks in along the ledge before it sits, so the seat is not on the corner", async () => {
