@@ -29,7 +29,9 @@ import { floorPx, monitorAt, type PetWindow, type ScreenMonitor } from "../io/sc
 import { MOVE_TH } from "../io/window-drop-source";
 import { createLogger } from "../logger";
 import type { Renderer } from "../renderer";
+import { createLegRunner } from "./clip-leg";
 import { type Rng, randRange } from "./cues";
+import type { Sitter } from "./sitter";
 import { prefersReducedMotion } from "./tier1";
 import { canStartStroll, MAX_STEP_DT_S, onFloor, WALK_MOTION_ID, type WalkerDoc } from "./walker";
 
@@ -422,6 +424,8 @@ export interface ClimberDeps {
     cancel(): void;
   };
   faller: { drop(): void | Promise<void> };
+  /** The seat transitions: the sit onto the ledge, and the stand off it before a descent. */
+  sitter: Pick<Sitter, "sitDown" | "standUp" | "cancel">;
   dropSource: {
     adoptSit(
       windowNumber: number,
@@ -454,29 +458,6 @@ export interface Climber {
   /** Off takes her off the wall and stops scheduling; on starts scheduling again. */
   setEnabled(enabled: boolean): void;
   stop(): void;
-}
-
-/** One leg of a climb: which clip paces it, and how far the window travels. */
-interface WallLeg {
-  win: PetWindow;
-  /** Only a linear leg moves x — the hang, carrying her off the corner onto the face. */
-  fromX: number;
-  toX: number;
-  fromY: number;
-  toY: number;
-  motionId: string;
-  /** Name this leg goes by in the geometry log. */
-  phase: string;
-  /** Physical px per metre — the leg's own projection. */
-  pxPerMetre: number;
-  /** x eases over this many seconds; the hang drives y this way too. null = no easing. */
-  linearS: number | null;
-  /** y follows the clip's own rise curve rather than the leg's own clock. */
-  curveY: boolean;
-  /** The clip ends by itself, so losing it means the leg is over rather than interrupted. */
-  oneshot: boolean;
-  /** End the leg this many seconds before its clip ends, so the next clip blends out of it. */
-  handoffS: number;
 }
 
 const CLIMB_MOTION_IDS = new Set([
@@ -515,32 +496,13 @@ export function createClimber(deps: ClimberDeps): Climber {
   /** The wall the running sequence measures itself against. */
   let geo: { side: "left" | "right"; edgeX: number; topY: number; scale: number } | null = null;
   let nowMs = 0;
-  let leg:
-    | (WallLeg & {
-        x: number;
-        y: number;
-        elapsedS: number;
-        /** Clip travel where the leg picked the curve up — legs can share a running clip. */
-        travel0: number | null;
-        /** Clip playhead last frame, so a loop restart can be counted. */
-        prevT: number;
-        /** Loop restarts so far; each one adds a whole cycle of travel. */
-        wraps: number;
-        settle: (r: "done" | "lost") => void;
-      })
-    | null = null;
+  /** The window legs, each paced by its wall clip. */
+  const legs = createLegRunner({ renderer, currentMotionKind: deps.currentMotionKind });
   /** A descent waiting for the perch it released to actually clear. */
   let releaseWait: { until: number; settle: (cleared: boolean) => void } | null = null;
 
   function alive(startedAt: number): boolean {
     return !stopped && generation === startedAt;
-  }
-
-  function finishLeg(outcome: "done" | "lost"): void {
-    const l = leg;
-    if (!l) return;
-    leg = null;
-    l.settle(outcome);
   }
 
   /** End the sequence where it stands. Idempotent — a cancel and its unwind share it. */
@@ -581,7 +543,8 @@ export function createClimber(deps: ClimberDeps): Climber {
     generation += 1;
     nextUpAtMs = -1;
     dwellAtMs = -1;
-    finishLeg("lost");
+    legs.finish("lost");
+    deps.sitter.cancel();
     settleReleaseWait(false);
     const current = renderer.getCurrentMotion();
     if (current && (CLIMB_MOTION_IDS.has(current.id) || current.id === WALK_MOTION_ID)) {
@@ -599,118 +562,6 @@ export function createClimber(deps: ClimberDeps): Climber {
     cancel();
     if (onWall) void deps.faller.drop();
   };
-
-  /** Run one vertical leg to completion. Resolves "lost" when the climb is cancelled. */
-  function runLeg(spec: WallLeg): Promise<"done" | "lost"> {
-    if (spec.toY === spec.fromY && spec.toX === spec.fromX) return Promise.resolve("done");
-    // A leg can inherit a clip that is already running — the descent picks up the one the
-    // hang started — so its travel baseline is where that clip has already got to. A leg
-    // that requests its own clip starts from the clip's first key, whenever it lands.
-    const continuing = renderer.getCurrentMotion()?.id === spec.motionId;
-    const now = continuing ? renderer.getCurrentMotionTime() : null;
-    const travel0 = continuing
-      ? now === null
-        ? null
-        : renderer.getMotionTravelAt(spec.motionId, now)
-      : 0;
-    if (!continuing) {
-      renderer.playMotion({ id: spec.motionId });
-      if (renderer.getCurrentMotion()?.id !== spec.motionId) return Promise.resolve("lost");
-    }
-    return new Promise((settle) => {
-      leg = {
-        ...spec,
-        x: spec.fromX,
-        y: spec.fromY,
-        elapsedS: 0,
-        travel0,
-        prevT: now ?? 0,
-        wraps: 0,
-        settle,
-      };
-    });
-  }
-
-  /** One frame of wall travel. A clip that is not ours holds the window where it is. */
-  function stepLeg(dt: number): void {
-    const l = leg;
-    if (!l) return;
-    if (renderer.getCurrentMotion()?.id !== l.motionId) {
-      // Anything but the ambient baseline is holding the body: wait it out where we are.
-      if (deps.currentMotionKind() !== "ambient") return;
-      // A oneshot that reached its own end is finished, not interrupted — replaying it
-      // would restart the transition. Take the travel it still owed and end the leg.
-      if (l.oneshot) {
-        l.x = l.toX;
-        l.y = l.toY;
-        void l.win
-          .setPositionPhysical(Math.round(l.x), Math.round(l.y))
-          .catch((err) => log.warn("move_failed", { degrade: true, error: String(err) }));
-        finishLeg("done");
-        return;
-      }
-      // The replayed clip restarts at 0 without having finished its cycle: rebase the
-      // leg on where the hold left the window rather than let the restart count as a wrap.
-      l.fromY = l.y;
-      l.travel0 = null;
-      l.wraps = 0;
-      l.prevT = 0;
-      renderer.playMotion({ id: l.motionId });
-      return;
-    }
-    if (l.handoffS > 0) {
-      const t = renderer.getCurrentMotionTime();
-      const duration = renderer.getMotionDuration(l.motionId);
-      if (t !== null && duration !== null && t >= duration - l.handoffS) {
-        l.x = l.toX;
-        l.y = l.toY;
-        void l.win
-          .setPositionPhysical(Math.round(l.x), Math.round(l.y))
-          .catch((err) => log.warn("move_failed", { degrade: true, error: String(err) }));
-        finishLeg("done");
-        return;
-      }
-    }
-    const step = Math.min(dt, MAX_STEP_DT_S);
-    if (l.linearS !== null) {
-      l.elapsedS += step;
-      const t = Math.min(l.elapsedS / l.linearS, 1);
-      l.x = l.fromX + (l.toX - l.fromX) * t;
-      // The hang has no clip travel of its own — it is a synthetic slide onto the wall.
-      if (!l.curveY) l.y = l.fromY + (l.toY - l.fromY) * t;
-    }
-    if (l.curveY && !advanceOnCurve(l)) return;
-    void l.win
-      .setPositionPhysical(Math.round(l.x), Math.round(l.y))
-      .catch((err) => log.warn("move_failed", { degrade: true, error: String(err) }));
-    if (l.y === l.toY && l.x === l.toX) finishLeg("done");
-  }
-
-  /**
-   * Put the window exactly where the clip's own hips have travelled since the leg picked
-   * it up, wraps included. A straight line through the clip would let the body lead the
-   * window through the middle of a rise that is not evenly paced. false until measurable.
-   */
-  function advanceOnCurve(l: NonNullable<typeof leg>): boolean {
-    const t = renderer.getCurrentMotionTime();
-    const at = t === null ? null : renderer.getMotionTravelAt(l.motionId, t);
-    const total = renderer.getMotionTravelY(l.motionId);
-    if (t === null || at === null || total === null || total === 0) return false;
-    if (l.travel0 === null) {
-      // The clip was not measurable when the leg opened; take the baseline now.
-      l.travel0 = at;
-      l.prevT = t;
-    }
-    // A looping clip restarts its playhead; each restart is another whole cycle travelled.
-    if (t < l.prevT) l.wraps += 1;
-    l.prevT = t;
-    const travelled = at + l.wraps * total - l.travel0;
-    const next = l.fromY - travelled * l.pxPerMetre;
-    // Snap on arrival rather than comparing floats that were reached two different ways.
-    const reached = l.toY >= l.fromY ? next >= l.toY : next <= l.toY;
-    l.y = reached ? l.toY : next;
-    return true;
-  }
 
   /** Everything both sequences read at plan time, or null when the world is not ready. */
   async function survey(startedAt: number): Promise<{
@@ -871,10 +722,10 @@ export function createClimber(deps: ClimberDeps): Climber {
     const pullPx = Math.min(rise, pull.px);
     // The wall runs a hand's reach outside the face; the corner is where the sit belongs.
     const cornerX = at.x + (picked.edgeX - standX) * w.scale;
-    const base = { win: w.win, fromX: at.x, toX: at.x, pxPerMetre };
+    const base = { win: w.win, fromX: at.x, toX: at.x, pxPerMetre, fit: false };
     let y = at.y;
 
-    const loop = await runLeg({
+    const loop = await legs.run({
       ...base,
       fromY: y,
       toY: y - (rise - pullPx),
@@ -888,7 +739,7 @@ export function createClimber(deps: ClimberDeps): Climber {
     if (loop !== "done" || !alive(startedAt)) return endClimb();
     y -= rise - pullPx;
 
-    const pullLeg = await runLeg({
+    const pullLeg = await legs.run({
       ...base,
       fromY: y,
       toX: cornerX,
@@ -910,20 +761,24 @@ export function createClimber(deps: ClimberDeps): Climber {
     // clips over the edge. Walk in along the top before sitting down.
     const walkIn = randRange(cfg.ledge_walk_min_frac, cfg.ledge_walk_max_frac, rng) * w.charHpx;
     const seatX = ledgeSeatX(picked.edgeX, picked.side, picked.width, w.charHpx, walkIn);
-    // The sit the dispatcher plays next crossfades straight out of the held walk clip.
+    // The sit-down crossfades straight out of the held walk clip.
     if ((await deps.walker.walkTo(seatX - w.anchorX, undefined, true)) !== "arrived") {
       return endClimb();
     }
     if (!alive(startedAt)) return endClimb();
-
-    // The window manager can refuse part of the rise, so the ledge offset has to come
-    // from where the window actually landed.
     const landed = await w.win.outerPosition();
     if (!alive(startedAt)) return endClimb();
     logGeometry("seat", landed);
 
+    // The window sinks with the sit, and the window manager can refuse part of any move,
+    // so the ledge offset has to come from where the window actually ends up.
+    if ((await deps.sitter.sitDown({ win: w.win, scale: w.scale })) !== "done") return endClimb();
+    if (!alive(startedAt)) return endClimb();
+    const seated = await w.win.outerPosition();
+    if (!alive(startedAt)) return endClimb();
+
     endClimb();
-    deps.onSit(picked, picked.topY - landed.y / w.scale);
+    deps.onSit(picked, picked.topY - seated.y / w.scale);
     deps.dropSource.adoptSit(picked.windowNumber, picked.rect, w.charHpx, "adopt");
     dwellAtMs = -1;
   }
@@ -975,11 +830,11 @@ export function createClimber(deps: ClimberDeps): Climber {
       deps.dropSource.adoptSit(picked.windowNumber, picked.rect, w.charHpx, "adopt");
       return endClimb();
     }
-    // A drop leaves the window wherever the user let go — the renderer shifts the model
-    // for the sit, not the window — so square the feet to the ledge before walking it.
-    const seated = await w.win.outerPosition();
-    if (!alive(startedAt)) return endClimb();
-    await w.win.setPositionPhysical(seated.x, Math.round(standY * w.scale));
+    // Stand up onto the ledge: the window rises with the clip until the feet are on the
+    // edge, wherever a drop left it.
+    if ((await deps.sitter.standUp(w.win, Math.round(standY * w.scale))) !== "done") {
+      return endClimb();
+    }
     if (!alive(startedAt)) return endClimb();
     if ((await deps.walker.walkTo(picked.edgeX - w.anchorX)) !== "arrived") return endClimb();
     if (!alive(startedAt)) return endClimb();
@@ -999,12 +854,12 @@ export function createClimber(deps: ClimberDeps): Climber {
     // She walks the top to the corner, so the wall x is a hand's reach further out.
     const wallX =
       at.x + (wallStandX(picked.edgeX, picked.side, wallOffset) - picked.edgeX) * w.scale;
-    const base = { win: w.win, fromX: wallX, toX: wallX, pxPerMetre };
+    const base = { win: w.win, fromX: wallX, toX: wallX, pxPerMetre, fit: false };
     let y = at.y;
 
     // No clip covers the step off the ledge, so the descent clip crossfades in over a
     // short linear slide that carries her off the corner onto the wall's outer face.
-    const hang = await runLeg({
+    const hang = await legs.run({
       ...base,
       fromX: at.x,
       fromY: y,
@@ -1019,7 +874,7 @@ export function createClimber(deps: ClimberDeps): Climber {
     if (hang !== "done" || !alive(startedAt)) return endClimb();
     y += hangPx;
 
-    const loop = await runLeg({
+    const loop = await legs.run({
       ...base,
       fromY: y,
       toY: y + (drop - hangPx - landPx),
@@ -1039,7 +894,7 @@ export function createClimber(deps: ClimberDeps): Climber {
       return;
     }
 
-    const landLeg = await runLeg({
+    const landLeg = await legs.run({
       ...base,
       fromY: y,
       toY: y + landPx,
@@ -1096,7 +951,8 @@ export function createClimber(deps: ClimberDeps): Climber {
 
   function tick(ctx: { dt: number; elapsed: number }): void {
     nowMs = ctx.elapsed * 1000;
-    if (leg) stepLeg(ctx.dt);
+    legs.step(ctx.dt);
+    const leg = legs.current();
     if (leg && nowMs >= nextGeoAtMs) {
       nextGeoAtMs = nowMs + GEOMETRY_LOG_MS;
       logGeometry(leg.phase, { x: leg.x, y: leg.y });

@@ -13,8 +13,8 @@
  *   2. seatGlobal = petPxToGlobalPoints(seatPx, outerPosition, scaleFactor).
  *   3. windows = invoke("list_windows")  (front-to-back, topmost first).
  *   4. target = first window whose catch zone contains the seat (topmost wins).
- *   5. hit → user.window_sit_drop { edge_local_ypx } + arm
- *      the poll on target.windowNumber; miss → user.window_sit_exit.
+ *   5. hit → the sit-down plays in place, then user.window_sit_drop { edge_local_ypx }
+ *      + arm the poll on target.windowNumber; miss → user.window_sit_exit.
  *
  * A mover that seated the character itself adopts the same poll through `adoptSit`,
  * which arms on a window without pushing anything.
@@ -102,6 +102,8 @@ export interface WindowDropSourceDeps {
   onDragMiss?: () => void;
   /** An armed sit lost its host — the seat is gone and the character hangs where it was. */
   onSitLost?: () => void;
+  /** Play the sit-down where she is. "lost" means a pickup took her before it landed. */
+  sitDown: () => Promise<"done" | "lost">;
   /** Injectable timer fns (fake timers in tests). */
   setInterval?: typeof setInterval;
   clearInterval?: typeof clearInterval;
@@ -120,11 +122,12 @@ export interface PerchTargets {
   edges: Array<"left" | "right">;
 }
 
-/** What a settle pass landed on. */
+/** What a settle pass landed on. `interrupted` is a sit whose sit-down a pickup cut short. */
 type SettleOutcome =
   | { kind: "sit"; app: string | null; window_title: string | null }
   | { kind: "peek"; side: "left" | "right"; app: string | null; window_title: string | null }
-  | { kind: "none" };
+  | { kind: "none" }
+  | { kind: "interrupted" };
 
 /** A gesture asked for by name rather than inferred from where a drag landed. */
 export type PlacementRequest =
@@ -468,16 +471,21 @@ export function createWindowDropSource(deps: WindowDropSourceDeps): WindowDropSo
   }
 
   /**
-   * Commit a sit on `target`: local edge → cue (unless suppressed) → tier1 drop → arm.
-   * `pos` is the pet window's physical origin the character is at when it commits.
+   * Commit a sit on `target`: sit-down → local edge → cue (unless suppressed) → tier1 drop
+   * → arm. `pos` is the pet window's physical origin the character is at when it commits;
+   * the window stays there, so the sit-down plays in place.
    */
-  function commitSit(
+  async function commitSit(
     target: WindowRect,
     pos: { x: number; y: number },
     scale: number,
     charHpx: number,
     suppressCue: boolean,
-  ): SettleOutcome {
+  ): Promise<SettleOutcome> {
+    if ((await deps.sitDown()) !== "done") {
+      log.debug("perch.sit_interrupted", { targetWindowNumber: target.windowNumber });
+      return { kind: "interrupted" };
+    }
     // Global top edge → pet-window-local px (winOriginPts = pos / scale).
     const sf = scale > 0 ? scale : 1;
     const edgeLocalYpx = target.y - pos.y / sf;
@@ -707,7 +715,8 @@ export function createWindowDropSource(deps: WindowDropSourceDeps): WindowDropSo
       return { ok: false, reason: "interrupted" };
     }
     if (request.kind === "sit") {
-      commitSit(target, applied, scale, probe.charHpx, true);
+      const outcome = await commitSit(target, applied, scale, probe.charHpx, true);
+      if (outcome.kind === "interrupted") return { ok: false, reason: "interrupted" };
     } else {
       commitPeek(target, request.side, applied, scale, probe.charHpx, getPeekConfig(), true);
     }

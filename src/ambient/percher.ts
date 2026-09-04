@@ -4,7 +4,9 @@
  *
  * The sit pin is suspended for the length of the walk and restored from wherever the
  * window actually landed, so the loop owns the seat the whole time: it either resumes it
- * or abandons it, and only a lost host takes the published exit path.
+ * or abandons it, and only a lost host takes the published exit path. She stands up before
+ * the walk and sits down before the seat is taken, the window rising and sinking with the
+ * transition clips.
  *
  * A stroll with no window to jump across to now and then walks off the host's nearer edge
  * instead and lets the fall take her. The same loop takes the seat at the other end: a
@@ -24,6 +26,7 @@ import {
 import { createLogger } from "../logger";
 import type { TickFn } from "../renderer";
 import { type JumpOutcome, type JumpPlan, pickJumpTarget } from "./jumper";
+import type { Sitter } from "./sitter";
 import { prefersReducedMotion } from "./tier1";
 import { WALK_YAW_EASE_MS } from "./walker";
 
@@ -186,6 +189,8 @@ export interface PercherDeps {
     ): Promise<JumpOutcome>;
     cancel(): void;
   };
+  /** The seat transitions: the stand before a walk, the sit before a seat is taken. */
+  sitter: Pick<Sitter, "sitDown" | "standUp" | "cancel">;
   dropSource: {
     armedSit(): { windowNumber: number; origin: "commit" | "adopt" } | null;
     suspendSit(): SuspendedSit | null;
@@ -314,6 +319,7 @@ export function createPercher(deps: PercherDeps): Percher {
     if (stroll) deps.walker.cancel();
     stroll = null;
     deps.jumper.cancel();
+    deps.sitter.cancel();
     cancelWalkCue();
     abandonSuspension();
   }
@@ -469,6 +475,20 @@ export function createPercher(deps: PercherDeps): Percher {
   }
 
   /**
+   * Sit down where she stands, the window sinking with the clip, and read back where that
+   * leaves it. null when the transition was cut short or the loop has moved on.
+   */
+  async function sitDownHere(
+    startedAt: number,
+    win: PercherWindow,
+    scale: number,
+  ): Promise<{ x: number; y: number } | null> {
+    if ((await deps.sitter.sitDown({ win, scale })) !== "done" || !alive(startedAt)) return null;
+    const applied = await win.outerPosition();
+    return alive(startedAt) ? applied : null;
+  }
+
+  /**
    * Take the seat on a window top she is already standing on, whether a jump or a fall put
    * her there: a short leg along the uncovered stretch, then the sit read from where the
    * window actually ended up. A target that has closed or moved by the time the stack is
@@ -533,8 +553,12 @@ export function createPercher(deps: PercherDeps): Percher {
       // left standing with nothing armed and nothing scheduled to move her again.
       if (walked !== "arrived") log.debug("perch_leg_short", { windowNumber: host.windowNumber });
     }
-    const applied = await win.outerPosition();
-    if (!alive(startedAt)) return;
+    const applied = await sitDownHere(startedAt, win, scale);
+    if (!applied) {
+      // A cancelled loop has closed the cue already; a lost sit-down owes the close itself.
+      endWalkCue();
+      return;
+    }
     log.info("perch_landed", {
       windowNumber: host.windowNumber,
       x: Math.round(applied.x / scale + anchor.x),
@@ -674,7 +698,7 @@ export function createPercher(deps: PercherDeps): Percher {
     suspendedAt = startedAt;
     try {
       if (suspended.origin !== "commit") return;
-      await win.setPositionPhysical(pos.x, Math.round(standingY * scale));
+      if ((await deps.sitter.standUp(win, Math.round(standingY * scale))) !== "done") return;
       if (!alive(startedAt)) return;
       // Where the window manager actually put the window, which is what decides whether the
       // feet ended up on the edge or somewhere down the window's face.
@@ -763,24 +787,28 @@ export function createPercher(deps: PercherDeps): Percher {
           return;
         }
         if (under.fresh.windowNumber !== host.windowNumber) {
+          const seated = await sitDownHere(startedAt, win, scale);
+          if (!seated) return;
           abandonSuspension();
           log.info("perch_crossed", {
             from: host.windowNumber,
             to: under.fresh.windowNumber,
             x: Math.round(appliedX),
           });
-          commitSit(under.fresh, applied.y / scale, probe.charHpx);
+          commitSit(under.fresh, seated.y / scale, probe.charHpx);
           return;
         }
       }
-      const edgeLocalYpx = host.y - applied.y / scale;
+      const seated = await sitDownHere(startedAt, win, scale);
+      if (!seated) return;
+      const edgeLocalYpx = host.y - seated.y / scale;
       suspendedAt = null;
       deps.dropSource.resumeSit(edgeLocalYpx);
       log.info("resit", {
         windowNumber: host.windowNumber,
         x: Math.round(appliedX),
         edgeLocalYpx: Math.round(edgeLocalYpx),
-        windowY: Math.round(applied.y / scale),
+        windowY: Math.round(seated.y / scale),
       });
       deps.onSit(host, edgeLocalYpx);
       rearmDwell();

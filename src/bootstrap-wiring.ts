@@ -3,6 +3,7 @@ import { type Climber, type ClimbTarget, createClimber } from "./ambient/climber
 import { createFaller, type Faller } from "./ambient/faller";
 import { createJumper } from "./ambient/jumper";
 import { createPercher, type Percher, type PercherWindow } from "./ambient/percher";
+import type { Sitter } from "./ambient/sitter";
 import type { Tier1Engine } from "./ambient/tier1";
 import { createWalker, type Walker } from "./ambient/walker";
 import {
@@ -541,6 +542,7 @@ export function wirePercher(deps: {
     walkTo(toX: number, onAccepted?: () => void): Promise<"arrived" | "lost">;
     cancel(): void;
   };
+  sitter: Pick<Sitter, "sitDown" | "standUp" | "cancel">;
   dropSource: {
     armedSit(): { windowNumber: number; origin: "commit" | "adopt" } | null;
     suspendSit(): {
@@ -618,6 +620,7 @@ export function wirePercher(deps: {
       getFallConfig: deps.getFallConfig,
       walker: deps.walker,
       jumper,
+      sitter: deps.sitter,
       dropSource: deps.dropSource,
       currentMotion: () => {
         const current = renderer.getCurrentMotion();
@@ -792,6 +795,7 @@ export function wireClimber(deps: {
   isBusy: () => boolean;
   walker: { walkTo(toX: number): Promise<"arrived" | "lost">; cancel(): void };
   faller: { drop(): void };
+  sitter: Pick<Sitter, "sitDown" | "standUp" | "cancel">;
   dropSource: {
     adoptSit(
       windowNumber: number,
@@ -873,6 +877,7 @@ export function wireClimber(deps: {
       isBusy: deps.isBusy,
       walker: deps.walker,
       faller: deps.faller,
+      sitter: deps.sitter,
       dropSource: deps.dropSource,
       onStart: (dir, target) => {
         wall = target;
@@ -919,6 +924,8 @@ export function wireWindowSources(deps: {
   onDragMiss: () => void;
   /** An armed sit lost its host — the character falls from where the seat was. */
   onSitLost: () => void;
+  /** The sit-down a drop plays in place before the seat is taken. */
+  sitDown: () => Promise<"done" | "lost">;
   log: Logger;
 }): {
   noteUserDrag(): void;
@@ -1011,6 +1018,7 @@ export function wireWindowSources(deps: {
       getGestureCues,
       onDragMiss: deps.onDragMiss,
       onSitLost: deps.onSitLost,
+      sitDown: deps.sitDown,
     });
     windowResizeSource = createWindowResizeSource({
       renderer,
@@ -1547,6 +1555,8 @@ export async function wireDevGlobals(deps: {
   userInput: Pick<UserInputSource, "submit">;
   bus: EventBus;
   getDispatcher: () => Dispatcher | null;
+  /** The sit-down the dev perch plays in place before it takes the seat. */
+  sitDown: () => Promise<"done" | "lost">;
 }): Promise<void> {
   const {
     renderer,
@@ -1560,6 +1570,7 @@ export async function wireDevGlobals(deps: {
     userInput,
     bus,
     getDispatcher,
+    sitDown,
   } = deps;
   const { createMockDriver } = await import("./ui/mock");
   const mock: ReturnType<typeof createMockDriver> = createMockDriver(surfaces);
@@ -1581,16 +1592,19 @@ export async function wireDevGlobals(deps: {
     // Dispatcher observation: __yui_dispatcher.inFlight()/queue()/recentDrops().
     __yui_dispatcher: getDispatcher,
     // DEV-ONLY trigger: fire window_sit perch enter/exit/drop directly from console.
-    //   window.__yui_windowSit.enter() → user.window_sit_enter → dispatcher → renderer.
+    //   window.__yui_windowSit.enter() → sit-down → user.window_sit_enter → dispatcher → renderer.
     //   window.__yui_windowSit.drop(rect) → user.window_sit_drop(geometry) → perch align.
     __yui_windowSit: {
       enter: () =>
-        bus.push({
-          source: "user_input_source",
-          event_name: "user.window_sit_enter",
-          ts: Date.now(),
-          hint_tier: 1,
-          dnd_override: true,
+        void sitDown().then((outcome) => {
+          if (outcome !== "done") return;
+          bus.push({
+            source: "user_input_source",
+            event_name: "user.window_sit_enter",
+            ts: Date.now(),
+            hint_tier: 1,
+            dnd_override: true,
+          });
         }),
       exit: () =>
         bus.push({
