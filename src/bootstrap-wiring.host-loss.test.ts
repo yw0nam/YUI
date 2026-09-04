@@ -57,6 +57,7 @@ describe("host loss reaches the faller", () => {
       getMotionKind: () => undefined,
       isBusy: () => false,
       walker: { walkTo: async () => "arrived" as const, cancel: () => {} },
+      sitter: {} as never,
       dropSource: {} as never,
       setHitTestMoving: () => {},
       onHostLost: () => faller.drop(),
@@ -89,6 +90,7 @@ describe("host loss reaches the faller", () => {
       noteAgentMove: () => {},
       onDragMiss: () => faller.drop(),
       onSitLost: () => faller.drop(),
+      sitDown: async () => "done" as const,
       log: noopLog,
     });
     await vi.waitFor(() => expect(createWindowDropSource).toHaveBeenCalled());

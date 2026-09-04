@@ -2056,6 +2056,7 @@ describe("wireDevGlobals", () => {
       userInput: { submit: vi.fn() },
       bus: { push: vi.fn() },
       getDispatcher: () => dispatcher,
+      sitDown: vi.fn(async () => "done" as const),
     };
   };
 
@@ -2077,15 +2078,30 @@ describe("wireDevGlobals", () => {
     expect(deps.userInput.submit).toHaveBeenCalledWith("hello");
   });
 
-  it("__yui_windowSit.enter pushes a window_sit_enter event", async () => {
+  it("__yui_windowSit.enter plays the sit-down, then pushes a window_sit_enter event", async () => {
     const deps = makeDeps();
     await wireDevGlobals(deps as never);
     const windowSit = (globalThis as unknown as Record<string, { enter: () => void }>)
       .__yui_windowSit;
     windowSit.enter();
+    expect(deps.sitDown).toHaveBeenCalledTimes(1);
+    expect(deps.bus.push).not.toHaveBeenCalled();
+    await Promise.resolve();
     expect(deps.bus.push).toHaveBeenCalledWith(
       expect.objectContaining({ event_name: "user.window_sit_enter" }),
     );
+  });
+
+  it("__yui_windowSit.enter pushes nothing when the sit-down is lost", async () => {
+    const deps = makeDeps();
+    deps.sitDown.mockResolvedValue("lost" as never);
+    await wireDevGlobals(deps as never);
+    const windowSit = (globalThis as unknown as Record<string, { enter: () => void }>)
+      .__yui_windowSit;
+    windowSit.enter();
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(deps.bus.push).not.toHaveBeenCalled();
   });
 
   it("__yuiDemo.tap triggers the ambient cue", async () => {

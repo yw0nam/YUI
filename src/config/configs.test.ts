@@ -361,7 +361,7 @@ describe("configs/motions.json", () => {
     expect(m.jump.broker_publish).toBe(false);
   });
 
-  it("locks the root vertically on the climb clips alone", () => {
+  it("locks the root vertically on the climb clips and the seat transitions alone", () => {
     const locked = Object.entries(m)
       .filter(([, e]: [string, any]) => e.root_lock_y === true)
       .map(([id]) => id);
@@ -370,7 +370,21 @@ describe("configs/motions.json", () => {
       "climb_down_landing",
       "climb_up",
       "climb_up_done",
+      "sit_down",
+      "stand_up",
     ]);
+  });
+
+  it("registers the seat transitions as client-owned root-locked oneshots", () => {
+    for (const id of ["sit_down", "stand_up"]) {
+      expect(m[id].kind).toBe("oneshot");
+      expect(m[id].loop).toBe(false);
+      expect(m[id].priority).toBe(m.climb_up.priority);
+      expect(m[id].interrupt_policy).toBe("replace");
+      expect(m[id].broker_publish).toBe(false);
+    }
+    expect(m.sit_down.vrma_path).toBe("/motions/sit_down.vrma");
+    expect(m.stand_up.vrma_path).toBe("/motions/stand_up.vrma");
   });
 
   it("registers sulk as a broker-published oneshot emotion motion", () => {

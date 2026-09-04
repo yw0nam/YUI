@@ -24,8 +24,8 @@ import {
 } from "./window-drop-source";
 
 function createWindowDropSource(
-  deps: Omit<WindowDropSourceDeps, "getPeekConfig" | "getGestureCues" | "renderer"> &
-    Partial<Pick<WindowDropSourceDeps, "getPeekConfig" | "getGestureCues">> & {
+  deps: Omit<WindowDropSourceDeps, "getPeekConfig" | "getGestureCues" | "renderer" | "sitDown"> &
+    Partial<Pick<WindowDropSourceDeps, "getPeekConfig" | "getGestureCues" | "sitDown">> & {
       renderer: Omit<WindowDropSourceDeps["renderer"], "setPerchTarget"> &
         Partial<Pick<WindowDropSourceDeps["renderer"], "setPerchTarget">>;
     },
@@ -35,6 +35,8 @@ function createWindowDropSource(
     renderer: { setPerchTarget: () => {}, ...deps.renderer },
     getPeekConfig: deps.getPeekConfig ?? (() => PEEK_DEFAULTS),
     getGestureCues: deps.getGestureCues ?? (() => GESTURE_CUES_DEFAULTS),
+    // The sit-down lands at once unless a test holds it.
+    sitDown: deps.sitDown ?? (async () => "done" as const),
   });
 }
 
@@ -250,6 +252,72 @@ describe("window-drop-source — perch hit", () => {
     // edge = top.y - pos.y/scale = 400 - 740/2 = 30 (back would give 70).
     const env = pushed.find((e) => e.event_name === "user.window_sit_drop")!;
     expect(env.payload?.edge_local_ypx).toBeCloseTo(30, 6);
+  });
+});
+
+describe("window-drop-source — sit-down before the drop", () => {
+  function deferred() {
+    let resolve!: (value: "done" | "lost") => void;
+    const promise = new Promise<"done" | "lost">((done) => {
+      resolve = done;
+    });
+    return { promise, resolve };
+  }
+
+  it("plays the sit-down first and pushes the cue and the drop once it lands", async () => {
+    const renderer = {
+      getPerchProbe: vi.fn(() => ({ seatPx: { x: 40, y: 30 }, charHpx: 200 })),
+      isPerched: vi.fn(() => true),
+    };
+    const invoke = vi.fn(async () => [win()]);
+    const getWindow = () => makeWindow({ x: 520, y: 740 }, 2);
+    const { listen, fire } = makeListen();
+    const sit = deferred();
+    const sitDown = vi.fn(() => sit.promise);
+
+    const source = createWindowDropSource({ bus, renderer, invoke, getWindow, listen, sitDown });
+    await source.start();
+    fire({ point: { x: 123, y: 456 } });
+    await settleRelease();
+
+    expect(sitDown).toHaveBeenCalledTimes(1);
+    expect(pushed).toEqual([]);
+
+    sit.resolve("done");
+    await settleRelease();
+
+    expect(pushed.map((e) => e.event_name)).toEqual([
+      "proactive.window_sit",
+      "user.window_sit_drop",
+    ]);
+  });
+
+  it("pushes nothing, arms nothing and reports no miss when the sit-down is lost", async () => {
+    const renderer = {
+      getPerchProbe: vi.fn(() => ({ seatPx: { x: 40, y: 30 }, charHpx: 200 })),
+      isPerched: vi.fn(() => true),
+    };
+    const invoke = vi.fn(async () => [win()]);
+    const getWindow = () => makeWindow({ x: 520, y: 740 }, 2);
+    const { listen, fire } = makeListen();
+    const onDragMiss = vi.fn();
+
+    const source = createWindowDropSource({
+      bus,
+      renderer,
+      invoke,
+      getWindow,
+      listen,
+      onDragMiss,
+      sitDown: async () => "lost",
+    });
+    await source.start();
+    fire({ point: { x: 123, y: 456 } });
+    await settleRelease();
+
+    expect(pushed).toEqual([]);
+    expect(source.armedSit()).toBeNull();
+    expect(onDragMiss).not.toHaveBeenCalled();
   });
 });
 
@@ -1449,6 +1517,21 @@ describe("window-drop-source — programmatic placement (agent-driven gestures)"
     const env = pushed.find((e) => e.event_name === "user.window_sit_drop")!;
     expect(env.payload?.window_title).toBe("Termius");
     expect(env.payload?.edge_local_ypx).toBeCloseTo(30, 6);
+  });
+
+  it("reports interrupted, having pushed nothing, when the placed sit-down is lost", async () => {
+    const pet = makePlaceWindow();
+    const source = createWindowDropSource({
+      ...makeDeps([win({ ownerName: "Notes" })], pet),
+      sitDown: async () => "lost",
+    });
+
+    const result = await source.placeOn({ kind: "sit", app: "Notes" });
+
+    expect(result).toEqual({ ok: false, reason: "interrupted" });
+    expect(pet.setPositionPhysical).toHaveBeenCalledWith(1040, 740);
+    expect(pushed).toEqual([]);
+    expect(source.armedSit()).toBeNull();
   });
 
   it("reports blocked only when every window of the app is covered", async () => {
