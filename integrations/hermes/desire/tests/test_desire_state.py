@@ -77,6 +77,7 @@ def test_bootstrap_creates_all_defaults(state_dir, at, state_helpers):
         "signals": 0,
         "issues": 0,
         "self_comments": 0,
+        "prs": 0,
         "events": {},
         "pending": {},
     }
@@ -85,6 +86,7 @@ def test_bootstrap_creates_all_defaults(state_dir, at, state_helpers):
         "latched": {"social": "low", "curiosity": "mid", "accomplishment": "mid"},
         "natural": {"social": "low", "curiosity": "mid", "accomplishment": "mid"},
         "rises": 0,
+        "saturated_since": {"social": None, "curiosity": None, "accomplishment": None},
     }
     assert (state_dir / "outbox.jsonl").read_bytes() == b""
     assert (state_dir / "audit.jsonl").read_bytes() == b""
@@ -255,6 +257,7 @@ def test_invalid_budget_events_value_is_coerced_not_quarantined(state_dir, at, s
             "signals": 1,
             "issues": 0,
             "self_comments": 0,
+            "prs": 0,
             "events": ["learned"],
             "pending": {"resv": {"kind": "issue", "date": "2026-08-25"}},
         },
@@ -282,6 +285,7 @@ def test_normalize_budget_clamps_negative_event_counters(state_dir, at, state_he
             "signals": 0,
             "issues": 0,
             "self_comments": 0,
+            "prs": 0,
             "events": {"learned": -50},
             "pending": {},
         },

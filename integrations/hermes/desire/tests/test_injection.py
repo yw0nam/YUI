@@ -230,7 +230,7 @@ def test_act_queued_unicode_separator_survives_and_is_sanitized(
     desire_state.bootstrap(now)
     write_json(
         state_dir / "budget.json",
-        {"date": "2026-08-25", "signals": 3, "issues": 0, "self_comments": 0, "pending": {}},
+        {"date": "2026-08-25", "signals": 3, "issues": 0, "self_comments": 0, "prs": 0, "pending": {}},
     )
 
     assert act.main(["signal", "--note", "first\u2028second"], now=now) == 1
@@ -523,6 +523,32 @@ def test_interaction_updates_hash_and_time_and_displays_social_zero(
     assert "drives: social 0/100 (low)" in block
 
 
+def test_a_telegram_turn_counts_as_an_interaction_without_client_context(
+    desire_plugin, state_dir, at, state_helpers
+):
+    _, _, read_json, _ = state_helpers
+    now = at("2026-08-25T12:00:00+09:00")
+    seed_drives(state_dir, now, state_helpers)
+
+    desire_plugin._inject(request=request_with("hello"), now=now, platform="telegram")
+
+    assert read_json(state_dir / "drives.json")["last_interaction_at"] == now.isoformat()
+
+
+def test_other_platforms_without_client_context_are_not_interactions(
+    desire_plugin, state_dir, at, state_helpers
+):
+    _, _, read_json, _ = state_helpers
+    now = at("2026-08-25T12:00:00+09:00")
+    seed_drives(state_dir, now, state_helpers)
+    away = read_json(state_dir / "drives.json")["last_interaction_at"]
+
+    desire_plugin._inject(request=request_with("hello"), now=now, platform="api_server")
+    desire_plugin._inject(request=request_with("hello again"), now=now)
+
+    assert read_json(state_dir / "drives.json")["last_interaction_at"] == away
+
+
 def test_idle_user_trigger_also_counts(desire_plugin, state_dir, at, state_helpers):
     _, _, read_json, _ = state_helpers
     now = at("2026-08-25T12:00:00+09:00")
@@ -665,6 +691,18 @@ def test_debug_event_logs_the_trigger_kind(desire_plugin, state_dir, at, caplog)
         assert token in caplog.records[-1].getMessage()
 
 
+def test_debug_event_logs_the_platform(desire_plugin, state_dir, at, caplog):
+    now = at("2026-08-25T12:00:00+09:00")
+    caplog.set_level(logging.DEBUG, logger=desire_plugin.__name__)
+
+    desire_plugin._inject(request=request_with("hello"), now=now, platform="telegram")
+    assert "platform=telegram" in caplog.records[-1].getMessage()
+
+    caplog.clear()
+    desire_plugin._inject(request=request_with("hello"), now=now)
+    assert "platform=none" in caplog.records[-1].getMessage()
+
+
 def test_debug_event_logs_skip_reasons(desire_plugin, state_dir, at, caplog):
     now = at("2026-08-25T12:00:00+09:00")
     caplog.set_level(logging.DEBUG, logger=desire_plugin.__name__)
@@ -727,7 +765,7 @@ def test_debug_event_never_leaks_user_text_or_drive_values(
     message = records[0].getMessage()
     assert re.fullmatch(
         r"yui-desire llm_request plugin=yui-desire/\S+ outcome=\w+ reason=\S+ interaction=\S+ "
-        r"trigger=[\w ]+ shape=\S+ cache_hit=\S+ api_request_id=\S+ turn_id=\S+ session_id=\S+",
+        r"trigger=[\w ]+ platform=\S+ shape=\S+ cache_hit=\S+ api_request_id=\S+ turn_id=\S+ session_id=\S+",
         message,
     )
     assert "secret" not in message
@@ -1051,7 +1089,7 @@ def test_each_new_client_context_block_appends_one_turn_audit_event(
     desire_plugin._inject(request=copy.deepcopy(request), now=now + timedelta(minutes=20))
 
     assert audit_events(state_dir, "turn") == [
-        {"at": now.isoformat(), "event": "turn", "trigger": "proactive"}
+        {"at": now.isoformat(), "event": "turn", "trigger": "proactive", "platform": "none"}
     ]
 
     desire_plugin._inject(request=request_with(context("trigger: user message")), now=now)
@@ -1059,4 +1097,17 @@ def test_each_new_client_context_block_appends_one_turn_audit_event(
     assert [event["trigger"] for event in audit_events(state_dir, "turn")] == [
         "proactive",
         "user message",
+    ]
+
+
+def test_the_turn_audit_event_names_the_channel(desire_plugin, state_dir, at, state_helpers):
+    now = at("2026-08-25T12:00:00+09:00")
+    seed_drives(state_dir, now, state_helpers)
+
+    desire_plugin._inject(request=request_with("from the phone"), now=now, platform="telegram")
+    desire_plugin._inject(request=request_with("from a script"), now=now)
+
+    assert [(event["trigger"], event["platform"]) for event in audit_events(state_dir, "turn")] == [
+        ("none", "telegram"),
+        ("none", "none"),
     ]
