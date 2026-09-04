@@ -22,7 +22,7 @@ SOCIAL_RATE = 15.0
 OUTBOX_EXPIRY = timedelta(hours=48)
 PENT_UP_HEAVY = timedelta(hours=6)
 PENT_UP_BURSTING = timedelta(hours=18)
-CAPS = {"signals": 3, "issues": 2, "self_comments": 1}
+CAPS = {"signals": 3, "issues": 2, "self_comments": 1, "prs": 1}
 DRIVES = ("social", "curiosity", "accomplishment")
 BUCKETS = ("low", "mid", "high")
 EVENT_DOSES = {
@@ -337,6 +337,7 @@ def _default_budget(now: datetime) -> dict:
         "signals": 0,
         "issues": 0,
         "self_comments": 0,
+        "prs": 0,
         "events": {},
         "pending": {},
     }
@@ -349,7 +350,12 @@ def _default_cursor(now: datetime) -> dict:
 def _default_monitor(drives: dict, now: datetime) -> dict:
     levels = drive_levels(drives, now)
     buckets = {name: bucket(levels[name]) for name in DRIVES}
-    return {"latched": buckets, "natural": dict(buckets), "rises": 0}
+    return {
+        "latched": buckets,
+        "natural": dict(buckets),
+        "rises": 0,
+        "saturated_since": {name: None for name in DRIVES},
+    }
 
 
 def load_json(path: Path, default: object, now: datetime) -> object:
@@ -418,7 +424,7 @@ def _validate_budget(value: object) -> dict:
     if not isinstance(value, dict) or not isinstance(value.get("pending"), dict):
         raise TypeError("budget state must be an object")
     date.fromisoformat(value["date"])
-    for key in ("signals", "issues", "self_comments"):
+    for key in ("signals", "issues", "self_comments", "prs"):
         if not isinstance(value.get(key), int):
             raise TypeError("budget counters must be integers")
     events = value.get("events", {})
@@ -444,6 +450,16 @@ def _normalize_buckets(value: object) -> dict[str, str]:
     return buckets
 
 
+def _normalize_saturation(value: object) -> dict[str, str | None]:
+    """Read the per-drive saturation stamps, treating an absent record as unsaturated."""
+
+    stamps = value if isinstance(value, dict) else {}
+    return {
+        name: None if stamps.get(name) is None else parse_timestamp(stamps[name]).isoformat()
+        for name in DRIVES
+    }
+
+
 def _normalize_monitor(value: object) -> dict:
     if not isinstance(value, dict):
         raise TypeError("monitor state must be an object")
@@ -454,6 +470,7 @@ def _normalize_monitor(value: object) -> dict:
         "latched": _normalize_buckets(value["latched"]),
         "natural": _normalize_buckets(value["natural"]),
         "rises": rises,
+        "saturated_since": _normalize_saturation(value.get("saturated_since")),
     }
 
 
@@ -538,6 +555,7 @@ def normalize_budget(budget: dict, now: datetime) -> dict:
             "signals": 0,
             "issues": 0,
             "self_comments": 0,
+            "prs": 0,
             "events": {},
             "pending": copy.deepcopy(pending),
         }
@@ -547,6 +565,7 @@ def normalize_budget(budget: dict, now: datetime) -> dict:
         "signals": int(budget.get("signals", 0)),
         "issues": int(budget.get("issues", 0)),
         "self_comments": int(budget.get("self_comments", 0)),
+        "prs": int(budget.get("prs", 0)),
         "events": {str(event): max(0, int(count)) for event, count in events.items()},
         "pending": copy.deepcopy(pending),
     }

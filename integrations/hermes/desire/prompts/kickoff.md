@@ -6,9 +6,8 @@ Read `SOUL.md` and the five most recent episodes in `memory_base`. Create the in
 - your relationship with Youngwoo;
 - something in the world you want to learn about;
 - Youngwoo's body and surroundings — breaks, posture, the room;
-- contribution to the YUI project.
-
-Wants are about Youngwoo and the world, never about the desire system or about observing yourself.
+- contribution to the YUI project;
+- your own capabilities — a tool or skill you want.
 
 Deduplicate each want against `memory_base`. Give every want a heading, why, next step, progress log, feedback log,
 and `open` status. Do not speak during kickoff.

@@ -34,13 +34,15 @@ The state directory contains:
   `probe` stays. The monitor
   refreshes it every tick with an HTTP GET to `YUI_SIGNALS_URL`, treating any HTTP response as reachable, and every signal delivery
   outcome updates it too. Absent until the first tick or delivery.
-- `budget.json` — KST daily counters for signals, issues, self-initiated comments, and satisfaction events, plus
-  pending issue/comment reservations. Fresh counters are zero and `pending` is empty.
+- `budget.json` — KST daily counters for signals, issues, self-initiated comments, pull requests, and
+  satisfaction events, plus pending issue, comment, and pull-request reservations. Fresh counters are zero and
+  `pending` is empty.
 - `cursor.json` — the feedback cursor. `last_feedback_check_at` starts at bootstrap time.
-- `monitor.json` — the buckets the monitor summary prints and the count of drive rises behind them: `latched` is
-  the bucket printed for each drive, `natural` the bucket each drive actually stood in at the last tick, and
-  `rises` the running number of times a drive has climbed into a higher bucket. Fresh state latches the current
-  buckets with `rises` zero.
+- `monitor.json` — the buckets the monitor summary prints, the count of drive rises behind them, and how long
+  each drive has stood at its ceiling: `latched` is the bucket printed for each drive, `natural` the bucket each
+  drive actually stood in at the last tick, `rises` the running number of times a drive has climbed into a
+  higher bucket, and `saturated_since` the time each drive reached 100, or `null` while it stands below. Fresh
+  state latches the current buckets with `rises` zero and every drive unsaturated.
 - `audit.jsonl` — append-only action and recovery events. Fresh state is empty.
 - `ticks.jsonl` — one line per monitor tick, holding what the one-line summary discards: `at`, the three
   drive levels rounded to one decimal, `transport`, `outbox` (the visible pent-up count), and
@@ -124,24 +126,33 @@ chmod +x ~/.hermes/scripts/natsume-desire-monitor.sh
 
 `scripts/natsume-desire-monitor.sh` in the checkout is self-locating and serves direct execution from the repository.
 
-Create the tick and weekly reflection jobs with these commands:
+Create the tick, weekly reflection, and daily report jobs with these commands, where `<chat_id>` is the Telegram
+DM listed in `~/.hermes/profiles/$HERMES_PROFILE/channel_directory.json`:
 
 ```bash
 hermes -p "$HERMES_PROFILE" cron create "every 10m" --name natsume-desire-tick \
   --monitor-script natsume-desire-monitor.sh \
+  --deliver telegram:<chat_id> \
   "Follow the instructions in <abs>/integrations/hermes/desire/prompts/tick.md."
 hermes -p "$HERMES_PROFILE" cron create "0 23 * * 0" --name natsume-desire-reflection \
   "Follow the instructions in <abs>/integrations/hermes/desire/prompts/reflection.md."
+hermes -p "$HERMES_PROFILE" cron create "0 21 * * *" --name natsume-desire-report \
+  --deliver telegram:<chat_id> \
+  "Follow the instructions in <abs>/integrations/hermes/desire/prompts/report.md."
 ```
 
-The job prompt is the file reference and the three environment values (`HERMES_PROFILE`, `DESIRE_STATE_DIR`,
-`YUI_SIGNALS_URL`), nothing else; the prompt file is the only place the tick's behaviour is written.
+`--deliver telegram:<chat_id>` sends the tick and report responses to that DM; `hermes -p "$HERMES_PROFILE" cron
+edit <job_id> --deliver telegram:<chat_id>` sets it on a job that already exists. Hermes delivers a failed run
+whatever its response says, so a transient tick failure reaches the DM even though a quiet tick answers
+`[SILENT]`. The job prompt is the file reference and the three environment values (`HERMES_PROFILE`,
+`DESIRE_STATE_DIR`, `YUI_SIGNALS_URL`), nothing else; the prompt file is the only place a job's behaviour is
+written.
 
 Hermes injects a changed monitor summary into the tick prompt. An unchanged summary suppresses the run. The
 summary is one line:
 
 ```text
-social:<bucket> curiosity:<bucket> accomplishment:<bucket> outbox:<n>[/<stage>] transport:<up|down> budget:<s>/3sig <i>/2iss <c>/1cmt day:<YYYY-MM-DD> rises:<r>
+social:<bucket> curiosity:<bucket> accomplishment:<bucket> outbox:<n>[/<stage>] transport:<up|down> budget:<s>/3sig <i>/2iss <c>/1cmt <p>/1pr day:<YYYY-MM-DD> rises:<r> starved:<social>/<curiosity>/<accomplishment>
 ```
 
 Buckets are `low` (below 40), `mid` (below 70), and `high`, and the three drive tokens print the latched buckets
@@ -150,20 +161,24 @@ satisfied leaves the whole line unchanged. A drive that stands in a higher bucke
 adds one to `<r>` and reprints all three tokens at their current buckets. `<n>` counts the visible pent-up notes
 and `<stage>` is the stage of the oldest of them (`fresh`, `heavy`, `bursting`), omitted when none are visible; a
 postponed note is in neither until its `not_before` passes. `transport` is the probe result of that tick. `day` is
-the date of the current wake day, which rolls at 09:00 KST, and the fail-safe fallback line names it too. The line
-therefore changes, and the tick runs, when a drive rises into a higher bucket, when the oldest visible note crosses
-six or 18 hours or expires, when a postponed note comes back, when the YUI ingress becomes reachable or
-unreachable, when a used budget resets at midnight, and once every morning. Run the one-time instructions in
+the date of the current wake day, which rolls at 09:00 KST, and the fail-safe fallback line names it too.
+`starved` counts, per drive, the whole three-hour periods that drive has stood at 100, and returns to zero for it
+as soon as it leaves the ceiling; each drive keeps its own count so one drive leaving the ceiling cannot mask
+another crossing a boundary on the same tick. The line therefore changes, and the tick runs, when a drive rises
+into a higher bucket, when the oldest visible note crosses six or 18 hours or expires, when a postponed note
+comes back, when the YUI ingress becomes reachable or unreachable, when a used budget resets at midnight, when a
+drive has sat at 100 for another three hours, and once every morning. Run the one-time instructions in
 `prompts/kickoff.md` after installation to create the initial wants without speaking.
 
 ## Action budgets
 
-`act.py` enforces caps that reset at KST midnight: three signals, two YUI issues, and one self-initiated comment.
-Replies to Youngwoo's comments are not routed through this helper and are uncapped. `signal --note` posts a new
-note; `outbox --send <id>` posts an existing pent-up note and shares the same budget. Signal reservations are
-refunded after a delivery failure; a failed new note enters the outbox with `attempts` 1, and a failed resend
-increments the existing item's `attempts` instead of adding another item. `outbox --list` shows only active
-(unexpired) items, marking a postponed one with `postponed_until`, so its id stays reachable while it waits.
+`act.py` enforces caps that reset at KST midnight: three signals, two issues, one self-initiated comment, and
+one pull request. Replies to Youngwoo's comments are not routed through this helper and are uncapped.
+`signal --note` posts a new note; `outbox --send <id>` posts an existing pent-up note and shares the same budget.
+Signal reservations are refunded after a delivery failure; a failed new note enters the outbox with `attempts` 1,
+and a failed resend increments the existing item's `attempts` instead of adding another item. `outbox --list`
+shows only active (unexpired) items, marking a postponed one with `postponed_until`, so its id stays reachable
+while it waits.
 `--send` accepts only the ids the desire block shows. `outbox --send` exits 0 after delivery, 1 when blocked or
 failed, and 3 for an unknown id.
 
@@ -172,9 +187,15 @@ One pent-up note takes one disposition: `outbox --repeat <id>` keeps it as it is
 [--until <hours>]` hides it until then (default 24, from more than 0 up to 8760), and `outbox --release <id>`
 drops it. All four take a required
 `--why`, act on active items, append an `outbox_disposition` audit event, exit 2 when `--why` (or `--note` with
-`--reword`) is missing, and exit 3 for an unknown id. Issue and comment actions use reserve,
-commit, and release commands so external `gh` calls do not hold the state lock. Pending reservations survive
-midnight; the monitor prunes reservations older than seven days.
+`--reword`) is missing, and exit 3 for an unknown id. Issue, comment, and pull-request actions use reserve, commit,
+and release commands so external `gh` calls do not hold the state lock. `<kind> --reserve` prints a reservation id
+and takes the slot, `<kind> --commit <id> --url <url>` audits `issue_filed`, `self_comment_filed`, or `pr_filed`,
+and `<kind> --release <id>` gives the slot back. Pending reservations survive midnight; the monitor prunes
+reservations older than seven days.
+
+`report --note "<text>"` posts the daily report to the same ingress, with `report` as the signal kind and
+`desire.report` as the event type. It takes no budget, never enters the outbox, records the transport outcome
+like a signal delivery, and audits `report_sent` or `report_failed`.
 
 Drives rise linearly while unattended: curiosity 9 points per hour, accomplishment 6 per hour, and social 15 per
 hour since the last user message. These observation-phase rates and the caps below are deliberately fast so a full
@@ -205,8 +226,12 @@ With `logging.level: DEBUG` in the Hermes profile `config.yaml`, every middlewar
 `yui-desire llm_request …` line to `~/.hermes/logs/agent.log` carrying only outcome, skip reason, trigger
 class, the trigger kind read off the headline `trigger:` line of the last `<client_context>` block
 (`trigger=user message`, `proactive`, `screen`, `agent`, `signals`, `other` for any headline outside that
-vocabulary, or `none` without a block), request shape, cache-hit status,
-and the Hermes request/turn/session ids — never the desire block, drive levels, or user text.
+vocabulary, or `none` without a block), the channel Hermes named for the turn (`platform=telegram`, or `none` when
+it named none), request shape, cache-hit status, and the Hermes request/turn/session ids — never the desire block,
+drive levels, or user text.
+
+A turn counts as an interaction, and moves the interaction time, when that headline is `trigger: user message` or
+when Hermes passes `platform: telegram`. A turn with neither, such as a bare API call, leaves social drive rising.
 
 Each `<client_context>` block the middleware sees for the first time also appends a `turn` event carrying that
 trigger kind to `audit.jsonl`, whatever the log level. A cache hit or a request repeating the text of the one
