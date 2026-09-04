@@ -13,8 +13,9 @@
  *   2. seatGlobal = petPxToGlobalPoints(seatPx, outerPosition, scaleFactor).
  *   3. windows = invoke("list_windows")  (front-to-back, topmost first).
  *   4. target = first window whose catch zone contains the seat (topmost wins).
- *   5. hit → the sit-down plays in place, then user.window_sit_drop { edge_local_ypx }
- *      + arm the poll on target.windowNumber; miss → user.window_sit_exit.
+ *   5. hit → proactive.window_sit at once, the sit-down plays in place, then
+ *      user.window_sit_drop { edge_local_ypx } + arm the poll on target.windowNumber,
+ *      both read off the host as it is when the sit lands; miss → user.window_sit_exit.
  *
  * A mover that seated the character itself adopts the same poll through `adoptSit`,
  * which arms on a window without pushing anything.
@@ -471,24 +472,19 @@ export function createWindowDropSource(deps: WindowDropSourceDeps): WindowDropSo
   }
 
   /**
-   * Commit a sit on `target`: sit-down → local edge → cue (unless suppressed) → tier1 drop
+   * Commit a sit on `target`: cue (unless suppressed) → sit-down → local edge → tier1 drop
    * → arm. `pos` is the pet window's physical origin the character is at when it commits;
-   * the window stays there, so the sit-down plays in place.
+   * the window stays there, so the sit-down plays in place. The host can move or close
+   * while the clip plays, so the edge and the arm read the stack again once it lands, and
+   * a host that has gone is a miss.
    */
   async function commitSit(
-    target: WindowRect,
+    dropped: WindowRect,
     pos: { x: number; y: number },
     scale: number,
     charHpx: number,
     suppressCue: boolean,
   ): Promise<SettleOutcome> {
-    if ((await deps.sitDown()) !== "done") {
-      log.debug("perch.sit_interrupted", { targetWindowNumber: target.windowNumber });
-      return { kind: "interrupted" };
-    }
-    // Global top edge → pet-window-local px (winOriginPts = pos / scale).
-    const sf = scale > 0 ? scale : 1;
-    const edgeLocalYpx = target.y - pos.y / sf;
     if (!suppressCue) {
       const windowSitCue = getGestureCues().window_sit;
       bus.push({
@@ -498,10 +494,25 @@ export function createWindowDropSource(deps: WindowDropSourceDeps): WindowDropSo
         hint_tier: 2,
         payload: {
           cue_id: "window_sit",
-          ...cueFields(windowSitCue, target.name),
+          ...cueFields(windowSitCue, dropped.name),
         },
       });
     }
+    if ((await deps.sitDown()) !== "done") {
+      log.debug("perch.sit_interrupted", { targetWindowNumber: dropped.windowNumber });
+      return { kind: "interrupted" };
+    }
+    const target = (await invoke("list_windows")).find(
+      (w) => w.windowNumber === dropped.windowNumber,
+    );
+    if (!target) {
+      log.debug("perch.host_gone_before_seat", { targetWindowNumber: dropped.windowNumber });
+      pushExit();
+      return { kind: "none" };
+    }
+    // Global top edge → pet-window-local px (winOriginPts = pos / scale).
+    const sf = scale > 0 ? scale : 1;
+    const edgeLocalYpx = target.y - pos.y / sf;
     bus.push({
       source: "os_event_watcher",
       event_name: "user.window_sit_drop",
@@ -717,6 +728,7 @@ export function createWindowDropSource(deps: WindowDropSourceDeps): WindowDropSo
     if (request.kind === "sit") {
       const outcome = await commitSit(target, applied, scale, probe.charHpx, true);
       if (outcome.kind === "interrupted") return { ok: false, reason: "interrupted" };
+      if (outcome.kind === "none") return { ok: false, reason: "not_found" };
     } else {
       commitPeek(target, request.side, applied, scale, probe.charHpx, getPeekConfig(), true);
     }

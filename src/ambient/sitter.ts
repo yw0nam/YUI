@@ -11,6 +11,7 @@ import type { MotionKind } from "../contract";
 import { createLogger } from "../logger";
 import type { Renderer } from "../renderer";
 import { createLegRunner, type LegWindow } from "./clip-leg";
+import type { WalkerDoc } from "./walker";
 
 const log = createLogger("sitter");
 
@@ -45,6 +46,8 @@ export interface SitterDeps {
   >;
   /** Registry kind of the committed motion. null when nothing is playing. */
   currentMotionKind(): MotionKind | null;
+  /** Defaults to the global document; injected in tests. */
+  doc?: WalkerDoc;
 }
 
 export interface Sitter {
@@ -66,6 +69,7 @@ export interface Sitter {
 export function createSitter(deps: SitterDeps): Sitter {
   const { renderer } = deps;
   const runner = createLegRunner({ renderer, currentMotionKind: deps.currentMotionKind });
+  const doc = deps.doc ?? (typeof document === "undefined" ? null : document);
   let unsub: (() => void) | null = null;
   /** Bumped by every cancel and every new transition, so a stale one drops its plan. */
   let generation = 0;
@@ -78,6 +82,12 @@ export function createSitter(deps: SitterDeps): Sitter {
       renderer.playMotion(null);
     }
   }
+
+  // The renderer parks its rAF while hidden, so a transition left running would never
+  // resolve and its caller would wait on it — lose it instead.
+  const onVisibilityChange = (): void => {
+    if (doc?.visibilityState === "hidden") cancel();
+  };
 
   async function transition(
     motionId: string,
@@ -115,12 +125,14 @@ export function createSitter(deps: SitterDeps): Sitter {
   return {
     start() {
       if (unsub) return;
+      doc?.addEventListener("visibilitychange", onVisibilityChange);
       unsub = renderer.onTick(({ dt }) => runner.step(dt));
     },
     stop() {
       cancel();
       unsub?.();
       unsub = null;
+      doc?.removeEventListener("visibilitychange", onVisibilityChange);
     },
     sitDown(target) {
       // The seat sits this far above the feet while she stands; the window sinks by it.

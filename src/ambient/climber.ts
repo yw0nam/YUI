@@ -544,7 +544,8 @@ export function createClimber(deps: ClimberDeps): Climber {
     nextUpAtMs = -1;
     dwellAtMs = -1;
     legs.finish("lost");
-    deps.sitter.cancel();
+    // The sitter is shared: only a climb of our own has a transition to cut short.
+    if (direction !== null) deps.sitter.cancel();
     settleReleaseWait(false);
     const current = renderer.getCurrentMotion();
     if (current && (CLIMB_MOTION_IDS.has(current.id) || current.id === WALK_MOTION_ID)) {

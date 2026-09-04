@@ -126,10 +126,7 @@ describe("window-drop-source — perch hit", () => {
     const source = createWindowDropSource({ bus, renderer, invoke, getWindow, listen });
     await source.start();
     fire({ point: { x: 123, y: 456 } });
-    // allow the async release handler to settle
-    await Promise.resolve();
-    await Promise.resolve();
-    await Promise.resolve();
+    await settleRelease();
 
     expect(invoke).toHaveBeenCalledWith("list_windows");
     expect(pushed).toHaveLength(2);
@@ -244,9 +241,7 @@ describe("window-drop-source — perch hit", () => {
     const source = createWindowDropSource({ bus, renderer, invoke, getWindow, listen });
     await source.start();
     fire({ point: { x: 0, y: 0 } });
-    await Promise.resolve();
-    await Promise.resolve();
-    await Promise.resolve();
+    await settleRelease();
 
     expect(pushed).toHaveLength(2);
     // edge = top.y - pos.y/scale = 400 - 740/2 = 30 (back would give 70).
@@ -806,7 +801,7 @@ async function tick(): Promise<void> {
 
 /** Fire a release and flush the onRelease async chain (outerPosition/scaleFactor/invoke + arm). */
 async function settleRelease(): Promise<void> {
-  for (let i = 0; i < 8; i++) await Promise.resolve();
+  for (let i = 0; i < 12; i++) await Promise.resolve();
 }
 
 describe("window-drop-source — peek loss poll", () => {
@@ -1203,8 +1198,8 @@ describe("window-drop-source — occlusion poll lifecycle + races (J3)", () => {
     let call = 0;
     const invoke = vi.fn(async () => {
       call++;
-      if (call === 1) return [armed]; // drop #1 → arm 42.
-      if (call === 2) return tickPending; // poll tick (gen 1) → blocks on the await.
+      if (call <= 2) return [armed]; // drop #1: the drop read, then the seat's own → arm 42.
+      if (call === 3) return tickPending; // poll tick (gen 1) → blocks on the await.
       return [fresh]; // drop #2 (arm 77) + any later tick.
     });
 
