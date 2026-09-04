@@ -221,6 +221,20 @@ describe("createLegRunner — clip-paced window legs", () => {
     expect(await outcome(done)).toBe("pending");
   });
 
+  it("holds a fitted span on a clip with no travel of its own", async () => {
+    const h = makeHarness();
+    // Nothing paces the fit, so the window takes the far end at once and stays there.
+    const done = h.runner.run(
+      leg(h, { motionId: "hang", fromY: 600, toY: 700, fit: true, oneshot: true, handoffS: 0 }),
+    );
+    await h.frame();
+    expect(h.positions).toEqual([{ x: 500, y: 700 }]);
+    expect(await outcome(done)).toBe("pending");
+    await h.runFrames(10);
+    expect(await outcome(done)).toBe("done");
+    for (const p of h.positions) expect(p.y).toBe(700);
+  });
+
   it("eases a linear leg on its own clock, x and y alike", async () => {
     const h = makeHarness();
     const done = h.runner.run(

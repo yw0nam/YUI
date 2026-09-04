@@ -25,6 +25,16 @@ const SEAT = { x: 200, y: 300 };
 
 function makeHarness(over: { anchor?: null; probe?: null } = {}) {
   let tick: TickFn | null = null;
+  const visibilityListeners = new Set<() => void>();
+  const doc = {
+    visibilityState: "visible",
+    addEventListener: (_t: "visibilitychange", cb: () => void) => {
+      visibilityListeners.add(cb);
+    },
+    removeEventListener: (_t: "visibilitychange", cb: () => void) => {
+      visibilityListeners.delete(cb);
+    },
+  };
   const cached = new Set<string>();
   let clipT = 0;
   let current: { id: string; vrma_path: string } | null = {
@@ -73,6 +83,7 @@ function makeHarness(over: { anchor?: null; probe?: null } = {}) {
       getPerchProbe: () => (over.probe === null ? null : { seatPx: SEAT, charHpx: 500 }),
     },
     currentMotionKind: () => (current ? (MOTION_KINDS[current.id] ?? null) : null),
+    doc,
   };
   const sitter = createSitter(deps);
   let elapsed = 0;
@@ -102,6 +113,11 @@ function makeHarness(over: { anchor?: null; probe?: null } = {}) {
     setCurrent: (id: string) => {
       current = { id, vrma_path: `/motions/${id}.vrma` };
     },
+    hide: () => {
+      doc.visibilityState = "hidden";
+      for (const cb of visibilityListeners) cb();
+    },
+    listeners: () => visibilityListeners.size,
   };
 }
 
@@ -212,6 +228,25 @@ describe("createSitter", () => {
       null,
       STAND_UP_MOTION_ID,
     ]);
+  });
+
+  it("loses a running transition when the document hides, so no caller waits on a parked tick", async () => {
+    const h = makeHarness();
+    h.sitter.start();
+    const done = h.sitter.sitDown({ win: h.win, scale: 1 });
+    await h.runFrames(5);
+    h.hide();
+    expect(await outcome(done)).toBe("lost");
+    expect(h.motions.at(-1)).toBeNull();
+  });
+
+  it("listens for visibility only while started", async () => {
+    const h = makeHarness();
+    expect(h.listeners()).toBe(0);
+    h.sitter.start();
+    expect(h.listeners()).toBe(1);
+    h.sitter.stop();
+    expect(h.listeners()).toBe(0);
   });
 
   it("moves nothing once stopped", async () => {

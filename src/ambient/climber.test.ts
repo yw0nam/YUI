@@ -1142,6 +1142,18 @@ describe("createClimber — seat transitions", () => {
     h.climber.cancel();
     expect(h.sitterCancel).toHaveBeenCalledTimes(1);
   });
+
+  it("leaves another owner's seat transition alone when no climb is running", async () => {
+    // The sitter is shared: a cancel with no climb on — a hide, a toggle, a pickup the
+    // perch loop is already handling — must not cut short the percher's own sit-down.
+    const h = makeHarness();
+    h.climber.start();
+    await h.frame();
+    h.climber.cancel();
+    h.hide();
+    h.climber.setEnabled(false);
+    expect(h.sitterCancel).not.toHaveBeenCalled();
+  });
 });
 
 describe("createClimber — interruption", () => {
