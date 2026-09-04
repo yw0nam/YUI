@@ -49,6 +49,7 @@ async function wire() {
     getMotionKind: () => undefined,
     isBusy: () => false,
     walker: { walkTo: async () => "arrived" as const, cancel: () => {} },
+    sitter: {} as never,
     dropSource: {} as never,
     onHostLost: () => {},
     onTargetLost,

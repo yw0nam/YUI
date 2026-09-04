@@ -104,6 +104,24 @@
     "interrupt_policy": "replace",
     "broker_publish": false
   },
+  "sit_down": {
+    "vrma_path": "/motions/sit_down.vrma",
+    "root_lock_y": true,
+    "kind": "oneshot",
+    "loop": false,
+    "priority": 78,
+    "interrupt_policy": "replace",
+    "broker_publish": false
+  },
+  "stand_up": {
+    "vrma_path": "/motions/stand_up.vrma",
+    "root_lock_y": true,
+    "kind": "oneshot",
+    "loop": false,
+    "priority": 78,
+    "interrupt_policy": "replace",
+    "broker_publish": false
+  },
   "happy": {
     "vrma_path": "/motions/happy.vrma",
     "kind": "oneshot",

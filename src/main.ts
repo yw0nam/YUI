@@ -565,6 +565,7 @@ async function bootstrap(): Promise<BootstrapHandle> {
           userInput,
           bus,
           getDispatcher: () => configured.dispatcher,
+          sitDown: () => configured.sitter.sitDown(null),
         });
       } catch (err) {
         configured.dispose();

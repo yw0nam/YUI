@@ -1,3 +1,4 @@
+import { createSitter, type Sitter } from "./ambient/sitter";
 import type { Tier1Engine } from "./ambient/tier1";
 import {
   wireBroker,
@@ -104,6 +105,8 @@ export interface ConfiguredBootstrapHandles {
   guardrails: Guardrails;
   summonHotkey: SummonHotkey;
   broker: Awaited<ReturnType<typeof wireBroker>>;
+  /** The seat transitions — the dev perch plays its sit-down through it. */
+  sitter: Pick<Sitter, "sitDown">;
   dispose(): void;
 }
 
@@ -498,6 +501,17 @@ const realFactories: ConfiguredBootstrapFactories = {
     let climberRef: { cancel(): void } | null = null;
     let percherRef: { cancel(): void; landOn(target: WindowRect): void } | null = null;
 
+    // The seat transitions every seat entry and voluntary exit plays; one body, one sitter.
+    const sitter = createSitter({
+      renderer,
+      currentMotionKind: () => {
+        const current = renderer.getCurrentMotion();
+        return current ? (config.get().motions[current.id]?.kind ?? null) : null;
+      },
+    });
+    sitter.start();
+    register(sitter.stop);
+
     // A character left mid-air drops to the first surface below her; the user outranks it.
     const faller = wireFaller({
       bus,
@@ -531,9 +545,11 @@ const realFactories: ConfiguredBootstrapFactories = {
         faller.cancel();
         climberRef?.cancel();
         percherRef?.cancel();
+        sitter.cancel();
       },
       onDragMiss: () => faller.drop(),
       onSitLost: createSitLossFall({ getClimber: () => climberRef, faller }),
+      sitDown: () => sitter.sitDown(null),
       log,
     });
     register(windowSources.dispose);
@@ -547,6 +563,7 @@ const realFactories: ConfiguredBootstrapFactories = {
       getMotionKind: (id) => config.get().motions[id]?.kind,
       isBusy: dispatcher.isPipelineBusy,
       walker,
+      sitter,
       dropSource: windowSources,
       onHostLost: () => faller.drop(),
       // A jump that loses its target leaves her mid-air, the same as a lost host does.
@@ -571,6 +588,7 @@ const realFactories: ConfiguredBootstrapFactories = {
       isBusy: dispatcher.isPipelineBusy,
       walker,
       faller,
+      sitter,
       dropSource: windowSources,
       setHitTestMoving: (moving) => hitTest.setMoving(moving),
       log,
@@ -593,6 +611,7 @@ const realFactories: ConfiguredBootstrapFactories = {
         faller.cancel();
         climber.cancel();
         percher.cancel();
+        sitter.cancel();
         hitTest.suspend();
         dragHold.noteDragStart();
         windowSources.noteUserDrag();
@@ -664,7 +683,7 @@ const realFactories: ConfiguredBootstrapFactories = {
       proactiveSource.noteInteraction();
     });
 
-    return { voice, dispatcher, guardrails, summonHotkey, broker };
+    return { voice, dispatcher, guardrails, summonHotkey, broker, sitter };
   },
 };
 

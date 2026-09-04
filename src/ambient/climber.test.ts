@@ -516,6 +516,11 @@ function makeHarness(
     unmeasurable?: string;
     /** Overrides a clip's hips curve; default is a linear rise across the clip. */
     travelCurve?: (id: string, t: number) => number;
+    /** What the injected sitter reports for the sit-down and the stand-up. */
+    sitResult?: "done" | "lost";
+    standResult?: "done" | "lost";
+    /** How far (physical px) the injected sit-down sinks the window it is given. */
+    sitDropPx?: number;
   } = {},
 ) {
   let tick: TickFn | null = null;
@@ -555,6 +560,25 @@ function makeHarness(
   const handAnchors = vi.fn(() => ({ left: { x: 260, y: 300 }, right: { x: 280, y: 260 } }));
   const drop = vi.fn();
   const walkerCancel = vi.fn();
+  const sitterCancel = vi.fn();
+  const sitDown = vi.fn(
+    async (
+      target: {
+        win: { setPositionPhysical(x: number, y: number): Promise<void> };
+        scale: number;
+      } | null,
+    ) => {
+      if (target && over.sitDropPx)
+        await target.win.setPositionPhysical(pos.x, pos.y + over.sitDropPx);
+      return over.sitResult ?? ("done" as const);
+    },
+  );
+  const standUp = vi.fn(
+    async (w: { setPositionPhysical(x: number, y: number): Promise<void> }, toY: number) => {
+      await w.setPositionPhysical(pos.x, toY);
+      return over.standResult ?? ("done" as const);
+    },
+  );
   let armed: { windowNumber: number; origin: "commit" | "adopt" } | null = over.perched
     ? { windowNumber: 42, origin: over.perchOrigin ?? "adopt" }
     : null;
@@ -655,6 +679,7 @@ function makeHarness(
       cancel: walkerCancel,
     },
     faller: { drop },
+    sitter: { sitDown, standUp, cancel: sitterCancel },
     dropSource: { adoptSit, armedSit, release },
     doc,
     onStart: starts,
@@ -711,6 +736,9 @@ function makeHarness(
     release,
     drop,
     walkerCancel,
+    sitDown,
+    standUp,
+    sitterCancel,
     frame,
     skipInterval,
     skipDwell,
@@ -1046,6 +1074,85 @@ describe("createClimber — up", () => {
     expect(h.starts).toHaveBeenCalledWith("up", TARGET);
     expect(h.ends).toHaveBeenCalledWith("up");
     expect(h.motions).toEqual([]);
+  });
+});
+
+describe("createClimber — seat transitions", () => {
+  it("sits down after the ledge walk and reads the edge off where the sit leaves the window", async () => {
+    const h = makeHarness({ sitDropPx: 120 });
+    h.climber.start();
+    await h.skipInterval();
+    await h.runToEnd();
+
+    expect(h.sitDown).toHaveBeenCalledTimes(1);
+    expect(h.sitDown.mock.calls[0][0]).toMatchObject({ scale: 1 });
+    // The sit-down comes after the ledge walk, and the seat is published only after it.
+    expect(h.walkTargets).toHaveLength(2);
+    expect(h.sits.mock.invocationCallOrder[0]).toBeGreaterThan(
+      h.sitDown.mock.invocationCallOrder[0],
+    );
+    expect(h.ends.mock.invocationCallOrder[0]).toBeGreaterThan(
+      h.sitDown.mock.invocationCallOrder[0],
+    );
+    // The window sank 120 px with the sit, so the edge sits that much higher in it.
+    expect(h.at()).toEqual({ x: SEAT_WIN_X, y: PERCHED_POS.y + 120 });
+    expect(h.sits.mock.calls[0][1]).toBeCloseTo(ANCHOR.y - 120, 6);
+    expect(h.adoptSit).toHaveBeenCalledWith(42, { x: 1000, y: 900 }, CHAR_HPX, "adopt");
+  });
+
+  it("ends the climb without a seat when the sit-down is lost", async () => {
+    const h = makeHarness({ sitResult: "lost" });
+    h.climber.start();
+    await h.skipInterval();
+    await h.runToEnd();
+
+    expect(h.sitDown).toHaveBeenCalledTimes(1);
+    expect(h.sits).not.toHaveBeenCalled();
+    expect(h.adoptSit).not.toHaveBeenCalled();
+    expect(h.ends).toHaveBeenCalledWith("up");
+  });
+
+  it("stands up onto the ledge before walking to the descent edge", async () => {
+    const h = perchedHarness({ position: { x: 850, y: 560 } });
+    h.climber.start();
+    await h.skipDwell();
+
+    expect(h.standUp).toHaveBeenCalledTimes(1);
+    expect(h.standUp.mock.calls[0][1]).toBe(TARGET.topY - ANCHOR.y);
+    expect(h.positions[0]).toEqual({ x: 850, y: TARGET.topY - ANCHOR.y });
+    expect(h.walkTargets).toEqual([CORNER_X]);
+  });
+
+  it("ends the descent where it stands when the stand-up is lost", async () => {
+    const h = perchedHarness({ standResult: "lost" });
+    h.climber.start();
+    await h.skipDwell();
+    await h.runFrames(3);
+
+    expect(h.standUp).toHaveBeenCalledTimes(1);
+    expect(h.walkTargets).toEqual([]);
+    expect(h.motions).toEqual([]);
+    expect(h.ends).toHaveBeenCalledWith("down");
+  });
+
+  it("cancels the seat transition with the climb", async () => {
+    const h = makeHarness();
+    h.climber.start();
+    await h.skipInterval();
+    h.climber.cancel();
+    expect(h.sitterCancel).toHaveBeenCalledTimes(1);
+  });
+
+  it("leaves another owner's seat transition alone when no climb is running", async () => {
+    // The sitter is shared: a cancel with no climb on — a hide, a toggle, a pickup the
+    // perch loop is already handling — must not cut short the percher's own sit-down.
+    const h = makeHarness();
+    h.climber.start();
+    await h.frame();
+    h.climber.cancel();
+    h.hide();
+    h.climber.setEnabled(false);
+    expect(h.sitterCancel).not.toHaveBeenCalled();
   });
 });
 

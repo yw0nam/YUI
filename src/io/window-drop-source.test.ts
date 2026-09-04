@@ -24,8 +24,8 @@ import {
 } from "./window-drop-source";
 
 function createWindowDropSource(
-  deps: Omit<WindowDropSourceDeps, "getPeekConfig" | "getGestureCues" | "renderer"> &
-    Partial<Pick<WindowDropSourceDeps, "getPeekConfig" | "getGestureCues">> & {
+  deps: Omit<WindowDropSourceDeps, "getPeekConfig" | "getGestureCues" | "renderer" | "sitDown"> &
+    Partial<Pick<WindowDropSourceDeps, "getPeekConfig" | "getGestureCues" | "sitDown">> & {
       renderer: Omit<WindowDropSourceDeps["renderer"], "setPerchTarget"> &
         Partial<Pick<WindowDropSourceDeps["renderer"], "setPerchTarget">>;
     },
@@ -35,6 +35,8 @@ function createWindowDropSource(
     renderer: { setPerchTarget: () => {}, ...deps.renderer },
     getPeekConfig: deps.getPeekConfig ?? (() => PEEK_DEFAULTS),
     getGestureCues: deps.getGestureCues ?? (() => GESTURE_CUES_DEFAULTS),
+    // The sit-down lands at once unless a test holds it.
+    sitDown: deps.sitDown ?? (async () => "done" as const),
   });
 }
 
@@ -124,10 +126,7 @@ describe("window-drop-source — perch hit", () => {
     const source = createWindowDropSource({ bus, renderer, invoke, getWindow, listen });
     await source.start();
     fire({ point: { x: 123, y: 456 } });
-    // allow the async release handler to settle
-    await Promise.resolve();
-    await Promise.resolve();
-    await Promise.resolve();
+    await settleRelease();
 
     expect(invoke).toHaveBeenCalledWith("list_windows");
     expect(pushed).toHaveLength(2);
@@ -242,14 +241,157 @@ describe("window-drop-source — perch hit", () => {
     const source = createWindowDropSource({ bus, renderer, invoke, getWindow, listen });
     await source.start();
     fire({ point: { x: 0, y: 0 } });
-    await Promise.resolve();
-    await Promise.resolve();
-    await Promise.resolve();
+    await settleRelease();
 
     expect(pushed).toHaveLength(2);
     // edge = top.y - pos.y/scale = 400 - 740/2 = 30 (back would give 70).
     const env = pushed.find((e) => e.event_name === "user.window_sit_drop")!;
     expect(env.payload?.edge_local_ypx).toBeCloseTo(30, 6);
+  });
+});
+
+describe("window-drop-source — sit-down before the drop", () => {
+  function deferred() {
+    let resolve!: (value: "done" | "lost") => void;
+    const promise = new Promise<"done" | "lost">((done) => {
+      resolve = done;
+    });
+    return { promise, resolve };
+  }
+
+  it("pushes the cue at drop time and the drop once the sit-down lands", async () => {
+    const renderer = {
+      getPerchProbe: vi.fn(() => ({ seatPx: { x: 40, y: 30 }, charHpx: 200 })),
+      isPerched: vi.fn(() => true),
+    };
+    const invoke = vi.fn(async () => [win()]);
+    const getWindow = () => makeWindow({ x: 520, y: 740 }, 2);
+    const { listen, fire } = makeListen();
+    const sit = deferred();
+    const sitDown = vi.fn(() => sit.promise);
+
+    const source = createWindowDropSource({ bus, renderer, invoke, getWindow, listen, sitDown });
+    await source.start();
+    fire({ point: { x: 123, y: 456 } });
+    await settleRelease();
+
+    expect(sitDown).toHaveBeenCalledTimes(1);
+    expect(pushed.map((e) => e.event_name)).toEqual(["proactive.window_sit"]);
+    expect(source.armedSit()).toBeNull();
+
+    sit.resolve("done");
+    await settleRelease();
+
+    expect(pushed.map((e) => e.event_name)).toEqual([
+      "proactive.window_sit",
+      "user.window_sit_drop",
+    ]);
+    expect(source.armedSit()).toEqual({ windowNumber: 7, origin: "commit" });
+  });
+
+  it("arms on the host's rect as it is when the sit lands, not as it was at the drop", async () => {
+    const renderer = {
+      getPerchProbe: vi.fn(() => ({ seatPx: { x: 40, y: 30 }, charHpx: 200 })),
+      isPerched: vi.fn(() => true),
+    };
+    // The host slides 30 px down while the sit-down plays.
+    let stack = [win()];
+    const invoke = vi.fn(async () => stack);
+    const getWindow = () => makeWindow({ x: 520, y: 740 }, 2);
+    const { listen, fire } = makeListen();
+    const sit = deferred();
+
+    const source = createWindowDropSource({
+      bus,
+      renderer,
+      invoke,
+      getWindow,
+      listen,
+      sitDown: () => sit.promise,
+    });
+    await source.start();
+    fire({ point: { x: 123, y: 456 } });
+    await settleRelease();
+    stack = [win({ y: 430 })];
+    sit.resolve("done");
+    await settleRelease();
+
+    const env = pushed.find((e) => e.event_name === "user.window_sit_drop")!;
+    // edge_local_ypx = 430 - 740/2.
+    expect(env.payload?.edge_local_ypx).toBeCloseTo(60, 6);
+    expect(invoke).toHaveBeenCalledTimes(2);
+    // Armed on the fresh rect: the poll's first tick reads the same list and holds.
+    vi.useFakeTimers();
+    try {
+      await vi.advanceTimersByTimeAsync(700);
+    } finally {
+      vi.useRealTimers();
+    }
+    expect(pushed.some((e) => e.event_name === "user.window_sit_exit")).toBe(false);
+  });
+
+  it("reports a miss when the host has gone by the time the sit-down lands", async () => {
+    const renderer = {
+      getPerchProbe: vi.fn(() => ({ seatPx: { x: 40, y: 30 }, charHpx: 200 })),
+      isPerched: vi.fn(() => true),
+    };
+    let stack = [win()];
+    const invoke = vi.fn(async () => stack);
+    const getWindow = () => makeWindow({ x: 520, y: 740 }, 2);
+    const { listen, fire } = makeListen();
+    const onDragMiss = vi.fn();
+    const sit = deferred();
+
+    const source = createWindowDropSource({
+      bus,
+      renderer,
+      invoke,
+      getWindow,
+      listen,
+      onDragMiss,
+      sitDown: () => sit.promise,
+    });
+    await source.start();
+    fire({ point: { x: 123, y: 456 } });
+    await settleRelease();
+    stack = [];
+    sit.resolve("done");
+    await settleRelease();
+
+    expect(pushed.map((e) => e.event_name)).toEqual([
+      "proactive.window_sit",
+      "user.window_sit_exit",
+    ]);
+    expect(source.armedSit()).toBeNull();
+    expect(onDragMiss).toHaveBeenCalledTimes(1);
+  });
+
+  it("pushes only the cue, arms nothing and reports no miss when the sit-down is lost", async () => {
+    const renderer = {
+      getPerchProbe: vi.fn(() => ({ seatPx: { x: 40, y: 30 }, charHpx: 200 })),
+      isPerched: vi.fn(() => true),
+    };
+    const invoke = vi.fn(async () => [win()]);
+    const getWindow = () => makeWindow({ x: 520, y: 740 }, 2);
+    const { listen, fire } = makeListen();
+    const onDragMiss = vi.fn();
+
+    const source = createWindowDropSource({
+      bus,
+      renderer,
+      invoke,
+      getWindow,
+      listen,
+      onDragMiss,
+      sitDown: async () => "lost",
+    });
+    await source.start();
+    fire({ point: { x: 123, y: 456 } });
+    await settleRelease();
+
+    expect(pushed.map((e) => e.event_name)).toEqual(["proactive.window_sit"]);
+    expect(source.armedSit()).toBeNull();
+    expect(onDragMiss).not.toHaveBeenCalled();
   });
 });
 
@@ -659,7 +801,7 @@ async function tick(): Promise<void> {
 
 /** Fire a release and flush the onRelease async chain (outerPosition/scaleFactor/invoke + arm). */
 async function settleRelease(): Promise<void> {
-  for (let i = 0; i < 8; i++) await Promise.resolve();
+  for (let i = 0; i < 12; i++) await Promise.resolve();
 }
 
 describe("window-drop-source — peek loss poll", () => {
@@ -1056,8 +1198,8 @@ describe("window-drop-source — occlusion poll lifecycle + races (J3)", () => {
     let call = 0;
     const invoke = vi.fn(async () => {
       call++;
-      if (call === 1) return [armed]; // drop #1 → arm 42.
-      if (call === 2) return tickPending; // poll tick (gen 1) → blocks on the await.
+      if (call <= 2) return [armed]; // drop #1: the drop read, then the seat's own → arm 42.
+      if (call === 3) return tickPending; // poll tick (gen 1) → blocks on the await.
       return [fresh]; // drop #2 (arm 77) + any later tick.
     });
 
@@ -1449,6 +1591,40 @@ describe("window-drop-source — programmatic placement (agent-driven gestures)"
     const env = pushed.find((e) => e.event_name === "user.window_sit_drop")!;
     expect(env.payload?.window_title).toBe("Termius");
     expect(env.payload?.edge_local_ypx).toBeCloseTo(30, 6);
+  });
+
+  it("reports not_found when the named window has gone by the time the placed sit lands", async () => {
+    const pet = makePlaceWindow();
+    let stack = [win({ ownerName: "Notes" })];
+    const source = createWindowDropSource({
+      ...makeDeps([], pet),
+      invoke: vi.fn(async () => stack),
+      sitDown: async () => {
+        stack = [];
+        return "done";
+      },
+    });
+
+    const result = await source.placeOn({ kind: "sit", app: "Notes" });
+
+    expect(result).toEqual({ ok: false, reason: "not_found" });
+    expect(pushed.map((e) => e.event_name)).toEqual(["user.window_sit_exit"]);
+    expect(source.armedSit()).toBeNull();
+  });
+
+  it("reports interrupted, having pushed nothing, when the placed sit-down is lost", async () => {
+    const pet = makePlaceWindow();
+    const source = createWindowDropSource({
+      ...makeDeps([win({ ownerName: "Notes" })], pet),
+      sitDown: async () => "lost",
+    });
+
+    const result = await source.placeOn({ kind: "sit", app: "Notes" });
+
+    expect(result).toEqual({ ok: false, reason: "interrupted" });
+    expect(pet.setPositionPhysical).toHaveBeenCalledWith(1040, 740);
+    expect(pushed).toEqual([]);
+    expect(source.armedSit()).toBeNull();
   });
 
   it("reports blocked only when every window of the app is covered", async () => {

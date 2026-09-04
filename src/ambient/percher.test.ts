@@ -8,6 +8,7 @@ import {
   createPercher,
   nextPerchDwell,
   type PercherDeps,
+  type PercherWindow,
   planPerchStroll,
   planStepOff,
   walkableLedge,
@@ -269,6 +270,11 @@ function makeHarness(
     stepOffProbability?: number;
     /** null models a VRM the renderer cannot project yet. */
     anchor?: () => { x: number; y: number } | null;
+    /** What the injected sitter reports for the sit-down and the stand-up. */
+    sitResult?: "done" | "lost";
+    standResult?: "done" | "lost";
+    /** How far (physical px) the injected sit-down sinks the window it is given. */
+    sitDropPx?: number;
   } = {},
 ) {
   let tick: TickFn | null = null;
@@ -347,6 +353,16 @@ function makeHarness(
   });
   const setBodyYaw = vi.fn();
   const positions: Array<{ x: number; y: number }> = [];
+  const sitterCancel = vi.fn();
+  const sitDown = vi.fn(async (target: { win: PercherWindow; scale: number } | null) => {
+    if (target && over.sitDropPx)
+      await target.win.setPositionPhysical(pos.x, pos.y + over.sitDropPx);
+    return over.sitResult ?? ("done" as const);
+  });
+  const standUp = vi.fn(async (w: PercherWindow, toY: number) => {
+    await w.setPositionPhysical(pos.x, toY);
+    return over.standResult ?? ("done" as const);
+  });
   const deps: PercherDeps = {
     renderer: {
       onTick: (fn) => {
@@ -379,6 +395,7 @@ function makeHarness(
     }),
     walker: { walkTo, cancel: walkerCancel },
     jumper: { jump, cancel: jumperCancel },
+    sitter: { sitDown, standUp, cancel: sitterCancel },
     dropSource: {
       armedSit: () =>
         armed ? { windowNumber: 42, origin: over.origin ?? ("commit" as const) } : null,
@@ -406,7 +423,7 @@ function makeHarness(
   const frame = async (dt = 0.1): Promise<void> => {
     elapsed += dt;
     tick?.({ vrm: {} as never, dt, elapsed } as TickContext);
-    for (let i = 0; i < 12; i++) await Promise.resolve();
+    for (let i = 0; i < 16; i++) await Promise.resolve();
   };
   return {
     percher,
@@ -416,6 +433,9 @@ function makeHarness(
     walkTo,
     walkerCancel,
     onWalkCancel,
+    sitDown,
+    standUp,
+    sitterCancel,
     suspendSit,
     resumeSit,
     abandonSit,
@@ -463,6 +483,67 @@ describe("createPercher", () => {
     expect(h.walkTo).not.toHaveBeenCalled();
     await h.frame(0.6);
     expect(h.walkTo).toHaveBeenCalledTimes(1);
+  });
+
+  it("stands up before the walk and sits down before the seat is put back", async () => {
+    const h = makeHarness({ sitDropPx: 120 });
+    h.percher.start();
+
+    await h.frame();
+    await h.frame(1.1);
+
+    // The stand-up lifts the window to the standing origin; the walk starts after it.
+    expect(h.standUp).toHaveBeenCalledTimes(1);
+    expect(h.standUp.mock.calls[0][1]).toBe(480);
+    expect(h.standUp.mock.invocationCallOrder[0]).toBeLessThan(
+      h.walkTo.mock.invocationCallOrder[0],
+    );
+    // The sit-down follows the walk, sinks the window, and the seat reads the new origin.
+    expect(h.sitDown).toHaveBeenCalledTimes(1);
+    expect(h.sitDown.mock.calls[0][0]).toMatchObject({ scale: 1 });
+    expect(h.sitDown.mock.invocationCallOrder[0]).toBeGreaterThan(
+      h.walkTo.mock.invocationCallOrder[0],
+    );
+    expect(h.resumeSit).toHaveBeenCalledWith(900 - 600);
+    expect(h.calls).toEqual([
+      "suspend",
+      "avatar.walk_start",
+      "avatar.walk_end",
+      "resume",
+      "avatar.window_sit",
+    ]);
+  });
+
+  it("abandons the suspended sit when the stand-up is lost", async () => {
+    const h = makeHarness({ standResult: "lost" });
+    h.percher.start();
+
+    await h.frame();
+    await h.frame(1.1);
+
+    expect(h.standUp).toHaveBeenCalledTimes(1);
+    expect(h.walkTo).not.toHaveBeenCalled();
+    expect(h.calls).toEqual(["suspend", "abandon"]);
+  });
+
+  it("abandons the suspended sit when the sit-down back onto the host is lost", async () => {
+    const h = makeHarness({ sitResult: "lost" });
+    h.percher.start();
+
+    await h.frame();
+    await h.frame(1.1);
+
+    expect(h.sitDown).toHaveBeenCalledTimes(1);
+    expect(h.resumeSit).not.toHaveBeenCalled();
+    expect(h.calls).toEqual(["suspend", "avatar.walk_start", "avatar.walk_end", "abandon"]);
+  });
+
+  it("cancels the seat transition with the loop", async () => {
+    const h = makeHarness();
+    h.percher.start();
+    await h.frame();
+    h.percher.cancel();
+    expect(h.sitterCancel).toHaveBeenCalledTimes(1);
   });
 
   it("keeps the target out from under a window covering the host edge", async () => {
@@ -1657,6 +1738,44 @@ describe("createPercher", () => {
     expect(h.walkTo).not.toHaveBeenCalled();
     await h.frame(2);
     expect(h.walkTo).toHaveBeenCalled();
+  });
+
+  it("sits down before taking the seat a fall came down on, from where the sit leaves the window", async () => {
+    const h = makeHarness({
+      windows: async () => [HOST, NEIGHBOUR],
+      initialPos: { x: 1500, y: 480 },
+      armed: false,
+      sitDropPx: 120,
+    });
+    h.percher.start();
+
+    h.percher.landOn(NEIGHBOUR);
+    await h.frame();
+
+    expect(h.sitDown).toHaveBeenCalledTimes(1);
+    expect(h.sitDown.mock.invocationCallOrder[0]).toBeGreaterThan(
+      h.walkTo.mock.invocationCallOrder[0],
+    );
+    expect(h.calls).toEqual(["avatar.walk_start", "avatar.walk_end", "avatar.window_sit", "adopt"]);
+    expect(h.adoptSit).toHaveBeenCalledWith(7, { x: 1560, y: 900 }, 500, "commit");
+    expect(h.positions.at(-1)).toEqual({ x: 1500, y: 600 });
+  });
+
+  it("leaves a landing unseated when its sit-down is lost", async () => {
+    const h = makeHarness({
+      windows: async () => [HOST, NEIGHBOUR],
+      initialPos: { x: 1500, y: 480 },
+      armed: false,
+      sitResult: "lost",
+    });
+    h.percher.start();
+
+    h.percher.landOn(NEIGHBOUR);
+    await h.frame();
+
+    expect(h.sitDown).toHaveBeenCalledTimes(1);
+    expect(h.adoptSit).not.toHaveBeenCalled();
+    expect(h.calls).toEqual(["avatar.walk_start", "avatar.walk_end"]);
   });
 
   it("keeps a landing whose body reads are not ready and takes it on the next tick", async () => {
