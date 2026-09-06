@@ -24,7 +24,7 @@ Every `hermes` command takes `-p <profile>`; without it the CLI acts on the glob
 ## When to use
 
 - First-time install of the desire system for this profile.
-- After `git pull` in the YUI checkout, to confirm nothing on the host went stale (steps 5–8 only).
+- After `git pull` in the YUI checkout, to confirm nothing on the host went stale (steps 5–9 only).
 - When the tick cron stops running or `<desire_state>` stops appearing in requests (step 8).
 
 ## 1. Checkout
@@ -164,6 +164,18 @@ yui-desire llm_request plugin=yui-desire/0.1.0 outcome=injected reason=None inte
 `outcome=skipped reason=…` explains why a request was left alone; `outcome=error reason=<ExceptionClass>` means the
 plugin failed open.
 The line never contains the desire block, drive levels, want text, or user content.
+
+## 9. Gateway restart (plugin code changed)
+
+The gateway process imports the middleware, so a pull that touches `__init__.py` or `desire_state.py` takes effect
+only after a restart. Prompts, the monitor script, and `act.py` run as subprocesses and need none. The restart ends
+every running turn, including the one that issues it, so answer first and issue it detached:
+
+```bash
+setsid nohup sh -c 'sleep 30; hermes -p <profile> gateway restart' >/dev/null 2>&1 &
+```
+
+Check: `~/.hermes/profiles/<profile>/logs/gateway.log` gains `api_server connected` after the restart.
 
 ## Helper commands
 
