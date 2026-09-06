@@ -220,7 +220,7 @@ def _rewrite(kwargs, event):
     staged_drives = copy.deepcopy(drives)
     trigger = _trigger_kind(original_text)
     event["trigger"] = trigger
-    interaction = trigger == "user message"
+    interaction = trigger == "user message" or kwargs.get("platform") == "telegram"
     event["interaction"] = interaction
     interaction_changed = False
     returned_hours = None
@@ -306,7 +306,12 @@ def _rewrite(kwargs, event):
             try:
                 desire_state.append_jsonl(
                     state_dir / "audit.jsonl",
-                    {"at": now.isoformat(), "event": "turn", "trigger": trigger},
+                    {
+                        "at": now.isoformat(),
+                        "event": "turn",
+                        "trigger": trigger,
+                        "platform": _safe_id(kwargs.get("platform")) or "none",
+                    },
                 )
             except Exception:  # noqa: BLE001, S110 - the turn trail must never affect delivery
                 pass
@@ -325,12 +330,13 @@ def _log_event(event, kwargs):
     try:
         logger.debug(
             "yui-desire llm_request plugin=yui-desire/%s outcome=%s reason=%s interaction=%s "
-            "trigger=%s shape=%s cache_hit=%s api_request_id=%s turn_id=%s session_id=%s",
+            "trigger=%s platform=%s shape=%s cache_hit=%s api_request_id=%s turn_id=%s session_id=%s",
             _VERSION,
             event["outcome"],
             event["reason"],
             event["interaction"],
             event["trigger"],
+            _safe_id(kwargs.get("platform")) or "none",
             event["shape"],
             event["cache_hit"],
             _safe_id(kwargs.get("api_request_id")),

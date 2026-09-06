@@ -17,6 +17,11 @@ import desire_state
 
 KST = ZoneInfo("Asia/Seoul")
 CAPS = desire_state.CAPS
+RESERVATIONS = {
+    "issue": ("issues", "issue_filed"),
+    "comment": ("self_comments", "self_comment_filed"),
+    "pr": ("prs", "pr_filed"),
+}
 
 
 def _audit(state_dir, now, event, **fields):
@@ -71,13 +76,13 @@ def _refund_signal(state_dir, now, reservation_date):
         desire_state.write_json_atomic(state_dir / "budget.json", budget)
 
 
-def _deliver(note, now, opener):
+def _deliver(note, now, opener, kind="desire", event_type="desire.impulse"):
     event_id = str(uuid.uuid4())
     body = {
-        "signals": [{"kind": "desire", "note": note}],
+        "signals": [{"kind": kind, "note": note}],
         "envelope": {
             "source": "natsume-desire",
-            "event_type": "desire.impulse",
+            "event_type": event_type,
             "delivery": "immediate",
             "event_id": event_id,
             "occurred_at": int(now.timestamp() * 1000),
@@ -129,6 +134,22 @@ def _signal(note, now, opener):
         _audit(state_dir, now, "signal_failed", event_id=event_id, reason=failure, note=note)
         desire_state.record_transport(state_dir, connected, now, source="delivery")
     print(f"signal delivery failed: {failure}", file=sys.stderr)
+    return 1
+
+
+def _report(note, now, opener):
+    """Deliver the daily report outside the signal budget and the outbox."""
+
+    state_dir = desire_state.resolve_state_dir()
+    event_id, failure, connected = _deliver(note, now, opener, "report", "desire.report")
+    with desire_state.state_lock(state_dir):
+        desire_state.bootstrap_locked(state_dir, now)
+        desire_state.record_transport(state_dir, connected, now, source="delivery")
+        if failure is None:
+            _audit(state_dir, now, "report_sent", event_id=event_id, note=note)
+            return 0
+        _audit(state_dir, now, "report_failed", reason=failure, note=note)
+    print(f"report delivery failed: {failure}", file=sys.stderr)
     return 1
 
 
@@ -195,8 +216,7 @@ def _outbox_send(item_id, now, opener):
 
 def _reservation_action(kind, operation, reservation_id, url, now):
     state_dir = desire_state.resolve_state_dir()
-    counter = "issues" if kind == "issue" else "self_comments"
-    filed_event = "issue_filed" if kind == "issue" else "self_comment_filed"
+    counter, filed_event = RESERVATIONS[kind]
     with desire_state.state_lock(state_dir):
         budget = _normalized_state(state_dir, now)["budget"]
         if operation == "reserve":
@@ -299,7 +319,10 @@ def _parser():
     signal = commands.add_parser("signal")
     signal.add_argument("--note", required=True)
 
-    for name in ("issue", "comment"):
+    report = commands.add_parser("report")
+    report.add_argument("--note", required=True)
+
+    for name in RESERVATIONS:
         action = commands.add_parser(name)
         group = action.add_mutually_exclusive_group(required=True)
         group.add_argument("--reserve", action="store_true")
@@ -335,7 +358,9 @@ def main(argv=None, *, now=None, opener=urllib_request.urlopen):
     args = _parser().parse_args(argv)
     if args.command == "signal":
         return _signal(args.note, now, opener)
-    if args.command in ("issue", "comment"):
+    if args.command == "report":
+        return _report(args.note, now, opener)
+    if args.command in RESERVATIONS:
         if args.reserve:
             operation, reservation_id = "reserve", None
         elif args.commit:

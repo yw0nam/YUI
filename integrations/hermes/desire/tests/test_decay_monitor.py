@@ -14,6 +14,10 @@ def without_day(summary: str) -> str:
     return re.sub(r" day:\d{4}-\d{2}-\d{2}", "", summary)
 
 
+def without_starved(summary: str) -> str:
+    return re.sub(r" starved:\d+/\d+/\d+", "", summary)
+
+
 def test_monitor_wrapper_is_self_locating_for_symlink_installation():
     wrapper = Path(__file__).parents[1] / "scripts/natsume-desire-monitor.sh"
     assert wrapper.read_text(encoding="utf-8").splitlines() == [
@@ -26,7 +30,7 @@ def test_bootstrap_stdout_is_golden_and_has_one_newline(state_dir, at):
     output = decay_monitor.run(at("2026-08-25T09:00:00+09:00"))
     assert output.encode() == (
         b"social:low curiosity:mid accomplishment:mid outbox:0 transport:down "
-        b"budget:3/3sig 2/2iss 1/1cmt day:2026-08-25 rises:0\n"
+        b"budget:3/3sig 2/2iss 1/1cmt 1/1pr day:2026-08-25 rises:0 starved:0/0/0\n"
     )
     assert output.endswith("\n")
     assert not output.endswith("\n\n")
@@ -47,7 +51,7 @@ def test_normal_stdout_is_golden_and_persists_reanchored_levels(state_dir, at, s
     )
     write_json(
         state_dir / "budget.json",
-        {"date": "2026-08-25", "signals": 1, "issues": 1, "self_comments": 1, "pending": {}},
+        {"date": "2026-08-25", "signals": 1, "issues": 1, "self_comments": 1, "prs": 0, "pending": {}},
     )
     write_jsonl(
         state_dir / "outbox.jsonl",
@@ -66,7 +70,7 @@ def test_normal_stdout_is_golden_and_persists_reanchored_levels(state_dir, at, s
 
     assert (
         output == "social:high curiosity:mid accomplishment:high outbox:1/fresh transport:down "
-        "budget:2/3sig 1/2iss 0/1cmt day:2026-08-25 rises:2\n"
+        "budget:2/3sig 1/2iss 0/1cmt 1/1pr day:2026-08-25 rises:2 starved:0/0/0\n"
     )
     drives = read_json(state_dir / "drives.json")
     assert drives["curiosity"] == {"level": 43.0, "anchor_at": now.isoformat()}
@@ -88,7 +92,7 @@ def test_boundary_stdout_bytes(state_dir, at, state_helpers):
     )
     assert decay_monitor.run(now) == (
         "social:mid curiosity:mid accomplishment:high outbox:0 transport:down "
-        "budget:3/3sig 2/2iss 1/1cmt day:2026-08-25 rises:2\n"
+        "budget:3/3sig 2/2iss 1/1cmt 1/1pr day:2026-08-25 rises:2 starved:0/0/0\n"
     )
 
 
@@ -180,6 +184,102 @@ def test_a_rise_reprints_a_fallen_drive_at_its_current_bucket(state_dir, at, sta
     assert monitor["latched"] == {"social": "high", "curiosity": "low", "accomplishment": "mid"}
 
 
+def test_a_drive_held_at_the_ceiling_starves_every_three_hours(state_dir, at, state_helpers):
+    write_json, _, read_json, _ = state_helpers
+    start = at("2026-08-25T12:00:00+09:00")
+    desire_state.bootstrap(start)
+    write_drives(write_json, state_dir, start, curiosity=100.0, accomplishment=50.0)
+
+    assert decay_monitor.run(start).endswith(" starved:0/0/0\n")
+
+    assert read_json(state_dir / "monitor.json")["saturated_since"] == {
+        "social": None,
+        "curiosity": start.isoformat(),
+        "accomplishment": None,
+    }
+    assert decay_monitor.run(start + timedelta(hours=2, minutes=59)).endswith(" starved:0/0/0\n")
+    assert decay_monitor.run(start + timedelta(hours=3)).endswith(" starved:0/1/0\n")
+    assert decay_monitor.run(start + timedelta(hours=6)).endswith(" starved:0/2/0\n")
+
+
+def test_the_summary_changes_at_the_three_hour_saturation_boundary(state_dir, at, state_helpers):
+    write_json, _, _, _ = state_helpers
+    start = at("2026-08-25T12:00:00+09:00")
+    desire_state.bootstrap(start)
+    write_drives(write_json, state_dir, start, curiosity=100.0, accomplishment=50.0)
+    decay_monitor.run(start)
+
+    before = decay_monitor.run(start + timedelta(hours=2, minutes=59, seconds=59))
+    crossing = decay_monitor.run(start + timedelta(hours=3))
+
+    assert crossing != before
+    assert crossing == before.replace(" starved:0/0/0", " starved:0/1/0")
+
+
+def test_two_saturated_drives_starve_together(state_dir, at, state_helpers):
+    write_json, _, _, _ = state_helpers
+    start = at("2026-08-25T12:00:00+09:00")
+    desire_state.bootstrap(start)
+    write_drives(write_json, state_dir, start, curiosity=100.0, accomplishment=100.0)
+    decay_monitor.run(start)
+
+    assert decay_monitor.run(start + timedelta(hours=3)).endswith(" starved:0/1/1\n")
+
+
+def test_satisfying_a_saturated_drive_clears_its_saturation(state_dir, at, state_helpers):
+    write_json, _, read_json, _ = state_helpers
+    start = at("2026-08-25T12:00:00+09:00")
+    desire_state.bootstrap(start)
+    write_drives(write_json, state_dir, start, curiosity=100.0, accomplishment=50.0)
+    decay_monitor.run(start)
+    later = start + timedelta(hours=3)
+    assert decay_monitor.run(later).endswith(" starved:0/1/0\n")
+
+    desire_state.satisfy("learned", "read the paper", later)
+
+    assert read_json(state_dir / "drives.json")["curiosity"]["level"] == 70.0
+    assert decay_monitor.run(later).endswith(" starved:0/0/0\n")
+    assert read_json(state_dir / "monitor.json")["saturated_since"]["curiosity"] is None
+
+
+def test_one_drive_leaving_the_ceiling_cannot_hide_another_crossing(state_dir, at, state_helpers):
+    write_json, _, read_json, _ = state_helpers
+    start = at("2026-08-25T12:00:00+09:00")
+    desire_state.bootstrap(start)
+    write_drives(write_json, state_dir, start, curiosity=100.0, accomplishment=100.0)
+    decay_monitor.run(start)
+    both_saturated = decay_monitor.run(start + timedelta(hours=3))
+
+    later = start + timedelta(hours=6)
+    desire_state.satisfy("shipped", "landed the pull request", later)
+    drives = read_json(state_dir / "drives.json")
+    drives["last_interaction_at"] = (start + timedelta(hours=3)).isoformat()
+    write_json(state_dir / "drives.json", drives)
+    one_satisfied = decay_monitor.run(later)
+
+    assert both_saturated.endswith(" starved:0/1/1\n")
+    assert one_satisfied.endswith(" starved:0/2/0\n")
+    assert without_starved(one_satisfied) == without_starved(both_saturated)
+    assert one_satisfied != both_saturated
+
+
+def test_monitor_state_without_saturation_is_read_as_unsaturated(state_dir, at, state_helpers):
+    write_json, _, read_json, _ = state_helpers
+    now = at("2026-08-25T09:00:00+09:00")
+    desire_state.bootstrap(now)
+    buckets = {"social": "low", "curiosity": "mid", "accomplishment": "mid"}
+    write_json(state_dir / "monitor.json", {"latched": buckets, "natural": buckets, "rises": 0})
+
+    assert decay_monitor.run(now).endswith(" rises:0 starved:0/0/0\n")
+
+    assert read_json(state_dir / "monitor.json")["saturated_since"] == {
+        "social": None,
+        "curiosity": None,
+        "accomplishment": None,
+    }
+    assert list(state_dir.glob("monitor.json.corrupt-*")) == []
+
+
 def test_bootstrap_latches_the_current_buckets(state_dir, at, state_helpers):
     write_json, _, read_json, _ = state_helpers
     now = at("2026-08-25T12:00:00+09:00")
@@ -194,9 +294,10 @@ def test_bootstrap_latches_the_current_buckets(state_dir, at, state_helpers):
         "latched": buckets,
         "natural": buckets,
         "rises": 0,
+        "saturated_since": {"social": None, "curiosity": None, "accomplishment": None},
     }
     assert output.startswith("social:high curiosity:high accomplishment:low ")
-    assert output.endswith(" rises:0\n")
+    assert output.endswith(" rises:0 starved:0/0/0\n")
 
 
 @pytest.mark.parametrize("rises", [-1, True, "3"])
@@ -207,7 +308,7 @@ def test_invalid_rise_count_is_quarantined_and_rebuilt(state_dir, at, state_help
     buckets = {"social": "low", "curiosity": "mid", "accomplishment": "mid"}
     write_json(state_dir / "monitor.json", {"latched": buckets, "natural": buckets, "rises": rises})
 
-    assert decay_monitor.run(now).endswith(" rises:0\n")
+    assert decay_monitor.run(now).endswith(" rises:0 starved:0/0/0\n")
 
     assert read_json(state_dir / "monitor.json")["rises"] == 0
     assert len(list(state_dir.glob("monitor.json.corrupt-*"))) == 1
@@ -219,13 +320,14 @@ def test_corrupt_monitor_state_is_quarantined_and_rebuilt(state_dir, at, state_h
     desire_state.bootstrap(now)
     (state_dir / "monitor.json").write_text("{broken", encoding="utf-8")
 
-    assert decay_monitor.run(now).endswith(" rises:0\n")
+    assert decay_monitor.run(now).endswith(" rises:0 starved:0/0/0\n")
 
     buckets = {"social": "low", "curiosity": "mid", "accomplishment": "mid"}
     assert read_json(state_dir / "monitor.json") == {
         "latched": buckets,
         "natural": buckets,
         "rises": 0,
+        "saturated_since": {"social": None, "curiosity": None, "accomplishment": None},
     }
     assert len(list(state_dir.glob("monitor.json.corrupt-20260825090000"))) == 1
     assert any(
@@ -235,10 +337,23 @@ def test_corrupt_monitor_state_is_quarantined_and_rebuilt(state_dir, at, state_h
 
     write_json(state_dir / "monitor.json", {"latched": {"social": "sideways"}, "rises": 0})
 
-    assert decay_monitor.run(now + timedelta(minutes=1)).endswith(" rises:0\n")
+    assert decay_monitor.run(now + timedelta(minutes=1)).endswith(" rises:0 starved:0/0/0\n")
 
     assert read_json(state_dir / "monitor.json")["latched"] == buckets
-    assert len(list(state_dir.glob("monitor.json.corrupt-*"))) == 2
+
+    write_json(
+        state_dir / "monitor.json",
+        {"latched": buckets, "natural": buckets, "rises": 0, "saturated_since": {"social": "noon"}},
+    )
+
+    assert decay_monitor.run(now + timedelta(minutes=2)).endswith(" rises:0 starved:0/0/0\n")
+
+    assert read_json(state_dir / "monitor.json")["saturated_since"] == {
+        "social": None,
+        "curiosity": None,
+        "accomplishment": None,
+    }
+    assert len(list(state_dir.glob("monitor.json.corrupt-*"))) == 3
 
 
 def test_every_run_appends_one_tick_line(state_dir, at, state_helpers):
@@ -292,12 +407,12 @@ def test_used_budget_midnight_reset_changes_stdout(state_dir, at, state_helpers)
     desire_state.bootstrap(before)
     write_json(
         state_dir / "budget.json",
-        {"date": "2026-08-25", "signals": 1, "issues": 1, "self_comments": 1, "pending": {}},
+        {"date": "2026-08-25", "signals": 1, "issues": 1, "self_comments": 1, "prs": 0, "pending": {}},
     )
     before_output = decay_monitor.run(before)
     after_output = decay_monitor.run(at("2026-08-26T00:00:00+09:00"))
     assert before_output != after_output
-    assert after_output.endswith("budget:3/3sig 2/2iss 1/1cmt day:2026-08-25 rises:0\n")
+    assert after_output.endswith("budget:3/3sig 2/2iss 1/1cmt 1/1pr day:2026-08-25 rises:0 starved:0/0/0\n")
     assert read_json(state_dir / "budget.json")["date"] == "2026-08-26"
 
 
@@ -444,7 +559,7 @@ def test_monitor_reaps_outbox_item_with_invalid_surfaced_at(state_dir, at, state
 
     assert output == (
         "social:low curiosity:mid accomplishment:mid outbox:1/fresh transport:down "
-        "budget:3/3sig 2/2iss 1/1cmt day:2026-08-25 rises:0\n"
+        "budget:3/3sig 2/2iss 1/1cmt 1/1pr day:2026-08-25 rises:0 starved:0/0/0\n"
     )
     assert [value["id"] for value in read_jsonl(state_dir / "outbox.jsonl")] == ["valid"]
     assert read_jsonl(state_dir / "audit.jsonl")[-1] == {
@@ -465,7 +580,7 @@ def test_monitor_main_emits_valid_fallback_summary_on_unexpected_failure(monkeyp
     captured = capsys.readouterr()
     assert re.fullmatch(
         r"social:low curiosity:mid accomplishment:mid outbox:0 transport:down "
-        r"budget:3/3sig 2/2iss 1/1cmt day:\d{4}-\d{2}-\d{2} rises:0\n",
+        r"budget:3/3sig 2/2iss 1/1cmt 1/1pr day:\d{4}-\d{2}-\d{2} rises:0 starved:0/0/0\n",
         captured.out,
     )
 
@@ -481,7 +596,7 @@ def test_monitor_main_falls_back_when_clock_read_fails(monkeypatch, capsys):
     assert decay_monitor.main() is None
     assert capsys.readouterr().out == (
         "social:low curiosity:mid accomplishment:mid outbox:0 transport:down "
-        "budget:3/3sig 2/2iss 1/1cmt day:unknown rises:0\n"
+        "budget:3/3sig 2/2iss 1/1cmt 1/1pr day:unknown rises:0 starved:0/0/0\n"
     )
 
 
@@ -496,6 +611,7 @@ def test_monitor_prunes_pending_older_than_seven_days(state_dir, at, state_helpe
             "signals": 0,
             "issues": 2,
             "self_comments": 0,
+            "prs": 0,
             "pending": {
                 "stale": {"kind": "issue", "date": "2026-08-17"},
                 "boundary": {"kind": "issue", "date": "2026-08-18"},
@@ -590,15 +706,19 @@ def test_pent_up_stage_changes_stdout_exactly_at_hour_boundaries(state_dir, at, 
 
     fresh = decay_monitor.run(created)
     assert " outbox:1/fresh " in fresh
-    assert decay_monitor.run(created + timedelta(hours=5, minutes=59, seconds=59)) == fresh
+    assert without_starved(
+        decay_monitor.run(created + timedelta(hours=5, minutes=59, seconds=59))
+    ) == without_starved(fresh)
     heavy = decay_monitor.run(created + timedelta(hours=6))
     assert " outbox:1/heavy " in heavy
-    assert decay_monitor.run(created + timedelta(hours=17, minutes=59, seconds=59)) == heavy
+    assert without_starved(
+        decay_monitor.run(created + timedelta(hours=17, minutes=59, seconds=59))
+    ) == without_starved(heavy)
     bursting = decay_monitor.run(created + timedelta(hours=18))
     assert " outbox:1/bursting " in bursting
-    assert without_day(
-        decay_monitor.run(created + timedelta(hours=47, minutes=59, seconds=59))
-    ) == without_day(bursting)
+    assert without_starved(
+        without_day(decay_monitor.run(created + timedelta(hours=47, minutes=59, seconds=59)))
+    ) == without_starved(without_day(bursting))
     assert " outbox:0 " in decay_monitor.run(created + timedelta(hours=48))
 
 
@@ -680,11 +800,11 @@ def test_summary_day_token_rolls_at_nine_kst(state_dir, at, state_helpers):
     evening = decay_monitor.run(at("2026-08-25T23:59:59+09:00"))
     past_midnight = decay_monitor.run(at("2026-08-26T00:30:00+09:00"))
 
-    assert before.endswith(" day:2026-08-24 rises:3\n")
-    assert after.endswith(" day:2026-08-25 rises:3\n")
+    assert before.endswith(" day:2026-08-24 rises:3 starved:0/0/0\n")
+    assert after.endswith(" day:2026-08-25 rises:3 starved:0/0/0\n")
     assert before != after
-    assert evening == after
-    assert past_midnight == after
+    assert without_starved(evening) == without_starved(after)
+    assert without_starved(past_midnight) == without_starved(after)
 
 
 def test_postponed_note_leaves_the_summary_count_until_not_before(state_dir, at, state_helpers):
@@ -730,6 +850,6 @@ def test_fallback_summary_wakes_the_tick_on_a_new_wake_day(monkeypatch, capsys, 
     decay_monitor.main()
     second = capsys.readouterr().out
 
-    assert first.endswith(" day:2026-08-25 rises:0\n")
-    assert second.endswith(" day:2026-08-26 rises:0\n")
+    assert first.endswith(" day:2026-08-25 rises:0 starved:0/0/0\n")
+    assert second.endswith(" day:2026-08-26 rises:0 starved:0/0/0\n")
     assert first != second

@@ -2,6 +2,8 @@ import json
 from datetime import timedelta
 from urllib.error import URLError
 
+import pytest
+
 import act
 import desire_state
 
@@ -54,7 +56,7 @@ def test_signal_post_body_matches_ingress_contract(state_dir, at, monkeypatch):
 
 def test_action_and_monitor_share_budget_caps():
     assert act.CAPS is desire_state.CAPS
-    assert desire_state.CAPS == {"signals": 3, "issues": 2, "self_comments": 1}
+    assert desire_state.CAPS == {"signals": 3, "issues": 2, "self_comments": 1, "prs": 1}
 
 
 def test_satisfy_prints_event_and_reward(state_dir, at, capsys):
@@ -101,7 +103,7 @@ def test_fourth_signal_is_blocked_without_post_and_queued(state_dir, at, state_h
     desire_state.bootstrap(now)
     write_json(
         state_dir / "budget.json",
-        {"date": "2026-08-25", "signals": 3, "issues": 0, "self_comments": 0, "pending": {}},
+        {"date": "2026-08-25", "signals": 3, "issues": 0, "self_comments": 0, "prs": 0, "pending": {}},
     )
     calls = []
 
@@ -242,7 +244,7 @@ def test_outbox_send_over_budget_keeps_item_and_skips_post(state_dir, at, state_
     desire_state.bootstrap(now)
     write_json(
         state_dir / "budget.json",
-        {"date": "2026-08-25", "signals": 3, "issues": 0, "self_comments": 0, "pending": {}},
+        {"date": "2026-08-25", "signals": 3, "issues": 0, "self_comments": 0, "prs": 0, "pending": {}},
     )
     write_jsonl(state_dir / "outbox.jsonl", [pent_up("one", now)])
     calls = []
@@ -285,7 +287,7 @@ def test_signal_refund_does_not_decrement_new_date(state_dir, at, state_helpers)
     def reset_during_post(*args, **kwargs):
         write_json(
             state_dir / "budget.json",
-            {"date": "2026-08-26", "signals": 2, "issues": 0, "self_comments": 0, "pending": {}},
+            {"date": "2026-08-26", "signals": 2, "issues": 0, "self_comments": 0, "prs": 0, "pending": {}},
         )
         raise URLError("late failure")
 
@@ -299,7 +301,7 @@ def test_act_normalizes_budget_at_kst_midnight(state_dir, at, state_helpers):
     desire_state.bootstrap(before)
     write_json(
         state_dir / "budget.json",
-        {"date": "2026-08-25", "signals": 3, "issues": 2, "self_comments": 1, "pending": {}},
+        {"date": "2026-08-25", "signals": 3, "issues": 2, "self_comments": 1, "prs": 0, "pending": {}},
     )
 
     assert act.main(["issue", "--reserve"], now=at("2026-08-26T00:00:00+09:00")) == 0
@@ -315,7 +317,7 @@ def test_issue_at_cap_is_rejected(state_dir, at, state_helpers, capsys):
     desire_state.bootstrap(now)
     write_json(
         state_dir / "budget.json",
-        {"date": "2026-08-25", "signals": 0, "issues": 2, "self_comments": 0, "pending": {}},
+        {"date": "2026-08-25", "signals": 0, "issues": 2, "self_comments": 0, "prs": 0, "pending": {}},
     )
     assert act.main(["issue", "--reserve"], now=now) == 1
     assert capsys.readouterr().err.strip() == "over budget"
@@ -355,6 +357,7 @@ def test_yesterday_pending_survives_reset_and_can_commit(state_dir, at, state_he
             "signals": 3,
             "issues": 2,
             "self_comments": 1,
+            "prs": 0,
             "pending": {"old": {"kind": "issue", "date": "2026-08-25"}},
         },
     )
@@ -383,6 +386,7 @@ def test_yesterday_pending_release_does_not_decrement_today(state_dir, at, state
             "signals": 0,
             "issues": 1,
             "self_comments": 0,
+            "prs": 0,
             "pending": {"old": {"kind": "issue", "date": "2026-08-25"}},
         },
     )
@@ -398,6 +402,110 @@ def test_comment_uses_its_own_one_per_day_budget(state_dir, at, capsys):
     capsys.readouterr()
     assert act.main(["comment", "--reserve"], now=now) == 1
     assert capsys.readouterr().err.strip() == "over budget"
+
+
+def test_pr_uses_its_own_one_per_day_budget(state_dir, at, state_helpers, capsys):
+    _, _, _, read_jsonl = state_helpers
+    now = at("2026-08-25T12:00:00+09:00")
+    assert act.main(["pr", "--reserve"], now=now) == 0
+    capsys.readouterr()
+
+    assert act.main(["pr", "--reserve"], now=now) == 1
+
+    assert capsys.readouterr().err.strip() == "over budget"
+    blocked = read_jsonl(state_dir / "audit.jsonl")[-1]
+    assert (blocked["event"], blocked["kind"]) == ("reservation_blocked", "pr")
+
+
+def test_pr_release_refunds_and_commit_audits_the_url(state_dir, at, state_helpers, capsys):
+    _, _, read_json, read_jsonl = state_helpers
+    now = at("2026-08-25T12:00:00+09:00")
+
+    assert act.main(["pr", "--reserve"], now=now) == 0
+    released = capsys.readouterr().out.strip()
+    assert read_json(state_dir / "budget.json")["prs"] == 1
+    assert act.main(["pr", "--release", released], now=now) == 0
+    assert read_json(state_dir / "budget.json")["prs"] == 0
+
+    assert act.main(["pr", "--reserve"], now=now) == 0
+    committed = capsys.readouterr().out.strip()
+    assert act.main(["pr", "--commit", committed, "--url", "https://example.test/pull/1"], now=now) == 0
+
+    assert read_json(state_dir / "budget.json")["prs"] == 1
+    assert read_jsonl(state_dir / "audit.jsonl")[-1] == {
+        "at": now.isoformat(),
+        "event": "pr_filed",
+        "url": "https://example.test/pull/1",
+        "reservation_id": committed,
+    }
+
+
+def test_report_posts_its_own_kind_without_touching_the_signal_budget(state_dir, at, state_helpers):
+    _, _, read_json, read_jsonl = state_helpers
+    now = at("2026-08-25T21:00:00+09:00")
+    calls = []
+
+    def opener(request, timeout):
+        calls.append(request)
+        return Response()
+
+    assert act.main(["report", "--note", "one pull request today"], now=now, opener=opener) == 0
+
+    body = json.loads(calls[0].data)
+    assert body["signals"] == [{"kind": "report", "note": "one pull request today"}]
+    assert body["envelope"]["source"] == "natsume-desire"
+    assert body["envelope"]["event_type"] == "desire.report"
+    assert read_json(state_dir / "budget.json") == {
+        "date": "2026-08-25",
+        "signals": 0,
+        "issues": 0,
+        "self_comments": 0,
+        "prs": 0,
+        "events": {},
+        "pending": {},
+    }
+    assert read_json(state_dir / "monitor.json")["rises"] == 0
+    assert (state_dir / "outbox.jsonl").read_bytes() == b""
+    sent = read_jsonl(state_dir / "audit.jsonl")[-1]
+    assert (sent["event"], sent["note"]) == ("report_sent", "one pull request today")
+    assert sent["event_id"] == body["envelope"]["event_id"]
+    assert read_json(state_dir / "transport.json")["state"] == "up"
+
+
+def test_report_failure_audits_and_keeps_the_signal_budget(state_dir, at, state_helpers, capsys):
+    write_json, _, read_json, read_jsonl = state_helpers
+    now = at("2026-08-25T21:00:00+09:00")
+    desire_state.bootstrap(now)
+    write_json(
+        state_dir / "budget.json",
+        {"date": "2026-08-25", "signals": 2, "issues": 0, "self_comments": 0, "prs": 0, "pending": {}},
+    )
+
+    assert act.main(["report", "--note", "nothing reached you"], now=now) == 1
+
+    assert capsys.readouterr().err.startswith("report delivery failed: ")
+    assert read_json(state_dir / "budget.json")["signals"] == 2
+    assert (state_dir / "outbox.jsonl").read_bytes() == b""
+    failed = read_jsonl(state_dir / "audit.jsonl")[-1]
+    assert (failed["event"], failed["note"]) == ("report_failed", "nothing reached you")
+    assert failed["reason"]
+    assert read_json(state_dir / "transport.json")["state"] == "down"
+
+
+@pytest.mark.parametrize("counter", ["signals", "issues", "self_comments", "prs"])
+def test_invalid_budget_counter_is_quarantined_and_rebuilt(state_dir, at, state_helpers, counter):
+    write_json, _, read_json, _ = state_helpers
+    now = at("2026-08-25T12:00:00+09:00")
+    desire_state.bootstrap(now)
+    budget = {"date": "2026-08-25", "signals": 0, "issues": 0, "self_comments": 0, "prs": 0}
+    write_json(state_dir / "budget.json", {**budget, counter: "many", "pending": {}})
+
+    assert act.main(["issue", "--reserve"], now=now) == 0
+
+    rebuilt = read_json(state_dir / "budget.json")
+    assert {key: rebuilt[key] for key in budget} == {**budget, "issues": 1}
+    assert len(rebuilt["pending"]) == 1
+    assert len(list(state_dir.glob("budget.json.corrupt-*"))) == 1
 
 
 def test_outbox_release_removes_item_and_audits(state_dir, at, state_helpers):

@@ -10,6 +10,7 @@ from urllib import request as urllib_request
 import desire_state
 
 PROBE_TIMEOUT = 2
+SATURATION_STEP = timedelta(hours=3)
 
 
 def probe_transport() -> bool:
@@ -23,6 +24,14 @@ def probe_transport() -> bool:
         return True
     except Exception:  # noqa: BLE001 - transport implementations may raise arbitrary errors
         return False
+
+
+def _starved(since: str | None, now: datetime) -> int:
+    """Count the whole saturation steps a drive has stood at its ceiling."""
+
+    if since is None:
+        return 0
+    return max(0, (now - desire_state.parse_timestamp(since)) // SATURATION_STEP)
 
 
 def run(now: datetime) -> str:
@@ -46,9 +55,15 @@ def run(now: datetime) -> str:
             for name in desire_state.DRIVES
         )
         latched = dict(natural) if rises > monitor["rises"] else monitor["latched"]
+        # A drive pinned at the ceiling keeps its stamp, so its own starved count climbs every step.
+        saturated = {
+            name: (monitor["saturated_since"][name] or now.isoformat()) if levels[name] >= 100 else None
+            for name in desire_state.DRIVES
+        }
+        starved = {name: _starved(since, now) for name, since in saturated.items()}
         desire_state.write_json_atomic(
             state_dir / "monitor.json",
-            {"latched": latched, "natural": natural, "rises": rises},
+            {"latched": latched, "natural": natural, "rises": rises, "saturated_since": saturated},
         )
 
         budget = desire_state.normalize_budget(state["budget"], now)
@@ -103,6 +118,7 @@ def run(now: datetime) -> str:
         remaining_signals = max(0, desire_state.CAPS["signals"] - budget["signals"])
         remaining_issues = max(0, desire_state.CAPS["issues"] - budget["issues"])
         remaining_comments = max(0, desire_state.CAPS["self_comments"] - budget["self_comments"])
+        remaining_prs = max(0, desire_state.CAPS["prs"] - budget["prs"])
         return (
             f"social:{latched['social']} "
             f"curiosity:{latched['curiosity']} "
@@ -110,8 +126,10 @@ def run(now: datetime) -> str:
             f"outbox:{outbox_summary} "
             f"transport:{transport['state']} "
             f"budget:{remaining_signals}/3sig {remaining_issues}/2iss {remaining_comments}/1cmt "
+            f"{remaining_prs}/1pr "
             f"day:{desire_state.wake_day(now)} "
-            f"rises:{rises}\n"
+            f"rises:{rises} "
+            f"starved:{starved['social']}/{starved['curiosity']}/{starved['accomplishment']}\n"
         )
 
 
@@ -124,7 +142,7 @@ def _fallback_summary() -> str:
         day = "unknown"
     return (
         "social:low curiosity:mid accomplishment:mid outbox:0 transport:down "
-        f"budget:3/3sig 2/2iss 1/1cmt day:{day} rises:0\n"
+        f"budget:3/3sig 2/2iss 1/1cmt 1/1pr day:{day} rises:0 starved:0/0/0\n"
     )
 
 
