@@ -133,20 +133,19 @@ DM listed in `~/.hermes/profiles/$HERMES_PROFILE/channel_directory.json`:
 hermes -p "$HERMES_PROFILE" cron create "every 10m" --name natsume-desire-tick \
   --monitor-script natsume-desire-monitor.sh \
   --deliver telegram:<chat_id> \
-  "Follow the instructions in <abs>/integrations/hermes/desire/prompts/tick.md."
+  "Follow the instructions in <abs>/integrations/hermes/desire/prompts/tick.md. The configured environment is HERMES_PROFILE=$HERMES_PROFILE, DESIRE_STATE_DIR=$DESIRE_STATE_DIR, and YUI_SIGNALS_URL=$YUI_SIGNALS_URL."
 hermes -p "$HERMES_PROFILE" cron create "0 23 * * 0" --name natsume-desire-reflection \
-  "Follow the instructions in <abs>/integrations/hermes/desire/prompts/reflection.md."
+  "Follow the instructions in <abs>/integrations/hermes/desire/prompts/reflection.md. The configured environment is HERMES_PROFILE=$HERMES_PROFILE, DESIRE_STATE_DIR=$DESIRE_STATE_DIR, and YUI_SIGNALS_URL=$YUI_SIGNALS_URL."
 hermes -p "$HERMES_PROFILE" cron create "0 21 * * *" --name natsume-desire-report \
   --deliver telegram:<chat_id> \
-  "Follow the instructions in <abs>/integrations/hermes/desire/prompts/report.md."
+  "Follow the instructions in <abs>/integrations/hermes/desire/prompts/report.md. The configured environment is HERMES_PROFILE=$HERMES_PROFILE, DESIRE_STATE_DIR=$DESIRE_STATE_DIR, and YUI_SIGNALS_URL=$YUI_SIGNALS_URL."
 ```
 
 `--deliver telegram:<chat_id>` sends the tick and report responses to that DM; `hermes -p "$HERMES_PROFILE" cron
 edit <job_id> --deliver telegram:<chat_id>` sets it on a job that already exists. Hermes delivers a failed run
 whatever its response says, so a transient tick failure reaches the DM even though a quiet tick answers
-`[SILENT]`. The job prompt is the file reference and the three environment values (`HERMES_PROFILE`,
-`DESIRE_STATE_DIR`, `YUI_SIGNALS_URL`), nothing else; the prompt file is the only place a job's behaviour is
-written.
+`[SILENT]`. The job prompt is the file reference followed by the three environment values, nothing else; the
+prompt file is the only place a job's behaviour is written.
 
 Hermes injects a changed monitor summary into the tick prompt. An unchanged summary suppresses the run. The
 summary is one line:

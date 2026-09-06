@@ -117,16 +117,16 @@ python3 -c "import json,os;d=json.load(open(os.path.expanduser('~/.hermes/profil
 hermes -p <profile> cron create "every 10m" --name natsume-desire-tick \
   --monitor-script natsume-desire-monitor.sh \
   --deliver telegram:<chat_id> \
-  "Follow the instructions in $YUI/integrations/hermes/desire/prompts/tick.md."
+  "Follow the instructions in $YUI/integrations/hermes/desire/prompts/tick.md. The configured environment is HERMES_PROFILE=<profile>, DESIRE_STATE_DIR=<state_dir>, and YUI_SIGNALS_URL=<signals_url>."
 hermes -p <profile> cron create "0 23 * * 0" --name natsume-desire-reflection \
-  "Follow the instructions in $YUI/integrations/hermes/desire/prompts/reflection.md."
+  "Follow the instructions in $YUI/integrations/hermes/desire/prompts/reflection.md. The configured environment is HERMES_PROFILE=<profile>, DESIRE_STATE_DIR=<state_dir>, and YUI_SIGNALS_URL=<signals_url>."
 hermes -p <profile> cron create "0 21 * * *" --name natsume-desire-report \
   --deliver telegram:<chat_id> \
-  "Follow the instructions in $YUI/integrations/hermes/desire/prompts/report.md."
+  "Follow the instructions in $YUI/integrations/hermes/desire/prompts/report.md. The configured environment is HERMES_PROFILE=<profile>, DESIRE_STATE_DIR=<state_dir>, and YUI_SIGNALS_URL=<signals_url>."
 ```
 
-The job prompt is the file reference and the three environment values (`HERMES_PROFILE`, `DESIRE_STATE_DIR`,
-`YUI_SIGNALS_URL`), nothing else; the prompt file is the only place the job's behaviour is written.
+The job prompt is the file reference followed by the three values from step 3, nothing else; the prompt file is the
+only place the job's behaviour is written.
 
 A job that already exists keeps its own schedule and delivery target. Read its id from the job list and set them
 on it:
