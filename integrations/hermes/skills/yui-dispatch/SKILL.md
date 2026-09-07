@@ -21,6 +21,8 @@ repository's own rules and opens the pull request.
 `$YUI` is the absolute path of the YUI checkout. `$REPO` is the repository as `owner/name`; when Youngwoo gives only
 a name, the owner is `yw0nam`. `$N` is the issue number. `$CLONE` is the clone under
 `~/.hermes/profiles/<profile>/workspace/<name>`; if it does not exist yet, `gh repo clone $REPO` it there first.
+`$MODEL` is `sonnet` unless Youngwoo names a model in the request (for example "Opus로 해줘" means `opus`); pass the
+name exactly as given, in lower case.
 
 ## 1. Check the issue
 
@@ -53,10 +55,11 @@ gh issue comment $N --repo $REPO --body "Picked up by Natsume; a headless Claude
 {{.body}}'; } > /tmp/dispatch-$N.md
 ```
 
-Run exactly this command with `background=true` and `notify_on_complete=true`. Do not change the flags.
+Run exactly this command with `background=true` and `notify_on_complete=true`. Do not change the flags other than
+`$MODEL`.
 
 ```bash
-cd $CLONE && git checkout $(git remote show origin | sed -n 's/.*HEAD branch: //p') && git pull --ff-only && timeout 1h claude -p --dangerously-skip-permissions --output-format json < /tmp/dispatch-$N.md
+cd $CLONE && git checkout $(git remote show origin | sed -n 's/.*HEAD branch: //p') && git pull --ff-only && timeout 1h claude -p --model $MODEL --dangerously-skip-permissions --output-format json < /tmp/dispatch-$N.md
 ```
 
 Reply to Youngwoo with one line: `Started #$N.` Then end the turn; the completion notification wakes you.
