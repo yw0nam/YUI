@@ -18,9 +18,16 @@ hand over (for example "YUI 123 맡아" or "memory_layer 45 넘겨"). You start 
 issue and relay the outcome. You do not implement anything yourself; the session works from the issue and the
 repository's own rules and opens the pull request.
 
-`$YUI` is the absolute path of the YUI checkout. `$REPO` is the repository as `owner/name`; when Youngwoo gives only
-a name, the owner is `yw0nam`. `$N` is the issue number. `$CLONE` is the clone under
-`~/.hermes/profiles/<profile>/workspace/<name>`; if it does not exist yet, `gh repo clone $REPO` it there first.
+`$YUI` is the absolute path of the YUI checkout. `$N` is the issue number. `$REPO` is the repository as
+`owner/name`, resolved from the name Youngwoo gives:
+
+```bash
+gh search repos <name> --match name --json fullName --jq '.[].fullName'
+```
+
+Take the entry whose name part equals what Youngwoo said. If none or more than one matches, ask which one and stop.
+`$CLONE` is the clone under `~/.hermes/profiles/<profile>/workspace/<name>`; if it does not exist yet,
+`gh repo clone $REPO` it there first.
 `$MODEL` is `sonnet` unless Youngwoo names a model in the request (for example "Opus로 해줘" means `opus`); pass the
 name exactly as given, in lower case.
 
