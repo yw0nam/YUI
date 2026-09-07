@@ -62,8 +62,9 @@ gh issue comment $N --repo $REPO --body "Picked up by Natsume; a headless Claude
 {{.body}}'; } > /tmp/dispatch-$N.md
 ```
 
-Run exactly this command with `background=true` and `notify_on_complete=true`. Do not change the flags other than
-`$MODEL`.
+Always start from the latest commit of the default branch: the command below checks it out and pulls before the
+session starts. Never skip the pull, and never run the session on a stale clone. Run exactly this command with
+`background=true` and `notify_on_complete=true`. Do not change the flags other than `$MODEL`.
 
 ```bash
 cd $CLONE && git checkout $(git remote show origin | sed -n 's/.*HEAD branch: //p') && git pull --ff-only && timeout 1h claude -p --model $MODEL --dangerously-skip-permissions --output-format json < /tmp/dispatch-$N.md
