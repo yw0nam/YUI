@@ -1104,6 +1104,45 @@ describe("createSpeechPlayback — holdMotion suppresses playMotion(null) for nu
     expect(renderer.playMotion).toHaveBeenCalledWith(null);
   });
 
+  it("a cue-less cue during a stroll leaves the walk clip alone", () => {
+    const stub = stubPipelineFactory();
+    const renderer = spyRenderer();
+    const surfaces = spySurfaces();
+    createSpeechPlayback({
+      renderer,
+      surfaces,
+      pipeline: NO_PIPELINE,
+      createPipeline: stub.factory,
+      isStrolling: () => true,
+    });
+
+    stub.emitCuePlay(null);
+
+    expect(renderer.easeEmotionToNeutral).toHaveBeenCalledWith(1000);
+    expect(renderer.playMotion).not.toHaveBeenCalled();
+  });
+
+  it("a cue with a motion during a stroll still plays it", () => {
+    const stub = stubPipelineFactory();
+    const renderer = spyRenderer();
+    const surfaces = spySurfaces();
+    createSpeechPlayback({
+      renderer,
+      surfaces,
+      pipeline: NO_PIPELINE,
+      createPipeline: stub.factory,
+      isStrolling: () => true,
+    });
+
+    stub.emitCuePlay({ emotion_id: "happy", motion_id: "happy" });
+
+    expect(renderer.applyDirective).toHaveBeenCalledWith({
+      speech_text: "",
+      emotion: { id: "happy" },
+      motion: { id: "happy" },
+    });
+  });
+
   it("real cue (emotion_id) still calls applyDirective regardless of holdMotion(true)", () => {
     const stub = stubPipelineFactory();
     const renderer = spyRenderer();
