@@ -212,6 +212,7 @@ async function bootstrap(): Promise<void> {
         onResized: (cb) => win.onResized(() => cb()),
       },
       async () => (await availableMonitors()).map(toScreenMonitor),
+      { wholeWindow: true },
     );
 
     return () => {

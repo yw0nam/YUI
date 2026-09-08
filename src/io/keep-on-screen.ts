@@ -27,19 +27,29 @@ export interface KeepOnScreenWindow {
   onResized(cb: () => void): Promise<() => void>;
 }
 
-/** The origin that lands the center on the nearest monitor, or null when already on screen. */
+/**
+ * The origin that lands the center on the nearest monitor, or null when already on screen.
+ * `inset` shrinks every monitor's bounds by that much on each side before the check — passing
+ * half the window's size requires the whole window (not just its center) to end up on screen.
+ */
 export function keepOnScreen(
   monitors: ScreenMonitor[],
   pos: { x: number; y: number },
   size: { width: number; height: number },
+  inset: { x: number; y: number } = { x: 0, y: 0 },
 ): { x: number; y: number } | null {
   const centerX = pos.x + size.width / 2;
   const centerY = pos.y + size.height / 2;
-  if (monitorAt(monitors, centerX, centerY)) return null;
+  const bounds = monitors.map((m) => ({
+    position: { x: m.position.x + inset.x, y: m.position.y + inset.y },
+    size: { width: m.size.width - 2 * inset.x, height: m.size.height - 2 * inset.y },
+    workArea: m.workArea,
+  }));
+  if (monitorAt(bounds, centerX, centerY)) return null;
 
   let nearest: { x: number; y: number } | null = null;
   let nearestDist = Number.POSITIVE_INFINITY;
-  for (const m of monitors) {
+  for (const m of bounds) {
     // monitorAt's upper bound is exclusive, and the OS rounds the origin to whole logical points,
     // so stay EDGE_INSET_PX inside the far edge or the pushed center can land back on it.
     const maxX = m.position.x + m.size.width - EDGE_INSET_PX;
@@ -62,6 +72,7 @@ export function keepOnScreen(
 export async function attachKeepOnScreen(
   win: KeepOnScreenWindow,
   listMonitors: () => Promise<ScreenMonitor[]>,
+  opts: { wholeWindow?: boolean } = {},
 ): Promise<() => void> {
   let timer: ReturnType<typeof setTimeout> | null = null;
   let disposed = false;
@@ -77,7 +88,9 @@ export async function attachKeepOnScreen(
         win.outerSize(),
       ]);
       if (disposed) return;
-      const pushed = keepOnScreen(monitors, pos, size);
+      // Content-driven size, so the inset is recomputed from the current outerSize every pass.
+      const inset = opts.wholeWindow ? { x: size.width / 2, y: size.height / 2 } : undefined;
+      const pushed = keepOnScreen(monitors, pos, size, inset);
       if (!pushed) return;
       log.info("keep_on_screen_push", { fromX: pos.x, fromY: pos.y, toX: pushed.x, toY: pushed.y });
       await win.setPositionPhysical(pushed.x, pushed.y);
