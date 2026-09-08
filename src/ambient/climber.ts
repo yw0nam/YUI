@@ -1044,7 +1044,8 @@ export function createClimber(deps: ClimberDeps): Climber {
 
   /** Re-read the stack while the character is committed to a wall she cannot see. */
   function pumpWatch(): void {
-    if (!target || watching || nowMs < nextWatchAtMs) return;
+    // A monitor wall can never be lost, so there is nothing worth polling the stack for.
+    if (!target || target.kind === "monitor" || watching || nowMs < nextWatchAtMs) return;
     nextWatchAtMs = nowMs + TARGET_WATCH_MS;
     watching = true;
     const startedAt = generation;
