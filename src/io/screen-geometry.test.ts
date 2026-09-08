@@ -80,12 +80,12 @@ describe("toScreenMonitor", () => {
   it("copies the bounds and the scale factor a Tauri monitor carries, dropping everything else", () => {
     const tauriMonitor = {
       name: "Built-in",
-      scaleFactor: 1,
+      scaleFactor: 2,
       position: { x: 0, y: 0 },
       size: { width: 1920, height: 1080 },
       workArea: { position: { x: 0, y: 25 }, size: { width: 1920, height: 1030 } },
     };
-    expect(toScreenMonitor(tauriMonitor)).toEqual(LEFT);
+    expect(toScreenMonitor(tauriMonitor)).toEqual({ ...LEFT, scaleFactor: 2 });
   });
 });
 
@@ -158,6 +158,8 @@ describe("floorSpan", () => {
   });
 
   it("chains a merge across three monitors", () => {
-    expect(floorSpan([LEFT, NEIGHBOUR, THIRD], LEFT)).toEqual({ left: 0, right: 5120 });
+    // THIRD only touches the span once NEIGHBOUR has been absorbed, so this order
+    // fails after a single forward pass and needs the repeat to find it.
+    expect(floorSpan([LEFT, THIRD, NEIGHBOUR], LEFT)).toEqual({ left: 0, right: 5120 });
   });
 });
