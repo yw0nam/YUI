@@ -43,3 +43,8 @@ windows = { version = "0.61", features = ["Win32_UI_Input_KeyboardAndMouse", "Wi
 [target.'cfg(target_os = "macos")'.dependencies]
 core-graphics = { version = "0.25.0", features = ["highsierra"] }
 core-foundation = "0.10.1"
+# Runtime NSWindow subclassing to lift constrainFrameRect:toScreen: (window_frame.rs).
+# Versions pinned to what tao already resolves in Cargo.lock — no new crates downloaded.
+objc2 = "0.6"
+objc2-app-kit = { version = "0.3", features = ["NSWindow", "NSResponder", "NSScreen"] }
+objc2-foundation = { version = "0.3", features = ["NSGeometry"] }

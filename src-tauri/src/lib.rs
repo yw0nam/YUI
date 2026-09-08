@@ -35,6 +35,9 @@ mod agent_ingress;
 // System tray controls for window visibility, settings, and quit.
 mod tray;
 
+// Lifts AppKit's frame-constrain-to-screen on the pet window (macOS only).
+mod window_frame;
+
 use std::path::PathBuf;
 use tauri::Manager;
 use time::{OffsetDateTime, UtcOffset};
@@ -186,6 +189,12 @@ pub fn run() {
         // Global hotkey — registration/removal handled by JS guest binding (input summon hotkey).
         .plugin(tauri_plugin_global_shortcut::Builder::new().build())
         .setup(|app| {
+            // Lets the pet window cross onto a lower-scale monitor mid-move instead of
+            // being clamped to whichever screen its frame still overlaps.
+            if let Some(main) = app.get_webview_window("main") {
+                window_frame::allow_unconstrained_frame(&main)?;
+            }
+
             let log_offset = resolve_log_offset();
             let mut builder = tauri_plugin_log::Builder::new()
                 .level(level_for(cfg!(debug_assertions)))
