@@ -116,6 +116,9 @@ export function floorSegments(
   let segments = [{ left, right: right - windowWidth }];
   for (const other of monitors) {
     if (absorbed.has(other)) continue;
+    // The flash this guards against is a backing-scale mismatch, not overlap on its own —
+    // a same-scale monitor stacked below redraws cleanly and never needs the cut.
+    if (other.scaleFactor === monitor.scaleFactor) continue;
     const top = other.position.y / other.scaleFactor;
     const bottom = top + other.size.height / other.scaleFactor;
     if (bottom <= floor || top >= floor + hangPx) continue;

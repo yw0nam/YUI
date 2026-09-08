@@ -105,10 +105,12 @@ export function planStroll(args: {
   const { x, width, workX, workWidth, cfg } = args;
   const rng = args.rng ?? Math.random;
   const distance = randRange(cfg.distance_min_px, cfg.distance_max_px, rng);
-  const direction: -1 | 1 = rng() < 0.5 ? -1 : 1;
+  const drawnDirection: -1 | 1 = rng() < 0.5 ? -1 : 1;
   if (width > workWidth) return null;
-  const toX = clampToWorkArea(x + direction * distance, 0, width, 0, workX, 0, workWidth, 0).x;
-  return toX === x ? null : { toX, direction };
+  const toX = clampToWorkArea(x + drawnDirection * distance, 0, width, 0, workX, 0, workWidth, 0).x;
+  // The clamp can pull the destination past the drawn direction — starting inside a
+  // cut-out, for instance — so the reported direction is the actual travel, not the draw.
+  return toX === x ? null : { toX, direction: toX > x ? 1 : -1 };
 }
 
 /** Window x after one dt step toward the destination, never past it. */
@@ -285,7 +287,12 @@ export function createWalker(deps: WalkerDeps): Walker {
     // on this one's floor, and a stroll through that stretch flashes a stale frame every
     // time AppKit redraws the window across the scale boundary underneath it.
     const hangPx = size.height / scale - feet.y;
-    const seg = nearestSegment(floorSegments(monitors, monitor, width, hangPx), x);
+    // A segment too narrow for even the shortest stroll distance would otherwise win
+    // nearestSegment on raw proximity and strand the stroll unable to plan a move at all.
+    const usable = floorSegments(monitors, monitor, width, hangPx).filter(
+      (s) => s.right - s.left >= cfg.distance_min_px,
+    );
+    const seg = nearestSegment(usable, x);
     if (!seg) return;
     const plan = planStroll({
       x,
