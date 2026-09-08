@@ -138,6 +138,14 @@ describe("planStroll", () => {
   it("returns null when the window is wider than the work area", () => {
     expect(planStroll({ ...base, x: 0, width: 2000, rng: seqRng(0, 0.9) })).toBeNull();
   });
+
+  it("reports the actual travel direction, not the drawn one the clamp overrode", () => {
+    // Drawn direction is right, but starting inside a cut-out the clamp pulls the
+    // destination to the segment's near (left) edge, so the real travel is leftward.
+    expect(
+      planStroll({ x: -200, width: 400, workX: -992, workWidth: 992, cfg: CFG, rng: seqRng(1, 1) }),
+    ).toEqual({ toX: -400, direction: -1 });
+  });
 });
 
 describe("advanceX", () => {
@@ -158,6 +166,15 @@ const MONITOR: ScreenMonitor = {
   position: { x: 0, y: 0 },
   size: { width: 1920, height: 1600 },
   workArea: { position: { x: 0, y: 0 }, size: { width: 1920, height: 1500 } },
+  scaleFactor: 1,
+};
+
+/** Same floor line and scale, immediately to the right of MONITOR. */
+const NEIGHBOR: ScreenMonitor = {
+  position: { x: 1920, y: 0 },
+  size: { width: 1920, height: 1600 },
+  workArea: { position: { x: 1920, y: 0 }, size: { width: 1920, height: 1500 } },
+  scaleFactor: 1,
 };
 
 /** The shipped walk.vrma loops on its own last keyframe, not on a nominal 1.37 s cycle. */
@@ -187,12 +204,19 @@ function makeHarness(
     /** The clip holding the body when the walker fires. Defaults to the idle baseline. */
     currentMotion?: { id: string; vrma_path: string } | null;
     rng?: () => number;
+    monitors?: ScreenMonitor[];
+    /** The window's own scale factor. Defaults to 1. */
+    windowScale?: number;
+    /** Overrides windowScale with a call-counted function, for a scale that changes mid-stroll. */
+    scaleFactor?: () => number;
   } = {},
 ) {
   let tick: TickFn | null = null;
   const motions: Array<RenderMotionSignal | null> = [];
   const yaws: Array<{ rad: number; easeMs: number }> = [];
   const positions: Array<{ x: number; y: number }> = [];
+  const logicalCalls: Array<{ x: number; y: number }> = [];
+  const scaleFactor = over.scaleFactor ?? (() => over.windowScale ?? 1);
   let currentMotion: { id: string; vrma_path: string } | null = over.currentMotion ?? {
     id: "idle",
     vrma_path: "/motions/calm.vrma",
@@ -238,12 +262,13 @@ function makeHarness(
     getWindow: () => ({
       outerPosition: async () => over.position ?? WINDOW_POS,
       outerSize: async () => ({ width: 400, height: 600 }),
-      scaleFactor: async () => 1,
-      setPositionPhysical: async (x, y) => {
+      scaleFactor: async () => scaleFactor(),
+      setPositionLogical: async (x, y) => {
+        logicalCalls.push({ x, y });
         positions.push({ x, y });
       },
     }),
-    listMonitors: async () => [MONITOR],
+    listMonitors: async () => over.monitors ?? [MONITOR],
     getConfig: () => CFG,
     currentMotionKind: over.motionKind ?? (() => "ambient"),
     isPeeking: () => over.peeking ?? false,
@@ -278,6 +303,7 @@ function makeHarness(
     motions,
     yaws,
     positions,
+    logicalCalls,
     starts,
     ends,
     frame,
@@ -351,6 +377,139 @@ describe("createWalker", () => {
     expect(h.yaws.at(-1)).toEqual({ rad: 0, easeMs: WALK_YAW_EASE_MS });
     expect(h.ends).toHaveBeenCalledTimes(1);
     expect(h.ends).toHaveBeenCalledWith(true);
+  });
+
+  it("moves the window through setPositionLogical, in logical points, on a scaled screen", async () => {
+    // Same logical geometry as MONITOR/WINDOW_POS, doubled into scale-2 physical px.
+    const SCALE2_MONITOR: ScreenMonitor = {
+      position: { x: 0, y: 0 },
+      size: { width: 3840, height: 3200 },
+      workArea: { position: { x: 0, y: 0 }, size: { width: 3840, height: 3000 } },
+      scaleFactor: 2,
+    };
+    const h = makeHarness({
+      position: { x: WINDOW_POS.x * 2, y: WINDOW_POS.y * 2 },
+      monitors: [SCALE2_MONITOR],
+      windowScale: 2,
+    });
+    h.walker.start();
+    await h.skipInterval();
+    for (let i = 0; i < 30; i++) await h.frame();
+    expect(h.logicalCalls.length).toBeGreaterThan(0);
+    for (const call of h.logicalCalls) {
+      expect(call.y).toBe(WINDOW_POS.y);
+    }
+    expect(h.logicalCalls.at(-1)).toEqual({ x: 420, y: WINDOW_POS.y });
+  });
+
+  it("does not re-read the window's scale factor once the stroll is moving", async () => {
+    const SCALE2_MONITOR: ScreenMonitor = {
+      position: { x: 0, y: 0 },
+      size: { width: 3840, height: 3200 },
+      workArea: { position: { x: 0, y: 0 }, size: { width: 3840, height: 3000 } },
+      scaleFactor: 2,
+    };
+    let calls = 0;
+    const h = makeHarness({
+      position: { x: WINDOW_POS.x * 2, y: WINDOW_POS.y * 2 },
+      monitors: [SCALE2_MONITOR],
+      // The stroll reads the scale once, at the start; step() must not read it again —
+      // if it did, the logical y written afterwards would jump to the physical value.
+      scaleFactor: () => (calls++ === 0 ? 2 : 1),
+    });
+    h.walker.start();
+    await h.skipInterval();
+    for (let i = 0; i < 30; i++) await h.frame();
+    for (const call of h.logicalCalls) {
+      expect(call.y).toBe(WINDOW_POS.y);
+    }
+  });
+
+  it("continues a rightward stroll onto a neighbouring monitor that shares the floor line", async () => {
+    // Standing near MONITOR's right edge (1920): a max-distance rightward draw crosses it.
+    const h = makeHarness({
+      position: { x: 1700, y: WINDOW_POS.y },
+      monitors: [MONITOR, NEIGHBOR],
+      rng: seqRng(0, 1, 1),
+    });
+    h.walker.start();
+    await h.skipInterval();
+    for (let i = 0; i < 90; i++) await h.frame();
+    expect(h.positions.at(-1)!.x).toBeGreaterThan(1920);
+  });
+
+  it("walks a stroll starting in a monitor-overlap cut-out to the nearest safe segment", async () => {
+    // Built-in: 1728×1117 logical at (0,0), scale 2 — sits directly under the row above.
+    const BUILTIN: ScreenMonitor = {
+      position: { x: 0, y: 0 },
+      size: { width: 3456, height: 2234 },
+      workArea: { position: { x: 0, y: 100 }, size: { width: 3456, height: 1934 } },
+      scaleFactor: 2,
+    };
+    // 1920×1080 logical at (−992, −1080), scale 1 — floor line (no dock) at y = 0.
+    const UPPER_LEFT: ScreenMonitor = {
+      position: { x: -992, y: -1080 },
+      size: { width: 1920, height: 1080 },
+      workArea: { position: { x: -992, y: -1055 }, size: { width: 1920, height: 1055 } },
+      scaleFactor: 1,
+    };
+    const UPPER_RIGHT: ScreenMonitor = {
+      position: { x: 928, y: -1080 },
+      size: { width: 1920, height: 1080 },
+      workArea: { position: { x: 928, y: -1055 }, size: { width: 1920, height: 1055 } },
+      scaleFactor: 1,
+    };
+    // Feet 447 below the canvas top ⇒ hangPx 153 (window height 600 minus 447): the
+    // window's bottom margin reaches into BUILTIN even though the feet rest on
+    // UPPER_LEFT's own floor at x = −200, inside the resulting cut-out.
+    const h = makeHarness({
+      position: { x: -200, y: -447 },
+      feetY: 447,
+      monitors: [BUILTIN, UPPER_LEFT, UPPER_RIGHT],
+      rng: seqRng(0, 0, 1),
+    });
+    h.walker.start();
+    await h.skipInterval();
+    // The drawn direction is rightward; the clamp pulls the destination to the segment's
+    // left edge instead, so the actual travel — and the yaw facing it — is leftward.
+    expect(h.yaws[0]).toEqual({ rad: -WALK_YAW_RAD, easeMs: WALK_YAW_EASE_MS });
+    // 200 logical px at ~317 px/s ≈ 0.63 s.
+    for (let i = 0; i < 60; i++) await h.frame();
+    expect(h.positions.at(-1)!.x).toBe(-400);
+  });
+
+  it("picks a wide segment over a nearer sliver too narrow for any stroll distance", async () => {
+    // Cuts MONITOR's [0, 1520] window-origin range into a 2 px sliver [0, 2], where the
+    // window already sits, and a wide [1200, 1520] remainder further away.
+    const CUTTER: ScreenMonitor = {
+      position: { x: 804, y: 3000 },
+      size: { width: 1596, height: 400 },
+      workArea: { position: { x: 804, y: 3000 }, size: { width: 1596, height: 400 } },
+      scaleFactor: 2,
+    };
+    const h = makeHarness({
+      position: { x: 1, y: WINDOW_POS.y },
+      monitors: [MONITOR, CUTTER],
+    });
+    h.walker.start();
+    await h.skipInterval();
+    for (let i = 0; i < 240; i++) await h.frame();
+    expect(h.positions.at(-1)!.x).toBe(1200);
+  });
+
+  it("starts no stroll when a monitor below covers the entire floor segment", async () => {
+    const FULL_CUT: ScreenMonitor = {
+      position: { x: -1000, y: 3000 },
+      size: { width: 6000, height: 400 },
+      workArea: { position: { x: -1000, y: 3000 }, size: { width: 6000, height: 400 } },
+      scaleFactor: 2,
+    };
+    const h = makeHarness({ monitors: [MONITOR, FULL_CUT] });
+    h.walker.start();
+    await h.skipInterval();
+    expect(h.motions).toEqual([]);
+    expect(h.starts).not.toHaveBeenCalled();
+    expect(h.positions).toEqual([]);
   });
 
   it("skips and redraws when the feet are not resting on the work-area floor", async () => {
@@ -649,6 +808,16 @@ describe("createWalker — walkTo", () => {
     expect(await settle(h, h.walker.walkTo(300))).toBe("arrived");
     expect(h.positions.at(-1)).toEqual({ x: 300, y: WINDOW_POS.y });
     expect(h.motions).toEqual([{ id: WALK_MOTION_ID }, null]);
+  });
+
+  it("arrives at exactly the logical target on a scaled screen", async () => {
+    const h = makeHarness({
+      position: { x: WINDOW_POS.x * 2, y: WINDOW_POS.y * 2 },
+      windowScale: 2,
+    });
+    h.walker.start();
+    expect(await settle(h, h.walker.walkTo(300))).toBe("arrived");
+    expect(h.logicalCalls.at(-1)).toEqual({ x: 300, y: WINDOW_POS.y });
   });
 
   it("keeps the walk clip on arrival when the caller will replace it", async () => {

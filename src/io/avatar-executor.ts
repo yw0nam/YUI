@@ -28,7 +28,7 @@ import type {
 } from "./avatar-rpc";
 import {
   floorPx,
-  groundedWindowY,
+  logicalWorkArea,
   monitorAt,
   type PetWindow,
   type ScreenMonitor,
@@ -42,7 +42,7 @@ import type {
 
 const log = createLogger("avatar-executor");
 
-/** Inset from the work-area edges for the left/right/top spots (physical px). */
+/** Inset from the work-area edges for the left/right/top spots (logical px). */
 const EDGE_MARGIN_PX = 24;
 
 export interface AvatarExecutorDeps {
@@ -128,26 +128,27 @@ function monitorIndexAt(monitors: ScreenMonitor[], x: number, y: number): number
 }
 
 /**
- * Physical origin that puts a `size` window at `spot` of `monitor`'s work area.
- * A bottom spot rests the character's feet on the work-area floor, so the window box
- * hangs below it by the framing margin; without a feet anchor the box itself lands there.
+ * Logical origin, in `monitor`'s own logical px, that puts a `size` window at `spot`
+ * of `monitor`'s work area. A bottom spot rests the character's feet on the work-area
+ * floor, so the window box hangs below it by the framing margin; without a feet anchor
+ * the box itself lands there. `size` is the window's own physical outer size, brought
+ * into `monitor`'s logical space through the window's own current scale factor —
+ * everything else here is a `monitor` property and reads that monitor's own scale.
  */
 function spotOrigin(
   monitor: ScreenMonitor,
   size: { width: number; height: number },
   spot: AvatarSpot,
   feetOffsetPx: number | null,
-  scale: number,
+  windowScale: number,
 ): { x: number; y: number } {
-  const { x: mx, y: my } = monitor.workArea.position;
-  const { width: mw, height: mh } = monitor.workArea.size;
-  const left = mx + EDGE_MARGIN_PX;
-  const right = mx + mw - size.width - EDGE_MARGIN_PX;
-  const top = my + EDGE_MARGIN_PX;
+  const wa = logicalWorkArea(monitor);
+  const sizeLogical = { width: size.width / windowScale, height: size.height / windowScale };
+  const left = wa.x + EDGE_MARGIN_PX;
+  const right = wa.x + wa.width - sizeLogical.width - EDGE_MARGIN_PX;
+  const top = wa.y + EDGE_MARGIN_PX;
   const bottom =
-    feetOffsetPx === null
-      ? my + mh - size.height
-      : groundedWindowY(floorPx(monitor, scale), feetOffsetPx, scale);
+    feetOffsetPx === null ? wa.y + wa.height - sizeLogical.height : floorPx(monitor) - feetOffsetPx;
   switch (spot) {
     case "top-left":
       return { x: left, y: top };
@@ -158,7 +159,10 @@ function spotOrigin(
     case "bottom-right":
       return { x: right, y: bottom };
     default:
-      return { x: mx + (mw - size.width) / 2, y: my + (mh - size.height) / 2 };
+      return {
+        x: wa.x + (wa.width - sizeLogical.width) / 2,
+        y: wa.y + (wa.height - sizeLogical.height) / 2,
+      };
   }
 }
 
@@ -202,7 +206,7 @@ export function createAvatarExecutor(deps: AvatarExecutorDeps): AvatarExecutor {
     // A perch pins the character to a window edge — leave it before relocating.
     perch.release();
     const origin = spotOrigin(monitors[index], size, spot, deps.getFeetOffsetPx(), sf > 0 ? sf : 1);
-    await win.setPositionPhysical(Math.round(origin.x), Math.round(origin.y));
+    await win.setPositionLogical(Math.round(origin.x), Math.round(origin.y));
     if (aborted()) return fail("interrupted");
     noteAvatarMoved();
     return { ok: true };

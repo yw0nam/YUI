@@ -29,11 +29,13 @@ const MONITORS = [
     position: { x: 0, y: 0 },
     size: { width: 1000, height: 800 },
     workArea: { position: { x: 0, y: 40 }, size: { width: 1000, height: 760 } },
+    scaleFactor: 1,
   },
   {
     position: { x: 1000, y: 0 },
     size: { width: 2000, height: 1000 },
     workArea: { position: { x: 1000, y: 40 }, size: { width: 2000, height: 960 } },
+    scaleFactor: 1,
   },
 ];
 
@@ -60,7 +62,7 @@ function harness(over: Partial<AvatarExecutorDeps> = {}) {
   let handler: ((req: AvatarRpcRequest) => void) | undefined;
   const unsubscribe = vi.fn();
   const responses: Array<{ id: string; result: unknown }> = [];
-  const setPositionPhysical = vi.fn(async () => {});
+  const setPositionLogical = vi.fn(async () => {});
   // Parameters declared so the abort-signal test can read the options argument.
   const placeOn = vi.fn(
     async (_request: PlacementRequest, _opts?: PlacementOptions): Promise<PlacementResult> => ({
@@ -87,7 +89,7 @@ function harness(over: Partial<AvatarExecutorDeps> = {}) {
       outerPosition: async () => WINDOW_POS,
       outerSize: async () => WINDOW_SIZE,
       scaleFactor: async () => 1,
-      setPositionPhysical,
+      setPositionLogical,
     }),
     listMonitors: async () => MONITORS,
     getFeetOffsetPx: () => FEET_OFFSET_PX,
@@ -127,7 +129,7 @@ function harness(over: Partial<AvatarExecutorDeps> = {}) {
     fire,
     answerOf,
     responses,
-    setPositionPhysical,
+    setPositionLogical,
     placeOn,
     release,
     perchTargets,
@@ -266,7 +268,7 @@ describe("avatar-executor — move_to", () => {
     const result = await h.call("command", { action: "move_to", spot: "center", monitor: 1 });
 
     // Monitor 1's work area spans x 1000..3000, y 40..1000; window is 400x300.
-    expect(h.setPositionPhysical).toHaveBeenCalledWith(1800, 370);
+    expect(h.setPositionLogical).toHaveBeenCalledWith(1800, 370);
     expect(result).toEqual({ ok: true });
   });
 
@@ -276,7 +278,7 @@ describe("avatar-executor — move_to", () => {
     await h.call("command", { action: "move_to", spot: "center" });
 
     // Window origin (520, 740) lies on monitor 0, whose work area is 1000x760 from y 40.
-    expect(h.setPositionPhysical).toHaveBeenCalledWith(300, 270);
+    expect(h.setPositionLogical).toHaveBeenCalledWith(300, 270);
   });
 
   it("insets the window from the work-area corner for a top spot", async () => {
@@ -285,7 +287,7 @@ describe("avatar-executor — move_to", () => {
     await h.call("command", { action: "move_to", spot: "top-right", monitor: 0 });
 
     // 1000-400-24 = 576, work-area top 40+24 = 64.
-    expect(h.setPositionPhysical).toHaveBeenCalledWith(576, 64);
+    expect(h.setPositionLogical).toHaveBeenCalledWith(576, 64);
   });
 
   it("rests the feet on the work-area floor for a bottom spot", async () => {
@@ -294,43 +296,69 @@ describe("avatar-executor — move_to", () => {
     await h.call("command", { action: "move_to", spot: "bottom-right", monitor: 0 });
 
     // Work-area bottom 800 minus the 200px feet offset; the window bottom hangs below the floor.
-    expect(h.setPositionPhysical).toHaveBeenCalledWith(576, 600);
+    expect(h.setPositionLogical).toHaveBeenCalledWith(576, 600);
   });
 
-  it("grounds the feet through the scale factor on a scaled screen", async () => {
-    const setPositionPhysical = vi.fn(async () => {});
+  it("grounds the feet through the target monitor's own scale factor", async () => {
     const h = harness({
-      getWindow: () => ({
-        outerPosition: async () => WINDOW_POS,
-        outerSize: async () => WINDOW_SIZE,
-        scaleFactor: async () => 2,
-        setPositionPhysical,
-      }),
+      listMonitors: async () => [{ ...MONITORS[0], scaleFactor: 2 }, MONITORS[1]],
       getFeetOffsetPx: () => 100,
     });
 
     await h.call("command", { action: "move_to", spot: "bottom-left", monitor: 0 });
 
-    // Work-area bottom 800 physical = 400 logical; (400 - 100) x 2 = 600.
-    expect(setPositionPhysical).toHaveBeenCalledWith(24, 600);
+    // Work-area bottom 800 physical = 400 logical; 400 - 100 feet offset = 300.
+    expect(h.setPositionLogical).toHaveBeenCalledWith(24, 300);
   });
 
-  it("rounds the origin so a fractional scale factor still moves to whole pixels", async () => {
-    const setPositionPhysical = vi.fn(async () => {});
+  it("rounds the origin so a fractional target scale factor still moves to whole pixels", async () => {
     const h = harness({
-      getWindow: () => ({
-        outerPosition: async () => WINDOW_POS,
-        outerSize: async () => WINDOW_SIZE,
-        scaleFactor: async () => 1.5,
-        setPositionPhysical,
-      }),
+      listMonitors: async () => [{ ...MONITORS[0], scaleFactor: 1.5 }, MONITORS[1]],
       getFeetOffsetPx: () => 175,
     });
 
     await h.call("command", { action: "move_to", spot: "bottom-left", monitor: 0 });
 
-    // Work-area bottom 800 physical = 533.33 logical; (533.33 - 175) x 1.5 = 537.5.
-    expect(setPositionPhysical).toHaveBeenCalledWith(24, 538);
+    // Work-area bottom 800 physical = 533.33 logical; 533.33 - 175 feet offset = 358.33.
+    expect(h.setPositionLogical).toHaveBeenCalledWith(24, 358);
+  });
+
+  it("keeps the origin in the target monitor's logical px when the window reports a different scale factor", async () => {
+    const setPositionLogical = vi.fn(async () => {});
+    const h = harness({
+      getWindow: () => ({
+        outerPosition: async () => WINDOW_POS,
+        outerSize: async () => WINDOW_SIZE,
+        scaleFactor: async () => 2,
+        setPositionLogical,
+      }),
+    });
+
+    await h.call("command", { action: "move_to", spot: "bottom-left", monitor: 0 });
+
+    // Target monitor 0 is scale 1: work-area floor 800 minus the 200px feet offset. The
+    // window's own scale (2) never enters this spot's math — only its size would have.
+    expect(setPositionLogical).toHaveBeenCalledWith(24, 600);
+  });
+
+  it("brings the window's own size into logical px through its own scale factor", async () => {
+    const setPositionLogical = vi.fn(async () => {});
+    const h = harness({
+      getWindow: () => ({
+        outerPosition: async () => WINDOW_POS,
+        outerSize: async () => WINDOW_SIZE,
+        scaleFactor: async () => 2,
+        setPositionLogical,
+      }),
+      listMonitors: async () => [{ ...MONITORS[0], scaleFactor: 2 }, MONITORS[1]],
+    });
+
+    await h.call("command", { action: "move_to", spot: "center", monitor: 0 });
+
+    // Monitor 0's work area (1000x760 physical at scale 2) is 500x380 logical; the
+    // window's own 400x300 physical size is 200x150 logical at its own scale 2.
+    // Center: 0 + (500-200)/2 = 150, 20 + (380-150)/2 = 135.
+    expect(setPositionLogical).toHaveBeenCalledWith(150, 135);
   });
 
   it("drops the window box on the work-area bottom when the feet are unmeasurable", async () => {
@@ -339,7 +367,7 @@ describe("avatar-executor — move_to", () => {
     await h.call("command", { action: "move_to", spot: "bottom-left", monitor: 0 });
 
     // 800 - 300 = 500.
-    expect(h.setPositionPhysical).toHaveBeenCalledWith(24, 500);
+    expect(h.setPositionLogical).toHaveBeenCalledWith(24, 500);
   });
 
   it("releases any perch before moving", async () => {
@@ -348,7 +376,7 @@ describe("avatar-executor — move_to", () => {
     await h.call("command", { action: "move_to", spot: "top-left", monitor: 0 });
 
     expect(h.release).toHaveBeenCalled();
-    expect(h.setPositionPhysical).toHaveBeenCalledWith(24, 64);
+    expect(h.setPositionLogical).toHaveBeenCalledWith(24, 64);
   });
 
   it("reports not_found for a monitor index out of range", async () => {
@@ -358,7 +386,7 @@ describe("avatar-executor — move_to", () => {
       ok: false,
       reason: "not_found",
     });
-    expect(h.setPositionPhysical).not.toHaveBeenCalled();
+    expect(h.setPositionLogical).not.toHaveBeenCalled();
   });
 
   it("reports unsupported when no monitor is enumerable", async () => {
@@ -378,7 +406,7 @@ describe("avatar-executor — move_to", () => {
         },
         outerSize: async () => WINDOW_SIZE,
         scaleFactor: async () => 1,
-        setPositionPhysical: vi.fn(async () => {}),
+        setPositionLogical: vi.fn(async () => {}),
       }),
     });
 
@@ -441,7 +469,7 @@ describe("avatar-executor — move_to", () => {
         outerPosition: async () => WINDOW_POS,
         outerSize: async () => WINDOW_SIZE,
         scaleFactor: async () => 1,
-        setPositionPhysical: () => gate.promise,
+        setPositionLogical: () => gate.promise,
       }),
     });
 
@@ -636,7 +664,7 @@ describe("avatar-executor — malformed input and lifecycle", () => {
         },
         outerSize: async () => WINDOW_SIZE,
         scaleFactor: async () => 1,
-        setPositionPhysical: vi.fn(async () => {}),
+        setPositionLogical: vi.fn(async () => {}),
       }),
     });
 

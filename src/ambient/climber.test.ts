@@ -21,6 +21,7 @@ import {
   PULL_HANDOFF_S,
   pickClimbTarget,
   pickDescentTarget,
+  pickMonitorWalls,
 } from "./climber";
 
 const CFG: ClimbConfig = {
@@ -50,6 +51,7 @@ const MONITOR: ScreenMonitor = {
   position: { x: 0, y: 0 },
   size: { width: 1920, height: 1600 },
   workArea: { position: { x: 0, y: 100 }, size: { width: 1920, height: 1400 } },
+  scaleFactor: 1,
 };
 const MONITOR_BOUNDS = { x: 0, y: 0, width: 1920, height: 1600 };
 
@@ -109,6 +111,7 @@ const TARGET: ClimbTarget = {
   rect: { x: 1000, y: 900 },
   app: "Notes",
   title: "Meeting notes",
+  kind: "window",
 };
 
 describe("pickClimbTarget", () => {
@@ -302,6 +305,83 @@ describe("pickDescentTarget", () => {
   });
 });
 
+describe("pickMonitorWalls", () => {
+  /** Built-in display: 1728×1117 logical at (0,0), scale 2 — top 50 logical / bottom
+   *  margin 100 logical for a dock. */
+  const BUILTIN: ScreenMonitor = {
+    position: { x: 0, y: 0 },
+    size: { width: 3456, height: 2234 },
+    workArea: { position: { x: 0, y: 100 }, size: { width: 3456, height: 1934 } },
+    scaleFactor: 2,
+  };
+  /** 1920×1080 logical at (−992, −1080), scale 1 — floor line (no dock) at y = 0. */
+  const UPPER_LEFT: ScreenMonitor = {
+    position: { x: -992, y: -1080 },
+    size: { width: 1920, height: 1080 },
+    workArea: { position: { x: -992, y: -1055 }, size: { width: 1920, height: 1055 } },
+    scaleFactor: 1,
+  };
+  /** 1920×1080 logical at (928, −1080), scale 1 — floor line (no dock) at y = 0. */
+  const UPPER_RIGHT: ScreenMonitor = {
+    position: { x: 928, y: -1080 },
+    size: { width: 1920, height: 1080 },
+    workArea: { position: { x: 928, y: -1055 }, size: { width: 1920, height: 1055 } },
+    scaleFactor: 1,
+  };
+  const MONITORS = [BUILTIN, UPPER_LEFT, UPPER_RIGHT];
+  const base = {
+    monitors: MONITORS,
+    monitor: BUILTIN,
+    floor: 1017,
+    maxWalkPx: 600,
+  };
+
+  it("returns the left screen edge as a right-hand wall onto the monitor above", () => {
+    expect(pickMonitorWalls({ ...base, feetX: 100 })).toEqual([
+      {
+        windowNumber: -1,
+        side: "right",
+        edgeX: 0,
+        topY: 0,
+        bottomY: 1017,
+        width: 0,
+        rect: { x: 0, y: 0 },
+        app: null,
+        title: null,
+        kind: "monitor",
+      },
+    ]);
+  });
+
+  it("returns the right screen edge as a left-hand wall onto the monitor above", () => {
+    expect(pickMonitorWalls({ ...base, feetX: 1600 })).toEqual([
+      {
+        windowNumber: -1,
+        side: "left",
+        edgeX: 1728,
+        topY: 0,
+        bottomY: 1017,
+        width: 0,
+        rect: { x: 1728, y: 0 },
+        app: null,
+        title: null,
+        kind: "monitor",
+      },
+    ]);
+  });
+
+  it("returns nothing when no monitor sits above either edge", () => {
+    // Both edges are within reach; only their upper monitors are missing.
+    expect(pickMonitorWalls({ ...base, monitors: [BUILTIN], feetX: 864, maxWalkPx: 900 })).toEqual(
+      [],
+    );
+  });
+
+  it("returns nothing when both edges are farther than the longest walk", () => {
+    expect(pickMonitorWalls({ ...base, feetX: 864, maxWalkPx: 100 })).toEqual([]);
+  });
+});
+
 describe("ledgeSeatX", () => {
   it("walks in from a left edge by the drawn distance", () => {
     expect(ledgeSeatX(1000, "left", 1000, CHAR_HPX, 300)).toBe(1300);
@@ -449,6 +529,25 @@ describe("climbTargetLost", () => {
       climbTargetLost({ ...base, direction: "down", windows: [farCover, TARGET_WINDOW] }),
     ).toBe(true);
   });
+
+  it("never loses a monitor target — a screen edge cannot move, vanish or be covered", () => {
+    const monitorTarget: ClimbTarget = {
+      windowNumber: -1,
+      side: "right",
+      edgeX: 0,
+      topY: 0,
+      bottomY: 1500,
+      width: 0,
+      rect: { x: 0, y: 0 },
+      app: null,
+      title: null,
+      kind: "monitor",
+    };
+    // Straddles the wall column at edgeX 0 — a window wall would call this covered.
+    const cover = win({ x: 0, y: 0, width: 150, height: 100, windowNumber: 9 });
+    expect(climbTargetLost({ ...base, target: monitorTarget, windows: [] })).toBe(false);
+    expect(climbTargetLost({ ...base, target: monitorTarget, windows: [cover] })).toBe(false);
+  });
 });
 
 // ── runtime loop ──────────────────────────────────────────────────────────────
@@ -521,6 +620,10 @@ function makeHarness(
     standResult?: "done" | "lost";
     /** How far (physical px) the injected sit-down sinks the window it is given. */
     sitDropPx?: number;
+    /** All monitors, for a monitor-wall climb. Defaults to the single MONITOR fixture. */
+    monitors?: ScreenMonitor[];
+    /** The window's own scale factor. Defaults to 1. */
+    windowScale?: number;
   } = {},
 ) {
   let tick: TickFn | null = null;
@@ -532,6 +635,7 @@ function makeHarness(
   const motions: Array<RenderMotionSignal | null> = [];
   const yaws: Array<{ rad: number; easeMs: number }> = [];
   const positions: Array<{ x: number; y: number }> = [];
+  const logicalCalls: Array<{ x: number; y: number }> = [];
   const walkTargets: number[] = [];
   /** Clip-local time of the current motion when each walkTo arrived. */
   const walkClipTimes: number[] = [];
@@ -539,6 +643,7 @@ function makeHarness(
   const walkHolds: boolean[] = [];
   let pos = { ...(over.position ?? WINDOW_POS) };
   let windows = over.windows ?? [TARGET_WINDOW];
+  let windowReads = 0;
   let perched = over.perched ?? false;
   let currentMotion: { id: string; vrma_path: string } | null = {
     id: "idle",
@@ -653,14 +758,18 @@ function makeHarness(
     getWindow: () => ({
       outerPosition: async () => ({ ...pos }),
       outerSize: async () => ({ width: 400, height: 600 }),
-      scaleFactor: async () => 1,
-      setPositionPhysical: async (x, y) => {
+      scaleFactor: async () => over.windowScale ?? 1,
+      setPositionLogical: async (x, y) => {
+        logicalCalls.push({ x, y });
         pos = { x, y: over.minY === undefined ? y : Math.max(y, over.minY) };
         positions.push({ ...pos });
       },
     }),
-    listMonitors: async () => [MONITOR],
-    listWindows: async () => windows,
+    listMonitors: async () => over.monitors ?? [MONITOR],
+    listWindows: async () => {
+      windowReads++;
+      return windows;
+    },
     getConfig: () => CFG,
     getWalkConfig: () => WALK_CFG,
     currentMotionKind: () => (currentMotion ? (MOTION_KINDS[currentMotion.id] ?? null) : null),
@@ -725,6 +834,8 @@ function makeHarness(
     motions,
     yaws,
     positions,
+    logicalCalls,
+    windowReads: () => windowReads,
     walkTargets,
     walkClipTimes,
     walkHolds,
@@ -1536,6 +1647,138 @@ describe("createClimber — down", () => {
     await h.frame(11);
     expect(h.release).toHaveBeenCalledTimes(1);
     expect(h.starts).toHaveBeenCalledWith("down", TARGET);
+  });
+});
+
+/** Sits directly above MONITOR, sharing its floor line (y = 0) under its own left edge. */
+const UPPER: ScreenMonitor = {
+  position: { x: -500, y: -1000 },
+  size: { width: 1920, height: 1000 },
+  workArea: { position: { x: -500, y: -975 }, size: { width: 1920, height: 975 } },
+  scaleFactor: 1,
+};
+
+describe("createClimber — monitor wall", () => {
+  it("climbs the nearer foreign window when a screen edge is farther", async () => {
+    const nearWindow = win({ x: 300, y: 900, width: 400, height: 600, windowNumber: 55 });
+    const h = makeHarness({
+      position: { x: 50, y: 1080 },
+      windows: [nearWindow],
+      monitors: [MONITOR, UPPER],
+    });
+    h.climber.start();
+    await h.skipInterval();
+    expect(h.starts).toHaveBeenCalledWith(
+      "up",
+      expect.objectContaining({ kind: "window", windowNumber: 55, edgeX: 300 }),
+    );
+  });
+
+  it("climbs the screen edge when it is nearer than any foreign window", async () => {
+    const farWindow = win({ x: 700, y: 900, width: 400, height: 600, windowNumber: 56 });
+    const h = makeHarness({
+      position: { x: 50, y: 1080 },
+      windows: [farWindow],
+      monitors: [MONITOR, UPPER],
+    });
+    h.climber.start();
+    await h.skipInterval();
+    expect(h.starts).toHaveBeenCalledWith(
+      "up",
+      expect.objectContaining({ kind: "monitor", edgeX: 0, topY: 0 }),
+    );
+  });
+
+  it("climbs the screen edge even when a foreign window sits where its wall column would be", async () => {
+    const cover = win({ x: 0, y: 0, width: 150, height: 100, windowNumber: 9 });
+    const h = makeHarness({
+      position: { x: 50, y: 1080 },
+      windows: [cover],
+      monitors: [MONITOR, UPPER],
+    });
+    h.climber.start();
+    await h.skipInterval();
+    expect(h.starts).toHaveBeenCalledWith(
+      "up",
+      expect.objectContaining({ kind: "monitor", edgeX: 0, topY: 0 }),
+    );
+  });
+
+  it("climbs the screen edge onto the monitor above and ends standing on its floor line", async () => {
+    const h = makeHarness({
+      position: { x: 50, y: 1080 },
+      windows: [],
+      monitors: [MONITOR, UPPER],
+    });
+    h.climber.start();
+    await h.skipInterval();
+    await h.runToEnd();
+
+    expect(h.ends).toHaveBeenCalledWith("up");
+    expect(h.sits).not.toHaveBeenCalled();
+    expect(h.adoptSit).not.toHaveBeenCalled();
+    expect(h.logicalCalls.length).toBeGreaterThan(0);
+    // Feet land on the upper floor line (y = 0) at the climbed edge (x = 0).
+    expect(h.at()).toEqual({ x: -ANCHOR.x, y: -ANCHOR.y });
+  });
+
+  it("never polls the window stack for a monitor target while it climbs", async () => {
+    const h = makeHarness({
+      position: { x: 50, y: 1080 },
+      windows: [],
+      monitors: [MONITOR, UPPER],
+    });
+    h.climber.start();
+    await h.skipInterval();
+    const afterStart = h.windowReads();
+
+    // Well past several 700ms target-watch intervals; the climb itself is still running.
+    await h.runFrames(30);
+    expect(h.ends).not.toHaveBeenCalled();
+    expect(h.windowReads()).toBe(afterStart);
+  });
+
+  it("carries the climb through a scale boundary — a scale-2 window on a scale-2 lower monitor climbing onto a scale-1 upper monitor", async () => {
+    // The reference layout the shim exists for: physical arithmetic on the lower
+    // monitor is twice the upper monitor's, so every leg has to cross in logical points.
+    const LOWER_SCALE2: ScreenMonitor = {
+      position: { x: 0, y: 0 },
+      size: { width: 3456, height: 2234 },
+      workArea: { position: { x: 0, y: 100 }, size: { width: 3456, height: 1934 } },
+      scaleFactor: 2,
+    };
+    const UPPER_SCALE1: ScreenMonitor = {
+      position: { x: -992, y: -1080 },
+      size: { width: 1920, height: 1080 },
+      workArea: { position: { x: -992, y: -1055 }, size: { width: 1920, height: 1055 } },
+      scaleFactor: 1,
+    };
+    // Floor 1017 logical; feet at logical (250, 1017) is physical (100, 1194) at scale 2.
+    const h = makeHarness({
+      position: { x: 100, y: 1194 },
+      windows: [],
+      monitors: [LOWER_SCALE2, UPPER_SCALE1],
+      windowScale: 2,
+    });
+    h.climber.start();
+    await h.skipInterval();
+    await h.runToEnd();
+
+    expect(h.ends).toHaveBeenCalledWith("up");
+    expect(h.sits).not.toHaveBeenCalled();
+    expect(h.adoptSit).not.toHaveBeenCalled();
+    expect(h.logicalCalls.length).toBeGreaterThan(1);
+    // The shim divides by the surveyed (lower monitor's) scale, so every logical call
+    // stays inside the climb's own logical span — a missing division would overshoot it.
+    const startLogicalY = 1194 / 2;
+    const endLogicalY = 0 - ANCHOR.y;
+    for (const call of h.logicalCalls) {
+      expect(call.y).toBeLessThanOrEqual(startLogicalY + 1);
+      expect(call.y).toBeGreaterThanOrEqual(endLogicalY - 1);
+    }
+    // Feet land on the upper monitor's floor line (y = 0) at the climbed edge (x = 0),
+    // in that monitor's own logical points — untouched by the lower monitor's scale.
+    expect(h.at()).toEqual({ x: -ANCHOR.x, y: -ANCHOR.y });
   });
 });
 

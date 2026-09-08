@@ -24,7 +24,13 @@
 import type { WalkConfig } from "../config/load";
 import type { MotionKind } from "../contract";
 import { clampToWorkArea } from "../drag";
-import { floorPx, monitorAt, type PetWindow, type ScreenMonitor } from "../io/screen-geometry";
+import {
+  floorPx,
+  floorSegments,
+  monitorAt,
+  type PetWindow,
+  type ScreenMonitor,
+} from "../io/screen-geometry";
 import { createLogger } from "../logger";
 import type { Renderer } from "../renderer";
 import { type Rng, randRange } from "./cues";
@@ -99,10 +105,12 @@ export function planStroll(args: {
   const { x, width, workX, workWidth, cfg } = args;
   const rng = args.rng ?? Math.random;
   const distance = randRange(cfg.distance_min_px, cfg.distance_max_px, rng);
-  const direction: -1 | 1 = rng() < 0.5 ? -1 : 1;
+  const drawnDirection: -1 | 1 = rng() < 0.5 ? -1 : 1;
   if (width > workWidth) return null;
-  const toX = clampToWorkArea(x + direction * distance, 0, width, 0, workX, 0, workWidth, 0).x;
-  return toX === x ? null : { toX, direction };
+  const toX = clampToWorkArea(x + drawnDirection * distance, 0, width, 0, workX, 0, workWidth, 0).x;
+  // The clamp can pull the destination past the drawn direction — starting inside a
+  // cut-out, for instance — so the reported direction is the actual travel, not the draw.
+  return toX === x ? null : { toX, direction: toX > x ? 1 : -1 };
 }
 
 /** Window x after one dt step toward the destination, never past it. */
@@ -110,6 +118,23 @@ export function advanceX(x: number, toX: number, speedPxPerSec: number, dt: numb
   const remaining = toX - x;
   const step = speedPxPerSec * dt;
   return Math.abs(remaining) <= step ? toX : x + Math.sign(remaining) * step;
+}
+
+/** The segment containing x, else the one whose nearer edge sits closest to it. */
+function nearestSegment(
+  segments: Array<{ left: number; right: number }>,
+  x: number,
+): { left: number; right: number } | null {
+  let best: { left: number; right: number } | null = null;
+  let bestDist = Infinity;
+  for (const seg of segments) {
+    const dist = x < seg.left ? seg.left - x : x > seg.right ? x - seg.right : 0;
+    if (dist < bestDist) {
+      bestDist = dist;
+      best = seg;
+    }
+  }
+  return best;
 }
 
 /** Document seam for the hidden-window guard — the renderer parks its rAF while hidden. */
@@ -174,7 +199,8 @@ export function createWalker(deps: WalkerDeps): Walker {
   let unsub: (() => void) | null = null;
   /** Frame-clock deadline (ms) for the next attempt; negative = needs arming. */
   let nextAtMs = -1;
-  /** Live stroll, all in physical px. */
+  /** Live stroll, all in logical px — the window may cross onto a different-scale
+   *  monitor mid-stroll, so physical px would not stay a fixed distance underfoot. */
   let stroll: {
     x: number;
     y: number;
@@ -241,8 +267,7 @@ export function createWalker(deps: WalkerDeps): Walker {
     const monitor = monitorAt(monitors, pos.x, pos.y);
     if (!monitor || pxPerMetre === null || !(pxPerMetre > 0)) return;
     const scale = sf > 0 ? sf : 1;
-    const work = monitor.workArea;
-    const floor = floorPx(monitor, scale);
+    const floor = floorPx(monitor);
     const bodyId = renderer.getCurrentMotion()?.id;
     const gate: WalkGateState = {
       onFloor: feet !== null && onFloor(pos.y / scale + feet.y, floor, cfg.floor_tolerance_px),
@@ -255,12 +280,25 @@ export function createWalker(deps: WalkerDeps): Walker {
         bodyId === WALK_MOTION_ID,
       reducedMotion: reduce,
     };
-    if (!canStartStroll(gate)) return;
+    if (!canStartStroll(gate) || !feet) return;
+    const x = pos.x / scale;
+    const width = size.width / scale;
+    // The window's bottom margin can overlap a lower monitor even while the feet rest
+    // on this one's floor, and a stroll through that stretch flashes a stale frame every
+    // time AppKit redraws the window across the scale boundary underneath it.
+    const hangPx = size.height / scale - feet.y;
+    // A segment too narrow for even the shortest stroll distance would otherwise win
+    // nearestSegment on raw proximity and strand the stroll unable to plan a move at all.
+    const usable = floorSegments(monitors, monitor, width, hangPx).filter(
+      (s) => s.right - s.left >= cfg.distance_min_px,
+    );
+    const seg = nearestSegment(usable, x);
+    if (!seg) return;
     const plan = planStroll({
-      x: pos.x / scale,
-      width: size.width / scale,
-      workX: work.position.x / scale,
-      workWidth: work.size.width / scale,
+      x,
+      width,
+      workX: seg.left,
+      workWidth: seg.right - seg.left + width,
       cfg,
       rng,
     });
@@ -269,10 +307,10 @@ export function createWalker(deps: WalkerDeps): Walker {
     // A dropped request (perch suppression, dead clip) must not leave a walk_start/walk_end blip.
     if (renderer.getCurrentMotion()?.id !== WALK_MOTION_ID) return;
     stroll = {
-      x: pos.x,
-      y: pos.y,
-      toX: plan.toX * scale,
-      pxPerMetre: pxPerMetre * scale,
+      x,
+      y: pos.y / scale,
+      toX: plan.toX,
+      pxPerMetre,
       win,
       directed: false,
       holdClip: false,
@@ -294,20 +332,20 @@ export function createWalker(deps: WalkerDeps): Walker {
     if (stopped || generation !== startedAt) return "lost";
     if (pxPerMetre === null || !(pxPerMetre > 0)) return "lost";
     const scale = sf > 0 ? sf : 1;
-    const target = toX * scale;
-    if (pos.x === target) return "arrived";
+    const x = pos.x / scale;
+    if (x === toX) return "arrived";
     renderer.playMotion({ id: WALK_MOTION_ID });
     if (renderer.getCurrentMotion()?.id !== WALK_MOTION_ID) return "lost";
     stroll = {
-      x: pos.x,
-      y: pos.y,
-      toX: target,
-      pxPerMetre: pxPerMetre * scale,
+      x,
+      y: pos.y / scale,
+      toX,
+      pxPerMetre,
       win,
       directed: true,
       holdClip,
     };
-    renderer.setBodyYaw(Math.sign(target - pos.x) * WALK_YAW_RAD, WALK_YAW_EASE_MS);
+    renderer.setBodyYaw(Math.sign(toX - x) * WALK_YAW_RAD, WALK_YAW_EASE_MS);
     onAccepted?.();
     return "running";
   }
@@ -334,7 +372,7 @@ export function createWalker(deps: WalkerDeps): Walker {
     const speed = walkSpeedPxPerSec(s.pxPerMetre, cycleS);
     s.x = advanceX(s.x, s.toX, speed, Math.min(dt, MAX_STEP_DT_S));
     void s.win
-      .setPositionPhysical(Math.round(s.x), s.y)
+      .setPositionLogical(Math.round(s.x), s.y)
       .catch((err) => log.warn("move_failed", { degrade: true, error: String(err) }));
     if (s.x === s.toX) endStroll("arrived");
   }

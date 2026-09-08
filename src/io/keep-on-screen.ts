@@ -44,6 +44,7 @@ export function keepOnScreen(
     position: { x: m.position.x + inset.x, y: m.position.y + inset.y },
     size: { width: m.size.width - 2 * inset.x, height: m.size.height - 2 * inset.y },
     workArea: m.workArea,
+    scaleFactor: m.scaleFactor,
   }));
   if (monitorAt(bounds, centerX, centerY)) return null;
 
