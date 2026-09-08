@@ -87,8 +87,6 @@ export interface ClimbTarget {
   app: string | null;
   title: string | null;
   kind: "window" | "monitor";
-  /** The scale factor of the monitor above — set only for a monitor wall. */
-  upperScale?: number;
 }
 
 /** An axis-aligned rect in the same global logical px as the window list. */
@@ -430,7 +428,6 @@ export function pickMonitorWalls(args: {
       app: null,
       title: null,
       kind: "monitor",
-      upperScale: upper.scaleFactor,
     });
   }
   return targets;

@@ -352,7 +352,6 @@ describe("pickMonitorWalls", () => {
         app: null,
         title: null,
         kind: "monitor",
-        upperScale: 1,
       },
     ]);
   });
@@ -370,7 +369,6 @@ describe("pickMonitorWalls", () => {
         app: null,
         title: null,
         kind: "monitor",
-        upperScale: 1,
       },
     ]);
   });
@@ -552,7 +550,6 @@ describe("climbTargetLost", () => {
       app: null,
       title: null,
       kind: "monitor",
-      upperScale: 1,
     };
     expect(climbTargetLost({ ...base, target: monitorTarget, windows: [] })).toBe(false);
   });
