@@ -15,6 +15,9 @@ const log = createLogger("keep-on-screen");
 /** Idle time after the last move event before the guard evaluates. */
 const IDLE_MS = 300;
 
+/** Physical px kept between a pushed center and the monitor's far edge. */
+const EDGE_INSET_PX = 2;
+
 /** Window accessors the guard reads and writes. Positions/sizes are physical px. */
 export interface KeepOnScreenWindow {
   outerPosition(): Promise<{ x: number; y: number }>;
@@ -37,10 +40,12 @@ export function keepOnScreen(
   let nearest: { x: number; y: number } | null = null;
   let nearestDist = Number.POSITIVE_INFINITY;
   for (const m of monitors) {
-    // Clamp to the far edge minus 1px: monitorAt's upper bound is exclusive, so clamping to
-    // the exact edge would leave the pushed center still reading as off-screen.
-    const clampedX = Math.min(Math.max(centerX, m.position.x), m.position.x + m.size.width - 1);
-    const clampedY = Math.min(Math.max(centerY, m.position.y), m.position.y + m.size.height - 1);
+    // monitorAt's upper bound is exclusive, and the OS rounds the origin to whole logical points,
+    // so stay EDGE_INSET_PX inside the far edge or the pushed center can land back on it.
+    const maxX = m.position.x + m.size.width - EDGE_INSET_PX;
+    const maxY = m.position.y + m.size.height - EDGE_INSET_PX;
+    const clampedX = Math.min(Math.max(centerX, m.position.x), maxX);
+    const clampedY = Math.min(Math.max(centerY, m.position.y), maxY);
     const dist = (clampedX - centerX) ** 2 + (clampedY - centerY) ** 2;
     if (dist < nearestDist) {
       nearestDist = dist;
