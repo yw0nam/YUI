@@ -36,9 +36,9 @@ import {
 import { MOVE_TH } from "../io/window-drop-source";
 import { createLogger } from "../logger";
 import type { Renderer } from "../renderer";
-import { createLegRunner, type LegWindow } from "./clip-leg";
+import { createLegRunner } from "./clip-leg";
 import { type Rng, randRange } from "./cues";
-import type { Sitter } from "./sitter";
+import type { SeatWindow, Sitter } from "./sitter";
 import { prefersReducedMotion } from "./tier1";
 import { canStartStroll, MAX_STEP_DT_S, onFloor, WALK_MOTION_ID, type WalkerDoc } from "./walker";
 
@@ -695,12 +695,14 @@ export function createClimber(deps: ClimberDeps): Climber {
   }
 
   /**
-   * Routes a leg's physical-px arithmetic through the OS as scale-independent logical
-   * points, so a leg that crosses onto a different-scale monitor mid-flight keeps one
-   * arithmetic space throughout. A no-op difference on a single monitor.
+   * Routes a leg's or a seat transition's physical-px arithmetic through the OS as
+   * scale-independent logical points, so one that crosses onto a different-scale
+   * monitor mid-flight keeps one arithmetic space throughout. A no-op difference on a
+   * single monitor. A superset of LegWindow so the same shim serves the sitter too.
    */
-  function logicalLegWindow(win: PetWindow, scale0: number): LegWindow {
+  function logicalLegWindow(win: PetWindow, scale0: number): SeatWindow {
     return {
+      outerPosition: () => win.outerPosition(),
       setPositionPhysical: (x, y) => win.setPositionLogical(x / scale0, y / scale0),
     };
   }
@@ -884,7 +886,7 @@ export function createClimber(deps: ClimberDeps): Climber {
 
     // The window sinks with the sit, and the window manager can refuse part of any move,
     // so the ledge offset has to come from where the window actually ends up.
-    if ((await deps.sitter.sitDown({ win: w.win, scale: w.scale })) !== "done") return endClimb();
+    if ((await deps.sitter.sitDown({ win: climbWin, scale: w.scale })) !== "done") return endClimb();
     if (!alive(startedAt)) return endClimb();
     const seated = await w.win.outerPosition();
     if (!alive(startedAt)) return endClimb();
@@ -944,9 +946,12 @@ export function createClimber(deps: ClimberDeps): Climber {
       deps.dropSource.adoptSit(picked.windowNumber, picked.rect, standingHpx, "adopt");
       return endClimb();
     }
+    // A descent never starts from a monitor climb, but the shim is applied uniformly —
+    // it is a no-op difference on the single monitor a descent always runs on.
+    const descentWin = logicalLegWindow(w.win, w.scale);
     // Stand up onto the ledge: the window rises with the clip until the feet are on the
     // edge, wherever a drop left it.
-    if ((await deps.sitter.standUp(w.win, Math.round(standY * w.scale))) !== "done") {
+    if ((await deps.sitter.standUp(descentWin, Math.round(standY * w.scale))) !== "done") {
       return endClimb();
     }
     if (!alive(startedAt)) return endClimb();
@@ -968,10 +973,8 @@ export function createClimber(deps: ClimberDeps): Climber {
     // She walks the top to the corner, so the wall x is a hand's reach further out.
     const wallX =
       at.x + (wallStandX(picked.edgeX, picked.side, wallOffset) - picked.edgeX) * w.scale;
-    // A descent never starts from a monitor climb, but the shim is applied uniformly —
-    // it is a no-op difference on the single monitor a descent always runs on.
     const base = {
-      win: logicalLegWindow(w.win, w.scale),
+      win: descentWin,
       fromX: wallX,
       toX: wallX,
       pxPerMetre,

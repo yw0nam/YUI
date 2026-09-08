@@ -305,10 +305,6 @@ function makeHarness(
       outerPosition: async () => over.position ?? WINDOW_POS,
       outerSize: async () => ({ width: 400, height: 600 }),
       scaleFactor: async () => over.scale ?? 1,
-      setPositionPhysical: async (x, y) => {
-        physicalCalls.push({ x, y });
-        positions.push({ x, y });
-      },
       setPositionLogical: async (x, y) => {
         logicalCalls.push({ x, y });
         positions.push({ x, y });

@@ -62,7 +62,6 @@ function harness(over: Partial<AvatarExecutorDeps> = {}) {
   let handler: ((req: AvatarRpcRequest) => void) | undefined;
   const unsubscribe = vi.fn();
   const responses: Array<{ id: string; result: unknown }> = [];
-  const setPositionPhysical = vi.fn(async () => {});
   const setPositionLogical = vi.fn(async () => {});
   // Parameters declared so the abort-signal test can read the options argument.
   const placeOn = vi.fn(
@@ -90,7 +89,6 @@ function harness(over: Partial<AvatarExecutorDeps> = {}) {
       outerPosition: async () => WINDOW_POS,
       outerSize: async () => WINDOW_SIZE,
       scaleFactor: async () => 1,
-      setPositionPhysical,
       setPositionLogical,
     }),
     listMonitors: async () => MONITORS,
@@ -131,7 +129,6 @@ function harness(over: Partial<AvatarExecutorDeps> = {}) {
     fire,
     answerOf,
     responses,
-    setPositionPhysical,
     setPositionLogical,
     placeOn,
     release,
@@ -333,7 +330,6 @@ describe("avatar-executor — move_to", () => {
         outerPosition: async () => WINDOW_POS,
         outerSize: async () => WINDOW_SIZE,
         scaleFactor: async () => 2,
-        setPositionPhysical: vi.fn(async () => {}),
         setPositionLogical,
       }),
     });
@@ -352,7 +348,6 @@ describe("avatar-executor — move_to", () => {
         outerPosition: async () => WINDOW_POS,
         outerSize: async () => WINDOW_SIZE,
         scaleFactor: async () => 2,
-        setPositionPhysical: vi.fn(async () => {}),
         setPositionLogical,
       }),
       listMonitors: async () => [{ ...MONITORS[0], scaleFactor: 2 }, MONITORS[1]],
@@ -411,7 +406,6 @@ describe("avatar-executor — move_to", () => {
         },
         outerSize: async () => WINDOW_SIZE,
         scaleFactor: async () => 1,
-        setPositionPhysical: vi.fn(async () => {}),
         setPositionLogical: vi.fn(async () => {}),
       }),
     });
@@ -475,7 +469,6 @@ describe("avatar-executor — move_to", () => {
         outerPosition: async () => WINDOW_POS,
         outerSize: async () => WINDOW_SIZE,
         scaleFactor: async () => 1,
-        setPositionPhysical: vi.fn(async () => {}),
         setPositionLogical: () => gate.promise,
       }),
     });
@@ -671,7 +664,6 @@ describe("avatar-executor — malformed input and lifecycle", () => {
         },
         outerSize: async () => WINDOW_SIZE,
         scaleFactor: async () => 1,
-        setPositionPhysical: vi.fn(async () => {}),
         setPositionLogical: vi.fn(async () => {}),
       }),
     });

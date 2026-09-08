@@ -484,22 +484,15 @@ export function wireWalker(deps: {
   if (!isTauri()) return handle;
   void (async () => {
     const { availableMonitors, getCurrentWindow } = await import("@tauri-apps/api/window");
-    const { LogicalPosition, PhysicalPosition } = await import("@tauri-apps/api/dpi");
+    const { LogicalPosition } = await import("@tauri-apps/api/dpi");
     if (disposed) return;
     const push = (event_name: string): void => {
       bus.push({ source: "timer_scheduler", event_name, ts: Date.now(), hint_tier: 1 });
     };
-    // Built once: a stroll asks for this handle on every frame it moves the window.
-    const moveTo = new PhysicalPosition(0, 0);
     const walkerWindow: PetWindow = {
       outerPosition: () => getCurrentWindow().outerPosition(),
       outerSize: () => getCurrentWindow().outerSize(),
       scaleFactor: () => getCurrentWindow().scaleFactor(),
-      setPositionPhysical: (x, y) => {
-        moveTo.x = x;
-        moveTo.y = y;
-        return getCurrentWindow().setPosition(moveTo);
-      },
       setPositionLogical: (x, y) => getCurrentWindow().setPosition(new LogicalPosition(x, y)),
     };
     walker = createWalker({
@@ -729,19 +722,12 @@ export function wireFaller(deps: {
   void (async () => {
     const { invoke } = await import("@tauri-apps/api/core");
     const { availableMonitors, getCurrentWindow } = await import("@tauri-apps/api/window");
-    const { LogicalPosition, PhysicalPosition } = await import("@tauri-apps/api/dpi");
+    const { LogicalPosition } = await import("@tauri-apps/api/dpi");
     if (disposed) return;
-    // Built once: a fall asks for this handle on every frame it moves the window.
-    const moveTo = new PhysicalPosition(0, 0);
     const fallerWindow: PetWindow = {
       outerPosition: () => getCurrentWindow().outerPosition(),
       outerSize: () => getCurrentWindow().outerSize(),
       scaleFactor: () => getCurrentWindow().scaleFactor(),
-      setPositionPhysical: (x, y) => {
-        moveTo.x = x;
-        moveTo.y = y;
-        return getCurrentWindow().setPosition(moveTo);
-      },
       setPositionLogical: (x, y) => getCurrentWindow().setPosition(new LogicalPosition(x, y)),
     };
     faller = createFaller({
@@ -852,7 +838,7 @@ export function wireClimber(deps: {
   void (async () => {
     const { invoke } = await import("@tauri-apps/api/core");
     const { availableMonitors, getCurrentWindow } = await import("@tauri-apps/api/window");
-    const { LogicalPosition, PhysicalPosition } = await import("@tauri-apps/api/dpi");
+    const { LogicalPosition } = await import("@tauri-apps/api/dpi");
     if (disposed) return;
     const push = (event_name: string, payload: Record<string, unknown>): void => {
       bus.push({
@@ -870,17 +856,10 @@ export function wireClimber(deps: {
       app: target?.app ?? null,
       window_title: target?.title ?? null,
     });
-    // Built once: a climb asks for this handle on every frame it moves the window.
-    const moveTo = new PhysicalPosition(0, 0);
     const climberWindow: PetWindow = {
       outerPosition: () => getCurrentWindow().outerPosition(),
       outerSize: () => getCurrentWindow().outerSize(),
       scaleFactor: () => getCurrentWindow().scaleFactor(),
-      setPositionPhysical: (x, y) => {
-        moveTo.x = x;
-        moveTo.y = y;
-        return getCurrentWindow().setPosition(moveTo);
-      },
       setPositionLogical: (x, y) => getCurrentWindow().setPosition(new LogicalPosition(x, y)),
     };
     climber = createClimber({
@@ -1073,7 +1052,6 @@ export function wireWindowSources(deps: {
           outerPosition: () => win.outerPosition(),
           outerSize: () => win.outerSize(),
           scaleFactor: () => win.scaleFactor(),
-          setPositionPhysical: (x, y) => win.setPosition(new PhysicalPosition(x, y)),
           setPositionLogical: (x, y) => win.setPosition(new LogicalPosition(x, y)),
         };
       },

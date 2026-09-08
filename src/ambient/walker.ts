@@ -180,7 +180,8 @@ export function createWalker(deps: WalkerDeps): Walker {
   let unsub: (() => void) | null = null;
   /** Frame-clock deadline (ms) for the next attempt; negative = needs arming. */
   let nextAtMs = -1;
-  /** Live stroll, all in physical px. */
+  /** Live stroll, all in logical px — the window may cross onto a different-scale
+   *  monitor mid-stroll, so physical px would not stay a fixed distance underfoot. */
   let stroll: {
     x: number;
     y: number;
@@ -277,10 +278,10 @@ export function createWalker(deps: WalkerDeps): Walker {
     // A dropped request (perch suppression, dead clip) must not leave a walk_start/walk_end blip.
     if (renderer.getCurrentMotion()?.id !== WALK_MOTION_ID) return;
     stroll = {
-      x: pos.x,
-      y: pos.y,
-      toX: plan.toX * scale,
-      pxPerMetre: pxPerMetre * scale,
+      x: pos.x / scale,
+      y: pos.y / scale,
+      toX: plan.toX,
+      pxPerMetre,
       win,
       directed: false,
       holdClip: false,
@@ -302,20 +303,20 @@ export function createWalker(deps: WalkerDeps): Walker {
     if (stopped || generation !== startedAt) return "lost";
     if (pxPerMetre === null || !(pxPerMetre > 0)) return "lost";
     const scale = sf > 0 ? sf : 1;
-    const target = toX * scale;
-    if (pos.x === target) return "arrived";
+    const x = pos.x / scale;
+    if (x === toX) return "arrived";
     renderer.playMotion({ id: WALK_MOTION_ID });
     if (renderer.getCurrentMotion()?.id !== WALK_MOTION_ID) return "lost";
     stroll = {
-      x: pos.x,
-      y: pos.y,
-      toX: target,
-      pxPerMetre: pxPerMetre * scale,
+      x,
+      y: pos.y / scale,
+      toX,
+      pxPerMetre,
       win,
       directed: true,
       holdClip,
     };
-    renderer.setBodyYaw(Math.sign(target - pos.x) * WALK_YAW_RAD, WALK_YAW_EASE_MS);
+    renderer.setBodyYaw(Math.sign(toX - x) * WALK_YAW_RAD, WALK_YAW_EASE_MS);
     onAccepted?.();
     return "running";
   }
@@ -342,7 +343,7 @@ export function createWalker(deps: WalkerDeps): Walker {
     const speed = walkSpeedPxPerSec(s.pxPerMetre, cycleS);
     s.x = advanceX(s.x, s.toX, speed, Math.min(dt, MAX_STEP_DT_S));
     void s.win
-      .setPositionPhysical(Math.round(s.x), s.y)
+      .setPositionLogical(Math.round(s.x), s.y)
       .catch((err) => log.warn("move_failed", { degrade: true, error: String(err) }));
     if (s.x === s.toX) endStroll("arrived");
   }

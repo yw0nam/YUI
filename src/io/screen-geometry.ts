@@ -13,12 +13,11 @@
  * offset are logical px, since that is what the renderer projects in.
  */
 
-/** Pet window accessors the movers read and write. Positions/sizes are physical px. */
+/** Pet window accessors the movers read and write. Position/size reads are physical px. */
 export interface PetWindow {
   outerPosition(): Promise<{ x: number; y: number }>;
   outerSize(): Promise<{ width: number; height: number }>;
   scaleFactor(): Promise<number>;
-  setPositionPhysical(x: number, y: number): Promise<void>;
   /** Scale-independent global logical points — the OS resolves them against whichever
    *  monitor the window ends up on, unlike a physical move, which reads the starting scale. */
   setPositionLogical(x: number, y: number): Promise<void>;

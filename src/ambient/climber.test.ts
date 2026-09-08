@@ -760,11 +760,6 @@ function makeHarness(
       outerPosition: async () => ({ ...pos }),
       outerSize: async () => ({ width: 400, height: 600 }),
       scaleFactor: async () => over.windowScale ?? 1,
-      setPositionPhysical: async (x, y) => {
-        physicalCalls.push({ x, y });
-        pos = { x, y: over.minY === undefined ? y : Math.max(y, over.minY) };
-        positions.push({ ...pos });
-      },
       setPositionLogical: async (x, y) => {
         logicalCalls.push({ x, y });
         pos = { x, y: over.minY === undefined ? y : Math.max(y, over.minY) };
