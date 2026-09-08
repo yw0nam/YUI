@@ -83,6 +83,7 @@ describe("TurnOutput — backend-caller → tts-pipeline ordering", () => {
         finishSpeech: vi.fn(),
       },
       pipeline: { synth: deferred.synth, sink: recorder.sink, maxInflight: () => 5 },
+      isStrolling: () => false,
     });
 
     // Same literal shape voice-pipeline-wiring.ts builds — order-tracking wraps each member.

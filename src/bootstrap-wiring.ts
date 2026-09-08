@@ -21,6 +21,7 @@ import {
 } from "./config";
 import type { EndpointsConfig, MotionKind, Posture, WindowRect } from "./contract";
 import { createAgentSource } from "./dispatcher/agent-source";
+import { isReflexTurn } from "./dispatcher/backend-caller";
 import type { Dispatcher } from "./dispatcher/dispatcher";
 import type { EventBus } from "./dispatcher/event-bus";
 import type { Guardrails, GuardrailsConfig } from "./dispatcher/guardrails";
@@ -451,14 +452,16 @@ export function wireWalker(deps: {
   getMotionKind: (id: string) => MotionKind | undefined;
   isPeeking: () => boolean;
   isDragging: () => boolean;
-  /** A turn is in flight or speech is still playing — ambient movement stays out of the way. */
-  isBusy: () => boolean;
   /** Keep the hit-test cursor mapping accurate while the window translates. */
   setHitTestMoving: (moving: boolean) => void;
+  /** An ambient stroll ended — bodyReleased is true only when the walker itself handed the
+   * clip back, not when another motion had already taken it. */
+  onStrollEnd: (bodyReleased: boolean) => void;
   log: Logger;
 }): {
   walkTo(toX: number, onAccepted?: () => void, holdClip?: boolean): Promise<"arrived" | "lost">;
   cancel(): void;
+  isStrolling(): boolean;
   dispose(): void;
 } {
   const { bus, renderer, log } = deps;
@@ -471,6 +474,7 @@ export function wireWalker(deps: {
       holdClip?: boolean,
     ): Promise<"arrived" | "lost"> => (await walker?.walkTo(toX, onAccepted, holdClip)) ?? "lost",
     cancel: () => walker?.cancel(),
+    isStrolling: () => walker?.isStrolling() ?? false,
     dispose: () => {
       disposed = true;
       walker?.stop();
@@ -507,19 +511,33 @@ export function wireWalker(deps: {
       },
       isPeeking: deps.isPeeking,
       isDragging: deps.isDragging,
-      isBusy: deps.isBusy,
       onStart: () => {
         deps.setHitTestMoving(true);
         push("avatar.walk_start");
       },
-      onEnd: () => {
+      onEnd: (bodyReleased) => {
         deps.setHitTestMoving(false);
         push("avatar.walk_end");
+        deps.onStrollEnd(bodyReleased);
       },
     });
     walker.start();
   })().catch((err) => log.warn("walker_start_failed", { degrade: true, error: String(err) }));
   return handle;
+}
+
+/**
+ * A reflex turn is an immediate reaction to being touched; it cancels a running stroll
+ * the moment it opens. Every other turn leaves the stroll walking.
+ */
+export function wireStrollReflexCancel(deps: {
+  dispatcher: Pick<Dispatcher, "subscribeBusy" | "inFlight">;
+  walker: { cancel(): void };
+}): () => void {
+  return deps.dispatcher.subscribeBusy((busy) => {
+    const trigger = deps.dispatcher.inFlight()?.trigger.event_name;
+    if (busy && trigger !== undefined && isReflexTurn(trigger)) deps.walker.cancel();
+  });
 }
 
 /**

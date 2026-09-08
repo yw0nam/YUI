@@ -10,6 +10,7 @@ import {
   wirePercher,
   type wireSpeakerSelection,
   wireStopControl,
+  wireStrollReflexCancel,
   wireSummonHotkey,
   wireVoiceInput,
   type wireVrmSelection,
@@ -246,10 +247,13 @@ const realFactories: ConfiguredBootstrapFactories = {
     const voiceInput = wireVoiceInput({ voiceInputStatus, sttSettings });
     register(voiceInput.dispose);
     const turnLog = createTurnLog();
+    // Voice creation precedes the walker, so the stroll query stays late-bound across that cycle.
+    let strollingRef: { isStrolling(): boolean } | null = null;
     const voice = wireVoicePipeline({
       renderer,
       surfaces,
       turnLog,
+      isStrolling: () => strollingRef?.isStrolling() ?? false,
       getEndpoints,
       getFillerConfig: () => config.get().filler,
       getTtsApiKey: () => config.secrets.get(TTS_API_KEY_SECRET),
@@ -476,7 +480,8 @@ const realFactories: ConfiguredBootstrapFactories = {
     applyGazeEnabled(gazeSettings.get().enabled);
     register(gazeSettings.subscribe((state) => applyGazeEnabled(state.enabled)));
 
-    // Ambient walking outranks nothing: a drag or an agent command cancels a stroll at once.
+    // Ambient walking outranks nothing: a drag, an agent command or a reflex turn cancels a
+    // stroll at once; an ordinary turn walks on.
     let dragging = false;
     const walker = wireWalker({
       bus,
@@ -485,17 +490,15 @@ const realFactories: ConfiguredBootstrapFactories = {
       getMotionKind: (id) => config.get().motions[id]?.kind,
       isPeeking: () => peekStateRef?.active() ?? false,
       isDragging: () => dragging,
-      isBusy: dispatcher.isPipelineBusy,
       setHitTestMoving: (moving) => hitTest.setMoving(moving),
+      onStrollEnd: (bodyReleased) => {
+        if (bodyReleased) voice.resumeThinking();
+      },
       log,
     });
+    strollingRef = walker;
     register(walker.dispose);
-    // A reflex turn skips the thinking motion, so the motion gate alone would miss it.
-    register(
-      dispatcher.subscribePipelineBusy((busy) => {
-        if (busy) walker.cancel();
-      }),
-    );
+    register(wireStrollReflexCancel({ dispatcher, walker }));
 
     // Set once each loop exists — the drop source and the faller are built before them.
     let climberRef: { cancel(): void } | null = null;

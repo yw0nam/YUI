@@ -76,12 +76,15 @@ describe("canStartStroll", () => {
     perched: false,
     peeking: false,
     dragging: false,
-    ambientMotion: true,
-    busy: false,
+    bodyFree: true,
     reducedMotion: false,
   };
 
   it("passes when the character is idle on the floor", () => {
+    expect(canStartStroll(ok)).toBe(true);
+  });
+
+  it("does not read the pipeline: a turn in flight or speech playing is not a gate", () => {
     expect(canStartStroll(ok)).toBe(true);
   });
 
@@ -90,8 +93,7 @@ describe("canStartStroll", () => {
     ["perched", { perched: true }],
     ["peeking", { peeking: true }],
     ["dragging", { dragging: true }],
-    ["a speech/thinking/reactive motion active", { ambientMotion: false }],
-    ["the pipeline busy (a turn in flight or speech playing)", { busy: true }],
+    ["a clip other than idle, thinking or walk holds the body", { bodyFree: false }],
     ["reduced motion", { reducedMotion: true }],
   ])("blocks on %s", (_label, blocker) => {
     expect(canStartStroll({ ...ok, ...blocker })).toBe(false);
@@ -177,12 +179,13 @@ function makeHarness(
     perched?: boolean;
     peeking?: boolean;
     dragging?: boolean;
-    busy?: boolean;
     /** Duration (s) the walk clip loops on. null models a clip still loading. */
     clipDuration?: number | null;
     /** Models playMotion silently dropping the walk request (perch suppression, dead clip). */
     motionRefused?: boolean;
     motionKind?: WalkerDeps["currentMotionKind"];
+    /** The clip holding the body when the walker fires. Defaults to the idle baseline. */
+    currentMotion?: { id: string; vrma_path: string } | null;
     rng?: () => number;
   } = {},
 ) {
@@ -190,7 +193,7 @@ function makeHarness(
   const motions: Array<RenderMotionSignal | null> = [];
   const yaws: Array<{ rad: number; easeMs: number }> = [];
   const positions: Array<{ x: number; y: number }> = [];
-  let currentMotion: { id: string; vrma_path: string } | null = {
+  let currentMotion: { id: string; vrma_path: string } | null = over.currentMotion ?? {
     id: "idle",
     vrma_path: "/motions/calm.vrma",
   };
@@ -245,7 +248,6 @@ function makeHarness(
     currentMotionKind: over.motionKind ?? (() => "ambient"),
     isPeeking: () => over.peeking ?? false,
     isDragging: () => over.dragging ?? false,
-    isBusy: () => over.busy ?? false,
     doc,
     onStart: starts,
     onEnd: ends,
@@ -348,6 +350,7 @@ describe("createWalker", () => {
     expect(h.motions).toEqual([{ id: WALK_MOTION_ID }, null]);
     expect(h.yaws.at(-1)).toEqual({ rad: 0, easeMs: WALK_YAW_EASE_MS });
     expect(h.ends).toHaveBeenCalledTimes(1);
+    expect(h.ends).toHaveBeenCalledWith(true);
   });
 
   it("skips and redraws when the feet are not resting on the work-area floor", async () => {
@@ -387,14 +390,61 @@ describe("createWalker", () => {
     ["perched", { perched: true }],
     ["peeking", { peeking: true }],
     ["dragging", { dragging: true }],
-    ["a reactive motion holds the body", { motionKind: () => "reactive" as const }],
-    ["a turn is in flight or speech is playing", { busy: true }],
+    [
+      "a reactive motion holds the body",
+      {
+        motionKind: () => "reactive" as const,
+        currentMotion: { id: "head_pat", vrma_path: "/motions/head_pat.vrma" },
+      },
+    ],
+    [
+      "a state clip other than thinking holds the body",
+      {
+        motionKind: () => "state" as const,
+        currentMotion: { id: "window_sit", vrma_path: "/motions/window_sit.vrma" },
+      },
+    ],
   ])("skips while %s", async (_label, over) => {
     const h = makeHarness(over);
     h.walker.start();
     await h.skipInterval();
     expect(h.motions).toEqual([]);
     expect(h.starts).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    [
+      "the thinking clip holds the body",
+      {
+        motionKind: () => "state" as const,
+        currentMotion: { id: "thinking", vrma_path: "/motions/thinking.vrma" },
+      },
+    ],
+    [
+      "the walk clip holds the body",
+      {
+        motionKind: () => "reactive" as const,
+        currentMotion: { id: "walk", vrma_path: "/motions/walk.vrma" },
+      },
+    ],
+  ])("starts while %s", async (_label, over) => {
+    const h = makeHarness(over);
+    h.walker.start();
+    await h.skipInterval();
+    expect(h.starts).toHaveBeenCalledTimes(1);
+  });
+
+  it("reports an ambient stroll in progress, and not a directed walk", async () => {
+    const h = makeHarness();
+    h.walker.start();
+    expect(h.walker.isStrolling()).toBe(false);
+    await h.skipInterval();
+    expect(h.walker.isStrolling()).toBe(true);
+    h.walker.cancel();
+    expect(h.walker.isStrolling()).toBe(false);
+    void h.walker.walkTo(700);
+    await h.frame();
+    expect(h.walker.isStrolling()).toBe(false);
   });
 
   it("skips when the framing cannot be measured", async () => {
@@ -418,6 +468,8 @@ describe("createWalker", () => {
     expect(h.motions).toEqual([{ id: WALK_MOTION_ID }]);
     expect(h.yaws.at(-1)).toEqual({ rad: 0, easeMs: WALK_YAW_EASE_MS });
     expect(h.ends).toHaveBeenCalledTimes(1);
+    // Another clip already owns the body — the walker did not hand it back.
+    expect(h.ends).toHaveBeenCalledWith(false);
   });
 
   it("cancel() aborts a running stroll, returns the yaw, and reports the end once", async () => {

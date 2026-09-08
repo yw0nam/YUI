@@ -10,6 +10,8 @@
  *
  * Ownership is user > agent > ambient: a drag, an agent command, a perch placement,
  * reduced motion, or any higher-priority motion taking the clip ends the stroll at once.
+ * A backend turn is not an owner: the stroll walks on through thinking, filler and the
+ * response speech, and stops only when a response motion takes the clip.
  *
  * The same machinery serves `walkTo`, a directed walk to a given x that skips the interval
  * and the floor gate: the caller vouches for the surface and reports its own posture, so
@@ -32,6 +34,8 @@ const log = createLogger("walker");
 
 /** Registry id of the in-place walk clip. */
 export const WALK_MOTION_ID = "walk";
+/** Registry id of the turn-in-flight loop — a body a stroll may take. */
+export const THINKING_MOTION_ID = "thinking";
 /** Mixamo "Walking" advances this far per cycle at playback rate 1.0. */
 export const WALK_METRES_PER_CYCLE = 1.34;
 /** Root yaw (rad) toward the travel direction — a quarter turn off camera-facing. */
@@ -63,23 +67,14 @@ export interface WalkGateState {
   perched: boolean;
   peeking: boolean;
   dragging: boolean;
-  /** The committed motion is the ambient baseline — no speech/thinking/reactive motion holds the body. */
-  ambientMotion: boolean;
-  /** A turn is in flight or speech is still playing. Reflex turns skip thinking, so the motion alone misses them. */
-  busy: boolean;
+  /** Whether the body is free to take the walk clip — the caller decides what counts as free. */
+  bodyFree: boolean;
   reducedMotion: boolean;
 }
 
+/** The body decides, not the pipeline: a turn in flight or speech playing is not a gate. */
 export function canStartStroll(s: WalkGateState): boolean {
-  return (
-    s.onFloor &&
-    !s.perched &&
-    !s.peeking &&
-    !s.dragging &&
-    s.ambientMotion &&
-    !s.busy &&
-    !s.reducedMotion
-  );
+  return s.onFloor && !s.perched && !s.peeking && !s.dragging && s.bodyFree && !s.reducedMotion;
 }
 
 export interface StrollPlan {
@@ -143,14 +138,13 @@ export interface WalkerDeps {
   currentMotionKind(): MotionKind | null;
   isPeeking(): boolean;
   isDragging(): boolean;
-  /** A turn is in flight or speech is still playing. */
-  isBusy(): boolean;
   /** Defaults to the global document; injected in tests. */
   doc?: WalkerDoc;
   /** A stroll began — posture goes walking and the hit test follows the moving window. */
   onStart(): void;
-  /** The stroll arrived, was cancelled, or lost the clip. */
-  onEnd(): void;
+  /** The stroll arrived, was cancelled, or lost the clip. bodyReleased is true only when the
+   * walker itself handed the clip back (nothing else had already taken it). */
+  onEnd(bodyReleased: boolean): void;
   rng?: Rng;
 }
 
@@ -168,6 +162,8 @@ export interface Walker {
   walkTo(toX: number, onAccepted?: () => void, holdClip?: boolean): Promise<"arrived" | "lost">;
   /** End a running stroll now and rearm the interval. */
   cancel(): void;
+  /** An ambient stroll is moving the window — a directed walk belongs to its caller. */
+  isStrolling(): boolean;
   stop(): void;
 }
 
@@ -219,11 +215,12 @@ export function createWalker(deps: WalkerDeps): Walker {
     stroll = null;
     nextAtMs = -1;
     const held = s.holdClip && outcome === "arrived";
-    if (!held && renderer.getCurrentMotion()?.id === WALK_MOTION_ID) renderer.playMotion(null);
+    const bodyReleased = !held && renderer.getCurrentMotion()?.id === WALK_MOTION_ID;
+    if (bodyReleased) renderer.playMotion(null);
     renderer.setBodyYaw(0, WALK_YAW_EASE_MS);
     const settle = resolveWalk;
     resolveWalk = null;
-    if (!s.directed) deps.onEnd();
+    if (!s.directed) deps.onEnd(bodyReleased);
     settle?.(outcome);
   }
 
@@ -246,13 +243,16 @@ export function createWalker(deps: WalkerDeps): Walker {
     const scale = sf > 0 ? sf : 1;
     const work = monitor.workArea;
     const floor = floorPx(monitor, scale);
+    const bodyId = renderer.getCurrentMotion()?.id;
     const gate: WalkGateState = {
       onFloor: feet !== null && onFloor(pos.y / scale + feet.y, floor, cfg.floor_tolerance_px),
       perched: renderer.isPerched(),
       peeking: deps.isPeeking(),
       dragging: deps.isDragging(),
-      ambientMotion: deps.currentMotionKind() === "ambient",
-      busy: deps.isBusy(),
+      bodyFree:
+        deps.currentMotionKind() === "ambient" ||
+        bodyId === THINKING_MOTION_ID ||
+        bodyId === WALK_MOTION_ID,
       reducedMotion: reduce,
     };
     if (!canStartStroll(gate)) return;
@@ -392,6 +392,9 @@ export function createWalker(deps: WalkerDeps): Walker {
     },
     cancel() {
       endStroll();
+    },
+    isStrolling() {
+      return stroll !== null && !stroll.directed;
     },
     stop() {
       stopped = true;

@@ -100,6 +100,7 @@ function setup(
     speakerSelection: { getActive: getSpeaker },
     voiceInputStatus: { set: vi.fn() },
     onVoiceSegment: vi.fn(),
+    isStrolling: () => false,
   });
   wired.push(voice);
   return voice;

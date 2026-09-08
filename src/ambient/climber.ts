@@ -679,8 +679,8 @@ export function createClimber(deps: ClimberDeps): Climber {
       perched: renderer.isPerched(),
       peeking: deps.isPeeking(),
       dragging: deps.isDragging(),
-      ambientMotion: deps.currentMotionKind() === "ambient",
-      busy: deps.isBusy(),
+      // A climb still yields to a turn: a directed leg cannot stop mid-wall for a response motion.
+      bodyFree: deps.currentMotionKind() === "ambient" && !deps.isBusy(),
       reducedMotion: false,
     };
     if (!canStartStroll(gate)) return;

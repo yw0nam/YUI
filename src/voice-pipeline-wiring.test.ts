@@ -154,7 +154,7 @@ function synthCalls(): unknown[][] {
   return mocks.fetchImpl.mock.calls.filter(([url]) => String(url).endsWith("/v1/audio/speech"));
 }
 
-function setup() {
+function setup(over: { isStrolling?: () => boolean } = {}) {
   let currentEndpoints = endpoints();
   let fillerConfig: FillerConfig = {
     gap_ms: 1_000,
@@ -208,6 +208,7 @@ function setup() {
     speakerSelection: { getActive: () => activeSpeaker },
     voiceInputStatus,
     onVoiceSegment,
+    isStrolling: over.isStrolling ?? (() => false),
   });
 
   return {
@@ -312,6 +313,56 @@ describe("wireVoicePipeline", () => {
     expect(renderer.playMotion.mock.invocationCallOrder[0]).toBeLessThan(
       mocks.fillerLoop.start.mock.invocationCallOrder[0]!,
     );
+  });
+
+  it("leaves the body to a running stroll when thinking starts, and still holds motion and starts the filler", () => {
+    const { voice, renderer } = setup({ isStrolling: () => true });
+
+    voice.turnOutput.thinkingStart(1);
+
+    expect(mocks.speechPlayback.holdMotion).toHaveBeenCalledWith(true);
+    expect(renderer.playMotion).not.toHaveBeenCalled();
+    expect(mocks.fillerLoop.start).toHaveBeenCalledTimes(1);
+  });
+
+  it("leaves the body to a running stroll when thinking ends, and returns to idle once the stroll is gone", () => {
+    let strolling = true;
+    const { voice, renderer } = setup({ isStrolling: () => strolling });
+
+    voice.turnOutput.thinkingStart(1);
+    renderer.playMotion.mockClear();
+    voice.turnOutput.thinkingEnd(1);
+    expect(renderer.playMotion).not.toHaveBeenCalledWith(null);
+
+    strolling = false;
+    voice.turnOutput.thinkingStart(2);
+    renderer.playMotion.mockClear();
+    voice.turnOutput.thinkingEnd(2);
+    expect(renderer.playMotion).toHaveBeenCalledWith(null);
+  });
+
+  it("replays the thinking clip when the stroll ends while the turn is still thinking", () => {
+    let strolling = true;
+    const { voice, renderer } = setup({ isStrolling: () => strolling });
+
+    voice.turnOutput.thinkingStart(1);
+    strolling = false;
+    voice.resumeThinking();
+
+    expect(renderer.playMotion).toHaveBeenCalledWith({ id: "thinking", loop: true });
+  });
+
+  it("does not replay thinking after the turn's thinking has ended", () => {
+    let strolling = true;
+    const { voice, renderer } = setup({ isStrolling: () => strolling });
+
+    voice.turnOutput.thinkingStart(1);
+    voice.turnOutput.thinkingEnd(1);
+    renderer.playMotion.mockClear();
+    strolling = false;
+    voice.resumeThinking();
+
+    expect(renderer.playMotion).not.toHaveBeenCalled();
   });
 
   it("reports whether either effective filler pool is non-empty", () => {
@@ -577,6 +628,7 @@ describe("wireVoicePipeline", () => {
         speakerSelection: windowB,
         voiceInputStatus: { set: vi.fn() },
         onVoiceSegment: vi.fn(),
+        isStrolling: () => false,
       });
       const synth = playbackOptions().pipeline!.synth!;
 

@@ -44,6 +44,8 @@ interface VoicePipelineDeps {
   speakerSelection: { getActive(): SpeakerOption };
   voiceInputStatus: Pick<VoiceInputStatus, "set">;
   onVoiceSegment: (text: string) => void;
+  /** An ambient stroll is moving the window — thinking and cue-less speech leave the body to it. */
+  isStrolling: () => boolean;
 }
 
 export interface VoicePipeline {
@@ -53,6 +55,8 @@ export interface VoicePipeline {
    * unreachable pool); every other reason is a no-op. Sibling to turnOutput so bootstrap's
    * onUserTurnFailed stays a one-liner regardless of the existing inline/voice error routing. */
   speakFailure: (reason: TurnFailure) => void;
+  /** A stroll ended while a turn is still thinking — the thinking loop takes the body back. */
+  resumeThinking: () => void;
   createSttEngine: () => Promise<SttVad>;
   dispose: () => void;
 }
@@ -152,6 +156,7 @@ export function wireVoicePipeline(deps: VoicePipelineDeps): VoicePipeline {
   const speechPlayback = createSpeechPlayback({
     renderer: deps.renderer,
     surfaces: deps.surfaces,
+    isStrolling: deps.isStrolling,
     onPlaybackEnd: () => fillerLoop?.onUtteranceDone(),
     reportAudioOwed: (owed) => deps.turnLog.setAudioOwed(owed),
     pipeline: {
@@ -196,8 +201,13 @@ export function wireVoicePipeline(deps: VoicePipelineDeps): VoicePipeline {
     thinkingTurnId = turnId;
     // hold BEFORE the first filler can speak so no filler sentence resets the motion.
     speechPlayback.holdMotion(true);
-    deps.renderer.playMotion({ id: "thinking", loop: true });
+    if (!deps.isStrolling()) deps.renderer.playMotion({ id: "thinking", loop: true });
     fillerLoop?.start();
+  }
+
+  function resumeThinking(): void {
+    if (thinkingTurnId === null) return;
+    deps.renderer.playMotion({ id: "thinking", loop: true });
   }
 
   function onThinkingEnd(turnId: number): void {
@@ -206,7 +216,7 @@ export function wireVoicePipeline(deps: VoicePipelineDeps): VoicePipeline {
     speechPlayback.holdMotion(false);
     fillerLoop?.stop();
     // thinking is loop:true — without an explicit return to idle it spins forever and pollutes previousStable.
-    deps.renderer.playMotion(null);
+    if (!deps.isStrolling()) deps.renderer.playMotion(null);
   }
 
   const turnOutput: TurnOutput = {
@@ -273,6 +283,7 @@ export function wireVoicePipeline(deps: VoicePipelineDeps): VoicePipeline {
     speechPlayback,
     turnOutput,
     speakFailure,
+    resumeThinking,
     createSttEngine,
     dispose() {
       fillerLoop?.stop();
