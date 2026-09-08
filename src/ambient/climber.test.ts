@@ -332,10 +332,7 @@ describe("pickMonitorWalls", () => {
   const base = {
     monitors: MONITORS,
     monitor: BUILTIN,
-    windows: [] as WindowRect[],
     floor: 1017,
-    charHpx: CHAR_HPX,
-    cfg: CFG,
     maxWalkPx: 600,
   };
 
@@ -378,11 +375,6 @@ describe("pickMonitorWalls", () => {
     expect(pickMonitorWalls({ ...base, monitors: [BUILTIN], feetX: 864, maxWalkPx: 900 })).toEqual(
       [],
     );
-  });
-
-  it("rejects an edge whose wall column is covered by a foreign window", () => {
-    const cover = win({ x: 0, y: 0, width: 150, height: 100, windowNumber: 9 });
-    expect(pickMonitorWalls({ ...base, feetX: 100, windows: [cover] })).toEqual([]);
   });
 
   it("returns nothing when both edges are farther than the longest walk", () => {
@@ -538,7 +530,7 @@ describe("climbTargetLost", () => {
     ).toBe(true);
   });
 
-  it("holds a monitor target with no windows to cover it", () => {
+  it("never loses a monitor target — a screen edge cannot move, vanish or be covered", () => {
     const monitorTarget: ClimbTarget = {
       windowNumber: -1,
       side: "right",
@@ -552,6 +544,9 @@ describe("climbTargetLost", () => {
       kind: "monitor",
     };
     expect(climbTargetLost({ ...base, target: monitorTarget, windows: [] })).toBe(false);
+    expect(climbTargetLost({ ...base, target: monitorTarget, windows: [COLUMN_COVER] })).toBe(
+      false,
+    );
   });
 });
 
@@ -1686,6 +1681,21 @@ describe("createClimber — monitor wall", () => {
     const h = makeHarness({
       position: { x: 50, y: 1080 },
       windows: [farWindow],
+      monitors: [MONITOR, UPPER],
+    });
+    h.climber.start();
+    await h.skipInterval();
+    expect(h.starts).toHaveBeenCalledWith(
+      "up",
+      expect.objectContaining({ kind: "monitor", edgeX: 0, topY: 0 }),
+    );
+  });
+
+  it("climbs the screen edge even when a foreign window sits where its wall column would be", async () => {
+    const cover = win({ x: 0, y: 0, width: 150, height: 100, windowNumber: 9 });
+    const h = makeHarness({
+      position: { x: 50, y: 1080 },
+      windows: [cover],
       monitors: [MONITOR, UPPER],
     });
     h.climber.start();
