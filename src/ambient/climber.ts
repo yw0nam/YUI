@@ -377,25 +377,21 @@ export function pickDescentTarget(args: {
 /**
  * The screen edges of `monitor` that lead up onto another monitor's floor line: a side
  * is a wall when a different monitor's logical floor sits within 1 px of `monitor`'s
- * logical top and its work area spans the edge. All arguments and results are global
- * logical px except the monitor bounds, which carry their own physical/scale pair.
+ * logical top and its work area spans the edge. A screen edge is always climbable — no
+ * foreign window can cover it. All arguments and results are global logical px except
+ * the monitor bounds, which carry their own physical/scale pair.
  */
 export function pickMonitorWalls(args: {
   monitors: ScreenMonitor[];
   /** The one the pet stands on. */
   monitor: ScreenMonitor;
-  /** Foreign windows — any of them can cover the column she would stand in. */
-  windows: WindowRect[];
   feetX: number;
   /** Logical floor of `monitor`. */
   floor: number;
-  charHpx: number;
-  cfg: ClimbConfig;
   /** Longest approach walk, borrowed from the stroll's own reach. */
   maxWalkPx: number;
 }): ClimbTarget[] {
-  const { monitors, monitor, windows, feetX, floor, charHpx, cfg, maxWalkPx } = args;
-  const wallOffset = cfg.wall_offset_frac * charHpx;
+  const { monitors, monitor, feetX, floor, maxWalkPx } = args;
   const top = monitor.position.y / monitor.scaleFactor;
   const left = monitor.position.x / monitor.scaleFactor;
   const right = left + monitor.size.width / monitor.scaleFactor;
@@ -416,8 +412,6 @@ export function pickMonitorWalls(args: {
     });
     if (!upper) continue;
     const topY = floorPx(upper);
-    const column = wallColumn(edgeX, topY, floor, wallOffset, side);
-    if (windows.some((w) => overlaps(w, column))) continue;
     targets.push({
       windowNumber: -1,
       side,
@@ -444,12 +438,10 @@ export function climbTargetLost(args: {
   direction: "up" | "down";
 }): boolean {
   const { windows, target, charHpx, floor, cfg, direction } = args;
+  // A monitor wall is the screen edge itself: it cannot move, vanish, or be covered.
+  if (target.kind === "monitor") return false;
   const wallOffset =
     (direction === "down" ? cfg.descent_wall_offset_frac : cfg.wall_offset_frac) * charHpx;
-  const column = wallColumn(target.edgeX, target.topY, floor, wallOffset, target.side);
-  // A monitor wall has no window identity to lose and no corner seat to cover — only a
-  // foreign window raised into the column she climbs through can take it from her.
-  if (target.kind === "monitor") return windows.some((w) => overlaps(w, column));
   const index = windows.findIndex((w) => w.windowNumber === target.windowNumber);
   if (index < 0) return true;
   const win = windows[index];
@@ -457,6 +449,7 @@ export function climbTargetLost(args: {
     return true;
   }
   const front = windows.slice(0, index);
+  const column = wallColumn(target.edgeX, target.topY, floor, wallOffset, target.side);
   const seat = cornerSeat(target.edgeX, target.topY, target.side, wallOffset);
   return front.some((w) => overlaps(w, column) || containsPoint(w, seat));
 }
@@ -789,11 +782,8 @@ export function createClimber(deps: ClimberDeps): Climber {
     const monitorTargets = pickMonitorWalls({
       monitors: w.monitors,
       monitor: w.monitor,
-      windows: w.windows,
       feetX: w.feetX,
       floor: w.floor,
-      charHpx: w.charHpx,
-      cfg,
       maxWalkPx: walkCfg.distance_max_px,
     });
     const candidates = windowTarget ? [windowTarget, ...monitorTargets] : monitorTargets;
