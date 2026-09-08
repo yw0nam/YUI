@@ -117,7 +117,7 @@ const REFLEX_EVENT_NAMES = new Set([
   "proactive.dropped",
 ]);
 
-function isReflexTurn(eventName: string): boolean {
+export function isReflexTurn(eventName: string): boolean {
   return eventName.startsWith("proactive.touch_") || REFLEX_EVENT_NAMES.has(eventName);
 }
 

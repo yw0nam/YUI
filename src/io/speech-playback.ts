@@ -47,6 +47,8 @@ export interface SpeechPlaybackOptions {
   onPlaybackEnd?: () => void;
   /** Reports whether the pipeline still owes audio. Called after every state change that can flip it. */
   reportAudioOwed?: (owed: boolean) => void;
+  /** An ambient stroll is moving the window — a cue-less beat leaves the walk clip alone. */
+  isStrolling?: () => boolean;
 }
 
 export interface SpeechPlayback {
@@ -91,7 +93,7 @@ export function createSpeechPlayback(options: SpeechPlaybackOptions): SpeechPlay
       });
     } else {
       renderer.easeEmotionToNeutral(EMOTION_REVERT_MS);
-      if (!motionHeld) renderer.playMotion(null);
+      if (!motionHeld && !options.isStrolling?.()) renderer.playMotion(null);
     }
   }
 
