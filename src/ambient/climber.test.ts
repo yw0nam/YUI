@@ -581,7 +581,9 @@ function makeHarness(
   );
   // The seat is armed with the height she stood at, whatever the probe reads while seated.
   let armed: { windowNumber: number; origin: "commit" | "adopt"; charHpx: number } | null =
-    over.perched ? { windowNumber: 42, origin: over.perchOrigin ?? "adopt", charHpx: CHAR_HPX } : null;
+    over.perched
+      ? { windowNumber: 42, origin: over.perchOrigin ?? "adopt", charHpx: CHAR_HPX }
+      : null;
   const armedSit = vi.fn(() => armed);
   const release = vi.fn(() => {
     armed = null;
@@ -753,7 +755,7 @@ function makeHarness(
     },
     setPerched: (next: boolean) => {
       perched = next;
-      armed = next ? { windowNumber: 42, origin: "adopt" } : null;
+      armed = next ? { windowNumber: 42, origin: "adopt", charHpx: CHAR_HPX } : null;
     },
     setCurrentMotion: (m: { id: string; vrma_path: string } | null) => {
       currentMotion = m;

@@ -434,7 +434,7 @@ export interface ClimberDeps {
       origin: "commit" | "adopt",
     ): void;
     /** The window an armed sit is held on — which wall a descent belongs to. */
-    armedSit(): { windowNumber: number; origin: "commit" | "adopt" } | null;
+    armedSit(): { windowNumber: number; origin: "commit" | "adopt"; charHpx: number } | null;
     release(): void;
   };
   /** A climb began — posture goes climbing and the hit test follows the moving window. */
@@ -793,12 +793,14 @@ export function createClimber(deps: ClimberDeps): Climber {
     if (sit?.origin !== "adopt") return;
     const w = await survey(startedAt);
     if (!w) return;
+    // The seat pose shrinks the live height; the descent is scaled by the height she stood at.
+    const standingHpx = sit.charHpx;
     const picked = pickDescentTarget({
       windows: w.windows,
       windowNumber: sit.windowNumber,
       feetX: w.feetX,
       floor: w.floor,
-      charHpx: w.charHpx,
+      charHpx: standingHpx,
       monitor: w.bounds,
       cfg,
     });
@@ -806,7 +808,7 @@ export function createClimber(deps: ClimberDeps): Climber {
       log.debug("descent.no_wall", { windowNumber: sit.windowNumber });
       return;
     }
-    const wallOffset = cfg.descent_wall_offset_frac * w.charHpx;
+    const wallOffset = cfg.descent_wall_offset_frac * standingHpx;
     // Window origin that stands the feet on the ledge. Above the work area the OS would
     // clamp it, so there is nowhere to stand and the sit simply continues.
     const standY = picked.topY - w.anchorY;
@@ -816,7 +818,7 @@ export function createClimber(deps: ClimberDeps): Climber {
     }
 
     target = picked;
-    charHpx = w.charHpx;
+    charHpx = standingHpx;
     floorY = w.floor;
     direction = "down";
     geo = { side: picked.side, edgeX: picked.edgeX, topY: picked.topY, scale: w.scale };
@@ -828,7 +830,7 @@ export function createClimber(deps: ClimberDeps): Climber {
     if (!released) {
       // The exit never came back, so the poll is disarmed while the perch still holds.
       // Take the sit back, or no later dwell can find a wall to climb down.
-      deps.dropSource.adoptSit(picked.windowNumber, picked.rect, w.charHpx, "adopt");
+      deps.dropSource.adoptSit(picked.windowNumber, picked.rect, standingHpx, "adopt");
       return endClimb();
     }
     // Stand up onto the ledge: the window rises with the clip until the feet are on the
@@ -850,7 +852,7 @@ export function createClimber(deps: ClimberDeps): Climber {
     // A window that does not reach the floor ends the climb at its own bottom edge.
     const grounded = picked.bottomY >= w.floor - walkCfg.floor_tolerance_px;
     const drop = ((grounded ? w.floor : picked.bottomY) - picked.topY) * w.scale;
-    const hangPx = Math.min(drop, cfg.hang_frac * w.charHpx * w.scale);
+    const hangPx = Math.min(drop, cfg.hang_frac * standingHpx * w.scale);
     const landPx = grounded ? Math.min(drop - hangPx, land.px) : 0;
     // She walks the top to the corner, so the wall x is a hand's reach further out.
     const wallX =
