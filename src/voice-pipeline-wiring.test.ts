@@ -325,6 +325,22 @@ describe("wireVoicePipeline", () => {
     expect(mocks.fillerLoop.start).toHaveBeenCalledTimes(1);
   });
 
+  it("leaves the body to a running stroll when thinking ends, and returns to idle once the stroll is gone", () => {
+    let strolling = true;
+    const { voice, renderer } = setup({ isStrolling: () => strolling });
+
+    voice.turnOutput.thinkingStart(1);
+    renderer.playMotion.mockClear();
+    voice.turnOutput.thinkingEnd(1);
+    expect(renderer.playMotion).not.toHaveBeenCalledWith(null);
+
+    strolling = false;
+    voice.turnOutput.thinkingStart(2);
+    renderer.playMotion.mockClear();
+    voice.turnOutput.thinkingEnd(2);
+    expect(renderer.playMotion).toHaveBeenCalledWith(null);
+  });
+
   it("replays the thinking clip when the stroll ends while the turn is still thinking", () => {
     let strolling = true;
     const { voice, renderer } = setup({ isStrolling: () => strolling });

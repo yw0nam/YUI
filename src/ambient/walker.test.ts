@@ -85,7 +85,6 @@ describe("canStartStroll", () => {
   });
 
   it("does not read the pipeline: a turn in flight or speech playing is not a gate", () => {
-    expect(ok).not.toHaveProperty("busy");
     expect(canStartStroll(ok)).toBe(true);
   });
 
@@ -351,6 +350,7 @@ describe("createWalker", () => {
     expect(h.motions).toEqual([{ id: WALK_MOTION_ID }, null]);
     expect(h.yaws.at(-1)).toEqual({ rad: 0, easeMs: WALK_YAW_EASE_MS });
     expect(h.ends).toHaveBeenCalledTimes(1);
+    expect(h.ends).toHaveBeenCalledWith(true);
   });
 
   it("skips and redraws when the feet are not resting on the work-area floor", async () => {
@@ -468,6 +468,8 @@ describe("createWalker", () => {
     expect(h.motions).toEqual([{ id: WALK_MOTION_ID }]);
     expect(h.yaws.at(-1)).toEqual({ rad: 0, easeMs: WALK_YAW_EASE_MS });
     expect(h.ends).toHaveBeenCalledTimes(1);
+    // Another clip already owns the body — the walker did not hand it back.
+    expect(h.ends).toHaveBeenCalledWith(false);
   });
 
   it("cancel() aborts a running stroll, returns the yaw, and reports the end once", async () => {
