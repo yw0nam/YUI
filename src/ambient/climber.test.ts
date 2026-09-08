@@ -1715,6 +1715,51 @@ describe("createClimber — monitor wall", () => {
     // Feet land on the upper floor line (y = 0) at the climbed edge (x = 0).
     expect(h.at()).toEqual({ x: -ANCHOR.x, y: -ANCHOR.y });
   });
+
+  it("carries the climb through a scale boundary — a scale-2 window on a scale-2 lower monitor climbing onto a scale-1 upper monitor", async () => {
+    // The reference layout the shim exists for: physical arithmetic on the lower
+    // monitor is twice the upper monitor's, so every leg has to cross in logical points.
+    const LOWER_SCALE2: ScreenMonitor = {
+      position: { x: 0, y: 0 },
+      size: { width: 3456, height: 2234 },
+      workArea: { position: { x: 0, y: 100 }, size: { width: 3456, height: 1934 } },
+      scaleFactor: 2,
+    };
+    const UPPER_SCALE1: ScreenMonitor = {
+      position: { x: -992, y: -1080 },
+      size: { width: 1920, height: 1080 },
+      workArea: { position: { x: -992, y: -1055 }, size: { width: 1920, height: 1055 } },
+      scaleFactor: 1,
+    };
+    // Floor 1017 logical; feet at logical (250, 1017) is physical (100, 1194) at scale 2.
+    const h = makeHarness({
+      position: { x: 100, y: 1194 },
+      windows: [],
+      monitors: [LOWER_SCALE2, UPPER_SCALE1],
+      windowScale: 2,
+    });
+    h.climber.start();
+    await h.skipInterval();
+    await h.runToEnd();
+
+    expect(h.ends).toHaveBeenCalledWith("up");
+    expect(h.sits).not.toHaveBeenCalled();
+    expect(h.adoptSit).not.toHaveBeenCalled();
+    // Every leg moved the window through logical points, never a raw physical one.
+    expect(h.physicalCalls).toEqual([]);
+    expect(h.logicalCalls.length).toBeGreaterThan(1);
+    // The shim divides by the surveyed (lower monitor's) scale, so every logical call
+    // stays inside the climb's own logical span — a missing division would overshoot it.
+    const startLogicalY = 1194 / 2;
+    const endLogicalY = 0 - ANCHOR.y;
+    for (const call of h.logicalCalls) {
+      expect(call.y).toBeLessThanOrEqual(startLogicalY + 1);
+      expect(call.y).toBeGreaterThanOrEqual(endLogicalY - 1);
+    }
+    // Feet land on the upper monitor's floor line (y = 0) at the climbed edge (x = 0),
+    // in that monitor's own logical points — untouched by the lower monitor's scale.
+    expect(h.at()).toEqual({ x: -ANCHOR.x, y: -ANCHOR.y });
+  });
 });
 
 describe("createClimber — setEnabled", () => {
