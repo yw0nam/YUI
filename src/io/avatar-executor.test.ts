@@ -345,6 +345,27 @@ describe("avatar-executor — move_to", () => {
     expect(setPositionLogical).toHaveBeenCalledWith(24, 600);
   });
 
+  it("brings the window's own size into logical px through its own scale factor", async () => {
+    const setPositionLogical = vi.fn(async () => {});
+    const h = harness({
+      getWindow: () => ({
+        outerPosition: async () => WINDOW_POS,
+        outerSize: async () => WINDOW_SIZE,
+        scaleFactor: async () => 2,
+        setPositionPhysical: vi.fn(async () => {}),
+        setPositionLogical,
+      }),
+      listMonitors: async () => [{ ...MONITORS[0], scaleFactor: 2 }, MONITORS[1]],
+    });
+
+    await h.call("command", { action: "move_to", spot: "center", monitor: 0 });
+
+    // Monitor 0's work area (1000x760 physical at scale 2) is 500x380 logical; the
+    // window's own 400x300 physical size is 200x150 logical at its own scale 2.
+    // Center: 0 + (500-200)/2 = 150, 20 + (380-150)/2 = 135.
+    expect(setPositionLogical).toHaveBeenCalledWith(150, 135);
+  });
+
   it("drops the window box on the work-area bottom when the feet are unmeasurable", async () => {
     const h = harness({ getFeetOffsetPx: () => null });
 
