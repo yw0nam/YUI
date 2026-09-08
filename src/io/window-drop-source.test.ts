@@ -286,7 +286,7 @@ describe("window-drop-source — sit-down before the drop", () => {
       "proactive.window_sit",
       "user.window_sit_drop",
     ]);
-    expect(source.armedSit()).toEqual({ windowNumber: 7, origin: "commit" });
+    expect(source.armedSit()).toEqual({ windowNumber: 7, origin: "commit", charHpx: 200 });
   });
 
   it("arms on the host's rect as it is when the sit lands, not as it was at the drop", async () => {
@@ -1491,7 +1491,7 @@ describe("window-drop-source — programmatic placement (agent-driven gestures)"
     const source = createWindowDropSource(makeDeps([win({ ownerName: "Notes" })]));
 
     await source.placeOn({ kind: "sit", app: "Notes" });
-    expect(source.armedSit()).toEqual({ windowNumber: 7, origin: "commit" });
+    expect(source.armedSit()).toEqual({ windowNumber: 7, origin: "commit", charHpx: 200 });
     pushed.length = 0;
     source.release();
 
@@ -1976,7 +1976,7 @@ describe("window-drop-source — adoptSit", () => {
   }
 
   it.each(["adopt", "commit"] as const)("arms the seat under its %s origin", (origin) => {
-    expect(adopted(origin).source.armedSit()).toEqual({ windowNumber: 42, origin });
+    expect(adopted(origin).source.armedSit()).toEqual({ windowNumber: 42, origin, charHpx: 200 });
   });
 
   it("arms the poll and pushes nothing", async () => {
@@ -2000,7 +2000,7 @@ describe("window-drop-source — adoptSit", () => {
 
   it("names the armed sit window, and nothing once it is released", () => {
     const { source } = adopted();
-    expect(source.armedSit()).toEqual({ windowNumber: 42, origin: "adopt" });
+    expect(source.armedSit()).toEqual({ windowNumber: 42, origin: "adopt", charHpx: 200 });
     source.release();
     expect(source.armedSit()).toBeNull();
   });
@@ -2015,7 +2015,7 @@ describe("window-drop-source — adoptSit", () => {
       charHpx: 200,
     });
     expect(renderer.setPerchTarget).toHaveBeenCalledWith(null);
-    expect(source.armedSit()).toEqual({ windowNumber: 42, origin: "adopt" });
+    expect(source.armedSit()).toEqual({ windowNumber: 42, origin: "adopt", charHpx: 200 });
     expect(pushed).toEqual([]);
 
     invoke.mockClear();
@@ -2026,7 +2026,7 @@ describe("window-drop-source — adoptSit", () => {
     source.resumeSit(420);
 
     expect(renderer.setPerchTarget).toHaveBeenLastCalledWith({ edgeLocalYpx: 420 });
-    expect(source.armedSit()).toEqual({ windowNumber: 42, origin: "adopt" });
+    expect(source.armedSit()).toEqual({ windowNumber: 42, origin: "adopt", charHpx: 200 });
     expect(pushed).toEqual([]);
 
     invoke.mockImplementation(async () => []);
@@ -2042,7 +2042,7 @@ describe("window-drop-source — adoptSit", () => {
 
     source.abandonSit();
 
-    expect(source.armedSit()).toEqual({ windowNumber: 42, origin: "adopt" });
+    expect(source.armedSit()).toEqual({ windowNumber: 42, origin: "adopt", charHpx: 200 });
     expect(renderer.setPerchTarget).not.toHaveBeenCalled();
     await tick();
     expect(invoke).toHaveBeenCalled();

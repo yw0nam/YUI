@@ -398,7 +398,9 @@ function makeHarness(
     sitter: { sitDown, standUp, cancel: sitterCancel },
     dropSource: {
       armedSit: () =>
-        armed ? { windowNumber: 42, origin: over.origin ?? ("commit" as const) } : null,
+        armed
+          ? { windowNumber: 42, origin: over.origin ?? ("commit" as const), charHpx: 500 }
+          : null,
       suspendSit,
       resumeSit,
       abandonSit,

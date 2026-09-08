@@ -173,8 +173,8 @@ export interface WindowDropSource {
     charHpx: number,
     origin: "commit" | "adopt",
   ): void;
-  /** The window an armed sit is held on. null when nothing, or a peek, is armed. */
-  armedSit(): { windowNumber: number; origin: "commit" | "adopt" } | null;
+  /** The window an armed sit is held on, and the standing height it was armed with. null when nothing, or a peek, is armed. */
+  armedSit(): { windowNumber: number; origin: "commit" | "adopt"; charHpx: number } | null;
   /** Stop the sit poll and clear the renderer pin without publishing an exit. */
   suspendSit(): {
     windowNumber: number;
@@ -755,7 +755,7 @@ export function createWindowDropSource(deps: WindowDropSourceDeps): WindowDropSo
     },
     armedSit() {
       if (armedKind !== "sit" || armedWindowNumber === null || armedOrigin === null) return null;
-      return { windowNumber: armedWindowNumber, origin: armedOrigin };
+      return { windowNumber: armedWindowNumber, origin: armedOrigin, charHpx: armedCharHpx };
     },
     suspendSit() {
       if (

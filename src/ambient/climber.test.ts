@@ -551,10 +551,10 @@ function makeHarness(
     (
       windowNumber: number,
       _rect: { x: number; y: number },
-      _charHpx: number,
+      charHpx: number,
       origin: "commit" | "adopt",
     ) => {
-      armed = { windowNumber, origin };
+      armed = { windowNumber, origin, charHpx };
     },
   );
   const handAnchors = vi.fn(() => ({ left: { x: 260, y: 300 }, right: { x: 280, y: 260 } }));
@@ -579,9 +579,11 @@ function makeHarness(
       return over.standResult ?? ("done" as const);
     },
   );
-  let armed: { windowNumber: number; origin: "commit" | "adopt" } | null = over.perched
-    ? { windowNumber: 42, origin: over.perchOrigin ?? "adopt" }
-    : null;
+  // The seat is armed with the height she stood at, whatever the probe reads while seated.
+  let armed: { windowNumber: number; origin: "commit" | "adopt"; charHpx: number } | null =
+    over.perched
+      ? { windowNumber: 42, origin: over.perchOrigin ?? "adopt", charHpx: CHAR_HPX }
+      : null;
   const armedSit = vi.fn(() => armed);
   const release = vi.fn(() => {
     armed = null;
@@ -753,7 +755,7 @@ function makeHarness(
     },
     setPerched: (next: boolean) => {
       perched = next;
-      armed = next ? { windowNumber: 42, origin: "adopt" } : null;
+      armed = next ? { windowNumber: 42, origin: "adopt", charHpx: CHAR_HPX } : null;
     },
     setCurrentMotion: (m: { id: string; vrma_path: string } | null) => {
       currentMotion = m;
@@ -1292,7 +1294,8 @@ describe("createClimber — down", () => {
   it("gives up the descent when the perch never clears, and takes the sit back", async () => {
     // release() already disarmed the poll, so without re-adopting it nothing would ever
     // move her off the ledge again: every later dwell dies at armedSit() being null.
-    const h = perchedHarness({ holdPerchOnRelease: true });
+    // The seated probe reads 300; the sit is taken back with the 500 she was armed at.
+    const h = perchedHarness({ holdPerchOnRelease: true, charHpx: 300 });
     h.climber.start();
     await h.skipDwell();
     await h.runFrames(15);
@@ -1366,6 +1369,16 @@ describe("createClimber — down", () => {
     expect(h.starts).toHaveBeenCalledWith("down", { ...TARGET, side: "right", edgeX: 1400 });
   });
 
+  it("picks the wall by the armed standing height, not the seated probe", async () => {
+    // 720..800 lies inside the 300 px descent column the armed height gives the left wall
+    // (700..1000) but outside the 180 px column a 300 px probe would give it (820..1000).
+    const armedOnlyCover = win({ x: 720, y: 1300, width: 80, height: 200, windowNumber: 7 });
+    const h = perchedHarness({ windows: [armedOnlyCover, TARGET_WINDOW], charHpx: 300 });
+    h.climber.start();
+    await h.skipDwell();
+    expect(h.starts).toHaveBeenCalledWith("down", { ...TARGET, side: "right", edgeX: 1400 });
+  });
+
   it("stays seated when both walls are covered", async () => {
     const h = perchedHarness({ windows: [COLUMN_COVER, RIGHT_COLUMN_COVER, TARGET_WINDOW] });
     h.climber.start();
@@ -1419,6 +1432,16 @@ describe("createClimber — down", () => {
     await h.skipDwell();
     // The 400 ms hang covers 0.3 × 500 px; the first frames must not exceed it.
     await h.runFrames(4);
+    expect(h.at().y).toBeCloseTo(PERCHED_POS.y + CFG.hang_frac * CHAR_HPX, 6);
+  });
+
+  it("measures the descent with the height the sit was adopted with, not the seated probe", async () => {
+    // Seated, the live probe reads the head lower than standing; the sit was armed at 500.
+    const h = perchedHarness({ charHpx: 300 });
+    h.climber.start();
+    await h.skipDwell();
+    await h.runFrames(4);
+    expect(h.at().x).toBe(DESCENT_X);
     expect(h.at().y).toBeCloseTo(PERCHED_POS.y + CFG.hang_frac * CHAR_HPX, 6);
   });
 

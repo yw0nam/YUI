@@ -544,7 +544,7 @@ export function wirePercher(deps: {
   };
   sitter: Pick<Sitter, "sitDown" | "standUp" | "cancel">;
   dropSource: {
-    armedSit(): { windowNumber: number; origin: "commit" | "adopt" } | null;
+    armedSit(): { windowNumber: number; origin: "commit" | "adopt"; charHpx: number } | null;
     suspendSit(): {
       windowNumber: number;
       origin: "commit" | "adopt";
@@ -803,7 +803,7 @@ export function wireClimber(deps: {
       charHpx: number,
       origin: "commit" | "adopt",
     ): void;
-    armedSit(): { windowNumber: number; origin: "commit" | "adopt" } | null;
+    armedSit(): { windowNumber: number; origin: "commit" | "adopt"; charHpx: number } | null;
     release(): void;
   };
   /** Keep the hit-test cursor mapping accurate while the window translates. */
@@ -938,7 +938,7 @@ export function wireWindowSources(deps: {
     origin: "commit" | "adopt",
   ): void;
   /** The window an armed sit is held on. null when nothing, or a peek, is armed. */
-  armedSit(): { windowNumber: number; origin: "commit" | "adopt" } | null;
+  armedSit(): { windowNumber: number; origin: "commit" | "adopt"; charHpx: number } | null;
   suspendSit(): ReturnType<ReturnType<typeof createWindowDropSource>["suspendSit"]>;
   resumeSit(edgeLocalYpx: number): void;
   /** Drop a suspended sit for good, without publishing an exit. */

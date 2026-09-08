@@ -192,7 +192,7 @@ export interface PercherDeps {
   /** The seat transitions: the stand before a walk, the sit before a seat is taken. */
   sitter: Pick<Sitter, "sitDown" | "standUp" | "cancel">;
   dropSource: {
-    armedSit(): { windowNumber: number; origin: "commit" | "adopt" } | null;
+    armedSit(): { windowNumber: number; origin: "commit" | "adopt"; charHpx: number } | null;
     suspendSit(): SuspendedSit | null;
     resumeSit(edgeLocalYpx: number): void;
     abandonSit(): void;
