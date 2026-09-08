@@ -60,6 +60,54 @@ export function floorPx(monitor: ScreenMonitor): number {
   return (monitor.workArea.position.y + monitor.workArea.size.height) / monitor.scaleFactor;
 }
 
+/** A monitor's work area in logical px. */
+export function logicalWorkArea(monitor: ScreenMonitor): {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+} {
+  const { scaleFactor } = monitor;
+  return {
+    x: monitor.workArea.position.x / scaleFactor,
+    y: monitor.workArea.position.y / scaleFactor,
+    width: monitor.workArea.size.width / scaleFactor,
+    height: monitor.workArea.size.height / scaleFactor,
+  };
+}
+
+/**
+ * The logical x-range the floor of `monitor` continues over: its work area plus every
+ * neighbour with the same scale and floor line that touches it, chained transitively.
+ */
+export function floorSpan(
+  monitors: ScreenMonitor[],
+  monitor: ScreenMonitor,
+): { left: number; right: number } {
+  const floor = floorPx(monitor);
+  const start = logicalWorkArea(monitor);
+  let left = start.x;
+  let right = start.x + start.width;
+  const absorbed = new Set([monitor]);
+  for (let grew = true; grew; ) {
+    grew = false;
+    for (const candidate of monitors) {
+      if (absorbed.has(candidate)) continue;
+      if (candidate.scaleFactor !== monitor.scaleFactor) continue;
+      if (Math.abs(floorPx(candidate) - floor) > 1) continue;
+      const wa = logicalWorkArea(candidate);
+      const candLeft = wa.x;
+      const candRight = wa.x + wa.width;
+      if (candRight < left - 1 || candLeft > right + 1) continue;
+      left = Math.min(left, candLeft);
+      right = Math.max(right, candRight);
+      absorbed.add(candidate);
+      grew = true;
+    }
+  }
+  return { left, right };
+}
+
 /** Physical window y that rests the feet on the floor line. */
 export function groundedWindowY(
   floorLogicalPx: number,

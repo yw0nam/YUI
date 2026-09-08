@@ -24,7 +24,13 @@
 import type { WalkConfig } from "../config/load";
 import type { MotionKind } from "../contract";
 import { clampToWorkArea } from "../drag";
-import { floorPx, monitorAt, type PetWindow, type ScreenMonitor } from "../io/screen-geometry";
+import {
+  floorPx,
+  floorSpan,
+  monitorAt,
+  type PetWindow,
+  type ScreenMonitor,
+} from "../io/screen-geometry";
 import { createLogger } from "../logger";
 import type { Renderer } from "../renderer";
 import { type Rng, randRange } from "./cues";
@@ -255,12 +261,14 @@ export function createWalker(deps: WalkerDeps): Walker {
       reducedMotion: reduce,
     };
     if (!canStartStroll(gate)) return;
-    const work = monitor.workArea;
+    // The stroll may continue past this monitor's own edge onto a neighbour that
+    // shares its floor line and scale, so the window keeps translating across the seam.
+    const span = floorSpan(monitors, monitor);
     const plan = planStroll({
       x: pos.x / scale,
       width: size.width / scale,
-      workX: work.position.x / scale,
-      workWidth: work.size.width / scale,
+      workX: span.left,
+      workWidth: span.right - span.left,
       cfg,
       rng,
     });
