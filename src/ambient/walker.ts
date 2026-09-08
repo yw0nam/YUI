@@ -26,7 +26,7 @@ import type { MotionKind } from "../contract";
 import { clampToWorkArea } from "../drag";
 import {
   floorPx,
-  floorSpan,
+  floorSegments,
   monitorAt,
   type PetWindow,
   type ScreenMonitor,
@@ -116,6 +116,23 @@ export function advanceX(x: number, toX: number, speedPxPerSec: number, dt: numb
   const remaining = toX - x;
   const step = speedPxPerSec * dt;
   return Math.abs(remaining) <= step ? toX : x + Math.sign(remaining) * step;
+}
+
+/** The segment containing x, else the one whose nearer edge sits closest to it. */
+function nearestSegment(
+  segments: Array<{ left: number; right: number }>,
+  x: number,
+): { left: number; right: number } | null {
+  let best: { left: number; right: number } | null = null;
+  let bestDist = Infinity;
+  for (const seg of segments) {
+    const dist = x < seg.left ? seg.left - x : x > seg.right ? x - seg.right : 0;
+    if (dist < bestDist) {
+      bestDist = dist;
+      best = seg;
+    }
+  }
+  return best;
 }
 
 /** Document seam for the hidden-window guard — the renderer parks its rAF while hidden. */
@@ -261,15 +278,20 @@ export function createWalker(deps: WalkerDeps): Walker {
         bodyId === WALK_MOTION_ID,
       reducedMotion: reduce,
     };
-    if (!canStartStroll(gate)) return;
-    // The stroll may continue past this monitor's own edge onto a neighbour that
-    // shares its floor line and scale, so the window keeps translating across the seam.
-    const span = floorSpan(monitors, monitor);
+    if (!canStartStroll(gate) || !feet) return;
+    const x = pos.x / scale;
+    const width = size.width / scale;
+    // The window's bottom margin can overlap a lower monitor even while the feet rest
+    // on this one's floor, and a stroll through that stretch flashes a stale frame every
+    // time AppKit redraws the window across the scale boundary underneath it.
+    const hangPx = size.height / scale - feet.y;
+    const seg = nearestSegment(floorSegments(monitors, monitor, width, hangPx), x);
+    if (!seg) return;
     const plan = planStroll({
-      x: pos.x / scale,
-      width: size.width / scale,
-      workX: span.left,
-      workWidth: span.right - span.left,
+      x,
+      width,
+      workX: seg.left,
+      workWidth: seg.right - seg.left + width,
       cfg,
       rng,
     });
@@ -278,7 +300,7 @@ export function createWalker(deps: WalkerDeps): Walker {
     // A dropped request (perch suppression, dead clip) must not leave a walk_start/walk_end blip.
     if (renderer.getCurrentMotion()?.id !== WALK_MOTION_ID) return;
     stroll = {
-      x: pos.x / scale,
+      x,
       y: pos.y / scale,
       toX: plan.toX,
       pxPerMetre,

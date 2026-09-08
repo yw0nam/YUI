@@ -82,13 +82,16 @@ export function logicalWorkArea(monitor: ScreenMonitor): {
 }
 
 /**
- * The logical x-range the floor of `monitor` continues over: its work area plus every
- * neighbour with the same scale and floor line that touches it, chained transitively.
+ * Window-origin x ranges a stroll may use on `monitor`'s floor: the same-floor span minus
+ * every stretch where a window of `windowWidth` standing on the line would overlap another
+ * monitor through the `hangPx` it hangs below the feet.
  */
-export function floorSpan(
+export function floorSegments(
   monitors: ScreenMonitor[],
   monitor: ScreenMonitor,
-): { left: number; right: number } {
+  windowWidth: number,
+  hangPx: number,
+): Array<{ left: number; right: number }> {
   const floor = floorPx(monitor);
   const start = logicalWorkArea(monitor);
   let left = start.x;
@@ -110,5 +113,28 @@ export function floorSpan(
       grew = true;
     }
   }
-  return { left, right };
+  let segments = [{ left, right: right - windowWidth }];
+  for (const other of monitors) {
+    if (absorbed.has(other)) continue;
+    const top = other.position.y / other.scaleFactor;
+    const bottom = top + other.size.height / other.scaleFactor;
+    if (bottom <= floor || top >= floor + hangPx) continue;
+    const cutLeft = other.position.x / other.scaleFactor - windowWidth;
+    const cutRight = (other.position.x + other.size.width) / other.scaleFactor;
+    segments = segments.flatMap((seg) => cutSegment(seg, cutLeft, cutRight));
+  }
+  return segments.filter((seg) => seg.left <= seg.right);
+}
+
+/** `seg` with the window-origin stretch [cutLeft, cutRight) removed. */
+function cutSegment(
+  seg: { left: number; right: number },
+  cutLeft: number,
+  cutRight: number,
+): Array<{ left: number; right: number }> {
+  if (cutRight <= seg.left || cutLeft >= seg.right) return [seg];
+  const pieces: Array<{ left: number; right: number }> = [];
+  if (cutLeft > seg.left) pieces.push({ left: seg.left, right: cutLeft });
+  if (cutRight < seg.right) pieces.push({ left: cutRight, right: seg.right });
+  return pieces;
 }
