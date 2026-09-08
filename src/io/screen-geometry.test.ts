@@ -193,5 +193,55 @@ describe("floorSegments", () => {
         { left: -992, right: 2448 },
       ]);
     });
+
+    it("does not cut a monitor whose top sits exactly at the hang band's far edge", () => {
+      // Logical top 153 (physical 306 at scale 2) == floor (0) + hangPx (153), excluded.
+      const AT_BOUNDARY: ScreenMonitor = { ...BUILTIN, position: { x: 0, y: 306 } };
+      expect(floorSegments([AT_BOUNDARY, UPPER_LEFT, UPPER_RIGHT], UPPER_LEFT, 400, 153)).toEqual([
+        { left: -992, right: 2448 },
+      ]);
+    });
+
+    it("cuts around two separate lower monitors of a different scale into three segments", () => {
+      const SIDE: ScreenMonitor = {
+        position: { x: 4600, y: 0 },
+        size: { width: 100, height: 2234 },
+        workArea: { position: { x: 4600, y: 100 }, size: { width: 100, height: 1934 } },
+        scaleFactor: 2,
+      };
+      expect(floorSegments([BUILTIN, SIDE, UPPER_LEFT, UPPER_RIGHT], UPPER_LEFT, 400, 153)).toEqual(
+        [
+          { left: -992, right: -400 },
+          { left: 1728, right: 1900 },
+          { left: 2350, right: 2448 },
+        ],
+      );
+    });
+
+    it("returns no segments when a monitor below covers the entire span", () => {
+      const FULL_CUT: ScreenMonitor = {
+        position: { x: -1200, y: 0 },
+        size: { width: 6100, height: 2234 },
+        workArea: { position: { x: -1200, y: 100 }, size: { width: 6100, height: 1934 } },
+        scaleFactor: 2,
+      };
+      expect(floorSegments([FULL_CUT, UPPER_LEFT, UPPER_RIGHT], UPPER_LEFT, 400, 153)).toEqual([]);
+    });
+
+    it("does not cut a same-scale monitor stacked directly below — the flash is a backing-scale mismatch, not any overlap", () => {
+      const UPPER: ScreenMonitor = {
+        position: { x: 0, y: -1080 },
+        size: { width: 1920, height: 1080 },
+        workArea: { position: { x: 0, y: -1080 }, size: { width: 1920, height: 1080 } },
+        scaleFactor: 1,
+      };
+      const LOWER: ScreenMonitor = {
+        position: { x: 0, y: 0 },
+        size: { width: 1920, height: 1080 },
+        workArea: { position: { x: 0, y: 0 }, size: { width: 1920, height: 1080 } },
+        scaleFactor: 1,
+      };
+      expect(floorSegments([UPPER, LOWER], UPPER, 400, 100)).toEqual([{ left: 0, right: 1520 }]);
+    });
   });
 });

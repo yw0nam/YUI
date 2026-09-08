@@ -138,6 +138,14 @@ describe("planStroll", () => {
   it("returns null when the window is wider than the work area", () => {
     expect(planStroll({ ...base, x: 0, width: 2000, rng: seqRng(0, 0.9) })).toBeNull();
   });
+
+  it("reports the actual travel direction, not the drawn one the clamp overrode", () => {
+    // Drawn direction is right, but starting inside a cut-out the clamp pulls the
+    // destination to the segment's near (left) edge, so the real travel is leftward.
+    expect(
+      planStroll({ x: -200, width: 400, workX: -992, workWidth: 992, cfg: CFG, rng: seqRng(1, 1) }),
+    ).toEqual({ toX: -400, direction: -1 });
+  });
 });
 
 describe("advanceX", () => {
@@ -462,9 +470,46 @@ describe("createWalker", () => {
     });
     h.walker.start();
     await h.skipInterval();
-    // 200 logical px at ~317 px/s ≈ 0.63 s, whichever direction the clamp walks it from.
+    // The drawn direction is rightward; the clamp pulls the destination to the segment's
+    // left edge instead, so the actual travel — and the yaw facing it — is leftward.
+    expect(h.yaws[0]).toEqual({ rad: -WALK_YAW_RAD, easeMs: WALK_YAW_EASE_MS });
+    // 200 logical px at ~317 px/s ≈ 0.63 s.
     for (let i = 0; i < 60; i++) await h.frame();
-    expect(h.positions.at(-1)!.x).toBeLessThanOrEqual(-400);
+    expect(h.positions.at(-1)!.x).toBe(-400);
+  });
+
+  it("picks a wide segment over a nearer sliver too narrow for any stroll distance", async () => {
+    // Cuts MONITOR's [0, 1520] window-origin range into a 2 px sliver [0, 2], where the
+    // window already sits, and a wide [1200, 1520] remainder further away.
+    const CUTTER: ScreenMonitor = {
+      position: { x: 804, y: 3000 },
+      size: { width: 1596, height: 400 },
+      workArea: { position: { x: 804, y: 3000 }, size: { width: 1596, height: 400 } },
+      scaleFactor: 2,
+    };
+    const h = makeHarness({
+      position: { x: 1, y: WINDOW_POS.y },
+      monitors: [MONITOR, CUTTER],
+    });
+    h.walker.start();
+    await h.skipInterval();
+    for (let i = 0; i < 240; i++) await h.frame();
+    expect(h.positions.at(-1)!.x).toBe(1200);
+  });
+
+  it("starts no stroll when a monitor below covers the entire floor segment", async () => {
+    const FULL_CUT: ScreenMonitor = {
+      position: { x: -1000, y: 3000 },
+      size: { width: 6000, height: 400 },
+      workArea: { position: { x: -1000, y: 3000 }, size: { width: 6000, height: 400 } },
+      scaleFactor: 2,
+    };
+    const h = makeHarness({ monitors: [MONITOR, FULL_CUT] });
+    h.walker.start();
+    await h.skipInterval();
+    expect(h.motions).toEqual([]);
+    expect(h.starts).not.toHaveBeenCalled();
+    expect(h.positions).toEqual([]);
   });
 
   it("skips and redraws when the feet are not resting on the work-area floor", async () => {
