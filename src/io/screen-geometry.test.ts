@@ -20,12 +20,14 @@ const LEFT: ScreenMonitor = {
   position: { x: 0, y: 0 },
   size: { width: 1920, height: 1080 },
   workArea: { position: { x: 0, y: 25 }, size: { width: 1920, height: 1030 } },
+  scaleFactor: 1,
 };
 
 const RIGHT: ScreenMonitor = {
   position: { x: 1920, y: 0 },
   size: { width: 1280, height: 1024 },
   workArea: { position: { x: 1920, y: 0 }, size: { width: 1280, height: 1000 } },
+  scaleFactor: 1,
 };
 
 describe("monitorAt", () => {
@@ -48,12 +50,13 @@ describe("monitorAt", () => {
 
 describe("floorPx", () => {
   it("reports the work-area bottom in logical px", () => {
-    expect(floorPx(LEFT, 1)).toBe(1055);
-    expect(floorPx(RIGHT, 1)).toBe(1000);
+    expect(floorPx(LEFT)).toBe(1055);
+    expect(floorPx(RIGHT)).toBe(1000);
   });
 
-  it("divides the physical bottom by the scale factor", () => {
-    expect(floorPx(LEFT, 2)).toBe(527.5);
+  it("divides the physical bottom by the monitor's own scale factor", () => {
+    const scaled: ScreenMonitor = { ...LEFT, scaleFactor: 2 };
+    expect(floorPx(scaled)).toBe(527.5);
   });
 });
 
@@ -72,10 +75,10 @@ describe("groundedWindowY", () => {
 });
 
 describe("toScreenMonitor", () => {
-  it("copies the bounds a Tauri monitor carries, dropping everything else", () => {
+  it("copies the bounds and the scale factor a Tauri monitor carries, dropping everything else", () => {
     const tauriMonitor = {
       name: "Built-in",
-      scaleFactor: 2,
+      scaleFactor: 1,
       position: { x: 0, y: 0 },
       size: { width: 1920, height: 1080 },
       workArea: { position: { x: 0, y: 25 }, size: { width: 1920, height: 1030 } },
