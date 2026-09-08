@@ -644,6 +644,7 @@ function makeHarness(
   const walkHolds: boolean[] = [];
   let pos = { ...(over.position ?? WINDOW_POS) };
   let windows = over.windows ?? [TARGET_WINDOW];
+  let windowReads = 0;
   let perched = over.perched ?? false;
   let currentMotion: { id: string; vrma_path: string } | null = {
     id: "idle",
@@ -771,7 +772,10 @@ function makeHarness(
       },
     }),
     listMonitors: async () => over.monitors ?? [MONITOR],
-    listWindows: async () => windows,
+    listWindows: async () => {
+      windowReads++;
+      return windows;
+    },
     getConfig: () => CFG,
     getWalkConfig: () => WALK_CFG,
     currentMotionKind: () => (currentMotion ? (MOTION_KINDS[currentMotion.id] ?? null) : null),
@@ -838,6 +842,7 @@ function makeHarness(
     positions,
     physicalCalls,
     logicalCalls,
+    windowReads: () => windowReads,
     walkTargets,
     walkClipTimes,
     walkHolds,
@@ -1724,6 +1729,22 @@ describe("createClimber — monitor wall", () => {
     expect(h.logicalCalls.length).toBeGreaterThan(0);
     // Feet land on the upper floor line (y = 0) at the climbed edge (x = 0).
     expect(h.at()).toEqual({ x: -ANCHOR.x, y: -ANCHOR.y });
+  });
+
+  it("never polls the window stack for a monitor target while it climbs", async () => {
+    const h = makeHarness({
+      position: { x: 50, y: 1080 },
+      windows: [],
+      monitors: [MONITOR, UPPER],
+    });
+    h.climber.start();
+    await h.skipInterval();
+    const afterStart = h.windowReads();
+
+    // Well past several 700ms target-watch intervals; the climb itself is still running.
+    await h.runFrames(30);
+    expect(h.ends).not.toHaveBeenCalled();
+    expect(h.windowReads()).toBe(afterStart);
   });
 
   it("carries the climb through a scale boundary — a scale-2 window on a scale-2 lower monitor climbing onto a scale-1 upper monitor", async () => {
