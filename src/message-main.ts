@@ -9,6 +9,7 @@
 
 import "./styles.css";
 import "./ui/message-window.css";
+import { attachKeepOnScreen } from "./io/keep-on-screen";
 import { createMessageBridge } from "./io/message-bridge";
 import { MESSAGE_WINDOW_WIDTH } from "./io/message-window";
 import {
@@ -16,6 +17,7 @@ import {
   localStorageMessageWindowStorage,
 } from "./io/message-window-settings";
 import { createFlagSettings, localStorageStore } from "./io/persisted-store";
+import { toScreenMonitor } from "./io/screen-geometry";
 import { createSettingsBridge } from "./io/settings-bridge";
 import { isTauri } from "./io/tauri-env";
 import { createLogger, initLogger } from "./logger";
@@ -182,8 +184,8 @@ async function bootstrap(): Promise<void> {
 
   /** Height tracks the content, and every move records the window's outer position. */
   async function wireTauriWindow(root: HTMLElement): Promise<() => void> {
-    const { getCurrentWindow } = await import("@tauri-apps/api/window");
-    const { LogicalSize } = await import("@tauri-apps/api/dpi");
+    const { availableMonitors, getCurrentWindow } = await import("@tauri-apps/api/window");
+    const { LogicalSize, PhysicalPosition } = await import("@tauri-apps/api/dpi");
     const win = getCurrentWindow();
 
     let lastHeight = 0;
@@ -201,9 +203,21 @@ async function bootstrap(): Promise<void> {
       messageWindowSettings.setPosition(payload.x, payload.y),
     );
 
+    const unlistenKeepOnScreen = await attachKeepOnScreen(
+      {
+        outerPosition: () => win.outerPosition(),
+        outerSize: () => win.outerSize(),
+        setPositionPhysical: (x, y) => win.setPosition(new PhysicalPosition(x, y)),
+        onMoved: (cb) => win.onMoved(() => cb()),
+      },
+      async () => (await availableMonitors()).map(toScreenMonitor),
+      log,
+    );
+
     return () => {
       observer.disconnect();
       unlistenMoved();
+      unlistenKeepOnScreen();
     };
   }
 }
