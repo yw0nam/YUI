@@ -45,7 +45,7 @@ interface VoicePipelineDeps {
   voiceInputStatus: Pick<VoiceInputStatus, "set">;
   onVoiceSegment: (text: string) => void;
   /** An ambient stroll is moving the window — thinking and cue-less speech leave the body to it. */
-  isStrolling?: () => boolean;
+  isStrolling: () => boolean;
 }
 
 export interface VoicePipeline {
@@ -201,7 +201,7 @@ export function wireVoicePipeline(deps: VoicePipelineDeps): VoicePipeline {
     thinkingTurnId = turnId;
     // hold BEFORE the first filler can speak so no filler sentence resets the motion.
     speechPlayback.holdMotion(true);
-    if (!deps.isStrolling?.()) deps.renderer.playMotion({ id: "thinking", loop: true });
+    if (!deps.isStrolling()) deps.renderer.playMotion({ id: "thinking", loop: true });
     fillerLoop?.start();
   }
 
@@ -216,7 +216,7 @@ export function wireVoicePipeline(deps: VoicePipelineDeps): VoicePipeline {
     speechPlayback.holdMotion(false);
     fillerLoop?.stop();
     // thinking is loop:true — without an explicit return to idle it spins forever and pollutes previousStable.
-    deps.renderer.playMotion(null);
+    if (!deps.isStrolling()) deps.renderer.playMotion(null);
   }
 
   const turnOutput: TurnOutput = {

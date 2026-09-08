@@ -208,7 +208,7 @@ function setup(over: { isStrolling?: () => boolean } = {}) {
     speakerSelection: { getActive: () => activeSpeaker },
     voiceInputStatus,
     onVoiceSegment,
-    ...(over.isStrolling ? { isStrolling: over.isStrolling } : {}),
+    isStrolling: over.isStrolling ?? (() => false),
   });
 
   return {
@@ -628,6 +628,7 @@ describe("wireVoicePipeline", () => {
         speakerSelection: windowB,
         voiceInputStatus: { set: vi.fn() },
         onVoiceSegment: vi.fn(),
+        isStrolling: () => false,
       });
       const synth = playbackOptions().pipeline!.synth!;
 

@@ -491,7 +491,9 @@ const realFactories: ConfiguredBootstrapFactories = {
       isPeeking: () => peekStateRef?.active() ?? false,
       isDragging: () => dragging,
       setHitTestMoving: (moving) => hitTest.setMoving(moving),
-      onStrollEnd: () => voice.resumeThinking(),
+      onStrollEnd: (bodyReleased) => {
+        if (bodyReleased) voice.resumeThinking();
+      },
       log,
     });
     strollingRef = walker;

@@ -111,6 +111,7 @@ describe("createSpeechPlayback — amplitude drives the mouth", () => {
       surfaces,
       pipeline: NO_PIPELINE,
       createPipeline: stub.factory,
+      isStrolling: () => false,
     });
 
     stub.emitAmplitude(0.42);
@@ -128,6 +129,7 @@ describe("createSpeechPlayback — amplitude drives the mouth", () => {
       surfaces,
       pipeline: NO_PIPELINE,
       createPipeline: stub.factory,
+      isStrolling: () => false,
     });
 
     stub.emitPlaybackEnd();
@@ -145,6 +147,7 @@ describe("createSpeechPlayback — emotion eases back to neutral when playback e
       surfaces,
       pipeline: NO_PIPELINE,
       createPipeline: stub.factory,
+      isStrolling: () => false,
     });
 
     expect(renderer.easeEmotionToNeutral).not.toHaveBeenCalled();
@@ -164,6 +167,7 @@ describe("createSpeechPlayback — emotion eases back to neutral when playback e
       surfaces,
       pipeline: NO_PIPELINE,
       createPipeline: stub.factory,
+      isStrolling: () => false,
     });
 
     sp.onSpeech("Text with no audio.");
@@ -182,6 +186,7 @@ describe("createSpeechPlayback — emotion eases back to neutral when playback e
       surfaces,
       pipeline: NO_PIPELINE,
       createPipeline: stub.factory,
+      isStrolling: () => false,
     });
 
     stub.emitPlaybackEnd();
@@ -201,6 +206,7 @@ describe("createSpeechPlayback — emotion eases to neutral on abnormal end, not
       surfaces,
       pipeline: NO_PIPELINE,
       createPipeline: stub.factory,
+      isStrolling: () => false,
     });
 
     sp.onSpeechDelta("Hello");
@@ -219,6 +225,7 @@ describe("createSpeechPlayback — emotion eases to neutral on abnormal end, not
       surfaces,
       pipeline: NO_PIPELINE,
       createPipeline: stub.factory,
+      isStrolling: () => false,
     });
 
     sp.onSpeechDelta("Hello");
@@ -237,6 +244,7 @@ describe("createSpeechPlayback — emotion eases to neutral on abnormal end, not
       surfaces,
       pipeline: NO_PIPELINE,
       createPipeline: stub.factory,
+      isStrolling: () => false,
     });
 
     sp.interrupt();
@@ -252,6 +260,7 @@ describe("createSpeechPlayback — emotion eases to neutral on abnormal end, not
       surfaces,
       pipeline: NO_PIPELINE,
       createPipeline: stub.factory,
+      isStrolling: () => false,
     });
 
     sp.onSpeechDelta("Hello");
@@ -271,6 +280,7 @@ describe("createSpeechPlayback — bubble defers until playback ends", () => {
       surfaces,
       pipeline: NO_PIPELINE,
       createPipeline: stub.factory,
+      isStrolling: () => false,
     });
 
     sp.onSpeech("Hello there.");
@@ -293,6 +303,7 @@ describe("createSpeechPlayback — bubble defers until playback ends", () => {
       surfaces,
       pipeline: NO_PIPELINE,
       createPipeline: stub.factory,
+      isStrolling: () => false,
     });
 
     sp.onSpeech("Spoken.");
@@ -312,6 +323,7 @@ describe("createSpeechPlayback — bubble defers until playback ends", () => {
       surfaces,
       pipeline: NO_PIPELINE,
       createPipeline: stub.factory,
+      isStrolling: () => false,
     });
 
     sp.onSpeech("Text with no audio.");
@@ -333,6 +345,7 @@ describe("createSpeechPlayback — reportAudioOwed (#279, #529)", () => {
       pipeline: NO_PIPELINE,
       createPipeline: stub.factory,
       reportAudioOwed,
+      isStrolling: () => false,
     });
 
     stub.setOutstandingWork(true);
@@ -352,6 +365,7 @@ describe("createSpeechPlayback — reportAudioOwed (#279, #529)", () => {
       pipeline: NO_PIPELINE,
       createPipeline: stub.factory,
       reportAudioOwed,
+      isStrolling: () => false,
     });
 
     stub.emitPlaybackEnd();
@@ -370,6 +384,7 @@ describe("createSpeechPlayback — reportAudioOwed (#279, #529)", () => {
       pipeline: NO_PIPELINE,
       createPipeline: multi.factory,
       reportAudioOwed,
+      isStrolling: () => false,
     });
 
     multi.instances[0]!.hasOutstandingWork.mockReturnValue(true);
@@ -392,6 +407,7 @@ describe("createSpeechPlayback — reportAudioOwed (#279, #529)", () => {
       pipeline: NO_PIPELINE,
       createPipeline: stub.factory,
       reportAudioOwed,
+      isStrolling: () => false,
     });
 
     stub.setOutstandingWork(true);
@@ -411,6 +427,7 @@ describe("createSpeechPlayback — dispose", () => {
       surfaces: spySurfaces(),
       pipeline: NO_PIPELINE,
       createPipeline: stub.factory,
+      isStrolling: () => false,
     });
     sp.dispose();
     expect(stub.calls.disposed).toBe(1);
@@ -427,6 +444,7 @@ describe("createSpeechPlayback — onSpeechDelta streams text into bubble + pipe
       surfaces,
       pipeline: NO_PIPELINE,
       createPipeline: stub.factory,
+      isStrolling: () => false,
     });
 
     sp.onSpeechDelta("Hello");
@@ -445,6 +463,7 @@ describe("createSpeechPlayback — onSpeechDelta streams text into bubble + pipe
       surfaces,
       pipeline: NO_PIPELINE,
       createPipeline: stub.factory,
+      isStrolling: () => false,
     });
 
     sp.onSpeechDelta("a");
@@ -468,6 +487,7 @@ describe("createSpeechPlayback — onSpeechEnd finalizes a run", () => {
       surfaces,
       pipeline: NO_PIPELINE,
       createPipeline: stub.factory,
+      isStrolling: () => false,
     });
 
     sp.onSpeechDelta("Hello.");
@@ -487,6 +507,7 @@ describe("createSpeechPlayback — onSpeechEnd finalizes a run", () => {
       surfaces,
       pipeline: NO_PIPELINE,
       createPipeline: stub.factory,
+      isStrolling: () => false,
     });
 
     sp.onSpeechEnd();
@@ -506,6 +527,7 @@ describe("createSpeechPlayback — setCue forwards to the pipeline", () => {
       surfaces,
       pipeline: NO_PIPELINE,
       createPipeline: multi.factory,
+      isStrolling: () => false,
     });
 
     sp.setCue({ emotion_id: "happy", emotion_text: "😊" });
@@ -524,6 +546,7 @@ describe("createSpeechPlayback — setCue forwards to the pipeline", () => {
       surfaces,
       pipeline: NO_PIPELINE,
       createPipeline: multi.factory,
+      isStrolling: () => false,
     });
 
     sp.setCue(null);
@@ -541,6 +564,7 @@ describe("createSpeechPlayback — holdMotion buffers and flushes cues", () => {
       surfaces,
       pipeline: NO_PIPELINE,
       createPipeline: multi.factory,
+      isStrolling: () => false,
     });
 
     sp.holdMotion(true);
@@ -558,6 +582,7 @@ describe("createSpeechPlayback — holdMotion buffers and flushes cues", () => {
       surfaces,
       pipeline: NO_PIPELINE,
       createPipeline: multi.factory,
+      isStrolling: () => false,
     });
 
     sp.holdMotion(true);
@@ -580,6 +605,7 @@ describe("createSpeechPlayback — holdMotion buffers and flushes cues", () => {
       surfaces,
       pipeline: NO_PIPELINE,
       createPipeline: multi.factory,
+      isStrolling: () => false,
     });
 
     sp.holdMotion(true);
@@ -603,6 +629,7 @@ describe("createSpeechPlayback — holdMotion buffers and flushes cues", () => {
       surfaces,
       pipeline: NO_PIPELINE,
       createPipeline: multi.factory,
+      isStrolling: () => false,
     });
 
     sp.holdMotion(true);
@@ -620,6 +647,7 @@ describe("createSpeechPlayback — holdMotion buffers and flushes cues", () => {
       surfaces,
       pipeline: NO_PIPELINE,
       createPipeline: multi.factory,
+      isStrolling: () => false,
     });
 
     sp.holdMotion(true);
@@ -640,6 +668,7 @@ describe("createSpeechPlayback — holdMotion buffers and flushes cues", () => {
       surfaces,
       pipeline: NO_PIPELINE,
       createPipeline: multi.factory,
+      isStrolling: () => false,
     });
 
     sp.setCue({ emotion_id: "happy" });
@@ -659,6 +688,7 @@ describe("createSpeechPlayback — onCuePlay drives renderer directives", () => 
       surfaces,
       pipeline: NO_PIPELINE,
       createPipeline: stub.factory,
+      isStrolling: () => false,
     });
 
     stub.emitCuePlay({ emotion_id: "happy", motion_id: "dance" });
@@ -682,6 +712,7 @@ describe("createSpeechPlayback — onCuePlay drives renderer directives", () => 
       surfaces,
       pipeline: NO_PIPELINE,
       createPipeline: stub.factory,
+      isStrolling: () => false,
     });
 
     stub.emitCuePlay({ emotion_id: "curious" });
@@ -702,6 +733,7 @@ describe("createSpeechPlayback — onCuePlay drives renderer directives", () => 
       surfaces,
       pipeline: NO_PIPELINE,
       createPipeline: stub.factory,
+      isStrolling: () => false,
     });
 
     stub.emitCuePlay({ emotion_text: "😆" });
@@ -719,6 +751,7 @@ describe("createSpeechPlayback — onCuePlay drives renderer directives", () => 
       surfaces,
       pipeline: NO_PIPELINE,
       createPipeline: stub.factory,
+      isStrolling: () => false,
     });
 
     stub.emitCuePlay(null);
@@ -738,6 +771,7 @@ describe("createSpeechPlayback — interrupt swaps the pipeline and releases the
       surfaces,
       pipeline: NO_PIPELINE,
       createPipeline: multi.factory,
+      isStrolling: () => false,
     });
     // factory called once at construction.
     expect(multi.instances.length).toBe(1);
@@ -760,6 +794,7 @@ describe("createSpeechPlayback — interrupt swaps the pipeline and releases the
       surfaces,
       pipeline: NO_PIPELINE,
       createPipeline: multi.factory,
+      isStrolling: () => false,
     });
 
     sp.onSpeechDelta("old");
@@ -783,6 +818,7 @@ describe("createSpeechPlayback — interrupt swaps the pipeline and releases the
       surfaces,
       pipeline: NO_PIPELINE,
       createPipeline: multi.factory,
+      isStrolling: () => false,
     });
 
     sp.onSpeechDelta("old");
@@ -802,6 +838,7 @@ describe("createSpeechPlayback — muted interrupted turn", () => {
       surfaces,
       pipeline: NO_PIPELINE,
       createPipeline: multi.factory,
+      isStrolling: () => false,
     });
 
     sp.interrupt({ muteCurrentTurn: true });
@@ -819,6 +856,7 @@ describe("createSpeechPlayback — muted interrupted turn", () => {
       surfaces,
       pipeline: NO_PIPELINE,
       createPipeline: multi.factory,
+      isStrolling: () => false,
     });
 
     sp.interrupt({ muteCurrentTurn: true });
@@ -836,6 +874,7 @@ describe("createSpeechPlayback — muted interrupted turn", () => {
       surfaces: spySurfaces(),
       pipeline: NO_PIPELINE,
       createPipeline: multi.factory,
+      isStrolling: () => false,
     });
 
     sp.interrupt({ muteCurrentTurn: true });
@@ -852,6 +891,7 @@ describe("createSpeechPlayback — muted interrupted turn", () => {
       surfaces: spySurfaces(),
       pipeline: NO_PIPELINE,
       createPipeline: multi.factory,
+      isStrolling: () => false,
     });
 
     sp.interrupt({ muteCurrentTurn: true });
@@ -869,6 +909,7 @@ describe("createSpeechPlayback — muted interrupted turn", () => {
       surfaces: spySurfaces(),
       pipeline: NO_PIPELINE,
       createPipeline: multi.factory,
+      isStrolling: () => false,
     });
 
     sp.interrupt({ muteCurrentTurn: true });
@@ -890,6 +931,7 @@ describe("createSpeechPlayback — muted interrupted turn", () => {
       surfaces: spySurfaces(),
       pipeline: NO_PIPELINE,
       createPipeline: multi.factory,
+      isStrolling: () => false,
     });
 
     sp.interrupt();
@@ -905,6 +947,7 @@ describe("createSpeechPlayback — muted interrupted turn", () => {
       surfaces: spySurfaces(),
       pipeline: NO_PIPELINE,
       createPipeline: multi.factory,
+      isStrolling: () => false,
     });
 
     sp.interrupt({ muteCurrentTurn: true });
@@ -925,6 +968,7 @@ describe("createSpeechPlayback — abort tears down without rebuilding", () => {
       surfaces,
       pipeline: NO_PIPELINE,
       createPipeline: multi.factory,
+      isStrolling: () => false,
     });
     // factory called once at construction.
     expect(multi.instances.length).toBe(1);
@@ -947,6 +991,7 @@ describe("createSpeechPlayback — abort tears down without rebuilding", () => {
       surfaces,
       pipeline: NO_PIPELINE,
       createPipeline: stub.factory,
+      isStrolling: () => false,
     });
 
     sp.onSpeechDelta("partial");
@@ -968,6 +1013,7 @@ describe("createSpeechPlayback — options.onPlaybackEnd passthrough", () => {
       pipeline: NO_PIPELINE,
       createPipeline: stub.factory,
       onPlaybackEnd,
+      isStrolling: () => false,
     });
 
     stub.emitPlaybackEnd();
@@ -989,6 +1035,7 @@ describe("createSpeechPlayback — options.onPlaybackEnd passthrough", () => {
       pipeline: NO_PIPELINE,
       createPipeline: stub.factory,
       onPlaybackEnd,
+      isStrolling: () => false,
     });
 
     stub.emitPlaybackEnd();
@@ -1004,6 +1051,7 @@ describe("createSpeechPlayback — options.onPlaybackEnd passthrough", () => {
       surfaces,
       pipeline: NO_PIPELINE,
       createPipeline: stub.factory,
+      isStrolling: () => false,
     });
     expect(() => stub.emitPlaybackEnd()).not.toThrow();
   });
@@ -1019,6 +1067,7 @@ describe("createSpeechPlayback — onSpeech is sugar over delta+end", () => {
       surfaces,
       pipeline: NO_PIPELINE,
       createPipeline: stub.factory,
+      isStrolling: () => false,
     });
 
     sp.onSpeech("Whole thing.");
@@ -1041,6 +1090,7 @@ describe("createSpeechPlayback — emoji sanitization in delta", () => {
       surfaces,
       pipeline: NO_PIPELINE,
       createPipeline: stub.factory,
+      isStrolling: () => false,
     });
 
     // trailing emoji is held in carry and discarded when the run ends (flush on onSpeechEnd).
@@ -1059,6 +1109,7 @@ describe("createSpeechPlayback — emoji sanitization in delta", () => {
       surfaces,
       pipeline: NO_PIPELINE,
       createPipeline: stub.factory,
+      isStrolling: () => false,
     });
 
     sp.onSpeechDelta("hello world");
@@ -1077,6 +1128,7 @@ describe("createSpeechPlayback — holdMotion suppresses playMotion(null) for nu
       surfaces,
       pipeline: NO_PIPELINE,
       createPipeline: stub.factory,
+      isStrolling: () => false,
     });
 
     sp.holdMotion(true);
@@ -1095,6 +1147,7 @@ describe("createSpeechPlayback — holdMotion suppresses playMotion(null) for nu
       surfaces,
       pipeline: NO_PIPELINE,
       createPipeline: stub.factory,
+      isStrolling: () => false,
     });
 
     // default is false — no holdMotion call needed
@@ -1152,6 +1205,7 @@ describe("createSpeechPlayback — holdMotion suppresses playMotion(null) for nu
       surfaces,
       pipeline: NO_PIPELINE,
       createPipeline: stub.factory,
+      isStrolling: () => false,
     });
 
     sp.holdMotion(true);
@@ -1172,6 +1226,7 @@ describe("createSpeechPlayback — stripper carry reset on interrupt/abort", () 
       surfaces,
       pipeline: NO_PIPELINE,
       createPipeline: multi.factory,
+      isStrolling: () => false,
     });
 
     // push a delta ending in a trailing emoji-class run — stripper holds it in carry.
@@ -1200,6 +1255,7 @@ describe("createSpeechPlayback — stripper carry reset on interrupt/abort", () 
       surfaces,
       pipeline: NO_PIPELINE,
       createPipeline: multi.factory,
+      isStrolling: () => false,
     });
 
     // push a delta ending in a trailing emoji-class run — stripper holds it in carry.

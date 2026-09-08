@@ -454,8 +454,9 @@ export function wireWalker(deps: {
   isDragging: () => boolean;
   /** Keep the hit-test cursor mapping accurate while the window translates. */
   setHitTestMoving: (moving: boolean) => void;
-  /** An ambient stroll ended — the body is free for whatever the turn wants to show. */
-  onStrollEnd: () => void;
+  /** An ambient stroll ended — bodyReleased is true only when the walker itself handed the
+   * clip back, not when another motion had already taken it. */
+  onStrollEnd: (bodyReleased: boolean) => void;
   log: Logger;
 }): {
   walkTo(toX: number, onAccepted?: () => void, holdClip?: boolean): Promise<"arrived" | "lost">;
@@ -514,10 +515,10 @@ export function wireWalker(deps: {
         deps.setHitTestMoving(true);
         push("avatar.walk_start");
       },
-      onEnd: () => {
+      onEnd: (bodyReleased) => {
         deps.setHitTestMoving(false);
         push("avatar.walk_end");
-        deps.onStrollEnd();
+        deps.onStrollEnd(bodyReleased);
       },
     });
     walker.start();

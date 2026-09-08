@@ -83,6 +83,7 @@ describe("speech-playback integration (real pipeline + real sink)", () => {
       renderer,
       surfaces,
       pipeline: { synth: async () => new Uint8Array([1, 2, 3, 4]).buffer },
+      isStrolling: () => false,
     });
 
     sp.onSpeech("Hello.");
@@ -142,6 +143,7 @@ describe("speech-playback integration (real pipeline + real sink)", () => {
       reportAudioOwed: (v) => {
         owed = v;
       },
+      isStrolling: () => false,
     });
 
     sp.onSpeech("Hello.");
@@ -176,7 +178,12 @@ describe("speech-playback integration (real pipeline + real sink)", () => {
       finishSpeech: vi.fn(),
     };
     const synth = vi.fn(async () => new Uint8Array([1, 2, 3, 4]).buffer);
-    const sp = createSpeechPlayback({ renderer, surfaces, pipeline: { synth } });
+    const sp = createSpeechPlayback({
+      renderer,
+      surfaces,
+      pipeline: { synth },
+      isStrolling: () => false,
+    });
 
     sp.interrupt({ muteCurrentTurn: true });
     sp.onSpeechDelta("late");

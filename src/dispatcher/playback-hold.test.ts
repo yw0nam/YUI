@@ -157,6 +157,7 @@ describe("dispatcher — turn admission across the amplitude flag (#512)", () =>
       },
       pipeline: { synth: deferred.synth, sink: recorder.sink },
       reportAudioOwed: (owed) => turnLog.setAudioOwed(owed),
+      isStrolling: () => false,
     });
 
     const backendCaller = createBackendCaller({

@@ -67,7 +67,7 @@ export interface WalkGateState {
   perched: boolean;
   peeking: boolean;
   dragging: boolean;
-  /** The body is on the ambient baseline, the thinking loop, or the walk clip — nothing else holds it. */
+  /** Whether the body is free to take the walk clip — the caller decides what counts as free. */
   bodyFree: boolean;
   reducedMotion: boolean;
 }
@@ -142,8 +142,9 @@ export interface WalkerDeps {
   doc?: WalkerDoc;
   /** A stroll began — posture goes walking and the hit test follows the moving window. */
   onStart(): void;
-  /** The stroll arrived, was cancelled, or lost the clip. */
-  onEnd(): void;
+  /** The stroll arrived, was cancelled, or lost the clip. bodyReleased is true only when the
+   * walker itself handed the clip back (nothing else had already taken it). */
+  onEnd(bodyReleased: boolean): void;
   rng?: Rng;
 }
 
@@ -214,11 +215,12 @@ export function createWalker(deps: WalkerDeps): Walker {
     stroll = null;
     nextAtMs = -1;
     const held = s.holdClip && outcome === "arrived";
-    if (!held && renderer.getCurrentMotion()?.id === WALK_MOTION_ID) renderer.playMotion(null);
+    const bodyReleased = !held && renderer.getCurrentMotion()?.id === WALK_MOTION_ID;
+    if (bodyReleased) renderer.playMotion(null);
     renderer.setBodyYaw(0, WALK_YAW_EASE_MS);
     const settle = resolveWalk;
     resolveWalk = null;
-    if (!s.directed) deps.onEnd();
+    if (!s.directed) deps.onEnd(bodyReleased);
     settle?.(outcome);
   }
 
