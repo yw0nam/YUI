@@ -46,6 +46,7 @@ import { selectFetch } from "./io/chat-client";
 import { type EndpointOverrides, mergeEndpoints } from "./io/endpoints-settings";
 import type { ExpressMotionSettings } from "./io/express-motion-settings";
 import type { GuardrailsSettingsStore } from "./io/guardrails-settings";
+import { attachKeepOnScreen } from "./io/keep-on-screen";
 import type { ClampedIntSettingsStore } from "./io/persisted-store";
 import type { ProactiveSettings } from "./io/proactive-settings";
 import type { ScheduleSettings } from "./io/schedule-settings";
@@ -981,6 +982,7 @@ export function wireWindowSources(deps: {
   let windowDropSource: ReturnType<typeof createWindowDropSource> | null = null;
   let windowResizeSource: ReturnType<typeof createWindowResizeSource> | null = null;
   let avatarExecutor: AvatarExecutor | null = null;
+  let keepOnScreenUnlisten: (() => void) | null = null;
   let disposed = false;
   const handle = {
     noteUserDrag: () => avatarExecutor?.noteUserDrag(),
@@ -1001,6 +1003,7 @@ export function wireWindowSources(deps: {
       windowDropSource?.stop();
       windowResizeSource?.stop();
       avatarExecutor?.stop();
+      keepOnScreenUnlisten?.();
     },
   };
   if (!isTauri()) return handle;
@@ -1088,6 +1091,17 @@ export function wireWindowSources(deps: {
     }
     windowResizeSource.start();
     avatarExecutor.start();
+    keepOnScreenUnlisten = await attachKeepOnScreen(
+      {
+        outerPosition: () => getCurrentWindow().outerPosition(),
+        outerSize: () => getCurrentWindow().outerSize(),
+        setPositionPhysical: (x, y) => getCurrentWindow().setPosition(new PhysicalPosition(x, y)),
+        onMoved: (cb) => getCurrentWindow().onMoved(() => cb()),
+        onResized: (cb) => getCurrentWindow().onResized(() => cb()),
+      },
+      async () => (await availableMonitors()).map(toScreenMonitor),
+    );
+    if (disposed) keepOnScreenUnlisten();
   })().catch((err) =>
     log.warn("window_drop_source_start_failed", {
       degrade: true,
