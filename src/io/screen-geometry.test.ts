@@ -1,8 +1,8 @@
 /**
  * screen-geometry.test.ts — the monitor/floor math shared by every window mover.
  *
- * Pure geometry: no Tauri, no renderer. The walker, the faller and the avatar
- * executor all place the window through these four functions, so the floor line
+ * Pure geometry: no Tauri, no renderer. The walker, the faller, the climber and the
+ * avatar executor all place the window through these functions, so the floor line
  * is defined once.
  */
 
@@ -10,7 +10,6 @@ import { describe, expect, it } from "vitest";
 import {
   floorPx,
   floorSpan,
-  groundedWindowY,
   logicalWorkArea,
   monitorAt,
   type ScreenMonitor,
@@ -59,20 +58,6 @@ describe("floorPx", () => {
   it("divides the physical bottom by the monitor's own scale factor", () => {
     const scaled: ScreenMonitor = { ...LEFT, scaleFactor: 2 };
     expect(floorPx(scaled)).toBe(527.5);
-  });
-});
-
-describe("groundedWindowY", () => {
-  it("puts the feet on the floor line", () => {
-    expect(groundedWindowY(1055, 420, 1)).toBe(635);
-  });
-
-  it("returns a physical y, so a scaled screen doubles the offset", () => {
-    expect(groundedWindowY(1055, 420, 2)).toBe(1270);
-  });
-
-  it("lets the window hang below the screen when the feet sit above its bottom", () => {
-    expect(groundedWindowY(1000, 0, 1)).toBe(1000);
   });
 });
 

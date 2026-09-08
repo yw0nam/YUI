@@ -2,8 +2,8 @@
  * screen-geometry — the monitor and floor math every window mover shares.
  *
  * The ambient stroll, the drag-release fall and the agent's `move_to` all place the
- * same OS window against the same floor line, so the containment test, the work-area
- * bottom and the grounded window origin live here once.
+ * same OS window against the same floor line, so the containment test and the
+ * work-area bottom live here once.
  *
  * The floor is the work-area bottom of the monitor holding the window origin, and the
  * character stands on it with her *feet* — the anchor the renderer projects, not the
@@ -112,13 +112,4 @@ export function floorSpan(
     }
   }
   return { left, right };
-}
-
-/** Physical window y that rests the feet on the floor line. */
-export function groundedWindowY(
-  floorLogicalPx: number,
-  feetOffsetLogicalPx: number,
-  scale: number,
-): number {
-  return (floorLogicalPx - feetOffsetLogicalPx) * scale;
 }
