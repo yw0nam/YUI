@@ -197,12 +197,18 @@ function makeHarness(
     currentMotion?: { id: string; vrma_path: string } | null;
     rng?: () => number;
     monitors?: ScreenMonitor[];
+    /** The window's own scale factor. Defaults to 1. */
+    windowScale?: number;
+    /** Overrides windowScale with a call-counted function, for a scale that changes mid-stroll. */
+    scaleFactor?: () => number;
   } = {},
 ) {
   let tick: TickFn | null = null;
   const motions: Array<RenderMotionSignal | null> = [];
   const yaws: Array<{ rad: number; easeMs: number }> = [];
   const positions: Array<{ x: number; y: number }> = [];
+  const logicalCalls: Array<{ x: number; y: number }> = [];
+  const scaleFactor = over.scaleFactor ?? (() => over.windowScale ?? 1);
   let currentMotion: { id: string; vrma_path: string } | null = over.currentMotion ?? {
     id: "idle",
     vrma_path: "/motions/calm.vrma",
@@ -248,11 +254,9 @@ function makeHarness(
     getWindow: () => ({
       outerPosition: async () => over.position ?? WINDOW_POS,
       outerSize: async () => ({ width: 400, height: 600 }),
-      scaleFactor: async () => 1,
-      setPositionPhysical: async (x, y) => {
-        positions.push({ x, y });
-      },
+      scaleFactor: async () => scaleFactor(),
       setPositionLogical: async (x, y) => {
+        logicalCalls.push({ x, y });
         positions.push({ x, y });
       },
     }),
@@ -291,6 +295,7 @@ function makeHarness(
     motions,
     yaws,
     positions,
+    logicalCalls,
     starts,
     ends,
     frame,
@@ -364,6 +369,52 @@ describe("createWalker", () => {
     expect(h.yaws.at(-1)).toEqual({ rad: 0, easeMs: WALK_YAW_EASE_MS });
     expect(h.ends).toHaveBeenCalledTimes(1);
     expect(h.ends).toHaveBeenCalledWith(true);
+  });
+
+  it("moves the window through setPositionLogical, in logical points, on a scaled screen", async () => {
+    // Same logical geometry as MONITOR/WINDOW_POS, doubled into scale-2 physical px.
+    const SCALE2_MONITOR: ScreenMonitor = {
+      position: { x: 0, y: 0 },
+      size: { width: 3840, height: 3200 },
+      workArea: { position: { x: 0, y: 0 }, size: { width: 3840, height: 3000 } },
+      scaleFactor: 2,
+    };
+    const h = makeHarness({
+      position: { x: WINDOW_POS.x * 2, y: WINDOW_POS.y * 2 },
+      monitors: [SCALE2_MONITOR],
+      windowScale: 2,
+    });
+    h.walker.start();
+    await h.skipInterval();
+    for (let i = 0; i < 30; i++) await h.frame();
+    expect(h.logicalCalls.length).toBeGreaterThan(0);
+    for (const call of h.logicalCalls) {
+      expect(call.y).toBe(WINDOW_POS.y);
+    }
+    expect(h.logicalCalls.at(-1)).toEqual({ x: 420, y: WINDOW_POS.y });
+  });
+
+  it("does not re-read the window's scale factor once the stroll is moving", async () => {
+    const SCALE2_MONITOR: ScreenMonitor = {
+      position: { x: 0, y: 0 },
+      size: { width: 3840, height: 3200 },
+      workArea: { position: { x: 0, y: 0 }, size: { width: 3840, height: 3000 } },
+      scaleFactor: 2,
+    };
+    let calls = 0;
+    const h = makeHarness({
+      position: { x: WINDOW_POS.x * 2, y: WINDOW_POS.y * 2 },
+      monitors: [SCALE2_MONITOR],
+      // The stroll reads the scale once, at the start; step() must not read it again —
+      // if it did, the logical y written afterwards would jump to the physical value.
+      scaleFactor: () => (calls++ === 0 ? 2 : 1),
+    });
+    h.walker.start();
+    await h.skipInterval();
+    for (let i = 0; i < 30; i++) await h.frame();
+    for (const call of h.logicalCalls) {
+      expect(call.y).toBe(WINDOW_POS.y);
+    }
   });
 
   it("continues a rightward stroll onto a neighbouring monitor that shares the floor line", async () => {
@@ -675,6 +726,16 @@ describe("createWalker — walkTo", () => {
     expect(await settle(h, h.walker.walkTo(300))).toBe("arrived");
     expect(h.positions.at(-1)).toEqual({ x: 300, y: WINDOW_POS.y });
     expect(h.motions).toEqual([{ id: WALK_MOTION_ID }, null]);
+  });
+
+  it("arrives at exactly the logical target on a scaled screen", async () => {
+    const h = makeHarness({
+      position: { x: WINDOW_POS.x * 2, y: WINDOW_POS.y * 2 },
+      windowScale: 2,
+    });
+    h.walker.start();
+    expect(await settle(h, h.walker.walkTo(300))).toBe("arrived");
+    expect(h.logicalCalls.at(-1)).toEqual({ x: 300, y: WINDOW_POS.y });
   });
 
   it("keeps the walk clip on arrival when the caller will replace it", async () => {
