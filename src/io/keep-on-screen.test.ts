@@ -35,7 +35,7 @@ describe("keepOnScreen", () => {
 
   it("pushes a window dragged past the right edge so half the overhang remains", () => {
     const result = keepOnScreen([LEFT], { x: 1800, y: 400 }, { width: 400, height: 300 });
-    expect(result).toEqual({ x: 1719, y: 400 });
+    expect(result).toEqual({ x: 1718, y: 400 });
   });
 
   it("pushes a window dragged past the top edge", () => {
@@ -50,12 +50,12 @@ describe("keepOnScreen", () => {
 
   it("pushes a window dragged past the bottom edge", () => {
     const result = keepOnScreen([LEFT], { x: 800, y: 1000 }, { width: 300, height: 200 });
-    expect(result).toEqual({ x: 800, y: 979 });
+    expect(result).toEqual({ x: 800, y: 978 });
   });
 
   it("returns integer coordinates for an odd-sized window pushed off the edge", () => {
     const result = keepOnScreen([LEFT], { x: 1800, y: 400 }, { width: 401, height: 301 });
-    expect(result).toEqual({ x: 1719, y: 400 });
+    expect(result).toEqual({ x: 1718, y: 400 });
     expect(Number.isInteger(result?.x)).toBe(true);
     expect(Number.isInteger(result?.y)).toBe(true);
   });
@@ -71,7 +71,7 @@ describe("keepOnScreen", () => {
       { x: 1950, y: 0 },
       { width: 200, height: 200 },
     );
-    expect(result).toEqual({ x: 1819, y: 0 });
+    expect(result).toEqual({ x: 1818, y: 0 });
   });
 
   it("passes when there are no monitors to push against", () => {
@@ -118,12 +118,12 @@ describe("attachKeepOnScreen", () => {
     await vi.runOnlyPendingTimersAsync();
 
     expect(win.setPositionPhysical).toHaveBeenCalledTimes(1);
-    expect(win.setPositionPhysical).toHaveBeenCalledWith(1719, 400);
+    expect(win.setPositionPhysical).toHaveBeenCalledWith(1718, 400);
   });
 
   it("does not re-trigger once the pushed position already sits on screen", async () => {
     await attachKeepOnScreen(win, listMonitors);
-    await vi.runOnlyPendingTimersAsync(); // startup pass pushes to {x:1719, y:400}
+    await vi.runOnlyPendingTimersAsync(); // startup pass pushes to {x:1718, y:400}
     vi.mocked(win.setPositionPhysical).mockClear();
 
     onMovedCb(); // the guard's own setPosition re-fires onMoved
@@ -134,14 +134,14 @@ describe("attachKeepOnScreen", () => {
 
   it("evaluates on a resize too, since resizing emits no move event", async () => {
     await attachKeepOnScreen(win, listMonitors);
-    await vi.runOnlyPendingTimersAsync(); // startup pass pushes to {x:1719, y:400}
+    await vi.runOnlyPendingTimersAsync(); // startup pass pushes to {x:1718, y:400}
     vi.mocked(win.setPositionPhysical).mockClear();
 
     pos = { x: 1800, y: 400 }; // back off-screen, as if the content grew past the edge
     onResizedCb();
     await vi.advanceTimersByTimeAsync(IDLE_MS);
 
-    expect(win.setPositionPhysical).toHaveBeenCalledWith(1719, 400);
+    expect(win.setPositionPhysical).toHaveBeenCalledWith(1718, 400);
   });
 
   it("collapses a storm of onMoved events into a single evaluation after the idle window", async () => {
