@@ -20,7 +20,13 @@
 
 import type { FallConfig } from "../config/load";
 import type { MotionKind, WindowRect } from "../contract";
-import { floorPx, monitorAt, type PetWindow, type ScreenMonitor } from "../io/screen-geometry";
+import {
+  floorPx,
+  logicalWorkArea,
+  monitorAt,
+  type PetWindow,
+  type ScreenMonitor,
+} from "../io/screen-geometry";
 import { PERCH_POLL_MS, uncoveredSpan } from "../io/window-drop-source";
 import { createLogger } from "../logger";
 import type { Renderer } from "../renderer";
@@ -360,7 +366,7 @@ export function createFaller(deps: FallerDeps): Faller {
     const feetY = windowY + feet.y;
     const feetX = pos.x / scale + feet.x;
     const floorY = floorPx(monitor);
-    const minStandingTop = monitor.workArea.position.y / scale + feet.y;
+    const minStandingTop = logicalWorkArea(monitor).y + feet.y;
     const surface = pickLandingSurface({
       windows,
       x: feetX,
