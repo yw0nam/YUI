@@ -9,7 +9,9 @@
 import { describe, expect, it } from "vitest";
 import {
   floorPx,
+  floorSpan,
   groundedWindowY,
+  logicalWorkArea,
   monitorAt,
   type ScreenMonitor,
   toScreenMonitor,
@@ -84,5 +86,78 @@ describe("toScreenMonitor", () => {
       workArea: { position: { x: 0, y: 25 }, size: { width: 1920, height: 1030 } },
     };
     expect(toScreenMonitor(tauriMonitor)).toEqual(LEFT);
+  });
+});
+
+describe("logicalWorkArea", () => {
+  it("divides the work area by the monitor's own scale factor", () => {
+    const scaled: ScreenMonitor = {
+      position: { x: 0, y: 0 },
+      size: { width: 3840, height: 2160 },
+      workArea: { position: { x: 0, y: 50 }, size: { width: 3840, height: 2060 } },
+      scaleFactor: 2,
+    };
+    expect(logicalWorkArea(scaled)).toEqual({ x: 0, y: 25, width: 1920, height: 1030 });
+  });
+});
+
+describe("floorSpan", () => {
+  const NEIGHBOUR: ScreenMonitor = {
+    position: { x: 1920, y: 0 },
+    size: { width: 1920, height: 1080 },
+    workArea: { position: { x: 1920, y: 25 }, size: { width: 1920, height: 1030 } },
+    scaleFactor: 1,
+  };
+  /** Same floor line as LEFT/NEIGHBOUR, but a different scale factor. */
+  const DIFFERENT_SCALE: ScreenMonitor = {
+    ...NEIGHBOUR,
+    position: { x: 3840, y: 0 },
+    scaleFactor: 2,
+    workArea: { position: { x: 1920, y: 50 }, size: { width: 1920, height: 2060 } },
+  };
+  /** Floor line 100 px below LEFT/NEIGHBOUR's — not the same floor. */
+  const DIFFERENT_FLOOR: ScreenMonitor = {
+    position: { x: 1920, y: 0 },
+    size: { width: 1920, height: 1180 },
+    workArea: { position: { x: 1920, y: 25 }, size: { width: 1920, height: 1130 } },
+    scaleFactor: 1,
+  };
+  /** Same floor line, but a 200 px horizontal gap — not contiguous. */
+  const GAPPED: ScreenMonitor = {
+    position: { x: 2120, y: 0 },
+    size: { width: 1920, height: 1080 },
+    workArea: { position: { x: 2120, y: 25 }, size: { width: 1920, height: 1030 } },
+    scaleFactor: 1,
+  };
+  /** A third monitor continuing the floor past NEIGHBOUR's own right edge. */
+  const THIRD: ScreenMonitor = {
+    position: { x: 3840, y: 0 },
+    size: { width: 1280, height: 1080 },
+    workArea: { position: { x: 3840, y: 25 }, size: { width: 1280, height: 1030 } },
+    scaleFactor: 1,
+  };
+
+  it("starts with the monitor's own work-area x-range", () => {
+    expect(floorSpan([LEFT], LEFT)).toEqual({ left: 0, right: 1920 });
+  });
+
+  it("merges a same-floor, same-scale neighbour that touches it", () => {
+    expect(floorSpan([LEFT, NEIGHBOUR], LEFT)).toEqual({ left: 0, right: 3840 });
+  });
+
+  it("does not merge a monitor with a different floor line", () => {
+    expect(floorSpan([LEFT, DIFFERENT_FLOOR], LEFT)).toEqual({ left: 0, right: 1920 });
+  });
+
+  it("does not merge a monitor with a different scale factor", () => {
+    expect(floorSpan([LEFT, DIFFERENT_SCALE], LEFT)).toEqual({ left: 0, right: 1920 });
+  });
+
+  it("does not merge a same-floor monitor that is not horizontally contiguous", () => {
+    expect(floorSpan([LEFT, GAPPED], LEFT)).toEqual({ left: 0, right: 1920 });
+  });
+
+  it("chains a merge across three monitors", () => {
+    expect(floorSpan([LEFT, NEIGHBOUR, THIRD], LEFT)).toEqual({ left: 0, right: 5120 });
   });
 });

@@ -161,6 +161,14 @@ const MONITOR: ScreenMonitor = {
   scaleFactor: 1,
 };
 
+/** Same floor line and scale, immediately to the right of MONITOR. */
+const NEIGHBOR: ScreenMonitor = {
+  position: { x: 1920, y: 0 },
+  size: { width: 1920, height: 1600 },
+  workArea: { position: { x: 1920, y: 0 }, size: { width: 1920, height: 1500 } },
+  scaleFactor: 1,
+};
+
 /** The shipped walk.vrma loops on its own last keyframe, not on a nominal 1.37 s cycle. */
 const CLIP_S = 1.267;
 /** Feet sit this far below the canvas top — the framing margin leaves the rest as headroom. */
@@ -188,6 +196,7 @@ function makeHarness(
     /** The clip holding the body when the walker fires. Defaults to the idle baseline. */
     currentMotion?: { id: string; vrma_path: string } | null;
     rng?: () => number;
+    monitors?: ScreenMonitor[];
   } = {},
 ) {
   let tick: TickFn | null = null;
@@ -244,7 +253,7 @@ function makeHarness(
         positions.push({ x, y });
       },
     }),
-    listMonitors: async () => [MONITOR],
+    listMonitors: async () => over.monitors ?? [MONITOR],
     getConfig: () => CFG,
     currentMotionKind: over.motionKind ?? (() => "ambient"),
     isPeeking: () => over.peeking ?? false,
@@ -352,6 +361,19 @@ describe("createWalker", () => {
     expect(h.yaws.at(-1)).toEqual({ rad: 0, easeMs: WALK_YAW_EASE_MS });
     expect(h.ends).toHaveBeenCalledTimes(1);
     expect(h.ends).toHaveBeenCalledWith(true);
+  });
+
+  it("continues a rightward stroll onto a neighbouring monitor that shares the floor line", async () => {
+    // Standing near MONITOR's right edge (1920): a max-distance rightward draw crosses it.
+    const h = makeHarness({
+      position: { x: 1700, y: WINDOW_POS.y },
+      monitors: [MONITOR, NEIGHBOR],
+      rng: seqRng(0, 1, 1),
+    });
+    h.walker.start();
+    await h.skipInterval();
+    for (let i = 0; i < 90; i++) await h.frame();
+    expect(h.positions.at(-1)!.x).toBeGreaterThan(1920);
   });
 
   it("skips and redraws when the feet are not resting on the work-area floor", async () => {
