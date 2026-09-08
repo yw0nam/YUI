@@ -1294,7 +1294,8 @@ describe("createClimber — down", () => {
   it("gives up the descent when the perch never clears, and takes the sit back", async () => {
     // release() already disarmed the poll, so without re-adopting it nothing would ever
     // move her off the ledge again: every later dwell dies at armedSit() being null.
-    const h = perchedHarness({ holdPerchOnRelease: true });
+    // The seated probe reads 300; the sit is taken back with the 500 she was armed at.
+    const h = perchedHarness({ holdPerchOnRelease: true, charHpx: 300 });
     h.climber.start();
     await h.skipDwell();
     await h.runFrames(15);
@@ -1363,6 +1364,16 @@ describe("createClimber — down", () => {
 
   it("descends the far wall when the nearer one is covered", async () => {
     const h = perchedHarness({ windows: [COLUMN_COVER, TARGET_WINDOW] });
+    h.climber.start();
+    await h.skipDwell();
+    expect(h.starts).toHaveBeenCalledWith("down", { ...TARGET, side: "right", edgeX: 1400 });
+  });
+
+  it("picks the wall by the armed standing height, not the seated probe", async () => {
+    // 720..800 lies inside the 300 px descent column the armed height gives the left wall
+    // (700..1000) but outside the 180 px column a 300 px probe would give it (820..1000).
+    const armedOnlyCover = win({ x: 720, y: 1300, width: 80, height: 200, windowNumber: 7 });
+    const h = perchedHarness({ windows: [armedOnlyCover, TARGET_WINDOW], charHpx: 300 });
     h.climber.start();
     await h.skipDwell();
     expect(h.starts).toHaveBeenCalledWith("down", { ...TARGET, side: "right", edgeX: 1400 });
