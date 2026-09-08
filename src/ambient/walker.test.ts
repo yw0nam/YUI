@@ -430,6 +430,43 @@ describe("createWalker", () => {
     expect(h.positions.at(-1)!.x).toBeGreaterThan(1920);
   });
 
+  it("walks a stroll starting in a monitor-overlap cut-out to the nearest safe segment", async () => {
+    // Built-in: 1728×1117 logical at (0,0), scale 2 — sits directly under the row above.
+    const BUILTIN: ScreenMonitor = {
+      position: { x: 0, y: 0 },
+      size: { width: 3456, height: 2234 },
+      workArea: { position: { x: 0, y: 100 }, size: { width: 3456, height: 1934 } },
+      scaleFactor: 2,
+    };
+    // 1920×1080 logical at (−992, −1080), scale 1 — floor line (no dock) at y = 0.
+    const UPPER_LEFT: ScreenMonitor = {
+      position: { x: -992, y: -1080 },
+      size: { width: 1920, height: 1080 },
+      workArea: { position: { x: -992, y: -1055 }, size: { width: 1920, height: 1055 } },
+      scaleFactor: 1,
+    };
+    const UPPER_RIGHT: ScreenMonitor = {
+      position: { x: 928, y: -1080 },
+      size: { width: 1920, height: 1080 },
+      workArea: { position: { x: 928, y: -1055 }, size: { width: 1920, height: 1055 } },
+      scaleFactor: 1,
+    };
+    // Feet 447 below the canvas top ⇒ hangPx 153 (window height 600 minus 447): the
+    // window's bottom margin reaches into BUILTIN even though the feet rest on
+    // UPPER_LEFT's own floor at x = −200, inside the resulting cut-out.
+    const h = makeHarness({
+      position: { x: -200, y: -447 },
+      feetY: 447,
+      monitors: [BUILTIN, UPPER_LEFT, UPPER_RIGHT],
+      rng: seqRng(0, 0, 1),
+    });
+    h.walker.start();
+    await h.skipInterval();
+    // 200 logical px at ~317 px/s ≈ 0.63 s, whichever direction the clamp walks it from.
+    for (let i = 0; i < 60; i++) await h.frame();
+    expect(h.positions.at(-1)!.x).toBeLessThanOrEqual(-400);
+  });
+
   it("skips and redraws when the feet are not resting on the work-area floor", async () => {
     const h = makeHarness({ position: { x: 500, y: 400 } });
     h.walker.start();

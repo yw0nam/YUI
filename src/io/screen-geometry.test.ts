@@ -9,7 +9,7 @@
 import { describe, expect, it } from "vitest";
 import {
   floorPx,
-  floorSpan,
+  floorSegments,
   logicalWorkArea,
   monitorAt,
   type ScreenMonitor,
@@ -86,7 +86,7 @@ describe("logicalWorkArea", () => {
   });
 });
 
-describe("floorSpan", () => {
+describe("floorSegments", () => {
   const NEIGHBOUR: ScreenMonitor = {
     position: { x: 1920, y: 0 },
     size: { width: 1920, height: 1080 },
@@ -123,28 +123,75 @@ describe("floorSpan", () => {
   };
 
   it("starts with the monitor's own work-area x-range", () => {
-    expect(floorSpan([LEFT], LEFT)).toEqual({ left: 0, right: 1920 });
+    expect(floorSegments([LEFT], LEFT, 0, 0)).toEqual([{ left: 0, right: 1920 }]);
   });
 
   it("merges a same-floor, same-scale neighbour that touches it", () => {
-    expect(floorSpan([LEFT, NEIGHBOUR], LEFT)).toEqual({ left: 0, right: 3840 });
+    expect(floorSegments([LEFT, NEIGHBOUR], LEFT, 0, 0)).toEqual([{ left: 0, right: 3840 }]);
   });
 
   it("does not merge a monitor with a different floor line", () => {
-    expect(floorSpan([LEFT, DIFFERENT_FLOOR], LEFT)).toEqual({ left: 0, right: 1920 });
+    expect(floorSegments([LEFT, DIFFERENT_FLOOR], LEFT, 0, 0)).toEqual([{ left: 0, right: 1920 }]);
   });
 
   it("does not merge a monitor with a different scale factor", () => {
-    expect(floorSpan([LEFT, DIFFERENT_SCALE], LEFT)).toEqual({ left: 0, right: 1920 });
+    expect(floorSegments([LEFT, DIFFERENT_SCALE], LEFT, 0, 0)).toEqual([{ left: 0, right: 1920 }]);
   });
 
   it("does not merge a same-floor monitor that is not horizontally contiguous", () => {
-    expect(floorSpan([LEFT, GAPPED], LEFT)).toEqual({ left: 0, right: 1920 });
+    expect(floorSegments([LEFT, GAPPED], LEFT, 0, 0)).toEqual([{ left: 0, right: 1920 }]);
   });
 
   it("chains a merge across three monitors", () => {
     // THIRD only touches the span once NEIGHBOUR has been absorbed, so this order
     // fails after a single forward pass and needs the repeat to find it.
-    expect(floorSpan([LEFT, THIRD, NEIGHBOUR], LEFT)).toEqual({ left: 0, right: 5120 });
+    expect(floorSegments([LEFT, THIRD, NEIGHBOUR], LEFT, 0, 0)).toEqual([{ left: 0, right: 5120 }]);
+  });
+
+  it("shrinks the right edge by the window width", () => {
+    expect(floorSegments([LEFT], LEFT, 400, 0)).toEqual([{ left: 0, right: 1520 }]);
+  });
+
+  describe("cutting for a monitor below the hang", () => {
+    /** Built-in: 1728×1117 logical at (0,0), scale 2 — sits directly under the row above. */
+    const BUILTIN: ScreenMonitor = {
+      position: { x: 0, y: 0 },
+      size: { width: 3456, height: 2234 },
+      workArea: { position: { x: 0, y: 100 }, size: { width: 3456, height: 1934 } },
+      scaleFactor: 2,
+    };
+    /** 1920×1080 logical at (−992, −1080), scale 1 — floor line (no dock) at y = 0. */
+    const UPPER_LEFT: ScreenMonitor = {
+      position: { x: -992, y: -1080 },
+      size: { width: 1920, height: 1080 },
+      workArea: { position: { x: -992, y: -1055 }, size: { width: 1920, height: 1055 } },
+      scaleFactor: 1,
+    };
+    /** 1920×1080 logical at (928, −1080), scale 1 — floor line (no dock) at y = 0. */
+    const UPPER_RIGHT: ScreenMonitor = {
+      position: { x: 928, y: -1080 },
+      size: { width: 1920, height: 1080 },
+      workArea: { position: { x: 928, y: -1055 }, size: { width: 1920, height: 1055 } },
+      scaleFactor: 1,
+    };
+    const MONITORS = [BUILTIN, UPPER_LEFT, UPPER_RIGHT];
+
+    it("removes the stretch where a 400 px window's hang would overlap the monitor below", () => {
+      expect(floorSegments(MONITORS, UPPER_LEFT, 400, 153)).toEqual([
+        { left: -992, right: -400 },
+        { left: 1728, right: 2448 },
+      ]);
+    });
+
+    it("does not cut when the window casts no hang below the floor", () => {
+      expect(floorSegments(MONITORS, UPPER_LEFT, 400, 0)).toEqual([{ left: -992, right: 2448 }]);
+    });
+
+    it("does not cut a monitor whose top sits below the hang band", () => {
+      const FAR_BELOW: ScreenMonitor = { ...BUILTIN, position: { x: 0, y: 400 } };
+      expect(floorSegments([FAR_BELOW, UPPER_LEFT, UPPER_RIGHT], UPPER_LEFT, 400, 153)).toEqual([
+        { left: -992, right: 2448 },
+      ]);
+    });
   });
 });
