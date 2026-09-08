@@ -543,10 +543,10 @@ describe("climbTargetLost", () => {
       title: null,
       kind: "monitor",
     };
+    // Straddles the wall column at edgeX 0 — a window wall would call this covered.
+    const cover = win({ x: 0, y: 0, width: 150, height: 100, windowNumber: 9 });
     expect(climbTargetLost({ ...base, target: monitorTarget, windows: [] })).toBe(false);
-    expect(climbTargetLost({ ...base, target: monitorTarget, windows: [COLUMN_COVER] })).toBe(
-      false,
-    );
+    expect(climbTargetLost({ ...base, target: monitorTarget, windows: [cover] })).toBe(false);
   });
 });
 
