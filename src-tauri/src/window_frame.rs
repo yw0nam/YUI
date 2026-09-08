@@ -8,7 +8,8 @@ mod macos {
     use std::ffi::CString;
     use std::sync::OnceLock;
 
-    use objc2::runtime::{AnyClass, AnyObject, ClassBuilder, Sel};
+    use objc2::ffi::{class_addMethod, class_getInstanceMethod, method_setImplementation};
+    use objc2::runtime::{AnyObject, Imp, Sel};
     use objc2::sel;
     use objc2_app_kit::NSScreen;
     use objc2_foundation::NSRect;
@@ -23,29 +24,14 @@ mod macos {
         frame
     }
 
-    /// A runtime subclass of `superclass` whose `constrainFrameRect:toScreen:` is a no-op.
-    /// Built once; `None` if registration ever fails (a class of that name already exists).
-    fn unconstrained_subclass(superclass: &AnyClass) -> Option<&'static AnyClass> {
-        static CLASS: OnceLock<Option<&'static AnyClass>> = OnceLock::new();
-        *CLASS.get_or_init(|| {
-            let name = CString::new("YuiUnconstrainedWindow").ok()?;
-            let mut builder = ClassBuilder::new(&name, superclass)?;
-            // SAFETY: the replacement has the same receiver/selector/argument/return
-            // types as AppKit's own `constrainFrameRect:toScreen:`.
-            unsafe {
-                builder.add_method(
-                    sel!(constrainFrameRect:toScreen:),
-                    constrain_frame_rect_to_screen as extern "C-unwind" fn(_, _, _, _) -> _,
-                );
-            }
-            Some(builder.register())
-        })
-    }
+    /// Objective-C type encoding of `- (NSRect)constrainFrameRect:(NSRect)r toScreen:(NSScreen *)s`.
+    const TYPES: &str = "{CGRect={CGPoint=dd}{CGSize=dd}}@:{CGRect={CGPoint=dd}{CGSize=dd}}@";
 
-    /// Swaps `window`'s NSWindow to a subclass that never constrains its frame to a
-    /// screen. Best-effort: logs and does nothing if the NSWindow or the subclass is
-    /// unavailable, rather than failing app startup over a display quirk.
+    /// Installs the no-op override on the window's own class. The class is shared by every
+    /// tao window in the process, so the message window loses the constraint too; nothing
+    /// else positions it. Swapping the instance's class instead breaks KVO's hidden subclass.
     pub fn allow_unconstrained_frame(window: &tauri::WebviewWindow) -> tauri::Result<()> {
+        static INSTALLED: OnceLock<()> = OnceLock::new();
         let ns_window = match window.ns_window() {
             Ok(ptr) => ptr,
             Err(err) => {
@@ -53,21 +39,33 @@ mod macos {
                 return Ok(());
             }
         };
-        // SAFETY: `ns_window` is the pet window's own NSWindow for as long as the window
-        // is alive, which outlives this call; we only read its class and swap it.
-        let obj = unsafe { &*(ns_window as *const AnyObject) };
-        let superclass = obj.class();
-        let Some(subclass) = unconstrained_subclass(superclass) else {
-            log::warn!(
-                "allow_unconstrained_frame: failed to register the unconstrained-frame subclass"
-            );
-            return Ok(());
-        };
-        // SAFETY: the subclass adds no ivars and overrides one method with a
-        // signature-compatible replacement, so the instance size and layout are unchanged.
-        unsafe {
-            AnyObject::set_class(obj, subclass);
-        }
+        INSTALLED.get_or_init(|| {
+            // SAFETY: `ns_window` is the live pet window; `-class` yields its real class
+            // (KVO hides its dynamic subclass), and the replacement has the exact signature
+            // AppKit declares for `constrainFrameRect:toScreen:`.
+            unsafe {
+                let obj = &*(ns_window as *const AnyObject);
+                let class = obj.class() as *const _ as *mut objc2::runtime::AnyClass;
+                let sel = sel!(constrainFrameRect:toScreen:);
+                let imp: Imp = std::mem::transmute(
+                    constrain_frame_rect_to_screen
+                        as extern "C-unwind" fn(&AnyObject, Sel, NSRect, *const NSScreen) -> NSRect,
+                );
+                let types = CString::new(TYPES).expect("static encoding");
+                // Adding fails only when the class itself already declares the method;
+                // then it is replaced in place.
+                if class_addMethod(class, sel, imp, types.as_ptr()) == false.into() {
+                    let method = class_getInstanceMethod(class, sel);
+                    if method.is_null() {
+                        log::warn!(
+                            "allow_unconstrained_frame: constrainFrameRect:toScreen: not found"
+                        );
+                    } else {
+                        method_setImplementation(method, imp);
+                    }
+                }
+            }
+        });
         Ok(())
     }
 }
