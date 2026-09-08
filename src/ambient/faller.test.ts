@@ -263,7 +263,6 @@ function makeHarness(
   let tick: TickFn | null = null;
   const motions: Array<RenderMotionSignal | null> = [];
   const positions: Array<{ x: number; y: number }> = [];
-  const physicalCalls: Array<{ x: number; y: number }> = [];
   const logicalCalls: Array<{ x: number; y: number }> = [];
   let currentMotion: { id: string; vrma_path: string } | null = {
     id: "idle",
@@ -347,7 +346,6 @@ function makeHarness(
     faller,
     motions,
     positions,
-    physicalCalls,
     logicalCalls,
     starts,
     lands,
@@ -460,7 +458,6 @@ describe("createFaller", () => {
     await h.faller.drop();
     for (let i = 0; i < 120 && h.logicalCalls.at(-1)?.y !== 330; i++) await h.frame();
 
-    expect(h.physicalCalls).toEqual([]);
     expect(h.logicalCalls.length).toBeGreaterThan(0);
     expect(h.logicalCalls.at(-1)).toEqual({ x: 250, y: 330 });
   });
@@ -470,7 +467,6 @@ describe("createFaller", () => {
     const h = makeHarness({ position: { x: 500, y: 540 }, scale: 2 });
     await h.faller.drop();
 
-    expect(h.physicalCalls).toEqual([]);
     expect(h.logicalCalls).toEqual([{ x: 250, y: 330 }]);
     expect(h.motions).toEqual([]);
   });

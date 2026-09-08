@@ -635,7 +635,6 @@ function makeHarness(
   const motions: Array<RenderMotionSignal | null> = [];
   const yaws: Array<{ rad: number; easeMs: number }> = [];
   const positions: Array<{ x: number; y: number }> = [];
-  const physicalCalls: Array<{ x: number; y: number }> = [];
   const logicalCalls: Array<{ x: number; y: number }> = [];
   const walkTargets: number[] = [];
   /** Clip-local time of the current motion when each walkTo arrived. */
@@ -835,7 +834,6 @@ function makeHarness(
     motions,
     yaws,
     positions,
-    physicalCalls,
     logicalCalls,
     windowReads: () => windowReads,
     walkTargets,
@@ -1719,8 +1717,6 @@ describe("createClimber — monitor wall", () => {
     expect(h.ends).toHaveBeenCalledWith("up");
     expect(h.sits).not.toHaveBeenCalled();
     expect(h.adoptSit).not.toHaveBeenCalled();
-    // Every leg moved the window through logical points, never a raw physical one.
-    expect(h.physicalCalls).toEqual([]);
     expect(h.logicalCalls.length).toBeGreaterThan(0);
     // Feet land on the upper floor line (y = 0) at the climbed edge (x = 0).
     expect(h.at()).toEqual({ x: -ANCHOR.x, y: -ANCHOR.y });
@@ -1771,8 +1767,6 @@ describe("createClimber — monitor wall", () => {
     expect(h.ends).toHaveBeenCalledWith("up");
     expect(h.sits).not.toHaveBeenCalled();
     expect(h.adoptSit).not.toHaveBeenCalled();
-    // Every leg moved the window through logical points, never a raw physical one.
-    expect(h.physicalCalls).toEqual([]);
     expect(h.logicalCalls.length).toBeGreaterThan(1);
     // The shim divides by the surveyed (lower monitor's) scale, so every logical call
     // stays inside the climb's own logical span — a missing division would overshoot it.

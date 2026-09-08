@@ -28,8 +28,9 @@ mod macos {
     const TYPES: &str = "{CGRect={CGPoint=dd}{CGSize=dd}}@:{CGRect={CGPoint=dd}{CGSize=dd}}@";
 
     /// Installs the no-op override on the window's own class. The class is shared by every
-    /// tao window in the process, so the message window loses the constraint too; nothing
-    /// else positions it. Swapping the instance's class instead breaks KVO's hidden subclass.
+    /// tao window in the process, so the message window loses the constraint too; it keeps
+    /// its own keep-on-screen guard, so losing AppKit's is harmless there. Swapping the
+    /// instance's class instead breaks KVO's hidden subclass.
     pub fn allow_unconstrained_frame(window: &tauri::WebviewWindow) -> tauri::Result<()> {
         static INSTALLED: OnceLock<()> = OnceLock::new();
         let ns_window = match window.ns_window() {
