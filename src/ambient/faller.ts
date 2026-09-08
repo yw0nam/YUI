@@ -359,7 +359,7 @@ export function createFaller(deps: FallerDeps): Faller {
     const windowY = pos.y / scale;
     const feetY = windowY + feet.y;
     const feetX = pos.x / scale + feet.x;
-    const floorY = floorPx(monitor, scale);
+    const floorY = floorPx(monitor);
     const minStandingTop = monitor.workArea.position.y / scale + feet.y;
     const surface = pickLandingSurface({
       windows,

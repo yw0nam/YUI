@@ -50,6 +50,7 @@ const MONITOR: ScreenMonitor = {
   position: { x: 0, y: 0 },
   size: { width: 1920, height: 1600 },
   workArea: { position: { x: 0, y: 100 }, size: { width: 1920, height: 1400 } },
+  scaleFactor: 1,
 };
 const MONITOR_BOUNDS = { x: 0, y: 0, width: 1920, height: 1600 };
 

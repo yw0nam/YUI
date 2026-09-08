@@ -21,6 +21,7 @@ const MONITOR: ScreenMonitor = {
   position: { x: 0, y: 0 },
   size: { width: 1440, height: 900 },
   workArea: { position: { x: 0, y: 25 }, size: { width: 1440, height: 875 } },
+  scaleFactor: 1,
 };
 
 const SIZE = { width: MESSAGE_WINDOW_WIDTH, height: MESSAGE_WINDOW_HANDLE_HEIGHT };
@@ -70,6 +71,7 @@ describe("initialMessageWindowPosition", () => {
       position: { x: 0, y: 0 },
       size: { width: 2880, height: 1800 },
       workArea: { position: { x: 0, y: 50 }, size: { width: 2880, height: 1750 } },
+      scaleFactor: 2,
     };
     // Pet at physical (800, 600) is logical (400, 300); the gap and the window box are logical.
     expect(
@@ -87,6 +89,7 @@ describe("initialMessageWindowPosition", () => {
       position: { x: 1440, y: 0 },
       size: { width: 1000, height: 800 },
       workArea: { position: { x: 1440, y: 0 }, size: { width: 1000, height: 800 } },
+      scaleFactor: 1,
     };
     expect(place({ stored: { x: 2400, y: 780 }, monitors: [MONITOR, second] })).toEqual({
       x: 1440 + 1000 - MESSAGE_WINDOW_WIDTH,

@@ -189,6 +189,7 @@ const MONITOR: ScreenMonitor = {
   position: { x: 0, y: 0 },
   size: { width: 1920, height: 1600 },
   workArea: { position: { x: 0, y: 0 }, size: { width: 1920, height: 1500 } },
+  scaleFactor: 1,
 };
 
 /** Feet sit this far below the canvas top — the framing margin leaves the rest as headroom. */
@@ -205,6 +206,7 @@ const TALL_MONITOR: ScreenMonitor = {
   position: { x: 0, y: 0 },
   size: { width: 1920, height: 6100 },
   workArea: { position: { x: 0, y: 0 }, size: { width: 1920, height: 6000 } },
+  scaleFactor: 1,
 };
 
 /** On-screen character width; the 0.5 fraction asks for 80 px of room either side. */
@@ -306,7 +308,8 @@ function makeHarness(
       },
     }),
     currentMotionKind: () => (currentMotion ? MOTION_KINDS[currentMotion.id] : null),
-    listMonitors: async () => [over.monitor ?? MONITOR],
+    // The window's own scale factor matches the monitor it stands on.
+    listMonitors: async () => [over.monitor ?? { ...MONITOR, scaleFactor: over.scale ?? 1 }],
     listWindows: async () => {
       windowReads++;
       return (await over.windows?.()) ?? [];

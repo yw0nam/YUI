@@ -29,11 +29,13 @@ const MONITORS = [
     position: { x: 0, y: 0 },
     size: { width: 1000, height: 800 },
     workArea: { position: { x: 0, y: 40 }, size: { width: 1000, height: 760 } },
+    scaleFactor: 1,
   },
   {
     position: { x: 1000, y: 0 },
     size: { width: 2000, height: 1000 },
     workArea: { position: { x: 1000, y: 40 }, size: { width: 2000, height: 960 } },
+    scaleFactor: 1,
   },
 ];
 
@@ -306,6 +308,8 @@ describe("avatar-executor — move_to", () => {
         scaleFactor: async () => 2,
         setPositionPhysical,
       }),
+      // The window's own scale factor matches the monitor it stands on.
+      listMonitors: async () => [{ ...MONITORS[0], scaleFactor: 2 }, MONITORS[1]],
       getFeetOffsetPx: () => 100,
     });
 
@@ -324,6 +328,8 @@ describe("avatar-executor — move_to", () => {
         scaleFactor: async () => 1.5,
         setPositionPhysical,
       }),
+      // The window's own scale factor matches the monitor it stands on.
+      listMonitors: async () => [{ ...MONITORS[0], scaleFactor: 1.5 }, MONITORS[1]],
       getFeetOffsetPx: () => 175,
     });
 

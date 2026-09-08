@@ -241,8 +241,7 @@ export function createWalker(deps: WalkerDeps): Walker {
     const monitor = monitorAt(monitors, pos.x, pos.y);
     if (!monitor || pxPerMetre === null || !(pxPerMetre > 0)) return;
     const scale = sf > 0 ? sf : 1;
-    const work = monitor.workArea;
-    const floor = floorPx(monitor, scale);
+    const floor = floorPx(monitor);
     const bodyId = renderer.getCurrentMotion()?.id;
     const gate: WalkGateState = {
       onFloor: feet !== null && onFloor(pos.y / scale + feet.y, floor, cfg.floor_tolerance_px),
@@ -256,6 +255,7 @@ export function createWalker(deps: WalkerDeps): Walker {
       reducedMotion: reduce,
     };
     if (!canStartStroll(gate)) return;
+    const work = monitor.workArea;
     const plan = planStroll({
       x: pos.x / scale,
       width: size.width / scale,

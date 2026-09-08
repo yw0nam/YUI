@@ -13,12 +13,14 @@ const LEFT: ScreenMonitor = {
   position: { x: 0, y: 0 },
   size: { width: 1920, height: 1080 },
   workArea: { position: { x: 0, y: 0 }, size: { width: 1920, height: 1080 } },
+  scaleFactor: 1,
 };
 
 const RIGHT: ScreenMonitor = {
   position: { x: 1920, y: 0 },
   size: { width: 1280, height: 1024 },
   workArea: { position: { x: 1920, y: 0 }, size: { width: 1280, height: 1024 } },
+  scaleFactor: 1,
 };
 
 /** Vertically offset from LEFT, with a 280px horizontal gap — creates a corner gap region. */
@@ -26,6 +28,7 @@ const GAPPED_RIGHT: ScreenMonitor = {
   position: { x: 2200, y: 500 },
   size: { width: 1280, height: 1024 },
   workArea: { position: { x: 2200, y: 500 }, size: { width: 1280, height: 1024 } },
+  scaleFactor: 1,
 };
 
 describe("keepOnScreen", () => {

@@ -146,6 +146,7 @@ const MONITOR: ScreenMonitor = {
   position: { x: 0, y: 0 },
   size: { width: 3000, height: 2000 },
   workArea: { position: { x: 0, y: 0 }, size: { width: 3000, height: 1900 } },
+  scaleFactor: 1,
 };
 
 /** A window reaching across the host's top edge (y 900) at the given x span. */
@@ -677,6 +678,7 @@ describe("createPercher", () => {
           position: { x: 0, y: 0 },
           size: { width: 6000, height: 4000 },
           workArea: { position: { x: 0, y: 0 }, size: { width: 6000, height: 3800 } },
+          scaleFactor: 1,
         },
       ],
       rng: seqRng(0, 1, 0),

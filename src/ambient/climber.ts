@@ -599,7 +599,7 @@ export function createClimber(deps: ClimberDeps): Climber {
     return {
       win,
       scale,
-      floor: floorPx(monitor, scale),
+      floor: floorPx(monitor),
       workTop: monitor.workArea.position.y / scale,
       feetX: pos.x / scale + anchor.x,
       feetY: pos.y / scale + anchor.y,

@@ -158,6 +158,7 @@ const MONITOR: ScreenMonitor = {
   position: { x: 0, y: 0 },
   size: { width: 1920, height: 1600 },
   workArea: { position: { x: 0, y: 0 }, size: { width: 1920, height: 1500 } },
+  scaleFactor: 1,
 };
 
 /** The shipped walk.vrma loops on its own last keyframe, not on a nominal 1.37 s cycle. */

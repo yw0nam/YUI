@@ -21,11 +21,12 @@ export interface PetWindow {
   setPositionPhysical(x: number, y: number): Promise<void>;
 }
 
-/** One monitor's physical bounds plus its work area (screen minus menu bar/dock). */
+/** One monitor's physical bounds, its own scale factor, and its work area (screen minus menu bar/dock). */
 export interface ScreenMonitor {
   position: { x: number; y: number };
   size: { width: number; height: number };
   workArea: { position: { x: number; y: number }; size: { width: number; height: number } };
+  scaleFactor: number;
 }
 
 /** Narrow a Tauri monitor to the bounds the movers read. */
@@ -37,6 +38,7 @@ export function toScreenMonitor(monitor: ScreenMonitor): ScreenMonitor {
       position: { x: monitor.workArea.position.x, y: monitor.workArea.position.y },
       size: { width: monitor.workArea.size.width, height: monitor.workArea.size.height },
     },
+    scaleFactor: monitor.scaleFactor,
   };
 }
 
@@ -53,9 +55,9 @@ export function monitorAt(monitors: ScreenMonitor[], x: number, y: number): Scre
   );
 }
 
-/** The floor line — the monitor's work-area bottom in logical px. */
-export function floorPx(monitor: ScreenMonitor, scale: number): number {
-  return (monitor.workArea.position.y + monitor.workArea.size.height) / scale;
+/** The floor line — the monitor's work-area bottom in logical px, its own scale factor applied. */
+export function floorPx(monitor: ScreenMonitor): number {
+  return (monitor.workArea.position.y + monitor.workArea.size.height) / monitor.scaleFactor;
 }
 
 /** Physical window y that rests the feet on the floor line. */

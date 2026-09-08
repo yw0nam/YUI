@@ -147,7 +147,7 @@ function spotOrigin(
   const bottom =
     feetOffsetPx === null
       ? my + mh - size.height
-      : groundedWindowY(floorPx(monitor, scale), feetOffsetPx, scale);
+      : groundedWindowY(floorPx(monitor), feetOffsetPx, scale);
   switch (spot) {
     case "top-left":
       return { x: left, y: top };
