@@ -26,6 +26,7 @@
 import type { ClimbConfig, WalkConfig } from "../config/load";
 import type { MotionKind, WindowRect } from "../contract";
 import {
+  FLOOR_LINE_TOLERANCE_PX,
   floorPx,
   logicalWorkArea,
   monitorAt,
@@ -409,7 +410,7 @@ export function pickMonitorWalls(args: {
     if (Math.abs(edgeX - feetX) > maxWalkPx) continue;
     const upper = monitors.find((u) => {
       if (u === monitor) return false;
-      if (Math.abs(floorPx(u) - top) > 1) return false;
+      if (Math.abs(floorPx(u) - top) > FLOOR_LINE_TOLERANCE_PX) return false;
       const wa = logicalWorkArea(u);
       return edgeX >= wa.x && edgeX <= wa.x + wa.width;
     });

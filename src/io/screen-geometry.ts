@@ -58,6 +58,9 @@ export function monitorAt(monitors: ScreenMonitor[], x: number, y: number): Scre
   );
 }
 
+/** How far apart two floor lines may read and still count as the same one, float rounding included. */
+export const FLOOR_LINE_TOLERANCE_PX = 1;
+
 /** The floor line — the monitor's work-area bottom in logical px, its own scale factor applied. */
 export function floorPx(monitor: ScreenMonitor): number {
   return (monitor.workArea.position.y + monitor.workArea.size.height) / monitor.scaleFactor;
@@ -97,7 +100,7 @@ export function floorSpan(
     for (const candidate of monitors) {
       if (absorbed.has(candidate)) continue;
       if (candidate.scaleFactor !== monitor.scaleFactor) continue;
-      if (Math.abs(floorPx(candidate) - floor) > 1) continue;
+      if (Math.abs(floorPx(candidate) - floor) > FLOOR_LINE_TOLERANCE_PX) continue;
       const wa = logicalWorkArea(candidate);
       const candLeft = wa.x;
       const candRight = wa.x + wa.width;
