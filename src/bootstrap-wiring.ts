@@ -1079,9 +1079,9 @@ export function wireWindowSources(deps: {
         outerSize: () => getCurrentWindow().outerSize(),
         setPositionPhysical: (x, y) => getCurrentWindow().setPosition(new PhysicalPosition(x, y)),
         onMoved: (cb) => getCurrentWindow().onMoved(() => cb()),
+        onResized: (cb) => getCurrentWindow().onResized(() => cb()),
       },
       async () => (await availableMonitors()).map(toScreenMonitor),
-      log,
     );
     if (disposed) keepOnScreenUnlisten();
   })().catch((err) =>

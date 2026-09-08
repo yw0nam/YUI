@@ -209,9 +209,9 @@ async function bootstrap(): Promise<void> {
         outerSize: () => win.outerSize(),
         setPositionPhysical: (x, y) => win.setPosition(new PhysicalPosition(x, y)),
         onMoved: (cb) => win.onMoved(() => cb()),
+        onResized: (cb) => win.onResized(() => cb()),
       },
       async () => (await availableMonitors()).map(toScreenMonitor),
-      log,
     );
 
     return () => {
