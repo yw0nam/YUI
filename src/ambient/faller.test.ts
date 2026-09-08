@@ -263,6 +263,8 @@ function makeHarness(
   let tick: TickFn | null = null;
   const motions: Array<RenderMotionSignal | null> = [];
   const positions: Array<{ x: number; y: number }> = [];
+  const physicalCalls: Array<{ x: number; y: number }> = [];
+  const logicalCalls: Array<{ x: number; y: number }> = [];
   let currentMotion: { id: string; vrma_path: string } | null = {
     id: "idle",
     vrma_path: "/motions/calm.vrma",
@@ -304,9 +306,11 @@ function makeHarness(
       outerSize: async () => ({ width: 400, height: 600 }),
       scaleFactor: async () => over.scale ?? 1,
       setPositionPhysical: async (x, y) => {
+        physicalCalls.push({ x, y });
         positions.push({ x, y });
       },
       setPositionLogical: async (x, y) => {
+        logicalCalls.push({ x, y });
         positions.push({ x, y });
       },
     }),
@@ -347,6 +351,8 @@ function makeHarness(
     faller,
     motions,
     positions,
+    physicalCalls,
+    logicalCalls,
     starts,
     lands,
     cues,
@@ -449,6 +455,27 @@ describe("createFaller", () => {
       surface: { kind: "floor", y: 750 },
       fell: true,
     });
+  });
+
+  it("moves through setPositionLogical, in logical points, on a scaled screen", async () => {
+    // Scale 2 ⇒ floor 750 and feet 450 in logical px: a 300 px drop, landing at x 250.
+    const h = makeHarness({ position: { x: 500, y: 60 }, scale: 2 });
+    await h.faller.drop();
+    for (let i = 0; i < 120 && h.logicalCalls.at(-1)?.y !== 330; i++) await h.frame();
+
+    expect(h.physicalCalls).toEqual([]);
+    expect(h.logicalCalls.length).toBeGreaterThan(0);
+    expect(h.logicalCalls.at(-1)).toEqual({ x: 250, y: 330 });
+  });
+
+  it("snaps to the floor through setPositionLogical on a scaled screen", async () => {
+    // Feet 60 logical px above the floor (750): past tolerance, under the 100px snap threshold.
+    const h = makeHarness({ position: { x: 500, y: 540 }, scale: 2 });
+    await h.faller.drop();
+
+    expect(h.physicalCalls).toEqual([]);
+    expect(h.logicalCalls).toEqual([{ x: 250, y: 330 }]);
+    expect(h.motions).toEqual([]);
   });
 
   it("snaps to the floor and still reports the landing under reduced motion", async () => {
