@@ -438,18 +438,19 @@ describe("createFaller", () => {
     expect(h.ends).not.toHaveBeenCalled();
   });
 
-  it("falls in physical px through the scale factor on a scaled screen", async () => {
+  it("falls in physical-px arithmetic but reports logical px on a scaled screen", async () => {
     // Scale 2 ⇒ floor 750 and feet 450 in logical px: a 300 px drop, 600 px of window travel.
     const h = makeHarness({ position: { x: 500, y: 60 }, scale: 2 });
     await h.faller.drop();
     expect(h.motions).toEqual([{ id: FALL_MOTION_ID }]);
 
-    // Gravity scales with the screen too: v = 4800 × 0.05 = 240 px/s ⇒ 12 px this frame.
+    // Gravity scales with the screen too: v = 4800 × 0.05 = 240 px/s ⇒ 12 physical px this
+    // frame (72 physical), reported at half that in logical points.
     await h.frame(0.05);
-    expect(h.positions.at(-1)).toEqual({ x: 500, y: 72 });
+    expect(h.positions.at(-1)).toEqual({ x: 250, y: 36 });
 
-    for (let i = 0; i < 120 && h.positions.at(-1)?.y !== 660; i++) await h.frame();
-    expect(h.positions.at(-1)).toEqual({ x: 500, y: 660 });
+    for (let i = 0; i < 120 && h.positions.at(-1)?.y !== 330; i++) await h.frame();
+    expect(h.positions.at(-1)).toEqual({ x: 250, y: 330 });
     expect(h.lands).toHaveBeenCalledWith({
       heightPx: 300,
       surface: { kind: "floor", y: 750 },

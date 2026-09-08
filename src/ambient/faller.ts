@@ -318,8 +318,10 @@ export function createFaller(deps: FallerDeps): Faller {
     const next = stepFall(s, Math.min(dt, MAX_STEP_DT_S), s.cfg);
     s.y = next.y;
     s.v = next.v;
+    // The window may cross onto a different-scale monitor mid-fall, so the OS gets
+    // scale-independent logical points rather than this drop's own physical ones.
     void s.win
-      .setPositionPhysical(Math.round(s.x), Math.round(s.y))
+      .setPositionLogical(Math.round(s.x) / s.scale, Math.round(s.y) / s.scale)
       .catch((err) => log.warn("move_failed", { degrade: true, error: String(err) }));
     if (!next.landed) return;
     const surface = s.surface;
@@ -393,7 +395,7 @@ export function createFaller(deps: FallerDeps): Faller {
     // A drop too short to read as a fall, or a user who asked for no motion: land her there.
     // A window top still owes the hand-off that puts her back on a perch.
     if (plan.kind === "snap" || reducedMotion()) {
-      await win.setPositionPhysical(pos.x, toY);
+      await win.setPositionLogical(pos.x / scale, toY / scale);
       if (plan.kind === "fall" || surface.kind === "window") {
         reportLanding(plan.heightPx, surface, plan.kind === "fall");
       }
