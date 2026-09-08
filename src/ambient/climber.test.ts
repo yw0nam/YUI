@@ -111,6 +111,7 @@ const TARGET: ClimbTarget = {
   rect: { x: 1000, y: 900 },
   app: "Notes",
   title: "Meeting notes",
+  kind: "window",
 };
 
 describe("pickClimbTarget", () => {

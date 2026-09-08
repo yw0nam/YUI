@@ -306,6 +306,9 @@ function makeHarness(
       setPositionPhysical: async (x, y) => {
         positions.push({ x, y });
       },
+      setPositionLogical: async (x, y) => {
+        positions.push({ x, y });
+      },
     }),
     currentMotionKind: () => (currentMotion ? MOTION_KINDS[currentMotion.id] : null),
     // The window's own scale factor matches the monitor it stands on.

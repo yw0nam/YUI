@@ -25,11 +25,17 @@
 
 import type { ClimbConfig, WalkConfig } from "../config/load";
 import type { MotionKind, WindowRect } from "../contract";
-import { floorPx, monitorAt, type PetWindow, type ScreenMonitor } from "../io/screen-geometry";
+import {
+  floorPx,
+  logicalWorkArea,
+  monitorAt,
+  type PetWindow,
+  type ScreenMonitor,
+} from "../io/screen-geometry";
 import { MOVE_TH } from "../io/window-drop-source";
 import { createLogger } from "../logger";
 import type { Renderer } from "../renderer";
-import { createLegRunner } from "./clip-leg";
+import { createLegRunner, type LegWindow } from "./clip-leg";
 import { type Rng, randRange } from "./cues";
 import type { Sitter } from "./sitter";
 import { prefersReducedMotion } from "./tier1";
@@ -65,20 +71,24 @@ export const GEOMETRY_LOG_MS = 500;
 /** How long a descent waits for the released perch to clear before giving up (ms). */
 export const RELEASE_WAIT_MS = 1000;
 
-/** The wall a climb runs on: which window, which side, and the span it covers. */
+/** The wall a climb runs on: a foreign window's side, or a screen edge onto the monitor above. */
 export interface ClimbTarget {
+  /** -1 for a monitor wall — there is no window to name. */
   windowNumber: number;
   side: "left" | "right";
   /** Global x (logical px) of the climbed edge. */
   edgeX: number;
   topY: number;
   bottomY: number;
-  /** Window width — how much ledge there is to walk in along before sitting. */
+  /** Window width — how much ledge there is to walk in along before sitting. 0 for a monitor wall. */
   width: number;
-  /** Window origin at pick time — the poll's move baseline. */
+  /** Window origin at pick time — the poll's move baseline. The screen edge for a monitor wall. */
   rect: { x: number; y: number };
   app: string | null;
   title: string | null;
+  kind: "window" | "monitor";
+  /** The scale factor of the monitor above — set only for a monitor wall. */
+  upperScale?: number;
 }
 
 /** An axis-aligned rect in the same global logical px as the window list. */
@@ -307,6 +317,7 @@ export function pickClimbTarget(args: {
           rect: { x: win.x, y: win.y },
           app: win.ownerName,
           title: win.name,
+          kind: "window",
         },
       };
       break;
@@ -358,9 +369,71 @@ export function pickDescentTarget(args: {
       rect: { x: win.x, y: win.y },
       app: win.ownerName,
       title: win.name,
+      kind: "window",
     };
   }
   return null;
+}
+
+/**
+ * The screen edges of `monitor` that lead up onto another monitor's floor line: a side
+ * is a wall when a different monitor's logical floor sits within 1 px of `monitor`'s
+ * logical top and its work area spans the edge. All arguments and results are global
+ * logical px except the monitor bounds, which carry their own physical/scale pair.
+ */
+export function pickMonitorWalls(args: {
+  monitors: ScreenMonitor[];
+  /** The one the pet stands on. */
+  monitor: ScreenMonitor;
+  /** Foreign windows — any of them can cover the column she would stand in. */
+  windows: WindowRect[];
+  feetX: number;
+  /** Logical floor of `monitor`. */
+  floor: number;
+  charHpx: number;
+  cfg: ClimbConfig;
+  /** Longest approach walk, borrowed from the stroll's own reach. */
+  maxWalkPx: number;
+}): ClimbTarget[] {
+  const { monitors, monitor, windows, feetX, floor, charHpx, cfg, maxWalkPx } = args;
+  const wallOffset = cfg.wall_offset_frac * charHpx;
+  const top = monitor.position.y / monitor.scaleFactor;
+  const left = monitor.position.x / monitor.scaleFactor;
+  const right = left + monitor.size.width / monitor.scaleFactor;
+  // The character climbs the inside of the screen: the left edge is a window's right
+  // wall (stand to its right, face left) and the right edge is a window's left wall.
+  const sides: Array<{ side: "left" | "right"; edgeX: number }> = [
+    { side: "right", edgeX: left },
+    { side: "left", edgeX: right },
+  ];
+  const targets: ClimbTarget[] = [];
+  for (const { side, edgeX } of sides) {
+    if (Math.abs(edgeX - feetX) > maxWalkPx) continue;
+    const upper = monitors.find((u) => {
+      if (u === monitor) return false;
+      if (Math.abs(floorPx(u) - top) > 1) return false;
+      const wa = logicalWorkArea(u);
+      return edgeX >= wa.x && edgeX <= wa.x + wa.width;
+    });
+    if (!upper) continue;
+    const topY = floorPx(upper);
+    const column = wallColumn(edgeX, topY, floor, wallOffset, side);
+    if (windows.some((w) => overlaps(w, column))) continue;
+    targets.push({
+      windowNumber: -1,
+      side,
+      edgeX,
+      topY,
+      bottomY: floor,
+      width: 0,
+      rect: { x: edgeX, y: topY },
+      app: null,
+      title: null,
+      kind: "monitor",
+      upperScale: upper.scaleFactor,
+    });
+  }
+  return targets;
 }
 
 /** Whether the wall vanished, slid away, or was covered while the character was on it. */
@@ -373,16 +446,19 @@ export function climbTargetLost(args: {
   direction: "up" | "down";
 }): boolean {
   const { windows, target, charHpx, floor, cfg, direction } = args;
+  const wallOffset =
+    (direction === "down" ? cfg.descent_wall_offset_frac : cfg.wall_offset_frac) * charHpx;
+  const column = wallColumn(target.edgeX, target.topY, floor, wallOffset, target.side);
+  // A monitor wall has no window identity to lose and no corner seat to cover — only a
+  // foreign window raised into the column she climbs through can take it from her.
+  if (target.kind === "monitor") return windows.some((w) => overlaps(w, column));
   const index = windows.findIndex((w) => w.windowNumber === target.windowNumber);
   if (index < 0) return true;
   const win = windows[index];
   if (Math.abs(win.x - target.rect.x) > MOVE_TH || Math.abs(win.y - target.rect.y) > MOVE_TH) {
     return true;
   }
-  const wallOffset =
-    (direction === "down" ? cfg.descent_wall_offset_frac : cfg.wall_offset_frac) * charHpx;
   const front = windows.slice(0, index);
-  const column = wallColumn(target.edgeX, target.topY, floor, wallOffset, target.side);
   const seat = cornerSeat(target.edgeX, target.topY, target.side, wallOffset);
   return front.some((w) => overlaps(w, column) || containsPoint(w, seat));
 }
@@ -579,6 +655,10 @@ export function createClimber(deps: ClimberDeps): Climber {
     pxPerMetre: number;
     /** The monitor the pet window sits on, in logical px — what the pickers measure walls against. */
     bounds: Box;
+    /** The same monitor, raw — what a monitor-wall pick measures against its neighbours. */
+    monitor: ScreenMonitor;
+    /** Every monitor — what a monitor-wall pick searches for the one above. */
+    monitors: ScreenMonitor[];
     windows: WindowRect[];
   } | null> {
     const anchor = renderer.getCharacterAnchor();
@@ -613,12 +693,25 @@ export function createClimber(deps: ClimberDeps): Climber {
         width: monitor.size.width / scale,
         height: monitor.size.height / scale,
       },
+      monitor,
+      monitors,
       windows,
     };
   }
 
   function yawToWall(side: "left" | "right"): number {
     return side === "left" ? CLIMB_YAW_RAD : -CLIMB_YAW_RAD;
+  }
+
+  /**
+   * Routes a leg's physical-px arithmetic through the OS as scale-independent logical
+   * points, so a leg that crosses onto a different-scale monitor mid-flight keeps one
+   * arithmetic space throughout. A no-op difference on a single monitor.
+   */
+  function logicalLegWindow(win: PetWindow, scale0: number): LegWindow {
+    return {
+      setPositionPhysical: (x, y) => win.setPositionLogical(x / scale0, y / scale0),
+    };
   }
 
   /**
@@ -684,7 +777,7 @@ export function createClimber(deps: ClimberDeps): Climber {
       reducedMotion: false,
     };
     if (!canStartStroll(gate)) return;
-    const picked = pickClimbTarget({
+    const windowTarget = pickClimbTarget({
       windows: w.windows,
       feetX: w.feetX,
       floor: w.floor,
@@ -695,6 +788,23 @@ export function createClimber(deps: ClimberDeps): Climber {
       cfg,
       maxWalkPx: walkCfg.distance_max_px,
     });
+    const monitorTargets = pickMonitorWalls({
+      monitors: w.monitors,
+      monitor: w.monitor,
+      windows: w.windows,
+      feetX: w.feetX,
+      floor: w.floor,
+      charHpx: w.charHpx,
+      cfg,
+      maxWalkPx: walkCfg.distance_max_px,
+    });
+    const candidates = windowTarget ? [windowTarget, ...monitorTargets] : monitorTargets;
+    const picked = candidates.reduce<ClimbTarget | null>((nearest, candidate) => {
+      if (!nearest) return candidate;
+      return Math.abs(candidate.edgeX - w.feetX) < Math.abs(nearest.edgeX - w.feetX)
+        ? candidate
+        : nearest;
+    }, null);
     if (!picked) return;
 
     target = picked;
@@ -723,7 +833,10 @@ export function createClimber(deps: ClimberDeps): Climber {
     const pullPx = Math.min(rise, pull.px);
     // The wall runs a hand's reach outside the face; the corner is where the sit belongs.
     const cornerX = at.x + (picked.edgeX - standX) * w.scale;
-    const base = { win: w.win, fromX: at.x, toX: at.x, pxPerMetre, fit: false };
+    // The pull-over may carry the window onto a different-scale monitor, so every leg
+    // moves through logical points rather than this monitor's own physical ones.
+    const climbWin = logicalLegWindow(w.win, w.scale);
+    const base = { win: climbWin, fromX: at.x, toX: at.x, pxPerMetre, fit: false };
     let y = at.y;
 
     const loop = await legs.run({
@@ -753,6 +866,16 @@ export function createClimber(deps: ClimberDeps): Climber {
       handoffS: PULL_HANDOFF_S,
     });
     if (pullLeg !== "done" || !alive(startedAt)) return endClimb();
+
+    if (picked.kind === "monitor") {
+      // The pull-over just carried the window onto the monitor above. There is no ledge
+      // to walk in along and no sit: snap the feet to the floor line in scale-independent
+      // logical points and let the walker pick the stroll back up on its own next tick.
+      await w.win.setPositionLogical(picked.edgeX - w.anchorX, picked.topY - w.anchorY);
+      if (!alive(startedAt)) return endClimb();
+      log.info("monitor_climbed", { side: picked.side, edgeX: picked.edgeX, topY: picked.topY });
+      return endClimb();
+    }
 
     const ledgeAt = await w.win.outerPosition();
     if (!alive(startedAt)) return endClimb();
@@ -857,7 +980,15 @@ export function createClimber(deps: ClimberDeps): Climber {
     // She walks the top to the corner, so the wall x is a hand's reach further out.
     const wallX =
       at.x + (wallStandX(picked.edgeX, picked.side, wallOffset) - picked.edgeX) * w.scale;
-    const base = { win: w.win, fromX: wallX, toX: wallX, pxPerMetre, fit: false };
+    // A descent never starts from a monitor climb, but the shim is applied uniformly —
+    // it is a no-op difference on the single monitor a descent always runs on.
+    const base = {
+      win: logicalLegWindow(w.win, w.scale),
+      fromX: wallX,
+      toX: wallX,
+      pxPerMetre,
+      fit: false,
+    };
     let y = at.y;
 
     // No clip covers the step off the ledge, so the descent clip crossfades in over a
@@ -942,7 +1073,7 @@ export function createClimber(deps: ClimberDeps): Climber {
           direction,
         });
         if (!lost) return;
-        log.debug("target.lost", { windowNumber: target.windowNumber });
+        log.debug("target.lost", { kind: target.kind, side: target.side, edgeX: target.edgeX });
         cancel();
         void deps.faller.drop();
       })

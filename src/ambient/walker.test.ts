@@ -252,6 +252,9 @@ function makeHarness(
       setPositionPhysical: async (x, y) => {
         positions.push({ x, y });
       },
+      setPositionLogical: async (x, y) => {
+        positions.push({ x, y });
+      },
     }),
     listMonitors: async () => over.monitors ?? [MONITOR],
     getConfig: () => CFG,

@@ -20,7 +20,7 @@ vi.mock("@tauri-apps/api/window", () => ({
   availableMonitors: vi.fn(async () => []),
   getCurrentWindow: vi.fn(() => ({})),
 }));
-vi.mock("@tauri-apps/api/dpi", () => ({ PhysicalPosition: class {} }));
+vi.mock("@tauri-apps/api/dpi", () => ({ LogicalPosition: class {}, PhysicalPosition: class {} }));
 
 import { wireFaller } from "./bootstrap-wiring";
 

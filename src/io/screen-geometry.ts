@@ -19,6 +19,9 @@ export interface PetWindow {
   outerSize(): Promise<{ width: number; height: number }>;
   scaleFactor(): Promise<number>;
   setPositionPhysical(x: number, y: number): Promise<void>;
+  /** Scale-independent global logical points — the OS resolves them against whichever
+   *  monitor the window ends up on, unlike a physical move, which reads the starting scale. */
+  setPositionLogical(x: number, y: number): Promise<void>;
 }
 
 /** One monitor's physical bounds, its own scale factor, and its work area (screen minus menu bar/dock). */
