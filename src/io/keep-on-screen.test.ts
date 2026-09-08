@@ -77,6 +77,23 @@ describe("keepOnScreen", () => {
   it("passes when there are no monitors to push against", () => {
     expect(keepOnScreen([], { x: 800, y: 400 }, { width: 200, height: 100 })).toBeNull();
   });
+
+  it("passes an overhang under half the width when the check is center-only (no inset)", () => {
+    // Right edge at 2000 overhangs the 1920 boundary by 80px, under half the 300px width —
+    // the center (1850) still sits on screen.
+    const result = keepOnScreen([LEFT], { x: 1700, y: 400 }, { width: 300, height: 200 });
+    expect(result).toBeNull();
+  });
+
+  it("pushes the whole window on screen when inset is half its size", () => {
+    const size = { width: 300, height: 200 };
+    const result = keepOnScreen([LEFT], { x: 1700, y: 400 }, size, {
+      x: size.width / 2,
+      y: size.height / 2,
+    });
+    // Right edge lands EDGE_INSET_PX inside the monitor's right edge: 1920 - 300 - 2 = 1618.
+    expect(result).toEqual({ x: 1618, y: 400 });
+  });
 });
 
 describe("attachKeepOnScreen", () => {
@@ -160,6 +177,16 @@ describe("attachKeepOnScreen", () => {
 
     expect(win.outerPosition).toHaveBeenCalledTimes(1);
     expect(win.setPositionPhysical).not.toHaveBeenCalled();
+  });
+
+  it("pushes the whole window on screen when wholeWindow reads the current outerSize", async () => {
+    win.outerSize = vi.fn(async () => ({ width: 300, height: 200 }));
+    pos = { x: 1700, y: 400 }; // overhangs the right edge, but the center is still on screen
+
+    await attachKeepOnScreen(win, listMonitors, { wholeWindow: true });
+    await vi.runOnlyPendingTimersAsync();
+
+    expect(win.setPositionPhysical).toHaveBeenCalledWith(1618, 400);
   });
 
   it("stops evaluating after the returned unlisten runs", async () => {
