@@ -886,7 +886,8 @@ export function createClimber(deps: ClimberDeps): Climber {
 
     // The window sinks with the sit, and the window manager can refuse part of any move,
     // so the ledge offset has to come from where the window actually ends up.
-    if ((await deps.sitter.sitDown({ win: climbWin, scale: w.scale })) !== "done") return endClimb();
+    if ((await deps.sitter.sitDown({ win: climbWin, scale: w.scale })) !== "done")
+      return endClimb();
     if (!alive(startedAt)) return endClimb();
     const seated = await w.win.outerPosition();
     if (!alive(startedAt)) return endClimb();
