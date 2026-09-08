@@ -63,6 +63,7 @@ function harness(over: Partial<AvatarExecutorDeps> = {}) {
   const unsubscribe = vi.fn();
   const responses: Array<{ id: string; result: unknown }> = [];
   const setPositionPhysical = vi.fn(async () => {});
+  const setPositionLogical = vi.fn(async () => {});
   // Parameters declared so the abort-signal test can read the options argument.
   const placeOn = vi.fn(
     async (_request: PlacementRequest, _opts?: PlacementOptions): Promise<PlacementResult> => ({
@@ -90,7 +91,7 @@ function harness(over: Partial<AvatarExecutorDeps> = {}) {
       outerSize: async () => WINDOW_SIZE,
       scaleFactor: async () => 1,
       setPositionPhysical,
-      setPositionLogical: vi.fn(async () => {}),
+      setPositionLogical,
     }),
     listMonitors: async () => MONITORS,
     getFeetOffsetPx: () => FEET_OFFSET_PX,
@@ -131,6 +132,7 @@ function harness(over: Partial<AvatarExecutorDeps> = {}) {
     answerOf,
     responses,
     setPositionPhysical,
+    setPositionLogical,
     placeOn,
     release,
     perchTargets,
@@ -465,6 +467,25 @@ describe("avatar-executor — move_to", () => {
     expect(h.release).toHaveBeenCalled();
     expect(h.answerOf(id)).toEqual({ ok: false, reason: "interrupted" });
     expect(h.noteAvatarMoved).not.toHaveBeenCalled();
+  });
+
+  it("keeps the origin in the target monitor's logical px when the window reports a different scale factor", async () => {
+    const setPositionLogical = vi.fn(async () => {});
+    const h = harness({
+      getWindow: () => ({
+        outerPosition: async () => WINDOW_POS,
+        outerSize: async () => WINDOW_SIZE,
+        scaleFactor: async () => 2,
+        setPositionPhysical: vi.fn(async () => {}),
+        setPositionLogical,
+      }),
+    });
+
+    await h.call("command", { action: "move_to", spot: "bottom-left", monitor: 0 });
+
+    // Target monitor 0 is scale 1: work-area floor 800 minus the 200px feet offset. The
+    // window's own scale (2) never enters this spot's math — only its size would have.
+    expect(setPositionLogical).toHaveBeenCalledWith(24, 600);
   });
 });
 
