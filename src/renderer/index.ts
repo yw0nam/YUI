@@ -73,6 +73,7 @@ import {
 } from "./recenter-root-motion";
 import { clipCacheKey, playbackClip } from "./self-crossfade";
 import { clientToStage } from "./stage-coords";
+import { applyViewWindow, type ViewWindow } from "./view-window";
 import {
   anyConverging,
   buildVrmParticipants,
@@ -201,6 +202,14 @@ export interface Renderer {
    * (omitted keys retain defaults); if VRM is loaded, immediately refit.
    */
   setFraming(framing: { margin?: number; fov?: number }): void;
+  /**
+   * Draw the reference-size framing — the window size at travel start — at canvas
+   * offset `(x, y)`; null draws it to fill the whole canvas. A travel parks the OS
+   * window over its whole path and uses this to keep the character's on-screen size
+   * and every camera-projected consumer (feet anchor, width, hit test) unchanged while
+   * she moves inside the parked canvas.
+   */
+  setViewWindow(view: { x: number; y: number; width: number; height: number } | null): void;
   /**
    * Set mouse-wheel zoom multiplier. Factor multiplied by fit distance (>1 ⇒ closer ⇒ larger).
    * Non-finite or identical values are no-ops. Clamping and persistence are caller's responsibility (src/io + main.ts).
@@ -362,6 +371,9 @@ export function createRenderer(options: RendererOptions): Renderer {
 
   // Fit-to-bounds state: full-body framing recomputed on load/swap/resize.
   let modelBox: THREE.Box3 | undefined;
+  // Set during a travel: draws the reference-size framing at an offset in the parked
+  // canvas instead of filling it. null the rest of the time.
+  let view: ViewWindow | null = null;
   let framing = {
     margin: options.framing?.margin ?? DEFAULT_FRAMING_MARGIN,
     fov: options.framing?.fov ?? DEFAULT_FRAMING_FOV,
@@ -547,9 +559,10 @@ export function createRenderer(options: RendererOptions): Renderer {
     const w = mount.clientWidth || 1;
     const h = mount.clientHeight || 1;
     renderer.setSize(w, h, false);
-    camera.aspect = w / h;
+    camera.aspect = view ? view.width / view.height : w / h;
     camera.updateProjectionMatrix();
     fitCamera(); // re-fit on resize so width-bound framing stays correct.
+    applyViewWindow(camera, view, w, h);
     mountRect = mount.getBoundingClientRect();
   }
   resize();
@@ -1063,6 +1076,11 @@ export function createRenderer(options: RendererOptions): Renderer {
     fitCamera();
   }
 
+  function setViewWindow(next: ViewWindow | null): void {
+    view = next;
+    resize();
+  }
+
   /** setZoom implementation — ignore non-finite/identical, otherwise update zoom then refit. */
   function setZoom(z: number): void {
     if (!Number.isFinite(z)) return;
@@ -1128,6 +1146,7 @@ export function createRenderer(options: RendererOptions): Renderer {
     setIdleVariants,
     setEmotionRegistry,
     setFraming,
+    setViewWindow,
     setZoom,
     setOrbit,
     getCharacterAnchor() {
