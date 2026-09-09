@@ -498,7 +498,7 @@ export interface ClimberDeps {
     walkTo(toX: number, onAccepted?: () => void, holdClip?: boolean): Promise<"arrived" | "lost">;
     cancel(): void;
   };
-  faller: { drop(): void | Promise<void> };
+  faller: { drop(): Promise<void>; cancel(): void };
   /** The seat transitions: the sit onto the ledge, and the stand off it before a descent. */
   sitter: Pick<Sitter, "sitDown" | "standUp" | "cancel">;
   dropSource: {

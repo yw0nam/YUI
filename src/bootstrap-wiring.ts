@@ -799,13 +799,13 @@ export function wireFaller(deps: {
   /** She came down on a foreign window top — the perch loop takes it from there. */
   onWindowLand: (target: WindowRect) => void;
   log: Logger;
-}): { drop(): void; cancel(): void; dispose(): void } {
+}): { drop(): Promise<void>; cancel(): void; dispose(): void } {
   const { bus, renderer, log } = deps;
   let faller: Faller | null = null;
   let disposed = false;
   const handle = {
-    drop: () => {
-      if (deps.isEnabled()) void faller?.drop();
+    drop: async () => {
+      if (deps.isEnabled()) await faller?.drop();
     },
     cancel: () => faller?.cancel(),
     dispose: () => {
@@ -891,7 +891,7 @@ export function wireClimber(deps: {
   /** A turn is in flight or speech is still playing — ambient movement stays out of the way. */
   isBusy: () => boolean;
   walker: { walkTo(toX: number): Promise<"arrived" | "lost">; cancel(): void };
-  faller: { drop(): void };
+  faller: { drop(): Promise<void>; cancel(): void };
   sitter: Pick<Sitter, "sitDown" | "standUp" | "cancel">;
   dropSource: {
     adoptSit(

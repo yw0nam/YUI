@@ -706,7 +706,8 @@ function makeHarness(
     },
   );
   const handAnchors = vi.fn(() => ({ left: { x: 260, y: 300 }, right: { x: 280, y: 260 } }));
-  const drop = vi.fn();
+  const drop = vi.fn(async () => {});
+  const fallerCancel = vi.fn();
   const walkerCancel = vi.fn();
   const sitterCancel = vi.fn();
   const sitDown = vi.fn(
@@ -824,7 +825,7 @@ function makeHarness(
       },
       cancel: walkerCancel,
     },
-    faller: { drop },
+    faller: { drop, cancel: fallerCancel },
     sitter: { sitDown, standUp, cancel: sitterCancel },
     dropSource: { adoptSit, armedSit, release },
     doc,
