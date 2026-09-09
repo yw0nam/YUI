@@ -88,6 +88,20 @@ def test_trailing_canonical_block_is_idempotent(desire_plugin, state_dir, at):
     assert request == original
 
 
+def test_canonical_block_with_the_since_last_turn_line_is_idempotent(desire_plugin):
+    text = (
+        "hello\n\n<desire_state>\n"
+        "drives: social 0/100 (low) | curiosity 50/100 (mid) | accomplishment 50/100 (mid)\n"
+        "last interaction: 2026-08-25 12:00 (0h ago)\n"
+        "signal transport: unknown\n"
+        "since last turn: progressed skill mcp/first; learned 2 notes\n"
+        "last signal: 2026-08-25 09:00 — no reply yet (3h)\n"
+        "</desire_state>"
+    )
+
+    assert desire_plugin._already_injected(text)
+
+
 def test_canonical_block_shape_treats_unicode_separator_as_note_text(desire_plugin):
     text = (
         "hello\n\n<desire_state>\n"
@@ -1098,6 +1112,65 @@ def test_each_new_client_context_block_appends_one_turn_audit_event(
         "proactive",
         "user message",
     ]
+
+
+def test_the_since_last_turn_line_is_rendered_and_cleared_on_one_turn(
+    desire_plugin, state_dir, at, state_helpers
+):
+    write_json, _, read_json, _ = state_helpers
+    now = at("2026-08-25T12:00:00+09:00")
+    seed_drives(state_dir, now, state_helpers)
+    unreported = [
+        {
+            "event": "progressed",
+            "kind": "pr",
+            "ref": "https://github.com/yw0nam/YUI/pull/12",
+            "at": now.isoformat(),
+        }
+    ]
+    write_json(
+        state_dir / "artefacts.json",
+        {
+            "bootstrapped_at": now.isoformat(),
+            "seen": {"pr": [], "issue": [], "skill": []},
+            "shipped": [],
+            "notes_since": now.isoformat(),
+            "unreported": unreported,
+        },
+    )
+
+    first = desire_plugin._inject(request=request_with(context(tail="hi")), now=now)
+    second = desire_plugin._inject(request=request_with(context(tail="again")), now=now)
+
+    line = "since last turn: progressed pr https://github.com/yw0nam/YUI/pull/12"
+    assert line in appended_block(first)
+    assert line not in appended_block(second)
+    assert read_json(state_dir / "artefacts.json")["unreported"] == []
+
+
+def test_the_since_last_turn_line_survives_a_repeated_request_within_the_turn(
+    desire_plugin, state_dir, at, state_helpers
+):
+    write_json, _, _, _ = state_helpers
+    now = at("2026-08-25T12:00:00+09:00")
+    seed_drives(state_dir, now, state_helpers)
+    write_json(
+        state_dir / "artefacts.json",
+        {
+            "bootstrapped_at": now.isoformat(),
+            "seen": {"pr": [], "issue": [], "skill": []},
+            "shipped": [],
+            "notes_since": now.isoformat(),
+            "unreported": [{"event": "learned", "kind": "note", "ref": "note:a", "at": now.isoformat()}],
+        },
+    )
+    request = request_with(context(tail="hi"))
+
+    first = desire_plugin._inject(request=copy.deepcopy(request), now=now)
+    repeated = desire_plugin._inject(request=copy.deepcopy(request), now=now)
+
+    assert "since last turn: learned 1 note" in appended_block(first)
+    assert appended_block(repeated) == appended_block(first)
 
 
 def test_the_turn_audit_event_names_the_channel(desire_plugin, state_dir, at, state_helpers):

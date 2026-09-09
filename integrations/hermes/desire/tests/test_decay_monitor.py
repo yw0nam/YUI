@@ -1,8 +1,10 @@
+import json
 import re
 import socket
 import threading
 from datetime import timedelta
 from pathlib import Path
+from urllib.parse import quote
 
 import pytest
 
@@ -853,3 +855,386 @@ def test_fallback_summary_wakes_the_tick_on_a_new_wake_day(monkeypatch, capsys, 
     assert first.endswith(" day:2026-08-25 rises:0 starved:0/0/0\n")
     assert second.endswith(" day:2026-08-26 rises:0 starved:0/0/0\n")
     assert first != second
+
+
+def git_repo(workspace: Path, name: str, origin: str | None) -> Path:
+    """Create a workspace directory, optionally with a git origin remote."""
+
+    path = workspace / name
+    (path / ".git").mkdir(parents=True)
+    if origin is not None:
+        (path / ".git" / "config").write_text(
+            '[core]\n\trepositoryformatversion = 0\n[remote "origin"]\n'
+            f"\turl = {origin}\n\tfetch = +refs/heads/*:refs/remotes/origin/*\n",
+            encoding="utf-8",
+        )
+    return path
+
+
+def skill(skills_root: Path, relative: str) -> Path:
+    path = skills_root / relative
+    path.mkdir(parents=True)
+    (path / "SKILL.md").write_text("---\nname: x\n---\n", encoding="utf-8")
+    return path
+
+
+def gh_runner(payloads: dict, failing: tuple = ()):
+    """Answer `gh pr list` and `gh issue list` from a `(command, repo)` table."""
+
+    def run(args: list[str]) -> str:
+        command = args[0]
+        repo = args[args.index("--repo") + 1]
+        if command in failing or (command, repo) in failing:
+            raise RuntimeError("gh: HTTP 404")
+        return json.dumps(payloads.get((command, repo), []))
+
+    return run
+
+
+def notes_runner(notes: list[dict], seen: list | None = None):
+    def fetch(url: str, headers: dict) -> bytes:
+        if seen is not None:
+            seen.append((url, headers))
+        return json.dumps(notes).encode("utf-8")
+
+    return fetch
+
+
+def audited(state_dir: Path, event: str) -> list[dict]:
+    values = [json.loads(line) for line in (state_dir / "audit.jsonl").read_text().splitlines() if line]
+    return [value for value in values if value["event"] == event]
+
+
+def satisfied(state_dir: Path) -> list[dict]:
+    return audited(state_dir, "drive_satisfied")
+
+
+def derive(state_dir, now, tmp_path, *, payloads=None, failing=(), notes=None, skills=(), repos=None):
+    workspace = tmp_path / "workspace"
+    workspace.mkdir(exist_ok=True)
+    for name, origin in (repos if repos is not None else {"YUI": "https://github.com/yw0nam/YUI.git"}).items():
+        if not (workspace / name).exists():
+            git_repo(workspace, name, origin)
+    skills_root = tmp_path / "skills"
+    skills_root.mkdir(exist_ok=True)
+    for relative in skills:
+        if not (skills_root / relative).exists():
+            skill(skills_root, relative)
+    return decay_monitor.derive_events(
+        state_dir,
+        now,
+        workspace_root=workspace,
+        skills_root=skills_root,
+        run_gh=gh_runner(payloads or {}, failing),
+        fetch_notes=notes_runner(notes if notes is not None else []),
+    )
+
+
+def test_workspace_repos_reads_github_origins_only(tmp_path):
+    workspace = tmp_path / "workspace"
+    workspace.mkdir()
+    git_repo(workspace, "YUI", "https://github.com/yw0nam/YUI.git")
+    git_repo(workspace, "memory_layer", "git@github.com:yw0nam/memory_layer.git")
+    git_repo(workspace, "internal", "https://gitlab.example.com/team/internal.git")
+    git_repo(workspace, "no-remote", None)
+    (workspace / "cron_results").mkdir()
+    (workspace / "notes.md").write_text("loose file", encoding="utf-8")
+
+    assert decay_monitor.workspace_repos(workspace) == ["yw0nam/YUI", "yw0nam/memory_layer"]
+
+
+def test_workspace_repos_tolerates_a_missing_workspace(tmp_path):
+    assert decay_monitor.workspace_repos(tmp_path / "absent") == []
+
+
+def test_bootstrap_marks_every_artefact_seen_without_dosing(state_dir, at, tmp_path, state_helpers):
+    _, _, read_json, _ = state_helpers
+    now = at("2026-08-25T12:00:00+09:00")
+    desire_state.bootstrap(now)
+
+    derive(
+        state_dir,
+        now,
+        tmp_path,
+        payloads={
+            ("pr", "yw0nam/YUI"): [
+                {"url": "https://github.com/yw0nam/YUI/pull/1", "headRefName": "natsume/a", "mergedAt": None},
+                {
+                    "url": "https://github.com/yw0nam/YUI/pull/2",
+                    "headRefName": "natsume/b",
+                    "mergedAt": "2026-08-24T00:00:00Z",
+                },
+            ],
+            ("issue", "yw0nam/YUI"): [
+                {
+                    "url": "https://github.com/yw0nam/YUI/issues/9",
+                    "body": "<!-- from-natsume -->\nhello",
+                    "closedAt": None,
+                }
+            ],
+        },
+        notes=[{"id": "note:1", "kind": "note"}],
+        skills=("mcp/first", "second"),
+    )
+
+    artefacts = read_json(state_dir / "artefacts.json")
+    assert artefacts["bootstrapped_at"] == now.isoformat()
+    assert artefacts["seen"]["pr"] == [
+        "https://github.com/yw0nam/YUI/pull/1",
+        "https://github.com/yw0nam/YUI/pull/2",
+    ]
+    assert artefacts["seen"]["issue"] == ["https://github.com/yw0nam/YUI/issues/9"]
+    assert artefacts["seen"]["skill"] == ["mcp/first", "second"]
+    assert artefacts["shipped"] == ["https://github.com/yw0nam/YUI/pull/2"]
+    assert artefacts["notes_since"] == now.isoformat()
+    assert artefacts["unreported"] == []
+    assert satisfied(state_dir) == []
+
+
+def test_second_run_doses_a_new_natsume_pull_request_exactly_once(state_dir, at, tmp_path, state_helpers):
+    _, _, read_json, _ = state_helpers
+    now = at("2026-08-25T12:00:00+09:00")
+    desire_state.bootstrap(now)
+    derive(state_dir, now, tmp_path)
+
+    payloads = {
+        ("pr", "yw0nam/YUI"): [
+            {"url": "https://github.com/yw0nam/YUI/pull/3", "headRefName": "natsume/c", "mergedAt": None}
+        ]
+    }
+    derive(state_dir, now, tmp_path, payloads=payloads)
+    derive(state_dir, now, tmp_path, payloads=payloads)
+
+    assert [(event["event_type"], event["kind"], event["ref"]) for event in satisfied(state_dir)] == [
+        ("progressed", "pr", "https://github.com/yw0nam/YUI/pull/3")
+    ]
+    artefacts = read_json(state_dir / "artefacts.json")
+    assert artefacts["seen"]["pr"] == ["https://github.com/yw0nam/YUI/pull/3"]
+    assert artefacts["unreported"] == [
+        {
+            "event": "progressed",
+            "kind": "pr",
+            "ref": "https://github.com/yw0nam/YUI/pull/3",
+            "at": now.isoformat(),
+        }
+    ]
+
+
+def test_merged_pull_request_doses_shipped_exactly_once(state_dir, at, tmp_path):
+    now = at("2026-08-25T12:00:00+09:00")
+    desire_state.bootstrap(now)
+    derive(state_dir, now, tmp_path)
+    open_pull = {
+        "url": "https://github.com/yw0nam/YUI/pull/4",
+        "headRefName": "natsume/d",
+        "mergedAt": None,
+    }
+    derive(state_dir, now, tmp_path, payloads={("pr", "yw0nam/YUI"): [open_pull]})
+
+    merged = {**open_pull, "mergedAt": "2026-08-25T11:00:00Z"}
+    derive(state_dir, now, tmp_path, payloads={("pr", "yw0nam/YUI"): [merged]})
+    derive(state_dir, now, tmp_path, payloads={("pr", "yw0nam/YUI"): [merged]})
+
+    assert [(event["event_type"], event["ref"]) for event in satisfied(state_dir)] == [
+        ("progressed", "https://github.com/yw0nam/YUI/pull/4"),
+        ("shipped", "https://github.com/yw0nam/YUI/pull/4"),
+    ]
+
+
+def test_pull_request_outside_the_natsume_branch_prefix_is_never_scored(state_dir, at, tmp_path):
+    now = at("2026-08-25T12:00:00+09:00")
+    desire_state.bootstrap(now)
+    derive(state_dir, now, tmp_path)
+
+    derive(
+        state_dir,
+        now,
+        tmp_path,
+        payloads={
+            ("pr", "yw0nam/YUI"): [
+                {
+                    "url": "https://github.com/yw0nam/YUI/pull/5",
+                    "headRefName": "feat/other",
+                    "mergedAt": "2026-08-25T11:00:00Z",
+                }
+            ]
+        },
+    )
+
+    assert satisfied(state_dir) == []
+
+
+def test_issue_without_the_marker_is_never_scored(state_dir, at, tmp_path, state_helpers):
+    _, _, read_json, _ = state_helpers
+    now = at("2026-08-25T12:00:00+09:00")
+    desire_state.bootstrap(now)
+    derive(state_dir, now, tmp_path)
+
+    derive(
+        state_dir,
+        now,
+        tmp_path,
+        payloads={
+            ("issue", "yw0nam/YUI"): [
+                {"url": "https://github.com/yw0nam/YUI/issues/10", "body": "plain body", "closedAt": None},
+                {
+                    "url": "https://github.com/yw0nam/YUI/issues/11",
+                    "body": "<!-- from-natsume -->\nmarked",
+                    "closedAt": "2026-08-25T10:00:00Z",
+                },
+            ]
+        },
+    )
+
+    assert [(event["event_type"], event["ref"]) for event in satisfied(state_dir)] == [
+        ("progressed", "https://github.com/yw0nam/YUI/issues/11"),
+        ("shipped", "https://github.com/yw0nam/YUI/issues/11"),
+    ]
+    assert read_json(state_dir / "artefacts.json")["seen"]["issue"] == [
+        "https://github.com/yw0nam/YUI/issues/11"
+    ]
+
+
+def test_new_skill_directory_doses_progressed_on_first_sight(state_dir, at, tmp_path):
+    now = at("2026-08-25T12:00:00+09:00")
+    desire_state.bootstrap(now)
+    derive(state_dir, now, tmp_path, skills=("mcp/old",))
+
+    derive(state_dir, now, tmp_path, skills=("mcp/old", "devops/new"))
+    derive(state_dir, now, tmp_path, skills=("mcp/old", "devops/new"))
+
+    assert [(event["event_type"], event["kind"], event["ref"]) for event in satisfied(state_dir)] == [
+        ("progressed", "skill", "devops/new")
+    ]
+
+
+def test_notes_are_filtered_by_kind_and_the_cursor_advances(state_dir, at, tmp_path, state_helpers):
+    _, _, read_json, _ = state_helpers
+    bootstrapped = at("2026-08-25T12:00:00+09:00")
+    desire_state.bootstrap(bootstrapped)
+    derive(state_dir, bootstrapped, tmp_path)
+    seen = []
+    now = at("2026-08-25T13:00:00+09:00")
+
+    decay_monitor.derive_events(
+        state_dir,
+        now,
+        workspace_root=tmp_path / "workspace",
+        skills_root=tmp_path / "skills",
+        run_gh=gh_runner({}),
+        fetch_notes=notes_runner(
+            [
+                {"id": "note:a", "kind": "note"},
+                {"id": "note:b", "kind": "episode"},
+                {"id": "note:c", "kind": "decision"},
+            ],
+            seen,
+        ),
+    )
+
+    assert [(event["event_type"], event["kind"], event["ref"]) for event in satisfied(state_dir)] == [
+        ("learned", "note", "note:a"),
+        ("learned", "note", "note:c"),
+    ]
+    url, headers = seen[0]
+    assert url.startswith("http://memory.test/notes?")
+    assert "limit=200" in url
+    assert "tags=natsume" in url
+    assert f"since={quote(bootstrapped.isoformat(), safe='')}" in url
+    assert headers == {"X-API-Key": "test-key"}
+    assert read_json(state_dir / "artefacts.json")["notes_since"] == now.isoformat()
+
+
+def test_event_past_its_daily_cap_is_still_marked_seen_and_audits_satisfy_blocked(
+    state_dir, at, tmp_path, state_helpers
+):
+    _, _, read_json, _ = state_helpers
+    now = at("2026-08-25T12:00:00+09:00")
+    desire_state.bootstrap(now)
+    derive(state_dir, now, tmp_path)
+    for index in range(desire_state.EVENT_DAILY_CAPS["progressed"]):
+        desire_state.satisfy("progressed", f"filler {index}", now)
+
+    derive(state_dir, now, tmp_path, skills=("mcp/capped",))
+
+    blocked = audited(state_dir, "satisfy_blocked")
+    assert [(event["event_type"], event["ref"], event["kind"]) for event in blocked] == [
+        ("progressed", "mcp/capped", "skill")
+    ]
+    artefacts = read_json(state_dir / "artefacts.json")
+    assert artefacts["seen"]["skill"] == ["mcp/capped"]
+    assert artefacts["unreported"] == []
+
+
+def test_failing_source_audits_derive_failed_and_leaves_its_cursor(state_dir, at, tmp_path, state_helpers):
+    _, _, read_json, _ = state_helpers
+    now = at("2026-08-25T12:00:00+09:00")
+    desire_state.bootstrap(now)
+    derive(state_dir, now, tmp_path)
+
+    derive(
+        state_dir,
+        now,
+        tmp_path,
+        payloads={
+            ("pr", "yw0nam/YUI"): [
+                {"url": "https://github.com/yw0nam/YUI/pull/6", "headRefName": "natsume/e", "mergedAt": None}
+            ]
+        },
+        failing=("issue",),
+    )
+
+    failures = audited(state_dir, "derive_failed")
+    assert [(event["source"], event["repo"]) for event in failures] == [("issue", "yw0nam/YUI")]
+    assert "404" in failures[0]["error"]
+    artefacts = read_json(state_dir / "artefacts.json")
+    assert artefacts["seen"]["issue"] == []
+    assert artefacts["seen"]["pr"] == ["https://github.com/yw0nam/YUI/pull/6"]
+
+
+def test_failing_notes_source_keeps_the_notes_cursor(state_dir, at, tmp_path, state_helpers):
+    _, _, read_json, _ = state_helpers
+    bootstrapped = at("2026-08-25T12:00:00+09:00")
+    desire_state.bootstrap(bootstrapped)
+    derive(state_dir, bootstrapped, tmp_path)
+
+    def fail(url, headers):
+        raise OSError("connection refused")
+
+    decay_monitor.derive_events(
+        state_dir,
+        at("2026-08-25T13:00:00+09:00"),
+        workspace_root=tmp_path / "workspace",
+        skills_root=tmp_path / "skills",
+        run_gh=gh_runner({}),
+        fetch_notes=fail,
+    )
+
+    assert [event["source"] for event in audited(state_dir, "derive_failed")] == ["notes"]
+    assert read_json(state_dir / "artefacts.json")["notes_since"] == bootstrapped.isoformat()
+
+
+def test_monitor_run_derives_from_the_profile_and_prints_the_summary_when_a_source_fails(
+    state_dir, at, isolated_profile, monkeypatch, state_helpers
+):
+    _, _, read_json, _ = state_helpers
+    now = at("2026-08-25T12:00:00+09:00")
+    profile = isolated_profile / ".hermes" / "profiles" / "natsume2"
+    workspace = profile / "workspace"
+    workspace.mkdir(parents=True)
+    git_repo(workspace, "YUI", "https://github.com/yw0nam/YUI.git")
+    skill(profile / "skills", "mcp/known")
+
+    def failing_gh(args):
+        raise RuntimeError("gh: could not authenticate")
+
+    monkeypatch.setattr(decay_monitor, "run_gh", failing_gh)
+
+    output = decay_monitor.run(now)
+
+    assert output == (
+        "social:low curiosity:mid accomplishment:mid outbox:0 transport:down "
+        "budget:3/3sig 2/2iss 1/1cmt 1/1pr day:2026-08-25 rises:0 starved:0/0/0\n"
+    )
+    assert [event["source"] for event in audited(state_dir, "derive_failed")] == ["pr", "issue"]
+    assert read_json(state_dir / "artefacts.json")["seen"]["skill"] == ["mcp/known"]

@@ -10,6 +10,8 @@ from zoneinfo import ZoneInfo
 
 import pytest
 
+import decay_monitor
+
 KST = ZoneInfo("Asia/Seoul")
 
 
@@ -17,6 +19,18 @@ KST = ZoneInfo("Asia/Seoul")
 def state_dir(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
     monkeypatch.setenv("DESIRE_STATE_DIR", str(tmp_path))
     return tmp_path
+
+
+@pytest.fixture(autouse=True)
+def isolated_profile(tmp_path_factory, monkeypatch: pytest.MonkeyPatch) -> Path:
+    """Point derivation at an empty profile root and a memory base that returns no notes."""
+
+    home = tmp_path_factory.mktemp("home")
+    monkeypatch.setenv("HOME", str(home))
+    monkeypatch.setenv("MEMORY_BASE_URL", "http://memory.test")
+    monkeypatch.setenv("MEMORY_BASE_API_KEY", "test-key")
+    monkeypatch.setattr(decay_monitor, "fetch_notes", lambda url, headers: b"[]")
+    return home
 
 
 def free_port() -> int:
