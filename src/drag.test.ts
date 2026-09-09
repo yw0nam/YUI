@@ -435,6 +435,37 @@ describe("initDrag — onDragStart", () => {
     expect(mockInvoke).toHaveBeenCalledWith("drag_window");
     localCleanup();
   });
+
+  it("does not start the native drag if pointerup arrives while onDragStart is pending", async () => {
+    cleanup();
+    const localEl = new EventTarget();
+    let resolveStart!: () => void;
+    const asyncOnDragStart = vi.fn(
+      () =>
+        new Promise<void>((resolve) => {
+          resolveStart = resolve;
+        }),
+    );
+    const onDragEnd = vi.fn();
+    const localCleanup = await initDrag(localEl, { onDragStart: asyncOnDragStart, onDragEnd });
+    down(0, 0, 1, localEl);
+    move(100, 0, localEl);
+    await Promise.resolve();
+    expect(asyncOnDragStart).toHaveBeenCalledTimes(1);
+
+    // The button comes up before the native drag ever starts.
+    const upEv = new Event("pointerup") as Event & { pointerId: number };
+    Object.assign(upEv, { pointerId: 1 });
+    localEl.dispatchEvent(upEv);
+    expect(onDragEnd).toHaveBeenCalledTimes(1);
+
+    resolveStart();
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(mockInvoke).not.toHaveBeenCalled();
+    localCleanup();
+  });
 });
 
 describe.each([
