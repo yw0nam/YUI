@@ -764,9 +764,17 @@ def test_read_artefacts_reports_absent_state_and_normalizes_a_partial_record(sta
 
     assert desire_state.read_artefacts(state_dir) is None
 
-    write_json(state_dir / "artefacts.json", {"seen": {"pr": ["u"]}, "unreported": ["bad", {"kind": "note"}]})
+    write_json(
+        state_dir / "artefacts.json",
+        {
+            "seen": {"pr": ["u"]},
+            "unreported": ["bad", {"kind": "note"}],
+            "skill_first_seen": {"a": 1, "b": "t"},
+        },
+    )
     record = desire_state.read_artefacts(state_dir)
     assert record["seen"] == {"pr": ["u"], "issue": [], "skill": [], "note": []}
+    assert record["skill_first_seen"] == {"b": "t"}
     assert record["bootstrapped"] == []
     assert record["shipped"] == []
     assert record["unreported"] == [{"kind": "note"}]
@@ -779,6 +787,7 @@ def test_read_artefacts_reports_absent_state_and_normalizes_a_partial_record(sta
         "bootstrapped_at": now.isoformat(),
         "bootstrapped": [],
         "seen": {"pr": [], "issue": [], "skill": [], "note": []},
+        "skill_first_seen": {},
         "shipped": [],
         "notes_since": now.isoformat(),
         "unreported": [],

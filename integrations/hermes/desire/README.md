@@ -41,6 +41,8 @@ The state directory contains:
 - `artefacts.json` — what the monitor has already scored: `bootstrapped_at` (when the record was created),
   `bootstrapped` (the sources that have answered at least once and are therefore scored from now on), `seen` (the
   refs it has counted, one list per kind: pull-request and issue URLs, skill paths, and the last 500 note ids),
+  `skill_first_seen` (when each skill path was first seen, holding only the skills seen after the skill source was
+  bootstrapped, so the report can tell Natsume's own skills from the ones that were already installed),
   `shipped` (the refs it has counted as delivered), `notes_since` (the memory-note cursor), and `unreported` (the
   events the desire block has not shown yet, each `{"event", "kind", "ref", "at"}`). Absent until the first tick,
   which writes it without dosing.
@@ -216,7 +218,8 @@ monitor prunes reservations older than seven days.
 
 `report --note "<text>"` posts the daily report to the same ingress, with `report` as the signal kind and
 `desire.report` as the event type. It takes no budget, never enters the outbox, records the transport outcome
-like a signal delivery, and audits `report_sent` or `report_failed`.
+like a signal delivery, and audits `report_sent` or `report_failed`. `report --skills` sends nothing: it prints the
+skill-load section described below on stdout.
 
 Drives rise linearly while unattended: curiosity 9 points per hour, accomplishment 6 per hour, and social 15 per
 hour since the last user message. These observation-phase rates and the caps below are deliberately fast so a full
@@ -282,6 +285,43 @@ once per tick however many sources report it. An artefact past its daily cap is 
 as `satisfy_blocked`; that dose is lost rather than carried over. A ref that is not text is audited as
 `derive_failed` for its source rather than dropped silently. Derived events only lower drives, so they never change
 the latched buckets and never wake the agent.
+
+## Skill loads
+
+A new skill scores `progressed`, so the report says whether anything then loads it. `act.py report --skills`
+renders that section:
+
+```
+skills you made (7 days):
+- devops/sdlc-review — tick 0, other 0, last used never — unused: archive it or say why it stays
+- mcp/yui-desire-tick-operations — tick 52, other 4, last used 2026-09-09 17:53
+```
+
+It lists the `skill_first_seen` entries of `artefacts.json`, which hold the skills first seen after the skill
+source was bootstrapped; the skills already installed at bootstrap are not Natsume's. A listed skill drops out of
+the section once its directory is gone or its `.usage.json` `state` is no longer `active`, so archiving one ends
+its verdict. With no such skill the whole section is `skills you made (7 days): none yet`.
+
+- **Loads** — every `skill_view` tool call in the last seven days, read from the `messages` table of
+  `~/.hermes/profiles/$HERMES_PROFILE/state.db`: an assistant row carries its calls as JSON in `tool_calls`, and
+  `timestamp` is unix seconds. A call counts for a skill when its `arguments.name` is the skill path or the last
+  segment of it, which is the name `.usage.json` and `skill_view` both use. The database is opened read-only
+  (`file:<path>?mode=ro`) inside the report step only, once a day; the ten-minute monitor never reads it.
+- **Session kind** — Hermes names every cron-started session `cron_<job id>_<timestamp>`, and `sessions.source` is
+  `cron` for all of them, so `source` cannot separate the tick from the digest, reflection, report, and other
+  cron jobs. The tick's job id is read by name from `~/.hermes/profiles/$HERMES_PROFILE/cron/jobs.json`, job
+  `natsume-desire-tick`; a `session_id` starting with `cron_<that id>_` is a tick load and everything else —
+  Telegram, the YUI api_server, every other cron job — is an `other` load.
+- **Last used** — `last_used_at` from `~/.hermes/profiles/$HERMES_PROFILE/skills/.usage.json`, rendered in KST, or
+  `never`.
+- **Verdict** — a skill created 14 or more days ago with zero `other` loads in the last seven days is marked
+  `unused: archive it or say why it stays`; loads from Natsume's own tick do not clear it. The age comes from
+  `created_at` in `.usage.json`, or from `skill_first_seen` when the skill has no usage entry. `prompts/report.md`
+  tells Natsume to archive the skill with `skill_manage` or to write one line in the report saying why it stays,
+  and the verdict returns daily until the skill is archived or something outside the tick loads it.
+- **Failure** — an absent, locked, or unreadable database, or a `jobs.json` without the tick job, renders every
+  line as `loads unavailable` with no verdict and audits `report_skills_failed` with the reason. The rest of the
+  report is unaffected.
 
 ## Verify
 

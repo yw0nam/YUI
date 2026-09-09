@@ -295,6 +295,8 @@ def score_artefacts(state_dir, now, observed: dict) -> None:
                     record["shipped"].append(ref)
                 else:
                     record["seen"][kind].append(ref)
+                    if kind == "skill" and kind in scored:
+                        record["skill_first_seen"][ref] = now.isoformat()
                 if kind not in scored:
                     continue
                 try:
