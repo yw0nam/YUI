@@ -161,9 +161,11 @@ def _report_skills(now):
     state_dir = desire_state.resolve_state_dir()
     with desire_state.state_lock(state_dir):
         record = desire_state.read_artefacts(state_dir) or desire_state.default_artefacts(now)
-        text, failure = skill_usage.section(now, first_seen=record["skill_first_seen"])
-        if failure is not None:
-            _audit(state_dir, now, "report_skills_failed", reason=failure)
+
+    # The database scan runs outside the lock, so a turn never waits on it.
+    text, failure = skill_usage.section(now, first_seen=record["skill_first_seen"])
+    if failure is not None:
+        _audit(state_dir, now, "report_skills_failed", reason=failure)
     print(text)
     return 0
 

@@ -300,20 +300,25 @@ skills you made (7 days):
 It lists the `skill_first_seen` entries of `artefacts.json`, which hold the skills first seen after the skill
 source was bootstrapped; the skills already installed at bootstrap are not Natsume's. A listed skill drops out of
 the section once its directory is gone or its `.usage.json` `state` is no longer `active`, so archiving one ends
-its verdict. With no such skill the whole section is `skills you made (7 days): none yet`.
+its verdict. With no such skill the whole section is `skills you made (7 days): none yet`, which is what it reads
+from the bootstrap tick until Natsume writes her first new skill; the skills that were already installed never
+enter it.
 
 - **Loads** — every `skill_view` tool call in the last seven days, read from the `messages` table of
   `~/.hermes/profiles/$HERMES_PROFILE/state.db`: an assistant row carries its calls as JSON in `tool_calls`, and
   `timestamp` is unix seconds. A call counts for a skill when its `arguments.name` is the skill path or the last
-  segment of it, which is the name `.usage.json` and `skill_view` both use. The database is opened read-only
-  (`file:<path>?mode=ro`) inside the report step only, once a day; the ten-minute monitor never reads it.
+  segment of it, which is the name `.usage.json` and `skill_view` both use, so two skills sharing a last segment
+  under different categories would each absorb the other's bare-name loads. The database is opened read-only
+  (`file:<path>?mode=ro`) and outside the state lock, inside the report step only, once a day; the ten-minute
+  monitor never reads it.
 - **Session kind** — Hermes names every cron-started session `cron_<job id>_<timestamp>`, and `sessions.source` is
   `cron` for all of them, so `source` cannot separate the tick from the digest, reflection, report, and other
   cron jobs. The tick's job id is read by name from `~/.hermes/profiles/$HERMES_PROFILE/cron/jobs.json`, job
   `natsume-desire-tick`; a `session_id` starting with `cron_<that id>_` is a tick load and everything else —
   Telegram, the YUI api_server, every other cron job — is an `other` load.
-- **Last used** — `last_used_at` from `~/.hermes/profiles/$HERMES_PROFILE/skills/.usage.json`, rendered in KST, or
-  `never`.
+- **Last used** — `last_used_at` from `~/.hermes/profiles/$HERMES_PROFILE/skills/.usage.json`, an offset-carrying
+  ISO stamp, rendered in KST. A skill with no stamp reads `never`, and one whose stamp cannot be parsed reads
+  `unknown` and carries no verdict.
 - **Verdict** — a skill created 14 or more days ago with zero `other` loads in the last seven days is marked
   `unused: archive it or say why it stays`; loads from Natsume's own tick do not clear it. The age comes from
   `created_at` in `.usage.json`, or from `skill_first_seen` when the skill has no usage entry. `prompts/report.md`
