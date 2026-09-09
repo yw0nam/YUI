@@ -88,7 +88,7 @@ export async function attachKeepOnScreen(
   let paused = false;
 
   const evaluate = async (): Promise<void> => {
-    if (disposed || running) return;
+    if (disposed || running || paused) return;
     running = true;
     try {
       const [monitors, pos, size] = await Promise.all([
@@ -96,7 +96,9 @@ export async function attachKeepOnScreen(
         win.outerPosition(),
         win.outerSize(),
       ]);
-      if (disposed) return;
+      // Re-checked here, not just on entry: a pause can arrive while this evaluation is
+      // already mid-flight, and it must not push the window a travel just parked.
+      if (disposed || paused) return;
       // Content-driven size, so the inset is recomputed from the current outerSize every pass.
       const inset = opts.wholeWindow ? { x: size.width / 2, y: size.height / 2 } : undefined;
       const pushed = keepOnScreen(monitors, pos, size, inset);
