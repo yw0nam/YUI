@@ -3,10 +3,10 @@ from datetime import timedelta
 from urllib.error import URLError
 
 import pytest
+from conftest import AGENT_NAME
 
 import act
 import desire_state
-from conftest import AGENT_NAME
 
 
 class Response:

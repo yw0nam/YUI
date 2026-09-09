@@ -7,10 +7,10 @@ from pathlib import Path
 from urllib.parse import quote
 
 import pytest
+from conftest import AGENT_NAME, PROFILE_NAME
 
 import decay_monitor
 import desire_state
-from conftest import AGENT_NAME, PROFILE_NAME
 
 BRANCH = f"{AGENT_NAME}/"
 MARKER = f"<!-- from-{AGENT_NAME} -->"

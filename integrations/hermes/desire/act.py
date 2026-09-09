@@ -1,4 +1,4 @@
-"""Budget-enforced action helper for the Natsume desire integration."""
+"""Budget-enforced action helper for the desire integration."""
 
 from __future__ import annotations
 
@@ -83,7 +83,7 @@ def _deliver(note, now, opener, kind="desire", event_type="desire.impulse"):
     body = {
         "signals": [{"kind": kind, "note": note}],
         "envelope": {
-            "source": "natsume-desire",
+            "source": desire_state.signal_source(),
             "event_type": event_type,
             "delivery": "immediate",
             "event_id": event_id,
@@ -156,7 +156,7 @@ def _report(note, now, opener):
 
 
 def _report_skills(now):
-    """Print the load counts of the skills Natsume made, once a day at report time."""
+    """Print the load counts of the skills the agent made, once a day at report time."""
 
     state_dir = desire_state.resolve_state_dir()
     with desire_state.state_lock(state_dir):
@@ -376,6 +376,14 @@ def _parser():
 
 
 def main(argv=None, *, now=None, opener=urllib_request.urlopen):
+    try:
+        return _run(argv, now, opener)
+    except desire_state.ConfigurationError as error:
+        print(str(error), file=sys.stderr)
+        return 1
+
+
+def _run(argv, now, opener):
     now = desire_state.normalize_now(now or datetime.now(KST))
     args = _parser().parse_args(argv)
     if args.command == "signal":

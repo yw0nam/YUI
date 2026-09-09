@@ -23,6 +23,7 @@ def agent_identity(monkeypatch: pytest.MonkeyPatch) -> None:
 
     monkeypatch.setenv("DESIRE_AGENT_NAME", AGENT_NAME)
     monkeypatch.setenv("HERMES_PROFILE", PROFILE_NAME)
+    monkeypatch.setenv("DESIRE_CHAT_PLATFORMS", "telegram")
 
 
 @pytest.fixture

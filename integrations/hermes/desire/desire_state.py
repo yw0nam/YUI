@@ -57,10 +57,54 @@ def wake_day(now: datetime) -> str:
     return (normalize_now(now) - timedelta(hours=9)).date().isoformat()
 
 
+class ConfigurationError(RuntimeError):
+    """A value the deployment must set is missing."""
+
+
+def _required(name: str) -> str:
+    value = os.environ.get(name, "").strip()
+    if not value:
+        raise ConfigurationError(f"{name} is not set; export it in the Hermes profile environment")
+    return value
+
+
+def agent_name() -> str:
+    """Return the slug naming this agent, which every desire convention derives from."""
+
+    return _required("DESIRE_AGENT_NAME")
+
+
+def hermes_profile() -> str:
+    return _required("HERMES_PROFILE")
+
+
+def branch_prefix() -> str:
+    return f"{agent_name()}/"
+
+
+def issue_marker() -> str:
+    return f"<!-- from-{agent_name()} -->"
+
+
+def signal_source() -> str:
+    return f"{agent_name()}-desire"
+
+
+def cron_job_name(kind: str) -> str:
+    return f"{agent_name()}-desire-{kind}"
+
+
+def chat_platforms() -> frozenset[str]:
+    """Name the Hermes platforms whose turns are the user speaking to the agent."""
+
+    listed = os.environ.get("DESIRE_CHAT_PLATFORMS", "").split(",")
+    return frozenset(name.strip() for name in listed if name.strip())
+
+
 def profile_root() -> Path:
     """Return the Hermes profile directory the desire system belongs to."""
 
-    return Path.home() / ".hermes" / "profiles" / os.environ.get("HERMES_PROFILE", "natsume2")
+    return Path.home() / ".hermes" / "profiles" / hermes_profile()
 
 
 def resolve_state_dir() -> Path:
@@ -760,6 +804,7 @@ def serialize_desire_block(
     since_interaction = int(max(0.0, (now - last_interaction).total_seconds()) // 3600)
     lines = [
         "<desire_state>",
+        f"agent: {agent_name()}",
         (
             "drives: "
             f"social {displayed_level(levels['social'])}/100 ({bucket(levels['social'])}) | "

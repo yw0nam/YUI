@@ -5,11 +5,11 @@ from datetime import timedelta
 from pathlib import Path
 
 import pytest
+from conftest import AGENT_NAME
 
 import act
 import desire_state
 import skill_usage
-from conftest import AGENT_NAME
 
 TICK_JOB_ID = "47f1361de4db"
 OTHER_JOB_ID = "50b142a711ad"
