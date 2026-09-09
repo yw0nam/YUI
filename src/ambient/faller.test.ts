@@ -341,9 +341,13 @@ function makeHarness(
   const fallTo = async (y: number): Promise<void> => {
     for (let i = 0; i < 240 && positions.at(-1)?.y !== y; i++) await frame();
   };
+  /** Drop, then wait for the fall to settle: either its tick is installed, or it ended without one. */
   const beginFall = async (): Promise<{ done: Promise<void> }> => {
-    const done = faller.drop();
-    for (let i = 0; i < 6; i++) await Promise.resolve();
+    let ended = false;
+    const done = faller.drop().finally(() => {
+      ended = true;
+    });
+    await vi.waitFor(() => expect(ended || tick !== null).toBe(true));
     return { done };
   };
 
