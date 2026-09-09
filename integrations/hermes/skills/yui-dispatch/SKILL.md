@@ -28,8 +28,9 @@ gh search repos <name> --match name --json fullName --jq '.[].fullName'
 Take the entry whose name part equals what Youngwoo said. If none or more than one matches, ask which one and stop.
 `$CLONE` is the clone under `~/.hermes/profiles/<profile>/workspace/<name>`; if it does not exist yet,
 `gh repo clone $REPO` it there first.
-`$MODEL` comes from the first of these that answers: an `agent-model:<name>` label on the issue, a model Youngwoo
-names in the request (for example "Opus로 해줘" means `opus`), then `sonnet`. Pass the name in lower case.
+`$MODEL` comes from the first of these that answers: an `agent-model:<name>` label among the labels read in step 1,
+a model Youngwoo names in the request (for example "Opus로 해줘" means `opus`), then `sonnet`. Pass the name in
+lower case.
 
 ## 1. Check the issue
 
@@ -72,6 +73,10 @@ cd $CLONE && git checkout $(git remote show origin | sed -n 's/.*HEAD branch: //
 
 Reply to Youngwoo with one line: `Started #$N.` Then end the turn; the completion notification wakes you.
 
+When the session never starts — the clone, the checkout, or `claude` itself fails before the run — undo the claim
+so the issue stays available: `gh issue edit $N --repo $REPO --remove-assignee @me`, comment the reason in one
+sentence, and tell Youngwoo `Dispatch could not start #$N: <reason>`.
+
 ## 4. Report
 
 The completion notification carries the exit code and the tail of the output. Find the pull request URL in the
@@ -93,4 +98,5 @@ Leave the assignee in place either way. Youngwoo clears it when re-labeling the 
 
 - Fix review comments on the pull request. Youngwoo does that from a local Claude Code session.
 - Retry a failed dispatch on your own. Wait for the issue to be labeled `ready-for-agent` again.
-- Poll issues for the label. Dispatch only what Youngwoo hands you.
+- Poll issues for the label. Dispatch what Youngwoo hands you, or the one self-started dispatch a day that
+  `prompts/tick.md` section 6 allows under a `dispatch` reservation.

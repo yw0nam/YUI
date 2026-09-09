@@ -2,8 +2,9 @@
 
 `yui-desire` is the Hermes-side desire system for Natsume. Its `llm_request` middleware injects a compact
 `<desire_state>` block into the newest user message, while the monitor advances drives, scores the artefacts
-Natsume produced outside the state directory, and wakes a Hermes cron turn only when its one-line summary changes. Wants, judgment, feedback handling, and speech decisions remain in
-Hermes; YUI receives desire speech through its existing `/signals` ingress.
+Natsume produced outside the state directory, and wakes a Hermes cron turn only when its one-line summary changes.
+Wants, judgment, feedback handling, and speech decisions remain in Hermes; YUI receives desire speech through its
+existing `/signals` ingress.
 
 The integration is a self-contained Python 3.10+ uv project. Runtime code uses only the Python standard library.
 
@@ -37,10 +38,12 @@ The state directory contains:
 - `budget.json` — KST daily counters for signals, issues, self-initiated comments, pull requests, dispatches, and
   satisfaction events, plus pending issue, comment, pull-request, and dispatch reservations. Fresh counters are
   zero and `pending` is empty.
-- `artefacts.json` — what the monitor has already scored: `bootstrapped_at`, `seen` (the pull-request and issue
-  URLs and the skill paths it has counted, one list per kind), `shipped` (the URLs it has counted as delivered),
-  `notes_since` (the memory-note cursor), and `unreported` (the events the desire block has not shown yet, each
-  `{"event", "kind", "ref", "at"}`). Absent until the first tick, which writes it without dosing.
+- `artefacts.json` — what the monitor has already scored: `bootstrapped_at` (when the record was created),
+  `bootstrapped` (the sources that have answered at least once and are therefore scored from now on), `seen` (the
+  refs it has counted, one list per kind: pull-request and issue URLs, skill paths, and the last 500 note ids),
+  `shipped` (the refs it has counted as delivered), `notes_since` (the memory-note cursor), and `unreported` (the
+  events the desire block has not shown yet, each `{"event", "kind", "ref", "at"}`). Absent until the first tick,
+  which writes it without dosing.
 - `cursor.json` — the feedback cursor. `last_feedback_check_at` starts at bootstrap time.
 - `monitor.json` — the buckets the monitor summary prints, the count of drive rises behind them, and how long
   each drive has stood at its ceiling: `latched` is the bucket printed for each drive, `natural` the bucket each
@@ -74,9 +77,9 @@ time to itself whatever the gap, so the next turn is an ordinary one. The line e
 here)` while a pent-up note is waiting.
 
 `since last turn: <event> <kind> <ref>; …` follows the transport line while `unreported` in `artefacts.json` is
-non-empty. Pull requests, issues, and skills are listed one by one; notes are summarised as `learned N notes`. The
-middleware clears `unreported` in the state commit of the turn that rendered the line, so it appears on exactly one
-turn.
+non-empty. Pull requests, issues, and skills are listed one by one up to eight of them, then `and N more`; notes are
+summarised as `learned N notes`. The middleware clears `unreported` in the state commit of the turn that rendered
+the line, so it appears on exactly one turn.
 
 `last signal: YYYY-MM-DD HH:MM — answered after Nh` follows the transport line once a signal has been delivered and
 a user turn has followed it; until then the same line reads `— no reply yet (Nh)`. The line is absent while
@@ -236,8 +239,9 @@ blocks a turn; the scoring runs inside the same state transaction as the drive a
 Each derived event is appended to `unreported` and audited as `drive_satisfied` with its `kind` (`pr`, `issue`,
 `skill`, `note`) and `ref`.
 
-- **Repositories** — every directory one level under `~/.hermes/profiles/$HERMES_PROFILE/workspace/` whose git
-  `origin` remote is on github.com, in both the HTTPS and SSH forms. A directory without such a remote is skipped;
+- **Repositories** — every directory one level under `~/.hermes/profiles/$HERMES_PROFILE/workspace/` whose
+  `.git/config` names an `origin` remote on github.com, in both the HTTPS and SSH forms. A directory without such a
+  remote is skipped, and so is a checkout that keeps its config elsewhere (a linked worktree, `--separate-git-dir`);
   there is no configured repository list.
 - **Pull requests** — `gh pr list --repo <owner/name> --author @me --state all --limit 100`, keeping the ones whose
   head branch starts with `natsume/`. First sight scores `progressed`; a set `mergedAt` scores `shipped` once.
@@ -245,20 +249,25 @@ Each derived event is appended to `unreported` and audited as `drive_satisfied` 
   contains the literal `<!-- from-natsume -->`. First sight scores `progressed`; a set `closedAt` scores `shipped`
   once.
 - **Skills** — every directory under `~/.hermes/profiles/$HERMES_PROFILE/skills/` containing a `SKILL.md`,
-  identified by its path relative to the skills root. First sight scores `progressed`.
+  identified by its path relative to the skills root. First sight scores `progressed`. This is the one source
+  Natsume can add to alone, and it counts what appears rather than who put it there: a skill installed into her
+  profile from outside scores too, and a nested `SKILL.md` inside an existing skill counts as its own directory.
 - **Memory notes** — `GET $MEMORY_BASE_URL/notes?since=<notes_since>&limit=200&tags=natsume` with the header
   `X-API-Key: $MEMORY_BASE_API_KEY`. `MEMORY_BASE_URL` defaults to `http://127.0.0.1:8010`. The `default`
   namespace is shared with other sessions, so the `natsume` tag is what separates Natsume's own notes; `tick.md`
   tells her every note she saves must carry it. Each returned note of kind `note` or `decision` scores `learned`
   with the note id as its `ref`; `episode` notes are ignored. The response carries a day-granular `date` only, so
-  a successful fetch advances `notes_since` to the tick time.
+  the cursor advances to the tick time after a successful fetch and the note id in `seen` is what keeps a repeated
+  note from being scored twice.
 
-A missing `artefacts.json` bootstraps: everything currently visible is recorded as seen, everything already merged
-or closed as shipped, `notes_since` as the tick time, and nothing is dosed. A failing `gh` call or memory request
-skips that source for the tick, appends a `derive_failed` audit event naming the source, the repository, and a
-short error, and leaves that source's cursor untouched; the summary line is printed regardless. An artefact past
-its daily cap is still recorded as seen and audited as `satisfy_blocked`; that dose is lost rather than carried
-over. Derived events only lower drives, so they never change the latched buckets and never wake the agent.
+A source is scored only from the tick after its first answer: everything it reported the first time is recorded as
+seen (and everything already merged or closed as shipped) without a dose, whether that first answer arrives on the
+first tick or days later. A failing `gh` call or memory request drops that source for the tick, appends a
+`derive_failed` audit event naming the source, the repository, and a short error, and leaves its cursor and its
+seen list untouched; the summary line is printed regardless. One repository failing drops its whole kind for that
+tick, so a partial answer is never mistaken for a complete one. An artefact past its daily cap is still recorded as
+seen and audited as `satisfy_blocked`; that dose is lost rather than carried over. Derived events only lower
+drives, so they never change the latched buckets and never wake the agent.
 
 ## Verify
 

@@ -26,6 +26,8 @@ CAPS = {"signals": 3, "issues": 2, "self_comments": 1, "prs": 1, "dispatches": 1
 DRIVES = ("social", "curiosity", "accomplishment")
 BUCKETS = ("low", "mid", "high")
 ARTEFACT_KINDS = ("pr", "issue", "skill")
+SEEN_KINDS = (*ARTEFACT_KINDS, "note")
+SINCE_LAST_TURN_LIMIT = 8
 EVENT_DOSES = {
     "learned": {"curiosity": 30.0},
     "progressed": {"accomplishment": 15.0},
@@ -351,12 +353,13 @@ def _default_budget(now: datetime) -> dict:
 
 
 def default_artefacts(now: datetime) -> dict:
-    """Return a bootstrap record: everything currently visible counts as already seen."""
+    """Return an empty record: no source has answered yet, so nothing is scored from it."""
 
     stamp = normalize_now(now).isoformat()
     return {
         "bootstrapped_at": stamp,
-        "seen": {kind: [] for kind in ARTEFACT_KINDS},
+        "bootstrapped": [],
+        "seen": {kind: [] for kind in SEEN_KINDS},
         "shipped": [],
         "notes_since": stamp,
         "unreported": [],
@@ -375,7 +378,8 @@ def read_artefacts(state_dir: Path) -> dict | None:
     seen = value.get("seen") if isinstance(value.get("seen"), dict) else {}
     return {
         "bootstrapped_at": value.get("bootstrapped_at"),
-        "seen": {kind: _text_list(seen.get(kind)) for kind in ARTEFACT_KINDS},
+        "bootstrapped": [kind for kind in _text_list(value.get("bootstrapped")) if kind in SEEN_KINDS],
+        "seen": {kind: _text_list(seen.get(kind)) for kind in SEEN_KINDS},
         "shipped": _text_list(value.get("shipped")),
         "notes_since": value.get("notes_since"),
         "unreported": [item for item in _list(value.get("unreported")) if isinstance(item, dict)],
@@ -479,6 +483,8 @@ def _validate_budget(value: object) -> dict:
         not isinstance(event, str) or not isinstance(count, int) for event, count in events.items()
     ):
         events = {}
+    # dispatches is defaulted rather than demanded, so a budget written without it is rewritten
+    # with it instead of quarantined.
     return {**value, "dispatches": int(value.get("dispatches", 0)), "events": copy.deepcopy(events)}
 
 
@@ -700,13 +706,21 @@ def _since_last_turn_line(unreported: list[dict]) -> str | None:
 
     parts = []
     notes = 0
+    dropped = 0
     for item in unreported:
-        if item.get("kind") == "note":
-            notes += 1
+        event, kind, ref = item.get("event"), item.get("kind"), item.get("ref")
+        if event not in EVENT_DOSES or kind not in SEEN_KINDS or not isinstance(ref, str):
             continue
-        parts.append(f"{item.get('event')} {item.get('kind')} {sanitize_note(item.get('ref', ''))}")
+        if kind == "note":
+            notes += 1
+        elif len(parts) < SINCE_LAST_TURN_LIMIT:
+            parts.append(f"{event} {kind} {sanitize_note(ref)}")
+        else:
+            dropped += 1
     if notes:
         parts.append(f"learned {notes} note{'s' if notes > 1 else ''}")
+    if dropped:
+        parts.append(f"and {dropped} more")
     return f"since last turn: {'; '.join(parts)}" if parts else None
 
 
@@ -778,19 +792,21 @@ def homeostatic_drive(levels: dict[str, float]) -> float:
     )
 
 
-def satisfy(event: str, ref: str, now: datetime, *, kind: str | None = None) -> float:
+def satisfy(
+    event: str, ref: str, now: datetime, *, kind: str | None = None, state_dir: Path | None = None
+) -> float:
     now = normalize_now(now)
     if event not in EVENT_DOSES:
         raise ValueError(f"unknown event: {event}")
     named = {"ref": ref} if kind is None else {"ref": ref, "kind": kind}
-    with state_lock() as state_dir:
-        state = bootstrap_locked(state_dir, now)
+    with state_lock(state_dir) as directory:
+        state = bootstrap_locked(directory, now)
         budget = normalize_budget(state["budget"], now)
         count = budget["events"].get(event, 0)
         cap = EVENT_DAILY_CAPS[event]
         if count >= cap:
             _append_jsonl_locked(
-                state_dir / "audit.jsonl",
+                directory / "audit.jsonl",
                 {"at": now.isoformat(), "event": "satisfy_blocked", "event_type": event, **named},
             )
             raise ValueError(f"over budget: {event} daily cap is {cap}")
@@ -807,10 +823,10 @@ def satisfy(event: str, ref: str, now: datetime, *, kind: str | None = None) -> 
         budget["events"][event] = count + 1
         # Budget commits before drives: a crash after this point costs one unused daily slot,
         # rather than an uncounted dose that could be applied again past the cap.
-        write_json_atomic(state_dir / "budget.json", budget)
-        write_json_atomic(state_dir / "drives.json", drives)
+        write_json_atomic(directory / "budget.json", budget)
+        write_json_atomic(directory / "drives.json", drives)
         _append_jsonl_locked(
-            state_dir / "audit.jsonl",
+            directory / "audit.jsonl",
             {
                 "at": now.isoformat(),
                 "event": "drive_satisfied",

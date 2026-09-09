@@ -20,11 +20,13 @@ NOTES_TIMEOUT = 10
 SATURATION_STEP = timedelta(hours=3)
 DEFAULT_MEMORY_BASE_URL = "http://127.0.0.1:8010"
 NOTE_KINDS = ("note", "decision")
+NOTE_MEMORY = 500
 BRANCH_PREFIX = "natsume/"
 ISSUE_MARKER = "<!-- from-natsume -->"
+FIRST_SIGHT = {"pr": "progressed", "issue": "progressed", "skill": "progressed", "note": "learned"}
 _ORIGIN_SECTION = re.compile(r'^\[remote "origin"\]\n(.*?)(?=^\[|\Z)', re.MULTILINE | re.DOTALL)
 _ORIGIN_URL = re.compile(r"^\s*url\s*=\s*(\S+)", re.MULTILINE)
-_GITHUB_SLUG = re.compile(r"github\.com[:/](?P<owner>[^/]+)/(?P<name>[^/]+?)(?:\.git)?/?$")
+_GITHUB_SLUG = re.compile(r"(?:^|[@/.])github\.com[:/](?P<owner>[^/]+)/(?P<name>[^/]+?)(?:\.git)?/?$")
 
 
 def probe_transport() -> bool:
@@ -160,45 +162,46 @@ def _derive_failed(state_dir: Path, now: datetime, source: str, repo: str | None
     )
 
 
+def _read_source(state_dir, now, source, repo, read):
+    """Return what one source reports as ``(ref, delivered_at)`` pairs, or ``None`` when it failed."""
+
+    try:
+        return read()
+    except Exception as error:  # noqa: BLE001 - a failing source is skipped, never fatal
+        _derive_failed(state_dir, now, source, repo, error)
+        return None
+
+
 def collect_artefacts(state_dir, now, *, workspace_root, skills_root, run_gh, fetch_notes) -> dict:
     """Read the four sources outside the state lock, so no `gh` call blocks a turn.
 
-    Each entry is ``(ref, delivered_at)``; a failing source is audited and left out. Notes are read
-    only once ``artefacts.json`` exists, since the bootstrap tick scores nothing.
+    Each kind maps to its ``(ref, delivered_at)`` pairs, or to ``None`` when the source did not
+    answer this tick: a partial answer is dropped so it cannot be mistaken for an empty one.
     """
 
     now = desire_state.normalize_now(now)
     state_dir = Path(state_dir)
     record = desire_state.read_artefacts(state_dir)
-    observed = {kind: [] for kind in desire_state.ARTEFACT_KINDS}
-    observed["notes"] = None
+    observed = {kind: [] for kind in desire_state.SEEN_KINDS}
     for repo in workspace_repos(workspace_root):
-        try:
-            pulls = repo_pull_requests(repo, run_gh)
-        except Exception as error:  # noqa: BLE001 - one failing repository must not stop the tick
-            _derive_failed(state_dir, now, "pr", repo, error)
-        else:
-            observed["pr"] += [(pull.get("url"), pull.get("mergedAt")) for pull in pulls]
-        try:
-            issues = repo_issues(repo, run_gh)
-        except Exception as error:  # noqa: BLE001 - one failing repository must not stop the tick
-            _derive_failed(state_dir, now, "issue", repo, error)
-        else:
-            observed["issue"] += [(issue.get("url"), issue.get("closedAt")) for issue in issues]
-    try:
-        skills = profile_skills(skills_root)
-    except OSError as error:
-        _derive_failed(state_dir, now, "skill", None, error)
-    else:
-        observed["skill"] += [(relative, None) for relative in skills]
-    if record is not None:
-        try:
-            notes = memory_notes(record["notes_since"] or now.isoformat(), fetch_notes)
-        except Exception as error:  # noqa: BLE001 - an unreachable memory base skips this source
-            _derive_failed(state_dir, now, "notes", None, error)
-        else:
-            observed["notes"] = [note["id"] for note in notes if isinstance(note.get("id"), str)]
+        pulls = _read_source(state_dir, now, "pr", repo, lambda name=repo: repo_pull_requests(name, run_gh))
+        observed["pr"] = _extend(observed["pr"], pulls, "url", "mergedAt")
+        issues = _read_source(state_dir, now, "issue", repo, lambda name=repo: repo_issues(name, run_gh))
+        observed["issue"] = _extend(observed["issue"], issues, "url", "closedAt")
+    skills = _read_source(state_dir, now, "skill", None, lambda: profile_skills(skills_root))
+    observed["skill"] = None if skills is None else [(relative, None) for relative in skills]
+    since = (record["notes_since"] if record else None) or now.isoformat()
+    notes = _read_source(state_dir, now, "notes", None, lambda: memory_notes(since, fetch_notes))
+    observed["note"] = None if notes is None else [(note.get("id"), None) for note in notes]
     return observed
+
+
+def _extend(collected, items, ref_field: str, delivered_field: str):
+    """Add one repository's answer, keeping the kind unanswered once any repository failed."""
+
+    if collected is None or items is None:
+        return None
+    return collected + [(item.get(ref_field), item.get(delivered_field)) for item in items]
 
 
 def _states_of(record: dict, kind: str, ref: object, delivered_at: object) -> list[tuple[str, str, str]]:
@@ -208,43 +211,50 @@ def _states_of(record: dict, kind: str, ref: object, delivered_at: object) -> li
         return []
     events = []
     if ref not in record["seen"][kind]:
-        events.append(("progressed", kind, ref))
+        events.append((FIRST_SIGHT[kind], kind, ref))
     if delivered_at and ref not in record["shipped"]:
         events.append(("shipped", kind, ref))
     return events
 
 
 def score_artefacts(state_dir, now, observed: dict) -> None:
-    """Dose every collected artefact that has not been counted yet, and record what was scored."""
+    """Dose every collected artefact that has not been counted yet, and record what was scored.
+
+    A source is scored only from the tick after its first answer, so an artefact that already
+    existed is recorded as seen rather than dosed however late that source starts answering.
+    """
 
     now = desire_state.normalize_now(now)
     state_dir = Path(state_dir)
     with desire_state.state_lock(state_dir):
-        record = desire_state.read_artefacts(state_dir)
-        bootstrapping = record is None
-        if bootstrapping:
-            record = desire_state.default_artefacts(now)
+        record = desire_state.read_artefacts(state_dir) or desire_state.default_artefacts(now)
+        scored = set(record["bootstrapped"])
         candidates = []
-        for kind in desire_state.ARTEFACT_KINDS:
+        for kind in desire_state.SEEN_KINDS:
+            if observed[kind] is None:
+                continue
             for ref, delivered_at in observed[kind]:
                 candidates += _states_of(record, kind, ref, delivered_at)
-        if observed["notes"] is not None:
+            record["bootstrapped"] = sorted({*record["bootstrapped"], kind})
+        if observed["note"] is not None:
             record["notes_since"] = now.isoformat()
-            candidates += [("learned", "note", note_id) for note_id in observed["notes"]]
 
-        for event, kind, ref in candidates:
-            if event == "shipped":
-                record["shipped"].append(ref)
-            elif kind in record["seen"]:
-                record["seen"][kind].append(ref)
-            if bootstrapping:
-                continue
-            try:
-                desire_state.satisfy(event, ref, now, kind=kind)
-            except ValueError:
-                continue
-            record["unreported"].append({"event": event, "kind": kind, "ref": ref, "at": now.isoformat()})
-        desire_state.write_json_atomic(state_dir / "artefacts.json", record)
+        try:
+            for event, kind, ref in candidates:
+                if event == "shipped":
+                    record["shipped"].append(ref)
+                else:
+                    record["seen"][kind].append(ref)
+                if kind not in scored:
+                    continue
+                try:
+                    desire_state.satisfy(event, ref, now, kind=kind, state_dir=state_dir)
+                except ValueError:
+                    continue
+                record["unreported"].append({"event": event, "kind": kind, "ref": ref, "at": now.isoformat()})
+        finally:
+            record["seen"]["note"] = record["seen"]["note"][-NOTE_MEMORY:]
+            desire_state.write_json_atomic(state_dir / "artefacts.json", record)
 
 
 def _starved(since: str | None, now: datetime) -> int:
@@ -255,15 +265,15 @@ def _starved(since: str | None, now: datetime) -> int:
     return max(0, (now - desire_state.parse_timestamp(since)) // SATURATION_STEP)
 
 
-def run(now: datetime, *, workspace_root: Path | None = None, skills_root: Path | None = None) -> str:
+def run(now: datetime) -> str:
     now = desire_state.normalize_now(now)
     profile = desire_state.profile_root()
     reachable = probe_transport()
     observed = collect_artefacts(
         desire_state.resolve_state_dir(),
         now,
-        workspace_root=workspace_root or profile / "workspace",
-        skills_root=skills_root or profile / "skills",
+        workspace_root=profile / "workspace",
+        skills_root=profile / "skills",
         run_gh=run_gh,
         fetch_notes=fetch_notes,
     )
