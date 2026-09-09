@@ -11,7 +11,7 @@ import desire_state
 
 WINDOW = timedelta(days=7)
 UNUSED_AFTER = timedelta(days=14)
-SQLITE_TIMEOUT = 2
+SQLITE_TIMEOUT_SECONDS = 2
 TICK_JOB = "natsume-desire-tick"
 VIEW_TOOL = "skill_view"
 HEADER = "skills you made (7 days):"
@@ -42,10 +42,12 @@ def _viewed(payload: object) -> list[str]:
         function = call.get("function") if isinstance(call, dict) else None
         if not isinstance(function, dict) or function.get("name") != VIEW_TOOL:
             continue
-        try:
-            arguments = json.loads(function.get("arguments") or "{}")
-        except (TypeError, ValueError):
-            continue
+        arguments = function.get("arguments") or {}
+        if isinstance(arguments, str):
+            try:
+                arguments = json.loads(arguments)
+            except ValueError:
+                continue
         name = arguments.get("name") if isinstance(arguments, dict) else None
         if isinstance(name, str) and name:
             names.append(name)
@@ -57,7 +59,7 @@ def _loads(profile: Path, since: datetime) -> dict[str, dict[str, int]]:
 
     prefix = _tick_prefix(profile)
     uri = f"{(profile / 'state.db').as_uri()}?mode=ro"
-    connection = sqlite3.connect(uri, uri=True, timeout=SQLITE_TIMEOUT)
+    connection = sqlite3.connect(uri, uri=True, timeout=SQLITE_TIMEOUT_SECONDS)
     try:
         rows = connection.execute(
             "SELECT session_id, tool_calls FROM messages "
@@ -87,20 +89,22 @@ def _usage(profile: Path) -> dict[str, dict]:
 
 
 def _stamp(value: object) -> str:
-    if not isinstance(value, str):
+    """Render a usage stamp, keeping "no stamp" and "a stamp this code cannot read" apart."""
+
+    if value is None:
         return "never"
     try:
         return desire_state.parse_timestamp(value).strftime("%Y-%m-%d %H:%M")
-    except ValueError:
-        return "never"
+    except (TypeError, ValueError):
+        return "unknown"
 
 
 def _older_than(value: object, age: timedelta, now: datetime) -> bool:
-    if not isinstance(value, str):
-        return False
+    """Report whether a stamp is that old, withholding the verdict on a stamp it cannot read."""
+
     try:
         return now - desire_state.parse_timestamp(value) >= age
-    except ValueError:
+    except (TypeError, ValueError):
         return False
 
 

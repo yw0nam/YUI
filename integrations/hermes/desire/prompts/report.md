@@ -13,10 +13,10 @@ python3 <abs>/integrations/hermes/desire/act.py report --skills
 ```
 
 It prints one line per skill with the loads from your own tick and from everywhere else, and marks a skill
-`unused` when nothing outside the tick has loaded it in a week. Put the section in the report as it stands, and
-answer each `unused` line: archive that skill with `skill_manage` (state `archived`), or keep it and write one line
-in the report saying why it stays. The verdict comes back every day until the skill is archived or something loads
-it.
+`unused` when nothing outside the tick has loaded it in a week. Put the section in the report as it stands, unless
+it says `none yet` — then leave it out. Answer each `unused` line: archive that skill with `skill_manage` (state
+`archived`), or keep it and write one line in the report saying why it stays. The verdict comes back every day
+until the skill is archived or something loads it.
 
 If you produced nothing today and no skill is marked `unused`, answer exactly `[SILENT]`.
 
