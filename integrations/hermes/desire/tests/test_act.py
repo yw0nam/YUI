@@ -528,6 +528,7 @@ def test_report_posts_its_own_kind_without_touching_the_signal_budget(state_dir,
         "issues": 0,
         "self_comments": 0,
         "prs": 0,
+        "dispatches": 0,
         "events": {},
         "pending": {},
     }

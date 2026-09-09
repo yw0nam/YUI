@@ -912,7 +912,9 @@ def satisfied(state_dir: Path) -> list[dict]:
 def derive(state_dir, now, tmp_path, *, payloads=None, failing=(), notes=None, skills=(), repos=None):
     workspace = tmp_path / "workspace"
     workspace.mkdir(exist_ok=True)
-    for name, origin in (repos if repos is not None else {"YUI": "https://github.com/yw0nam/YUI.git"}).items():
+    for name, origin in (
+        repos if repos is not None else {"YUI": "https://github.com/yw0nam/YUI.git"}
+    ).items():
         if not (workspace / name).exists():
             git_repo(workspace, name, origin)
     skills_root = tmp_path / "skills"

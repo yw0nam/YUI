@@ -1,16 +1,30 @@
-"""Persist desire drive decay/growth and emit Hermes' hash-gated summary."""
+"""Persist desire drive decay/growth, derive satisfaction events, emit the hash-gated summary."""
 
 from __future__ import annotations
 
+import json
 import os
+import re
+import subprocess
 from datetime import datetime, timedelta
+from pathlib import Path
 from urllib import error as urllib_error
+from urllib import parse as urllib_parse
 from urllib import request as urllib_request
 
 import desire_state
 
 PROBE_TIMEOUT = 2
+GH_TIMEOUT = 60
+NOTES_TIMEOUT = 10
 SATURATION_STEP = timedelta(hours=3)
+DEFAULT_MEMORY_BASE_URL = "http://127.0.0.1:8010"
+NOTE_KINDS = ("note", "decision")
+BRANCH_PREFIX = "natsume/"
+ISSUE_MARKER = "<!-- from-natsume -->"
+_ORIGIN_SECTION = re.compile(r'^\[remote "origin"\]\n(.*?)(?=^\[|\Z)', re.MULTILINE | re.DOTALL)
+_ORIGIN_URL = re.compile(r"^\s*url\s*=\s*(\S+)", re.MULTILINE)
+_GITHUB_SLUG = re.compile(r"github\.com[:/](?P<owner>[^/]+)/(?P<name>[^/]+?)(?:\.git)?/?$")
 
 
 def probe_transport() -> bool:
@@ -26,6 +40,218 @@ def probe_transport() -> bool:
         return False
 
 
+def run_gh(args: list[str]) -> str:
+    """Run one `gh` command and return its stdout, raising on any failure."""
+
+    result = subprocess.run(["gh", *args], capture_output=True, text=True, timeout=GH_TIMEOUT, check=False)
+    if result.returncode != 0:
+        raise RuntimeError(result.stderr.strip() or f"gh exited {result.returncode}")
+    return result.stdout
+
+
+def fetch_notes(url: str, headers: dict[str, str]) -> bytes:
+    with urllib_request.urlopen(urllib_request.Request(url, headers=headers), timeout=NOTES_TIMEOUT) as reply:
+        return reply.read()
+
+
+def _github_slug(origin: str) -> str | None:
+    match = _GITHUB_SLUG.search(origin)
+    return f"{match['owner']}/{match['name']}" if match is not None else None
+
+
+def workspace_repos(workspace_root: Path) -> list[str]:
+    """Return `owner/name` for every workspace directory whose git origin is on GitHub."""
+
+    repos = []
+    try:
+        entries = sorted(entry for entry in Path(workspace_root).iterdir() if entry.is_dir())
+    except OSError:
+        return []
+    for entry in entries:
+        try:
+            config = (entry / ".git" / "config").read_text(encoding="utf-8")
+        except (OSError, UnicodeError):
+            continue
+        section = _ORIGIN_SECTION.search(config)
+        origin = _ORIGIN_URL.search(section.group(1)) if section is not None else None
+        slug = _github_slug(origin.group(1)) if origin is not None else None
+        if slug is not None:
+            repos.append(slug)
+    return repos
+
+
+def repo_pull_requests(repo: str, run_gh) -> list[dict]:
+    """Return the repository's own pull requests that were opened from a `natsume/` branch."""
+
+    payload = run_gh(
+        [
+            "pr",
+            "list",
+            "--repo",
+            repo,
+            "--author",
+            "@me",
+            "--state",
+            "all",
+            "--limit",
+            "100",
+            "--json",
+            "number,url,headRefName,state,mergedAt",
+        ]
+    )
+    return [
+        pull
+        for pull in json.loads(payload)
+        if isinstance(pull, dict) and str(pull.get("headRefName", "")).startswith(BRANCH_PREFIX)
+    ]
+
+
+def repo_issues(repo: str, run_gh) -> list[dict]:
+    """Return the repository's own issues whose body carries the Natsume marker."""
+
+    payload = run_gh(
+        [
+            "issue",
+            "list",
+            "--repo",
+            repo,
+            "--author",
+            "@me",
+            "--state",
+            "all",
+            "--limit",
+            "100",
+            "--json",
+            "number,url,state,closedAt,body",
+        ]
+    )
+    return [
+        issue
+        for issue in json.loads(payload)
+        if isinstance(issue, dict) and ISSUE_MARKER in str(issue.get("body", ""))
+    ]
+
+
+def profile_skills(skills_root: Path) -> list[str]:
+    """Return every skill directory under the profile, by its path relative to the skills root."""
+
+    skills_root = Path(skills_root)
+    if not skills_root.is_dir():
+        return []
+    return sorted(str(path.parent.relative_to(skills_root)) for path in skills_root.rglob("SKILL.md"))
+
+
+def memory_notes(since: str, fetch_notes) -> list[dict]:
+    """Return the notes Natsume tagged `natsume` since the cursor, without her episodes."""
+
+    base = os.environ.get("MEMORY_BASE_URL") or DEFAULT_MEMORY_BASE_URL
+    query = urllib_parse.urlencode({"since": since, "limit": 200, "tags": "natsume"})
+    payload = json.loads(fetch_notes(f"{base.rstrip('/')}/notes?{query}", {"X-API-Key": _memory_key()}))
+    notes = payload.get("notes", []) if isinstance(payload, dict) else payload
+    return [note for note in notes if isinstance(note, dict) and note.get("kind") in NOTE_KINDS]
+
+
+def _memory_key() -> str:
+    return os.environ.get("MEMORY_BASE_API_KEY", "")
+
+
+def _derive_failed(state_dir: Path, now: datetime, source: str, repo: str | None, error: Exception) -> None:
+    message = f"{type(error).__name__}: {error}".replace("\n", " ")[:200]
+    desire_state.append_jsonl(
+        state_dir / "audit.jsonl",
+        {"at": now.isoformat(), "event": "derive_failed", "source": source, "repo": repo, "error": message},
+    )
+
+
+def _artefact_candidates(
+    record: dict, state_dir: Path, now: datetime, *, workspace_root, skills_root, run_gh
+):
+    """Collect one candidate per unseen artefact, skipping and auditing a failing source."""
+
+    candidates = []
+    for repo in workspace_repos(workspace_root):
+        try:
+            pulls = repo_pull_requests(repo, run_gh)
+        except Exception as error:  # noqa: BLE001 - one failing repository must not stop the tick
+            _derive_failed(state_dir, now, "pr", repo, error)
+        else:
+            for pull in pulls:
+                candidates += _states_of(record, "pr", pull.get("url"), pull.get("mergedAt"))
+        try:
+            issues = repo_issues(repo, run_gh)
+        except Exception as error:  # noqa: BLE001 - one failing repository must not stop the tick
+            _derive_failed(state_dir, now, "issue", repo, error)
+        else:
+            for issue in issues:
+                candidates += _states_of(record, "issue", issue.get("url"), issue.get("closedAt"))
+    try:
+        skills = profile_skills(skills_root)
+    except OSError as error:
+        _derive_failed(state_dir, now, "skill", None, error)
+    else:
+        for relative in skills:
+            candidates += _states_of(record, "skill", relative, None)
+    return candidates
+
+
+def _states_of(record: dict, kind: str, ref: object, delivered_at: object) -> list[tuple[str, str, str]]:
+    """Name the events an artefact owes: its first sight, then its delivery."""
+
+    if not isinstance(ref, str) or not ref:
+        return []
+    events = []
+    if ref not in record["seen"][kind]:
+        events.append(("progressed", kind, ref))
+    if delivered_at and ref not in record["shipped"]:
+        events.append(("shipped", kind, ref))
+    return events
+
+
+def derive_events(state_dir, now, *, workspace_root, skills_root, run_gh, fetch_notes) -> None:
+    """Score the artefacts that appeared since the last tick and record what was scored."""
+
+    now = desire_state.normalize_now(now)
+    state_dir = Path(state_dir)
+    with desire_state.state_lock(state_dir):
+        record = desire_state.read_artefacts(state_dir)
+        bootstrapping = record is None
+        if bootstrapping:
+            record = desire_state.default_artefacts(now)
+        candidates = _artefact_candidates(
+            record,
+            state_dir,
+            now,
+            workspace_root=workspace_root,
+            skills_root=skills_root,
+            run_gh=run_gh,
+        )
+        since = record["notes_since"] or now.isoformat()
+        if not bootstrapping:
+            try:
+                notes = memory_notes(since, fetch_notes)
+            except Exception as error:  # noqa: BLE001 - an unreachable memory base skips this source
+                _derive_failed(state_dir, now, "notes", None, error)
+            else:
+                record["notes_since"] = now.isoformat()
+                candidates += [
+                    ("learned", "note", str(note["id"])) for note in notes if isinstance(note.get("id"), str)
+                ]
+
+        for event, kind, ref in candidates:
+            if event == "shipped":
+                record["shipped"].append(ref)
+            elif kind in record["seen"]:
+                record["seen"][kind].append(ref)
+            if bootstrapping:
+                continue
+            try:
+                desire_state.satisfy(event, ref, now, kind=kind)
+            except ValueError:
+                continue
+            record["unreported"].append({"event": event, "kind": kind, "ref": ref, "at": now.isoformat()})
+        desire_state.write_json_atomic(state_dir / "artefacts.json", record)
+
+
 def _starved(since: str | None, now: datetime) -> int:
     """Count the whole saturation steps a drive has stood at its ceiling."""
 
@@ -34,8 +260,9 @@ def _starved(since: str | None, now: datetime) -> int:
     return max(0, (now - desire_state.parse_timestamp(since)) // SATURATION_STEP)
 
 
-def run(now: datetime) -> str:
+def run(now: datetime, *, workspace_root: Path | None = None, skills_root: Path | None = None) -> str:
     now = desire_state.normalize_now(now)
+    profile = desire_state.profile_root()
     reachable = probe_transport()
     with desire_state.state_lock() as state_dir:
         state = desire_state.bootstrap_locked(state_dir, now)
@@ -113,6 +340,15 @@ def run(now: datetime) -> str:
                 "outbox": len(visible),
                 "last_interaction_at": drives["last_interaction_at"],
             },
+        )
+
+        derive_events(
+            state_dir,
+            now,
+            workspace_root=workspace_root or profile / "workspace",
+            skills_root=skills_root or profile / "skills",
+            run_gh=run_gh,
+            fetch_notes=fetch_notes,
         )
 
         remaining_signals = max(0, desire_state.CAPS["signals"] - budget["signals"])
