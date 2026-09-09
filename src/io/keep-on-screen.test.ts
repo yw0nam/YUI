@@ -192,17 +192,57 @@ describe("attachKeepOnScreen", () => {
     expect(win.setPositionPhysical).toHaveBeenCalledWith(1618, 400);
   });
 
-  it("stops evaluating after the returned unlisten runs", async () => {
-    const unlisten = await attachKeepOnScreen(win, listMonitors);
+  it("stops evaluating after the returned dispose runs", async () => {
+    const handle = await attachKeepOnScreen(win, listMonitors);
     await vi.runOnlyPendingTimersAsync();
     vi.mocked(win.setPositionPhysical).mockClear();
     vi.mocked(win.outerPosition).mockClear();
 
-    unlisten();
+    handle.dispose();
     onMovedCb();
     await vi.advanceTimersByTimeAsync(300);
 
     expect(win.outerPosition).not.toHaveBeenCalled();
     expect(win.setPositionPhysical).not.toHaveBeenCalled();
+  });
+
+  it("does not push a moved event while paused", async () => {
+    const handle = await attachKeepOnScreen(win, listMonitors);
+    await vi.runOnlyPendingTimersAsync(); // startup pass pushes to {x:1718, y:400}
+    vi.mocked(win.setPositionPhysical).mockClear();
+
+    handle.setPaused(true);
+    pos = { x: 1800, y: 400 }; // back off-screen
+    onMovedCb();
+    await vi.advanceTimersByTimeAsync(IDLE_MS);
+
+    expect(win.setPositionPhysical).not.toHaveBeenCalled();
+  });
+
+  it("clears a timer already pending when paused", async () => {
+    const handle = await attachKeepOnScreen(win, listMonitors);
+    await vi.runOnlyPendingTimersAsync(); // startup pass pushes to {x:1718, y:400}
+    vi.mocked(win.setPositionPhysical).mockClear();
+
+    pos = { x: 1800, y: 400 }; // back off-screen
+    onMovedCb(); // schedules the debounced evaluation
+    handle.setPaused(true);
+    await vi.advanceTimersByTimeAsync(IDLE_MS);
+
+    expect(win.setPositionPhysical).not.toHaveBeenCalled();
+  });
+
+  it("runs one evaluation on unpause when the window is off-screen", async () => {
+    const handle = await attachKeepOnScreen(win, listMonitors);
+    await vi.runOnlyPendingTimersAsync(); // startup pass pushes to {x:1718, y:400}
+    vi.mocked(win.setPositionPhysical).mockClear();
+
+    handle.setPaused(true);
+    pos = { x: 1800, y: 400 }; // back off-screen, while paused
+    handle.setPaused(false);
+    await vi.runOnlyPendingTimersAsync();
+
+    expect(win.setPositionPhysical).toHaveBeenCalledTimes(1);
+    expect(win.setPositionPhysical).toHaveBeenCalledWith(1718, 400);
   });
 });
