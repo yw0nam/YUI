@@ -455,9 +455,11 @@ export function wireSettingsReload(deps: {
 export interface TravelFrameHandle {
   getWindow(): PetWindow;
   travel: {
-    begin(end: { x: number; y: number }): Promise<Travel>;
+    begin(end: { x: number; y: number }, via?: Array<{ x: number; y: number }>): Promise<Travel>;
     current(): PetWindow | null;
   };
+  /** The pending end's promise, or already-resolved when no travel is ending. */
+  settled(): Promise<void>;
   /** Resolves once the real window is wired — callers await it before starting. */
   ready: Promise<void>;
   dispose(): void;
@@ -481,12 +483,16 @@ export function wireTravelFrame(deps: {
       return travel.current() ?? realWindow;
     },
     travel: {
-      begin: (end: { x: number; y: number }): Promise<Travel> => {
+      begin: (
+        end: { x: number; y: number },
+        via?: Array<{ x: number; y: number }>,
+      ): Promise<Travel> => {
         if (!travel) throw new Error("wireTravelFrame: not ready");
-        return travel.begin(end);
+        return travel.begin(end, via);
       },
       current: (): PetWindow | null => travel?.current() ?? null,
     },
+    settled: (): Promise<void> => travel?.settled() ?? Promise.resolve(),
     ready,
     dispose: () => {
       disposed = true;
@@ -500,7 +506,10 @@ export function wireTravelFrame(deps: {
     const { invoke } = await import("@tauri-apps/api/core");
     const { availableMonitors, getCurrentWindow } = await import("@tauri-apps/api/window");
     const { LogicalPosition } = await import("@tauri-apps/api/dpi");
-    if (disposed) return;
+    if (disposed) {
+      resolveReady();
+      return;
+    }
     realWindow = {
       outerPosition: () => getCurrentWindow().outerPosition(),
       outerSize: () => getCurrentWindow().outerSize(),
