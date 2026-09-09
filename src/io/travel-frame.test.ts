@@ -152,7 +152,8 @@ describe("createTravelFrame", () => {
     resolveFrame();
     await begun;
 
-    expect(setViewWindow).toHaveBeenCalledWith({ x: 0, y: 0, width: 400, height: 600 });
+    // Offset of the start rect inside the frame [-700,-600]×1400×1717.
+    expect(setViewWindow).toHaveBeenCalledWith({ x: 1000, y: 1117, width: 400, height: 600 });
   });
 
   it("ends the first travel when a second begin starts before it finishes", async () => {
