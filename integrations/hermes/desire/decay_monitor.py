@@ -195,6 +195,8 @@ def collect_artefacts(state_dir, now, *, workspace_root, skills_root, run_gh, fe
     so a partial answer is never mistaken for the complete first sight; afterwards only the failing
     repository's own contribution is dropped. The list calls carry a fixed window, so delivery is
     read from each pending artefact's own view instead of waiting for it to appear in that window.
+    The memory-note source runs only while ``MEMORY_BASE_API_KEY`` is set, so without a memory_base
+    service the `note` kind stays unread and unbootstrapped.
     """
 
     now = desire_state.normalize_now(now)
@@ -221,9 +223,11 @@ def collect_artefacts(state_dir, now, *, workspace_root, skills_root, run_gh, fe
                 observed[kind].append((url, delivered))
     skills = _read_source(state_dir, now, "skill", None, lambda: profile_skills(skills_root))
     observed["skill"] = None if skills is None else [(relative, None) for relative in skills]
-    since = (record["notes_since"] if record else None) or now.isoformat()
-    notes = _read_source(state_dir, now, "notes", None, lambda: memory_notes(since, fetch_notes))
-    observed["note"] = None if notes is None else [(note.get("id"), None) for note in notes]
+    observed["note"] = None
+    if os.environ.get("MEMORY_BASE_API_KEY"):
+        since = (record["notes_since"] if record else None) or now.isoformat()
+        notes = _read_source(state_dir, now, "notes", None, lambda: memory_notes(since, fetch_notes))
+        observed["note"] = None if notes is None else [(note.get("id"), None) for note in notes]
     return observed
 
 

@@ -118,17 +118,22 @@ Set the deployment environment for the plugin, cron jobs, monitor, and helper co
 ```bash
 export HERMES_PROFILE=natsume2
 export DESIRE_STATE_DIR="$HOME/.hermes/profiles/$HERMES_PROFILE/desire"
-export MEMORY_BASE_URL=http://127.0.0.1:8010
-export MEMORY_BASE_API_KEY=<the memory_base key>
 ```
 
-`DESIRE_STATE_DIR` is optional when the default profile path is appropriate, and `MEMORY_BASE_URL` when memory_base
-listens on the default port. `MEMORY_BASE_API_KEY` is required for the `learned` source: without it the monitor
-audits `derive_failed` for `notes` every tick and no note is ever scored. `YUI_SIGNALS_URL` defaults to
+`DESIRE_STATE_DIR` is optional when the default profile path is appropriate. `YUI_SIGNALS_URL` defaults to
 `http://127.0.0.1:8770/signals`, which assumes Hermes and YUI share a host. The `/signals` ingress listens only while
 AgentNotify is enabled in YUI's quick controls, and toggling AgentNotify requires an app restart. When Hermes runs on
 a remote host, such as when it reaches YUI through an SSH reverse tunnel, `YUI_SIGNALS_URL` must be set to the tunnel
 endpoint.
+
+Set `MEMORY_BASE_URL` and `MEMORY_BASE_API_KEY` only when a memory_base service is available. With them the monitor
+scores `learned` from Natsume's `natsume`-tagged notes, and `MEMORY_BASE_URL` is optional when memory_base listens
+on the default port. Without `MEMORY_BASE_API_KEY` the `learned` source is off: the monitor reads no notes.
+
+```bash
+export MEMORY_BASE_URL=http://127.0.0.1:8010
+export MEMORY_BASE_API_KEY=<the memory_base key>
+```
 
 Hermes monitor scripts live under `~/.hermes/scripts/`, and Hermes resolves symlinks before checking that a monitor
 script stays inside that directory, so a symlink into the YUI checkout is rejected. Install the monitor as a real file
@@ -256,13 +261,15 @@ Each derived event is appended to `unreported` and audited as `drive_satisfied` 
   identified by its path relative to the skills root. First sight scores `progressed`. This is the one source
   Natsume can add to alone, and it counts what appears rather than who put it there: a skill installed into her
   profile from outside scores too, and a nested `SKILL.md` inside an existing skill counts as its own directory.
-- **Memory notes** — `GET $MEMORY_BASE_URL/notes?since=<notes_since>&limit=200&tags=natsume` with the header
-  `X-API-Key: $MEMORY_BASE_API_KEY`. `MEMORY_BASE_URL` defaults to `http://127.0.0.1:8010`. The `default`
-  namespace is shared with other sessions, so the `natsume` tag is what separates Natsume's own notes; `tick.md`
-  tells her every note she saves must carry it. Each returned note of kind `note` or `decision` scores `learned`
-  with the note id as its `ref`; `episode` notes are ignored. The response carries a day-granular `date` only, so
-  the cursor advances to the tick time after a successful fetch and the note id in `seen` is what keeps a repeated
-  note from being scored twice.
+- **Memory notes** — read only while `MEMORY_BASE_API_KEY` is set:
+  `GET $MEMORY_BASE_URL/notes?since=<notes_since>&limit=200&tags=natsume` with the header
+  `X-API-Key: $MEMORY_BASE_API_KEY`. `MEMORY_BASE_URL` defaults to `http://127.0.0.1:8010`. Without the key the
+  monitor sends no request, audits nothing, and leaves the kind unbootstrapped, so a key set later bootstraps the
+  notes on its first answer. The `default` namespace is shared with other sessions, so the `natsume` tag is what
+  separates Natsume's own notes; `tick.md` tells her to tag every note she saves with it. Each returned note of kind
+  `note` or `decision` scores `learned` with the note id as its `ref`; `episode` notes are ignored. The response
+  carries a day-granular `date` only, so the cursor advances to the tick time after a successful fetch and the note
+  id in `seen` is what keeps a repeated note from being scored twice.
 
 A source is scored only from the tick after its first answer: everything it reported the first time is recorded as
 seen (and everything already merged or closed as shipped) without a dose, whether that first answer arrives on the

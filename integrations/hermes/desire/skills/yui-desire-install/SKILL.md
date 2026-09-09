@@ -53,15 +53,20 @@ Append to the profile `.env` (`~/.hermes/profiles/<profile>/.env`, or `~/.hermes
 HERMES_PROFILE=<profile>
 DESIRE_STATE_DIR=/home/<user>/.hermes/profiles/<profile>/desire
 YUI_SIGNALS_URL=http://127.0.0.1:8770/signals
-MEMORY_BASE_URL=http://127.0.0.1:8010
-MEMORY_BASE_API_KEY=<the memory_base key>
 ```
 
 `YUI_SIGNALS_URL` must point at YUI's `/signals` ingress. When YUI runs on another machine and reaches this host
-through an SSH reverse tunnel, use the tunnel endpoint instead of port 8770. `MEMORY_BASE_URL` and
-`MEMORY_BASE_API_KEY` are what the monitor reads memory notes with; without the key it audits `derive_failed` for
-`notes` every tick and scores no `learned` event. Check: `grep DESIRE_STATE_DIR` on the `.env` file prints the
-line.
+through an SSH reverse tunnel, use the tunnel endpoint instead of port 8770. Check: `grep DESIRE_STATE_DIR` on the
+`.env` file prints the line.
+
+Add these two lines only when a memory_base service is available. With them the monitor scores `learned` from
+Natsume's `natsume`-tagged notes; without `MEMORY_BASE_API_KEY` the `learned` source is off and the monitor reads
+no notes.
+
+```
+MEMORY_BASE_URL=http://127.0.0.1:8010
+MEMORY_BASE_API_KEY=<the memory_base key>
+```
 
 ## 4. Monitor script (real file, not a symlink)
 
