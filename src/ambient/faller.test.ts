@@ -341,6 +341,11 @@ function makeHarness(
   const fallTo = async (y: number): Promise<void> => {
     for (let i = 0; i < 240 && positions.at(-1)?.y !== y; i++) await frame();
   };
+  const beginFall = async (): Promise<{ done: Promise<void> }> => {
+    const done = faller.drop();
+    for (let i = 0; i < 6; i++) await Promise.resolve();
+    return { done };
+  };
 
   return {
     faller,
@@ -352,6 +357,7 @@ function makeHarness(
     cues,
     ends,
     frame,
+    beginFall,
     fallToFloor,
     fallTo,
     windowReads: () => windowReads,
@@ -368,7 +374,7 @@ function makeHarness(
 describe("createFaller", () => {
   it("plays the falling clip and reports the start when the drop lands mid-air", async () => {
     const h = makeHarness();
-    await h.faller.drop();
+    await h.beginFall();
     expect(h.motions).toEqual([{ id: FALL_MOTION_ID }]);
     expect(h.starts).toHaveBeenCalledTimes(1);
     expect(h.hasTick()).toBe(true);
@@ -376,8 +382,16 @@ describe("createFaller", () => {
 
   it("accelerates down to the floor, then plays landing and reports the height", async () => {
     const h = makeHarness();
-    await h.faller.drop();
+    const { done } = await h.beginFall();
+    let settled = false;
+    void done.then(() => {
+      settled = true;
+    });
+    await h.frame();
+    expect(settled).toBe(false);
     await h.fallToFloor();
+    await done;
+    expect(settled).toBe(true);
 
     expect(h.positions.at(-1)).toEqual({ x: WINDOW_POS.x, y: GROUNDED_Y });
     expect(h.positions.length).toBeGreaterThan(5);
@@ -399,7 +413,7 @@ describe("createFaller", () => {
 
   it("clamps a long frame delta so a throttled gap does not teleport to the floor", async () => {
     const h = makeHarness();
-    await h.faller.drop();
+    await h.beginFall();
     await h.frame(5);
     expect(h.positions.at(-1)!.y).toBeLessThan(GROUNDED_Y);
     expect(h.lands).not.toHaveBeenCalled();
@@ -418,9 +432,10 @@ describe("createFaller", () => {
 
   it("falls the same short drop when the character is small on screen", async () => {
     const h = makeHarness({ position: { x: 500, y: 1020 }, charHpx: 100 });
-    await h.faller.drop();
+    const { done } = await h.beginFall();
     expect(h.motions).toEqual([{ id: FALL_MOTION_ID }]);
     await h.fallToFloor();
+    await done;
     expect(h.lands).toHaveBeenCalledWith({ heightPx: 60, surface: FLOOR, fell: true });
   });
 
@@ -435,7 +450,7 @@ describe("createFaller", () => {
   it("falls in physical-px arithmetic but reports logical px on a scaled screen", async () => {
     // Scale 2 ⇒ floor 750 and feet 450 in logical px: a 300 px drop, 600 px of window travel.
     const h = makeHarness({ position: { x: 500, y: 60 }, scale: 2 });
-    await h.faller.drop();
+    const { done } = await h.beginFall();
     expect(h.motions).toEqual([{ id: FALL_MOTION_ID }]);
 
     // Gravity scales with the screen too: v = 4800 × 0.05 = 240 px/s ⇒ 12 physical px this
@@ -444,6 +459,7 @@ describe("createFaller", () => {
     expect(h.positions.at(-1)).toEqual({ x: 250, y: 36 });
 
     for (let i = 0; i < 120 && h.positions.at(-1)?.y !== 330; i++) await h.frame();
+    await done;
     expect(h.positions.at(-1)).toEqual({ x: 250, y: 330 });
     expect(h.lands).toHaveBeenCalledWith({
       heightPx: 300,
@@ -455,8 +471,9 @@ describe("createFaller", () => {
   it("moves through setPositionLogical, in logical points, on a scaled screen", async () => {
     // Scale 2 ⇒ floor 750 and feet 450 in logical px: a 300 px drop, landing at x 250.
     const h = makeHarness({ position: { x: 500, y: 60 }, scale: 2 });
-    await h.faller.drop();
+    const { done } = await h.beginFall();
     for (let i = 0; i < 120 && h.logicalCalls.at(-1)?.y !== 330; i++) await h.frame();
+    await done;
 
     expect(h.logicalCalls.length).toBeGreaterThan(0);
     expect(h.logicalCalls.at(-1)).toEqual({ x: 250, y: 330 });
@@ -496,7 +513,7 @@ describe("createFaller", () => {
 
   it("keeps descending while the pickup clip holds the body — the drag start ends it", async () => {
     const h = makeHarness();
-    await h.faller.drop();
+    const { done } = await h.beginFall();
     await h.frame();
     const movedSoFar = h.positions.length;
 
@@ -509,6 +526,7 @@ describe("createFaller", () => {
 
     // user.drag_start is what takes her out of the fall.
     h.faller.cancel();
+    await done;
     expect(h.ends).toHaveBeenCalledTimes(1);
     expect(h.motions).toEqual([{ id: FALL_MOTION_ID }]);
     const moved = h.positions.length;
@@ -519,7 +537,7 @@ describe("createFaller", () => {
 
   it("leaves an express clip that arrives mid-descent alone and keeps falling", async () => {
     const h = makeHarness();
-    await h.faller.drop();
+    await h.beginFall();
     await h.frame();
     const movedSoFar = h.positions.length;
 
@@ -535,7 +553,7 @@ describe("createFaller", () => {
 
   it("keeps falling when the drag-release envelopes return the body to the baseline", async () => {
     const h = makeHarness();
-    await h.faller.drop();
+    const { done } = await h.beginFall();
     await h.frame();
     const movedSoFar = h.positions.length;
 
@@ -548,16 +566,18 @@ describe("createFaller", () => {
     expect(h.ends).not.toHaveBeenCalled();
 
     await h.fallToFloor();
+    await done;
     expect(h.lands).toHaveBeenCalledWith({ heightPx: 780, surface: FLOOR, fell: true });
   });
 
   it("cancel() ends a running fall and releases the falling clip", async () => {
     const h = makeHarness();
-    await h.faller.drop();
+    const { done } = await h.beginFall();
     await h.frame();
     const movedSoFar = h.positions.length;
 
     h.faller.cancel();
+    await done;
     expect(h.motions).toEqual([{ id: FALL_MOTION_ID }, null]);
     expect(h.ends).toHaveBeenCalledTimes(1);
 
@@ -581,18 +601,21 @@ describe("createFaller", () => {
 
   it("ignores a drop while a fall is already running", async () => {
     const h = makeHarness();
-    await h.faller.drop();
+    const { done } = await h.beginFall();
     await h.faller.drop();
     expect(h.motions).toEqual([{ id: FALL_MOTION_ID }]);
     expect(h.starts).toHaveBeenCalledTimes(1);
+    h.faller.cancel();
+    await done;
   });
 
   it("reaches the floor even when the clip request never takes", async () => {
     const h = makeHarness({ motionRefused: true });
-    await h.faller.drop();
+    const { done } = await h.beginFall();
     expect(h.starts).toHaveBeenCalledTimes(1);
 
     await h.fallToFloor();
+    await done;
     expect(h.positions.at(-1)).toEqual({ x: WINDOW_POS.x, y: GROUNDED_Y });
     expect(h.lands).toHaveBeenCalledWith({ heightPx: 780, surface: FLOOR, fell: true });
     expect(h.ends).toHaveBeenCalledTimes(1);
@@ -610,8 +633,9 @@ describe("createFaller", () => {
 
   it("stops on the first window top below and reports it as the landing surface", async () => {
     const h = makeHarness({ windows: async () => [CATCHER] });
-    await h.faller.drop();
+    const { done } = await h.beginFall();
     await h.fallTo(CAUGHT_Y);
+    await done;
 
     expect(h.positions.at(-1)).toEqual({ x: WINDOW_POS.x, y: CAUGHT_Y });
     expect(h.motions).toEqual([{ id: FALL_MOTION_ID }, { id: LAND_MOTION_ID }]);
@@ -641,8 +665,9 @@ describe("createFaller", () => {
 
   it("falls past the stack to the floor when the character width cannot be measured", async () => {
     const h = makeHarness({ windows: async () => [CATCHER], charWpx: null });
-    await h.faller.drop();
+    const { done } = await h.beginFall();
     await h.fallToFloor();
+    await done;
 
     expect(h.positions.at(-1)).toEqual({ x: WINDOW_POS.x, y: GROUNDED_Y });
     expect(h.lands).toHaveBeenCalledWith({ heightPx: 780, surface: FLOOR, fell: true });
@@ -651,13 +676,14 @@ describe("createFaller", () => {
   it("retargets to the floor when the window that would catch her goes away", async () => {
     let stack = [CATCHER];
     const h = makeHarness({ windows: async () => stack });
-    await h.faller.drop();
+    const { done } = await h.beginFall();
     stack = [];
 
     // A frame long enough to reach the poll cadence; the descent itself steps by MAX_STEP_DT_S.
     await h.frame(0.8);
     expect(h.positions.at(-1)!.y).toBeLessThan(CAUGHT_Y);
     await h.fallToFloor();
+    await done;
 
     expect(h.positions.at(-1)).toEqual({ x: WINDOW_POS.x, y: GROUNDED_Y });
     expect(h.lands).toHaveBeenCalledWith({ heightPx: 780, surface: FLOOR, fell: true });
@@ -666,11 +692,12 @@ describe("createFaller", () => {
   it("catches a window that slid under her after the drop began", async () => {
     let stack: WindowRect[] = [];
     const h = makeHarness({ windows: async () => stack });
-    await h.faller.drop();
+    const { done } = await h.beginFall();
     stack = [CATCHER];
 
     await h.frame(0.8);
     await h.fallTo(CAUGHT_Y);
+    await done;
 
     expect(h.positions.at(-1)).toEqual({ x: WINDOW_POS.x, y: CAUGHT_Y });
     expect(h.lands).toHaveBeenCalledWith({
@@ -682,7 +709,7 @@ describe("createFaller", () => {
 
   it("reads the window stack on the perch cadence, not on every frame", async () => {
     const h = makeHarness({ monitor: TALL_MONITOR });
-    await h.faller.drop();
+    await h.beginFall();
     // Two seconds of frames: the 700 ms cadence fits two refreshes past the drop-time read.
     for (let i = 0; i < 120; i++) await h.frame();
 
@@ -701,7 +728,7 @@ describe("createFaller", () => {
         return reads === 1 ? Promise.resolve([]) : pending.promise;
       },
     });
-    await h.faller.drop();
+    await h.beginFall();
     await h.frame(0.8);
     expect(reads).toBe(2);
 
@@ -726,9 +753,10 @@ describe("createFaller", () => {
         return reads === 1 ? Promise.resolve([]) : pending.promise;
       },
     });
-    await h.faller.drop();
+    const { done } = await h.beginFall();
     await h.frame(0.8);
     h.faller.cancel();
+    await done;
     const moved = h.positions.length;
 
     pending.resolve([CATCHER]);
@@ -742,8 +770,9 @@ describe("createFaller", () => {
   it("falls from a window whose origin hangs off the screen but whose feet do not", async () => {
     // A pet window straddling the left screen edge: origin at −100, feet at 100.
     const h = makeHarness({ position: { x: -100, y: WINDOW_POS.y } });
-    await h.faller.drop();
+    const { done } = await h.beginFall();
     await h.fallToFloor();
+    await done;
 
     expect(h.positions.at(-1)).toEqual({ x: -100, y: GROUNDED_Y });
     expect(h.lands).toHaveBeenCalledWith({ heightPx: 780, surface: FLOOR, fell: true });
@@ -764,8 +793,9 @@ describe("createFaller", () => {
 
   it("stop() ends a running fall and refuses further drops", async () => {
     const h = makeHarness();
-    await h.faller.drop();
+    const { done } = await h.beginFall();
     h.faller.stop();
+    await done;
     expect(h.ends).toHaveBeenCalledTimes(1);
     expect(h.hasTick()).toBe(false);
 
