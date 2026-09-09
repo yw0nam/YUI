@@ -1192,12 +1192,16 @@ export function createClimber(deps: ClimberDeps): Climber {
       landingX = wallStandX(edge.edgeX, edge.side, wallOffset) - w.anchorX;
     } else {
       const charWpx = renderer.getCharacterWidthPx();
-      if (charWpx === null) return;
+      // A zero width leaves a step off the leg runner can never pace off the ledge.
+      if (charWpx === null || !(charWpx > 0)) return;
       roomPx = deps.getFallConfig().land_room_frac * charWpx;
       landingX = edge.edgeX + (edge.side === "right" ? roomPx : -roomPx) - w.anchorX;
     }
     const landing = { x: landingX, y: edge.bottomY - w.anchorY };
-    travel = await deps.travel.begin(landing);
+    // The step off ends on the seam, which is above the start whenever the survey found
+    // the feet below it — the frame has to cover that origin or she is drawn off its top.
+    const stepOff = { x: landingX, y: edge.topY - w.anchorY };
+    travel = await deps.travel.begin(landing, climbDown ? undefined : [stepOff]);
     if (!alive(startedAt)) {
       const t = travel;
       travel = null;
