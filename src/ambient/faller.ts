@@ -95,8 +95,8 @@ export type FallPlan =
 
 /**
  * One drop: how far the feet are above the surface below decides between nothing, a snap
- * and a fall. All arguments and results are logical px; `toY` is the window y that grounds
- * the feet.
+ * and a fall. Feet hanging below the surface snap back up onto it. All arguments and
+ * results are logical px; `toY` is the window y that grounds the feet.
  */
 export function planFall(args: {
   /** Window origin y. */
@@ -112,7 +112,7 @@ export function planFall(args: {
 }): FallPlan {
   const { windowY, feetY, surfaceY, charHpx, cfg, tolerancePx } = args;
   const drop = surfaceY - feetY;
-  if (drop <= tolerancePx) return { kind: "none" };
+  if (Math.abs(drop) <= tolerancePx) return { kind: "none" };
   const toY = windowY + drop;
   const kind = drop < charHpx * cfg.min_drop_frac ? "snap" : "fall";
   return { kind, toY, heightPx: drop };
@@ -169,9 +169,45 @@ export interface FallerDeps {
   onEnd(): void;
 }
 
+export interface DropOptions {
+  /**
+   * A release whose feet hang just below the floor line of a monitor above them — within
+   * the snap threshold — lands on that line rather than falling down the monitor below.
+   * Off by default: a step-off standing exactly on the seam falls through it.
+   */
+  landOnSeam?: boolean;
+}
+
+/**
+ * The monitor a fall happens on: the one under the feet, or with `landOnSeam` the monitor
+ * whose floor line the feet hang just below, when there is one over them.
+ */
+export function pickFallMonitor(args: {
+  monitors: ScreenMonitor[];
+  /** Physical px. */
+  feetPhysicalX: number;
+  feetPhysicalY: number;
+  /** Logical px. */
+  feetX: number;
+  feetY: number;
+  /** How far below a floor line the feet may hang and still land on it (logical px). */
+  seamSnapPx: number | null;
+}): ScreenMonitor | null {
+  const { monitors, feetPhysicalX, feetPhysicalY, feetX, feetY, seamSnapPx } = args;
+  if (seamSnapPx !== null) {
+    const above = monitors.find((m) => {
+      const wa = logicalWorkArea(m);
+      const below = feetY - floorPx(m);
+      return feetX >= wa.x && feetX < wa.x + wa.width && below > 0 && below <= seamSnapPx;
+    });
+    if (above) return above;
+  }
+  return monitorAt(monitors, feetPhysicalX, feetPhysicalY);
+}
+
 export interface Faller {
   /** Drop from where the character hangs. Ignored while a fall is already running. */
-  drop(): Promise<void>;
+  drop(opts?: DropOptions): Promise<void>;
   /** End a running fall now. */
   cancel(): void;
   stop(): void;
@@ -336,7 +372,7 @@ export function createFaller(deps: FallerDeps): Faller {
     deps.onEnd();
   }
 
-  async function begin(settle: () => void): Promise<boolean> {
+  async function begin(settle: () => void, opts: DropOptions): Promise<boolean> {
     const startedAt = generation;
     const cfg = deps.getConfig();
     // Feet in canvas-local logical px; the window bottom sits well below them.
@@ -359,7 +395,17 @@ export function createFaller(deps: FallerDeps): Faller {
     // origin off every monitor while the character is fully on one.
     const feetPhysicalX = pos.x + feet.x * scale;
     const feetPhysicalY = pos.y + feet.y * scale;
-    const monitor = monitorAt(monitors, feetPhysicalX, feetPhysicalY);
+    const windowY = pos.y / scale;
+    const feetY = windowY + feet.y;
+    const feetX = pos.x / scale + feet.x;
+    const monitor = pickFallMonitor({
+      monitors,
+      feetPhysicalX,
+      feetPhysicalY,
+      feetX,
+      feetY,
+      seamSnapPx: opts.landOnSeam ? probe.charHpx * cfg.min_drop_frac : null,
+    });
     if (!monitor) {
       log.warn("fall_skipped", {
         reason: "no_monitor",
@@ -368,9 +414,6 @@ export function createFaller(deps: FallerDeps): Faller {
       });
       return false;
     }
-    const windowY = pos.y / scale;
-    const feetY = windowY + feet.y;
-    const feetX = pos.x / scale + feet.x;
     const floorY = floorPx(monitor);
     const minStandingTop = logicalWorkArea(monitor).y + feet.y;
     const surface = pickLandingSurface({
@@ -437,7 +480,7 @@ export function createFaller(deps: FallerDeps): Faller {
   }
 
   return {
-    async drop() {
+    async drop(opts = {}) {
       if (stopped || fall || starting) return;
       let settle!: () => void;
       const done = new Promise<void>((resolve) => {
@@ -445,7 +488,7 @@ export function createFaller(deps: FallerDeps): Faller {
       });
       starting = true;
       try {
-        if (!(await begin(settle))) settle();
+        if (!(await begin(settle, opts))) settle();
       } catch (err) {
         log.warn("fall_start_failed", { degrade: true, error: String(err) });
         settle();
