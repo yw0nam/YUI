@@ -101,6 +101,60 @@ export function logicalWorkArea(monitor: ScreenMonitor): {
   };
 }
 
+export interface DescentEdge {
+  side: "left" | "right";
+  /** Global x (logical px) of the lower monitor's screen edge. */
+  edgeX: number;
+  /** The upper floor line she leaves from. */
+  topY: number;
+  /** The lower monitor's floor line she lands on. */
+  bottomY: number;
+}
+
+/** The lower-monitor screen edges reachable from `monitor`'s floor line. */
+export function descentEdges(monitors: ScreenMonitor[], monitor: ScreenMonitor): DescentEdge[] {
+  const topY = floorPx(monitor);
+  const workArea = logicalWorkArea(monitor);
+  const left = workArea.x;
+  const right = left + workArea.width;
+  const edges: DescentEdge[] = [];
+
+  for (const lower of monitors) {
+    if (lower === monitor) continue;
+    const lowerTop = lower.position.y / lower.scaleFactor;
+    if (Math.abs(lowerTop - topY) > FLOOR_LINE_TOLERANCE_PX) continue;
+    const lowerLeft = lower.position.x / lower.scaleFactor;
+    const lowerRight = (lower.position.x + lower.size.width) / lower.scaleFactor;
+    const bottomY = floorPx(lower);
+    if (lowerLeft > left && lowerLeft < right) {
+      edges.push({ side: "right", edgeX: lowerLeft, topY, bottomY });
+    }
+    if (lowerRight > left && lowerRight < right) {
+      edges.push({ side: "left", edgeX: lowerRight, topY, bottomY });
+    }
+  }
+
+  return edges;
+}
+
+/** The descent edge at either end of `segment`, preferring the end nearest `x`. */
+export function edgeAtSegmentEnd(
+  edges: DescentEdge[],
+  segment: { left: number; right: number },
+  windowWidth: number,
+  x: number,
+): DescentEdge | null {
+  let nearest: { edge: DescentEdge; distance: number } | null = null;
+  for (const edge of edges) {
+    const end = edge.side === "right" ? segment.right : segment.left;
+    const edgeAtEnd = edge.side === "right" ? segment.right + windowWidth : segment.left;
+    if (Math.abs(edgeAtEnd - edge.edgeX) > 1) continue;
+    const distance = Math.abs(x - end);
+    if (!nearest || distance < nearest.distance) nearest = { edge, distance };
+  }
+  return nearest?.edge ?? null;
+}
+
 /**
  * Window-origin x ranges a stroll may use on `monitor`'s floor: the same-floor span minus
  * every stretch where a window of `windowWidth` standing on the line would overlap another
