@@ -43,6 +43,7 @@ import { createLogger } from "../logger";
 import type { Renderer } from "../renderer";
 import { createLegRunner } from "./clip-leg";
 import { type Rng, randRange } from "./cues";
+import type { DropOptions } from "./faller";
 import type { SeatWindow, Sitter } from "./sitter";
 import { prefersReducedMotion } from "./tier1";
 import {
@@ -520,7 +521,7 @@ export interface ClimberDeps {
     walkTo(toX: number, onAccepted?: () => void, holdClip?: boolean): Promise<"arrived" | "lost">;
     cancel(): void;
   };
-  faller: { drop(): Promise<void>; cancel(): void };
+  faller: { drop(opts?: DropOptions): Promise<void>; cancel(): void };
   /** The seat transitions: the sit onto the ledge, and the stand off it before a descent. */
   sitter: Pick<Sitter, "sitDown" | "standUp" | "cancel">;
   dropSource: {
@@ -1266,7 +1267,7 @@ export function createClimber(deps: ClimberDeps): Climber {
       fromX: at.x,
       toX: at.x + (edge.side === "right" ? distance : -distance),
       fromY: at.y,
-      // The faller resolves its monitor from the feet, so the step off has to leave them
+      // The drop resolves its monitor from the feet, so the step off has to leave them
       // exactly on the seam — a pixel above it and the drop stays on the upper monitor.
       toY: (edge.topY - w.anchorY) * w.scale,
       motionId: WALK_MOTION_ID,
@@ -1280,7 +1281,7 @@ export function createClimber(deps: ClimberDeps): Climber {
     });
     if (walked !== "done" || !alive(startedAt)) return endClimb();
     fallInFlight = true;
-    await deps.faller.drop();
+    await deps.faller.drop({ anchor: "feet" });
     fallInFlight = false;
     if (!alive(startedAt)) return;
     log.info("monitor_descended", {

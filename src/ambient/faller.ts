@@ -95,8 +95,8 @@ export type FallPlan =
 
 /**
  * One drop: how far the feet are above the surface below decides between nothing, a snap
- * and a fall. All arguments and results are logical px; `toY` is the window y that grounds
- * the feet.
+ * and a fall. Feet hanging below the surface snap back up onto it. All arguments and
+ * results are logical px; `toY` is the window y that grounds the feet.
  */
 export function planFall(args: {
   /** Window origin y. */
@@ -112,7 +112,7 @@ export function planFall(args: {
 }): FallPlan {
   const { windowY, feetY, surfaceY, charHpx, cfg, tolerancePx } = args;
   const drop = surfaceY - feetY;
-  if (drop <= tolerancePx) return { kind: "none" };
+  if (Math.abs(drop) <= tolerancePx) return { kind: "none" };
   const toY = windowY + drop;
   const kind = drop < charHpx * cfg.min_drop_frac ? "snap" : "fall";
   return { kind, toY, heightPx: drop };
@@ -169,9 +169,18 @@ export interface FallerDeps {
   onEnd(): void;
 }
 
+/**
+ * Which point picks the monitor a fall happens on. The body centre keeps a release that
+ * straddles a seam on the monitor holding most of her, so she lands on its floor line;
+ * the feet let a step-off standing exactly on the seam fall through it.
+ */
+export interface DropOptions {
+  anchor?: "body" | "feet";
+}
+
 export interface Faller {
   /** Drop from where the character hangs. Ignored while a fall is already running. */
-  drop(): Promise<void>;
+  drop(opts?: DropOptions): Promise<void>;
   /** End a running fall now. */
   cancel(): void;
   stop(): void;
@@ -336,7 +345,7 @@ export function createFaller(deps: FallerDeps): Faller {
     deps.onEnd();
   }
 
-  async function begin(settle: () => void): Promise<boolean> {
+  async function begin(settle: () => void, opts: DropOptions): Promise<boolean> {
     const startedAt = generation;
     const cfg = deps.getConfig();
     // Feet in canvas-local logical px; the window bottom sits well below them.
@@ -355,16 +364,17 @@ export function createFaller(deps: FallerDeps): Faller {
     if (stopped || generation !== startedAt) return false;
     if (!feet || !probe) return false;
     const scale = sf > 0 ? sf : 1;
-    // The feet are what stands on a surface, and a window straddling a screen edge has its
-    // origin off every monitor while the character is fully on one.
-    const feetPhysicalX = pos.x + feet.x * scale;
-    const feetPhysicalY = pos.y + feet.y * scale;
-    const monitor = monitorAt(monitors, feetPhysicalX, feetPhysicalY);
+    // A point inside the character, since a window straddling a screen edge has its origin
+    // off every monitor while she is on one.
+    const anchorY = opts.anchor === "feet" ? feet.y : feet.y - probe.charHpx / 2;
+    const anchorPhysicalX = pos.x + feet.x * scale;
+    const anchorPhysicalY = pos.y + anchorY * scale;
+    const monitor = monitorAt(monitors, anchorPhysicalX, anchorPhysicalY);
     if (!monitor) {
       log.warn("fall_skipped", {
         reason: "no_monitor",
-        x: Math.round(feetPhysicalX),
-        y: Math.round(feetPhysicalY),
+        x: Math.round(anchorPhysicalX),
+        y: Math.round(anchorPhysicalY),
       });
       return false;
     }
@@ -437,7 +447,7 @@ export function createFaller(deps: FallerDeps): Faller {
   }
 
   return {
-    async drop() {
+    async drop(opts = {}) {
       if (stopped || fall || starting) return;
       let settle!: () => void;
       const done = new Promise<void>((resolve) => {
@@ -445,7 +455,7 @@ export function createFaller(deps: FallerDeps): Faller {
       });
       starting = true;
       try {
-        if (!(await begin(settle))) settle();
+        if (!(await begin(settle, opts))) settle();
       } catch (err) {
         log.warn("fall_start_failed", { degrade: true, error: String(err) });
         settle();

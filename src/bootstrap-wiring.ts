@@ -1,6 +1,6 @@
 /** Bootstrap wiring helpers extracted from main.ts: VRM + speaker selection stores and their swap/import flows. */
 import { type Climber, type ClimbTarget, createClimber } from "./ambient/climber";
-import { createFaller, type Faller } from "./ambient/faller";
+import { createFaller, type DropOptions, type Faller } from "./ambient/faller";
 import { createJumper } from "./ambient/jumper";
 import { createPercher, type Percher, type PercherWindow } from "./ambient/percher";
 import type { Sitter } from "./ambient/sitter";
@@ -799,13 +799,13 @@ export function wireFaller(deps: {
   /** She came down on a foreign window top — the perch loop takes it from there. */
   onWindowLand: (target: WindowRect) => void;
   log: Logger;
-}): { drop(): Promise<void>; cancel(): void; dispose(): void } {
+}): { drop(opts?: DropOptions): Promise<void>; cancel(): void; dispose(): void } {
   const { bus, renderer, log } = deps;
   let faller: Faller | null = null;
   let disposed = false;
   const handle = {
-    drop: async () => {
-      if (deps.isEnabled()) await faller?.drop();
+    drop: async (opts?: DropOptions) => {
+      if (deps.isEnabled()) await faller?.drop(opts);
     },
     cancel: () => faller?.cancel(),
     dispose: () => {
@@ -893,7 +893,7 @@ export function wireClimber(deps: {
   /** A turn is in flight or speech is still playing — ambient movement stays out of the way. */
   isBusy: () => boolean;
   walker: { walkTo(toX: number): Promise<"arrived" | "lost">; cancel(): void };
-  faller: { drop(): Promise<void>; cancel(): void };
+  faller: { drop(opts?: DropOptions): Promise<void>; cancel(): void };
   sitter: Pick<Sitter, "sitDown" | "standUp" | "cancel">;
   dropSource: {
     adoptSit(

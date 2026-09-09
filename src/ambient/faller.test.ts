@@ -160,8 +160,12 @@ describe("planFall", () => {
     expect(planFall({ ...base, feetY: 1476 })).toEqual({ kind: "none" });
   });
 
-  it("does nothing when the feet hang below the floor", () => {
-    expect(planFall({ ...base, feetY: 1600 })).toEqual({ kind: "none" });
+  it("snaps feet that hang below the floor back up onto it", () => {
+    expect(planFall({ ...base, feetY: 1600 })).toEqual({ kind: "snap", toY: 500, heightPx: -100 });
+  });
+
+  it("does nothing when the feet hang below the floor within the tolerance", () => {
+    expect(planFall({ ...base, feetY: 1520 })).toEqual({ kind: "none" });
   });
 });
 
@@ -208,6 +212,22 @@ const TALL_MONITOR: ScreenMonitor = {
   workArea: { position: { x: 0, y: 0 }, size: { width: 1920, height: 6000 } },
   scaleFactor: 1,
 };
+
+/** MONITOR without a dock, so its floor line is the seam a monitor stacked below shares. */
+const UPPER_MONITOR: ScreenMonitor = {
+  ...MONITOR,
+  size: { width: 1920, height: 1500 },
+};
+/** A monitor stacked directly under UPPER_MONITOR, its top edge on the upper floor line. */
+const LOWER_MONITOR: ScreenMonitor = {
+  position: { x: 0, y: 1500 },
+  size: { width: 1920, height: 1600 },
+  workArea: { position: { x: 0, y: 1500 }, size: { width: 1920, height: 1500 } },
+  scaleFactor: 1,
+};
+/** Window y that puts the feet on the lower monitor's floor. */
+const LOWER_GROUNDED_Y = 2580;
+const LOWER_FLOOR = { kind: "floor", y: 3000 } as const;
 
 /** On-screen character width; the 0.5 fraction asks for 80 px of room either side. */
 const CHAR_WPX = 160;
@@ -257,6 +277,7 @@ function makeHarness(
     /** null models a width the renderer cannot measure (no VRM / projection failed). */
     charWpx?: number | null;
     monitor?: ScreenMonitor;
+    monitors?: ScreenMonitor[];
     windows?: () => Promise<WindowRect[]>;
   } = {},
 ) {
@@ -311,7 +332,8 @@ function makeHarness(
     }),
     currentMotionKind: () => (currentMotion ? MOTION_KINDS[currentMotion.id] : null),
     // The window's own scale factor matches the monitor it stands on.
-    listMonitors: async () => [over.monitor ?? { ...MONITOR, scaleFactor: over.scale ?? 1 }],
+    listMonitors: async () =>
+      over.monitors ?? [over.monitor ?? { ...MONITOR, scaleFactor: over.scale ?? 1 }],
     listWindows: async () => {
       windowReads++;
       return (await over.windows?.()) ?? [];
@@ -780,6 +802,64 @@ describe("createFaller", () => {
 
     expect(h.positions.at(-1)).toEqual({ x: -100, y: GROUNDED_Y });
     expect(h.lands).toHaveBeenCalledWith({ heightPx: 780, surface: FLOOR, fell: true });
+  });
+
+  it("lands a seam release on the seam: feet just below the upper floor snap up onto it", async () => {
+    // Feet 40 px below the upper monitor's floor (1500): under the 100 px snap threshold.
+    const h = makeHarness({
+      position: { x: WINDOW_POS.x, y: 1120 },
+      monitors: [UPPER_MONITOR, LOWER_MONITOR],
+    });
+    await h.faller.drop({ landOnSeam: true });
+
+    expect(h.motions).toEqual([]);
+    expect(h.positions).toEqual([{ x: WINDOW_POS.x, y: GROUNDED_Y }]);
+    expect(h.lands).not.toHaveBeenCalled();
+    expect(h.cues).not.toHaveBeenCalled();
+  });
+
+  it("falls down the lower monitor when the feet hang past the snap threshold below the seam", async () => {
+    // Feet 200 px below the seam: past the 100 px threshold, so the seam is out of reach.
+    const h = makeHarness({
+      position: { x: WINDOW_POS.x, y: 1280 },
+      monitors: [UPPER_MONITOR, LOWER_MONITOR],
+    });
+    let ended = false;
+    const done = h.faller.drop({ landOnSeam: true }).finally(() => {
+      ended = true;
+    });
+    await vi.waitFor(() => expect(ended || h.hasTick()).toBe(true));
+    await h.fallTo(LOWER_GROUNDED_Y);
+    await done;
+
+    expect(h.positions.at(-1)).toEqual({ x: WINDOW_POS.x, y: LOWER_GROUNDED_Y });
+    expect(h.lands).toHaveBeenCalledWith({ heightPx: 1300, surface: LOWER_FLOOR, fell: true });
+  });
+
+  it("falls down the lower monitor from just below the seam when not asked to land on it", async () => {
+    const h = makeHarness({
+      position: { x: WINDOW_POS.x, y: 1120 },
+      monitors: [UPPER_MONITOR, LOWER_MONITOR],
+    });
+    const { done } = await h.beginFall();
+    await h.fallTo(LOWER_GROUNDED_Y);
+    await done;
+
+    expect(h.positions.at(-1)).toEqual({ x: WINDOW_POS.x, y: LOWER_GROUNDED_Y });
+    expect(h.lands).toHaveBeenCalledWith({ heightPx: 1460, surface: LOWER_FLOOR, fell: true });
+  });
+
+  it("falls through the seam from feet resting exactly on it", async () => {
+    const h = makeHarness({
+      position: { x: WINDOW_POS.x, y: GROUNDED_Y },
+      monitors: [UPPER_MONITOR, LOWER_MONITOR],
+    });
+    const { done } = await h.beginFall();
+    await h.fallTo(LOWER_GROUNDED_Y);
+    await done;
+
+    expect(h.positions.at(-1)).toEqual({ x: WINDOW_POS.x, y: LOWER_GROUNDED_Y });
+    expect(h.lands).toHaveBeenCalledWith({ heightPx: 1500, surface: LOWER_FLOOR, fell: true });
   });
 
   it("says why it skipped a drop whose feet are on no monitor at all", async () => {
