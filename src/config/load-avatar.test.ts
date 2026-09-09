@@ -60,6 +60,10 @@ describe("loadConfig — avatar.available", () => {
         land_room_frac: 0.5,
         step_off_probability: 0.1,
       },
+      descend: {
+        chance: 0.5,
+        climb_down_chance: 0.5,
+      },
       climb: {
         interval_min_ms: 90_000,
         interval_max_ms: 180_000,
