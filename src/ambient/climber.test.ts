@@ -1864,6 +1864,44 @@ describe("createClimber — monitor descent", () => {
     expect(h.travelEndCalls()).toBe(1);
     expect(log.info).not.toHaveBeenCalledWith("monitor_descended", expect.anything());
   });
+
+  it("cancels the current fall without starting another when disabled", async () => {
+    const h = makeHarness({
+      position: upperFloorPosition,
+      windows: [],
+      monitors,
+      rng: () => 0.75,
+    });
+    h.climber.start();
+    const done = h.climber.descend(DESCENT_EDGE);
+    for (let i = 0; i < 100 && h.drop.mock.calls.length === 0; i++) await h.frame();
+
+    h.climber.setEnabled(false);
+    await done;
+
+    expect(h.drop).toHaveBeenCalledTimes(1);
+    expect(h.fallerCancel).toHaveBeenCalledTimes(1);
+    expect(h.travelEndCalls()).toBe(1);
+  });
+
+  it("cancels the current fall without starting another when hidden", async () => {
+    const h = makeHarness({
+      position: upperFloorPosition,
+      windows: [],
+      monitors,
+      rng: () => 0.75,
+    });
+    h.climber.start();
+    const done = h.climber.descend(DESCENT_EDGE);
+    for (let i = 0; i < 100 && h.drop.mock.calls.length === 0; i++) await h.frame();
+
+    h.hide();
+    await done;
+
+    expect(h.drop).toHaveBeenCalledTimes(1);
+    expect(h.fallerCancel).toHaveBeenCalledTimes(1);
+    expect(h.travelEndCalls()).toBe(1);
+  });
 });
 
 describe("createClimber — monitor wall", () => {
