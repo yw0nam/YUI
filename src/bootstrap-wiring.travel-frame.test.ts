@@ -4,11 +4,14 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 // createTravelFrame and drive the fake travel directly.
 const { createTravelFrame, fakeTravel } = vi.hoisted(() => {
   const fakeTravel = {
-    begin: vi.fn(async (_end: { x: number; y: number }) => ({
-      win: { sentinel: "virtual" },
-      end: vi.fn(async () => {}),
-    })),
+    begin: vi.fn(
+      async (_end: { x: number; y: number }, _via?: Array<{ x: number; y: number }>) => ({
+        win: { sentinel: "virtual" },
+        end: vi.fn(async () => {}),
+      }),
+    ),
     current: vi.fn(() => null as { sentinel: string } | null),
+    settled: vi.fn(async () => {}),
   };
   return {
     fakeTravel,
@@ -38,6 +41,7 @@ async function wire() {
   createTravelFrame.mockClear();
   fakeTravel.begin.mockClear();
   fakeTravel.current.mockClear();
+  fakeTravel.settled.mockClear();
   const setKeepOnScreenPaused = vi.fn();
   const handle = wireTravelFrame({
     renderer: {} as never,
@@ -101,6 +105,45 @@ describe("wireTravelFrame", () => {
 
     await handle.travel.begin({ x: 5, y: 6 });
 
-    expect(fakeTravel.begin).toHaveBeenCalledWith({ x: 5, y: 6 });
+    expect(fakeTravel.begin).toHaveBeenCalledWith({ x: 5, y: 6 }, undefined);
+  });
+
+  it("delegates travel.begin's via points to the underlying travel frame", async () => {
+    const { handle } = await wire();
+
+    await handle.travel.begin({ x: 5, y: 6 }, [{ x: 7, y: 8 }]);
+
+    expect(fakeTravel.begin).toHaveBeenCalledWith({ x: 5, y: 6 }, [{ x: 7, y: 8 }]);
+  });
+
+  it("delegates settled() to the underlying travel frame", async () => {
+    const { handle } = await wire();
+
+    await handle.settled();
+
+    expect(fakeTravel.settled).toHaveBeenCalledTimes(1);
+  });
+
+  it("settled() resolves even before the real frame is wired", async () => {
+    vi.stubGlobal("__TAURI_INTERNALS__", {});
+    const handle = wireTravelFrame({
+      renderer: {} as never,
+      setKeepOnScreenPaused: vi.fn(),
+      log: noopLog,
+    });
+
+    await expect(handle.settled()).resolves.toBeUndefined();
+  });
+
+  it("resolves ready even when disposed before the dynamic imports settle", async () => {
+    vi.stubGlobal("__TAURI_INTERNALS__", {});
+    const handle = wireTravelFrame({
+      renderer: {} as never,
+      setKeepOnScreenPaused: vi.fn(),
+      log: noopLog,
+    });
+    handle.dispose();
+
+    await expect(handle.ready).resolves.toBeUndefined();
   });
 });
