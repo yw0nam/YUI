@@ -231,16 +231,15 @@ export function createAvatarExecutor(deps: AvatarExecutorDeps): AvatarExecutor {
   }
 
   async function runCommand(command: AvatarCommand): Promise<AvatarCommandResult> {
-    const settled = deps.noteAgentMove();
+    // A cancelled climb or stroll can still be unparking its travel; wait for that before
+    // any command places or reads the window, both wrong mid-travel.
+    await deps.noteAgentMove();
     switch (command.action) {
       case "sit_on_window":
         return place({ kind: "sit", app: command.app });
       case "peek":
         return place({ kind: "peek", side: command.side });
       case "move_to":
-        // A cancelled climb or stroll can still be unparking its travel; wait for that
-        // before reading the window and the feet offset, both wrong mid-travel.
-        await settled;
         return moveTo(command.spot, command.monitor);
       case "stand_down":
         perch.release();
