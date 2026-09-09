@@ -61,7 +61,12 @@ describe("wireTravelFrame", () => {
 
     await frame.setFrameLogical(10, 20, 400, 600);
 
-    expect(invoke).toHaveBeenCalledWith("set_frame_logical", { x: 10, y: 20, width: 400, height: 600 });
+    expect(invoke).toHaveBeenCalledWith("set_frame_logical", {
+      x: 10,
+      y: 20,
+      width: 400,
+      height: 600,
+    });
   });
 
   it("passes setKeepOnScreenPaused straight through to createTravelFrame", async () => {

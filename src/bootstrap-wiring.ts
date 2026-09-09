@@ -68,6 +68,7 @@ import {
 import type { SttVad } from "./io/stt-vad";
 import { createSummonHotkey, type SummonHotkey } from "./io/summon-hotkey";
 import { isTauri } from "./io/tauri-env";
+import { createTravelFrame, type FrameWindow, type Travel } from "./io/travel-frame";
 import { deleteVoice, upsertVoice } from "./io/tts-voices";
 import { appendRecord } from "./io/turn-record-log";
 import { removeUserVoice as removeUserVoiceFile } from "./io/voice-import";
@@ -438,6 +439,85 @@ export function wireSettingsReload(deps: {
     // Speaker selection is store-only — synth reads via getActive() on the next utterance, so just reload.
     speakerSelection.reloadFromStorage();
   });
+}
+
+/**
+ * The shared travel frame: parks the real pet window once for a seam crossing (the
+ * escape stroll and the monitor-wall climb) and reports a virtual window while one
+ * runs. `getWindow` is what the walker, faller and climber read the pet window through;
+ * `travel` is what the walker and climber drive a crossing with.
+ *
+ * Tauri-only — a travel moves the real OS window, so in a plain browser (Vite dev) this
+ * is skipped and `getWindow`/`travel.begin` are never called (their callers gate on
+ * `isTauri()` too). `ready` resolves once the real window is wired; callers await it
+ * before starting, so `getWindow`/`travel.begin` are never called too early.
+ */
+export function wireTravelFrame(deps: {
+  renderer: Pick<Renderer, "setViewWindow">;
+  setKeepOnScreenPaused: (paused: boolean) => void;
+  log: Logger;
+}): {
+  getWindow(): PetWindow;
+  travel: {
+    begin(end: { x: number; y: number }): Promise<Travel>;
+    current(): PetWindow | null;
+  };
+  ready: Promise<void>;
+  dispose(): void;
+} {
+  let disposed = false;
+  let realWindow: FrameWindow | null = null;
+  let travel: ReturnType<typeof createTravelFrame> | null = null;
+  let resolveReady!: () => void;
+  const ready = new Promise<void>((resolve) => {
+    resolveReady = resolve;
+  });
+  const handle = {
+    getWindow: (): PetWindow => {
+      if (!travel || !realWindow) throw new Error("wireTravelFrame: not ready");
+      return travel.current() ?? realWindow;
+    },
+    travel: {
+      begin: (end: { x: number; y: number }): Promise<Travel> => {
+        if (!travel) throw new Error("wireTravelFrame: not ready");
+        return travel.begin(end);
+      },
+      current: (): PetWindow | null => travel?.current() ?? null,
+    },
+    ready,
+    dispose: () => {
+      disposed = true;
+    },
+  };
+  if (!isTauri()) {
+    resolveReady();
+    return handle;
+  }
+  void (async () => {
+    const { invoke } = await import("@tauri-apps/api/core");
+    const { availableMonitors, getCurrentWindow } = await import("@tauri-apps/api/window");
+    const { LogicalPosition } = await import("@tauri-apps/api/dpi");
+    if (disposed) return;
+    realWindow = {
+      outerPosition: () => getCurrentWindow().outerPosition(),
+      outerSize: () => getCurrentWindow().outerSize(),
+      scaleFactor: () => getCurrentWindow().scaleFactor(),
+      setPositionLogical: (x, y) => getCurrentWindow().setPosition(new LogicalPosition(x, y)),
+      setFrameLogical: (x, y, width, height) =>
+        invoke("set_frame_logical", { x, y, width, height }) as Promise<void>,
+    };
+    travel = createTravelFrame({
+      frame: realWindow,
+      renderer: deps.renderer,
+      listMonitors: async () => (await availableMonitors()).map(toScreenMonitor),
+      setKeepOnScreenPaused: deps.setKeepOnScreenPaused,
+    });
+    resolveReady();
+  })().catch((err) => {
+    deps.log.warn("travel_frame_wiring_failed", { degrade: true, error: String(err) });
+    resolveReady();
+  });
+  return handle;
 }
 
 /**
