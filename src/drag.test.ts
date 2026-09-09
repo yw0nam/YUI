@@ -1158,9 +1158,10 @@ describe.each([
     expect(onClick).toHaveBeenCalledWith({ x: 10, y: 20 });
   });
 
-  it("cancels the pat when the press crosses the drag threshold first", () => {
+  it("cancels the pat when the press crosses the drag threshold first", async () => {
     pointer("pointerdown");
     pointer("pointermove", { clientX: 10 });
+    await Promise.resolve();
     vi.advanceTimersByTime(PAT_HOLD_MS);
     expect(onStart).not.toHaveBeenCalled();
     expect(onEnd).not.toHaveBeenCalled();
