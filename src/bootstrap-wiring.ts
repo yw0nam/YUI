@@ -882,6 +882,8 @@ export function wireClimber(deps: {
   renderer: Renderer;
   travelFrame: TravelFrameHandle;
   getClimbConfig: () => ClimbConfig;
+  getDescendConfig: () => DescendConfig;
+  getFallConfig: () => FallConfig;
   /** The stroll's knobs — the approach reuses its floor tolerance and its reach. */
   getWalkConfig: () => WalkConfig;
   /** Registry kind of a motion id, for the "only the baseline hands the clip back" gate. */
@@ -906,7 +908,12 @@ export function wireClimber(deps: {
   /** Keep the hit-test cursor mapping accurate while the window translates. */
   setHitTestMoving: (moving: boolean) => void;
   log: Logger;
-}): { cancel(): void; setEnabled(enabled: boolean): void; dispose(): void } {
+}): {
+  cancel(): void;
+  descend(edge: DescentEdge): Promise<void>;
+  setEnabled(enabled: boolean): void;
+  dispose(): void;
+} {
   const { bus, renderer, log } = deps;
   let climber: Climber | null = null;
   let disposed = false;
@@ -914,6 +921,7 @@ export function wireClimber(deps: {
   let enabled = true;
   const handle = {
     cancel: () => climber?.cancel(),
+    descend: (edge: DescentEdge): Promise<void> => climber?.descend(edge) ?? Promise.resolve(),
     setEnabled: (v: boolean) => {
       if (disposed) return;
       enabled = v;
@@ -953,6 +961,8 @@ export function wireClimber(deps: {
       listMonitors: async () => (await availableMonitors()).map(toScreenMonitor),
       listWindows: () => invoke("list_windows") as Promise<WindowRect[]>,
       getConfig: deps.getClimbConfig,
+      getDescendConfig: deps.getDescendConfig,
+      getFallConfig: deps.getFallConfig,
       getWalkConfig: deps.getWalkConfig,
       currentMotionKind: () => {
         const current = renderer.getCurrentMotion();

@@ -604,6 +604,8 @@ const realFactories: ConfiguredBootstrapFactories = {
       renderer,
       travelFrame,
       getClimbConfig: () => config.get().avatar.climb,
+      getDescendConfig: () => config.get().avatar.descend,
+      getFallConfig: () => config.get().avatar.fall,
       getWalkConfig: () => config.get().avatar.walk,
       getMotionKind: (id) => config.get().motions[id]?.kind,
       isPeeking: () => peekStateRef?.active() ?? false,
