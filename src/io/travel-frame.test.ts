@@ -293,6 +293,64 @@ describe("createTravelFrame", () => {
     await expect(travel.settled()).resolves.toBeUndefined();
   });
 
+  it("settled() waits for a pending begin before resolving", async () => {
+    let resolveFrame!: () => void;
+    setFrameLogical = vi.fn<FrameWindow["setFrameLogical"]>(
+      () =>
+        new Promise<void>((resolve) => {
+          resolveFrame = resolve;
+        }),
+    );
+    frame.setFrameLogical = setFrameLogical;
+    const travel = makeTravel();
+
+    const begun = travel.begin(END);
+    let settledResolved = false;
+    void travel.settled().then(() => {
+      settledResolved = true;
+    });
+    for (let i = 0; i < 10; i++) await Promise.resolve();
+    expect(settledResolved).toBe(false);
+
+    resolveFrame();
+    await begun;
+    for (let i = 0; i < 10; i++) await Promise.resolve();
+    expect(settledResolved).toBe(true);
+  });
+
+  it("settled() waits for an end() the caller chains immediately onto a resolved begin", async () => {
+    // Mirrors the climber's cancel-during-begin path: `travel = await deps.travel.begin(...);
+    // if (!alive) { void t.end(); }` — no await between begin() resolving and end() starting.
+    const travel = makeTravel();
+    let resolveEnd!: () => void;
+    let callCount = 0;
+    setFrameLogical = vi.fn<FrameWindow["setFrameLogical"]>(async () => {
+      callCount++;
+      if (callCount === 2) {
+        return new Promise<void>((resolve) => {
+          resolveEnd = resolve;
+        });
+      }
+    });
+    frame.setFrameLogical = setFrameLogical;
+
+    const begun = travel.begin(END);
+    let settledResolved = false;
+    void travel.settled().then(() => {
+      settledResolved = true;
+    });
+
+    const t = await begun;
+    void t.end();
+
+    for (let i = 0; i < 10; i++) await Promise.resolve();
+    expect(settledResolved).toBe(false);
+
+    resolveEnd();
+    for (let i = 0; i < 10; i++) await Promise.resolve();
+    expect(settledResolved).toBe(true);
+  });
+
   it("includes a via origin in the frame's bounding box", async () => {
     const travel = makeTravel();
     const via = { x: -1200, y: 517 };
