@@ -1223,6 +1223,71 @@ def test_failing_notes_source_keeps_the_notes_cursor(state_dir, at, tmp_path, st
     assert read_json(state_dir / "artefacts.json")["notes_since"] == bootstrapped.isoformat()
 
 
+def test_a_memory_note_is_scored_once_even_when_the_source_repeats_it(state_dir, at, tmp_path):
+    now = at("2026-08-25T12:00:00+09:00")
+    desire_state.bootstrap(now)
+    derive(state_dir, now, tmp_path)
+    notes = [{"id": "note:a", "kind": "note"}]
+
+    derive(state_dir, now, tmp_path, notes=notes)
+    derive(state_dir, now, tmp_path, notes=notes)
+    derive(state_dir, now, tmp_path, notes=notes)
+
+    assert [(event["event_type"], event["ref"]) for event in satisfied(state_dir)] == [("learned", "note:a")]
+
+
+def test_a_source_that_failed_during_bootstrap_bootstraps_when_it_recovers(
+    state_dir, at, tmp_path, state_helpers
+):
+    _, _, read_json, _ = state_helpers
+    now = at("2026-08-25T12:00:00+09:00")
+    desire_state.bootstrap(now)
+    existing = {
+        "url": "https://github.com/yw0nam/YUI/pull/1",
+        "headRefName": "natsume/a",
+        "mergedAt": "2026-08-24T00:00:00Z",
+    }
+    payloads = {("pr", "yw0nam/YUI"): [existing]}
+
+    derive(state_dir, now, tmp_path, payloads=payloads, failing=("pr",))
+
+    assert satisfied(state_dir) == []
+    assert read_json(state_dir / "artefacts.json")["seen"]["pr"] == []
+
+    derive(state_dir, now, tmp_path, payloads=payloads)
+
+    assert satisfied(state_dir) == []
+    artefacts = read_json(state_dir / "artefacts.json")
+    assert artefacts["seen"]["pr"] == [existing["url"]]
+    assert artefacts["shipped"] == [existing["url"]]
+
+    fresh = {"url": "https://github.com/yw0nam/YUI/pull/2", "headRefName": "natsume/b", "mergedAt": None}
+    derive(state_dir, now, tmp_path, payloads={("pr", "yw0nam/YUI"): [existing, fresh]})
+
+    assert [(event["event_type"], event["ref"]) for event in satisfied(state_dir)] == [
+        ("progressed", fresh["url"])
+    ]
+
+
+def test_monitor_run_scores_a_new_skill_into_unreported(state_dir, at, isolated_profile, state_helpers):
+    _, _, read_json, _ = state_helpers
+    now = at("2026-08-25T12:00:00+09:00")
+    skills_root = isolated_profile / ".hermes" / "profiles" / "natsume2" / "skills"
+    skill(skills_root, "mcp/known")
+
+    decay_monitor.run(now)
+    skill(skills_root, "devops/new")
+    output = decay_monitor.run(now)
+
+    assert output.endswith(" rises:0 starved:0/0/0\n")
+    assert [(event["event_type"], event["ref"]) for event in satisfied(state_dir)] == [
+        ("progressed", "devops/new")
+    ]
+    assert read_json(state_dir / "artefacts.json")["unreported"] == [
+        {"event": "progressed", "kind": "skill", "ref": "devops/new", "at": now.isoformat()}
+    ]
+
+
 def test_sources_are_read_before_the_tick_takes_the_state_lock(state_dir, at, isolated_profile, monkeypatch):
     now = at("2026-08-25T12:00:00+09:00")
     workspace = isolated_profile / ".hermes" / "profiles" / "natsume2" / "workspace"

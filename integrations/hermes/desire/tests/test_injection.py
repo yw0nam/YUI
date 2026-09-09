@@ -102,6 +102,23 @@ def test_canonical_block_with_the_since_last_turn_line_is_idempotent(desire_plug
     assert desire_plugin._already_injected(text)
 
 
+def test_canonical_block_with_every_optional_line_is_idempotent(desire_plugin):
+    text = (
+        "hello\n\n<desire_state>\n"
+        "drives: social 0/100 (low) | curiosity 50/100 (mid) | accomplishment 50/100 (mid)\n"
+        "last interaction: 2026-08-25 12:00 (0h ago)\n"
+        "returned: after 5h away (one held note fits here)\n"
+        "signal transport: unknown\n"
+        "since last turn: shipped pr https://example.test/pull/1\n"
+        "last signal: 2026-08-25 09:00 — answered after 2h\n"
+        "pent-up (1):\n"
+        "- [2026-08-25 06:00] waiting\n"
+        "</desire_state>"
+    )
+
+    assert desire_plugin._already_injected(text)
+
+
 def test_canonical_block_shape_treats_unicode_separator_as_note_text(desire_plugin):
     text = (
         "hello\n\n<desire_state>\n"

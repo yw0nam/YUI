@@ -740,6 +740,24 @@ def test_serialize_desire_block_renders_the_since_last_turn_line_after_the_trans
     )
 
 
+def test_since_last_turn_line_caps_the_listed_artefacts_and_drops_unknown_entries(at):
+    now = at("2026-08-25T12:00:00+09:00")
+    levels = {"social": 0.0, "curiosity": 50.0, "accomplishment": 50.0}
+    unreported = [{"event": "progressed", "kind": "skill", "ref": f"skill/{index}"} for index in range(11)]
+    unreported.append({"event": "invented", "kind": "skill", "ref": "skill/x"})
+    unreported.append({"event": "progressed", "kind": "wish", "ref": "skill/y"})
+
+    block = desire_state.serialize_desire_block(
+        levels, [], now, last_interaction_at=now.isoformat(), unreported=unreported
+    )
+
+    line = block.split("\n")[4]
+    assert line.startswith("since last turn: progressed skill skill/0; ")
+    assert line.endswith("; progressed skill skill/7; and 3 more")
+    assert "skill/x" not in line
+    assert "skill/y" not in line
+
+
 def test_read_artefacts_reports_absent_state_and_normalizes_a_partial_record(state_dir, at, state_helpers):
     write_json, _, _, _ = state_helpers
     now = at("2026-08-25T12:00:00+09:00")
@@ -748,7 +766,8 @@ def test_read_artefacts_reports_absent_state_and_normalizes_a_partial_record(sta
 
     write_json(state_dir / "artefacts.json", {"seen": {"pr": ["u"]}, "unreported": ["bad", {"kind": "note"}]})
     record = desire_state.read_artefacts(state_dir)
-    assert record["seen"] == {"pr": ["u"], "issue": [], "skill": []}
+    assert record["seen"] == {"pr": ["u"], "issue": [], "skill": [], "note": []}
+    assert record["bootstrapped"] == []
     assert record["shipped"] == []
     assert record["unreported"] == [{"kind": "note"}]
     assert record["notes_since"] is None
@@ -758,7 +777,8 @@ def test_read_artefacts_reports_absent_state_and_normalizes_a_partial_record(sta
 
     assert desire_state.default_artefacts(now) == {
         "bootstrapped_at": now.isoformat(),
-        "seen": {"pr": [], "issue": [], "skill": []},
+        "bootstrapped": [],
+        "seen": {"pr": [], "issue": [], "skill": [], "note": []},
         "shipped": [],
         "notes_since": now.isoformat(),
         "unreported": [],
