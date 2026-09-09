@@ -133,4 +133,173 @@ describe("createTravelFrame", () => {
     await t.end();
     expect(travel.current()).toBeNull();
   });
+
+  it("applies the view offset only after the frame call resolves", async () => {
+    let resolveFrame!: () => void;
+    setFrameLogical = vi.fn<FrameWindow["setFrameLogical"]>(
+      () =>
+        new Promise<void>((resolve) => {
+          resolveFrame = resolve;
+        }),
+    );
+    frame.setFrameLogical = setFrameLogical;
+    const travel = makeTravel();
+
+    const begun = travel.begin(END);
+    for (let i = 0; i < 10; i++) await Promise.resolve();
+    expect(setViewWindow).not.toHaveBeenCalled();
+
+    resolveFrame();
+    await begun;
+
+    expect(setViewWindow).toHaveBeenCalledWith({ x: 0, y: 0, width: 400, height: 600 });
+  });
+
+  it("ends the first travel when a second begin starts before it finishes", async () => {
+    const travel = makeTravel();
+    const first = await travel.begin(END);
+    vi.mocked(setFrameLogical).mockClear();
+
+    const second = await travel.begin({ x: 100, y: 517 });
+
+    expect(setFrameLogical).toHaveBeenCalledTimes(2);
+    // The first travel's own end call, parking at its own (unmoved) origin.
+    expect(setFrameLogical).toHaveBeenNthCalledWith(1, START.x, START.y, SIZE.width, SIZE.height);
+    expect(travel.current()).toBe(second.win);
+    expect(travel.current()).not.toBe(first.win);
+  });
+
+  it("keeps current() non-null until the end frame call resolves", async () => {
+    const travel = makeTravel();
+    const t = await travel.begin(END);
+    let resolveEnd!: () => void;
+    vi.mocked(setFrameLogical).mockImplementation(
+      () =>
+        new Promise<void>((resolve) => {
+          resolveEnd = resolve;
+        }),
+    );
+
+    const ending = t.end();
+    for (let i = 0; i < 10; i++) await Promise.resolve();
+    expect(travel.current()).toBe(t.win);
+
+    resolveEnd();
+    await ending;
+    expect(travel.current()).toBeNull();
+  });
+
+  it("returns the same promise and makes one frame call when end() is called twice while pending", async () => {
+    const travel = makeTravel();
+    const t = await travel.begin(END);
+    vi.mocked(setFrameLogical).mockClear();
+    let resolveEnd!: () => void;
+    vi.mocked(setFrameLogical).mockImplementation(
+      () =>
+        new Promise<void>((resolve) => {
+          resolveEnd = resolve;
+        }),
+    );
+
+    const first = t.end();
+    const second = t.end();
+    expect(second).toBe(first);
+    expect(setFrameLogical).toHaveBeenCalledTimes(1);
+
+    resolveEnd();
+    await first;
+  });
+
+  it("resumes the guard and rethrows when begin's own frame call rejects", async () => {
+    setFrameLogical = vi.fn<FrameWindow["setFrameLogical"]>(async () => {
+      throw new Error("boom");
+    });
+    frame.setFrameLogical = setFrameLogical;
+    const travel = makeTravel();
+
+    await expect(travel.begin(END)).rejects.toThrow("boom");
+
+    expect(setKeepOnScreenPaused).toHaveBeenLastCalledWith(false);
+    expect(travel.current()).toBeNull();
+  });
+
+  it("clears the view and resumes the guard when end's own frame call rejects", async () => {
+    const travel = makeTravel();
+    const t = await travel.begin(END);
+    vi.mocked(setViewWindow).mockClear();
+    vi.mocked(setFrameLogical).mockImplementation(async () => {
+      throw new Error("boom");
+    });
+
+    await expect(t.end()).rejects.toThrow("boom");
+
+    expect(setViewWindow).toHaveBeenCalledWith(null);
+    expect(setKeepOnScreenPaused).toHaveBeenCalledWith(false);
+    expect(travel.current()).toBeNull();
+  });
+
+  it("forwards every call to the real window once the virtual window has ended", async () => {
+    const travel = makeTravel();
+    const t = await travel.begin(END);
+    await t.win.setPositionLogical(END.x, END.y);
+    await t.end();
+    vi.mocked(frame.setPositionLogical).mockClear();
+
+    await t.win.setPositionLogical(123, 456);
+    const pos = await t.win.outerPosition();
+    const size = await t.win.outerSize();
+    const scale = await t.win.scaleFactor();
+
+    expect(frame.setPositionLogical).toHaveBeenCalledWith(123, 456);
+    expect(pos).toEqual({ x: START.x * BUILTIN.scaleFactor, y: START.y * BUILTIN.scaleFactor });
+    expect(size).toEqual({
+      width: SIZE.width * BUILTIN.scaleFactor,
+      height: SIZE.height * BUILTIN.scaleFactor,
+    });
+    expect(scale).toBe(BUILTIN.scaleFactor);
+  });
+
+  it("settled() resolves once the pending end finishes", async () => {
+    const travel = makeTravel();
+    const t = await travel.begin(END);
+    let resolveEnd!: () => void;
+    vi.mocked(setFrameLogical).mockImplementation(
+      () =>
+        new Promise<void>((resolve) => {
+          resolveEnd = resolve;
+        }),
+    );
+
+    void t.end();
+    let settledResolved = false;
+    void travel.settled().then(() => {
+      settledResolved = true;
+    });
+    for (let i = 0; i < 10; i++) await Promise.resolve();
+    expect(settledResolved).toBe(false);
+
+    resolveEnd();
+    await travel.settled();
+    expect(settledResolved).toBe(true);
+  });
+
+  it("settled() resolves immediately when nothing is ending", async () => {
+    const travel = makeTravel();
+    await expect(travel.settled()).resolves.toBeUndefined();
+    const t = await travel.begin(END);
+    await expect(travel.settled()).resolves.toBeUndefined();
+    await t.end();
+    await expect(travel.settled()).resolves.toBeUndefined();
+  });
+
+  it("includes a via origin in the frame's bounding box", async () => {
+    const travel = makeTravel();
+    const via = { x: -1200, y: 517 };
+
+    await travel.begin(END, [via]);
+
+    // Bounding box of start [300,700]×[517,1117], end [-700,-300]×[-600,0], and
+    // via [-1200,-800]×[517,1117].
+    expect(setFrameLogical).toHaveBeenCalledWith(-1200, -600, 1900, 1717);
+  });
 });
