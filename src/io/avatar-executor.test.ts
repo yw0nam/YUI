@@ -468,6 +468,22 @@ describe("avatar-executor — move_to", () => {
     expect(h.noteAvatarMoved).toHaveBeenCalledTimes(1);
   });
 
+  it("waits for noteAgentMove to settle before move_to reads the window", async () => {
+    const { promise, resolve } = deferred<void>();
+    const h = harness({ noteAgentMove: vi.fn(() => promise) });
+
+    const id = h.fire("command", { action: "move_to", spot: "center" });
+    await flush();
+    expect(h.setPositionLogical).not.toHaveBeenCalled();
+    expect(h.answerOf(id)).toBeUndefined();
+
+    resolve();
+    await flush();
+
+    expect(h.setPositionLogical).toHaveBeenCalled();
+    expect(h.answerOf(id)).toEqual({ ok: true });
+  });
+
   it.each([
     ["move_to", { action: "move_to", spot: "center" }],
     ["sit_on_window", { action: "sit_on_window", app: "Notes" }],
