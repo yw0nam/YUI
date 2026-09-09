@@ -57,26 +57,21 @@ export function createTravelFrame(deps: {
   begin(end: { x: number; y: number }, via?: Array<{ x: number; y: number }>): Promise<Travel>;
   /** The virtual window while a travel runs or is ending, else null. */
   current(): PetWindow | null;
-  /** The pending end's promise, or already-resolved when nothing is ending. */
-  settled(): Promise<void>;
+  /**
+   * Ends whatever is happening right now: an active travel, or — for one still being
+   * parked — the travel `begin` is in the middle of, unparked the moment its own frame
+   * call lands, before it ever resolves to the caller. Resolves once fully unparked.
+   * Two overlapping calls settle together, since both simply await the same in-flight
+   * begin and/or end.
+   */
+  abort(): Promise<void>;
 } {
   let active: TravelState | null = null;
-  /**
-   * Set for the duration of a begin() round trip, plus one extra tick past it: a caller
-   * that immediately chains an end() onto a resolved begin (the climber's cancel-during-
-   * begin path) does so in its own very next continuation, before this clears — so
-   * `settled()` still catches that chained end() by falling through to the dynamic
-   * `active?.ending` check below only once it does.
-   */
+  /** The in-flight begin() call, if any — `abort()` awaits it to know the attempt landed. */
   let pendingBegin: Promise<unknown> | null = null;
-
-  /** Resolves one tick after `p` settles, so a caller's own reaction to `p` runs first. */
-  function afterCallerReacts(p: Promise<unknown>): Promise<void> {
-    return p.then(
-      () => new Promise<void>((resolve) => queueMicrotask(resolve)),
-      () => new Promise<void>((resolve) => queueMicrotask(resolve)),
-    );
-  }
+  /** Set by `abort()` while a begin is in flight; `begin` checks it right after its own
+   *  frame call lands and, if set, ends the travel itself before resolving to the caller. */
+  let abortRequested = false;
 
   function scaleAt(s: TravelState): number {
     return monitorAtLogical(s.monitors, s.origin.x, s.origin.y)?.scaleFactor ?? s.startScale;
@@ -140,6 +135,8 @@ export function createTravelFrame(deps: {
 
   return {
     begin(end, via = []) {
+      abortRequested = false;
+
       const attempt = (async (): Promise<Travel> => {
         if (active) await endState(active);
 
@@ -200,26 +197,37 @@ export function createTravelFrame(deps: {
           height: logicalSize.height,
         });
 
-        return { win: state.win, end: () => endState(state) };
+        const travel: Travel = { win: state.win, end: () => endState(state) };
+
+        // An abort() that arrived while this was parking ends it right here, before the
+        // caller ever sees a travel it did not ask to keep — no caller-timing dependency.
+        if (abortRequested) await endState(state);
+
+        return travel;
       })();
 
-      // Registered before `attempt` is handed back, so it runs before a caller's own
-      // reaction to it (an immediate cancel-during-begin end()) and the extra tick then
-      // lets that reaction land before `pendingBegin` clears.
-      const gate = afterCallerReacts(attempt);
-      pendingBegin = gate;
-      void gate.then(() => {
-        if (pendingBegin === gate) pendingBegin = null;
-      });
+      pendingBegin = attempt;
+      void attempt
+        .finally(() => {
+          if (pendingBegin === attempt) pendingBegin = null;
+        })
+        .catch(() => {
+          // A rejection is the caller's to handle via the returned `attempt`; this
+          // bookkeeping copy must not surface as an unhandled rejection of its own.
+        });
 
       return attempt;
     },
     current() {
       return active?.win ?? null;
     },
-    settled() {
-      if (pendingBegin) return pendingBegin.then(() => active?.ending ?? Promise.resolve());
-      return active?.ending ?? Promise.resolve();
+    async abort() {
+      if (pendingBegin) {
+        abortRequested = true;
+        await pendingBegin.catch(() => {});
+        return;
+      }
+      if (active) await endState(active);
     },
   };
 }

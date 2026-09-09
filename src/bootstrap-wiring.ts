@@ -458,8 +458,9 @@ export interface TravelFrameHandle {
     begin(end: { x: number; y: number }, via?: Array<{ x: number; y: number }>): Promise<Travel>;
     current(): PetWindow | null;
   };
-  /** The pending end's promise, or already-resolved when no travel is ending. */
-  settled(): Promise<void>;
+  /** Ends whatever travel is active or being parked right now, deterministically —
+   *  resolves once fully unparked, or immediately when nothing is in flight. */
+  abort(): Promise<void>;
   /** Resolves once the real window is wired — callers await it before starting. */
   ready: Promise<void>;
   dispose(): void;
@@ -492,7 +493,7 @@ export function wireTravelFrame(deps: {
       },
       current: (): PetWindow | null => travel?.current() ?? null,
     },
-    settled: (): Promise<void> => travel?.settled() ?? Promise.resolve(),
+    abort: (): Promise<void> => travel?.abort() ?? Promise.resolve(),
     ready,
     dispose: () => {
       disposed = true;

@@ -563,7 +563,7 @@ const realFactories: ConfiguredBootstrapFactories = {
         percherRef?.cancel();
         sitter.cancel();
         // A cancelled climb or stroll may still be unparking its travel.
-        return travelFrame.settled();
+        return travelFrame.abort();
       },
       onDragMiss: () => faller.drop(),
       onSitLost: createSitLossFall({ getClimber: () => climberRef, faller }),
@@ -644,7 +644,7 @@ const realFactories: ConfiguredBootstrapFactories = {
         });
         // A cancelled climb or stroll may still be unparking its travel; the native
         // drag waits for this before it can grab the window.
-        return travelFrame.settled();
+        return travelFrame.abort();
       },
       onDragEnd: () => {
         dragging = false;
