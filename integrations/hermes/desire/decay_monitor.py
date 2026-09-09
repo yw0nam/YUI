@@ -146,13 +146,10 @@ def memory_notes(since: str, fetch_notes) -> list[dict]:
 
     base = os.environ.get("MEMORY_BASE_URL") or DEFAULT_MEMORY_BASE_URL
     query = urllib_parse.urlencode({"since": since, "limit": 200, "tags": "natsume"})
-    payload = json.loads(fetch_notes(f"{base.rstrip('/')}/notes?{query}", {"X-API-Key": _memory_key()}))
+    headers = {"X-API-Key": os.environ.get("MEMORY_BASE_API_KEY", "")}
+    payload = json.loads(fetch_notes(f"{base.rstrip('/')}/notes?{query}", headers))
     notes = payload.get("notes", []) if isinstance(payload, dict) else payload
     return [note for note in notes if isinstance(note, dict) and note.get("kind") in NOTE_KINDS]
-
-
-def _memory_key() -> str:
-    return os.environ.get("MEMORY_BASE_API_KEY", "")
 
 
 def _derive_failed(state_dir: Path, now: datetime, source: str, repo: str | None, error: Exception) -> None:
