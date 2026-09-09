@@ -1,6 +1,6 @@
 ---
 name: yui-desire-install
-description: "Install, update, or verify the yui-desire plugin (Natsume's desire system) on this Hermes host: plugin link, env, monitor script, workspace clones, tick, reflection and report crons, kickoff."
+description: "Install, update, or verify the yui-desire plugin (the agent's desire system) on this Hermes host: plugin link, env, monitor script, workspace clones, tick, reflection and report crons, kickoff."
 version: 0.1.0
 author: yw0nam
 platforms: [linux, macos]
@@ -8,7 +8,7 @@ prerequisites:
   commands: [git, python3, hermes, gh]
 metadata:
   hermes:
-    tags: [yui, desire, natsume, install, cron]
+    tags: [yui, desire, install, cron]
 ---
 
 # yui-desire install
@@ -17,8 +17,8 @@ Installs the desire system that lives in the YUI repository at `integrations/her
 Run every step in order; each step ends with a check. Never copy the plugin out of the checkout —
 the plugin directory and prompts are read from the repository, so `git pull` updates them in place.
 
-Replace `$YUI` below with the absolute path of the YUI checkout (for example
-`/home/spow12/codes/2026_upper/agents/YUI`) and `<profile>` with the Hermes profile name (for example `natsume2`).
+Replace `$YUI` below with the absolute path of the YUI checkout, `<profile>` with the Hermes profile name, and
+`<agent>` with the agent's own slug — one short lowercase word, the name every desire convention derives from.
 Every `hermes` command takes `-p <profile>`; without it the CLI acts on the global `~/.hermes` store.
 
 ## When to use
@@ -50,18 +50,22 @@ override permission; the middleware needs none.
 Append to the profile `.env` (`~/.hermes/profiles/<profile>/.env`, or `~/.hermes/.env` for the default profile):
 
 ```
+DESIRE_AGENT_NAME=<agent>
 HERMES_PROFILE=<profile>
 DESIRE_STATE_DIR=/home/<user>/.hermes/profiles/<profile>/desire
 YUI_SIGNALS_URL=http://127.0.0.1:8770/signals
+DESIRE_CHAT_PLATFORMS=<the chat platforms the user speaks to the agent on>
 ```
 
-`YUI_SIGNALS_URL` must point at YUI's `/signals` ingress. When YUI runs on another machine and reaches this host
+`DESIRE_AGENT_NAME` and `HERMES_PROFILE` are required: without either, the monitor, the helper, and the middleware
+stop with an error naming the missing variable. `DESIRE_CHAT_PLATFORMS` is a comma-separated list of Hermes
+platform names (`telegram`, `discord`, `slack`, …); a turn from one of them counts as the user speaking even when
+it carries no `<client_context>`. `YUI_SIGNALS_URL` must point at YUI's `/signals` ingress. When YUI runs on another machine and reaches this host
 through an SSH reverse tunnel, use the tunnel endpoint instead of port 8770. Check: `grep DESIRE_STATE_DIR` on the
 `.env` file prints the line.
 
-Add these two lines only when a memory_base service is available. With them the monitor scores `learned` from
-Natsume's `natsume`-tagged notes; without `MEMORY_BASE_API_KEY` the `learned` source is off and the monitor reads
-no notes.
+Add these two lines only when a memory_base service is available. With them the monitor scores `learned` from the
+notes tagged `<agent>`; without `MEMORY_BASE_API_KEY` the `learned` source is off and the monitor reads no notes.
 
 ```
 MEMORY_BASE_URL=http://127.0.0.1:8010
@@ -75,9 +79,9 @@ the checkout is rejected as an escape. Write a real file that execs the reposito
 
 ```bash
 printf '#!/bin/sh\nexec python3 %s/integrations/hermes/desire/decay_monitor.py\n' "$YUI" \
-  > ~/.hermes/scripts/natsume-desire-monitor.sh
-chmod +x ~/.hermes/scripts/natsume-desire-monitor.sh
-~/.hermes/scripts/natsume-desire-monitor.sh
+  > ~/.hermes/scripts/<agent>-desire-monitor.sh
+chmod +x ~/.hermes/scripts/<agent>-desire-monitor.sh
+~/.hermes/scripts/<agent>-desire-monitor.sh
 ```
 
 Check: the last command prints one summary line (for example
@@ -100,41 +104,41 @@ Only artefacts that appear after it are scored.
 
 ## 5. Workspace clones
 
-Natsume works in every repository cloned under the profile workspace, and the monitor derives her `progressed` and
-`shipped` events from each of them. Give her `yw0nam/YUI` and `yw0nam/memory_layer` to start with:
+The agent works in every repository cloned under the profile workspace, and the monitor derives its `progressed`
+and `shipped` events from each of them. Clone the repositories the user wants the agent to work in, and create the
+`from-<agent>` label in each one the user's own GitHub account owns:
 
 ```bash
 gh auth status
 mkdir -p ~/.hermes/profiles/<profile>/workspace
 cd ~/.hermes/profiles/<profile>/workspace
-gh repo clone yw0nam/YUI
-gh repo clone yw0nam/memory_layer
-gh label create from-natsume --repo yw0nam/YUI
-gh label create from-natsume --repo yw0nam/memory_layer
+gh repo clone <owner>/<repo>
+gh label create from-<agent> --repo <owner>/<repo>
 ```
 
-Check: `gh auth status` reports a logged-in account with `repo` scope, both clones exist in the workspace, and
-`gh label list --repo yw0nam/YUI` shows `from-natsume`. A label that already exists makes `gh label create` exit
-non-zero; that is fine.
+Check: `gh auth status` reports a logged-in account with `repo` scope, every clone exists in the workspace, and
+`gh label list --repo <owner>/<repo>` shows `from-<agent>` for each repository that account owns. A label that
+already exists makes `gh label create` exit non-zero; that is fine.
 
 ## 6. Cron jobs
 
-The tick and the report are delivered to Youngwoo's Telegram DM. Read the DM chat id from the profile channel
-directory, the `platforms.telegram` entry whose `type` is `dm`:
+The tick and the report are delivered to the user over a channel the profile is connected to; `<target>` below is
+the Hermes delivery target for it, such as `telegram:<chat_id>`. Read the channels and their ids from the profile
+channel directory:
 
 ```bash
-python3 -c "import json,os;d=json.load(open(os.path.expanduser('~/.hermes/profiles/<profile>/channel_directory.json')));print([c['id'] for c in d['platforms']['telegram'] if c['type']=='dm'])"
+python3 -c "import json,os;d=json.load(open(os.path.expanduser('~/.hermes/profiles/<profile>/channel_directory.json')));print({p:[(c['id'],c['type']) for c in v] for p,v in d['platforms'].items()})"
 ```
 
 ```bash
-hermes -p <profile> cron create "every 10m" --name natsume-desire-tick \
-  --monitor-script natsume-desire-monitor.sh \
-  --deliver telegram:<chat_id> \
+hermes -p <profile> cron create "every 10m" --name <agent>-desire-tick \
+  --monitor-script <agent>-desire-monitor.sh \
+  --deliver <target> \
   "Follow the instructions in $YUI/integrations/hermes/desire/prompts/tick.md. The configured environment is HERMES_PROFILE=<profile>, DESIRE_STATE_DIR=<state_dir>, and YUI_SIGNALS_URL=<signals_url>."
-hermes -p <profile> cron create "0 23 * * 0" --name natsume-desire-reflection \
+hermes -p <profile> cron create "0 23 * * 0" --name <agent>-desire-reflection \
   "Follow the instructions in $YUI/integrations/hermes/desire/prompts/reflection.md. The configured environment is HERMES_PROFILE=<profile>, DESIRE_STATE_DIR=<state_dir>, and YUI_SIGNALS_URL=<signals_url>."
-hermes -p <profile> cron create "0 21 * * *" --name natsume-desire-report \
-  --deliver telegram:<chat_id> \
+hermes -p <profile> cron create "0 21 * * *" --name <agent>-desire-report \
+  --deliver <target> \
   "Follow the instructions in $YUI/integrations/hermes/desire/prompts/report.md. The configured environment is HERMES_PROFILE=<profile>, DESIRE_STATE_DIR=<state_dir>, and YUI_SIGNALS_URL=<signals_url>."
 ```
 
@@ -147,14 +151,14 @@ on it:
 ```bash
 hermes -p <profile> cron list
 hermes -p <profile> cron edit <job_id> --schedule "every 10m"
-hermes -p <profile> cron edit <job_id> --deliver telegram:<chat_id>
+hermes -p <profile> cron edit <job_id> --deliver <target>
 ```
 
 The schedule keeps the `every` prefix: a bare `10m` runs the job once, ten minutes later.
 
 The tick only wakes a turn when the monitor's one-line summary changes; an unchanged summary suppresses the run.
-Check: `hermes -p <profile> cron list` shows the three jobs, the tick one with `Monitor: natsume-desire-monitor.sh`,
-and the tick and report ones with `Deliver: telegram:<chat_id>`.
+Check: `hermes -p <profile> cron list` shows the three jobs, the tick one with
+`Monitor: <agent>-desire-monitor.sh`, and the tick and report ones with `Deliver: <target>`.
 Without `-p`, `hermes cron list` reads the global store and does not show profile jobs. After the first
 10 minutes, the tick job's `last_status` in `~/.hermes/profiles/<profile>/cron/jobs.json` is `ok`.
 
@@ -197,7 +201,7 @@ Check: `~/.hermes/profiles/<profile>/logs/gateway.log` gains `api_server connect
 signals, two issues, one self-initiated comment, one pull request, one dispatch, and the four satisfaction events
 (`learned` 6, `progressed` 6, `shipped` 4, `praised` 4 — see the README's Action budgets table for their drive
 doses). `satisfy` accepts only `praised`; the monitor derives the other three. `report --note` carries the daily
-report to YUI and has no budget; `report --skills` prints the load counts of the skills Natsume made and sends
+report to YUI and has no budget; `report --skills` prints the load counts of the skills the agent made and sends
 nothing.
 
 ## Tests (optional, needs uv)
