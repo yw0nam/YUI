@@ -878,11 +878,16 @@ def skill(skills_root: Path, relative: str) -> Path:
     return path
 
 
-def gh_runner(payloads: dict, failing: tuple = ()):
-    """Answer `gh pr list` and `gh issue list` from a `(command, repo)` table."""
+def gh_runner(payloads: dict, failing: tuple = (), views: dict | None = None):
+    """Answer `gh <kind> list` from a `(command, repo)` table and `gh <kind> view` from a url table."""
 
     def run(args: list[str]) -> str:
         command = args[0]
+        if args[1] == "view":
+            url = args[2]
+            if url in failing:
+                raise RuntimeError("gh: HTTP 404")
+            return json.dumps((views or {}).get(url, {}))
         repo = args[args.index("--repo") + 1]
         if command in failing or (command, repo) in failing:
             raise RuntimeError("gh: HTTP 404")
@@ -909,7 +914,7 @@ def satisfied(state_dir: Path) -> list[dict]:
     return audited(state_dir, "drive_satisfied")
 
 
-def derive(state_dir, now, tmp_path, *, payloads=None, failing=(), notes=None, skills=()):
+def derive(state_dir, now, tmp_path, *, payloads=None, failing=(), notes=None, skills=(), views=None):
     """Run one derivation over a workspace holding `yw0nam/YUI` and the named skills."""
 
     workspace = tmp_path / "workspace"
@@ -926,7 +931,7 @@ def derive(state_dir, now, tmp_path, *, payloads=None, failing=(), notes=None, s
         now,
         workspace_root=workspace,
         skills_root=skills_root,
-        run_gh=gh_runner(payloads or {}, failing),
+        run_gh=gh_runner(payloads or {}, failing, views),
         fetch_notes=notes_runner(notes if notes is not None else []),
     )
 
@@ -1286,6 +1291,171 @@ def test_monitor_run_scores_a_new_skill_into_unreported(state_dir, at, isolated_
     assert read_json(state_dir / "artefacts.json")["unreported"] == [
         {"event": "progressed", "kind": "skill", "ref": "devops/new", "at": now.isoformat()}
     ]
+
+
+def two_repo_workspace(tmp_path, second_origin: str) -> Path:
+    workspace = tmp_path / "workspace"
+    workspace.mkdir(exist_ok=True)
+    git_repo(workspace, "YUI", "https://github.com/yw0nam/YUI.git")
+    git_repo(workspace, "YUI-clone", second_origin)
+    return workspace
+
+
+def two_repo_tick(state_dir, now, workspace, tmp_path, payloads, failing=()):
+    return tick(
+        state_dir,
+        now,
+        workspace_root=workspace,
+        skills_root=tmp_path / "skills",
+        run_gh=gh_runner(payloads, failing),
+        fetch_notes=notes_runner([]),
+    )
+
+
+def test_two_workspace_directories_sharing_an_origin_dose_once(state_dir, at, tmp_path, state_helpers):
+    _, _, read_json, _ = state_helpers
+    now = at("2026-08-25T12:00:00+09:00")
+    desire_state.bootstrap(now)
+    workspace = two_repo_workspace(tmp_path, "https://github.com/yw0nam/YUI.git")
+    two_repo_tick(state_dir, now, workspace, tmp_path, {})
+    payloads = {
+        ("pr", "yw0nam/YUI"): [
+            {"url": "https://github.com/yw0nam/YUI/pull/7", "headRefName": "natsume/f", "mergedAt": None}
+        ]
+    }
+
+    two_repo_tick(state_dir, now, workspace, tmp_path, payloads)
+
+    assert [(event["event_type"], event["ref"]) for event in satisfied(state_dir)] == [
+        ("progressed", "https://github.com/yw0nam/YUI/pull/7")
+    ]
+    artefacts = read_json(state_dir / "artefacts.json")
+    assert artefacts["seen"]["pr"] == ["https://github.com/yw0nam/YUI/pull/7"]
+    assert read_json(state_dir / "budget.json")["events"] == {"progressed": 1}
+
+
+def test_a_repository_failing_during_bootstrap_leaves_the_kind_unbootstrapped(
+    state_dir, at, tmp_path, state_helpers
+):
+    _, _, read_json, _ = state_helpers
+    now = at("2026-08-25T12:00:00+09:00")
+    desire_state.bootstrap(now)
+    workspace = two_repo_workspace(tmp_path, "https://github.com/yw0nam/memory_layer.git")
+    healthy = {"url": "https://github.com/yw0nam/YUI/pull/8", "headRefName": "natsume/g", "mergedAt": None}
+
+    two_repo_tick(
+        state_dir,
+        now,
+        workspace,
+        tmp_path,
+        {("pr", "yw0nam/YUI"): [healthy]},
+        failing=(("pr", "yw0nam/memory_layer"),),
+    )
+
+    artefacts = read_json(state_dir / "artefacts.json")
+    assert artefacts["seen"]["pr"] == []
+    assert "pr" not in artefacts["bootstrapped"]
+    assert "issue" in artefacts["bootstrapped"]
+    assert satisfied(state_dir) == []
+
+
+def test_a_repository_failing_after_bootstrap_still_scores_the_healthy_one(
+    state_dir, at, tmp_path, state_helpers
+):
+    _, _, read_json, _ = state_helpers
+    now = at("2026-08-25T12:00:00+09:00")
+    desire_state.bootstrap(now)
+    workspace = two_repo_workspace(tmp_path, "https://github.com/yw0nam/memory_layer.git")
+    two_repo_tick(state_dir, now, workspace, tmp_path, {})
+    healthy = {"url": "https://github.com/yw0nam/YUI/pull/9", "headRefName": "natsume/h", "mergedAt": None}
+
+    two_repo_tick(
+        state_dir,
+        now,
+        workspace,
+        tmp_path,
+        {("pr", "yw0nam/YUI"): [healthy]},
+        failing=(("pr", "yw0nam/memory_layer"),),
+    )
+
+    assert [(event["event_type"], event["ref"]) for event in satisfied(state_dir)] == [
+        ("progressed", healthy["url"])
+    ]
+    assert [(event["source"], event["repo"]) for event in audited(state_dir, "derive_failed")] == [
+        ("pr", "yw0nam/memory_layer")
+    ]
+    assert read_json(state_dir / "artefacts.json")["seen"]["pr"] == [healthy["url"]]
+
+
+def test_a_merged_pull_request_outside_the_list_window_is_shipped_from_its_own_view(state_dir, at, tmp_path):
+    now = at("2026-08-25T12:00:00+09:00")
+    desire_state.bootstrap(now)
+    url = "https://github.com/yw0nam/YUI/pull/10"
+    listed = {"url": url, "headRefName": "natsume/i", "mergedAt": None}
+    derive(state_dir, now, tmp_path)
+    derive(state_dir, now, tmp_path, payloads={("pr", "yw0nam/YUI"): [listed]})
+
+    derive(state_dir, now, tmp_path, views={url: {"state": "MERGED", "mergedAt": "2026-08-25T11:00:00Z"}})
+    derive(state_dir, now, tmp_path, views={url: {"state": "MERGED", "mergedAt": "2026-08-25T11:00:00Z"}})
+
+    assert [(event["event_type"], event["ref"]) for event in satisfied(state_dir)] == [
+        ("progressed", url),
+        ("shipped", url),
+    ]
+
+
+def test_a_closed_issue_outside_the_list_window_is_shipped_from_its_own_view(state_dir, at, tmp_path):
+    now = at("2026-08-25T12:00:00+09:00")
+    desire_state.bootstrap(now)
+    url = "https://github.com/yw0nam/YUI/issues/12"
+    listed = {"url": url, "body": "<!-- from-natsume -->\nhi", "closedAt": None}
+    derive(state_dir, now, tmp_path)
+    derive(state_dir, now, tmp_path, payloads={("issue", "yw0nam/YUI"): [listed]})
+
+    derive(state_dir, now, tmp_path, views={url: {"state": "CLOSED", "closedAt": "2026-08-25T11:00:00Z"}})
+
+    assert [(event["event_type"], event["ref"]) for event in satisfied(state_dir)] == [
+        ("progressed", url),
+        ("shipped", url),
+    ]
+
+
+def test_a_failing_view_call_audits_that_artefact_and_leaves_it_for_the_next_tick(
+    state_dir, at, tmp_path, state_helpers
+):
+    _, _, read_json, _ = state_helpers
+    now = at("2026-08-25T12:00:00+09:00")
+    desire_state.bootstrap(now)
+    url = "https://github.com/yw0nam/YUI/pull/11"
+    listed = {"url": url, "headRefName": "natsume/j", "mergedAt": None}
+    derive(state_dir, now, tmp_path)
+    derive(state_dir, now, tmp_path, payloads={("pr", "yw0nam/YUI"): [listed]})
+
+    derive(state_dir, now, tmp_path, failing=(url,))
+
+    failures = audited(state_dir, "derive_failed")
+    assert [(event["source"], event["ref"]) for event in failures] == [("pr", url)]
+    assert read_json(state_dir / "artefacts.json")["shipped"] == []
+
+    derive(state_dir, now, tmp_path, views={url: {"state": "MERGED", "mergedAt": "2026-08-25T11:00:00Z"}})
+
+    assert [(event["event_type"], event["ref"]) for event in satisfied(state_dir)] == [
+        ("progressed", url),
+        ("shipped", url),
+    ]
+
+
+def test_a_malformed_ref_audits_derive_failed_instead_of_vanishing(state_dir, at, tmp_path):
+    now = at("2026-08-25T12:00:00+09:00")
+    desire_state.bootstrap(now)
+    derive(state_dir, now, tmp_path)
+
+    derive(state_dir, now, tmp_path, notes=[{"id": 12, "kind": "note"}, {"id": "note:a", "kind": "note"}])
+
+    failures = audited(state_dir, "derive_failed")
+    assert [event["source"] for event in failures] == ["note"]
+    assert "12" in failures[0]["error"]
+    assert [(event["event_type"], event["ref"]) for event in satisfied(state_dir)] == [("learned", "note:a")]
 
 
 def test_sources_are_read_before_the_tick_takes_the_state_lock(state_dir, at, isolated_profile, monkeypatch):
