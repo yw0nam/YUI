@@ -102,7 +102,10 @@ mod macos {
         // window's NSWindow*, valid for the lifetime of this call.
         let win = unsafe { &*(ns_window as *const NSWindow) };
         let screens = NSScreen::screens(_mtm).to_vec();
-        let primary_height = screens.first().map(|s| s.frame().size.height).unwrap_or(0.0);
+        let primary_height = screens
+            .first()
+            .map(|s| s.frame().size.height)
+            .unwrap_or(0.0);
         let frame = cocoa_frame(x, y, width, height, primary_height);
         win.setFrame_display(frame, true);
         Ok(())
@@ -141,13 +144,19 @@ mod macos {
         #[test]
         fn cocoa_frame_converts_a_window_above_the_primary_screen() {
             let frame = cocoa_frame(100.0, -1080.0, 400.0, 600.0, 1117.0);
-            assert_eq!(frame, NSRect::new(NSPoint::new(100.0, 1597.0), NSSize::new(400.0, 600.0)));
+            assert_eq!(
+                frame,
+                NSRect::new(NSPoint::new(100.0, 1597.0), NSSize::new(400.0, 600.0))
+            );
         }
 
         #[test]
         fn cocoa_frame_converts_a_window_on_the_primary_screen() {
             let frame = cocoa_frame(100.0, 517.0, 400.0, 600.0, 1117.0);
-            assert_eq!(frame, NSRect::new(NSPoint::new(100.0, 0.0), NSSize::new(400.0, 600.0)));
+            assert_eq!(
+                frame,
+                NSRect::new(NSPoint::new(100.0, 0.0), NSSize::new(400.0, 600.0))
+            );
         }
     }
 }
