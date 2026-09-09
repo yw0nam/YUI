@@ -1868,11 +1868,9 @@ describe("createClimber — monitor descent", () => {
       },
     ]);
     expect(h.motions).toEqual([{ id: CLIMB_DOWN_MOTION_ID }, { id: CLIMB_DOWN_LANDING_MOTION_ID }]);
-    // The hang, descend and landing legs together carry the window through the whole drop,
-    // measured in the surveyed scale's physical px; the shim writes each step back logical.
-    expect((h.at().y - startPhysicalY / 2) * 2).toBe(
-      (DESCENT_EDGE.bottomY - DESCENT_EDGE.topY) * 2,
-    );
+    // The hang, descend and landing legs are paced in the surveyed scale's physical px and
+    // the shim writes each step back logical, so together they cover the drop's own height.
+    expect(h.at().y - startPhysicalY / 2).toBe(DESCENT_EDGE.bottomY - DESCENT_EDGE.topY);
     expect(h.travelEndCalls()).toBe(1);
   });
 
