@@ -347,8 +347,15 @@ export function createWalker(deps: WalkerDeps): Walker {
     let strollWin = win;
     let started: Travel | null = null;
     if (distance > 0) {
-      started = await deps.travel.begin({ x: plan.toX, y: pos.y / scale });
+      try {
+        started = await deps.travel.begin({ x: plan.toX, y: pos.y / scale });
+      } catch (err) {
+        // The clip was already claimed above; a rejected park must not strand it playing.
+        if (renderer.getCurrentMotion()?.id === WALK_MOTION_ID) renderer.playMotion(null);
+        throw err;
+      }
       if (stopped || generation !== startedAt) {
+        if (renderer.getCurrentMotion()?.id === WALK_MOTION_ID) renderer.playMotion(null);
         void started.end();
         return;
       }
