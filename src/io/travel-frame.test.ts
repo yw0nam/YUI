@@ -280,7 +280,7 @@ describe("createTravelFrame", () => {
     expect(settledResolved).toBe(false);
 
     resolveEnd();
-    await travel.settled();
+    for (let i = 0; i < 10; i++) await Promise.resolve();
     expect(settledResolved).toBe(true);
   });
 

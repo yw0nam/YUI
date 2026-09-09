@@ -61,6 +61,22 @@ export function createTravelFrame(deps: {
   settled(): Promise<void>;
 } {
   let active: TravelState | null = null;
+  /**
+   * Set for the duration of a begin() round trip, plus one extra tick past it: a caller
+   * that immediately chains an end() onto a resolved begin (the climber's cancel-during-
+   * begin path) does so in its own very next continuation, before this clears — so
+   * `settled()` still catches that chained end() by falling through to the dynamic
+   * `active?.ending` check below only once it does.
+   */
+  let pendingBegin: Promise<unknown> | null = null;
+
+  /** Resolves one tick after `p` settles, so a caller's own reaction to `p` runs first. */
+  function afterCallerReacts(p: Promise<unknown>): Promise<void> {
+    return p.then(
+      () => new Promise<void>((resolve) => queueMicrotask(resolve)),
+      () => new Promise<void>((resolve) => queueMicrotask(resolve)),
+    );
+  }
 
   function scaleAt(s: TravelState): number {
     return monitorAtLogical(s.monitors, s.origin.x, s.origin.y)?.scaleFactor ?? s.startScale;
@@ -123,72 +139,86 @@ export function createTravelFrame(deps: {
   }
 
   return {
-    async begin(end, via = []) {
-      if (active) await endState(active);
+    begin(end, via = []) {
+      const attempt = (async (): Promise<Travel> => {
+        if (active) await endState(active);
 
-      const [pos, size, sf, monitors] = await Promise.all([
-        deps.frame.outerPosition(),
-        deps.frame.outerSize(),
-        deps.frame.scaleFactor(),
-        deps.listMonitors(),
-      ]);
-      const scale = sf > 0 ? sf : 1;
-      const start = { x: pos.x / scale, y: pos.y / scale };
-      const logicalSize = { width: size.width / scale, height: size.height / scale };
-      const points = [start, end, ...via];
-      const lefts = points.map((p) => p.x);
-      const tops = points.map((p) => p.y);
-      const rights = points.map((p) => p.x + logicalSize.width);
-      const bottoms = points.map((p) => p.y + logicalSize.height);
-      const frameRect = {
-        x: Math.min(...lefts),
-        y: Math.min(...tops),
-        width: Math.max(...rights) - Math.min(...lefts),
-        height: Math.max(...bottoms) - Math.min(...tops),
-      };
+        const [pos, size, sf, monitors] = await Promise.all([
+          deps.frame.outerPosition(),
+          deps.frame.outerSize(),
+          deps.frame.scaleFactor(),
+          deps.listMonitors(),
+        ]);
+        const scale = sf > 0 ? sf : 1;
+        const start = { x: pos.x / scale, y: pos.y / scale };
+        const logicalSize = { width: size.width / scale, height: size.height / scale };
+        const points = [start, end, ...via];
+        const lefts = points.map((p) => p.x);
+        const tops = points.map((p) => p.y);
+        const rights = points.map((p) => p.x + logicalSize.width);
+        const bottoms = points.map((p) => p.y + logicalSize.height);
+        const frameRect = {
+          x: Math.min(...lefts),
+          y: Math.min(...tops),
+          width: Math.max(...rights) - Math.min(...lefts),
+          height: Math.max(...bottoms) - Math.min(...tops),
+        };
 
-      deps.setKeepOnScreenPaused(true);
-      try {
-        await deps.frame.setFrameLogical(
-          frameRect.x,
-          frameRect.y,
-          frameRect.width,
-          frameRect.height,
-        );
-      } catch (err) {
-        deps.setKeepOnScreenPaused(false);
-        throw err;
-      }
-      log.info("travel_begin", { start, end, via, frame: frameRect });
+        deps.setKeepOnScreenPaused(true);
+        try {
+          await deps.frame.setFrameLogical(
+            frameRect.x,
+            frameRect.y,
+            frameRect.width,
+            frameRect.height,
+          );
+        } catch (err) {
+          deps.setKeepOnScreenPaused(false);
+          throw err;
+        }
+        log.info("travel_begin", { start, end, via, frame: frameRect });
 
-      const state: TravelState = {
-        origin: { ...start },
-        size: logicalSize,
-        frameRect,
-        monitors,
-        startScale: scale,
-        win: undefined as unknown as PetWindow,
-        ended: false,
-        ending: null,
-      };
-      state.win = makeVirtualWindow(() => state);
-      active = state;
+        const state: TravelState = {
+          origin: { ...start },
+          size: logicalSize,
+          frameRect,
+          monitors,
+          startScale: scale,
+          win: undefined as unknown as PetWindow,
+          ended: false,
+          ending: null,
+        };
+        state.win = makeVirtualWindow(() => state);
+        active = state;
 
-      // Applied after the frame call resolves — an offset painted before it would be
-      // a normal-size view drawn on the small pre-park canvas for one frame.
-      deps.renderer.setViewWindow({
-        x: start.x - frameRect.x,
-        y: start.y - frameRect.y,
-        width: logicalSize.width,
-        height: logicalSize.height,
+        // Applied after the frame call resolves — an offset painted before it would be
+        // a normal-size view drawn on the small pre-park canvas for one frame.
+        deps.renderer.setViewWindow({
+          x: start.x - frameRect.x,
+          y: start.y - frameRect.y,
+          width: logicalSize.width,
+          height: logicalSize.height,
+        });
+
+        return { win: state.win, end: () => endState(state) };
+      })();
+
+      // Registered before `attempt` is handed back, so it runs before a caller's own
+      // reaction to it (an immediate cancel-during-begin end()) and the extra tick then
+      // lets that reaction land before `pendingBegin` clears.
+      const gate = afterCallerReacts(attempt);
+      pendingBegin = gate;
+      void gate.then(() => {
+        if (pendingBegin === gate) pendingBegin = null;
       });
 
-      return { win: state.win, end: () => endState(state) };
+      return attempt;
     },
     current() {
       return active?.win ?? null;
     },
     settled() {
+      if (pendingBegin) return pendingBegin.then(() => active?.ending ?? Promise.resolve());
       return active?.ending ?? Promise.resolve();
     },
   };
