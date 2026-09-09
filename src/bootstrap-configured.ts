@@ -22,6 +22,7 @@ import {
   type AppConfig,
   CHAT_API_KEY_SECRET,
   type ConfigStore,
+  type DescendConfig,
   type FallConfig,
   STT_API_KEY_SECRET,
   TTS_API_KEY_SECRET,
@@ -168,6 +169,11 @@ export function createPatGesture(deps: {
 /** With the fall off, a perched stroll never steps off the ledge: nothing would catch her. */
 export function fallConfigFor(fall: FallConfig, enabled: boolean): FallConfig {
   return enabled ? fall : { ...fall, step_off_probability: 0 };
+}
+
+/** With the fall off, a monitor descent always climbs down: nothing would catch a drop. */
+export function descendConfigFor(descend: DescendConfig, enabled: boolean): DescendConfig {
+  return enabled ? descend : { ...descend, climb_down_chance: 1 };
 }
 
 /**
@@ -604,7 +610,8 @@ const realFactories: ConfiguredBootstrapFactories = {
       renderer,
       travelFrame,
       getClimbConfig: () => config.get().avatar.climb,
-      getDescendConfig: () => config.get().avatar.descend,
+      getDescendConfig: () =>
+        descendConfigFor(config.get().avatar.descend, fallSettings.get().enabled),
       getFallConfig: () => config.get().avatar.fall,
       getWalkConfig: () => config.get().avatar.walk,
       getMotionKind: (id) => config.get().motions[id]?.kind,
