@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { WalkConfig } from "../config/load";
-import type { ScreenMonitor } from "../io/screen-geometry";
+import type { PetWindow, ScreenMonitor } from "../io/screen-geometry";
 import type { RenderMotionSignal, TickContext, TickFn } from "../renderer";
 import {
   advanceX,
@@ -563,6 +563,50 @@ describe("createWalker", () => {
 
     expect(h.starts).not.toHaveBeenCalled();
     expect(h.travelBeginCalls).toEqual([]);
+  });
+
+  it("releases the walk clip when the stroll is cancelled during a pending begin", async () => {
+    const BUILTIN: ScreenMonitor = {
+      position: { x: 0, y: 0 },
+      size: { width: 3456, height: 2234 },
+      workArea: { position: { x: 0, y: 100 }, size: { width: 3456, height: 1934 } },
+      scaleFactor: 2,
+    };
+    const UPPER_LEFT: ScreenMonitor = {
+      position: { x: -992, y: -1080 },
+      size: { width: 1920, height: 1080 },
+      workArea: { position: { x: -992, y: -1055 }, size: { width: 1920, height: 1055 } },
+      scaleFactor: 1,
+    };
+    const UPPER_RIGHT: ScreenMonitor = {
+      position: { x: 928, y: -1080 },
+      size: { width: 1920, height: 1080 },
+      workArea: { position: { x: 928, y: -1055 }, size: { width: 1920, height: 1055 } },
+      scaleFactor: 1,
+    };
+    const h = makeHarness({
+      position: { x: -200, y: -447 },
+      feetY: 447,
+      monitors: [BUILTIN, UPPER_LEFT, UPPER_RIGHT],
+      rng: seqRng(0, 0, 1),
+    });
+    let resolveBegin!: (t: { win: PetWindow; end: () => Promise<void> }) => void;
+    h.fakeTravel.begin.mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          resolveBegin = resolve;
+        }),
+    );
+    h.walker.start();
+    await h.skipInterval();
+    expect(h.motions).toEqual([{ id: WALK_MOTION_ID }]);
+
+    h.walker.cancel();
+    resolveBegin({ win: {} as PetWindow, end: async () => {} });
+    for (let i = 0; i < 10; i++) await h.frame();
+
+    expect(h.motions.at(-1)).toBeNull();
+    expect(h.starts).not.toHaveBeenCalled();
   });
 
   it("picks a wide segment over a nearer sliver too narrow for any stroll distance", async () => {
