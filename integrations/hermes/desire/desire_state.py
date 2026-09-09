@@ -360,6 +360,7 @@ def default_artefacts(now: datetime) -> dict:
         "bootstrapped_at": stamp,
         "bootstrapped": [],
         "seen": {kind: [] for kind in SEEN_KINDS},
+        "skill_first_seen": {},
         "shipped": [],
         "notes_since": stamp,
         "unreported": [],
@@ -380,6 +381,7 @@ def read_artefacts(state_dir: Path) -> dict | None:
         "bootstrapped_at": value.get("bootstrapped_at"),
         "bootstrapped": [kind for kind in _text_list(value.get("bootstrapped")) if kind in SEEN_KINDS],
         "seen": {kind: _text_list(seen.get(kind)) for kind in SEEN_KINDS},
+        "skill_first_seen": _text_map(value.get("skill_first_seen")),
         "shipped": _text_list(value.get("shipped")),
         "notes_since": value.get("notes_since"),
         "unreported": [item for item in _list(value.get("unreported")) if isinstance(item, dict)],
@@ -392,6 +394,12 @@ def _list(value: object) -> list:
 
 def _text_list(value: object) -> list[str]:
     return [item for item in _list(value) if isinstance(item, str)]
+
+
+def _text_map(value: object) -> dict[str, str]:
+    if not isinstance(value, dict):
+        return {}
+    return {key: item for key, item in value.items() if isinstance(key, str) and isinstance(item, str)}
 
 
 def _default_cursor(now: datetime) -> dict:
