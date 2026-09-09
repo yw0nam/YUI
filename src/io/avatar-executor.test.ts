@@ -485,6 +485,28 @@ describe("avatar-executor — move_to", () => {
   });
 
   it.each([
+    ["sit_on_window", { action: "sit_on_window", app: "Notes" }],
+    ["peek", { action: "peek", side: "left" }],
+  ])(
+    "waits for noteAgentMove to settle before %s places the window",
+    async (_label, params) => {
+      const { promise, resolve } = deferred<void>();
+      const h = harness({ noteAgentMove: vi.fn(() => promise) });
+
+      const id = h.fire("command", params);
+      await flush();
+      expect(h.placeOn).not.toHaveBeenCalled();
+      expect(h.answerOf(id)).toBeUndefined();
+
+      resolve();
+      await flush();
+
+      expect(h.placeOn).toHaveBeenCalled();
+      expect(h.answerOf(id)).toEqual({ ok: true });
+    },
+  );
+
+  it.each([
     ["move_to", { action: "move_to", spot: "center" }],
     ["sit_on_window", { action: "sit_on_window", app: "Notes" }],
     ["peek", { action: "peek", side: "left" }],
