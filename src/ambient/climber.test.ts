@@ -1835,6 +1835,20 @@ describe("createClimber — monitor descent", () => {
     });
   });
 
+  it("does nothing when the lower monitor is gone by the time the descent starts", async () => {
+    const h = makeHarness({
+      position: upperFloorPosition,
+      windows: [],
+      monitors: [DESCENT_UPPER_LEFT],
+    });
+    h.climber.start();
+    await h.climber.descend(DESCENT_EDGE);
+
+    expect(h.travelBeginCalls).toEqual([]);
+    expect(h.starts).not.toHaveBeenCalled();
+    expect(h.walkTargets).toEqual([]);
+  });
+
   it("ends the step-off on the seam when the survey found the feet above it", async () => {
     // Feet 10 px above the seam still pass the floor tolerance, but a fall that starts
     // from there resolves to the upper monitor and never leaves it.
