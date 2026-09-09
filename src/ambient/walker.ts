@@ -25,6 +25,7 @@ import type { WalkConfig } from "../config/load";
 import type { MotionKind } from "../contract";
 import { clampToWorkArea } from "../drag";
 import {
+  clampToFloorSegments,
   floorPx,
   floorSegments,
   monitorAt,
@@ -139,6 +140,23 @@ function nearestSegment(
     }
   }
   return best ? { seg: best, distance: bestDist } : null;
+}
+
+/**
+ * The floor segments a stroll may use: wide enough for even the shortest stroll
+ * distance, so a sliver too narrow to plan a move in never wins `nearestSegment` on raw
+ * proximity alone. Shared by the ambient stroll and a directed `walkTo`'s own clamp.
+ */
+function usableFloorSegments(
+  monitors: ScreenMonitor[],
+  monitor: ScreenMonitor,
+  width: number,
+  hangPx: number,
+  cfg: WalkConfig,
+): Array<{ left: number; right: number }> {
+  return floorSegments(monitors, monitor, width, hangPx).filter(
+    (s) => s.right - s.left >= cfg.distance_min_px,
+  );
 }
 
 /** Document seam for the hidden-window guard — the renderer parks its rAF while hidden. */
@@ -303,11 +321,7 @@ export function createWalker(deps: WalkerDeps): Walker {
     // on this one's floor, and a stroll through that stretch flashes a stale frame every
     // time AppKit redraws the window across the scale boundary underneath it.
     const hangPx = size.height / scale - feet.y;
-    // A segment too narrow for even the shortest stroll distance would otherwise win
-    // nearestSegment on raw proximity and strand the stroll unable to plan a move at all.
-    const usable = floorSegments(monitors, monitor, width, hangPx).filter(
-      (s) => s.right - s.left >= cfg.distance_min_px,
-    );
+    const usable = usableFloorSegments(monitors, monitor, width, hangPx, cfg);
     const found = nearestSegment(usable, x);
     if (!found) return;
     const { seg, distance } = found;
@@ -362,26 +376,56 @@ export function createWalker(deps: WalkerDeps): Walker {
     holdClip: boolean,
   ): Promise<"arrived" | "lost" | "running"> {
     const startedAt = generation;
+    const cfg = deps.getConfig();
     const pxPerMetre = renderer.getPxPerMetre();
+    const feet = renderer.getCharacterAnchor();
     const win = deps.getWindow();
-    const [pos, sf] = await Promise.all([win.outerPosition(), win.scaleFactor()]);
+    const [pos, size, sf, monitors] = await Promise.all([
+      win.outerPosition(),
+      win.outerSize(),
+      win.scaleFactor(),
+      deps.listMonitors(),
+    ]);
     if (stopped || generation !== startedAt) return "lost";
     if (pxPerMetre === null || !(pxPerMetre > 0)) return "lost";
     const scale = sf > 0 ? sf : 1;
     const x = pos.x / scale;
-    if (x === toX) return "arrived";
+
+    // A travel exists precisely to cross a cut-out stretch, so a walk inside one is left
+    // alone; a perched ledge walk targets a foreign window's edge, not the floor, so only
+    // a floor-standing target is confined to the segments a per-frame move would flicker
+    // across.
+    let target = toX;
+    const monitor = monitorAt(monitors, pos.x, pos.y);
+    if (
+      monitor &&
+      feet &&
+      deps.travel.current() === null &&
+      onFloor(pos.y / scale + feet.y, floorPx(monitor), cfg.floor_tolerance_px)
+    ) {
+      const width = size.width / scale;
+      const hangPx = size.height / scale - feet.y;
+      const usable = usableFloorSegments(monitors, monitor, width, hangPx, cfg);
+      const clamped = clampToFloorSegments(usable, toX);
+      if (clamped !== target) {
+        log.info("walk_target_clamped", { toX: target, clamped });
+        target = clamped;
+      }
+    }
+
+    if (x === target) return "arrived";
     renderer.playMotion({ id: WALK_MOTION_ID });
     if (renderer.getCurrentMotion()?.id !== WALK_MOTION_ID) return "lost";
     stroll = {
       x,
       y: pos.y / scale,
-      toX,
+      toX: target,
       pxPerMetre,
       win,
       directed: true,
       holdClip,
     };
-    renderer.setBodyYaw(Math.sign(toX - x) * WALK_YAW_RAD, WALK_YAW_EASE_MS);
+    renderer.setBodyYaw(Math.sign(target - x) * WALK_YAW_RAD, WALK_YAW_EASE_MS);
     onAccepted?.();
     return "running";
   }
