@@ -163,35 +163,45 @@ def _derive_failed(state_dir: Path, now: datetime, source: str, repo: str | None
     )
 
 
-def _artefact_candidates(
-    record: dict, state_dir: Path, now: datetime, *, workspace_root, skills_root, run_gh
-):
-    """Collect one candidate per unseen artefact, skipping and auditing a failing source."""
+def collect_artefacts(state_dir, now, *, workspace_root, skills_root, run_gh, fetch_notes) -> dict:
+    """Read the four sources outside the state lock, so no `gh` call blocks a turn.
 
-    candidates = []
+    Each entry is ``(ref, delivered_at)``; a failing source is audited and left out. Notes are read
+    only once ``artefacts.json`` exists, since the bootstrap tick scores nothing.
+    """
+
+    now = desire_state.normalize_now(now)
+    state_dir = Path(state_dir)
+    record = desire_state.read_artefacts(state_dir)
+    observed = {kind: [] for kind in desire_state.ARTEFACT_KINDS}
+    observed["notes"] = None
     for repo in workspace_repos(workspace_root):
         try:
             pulls = repo_pull_requests(repo, run_gh)
         except Exception as error:  # noqa: BLE001 - one failing repository must not stop the tick
             _derive_failed(state_dir, now, "pr", repo, error)
         else:
-            for pull in pulls:
-                candidates += _states_of(record, "pr", pull.get("url"), pull.get("mergedAt"))
+            observed["pr"] += [(pull.get("url"), pull.get("mergedAt")) for pull in pulls]
         try:
             issues = repo_issues(repo, run_gh)
         except Exception as error:  # noqa: BLE001 - one failing repository must not stop the tick
             _derive_failed(state_dir, now, "issue", repo, error)
         else:
-            for issue in issues:
-                candidates += _states_of(record, "issue", issue.get("url"), issue.get("closedAt"))
+            observed["issue"] += [(issue.get("url"), issue.get("closedAt")) for issue in issues]
     try:
         skills = profile_skills(skills_root)
     except OSError as error:
         _derive_failed(state_dir, now, "skill", None, error)
     else:
-        for relative in skills:
-            candidates += _states_of(record, "skill", relative, None)
-    return candidates
+        observed["skill"] += [(relative, None) for relative in skills]
+    if record is not None:
+        try:
+            notes = memory_notes(record["notes_since"] or now.isoformat(), fetch_notes)
+        except Exception as error:  # noqa: BLE001 - an unreachable memory base skips this source
+            _derive_failed(state_dir, now, "notes", None, error)
+        else:
+            observed["notes"] = [note["id"] for note in notes if isinstance(note.get("id"), str)]
+    return observed
 
 
 def _states_of(record: dict, kind: str, ref: object, delivered_at: object) -> list[tuple[str, str, str]]:
@@ -207,8 +217,8 @@ def _states_of(record: dict, kind: str, ref: object, delivered_at: object) -> li
     return events
 
 
-def derive_events(state_dir, now, *, workspace_root, skills_root, run_gh, fetch_notes) -> None:
-    """Score the artefacts that appeared since the last tick and record what was scored."""
+def score_artefacts(state_dir, now, observed: dict) -> None:
+    """Dose every collected artefact that has not been counted yet, and record what was scored."""
 
     now = desire_state.normalize_now(now)
     state_dir = Path(state_dir)
@@ -217,25 +227,13 @@ def derive_events(state_dir, now, *, workspace_root, skills_root, run_gh, fetch_
         bootstrapping = record is None
         if bootstrapping:
             record = desire_state.default_artefacts(now)
-        candidates = _artefact_candidates(
-            record,
-            state_dir,
-            now,
-            workspace_root=workspace_root,
-            skills_root=skills_root,
-            run_gh=run_gh,
-        )
-        since = record["notes_since"] or now.isoformat()
-        if not bootstrapping:
-            try:
-                notes = memory_notes(since, fetch_notes)
-            except Exception as error:  # noqa: BLE001 - an unreachable memory base skips this source
-                _derive_failed(state_dir, now, "notes", None, error)
-            else:
-                record["notes_since"] = now.isoformat()
-                candidates += [
-                    ("learned", "note", str(note["id"])) for note in notes if isinstance(note.get("id"), str)
-                ]
+        candidates = []
+        for kind in desire_state.ARTEFACT_KINDS:
+            for ref, delivered_at in observed[kind]:
+                candidates += _states_of(record, kind, ref, delivered_at)
+        if observed["notes"] is not None:
+            record["notes_since"] = now.isoformat()
+            candidates += [("learned", "note", note_id) for note_id in observed["notes"]]
 
         for event, kind, ref in candidates:
             if event == "shipped":
@@ -264,6 +262,14 @@ def run(now: datetime, *, workspace_root: Path | None = None, skills_root: Path 
     now = desire_state.normalize_now(now)
     profile = desire_state.profile_root()
     reachable = probe_transport()
+    observed = collect_artefacts(
+        desire_state.resolve_state_dir(),
+        now,
+        workspace_root=workspace_root or profile / "workspace",
+        skills_root=skills_root or profile / "skills",
+        run_gh=run_gh,
+        fetch_notes=fetch_notes,
+    )
     with desire_state.state_lock() as state_dir:
         state = desire_state.bootstrap_locked(state_dir, now)
 
@@ -342,14 +348,7 @@ def run(now: datetime, *, workspace_root: Path | None = None, skills_root: Path 
             },
         )
 
-        derive_events(
-            state_dir,
-            now,
-            workspace_root=workspace_root or profile / "workspace",
-            skills_root=skills_root or profile / "skills",
-            run_gh=run_gh,
-            fetch_notes=fetch_notes,
-        )
+        score_artefacts(state_dir, now, observed)
 
         remaining_signals = max(0, desire_state.CAPS["signals"] - budget["signals"])
         remaining_issues = max(0, desire_state.CAPS["issues"] - budget["issues"])

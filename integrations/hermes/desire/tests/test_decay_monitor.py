@@ -922,7 +922,7 @@ def derive(state_dir, now, tmp_path, *, payloads=None, failing=(), notes=None, s
     for relative in skills:
         if not (skills_root / relative).exists():
             skill(skills_root, relative)
-    return decay_monitor.derive_events(
+    return tick(
         state_dir,
         now,
         workspace_root=workspace,
@@ -930,6 +930,14 @@ def derive(state_dir, now, tmp_path, *, payloads=None, failing=(), notes=None, s
         run_gh=gh_runner(payloads or {}, failing),
         fetch_notes=notes_runner(notes if notes is not None else []),
     )
+
+
+def tick(state_dir, now, **sources):
+    """Run both derivation phases the way the monitor does."""
+
+    observed = decay_monitor.collect_artefacts(state_dir, now, **sources)
+    decay_monitor.score_artefacts(state_dir, now, observed)
+    return observed
 
 
 def test_workspace_repos_reads_github_origins_only(tmp_path):
@@ -1118,7 +1126,7 @@ def test_notes_are_filtered_by_kind_and_the_cursor_advances(state_dir, at, tmp_p
     seen = []
     now = at("2026-08-25T13:00:00+09:00")
 
-    decay_monitor.derive_events(
+    tick(
         state_dir,
         now,
         workspace_root=tmp_path / "workspace",
@@ -1203,7 +1211,7 @@ def test_failing_notes_source_keeps_the_notes_cursor(state_dir, at, tmp_path, st
     def fail(url, headers):
         raise OSError("connection refused")
 
-    decay_monitor.derive_events(
+    tick(
         state_dir,
         at("2026-08-25T13:00:00+09:00"),
         workspace_root=tmp_path / "workspace",
@@ -1214,6 +1222,31 @@ def test_failing_notes_source_keeps_the_notes_cursor(state_dir, at, tmp_path, st
 
     assert [event["source"] for event in audited(state_dir, "derive_failed")] == ["notes"]
     assert read_json(state_dir / "artefacts.json")["notes_since"] == bootstrapped.isoformat()
+
+
+def test_sources_are_read_before_the_tick_takes_the_state_lock(state_dir, at, isolated_profile, monkeypatch):
+    now = at("2026-08-25T12:00:00+09:00")
+    workspace = isolated_profile / ".hermes" / "profiles" / "natsume2" / "workspace"
+    workspace.mkdir(parents=True)
+    git_repo(workspace, "YUI", "https://github.com/yw0nam/YUI.git")
+    acquired = []
+
+    def probe_lock(args):
+        def take():
+            with desire_state.state_lock(state_dir):
+                acquired.append(args[0])
+
+        worker = threading.Thread(target=take, daemon=True)
+        worker.start()
+        worker.join(timeout=5)
+        assert not worker.is_alive(), "the tick held the state lock while reading a source"
+        return "[]"
+
+    monkeypatch.setattr(decay_monitor, "run_gh", probe_lock)
+
+    decay_monitor.run(now)
+
+    assert acquired == ["pr", "issue"]
 
 
 def test_monitor_run_derives_from_the_profile_and_prints_the_summary_when_a_source_fails(

@@ -230,9 +230,11 @@ The homeostatic reward is `r = D(before) - D(after)`, where
 
 ## Derived events
 
-Every tick, after the drives advance and before the summary line, the monitor reads four sources and doses each
-artefact it has not counted yet through `desire_state.satisfy`. Each derived event is appended to `unreported` and
-audited as `drive_satisfied` with its `kind` (`pr`, `issue`, `skill`, `note`) and `ref`.
+Every tick the monitor reads four sources and doses each artefact it has not counted yet through
+`desire_state.satisfy`. The sources are read before the tick takes the state lock, so a `gh` or memory call never
+blocks a turn; the scoring runs inside the same state transaction as the drive advance, before the summary line.
+Each derived event is appended to `unreported` and audited as `drive_satisfied` with its `kind` (`pr`, `issue`,
+`skill`, `note`) and `ref`.
 
 - **Repositories** — every directory one level under `~/.hermes/profiles/$HERMES_PROFILE/workspace/` whose git
   `origin` remote is on github.com, in both the HTTPS and SSH forms. A directory without such a remote is skipped;
