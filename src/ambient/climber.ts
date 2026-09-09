@@ -479,7 +479,9 @@ export interface ClimberDeps {
   getWindow(): PetWindow;
   /** Parks the real window once for the monitor-wall climb; the virtual window it hands
    *  back keeps the character's on-screen size while the climb crosses the seam. */
-  travel: { begin(end: { x: number; y: number }): Promise<Travel> };
+  travel: {
+    begin(end: { x: number; y: number }, via?: Array<{ x: number; y: number }>): Promise<Travel>;
+  };
   listMonitors(): Promise<ScreenMonitor[]>;
   /** Foreign windows, front-to-back. */
   listWindows(): Promise<WindowRect[]>;
@@ -816,9 +818,16 @@ export function createClimber(deps: ClimberDeps): Climber {
     direction = "up";
     geo = { side: picked.side, edgeX: picked.edgeX, topY: picked.topY, scale: w.scale };
 
+    // Stand a hand's reach outside the window's face: the feet on the edge line would
+    // straddle it and put the hands inside the window.
+    const standX = wallStandX(picked.edgeX, picked.side, cfg.wall_offset_frac * w.charHpx);
+
     // A monitor-wall climb crosses onto a different-scale monitor, so the whole sequence
     // runs inside a travel: the real window parks once over the climb's whole path, and
     // every leg below draws into the parked canvas through the virtual window instead.
+    // The frame has to cover the approach's stand-off origin too, not just the start and
+    // the landing — on the far side of the corner from the landing, it can fall outside
+    // their bounding box on its own.
     let landing: { x: number; y: number } | null = null;
     if (picked.kind === "monitor") {
       const size = await w.win.outerSize();
@@ -838,7 +847,8 @@ export function createClimber(deps: ClimberDeps): Climber {
         x: clampToFloorSegments(segments, picked.edgeX - w.anchorX),
         y: picked.topY - w.anchorY,
       };
-      travel = await deps.travel.begin(landing);
+      const approach = { x: standX - w.anchorX, y: w.floor - w.anchorY };
+      travel = await deps.travel.begin(landing, [approach]);
       if (!alive(startedAt)) {
         const t = travel;
         travel = null;
@@ -849,9 +859,6 @@ export function createClimber(deps: ClimberDeps): Climber {
 
     deps.onStart("up", picked);
 
-    // Stand a hand's reach outside the window's face: the feet on the edge line would
-    // straddle it and put the hands inside the window.
-    const standX = wallStandX(picked.edgeX, picked.side, cfg.wall_offset_frac * w.charHpx);
     if ((await deps.walker.walkTo(standX - w.anchorX)) !== "arrived") return endClimb();
     if (!alive(startedAt)) return endClimb();
     renderer.setBodyYaw(yawToWall(picked.side), CLIMB_YAW_EASE_MS);
