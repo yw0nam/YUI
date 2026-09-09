@@ -933,6 +933,7 @@ export function wireClimber(deps: {
     climber = createClimber({
       renderer,
       getWindow: deps.travelFrame.getWindow,
+      travel: deps.travelFrame.travel,
       listMonitors: async () => (await availableMonitors()).map(toScreenMonitor),
       listWindows: () => invoke("list_windows") as Promise<WindowRect[]>,
       getConfig: deps.getClimbConfig,
