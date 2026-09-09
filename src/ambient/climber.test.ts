@@ -647,6 +647,7 @@ function makeHarness(
   // logs its own calls separately, proving a leg moved through the travel and not the
   // real window directly.
   const travelBeginCalls: Array<{ x: number; y: number }> = [];
+  const travelBeginVia: Array<Array<{ x: number; y: number }> | undefined> = [];
   const travelLogicalCalls: Array<{ x: number; y: number }> = [];
   let travelEndCalls = 0;
   let travelWin: ReturnType<typeof makeRealWindow> | null = null;
@@ -669,8 +670,9 @@ function makeHarness(
   }
   const realWindow = makeRealWindow();
   const fakeTravel = {
-    begin: vi.fn(async (end: { x: number; y: number }) => {
+    begin: vi.fn(async (end: { x: number; y: number }, via?: Array<{ x: number; y: number }>) => {
       travelBeginCalls.push(end);
+      travelBeginVia.push(via);
       const win = makeRealWindow((x, y) => travelLogicalCalls.push({ x, y }));
       travelWin = win;
       return {
@@ -892,6 +894,7 @@ function makeHarness(
     runToEnd,
     at: () => ({ ...pos }),
     travelBeginCalls,
+    travelBeginVia,
     travelLogicalCalls,
     travelEndCalls: () => travelEndCalls,
     setPos: (next: { x: number; y: number }) => {
@@ -1817,6 +1820,9 @@ describe("createClimber — monitor wall", () => {
     // The whole sequence parks the real window once, at the landing inside the segment,
     // and every leg move draws through the travel's virtual window rather than moving it.
     expect(h.travelBeginCalls).toEqual([{ x: -400, y: -ANCHOR.y }]);
+    // The frame also covers the approach's stand-off origin (edgeX 0 + wall offset 75,
+    // minus anchorX), on the far side of the corner from the landing.
+    expect(h.travelBeginVia).toEqual([[{ x: -125, y: 597 }]]);
     expect(h.travelLogicalCalls).toEqual(h.logicalCalls);
     expect(h.travelEndCalls()).toBe(1);
     // The pull-over corner (edgeX 0) sits outside the segment, so she walks in to it.
