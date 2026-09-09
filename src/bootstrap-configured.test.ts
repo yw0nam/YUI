@@ -4,6 +4,7 @@ import {
   createConfiguredBootstrap,
   createPatGesture,
   createSitLossFall,
+  descendConfigFor,
   fallConfigFor,
 } from "./bootstrap-configured";
 import { type AppConfig, ATTACHMENT_LIMITS_DEFAULTS, FALL_DEFAULTS } from "./config";
@@ -279,6 +280,18 @@ describe("fallConfigFor", () => {
 
   it("never steps off the ledge while the fall is off", () => {
     expect(fallConfigFor(fall, false)).toEqual({ ...fall, step_off_probability: 0 });
+  });
+});
+
+describe("descendConfigFor", () => {
+  const descend = { chance: 0.5, climb_down_chance: 0.5 };
+
+  it("passes the config through while the fall is on", () => {
+    expect(descendConfigFor(descend, true)).toBe(descend);
+  });
+
+  it("always climbs down while the fall is off", () => {
+    expect(descendConfigFor(descend, false)).toEqual({ ...descend, climb_down_chance: 1 });
   });
 });
 
