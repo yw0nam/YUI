@@ -240,14 +240,18 @@ Each derived event is appended to `unreported` and audited as `drive_satisfied` 
 `skill`, `note`) and `ref`.
 
 - **Repositories** — every directory one level under `~/.hermes/profiles/$HERMES_PROFILE/workspace/` whose
-  `.git/config` names an `origin` remote on github.com, in both the HTTPS and SSH forms. A directory without such a
-  remote is skipped, and so is a checkout that keeps its config elsewhere (a linked worktree, `--separate-git-dir`);
-  there is no configured repository list.
+  `.git/config` names an `origin` remote on github.com, in both the HTTPS and SSH forms. Two directories cloning the
+  same repository count as one. A directory without such a remote is skipped, and so is a checkout that keeps its
+  config elsewhere (a linked worktree, `--separate-git-dir`); there is no configured repository list.
 - **Pull requests** — `gh pr list --repo <owner/name> --author @me --state all --limit 100`, keeping the ones whose
-  head branch starts with `natsume/`. First sight scores `progressed`; a set `mergedAt` scores `shipped` once.
+  head branch starts with `natsume/`. First sight scores `progressed`.
 - **Issues** — `gh issue list --repo <owner/name> --author @me --state all --limit 100`, keeping the ones whose body
-  contains the literal `<!-- from-natsume -->`. First sight scores `progressed`; a set `closedAt` scores `shipped`
-  once.
+  contains the literal `<!-- from-natsume -->`. First sight scores `progressed`.
+- **Delivery** — the list calls carry a fixed window that Youngwoo's own activity shares, so an artefact that stays
+  open longer than the window would fall out of it. Delivery is read from the artefact itself instead:
+  `gh pr view <url> --json state,mergedAt` and `gh issue view <url> --json state,closedAt`, once per tick for each
+  artefact that is counted but not yet shipped. A set `mergedAt` or `closedAt` scores `shipped` once. A failing view
+  audits `derive_failed` for that artefact alone and leaves it for the next tick.
 - **Skills** — every directory under `~/.hermes/profiles/$HERMES_PROFILE/skills/` containing a `SKILL.md`,
   identified by its path relative to the skills root. First sight scores `progressed`. This is the one source
   Natsume can add to alone, and it counts what appears rather than who put it there: a skill installed into her
@@ -262,12 +266,15 @@ Each derived event is appended to `unreported` and audited as `drive_satisfied` 
 
 A source is scored only from the tick after its first answer: everything it reported the first time is recorded as
 seen (and everything already merged or closed as shipped) without a dose, whether that first answer arrives on the
-first tick or days later. A failing `gh` call or memory request drops that source for the tick, appends a
-`derive_failed` audit event naming the source, the repository, and a short error, and leaves its cursor and its
-seen list untouched; the summary line is printed regardless. One repository failing drops its whole kind for that
-tick, so a partial answer is never mistaken for a complete one. An artefact past its daily cap is still recorded as
-seen and audited as `satisfy_blocked`; that dose is lost rather than carried over. Derived events only lower
-drives, so they never change the latched buckets and never wake the agent.
+first tick or days later. A failing `gh` call or memory request appends a `derive_failed` audit event naming the
+source, the repository or artefact it was reading, and a short error, and leaves that source's cursor and seen list
+untouched; the summary line is printed regardless. While a kind has never fully answered, one repository failing
+drops the whole kind for that tick, so a partial answer is never mistaken for the complete first sight; afterwards
+only the failing repository's own contribution is dropped and the healthy ones still score. An artefact is dosed
+once per tick however many sources report it. An artefact past its daily cap is still recorded as seen and audited
+as `satisfy_blocked`; that dose is lost rather than carried over. A ref that is not text is audited as
+`derive_failed` for its source rather than dropped silently. Derived events only lower drives, so they never change
+the latched buckets and never wake the agent.
 
 ## Verify
 

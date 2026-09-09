@@ -24,6 +24,7 @@ NOTE_MEMORY = 500
 BRANCH_PREFIX = "natsume/"
 ISSUE_MARKER = "<!-- from-natsume -->"
 FIRST_SIGHT = {"pr": "progressed", "issue": "progressed", "skill": "progressed", "note": "learned"}
+SOURCE_OF = {"pr": "pr", "issue": "issue", "skill": "skill", "note": "notes"}
 _ORIGIN_SECTION = re.compile(r'^\[remote "origin"\]\n(.*?)(?=^\[|\Z)', re.MULTILINE | re.DOTALL)
 _ORIGIN_URL = re.compile(r"^\s*url\s*=\s*(\S+)", re.MULTILINE)
 _GITHUB_SLUG = re.compile(r"(?:^|[@/.])github\.com[:/](?P<owner>[^/]+)/(?P<name>[^/]+?)(?:\.git)?/?$")
@@ -62,9 +63,9 @@ def _github_slug(origin: str) -> str | None:
 
 
 def workspace_repos(workspace_root: Path) -> list[str]:
-    """Return `owner/name` for every workspace directory whose git origin is on GitHub."""
+    """Return each `owner/name` once, however many workspace directories clone it from GitHub."""
 
-    repos = []
+    repos = set()
     try:
         entries = sorted(entry for entry in Path(workspace_root).iterdir() if entry.is_dir())
     except OSError:
@@ -78,8 +79,8 @@ def workspace_repos(workspace_root: Path) -> list[str]:
         origin = _ORIGIN_URL.search(section.group(1)) if section is not None else None
         slug = _github_slug(origin.group(1)) if origin is not None else None
         if slug is not None:
-            repos.append(slug)
-    return repos
+            repos.add(slug)
+    return sorted(repos)
 
 
 def repo_pull_requests(repo: str, run_gh) -> list[dict]:
@@ -154,40 +155,70 @@ def memory_notes(since: str, fetch_notes) -> list[dict]:
     return [note for note in notes if isinstance(note, dict) and note.get("kind") in NOTE_KINDS]
 
 
-def _derive_failed(state_dir: Path, now: datetime, source: str, repo: str | None, error: Exception) -> None:
-    message = f"{type(error).__name__}: {error}".replace("\n", " ")[:200]
+def _derive_failed(state_dir: Path, now: datetime, source: str, repo: str | None, message: str, ref=None):
+    named = {"ref": ref} if ref is not None else {}
     desire_state.append_jsonl(
         state_dir / "audit.jsonl",
-        {"at": now.isoformat(), "event": "derive_failed", "source": source, "repo": repo, "error": message},
+        {
+            "at": now.isoformat(),
+            "event": "derive_failed",
+            "source": source,
+            "repo": repo,
+            **named,
+            "error": message.replace("\n", " ")[:200],
+        },
     )
 
 
-def _read_source(state_dir, now, source, repo, read):
-    """Return what one source reports as ``(ref, delivered_at)`` pairs, or ``None`` when it failed."""
+def _read_source(state_dir, now, source, repo, read, ref=None):
+    """Return what one source reports, or ``None`` once it failed and was audited."""
 
     try:
         return read()
     except Exception as error:  # noqa: BLE001 - a failing source is skipped, never fatal
-        _derive_failed(state_dir, now, source, repo, error)
+        _derive_failed(state_dir, now, source, repo, f"{type(error).__name__}: {error}", ref)
         return None
+
+
+def artefact_delivery(kind: str, url: str, run_gh) -> object:
+    """Return when this pull request merged or this issue closed, or ``None`` while it is open."""
+
+    field = "mergedAt" if kind == "pr" else "closedAt"
+    return json.loads(run_gh([kind, "view", url, "--json", f"state,{field}"])).get(field)
 
 
 def collect_artefacts(state_dir, now, *, workspace_root, skills_root, run_gh, fetch_notes) -> dict:
     """Read the four sources outside the state lock, so no `gh` call blocks a turn.
 
     Each kind maps to its ``(ref, delivered_at)`` pairs, or to ``None`` when the source did not
-    answer this tick: a partial answer is dropped so it cannot be mistaken for an empty one.
+    answer at all. While a kind is still unbootstrapped one failing repository drops the whole kind,
+    so a partial answer is never mistaken for the complete first sight; afterwards only the failing
+    repository's own contribution is dropped. The list calls carry a fixed window, so delivery is
+    read from each pending artefact's own view instead of waiting for it to appear in that window.
     """
 
     now = desire_state.normalize_now(now)
     state_dir = Path(state_dir)
     record = desire_state.read_artefacts(state_dir)
+    bootstrapped = set(record["bootstrapped"]) if record else set()
     observed = {kind: [] for kind in desire_state.SEEN_KINDS}
     for repo in workspace_repos(workspace_root):
         pulls = _read_source(state_dir, now, "pr", repo, lambda name=repo: repo_pull_requests(name, run_gh))
-        observed["pr"] = _extend(observed["pr"], pulls, "url", "mergedAt")
+        observed["pr"] = _extend(observed["pr"], pulls, "url", "mergedAt", "pr" in bootstrapped)
         issues = _read_source(state_dir, now, "issue", repo, lambda name=repo: repo_issues(name, run_gh))
-        observed["issue"] = _extend(observed["issue"], issues, "url", "closedAt")
+        observed["issue"] = _extend(observed["issue"], issues, "url", "closedAt", "issue" in bootstrapped)
+    for kind in ("pr", "issue"):
+        for url in _undelivered(record, kind):
+            delivered = _read_source(
+                state_dir,
+                now,
+                kind,
+                None,
+                lambda name=kind, target=url: artefact_delivery(name, target, run_gh),
+                url,
+            )
+            if delivered is not None and observed[kind] is not None:
+                observed[kind].append((url, delivered))
     skills = _read_source(state_dir, now, "skill", None, lambda: profile_skills(skills_root))
     observed["skill"] = None if skills is None else [(relative, None) for relative in skills]
     since = (record["notes_since"] if record else None) or now.isoformat()
@@ -196,19 +227,28 @@ def collect_artefacts(state_dir, now, *, workspace_root, skills_root, run_gh, fe
     return observed
 
 
-def _extend(collected, items, ref_field: str, delivered_field: str):
-    """Add one repository's answer, keeping the kind unanswered once any repository failed."""
+def _undelivered(record: dict | None, kind: str) -> list[str]:
+    """Name the artefacts of this kind that are counted but have not been delivered yet."""
 
-    if collected is None or items is None:
+    if record is None:
+        return []
+    shipped = set(record["shipped"])
+    return [ref for ref in record["seen"][kind] if ref not in shipped]
+
+
+def _extend(collected, items, ref_field: str, delivered_field: str, bootstrapped: bool):
+    """Add one repository's answer, dropping the whole kind while it has never fully answered."""
+
+    if collected is None:
         return None
+    if items is None:
+        return collected if bootstrapped else None
     return collected + [(item.get(ref_field), item.get(delivered_field)) for item in items]
 
 
-def _states_of(record: dict, kind: str, ref: object, delivered_at: object) -> list[tuple[str, str, str]]:
+def _states_of(record: dict, kind: str, ref: str, delivered_at: object) -> list[tuple[str, str, str]]:
     """Name the events an artefact owes: its first sight, then its delivery."""
 
-    if not isinstance(ref, str) or not ref:
-        return []
     events = []
     if ref not in record["seen"][kind]:
         events.append((FIRST_SIGHT[kind], kind, ref))
@@ -234,7 +274,13 @@ def score_artefacts(state_dir, now, observed: dict) -> None:
             if observed[kind] is None:
                 continue
             for ref, delivered_at in observed[kind]:
-                candidates += _states_of(record, kind, ref, delivered_at)
+                if not isinstance(ref, str) or not ref:
+                    _derive_failed(state_dir, now, SOURCE_OF[kind], None, f"malformed ref: {ref!r}")
+                    continue
+                # One artefact can arrive from more than one source call in a tick; it owes one dose.
+                for candidate in _states_of(record, kind, ref, delivered_at):
+                    if candidate not in candidates:
+                        candidates.append(candidate)
             record["bootstrapped"] = sorted({*record["bootstrapped"], kind})
         if observed["note"] is not None:
             record["notes_since"] = now.isoformat()

@@ -1453,7 +1453,7 @@ def test_a_malformed_ref_audits_derive_failed_instead_of_vanishing(state_dir, at
     derive(state_dir, now, tmp_path, notes=[{"id": 12, "kind": "note"}, {"id": "note:a", "kind": "note"}])
 
     failures = audited(state_dir, "derive_failed")
-    assert [event["source"] for event in failures] == ["note"]
+    assert [event["source"] for event in failures] == ["notes"]
     assert "12" in failures[0]["error"]
     assert [(event["event_type"], event["ref"]) for event in satisfied(state_dir)] == [("learned", "note:a")]
 
