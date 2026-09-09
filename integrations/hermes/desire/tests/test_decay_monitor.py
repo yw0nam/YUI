@@ -10,6 +10,10 @@ import pytest
 
 import decay_monitor
 import desire_state
+from conftest import AGENT_NAME, PROFILE_NAME
+
+BRANCH = f"{AGENT_NAME}/"
+MARKER = f"<!-- from-{AGENT_NAME} -->"
 
 
 def without_day(summary: str) -> str:
@@ -21,11 +25,22 @@ def without_starved(summary: str) -> str:
 
 
 def test_monitor_wrapper_is_self_locating_for_symlink_installation():
-    wrapper = Path(__file__).parents[1] / "scripts/natsume-desire-monitor.sh"
+    wrapper = Path(__file__).parents[1] / "scripts/desire-monitor.sh"
     assert wrapper.read_text(encoding="utf-8").splitlines() == [
         "#!/bin/sh",
         'exec python3 "$(dirname "$(readlink -f "$0")")/../decay_monitor.py"',
     ]
+
+
+@pytest.mark.parametrize("missing", ["DESIRE_AGENT_NAME", "HERMES_PROFILE"])
+def test_monitor_refuses_to_run_without_its_identity(state_dir, monkeypatch, capsys, missing):
+    monkeypatch.delenv(missing, raising=False)
+
+    with pytest.raises(SystemExit) as failure:
+        decay_monitor.main()
+
+    assert missing in str(failure.value)
+    assert capsys.readouterr().out == ""
 
 
 def test_bootstrap_stdout_is_golden_and_has_one_newline(state_dir, at):
@@ -926,12 +941,12 @@ def derive(
     views=None,
     fetch_notes=None,
 ):
-    """Run one derivation over a workspace holding `yw0nam/YUI` and the named skills."""
+    """Run one derivation over a workspace holding `owner/YUI` and the named skills."""
 
     workspace = tmp_path / "workspace"
     workspace.mkdir(exist_ok=True)
     if not (workspace / "YUI").exists():
-        git_repo(workspace, "YUI", "https://github.com/yw0nam/YUI.git")
+        git_repo(workspace, "YUI", "https://github.com/owner/YUI.git")
     skills_root = tmp_path / "skills"
     skills_root.mkdir(exist_ok=True)
     for relative in skills:
@@ -958,14 +973,14 @@ def tick(state_dir, now, **sources):
 def test_workspace_repos_reads_github_origins_only(tmp_path):
     workspace = tmp_path / "workspace"
     workspace.mkdir()
-    git_repo(workspace, "YUI", "https://github.com/yw0nam/YUI.git")
-    git_repo(workspace, "memory_layer", "git@github.com:yw0nam/memory_layer.git")
+    git_repo(workspace, "YUI", "https://github.com/owner/YUI.git")
+    git_repo(workspace, "memory_layer", "git@github.com:owner/memory_layer.git")
     git_repo(workspace, "internal", "https://gitlab.example.com/team/internal.git")
     git_repo(workspace, "no-remote", None)
     (workspace / "cron_results").mkdir()
     (workspace / "notes.md").write_text("loose file", encoding="utf-8")
 
-    assert decay_monitor.workspace_repos(workspace) == ["yw0nam/YUI", "yw0nam/memory_layer"]
+    assert decay_monitor.workspace_repos(workspace) == ["owner/YUI", "owner/memory_layer"]
 
 
 def test_workspace_repos_tolerates_a_missing_workspace(tmp_path):
@@ -982,18 +997,18 @@ def test_bootstrap_marks_every_artefact_seen_without_dosing(state_dir, at, tmp_p
         now,
         tmp_path,
         payloads={
-            ("pr", "yw0nam/YUI"): [
-                {"url": "https://github.com/yw0nam/YUI/pull/1", "headRefName": "natsume/a", "mergedAt": None},
+            ("pr", "owner/YUI"): [
+                {"url": "https://github.com/owner/YUI/pull/1", "headRefName": f"{BRANCH}a", "mergedAt": None},
                 {
-                    "url": "https://github.com/yw0nam/YUI/pull/2",
-                    "headRefName": "natsume/b",
+                    "url": "https://github.com/owner/YUI/pull/2",
+                    "headRefName": f"{BRANCH}b",
                     "mergedAt": "2026-08-24T00:00:00Z",
                 },
             ],
-            ("issue", "yw0nam/YUI"): [
+            ("issue", "owner/YUI"): [
                 {
-                    "url": "https://github.com/yw0nam/YUI/issues/9",
-                    "body": "<!-- from-natsume -->\nhello",
+                    "url": "https://github.com/owner/YUI/issues/9",
+                    "body": f"{MARKER}\nhello",
                     "closedAt": None,
                 }
             ],
@@ -1005,41 +1020,41 @@ def test_bootstrap_marks_every_artefact_seen_without_dosing(state_dir, at, tmp_p
     artefacts = read_json(state_dir / "artefacts.json")
     assert artefacts["bootstrapped_at"] == now.isoformat()
     assert artefacts["seen"]["pr"] == [
-        "https://github.com/yw0nam/YUI/pull/1",
-        "https://github.com/yw0nam/YUI/pull/2",
+        "https://github.com/owner/YUI/pull/1",
+        "https://github.com/owner/YUI/pull/2",
     ]
-    assert artefacts["seen"]["issue"] == ["https://github.com/yw0nam/YUI/issues/9"]
+    assert artefacts["seen"]["issue"] == ["https://github.com/owner/YUI/issues/9"]
     assert artefacts["seen"]["skill"] == ["mcp/first", "second"]
-    assert artefacts["shipped"] == ["https://github.com/yw0nam/YUI/pull/2"]
+    assert artefacts["shipped"] == ["https://github.com/owner/YUI/pull/2"]
     assert artefacts["notes_since"] == now.isoformat()
     assert artefacts["unreported"] == []
     assert satisfied(state_dir) == []
 
 
-def test_second_run_doses_a_new_natsume_pull_request_exactly_once(state_dir, at, tmp_path, state_helpers):
+def test_second_run_doses_a_new_agent_pull_request_exactly_once(state_dir, at, tmp_path, state_helpers):
     _, _, read_json, _ = state_helpers
     now = at("2026-08-25T12:00:00+09:00")
     desire_state.bootstrap(now)
     derive(state_dir, now, tmp_path)
 
     payloads = {
-        ("pr", "yw0nam/YUI"): [
-            {"url": "https://github.com/yw0nam/YUI/pull/3", "headRefName": "natsume/c", "mergedAt": None}
+        ("pr", "owner/YUI"): [
+            {"url": "https://github.com/owner/YUI/pull/3", "headRefName": f"{BRANCH}c", "mergedAt": None}
         ]
     }
     derive(state_dir, now, tmp_path, payloads=payloads)
     derive(state_dir, now, tmp_path, payloads=payloads)
 
     assert [(event["event_type"], event["kind"], event["ref"]) for event in satisfied(state_dir)] == [
-        ("progressed", "pr", "https://github.com/yw0nam/YUI/pull/3")
+        ("progressed", "pr", "https://github.com/owner/YUI/pull/3")
     ]
     artefacts = read_json(state_dir / "artefacts.json")
-    assert artefacts["seen"]["pr"] == ["https://github.com/yw0nam/YUI/pull/3"]
+    assert artefacts["seen"]["pr"] == ["https://github.com/owner/YUI/pull/3"]
     assert artefacts["unreported"] == [
         {
             "event": "progressed",
             "kind": "pr",
-            "ref": "https://github.com/yw0nam/YUI/pull/3",
+            "ref": "https://github.com/owner/YUI/pull/3",
             "at": now.isoformat(),
         }
     ]
@@ -1050,23 +1065,23 @@ def test_merged_pull_request_doses_shipped_exactly_once(state_dir, at, tmp_path)
     desire_state.bootstrap(now)
     derive(state_dir, now, tmp_path)
     open_pull = {
-        "url": "https://github.com/yw0nam/YUI/pull/4",
-        "headRefName": "natsume/d",
+        "url": "https://github.com/owner/YUI/pull/4",
+        "headRefName": f"{BRANCH}d",
         "mergedAt": None,
     }
-    derive(state_dir, now, tmp_path, payloads={("pr", "yw0nam/YUI"): [open_pull]})
+    derive(state_dir, now, tmp_path, payloads={("pr", "owner/YUI"): [open_pull]})
 
     merged = {**open_pull, "mergedAt": "2026-08-25T11:00:00Z"}
-    derive(state_dir, now, tmp_path, payloads={("pr", "yw0nam/YUI"): [merged]})
-    derive(state_dir, now, tmp_path, payloads={("pr", "yw0nam/YUI"): [merged]})
+    derive(state_dir, now, tmp_path, payloads={("pr", "owner/YUI"): [merged]})
+    derive(state_dir, now, tmp_path, payloads={("pr", "owner/YUI"): [merged]})
 
     assert [(event["event_type"], event["ref"]) for event in satisfied(state_dir)] == [
-        ("progressed", "https://github.com/yw0nam/YUI/pull/4"),
-        ("shipped", "https://github.com/yw0nam/YUI/pull/4"),
+        ("progressed", "https://github.com/owner/YUI/pull/4"),
+        ("shipped", "https://github.com/owner/YUI/pull/4"),
     ]
 
 
-def test_pull_request_outside_the_natsume_branch_prefix_is_never_scored(state_dir, at, tmp_path):
+def test_pull_request_outside_the_agent_branch_prefix_is_never_scored(state_dir, at, tmp_path):
     now = at("2026-08-25T12:00:00+09:00")
     desire_state.bootstrap(now)
     derive(state_dir, now, tmp_path)
@@ -1076,9 +1091,9 @@ def test_pull_request_outside_the_natsume_branch_prefix_is_never_scored(state_di
         now,
         tmp_path,
         payloads={
-            ("pr", "yw0nam/YUI"): [
+            ("pr", "owner/YUI"): [
                 {
-                    "url": "https://github.com/yw0nam/YUI/pull/5",
+                    "url": "https://github.com/owner/YUI/pull/5",
                     "headRefName": "feat/other",
                     "mergedAt": "2026-08-25T11:00:00Z",
                 }
@@ -1100,11 +1115,11 @@ def test_issue_without_the_marker_is_never_scored(state_dir, at, tmp_path, state
         now,
         tmp_path,
         payloads={
-            ("issue", "yw0nam/YUI"): [
-                {"url": "https://github.com/yw0nam/YUI/issues/10", "body": "plain body", "closedAt": None},
+            ("issue", "owner/YUI"): [
+                {"url": "https://github.com/owner/YUI/issues/10", "body": "plain body", "closedAt": None},
                 {
-                    "url": "https://github.com/yw0nam/YUI/issues/11",
-                    "body": "<!-- from-natsume -->\nmarked",
+                    "url": "https://github.com/owner/YUI/issues/11",
+                    "body": f"{MARKER}\nmarked",
                     "closedAt": "2026-08-25T10:00:00Z",
                 },
             ]
@@ -1112,11 +1127,11 @@ def test_issue_without_the_marker_is_never_scored(state_dir, at, tmp_path, state
     )
 
     assert [(event["event_type"], event["ref"]) for event in satisfied(state_dir)] == [
-        ("progressed", "https://github.com/yw0nam/YUI/issues/11"),
-        ("shipped", "https://github.com/yw0nam/YUI/issues/11"),
+        ("progressed", "https://github.com/owner/YUI/issues/11"),
+        ("shipped", "https://github.com/owner/YUI/issues/11"),
     ]
     assert read_json(state_dir / "artefacts.json")["seen"]["issue"] == [
-        "https://github.com/yw0nam/YUI/issues/11"
+        "https://github.com/owner/YUI/issues/11"
     ]
 
 
@@ -1191,7 +1206,7 @@ def test_notes_are_filtered_by_kind_and_the_cursor_advances(state_dir, at, tmp_p
     url, headers = seen[0]
     assert url.startswith("http://memory.test/notes?")
     assert "limit=200" in url
-    assert "tags=natsume" in url
+    assert f"tags={AGENT_NAME}" in url
     assert f"since={quote(bootstrapped.isoformat(), safe='')}" in url
     assert headers == {"X-API-Key": "test-key"}
     assert read_json(state_dir / "artefacts.json")["notes_since"] == now.isoformat()
@@ -1229,19 +1244,19 @@ def test_failing_source_audits_derive_failed_and_leaves_its_cursor(state_dir, at
         now,
         tmp_path,
         payloads={
-            ("pr", "yw0nam/YUI"): [
-                {"url": "https://github.com/yw0nam/YUI/pull/6", "headRefName": "natsume/e", "mergedAt": None}
+            ("pr", "owner/YUI"): [
+                {"url": "https://github.com/owner/YUI/pull/6", "headRefName": f"{BRANCH}e", "mergedAt": None}
             ]
         },
         failing=("issue",),
     )
 
     failures = audited(state_dir, "derive_failed")
-    assert [(event["source"], event["repo"]) for event in failures] == [("issue", "yw0nam/YUI")]
+    assert [(event["source"], event["repo"]) for event in failures] == [("issue", "owner/YUI")]
     assert "404" in failures[0]["error"]
     artefacts = read_json(state_dir / "artefacts.json")
     assert artefacts["seen"]["issue"] == []
-    assert artefacts["seen"]["pr"] == ["https://github.com/yw0nam/YUI/pull/6"]
+    assert artefacts["seen"]["pr"] == ["https://github.com/owner/YUI/pull/6"]
 
 
 def test_failing_notes_source_keeps_the_notes_cursor(state_dir, at, tmp_path, state_helpers):
@@ -1341,11 +1356,11 @@ def test_a_source_that_failed_during_bootstrap_bootstraps_when_it_recovers(
     now = at("2026-08-25T12:00:00+09:00")
     desire_state.bootstrap(now)
     existing = {
-        "url": "https://github.com/yw0nam/YUI/pull/1",
-        "headRefName": "natsume/a",
+        "url": "https://github.com/owner/YUI/pull/1",
+        "headRefName": f"{BRANCH}a",
         "mergedAt": "2026-08-24T00:00:00Z",
     }
-    payloads = {("pr", "yw0nam/YUI"): [existing]}
+    payloads = {("pr", "owner/YUI"): [existing]}
 
     derive(state_dir, now, tmp_path, payloads=payloads, failing=("pr",))
 
@@ -1359,8 +1374,8 @@ def test_a_source_that_failed_during_bootstrap_bootstraps_when_it_recovers(
     assert artefacts["seen"]["pr"] == [existing["url"]]
     assert artefacts["shipped"] == [existing["url"]]
 
-    fresh = {"url": "https://github.com/yw0nam/YUI/pull/2", "headRefName": "natsume/b", "mergedAt": None}
-    derive(state_dir, now, tmp_path, payloads={("pr", "yw0nam/YUI"): [existing, fresh]})
+    fresh = {"url": "https://github.com/owner/YUI/pull/2", "headRefName": f"{BRANCH}b", "mergedAt": None}
+    derive(state_dir, now, tmp_path, payloads={("pr", "owner/YUI"): [existing, fresh]})
 
     assert [(event["event_type"], event["ref"]) for event in satisfied(state_dir)] == [
         ("progressed", fresh["url"])
@@ -1370,7 +1385,7 @@ def test_a_source_that_failed_during_bootstrap_bootstraps_when_it_recovers(
 def test_monitor_run_scores_a_new_skill_into_unreported(state_dir, at, isolated_profile, state_helpers):
     _, _, read_json, _ = state_helpers
     now = at("2026-08-25T12:00:00+09:00")
-    skills_root = isolated_profile / ".hermes" / "profiles" / "natsume2" / "skills"
+    skills_root = isolated_profile / ".hermes" / "profiles" / PROFILE_NAME / "skills"
     skill(skills_root, "mcp/known")
 
     decay_monitor.run(now)
@@ -1389,7 +1404,7 @@ def test_monitor_run_scores_a_new_skill_into_unreported(state_dir, at, isolated_
 def two_repo_workspace(tmp_path, second_origin: str) -> Path:
     workspace = tmp_path / "workspace"
     workspace.mkdir(exist_ok=True)
-    git_repo(workspace, "YUI", "https://github.com/yw0nam/YUI.git")
+    git_repo(workspace, "YUI", "https://github.com/owner/YUI.git")
     git_repo(workspace, "YUI-clone", second_origin)
     return workspace
 
@@ -1409,21 +1424,21 @@ def test_two_workspace_directories_sharing_an_origin_dose_once(state_dir, at, tm
     _, _, read_json, _ = state_helpers
     now = at("2026-08-25T12:00:00+09:00")
     desire_state.bootstrap(now)
-    workspace = two_repo_workspace(tmp_path, "https://github.com/yw0nam/YUI.git")
+    workspace = two_repo_workspace(tmp_path, "https://github.com/owner/YUI.git")
     two_repo_tick(state_dir, now, workspace, tmp_path, {})
     payloads = {
-        ("pr", "yw0nam/YUI"): [
-            {"url": "https://github.com/yw0nam/YUI/pull/7", "headRefName": "natsume/f", "mergedAt": None}
+        ("pr", "owner/YUI"): [
+            {"url": "https://github.com/owner/YUI/pull/7", "headRefName": f"{BRANCH}f", "mergedAt": None}
         ]
     }
 
     two_repo_tick(state_dir, now, workspace, tmp_path, payloads)
 
     assert [(event["event_type"], event["ref"]) for event in satisfied(state_dir)] == [
-        ("progressed", "https://github.com/yw0nam/YUI/pull/7")
+        ("progressed", "https://github.com/owner/YUI/pull/7")
     ]
     artefacts = read_json(state_dir / "artefacts.json")
-    assert artefacts["seen"]["pr"] == ["https://github.com/yw0nam/YUI/pull/7"]
+    assert artefacts["seen"]["pr"] == ["https://github.com/owner/YUI/pull/7"]
     assert read_json(state_dir / "budget.json")["events"] == {"progressed": 1}
 
 
@@ -1433,16 +1448,16 @@ def test_a_repository_failing_during_bootstrap_leaves_the_kind_unbootstrapped(
     _, _, read_json, _ = state_helpers
     now = at("2026-08-25T12:00:00+09:00")
     desire_state.bootstrap(now)
-    workspace = two_repo_workspace(tmp_path, "https://github.com/yw0nam/memory_layer.git")
-    healthy = {"url": "https://github.com/yw0nam/YUI/pull/8", "headRefName": "natsume/g", "mergedAt": None}
+    workspace = two_repo_workspace(tmp_path, "https://github.com/owner/memory_layer.git")
+    healthy = {"url": "https://github.com/owner/YUI/pull/8", "headRefName": f"{BRANCH}g", "mergedAt": None}
 
     two_repo_tick(
         state_dir,
         now,
         workspace,
         tmp_path,
-        {("pr", "yw0nam/YUI"): [healthy]},
-        failing=(("pr", "yw0nam/memory_layer"),),
+        {("pr", "owner/YUI"): [healthy]},
+        failing=(("pr", "owner/memory_layer"),),
     )
 
     artefacts = read_json(state_dir / "artefacts.json")
@@ -1458,24 +1473,24 @@ def test_a_repository_failing_after_bootstrap_still_scores_the_healthy_one(
     _, _, read_json, _ = state_helpers
     now = at("2026-08-25T12:00:00+09:00")
     desire_state.bootstrap(now)
-    workspace = two_repo_workspace(tmp_path, "https://github.com/yw0nam/memory_layer.git")
+    workspace = two_repo_workspace(tmp_path, "https://github.com/owner/memory_layer.git")
     two_repo_tick(state_dir, now, workspace, tmp_path, {})
-    healthy = {"url": "https://github.com/yw0nam/YUI/pull/9", "headRefName": "natsume/h", "mergedAt": None}
+    healthy = {"url": "https://github.com/owner/YUI/pull/9", "headRefName": f"{BRANCH}h", "mergedAt": None}
 
     two_repo_tick(
         state_dir,
         now,
         workspace,
         tmp_path,
-        {("pr", "yw0nam/YUI"): [healthy]},
-        failing=(("pr", "yw0nam/memory_layer"),),
+        {("pr", "owner/YUI"): [healthy]},
+        failing=(("pr", "owner/memory_layer"),),
     )
 
     assert [(event["event_type"], event["ref"]) for event in satisfied(state_dir)] == [
         ("progressed", healthy["url"])
     ]
     assert [(event["source"], event["repo"]) for event in audited(state_dir, "derive_failed")] == [
-        ("pr", "yw0nam/memory_layer")
+        ("pr", "owner/memory_layer")
     ]
     assert read_json(state_dir / "artefacts.json")["seen"]["pr"] == [healthy["url"]]
 
@@ -1483,10 +1498,10 @@ def test_a_repository_failing_after_bootstrap_still_scores_the_healthy_one(
 def test_a_merged_pull_request_outside_the_list_window_is_shipped_from_its_own_view(state_dir, at, tmp_path):
     now = at("2026-08-25T12:00:00+09:00")
     desire_state.bootstrap(now)
-    url = "https://github.com/yw0nam/YUI/pull/10"
-    listed = {"url": url, "headRefName": "natsume/i", "mergedAt": None}
+    url = "https://github.com/owner/YUI/pull/10"
+    listed = {"url": url, "headRefName": f"{BRANCH}i", "mergedAt": None}
     derive(state_dir, now, tmp_path)
-    derive(state_dir, now, tmp_path, payloads={("pr", "yw0nam/YUI"): [listed]})
+    derive(state_dir, now, tmp_path, payloads={("pr", "owner/YUI"): [listed]})
 
     derive(state_dir, now, tmp_path, views={url: {"state": "MERGED", "mergedAt": "2026-08-25T11:00:00Z"}})
     derive(state_dir, now, tmp_path, views={url: {"state": "MERGED", "mergedAt": "2026-08-25T11:00:00Z"}})
@@ -1500,10 +1515,10 @@ def test_a_merged_pull_request_outside_the_list_window_is_shipped_from_its_own_v
 def test_a_closed_issue_outside_the_list_window_is_shipped_from_its_own_view(state_dir, at, tmp_path):
     now = at("2026-08-25T12:00:00+09:00")
     desire_state.bootstrap(now)
-    url = "https://github.com/yw0nam/YUI/issues/12"
-    listed = {"url": url, "body": "<!-- from-natsume -->\nhi", "closedAt": None}
+    url = "https://github.com/owner/YUI/issues/12"
+    listed = {"url": url, "body": f"{MARKER}\nhi", "closedAt": None}
     derive(state_dir, now, tmp_path)
-    derive(state_dir, now, tmp_path, payloads={("issue", "yw0nam/YUI"): [listed]})
+    derive(state_dir, now, tmp_path, payloads={("issue", "owner/YUI"): [listed]})
 
     derive(state_dir, now, tmp_path, views={url: {"state": "CLOSED", "closedAt": "2026-08-25T11:00:00Z"}})
 
@@ -1519,10 +1534,10 @@ def test_a_failing_view_call_audits_that_artefact_and_leaves_it_for_the_next_tic
     _, _, read_json, _ = state_helpers
     now = at("2026-08-25T12:00:00+09:00")
     desire_state.bootstrap(now)
-    url = "https://github.com/yw0nam/YUI/pull/11"
-    listed = {"url": url, "headRefName": "natsume/j", "mergedAt": None}
+    url = "https://github.com/owner/YUI/pull/11"
+    listed = {"url": url, "headRefName": f"{BRANCH}j", "mergedAt": None}
     derive(state_dir, now, tmp_path)
-    derive(state_dir, now, tmp_path, payloads={("pr", "yw0nam/YUI"): [listed]})
+    derive(state_dir, now, tmp_path, payloads={("pr", "owner/YUI"): [listed]})
 
     derive(state_dir, now, tmp_path, failing=(url,))
 
@@ -1553,9 +1568,9 @@ def test_a_malformed_ref_audits_derive_failed_instead_of_vanishing(state_dir, at
 
 def test_sources_are_read_before_the_tick_takes_the_state_lock(state_dir, at, isolated_profile, monkeypatch):
     now = at("2026-08-25T12:00:00+09:00")
-    workspace = isolated_profile / ".hermes" / "profiles" / "natsume2" / "workspace"
+    workspace = isolated_profile / ".hermes" / "profiles" / PROFILE_NAME / "workspace"
     workspace.mkdir(parents=True)
-    git_repo(workspace, "YUI", "https://github.com/yw0nam/YUI.git")
+    git_repo(workspace, "YUI", "https://github.com/owner/YUI.git")
     acquired = []
 
     def probe_lock(args):
@@ -1581,10 +1596,10 @@ def test_monitor_run_derives_from_the_profile_and_prints_the_summary_when_a_sour
 ):
     _, _, read_json, _ = state_helpers
     now = at("2026-08-25T12:00:00+09:00")
-    profile = isolated_profile / ".hermes" / "profiles" / "natsume2"
+    profile = isolated_profile / ".hermes" / "profiles" / PROFILE_NAME
     workspace = profile / "workspace"
     workspace.mkdir(parents=True)
-    git_repo(workspace, "YUI", "https://github.com/yw0nam/YUI.git")
+    git_repo(workspace, "YUI", "https://github.com/owner/YUI.git")
     skill(profile / "skills", "mcp/known")
 
     def failing_gh(args):

@@ -7,6 +7,7 @@ from datetime import timedelta
 from pathlib import Path
 
 import desire_state
+from conftest import AGENT_NAME
 
 
 def context(trigger="trigger: proactive", tail="hello", *, closed=True):
@@ -77,6 +78,7 @@ def test_no_user_message_or_no_text_carrier_is_noop_and_input_unchanged(desire_p
 def test_trailing_canonical_block_is_idempotent(desire_plugin, state_dir, at):
     text = (
         "hello\n\n<desire_state>\n"
+        f"agent: {AGENT_NAME}\n"
         "drives: social 0/100 (low) | curiosity 50/100 (mid) | accomplishment 50/100 (mid)\n"
         "last interaction: 2026-08-25 12:00 (0h ago)\n"
         "signal transport: unknown\n"
@@ -91,6 +93,7 @@ def test_trailing_canonical_block_is_idempotent(desire_plugin, state_dir, at):
 def test_canonical_block_with_the_since_last_turn_line_is_idempotent(desire_plugin):
     text = (
         "hello\n\n<desire_state>\n"
+        f"agent: {AGENT_NAME}\n"
         "drives: social 0/100 (low) | curiosity 50/100 (mid) | accomplishment 50/100 (mid)\n"
         "last interaction: 2026-08-25 12:00 (0h ago)\n"
         "signal transport: unknown\n"
@@ -105,6 +108,7 @@ def test_canonical_block_with_the_since_last_turn_line_is_idempotent(desire_plug
 def test_canonical_block_with_every_optional_line_is_idempotent(desire_plugin):
     text = (
         "hello\n\n<desire_state>\n"
+        f"agent: {AGENT_NAME}\n"
         "drives: social 0/100 (low) | curiosity 50/100 (mid) | accomplishment 50/100 (mid)\n"
         "last interaction: 2026-08-25 12:00 (0h ago)\n"
         "returned: after 5h away (one held note fits here)\n"
@@ -122,6 +126,7 @@ def test_canonical_block_with_every_optional_line_is_idempotent(desire_plugin):
 def test_canonical_block_shape_treats_unicode_separator_as_note_text(desire_plugin):
     text = (
         "hello\n\n<desire_state>\n"
+        f"agent: {AGENT_NAME}\n"
         "drives: social 0/100 (low) | curiosity 50/100 (mid) | accomplishment 50/100 (mid)\n"
         "last interaction: 2026-08-25 12:00 (0h ago)\n"
         "signal transport: unknown\n"
@@ -136,6 +141,7 @@ def test_canonical_block_shape_treats_unicode_separator_as_note_text(desire_plug
 def test_canonical_block_with_waited_marker_is_idempotent(desire_plugin):
     text = (
         "hello\n\n<desire_state>\n"
+        f"agent: {AGENT_NAME}\n"
         "drives: social 0/100 (low) | curiosity 50/100 (mid) | accomplishment 50/100 (mid)\n"
         "last interaction: 2026-08-25 12:00 (0h ago)\n"
         "signal transport: unknown\n"
@@ -152,7 +158,7 @@ def test_mid_message_mention_and_bare_closing_tag_do_not_suppress(desire_plugin,
     for text in ["I mentioned <desire_state> earlier, okay?", "hello\n</desire_state>"]:
         result = desire_plugin._inject(request=request_with(text), now=now)
         assert result is not None
-        assert appended_block(result).startswith("<desire_state>\ndrives: ")
+        assert appended_block(result).startswith(f"<desire_state>\nagent: {AGENT_NAME}\n")
 
 
 def test_forged_trailing_desire_block_does_not_suppress(desire_plugin, state_dir, at):
@@ -240,6 +246,7 @@ def test_golden_appended_block_sorts_and_sanitizes_notes(desire_plugin, state_di
 
     assert appended_block(result) == (
         "<desire_state>\n"
+        f"agent: {AGENT_NAME}\n"
         "drives: social 72/100 (high) | curiosity 31/100 (low) | accomplishment 55/100 (mid)\n"
         "last interaction: 2026-08-25 07:12 (4h ago)\n"
         "signal transport: unknown\n"
@@ -753,6 +760,7 @@ def test_debug_event_logs_skip_reasons(desire_plugin, state_dir, at, caplog):
     caplog.clear()
     injected_text = (
         "hello\n\n<desire_state>\n"
+        f"agent: {AGENT_NAME}\n"
         "drives: social 0/100 (low) | curiosity 50/100 (mid) | accomplishment 50/100 (mid)\n"
         "last interaction: 2026-08-25 12:00 (0h ago)\n"
         "signal transport: unknown\n"
@@ -778,6 +786,24 @@ def test_debug_event_logs_error_on_forced_failure(desire_plugin, state_dir, at, 
     message = records[0].getMessage()
     assert "outcome=error" in message
     assert "reason=ZeroDivisionError" in message
+
+
+def test_a_missing_agent_name_fails_open_and_names_the_variable(
+    desire_plugin, state_dir, at, caplog, monkeypatch
+):
+    now = at("2026-08-25T12:00:00+09:00")
+    monkeypatch.delenv("DESIRE_AGENT_NAME", raising=False)
+    caplog.set_level(logging.DEBUG, logger=desire_plugin.__name__)
+    request = request_with(context("trigger: user message"))
+    original = copy.deepcopy(request)
+
+    assert desire_plugin._inject(request=request, now=now) is None
+
+    assert request == original
+    errors = [record for record in caplog.records if record.levelno == logging.ERROR]
+    assert len(errors) == 1
+    assert "DESIRE_AGENT_NAME" in errors[0].getMessage()
+    assert "outcome=error" in caplog.records[-1].getMessage()
 
 
 def test_debug_event_never_leaks_user_text_or_drive_values(
@@ -828,6 +854,7 @@ def test_version_matches_plugin_yaml(desire_plugin):
 def test_block_without_fact_lines_is_not_treated_as_injected(desire_plugin):
     text = (
         "hello\n\n<desire_state>\n"
+        f"agent: {AGENT_NAME}\n"
         "drives: social 0/100 (low) | curiosity 50/100 (mid) | accomplishment 50/100 (mid)\n"
         "</desire_state>"
     )
@@ -1141,7 +1168,7 @@ def test_the_since_last_turn_line_is_rendered_and_cleared_on_one_turn(
         {
             "event": "progressed",
             "kind": "pr",
-            "ref": "https://github.com/yw0nam/YUI/pull/12",
+            "ref": "https://github.com/owner/YUI/pull/12",
             "at": now.isoformat(),
         }
     ]
@@ -1159,7 +1186,7 @@ def test_the_since_last_turn_line_is_rendered_and_cleared_on_one_turn(
     first = desire_plugin._inject(request=request_with(context(tail="hi")), now=now)
     second = desire_plugin._inject(request=request_with(context(tail="again")), now=now)
 
-    line = "since last turn: progressed pr https://github.com/yw0nam/YUI/pull/12"
+    line = "since last turn: progressed pr https://github.com/owner/YUI/pull/12"
     assert line in appended_block(first)
     assert line not in appended_block(second)
     assert read_json(state_dir / "artefacts.json")["unreported"] == []

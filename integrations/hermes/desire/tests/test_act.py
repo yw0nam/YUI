@@ -6,6 +6,7 @@ import pytest
 
 import act
 import desire_state
+from conftest import AGENT_NAME
 
 
 class Response:
@@ -17,6 +18,24 @@ class Response:
 
     def __exit__(self, *args):
         return False
+
+
+def test_act_reports_a_missing_agent_name_instead_of_signalling(state_dir, at, monkeypatch, capsys):
+    monkeypatch.delenv("DESIRE_AGENT_NAME", raising=False)
+
+    exit_code = act.main(["signal", "--note", "hello"], now=at("2026-08-25T12:00:00+09:00"))
+
+    assert exit_code == 1
+    assert "DESIRE_AGENT_NAME" in capsys.readouterr().err
+
+
+def test_act_reports_a_missing_profile_on_the_skill_report(state_dir, at, monkeypatch, capsys):
+    monkeypatch.delenv("HERMES_PROFILE", raising=False)
+
+    exit_code = act.main(["report", "--skills"], now=at("2026-08-25T21:00:00+09:00"))
+
+    assert exit_code == 1
+    assert "HERMES_PROFILE" in capsys.readouterr().err
 
 
 def test_signal_post_body_matches_ingress_contract(state_dir, at, monkeypatch):
@@ -45,7 +64,7 @@ def test_signal_post_body_matches_ingress_contract(state_dir, at, monkeypatch):
     assert set(body["envelope"]) == set(rust_ingress_fixture["envelope"]) - {"extra"}
     assert body["signals"] == [{"kind": "desire", "note": "I want to explore"}]
     assert body["envelope"] == {
-        "source": "natsume-desire",
+        "source": f"{AGENT_NAME}-desire",
         "event_type": "desire.impulse",
         "delivery": "immediate",
         "event_id": body["envelope"]["event_id"],
@@ -520,7 +539,7 @@ def test_report_posts_its_own_kind_without_touching_the_signal_budget(state_dir,
 
     body = json.loads(calls[0].data)
     assert body["signals"] == [{"kind": "report", "note": "one pull request today"}]
-    assert body["envelope"]["source"] == "natsume-desire"
+    assert body["envelope"]["source"] == f"{AGENT_NAME}-desire"
     assert body["envelope"]["event_type"] == "desire.report"
     assert read_json(state_dir / "budget.json") == {
         "date": "2026-08-25",
