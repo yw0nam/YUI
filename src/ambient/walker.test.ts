@@ -531,6 +531,40 @@ describe("createWalker", () => {
     expect(h.travelLogicalCalls).toEqual([]);
   });
 
+  it("never begins a travel when the walk request is refused, even starting outside every segment", async () => {
+    // Same cut-out fixture as above, starting at x = -200 — outside every usable segment.
+    const BUILTIN: ScreenMonitor = {
+      position: { x: 0, y: 0 },
+      size: { width: 3456, height: 2234 },
+      workArea: { position: { x: 0, y: 100 }, size: { width: 3456, height: 1934 } },
+      scaleFactor: 2,
+    };
+    const UPPER_LEFT: ScreenMonitor = {
+      position: { x: -992, y: -1080 },
+      size: { width: 1920, height: 1080 },
+      workArea: { position: { x: -992, y: -1055 }, size: { width: 1920, height: 1055 } },
+      scaleFactor: 1,
+    };
+    const UPPER_RIGHT: ScreenMonitor = {
+      position: { x: 928, y: -1080 },
+      size: { width: 1920, height: 1080 },
+      workArea: { position: { x: 928, y: -1055 }, size: { width: 1920, height: 1055 } },
+      scaleFactor: 1,
+    };
+    const h = makeHarness({
+      position: { x: -200, y: -447 },
+      feetY: 447,
+      monitors: [BUILTIN, UPPER_LEFT, UPPER_RIGHT],
+      rng: seqRng(0, 0, 1),
+      motionRefused: true,
+    });
+    h.walker.start();
+    await h.skipInterval();
+
+    expect(h.starts).not.toHaveBeenCalled();
+    expect(h.travelBeginCalls).toEqual([]);
+  });
+
   it("picks a wide segment over a nearer sliver too narrow for any stroll distance", async () => {
     // Cuts MONITOR's [0, 1520] window-origin range into a 2 px sliver [0, 2], where the
     // window already sits, and a wide [1200, 1520] remainder further away.
