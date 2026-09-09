@@ -10,6 +10,7 @@ import {
   type AppConfig,
   type ClimbConfig,
   type ConfigSection,
+  type DescendConfig,
   type FallConfig,
   type GestureCuesConfig,
   type JumpConfig,
@@ -50,7 +51,7 @@ import { attachKeepOnScreen, type KeepOnScreenHandle } from "./io/keep-on-screen
 import type { ClampedIntSettingsStore } from "./io/persisted-store";
 import type { ProactiveSettings } from "./io/proactive-settings";
 import type { ScheduleSettings } from "./io/schedule-settings";
-import { type PetWindow, toScreenMonitor } from "./io/screen-geometry";
+import { type DescentEdge, type PetWindow, toScreenMonitor } from "./io/screen-geometry";
 import { createSettingsBridge, type SettingsBridge, type WindowKind } from "./io/settings-bridge";
 import {
   broadcastSyncStores,
@@ -543,6 +544,7 @@ export function wireWalker(deps: {
   renderer: Renderer;
   travelFrame: TravelFrameHandle;
   getWalkConfig: () => WalkConfig;
+  getDescendConfig: () => DescendConfig;
   /** Registry kind of a motion id, for the "nothing else holds the body" gate. */
   getMotionKind: (id: string) => MotionKind | undefined;
   isPeeking: () => boolean;
@@ -552,6 +554,7 @@ export function wireWalker(deps: {
   /** An ambient stroll ended — bodyReleased is true only when the walker itself handed the
    * clip back, not when another motion had already taken it. */
   onStrollEnd: (bodyReleased: boolean) => void;
+  onDescend: (edge: DescentEdge) => void;
   log: Logger;
 }): {
   walkTo(toX: number, onAccepted?: () => void, holdClip?: boolean): Promise<"arrived" | "lost">;
@@ -589,6 +592,7 @@ export function wireWalker(deps: {
       travel: deps.travelFrame.travel,
       listMonitors: async () => (await availableMonitors()).map(toScreenMonitor),
       getConfig: deps.getWalkConfig,
+      getDescendConfig: deps.getDescendConfig,
       currentMotionKind: () => {
         const current = renderer.getCurrentMotion();
         return current ? (deps.getMotionKind(current.id) ?? null) : null;
@@ -604,6 +608,7 @@ export function wireWalker(deps: {
         push("avatar.walk_end");
         deps.onStrollEnd(bodyReleased);
       },
+      onDescend: deps.onDescend,
     });
     walker.start();
   })().catch((err) => log.warn("walker_start_failed", { degrade: true, error: String(err) }));

@@ -38,6 +38,7 @@ import { initDrag, type PatGesture } from "./drag";
 import { CAMERA_ORBIT_SENSITIVITY } from "./io/camera-settings";
 import { selectFetch } from "./io/chat-client";
 import { createClientToolRegistry, createGenerateExpressTool } from "./io/client-tools";
+import type { DescentEdge } from "./io/screen-geometry";
 import { createCursorTracker } from "./io/cursor-tracker";
 import { createDragHoldSource } from "./io/drag-hold-source";
 import { createFrontmostTracker } from "./io/frontmost-tracker";
@@ -494,11 +495,13 @@ const realFactories: ConfiguredBootstrapFactories = {
     // Ambient walking outranks nothing: a drag, an agent command or a reflex turn cancels a
     // stroll at once; an ordinary turn walks on.
     let dragging = false;
+    let climberRef: { cancel(): void; descend(edge: DescentEdge): Promise<void> } | null = null;
     const walker = wireWalker({
       bus,
       renderer,
       travelFrame,
       getWalkConfig: () => config.get().avatar.walk,
+      getDescendConfig: () => config.get().avatar.descend,
       getMotionKind: (id) => config.get().motions[id]?.kind,
       isPeeking: () => peekStateRef?.active() ?? false,
       isDragging: () => dragging,
@@ -506,6 +509,7 @@ const realFactories: ConfiguredBootstrapFactories = {
       onStrollEnd: (bodyReleased) => {
         if (bodyReleased) voice.resumeThinking();
       },
+      onDescend: (edge) => climberRef?.descend(edge),
       log,
     });
     strollingRef = walker;
@@ -513,7 +517,6 @@ const realFactories: ConfiguredBootstrapFactories = {
     register(wireStrollReflexCancel({ dispatcher, walker }));
 
     // Set once each loop exists — the drop source and the faller are built before them.
-    let climberRef: { cancel(): void } | null = null;
     let percherRef: { cancel(): void; landOn(target: WindowRect): void } | null = null;
 
     // The seat transitions every seat entry and voluntary exit plays; one body, one sitter.
