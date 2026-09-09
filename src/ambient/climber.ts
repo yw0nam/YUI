@@ -1244,7 +1244,9 @@ export function createClimber(deps: ClimberDeps): Climber {
       fromX: at.x,
       toX: at.x + (edge.side === "right" ? distance : -distance),
       fromY: at.y,
-      toY: at.y,
+      // The faller resolves its monitor from the feet, so the step off has to leave them
+      // exactly on the seam — a pixel above it and the drop stays on the upper monitor.
+      toY: (edge.topY - w.anchorY) * w.scale,
       motionId: WALK_MOTION_ID,
       phase: "step_off",
       pxPerMetre,
