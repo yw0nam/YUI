@@ -223,6 +223,45 @@ function makeHarness(
   };
   const starts = vi.fn();
   const ends = vi.fn();
+  // Fake travel frame: begin() hands back a virtual window that shares the same position
+  // state as the real one (so positions/logicalCalls keep reading the true window) but
+  // logs its own calls separately, proving a step moved through the travel and not the
+  // real window directly.
+  const travelBeginCalls: Array<{ x: number; y: number }> = [];
+  const travelLogicalCalls: Array<{ x: number; y: number }> = [];
+  let travelEndCalls = 0;
+  let travelWin: ReturnType<typeof makeRealWindow> | null = null;
+  function makeRealWindow(onSet?: (x: number, y: number) => void) {
+    return {
+      outerPosition: async () => over.position ?? WINDOW_POS,
+      outerSize: async () => {
+        const scale = scaleFactor();
+        return { width: 400 * scale, height: 600 * scale };
+      },
+      scaleFactor: async () => scaleFactor(),
+      setPositionLogical: async (x: number, y: number) => {
+        onSet?.(x, y);
+        logicalCalls.push({ x, y });
+        positions.push({ x, y });
+      },
+    };
+  }
+  const realWindow = makeRealWindow();
+  const fakeTravel = {
+    begin: vi.fn(async (end: { x: number; y: number }) => {
+      travelBeginCalls.push(end);
+      const win = makeRealWindow((x, y) => travelLogicalCalls.push({ x, y }));
+      travelWin = win;
+      return {
+        win,
+        end: async () => {
+          travelEndCalls++;
+          travelWin = null;
+        },
+      };
+    }),
+    current: () => travelWin,
+  };
   const visibilityListeners = new Set<() => void>();
   const doc = {
     visibilityState: "visible",
@@ -259,15 +298,8 @@ function makeHarness(
       },
       isPerched: () => over.perched ?? false,
     },
-    getWindow: () => ({
-      outerPosition: async () => over.position ?? WINDOW_POS,
-      outerSize: async () => ({ width: 400, height: 600 }),
-      scaleFactor: async () => scaleFactor(),
-      setPositionLogical: async (x, y) => {
-        logicalCalls.push({ x, y });
-        positions.push({ x, y });
-      },
-    }),
+    getWindow: () => travelWin ?? realWindow,
+    travel: fakeTravel,
     listMonitors: async () => over.monitors ?? [MONITOR],
     getConfig: () => CFG,
     currentMotionKind: over.motionKind ?? (() => "ambient"),
@@ -304,6 +336,9 @@ function makeHarness(
     yaws,
     positions,
     logicalCalls,
+    travelBeginCalls,
+    travelLogicalCalls,
+    travelEndCalls: () => travelEndCalls,
     starts,
     ends,
     frame,
@@ -473,9 +508,26 @@ describe("createWalker", () => {
     // The drawn direction is rightward; the clamp pulls the destination to the segment's
     // left edge instead, so the actual travel — and the yaw facing it — is leftward.
     expect(h.yaws[0]).toEqual({ rad: -WALK_YAW_RAD, easeMs: WALK_YAW_EASE_MS });
+    // Starting outside every usable segment, the whole stroll runs inside a travel: the
+    // real window parks once at the destination instead of moving every frame.
+    expect(h.travelBeginCalls).toEqual([{ x: -400, y: -447 }]);
     // 200 logical px at ~317 px/s ≈ 0.63 s.
     for (let i = 0; i < 60; i++) await h.frame();
     expect(h.positions.at(-1)!.x).toBe(-400);
+    // Every step drew through the travel's virtual window, not the real one directly.
+    expect(h.travelLogicalCalls).toEqual(h.logicalCalls);
+    expect(h.travelLogicalCalls.length).toBeGreaterThan(0);
+    expect(h.travelEndCalls()).toBe(1);
+  });
+
+  it("never begins a travel for a stroll that starts inside a usable segment", async () => {
+    const h = makeHarness();
+    h.walker.start();
+    await h.skipInterval();
+    for (let i = 0; i < 30; i++) await h.frame();
+
+    expect(h.travelBeginCalls).toEqual([]);
+    expect(h.travelLogicalCalls).toEqual([]);
   });
 
   it("picks a wide segment over a nearer sliver too narrow for any stroll distance", async () => {
