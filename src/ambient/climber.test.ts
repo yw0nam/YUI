@@ -1,8 +1,15 @@
 import { describe, expect, it, vi } from "vitest";
-import type { ClimbConfig, WalkConfig } from "../config/load";
+
+const { log } = vi.hoisted(() => ({
+  log: { info: vi.fn(), warn: vi.fn(), error: vi.fn(), debug: vi.fn() },
+}));
+vi.mock("../logger", () => ({ createLogger: () => log }));
+
+import type { ClimbConfig, DescendConfig, FallConfig, WalkConfig } from "../config/load";
 import type { MotionKind, WindowRect } from "../contract";
-import type { ScreenMonitor } from "../io/screen-geometry";
+import type { DescentEdge, ScreenMonitor } from "../io/screen-geometry";
 import type { RenderMotionSignal, TickContext, TickFn } from "../renderer";
+import { WALK_MOTION_ID } from "./walker";
 import {
   CLIMB_DOWN_LANDING_MOTION_ID,
   CLIMB_DOWN_MOTION_ID,
@@ -44,6 +51,17 @@ const WALK_CFG: WalkConfig = {
   distance_min_px: 200,
   distance_max_px: 600,
   floor_tolerance_px: 24,
+};
+
+const DESCEND_CFG: DescendConfig = { chance: 0.5, climb_down_chance: 0.5 };
+
+const FALL_CFG: FallConfig = {
+  gravity_px_s2: 1600,
+  max_speed_px_s: 1200,
+  min_drop_frac: 0.2,
+  cue_cooldown_ms: 60_000,
+  land_room_frac: 0.5,
+  step_off_probability: 0.1,
 };
 
 /** Work area 100..1500 on a 1920×1600 screen ⇒ floor 1500, work top 100. */
@@ -624,6 +642,10 @@ function makeHarness(
     monitors?: ScreenMonitor[];
     /** The window's own scale factor. Defaults to 1. */
     windowScale?: number;
+    /** On-screen character width in logical px. */
+    charWpx?: number | null;
+    /** Random draw for descent choices. */
+    rng?: () => number;
   } = {},
 ) {
   let tick: TickFn | null = null;
@@ -637,6 +659,7 @@ function makeHarness(
   const positions: Array<{ x: number; y: number }> = [];
   const logicalCalls: Array<{ x: number; y: number }> = [];
   const walkTargets: number[] = [];
+  const walkTravelActive: boolean[] = [];
   /** Clip-local time of the current motion when each walkTo arrived. */
   const walkClipTimes: number[] = [];
   /** Whether each walkTo asked the walker to keep its clip on arrival. */
@@ -706,8 +729,12 @@ function makeHarness(
     },
   );
   const handAnchors = vi.fn(() => ({ left: { x: 260, y: 300 }, right: { x: 280, y: 260 } }));
-  const drop = vi.fn(async () => {});
-  const fallerCancel = vi.fn();
+  let settleDrop!: () => void;
+  const dropDone = new Promise<void>((resolve) => {
+    settleDrop = resolve;
+  });
+  const drop = vi.fn(() => dropDone);
+  const fallerCancel = vi.fn(() => settleDrop());
   const walkerCancel = vi.fn();
   const sitterCancel = vi.fn();
   const sitDown = vi.fn(
@@ -791,6 +818,7 @@ function makeHarness(
         yaws.push({ rad, easeMs });
       },
       getPxPerMetre: () => (over.pxPerMetre === undefined ? PX_PER_METRE : over.pxPerMetre),
+      getCharacterWidthPx: () => (over.charWpx === undefined ? 160 : over.charWpx),
       getCharacterAnchor: () => (over.anchor === undefined ? ANCHOR : over.anchor),
       getPerchProbe: () => {
         const charHpx = over.charHpx === undefined ? CHAR_HPX : over.charHpx;
@@ -808,6 +836,8 @@ function makeHarness(
     },
     getConfig: () => CFG,
     getWalkConfig: () => WALK_CFG,
+    getDescendConfig: () => DESCEND_CFG,
+    getFallConfig: () => FALL_CFG,
     currentMotionKind: () => (currentMotion ? (MOTION_KINDS[currentMotion.id] ?? null) : null),
     isPeeking: () => over.peeking ?? false,
     isDragging: () => over.dragging ?? false,
@@ -815,9 +845,11 @@ function makeHarness(
     reducedMotion: () => over.reducedMotion ?? false,
     walker: {
       walkTo: async (toX: number, _onAccepted?: () => void, holdClip?: boolean) => {
+        cached.add(WALK_MOTION_ID);
         const outcome =
           over.walkResults?.[walkTargets.length] ?? over.walkResult ?? ("arrived" as const);
         walkTargets.push(toX);
+        walkTravelActive.push(travelWin !== null);
         walkClipTimes.push(clipT);
         walkHolds.push(holdClip === true);
         if (outcome === "arrived") pos = { x: toX, y: pos.y };
@@ -832,7 +864,7 @@ function makeHarness(
     onStart: starts,
     onSit: sits,
     onEnd: ends,
-    rng: () => 0,
+    rng: over.rng ?? (() => 0),
   };
 
   const climber = createClimber(deps);
@@ -873,6 +905,7 @@ function makeHarness(
     logicalCalls,
     windowReads: () => windowReads,
     walkTargets,
+    walkTravelActive,
     walkClipTimes,
     walkHolds,
     preloads,
@@ -884,6 +917,8 @@ function makeHarness(
     handAnchors,
     release,
     drop,
+    settleDrop,
+    fallerCancel,
     walkerCancel,
     sitDown,
     standUp,
@@ -1697,6 +1732,127 @@ const UPPER: ScreenMonitor = {
   workArea: { position: { x: -500, y: -975 }, size: { width: 1920, height: 975 } },
   scaleFactor: 1,
 };
+
+const DESCENT_BUILTIN: ScreenMonitor = {
+  position: { x: 0, y: 0 },
+  size: { width: 3456, height: 2234 },
+  workArea: { position: { x: 0, y: 100 }, size: { width: 3456, height: 1934 } },
+  scaleFactor: 2,
+};
+
+const DESCENT_UPPER_LEFT: ScreenMonitor = {
+  position: { x: -992, y: -1080 },
+  size: { width: 1920, height: 1080 },
+  workArea: { position: { x: -992, y: -1055 }, size: { width: 1920, height: 1055 } },
+  scaleFactor: 1,
+};
+
+const DESCENT_EDGE: DescentEdge = {
+  side: "right",
+  edgeX: 0,
+  topY: 0,
+  bottomY: 1017,
+};
+
+const DESCENT_MONITOR_TARGET: ClimbTarget = {
+  kind: "monitor",
+  windowNumber: -1,
+  width: 0,
+  side: "right",
+  edgeX: 0,
+  topY: 0,
+  bottomY: 1017,
+  rect: { x: 0, y: 0 },
+  app: null,
+  title: null,
+};
+
+describe("createClimber — monitor descent", () => {
+  const monitors = [DESCENT_BUILTIN, DESCENT_UPPER_LEFT];
+  const upperFloorPosition = { x: -400, y: -ANCHOR.y };
+
+  it("climbs down the lower monitor edge inside one travel", async () => {
+    const h = makeHarness({ position: upperFloorPosition, windows: [], monitors });
+    h.climber.start();
+    const done = h.climber.descend(DESCENT_EDGE);
+    await h.runToEnd();
+    await done;
+
+    expect(h.travelBeginCalls).toEqual([{ x: -50, y: 1017 - ANCHOR.y }]);
+    expect(h.walkTargets).toEqual([-ANCHOR.x]);
+    expect(h.walkTravelActive).toEqual([true]);
+    expect(h.motions).toEqual([
+      { id: CLIMB_DOWN_MOTION_ID },
+      { id: CLIMB_DOWN_LANDING_MOTION_ID },
+    ]);
+    expect(h.travelLogicalCalls).toEqual(h.logicalCalls);
+    expect(h.at()).toEqual({ x: -50, y: 1017 - ANCHOR.y });
+    expect(h.travelEndCalls()).toBe(1);
+    expect(h.standUp).not.toHaveBeenCalled();
+    expect(h.adoptSit).not.toHaveBeenCalled();
+    expect(h.starts).toHaveBeenCalledTimes(1);
+    expect(h.starts).toHaveBeenCalledWith("down", DESCENT_MONITOR_TARGET);
+    expect(h.drop).not.toHaveBeenCalled();
+  });
+
+  it("walks past the edge and keeps the travel open until the fall ends", async () => {
+    const h = makeHarness({
+      position: upperFloorPosition,
+      windows: [],
+      monitors,
+      rng: () => 0.75,
+    });
+    h.climber.start();
+    let resolved = false;
+    const done = h.climber.descend(DESCENT_EDGE).then(() => {
+      resolved = true;
+    });
+    for (let i = 0; i < 100 && h.drop.mock.calls.length === 0; i++) await h.frame();
+
+    expect(h.travelBeginCalls).toEqual([{ x: -120, y: 1017 - ANCHOR.y }]);
+    expect(h.walkTargets).toEqual([-ANCHOR.x]);
+    expect(h.walkTravelActive).toEqual([true]);
+    expect(h.motions).toEqual([{ id: WALK_MOTION_ID }]);
+    expect(h.at().x).toBe(-120);
+    expect(h.drop).toHaveBeenCalledTimes(1);
+    expect(h.travelEndCalls()).toBe(0);
+    expect(resolved).toBe(false);
+
+    h.settleDrop();
+    await done;
+    expect(h.travelEndCalls()).toBe(1);
+  });
+
+  it("does nothing when the feet are not on the upper floor line", async () => {
+    const h = makeHarness({ position: { x: -400, y: -600 }, windows: [], monitors });
+    h.climber.start();
+    await h.climber.descend(DESCENT_EDGE);
+
+    expect(h.travelBeginCalls).toEqual([]);
+    expect(h.starts).not.toHaveBeenCalled();
+    expect(h.walkTargets).toEqual([]);
+  });
+
+  it("cancels an in-flight fall without logging a completed descent", async () => {
+    log.info.mockClear();
+    const h = makeHarness({
+      position: upperFloorPosition,
+      windows: [],
+      monitors,
+      rng: () => 0.75,
+    });
+    h.climber.start();
+    const done = h.climber.descend(DESCENT_EDGE);
+    for (let i = 0; i < 100 && h.drop.mock.calls.length === 0; i++) await h.frame();
+
+    h.climber.cancel();
+    await done;
+
+    expect(h.fallerCancel).toHaveBeenCalledTimes(1);
+    expect(h.travelEndCalls()).toBe(1);
+    expect(log.info).not.toHaveBeenCalledWith("monitor_descended", expect.anything());
+  });
+});
 
 describe("createClimber — monitor wall", () => {
   it("climbs the nearer foreign window when a screen edge is farther", async () => {
