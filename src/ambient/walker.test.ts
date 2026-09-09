@@ -339,6 +339,7 @@ function makeHarness(
     travelBeginCalls,
     travelLogicalCalls,
     travelEndCalls: () => travelEndCalls,
+    fakeTravel,
     starts,
     ends,
     frame,
@@ -974,5 +975,66 @@ describe("createWalker — walkTo", () => {
     h.walker.start();
     expect(await settle(h, h.walker.walkTo(300))).toBe("arrived");
     expect(h.positions.at(-1)).toEqual({ x: 300, y: 400 });
+  });
+
+  describe("floor-segment clamp", () => {
+    // Built-in: 1728×1117 logical at (0,0), scale 2 — sits directly under the row above.
+    const BUILTIN: ScreenMonitor = {
+      position: { x: 0, y: 0 },
+      size: { width: 3456, height: 2234 },
+      workArea: { position: { x: 0, y: 100 }, size: { width: 3456, height: 1934 } },
+      scaleFactor: 2,
+    };
+    // 1920×1080 logical at (−992, −1080), scale 1 — floor line (no dock) at y = 0. Its
+    // usable segment is [-992, -400]; [-400, 1728] flickers above BUILTIN's scale seam.
+    const UPPER_LEFT: ScreenMonitor = {
+      position: { x: -992, y: -1080 },
+      size: { width: 1920, height: 1080 },
+      workArea: { position: { x: -992, y: -1055 }, size: { width: 1920, height: 1055 } },
+      scaleFactor: 1,
+    };
+
+    it("clamps a walkTo into the cut-out to the nearest floor segment", async () => {
+      // On the floor, well inside the usable segment.
+      const h = makeHarness({
+        position: { x: -600, y: -447 },
+        feetY: 447,
+        monitors: [BUILTIN, UPPER_LEFT],
+      });
+      h.walker.start();
+
+      expect(await settle(h, h.walker.walkTo(-200))).toBe("arrived");
+
+      expect(h.positions.at(-1)).toEqual({ x: -400, y: -447 });
+      expect(h.travelBeginCalls).toEqual([]);
+    });
+
+    it("does not clamp a walkTo while a travel is current", async () => {
+      const h = makeHarness({
+        position: { x: -600, y: -447 },
+        feetY: 447,
+        monitors: [BUILTIN, UPPER_LEFT],
+      });
+      await h.fakeTravel.begin({ x: -200, y: -447 });
+      h.walker.start();
+
+      expect(await settle(h, h.walker.walkTo(-200))).toBe("arrived");
+
+      expect(h.positions.at(-1)).toEqual({ x: -200, y: -447 });
+    });
+
+    it("does not clamp a walkTo off the floor", async () => {
+      // Feet well above the floor line — a perched ledge walk, not a floor stroll.
+      const h = makeHarness({
+        position: { x: -600, y: -900 },
+        feetY: 447,
+        monitors: [BUILTIN, UPPER_LEFT],
+      });
+      h.walker.start();
+
+      expect(await settle(h, h.walker.walkTo(-200))).toBe("arrived");
+
+      expect(h.positions.at(-1)).toEqual({ x: -200, y: -900 });
+    });
   });
 });
