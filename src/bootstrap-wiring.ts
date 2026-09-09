@@ -576,6 +576,7 @@ export function wireWalker(deps: {
     walker = createWalker({
       renderer,
       getWindow: deps.travelFrame.getWindow,
+      travel: deps.travelFrame.travel,
       listMonitors: async () => (await availableMonitors()).map(toScreenMonitor),
       getConfig: deps.getWalkConfig,
       currentMotionKind: () => {

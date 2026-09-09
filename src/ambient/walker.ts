@@ -31,6 +31,7 @@ import {
   type PetWindow,
   type ScreenMonitor,
 } from "../io/screen-geometry";
+import type { Travel } from "../io/travel-frame";
 import { createLogger } from "../logger";
 import type { Renderer } from "../renderer";
 import { type Rng, randRange } from "./cues";
@@ -120,11 +121,14 @@ export function advanceX(x: number, toX: number, speedPxPerSec: number, dt: numb
   return Math.abs(remaining) <= step ? toX : x + Math.sign(remaining) * step;
 }
 
-/** The segment containing x, else the one whose nearer edge sits closest to it. */
+/**
+ * The segment containing x, else the one whose nearer edge sits closest to it, paired
+ * with that distance — 0 when x already sits inside it.
+ */
 function nearestSegment(
   segments: Array<{ left: number; right: number }>,
   x: number,
-): { left: number; right: number } | null {
+): { seg: { left: number; right: number }; distance: number } | null {
   let best: { left: number; right: number } | null = null;
   let bestDist = Infinity;
   for (const seg of segments) {
@@ -134,7 +138,7 @@ function nearestSegment(
       best = seg;
     }
   }
-  return best;
+  return best ? { seg: best, distance: bestDist } : null;
 }
 
 /** Document seam for the hidden-window guard — the renderer parks its rAF while hidden. */
@@ -157,6 +161,11 @@ export interface WalkerDeps {
     | "isPerched"
   >;
   getWindow(): PetWindow;
+  /** Parks the real window once for a stroll that starts outside every floor segment. */
+  travel: {
+    begin(end: { x: number; y: number }): Promise<Travel>;
+    current(): PetWindow | null;
+  };
   listMonitors(): Promise<ScreenMonitor[]>;
   getConfig(): WalkConfig;
   /** Registry kind of the committed motion. null when nothing is playing. */
@@ -214,6 +223,8 @@ export function createWalker(deps: WalkerDeps): Walker {
   } | null = null;
   /** Settles the walkTo promise when a directed walk ends. */
   let resolveWalk: ((outcome: "arrived" | "lost") => void) | null = null;
+  /** Parks the real window for a running stroll that starts outside every segment. */
+  let travel: Travel | null = null;
   /** True while the async fire-time reads are in flight. */
   let starting = false;
   /** Bumped by every cancel/stop so an in-flight begin() drops its plan. */
@@ -244,6 +255,11 @@ export function createWalker(deps: WalkerDeps): Walker {
     const bodyReleased = !held && renderer.getCurrentMotion()?.id === WALK_MOTION_ID;
     if (bodyReleased) renderer.playMotion(null);
     renderer.setBodyYaw(0, WALK_YAW_EASE_MS);
+    if (travel) {
+      const t = travel;
+      travel = null;
+      void t.end();
+    }
     const settle = resolveWalk;
     resolveWalk = null;
     if (!s.directed) deps.onEnd(bodyReleased);
@@ -292,8 +308,9 @@ export function createWalker(deps: WalkerDeps): Walker {
     const usable = floorSegments(monitors, monitor, width, hangPx).filter(
       (s) => s.right - s.left >= cfg.distance_min_px,
     );
-    const seg = nearestSegment(usable, x);
-    if (!seg) return;
+    const found = nearestSegment(usable, x);
+    if (!found) return;
+    const { seg, distance } = found;
     const plan = planStroll({
       x,
       width,
@@ -303,15 +320,34 @@ export function createWalker(deps: WalkerDeps): Walker {
       rng,
     });
     if (!plan) return;
+
+    // Starting outside every usable segment, the whole stroll crosses a seam: park the
+    // real window once at the destination and draw every step into it, instead of
+    // moving the real window across the seam a frame at a time.
+    let strollWin = win;
+    let started: Travel | null = null;
+    if (distance > 0) {
+      started = await deps.travel.begin({ x: plan.toX, y: pos.y / scale });
+      if (stopped || generation !== startedAt) {
+        void started.end();
+        return;
+      }
+      strollWin = started.win;
+    }
+
     renderer.playMotion({ id: WALK_MOTION_ID });
     // A dropped request (perch suppression, dead clip) must not leave a walk_start/walk_end blip.
-    if (renderer.getCurrentMotion()?.id !== WALK_MOTION_ID) return;
+    if (renderer.getCurrentMotion()?.id !== WALK_MOTION_ID) {
+      if (started) void started.end();
+      return;
+    }
+    travel = started;
     stroll = {
       x,
       y: pos.y / scale,
       toX: plan.toX,
       pxPerMetre,
-      win,
+      win: strollWin,
       directed: false,
       holdClip: false,
     };
