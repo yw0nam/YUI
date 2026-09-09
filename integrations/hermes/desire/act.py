@@ -384,6 +384,9 @@ def main(argv=None, *, now=None, opener=urllib_request.urlopen):
 
 
 def _run(argv, now, opener):
+    # Identity is read before any state transaction, so a missing value costs no budget.
+    desire_state.agent_name()
+    desire_state.hermes_profile()
     now = desire_state.normalize_now(now or datetime.now(KST))
     args = _parser().parse_args(argv)
     if args.command == "signal":

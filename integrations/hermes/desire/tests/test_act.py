@@ -27,6 +27,7 @@ def test_act_reports_a_missing_agent_name_instead_of_signalling(state_dir, at, m
 
     assert exit_code == 1
     assert "DESIRE_AGENT_NAME" in capsys.readouterr().err
+    assert list(state_dir.iterdir()) == []
 
 
 def test_act_reports_a_missing_profile_on_the_skill_report(state_dir, at, monkeypatch, capsys):

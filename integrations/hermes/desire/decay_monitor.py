@@ -441,6 +441,7 @@ def _fallback_summary() -> str:
 
 
 def main() -> None:
+    # A missing identity is a misconfiguration the fail-safe summary must not hide.
     try:
         desire_state.agent_name()
         desire_state.hermes_profile()

@@ -57,6 +57,9 @@ def wake_day(now: datetime) -> str:
     return (normalize_now(now) - timedelta(hours=9)).date().isoformat()
 
 
+_AGENT_SLUG = re.compile(r"[a-z0-9][a-z0-9-]*")
+
+
 class ConfigurationError(RuntimeError):
     """A value the deployment must set is missing."""
 
@@ -71,7 +74,12 @@ def _required(name: str) -> str:
 def agent_name() -> str:
     """Return the slug naming this agent, which every desire convention derives from."""
 
-    return _required("DESIRE_AGENT_NAME")
+    value = _required("DESIRE_AGENT_NAME")
+    if _AGENT_SLUG.fullmatch(value) is None:
+        raise ConfigurationError(
+            "DESIRE_AGENT_NAME must be one slug of lowercase letters, digits, and hyphens"
+        )
+    return value
 
 
 def hermes_profile() -> str:
@@ -98,7 +106,7 @@ def chat_platforms() -> frozenset[str]:
     """Name the Hermes platforms whose turns are the user speaking to the agent."""
 
     listed = os.environ.get("DESIRE_CHAT_PLATFORMS", "").split(",")
-    return frozenset(name.strip() for name in listed if name.strip())
+    return frozenset(name.strip().lower() for name in listed if name.strip())
 
 
 def profile_root() -> Path:

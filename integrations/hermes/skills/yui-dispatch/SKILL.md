@@ -62,6 +62,7 @@ gh issue comment $N --repo $REPO --body "Picked up by $DESIRE_AGENT_NAME; a head
 The prompt carries the agent and profile names, so the session opens the pull request under them:
 
 ```bash
+: "${DESIRE_AGENT_NAME:?set it in the profile .env}" "${HERMES_PROFILE:?set it in the profile .env}"
 { sed -e "s|<agent>|$DESIRE_AGENT_NAME|g" -e "s|<profile>|$HERMES_PROFILE|g" \
     $YUI/integrations/hermes/skills/yui-dispatch/prompt.md; \
   gh issue view $N --repo $REPO --json number,title,body --template 'Issue #{{.number}}: {{.title}}

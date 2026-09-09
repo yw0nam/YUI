@@ -24,7 +24,6 @@ _CLIENT_CONTEXT = re.compile(r"<client_context>\n(?:(?!</?client_context>).)*?</
 _USER_TRIGGER = re.compile(r"^trigger: user message(?: \(user idle \d+min\))?$")
 _TRIGGER_LINE = re.compile(r"trigger: (?P<kind>\S+)")
 _TRIGGER_KINDS = ("proactive", "screen", "agent", "signals")
-_AGENT_LINE = re.compile(r"agent: \S+")
 _DRIVES_LINE = re.compile(
     r"drives: social (?P<social>0|[1-9]\d?|100)/100 \((?P<social_bucket>low|mid|high)\) \| "
     r"curiosity (?P<curiosity>0|[1-9]\d?|100)/100 \((?P<curiosity_bucket>low|mid|high)\) \| "
@@ -95,7 +94,7 @@ def _already_injected(text):
     lines = stripped[opening + 1 :].split("\n")
     if len(lines) < 6 or lines[0] != "<desire_state>" or lines[-1] != "</desire_state>":
         return False
-    if _AGENT_LINE.fullmatch(lines[1]) is None:
+    if lines[1] != f"agent: {desire_state.agent_name()}":
         return False
     drives = _DRIVES_LINE.fullmatch(lines[2])
     if drives is None:
@@ -231,7 +230,8 @@ def _rewrite(kwargs, event):
     staged_drives = copy.deepcopy(drives)
     trigger = _trigger_kind(original_text)
     event["trigger"] = trigger
-    interaction = trigger == "user message" or kwargs.get("platform") in desire_state.chat_platforms()
+    platform = str(kwargs.get("platform") or "").strip().lower()
+    interaction = trigger == "user message" or platform in desire_state.chat_platforms()
     event["interaction"] = interaction
     interaction_changed = False
     returned_hours = None
