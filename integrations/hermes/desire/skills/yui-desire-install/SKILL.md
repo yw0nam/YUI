@@ -53,11 +53,15 @@ Append to the profile `.env` (`~/.hermes/profiles/<profile>/.env`, or `~/.hermes
 HERMES_PROFILE=<profile>
 DESIRE_STATE_DIR=/home/<user>/.hermes/profiles/<profile>/desire
 YUI_SIGNALS_URL=http://127.0.0.1:8770/signals
+MEMORY_BASE_URL=http://127.0.0.1:8010
+MEMORY_BASE_API_KEY=<the memory_base key>
 ```
 
 `YUI_SIGNALS_URL` must point at YUI's `/signals` ingress. When YUI runs on another machine and reaches this host
-through an SSH reverse tunnel, use the tunnel endpoint instead of port 8770. Check: `grep DESIRE_STATE_DIR` on the
-`.env` file prints the line.
+through an SSH reverse tunnel, use the tunnel endpoint instead of port 8770. `MEMORY_BASE_URL` and
+`MEMORY_BASE_API_KEY` are what the monitor reads memory notes with; without the key it audits `derive_failed` for
+`notes` every tick and scores no `learned` event. Check: `grep DESIRE_STATE_DIR` on the `.env` file prints the
+line.
 
 ## 4. Monitor script (real file, not a symlink)
 
@@ -81,14 +85,18 @@ own. The real check is the state directory it bootstraps:
 ls "$DESIRE_STATE_DIR"
 ```
 
-must list `drives.json`, `budget.json`, `cursor.json`, `monitor.json`, `transport.json`, `outbox.jsonl`,
-`audit.jsonl`, `ticks.jsonl`, and `state.lock`. If it is
+must list `drives.json`, `budget.json`, `cursor.json`, `monitor.json`, `transport.json`, `artefacts.json`,
+`outbox.jsonl`, `audit.jsonl`, `ticks.jsonl`, and `state.lock`. If it is
 empty or missing, the monitor could not write there — fix `DESIRE_STATE_DIR` before continuing.
+
+That first run bootstraps `artefacts.json` from the pull requests, issues, and skills that already exist, marking
+them as seen without dosing any drive: `grep drive_satisfied "$DESIRE_STATE_DIR/audit.jsonl"` finds nothing new.
+Only artefacts that appear after it are scored.
 
 ## 5. Workspace clones
 
-Natsume files issues and pull requests in `yw0nam/YUI` and `yw0nam/memory_layer` from clones under the profile
-workspace:
+Natsume works in every repository cloned under the profile workspace, and the monitor derives her `progressed` and
+`shipped` events from each of them. Give her `yw0nam/YUI` and `yw0nam/memory_layer` to start with:
 
 ```bash
 gh auth status
@@ -180,10 +188,11 @@ Check: `~/.hermes/profiles/<profile>/logs/gateway.log` gains `api_server connect
 ## Helper commands
 
 `python3 $YUI/integrations/hermes/desire/act.py --help` lists the actions the prompts use: `signal`, `issue`,
-`comment`, `pr`, `report`, `satisfy`, `feedback`, `outbox`. Daily caps, reset at KST midnight: three signals, two
-issues, one self-initiated comment, one pull request, and the four `satisfy` events (`learned` 6, `progressed` 6,
-`shipped` 4, `praised` 4 — see the README's Action budgets table for their drive doses). `report` carries the daily
-report to YUI and has no budget.
+`comment`, `pr`, `dispatch`, `report`, `satisfy`, `feedback`, `outbox`. Daily caps, reset at KST midnight: three
+signals, two issues, one self-initiated comment, one pull request, one dispatch, and the four satisfaction events
+(`learned` 6, `progressed` 6, `shipped` 4, `praised` 4 — see the README's Action budgets table for their drive
+doses). `satisfy` accepts only `praised`; the monitor derives the other three. `report` carries the daily report to
+YUI and has no budget.
 
 ## Tests (optional, needs uv)
 
