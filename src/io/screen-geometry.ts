@@ -57,6 +57,26 @@ export function monitorAt(monitors: ScreenMonitor[], x: number, y: number): Scre
   );
 }
 
+/** The monitor whose bounds, converted to logical px, contain the point, or null. */
+export function monitorAtLogical(
+  monitors: ScreenMonitor[],
+  x: number,
+  y: number,
+): ScreenMonitor | null {
+  return (
+    monitors.find((m) => {
+      const left = m.position.x / m.scaleFactor;
+      const top = m.position.y / m.scaleFactor;
+      return (
+        x >= left &&
+        x < left + m.size.width / m.scaleFactor &&
+        y >= top &&
+        y < top + m.size.height / m.scaleFactor
+      );
+    }) ?? null
+  );
+}
+
 /** How far apart two floor lines may read and still count as the same one, float rounding included. */
 export const FLOOR_LINE_TOLERANCE_PX = 1;
 
