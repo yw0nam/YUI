@@ -574,7 +574,7 @@ const realFactories: ConfiguredBootstrapFactories = {
         // A cancelled climb or stroll may still be unparking its travel.
         return travelFrame.abort();
       },
-      onDragMiss: () => faller.drop(),
+      onDragMiss: () => faller.drop({ landOnSeam: true }),
       onSitLost: createSitLossFall({ getClimber: () => climberRef, faller }),
       sitDown: () => sitter.sitDown(null),
       log,

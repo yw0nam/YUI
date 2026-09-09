@@ -893,7 +893,7 @@ export function wireClimber(deps: {
   /** A turn is in flight or speech is still playing — ambient movement stays out of the way. */
   isBusy: () => boolean;
   walker: { walkTo(toX: number): Promise<"arrived" | "lost">; cancel(): void };
-  faller: { drop(opts?: DropOptions): Promise<void>; cancel(): void };
+  faller: { drop(): Promise<void>; cancel(): void };
   sitter: Pick<Sitter, "sitDown" | "standUp" | "cancel">;
   dropSource: {
     adoptSit(

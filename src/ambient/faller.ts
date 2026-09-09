@@ -169,13 +169,40 @@ export interface FallerDeps {
   onEnd(): void;
 }
 
-/**
- * Which point picks the monitor a fall happens on. The body centre keeps a release that
- * straddles a seam on the monitor holding most of her, so she lands on its floor line;
- * the feet let a step-off standing exactly on the seam fall through it.
- */
 export interface DropOptions {
-  anchor?: "body" | "feet";
+  /**
+   * A release whose feet hang just below the floor line of a monitor above them — within
+   * the snap threshold — lands on that line rather than falling down the monitor below.
+   * Off by default: a step-off standing exactly on the seam falls through it.
+   */
+  landOnSeam?: boolean;
+}
+
+/**
+ * The monitor a fall happens on: the one under the feet, or with `landOnSeam` the monitor
+ * whose floor line the feet hang just below, when there is one over them.
+ */
+export function pickFallMonitor(args: {
+  monitors: ScreenMonitor[];
+  /** Physical px. */
+  feetPhysicalX: number;
+  feetPhysicalY: number;
+  /** Logical px. */
+  feetX: number;
+  feetY: number;
+  /** How far below a floor line the feet may hang and still land on it (logical px). */
+  seamSnapPx: number | null;
+}): ScreenMonitor | null {
+  const { monitors, feetPhysicalX, feetPhysicalY, feetX, feetY, seamSnapPx } = args;
+  if (seamSnapPx !== null) {
+    const above = monitors.find((m) => {
+      const wa = logicalWorkArea(m);
+      const below = feetY - floorPx(m);
+      return feetX >= wa.x && feetX < wa.x + wa.width && below > 0 && below <= seamSnapPx;
+    });
+    if (above) return above;
+  }
+  return monitorAt(monitors, feetPhysicalX, feetPhysicalY);
 }
 
 export interface Faller {
@@ -364,23 +391,29 @@ export function createFaller(deps: FallerDeps): Faller {
     if (stopped || generation !== startedAt) return false;
     if (!feet || !probe) return false;
     const scale = sf > 0 ? sf : 1;
-    // A point inside the character, since a window straddling a screen edge has its origin
-    // off every monitor while she is on one.
-    const anchorY = opts.anchor === "feet" ? feet.y : feet.y - probe.charHpx / 2;
-    const anchorPhysicalX = pos.x + feet.x * scale;
-    const anchorPhysicalY = pos.y + anchorY * scale;
-    const monitor = monitorAt(monitors, anchorPhysicalX, anchorPhysicalY);
-    if (!monitor) {
-      log.warn("fall_skipped", {
-        reason: "no_monitor",
-        x: Math.round(anchorPhysicalX),
-        y: Math.round(anchorPhysicalY),
-      });
-      return false;
-    }
+    // The feet are what stands on a surface, and a window straddling a screen edge has its
+    // origin off every monitor while the character is fully on one.
+    const feetPhysicalX = pos.x + feet.x * scale;
+    const feetPhysicalY = pos.y + feet.y * scale;
     const windowY = pos.y / scale;
     const feetY = windowY + feet.y;
     const feetX = pos.x / scale + feet.x;
+    const monitor = pickFallMonitor({
+      monitors,
+      feetPhysicalX,
+      feetPhysicalY,
+      feetX,
+      feetY,
+      seamSnapPx: opts.landOnSeam ? probe.charHpx * cfg.min_drop_frac : null,
+    });
+    if (!monitor) {
+      log.warn("fall_skipped", {
+        reason: "no_monitor",
+        x: Math.round(feetPhysicalX),
+        y: Math.round(feetPhysicalY),
+      });
+      return false;
+    }
     const floorY = floorPx(monitor);
     const minStandingTop = logicalWorkArea(monitor).y + feet.y;
     const surface = pickLandingSurface({
