@@ -111,11 +111,23 @@ def test_a_blank_agent_name_is_as_missing_as_an_absent_one(monkeypatch):
         desire_state.agent_name()
 
 
-@pytest.mark.parametrize("value", ["my agent", "Natsume", "agent_two", "-agent", "agent/x"])
+@pytest.mark.parametrize("value", ["my agent", "Agent", "agent_two", "-agent", "agent/x"])
 def test_an_agent_name_outside_the_slug_shape_is_refused(monkeypatch, value):
     monkeypatch.setenv("DESIRE_AGENT_NAME", value)
     with pytest.raises(desire_state.ConfigurationError, match="DESIRE_AGENT_NAME"):
         desire_state.agent_name()
+
+
+@pytest.mark.parametrize("value", ["", "  ", " , "])
+def test_the_chat_platforms_are_required(monkeypatch, value):
+    monkeypatch.setenv("DESIRE_CHAT_PLATFORMS", value)
+    with pytest.raises(desire_state.ConfigurationError, match="DESIRE_CHAT_PLATFORMS"):
+        desire_state.chat_platforms()
+
+
+def test_the_chat_platforms_are_read_as_a_list(monkeypatch):
+    monkeypatch.setenv("DESIRE_CHAT_PLATFORMS", "Discord, slack ")
+    assert desire_state.chat_platforms() == frozenset({"discord", "slack"})
 
 
 def test_every_convention_derives_from_the_agent_name(monkeypatch):

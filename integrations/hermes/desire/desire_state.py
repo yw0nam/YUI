@@ -64,10 +64,14 @@ class ConfigurationError(RuntimeError):
     """A value the deployment must set is missing."""
 
 
+def _missing(name: str) -> ConfigurationError:
+    return ConfigurationError(f"{name} is not set; export it in the Hermes profile environment")
+
+
 def _required(name: str) -> str:
     value = os.environ.get(name, "").strip()
     if not value:
-        raise ConfigurationError(f"{name} is not set; export it in the Hermes profile environment")
+        raise _missing(name)
     return value
 
 
@@ -106,7 +110,10 @@ def chat_platforms() -> frozenset[str]:
     """Name the Hermes platforms whose turns are the user speaking to the agent."""
 
     listed = os.environ.get("DESIRE_CHAT_PLATFORMS", "").split(",")
-    return frozenset(name.strip().lower() for name in listed if name.strip())
+    names = frozenset(name.strip().lower() for name in listed if name.strip())
+    if not names:
+        raise _missing("DESIRE_CHAT_PLATFORMS")
+    return names
 
 
 def profile_root() -> Path:

@@ -6,6 +6,7 @@ import re
 from datetime import timedelta
 from pathlib import Path
 
+import pytest
 from conftest import AGENT_NAME
 
 import desire_state
@@ -805,11 +806,12 @@ def test_debug_event_logs_error_on_forced_failure(desire_plugin, state_dir, at, 
     assert "reason=ZeroDivisionError" in message
 
 
-def test_a_missing_agent_name_fails_open_and_names_the_variable(
-    desire_plugin, state_dir, at, caplog, monkeypatch
+@pytest.mark.parametrize("missing", ["DESIRE_AGENT_NAME", "DESIRE_CHAT_PLATFORMS"])
+def test_a_missing_required_value_fails_open_and_names_the_variable(
+    desire_plugin, state_dir, at, caplog, monkeypatch, missing
 ):
     now = at("2026-08-25T12:00:00+09:00")
-    monkeypatch.delenv("DESIRE_AGENT_NAME", raising=False)
+    monkeypatch.delenv(missing, raising=False)
     caplog.set_level(logging.DEBUG, logger=desire_plugin.__name__)
     request = request_with(context("trigger: user message"))
     original = copy.deepcopy(request)
@@ -819,7 +821,7 @@ def test_a_missing_agent_name_fails_open_and_names_the_variable(
     assert request == original
     errors = [record for record in caplog.records if record.levelno == logging.ERROR]
     assert len(errors) == 1
-    assert "DESIRE_AGENT_NAME" in errors[0].getMessage()
+    assert missing in errors[0].getMessage()
     assert "outcome=error" in caplog.records[-1].getMessage()
 
 

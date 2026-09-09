@@ -230,8 +230,9 @@ def _rewrite(kwargs, event):
     staged_drives = copy.deepcopy(drives)
     trigger = _trigger_kind(original_text)
     event["trigger"] = trigger
+    platforms = desire_state.chat_platforms()
     platform = str(kwargs.get("platform") or "").strip().lower()
-    interaction = trigger == "user message" or platform in desire_state.chat_platforms()
+    interaction = trigger == "user message" or platform in platforms
     event["interaction"] = interaction
     interaction_changed = False
     returned_hours = None

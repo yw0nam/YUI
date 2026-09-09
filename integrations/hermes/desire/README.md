@@ -14,9 +14,10 @@ The integration is a self-contained Python 3.10+ uv project. Runtime code uses o
 branch prefix `<agent>/`, the issue marker `<!-- from-<agent> -->`, the issue label `from-<agent>`, the
 memory-note tag `<agent>`, the signal source `<agent>-desire`, and the cron job names `<agent>-desire-tick`,
 `<agent>-desire-reflection`, and `<agent>-desire-report`. `HERMES_PROFILE` names the Hermes profile the agent runs
-on. Both are required and have no default: the monitor and the helper stop with an error naming the missing
-variable, and the middleware injects nothing and logs one. The desire block opens with the line `agent: <agent>`
-so the prompts can refer to it.
+on, and `DESIRE_CHAT_PLATFORMS` names the channels the user speaks to the agent on. All three are required and
+have no default: the monitor and the helper stop with an error naming the missing variable, and the middleware
+injects nothing and logs one. The desire block opens with the line `agent: <agent>` so the prompts can refer to
+it.
 
 ## State
 
@@ -136,13 +137,14 @@ export DESIRE_STATE_DIR="$HOME/.hermes/profiles/$HERMES_PROFILE/desire"
 export DESIRE_CHAT_PLATFORMS=<the Hermes chat platforms the user speaks to the agent on>
 ```
 
-`DESIRE_AGENT_NAME` and `HERMES_PROFILE` are required. `DESIRE_STATE_DIR` is optional when the default profile
-path is appropriate. `DESIRE_CHAT_PLATFORMS` is a comma-separated list of Hermes platform names (`telegram`,
-`discord`, `slack`, …); a turn Hermes attributes to one of them counts as the user speaking even when it carries
-no `<client_context>`, and an empty list leaves that to the client's own trigger line alone.
+`DESIRE_AGENT_NAME`, `HERMES_PROFILE`, and `DESIRE_CHAT_PLATFORMS` are required; `DESIRE_STATE_DIR` is optional
+when the default profile path is appropriate. `DESIRE_CHAT_PLATFORMS` is a comma-separated list of Hermes platform
+names (`telegram`, `discord`, `slack`, …); a turn Hermes attributes to one of them counts as the user speaking
+even when it carries no `<client_context>`.
 
-`YUI_SIGNALS_URL` defaults to `http://127.0.0.1:8770/signals`, which assumes Hermes and YUI share a host. The `/signals` ingress listens only while
-AgentNotify is enabled in YUI's quick controls, and toggling AgentNotify requires an app restart. When Hermes runs on
+`YUI_SIGNALS_URL` defaults to `http://127.0.0.1:8770/signals`, which assumes Hermes and YUI share a host. The
+`/signals` ingress listens only while AgentNotify is enabled in YUI's quick controls, and toggling AgentNotify
+requires an app restart. When Hermes runs on
 a remote host, such as when it reaches YUI through an SSH reverse tunnel, `YUI_SIGNALS_URL` must be set to the tunnel
 endpoint.
 

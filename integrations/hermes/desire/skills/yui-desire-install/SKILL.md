@@ -57,10 +57,10 @@ YUI_SIGNALS_URL=http://127.0.0.1:8770/signals
 DESIRE_CHAT_PLATFORMS=<the chat platforms the user speaks to the agent on>
 ```
 
-`DESIRE_AGENT_NAME` and `HERMES_PROFILE` are required: without either, the monitor and the helper stop with an
-error naming the missing variable and the middleware injects nothing. `DESIRE_CHAT_PLATFORMS` is a comma-separated list of Hermes
-platform names (`telegram`, `discord`, `slack`, …); a turn from one of them counts as the user speaking even when
-it carries no `<client_context>`.
+`DESIRE_AGENT_NAME`, `HERMES_PROFILE`, and `DESIRE_CHAT_PLATFORMS` are required: without one of them, the
+monitor and the helper stop with an error naming the missing variable and the middleware injects nothing.
+`DESIRE_CHAT_PLATFORMS` is a comma-separated list of Hermes platform names (`telegram`, `discord`, `slack`, …); a
+turn from one of them counts as the user speaking even when it carries no `<client_context>`.
 
 `YUI_SIGNALS_URL` must point at YUI's `/signals` ingress. When YUI runs on another machine and reaches this host
 through an SSH reverse tunnel, use the tunnel endpoint instead of port 8770. Check: `grep DESIRE_STATE_DIR` on the
