@@ -255,6 +255,7 @@ pub fn run() {
             agent_ingress::start_agent_ingress,
             agent_ingress::avatar_rpc_response,
             turn_log::append_turn_record,
+            window_frame::set_frame_logical,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

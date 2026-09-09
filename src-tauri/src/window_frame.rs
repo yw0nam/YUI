@@ -75,8 +75,59 @@ mod macos {
     /// Converts a top-left-origin, y-down logical frame into Cocoa's bottom-left, y-up
     /// `NSRect`. `primary_height` is `NSScreen::screens()[0]`'s logical height — Cocoa's
     /// origin is that screen's bottom-left corner, whichever screen the window is on.
-    pub fn cocoa_frame(_x: f64, _y: f64, _width: f64, _height: f64, _primary_height: f64) -> NSRect {
-        NSRect::new(NSPoint::new(0.0, 0.0), NSSize::new(0.0, 0.0))
+    pub fn cocoa_frame(x: f64, y: f64, width: f64, height: f64, primary_height: f64) -> NSRect {
+        NSRect::new(
+            NSPoint::new(x, primary_height - y - height),
+            NSSize::new(width, height),
+        )
+    }
+
+    /// Applies `(x, y, width, height)` — global logical top-left and outer size, `LogicalPosition`/
+    /// `LogicalSize`'s own space — as one `setFrame:display:` call, so a window straddling two
+    /// displays changes backing scale once instead of twice.
+    fn apply_frame<R: Runtime>(
+        window: &WebviewWindow<R>,
+        x: f64,
+        y: f64,
+        width: f64,
+        height: f64,
+        _mtm: MainThreadMarker,
+    ) -> Result<(), String> {
+        let ns_window = window.ns_window().map_err(|e| e.to_string())?;
+        // SAFETY: `_mtm` proves we are on the main thread, and `ns_window` is the live pet
+        // window's NSWindow*, valid for the lifetime of this call.
+        let win = unsafe { &*(ns_window as *const NSWindow) };
+        let screens = NSScreen::screens(_mtm).to_vec();
+        let primary_height = screens.first().map(|s| s.frame().size.height).unwrap_or(0.0);
+        let frame = cocoa_frame(x, y, width, height, primary_height);
+        win.setFrame_display(frame, true);
+        Ok(())
+    }
+
+    /// `set_frame_logical` — see the doc comment on the cross-platform re-export below.
+    pub fn set_frame_logical<R: Runtime>(
+        window: WebviewWindow<R>,
+        x: f64,
+        y: f64,
+        width: f64,
+        height: f64,
+    ) -> Result<(), String> {
+        if let Some(mtm) = MainThreadMarker::new() {
+            return apply_frame(&window, x, y, width, height, mtm);
+        }
+        // Off the main thread: hop over and block until AppKit has actually applied the
+        // frame, so the command only resolves once the caller's next read sees it.
+        let (tx, rx) = mpsc::channel();
+        let on_main = window.clone();
+        window
+            .run_on_main_thread(move || {
+                // SAFETY: `run_on_main_thread` runs the closure on the main thread.
+                let mtm = unsafe { MainThreadMarker::new_unchecked() };
+                let result = apply_frame(&on_main, x, y, width, height, mtm);
+                let _ = tx.send(result);
+            })
+            .map_err(|e| e.to_string())?;
+        rx.recv().map_err(|e| e.to_string())?
     }
 
     #[cfg(test)]
@@ -104,4 +155,32 @@ pub use macos::allow_unconstrained_frame;
 #[cfg(not(target_os = "macos"))]
 pub fn allow_unconstrained_frame(_window: &tauri::WebviewWindow) -> tauri::Result<()> {
     Ok(())
+}
+
+/// Sets the window's global logical top-left `(x, y)` and logical outer size
+/// `(width, height)` — `LogicalPosition`/`LogicalSize`'s own coordinate space — in one
+/// step. On macOS this is a single `setFrame:display:` call, so a window straddling two
+/// displays with different backing scale changes scale once instead of twice; elsewhere
+/// there is no combined frame call, so size and position are set separately.
+#[tauri::command]
+pub fn set_frame_logical<R: tauri::Runtime>(
+    window: tauri::WebviewWindow<R>,
+    x: f64,
+    y: f64,
+    width: f64,
+    height: f64,
+) -> Result<(), String> {
+    #[cfg(target_os = "macos")]
+    {
+        macos::set_frame_logical(window, x, y, width, height)
+    }
+    #[cfg(not(target_os = "macos"))]
+    {
+        window
+            .set_size(tauri::LogicalSize::new(width, height))
+            .map_err(|e| e.to_string())?;
+        window
+            .set_position(tauri::LogicalPosition::new(x, y))
+            .map_err(|e| e.to_string())
+    }
 }
