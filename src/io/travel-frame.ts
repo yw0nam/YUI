@@ -7,6 +7,9 @@
  * bounding box of the path, then hands the mover a virtual window whose `setPositionLogical`
  * only redraws the reference-size framing at an offset inside that parked canvas
  * (`Renderer.setViewWindow`) — the real window never moves again until the travel ends.
+ * `current()` keeps reporting the virtual window for the whole end() call, including its
+ * own `setFrameLogical` round trip, so nobody observes the parked real window in between;
+ * once ended, the virtual window degrades into forwarding straight to the real one.
  */
 
 import { createLogger } from "../logger";
@@ -35,7 +38,10 @@ interface TravelState {
   monitors: ScreenMonitor[];
   startScale: number;
   win: PetWindow;
+  /** Set once the end frame call has settled — the virtual window then forwards to the real one. */
   ended: boolean;
+  /** Set on the first end() call; every later call returns this same promise. */
+  ending: Promise<void> | null;
 }
 
 export function createTravelFrame(deps: {
@@ -44,10 +50,15 @@ export function createTravelFrame(deps: {
   listMonitors(): Promise<ScreenMonitor[]>;
   setKeepOnScreenPaused(paused: boolean): void;
 }): {
-  /** Park the real window over the start rect and `end` (a window origin, logical px, same size) and hand back the virtual window. */
-  begin(end: { x: number; y: number }): Promise<Travel>;
-  /** The virtual window while a travel runs, else null. */
+  /**
+   * Park the real window over the bounding box of the start rect, `end` and every `via`
+   * origin (logical px, all the same size), and hand back the virtual window.
+   */
+  begin(end: { x: number; y: number }, via?: Array<{ x: number; y: number }>): Promise<Travel>;
+  /** The virtual window while a travel runs or is ending, else null. */
   current(): PetWindow | null;
+  /** The pending end's promise, or already-resolved when nothing is ending. */
+  settled(): Promise<void>;
 } {
   let active: TravelState | null = null;
 
@@ -59,19 +70,27 @@ export function createTravelFrame(deps: {
     return {
       async outerPosition() {
         const s = get();
+        if (s.ended) return deps.frame.outerPosition();
         const scale = scaleAt(s);
         return { x: s.origin.x * scale, y: s.origin.y * scale };
       },
       async outerSize() {
         const s = get();
+        if (s.ended) return deps.frame.outerSize();
         const scale = scaleAt(s);
         return { width: s.size.width * scale, height: s.size.height * scale };
       },
       async scaleFactor() {
-        return scaleAt(get());
+        const s = get();
+        if (s.ended) return deps.frame.scaleFactor();
+        return scaleAt(s);
       },
       async setPositionLogical(x, y) {
         const s = get();
+        if (s.ended) {
+          await deps.frame.setPositionLogical(x, y);
+          return;
+        }
         s.origin = { x, y };
         deps.renderer.setViewWindow({
           x: x - s.frameRect.x,
@@ -83,18 +102,28 @@ export function createTravelFrame(deps: {
     };
   }
 
-  async function endState(s: TravelState): Promise<void> {
-    if (s.ended) return;
-    s.ended = true;
-    if (active === s) active = null;
-    await deps.frame.setFrameLogical(s.origin.x, s.origin.y, s.size.width, s.size.height);
-    deps.renderer.setViewWindow(null);
-    deps.setKeepOnScreenPaused(false);
-    log.info("travel_end", { frame: s.frameRect, origin: s.origin });
+  /** Idempotent: a second call while one is pending returns the same promise. */
+  function endState(s: TravelState): Promise<void> {
+    if (s.ending) return s.ending;
+    s.ending = (async () => {
+      try {
+        await deps.frame.setFrameLogical(s.origin.x, s.origin.y, s.size.width, s.size.height);
+      } finally {
+        // In a `finally` so a rejected frame call still hands the virtual window off to
+        // the real one, clears the offset, and resumes the guard rather than stranding
+        // them — whatever the real window's rect actually ended up at.
+        s.ended = true;
+        if (active === s) active = null;
+        deps.renderer.setViewWindow(null);
+        deps.setKeepOnScreenPaused(false);
+        log.info("travel_end", { frame: s.frameRect, origin: s.origin });
+      }
+    })();
+    return s.ending;
   }
 
   return {
-    async begin(end) {
+    async begin(end, via = []) {
       if (active) await endState(active);
 
       const [pos, size, sf, monitors] = await Promise.all([
@@ -106,20 +135,31 @@ export function createTravelFrame(deps: {
       const scale = sf > 0 ? sf : 1;
       const start = { x: pos.x / scale, y: pos.y / scale };
       const logicalSize = { width: size.width / scale, height: size.height / scale };
+      const points = [start, end, ...via];
+      const lefts = points.map((p) => p.x);
+      const tops = points.map((p) => p.y);
+      const rights = points.map((p) => p.x + logicalSize.width);
+      const bottoms = points.map((p) => p.y + logicalSize.height);
       const frameRect = {
-        x: Math.min(start.x, end.x),
-        y: Math.min(start.y, end.y),
-        width:
-          Math.max(start.x + logicalSize.width, end.x + logicalSize.width) -
-          Math.min(start.x, end.x),
-        height:
-          Math.max(start.y + logicalSize.height, end.y + logicalSize.height) -
-          Math.min(start.y, end.y),
+        x: Math.min(...lefts),
+        y: Math.min(...tops),
+        width: Math.max(...rights) - Math.min(...lefts),
+        height: Math.max(...bottoms) - Math.min(...tops),
       };
 
       deps.setKeepOnScreenPaused(true);
-      await deps.frame.setFrameLogical(frameRect.x, frameRect.y, frameRect.width, frameRect.height);
-      log.info("travel_begin", { start, end, frame: frameRect });
+      try {
+        await deps.frame.setFrameLogical(
+          frameRect.x,
+          frameRect.y,
+          frameRect.width,
+          frameRect.height,
+        );
+      } catch (err) {
+        deps.setKeepOnScreenPaused(false);
+        throw err;
+      }
+      log.info("travel_begin", { start, end, via, frame: frameRect });
 
       const state: TravelState = {
         origin: { ...start },
@@ -129,6 +169,7 @@ export function createTravelFrame(deps: {
         startScale: scale,
         win: undefined as unknown as PetWindow,
         ended: false,
+        ending: null,
       };
       state.win = makeVirtualWindow(() => state);
       active = state;
@@ -146,6 +187,9 @@ export function createTravelFrame(deps: {
     },
     current() {
       return active?.win ?? null;
+    },
+    settled() {
+      return active?.ending ?? Promise.resolve();
     },
   };
 }
