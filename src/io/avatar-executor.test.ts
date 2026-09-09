@@ -299,6 +299,49 @@ describe("avatar-executor — move_to", () => {
     expect(h.setPositionLogical).toHaveBeenCalledWith(576, 600);
   });
 
+  it("clamps a bottom spot out of a cut-out stretch and into the nearest floor segment", async () => {
+    // Reference layout: built-in 3456×2234 physical (1728×1117 logical) at (0,0) scale 2;
+    // two 1920×1080 scale-1 displays above it, sharing its floor line at y = 0. Their
+    // combined floor segment is cut where the built-in's scale seam sits underneath:
+    // [-992,-400] and [1728,2448], with [-400,1728] the stretch a per-frame move flickers
+    // across.
+    const BUILTIN = {
+      position: { x: 0, y: 0 },
+      size: { width: 3456, height: 2234 },
+      workArea: { position: { x: 0, y: 0 }, size: { width: 3456, height: 2234 } },
+      scaleFactor: 2,
+    };
+    const LEFT_UPPER = {
+      position: { x: -992, y: -1080 },
+      size: { width: 1920, height: 1080 },
+      workArea: { position: { x: -992, y: -1080 }, size: { width: 1920, height: 1080 } },
+      scaleFactor: 1,
+    };
+    const RIGHT_UPPER = {
+      position: { x: 928, y: -1080 },
+      size: { width: 1920, height: 1080 },
+      workArea: { position: { x: 928, y: -1080 }, size: { width: 1920, height: 1080 } },
+      scaleFactor: 1,
+    };
+    const setPositionLogical = vi.fn(async () => {});
+    const h = harness({
+      listMonitors: async () => [BUILTIN, LEFT_UPPER, RIGHT_UPPER],
+      getWindow: () => ({
+        outerPosition: async () => ({ x: 0, y: 0 }),
+        outerSize: async () => ({ width: 400, height: 600 }),
+        scaleFactor: async () => 1,
+        setPositionLogical,
+      }),
+      getFeetOffsetPx: () => 420,
+    });
+
+    // bottom-left on the right-upper display: work-area left edge (928 + 24 = 952) sits
+    // inside the cut-out, so it resolves to the segment's near end (1728) instead.
+    await h.call("command", { action: "move_to", spot: "bottom-left", monitor: 2 });
+
+    expect(setPositionLogical).toHaveBeenCalledWith(1728, -420);
+  });
+
   it("grounds the feet through the target monitor's own scale factor", async () => {
     const h = harness({
       listMonitors: async () => [{ ...MONITORS[0], scaleFactor: 2 }, MONITORS[1]],
