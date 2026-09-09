@@ -909,14 +909,13 @@ def satisfied(state_dir: Path) -> list[dict]:
     return audited(state_dir, "drive_satisfied")
 
 
-def derive(state_dir, now, tmp_path, *, payloads=None, failing=(), notes=None, skills=(), repos=None):
+def derive(state_dir, now, tmp_path, *, payloads=None, failing=(), notes=None, skills=()):
+    """Run one derivation over a workspace holding `yw0nam/YUI` and the named skills."""
+
     workspace = tmp_path / "workspace"
     workspace.mkdir(exist_ok=True)
-    for name, origin in (
-        repos if repos is not None else {"YUI": "https://github.com/yw0nam/YUI.git"}
-    ).items():
-        if not (workspace / name).exists():
-            git_repo(workspace, name, origin)
+    if not (workspace / "YUI").exists():
+        git_repo(workspace, "YUI", "https://github.com/yw0nam/YUI.git")
     skills_root = tmp_path / "skills"
     skills_root.mkdir(exist_ok=True)
     for relative in skills:
