@@ -260,9 +260,9 @@ describe("createTravelFrame", () => {
     expect(scale).toBe(BUILTIN.scaleFactor);
   });
 
-  it("settled() resolves once the pending end finishes", async () => {
+  it("abort() ends an active travel and resolves once it lands", async () => {
     const travel = makeTravel();
-    const t = await travel.begin(END);
+    await travel.begin(END);
     let resolveEnd!: () => void;
     vi.mocked(setFrameLogical).mockImplementation(
       () =>
@@ -271,84 +271,69 @@ describe("createTravelFrame", () => {
         }),
     );
 
-    void t.end();
-    let settledResolved = false;
-    void travel.settled().then(() => {
-      settledResolved = true;
+    let abortResolved = false;
+    void travel.abort().then(() => {
+      abortResolved = true;
     });
     for (let i = 0; i < 10; i++) await Promise.resolve();
-    expect(settledResolved).toBe(false);
+    expect(abortResolved).toBe(false);
 
     resolveEnd();
     for (let i = 0; i < 10; i++) await Promise.resolve();
-    expect(settledResolved).toBe(true);
+    expect(abortResolved).toBe(true);
+    expect(travel.current()).toBeNull();
   });
 
-  it("settled() resolves immediately when nothing is ending", async () => {
+  it("abort() resolves immediately when nothing is in flight", async () => {
     const travel = makeTravel();
-    await expect(travel.settled()).resolves.toBeUndefined();
+    await expect(travel.abort()).resolves.toBeUndefined();
     const t = await travel.begin(END);
-    await expect(travel.settled()).resolves.toBeUndefined();
     await t.end();
-    await expect(travel.settled()).resolves.toBeUndefined();
+    await expect(travel.abort()).resolves.toBeUndefined();
   });
 
-  it("settled() waits for a pending begin before resolving", async () => {
-    let resolveFrame!: () => void;
-    setFrameLogical = vi.fn<FrameWindow["setFrameLogical"]>(
-      () =>
-        new Promise<void>((resolve) => {
-          resolveFrame = resolve;
-        }),
-    );
-    frame.setFrameLogical = setFrameLogical;
-    const travel = makeTravel();
-
-    const begun = travel.begin(END);
-    let settledResolved = false;
-    void travel.settled().then(() => {
-      settledResolved = true;
-    });
-    for (let i = 0; i < 10; i++) await Promise.resolve();
-    expect(settledResolved).toBe(false);
-
-    resolveFrame();
-    await begun;
-    for (let i = 0; i < 10; i++) await Promise.resolve();
-    expect(settledResolved).toBe(true);
-  });
-
-  it("settled() waits for an end() the caller chains immediately onto a resolved begin", async () => {
-    // Mirrors the climber's cancel-during-begin path: `travel = await deps.travel.begin(...);
-    // if (!alive) { void t.end(); }` — no await between begin() resolving and end() starting.
-    const travel = makeTravel();
-    let resolveEnd!: () => void;
+  it("abort() unparks a pending begin as soon as its frame call lands, and resolves after the end frame call", async () => {
+    let resolveBeginFrame!: () => void;
+    let resolveEndFrame!: () => void;
     let callCount = 0;
-    setFrameLogical = vi.fn<FrameWindow["setFrameLogical"]>(async () => {
+    setFrameLogical = vi.fn<FrameWindow["setFrameLogical"]>(() => {
       callCount++;
-      if (callCount === 2) {
+      if (callCount === 1) {
         return new Promise<void>((resolve) => {
-          resolveEnd = resolve;
+          resolveBeginFrame = resolve;
         });
       }
+      return new Promise<void>((resolve) => {
+        resolveEndFrame = resolve;
+      });
     });
     frame.setFrameLogical = setFrameLogical;
+    const travel = makeTravel();
 
     const begun = travel.begin(END);
-    let settledResolved = false;
-    void travel.settled().then(() => {
-      settledResolved = true;
+    const aborted = travel.abort();
+    let abortResolved = false;
+    void aborted.then(() => {
+      abortResolved = true;
     });
+    for (let i = 0; i < 10; i++) await Promise.resolve();
+    expect(setFrameLogical).toHaveBeenCalledTimes(1); // begin's own park call only so far
 
+    resolveBeginFrame();
+    for (let i = 0; i < 10; i++) await Promise.resolve();
+    // The begin frame call landed; the abort-triggered end call is now in flight.
+    expect(setFrameLogical).toHaveBeenCalledTimes(2);
+    expect(abortResolved).toBe(false);
+
+    resolveEndFrame();
+    for (let i = 0; i < 10; i++) await Promise.resolve();
+    expect(abortResolved).toBe(true);
+
+    // begin() itself only resolves once the chained end has landed, with a window that
+    // already forwards to the real one.
     const t = await begun;
-    void t.end();
-
-    for (let i = 0; i < 10; i++) await Promise.resolve();
-    expect(settledResolved).toBe(false);
-
-    resolveEnd();
-    for (let i = 0; i < 10; i++) await Promise.resolve();
-    expect(settledResolved).toBe(true);
+    await t.win.setPositionLogical(1, 2);
+    expect(frame.setPositionLogical).toHaveBeenCalledWith(1, 2);
   });
 
   it("includes a via origin in the frame's bounding box", async () => {
