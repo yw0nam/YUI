@@ -12,6 +12,7 @@ import {
   floorSegments,
   logicalWorkArea,
   monitorAt,
+  monitorAtLogical,
   type ScreenMonitor,
   toScreenMonitor,
 } from "./screen-geometry";
@@ -46,6 +47,26 @@ describe("monitorAt", () => {
   it("returns null for a point on no monitor", () => {
     expect(monitorAt([LEFT, RIGHT], -10, 100)).toBeNull();
     expect(monitorAt([], 0, 0)).toBeNull();
+  });
+});
+
+describe("monitorAtLogical", () => {
+  /** Logical bounds [2000,3000]×[0,1000] — a physical-px fixture with a scale factor. */
+  const SCALED: ScreenMonitor = {
+    position: { x: 4000, y: 0 },
+    size: { width: 2000, height: 2000 },
+    workArea: { position: { x: 4000, y: 0 }, size: { width: 2000, height: 2000 } },
+    scaleFactor: 2,
+  };
+
+  it("returns the monitor whose logical bounds contain the point", () => {
+    expect(monitorAtLogical([LEFT, SCALED], 100, 100)).toBe(LEFT);
+    expect(monitorAtLogical([LEFT, SCALED], 2500, 500)).toBe(SCALED);
+  });
+
+  it("returns null for a point on no monitor", () => {
+    expect(monitorAtLogical([LEFT, SCALED], -10, 100)).toBeNull();
+    expect(monitorAtLogical([], 0, 0)).toBeNull();
   });
 });
 
