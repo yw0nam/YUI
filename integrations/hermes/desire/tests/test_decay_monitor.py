@@ -914,7 +914,18 @@ def satisfied(state_dir: Path) -> list[dict]:
     return audited(state_dir, "drive_satisfied")
 
 
-def derive(state_dir, now, tmp_path, *, payloads=None, failing=(), notes=None, skills=(), views=None):
+def derive(
+    state_dir,
+    now,
+    tmp_path,
+    *,
+    payloads=None,
+    failing=(),
+    notes=None,
+    skills=(),
+    views=None,
+    fetch_notes=None,
+):
     """Run one derivation over a workspace holding `yw0nam/YUI` and the named skills."""
 
     workspace = tmp_path / "workspace"
@@ -932,7 +943,7 @@ def derive(state_dir, now, tmp_path, *, payloads=None, failing=(), notes=None, s
         workspace_root=workspace,
         skills_root=skills_root,
         run_gh=gh_runner(payloads or {}, failing, views),
-        fetch_notes=notes_runner(notes if notes is not None else []),
+        fetch_notes=fetch_notes or notes_runner(notes if notes is not None else []),
     )
 
 
@@ -1239,6 +1250,61 @@ def test_a_memory_note_is_scored_once_even_when_the_source_repeats_it(state_dir,
     derive(state_dir, now, tmp_path, notes=notes)
 
     assert [(event["event_type"], event["ref"]) for event in satisfied(state_dir)] == [("learned", "note:a")]
+
+
+def test_an_unset_memory_base_key_leaves_the_notes_source_unread(
+    state_dir, at, tmp_path, monkeypatch, state_helpers
+):
+    _, _, read_json, _ = state_helpers
+    monkeypatch.delenv("MEMORY_BASE_API_KEY", raising=False)
+    now = at("2026-08-25T12:00:00+09:00")
+    desire_state.bootstrap(now)
+    requested = []
+
+    def fetch(url, headers):
+        requested.append(url)
+        return b"[]"
+
+    derive(state_dir, now, tmp_path, fetch_notes=fetch, skills=("mcp/known",))
+    derive(state_dir, now, tmp_path, fetch_notes=fetch, skills=("mcp/known", "devops/new"))
+
+    assert requested == []
+    assert audited(state_dir, "derive_failed") == []
+    artefacts = read_json(state_dir / "artefacts.json")
+    assert "note" not in artefacts["bootstrapped"]
+    assert artefacts["seen"]["note"] == []
+    assert artefacts["notes_since"] == now.isoformat()
+    assert [(event["event_type"], event["ref"]) for event in satisfied(state_dir)] == [
+        ("progressed", "devops/new")
+    ]
+
+
+def test_a_memory_base_key_set_later_bootstraps_the_notes_source_without_dosing(
+    state_dir, at, tmp_path, monkeypatch, state_helpers
+):
+    _, _, read_json, _ = state_helpers
+    monkeypatch.delenv("MEMORY_BASE_API_KEY", raising=False)
+    now = at("2026-08-25T12:00:00+09:00")
+    desire_state.bootstrap(now)
+    existing = {"id": "note:old", "kind": "note"}
+
+    derive(state_dir, now, tmp_path, notes=[existing])
+
+    assert "note" not in read_json(state_dir / "artefacts.json")["bootstrapped"]
+
+    monkeypatch.setenv("MEMORY_BASE_API_KEY", "test-key")
+    derive(state_dir, now, tmp_path, notes=[existing])
+
+    assert satisfied(state_dir) == []
+    assert read_json(state_dir / "artefacts.json")["seen"]["note"] == ["note:old"]
+
+    fresh = {"id": "note:new", "kind": "note"}
+    derive(state_dir, now, tmp_path, notes=[existing, fresh])
+    derive(state_dir, now, tmp_path, notes=[existing, fresh])
+
+    assert [(event["event_type"], event["ref"]) for event in satisfied(state_dir)] == [
+        ("learned", "note:new")
+    ]
 
 
 def test_a_source_that_failed_during_bootstrap_bootstraps_when_it_recovers(
