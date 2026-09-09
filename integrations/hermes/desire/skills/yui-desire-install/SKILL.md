@@ -196,8 +196,9 @@ Check: `~/.hermes/profiles/<profile>/logs/gateway.log` gains `api_server connect
 `comment`, `pr`, `dispatch`, `report`, `satisfy`, `feedback`, `outbox`. Daily caps, reset at KST midnight: three
 signals, two issues, one self-initiated comment, one pull request, one dispatch, and the four satisfaction events
 (`learned` 6, `progressed` 6, `shipped` 4, `praised` 4 — see the README's Action budgets table for their drive
-doses). `satisfy` accepts only `praised`; the monitor derives the other three. `report` carries the daily report to
-YUI and has no budget.
+doses). `satisfy` accepts only `praised`; the monitor derives the other three. `report --note` carries the daily
+report to YUI and has no budget; `report --skills` prints the load counts of the skills Natsume made and sends
+nothing.
 
 ## Tests (optional, needs uv)
 

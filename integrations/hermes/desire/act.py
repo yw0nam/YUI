@@ -14,6 +14,7 @@ from urllib import request as urllib_request
 from zoneinfo import ZoneInfo
 
 import desire_state
+import skill_usage
 
 KST = ZoneInfo("Asia/Seoul")
 CAPS = desire_state.CAPS
@@ -152,6 +153,19 @@ def _report(note, now, opener):
         _audit(state_dir, now, "report_failed", reason=failure, note=note)
     print(f"report delivery failed: {failure}", file=sys.stderr)
     return 1
+
+
+def _report_skills(now):
+    """Print the load counts of the skills Natsume made, once a day at report time."""
+
+    state_dir = desire_state.resolve_state_dir()
+    with desire_state.state_lock(state_dir):
+        record = desire_state.read_artefacts(state_dir) or desire_state.default_artefacts(now)
+        text, failure = skill_usage.section(now, first_seen=record["skill_first_seen"])
+        if failure is not None:
+            _audit(state_dir, now, "report_skills_failed", reason=failure)
+    print(text)
+    return 0
 
 
 def _outbox_send(item_id, now, opener):
@@ -322,7 +336,9 @@ def _parser():
     signal.add_argument("--note", required=True)
 
     report = commands.add_parser("report")
-    report.add_argument("--note", required=True)
+    report_group = report.add_mutually_exclusive_group(required=True)
+    report_group.add_argument("--note")
+    report_group.add_argument("--skills", action="store_true")
 
     for name in RESERVATIONS:
         action = commands.add_parser(name)
@@ -363,7 +379,7 @@ def main(argv=None, *, now=None, opener=urllib_request.urlopen):
     if args.command == "signal":
         return _signal(args.note, now, opener)
     if args.command == "report":
-        return _report(args.note, now, opener)
+        return _report_skills(now) if args.skills else _report(args.note, now, opener)
     if args.command in RESERVATIONS:
         if args.reserve:
             operation, reservation_id = "reserve", None
