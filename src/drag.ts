@@ -426,6 +426,10 @@ export async function initDrag(
     } catch (err: unknown) {
       log.warn("drag_start_failed", { error: String(err) });
     }
+    // The button can come up (or the gesture cancel) while onDragStart is still pending;
+    // `endGesture` already fired in that case, and starting the native drag now would
+    // grab a button that is no longer held.
+    if (ended) return;
     invokeDragWindow().catch((err: unknown) => {
       log.warn("drag_window_invoke_failed", { error: String(err) });
     });
