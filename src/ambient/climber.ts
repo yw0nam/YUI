@@ -658,8 +658,9 @@ export function createClimber(deps: ClimberDeps): Climber {
   const onVisibilityChange = (): void => {
     if (doc?.visibilityState !== "hidden") return;
     const onWall = direction !== null;
+    const alreadyFalling = fallInFlight;
     cancel();
-    if (onWall) void deps.faller.drop();
+    if (onWall && !alreadyFalling) void deps.faller.drop();
   };
 
   /** Everything both sequences read at plan time, or null when the world is not ready. */
@@ -1371,8 +1372,9 @@ export function createClimber(deps: ClimberDeps): Climber {
       }
       // Switching off while she hangs strands her on the wall — take her off it.
       const onWall = direction !== null;
+      const alreadyFalling = fallInFlight;
       handle.stop();
-      if (onWall) void deps.faller.drop();
+      if (onWall && !alreadyFalling) void deps.faller.drop();
     },
     stop() {
       stopped = true;
