@@ -22,9 +22,12 @@ SOCIAL_RATE = 15.0
 OUTBOX_EXPIRY = timedelta(hours=48)
 PENT_UP_HEAVY = timedelta(hours=6)
 PENT_UP_BURSTING = timedelta(hours=18)
-CAPS = {"signals": 3, "issues": 2, "self_comments": 1, "prs": 1}
+CAPS = {"signals": 3, "issues": 2, "self_comments": 1, "prs": 1, "dispatches": 1}
 DRIVES = ("social", "curiosity", "accomplishment")
 BUCKETS = ("low", "mid", "high")
+ARTEFACT_KINDS = ("pr", "issue", "skill")
+SEEN_KINDS = (*ARTEFACT_KINDS, "note")
+SINCE_LAST_TURN_LIMIT = 8
 EVENT_DOSES = {
     "learned": {"curiosity": 30.0},
     "progressed": {"accomplishment": 15.0},
@@ -54,12 +57,17 @@ def wake_day(now: datetime) -> str:
     return (normalize_now(now) - timedelta(hours=9)).date().isoformat()
 
 
+def profile_root() -> Path:
+    """Return the Hermes profile directory the desire system belongs to."""
+
+    return Path.home() / ".hermes" / "profiles" / os.environ.get("HERMES_PROFILE", "natsume2")
+
+
 def resolve_state_dir() -> Path:
     configured = os.environ.get("DESIRE_STATE_DIR")
     if configured:
         return Path(configured).expanduser()
-    profile = os.environ.get("HERMES_PROFILE", "natsume2")
-    return Path.home() / ".hermes" / "profiles" / profile / "desire"
+    return profile_root() / "desire"
 
 
 @contextmanager
@@ -338,9 +346,52 @@ def _default_budget(now: datetime) -> dict:
         "issues": 0,
         "self_comments": 0,
         "prs": 0,
+        "dispatches": 0,
         "events": {},
         "pending": {},
     }
+
+
+def default_artefacts(now: datetime) -> dict:
+    """Return an empty record: no source has answered yet, so nothing is scored from it."""
+
+    stamp = normalize_now(now).isoformat()
+    return {
+        "bootstrapped_at": stamp,
+        "bootstrapped": [],
+        "seen": {kind: [] for kind in SEEN_KINDS},
+        "shipped": [],
+        "notes_since": stamp,
+        "unreported": [],
+    }
+
+
+def read_artefacts(state_dir: Path) -> dict | None:
+    """Return the derived-artefact record, or ``None`` when it is absent or unreadable."""
+
+    try:
+        value = json.loads((Path(state_dir) / "artefacts.json").read_text(encoding="utf-8"))
+    except (FileNotFoundError, json.JSONDecodeError, UnicodeError, OSError):
+        return None
+    if not isinstance(value, dict):
+        return None
+    seen = value.get("seen") if isinstance(value.get("seen"), dict) else {}
+    return {
+        "bootstrapped_at": value.get("bootstrapped_at"),
+        "bootstrapped": [kind for kind in _text_list(value.get("bootstrapped")) if kind in SEEN_KINDS],
+        "seen": {kind: _text_list(seen.get(kind)) for kind in SEEN_KINDS},
+        "shipped": _text_list(value.get("shipped")),
+        "notes_since": value.get("notes_since"),
+        "unreported": [item for item in _list(value.get("unreported")) if isinstance(item, dict)],
+    }
+
+
+def _list(value: object) -> list:
+    return value if isinstance(value, list) else []
+
+
+def _text_list(value: object) -> list[str]:
+    return [item for item in _list(value) if isinstance(item, str)]
 
 
 def _default_cursor(now: datetime) -> dict:
@@ -432,7 +483,9 @@ def _validate_budget(value: object) -> dict:
         not isinstance(event, str) or not isinstance(count, int) for event, count in events.items()
     ):
         events = {}
-    return {**value, "events": copy.deepcopy(events)}
+    # dispatches is defaulted rather than demanded, so a budget written without it is rewritten
+    # with it instead of quarantined.
+    return {**value, "dispatches": int(value.get("dispatches", 0)), "events": copy.deepcopy(events)}
 
 
 def _normalize_cursor(value: object) -> dict:
@@ -556,6 +609,7 @@ def normalize_budget(budget: dict, now: datetime) -> dict:
             "issues": 0,
             "self_comments": 0,
             "prs": 0,
+            "dispatches": 0,
             "events": {},
             "pending": copy.deepcopy(pending),
         }
@@ -566,6 +620,7 @@ def normalize_budget(budget: dict, now: datetime) -> dict:
         "issues": int(budget.get("issues", 0)),
         "self_comments": int(budget.get("self_comments", 0)),
         "prs": int(budget.get("prs", 0)),
+        "dispatches": int(budget.get("dispatches", 0)),
         "events": {str(event): max(0, int(count)) for event, count in events.items()},
         "pending": copy.deepcopy(pending),
     }
@@ -646,6 +701,29 @@ def _transport_line(transport: dict | None) -> str:
     return f"signal transport: down since {since} ({transport['failed']} failed)"
 
 
+def _since_last_turn_line(unreported: list[dict]) -> str | None:
+    """Name the artefacts the monitor scored since the last rendered turn."""
+
+    parts = []
+    notes = 0
+    dropped = 0
+    for item in unreported:
+        event, kind, ref = item.get("event"), item.get("kind"), item.get("ref")
+        if event not in EVENT_DOSES or kind not in SEEN_KINDS or not isinstance(ref, str):
+            continue
+        if kind == "note":
+            notes += 1
+        elif len(parts) < SINCE_LAST_TURN_LIMIT:
+            parts.append(f"{event} {kind} {sanitize_note(ref)}")
+        else:
+            dropped += 1
+    if notes:
+        parts.append(f"learned {notes} note{'s' if notes > 1 else ''}")
+    if dropped:
+        parts.append(f"and {dropped} more")
+    return f"since last turn: {'; '.join(parts)}" if parts else None
+
+
 def _last_signal_line(last_signal_at: str, last_signal_answered_at: str | None, now: datetime) -> str:
     sent = parse_timestamp(last_signal_at)
     stamp = sent.strftime("%Y-%m-%d %H:%M")
@@ -667,6 +745,7 @@ def serialize_desire_block(
     returned_hours: int | None = None,
     last_signal_at: str | None = None,
     last_signal_answered_at: str | None = None,
+    unreported: list[dict] | None = None,
 ) -> str:
     now = normalize_now(now)
     last_interaction = parse_timestamp(last_interaction_at)
@@ -686,6 +765,9 @@ def serialize_desire_block(
         held = " (one held note fits here)" if items else ""
         lines.append(f"returned: after {returned_hours}h away{held}")
     lines.append(_transport_line(transport))
+    scored = _since_last_turn_line(unreported or [])
+    if scored is not None:
+        lines.append(scored)
     if last_signal_at:
         lines.append(_last_signal_line(last_signal_at, last_signal_answered_at, now))
     ordered = sorted(items, key=lambda item: (item.get("created_at", ""), item.get("id", "")))
@@ -710,19 +792,22 @@ def homeostatic_drive(levels: dict[str, float]) -> float:
     )
 
 
-def satisfy(event: str, why: str, now: datetime) -> float:
+def satisfy(
+    event: str, ref: str, now: datetime, *, kind: str | None = None, state_dir: Path | None = None
+) -> float:
     now = normalize_now(now)
     if event not in EVENT_DOSES:
         raise ValueError(f"unknown event: {event}")
-    with state_lock() as state_dir:
-        state = bootstrap_locked(state_dir, now)
+    named = {"ref": ref} if kind is None else {"ref": ref, "kind": kind}
+    with state_lock(state_dir) as directory:
+        state = bootstrap_locked(directory, now)
         budget = normalize_budget(state["budget"], now)
         count = budget["events"].get(event, 0)
         cap = EVENT_DAILY_CAPS[event]
         if count >= cap:
             _append_jsonl_locked(
-                state_dir / "audit.jsonl",
-                {"at": now.isoformat(), "event": "satisfy_blocked", "event_type": event, "why": why},
+                directory / "audit.jsonl",
+                {"at": now.isoformat(), "event": "satisfy_blocked", "event_type": event, **named},
             )
             raise ValueError(f"over budget: {event} daily cap is {cap}")
 
@@ -738,17 +823,17 @@ def satisfy(event: str, why: str, now: datetime) -> float:
         budget["events"][event] = count + 1
         # Budget commits before drives: a crash after this point costs one unused daily slot,
         # rather than an uncounted dose that could be applied again past the cap.
-        write_json_atomic(state_dir / "budget.json", budget)
-        write_json_atomic(state_dir / "drives.json", drives)
+        write_json_atomic(directory / "budget.json", budget)
+        write_json_atomic(directory / "drives.json", drives)
         _append_jsonl_locked(
-            state_dir / "audit.jsonl",
+            directory / "audit.jsonl",
             {
                 "at": now.isoformat(),
                 "event": "drive_satisfied",
                 "event_type": event,
                 "doses": doses,
                 "reward": round(reward, 4),
-                "why": why,
+                **named,
             },
         )
         return reward

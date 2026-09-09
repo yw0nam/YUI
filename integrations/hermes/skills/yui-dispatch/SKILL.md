@@ -16,7 +16,7 @@ metadata:
 Youngwoo closes the spec inside an issue, labels it `ready-for-agent`, and tells you in plain language which one to
 hand over (for example "YUI 123 맡아" or "memory_layer 45 넘겨"). You start one headless `claude -p` session on that
 issue and relay the outcome. You do not implement anything yourself; the session works from the issue and the
-repository's own rules and opens the pull request.
+repository's own rules, opens the pull request, and never merges it.
 
 `$YUI` is the absolute path of the YUI checkout. `$N` is the issue number. `$REPO` is the repository as
 `owner/name`, resolved from the name Youngwoo gives:
@@ -28,8 +28,9 @@ gh search repos <name> --match name --json fullName --jq '.[].fullName'
 Take the entry whose name part equals what Youngwoo said. If none or more than one matches, ask which one and stop.
 `$CLONE` is the clone under `~/.hermes/profiles/<profile>/workspace/<name>`; if it does not exist yet,
 `gh repo clone $REPO` it there first.
-`$MODEL` is `sonnet` unless Youngwoo names a model in the request (for example "Opus로 해줘" means `opus`); pass the
-name exactly as given, in lower case.
+`$MODEL` comes from the first of these that answers: an `agent-model:<name>` label among the labels read in step 1,
+a model Youngwoo names in the request (for example "Opus로 해줘" means `opus`), then `sonnet`. Pass the name in
+lower case.
 
 ## 1. Check the issue
 
@@ -51,7 +52,7 @@ running and stop.
 
 ```bash
 gh issue edit $N --repo $REPO --add-assignee @me
-gh issue comment $N --repo $REPO --body "Picked up by Natsume; a headless Claude Code session is working on it."
+gh issue comment $N --repo $REPO --body "Picked up by Natsume; a headless Claude Code session on $MODEL is working on it."
 ```
 
 ## 3. Build the prompt and start the session
@@ -71,6 +72,10 @@ cd $CLONE && git checkout $(git remote show origin | sed -n 's/.*HEAD branch: //
 ```
 
 Reply to Youngwoo with one line: `Started #$N.` Then end the turn; the completion notification wakes you.
+
+When the session never starts — the clone, the checkout, or `claude` itself fails before the run — undo the claim
+so the issue stays available: `gh issue edit $N --repo $REPO --remove-assignee @me`, comment the reason in one
+sentence, and tell Youngwoo `Dispatch could not start #$N: <reason>`.
 
 ## 4. Report
 
@@ -93,4 +98,5 @@ Leave the assignee in place either way. Youngwoo clears it when re-labeling the 
 
 - Fix review comments on the pull request. Youngwoo does that from a local Claude Code session.
 - Retry a failed dispatch on your own. Wait for the issue to be labeled `ready-for-agent` again.
-- Poll issues for the label. Dispatch only what Youngwoo hands you.
+- Poll issues for the label. Dispatch what Youngwoo hands you, or the one self-started dispatch a day that
+  `prompts/tick.md` section 6 allows under a `dispatch` reservation.

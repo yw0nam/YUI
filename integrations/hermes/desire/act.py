@@ -21,6 +21,7 @@ RESERVATIONS = {
     "issue": ("issues", "issue_filed"),
     "comment": ("self_comments", "self_comment_filed"),
     "pr": ("prs", "pr_filed"),
+    "dispatch": ("dispatches", "dispatch_started"),
 }
 
 
@@ -214,7 +215,7 @@ def _outbox_send(item_id, now, opener):
     return 1
 
 
-def _reservation_action(kind, operation, reservation_id, url, now):
+def _reservation_action(kind, operation, reservation_id, url, now, model=None):
     state_dir = desire_state.resolve_state_dir()
     counter, filed_event = RESERVATIONS[kind]
     with desire_state.state_lock(state_dir):
@@ -242,7 +243,8 @@ def _reservation_action(kind, operation, reservation_id, url, now):
             budget[counter] = max(0, budget[counter] - 1)
         desire_state.write_json_atomic(state_dir / "budget.json", budget)
         if operation == "commit":
-            _audit(state_dir, now, filed_event, url=url, reservation_id=reservation_id)
+            named = {"model": model} if model is not None else {}
+            _audit(state_dir, now, filed_event, url=url, **named, reservation_id=reservation_id)
         else:
             _audit(state_dir, now, "reservation_released", kind=kind, reservation_id=reservation_id)
         return 0
@@ -329,10 +331,12 @@ def _parser():
         group.add_argument("--commit", metavar="ID")
         group.add_argument("--release", metavar="ID")
         action.add_argument("--url")
+        if name == "dispatch":
+            action.add_argument("--model")
 
     satisfy = commands.add_parser("satisfy")
-    satisfy.add_argument("event", choices=desire_state.EVENT_DOSES)
-    satisfy.add_argument("--why", required=True)
+    satisfy.add_argument("event", choices=["praised"])
+    satisfy.add_argument("--ref", required=True)
 
     feedback = commands.add_parser("feedback")
     feedback_group = feedback.add_mutually_exclusive_group(required=True)
@@ -368,12 +372,16 @@ def main(argv=None, *, now=None, opener=urllib_request.urlopen):
             if not args.url:
                 print("--url is required with --commit", file=sys.stderr)
                 return 1
+            if args.command == "dispatch" and not args.model:
+                print("--model is required with --commit", file=sys.stderr)
+                return 1
         else:
             operation, reservation_id = "release", args.release
-        return _reservation_action(args.command, operation, reservation_id, args.url, now)
+        model = getattr(args, "model", None)
+        return _reservation_action(args.command, operation, reservation_id, args.url, now, model)
     if args.command == "satisfy":
         try:
-            reward = desire_state.satisfy(args.event, args.why, now)
+            reward = desire_state.satisfy(args.event, args.ref, now)
         except ValueError as error:
             print(str(error), file=sys.stderr)
             return 1
