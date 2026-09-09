@@ -6,13 +6,15 @@
 #[cfg(target_os = "macos")]
 mod macos {
     use std::ffi::CString;
+    use std::sync::mpsc;
     use std::sync::OnceLock;
 
     use objc2::ffi::{class_addMethod, class_getInstanceMethod, method_setImplementation};
     use objc2::runtime::{AnyObject, Imp, Sel};
-    use objc2::sel;
-    use objc2_app_kit::NSScreen;
-    use objc2_foundation::NSRect;
+    use objc2::{sel, MainThreadMarker};
+    use objc2_app_kit::{NSScreen, NSWindow};
+    use objc2_foundation::{NSPoint, NSRect, NSSize};
+    use tauri::{Runtime, WebviewWindow};
 
     /// Returns the incoming frame unchanged, so the window is never constrained to a screen.
     extern "C-unwind" fn constrain_frame_rect_to_screen(
@@ -68,6 +70,30 @@ mod macos {
             }
         });
         Ok(())
+    }
+
+    /// Converts a top-left-origin, y-down logical frame into Cocoa's bottom-left, y-up
+    /// `NSRect`. `primary_height` is `NSScreen::screens()[0]`'s logical height — Cocoa's
+    /// origin is that screen's bottom-left corner, whichever screen the window is on.
+    pub fn cocoa_frame(_x: f64, _y: f64, _width: f64, _height: f64, _primary_height: f64) -> NSRect {
+        NSRect::new(NSPoint::new(0.0, 0.0), NSSize::new(0.0, 0.0))
+    }
+
+    #[cfg(test)]
+    mod tests {
+        use super::*;
+
+        #[test]
+        fn cocoa_frame_converts_a_window_above_the_primary_screen() {
+            let frame = cocoa_frame(100.0, -1080.0, 400.0, 600.0, 1117.0);
+            assert_eq!(frame, NSRect::new(NSPoint::new(100.0, 1597.0), NSSize::new(400.0, 600.0)));
+        }
+
+        #[test]
+        fn cocoa_frame_converts_a_window_on_the_primary_screen() {
+            let frame = cocoa_frame(100.0, 517.0, 400.0, 600.0, 1117.0);
+            assert_eq!(frame, NSRect::new(NSPoint::new(100.0, 0.0), NSSize::new(400.0, 600.0)));
+        }
     }
 }
 
