@@ -72,7 +72,7 @@ describe("validateAvatar — happy path", () => {
       },
       descend: {
         chance: 0.5,
-        climb_down_chance: 0.5,
+        climb_down_chance: 1,
       },
       climb: {
         interval_min_ms: 90_000,
@@ -732,7 +732,7 @@ describe("validateAvatar — descend", () => {
   it("applies defaults when the descend block is absent", () => {
     expect(validateAvatar(FILE, { vrm_url: "/v.vrm" }).descend).toEqual({
       chance: 0.5,
-      climb_down_chance: 0.5,
+      climb_down_chance: 1,
     });
   });
 

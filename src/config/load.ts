@@ -171,7 +171,7 @@ export interface DescendConfig {
   climb_down_chance: number;
 }
 
-export const DESCEND_DEFAULTS: DescendConfig = { chance: 0.5, climb_down_chance: 0.5 };
+export const DESCEND_DEFAULTS: DescendConfig = { chance: 0.5, climb_down_chance: 1 };
 
 /** Ambient window-climb knobs. Fractions are multiples of the on-screen character height. */
 export interface ClimbConfig {
