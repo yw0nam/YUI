@@ -2,6 +2,10 @@
 //! way Electron's frameless-window NSWindow subclass does — otherwise a move whose frame
 //! still overlaps the monitor it started on is clamped there, however far off-screen the
 //! target actually is, which stalls a screen-edge climb right at the menu bar.
+//!
+//! Also owns `set_frame_logical`, which applies a window's global logical top-left and
+//! outer size in one OS call — on macOS a single `setFrame:display:`, so a window
+//! straddling two displays with different backing scale changes scale once, not twice.
 
 #[cfg(target_os = "macos")]
 mod macos {
