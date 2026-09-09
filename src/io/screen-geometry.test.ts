@@ -9,6 +9,8 @@
 import { describe, expect, it } from "vitest";
 import {
   clampToFloorSegments,
+  descentEdges,
+  edgeAtSegmentEnd,
   floorPx,
   floorSegments,
   logicalWorkArea,
@@ -134,6 +136,78 @@ describe("logicalWorkArea", () => {
       scaleFactor: 2,
     };
     expect(logicalWorkArea(scaled)).toEqual({ x: 0, y: 25, width: 1920, height: 1030 });
+  });
+});
+
+describe("descentEdges", () => {
+  const BUILTIN: ScreenMonitor = {
+    position: { x: 0, y: 0 },
+    size: { width: 3456, height: 2234 },
+    workArea: { position: { x: 0, y: 100 }, size: { width: 3456, height: 1934 } },
+    scaleFactor: 2,
+  };
+  const UPPER_LEFT: ScreenMonitor = {
+    position: { x: -992, y: -1080 },
+    size: { width: 1920, height: 1080 },
+    workArea: { position: { x: -992, y: -1055 }, size: { width: 1920, height: 1055 } },
+    scaleFactor: 1,
+  };
+  const UPPER_RIGHT: ScreenMonitor = {
+    position: { x: 928, y: -1080 },
+    size: { width: 1920, height: 1080 },
+    workArea: { position: { x: 928, y: -1055 }, size: { width: 1920, height: 1055 } },
+    scaleFactor: 1,
+  };
+  const MONITORS = [BUILTIN, UPPER_LEFT, UPPER_RIGHT];
+
+  it("returns the lower monitor's left edge from the upper-left display", () => {
+    expect(descentEdges(MONITORS, UPPER_LEFT)).toEqual([
+      { side: "right", edgeX: 0, topY: 0, bottomY: 1017 },
+    ]);
+  });
+
+  it("returns the lower monitor's right edge from the upper-right display", () => {
+    expect(descentEdges(MONITORS, UPPER_RIGHT)).toEqual([
+      { side: "left", edgeX: 1728, topY: 0, bottomY: 1017 },
+    ]);
+  });
+
+  it("returns no descent edge from the lower display", () => {
+    expect(descentEdges(MONITORS, BUILTIN)).toEqual([]);
+  });
+
+  it("excludes lower-monitor edges flush with the upper work-area edges", () => {
+    const FLUSH_LOWER: ScreenMonitor = {
+      position: { x: -1984, y: 0 },
+      size: { width: 3840, height: 2234 },
+      workArea: { position: { x: -1984, y: 100 }, size: { width: 3840, height: 1934 } },
+      scaleFactor: 2,
+    };
+    expect(descentEdges([FLUSH_LOWER, UPPER_LEFT], UPPER_LEFT)).toEqual([]);
+  });
+});
+
+describe("edgeAtSegmentEnd", () => {
+  const rightEdge = { side: "right" as const, edgeX: 0, topY: 0, bottomY: 1017 };
+
+  it("matches a lower left edge to the segment's right window-origin end", () => {
+    expect(edgeAtSegmentEnd([rightEdge], { left: -992, right: -400 }, 400, -700)).toBe(
+      rightEdge,
+    );
+  });
+
+  it("returns null when the segment ends do not reach an edge", () => {
+    expect(edgeAtSegmentEnd([rightEdge], { left: -992, right: -500 }, 400, -700)).toBeNull();
+  });
+
+  it("chooses the matching end nearer the current x", () => {
+    const leftEdge = { side: "left" as const, edgeX: 0, topY: 0, bottomY: 900 };
+    const otherRightEdge = { side: "right" as const, edgeX: 200, topY: 0, bottomY: 900 };
+    const edges = [leftEdge, otherRightEdge];
+    const segment = { left: 0, right: 100 };
+
+    expect(edgeAtSegmentEnd(edges, segment, 100, 10)).toBe(leftEdge);
+    expect(edgeAtSegmentEnd(edges, segment, 100, 90)).toBe(otherRightEdge);
   });
 });
 
