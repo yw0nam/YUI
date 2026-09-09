@@ -12,6 +12,7 @@ import {
   wireStopControl,
   wireStrollReflexCancel,
   wireSummonHotkey,
+  wireTravelFrame,
   wireVoiceInput,
   type wireVrmSelection,
   wireWalker,
@@ -480,12 +481,23 @@ const realFactories: ConfiguredBootstrapFactories = {
     applyGazeEnabled(gazeSettings.get().enabled);
     register(gazeSettings.subscribe((state) => applyGazeEnabled(state.enabled)));
 
+    // Set once the drop source exists — the travel frame pauses its keep-on-screen guard
+    // while it parks the window itself.
+    let windowSourcesRef: { setKeepOnScreenPaused(paused: boolean): void } | null = null;
+    const travelFrame = wireTravelFrame({
+      renderer,
+      setKeepOnScreenPaused: (paused) => windowSourcesRef?.setKeepOnScreenPaused(paused),
+      log,
+    });
+    register(travelFrame.dispose);
+
     // Ambient walking outranks nothing: a drag, an agent command or a reflex turn cancels a
     // stroll at once; an ordinary turn walks on.
     let dragging = false;
     const walker = wireWalker({
       bus,
       renderer,
+      travelFrame,
       getWalkConfig: () => config.get().avatar.walk,
       getMotionKind: (id) => config.get().motions[id]?.kind,
       isPeeking: () => peekStateRef?.active() ?? false,
@@ -519,6 +531,7 @@ const realFactories: ConfiguredBootstrapFactories = {
     const faller = wireFaller({
       bus,
       renderer,
+      travelFrame,
       isEnabled: () => fallSettings.get().enabled,
       getFallConfig: () => config.get().avatar.fall,
       getMotionKind: (id) => config.get().motions[id]?.kind,
@@ -555,6 +568,7 @@ const realFactories: ConfiguredBootstrapFactories = {
       sitDown: () => sitter.sitDown(null),
       log,
     });
+    windowSourcesRef = windowSources;
     register(windowSources.dispose);
 
     const percher = wirePercher({
@@ -583,6 +597,7 @@ const realFactories: ConfiguredBootstrapFactories = {
     const climber = wireClimber({
       bus,
       renderer,
+      travelFrame,
       getClimbConfig: () => config.get().avatar.climb,
       getWalkConfig: () => config.get().avatar.walk,
       getMotionKind: (id) => config.get().motions[id]?.kind,
