@@ -1,17 +1,28 @@
 # yui-desire
 
-`yui-desire` is the Hermes-side desire system for Natsume. Its `llm_request` middleware injects a compact
-`<desire_state>` block into the newest user message, while the monitor advances drives, scores the artefacts
-Natsume produced outside the state directory, and wakes a Hermes cron turn only when its one-line summary changes.
-Wants, judgment, feedback handling, and speech decisions remain in Hermes; YUI receives desire speech through its
-existing `/signals` ingress.
+`yui-desire` is the Hermes-side desire system for an autonomous agent. Its `llm_request` middleware injects a
+compact `<desire_state>` block into the newest user message, while the monitor advances drives, scores the
+artefacts the agent produced outside the state directory, and wakes a Hermes cron turn only when its one-line
+summary changes. Wants, judgment, feedback handling, and speech decisions remain in Hermes; YUI receives desire
+speech through its existing `/signals` ingress.
 
 The integration is a self-contained Python 3.10+ uv project. Runtime code uses only the Python standard library.
+
+## Identity
+
+`DESIRE_AGENT_NAME` names the agent — one short lowercase slug — and every convention derives from it: the
+branch prefix `<agent>/`, the issue marker `<!-- from-<agent> -->`, the issue label `from-<agent>`, the
+memory-note tag `<agent>`, the signal source `<agent>-desire`, and the cron job names `<agent>-desire-tick`,
+`<agent>-desire-reflection`, and `<agent>-desire-report`. `HERMES_PROFILE` names the Hermes profile the agent runs
+on, and `DESIRE_CHAT_PLATFORMS` names the channels the user speaks to the agent on. All three are required and
+have no default: the monitor and the helper stop with an error naming the missing variable, and the middleware
+injects nothing and logs one. The desire block opens with the line `agent: <agent>` so the prompts can refer to
+it.
 
 ## State
 
 State lives in `DESIRE_STATE_DIR` when set. Otherwise it resolves to
-`~/.hermes/profiles/$HERMES_PROFILE/desire/`, with `HERMES_PROFILE` defaulting to `natsume2`.
+`~/.hermes/profiles/$HERMES_PROFILE/desire/`.
 
 The state directory contains:
 
@@ -20,7 +31,8 @@ The state directory contains:
   after it). Fresh state starts both stored drives at `50.0`, anchored at bootstrap time. The interaction time also
   starts at bootstrap time, and its hash and both signal stamps start as `null`. Social drive is derived from the
   interaction time and is not stored.
-- `wants.md` — Natsume's own prose record of 3–5 open wants, progress, feedback, and completed or abandoned wants.
+- `wants.md` — the agent's own prose record of 3–5 open wants, progress, feedback, and completed or abandoned
+  wants.
   Integration code never parses this file.
 - `outbox.jsonl` — pent-up desire notes blocked by a daily budget or signal-delivery error. An item persists here,
   and in the pent-up section of the desire block, until it is delivered (`act.py outbox --send`), released
@@ -42,7 +54,7 @@ The state directory contains:
   `bootstrapped` (the sources that have answered at least once and are therefore scored from now on), `seen` (the
   refs it has counted, one list per kind: pull-request and issue URLs, skill paths, and the last 500 note ids),
   `skill_first_seen` (when each skill path was first seen, holding only the skills seen after the skill source was
-  bootstrapped, so the report can tell Natsume's own skills from the ones that were already installed),
+  bootstrapped, so the report can tell the agent's own skills from the ones that were already installed),
   `shipped` (the refs it has counted as delivered), `notes_since` (the memory-note cursor), and `unreported` (the
   events the desire block has not shown yet, each `{"event", "kind", "ref", "at"}`). Absent until the first tick,
   which writes it without dosing.
@@ -63,14 +75,15 @@ are renamed with a `.corrupt-<timestamp>` suffix and bootstrapped again. Malform
 monitor removes malformed outbox lines and records the count in the audit log. Timestamps are timezone-aware and
 stored in Asia/Seoul time.
 
-An outbox item stays pent-up across every tick until Natsume explicitly releases it (`act.py outbox --release`) or it
-ages past the 48-hour hard expiry, which the monitor enforces. Surfacing (the item was submitted in a provider
+An outbox item stays pent-up across every tick until the agent explicitly releases it (`act.py outbox --release`)
+or it ages past the 48-hour hard expiry, which the monitor enforces. Surfacing (the item was submitted in a provider
 payload) stamps `surfaced_at` once for record-keeping, but no longer retires the item on its own; if the provider call
 then fails, the note simply stays pent-up like any other unreleased item.
 
-The desire block opens with the drive levels, then `last interaction: YYYY-MM-DD HH:MM (Nh ago)` from the
-interaction time in `drives.json`, then `signal transport: up`, `signal transport: down since YYYY-MM-DD HH:MM
-(N failed)`, or `signal transport: unknown` when `transport.json` is absent.
+The desire block opens with `agent: <agent>` and the drive levels, then
+`last interaction: YYYY-MM-DD HH:MM (Nh ago)` from the interaction time in `drives.json`, then
+`signal transport: up`, `signal transport: down since YYYY-MM-DD HH:MM (N failed)`, or
+`signal transport: unknown` when `transport.json` is absent.
 
 `returned: after Nh away` follows the interaction line on a user-message turn that is the
 first one since the ingress was unreachable — the transport is `down`, or it is `up` with a `since` later than the
@@ -118,19 +131,26 @@ hermes -p "$HERMES_PROFILE" plugins enable yui-desire
 Set the deployment environment for the plugin, cron jobs, monitor, and helper commands:
 
 ```bash
-export HERMES_PROFILE=natsume2
+export DESIRE_AGENT_NAME=<agent>
+export HERMES_PROFILE=<profile>
 export DESIRE_STATE_DIR="$HOME/.hermes/profiles/$HERMES_PROFILE/desire"
+export DESIRE_CHAT_PLATFORMS=<the Hermes chat platforms the user speaks to the agent on>
 ```
 
-`DESIRE_STATE_DIR` is optional when the default profile path is appropriate. `YUI_SIGNALS_URL` defaults to
-`http://127.0.0.1:8770/signals`, which assumes Hermes and YUI share a host. The `/signals` ingress listens only while
-AgentNotify is enabled in YUI's quick controls, and toggling AgentNotify requires an app restart. When Hermes runs on
+`DESIRE_AGENT_NAME`, `HERMES_PROFILE`, and `DESIRE_CHAT_PLATFORMS` are required; `DESIRE_STATE_DIR` is optional
+when the default profile path is appropriate. `DESIRE_CHAT_PLATFORMS` is a comma-separated list of Hermes platform
+names (`telegram`, `discord`, `slack`, …); a turn Hermes attributes to one of them counts as the user speaking
+even when it carries no `<client_context>`.
+
+`YUI_SIGNALS_URL` defaults to `http://127.0.0.1:8770/signals`, which assumes Hermes and YUI share a host. The
+`/signals` ingress listens only while AgentNotify is enabled in YUI's quick controls, and toggling AgentNotify
+requires an app restart. When Hermes runs on
 a remote host, such as when it reaches YUI through an SSH reverse tunnel, `YUI_SIGNALS_URL` must be set to the tunnel
 endpoint.
 
 Set `MEMORY_BASE_URL` and `MEMORY_BASE_API_KEY` only when a memory_base service is available. With them the monitor
-scores `learned` from Natsume's `natsume`-tagged notes, and `MEMORY_BASE_URL` is optional when memory_base listens
-on the default port. Without `MEMORY_BASE_API_KEY` the `learned` source is off: the monitor reads no notes.
+scores `learned` from the notes tagged `<agent>`, and `MEMORY_BASE_URL` is optional when memory_base listens on
+the default port. Without `MEMORY_BASE_API_KEY` the `learned` source is off: the monitor reads no notes.
 
 ```bash
 export MEMORY_BASE_URL=http://127.0.0.1:8010
@@ -143,30 +163,31 @@ that execs `decay_monitor.py` by absolute path:
 
 ```bash
 printf '#!/bin/sh\nexec python3 <abs>/integrations/hermes/desire/decay_monitor.py\n' \
-  > ~/.hermes/scripts/natsume-desire-monitor.sh
-chmod +x ~/.hermes/scripts/natsume-desire-monitor.sh
+  > ~/.hermes/scripts/$DESIRE_AGENT_NAME-desire-monitor.sh
+chmod +x ~/.hermes/scripts/$DESIRE_AGENT_NAME-desire-monitor.sh
 ```
 
-`scripts/natsume-desire-monitor.sh` in the checkout is self-locating and serves direct execution from the repository.
+`scripts/desire-monitor.sh` in the checkout is self-locating and serves direct execution from the repository.
 
-Create the tick, weekly reflection, and daily report jobs with these commands, where `<chat_id>` is the Telegram
-DM listed in `~/.hermes/profiles/$HERMES_PROFILE/channel_directory.json`:
+Create the tick, weekly reflection, and daily report jobs with these commands, where `<target>` is a delivery
+target Hermes accepts for a channel the profile is connected to, such as `telegram:<chat_id>` for a DM listed in
+`~/.hermes/profiles/$HERMES_PROFILE/channel_directory.json`:
 
 ```bash
-hermes -p "$HERMES_PROFILE" cron create "every 10m" --name natsume-desire-tick \
-  --monitor-script natsume-desire-monitor.sh \
-  --deliver telegram:<chat_id> \
+hermes -p "$HERMES_PROFILE" cron create "every 10m" --name "$DESIRE_AGENT_NAME-desire-tick" \
+  --monitor-script "$DESIRE_AGENT_NAME-desire-monitor.sh" \
+  --deliver <target> \
   "Follow the instructions in <abs>/integrations/hermes/desire/prompts/tick.md. The configured environment is HERMES_PROFILE=$HERMES_PROFILE, DESIRE_STATE_DIR=$DESIRE_STATE_DIR, and YUI_SIGNALS_URL=$YUI_SIGNALS_URL."
-hermes -p "$HERMES_PROFILE" cron create "0 23 * * 0" --name natsume-desire-reflection \
+hermes -p "$HERMES_PROFILE" cron create "0 23 * * 0" --name "$DESIRE_AGENT_NAME-desire-reflection" \
   "Follow the instructions in <abs>/integrations/hermes/desire/prompts/reflection.md. The configured environment is HERMES_PROFILE=$HERMES_PROFILE, DESIRE_STATE_DIR=$DESIRE_STATE_DIR, and YUI_SIGNALS_URL=$YUI_SIGNALS_URL."
-hermes -p "$HERMES_PROFILE" cron create "0 21 * * *" --name natsume-desire-report \
-  --deliver telegram:<chat_id> \
+hermes -p "$HERMES_PROFILE" cron create "0 21 * * *" --name "$DESIRE_AGENT_NAME-desire-report" \
+  --deliver <target> \
   "Follow the instructions in <abs>/integrations/hermes/desire/prompts/report.md. The configured environment is HERMES_PROFILE=$HERMES_PROFILE, DESIRE_STATE_DIR=$DESIRE_STATE_DIR, and YUI_SIGNALS_URL=$YUI_SIGNALS_URL."
 ```
 
-`--deliver telegram:<chat_id>` sends the tick and report responses to that DM; `hermes -p "$HERMES_PROFILE" cron
-edit <job_id> --deliver telegram:<chat_id>` sets it on a job that already exists. Hermes delivers a failed run
-whatever its response says, so a transient tick failure reaches the DM even though a quiet tick answers
+`--deliver <target>` sends the tick and report responses there; `hermes -p "$HERMES_PROFILE" cron
+edit <job_id> --deliver <target>` sets it on a job that already exists. Hermes delivers a failed run
+whatever its response says, so a transient tick failure reaches the target even though a quiet tick answers
 `[SILENT]`. The job prompt is the file reference followed by the three environment values, nothing else; the
 prompt file is the only place a job's behaviour is written.
 
@@ -195,7 +216,7 @@ drive has sat at 100 for another three hours, and once every morning. Run the on
 ## Action budgets
 
 `act.py` enforces caps that reset at KST midnight: three signals, two issues, one self-initiated comment, one pull
-request, and one dispatch. Replies to Youngwoo's comments are not routed through this helper and are uncapped.
+request, and one dispatch. Replies to the user's comments are not routed through this helper and are uncapped.
 `signal --note` posts a new note; `outbox --send <id>` posts an existing pent-up note and shares the same budget.
 Signal reservations are refunded after a delivery failure; a failed new note enters the outbox with `attempts` 1,
 and a failed resend increments the existing item's `attempts` instead of adding another item. `outbox --list`
@@ -227,14 +248,14 @@ hunger cycle fits in roughly eight hours and every tick day produces telemetry.
 
 Satisfaction uses fixed event doses and KST daily caps. Three of the four events are derived by the monitor from
 artefacts outside the state directory; only `praised` is self-reported, through
-`act.py satisfy praised --ref "<what he said and where>"`:
+`act.py satisfy praised --ref "<what they said and where>"`:
 
 | Event | Applies when | Drive dose | Daily cap |
 | --- | --- | --- | ---: |
-| `learned` | The monitor sees a `memory_base` note tagged `natsume` whose `kind` is `note` or `decision`, newer than the cursor | curiosity −30 | 6 |
-| `progressed` | The monitor first sees a pull request opened from a `natsume/` branch, an issue whose body carries `<!-- from-natsume -->`, or a skill directory under the profile | accomplishment −15 | 6 |
+| `learned` | The monitor sees a `memory_base` note tagged `<agent>` whose `kind` is `note` or `decision`, newer than the cursor | curiosity −30 | 6 |
+| `progressed` | The monitor first sees a pull request opened from an `<agent>/` branch, an issue whose body carries `<!-- from-<agent> -->`, or a skill directory under the profile | accomplishment −15 | 6 |
 | `shipped` | The monitor sees one of those pull requests merged, or one of those issues closed | accomplishment −40 | 4 |
-| `praised` | Natsume reports positive feedback from Youngwoo | accomplishment −25 | 4 |
+| `praised` | The agent reports positive feedback from the user | accomplishment −25 | 4 |
 
 The homeostatic reward is `r = D(before) - D(after)`, where
 `D(levels) = sqrt(sum((level_i / 100)^4 for i in levels))` over social, curiosity, and accomplishment.
@@ -252,24 +273,24 @@ Each derived event is appended to `unreported` and audited as `drive_satisfied` 
   same repository count as one. A directory without such a remote is skipped, and so is a checkout that keeps its
   config elsewhere (a linked worktree, `--separate-git-dir`); there is no configured repository list.
 - **Pull requests** — `gh pr list --repo <owner/name> --author @me --state all --limit 100`, keeping the ones whose
-  head branch starts with `natsume/`. First sight scores `progressed`.
+  head branch starts with `<agent>/`. First sight scores `progressed`.
 - **Issues** — `gh issue list --repo <owner/name> --author @me --state all --limit 100`, keeping the ones whose body
-  contains the literal `<!-- from-natsume -->`. First sight scores `progressed`.
-- **Delivery** — the list calls carry a fixed window that Youngwoo's own activity shares, so an artefact that stays
+  contains the literal `<!-- from-<agent> -->`. First sight scores `progressed`.
+- **Delivery** — the list calls carry a fixed window that the user's own activity shares, so an artefact that stays
   open longer than the window would fall out of it. Delivery is read from the artefact itself instead:
   `gh pr view <url> --json state,mergedAt` and `gh issue view <url> --json state,closedAt`, once per tick for each
   artefact that is counted but not yet shipped. A set `mergedAt` or `closedAt` scores `shipped` once. A failing view
   audits `derive_failed` for that artefact alone and leaves it for the next tick.
 - **Skills** — every directory under `~/.hermes/profiles/$HERMES_PROFILE/skills/` containing a `SKILL.md`,
   identified by its path relative to the skills root. First sight scores `progressed`. This is the one source
-  Natsume can add to alone, and it counts what appears rather than who put it there: a skill installed into her
+  the agent can add to alone, and it counts what appears rather than who put it there: a skill installed into the
   profile from outside scores too, and a nested `SKILL.md` inside an existing skill counts as its own directory.
 - **Memory notes** — read only while `MEMORY_BASE_API_KEY` is set:
-  `GET $MEMORY_BASE_URL/notes?since=<notes_since>&limit=200&tags=natsume` with the header
+  `GET $MEMORY_BASE_URL/notes?since=<notes_since>&limit=200&tags=<agent>` with the header
   `X-API-Key: $MEMORY_BASE_API_KEY`. `MEMORY_BASE_URL` defaults to `http://127.0.0.1:8010`. Without the key the
   monitor sends no request, audits nothing, and leaves the kind unbootstrapped, so a key set later bootstraps the
-  notes on its first answer. The `default` namespace is shared with other sessions, so the `natsume` tag is what
-  separates Natsume's own notes; `tick.md` tells her to tag every note she saves with it. Each returned note of kind
+  notes on its first answer. The `default` namespace is shared with other sessions, so the `<agent>` tag is what
+  separates the agent's own notes; `tick.md` tells it to tag every note it saves with it. Each returned note of kind
   `note` or `decision` scores `learned` with the note id as its `ref`; `episode` notes are ignored. The response
   carries a day-granular `date` only, so the cursor advances to the tick time after a successful fetch and the note
   id in `seen` is what keeps a repeated note from being scored twice.
@@ -298,10 +319,10 @@ skills you made (7 days):
 ```
 
 It lists the `skill_first_seen` entries of `artefacts.json`, which hold the skills first seen after the skill
-source was bootstrapped; the skills already installed at bootstrap are not Natsume's. A listed skill drops out of
+source was bootstrapped; the skills already installed at bootstrap are not the agent's. A listed skill drops out of
 the section once its directory is gone or its `.usage.json` `state` is no longer `active`, so archiving one ends
 its verdict. With no such skill the whole section is `skills you made (7 days): none yet`, which is what it reads
-from the bootstrap tick until Natsume writes her first new skill; the skills that were already installed never
+from the bootstrap tick until the agent writes its first new skill; the skills that were already installed never
 enter it.
 
 - **Loads** — every `skill_view` tool call in the last seven days, read from the `messages` table of
@@ -314,15 +335,15 @@ enter it.
 - **Session kind** — Hermes names every cron-started session `cron_<job id>_<timestamp>`, and `sessions.source` is
   `cron` for all of them, so `source` cannot separate the tick from the digest, reflection, report, and other
   cron jobs. The tick's job id is read by name from `~/.hermes/profiles/$HERMES_PROFILE/cron/jobs.json`, job
-  `natsume-desire-tick`; a `session_id` starting with `cron_<that id>_` is a tick load and everything else —
-  Telegram, the YUI api_server, every other cron job — is an `other` load.
+  `<agent>-desire-tick`; a `session_id` starting with `cron_<that id>_` is a tick load and everything else — a chat
+  platform, the YUI api_server, every other cron job — is an `other` load.
 - **Last used** — `last_used_at` from `~/.hermes/profiles/$HERMES_PROFILE/skills/.usage.json`, an offset-carrying
   ISO stamp, rendered in KST. A skill with no stamp reads `never`, and one whose stamp cannot be parsed reads
   `unknown` and carries no verdict.
 - **Verdict** — a skill created 14 or more days ago with zero `other` loads in the last seven days is marked
-  `unused: archive it or say why it stays`; loads from Natsume's own tick do not clear it. The age comes from
+  `unused: archive it or say why it stays`; loads from the agent's own tick do not clear it. The age comes from
   `created_at` in `.usage.json`, or from `skill_first_seen` when the skill has no usage entry. `prompts/report.md`
-  tells Natsume to archive the skill with `skill_manage` or to write one line in the report saying why it stays,
+  tells the agent to archive the skill with `skill_manage` or to write one line in the report saying why it stays,
   and the verdict returns daily until the skill is archived or something outside the tick loads it.
 - **Failure** — an absent, locked, or unreadable database, or a `jobs.json` without the tick job, renders every
   line as `loads unavailable` with no verdict and audits `report_skills_failed` with the reason. The rest of the
@@ -341,12 +362,13 @@ With `logging.level: DEBUG` in the Hermes profile `config.yaml`, every middlewar
 `yui-desire llm_request …` line to `~/.hermes/logs/agent.log` carrying only outcome, skip reason, trigger
 class, the trigger kind read off the headline `trigger:` line of the last `<client_context>` block
 (`trigger=user message`, `proactive`, `screen`, `agent`, `signals`, `other` for any headline outside that
-vocabulary, or `none` without a block), the channel Hermes named for the turn (`platform=telegram`, or `none` when
+vocabulary, or `none` without a block), the channel Hermes named for the turn (`platform=<name>`, or `none` when
 it named none), request shape, cache-hit status, and the Hermes request/turn/session ids — never the desire block,
 drive levels, or user text.
 
 A turn counts as an interaction, and moves the interaction time, when that headline is `trigger: user message` or
-when Hermes passes `platform: telegram`. A turn with neither, such as a bare API call, leaves social drive rising.
+when Hermes names a platform listed in `DESIRE_CHAT_PLATFORMS`. A turn with neither, such as a bare API call,
+leaves social drive rising.
 
 Each `<client_context>` block the middleware sees for the first time also appends a `turn` event carrying that
 trigger kind to `audit.jsonl`, whatever the log level. A cache hit or a request repeating the text of the one

@@ -21,8 +21,6 @@ SATURATION_STEP = timedelta(hours=3)
 DEFAULT_MEMORY_BASE_URL = "http://127.0.0.1:8010"
 NOTE_KINDS = ("note", "decision")
 NOTE_MEMORY = 500
-BRANCH_PREFIX = "natsume/"
-ISSUE_MARKER = "<!-- from-natsume -->"
 FIRST_SIGHT = {"pr": "progressed", "issue": "progressed", "skill": "progressed", "note": "learned"}
 SOURCE_OF = {"pr": "pr", "issue": "issue", "skill": "skill", "note": "notes"}
 _ORIGIN_SECTION = re.compile(r'^\[remote "origin"\]\n(.*?)(?=^\[|\Z)', re.MULTILINE | re.DOTALL)
@@ -84,7 +82,7 @@ def workspace_repos(workspace_root: Path) -> list[str]:
 
 
 def repo_pull_requests(repo: str, run_gh) -> list[dict]:
-    """Return the repository's own pull requests that were opened from a `natsume/` branch."""
+    """Return the repository's own pull requests opened from a branch carrying the agent prefix."""
 
     payload = run_gh(
         [
@@ -102,15 +100,16 @@ def repo_pull_requests(repo: str, run_gh) -> list[dict]:
             "number,url,headRefName,state,mergedAt",
         ]
     )
+    prefix = desire_state.branch_prefix()
     return [
         pull
         for pull in json.loads(payload)
-        if isinstance(pull, dict) and str(pull.get("headRefName", "")).startswith(BRANCH_PREFIX)
+        if isinstance(pull, dict) and str(pull.get("headRefName", "")).startswith(prefix)
     ]
 
 
 def repo_issues(repo: str, run_gh) -> list[dict]:
-    """Return the repository's own issues whose body carries the Natsume marker."""
+    """Return the repository's own issues whose body carries the agent's issue marker."""
 
     payload = run_gh(
         [
@@ -128,10 +127,11 @@ def repo_issues(repo: str, run_gh) -> list[dict]:
             "number,url,state,closedAt,body",
         ]
     )
+    marker = desire_state.issue_marker()
     return [
         issue
         for issue in json.loads(payload)
-        if isinstance(issue, dict) and ISSUE_MARKER in str(issue.get("body", ""))
+        if isinstance(issue, dict) and marker in str(issue.get("body", ""))
     ]
 
 
@@ -145,10 +145,10 @@ def profile_skills(skills_root: Path) -> list[str]:
 
 
 def memory_notes(since: str, fetch_notes) -> list[dict]:
-    """Return the notes Natsume tagged `natsume` since the cursor, without her episodes."""
+    """Return the notes the agent tagged with its own name since the cursor, without its episodes."""
 
     base = os.environ.get("MEMORY_BASE_URL") or DEFAULT_MEMORY_BASE_URL
-    query = urllib_parse.urlencode({"since": since, "limit": 200, "tags": "natsume"})
+    query = urllib_parse.urlencode({"since": since, "limit": 200, "tags": desire_state.agent_name()})
     headers = {"X-API-Key": os.environ.get("MEMORY_BASE_API_KEY", "")}
     payload = json.loads(fetch_notes(f"{base.rstrip('/')}/notes?{query}", headers))
     notes = payload.get("notes", []) if isinstance(payload, dict) else payload
@@ -441,6 +441,12 @@ def _fallback_summary() -> str:
 
 
 def main() -> None:
+    # A missing identity is a misconfiguration the fail-safe summary must not hide.
+    try:
+        desire_state.agent_name()
+        desire_state.hermes_profile()
+    except desire_state.ConfigurationError as error:
+        raise SystemExit(str(error)) from error
     try:
         now = datetime.now(desire_state.KST)
         summary = run(now)

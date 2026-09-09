@@ -1,4 +1,4 @@
-"""Count how often Natsume's own skills are loaded, for the daily report section."""
+"""Count how often the agent's own skills are loaded, for the daily report section."""
 
 from __future__ import annotations
 
@@ -12,7 +12,6 @@ import desire_state
 WINDOW = timedelta(days=7)
 UNUSED_AFTER = timedelta(days=14)
 SQLITE_TIMEOUT_SECONDS = 2
-TICK_JOB = "natsume-desire-tick"
 VIEW_TOOL = "skill_view"
 HEADER = "skills you made (7 days):"
 EMPTY = f"{HEADER} none yet"
@@ -22,12 +21,13 @@ UNUSED = " — unused: archive it or say why it stays"
 def _tick_prefix(profile: Path) -> str:
     """Return the session-id prefix Hermes gives every run of the desire tick job."""
 
+    tick_job = desire_state.cron_job_name("tick")
     payload = json.loads((profile / "cron" / "jobs.json").read_text(encoding="utf-8"))
     jobs = payload.get("jobs") if isinstance(payload, dict) else payload
     for job in jobs if isinstance(jobs, list) else []:
-        if isinstance(job, dict) and job.get("name") == TICK_JOB and isinstance(job.get("id"), str):
+        if isinstance(job, dict) and job.get("name") == tick_job and isinstance(job.get("id"), str):
             return f"cron_{job['id']}_"
-    raise LookupError(f"cron/jobs.json names no {TICK_JOB} job")
+    raise LookupError(f"cron/jobs.json names no {tick_job} job")
 
 
 def _viewed(payload: object) -> list[str]:
@@ -128,7 +128,7 @@ def _line(
 def section(
     now: datetime, *, first_seen: dict[str, str], profile: Path | None = None
 ) -> tuple[str, str | None]:
-    """Render the report section for the skills Natsume made, and why loads went uncounted."""
+    """Render the report section for the skills the agent made, and why loads went uncounted."""
 
     now = desire_state.normalize_now(now)
     profile = Path(profile) if profile is not None else desire_state.profile_root()

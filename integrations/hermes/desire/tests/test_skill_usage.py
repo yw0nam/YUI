@@ -5,6 +5,7 @@ from datetime import timedelta
 from pathlib import Path
 
 import pytest
+from conftest import AGENT_NAME
 
 import act
 import desire_state
@@ -17,8 +18,8 @@ OTHER_JOB_ID = "50b142a711ad"
 def write_jobs(profile: Path) -> None:
     jobs = {
         "jobs": [
-            {"id": OTHER_JOB_ID, "name": "natsume-desire-report"},
-            {"id": TICK_JOB_ID, "name": "natsume-desire-tick"},
+            {"id": OTHER_JOB_ID, "name": f"{AGENT_NAME}-desire-report"},
+            {"id": TICK_JOB_ID, "name": f"{AGENT_NAME}-desire-tick"},
         ]
     }
     (profile / "cron").mkdir(parents=True, exist_ok=True)
@@ -230,7 +231,7 @@ def test_a_missing_tick_job_renders_loads_unavailable_and_names_the_reason(profi
 
     text, failure = skill_usage.section(now, first_seen={"mcp/quiet": "2026-08-01T00:00:00+09:00"})
 
-    assert "natsume-desire-tick" in failure
+    assert f"{AGENT_NAME}-desire-tick" in failure
     assert text.splitlines()[1] == "- mcp/quiet — loads unavailable, last used never"
 
 

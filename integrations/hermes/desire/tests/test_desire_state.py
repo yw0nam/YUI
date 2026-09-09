@@ -95,6 +95,61 @@ def test_bootstrap_creates_all_defaults(state_dir, at, state_helpers):
     assert (state_dir / "state.lock").exists()
 
 
+def test_agent_name_and_profile_are_required(monkeypatch):
+    monkeypatch.delenv("DESIRE_AGENT_NAME", raising=False)
+    with pytest.raises(desire_state.ConfigurationError, match="DESIRE_AGENT_NAME"):
+        desire_state.agent_name()
+
+    monkeypatch.delenv("HERMES_PROFILE", raising=False)
+    with pytest.raises(desire_state.ConfigurationError, match="HERMES_PROFILE"):
+        desire_state.hermes_profile()
+
+
+def test_a_blank_agent_name_is_as_missing_as_an_absent_one(monkeypatch):
+    monkeypatch.setenv("DESIRE_AGENT_NAME", "   ")
+    with pytest.raises(desire_state.ConfigurationError, match="DESIRE_AGENT_NAME"):
+        desire_state.agent_name()
+
+
+@pytest.mark.parametrize("value", ["my agent", "Agent", "agent_two", "-agent", "agent/x"])
+def test_an_agent_name_outside_the_slug_shape_is_refused(monkeypatch, value):
+    monkeypatch.setenv("DESIRE_AGENT_NAME", value)
+    with pytest.raises(desire_state.ConfigurationError, match="DESIRE_AGENT_NAME"):
+        desire_state.agent_name()
+
+
+@pytest.mark.parametrize("value", ["", "  ", " , "])
+def test_the_chat_platforms_are_required(monkeypatch, value):
+    monkeypatch.setenv("DESIRE_CHAT_PLATFORMS", value)
+    with pytest.raises(desire_state.ConfigurationError, match="DESIRE_CHAT_PLATFORMS"):
+        desire_state.chat_platforms()
+
+
+def test_the_chat_platforms_are_read_as_a_list(monkeypatch):
+    monkeypatch.setenv("DESIRE_CHAT_PLATFORMS", "Discord, slack ")
+    assert desire_state.chat_platforms() == frozenset({"discord", "slack"})
+
+
+def test_every_convention_derives_from_the_agent_name(monkeypatch):
+    monkeypatch.setenv("DESIRE_AGENT_NAME", "demo")
+
+    assert desire_state.agent_name() == "demo"
+    assert desire_state.branch_prefix() == "demo/"
+    assert desire_state.issue_marker() == "<!-- from-demo -->"
+    assert desire_state.signal_source() == "demo-desire"
+    assert desire_state.cron_job_name("tick") == "demo-desire-tick"
+
+
+def test_the_desire_block_opens_by_naming_the_agent(monkeypatch, at):
+    monkeypatch.setenv("DESIRE_AGENT_NAME", "demo")
+    now = at("2026-08-25T12:00:00+09:00")
+    levels = {"social": 0.0, "curiosity": 50.0, "accomplishment": 50.0}
+
+    block = desire_state.serialize_desire_block(levels, [], now, last_interaction_at=now.isoformat())
+
+    assert block.split("\n")[:2] == ["<desire_state>", "agent: demo"]
+
+
 def test_state_dir_falls_back_to_profile(monkeypatch, tmp_path):
     monkeypatch.delenv("DESIRE_STATE_DIR", raising=False)
     monkeypatch.setenv("HERMES_PROFILE", "test-profile")
@@ -463,7 +518,7 @@ def test_serialize_desire_block_renders_interaction_and_transport_lines(at):
     last = (now - timedelta(hours=4, minutes=48)).isoformat()
 
     unknown = desire_state.serialize_desire_block(levels, [], now, last_interaction_at=last)
-    assert unknown.split("\n")[1:4] == [
+    assert unknown.split("\n")[2:5] == [
         "drives: social 72/100 (high) | curiosity 50/100 (mid) | accomplishment 50/100 (mid)",
         "last interaction: 2026-08-25 07:12 (4h ago)",
         "signal transport: unknown",
@@ -680,13 +735,13 @@ def test_serialize_desire_block_renders_the_returned_line_after_the_interaction_
         levels, held, now, last_interaction_at=last, transport=None, returned_hours=5
     )
 
-    assert empty_handed.split("\n")[1:5] == [
+    assert empty_handed.split("\n")[2:6] == [
         "drives: social 72/100 (high) | curiosity 50/100 (mid) | accomplishment 50/100 (mid)",
         "last interaction: 2026-08-25 07:00 (5h ago)",
         "returned: after 5h away",
         "signal transport: unknown",
     ]
-    assert holding.split("\n")[3] == "returned: after 5h away (one held note fits here)"
+    assert holding.split("\n")[4] == "returned: after 5h away (one held note fits here)"
 
 
 def test_serialize_desire_block_renders_the_last_signal_line_after_the_transport_line(at):
@@ -697,7 +752,7 @@ def test_serialize_desire_block_renders_the_last_signal_line_after_the_transport
     waiting = desire_state.serialize_desire_block(
         levels, [], now, last_interaction_at=now.isoformat(), last_signal_at=sent
     )
-    assert waiting.split("\n")[4] == "last signal: 2026-08-25 09:00 — no reply yet (3h)"
+    assert waiting.split("\n")[5] == "last signal: 2026-08-25 09:00 — no reply yet (3h)"
 
     answered = desire_state.serialize_desire_block(
         levels,
@@ -707,7 +762,7 @@ def test_serialize_desire_block_renders_the_last_signal_line_after_the_transport
         last_signal_at=sent,
         last_signal_answered_at=(now - timedelta(hours=1)).isoformat(),
     )
-    assert answered.split("\n")[4] == "last signal: 2026-08-25 09:00 — answered after 2h"
+    assert answered.split("\n")[5] == "last signal: 2026-08-25 09:00 — answered after 2h"
 
     silent = desire_state.serialize_desire_block(levels, [], now, last_interaction_at=now.isoformat())
     assert "last signal:" not in silent
@@ -717,8 +772,8 @@ def test_serialize_desire_block_renders_the_since_last_turn_line_after_the_trans
     now = at("2026-08-25T12:00:00+09:00")
     levels = {"social": 0.0, "curiosity": 50.0, "accomplishment": 50.0}
     unreported = [
-        {"event": "progressed", "kind": "pr", "ref": "https://github.com/yw0nam/YUI/pull/12"},
-        {"event": "shipped", "kind": "issue", "ref": "https://github.com/yw0nam/YUI/issues/7"},
+        {"event": "progressed", "kind": "pr", "ref": "https://github.com/owner/YUI/pull/12"},
+        {"event": "shipped", "kind": "issue", "ref": "https://github.com/owner/YUI/issues/7"},
         {"event": "learned", "kind": "note", "ref": "note:a"},
         {"event": "learned", "kind": "note", "ref": "note:b"},
     ]
@@ -727,14 +782,14 @@ def test_serialize_desire_block_renders_the_since_last_turn_line_after_the_trans
         levels, [], now, last_interaction_at=now.isoformat(), unreported=unreported
     )
 
-    assert block.split("\n")[4] == (
-        "since last turn: progressed pr https://github.com/yw0nam/YUI/pull/12; "
-        "shipped issue https://github.com/yw0nam/YUI/issues/7; learned 2 notes"
+    assert block.split("\n")[5] == (
+        "since last turn: progressed pr https://github.com/owner/YUI/pull/12; "
+        "shipped issue https://github.com/owner/YUI/issues/7; learned 2 notes"
     )
     one = desire_state.serialize_desire_block(
         levels, [], now, last_interaction_at=now.isoformat(), unreported=unreported[2:3]
     )
-    assert one.split("\n")[4] == "since last turn: learned 1 note"
+    assert one.split("\n")[5] == "since last turn: learned 1 note"
     assert "since last turn:" not in desire_state.serialize_desire_block(
         levels, [], now, last_interaction_at=now.isoformat(), unreported=[]
     )
@@ -751,7 +806,7 @@ def test_since_last_turn_line_caps_the_listed_artefacts_and_drops_unknown_entrie
         levels, [], now, last_interaction_at=now.isoformat(), unreported=unreported
     )
 
-    line = block.split("\n")[4]
+    line = block.split("\n")[5]
     assert line.startswith("since last turn: progressed skill skill/0; ")
     assert line.endswith("; progressed skill skill/7; and 3 more")
     assert "skill/x" not in line

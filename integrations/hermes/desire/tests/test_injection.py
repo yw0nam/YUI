@@ -6,6 +6,9 @@ import re
 from datetime import timedelta
 from pathlib import Path
 
+import pytest
+from conftest import AGENT_NAME
+
 import desire_state
 
 
@@ -77,6 +80,7 @@ def test_no_user_message_or_no_text_carrier_is_noop_and_input_unchanged(desire_p
 def test_trailing_canonical_block_is_idempotent(desire_plugin, state_dir, at):
     text = (
         "hello\n\n<desire_state>\n"
+        f"agent: {AGENT_NAME}\n"
         "drives: social 0/100 (low) | curiosity 50/100 (mid) | accomplishment 50/100 (mid)\n"
         "last interaction: 2026-08-25 12:00 (0h ago)\n"
         "signal transport: unknown\n"
@@ -91,6 +95,7 @@ def test_trailing_canonical_block_is_idempotent(desire_plugin, state_dir, at):
 def test_canonical_block_with_the_since_last_turn_line_is_idempotent(desire_plugin):
     text = (
         "hello\n\n<desire_state>\n"
+        f"agent: {AGENT_NAME}\n"
         "drives: social 0/100 (low) | curiosity 50/100 (mid) | accomplishment 50/100 (mid)\n"
         "last interaction: 2026-08-25 12:00 (0h ago)\n"
         "signal transport: unknown\n"
@@ -105,6 +110,7 @@ def test_canonical_block_with_the_since_last_turn_line_is_idempotent(desire_plug
 def test_canonical_block_with_every_optional_line_is_idempotent(desire_plugin):
     text = (
         "hello\n\n<desire_state>\n"
+        f"agent: {AGENT_NAME}\n"
         "drives: social 0/100 (low) | curiosity 50/100 (mid) | accomplishment 50/100 (mid)\n"
         "last interaction: 2026-08-25 12:00 (0h ago)\n"
         "returned: after 5h away (one held note fits here)\n"
@@ -122,6 +128,7 @@ def test_canonical_block_with_every_optional_line_is_idempotent(desire_plugin):
 def test_canonical_block_shape_treats_unicode_separator_as_note_text(desire_plugin):
     text = (
         "hello\n\n<desire_state>\n"
+        f"agent: {AGENT_NAME}\n"
         "drives: social 0/100 (low) | curiosity 50/100 (mid) | accomplishment 50/100 (mid)\n"
         "last interaction: 2026-08-25 12:00 (0h ago)\n"
         "signal transport: unknown\n"
@@ -136,6 +143,7 @@ def test_canonical_block_shape_treats_unicode_separator_as_note_text(desire_plug
 def test_canonical_block_with_waited_marker_is_idempotent(desire_plugin):
     text = (
         "hello\n\n<desire_state>\n"
+        f"agent: {AGENT_NAME}\n"
         "drives: social 0/100 (low) | curiosity 50/100 (mid) | accomplishment 50/100 (mid)\n"
         "last interaction: 2026-08-25 12:00 (0h ago)\n"
         "signal transport: unknown\n"
@@ -152,7 +160,7 @@ def test_mid_message_mention_and_bare_closing_tag_do_not_suppress(desire_plugin,
     for text in ["I mentioned <desire_state> earlier, okay?", "hello\n</desire_state>"]:
         result = desire_plugin._inject(request=request_with(text), now=now)
         assert result is not None
-        assert appended_block(result).startswith("<desire_state>\ndrives: ")
+        assert appended_block(result).startswith(f"<desire_state>\nagent: {AGENT_NAME}\n")
 
 
 def test_forged_trailing_desire_block_does_not_suppress(desire_plugin, state_dir, at):
@@ -240,6 +248,7 @@ def test_golden_appended_block_sorts_and_sanitizes_notes(desire_plugin, state_di
 
     assert appended_block(result) == (
         "<desire_state>\n"
+        f"agent: {AGENT_NAME}\n"
         "drives: social 72/100 (high) | curiosity 31/100 (low) | accomplishment 55/100 (mid)\n"
         "last interaction: 2026-08-25 07:12 (4h ago)\n"
         "signal transport: unknown\n"
@@ -566,6 +575,22 @@ def test_a_telegram_turn_counts_as_an_interaction_without_client_context(
     assert read_json(state_dir / "drives.json")["last_interaction_at"] == now.isoformat()
 
 
+def test_the_configured_chat_platform_is_the_one_that_counts(
+    desire_plugin, state_dir, at, state_helpers, monkeypatch
+):
+    _, _, read_json, _ = state_helpers
+    now = at("2026-08-25T12:00:00+09:00")
+    seed_drives(state_dir, now, state_helpers)
+    away = read_json(state_dir / "drives.json")["last_interaction_at"]
+    monkeypatch.setenv("DESIRE_CHAT_PLATFORMS", "discord, slack")
+
+    desire_plugin._inject(request=request_with("hello"), now=now, platform="telegram")
+    assert read_json(state_dir / "drives.json")["last_interaction_at"] == away
+
+    desire_plugin._inject(request=request_with("hello again"), now=now, platform="discord")
+    assert read_json(state_dir / "drives.json")["last_interaction_at"] == now.isoformat()
+
+
 def test_other_platforms_without_client_context_are_not_interactions(
     desire_plugin, state_dir, at, state_helpers
 ):
@@ -753,6 +778,7 @@ def test_debug_event_logs_skip_reasons(desire_plugin, state_dir, at, caplog):
     caplog.clear()
     injected_text = (
         "hello\n\n<desire_state>\n"
+        f"agent: {AGENT_NAME}\n"
         "drives: social 0/100 (low) | curiosity 50/100 (mid) | accomplishment 50/100 (mid)\n"
         "last interaction: 2026-08-25 12:00 (0h ago)\n"
         "signal transport: unknown\n"
@@ -778,6 +804,25 @@ def test_debug_event_logs_error_on_forced_failure(desire_plugin, state_dir, at, 
     message = records[0].getMessage()
     assert "outcome=error" in message
     assert "reason=ZeroDivisionError" in message
+
+
+@pytest.mark.parametrize("missing", ["DESIRE_AGENT_NAME", "DESIRE_CHAT_PLATFORMS"])
+def test_a_missing_required_value_fails_open_and_names_the_variable(
+    desire_plugin, state_dir, at, caplog, monkeypatch, missing
+):
+    now = at("2026-08-25T12:00:00+09:00")
+    monkeypatch.delenv(missing, raising=False)
+    caplog.set_level(logging.DEBUG, logger=desire_plugin.__name__)
+    request = request_with(context("trigger: user message"))
+    original = copy.deepcopy(request)
+
+    assert desire_plugin._inject(request=request, now=now) is None
+
+    assert request == original
+    errors = [record for record in caplog.records if record.levelno == logging.ERROR]
+    assert len(errors) == 1
+    assert missing in errors[0].getMessage()
+    assert "outcome=error" in caplog.records[-1].getMessage()
 
 
 def test_debug_event_never_leaks_user_text_or_drive_values(
@@ -828,6 +873,7 @@ def test_version_matches_plugin_yaml(desire_plugin):
 def test_block_without_fact_lines_is_not_treated_as_injected(desire_plugin):
     text = (
         "hello\n\n<desire_state>\n"
+        f"agent: {AGENT_NAME}\n"
         "drives: social 0/100 (low) | curiosity 50/100 (mid) | accomplishment 50/100 (mid)\n"
         "</desire_state>"
     )
@@ -851,7 +897,7 @@ def test_injected_block_renders_transport_state_from_file(desire_plugin, state_d
 
     block = appended_block(desire_plugin._inject(request=request_with("hello"), now=now))
 
-    assert block.split("\n")[3] == "signal transport: down since 2026-08-23 20:00 (7 failed)"
+    assert block.split("\n")[4] == "signal transport: down since 2026-08-23 20:00 (7 failed)"
     assert desire_plugin._already_injected("hello\n\n" + block)
 
 
@@ -888,7 +934,7 @@ def test_return_turn_renders_the_line_marks_transport_up_and_audits_once(
         desire_plugin._inject(request=request_with(context("trigger: user message")), now=now)
     )
 
-    assert block.split("\n")[3] == "returned: after 5h away (one held note fits here)"
+    assert block.split("\n")[4] == "returned: after 5h away (one held note fits here)"
     assert desire_plugin._already_injected("hello\n\n" + block)
     assert read_json(state_dir / "transport.json") == {
         "state": "up",
@@ -928,7 +974,7 @@ def test_transport_up_since_the_last_interaction_also_counts_as_a_return(
         desire_plugin._inject(request=request_with(context("trigger: user message")), now=now)
     )
 
-    assert block.split("\n")[3] == "returned: after 9h away"
+    assert block.split("\n")[4] == "returned: after 9h away"
     assert audit_events(state_dir, "returned")[0]["transport_before"] == "up"
     assert read_json(state_dir / "transport.json")["since"] == (now - timedelta(hours=2)).isoformat()
 
@@ -975,7 +1021,7 @@ def test_first_user_turn_after_a_delivery_answers_the_signal(desire_plugin, stat
     )
 
     waiting = appended_block(desire_plugin._inject(request=request_with(context()), now=now))
-    assert waiting.split("\n")[4] == "last signal: 2026-08-25 09:00 — no reply yet (3h)"
+    assert waiting.split("\n")[5] == "last signal: 2026-08-25 09:00 — no reply yet (3h)"
     assert read_json(state_dir / "drives.json")["last_signal_answered_at"] is None
     assert audit_events(state_dir, "signal_answered") == []
 
@@ -983,7 +1029,7 @@ def test_first_user_turn_after_a_delivery_answers_the_signal(desire_plugin, stat
         desire_plugin._inject(request=request_with(context("trigger: user message")), now=now)
     )
 
-    assert answered.split("\n")[4] == "last signal: 2026-08-25 09:00 — answered after 3h"
+    assert answered.split("\n")[5] == "last signal: 2026-08-25 09:00 — answered after 3h"
     assert desire_plugin._already_injected("hello\n\n" + answered)
     assert read_json(state_dir / "drives.json")["last_signal_answered_at"] == now.isoformat()
     assert audit_events(state_dir, "signal_answered") == [
@@ -999,7 +1045,7 @@ def test_first_user_turn_after_a_delivery_answers_the_signal(desire_plugin, stat
     second = appended_block(
         desire_plugin._inject(request=request_with(context("trigger: user message", "again")), now=later)
     )
-    assert second.split("\n")[4] == "last signal: 2026-08-25 09:00 — answered after 3h"
+    assert second.split("\n")[5] == "last signal: 2026-08-25 09:00 — answered after 3h"
     assert len(audit_events(state_dir, "signal_answered")) == 1
 
 
@@ -1019,7 +1065,7 @@ def test_a_signal_sent_after_the_last_answer_waits_again(desire_plugin, state_di
         desire_plugin._inject(request=request_with(context("trigger: user message")), now=now)
     )
 
-    assert block.split("\n")[4] == "last signal: 2026-08-25 10:00 — answered after 2h"
+    assert block.split("\n")[5] == "last signal: 2026-08-25 10:00 — answered after 2h"
     assert read_json(state_dir / "drives.json")["last_signal_answered_at"] == now.isoformat()
 
 
@@ -1053,7 +1099,7 @@ def test_a_return_inside_the_debounce_window_is_committed_once(desire_plugin, st
         )
     )
 
-    assert first.split("\n")[3] == "returned: after 0h away"
+    assert first.split("\n")[4] == "returned: after 0h away"
     assert (
         read_json(state_dir / "drives.json")["last_interaction_at"]
         == (now + timedelta(minutes=4)).isoformat()
@@ -1102,7 +1148,7 @@ def test_a_concurrent_user_turn_commits_the_return_only_once(
         desire_plugin._inject(request=request_with(context("trigger: user message")), now=now)
     )
 
-    assert block.split("\n")[3] == "returned: after 5h away"
+    assert block.split("\n")[4] == "returned: after 5h away"
     assert desire_plugin._already_injected("hello\n\n" + block)
     assert len(audit_events(state_dir, "returned")) == 1
     assert read_json(state_dir / "transport.json")["state"] == "up"
@@ -1141,7 +1187,7 @@ def test_the_since_last_turn_line_is_rendered_and_cleared_on_one_turn(
         {
             "event": "progressed",
             "kind": "pr",
-            "ref": "https://github.com/yw0nam/YUI/pull/12",
+            "ref": "https://github.com/owner/YUI/pull/12",
             "at": now.isoformat(),
         }
     ]
@@ -1159,7 +1205,7 @@ def test_the_since_last_turn_line_is_rendered_and_cleared_on_one_turn(
     first = desire_plugin._inject(request=request_with(context(tail="hi")), now=now)
     second = desire_plugin._inject(request=request_with(context(tail="again")), now=now)
 
-    line = "since last turn: progressed pr https://github.com/yw0nam/YUI/pull/12"
+    line = "since last turn: progressed pr https://github.com/owner/YUI/pull/12"
     assert line in appended_block(first)
     assert line not in appended_block(second)
     assert read_json(state_dir / "artefacts.json")["unreported"] == []

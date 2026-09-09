@@ -1,4 +1,4 @@
-"""Hermes middleware that appends Natsume's current desire state.
+"""Hermes middleware that appends the agent's current desire state.
 
 The cache is intentionally a single, process-local entry. Interleaved sessions may
 evict one another, and byte-identical user text may share an entry; YUI's per-turn
@@ -92,17 +92,19 @@ def _already_injected(text):
     if opening < 0:
         return False
     lines = stripped[opening + 1 :].split("\n")
-    if len(lines) < 5 or lines[0] != "<desire_state>" or lines[-1] != "</desire_state>":
+    if len(lines) < 6 or lines[0] != "<desire_state>" or lines[-1] != "</desire_state>":
         return False
-    drives = _DRIVES_LINE.fullmatch(lines[1])
+    if lines[1] != f"agent: {desire_state.agent_name()}":
+        return False
+    drives = _DRIVES_LINE.fullmatch(lines[2])
     if drives is None:
         return False
     for name in ("social", "curiosity", "accomplishment"):
         if desire_state.bucket(int(drives[name])) != drives[f"{name}_bucket"]:
             return False
-    if _LAST_INTERACTION_LINE.fullmatch(lines[2]) is None:
+    if _LAST_INTERACTION_LINE.fullmatch(lines[3]) is None:
         return False
-    index = 4 if _RETURNED_LINE.fullmatch(lines[3]) is not None else 3
+    index = 5 if _RETURNED_LINE.fullmatch(lines[4]) is not None else 4
     if _TRANSPORT_LINE.fullmatch(lines[index]) is None:
         return False
     index += 1
@@ -228,7 +230,9 @@ def _rewrite(kwargs, event):
     staged_drives = copy.deepcopy(drives)
     trigger = _trigger_kind(original_text)
     event["trigger"] = trigger
-    interaction = trigger == "user message" or kwargs.get("platform") == "telegram"
+    platforms = desire_state.chat_platforms()
+    platform = str(kwargs.get("platform") or "").strip().lower()
+    interaction = trigger == "user message" or platform in platforms
     event["interaction"] = interaction
     interaction_changed = False
     returned_hours = None
@@ -383,6 +387,8 @@ def _inject(**kwargs):
     except Exception as exc:  # noqa: BLE001 - middleware must fail open for every plugin failure
         event["outcome"] = "error"
         event["reason"] = type(exc).__name__
+        if isinstance(exc, desire_state.ConfigurationError):
+            logger.error("yui-desire %s", exc)
         return None
     finally:
         _log_event(event, kwargs)

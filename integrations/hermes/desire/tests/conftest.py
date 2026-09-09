@@ -13,6 +13,17 @@ import pytest
 import decay_monitor
 
 KST = ZoneInfo("Asia/Seoul")
+AGENT_NAME = "testagent"
+PROFILE_NAME = "test-profile"
+
+
+@pytest.fixture(autouse=True)
+def agent_identity(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Name the agent and the Hermes profile every convention derives from."""
+
+    monkeypatch.setenv("DESIRE_AGENT_NAME", AGENT_NAME)
+    monkeypatch.setenv("HERMES_PROFILE", PROFILE_NAME)
+    monkeypatch.setenv("DESIRE_CHAT_PLATFORMS", "telegram")
 
 
 @pytest.fixture
