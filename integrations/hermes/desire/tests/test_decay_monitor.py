@@ -1133,6 +1133,33 @@ def test_new_skill_directory_doses_progressed_on_first_sight(state_dir, at, tmp_
     ]
 
 
+def test_only_a_skill_seen_after_bootstrap_records_its_first_sight(state_dir, at, tmp_path, state_helpers):
+    _, _, read_json, _ = state_helpers
+    bootstrapped = at("2026-08-25T12:00:00+09:00")
+    desire_state.bootstrap(bootstrapped)
+    derive(state_dir, bootstrapped, tmp_path, skills=("mcp/old",))
+    assert read_json(state_dir / "artefacts.json")["skill_first_seen"] == {}
+
+    later = at("2026-08-26T12:00:00+09:00")
+    derive(state_dir, later, tmp_path, skills=("mcp/old", "devops/new"))
+    derive(state_dir, at("2026-08-27T12:00:00+09:00"), tmp_path, skills=("mcp/old", "devops/new"))
+
+    assert read_json(state_dir / "artefacts.json")["skill_first_seen"] == {"devops/new": later.isoformat()}
+
+
+def test_a_capped_skill_still_records_its_first_sight(state_dir, at, tmp_path, state_helpers):
+    _, _, read_json, _ = state_helpers
+    now = at("2026-08-25T12:00:00+09:00")
+    desire_state.bootstrap(now)
+    derive(state_dir, now, tmp_path)
+    for index in range(desire_state.EVENT_DAILY_CAPS["progressed"]):
+        desire_state.satisfy("progressed", f"filler {index}", now)
+
+    derive(state_dir, now, tmp_path, skills=("mcp/capped",))
+
+    assert read_json(state_dir / "artefacts.json")["skill_first_seen"] == {"mcp/capped": now.isoformat()}
+
+
 def test_notes_are_filtered_by_kind_and_the_cursor_advances(state_dir, at, tmp_path, state_helpers):
     _, _, read_json, _ = state_helpers
     bootstrapped = at("2026-08-25T12:00:00+09:00")
