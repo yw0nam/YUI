@@ -149,6 +149,28 @@ export function floorSegments(
   return segments.filter((seg) => seg.left <= seg.right);
 }
 
+/**
+ * `x` when it already lies inside one of `segments`, else the nearest segment end.
+ * `x` unchanged when `segments` is empty — a travel exists precisely to cross the
+ * stretches this would otherwise clamp out of.
+ */
+export function clampToFloorSegments(
+  segments: Array<{ left: number; right: number }>,
+  x: number,
+): number {
+  let best = x;
+  let bestDist = Infinity;
+  for (const seg of segments) {
+    const clamped = Math.min(Math.max(x, seg.left), seg.right);
+    const dist = Math.abs(clamped - x);
+    if (dist < bestDist) {
+      bestDist = dist;
+      best = clamped;
+    }
+  }
+  return best;
+}
+
 /** `seg` with the window-origin stretch [cutLeft, cutRight) removed. */
 function cutSegment(
   seg: { left: number; right: number },

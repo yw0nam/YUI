@@ -87,8 +87,8 @@ describe("clampToFloorSegments", () => {
   });
 
   it("clamps to the nearer end when between two segments", () => {
-    expect(clampToFloorSegments(SEGMENTS, -420)).toBe(-400);
-    expect(clampToFloorSegments(SEGMENTS, -20)).toBe(0);
+    expect(clampToFloorSegments(SEGMENTS, -350)).toBe(-400);
+    expect(clampToFloorSegments(SEGMENTS, -100)).toBe(0);
   });
 
   it("clamps to the last segment's right end when right of every segment", () => {
