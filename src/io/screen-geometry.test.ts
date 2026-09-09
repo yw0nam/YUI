@@ -8,10 +8,12 @@
 
 import { describe, expect, it } from "vitest";
 import {
+  clampToFloorSegments,
   floorPx,
   floorSegments,
   logicalWorkArea,
   monitorAt,
+  monitorAtLogical,
   type ScreenMonitor,
   toScreenMonitor,
 } from "./screen-geometry";
@@ -46,6 +48,55 @@ describe("monitorAt", () => {
   it("returns null for a point on no monitor", () => {
     expect(monitorAt([LEFT, RIGHT], -10, 100)).toBeNull();
     expect(monitorAt([], 0, 0)).toBeNull();
+  });
+});
+
+describe("monitorAtLogical", () => {
+  /** Logical bounds [2000,3000]×[0,1000] — a physical-px fixture with a scale factor. */
+  const SCALED: ScreenMonitor = {
+    position: { x: 4000, y: 0 },
+    size: { width: 2000, height: 2000 },
+    workArea: { position: { x: 4000, y: 0 }, size: { width: 2000, height: 2000 } },
+    scaleFactor: 2,
+  };
+
+  it("returns the monitor whose logical bounds contain the point", () => {
+    expect(monitorAtLogical([LEFT, SCALED], 100, 100)).toBe(LEFT);
+    expect(monitorAtLogical([LEFT, SCALED], 2500, 500)).toBe(SCALED);
+  });
+
+  it("returns null for a point on no monitor", () => {
+    expect(monitorAtLogical([LEFT, SCALED], -10, 100)).toBeNull();
+    expect(monitorAtLogical([], 0, 0)).toBeNull();
+  });
+});
+
+describe("clampToFloorSegments", () => {
+  const SEGMENTS = [
+    { left: -992, right: -400 },
+    { left: 0, right: 528 },
+  ];
+
+  it("leaves x unchanged when it already sits inside a segment", () => {
+    expect(clampToFloorSegments(SEGMENTS, -700)).toBe(-700);
+    expect(clampToFloorSegments(SEGMENTS, 200)).toBe(200);
+  });
+
+  it("clamps to the first segment's left end when left of every segment", () => {
+    expect(clampToFloorSegments(SEGMENTS, -2000)).toBe(-992);
+  });
+
+  it("clamps to the nearer end when between two segments", () => {
+    expect(clampToFloorSegments(SEGMENTS, -350)).toBe(-400);
+    expect(clampToFloorSegments(SEGMENTS, -100)).toBe(0);
+  });
+
+  it("clamps to the last segment's right end when right of every segment", () => {
+    expect(clampToFloorSegments(SEGMENTS, 900)).toBe(528);
+  });
+
+  it("leaves x unchanged when there are no segments", () => {
+    expect(clampToFloorSegments([], 300)).toBe(300);
   });
 });
 

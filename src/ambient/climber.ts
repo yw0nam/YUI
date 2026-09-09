@@ -26,13 +26,16 @@
 import type { ClimbConfig, WalkConfig } from "../config/load";
 import type { MotionKind, WindowRect } from "../contract";
 import {
+  clampToFloorSegments,
   FLOOR_LINE_TOLERANCE_PX,
   floorPx,
+  floorSegments,
   logicalWorkArea,
   monitorAt,
   type PetWindow,
   type ScreenMonitor,
 } from "../io/screen-geometry";
+import type { Travel } from "../io/travel-frame";
 import { MOVE_TH } from "../io/window-drop-source";
 import { createLogger } from "../logger";
 import type { Renderer } from "../renderer";
@@ -474,6 +477,11 @@ export interface ClimberDeps {
     | "isPerched"
   >;
   getWindow(): PetWindow;
+  /** Parks the real window once for the monitor-wall climb; the virtual window it hands
+   *  back keeps the character's on-screen size while the climb crosses the seam. */
+  travel: {
+    begin(end: { x: number; y: number }, via?: Array<{ x: number; y: number }>): Promise<Travel>;
+  };
   listMonitors(): Promise<ScreenMonitor[]>;
   /** Foreign windows, front-to-back. */
   listWindows(): Promise<WindowRect[]>;
@@ -562,6 +570,8 @@ export function createClimber(deps: ClimberDeps): Climber {
   let watching = false;
   /** The wall the running sequence measures itself against. */
   let geo: { side: "left" | "right"; edgeX: number; topY: number; scale: number } | null = null;
+  /** Parks the real window for a running monitor-wall climb; null the rest of the time. */
+  let travel: Travel | null = null;
   let nowMs = 0;
   /** The window legs, each paced by its wall clip. */
   const legs = createLegRunner({ renderer, currentMotionKind: deps.currentMotionKind });
@@ -585,6 +595,11 @@ export function createClimber(deps: ClimberDeps): Climber {
     const current = renderer.getCurrentMotion();
     if (current && LOOPING_MOTION_IDS.has(current.id)) renderer.playMotion(null);
     renderer.setBodyYaw(0, CLIMB_YAW_EASE_MS);
+    if (travel) {
+      const t = travel;
+      travel = null;
+      void t.end();
+    }
     deps.onEnd(dir);
   }
 
@@ -802,16 +817,56 @@ export function createClimber(deps: ClimberDeps): Climber {
     floorY = w.floor;
     direction = "up";
     geo = { side: picked.side, edgeX: picked.edgeX, topY: picked.topY, scale: w.scale };
-    deps.onStart("up", picked);
 
     // Stand a hand's reach outside the window's face: the feet on the edge line would
     // straddle it and put the hands inside the window.
     const standX = wallStandX(picked.edgeX, picked.side, cfg.wall_offset_frac * w.charHpx);
+
+    // A monitor-wall climb crosses onto a different-scale monitor, so the whole sequence
+    // runs inside a travel: the real window parks once over the climb's whole path, and
+    // every leg below draws into the parked canvas through the virtual window instead.
+    // The frame has to cover the approach's stand-off origin too, not just the start and
+    // the landing — on the far side of the corner from the landing, it can fall outside
+    // their bounding box on its own.
+    let landing: { x: number; y: number } | null = null;
+    if (picked.kind === "monitor") {
+      const size = await w.win.outerSize();
+      if (!alive(startedAt)) return endClimb();
+      const width = size.width / w.scale;
+      const height = size.height / w.scale;
+      const hangPx = height - w.anchorY;
+      const upperMonitor = w.monitors.find(
+        (m) =>
+          m !== w.monitor &&
+          Math.abs(floorPx(m) - picked.topY) <= FLOOR_LINE_TOLERANCE_PX &&
+          picked.edgeX >= logicalWorkArea(m).x &&
+          picked.edgeX <= logicalWorkArea(m).x + logicalWorkArea(m).width,
+      );
+      const segments = upperMonitor ? floorSegments(w.monitors, upperMonitor, width, hangPx) : [];
+      landing = {
+        x: clampToFloorSegments(segments, picked.edgeX - w.anchorX),
+        y: picked.topY - w.anchorY,
+      };
+      const approach = { x: standX - w.anchorX, y: w.floor - w.anchorY };
+      travel = await deps.travel.begin(landing, [approach]);
+      if (!alive(startedAt)) {
+        const t = travel;
+        travel = null;
+        void t.end();
+        return;
+      }
+    }
+
+    deps.onStart("up", picked);
+
     if ((await deps.walker.walkTo(standX - w.anchorX)) !== "arrived") return endClimb();
     if (!alive(startedAt)) return endClimb();
     renderer.setBodyYaw(yawToWall(picked.side), CLIMB_YAW_EASE_MS);
 
-    const at = await w.win.outerPosition();
+    // A travel's virtual window replaces `w.win` from here — `w.win` was resolved before
+    // the travel began and would otherwise read the now-motionless parked real window.
+    const win = travel?.win ?? w.win;
+    const at = await win.outerPosition();
     if (!alive(startedAt)) return endClimb();
     logGeometry("approach", at);
     const pxPerMetre = w.pxPerMetre * w.scale;
@@ -825,7 +880,7 @@ export function createClimber(deps: ClimberDeps): Climber {
     const cornerX = at.x + (picked.edgeX - standX) * w.scale;
     // The pull-over may carry the window onto a different-scale monitor, so every leg
     // moves through logical points rather than this monitor's own physical ones.
-    const climbWin = logicalLegWindow(w.win, w.scale);
+    const climbWin = logicalLegWindow(win, w.scale);
     const base = { win: climbWin, fromX: at.x, toX: at.x, pxPerMetre, fit: false };
     let y = at.y;
 
@@ -861,9 +916,15 @@ export function createClimber(deps: ClimberDeps): Climber {
       // The pull-over just carried the window onto the monitor above. There is no ledge
       // to walk in along and no sit: snap the feet to the floor line in scale-independent
       // logical points and let the walker pick the stroll back up on its own next tick.
-      await w.win.setPositionLogical(picked.edgeX - w.anchorX, picked.topY - w.anchorY);
+      await win.setPositionLogical(picked.edgeX - w.anchorX, picked.topY - w.anchorY);
       if (!alive(startedAt)) return endClimb();
       log.info("monitor_climbed", { side: picked.side, edgeX: picked.edgeX, topY: picked.topY });
+      // The corner may sit in a stretch the travel exists to cross rather than land in —
+      // walk her out to the nearest floor segment before the travel ends.
+      if (landing && landing.x !== picked.edgeX - w.anchorX) {
+        if ((await deps.walker.walkTo(landing.x)) !== "arrived") return endClimb();
+        if (!alive(startedAt)) return endClimb();
+      }
       return endClimb();
     }
 

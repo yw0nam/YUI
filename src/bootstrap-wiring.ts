@@ -46,7 +46,7 @@ import { selectFetch } from "./io/chat-client";
 import { type EndpointOverrides, mergeEndpoints } from "./io/endpoints-settings";
 import type { ExpressMotionSettings } from "./io/express-motion-settings";
 import type { GuardrailsSettingsStore } from "./io/guardrails-settings";
-import { attachKeepOnScreen } from "./io/keep-on-screen";
+import { attachKeepOnScreen, type KeepOnScreenHandle } from "./io/keep-on-screen";
 import type { ClampedIntSettingsStore } from "./io/persisted-store";
 import type { ProactiveSettings } from "./io/proactive-settings";
 import type { ScheduleSettings } from "./io/schedule-settings";
@@ -68,6 +68,7 @@ import {
 import type { SttVad } from "./io/stt-vad";
 import { createSummonHotkey, type SummonHotkey } from "./io/summon-hotkey";
 import { isTauri } from "./io/tauri-env";
+import { createTravelFrame, type FrameWindow, type Travel } from "./io/travel-frame";
 import { deleteVoice, upsertVoice } from "./io/tts-voices";
 import { appendRecord } from "./io/turn-record-log";
 import { removeUserVoice as removeUserVoiceFile } from "./io/voice-import";
@@ -441,6 +442,98 @@ export function wireSettingsReload(deps: {
 }
 
 /**
+ * The shared travel frame: parks the real pet window once for a seam crossing (the
+ * escape stroll and the monitor-wall climb) and reports a virtual window while one
+ * runs. `getWindow` is what the walker, faller and climber read the pet window through;
+ * `travel` is what the walker and climber drive a crossing with.
+ *
+ * Tauri-only — a travel moves the real OS window, so in a plain browser (Vite dev) this
+ * is skipped and `getWindow`/`travel.begin` are never called (their callers gate on
+ * `isTauri()` too). `ready` resolves once the real window is wired; callers await it
+ * before starting, so `getWindow`/`travel.begin` are never called too early.
+ */
+export interface TravelFrameHandle {
+  getWindow(): PetWindow;
+  travel: {
+    begin(end: { x: number; y: number }, via?: Array<{ x: number; y: number }>): Promise<Travel>;
+    current(): PetWindow | null;
+  };
+  /** Ends whatever travel is active or being parked right now, deterministically —
+   *  resolves once fully unparked, or immediately when nothing is in flight. */
+  abort(): Promise<void>;
+  /** Resolves once the real window is wired — callers await it before starting. */
+  ready: Promise<void>;
+  dispose(): void;
+}
+
+export function wireTravelFrame(deps: {
+  renderer: Pick<Renderer, "setViewWindow">;
+  setKeepOnScreenPaused: (paused: boolean) => void;
+  log: Logger;
+}): TravelFrameHandle {
+  let disposed = false;
+  let realWindow: FrameWindow | null = null;
+  let travel: ReturnType<typeof createTravelFrame> | null = null;
+  let resolveReady!: () => void;
+  const ready = new Promise<void>((resolve) => {
+    resolveReady = resolve;
+  });
+  const handle = {
+    getWindow: (): PetWindow => {
+      if (!travel || !realWindow) throw new Error("wireTravelFrame: not ready");
+      return travel.current() ?? realWindow;
+    },
+    travel: {
+      begin: (
+        end: { x: number; y: number },
+        via?: Array<{ x: number; y: number }>,
+      ): Promise<Travel> => {
+        if (!travel) throw new Error("wireTravelFrame: not ready");
+        return travel.begin(end, via);
+      },
+      current: (): PetWindow | null => travel?.current() ?? null,
+    },
+    abort: (): Promise<void> => travel?.abort() ?? Promise.resolve(),
+    ready,
+    dispose: () => {
+      disposed = true;
+    },
+  };
+  if (!isTauri()) {
+    resolveReady();
+    return handle;
+  }
+  void (async () => {
+    const { invoke } = await import("@tauri-apps/api/core");
+    const { availableMonitors, getCurrentWindow } = await import("@tauri-apps/api/window");
+    const { LogicalPosition } = await import("@tauri-apps/api/dpi");
+    if (disposed) {
+      resolveReady();
+      return;
+    }
+    realWindow = {
+      outerPosition: () => getCurrentWindow().outerPosition(),
+      outerSize: () => getCurrentWindow().outerSize(),
+      scaleFactor: () => getCurrentWindow().scaleFactor(),
+      setPositionLogical: (x, y) => getCurrentWindow().setPosition(new LogicalPosition(x, y)),
+      setFrameLogical: (x, y, width, height) =>
+        invoke("set_frame_logical", { x, y, width, height }) as Promise<void>,
+    };
+    travel = createTravelFrame({
+      frame: realWindow,
+      renderer: deps.renderer,
+      listMonitors: async () => (await availableMonitors()).map(toScreenMonitor),
+      setKeepOnScreenPaused: deps.setKeepOnScreenPaused,
+    });
+    resolveReady();
+  })().catch((err) => {
+    deps.log.warn("travel_frame_wiring_failed", { degrade: true, error: String(err) });
+    resolveReady();
+  });
+  return handle;
+}
+
+/**
  * Ambient floor walking. Tauri-only — a stroll moves the OS window, so in a plain browser
  * (Vite dev) this is skipped and bootstrap continues. The returned handle cancels a running
  * stroll for the owners that outrank ambient (user drag, agent command) and owns teardown.
@@ -448,6 +541,7 @@ export function wireSettingsReload(deps: {
 export function wireWalker(deps: {
   bus: EventBus;
   renderer: Renderer;
+  travelFrame: TravelFrameHandle;
   getWalkConfig: () => WalkConfig;
   /** Registry kind of a motion id, for the "nothing else holds the body" gate. */
   getMotionKind: (id: string) => MotionKind | undefined;
@@ -483,21 +577,16 @@ export function wireWalker(deps: {
   };
   if (!isTauri()) return handle;
   void (async () => {
-    const { availableMonitors, getCurrentWindow } = await import("@tauri-apps/api/window");
-    const { LogicalPosition } = await import("@tauri-apps/api/dpi");
+    const { availableMonitors } = await import("@tauri-apps/api/window");
+    await deps.travelFrame.ready;
     if (disposed) return;
     const push = (event_name: string): void => {
       bus.push({ source: "timer_scheduler", event_name, ts: Date.now(), hint_tier: 1 });
     };
-    const walkerWindow: PetWindow = {
-      outerPosition: () => getCurrentWindow().outerPosition(),
-      outerSize: () => getCurrentWindow().outerSize(),
-      scaleFactor: () => getCurrentWindow().scaleFactor(),
-      setPositionLogical: (x, y) => getCurrentWindow().setPosition(new LogicalPosition(x, y)),
-    };
     walker = createWalker({
       renderer,
-      getWindow: () => walkerWindow,
+      getWindow: deps.travelFrame.getWindow,
+      travel: deps.travelFrame.travel,
       listMonitors: async () => (await availableMonitors()).map(toScreenMonitor),
       getConfig: deps.getWalkConfig,
       currentMotionKind: () => {
@@ -691,6 +780,7 @@ export function wirePercher(deps: {
 export function wireFaller(deps: {
   bus: EventBus;
   renderer: Renderer;
+  travelFrame: Pick<TravelFrameHandle, "getWindow" | "ready">;
   /** The user's fall switch. Off leaves a mid-air character where she hangs. */
   isEnabled: () => boolean;
   getFallConfig: () => FallConfig;
@@ -721,18 +811,12 @@ export function wireFaller(deps: {
   if (!isTauri()) return handle;
   void (async () => {
     const { invoke } = await import("@tauri-apps/api/core");
-    const { availableMonitors, getCurrentWindow } = await import("@tauri-apps/api/window");
-    const { LogicalPosition } = await import("@tauri-apps/api/dpi");
+    const { availableMonitors } = await import("@tauri-apps/api/window");
+    await deps.travelFrame.ready;
     if (disposed) return;
-    const fallerWindow: PetWindow = {
-      outerPosition: () => getCurrentWindow().outerPosition(),
-      outerSize: () => getCurrentWindow().outerSize(),
-      scaleFactor: () => getCurrentWindow().scaleFactor(),
-      setPositionLogical: (x, y) => getCurrentWindow().setPosition(new LogicalPosition(x, y)),
-    };
     faller = createFaller({
       renderer,
-      getWindow: () => fallerWindow,
+      getWindow: deps.travelFrame.getWindow,
       currentMotionKind: () => {
         const current = renderer.getCurrentMotion();
         return current ? (deps.getMotionKind(current.id) ?? null) : null;
@@ -791,6 +875,7 @@ export function wireFaller(deps: {
 export function wireClimber(deps: {
   bus: EventBus;
   renderer: Renderer;
+  travelFrame: TravelFrameHandle;
   getClimbConfig: () => ClimbConfig;
   /** The stroll's knobs — the approach reuses its floor tolerance and its reach. */
   getWalkConfig: () => WalkConfig;
@@ -837,8 +922,8 @@ export function wireClimber(deps: {
   if (!isTauri()) return handle;
   void (async () => {
     const { invoke } = await import("@tauri-apps/api/core");
-    const { availableMonitors, getCurrentWindow } = await import("@tauri-apps/api/window");
-    const { LogicalPosition } = await import("@tauri-apps/api/dpi");
+    const { availableMonitors } = await import("@tauri-apps/api/window");
+    await deps.travelFrame.ready;
     if (disposed) return;
     const push = (event_name: string, payload: Record<string, unknown>): void => {
       bus.push({
@@ -856,15 +941,10 @@ export function wireClimber(deps: {
       app: target?.app ?? null,
       window_title: target?.title ?? null,
     });
-    const climberWindow: PetWindow = {
-      outerPosition: () => getCurrentWindow().outerPosition(),
-      outerSize: () => getCurrentWindow().outerSize(),
-      scaleFactor: () => getCurrentWindow().scaleFactor(),
-      setPositionLogical: (x, y) => getCurrentWindow().setPosition(new LogicalPosition(x, y)),
-    };
     climber = createClimber({
       renderer,
-      getWindow: () => climberWindow,
+      getWindow: deps.travelFrame.getWindow,
+      travel: deps.travelFrame.travel,
       listMonitors: async () => (await availableMonitors()).map(toScreenMonitor),
       listWindows: () => invoke("list_windows") as Promise<WindowRect[]>,
       getConfig: deps.getClimbConfig,
@@ -919,8 +999,9 @@ export function wireWindowSources(deps: {
   getVrm: () => { id: string; label: string } | null;
   /** Record that the avatar just relocated on its own — a successful move_to restamps posture. */
   noteAvatarMoved: () => void;
-  /** An agent command is taking the avatar — ambient motion yields to it. */
-  noteAgentMove: () => void;
+  /** An agent command is taking the avatar — ambient motion yields to it. Its return
+   *  value, when a promise, resolves once a travel that motion parked has settled. */
+  noteAgentMove: () => void | Promise<void>;
   /** A drag release that caught nothing — the character falls from where she hangs. */
   onDragMiss: () => void;
   /** An armed sit lost its host — the character falls from where the seat was. */
@@ -946,6 +1027,8 @@ export function wireWindowSources(deps: {
   abandonSit(): void;
   /** Release the armed perch and push the sit exit. */
   release(): void;
+  /** Pause the keep-on-screen guard while a travel parks the window itself. */
+  setKeepOnScreenPaused(paused: boolean): void;
   dispose(): void;
 } {
   const {
@@ -964,7 +1047,9 @@ export function wireWindowSources(deps: {
   let windowDropSource: ReturnType<typeof createWindowDropSource> | null = null;
   let windowResizeSource: ReturnType<typeof createWindowResizeSource> | null = null;
   let avatarExecutor: AvatarExecutor | null = null;
-  let keepOnScreenUnlisten: (() => void) | null = null;
+  let keepOnScreen: KeepOnScreenHandle | null = null;
+  // A travel's pause request that arrives before the guard exists — applied once it does.
+  let pendingKeepOnScreenPaused = false;
   let disposed = false;
   const handle = {
     noteUserDrag: () => avatarExecutor?.noteUserDrag(),
@@ -980,12 +1065,16 @@ export function wireWindowSources(deps: {
     resumeSit: (edgeLocalYpx: number) => windowDropSource?.resumeSit(edgeLocalYpx),
     abandonSit: () => windowDropSource?.abandonSit(),
     release: () => windowDropSource?.release(),
+    setKeepOnScreenPaused: (paused: boolean) => {
+      pendingKeepOnScreenPaused = paused;
+      keepOnScreen?.setPaused(paused);
+    },
     dispose: () => {
       disposed = true;
       windowDropSource?.stop();
       windowResizeSource?.stop();
       avatarExecutor?.stop();
-      keepOnScreenUnlisten?.();
+      keepOnScreen?.dispose();
     },
   };
   if (!isTauri()) return handle;
@@ -1073,7 +1162,7 @@ export function wireWindowSources(deps: {
     }
     windowResizeSource.start();
     avatarExecutor.start();
-    keepOnScreenUnlisten = await attachKeepOnScreen(
+    keepOnScreen = await attachKeepOnScreen(
       {
         outerPosition: () => getCurrentWindow().outerPosition(),
         outerSize: () => getCurrentWindow().outerSize(),
@@ -1083,7 +1172,8 @@ export function wireWindowSources(deps: {
       },
       async () => (await availableMonitors()).map(toScreenMonitor),
     );
-    if (disposed) keepOnScreenUnlisten();
+    if (pendingKeepOnScreenPaused) keepOnScreen.setPaused(true);
+    if (disposed) keepOnScreen.dispose();
   })().catch((err) =>
     log.warn("window_drop_source_start_failed", {
       degrade: true,

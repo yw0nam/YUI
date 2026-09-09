@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { WalkConfig } from "../config/load";
-import type { ScreenMonitor } from "../io/screen-geometry";
+import type { PetWindow, ScreenMonitor } from "../io/screen-geometry";
 import type { RenderMotionSignal, TickContext, TickFn } from "../renderer";
 import {
   advanceX,
@@ -223,6 +223,45 @@ function makeHarness(
   };
   const starts = vi.fn();
   const ends = vi.fn();
+  // Fake travel frame: begin() hands back a virtual window that shares the same position
+  // state as the real one (so positions/logicalCalls keep reading the true window) but
+  // logs its own calls separately, proving a step moved through the travel and not the
+  // real window directly.
+  const travelBeginCalls: Array<{ x: number; y: number }> = [];
+  const travelLogicalCalls: Array<{ x: number; y: number }> = [];
+  let travelEndCalls = 0;
+  let travelWin: ReturnType<typeof makeRealWindow> | null = null;
+  function makeRealWindow(onSet?: (x: number, y: number) => void) {
+    return {
+      outerPosition: async () => over.position ?? WINDOW_POS,
+      outerSize: async () => {
+        const scale = scaleFactor();
+        return { width: 400 * scale, height: 600 * scale };
+      },
+      scaleFactor: async () => scaleFactor(),
+      setPositionLogical: async (x: number, y: number) => {
+        onSet?.(x, y);
+        logicalCalls.push({ x, y });
+        positions.push({ x, y });
+      },
+    };
+  }
+  const realWindow = makeRealWindow();
+  const fakeTravel = {
+    begin: vi.fn(async (end: { x: number; y: number }) => {
+      travelBeginCalls.push(end);
+      const win = makeRealWindow((x, y) => travelLogicalCalls.push({ x, y }));
+      travelWin = win;
+      return {
+        win,
+        end: async () => {
+          travelEndCalls++;
+          travelWin = null;
+        },
+      };
+    }),
+    current: () => travelWin,
+  };
   const visibilityListeners = new Set<() => void>();
   const doc = {
     visibilityState: "visible",
@@ -259,15 +298,8 @@ function makeHarness(
       },
       isPerched: () => over.perched ?? false,
     },
-    getWindow: () => ({
-      outerPosition: async () => over.position ?? WINDOW_POS,
-      outerSize: async () => ({ width: 400, height: 600 }),
-      scaleFactor: async () => scaleFactor(),
-      setPositionLogical: async (x, y) => {
-        logicalCalls.push({ x, y });
-        positions.push({ x, y });
-      },
-    }),
+    getWindow: () => travelWin ?? realWindow,
+    travel: fakeTravel,
     listMonitors: async () => over.monitors ?? [MONITOR],
     getConfig: () => CFG,
     currentMotionKind: over.motionKind ?? (() => "ambient"),
@@ -304,6 +336,10 @@ function makeHarness(
     yaws,
     positions,
     logicalCalls,
+    travelBeginCalls,
+    travelLogicalCalls,
+    travelEndCalls: () => travelEndCalls,
+    fakeTravel,
     starts,
     ends,
     frame,
@@ -473,9 +509,104 @@ describe("createWalker", () => {
     // The drawn direction is rightward; the clamp pulls the destination to the segment's
     // left edge instead, so the actual travel — and the yaw facing it — is leftward.
     expect(h.yaws[0]).toEqual({ rad: -WALK_YAW_RAD, easeMs: WALK_YAW_EASE_MS });
+    // Starting outside every usable segment, the whole stroll runs inside a travel: the
+    // real window parks once at the destination instead of moving every frame.
+    expect(h.travelBeginCalls).toEqual([{ x: -400, y: -447 }]);
     // 200 logical px at ~317 px/s ≈ 0.63 s.
     for (let i = 0; i < 60; i++) await h.frame();
     expect(h.positions.at(-1)!.x).toBe(-400);
+    // Every step drew through the travel's virtual window, not the real one directly.
+    expect(h.travelLogicalCalls).toEqual(h.logicalCalls);
+    expect(h.travelLogicalCalls.length).toBeGreaterThan(0);
+    expect(h.travelEndCalls()).toBe(1);
+  });
+
+  it("never begins a travel for a stroll that starts inside a usable segment", async () => {
+    const h = makeHarness();
+    h.walker.start();
+    await h.skipInterval();
+    for (let i = 0; i < 30; i++) await h.frame();
+
+    expect(h.travelBeginCalls).toEqual([]);
+    expect(h.travelLogicalCalls).toEqual([]);
+  });
+
+  it("never begins a travel when the walk request is refused, even starting outside every segment", async () => {
+    // Same cut-out fixture as above, starting at x = -200 — outside every usable segment.
+    const BUILTIN: ScreenMonitor = {
+      position: { x: 0, y: 0 },
+      size: { width: 3456, height: 2234 },
+      workArea: { position: { x: 0, y: 100 }, size: { width: 3456, height: 1934 } },
+      scaleFactor: 2,
+    };
+    const UPPER_LEFT: ScreenMonitor = {
+      position: { x: -992, y: -1080 },
+      size: { width: 1920, height: 1080 },
+      workArea: { position: { x: -992, y: -1055 }, size: { width: 1920, height: 1055 } },
+      scaleFactor: 1,
+    };
+    const UPPER_RIGHT: ScreenMonitor = {
+      position: { x: 928, y: -1080 },
+      size: { width: 1920, height: 1080 },
+      workArea: { position: { x: 928, y: -1055 }, size: { width: 1920, height: 1055 } },
+      scaleFactor: 1,
+    };
+    const h = makeHarness({
+      position: { x: -200, y: -447 },
+      feetY: 447,
+      monitors: [BUILTIN, UPPER_LEFT, UPPER_RIGHT],
+      rng: seqRng(0, 0, 1),
+      motionRefused: true,
+    });
+    h.walker.start();
+    await h.skipInterval();
+
+    expect(h.starts).not.toHaveBeenCalled();
+    expect(h.travelBeginCalls).toEqual([]);
+  });
+
+  it("releases the walk clip when the stroll is cancelled during a pending begin", async () => {
+    const BUILTIN: ScreenMonitor = {
+      position: { x: 0, y: 0 },
+      size: { width: 3456, height: 2234 },
+      workArea: { position: { x: 0, y: 100 }, size: { width: 3456, height: 1934 } },
+      scaleFactor: 2,
+    };
+    const UPPER_LEFT: ScreenMonitor = {
+      position: { x: -992, y: -1080 },
+      size: { width: 1920, height: 1080 },
+      workArea: { position: { x: -992, y: -1055 }, size: { width: 1920, height: 1055 } },
+      scaleFactor: 1,
+    };
+    const UPPER_RIGHT: ScreenMonitor = {
+      position: { x: 928, y: -1080 },
+      size: { width: 1920, height: 1080 },
+      workArea: { position: { x: 928, y: -1055 }, size: { width: 1920, height: 1055 } },
+      scaleFactor: 1,
+    };
+    const h = makeHarness({
+      position: { x: -200, y: -447 },
+      feetY: 447,
+      monitors: [BUILTIN, UPPER_LEFT, UPPER_RIGHT],
+      rng: seqRng(0, 0, 1),
+    });
+    let resolveBegin!: (t: { win: PetWindow; end: () => Promise<void> }) => void;
+    h.fakeTravel.begin.mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          resolveBegin = resolve;
+        }),
+    );
+    h.walker.start();
+    await h.skipInterval();
+    expect(h.motions).toEqual([{ id: WALK_MOTION_ID }]);
+
+    h.walker.cancel();
+    resolveBegin({ win: {} as PetWindow, end: async () => {} });
+    for (let i = 0; i < 10; i++) await h.frame();
+
+    expect(h.motions.at(-1)).toBeNull();
+    expect(h.starts).not.toHaveBeenCalled();
   });
 
   it("picks a wide segment over a nearer sliver too narrow for any stroll distance", async () => {
@@ -922,5 +1053,66 @@ describe("createWalker — walkTo", () => {
     h.walker.start();
     expect(await settle(h, h.walker.walkTo(300))).toBe("arrived");
     expect(h.positions.at(-1)).toEqual({ x: 300, y: 400 });
+  });
+
+  describe("floor-segment clamp", () => {
+    // Built-in: 1728×1117 logical at (0,0), scale 2 — sits directly under the row above.
+    const BUILTIN: ScreenMonitor = {
+      position: { x: 0, y: 0 },
+      size: { width: 3456, height: 2234 },
+      workArea: { position: { x: 0, y: 100 }, size: { width: 3456, height: 1934 } },
+      scaleFactor: 2,
+    };
+    // 1920×1080 logical at (−992, −1080), scale 1 — floor line (no dock) at y = 0. Its
+    // usable segment is [-992, -400]; [-400, 1728] flickers above BUILTIN's scale seam.
+    const UPPER_LEFT: ScreenMonitor = {
+      position: { x: -992, y: -1080 },
+      size: { width: 1920, height: 1080 },
+      workArea: { position: { x: -992, y: -1055 }, size: { width: 1920, height: 1055 } },
+      scaleFactor: 1,
+    };
+
+    it("clamps a walkTo into the cut-out to the nearest floor segment", async () => {
+      // On the floor, well inside the usable segment.
+      const h = makeHarness({
+        position: { x: -600, y: -447 },
+        feetY: 447,
+        monitors: [BUILTIN, UPPER_LEFT],
+      });
+      h.walker.start();
+
+      expect(await settle(h, h.walker.walkTo(-200))).toBe("arrived");
+
+      expect(h.positions.at(-1)).toEqual({ x: -400, y: -447 });
+      expect(h.travelBeginCalls).toEqual([]);
+    });
+
+    it("does not clamp a walkTo while a travel is current", async () => {
+      const h = makeHarness({
+        position: { x: -600, y: -447 },
+        feetY: 447,
+        monitors: [BUILTIN, UPPER_LEFT],
+      });
+      await h.fakeTravel.begin({ x: -200, y: -447 });
+      h.walker.start();
+
+      expect(await settle(h, h.walker.walkTo(-200))).toBe("arrived");
+
+      expect(h.positions.at(-1)).toEqual({ x: -200, y: -447 });
+    });
+
+    it("does not clamp a walkTo off the floor", async () => {
+      // Feet well above the floor line — a perched ledge walk, not a floor stroll.
+      const h = makeHarness({
+        position: { x: -600, y: -900 },
+        feetY: 447,
+        monitors: [BUILTIN, UPPER_LEFT],
+      });
+      h.walker.start();
+
+      expect(await settle(h, h.walker.walkTo(-200))).toBe("arrived");
+
+      expect(h.positions.at(-1)).toEqual({ x: -200, y: -900 });
+    });
   });
 });

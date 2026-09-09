@@ -18,9 +18,7 @@ vi.mock("./ambient/faller", () => ({ createFaller }));
 vi.mock("@tauri-apps/api/core", () => ({ invoke: vi.fn(async () => []) }));
 vi.mock("@tauri-apps/api/window", () => ({
   availableMonitors: vi.fn(async () => []),
-  getCurrentWindow: vi.fn(() => ({})),
 }));
-vi.mock("@tauri-apps/api/dpi", () => ({ LogicalPosition: class {}, PhysicalPosition: class {} }));
 
 import { wireFaller } from "./bootstrap-wiring";
 
@@ -47,6 +45,7 @@ async function wire(opts: { isEnabled?: () => boolean } = {}) {
     isEnabled: opts.isEnabled ?? (() => true),
     bus: { push: (env: { event_name: string }) => pushed.push(env) } as never,
     renderer: {} as never,
+    travelFrame: { getWindow: () => ({}) as never, ready: Promise.resolve() },
     getFallConfig: () => ({}) as never,
     getMotionKind: () => undefined,
     getFloorTolerancePx: () => 24,

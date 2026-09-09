@@ -27,7 +27,9 @@ import type {
   AvatarState,
 } from "./avatar-rpc";
 import {
+  clampToFloorSegments,
   floorPx,
+  floorSegments,
   logicalWorkArea,
   monitorAt,
   type PetWindow,
@@ -64,8 +66,9 @@ export interface AvatarExecutorDeps {
   getVrm(): { id: string; label: string } | null;
   /** Record that the avatar just relocated on its own — a successful move_to restamps posture. */
   noteAvatarMoved(): void;
-  /** An agent command is about to move the avatar — ambient motion yields to it. */
-  noteAgentMove(): void;
+  /** An agent command is about to move the avatar — ambient motion yields to it. Its
+   *  return value, when a promise, resolves once a travel that motion parked has settled. */
+  noteAgentMove(): void | Promise<void>;
 }
 
 export interface AvatarExecutor {
@@ -131,11 +134,14 @@ function monitorIndexAt(monitors: ScreenMonitor[], x: number, y: number): number
  * Logical origin, in `monitor`'s own logical px, that puts a `size` window at `spot`
  * of `monitor`'s work area. A bottom spot rests the character's feet on the work-area
  * floor, so the window box hangs below it by the framing margin; without a feet anchor
- * the box itself lands there. `size` is the window's own physical outer size, brought
- * into `monitor`'s logical space through the window's own current scale factor —
- * everything else here is a `monitor` property and reads that monitor's own scale.
+ * the box itself lands there. Its x is then pulled into the nearest floor segment, the
+ * same stretch a stroll or a climb avoids crossing a frame at a time. `size` is the
+ * window's own physical outer size, brought into `monitor`'s logical space through the
+ * window's own current scale factor — everything else here is a `monitor` property and
+ * reads that monitor's own scale.
  */
 function spotOrigin(
+  monitors: ScreenMonitor[],
   monitor: ScreenMonitor,
   size: { width: number; height: number },
   spot: AvatarSpot,
@@ -149,15 +155,20 @@ function spotOrigin(
   const top = wa.y + EDGE_MARGIN_PX;
   const bottom =
     feetOffsetPx === null ? wa.y + wa.height - sizeLogical.height : floorPx(monitor) - feetOffsetPx;
+  const onFloor = (x: number): number => {
+    if (feetOffsetPx === null) return x;
+    const hangPx = sizeLogical.height - feetOffsetPx;
+    return clampToFloorSegments(floorSegments(monitors, monitor, sizeLogical.width, hangPx), x);
+  };
   switch (spot) {
     case "top-left":
       return { x: left, y: top };
     case "top-right":
       return { x: right, y: top };
     case "bottom-left":
-      return { x: left, y: bottom };
+      return { x: onFloor(left), y: bottom };
     case "bottom-right":
-      return { x: right, y: bottom };
+      return { x: onFloor(right), y: bottom };
     default:
       return {
         x: wa.x + (wa.width - sizeLogical.width) / 2,
@@ -205,7 +216,14 @@ export function createAvatarExecutor(deps: AvatarExecutorDeps): AvatarExecutor {
     if (aborted()) return fail("interrupted");
     // A perch pins the character to a window edge — leave it before relocating.
     perch.release();
-    const origin = spotOrigin(monitors[index], size, spot, deps.getFeetOffsetPx(), sf > 0 ? sf : 1);
+    const origin = spotOrigin(
+      monitors,
+      monitors[index],
+      size,
+      spot,
+      deps.getFeetOffsetPx(),
+      sf > 0 ? sf : 1,
+    );
     await win.setPositionLogical(Math.round(origin.x), Math.round(origin.y));
     if (aborted()) return fail("interrupted");
     noteAvatarMoved();
@@ -213,7 +231,9 @@ export function createAvatarExecutor(deps: AvatarExecutorDeps): AvatarExecutor {
   }
 
   async function runCommand(command: AvatarCommand): Promise<AvatarCommandResult> {
-    deps.noteAgentMove();
+    // A cancelled climb or stroll can still be unparking its travel; wait for that before
+    // any command places or reads the window, both wrong mid-travel.
+    await deps.noteAgentMove();
     switch (command.action) {
       case "sit_on_window":
         return place({ kind: "sit", app: command.app });

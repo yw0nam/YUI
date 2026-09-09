@@ -317,7 +317,10 @@ function attachClickGesture(
  *
  * @param el - The drag surface element (typically `.yui-stage`).
  * @param opts.onDragStart - Fired once per gesture when the pointer crosses
- *   `DRAG_THRESHOLD_PX`, just before the OS-native drag begins.
+ *   `DRAG_THRESHOLD_PX`. The OS-native drag waits for its return value to resolve
+ *   (or starts right away for a synchronous callback), so a caller that shrinks a
+ *   parked window can do so before the native drag grabs it. A rejection is logged
+ *   and does not block the native drag.
  * @param opts.onDragEnd - Fired once per gesture on pointerup/pointercancel
  *   after a threshold-crossing drag. Not fired for sub-threshold clicks.
  * @param opts.onClick - Fired once for a sub-threshold primary press-release,
@@ -337,7 +340,7 @@ function attachClickGesture(
 export async function initDrag(
   el: EventTarget,
   opts: {
-    onDragStart?: () => void;
+    onDragStart?: () => void | Promise<void>;
     onDragEnd?: () => void;
     onClick?: (pos: { x: number; y: number }) => void;
     onOrbit?: (delta: OrbitDelta) => void;
@@ -414,7 +417,19 @@ export async function initDrag(
     if (Math.hypot(dx, dy) < DRAG_THRESHOLD_PX) return;
     started = true;
     el.removeEventListener("pointermove", onPointerMove);
-    opts.onDragStart?.();
+    void startNativeDrag();
+  }
+
+  async function startNativeDrag(): Promise<void> {
+    try {
+      await opts.onDragStart?.();
+    } catch (err: unknown) {
+      log.warn("drag_start_failed", { error: String(err) });
+    }
+    // The button can come up (or the gesture cancel) while onDragStart is still pending;
+    // `endGesture` already fired in that case, and starting the native drag now would
+    // grab a button that is no longer held.
+    if (ended) return;
     invokeDragWindow().catch((err: unknown) => {
       log.warn("drag_window_invoke_failed", { error: String(err) });
     });

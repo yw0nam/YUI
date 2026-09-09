@@ -203,7 +203,7 @@ async function bootstrap(): Promise<void> {
       messageWindowSettings.setPosition(payload.x, payload.y),
     );
 
-    const unlistenKeepOnScreen = await attachKeepOnScreen(
+    const keepOnScreen = await attachKeepOnScreen(
       {
         outerPosition: () => win.outerPosition(),
         outerSize: () => win.outerSize(),
@@ -218,7 +218,7 @@ async function bootstrap(): Promise<void> {
     return () => {
       observer.disconnect();
       unlistenMoved();
-      unlistenKeepOnScreen();
+      keepOnScreen.dispose();
     };
   }
 }

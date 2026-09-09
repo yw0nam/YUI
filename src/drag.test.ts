@@ -293,7 +293,7 @@ describe("initDrag — onDragStart", () => {
   let cleanup: () => void;
   let onDragStart: Mock<() => void>;
 
-  function down(clientX = 0, clientY = 0, buttons = 1): void {
+  function down(clientX = 0, clientY = 0, buttons = 1, target: EventTarget = el): void {
     const ev = new Event("pointerdown") as Event & {
       buttons: number;
       clientX: number;
@@ -301,17 +301,17 @@ describe("initDrag — onDragStart", () => {
       pointerId: number;
     };
     Object.assign(ev, { buttons, clientX, clientY, pointerId: 1 });
-    el.dispatchEvent(ev);
+    target.dispatchEvent(ev);
   }
 
-  function move(clientX: number, clientY: number): void {
+  function move(clientX: number, clientY: number, target: EventTarget = el): void {
     const ev = new Event("pointermove") as Event & {
       clientX: number;
       clientY: number;
       pointerId: number;
     };
     Object.assign(ev, { clientX, clientY, pointerId: 1 });
-    el.dispatchEvent(ev);
+    target.dispatchEvent(ev);
   }
 
   function up(): void {
@@ -394,6 +394,77 @@ describe("initDrag — onDragStart", () => {
     await Promise.resolve();
     expect(onDragStart).toHaveBeenCalledTimes(1);
     expect(mockInvoke).toHaveBeenCalledTimes(1);
+  });
+
+  it("invokes the native drag only after an async onDragStart resolves", async () => {
+    cleanup(); // detach the outer beforeEach's listener so only the local target is driven
+    const localEl = new EventTarget();
+    let resolveStart!: () => void;
+    const asyncOnDragStart = vi.fn(
+      () =>
+        new Promise<void>((resolve) => {
+          resolveStart = resolve;
+        }),
+    );
+    const localCleanup = await initDrag(localEl, { onDragStart: asyncOnDragStart });
+    down(0, 0, 1, localEl);
+    move(100, 0, localEl);
+    await Promise.resolve();
+    expect(asyncOnDragStart).toHaveBeenCalledTimes(1);
+    expect(mockInvoke).not.toHaveBeenCalled();
+
+    resolveStart();
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(mockInvoke).toHaveBeenCalledWith("drag_window");
+    localCleanup();
+  });
+
+  it("still invokes the native drag when onDragStart rejects", async () => {
+    cleanup();
+    const localEl = new EventTarget();
+    const failingOnDragStart = vi.fn(() => Promise.reject(new Error("boom")));
+    const localCleanup = await initDrag(localEl, { onDragStart: failingOnDragStart });
+    down(0, 0, 1, localEl);
+    move(100, 0, localEl);
+    await Promise.resolve();
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(mockInvoke).toHaveBeenCalledWith("drag_window");
+    localCleanup();
+  });
+
+  it("does not start the native drag if pointerup arrives while onDragStart is pending", async () => {
+    cleanup();
+    const localEl = new EventTarget();
+    let resolveStart!: () => void;
+    const asyncOnDragStart = vi.fn(
+      () =>
+        new Promise<void>((resolve) => {
+          resolveStart = resolve;
+        }),
+    );
+    const onDragEnd = vi.fn();
+    const localCleanup = await initDrag(localEl, { onDragStart: asyncOnDragStart, onDragEnd });
+    down(0, 0, 1, localEl);
+    move(100, 0, localEl);
+    await Promise.resolve();
+    expect(asyncOnDragStart).toHaveBeenCalledTimes(1);
+
+    // The button comes up before the native drag ever starts.
+    const upEv = new Event("pointerup") as Event & { pointerId: number };
+    Object.assign(upEv, { pointerId: 1 });
+    localEl.dispatchEvent(upEv);
+    expect(onDragEnd).toHaveBeenCalledTimes(1);
+
+    resolveStart();
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(mockInvoke).not.toHaveBeenCalled();
+    localCleanup();
   });
 });
 
@@ -1118,9 +1189,10 @@ describe.each([
     expect(onClick).toHaveBeenCalledWith({ x: 10, y: 20 });
   });
 
-  it("cancels the pat when the press crosses the drag threshold first", () => {
+  it("cancels the pat when the press crosses the drag threshold first", async () => {
     pointer("pointerdown");
     pointer("pointermove", { clientX: 10 });
+    await Promise.resolve();
     vi.advanceTimersByTime(PAT_HOLD_MS);
     expect(onStart).not.toHaveBeenCalled();
     expect(onEnd).not.toHaveBeenCalled();

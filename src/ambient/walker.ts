@@ -25,12 +25,14 @@ import type { WalkConfig } from "../config/load";
 import type { MotionKind } from "../contract";
 import { clampToWorkArea } from "../drag";
 import {
+  clampToFloorSegments,
   floorPx,
   floorSegments,
   monitorAt,
   type PetWindow,
   type ScreenMonitor,
 } from "../io/screen-geometry";
+import type { Travel } from "../io/travel-frame";
 import { createLogger } from "../logger";
 import type { Renderer } from "../renderer";
 import { type Rng, randRange } from "./cues";
@@ -120,11 +122,14 @@ export function advanceX(x: number, toX: number, speedPxPerSec: number, dt: numb
   return Math.abs(remaining) <= step ? toX : x + Math.sign(remaining) * step;
 }
 
-/** The segment containing x, else the one whose nearer edge sits closest to it. */
+/**
+ * The segment containing x, else the one whose nearer edge sits closest to it, paired
+ * with that distance — 0 when x already sits inside it.
+ */
 function nearestSegment(
   segments: Array<{ left: number; right: number }>,
   x: number,
-): { left: number; right: number } | null {
+): { seg: { left: number; right: number }; distance: number } | null {
   let best: { left: number; right: number } | null = null;
   let bestDist = Infinity;
   for (const seg of segments) {
@@ -134,7 +139,24 @@ function nearestSegment(
       best = seg;
     }
   }
-  return best;
+  return best ? { seg: best, distance: bestDist } : null;
+}
+
+/**
+ * The floor segments a stroll may use: wide enough for even the shortest stroll
+ * distance, so a sliver too narrow to plan a move in never wins `nearestSegment` on raw
+ * proximity alone. Shared by the ambient stroll and a directed `walkTo`'s own clamp.
+ */
+function usableFloorSegments(
+  monitors: ScreenMonitor[],
+  monitor: ScreenMonitor,
+  width: number,
+  hangPx: number,
+  cfg: WalkConfig,
+): Array<{ left: number; right: number }> {
+  return floorSegments(monitors, monitor, width, hangPx).filter(
+    (s) => s.right - s.left >= cfg.distance_min_px,
+  );
 }
 
 /** Document seam for the hidden-window guard — the renderer parks its rAF while hidden. */
@@ -157,6 +179,11 @@ export interface WalkerDeps {
     | "isPerched"
   >;
   getWindow(): PetWindow;
+  /** Parks the real window once for a stroll that starts outside every floor segment. */
+  travel: {
+    begin(end: { x: number; y: number }): Promise<Travel>;
+    current(): PetWindow | null;
+  };
   listMonitors(): Promise<ScreenMonitor[]>;
   getConfig(): WalkConfig;
   /** Registry kind of the committed motion. null when nothing is playing. */
@@ -214,6 +241,8 @@ export function createWalker(deps: WalkerDeps): Walker {
   } | null = null;
   /** Settles the walkTo promise when a directed walk ends. */
   let resolveWalk: ((outcome: "arrived" | "lost") => void) | null = null;
+  /** Parks the real window for a running stroll that starts outside every segment. */
+  let travel: Travel | null = null;
   /** True while the async fire-time reads are in flight. */
   let starting = false;
   /** Bumped by every cancel/stop so an in-flight begin() drops its plan. */
@@ -244,6 +273,11 @@ export function createWalker(deps: WalkerDeps): Walker {
     const bodyReleased = !held && renderer.getCurrentMotion()?.id === WALK_MOTION_ID;
     if (bodyReleased) renderer.playMotion(null);
     renderer.setBodyYaw(0, WALK_YAW_EASE_MS);
+    if (travel) {
+      const t = travel;
+      travel = null;
+      void t.end();
+    }
     const settle = resolveWalk;
     resolveWalk = null;
     if (!s.directed) deps.onEnd(bodyReleased);
@@ -287,13 +321,10 @@ export function createWalker(deps: WalkerDeps): Walker {
     // on this one's floor, and a stroll through that stretch flashes a stale frame every
     // time AppKit redraws the window across the scale boundary underneath it.
     const hangPx = size.height / scale - feet.y;
-    // A segment too narrow for even the shortest stroll distance would otherwise win
-    // nearestSegment on raw proximity and strand the stroll unable to plan a move at all.
-    const usable = floorSegments(monitors, monitor, width, hangPx).filter(
-      (s) => s.right - s.left >= cfg.distance_min_px,
-    );
-    const seg = nearestSegment(usable, x);
-    if (!seg) return;
+    const usable = usableFloorSegments(monitors, monitor, width, hangPx, cfg);
+    const found = nearestSegment(usable, x);
+    if (!found) return;
+    const { seg, distance } = found;
     const plan = planStroll({
       x,
       width,
@@ -303,15 +334,41 @@ export function createWalker(deps: WalkerDeps): Walker {
       rng,
     });
     if (!plan) return;
+
     renderer.playMotion({ id: WALK_MOTION_ID });
-    // A dropped request (perch suppression, dead clip) must not leave a walk_start/walk_end blip.
+    // A dropped request (perch suppression, dead clip) must not leave a walk_start/walk_end
+    // blip, and checking it before the travel below means a suppressed clip never parks
+    // and unparks the window for a stroll that was never going to happen.
     if (renderer.getCurrentMotion()?.id !== WALK_MOTION_ID) return;
+
+    // Starting outside every usable segment, the whole stroll crosses a seam: park the
+    // real window once at the destination and draw every step into it, instead of
+    // moving the real window across the seam a frame at a time.
+    let strollWin = win;
+    let started: Travel | null = null;
+    if (distance > 0) {
+      try {
+        started = await deps.travel.begin({ x: plan.toX, y: pos.y / scale });
+      } catch (err) {
+        // The clip was already claimed above; a rejected park must not strand it playing.
+        if (renderer.getCurrentMotion()?.id === WALK_MOTION_ID) renderer.playMotion(null);
+        throw err;
+      }
+      if (stopped || generation !== startedAt) {
+        if (renderer.getCurrentMotion()?.id === WALK_MOTION_ID) renderer.playMotion(null);
+        void started.end();
+        return;
+      }
+      strollWin = started.win;
+    }
+
+    travel = started;
     stroll = {
       x,
       y: pos.y / scale,
       toX: plan.toX,
       pxPerMetre,
-      win,
+      win: strollWin,
       directed: false,
       holdClip: false,
     };
@@ -326,26 +383,56 @@ export function createWalker(deps: WalkerDeps): Walker {
     holdClip: boolean,
   ): Promise<"arrived" | "lost" | "running"> {
     const startedAt = generation;
+    const cfg = deps.getConfig();
     const pxPerMetre = renderer.getPxPerMetre();
+    const feet = renderer.getCharacterAnchor();
     const win = deps.getWindow();
-    const [pos, sf] = await Promise.all([win.outerPosition(), win.scaleFactor()]);
+    const [pos, size, sf, monitors] = await Promise.all([
+      win.outerPosition(),
+      win.outerSize(),
+      win.scaleFactor(),
+      deps.listMonitors(),
+    ]);
     if (stopped || generation !== startedAt) return "lost";
     if (pxPerMetre === null || !(pxPerMetre > 0)) return "lost";
     const scale = sf > 0 ? sf : 1;
     const x = pos.x / scale;
-    if (x === toX) return "arrived";
+
+    // A travel exists precisely to cross a cut-out stretch, so a walk inside one is left
+    // alone; a perched ledge walk targets a foreign window's edge, not the floor, so only
+    // a floor-standing target is confined to the segments a per-frame move would flicker
+    // across.
+    let target = toX;
+    const monitor = monitorAt(monitors, pos.x, pos.y);
+    if (
+      monitor &&
+      feet &&
+      deps.travel.current() === null &&
+      onFloor(pos.y / scale + feet.y, floorPx(monitor), cfg.floor_tolerance_px)
+    ) {
+      const width = size.width / scale;
+      const hangPx = size.height / scale - feet.y;
+      const usable = usableFloorSegments(monitors, monitor, width, hangPx, cfg);
+      const clamped = clampToFloorSegments(usable, toX);
+      if (clamped !== target) {
+        log.info("walk_target_clamped", { toX: target, clamped });
+        target = clamped;
+      }
+    }
+
+    if (x === target) return "arrived";
     renderer.playMotion({ id: WALK_MOTION_ID });
     if (renderer.getCurrentMotion()?.id !== WALK_MOTION_ID) return "lost";
     stroll = {
       x,
       y: pos.y / scale,
-      toX,
+      toX: target,
       pxPerMetre,
       win,
       directed: true,
       holdClip,
     };
-    renderer.setBodyYaw(Math.sign(toX - x) * WALK_YAW_RAD, WALK_YAW_EASE_MS);
+    renderer.setBodyYaw(Math.sign(target - x) * WALK_YAW_RAD, WALK_YAW_EASE_MS);
     onAccepted?.();
     return "running";
   }

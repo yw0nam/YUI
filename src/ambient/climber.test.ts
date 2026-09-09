@@ -642,6 +642,49 @@ function makeHarness(
   /** Whether each walkTo asked the walker to keep its clip on arrival. */
   const walkHolds: boolean[] = [];
   let pos = { ...(over.position ?? WINDOW_POS) };
+  // Fake travel frame: begin() hands back a virtual window that shares `pos` with the
+  // real one (so at()/logicalCalls/positions keep reading the true window state) but
+  // logs its own calls separately, proving a leg moved through the travel and not the
+  // real window directly.
+  const travelBeginCalls: Array<{ x: number; y: number }> = [];
+  const travelBeginVia: Array<Array<{ x: number; y: number }> | undefined> = [];
+  const travelLogicalCalls: Array<{ x: number; y: number }> = [];
+  let travelEndCalls = 0;
+  let travelWin: ReturnType<typeof makeRealWindow> | null = null;
+  function makeRealWindow(onSet?: (x: number, y: number) => void) {
+    return {
+      outerPosition: async () => ({ ...pos }),
+      // Physical px: a logical 400×600 window reports outerSize scaled by its own factor.
+      outerSize: async () => {
+        const scale = over.windowScale ?? 1;
+        return { width: 400 * scale, height: 600 * scale };
+      },
+      scaleFactor: async () => over.windowScale ?? 1,
+      setPositionLogical: async (x: number, y: number) => {
+        onSet?.(x, y);
+        logicalCalls.push({ x, y });
+        pos = { x, y: over.minY === undefined ? y : Math.max(y, over.minY) };
+        positions.push({ ...pos });
+      },
+    };
+  }
+  const realWindow = makeRealWindow();
+  const fakeTravel = {
+    begin: vi.fn(async (end: { x: number; y: number }, via?: Array<{ x: number; y: number }>) => {
+      travelBeginCalls.push(end);
+      travelBeginVia.push(via);
+      const win = makeRealWindow((x, y) => travelLogicalCalls.push({ x, y }));
+      travelWin = win;
+      return {
+        win,
+        end: async () => {
+          travelEndCalls++;
+          travelWin = null;
+        },
+      };
+    }),
+    current: () => travelWin,
+  };
   let windows = over.windows ?? [TARGET_WINDOW];
   let windowReads = 0;
   let perched = over.perched ?? false;
@@ -755,16 +798,8 @@ function makeHarness(
       getHandAnchors: handAnchors,
       isPerched: () => perched,
     },
-    getWindow: () => ({
-      outerPosition: async () => ({ ...pos }),
-      outerSize: async () => ({ width: 400, height: 600 }),
-      scaleFactor: async () => over.windowScale ?? 1,
-      setPositionLogical: async (x, y) => {
-        logicalCalls.push({ x, y });
-        pos = { x, y: over.minY === undefined ? y : Math.max(y, over.minY) };
-        positions.push({ ...pos });
-      },
-    }),
+    getWindow: () => travelWin ?? realWindow,
+    travel: fakeTravel,
     listMonitors: async () => over.monitors ?? [MONITOR],
     listWindows: async () => {
       windowReads++;
@@ -858,6 +893,10 @@ function makeHarness(
     runFrames,
     runToEnd,
     at: () => ({ ...pos }),
+    travelBeginCalls,
+    travelBeginVia,
+    travelLogicalCalls,
+    travelEndCalls: () => travelEndCalls,
     setPos: (next: { x: number; y: number }) => {
       pos = { ...next };
     },
@@ -1738,9 +1777,11 @@ describe("createClimber — monitor wall", () => {
     expect(h.windowReads()).toBe(afterStart);
   });
 
-  it("carries the climb through a scale boundary — a scale-2 window on a scale-2 lower monitor climbing onto a scale-1 upper monitor", async () => {
+  it("carries the climb through a scale boundary inside a travel, landing inside the upper floor segment", async () => {
     // The reference layout the shim exists for: physical arithmetic on the lower
     // monitor is twice the upper monitor's, so every leg has to cross in logical points.
+    // The lower monitor's own scale-2 footprint also cuts the upper monitor's floor
+    // segment down to [-992, -400] — the stretch a per-frame move would flicker across.
     const LOWER_SCALE2: ScreenMonitor = {
       position: { x: 0, y: 0 },
       size: { width: 3456, height: 2234 },
@@ -1776,9 +1817,37 @@ describe("createClimber — monitor wall", () => {
       expect(call.y).toBeLessThanOrEqual(startLogicalY + 1);
       expect(call.y).toBeGreaterThanOrEqual(endLogicalY - 1);
     }
-    // Feet land on the upper monitor's floor line (y = 0) at the climbed edge (x = 0),
-    // in that monitor's own logical points — untouched by the lower monitor's scale.
-    expect(h.at()).toEqual({ x: -ANCHOR.x, y: -ANCHOR.y });
+    // The whole sequence parks the real window once, at the landing inside the segment,
+    // and every leg move draws through the travel's virtual window rather than moving it.
+    expect(h.travelBeginCalls).toEqual([{ x: -400, y: -ANCHOR.y }]);
+    // The frame also covers the approach's stand-off origin (edgeX 0 + wall offset 75,
+    // minus anchorX), on the far side of the corner from the landing.
+    expect(h.travelBeginVia).toEqual([[{ x: -125, y: 597 }]]);
+    expect(h.travelLogicalCalls).toEqual(h.logicalCalls);
+    expect(h.travelEndCalls()).toBe(1);
+    // The pull-over corner (edgeX 0) sits outside the segment, so she walks in to it.
+    expect(h.walkTargets[h.walkTargets.length - 1]).toBe(-400);
+    // Feet land inside the upper monitor's usable floor segment, not the raw edge —
+    // avoiding the very flicker the travel exists to cross without ever showing.
+    expect(h.at()).toEqual({ x: -400, y: -ANCHOR.y });
+  });
+
+  it("ends the travel when a monitor-wall climb is cancelled mid-wall", async () => {
+    const h = makeHarness({
+      position: { x: 50, y: 1080 },
+      windows: [],
+      monitors: [MONITOR, UPPER],
+    });
+    h.climber.start();
+    await h.skipInterval();
+    await h.runFrames(4);
+    expect(h.travelBeginCalls.length).toBe(1);
+    expect(h.travelEndCalls()).toBe(0);
+
+    h.climber.cancel();
+    await h.runFrames(1);
+
+    expect(h.travelEndCalls()).toBe(1);
   });
 });
 
