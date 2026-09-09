@@ -998,8 +998,9 @@ export function wireWindowSources(deps: {
   getVrm: () => { id: string; label: string } | null;
   /** Record that the avatar just relocated on its own — a successful move_to restamps posture. */
   noteAvatarMoved: () => void;
-  /** An agent command is taking the avatar — ambient motion yields to it. */
-  noteAgentMove: () => void;
+  /** An agent command is taking the avatar — ambient motion yields to it. Its return
+   *  value, when a promise, resolves once a travel that motion parked has settled. */
+  noteAgentMove: () => void | Promise<void>;
   /** A drag release that caught nothing — the character falls from where she hangs. */
   onDragMiss: () => void;
   /** An armed sit lost its host — the character falls from where the seat was. */

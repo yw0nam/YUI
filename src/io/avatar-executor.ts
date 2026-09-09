@@ -66,8 +66,9 @@ export interface AvatarExecutorDeps {
   getVrm(): { id: string; label: string } | null;
   /** Record that the avatar just relocated on its own — a successful move_to restamps posture. */
   noteAvatarMoved(): void;
-  /** An agent command is about to move the avatar — ambient motion yields to it. */
-  noteAgentMove(): void;
+  /** An agent command is about to move the avatar — ambient motion yields to it. Its
+   *  return value, when a promise, resolves once a travel that motion parked has settled. */
+  noteAgentMove(): void | Promise<void>;
 }
 
 export interface AvatarExecutor {
@@ -230,13 +231,16 @@ export function createAvatarExecutor(deps: AvatarExecutorDeps): AvatarExecutor {
   }
 
   async function runCommand(command: AvatarCommand): Promise<AvatarCommandResult> {
-    deps.noteAgentMove();
+    const settled = deps.noteAgentMove();
     switch (command.action) {
       case "sit_on_window":
         return place({ kind: "sit", app: command.app });
       case "peek":
         return place({ kind: "peek", side: command.side });
       case "move_to":
+        // A cancelled climb or stroll can still be unparking its travel; wait for that
+        // before reading the window and the feet offset, both wrong mid-travel.
+        await settled;
         return moveTo(command.spot, command.monitor);
       case "stand_down":
         perch.release();
