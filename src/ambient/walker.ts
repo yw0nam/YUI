@@ -335,6 +335,12 @@ export function createWalker(deps: WalkerDeps): Walker {
     });
     if (!plan) return;
 
+    renderer.playMotion({ id: WALK_MOTION_ID });
+    // A dropped request (perch suppression, dead clip) must not leave a walk_start/walk_end
+    // blip, and checking it before the travel below means a suppressed clip never parks
+    // and unparks the window for a stroll that was never going to happen.
+    if (renderer.getCurrentMotion()?.id !== WALK_MOTION_ID) return;
+
     // Starting outside every usable segment, the whole stroll crosses a seam: park the
     // real window once at the destination and draw every step into it, instead of
     // moving the real window across the seam a frame at a time.
@@ -349,12 +355,6 @@ export function createWalker(deps: WalkerDeps): Walker {
       strollWin = started.win;
     }
 
-    renderer.playMotion({ id: WALK_MOTION_ID });
-    // A dropped request (perch suppression, dead clip) must not leave a walk_start/walk_end blip.
-    if (renderer.getCurrentMotion()?.id !== WALK_MOTION_ID) {
-      if (started) void started.end();
-      return;
-    }
     travel = started;
     stroll = {
       x,
