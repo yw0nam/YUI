@@ -70,6 +70,10 @@ describe("validateAvatar — happy path", () => {
         land_room_frac: 0.5,
         step_off_probability: 0.1,
       },
+      descend: {
+        chance: 0.5,
+        climb_down_chance: 0.5,
+      },
       climb: {
         interval_min_ms: 90_000,
         interval_max_ms: 180_000,
@@ -721,6 +725,28 @@ describe("validateAvatar — fall", () => {
       validateAvatar(FILE, { vrm_url: "/v.vrm", fall: { step_off_probability: 1 } }).fall
         .step_off_probability,
     ).toBe(1);
+  });
+});
+
+describe("validateAvatar — descend", () => {
+  it("applies defaults when the descend block is absent", () => {
+    expect(validateAvatar(FILE, { vrm_url: "/v.vrm" }).descend).toEqual({
+      chance: 0.5,
+      climb_down_chance: 0.5,
+    });
+  });
+
+  it.each([1.5, -0.1])("rejects a chance outside [0, 1]: %s", (chance) => {
+    expectIssue({ vrm_url: "/v.vrm", descend: { chance } }, "descend.chance는 [0, 1]");
+  });
+
+  it("accepts the boundary chances", () => {
+    expect(validateAvatar(FILE, { vrm_url: "/v.vrm", descend: { chance: 0 } }).descend.chance).toBe(
+      0,
+    );
+    expect(validateAvatar(FILE, { vrm_url: "/v.vrm", descend: { chance: 1 } }).descend.chance).toBe(
+      1,
+    );
   });
 });
 

@@ -23,10 +23,12 @@
  * timers, the async window reads, and the per-frame translation.
  */
 
-import type { ClimbConfig, WalkConfig } from "../config/load";
+import type { ClimbConfig, DescendConfig, FallConfig, WalkConfig } from "../config/load";
 import type { MotionKind, WindowRect } from "../contract";
 import {
   clampToFloorSegments,
+  type DescentEdge,
+  descentEdges,
   FLOOR_LINE_TOLERANCE_PX,
   floorPx,
   floorSegments,
@@ -43,7 +45,14 @@ import { createLegRunner } from "./clip-leg";
 import { type Rng, randRange } from "./cues";
 import type { SeatWindow, Sitter } from "./sitter";
 import { prefersReducedMotion } from "./tier1";
-import { canStartStroll, MAX_STEP_DT_S, onFloor, WALK_MOTION_ID, type WalkerDoc } from "./walker";
+import {
+  canStartStroll,
+  MAX_STEP_DT_S,
+  onFloor,
+  WALK_MOTION_ID,
+  type WalkerDoc,
+  walkSpeedPxPerSec,
+} from "./walker";
 
 const log = createLogger("climber");
 
@@ -144,6 +153,16 @@ function columnOnMonitor(column: Box, monitor: Box): boolean {
  */
 export function wallStandX(edgeX: number, side: "left" | "right", wallOffset: number): number {
   return side === "left" ? edgeX - wallOffset : edgeX + wallOffset;
+}
+
+/** Whether two descent edges name the same seam, float rounding included. */
+function sameDescentEdge(a: DescentEdge, b: DescentEdge): boolean {
+  return (
+    a.side === b.side &&
+    Math.abs(a.edgeX - b.edgeX) <= FLOOR_LINE_TOLERANCE_PX &&
+    Math.abs(a.topY - b.topY) <= FLOOR_LINE_TOLERANCE_PX &&
+    Math.abs(a.bottomY - b.bottomY) <= FLOOR_LINE_TOLERANCE_PX
+  );
 }
 
 /**
@@ -465,6 +484,7 @@ export interface ClimberDeps {
     | "getCurrentMotion"
     | "setBodyYaw"
     | "getPxPerMetre"
+    | "getCharacterWidthPx"
     | "getMotionDuration"
     | "getMotionTravelY"
     | "getMotionTravelAt"
@@ -486,6 +506,8 @@ export interface ClimberDeps {
   /** Foreign windows, front-to-back. */
   listWindows(): Promise<WindowRect[]>;
   getConfig(): ClimbConfig;
+  getDescendConfig(): DescendConfig;
+  getFallConfig(): FallConfig;
   /** The stroll's knobs — the approach reuses its floor tolerance and its reach. */
   getWalkConfig(): WalkConfig;
   /** Registry kind of the committed motion. null when nothing is playing. */
@@ -498,7 +520,7 @@ export interface ClimberDeps {
     walkTo(toX: number, onAccepted?: () => void, holdClip?: boolean): Promise<"arrived" | "lost">;
     cancel(): void;
   };
-  faller: { drop(): void | Promise<void> };
+  faller: { drop(): Promise<void>; cancel(): void };
   /** The seat transitions: the sit onto the ledge, and the stand off it before a descent. */
   sitter: Pick<Sitter, "sitDown" | "standUp" | "cancel">;
   dropSource: {
@@ -530,6 +552,8 @@ export interface Climber {
   start(): void;
   /** End a running climb now, leaving the character where she hangs. */
   cancel(): void;
+  /** Descend from an upper monitor onto the lower monitor at this edge. */
+  descend(edge: DescentEdge): Promise<void>;
   /** Off takes her off the wall and stops scheduling; on starts scheduling again. */
   setEnabled(enabled: boolean): void;
   stop(): void;
@@ -572,6 +596,7 @@ export function createClimber(deps: ClimberDeps): Climber {
   let geo: { side: "left" | "right"; edgeX: number; topY: number; scale: number } | null = null;
   /** Parks the real window for a running monitor-wall climb; null the rest of the time. */
   let travel: Travel | null = null;
+  let fallInFlight = false;
   let nowMs = 0;
   /** The window legs, each paced by its wall clip. */
   const legs = createLegRunner({ renderer, currentMotionKind: deps.currentMotionKind });
@@ -589,6 +614,7 @@ export function createClimber(deps: ClimberDeps): Climber {
     direction = null;
     target = null;
     geo = null;
+    fallInFlight = false;
     // A looping wall clip never ends by itself, and some exits play nothing after it —
     // the faller's silent snap, a drop the hang covered whole. Hand the body back, and
     // leave a finishing oneshot to return to the baseline on its own.
@@ -629,6 +655,7 @@ export function createClimber(deps: ClimberDeps): Climber {
     // The sitter is shared: only a climb of our own has a transition to cut short.
     if (direction !== null) deps.sitter.cancel();
     settleReleaseWait(false);
+    if (fallInFlight) deps.faller.cancel();
     const current = renderer.getCurrentMotion();
     if (current && (CLIMB_MOTION_IDS.has(current.id) || current.id === WALK_MOTION_ID)) {
       renderer.playMotion(null);
@@ -642,8 +669,9 @@ export function createClimber(deps: ClimberDeps): Climber {
   const onVisibilityChange = (): void => {
     if (doc?.visibilityState !== "hidden") return;
     const onWall = direction !== null;
+    const alreadyFalling = fallInFlight;
     cancel();
-    if (onWall) void deps.faller.drop();
+    if (onWall && !alreadyFalling) void deps.faller.drop();
   };
 
   /** Everything both sequences read at plan time, or null when the world is not ready. */
@@ -959,6 +987,101 @@ export function createClimber(deps: ClimberDeps): Climber {
     dwellAtMs = -1;
   }
 
+  /** The wall legs both descents share. `wallOffset` is logical px, `drop` physical px of `scale`. */
+  async function runDescentLegs(args: {
+    startedAt: number;
+    win: PetWindow;
+    scale: number;
+    pxPerMetreLogical: number;
+    target: ClimbTarget;
+    standingHpx: number;
+    anchorX: number;
+    wallOffset: number;
+    drop: number;
+    grounded: boolean;
+  }): Promise<"done" | "lost" | "airborne"> {
+    const {
+      startedAt,
+      win,
+      scale,
+      pxPerMetreLogical,
+      target,
+      standingHpx,
+      anchorX,
+      wallOffset,
+      drop,
+      grounded,
+    } = args;
+    if ((await deps.walker.walkTo(target.edgeX - anchorX)) !== "arrived") return "lost";
+    if (!alive(startedAt)) return "lost";
+    renderer.setBodyYaw(yawToWall(target.side), CLIMB_YAW_EASE_MS);
+
+    const at = await win.outerPosition();
+    if (!alive(startedAt)) return "lost";
+    const pxPerMetre = pxPerMetreLogical * scale;
+    await renderer.preloadMotion(CLIMB_DOWN_MOTION_ID);
+    const land = await measureTransition(CLIMB_DOWN_LANDING_MOTION_ID, pxPerMetre);
+    if (!land || !alive(startedAt)) return "lost";
+    const hangPx = Math.min(drop, deps.getConfig().hang_frac * standingHpx * scale);
+    const landPx = grounded ? Math.min(drop - hangPx, land.px) : 0;
+    // She walks the top to the corner, so the wall x is a hand's reach further out.
+    const wallX = at.x + (wallStandX(target.edgeX, target.side, wallOffset) - target.edgeX) * scale;
+    const descentWin = logicalLegWindow(win, scale);
+    const base = {
+      win: descentWin,
+      fromX: wallX,
+      toX: wallX,
+      pxPerMetre,
+      fit: false,
+    };
+    let y = at.y;
+
+    // No clip covers the step off the ledge, so the descent clip crossfades in over a
+    // short linear slide that carries her off the corner onto the wall's outer face.
+    const hang = await legs.run({
+      ...base,
+      fromX: at.x,
+      fromY: y,
+      toY: y + hangPx,
+      motionId: CLIMB_DOWN_MOTION_ID,
+      phase: "hang",
+      linearS: HANG_MS / 1000,
+      curveY: false,
+      oneshot: false,
+      handoffS: 0,
+    });
+    if (hang !== "done" || !alive(startedAt)) return "lost";
+    y += hangPx;
+
+    const loop = await legs.run({
+      ...base,
+      fromY: y,
+      toY: y + (drop - hangPx - landPx),
+      motionId: CLIMB_DOWN_MOTION_ID,
+      phase: "descend",
+      linearS: null,
+      curveY: true,
+      oneshot: false,
+      handoffS: 0,
+    });
+    if (loop !== "done" || !alive(startedAt)) return "lost";
+    y += drop - hangPx - landPx;
+    if (!grounded) return "airborne";
+
+    const landLeg = await legs.run({
+      ...base,
+      fromY: y,
+      toY: y + landPx,
+      motionId: CLIMB_DOWN_LANDING_MOTION_ID,
+      phase: "landing",
+      linearS: land.seconds,
+      curveY: true,
+      oneshot: true,
+      handoffS: 0,
+    });
+    return landLeg === "done" && alive(startedAt) ? "done" : "lost";
+  }
+
   async function runDown(): Promise<void> {
     const startedAt = generation;
     if (reducedMotion() || deps.isDragging() || deps.isPeeking()) return;
@@ -1017,90 +1140,163 @@ export function createClimber(deps: ClimberDeps): Climber {
       return endClimb();
     }
     if (!alive(startedAt)) return endClimb();
-    if ((await deps.walker.walkTo(picked.edgeX - w.anchorX)) !== "arrived") return endClimb();
-    if (!alive(startedAt)) return endClimb();
-    renderer.setBodyYaw(yawToWall(picked.side), CLIMB_YAW_EASE_MS);
-
-    const at = await w.win.outerPosition();
-    if (!alive(startedAt)) return endClimb();
-    const pxPerMetre = w.pxPerMetre * w.scale;
-    await renderer.preloadMotion(CLIMB_DOWN_MOTION_ID);
-    const land = await measureTransition(CLIMB_DOWN_LANDING_MOTION_ID, pxPerMetre);
-    if (!land || !alive(startedAt)) return endClimb();
     // A window that does not reach the floor ends the climb at its own bottom edge.
     const grounded = picked.bottomY >= w.floor - walkCfg.floor_tolerance_px;
     const drop = ((grounded ? w.floor : picked.bottomY) - picked.topY) * w.scale;
-    const hangPx = Math.min(drop, cfg.hang_frac * standingHpx * w.scale);
-    const landPx = grounded ? Math.min(drop - hangPx, land.px) : 0;
-    // She walks the top to the corner, so the wall x is a hand's reach further out.
-    const wallX =
-      at.x + (wallStandX(picked.edgeX, picked.side, wallOffset) - picked.edgeX) * w.scale;
-    const base = {
-      win: descentWin,
-      fromX: wallX,
-      toX: wallX,
-      pxPerMetre,
-      fit: false,
-    };
-    let y = at.y;
-
-    // No clip covers the step off the ledge, so the descent clip crossfades in over a
-    // short linear slide that carries her off the corner onto the wall's outer face.
-    const hang = await legs.run({
-      ...base,
-      fromX: at.x,
-      fromY: y,
-      toY: y + hangPx,
-      motionId: CLIMB_DOWN_MOTION_ID,
-      phase: "hang",
-      linearS: HANG_MS / 1000,
-      curveY: false,
-      oneshot: false,
-      handoffS: 0,
+    const result = await runDescentLegs({
+      startedAt,
+      win: w.win,
+      scale: w.scale,
+      pxPerMetreLogical: w.pxPerMetre,
+      target: picked,
+      standingHpx,
+      anchorX: w.anchorX,
+      wallOffset,
+      drop,
+      grounded,
     });
-    if (hang !== "done" || !alive(startedAt)) return endClimb();
-    y += hangPx;
-
-    const loop = await legs.run({
-      ...base,
-      fromY: y,
-      toY: y + (drop - hangPx - landPx),
-      motionId: CLIMB_DOWN_MOTION_ID,
-      phase: "descend",
-      linearS: null,
-      curveY: true,
-      oneshot: false,
-      handoffS: 0,
-    });
-    if (loop !== "done" || !alive(startedAt)) return endClimb();
-    y += drop - hangPx - landPx;
-
-    if (!grounded) {
+    if (result === "airborne") {
       endClimb();
       void deps.faller.drop();
       return;
     }
-
-    const landLeg = await legs.run({
-      ...base,
-      fromY: y,
-      toY: y + landPx,
-      motionId: CLIMB_DOWN_LANDING_MOTION_ID,
-      phase: "landing",
-      linearS: land.seconds,
-      curveY: true,
-      oneshot: true,
-      handoffS: 0,
-    });
-    if (landLeg !== "done" || !alive(startedAt)) return endClimb();
+    if (result === "lost") return endClimb();
     endClimb();
   }
 
-  function launch(run: () => Promise<void>): void {
+  async function runMonitorDescent(edge: DescentEdge): Promise<void> {
+    const startedAt = generation;
+    if (reducedMotion()) return;
+    const cfg = deps.getConfig();
+    const walkCfg = deps.getWalkConfig();
+    const w = await survey(startedAt);
+    if (!w) return;
+    const gate = {
+      onFloor: onFloor(w.feetY, edge.topY, walkCfg.floor_tolerance_px),
+      perched: renderer.isPerched(),
+      peeking: deps.isPeeking(),
+      dragging: deps.isDragging(),
+      bodyFree: deps.currentMotionKind() === "ambient" && !deps.isBusy(),
+      reducedMotion: false,
+    };
+    if (!canStartStroll(gate)) return;
+    // The walker picked this edge before the approach; a display unplugged since then
+    // leaves nothing to descend onto.
+    if (!descentEdges(w.monitors, w.monitor).some((e) => sameDescentEdge(e, edge))) return;
+
+    const climbDown = rng() < deps.getDescendConfig().climb_down_chance;
+    const wallOffset = cfg.descent_wall_offset_frac * w.charHpx;
+    let roomPx = 0;
+    let landingX: number;
+    if (climbDown) {
+      landingX = wallStandX(edge.edgeX, edge.side, wallOffset) - w.anchorX;
+    } else {
+      const charWpx = renderer.getCharacterWidthPx();
+      // A zero width leaves a step off the leg runner can never pace off the ledge.
+      if (charWpx === null || !(charWpx > 0)) return;
+      roomPx = deps.getFallConfig().land_room_frac * charWpx;
+      landingX = edge.edgeX + (edge.side === "right" ? roomPx : -roomPx) - w.anchorX;
+    }
+    const landing = { x: landingX, y: edge.bottomY - w.anchorY };
+    // The step off ends on the seam, which is above the start whenever the survey found
+    // the feet below it — the frame has to cover that origin or she is drawn off its top.
+    const stepOff = { x: landingX, y: edge.topY - w.anchorY };
+    travel = await deps.travel.begin(landing, climbDown ? undefined : [stepOff]);
+    if (!alive(startedAt)) {
+      const t = travel;
+      travel = null;
+      void t.end();
+      return;
+    }
+
+    const picked: ClimbTarget = {
+      kind: "monitor",
+      windowNumber: -1,
+      width: 0,
+      side: edge.side,
+      edgeX: edge.edgeX,
+      topY: edge.topY,
+      bottomY: edge.bottomY,
+      rect: { x: edge.edgeX, y: edge.topY },
+      app: null,
+      title: null,
+    };
+    target = picked;
+    charHpx = w.charHpx;
+    floorY = edge.bottomY;
+    direction = "down";
+    geo = { side: edge.side, edgeX: edge.edgeX, topY: edge.topY, scale: w.scale };
+    deps.onStart("down", picked);
+
+    const win = travel.win;
+    if (climbDown) {
+      const result = await runDescentLegs({
+        startedAt,
+        win,
+        scale: w.scale,
+        pxPerMetreLogical: w.pxPerMetre,
+        target: picked,
+        standingHpx: w.charHpx,
+        anchorX: w.anchorX,
+        wallOffset,
+        drop: (edge.bottomY - edge.topY) * w.scale,
+        grounded: true,
+      });
+      if (result !== "done") return endClimb();
+      log.info("monitor_descended", {
+        side: edge.side,
+        edgeX: edge.edgeX,
+        bottomY: edge.bottomY,
+        kind: "climb_down",
+      });
+      return endClimb();
+    }
+
+    if ((await deps.walker.walkTo(edge.edgeX - w.anchorX)) !== "arrived") return endClimb();
+    if (!alive(startedAt)) return endClimb();
+    renderer.setBodyYaw(yawToWall(edge.side), CLIMB_YAW_EASE_MS);
+    const at = await win.outerPosition();
+    if (!alive(startedAt)) return endClimb();
+    const pxPerMetre = w.pxPerMetre * w.scale;
+    const cycleS = renderer.getMotionDuration(WALK_MOTION_ID);
+    if (cycleS === null || !(cycleS > 0)) return endClimb();
+    const distance = roomPx * w.scale;
+    const walked = await legs.run({
+      win: logicalLegWindow(win, w.scale),
+      fromX: at.x,
+      toX: at.x + (edge.side === "right" ? distance : -distance),
+      fromY: at.y,
+      // The faller resolves its monitor from the feet, so the step off has to leave them
+      // exactly on the seam — a pixel above it and the drop stays on the upper monitor.
+      toY: (edge.topY - w.anchorY) * w.scale,
+      motionId: WALK_MOTION_ID,
+      phase: "step_off",
+      pxPerMetre,
+      linearS: distance / walkSpeedPxPerSec(pxPerMetre, cycleS),
+      curveY: false,
+      fit: false,
+      oneshot: false,
+      handoffS: 0,
+    });
+    if (walked !== "done" || !alive(startedAt)) return endClimb();
+    fallInFlight = true;
+    await deps.faller.drop();
+    fallInFlight = false;
+    if (!alive(startedAt)) return;
+    log.info("monitor_descended", {
+      side: edge.side,
+      edgeX: edge.edgeX,
+      bottomY: edge.bottomY,
+      kind: "fall",
+    });
+    endClimb();
+  }
+
+  function launch(run: () => Promise<void>): Promise<void> {
     running = true;
     nextWatchAtMs = nowMs + TARGET_WATCH_MS;
     nextGeoAtMs = nowMs;
-    void run()
+    return run()
       .catch((err) => log.warn("climb_failed", { degrade: true, error: String(err) }))
       .finally(() => {
         running = false;
@@ -1166,7 +1362,7 @@ export function createClimber(deps: ClimberDeps): Climber {
       }
       if (nowMs < dwellAtMs) return;
       dwellAtMs = -1;
-      launch(runDown);
+      void launch(runDown);
       return;
     }
     dwellAtMs = -1;
@@ -1176,7 +1372,7 @@ export function createClimber(deps: ClimberDeps): Climber {
     }
     if (nowMs < nextUpAtMs) return;
     nextUpAtMs = nowMs + nextClimbDelay(deps.getConfig(), rng);
-    launch(runUp);
+    void launch(runUp);
   }
 
   const handle: Climber = {
@@ -1189,6 +1385,10 @@ export function createClimber(deps: ClimberDeps): Climber {
       unsub = renderer.onTick(tick);
     },
     cancel,
+    descend(edge) {
+      if (running) return Promise.resolve();
+      return launch(() => runMonitorDescent(edge));
+    },
     setEnabled(enabled) {
       if (enabled) {
         handle.start();
@@ -1196,8 +1396,9 @@ export function createClimber(deps: ClimberDeps): Climber {
       }
       // Switching off while she hangs strands her on the wall — take her off it.
       const onWall = direction !== null;
+      const alreadyFalling = fallInFlight;
       handle.stop();
-      if (onWall) void deps.faller.drop();
+      if (onWall && !alreadyFalling) void deps.faller.drop();
     },
     stop() {
       stopped = true;

@@ -207,6 +207,7 @@ function makeHarness(
     monitors?: ScreenMonitor[];
     /** The window's own scale factor. Defaults to 1. */
     windowScale?: number;
+    descendChance?: number;
     /** Overrides windowScale with a call-counted function, for a scale that changes mid-stroll. */
     scaleFactor?: () => number;
   } = {},
@@ -223,6 +224,7 @@ function makeHarness(
   };
   const starts = vi.fn();
   const ends = vi.fn();
+  const descends = vi.fn();
   // Fake travel frame: begin() hands back a virtual window that shares the same position
   // state as the real one (so positions/logicalCalls keep reading the true window) but
   // logs its own calls separately, proving a step moved through the travel and not the
@@ -302,12 +304,17 @@ function makeHarness(
     travel: fakeTravel,
     listMonitors: async () => over.monitors ?? [MONITOR],
     getConfig: () => CFG,
+    getDescendConfig: () => ({
+      chance: over.descendChance ?? 0.5,
+      climb_down_chance: 0.5,
+    }),
     currentMotionKind: over.motionKind ?? (() => "ambient"),
     isPeeking: () => over.peeking ?? false,
     isDragging: () => over.dragging ?? false,
     doc,
     onStart: starts,
     onEnd: ends,
+    onDescend: descends,
     rng: over.rng ?? (() => 0),
   };
 
@@ -342,6 +349,7 @@ function makeHarness(
     fakeTravel,
     starts,
     ends,
+    descends,
     frame,
     tickOnly,
     skipInterval,
@@ -472,6 +480,87 @@ describe("createWalker", () => {
     await h.skipInterval();
     for (let i = 0; i < 90; i++) await h.frame();
     expect(h.positions.at(-1)!.x).toBeGreaterThan(1920);
+  });
+
+  describe("monitor descent planning", () => {
+    const BUILTIN: ScreenMonitor = {
+      position: { x: 0, y: 0 },
+      size: { width: 3456, height: 2234 },
+      workArea: { position: { x: 0, y: 100 }, size: { width: 3456, height: 1934 } },
+      scaleFactor: 2,
+    };
+    const UPPER_LEFT: ScreenMonitor = {
+      position: { x: -992, y: -1080 },
+      size: { width: 1920, height: 1080 },
+      workArea: { position: { x: -992, y: -1055 }, size: { width: 1920, height: 1055 } },
+      scaleFactor: 1,
+    };
+    const monitors = [BUILTIN, UPPER_LEFT];
+    const edge = { side: "right", edgeX: 0, topY: 0, bottomY: 1017 };
+
+    it("walks to the descent edge and fires it on arrival when the chance passes", async () => {
+      const h = makeHarness({
+        position: { x: -700, y: -420 },
+        monitors,
+        rng: seqRng(0, 0, 0, 0, 0),
+      });
+      h.walker.start();
+      await h.skipInterval();
+
+      for (let i = 0; i < 90; i++) await h.frame();
+
+      expect(h.positions.at(-1)).toEqual({ x: -400, y: -420 });
+      expect(h.descends).toHaveBeenCalledOnce();
+      expect(h.descends).toHaveBeenCalledWith(edge);
+    });
+
+    it("keeps the ordinary stroll when the descent chance misses", async () => {
+      const h = makeHarness({
+        position: { x: -700, y: -420 },
+        monitors,
+        rng: seqRng(0, 0, 0, 0, 0.9),
+      });
+      h.walker.start();
+      await h.skipInterval();
+
+      for (let i = 0; i < 60; i++) await h.frame();
+
+      expect(h.positions.at(-1)).toEqual({ x: -780, y: -420 });
+      expect(h.descends).not.toHaveBeenCalled();
+    });
+
+    it("never plans a descent for an escape stroll", async () => {
+      const h = makeHarness({
+        position: { x: -200, y: -420 },
+        monitors,
+        descendChance: 1,
+        rng: seqRng(0, 0, 0, 1, 0),
+      });
+      h.walker.start();
+      await h.skipInterval();
+
+      for (let i = 0; i < 90; i++) await h.frame();
+
+      expect(h.positions.at(-1)).toEqual({ x: -400, y: -420 });
+      expect(h.descends).not.toHaveBeenCalled();
+    });
+
+    it("drops a planned descent when the stroll is cancelled", async () => {
+      const h = makeHarness({
+        position: { x: -700, y: -420 },
+        monitors,
+        descendChance: 1,
+        rng: seqRng(0, 0, 0, 0, 0),
+      });
+      h.walker.start();
+      await h.skipInterval();
+      await h.frame();
+      h.walker.cancel();
+
+      for (let i = 0; i < 90; i++) await h.frame();
+
+      expect(h.descends).not.toHaveBeenCalled();
+    });
   });
 
   it("walks a stroll starting in a monitor-overlap cut-out to the nearest safe segment", async () => {

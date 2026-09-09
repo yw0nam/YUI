@@ -3,6 +3,8 @@ import {
   type AvatarOption,
   CLIMB_DEFAULTS,
   type ClimbConfig,
+  DESCEND_DEFAULTS,
+  type DescendConfig,
   DRAG_HOLD_MS_DEFAULT,
   FALL_DEFAULTS,
   type FallConfig,
@@ -581,6 +583,26 @@ export function validateAvatar(file: string, raw: unknown): AvatarConfig {
     }
   }
 
+  const descend: DescendConfig = { ...DESCEND_DEFAULTS };
+  const rawDescend = raw.descend;
+  if (rawDescend !== undefined) {
+    if (!isObject(rawDescend)) {
+      issues.push(`descend은 객체여야 함 (받음: ${JSON.stringify(rawDescend)})`);
+    } else {
+      for (const field of ["chance", "climb_down_chance"] as const) {
+        const value = rawDescend[field];
+        if (value === undefined) continue;
+        if (typeof value !== "number" || !Number.isFinite(value) || value < 0 || value > 1) {
+          issues.push(
+            `descend.${field}는 [0, 1] 범위 유한 number여야 함 (받음: ${JSON.stringify(value)})`,
+          );
+        } else {
+          descend[field] = value;
+        }
+      }
+    }
+  }
+
   const climb: ClimbConfig = { ...CLIMB_DEFAULTS };
   const rawClimb = raw.climb;
   if (rawClimb !== undefined) {
@@ -796,6 +818,7 @@ export function validateAvatar(file: string, raw: unknown): AvatarConfig {
     walk,
     perch_walk,
     fall,
+    descend,
     climb,
     jump,
     drag_hold_ms,

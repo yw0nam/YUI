@@ -21,11 +21,14 @@
  * the async window reads, and the per-frame translation.
  */
 
-import type { WalkConfig } from "../config/load";
+import type { DescendConfig, WalkConfig } from "../config/load";
 import type { MotionKind } from "../contract";
 import { clampToWorkArea } from "../drag";
 import {
   clampToFloorSegments,
+  type DescentEdge,
+  descentEdges,
+  edgeAtSegmentEnd,
   floorPx,
   floorSegments,
   monitorAt,
@@ -186,6 +189,7 @@ export interface WalkerDeps {
   };
   listMonitors(): Promise<ScreenMonitor[]>;
   getConfig(): WalkConfig;
+  getDescendConfig(): DescendConfig;
   /** Registry kind of the committed motion. null when nothing is playing. */
   currentMotionKind(): MotionKind | null;
   isPeeking(): boolean;
@@ -197,6 +201,8 @@ export interface WalkerDeps {
   /** The stroll arrived, was cancelled, or lost the clip. bodyReleased is true only when the
    * walker itself handed the clip back (nothing else had already taken it). */
   onEnd(bodyReleased: boolean): void;
+  /** A planned monitor descent starts after its stroll reaches the edge. */
+  onDescend(edge: DescentEdge): void;
   rng?: Rng;
 }
 
@@ -238,6 +244,8 @@ export function createWalker(deps: WalkerDeps): Walker {
     directed: boolean;
     /** Arrival leaves the walk clip to the caller's next clip. */
     holdClip: boolean;
+    /** Monitor descent to start only when this ambient stroll arrives. */
+    descend?: DescentEdge;
   } | null = null;
   /** Settles the walkTo promise when a directed walk ends. */
   let resolveWalk: ((outcome: "arrived" | "lost") => void) | null = null;
@@ -280,7 +288,10 @@ export function createWalker(deps: WalkerDeps): Walker {
     }
     const settle = resolveWalk;
     resolveWalk = null;
-    if (!s.directed) deps.onEnd(bodyReleased);
+    if (!s.directed) {
+      deps.onEnd(bodyReleased);
+      if (outcome === "arrived" && s.descend) deps.onDescend(s.descend);
+    }
     settle?.(outcome);
   }
 
@@ -334,6 +345,15 @@ export function createWalker(deps: WalkerDeps): Walker {
       rng,
     });
     if (!plan) return;
+    let descend: DescentEdge | undefined;
+    if (distance === 0) {
+      const edge = edgeAtSegmentEnd(descentEdges(monitors, monitor), seg, width, x);
+      if (edge && rng() < deps.getDescendConfig().chance) {
+        plan.toX = edge.side === "right" ? seg.right : seg.left;
+        plan.direction = edge.side === "right" ? 1 : -1;
+        descend = edge;
+      }
+    }
 
     renderer.playMotion({ id: WALK_MOTION_ID });
     // A dropped request (perch suppression, dead clip) must not leave a walk_start/walk_end
@@ -371,6 +391,7 @@ export function createWalker(deps: WalkerDeps): Walker {
       win: strollWin,
       directed: false,
       holdClip: false,
+      ...(descend ? { descend } : {}),
     };
     renderer.setBodyYaw(plan.direction * WALK_YAW_RAD, WALK_YAW_EASE_MS);
     deps.onStart();

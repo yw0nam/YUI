@@ -164,6 +164,15 @@ export const FALL_DEFAULTS: FallConfig = {
   step_off_probability: 0.1,
 };
 
+export interface DescendConfig {
+  /** Chance a stroll on a segment with a descent edge walks to that edge and descends. */
+  chance: number;
+  /** Chance the descent climbs down the lower screen's edge; otherwise she steps off and falls. */
+  climb_down_chance: number;
+}
+
+export const DESCEND_DEFAULTS: DescendConfig = { chance: 0.5, climb_down_chance: 0.5 };
+
 /** Ambient window-climb knobs. Fractions are multiples of the on-screen character height. */
 export interface ClimbConfig {
   /** Shortest gap between climb attempts. */
@@ -289,6 +298,8 @@ export interface AvatarConfig {
   perch_walk: PerchWalkConfig;
   /** Drag-release fall knobs. Defaults are applied by the validator. */
   fall: FallConfig;
+  /** Upper-to-lower monitor descent choices. Defaults are applied by the validator. */
+  descend: DescendConfig;
   /** Ambient window-climb knobs. Defaults are applied by the validator. */
   climb: ClimbConfig;
   /** Window-to-window jump knobs. Defaults are applied by the validator. */

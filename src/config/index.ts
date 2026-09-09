@@ -19,6 +19,8 @@ export {
   ConfigError,
   type ConfigReader,
   type ConfigSection,
+  DESCEND_DEFAULTS,
+  type DescendConfig,
   DRAG_HOLD_MS_DEFAULT,
   FALL_DEFAULTS,
   type FallConfig,

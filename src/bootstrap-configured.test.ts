@@ -4,6 +4,7 @@ import {
   createConfiguredBootstrap,
   createPatGesture,
   createSitLossFall,
+  descendConfigFor,
   fallConfigFor,
 } from "./bootstrap-configured";
 import { type AppConfig, ATTACHMENT_LIMITS_DEFAULTS, FALL_DEFAULTS } from "./config";
@@ -57,6 +58,10 @@ function validConfig(): AppConfig {
         cue_cooldown_ms: 60_000,
         land_room_frac: 0.5,
         step_off_probability: 0.1,
+      },
+      descend: {
+        chance: 0.5,
+        climb_down_chance: 0.5,
       },
       climb: {
         interval_min_ms: 90_000,
@@ -278,13 +283,29 @@ describe("fallConfigFor", () => {
   });
 });
 
+describe("descendConfigFor", () => {
+  const descend = { chance: 0.5, climb_down_chance: 0.5 };
+
+  it("passes the config through while the fall is on", () => {
+    expect(descendConfigFor(descend, true)).toBe(descend);
+  });
+
+  it("always climbs down while the fall is off", () => {
+    expect(descendConfigFor(descend, false)).toEqual({ ...descend, climb_down_chance: 1 });
+  });
+});
+
 describe("createSitLossFall", () => {
   it("stops a running climb before handing the window to the fall", () => {
     const order: string[] = [];
     const climber = { cancel: () => order.push("climber.cancel") };
     const onSitLost = createSitLossFall({
       getClimber: () => climber,
-      faller: { drop: () => order.push("faller.drop") },
+      faller: {
+        drop: async () => {
+          order.push("faller.drop");
+        },
+      },
     });
 
     onSitLost();
@@ -297,7 +318,11 @@ describe("createSitLossFall", () => {
     const order: string[] = [];
     const onSitLost = createSitLossFall({
       getClimber: () => null,
-      faller: { drop: () => order.push("faller.drop") },
+      faller: {
+        drop: async () => {
+          order.push("faller.drop");
+        },
+      },
     });
 
     onSitLost();

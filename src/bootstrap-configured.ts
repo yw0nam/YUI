@@ -22,6 +22,7 @@ import {
   type AppConfig,
   CHAT_API_KEY_SECRET,
   type ConfigStore,
+  type DescendConfig,
   type FallConfig,
   STT_API_KEY_SECRET,
   TTS_API_KEY_SECRET,
@@ -44,6 +45,7 @@ import { createFrontmostTracker } from "./io/frontmost-tracker";
 import { createHitTestController, type HitTestController } from "./io/hit-test";
 import { enabledIdleVariants } from "./io/idle-motion-settings";
 import { createPeekState } from "./io/peek-state";
+import type { DescentEdge } from "./io/screen-geometry";
 import { mergeScreen } from "./io/screen-settings";
 import type { ScreenCapturer } from "./io/screen-source-provider";
 import { buildScreenshotBlock } from "./io/screenshot-context";
@@ -169,17 +171,22 @@ export function fallConfigFor(fall: FallConfig, enabled: boolean): FallConfig {
   return enabled ? fall : { ...fall, step_off_probability: 0 };
 }
 
+/** With the fall off, a monitor descent always climbs down: nothing would catch a drop. */
+export function descendConfigFor(descend: DescendConfig, enabled: boolean): DescendConfig {
+  return enabled ? descend : { ...descend, climb_down_chance: 1 };
+}
+
 /**
  * The fall a lost sit starts. A descent still inside its window survey resumes on a stale
  * list and moves the window from under the faller, so the climb lets go before the drop.
  */
 export function createSitLossFall(deps: {
   getClimber: () => { cancel(): void } | null;
-  faller: { drop(): void };
+  faller: { drop(): Promise<void> };
 }): () => void {
   return () => {
     deps.getClimber()?.cancel();
-    deps.faller.drop();
+    void deps.faller.drop();
   };
 }
 
@@ -494,11 +501,13 @@ const realFactories: ConfiguredBootstrapFactories = {
     // Ambient walking outranks nothing: a drag, an agent command or a reflex turn cancels a
     // stroll at once; an ordinary turn walks on.
     let dragging = false;
+    let climberRef: { cancel(): void; descend(edge: DescentEdge): Promise<void> } | null = null;
     const walker = wireWalker({
       bus,
       renderer,
       travelFrame,
       getWalkConfig: () => config.get().avatar.walk,
+      getDescendConfig: () => config.get().avatar.descend,
       getMotionKind: (id) => config.get().motions[id]?.kind,
       isPeeking: () => peekStateRef?.active() ?? false,
       isDragging: () => dragging,
@@ -506,6 +515,7 @@ const realFactories: ConfiguredBootstrapFactories = {
       onStrollEnd: (bodyReleased) => {
         if (bodyReleased) voice.resumeThinking();
       },
+      onDescend: (edge) => climberRef?.descend(edge),
       log,
     });
     strollingRef = walker;
@@ -513,7 +523,6 @@ const realFactories: ConfiguredBootstrapFactories = {
     register(wireStrollReflexCancel({ dispatcher, walker }));
 
     // Set once each loop exists — the drop source and the faller are built before them.
-    let climberRef: { cancel(): void } | null = null;
     let percherRef: { cancel(): void; landOn(target: WindowRect): void } | null = null;
 
     // The seat transitions every seat entry and voluntary exit plays; one body, one sitter.
@@ -601,6 +610,9 @@ const realFactories: ConfiguredBootstrapFactories = {
       renderer,
       travelFrame,
       getClimbConfig: () => config.get().avatar.climb,
+      getDescendConfig: () =>
+        descendConfigFor(config.get().avatar.descend, fallSettings.get().enabled),
+      getFallConfig: () => config.get().avatar.fall,
       getWalkConfig: () => config.get().avatar.walk,
       getMotionKind: (id) => config.get().motions[id]?.kind,
       isPeeking: () => peekStateRef?.active() ?? false,

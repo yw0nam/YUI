@@ -10,6 +10,7 @@ import {
   type AppConfig,
   type ClimbConfig,
   type ConfigSection,
+  type DescendConfig,
   type FallConfig,
   type GestureCuesConfig,
   type JumpConfig,
@@ -50,7 +51,7 @@ import { attachKeepOnScreen, type KeepOnScreenHandle } from "./io/keep-on-screen
 import type { ClampedIntSettingsStore } from "./io/persisted-store";
 import type { ProactiveSettings } from "./io/proactive-settings";
 import type { ScheduleSettings } from "./io/schedule-settings";
-import { type PetWindow, toScreenMonitor } from "./io/screen-geometry";
+import { type DescentEdge, type PetWindow, toScreenMonitor } from "./io/screen-geometry";
 import { createSettingsBridge, type SettingsBridge, type WindowKind } from "./io/settings-bridge";
 import {
   broadcastSyncStores,
@@ -543,6 +544,7 @@ export function wireWalker(deps: {
   renderer: Renderer;
   travelFrame: TravelFrameHandle;
   getWalkConfig: () => WalkConfig;
+  getDescendConfig: () => DescendConfig;
   /** Registry kind of a motion id, for the "nothing else holds the body" gate. */
   getMotionKind: (id: string) => MotionKind | undefined;
   isPeeking: () => boolean;
@@ -552,6 +554,7 @@ export function wireWalker(deps: {
   /** An ambient stroll ended — bodyReleased is true only when the walker itself handed the
    * clip back, not when another motion had already taken it. */
   onStrollEnd: (bodyReleased: boolean) => void;
+  onDescend: (edge: DescentEdge) => void;
   log: Logger;
 }): {
   walkTo(toX: number, onAccepted?: () => void, holdClip?: boolean): Promise<"arrived" | "lost">;
@@ -589,6 +592,7 @@ export function wireWalker(deps: {
       travel: deps.travelFrame.travel,
       listMonitors: async () => (await availableMonitors()).map(toScreenMonitor),
       getConfig: deps.getWalkConfig,
+      getDescendConfig: deps.getDescendConfig,
       currentMotionKind: () => {
         const current = renderer.getCurrentMotion();
         return current ? (deps.getMotionKind(current.id) ?? null) : null;
@@ -604,6 +608,7 @@ export function wireWalker(deps: {
         push("avatar.walk_end");
         deps.onStrollEnd(bodyReleased);
       },
+      onDescend: deps.onDescend,
     });
     walker.start();
   })().catch((err) => log.warn("walker_start_failed", { degrade: true, error: String(err) }));
@@ -794,13 +799,13 @@ export function wireFaller(deps: {
   /** She came down on a foreign window top — the perch loop takes it from there. */
   onWindowLand: (target: WindowRect) => void;
   log: Logger;
-}): { drop(): void; cancel(): void; dispose(): void } {
+}): { drop(): Promise<void>; cancel(): void; dispose(): void } {
   const { bus, renderer, log } = deps;
   let faller: Faller | null = null;
   let disposed = false;
   const handle = {
-    drop: () => {
-      if (deps.isEnabled()) void faller?.drop();
+    drop: async () => {
+      if (deps.isEnabled()) await faller?.drop();
     },
     cancel: () => faller?.cancel(),
     dispose: () => {
@@ -877,6 +882,8 @@ export function wireClimber(deps: {
   renderer: Renderer;
   travelFrame: TravelFrameHandle;
   getClimbConfig: () => ClimbConfig;
+  getDescendConfig: () => DescendConfig;
+  getFallConfig: () => FallConfig;
   /** The stroll's knobs — the approach reuses its floor tolerance and its reach. */
   getWalkConfig: () => WalkConfig;
   /** Registry kind of a motion id, for the "only the baseline hands the clip back" gate. */
@@ -886,7 +893,7 @@ export function wireClimber(deps: {
   /** A turn is in flight or speech is still playing — ambient movement stays out of the way. */
   isBusy: () => boolean;
   walker: { walkTo(toX: number): Promise<"arrived" | "lost">; cancel(): void };
-  faller: { drop(): void };
+  faller: { drop(): Promise<void>; cancel(): void };
   sitter: Pick<Sitter, "sitDown" | "standUp" | "cancel">;
   dropSource: {
     adoptSit(
@@ -901,7 +908,12 @@ export function wireClimber(deps: {
   /** Keep the hit-test cursor mapping accurate while the window translates. */
   setHitTestMoving: (moving: boolean) => void;
   log: Logger;
-}): { cancel(): void; setEnabled(enabled: boolean): void; dispose(): void } {
+}): {
+  cancel(): void;
+  descend(edge: DescentEdge): Promise<void>;
+  setEnabled(enabled: boolean): void;
+  dispose(): void;
+} {
   const { bus, renderer, log } = deps;
   let climber: Climber | null = null;
   let disposed = false;
@@ -909,6 +921,7 @@ export function wireClimber(deps: {
   let enabled = true;
   const handle = {
     cancel: () => climber?.cancel(),
+    descend: (edge: DescentEdge): Promise<void> => climber?.descend(edge) ?? Promise.resolve(),
     setEnabled: (v: boolean) => {
       if (disposed) return;
       enabled = v;
@@ -948,6 +961,8 @@ export function wireClimber(deps: {
       listMonitors: async () => (await availableMonitors()).map(toScreenMonitor),
       listWindows: () => invoke("list_windows") as Promise<WindowRect[]>,
       getConfig: deps.getClimbConfig,
+      getDescendConfig: deps.getDescendConfig,
+      getFallConfig: deps.getFallConfig,
       getWalkConfig: deps.getWalkConfig,
       currentMotionKind: () => {
         const current = renderer.getCurrentMotion();
