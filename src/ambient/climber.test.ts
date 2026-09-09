@@ -1790,6 +1790,8 @@ describe("createClimber — monitor descent", () => {
     await done;
 
     expect(h.travelBeginCalls).toEqual([{ x: -50, y: 1017 - ANCHOR.y }]);
+    // A climb down never rises above its start, so the frame needs no extra point.
+    expect(h.travelBeginVia).toEqual([undefined]);
     expect(h.walkTargets).toEqual([-ANCHOR.x]);
     expect(h.walkTravelActive).toEqual([true]);
     expect(h.motions).toEqual([{ id: CLIMB_DOWN_MOTION_ID }, { id: CLIMB_DOWN_LANDING_MOTION_ID }]);
@@ -1886,6 +1888,43 @@ describe("createClimber — monitor descent", () => {
     expect(h.travelBeginCalls).toEqual([]);
     expect(h.starts).not.toHaveBeenCalled();
     expect(h.walkTargets).toEqual([]);
+  });
+
+  it("frames the step-off origin when the survey found the feet below the seam", async () => {
+    // The step off drives the origin up to the seam, above both the start and the landing,
+    // so the parked frame has to cover it or she is drawn off the top of the canvas.
+    const h = makeHarness({
+      position: { x: -400, y: -ANCHOR.y + 10 },
+      windows: [],
+      monitors,
+      rng: () => 0.75,
+    });
+    h.climber.start();
+    const done = h.climber.descend(DESCENT_EDGE);
+    for (let i = 0; i < 100 && h.drop.mock.calls.length === 0; i++) await h.frame();
+
+    expect(h.travelBeginVia).toEqual([[{ x: -120, y: DESCENT_EDGE.topY - ANCHOR.y }]]);
+
+    h.settleDrop();
+    await done;
+  });
+
+  it("starts no travel when the character width measures zero", async () => {
+    // A zero-width step off is a zero-length leg the runner can never pace off, and the
+    // travel it parked would stay parked for good.
+    const h = makeHarness({
+      position: { x: -400, y: -ANCHOR.y + 10 },
+      windows: [],
+      monitors,
+      rng: () => 0.75,
+      charWpx: 0,
+    });
+    h.climber.start();
+    void h.climber.descend(DESCENT_EDGE);
+    await h.runFrames(20);
+
+    expect(h.travelBeginCalls).toEqual([]);
+    expect(h.starts).not.toHaveBeenCalled();
   });
 
   it("ends the step-off on the seam when the survey found the feet above it", async () => {
