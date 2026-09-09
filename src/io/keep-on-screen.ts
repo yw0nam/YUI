@@ -69,15 +69,23 @@ export function keepOnScreen(
   return nearest;
 }
 
+/** The guard's handle: teardown, plus a pause a travel holds while it parks the window itself. */
+export interface KeepOnScreenHandle {
+  dispose(): void;
+  /** While paused, a moved/resized event does nothing; unpausing evaluates once right away. */
+  setPaused(paused: boolean): void;
+}
+
 /** Debounced onMoved/onResized evaluation plus one startup pass, since opening emits neither. */
 export async function attachKeepOnScreen(
   win: KeepOnScreenWindow,
   listMonitors: () => Promise<ScreenMonitor[]>,
   opts: { wholeWindow?: boolean } = {},
-): Promise<() => void> {
+): Promise<KeepOnScreenHandle> {
   let timer: ReturnType<typeof setTimeout> | null = null;
   let disposed = false;
   let running = false;
+  let paused = false;
 
   const evaluate = async (): Promise<void> => {
     if (disposed || running) return;
@@ -101,13 +109,14 @@ export async function attachKeepOnScreen(
   };
 
   const run = (): void => {
+    if (paused) return;
     void evaluate().catch((error) =>
       log.warn("keep_on_screen_eval_failed", { error: String(error) }),
     );
   };
 
   const schedule = (): void => {
-    if (disposed) return;
+    if (disposed || paused) return;
     if (timer) clearTimeout(timer);
     timer = setTimeout(() => {
       timer = null;
@@ -121,10 +130,21 @@ export async function attachKeepOnScreen(
   const unlistenResized = await win.onResized(schedule);
   run();
 
-  return () => {
-    disposed = true;
-    if (timer) clearTimeout(timer);
-    unlistenMoved();
-    unlistenResized();
+  return {
+    dispose() {
+      disposed = true;
+      if (timer) clearTimeout(timer);
+      unlistenMoved();
+      unlistenResized();
+    },
+    setPaused(next) {
+      paused = next;
+      if (paused) {
+        if (timer) clearTimeout(timer);
+        timer = null;
+        return;
+      }
+      run();
+    },
   };
 }
