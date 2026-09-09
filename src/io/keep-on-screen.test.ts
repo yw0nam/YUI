@@ -232,6 +232,29 @@ describe("attachKeepOnScreen", () => {
     expect(win.setPositionPhysical).not.toHaveBeenCalled();
   });
 
+  it("does not push when paused arrives while an evaluation already in flight is awaiting monitors", async () => {
+    const handle = await attachKeepOnScreen(win, listMonitors);
+    await vi.runOnlyPendingTimersAsync(); // startup pass pushes to {x:1718, y:400}
+    vi.mocked(win.setPositionPhysical).mockClear();
+
+    pos = { x: 1800, y: 400 }; // back off-screen
+    let resolveMonitors!: (monitors: ScreenMonitor[]) => void;
+    vi.mocked(listMonitors).mockImplementationOnce(
+      () =>
+        new Promise<ScreenMonitor[]>((resolve) => {
+          resolveMonitors = resolve;
+        }),
+    );
+    onMovedCb();
+    await vi.advanceTimersByTimeAsync(IDLE_MS); // fires evaluate(), which awaits listMonitors()
+
+    handle.setPaused(true);
+    resolveMonitors([LEFT]);
+    for (let i = 0; i < 10; i++) await Promise.resolve();
+
+    expect(win.setPositionPhysical).not.toHaveBeenCalled();
+  });
+
   it("runs one evaluation on unpause when the window is off-screen", async () => {
     const handle = await attachKeepOnScreen(win, listMonitors);
     await vi.runOnlyPendingTimersAsync(); // startup pass pushes to {x:1718, y:400}
