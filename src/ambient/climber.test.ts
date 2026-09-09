@@ -28,6 +28,7 @@ import {
   pickClimbTarget,
   pickDescentTarget,
   pickMonitorWalls,
+  wallStandX,
 } from "./climber";
 import { WALK_MOTION_ID } from "./walker";
 
@@ -1748,6 +1749,14 @@ const DESCENT_UPPER_LEFT: ScreenMonitor = {
   scaleFactor: 1,
 };
 
+/** The same footprint as DESCENT_UPPER_LEFT, backed at scale 2 — logical -992..928, -1080..0. */
+const DESCENT_UPPER_LEFT_SCALE2: ScreenMonitor = {
+  position: { x: -1984, y: -2160 },
+  size: { width: 3840, height: 2160 },
+  workArea: { position: { x: -1984, y: -2110 }, size: { width: 3840, height: 2110 } },
+  scaleFactor: 2,
+};
+
 const DESCENT_EDGE: DescentEdge = {
   side: "right",
   edgeX: 0,
@@ -1833,6 +1842,36 @@ describe("createClimber — monitor descent", () => {
       bottomY: 1017,
       kind: "fall",
     });
+  });
+
+  it("paces a climb down from a scale-2 upper display in that display's physical px", async () => {
+    // Feet on the seam at logical (-200, 0) is physical (-800, -840) at scale 2.
+    const startPhysicalY = (DESCENT_EDGE.topY - ANCHOR.y) * 2;
+    const h = makeHarness({
+      position: { x: -800, y: startPhysicalY },
+      windows: [],
+      monitors: [DESCENT_BUILTIN, DESCENT_UPPER_LEFT_SCALE2],
+      windowScale: 2,
+    });
+    h.climber.start();
+    const done = h.climber.descend(DESCENT_EDGE);
+    await h.runToEnd();
+    await done;
+
+    // The travel landing is logical: the descent stand-off from the edge, less the anchor.
+    expect(h.travelBeginCalls).toEqual([
+      {
+        x: wallStandX(DESCENT_EDGE.edgeX, "right", DESCENT_OFFSET) - ANCHOR.x,
+        y: DESCENT_EDGE.bottomY - ANCHOR.y,
+      },
+    ]);
+    expect(h.motions).toEqual([{ id: CLIMB_DOWN_MOTION_ID }, { id: CLIMB_DOWN_LANDING_MOTION_ID }]);
+    // The hang, descend and landing legs together carry the window through the whole drop,
+    // measured in the surveyed scale's physical px; the shim writes each step back logical.
+    expect((h.at().y - startPhysicalY / 2) * 2).toBe(
+      (DESCENT_EDGE.bottomY - DESCENT_EDGE.topY) * 2,
+    );
+    expect(h.travelEndCalls()).toBe(1);
   });
 
   it("does nothing when the lower monitor is gone by the time the descent starts", async () => {
