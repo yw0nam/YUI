@@ -987,6 +987,7 @@ export function createClimber(deps: ClimberDeps): Climber {
     dwellAtMs = -1;
   }
 
+  /** The wall legs both descents share. `wallOffset` is logical px, `drop` physical px of `scale`. */
   async function runDescentLegs(args: {
     startedAt: number;
     win: PetWindow;
@@ -1023,6 +1024,7 @@ export function createClimber(deps: ClimberDeps): Climber {
     if (!land || !alive(startedAt)) return "lost";
     const hangPx = Math.min(drop, deps.getConfig().hang_frac * standingHpx * scale);
     const landPx = grounded ? Math.min(drop - hangPx, land.px) : 0;
+    // She walks the top to the corner, so the wall x is a hand's reach further out.
     const wallX = at.x + (wallStandX(target.edgeX, target.side, wallOffset) - target.edgeX) * scale;
     const descentWin = logicalLegWindow(win, scale);
     const base = {
@@ -1034,6 +1036,8 @@ export function createClimber(deps: ClimberDeps): Climber {
     };
     let y = at.y;
 
+    // No clip covers the step off the ledge, so the descent clip crossfades in over a
+    // short linear slide that carries her off the corner onto the wall's outer face.
     const hang = await legs.run({
       ...base,
       fromX: at.x,

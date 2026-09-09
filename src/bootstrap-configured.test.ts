@@ -301,7 +301,11 @@ describe("createSitLossFall", () => {
     const climber = { cancel: () => order.push("climber.cancel") };
     const onSitLost = createSitLossFall({
       getClimber: () => climber,
-      faller: { drop: () => order.push("faller.drop") },
+      faller: {
+        drop: async () => {
+          order.push("faller.drop");
+        },
+      },
     });
 
     onSitLost();
@@ -314,7 +318,11 @@ describe("createSitLossFall", () => {
     const order: string[] = [];
     const onSitLost = createSitLossFall({
       getClimber: () => null,
-      faller: { drop: () => order.push("faller.drop") },
+      faller: {
+        drop: async () => {
+          order.push("faller.drop");
+        },
+      },
     });
 
     onSitLost();

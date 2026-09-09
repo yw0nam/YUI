@@ -182,11 +182,11 @@ export function descendConfigFor(descend: DescendConfig, enabled: boolean): Desc
  */
 export function createSitLossFall(deps: {
   getClimber: () => { cancel(): void } | null;
-  faller: { drop(): void };
+  faller: { drop(): Promise<void> };
 }): () => void {
   return () => {
     deps.getClimber()?.cancel();
-    deps.faller.drop();
+    void deps.faller.drop();
   };
 }
 

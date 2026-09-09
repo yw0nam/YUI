@@ -148,7 +148,7 @@ export function edgeAtSegmentEnd(
   for (const edge of edges) {
     const end = edge.side === "right" ? segment.right : segment.left;
     const edgeAtEnd = edge.side === "right" ? segment.right + windowWidth : segment.left;
-    if (Math.abs(edgeAtEnd - edge.edgeX) > 1) continue;
+    if (Math.abs(edgeAtEnd - edge.edgeX) > FLOOR_LINE_TOLERANCE_PX) continue;
     const distance = Math.abs(x - end);
     if (!nearest || distance < nearest.distance) nearest = { edge, distance };
   }
