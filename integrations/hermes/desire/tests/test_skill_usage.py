@@ -1,5 +1,6 @@
 import json
 import sqlite3
+import threading
 from datetime import timedelta
 from pathlib import Path
 
@@ -220,7 +221,7 @@ def test_an_unreadable_database_renders_loads_unavailable_without_a_verdict(prof
     assert text == "skills you made (7 days):\n- mcp/quiet — loads unavailable, last used 2026-09-08 06:51"
 
 
-def test_a_missing_tick_job_renders_loads_unavailable(profile, at):
+def test_a_missing_tick_job_renders_loads_unavailable_and_names_the_reason(profile, at):
     now = at("2026-09-09T21:00:00+09:00")
     (profile / "cron" / "jobs.json").write_text(json.dumps({"jobs": []}), encoding="utf-8")
     write_skill(profile, "mcp/quiet")
@@ -229,8 +230,66 @@ def test_a_missing_tick_job_renders_loads_unavailable(profile, at):
 
     text, failure = skill_usage.section(now, first_seen={"mcp/quiet": "2026-08-01T00:00:00+09:00"})
 
-    assert failure is not None
+    assert "natsume-desire-tick" in failure
     assert text.splitlines()[1] == "- mcp/quiet — loads unavailable, last used never"
+
+
+def test_a_tool_call_carrying_its_arguments_as_an_object_still_counts(profile, at):
+    now = at("2026-09-09T21:00:00+09:00")
+    write_skill(profile, "mcp/quiet")
+    write_usage(profile, {"quiet": usage_entry("2026-08-01T00:00:00+09:00")})
+    write_state_db(profile, [])
+    call = {"type": "function", "function": {"name": "skill_view", "arguments": {"name": "quiet"}}}
+    connection = sqlite3.connect(profile / "state.db")
+    connection.execute(
+        "INSERT INTO messages (session_id, role, tool_calls, timestamp) VALUES (?, 'assistant', ?, ?)",
+        (other_session(), json.dumps([call]), (now - timedelta(hours=1)).timestamp()),
+    )
+    connection.commit()
+    connection.close()
+
+    text, _ = skill_usage.section(now, first_seen={"mcp/quiet": "2026-08-01T00:00:00+09:00"})
+
+    assert text.splitlines()[1] == "- mcp/quiet — tick 0, other 1, last used never"
+
+
+def test_an_unreadable_last_used_stamp_renders_unknown_and_withholds_the_verdict(profile, at):
+    now = at("2026-09-09T21:00:00+09:00")
+    write_skill(profile, "mcp/quiet")
+    write_usage(profile, {"quiet": usage_entry("2026-08-01 midnight", "2026-08-01 midnight")})
+    write_state_db(profile, [])
+
+    text, _ = skill_usage.section(now, first_seen={"mcp/quiet": "2026-08-01 midnight"})
+
+    assert text.splitlines()[1] == "- mcp/quiet — tick 0, other 0, last used unknown"
+
+
+def test_the_state_lock_is_free_while_the_loads_are_counted(profile, state_dir, at, monkeypatch):
+    now = at("2026-09-09T21:00:00+09:00")
+    desire_state.bootstrap(now)
+    record = desire_state.default_artefacts(now)
+    record["skill_first_seen"] = {"mcp/quiet": "2026-09-08T09:00:00+09:00"}
+    desire_state.write_json_atomic(state_dir / "artefacts.json", record)
+    write_skill(profile, "mcp/quiet")
+    write_state_db(profile, [])
+    original = skill_usage.section
+
+    def probe_lock(*args, **kwargs):
+        taken = []
+
+        def take():
+            with desire_state.state_lock(state_dir):
+                taken.append(True)
+
+        worker = threading.Thread(target=take, daemon=True)
+        worker.start()
+        worker.join(timeout=5)
+        assert taken, "the report step held the state lock while counting loads"
+        return original(*args, **kwargs)
+
+    monkeypatch.setattr(skill_usage, "section", probe_lock)
+
+    assert act.main(["report", "--skills"], now=now) == 0
 
 
 def test_a_skill_without_a_usage_entry_is_aged_from_its_first_sight(profile, at):
