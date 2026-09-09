@@ -191,9 +191,7 @@ describe("edgeAtSegmentEnd", () => {
   const rightEdge = { side: "right" as const, edgeX: 0, topY: 0, bottomY: 1017 };
 
   it("matches a lower left edge to the segment's right window-origin end", () => {
-    expect(edgeAtSegmentEnd([rightEdge], { left: -992, right: -400 }, 400, -700)).toBe(
-      rightEdge,
-    );
+    expect(edgeAtSegmentEnd([rightEdge], { left: -992, right: -400 }, 400, -700)).toBe(rightEdge);
   });
 
   it("returns null when the segment ends do not reach an edge", () => {

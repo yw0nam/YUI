@@ -737,10 +737,7 @@ describe("validateAvatar — descend", () => {
   });
 
   it.each([1.5, -0.1])("rejects a chance outside [0, 1]: %s", (chance) => {
-    expectIssue(
-      { vrm_url: "/v.vrm", descend: { chance } },
-      "descend.chance는 [0, 1]",
-    );
+    expectIssue({ vrm_url: "/v.vrm", descend: { chance } }, "descend.chance는 [0, 1]");
   });
 
   it("accepts the boundary chances", () => {

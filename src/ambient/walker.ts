@@ -26,8 +26,8 @@ import type { MotionKind } from "../contract";
 import { clampToWorkArea } from "../drag";
 import {
   clampToFloorSegments,
-  descentEdges,
   type DescentEdge,
+  descentEdges,
   edgeAtSegmentEnd,
   floorPx,
   floorSegments,
