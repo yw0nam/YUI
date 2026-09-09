@@ -28,6 +28,7 @@ import type { MotionKind, WindowRect } from "../contract";
 import {
   clampToFloorSegments,
   type DescentEdge,
+  descentEdges,
   FLOOR_LINE_TOLERANCE_PX,
   floorPx,
   floorSegments,
@@ -152,6 +153,16 @@ function columnOnMonitor(column: Box, monitor: Box): boolean {
  */
 export function wallStandX(edgeX: number, side: "left" | "right", wallOffset: number): number {
   return side === "left" ? edgeX - wallOffset : edgeX + wallOffset;
+}
+
+/** Whether two descent edges name the same seam, float rounding included. */
+function sameDescentEdge(a: DescentEdge, b: DescentEdge): boolean {
+  return (
+    a.side === b.side &&
+    Math.abs(a.edgeX - b.edgeX) <= FLOOR_LINE_TOLERANCE_PX &&
+    Math.abs(a.topY - b.topY) <= FLOOR_LINE_TOLERANCE_PX &&
+    Math.abs(a.bottomY - b.bottomY) <= FLOOR_LINE_TOLERANCE_PX
+  );
 }
 
 /**
@@ -1165,6 +1176,9 @@ export function createClimber(deps: ClimberDeps): Climber {
       reducedMotion: false,
     };
     if (!canStartStroll(gate)) return;
+    // The walker picked this edge before the approach; a display unplugged since then
+    // leaves nothing to descend onto.
+    if (!descentEdges(w.monitors, w.monitor).some((e) => sameDescentEdge(e, edge))) return;
 
     const climbDown = rng() < deps.getDescendConfig().climb_down_chance;
     const wallOffset = cfg.descent_wall_offset_frac * w.charHpx;
