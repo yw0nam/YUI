@@ -13,8 +13,8 @@
  *   debounce_samples consecutive interactive samples → ignore=false, CAPTURE.
  *   Only cursorPosition() is read every tick; outerPosition/scaleFactor/
  *   primaryScaleFactor are cached and refreshed every STATIC_REFRESH_TICKS
- *   ticks, or immediately on a window move/resize/scale-change event (mirrors
- *   src/io/cursor-tracker.ts).
+ *   ticks, or immediately on a window move/resize/scale-change event (the
+ *   cache itself lives in src/io/window-statics.ts).
  *
  * Hysteresis: leaving CAPTURE rejects only when the cursor is outside the box
  * OUTSET by hysteresis_margin_px (within-margin counts as still interactive);
@@ -28,6 +28,12 @@ import { invoke } from "@tauri-apps/api/core";
 import { cursorPosition, getCurrentWindow, primaryMonitor } from "@tauri-apps/api/window";
 import { createLogger } from "../logger";
 import { isTauri } from "./tauri-env";
+import {
+  createWindowStatics,
+  STATIC_REFRESH_TICKS,
+  type Vec2,
+  type WindowStaticsSource,
+} from "./window-statics";
 
 const log = createLogger("hit-test");
 
@@ -45,14 +51,6 @@ const DEFAULTS = {
 } as const;
 
 export type HitTestState = "capture" | "passthrough";
-
-interface Vec2 {
-  x: number;
-  y: number;
-}
-
-/** Unsubscribe handle returned by a Tauri event listener. */
-type Unlisten = () => void;
 
 // ─── Pure helpers ────────────────────────────────────────────────────────────
 
@@ -127,18 +125,9 @@ export function decideTransition(args: {
 
 // ─── Controller ──────────────────────────────────────────────────────────────
 
-/** Minimal window surface the controller needs (Tauri @tauri-apps/api/window). */
-export interface HitTestWindow {
-  cursorPosition(): Promise<Vec2>;
+/** Minimal window surface the controller needs: the statics cache's reads plus click-through. */
+export interface HitTestWindow extends WindowStaticsSource {
   setIgnoreCursorEvents(ignore: boolean): Promise<void>;
-  outerPosition(): Promise<Vec2>;
-  scaleFactor(): Promise<number>;
-  /** Scale factor the cursor reading is expressed in — the primary monitor's. Falls back to scaleFactor(). */
-  primaryScaleFactor?(): Promise<number>;
-  /** Fires on window move/resize/DPI change — invalidates the cached statics. Non-Tauri: absent. */
-  onMoved?(cb: () => void): Promise<Unlisten>;
-  onResized?(cb: () => void): Promise<Unlisten>;
-  onScaleChanged?(cb: () => void): Promise<Unlisten>;
 }
 
 export interface HitTestController {
@@ -220,37 +209,9 @@ export function createHitTestController(opts: HitTestOptions): HitTestController
   // Consecutive poll failures: after this many, degrade to CAPTURE.
   const POLL_FAILURE_THRESHOLD = 3;
   let pollFailureCount = 0;
-  // Ticks between outerPosition/scaleFactor/primaryScaleFactor re-reads (mirrors cursor-tracker.ts).
-  const STATIC_REFRESH_TICKS = 8;
   let tick = 0;
-  // Cached slow statics — re-read every STATIC_REFRESH_TICKS; null forces a refresh.
-  let cachedOrigin: Vec2 | null = null;
-  let cachedSf = 1;
-  let cachedCursorSf = 1;
-  // Window move/resize/scale-change unlisten handles — awaited (not blocking start()) so a
-  // stop() that lands before they resolve still unsubscribes once they do.
-  let unlistenMoved: Promise<Unlisten> | null = null;
-  let unlistenResized: Promise<Unlisten> | null = null;
-  let unlistenScaleChanged: Promise<Unlisten> | null = null;
-
-  function invalidateStatics(): void {
-    cachedOrigin = null;
-  }
-
-  function subscribeWindowEvents(w: HitTestWindow): void {
-    unlistenMoved = w.onMoved?.(invalidateStatics) ?? null;
-    unlistenResized = w.onResized?.(invalidateStatics) ?? null;
-    unlistenScaleChanged = w.onScaleChanged?.(invalidateStatics) ?? null;
-  }
-
-  function unsubscribeWindowEvents(): void {
-    unlistenMoved?.then((fn) => fn()).catch(() => {});
-    unlistenResized?.then((fn) => fn()).catch(() => {});
-    unlistenScaleChanged?.then((fn) => fn()).catch(() => {});
-    unlistenMoved = null;
-    unlistenResized = null;
-    unlistenScaleChanged = null;
-  }
+  // Window origin and scale factors, re-read every STATIC_REFRESH_TICKS.
+  const statics = createWindowStatics();
 
   function margin(): number {
     return opts.getConfig().hysteresis_margin_px ?? DEFAULTS.hysteresis_margin_px;
@@ -320,7 +281,7 @@ export function createHitTestController(opts: HitTestOptions): HitTestController
   }
 
   // PASSTHROUGH loop: webview is blind, so read the global cursor and convert. Only
-  // cursorPosition() is read every tick; the slower statics are cached (see subscribeWindowEvents).
+  // cursorPosition() is read every tick; the slower statics are cached (see window-statics.ts).
   async function poll(): Promise<void> {
     if (
       !running ||
@@ -330,31 +291,18 @@ export function createHitTestController(opts: HitTestOptions): HitTestController
       doc.visibilityState === "hidden"
     )
       return;
-    const refreshStatics = cachedOrigin === null || moving || tick % STATIC_REFRESH_TICKS === 0;
+    const refreshStatics = statics.origin === null || moving || tick % STATIC_REFRESH_TICKS === 0;
     tick++;
     try {
-      let cursor: Vec2;
-      if (refreshStatics) {
-        const [c, origin, sf, cursorSf] = await Promise.all([
-          win.cursorPosition(),
-          win.outerPosition(),
-          win.scaleFactor(),
-          win.primaryScaleFactor?.(),
-        ]);
-        cursor = c;
-        cachedOrigin = origin;
-        cachedSf = sf;
-        cachedCursorSf = cursorSf ?? sf;
-      } else {
-        cursor = await win.cursorPosition();
-      }
+      const cursor = await statics.readCursor(win, refreshStatics);
       // A move/resize/scale-change can invalidate the cache while a cached tick's
       // cursorPosition() is still in flight — skip this sample (don't return: the
       // reschedule below must still run, or the loop dies with the window stuck
-      // click-through). The next tick's cachedOrigin === null forces a fresh refresh.
-      if (cachedOrigin !== null) {
+      // click-through). The next tick's stale cache forces a fresh refresh.
+      const origin = statics.origin;
+      if (origin !== null) {
         pollFailureCount = 0;
-        const local = physicalCursorToLocalCss(cursor, cachedOrigin, cachedSf, cachedCursorSf);
+        const local = physicalCursorToLocalCss(cursor, origin, statics.scale, statics.cursorScale);
         // Entering CAPTURE uses the tight box (margin 0).
         applySample(opts.isOverInteractive(local.x, local.y, 0));
       }
@@ -388,8 +336,8 @@ export function createHitTestController(opts: HitTestOptions): HitTestController
     suspendedOwner = null;
     pollFailureCount = 0;
     tick = 0;
-    cachedOrigin = null;
-    subscribeWindowEvents(win);
+    statics.invalidate();
+    statics.subscribe(win);
     moveTarget.addEventListener("pointermove", onPointerMove);
     doc.addEventListener("visibilitychange", onVisibilityChange);
   }
@@ -397,7 +345,7 @@ export function createHitTestController(opts: HitTestOptions): HitTestController
   function stop(): void {
     running = false;
     stopPoll();
-    unsubscribeWindowEvents();
+    statics.unsubscribe();
     moveTarget.removeEventListener("pointermove", onPointerMove);
     doc.removeEventListener("visibilitychange", onVisibilityChange);
     // Leave the window interactive so teardown never strands click-through on.

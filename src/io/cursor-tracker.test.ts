@@ -121,6 +121,8 @@ function scheduledPoller(win: FakeWin, doc: FakeDoc) {
       const fn = cb;
       cb = undefined;
       await fn?.();
+      // schedule() fires poll() without awaiting it — wait out its promise chain.
+      await new Promise((resolve) => setTimeout(resolve, 0));
     },
   };
 }
@@ -238,10 +240,9 @@ describe("createCursorTracker — Tauri poll path", () => {
     c.stop();
   });
 
-  // Regression: invalidateStatics() firing WHILE a cached tick's cursorPosition() is in
-  // flight must not kill the self-scheduling loop — a guard that returns before the
-  // reschedule tail freezes gaze permanently. Mirrors src/io/hit-test.test.ts's identical
-  // regression for the hit-test poll.
+  // Regression: an invalidation firing WHILE a cached tick's cursorPosition() is in flight
+  // must not kill the self-scheduling loop — a guard that returns before the reschedule
+  // tail freezes gaze permanently.
   it("a move landing mid-await on a cached tick skips the sample but still reschedules", async () => {
     const win = fakeWindow({ x: 300, y: 400 });
     win.outerPosition.mockResolvedValue({ x: 100, y: 200 });
@@ -252,7 +253,7 @@ describe("createCursorTracker — Tauri poll path", () => {
     c.start();
     expect(scheduled.length).toBe(1);
 
-    await poll(); // tick 0 — refreshes, establishes cachedOrigin
+    await poll(); // tick 0 — refreshes, establishes the cached origin
     expect(scheduled.length).toBe(2);
     positions.length = 0;
 
@@ -262,14 +263,14 @@ describe("createCursorTracker — Tauri poll path", () => {
       win.fireMoved();
       return { x: 300, y: 400 };
     });
-    await poll(); // tick 1 — cachedOrigin goes null mid-await
+    await poll(); // tick 1 — the cache goes stale mid-await
 
     // The loop must still reschedule despite landing with a stale cache.
     expect(scheduled.length).toBe(3);
     // The invalidated tick skips sampling rather than applying a stale/missing origin.
     expect(positions).toEqual([]);
 
-    // The next tick recovers: refreshes statics (cachedOrigin was cleared) and samples normally.
+    // The next tick recovers: refreshes the statics (the cache was cleared) and samples normally.
     win.outerPosition.mockClear();
     await poll(); // tick 2
     expect(win.outerPosition).toHaveBeenCalledTimes(1);
@@ -288,26 +289,6 @@ describe("createCursorTracker — Tauri poll path", () => {
     expect(win.unlistenMoved).toHaveBeenCalledTimes(1);
     expect(win.unlistenResized).toHaveBeenCalledTimes(1);
     expect(win.unlistenScaleChanged).toHaveBeenCalledTimes(1);
-  });
-
-  it("stop() before the listen promise resolves still unsubscribes once it does", async () => {
-    const win = fakeWindow();
-    const unlistenMoved = vi.fn();
-    let resolveOnMoved: (() => void) | undefined;
-    win.onMoved.mockImplementation(
-      () =>
-        new Promise<typeof unlistenMoved>((resolve) => {
-          resolveOnMoved = () => resolve(unlistenMoved);
-        }),
-    );
-    const doc = fakeDoc();
-    const { c } = scheduledPoller(win, doc);
-    c.start();
-    c.stop(); // stop() lands before onMoved's promise has resolved
-    resolveOnMoved?.();
-    await Promise.resolve();
-    await Promise.resolve();
-    expect(unlistenMoved).toHaveBeenCalledTimes(1);
   });
 
   it("a mixed-DPI reading (cursorSf !== sf) converts with the primary scale, not the window's", async () => {

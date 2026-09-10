@@ -7,9 +7,7 @@
  */
 
 import type { AvatarOption } from "../config/load";
-
-/** Dialog open result shape (path string, array, or {path} per plugin version). */
-type OpenResult = string | string[] | { path: string } | null;
+import { loadInvoke, loadOpenDialog, type OpenResult, pickedPath } from "./user-asset-import";
 
 export interface VrmImportDeps {
   /** `@tauri-apps/plugin-dialog` open. */
@@ -28,29 +26,11 @@ export interface VrmImportDeps {
 type VrmRemoveDeps = Pick<VrmImportDeps, "invoke">;
 
 async function defaultDeps(): Promise<VrmImportDeps> {
-  const [{ open }, { invoke, convertFileSrc }] = await Promise.all([
-    import("@tauri-apps/plugin-dialog"),
+  const [openDialog, { invoke, convertFileSrc }] = await Promise.all([
+    loadOpenDialog(),
     import("@tauri-apps/api/core"),
   ]);
-  return {
-    openDialog: (opts) => open(opts) as Promise<OpenResult>,
-    invoke,
-    convertFileSrc,
-  };
-}
-
-async function defaultRemoveDeps(): Promise<VrmRemoveDeps> {
-  const { invoke } = await import("@tauri-apps/api/core");
-  return { invoke };
-}
-
-/** Normalize the dialog result to a single source path, or null if nothing chosen. */
-function pickedPath(result: OpenResult): string | null {
-  if (result == null) return null;
-  if (typeof result === "string") return result.length > 0 ? result : null;
-  if (Array.isArray(result)) return result.length > 0 ? result[0] : null;
-  if (typeof result === "object" && typeof result.path === "string") return result.path;
-  return null;
+  return { openDialog, invoke, convertFileSrc };
 }
 
 interface ImportedVrm {
@@ -79,23 +59,6 @@ export async function importVrmFromFile(deps?: VrmImportDeps): Promise<AvatarOpt
 
 /** Delete an imported VRM's file from app-data. Idempotent on the native side. */
 export async function removeUserVrm(id: string, deps?: VrmRemoveDeps): Promise<void> {
-  const d = deps ?? (await defaultRemoveDeps());
+  const d = deps ?? { invoke: await loadInvoke() };
   await d.invoke("remove_user_vrm", { id });
-}
-
-/**
- * Remove an orphaned imported VRM after a failed import. A failed removal is
- * surfaced via onError (never swallowed) so multi-MB orphans don't pile up
- * silently; the caller's primary error still rethrows.
- */
-export async function removeOrphanVrm(
-  id: string,
-  remove: (id: string) => Promise<void>,
-  onError: (err: unknown) => void,
-): Promise<void> {
-  try {
-    await remove(id);
-  } catch (err) {
-    onError(err);
-  }
 }

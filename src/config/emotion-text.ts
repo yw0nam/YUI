@@ -6,8 +6,7 @@
  * Pure load + validation only (no side effects, reader injectable → testable). fail-loud ConfigError.
  */
 
-import { resolveAssetUrl } from "../io/asset-url";
-import { type AssetUrlResolver, ConfigError, type ConfigReader } from "./load";
+import { type AssetUrlResolver, ConfigError, type ConfigReader, fetchReader } from "./load";
 
 export interface LoadEmotionTextOptions {
   /** provider key in configs/emotion_text/<provider>.json (e.g. "irodori"). */
@@ -26,26 +25,6 @@ function isObject(v: unknown): v is Record<string, unknown> {
   return typeof v === "object" && v !== null && !Array.isArray(v);
 }
 
-/** Default fetch-based reader (browser/Tauri webview runtime). */
-function fetchReader(
-  baseUrl: string,
-  resolveUrl: AssetUrlResolver = resolveAssetUrl,
-  fetchImpl: typeof fetch = globalThis.fetch,
-): ConfigReader {
-  return async (file) => {
-    const url = await resolveUrl(`${baseUrl}/${file}`);
-    const res = await fetchImpl(url);
-    if (!res.ok) {
-      throw new ConfigError(file, [`HTTP ${res.status} ${res.statusText} (${url})`]);
-    }
-    try {
-      return await res.json();
-    } catch {
-      throw new ConfigError(file, ["응답이 JSON이 아님"]);
-    }
-  };
-}
-
 /**
  * Reads configs/emotion_text/<provider>.json and returns a validated Record<string,string>.
  * Fails immediately with ConfigError on non-object / empty object / non-string value (fail-loud).
@@ -53,7 +32,13 @@ function fetchReader(
 export async function loadEmotionTextTable(
   opts: LoadEmotionTextOptions,
 ): Promise<Record<string, string>> {
-  const read = opts.read ?? fetchReader(opts.baseUrl ?? "/configs", opts.resolveUrl, opts.fetch);
+  const read =
+    opts.read ??
+    fetchReader({
+      baseUrl: opts.baseUrl ?? "/configs",
+      resolveUrl: opts.resolveUrl,
+      fetch: opts.fetch,
+    });
   const file = `emotion_text/${opts.provider}.json`;
   const raw = await read(file);
 

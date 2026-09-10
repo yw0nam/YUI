@@ -623,7 +623,7 @@ describe("createHitTestController — poll failure hardening", () => {
   });
 });
 
-// ─── createHitTestController — static caching (mirrors cursor-tracker.ts) ────
+// ─── createHitTestController — static caching (the cache: src/io/window-statics.ts) ───
 // The poll only needs a fresh cursorPosition() every tick; outerPosition/scaleFactor/
 // primaryScaleFactor describe the window, not the cursor, and only change on a
 // move/resize/DPI change — caching them is what makes the 33ms cadence a genuine
@@ -670,6 +670,8 @@ describe("createHitTestController — static caching", () => {
         const fn = cb;
         cb = undefined;
         await fn?.();
+        // schedule() fires poll() without awaiting it — wait out its promise chain.
+        await new Promise((resolve) => setTimeout(resolve, 0));
       },
     };
   }
@@ -725,7 +727,7 @@ describe("createHitTestController — static caching", () => {
     c.stop();
   });
 
-  // Regression: invalidateStatics() firing WHILE a cached tick's cursorPosition() is in flight
+  // Regression: an invalidation firing WHILE a cached tick's cursorPosition() is in flight
   // (the common case — 7/8 ticks are cached, and onMoved fires continuously during a window drag)
   // must not kill the self-scheduling loop. A prior fix returned from poll() entirely when the
   // cache came back null, which also skipped the reschedule at the bottom — the window got stuck
@@ -765,9 +767,11 @@ describe("createHitTestController — static caching", () => {
       const fn = cb;
       cb = undefined;
       await fn?.();
+      // schedule() fires poll() without awaiting it — wait out its promise chain.
+      await new Promise((resolve) => setTimeout(resolve, 0));
     };
 
-    await poll(); // tick 0 — refreshes, establishes cachedOrigin
+    await poll(); // tick 0 — refreshes, establishes the cached origin
     expect(scheduled.length).toBe(2);
     seen.length = 0;
 
@@ -777,14 +781,14 @@ describe("createHitTestController — static caching", () => {
       win.fireMoved();
       return { x: 0, y: 0 };
     });
-    await poll(); // tick 1 — cachedOrigin goes null mid-await
+    await poll(); // tick 1 — the cache goes stale mid-await
 
     // The loop must still reschedule despite landing with a stale cache.
     expect(scheduled.length).toBe(3);
     // The invalidated tick skips sampling rather than applying a stale/missing origin.
     expect(seen).toEqual([]);
 
-    // The next tick recovers: refreshes statics (cachedOrigin was cleared) and samples normally.
+    // The next tick recovers: refreshes the statics (the cache was cleared) and samples normally.
     win.outerPosition.mockClear();
     await poll(); // tick 2
     expect(win.outerPosition).toHaveBeenCalledTimes(1);

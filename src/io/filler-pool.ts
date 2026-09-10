@@ -15,23 +15,26 @@ import type { FillerSettings } from "./filler-settings";
 import { createSentenceSegmenter } from "./sentence-segmenter";
 import { createEmojiStripper } from "./strip-emoji";
 
-const EMPTY_POOL: FillerPool = {
-  first: [],
-  repeat: [],
-  long_wait: [],
-  tool: {},
-  timeout: [],
-  unreachable: [],
-};
+/** A pool with all six tiers present and empty. */
+export function emptyFillerPool(): FillerPool {
+  return {
+    first: [],
+    repeat: [],
+    long_wait: [],
+    tool: {},
+    timeout: [],
+    unreachable: [],
+  };
+}
 
 const LIST_TIERS = ["first", "repeat", "long_wait", "timeout", "unreachable"] as const;
 
 export function effectiveFillerPool(settings: FillerSettings, config: FillerConfig): FillerPool {
-  if (!settings.enabled) return { ...EMPTY_POOL };
+  if (!settings.enabled) return emptyFillerPool();
   const lang = settings.language;
   const custom = settings.customPools[lang];
   const configPool = config.pools[lang];
-  const out = { ...EMPTY_POOL };
+  const out = emptyFillerPool();
   for (const tier of LIST_TIERS) {
     const customTier = custom?.[tier];
     out[tier] = customTier && customTier.length > 0 ? customTier : (configPool?.[tier] ?? []);
