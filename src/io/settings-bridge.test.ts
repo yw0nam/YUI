@@ -76,7 +76,7 @@ describe("createSettingsBridge", () => {
     expect(cb).toHaveBeenCalledWith("devtools");
   });
 
-  it("delivers a legacy envelope as an unknown window kind", () => {
+  it("ignores a message that carries no envelope", () => {
     const t = createFakeTransport();
     const b = createSettingsBridge(t, { windowKind: "settings" });
     const changed = vi.fn();
@@ -84,12 +84,11 @@ describe("createSettingsBridge", () => {
     b.onSettingsChanged(changed);
     b.onMouthPreview(mouth);
 
-    // Pre-envelope emits carry the bare payload with no __src/__kind fields.
     t.emit("yui://settings-changed", undefined);
     t.emit("yui://mouth-preview", 0.25);
 
-    expect(changed).toHaveBeenCalledWith("unknown");
-    expect(mouth).toHaveBeenCalledWith(0.25);
+    expect(changed).not.toHaveBeenCalled();
+    expect(mouth).not.toHaveBeenCalled();
   });
 
   it("delivers voice-set true/false from A to B", () => {
