@@ -15,10 +15,10 @@ import {
 } from "./selection-store";
 
 /** override is the stored id string, or null (no override). */
-export type VrmSelectionStorage = SelectionOverrideStorage;
+type VrmSelectionStorage = SelectionOverrideStorage;
 
 /** Persistence adapter for the list of imported source:"user" options. */
-export type UserVrmStorage = UserOptionStorage<AvatarOption>;
+type UserVrmStorage = UserOptionStorage<AvatarOption>;
 
 /** Coerce a single imported option into a safe source:"user" AvatarOption (null if incomplete). */
 function coerceUserOption(v: unknown): AvatarOption | null {

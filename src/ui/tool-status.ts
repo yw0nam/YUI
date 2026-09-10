@@ -19,7 +19,7 @@ export interface ToolStatus {
   dispose(): void;
 }
 
-export interface ToolStatusElements {
+interface ToolStatusElements {
   toolEl: HTMLElement;
   toolLabel: HTMLElement;
 }

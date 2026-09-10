@@ -23,7 +23,7 @@ interface VrmListDeps {
   refreshTooltip: () => void;
 }
 
-export interface VrmList {
+interface VrmList {
   render(): void;
   handleKeydown(e: KeyboardEvent): void;
   handleAddClick(): void;

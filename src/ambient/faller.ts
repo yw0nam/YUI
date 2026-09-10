@@ -41,12 +41,12 @@ export const FALL_MOTION_ID = "falling";
 export const LAND_MOTION_ID = "landing";
 
 /** Where a fall stops: a foreign window's top edge, or the work-area floor. */
-export type LandingSurface =
+type LandingSurface =
   | { kind: "floor"; y: number }
   | { kind: "window"; y: number; target: WindowRect };
 
 /** What the touchdown reports: how far she fell and what she came down on. */
-export interface FallLanding {
+interface FallLanding {
   heightPx: number;
   surface: LandingSurface;
   /** False for a snap: the seat still changes hands, but nothing fell worth announcing. */
@@ -88,7 +88,7 @@ export function pickLandingSurface(args: {
 }
 
 /** What a drop resolves to: nothing to do, a silent snap, or a fall. */
-export type FallPlan =
+type FallPlan =
   | { kind: "none" }
   | { kind: "snap"; toY: number; heightPx: number }
   | { kind: "fall"; toY: number; heightPx: number };
@@ -119,7 +119,7 @@ export function planFall(args: {
 }
 
 /** A descent in flight: where it is, how fast, and where it stops. */
-export interface FallState {
+interface FallState {
   y: number;
   v: number;
   toY: number;
@@ -182,7 +182,7 @@ export interface DropOptions {
  * The monitor a fall happens on: the one under the feet, or with `landOnSeam` the monitor
  * whose floor line the feet hang just below, when there is one over them.
  */
-export function pickFallMonitor(args: {
+function pickFallMonitor(args: {
   monitors: ScreenMonitor[];
   /** Physical px. */
   feetPhysicalX: number;

@@ -47,7 +47,7 @@ export interface ClipLeg {
   handoffS: number;
 }
 
-export interface LegRunnerDeps {
+interface LegRunnerDeps {
   renderer: Pick<
     Renderer,
     | "playMotion"
@@ -61,7 +61,7 @@ export interface LegRunnerDeps {
   currentMotionKind(): MotionKind | null;
 }
 
-export interface LegRunner {
+interface LegRunner {
   /** Run one leg to completion. Resolves "lost" when the leg is finished from outside. */
   run(spec: ClipLeg): Promise<"done" | "lost">;
   /** One frame of travel. A clip that is not ours holds the window where it is. */

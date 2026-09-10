@@ -9,7 +9,7 @@ import { afterFadeOut } from "./fade-out";
 import { subscribe as subscribeLocale, t } from "./i18n";
 import { renderMarkdownInline } from "./markdown";
 
-export interface SpeechBubble {
+interface SpeechBubble {
   /** Reveal the bubble (empty) + caret ON. Called before streaming starts. */
   beginSpeech(): void;
   /** Append a streaming delta. */
@@ -30,7 +30,7 @@ export interface SpeechBubble {
   dispose(): void;
 }
 
-export interface SpeechBubbleElements {
+interface SpeechBubbleElements {
   /** overlay root (.yui-ui) — read for the --yui-dwell CSS token. */
   root: HTMLElement;
   bubbleEl: HTMLElement;

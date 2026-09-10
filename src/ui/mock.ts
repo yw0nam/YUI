@@ -17,7 +17,7 @@ function tokenize(text: string): string[] {
 
 const sleep = (ms: number): Promise<void> => new Promise((resolve) => setTimeout(resolve, ms));
 
-export interface MockDriver {
+interface MockDriver {
   /** Reply to input submission in one turn: (tool) → speech stream → settle → fade. */
   reply(userText: string): Promise<void>;
   /** Proactive speech (no input) — demonstrates backend-initiated speech path. */

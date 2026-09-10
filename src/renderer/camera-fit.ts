@@ -22,7 +22,7 @@ interface CameraFitOptions {
   margin: number;
 }
 
-export interface CameraFit {
+interface CameraFit {
   position: THREE.Vector3;
   target: THREE.Vector3;
   distance: number;

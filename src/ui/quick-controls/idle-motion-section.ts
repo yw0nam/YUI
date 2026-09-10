@@ -22,7 +22,7 @@ interface IdleMotionListDeps {
   log: Logger;
 }
 
-export interface IdleMotionList {
+interface IdleMotionList {
   render(): void;
 }
 

@@ -22,7 +22,7 @@ export interface RateLimitOverrides {
   overall_max: number;
 }
 
-export const RATE_LIMIT_KEYS = [
+const RATE_LIMIT_KEYS = [
   "tier2_max",
   "tier3_max",
   "overall_max",

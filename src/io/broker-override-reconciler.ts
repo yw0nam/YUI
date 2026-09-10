@@ -30,7 +30,7 @@ interface BrokerOverrideReconcilerOptions {
   logger?: Logger;
 }
 
-export interface BrokerOverrideReconciler {
+interface BrokerOverrideReconciler {
   /** Reflects a broker_base_url override change to the broker (URL retarget). */
   onChange: () => Promise<void>;
 }

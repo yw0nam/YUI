@@ -13,7 +13,7 @@ import type { RemoteSurfaces } from "../io/message-remote";
 import type { MessageWindowMode } from "../io/message-window-settings";
 import type { Surfaces } from "./surfaces";
 
-export interface SurfacesRouterOptions {
+interface SurfacesRouterOptions {
   local: Surfaces;
   remote: RemoteSurfaces;
   getMode(): MessageWindowMode;

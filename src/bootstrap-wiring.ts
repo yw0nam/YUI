@@ -458,7 +458,7 @@ export function wireSettingsReload(deps: {
  * `isTauri()` too). `ready` resolves once the real window is wired; callers await it
  * before starting, so `getWindow`/`travel.begin` are never called too early.
  */
-export interface TravelFrameHandle {
+interface TravelFrameHandle {
   getWindow(): PetWindow;
   travel: {
     begin(end: { x: number; y: number }, via?: Array<{ x: number; y: number }>): Promise<Travel>;
@@ -1204,7 +1204,7 @@ export function wireWindowSources(deps: {
 }
 
 /** The busy predicate a buffered-inbox source takes: the pipeline's own, plus the global gap. */
-export interface PacedPipelineBusy {
+interface PacedPipelineBusy {
   isBusy: () => boolean;
   subscribe: (cb: (busy: boolean) => void) => () => void;
 }

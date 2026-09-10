@@ -22,7 +22,7 @@ interface MonitorsSectionDeps {
   log: Logger;
 }
 
-export interface MonitorsSection {
+interface MonitorsSection {
   load(): Promise<void>;
   isLoaded(): boolean;
 }

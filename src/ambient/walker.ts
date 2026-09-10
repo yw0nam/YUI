@@ -46,9 +46,9 @@ const log = createLogger("walker");
 /** Registry id of the in-place walk clip. */
 export const WALK_MOTION_ID = "walk";
 /** Registry id of the turn-in-flight loop — a body a stroll may take. */
-export const THINKING_MOTION_ID = "thinking";
+const THINKING_MOTION_ID = "thinking";
 /** Mixamo "Walking" advances this far per cycle at playback rate 1.0. */
-export const WALK_METRES_PER_CYCLE = 1.34;
+const WALK_METRES_PER_CYCLE = 1.34;
 /** Root yaw (rad) toward the travel direction — a quarter turn off camera-facing. */
 export const WALK_YAW_RAD = Math.PI / 2;
 /** Yaw ease (ms), run concurrently with the motion crossfade at both ends of a stroll. */
@@ -72,7 +72,7 @@ export function onFloor(feetPx: number, floorPx: number, tolerancePx: number): b
 }
 
 /** Everything that can keep a stroll from starting, sampled at fire time. */
-export interface WalkGateState {
+interface WalkGateState {
   /** The feet, not the window bottom — the framing margin leaves headroom under the model. */
   onFloor: boolean;
   perched: boolean;
@@ -88,7 +88,7 @@ export function canStartStroll(s: WalkGateState): boolean {
   return s.onFloor && !s.perched && !s.peeking && !s.dragging && s.bodyFree && !s.reducedMotion;
 }
 
-export interface StrollPlan {
+interface StrollPlan {
   /** Window left edge at the destination, clamped into the work area. */
   toX: number;
   /** -1 travels left, 1 travels right. */

@@ -15,7 +15,7 @@ export interface ChatHistoryEntry {
 }
 
 /** Divider between conversation sessions. Replay stops here; the viewer reads past it. */
-export interface ChatHistoryBoundary {
+interface ChatHistoryBoundary {
   kind: "boundary";
   ts: number;
 }
@@ -34,7 +34,7 @@ export type ChatHistoryStorage = PersistedStorage<ChatHistoryItem[]>;
 // ponytail: fixed cap, tune if localStorage pressure appears. Boundaries count as items.
 const MAX_ITEMS = 200;
 
-export function isBoundary(item: ChatHistoryItem): item is ChatHistoryBoundary {
+function isBoundary(item: ChatHistoryItem): item is ChatHistoryBoundary {
   return "kind" in item;
 }
 

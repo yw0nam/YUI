@@ -13,7 +13,7 @@
 import type { BrokerPayload } from "./broker-client";
 
 /** OpenAI function-tool schema. Structural — narrowed to the SDK's type at the request site. */
-export interface ClientToolDefinition {
+interface ClientToolDefinition {
   type: "function";
   function: {
     name: string;

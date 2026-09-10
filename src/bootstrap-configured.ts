@@ -82,7 +82,7 @@ export const INTERACTIVE_OVERLAY_SELECTORS = [
   '.yui-voice.is-visible[data-fix="settings"]',
 ] as const;
 
-export interface Phase1Handles {
+interface Phase1Handles {
   config: ConfigStore;
   renderer: Renderer;
   ambient: Tier1Engine;
@@ -103,7 +103,7 @@ export interface Phase1Handles {
   isDisposed(): boolean;
 }
 
-export interface ConfiguredBootstrapHandles {
+interface ConfiguredBootstrapHandles {
   voice: VoicePipeline;
   dispatcher: Dispatcher;
   guardrails: Guardrails;

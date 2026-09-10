@@ -13,7 +13,7 @@ import type { VoiceInputStatus } from "./voice-input-status";
 export const VOICE_TURN_ERROR_DISPLAY_MS = 3_000;
 export const VOICE_TURN_FIX_HOLD_MS = 60_000;
 
-export interface VoiceErrorDwell {
+interface VoiceErrorDwell {
   show(reason: string): void;
   dispose(): void;
 }

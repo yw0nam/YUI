@@ -15,7 +15,7 @@ export interface InputErrorAction {
   onClick(): void;
 }
 
-export interface TextInput {
+interface TextInput {
   /** Hotkey summon — slide up + focus. */
   summonInput(): void;
   /** Close the input. */
@@ -46,7 +46,7 @@ export interface TextInput {
   dispose(): void;
 }
 
-export interface TextInputElements {
+interface TextInputElements {
   formEl: HTMLFormElement;
   field: HTMLInputElement;
   errorEl: HTMLElement;
@@ -57,7 +57,7 @@ export interface TextInputElements {
 }
 
 /** The speech bubble's positioning hooks — the input lifts the bubble above itself while open. */
-export interface TextInputBubbleAnchor {
+interface TextInputBubbleAnchor {
   liftAboveInput(totalOffsetPx: number): void;
   resetPosition(): void;
 }

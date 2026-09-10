@@ -55,7 +55,7 @@ interface PersistedStoreConfig<T> {
   migrate?: (loaded: unknown) => T | null;
 }
 
-export interface PersistedStore<T> {
+interface PersistedStore<T> {
   /** Current value as an isolated copy. */
   get(): T;
   /** Current raw state — for setters to compute the next value. Do not mutate. */

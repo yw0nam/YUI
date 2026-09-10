@@ -142,7 +142,7 @@ export interface PlacementOptions {
   shouldAbort?: () => boolean;
 }
 
-export interface WindowDropSource {
+interface WindowDropSource {
   /** Register the release listener. Idempotent. */
   start(): Promise<void>;
   /** Unregister the release listener + stop the poll. */
@@ -205,7 +205,7 @@ function cueFields(
 }
 
 /** Point-in-rect: is the seat actually over this window's surface (points). */
-export function containsSeat(win: ScreenRect, seat: ScreenPoint): boolean {
+function containsSeat(win: ScreenRect, seat: ScreenPoint): boolean {
   return (
     seat.x >= win.x &&
     seat.x <= win.x + win.width &&

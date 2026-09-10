@@ -52,7 +52,7 @@ export function breathOffset(elapsedS: number): number {
 }
 
 /** Normalized idle_sway components (roughly -1..1). Irrational-ratio multi-frequency mix for non-repeating naturalness. */
-export interface SwayOffsets {
+interface SwayOffsets {
   headYaw: number;
   headPitch: number;
   headRoll: number;
@@ -86,7 +86,7 @@ export function damp(current: number, target: number, lambda: number, dt: number
 }
 
 /** look_around target — small yaw/pitch (radians). Kept modest around front-facing. */
-export interface LookTarget {
+interface LookTarget {
   yaw: number;
   pitch: number;
 }

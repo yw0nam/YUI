@@ -14,7 +14,7 @@ export interface MessagePlate {
   dispose(): void;
 }
 
-export interface MessagePlateOptions {
+interface MessagePlateOptions {
   mount: HTMLElement;
   onDock(): void;
   startDragging(): void;

@@ -16,7 +16,7 @@ export const EXPRESS_MOTION_GROUPS: ReadonlyArray<{ id: string; ids: readonly st
 
 const OTHER_GROUP = "other";
 
-export interface ExpressMotionGroup {
+interface ExpressMotionGroup {
   id: string;
   ids: string[];
 }
@@ -41,7 +41,7 @@ interface ExpressMotionListDeps {
   log: Logger;
 }
 
-export interface ExpressMotionList {
+interface ExpressMotionList {
   render(): void;
   dispose(): void;
 }

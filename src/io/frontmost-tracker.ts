@@ -9,7 +9,7 @@
 import type { FrontmostState } from "../contract";
 import type { OsEventPayload } from "./tauri-listen";
 
-export interface FrontmostTracker {
+interface FrontmostTracker {
   onTick: (payload: OsEventPayload) => void;
   get: () => FrontmostState | undefined;
 }

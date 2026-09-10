@@ -6,7 +6,7 @@
  */
 
 /** Viewport-relative rect corner needed for the conversion (DOMRect-compatible). */
-export interface RectOrigin {
+interface RectOrigin {
   readonly left: number;
   readonly top: number;
 }
