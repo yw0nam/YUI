@@ -13,7 +13,7 @@ export interface Vec2 {
 }
 
 /** Unsubscribe handle returned by a Tauri event listener. */
-export type Unlisten = () => void;
+type Unlisten = () => void;
 
 /** Ticks between outerPosition/scaleFactor/primaryScaleFactor re-reads. */
 export const STATIC_REFRESH_TICKS = 8;
@@ -31,7 +31,7 @@ export interface WindowStaticsSource {
   onScaleChanged?(cb: () => void): Promise<Unlisten>;
 }
 
-export interface WindowStatics {
+interface WindowStatics {
   /** Cached window origin in physical px. null while stale — a sample taken now is untrustworthy. */
   readonly origin: Vec2 | null;
   /** Cached scale factor of the monitor the window sits on. */

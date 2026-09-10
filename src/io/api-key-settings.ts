@@ -9,7 +9,7 @@ import { createPersistedStore, localStorageStore, type PersistedStorage } from "
 /** Generous upper bound on key length — well above any real key. */
 export const API_KEY_MAX_LEN = 4096;
 
-export interface ApiKeySettings {
+interface ApiKeySettings {
   apiKey: string;
 }
 

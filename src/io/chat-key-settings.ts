@@ -4,14 +4,12 @@
  */
 
 import {
-  type ApiKeySettings,
   type ApiKeyStorage,
   createApiKeySettings,
   localStorageApiKeyStorage,
 } from "./api-key-settings";
 
-export type ChatKeySettings = ApiKeySettings;
-export type ChatKeyStorage = ApiKeyStorage;
+type ChatKeyStorage = ApiKeyStorage;
 
 export function createChatKeySettings(opts?: { storage?: ChatKeyStorage }) {
   return createApiKeySettings(opts);

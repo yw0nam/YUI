@@ -50,9 +50,9 @@ export const CAMERA_POLAR_FREE_MIN = 2 * DEG;
 /** Free-viewing polar ceiling (radians). Near-underneath — 2° epsilon off the -Y pole. */
 export const CAMERA_POLAR_FREE_MAX = 178 * DEG;
 /** Perched polar floor (radians) — tightened so the seat-pin gain error stays small. */
-export const CAMERA_POLAR_PERCHED_MIN = 60 * DEG;
+const CAMERA_POLAR_PERCHED_MIN = 60 * DEG;
 /** Perched polar ceiling (radians). */
-export const CAMERA_POLAR_PERCHED_MAX = 120 * DEG;
+const CAMERA_POLAR_PERCHED_MAX = 120 * DEG;
 
 /**
  * Clamp a polar angle to the active range. azimuth is never clamped.

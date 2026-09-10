@@ -109,7 +109,7 @@ export interface WindowDropSourceDeps {
 }
 
 /** One perch candidate: a foreign window the character can sit on or peek around. */
-export interface PerchTargetWindow {
+interface PerchTargetWindow {
   app: string | null;
   title: string | null;
   rect: ScreenRect;

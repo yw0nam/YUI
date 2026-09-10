@@ -91,7 +91,7 @@ interface DispatcherDeps {
 type DispatcherState = "booting" | "running" | "cooldown" | "degraded" | "stopped";
 
 /** recent_drops entry. */
-export interface DropRecord {
+interface DropRecord {
   seq_id?: number;
   event_name: string;
   reason: TurnFailure | "guardrail_drop" | "stale_pending" | "degraded_drop" | "global_gap";
