@@ -24,9 +24,6 @@
   --yui-edge: oklch(0.97 0.01 80 / 0.1); /* Hairline holding surface edge on dark bg */
   --yui-edge-strong: oklch(0.97 0.01 80 / 0.16); /* Hover-emphasis hairline */
 
-  /* ── Light-context ink (unused by floating surfaces) ── */
-  --yui-ink: oklch(0.22 0.01 70);
-
   /* ── Danger: restrained warm-red. For undo/failure guidance only (hue 35 to avoid amber conflict). ── */
   --yui-danger: oklch(0.77 0.11 35);
   --yui-danger-soft: oklch(0.77 0.11 35 / 0.45);
