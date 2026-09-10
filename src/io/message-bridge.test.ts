@@ -8,7 +8,7 @@
  */
 
 import { describe, expect, it, vi } from "vitest";
-import { ATTACHMENT_LIMITS_DEFAULTS } from "../config";
+import { ATTACHMENT_LIMITS_DEFAULTS } from "../config/load";
 import {
   createMessageBridge,
   type MessageControlOp,

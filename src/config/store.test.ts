@@ -7,7 +7,8 @@
  */
 
 import { describe, expect, it, vi } from "vitest";
-import { type ConfigReader, createConfigStore, plainSecretProvider } from "./index";
+import { type ConfigReader, plainSecretProvider } from "./load";
+import { createConfigStore } from "./store";
 
 // ── mutable fake reader ──────────────────────────────────────────────────────
 

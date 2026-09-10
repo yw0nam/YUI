@@ -493,8 +493,6 @@ describe("createHitTestController — suspend/resume", () => {
   });
 });
 
-// ─── createTauriHitTestWindow — IPC contract ──────────────────────────────────
-
 // ─── createHitTestController — poll failure hardening ────────────────────────
 // On Windows, cursorPosition() intermittently throws. After N consecutive
 // failures while in PASSTHROUGH the controller must degrade to CAPTURE (safe
@@ -1004,6 +1002,8 @@ describe("createHitTestController — hidden-window poll gating", () => {
     expect(doc.removeEventListener).toHaveBeenCalledWith("visibilitychange", expect.any(Function));
   });
 });
+
+// ─── createTauriHitTestWindow — IPC contract ──────────────────────────────────
 
 describe("createTauriHitTestWindow — routes setIgnoreCursorEvents through set_click_through", () => {
   beforeEach(() => {

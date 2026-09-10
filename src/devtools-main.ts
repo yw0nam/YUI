@@ -2,7 +2,7 @@ import "./styles.css";
 import "./ui/quick-controls.css";
 import "./ui/devtools/devtools.css";
 import { wireDevtoolsSync } from "./bootstrap-wiring";
-import { createConfigStore } from "./config";
+import { createConfigStore } from "./config/store";
 import { createSettingsStores } from "./io/settings-stores";
 import { createLogger, initLogger } from "./logger";
 import { createDevtoolsShell } from "./ui/devtools/shell";
@@ -95,7 +95,6 @@ async function bootstrap(): Promise<void> {
   const unsubscribeLocale = subscribeLocale(() => {
     localeRebuild = localeRebuild
       .then(async () => {
-        // The rebuild replaces every node, so a focused element survives only by id/section.
         const focus = captureFocus(mount);
         const section = shell.active;
         shell.dispose();

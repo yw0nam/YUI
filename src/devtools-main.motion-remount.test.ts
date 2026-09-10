@@ -40,7 +40,7 @@ const { mountMotionPreview, motionPreviewState } = vi.hoisted(() => {
 });
 
 vi.mock("./bootstrap-wiring", () => ({ wireDevtoolsSync }));
-vi.mock("./config", () => ({ createConfigStore }));
+vi.mock("./config/store", () => ({ createConfigStore }));
 vi.mock("./logger", () => ({ initLogger, createLogger }));
 vi.mock("./ui/devtools/motion-preview", () => ({ mountMotionPreview }));
 vi.mock("./io/settings-stores", async (importOriginal) => {

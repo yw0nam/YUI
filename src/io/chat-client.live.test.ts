@@ -10,7 +10,7 @@
  * express is unregistered, so only speech_delta/done/completed arrive (expected).
  */
 import { describe, expect, it } from "vitest";
-import { CHAT_API_KEY_SECRET, plainSecretProvider } from "../config";
+import { CHAT_API_KEY_SECRET, plainSecretProvider } from "../config/load";
 import type { EndpointsConfig } from "../contract";
 import { type ChatStreamEvent, streamChat } from "./chat-client";
 

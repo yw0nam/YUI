@@ -21,12 +21,12 @@ import {
 import {
   type AppConfig,
   CHAT_API_KEY_SECRET,
-  type ConfigStore,
   type DescendConfig,
   type FallConfig,
   STT_API_KEY_SECRET,
   TTS_API_KEY_SECRET,
-} from "./config";
+} from "./config/load";
+import type { ConfigStore } from "./config/store";
 import type { EndpointsConfig, WindowRect } from "./contract";
 import { createBackendCaller, isChatConfigured } from "./dispatcher/backend-caller";
 import { createDispatcher, type Dispatcher } from "./dispatcher/dispatcher";

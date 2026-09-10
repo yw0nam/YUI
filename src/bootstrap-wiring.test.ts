@@ -62,7 +62,7 @@ vi.mock("./io/broker-override-reconciler", () => ({
   createBrokerOverrideReconciler: createReconciler,
 }));
 vi.mock("./io/chat-client", () => ({ selectFetch }));
-vi.mock("./config", () => ({ loadEmotionTextTable: vi.fn().mockResolvedValue(null) }));
+vi.mock("./config/emotion-text", () => ({ loadEmotionTextTable: vi.fn().mockResolvedValue(null) }));
 
 // Voices-API fakes — wireSpeakerSelection's refreshVoiceList exercises listVoices;
 // commitVoiceImport and refreshSpeaker (tests below) exercise upsertVoice directly.
@@ -149,7 +149,7 @@ import {
   wireWindowSources,
   wireWindowSync,
 } from "./bootstrap-wiring";
-import { loadEmotionTextTable } from "./config";
+import { loadEmotionTextTable } from "./config/emotion-text";
 import type { GuardrailsConfig } from "./config/load";
 import type { EndpointsConfig } from "./contract";
 import { createGuardrails } from "./dispatcher/guardrails";

@@ -12,7 +12,7 @@ import { afterEach, beforeEach, describe, expect, it, type Mock, vi } from "vite
 vi.mock("./surfaces.css", () => ({}));
 vi.mock("./tokens.css", () => ({}));
 
-import { ATTACHMENT_LIMITS_DEFAULTS } from "../config";
+import { ATTACHMENT_LIMITS_DEFAULTS } from "../config/load";
 import { setLocale, t } from "./i18n";
 import { createSurfaces } from "./surfaces";
 

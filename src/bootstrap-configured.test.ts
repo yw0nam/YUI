@@ -7,7 +7,7 @@ import {
   descendConfigFor,
   fallConfigFor,
 } from "./bootstrap-configured";
-import { type AppConfig, ATTACHMENT_LIMITS_DEFAULTS, FALL_DEFAULTS } from "./config";
+import { type AppConfig, ATTACHMENT_LIMITS_DEFAULTS, FALL_DEFAULTS } from "./config/load";
 
 function validConfig(): AppConfig {
   return {
