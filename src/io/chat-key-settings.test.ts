@@ -2,8 +2,7 @@
  * chat-key-settings.test.ts — chat API key override reactive store.
  *
  * Pins the contract for src/io/chat-key-settings.ts:
- *   CHAT_KEY_MAX_LEN cap
- *   createChatKeySettings({ storage?, initial? }) store (get / setApiKey / clear /
+ *   createChatKeySettings({ storage? }) store (get / setApiKey / clear /
  *     subscribe / reloadFromStorage / dispose)
  *   localStorageChatKeyStorage(key?) localStorage adapter
  *
@@ -11,30 +10,16 @@
  */
 
 import { describe, expect, it, vi } from "vitest";
+import { API_KEY_MAX_LEN } from "./api-key-settings";
 import type { ChatKeySettings, ChatKeyStorage } from "./chat-key-settings";
-import {
-  CHAT_KEY_MAX_LEN,
-  createChatKeySettings,
-  localStorageChatKeyStorage,
-} from "./chat-key-settings";
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Constants
-// ─────────────────────────────────────────────────────────────────────────────
-
-describe("chat-key-settings constants", () => {
-  it("CHAT_KEY_MAX_LEN is a positive integer", () => {
-    expect(Number.isInteger(CHAT_KEY_MAX_LEN)).toBe(true);
-    expect(CHAT_KEY_MAX_LEN).toBeGreaterThan(0);
-  });
-});
+import { createChatKeySettings, localStorageChatKeyStorage } from "./chat-key-settings";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // createChatKeySettings — defaults
 // ─────────────────────────────────────────────────────────────────────────────
 
 describe("createChatKeySettings — defaults", () => {
-  it("returns empty apiKey (no override) when no storage or initial given", () => {
+  it("returns empty apiKey (no override) when no storage given", () => {
     const store = createChatKeySettings();
     expect(store.get().apiKey).toBe("");
   });
@@ -73,10 +58,10 @@ describe("createChatKeySettings — setApiKey", () => {
     expect(store.get().apiKey).toBe("");
   });
 
-  it("caps absurdly long values to CHAT_KEY_MAX_LEN", () => {
+  it("caps absurdly long values to API_KEY_MAX_LEN", () => {
     const store = createChatKeySettings();
-    store.setApiKey("x".repeat(CHAT_KEY_MAX_LEN + 5000));
-    expect(store.get().apiKey.length).toBe(CHAT_KEY_MAX_LEN);
+    store.setApiKey("x".repeat(API_KEY_MAX_LEN + 5000));
+    expect(store.get().apiKey.length).toBe(API_KEY_MAX_LEN);
   });
 
   it("ignores non-string input — apiKey stays empty and no notification", () => {
@@ -204,11 +189,11 @@ describe("createChatKeySettings — persistence", () => {
 
   it("stored value out of range is capped on load", () => {
     const storage: ChatKeyStorage = {
-      load: () => ({ apiKey: "x".repeat(CHAT_KEY_MAX_LEN + 5000) }),
+      load: () => ({ apiKey: "x".repeat(API_KEY_MAX_LEN + 5000) }),
       save: vi.fn(),
     };
     const store = createChatKeySettings({ storage });
-    expect(store.get().apiKey.length).toBe(CHAT_KEY_MAX_LEN);
+    expect(store.get().apiKey.length).toBe(API_KEY_MAX_LEN);
   });
 });
 

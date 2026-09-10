@@ -5,9 +5,9 @@
  * clamp/coerce, and thin typed setters; the bootstrap/notify/reload/subscribe/
  * dispose machinery and the localStorage adapter live here.
  *
- * Bootstrap priority: stored > initial > defaults. A storage failure falls back
- * to the next priority. `parse` validates+sanitizes a raw loaded value (or
- * returns null to reject it); `migrate` is consulted at bootstrap only.
+ * Bootstrap priority: stored > defaults. A storage failure falls back to the
+ * defaults. `parse` validates+sanitizes a raw loaded value (or returns null to
+ * reject it); `migrate` is consulted at bootstrap only.
  */
 
 export interface PersistedStorage<T> {
@@ -44,7 +44,6 @@ export function isPlainObject(v: unknown): boolean {
 
 interface PersistedStoreConfig<T> {
   storage?: PersistedStorage<T>;
-  initial?: T;
   defaults: T;
   /** Validate+sanitize a raw loaded value; return null to reject it. */
   parse: (loaded: unknown) => T | null;
@@ -52,8 +51,6 @@ interface PersistedStoreConfig<T> {
   equals: (a: T, b: T) => boolean;
   /** Deep/shallow copy used for get()/notify()/save(). Default: shallow spread. */
   clone?: (v: T) => T;
-  /** Transform a caller-supplied initial value. Default: clone. */
-  fromInitial?: (v: T) => T;
   /** Bootstrap-only fallback when parse() rejects the stored value. */
   migrate?: (loaded: unknown) => T | null;
 }
@@ -74,7 +71,6 @@ export interface PersistedStore<T> {
 export function createPersistedStore<T>(cfg: PersistedStoreConfig<T>): PersistedStore<T> {
   const { storage, defaults, parse, equals, migrate } = cfg;
   const clone = cfg.clone ?? ((v: T) => ({ ...v }));
-  const fromInitial = cfg.fromInitial ?? clone;
 
   let stored: T | null = null;
   if (storage) {
@@ -82,16 +78,12 @@ export function createPersistedStore<T>(cfg: PersistedStoreConfig<T>): Persisted
       const loaded = storage.load();
       stored = parse(loaded) ?? (migrate ? migrate(loaded) : null);
     } catch {
-      // On storage error, fall back to the next priority
+      // On storage error, fall back to the defaults
     }
   }
 
-  // Priority: stored value > initial > defaults
-  let state: T = stored
-    ? clone(stored)
-    : cfg.initial !== undefined
-      ? fromInitial(cfg.initial)
-      : clone(defaults);
+  // Priority: stored value > defaults
+  let state: T = stored ? clone(stored) : clone(defaults);
 
   const subscribers = new Set<(s: T) => void>();
 
@@ -150,14 +142,10 @@ export function createPersistedStore<T>(cfg: PersistedStoreConfig<T>): Persisted
 /** Boolean on/off settings store: value shape { enabled: boolean }. */
 export function createFlagSettings(
   defaultEnabled: boolean,
-  opts?: {
-    storage?: PersistedStorage<{ enabled: boolean }>;
-    initial?: { enabled: boolean };
-  },
+  opts?: { storage?: PersistedStorage<{ enabled: boolean }> },
 ) {
   const core = createPersistedStore({
     storage: opts?.storage,
-    initial: opts?.initial,
     defaults: { enabled: defaultEnabled },
     parse: (v) =>
       v !== null &&
@@ -182,13 +170,12 @@ export type FlagSettingsStore = ReturnType<typeof createFlagSettings>;
 /** Clamped-integer settings store: value shape { value: number }. */
 export function createClampedIntSettings(
   cfg: { default: number; floor: number; ceil: number },
-  opts?: { storage?: PersistedStorage<{ value: number }>; initial?: { value: number } },
+  opts?: { storage?: PersistedStorage<{ value: number }> },
 ) {
   const valid = (v: unknown): v is number =>
     typeof v === "number" && Number.isInteger(v) && v >= cfg.floor && v <= cfg.ceil;
   const core = createPersistedStore({
     storage: opts?.storage,
-    initial: opts?.initial,
     defaults: { value: cfg.default },
     parse: (v) => {
       const value = v !== null && typeof v === "object" ? (v as { value?: unknown }).value : null;
@@ -198,8 +185,6 @@ export function createClampedIntSettings(
   });
 
   return {
-    /** The upper bound this store clamps to — lets a UI bind its input `max` to the enforced value. */
-    ceil: cfg.ceil,
     get: core.get,
     set(value: number): void {
       if (valid(value)) core.commit({ value });

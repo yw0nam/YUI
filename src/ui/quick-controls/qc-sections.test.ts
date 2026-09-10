@@ -144,7 +144,9 @@ describe("createQuickControls — collapsible sections", () => {
 
   it("a stored closed id renders without `open` on first paint (no flash)", () => {
     const qc = buildQc({
-      sectionsSettings: createSectionsSettings({ initial: { closed: ["vrm"] } }),
+      sectionsSettings: createSectionsSettings({
+        storage: { load: () => ({ closed: ["vrm"] }), save: () => {} },
+      }),
     });
     qc.open();
 
@@ -173,7 +175,9 @@ describe("createQuickControls — collapsible sections", () => {
   });
 
   it("reopening a section removes its id from the store", () => {
-    const sectionsSettings = createSectionsSettings({ initial: { closed: ["vrm"] } });
+    const sectionsSettings = createSectionsSettings({
+      storage: { load: () => ({ closed: ["vrm"] }), save: () => {} },
+    });
     const qc = buildQc({ sectionsSettings });
     qc.open();
 

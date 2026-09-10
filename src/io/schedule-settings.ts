@@ -146,14 +146,9 @@ function isValidSettings(v: unknown): v is ScheduleSettings {
   return s.entries.every(isValidCue);
 }
 
-export function createScheduleSettings(opts?: {
-  storage?: ScheduleStorage;
-  initial?: ScheduleSettings;
-  locale?: CueLocale;
-}) {
+export function createScheduleSettings(opts?: { storage?: ScheduleStorage; locale?: CueLocale }) {
   const core = createPersistedStore<ScheduleSettings>({
     storage: opts?.storage,
-    initial: opts?.initial,
     defaults: defaultSettings(opts?.locale ?? "ko"),
     parse: (v) => (isValidSettings(v) ? v : null),
     clone: structuredClone,

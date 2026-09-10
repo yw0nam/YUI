@@ -19,9 +19,14 @@ function makeSwitchRows(): SwitchRow[] {
     gazeSettings: createFlagSettings(true),
     climbSettings: createFlagSettings(true),
     fallSettings: createFlagSettings(true),
-    agentNotifySettings: createAgentNotifySettings({ initial: { enabled: true, port: 8770 } }),
+    agentNotifySettings: createAgentNotifySettings({
+      storage: { load: () => ({ enabled: true, port: 8770 }), save: () => {} },
+    }),
     fillerSettings: createFillerSettings({
-      initial: { enabled: false, language: "ja", customPools: {} },
+      storage: {
+        load: () => ({ enabled: false, language: "ja", customPools: {} }),
+        save: () => {},
+      },
     }),
     bubblePersistSettings: createFlagSettings(false),
     messageWindowSettings: createMessageWindowSettings(),

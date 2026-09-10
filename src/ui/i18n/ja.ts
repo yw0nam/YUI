@@ -16,8 +16,6 @@ const ja: Record<string, string> = {
   // voice state labels
   "voice.state.idle": "待機中",
   "voice.state.listening": "聞いています…",
-  "voice.state.processing": "処理中…",
-  "voice.state.speaking": "話しています…",
   "voice.state.asr": "文字起こし中…",
   "voice.state.fired": "送信しました",
   "voice.state.error": "エラー",

@@ -2,7 +2,7 @@
  * Filler phrase and behaviour settings — reactive store.
  * Persists to localStorage(key "yui.filler"), notifies subscribers on change.
  *
- * Priority: stored > initial > defaults (enabled:true, language:"ja", customPools:{})
+ * Priority: stored > defaults (enabled:true, language:"ja", customPools:{})
  */
 
 import type { FillerLang, FillerPool } from "../config/load";
@@ -132,10 +132,9 @@ function settingsEqual(a: FillerSettings, b: FillerSettings): boolean {
   );
 }
 
-export function createFillerSettings(opts?: { storage?: FillerStorage; initial?: FillerSettings }) {
+export function createFillerSettings(opts?: { storage?: FillerStorage }) {
   const core = createPersistedStore<FillerSettings>({
     storage: opts?.storage,
-    initial: opts?.initial,
     defaults: DEFAULTS,
     parse: (v) => (isValidSettings(v) ? copySettings(v) : null),
     clone: copySettings,

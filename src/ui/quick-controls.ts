@@ -65,9 +65,6 @@ import { createVrmList } from "./quick-controls/vrm-list";
 import { createWorkflowsSection } from "./quick-controls/workflows-section";
 import type { VoiceInputStatus } from "./voice-input-status";
 
-// formatTokenCount lives in reflect layer — re-exported for public API compatibility.
-export { formatTokenCount } from "./quick-controls/reflect";
-
 type ScreenshotSettingsStore = ReturnType<typeof createScreenshotSettings>;
 type AgentNotifySettingsStore = ReturnType<typeof createAgentNotifySettings>;
 type ProactiveSettingsStore = ReturnType<typeof createProactiveSettings>;

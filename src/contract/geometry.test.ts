@@ -1,13 +1,13 @@
 /**
- * geometry.test.ts — locks the shape of client-only window-sit perch types (ScreenRect/WindowRect/PerchTarget).
- * Compile-time checks (pnpm build) are the primary gate, but this test fixes the value-level assertions that
- * WindowRect extends ScreenRect and PerchTarget.edge is a literal union.
+ * geometry.test.ts — locks the shape of client-only window-sit perch types (ScreenRect/WindowRect).
+ * Compile-time checks (pnpm build) are the primary gate, but this test fixes the value-level assertion that
+ * WindowRect extends ScreenRect.
  *
  * Also marks that these types are outside the backend contract (excluded from generate_express/ControlEnvelope).
  */
 
 import { describe, expect, expectTypeOf, it } from "vitest";
-import type { PerchTarget, ScreenRect, WindowRect } from "./types";
+import type { ScreenRect, WindowRect } from "./types";
 
 describe("ScreenRect", () => {
   it("x/y/width/height를 points로 담는다", () => {
@@ -48,16 +48,5 @@ describe("WindowRect", () => {
       windowNumber: 1,
     };
     expect(win.name).toBeNull();
-  });
-});
-
-describe("PerchTarget", () => {
-  it('rect + edge("top") 리터럴 union을 담는다', () => {
-    const target: PerchTarget = {
-      rect: { x: 0, y: 0, width: 400, height: 300 },
-      edge: "top",
-    };
-    expect(target.edge).toBe("top");
-    expectTypeOf<PerchTarget["edge"]>().toEqualTypeOf<"top">();
   });
 });

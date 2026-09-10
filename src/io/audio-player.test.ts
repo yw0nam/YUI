@@ -22,12 +22,12 @@ import { createAmplitudeEnvelope, createWebAudioSink } from "./audio-player";
 
 describe("createAmplitudeEnvelope — normalize + clamp", () => {
   it("silence (rms 0) yields 0", () => {
-    const env = createAmplitudeEnvelope({ smoothing: 1 });
+    const env = createAmplitudeEnvelope();
     expect(env.push(0)).toBe(0);
   });
 
   it("output is always within [0,1] even for an over-driven rms", () => {
-    const env = createAmplitudeEnvelope({ smoothing: 1 });
+    const env = createAmplitudeEnvelope();
     for (const rms of [0, 0.01, 0.2, 0.5, 1, 2, 50]) {
       const v = env.push(rms);
       expect(v).toBeGreaterThanOrEqual(0);
@@ -37,42 +37,53 @@ describe("createAmplitudeEnvelope — normalize + clamp", () => {
   });
 
   it("loud audio maps near the top of the range", () => {
-    const env = createAmplitudeEnvelope({ smoothing: 1 });
-    expect(env.push(1)).toBeGreaterThan(0.8);
+    const env = createAmplitudeEnvelope();
+    let v = 0;
+    for (let i = 0; i < 40; i++) v = env.push(1);
+    expect(v).toBeGreaterThan(0.8);
   });
 
   it("is monotonic in the raw rms (louder in → not quieter out)", () => {
-    const env = createAmplitudeEnvelope({ smoothing: 1 });
-    const a = env.push(0.1);
-    const b = env.push(0.3);
-    const c = env.push(0.6);
-    expect(b).toBeGreaterThanOrEqual(a);
-    expect(c).toBeGreaterThanOrEqual(b);
+    const env = createAmplitudeEnvelope();
+    // Each level is held until the eased value settles on its mapped target, so the
+    // comparison is between mappings rather than between points on one rising ramp.
+    const settled = (rms: number): number => {
+      let v = 0;
+      for (let i = 0; i < 40; i++) v = env.push(rms);
+      return v;
+    };
+    const quiet = settled(0.1);
+    const mid = settled(0.3);
+    const loud = settled(0.6);
+    expect(mid).toBeGreaterThanOrEqual(quiet);
+    expect(loud).toBeGreaterThanOrEqual(mid);
   });
 
   it("default gain opens the mouth ~2x raw RMS (clamped)", () => {
-    const env = createAmplitudeEnvelope({ smoothing: 1 });
-    expect(env.push(0.25)).toBeCloseTo(0.5, 5); // 0.25 * 2.0
+    const env = createAmplitudeEnvelope();
+    let v = 0;
+    for (let i = 0; i < 40; i++) v = env.push(0.25);
+    expect(v).toBeCloseTo(0.5, 5); // 0.25 * 2.0
   });
 });
 
 describe("createAmplitudeEnvelope — smoothing", () => {
-  it("does not jump straight to the mapped value when smoothing < 1", () => {
-    const env = createAmplitudeEnvelope({ smoothing: 0.3 });
+  it("does not jump straight to the mapped value on the first push", () => {
+    const env = createAmplitudeEnvelope();
     const first = env.push(1); // from rest (0) toward a high target
     expect(first).toBeGreaterThan(0);
     expect(first).toBeLessThan(0.9); // eased, not snapped
   });
 
   it("converges toward the mapped value over repeated identical input", () => {
-    const env = createAmplitudeEnvelope({ smoothing: 0.3 });
+    const env = createAmplitudeEnvelope();
     let v = 0;
     for (let i = 0; i < 40; i++) v = env.push(1);
     expect(v).toBeGreaterThan(0.9);
   });
 
   it("reset() returns the smoothed value to 0", () => {
-    const env = createAmplitudeEnvelope({ smoothing: 0.3 });
+    const env = createAmplitudeEnvelope();
     for (let i = 0; i < 40; i++) env.push(1);
     env.reset();
     // after reset, a single quiet sample stays near 0 (no residual energy)

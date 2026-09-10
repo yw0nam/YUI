@@ -2,7 +2,7 @@
 // routes to console.* and initLogger() is a no-op.
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { createLogger, getLogLevel, initLogger, resolveLevel, setLogLevel } from "./logger";
+import { createLogger, initLogger, resolveLevel } from "./logger";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // §1  Console fallback in non-Tauri (node/test) env
@@ -10,17 +10,13 @@ import { createLogger, getLogLevel, initLogger, resolveLevel, setLogLevel } from
 
 describe("console fallback in non-Tauri env", () => {
   let errSpy: ReturnType<typeof vi.spyOn>;
-  let savedLevel: ReturnType<typeof getLogLevel>;
 
   beforeEach(() => {
-    savedLevel = getLogLevel();
-    setLogLevel("debug"); // ensure error always passes the filter
     errSpy = vi.spyOn(console, "error").mockImplementation(() => {});
   });
 
   afterEach(() => {
     errSpy.mockRestore();
-    setLogLevel(savedLevel);
   });
 
   it("routes .error to console.error with prefixed first arg + extra args passed through", () => {
@@ -36,17 +32,13 @@ describe("console fallback in non-Tauri env", () => {
 
 describe("namespace + prefix formatting", () => {
   let errSpy: ReturnType<typeof vi.spyOn>;
-  let savedLevel: ReturnType<typeof getLogLevel>;
 
   beforeEach(() => {
-    savedLevel = getLogLevel();
-    setLogLevel("debug");
     errSpy = vi.spyOn(console, "error").mockImplementation(() => {});
   });
 
   afterEach(() => {
     errSpy.mockRestore();
-    setLogLevel(savedLevel);
   });
 
   it("first console arg is exactly '[YUI][renderer] <msg>'", () => {
@@ -61,81 +53,7 @@ describe("namespace + prefix formatting", () => {
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// §3  Level filtering
-// ─────────────────────────────────────────────────────────────────────────────
-
-describe("level filtering", () => {
-  let debugSpy: ReturnType<typeof vi.spyOn>;
-  let infoSpy: ReturnType<typeof vi.spyOn>;
-  let warnSpy: ReturnType<typeof vi.spyOn>;
-  let errSpy: ReturnType<typeof vi.spyOn>;
-  let savedLevel: ReturnType<typeof getLogLevel>;
-
-  beforeEach(() => {
-    savedLevel = getLogLevel();
-    debugSpy = vi.spyOn(console, "debug").mockImplementation(() => {});
-    infoSpy = vi.spyOn(console, "info").mockImplementation(() => {});
-    warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
-    errSpy = vi.spyOn(console, "error").mockImplementation(() => {});
-  });
-
-  afterEach(() => {
-    debugSpy.mockRestore();
-    infoSpy.mockRestore();
-    warnSpy.mockRestore();
-    errSpy.mockRestore();
-    setLogLevel(savedLevel);
-  });
-
-  it("setLogLevel('warn'): debug/info suppressed, warn/error pass", () => {
-    setLogLevel("warn");
-    const log = createLogger("x");
-    log.debug("d");
-    log.info("i");
-    log.warn("w");
-    log.error("e");
-    expect(debugSpy).not.toHaveBeenCalled();
-    expect(infoSpy).not.toHaveBeenCalled();
-    expect(warnSpy).toHaveBeenCalledWith("[YUI][x] w");
-    expect(errSpy).toHaveBeenCalledWith("[YUI][x] e");
-  });
-
-  it("setLogLevel('debug'): all four levels pass through", () => {
-    setLogLevel("debug");
-    const log = createLogger("x");
-    log.debug("d");
-    log.info("i");
-    log.warn("w");
-    log.error("e");
-    expect(debugSpy).toHaveBeenCalledWith("[YUI][x] d");
-    expect(infoSpy).toHaveBeenCalledWith("[YUI][x] i");
-    expect(warnSpy).toHaveBeenCalledWith("[YUI][x] w");
-    expect(errSpy).toHaveBeenCalledWith("[YUI][x] e");
-  });
-
-  it("setLogLevel('error'): only error passes", () => {
-    setLogLevel("error");
-    const log = createLogger("x");
-    log.debug("d");
-    log.info("i");
-    log.warn("w");
-    log.error("e");
-    expect(debugSpy).not.toHaveBeenCalled();
-    expect(infoSpy).not.toHaveBeenCalled();
-    expect(warnSpy).not.toHaveBeenCalled();
-    expect(errSpy).toHaveBeenCalledWith("[YUI][x] e");
-  });
-
-  it("getLogLevel reflects the last setLogLevel", () => {
-    setLogLevel("info");
-    expect(getLogLevel()).toBe("info");
-    setLogLevel("error");
-    expect(getLogLevel()).toBe("error");
-  });
-});
-
-// ─────────────────────────────────────────────────────────────────────────────
-// §4  resolveLevel — pure function (no mocking)
+// §3  resolveLevel — pure function (no mocking)
 // ─────────────────────────────────────────────────────────────────────────────
 
 describe("resolveLevel — pure function", () => {
@@ -165,7 +83,7 @@ describe("resolveLevel — pure function", () => {
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// §5  initLogger — no-op in non-Tauri env
+// §4  initLogger — no-op in non-Tauri env
 // ─────────────────────────────────────────────────────────────────────────────
 
 describe("initLogger — non-Tauri bootstrap", () => {

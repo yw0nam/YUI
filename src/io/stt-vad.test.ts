@@ -98,7 +98,7 @@ describe("createSttVad — voice mode default", () => {
   it("starts with voice mode OFF (does not call MicVAD.new until start() is called)", async () => {
     const { MicVAD } = await import("@ricky0123/vad-web");
     const onVoiceSegment = vi.fn();
-    createSttVad({ config: CONFIG, onVoiceSegment });
+    createSttVad({ config: () => CONFIG, onVoiceSegment });
     expect(MicVAD.new).not.toHaveBeenCalled();
   });
 });
@@ -107,13 +107,13 @@ describe("createSttVad — start() loads VAD", () => {
   it("calls MicVAD.new after start()", async () => {
     const { MicVAD } = await import("@ricky0123/vad-web");
     const onVoiceSegment = vi.fn();
-    const stt = createSttVad({ config: CONFIG, onVoiceSegment });
+    const stt = createSttVad({ config: () => CONFIG, onVoiceSegment });
     await stt.start();
     expect(MicVAD.new).toHaveBeenCalledOnce();
   });
 
   it("serves VAD model, worklet, and ONNX wasm assets from Vite public path", async () => {
-    const stt = createSttVad({ config: CONFIG, onVoiceSegment: vi.fn() });
+    const stt = createSttVad({ config: () => CONFIG, onVoiceSegment: vi.fn() });
     await stt.start();
 
     expect(capturedOptions.baseAssetPath).toBe("/vad/");
@@ -123,7 +123,7 @@ describe("createSttVad — start() loads VAD", () => {
   it("start() is idempotent — second call does not create a second VAD instance", async () => {
     const { MicVAD } = await import("@ricky0123/vad-web");
     const onVoiceSegment = vi.fn();
-    const stt = createSttVad({ config: CONFIG, onVoiceSegment });
+    const stt = createSttVad({ config: () => CONFIG, onVoiceSegment });
     await stt.start();
     await stt.start();
     expect(MicVAD.new).toHaveBeenCalledOnce();
@@ -133,7 +133,7 @@ describe("createSttVad — start() loads VAD", () => {
 describe("createSttVad — silenceMs configurable", () => {
   it("silenceMs=2000 produces higher redemptionMs than silenceMs=1500", async () => {
     const onVoiceSegment = vi.fn();
-    const stt = createSttVad({ config: CONFIG, onVoiceSegment, silenceMs: 2000 });
+    const stt = createSttVad({ config: () => CONFIG, onVoiceSegment, silenceMs: () => 2000 });
     await stt.start();
     const ms2000 = capturedOptions.redemptionMs as number;
 
@@ -141,7 +141,7 @@ describe("createSttVad — silenceMs configurable", () => {
     capturedOptions = {};
     triggerSpeechEnd = null;
 
-    const stt2 = createSttVad({ config: CONFIG, onVoiceSegment, silenceMs: 1500 });
+    const stt2 = createSttVad({ config: () => CONFIG, onVoiceSegment, silenceMs: () => 1500 });
     await stt2.start();
     const ms1500 = capturedOptions.redemptionMs as number;
 
@@ -150,7 +150,7 @@ describe("createSttVad — silenceMs configurable", () => {
 
   it("default silenceMs is 1500 (redemptionMs is a positive number)", async () => {
     const onVoiceSegment = vi.fn();
-    const stt = createSttVad({ config: CONFIG, onVoiceSegment });
+    const stt = createSttVad({ config: () => CONFIG, onVoiceSegment });
     await stt.start();
     expect(typeof capturedOptions.redemptionMs).toBe("number");
     expect((capturedOptions.redemptionMs as number) > 0).toBe(true);
@@ -160,7 +160,7 @@ describe("createSttVad — silenceMs configurable", () => {
 describe("createSttVad — runtime state callbacks", () => {
   it("reports listening when VAD detects speech start", async () => {
     const onState = vi.fn();
-    const stt = createSttVad({ config: CONFIG, onVoiceSegment: vi.fn(), onState });
+    const stt = createSttVad({ config: () => CONFIG, onVoiceSegment: vi.fn(), onState });
     await stt.start();
 
     triggerSpeechStart!();
@@ -173,7 +173,7 @@ describe("createSttVad — runtime state callbacks", () => {
 
     const onState = vi.fn();
     const onVoiceSegment = vi.fn();
-    const stt = createSttVad({ config: CONFIG, onVoiceSegment, onState, fetch: fetchMock });
+    const stt = createSttVad({ config: () => CONFIG, onVoiceSegment, onState, fetch: fetchMock });
     await stt.start();
 
     await triggerSpeechEnd!(new Float32Array([0.1, 0.2]));
@@ -188,7 +188,7 @@ describe("createSttVad — runtime state callbacks", () => {
 
     const onState = vi.fn();
     const stt = createSttVad({
-      config: CONFIG,
+      config: () => CONFIG,
       onVoiceSegment: vi.fn(),
       onState,
       fetch: fetchMock,
@@ -205,7 +205,7 @@ describe("createSttVad — runtime state callbacks", () => {
 describe("createSttVad — onSpeechActive (barge-in trigger, #279)", () => {
   it("fires onSpeechActive when the VAD's onSpeechRealStart callback fires", async () => {
     const onSpeechActive = vi.fn();
-    const stt = createSttVad({ config: CONFIG, onVoiceSegment: vi.fn(), onSpeechActive });
+    const stt = createSttVad({ config: () => CONFIG, onVoiceSegment: vi.fn(), onSpeechActive });
     await stt.start();
 
     expect(triggerSpeechRealStart).toBeDefined();
@@ -215,7 +215,7 @@ describe("createSttVad — onSpeechActive (barge-in trigger, #279)", () => {
   });
 
   it("does not throw when onSpeechActive is not provided", async () => {
-    const stt = createSttVad({ config: CONFIG, onVoiceSegment: vi.fn() });
+    const stt = createSttVad({ config: () => CONFIG, onVoiceSegment: vi.fn() });
     await stt.start();
 
     expect(() => triggerSpeechRealStart!()).not.toThrow();
@@ -224,7 +224,12 @@ describe("createSttVad — onSpeechActive (barge-in trigger, #279)", () => {
   it("onSpeechRealStart is distinct from onSpeechStart — only onState('listening') fires on raw start", async () => {
     const onState = vi.fn();
     const onSpeechActive = vi.fn();
-    const stt = createSttVad({ config: CONFIG, onVoiceSegment: vi.fn(), onState, onSpeechActive });
+    const stt = createSttVad({
+      config: () => CONFIG,
+      onVoiceSegment: vi.fn(),
+      onState,
+      onSpeechActive,
+    });
     await stt.start();
 
     triggerSpeechStart!();
@@ -245,7 +250,7 @@ describe("createSttVad — start() failure handling (#64)", () => {
       new DOMException("denied", "NotAllowedError"),
     );
 
-    const stt = createSttVad({ config: CONFIG, onVoiceSegment: vi.fn() });
+    const stt = createSttVad({ config: () => CONFIG, onVoiceSegment: vi.fn() });
     await expect(stt.start()).resolves.toBeUndefined();
   });
 
@@ -256,7 +261,7 @@ describe("createSttVad — start() failure handling (#64)", () => {
     );
 
     const onState = vi.fn();
-    const stt = createSttVad({ config: CONFIG, onVoiceSegment: vi.fn(), onState });
+    const stt = createSttVad({ config: () => CONFIG, onVoiceSegment: vi.fn(), onState });
     await stt.start();
 
     const errorCall = onState.mock.calls.find(([state]) => state === "error");
@@ -271,7 +276,7 @@ describe("createSttVad — start() failure handling (#64)", () => {
     );
 
     const onState = vi.fn();
-    const stt = createSttVad({ config: CONFIG, onVoiceSegment: vi.fn(), onState });
+    const stt = createSttVad({ config: () => CONFIG, onVoiceSegment: vi.fn(), onState });
     await stt.start();
 
     const errorCall = onState.mock.calls.find(([state]) => state === "error");
@@ -286,7 +291,7 @@ describe("createSttVad — start() failure handling (#64)", () => {
     );
 
     const onState = vi.fn();
-    const stt = createSttVad({ config: CONFIG, onVoiceSegment: vi.fn(), onState });
+    const stt = createSttVad({ config: () => CONFIG, onVoiceSegment: vi.fn(), onState });
     await stt.start();
 
     const errorCall = onState.mock.calls.find(([state]) => state === "error");
@@ -301,12 +306,20 @@ describe("createSttVad — start() failure handling (#64)", () => {
 
     newMock.mockRejectedValueOnce(new DOMException("denied", "NotAllowedError"));
     const onStatePerm = vi.fn();
-    await createSttVad({ config: CONFIG, onVoiceSegment: vi.fn(), onState: onStatePerm }).start();
+    await createSttVad({
+      config: () => CONFIG,
+      onVoiceSegment: vi.fn(),
+      onState: onStatePerm,
+    }).start();
     const permDetail = onStatePerm.mock.calls.find(([s]) => s === "error")?.[1];
 
     newMock.mockRejectedValueOnce(new Error("onnx wasm load error"));
     const onStateAsset = vi.fn();
-    await createSttVad({ config: CONFIG, onVoiceSegment: vi.fn(), onState: onStateAsset }).start();
+    await createSttVad({
+      config: () => CONFIG,
+      onVoiceSegment: vi.fn(),
+      onState: onStateAsset,
+    }).start();
     const assetDetail = onStateAsset.mock.calls.find(([s]) => s === "error")?.[1];
 
     expect(permDetail).toBeDefined();
@@ -319,7 +332,7 @@ describe("createSttVad — start() failure handling (#64)", () => {
     const newMock = MicVAD.new as ReturnType<typeof vi.fn>;
     newMock.mockRejectedValueOnce(new DOMException("denied", "NotAllowedError"));
 
-    const stt = createSttVad({ config: CONFIG, onVoiceSegment: vi.fn() });
+    const stt = createSttVad({ config: () => CONFIG, onVoiceSegment: vi.fn() });
     await stt.start();
     await stt.start();
 
@@ -334,7 +347,7 @@ describe("createSttVad — onSpeechEnd → STT fetch → onVoiceSegment", () => 
     vi.stubGlobal("fetch", wrongTransport);
 
     const onVoiceSegment = vi.fn();
-    const stt = createSttVad({ config: CONFIG, onVoiceSegment, fetch: fetchMock });
+    const stt = createSttVad({ config: () => CONFIG, onVoiceSegment, fetch: fetchMock });
     await stt.start();
 
     expect(triggerSpeechEnd).toBeDefined();
@@ -359,7 +372,7 @@ describe("createSttVad — onSpeechEnd → STT fetch → onVoiceSegment", () => 
     vi.stubGlobal("fetch", globalFetch);
 
     const onVoiceSegment = vi.fn();
-    const stt = createSttVad({ config: CONFIG, onVoiceSegment });
+    const stt = createSttVad({ config: () => CONFIG, onVoiceSegment });
     await stt.start();
 
     await triggerSpeechEnd!(new Float32Array([0.1, 0.2, 0.3]));
@@ -372,7 +385,7 @@ describe("createSttVad — onSpeechEnd → STT fetch → onVoiceSegment", () => 
     const fetchMock = buildFetchMock("test");
 
     const onVoiceSegment = vi.fn();
-    const stt = createSttVad({ config: CONFIG, onVoiceSegment, fetch: fetchMock });
+    const stt = createSttVad({ config: () => CONFIG, onVoiceSegment, fetch: fetchMock });
     await stt.start();
 
     const audio = new Float32Array(16);
@@ -387,7 +400,7 @@ describe("createSttVad — onSpeechEnd → STT fetch → onVoiceSegment", () => 
     const fetchMock = buildFetchMock("ok");
 
     const onVoiceSegment = vi.fn();
-    const stt = createSttVad({ config: CONFIG, onVoiceSegment, fetch: fetchMock });
+    const stt = createSttVad({ config: () => CONFIG, onVoiceSegment, fetch: fetchMock });
     await stt.start();
 
     const audio = new Float32Array([0.5, -0.5, 0.1]);
@@ -405,7 +418,7 @@ describe("createSttVad — Authorization", () => {
     const fetchMock = buildFetchMock("ok");
 
     const stt = createSttVad({
-      config: CONFIG,
+      config: () => CONFIG,
       onVoiceSegment: vi.fn(),
       getApiKey: async () => "sk-stt",
       fetch: fetchMock,
@@ -423,7 +436,7 @@ describe("createSttVad — Authorization", () => {
     for (const getApiKey of [undefined, async () => "", async () => "   "]) {
       const fetchMock = buildFetchMock("ok");
       const stt = createSttVad({
-        config: CONFIG,
+        config: () => CONFIG,
         onVoiceSegment: vi.fn(),
         getApiKey,
         fetch: fetchMock,
@@ -442,7 +455,7 @@ describe("createSttVad — STT error resilience", () => {
     const consoleWarnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
 
     const onVoiceSegment = vi.fn();
-    const stt = createSttVad({ config: CONFIG, onVoiceSegment, fetch: fetchMock });
+    const stt = createSttVad({ config: () => CONFIG, onVoiceSegment, fetch: fetchMock });
     await stt.start();
     await triggerSpeechEnd!(new Float32Array(16));
 
@@ -455,7 +468,7 @@ describe("createSttVad — STT error resilience", () => {
     const consoleWarnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
 
     const onVoiceSegment = vi.fn();
-    const stt = createSttVad({ config: CONFIG, onVoiceSegment, fetch: fetchMock });
+    const stt = createSttVad({ config: () => CONFIG, onVoiceSegment, fetch: fetchMock });
     await stt.start();
     await triggerSpeechEnd!(new Float32Array(16));
 
@@ -483,7 +496,7 @@ describe("createSttVad — per-request deadline (#275)", () => {
 
     const onState = vi.fn();
     const stt = createSttVad({
-      config: CONFIG,
+      config: () => CONFIG,
       onVoiceSegment: vi.fn(),
       onState,
       fetch: fetchMock,
@@ -514,7 +527,7 @@ describe("createSttVad — per-request deadline (#275)", () => {
     const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
 
     const onVoiceSegment = vi.fn();
-    const stt = createSttVad({ config: CONFIG, onVoiceSegment, fetch: fetchMock });
+    const stt = createSttVad({ config: () => CONFIG, onVoiceSegment, fetch: fetchMock });
     await stt.start();
 
     const pending = triggerSpeechEnd!(new Float32Array(16));
@@ -530,7 +543,7 @@ describe("createSttVad — per-request deadline (#275)", () => {
 describe("createSttVad — stop() and dispose()", () => {
   it("stop() pauses the VAD instance", async () => {
     const onVoiceSegment = vi.fn();
-    const stt = createSttVad({ config: CONFIG, onVoiceSegment });
+    const stt = createSttVad({ config: () => CONFIG, onVoiceSegment });
     await stt.start();
     stt.stop();
     expect(mockMicVadInstance.pause).toHaveBeenCalledOnce();
@@ -538,7 +551,7 @@ describe("createSttVad — stop() and dispose()", () => {
 
   it("dispose() destroys the VAD instance", async () => {
     const onVoiceSegment = vi.fn();
-    const stt = createSttVad({ config: CONFIG, onVoiceSegment });
+    const stt = createSttVad({ config: () => CONFIG, onVoiceSegment });
     await stt.start();
     await stt.dispose();
     expect(mockMicVadInstance.destroy).toHaveBeenCalledOnce();
@@ -546,13 +559,13 @@ describe("createSttVad — stop() and dispose()", () => {
 
   it("dispose() before start() does not throw", async () => {
     const onVoiceSegment = vi.fn();
-    const stt = createSttVad({ config: CONFIG, onVoiceSegment });
+    const stt = createSttVad({ config: () => CONFIG, onVoiceSegment });
     await expect(stt.dispose()).resolves.not.toThrow();
   });
 
   it("stop() before start() does not throw", () => {
     const onVoiceSegment = vi.fn();
-    const stt = createSttVad({ config: CONFIG, onVoiceSegment });
+    const stt = createSttVad({ config: () => CONFIG, onVoiceSegment });
     expect(() => stt.stop()).not.toThrow();
   });
 });
@@ -560,7 +573,7 @@ describe("createSttVad — stop() and dispose()", () => {
 describe("createSttVad — stop()/dispose() during in-flight MicVAD.new load", () => {
   it("dispose() called mid-load destroys the instance once loaded and never starts the mic", async () => {
     const { resolve } = await deferMicVadLoad();
-    const stt = createSttVad({ config: CONFIG, onVoiceSegment: vi.fn() });
+    const stt = createSttVad({ config: () => CONFIG, onVoiceSegment: vi.fn() });
 
     const startPromise = stt.start();
     const disposePromise = stt.dispose();
@@ -574,7 +587,7 @@ describe("createSttVad — stop()/dispose() during in-flight MicVAD.new load", (
 
   it("stop() called mid-load leaves the instance paused (never started) once loaded", async () => {
     const { resolve } = await deferMicVadLoad();
-    const stt = createSttVad({ config: CONFIG, onVoiceSegment: vi.fn() });
+    const stt = createSttVad({ config: () => CONFIG, onVoiceSegment: vi.fn() });
 
     const startPromise = stt.start();
     stt.stop();
@@ -586,7 +599,7 @@ describe("createSttVad — stop()/dispose() during in-flight MicVAD.new load", (
 
   it("dispose() wins when both stop() and dispose() are requested mid-load", async () => {
     const { resolve } = await deferMicVadLoad();
-    const stt = createSttVad({ config: CONFIG, onVoiceSegment: vi.fn() });
+    const stt = createSttVad({ config: () => CONFIG, onVoiceSegment: vi.fn() });
 
     const startPromise = stt.start();
     stt.stop();
@@ -601,7 +614,7 @@ describe("createSttVad — stop()/dispose() during in-flight MicVAD.new load", (
 
   it("a fresh start() after a mid-load dispose() creates and starts a new VAD instance", async () => {
     const { resolve } = await deferMicVadLoad();
-    const stt = createSttVad({ config: CONFIG, onVoiceSegment: vi.fn() });
+    const stt = createSttVad({ config: () => CONFIG, onVoiceSegment: vi.fn() });
 
     const startPromise = stt.start();
     const disposePromise = stt.dispose();
@@ -619,7 +632,7 @@ describe("createSttVad — stop()/dispose() during in-flight MicVAD.new load", (
 
 describe("createSttVad — start() resumes a paused instance instead of no-op'ing (#429)", () => {
   it("start() after stop() resumes the same instance (vad.start() called again, no reload)", async () => {
-    const stt = createSttVad({ config: CONFIG, onVoiceSegment: vi.fn() });
+    const stt = createSttVad({ config: () => CONFIG, onVoiceSegment: vi.fn() });
     await stt.start();
     stt.stop();
     expect(mockMicVadInstance.pause).toHaveBeenCalledOnce();
@@ -633,7 +646,7 @@ describe("createSttVad — start() resumes a paused instance instead of no-op'in
 
   it("start() after a mid-load stop() resumes using the already-loaded instance (no reload)", async () => {
     const { resolve } = await deferMicVadLoad();
-    const stt = createSttVad({ config: CONFIG, onVoiceSegment: vi.fn() });
+    const stt = createSttVad({ config: () => CONFIG, onVoiceSegment: vi.fn() });
 
     const startPromise = stt.start();
     stt.stop();
@@ -649,7 +662,7 @@ describe("createSttVad — start() resumes a paused instance instead of no-op'in
   });
 
   it("repeated start() calls while already running stay idempotent (no reload, no throw)", async () => {
-    const stt = createSttVad({ config: CONFIG, onVoiceSegment: vi.fn() });
+    const stt = createSttVad({ config: () => CONFIG, onVoiceSegment: vi.fn() });
     await stt.start();
 
     await expect(stt.start()).resolves.toBeUndefined();
@@ -668,7 +681,7 @@ describe("createSttVad — no stt_base_url (silently disabled)", () => {
       chat_endpoint: "/v1/responses",
     } as unknown as import("../contract").EndpointsConfig;
 
-    const stt = createSttVad({ config: configNoStt, onVoiceSegment: vi.fn() });
+    const stt = createSttVad({ config: () => configNoStt, onVoiceSegment: vi.fn() });
     await expect(stt.start()).resolves.toBeUndefined();
     // VAD should not start.
     expect(MicVAD.new).not.toHaveBeenCalled();
@@ -680,7 +693,7 @@ describe("createSttVad — no stt_base_url (silently disabled)", () => {
       chat_endpoint: "/v1/responses",
     } as unknown as import("../contract").EndpointsConfig;
 
-    const stt = createSttVad({ config: configNoStt, onVoiceSegment: vi.fn() });
+    const stt = createSttVad({ config: () => configNoStt, onVoiceSegment: vi.fn() });
     expect(() => stt.stop()).not.toThrow();
   });
 });

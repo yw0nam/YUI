@@ -3,8 +3,7 @@
  *
  * Validation:
  *  - Defaults: enabled=false, source={kind:"monitor",index:0}
- *  - Stored valid value takes precedence over initial
- *  - initial takes precedence over defaults
+ *  - Stored valid value takes precedence over defaults
  *  - Invalid/throwing storage → defaults, factory does not throw
  *  - setEnabled/setSource: persist + notify on actual change, skip on identical value
  *  - subscribe/unsubscribe
@@ -36,7 +35,7 @@ function fakeStorage(initial?: ScreenshotSettings | null): ScreenshotStorage & {
 const DEFAULT_SOURCE = { kind: "monitor" as const, index: 0 };
 
 describe("createScreenshotSettings — defaults", () => {
-  it("defaults to enabled=false, monitor index 0 when no storage and no initial", () => {
+  it("defaults to enabled=false, monitor index 0 when no storage", () => {
     const store = createScreenshotSettings();
     const s = store.get();
     expect(s.enabled).toBe(false);

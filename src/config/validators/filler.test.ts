@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { validateFiller, validateFillerTier, validateFillerToolTier } from "./filler";
+import { validateFiller } from "./filler";
 import { ConfigError } from "./shared";
 
 const FILE = "filler.json";
@@ -218,48 +218,5 @@ describe("validateFiller — pools", () => {
       }),
     );
     expect(out.pools.ja?.tool).toEqual({ _default: ["a"], terminal: ["b"], web_search: ["c"] });
-  });
-});
-
-describe("validateFillerTier — unit", () => {
-  it("returns the array unchanged when all entries are strings", () => {
-    const issues: string[] = [];
-    expect(validateFillerTier(issues, ["a", "b"], "x")).toEqual(["a", "b"]);
-    expect(issues).toEqual([]);
-  });
-
-  it("records an issue and returns [] when not an array", () => {
-    const issues: string[] = [];
-    expect(validateFillerTier(issues, "nope", "x")).toEqual([]);
-    expect(issues).toEqual(['x는 배열이어야 함 (받음: "nope")']);
-  });
-
-  it("records per-index issues and returns [] when any entry isn't a string", () => {
-    const issues: string[] = [];
-    expect(validateFillerTier(issues, ["a", 1, "c"], "x")).toEqual([]);
-    expect(issues).toEqual(["x[1]는 문자열이어야 함 (받음: 1)"]);
-  });
-});
-
-describe("validateFillerToolTier — unit", () => {
-  it("returns the dict unchanged when every value is a string array", () => {
-    const issues: string[] = [];
-    expect(validateFillerToolTier(issues, { _default: ["a"], terminal: ["b"] }, "x")).toEqual({
-      _default: ["a"],
-      terminal: ["b"],
-    });
-    expect(issues).toEqual([]);
-  });
-
-  it("records an issue and returns {} when not an object", () => {
-    const issues: string[] = [];
-    expect(validateFillerToolTier(issues, "nope", "x")).toEqual({});
-    expect(issues).toEqual(['x는 객체여야 함 (받음: "nope")']);
-  });
-
-  it("records per-key issues and returns {} when any value isn't a string array", () => {
-    const issues: string[] = [];
-    expect(validateFillerToolTier(issues, { terminal: [1] }, "x")).toEqual({});
-    expect(issues).toEqual(["x.terminal[0]는 문자열이어야 함 (받음: 1)"]);
   });
 });

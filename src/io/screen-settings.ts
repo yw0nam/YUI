@@ -100,17 +100,12 @@ export function screenDefaultsFromConfig(s: ScreenConfig): ScreenOverrides {
   return out;
 }
 
-export function createScreenKnobSettings(opts?: {
-  storage?: ScreenKnobStorage;
-  initial?: ScreenOverrides;
-}) {
+export function createScreenKnobSettings(opts?: { storage?: ScreenKnobStorage }) {
   const core = createPersistedStore<ScreenOverrides>({
     storage: opts?.storage,
-    initial: opts?.initial,
     defaults: { ...EMPTY },
-    // A non-object is rejected so a corrupted stored value cannot erase in-memory/initial thresholds.
+    // A non-object is rejected so a corrupted stored value cannot erase in-memory thresholds.
     parse: (v) => (isPlainObject(v) ? coerce(v) : null),
-    fromInitial: coerce,
     equals,
   });
 

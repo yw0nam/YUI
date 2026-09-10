@@ -84,17 +84,12 @@ export function rateLimitDefaultsFromConfig(g: GuardrailsConfig): RateLimitOverr
   return out;
 }
 
-export function createGuardrailsSettings(opts?: {
-  storage?: GuardrailsStorage;
-  initial?: RateLimitOverrides;
-}) {
+export function createGuardrailsSettings(opts?: { storage?: GuardrailsStorage }) {
   const core = createPersistedStore<RateLimitOverrides>({
     storage: opts?.storage,
-    initial: opts?.initial,
     defaults: { ...EMPTY },
-    // A non-object is rejected so a corrupted stored value cannot erase in-memory/initial caps.
+    // A non-object is rejected so a corrupted stored value cannot erase in-memory caps.
     parse: (v) => (isPlainObject(v) ? coerce(v) : null),
-    fromInitial: coerce,
     equals,
   });
 

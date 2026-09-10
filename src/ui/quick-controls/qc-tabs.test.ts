@@ -1,13 +1,18 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createChatHistoryStore } from "../../io/chat-history-store";
-import { createFillerSettings } from "../../io/filler-settings";
+import { createFillerSettings, type FillerSettings } from "../../io/filler-settings";
 import { createFlagSettings, localStorageStore } from "../../io/persisted-store";
 import { createVadSettings, VAD_SILENCE_DEFAULT } from "../../io/vad-settings";
 import { setLocale } from "../i18n";
 import { createQuickControls } from "../quick-controls";
 import type { QuickControlsTab } from "./constants";
 import { defaultQcArgs } from "./test-helpers";
+
+/** A filler store hydrated from storage with the given settings. */
+function seededFiller(settings: FillerSettings) {
+  return createFillerSettings({ storage: { load: () => settings, save: () => {} } });
+}
 
 describe("createQuickControls — tabs + VAD slider", () => {
   let mount: HTMLElement;
@@ -273,10 +278,8 @@ describe("createQuickControls — tabs + VAD slider", () => {
 
   // ── Thinking filler section ──────────────────────────────────────────────────
 
-  function makeFillerSettings(initial?: { enabled?: boolean; language?: "ja" | "en" | "ko" }) {
-    return createFillerSettings({
-      initial: { enabled: true, language: "ja", customPools: {}, ...initial },
-    });
+  function makeFillerSettings(over?: { enabled?: boolean; language?: "ja" | "en" | "ko" }) {
+    return seededFiller({ enabled: true, language: "ja", customPools: {}, ...over });
   }
 
   it("does not render filler section when fillerSettings is absent", () => {
@@ -365,14 +368,12 @@ describe("createQuickControls — tabs + VAD slider", () => {
   });
 
   it("clicking a language segment calls setLanguage and reloads both textareas", () => {
-    const fs = createFillerSettings({
-      initial: {
-        enabled: true,
-        language: "ja",
-        customPools: {
-          ja: { first: ["うーん"], repeat: ["ええと"] },
-          en: { first: ["Hmm..."], repeat: ["Still thinking..."] },
-        },
+    const fs = seededFiller({
+      enabled: true,
+      language: "ja",
+      customPools: {
+        ja: { first: ["うーん"], repeat: ["ええと"] },
+        en: { first: ["Hmm..."], repeat: ["Still thinking..."] },
       },
     });
     const spy = vi.spyOn(fs, "setLanguage");
@@ -437,12 +438,10 @@ describe("createQuickControls — tabs + VAD slider", () => {
   });
 
   it("editing 첫 대사 calls setCustomPool with split first lines, preserving repeat", () => {
-    const fs = createFillerSettings({
-      initial: {
-        enabled: true,
-        language: "ja",
-        customPools: { ja: { first: [], repeat: ["ええと"] } },
-      },
+    const fs = seededFiller({
+      enabled: true,
+      language: "ja",
+      customPools: { ja: { first: [], repeat: ["ええと"] } },
     });
     const spy = vi.spyOn(fs, "setCustomPool");
     const qc = buildQc({ fillerSettings: fs });
@@ -468,12 +467,10 @@ describe("createQuickControls — tabs + VAD slider", () => {
   });
 
   it("editing 반복 대사 calls setCustomPool with split repeat lines, preserving first", () => {
-    const fs = createFillerSettings({
-      initial: {
-        enabled: true,
-        language: "ja",
-        customPools: { ja: { first: ["うーん"], repeat: [] } },
-      },
+    const fs = seededFiller({
+      enabled: true,
+      language: "ja",
+      customPools: { ja: { first: ["うーん"], repeat: [] } },
     });
     const spy = vi.spyOn(fs, "setCustomPool");
     const qc = buildQc({ fillerSettings: fs });
@@ -522,12 +519,10 @@ describe("createQuickControls — tabs + VAD slider", () => {
   });
 
   it("reflectFiller syncs both textareas from customPools for current language on open", () => {
-    const fs = createFillerSettings({
-      initial: {
-        enabled: true,
-        language: "ko",
-        customPools: { ko: { first: ["음…", "글쎄…"], repeat: ["아직…"] } },
-      },
+    const fs = seededFiller({
+      enabled: true,
+      language: "ko",
+      customPools: { ko: { first: ["음…", "글쎄…"], repeat: ["아직…"] } },
     });
     const qc = buildQc({ fillerSettings: fs });
     qc.open();
@@ -596,12 +591,10 @@ describe("createQuickControls — tabs + VAD slider", () => {
   });
 
   it("editing the long_wait/timeout/unreachable textareas writes every other current field alongside", () => {
-    const fs = createFillerSettings({
-      initial: {
-        enabled: true,
-        language: "ja",
-        customPools: { ja: { first: ["うーん"], repeat: ["ええと"] } },
-      },
+    const fs = seededFiller({
+      enabled: true,
+      language: "ja",
+      customPools: { ja: { first: ["うーん"], repeat: ["ええと"] } },
     });
     const spy = vi.spyOn(fs, "setCustomPool");
     const qc = buildQc({ fillerSettings: fs });
@@ -648,17 +641,15 @@ describe("createQuickControls — tabs + VAD slider", () => {
   });
 
   it("reflectFiller serializes the stored tool tier back into '_default' then 'key = phrase' lines", () => {
-    const fs = createFillerSettings({
-      initial: {
-        enabled: true,
-        language: "ja",
-        customPools: {
-          ja: {
-            long_wait: ["まだかかりそう"],
-            timeout: ["諦めちゃった"],
-            unreachable: ["つながらない"],
-            tool: { web_search: ["searching"], _default: ["checking..."] },
-          },
+    const fs = seededFiller({
+      enabled: true,
+      language: "ja",
+      customPools: {
+        ja: {
+          long_wait: ["まだかかりそう"],
+          timeout: ["諦めちゃった"],
+          unreachable: ["つながらない"],
+          tool: { web_search: ["searching"], _default: ["checking..."] },
         },
       },
     });

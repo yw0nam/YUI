@@ -7,34 +7,8 @@ describe("createVoiceInputStatus", () => {
 
     expect(status.get()).toEqual({
       state: "idle",
-      label: "Idle",
       detail: "Voice input is off",
       visible: false,
-    });
-  });
-
-  it("maps runtime states to short screen labels", () => {
-    const status = createVoiceInputStatus();
-
-    status.set("listening");
-    expect(status.get()).toMatchObject({
-      state: "listening",
-      label: "듣는 중",
-      visible: true,
-    });
-
-    status.set("asr");
-    expect(status.get()).toMatchObject({
-      state: "asr",
-      label: "ASR 전송",
-      visible: true,
-    });
-
-    status.set("fired");
-    expect(status.get()).toMatchObject({
-      state: "fired",
-      label: "전달됨",
-      visible: true,
     });
   });
 
@@ -45,7 +19,6 @@ describe("createVoiceInputStatus", () => {
 
     expect(status.get()).toEqual({
       state: "error",
-      label: "오류",
       detail: "STT request failed",
       visible: true,
     });
@@ -85,7 +58,6 @@ describe("createVoiceInputStatus", () => {
     expect(listener).toHaveBeenCalledTimes(1);
     expect(listener).toHaveBeenLastCalledWith({
       state: "listening",
-      label: "듣는 중",
       detail: "Speech active",
       visible: true,
     });

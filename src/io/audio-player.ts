@@ -12,8 +12,6 @@ export interface AudioSink {
 }
 
 interface AmplitudeEnvelopeOptions {
-  /** lerp ratio toward the mapped target on each push (0..1; 1 = snap). */
-  smoothing?: number;
   /** Gain multiplied into raw RMS so even quiet audio opens the mouth. */
   gain?: number;
 }
@@ -26,13 +24,15 @@ export interface AmplitudeEnvelope {
   reset(): void;
 }
 
+/** lerp ratio toward the mapped target on each push. */
+const SMOOTHING = 0.4;
+
 /**
  * Amplitude → mouth-open envelope (amplitude-only).
  * Scales and clamps raw RMS by gain, then eases with light smoothing.
  * Monotonic in raw (louder in → not quieter out) and always finite 0..1.
  */
 export function createAmplitudeEnvelope(options: AmplitudeEnvelopeOptions = {}): AmplitudeEnvelope {
-  const smoothing = Math.min(1, Math.max(0, options.smoothing ?? 0.4));
   const gain = options.gain ?? 2.0;
   let value = 0;
 
@@ -42,7 +42,7 @@ export function createAmplitudeEnvelope(options: AmplitudeEnvelopeOptions = {}):
     push(rms) {
       const raw = Number.isFinite(rms) ? rms : 0;
       const targetMouth = clamp01(Math.max(0, raw) * gain);
-      value += (targetMouth - value) * smoothing;
+      value += (targetMouth - value) * SMOOTHING;
       return clamp01(value);
     },
     reset() {

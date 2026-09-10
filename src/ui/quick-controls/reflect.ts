@@ -43,7 +43,7 @@ import type { SwitchRow } from "./switch-row";
 
 // Format token count as "18.2K" / "18K" / "200K". Below 1000 stays as-is,
 // below 100K shows one decimal (dropping .0), 100K+ shows integer.
-export function formatTokenCount(n: number): string {
+function formatTokenCount(n: number): string {
   if (n < 1000) return String(n);
   const k = n / 1000;
   if (k >= 100) return `${Math.round(k)}K`;
@@ -126,8 +126,6 @@ export interface Reflect {
   reflectKeyRows(): void;
   reflectSession(): void;
   reflectVoiceStatus(snapshot: VoiceInputStatusSnapshot): void;
-  /** Effective chat API (used by reflectChatType). */
-  effectiveChatApi(): ChatApi;
 }
 
 export function createReflect(deps: ReflectDeps): Reflect {
@@ -448,6 +446,5 @@ export function createReflect(deps: ReflectDeps): Reflect {
     reflectKeyRows,
     reflectSession,
     reflectVoiceStatus,
-    effectiveChatApi,
   };
 }

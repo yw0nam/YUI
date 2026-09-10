@@ -6,7 +6,7 @@
  *  - setEnabled: persists and notifies; same value is a no-op
  *  - setPort: persists and notifies; invalid values are no-ops
  *  - round-trip via a fresh store on the same in-memory storage
- *  - hydration priority: stored > initial > defaults
+ *  - hydration priority: stored > defaults
  *  - malformed/throwing storage → defaults
  *  - reloadFromStorage: cross-window sync, identical value and absent storage are no-ops
  *  - subscribe/unsubscribe, dispose

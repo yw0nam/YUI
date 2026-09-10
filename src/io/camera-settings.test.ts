@@ -3,7 +3,7 @@
  *
  * Pins the contract for src/io/camera-settings.ts:
  *   CAMERA_ZOOM_MIN / MAX / DEFAULT constants
- *   createCameraSettings({ storage?, initial? }) store
+ *   createCameraSettings({ storage? }) store
  *   localStorageCameraStorage(key?) localStorage adapter
  *
  * Zoom multiplies the computed fit distance: zoom > 1 ⇒ bigger character.
@@ -37,7 +37,7 @@ const DEFAULTS: CameraSettings = {
 // ─────────────────────────────────────────────────────────────────────────────
 
 describe("createCameraSettings — defaults", () => {
-  it("returns DEFAULT zoom when no storage or initial given", () => {
+  it("returns DEFAULT zoom when no storage given", () => {
     const store = createCameraSettings();
     expect(store.get().zoom).toBe(CAMERA_ZOOM_DEFAULT);
   });
@@ -197,10 +197,6 @@ describe("createCameraSettings — reloadFromStorage", () => {
     expect(store.get().zoom).toBe(CAMERA_ZOOM_MAX);
   });
 });
-
-// ─────────────────────────────────────────────────────────────────────────────
-// createCameraSettings — initial option
-// ─────────────────────────────────────────────────────────────────────────────
 
 // ─────────────────────────────────────────────────────────────────────────────
 // localStorageCameraStorage

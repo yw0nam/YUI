@@ -42,13 +42,9 @@ function isValidSettings(v: unknown): v is WorkflowSettings {
 
 const DEFAULT_SETTINGS: WorkflowSettings = { entries: [] };
 
-export function createWorkflowSettings(opts?: {
-  storage?: WorkflowStorage;
-  initial?: WorkflowSettings;
-}) {
+export function createWorkflowSettings(opts?: { storage?: WorkflowStorage }) {
   const core = createPersistedStore<WorkflowSettings>({
     storage: opts?.storage,
-    initial: opts?.initial,
     defaults: DEFAULT_SETTINGS,
     parse: (v) => (isValidSettings(v) ? v : null),
     clone: structuredClone,

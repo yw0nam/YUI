@@ -16,9 +16,8 @@
  * - `invokeDragWindow()` — thin Tauri IPC wrapper,
  *   exported separately so callers can be tested with a mocked `invoke`.
  *
- * - `physicalToLogical` / `logicalToPhysical` / `clampToWorkArea` — pure TS
- *   mirror of the Rust DPI math in src-tauri/src/drag.rs. Same semantics,
- *   same test cases.
+ * - `clampToWorkArea` — pure TS mirror of the Rust DPI math in
+ *   src-tauri/src/drag.rs. Same semantics, same test cases.
  *
  * # Multi-monitor / DPI correctness
  * `window.startDragging()` (JS) / `Window::start_dragging()` (Rust) is OS-
@@ -54,26 +53,8 @@ export async function invokeDragWindow(): Promise<void> {
   return invoke("drag_window");
 }
 
-// ─── Pure DPI math helpers ────────────────────────────────────────────────────
-// Mirror of src-tauri/src/drag.rs pure helpers. Keep in sync.
-
-/**
- * Convert a physical-pixel coordinate to a logical pixel coordinate.
- * Returns `null` if `scaleFactor` ≤ 0.
- */
-export function physicalToLogical(physical: number, scaleFactor: number): number | null {
-  if (scaleFactor <= 0) return null;
-  return physical / scaleFactor;
-}
-
-/**
- * Convert a logical-pixel coordinate to a physical pixel coordinate (rounded).
- * Returns `null` if `scaleFactor` ≤ 0.
- */
-export function logicalToPhysical(logical: number, scaleFactor: number): number | null {
-  if (scaleFactor <= 0) return null;
-  return Math.round(logical * scaleFactor);
-}
+// ─── Work-area clamp ──────────────────────────────────────────────────────────
+// Mirror of the pure `clamp_to_work_area` in src-tauri/src/drag.rs. Keep in sync.
 
 /**
  * Clamp logical position `(x, y)` so that a window of size `(w × h)` stays

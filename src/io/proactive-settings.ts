@@ -127,11 +127,7 @@ function isValidSettings(v: unknown): v is ProactiveSettings {
   return s.entries.every(isValidCue);
 }
 
-export function createProactiveSettings(opts?: {
-  storage?: ProactiveStorage;
-  initial?: ProactiveSettings;
-  locale?: CueLocale;
-}) {
+export function createProactiveSettings(opts?: { storage?: ProactiveStorage; locale?: CueLocale }) {
   const defaults = defaultSettings(opts?.locale ?? "ko");
 
   // Legacy { enabled } (no entries) → keep enabled + fill in seed entries.
@@ -146,7 +142,6 @@ export function createProactiveSettings(opts?: {
 
   const core = createPersistedStore<ProactiveSettings>({
     storage: opts?.storage,
-    initial: opts?.initial,
     defaults,
     parse: (v) => (isValidSettings(v) ? v : null),
     migrate,

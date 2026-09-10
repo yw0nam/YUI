@@ -10,9 +10,6 @@
  * - `initDrag` attaches a `pointerdown` listener to an EventTarget.  We use a
  *   plain `EventTarget` (available in Node 18+) to test the listener contract
  *   without a full DOM / jsdom.
- * - `physicalToLogical` / `logicalToPhysical` are pure TS helpers that mirror
- *   the Rust functions in src-tauri/src/drag.rs — same test cases keep both
- *   sides in sync.
  * - `clampToWorkArea` is the TS counterpart of Rust `clamp_to_work_area`.
  */
 
@@ -39,14 +36,7 @@ vi.mock("@tauri-apps/api/event", () => ({
 }));
 
 import { invoke } from "@tauri-apps/api/core";
-import {
-  clampToWorkArea,
-  initDrag,
-  invokeDragWindow,
-  logicalToPhysical,
-  type OrbitDelta,
-  physicalToLogical,
-} from "./drag";
+import { clampToWorkArea, initDrag, invokeDragWindow, type OrbitDelta } from "./drag";
 
 const mockInvoke = invoke as ReturnType<typeof vi.fn>;
 
@@ -67,71 +57,6 @@ describe("invokeDragWindow", () => {
   it("propagates errors from invoke", async () => {
     mockInvoke.mockRejectedValueOnce(new Error("OS drag failed"));
     await expect(invokeDragWindow()).rejects.toThrow("OS drag failed");
-  });
-});
-
-// ─── physicalToLogical ───────────────────────────────────────────────────────
-
-describe("physicalToLogical", () => {
-  it("1× scale: logical == physical", () => {
-    expect(physicalToLogical(1920, 1.0)).toBe(1920);
-  });
-
-  it("2× Retina: 2880 physical → 1440 logical", () => {
-    expect(physicalToLogical(2880, 2.0)).toBe(1440);
-  });
-
-  it("1.5× Windows HiDPI: 2400 physical → 1600 logical", () => {
-    expect(physicalToLogical(2400, 1.5)).toBeCloseTo(1600, 9);
-  });
-
-  it("returns null for zero scale_factor", () => {
-    expect(physicalToLogical(100, 0)).toBeNull();
-  });
-
-  it("returns null for negative scale_factor", () => {
-    expect(physicalToLogical(100, -1)).toBeNull();
-  });
-});
-
-// ─── logicalToPhysical ───────────────────────────────────────────────────────
-
-describe("logicalToPhysical", () => {
-  it("1× scale: physical == logical", () => {
-    expect(logicalToPhysical(600, 1.0)).toBe(600);
-  });
-
-  it("2× Retina: 600 logical → 1200 physical", () => {
-    expect(logicalToPhysical(600, 2.0)).toBe(1200);
-  });
-
-  it("rounds fractional results", () => {
-    // 100.3 × 2.0 = 200.6 → 201
-    expect(logicalToPhysical(100.3, 2.0)).toBe(201);
-  });
-
-  it("returns null for zero scale_factor", () => {
-    expect(logicalToPhysical(100, 0)).toBeNull();
-  });
-
-  it("returns null for negative scale_factor", () => {
-    expect(logicalToPhysical(100, -2)).toBeNull();
-  });
-});
-
-// ─── round-trip ──────────────────────────────────────────────────────────────
-
-describe("physicalToLogical + logicalToPhysical round-trip", () => {
-  it("2× round-trips exactly", () => {
-    const physical = 1240;
-    const logical = physicalToLogical(physical, 2.0)!;
-    expect(logicalToPhysical(logical, 2.0)).toBe(physical);
-  });
-
-  it("1.5× round-trips exactly for divisible values", () => {
-    const physical = 300;
-    const logical = physicalToLogical(physical, 1.5)!;
-    expect(logicalToPhysical(logical, 1.5)).toBe(physical);
   });
 });
 

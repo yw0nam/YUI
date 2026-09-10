@@ -2,7 +2,7 @@
  * broker-client.test.ts — Expression Broker MCP write-only client.
  *
  * Covers: createBrokerClient({ baseUrl, fetch?, logger?, pollIntervalMs?, setInterval?, clearInterval? }).
- *   A stateless, best-effort writer. getIds()/publish() — MCP streamable-http (initialize → notifications/initialized → tools/call).
+ *   A stateless, best-effort writer. publish() — MCP streamable-http (initialize → notifications/initialized → tools/call).
  *   Responses use SSE framing (`event: message\ndata: {json}`); result.content[0].text is a JSON string (JSON.parse).
  *   D4: no transport failure ever throws (warn, then degrade). D7: publish is idempotent + re-published on liveness poll.
  *
@@ -132,70 +132,6 @@ const SAMPLE_VOCAB: BrokerVocab = {
   emotion_text_map: {},
   version: 5,
 };
-
-describe("getIds", () => {
-  it("parses SSE → content[0].text → JSON into BrokerVocab", async () => {
-    const { fetch } = scriptedFetch(SAMPLE_VOCAB);
-    const client = createBrokerClient({ baseUrl: BASE, fetch, logger: silentLogger() });
-    const vocab = await client.getIds();
-    expect(vocab).toEqual(SAMPLE_VOCAB);
-  });
-
-  it("returns null on HTTP error (no throw escapes)", async () => {
-    const fetch = vi.fn<FetchFn>(async () => {
-      return {
-        ok: false,
-        status: 500,
-        headers: new Headers(),
-        text: async () => "",
-      } as unknown as Response;
-    });
-    const client = createBrokerClient({ baseUrl: BASE, fetch, logger: silentLogger() });
-    await expect(client.getIds()).resolves.toBeNull();
-  });
-
-  it("returns null on malformed SSE (no data line)", async () => {
-    const fetch = vi.fn<FetchFn>(async (_i: unknown, init?: RequestInit) => {
-      const body = JSON.parse(String(init?.body ?? "{}")) as Record<string, unknown>;
-      if (body.method === "initialize") return sseResponse(initResult(body.id as number));
-      if (body.method === "notifications/initialized") return acceptedResponse();
-      const h = new Headers();
-      h.set("mcp-session-id", "sess-1");
-      return {
-        ok: true,
-        status: 200,
-        headers: h,
-        text: async () => "garbage no data line",
-      } as unknown as Response;
-    });
-    const client = createBrokerClient({ baseUrl: BASE, fetch, logger: silentLogger() });
-    await expect(client.getIds()).resolves.toBeNull();
-  });
-
-  it("returns null when fetch throws (network down)", async () => {
-    const fetch = vi.fn<FetchFn>(async () => {
-      throw new Error("ECONNREFUSED");
-    });
-    const client = createBrokerClient({ baseUrl: BASE, fetch, logger: silentLogger() });
-    await expect(client.getIds()).resolves.toBeNull();
-  });
-
-  it("sends initialize then notifications/initialized then get_ids reusing the session id", async () => {
-    const { fetch, calls } = scriptedFetch(SAMPLE_VOCAB);
-    const client = createBrokerClient({ baseUrl: BASE, fetch, logger: silentLogger() });
-    await client.getIds();
-    expect(calls.map((c) => c.body.method)).toEqual([
-      "initialize",
-      "notifications/initialized",
-      "tools/call",
-    ]);
-    // initialized + tools/call carry the captured session header
-    const headersOf = (i: number) =>
-      (fetch.mock.calls[i][1]?.headers ?? {}) as Record<string, string>;
-    expect(headersOf(1)["mcp-session-id"]).toBe("sess-1");
-    expect(headersOf(2)["mcp-session-id"]).toBe("sess-1");
-  });
-});
 
 describe("publish idempotency", () => {
   it("issues no update_* calls when getIds already matches the payload", async () => {
@@ -436,11 +372,11 @@ describe("liveness poll", () => {
     // but the re-publish cycle must run get_ids again at minimum)
     expect(toolNames(calls)).toContain("get_ids");
 
-    client.stop();
+    client.dispose();
     expect(fakeClearInterval).toHaveBeenCalled();
   });
 
-  it("stop() clears the timer and prevents further polls", async () => {
+  it("dispose() clears the timer and prevents further polls", async () => {
     const { fetch } = scriptedFetch(SAMPLE_VOCAB);
     const fakeClearInterval = vi.fn();
     const fakeSetInterval = vi.fn(() => 7 as unknown as ReturnType<typeof setInterval>);
@@ -452,7 +388,7 @@ describe("liveness poll", () => {
       clearInterval: fakeClearInterval as unknown as typeof clearInterval,
     });
     client.start();
-    client.stop();
+    client.dispose();
     expect(fakeClearInterval).toHaveBeenCalledWith(7);
   });
 });

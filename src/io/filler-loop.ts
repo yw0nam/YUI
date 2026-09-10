@@ -168,16 +168,12 @@ export function createFillerLoop(deps: FillerLoopDeps): FillerLoop {
     const pool = deps.getPools();
     const toolPool = pool.tool[toolId];
     if (toolPool && toolPool.length > 0) {
-      const phrase = toolBagFor(toolId).draw(toolPool);
-      if (phrase !== undefined) speakIfAllowed(phrase);
+      speakIfAllowed(toolBagFor(toolId).draw(toolPool)!);
     } else {
       const defaultPool = pool.tool[DEFAULT_TOOL_KEY] ?? [];
       if (defaultSpokenCount < defaultPool.length) {
-        const phrase = defaultToolBag.draw(defaultPool);
-        if (phrase !== undefined) {
-          speakIfAllowed(phrase);
-          defaultSpokenCount++;
-        }
+        speakIfAllowed(defaultToolBag.draw(defaultPool)!);
+        defaultSpokenCount++;
       }
     }
   }
@@ -212,8 +208,7 @@ export function createFillerLoop(deps: FillerLoopDeps): FillerLoop {
       pendingToolId = undefined;
       const pool = deps.getPools();
       if (pool.first.length > 0) {
-        const phrase = firstBag.draw(pool.first);
-        if (phrase !== undefined) speakIfAllowed(phrase);
+        speakIfAllowed(firstBag.draw(pool.first)!);
       } else if (pool.repeat.length > 0 || pool.long_wait.length > 0) {
         // Even with an empty repeat pool, the self-driving repeat callback (see scheduleRepeat)
         // carries nothing-to-speak cycles forward until long_wait is reached.

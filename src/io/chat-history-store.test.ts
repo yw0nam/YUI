@@ -2,7 +2,7 @@
  * chat-history-store.test.ts — unified conversation transcript store.
  *
  * Pins the contract for src/io/chat-history-store.ts:
- *   createChatHistoryStore({ storage?, initial? }) store
+ *   createChatHistoryStore({ storage? }) store
  *     (append/get/startNewSession/sessionToken/entriesAfterLastBoundary/sessions/subscribe/reload/dispose)
  *   localStorageChatHistoryStorage(key?) localStorage adapter
  *   selectSendSuffix(entries, contextWindow) pure helper
@@ -25,12 +25,17 @@ function boundary(ts: number) {
   return { kind: "boundary" as const, ts };
 }
 
+/** Storage that hands back a pre-seeded transcript. */
+function seeded(items: ChatHistoryItem[]): ChatHistoryStorage {
+  return { load: () => items, save: vi.fn() };
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // createChatHistoryStore — append/get roundtrip
 // ─────────────────────────────────────────────────────────────────────────────
 
 describe("createChatHistoryStore — append/get", () => {
-  it("starts empty when no storage or initial given", () => {
+  it("starts empty when no storage given", () => {
     const store = createChatHistoryStore();
     expect(store.get()).toEqual([]);
   });
@@ -55,11 +60,6 @@ describe("createChatHistoryStore — append/get", () => {
     const b = store.get();
     expect(a).not.toBe(b);
     expect(a).toEqual(b);
-  });
-
-  it("uses initial when no storage is provided", () => {
-    const store = createChatHistoryStore({ initial: [entry("user", "seed", 1)] });
-    expect(store.get()).toEqual([entry("user", "seed", 1)]);
   });
 });
 
@@ -98,7 +98,7 @@ describe("createChatHistoryStore — rolling cap", () => {
     const currentEntries = Array.from({ length: 199 }, (_, i) =>
       entry("user", `current-${i}`, i + 51),
     );
-    const store = createChatHistoryStore({ initial: [boundary(50), ...currentEntries] });
+    const store = createChatHistoryStore({ storage: seeded([boundary(50), ...currentEntries]) });
     const before = store.sessionToken();
 
     store.append(entry("assistant", "latest", 250));
@@ -111,7 +111,7 @@ describe("createChatHistoryStore — rolling cap", () => {
     const currentEntries = Array.from({ length: 199 }, (_, i) =>
       entry("user", `current-${i}`, i + 51),
     );
-    const store = createChatHistoryStore({ initial: [boundary(50), ...currentEntries] });
+    const store = createChatHistoryStore({ storage: seeded([boundary(50), ...currentEntries]) });
     const latest = entry("assistant", "latest", 250);
 
     store.append(latest);
@@ -128,7 +128,12 @@ describe("createChatHistoryStore — rolling cap", () => {
       entry("user", `current-${i}`, i + 21),
     );
     const store = createChatHistoryStore({
-      initial: [boundary(10), entry("user", "older-session", 11), boundary(20), ...currentEntries],
+      storage: seeded([
+        boundary(10),
+        entry("user", "older-session", 11),
+        boundary(20),
+        ...currentEntries,
+      ]),
     });
 
     store.append(entry("assistant", "latest", 218));
@@ -468,27 +473,15 @@ describe("createChatHistoryStore — persist + reload", () => {
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// createChatHistoryStore — bootstrap keeps initial over a corrupted stored value
+// createChatHistoryStore — bootstrap rejects a corrupted stored value
 // ─────────────────────────────────────────────────────────────────────────────
 
-describe("createChatHistoryStore — bootstrap keeps initial over a corrupted stored value", () => {
-  it("a stored array of all-invalid items does not override initial", () => {
-    const validItem = entry("user", "seed", 1);
-    const storage: ChatHistoryStorage = {
-      load: () => [{ bogus: true }] as unknown as ChatHistoryItem[],
-      save: vi.fn(),
-    };
-    const store = createChatHistoryStore({ storage, initial: [validItem] });
-    expect(store.get()).toEqual([validItem]);
-  });
-
-  it("a stored empty array still overrides initial (cleared history)", () => {
-    const storage: ChatHistoryStorage = {
-      load: () => [],
-      save: vi.fn(),
-    };
-    const store = createChatHistoryStore({ storage, initial: [entry("user", "seed", 1)] });
-    expect(store.get()).toEqual([]);
+describe("createChatHistoryStore — bootstrap rejects a corrupted stored value", () => {
+  it("a stored array of all-invalid items starts an empty transcript", () => {
+    const load = vi.fn(() => [{ bogus: true }] as unknown as ChatHistoryItem[]);
+    const storage: ChatHistoryStorage = { load, save: vi.fn() };
+    expect(createChatHistoryStore({ storage }).get()).toEqual([]);
+    expect(load).toHaveBeenCalled();
   });
 });
 

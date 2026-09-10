@@ -41,18 +41,3 @@ describe("getToolLabel (default English)", () => {
     expect(getToolLabel("___")).toBe("Working…");
   });
 });
-
-describe("getToolLabel (explicit locale)", () => {
-  it("returns English label when locale='en'", () => {
-    expect(getToolLabel("web_search", "en")).toBe("Searching…");
-  });
-
-  it("stays English for other locales (tool labels are not translated)", () => {
-    expect(getToolLabel("web_search", "ja")).toBe("Searching…");
-    expect(getToolLabel("web_search", "ko")).toBe("Searching…");
-  });
-
-  it("humanizes unmapped tools regardless of locale", () => {
-    expect(getToolLabel("no_such_tool", "ja")).toBe("No such tool…");
-  });
-});

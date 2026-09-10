@@ -3,7 +3,7 @@
  *
  * Pins the contract for src/io/agent-settings.ts:
  *   REASONING_EFFORTS / INSTRUCTIONS_MAX_LEN constants
- *   createAgentSettings({ storage?, initial? }) store
+ *   createAgentSettings({ storage? }) store
  *   localStorageAgentStorage(key?) localStorage adapter
  */
 
@@ -35,7 +35,7 @@ describe("agent-settings constants", () => {
 // ─────────────────────────────────────────────────────────────────────────────
 
 describe("createAgentSettings — defaults", () => {
-  it("returns default state when no storage or initial given", () => {
+  it("returns default state when no storage given", () => {
     const store = createAgentSettings();
     expect(store.get()).toEqual({ reasoning_effort: "none", instructions: "" });
   });
@@ -122,9 +122,8 @@ describe("createAgentSettings — setReasoningEffort", () => {
   });
 
   it("invalid effort coerces to 'none' (notifies when changing from non-default)", () => {
-    const store = createAgentSettings({
-      initial: { reasoning_effort: "medium", instructions: "" },
-    });
+    const store = createAgentSettings();
+    store.setReasoningEffort("medium");
     const cb = vi.fn();
     store.subscribe(cb);
     store.setReasoningEffort("nope" as unknown as AgentSettings["reasoning_effort"]);
@@ -177,9 +176,8 @@ describe("createAgentSettings — setInstructions", () => {
   });
 
   it("non-string coerces to ''", () => {
-    const store = createAgentSettings({
-      initial: { reasoning_effort: "none", instructions: "had text" },
-    });
+    const store = createAgentSettings();
+    store.setInstructions("had text");
     store.setInstructions(42 as unknown as string);
     expect(store.get().instructions).toBe("");
   });
@@ -257,20 +255,18 @@ describe("createAgentSettings — reloadFromStorage", () => {
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// createAgentSettings — bootstrap keeps initial over a corrupted stored value
+// createAgentSettings — bootstrap rejects a corrupted stored value
 // ─────────────────────────────────────────────────────────────────────────────
 
-describe("createAgentSettings — bootstrap keeps initial over a corrupted stored value", () => {
-  it("does not adopt a corrupted stored value when initial is provided", () => {
-    const storage: AgentStorage = {
-      load: () => "garbage" as unknown as AgentSettings,
-      save: vi.fn(),
-    };
-    const store = createAgentSettings({
-      storage,
-      initial: { reasoning_effort: "medium", instructions: "user-authored" },
+describe("createAgentSettings — bootstrap rejects a corrupted stored value", () => {
+  it("falls back to the default state", () => {
+    const load = vi.fn(() => "garbage" as unknown as AgentSettings);
+    const storage: AgentStorage = { load, save: vi.fn() };
+    expect(createAgentSettings({ storage }).get()).toEqual({
+      reasoning_effort: "none",
+      instructions: "",
     });
-    expect(store.get()).toEqual({ reasoning_effort: "medium", instructions: "user-authored" });
+    expect(load).toHaveBeenCalled();
   });
 });
 
