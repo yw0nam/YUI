@@ -42,10 +42,6 @@ describe("createScreenshotSettings — defaults", () => {
     expect(s.enabled).toBe(false);
     expect(s.source).toEqual(DEFAULT_SOURCE);
   });
-
-  it("does not throw when no options given", () => {
-    expect(() => createScreenshotSettings()).not.toThrow();
-  });
 });
 
 describe("createScreenshotSettings — malformed/throwing storage", () => {

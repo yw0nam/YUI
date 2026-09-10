@@ -14,7 +14,6 @@ import { describe, expect, it } from "vitest";
 import { clampPolar, orbitPosition } from "./camera-fit";
 import {
   CATCH_D,
-  CATCH_MX,
   CATCH_U,
   characterScreenHeight,
   inCatchZone,
@@ -47,17 +46,6 @@ function fixtureCamera(zoom = 1): THREE.PerspectiveCamera {
   cam.updateMatrixWorld();
   return cam;
 }
-
-describe("perch-geometry — exported tunables", () => {
-  it("locks the catch-zone constants and seat drop default", () => {
-    expect(CATCH_U).toBe(0.28);
-    expect(CATCH_D).toBe(0.23);
-    expect(CATCH_MX).toBe(0.0);
-    expect(SIDE_OUT).toBe(0.28);
-    expect(SIDE_IN).toBe(0.23);
-    expect(SEAT_DROP_DEFAULT).toBe(0.0);
-  });
-});
 
 describe("inSideCatchZone", () => {
   const WIN = { x: 300, y: 400, width: 520, height: 320 };

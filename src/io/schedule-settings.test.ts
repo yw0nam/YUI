@@ -43,10 +43,6 @@ describe("createScheduleSettings — defaults", () => {
     expect(s.entries.map((e) => e.id)).toEqual(["morning", "lunch", "evening", "late_night"]);
     expect(s.entries.every((e) => e.enabled)).toBe(true);
   });
-
-  it("does not throw when no options given", () => {
-    expect(() => createScheduleSettings()).not.toThrow();
-  });
 });
 
 describe("createScheduleSettings — get() returns a deep clone", () => {

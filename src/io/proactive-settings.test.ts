@@ -59,10 +59,6 @@ describe("createProactiveSettings — defaults", () => {
     expect(s.entries.every((e) => e.enabled)).toBe(true);
     expect(s.entries.map((e) => e.idle_min)).toEqual([5, 10, 30]);
   });
-
-  it("does not throw when no options given", () => {
-    expect(() => createProactiveSettings()).not.toThrow();
-  });
 });
 
 describe("createProactiveSettings — get() returns a deep clone", () => {
