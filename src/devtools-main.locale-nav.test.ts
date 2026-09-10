@@ -12,7 +12,7 @@ const { wireDevtoolsSync, createConfigStore, initLogger, createLogger } = vi.hoi
 }));
 
 vi.mock("./bootstrap-wiring", () => ({ wireDevtoolsSync }));
-vi.mock("./config", () => ({ createConfigStore }));
+vi.mock("./config/store", () => ({ createConfigStore }));
 vi.mock("./logger", () => ({ initLogger, createLogger }));
 vi.mock("./io/settings-stores", async (importOriginal) => {
   const actual = await importOriginal<typeof import("./io/settings-stores")>();

@@ -1,5 +1,5 @@
 /**
- * schedule-settings.test.ts — createScheduleSettings reactive store (TDD red).
+ * schedule-settings.test.ts — createScheduleSettings reactive store.
  *
  * Verify:
  *  - defaults: enabled=true, 4 seed entries

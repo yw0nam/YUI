@@ -33,7 +33,7 @@
  * whether/what to speak.
  */
 
-import type { ScreenConfig } from "../config";
+import type { ScreenConfig } from "../config/load";
 import type { OsEventListen, OsEventPayload } from "../io/tauri-listen";
 import { subscribeOsEvent } from "../io/tauri-listen";
 import { buildSkipRecord, type ScreenSkipRecord, type SkipReason } from "../io/turn-record-log";

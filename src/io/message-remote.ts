@@ -8,7 +8,7 @@
  * `ready` and catch up.
  */
 
-import type { AttachmentLimits } from "../config";
+import type { AttachmentLimits } from "../config/load";
 import type { InputErrorAction } from "../ui/text-input";
 import type { MessageBridge } from "./message-bridge";
 

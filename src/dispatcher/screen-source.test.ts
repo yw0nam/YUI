@@ -13,7 +13,7 @@
  */
 
 import { describe, expect, it, vi } from "vitest";
-import type { ScreenConfig } from "../config";
+import type { ScreenConfig } from "../config/load";
 import type { InputContext } from "../contract";
 import type { OsEventListen, OsEventPayload } from "../io/tauri-listen";
 import { buildClientContext } from "./context-builder";

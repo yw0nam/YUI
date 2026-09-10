@@ -12,7 +12,8 @@ import {
   wireSettingsWindowSync,
   wireSpeakerSelection,
 } from "./bootstrap-wiring";
-import { createConfigStore, TTS_API_KEY_SECRET } from "./config";
+import { TTS_API_KEY_SECRET } from "./config/load";
+import { createConfigStore } from "./config/store";
 import { agentTriggerableMotionIds } from "./io/broker-client";
 import { endpointDefaultsFromConfig } from "./io/endpoints-settings";
 import { rateLimitDefaultsFromConfig } from "./io/guardrails-settings";

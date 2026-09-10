@@ -46,7 +46,7 @@ const { createDevtoolsShell, shellState } = vi.hoisted(() => {
 });
 
 vi.mock("./bootstrap-wiring", () => ({ wireDevtoolsSync }));
-vi.mock("./config", () => ({ createConfigStore }));
+vi.mock("./config/store", () => ({ createConfigStore }));
 vi.mock("./logger", () => ({ initLogger, createLogger }));
 vi.mock("./ui/devtools/shell", () => ({ createDevtoolsShell }));
 vi.mock("./io/settings-stores", async (importOriginal) => {

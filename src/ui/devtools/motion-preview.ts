@@ -12,7 +12,7 @@
  */
 
 import "./motion-preview.css";
-import { createConfigStore } from "../../config";
+import { createConfigStore } from "../../config/store";
 import type { EmotionId, EmotionRegistry, MotionKind, MotionRegistry } from "../../contract";
 import { resolveAssetUrl } from "../../io/asset-url";
 import { createLogger } from "../../logger";
