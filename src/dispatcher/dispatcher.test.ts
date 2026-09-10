@@ -11,7 +11,8 @@
  */
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { ATTACHMENT_LIMITS_DEFAULTS, type PeekConfig, type TapConfig } from "../config/load";
+import type { PeekConfig, TapConfig } from "../config/load";
+import { guardrailsFixture } from "../config/load-test-helpers";
 import type { Logger } from "../logger";
 import type { BackendCaller, TurnOutcome } from "./backend-caller";
 import { createDispatcher, type Dispatcher } from "./dispatcher";
@@ -39,7 +40,7 @@ function permissiveGuardrailsConfig(): GuardrailsConfig {
       overall_max: 1000,
       cooldown_ms: 300_000,
     },
-    attachments: ATTACHMENT_LIMITS_DEFAULTS,
+    attachments: guardrailsFixture().attachments,
   };
 }
 
@@ -58,7 +59,7 @@ function realGuardrailsConfig(): GuardrailsConfig {
       overall_max: 20,
       cooldown_ms: 300_000,
     },
-    attachments: ATTACHMENT_LIMITS_DEFAULTS,
+    attachments: guardrailsFixture().attachments,
   };
 }
 

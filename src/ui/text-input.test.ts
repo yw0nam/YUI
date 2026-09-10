@@ -12,7 +12,7 @@ import { afterEach, beforeEach, describe, expect, it, type Mock, vi } from "vite
 vi.mock("./surfaces.css", () => ({}));
 vi.mock("./tokens.css", () => ({}));
 
-import { ATTACHMENT_LIMITS_DEFAULTS } from "../config/load";
+import { guardrailsFixture } from "../config/load-test-helpers";
 import { setLocale, t } from "./i18n";
 import { createSurfaces } from "./surfaces";
 
@@ -81,12 +81,16 @@ describe("setInputAnchor — --yui-input-bottom on the chat form", () => {
   });
 });
 
+/** The caps configs/guardrails.json delivers through setAttachmentLimits. */
+const LIMITS = guardrailsFixture().attachments;
+
 describe("image attachments — tray chips + onSubmit images", () => {
   let mount: HTMLElement;
   let s: ReturnType<typeof createSurfaces>;
 
   beforeEach(() => {
     ({ s, mount } = makeSurfaces());
+    s.setAttachmentLimits(LIMITS);
   });
 
   afterEach(() => {
@@ -240,6 +244,9 @@ describe("attachment caps — count + per-image size", () => {
   function errorEl(): HTMLElement {
     return mount.querySelector(".yui-input__error") as HTMLElement;
   }
+  function attachBtn(): HTMLButtonElement {
+    return mount.querySelector(".yui-input__attach") as HTMLButtonElement;
+  }
 
   // Paste files in one event, then drain the async data-URL reads.
   async function paste(...files: File[]): Promise<void> {
@@ -247,11 +254,47 @@ describe("attachment caps — count + per-image size", () => {
     for (let i = 0; i < files.length + 3; i++) await new Promise((r) => setTimeout(r, 0));
   }
 
-  it("caps attachments at the built-in default before any config is applied", async () => {
-    const over = ATTACHMENT_LIMITS_DEFAULTS.max_count + 2;
+  it("attaches nothing before the configured caps arrive", async () => {
+    await paste(pngFile("a.png"), pngFile("b.png"));
+
+    expect(tray().children.length).toBe(0);
+  });
+
+  it("shows the not-ready error for a paste that beats the configured caps", async () => {
+    await paste(pngFile("a.png"));
+
+    expect(tray().children.length).toBe(0);
+    expect(errorEl().textContent).toBe(t("input.attach_not_ready"));
+    expect(form().classList.contains("is-error")).toBe(true);
+  });
+
+  it("keeps the attach button off until the configured caps arrive", () => {
+    expect(attachBtn().disabled).toBe(true);
+
+    s.setAttachmentLimits(LIMITS);
+
+    expect(attachBtn().disabled).toBe(false);
+  });
+
+  it("withholds the dragover affordance until the configured caps arrive", () => {
+    const dragOver = (): void => {
+      form().dispatchEvent(new Event("dragover", { bubbles: true, cancelable: true }));
+    };
+
+    dragOver();
+    expect(form().classList.contains("is-dragover")).toBe(false);
+
+    s.setAttachmentLimits(LIMITS);
+    dragOver();
+    expect(form().classList.contains("is-dragover")).toBe(true);
+  });
+
+  it("caps the count once the configured caps arrive", async () => {
+    s.setAttachmentLimits(LIMITS);
+    const over = LIMITS.max_count + 2;
     await paste(...Array.from({ length: over }, (_, i) => pngFile(`img${i}.png`)));
 
-    expect(tray().children.length).toBe(ATTACHMENT_LIMITS_DEFAULTS.max_count);
+    expect(tray().children.length).toBe(LIMITS.max_count);
   });
 
   it("stops at max_count within one paste and shows the count error", async () => {

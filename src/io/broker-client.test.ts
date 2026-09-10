@@ -12,20 +12,8 @@
  */
 
 import { describe, expect, it, vi } from "vitest";
-import {
-  type AppConfig,
-  ATTACHMENT_LIMITS_DEFAULTS,
-  CLIMB_DEFAULTS,
-  DESCEND_DEFAULTS,
-  DRAG_HOLD_MS_DEFAULT,
-  FALL_DEFAULTS,
-  GESTURE_CUES_DEFAULTS,
-  JUMP_DEFAULTS,
-  PEEK_DEFAULTS,
-  PERCH_WALK_DEFAULTS,
-  TAP_DEFAULTS,
-  WALK_DEFAULTS,
-} from "../config/load";
+import type { AppConfig } from "../config/load";
+import { avatarFixture, guardrailsFixture } from "../config/load-test-helpers";
 import type { MotionRegistry } from "../contract";
 import type { Logger } from "../logger";
 import {
@@ -640,19 +628,7 @@ describe("deriveBrokerPayload", () => {
         stt_base_url: "http://localhost:5517",
         tts_base_url: "http://localhost:8092",
       },
-      avatar: {
-        vrm_url: "/vrms/carlotta.vrm",
-        peek: PEEK_DEFAULTS,
-        tap: TAP_DEFAULTS,
-        walk: WALK_DEFAULTS,
-        perch_walk: PERCH_WALK_DEFAULTS,
-        fall: FALL_DEFAULTS,
-        descend: DESCEND_DEFAULTS,
-        climb: CLIMB_DEFAULTS,
-        jump: JUMP_DEFAULTS,
-        drag_hold_ms: DRAG_HOLD_MS_DEFAULT,
-        gesture_cues: GESTURE_CUES_DEFAULTS,
-      },
+      avatar: avatarFixture(),
       emotionRegistry: {
         neutral: { vrm_expression: "neutral", fallback: "neutral" },
         happy: { vrm_expression: "happy", fallback: "neutral" },
@@ -717,7 +693,7 @@ describe("deriveBrokerPayload", () => {
           screen_watcher: 5000,
         },
         rate_limit: { window_ms: 0, tier2_max: 0, tier3_max: 0, overall_max: 0, cooldown_ms: 0 },
-        attachments: ATTACHMENT_LIMITS_DEFAULTS,
+        attachments: guardrailsFixture().attachments,
       },
       filler: {
         gap_ms: 0,

@@ -1,4 +1,4 @@
-import { ATTACHMENT_LIMITS_DEFAULTS, type GuardrailsConfig } from "../load";
+import type { AttachmentLimits, GuardrailsConfig } from "../load";
 import { assertValid, ConfigError, isObject } from "./shared";
 
 export function validateGuardrails(file: string, raw: unknown): GuardrailsConfig {
@@ -41,17 +41,14 @@ export function validateGuardrails(file: string, raw: unknown): GuardrailsConfig
     }
   }
 
-  // attachments — an absent block, or an absent key inside it, keeps the default.
+  // attachments
   const rawAttachments = raw.attachments;
-  const attachments = { ...ATTACHMENT_LIMITS_DEFAULTS };
-  if (rawAttachments !== undefined) {
-    if (!isObject(rawAttachments)) {
-      issues.push(`attachments는 객체여야 함 (받음: ${JSON.stringify(rawAttachments)})`);
-    } else {
-      for (const k of Object.keys(attachments) as (keyof typeof attachments)[]) {
-        if (rawAttachments[k] === undefined) continue;
-        attachments[k] = nonNegNum(rawAttachments, "attachments", k);
-      }
+  const attachments = { max_count: 0, max_image_bytes: 0 };
+  if (!isObject(rawAttachments)) {
+    issues.push(`attachments는 객체여야 함 (받음: ${JSON.stringify(rawAttachments)})`);
+  } else {
+    for (const k of Object.keys(attachments) as (keyof AttachmentLimits)[]) {
+      attachments[k] = nonNegNum(rawAttachments, "attachments", k);
     }
   }
 

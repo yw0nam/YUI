@@ -8,6 +8,7 @@
 import type { VRM } from "@pixiv/three-vrm";
 import * as THREE from "three";
 import { describe, expect, it } from "vitest";
+import type { GazeKnobs } from "../config/load";
 import { createCursorGaze, cursorToResidual } from "./cursor-gaze";
 
 const RAD2DEG = 180 / Math.PI;
@@ -109,12 +110,26 @@ function quaternionAngleDeg(q: THREE.Quaternion): number {
   return q.angleTo(new THREE.Quaternion()) * RAD2DEG;
 }
 
+/** The tracking thresholds configs/avatar.json hands the layer. */
+const GAZE: GazeKnobs = {
+  deadDeg: 2,
+  headEngageDeg: 6,
+  disengageDeg: 45,
+  sensitivity: 30,
+  maxHeadYaw: 50,
+  maxHeadPitch: 30,
+  eyeMaxDeg: 25,
+  headNeckSplit: 0.6,
+  smooth: 10,
+};
+
 describe("createCursorGaze — step()", () => {
   it("a cursor at the window corner drives a large settled head+neck rotation and lookAt yaw/pitch", () => {
     const { vrm, head, neck, camera } = makeFixture();
     const gaze = createCursorGaze({
       camera,
       getVrm: () => vrm,
+      gaze: GAZE,
       log: noopLog,
       mountWidth: () => 800,
       mountHeight: () => 600,
@@ -138,6 +153,7 @@ describe("createCursorGaze — step()", () => {
     const gaze = createCursorGaze({
       camera,
       getVrm: () => vrm,
+      gaze: GAZE,
       log: noopLog,
       mountWidth: () => 800,
       mountHeight: () => 600,
@@ -166,6 +182,7 @@ describe("createCursorGaze — step()", () => {
     const gaze = createCursorGaze({
       camera,
       getVrm: () => vrm,
+      gaze: GAZE,
       log: noopLog,
       mountWidth: () => 800,
       mountHeight: () => 600,
@@ -191,6 +208,7 @@ describe("createCursorGaze — step()", () => {
     const gaze = createCursorGaze({
       camera,
       getVrm: () => vrm,
+      gaze: GAZE,
       log: noopLog,
       mountWidth: () => 800,
       mountHeight: () => 600,

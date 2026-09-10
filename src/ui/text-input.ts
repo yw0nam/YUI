@@ -5,7 +5,7 @@
  * user typed/attached. No brain, persona, or mode branching lives here.
  */
 
-import { ATTACHMENT_LIMITS_DEFAULTS, type AttachmentLimits } from "../config/load";
+import type { AttachmentLimits } from "../config/load";
 import { subscribe as subscribeLocale, t } from "./i18n";
 import { downscaleToJpeg } from "./image-resize";
 
@@ -81,8 +81,8 @@ export function createTextInput(
   let inFlight = 0;
   // Bumped by clearAttachments — reads started for an earlier turn are discarded.
   let epoch = 0;
-  // Defaults until setAttachmentLimits delivers the configured caps.
-  let limits: AttachmentLimits = ATTACHMENT_LIMITS_DEFAULTS;
+  // Caps arrive from configs/guardrails.json via setAttachmentLimits; null until they do.
+  let limits: AttachmentLimits | null = null;
   // Backend processing — the send button becomes stop and submit is blocked.
   let busy = false;
   // Input bottom offset (px) — updated by setInputAnchor, used to lift the bubble while the input is open.
@@ -168,8 +168,15 @@ export function createTextInput(
     submitHandlers.push(cb);
   }
 
+  /** The attach affordance stays off while there is nothing to validate a picked image against. */
+  function applyAttachEnabled(): void {
+    attachBtn.disabled = limits === null;
+  }
+  applyAttachEnabled();
+
   function setAttachmentLimits(next: AttachmentLimits): void {
     limits = next;
+    applyAttachEnabled();
   }
 
   function clearAttachments(): void {
@@ -180,8 +187,13 @@ export function createTextInput(
   }
 
   function addFiles(files: FileList | File[]): void {
-    for (const file of Array.from(files)) {
-      if (!file.type.startsWith("image/")) continue;
+    const images = Array.from(files).filter((file) => file.type.startsWith("image/"));
+    if (images.length === 0) return;
+    if (!limits) {
+      showInputError(t("input.attach_not_ready"));
+      return;
+    }
+    for (const file of images) {
       if (attachments.length + inFlight >= limits.max_count) {
         showInputError(t("input.attach_too_many", { max: limits.max_count }));
         return;
@@ -316,8 +328,9 @@ export function createTextInput(
     addFiles(files);
   }
   function onDragOver(e: DragEvent): void {
+    // Swallowed either way — a drop the webview handles itself navigates away from the app.
     e.preventDefault();
-    formEl.classList.add("is-dragover");
+    if (limits) formEl.classList.add("is-dragover");
   }
   function onDragLeave(e: DragEvent): void {
     // dragleave also fires when entering a child element, so clear only when actually leaving the form.

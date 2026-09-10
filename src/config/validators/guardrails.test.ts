@@ -1,5 +1,4 @@
 import { describe, expect, it } from "vitest";
-import { ATTACHMENT_LIMITS_DEFAULTS } from "../load";
 import { validateGuardrails } from "./guardrails";
 import { ConfigError } from "./shared";
 
@@ -118,13 +117,13 @@ describe("validateGuardrails — rate_limit", () => {
     );
   });
 
-  it("accumulates issues for every malformed block at once (attachments defaulted)", () => {
+  it("accumulates one issue per malformed block at once", () => {
     try {
-      validateGuardrails(FILE, { debounce_ms: "y", rate_limit: "z" });
+      validateGuardrails(FILE, { debounce_ms: "y", rate_limit: "z", attachments: "w" });
       expect.unreachable("validateGuardrails should have thrown");
     } catch (e) {
       const err = e as ConfigError;
-      expect(err.issues.length).toBe(2);
+      expect(err.issues.length).toBe(3);
     }
   });
 });
@@ -138,23 +137,22 @@ describe("validateGuardrails — attachments", () => {
     expect(out.attachments).toEqual({ max_count: 3, max_image_bytes: 1024 });
   });
 
-  it("falls back to the defaults when the block is absent", () => {
+  it("names attachments when the block is absent", () => {
     const raw = baseRaw();
     delete raw.attachments;
-    expect(validateGuardrails(FILE, raw).attachments).toEqual(ATTACHMENT_LIMITS_DEFAULTS);
+    expectIssue(raw, "attachments는 객체여야 함");
   });
 
-  it("defaults the keys a partial block omits", () => {
-    const out = validateGuardrails(FILE, baseRaw({ attachments: { max_count: 3 } }));
-    expect(out.attachments).toEqual({
-      max_count: 3,
-      max_image_bytes: ATTACHMENT_LIMITS_DEFAULTS.max_image_bytes,
-    });
-  });
-
-  it("still rejects a malformed key inside a partial block", () => {
+  it("names the key a partial block omits", () => {
     expectIssue(
-      baseRaw({ attachments: { max_image_bytes: "big" } }),
+      baseRaw({ attachments: { max_count: 3 } }),
+      "attachments.max_image_bytes는 0 이상 유한 number여야 함",
+    );
+  });
+
+  it("rejects a malformed key", () => {
+    expectIssue(
+      baseRaw({ attachments: { max_count: 6, max_image_bytes: "big" } }),
       "attachments.max_image_bytes는 0 이상 유한 number여야 함",
     );
   });

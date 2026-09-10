@@ -49,6 +49,7 @@ const en: Record<string, string> = {
   "input.error_open_advanced": "Open Advanced",
   "input.attach_too_many": "Too many images · up to {max} per turn",
   "input.attach_too_large": "Image too large · up to {max}MB each",
+  "input.attach_not_ready": "Can't attach yet · loading limits",
 
   // chain-break (404) recovery notice
   "chain.reset_notice": "Conversation context was reset",

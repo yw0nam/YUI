@@ -13,26 +13,7 @@
  *   ≥disengageDeg       disengage — targets 0, damping eases back to neutral
  */
 
-export interface GazeConfig {
-  /** No tracking within this eccentricity (degrees). */
-  deadDeg: number;
-  /** Eyes reach full tracking by here; head starts recruiting past it (degrees). */
-  headEngageDeg: number;
-  /** Beyond this the character disengages — can't crane the neck around (degrees). */
-  disengageDeg: number;
-  /** Degrees of gaze rotation per window-width of cursor offset from the head's screen position. */
-  sensitivity: number;
-  /** Max head-bone yaw (degrees). */
-  maxHeadYaw: number;
-  /** Max head-bone pitch (degrees). */
-  maxHeadPitch: number;
-  /** Max eye yaw/pitch (degrees). */
-  eyeMaxDeg: number;
-  /** Fraction of the head rotation taken by the head bone; the rest goes to neck. */
-  headNeckSplit: number;
-  /** Exponential damping rate (1/s) for k = 1-exp(-smooth·dt). */
-  smooth: number;
-}
+import type { GazeKnobs } from "../config/load";
 
 interface GazeWeights {
   eyeWeight: number;
@@ -90,7 +71,7 @@ export function clampDeg(v: number, max: number): number {
 }
 
 /** 4-stage zone curve ⇒ eye/head tracking weights for the given eccentricity (deg). */
-export function gazeShape(eccentricityDeg: number, cfg: GazeConfig): GazeWeights {
+export function gazeShape(eccentricityDeg: number, cfg: GazeKnobs): GazeWeights {
   if (eccentricityDeg <= cfg.deadDeg || eccentricityDeg >= cfg.disengageDeg) {
     return { eyeWeight: 0, headWeight: 0 };
   }
@@ -109,7 +90,7 @@ export function gazeTargets(
   residualYawDeg: number,
   residualPitchDeg: number,
   eccentricityDeg: number,
-  cfg: GazeConfig,
+  cfg: GazeKnobs,
 ): GazeTargets {
   const { eyeWeight, headWeight } = gazeShape(eccentricityDeg, cfg);
   const headYaw = clampDeg(residualYawDeg * headWeight, cfg.maxHeadYaw);
@@ -134,7 +115,7 @@ export function dampAngle(prev: number, target: number, smooth: number, dt: numb
 export function advanceGaze(
   prev: GazeState,
   input: GazeInput,
-  cfg: GazeConfig,
+  cfg: GazeKnobs,
   dt: number,
 ): GazeAdvance {
   const target = input.enabled

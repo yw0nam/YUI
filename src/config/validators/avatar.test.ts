@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { avatarFixture } from "../load-test-helpers";
 import { validateAvatar } from "./avatar";
 import { ConfigError } from "./shared";
 
@@ -19,102 +20,86 @@ function expectIssue(raw: unknown, fragment: string): void {
   }
 }
 
+/** True for a plain object (not an array). */
+function isPlainObject(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+/** `base` with `overrides` merged in, recursing into nested objects. */
+function merge(
+  base: Record<string, unknown>,
+  overrides: Record<string, unknown>,
+): Record<string, unknown> {
+  const out = { ...base };
+  for (const [key, value] of Object.entries(overrides)) {
+    const current = out[key];
+    out[key] = isPlainObject(current) && isPlainObject(value) ? merge(current, value) : value;
+  }
+  return out;
+}
+
+/** A valid file with `overrides` merged in — each case declares only what it tests. */
+function avatarWith(overrides: Record<string, unknown>): Record<string, unknown> {
+  return merge(avatarFixture() as unknown as Record<string, unknown>, overrides);
+}
+
+/** Every dotted path under `node`, parents before their children. */
+function tunablePaths(node: Record<string, unknown>, prefix = ""): string[] {
+  const out: string[] = [];
+  for (const [key, value] of Object.entries(node)) {
+    const path = prefix ? `${prefix}.${key}` : key;
+    out.push(path);
+    if (value !== null && typeof value === "object" && !Array.isArray(value)) {
+      out.push(...tunablePaths(value as Record<string, unknown>, path));
+    }
+  }
+  return out;
+}
+
+/** The fixture with one dotted path removed. */
+function without(path: string): Record<string, unknown> {
+  const raw = avatarFixture() as unknown as Record<string, unknown>;
+  const parts = path.split(".");
+  let node = raw;
+  for (const part of parts.slice(0, -1)) node = node[part] as Record<string, unknown>;
+  delete node[parts[parts.length - 1]];
+  return raw;
+}
+
+/** Every tunable the file owns — vrm_url has its own cases. */
+const TUNABLE_PATHS = tunablePaths(avatarFixture() as unknown as Record<string, unknown>).filter(
+  (path) => path !== "vrm_url",
+);
+
+describe("validateAvatar — configs/avatar.json owns every tunable", () => {
+  it.each(TUNABLE_PATHS)("names %s when it is absent", (path) => {
+    expectIssue(without(path), path);
+  });
+
+  it("accepts a file with region_emotions and region_cues left out", () => {
+    const raw = avatarFixture() as unknown as Record<string, unknown>;
+    const out = validateAvatar(FILE, raw);
+    expect(out.tap.region_emotions).toBeUndefined();
+    expect(out.tap.region_cues).toBeUndefined();
+  });
+});
+
 describe("validateAvatar — happy path", () => {
-  it("accepts a bare vrm_url", () => {
-    const out = validateAvatar(FILE, { vrm_url: "/vrms/carlotta.vrm" });
-    expect(out).toEqual({
-      vrm_url: "/vrms/carlotta.vrm",
-      peek: {
-        side_out_frac: 0.28,
-        side_in_frac: 0.23,
-        inset_frac: 0.12,
-        mirror_side: "right",
-      },
-      tap: {
-        spam_count: 4,
-        spam_window_ms: 3000,
-        region_radius_frac: 0.18,
-        region_motions: { head: "head_pat", chest: "embarrassed", hips: "embarrassed" },
-        bored_cue: { label: "bored poking" },
-        touch_cue_cooldown_ms: 60_000,
-        touch_emotion_hold_ms: 4000,
-        pat_hold_ms: 300,
-      },
-      drag_hold_ms: 5000,
-      gesture_cues: {
-        drag_held: { label: "dragged around" },
-        window_sit: { label: "sat on window" },
-        peek: { label: "peeking" },
-        dropped: { label: "dropped from mid-air" },
-      },
-      walk: {
-        interval_min_ms: 30_000,
-        interval_max_ms: 60_000,
-        distance_min_px: 200,
-        distance_max_px: 600,
-        floor_tolerance_px: 24,
-      },
-      perch_walk: {
-        dwell_min_ms: 45_000,
-        dwell_max_ms: 120_000,
-        distance_min_px: 80,
-        distance_max_px: 400,
-        edge_margin_frac: 0.2,
-        level_tolerance_px: 8,
-      },
-      fall: {
-        gravity_px_s2: 1600,
-        max_speed_px_s: 1200,
-        min_drop_frac: 0.2,
-        cue_cooldown_ms: 60_000,
-        land_room_frac: 0.5,
-        step_off_probability: 0.1,
-      },
-      descend: {
-        chance: 0.5,
-        climb_down_chance: 0.5,
-      },
-      climb: {
-        interval_min_ms: 90_000,
-        interval_max_ms: 180_000,
-        perch_dwell_min_ms: 60_000,
-        perch_dwell_max_ms: 120_000,
-        max_height_frac: 4,
-        hang_frac: 0.3,
-        wall_offset_frac: 0.17,
-        descent_wall_offset_frac: 0.3,
-        ledge_walk_min_frac: 0.5,
-        ledge_walk_max_frac: 1.5,
-      },
-      jump: {
-        probability: 0.3,
-        height_up_max_frac: 0.5,
-        height_down_max_frac: 1,
-        gap_max_width_frac: 1.5,
-        apex_lift_frac: 0.15,
-        takeoff_frac: 0.4,
-        land_frac: 0.67,
-        flight_timeout_ms: 4000,
-      },
-    });
+  it("returns every section the file declares, unchanged", () => {
+    expect(validateAvatar(FILE, avatarWith({}))).toEqual(avatarFixture());
   });
 
   it("accepts an available[] manifest with distinct ids", () => {
-    const raw = {
-      vrm_url: "/vrms/carlotta.vrm",
-      available: [
-        { id: "carlotta", label: "Carlotta", url: "/vrms/carlotta.vrm", source: "bundled" },
-        { id: "custom.1", label: "Custom", url: "/vrms/custom.vrm", source: "user" },
-      ],
-    };
-    const out = validateAvatar(FILE, raw);
-    expect(out.available).toEqual(raw.available);
+    const available = [
+      { id: "carlotta", label: "Carlotta", url: "/vrms/carlotta.vrm", source: "bundled" },
+      { id: "custom.1", label: "Custom", url: "/vrms/custom.vrm", source: "user" },
+    ];
+    expect(validateAvatar(FILE, avatarWith({ available })).available).toEqual(available);
   });
 
-  it("accepts partial framing/hit_test/gaze knobs", () => {
-    const raw = {
-      vrm_url: "/vrms/carlotta.vrm",
-      framing: { margin: 0.1, fov: 30 },
+  it("keeps the framing/hit_test/gaze knobs the file declares", () => {
+    const raw = avatarWith({
+      framing: { margin: 0.2, fov: 45 },
       hit_test: {
         hysteresis_margin_px: 4,
         poll_interval_ms: 100,
@@ -131,7 +116,7 @@ describe("validateAvatar — happy path", () => {
         headNeckSplit: 0.6,
         smooth: 120,
       },
-    };
+    });
     const out = validateAvatar(FILE, raw);
     expect(out.framing).toEqual(raw.framing);
     expect(out.hit_test).toEqual(raw.hit_test);
@@ -161,50 +146,49 @@ describe("validateAvatar — top-level shape", () => {
 
 describe("validateAvatar — available[]", () => {
   it("rejects available that isn't an array", () => {
-    expectIssue({ vrm_url: "/v.vrm", available: "nope" }, "available은 배열이어야 함");
+    expectIssue(avatarWith({ available: "nope" }), "available은 배열이어야 함");
   });
 
   it("rejects a non-object entry", () => {
-    expectIssue({ vrm_url: "/v.vrm", available: ["nope"] }, "available[0]: 항목이 객체가 아님");
+    expectIssue(avatarWith({ available: ["nope"] }), "available[0]: 항목이 객체가 아님");
   });
 
   it("rejects an entry missing id/label/url", () => {
     expectIssue(
-      { vrm_url: "/v.vrm", available: [{ id: "a" }] },
+      avatarWith({ available: [{ id: "a" }] }),
       "available[0].label는 비어 있지 않은 문자열이어야 함",
     );
   });
 
   it("rejects an entry with an empty label", () => {
     expectIssue(
-      { vrm_url: "/v.vrm", available: [{ id: "a", label: "", url: "/a.vrm" }] },
+      avatarWith({ available: [{ id: "a", label: "", url: "/a.vrm" }] }),
       "available[0].label는 비어 있지 않은 문자열이어야 함",
     );
   });
 
   it("rejects an id with disallowed characters", () => {
     expectIssue(
-      { vrm_url: "/v.vrm", available: [{ id: "a b", label: "A", url: "/a.vrm" }] },
+      avatarWith({ available: [{ id: "a b", label: "A", url: "/a.vrm" }] }),
       "available[0].id는 [A-Za-z0-9._-]만 허용",
     );
   });
 
   it("rejects an unknown source", () => {
     expectIssue(
-      { vrm_url: "/v.vrm", available: [{ id: "a", label: "A", url: "/a.vrm", source: "cdn" }] },
+      avatarWith({ available: [{ id: "a", label: "A", url: "/a.vrm", source: "cdn" }] }),
       "available[0].source는",
     );
   });
 
   it("rejects duplicate ids", () => {
     expectIssue(
-      {
-        vrm_url: "/v.vrm",
+      avatarWith({
         available: [
           { id: "a", label: "A", url: "/a.vrm" },
           { id: "a", label: "A2", url: "/a2.vrm" },
         ],
-      },
+      }),
       "available[1].id 중복",
     );
   });
@@ -212,77 +196,79 @@ describe("validateAvatar — available[]", () => {
 
 describe("validateAvatar — framing", () => {
   it("rejects a non-object framing", () => {
-    expectIssue({ vrm_url: "/v.vrm", framing: "nope" }, "framing은 객체여야 함");
+    expectIssue(avatarWith({ framing: "nope" }), "framing은 객체여야 함");
   });
 
   it("rejects a negative margin", () => {
-    expectIssue({ vrm_url: "/v.vrm", framing: { margin: -1 } }, "framing.margin은 0 이상");
+    expectIssue(avatarWith({ framing: { margin: -1 } }), "framing.margin는 0 이상");
   });
 
   it("rejects fov <= 0", () => {
-    expectIssue({ vrm_url: "/v.vrm", framing: { fov: 0 } }, "framing.fov는 (0, 180)");
+    expectIssue(avatarWith({ framing: { fov: 0 } }), "framing.fov는 (0, 180)");
   });
 
   it("rejects fov >= 180", () => {
-    expectIssue({ vrm_url: "/v.vrm", framing: { fov: 180 } }, "framing.fov는 (0, 180)");
+    expectIssue(avatarWith({ framing: { fov: 180 } }), "framing.fov는 (0, 180)");
   });
 });
 
 describe("validateAvatar — hit_test", () => {
   it("rejects a non-object hit_test", () => {
-    expectIssue({ vrm_url: "/v.vrm", hit_test: "nope" }, "hit_test은 객체여야 함");
+    expectIssue(avatarWith({ hit_test: "nope" }), "hit_test은 객체여야 함");
   });
 
   it("rejects a negative hysteresis_margin_px", () => {
     expectIssue(
-      { vrm_url: "/v.vrm", hit_test: { hysteresis_margin_px: -1 } },
+      avatarWith({ hit_test: { hysteresis_margin_px: -1 } }),
       "hit_test.hysteresis_margin_px는 0 이상",
     );
   });
 
   it("rejects poll_interval_ms <= 0 (exclusive minimum)", () => {
     expectIssue(
-      { vrm_url: "/v.vrm", hit_test: { poll_interval_ms: 0 } },
+      avatarWith({ hit_test: { poll_interval_ms: 0 } }),
       "hit_test.poll_interval_ms는 0보다 큰",
     );
   });
 
   it("rejects a non-integer debounce_samples", () => {
     expectIssue(
-      { vrm_url: "/v.vrm", hit_test: { debounce_samples: 1.5 } },
+      avatarWith({ hit_test: { debounce_samples: 1.5 } }),
       "hit_test.debounce_samples는 1 이상 정수여야 함",
     );
   });
 
   it("rejects debounce_samples below 1", () => {
     expectIssue(
-      { vrm_url: "/v.vrm", hit_test: { debounce_samples: 0 } },
+      avatarWith({ hit_test: { debounce_samples: 0 } }),
       "hit_test.debounce_samples는 1 이상 정수여야 함",
     );
   });
 
   it("rejects alpha_threshold outside (0, 1]", () => {
     expectIssue(
-      { vrm_url: "/v.vrm", hit_test: { alpha_threshold: 0 } },
+      avatarWith({ hit_test: { alpha_threshold: 0 } }),
       "hit_test.alpha_threshold는 (0, 1]",
     );
     expectIssue(
-      { vrm_url: "/v.vrm", hit_test: { alpha_threshold: 1.5 } },
+      avatarWith({ hit_test: { alpha_threshold: 1.5 } }),
       "hit_test.alpha_threshold는 (0, 1]",
     );
   });
 });
 
 describe("validateAvatar — tap", () => {
-  it("merges partial tap blocks over defaults", () => {
-    const out = validateAvatar(FILE, {
-      vrm_url: "/v.vrm",
-      tap: {
-        spam_count: 6,
-        region_motions: { hips: "wave" },
-        bored_cue: { label: "custom label" },
-      },
-    });
+  it("keeps every tap key the file declares", () => {
+    const out = validateAvatar(
+      FILE,
+      avatarWith({
+        tap: {
+          spam_count: 6,
+          region_motions: { hips: "wave" },
+          bored_cue: { label: "custom label" },
+        },
+      }),
+    );
 
     expect(out.tap).toEqual({
       spam_count: 6,
@@ -297,18 +283,15 @@ describe("validateAvatar — tap", () => {
   });
 
   it("rejects a non-object tap block", () => {
-    expectIssue({ vrm_url: "/v.vrm", tap: "nope" }, "tap은 객체여야 함");
+    expectIssue(avatarWith({ tap: "nope" }), "tap은 객체여야 함");
   });
 
   it.each([1, 2.5, Number.NaN, "4"])("rejects invalid spam_count: %s", (spam_count) => {
-    expectIssue({ vrm_url: "/v.vrm", tap: { spam_count } }, "tap.spam_count는 2 이상 정수");
+    expectIssue(avatarWith({ tap: { spam_count } }), "tap.spam_count는 2 이상 정수");
   });
 
   it.each([0, 60001, 1.5, "3000"])("rejects invalid spam_window_ms: %s", (spam_window_ms) => {
-    expectIssue(
-      { vrm_url: "/v.vrm", tap: { spam_window_ms } },
-      "tap.spam_window_ms는 1..60000 범위 정수",
-    );
+    expectIssue(avatarWith({ tap: { spam_window_ms } }), "tap.spam_window_ms는 1..60000 범위 정수");
   });
 
   it.each([
@@ -317,45 +300,39 @@ describe("validateAvatar — tap", () => {
     Number.NaN,
     "0.18",
   ])("rejects invalid region_radius_frac: %s", (region_radius_frac) => {
-    expectIssue(
-      { vrm_url: "/v.vrm", tap: { region_radius_frac } },
-      "tap.region_radius_frac는 (0, 1]",
-    );
+    expectIssue(avatarWith({ tap: { region_radius_frac } }), "tap.region_radius_frac는 (0, 1]");
   });
 
   it("accepts inclusive numeric boundaries", () => {
-    const out = validateAvatar(FILE, {
-      vrm_url: "/v.vrm",
-      tap: { spam_count: 2, spam_window_ms: 60_000, region_radius_frac: 1 },
-    });
+    const out = validateAvatar(
+      FILE,
+      avatarWith({ tap: { spam_count: 2, spam_window_ms: 60_000, region_radius_frac: 1 } }),
+    );
 
     expect(out.tap).toMatchObject({ spam_count: 2, spam_window_ms: 60_000, region_radius_frac: 1 });
     expect(
-      validateAvatar(FILE, { vrm_url: "/v.vrm", tap: { spam_window_ms: 1 } }).tap.spam_window_ms,
+      validateAvatar(FILE, avatarWith({ tap: { spam_window_ms: 1 } })).tap.spam_window_ms,
     ).toBe(1);
   });
 
   it("rejects invalid or unknown region motion entries", () => {
+    expectIssue(avatarWith({ tap: { region_motions: [] } }), "tap.region_motions은 객체여야 함");
     expectIssue(
-      { vrm_url: "/v.vrm", tap: { region_motions: [] } },
-      "tap.region_motions은 객체여야 함",
-    );
-    expectIssue(
-      { vrm_url: "/v.vrm", tap: { region_motions: { feet: "wave" } } },
+      avatarWith({ tap: { region_motions: { feet: "wave" } } }),
       "tap.region_motions.feet는 허용되지 않는 키",
     );
     expectIssue(
-      { vrm_url: "/v.vrm", tap: { region_motions: { chest: "" } } },
+      avatarWith({ tap: { region_motions: { chest: "" } } }),
       "tap.region_motions.chest는 비어 있지 않은 문자열",
     );
     expectIssue(
-      { vrm_url: "/v.vrm", tap: { region_motions: { hips: 1 } } },
+      avatarWith({ tap: { region_motions: { hips: 1 } } }),
       "tap.region_motions.hips는 비어 있지 않은 문자열",
     );
   });
 
   it("rejects a non-object bored_cue", () => {
-    expectIssue({ vrm_url: "/v.vrm", tap: { bored_cue: "nope" } }, "tap.bored_cue은 객체여야 함");
+    expectIssue(avatarWith({ tap: { bored_cue: "nope" } }), "tap.bored_cue은 객체여야 함");
   });
 
   it.each([
@@ -365,31 +342,25 @@ describe("validateAvatar — tap", () => {
     ["context", 1],
   ] as const)("rejects an empty or non-string bored_cue.%s", (field, value) => {
     expectIssue(
-      { vrm_url: "/v.vrm", tap: { bored_cue: { [field]: value } } },
+      avatarWith({ tap: { bored_cue: { [field]: value } } }),
       `tap.bored_cue.${field}는 비어 있지 않은 문자열`,
     );
   });
 });
 
 describe("validateAvatar — tap touch reactions", () => {
-  it("applies touch defaults and leaves cues/emotions undefined when absent", () => {
-    const out = validateAvatar(FILE, { vrm_url: "/v.vrm", tap: { spam_count: 3 } });
-    expect(out.tap.touch_cue_cooldown_ms).toBe(60_000);
-    expect(out.tap.touch_emotion_hold_ms).toBe(4_000);
-    expect(out.tap.region_emotions).toBeUndefined();
-    expect(out.tap.region_cues).toBeUndefined();
-  });
-
   it("keeps configured region_emotions, region_cues, and touch timing knobs", () => {
-    const out = validateAvatar(FILE, {
-      vrm_url: "/v.vrm",
-      tap: {
-        region_emotions: { chest: "embarrassed" },
-        region_cues: { hips: { label: "butt poked", context: "React in character." } },
-        touch_cue_cooldown_ms: 1_000,
-        touch_emotion_hold_ms: 250,
-      },
-    });
+    const out = validateAvatar(
+      FILE,
+      avatarWith({
+        tap: {
+          region_emotions: { chest: "embarrassed" },
+          region_cues: { hips: { label: "butt poked", context: "React in character." } },
+          touch_cue_cooldown_ms: 1_000,
+          touch_emotion_hold_ms: 250,
+        },
+      }),
+    );
     expect(out.tap.region_emotions).toEqual({ chest: "embarrassed" });
     expect(out.tap.region_cues).toEqual({
       hips: { label: "butt poked", context: "React in character." },
@@ -399,58 +370,49 @@ describe("validateAvatar — tap touch reactions", () => {
   });
 
   it("rejects invalid or unknown region emotion entries", () => {
+    expectIssue(avatarWith({ tap: { region_emotions: [] } }), "tap.region_emotions은 객체여야 함");
     expectIssue(
-      { vrm_url: "/v.vrm", tap: { region_emotions: [] } },
-      "tap.region_emotions은 객체여야 함",
-    );
-    expectIssue(
-      { vrm_url: "/v.vrm", tap: { region_emotions: { feet: "happy" } } },
+      avatarWith({ tap: { region_emotions: { feet: "happy" } } }),
       "tap.region_emotions.feet는 허용되지 않는 키",
     );
     expectIssue(
-      { vrm_url: "/v.vrm", tap: { region_emotions: { chest: "" } } },
+      avatarWith({ tap: { region_emotions: { chest: "" } } }),
       "tap.region_emotions.chest는 비어 있지 않은 문자열",
     );
   });
 
   it("rejects malformed region_cues", () => {
+    expectIssue(avatarWith({ tap: { region_cues: "nope" } }), "tap.region_cues은 객체여야 함");
     expectIssue(
-      { vrm_url: "/v.vrm", tap: { region_cues: "nope" } },
-      "tap.region_cues은 객체여야 함",
-    );
-    expectIssue(
-      { vrm_url: "/v.vrm", tap: { region_cues: { feet: { label: "a", context: "b" } } } },
+      avatarWith({ tap: { region_cues: { feet: { label: "a", context: "b" } } } }),
       "tap.region_cues.feet는 허용되지 않는 키",
     );
     expectIssue(
-      { vrm_url: "/v.vrm", tap: { region_cues: { chest: "nope" } } },
+      avatarWith({ tap: { region_cues: { chest: "nope" } } }),
       "tap.region_cues.chest는 객체여야 함",
     );
     expectIssue(
-      { vrm_url: "/v.vrm", tap: { region_cues: { chest: { label: "", context: "b" } } } },
+      avatarWith({ tap: { region_cues: { chest: { label: "", context: "b" } } } }),
       "tap.region_cues.chest",
     );
+    expectIssue(avatarWith({ tap: { region_cues: { chest: {} } } }), "tap.region_cues.chest");
     expectIssue(
-      { vrm_url: "/v.vrm", tap: { region_cues: { chest: {} } } },
-      "tap.region_cues.chest",
-    );
-    expectIssue(
-      { vrm_url: "/v.vrm", tap: { region_cues: { chest: { label: "a", context: "" } } } },
+      avatarWith({ tap: { region_cues: { chest: { label: "a", context: "" } } } }),
       "tap.region_cues.chest",
     );
   });
 
   it("accepts a label-only region cue", () => {
-    const out = validateAvatar(FILE, {
-      vrm_url: "/v.vrm",
-      tap: { region_cues: { chest: { label: "chest poked" } } },
-    });
+    const out = validateAvatar(
+      FILE,
+      avatarWith({ tap: { region_cues: { chest: { label: "chest poked" } } } }),
+    );
     expect(out.tap.region_cues).toEqual({ chest: { label: "chest poked" } });
   });
 
   it.each([-1, 1.5, "0"])("rejects invalid touch_cue_cooldown_ms: %s", (touch_cue_cooldown_ms) => {
     expectIssue(
-      { vrm_url: "/v.vrm", tap: { touch_cue_cooldown_ms } },
+      avatarWith({ tap: { touch_cue_cooldown_ms } }),
       "tap.touch_cue_cooldown_ms는 0 이상 정수",
     );
   });
@@ -461,46 +423,48 @@ describe("validateAvatar — tap touch reactions", () => {
     "4000",
   ])("rejects invalid touch_emotion_hold_ms: %s", (touch_emotion_hold_ms) => {
     expectIssue(
-      { vrm_url: "/v.vrm", tap: { touch_emotion_hold_ms } },
+      avatarWith({ tap: { touch_emotion_hold_ms } }),
       "tap.touch_emotion_hold_ms는 1 이상 정수",
     );
   });
 
   it("keeps the head region across motions, emotions, and cues", () => {
-    const out = validateAvatar(FILE, {
-      vrm_url: "/v.vrm",
-      tap: {
-        region_motions: { head: "head_pat" },
-        region_emotions: { head: "relaxed" },
-        region_cues: { head: { label: "head patted" } },
-      },
-    });
+    const out = validateAvatar(
+      FILE,
+      avatarWith({
+        tap: {
+          region_motions: { head: "head_pat" },
+          region_emotions: { head: "relaxed" },
+          region_cues: { head: { label: "head patted" } },
+        },
+      }),
+    );
     expect(out.tap.region_motions.head).toBe("head_pat");
     expect(out.tap.region_emotions).toEqual({ head: "relaxed" });
     expect(out.tap.region_cues).toEqual({ head: { label: "head patted" } });
   });
 
   it("keeps a configured pat_hold_ms", () => {
-    const out = validateAvatar(FILE, { vrm_url: "/v.vrm", tap: { pat_hold_ms: 500 } });
+    const out = validateAvatar(FILE, avatarWith({ tap: { pat_hold_ms: 500 } }));
     expect(out.tap.pat_hold_ms).toBe(500);
   });
 
   it.each([0, 1.5, "300"])("rejects invalid pat_hold_ms: %s", (pat_hold_ms) => {
-    expectIssue({ vrm_url: "/v.vrm", tap: { pat_hold_ms } }, "tap.pat_hold_ms는 1 이상 정수");
+    expectIssue(avatarWith({ tap: { pat_hold_ms } }), "tap.pat_hold_ms는 1 이상 정수");
   });
 
   it("accepts a zero cooldown", () => {
-    const out = validateAvatar(FILE, { vrm_url: "/v.vrm", tap: { touch_cue_cooldown_ms: 0 } });
+    const out = validateAvatar(FILE, avatarWith({ tap: { touch_cue_cooldown_ms: 0 } }));
     expect(out.tap.touch_cue_cooldown_ms).toBe(0);
   });
 });
 
 describe("validateAvatar — peek", () => {
-  it("merges partial peek blocks over defaults", () => {
-    const out = validateAvatar(FILE, {
-      vrm_url: "/v.vrm",
-      peek: { side_out_frac: 0.5, mirror_side: "left" },
-    });
+  it("keeps every peek key the file declares", () => {
+    const out = validateAvatar(
+      FILE,
+      avatarWith({ peek: { side_out_frac: 0.5, mirror_side: "left" } }),
+    );
 
     expect(out.peek).toEqual({
       side_out_frac: 0.5,
@@ -511,7 +475,7 @@ describe("validateAvatar — peek", () => {
   });
 
   it("rejects a non-object peek block", () => {
-    expectIssue({ vrm_url: "/v.vrm", peek: "nope" }, "peek은 객체여야 함");
+    expectIssue(avatarWith({ peek: "nope" }), "peek은 객체여야 함");
   });
 
   it.each([
@@ -520,7 +484,7 @@ describe("validateAvatar — peek", () => {
     ["side_in_frac", Number.NaN],
     ["side_in_frac", "0.23"],
   ])("rejects invalid %s: %s", (field, value) => {
-    expectIssue({ vrm_url: "/v.vrm", peek: { [field]: value } }, `peek.${field}는 (0, 2]`);
+    expectIssue(avatarWith({ peek: { [field]: value } }), `peek.${field}는 (0, 2]`);
   });
 
   it.each([
@@ -529,20 +493,20 @@ describe("validateAvatar — peek", () => {
     Number.POSITIVE_INFINITY,
     "0.12",
   ])("rejects invalid inset_frac: %s", (inset_frac) => {
-    expectIssue({ vrm_url: "/v.vrm", peek: { inset_frac } }, "peek.inset_frac는 [0, 1]");
+    expectIssue(avatarWith({ peek: { inset_frac } }), "peek.inset_frac는 [0, 1]");
   });
 
   it.each(["up", true, 1])("rejects invalid mirror_side: %s", (mirror_side) => {
-    expectIssue({ vrm_url: "/v.vrm", peek: { mirror_side } }, "peek.mirror_side는 left|right|none");
+    expectIssue(avatarWith({ peek: { mirror_side } }), "peek.mirror_side는 left|right|none");
   });
 });
 
 describe("validateAvatar — walk", () => {
-  it("merges partial walk blocks over defaults", () => {
-    const out = validateAvatar(FILE, {
-      vrm_url: "/v.vrm",
-      walk: { interval_min_ms: 10_000, distance_max_px: 500 },
-    });
+  it("keeps every walk key the file declares", () => {
+    const out = validateAvatar(
+      FILE,
+      avatarWith({ walk: { interval_min_ms: 10_000, distance_max_px: 500 } }),
+    );
 
     expect(out.walk).toEqual({
       interval_min_ms: 10_000,
@@ -554,7 +518,7 @@ describe("validateAvatar — walk", () => {
   });
 
   it("rejects a non-object walk block", () => {
-    expectIssue({ vrm_url: "/v.vrm", walk: "nope" }, "walk은 객체여야 함");
+    expectIssue(avatarWith({ walk: "nope" }), "walk은 객체여야 함");
   });
 
   it.each([
@@ -564,7 +528,7 @@ describe("validateAvatar — walk", () => {
     ["distance_min_px", Number.NaN],
     ["distance_max_px", 0],
   ])("rejects invalid %s: %s", (field, value) => {
-    expectIssue({ vrm_url: "/v.vrm", walk: { [field]: value } }, `walk.${field}는 0보다 큰`);
+    expectIssue(avatarWith({ walk: { [field]: value } }), `walk.${field}는 0보다 큰`);
   });
 
   it.each([
@@ -572,45 +536,33 @@ describe("validateAvatar — walk", () => {
     "8",
     Number.POSITIVE_INFINITY,
   ])("rejects invalid floor_tolerance_px: %s", (floor_tolerance_px) => {
-    expectIssue(
-      { vrm_url: "/v.vrm", walk: { floor_tolerance_px } },
-      "walk.floor_tolerance_px는 0 이상",
-    );
+    expectIssue(avatarWith({ walk: { floor_tolerance_px } }), "walk.floor_tolerance_px는 0 이상");
   });
 
   it("rejects an inverted interval range", () => {
     expectIssue(
-      { vrm_url: "/v.vrm", walk: { interval_min_ms: 200_000 } },
+      avatarWith({ walk: { interval_min_ms: 200_000 } }),
       "walk.interval_min_ms는 walk.interval_max_ms 이하",
     );
   });
 
   it("rejects an inverted distance range", () => {
     expectIssue(
-      { vrm_url: "/v.vrm", walk: { distance_min_px: 700 } },
+      avatarWith({ walk: { distance_min_px: 700 } }),
       "walk.distance_min_px는 walk.distance_max_px 이하",
     );
   });
 });
 
 describe("validateAvatar — perch_walk", () => {
-  it("applies perch-walk defaults when the section is absent", () => {
-    expect(validateAvatar(FILE, { vrm_url: "/v.vrm" }).perch_walk).toEqual({
-      dwell_min_ms: 45_000,
-      dwell_max_ms: 120_000,
-      distance_min_px: 80,
-      distance_max_px: 400,
-      edge_margin_frac: 0.2,
-      level_tolerance_px: 8,
-    });
-  });
-
-  it("merges a partial perch-walk block over defaults", () => {
+  it("keeps every perch-walk key the file declares", () => {
     expect(
-      validateAvatar(FILE, {
-        vrm_url: "/v.vrm",
-        perch_walk: { dwell_min_ms: 10_000, distance_max_px: 240, level_tolerance_px: 0 },
-      }).perch_walk,
+      validateAvatar(
+        FILE,
+        avatarWith({
+          perch_walk: { dwell_min_ms: 10_000, distance_max_px: 240, level_tolerance_px: 0 },
+        }),
+      ).perch_walk,
     ).toEqual({
       dwell_min_ms: 10_000,
       dwell_max_ms: 120_000,
@@ -622,7 +574,7 @@ describe("validateAvatar — perch_walk", () => {
   });
 
   it("rejects a non-object perch-walk block", () => {
-    expectIssue({ vrm_url: "/v.vrm", perch_walk: "nope" }, "perch_walk은 객체여야 함");
+    expectIssue(avatarWith({ perch_walk: "nope" }), "perch_walk은 객체여야 함");
   });
 
   it.each([
@@ -635,27 +587,27 @@ describe("validateAvatar — perch_walk", () => {
     ["level_tolerance_px", -1],
     ["level_tolerance_px", "8"],
   ])("rejects invalid %s: %s", (field, value) => {
-    expectIssue({ vrm_url: "/v.vrm", perch_walk: { [field]: value } }, `perch_walk.${field}`);
+    expectIssue(avatarWith({ perch_walk: { [field]: value } }), `perch_walk.${field}`);
   });
 
   it("rejects inverted dwell and distance ranges", () => {
     expectIssue(
-      { vrm_url: "/v.vrm", perch_walk: { dwell_min_ms: 130_000 } },
+      avatarWith({ perch_walk: { dwell_min_ms: 130_000 } }),
       "perch_walk.dwell_min_ms는 perch_walk.dwell_max_ms 이하",
     );
     expectIssue(
-      { vrm_url: "/v.vrm", perch_walk: { distance_min_px: 500 } },
+      avatarWith({ perch_walk: { distance_min_px: 500 } }),
       "perch_walk.distance_min_px는 perch_walk.distance_max_px 이하",
     );
   });
 });
 
 describe("validateAvatar — fall", () => {
-  it("merges a partial fall block over defaults", () => {
-    const out = validateAvatar(FILE, {
-      vrm_url: "/v.vrm",
-      fall: { gravity_px_s2: 1200, min_drop_frac: 0.5 },
-    });
+  it("keeps every fall key the file declares", () => {
+    const out = validateAvatar(
+      FILE,
+      avatarWith({ fall: { gravity_px_s2: 1200, min_drop_frac: 0.5 } }),
+    );
 
     expect(out.fall).toEqual({
       gravity_px_s2: 1200,
@@ -668,7 +620,7 @@ describe("validateAvatar — fall", () => {
   });
 
   it("rejects a non-object fall block", () => {
-    expectIssue({ vrm_url: "/v.vrm", fall: "nope" }, "fall은 객체여야 함");
+    expectIssue(avatarWith({ fall: "nope" }), "fall은 객체여야 함");
   });
 
   it.each([
@@ -679,7 +631,7 @@ describe("validateAvatar — fall", () => {
     ["land_room_frac", 0],
     ["land_room_frac", "0.5"],
   ])("rejects invalid %s: %s", (field, value) => {
-    expectIssue({ vrm_url: "/v.vrm", fall: { [field]: value } }, `fall.${field}는 0보다 큰`);
+    expectIssue(avatarWith({ fall: { [field]: value } }), `fall.${field}는 0보다 큰`);
   });
 
   it.each([
@@ -688,20 +640,20 @@ describe("validateAvatar — fall", () => {
     "0.2",
     Number.NaN,
   ])("rejects a min_drop_frac outside [0, 1]: %s", (min_drop_frac) => {
-    expectIssue({ vrm_url: "/v.vrm", fall: { min_drop_frac } }, "fall.min_drop_frac는 [0, 1]");
+    expectIssue(avatarWith({ fall: { min_drop_frac } }), "fall.min_drop_frac는 [0, 1]");
   });
 
   it("accepts the boundary fractions", () => {
     expect(
-      validateAvatar(FILE, { vrm_url: "/v.vrm", fall: { min_drop_frac: 0 } }).fall.min_drop_frac,
+      validateAvatar(FILE, avatarWith({ fall: { min_drop_frac: 0 } })).fall.min_drop_frac,
     ).toBe(0);
     expect(
-      validateAvatar(FILE, { vrm_url: "/v.vrm", fall: { min_drop_frac: 1 } }).fall.min_drop_frac,
+      validateAvatar(FILE, avatarWith({ fall: { min_drop_frac: 1 } })).fall.min_drop_frac,
     ).toBe(1);
   });
 
   it.each([-1, "60000", 1.5])("rejects an invalid cue_cooldown_ms: %s", (cue_cooldown_ms) => {
-    expectIssue({ vrm_url: "/v.vrm", fall: { cue_cooldown_ms } }, "fall.cue_cooldown_ms는 0 이상");
+    expectIssue(avatarWith({ fall: { cue_cooldown_ms } }), "fall.cue_cooldown_ms는 0 이상");
   });
 
   it.each([
@@ -711,51 +663,40 @@ describe("validateAvatar — fall", () => {
     Number.NaN,
   ])("rejects a step_off_probability outside [0, 1]: %s", (step_off_probability) => {
     expectIssue(
-      { vrm_url: "/v.vrm", fall: { step_off_probability } },
+      avatarWith({ fall: { step_off_probability } }),
       "fall.step_off_probability는 [0, 1]",
     );
   });
 
   it("accepts the boundary step-off probabilities", () => {
     expect(
-      validateAvatar(FILE, { vrm_url: "/v.vrm", fall: { step_off_probability: 0 } }).fall
+      validateAvatar(FILE, avatarWith({ fall: { step_off_probability: 0 } })).fall
         .step_off_probability,
     ).toBe(0);
     expect(
-      validateAvatar(FILE, { vrm_url: "/v.vrm", fall: { step_off_probability: 1 } }).fall
+      validateAvatar(FILE, avatarWith({ fall: { step_off_probability: 1 } })).fall
         .step_off_probability,
     ).toBe(1);
   });
 });
 
 describe("validateAvatar — descend", () => {
-  it("applies defaults when the descend block is absent", () => {
-    expect(validateAvatar(FILE, { vrm_url: "/v.vrm" }).descend).toEqual({
-      chance: 0.5,
-      climb_down_chance: 0.5,
-    });
-  });
-
   it.each([1.5, -0.1])("rejects a chance outside [0, 1]: %s", (chance) => {
-    expectIssue({ vrm_url: "/v.vrm", descend: { chance } }, "descend.chance는 [0, 1]");
+    expectIssue(avatarWith({ descend: { chance } }), "descend.chance는 [0, 1]");
   });
 
   it("accepts the boundary chances", () => {
-    expect(validateAvatar(FILE, { vrm_url: "/v.vrm", descend: { chance: 0 } }).descend.chance).toBe(
-      0,
-    );
-    expect(validateAvatar(FILE, { vrm_url: "/v.vrm", descend: { chance: 1 } }).descend.chance).toBe(
-      1,
-    );
+    expect(validateAvatar(FILE, avatarWith({ descend: { chance: 0 } })).descend.chance).toBe(0);
+    expect(validateAvatar(FILE, avatarWith({ descend: { chance: 1 } })).descend.chance).toBe(1);
   });
 });
 
 describe("validateAvatar — climb", () => {
-  it("merges a partial climb block over defaults", () => {
-    const out = validateAvatar(FILE, {
-      vrm_url: "/v.vrm",
-      climb: { interval_min_ms: 30_000, hang_frac: 0.4 },
-    });
+  it("keeps every climb key the file declares", () => {
+    const out = validateAvatar(
+      FILE,
+      avatarWith({ climb: { interval_min_ms: 30_000, hang_frac: 0.4 } }),
+    );
 
     expect(out.climb).toEqual({
       interval_min_ms: 30_000,
@@ -772,7 +713,7 @@ describe("validateAvatar — climb", () => {
   });
 
   it("rejects a non-object climb block", () => {
-    expectIssue({ vrm_url: "/v.vrm", climb: "nope" }, "climb은 객체여야 함");
+    expectIssue(avatarWith({ climb: "nope" }), "climb은 객체여야 함");
   });
 
   it.each([
@@ -781,7 +722,7 @@ describe("validateAvatar — climb", () => {
     ["perch_dwell_min_ms", 1.5],
     ["perch_dwell_max_ms", Number.NaN],
   ])("rejects invalid %s: %s", (field, value) => {
-    expectIssue({ vrm_url: "/v.vrm", climb: { [field]: value } }, `climb.${field}는 0 이상 정수`);
+    expectIssue(avatarWith({ climb: { [field]: value } }), `climb.${field}는 0 이상 정수`);
   });
 
   it.each([
@@ -792,37 +733,37 @@ describe("validateAvatar — climb", () => {
     ["ledge_walk_min_frac", 0],
     ["ledge_walk_max_frac", Number.POSITIVE_INFINITY],
   ])("rejects invalid %s: %s", (field, value) => {
-    expectIssue({ vrm_url: "/v.vrm", climb: { [field]: value } }, `climb.${field}는 0보다 큰`);
+    expectIssue(avatarWith({ climb: { [field]: value } }), `climb.${field}는 0보다 큰`);
   });
 
   it("rejects an inverted interval range", () => {
     expectIssue(
-      { vrm_url: "/v.vrm", climb: { interval_min_ms: 200_000 } },
+      avatarWith({ climb: { interval_min_ms: 200_000 } }),
       "climb.interval_min_ms는 climb.interval_max_ms 이하",
     );
   });
 
   it("rejects an inverted dwell range", () => {
     expectIssue(
-      { vrm_url: "/v.vrm", climb: { perch_dwell_min_ms: 200_000 } },
+      avatarWith({ climb: { perch_dwell_min_ms: 200_000 } }),
       "climb.perch_dwell_min_ms는 climb.perch_dwell_max_ms 이하",
     );
   });
 
   it("rejects an inverted ledge-walk range", () => {
     expectIssue(
-      { vrm_url: "/v.vrm", climb: { ledge_walk_min_frac: 2 } },
+      avatarWith({ climb: { ledge_walk_min_frac: 2 } }),
       "climb.ledge_walk_min_frac는 climb.ledge_walk_max_frac 이하",
     );
   });
 });
 
 describe("validateAvatar — jump", () => {
-  it("merges a partial jump block over defaults", () => {
-    const out = validateAvatar(FILE, {
-      vrm_url: "/v.vrm",
-      jump: { probability: 1, gap_max_width_frac: 2 },
-    });
+  it("keeps every jump key the file declares", () => {
+    const out = validateAvatar(
+      FILE,
+      avatarWith({ jump: { probability: 1, gap_max_width_frac: 2 } }),
+    );
 
     expect(out.jump).toEqual({
       probability: 1,
@@ -838,17 +779,17 @@ describe("validateAvatar — jump", () => {
 
   it.each([0, -1, "4000", 1.5])("rejects an invalid flight_timeout_ms: %s", (value) => {
     expectIssue(
-      { vrm_url: "/v.vrm", jump: { flight_timeout_ms: value } },
+      avatarWith({ jump: { flight_timeout_ms: value } }),
       "jump.flight_timeout_ms는 0보다 큰 정수",
     );
   });
 
   it("rejects a non-object jump block", () => {
-    expectIssue({ vrm_url: "/v.vrm", jump: "nope" }, "jump은 객체여야 함");
+    expectIssue(avatarWith({ jump: "nope" }), "jump은 객체여야 함");
   });
 
   it.each([-0.1, 1.1, "0.3", Number.NaN])("rejects an invalid probability: %s", (probability) => {
-    expectIssue({ vrm_url: "/v.vrm", jump: { probability } }, "jump.probability는 [0, 1] 범위");
+    expectIssue(avatarWith({ jump: { probability } }), "jump.probability는 [0, 1] 범위");
   });
 
   it.each([
@@ -857,37 +798,32 @@ describe("validateAvatar — jump", () => {
     ["gap_max_width_frac", "1.5"],
     ["apex_lift_frac", Number.POSITIVE_INFINITY],
   ])("rejects invalid %s: %s", (field, value) => {
-    expectIssue({ vrm_url: "/v.vrm", jump: { [field]: value } }, `jump.${field}는 0보다 큰`);
+    expectIssue(avatarWith({ jump: { [field]: value } }), `jump.${field}는 0보다 큰`);
   });
 
   it.each([
     ["takeoff_frac", -0.1],
     ["land_frac", 1.5],
   ])("rejects invalid %s: %s", (field, value) => {
-    expectIssue({ vrm_url: "/v.vrm", jump: { [field]: value } }, `jump.${field}는 [0, 1] 범위`);
+    expectIssue(avatarWith({ jump: { [field]: value } }), `jump.${field}는 [0, 1] 범위`);
   });
 
   it("rejects an airborne window that ends before it starts", () => {
     expectIssue(
-      { vrm_url: "/v.vrm", jump: { takeoff_frac: 0.8 } },
+      avatarWith({ jump: { takeoff_frac: 0.8 } }),
       "jump.takeoff_frac는 jump.land_frac 미만",
     );
   });
 });
 
 describe("validateAvatar — drag_hold_ms", () => {
-  it("defaults to 5000 when absent", () => {
-    const out = validateAvatar(FILE, { vrm_url: "/v.vrm" });
-    expect(out.drag_hold_ms).toBe(5000);
-  });
-
   it("accepts a configured value", () => {
-    const out = validateAvatar(FILE, { vrm_url: "/v.vrm", drag_hold_ms: 3000 });
+    const out = validateAvatar(FILE, avatarWith({ drag_hold_ms: 3000 }));
     expect(out.drag_hold_ms).toBe(3000);
   });
 
   it.each([0, -1, 1.5, "5000", Number.NaN])("rejects invalid drag_hold_ms: %s", (drag_hold_ms) => {
-    expectIssue({ vrm_url: "/v.vrm", drag_hold_ms }, "drag_hold_ms는 1 이상 정수");
+    expectIssue(avatarWith({ drag_hold_ms }), "drag_hold_ms는 1 이상 정수");
   });
 });
 
@@ -899,21 +835,13 @@ describe("validateAvatar — gesture_cues", () => {
     dropped: { label: "dropped from mid-air", context: "say something startled" },
   };
 
-  it("defaults to the authored label-only cues when absent", () => {
-    const out = validateAvatar(FILE, { vrm_url: "/v.vrm" });
-    expect(out.gesture_cues).toEqual({
-      drag_held: { label: "dragged around" },
-      window_sit: { label: "sat on window" },
-      peek: { label: "peeking" },
-      dropped: { label: "dropped from mid-air" },
-    });
-  });
-
-  it("merges a partial gesture_cues block over defaults", () => {
-    const out = validateAvatar(FILE, {
-      vrm_url: "/v.vrm",
-      gesture_cues: { drag_held: { label: "held too long", context: "put me down now" } },
-    });
+  it("keeps a cue's authored context", () => {
+    const out = validateAvatar(
+      FILE,
+      avatarWith({
+        gesture_cues: { drag_held: { label: "held too long", context: "put me down now" } },
+      }),
+    );
     expect(out.gesture_cues.drag_held).toEqual({
       label: "held too long",
       context: "put me down now",
@@ -922,24 +850,24 @@ describe("validateAvatar — gesture_cues", () => {
   });
 
   it("accepts a full gesture_cues block", () => {
-    const out = validateAvatar(FILE, { vrm_url: "/v.vrm", gesture_cues: FULL });
+    const out = validateAvatar(FILE, avatarWith({ gesture_cues: FULL }));
     expect(out.gesture_cues).toEqual(FULL);
   });
 
   it("rejects a non-object gesture_cues block", () => {
-    expectIssue({ vrm_url: "/v.vrm", gesture_cues: "nope" }, "gesture_cues은 객체여야 함");
+    expectIssue(avatarWith({ gesture_cues: "nope" }), "gesture_cues은 객체여야 함");
   });
 
   it("rejects an unknown gesture_cues key", () => {
     expectIssue(
-      { vrm_url: "/v.vrm", gesture_cues: { tap_bored: { label: "a", context: "b" } } },
+      avatarWith({ gesture_cues: { tap_bored: { label: "a", context: "b" } } }),
       "gesture_cues.tap_bored는 허용되지 않는 키",
     );
   });
 
   it("rejects a non-object cue entry", () => {
     expectIssue(
-      { vrm_url: "/v.vrm", gesture_cues: { drag_held: "nope" } },
+      avatarWith({ gesture_cues: { drag_held: "nope" } }),
       "gesture_cues.drag_held는 객체여야 함",
     );
   });
@@ -951,7 +879,7 @@ describe("validateAvatar — gesture_cues", () => {
     ["context", 1],
   ] as const)("rejects an empty or non-string gesture_cues.drag_held.%s", (field, value) => {
     expectIssue(
-      { vrm_url: "/v.vrm", gesture_cues: { drag_held: { [field]: value } } },
+      avatarWith({ gesture_cues: { drag_held: { [field]: value } } }),
       `gesture_cues.drag_held.${field}는 비어 있지 않은 문자열`,
     );
   });
@@ -959,36 +887,36 @@ describe("validateAvatar — gesture_cues", () => {
 
 describe("validateAvatar — gaze", () => {
   it("rejects a non-object gaze", () => {
-    expectIssue({ vrm_url: "/v.vrm", gaze: "nope" }, "gaze는 객체여야 함");
+    expectIssue(avatarWith({ gaze: "nope" }), "gaze는 객체여야 함");
   });
 
   it("accepts deadDeg:0 (inclusive lower bound)", () => {
-    const out = validateAvatar(FILE, { vrm_url: "/v.vrm", gaze: { deadDeg: 0 } });
+    const out = validateAvatar(FILE, avatarWith({ gaze: { deadDeg: 0 } }));
     expect(out.gaze?.deadDeg).toBe(0);
   });
 
   it("rejects headEngageDeg:0 (exclusive lower bound)", () => {
-    expectIssue({ vrm_url: "/v.vrm", gaze: { headEngageDeg: 0 } }, "gaze.headEngageDeg는");
+    expectIssue(avatarWith({ gaze: { headEngageDeg: 0 } }), "gaze.headEngageDeg는");
   });
 
   it("rejects maxHeadYaw above 90", () => {
-    expectIssue({ vrm_url: "/v.vrm", gaze: { maxHeadYaw: 91 } }, "gaze.maxHeadYaw는");
+    expectIssue(avatarWith({ gaze: { maxHeadYaw: 91 } }), "gaze.maxHeadYaw는");
   });
 
   it("rejects headNeckSplit outside [0, 1]", () => {
-    expectIssue({ vrm_url: "/v.vrm", gaze: { headNeckSplit: 1.1 } }, "gaze.headNeckSplit는");
+    expectIssue(avatarWith({ gaze: { headNeckSplit: 1.1 } }), "gaze.headNeckSplit는");
   });
 
   it("accepts headNeckSplit:0 (inclusive lower bound)", () => {
-    const out = validateAvatar(FILE, { vrm_url: "/v.vrm", gaze: { headNeckSplit: 0 } });
+    const out = validateAvatar(FILE, avatarWith({ gaze: { headNeckSplit: 0 } }));
     expect(out.gaze?.headNeckSplit).toBe(0);
   });
 
   it("rejects smooth above 1000", () => {
-    expectIssue({ vrm_url: "/v.vrm", gaze: { smooth: 1001 } }, "gaze.smooth는");
+    expectIssue(avatarWith({ gaze: { smooth: 1001 } }), "gaze.smooth는");
   });
 
   it("rejects a non-finite gaze value", () => {
-    expectIssue({ vrm_url: "/v.vrm", gaze: { eyeMaxDeg: Number.NaN } }, "gaze.eyeMaxDeg는");
+    expectIssue(avatarWith({ gaze: { eyeMaxDeg: Number.NaN } }), "gaze.eyeMaxDeg는");
   });
 });

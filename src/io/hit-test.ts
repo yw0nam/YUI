@@ -26,6 +26,7 @@
 
 import { invoke } from "@tauri-apps/api/core";
 import { cursorPosition, getCurrentWindow, primaryMonitor } from "@tauri-apps/api/window";
+import type { HitTestKnobs } from "../config/load";
 import { createLogger } from "../logger";
 import { isTauri } from "./tauri-env";
 import {
@@ -36,19 +37,6 @@ import {
 } from "./window-statics";
 
 const log = createLogger("hit-test");
-
-/** The configs/avatar.json hit_test knobs this controller consumes (all optional; defaults below). */
-export interface HitTestConfig {
-  hysteresis_margin_px?: number;
-  poll_interval_ms?: number;
-  debounce_samples?: number;
-}
-
-const DEFAULTS = {
-  hysteresis_margin_px: 8,
-  poll_interval_ms: 33,
-  debounce_samples: 2,
-} as const;
 
 export type HitTestState = "capture" | "passthrough";
 
@@ -107,10 +95,10 @@ export function decideTransition(args: {
   state: HitTestState;
   interactive: boolean;
   counter: number;
-  config: HitTestConfig;
+  config: HitTestKnobs;
 }): TransitionResult {
   const { state, interactive, counter, config } = args;
-  const debounce = Math.max(1, config.debounce_samples ?? DEFAULTS.debounce_samples);
+  const debounce = Math.max(1, config.debounce_samples);
   // The state the sample is pushing toward.
   const want: HitTestState = interactive ? "capture" : "passthrough";
   if (want === state) {
@@ -151,7 +139,8 @@ interface HitTestOptions {
    * CAPTURE (tight box) and hysteresis_margin_px when LEAVING (outset box).
    */
   isOverInteractive: (xCss: number, yCss: number, marginPx: number) => boolean;
-  getConfig: () => HitTestConfig;
+  /** The live configs/avatar.json hit_test block; only the polling keys are read here. */
+  getConfig: () => HitTestKnobs;
   /** setTimeout seam (testability). Default: globalThis.setTimeout. */
   schedule?: (cb: () => void, ms: number) => number;
   /** clearTimeout seam. Default: globalThis.clearTimeout. */
@@ -214,7 +203,7 @@ export function createHitTestController(opts: HitTestOptions): HitTestController
   const statics = createWindowStatics();
 
   function margin(): number {
-    return opts.getConfig().hysteresis_margin_px ?? DEFAULTS.hysteresis_margin_px;
+    return opts.getConfig().hysteresis_margin_px;
   }
 
   // Idempotent toggle — only hits IPC when the desired state actually changes.
@@ -265,7 +254,7 @@ export function createHitTestController(opts: HitTestOptions): HitTestController
     stopPoll();
     // Nothing can click a hidden window — resumes via onVisibilityChange.
     if (doc.visibilityState === "hidden") return;
-    const ms = opts.getConfig().poll_interval_ms ?? DEFAULTS.poll_interval_ms;
+    const ms = opts.getConfig().poll_interval_ms;
     pollHandle = schedule(() => {
       void poll();
     }, ms);
