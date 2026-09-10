@@ -97,8 +97,37 @@ def test_satisfy_prints_event_and_reward(state_dir, at, capsys):
     assert captured.err == ""
 
 
-@pytest.mark.parametrize("event", ["learned", "progressed", "shipped"])
-def test_satisfy_accepts_only_praised(state_dir, at, event, capsys):
+def test_satisfy_learned_lowers_curiosity_by_its_dose(state_dir, at, state_helpers, capsys):
+    _, _, read_json, _ = state_helpers
+    now = at("2026-08-25T12:00:00+09:00")
+    before = desire_state.default_drives(now)["curiosity"]["level"]
+
+    result = act.main(["satisfy", "learned", "--ref", "https://github.com/x/y/commit/abc"], now=now)
+
+    captured = capsys.readouterr()
+    assert result == 0
+    assert captured.out.startswith("satisfied learned reward=")
+    assert captured.err == ""
+    curiosity = read_json(state_dir / "drives.json")["curiosity"]["level"]
+    assert curiosity == before - desire_state.EVENT_DOSES["learned"]["curiosity"]
+
+
+def test_satisfy_learned_refuses_a_source_reported_past_the_daily_cap(state_dir, at, capsys):
+    now = at("2026-08-25T12:00:00+09:00")
+    ref = "https://github.com/x/y/commit/abc"
+    for _ in range(6):
+        assert act.main(["satisfy", "learned", "--ref", ref], now=now) == 0
+    capsys.readouterr()
+
+    assert act.main(["satisfy", "learned", "--ref", ref], now=now) == 1
+
+    captured = capsys.readouterr()
+    assert captured.out == ""
+    assert captured.err == "over budget: learned daily cap is 6\n"
+
+
+@pytest.mark.parametrize("event", ["progressed", "shipped"])
+def test_satisfy_refuses_the_events_the_monitor_derives(state_dir, at, event, capsys):
     with pytest.raises(SystemExit) as failure:
         act.main(["satisfy", event, "--ref", "self-reported"], now=at("2026-08-25T12:00:00+09:00"))
 
