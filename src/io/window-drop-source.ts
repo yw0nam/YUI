@@ -91,8 +91,6 @@ export interface WindowDropSourceDeps {
   /** Resolve the pet window (lazily — `getCurrentWindow()` throws off-Tauri). */
   getWindow: () => DropWindow;
   listen: DropListen;
-  /** Poll cadence in ms (default {@link PERCH_POLL_MS}). */
-  pollIntervalMs?: number;
   /** Whether side-peek intent is currently active. */
   peekActive?: () => boolean;
   /** Returns the current side-peek configuration. */
@@ -149,8 +147,6 @@ export interface WindowDropSource {
   start(): Promise<void>;
   /** Unregister the release listener + stop the poll. */
   stop(): void;
-  /** Alias of stop() for HMR-dispose call sites. */
-  dispose(): void;
   /**
    * Put the character on a named target, the inverse of the drag flow: the target is
    * given instead of inferred, so this moves the pet window until the seat lands on it,
@@ -292,7 +288,6 @@ function logDropGeometry(
 
 export function createWindowDropSource(deps: WindowDropSourceDeps): WindowDropSource {
   const { bus, renderer, invoke, getWindow, listen } = deps;
-  const pollMs = deps.pollIntervalMs ?? PERCH_POLL_MS;
   const setIntervalImpl = deps.setInterval ?? setInterval;
   const clearIntervalImpl = deps.clearInterval ?? clearInterval;
   const peekActive = deps.peekActive ?? (() => false);
@@ -382,7 +377,7 @@ export function createWindowDropSource(deps: WindowDropSourceDeps): WindowDropSo
       void tick().catch((err) =>
         log.warn("perch_poll_tick_failed", { degrade: true, error: String(err) }),
       );
-    }, pollMs);
+    }, PERCH_POLL_MS);
   }
 
   /** Shared seat math: probe + window pos/scale → seat global point. Distinct predicates layer on top. */
@@ -825,9 +820,6 @@ export function createWindowDropSource(deps: WindowDropSourceDeps): WindowDropSo
       disarm();
       unlisten?.();
       unlisten = undefined;
-    },
-    dispose() {
-      this.stop();
     },
   };
 }

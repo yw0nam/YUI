@@ -37,13 +37,11 @@ import {
 
 const log = createLogger("hit-test");
 
-/** configs/avatar.json hit_test knobs (all optional; controller fills defaults). */
+/** The configs/avatar.json hit_test knobs this controller consumes (all optional; defaults below). */
 export interface HitTestConfig {
   hysteresis_margin_px?: number;
   poll_interval_ms?: number;
   debounce_samples?: number;
-  /** Reserved for phase-2 alpha sampling. */
-  alpha_threshold?: number;
 }
 
 const DEFAULTS = {

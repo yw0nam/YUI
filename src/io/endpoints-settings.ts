@@ -34,8 +34,6 @@ export type EndpointsStorage = PersistedStorage<EndpointOverrides>;
 /** Valid chat_api values that mergeEndpoints applies. Anything else (including empty) means no override. */
 const VALID_CHAT_APIS = ["responses", "chat_completions"] as const;
 
-export type EndpointFieldKind = "url" | "string" | "enum" | "posInt";
-
 interface EndpointFieldBase {
   key: keyof EndpointOverrides;
   /** Per-service reset group (endpoints-section.ts's per-service reset buttons); omitted = not reset by any button. */
@@ -43,27 +41,24 @@ interface EndpointFieldBase {
 }
 
 /** url/string-kind rows render as a labeled text-input row (src/ui/quick-controls/constants.ts's ENDPOINT_FIELDS). */
-export interface EndpointTextFieldSpec extends EndpointFieldBase {
+interface EndpointTextFieldSpec extends EndpointFieldBase {
   kind: "url" | "string";
   labelKey: string;
 }
 
 /** enum-kind rows are value-restricted; anything outside `enum` (including "") coerces to "" (no override). */
-export interface EndpointEnumFieldSpec extends EndpointFieldBase {
+interface EndpointEnumFieldSpec extends EndpointFieldBase {
   kind: "enum";
   enum: readonly string[];
 }
 
 /** posInt-kind rows accept only positive digit strings ("0", "abc", "" all coerce to "" — no override). */
-export interface EndpointPosIntFieldSpec extends EndpointFieldBase {
+interface EndpointPosIntFieldSpec extends EndpointFieldBase {
   kind: "posInt";
 }
 
 /** One row per overridable endpoint value — a discriminated union on `kind` so `enum`/`labelKey` are only required where they're meaningful. */
-export type EndpointFieldSpec =
-  | EndpointTextFieldSpec
-  | EndpointEnumFieldSpec
-  | EndpointPosIntFieldSpec;
+type EndpointFieldSpec = EndpointTextFieldSpec | EndpointEnumFieldSpec | EndpointPosIntFieldSpec;
 
 /**
  * The declarative endpoint field table — FIELDS/EMPTY/coerceFor/mergeEndpoints below, the UI's
@@ -213,17 +208,12 @@ export function endpointDefaultsFromConfig(e: EndpointsConfig): EndpointOverride
   return out;
 }
 
-export function createEndpointsSettings(opts?: {
-  storage?: EndpointsStorage;
-  initial?: EndpointOverrides;
-}) {
+export function createEndpointsSettings(opts?: { storage?: EndpointsStorage }) {
   const core = createPersistedStore<EndpointOverrides>({
     storage: opts?.storage,
-    initial: opts?.initial,
     defaults: { ...EMPTY },
-    // A non-object is rejected so a corrupted stored value cannot erase in-memory/initial overrides.
+    // A non-object is rejected so a corrupted stored value cannot erase in-memory overrides.
     parse: (v) => (isPlainObject(v) ? coerce(v) : null),
-    fromInitial: coerce,
     equals,
   });
 

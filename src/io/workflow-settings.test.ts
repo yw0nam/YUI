@@ -31,7 +31,7 @@ describe("createWorkflowSettings", () => {
   });
 
   it("returns a deep clone from get", () => {
-    const store = createWorkflowSettings({ initial: { entries: [ENTRY] } });
+    const store = createWorkflowSettings({ storage: fakeStorage({ entries: [ENTRY] }) });
     const settings = store.get();
     settings.entries[0].label = "Changed";
     settings.entries.push({ id: "other", label: "Other", url: "https://example.com/other" });
@@ -86,8 +86,8 @@ describe("createWorkflowSettings", () => {
   });
 
   it("updates valid label and URL values, persists, and notifies", () => {
-    const storage = fakeStorage();
-    const store = createWorkflowSettings({ storage, initial: { entries: [ENTRY] } });
+    const storage = fakeStorage({ entries: [ENTRY] });
+    const store = createWorkflowSettings({ storage });
     const listener = vi.fn();
     store.subscribe(listener);
 
@@ -106,8 +106,8 @@ describe("createWorkflowSettings", () => {
   });
 
   it("ignores empty labels and invalid URLs", () => {
-    const storage = fakeStorage();
-    const store = createWorkflowSettings({ storage, initial: { entries: [ENTRY] } });
+    const storage = fakeStorage({ entries: [ENTRY] });
+    const store = createWorkflowSettings({ storage });
     const listener = vi.fn();
     store.subscribe(listener);
 
@@ -119,8 +119,8 @@ describe("createWorkflowSettings", () => {
   });
 
   it("does not notify for unchanged values or an unknown id", () => {
-    const storage = fakeStorage();
-    const store = createWorkflowSettings({ storage, initial: { entries: [ENTRY] } });
+    const storage = fakeStorage({ entries: [ENTRY] });
+    const store = createWorkflowSettings({ storage });
     const listener = vi.fn();
     store.subscribe(listener);
 
@@ -132,8 +132,8 @@ describe("createWorkflowSettings", () => {
   });
 
   it("removes a workflow, persists, and notifies", () => {
-    const storage = fakeStorage();
-    const store = createWorkflowSettings({ storage, initial: { entries: [ENTRY] } });
+    const storage = fakeStorage({ entries: [ENTRY] });
+    const store = createWorkflowSettings({ storage });
     const listener = vi.fn();
     store.subscribe(listener);
 
@@ -145,8 +145,8 @@ describe("createWorkflowSettings", () => {
   });
 
   it("does nothing when removing an unknown id", () => {
-    const storage = fakeStorage();
-    const store = createWorkflowSettings({ storage, initial: { entries: [ENTRY] } });
+    const storage = fakeStorage({ entries: [ENTRY] });
+    const store = createWorkflowSettings({ storage });
     const listener = vi.fn();
     store.subscribe(listener);
 
@@ -156,14 +156,10 @@ describe("createWorkflowSettings", () => {
     expect(listener).not.toHaveBeenCalled();
   });
 
-  it("hydrates saved settings before initial settings and defaults", () => {
+  it("hydrates saved settings before defaults", () => {
     const saved = { entries: [ENTRY] };
-    const initial = {
-      entries: [{ id: "initial", label: "Initial", url: "https://example.com/initial" }],
-    };
 
-    expect(createWorkflowSettings({ storage: fakeStorage(saved), initial }).get()).toEqual(saved);
-    expect(createWorkflowSettings({ storage: fakeStorage(), initial }).get()).toEqual(initial);
+    expect(createWorkflowSettings({ storage: fakeStorage(saved) }).get()).toEqual(saved);
     expect(createWorkflowSettings({ storage: fakeStorage() }).get()).toEqual({ entries: [] });
   });
 

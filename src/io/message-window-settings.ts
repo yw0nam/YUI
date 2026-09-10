@@ -38,13 +38,9 @@ function parse(v: unknown): MessageWindowSettings | null {
   return { mode: s.mode, x: coord(s.x), y: coord(s.y) };
 }
 
-export function createMessageWindowSettings(opts?: {
-  storage?: MessageWindowStorage;
-  initial?: MessageWindowSettings;
-}) {
+export function createMessageWindowSettings(opts?: { storage?: MessageWindowStorage }) {
   const core = createPersistedStore<MessageWindowSettings>({
     storage: opts?.storage,
-    initial: opts?.initial,
     defaults: { mode: "docked", x: null, y: null },
     parse,
     equals: (a, b) => a.mode === b.mode && a.x === b.x && a.y === b.y,

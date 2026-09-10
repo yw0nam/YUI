@@ -1,7 +1,7 @@
 /**
  * api-key-settings.test.ts — generic API-key override store.
  *
- * createApiKeySettings({ storageKey, maxLen? }) backs chat/stt/tts key stores.
+ * createApiKeySettings({ storageKey }) backs chat/stt/tts key stores.
  * "" = no override. Values are trimmed, length-capped, and never logged.
  */
 
@@ -27,10 +27,10 @@ describe("createApiKeySettings", () => {
     expect(s.get().apiKey).toBe("");
   });
 
-  it("caps length at maxLen", () => {
-    const s = createApiKeySettings({ storageKey: "k", maxLen: 5 });
-    s.setApiKey("0123456789");
-    expect(s.get().apiKey).toBe("01234");
+  it("caps length at API_KEY_MAX_LEN", () => {
+    const s = createApiKeySettings({ storageKey: "k" });
+    s.setApiKey("0".repeat(API_KEY_MAX_LEN + 5000));
+    expect(s.get().apiKey.length).toBe(API_KEY_MAX_LEN);
   });
 
   it("notifies subscribers on change", () => {

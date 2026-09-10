@@ -988,13 +988,12 @@ describe("window-drop-source — occlusion poll default cadence (J1b)", () => {
     vi.useRealTimers();
   });
 
-  it("fires the default poll tick at ~700ms (≈1.4 Hz) when pollIntervalMs is not injected", async () => {
+  it("fires the poll tick at ~700ms (≈1.4 Hz)", async () => {
     const { renderer } = makePerchSource();
     const armed = win({ name: "Armed", windowNumber: 42 });
     const invoke = vi.fn(async () => [armed]);
     const getWindow = () => makeWindow({ x: 520, y: 740 }, 2);
     const { listen, fire } = makeListen();
-    // No pollIntervalMs → exercises DEFAULT_POLL_MS.
     const source = createWindowDropSource({ bus, renderer, invoke, getWindow, listen });
 
     await source.start();

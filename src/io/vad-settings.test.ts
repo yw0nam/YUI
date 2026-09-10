@@ -3,7 +3,7 @@
  *
  * Pins the contract for src/io/vad-settings.ts:
  *   VAD_SILENCE_MIN / MAX / DEFAULT constants
- *   createVadSettings({ storage?, initial? }) store
+ *   createVadSettings({ storage? }) store
  *   localStorageVadStorage(key?) localStorage adapter
  */
 
@@ -21,7 +21,7 @@ import {
 // ─────────────────────────────────────────────────────────────────────────────
 
 describe("createVadSettings — defaults", () => {
-  it("returns DEFAULT silenceMs when no storage or initial given", () => {
+  it("returns DEFAULT silenceMs when no storage given", () => {
     const store = createVadSettings();
     expect(store.get().silenceMs).toBe(VAD_SILENCE_DEFAULT);
   });
@@ -109,7 +109,7 @@ describe("createVadSettings — setSilenceMs", () => {
 // ─────────────────────────────────────────────────────────────────────────────
 
 describe("createVadSettings — bargeIn", () => {
-  it("defaults to true when no storage or initial given", () => {
+  it("defaults to true when no storage given", () => {
     const store = createVadSettings();
     expect(store.get().bargeIn).toBe(true);
   });

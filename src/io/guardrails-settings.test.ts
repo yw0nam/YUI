@@ -98,16 +98,15 @@ describe("guardrails settings — store shape", () => {
     expect(store.get().tier2_max).toBe(18);
   });
 
-  it("does not adopt a corrupted stored value when initial is provided", () => {
-    const storage: GuardrailsStorage = {
-      load: () => "garbage" as unknown as RateLimitOverrides,
-      save: vi.fn(),
-    };
-    const store = createGuardrailsSettings({
-      storage,
-      initial: { tier2_max: 42, tier3_max: 0, overall_max: 0 },
+  it("does not adopt a corrupted stored value, falling back to no caps", () => {
+    const load = vi.fn(() => "garbage" as unknown as RateLimitOverrides);
+    const storage: GuardrailsStorage = { load, save: vi.fn() };
+    expect(createGuardrailsSettings({ storage }).get()).toEqual({
+      tier2_max: 0,
+      tier3_max: 0,
+      overall_max: 0,
     });
-    expect(store.get()).toEqual({ tier2_max: 42, tier3_max: 0, overall_max: 0 });
+    expect(load).toHaveBeenCalled();
   });
 
   it("reloadFromStorage ignores a corrupted stored value and keeps the in-memory cap", () => {

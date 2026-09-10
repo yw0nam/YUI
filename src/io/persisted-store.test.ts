@@ -22,10 +22,9 @@ interface Box {
   n: number;
 }
 
-const boxConfig = (storage?: PersistedStorage<Box>, initial?: Box) =>
+const boxConfig = (storage?: PersistedStorage<Box>) =>
   createPersistedStore<Box>({
     storage,
-    initial,
     defaults: { n: 0 },
     parse: (v) =>
       v !== null && typeof v === "object" && typeof (v as Box).n === "number"
@@ -100,19 +99,18 @@ describe("localStorageStore", () => {
 // ─────────────────────────────────────────────────────────────────────────────
 
 describe("createPersistedStore bootstrap", () => {
-  it("stored > initial > defaults: stored wins", () => {
+  it("stored > defaults: stored wins", () => {
     const storage: PersistedStorage<Box> = { load: () => ({ n: 5 }), save: vi.fn() };
-    const store = boxConfig(storage, { n: 9 });
-    expect(store.get()).toEqual({ n: 5 });
+    expect(boxConfig(storage).get()).toEqual({ n: 5 });
   });
 
-  it("initial wins when no stored value", () => {
-    const storage: PersistedStorage<Box> = { load: () => null, save: vi.fn() };
-    expect(boxConfig(storage, { n: 9 }).get()).toEqual({ n: 9 });
-  });
-
-  it("defaults when no storage and no initial", () => {
+  it("defaults when no storage", () => {
     expect(boxConfig().get()).toEqual({ n: 0 });
+  });
+
+  it("defaults when storage holds no value", () => {
+    const storage: PersistedStorage<Box> = { load: () => null, save: vi.fn() };
+    expect(boxConfig(storage).get()).toEqual({ n: 0 });
   });
 
   it("clamp/sanitize is applied to the stored value on load", () => {
@@ -340,25 +338,19 @@ describe("createFlagSettings", () => {
     expect(cb).not.toHaveBeenCalled();
   });
 
-  it("uses stored over initial over default", () => {
-    const initialOnly = createFlagSettings(false, { initial: { enabled: true } });
-    expect(initialOnly.get()).toEqual({ enabled: true });
-
+  it("uses stored over default", () => {
     const storage: PersistedStorage<{ enabled: boolean }> = {
-      load: () => ({ enabled: false }),
+      load: () => ({ enabled: true }),
       save: vi.fn(),
     };
-    const stored = createFlagSettings(false, { storage, initial: { enabled: true } });
-    expect(stored.get()).toEqual({ enabled: false });
+    expect(createFlagSettings(false, { storage }).get()).toEqual({ enabled: true });
   });
 
-  it("uses initial when a stored value is malformed", () => {
-    const storage: PersistedStorage<{ enabled: boolean }> = {
-      load: () => ({ enabled: 1 }) as unknown as { enabled: boolean },
-      save: vi.fn(),
-    };
-    const store = createFlagSettings(false, { storage, initial: { enabled: true } });
-    expect(store.get()).toEqual({ enabled: true });
+  it("uses the default when a stored value is malformed", () => {
+    const load = vi.fn(() => ({ enabled: 1 }) as unknown as { enabled: boolean });
+    const storage: PersistedStorage<{ enabled: boolean }> = { load, save: vi.fn() };
+    expect(createFlagSettings(false, { storage }).get()).toEqual({ enabled: false });
+    expect(load).toHaveBeenCalled();
   });
 });
 
@@ -421,24 +413,18 @@ describe("createClampedIntSettings", () => {
     expect(cb).not.toHaveBeenCalled();
   });
 
-  it("uses stored over initial over default", () => {
-    const initialOnly = createClampedIntSettings(cfg, { initial: { value: 20 } });
-    expect(initialOnly.get()).toEqual({ value: 20 });
-
+  it("uses stored over default", () => {
     const storage: PersistedStorage<{ value: number }> = {
       load: () => ({ value: 30 }),
       save: vi.fn(),
     };
-    const stored = createClampedIntSettings(cfg, { storage, initial: { value: 20 } });
-    expect(stored.get()).toEqual({ value: 30 });
+    expect(createClampedIntSettings(cfg, { storage }).get()).toEqual({ value: 30 });
   });
 
-  it("uses initial when a stored value is malformed", () => {
-    const storage: PersistedStorage<{ value: number }> = {
-      load: () => ({ value: 60 }),
-      save: vi.fn(),
-    };
-    const store = createClampedIntSettings(cfg, { storage, initial: { value: 20 } });
-    expect(store.get()).toEqual({ value: 20 });
+  it("uses the default when a stored value is above the ceiling", () => {
+    const load = vi.fn(() => ({ value: 60 }));
+    const storage: PersistedStorage<{ value: number }> = { load, save: vi.fn() };
+    expect(createClampedIntSettings(cfg, { storage }).get()).toEqual({ value: 10 });
+    expect(load).toHaveBeenCalled();
   });
 });

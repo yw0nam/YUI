@@ -40,10 +40,8 @@ interface BrokerClientOptions {
 }
 
 export interface BrokerClient {
-  getIds(): Promise<BrokerVocab | null>;
   publish(payload: BrokerPayload): Promise<void>;
   start(): void;
-  stop(): void;
   dispose(): void;
 }
 
@@ -323,10 +321,8 @@ export function createBrokerClient(opts: BrokerClientOptions): BrokerClient {
   }
 
   return {
-    getIds,
     publish,
     start,
-    stop,
     dispose,
   };
 }

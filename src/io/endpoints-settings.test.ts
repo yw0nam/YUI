@@ -2,7 +2,7 @@
  * endpoints-settings.test.ts — per-user endpoint-override reactive store.
  *
  * Pins the contract for src/io/endpoints-settings.ts:
- *   createEndpointsSettings({ storage?, initial? }) store (get/set/reset/reload/subscribe/dispose)
+ *   createEndpointsSettings({ storage? }) store (get/set/reset/reload/subscribe/dispose)
  *   localStorageEndpointsStorage(key?) localStorage adapter
  *   isValidEndpointUrl(v) — empty == "no override" == valid
  *   mergeEndpoints(base, overrides) — overlay non-empty valid overrides onto a base EndpointsConfig
@@ -48,7 +48,7 @@ function baseConfig(): EndpointsConfig {
 // ─────────────────────────────────────────────────────────────────────────────
 
 describe("createEndpointsSettings — defaults", () => {
-  it("returns all-empty overrides when no storage or initial given", () => {
+  it("returns all-empty overrides when no storage given", () => {
     const store = createEndpointsSettings();
     expect(store.get()).toEqual(EMPTY);
   });
@@ -131,7 +131,9 @@ describe("createEndpointsSettings — set", () => {
   });
 
   it("coerces non-string partial values to ''", () => {
-    const store = createEndpointsSettings({ initial: { ...EMPTY, chat_model: "had" } });
+    const store = createEndpointsSettings({
+      storage: { load: () => ({ ...EMPTY, chat_model: "had" }), save: vi.fn() },
+    });
     store.set({ chat_model: 9 as unknown as string });
     expect(store.get().chat_model).toBe("");
   });
@@ -161,7 +163,10 @@ describe("createEndpointsSettings — set", () => {
 describe("createEndpointsSettings — reset", () => {
   it("clears all fields to '' and notifies", () => {
     const store = createEndpointsSettings({
-      initial: { ...EMPTY, chat_base_url: "http://a", chat_model: "m" },
+      storage: {
+        load: () => ({ ...EMPTY, chat_base_url: "http://a", chat_model: "m" }),
+        save: vi.fn(),
+      },
     });
     const cb = vi.fn();
     store.subscribe(cb);
@@ -246,20 +251,15 @@ describe("createEndpointsSettings — reloadFromStorage", () => {
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// createEndpointsSettings — bootstrap keeps initial over a corrupted stored value
+// createEndpointsSettings — bootstrap rejects a corrupted stored value
 // ─────────────────────────────────────────────────────────────────────────────
 
-describe("createEndpointsSettings — bootstrap keeps initial over a corrupted stored value", () => {
-  it("does not adopt a corrupted stored value when initial is provided", () => {
-    const storage: EndpointsStorage = {
-      load: () => "garbage" as unknown as EndpointOverrides,
-      save: vi.fn(),
-    };
-    const store = createEndpointsSettings({
-      storage,
-      initial: { ...EMPTY, chat_base_url: "http://a", chat_model: "user-model" },
-    });
-    expect(store.get()).toEqual({ ...EMPTY, chat_base_url: "http://a", chat_model: "user-model" });
+describe("createEndpointsSettings — bootstrap rejects a corrupted stored value", () => {
+  it("falls back to all-empty overrides", () => {
+    const load = vi.fn(() => "garbage" as unknown as EndpointOverrides);
+    const storage: EndpointsStorage = { load, save: vi.fn() };
+    expect(createEndpointsSettings({ storage }).get()).toEqual(EMPTY);
+    expect(load).toHaveBeenCalled();
   });
 });
 
@@ -483,7 +483,10 @@ describe("createEndpointsSettings — broker_base_url override", () => {
 
   it("reset() clears broker_base_url", () => {
     const store = createEndpointsSettings({
-      initial: { ...EMPTY, broker_base_url: "http://localhost:3201/mcp" },
+      storage: {
+        load: () => ({ ...EMPTY, broker_base_url: "http://localhost:3201/mcp" }),
+        save: vi.fn(),
+      },
     });
     store.reset();
     expect(store.get().broker_base_url).toBe("");
@@ -538,7 +541,7 @@ describe("createEndpointsSettings — chat_api override", () => {
 
   it("reset() clears chat_api", () => {
     const store = createEndpointsSettings({
-      initial: { ...EMPTY, chat_api: "chat_completions" },
+      storage: { load: () => ({ ...EMPTY, chat_api: "chat_completions" }), save: vi.fn() },
     });
     store.reset();
     expect(store.get().chat_api).toBe("");

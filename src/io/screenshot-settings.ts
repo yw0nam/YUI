@@ -26,13 +26,9 @@ function isValidSettings(v: unknown): v is ScreenshotSettings {
   return true;
 }
 
-export function createScreenshotSettings(opts?: {
-  storage?: ScreenshotStorage;
-  initial?: ScreenshotSettings;
-}) {
+export function createScreenshotSettings(opts?: { storage?: ScreenshotStorage }) {
   const core = createPersistedStore<ScreenshotSettings>({
     storage: opts?.storage,
-    initial: opts?.initial,
     defaults: { ...DEFAULT_SETTINGS },
     parse: (v) => (isValidSettings(v) ? v : null),
     equals: (a, b) =>

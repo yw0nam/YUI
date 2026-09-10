@@ -15,10 +15,10 @@ export interface ApiKeySettings {
 
 export type ApiKeyStorage = PersistedStorage<ApiKeySettings>;
 
-function coerceApiKey(v: unknown, maxLen: number): string {
+function coerceApiKey(v: unknown): string {
   if (typeof v !== "string") return "";
   const trimmed = v.trim();
-  return trimmed.length > maxLen ? trimmed.slice(0, maxLen) : trimmed;
+  return trimmed.length > API_KEY_MAX_LEN ? trimmed.slice(0, API_KEY_MAX_LEN) : trimmed;
 }
 
 function isValidSettings(v: unknown): v is ApiKeySettings {
@@ -31,22 +31,17 @@ interface CreateApiKeySettingsOptions {
   storage?: ApiKeyStorage;
   /** Convenience: build a localStorage adapter from this key. */
   storageKey?: string;
-  initial?: ApiKeySettings;
-  maxLen?: number;
 }
 
 export function createApiKeySettings(opts: CreateApiKeySettingsOptions = {}) {
-  const maxLen = opts.maxLen ?? API_KEY_MAX_LEN;
   const storage =
     opts.storage ??
     (opts.storageKey ? localStorageStore<ApiKeySettings>(opts.storageKey) : undefined);
 
   const core = createPersistedStore<ApiKeySettings>({
     storage,
-    initial: opts.initial,
     defaults: { apiKey: "" },
-    parse: (v) => (isValidSettings(v) ? { apiKey: coerceApiKey(v.apiKey, maxLen) } : null),
-    fromInitial: (v) => ({ apiKey: coerceApiKey(v.apiKey, maxLen) }),
+    parse: (v) => (isValidSettings(v) ? { apiKey: coerceApiKey(v.apiKey) } : null),
     equals: (a, b) => a.apiKey === b.apiKey,
   });
 
@@ -55,7 +50,7 @@ export function createApiKeySettings(opts: CreateApiKeySettingsOptions = {}) {
 
     setApiKey(v: string): void {
       if (typeof v !== "string") return;
-      core.commit({ apiKey: coerceApiKey(v, maxLen) });
+      core.commit({ apiKey: coerceApiKey(v) });
     },
 
     clear(): void {
@@ -77,11 +72,11 @@ export function localStorageApiKeyStorage(key: string): ApiKeyStorage {
 }
 
 /** STT server key store (OpenAI-compatible Bearer). */
-export function createSttKeySettings(opts?: { storage?: ApiKeyStorage; initial?: ApiKeySettings }) {
+export function createSttKeySettings(opts?: { storage?: ApiKeyStorage }) {
   return createApiKeySettings({ storageKey: "yui.stt-key", ...opts });
 }
 
 /** TTS server key store (OpenAI-compatible Bearer). */
-export function createTtsKeySettings(opts?: { storage?: ApiKeyStorage; initial?: ApiKeySettings }) {
+export function createTtsKeySettings(opts?: { storage?: ApiKeyStorage }) {
   return createApiKeySettings({ storageKey: "yui.tts-key", ...opts });
 }

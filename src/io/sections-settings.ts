@@ -20,13 +20,9 @@ function isValidSettings(v: unknown): v is SectionsSettings {
   return Array.isArray(closed) && closed.every((id) => typeof id === "string");
 }
 
-export function createSectionsSettings(opts?: {
-  storage?: SectionsStorage;
-  initial?: SectionsSettings;
-}) {
+export function createSectionsSettings(opts?: { storage?: SectionsStorage }) {
   const core = createPersistedStore<SectionsSettings>({
     storage: opts?.storage,
-    initial: opts?.initial,
     defaults: { closed: [] },
     parse: (v) => (isValidSettings(v) ? { closed: [...new Set(v.closed)] } : null),
     equals: (a, b) =>

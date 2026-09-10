@@ -78,13 +78,9 @@ function equalItems(a: ChatHistoryItem[], b: ChatHistoryItem[]): boolean {
   });
 }
 
-export function createChatHistoryStore(opts?: {
-  storage?: ChatHistoryStorage;
-  initial?: ChatHistoryItem[];
-}) {
+export function createChatHistoryStore(opts?: { storage?: ChatHistoryStorage }) {
   const core = createPersistedStore<ChatHistoryItem[]>({
     storage: opts?.storage,
-    initial: opts?.initial,
     defaults: [],
     // A non-array, or a non-empty array that coerces to empty, is rejected so a corrupted
     // stored value cannot erase the in-memory transcript.
@@ -93,7 +89,6 @@ export function createChatHistoryStore(opts?: {
       const coerced = coerce(v);
       return v.length > 0 && coerced.length === 0 ? null : coerced;
     },
-    fromInitial: coerce,
     equals: equalItems,
     clone: (v) => v.map((e) => ({ ...e })),
   });

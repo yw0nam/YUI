@@ -25,16 +25,6 @@ export interface ScreenPoint {
   y: number;
 }
 
-/** Catch-zone band tuning. Vertical bands scale with the character's screen height. */
-interface CatchZoneOpts {
-  /** Up band as a fraction of charH (default {@link CATCH_U}). */
-  u?: number;
-  /** Down band as a fraction of charH (default {@link CATCH_D}). */
-  d?: number;
-  /** Horizontal margin as a fraction of win.width on each side (default {@link CATCH_MX}). */
-  mx?: number;
-}
-
 /** Side catch-zone band tuning, as fractions of the character's screen height. */
 interface SideCatchZoneOpts {
   /** Band extending away from the window (default {@link SIDE_OUT}). */
@@ -137,26 +127,17 @@ export function petPxToGlobalPoints(
 /**
  * Whether a seat point (global points) is inside the window's catch zone.
  * Vertical band scales with the character's screen height; horizontal band
- * widens by mx*win.width on each side. All inputs in points.
+ * widens by CATCH_MX*win.width on each side. All inputs in points.
  *
- *  horizontal: win.x - mx*W ≤ seat.x ≤ win.x + W + mx*W
- *  vertical:   win.y - u*charH ≤ seat.y ≤ win.y + d*charH
+ *  horizontal: win.x - CATCH_MX*W ≤ seat.x ≤ win.x + W + CATCH_MX*W
+ *  vertical:   win.y - CATCH_U*charH ≤ seat.y ≤ win.y + CATCH_D*charH
  */
-export function inCatchZone(
-  seatGlobalPts: ScreenPoint,
-  win: ScreenRect,
-  charHpx: number,
-  opts?: CatchZoneOpts,
-): boolean {
-  const u = opts?.u ?? CATCH_U;
-  const d = opts?.d ?? CATCH_D;
-  const mx = opts?.mx ?? CATCH_MX;
-
-  const marginX = mx * win.width;
+export function inCatchZone(seatGlobalPts: ScreenPoint, win: ScreenRect, charHpx: number): boolean {
+  const marginX = CATCH_MX * win.width;
   const left = win.x - marginX;
   const right = win.x + win.width + marginX;
-  const top = win.y - u * charHpx;
-  const bottom = win.y + d * charHpx;
+  const top = win.y - CATCH_U * charHpx;
+  const bottom = win.y + CATCH_D * charHpx;
 
   return (
     seatGlobalPts.x >= left &&

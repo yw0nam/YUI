@@ -24,13 +24,9 @@ function isValidSettings(v: unknown): v is AgentNotifySettings {
   return typeof s.enabled === "boolean" && isValidPort(s.port);
 }
 
-export function createAgentNotifySettings(opts?: {
-  storage?: AgentNotifyStorage;
-  initial?: AgentNotifySettings;
-}) {
+export function createAgentNotifySettings(opts?: { storage?: AgentNotifyStorage }) {
   const core = createPersistedStore<AgentNotifySettings>({
     storage: opts?.storage,
-    initial: opts?.initial,
     defaults: { ...DEFAULT_SETTINGS },
     parse: (v) => (isValidSettings(v) ? { enabled: v.enabled, port: v.port } : null),
     equals: (a, b) => a.enabled === b.enabled && a.port === b.port,

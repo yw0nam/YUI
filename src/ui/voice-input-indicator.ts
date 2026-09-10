@@ -43,8 +43,8 @@ export function createVoiceInputIndicator({
     // A failure the settings panel can resolve turns the chip into the fix itself:
     // reason-specific label, gear glyph, and a click that goes to Settings.
     const fixable = snapshot.state === "error" && isSettingsFixable(snapshot.detail);
-    // Map state → translated label directly; ignore the baked snapshot.label so
-    // the visible text/aria stays correct across a locale change + host re-mount.
+    // Map state → translated label directly, so the visible text/aria stays
+    // correct across a locale change + host re-mount.
     const label = fixable ? t("voice.error.not_configured") : t(`voice.state.${snapshot.state}`);
     el.dataset.state = snapshot.state;
     if (fixable) el.dataset.fix = "settings";
