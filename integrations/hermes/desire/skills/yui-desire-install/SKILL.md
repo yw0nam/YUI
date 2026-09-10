@@ -18,8 +18,7 @@ Run every step in order; each step ends with a check. Never copy the plugin out 
 the plugin directory and prompts are read from the repository, so `git pull` updates them in place.
 
 Replace `$YUI` below with the absolute path of the YUI checkout, `<profile>` with the Hermes profile name, and
-`<agent>` with the agent's own slug — one short lowercase word, the name every desire convention derives from;
-`<label>` and `<admin key>` with the memory_base key label the agent's memory MCP server uses and an admin key.
+`<agent>` with the agent's own slug — one short lowercase word, the name every desire convention derives from.
 Every `hermes` command takes `-p <profile>`; without it the CLI acts on the global `~/.hermes` store.
 
 ## When to use
@@ -74,23 +73,6 @@ notes tagged `<agent>`; without `MEMORY_BASE_API_KEY` the `learned` source is of
 MEMORY_BASE_URL=http://127.0.0.1:8010
 MEMORY_BASE_API_KEY=<the memory_base key>
 ```
-
-memory_base accepts `save_memory` only with an `author` from the calling key's allowlist, and a new key's allowlist
-is empty. The prompts save through the agent's memory MCP server, so the key to register is the one that server
-presents (the `X-API-Key` header it was registered with, or `MEMORY_API_KEY` over stdio), which is not always the
-monitor's `MEMORY_BASE_API_KEY`. Find its label with `uv run python -m memory_base.serve.keys list` on the
-memory_base host, read the current allowlist, and write it back with the agent's slug added — `PUT` replaces the
-whole list, so a bare `["<agent>"]` would drop every other agent on that label:
-
-```bash
-curl http://127.0.0.1:8010/keys/<label>/authors -H "X-API-Key: <admin key>"
-curl -X PUT http://127.0.0.1:8010/keys/<label>/authors -H "X-API-Key: <admin key>" \
-  -H 'Content-Type: application/json' -d '{"authors": [<the current list>, "<agent>"]}'
-```
-
-Check: `curl http://127.0.0.1:8010/keys/<label>/authors -H "X-API-Key: <the MCP server's key>"` lists `<agent>`. A
-member key may read only its own label, so a 403 here means the label is wrong, not the allowlist. Without this step
-every save is refused with 403.
 
 ## 4. Monitor script (real file, not a symlink)
 

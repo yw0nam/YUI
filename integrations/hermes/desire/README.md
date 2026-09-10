@@ -157,10 +157,6 @@ export MEMORY_BASE_URL=http://127.0.0.1:8010
 export MEMORY_BASE_API_KEY=<the memory_base key>
 ```
 
-The prompts save with `author="<agent>"` through the agent's memory MCP server, so that server's key must carry the
-agent's slug in its author allowlist (`PUT /keys/<label>/authors` with an admin key); the install skill covers the
-call. The monitor's `MEMORY_BASE_API_KEY` only reads and needs no allowlist.
-
 Hermes monitor scripts live under `~/.hermes/scripts/`, and Hermes resolves symlinks before checking that a monitor
 script stays inside that directory, so a symlink into the YUI checkout is rejected. Install the monitor as a real file
 that execs `decay_monitor.py` by absolute path:
@@ -294,9 +290,7 @@ Each derived event is appended to `unreported` and audited as `drive_satisfied` 
   `X-API-Key: $MEMORY_BASE_API_KEY`. `MEMORY_BASE_URL` defaults to `http://127.0.0.1:8010`. Without the key the
   monitor sends no request, audits nothing, and leaves the kind unbootstrapped, so a key set later bootstraps the
   notes on its first answer. The `default` namespace is shared with other sessions, so the `<agent>` tag is what
-  separates the agent's own notes; `tick.md` tells it to tag every note it saves with it. Every note also carries
-  the server-enforced `author` the agent saved with, and `/notes` accepts `author=<agent>` as a filter; the monitor
-  filters by tag only. Each returned note of kind
+  separates the agent's own notes; `tick.md` tells it to tag every note it saves with it. Each returned note of kind
   `note` or `decision` scores `learned` with the note id as its `ref`; `episode` notes are ignored. The response
   carries a day-granular `date` only, so the cursor advances to the tick time after a successful fetch and the note
   id in `seen` is what keeps a repeated note from being scored twice.

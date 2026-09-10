@@ -20,7 +20,7 @@ python3 <abs>/integrations/hermes/desire/act.py <command>
 1. Read the cursor with `python3 <abs>/integrations/hermes/desire/act.py feedback --get`.
 2. Read `issue_filed` and `pr_filed` events in `$DESIRE_STATE_DIR/audit.jsonl` and collect the filed URLs.
 3. Use `gh` to fetch comments on those issues and pull requests that are newer than the cursor. Also recall recent
-   verbal feedback from memory episodes, fetched with `list_notes` (`kind="episode"`, `since` the cursor).
+   verbal feedback from your memory system's episodes, fetched rather than assumed to be in context.
 4. Record the feedback in the relevant want's feedback log, then run
    `python3 <abs>/integrations/hermes/desire/act.py feedback --set <now-iso>`.
 
@@ -68,10 +68,10 @@ writing progress or feedback logs, and noticing that a bucket changed are not st
 section 2 and are not steps either. When no step is available, claim none; an empty tick is fine.
 
 When `curiosity` is high, read first — recent YUI commits, pull requests, or issues; a file under `docs/`; a memory
-search; or the web on a topic one of your wants is about — then save what you learned with `save_memory`, `author`
-set to your own slug (`<agent>`), with the text naming its source: a commit, an issue, a pull request, a document
-path, or a URL. Tag every such note `<agent>` as well, which is how the monitor tells your notes from other
-sessions'. The monitor scores `learned` for each new note it can read.
+search; or the web on a topic one of your wants is about — then save what you learned to your memory, with the text
+naming its source: a commit, an issue, a pull request, a document path, or a URL. Where your memory system carries
+tags, tag every such note `<agent>`, which is how the monitor tells your notes from other sessions'; where it records
+an author, name yourself `<agent>`. The monitor scores `learned` for each new note it can read.
 
 The one thing you score yourself is the user's praise:
 
@@ -111,9 +111,9 @@ an honest `--why`:
   in `$DESIRE_STATE_DIR/audit.jsonl` newer than the note's time means you had the chance to hand it over in your
   reply; release it if you did:
   `python3 <abs>/integrations/hermes/desire/act.py outbox --release <id> --why "<why it is finished>"`.
-- If a note is close to 48 hours old (bursting) and about to expire, first save its essence with `save_memory` (your own
-  words, `author="<agent>"`) so the unspoken feeling is not lost, then release it. If no memory
-  system is available, the audit log already keeps the record.
+- If a note is close to 48 hours old (bursting) and about to expire, first save its essence to your memory (your own
+  namespace, your own words) so the unspoken feeling is not lost, then release it. If no memory system is
+  available, the audit log already keeps the record.
 
 ## 5. Issues, comments, and pull requests
 
