@@ -12,7 +12,6 @@ const LIVE = process.env.YUI_LIVE === "1";
 
 const endpoints: EndpointsConfig = {
   chat_base_url: "http://localhost:8643/v1",
-  chat_endpoint: "/v1/responses",
   stt_base_url: "http://localhost:5517",
   tts_base_url: "http://localhost:8088",
   tts_model: "irodori-tts",

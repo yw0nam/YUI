@@ -135,27 +135,6 @@ describe("createPersistedStore bootstrap", () => {
     };
     expect(boxConfig(storage).get()).toEqual({ n: 0 });
   });
-
-  it("migrate() supplies a value when parse rejects the stored shape", () => {
-    const storage: PersistedStorage<Box> = {
-      load: () => ({ legacy: 3 }) as unknown as Box,
-      save: vi.fn(),
-    };
-    const store = createPersistedStore<Box>({
-      storage,
-      defaults: { n: 0 },
-      parse: (v) =>
-        v !== null && typeof v === "object" && typeof (v as Box).n === "number"
-          ? { n: (v as Box).n }
-          : null,
-      migrate: (v) => {
-        const legacy = (v as { legacy?: number } | null)?.legacy;
-        return typeof legacy === "number" ? { n: legacy } : null;
-      },
-      equals: (a, b) => a.n === b.n,
-    });
-    expect(store.get()).toEqual({ n: 3 });
-  });
 });
 
 // ─────────────────────────────────────────────────────────────────────────────

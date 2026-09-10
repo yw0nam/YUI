@@ -8,7 +8,6 @@ const FILE = "endpoints.json";
 function baseRaw(overrides: Record<string, unknown> = {}): Record<string, unknown> {
   return {
     chat_base_url: "http://localhost:8642",
-    chat_endpoint: "/v1/responses",
     stt_base_url: "http://localhost:5517",
     tts_base_url: "http://localhost:8092",
     ...overrides,
@@ -69,23 +68,20 @@ describe("validateEndpoints — unconfigured (empty) endpoints", () => {
     const out = validateEndpoints(FILE, {});
     expect(out).toEqual({
       chat_base_url: "",
-      chat_endpoint: "",
       stt_base_url: "",
       tts_base_url: "",
     });
   });
 
-  it("accepts explicitly empty url strings and an empty chat_endpoint", () => {
+  it("accepts explicitly empty url strings", () => {
     const out = validateEndpoints(FILE, {
       chat_base_url: "",
-      chat_endpoint: "",
       stt_base_url: "",
       tts_base_url: "",
     });
     expect(out.chat_base_url).toBe("");
     expect(out.stt_base_url).toBe("");
     expect(out.tts_base_url).toBe("");
-    expect(out.chat_endpoint).toBe("");
   });
 
   it("keeps the committed neutral defaults valid (chat_api + numeric knobs only)", () => {
@@ -96,7 +92,6 @@ describe("validateEndpoints — unconfigured (empty) endpoints", () => {
     });
     expect(out.chat_api).toBe("responses");
     expect(out.chat_base_url).toBe("");
-    expect(out.chat_endpoint).toBe("");
   });
 
   it("reads an empty broker_base_url as unset rather than a malformed URL", () => {
@@ -127,24 +122,6 @@ describe("validateEndpoints — base urls", () => {
 
   it("rejects a non-string tts_base_url", () => {
     expectIssue(baseRaw({ tts_base_url: 123 }), "tts_base_url는 http(s) URL이어야 함");
-  });
-});
-
-describe("validateEndpoints — chat_endpoint", () => {
-  it("rejects a path not starting with /", () => {
-    expectIssue(baseRaw({ chat_endpoint: "v1/responses" }), "chat_endpoint는");
-  });
-
-  it("rejects a protocol-relative path (//host)", () => {
-    expectIssue(baseRaw({ chat_endpoint: "//evil.example.com" }), "chat_endpoint는");
-  });
-
-  it("rejects a non-string chat_endpoint", () => {
-    expectIssue(baseRaw({ chat_endpoint: 5 }), "chat_endpoint는");
-  });
-
-  it("accepts a missing chat_endpoint as unset", () => {
-    expect(validateEndpoints(FILE, baseRaw({ chat_endpoint: undefined })).chat_endpoint).toBe("");
   });
 });
 

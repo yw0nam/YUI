@@ -39,18 +39,17 @@ function wrapAzimuth(a: number): number {
   return Math.atan2(Math.sin(a), Math.cos(a));
 }
 
-/**
- * Parse + sanitize a persisted blob. zoom is required; legacy blobs without orbit
- * angles fill the head-on defaults (backward compat). Out-of-range values are clamped.
- */
+/** Parse + sanitize a persisted blob. Out-of-range values are clamped. */
 function parse(v: unknown): CameraSettings | null {
   if (v === null || typeof v !== "object") return null;
   const s = v as Record<string, unknown>;
-  if (!isFiniteNumber(s.zoom)) return null;
+  if (!isFiniteNumber(s.zoom) || !isFiniteNumber(s.azimuth) || !isFiniteNumber(s.polar)) {
+    return null;
+  }
   return {
     zoom: clampZoom(s.zoom),
-    azimuth: isFiniteNumber(s.azimuth) ? wrapAzimuth(s.azimuth) : CAMERA_AZIMUTH_DEFAULT,
-    polar: isFiniteNumber(s.polar) ? clampPolar(s.polar, false) : CAMERA_POLAR_DEFAULT,
+    azimuth: wrapAzimuth(s.azimuth),
+    polar: clampPolar(s.polar, false),
   };
 }
 

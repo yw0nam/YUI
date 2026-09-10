@@ -983,7 +983,6 @@ describe("createEffectiveEndpoints", () => {
   });
   const bundled = (patch: Partial<EndpointsConfig> = {}): EndpointsConfig => ({
     chat_base_url: "",
-    chat_endpoint: "",
     stt_base_url: "",
     tts_base_url: "",
     ...patch,

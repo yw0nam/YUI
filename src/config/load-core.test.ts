@@ -26,7 +26,6 @@ describe("loadConfig — happy path", () => {
 
     expect(cfg.endpoints).toEqual({
       chat_base_url: "http://localhost:8642",
-      chat_endpoint: "/v1/responses",
       stt_base_url: "http://localhost:5517",
       tts_base_url: "http://localhost:8092",
       chat_instructions: "Use the generate_express tool with emotion_id, motion_id, emotion_text.",
@@ -184,19 +183,6 @@ describe("loadConfig — validation failures throw ConfigError", () => {
     await expectConfigError(
       loadWith(CONFIG_FILES.endpoints, {
         chat_base_url: "localhost:8642", // missing scheme
-        chat_endpoint: "/v1/responses",
-        stt_base_url: "http://localhost:5517",
-        tts_base_url: "http://localhost:8092",
-      }),
-      "endpoints.json",
-    );
-  });
-
-  it("endpoints: chat_endpoint이 '/'로 시작하지 않으면 실패", async () => {
-    await expectConfigError(
-      loadWith(CONFIG_FILES.endpoints, {
-        chat_base_url: "http://localhost:8642",
-        chat_endpoint: "v1/responses", // missing slash
         stt_base_url: "http://localhost:5517",
         tts_base_url: "http://localhost:8092",
       }),
@@ -208,7 +194,6 @@ describe("loadConfig — validation failures throw ConfigError", () => {
     await expectConfigError(
       loadWith(CONFIG_FILES.endpoints, {
         chat_base_url: "http://localhost:8642",
-        chat_endpoint: "/v1/responses",
         stt_base_url: "http://localhost:5517",
         tts_base_url: "http://localhost:8092",
         chat_instructions: 123, // not a string

@@ -34,7 +34,6 @@ const EMPTY: EndpointOverrides = {
 function baseConfig(): EndpointsConfig {
   return {
     chat_base_url: "http://localhost:8643/v1",
-    chat_endpoint: "/v1/responses",
     chat_model: "natsume",
     stt_base_url: "http://localhost:5517",
     tts_base_url: "http://localhost:8092",
@@ -399,7 +398,6 @@ describe("mergeEndpoints", () => {
   it("preserves unrelated base fields", () => {
     const base = baseConfig();
     const out = mergeEndpoints(base, { ...EMPTY, chat_base_url: "http://new" });
-    expect(out.chat_endpoint).toBe(base.chat_endpoint);
     expect(out.tts_speaker).toBe(base.tts_speaker);
     expect(out.tts_model).toBe(base.tts_model);
   });

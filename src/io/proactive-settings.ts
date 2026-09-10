@@ -130,21 +130,10 @@ function isValidSettings(v: unknown): v is ProactiveSettings {
 export function createProactiveSettings(opts?: { storage?: ProactiveStorage; locale?: CueLocale }) {
   const defaults = defaultSettings(opts?.locale ?? "ko");
 
-  // Legacy { enabled } (no entries) → keep enabled + fill in seed entries.
-  function migrate(v: unknown): ProactiveSettings | null {
-    if (v === null || typeof v !== "object") return null;
-    const s = v as Record<string, unknown>;
-    if (typeof s.enabled === "boolean" && !Array.isArray(s.entries)) {
-      return { enabled: s.enabled, entries: structuredClone(defaults.entries) };
-    }
-    return null;
-  }
-
   const core = createPersistedStore<ProactiveSettings>({
     storage: opts?.storage,
     defaults,
     parse: (v) => (isValidSettings(v) ? v : null),
-    migrate,
     clone: structuredClone,
     equals: (a, b) => JSON.stringify(a) === JSON.stringify(b),
   });

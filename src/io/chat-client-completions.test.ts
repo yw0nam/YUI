@@ -39,7 +39,6 @@ async function collect(gen: AsyncGenerator<ChatStreamEvent>): Promise<ChatStream
 
 const CONFIG: EndpointsConfig = {
   chat_base_url: "http://localhost:8643/v1",
-  chat_endpoint: "/v1/responses",
   chat_model: "test-model",
   chat_api: "chat_completions",
   stt_base_url: "http://localhost:5517",

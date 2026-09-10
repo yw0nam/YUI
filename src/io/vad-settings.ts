@@ -20,8 +20,7 @@ function isValidSettings(v: unknown): v is VadSettings {
   if (v === null || typeof v !== "object") return false;
   const s = v as Record<string, unknown>;
   if (typeof s.silenceMs !== "number" || !Number.isFinite(s.silenceMs)) return false;
-  // bargeIn may be absent on old stored values — only validate its type when present.
-  return s.bargeIn === undefined || typeof s.bargeIn === "boolean";
+  return typeof s.bargeIn === "boolean";
 }
 
 function clampSilence(ms: number): number {
@@ -33,12 +32,7 @@ export function createVadSettings(opts?: { storage?: VadStorage }) {
     storage: opts?.storage,
     defaults: { silenceMs: VAD_SILENCE_DEFAULT, bargeIn: true },
     parse: (v) =>
-      isValidSettings(v)
-        ? {
-            silenceMs: clampSilence(v.silenceMs),
-            bargeIn: typeof v.bargeIn === "boolean" ? v.bargeIn : true,
-          }
-        : null,
+      isValidSettings(v) ? { silenceMs: clampSilence(v.silenceMs), bargeIn: v.bargeIn } : null,
     equals: (a, b) => a.silenceMs === b.silenceMs && a.bargeIn === b.bargeIn,
   });
 
