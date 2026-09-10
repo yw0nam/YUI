@@ -19,7 +19,7 @@ import type { BusEnvelope } from "./event-bus";
 export type { GuardrailsConfig };
 
 /** Guardrail pass/drop judgment result. */
-type GuardResult = { pass: true } | { pass: false; reason: "guardrail_drop"; detail: string };
+type GuardResult = { pass: true } | { pass: false; reason: "guardrail_drop" };
 
 export interface Guardrails {
   /** Evaluate one event in order. If pass=false, drop. Mutate debounce/rate state only if pass. */
@@ -66,14 +66,14 @@ export function createGuardrails(
 
     // 2) cooldown: if entered cooldown is still valid, drop.
     if (now() < cooldownUntil) {
-      return { pass: false, reason: "guardrail_drop", detail: "cooldown" };
+      return { pass: false, reason: "guardrail_drop" };
     }
 
     // 3) debounce: per source window. timer_scheduler is N/A (own 1x) → window 0 (no debounce).
     const window = (config.debounce_ms as Record<Source, number>)[env.source] ?? 0;
     const last = lastFire.get(env.source);
     if (window > 0 && last !== undefined && now() - last < window) {
-      return { pass: false, reason: "guardrail_drop", detail: `debounce:${env.source}` };
+      return { pass: false, reason: "guardrail_drop" };
     }
 
     // 4) rate-limit: prune tier window then cap, then overall cap.
@@ -81,14 +81,14 @@ export function createGuardrails(
     prune(tier3Window);
     prune(overallWindow);
     if (tier === 2 && tier2Window.length >= config.rate_limit.tier2_max) {
-      return { pass: false, reason: "guardrail_drop", detail: "rate_limit:tier2" };
+      return { pass: false, reason: "guardrail_drop" };
     }
     if (tier === 3 && tier3Window.length >= config.rate_limit.tier3_max) {
-      return { pass: false, reason: "guardrail_drop", detail: "rate_limit:tier3" };
+      return { pass: false, reason: "guardrail_drop" };
     }
     if (overallWindow.length >= config.rate_limit.overall_max) {
       cooldownUntil = now() + config.rate_limit.cooldown_ms;
-      return { pass: false, reason: "guardrail_drop", detail: "cooldown_entered" };
+      return { pass: false, reason: "guardrail_drop" };
     }
 
     // 5) pass: consume slot at fire time (no refund).

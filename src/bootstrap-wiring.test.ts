@@ -2128,9 +2128,7 @@ describe("wireGuardrailsOverrides", () => {
   function baseConfig(): GuardrailsConfig {
     return {
       debounce_ms: {
-        idle_watcher: 0,
         os_event_watcher: 0,
-        backend_push_source: 0,
         user_input_source: 0,
         screen_watcher: 0,
       },
@@ -2147,7 +2145,7 @@ describe("wireGuardrailsOverrides", () => {
 
   const fire = (guardrails: ReturnType<typeof createGuardrails>): boolean =>
     guardrails.evaluate(
-      { source: "idle_watcher", event_name: "idle.long", ts: 1_717_000_000_000 },
+      { source: "os_event_watcher", event_name: "proactive.head_pat", ts: 1_717_000_000_000 },
       2,
     ).pass;
 

@@ -154,9 +154,7 @@ describe("configs/guardrails.json", () => {
   const g = read("configs/guardrails.json");
 
   it("carries debounce_ms / rate_limit blocks with §6 defaults", () => {
-    expect(g.debounce_ms.idle_watcher).toBe(30000);
     expect(g.debounce_ms.os_event_watcher).toBe(5000);
-    expect(g.debounce_ms.backend_push_source).toBe(10000);
     expect(g.debounce_ms.user_input_source).toBe(0);
     expect(g.debounce_ms.screen_watcher).toBe(5000);
     expect(g.rate_limit.window_ms).toBe(3600000);

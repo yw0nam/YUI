@@ -48,6 +48,12 @@ describe("event_bus — bus drop conditions (§4.2)", () => {
     expect(bus.snapshot()).toHaveLength(0);
   });
 
+  it("drops idle.* and backend.push.* as unknown event names", () => {
+    expect(bus.push(env({ event_name: "idle.short" }))).toBe(false);
+    expect(bus.push(env({ event_name: "backend.push.suggest" }))).toBe(false);
+    expect(bus.snapshot()).toHaveLength(0);
+  });
+
   it("drops a schema-invalid envelope (missing event_name)", () => {
     expect(bus.push(env({ event_name: undefined }))).toBe(false);
   });
@@ -79,25 +85,6 @@ describe("event_bus — bus drop conditions (§4.2)", () => {
 });
 
 describe("event_bus — priority ordering (§4.3)", () => {
-  it("pops by tier ASC (user before idle before os)", () => {
-    bus.push(
-      env({
-        source: "os_event_watcher",
-        event_name: "os.active_app_changed",
-        ts: NOW,
-        dnd_override: false,
-      }),
-    );
-    bus.push(
-      env({ source: "idle_watcher", event_name: "idle.short", ts: NOW, dnd_override: false }),
-    );
-    bus.push(env({ source: "user_input_source", event_name: "user.text_submitted", ts: NOW }));
-    expect(bus.pop()!.event_name).toBe("user.text_submitted");
-    expect(bus.pop()!.event_name).toBe("idle.short");
-    expect(bus.pop()!.event_name).toBe("os.active_app_changed");
-    expect(bus.pop()).toBeNull();
-  });
-
   it("keeps FIFO order within the same priority tier (ts ASC, then seq)", () => {
     bus.push(env({ event_name: "user.tap", ts: NOW + 10 }));
     bus.push(env({ event_name: "user.text_submitted", ts: NOW }));
@@ -129,11 +116,11 @@ describe("event_bus — proactive.* family", () => {
     expect(bus.snapshot()).toHaveLength(1);
   });
 
-  it("gives proactive.* priority 2 — after user.* (0), before os.* (3)", () => {
+  it("gives proactive.* priority 2 — after user.* (0), before avatar.* (3)", () => {
     bus.push(
       env({
-        source: "os_event_watcher",
-        event_name: "os.active_app_changed",
+        source: "timer_scheduler",
+        event_name: "avatar.walk_start",
         ts: NOW,
         dnd_override: false,
       }),
@@ -149,7 +136,7 @@ describe("event_bus — proactive.* family", () => {
     bus.push(env({ source: "user_input_source", event_name: "user.text_submitted", ts: NOW }));
     expect(bus.pop()!.event_name).toBe("user.text_submitted");
     expect(bus.pop()!.event_name).toBe("proactive.cowork");
-    expect(bus.pop()!.event_name).toBe("os.active_app_changed");
+    expect(bus.pop()!.event_name).toBe("avatar.walk_start");
     expect(bus.pop()).toBeNull();
   });
 });
@@ -165,7 +152,7 @@ describe("event_bus — avatar.* family", () => {
     expect(bus.snapshot()).toHaveLength(1);
   });
 
-  it("gives avatar.* priority 3 — after proactive.* (2), alongside os.*", () => {
+  it("gives avatar.* priority 3 — after proactive.* (2)", () => {
     bus.push(
       env({
         source: "timer_scheduler",
@@ -216,11 +203,11 @@ describe("event_bus — agent.* family", () => {
     expect(bus.snapshot()).toHaveLength(1);
   });
 
-  it("gives agent.* priority 2 — after user.* (0), before os.* (3)", () => {
+  it("gives agent.* priority 2 — after user.* (0), before avatar.* (3)", () => {
     bus.push(
       env({
-        source: "os_event_watcher",
-        event_name: "os.active_app_changed",
+        source: "timer_scheduler",
+        event_name: "avatar.walk_start",
         ts: NOW,
         dnd_override: false,
       }),
@@ -236,7 +223,7 @@ describe("event_bus — agent.* family", () => {
     bus.push(env({ source: "user_input_source", event_name: "user.text_submitted", ts: NOW }));
     expect(bus.pop()!.event_name).toBe("user.text_submitted");
     expect(bus.pop()!.event_name).toBe("agent.done");
-    expect(bus.pop()!.event_name).toBe("os.active_app_changed");
+    expect(bus.pop()!.event_name).toBe("avatar.walk_start");
     expect(bus.pop()).toBeNull();
   });
 });
@@ -245,19 +232,19 @@ describe("event_bus — capacity 100 (§4.2)", () => {
   it("drops the lowest-priority entry when over capacity, keeping high-priority", () => {
     const drops: unknown[] = [];
     bus = createEventBus({ onDrop: (e, reason) => drops.push({ e: e.event_name, reason }) });
-    // Fill with 100 low-priority os events.
+    // Fill with 100 low-priority avatar events.
     for (let i = 0; i < 100; i++) {
       bus.push(
         env({
-          source: "os_event_watcher",
-          event_name: "os.active_app_changed",
+          source: "timer_scheduler",
+          event_name: "avatar.walk_start",
           ts: NOW + i,
           dnd_override: false,
         }),
       );
     }
     expect(bus.snapshot()).toHaveLength(100);
-    // 101st is a high-priority user event → must be inserted, an os event dropped.
+    // 101st is a high-priority user event → must be inserted, an avatar event dropped.
     expect(bus.push(env({ event_name: "user.text_submitted", ts: NOW }))).toBe(true);
     expect(bus.snapshot()).toHaveLength(100);
     expect(drops).toHaveLength(1);
