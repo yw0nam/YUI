@@ -62,7 +62,7 @@ vi.mock("./io/broker-override-reconciler", () => ({
   createBrokerOverrideReconciler: createReconciler,
 }));
 vi.mock("./io/chat-client", () => ({ selectFetch }));
-vi.mock("./config", () => ({ loadEmotionTextTable: vi.fn().mockResolvedValue(null) }));
+vi.mock("./config/emotion-text", () => ({ loadEmotionTextTable: vi.fn().mockResolvedValue(null) }));
 
 // Voices-API fakes — wireSpeakerSelection's refreshVoiceList exercises listVoices;
 // commitVoiceImport and refreshSpeaker (tests below) exercise upsertVoice directly.
@@ -155,7 +155,7 @@ import {
   wireWindowSources,
   wireWindowSync,
 } from "./bootstrap-wiring";
-import { loadEmotionTextTable } from "./config";
+import { loadEmotionTextTable } from "./config/emotion-text";
 import type { GuardrailsConfig } from "./config/load";
 import type { EndpointsConfig } from "./contract";
 import { createGuardrails } from "./dispatcher/guardrails";
@@ -2134,9 +2134,7 @@ describe("wireGuardrailsOverrides", () => {
   function baseConfig(): GuardrailsConfig {
     return {
       debounce_ms: {
-        idle_watcher: 0,
         os_event_watcher: 0,
-        backend_push_source: 0,
         user_input_source: 0,
         screen_watcher: 0,
       },
@@ -2153,7 +2151,7 @@ describe("wireGuardrailsOverrides", () => {
 
   const fire = (guardrails: ReturnType<typeof createGuardrails>): boolean =>
     guardrails.evaluate(
-      { source: "idle_watcher", event_name: "idle.long", ts: 1_717_000_000_000 },
+      { source: "os_event_watcher", event_name: "proactive.head_pat", ts: 1_717_000_000_000 },
       2,
     ).pass;
 

@@ -6,20 +6,20 @@ import { createPercher, type Percher, type PercherWindow } from "./ambient/perch
 import type { Sitter } from "./ambient/sitter";
 import type { Tier1Engine } from "./ambient/tier1";
 import { createWalker, type Walker } from "./ambient/walker";
-import {
-  type AppConfig,
-  type ClimbConfig,
-  type ConfigSection,
-  type DescendConfig,
-  type FallConfig,
-  type GestureCuesConfig,
-  type JumpConfig,
-  loadEmotionTextTable,
-  type PeekConfig,
-  type PerchWalkConfig,
-  type ScreenConfig,
-  type WalkConfig,
-} from "./config";
+import { loadEmotionTextTable } from "./config/emotion-text";
+import type {
+  AppConfig,
+  ClimbConfig,
+  ConfigSection,
+  DescendConfig,
+  FallConfig,
+  GestureCuesConfig,
+  JumpConfig,
+  PeekConfig,
+  PerchWalkConfig,
+  ScreenConfig,
+  WalkConfig,
+} from "./config/load";
 import type { EndpointsConfig, MotionKind, Posture, WindowRect } from "./contract";
 import { createAgentSource } from "./dispatcher/agent-source";
 import { isReflexTurn } from "./dispatcher/backend-caller";
@@ -1711,7 +1711,7 @@ export async function wireDevGlobals(deps: {
     // DEV-ONLY trigger: fire E2E loop directly from console.
     //   window.__yui_send("hello") → user.text_submitted → dispatcher → backend_caller →
     //   streamChat → Hermes → ControlEnvelope → renderer.applyDirective + bubble.
-    // Temporary handle for validation.
+    // Screenshot-validation handle: fires a real submit without a real gesture.
     __yui_send: (text: string) => userInput.submit(text),
     // Dispatcher observation: __yui_dispatcher.inFlight()/queue()/recentDrops().
     __yui_dispatcher: getDispatcher,

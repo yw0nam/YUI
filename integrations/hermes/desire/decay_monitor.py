@@ -9,20 +9,15 @@ import subprocess
 from datetime import datetime, timedelta
 from pathlib import Path
 from urllib import error as urllib_error
-from urllib import parse as urllib_parse
 from urllib import request as urllib_request
 
 import desire_state
 
 PROBE_TIMEOUT = 2
 GH_TIMEOUT = 60
-NOTES_TIMEOUT = 10
 SATURATION_STEP = timedelta(hours=3)
-DEFAULT_MEMORY_BASE_URL = "http://127.0.0.1:8010"
-NOTE_KINDS = ("note", "decision")
-NOTE_MEMORY = 500
-FIRST_SIGHT = {"pr": "progressed", "issue": "progressed", "skill": "progressed", "note": "learned"}
-SOURCE_OF = {"pr": "pr", "issue": "issue", "skill": "skill", "note": "notes"}
+FIRST_SIGHT = {"pr": "progressed", "issue": "progressed", "skill": "progressed"}
+SOURCE_OF = {"pr": "pr", "issue": "issue", "skill": "skill"}
 _ORIGIN_SECTION = re.compile(r'^\[remote "origin"\]\n(.*?)(?=^\[|\Z)', re.MULTILINE | re.DOTALL)
 _ORIGIN_URL = re.compile(r"^\s*url\s*=\s*(\S+)", re.MULTILINE)
 _GITHUB_SLUG = re.compile(r"(?:^|[@/.])github\.com[:/](?P<owner>[^/]+)/(?P<name>[^/]+?)(?:\.git)?/?$")
@@ -48,11 +43,6 @@ def run_gh(args: list[str]) -> str:
     if result.returncode != 0:
         raise RuntimeError(result.stderr.strip() or f"gh exited {result.returncode}")
     return result.stdout
-
-
-def fetch_notes(url: str, headers: dict[str, str]) -> bytes:
-    with urllib_request.urlopen(urllib_request.Request(url, headers=headers), timeout=NOTES_TIMEOUT) as reply:
-        return reply.read()
 
 
 def _github_slug(origin: str) -> str | None:
@@ -144,17 +134,6 @@ def profile_skills(skills_root: Path) -> list[str]:
     return sorted(str(path.parent.relative_to(skills_root)) for path in skills_root.rglob("SKILL.md"))
 
 
-def memory_notes(since: str, fetch_notes) -> list[dict]:
-    """Return the notes the agent tagged with its own name since the cursor, without its episodes."""
-
-    base = os.environ.get("MEMORY_BASE_URL") or DEFAULT_MEMORY_BASE_URL
-    query = urllib_parse.urlencode({"since": since, "limit": 200, "tags": desire_state.agent_name()})
-    headers = {"X-API-Key": os.environ.get("MEMORY_BASE_API_KEY", "")}
-    payload = json.loads(fetch_notes(f"{base.rstrip('/')}/notes?{query}", headers))
-    notes = payload.get("notes", []) if isinstance(payload, dict) else payload
-    return [note for note in notes if isinstance(note, dict) and note.get("kind") in NOTE_KINDS]
-
-
 def _derive_failed(state_dir: Path, now: datetime, source: str, repo: str | None, message: str, ref=None):
     named = {"ref": ref} if ref is not None else {}
     desire_state.append_jsonl(
@@ -187,23 +166,21 @@ def artefact_delivery(kind: str, url: str, run_gh) -> object:
     return json.loads(run_gh([kind, "view", url, "--json", f"state,{field}"])).get(field)
 
 
-def collect_artefacts(state_dir, now, *, workspace_root, skills_root, run_gh, fetch_notes) -> dict:
-    """Read the four sources outside the state lock, so no `gh` call blocks a turn.
+def collect_artefacts(state_dir, now, *, workspace_root, skills_root, run_gh) -> dict:
+    """Read the three sources outside the state lock, so no `gh` call blocks a turn.
 
     Each kind maps to its ``(ref, delivered_at)`` pairs, or to ``None`` when the source did not
     answer at all. While a kind is still unbootstrapped one failing repository drops the whole kind,
     so a partial answer is never mistaken for the complete first sight; afterwards only the failing
     repository's own contribution is dropped. The list calls carry a fixed window, so delivery is
     read from each pending artefact's own view instead of waiting for it to appear in that window.
-    The memory-note source runs only while ``MEMORY_BASE_API_KEY`` is set, so without a memory_base
-    service the `note` kind stays unread and unbootstrapped.
     """
 
     now = desire_state.normalize_now(now)
     state_dir = Path(state_dir)
     record = desire_state.read_artefacts(state_dir)
     bootstrapped = set(record["bootstrapped"]) if record else set()
-    observed = {kind: [] for kind in desire_state.SEEN_KINDS}
+    observed = {kind: [] for kind in desire_state.ARTEFACT_KINDS}
     for repo in workspace_repos(workspace_root):
         pulls = _read_source(state_dir, now, "pr", repo, lambda name=repo: repo_pull_requests(name, run_gh))
         observed["pr"] = _extend(observed["pr"], pulls, "url", "mergedAt", "pr" in bootstrapped)
@@ -223,11 +200,6 @@ def collect_artefacts(state_dir, now, *, workspace_root, skills_root, run_gh, fe
                 observed[kind].append((url, delivered))
     skills = _read_source(state_dir, now, "skill", None, lambda: profile_skills(skills_root))
     observed["skill"] = None if skills is None else [(relative, None) for relative in skills]
-    observed["note"] = None
-    if os.environ.get("MEMORY_BASE_API_KEY"):
-        since = (record["notes_since"] if record else None) or now.isoformat()
-        notes = _read_source(state_dir, now, "notes", None, lambda: memory_notes(since, fetch_notes))
-        observed["note"] = None if notes is None else [(note.get("id"), None) for note in notes]
     return observed
 
 
@@ -274,7 +246,7 @@ def score_artefacts(state_dir, now, observed: dict) -> None:
         record = desire_state.read_artefacts(state_dir) or desire_state.default_artefacts(now)
         scored = set(record["bootstrapped"])
         candidates = []
-        for kind in desire_state.SEEN_KINDS:
+        for kind in desire_state.ARTEFACT_KINDS:
             if observed[kind] is None:
                 continue
             for ref, delivered_at in observed[kind]:
@@ -286,8 +258,6 @@ def score_artefacts(state_dir, now, observed: dict) -> None:
                     if candidate not in candidates:
                         candidates.append(candidate)
             record["bootstrapped"] = sorted({*record["bootstrapped"], kind})
-        if observed["note"] is not None:
-            record["notes_since"] = now.isoformat()
 
         try:
             for event, kind, ref in candidates:
@@ -305,7 +275,11 @@ def score_artefacts(state_dir, now, observed: dict) -> None:
                     continue
                 record["unreported"].append({"event": event, "kind": kind, "ref": ref, "at": now.isoformat()})
         finally:
-            record["seen"]["note"] = record["seen"]["note"][-NOTE_MEMORY:]
+            # `satisfy` records reported sources in the same file, so those come from a fresh read
+            # rather than from the snapshot this scoring pass started with.
+            fresh = desire_state.read_artefacts(state_dir)
+            if fresh is not None:
+                record["learned"] = fresh["learned"]
             desire_state.write_json_atomic(state_dir / "artefacts.json", record)
 
 
@@ -327,7 +301,6 @@ def run(now: datetime) -> str:
         workspace_root=profile / "workspace",
         skills_root=profile / "skills",
         run_gh=run_gh,
-        fetch_notes=fetch_notes,
     )
     with desire_state.state_lock() as state_dir:
         state = desire_state.bootstrap_locked(state_dir, now)

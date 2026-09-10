@@ -10,7 +10,7 @@
  */
 
 import { describe, expect, it, vi } from "vitest";
-import { CHAT_API_KEY_SECRET, STT_API_KEY_SECRET, TTS_API_KEY_SECRET } from "../config";
+import { CHAT_API_KEY_SECRET, STT_API_KEY_SECRET, TTS_API_KEY_SECRET } from "../config/load";
 import { createApiKeySettings } from "./api-key-settings";
 import { createChatKeySettings } from "./chat-key-settings";
 import { createSettingsSecretProvider } from "./secret-provider";

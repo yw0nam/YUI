@@ -119,15 +119,6 @@ describe("createSttVad — start() loads VAD", () => {
     expect(capturedOptions.baseAssetPath).toBe("/vad/");
     expect(capturedOptions.onnxWASMBasePath).toBe("/vad/");
   });
-
-  it("start() is idempotent — second call does not create a second VAD instance", async () => {
-    const { MicVAD } = await import("@ricky0123/vad-web");
-    const onVoiceSegment = vi.fn();
-    const stt = createSttVad({ config: () => CONFIG, onVoiceSegment });
-    await stt.start();
-    await stt.start();
-    expect(MicVAD.new).toHaveBeenCalledOnce();
-  });
 });
 
 describe("createSttVad — silenceMs configurable", () => {

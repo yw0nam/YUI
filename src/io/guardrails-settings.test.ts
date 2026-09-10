@@ -12,9 +12,7 @@ import {
 function baseConfig(): GuardrailsConfig {
   return {
     debounce_ms: {
-      idle_watcher: 30_000,
       os_event_watcher: 5_000,
-      backend_push_source: 10_000,
       user_input_source: 0,
       screen_watcher: 5_000,
     },

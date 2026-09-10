@@ -2,8 +2,8 @@
  * dispatcher.test.ts — classify → route + conflict resolution.
  *
  * Scope:
- *  - §5.1 classify: user.text_submitted (tier2) → backend_caller; user.drag_* / idle.returned
- *    / user.tap (tier1 half) → tier1/renderer.
+ *  - §5.1 classify: user.text_submitted (tier2) → backend_caller; user.drag_* / user.tap
+ *    (tier1 half) → tier1/renderer.
  *  - §5.2 conflict: user.text_submitted arrival → abort in-flight backend call (AbortController)
  *    + drop queued tier2/3 (superseded_by_user).
  *  - §9 state machine booting → running.
@@ -15,7 +15,7 @@ import type { PeekConfig, TapConfig } from "../config/load";
 import { guardrailsFixture } from "../config/load-test-helpers";
 import type { Logger } from "../logger";
 import type { BackendCaller, TurnOutcome } from "./backend-caller";
-import { createDispatcher, type Dispatcher, DROP_SEVERITY } from "./dispatcher";
+import { createDispatcher, type Dispatcher } from "./dispatcher";
 import { type BusEnvelope, createEventBus, type EventBus } from "./event-bus";
 import { createGuardrails, type Guardrails, type GuardrailsConfig } from "./guardrails";
 import { createTurnLog, type Turn, type TurnLog } from "./turn";
@@ -29,9 +29,7 @@ const NOW = 1_717_000_000_000;
 function permissiveGuardrailsConfig(): GuardrailsConfig {
   return {
     debounce_ms: {
-      idle_watcher: 0,
       os_event_watcher: 0,
-      backend_push_source: 0,
       user_input_source: 0,
       screen_watcher: 5000,
     },
@@ -50,9 +48,7 @@ function permissiveGuardrailsConfig(): GuardrailsConfig {
 function realGuardrailsConfig(): GuardrailsConfig {
   return {
     debounce_ms: {
-      idle_watcher: 30_000,
       os_event_watcher: 5_000,
-      backend_push_source: 10_000,
       user_input_source: 0,
       screen_watcher: 5000,
     },
@@ -233,8 +229,8 @@ describe("dispatcher — state machine (§9)", () => {
     for (let i = 0; i < 3; i++) {
       bus.push(
         env({
-          source: "idle_watcher",
-          event_name: "idle.short",
+          source: "os_event_watcher",
+          event_name: "proactive.tap_bored",
           ts: NOW + i,
           dnd_override: false,
         }),
@@ -402,7 +398,7 @@ describe("dispatcher — posture", () => {
     const sitting = dispatcher.getBodyState();
 
     await pushPostureEvent("user.tap_region", { region: "head" });
-    await pushPostureEvent("idle.returned");
+    await pushPostureEvent("user.tap");
     expect(dispatcher.getBodyState()).toEqual(sitting);
   });
 
@@ -541,20 +537,6 @@ describe("dispatcher — routing (§5.1)", () => {
     expect(setPerchTarget.mock.invocationCallOrder[0]).toBeLessThan(
       applyDirective.mock.invocationCallOrder[0],
     );
-  });
-
-  it("routes idle.returned (tier1) to renderer without a backend call", async () => {
-    dispatcher.start();
-    bus.push(
-      env({
-        source: "idle_watcher",
-        event_name: "idle.returned",
-        hint_tier: 1,
-        dnd_override: false,
-      }),
-    );
-    await vi.advanceTimersByTimeAsync(20);
-    expect(backendCaller.call as ReturnType<typeof vi.fn>).not.toHaveBeenCalled();
   });
 
   it("user.tap is observability-only and leaves the current motion untouched", async () => {
@@ -1227,8 +1209,8 @@ describe("dispatcher — tap emotion revert (touch_emotion_hold_ms)", () => {
     // but nothing is owed, so the revert must still fire.
     bus.push(
       env({
-        source: "idle_watcher",
-        event_name: "idle.short",
+        source: "os_event_watcher",
+        event_name: "proactive.tap_bored",
         hint_tier: 2,
         dnd_override: false,
         ts: NOW + 1,
@@ -1282,11 +1264,11 @@ describe("dispatcher — conflict resolution / supersede (§5.2, §14 ABORT path
     // first user text occupies the in-flight slot
     bus.push(env({ ts: NOW }));
     await vi.advanceTimersByTimeAsync(20);
-    // queue a tier2 idle.short behind it (won't run while in-flight)
+    // queue a non-user tier2 behind it (won't run while in-flight)
     bus.push(
       env({
-        source: "idle_watcher",
-        event_name: "idle.short",
+        source: "os_event_watcher",
+        event_name: "proactive.tap_bored",
         ts: NOW + 1,
         hint_tier: 2,
         dnd_override: false,
@@ -1324,11 +1306,11 @@ describe("dispatcher — conflict resolution / supersede (§5.2, §14 ABORT path
     // first user text occupies the in-flight slot
     bus.push(env({ ts: NOW }));
     await vi.advanceTimersByTimeAsync(20);
-    // queue a tier2 idle.short behind it (won't run while in-flight)
+    // queue a non-user tier2 behind it (won't run while in-flight)
     bus.push(
       env({
-        source: "idle_watcher",
-        event_name: "idle.short",
+        source: "os_event_watcher",
+        event_name: "proactive.tap_bored",
         ts: NOW + 1,
         hint_tier: 2,
         dnd_override: false,
@@ -1351,7 +1333,7 @@ describe("dispatcher — conflict resolution / supersede (§5.2, §14 ABORT path
 describe("dispatcher — playback-gated drain (§337)", () => {
   const nonUser = (over: Partial<BusEnvelope> = {}) =>
     env({
-      source: "backend_push_source",
+      source: "os_event_watcher",
       event_name: "proactive.tick",
       ts: NOW + 1,
       hint_tier: 2,
@@ -1475,8 +1457,8 @@ describe("dispatcher — observable dev APIs (§11)", () => {
     // first is in-flight; queue a second tier2 that stays pending
     bus.push(
       env({
-        source: "idle_watcher",
-        event_name: "idle.short",
+        source: "os_event_watcher",
+        event_name: "proactive.tap_bored",
         ts: NOW + 1,
         hint_tier: 2,
         dnd_override: false,
@@ -1484,23 +1466,6 @@ describe("dispatcher — observable dev APIs (§11)", () => {
     );
     await vi.advanceTimersByTimeAsync(20);
     expect(dispatcher.queue().length).toBeGreaterThan(0);
-  });
-});
-
-// ── structured logging ──────────────────────────────────────────────────────
-
-describe("dispatcher — structured logging: DROP_SEVERITY table", () => {
-  it("exports DROP_SEVERITY mapping every DropRecord reason", () => {
-    expect(DROP_SEVERITY).toBeDefined();
-    expect(DROP_SEVERITY.guardrail_drop).toBe("info");
-    expect(DROP_SEVERITY.parse_error).toBe("warn");
-    expect(DROP_SEVERITY.network_drop).toBe("warn");
-    expect(DROP_SEVERITY.network_stall).toBe("warn");
-    expect(DROP_SEVERITY.http_4xx_drop).toBe("error");
-    expect(DROP_SEVERITY.superseded_by_user).toBe("info");
-    expect(DROP_SEVERITY.stale_pending).toBe("info");
-    expect(DROP_SEVERITY.degraded_drop).toBe("warn");
-    expect(DROP_SEVERITY.global_gap).toBe("info");
   });
 });
 
@@ -1761,12 +1726,12 @@ describe("dispatcher — structured logging: fire events", () => {
     );
   });
 
-  it("emits logger.info('fire', {seq_id}) for idle.returned (tier1)", async () => {
+  it("emits logger.info('fire', {seq_id}) for a tier1 window_sit_enter", async () => {
     dispatcher.start();
     bus.push(
       env({
-        source: "idle_watcher",
-        event_name: "idle.returned",
+        source: "os_event_watcher",
+        event_name: "user.window_sit_enter",
         hint_tier: 1,
         dnd_override: false,
       }),
@@ -1774,7 +1739,10 @@ describe("dispatcher — structured logging: fire events", () => {
     await vi.advanceTimersByTimeAsync(20);
     expect(logger.info).toHaveBeenCalledWith(
       "fire",
-      expect.objectContaining({ event_name: "idle.returned", seq_id: expect.anything() }),
+      expect.objectContaining({
+        event_name: "user.window_sit_enter",
+        seq_id: expect.anything(),
+      }),
     );
   });
 });
@@ -1846,10 +1814,16 @@ describe("dispatcher — onUserTurnFailed seam (issue #274)", () => {
     d.stop();
   });
 
-  it("does NOT fire for a non-user-initiated trigger (idle.short), even on failure", async () => {
+  it("does NOT fire for a non-user-initiated trigger (proactive.tap_bored), even on failure", async () => {
     const { d, sink } = makeDispatcherWithFailedTurnSink();
     d.start();
-    bus.push(env({ event_name: "idle.short", dnd_override: undefined, source: "idle_watcher" }));
+    bus.push(
+      env({
+        event_name: "proactive.tap_bored",
+        dnd_override: undefined,
+        source: "os_event_watcher",
+      }),
+    );
     await vi.advanceTimersByTimeAsync(20);
     callDeferred[0].resolve("network_drop");
     await vi.advanceTimersByTimeAsync(20);
@@ -1958,8 +1932,8 @@ describe("dispatcher — structured logging: drop events via logger", () => {
     // queue a tier2 behind the in-flight
     bus.push(
       env({
-        source: "idle_watcher",
-        event_name: "idle.short",
+        source: "os_event_watcher",
+        event_name: "proactive.tap_bored",
         ts: NOW + 1,
         hint_tier: 2,
         dnd_override: false,
@@ -1983,8 +1957,8 @@ describe("dispatcher — structured logging: drop events via logger", () => {
     // push two more tier2 while in-flight — oldest pending gets stale_pending drop
     bus.push(
       env({
-        source: "idle_watcher",
-        event_name: "idle.short",
+        source: "os_event_watcher",
+        event_name: "proactive.tap_bored",
         ts: NOW + 1,
         hint_tier: 2,
         dnd_override: false,
@@ -1992,8 +1966,8 @@ describe("dispatcher — structured logging: drop events via logger", () => {
     );
     bus.push(
       env({
-        source: "idle_watcher",
-        event_name: "idle.long",
+        source: "os_event_watcher",
+        event_name: "proactive.drag_held",
         ts: NOW + 2,
         hint_tier: 2,
         dnd_override: false,
@@ -2073,8 +2047,8 @@ describe("dispatcher — guardrail gating (§6)", () => {
     d.start();
     bus.push(
       env({
-        source: "idle_watcher",
-        event_name: "idle.long",
+        source: "os_event_watcher",
+        event_name: "proactive.drag_held",
         ts: NOW,
         hint_tier: 2,
         dnd_override: false,
@@ -2084,11 +2058,11 @@ describe("dispatcher — guardrail gating (§6)", () => {
     callDeferred[0]?.resolve("ok");
     await vi.advanceTimersByTimeAsync(20);
     (backendCaller.call as ReturnType<typeof vi.fn>).mockClear();
-    // 2nd idle within 30s — debounce drop, no new backend call.
+    // 2nd os_event_watcher fire within 5s — debounce drop, no new backend call.
     bus.push(
       env({
-        source: "idle_watcher",
-        event_name: "idle.long",
+        source: "os_event_watcher",
+        event_name: "proactive.drag_held",
         ts: NOW + 1,
         hint_tier: 2,
         dnd_override: false,
@@ -2122,8 +2096,8 @@ describe("dispatcher — cancel() + subscribeBusy (chat stop button)", () => {
     // queue a tier2 behind it
     bus.push(
       env({
-        source: "idle_watcher",
-        event_name: "idle.short",
+        source: "os_event_watcher",
+        event_name: "proactive.tap_bored",
         ts: NOW + 1,
         hint_tier: 2,
         dnd_override: false,
@@ -2174,8 +2148,8 @@ describe("dispatcher — cancel() + subscribeBusy (chat stop button)", () => {
     dispatcher.start();
     bus.push(
       env({
-        source: "idle_watcher",
-        event_name: "idle.short",
+        source: "os_event_watcher",
+        event_name: "proactive.tap_bored",
         hint_tier: 2,
         dnd_override: false,
       }),
@@ -2204,8 +2178,8 @@ describe("dispatcher — cancel() + subscribeBusy (chat stop button)", () => {
     // queue a second tier2 that stays pending
     bus.push(
       env({
-        source: "idle_watcher",
-        event_name: "idle.short",
+        source: "os_event_watcher",
+        event_name: "proactive.tap_bored",
         ts: NOW + 1,
         hint_tier: 2,
         dnd_override: false,
@@ -2283,8 +2257,8 @@ describe("dispatcher — isPipelineBusy/subscribePipelineBusy (busy = ledger not
     bus.push(env({ ts: NOW }));
     bus.push(
       env({
-        source: "idle_watcher",
-        event_name: "idle.short",
+        source: "os_event_watcher",
+        event_name: "proactive.tap_bored",
         ts: NOW + 1,
         hint_tier: 2,
         dnd_override: false,
@@ -2320,8 +2294,8 @@ describe("dispatcher — isPipelineBusy/subscribePipelineBusy (busy = ledger not
     // both non-user, so neither pop triggers a supersede sweep — the second is genuinely deferred.
     bus.push(
       env({
-        source: "idle_watcher",
-        event_name: "idle.short",
+        source: "os_event_watcher",
+        event_name: "proactive.tap_bored",
         ts: NOW,
         hint_tier: 2,
         dnd_override: false,
@@ -2329,8 +2303,8 @@ describe("dispatcher — isPipelineBusy/subscribePipelineBusy (busy = ledger not
     );
     bus.push(
       env({
-        source: "idle_watcher",
-        event_name: "idle.long",
+        source: "os_event_watcher",
+        event_name: "proactive.drag_held",
         ts: NOW + 1,
         hint_tier: 2,
         dnd_override: false,
@@ -2407,11 +2381,11 @@ describe("dispatcher — cooldown state mirror (§6.3/§9)", () => {
 });
 
 describe("dispatcher — degraded state (3 consecutive backend call failures)", () => {
-  /** non-user tier2 firing (idle_watcher, no dnd_override) — suppressed while degraded. */
+  /** non-user tier2 firing (os_event_watcher, no dnd_override) — suppressed while degraded. */
   function nonUserEnv(over: Partial<BusEnvelope> = {}): BusEnvelope {
     return {
-      source: "idle_watcher",
-      event_name: "idle.short",
+      source: "os_event_watcher",
+      event_name: "proactive.tap_bored",
       ts: NOW,
       hint_tier: 2,
       dnd_override: false,
@@ -2658,8 +2632,8 @@ describe("dispatcher — structured logging: turn events", () => {
   it("the drain path preserves the completed turn's real outcome instead of superseded_by_user", async () => {
     function nonUserEnv(over: Partial<BusEnvelope> = {}): BusEnvelope {
       return {
-        source: "idle_watcher",
-        event_name: "idle.short",
+        source: "os_event_watcher",
+        event_name: "proactive.tap_bored",
         ts: NOW,
         hint_tier: 2,
         dnd_override: false,
@@ -2673,7 +2647,7 @@ describe("dispatcher — structured logging: turn events", () => {
     const firstId = turnLog.current()!.id;
 
     // a second non-user turn defers behind the first (no supersede for non-user triggers).
-    bus.push(nonUserEnv({ event_name: "idle.long", ts: NOW + 1 }));
+    bus.push(nonUserEnv({ event_name: "proactive.drag_held", ts: NOW + 1 }));
     await vi.advanceTimersByTimeAsync(20);
 
     // turn 1 succeeds; the drain in .finally() starts turn 2 before turn 1 is settled.

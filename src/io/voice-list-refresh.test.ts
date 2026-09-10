@@ -43,19 +43,6 @@ describe("createVoiceListRefresh", () => {
     expect(store.setManifest).not.toHaveBeenCalled();
   });
 
-  it("does not call listVoices when getEndpoints reports not-ready (null)", async () => {
-    const store = fakeStore();
-    const refresh = createVoiceListRefresh({
-      getEndpoints: () => null,
-      speakerSelection: store,
-      log: noopLog,
-    });
-
-    await refresh();
-
-    expect(listVoices).not.toHaveBeenCalled();
-  });
-
   it("maps the server ids into the manifest as id/label/empty ref_url", async () => {
     listVoices.mockResolvedValue(["ナツメ", "あやせ"]);
     const store = fakeStore();

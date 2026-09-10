@@ -286,6 +286,84 @@ def test_satisfy_reward_uses_decayed_level_and_derived_social(state_dir, at, sta
     assert drives_after["curiosity"] == {"level": 0.0, "anchor_at": now.isoformat()}
 
 
+def test_satisfy_learned_refuses_a_source_it_already_scored(state_dir, at, state_helpers):
+    _, _, read_json, read_jsonl = state_helpers
+    now = at("2026-08-25T12:00:00+09:00")
+    ref = "https://github.com/owner/YUI/commit/abc"
+
+    desire_state.satisfy("learned", ref, now)
+    dosed = read_json(state_dir / "drives.json")["curiosity"]["level"]
+
+    with pytest.raises(ValueError, match="already reported"):
+        desire_state.satisfy("learned", ref, now)
+
+    assert read_json(state_dir / "drives.json")["curiosity"]["level"] == dosed
+    assert read_json(state_dir / "budget.json")["events"] == {"learned": 1}
+    audit = read_jsonl(state_dir / "audit.jsonl")
+    assert sum(1 for event in audit if event["event"] == "drive_satisfied") == 1
+    assert audit[-1] == {
+        "at": now.isoformat(),
+        "event": "satisfy_repeated",
+        "event_type": "learned",
+        "ref": ref,
+    }
+    assert read_json(state_dir / "artefacts.json")["learned"] == [ref]
+
+
+def test_satisfy_learned_still_refuses_a_source_on_a_later_day(state_dir, at, state_helpers):
+    _, _, read_json, _ = state_helpers
+    ref = "docs/reference/motions.md"
+    desire_state.satisfy("learned", ref, at("2026-08-25T12:00:00+09:00"))
+    spent = read_json(state_dir / "budget.json")
+
+    with pytest.raises(ValueError, match="already reported"):
+        desire_state.satisfy("learned", ref, at("2026-08-28T12:00:00+09:00"))
+
+    assert read_json(state_dir / "budget.json") == spent
+
+
+def test_satisfy_learned_remembers_the_last_500_sources(state_dir, at, state_helpers):
+    _, _, read_json, _ = state_helpers
+    now = at("2026-08-25T12:00:00+09:00")
+    write_json, _, _, _ = state_helpers
+    record = desire_state.default_artefacts(now)
+    record["learned"] = [f"source {index}" for index in range(desire_state.LEARNED_MEMORY)]
+    write_json(state_dir / "artefacts.json", record)
+
+    desire_state.satisfy("learned", "one more source", now)
+
+    remembered = read_json(state_dir / "artefacts.json")["learned"]
+    assert len(remembered) == desire_state.LEARNED_MEMORY
+    assert remembered[-1] == "one more source"
+    assert remembered[0] == "source 1"
+
+
+def test_satisfy_learned_leaves_a_capped_source_reportable(state_dir, at, state_helpers):
+    _, _, read_json, _ = state_helpers
+    now = at("2026-08-25T12:00:00+09:00")
+    for index in range(desire_state.EVENT_DAILY_CAPS["learned"]):
+        desire_state.satisfy("learned", f"source {index}", now)
+
+    with pytest.raises(ValueError, match="over budget"):
+        desire_state.satisfy("learned", "one more source", now)
+
+    assert "one more source" not in read_json(state_dir / "artefacts.json")["learned"]
+
+    desire_state.satisfy("learned", "one more source", at("2026-08-26T12:00:00+09:00"))
+
+    assert read_json(state_dir / "artefacts.json")["learned"][-1] == "one more source"
+
+
+def test_satisfy_praised_scores_the_same_reference_again(state_dir, at, state_helpers):
+    _, _, read_json, _ = state_helpers
+    now = at("2026-08-25T12:00:00+09:00")
+
+    desire_state.satisfy("praised", "he said the fix reads well", now)
+    desire_state.satisfy("praised", "he said the fix reads well", now)
+
+    assert read_json(state_dir / "budget.json")["events"] == {"praised": 2}
+
+
 def test_satisfy_rejects_unknown_event(state_dir, at):
     with pytest.raises(ValueError, match="unknown event: comforted"):
         desire_state.satisfy("comforted", "talked", at("2026-08-25T12:00:00+09:00"))
@@ -774,8 +852,6 @@ def test_serialize_desire_block_renders_the_since_last_turn_line_after_the_trans
     unreported = [
         {"event": "progressed", "kind": "pr", "ref": "https://github.com/owner/YUI/pull/12"},
         {"event": "shipped", "kind": "issue", "ref": "https://github.com/owner/YUI/issues/7"},
-        {"event": "learned", "kind": "note", "ref": "note:a"},
-        {"event": "learned", "kind": "note", "ref": "note:b"},
     ]
 
     block = desire_state.serialize_desire_block(
@@ -784,12 +860,12 @@ def test_serialize_desire_block_renders_the_since_last_turn_line_after_the_trans
 
     assert block.split("\n")[5] == (
         "since last turn: progressed pr https://github.com/owner/YUI/pull/12; "
-        "shipped issue https://github.com/owner/YUI/issues/7; learned 2 notes"
+        "shipped issue https://github.com/owner/YUI/issues/7"
     )
     one = desire_state.serialize_desire_block(
-        levels, [], now, last_interaction_at=now.isoformat(), unreported=unreported[2:3]
+        levels, [], now, last_interaction_at=now.isoformat(), unreported=unreported[1:]
     )
-    assert one.split("\n")[5] == "since last turn: learned 1 note"
+    assert one.split("\n")[5] == "since last turn: shipped issue https://github.com/owner/YUI/issues/7"
     assert "since last turn:" not in desire_state.serialize_desire_block(
         levels, [], now, last_interaction_at=now.isoformat(), unreported=[]
     )
@@ -823,17 +899,17 @@ def test_read_artefacts_reports_absent_state_and_normalizes_a_partial_record(sta
         state_dir / "artefacts.json",
         {
             "seen": {"pr": ["u"]},
-            "unreported": ["bad", {"kind": "note"}],
+            "unreported": ["bad", {"kind": "pr"}],
             "skill_first_seen": {"a": 1, "b": "t"},
         },
     )
     record = desire_state.read_artefacts(state_dir)
-    assert record["seen"] == {"pr": ["u"], "issue": [], "skill": [], "note": []}
+    assert record["seen"] == {"pr": ["u"], "issue": [], "skill": []}
     assert record["skill_first_seen"] == {"b": "t"}
     assert record["bootstrapped"] == []
     assert record["shipped"] == []
-    assert record["unreported"] == [{"kind": "note"}]
-    assert record["notes_since"] is None
+    assert record["learned"] == []
+    assert record["unreported"] == [{"kind": "pr"}]
 
     write_json(state_dir / "artefacts.json", ["not an object"])
     assert desire_state.read_artefacts(state_dir) is None
@@ -841,9 +917,9 @@ def test_read_artefacts_reports_absent_state_and_normalizes_a_partial_record(sta
     assert desire_state.default_artefacts(now) == {
         "bootstrapped_at": now.isoformat(),
         "bootstrapped": [],
-        "seen": {"pr": [], "issue": [], "skill": [], "note": []},
+        "seen": {"pr": [], "issue": [], "skill": []},
         "skill_first_seen": {},
         "shipped": [],
-        "notes_since": now.isoformat(),
+        "learned": [],
         "unreported": [],
     }

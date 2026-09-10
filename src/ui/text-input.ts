@@ -5,7 +5,7 @@
  * user typed/attached. No brain, persona, or mode branching lives here.
  */
 
-import type { AttachmentLimits } from "../config";
+import type { AttachmentLimits } from "../config/load";
 import { subscribe as subscribeLocale, t } from "./i18n";
 import { downscaleToJpeg } from "./image-resize";
 

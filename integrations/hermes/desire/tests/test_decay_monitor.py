@@ -4,7 +4,6 @@ import socket
 import threading
 from datetime import timedelta
 from pathlib import Path
-from urllib.parse import quote
 
 import pytest
 from conftest import AGENT_NAME, PROFILE_NAME
@@ -257,6 +256,7 @@ def test_satisfying_a_saturated_drive_clears_its_saturation(state_dir, at, state
     assert read_json(state_dir / "drives.json")["curiosity"]["level"] == 70.0
     assert decay_monitor.run(later).endswith(" starved:0/0/0\n")
     assert read_json(state_dir / "monitor.json")["saturated_since"]["curiosity"] is None
+    assert read_json(state_dir / "artefacts.json")["learned"] == ["read the paper"]
 
 
 def test_one_drive_leaving_the_ceiling_cannot_hide_another_crossing(state_dir, at, state_helpers):
@@ -911,15 +911,6 @@ def gh_runner(payloads: dict, failing: tuple = (), views: dict | None = None):
     return run
 
 
-def notes_runner(notes: list[dict], seen: list | None = None):
-    def fetch(url: str, headers: dict) -> bytes:
-        if seen is not None:
-            seen.append((url, headers))
-        return json.dumps(notes).encode("utf-8")
-
-    return fetch
-
-
 def audited(state_dir: Path, event: str) -> list[dict]:
     values = [json.loads(line) for line in (state_dir / "audit.jsonl").read_text().splitlines() if line]
     return [value for value in values if value["event"] == event]
@@ -936,10 +927,8 @@ def derive(
     *,
     payloads=None,
     failing=(),
-    notes=None,
     skills=(),
     views=None,
-    fetch_notes=None,
 ):
     """Run one derivation over a workspace holding `owner/YUI` and the named skills."""
 
@@ -958,7 +947,6 @@ def derive(
         workspace_root=workspace,
         skills_root=skills_root,
         run_gh=gh_runner(payloads or {}, failing, views),
-        fetch_notes=fetch_notes or notes_runner(notes if notes is not None else []),
     )
 
 
@@ -1013,7 +1001,6 @@ def test_bootstrap_marks_every_artefact_seen_without_dosing(state_dir, at, tmp_p
                 }
             ],
         },
-        notes=[{"id": "note:1", "kind": "note"}],
         skills=("mcp/first", "second"),
     )
 
@@ -1026,7 +1013,6 @@ def test_bootstrap_marks_every_artefact_seen_without_dosing(state_dir, at, tmp_p
     assert artefacts["seen"]["issue"] == ["https://github.com/owner/YUI/issues/9"]
     assert artefacts["seen"]["skill"] == ["mcp/first", "second"]
     assert artefacts["shipped"] == ["https://github.com/owner/YUI/pull/2"]
-    assert artefacts["notes_since"] == now.isoformat()
     assert artefacts["unreported"] == []
     assert satisfied(state_dir) == []
 
@@ -1175,43 +1161,6 @@ def test_a_capped_skill_still_records_its_first_sight(state_dir, at, tmp_path, s
     assert read_json(state_dir / "artefacts.json")["skill_first_seen"] == {"mcp/capped": now.isoformat()}
 
 
-def test_notes_are_filtered_by_kind_and_the_cursor_advances(state_dir, at, tmp_path, state_helpers):
-    _, _, read_json, _ = state_helpers
-    bootstrapped = at("2026-08-25T12:00:00+09:00")
-    desire_state.bootstrap(bootstrapped)
-    derive(state_dir, bootstrapped, tmp_path)
-    seen = []
-    now = at("2026-08-25T13:00:00+09:00")
-
-    tick(
-        state_dir,
-        now,
-        workspace_root=tmp_path / "workspace",
-        skills_root=tmp_path / "skills",
-        run_gh=gh_runner({}),
-        fetch_notes=notes_runner(
-            [
-                {"id": "note:a", "kind": "note"},
-                {"id": "note:b", "kind": "episode"},
-                {"id": "note:c", "kind": "decision"},
-            ],
-            seen,
-        ),
-    )
-
-    assert [(event["event_type"], event["kind"], event["ref"]) for event in satisfied(state_dir)] == [
-        ("learned", "note", "note:a"),
-        ("learned", "note", "note:c"),
-    ]
-    url, headers = seen[0]
-    assert url.startswith("http://memory.test/notes?")
-    assert "limit=200" in url
-    assert f"tags={AGENT_NAME}" in url
-    assert f"since={quote(bootstrapped.isoformat(), safe='')}" in url
-    assert headers == {"X-API-Key": "test-key"}
-    assert read_json(state_dir / "artefacts.json")["notes_since"] == now.isoformat()
-
-
 def test_event_past_its_daily_cap_is_still_marked_seen_and_audits_satisfy_blocked(
     state_dir, at, tmp_path, state_helpers
 ):
@@ -1231,6 +1180,29 @@ def test_event_past_its_daily_cap_is_still_marked_seen_and_audits_satisfy_blocke
     artefacts = read_json(state_dir / "artefacts.json")
     assert artefacts["seen"]["skill"] == ["mcp/capped"]
     assert artefacts["unreported"] == []
+
+
+def test_a_learned_reported_while_the_tick_scores_survives_the_artefact_write(
+    state_dir, at, tmp_path, state_helpers, monkeypatch
+):
+    _, _, read_json, _ = state_helpers
+    now = at("2026-08-25T12:00:00+09:00")
+    desire_state.bootstrap(now)
+    derive(state_dir, now, tmp_path)
+    source = "https://github.com/owner/YUI/commit/abc"
+    scoring = desire_state.satisfy
+
+    def report_while_scoring(event, ref, when, **named):
+        reward = scoring(event, ref, when, **named)
+        if event == "progressed":
+            scoring("learned", source, when)
+        return reward
+
+    monkeypatch.setattr(desire_state, "satisfy", report_while_scoring)
+
+    derive(state_dir, now, tmp_path, skills=("mcp/new",))
+
+    assert read_json(state_dir / "artefacts.json")["learned"] == [source]
 
 
 def test_failing_source_audits_derive_failed_and_leaves_its_cursor(state_dir, at, tmp_path, state_helpers):
@@ -1257,96 +1229,6 @@ def test_failing_source_audits_derive_failed_and_leaves_its_cursor(state_dir, at
     artefacts = read_json(state_dir / "artefacts.json")
     assert artefacts["seen"]["issue"] == []
     assert artefacts["seen"]["pr"] == ["https://github.com/owner/YUI/pull/6"]
-
-
-def test_failing_notes_source_keeps_the_notes_cursor(state_dir, at, tmp_path, state_helpers):
-    _, _, read_json, _ = state_helpers
-    bootstrapped = at("2026-08-25T12:00:00+09:00")
-    desire_state.bootstrap(bootstrapped)
-    derive(state_dir, bootstrapped, tmp_path)
-
-    def fail(url, headers):
-        raise OSError("connection refused")
-
-    tick(
-        state_dir,
-        at("2026-08-25T13:00:00+09:00"),
-        workspace_root=tmp_path / "workspace",
-        skills_root=tmp_path / "skills",
-        run_gh=gh_runner({}),
-        fetch_notes=fail,
-    )
-
-    assert [event["source"] for event in audited(state_dir, "derive_failed")] == ["notes"]
-    assert read_json(state_dir / "artefacts.json")["notes_since"] == bootstrapped.isoformat()
-
-
-def test_a_memory_note_is_scored_once_even_when_the_source_repeats_it(state_dir, at, tmp_path):
-    now = at("2026-08-25T12:00:00+09:00")
-    desire_state.bootstrap(now)
-    derive(state_dir, now, tmp_path)
-    notes = [{"id": "note:a", "kind": "note"}]
-
-    derive(state_dir, now, tmp_path, notes=notes)
-    derive(state_dir, now, tmp_path, notes=notes)
-    derive(state_dir, now, tmp_path, notes=notes)
-
-    assert [(event["event_type"], event["ref"]) for event in satisfied(state_dir)] == [("learned", "note:a")]
-
-
-def test_an_unset_memory_base_key_leaves_the_notes_source_unread(
-    state_dir, at, tmp_path, monkeypatch, state_helpers
-):
-    _, _, read_json, _ = state_helpers
-    monkeypatch.delenv("MEMORY_BASE_API_KEY", raising=False)
-    now = at("2026-08-25T12:00:00+09:00")
-    desire_state.bootstrap(now)
-    requested = []
-
-    def fetch(url, headers):
-        requested.append(url)
-        return b"[]"
-
-    derive(state_dir, now, tmp_path, fetch_notes=fetch, skills=("mcp/known",))
-    derive(state_dir, now, tmp_path, fetch_notes=fetch, skills=("mcp/known", "devops/new"))
-
-    assert requested == []
-    assert audited(state_dir, "derive_failed") == []
-    artefacts = read_json(state_dir / "artefacts.json")
-    assert "note" not in artefacts["bootstrapped"]
-    assert artefacts["seen"]["note"] == []
-    assert artefacts["notes_since"] == now.isoformat()
-    assert [(event["event_type"], event["ref"]) for event in satisfied(state_dir)] == [
-        ("progressed", "devops/new")
-    ]
-
-
-def test_a_memory_base_key_set_later_bootstraps_the_notes_source_without_dosing(
-    state_dir, at, tmp_path, monkeypatch, state_helpers
-):
-    _, _, read_json, _ = state_helpers
-    monkeypatch.delenv("MEMORY_BASE_API_KEY", raising=False)
-    now = at("2026-08-25T12:00:00+09:00")
-    desire_state.bootstrap(now)
-    existing = {"id": "note:old", "kind": "note"}
-
-    derive(state_dir, now, tmp_path, notes=[existing])
-
-    assert "note" not in read_json(state_dir / "artefacts.json")["bootstrapped"]
-
-    monkeypatch.setenv("MEMORY_BASE_API_KEY", "test-key")
-    derive(state_dir, now, tmp_path, notes=[existing])
-
-    assert satisfied(state_dir) == []
-    assert read_json(state_dir / "artefacts.json")["seen"]["note"] == ["note:old"]
-
-    fresh = {"id": "note:new", "kind": "note"}
-    derive(state_dir, now, tmp_path, notes=[existing, fresh])
-    derive(state_dir, now, tmp_path, notes=[existing, fresh])
-
-    assert [(event["event_type"], event["ref"]) for event in satisfied(state_dir)] == [
-        ("learned", "note:new")
-    ]
 
 
 def test_a_source_that_failed_during_bootstrap_bootstraps_when_it_recovers(
@@ -1416,7 +1298,6 @@ def two_repo_tick(state_dir, now, workspace, tmp_path, payloads, failing=()):
         workspace_root=workspace,
         skills_root=tmp_path / "skills",
         run_gh=gh_runner(payloads, failing),
-        fetch_notes=notes_runner([]),
     )
 
 
@@ -1557,13 +1438,24 @@ def test_a_malformed_ref_audits_derive_failed_instead_of_vanishing(state_dir, at
     now = at("2026-08-25T12:00:00+09:00")
     desire_state.bootstrap(now)
     derive(state_dir, now, tmp_path)
+    url = "https://github.com/owner/YUI/pull/3"
 
-    derive(state_dir, now, tmp_path, notes=[{"id": 12, "kind": "note"}, {"id": "note:a", "kind": "note"}])
+    derive(
+        state_dir,
+        now,
+        tmp_path,
+        payloads={
+            ("pr", "owner/YUI"): [
+                {"url": 12, "headRefName": f"{BRANCH}broken", "mergedAt": None},
+                {"url": url, "headRefName": f"{BRANCH}good", "mergedAt": None},
+            ]
+        },
+    )
 
     failures = audited(state_dir, "derive_failed")
-    assert [event["source"] for event in failures] == ["notes"]
+    assert [event["source"] for event in failures] == ["pr"]
     assert "12" in failures[0]["error"]
-    assert [(event["event_type"], event["ref"]) for event in satisfied(state_dir)] == [("learned", "note:a")]
+    assert [(event["event_type"], event["ref"]) for event in satisfied(state_dir)] == [("progressed", url)]
 
 
 def test_sources_are_read_before_the_tick_takes_the_state_lock(state_dir, at, isolated_profile, monkeypatch):

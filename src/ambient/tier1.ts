@@ -13,7 +13,7 @@
  *  - breath        : 4s period, chest/spine sine
  *  - look_around   : random 30~120s, head gaze target shift (damped)
  *  - tap_react     : one head bob (nod) ~220ms on user.tap
- *  - idle_returned : one idle.returned, slight upward gaze ~900ms
+ *  - idle_returned : one slight upward gaze ~900ms
  *
  * Pure cue math lives in ./cues.ts. Here we only handle timers, state, and VRM writes.
  */
@@ -28,7 +28,7 @@ type AmbientCue = "blink" | "idle_sway" | "breath" | "look_around" | "tap_react"
 export interface Tier1Engine {
   /** Register the renderer.onTick hook + start periodic cues. */
   start(): void;
-  /** Trigger a one-shot cue (tap_react / idle_returned, etc. routed from dispatcher tier1). */
+  /** Trigger a one-shot cue (tap_react / idle_returned). */
   trigger(cue: AmbientCue): void;
   /** Unregister the hook + stop. */
   stop(): void;

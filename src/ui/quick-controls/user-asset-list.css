@@ -380,7 +380,6 @@
 }
 
 /* Naming row: the typed name already exists, so committing replaces that asset. */
-.yui-vrm__overwrite-warn,
 .yui-spk__overwrite-warn {
   color: var(--yui-danger);
   font-weight: 650;

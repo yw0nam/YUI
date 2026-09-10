@@ -22,12 +22,8 @@ import {
   wireSpeakerSelection,
   wireVrmSelection,
 } from "./bootstrap-wiring";
-import {
-  CHAT_API_KEY_SECRET,
-  createConfigStore,
-  STT_API_KEY_SECRET,
-  TTS_API_KEY_SECRET,
-} from "./config";
+import { CHAT_API_KEY_SECRET, STT_API_KEY_SECRET, TTS_API_KEY_SECRET } from "./config/load";
+import { createConfigStore } from "./config/store";
 import { createEventBus } from "./dispatcher/event-bus";
 import { createUserInputSource } from "./dispatcher/user-input-source";
 import { agentTriggerableMotionIds } from "./io/broker-client";

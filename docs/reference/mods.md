@@ -4,7 +4,7 @@ Standalone MCP servers ("Mods") that expose host capabilities to the remote back
 
 ## Convention
 
-Each mod is a **self-contained `uv` project** in `Mods/<mod>/` with its own `pyproject.toml`, `uv.lock`, and dependency set — no shared lock, so one mod's deps never leak into another. Containerized mods carry a `Dockerfile` whose build context is that same folder; `Mods/docker-compose.yml` builds and deploys them together. Python lint is **ruff** (`line-length = 110`). Run a mod's tests with `cd Mods/<mod> && uv run pytest`.
+Each mod is a **self-contained `uv` project** in `Mods/<mod>/` with its own `pyproject.toml`, `uv.lock`, and dependency set — no shared lock, so one mod's deps never leak into another (e.g. the shell-sandbox image carries no `pyobjc`). Containerized mods carry a `Dockerfile` whose build context is that same folder; `Mods/docker-compose.yml` builds and deploys them together (`docker compose up -d --build`). Run a mod's tests with `cd Mods/<mod> && uv run pytest`. Python lint is **ruff** (format + check, `line-length = 110`), enforced in CI per mod — run it locally with `cd Mods/<mod> && uv run ruff format . && uv run ruff check .`.
 
 ## Catalog
 

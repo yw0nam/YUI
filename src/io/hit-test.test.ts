@@ -101,7 +101,6 @@ const cfg: HitTestKnobs = {
   hysteresis_margin_px: 8,
   poll_interval_ms: 33,
   debounce_samples: 2,
-  alpha_threshold: 0.1,
 };
 
 function step(
@@ -492,8 +491,6 @@ describe("createHitTestController — suspend/resume", () => {
     c.stop();
   });
 });
-
-// ─── createTauriHitTestWindow — IPC contract ──────────────────────────────────
 
 // ─── createHitTestController — poll failure hardening ────────────────────────
 // On Windows, cursorPosition() intermittently throws. After N consecutive
@@ -1008,6 +1005,8 @@ describe("createHitTestController — hidden-window poll gating", () => {
     expect(doc.removeEventListener).toHaveBeenCalledWith("visibilitychange", expect.any(Function));
   });
 });
+
+// ─── createTauriHitTestWindow — IPC contract ──────────────────────────────────
 
 describe("createTauriHitTestWindow — routes setIgnoreCursorEvents through set_click_through", () => {
   beforeEach(() => {

@@ -1,8 +1,8 @@
 /**
  * Mock driver — replays all surface states from seed data.
  *
- * Real data (chat-client SSE: express function_call + output_text stream, tts-pipeline)
- * will replace this driver in follow-up work by calling the same Surfaces API. No brain here —
+ * Backs only the dev-only __yuiDemo handle; production data flows through the
+ * same Surfaces API via chat-client and speech-playback instead. No brain here —
  * script only mimics backend responses (firing ≠ judgment).
  *
  * Call steps directly from screenshot verification loop via dev handle (__yuiDemo).

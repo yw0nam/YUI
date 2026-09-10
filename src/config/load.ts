@@ -280,9 +280,7 @@ export interface AttachmentLimits {
 export interface GuardrailsConfig {
   /** per-source debounce window (ms). 0 = no debounce. */
   debounce_ms: {
-    idle_watcher: number;
     os_event_watcher: number;
-    backend_push_source: number;
     user_input_source: number;
     screen_watcher: number;
   };

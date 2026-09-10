@@ -3,42 +3,32 @@
 import { afterEach, expect, it, vi } from "vitest";
 
 const { wireDevtoolsSync, createDevtoolsShell, createConfigStore, initLogger, createLogger, log } =
-  vi.hoisted(() => {
-    const log = {
-      info: vi.fn(),
-      warn: vi.fn(),
-      error: vi.fn(),
-      debug: vi.fn(),
-    };
+  await vi.hoisted(async () => {
+    const { makeDevtoolsMainMocks } = await import("./devtools-main.test-helpers");
     return {
-      wireDevtoolsSync: vi.fn(() => ({ reload: vi.fn(), dispose: vi.fn() })),
+      ...makeDevtoolsMainMocks(),
       createDevtoolsShell: vi.fn(() => ({
         active: "context" as const,
         activate: vi.fn(),
         dispose: vi.fn(),
       })),
-      createConfigStore: vi.fn(() => ({
-        load: vi.fn().mockResolvedValue({ endpoints: { chat_model_context_window: 1 } }),
-      })),
-      initLogger: vi.fn().mockResolvedValue(undefined),
-      createLogger: vi.fn(() => log),
-      log,
     };
   });
 
 vi.mock("./bootstrap-wiring", () => ({ wireDevtoolsSync }));
 vi.mock("./ui/devtools/shell", () => ({ createDevtoolsShell }));
-vi.mock("./config", () => ({ createConfigStore }));
+vi.mock("./config/store", () => ({ createConfigStore }));
 vi.mock("./logger", () => ({ initLogger, createLogger }));
 vi.mock("./io/settings-stores", async (importOriginal) => {
   const actual = await importOriginal<typeof import("./io/settings-stores")>();
   return { ...actual, createSettingsStores: vi.fn(actual.createSettingsStores) };
 });
 
+import { resetDevtoolsMain } from "./devtools-main.test-helpers";
 import { createSettingsStores } from "./io/settings-stores";
 
 afterEach(() => {
-  window.dispatchEvent(new Event("beforeunload"));
+  resetDevtoolsMain();
 });
 
 it("passes the registry bag and its devtools stores through bootstrap by identity", async () => {

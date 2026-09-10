@@ -7,12 +7,13 @@
  * Judgment (whether/what to speak) is the backend's; speech triggers come from
  * dispatcher/chat-client. No brain, persona, or mode branching lives here.
  *
- * Currently = mock stage: createSurfaces owns DOM/transitions/state, and real data
- * is fed in by mock.ts (script) or (later) the chat-client SSE calling this API.
+ * createSurfaces owns DOM/transitions/state; production data is fed in by
+ * chat-client and speech-playback calling this API, and the dev-only mock
+ * driver (mock.ts) drives it the same way for the screenshot verification loop.
  */
 
 import "./surfaces.css";
-import type { AttachmentLimits } from "../config";
+import type { AttachmentLimits } from "../config/load";
 import { isTauri } from "../io/tauri-env";
 import { subscribe as subscribeLocale, t } from "./i18n";
 import { createSpeechBubble } from "./speech-bubble";

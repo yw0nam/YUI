@@ -1,15 +1,13 @@
 ---
 name: Feature / Task
-about: Build work tied to a feature (F1–F9) or milestone (M0–M4)
-title: "[Fx] "
+about: Build work for a feature or task
+title: "[feature] "
 labels: ["feature"]
 ---
 
 ## Related decisions
-<!-- Example: F4 Output, D-TTS-PIPELINE. See docs/reference/client-context.md. -->
-- Feature:
+<!-- Example: D-TTS-PIPELINE. See docs/reference/client-context.md. -->
 - Decision log (D-*):
-- Milestone (M0–M4):
 
 ## Work description
 <!-- What is being built. One issue = one unit of work. -->

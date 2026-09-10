@@ -7,7 +7,7 @@ import {
   descendConfigFor,
   fallConfigFor,
 } from "./bootstrap-configured";
-import type { AppConfig } from "./config";
+import type { AppConfig } from "./config/load";
 import { avatarFixture, guardrailsFixture } from "./config/load-test-helpers";
 
 function validConfig(): AppConfig {
@@ -42,9 +42,7 @@ function validConfig(): AppConfig {
     motions: {},
     guardrails: {
       debounce_ms: {
-        idle_watcher: 0,
         os_event_watcher: 0,
-        backend_push_source: 0,
         user_input_source: 0,
         screen_watcher: 5000,
       },

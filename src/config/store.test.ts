@@ -7,79 +7,11 @@
  */
 
 import { describe, expect, it, vi } from "vitest";
-import { type ConfigReader, createConfigStore, plainSecretProvider } from "./index";
-import { avatarFixture, guardrailsFixture } from "./load-test-helpers";
+import { type ConfigReader, plainSecretProvider } from "./load";
+import { goodFixture } from "./load-test-helpers";
+import { createConfigStore } from "./store";
 
 // ── mutable fake reader ──────────────────────────────────────────────────────
-
-/** good fixture (deep clone) — an isolated backing map per test. */
-function goodFixture(): Record<string, unknown> {
-  return {
-    "endpoints.json": {
-      chat_base_url: "http://localhost:8642",
-      chat_endpoint: "/v1/responses",
-      stt_base_url: "http://localhost:5517",
-      tts_base_url: "http://localhost:8092",
-    },
-    "avatar.json": avatarFixture(),
-    "emotion_registry.json": {
-      neutral: { vrm_expression: "neutral", fallback: "neutral" },
-      happy: { vrm_expression: "happy", fallback: "neutral" },
-    },
-    "motions.json": {
-      idle: {
-        vrma_path: "assets/motions/idle.vrma",
-        kind: "ambient",
-        loop: true,
-        priority: 0,
-        interrupt_policy: "replace",
-      },
-    },
-    "guardrails.json": guardrailsFixture(),
-    "filler.json": {
-      gap_ms: 1000,
-      gap_jitter_ms: 300,
-      max_repeats: 3,
-      gap_growth: 2,
-      long_wait_ms: 40000,
-      pools: {
-        ja: {
-          first: ["うーん…"],
-          repeat: [],
-          long_wait: [],
-          tool: {},
-          timeout: [],
-          unreachable: [],
-        },
-        en: {
-          first: ["Hmm..."],
-          repeat: [],
-          long_wait: [],
-          tool: {},
-          timeout: [],
-          unreachable: [],
-        },
-        ko: {
-          first: ["음…"],
-          repeat: [],
-          long_wait: [],
-          tool: {},
-          timeout: [],
-          unreachable: [],
-        },
-      },
-    },
-    "hotkeys.json": { summon_global: "CmdOrCtrl+Shift+Y" },
-    "screen.json": {
-      prev_dwell_ms: 600000,
-      settle_ms: 90000,
-      long_session_ms: 2700000,
-      min_gap_ms: 300000,
-      quiet_after_turn_ms: 180000,
-      recent_cap: 5,
-    },
-  };
-}
 
 /**
  * Reader that captures the map. When a test changes map[...], the next reload() sees the new value.
@@ -164,8 +96,44 @@ describe("createConfigStore — reload", () => {
   });
 });
 
-describe("createConfigStore — guardrails section diff", () => {
-  it("guardrails 변경 → reload() true, changed.has('guardrails')", async () => {
+describe("createConfigStore — section diff", () => {
+  it.each([
+    {
+      section: "guardrails",
+      mutate: (map: Record<string, unknown>) => {
+        (map["guardrails.json"] as { rate_limit: { overall_max: number } }).rate_limit.overall_max =
+          30;
+      },
+      readBack: (cfg: { guardrails: { rate_limit: { overall_max: number } } }) =>
+        cfg.guardrails.rate_limit.overall_max,
+      expected: 30,
+      otherSection: "motions",
+    },
+    {
+      section: "hotkeys",
+      mutate: (map: Record<string, unknown>) => {
+        (map["hotkeys.json"] as { summon_global: string }).summon_global = "Alt+Space";
+      },
+      readBack: (cfg: { hotkeys: { summon_global: string } }) => cfg.hotkeys.summon_global,
+      expected: "Alt+Space",
+      otherSection: "avatar",
+    },
+    {
+      section: "filler",
+      mutate: (map: Record<string, unknown>) => {
+        (map["filler.json"] as { gap_ms: number }).gap_ms = 2000;
+      },
+      readBack: (cfg: { filler: { gap_ms: number } }) => cfg.filler.gap_ms,
+      expected: 2000,
+      otherSection: "avatar",
+    },
+  ])("$section 변경 → reload() true, changed.has('$section')", async ({
+    mutate,
+    readBack,
+    expected,
+    section,
+    otherSection,
+  }) => {
     const map = goodFixture();
     const store = createConfigStore({ read: mutableReader(map) });
     await store.load();
@@ -173,34 +141,14 @@ describe("createConfigStore — guardrails section diff", () => {
     const sub = vi.fn();
     store.subscribe(sub);
 
-    (map["guardrails.json"] as { rate_limit: { overall_max: number } }).rate_limit.overall_max = 30;
+    mutate(map);
     await expect(store.reload()).resolves.toBe(true);
 
     expect(sub).toHaveBeenCalledTimes(1);
     const [nextCfg, changed] = sub.mock.calls[0];
-    expect(nextCfg.guardrails.rate_limit.overall_max).toBe(30);
-    expect(changed.has("guardrails")).toBe(true);
-    expect(changed.has("motions")).toBe(false);
-  });
-});
-
-describe("createConfigStore — hotkeys section diff", () => {
-  it("hotkeys 변경 → reload() true, changed.has('hotkeys')", async () => {
-    const map = goodFixture();
-    const store = createConfigStore({ read: mutableReader(map) });
-    await store.load();
-
-    const sub = vi.fn();
-    store.subscribe(sub);
-
-    (map["hotkeys.json"] as { summon_global: string }).summon_global = "Alt+Space";
-    await expect(store.reload()).resolves.toBe(true);
-
-    expect(sub).toHaveBeenCalledTimes(1);
-    const [nextCfg, changed] = sub.mock.calls[0];
-    expect(nextCfg.hotkeys.summon_global).toBe("Alt+Space");
-    expect(changed.has("hotkeys")).toBe(true);
-    expect(changed.has("avatar")).toBe(false);
+    expect(readBack(nextCfg)).toBe(expected);
+    expect(changed.has(section)).toBe(true);
+    expect(changed.has(otherSection)).toBe(false);
   });
 });
 
@@ -222,26 +170,6 @@ describe("createConfigStore — subscribe lifecycle", () => {
     await store.reload();
     // No further calls after unsubscribe.
     expect(sub).toHaveBeenCalledTimes(1);
-  });
-});
-
-describe("createConfigStore — filler section diff", () => {
-  it("filler 변경 → reload() true, changed.has('filler')", async () => {
-    const map = goodFixture();
-    const store = createConfigStore({ read: mutableReader(map) });
-    await store.load();
-
-    const sub = vi.fn();
-    store.subscribe(sub);
-
-    (map["filler.json"] as { gap_ms: number }).gap_ms = 2000;
-    await expect(store.reload()).resolves.toBe(true);
-
-    expect(sub).toHaveBeenCalledTimes(1);
-    const [nextCfg, changed] = sub.mock.calls[0];
-    expect(nextCfg.filler.gap_ms).toBe(2000);
-    expect(changed.has("filler")).toBe(true);
-    expect(changed.has("avatar")).toBe(false);
   });
 });
 

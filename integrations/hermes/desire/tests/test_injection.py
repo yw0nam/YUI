@@ -99,7 +99,7 @@ def test_canonical_block_with_the_since_last_turn_line_is_idempotent(desire_plug
         "drives: social 0/100 (low) | curiosity 50/100 (mid) | accomplishment 50/100 (mid)\n"
         "last interaction: 2026-08-25 12:00 (0h ago)\n"
         "signal transport: unknown\n"
-        "since last turn: progressed skill mcp/first; learned 2 notes\n"
+        "since last turn: progressed skill mcp/first; shipped issue https://example.test/issues/2\n"
         "last signal: 2026-08-25 09:00 — no reply yet (3h)\n"
         "</desire_state>"
     )
@@ -1197,7 +1197,6 @@ def test_the_since_last_turn_line_is_rendered_and_cleared_on_one_turn(
             "bootstrapped_at": now.isoformat(),
             "seen": {"pr": [], "issue": [], "skill": []},
             "shipped": [],
-            "notes_since": now.isoformat(),
             "unreported": unreported,
         },
     )
@@ -1223,8 +1222,14 @@ def test_the_since_last_turn_line_survives_a_repeated_request_within_the_turn(
             "bootstrapped_at": now.isoformat(),
             "seen": {"pr": [], "issue": [], "skill": []},
             "shipped": [],
-            "notes_since": now.isoformat(),
-            "unreported": [{"event": "learned", "kind": "note", "ref": "note:a", "at": now.isoformat()}],
+            "unreported": [
+                {
+                    "event": "shipped",
+                    "kind": "issue",
+                    "ref": "https://example.test/issues/2",
+                    "at": now.isoformat(),
+                }
+            ],
         },
     )
     request = request_with(context(tail="hi"))
@@ -1232,7 +1237,7 @@ def test_the_since_last_turn_line_survives_a_repeated_request_within_the_turn(
     first = desire_plugin._inject(request=copy.deepcopy(request), now=now)
     repeated = desire_plugin._inject(request=copy.deepcopy(request), now=now)
 
-    assert "since last turn: learned 1 note" in appended_block(first)
+    assert "since last turn: shipped issue https://example.test/issues/2" in appended_block(first)
     assert appended_block(repeated) == appended_block(first)
 
 

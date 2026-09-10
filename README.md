@@ -105,8 +105,8 @@ agent calls via the `desktop-control` Mod, not a per-turn push
 **Rendering &amp; motion**
 
 - VRM 1.0 with hot-swap and GPU cleanup, via three.js + `@pixiv/three-vrm`
-- 10 emotions and 16 motions, with a fallback chain for models that lack an
-expression
+- 10 emotions and 25 registered motions, 9 of them agent-selectable, with a
+fallback chain for models that lack an expression
 - Idle and sit cycle through pools of motion clips with smooth transitions
 - Camera auto-frames the avatar, with wheel zoom and a pull-back when perched
 
@@ -137,16 +137,10 @@ backend lives in [`docs/reference/client-context.md`](docs/reference/client-cont
 
 ## Stack
 
-
-| Layer              | Technology                                       | Version |
-| ------------------ | ------------------------------------------------ | ------- |
-| Shell / OS         | Tauri v2 (Rust)                                  | 2.11.x  |
-| Build / dev server | Vite                                             | 8.x     |
-| Language           | TypeScript                                       | 6.x     |
-| Render             | three.js                                         | 0.180.x |
-| VRM / motion       | `@pixiv/three-vrm`, `@pixiv/three-vrm-animation` | 3.5.x   |
-| Voice              | `@ricky0123/vad-web` (Silero + ONNX)             | 0.0.x   |
-
+Tauri v2 (Rust) shell, Vite + TypeScript build, three.js rendering with
+`@pixiv/three-vrm` for the VRM model, and `@ricky0123/vad-web` (Silero + ONNX)
+for voice input. Exact versions are in the
+[stack table](docs/agent-guide/project-structure.md#stack).
 
 ## Building from source
 
@@ -165,12 +159,11 @@ Manual steps follow.
 pnpm install
 pnpm dev                    # Vite dev server (port 1420), browser only
 pnpm tauri dev              # Tauri app (port 1420), transparent pet window
-pnpm dev:auto               # browser only, auto-picks a free port from 1420 up
-pnpm tauri:dev              # Tauri app, auto-port — lets worktrees run side by side
 pnpm build                  # tsc + vite build
-pnpm test                   # vitest run
-cd src-tauri && cargo test  # Rust unit tests
 ```
+
+The full command list — lint, tests, native bundling, and the Rust checks —
+is in [Build, Run &amp; Logs](docs/agent-guide/build-run.md#build--run).
 
 **Runtime assets.** A default VRM (`resources/vrms/Sendagaya_Shino.vrm`) ships
 in the repo, so a fresh checkout runs as-is. Extra models under `resources/vrms/`

@@ -10,16 +10,10 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 import { loadEmotionTextTable } from "./emotion-text";
-import { ConfigError, type ConfigReader } from "./load";
+import { ConfigError } from "./load";
+import { readerOf } from "./load-test-helpers";
 
 const REPO_ROOT = resolve(__dirname, "../..");
-
-function readerOf(map: Record<string, unknown>): ConfigReader {
-  return async (file) => {
-    if (!(file in map)) throw new Error(`fake reader: missing ${file}`);
-    return map[file];
-  };
-}
 
 // ── loader happy path ────────────────────────────────────────────────────────
 

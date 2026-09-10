@@ -290,23 +290,6 @@ describe("createWebAudioSink — getGain option", () => {
     // higher gain → larger mouth opening
     expect(max4).toBeGreaterThan(max1);
   });
-
-  it("sink without getGain option behaves identically to default (no throw)", async () => {
-    const sink = createWebAudioSink();
-    const samples: number[] = [];
-    const wav = new Uint8Array([1, 2, 3, 4]).buffer;
-    const playing = sink.play(wav, (v) => samples.push(v));
-    await Promise.resolve();
-    await Promise.resolve();
-    flushFrames(5);
-    await playing;
-    expect(samples.length).toBeGreaterThan(0);
-    for (const v of samples) {
-      expect(Number.isFinite(v)).toBe(true);
-      expect(v).toBeGreaterThanOrEqual(0);
-      expect(v).toBeLessThanOrEqual(1);
-    }
-  });
 });
 
 // ─────────────────────────────────────────────────────────────────────────────

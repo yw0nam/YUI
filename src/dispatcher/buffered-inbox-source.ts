@@ -32,7 +32,7 @@ export interface InboxFiring {
   payload: Record<string, unknown>;
 }
 
-export interface BufferedInboxSourceConfig<TRaw, TItem = TRaw> {
+interface BufferedInboxSourceConfig<TRaw, TItem = TRaw> {
   bus: Pick<EventBus, "push">;
   /** Present iff cached OS idle ≤ this. */
   present_max_idle_ms: number;
