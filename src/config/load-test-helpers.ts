@@ -47,9 +47,7 @@ export function goodFixture(): Record<string, unknown> {
     },
     "guardrails.json": {
       debounce_ms: {
-        idle_watcher: 30000,
         os_event_watcher: 5000,
-        backend_push_source: 10000,
         user_input_source: 0,
         screen_watcher: 5000,
       },

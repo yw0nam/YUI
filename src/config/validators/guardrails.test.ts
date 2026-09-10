@@ -8,9 +8,7 @@ const FILE = "guardrails.json";
 function baseRaw(overrides: Record<string, unknown> = {}): Record<string, unknown> {
   return {
     debounce_ms: {
-      idle_watcher: 30000,
       os_event_watcher: 5000,
-      backend_push_source: 10000,
       user_input_source: 0,
       screen_watcher: 5000,
     },
@@ -53,9 +51,7 @@ describe("validateGuardrails — happy path", () => {
   it("accepts zero debounce/rate values", () => {
     const raw = baseRaw({
       debounce_ms: {
-        idle_watcher: 0,
         os_event_watcher: 0,
-        backend_push_source: 0,
         user_input_source: 0,
         screen_watcher: 0,
       },
@@ -83,21 +79,19 @@ describe("validateGuardrails — debounce_ms", () => {
     expectIssue(
       baseRaw({
         debounce_ms: {
-          idle_watcher: -1,
-          os_event_watcher: 5000,
-          backend_push_source: 10000,
+          os_event_watcher: -1,
           user_input_source: 0,
           screen_watcher: 5000,
         },
       }),
-      "debounce_ms.idle_watcher는 0 이상 유한 number여야 함",
+      "debounce_ms.os_event_watcher는 0 이상 유한 number여야 함",
     );
   });
 
   it("rejects a missing field (undefined fails the number check)", () => {
     expectIssue(
       baseRaw({
-        debounce_ms: { idle_watcher: 30000, os_event_watcher: 5000, backend_push_source: 10000 },
+        debounce_ms: { os_event_watcher: 5000 },
       }),
       "debounce_ms.user_input_source는 0 이상 유한 number여야 함",
     );

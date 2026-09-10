@@ -7,8 +7,10 @@
  *  3. conflict resolution: user.text_submitted arrives → abort in-flight backend +
  *     drop tier2/3 from the queue (superseded_by_user).
  *  4. Routing:
- *     · tier1 (drag/window/tap reactions, idle.returned) → local handling (no backend).
- *     · tier2/3 (user.text_submitted, idle.*, time_milestone.*) → backend_caller.
+ *     · tier1 (drag/window/tap/pat reactions, avatar.* gait cues, user.fall_land) → local
+ *       handling (no backend).
+ *     · tier2/3 (user.text_submitted · user.voice_segment_ready · time_milestone.* ·
+ *       proactive.* · schedule.* · agent.* · signals.*) → backend_caller.
  *
  * Single in-flight backend call. Deferred tier2/3 keeps only one item in local pending
  * (with two or more deferred, the oldest is dropped).
@@ -86,7 +88,7 @@ interface DispatcherDeps {
   logger?: Logger;
 }
 
-type DispatcherState = "booting" | "running" | "cooldown" | "degraded" | "draining" | "stopped";
+type DispatcherState = "booting" | "running" | "cooldown" | "degraded" | "stopped";
 
 /** recent_drops entry. */
 export interface DropRecord {
@@ -163,7 +165,7 @@ function classify(env: BusEnvelope): Classification {
   if (n === "user.text_submitted" || n === "user.voice_segment_ready") {
     return { tier: 2, target: "backend_caller" };
   }
-  if (n === "idle.short" || n === "idle.long" || n.startsWith("time_milestone.")) {
+  if (n.startsWith("time_milestone.")) {
     return { tier: 2, target: "backend_caller" };
   }
   if (n.startsWith("proactive.")) {
@@ -181,7 +183,6 @@ function classify(env: BusEnvelope): Classification {
   if (
     n === "user.drag_start" ||
     n === "user.drag_end" ||
-    n === "idle.returned" ||
     n === "user.tap" ||
     n === "user.tap_region" ||
     n === "user.pat_start" ||
@@ -232,7 +233,6 @@ function userTurnSourceOf(env: BusEnvelope): UserTurnSource | undefined {
  *  - drag_start → play motion "drag" / drag_end → return to idle (motion null).
  *  - user.tap → observability only; tap_region / pat_start → payload motion.
  *  - pat_end → return to idle (motion null).
- *  - idle.returned → empty directive (hold).
  *  - avatar.walk_* → no render; the ambient walker owns the walk clip and only the posture moves.
  *  - avatar.climb_* → no render; the climber owns the climb clips and only the posture moves.
  *  - avatar.window_sit → the sit the climber reached on its own, rendered like a drop.
@@ -282,9 +282,6 @@ function tier1Directive(env: BusEnvelope, log: Logger): ControlEnvelope | null {
           : {}),
       };
     }
-    case "idle.returned":
-      // empty directive (emotion/motion unset = hold).
-      return { speech_text: "" };
     default:
       return null;
   }
@@ -319,8 +316,6 @@ const PACED_SOURCES: Record<BusEnvelope["source"], boolean> = {
   screen_watcher: true,
   os_event_watcher: false,
   user_input_source: false,
-  idle_watcher: false,
-  backend_push_source: false,
 };
 
 const DEFAULT_PUMP_MS = 16;
@@ -783,7 +778,7 @@ export function createDispatcher(deps: DispatcherDeps): Dispatcher {
 
   /**
    * pump: drain bus every tick. Operates in running/cooldown/degraded all (tier1 always continues each).
-   * Otherwise (booting/stopped/draining) hold pending events as no-op.
+   * Otherwise (booting/stopped) hold pending events as no-op.
    */
   function pump(): void {
     if (state !== "running" && state !== "cooldown" && state !== "degraded") return;

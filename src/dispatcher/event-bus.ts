@@ -6,8 +6,8 @@
  *  - Capacity 100. Exceeding drops lowest-priority items first + onDrop callback/log.
  *  - Bus drop conditions: schema invalid / unknown event_name / ts ±60s out of window.
  *
- * Priority (lower = earlier): user.* (0) < backend.push.* (1) <
- *   idle.* · time_milestone.* (2) < os.* (3) < internal (4).
+ * Priority (lower = earlier): user.* (0) <
+ *   time_milestone.* · proactive.* · schedule.* · agent.* · signals.* (2) < avatar.* (3).
  *
  * This module only collects firing + sorts — final tier decision/routing is dispatcher responsibility.
  */
@@ -16,13 +16,7 @@
 export interface BusEnvelope {
   /** Assigned by bus (monotonic). May be empty at push time. */
   seq_id?: number;
-  source:
-    | "timer_scheduler"
-    | "idle_watcher"
-    | "os_event_watcher"
-    | "user_input_source"
-    | "backend_push_source"
-    | "screen_watcher";
+  source: "timer_scheduler" | "os_event_watcher" | "user_input_source" | "screen_watcher";
   /** event_name. ex: "time_milestone.morning". */
   event_name: string;
   /** client epoch ms. */
@@ -65,31 +59,25 @@ export interface EventBus {
  */
 const KNOWN_PREFIXES: ReadonlyArray<{ prefix: string; priority: number }> = [
   { prefix: "user.", priority: 0 },
-  { prefix: "backend.push.", priority: 1 },
-  { prefix: "idle.", priority: 2 },
   { prefix: "time_milestone.", priority: 2 },
   { prefix: "proactive.", priority: 2 },
   { prefix: "schedule.", priority: 2 },
   { prefix: "agent.", priority: 2 },
   { prefix: "signals.", priority: 2 },
-  { prefix: "periodic_tick", priority: 4 },
-  { prefix: "os.", priority: 3 },
   { prefix: "avatar.", priority: 3 },
 ];
 
 function priorityOf(eventName: string): number | null {
   for (const { prefix, priority } of KNOWN_PREFIXES) {
-    if (eventName.startsWith(prefix) || eventName === prefix) return priority;
+    if (eventName.startsWith(prefix)) return priority;
   }
   return null;
 }
 
 const VALID_SOURCES = new Set<BusEnvelope["source"]>([
   "timer_scheduler",
-  "idle_watcher",
   "os_event_watcher",
   "user_input_source",
-  "backend_push_source",
   "screen_watcher",
 ]);
 

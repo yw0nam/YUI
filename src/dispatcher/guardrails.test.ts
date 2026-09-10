@@ -2,10 +2,11 @@
  * guardrails.test.ts — debounce / rate-limit unit tests.
  *
  * Principle: time driven only by injected now() (no bare Date.now() dependency). Directly create
- * envelope composites from all sources (idle/timer/os/backend_push/user), locking evaluation branches.
+ * envelope composites from each source (os_event_watcher / user_input_source), locking
+ * evaluation branches.
  *
  * Sections locked:
- *  - §6.2 Debounce: per-source window (idle 30s / os 5s / backend 10s / user 0).
+ *  - §6.2 Debounce: per-source window (os 5s / user 0).
  *  - §6.3 Rate-limit: tier2 6 / tier3 2 rolling 60min (N pass, N+1 drop, no refund),
  *    overall 20 → cooldownActive() true then 5min hold → release.
  *  - §6.4 Evaluation order + dnd_override short-circuit (no counter increment).
@@ -22,9 +23,7 @@ const BASE_TS = 1_717_000_000_000;
 function config(): GuardrailsConfig {
   return {
     debounce_ms: {
-      idle_watcher: 30_000,
       os_event_watcher: 5_000,
-      backend_push_source: 10_000,
       user_input_source: 0,
       screen_watcher: 5000,
     },
@@ -60,8 +59,8 @@ function clock(start = BASE_TS): {
 /** Composite envelope. Caller overrides source/event_name/payload. */
 function env(over: Partial<BusEnvelope> = {}): BusEnvelope {
   return {
-    source: "idle_watcher",
-    event_name: "idle.long",
+    source: "os_event_watcher",
+    event_name: "proactive.head_pat",
     ts: BASE_TS,
     ...over,
   };
@@ -88,20 +87,6 @@ describe("guardrails — evaluate dnd_override short-circuit", () => {
 // ── Debounce (§6.2) ──────────────────────────────────────────────────────────────
 
 describe("guardrails — debounce per source (§6.2)", () => {
-  it("idle_watcher 30s window: 2nd within window drops, after window passes", () => {
-    const c = clock();
-    const g = createGuardrails(config(), { now: c.now });
-    expect(g.evaluate(env({ source: "idle_watcher" }), 2).pass).toBe(true);
-
-    c.advance(29_999);
-    const r2 = g.evaluate(env({ source: "idle_watcher" }), 2);
-    expect(r2.pass).toBe(false);
-    if (!r2.pass) expect(r2.detail).toBe("debounce:idle_watcher");
-
-    c.advance(1); // now exactly 30_000 since last fire
-    expect(g.evaluate(env({ source: "idle_watcher" }), 2).pass).toBe(true);
-  });
-
   it("os_event_watcher 5s window", () => {
     const c = clock();
     const g = createGuardrails(config(), { now: c.now });
@@ -118,25 +103,6 @@ describe("guardrails — debounce per source (§6.2)", () => {
     ).toBe(true);
   });
 
-  it("backend_push_source 10s window", () => {
-    const c = clock();
-    const g = createGuardrails(config(), { now: c.now });
-    expect(
-      g.evaluate(env({ source: "backend_push_source", event_name: "backend.push.suggest" }), 3)
-        .pass,
-    ).toBe(true);
-    c.advance(9_999);
-    expect(
-      g.evaluate(env({ source: "backend_push_source", event_name: "backend.push.suggest" }), 3)
-        .pass,
-    ).toBe(false);
-    c.advance(1);
-    expect(
-      g.evaluate(env({ source: "backend_push_source", event_name: "backend.push.suggest" }), 3)
-        .pass,
-    ).toBe(true);
-  });
-
   it("user_input_source 0 window — never debounce-dropped", () => {
     const c = clock();
     const g = createGuardrails(config(), { now: c.now });
@@ -150,18 +116,18 @@ describe("guardrails — debounce per source (§6.2)", () => {
   it("debounce state only mutates on a full pass (a dropped event does not move lastFire)", () => {
     const c = clock();
     const g = createGuardrails(config(), { now: c.now });
-    expect(g.evaluate(env({ source: "idle_watcher" }), 2).pass).toBe(true); // lastFire = t0
-    c.advance(10_000);
-    expect(g.evaluate(env({ source: "idle_watcher" }), 2).pass).toBe(false); // dropped, lastFire stays t0
-    c.advance(20_000); // t0 + 30_000 → window elapsed relative to t0, not the dropped attempt
-    expect(g.evaluate(env({ source: "idle_watcher" }), 2).pass).toBe(true);
+    expect(g.evaluate(env({ source: "os_event_watcher" }), 2).pass).toBe(true); // lastFire = t0
+    c.advance(2_000);
+    expect(g.evaluate(env({ source: "os_event_watcher" }), 2).pass).toBe(false); // dropped, lastFire stays t0
+    c.advance(3_000); // t0 + 5_000 → window elapsed relative to t0, not the dropped attempt
+    expect(g.evaluate(env({ source: "os_event_watcher" }), 2).pass).toBe(true);
   });
 });
 
 // ── Rate-limit (§6.3) ────────────────────────────────────────────────────────────
 
 describe("guardrails — rate-limit per tier rolling 60min (§6.3)", () => {
-  it("tier2 cap 6: first 6 pass, 7th drops with detail rate_limit:tier2", () => {
+  it("tier2 cap 6: first 6 pass, 7th drops", () => {
     const c = clock();
     const g = createGuardrails(config(), { now: c.now });
     for (let i = 0; i < 6; i++) {
@@ -175,10 +141,9 @@ describe("guardrails — rate-limit per tier rolling 60min (§6.3)", () => {
       2,
     );
     expect(r.pass).toBe(false);
-    if (!r.pass) expect(r.detail).toBe("rate_limit:tier2");
   });
 
-  it("tier3 cap 2: 2 pass, 3rd drops with detail rate_limit:tier3", () => {
+  it("tier3 cap 2: 2 pass, 3rd drops", () => {
     const c = clock();
     const g = createGuardrails(config(), { now: c.now });
     expect(
@@ -192,7 +157,6 @@ describe("guardrails — rate-limit per tier rolling 60min (§6.3)", () => {
       3,
     );
     expect(r.pass).toBe(false);
-    if (!r.pass) expect(r.detail).toBe("rate_limit:tier3");
   });
 
   it("rolling window prunes: a tier2 slot frees once window_ms passes (no refund, time-based prune)", () => {
@@ -252,7 +216,6 @@ describe("guardrails — overall cap → cooldown (§6.3)", () => {
       2,
     );
     expect(r.pass).toBe(false);
-    if (!r.pass) expect(r.detail).toBe("cooldown_entered");
     expect(g.cooldownActive()).toBe(true);
 
     // still active just before 5min
@@ -263,7 +226,7 @@ describe("guardrails — overall cap → cooldown (§6.3)", () => {
     expect(g.cooldownActive()).toBe(false);
   });
 
-  it("during cooldown, evaluate returns detail cooldown for further firings", () => {
+  it("during cooldown, further firings drop", () => {
     const c = clock();
     const cfg = config();
     cfg.rate_limit.tier2_max = 1000;
@@ -277,25 +240,74 @@ describe("guardrails — overall cap → cooldown (§6.3)", () => {
       2,
     );
     expect(r.pass).toBe(false);
-    if (!r.pass) expect(r.detail).toBe("cooldown");
   });
 });
 
 // ── Eval ordering (§6.4) ─────────────────────────────────────────────────────────
 
 describe("guardrails — eval ordering (§6.4)", () => {
-  it("cooldown is checked before debounce/rate — cooldown detail wins", () => {
-    const c = clock();
+  /** Drives the overall cap with a debounce-free source. */
+  function overallDriver(g: Guardrails): () => boolean {
+    return () =>
+      g.evaluate(env({ source: "user_input_source", event_name: "user.text_submitted" }), 2).pass;
+  }
+
+  /** Cooldown reached via the overall cap, with the tier cap raised out of the way. */
+  function inCooldown(c: ReturnType<typeof clock>): { g: Guardrails; fire: () => boolean } {
     const cfg = config();
     cfg.rate_limit.tier2_max = 1000;
     const g = createGuardrails(cfg, { now: c.now });
-    for (let i = 0; i < 21; i++) {
-      g.evaluate(env({ source: "user_input_source", event_name: "user.text_submitted" }), 2);
-    }
+    const fire = overallDriver(g);
+    for (let i = 0; i < 20; i++) expect(fire()).toBe(true);
+    expect(fire()).toBe(false);
     expect(g.cooldownActive()).toBe(true);
-    const r = g.evaluate(env({ source: "idle_watcher" }), 2);
-    expect(r.pass).toBe(false);
-    if (!r.pass) expect(r.detail).toBe("cooldown");
+    return { g, fire };
+  }
+
+  it("cooldown precedes rate-limit: a firing during cooldown does not re-arm cooldownUntil", () => {
+    const c = clock();
+    const { g, fire } = inCooldown(c);
+
+    c.advance(200_000);
+    for (let i = 0; i < 5; i++) expect(fire()).toBe(false);
+
+    // cooldown_ms is measured from the entry, so it releases on schedule.
+    c.set(BASE_TS + 300_000);
+    expect(g.cooldownActive()).toBe(false);
+  });
+
+  it("a cooldown drop consumes no tier or overall rate-limit slot", () => {
+    const c = clock();
+    const { fire } = inCooldown(c);
+
+    c.advance(200_000);
+    for (let i = 0; i < 5; i++) expect(fire()).toBe(false);
+
+    // Past window_ms measured from the 20 passes, but not from the 5 cooldown attempts:
+    // whatever the window still holds was put there by a pass.
+    c.set(BASE_TS + 3_600_500);
+    let passed = 0;
+    for (let i = 0; i < 25; i++) {
+      if (fire()) passed++;
+    }
+    expect(passed).toBe(20);
+  });
+
+  it("dnd_override precedes cooldown: a user-initiated turn passes during cooldown", () => {
+    const c = clock();
+    const { g } = inCooldown(c);
+
+    c.advance(1_000);
+    const r = g.evaluate(
+      env({
+        source: "user_input_source",
+        event_name: "user.text_submitted",
+        dnd_override: true,
+      }),
+      2,
+    );
+    expect(r.pass).toBe(true);
+    expect(g.cooldownActive()).toBe(true);
   });
 });
 

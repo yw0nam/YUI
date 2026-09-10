@@ -18,9 +18,7 @@ export function validateGuardrails(file: string, raw: unknown): GuardrailsConfig
   // debounce_ms
   const rawDebounce = raw.debounce_ms;
   const debounce_ms = {
-    idle_watcher: 0,
     os_event_watcher: 0,
-    backend_push_source: 0,
     user_input_source: 0,
     screen_watcher: 0,
   };
