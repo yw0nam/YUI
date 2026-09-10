@@ -353,7 +353,7 @@ def _parser():
             action.add_argument("--model")
 
     satisfy = commands.add_parser("satisfy")
-    satisfy.add_argument("event", choices=["praised"])
+    satisfy.add_argument("event", choices=["learned", "praised"])
     satisfy.add_argument("--ref", required=True)
 
     feedback = commands.add_parser("feedback")
