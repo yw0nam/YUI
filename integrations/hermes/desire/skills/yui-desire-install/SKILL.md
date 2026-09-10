@@ -169,7 +169,7 @@ Send yourself a normal YUI user-message turn, then confirm the middleware ran. W
 profile `config.yaml`, `~/.hermes/logs/agent.log` gains one line per pass:
 
 ```
-yui-desire llm_request plugin=yui-desire/0.1.0 outcome=injected reason=None interaction=True shape=messages/str cache_hit=False api_request_id=… turn_id=… session_id=…
+yui-desire llm_request plugin=yui-desire/0.1.0 outcome=injected reason=None interaction=True trigger=user message platform=… shape=messages/str cache_hit=False api_request_id=… turn_id=… session_id=…
 ```
 
 `outcome=skipped reason=…` explains why a request was left alone; `outcome=error reason=<ExceptionClass>` means the

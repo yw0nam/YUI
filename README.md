@@ -105,8 +105,8 @@ agent calls via the `desktop-control` Mod, not a per-turn push
 **Rendering &amp; motion**
 
 - VRM 1.0 with hot-swap and GPU cleanup, via three.js + `@pixiv/three-vrm`
-- 10 emotions and 16 motions, with a fallback chain for models that lack an
-expression
+- 10 emotions and 25 registered motions, 9 of them agent-selectable, with a
+fallback chain for models that lack an expression
 - Idle and sit cycle through pools of motion clips with smooth transitions
 - Camera auto-frames the avatar, with wheel zoom and a pull-back when perched
 
