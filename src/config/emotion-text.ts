@@ -8,7 +8,7 @@
 
 import { type AssetUrlResolver, ConfigError, type ConfigReader, fetchReader } from "./load";
 
-export interface LoadEmotionTextOptions {
+interface LoadEmotionTextOptions {
   /** provider key in configs/emotion_text/<provider>.json (e.g. "irodori"). */
   provider: string;
   /** File reader injection (tests). Defaults to the fetch-based reader when unset. */

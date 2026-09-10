@@ -28,8 +28,8 @@ import {
 /** Default polling interval (ms). Too frequent wastes fetches, too slow delays edit propagation. */
 const DEFAULT_POLL_MS = 1500;
 
-export type ConfigListener = (config: AppConfig, changed: ReadonlySet<ConfigSection>) => void;
-export type ConfigErrorListener = (err: unknown) => void;
+type ConfigListener = (config: AppConfig, changed: ReadonlySet<ConfigSection>) => void;
+type ConfigErrorListener = (err: unknown) => void;
 
 export interface ConfigStore {
   /** Loads once. get() becomes valid afterward. Throws on failure (handled at bootstrap). */
@@ -50,7 +50,7 @@ export interface ConfigStore {
   readonly secrets: SecretProvider;
 }
 
-export interface ConfigStoreOptions extends LoadConfigOptions {
+interface ConfigStoreOptions extends LoadConfigOptions {
   /** Secret lookup for api keys etc. — empty plainSecretProvider when unspecified. */
   secrets?: SecretProvider;
 }
