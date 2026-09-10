@@ -168,8 +168,15 @@ export function createTextInput(
     submitHandlers.push(cb);
   }
 
+  /** The attach affordance stays off while there is nothing to validate a picked image against. */
+  function applyAttachEnabled(): void {
+    attachBtn.disabled = limits === null;
+  }
+  applyAttachEnabled();
+
   function setAttachmentLimits(next: AttachmentLimits): void {
     limits = next;
+    applyAttachEnabled();
   }
 
   function clearAttachments(): void {
@@ -180,9 +187,13 @@ export function createTextInput(
   }
 
   function addFiles(files: FileList | File[]): void {
-    if (!limits) return; // no configured caps yet — nothing is attachable.
-    for (const file of Array.from(files)) {
-      if (!file.type.startsWith("image/")) continue;
+    const images = Array.from(files).filter((file) => file.type.startsWith("image/"));
+    if (images.length === 0) return;
+    if (!limits) {
+      showInputError(t("input.attach_not_ready"));
+      return;
+    }
+    for (const file of images) {
       if (attachments.length + inFlight >= limits.max_count) {
         showInputError(t("input.attach_too_many", { max: limits.max_count }));
         return;
@@ -317,8 +328,9 @@ export function createTextInput(
     addFiles(files);
   }
   function onDragOver(e: DragEvent): void {
+    // Swallowed either way — a drop the webview handles itself navigates away from the app.
     e.preventDefault();
-    formEl.classList.add("is-dragover");
+    if (limits) formEl.classList.add("is-dragover");
   }
   function onDragLeave(e: DragEvent): void {
     // dragleave also fires when entering a child element, so clear only when actually leaving the form.

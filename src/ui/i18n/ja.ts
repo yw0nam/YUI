@@ -48,6 +48,7 @@ const ja: Record<string, string> = {
   "input.error_open_advanced": "詳細を開く",
   "input.attach_too_many": "画像が多すぎ · 1ターン{max}枚まで",
   "input.attach_too_large": "画像が大きすぎ · 1枚{max}MBまで",
+  "input.attach_not_ready": "まだ添付できない · 上限を読み込み中",
 
   // chain-break (404) recovery notice
   "chain.reset_notice": "会話コンテキストがリセットされました",

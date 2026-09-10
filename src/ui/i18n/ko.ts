@@ -48,6 +48,7 @@ const ko: Record<string, string> = {
   "input.error_open_advanced": "고급 열기",
   "input.attach_too_many": "이미지가 너무 많음 · 한 턴에 {max}장까지",
   "input.attach_too_large": "이미지가 너무 큼 · 장당 {max}MB까지",
+  "input.attach_not_ready": "아직 첨부할 수 없음 · 상한을 불러오는 중",
 
   // chain-break (404) recovery notice
   "chain.reset_notice": "대화 컨텍스트가 초기화되었습니다",

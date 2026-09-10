@@ -610,6 +610,14 @@
   color: var(--yui-accent);
   background: oklch(0.8 0.13 75 / 0.12);
 }
+.yui-input__attach:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+.yui-input__attach:disabled:hover {
+  color: var(--yui-text-mute);
+  background: transparent;
+}
 .yui-input__attach svg {
   width: 18px;
   height: 18px;
