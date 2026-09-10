@@ -29,7 +29,7 @@ export default defineConfig({
     ['meta', { name: 'twitter:description', content: 'The head, not the brain: a VRM desktop companion that renders the body and delegates judgment to a Hermes backend.' }],
     ['meta', { name: 'twitter:image', content: 'https://yw0nam.github.io/YUI/og-card.png' }],
   ],
-  srcExclude: ['agent-guide/**', 'agents/**', 'adr/**'],
+  srcExclude: ['agent-guide/**', 'agents/**'],
   themeConfig: {
     nav: [
       { text: 'Home', link: '/' },
