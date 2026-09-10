@@ -147,14 +147,6 @@ describe("createTauriScreenCapturer — invoke failure", () => {
     const fakeInvoke = vi.fn().mockRejectedValue(new Error("capture permission denied"));
     const capturer = createTauriScreenCapturer(1280, fakeInvoke);
     const source: ScreenSource = { kind: "monitor", index: 0 };
-    const result = await capturer.capture(source);
-    expect(result).toBeNull();
-  });
-
-  it("does not propagate the error from invoke rejection", async () => {
-    const fakeInvoke = vi.fn().mockRejectedValue(new Error("screen record permission denied"));
-    const capturer = createTauriScreenCapturer(1280, fakeInvoke);
-    const source: ScreenSource = { kind: "monitor", index: 1 };
     await expect(capturer.capture(source)).resolves.toBeNull();
   });
 });

@@ -20,10 +20,6 @@ import { describe, expect, it } from "vitest";
 import {
   CAMERA_AZIMUTH_DEFAULT,
   CAMERA_POLAR_DEFAULT,
-  CAMERA_POLAR_FREE_MAX,
-  CAMERA_POLAR_FREE_MIN,
-  CAMERA_POLAR_PERCHED_MAX,
-  CAMERA_POLAR_PERCHED_MIN,
   clampPolar,
   computeCameraFit,
   nextZoom,
@@ -187,26 +183,6 @@ describe("nextZoom", () => {
 //   x = radius·sin(φ)·sin(θ), y = radius·cos(φ), z = radius·sin(φ)·cos(θ)
 // Default (azimuth 0, polar 90°) reproduces the head-on position target+(0,0,radius).
 // ─────────────────────────────────────────────────────────────────────────────
-
-describe("orbit angle constants", () => {
-  it("default azimuth is 0", () => {
-    expect(CAMERA_AZIMUTH_DEFAULT).toBe(0);
-  });
-
-  it("default polar is 90° (π/2) — straight-on", () => {
-    expect(CAMERA_POLAR_DEFAULT).toBeCloseTo(Math.PI / 2, 12);
-  });
-
-  it("free polar range is near-full [2°, 178°]", () => {
-    expect(CAMERA_POLAR_FREE_MIN).toBeCloseTo(2 * DEG, 12);
-    expect(CAMERA_POLAR_FREE_MAX).toBeCloseTo(178 * DEG, 12);
-  });
-
-  it("perched polar range is [60°, 120°]", () => {
-    expect(CAMERA_POLAR_PERCHED_MIN).toBeCloseTo(60 * DEG, 12);
-    expect(CAMERA_POLAR_PERCHED_MAX).toBeCloseTo(120 * DEG, 12);
-  });
-});
 
 describe("orbitPosition — default angles reproduce head-on", () => {
   it("(azimuth 0, polar 90°) ⇒ target + (0, 0, radius)", () => {

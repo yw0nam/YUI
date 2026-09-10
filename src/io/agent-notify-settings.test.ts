@@ -62,10 +62,6 @@ describe("createAgentNotifySettings — defaults", () => {
     const store = createAgentNotifySettings();
     expect(store.get().port).toBe(8770);
   });
-
-  it("does not throw when no options given", () => {
-    expect(() => createAgentNotifySettings()).not.toThrow();
-  });
 });
 
 describe("createAgentNotifySettings — setEnabled", () => {

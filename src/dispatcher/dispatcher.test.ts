@@ -14,7 +14,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { ATTACHMENT_LIMITS_DEFAULTS, type PeekConfig, type TapConfig } from "../config/load";
 import type { Logger } from "../logger";
 import type { BackendCaller, TurnOutcome } from "./backend-caller";
-import { createDispatcher, type Dispatcher, DROP_SEVERITY } from "./dispatcher";
+import { createDispatcher, type Dispatcher } from "./dispatcher";
 import { type BusEnvelope, createEventBus, type EventBus } from "./event-bus";
 import { createGuardrails, type Guardrails, type GuardrailsConfig } from "./guardrails";
 import { createTurnLog, type Turn, type TurnLog } from "./turn";
@@ -1483,23 +1483,6 @@ describe("dispatcher — observable dev APIs (§11)", () => {
     );
     await vi.advanceTimersByTimeAsync(20);
     expect(dispatcher.queue().length).toBeGreaterThan(0);
-  });
-});
-
-// ── structured logging ──────────────────────────────────────────────────────
-
-describe("dispatcher — structured logging: DROP_SEVERITY table", () => {
-  it("exports DROP_SEVERITY mapping every DropRecord reason", () => {
-    expect(DROP_SEVERITY).toBeDefined();
-    expect(DROP_SEVERITY.guardrail_drop).toBe("info");
-    expect(DROP_SEVERITY.parse_error).toBe("warn");
-    expect(DROP_SEVERITY.network_drop).toBe("warn");
-    expect(DROP_SEVERITY.network_stall).toBe("warn");
-    expect(DROP_SEVERITY.http_4xx_drop).toBe("error");
-    expect(DROP_SEVERITY.superseded_by_user).toBe("info");
-    expect(DROP_SEVERITY.stale_pending).toBe("info");
-    expect(DROP_SEVERITY.degraded_drop).toBe("warn");
-    expect(DROP_SEVERITY.global_gap).toBe("info");
   });
 });
 

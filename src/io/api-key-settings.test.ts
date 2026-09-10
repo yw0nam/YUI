@@ -5,8 +5,8 @@
  * "" = no override. Values are trimmed, length-capped, and never logged.
  */
 
-import { describe, expect, it } from "vitest";
-import { createApiKeySettings } from "./api-key-settings";
+import { describe, expect, it, vi } from "vitest";
+import { API_KEY_MAX_LEN, createApiKeySettings } from "./api-key-settings";
 import { createChatKeySettings } from "./chat-key-settings";
 
 describe("createApiKeySettings", () => {
@@ -42,14 +42,25 @@ describe("createApiKeySettings", () => {
     s.setApiKey("sk-xyz");
     expect(seen).toBe("sk-xyz");
   });
+
+  it("ignores non-string input — the key stays empty and no subscriber is notified", () => {
+    const s = createApiKeySettings({ storageKey: "k" });
+    const cb = vi.fn();
+    s.subscribe(cb);
+    s.setApiKey(123 as unknown as string);
+    expect(s.get().apiKey).toBe("");
+    expect(cb).not.toHaveBeenCalled();
+  });
 });
 
 describe("createChatKeySettings — unchanged behavior over the generic factory", () => {
-  it("get/set/clear behave identically to the generic store", () => {
+  it("get/set/clear behave identically to the generic store, capped at API_KEY_MAX_LEN", () => {
     const chat = createChatKeySettings();
     expect(chat.get().apiKey).toBe("");
     chat.setApiKey("  sk-chat ");
     expect(chat.get().apiKey).toBe("sk-chat");
+    chat.setApiKey("x".repeat(API_KEY_MAX_LEN + 5000));
+    expect(chat.get().apiKey.length).toBe(API_KEY_MAX_LEN);
     chat.clear();
     expect(chat.get().apiKey).toBe("");
   });
