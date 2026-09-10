@@ -32,7 +32,8 @@ With Claude Code: open the repo and type `/yui-install` — the `yui-install` sk
 
 ```bash
 pnpm install
-pnpm tauri dev        # transparent desktop-pet window (recommended)
+pnpm tauri dev        # transparent desktop-pet window on port 1420 (recommended)
+pnpm tauri:dev        # same window on an auto-picked free port, so worktrees run side by side
 pnpm dev              # browser-only, no Tauri shell
 pnpm build            # production build
 ```
