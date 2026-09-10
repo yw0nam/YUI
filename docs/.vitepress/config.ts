@@ -9,7 +9,7 @@ export default defineConfig({
   cleanUrls: true,
   appearance: 'force-dark',
   head: [
-    ['link', { rel: 'icon', type: 'image/svg+xml', href: '/YUI/favicon.svg' }],
+    ['link', { rel: 'icon', type: 'image/png', href: '/YUI/favicon.png' }],
     ['link', { rel: 'preconnect', href: 'https://fonts.googleapis.com' }],
     ['link', { rel: 'preconnect', href: 'https://fonts.gstatic.com', crossorigin: '' }],
     [

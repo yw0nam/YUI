@@ -11,6 +11,12 @@ enum TrayAction {
     Quit,
 }
 
+/// Monochrome silhouette with alpha; macOS keeps only the alpha and tints it as a template image.
+#[cfg(any(target_os = "macos", test))]
+fn tray_icon() -> tauri::Result<tauri::image::Image<'static>> {
+    tauri::image::Image::from_bytes(include_bytes!("../icons/tray.png"))
+}
+
 fn action_for(menu_id: &str) -> Option<TrayAction> {
     match menu_id {
         "toggle-visibility" => Some(TrayAction::ToggleVisibility),
@@ -104,10 +110,13 @@ pub fn setup(app: &AppHandle) -> tauri::Result<()> {
             None => {}
         });
 
+    #[cfg(target_os = "macos")]
+    {
+        builder = builder.icon(tray_icon()?).icon_as_template(true);
+    }
+    #[cfg(not(target_os = "macos"))]
     if let Some(icon) = app.default_window_icon() {
         builder = builder.icon(icon.clone());
-    } else {
-        log::warn!("tray_default_window_icon_not_found");
     }
 
     builder.build(app)?;
@@ -117,6 +126,17 @@ pub fn setup(app: &AppHandle) -> tauri::Result<()> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn tray_icon_is_monochrome_for_macos_templating() {
+        let icon = tray_icon().expect("tray.png decodes");
+        let opaque: Vec<_> = icon.rgba().chunks_exact(4).filter(|p| p[3] > 0).collect();
+        assert!(!opaque.is_empty(), "icon must have opaque pixels");
+        assert!(
+            opaque.iter().all(|p| p[0] == p[1] && p[1] == p[2]),
+            "template images keep only alpha; RGB must be monochrome"
+        );
+    }
 
     #[test]
     fn action_for_maps_toggle_visibility() {
