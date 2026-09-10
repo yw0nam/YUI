@@ -82,7 +82,6 @@ vi.mock("./io/chat-client", () => ({ selectFetch: mocks.selectFetch }));
 vi.mock("./io/voice-import", () => ({
   copyVoiceFile: mocks.copyVoiceFile,
   pickVoiceFile: vi.fn(),
-  removeOrphanVoice: vi.fn(),
   removeVoice: vi.fn().mockResolvedValue(undefined),
   fileStemFromPath: (path: string) => path,
 }));

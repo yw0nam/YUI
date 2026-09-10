@@ -7,12 +7,7 @@
  */
 
 import { describe, expect, it, vi } from "vitest";
-import {
-  importVrmFromFile,
-  removeOrphanVrm,
-  removeUserVrm,
-  type VrmImportDeps,
-} from "./vrm-import";
+import { importVrmFromFile, removeUserVrm, type VrmImportDeps } from "./vrm-import";
 
 function makeDeps(over: Partial<VrmImportDeps> = {}): VrmImportDeps {
   return {
@@ -29,13 +24,6 @@ function makeDeps(over: Partial<VrmImportDeps> = {}): VrmImportDeps {
 describe("importVrmFromFile — dialog cancel", () => {
   it("returns null when the picker is cancelled (open → null)", async () => {
     const deps = makeDeps({ openDialog: vi.fn(async () => null) });
-    const out = await importVrmFromFile(deps);
-    expect(out).toBeNull();
-    expect(deps.invoke).not.toHaveBeenCalled();
-  });
-
-  it("returns null when the picker yields an empty array (multi off, nothing chosen)", async () => {
-    const deps = makeDeps({ openDialog: vi.fn(async () => [] as unknown as string) });
     const out = await importVrmFromFile(deps);
     expect(out).toBeNull();
     expect(deps.invoke).not.toHaveBeenCalled();
@@ -72,20 +60,6 @@ describe("importVrmFromFile — successful pick", () => {
     });
     expect(deps.convertFileSrc).toHaveBeenCalledWith("/app-data/vrms/MyAvatar.vrm");
   });
-
-  it("uses the first entry when the dialog returns a single-element array", async () => {
-    const deps = makeDeps({ openDialog: vi.fn(async () => ["/tmp/Cat.vrm"] as unknown as string) });
-    await importVrmFromFile(deps);
-    expect(deps.invoke).toHaveBeenCalledWith("import_vrm_file", { srcPath: "/tmp/Cat.vrm" });
-  });
-
-  it("accepts the object form { path } some dialog versions return", async () => {
-    const deps = makeDeps({
-      openDialog: vi.fn(async () => ({ path: "/tmp/Dog.vrm" }) as unknown as string),
-    });
-    await importVrmFromFile(deps);
-    expect(deps.invoke).toHaveBeenCalledWith("import_vrm_file", { srcPath: "/tmp/Dog.vrm" });
-  });
 });
 
 describe("removeUserVrm", () => {
@@ -93,27 +67,5 @@ describe("removeUserVrm", () => {
     const invoke = vi.fn(async () => undefined);
     await removeUserVrm("MyAvatar", { invoke: invoke as unknown as VrmImportDeps["invoke"] });
     expect(invoke).toHaveBeenCalledWith("remove_user_vrm", { id: "MyAvatar" });
-  });
-});
-
-describe("removeOrphanVrm — orphan cleanup surfaces failures (#162)", () => {
-  it("attempts removal and resolves without calling onError on success", async () => {
-    const remove = vi.fn(async () => {});
-    const onError = vi.fn();
-    await removeOrphanVrm("MyAvatar", remove, onError);
-    expect(remove).toHaveBeenCalledWith("MyAvatar");
-    expect(onError).not.toHaveBeenCalled();
-  });
-
-  it("surfaces (does not swallow) a failed orphan removal via onError", async () => {
-    const boom = new Error("native delete failed");
-    const remove = vi.fn(async () => {
-      throw boom;
-    });
-    const onError = vi.fn();
-    // must not reject — the primary error is what rethrows; cleanup only surfaces.
-    await expect(removeOrphanVrm("MyAvatar", remove, onError)).resolves.toBeUndefined();
-    expect(onError).toHaveBeenCalledOnce();
-    expect(onError.mock.calls[0][0]).toBe(boom);
   });
 });

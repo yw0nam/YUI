@@ -12,9 +12,7 @@
  */
 
 import type { SpeakerOption } from "./speaker-selection";
-
-/** Dialog open result shape (path string, array, or {path} per plugin version). */
-type OpenResult = string | string[] | { path: string } | null;
+import { loadInvoke, loadOpenDialog, type OpenResult, pickedPath } from "./user-asset-import";
 
 export interface VoicePickDeps {
   /** `@tauri-apps/plugin-dialog` open. */
@@ -34,11 +32,6 @@ export interface VoiceCopyDeps {
 /** Only the bits removeUserVoice needs. */
 type VoiceRemoveDeps = Pick<VoiceCopyDeps, "invoke">;
 
-async function defaultPickDeps(): Promise<VoicePickDeps> {
-  const { open } = await import("@tauri-apps/plugin-dialog");
-  return { openDialog: (opts) => open(opts) as Promise<OpenResult> };
-}
-
 async function defaultCopyDeps(): Promise<VoiceCopyDeps> {
   const [{ invoke }, { resolveUserFileSrc }] = await Promise.all([
     import("@tauri-apps/api/core"),
@@ -47,26 +40,12 @@ async function defaultCopyDeps(): Promise<VoiceCopyDeps> {
   return { invoke, resolveRefUrl: resolveUserFileSrc };
 }
 
-async function defaultRemoveDeps(): Promise<VoiceRemoveDeps> {
-  const { invoke } = await import("@tauri-apps/api/core");
-  return { invoke };
-}
-
-/** Normalize the dialog result to a single source path, or null if nothing chosen. */
-function pickedPath(result: OpenResult): string | null {
-  if (result == null) return null;
-  if (typeof result === "string") return result.length > 0 ? result : null;
-  if (Array.isArray(result)) return result.length > 0 ? result[0] : null;
-  if (typeof result === "object" && typeof result.path === "string") return result.path;
-  return null;
-}
-
 /**
  * Open the audio file picker and return the chosen source path — nothing is copied
  * yet. Returns null when the picker is cancelled.
  */
 export async function pickVoiceFile(deps?: VoicePickDeps): Promise<string | null> {
-  const d = deps ?? (await defaultPickDeps());
+  const d = deps ?? { openDialog: await loadOpenDialog() };
   const result = await d.openDialog({
     multiple: false,
     filters: [
@@ -111,23 +90,6 @@ export async function copyVoiceFile(
 
 /** Delete an imported voice's file from app-data. Idempotent on the native side. */
 export async function removeUserVoice(id: string, deps?: VoiceRemoveDeps): Promise<void> {
-  const d = deps ?? (await defaultRemoveDeps());
+  const d = deps ?? { invoke: await loadInvoke() };
   await d.invoke("remove_user_voice", { id });
-}
-
-/**
- * Remove an orphaned imported voice after a failed import. A failed removal is
- * surfaced via onError (never swallowed) so multi-MB orphans don't pile up
- * silently; the caller's primary error still rethrows.
- */
-export async function removeOrphanVoice(
-  id: string,
-  remove: (id: string) => Promise<void>,
-  onError: (err: unknown) => void,
-): Promise<void> {
-  try {
-    await remove(id);
-  } catch (err) {
-    onError(err);
-  }
 }

@@ -58,13 +58,11 @@ import { showBootError } from "./ui/boot-error";
 import { createCaptureIndicator } from "./ui/capture-indicator";
 import { getLocale, subscribe as subscribeLocale } from "./ui/i18n";
 import { createQuickControls } from "./ui/quick-controls";
+import { attachSummonKey } from "./ui/summon-key";
 import { createSurfaces } from "./ui/surfaces";
 import { createSurfacesRouter } from "./ui/surfaces-router";
 import { createVoiceInputIndicator } from "./ui/voice-input-indicator";
 import { createVoiceInputStatus } from "./ui/voice-input-status";
-
-/** Input summon hotkey (window-focus only — global shortcuts to follow via tauri-plugin-global-shortcut). */
-const SUMMON_KEY = "/";
 
 const log = createLogger("bootstrap");
 
@@ -472,16 +470,7 @@ async function bootstrap(): Promise<BootstrapHandle> {
   });
   const userInput = createUserInputSource(bus);
 
-  // Hotkey: summon input via SUMMON_KEY when window focused. (Esc/Enter handled inside input)
-  function onKeydown(e: KeyboardEvent): void {
-    if (e.key !== SUMMON_KEY || e.metaKey || e.ctrlKey || e.altKey) return;
-    if (surfaces.isInputOpen()) return;
-    if (isTypingTarget(e.target)) return;
-    e.preventDefault();
-    surfaces.summonInput();
-  }
-  window.addEventListener("keydown", onKeydown);
-  register(() => window.removeEventListener("keydown", onKeydown));
+  register(attachSummonKey(surfaces));
 
   // Config-driven load: configs/*.json → validated AppConfig. endpoints/motions etc
   // consumed during dispatcher·tts wiring. VRM displayed via avatar.vrm_url.
@@ -623,13 +612,6 @@ async function bootstrap(): Promise<BootstrapHandle> {
     register(() => config.stop());
   }
   return { dispose };
-}
-
-/** Don't intercept hotkey if focus already on input element. */
-function isTypingTarget(target: EventTarget | null): boolean {
-  if (!(target instanceof HTMLElement)) return false;
-  const tag = target.tagName;
-  return tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT" || target.isContentEditable;
 }
 
 void bootstrap();

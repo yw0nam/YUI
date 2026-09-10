@@ -510,12 +510,22 @@ export interface LoadConfigOptions {
 }
 
 /** Default fetch-based reader (browser/Tauri webview runtime). */
-function fetchReader(
-  baseUrl: string,
-  cacheBust?: string,
-  resolveUrl: AssetUrlResolver = resolveAssetUrl,
-  fetchImpl: typeof fetch = globalThis.fetch,
-): ConfigReader {
+export function fetchReader(opts: {
+  /** Prefix prepended to every read path. */
+  baseUrl: string;
+  /** Cache-busting query (passed by the store on hot-reload refetch). */
+  cacheBust?: string;
+  /** Logical path → runtime URL resolver. Defaults to resolveAssetUrl. */
+  resolveUrl?: AssetUrlResolver;
+  /** fetch injection (tests). Defaults to globalThis.fetch. */
+  fetch?: typeof fetch;
+}): ConfigReader {
+  const {
+    baseUrl,
+    cacheBust,
+    resolveUrl = resolveAssetUrl,
+    fetch: fetchImpl = globalThis.fetch,
+  } = opts;
   return async (file) => {
     const q = cacheBust ? `?t=${encodeURIComponent(cacheBust)}` : "";
     const url = await resolveUrl(`${baseUrl}/${file}${q}`);
@@ -542,7 +552,12 @@ function fetchReader(
 export async function loadConfig(opts: LoadConfigOptions = {}): Promise<AppConfig> {
   const read =
     opts.read ??
-    fetchReader(opts.baseUrl ?? "/configs", opts.cacheBust, opts.resolveUrl, opts.fetch);
+    fetchReader({
+      baseUrl: opts.baseUrl ?? "/configs",
+      cacheBust: opts.cacheBust,
+      resolveUrl: opts.resolveUrl,
+      fetch: opts.fetch,
+    });
 
   // Per-file reads run in parallel; validation runs in deterministic order.
   const [

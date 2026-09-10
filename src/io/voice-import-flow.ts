@@ -9,13 +9,13 @@
 
 import type { Logger } from "../logger";
 import { selectFetch } from "./chat-client";
-import type { SpeakerOption } from "./speaker-selection";
+import { nextRevision, type SpeakerOption } from "./speaker-selection";
 import { upsertVoice } from "./tts-voices";
+import { removeOrphanImport } from "./user-asset-import";
 import {
   copyVoiceFile,
   fileStemFromPath,
   pickVoiceFile,
-  removeOrphanVoice,
   removeUserVoice as removeUserVoiceFile,
 } from "./voice-import";
 
@@ -58,8 +58,7 @@ export function createVoiceImportFlow(deps: {
     const copied = await copyVoiceFile(srcPath, name);
     // A same-name re-import keeps the id but replaces the clip — bump the persisted revision so
     // the existing cross-window settings sync carries the change into other windows' filler cache key.
-    const prevRevision = speakerSelection.list().find((o) => o.id === copied.id)?.revision ?? 0;
-    const option = { ...copied, revision: prevRevision + 1 };
+    const option = { ...copied, revision: nextRevision(speakerSelection.list(), copied.id) };
     try {
       const baseUrl = getTtsBaseUrl();
       if (!baseUrl) throw new Error("voice import requires tts_base_url");
@@ -75,7 +74,7 @@ export function createVoiceImportFlow(deps: {
       });
     } catch (err) {
       // Surface a cleanup failure as a warning rather than swallowing it (the original still throws).
-      await removeOrphanVoice(option.id, removeUserVoiceFile, (e) =>
+      await removeOrphanImport(option.id, removeUserVoiceFile, (e) =>
         log.warn("orphan_voice_cleanup_failed", { error: String(e) }),
       );
       log.error("imported_voice_upload_failed", { error: String(err) });

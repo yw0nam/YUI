@@ -75,14 +75,16 @@ vi.mock("./io/tts-voices", () => ({ deleteVoice, listVoices, upsertVoice }));
 
 // voice-import fakes — wireSpeakerSelection's pickVoiceImport/commitVoiceImport exercise these
 // directly; keeps the suite off the real dialog plugin / Tauri invoke.
-const { pickVoiceFile, copyVoiceFile, removeOrphanVoice, removeUserVoiceMock } = vi.hoisted(() => ({
-  pickVoiceFile: vi.fn(),
-  copyVoiceFile: vi.fn(),
-  removeOrphanVoice: vi.fn(async (id: string, remove: (id: string) => Promise<void>) => {
-    await remove(id);
+const { pickVoiceFile, copyVoiceFile, removeOrphanImport, removeUserVoiceMock } = vi.hoisted(
+  () => ({
+    pickVoiceFile: vi.fn(),
+    copyVoiceFile: vi.fn(),
+    removeOrphanImport: vi.fn(async (id: string, remove: (id: string) => Promise<void>) => {
+      await remove(id);
+    }),
+    removeUserVoiceMock: vi.fn().mockResolvedValue(undefined),
   }),
-  removeUserVoiceMock: vi.fn().mockResolvedValue(undefined),
-}));
+);
 vi.mock("./io/voice-import", () => ({
   pickVoiceFile,
   copyVoiceFile,
@@ -91,8 +93,12 @@ vi.mock("./io/voice-import", () => ({
     const dot = base.lastIndexOf(".");
     return dot > 0 ? base.slice(0, dot) : base;
   },
-  removeOrphanVoice,
   removeUserVoice: removeUserVoiceMock,
+}));
+// The orphan cleanup itself is shared with the VRM import — fake it where it lives.
+vi.mock("./io/user-asset-import", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("./io/user-asset-import")>()),
+  removeOrphanImport,
 }));
 
 // Fake bridge for wireCrossWindowSync: captures the onMouthPreview/onVoiceSet callbacks so
@@ -801,7 +807,7 @@ describe("wireSpeakerSelection — pickVoiceImport / commitVoiceImport", () => {
     upsertVoice.mockReset().mockResolvedValue(undefined);
     pickVoiceFile.mockReset();
     copyVoiceFile.mockReset();
-    removeOrphanVoice.mockClear();
+    removeOrphanImport.mockClear();
     removeUserVoiceMock.mockReset().mockResolvedValue(undefined);
     selectFetch.mockClear();
   });
@@ -895,7 +901,7 @@ describe("wireSpeakerSelection — pickVoiceImport / commitVoiceImport", () => {
 
     await expect(commitVoiceImport("/tmp/MyVoice.wav", "myvoice")).rejects.toThrow("server down");
 
-    expect(removeOrphanVoice).toHaveBeenCalledWith(
+    expect(removeOrphanImport).toHaveBeenCalledWith(
       "myvoice",
       expect.any(Function),
       expect.any(Function),
@@ -919,7 +925,7 @@ describe("wireSpeakerSelection — pickVoiceImport / commitVoiceImport", () => {
     });
 
     await expect(commitVoiceImport("/tmp/MyVoice.wav", "myvoice")).rejects.toThrow("tts_base_url");
-    expect(removeOrphanVoice).toHaveBeenCalledWith(
+    expect(removeOrphanImport).toHaveBeenCalledWith(
       "myvoice",
       expect.any(Function),
       expect.any(Function),
