@@ -1,8 +1,8 @@
 # Desire kickoff
 
-Read `SOUL.md` and the five most recent episodes, fetched with `list_notes` (`kind="episode"`, `limit=5`; nothing is
-injected by recency). Create the initial
-`$DESIRE_STATE_DIR/wants.md` in your own voice with 3–5 open wants spanning:
+Read `SOUL.md` and the five most recent episodes; episodes are not in context unless you fetch them, so call
+`list_notes` (`kind="episode"`, `limit=5`). Create the initial `$DESIRE_STATE_DIR/wants.md` in your own voice with
+3–5 open wants spanning:
 
 - your relationship with the user;
 - something in the world you want to learn about;

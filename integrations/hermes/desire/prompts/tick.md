@@ -112,7 +112,7 @@ an honest `--why`:
   reply; release it if you did:
   `python3 <abs>/integrations/hermes/desire/act.py outbox --release <id> --why "<why it is finished>"`.
 - If a note is close to 48 hours old (bursting) and about to expire, first save its essence with `save_memory` (your own
-  namespace, your own words, `author="<agent>"`) so the unspoken feeling is not lost, then release it. If no memory
+  words, `author="<agent>"`) so the unspoken feeling is not lost, then release it. If no memory
   system is available, the audit log already keeps the record.
 
 ## 5. Issues, comments, and pull requests
