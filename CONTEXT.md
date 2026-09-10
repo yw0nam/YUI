@@ -24,7 +24,7 @@ The brain's decision whether and what to speak. Silence is expressed as empty sp
 ### Turn lifecycle
 
 **Turn**:
-One backend round trip, from the moment the dispatcher admits a trigger until the reply's audio has drained. A local reaction that never reaches the brain is not a Turn. See ADR-0001.
+One backend round trip, from the moment the dispatcher admits a trigger until the reply's audio has drained. A local reaction that never reaches the brain is not a Turn.
 _Avoid_: request, exchange, interaction
 
 **Trigger**:
@@ -90,5 +90,5 @@ A standalone MCP server the brain uses (avatar, browser-cdp, desktop-control, sh
 ### Configuration
 
 **Tunable**:
-A numeric or enum knob the client reads at boot (peek distances, jump gravity, gaze curve, attachment caps). Its one home is `configs/*.json`; the validator requires the section and the consuming module reads the validated value (ADR-0002).
+A numeric or enum knob the client reads at boot (peek distances, jump gravity, gaze curve, attachment caps). Its one home is `configs/*.json`; the validator requires the section and the consuming module reads the validated value.
 _Avoid_: default constant, fallback value, code-side default
