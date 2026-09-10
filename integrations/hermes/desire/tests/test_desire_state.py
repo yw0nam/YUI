@@ -774,8 +774,6 @@ def test_serialize_desire_block_renders_the_since_last_turn_line_after_the_trans
     unreported = [
         {"event": "progressed", "kind": "pr", "ref": "https://github.com/owner/YUI/pull/12"},
         {"event": "shipped", "kind": "issue", "ref": "https://github.com/owner/YUI/issues/7"},
-        {"event": "learned", "kind": "note", "ref": "note:a"},
-        {"event": "learned", "kind": "note", "ref": "note:b"},
     ]
 
     block = desire_state.serialize_desire_block(
@@ -784,12 +782,12 @@ def test_serialize_desire_block_renders_the_since_last_turn_line_after_the_trans
 
     assert block.split("\n")[5] == (
         "since last turn: progressed pr https://github.com/owner/YUI/pull/12; "
-        "shipped issue https://github.com/owner/YUI/issues/7; learned 2 notes"
+        "shipped issue https://github.com/owner/YUI/issues/7"
     )
     one = desire_state.serialize_desire_block(
-        levels, [], now, last_interaction_at=now.isoformat(), unreported=unreported[2:3]
+        levels, [], now, last_interaction_at=now.isoformat(), unreported=unreported[1:]
     )
-    assert one.split("\n")[5] == "since last turn: learned 1 note"
+    assert one.split("\n")[5] == "since last turn: shipped issue https://github.com/owner/YUI/issues/7"
     assert "since last turn:" not in desire_state.serialize_desire_block(
         levels, [], now, last_interaction_at=now.isoformat(), unreported=[]
     )
@@ -823,17 +821,16 @@ def test_read_artefacts_reports_absent_state_and_normalizes_a_partial_record(sta
         state_dir / "artefacts.json",
         {
             "seen": {"pr": ["u"]},
-            "unreported": ["bad", {"kind": "note"}],
+            "unreported": ["bad", {"kind": "pr"}],
             "skill_first_seen": {"a": 1, "b": "t"},
         },
     )
     record = desire_state.read_artefacts(state_dir)
-    assert record["seen"] == {"pr": ["u"], "issue": [], "skill": [], "note": []}
+    assert record["seen"] == {"pr": ["u"], "issue": [], "skill": []}
     assert record["skill_first_seen"] == {"b": "t"}
     assert record["bootstrapped"] == []
     assert record["shipped"] == []
-    assert record["unreported"] == [{"kind": "note"}]
-    assert record["notes_since"] is None
+    assert record["unreported"] == [{"kind": "pr"}]
 
     write_json(state_dir / "artefacts.json", ["not an object"])
     assert desire_state.read_artefacts(state_dir) is None
@@ -841,9 +838,8 @@ def test_read_artefacts_reports_absent_state_and_normalizes_a_partial_record(sta
     assert desire_state.default_artefacts(now) == {
         "bootstrapped_at": now.isoformat(),
         "bootstrapped": [],
-        "seen": {"pr": [], "issue": [], "skill": [], "note": []},
+        "seen": {"pr": [], "issue": [], "skill": []},
         "skill_first_seen": {},
         "shipped": [],
-        "notes_since": now.isoformat(),
         "unreported": [],
     }

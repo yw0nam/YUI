@@ -26,7 +26,6 @@ CAPS = {"signals": 3, "issues": 2, "self_comments": 1, "prs": 1, "dispatches": 1
 DRIVES = ("social", "curiosity", "accomplishment")
 BUCKETS = ("low", "mid", "high")
 ARTEFACT_KINDS = ("pr", "issue", "skill")
-SEEN_KINDS = (*ARTEFACT_KINDS, "note")
 SINCE_LAST_TURN_LIMIT = 8
 EVENT_DOSES = {
     "learned": {"curiosity": 30.0},
@@ -418,10 +417,9 @@ def default_artefacts(now: datetime) -> dict:
     return {
         "bootstrapped_at": stamp,
         "bootstrapped": [],
-        "seen": {kind: [] for kind in SEEN_KINDS},
+        "seen": {kind: [] for kind in ARTEFACT_KINDS},
         "skill_first_seen": {},
         "shipped": [],
-        "notes_since": stamp,
         "unreported": [],
     }
 
@@ -438,11 +436,10 @@ def read_artefacts(state_dir: Path) -> dict | None:
     seen = value.get("seen") if isinstance(value.get("seen"), dict) else {}
     return {
         "bootstrapped_at": value.get("bootstrapped_at"),
-        "bootstrapped": [kind for kind in _text_list(value.get("bootstrapped")) if kind in SEEN_KINDS],
-        "seen": {kind: _text_list(seen.get(kind)) for kind in SEEN_KINDS},
+        "bootstrapped": [kind for kind in _text_list(value.get("bootstrapped")) if kind in ARTEFACT_KINDS],
+        "seen": {kind: _text_list(seen.get(kind)) for kind in ARTEFACT_KINDS},
         "skill_first_seen": _text_map(value.get("skill_first_seen")),
         "shipped": _text_list(value.get("shipped")),
-        "notes_since": value.get("notes_since"),
         "unreported": [item for item in _list(value.get("unreported")) if isinstance(item, dict)],
     }
 
@@ -772,20 +769,15 @@ def _since_last_turn_line(unreported: list[dict]) -> str | None:
     """Name the artefacts the monitor scored since the last rendered turn."""
 
     parts = []
-    notes = 0
     dropped = 0
     for item in unreported:
         event, kind, ref = item.get("event"), item.get("kind"), item.get("ref")
-        if event not in EVENT_DOSES or kind not in SEEN_KINDS or not isinstance(ref, str):
+        if event not in EVENT_DOSES or kind not in ARTEFACT_KINDS or not isinstance(ref, str):
             continue
-        if kind == "note":
-            notes += 1
-        elif len(parts) < SINCE_LAST_TURN_LIMIT:
+        if len(parts) < SINCE_LAST_TURN_LIMIT:
             parts.append(f"{event} {kind} {sanitize_note(ref)}")
         else:
             dropped += 1
-    if notes:
-        parts.append(f"learned {notes} note{'s' if notes > 1 else ''}")
     if dropped:
         parts.append(f"and {dropped} more")
     return f"since last turn: {'; '.join(parts)}" if parts else None
