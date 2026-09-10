@@ -205,6 +205,8 @@ describe("createQuickControls — toggles + gain row", () => {
   });
 
   // ── Idle power-saving toggle row (Advanced tab) ──────────────────────────
+  // Unlike the gated rows below, idleThrottleSettings is part of defaultQcArgs, so this row
+  // always renders — it has no "absent" case to check.
 
   it("renders the idle-throttle toggle row in the Advanced tab, ON by default", () => {
     const qc = buildQc();
@@ -225,91 +227,117 @@ describe("createQuickControls — toggles + gain row", () => {
     qc.dispose();
   });
 
-  it("clicking the idle-throttle switch toggles idleThrottleSettings.setEnabled", () => {
-    const idleThrottleSettings = createFlagSettings(true);
-    const qc = buildQc({ idleThrottleSettings });
+  // ── On/off toggle rows sharing one render/click/external scaffold ────────
+
+  const toggleRows = [
+    {
+      name: "idle-throttle",
+      selector: ".yui-idle-throttle-switch",
+      ariaLabel: "유휴 시 절전",
+      initialEnabled: true,
+      gated: false,
+      build: () => {
+        const settings = createFlagSettings(true);
+        return { settings, qc: buildQc({ idleThrottleSettings: settings }) };
+      },
+    },
+    {
+      name: "gaze",
+      selector: ".yui-gaze-switch",
+      ariaLabel: "커서 따라보기",
+      initialEnabled: true,
+      gated: true,
+      build: () => {
+        const settings = createFlagSettings(true);
+        return { settings, qc: buildQc({ gazeSettings: settings }) };
+      },
+    },
+    {
+      name: "climb",
+      selector: ".yui-climb-switch",
+      ariaLabel: "창 오르기",
+      initialEnabled: true,
+      gated: true,
+      build: () => {
+        const settings = createFlagSettings(true);
+        return { settings, qc: buildQc({ climbSettings: settings }) };
+      },
+    },
+    {
+      name: "agentNotify",
+      selector: ".yui-agentnotify-switch",
+      ariaLabel: "에이전트 알림",
+      initialEnabled: false,
+      gated: true,
+      build: () => {
+        const settings = createAgentNotifySettings();
+        return { settings, qc: buildQc({ agentNotifySettings: settings }) };
+      },
+    },
+  ];
+
+  it.each(
+    toggleRows.filter((row) => row.gated),
+  )("renders the $name toggle row only when its settings are provided", ({
+    selector,
+    ariaLabel,
+    initialEnabled,
+    build,
+  }) => {
+    const withoutRow = buildQc();
+    withoutRow.open();
+    expect(withoutRow.el.querySelector(selector)).toBeNull();
+    withoutRow.dispose();
+
+    const { qc } = build();
+    qc.open();
+    const toggle = qc.el.querySelector<HTMLButtonElement>(selector);
+    expect(toggle).not.toBeNull();
+    expect(toggle!.getAttribute("aria-checked")).toBe(String(initialEnabled));
+    expect(toggle!.getAttribute("role")).toBe("switch");
+    expect(toggle!.getAttribute("aria-label")).toBe(ariaLabel);
+
+    const row = toggle!.closest(".yui-row")!;
+    expect(row.querySelector(".yui-row__label")!.textContent).toContain(ariaLabel);
+    qc.dispose();
+  });
+
+  it.each(toggleRows)("clicking the $name switch toggles setEnabled", ({
+    selector,
+    initialEnabled,
+    build,
+  }) => {
+    const { settings, qc } = build();
     qc.open();
 
-    const idleSwitch = qc.el.querySelector<HTMLButtonElement>(".yui-idle-throttle-switch")!;
-    expect(idleThrottleSettings.get().enabled).toBe(true);
+    const toggle = qc.el.querySelector<HTMLButtonElement>(selector)!;
+    expect(settings.get().enabled).toBe(initialEnabled);
 
-    idleSwitch.click();
-    expect(idleThrottleSettings.get().enabled).toBe(false);
-    expect(idleSwitch.getAttribute("aria-checked")).toBe("false");
+    toggle.click();
+    expect(settings.get().enabled).toBe(!initialEnabled);
+    expect(toggle.getAttribute("aria-checked")).toBe(String(!initialEnabled));
 
-    idleSwitch.click();
-    expect(idleThrottleSettings.get().enabled).toBe(true);
-    expect(idleSwitch.getAttribute("aria-checked")).toBe("true");
+    toggle.click();
+    expect(settings.get().enabled).toBe(initialEnabled);
+    expect(toggle.getAttribute("aria-checked")).toBe(String(initialEnabled));
 
     qc.dispose();
   });
 
-  it("external idleThrottleSettings.setEnabled reflects on the switch while open", () => {
-    const idleThrottleSettings = createFlagSettings(true);
-    const qc = buildQc({ idleThrottleSettings });
+  it.each(toggleRows)("external $name setEnabled reflects on the switch while open", ({
+    selector,
+    initialEnabled,
+    build,
+  }) => {
+    const { settings, qc } = build();
     qc.open();
 
-    const idleSwitch = qc.el.querySelector<HTMLButtonElement>(".yui-idle-throttle-switch")!;
-    idleThrottleSettings.setEnabled(false);
-    expect(idleSwitch.getAttribute("aria-checked")).toBe("false");
+    const toggle = qc.el.querySelector<HTMLButtonElement>(selector)!;
+    settings.setEnabled(!initialEnabled);
+    expect(toggle.getAttribute("aria-checked")).toBe(String(!initialEnabled));
 
-    idleThrottleSettings.setEnabled(true);
-    expect(idleSwitch.getAttribute("aria-checked")).toBe("true");
-
-    qc.dispose();
-  });
-
-  // ── Cursor gaze alignment toggle row (Advanced tab) ────────────────────────
-
-  it("renders the gaze toggle row only when gazeSettings is provided, ON by default", () => {
-    const withoutGaze = buildQc();
-    withoutGaze.open();
-    expect(withoutGaze.el.querySelector(".yui-gaze-switch")).toBeNull();
-    withoutGaze.dispose();
-
-    const qc = buildQc({ gazeSettings: createFlagSettings(true) });
-    qc.open();
-    const gazeSwitch = qc.el.querySelector<HTMLButtonElement>(".yui-gaze-switch");
-    expect(gazeSwitch).not.toBeNull();
-    expect(gazeSwitch!.getAttribute("aria-checked")).toBe("true");
-    expect(gazeSwitch!.getAttribute("role")).toBe("switch");
-    expect(gazeSwitch!.getAttribute("aria-label")).toBe("커서 따라보기");
-
-    const row = gazeSwitch!.closest(".yui-row")!;
-    expect(row.querySelector(".yui-row__label")!.textContent).toContain("커서 따라보기");
-    qc.dispose();
-  });
-
-  it("clicking the gaze switch toggles gazeSettings.setEnabled", () => {
-    const gazeSettings = createFlagSettings(true);
-    const qc = buildQc({ gazeSettings });
-    qc.open();
-
-    const gazeSwitch = qc.el.querySelector<HTMLButtonElement>(".yui-gaze-switch")!;
-    expect(gazeSettings.get().enabled).toBe(true);
-
-    gazeSwitch.click();
-    expect(gazeSettings.get().enabled).toBe(false);
-    expect(gazeSwitch.getAttribute("aria-checked")).toBe("false");
-
-    gazeSwitch.click();
-    expect(gazeSettings.get().enabled).toBe(true);
-    expect(gazeSwitch.getAttribute("aria-checked")).toBe("true");
-
-    qc.dispose();
-  });
-
-  it("external gazeSettings.setEnabled reflects on the switch while open", () => {
-    const gazeSettings = createFlagSettings(true);
-    const qc = buildQc({ gazeSettings });
-    qc.open();
-
-    const gazeSwitch = qc.el.querySelector<HTMLButtonElement>(".yui-gaze-switch")!;
-    gazeSettings.setEnabled(false);
-    expect(gazeSwitch.getAttribute("aria-checked")).toBe("false");
-
-    gazeSettings.setEnabled(true);
-    expect(gazeSwitch.getAttribute("aria-checked")).toBe("true");
+    settings.setEnabled(initialEnabled);
+    expect(toggle.getAttribute("aria-checked")).toBe(String(initialEnabled));
 
     qc.dispose();
   });
@@ -347,116 +375,6 @@ describe("createQuickControls — toggles + gain row", () => {
 
     fallSettings.setEnabled(true);
     expect(fallSwitch.getAttribute("aria-checked")).toBe("true");
-
-    qc.dispose();
-  });
-
-  // ── Window climbing toggle row (Advanced tab) ─────────────────────────────
-
-  it("renders the climb toggle row only when climbSettings is provided, ON by default", () => {
-    const withoutClimb = buildQc();
-    withoutClimb.open();
-    expect(withoutClimb.el.querySelector(".yui-climb-switch")).toBeNull();
-    withoutClimb.dispose();
-
-    const qc = buildQc({ climbSettings: createFlagSettings(true) });
-    qc.open();
-    const climbSwitch = qc.el.querySelector<HTMLButtonElement>(".yui-climb-switch");
-    expect(climbSwitch).not.toBeNull();
-    expect(climbSwitch!.getAttribute("aria-checked")).toBe("true");
-    expect(climbSwitch!.getAttribute("role")).toBe("switch");
-    expect(climbSwitch!.getAttribute("aria-label")).toBe("창 오르기");
-
-    const row = climbSwitch!.closest(".yui-row")!;
-    expect(row.querySelector(".yui-row__label")!.textContent).toContain("창 오르기");
-    qc.dispose();
-  });
-
-  it("clicking the climb switch toggles climbSettings.setEnabled", () => {
-    const climbSettings = createFlagSettings(true);
-    const qc = buildQc({ climbSettings });
-    qc.open();
-
-    const climbSwitch = qc.el.querySelector<HTMLButtonElement>(".yui-climb-switch")!;
-    expect(climbSettings.get().enabled).toBe(true);
-
-    climbSwitch.click();
-    expect(climbSettings.get().enabled).toBe(false);
-    expect(climbSwitch.getAttribute("aria-checked")).toBe("false");
-
-    climbSwitch.click();
-    expect(climbSettings.get().enabled).toBe(true);
-    expect(climbSwitch.getAttribute("aria-checked")).toBe("true");
-
-    qc.dispose();
-  });
-
-  it("external climbSettings.setEnabled reflects on the switch while open", () => {
-    const climbSettings = createFlagSettings(true);
-    const qc = buildQc({ climbSettings });
-    qc.open();
-
-    const climbSwitch = qc.el.querySelector<HTMLButtonElement>(".yui-climb-switch")!;
-    climbSettings.setEnabled(false);
-    expect(climbSwitch.getAttribute("aria-checked")).toBe("false");
-
-    climbSettings.setEnabled(true);
-    expect(climbSwitch.getAttribute("aria-checked")).toBe("true");
-
-    qc.dispose();
-  });
-
-  // ── Agent notifications toggle row (Advanced tab) ─────────────────────────
-
-  it("renders the agentNotify toggle row only when agentNotifySettings is provided, OFF by default", () => {
-    const withoutStore = buildQc();
-    withoutStore.open();
-    expect(withoutStore.el.querySelector(".yui-agentnotify-switch")).toBeNull();
-    withoutStore.dispose();
-
-    const qc = buildQc({ agentNotifySettings: createAgentNotifySettings() });
-    qc.open();
-    const agentNotifySwitch = qc.el.querySelector<HTMLButtonElement>(".yui-agentnotify-switch");
-    expect(agentNotifySwitch).not.toBeNull();
-    expect(agentNotifySwitch!.getAttribute("aria-checked")).toBe("false");
-    expect(agentNotifySwitch!.getAttribute("role")).toBe("switch");
-    expect(agentNotifySwitch!.getAttribute("aria-label")).toBe("에이전트 알림");
-
-    const row = agentNotifySwitch!.closest(".yui-row")!;
-    expect(row.querySelector(".yui-row__label")!.textContent).toContain("에이전트 알림");
-    qc.dispose();
-  });
-
-  it("clicking the agentNotify switch toggles agentNotifySettings.setEnabled", () => {
-    const agentNotifySettings = createAgentNotifySettings();
-    const qc = buildQc({ agentNotifySettings });
-    qc.open();
-
-    const agentNotifySwitch = qc.el.querySelector<HTMLButtonElement>(".yui-agentnotify-switch")!;
-    expect(agentNotifySettings.get().enabled).toBe(false);
-
-    agentNotifySwitch.click();
-    expect(agentNotifySettings.get().enabled).toBe(true);
-    expect(agentNotifySwitch.getAttribute("aria-checked")).toBe("true");
-
-    agentNotifySwitch.click();
-    expect(agentNotifySettings.get().enabled).toBe(false);
-    expect(agentNotifySwitch.getAttribute("aria-checked")).toBe("false");
-
-    qc.dispose();
-  });
-
-  it("external agentNotifySettings.setEnabled reflects on the switch while open", () => {
-    const agentNotifySettings = createAgentNotifySettings();
-    const qc = buildQc({ agentNotifySettings });
-    qc.open();
-
-    const agentNotifySwitch = qc.el.querySelector<HTMLButtonElement>(".yui-agentnotify-switch")!;
-    agentNotifySettings.setEnabled(true);
-    expect(agentNotifySwitch.getAttribute("aria-checked")).toBe("true");
-
-    agentNotifySettings.setEnabled(false);
-    expect(agentNotifySwitch.getAttribute("aria-checked")).toBe("false");
 
     qc.dispose();
   });
