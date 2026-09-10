@@ -37,7 +37,7 @@ export interface BridgeTransport {
 
 export interface SettingsBridge {
   emitSettingsChanged(): void;
-  onSettingsChanged(cb: (from: WindowKind | "unknown") => void): () => void;
+  onSettingsChanged(cb: (from: WindowKind) => void): () => void;
   emitMouthPreview(mouthOpen: number | null): void;
   onMouthPreview(cb: (mouthOpen: number | null) => void): () => void;
   emitVoiceSet(on: boolean): void;
@@ -140,7 +140,7 @@ function newSrcId(): string {
 /** Envelope + self-filter + listener bookkeeping, shared by every cross-window bus. */
 interface BridgeCore {
   emit(name: string, payload?: unknown): void;
-  on<T>(name: string, cb: (payload: T, from: WindowKind | "unknown") => void): () => void;
+  on<T>(name: string, cb: (payload: T, from: WindowKind) => void): () => void;
   dispose(): void;
 }
 
@@ -165,14 +165,11 @@ export function createBridgeCore(
       let off = (): void => {};
       try {
         off = t.listen(name, (raw) => {
-          // Valid envelope: ignore if it's our own. If corrupt/legacy, defensively pass it through as-is.
+          // Only enveloped messages are delivered; a bridge skips its own emits.
           const env = raw as Partial<BridgeEnvelope> | undefined;
-          if (env && typeof env.__src === "string") {
-            if (env.__src === srcId) return;
-            cb(env.payload as never, env.__kind ?? "unknown");
-          } else {
-            cb(((raw as { payload?: unknown } | undefined)?.payload ?? raw) as never, "unknown");
-          }
+          if (!env || typeof env.__src !== "string" || typeof env.__kind !== "string") return;
+          if (env.__src === srcId) return;
+          cb(env.payload as never, env.__kind);
         });
       } catch (err) {
         log.warn("listen_failed", { error: String(err) });
