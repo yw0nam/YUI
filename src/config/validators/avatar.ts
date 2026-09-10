@@ -572,6 +572,9 @@ export function validateAvatar(file: string, raw: unknown): AvatarConfig {
     ranged("deadDeg", 0, 180, true);
     ranged("headEngageDeg", 0, 180, false);
     ranged("disengageDeg", 0, 180, false);
+    // Zero degrees per mount width would freeze tracking, which the gaze on/off toggle owns;
+    // the ceiling matches the other degree-valued keys.
+    ranged("sensitivity", 0, 180, false);
     ranged("maxHeadYaw", 0, 90, false);
     ranged("maxHeadPitch", 0, 90, false);
     ranged("eyeMaxDeg", 0, 90, false);

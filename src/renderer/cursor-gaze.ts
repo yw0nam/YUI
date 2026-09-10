@@ -24,9 +24,6 @@ import {
 
 const DEG2RAD = Math.PI / 180;
 
-/** Degrees of gaze rotation per mount width of cursor offset from the head's screen position. */
-const SENSITIVITY_DEG = 30;
-
 /** Ceiling on the (yaw, pitch) residual vector magnitude — below disengageDeg on purpose. */
 const MAX_RESIDUAL_DEG = 40;
 
@@ -154,7 +151,7 @@ export function createCursorGaze(deps: CursorGazeDeps): CursorGaze {
           x: (gazeHeadPos.x + 1) * 0.5 * mountWidth(),
           y: (1 - gazeHeadPos.y) * 0.5 * mountHeight(),
         };
-        const res = cursorToResidual(cursor, headCss, mountWidth(), SENSITIVITY_DEG);
+        const res = cursorToResidual(cursor, headCss, mountWidth(), gazeConfig.sensitivity);
         residualYawDeg = res.residualYawDeg;
         residualPitchDeg = res.residualPitchDeg;
         eccentricityDeg = res.eccentricityDeg;

@@ -20,6 +20,8 @@ export interface GazeConfig {
   headEngageDeg: number;
   /** Beyond this the character disengages — can't crane the neck around (degrees). */
   disengageDeg: number;
+  /** Degrees of gaze rotation per window-width of cursor offset from the head's screen position. */
+  sensitivity: number;
   /** Max head-bone yaw (degrees). */
   maxHeadYaw: number;
   /** Max head-bone pitch (degrees). */
