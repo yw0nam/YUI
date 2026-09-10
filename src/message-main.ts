@@ -23,19 +23,10 @@ import { isTauri } from "./io/tauri-env";
 import { createLogger, initLogger } from "./logger";
 import { reloadFromStorage as reloadLocale } from "./ui/i18n";
 import { createMessagePlate } from "./ui/message-plate";
+import { attachSummonKey } from "./ui/summon-key";
 import { createSurfaces } from "./ui/surfaces";
 
-/** Input summon hotkey — same key and same guard as the pet window. */
-const SUMMON_KEY = "/";
-
 const log = createLogger("message-bootstrap");
-
-/** Don't intercept the hotkey if focus already sits on an input element. */
-function isTypingTarget(target: EventTarget | null): boolean {
-  if (!(target instanceof HTMLElement)) return false;
-  const tag = target.tagName;
-  return tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT" || target.isContentEditable;
-}
 
 async function bootstrap(): Promise<void> {
   await initLogger();
@@ -123,14 +114,7 @@ async function bootstrap(): Promise<void> {
     }
   });
 
-  function onKeydown(e: KeyboardEvent): void {
-    if (e.key !== SUMMON_KEY || e.metaKey || e.ctrlKey || e.altKey) return;
-    if (surfaces.isInputOpen()) return;
-    if (isTypingTarget(e.target)) return;
-    e.preventDefault();
-    surfaces.summonInput();
-  }
-  window.addEventListener("keydown", onKeydown);
+  const detachSummonKey = attachSummonKey(surfaces);
 
   // The settings window writes the display language into localStorage; both other windows
   // re-read it on the change signal, and again on focus where the signal is unreliable.
@@ -149,7 +133,7 @@ async function bootstrap(): Promise<void> {
 
   window.addEventListener("beforeunload", () => {
     disposeWindowWiring();
-    window.removeEventListener("keydown", onKeydown);
+    detachSummonKey();
     window.removeEventListener("focus", reloadShared);
     unlistenSettings();
     plate.dispose();

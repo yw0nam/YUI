@@ -64,6 +64,7 @@ import {
   createSpeakerSelection,
   localStorageSpeakerStorage,
   localStorageUserSpeakerStorage,
+  nextRevision,
   type SpeakerOption,
 } from "./io/speaker-selection";
 import type { SttVad } from "./io/stt-vad";
@@ -72,10 +73,11 @@ import { isTauri } from "./io/tauri-env";
 import { createTravelFrame, type FrameWindow, type Travel } from "./io/travel-frame";
 import { deleteVoice, upsertVoice } from "./io/tts-voices";
 import { appendRecord } from "./io/turn-record-log";
+import { removeOrphanImport } from "./io/user-asset-import";
 import { removeUserVoice as removeUserVoiceFile } from "./io/voice-import";
 import { createVoiceImportFlow } from "./io/voice-import-flow";
 import { createVoiceListRefresh } from "./io/voice-list-refresh";
-import { importVrmFromFile, removeOrphanVrm, removeUserVrm } from "./io/vrm-import";
+import { importVrmFromFile, removeUserVrm } from "./io/vrm-import";
 import {
   createVrmSelection,
   localStorageUserVrmStorage,
@@ -140,7 +142,7 @@ export function wireVrmSelection(deps: {
       ({ metaName } = await loadVrmSerialized(src));
     } catch (err) {
       // Remove the orphan copy — don't swallow a failure, surface it as a warning (the original error is still thrown).
-      await removeOrphanVrm(option.id, removeUserVrm, (e) =>
+      await removeOrphanImport(option.id, removeUserVrm, (e) =>
         log.warn("orphan_vrm_cleanup_failed", { error: String(e) }),
       );
       log.error("imported_vrm_load_failed", { error: String(err) });
@@ -217,8 +219,11 @@ export function wireSpeakerSelection(deps: {
     });
     // The clip behind an unchanged id was replaced — bump the persisted revision so every
     // window's filler cache key moves with it.
-    const prev = speakerSelection.list().find((o) => o.id === option.id)?.revision ?? 0;
-    speakerSelection.addUserOption({ ...option, source: "user", revision: prev + 1 });
+    speakerSelection.addUserOption({
+      ...option,
+      source: "user",
+      revision: nextRevision(speakerSelection.list(), option.id),
+    });
   };
   const { pickVoiceImport, commitVoiceImport } = createVoiceImportFlow({
     getTtsBaseUrl: () => getEndpoints()?.tts_base_url,

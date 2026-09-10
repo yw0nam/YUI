@@ -25,6 +25,15 @@ export interface SpeakerOption {
   revision?: number;
 }
 
+/**
+ * Next revision for `id`: one past the stored one, 1 for an id the list doesn't carry yet.
+ * A same-name re-import replaces the clip behind an unchanged id, and the bump is what
+ * carries that through the settings sync into every window's filler cache key.
+ */
+export function nextRevision(options: SpeakerOption[], id: string): number {
+  return (options.find((o) => o.id === id)?.revision ?? 0) + 1;
+}
+
 /** The override is the stored id string, or null (no override). */
 export type SpeakerSelectionStorage = SelectionOverrideStorage;
 

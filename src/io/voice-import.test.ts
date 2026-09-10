@@ -13,7 +13,6 @@ import {
   copyVoiceFile,
   fileStemFromPath,
   pickVoiceFile,
-  removeOrphanVoice,
   removeUserVoice,
   type VoiceCopyDeps,
   type VoicePickDeps,
@@ -43,12 +42,6 @@ describe("pickVoiceFile — dialog cancel", () => {
     const out = await pickVoiceFile(deps);
     expect(out).toBeNull();
   });
-
-  it("returns null when the picker yields an empty array (multi off, nothing chosen)", async () => {
-    const deps = makePickDeps({ openDialog: vi.fn(async () => [] as unknown as string) });
-    const out = await pickVoiceFile(deps);
-    expect(out).toBeNull();
-  });
 });
 
 describe("pickVoiceFile — successful pick", () => {
@@ -67,22 +60,6 @@ describe("pickVoiceFile — successful pick", () => {
     const deps = makePickDeps();
     const out = await pickVoiceFile(deps);
     expect(out).toBe("/Users/me/Downloads/MyVoice.wav");
-  });
-
-  it("uses the first entry when the dialog returns a single-element array", async () => {
-    const deps = makePickDeps({
-      openDialog: vi.fn(async () => ["/tmp/Cat.wav"] as unknown as string),
-    });
-    const out = await pickVoiceFile(deps);
-    expect(out).toBe("/tmp/Cat.wav");
-  });
-
-  it("accepts the object form { path } some dialog versions return", async () => {
-    const deps = makePickDeps({
-      openDialog: vi.fn(async () => ({ path: "/tmp/Dog.mp3" }) as unknown as string),
-    });
-    const out = await pickVoiceFile(deps);
-    expect(out).toBe("/tmp/Dog.mp3");
   });
 });
 
@@ -172,26 +149,5 @@ describe("removeUserVoice", () => {
     const invoke = vi.fn(async () => undefined);
     await removeUserVoice("MyVoice", { invoke: invoke as unknown as VoiceCopyDeps["invoke"] });
     expect(invoke).toHaveBeenCalledWith("remove_user_voice", { id: "MyVoice" });
-  });
-});
-
-describe("removeOrphanVoice — orphan cleanup surfaces failures (#162)", () => {
-  it("attempts removal and resolves without calling onError on success", async () => {
-    const remove = vi.fn(async () => {});
-    const onError = vi.fn();
-    await removeOrphanVoice("MyVoice", remove, onError);
-    expect(remove).toHaveBeenCalledWith("MyVoice");
-    expect(onError).not.toHaveBeenCalled();
-  });
-
-  it("surfaces (does not swallow) a failed orphan removal via onError", async () => {
-    const boom = new Error("native delete failed");
-    const remove = vi.fn(async () => {
-      throw boom;
-    });
-    const onError = vi.fn();
-    await expect(removeOrphanVoice("MyVoice", remove, onError)).resolves.toBeUndefined();
-    expect(onError).toHaveBeenCalledOnce();
-    expect(onError.mock.calls[0][0]).toBe(boom);
   });
 });

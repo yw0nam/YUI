@@ -13,6 +13,12 @@ import { cursorPosition, getCurrentWindow, primaryMonitor } from "@tauri-apps/ap
 import { createLogger } from "../logger";
 import { physicalCursorToLocalCss } from "./hit-test";
 import { isTauri } from "./tauri-env";
+import {
+  createWindowStatics,
+  STATIC_REFRESH_TICKS,
+  type Vec2,
+  type WindowStaticsSource,
+} from "./window-statics";
 
 const log = createLogger("cursor-tracker");
 
@@ -22,29 +28,9 @@ const POLL_MS = 33;
 const BACKOFF_MS = 1000;
 /** Consecutive poll failures before reporting the cursor unavailable and backing off. */
 const FAILURE_THRESHOLD = 3;
-/** Ticks between outerPosition/scaleFactor/primaryScaleFactor re-reads (~264ms at POLL_MS). */
-const STATIC_REFRESH_TICKS = 8;
 
-interface Vec2 {
-  x: number;
-  y: number;
-}
-
-/** Unsubscribe handle returned by a Tauri event listener. */
-type Unlisten = () => void;
-
-/** Minimal window surface the tracker needs (Tauri @tauri-apps/api/window) — mirrors hit-test's poll reads. */
-export interface CursorTrackerWindow {
-  cursorPosition(): Promise<Vec2>;
-  outerPosition(): Promise<Vec2>;
-  scaleFactor(): Promise<number>;
-  /** Scale factor the cursor reading is expressed in — the primary monitor's. Falls back to scaleFactor(). */
-  primaryScaleFactor?(): Promise<number>;
-  /** Fires on window move/resize/DPI change — invalidates the cached statics. Non-Tauri: absent. */
-  onMoved?(cb: () => void): Promise<Unlisten>;
-  onResized?(cb: () => void): Promise<Unlisten>;
-  onScaleChanged?(cb: () => void): Promise<Unlisten>;
-}
+/** The window surface the tracker needs: exactly what the statics cache reads and listens to. */
+export type CursorTrackerWindow = WindowStaticsSource;
 
 export interface CursorTrackerController {
   start(): void;
@@ -121,34 +107,8 @@ export function createCursorTracker(opts: CursorTrackerOptions): CursorTrackerCo
   let failureCount = 0;
   let backoff = false;
   let tick = 0;
-  // Cached slow statics — re-read every STATIC_REFRESH_TICKS; null forces a refresh.
-  let cachedOrigin: Vec2 | null = null;
-  let cachedSf = 1;
-  let cachedCursorSf = 1;
-  // Window move/resize/scale-change unlisten handles — awaited (not blocking start()) so a
-  // stop() that lands before they resolve still unsubscribes once they do.
-  let unlistenMoved: Promise<Unlisten> | null = null;
-  let unlistenResized: Promise<Unlisten> | null = null;
-  let unlistenScaleChanged: Promise<Unlisten> | null = null;
-
-  function invalidateStatics(): void {
-    cachedOrigin = null;
-  }
-
-  function subscribeWindowEvents(w: CursorTrackerWindow): void {
-    unlistenMoved = w.onMoved?.(invalidateStatics) ?? null;
-    unlistenResized = w.onResized?.(invalidateStatics) ?? null;
-    unlistenScaleChanged = w.onScaleChanged?.(invalidateStatics) ?? null;
-  }
-
-  function unsubscribeWindowEvents(): void {
-    unlistenMoved?.then((fn) => fn()).catch(() => {});
-    unlistenResized?.then((fn) => fn()).catch(() => {});
-    unlistenScaleChanged?.then((fn) => fn()).catch(() => {});
-    unlistenMoved = null;
-    unlistenResized = null;
-    unlistenScaleChanged = null;
-  }
+  // Window origin and scale factors, re-read every STATIC_REFRESH_TICKS.
+  const statics = createWindowStatics();
 
   function stopPoll(): void {
     if (pollHandle !== null) {
@@ -166,34 +126,21 @@ export function createCursorTracker(opts: CursorTrackerOptions): CursorTrackerCo
 
   async function poll(): Promise<void> {
     if (!running || !win) return;
-    const refreshStatics = cachedOrigin === null || tick % STATIC_REFRESH_TICKS === 0;
+    const refreshStatics = statics.origin === null || tick % STATIC_REFRESH_TICKS === 0;
     tick++;
     try {
-      let cursor: Vec2;
-      if (refreshStatics) {
-        const [c, origin, sf, cursorSf] = await Promise.all([
-          win.cursorPosition(),
-          win.outerPosition(),
-          win.scaleFactor(),
-          win.primaryScaleFactor?.(),
-        ]);
-        cursor = c;
-        cachedOrigin = origin;
-        cachedSf = sf;
-        cachedCursorSf = cursorSf ?? sf;
-      } else {
-        cursor = await win.cursorPosition();
-      }
+      const cursor = await statics.readCursor(win, refreshStatics);
       // Teardown (or hide) may have happened while these reads were in flight.
       if (!running || doc.visibilityState === "hidden") return;
       // A move/resize/scale-change can invalidate the cache while a cached tick's
       // cursorPosition() is still in flight — skip this sample (don't return: the
       // reschedule below must still run, or the loop dies with gaze frozen).
-      if (cachedOrigin !== null) {
+      const origin = statics.origin;
+      if (origin !== null) {
         if (backoff) log.warn("poll_recovered", {});
         failureCount = 0;
         backoff = false;
-        opts.onCursor(physicalCursorToLocalCss(cursor, cachedOrigin, cachedSf, cachedCursorSf));
+        opts.onCursor(physicalCursorToLocalCss(cursor, origin, statics.scale, statics.cursorScale));
       }
     } catch (err) {
       failureCount++;
@@ -230,15 +177,15 @@ export function createCursorTracker(opts: CursorTrackerOptions): CursorTrackerCo
       failureCount = 0;
       backoff = false;
       tick = 0;
-      cachedOrigin = null;
-      subscribeWindowEvents(win);
+      statics.invalidate();
+      statics.subscribe(win);
       doc.addEventListener("visibilitychange", onVisibilityChange);
       if (doc.visibilityState !== "hidden") scheduleNextPoll(POLL_MS);
     },
     stop() {
       running = false;
       stopPoll();
-      unsubscribeWindowEvents();
+      statics.unsubscribe();
       doc.removeEventListener("visibilitychange", onVisibilityChange);
       win = null;
     },

@@ -9,18 +9,21 @@ vi.mock("./tts-voices", () => ({ listVoices, upsertVoice }));
 const { selectFetch } = vi.hoisted(() => ({ selectFetch: vi.fn().mockResolvedValue(undefined) }));
 vi.mock("./chat-client", () => ({ selectFetch }));
 
-const { copyVoiceFile, pickVoiceFile, removeOrphanVoice, removeUserVoice } = vi.hoisted(() => ({
+const { copyVoiceFile, pickVoiceFile, removeOrphanImport, removeUserVoice } = vi.hoisted(() => ({
   copyVoiceFile: vi.fn(),
   pickVoiceFile: vi.fn(),
-  removeOrphanVoice: vi.fn(async (id: string, remove: (id: string) => Promise<void>) => {
+  removeOrphanImport: vi.fn(async (id: string, remove: (id: string) => Promise<void>) => {
     await remove(id);
   }),
   removeUserVoice: vi.fn().mockResolvedValue(undefined),
 }));
+vi.mock("./user-asset-import", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("./user-asset-import")>()),
+  removeOrphanImport,
+}));
 vi.mock("./voice-import", () => ({
   copyVoiceFile,
   pickVoiceFile,
-  removeOrphanVoice,
   removeUserVoice,
   fileStemFromPath: (path: string) => {
     const base = path.split(/[\\/]/).pop() ?? path;
@@ -62,7 +65,7 @@ describe("createVoiceImportFlow", () => {
     upsertVoice.mockReset().mockResolvedValue(undefined);
     copyVoiceFile.mockReset().mockResolvedValue(IMPORTED);
     pickVoiceFile.mockReset();
-    removeOrphanVoice.mockClear();
+    removeOrphanImport.mockClear();
     removeUserVoice.mockReset().mockResolvedValue(undefined);
     noopLog.error.mockClear();
   });
