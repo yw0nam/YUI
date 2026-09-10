@@ -404,7 +404,7 @@
    ════════════════════════════════════════════════════════════ */
 .yui-tool {
   position: absolute;
-  top: var(--yui-tool-top, 4%);
+  top: 4%;
   left: 50%;
   transform: translate(-50%, 4px);
 
