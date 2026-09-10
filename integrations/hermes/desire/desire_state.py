@@ -26,7 +26,7 @@ CAPS = {"signals": 3, "issues": 2, "self_comments": 1, "prs": 1, "dispatches": 1
 DRIVES = ("social", "curiosity", "accomplishment")
 BUCKETS = ("low", "mid", "high")
 ARTEFACT_KINDS = ("pr", "issue", "skill")
-SEEN_KINDS = (*ARTEFACT_KINDS, "note")
+LEARNED_MEMORY = 500
 SINCE_LAST_TURN_LIMIT = 8
 EVENT_DOSES = {
     "learned": {"curiosity": 30.0},
@@ -418,10 +418,10 @@ def default_artefacts(now: datetime) -> dict:
     return {
         "bootstrapped_at": stamp,
         "bootstrapped": [],
-        "seen": {kind: [] for kind in SEEN_KINDS},
+        "seen": {kind: [] for kind in ARTEFACT_KINDS},
         "skill_first_seen": {},
         "shipped": [],
-        "notes_since": stamp,
+        "learned": [],
         "unreported": [],
     }
 
@@ -438,11 +438,11 @@ def read_artefacts(state_dir: Path) -> dict | None:
     seen = value.get("seen") if isinstance(value.get("seen"), dict) else {}
     return {
         "bootstrapped_at": value.get("bootstrapped_at"),
-        "bootstrapped": [kind for kind in _text_list(value.get("bootstrapped")) if kind in SEEN_KINDS],
-        "seen": {kind: _text_list(seen.get(kind)) for kind in SEEN_KINDS},
+        "bootstrapped": [kind for kind in _text_list(value.get("bootstrapped")) if kind in ARTEFACT_KINDS],
+        "seen": {kind: _text_list(seen.get(kind)) for kind in ARTEFACT_KINDS},
         "skill_first_seen": _text_map(value.get("skill_first_seen")),
         "shipped": _text_list(value.get("shipped")),
-        "notes_since": value.get("notes_since"),
+        "learned": _text_list(value.get("learned")),
         "unreported": [item for item in _list(value.get("unreported")) if isinstance(item, dict)],
     }
 
@@ -772,20 +772,15 @@ def _since_last_turn_line(unreported: list[dict]) -> str | None:
     """Name the artefacts the monitor scored since the last rendered turn."""
 
     parts = []
-    notes = 0
     dropped = 0
     for item in unreported:
         event, kind, ref = item.get("event"), item.get("kind"), item.get("ref")
-        if event not in EVENT_DOSES or kind not in SEEN_KINDS or not isinstance(ref, str):
+        if event not in EVENT_DOSES or kind not in ARTEFACT_KINDS or not isinstance(ref, str):
             continue
-        if kind == "note":
-            notes += 1
-        elif len(parts) < SINCE_LAST_TURN_LIMIT:
+        if len(parts) < SINCE_LAST_TURN_LIMIT:
             parts.append(f"{event} {kind} {sanitize_note(ref)}")
         else:
             dropped += 1
-    if notes:
-        parts.append(f"learned {notes} note{'s' if notes > 1 else ''}")
     if dropped:
         parts.append(f"and {dropped} more")
     return f"since last turn: {'; '.join(parts)}" if parts else None
@@ -869,6 +864,15 @@ def satisfy(
     named = {"ref": ref} if kind is None else {"ref": ref, "kind": kind}
     with state_lock(state_dir) as directory:
         state = bootstrap_locked(directory, now)
+        # `learned` names a source the agent read, so one source owes one dose for good.
+        artefacts = (read_artefacts(directory) or default_artefacts(now)) if event == "learned" else None
+        if artefacts is not None and ref in artefacts["learned"]:
+            _append_jsonl_locked(
+                directory / "audit.jsonl",
+                {"at": now.isoformat(), "event": "satisfy_repeated", "event_type": event, **named},
+            )
+            raise ValueError(f"already reported: {ref}")
+
         budget = normalize_budget(state["budget"], now)
         count = budget["events"].get(event, 0)
         cap = EVENT_DAILY_CAPS[event]
@@ -889,9 +893,12 @@ def satisfy(
         reward = homeostatic_drive(before) - homeostatic_drive(after)
 
         budget["events"][event] = count + 1
-        # Budget commits before drives: a crash after this point costs one unused daily slot,
-        # rather than an uncounted dose that could be applied again past the cap.
+        # Budget and the reported source commit before drives: a crash after this point costs one
+        # unused daily slot, rather than an uncounted dose that could be applied again.
         write_json_atomic(directory / "budget.json", budget)
+        if artefacts is not None:
+            artefacts["learned"] = [*artefacts["learned"], ref][-LEARNED_MEMORY:]
+            write_json_atomic(directory / "artefacts.json", artefacts)
         write_json_atomic(directory / "drives.json", drives)
         _append_jsonl_locked(
             directory / "audit.jsonl",

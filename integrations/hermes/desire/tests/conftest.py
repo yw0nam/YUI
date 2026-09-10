@@ -10,8 +10,6 @@ from zoneinfo import ZoneInfo
 
 import pytest
 
-import decay_monitor
-
 KST = ZoneInfo("Asia/Seoul")
 AGENT_NAME = "testagent"
 PROFILE_NAME = "test-profile"
@@ -34,13 +32,10 @@ def state_dir(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
 
 @pytest.fixture(autouse=True)
 def isolated_profile(tmp_path_factory, monkeypatch: pytest.MonkeyPatch) -> Path:
-    """Point derivation at an empty profile root and a memory base that returns no notes."""
+    """Point derivation at an empty profile root."""
 
     home = tmp_path_factory.mktemp("home")
     monkeypatch.setenv("HOME", str(home))
-    monkeypatch.setenv("MEMORY_BASE_URL", "http://memory.test")
-    monkeypatch.setenv("MEMORY_BASE_API_KEY", "test-key")
-    monkeypatch.setattr(decay_monitor, "fetch_notes", lambda url, headers: b"[]")
     return home
 
 

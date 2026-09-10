@@ -20,7 +20,7 @@ python3 <abs>/integrations/hermes/desire/act.py <command>
 1. Read the cursor with `python3 <abs>/integrations/hermes/desire/act.py feedback --get`.
 2. Read `issue_filed` and `pr_filed` events in `$DESIRE_STATE_DIR/audit.jsonl` and collect the filed URLs.
 3. Use `gh` to fetch comments on those issues and pull requests that are newer than the cursor. Also recall recent
-   verbal feedback from memory episodes.
+   verbal feedback from your memory system's episodes, fetched rather than assumed to be in context.
 4. Record the feedback in the relevant want's feedback log, then run
    `python3 <abs>/integrations/hermes/desire/act.py feedback --set <now-iso>`.
 
@@ -69,11 +69,18 @@ section 2 and are not steps either. When no step is available, claim none; an em
 
 When `curiosity` is high, read first — recent YUI commits, pull requests, or issues; a file under `docs/`; a memory
 search; or the web on a topic one of your wants is about — then save what you learned to your memory, with the text
-naming its source: a commit, an issue, a pull request, a document path, or a URL. Where your memory system carries
-tags, tag every such note `<agent>`, which is how the monitor tells your notes from other sessions'. The monitor
-scores `learned` for each new note it can read.
+naming its source: a commit, an issue, a pull request, a document path, or a URL. After saving, report it:
 
-The one thing you score yourself is the user's praise:
+```bash
+python3 <abs>/integrations/hermes/desire/act.py satisfy learned --ref "<the source you named in the note>"
+```
+
+The `--ref` is the identifier itself, written the same way every time: the commit sha, the issue or pull-request
+URL, the repository-relative path, or the URL. One report per source, and only for something you actually read; a
+source you have already reported is refused. Its KST daily cap is 6, reset at midnight, and a report the cap
+refuses is not recorded, so that source is yours to report again the next day.
+
+The user's praise you score the same way:
 
 ```bash
 python3 <abs>/integrations/hermes/desire/act.py satisfy praised --ref "<what they said and where>"
