@@ -2,7 +2,7 @@
  * endpoints-settings.test.ts — per-user endpoint-override reactive store.
  *
  * Pins the contract for src/io/endpoints-settings.ts:
- *   createEndpointsSettings({ storage? }) store (get/set/reset/reload/subscribe/dispose)
+ *   createEndpointsSettings({ storage? }) store (get/set/reload/subscribe/dispose)
  *   localStorageEndpointsStorage(key?) localStorage adapter
  *   isValidEndpointUrl(v) — empty == "no override" == valid
  *   mergeEndpoints(base, overrides) — overlay non-empty valid overrides onto a base EndpointsConfig
@@ -152,46 +152,6 @@ describe("createEndpointsSettings — set", () => {
     store.set({ chat_model: "same" });
     expect(cb).toHaveBeenCalledOnce();
     expect(storage.save).toHaveBeenCalledOnce();
-  });
-});
-
-// ─────────────────────────────────────────────────────────────────────────────
-// createEndpointsSettings — reset
-// ─────────────────────────────────────────────────────────────────────────────
-
-describe("createEndpointsSettings — reset", () => {
-  it("clears all fields to '' and notifies", () => {
-    const store = createEndpointsSettings({
-      storage: {
-        load: () => ({ ...EMPTY, chat_base_url: "http://a", chat_model: "m" }),
-        save: vi.fn(),
-      },
-    });
-    const cb = vi.fn();
-    store.subscribe(cb);
-    store.reset();
-    expect(store.get()).toEqual(EMPTY);
-    expect(cb).toHaveBeenCalledOnce();
-  });
-
-  it("persists the cleared state", () => {
-    const storage: EndpointsStorage = {
-      load: () => ({ ...EMPTY, chat_model: "m" }),
-      save: vi.fn(),
-    };
-    const store = createEndpointsSettings({ storage });
-    store.reset();
-    expect(storage.save).toHaveBeenCalledWith(EMPTY);
-  });
-
-  it("is a no-op when already all-empty", () => {
-    const storage: EndpointsStorage = { load: () => null, save: vi.fn() };
-    const store = createEndpointsSettings({ storage });
-    const cb = vi.fn();
-    store.subscribe(cb);
-    store.reset();
-    expect(cb).not.toHaveBeenCalled();
-    expect(storage.save).not.toHaveBeenCalled();
   });
 });
 
@@ -464,7 +424,7 @@ describe("mergeEndpoints", () => {
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// broker_base_url — store set/get/persist/reload/reset
+// broker_base_url — store set/get/persist/reload
 // ─────────────────────────────────────────────────────────────────────────────
 
 describe("createEndpointsSettings — broker_base_url override", () => {
@@ -479,17 +439,6 @@ describe("createEndpointsSettings — broker_base_url override", () => {
     });
   });
 
-  it("reset() clears broker_base_url", () => {
-    const store = createEndpointsSettings({
-      storage: {
-        load: () => ({ ...EMPTY, broker_base_url: "http://localhost:3201/mcp" }),
-        save: vi.fn(),
-      },
-    });
-    store.reset();
-    expect(store.get().broker_base_url).toBe("");
-  });
-
   it("reloadFromStorage applies an externally-changed broker_base_url", () => {
     const storage = makeMemStorage();
     const store = createEndpointsSettings({ storage });
@@ -500,7 +449,7 @@ describe("createEndpointsSettings — broker_base_url override", () => {
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// chat_api — store set/get/persist/reload/reset
+// chat_api — store set/get/persist/reload
 // ─────────────────────────────────────────────────────────────────────────────
 
 describe("createEndpointsSettings — chat_api override", () => {
@@ -535,14 +484,6 @@ describe("createEndpointsSettings — chat_api override", () => {
       save: vi.fn(),
     };
     expect(createEndpointsSettings({ storage: bad }).get().chat_api).toBe("");
-  });
-
-  it("reset() clears chat_api", () => {
-    const store = createEndpointsSettings({
-      storage: { load: () => ({ ...EMPTY, chat_api: "chat_completions" }), save: vi.fn() },
-    });
-    store.reset();
-    expect(store.get().chat_api).toBe("");
   });
 
   it("reloadFromStorage applies an externally-changed chat_api", () => {

@@ -525,30 +525,6 @@ describe("createOverrideRecordSettings", () => {
     expect(store.get().small).toBe(4);
   });
 
-  it("reset() drops every override, persists, and notifies once", () => {
-    const storage = memStorage<Caps>();
-    const store = capsStore(storage);
-    store.set({ small: 4, big: 900 });
-    const cb = vi.fn();
-    store.subscribe(cb);
-
-    store.reset();
-
-    expect(store.get()).toEqual(CAPS_EMPTY);
-    expect(storage.value).toEqual(CAPS_EMPTY);
-    expect(cb).toHaveBeenCalledTimes(1);
-  });
-
-  it("reset() is a no-op when nothing is overridden", () => {
-    const storage = memStorage<Caps>();
-    const store = capsStore(storage);
-    const cb = vi.fn();
-    store.subscribe(cb);
-    store.reset();
-    expect(cb).not.toHaveBeenCalled();
-    expect(storage.value).toBeNull();
-  });
-
   it("a coercing accept fn rewrites an invalid value instead of keeping the current one", () => {
     const store = createOverrideRecordSettings<{ name: string }>({
       empty: { name: "" },
@@ -587,13 +563,18 @@ describe("createOverrideRecordSettings", () => {
 describe("applyPositiveOverrides", () => {
   it("layers positive values onto a copy, leaving the base untouched", () => {
     const base = { small: 3, big: 30, other: 7 };
-    const merged = applyPositiveOverrides(base, { small: 5, big: 0 });
+    const merged = applyPositiveOverrides(base, { small: 5, big: 0 }, ["small", "big"]);
     expect(merged).toEqual({ small: 5, big: 30, other: 7 });
     expect(base.small).toBe(3);
   });
 
   it("a zero override keeps the base value", () => {
-    expect(applyPositiveOverrides({ a: 4 }, { a: 0 })).toEqual({ a: 4 });
+    expect(applyPositiveOverrides({ a: 4 }, { a: 0 }, ["a"])).toEqual({ a: 4 });
+  });
+
+  it("a key outside the list is never read, so it cannot reach the merged config", () => {
+    const merged = applyPositiveOverrides({ a: 1, b: 2 }, { a: 5, b: 9 }, ["a"]);
+    expect(merged).toEqual({ a: 5, b: 2 });
   });
 });
 

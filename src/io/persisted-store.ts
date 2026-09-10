@@ -243,22 +243,25 @@ export function createOverrideRecordSettings<T extends ScalarFields<T>>(
       core.commit(next);
     },
 
-    /** Drops every override back to the empty value. */
-    reset(): void {
-      core.commit(empty());
-    },
-
     reloadFromStorage: core.reloadFromStorage,
     subscribe: core.subscribe,
     dispose: core.dispose,
   };
 }
 
-/** Layers the positive values of `ov` onto a copy of `base`; 0 keeps base's value. */
-export function applyPositiveOverrides<B extends ScalarFields<B>>(base: B, ov: Partial<B>): B {
+/**
+ * Layers the positive values of `ov` onto a copy of `base`; 0 keeps base's value. Only `keys` are
+ * read, so an unexpected key in a stored override never reaches the merged config.
+ */
+export function applyPositiveOverrides<B extends ScalarFields<B>>(
+  base: B,
+  ov: Partial<B>,
+  keys: readonly (keyof B)[],
+): B {
   const out = { ...base };
-  for (const [k, v] of Object.entries(ov)) {
-    if (typeof v === "number" && v > 0) out[k as keyof B] = v as B[keyof B];
+  for (const k of keys) {
+    const v = ov[k];
+    if (typeof v === "number" && v > 0) out[k] = v as B[keyof B];
   }
   return out;
 }

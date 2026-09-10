@@ -32,6 +32,8 @@ export type GuardrailsStorage = PersistedStorage<RateLimitOverrides>;
  */
 const EMPTY: RateLimitOverrides = { tier2_max: 0, tier3_max: 0, overall_max: 0 };
 
+const KEYS = Object.keys(EMPTY) as (keyof RateLimitOverrides)[];
+
 /** A settable cap: 0 (clear the override) or an integer in 1..RATE_LIMIT_MAX. */
 function acceptCap(_key: keyof RateLimitOverrides, v: unknown): number | undefined {
   return typeof v === "number" && Number.isInteger(v) && v >= 0 && v <= RATE_LIMIT_MAX
@@ -44,7 +46,7 @@ function acceptCap(_key: keyof RateLimitOverrides, v: unknown): number | undefin
  * A cap of 0 keeps the config default; everything outside rate_limit passes through.
  */
 export function mergeGuardrails(base: GuardrailsConfig, ov: RateLimitOverrides): GuardrailsConfig {
-  return { ...base, rate_limit: applyPositiveOverrides(base.rate_limit, ov) };
+  return { ...base, rate_limit: applyPositiveOverrides(base.rate_limit, ov, KEYS) };
 }
 
 /**

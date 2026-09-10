@@ -825,7 +825,7 @@ describe("createQuickControls — endpoints + API keys", () => {
 
   it("selecting a provider preset fills the chat base URL field and commits the override", () => {
     for (const [id, url] of PRESET_URLS) {
-      endpointsSettings.reset();
+      endpointsSettings.set({ chat_base_url: "", chat_model: "", chat_api: "" });
       const qc = buildQc();
       qc.open();
 

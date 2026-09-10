@@ -38,6 +38,8 @@ const EMPTY: ScreenOverrides = {
   recent_cap: 0,
 };
 
+const KEYS = Object.keys(EMPTY) as (keyof ScreenOverrides)[];
+
 /** Per-key ceiling for a settable value — ms thresholds cap at SCREEN_MS_MAX, recent_cap at SCREEN_RECENT_CAP_MAX. */
 const SCREEN_KEY_MAX: Record<keyof ScreenOverrides, number> = {
   prev_dwell_ms: SCREEN_MS_MAX,
@@ -60,7 +62,7 @@ function acceptThreshold(key: keyof ScreenOverrides, v: unknown): number | undef
  * A threshold of 0 keeps the config default.
  */
 export function mergeScreen(base: ScreenConfig, ov: ScreenOverrides): ScreenConfig {
-  return applyPositiveOverrides(base, ov);
+  return applyPositiveOverrides(base, ov, KEYS);
 }
 
 /** Projects a bundled ScreenConfig onto the ScreenOverrides shape for the UI's fallback display. */

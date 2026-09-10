@@ -90,12 +90,14 @@ export function createCueListSettings<C extends Cue>(cfg: CueListConfig<C>) {
 
     addCue(): C {
       const blanks = Object.fromEntries(Object.entries(extras).map(([k, e]) => [k, e.blank]));
+      // Extras sit before `enabled`, matching both cue types and their seed tables —
+      // `equals` compares JSON.stringify output, where key order counts.
       const cue = {
         id: crypto.randomUUID(),
         label: "",
         context: "",
-        enabled: true,
         ...blanks,
+        enabled: true,
       } as C;
       commitEntries([...core.current().entries, cue]);
       return { ...cue };
