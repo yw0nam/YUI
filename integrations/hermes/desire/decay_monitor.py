@@ -275,6 +275,11 @@ def score_artefacts(state_dir, now, observed: dict) -> None:
                     continue
                 record["unreported"].append({"event": event, "kind": kind, "ref": ref, "at": now.isoformat()})
         finally:
+            # `satisfy` records reported sources in the same file, so those come from a fresh read
+            # rather than from the snapshot this scoring pass started with.
+            fresh = desire_state.read_artefacts(state_dir)
+            if fresh is not None:
+                record["learned"] = fresh["learned"]
             desire_state.write_json_atomic(state_dir / "artefacts.json", record)
 
 
