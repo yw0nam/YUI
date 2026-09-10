@@ -331,13 +331,6 @@ export interface EndpointsConfig {
    */
   chat_base_url: string;
   /**
-   * Informational / non-SDK fallback path. Default "/v1/responses", fallback "/v1/chat/completions".
-   * `""` = not configured.
-   * ⚠ SDK path (streamChat) does not use this field — determined by chat_base_url + SDK append.
-   *   Do not combine as `chat_base_url + chat_endpoint` (already has `/v1` duplication).
-   */
-  chat_endpoint: string;
-  /**
    * System nudge to send in the Responses API `instructions` field (config-driven, not hard-coded).
    * Encourages use of the generate_express tool (emotion_id/motion_id/emotion_text). Omitted if not set.
    */

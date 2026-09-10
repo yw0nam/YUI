@@ -359,13 +359,13 @@ describe("createCameraSettings — orbit persistence + round-trip", () => {
     expect(store2.get().polar).toBeCloseTo(70 * DEG, 12);
   });
 
-  it("backward-compat: legacy stored {zoom} fills default orbit angles", () => {
+  it("a stored blob missing orbit angles falls back to defaults", () => {
     const storage: CameraStorage = {
       load: () => ({ zoom: 1.5 }) as unknown as CameraSettings,
       save: vi.fn(),
     };
     const store = createCameraSettings({ storage });
-    expect(store.get().zoom).toBe(1.5);
+    expect(store.get().zoom).toBe(CAMERA_ZOOM_DEFAULT);
     expect(store.get().azimuth).toBe(CAMERA_AZIMUTH_DEFAULT);
     expect(store.get().polar).toBeCloseTo(CAMERA_POLAR_DEFAULT, 12);
   });

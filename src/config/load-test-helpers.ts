@@ -12,7 +12,6 @@ export function goodFixture(): Record<string, unknown> {
   return {
     "endpoints.json": {
       chat_base_url: "http://localhost:8642",
-      chat_endpoint: "/v1/responses",
       stt_base_url: "http://localhost:5517",
       tts_base_url: "http://localhost:8092",
       chat_instructions: "Use the generate_express tool with emotion_id, motion_id, emotion_text.",

@@ -29,7 +29,6 @@ function fakeBroker(): BrokerClient & {
 function endpoints(over: Partial<EndpointsConfig> = {}): EndpointsConfig {
   return {
     chat_base_url: "http://localhost:8643/v1",
-    chat_endpoint: "/v1/responses",
     stt_base_url: "http://localhost:5517",
     tts_base_url: "http://localhost:8092",
     tts_model: "irodori-tts",

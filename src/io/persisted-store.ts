@@ -6,8 +6,8 @@
  * dispose machinery and the localStorage adapter live here.
  *
  * Bootstrap priority: stored > defaults. A storage failure falls back to the
- * defaults. `parse` validates+sanitizes a raw loaded value (or returns null to
- * reject it); `migrate` is consulted at bootstrap only.
+ * defaults. `parse` validates+sanitizes a raw loaded value, returning null to
+ * reject it.
  */
 
 export interface PersistedStorage<T> {
@@ -51,8 +51,6 @@ interface PersistedStoreConfig<T> {
   equals: (a: T, b: T) => boolean;
   /** Deep/shallow copy used for get()/notify()/save(). Default: shallow spread. */
   clone?: (v: T) => T;
-  /** Bootstrap-only fallback when parse() rejects the stored value. */
-  migrate?: (loaded: unknown) => T | null;
 }
 
 export interface PersistedStore<T> {
@@ -69,14 +67,13 @@ export interface PersistedStore<T> {
 }
 
 export function createPersistedStore<T>(cfg: PersistedStoreConfig<T>): PersistedStore<T> {
-  const { storage, defaults, parse, equals, migrate } = cfg;
+  const { storage, defaults, parse, equals } = cfg;
   const clone = cfg.clone ?? ((v: T) => ({ ...v }));
 
   let stored: T | null = null;
   if (storage) {
     try {
-      const loaded = storage.load();
-      stored = parse(loaded) ?? (migrate ? migrate(loaded) : null);
+      stored = parse(storage.load());
     } catch {
       // On storage error, fall back to the defaults
     }

@@ -7,7 +7,6 @@
  *  - addCue/updateCue(valid+invalid idle_min/label)/removeCue
  *  - setEnabled: on change persist + notify, skip if same
  *  - hydration priority + malformed fallback
- *  - migration: old { enabled } (no entries) → keep enabled + fill seed entries
  *  - reloadFromStorage, subscribe/unsubscribe, dispose
  */
 
@@ -27,24 +26,6 @@ function fakeStorage(initial?: unknown): ProactiveStorage & { saved: ProactiveSe
     },
     save(s) {
       saved.push(s);
-    },
-  };
-}
-
-function memStorage(): ProactiveStorage & { _data: ProactiveSettings | null } {
-  let data: ProactiveSettings | null = null;
-  return {
-    get _data() {
-      return data;
-    },
-    set _data(v: ProactiveSettings | null) {
-      data = v;
-    },
-    load() {
-      return data;
-    },
-    save(s) {
-      data = structuredClone(s);
     },
   };
 }
@@ -202,29 +183,6 @@ describe("createProactiveSettings — malformed storage", () => {
     };
     const store = createProactiveSettings({ storage: fakeStorage(malformed) });
     expect(store.get().entries).toHaveLength(3);
-  });
-});
-
-describe("createProactiveSettings — migration from old { enabled } shape", () => {
-  it("{ enabled: false } (no entries) → keeps enabled, fills seed entries", () => {
-    const storage = memStorage();
-    storage._data = { enabled: false } as unknown as ProactiveSettings;
-    const store = createProactiveSettings({ storage });
-    const s = store.get();
-    expect(s.enabled).toBe(false);
-    expect(s.entries).toHaveLength(3);
-    expect(s.entries.map((e) => e.id)).toEqual(["short_break", "mid_check", "long_focus"]);
-  });
-
-  it("{ enabled: false } (no entries) + locale: en → keeps enabled, fills English seed entries", () => {
-    const storage = memStorage();
-    storage._data = { enabled: false } as unknown as ProactiveSettings;
-    const store = createProactiveSettings({ storage, locale: "en" });
-    const s = store.get();
-    expect(s.enabled).toBe(false);
-    expect(s.entries).toHaveLength(3);
-    const shortBreak = s.entries.find((e) => e.id === "short_break")!;
-    expect(shortBreak.label).toBe("Quick break");
   });
 });
 

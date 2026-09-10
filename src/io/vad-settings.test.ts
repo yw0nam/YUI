@@ -136,13 +136,13 @@ describe("createVadSettings — bargeIn", () => {
     expect(store.get().silenceMs).toBe(2200);
   });
 
-  it("parsing a stored value with no bargeIn key defaults bargeIn to true", () => {
+  it("parsing a stored value with no bargeIn key falls back to defaults", () => {
     const storage: VadStorage = {
       load: () => ({ silenceMs: 1800 }) as unknown as VadSettings,
       save: vi.fn(),
     };
     const store = createVadSettings({ storage });
-    expect(store.get()).toEqual({ silenceMs: 1800, bargeIn: true });
+    expect(store.get()).toEqual({ silenceMs: VAD_SILENCE_DEFAULT, bargeIn: true });
   });
 });
 
@@ -188,7 +188,7 @@ describe("createVadSettings — persistence", () => {
 
   it("stored value out of range is clamped on load: {silenceMs:99000} → 3000", () => {
     const storage: VadStorage = {
-      load: () => ({ silenceMs: 99000 }) as unknown as VadSettings,
+      load: () => ({ silenceMs: 99000, bargeIn: true }) as unknown as VadSettings,
       save: vi.fn(),
     };
     const store = createVadSettings({ storage });
@@ -213,7 +213,7 @@ describe("createVadSettings — reloadFromStorage", () => {
   it("clamps an out-of-range stored value on reload", () => {
     const storage = makeMemStorage();
     const store = createVadSettings({ storage });
-    storage._data = { silenceMs: 99000 } as unknown as VadSettings;
+    storage._data = { silenceMs: 99000, bargeIn: true } as unknown as VadSettings;
     store.reloadFromStorage();
     expect(store.get().silenceMs).toBe(VAD_SILENCE_MAX);
   });

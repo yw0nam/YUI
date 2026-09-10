@@ -44,7 +44,6 @@ vi.mock("@ricky0123/vad-web", () => ({
 
 const CONFIG: EndpointsConfig = {
   chat_base_url: "http://localhost:8643/v1",
-  chat_endpoint: "/v1/responses",
   stt_base_url: "http://localhost:5517/v1",
   tts_base_url: "http://localhost:8092",
 };
@@ -669,7 +668,6 @@ describe("createSttVad — no stt_base_url (silently disabled)", () => {
     const { MicVAD } = await import("@ricky0123/vad-web");
     const configNoStt = {
       chat_base_url: "http://localhost:8643/v1",
-      chat_endpoint: "/v1/responses",
     } as unknown as import("../contract").EndpointsConfig;
 
     const stt = createSttVad({ config: () => configNoStt, onVoiceSegment: vi.fn() });
@@ -681,7 +679,6 @@ describe("createSttVad — no stt_base_url (silently disabled)", () => {
   it("stop() with no stt_base_url does not throw", () => {
     const configNoStt = {
       chat_base_url: "http://localhost:8643/v1",
-      chat_endpoint: "/v1/responses",
     } as unknown as import("../contract").EndpointsConfig;
 
     const stt = createSttVad({ config: () => configNoStt, onVoiceSegment: vi.fn() });
@@ -725,7 +722,6 @@ describe("createSttVad — live config getter tracks settings-UI overrides (#611
     const { MicVAD } = await import("@ricky0123/vad-web");
     const current: import("../contract").EndpointsConfig = {
       chat_base_url: "http://localhost:8643/v1",
-      chat_endpoint: "/v1/responses",
     } as unknown as import("../contract").EndpointsConfig;
 
     const stt = createSttVad({ config: () => current, onVoiceSegment: vi.fn() });

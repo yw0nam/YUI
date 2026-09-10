@@ -136,7 +136,6 @@ function sharedLocalStorage(): Storage {
 function endpoints(overrides: Partial<EndpointsConfig> = {}): EndpointsConfig {
   return {
     chat_base_url: "http://chat.test/v1",
-    chat_endpoint: "/responses",
     stt_base_url: "http://stt.test/v1",
     tts_base_url: "http://tts.test",
     tts_model: "irodori-tts",

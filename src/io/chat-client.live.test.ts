@@ -19,7 +19,6 @@ const LIVE = process.env.YUI_LIVE === "1";
 // Real endpoints (same as configs/endpoints.json). The SDK appends /responses after baseURL → .../v1.
 const endpoints: EndpointsConfig = {
   chat_base_url: "http://localhost:8643/v1",
-  chat_endpoint: "/v1/responses",
   stt_base_url: "http://localhost:5517",
   tts_base_url: "http://localhost:8092",
 };
