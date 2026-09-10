@@ -74,6 +74,17 @@ MEMORY_BASE_URL=http://127.0.0.1:8010
 MEMORY_BASE_API_KEY=<the memory_base key>
 ```
 
+memory_base accepts `save_memory` only with an `author` from the key's allowlist, and a new key's allowlist is empty.
+Register the agent's slug on the key the profile uses, with an admin key:
+
+```bash
+curl -X PUT $MEMORY_BASE_URL/keys/<label>/authors -H "X-API-Key: <admin key>" \
+  -H 'Content-Type: application/json' -d '{"authors": ["<agent>"]}'
+```
+
+Check: `curl $MEMORY_BASE_URL/keys/<label>/authors -H "X-API-Key: $MEMORY_BASE_API_KEY"` lists `<agent>`. The prompts
+pass `author="<agent>"` on every save; without this step every save is refused with 403.
+
 ## 4. Monitor script (real file, not a symlink)
 
 Hermes resolves symlinks before checking that a monitor script stays under `~/.hermes/scripts/`; a symlink into
