@@ -4,15 +4,14 @@
  * change; coerce stored junk to defaults.
  */
 
+import { createPersistedStore, localStorageStore, type PersistedStorage } from "./persisted-store";
+
 export interface SessionDiagnostics {
   usedTokens: number | null;
   contextWindow: number | null;
 }
 
-export interface SessionDiagnosticsStorage {
-  load(): SessionDiagnostics | null;
-  save(s: SessionDiagnostics): void;
-}
+export type SessionDiagnosticsStorage = PersistedStorage<SessionDiagnostics>;
 
 const DEFAULTS: SessionDiagnostics = {
   usedTokens: null,
@@ -31,81 +30,31 @@ function coerce(v: unknown): SessionDiagnostics {
   };
 }
 
-function equals(a: SessionDiagnostics, b: SessionDiagnostics): boolean {
-  return a.usedTokens === b.usedTokens && a.contextWindow === b.contextWindow;
-}
-
-function clone(s: SessionDiagnostics): SessionDiagnostics {
-  return {
-    usedTokens: s.usedTokens,
-    contextWindow: s.contextWindow,
-  };
-}
-
 export function createSessionDiagnosticsStore(storage?: SessionDiagnosticsStorage) {
-  let state: SessionDiagnostics = { ...DEFAULTS };
-  if (storage) {
-    try {
-      const loaded = storage.load();
-      if (loaded !== null) state = coerce(loaded);
-    } catch {
-      // storage error → defaults
-    }
-  }
-
-  const subscribers = new Set<(s: SessionDiagnostics) => void>();
-
-  function commit(next: SessionDiagnostics): void {
-    if (equals(state, next)) return;
-    state = next;
-    storage?.save(clone(state));
-    notify();
-  }
-
-  function notify(): void {
-    const copy = clone(state);
-    for (const cb of subscribers) cb(copy);
-  }
+  const core = createPersistedStore<SessionDiagnostics>({
+    storage,
+    defaults: { ...DEFAULTS },
+    // An absent stored value leaves the current one alone; anything else coerces, junk included.
+    parse: (v) => (v === null ? null : coerce(v)),
+    equals: (a, b) => a.usedTokens === b.usedTokens && a.contextWindow === b.contextWindow,
+  });
 
   return {
-    get(): SessionDiagnostics {
-      return clone(state);
-    },
+    get: core.get,
 
     setUsage(usedTokens: number | null, contextWindow: number | null): void {
-      const next = clone(state);
-      next.usedTokens = usedTokens;
-      next.contextWindow = contextWindow;
-      commit(next);
+      core.commit({ usedTokens, contextWindow });
     },
 
     clear(): void {
-      commit({ ...DEFAULTS });
+      core.commit({ ...DEFAULTS });
     },
 
-    subscribe(cb: (s: SessionDiagnostics) => void): () => void {
-      subscribers.add(cb);
-      return () => subscribers.delete(cb);
-    },
+    subscribe: core.subscribe,
 
-    reloadFromStorage(): void {
-      if (!storage) return;
-      let loaded: SessionDiagnostics | null;
-      try {
-        loaded = storage.load();
-      } catch {
-        return;
-      }
-      if (loaded === null) return;
-      const next = coerce(loaded);
-      if (equals(state, next)) return;
-      state = next;
-      notify();
-    },
+    reloadFromStorage: core.reloadFromStorage,
 
-    dispose(): void {
-      subscribers.clear();
-    },
+    dispose: core.dispose,
   };
 }
 
@@ -113,22 +62,5 @@ export function createSessionDiagnosticsStore(storage?: SessionDiagnosticsStorag
 export function localStorageSessionDiagnosticsStorage(
   key = "yui.session_diagnostics",
 ): SessionDiagnosticsStorage {
-  return {
-    load() {
-      try {
-        const raw = globalThis.localStorage?.getItem(key);
-        if (!raw) return null;
-        return JSON.parse(raw) as SessionDiagnostics;
-      } catch {
-        return null;
-      }
-    },
-    save(s) {
-      try {
-        globalThis.localStorage?.setItem(key, JSON.stringify(s));
-      } catch {
-        // localStorage unavailable → no-op
-      }
-    },
-  };
+  return localStorageStore<SessionDiagnostics>(key);
 }

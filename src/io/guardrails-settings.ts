@@ -6,10 +6,11 @@
 
 import type { GuardrailsConfig } from "../config/load";
 import {
-  createPersistedStore,
-  isPlainObject,
+  applyPositiveOverrides,
+  createOverrideRecordSettings,
   localStorageStore,
   type PersistedStorage,
+  projectOverrides,
 } from "./persisted-store";
 
 /** Largest cap accepted — a stored value above it counts as no override. */
@@ -22,44 +23,20 @@ export interface RateLimitOverrides {
   overall_max: number;
 }
 
-const RATE_LIMIT_KEYS = [
-  "tier2_max",
-  "tier3_max",
-  "overall_max",
-] as const satisfies readonly (keyof RateLimitOverrides)[];
-
-/**
- * Compile-time totality guard: a cap added to RateLimitOverrides without a matching key above
- * stops `_MissingRateLimitKeys` from being `never`, so `pnpm build` catches the gap rather than
- * the cap silently losing its merge branch, its setter, and its UI row.
- */
-type _MissingRateLimitKeys = Exclude<keyof RateLimitOverrides, (typeof RATE_LIMIT_KEYS)[number]>;
-const _totalityGuard: _MissingRateLimitKeys extends never ? true : _MissingRateLimitKeys = true;
-void _totalityGuard;
-
 export type GuardrailsStorage = PersistedStorage<RateLimitOverrides>;
 
+/**
+ * No override for any cap. Its keys are the store's key list, so a cap added to RateLimitOverrides
+ * without an entry here fails to typecheck rather than silently losing its merge branch, its
+ * setter, and its UI row.
+ */
 const EMPTY: RateLimitOverrides = { tier2_max: 0, tier3_max: 0, overall_max: 0 };
 
 /** A settable cap: 0 (clear the override) or an integer in 1..RATE_LIMIT_MAX. */
-function isCap(v: unknown): v is number {
-  return typeof v === "number" && Number.isInteger(v) && v >= 0 && v <= RATE_LIMIT_MAX;
-}
-
-/** Storage sanitation — a stored cap outside 1..RATE_LIMIT_MAX counts as no override. */
-function coerceCap(v: unknown): number {
-  return isCap(v) ? v : 0;
-}
-
-function coerce(v: unknown): RateLimitOverrides {
-  const s = (v ?? {}) as Record<string, unknown>;
-  const out = { ...EMPTY };
-  for (const k of RATE_LIMIT_KEYS) out[k] = coerceCap(s[k]);
-  return out;
-}
-
-function equals(a: RateLimitOverrides, b: RateLimitOverrides): boolean {
-  return RATE_LIMIT_KEYS.every((k) => a[k] === b[k]);
+function acceptCap(_key: keyof RateLimitOverrides, v: unknown): number | undefined {
+  return typeof v === "number" && Number.isInteger(v) && v >= 0 && v <= RATE_LIMIT_MAX
+    ? v
+    : undefined;
 }
 
 /**
@@ -67,11 +44,7 @@ function equals(a: RateLimitOverrides, b: RateLimitOverrides): boolean {
  * A cap of 0 keeps the config default; everything outside rate_limit passes through.
  */
 export function mergeGuardrails(base: GuardrailsConfig, ov: RateLimitOverrides): GuardrailsConfig {
-  const rate_limit = { ...base.rate_limit };
-  for (const key of RATE_LIMIT_KEYS) {
-    if (ov[key] > 0) rate_limit[key] = ov[key];
-  }
-  return { ...base, rate_limit };
+  return { ...base, rate_limit: applyPositiveOverrides(base.rate_limit, ov) };
 }
 
 /**
@@ -79,37 +52,15 @@ export function mergeGuardrails(base: GuardrailsConfig, ov: RateLimitOverrides):
  * display, dropping window_ms/cooldown_ms — the values this store never overrides.
  */
 export function rateLimitDefaultsFromConfig(g: GuardrailsConfig): RateLimitOverrides {
-  const out = { ...EMPTY };
-  for (const key of RATE_LIMIT_KEYS) out[key] = g.rate_limit[key];
-  return out;
+  return projectOverrides(EMPTY, (key) => g.rate_limit[key]);
 }
 
 export function createGuardrailsSettings(opts?: { storage?: GuardrailsStorage }) {
-  const core = createPersistedStore<RateLimitOverrides>({
+  return createOverrideRecordSettings<RateLimitOverrides>({
     storage: opts?.storage,
-    defaults: { ...EMPTY },
-    // A non-object is rejected so a corrupted stored value cannot erase in-memory caps.
-    parse: (v) => (isPlainObject(v) ? coerce(v) : null),
-    equals,
+    empty: EMPTY,
+    accept: acceptCap,
   });
-
-  return {
-    get: core.get,
-
-    /** An out-of-range value is ignored, so a typo never silently drops the cap already set. */
-    set(partial: Partial<RateLimitOverrides>): void {
-      const next = { ...core.current() };
-      for (const k of RATE_LIMIT_KEYS) {
-        const v = partial[k];
-        if (k in partial && isCap(v)) next[k] = v;
-      }
-      core.commit(next);
-    },
-
-    reloadFromStorage: core.reloadFromStorage,
-    subscribe: core.subscribe,
-    dispose: core.dispose,
-  };
 }
 
 export type GuardrailsSettingsStore = ReturnType<typeof createGuardrailsSettings>;

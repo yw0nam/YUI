@@ -5,6 +5,7 @@ import { createCameraSettings, localStorageCameraStorage } from "./camera-settin
 import { createChatHistoryStore, localStorageChatHistoryStorage } from "./chat-history-store";
 import { createChatKeySettings, localStorageChatKeyStorage } from "./chat-key-settings";
 import { createContextHistory, localStorageContextHistory } from "./context-history";
+import type { CueLocale } from "./cue-list-settings";
 import { createEndpointsSettings, localStorageEndpointsStorage } from "./endpoints-settings";
 import {
   createExpressMotionSettings,
@@ -24,11 +25,7 @@ import {
   localStorageStore,
   type PersistedStorage,
 } from "./persisted-store";
-import {
-  type CueLocale,
-  createProactiveSettings,
-  localStorageProactiveStorage,
-} from "./proactive-settings";
+import { createProactiveSettings, localStorageProactiveStorage } from "./proactive-settings";
 import { createScheduleSettings, localStorageScheduleStorage } from "./schedule-settings";
 import { createScreenKnobSettings, localStorageScreenKnobStorage } from "./screen-settings";
 import { createScreenshotSettings, localStorageScreenshotStorage } from "./screenshot-settings";
