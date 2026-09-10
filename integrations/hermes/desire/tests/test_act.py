@@ -112,14 +112,26 @@ def test_satisfy_learned_lowers_curiosity_by_its_dose(state_dir, at, state_helpe
     assert curiosity == before - desire_state.EVENT_DOSES["learned"]["curiosity"]
 
 
-def test_satisfy_learned_refuses_a_source_reported_past_the_daily_cap(state_dir, at, capsys):
+def test_satisfy_learned_refuses_a_source_reported_twice(state_dir, at, capsys):
     now = at("2026-08-25T12:00:00+09:00")
     ref = "https://github.com/x/y/commit/abc"
-    for _ in range(6):
-        assert act.main(["satisfy", "learned", "--ref", ref], now=now) == 0
+    assert act.main(["satisfy", "learned", "--ref", ref], now=now) == 0
     capsys.readouterr()
 
     assert act.main(["satisfy", "learned", "--ref", ref], now=now) == 1
+
+    captured = capsys.readouterr()
+    assert captured.out == ""
+    assert captured.err == f"already reported: {ref}\n"
+
+
+def test_satisfy_learned_refuses_a_source_past_the_daily_cap(state_dir, at, capsys):
+    now = at("2026-08-25T12:00:00+09:00")
+    for index in range(6):
+        assert act.main(["satisfy", "learned", "--ref", f"source {index}"], now=now) == 0
+    capsys.readouterr()
+
+    assert act.main(["satisfy", "learned", "--ref", "one more source"], now=now) == 1
 
     captured = capsys.readouterr()
     assert captured.out == ""

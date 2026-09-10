@@ -286,6 +286,68 @@ def test_satisfy_reward_uses_decayed_level_and_derived_social(state_dir, at, sta
     assert drives_after["curiosity"] == {"level": 0.0, "anchor_at": now.isoformat()}
 
 
+def test_satisfy_learned_refuses_a_source_it_already_scored(state_dir, at, state_helpers):
+    _, _, read_json, read_jsonl = state_helpers
+    now = at("2026-08-25T12:00:00+09:00")
+    ref = "https://github.com/owner/YUI/commit/abc"
+
+    desire_state.satisfy("learned", ref, now)
+    dosed = read_json(state_dir / "drives.json")["curiosity"]["level"]
+
+    with pytest.raises(ValueError, match="already reported"):
+        desire_state.satisfy("learned", ref, now)
+
+    assert read_json(state_dir / "drives.json")["curiosity"]["level"] == dosed
+    assert read_json(state_dir / "budget.json")["events"] == {"learned": 1}
+    audit = read_jsonl(state_dir / "audit.jsonl")
+    assert sum(1 for event in audit if event["event"] == "drive_satisfied") == 1
+    assert audit[-1] == {
+        "at": now.isoformat(),
+        "event": "satisfy_repeated",
+        "event_type": "learned",
+        "ref": ref,
+    }
+    assert read_json(state_dir / "artefacts.json")["learned"] == [ref]
+
+
+def test_satisfy_learned_still_refuses_a_source_on_a_later_day(state_dir, at, state_helpers):
+    _, _, read_json, _ = state_helpers
+    ref = "docs/reference/motions.md"
+    desire_state.satisfy("learned", ref, at("2026-08-25T12:00:00+09:00"))
+    spent = read_json(state_dir / "budget.json")
+
+    with pytest.raises(ValueError, match="already reported"):
+        desire_state.satisfy("learned", ref, at("2026-08-28T12:00:00+09:00"))
+
+    assert read_json(state_dir / "budget.json") == spent
+
+
+def test_satisfy_learned_remembers_the_last_500_sources(state_dir, at, state_helpers):
+    _, _, read_json, _ = state_helpers
+    now = at("2026-08-25T12:00:00+09:00")
+    write_json, _, _, _ = state_helpers
+    record = desire_state.default_artefacts(now)
+    record["learned"] = [f"source {index}" for index in range(desire_state.LEARNED_MEMORY)]
+    write_json(state_dir / "artefacts.json", record)
+
+    desire_state.satisfy("learned", "one more source", now)
+
+    remembered = read_json(state_dir / "artefacts.json")["learned"]
+    assert len(remembered) == desire_state.LEARNED_MEMORY
+    assert remembered[-1] == "one more source"
+    assert remembered[0] == "source 1"
+
+
+def test_satisfy_praised_scores_the_same_reference_again(state_dir, at, state_helpers):
+    _, _, read_json, _ = state_helpers
+    now = at("2026-08-25T12:00:00+09:00")
+
+    desire_state.satisfy("praised", "he said the fix reads well", now)
+    desire_state.satisfy("praised", "he said the fix reads well", now)
+
+    assert read_json(state_dir / "budget.json")["events"] == {"praised": 2}
+
+
 def test_satisfy_rejects_unknown_event(state_dir, at):
     with pytest.raises(ValueError, match="unknown event: comforted"):
         desire_state.satisfy("comforted", "talked", at("2026-08-25T12:00:00+09:00"))
@@ -830,6 +892,7 @@ def test_read_artefacts_reports_absent_state_and_normalizes_a_partial_record(sta
     assert record["skill_first_seen"] == {"b": "t"}
     assert record["bootstrapped"] == []
     assert record["shipped"] == []
+    assert record["learned"] == []
     assert record["unreported"] == [{"kind": "pr"}]
 
     write_json(state_dir / "artefacts.json", ["not an object"])
@@ -841,5 +904,6 @@ def test_read_artefacts_reports_absent_state_and_normalizes_a_partial_record(sta
         "seen": {"pr": [], "issue": [], "skill": []},
         "skill_first_seen": {},
         "shipped": [],
+        "learned": [],
         "unreported": [],
     }
