@@ -5,10 +5,17 @@
  * subscribers only on change.
  */
 
+import { createPersistedStore, type PersistedStorage } from "./persisted-store";
+
 export interface SessionStorage {
   load(): string | null;
   save(id: string): void;
   clear(): void;
+}
+
+/** Boxed so "no session" stays a value the store holds, notifies, and reloads. */
+interface SessionState {
+  id: string | null;
 }
 
 /** Only a non-empty string counts as a valid response id. Anything else (non-string/blank) is "none". */
@@ -18,63 +25,44 @@ function coerce(v: unknown): string | null {
   return t === "" ? null : t;
 }
 
+/** Boxes a SessionStorage for the shared core; saving "none" removes the key. */
+function boxed(storage: SessionStorage): PersistedStorage<SessionState> {
+  return {
+    load: () => ({ id: storage.load() }),
+    save: (s) => (s.id === null ? storage.clear() : storage.save(s.id)),
+  };
+}
+
 export function createSessionStore(storage?: SessionStorage) {
-  let state: string | null = null;
-  if (storage) {
-    try {
-      state = coerce(storage.load());
-    } catch {
-      // On storage error, fall back to "none".
-    }
-  }
-
-  const subscribers = new Set<(id: string | null) => void>();
-
-  function notify(): void {
-    for (const cb of subscribers) cb(state);
-  }
+  const core = createPersistedStore<SessionState>({
+    storage: storage && boxed(storage),
+    defaults: { id: null },
+    parse: (v) => ({ id: coerce((v as SessionState | null)?.id) }),
+    equals: (a, b) => a.id === b.id,
+  });
 
   return {
     get(): string | null {
-      return state;
+      return core.current().id;
     },
 
     set(id: string): void {
       const next = coerce(id);
-      if (next === null || next === state) return;
-      state = next;
-      storage?.save(state);
-      notify();
+      if (next === null) return;
+      core.commit({ id: next });
     },
 
     clear(): void {
-      if (state === null) return;
-      state = null;
-      storage?.clear();
-      notify();
+      core.commit({ id: null });
     },
 
-    reloadFromStorage(): void {
-      if (!storage) return;
-      let loaded: string | null;
-      try {
-        loaded = coerce(storage.load());
-      } catch {
-        return;
-      }
-      if (loaded === state) return;
-      state = loaded;
-      notify();
-    },
+    reloadFromStorage: core.reloadFromStorage,
 
     subscribe(cb: (id: string | null) => void): () => void {
-      subscribers.add(cb);
-      return () => subscribers.delete(cb);
+      return core.subscribe((s) => cb(s.id));
     },
 
-    dispose(): void {
-      subscribers.clear();
-    },
+    dispose: core.dispose,
   };
 }
 

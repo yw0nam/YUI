@@ -12,10 +12,13 @@
 import { describe, expect, it, vi } from "vitest";
 import type { PersistedStorage } from "./persisted-store";
 import {
+  applyPositiveOverrides,
   createClampedIntSettings,
   createFlagSettings,
+  createOverrideRecordSettings,
   createPersistedStore,
   localStorageStore,
+  projectOverrides,
 } from "./persisted-store";
 
 interface Box {
@@ -405,5 +408,179 @@ describe("createClampedIntSettings", () => {
     const storage: PersistedStorage<{ value: number }> = { load, save: vi.fn() };
     expect(createClampedIntSettings(cfg, { storage }).get()).toEqual({ value: 10 });
     expect(load).toHaveBeenCalled();
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// createOverrideRecordSettings — flat record of per-key overrides
+// ─────────────────────────────────────────────────────────────────────────────
+
+interface Caps {
+  small: number;
+  big: number;
+}
+
+const CAPS_EMPTY: Caps = { small: 0, big: 0 };
+const CEILING: Record<keyof Caps, number> = { small: 10, big: 1000 };
+
+/** Validating accept: an out-of-range value is rejected, so the current one stays. */
+function acceptCap<K extends keyof Caps>(key: K, v: unknown): Caps[K] | undefined {
+  return typeof v === "number" && Number.isInteger(v) && v >= 0 && v <= CEILING[key]
+    ? (v as Caps[K])
+    : undefined;
+}
+
+function capsStore(storage?: PersistedStorage<Caps>) {
+  return createOverrideRecordSettings<Caps>({ storage, empty: CAPS_EMPTY, accept: acceptCap });
+}
+
+function memStorage<T>(initial: T | null = null): PersistedStorage<T> & { value: T | null } {
+  return {
+    value: initial,
+    load() {
+      return this.value;
+    },
+    save(s) {
+      this.value = s;
+    },
+  };
+}
+
+describe("createOverrideRecordSettings", () => {
+  it("defaults to the empty value for every key", () => {
+    expect(capsStore().get()).toEqual(CAPS_EMPTY);
+  });
+
+  it("set() persists one key, notifies once, and leaves the others alone", () => {
+    const storage = memStorage<Caps>();
+    const store = capsStore(storage);
+    const cb = vi.fn();
+    store.subscribe(cb);
+
+    store.set({ small: 4 });
+
+    expect(store.get()).toEqual({ small: 4, big: 0 });
+    expect(storage.value).toEqual({ small: 4, big: 0 });
+    expect(cb).toHaveBeenCalledTimes(1);
+  });
+
+  it("setting the empty value clears an override", () => {
+    const store = capsStore(memStorage<Caps>());
+    store.set({ small: 4 });
+    store.set({ small: 0 });
+    expect(store.get().small).toBe(0);
+  });
+
+  it("a value the accept fn rejects keeps the current one, without persisting or notifying", () => {
+    const storage = memStorage<Caps>();
+    const store = capsStore(storage);
+    store.set({ small: 4 });
+    const cb = vi.fn();
+    store.subscribe(cb);
+
+    for (const bad of [-1, 2.5, 11, Number.NaN, "3"]) {
+      store.set({ small: bad as number });
+      expect(store.get().small).toBe(4);
+    }
+    expect(cb).not.toHaveBeenCalled();
+  });
+
+  it("applies each key's own ceiling", () => {
+    const store = capsStore();
+    store.set({ small: 11, big: 11 });
+    expect(store.get()).toEqual({ small: 0, big: 11 });
+  });
+
+  it("a key absent from the partial is left untouched", () => {
+    const store = capsStore();
+    store.set({ small: 4 });
+    store.set({ big: 900 });
+    expect(store.get()).toEqual({ small: 4, big: 900 });
+  });
+
+  it("sanitizes a stored value the accept fn rejects into the empty value", () => {
+    const storage = memStorage<Caps>({ small: 999, big: 500 });
+    expect(capsStore(storage).get()).toEqual({ small: 0, big: 500 });
+  });
+
+  it("rejects a non-object stored value wholesale", () => {
+    const storage = memStorage<Caps>("garbage" as unknown as Caps);
+    expect(capsStore(storage).get()).toEqual(CAPS_EMPTY);
+  });
+
+  it("reloadFromStorage adopts another window's edit", () => {
+    const storage = memStorage<Caps>();
+    const store = capsStore(storage);
+    storage.value = { small: 7, big: 0 };
+    store.reloadFromStorage();
+    expect(store.get().small).toBe(7);
+  });
+
+  it("reloadFromStorage ignores a corrupted stored value and keeps the in-memory one", () => {
+    const storage = memStorage<Caps>();
+    const store = capsStore(storage);
+    store.set({ small: 4 });
+    storage.value = "garbage" as unknown as Caps;
+    store.reloadFromStorage();
+    expect(store.get().small).toBe(4);
+  });
+
+  it("a coercing accept fn rewrites an invalid value instead of keeping the current one", () => {
+    const store = createOverrideRecordSettings<{ name: string }>({
+      empty: { name: "" },
+      accept: (_key, v) => (typeof v === "string" ? v.slice(0, 3) : ""),
+    });
+    store.set({ name: "abcdef" });
+    expect(store.get().name).toBe("abc");
+    store.set({ name: 7 as unknown as string });
+    expect(store.get().name).toBe("");
+  });
+
+  it("the unsubscribe fn stops notifications and dispose stops every subscriber", () => {
+    const store = capsStore();
+    const cb = vi.fn();
+    const off = store.subscribe(cb);
+    store.set({ small: 1 });
+    off();
+    store.set({ small: 2 });
+    expect(cb).toHaveBeenCalledTimes(1);
+
+    const other = vi.fn();
+    store.subscribe(other);
+    store.dispose();
+    store.set({ small: 3 });
+    expect(other).not.toHaveBeenCalled();
+  });
+
+  it("get() returns a copy, not the internal state", () => {
+    const store = capsStore();
+    const a = store.get();
+    a.small = 9;
+    expect(store.get().small).toBe(0);
+  });
+});
+
+describe("applyPositiveOverrides", () => {
+  it("layers positive values onto a copy, leaving the base untouched", () => {
+    const base = { small: 3, big: 30, other: 7 };
+    const merged = applyPositiveOverrides(base, { small: 5, big: 0 }, ["small", "big"]);
+    expect(merged).toEqual({ small: 5, big: 30, other: 7 });
+    expect(base.small).toBe(3);
+  });
+
+  it("a zero override keeps the base value", () => {
+    expect(applyPositiveOverrides({ a: 4 }, { a: 0 }, ["a"])).toEqual({ a: 4 });
+  });
+
+  it("a key outside the list is never read, so it cannot reach the merged config", () => {
+    const merged = applyPositiveOverrides({ a: 1, b: 2 }, { a: 5, b: 9 }, ["a"]);
+    expect(merged).toEqual({ a: 5, b: 2 });
+  });
+});
+
+describe("projectOverrides", () => {
+  it("reads every key of the empty shape through the reader", () => {
+    const source = { small: 3, big: 30, extra: 99 };
+    expect(projectOverrides(CAPS_EMPTY, (key) => source[key])).toEqual({ small: 3, big: 30 });
   });
 });

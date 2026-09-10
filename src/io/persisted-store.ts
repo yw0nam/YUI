@@ -193,3 +193,85 @@ export function createClampedIntSettings(
 }
 
 export type ClampedIntSettingsStore = ReturnType<typeof createClampedIntSettings>;
+
+/** Constraint for an override record: every field is a scalar, so `===` decides change. */
+type ScalarFields<T> = { [K in keyof T]: string | number };
+
+interface OverrideRecordConfig<T extends ScalarFields<T>> {
+  storage?: PersistedStorage<T>;
+  /** The no-override value for every key — its keys are the store's key list. */
+  empty: T;
+  /** Validate one key's incoming value: the value to adopt, or undefined to keep the current one. */
+  accept: <K extends keyof T>(key: K, v: unknown) => T[K] | undefined;
+}
+
+/**
+ * Overridable-record settings store: a flat record of per-key overrides layered onto a bundled
+ * config. A stored value `accept` rejects sanitizes to the empty value; a value handed to set()
+ * that it rejects is ignored, so a typo never silently drops the override already set.
+ */
+export function createOverrideRecordSettings<T extends ScalarFields<T>>(
+  cfg: OverrideRecordConfig<T>,
+) {
+  const keys = Object.keys(cfg.empty) as (keyof T)[];
+  const empty = (): T => ({ ...cfg.empty });
+
+  const core = createPersistedStore<T>({
+    storage: cfg.storage,
+    defaults: empty(),
+    // A non-object is rejected so a corrupted stored value cannot erase in-memory overrides.
+    parse: (v) => {
+      if (!isPlainObject(v)) return null;
+      const raw = v as Record<string, unknown>;
+      const out = empty();
+      for (const k of keys) out[k] = cfg.accept(k, raw[k as string]) ?? cfg.empty[k];
+      return out;
+    },
+    equals: (a, b) => keys.every((k) => a[k] === b[k]),
+  });
+
+  return {
+    get: core.get,
+
+    set(partial: Partial<T>): void {
+      const next = { ...core.current() };
+      for (const k of keys) {
+        if (!(k in partial)) continue;
+        const v = cfg.accept(k, partial[k]);
+        if (v !== undefined) next[k] = v;
+      }
+      core.commit(next);
+    },
+
+    reloadFromStorage: core.reloadFromStorage,
+    subscribe: core.subscribe,
+    dispose: core.dispose,
+  };
+}
+
+/**
+ * Layers the positive values of `ov` onto a copy of `base`; 0 keeps base's value. Only `keys` are
+ * read, so an unexpected key in a stored override never reaches the merged config.
+ */
+export function applyPositiveOverrides<B extends ScalarFields<B>>(
+  base: B,
+  ov: Partial<B>,
+  keys: readonly (keyof B)[],
+): B {
+  const out = { ...base };
+  for (const k of keys) {
+    const v = ov[k];
+    if (typeof v === "number" && v > 0) out[k] = v as B[keyof B];
+  }
+  return out;
+}
+
+/** Projects a bundled config onto an override shape, reading one value per key of `empty`. */
+export function projectOverrides<T extends ScalarFields<T>>(
+  empty: T,
+  read: (key: keyof T) => T[keyof T],
+): T {
+  const out = { ...empty };
+  for (const k of Object.keys(empty) as (keyof T)[]) out[k] = read(k);
+  return out;
+}

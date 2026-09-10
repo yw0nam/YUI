@@ -6,10 +6,10 @@
 
 import type { EndpointsConfig } from "../contract";
 import {
-  createPersistedStore,
-  isPlainObject,
+  createOverrideRecordSettings,
   localStorageStore,
   type PersistedStorage,
+  projectOverrides,
 } from "./persisted-store";
 
 /** Max length per field (overly long storage values are capped, not reset to ""). */
@@ -87,20 +87,12 @@ export const ENDPOINT_FIELD_SPECS = [
   { key: "chat_api", kind: "enum", enum: VALID_CHAT_APIS, resetGroup: "chat" },
 ] as const satisfies readonly EndpointFieldSpec[];
 
-/** Literal union of every key declared above — used by the totality guard below. */
+/** Literal union of every key declared above — a key of EndpointOverrides missing here fails EMPTY's annotation. */
 type SpecKeys = (typeof ENDPOINT_FIELD_SPECS)[number]["key"];
-
-/**
- * Compile-time totality guard: if EndpointOverrides gains a field without a matching row above,
- * `_MissingFieldSpecRows` stops being `never` and this line fails to typecheck — `pnpm build`
- * catches the gap, not just the runtime test in endpoints-settings.test.ts.
- */
-type _MissingFieldSpecRows = Exclude<keyof EndpointOverrides, SpecKeys>;
-const _totalityGuard: _MissingFieldSpecRows extends never ? true : _MissingFieldSpecRows = true;
-void _totalityGuard;
 
 const FIELDS: readonly (keyof EndpointOverrides)[] = ENDPOINT_FIELD_SPECS.map((s) => s.key);
 
+/** No override for any field. Its keys are the store's key list. */
 const EMPTY: EndpointOverrides = Object.fromEntries(FIELDS.map((k) => [k, ""])) as Record<
   SpecKeys,
   string
@@ -125,17 +117,6 @@ function coerceFor(key: keyof EndpointOverrides, v: unknown): string {
     return typeof v === "string" && /^[1-9]\d*$/.test(v) ? v : "";
   }
   return coerceField(v);
-}
-
-function coerce(v: unknown): EndpointOverrides {
-  const s = (v ?? {}) as Record<string, unknown>;
-  const out = { ...EMPTY };
-  for (const k of FIELDS) out[k] = coerceFor(k, s[k]);
-  return out;
-}
-
-function equals(a: EndpointOverrides, b: EndpointOverrides): boolean {
-  return FIELDS.every((k) => a[k] === b[k]);
 }
 
 /**
@@ -200,42 +181,19 @@ export function mergeEndpoints(base: EndpointsConfig, ov: EndpointOverrides): En
  */
 export function endpointDefaultsFromConfig(e: EndpointsConfig): EndpointOverrides {
   const src = e as unknown as Record<string, unknown>;
-  const out = { ...EMPTY };
-  for (const key of FIELDS) {
+  return projectOverrides(EMPTY, (key) => {
     const raw = src[key];
-    out[key] = raw === undefined || raw === null ? "" : String(raw);
-  }
-  return out;
+    return raw === undefined || raw === null ? "" : String(raw);
+  });
 }
 
 export function createEndpointsSettings(opts?: { storage?: EndpointsStorage }) {
-  const core = createPersistedStore<EndpointOverrides>({
+  return createOverrideRecordSettings<EndpointOverrides>({
     storage: opts?.storage,
-    defaults: { ...EMPTY },
-    // A non-object is rejected so a corrupted stored value cannot erase in-memory overrides.
-    parse: (v) => (isPlainObject(v) ? coerce(v) : null),
-    equals,
+    empty: EMPTY,
+    // Every value coerces, so an invalid one clears the field rather than keeping the old override.
+    accept: coerceFor,
   });
-
-  return {
-    get: core.get,
-
-    set(partial: Partial<EndpointOverrides>): void {
-      const next = { ...core.current() };
-      for (const k of FIELDS) {
-        if (k in partial) next[k] = coerceFor(k, partial[k]);
-      }
-      core.commit(next);
-    },
-
-    reset(): void {
-      core.commit({ ...EMPTY });
-    },
-
-    reloadFromStorage: core.reloadFromStorage,
-    subscribe: core.subscribe,
-    dispose: core.dispose,
-  };
 }
 
 /** localStorage-based EndpointsStorage adapter. Gracefully ignored in environments without localStorage. */

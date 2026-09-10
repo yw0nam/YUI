@@ -154,6 +154,7 @@ YUI/
       reference-clip.ts              # Reference-clip URL resolution and transport selection
       speaker-selection.ts           # Owns the active TTS speaker selection
       vrm-import.ts                  # VRM import: OS picker, native copy, avatar-option registration
+      user-asset-import.ts           # Dialog result shape, lazy Tauri loaders, and orphan cleanup shared by the voice and VRM imports
       vrm-selection.ts               # Owns the active VRM selection
       selection-store.ts             # Generic selection store behind VRM and speaker selection
       safe-id.ts                     # TS mirror of the native stem sanitizer for persisted option ids
@@ -171,6 +172,7 @@ YUI/
       screen-geometry.ts             # Monitor containment and work-area floor math shared by every window mover
       screenshot-context.ts          # Pure encoder for the screenshot context block
       asset-url.ts                   # Logical asset paths to runtime-fetchable URLs
+      window-statics.ts              # Cached window origin and scale factors for the global-cursor poll loops
       cursor-tracker.ts              # Forwards the OS cursor position to the gaze apply layer
       frontmost-tracker.ts           # Latest frontmost-window sample off the os_event channel
       hit-test.ts                    # Click-through hit-test controller for the transparent window
@@ -201,8 +203,11 @@ YUI/
       idle-motion-settings.ts        # Selects which ambient idle variants may play
       lipsync-settings.ts            # Lip-sync gain
       message-window-settings.ts     # Message-window mode and last outer position
+      cue-list-settings.ts           # Shared on/off flag plus editable cue list behind the schedule and proactive stores
       proactive-settings.ts          # Idle-gap proactive cue list and its on/off flag
+      proactive-seeds.ts             # Per-locale default proactive cues seeded on a first run
       schedule-settings.ts           # Clock-time schedule cue list and its on/off flag
+      schedule-seeds.ts              # Per-locale default schedule cues seeded on a first run
       screen-settings.ts             # User-editable screen-watch thresholds
       screenshot-settings.ts         # Screenshot enabled state and source
       sections-settings.ts           # Collapsed state of the Quick Controls sections
@@ -213,6 +218,7 @@ YUI/
       surfaces-router.ts             # One Surfaces handle over the pet window and the message window
       speech-bubble.ts               # Speech bubble: dwell, scroll, markdown, and aria for streamed speech
       text-input.ts                  # Text input: submit, busy, error, and feet anchoring
+      summon-key.ts                  # Binds the focused window's "/" key to open the text input
       tool-status.ts                 # Tool-status chip observing backend tool calls
       tool-labels.ts                 # Tool id to display label lookup
       turn-error.ts                  # Backend-failure reason to inline input-error message

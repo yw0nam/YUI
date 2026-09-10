@@ -3,213 +3,39 @@
  * Persists to storage on change and notifies subscribers. Does not stop source subscriptions; only gates firing.
  */
 
-import { createPersistedStore, localStorageStore, type PersistedStorage } from "./persisted-store";
+import {
+  type Cue,
+  type CueListSettings,
+  type CueLocale,
+  type CueStorage,
+  createCueListSettings,
+} from "./cue-list-settings";
+import { localStorageStore } from "./persisted-store";
+import { PROACTIVE_CUE_SEEDS } from "./proactive-seeds";
 
-export interface ProactiveCue {
-  id: string;
-  label: string;
-  context: string;
+export interface ProactiveCue extends Cue {
   /** Minutes elapsed since the last interaction. */
   idle_min: number;
-  enabled: boolean;
 }
 
-export interface ProactiveSettings {
-  enabled: boolean;
-  entries: ProactiveCue[];
-}
+export type ProactiveSettings = CueListSettings<ProactiveCue>;
 
-export type ProactiveStorage = PersistedStorage<ProactiveSettings>;
+export type ProactiveStorage = CueStorage<ProactiveCue>;
 
-/** Locale for seeding default cue text. Structurally compatible with ui's Locale — not imported to keep io free of ui. */
-export type CueLocale = "en" | "ja" | "ko";
-
-const SEED_ENTRIES: Record<CueLocale, ProactiveCue[]> = {
-  ko: [
-    {
-      id: "short_break",
-      label: "잠깐 환기",
-      context: "5분 넘게 조용하네. 잠깐 고개 들고 환기 좀 하라고 살짝 말해줘.",
-      idle_min: 5,
-      enabled: true,
-    },
-    {
-      id: "mid_check",
-      label: "슬슬 체크",
-      context: "10분 넘게 말이 없네. 작업 잘 되고 있는지 가볍게 물어봐줘. 부담스럽지 않게.",
-      idle_min: 10,
-      enabled: true,
-    },
-    {
-      id: "long_focus",
-      label: "오래 집중",
-      context: "30분이나 됐어. 잠깐 쉬는 건 어때? 너무 오래 앉아 있으면 몸이 힘들잖아.",
-      idle_min: 30,
-      enabled: true,
-    },
-  ],
-  en: [
-    {
-      id: "short_break",
-      label: "Quick break",
-      context:
-        "It's been quiet for over 5 minutes. Gently suggest looking up and getting a bit of fresh air.",
-      idle_min: 5,
-      enabled: true,
-    },
-    {
-      id: "mid_check",
-      label: "Check-in",
-      context:
-        "No word for over 10 minutes. Casually ask how the work is going. Keep it light, not pushy.",
-      idle_min: 10,
-      enabled: true,
-    },
-    {
-      id: "long_focus",
-      label: "Long focus",
-      context:
-        "It's been a whole 30 minutes. Suggest a short break — sitting that long is rough on the body.",
-      idle_min: 30,
-      enabled: true,
-    },
-  ],
-  ja: [
-    {
-      id: "short_break",
-      label: "ひと息",
-      context: "5分以上静かだね。ちょっと顔を上げて息抜きするように、軽く声をかけてあげて。",
-      idle_min: 5,
-      enabled: true,
-    },
-    {
-      id: "mid_check",
-      label: "そろそろチェック",
-      context: "10分以上話してないね。作業が順調か気軽に聞いてみて。重くならないように。",
-      idle_min: 10,
-      enabled: true,
-    },
-    {
-      id: "long_focus",
-      label: "長時間集中",
-      context: "もう30分だよ。少し休憩したら？座りっぱなしは体がつらいでしょ。",
-      idle_min: 30,
-      enabled: true,
-    },
-  ],
-};
-
-export function defaultSettings(locale: CueLocale): ProactiveSettings {
-  return { enabled: true, entries: structuredClone(SEED_ENTRIES[locale]) };
-}
-
-function isValidIdleMin(v: unknown): v is number {
+function isValidIdleMin(v: unknown): boolean {
   return typeof v === "number" && Number.isFinite(v) && v > 0;
 }
 
-function isValidCue(v: unknown): v is ProactiveCue {
-  if (v === null || typeof v !== "object") return false;
-  const c = v as Record<string, unknown>;
-  return (
-    typeof c.id === "string" &&
-    typeof c.label === "string" &&
-    typeof c.context === "string" &&
-    isValidIdleMin(c.idle_min) &&
-    typeof c.enabled === "boolean"
-  );
-}
-
-function isValidSettings(v: unknown): v is ProactiveSettings {
-  if (v === null || typeof v !== "object") return false;
-  const s = v as Record<string, unknown>;
-  if (typeof s.enabled !== "boolean") return false;
-  if (!Array.isArray(s.entries)) return false;
-  return s.entries.every(isValidCue);
+export function defaultSettings(locale: CueLocale): ProactiveSettings {
+  return { enabled: true, entries: structuredClone(PROACTIVE_CUE_SEEDS[locale]) };
 }
 
 export function createProactiveSettings(opts?: { storage?: ProactiveStorage; locale?: CueLocale }) {
-  const defaults = defaultSettings(opts?.locale ?? "ko");
-
-  const core = createPersistedStore<ProactiveSettings>({
+  return createCueListSettings<ProactiveCue>({
     storage: opts?.storage,
-    defaults,
-    parse: (v) => (isValidSettings(v) ? v : null),
-    clone: structuredClone,
-    equals: (a, b) => JSON.stringify(a) === JSON.stringify(b),
+    defaults: defaultSettings(opts?.locale ?? "ko"),
+    extras: { idle_min: { blank: 10, isValid: isValidIdleMin } },
   });
-
-  const findCue = (id: string): ProactiveCue | undefined =>
-    core.current().entries.find((c) => c.id === id);
-
-  return {
-    get: core.get,
-
-    setEnabled(enabled: boolean): void {
-      core.commit({ ...core.current(), enabled });
-    },
-
-    addCue(): ProactiveCue {
-      const cue: ProactiveCue = {
-        id: crypto.randomUUID(),
-        label: "",
-        context: "",
-        idle_min: 10,
-        enabled: true,
-      };
-      core.commit({ ...core.current(), entries: [...core.current().entries, cue] });
-      return { ...cue };
-    },
-
-    updateCue(id: string, patch: Partial<Omit<ProactiveCue, "id">>): void {
-      const cur = findCue(id);
-      if (!cur) return;
-      const next: ProactiveCue = { ...cur };
-      let changed = false;
-
-      if ("label" in patch && typeof patch.label === "string" && patch.label.trim().length > 0) {
-        if (next.label !== patch.label) {
-          next.label = patch.label;
-          changed = true;
-        }
-      }
-      if ("context" in patch && typeof patch.context === "string") {
-        if (next.context !== patch.context) {
-          next.context = patch.context;
-          changed = true;
-        }
-      }
-      if ("idle_min" in patch && isValidIdleMin(patch.idle_min)) {
-        if (next.idle_min !== patch.idle_min) {
-          next.idle_min = patch.idle_min;
-          changed = true;
-        }
-      }
-      if ("enabled" in patch && typeof patch.enabled === "boolean") {
-        if (next.enabled !== patch.enabled) {
-          next.enabled = patch.enabled;
-          changed = true;
-        }
-      }
-
-      if (!changed) return;
-      core.commit({
-        ...core.current(),
-        entries: core.current().entries.map((c) => (c.id === id ? next : c)),
-      });
-    },
-
-    removeCue(id: string): void {
-      if (!findCue(id)) return;
-      core.commit({
-        ...core.current(),
-        entries: core.current().entries.filter((c) => c.id !== id),
-      });
-    },
-
-    reloadFromStorage: core.reloadFromStorage,
-    subscribe: core.subscribe,
-    dispose: core.dispose,
-  };
 }
 
 /** localStorage-backed ProactiveStorage adapter. Gracefully ignored where localStorage is unavailable. */
