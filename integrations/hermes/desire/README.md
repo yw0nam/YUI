@@ -12,9 +12,9 @@ The integration is a self-contained Python 3.10+ uv project. Runtime code uses o
 
 `DESIRE_AGENT_NAME` names the agent — one short lowercase slug — and every convention derives from it: the
 branch prefix `<agent>/`, the issue marker `<!-- from-<agent> -->`, the issue label `from-<agent>`, the
-memory-note tag `<agent>`, the signal source `<agent>-desire`, and the cron job names `<agent>-desire-tick`,
-`<agent>-desire-reflection`, and `<agent>-desire-report`. `HERMES_PROFILE` names the Hermes profile the agent runs
-on, and `DESIRE_CHAT_PLATFORMS` names the channels the user speaks to the agent on. All three are required and
+signal source `<agent>-desire`, and the cron job names `<agent>-desire-tick`, `<agent>-desire-reflection`, and
+`<agent>-desire-report`. `HERMES_PROFILE` names the Hermes profile the agent runs on, and
+`DESIRE_CHAT_PLATFORMS` names the channels the user speaks to the agent on. All three are required and
 have no default: the monitor and the helper stop with an error naming the missing variable, and the middleware
 injects nothing and logs one. The desire block opens with the line `agent: <agent>` so the prompts can refer to
 it.
@@ -52,12 +52,11 @@ The state directory contains:
   zero and `pending` is empty.
 - `artefacts.json` — what the monitor has already scored: `bootstrapped_at` (when the record was created),
   `bootstrapped` (the sources that have answered at least once and are therefore scored from now on), `seen` (the
-  refs it has counted, one list per kind: pull-request and issue URLs, skill paths, and the last 500 note ids),
-  `skill_first_seen` (when each skill path was first seen, holding only the skills seen after the skill source was
-  bootstrapped, so the report can tell the agent's own skills from the ones that were already installed),
-  `shipped` (the refs it has counted as delivered), `notes_since` (the memory-note cursor), and `unreported` (the
-  events the desire block has not shown yet, each `{"event", "kind", "ref", "at"}`). Absent until the first tick,
-  which writes it without dosing.
+  refs it has counted, one list per kind: pull-request and issue URLs, and skill paths), `skill_first_seen` (when
+  each skill path was first seen, holding only the skills seen after the skill source was bootstrapped, so the
+  report can tell the agent's own skills from the ones that were already installed), `shipped` (the refs it has
+  counted as delivered), and `unreported` (the events the desire block has not shown yet, each
+  `{"event", "kind", "ref", "at"}`). Absent until the first tick, which writes it without dosing.
 - `cursor.json` — the feedback cursor. `last_feedback_check_at` starts at bootstrap time.
 - `monitor.json` — the buckets the monitor summary prints, the count of drive rises behind them, and how long
   each drive has stood at its ceiling: `latched` is the bucket printed for each drive, `natural` the bucket each
@@ -92,9 +91,9 @@ time to itself whatever the gap, so the next turn is an ordinary one. The line e
 here)` while a pent-up note is waiting.
 
 `since last turn: <event> <kind> <ref>; …` follows the transport line while `unreported` in `artefacts.json` is
-non-empty. Pull requests, issues, and skills are listed one by one up to eight of them, then `and N more`; notes are
-summarised as `learned N notes`. The middleware clears `unreported` in the state commit of the turn that rendered
-the line, so it appears on exactly one turn.
+non-empty. Pull requests, issues, and skills are listed one by one up to eight of them, then `and N more`. The
+middleware clears `unreported` in the state commit of the turn that rendered the line, so it appears on exactly
+one turn.
 
 `last signal: YYYY-MM-DD HH:MM — answered after Nh` follows the transport line once a signal has been delivered and
 a user turn has followed it; until then the same line reads `— no reply yet (Nh)`. The line is absent while
@@ -147,15 +146,6 @@ even when it carries no `<client_context>`.
 requires an app restart. When Hermes runs on
 a remote host, such as when it reaches YUI through an SSH reverse tunnel, `YUI_SIGNALS_URL` must be set to the tunnel
 endpoint.
-
-Set `MEMORY_BASE_URL` and `MEMORY_BASE_API_KEY` only when a memory_base service is available. With them the monitor
-scores `learned` from the notes tagged `<agent>`, and `MEMORY_BASE_URL` is optional when memory_base listens on
-the default port. Without `MEMORY_BASE_API_KEY` the `learned` source is off: the monitor reads no notes.
-
-```bash
-export MEMORY_BASE_URL=http://127.0.0.1:8010
-export MEMORY_BASE_API_KEY=<the memory_base key>
-```
 
 Hermes monitor scripts live under `~/.hermes/scripts/`, and Hermes resolves symlinks before checking that a monitor
 script stays inside that directory, so a symlink into the YUI checkout is rejected. Install the monitor as a real file
@@ -246,13 +236,13 @@ Drives rise linearly while unattended: curiosity 9 points per hour, accomplishme
 hour since the last user message. These observation-phase rates and the caps below are deliberately fast so a full
 hunger cycle fits in roughly eight hours and every tick day produces telemetry.
 
-Satisfaction uses fixed event doses and KST daily caps. Three of the four events are derived by the monitor from
-artefacts outside the state directory; only `praised` is self-reported, through
-`act.py satisfy praised --ref "<what they said and where>"`:
+Satisfaction uses fixed event doses and KST daily caps. Two of the four events are derived by the monitor from
+artefacts outside the state directory; `learned` and `praised` are self-reported, through
+`act.py satisfy <event> --ref "<the source or what they said>"`:
 
 | Event | Applies when | Drive dose | Daily cap |
 | --- | --- | --- | ---: |
-| `learned` | The monitor sees a `memory_base` note tagged `<agent>` whose `kind` is `note` or `decision`, newer than the cursor | curiosity −30 | 6 |
+| `learned` | The agent reports a source it read, with `act.py satisfy learned --ref <source>` | curiosity −30 | 6 |
 | `progressed` | The monitor first sees a pull request opened from an `<agent>/` branch, an issue whose body carries `<!-- from-<agent> -->`, or a skill directory under the profile | accomplishment −15 | 6 |
 | `shipped` | The monitor sees one of those pull requests merged, or one of those issues closed | accomplishment −40 | 4 |
 | `praised` | The agent reports positive feedback from the user | accomplishment −25 | 4 |
@@ -262,11 +252,11 @@ The homeostatic reward is `r = D(before) - D(after)`, where
 
 ## Derived events
 
-Every tick the monitor reads four sources and doses each artefact it has not counted yet through
-`desire_state.satisfy`. The sources are read before the tick takes the state lock, so a `gh` or memory call never
-blocks a turn; the scoring runs inside the same state transaction as the drive advance, before the summary line.
-Each derived event is appended to `unreported` and audited as `drive_satisfied` with its `kind` (`pr`, `issue`,
-`skill`, `note`) and `ref`.
+Every tick the monitor reads three sources and doses each artefact it has not counted yet through
+`desire_state.satisfy`. The sources are read before the tick takes the state lock, so a `gh` call never blocks a
+turn; the scoring runs inside the same state transaction as the drive advance, before the summary line. Each
+derived event is appended to `unreported` and audited as `drive_satisfied` with its `kind` (`pr`, `issue`,
+`skill`) and `ref`.
 
 - **Repositories** — every directory one level under `~/.hermes/profiles/$HERMES_PROFILE/workspace/` whose
   `.git/config` names an `origin` remote on github.com, in both the HTTPS and SSH forms. Two directories cloning the
@@ -285,21 +275,12 @@ Each derived event is appended to `unreported` and audited as `drive_satisfied` 
   identified by its path relative to the skills root. First sight scores `progressed`. This is the one source
   the agent can add to alone, and it counts what appears rather than who put it there: a skill installed into the
   profile from outside scores too, and a nested `SKILL.md` inside an existing skill counts as its own directory.
-- **Memory notes** — read only while `MEMORY_BASE_API_KEY` is set:
-  `GET $MEMORY_BASE_URL/notes?since=<notes_since>&limit=200&tags=<agent>` with the header
-  `X-API-Key: $MEMORY_BASE_API_KEY`. `MEMORY_BASE_URL` defaults to `http://127.0.0.1:8010`. Without the key the
-  monitor sends no request, audits nothing, and leaves the kind unbootstrapped, so a key set later bootstraps the
-  notes on its first answer. The `default` namespace is shared with other sessions, so the `<agent>` tag is what
-  separates the agent's own notes; `tick.md` tells it to tag every note it saves with it. Each returned note of kind
-  `note` or `decision` scores `learned` with the note id as its `ref`; `episode` notes are ignored. The response
-  carries a day-granular `date` only, so the cursor advances to the tick time after a successful fetch and the note
-  id in `seen` is what keeps a repeated note from being scored twice.
 
 A source is scored only from the tick after its first answer: everything it reported the first time is recorded as
 seen (and everything already merged or closed as shipped) without a dose, whether that first answer arrives on the
-first tick or days later. A failing `gh` call or memory request appends a `derive_failed` audit event naming the
-source, the repository or artefact it was reading, and a short error, and leaves that source's cursor and seen list
-untouched; the summary line is printed regardless. While a kind has never fully answered, one repository failing
+first tick or days later. A failing `gh` call appends a `derive_failed` audit event naming the source, the
+repository or artefact it was reading, and a short error, and leaves that source's cursor and seen list untouched;
+the summary line is printed regardless. While a kind has never fully answered, one repository failing
 drops the whole kind for that tick, so a partial answer is never mistaken for the complete first sight; afterwards
 only the failing repository's own contribution is dropped and the healthy ones still score. An artefact is dosed
 once per tick however many sources report it. An artefact past its daily cap is still recorded as seen and audited

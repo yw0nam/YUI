@@ -66,14 +66,6 @@ turn from one of them counts as the user speaking even when it carries no `<clie
 through an SSH reverse tunnel, use the tunnel endpoint instead of port 8770. Check: `grep DESIRE_STATE_DIR` on the
 `.env` file prints the line.
 
-Add these two lines only when a memory_base service is available. With them the monitor scores `learned` from the
-notes tagged `<agent>`; without `MEMORY_BASE_API_KEY` the `learned` source is off and the monitor reads no notes.
-
-```
-MEMORY_BASE_URL=http://127.0.0.1:8010
-MEMORY_BASE_API_KEY=<the memory_base key>
-```
-
 ## 4. Monitor script (real file, not a symlink)
 
 Hermes resolves symlinks before checking that a monitor script stays under `~/.hermes/scripts/`; a symlink into
@@ -202,9 +194,9 @@ Check: `~/.hermes/profiles/<profile>/logs/gateway.log` gains `api_server connect
 `comment`, `pr`, `dispatch`, `report`, `satisfy`, `feedback`, `outbox`. Daily caps, reset at KST midnight: three
 signals, two issues, one self-initiated comment, one pull request, one dispatch, and the four satisfaction events
 (`learned` 6, `progressed` 6, `shipped` 4, `praised` 4 — see the README's Action budgets table for their drive
-doses). `satisfy` accepts only `praised`; the monitor derives the other three. `report --note` carries the daily
-report to YUI and has no budget; `report --skills` prints the load counts of the skills the agent made and sends
-nothing.
+doses). `satisfy` accepts `learned` and `praised`; the monitor derives the other two. `report --note` carries the
+daily report to YUI and has no budget; `report --skills` prints the load counts of the skills the agent made and
+sends nothing.
 
 ## Tests (optional, needs uv)
 

@@ -69,11 +69,15 @@ section 2 and are not steps either. When no step is available, claim none; an em
 
 When `curiosity` is high, read first — recent YUI commits, pull requests, or issues; a file under `docs/`; a memory
 search; or the web on a topic one of your wants is about — then save what you learned to your memory, with the text
-naming its source: a commit, an issue, a pull request, a document path, or a URL. Where your memory system carries
-tags, tag every such note `<agent>`, which is how the monitor tells your notes from other sessions'; where it records
-an author, name yourself `<agent>`. The monitor scores `learned` for each new note it can read.
+naming its source: a commit, an issue, a pull request, a document path, or a URL. After saving, report it:
 
-The one thing you score yourself is the user's praise:
+```bash
+python3 <abs>/integrations/hermes/desire/act.py satisfy learned --ref "<the source you read>"
+```
+
+One report per source, and only for something you actually read. Its KST daily cap is 6, reset at midnight.
+
+The user's praise you score the same way:
 
 ```bash
 python3 <abs>/integrations/hermes/desire/act.py satisfy praised --ref "<what they said and where>"
