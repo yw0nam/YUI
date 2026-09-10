@@ -6,14 +6,9 @@
 
 import { afterEach, expect, it, vi } from "vitest";
 
-const { wireDevtoolsSync, createConfigStore, initLogger, createLogger } = vi.hoisted(() => ({
-  wireDevtoolsSync: vi.fn(() => ({ reload: vi.fn(), dispose: vi.fn() })),
-  createConfigStore: vi.fn(() => ({
-    load: vi.fn().mockResolvedValue({ endpoints: { chat_model_context_window: 1 } }),
-  })),
-  initLogger: vi.fn().mockResolvedValue(undefined),
-  createLogger: vi.fn(() => ({ info: vi.fn(), warn: vi.fn(), error: vi.fn(), debug: vi.fn() })),
-}));
+const { wireDevtoolsSync, createConfigStore, initLogger, createLogger } = await vi.hoisted(
+  async () => (await import("./devtools-main.test-helpers")).makeDevtoolsMainMocks(),
+);
 
 const { mountMotionPreview, motionPreviewState } = vi.hoisted(() => {
   const motionPreviewState = {
@@ -48,10 +43,11 @@ vi.mock("./io/settings-stores", async (importOriginal) => {
   return { ...actual, createSettingsStores: vi.fn(actual.createSettingsStores) };
 });
 
+import { resetDevtoolsMain } from "./devtools-main.test-helpers";
 import { setLocale } from "./ui/i18n";
 
 afterEach(() => {
-  window.dispatchEvent(new Event("beforeunload"));
+  resetDevtoolsMain();
   setLocale("en");
   mountMotionPreview.mockClear();
   motionPreviewState.calls = 0;
