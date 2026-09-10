@@ -338,6 +338,22 @@ def test_satisfy_learned_remembers_the_last_500_sources(state_dir, at, state_hel
     assert remembered[0] == "source 1"
 
 
+def test_satisfy_learned_leaves_a_capped_source_reportable(state_dir, at, state_helpers):
+    _, _, read_json, _ = state_helpers
+    now = at("2026-08-25T12:00:00+09:00")
+    for index in range(desire_state.EVENT_DAILY_CAPS["learned"]):
+        desire_state.satisfy("learned", f"source {index}", now)
+
+    with pytest.raises(ValueError, match="over budget"):
+        desire_state.satisfy("learned", "one more source", now)
+
+    assert "one more source" not in read_json(state_dir / "artefacts.json")["learned"]
+
+    desire_state.satisfy("learned", "one more source", at("2026-08-26T12:00:00+09:00"))
+
+    assert read_json(state_dir / "artefacts.json")["learned"][-1] == "one more source"
+
+
 def test_satisfy_praised_scores_the_same_reference_again(state_dir, at, state_helpers):
     _, _, read_json, _ = state_helpers
     now = at("2026-08-25T12:00:00+09:00")

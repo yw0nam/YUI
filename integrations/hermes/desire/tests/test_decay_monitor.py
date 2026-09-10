@@ -256,6 +256,7 @@ def test_satisfying_a_saturated_drive_clears_its_saturation(state_dir, at, state
     assert read_json(state_dir / "drives.json")["curiosity"]["level"] == 70.0
     assert decay_monitor.run(later).endswith(" starved:0/0/0\n")
     assert read_json(state_dir / "monitor.json")["saturated_since"]["curiosity"] is None
+    assert read_json(state_dir / "artefacts.json")["learned"] == ["read the paper"]
 
 
 def test_one_drive_leaving_the_ceiling_cannot_hide_another_crossing(state_dir, at, state_helpers):
@@ -1179,6 +1180,29 @@ def test_event_past_its_daily_cap_is_still_marked_seen_and_audits_satisfy_blocke
     artefacts = read_json(state_dir / "artefacts.json")
     assert artefacts["seen"]["skill"] == ["mcp/capped"]
     assert artefacts["unreported"] == []
+
+
+def test_a_learned_reported_while_the_tick_scores_survives_the_artefact_write(
+    state_dir, at, tmp_path, state_helpers, monkeypatch
+):
+    _, _, read_json, _ = state_helpers
+    now = at("2026-08-25T12:00:00+09:00")
+    desire_state.bootstrap(now)
+    derive(state_dir, now, tmp_path)
+    source = "https://github.com/owner/YUI/commit/abc"
+    scoring = desire_state.satisfy
+
+    def report_while_scoring(event, ref, when, **named):
+        reward = scoring(event, ref, when, **named)
+        if event == "progressed":
+            scoring("learned", source, when)
+        return reward
+
+    monkeypatch.setattr(desire_state, "satisfy", report_while_scoring)
+
+    derive(state_dir, now, tmp_path, skills=("mcp/new",))
+
+    assert read_json(state_dir / "artefacts.json")["learned"] == [source]
 
 
 def test_failing_source_audits_derive_failed_and_leaves_its_cursor(state_dir, at, tmp_path, state_helpers):
