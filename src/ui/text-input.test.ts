@@ -244,6 +244,9 @@ describe("attachment caps — count + per-image size", () => {
   function errorEl(): HTMLElement {
     return mount.querySelector(".yui-input__error") as HTMLElement;
   }
+  function attachBtn(): HTMLButtonElement {
+    return mount.querySelector(".yui-input__attach") as HTMLButtonElement;
+  }
 
   // Paste files in one event, then drain the async data-URL reads.
   async function paste(...files: File[]): Promise<void> {
@@ -255,6 +258,35 @@ describe("attachment caps — count + per-image size", () => {
     await paste(pngFile("a.png"), pngFile("b.png"));
 
     expect(tray().children.length).toBe(0);
+  });
+
+  it("shows the not-ready error for a paste that beats the configured caps", async () => {
+    await paste(pngFile("a.png"));
+
+    expect(tray().children.length).toBe(0);
+    expect(errorEl().textContent).toBe(t("input.attach_not_ready"));
+    expect(form().classList.contains("is-error")).toBe(true);
+  });
+
+  it("keeps the attach button off until the configured caps arrive", () => {
+    expect(attachBtn().disabled).toBe(true);
+
+    s.setAttachmentLimits(LIMITS);
+
+    expect(attachBtn().disabled).toBe(false);
+  });
+
+  it("withholds the dragover affordance until the configured caps arrive", () => {
+    const dragOver = (): void => {
+      form().dispatchEvent(new Event("dragover", { bubbles: true, cancelable: true }));
+    };
+
+    dragOver();
+    expect(form().classList.contains("is-dragover")).toBe(false);
+
+    s.setAttachmentLimits(LIMITS);
+    dragOver();
+    expect(form().classList.contains("is-dragover")).toBe(true);
   });
 
   it("caps the count once the configured caps arrive", async () => {
