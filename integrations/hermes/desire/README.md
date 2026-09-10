@@ -50,13 +50,14 @@ The state directory contains:
 - `budget.json` — KST daily counters for signals, issues, self-initiated comments, pull requests, dispatches, and
   satisfaction events, plus pending issue, comment, pull-request, and dispatch reservations. Fresh counters are
   zero and `pending` is empty.
-- `artefacts.json` — what the monitor has already scored: `bootstrapped_at` (when the record was created),
+- `artefacts.json` — what has already been scored: `bootstrapped_at` (when the record was created),
   `bootstrapped` (the sources that have answered at least once and are therefore scored from now on), `seen` (the
-  refs it has counted, one list per kind: pull-request and issue URLs, and skill paths), `skill_first_seen` (when
-  each skill path was first seen, holding only the skills seen after the skill source was bootstrapped, so the
-  report can tell the agent's own skills from the ones that were already installed), `shipped` (the refs it has
-  counted as delivered), and `unreported` (the events the desire block has not shown yet, each
-  `{"event", "kind", "ref", "at"}`). Absent until the first tick, which writes it without dosing.
+  refs the monitor has counted, one list per kind: pull-request and issue URLs, and skill paths),
+  `skill_first_seen` (when each skill path was first seen, holding only the skills seen after the skill source was
+  bootstrapped, so the report can tell the agent's own skills from the ones that were already installed),
+  `shipped` (the refs it has counted as delivered), `learned` (the last 500 sources the agent has reported), and
+  `unreported` (the events the desire block has not shown yet, each `{"event", "kind", "ref", "at"}`). Absent
+  until the first tick or the first reported `learned`, whichever comes first; the tick writes it without dosing.
 - `cursor.json` — the feedback cursor. `last_feedback_check_at` starts at bootstrap time.
 - `monitor.json` — the buckets the monitor summary prints, the count of drive rises behind them, and how long
   each drive has stood at its ceiling: `latched` is the bucket printed for each drive, `natural` the bucket each
@@ -242,7 +243,7 @@ artefacts outside the state directory; `learned` and `praised` are self-reported
 
 | Event | Applies when | Drive dose | Daily cap |
 | --- | --- | --- | ---: |
-| `learned` | The agent reports a source it read, with `act.py satisfy learned --ref <source>` | curiosity −30 | 6 |
+| `learned` | The agent reports a source it read, with `act.py satisfy learned --ref <source>`, each source scoring once for good | curiosity −30 | 6 |
 | `progressed` | The monitor first sees a pull request opened from an `<agent>/` branch, an issue whose body carries `<!-- from-<agent> -->`, or a skill directory under the profile | accomplishment −15 | 6 |
 | `shipped` | The monitor sees one of those pull requests merged, or one of those issues closed | accomplishment −40 | 4 |
 | `praised` | The agent reports positive feedback from the user | accomplishment −25 | 4 |

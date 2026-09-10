@@ -26,6 +26,7 @@ CAPS = {"signals": 3, "issues": 2, "self_comments": 1, "prs": 1, "dispatches": 1
 DRIVES = ("social", "curiosity", "accomplishment")
 BUCKETS = ("low", "mid", "high")
 ARTEFACT_KINDS = ("pr", "issue", "skill")
+LEARNED_MEMORY = 500
 SINCE_LAST_TURN_LIMIT = 8
 EVENT_DOSES = {
     "learned": {"curiosity": 30.0},
@@ -420,6 +421,7 @@ def default_artefacts(now: datetime) -> dict:
         "seen": {kind: [] for kind in ARTEFACT_KINDS},
         "skill_first_seen": {},
         "shipped": [],
+        "learned": [],
         "unreported": [],
     }
 
@@ -440,6 +442,7 @@ def read_artefacts(state_dir: Path) -> dict | None:
         "seen": {kind: _text_list(seen.get(kind)) for kind in ARTEFACT_KINDS},
         "skill_first_seen": _text_map(value.get("skill_first_seen")),
         "shipped": _text_list(value.get("shipped")),
+        "learned": _text_list(value.get("learned")),
         "unreported": [item for item in _list(value.get("unreported")) if isinstance(item, dict)],
     }
 
@@ -861,6 +864,15 @@ def satisfy(
     named = {"ref": ref} if kind is None else {"ref": ref, "kind": kind}
     with state_lock(state_dir) as directory:
         state = bootstrap_locked(directory, now)
+        # `learned` names a source the agent read, so one source owes one dose for good.
+        artefacts = (read_artefacts(directory) or default_artefacts(now)) if event == "learned" else None
+        if artefacts is not None and ref in artefacts["learned"]:
+            _append_jsonl_locked(
+                directory / "audit.jsonl",
+                {"at": now.isoformat(), "event": "satisfy_repeated", "event_type": event, **named},
+            )
+            raise ValueError(f"already reported: {ref}")
+
         budget = normalize_budget(state["budget"], now)
         count = budget["events"].get(event, 0)
         cap = EVENT_DAILY_CAPS[event]
@@ -881,9 +893,12 @@ def satisfy(
         reward = homeostatic_drive(before) - homeostatic_drive(after)
 
         budget["events"][event] = count + 1
-        # Budget commits before drives: a crash after this point costs one unused daily slot,
-        # rather than an uncounted dose that could be applied again past the cap.
+        # Budget and the reported source commit before drives: a crash after this point costs one
+        # unused daily slot, rather than an uncounted dose that could be applied again.
         write_json_atomic(directory / "budget.json", budget)
+        if artefacts is not None:
+            artefacts["learned"] = [*artefacts["learned"], ref][-LEARNED_MEMORY:]
+            write_json_atomic(directory / "artefacts.json", artefacts)
         write_json_atomic(directory / "drives.json", drives)
         _append_jsonl_locked(
             directory / "audit.jsonl",
