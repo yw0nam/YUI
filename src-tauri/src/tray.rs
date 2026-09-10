@@ -11,6 +11,11 @@ enum TrayAction {
     Quit,
 }
 
+/// Monochrome silhouette with alpha; macOS tints it as a template image.
+fn tray_icon() -> tauri::Result<tauri::image::Image<'static>> {
+    tauri::image::Image::from_bytes(include_bytes!("../icons/tray.png"))
+}
+
 fn action_for(menu_id: &str) -> Option<TrayAction> {
     match menu_id {
         "toggle-visibility" => Some(TrayAction::ToggleVisibility),
@@ -104,10 +109,15 @@ pub fn setup(app: &AppHandle) -> tauri::Result<()> {
             None => {}
         });
 
-    if let Some(icon) = app.default_window_icon() {
-        builder = builder.icon(icon.clone());
-    } else {
-        log::warn!("tray_default_window_icon_not_found");
+    match tray_icon() {
+        Ok(icon) => {
+            builder = builder.icon(icon);
+            #[cfg(target_os = "macos")]
+            {
+                builder = builder.icon_as_template(true);
+            }
+        }
+        Err(e) => log::warn!("tray_icon_decode_failed error={e}"),
     }
 
     builder.build(app)?;
@@ -117,6 +127,13 @@ pub fn setup(app: &AppHandle) -> tauri::Result<()> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn tray_icon_is_square_with_transparent_corner() {
+        let icon = tray_icon().expect("tray.png decodes");
+        assert_eq!(icon.width(), icon.height());
+        assert_eq!(icon.rgba()[3], 0, "top-left pixel must be transparent");
+    }
 
     #[test]
     fn action_for_maps_toggle_visibility() {
