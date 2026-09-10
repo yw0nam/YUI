@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { avatarFixture } from "../load-test-helpers";
 import { validateAvatar } from "./avatar";
 import { ConfigError } from "./shared";
 
@@ -18,6 +19,47 @@ function expectIssue(raw: unknown, fragment: string): void {
     ).toBe(true);
   }
 }
+
+/** Every dotted path under `node`, parents before their children. */
+function tunablePaths(node: Record<string, unknown>, prefix = ""): string[] {
+  const out: string[] = [];
+  for (const [key, value] of Object.entries(node)) {
+    const path = prefix ? `${prefix}.${key}` : key;
+    out.push(path);
+    if (value !== null && typeof value === "object" && !Array.isArray(value)) {
+      out.push(...tunablePaths(value as Record<string, unknown>, path));
+    }
+  }
+  return out;
+}
+
+/** The fixture with one dotted path removed. */
+function without(path: string): Record<string, unknown> {
+  const raw = avatarFixture() as unknown as Record<string, unknown>;
+  const parts = path.split(".");
+  let node = raw;
+  for (const part of parts.slice(0, -1)) node = node[part] as Record<string, unknown>;
+  delete node[parts[parts.length - 1]];
+  return raw;
+}
+
+/** Every tunable the file owns — vrm_url has its own cases. */
+const TUNABLE_PATHS = tunablePaths(
+  avatarFixture() as unknown as Record<string, unknown>,
+).filter((path) => path !== "vrm_url");
+
+describe("validateAvatar — configs/avatar.json owns every tunable", () => {
+  it.each(TUNABLE_PATHS)("names %s when it is absent", (path) => {
+    expectIssue(without(path), path);
+  });
+
+  it("accepts a file with region_emotions and region_cues left out", () => {
+    const raw = avatarFixture() as unknown as Record<string, unknown>;
+    const out = validateAvatar(FILE, raw);
+    expect(out.tap.region_emotions).toBeUndefined();
+    expect(out.tap.region_cues).toBeUndefined();
+  });
+});
 
 describe("validateAvatar — happy path", () => {
   it("accepts a bare vrm_url", () => {
