@@ -93,8 +93,8 @@ must list `drives.json`, `budget.json`, `cursor.json`, `monitor.json`, `transpor
 empty or missing, the monitor could not write there — fix `DESIRE_STATE_DIR` before continuing.
 
 That first run bootstraps `artefacts.json` from the pull requests, issues, and skills that already exist, marking
-them as seen without dosing any drive: `grep drive_satisfied "$DESIRE_STATE_DIR/audit.jsonl"` finds nothing new.
-Only artefacts that appear after it are scored.
+them as seen without dosing any drive: `grep drive_satisfied "$DESIRE_STATE_DIR/audit.jsonl"` finds nothing new,
+unless a `learned` was reported before the tick. Only artefacts that appear after it are scored.
 
 ## 5. Workspace clones
 

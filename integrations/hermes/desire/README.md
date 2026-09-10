@@ -239,7 +239,8 @@ hunger cycle fits in roughly eight hours and every tick day produces telemetry.
 
 Satisfaction uses fixed event doses and KST daily caps. Two of the four events are derived by the monitor from
 artefacts outside the state directory; `learned` and `praised` are self-reported, through
-`act.py satisfy <event> --ref "<the source or what they said>"`:
+`act.py satisfy <event> --ref "<the source or what they said>"`. A `learned` naming a source already in
+`artefacts.json` is refused and audited as `satisfy_repeated`, and costs no daily slot:
 
 | Event | Applies when | Drive dose | Daily cap |
 | --- | --- | --- | ---: |
@@ -285,7 +286,9 @@ the summary line is printed regardless. While a kind has never fully answered, o
 drops the whole kind for that tick, so a partial answer is never mistaken for the complete first sight; afterwards
 only the failing repository's own contribution is dropped and the healthy ones still score. An artefact is dosed
 once per tick however many sources report it. An artefact past its daily cap is still recorded as seen and audited
-as `satisfy_blocked`; that dose is lost rather than carried over. A ref that is not text is audited as
+as `satisfy_blocked`; that dose is lost rather than carried over. A self-reported `learned` naming a source already
+recorded is audited as `satisfy_repeated` instead, and one the cap refuses is not recorded at all, so that source
+is reportable again the next day. A ref that is not text is audited as
 `derive_failed` for its source rather than dropped silently. Derived events only lower drives, so they never change
 the latched buckets and never wake the agent.
 

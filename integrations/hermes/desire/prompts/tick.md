@@ -72,10 +72,13 @@ search; or the web on a topic one of your wants is about — then save what you 
 naming its source: a commit, an issue, a pull request, a document path, or a URL. After saving, report it:
 
 ```bash
-python3 <abs>/integrations/hermes/desire/act.py satisfy learned --ref "<the source you read>"
+python3 <abs>/integrations/hermes/desire/act.py satisfy learned --ref "<the source you named in the note>"
 ```
 
-One report per source, and only for something you actually read. Its KST daily cap is 6, reset at midnight.
+The `--ref` is the identifier itself, written the same way every time: the commit sha, the issue or pull-request
+URL, the repository-relative path, or the URL. One report per source, and only for something you actually read; a
+source you have already reported is refused. Its KST daily cap is 6, reset at midnight, and a report the cap
+refuses is not recorded, so that source is yours to report again the next day.
 
 The user's praise you score the same way:
 
