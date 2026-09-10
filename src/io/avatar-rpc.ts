@@ -11,7 +11,7 @@ import type { Posture } from "../contract";
 import { createLogger } from "../logger";
 import { createInbox } from "./create-inbox";
 import { isTauri } from "./tauri-env";
-import type { PerchTargets, PerchTargetWindow } from "./window-drop-source";
+import type { PerchTargets } from "./window-drop-source";
 
 const log = createLogger("avatar-rpc");
 
@@ -28,7 +28,7 @@ export type AvatarCommand =
   | { action: "move_to"; spot: AvatarSpot; monitor?: number }
   | { action: "stand_down" };
 
-export type AvatarRpcMethod = "state" | "perch_targets" | "command";
+type AvatarRpcMethod = "state" | "perch_targets" | "command";
 
 /** `avatar-rpc` event payload — mirrors the Rust `AvatarRpcRequest`. */
 export interface AvatarRpcRequest {
@@ -52,9 +52,6 @@ export interface AvatarState {
   moving: boolean;
 }
 
-/** One perch candidate — the perch source's own model, served over the wire as-is. */
-export type AvatarPerchTargetWindow = PerchTargetWindow;
-
 /** `GET /avatar/perch-targets` answer. */
 export type AvatarPerchTargets = PerchTargets;
 
@@ -68,7 +65,7 @@ export type AvatarCommandResult = { ok: true } | { ok: false; reason: AvatarFail
 export const onAvatarRpc = createInbox<AvatarRpcRequest>("avatar-rpc");
 
 /** Tauri `invoke` narrowed to the response command (injectable for tests). */
-export type AvatarRpcInvoke = (
+type AvatarRpcInvoke = (
   cmd: "avatar_rpc_response",
   args: { id: string; result: unknown },
 ) => Promise<unknown>;

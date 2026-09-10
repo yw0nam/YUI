@@ -20,7 +20,7 @@ import {
 } from "./voice-import";
 
 /** A picked-but-not-yet-copied import: the source file plus what to seed the naming row with. */
-export interface PickedVoiceImport {
+interface PickedVoiceImport {
   srcPath: string;
   seedName: string;
 }

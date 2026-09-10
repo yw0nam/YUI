@@ -44,7 +44,7 @@ interface SpeakerListDeps {
   isDisposed: () => boolean;
 }
 
-export interface SpeakerList {
+interface SpeakerList {
   render(): void;
   handleKeydown(e: KeyboardEvent): void;
   handleAddClick(): void;

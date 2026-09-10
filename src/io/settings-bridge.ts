@@ -138,7 +138,7 @@ function newSrcId(): string {
 }
 
 /** Envelope + self-filter + listener bookkeeping, shared by every cross-window bus. */
-export interface BridgeCore {
+interface BridgeCore {
   emit(name: string, payload?: unknown): void;
   on<T>(name: string, cb: (payload: T, from: WindowKind | "unknown") => void): () => void;
   dispose(): void;

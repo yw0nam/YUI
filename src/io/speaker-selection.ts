@@ -35,10 +35,10 @@ export function nextRevision(options: SpeakerOption[], id: string): number {
 }
 
 /** The override is the stored id string, or null (no override). */
-export type SpeakerSelectionStorage = SelectionOverrideStorage;
+type SpeakerSelectionStorage = SelectionOverrideStorage;
 
 /** Persistence adapter for the list of imported source:"user" options. */
-export type UserSpeakerStorage = UserOptionStorage<SpeakerOption>;
+type UserSpeakerStorage = UserOptionStorage<SpeakerOption>;
 
 /** Synthesizes a single defaultValue speaker as one manifest entry. ref_url may be empty (no clip). */
 function synthesizeOption(defaultValue: string): SpeakerOption {

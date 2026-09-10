@@ -50,10 +50,7 @@ export function turnErrorFixAction(
   return { label: t("input.error_open_advanced"), onClick: () => openSettings("adv") };
 }
 
-export type TurnFailureAction =
-  | { kind: "show_input_error" }
-  | { kind: "voice_error" }
-  | { kind: "none" };
+type TurnFailureAction = { kind: "show_input_error" } | { kind: "voice_error" } | { kind: "none" };
 
 /**
  * Routes a classified user-turn failure to the UI surface it belongs to. Routes by

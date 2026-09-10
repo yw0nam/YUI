@@ -44,7 +44,7 @@ export interface PacerSkipRecord {
   event_name: string;
 }
 
-export type SkipRecord = ScreenSkipRecord | PacerSkipRecord;
+type SkipRecord = ScreenSkipRecord | PacerSkipRecord;
 
 export function buildTurnRecord(fields: Omit<TurnRecord, "type">): TurnRecord {
   return { type: "turn", ...fields };

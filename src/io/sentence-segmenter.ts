@@ -1,6 +1,6 @@
 /** Segments text-stream tokens into sentences. Pure logic (no DOM/network). */
 
-export interface SentenceSegmenter {
+interface SentenceSegmenter {
   push(text: string): string[];
   flush(): string | null;
 }

@@ -54,7 +54,7 @@ interface KeyRow {
   removeListeners(): void;
 }
 
-export interface EndpointsSection {
+interface EndpointsSection {
   /** Per-service key rows — reflect layer's reflectKeyRows calls each row's reflect(). */
   keyRows: readonly KeyRow[];
   /** Commit pending key inputs to store (on panel close). */

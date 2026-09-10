@@ -16,7 +16,7 @@ export type TtsSynth = (
 ) => Promise<ArrayBuffer>;
 
 /** What the voice pipeline needs from the TTS path, so it never reads endpoints itself. */
-export interface TtsProvider {
+interface TtsProvider {
   synth: TtsSynth;
   /** Everything that changes the rendered audio, as one comparable string. */
   paramsKey(): string;
@@ -28,7 +28,7 @@ export interface TtsProvider {
 // One HTTP call per synth(), so this is the whole call's budget.
 export const TTS_SYNTH_TIMEOUT_MS = 10_000;
 
-export interface TtsSynthOptions {
+interface TtsSynthOptions {
   baseUrl: string;
   fetch?: typeof fetch;
   model?: string;
@@ -80,7 +80,7 @@ export function createTtsSynth(opts: TtsSynthOptions): TtsSynth {
   };
 }
 
-export interface TtsProviderDeps {
+interface TtsProviderDeps {
   getEndpoints: () => EndpointsConfig;
   /** The speaker picked in the panel — its id is the server-side voice id. */
   getActiveSpeaker: () => { id: string };

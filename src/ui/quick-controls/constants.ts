@@ -23,7 +23,7 @@ export const SEG_LABEL_KEYS: Record<ReasoningEffort, string> = {
 // Endpoints section: text-input fields, derived from io/endpoints-settings's ENDPOINT_FIELD_SPECS
 // (url/string-kind rows only — enum/posInt-kind fields render as a dropdown or devtools input
 // elsewhere, not as a labeled text row here). If url=true, live validation with isValidEndpointUrl.
-export interface EndpointFieldDef {
+interface EndpointFieldDef {
   key: keyof EndpointOverrides;
   labelKey: string;
   url: boolean;
@@ -41,7 +41,7 @@ export const ENDPOINT_FIELDS: readonly EndpointFieldDef[] = ENDPOINT_FIELD_SPECS
 // Each row renders as a numeric input; an empty field means "no override, use the config default".
 // tier3_max has no row: classify() never returns tier 3 at the evaluate site, so the cap it would
 // edit is never compared.
-export interface RateLimitFieldDef {
+interface RateLimitFieldDef {
   key: keyof RateLimitOverrides;
   id: string;
   labelKey: string;
@@ -167,7 +167,7 @@ export const CHAT_API_LABEL_KEYS: Record<ChatApi, string> = {
 // provider's OpenAI-compatible path. Brand names are display-as-is, never localized. "custom" is the
 // no-autofill entry the dropdown falls back to when the URL matches no preset.
 export const CHAT_PRESET_CUSTOM = "custom";
-export interface ChatProviderPreset {
+interface ChatProviderPreset {
   id: string;
   name: string;
   url: string;

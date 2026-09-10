@@ -4,7 +4,7 @@ import { t } from "../i18n";
 import { createAdvancedSettings } from "./advanced-settings";
 import { createContextInspector } from "./context-inspector";
 
-export type DevtoolsSection = "context" | "advanced" | "motion";
+type DevtoolsSection = "context" | "advanced" | "motion";
 
 interface DevtoolsShellOptions {
   mount: HTMLElement;

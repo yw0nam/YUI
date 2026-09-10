@@ -15,9 +15,9 @@ import { isTauri } from "./tauri-env";
 
 const log = createLogger("message-window");
 
-export const MESSAGE_WINDOW_LABEL = "message";
-export const MESSAGE_WINDOW_URL = "message.html";
-export const MESSAGE_WINDOW_TITLE = "YUI";
+const MESSAGE_WINDOW_LABEL = "message";
+const MESSAGE_WINDOW_URL = "message.html";
+const MESSAGE_WINDOW_TITLE = "YUI";
 /** Fixed column width (logical px) — the bubble and the input size to it. */
 export const MESSAGE_WINDOW_WIDTH = 340;
 /** Height (logical px) of the idle window — the 26px plate and its border inside the column's 8px padding. */
@@ -25,7 +25,7 @@ export const MESSAGE_WINDOW_HANDLE_HEIGHT = 44;
 /** Gap (logical px) between the pet window's right edge and the message window. */
 const MESSAGE_WINDOW_GAP_PX = 12;
 
-export interface MessageWindowPlacement {
+interface MessageWindowPlacement {
   /** Last stored outer position (physical px), null until the window has been moved. */
   stored: { x: number | null; y: number | null };
   /** Pet window outer bounds (physical px). */
@@ -73,7 +73,7 @@ export function initialMessageWindowPosition({
   return { x: Math.round(clamped.x * scale), y: Math.round(clamped.y * scale) };
 }
 
-export interface MessageWindowEnv {
+interface MessageWindowEnv {
   isTauri: boolean;
   /** The already-open message window, or null. */
   getExisting(): Promise<{ show(): Promise<void> } | null>;

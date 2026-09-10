@@ -21,7 +21,7 @@ export const SCREEN_RECENT_CAP_MAX = 20;
 /** Editable screen-watch knobs — five ms thresholds plus the unitless recent_cap count. 0 = no override. */
 export type ScreenOverrides = { [K in keyof ScreenConfig]: number };
 
-export const SCREEN_KEYS = [
+const SCREEN_KEYS = [
   "prev_dwell_ms",
   "settle_ms",
   "long_session_ms",

@@ -1,4 +1,4 @@
-export interface MotionStartGeneration {
+interface MotionStartGeneration {
   begin(): number;
   invalidate(): void;
   isCurrent(token: number): boolean;

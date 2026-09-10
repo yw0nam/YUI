@@ -20,7 +20,7 @@ import { WALK_YAW_EASE_MS, WALK_YAW_RAD } from "./walker";
 const log = createLogger("jumper");
 
 /** Registry id of the clip the whole jump is paced by. */
-export const JUMP_MOTION_ID = "jump";
+const JUMP_MOTION_ID = "jump";
 
 /** Where a jump goes: the window it lands on, and the two points it runs between. */
 export interface JumpPlan {
@@ -157,7 +157,7 @@ export interface JumperDeps {
  */
 export type JumpOutcome = "landed" | "lost" | "cancelled" | "refused";
 
-export interface Jumper {
+interface Jumper {
   /**
    * Cross to `plan.target`, the character already standing on the host's edge at
    * `plan.takeoffX`. `anchor` is the feet offset inside the pet window (logical px).

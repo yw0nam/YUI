@@ -22,7 +22,7 @@ interface DragHoldSourceDeps {
   clearTimeout?: typeof clearTimeout;
 }
 
-export interface DragHoldSource {
+interface DragHoldSource {
   /** Arm the hold timer. Cancels any timer already pending. */
   noteDragStart(): void;
   /** Cancel a pending timer and disarm. */

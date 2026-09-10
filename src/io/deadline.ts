@@ -1,6 +1,6 @@
 /** Per-request deadline so a hung fetch settles instead of hanging forever. */
 
-export interface DeadlineSignal {
+interface DeadlineSignal {
   signal: AbortSignal;
   clear: () => void;
 }

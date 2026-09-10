@@ -20,7 +20,7 @@ interface WorkflowsSectionDeps {
   fetchFn?: typeof fetch;
 }
 
-export interface WorkflowsSection {
+interface WorkflowsSection {
   dispose(): void;
 }
 

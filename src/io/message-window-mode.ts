@@ -6,7 +6,7 @@
 import type { RemoteSurfaces } from "./message-remote";
 import type { MessageWindowMode, MessageWindowSettingsStore } from "./message-window-settings";
 
-export interface MessageWindowModeDeps {
+interface MessageWindowModeDeps {
   store: MessageWindowSettingsStore;
   remote: Pick<RemoteSurfaces, "onDock">;
   /** Show/hide handle for the message window. */

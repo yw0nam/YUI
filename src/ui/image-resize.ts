@@ -10,9 +10,9 @@ const log = createLogger("image-resize");
 
 // Tunable knobs: long edge cap (px) and JPEG quality.
 export const MAX_LONG_EDGE = 1280;
-export const JPEG_QUALITY = 0.72;
+const JPEG_QUALITY = 0.72;
 
-export interface Dims {
+interface Dims {
   width: number;
   height: number;
 }

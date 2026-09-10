@@ -10,13 +10,13 @@
  */
 
 /** A cell coordinate in the low-res grab (col left→right, row bottom→top). */
-export interface GrabCell {
+interface GrabCell {
   col: number;
   row: number;
 }
 
 /** Pixel size of the offscreen alpha grab (gw×gh). */
-export interface GrabSize {
+interface GrabSize {
   gw: number;
   gh: number;
 }

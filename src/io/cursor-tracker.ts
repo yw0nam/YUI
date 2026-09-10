@@ -30,9 +30,9 @@ const BACKOFF_MS = 1000;
 const FAILURE_THRESHOLD = 3;
 
 /** The window surface the tracker needs: exactly what the statics cache reads and listens to. */
-export type CursorTrackerWindow = WindowStaticsSource;
+type CursorTrackerWindow = WindowStaticsSource;
 
-export interface CursorTrackerController {
+interface CursorTrackerController {
   start(): void;
   stop(): void;
 }
@@ -53,7 +53,7 @@ interface CursorTrackerOptions {
 }
 
 /** Production CursorTrackerWindow — the same 4 reads hit-test's poll uses. */
-export function createTauriCursorWindow(): CursorTrackerWindow {
+function createTauriCursorWindow(): CursorTrackerWindow {
   const w = getCurrentWindow();
   return {
     cursorPosition: () => cursorPosition(),

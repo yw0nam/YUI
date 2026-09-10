@@ -12,7 +12,7 @@
 
 import type { TtsSynth } from "./tts-synth";
 
-export interface FillerAudioCacheDeps {
+interface FillerAudioCacheDeps {
   synth: TtsSynth;
   /** The sentences the current filler pools submit to TTS — the cacheable text. */
   submissions: () => Set<string>;
@@ -20,7 +20,7 @@ export interface FillerAudioCacheDeps {
   paramsKey: () => string;
 }
 
-export interface FillerAudioCache {
+interface FillerAudioCache {
   synth: TtsSynth;
   /** Whether this text can be spoken from the cache right now. Never synthesizes. */
   has: (text: string) => boolean;

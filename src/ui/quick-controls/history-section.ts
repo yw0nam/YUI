@@ -9,7 +9,7 @@ import type { ChatSession } from "../../io/chat-history-store";
 import { getLocale, t } from "../i18n";
 import { HIST_CHEVRON_SVG } from "./constants";
 
-export interface HistoryTranscript {
+interface HistoryTranscript {
   sessions(): ChatSession[];
   subscribe(cb: () => void): () => void;
 }
@@ -21,7 +21,7 @@ interface HistorySectionDeps {
   isOpen: () => boolean;
 }
 
-export interface HistorySection {
+interface HistorySection {
   render(): void;
   dispose(): void;
 }

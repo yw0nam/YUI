@@ -14,7 +14,7 @@ interface ContextProviders {
   getFrontmost?: () => FrontmostState | undefined;
 }
 
-export interface BuiltContext {
+interface BuiltContext {
   ctx: InputContext;
   clientContext: ClientContext;
 }

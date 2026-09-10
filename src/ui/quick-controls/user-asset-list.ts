@@ -19,7 +19,7 @@ interface UserAssetOption {
 }
 
 /** A picked-but-not-yet-copied import, awaiting a typed name from the naming row. */
-export interface PendingImport {
+interface PendingImport {
   srcPath: string;
   /** Seeds the naming row's input (typically the picked file's stem). */
   seedName: string;

@@ -87,7 +87,7 @@ export function physicalCursorToLocalCss(
 }
 
 /** Result of one state-machine step. */
-export interface TransitionResult {
+interface TransitionResult {
   state: HitTestState;
   /** True when the caller should flip setIgnoreCursorEvents to the new state. */
   toggle: boolean;
@@ -126,7 +126,7 @@ export function decideTransition(args: {
 // ─── Controller ──────────────────────────────────────────────────────────────
 
 /** Minimal window surface the controller needs: the statics cache's reads plus click-through. */
-export interface HitTestWindow extends WindowStaticsSource {
+interface HitTestWindow extends WindowStaticsSource {
   setIgnoreCursorEvents(ignore: boolean): Promise<void>;
 }
 

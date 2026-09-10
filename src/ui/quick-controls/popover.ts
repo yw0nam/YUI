@@ -49,7 +49,7 @@ interface PopoverDeps {
   onClose: () => void;
 }
 
-export interface Popover {
+interface Popover {
   open(anchor?: { x: number; y: number }): void;
   close(): void;
   isOpen(): boolean;

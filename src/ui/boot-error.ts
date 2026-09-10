@@ -8,7 +8,7 @@ import { ConfigError } from "../config/load";
 import "./boot-error.css";
 import { t } from "./i18n";
 
-export interface BootErrorContent {
+interface BootErrorContent {
   /** Localized headline. */
   title: string;
   /** Localized guidance for the failure class. */

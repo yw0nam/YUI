@@ -19,7 +19,7 @@ import type { MouthLipsync } from "./mouth-lipsync";
 import type { PinController } from "./pin-controller";
 
 /** Per-frame context passed to every participant's step, before vrm.update(dt). */
-export interface VrmParticipantContext {
+interface VrmParticipantContext {
   readonly vrm: VRM;
   readonly dt: number;
   readonly elapsed: number;
@@ -63,7 +63,7 @@ export function anyConverging(participants: readonly VrmParticipant[]): boolean 
 }
 
 /** The four sub-controllers a renderer instance owns, adapted into one VrmParticipant array. */
-export interface VrmParticipantSubControllers {
+interface VrmParticipantSubControllers {
   pins: PinController;
   gaze: CursorGaze;
   emotion: EmotionCrossfade;

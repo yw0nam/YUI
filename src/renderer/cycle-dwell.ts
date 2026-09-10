@@ -11,7 +11,7 @@
  * No three.js import — pure timer state, testable with fake timers.
  */
 
-export interface CycleDwell {
+interface CycleDwell {
   /**
    * Call on clip finish. Holds runSwap for dwellMs when isCycle and dwellMs > 0
    * (single cancellable timer, replacing any pending one); otherwise runs runSwap now.

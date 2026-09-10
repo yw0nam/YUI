@@ -17,7 +17,7 @@ interface AmplitudeEnvelopeOptions {
 }
 
 /** Pure stage that normalizes and smooths raw per-frame RMS (≈0..1) into a 0..1 mouth-open value. */
-export interface AmplitudeEnvelope {
+interface AmplitudeEnvelope {
   /** Feeds in one frame's RMS and returns the smoothed mouth-open value (0..1). */
   push(rms: number): number;
   /** Resets accumulated energy to 0 (on playback end/stop). */

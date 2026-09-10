@@ -11,7 +11,7 @@
  * sequence split across delta boundaries is stripped as a whole, not leaked.
  */
 
-export interface EmojiStripper {
+interface EmojiStripper {
   push(delta: string): string;
   flush(): string;
   reset(): void;

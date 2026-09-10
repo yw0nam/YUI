@@ -27,7 +27,7 @@ export const MAX_LOGICAL = { width: 2400, height: 1800 };
 /** Below this |factor − 1| a step is a no-op (already clamped to the wall). */
 const NOOP_EPS = 1e-6;
 
-export interface LogicalBounds {
+interface LogicalBounds {
   pos: { x: number; y: number };
   size: { width: number; height: number };
 }
@@ -94,7 +94,7 @@ interface WindowResizeSourceDeps {
   target?: WheelTarget;
 }
 
-export interface WindowResizeSource {
+interface WindowResizeSource {
   /** Register the wheel listener. Idempotent. */
   start(): void;
   /** Unregister the wheel listener. */

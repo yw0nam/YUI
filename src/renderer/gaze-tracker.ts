@@ -34,12 +34,12 @@ export interface GazeConfig {
   smooth: number;
 }
 
-export interface GazeWeights {
+interface GazeWeights {
   eyeWeight: number;
   headWeight: number;
 }
 
-export interface GazeTargets {
+interface GazeTargets {
   headYaw: number;
   headPitch: number;
   eyeYaw: number;
@@ -68,7 +68,7 @@ interface GazeInput {
 }
 
 /** Result of one {@link advanceGaze} step. */
-export interface GazeAdvance {
+interface GazeAdvance {
   /** Next damped angles — also the values to write to the bones/lookAt this frame. */
   state: GazeState;
   /** Still easing toward target ⇒ keep frames flowing (frame-gate input). */
