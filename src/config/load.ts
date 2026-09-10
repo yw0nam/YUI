@@ -202,8 +202,11 @@ export interface FramingConfig {
 
 /** Click-through hit-test knob. */
 export interface HitTestKnobs {
+  /** How far outside the character the cursor may sit and still hold the window interactive. */
   hysteresis_margin_px: number;
+  /** Gap between cursor reads while the window is click-through. */
   poll_interval_ms: number;
+  /** Agreeing samples needed before the click-through state flips. */
   debounce_samples: number;
   /** Alpha (0, 1] a rendered pixel must reach to count as the character. */
   alpha_threshold: number;
@@ -211,15 +214,23 @@ export interface HitTestKnobs {
 
 /** Cursor gaze-tracking angles (degrees) and damping. */
 export interface GazeKnobs {
+  /** No tracking within this eccentricity (degrees). */
   deadDeg: number;
+  /** Eyes reach full tracking by here; head starts recruiting past it (degrees). */
   headEngageDeg: number;
+  /** Beyond this the character disengages — can't crane the neck around (degrees). */
   disengageDeg: number;
-  /** Degrees of gaze rotation per mount width of cursor offset from the head. */
+  /** Degrees of gaze rotation per window-width of cursor offset from the head's screen position. */
   sensitivity: number;
+  /** Max head-bone yaw (degrees). */
   maxHeadYaw: number;
+  /** Max head-bone pitch (degrees). */
   maxHeadPitch: number;
+  /** Max eye yaw/pitch (degrees). */
   eyeMaxDeg: number;
+  /** Fraction of the head rotation taken by the head bone; the rest goes to neck. */
   headNeckSplit: number;
+  /** Exponential damping rate (1/s) for k = 1-exp(-smooth·dt). */
   smooth: number;
 }
 

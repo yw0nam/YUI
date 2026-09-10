@@ -14,13 +14,8 @@
 
 import type { VRM } from "@pixiv/three-vrm";
 import * as THREE from "three";
-import {
-  advanceGaze,
-  type GazeConfig,
-  type GazeState,
-  NEUTRAL_GAZE,
-  splitHeadNeck,
-} from "./gaze-tracker";
+import type { GazeKnobs } from "../config/load";
+import { advanceGaze, type GazeState, NEUTRAL_GAZE, splitHeadNeck } from "./gaze-tracker";
 
 const DEG2RAD = Math.PI / 180;
 
@@ -63,7 +58,7 @@ interface CursorGazeDeps {
   /** The live VRM (or undefined) — read fresh each step; never cached across frames. */
   getVrm: () => VRM | undefined;
   /** configs/avatar.json thresholds; live path is setConfig. null until the config arrives. */
-  gaze: GazeConfig | null;
+  gaze: GazeKnobs | null;
   log: GazeLog;
   /** Mount element width (CSS px) — head screen-projection + residual normalization. */
   mountWidth(): number;
@@ -84,7 +79,7 @@ export interface CursorGaze {
   /** True while the damped gaze is still easing toward target — gates the idle frame cap. */
   isConverging(): boolean;
   /** Replace the tracking thresholds. */
-  setConfig(next: GazeConfig): void;
+  setConfig(next: GazeKnobs): void;
   /** Enable/disable head+eye tracking at runtime. Disabled ⇒ eased back to neutral. */
   setEnabled(enabled: boolean): void;
   /** Latest window-local CSS px cursor position; null = unavailable (eases back to neutral). */
@@ -97,7 +92,7 @@ export function createCursorGaze(deps: CursorGazeDeps): CursorGaze {
   // ── Cursor gaze (head/eye tracking) state ────────────────────────────────────
   // Thresholds from configs/avatar.json; null until the config arrives (this layer is
   // built with the renderer, before the config loads), and nothing tracks before then.
-  let gazeConfig: GazeConfig | null = deps.gaze;
+  let gazeConfig: GazeKnobs | null = deps.gaze;
   // Runtime on/off (persisted by main.ts). Disabled ⇒ eased back to neutral, not snapped.
   let gazeEnabled = true;
   // Persistent damped angles (deg) carried frame to frame.

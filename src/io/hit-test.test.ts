@@ -23,11 +23,11 @@ vi.mock("@tauri-apps/api/core", () => ({
 
 import { invoke } from "@tauri-apps/api/core";
 import { getCurrentWindow } from "@tauri-apps/api/window";
+import type { HitTestKnobs } from "../config/load";
 import {
   createHitTestController,
   createTauriHitTestWindow,
   decideTransition,
-  type HitTestConfig,
   type HitTestState,
   physicalCursorToLocalCss,
 } from "./hit-test";
@@ -97,10 +97,11 @@ describe("physicalCursorToLocalCss", () => {
 
 // ─── decideTransition (hysteresis + debounce state machine) ──────────────────────
 
-const cfg: HitTestConfig = {
+const cfg: HitTestKnobs = {
   hysteresis_margin_px: 8,
   poll_interval_ms: 33,
   debounce_samples: 2,
+  alpha_threshold: 0.1,
 };
 
 function step(

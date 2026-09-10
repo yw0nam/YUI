@@ -23,7 +23,7 @@ import {
 import { createVRMAnimationClip, VRMAnimationLoaderPlugin } from "@pixiv/three-vrm-animation";
 import * as THREE from "three";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
-import type { FramingConfig } from "../config/load";
+import type { FramingConfig, GazeKnobs } from "../config/load";
 import type { ControlEnvelope, EmotionRegistry, MotionRegistry } from "../contract";
 import { createLogger } from "../logger";
 import { type AlphaHitTest, createAlphaHitTest } from "./alpha-hit-test";
@@ -42,7 +42,6 @@ import { createCycleDwell } from "./cycle-dwell";
 import { createEmotionCrossfade, type EmotionCrossfade } from "./emotion-crossfade";
 import type { RenderEmotionSignal } from "./emotion-resolver";
 import { isActive, shouldRenderFrame } from "./frame-gate";
-import type { GazeConfig } from "./gaze-tracker";
 import { mirrorClipTracks } from "./mirror-clip";
 import {
   createMotionController,
@@ -121,7 +120,7 @@ interface RendererOptions {
   /** Fit-to-bounds framing; live path is setFraming. Absent until the config arrives. */
   framing?: FramingConfig;
   /** Cursor-gaze tracking thresholds; live path is setGaze. Absent until the config arrives. */
-  gaze?: GazeConfig;
+  gaze?: GazeKnobs;
   /** Alpha (0, 1] a rendered pixel must reach to count as the character; live path is setHitTestThreshold. */
   hitTestThreshold?: number;
 }
@@ -322,7 +321,7 @@ export interface Renderer {
    */
   setIdleThrottleEnabled(enabled: boolean): void;
   /** Replace the cursor-gaze tracking thresholds; applies from the next frame. */
-  setGaze(gaze: GazeConfig): void;
+  setGaze(gaze: GazeKnobs): void;
   /**
    * Enable/disable cursor-gaze head+eye tracking at runtime. Disabled ⇒ the damped
    * gaze eases back to neutral (no snap) and the motion/eyes are left untouched once settled.

@@ -8,8 +8,8 @@
 import type { VRM } from "@pixiv/three-vrm";
 import * as THREE from "three";
 import { describe, expect, it } from "vitest";
+import type { GazeKnobs } from "../config/load";
 import { createCursorGaze, cursorToResidual } from "./cursor-gaze";
-import type { GazeConfig } from "./gaze-tracker";
 
 const RAD2DEG = 180 / Math.PI;
 const noopLog = { error: () => {} };
@@ -111,7 +111,7 @@ function quaternionAngleDeg(q: THREE.Quaternion): number {
 }
 
 /** The tracking thresholds configs/avatar.json hands the layer. */
-const GAZE: GazeConfig = {
+const GAZE: GazeKnobs = {
   deadDeg: 2,
   headEngageDeg: 6,
   disengageDeg: 45,

@@ -12,7 +12,7 @@ import { afterEach, beforeEach, describe, expect, it, type Mock, vi } from "vite
 vi.mock("./surfaces.css", () => ({}));
 vi.mock("./tokens.css", () => ({}));
 
-import type { AttachmentLimits } from "../config";
+import { guardrailsFixture } from "../config/load-test-helpers";
 import { setLocale, t } from "./i18n";
 import { createSurfaces } from "./surfaces";
 
@@ -82,7 +82,7 @@ describe("setInputAnchor — --yui-input-bottom on the chat form", () => {
 });
 
 /** The caps configs/guardrails.json delivers through setAttachmentLimits. */
-const LIMITS: AttachmentLimits = { max_count: 6, max_image_bytes: 5 * 1024 * 1024 };
+const LIMITS = guardrailsFixture().attachments;
 
 describe("image attachments — tray chips + onSubmit images", () => {
   let mount: HTMLElement;

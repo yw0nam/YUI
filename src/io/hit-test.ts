@@ -26,6 +26,7 @@
 
 import { invoke } from "@tauri-apps/api/core";
 import { cursorPosition, getCurrentWindow, primaryMonitor } from "@tauri-apps/api/window";
+import type { HitTestKnobs } from "../config/load";
 import { createLogger } from "../logger";
 import { isTauri } from "./tauri-env";
 import {
@@ -36,13 +37,6 @@ import {
 } from "./window-statics";
 
 const log = createLogger("hit-test");
-
-/** The configs/avatar.json hit_test knobs this controller consumes. */
-export interface HitTestConfig {
-  hysteresis_margin_px: number;
-  poll_interval_ms: number;
-  debounce_samples: number;
-}
 
 export type HitTestState = "capture" | "passthrough";
 
@@ -101,7 +95,7 @@ export function decideTransition(args: {
   state: HitTestState;
   interactive: boolean;
   counter: number;
-  config: HitTestConfig;
+  config: HitTestKnobs;
 }): TransitionResult {
   const { state, interactive, counter, config } = args;
   const debounce = Math.max(1, config.debounce_samples);
@@ -145,7 +139,8 @@ interface HitTestOptions {
    * CAPTURE (tight box) and hysteresis_margin_px when LEAVING (outset box).
    */
   isOverInteractive: (xCss: number, yCss: number, marginPx: number) => boolean;
-  getConfig: () => HitTestConfig;
+  /** The live configs/avatar.json hit_test block; only the polling keys are read here. */
+  getConfig: () => HitTestKnobs;
   /** setTimeout seam (testability). Default: globalThis.setTimeout. */
   schedule?: (cb: () => void, ms: number) => number;
   /** clearTimeout seam. Default: globalThis.clearTimeout. */

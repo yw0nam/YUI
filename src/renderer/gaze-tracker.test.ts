@@ -15,11 +15,11 @@
  */
 
 import { describe, expect, it } from "vitest";
+import type { GazeKnobs } from "../config/load";
 import {
   advanceGaze,
   clampDeg,
   dampAngle,
-  type GazeConfig,
   type GazeState,
   gazeShape,
   gazeTargets,
@@ -28,7 +28,7 @@ import {
   splitHeadNeck,
 } from "./gaze-tracker";
 
-const CFG: GazeConfig = {
+const CFG: GazeKnobs = {
   deadDeg: 3,
   headEngageDeg: 20,
   disengageDeg: 65,

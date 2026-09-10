@@ -9,14 +9,14 @@
  */
 
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { AttachmentLimits } from "../config";
+import { guardrailsFixture } from "../config/load-test-helpers";
 import type { RemoteSurfaces } from "../io/message-remote";
 import type { MessageWindowMode } from "../io/message-window-settings";
 import type { Surfaces } from "./surfaces";
 import { createSurfacesRouter } from "./surfaces-router";
 
 /** The caps configs/guardrails.json delivers through setAttachmentLimits. */
-const LIMITS: AttachmentLimits = { max_count: 6, max_image_bytes: 5 * 1024 * 1024 };
+const LIMITS = guardrailsFixture().attachments;
 
 function makeLocal(): Surfaces {
   return {

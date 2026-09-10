@@ -8,7 +8,7 @@
  */
 
 import { describe, expect, it, vi } from "vitest";
-import type { AttachmentLimits } from "../config";
+import { guardrailsFixture } from "../config/load-test-helpers";
 import {
   createMessageBridge,
   type MessageControlOp,
@@ -18,7 +18,7 @@ import { createRemoteSurfaces } from "./message-remote";
 import type { BridgeTransport } from "./settings-bridge";
 
 /** The caps configs/guardrails.json delivers through setAttachmentLimits. */
-const LIMITS: AttachmentLimits = { max_count: 6, max_image_bytes: 5 * 1024 * 1024 };
+const LIMITS = guardrailsFixture().attachments;
 
 function createFakeTransport(): BridgeTransport {
   const listeners = new Map<string, Set<(p: unknown) => void>>();
