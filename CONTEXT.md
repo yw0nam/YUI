@@ -86,3 +86,9 @@ A burst of events from an external producer POSTed to the `/signals` ingress, fl
 
 **Mod**:
 A standalone MCP server the brain uses (avatar, browser-cdp, desktop-control, shell-sandbox). Not part of the app runtime.
+
+### Configuration
+
+**Tunable**:
+A numeric or enum knob the client reads at boot (peek distances, jump gravity, gaze curve, attachment caps). Its one home is `configs/*.json`; the validator requires the section and the consuming module reads the validated value (ADR-0002).
+_Avoid_: default constant, fallback value, code-side default
