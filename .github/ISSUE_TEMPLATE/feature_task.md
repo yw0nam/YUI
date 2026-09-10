@@ -5,10 +5,6 @@ title: "[feature] "
 labels: ["feature"]
 ---
 
-## Related decisions
-<!-- Example: D-TTS-PIPELINE. See docs/reference/client-context.md. -->
-- Decision log (D-*):
-
 ## Work description
 <!-- What is being built. One issue = one unit of work. -->
 
