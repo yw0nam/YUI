@@ -2,20 +2,11 @@
 
 Standalone MCP servers ("Mods") that expose host capabilities to the remote backend agent (Hermes). Each Mod is an independent process, decoupled from the YUI app — the agent attaches them as tool sources alongside the Expression Broker.
 
-Mod convention: each mod is a **self-contained `uv` project** in its own folder (`Mods/<mod>/`) with its own `pyproject.toml`, `uv.lock`, and dependency set — no shared lock, so a mod's deps never leak into another (e.g. the shell-sandbox image carries no `pyobjc`). Containerized mods keep a `Dockerfile` whose build context is that same folder; `docker-compose.yml` builds and deploys them together (`docker compose up -d --build`). Run any mod's tests with `cd Mods/<mod> && uv run pytest`. Python lint is **ruff** (format + check, `line-length = 110`), enforced in CI per mod — run it locally with `cd Mods/<mod> && uv run ruff format . && uv run ruff check .`.
+Each mod is a self-contained `uv` project in its own folder (`Mods/<mod>/`), with its own `pyproject.toml` and `uv.lock`. See the [Mods reference](../docs/reference/mods.md) for the project convention, the port and capability catalog, and each mod's tool list.
 
 ## Mods
 
-| Mod | Port | Runs | What |
-|---|---|---|---|
-| [router](router/) | 8080 | host-native | One HTTP front door — path-routes `/<mod>/mcp` to every mod over a single SSH tunnel |
-| [desktop-control](desktop-control/) | 9000 | host-native | See the screen, read the day's activity log, and open/close apps on the macOS host |
-| [shell-sandbox](shell-sandbox/) | 9001 | container | Unrestricted shell over a bind-mounted host directory |
-| [avatar](avatar/) | 9002 | host-native | Query the avatar's own body state and move it with semantic verbs |
-
-Each mod's own README covers its run, safety boundary, tools, and tests.
-
-Not a mod, but lives here: [browser-cdp](browser-cdp/) exposes no MCP tools — it bridges the remote agent's own Playwright MCP to your local Mac browser over CDP (use it instead of adding a redundant browser mod).
+[router](router/), [desktop-control](desktop-control/), [shell-sandbox](shell-sandbox/), and [avatar](avatar/) — see the [Mods reference](../docs/reference/mods.md) for what each one does and its port. [browser-cdp](browser-cdp/) is not a mod, and exposes no MCP tools — it bridges the remote agent's own Playwright MCP to your local Mac browser over CDP (use it instead of adding a redundant browser mod). Each mod's own README covers its run, safety boundary, tools, and tests.
 
 ## Exposure
 
