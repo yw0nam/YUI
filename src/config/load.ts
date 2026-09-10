@@ -214,6 +214,8 @@ export interface GazeKnobs {
   deadDeg: number;
   headEngageDeg: number;
   disengageDeg: number;
+  /** Degrees of gaze rotation per mount width of cursor offset from the head. */
+  sensitivity: number;
   maxHeadYaw: number;
   maxHeadPitch: number;
   eyeMaxDeg: number;

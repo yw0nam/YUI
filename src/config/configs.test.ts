@@ -146,6 +146,7 @@ describe("configs/avatar.json", () => {
       "headNeckSplit",
       "maxHeadPitch",
       "maxHeadYaw",
+      "sensitivity",
       "smooth",
     ]);
   });

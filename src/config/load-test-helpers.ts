@@ -22,6 +22,7 @@ export function avatarFixture(): AvatarConfig {
       deadDeg: 2,
       headEngageDeg: 6,
       disengageDeg: 45,
+      sensitivity: 30,
       maxHeadYaw: 50,
       maxHeadPitch: 30,
       eyeMaxDeg: 25,
