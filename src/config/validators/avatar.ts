@@ -1,25 +1,19 @@
-import {
-  type AvatarConfig,
-  type AvatarOption,
-  CLIMB_DEFAULTS,
-  type ClimbConfig,
-  DESCEND_DEFAULTS,
-  type DescendConfig,
-  DRAG_HOLD_MS_DEFAULT,
-  FALL_DEFAULTS,
-  type FallConfig,
-  GESTURE_CUES_DEFAULTS,
-  type GestureCuesConfig,
-  JUMP_DEFAULTS,
-  type JumpConfig,
-  PEEK_DEFAULTS,
-  PERCH_WALK_DEFAULTS,
-  type PeekConfig,
-  type PerchWalkConfig,
-  TAP_DEFAULTS,
-  type TapConfig,
-  WALK_DEFAULTS,
-  type WalkConfig,
+import type {
+  AvatarConfig,
+  AvatarOption,
+  ClimbConfig,
+  DescendConfig,
+  FallConfig,
+  FramingConfig,
+  GazeKnobs,
+  GestureCueConfig,
+  GestureCuesConfig,
+  HitTestKnobs,
+  JumpConfig,
+  PeekConfig,
+  PerchWalkConfig,
+  TapConfig,
+  WalkConfig,
 } from "../load";
 import { assertValid, ConfigError, isObject } from "./shared";
 
@@ -27,6 +21,15 @@ const AVATAR_SOURCES: readonly NonNullable<AvatarOption["source"]>[] = ["bundled
 /** Allowed chars for AvatarOption.id — a persistence key and the CSS selector `[data-vrm-id="…"]` value, so no whitespace/special chars. */
 const AVATAR_ID_RE = /^[A-Za-z0-9._-]+$/;
 
+/** Tap regions and gesture cues, in the order their issues are reported. */
+const TAP_REGIONS = ["head", "chest", "hips"] as const;
+const GESTURE_CUE_KEYS = ["drag_held", "window_sit", "peek", "dropped"] as const;
+
+/**
+ * configs/avatar.json → AvatarConfig. Every tunable section is required, and a key the file
+ * omits fails validation naming that key. Section accumulators are partial while the keys are
+ * read; assertValid throws before the return whenever one of them is still missing.
+ */
 export function validateAvatar(file: string, raw: unknown): AvatarConfig {
   if (!isObject(raw)) throw new ConfigError(file, ["객체가 아님"]);
   const vrm_url = raw.vrm_url;
@@ -36,6 +39,80 @@ export function validateAvatar(file: string, raw: unknown): AvatarConfig {
     ]);
   }
   const issues: string[] = [];
+
+  /** obj[key] when it is a finite number `ok` accepts; records `path.key` and returns undefined otherwise. */
+  const num = (
+    obj: Record<string, unknown>,
+    path: string,
+    key: string,
+    ok: (v: number) => boolean,
+    expected: string,
+  ): number | undefined => {
+    const value = obj[key];
+    if (typeof value !== "number" || !Number.isFinite(value) || !ok(value)) {
+      issues.push(`${path}.${key}는 ${expected}여야 함 (받음: ${JSON.stringify(value)})`);
+      return undefined;
+    }
+    return value;
+  };
+
+  /** Same for an integer. */
+  const int = (
+    obj: Record<string, unknown>,
+    path: string,
+    key: string,
+    ok: (v: number) => boolean,
+    expected: string,
+  ): number | undefined => {
+    const value = obj[key];
+    if (typeof value !== "number" || !Number.isInteger(value) || !ok(value)) {
+      issues.push(`${path}.${key}는 ${expected}여야 함 (받음: ${JSON.stringify(value)})`);
+      return undefined;
+    }
+    return value;
+  };
+
+  /** obj[key] when it is a non-empty string; records `path.key` and returns undefined otherwise. */
+  const str = (obj: Record<string, unknown>, path: string, key: string): string | undefined => {
+    const value = obj[key];
+    if (typeof value !== "string" || value.length === 0) {
+      issues.push(
+        `${path}.${key}는 비어 있지 않은 문자열이어야 함 (받음: ${JSON.stringify(value)})`,
+      );
+      return undefined;
+    }
+    return value;
+  };
+
+  /** Records an issue when both bounds are present and the minimum exceeds the maximum. */
+  const requireOrder = (
+    path: string,
+    minKey: string,
+    min: number | undefined,
+    maxKey: string,
+    max: number | undefined,
+  ): void => {
+    if (min === undefined || max === undefined || min <= max) return;
+    issues.push(`${path}.${minKey}는 ${path}.${maxKey} 이하여야 함 (받음: ${min} > ${max})`);
+  };
+
+  /** One `{ label, context? }` cue. label is required; context stays optional user intent. */
+  const cue = (obj: Record<string, unknown>, path: string): GestureCueConfig | undefined => {
+    const label = str(obj, path, "label");
+    const context = obj.context;
+    if (context !== undefined && (typeof context !== "string" || context.length === 0)) {
+      issues.push(
+        `${path}.context는 비어 있지 않은 문자열이어야 함 (받음: ${JSON.stringify(context)})`,
+      );
+      return undefined;
+    }
+    if (label === undefined) return undefined;
+    return { label, ...(context !== undefined ? { context: context as string } : {}) };
+  };
+
+  const positive = (v: number): boolean => v > 0;
+  const nonNegative = (v: number): boolean => v >= 0;
+  const unit = (v: number): boolean => v >= 0 && v <= 1;
 
   // available[] — optional VRM swap manifest.
   let available: AvatarOption[] | undefined;
@@ -91,741 +168,445 @@ export function validateAvatar(file: string, raw: unknown): AvatarConfig {
     });
   }
 
-  // framing — optional fit-to-bounds knob. Partial values allowed (defaults owned by the renderer).
-  let framing: AvatarConfig["framing"];
+  // framing — fit-to-bounds camera.
+  const framing: Partial<FramingConfig> = {};
   const rawFraming = raw.framing;
-  if (rawFraming !== undefined) {
-    if (!isObject(rawFraming)) {
-      issues.push(`framing은 객체여야 함 (받음: ${JSON.stringify(rawFraming)})`);
-    } else {
-      const { margin, fov } = rawFraming;
-      if (
-        margin !== undefined &&
-        (typeof margin !== "number" || !Number.isFinite(margin) || margin < 0)
-      ) {
-        issues.push(`framing.margin은 0 이상 유한 number여야 함 (받음: ${JSON.stringify(margin)})`);
-      }
-      if (
-        fov !== undefined &&
-        (typeof fov !== "number" || !Number.isFinite(fov) || fov <= 0 || fov >= 180)
-      ) {
-        issues.push(`framing.fov는 (0, 180) 열린구간 number여야 함 (받음: ${JSON.stringify(fov)})`);
-      }
-      framing = {
-        ...(typeof margin === "number" ? { margin } : {}),
-        ...(typeof fov === "number" ? { fov } : {}),
-      };
-    }
+  if (!isObject(rawFraming)) {
+    issues.push(`framing은 객체여야 함 (받음: ${JSON.stringify(rawFraming)})`);
+  } else {
+    framing.margin = num(rawFraming, "framing", "margin", nonNegative, "0 이상 유한 number");
+    framing.fov = num(
+      rawFraming,
+      "framing",
+      "fov",
+      (v) => v > 0 && v < 180,
+      "(0, 180) 열린구간 number",
+    );
   }
 
-  // hit_test — optional click-through knob. Partial values allowed (defaults owned by the controller).
-  let hit_test: AvatarConfig["hit_test"];
+  // hit_test — click-through polling and the silhouette alpha cut.
+  const hit_test: Partial<HitTestKnobs> = {};
   const rawHitTest = raw.hit_test;
-  if (rawHitTest !== undefined) {
-    if (!isObject(rawHitTest)) {
-      issues.push(`hit_test은 객체여야 함 (받음: ${JSON.stringify(rawHitTest)})`);
-    } else {
-      const out: NonNullable<AvatarConfig["hit_test"]> = {};
-      // hysteresis_margin_px / poll_interval_ms: finite number. margin is ≥0, interval is >0.
-      const posNum = (
-        k: "hysteresis_margin_px" | "poll_interval_ms",
-        minExclusive: boolean,
-      ): void => {
-        const v = rawHitTest[k];
-        if (v === undefined) return;
-        if (typeof v !== "number" || !Number.isFinite(v) || (minExclusive ? v <= 0 : v < 0)) {
-          issues.push(
-            `hit_test.${k}는 ${minExclusive ? "0보다 큰" : "0 이상"} 유한 number여야 함 (받음: ${JSON.stringify(v)})`,
-          );
-        } else {
-          out[k] = v;
-        }
-      };
-      posNum("hysteresis_margin_px", false);
-      posNum("poll_interval_ms", true);
-      // debounce_samples: integer ≥ 1.
-      const ds = rawHitTest.debounce_samples;
-      if (ds !== undefined) {
-        if (typeof ds !== "number" || !Number.isInteger(ds) || ds < 1) {
-          issues.push(
-            `hit_test.debounce_samples는 1 이상 정수여야 함 (받음: ${JSON.stringify(ds)})`,
-          );
-        } else {
-          out.debounce_samples = ds;
-        }
-      }
-      // alpha_threshold: finite number in (0, 1] (reserved for phase-2).
-      const at = rawHitTest.alpha_threshold;
-      if (at !== undefined) {
-        if (typeof at !== "number" || !Number.isFinite(at) || at <= 0 || at > 1) {
-          issues.push(
-            `hit_test.alpha_threshold는 (0, 1] 범위 유한 number여야 함 (받음: ${JSON.stringify(at)})`,
-          );
-        } else {
-          out.alpha_threshold = at;
-        }
-      }
-      hit_test = out;
-    }
+  if (!isObject(rawHitTest)) {
+    issues.push(`hit_test은 객체여야 함 (받음: ${JSON.stringify(rawHitTest)})`);
+  } else {
+    hit_test.hysteresis_margin_px = num(
+      rawHitTest,
+      "hit_test",
+      "hysteresis_margin_px",
+      nonNegative,
+      "0 이상 유한 number",
+    );
+    hit_test.poll_interval_ms = num(
+      rawHitTest,
+      "hit_test",
+      "poll_interval_ms",
+      positive,
+      "0보다 큰 유한 number",
+    );
+    hit_test.debounce_samples = int(
+      rawHitTest,
+      "hit_test",
+      "debounce_samples",
+      (v) => v >= 1,
+      "1 이상 정수",
+    );
+    hit_test.alpha_threshold = num(
+      rawHitTest,
+      "hit_test",
+      "alpha_threshold",
+      (v) => v > 0 && v <= 1,
+      "(0, 1] 범위 유한 number",
+    );
   }
 
-  const tap: TapConfig = {
-    ...TAP_DEFAULTS,
-    region_motions: { ...TAP_DEFAULTS.region_motions },
-    bored_cue: { ...TAP_DEFAULTS.bored_cue },
-  };
+  // tap — region reactions and the touch speech candidates.
+  const tap: Partial<TapConfig> = {};
   const rawTap = raw.tap;
-  if (rawTap !== undefined) {
-    if (!isObject(rawTap)) {
-      issues.push(`tap은 객체여야 함 (받음: ${JSON.stringify(rawTap)})`);
+  if (!isObject(rawTap)) {
+    issues.push(`tap은 객체여야 함 (받음: ${JSON.stringify(rawTap)})`);
+  } else {
+    tap.spam_count = int(rawTap, "tap", "spam_count", (v) => v >= 2, "2 이상 정수");
+    tap.spam_window_ms = int(
+      rawTap,
+      "tap",
+      "spam_window_ms",
+      (v) => v >= 1 && v <= 60_000,
+      "1..60000 범위 정수",
+    );
+    tap.region_radius_frac = num(
+      rawTap,
+      "tap",
+      "region_radius_frac",
+      (v) => v > 0 && v <= 1,
+      "(0, 1] 범위 유한 number",
+    );
+    tap.touch_cue_cooldown_ms = int(
+      rawTap,
+      "tap",
+      "touch_cue_cooldown_ms",
+      nonNegative,
+      "0 이상 정수",
+    );
+    tap.touch_emotion_hold_ms = int(
+      rawTap,
+      "tap",
+      "touch_emotion_hold_ms",
+      (v) => v >= 1,
+      "1 이상 정수",
+    );
+    tap.pat_hold_ms = int(rawTap, "tap", "pat_hold_ms", (v) => v >= 1, "1 이상 정수");
+
+    const rawRegionMotions = rawTap.region_motions;
+    if (!isObject(rawRegionMotions)) {
+      issues.push(`tap.region_motions은 객체여야 함 (받음: ${JSON.stringify(rawRegionMotions)})`);
     } else {
-      const spamCount = rawTap.spam_count;
-      if (spamCount !== undefined) {
-        if (typeof spamCount !== "number" || !Number.isInteger(spamCount) || spamCount < 2) {
-          issues.push(`tap.spam_count는 2 이상 정수여야 함 (받음: ${JSON.stringify(spamCount)})`);
-        } else {
-          tap.spam_count = spamCount;
-        }
+      rejectUnknownKeys(issues, rawRegionMotions, TAP_REGIONS, "tap.region_motions");
+      const motions: Partial<TapConfig["region_motions"]> = {};
+      for (const region of TAP_REGIONS) {
+        motions[region] = str(rawRegionMotions, "tap.region_motions", region);
       }
+      tap.region_motions = motions as TapConfig["region_motions"];
+    }
 
-      const spamWindowMs = rawTap.spam_window_ms;
-      if (spamWindowMs !== undefined) {
-        if (
-          typeof spamWindowMs !== "number" ||
-          !Number.isInteger(spamWindowMs) ||
-          spamWindowMs < 1 ||
-          spamWindowMs > 60_000
-        ) {
-          issues.push(
-            `tap.spam_window_ms는 1..60000 범위 정수여야 함 (받음: ${JSON.stringify(spamWindowMs)})`,
-          );
-        } else {
-          tap.spam_window_ms = spamWindowMs;
+    const rawBoredCue = rawTap.bored_cue;
+    if (!isObject(rawBoredCue)) {
+      issues.push(`tap.bored_cue은 객체여야 함 (받음: ${JSON.stringify(rawBoredCue)})`);
+    } else {
+      tap.bored_cue = cue(rawBoredCue, "tap.bored_cue");
+    }
+
+    // region_emotions — optional; a region left out keeps the motion alone.
+    const rawRegionEmotions = rawTap.region_emotions;
+    if (rawRegionEmotions !== undefined) {
+      if (!isObject(rawRegionEmotions)) {
+        issues.push(
+          `tap.region_emotions은 객체여야 함 (받음: ${JSON.stringify(rawRegionEmotions)})`,
+        );
+      } else {
+        rejectUnknownKeys(issues, rawRegionEmotions, TAP_REGIONS, "tap.region_emotions");
+        const emotions: NonNullable<TapConfig["region_emotions"]> = {};
+        for (const region of TAP_REGIONS) {
+          if (rawRegionEmotions[region] === undefined) continue;
+          emotions[region] = str(rawRegionEmotions, "tap.region_emotions", region);
         }
+        tap.region_emotions = emotions;
       }
+    }
 
-      const radiusFrac = rawTap.region_radius_frac;
-      if (radiusFrac !== undefined) {
-        if (
-          typeof radiusFrac !== "number" ||
-          !Number.isFinite(radiusFrac) ||
-          radiusFrac <= 0 ||
-          radiusFrac > 1
-        ) {
-          issues.push(
-            `tap.region_radius_frac는 (0, 1] 범위 유한 number여야 함 (받음: ${JSON.stringify(radiusFrac)})`,
-          );
-        } else {
-          tap.region_radius_frac = radiusFrac;
-        }
-      }
-
-      const regionMotions = rawTap.region_motions;
-      if (regionMotions !== undefined) {
-        if (!isObject(regionMotions)) {
-          issues.push(`tap.region_motions은 객체여야 함 (받음: ${JSON.stringify(regionMotions)})`);
-        } else {
-          for (const key of Object.keys(regionMotions)) {
-            if (key !== "head" && key !== "chest" && key !== "hips") {
-              issues.push(`tap.region_motions.${key}는 허용되지 않는 키`);
-              continue;
-            }
-            const motion = regionMotions[key];
-            if (typeof motion !== "string" || motion.length === 0) {
-              issues.push(
-                `tap.region_motions.${key}는 비어 있지 않은 문자열이어야 함 (받음: ${JSON.stringify(motion)})`,
-              );
-            } else {
-              tap.region_motions[key] = motion;
-            }
+    // region_cues — optional; a region left out offers no touch speech candidate.
+    const rawRegionCues = rawTap.region_cues;
+    if (rawRegionCues !== undefined) {
+      if (!isObject(rawRegionCues)) {
+        issues.push(`tap.region_cues은 객체여야 함 (받음: ${JSON.stringify(rawRegionCues)})`);
+      } else {
+        rejectUnknownKeys(issues, rawRegionCues, TAP_REGIONS, "tap.region_cues");
+        const cues: NonNullable<TapConfig["region_cues"]> = {};
+        for (const region of TAP_REGIONS) {
+          const entry = rawRegionCues[region];
+          if (entry === undefined) continue;
+          if (!isObject(entry)) {
+            issues.push(`tap.region_cues.${region}는 객체여야 함 (받음: ${JSON.stringify(entry)})`);
+            continue;
           }
+          cues[region] = cue(entry, `tap.region_cues.${region}`);
         }
-      }
-
-      const boredCue = rawTap.bored_cue;
-      if (boredCue !== undefined) {
-        if (!isObject(boredCue)) {
-          issues.push(`tap.bored_cue은 객체여야 함 (받음: ${JSON.stringify(boredCue)})`);
-        } else {
-          for (const field of ["label", "context"] as const) {
-            const value = boredCue[field];
-            if (value === undefined) continue;
-            if (typeof value !== "string" || value.length === 0) {
-              issues.push(
-                `tap.bored_cue.${field}는 비어 있지 않은 문자열이어야 함 (받음: ${JSON.stringify(value)})`,
-              );
-            } else {
-              tap.bored_cue[field] = value;
-            }
-          }
-        }
-      }
-
-      const regionEmotions = rawTap.region_emotions;
-      if (regionEmotions !== undefined) {
-        if (!isObject(regionEmotions)) {
-          issues.push(
-            `tap.region_emotions은 객체여야 함 (받음: ${JSON.stringify(regionEmotions)})`,
-          );
-        } else {
-          const out: NonNullable<TapConfig["region_emotions"]> = {};
-          for (const key of Object.keys(regionEmotions)) {
-            if (key !== "head" && key !== "chest" && key !== "hips") {
-              issues.push(`tap.region_emotions.${key}는 허용되지 않는 키`);
-              continue;
-            }
-            const emotion = regionEmotions[key];
-            if (typeof emotion !== "string" || emotion.length === 0) {
-              issues.push(
-                `tap.region_emotions.${key}는 비어 있지 않은 문자열이어야 함 (받음: ${JSON.stringify(emotion)})`,
-              );
-            } else {
-              out[key] = emotion;
-            }
-          }
-          tap.region_emotions = out;
-        }
-      }
-
-      const regionCues = rawTap.region_cues;
-      if (regionCues !== undefined) {
-        if (!isObject(regionCues)) {
-          issues.push(`tap.region_cues은 객체여야 함 (받음: ${JSON.stringify(regionCues)})`);
-        } else {
-          const out: NonNullable<TapConfig["region_cues"]> = {};
-          for (const key of Object.keys(regionCues)) {
-            if (key !== "head" && key !== "chest" && key !== "hips") {
-              issues.push(`tap.region_cues.${key}는 허용되지 않는 키`);
-              continue;
-            }
-            const cue = regionCues[key];
-            if (!isObject(cue)) {
-              issues.push(`tap.region_cues.${key}는 객체여야 함 (받음: ${JSON.stringify(cue)})`);
-              continue;
-            }
-            const { label, context } = cue;
-            if (
-              typeof label !== "string" ||
-              label.length === 0 ||
-              (context !== undefined && (typeof context !== "string" || context.length === 0))
-            ) {
-              issues.push(
-                `tap.region_cues.${key}의 label은 비어 있지 않은 문자열이어야 하고 context는 생략하거나 비어 있지 않은 문자열이어야 함 (받음: ${JSON.stringify(cue)})`,
-              );
-            } else {
-              out[key] = { label, ...(context !== undefined ? { context } : {}) };
-            }
-          }
-          tap.region_cues = out;
-        }
-      }
-
-      const touchCueCooldownMs = rawTap.touch_cue_cooldown_ms;
-      if (touchCueCooldownMs !== undefined) {
-        if (
-          typeof touchCueCooldownMs !== "number" ||
-          !Number.isInteger(touchCueCooldownMs) ||
-          touchCueCooldownMs < 0
-        ) {
-          issues.push(
-            `tap.touch_cue_cooldown_ms는 0 이상 정수여야 함 (받음: ${JSON.stringify(touchCueCooldownMs)})`,
-          );
-        } else {
-          tap.touch_cue_cooldown_ms = touchCueCooldownMs;
-        }
-      }
-
-      const touchEmotionHoldMs = rawTap.touch_emotion_hold_ms;
-      if (touchEmotionHoldMs !== undefined) {
-        if (
-          typeof touchEmotionHoldMs !== "number" ||
-          !Number.isInteger(touchEmotionHoldMs) ||
-          touchEmotionHoldMs < 1
-        ) {
-          issues.push(
-            `tap.touch_emotion_hold_ms는 1 이상 정수여야 함 (받음: ${JSON.stringify(touchEmotionHoldMs)})`,
-          );
-        } else {
-          tap.touch_emotion_hold_ms = touchEmotionHoldMs;
-        }
-      }
-
-      const patHoldMs = rawTap.pat_hold_ms;
-      if (patHoldMs !== undefined) {
-        if (typeof patHoldMs !== "number" || !Number.isInteger(patHoldMs) || patHoldMs < 1) {
-          issues.push(`tap.pat_hold_ms는 1 이상 정수여야 함 (받음: ${JSON.stringify(patHoldMs)})`);
-        } else {
-          tap.pat_hold_ms = patHoldMs;
-        }
+        tap.region_cues = cues;
       }
     }
   }
 
-  const peek: PeekConfig = { ...PEEK_DEFAULTS };
+  // peek — side-peek geometry and mirroring.
+  const peek: Partial<PeekConfig> = {};
   const rawPeek = raw.peek;
-  if (rawPeek !== undefined) {
-    if (!isObject(rawPeek)) {
-      issues.push(`peek은 객체여야 함 (받음: ${JSON.stringify(rawPeek)})`);
+  if (!isObject(rawPeek)) {
+    issues.push(`peek은 객체여야 함 (받음: ${JSON.stringify(rawPeek)})`);
+  } else {
+    for (const field of ["side_out_frac", "side_in_frac"] as const) {
+      peek[field] = num(rawPeek, "peek", field, (v) => v > 0 && v <= 2, "(0, 2] 범위 유한 number");
+    }
+    peek.inset_frac = num(rawPeek, "peek", "inset_frac", unit, "[0, 1] 범위 유한 number");
+    const mirrorSide = rawPeek.mirror_side;
+    if (mirrorSide !== "left" && mirrorSide !== "right" && mirrorSide !== "none") {
+      issues.push(
+        `peek.mirror_side는 left|right|none 중 하나여야 함 (받음: ${JSON.stringify(mirrorSide)})`,
+      );
     } else {
-      for (const field of ["side_out_frac", "side_in_frac"] as const) {
-        const value = rawPeek[field];
-        if (value === undefined) continue;
-        if (typeof value !== "number" || !Number.isFinite(value) || value <= 0 || value > 2) {
-          issues.push(
-            `peek.${field}는 (0, 2] 범위 유한 number여야 함 (받음: ${JSON.stringify(value)})`,
-          );
-        } else {
-          peek[field] = value;
-        }
-      }
-      const insetFrac = rawPeek.inset_frac;
-      if (insetFrac !== undefined) {
-        if (
-          typeof insetFrac !== "number" ||
-          !Number.isFinite(insetFrac) ||
-          insetFrac < 0 ||
-          insetFrac > 1
-        ) {
-          issues.push(
-            `peek.inset_frac는 [0, 1] 범위 유한 number여야 함 (받음: ${JSON.stringify(insetFrac)})`,
-          );
-        } else {
-          peek.inset_frac = insetFrac;
-        }
-      }
-      const mirrorSide = rawPeek.mirror_side;
-      if (mirrorSide !== undefined) {
-        if (mirrorSide !== "left" && mirrorSide !== "right" && mirrorSide !== "none") {
-          issues.push(
-            `peek.mirror_side는 left|right|none 중 하나여야 함 (받음: ${JSON.stringify(mirrorSide)})`,
-          );
-        } else {
-          peek.mirror_side = mirrorSide;
-        }
-      }
+      peek.mirror_side = mirrorSide;
     }
   }
 
-  const walk: WalkConfig = { ...WALK_DEFAULTS };
+  // walk — ambient floor stroll.
+  const walk: Partial<WalkConfig> = {};
   const rawWalk = raw.walk;
-  if (rawWalk !== undefined) {
-    if (!isObject(rawWalk)) {
-      issues.push(`walk은 객체여야 함 (받음: ${JSON.stringify(rawWalk)})`);
-    } else {
-      for (const field of [
-        "interval_min_ms",
-        "interval_max_ms",
-        "distance_min_px",
-        "distance_max_px",
-      ] as const) {
-        const value = rawWalk[field];
-        if (value === undefined) continue;
-        if (typeof value !== "number" || !Number.isFinite(value) || value <= 0) {
-          issues.push(
-            `walk.${field}는 0보다 큰 유한 number여야 함 (받음: ${JSON.stringify(value)})`,
-          );
-        } else {
-          walk[field] = value;
-        }
-      }
-      const tolerance = rawWalk.floor_tolerance_px;
-      if (tolerance !== undefined) {
-        if (typeof tolerance !== "number" || !Number.isFinite(tolerance) || tolerance < 0) {
-          issues.push(
-            `walk.floor_tolerance_px는 0 이상 유한 number여야 함 (받음: ${JSON.stringify(tolerance)})`,
-          );
-        } else {
-          walk.floor_tolerance_px = tolerance;
-        }
-      }
-      if (walk.interval_min_ms > walk.interval_max_ms) {
-        issues.push(
-          `walk.interval_min_ms는 walk.interval_max_ms 이하여야 함 (받음: ${walk.interval_min_ms} > ${walk.interval_max_ms})`,
-        );
-      }
-      if (walk.distance_min_px > walk.distance_max_px) {
-        issues.push(
-          `walk.distance_min_px는 walk.distance_max_px 이하여야 함 (받음: ${walk.distance_min_px} > ${walk.distance_max_px})`,
-        );
-      }
+  if (!isObject(rawWalk)) {
+    issues.push(`walk은 객체여야 함 (받음: ${JSON.stringify(rawWalk)})`);
+  } else {
+    for (const field of [
+      "interval_min_ms",
+      "interval_max_ms",
+      "distance_min_px",
+      "distance_max_px",
+    ] as const) {
+      walk[field] = num(rawWalk, "walk", field, positive, "0보다 큰 유한 number");
     }
+    walk.floor_tolerance_px = num(
+      rawWalk,
+      "walk",
+      "floor_tolerance_px",
+      nonNegative,
+      "0 이상 유한 number",
+    );
+    requireOrder(
+      "walk",
+      "interval_min_ms",
+      walk.interval_min_ms,
+      "interval_max_ms",
+      walk.interval_max_ms,
+    );
+    requireOrder(
+      "walk",
+      "distance_min_px",
+      walk.distance_min_px,
+      "distance_max_px",
+      walk.distance_max_px,
+    );
   }
 
-  const perch_walk: PerchWalkConfig = { ...PERCH_WALK_DEFAULTS };
+  // perch_walk — ambient stroll along a window top.
+  const perch_walk: Partial<PerchWalkConfig> = {};
   const rawPerchWalk = raw.perch_walk;
-  if (rawPerchWalk !== undefined) {
-    if (!isObject(rawPerchWalk)) {
-      issues.push(`perch_walk은 객체여야 함 (받음: ${JSON.stringify(rawPerchWalk)})`);
-    } else {
-      for (const field of ["dwell_min_ms", "dwell_max_ms"] as const) {
-        const value = rawPerchWalk[field];
-        if (value === undefined) continue;
-        if (typeof value !== "number" || !Number.isInteger(value) || value < 0) {
-          issues.push(`perch_walk.${field}는 0 이상 정수여야 함 (받음: ${JSON.stringify(value)})`);
-        } else {
-          perch_walk[field] = value;
-        }
-      }
-      for (const field of ["distance_min_px", "distance_max_px"] as const) {
-        const value = rawPerchWalk[field];
-        if (value === undefined) continue;
-        if (typeof value !== "number" || !Number.isFinite(value) || value <= 0) {
-          issues.push(
-            `perch_walk.${field}는 0보다 큰 유한 number여야 함 (받음: ${JSON.stringify(value)})`,
-          );
-        } else {
-          perch_walk[field] = value;
-        }
-      }
-      const edgeMarginFrac = rawPerchWalk.edge_margin_frac;
-      if (edgeMarginFrac !== undefined) {
-        if (
-          typeof edgeMarginFrac !== "number" ||
-          !Number.isFinite(edgeMarginFrac) ||
-          edgeMarginFrac < 0 ||
-          edgeMarginFrac > 1
-        ) {
-          issues.push(
-            `perch_walk.edge_margin_frac는 0 이상 1 이하 number여야 함 (받음: ${JSON.stringify(edgeMarginFrac)})`,
-          );
-        } else {
-          perch_walk.edge_margin_frac = edgeMarginFrac;
-        }
-      }
-      const levelTolerance = rawPerchWalk.level_tolerance_px;
-      if (levelTolerance !== undefined) {
-        if (
-          typeof levelTolerance !== "number" ||
-          !Number.isFinite(levelTolerance) ||
-          levelTolerance < 0
-        ) {
-          issues.push(
-            `perch_walk.level_tolerance_px는 0 이상 유한 number여야 함 (받음: ${JSON.stringify(levelTolerance)})`,
-          );
-        } else {
-          perch_walk.level_tolerance_px = levelTolerance;
-        }
-      }
-      if (perch_walk.dwell_min_ms > perch_walk.dwell_max_ms) {
-        issues.push(
-          `perch_walk.dwell_min_ms는 perch_walk.dwell_max_ms 이하여야 함 (받음: ${perch_walk.dwell_min_ms} > ${perch_walk.dwell_max_ms})`,
-        );
-      }
-      if (perch_walk.distance_min_px > perch_walk.distance_max_px) {
-        issues.push(
-          `perch_walk.distance_min_px는 perch_walk.distance_max_px 이하여야 함 (받음: ${perch_walk.distance_min_px} > ${perch_walk.distance_max_px})`,
-        );
-      }
+  if (!isObject(rawPerchWalk)) {
+    issues.push(`perch_walk은 객체여야 함 (받음: ${JSON.stringify(rawPerchWalk)})`);
+  } else {
+    for (const field of ["dwell_min_ms", "dwell_max_ms"] as const) {
+      perch_walk[field] = int(rawPerchWalk, "perch_walk", field, nonNegative, "0 이상 정수");
     }
+    for (const field of ["distance_min_px", "distance_max_px"] as const) {
+      perch_walk[field] = num(rawPerchWalk, "perch_walk", field, positive, "0보다 큰 유한 number");
+    }
+    perch_walk.edge_margin_frac = num(
+      rawPerchWalk,
+      "perch_walk",
+      "edge_margin_frac",
+      unit,
+      "0 이상 1 이하 number",
+    );
+    perch_walk.level_tolerance_px = num(
+      rawPerchWalk,
+      "perch_walk",
+      "level_tolerance_px",
+      nonNegative,
+      "0 이상 유한 number",
+    );
+    requireOrder(
+      "perch_walk",
+      "dwell_min_ms",
+      perch_walk.dwell_min_ms,
+      "dwell_max_ms",
+      perch_walk.dwell_max_ms,
+    );
+    requireOrder(
+      "perch_walk",
+      "distance_min_px",
+      perch_walk.distance_min_px,
+      "distance_max_px",
+      perch_walk.distance_max_px,
+    );
   }
 
-  const fall: FallConfig = { ...FALL_DEFAULTS };
+  // fall — drag-release dynamics and the surfaces a fall stops on.
+  const fall: Partial<FallConfig> = {};
   const rawFall = raw.fall;
-  if (rawFall !== undefined) {
-    if (!isObject(rawFall)) {
-      issues.push(`fall은 객체여야 함 (받음: ${JSON.stringify(rawFall)})`);
-    } else {
-      for (const field of ["gravity_px_s2", "max_speed_px_s", "land_room_frac"] as const) {
-        const value = rawFall[field];
-        if (value === undefined) continue;
-        if (typeof value !== "number" || !Number.isFinite(value) || value <= 0) {
-          issues.push(
-            `fall.${field}는 0보다 큰 유한 number여야 함 (받음: ${JSON.stringify(value)})`,
-          );
-        } else {
-          fall[field] = value;
-        }
-      }
-      const minDropFrac = rawFall.min_drop_frac;
-      if (minDropFrac !== undefined) {
-        if (
-          typeof minDropFrac !== "number" ||
-          !Number.isFinite(minDropFrac) ||
-          minDropFrac < 0 ||
-          minDropFrac > 1
-        ) {
-          issues.push(
-            `fall.min_drop_frac는 [0, 1] 범위 유한 number여야 함 (받음: ${JSON.stringify(minDropFrac)})`,
-          );
-        } else {
-          fall.min_drop_frac = minDropFrac;
-        }
-      }
-      const cueCooldownMs = rawFall.cue_cooldown_ms;
-      if (cueCooldownMs !== undefined) {
-        if (
-          typeof cueCooldownMs !== "number" ||
-          !Number.isInteger(cueCooldownMs) ||
-          cueCooldownMs < 0
-        ) {
-          issues.push(
-            `fall.cue_cooldown_ms는 0 이상 정수여야 함 (받음: ${JSON.stringify(cueCooldownMs)})`,
-          );
-        } else {
-          fall.cue_cooldown_ms = cueCooldownMs;
-        }
-      }
-      const stepOffProbability = rawFall.step_off_probability;
-      if (stepOffProbability !== undefined) {
-        if (
-          typeof stepOffProbability !== "number" ||
-          !Number.isFinite(stepOffProbability) ||
-          stepOffProbability < 0 ||
-          stepOffProbability > 1
-        ) {
-          issues.push(
-            `fall.step_off_probability는 [0, 1] 범위 유한 number여야 함 (받음: ${JSON.stringify(stepOffProbability)})`,
-          );
-        } else {
-          fall.step_off_probability = stepOffProbability;
-        }
-      }
+  if (!isObject(rawFall)) {
+    issues.push(`fall은 객체여야 함 (받음: ${JSON.stringify(rawFall)})`);
+  } else {
+    for (const field of ["gravity_px_s2", "max_speed_px_s", "land_room_frac"] as const) {
+      fall[field] = num(rawFall, "fall", field, positive, "0보다 큰 유한 number");
     }
+    fall.min_drop_frac = num(rawFall, "fall", "min_drop_frac", unit, "[0, 1] 범위 유한 number");
+    fall.cue_cooldown_ms = int(rawFall, "fall", "cue_cooldown_ms", nonNegative, "0 이상 정수");
+    fall.step_off_probability = num(
+      rawFall,
+      "fall",
+      "step_off_probability",
+      unit,
+      "[0, 1] 범위 유한 number",
+    );
   }
 
-  const descend: DescendConfig = { ...DESCEND_DEFAULTS };
+  // descend — upper-to-lower monitor descent choices.
+  const descend: Partial<DescendConfig> = {};
   const rawDescend = raw.descend;
-  if (rawDescend !== undefined) {
-    if (!isObject(rawDescend)) {
-      issues.push(`descend은 객체여야 함 (받음: ${JSON.stringify(rawDescend)})`);
-    } else {
-      for (const field of ["chance", "climb_down_chance"] as const) {
-        const value = rawDescend[field];
-        if (value === undefined) continue;
-        if (typeof value !== "number" || !Number.isFinite(value) || value < 0 || value > 1) {
-          issues.push(
-            `descend.${field}는 [0, 1] 범위 유한 number여야 함 (받음: ${JSON.stringify(value)})`,
-          );
-        } else {
-          descend[field] = value;
-        }
-      }
+  if (!isObject(rawDescend)) {
+    issues.push(`descend은 객체여야 함 (받음: ${JSON.stringify(rawDescend)})`);
+  } else {
+    for (const field of ["chance", "climb_down_chance"] as const) {
+      descend[field] = num(rawDescend, "descend", field, unit, "[0, 1] 범위 유한 number");
     }
   }
 
-  const climb: ClimbConfig = { ...CLIMB_DEFAULTS };
+  // climb — ambient window climb.
+  const climb: Partial<ClimbConfig> = {};
   const rawClimb = raw.climb;
-  if (rawClimb !== undefined) {
-    if (!isObject(rawClimb)) {
-      issues.push(`climb은 객체여야 함 (받음: ${JSON.stringify(rawClimb)})`);
-    } else {
-      for (const field of [
-        "interval_min_ms",
-        "interval_max_ms",
-        "perch_dwell_min_ms",
-        "perch_dwell_max_ms",
-      ] as const) {
-        const value = rawClimb[field];
-        if (value === undefined) continue;
-        if (typeof value !== "number" || !Number.isInteger(value) || value < 0) {
-          issues.push(`climb.${field}는 0 이상 정수여야 함 (받음: ${JSON.stringify(value)})`);
-        } else {
-          climb[field] = value;
-        }
-      }
-      for (const field of [
-        "max_height_frac",
-        "hang_frac",
-        "wall_offset_frac",
-        "descent_wall_offset_frac",
-        "ledge_walk_min_frac",
-        "ledge_walk_max_frac",
-      ] as const) {
-        const value = rawClimb[field];
-        if (value === undefined) continue;
-        if (typeof value !== "number" || !Number.isFinite(value) || value <= 0) {
-          issues.push(
-            `climb.${field}는 0보다 큰 유한 number여야 함 (받음: ${JSON.stringify(value)})`,
-          );
-        } else {
-          climb[field] = value;
-        }
-      }
-      if (climb.interval_min_ms > climb.interval_max_ms) {
-        issues.push(
-          `climb.interval_min_ms는 climb.interval_max_ms 이하여야 함 (받음: ${climb.interval_min_ms} > ${climb.interval_max_ms})`,
-        );
-      }
-      if (climb.perch_dwell_min_ms > climb.perch_dwell_max_ms) {
-        issues.push(
-          `climb.perch_dwell_min_ms는 climb.perch_dwell_max_ms 이하여야 함 (받음: ${climb.perch_dwell_min_ms} > ${climb.perch_dwell_max_ms})`,
-        );
-      }
-      if (climb.ledge_walk_min_frac > climb.ledge_walk_max_frac) {
-        issues.push(
-          `climb.ledge_walk_min_frac는 climb.ledge_walk_max_frac 이하여야 함 (받음: ${climb.ledge_walk_min_frac} > ${climb.ledge_walk_max_frac})`,
-        );
-      }
+  if (!isObject(rawClimb)) {
+    issues.push(`climb은 객체여야 함 (받음: ${JSON.stringify(rawClimb)})`);
+  } else {
+    for (const field of [
+      "interval_min_ms",
+      "interval_max_ms",
+      "perch_dwell_min_ms",
+      "perch_dwell_max_ms",
+    ] as const) {
+      climb[field] = int(rawClimb, "climb", field, nonNegative, "0 이상 정수");
     }
+    for (const field of [
+      "max_height_frac",
+      "hang_frac",
+      "wall_offset_frac",
+      "descent_wall_offset_frac",
+      "ledge_walk_min_frac",
+      "ledge_walk_max_frac",
+    ] as const) {
+      climb[field] = num(rawClimb, "climb", field, positive, "0보다 큰 유한 number");
+    }
+    requireOrder(
+      "climb",
+      "interval_min_ms",
+      climb.interval_min_ms,
+      "interval_max_ms",
+      climb.interval_max_ms,
+    );
+    requireOrder(
+      "climb",
+      "perch_dwell_min_ms",
+      climb.perch_dwell_min_ms,
+      "perch_dwell_max_ms",
+      climb.perch_dwell_max_ms,
+    );
+    requireOrder(
+      "climb",
+      "ledge_walk_min_frac",
+      climb.ledge_walk_min_frac,
+      "ledge_walk_max_frac",
+      climb.ledge_walk_max_frac,
+    );
   }
 
-  const jump: JumpConfig = { ...JUMP_DEFAULTS };
+  // jump — window-to-window flight.
+  const jump: Partial<JumpConfig> = {};
   const rawJump = raw.jump;
-  if (rawJump !== undefined) {
-    if (!isObject(rawJump)) {
-      issues.push(`jump은 객체여야 함 (받음: ${JSON.stringify(rawJump)})`);
-    } else {
-      for (const field of ["probability", "takeoff_frac", "land_frac"] as const) {
-        const value = rawJump[field];
-        if (value === undefined) continue;
-        if (typeof value !== "number" || !Number.isFinite(value) || value < 0 || value > 1) {
-          issues.push(
-            `jump.${field}는 [0, 1] 범위 유한 number여야 함 (받음: ${JSON.stringify(value)})`,
-          );
-        } else {
-          jump[field] = value;
-        }
-      }
-      for (const field of [
-        "height_up_max_frac",
-        "height_down_max_frac",
-        "gap_max_width_frac",
-        "apex_lift_frac",
-      ] as const) {
-        const value = rawJump[field];
-        if (value === undefined) continue;
-        if (typeof value !== "number" || !Number.isFinite(value) || value <= 0) {
-          issues.push(
-            `jump.${field}는 0보다 큰 유한 number여야 함 (받음: ${JSON.stringify(value)})`,
-          );
-        } else {
-          jump[field] = value;
-        }
-      }
-      const flightTimeoutMs = rawJump.flight_timeout_ms;
-      if (flightTimeoutMs !== undefined) {
-        if (
-          typeof flightTimeoutMs !== "number" ||
-          !Number.isInteger(flightTimeoutMs) ||
-          flightTimeoutMs <= 0
-        ) {
-          issues.push(
-            `jump.flight_timeout_ms는 0보다 큰 정수여야 함 (받음: ${JSON.stringify(flightTimeoutMs)})`,
-          );
-        } else {
-          jump.flight_timeout_ms = flightTimeoutMs;
-        }
-      }
-      if (jump.takeoff_frac >= jump.land_frac) {
-        issues.push(
-          `jump.takeoff_frac는 jump.land_frac 미만이어야 함 (받음: ${jump.takeoff_frac} >= ${jump.land_frac})`,
-        );
-      }
+  if (!isObject(rawJump)) {
+    issues.push(`jump은 객체여야 함 (받음: ${JSON.stringify(rawJump)})`);
+  } else {
+    for (const field of ["probability", "takeoff_frac", "land_frac"] as const) {
+      jump[field] = num(rawJump, "jump", field, unit, "[0, 1] 범위 유한 number");
     }
-  }
-
-  let drag_hold_ms = DRAG_HOLD_MS_DEFAULT;
-  const rawDragHoldMs = raw.drag_hold_ms;
-  if (rawDragHoldMs !== undefined) {
+    for (const field of [
+      "height_up_max_frac",
+      "height_down_max_frac",
+      "gap_max_width_frac",
+      "apex_lift_frac",
+    ] as const) {
+      jump[field] = num(rawJump, "jump", field, positive, "0보다 큰 유한 number");
+    }
+    jump.flight_timeout_ms = int(rawJump, "jump", "flight_timeout_ms", positive, "0보다 큰 정수");
     if (
-      typeof rawDragHoldMs !== "number" ||
-      !Number.isInteger(rawDragHoldMs) ||
-      rawDragHoldMs < 1
+      jump.takeoff_frac !== undefined &&
+      jump.land_frac !== undefined &&
+      jump.takeoff_frac >= jump.land_frac
     ) {
-      issues.push(`drag_hold_ms는 1 이상 정수여야 함 (받음: ${JSON.stringify(rawDragHoldMs)})`);
-    } else {
-      drag_hold_ms = rawDragHoldMs;
+      issues.push(
+        `jump.takeoff_frac는 jump.land_frac 미만이어야 함 (받음: ${jump.takeoff_frac} >= ${jump.land_frac})`,
+      );
     }
   }
 
-  const gesture_cues: GestureCuesConfig = {
-    drag_held: { ...GESTURE_CUES_DEFAULTS.drag_held },
-    window_sit: { ...GESTURE_CUES_DEFAULTS.window_sit },
-    peek: { ...GESTURE_CUES_DEFAULTS.peek },
-    dropped: { ...GESTURE_CUES_DEFAULTS.dropped },
-  };
+  // drag_hold_ms — how long a drag is held before the reflex cue fires.
+  const rawDragHoldMs = raw.drag_hold_ms;
+  let drag_hold_ms: number | undefined;
+  if (typeof rawDragHoldMs !== "number" || !Number.isInteger(rawDragHoldMs) || rawDragHoldMs < 1) {
+    issues.push(`drag_hold_ms는 1 이상 정수여야 함 (받음: ${JSON.stringify(rawDragHoldMs)})`);
+  } else {
+    drag_hold_ms = rawDragHoldMs;
+  }
+
+  // gesture_cues — reflex-gesture speech cues.
+  const gesture_cues: Partial<GestureCuesConfig> = {};
   const rawGestureCues = raw.gesture_cues;
-  if (rawGestureCues !== undefined) {
-    if (!isObject(rawGestureCues)) {
-      issues.push(`gesture_cues은 객체여야 함 (받음: ${JSON.stringify(rawGestureCues)})`);
-    } else {
-      for (const key of Object.keys(rawGestureCues)) {
-        if (key !== "drag_held" && key !== "window_sit" && key !== "peek" && key !== "dropped") {
-          issues.push(`gesture_cues.${key}는 허용되지 않는 키`);
-          continue;
-        }
-        const cue = rawGestureCues[key];
-        if (!isObject(cue)) {
-          issues.push(`gesture_cues.${key}는 객체여야 함 (받음: ${JSON.stringify(cue)})`);
-          continue;
-        }
-        for (const field of ["label", "context"] as const) {
-          const value = cue[field];
-          if (value === undefined) continue;
-          if (typeof value !== "string" || value.length === 0) {
-            issues.push(
-              `gesture_cues.${key}.${field}는 비어 있지 않은 문자열이어야 함 (받음: ${JSON.stringify(value)})`,
-            );
-          } else {
-            gesture_cues[key as keyof GestureCuesConfig][field] = value;
-          }
-        }
+  if (!isObject(rawGestureCues)) {
+    issues.push(`gesture_cues은 객체여야 함 (받음: ${JSON.stringify(rawGestureCues)})`);
+  } else {
+    rejectUnknownKeys(issues, rawGestureCues, GESTURE_CUE_KEYS, "gesture_cues");
+    for (const key of GESTURE_CUE_KEYS) {
+      const entry = rawGestureCues[key];
+      if (!isObject(entry)) {
+        issues.push(`gesture_cues.${key}는 객체여야 함 (받음: ${JSON.stringify(entry)})`);
+        continue;
       }
+      gesture_cues[key] = cue(entry, `gesture_cues.${key}`);
     }
   }
 
-  // gaze — optional camera-tracking knob. Partial values allowed (defaults owned by the renderer, natural preset).
-  let gaze: AvatarConfig["gaze"];
+  // gaze — cursor tracking angles and damping.
+  const gaze: Partial<GazeKnobs> = {};
   const rawGaze = raw.gaze;
-  if (rawGaze !== undefined) {
-    if (!isObject(rawGaze)) {
-      issues.push(`gaze는 객체여야 함 (받음: ${JSON.stringify(rawGaze)})`);
-    } else {
-      const out: NonNullable<AvatarConfig["gaze"]> = {};
-      // angle (deg) — finite number, specified range. Only deadDeg allows 0, other angles are >0.
-      const ranged = (
-        k:
-          | "deadDeg"
-          | "headEngageDeg"
-          | "disengageDeg"
-          | "maxHeadYaw"
-          | "maxHeadPitch"
-          | "eyeMaxDeg"
-          | "headNeckSplit"
-          | "smooth",
-        min: number,
-        max: number,
-        minInclusive: boolean,
-      ): void => {
-        const v = rawGaze[k];
-        if (v === undefined) return;
-        const lowOk = typeof v === "number" && (minInclusive ? v >= min : v > min);
-        if (typeof v !== "number" || !Number.isFinite(v) || !lowOk || v > max) {
-          issues.push(
-            `gaze.${k}는 ${minInclusive ? min : `${min} 초과`}..${max} 범위 유한 number여야 함 (받음: ${JSON.stringify(v)})`,
-          );
-        } else {
-          out[k] = v;
-        }
-      };
-      ranged("deadDeg", 0, 180, true);
-      ranged("headEngageDeg", 0, 180, false);
-      ranged("disengageDeg", 0, 180, false);
-      ranged("maxHeadYaw", 0, 90, false);
-      ranged("maxHeadPitch", 0, 90, false);
-      ranged("eyeMaxDeg", 0, 90, false);
-      ranged("headNeckSplit", 0, 1, true);
-      ranged("smooth", 0, 1000, false);
-      gaze = out;
-    }
+  if (!isObject(rawGaze)) {
+    issues.push(`gaze는 객체여야 함 (받음: ${JSON.stringify(rawGaze)})`);
+  } else {
+    /** Only deadDeg and headNeckSplit accept their lower bound; the other angles are above it. */
+    const ranged = (
+      key: keyof GazeKnobs,
+      min: number,
+      max: number,
+      minInclusive: boolean,
+    ): void => {
+      gaze[key] = num(
+        rawGaze,
+        "gaze",
+        key,
+        (v) => (minInclusive ? v >= min : v > min) && v <= max,
+        `${minInclusive ? min : `${min} 초과`}..${max} 범위 유한 number`,
+      );
+    };
+    ranged("deadDeg", 0, 180, true);
+    ranged("headEngageDeg", 0, 180, false);
+    ranged("disengageDeg", 0, 180, false);
+    ranged("maxHeadYaw", 0, 90, false);
+    ranged("maxHeadPitch", 0, 90, false);
+    ranged("eyeMaxDeg", 0, 90, false);
+    ranged("headNeckSplit", 0, 1, true);
+    ranged("smooth", 0, 1000, false);
   }
 
   assertValid(file, issues);
   return {
     vrm_url,
-    tap,
-    peek,
-    walk,
-    perch_walk,
-    fall,
-    descend,
-    climb,
-    jump,
-    drag_hold_ms,
-    gesture_cues,
+    framing: framing as FramingConfig,
+    hit_test: hit_test as HitTestKnobs,
+    tap: tap as TapConfig,
+    peek: peek as PeekConfig,
+    walk: walk as WalkConfig,
+    perch_walk: perch_walk as PerchWalkConfig,
+    fall: fall as FallConfig,
+    descend: descend as DescendConfig,
+    climb: climb as ClimbConfig,
+    jump: jump as JumpConfig,
+    drag_hold_ms: drag_hold_ms as number,
+    gesture_cues: gesture_cues as GestureCuesConfig,
+    gaze: gaze as GazeKnobs,
     ...(available !== undefined ? { available } : {}),
-    ...(framing !== undefined ? { framing } : {}),
-    ...(hit_test !== undefined ? { hit_test } : {}),
-    ...(gaze !== undefined ? { gaze } : {}),
   };
+}
+
+/** Records an issue for every key of `obj` outside `allowed`. */
+function rejectUnknownKeys(
+  issues: string[],
+  obj: Record<string, unknown>,
+  allowed: readonly string[],
+  path: string,
+): void {
+  for (const key of Object.keys(obj)) {
+    if (!allowed.includes(key)) issues.push(`${path}.${key}는 허용되지 않는 키`);
+  }
 }

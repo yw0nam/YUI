@@ -373,10 +373,9 @@ const realFactories: ConfiguredBootstrapFactories = {
     applyIdleVariants();
     register(idleMotionSettings.subscribe(applyIdleVariants));
     renderer.setMotionRegistry(cfg.motions);
-    renderer.setFraming(cfg.avatar.framing ?? {});
-    renderer.setGaze(cfg.avatar.gaze ?? {});
-    const bootAlpha = cfg.avatar.hit_test?.alpha_threshold;
-    if (bootAlpha !== undefined) renderer.setHitTestThreshold(bootAlpha);
+    renderer.setFraming(cfg.avatar.framing);
+    renderer.setGaze(cfg.avatar.gaze);
+    renderer.setHitTestThreshold(cfg.avatar.hit_test.alpha_threshold);
     vrmSelection.setManifest({
       available: cfg.avatar.available,
       defaultValue: cfg.avatar.vrm_url,
@@ -469,7 +468,7 @@ const realFactories: ConfiguredBootstrapFactories = {
         return interactiveRects().some((rect) => pointInRect(xClient, yClient, rect, marginPx));
       },
       moveTarget: window,
-      getConfig: () => config.get().avatar.hit_test ?? {},
+      getConfig: () => config.get().avatar.hit_test,
     });
     hitTest.start();
     register(hitTest.stop);

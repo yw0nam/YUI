@@ -9,11 +9,14 @@
  */
 
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { ATTACHMENT_LIMITS_DEFAULTS } from "../config";
+import type { AttachmentLimits } from "../config";
 import type { RemoteSurfaces } from "../io/message-remote";
 import type { MessageWindowMode } from "../io/message-window-settings";
 import type { Surfaces } from "./surfaces";
 import { createSurfacesRouter } from "./surfaces-router";
+
+/** The caps configs/guardrails.json delivers through setAttachmentLimits. */
+const LIMITS: AttachmentLimits = { max_count: 6, max_image_bytes: 5 * 1024 * 1024 };
 
 function makeLocal(): Surfaces {
   return {
@@ -130,11 +133,11 @@ describe("createSurfacesRouter", () => {
     router.summonInput();
     router.setBusy(true);
     router.setInputEnabled(false);
-    router.setAttachmentLimits(ATTACHMENT_LIMITS_DEFAULTS);
+    router.setAttachmentLimits(LIMITS);
     expect(local.summonInput).toHaveBeenCalledTimes(1);
     expect(local.setBusy).toHaveBeenCalledWith(true);
     expect(local.setInputEnabled).toHaveBeenCalledWith(false);
-    expect(local.setAttachmentLimits).toHaveBeenCalledWith(ATTACHMENT_LIMITS_DEFAULTS);
+    expect(local.setAttachmentLimits).toHaveBeenCalledWith(LIMITS);
 
     setMode("popped");
     router.summonInput();

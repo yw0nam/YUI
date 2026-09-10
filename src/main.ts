@@ -581,10 +581,9 @@ async function bootstrap(): Promise<BootstrapHandle> {
       if (changed.has("endpoints")) void refreshVoiceList();
       configured.broker.onConfigChange(cfg, changed);
       if (!changed.has("avatar")) return;
-      renderer.setFraming(cfg.avatar.framing ?? {});
-      renderer.setGaze(cfg.avatar.gaze ?? {});
-      const reloadAlpha = cfg.avatar.hit_test?.alpha_threshold;
-      if (reloadAlpha !== undefined) renderer.setHitTestThreshold(reloadAlpha);
+      renderer.setFraming(cfg.avatar.framing);
+      renderer.setGaze(cfg.avatar.gaze);
+      renderer.setHitTestThreshold(cfg.avatar.hit_test.alpha_threshold);
       vrmSelection.setManifest({
         available: cfg.avatar.available,
         defaultValue: cfg.avatar.vrm_url,

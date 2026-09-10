@@ -7,7 +7,8 @@ import {
   descendConfigFor,
   fallConfigFor,
 } from "./bootstrap-configured";
-import { type AppConfig, ATTACHMENT_LIMITS_DEFAULTS, FALL_DEFAULTS } from "./config";
+import type { AppConfig } from "./config";
+import { avatarFixture, guardrailsFixture } from "./config/load-test-helpers";
 
 function validConfig(): AppConfig {
   return {
@@ -18,38 +19,15 @@ function validConfig(): AppConfig {
       tts_base_url: "http://tts.test/v1",
     },
     avatar: {
+      ...avatarFixture(),
       vrm_url: "/vrms/test.vrm",
       available: [{ id: "test", label: "Test", url: "/vrms/test.vrm" }],
-      tap: {
-        spam_count: 4,
-        spam_window_ms: 3_000,
-        region_radius_frac: 0.18,
-        region_motions: { head: "head_pat", chest: "embarrassed", hips: "embarrassed" },
-        bored_cue: { label: "bored poking" },
-        touch_cue_cooldown_ms: 60_000,
-        touch_emotion_hold_ms: 4_000,
-        pat_hold_ms: 300,
-      },
-      peek: {
-        side_out_frac: 0.28,
-        side_in_frac: 0.23,
-        inset_frac: 0.12,
-        mirror_side: "right",
-      },
       walk: {
         interval_min_ms: 60_000,
         interval_max_ms: 180_000,
         distance_min_px: 80,
         distance_max_px: 320,
         floor_tolerance_px: 8,
-      },
-      perch_walk: {
-        dwell_min_ms: 45_000,
-        dwell_max_ms: 120_000,
-        distance_min_px: 80,
-        distance_max_px: 400,
-        edge_margin_frac: 0.2,
-        level_tolerance_px: 8,
       },
       fall: {
         gravity_px_s2: 2400,
@@ -58,39 +36,6 @@ function validConfig(): AppConfig {
         cue_cooldown_ms: 60_000,
         land_room_frac: 0.5,
         step_off_probability: 0.1,
-      },
-      descend: {
-        chance: 0.5,
-        climb_down_chance: 0.5,
-      },
-      climb: {
-        interval_min_ms: 90_000,
-        interval_max_ms: 180_000,
-        perch_dwell_min_ms: 60_000,
-        perch_dwell_max_ms: 120_000,
-        max_height_frac: 4,
-        hang_frac: 0.3,
-        wall_offset_frac: 0.17,
-        descent_wall_offset_frac: 0.3,
-        ledge_walk_min_frac: 0.5,
-        ledge_walk_max_frac: 1.5,
-      },
-      jump: {
-        probability: 0.3,
-        height_up_max_frac: 0.5,
-        height_down_max_frac: 1,
-        gap_max_width_frac: 1.5,
-        apex_lift_frac: 0.15,
-        takeoff_frac: 0.4,
-        land_frac: 0.67,
-        flight_timeout_ms: 4000,
-      },
-      drag_hold_ms: 5_000,
-      gesture_cues: {
-        drag_held: { label: "dragged around" },
-        window_sit: { label: "sat on window" },
-        peek: { label: "peeking" },
-        dropped: { label: "dropped from mid-air" },
       },
     },
     emotionRegistry: {},
@@ -110,7 +55,7 @@ function validConfig(): AppConfig {
         overall_max: 20,
         cooldown_ms: 30_000,
       },
-      attachments: ATTACHMENT_LIMITS_DEFAULTS,
+      attachments: guardrailsFixture().attachments,
     },
     filler: {
       gap_ms: 1_000,
@@ -272,7 +217,7 @@ describe("createPatGesture", () => {
 });
 
 describe("fallConfigFor", () => {
-  const fall = { ...FALL_DEFAULTS, step_off_probability: 0.3 };
+  const fall = { ...avatarFixture().fall, step_off_probability: 0.3 };
 
   it("passes the config through while the fall is on", () => {
     expect(fallConfigFor(fall, true)).toBe(fall);

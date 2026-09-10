@@ -8,6 +8,7 @@
 
 import { describe, expect, it, vi } from "vitest";
 import { type ConfigReader, createConfigStore, plainSecretProvider } from "./index";
+import { avatarFixture, guardrailsFixture } from "./load-test-helpers";
 
 // ── mutable fake reader ──────────────────────────────────────────────────────
 
@@ -20,7 +21,7 @@ function goodFixture(): Record<string, unknown> {
       stt_base_url: "http://localhost:5517",
       tts_base_url: "http://localhost:8092",
     },
-    "avatar.json": { vrm_url: "/vrms/carlotta.vrm" },
+    "avatar.json": avatarFixture(),
     "emotion_registry.json": {
       neutral: { vrm_expression: "neutral", fallback: "neutral" },
       happy: { vrm_expression: "happy", fallback: "neutral" },
@@ -34,22 +35,7 @@ function goodFixture(): Record<string, unknown> {
         interrupt_policy: "replace",
       },
     },
-    "guardrails.json": {
-      debounce_ms: {
-        idle_watcher: 30000,
-        os_event_watcher: 5000,
-        backend_push_source: 10000,
-        user_input_source: 0,
-        screen_watcher: 5000,
-      },
-      rate_limit: {
-        window_ms: 3600000,
-        tier2_max: 6,
-        tier3_max: 2,
-        overall_max: 20,
-        cooldown_ms: 300000,
-      },
-    },
+    "guardrails.json": guardrailsFixture(),
     "filler.json": {
       gap_ms: 1000,
       gap_jitter_ms: 300,

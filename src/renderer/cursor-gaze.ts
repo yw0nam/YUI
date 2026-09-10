@@ -24,35 +24,11 @@ import {
 
 const DEG2RAD = Math.PI / 180;
 
-/**
- * Default cursor-gaze tracking — the "natural" preset; overridden by configs/avatar.json `gaze`.
- * disengageDeg sits above MAX_RESIDUAL_DEG so a desktop pet never "gives up" tracking the cursor.
- */
-const DEFAULT_GAZE: GazeConfig = {
-  deadDeg: 2,
-  headEngageDeg: 6,
-  disengageDeg: 45,
-  sensitivity: 30,
-  maxHeadYaw: 50,
-  maxHeadPitch: 30,
-  eyeMaxDeg: 25,
-  headNeckSplit: 0.6,
-  smooth: 10,
-};
+/** Degrees of gaze rotation per mount width of cursor offset from the head's screen position. */
+const SENSITIVITY_DEG = 30;
 
 /** Ceiling on the (yaw, pitch) residual vector magnitude — below disengageDeg on purpose. */
 const MAX_RESIDUAL_DEG = 40;
-
-/** Merge a partial gaze config over a base, ignoring missing/non-finite keys. */
-function mergeGaze(base: GazeConfig, next: Partial<GazeConfig> | undefined): GazeConfig {
-  if (!next) return { ...base };
-  const out = { ...base };
-  for (const k of Object.keys(base) as (keyof GazeConfig)[]) {
-    const v = next[k];
-    if (typeof v === "number" && Number.isFinite(v)) out[k] = v;
-  }
-  return out;
-}
 
 /**
  * Cursor screen-offset → yaw/pitch residual (VTube-Studio style direct mapping). Both axes
@@ -89,8 +65,8 @@ interface CursorGazeDeps {
   camera: THREE.Camera;
   /** The live VRM (or undefined) — read fresh each step; never cached across frames. */
   getVrm: () => VRM | undefined;
-  /** Initial thresholds; live path is setConfig. Omitted keys keep defaults. */
-  gaze?: Partial<GazeConfig>;
+  /** configs/avatar.json thresholds; live path is setConfig. null until the config arrives. */
+  gaze: GazeConfig | null;
   log: GazeLog;
   /** Mount element width (CSS px) — head screen-projection + residual normalization. */
   mountWidth(): number;
@@ -110,8 +86,8 @@ export interface CursorGaze {
   onVrmDisposed(): void;
   /** True while the damped gaze is still easing toward target — gates the idle frame cap. */
   isConverging(): boolean;
-  /** Merge live thresholds over the current config (omitted/non-finite keys kept). */
-  setConfig(next: Partial<GazeConfig>): void;
+  /** Replace the tracking thresholds. */
+  setConfig(next: GazeConfig): void;
   /** Enable/disable head+eye tracking at runtime. Disabled ⇒ eased back to neutral. */
   setEnabled(enabled: boolean): void;
   /** Latest window-local CSS px cursor position; null = unavailable (eases back to neutral). */
@@ -122,8 +98,9 @@ export function createCursorGaze(deps: CursorGazeDeps): CursorGaze {
   const { camera, getVrm, log, mountWidth, mountHeight } = deps;
 
   // ── Cursor gaze (head/eye tracking) state ────────────────────────────────────
-  // Thresholds: defaults overridden by injected config (and live via setConfig).
-  let gazeConfig: GazeConfig = mergeGaze(DEFAULT_GAZE, deps.gaze);
+  // Thresholds from configs/avatar.json; null until the config arrives (this layer is
+  // built with the renderer, before the config loads), and nothing tracks before then.
+  let gazeConfig: GazeConfig | null = deps.gaze;
   // Runtime on/off (persisted by main.ts). Disabled ⇒ eased back to neutral, not snapped.
   let gazeEnabled = true;
   // Persistent damped angles (deg) carried frame to frame.
@@ -159,7 +136,7 @@ export function createCursorGaze(deps: CursorGazeDeps): CursorGaze {
    */
   function step(dt: number): void {
     const currentVrm = getVrm();
-    if (!currentVrm) {
+    if (!currentVrm || !gazeConfig) {
       gazeConverging = false;
       return;
     }
@@ -177,7 +154,7 @@ export function createCursorGaze(deps: CursorGazeDeps): CursorGaze {
           x: (gazeHeadPos.x + 1) * 0.5 * mountWidth(),
           y: (1 - gazeHeadPos.y) * 0.5 * mountHeight(),
         };
-        const res = cursorToResidual(cursor, headCss, mountWidth(), gazeConfig.sensitivity);
+        const res = cursorToResidual(cursor, headCss, mountWidth(), SENSITIVITY_DEG);
         residualYawDeg = res.residualYawDeg;
         residualPitchDeg = res.residualPitchDeg;
         eccentricityDeg = res.eccentricityDeg;
@@ -245,7 +222,7 @@ export function createCursorGaze(deps: CursorGazeDeps): CursorGaze {
       return gazeConverging;
     },
     setConfig(next) {
-      gazeConfig = mergeGaze(gazeConfig, next);
+      gazeConfig = next;
     },
     setEnabled(enabled) {
       gazeEnabled = enabled;

@@ -37,18 +37,12 @@ import {
 
 const log = createLogger("hit-test");
 
-/** The configs/avatar.json hit_test knobs this controller consumes (all optional; defaults below). */
+/** The configs/avatar.json hit_test knobs this controller consumes. */
 export interface HitTestConfig {
-  hysteresis_margin_px?: number;
-  poll_interval_ms?: number;
-  debounce_samples?: number;
+  hysteresis_margin_px: number;
+  poll_interval_ms: number;
+  debounce_samples: number;
 }
-
-const DEFAULTS = {
-  hysteresis_margin_px: 8,
-  poll_interval_ms: 33,
-  debounce_samples: 2,
-} as const;
 
 export type HitTestState = "capture" | "passthrough";
 
@@ -110,7 +104,7 @@ export function decideTransition(args: {
   config: HitTestConfig;
 }): TransitionResult {
   const { state, interactive, counter, config } = args;
-  const debounce = Math.max(1, config.debounce_samples ?? DEFAULTS.debounce_samples);
+  const debounce = Math.max(1, config.debounce_samples);
   // The state the sample is pushing toward.
   const want: HitTestState = interactive ? "capture" : "passthrough";
   if (want === state) {
@@ -214,7 +208,7 @@ export function createHitTestController(opts: HitTestOptions): HitTestController
   const statics = createWindowStatics();
 
   function margin(): number {
-    return opts.getConfig().hysteresis_margin_px ?? DEFAULTS.hysteresis_margin_px;
+    return opts.getConfig().hysteresis_margin_px;
   }
 
   // Idempotent toggle — only hits IPC when the desired state actually changes.
@@ -265,7 +259,7 @@ export function createHitTestController(opts: HitTestOptions): HitTestController
     stopPoll();
     // Nothing can click a hidden window — resumes via onVisibilityChange.
     if (doc.visibilityState === "hidden") return;
-    const ms = opts.getConfig().poll_interval_ms ?? DEFAULTS.poll_interval_ms;
+    const ms = opts.getConfig().poll_interval_ms;
     pollHandle = schedule(() => {
       void poll();
     }, ms);

@@ -9,14 +9,8 @@
  */
 
 import { describe, expect, it } from "vitest";
-import {
-  ATTACHMENT_LIMITS_DEFAULTS,
-  CONFIG_FILES,
-  ConfigError,
-  loadConfig,
-  plainSecretProvider,
-} from "./load";
-import { goodFixture, readerOf } from "./load-test-helpers";
+import { CONFIG_FILES, ConfigError, loadConfig, plainSecretProvider } from "./load";
+import { avatarFixture, goodFixture, guardrailsFixture, readerOf } from "./load-test-helpers";
 
 // ── happy path ─────────────────────────────────────────────────────────────────
 
@@ -31,81 +25,8 @@ describe("loadConfig — happy path", () => {
       tts_base_url: "http://localhost:8092",
       chat_instructions: "Use the generate_express tool with emotion_id, motion_id, emotion_text.",
     });
-    expect(cfg.avatar).toEqual({
-      vrm_url: "/vrms/carlotta.vrm",
-      peek: {
-        side_out_frac: 0.28,
-        side_in_frac: 0.23,
-        inset_frac: 0.12,
-        mirror_side: "right",
-      },
-      tap: {
-        spam_count: 4,
-        spam_window_ms: 3000,
-        region_radius_frac: 0.18,
-        region_motions: { head: "head_pat", chest: "embarrassed", hips: "embarrassed" },
-        bored_cue: { label: "bored poking" },
-        touch_cue_cooldown_ms: 60_000,
-        touch_emotion_hold_ms: 4000,
-        pat_hold_ms: 300,
-      },
-      drag_hold_ms: 5000,
-      gesture_cues: {
-        drag_held: { label: "dragged around" },
-        window_sit: { label: "sat on window" },
-        peek: { label: "peeking" },
-        dropped: { label: "dropped from mid-air" },
-      },
-      walk: {
-        interval_min_ms: 30_000,
-        interval_max_ms: 60_000,
-        distance_min_px: 200,
-        distance_max_px: 600,
-        floor_tolerance_px: 24,
-      },
-      perch_walk: {
-        dwell_min_ms: 45_000,
-        dwell_max_ms: 120_000,
-        distance_min_px: 80,
-        distance_max_px: 400,
-        edge_margin_frac: 0.2,
-        level_tolerance_px: 8,
-      },
-      fall: {
-        gravity_px_s2: 1600,
-        max_speed_px_s: 1200,
-        min_drop_frac: 0.2,
-        cue_cooldown_ms: 60_000,
-        land_room_frac: 0.5,
-        step_off_probability: 0.1,
-      },
-      descend: {
-        chance: 0.5,
-        climb_down_chance: 0.5,
-      },
-      climb: {
-        interval_min_ms: 90_000,
-        interval_max_ms: 180_000,
-        perch_dwell_min_ms: 60_000,
-        perch_dwell_max_ms: 120_000,
-        max_height_frac: 4,
-        hang_frac: 0.3,
-        wall_offset_frac: 0.17,
-        descent_wall_offset_frac: 0.3,
-        ledge_walk_min_frac: 0.5,
-        ledge_walk_max_frac: 1.5,
-      },
-      jump: {
-        probability: 0.3,
-        height_up_max_frac: 0.5,
-        height_down_max_frac: 1,
-        gap_max_width_frac: 1.5,
-        apex_lift_frac: 0.15,
-        takeoff_frac: 0.4,
-        land_frac: 0.67,
-        flight_timeout_ms: 4000,
-      },
-    });
+    // Validation is shape-preserving: what the file declares is what the section holds.
+    expect(cfg.avatar).toEqual(avatarFixture());
     expect(cfg.emotionRegistry.happy).toEqual({
       vrm_expression: "happy",
       fallback: "neutral",
@@ -138,7 +59,7 @@ describe("loadConfig — guardrails", () => {
         overall_max: 20,
         cooldown_ms: 300000,
       },
-      attachments: ATTACHMENT_LIMITS_DEFAULTS,
+      attachments: guardrailsFixture().attachments,
     });
   });
 

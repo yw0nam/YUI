@@ -23,6 +23,7 @@ import {
 import { createVRMAnimationClip, VRMAnimationLoaderPlugin } from "@pixiv/three-vrm-animation";
 import * as THREE from "three";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
+import type { FramingConfig } from "../config/load";
 import type { ControlEnvelope, EmotionRegistry, MotionRegistry } from "../contract";
 import { createLogger } from "../logger";
 import { type AlphaHitTest, createAlphaHitTest } from "./alpha-hit-test";
@@ -84,10 +85,6 @@ import {
 
 const log = createLogger("renderer");
 
-/** Default fit-to-bounds framing — overridden by configs/avatar.json. */
-const DEFAULT_FRAMING_MARGIN = 0.1;
-const DEFAULT_FRAMING_FOV = 30;
-
 /**
  * Seat drop below the hip bone (world units) for the window-sit perch.
  * Tunable: the seat-contact point sits this far below the hip joint.
@@ -121,10 +118,12 @@ interface RendererOptions {
    * If absent, setEmotion warns then no-ops. Can be injected later via setEmotionRegistry.
    */
   emotionRegistry?: EmotionRegistry;
-  /** Initial fit-to-bounds framing; live path is setFraming. Omitted keys keep defaults. */
-  framing?: { margin?: number; fov?: number };
-  /** Initial cursor-gaze tracking thresholds; live path is setGaze. Omitted keys keep defaults. */
-  gaze?: Partial<GazeConfig>;
+  /** Fit-to-bounds framing; live path is setFraming. Absent until the config arrives. */
+  framing?: FramingConfig;
+  /** Cursor-gaze tracking thresholds; live path is setGaze. Absent until the config arrives. */
+  gaze?: GazeConfig;
+  /** Alpha (0, 1] a rendered pixel must reach to count as the character; live path is setHitTestThreshold. */
+  hitTestThreshold?: number;
 }
 
 /** Context passed every rAF frame, **before vrm.update(dt)**. */
@@ -197,11 +196,8 @@ export interface Renderer {
    * Applies to the next rotation — a variant already playing finishes its cycle first.
    */
   setIdleVariants(paths: readonly string[]): void;
-  /**
-   * Update fit-to-bounds framing. Merge only given keys onto current framing
-   * (omitted keys retain defaults); if VRM is loaded, immediately refit.
-   */
-  setFraming(framing: { margin?: number; fov?: number }): void;
+  /** Replace the fit-to-bounds framing; refits at once when a VRM is loaded. */
+  setFraming(framing: FramingConfig): void;
   /**
    * Draw the reference-size framing — the window size at travel start — at canvas
    * offset `(x, y)`; null draws it to fill the whole canvas. A travel parks the OS
@@ -325,11 +321,8 @@ export interface Renderer {
    * is always on and unaffected by this toggle.
    */
   setIdleThrottleEnabled(enabled: boolean): void;
-  /**
-   * Update cursor-gaze tracking thresholds. Merge only given (finite) keys onto current
-   * (omitted keys retain defaults); applies immediately starting next frame.
-   */
-  setGaze(gaze: Partial<GazeConfig>): void;
+  /** Replace the cursor-gaze tracking thresholds; applies from the next frame. */
+  setGaze(gaze: GazeConfig): void;
   /**
    * Enable/disable cursor-gaze head+eye tracking at runtime. Disabled ⇒ the damped
    * gaze eases back to neutral (no snap) and the motion/eyes are left untouched once settled.
@@ -364,8 +357,9 @@ export function createRenderer(options: RendererOptions): Renderer {
 
   const scene = new THREE.Scene();
 
-  // Initial framing; fitCamera overrides position/fov from the model bounding box.
-  const camera = new THREE.PerspectiveCamera(DEFAULT_FRAMING_FOV, 1, 0.1, 20);
+  // Placeholder pose held until the configured framing arrives and a model box exists;
+  // fitCamera then overrides position and fov from that box.
+  const camera = new THREE.PerspectiveCamera(30, 1, 0.1, 20);
   camera.position.set(0, 1.3, 1.6);
   camera.lookAt(new THREE.Vector3(0, 1.3, 0));
 
@@ -374,10 +368,9 @@ export function createRenderer(options: RendererOptions): Renderer {
   // Set during a travel: draws the reference-size framing at an offset in the parked
   // canvas instead of filling it. null the rest of the time.
   let view: ViewWindow | null = null;
-  let framing = {
-    margin: options.framing?.margin ?? DEFAULT_FRAMING_MARGIN,
-    fov: options.framing?.fov ?? DEFAULT_FRAMING_FOV,
-  };
+  // configs/avatar.json framing — null until setFraming delivers it (the renderer is
+  // built before the config loads), and nothing is framed before then.
+  let framing: FramingConfig | null = options.framing ?? null;
   // Mouse-wheel zoom factor on top of the fit distance: >1 ⇒ closer ⇒ bigger.
   // Bounds/persistence live in src/io + main.ts (setZoom just applies). Default 1 = exact fit.
   let zoom = 1;
@@ -405,7 +398,7 @@ export function createRenderer(options: RendererOptions): Renderer {
 
   /** Reframe the camera to the current model box; no-op when no model is loaded. */
   function fitCamera(): void {
-    if (!modelBox) return;
+    if (!modelBox || !framing) return;
     const fit = computeCameraFit(modelBox, {
       fov: framing.fov,
       aspect: camera.aspect,
@@ -514,6 +507,7 @@ export function createRenderer(options: RendererOptions): Renderer {
     isVrmLoaded: () => currentVrm != null,
     mountWidth: () => mount.clientWidth || 1,
     mountHeight: () => mount.clientHeight || 1,
+    threshold: options.hitTestThreshold ?? null,
     log,
   });
 
@@ -522,7 +516,7 @@ export function createRenderer(options: RendererOptions): Renderer {
   const gaze: CursorGaze = createCursorGaze({
     camera,
     getVrm: () => currentVrm,
-    gaze: options.gaze,
+    gaze: options.gaze ?? null,
     log,
     mountWidth: () => mount.clientWidth || 1,
     mountHeight: () => mount.clientHeight || 1,
@@ -1067,12 +1061,8 @@ export function createRenderer(options: RendererOptions): Renderer {
     emotion.setRegistry(registry);
   }
 
-  /** setFraming implementation — merge only given keys (omitted retain defaults), then refit. */
-  function setFraming(next: { margin?: number; fov?: number }): void {
-    framing = {
-      margin: next.margin ?? framing.margin,
-      fov: next.fov ?? framing.fov,
-    };
+  function setFraming(next: FramingConfig): void {
+    framing = next;
     fitCamera();
   }
 

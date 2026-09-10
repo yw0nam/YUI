@@ -123,13 +123,13 @@ describe("validateGuardrails — rate_limit", () => {
     );
   });
 
-  it("accumulates issues for every malformed block at once (attachments defaulted)", () => {
+  it("accumulates one issue per malformed block at once", () => {
     try {
-      validateGuardrails(FILE, { debounce_ms: "y", rate_limit: "z" });
+      validateGuardrails(FILE, { debounce_ms: "y", rate_limit: "z", attachments: "w" });
       expect.unreachable("validateGuardrails should have thrown");
     } catch (e) {
       const err = e as ConfigError;
-      expect(err.issues.length).toBe(2);
+      expect(err.issues.length).toBe(3);
     }
   });
 });

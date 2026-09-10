@@ -8,7 +8,7 @@
  */
 
 import { describe, expect, it, vi } from "vitest";
-import { ATTACHMENT_LIMITS_DEFAULTS } from "../config";
+import type { AttachmentLimits } from "../config";
 import {
   createMessageBridge,
   type MessageControlOp,
@@ -16,6 +16,9 @@ import {
 } from "./message-bridge";
 import { createRemoteSurfaces } from "./message-remote";
 import type { BridgeTransport } from "./settings-bridge";
+
+/** The caps configs/guardrails.json delivers through setAttachmentLimits. */
+const LIMITS: AttachmentLimits = { max_count: 6, max_image_bytes: 5 * 1024 * 1024 };
 
 function createFakeTransport(): BridgeTransport {
   const listeners = new Map<string, Set<(p: unknown) => void>>();
@@ -55,7 +58,7 @@ const SURFACE_OPS: MessageSurfaceOp[] = [
   { op: "busy", busy: true },
   { op: "input-enabled", enabled: false },
   { op: "input-error", message: "no backend", action: { label: "Open Advanced" } },
-  { op: "attachment-limits", limits: ATTACHMENT_LIMITS_DEFAULTS },
+  { op: "attachment-limits", limits: LIMITS },
 ];
 
 const CONTROL_OPS: MessageControlOp[] = [
@@ -134,7 +137,7 @@ describe("createRemoteSurfaces — the pet-side adapter", () => {
     remote.dismissInput();
     remote.setBusy(true);
     remote.setInputEnabled(false);
-    remote.setAttachmentLimits(ATTACHMENT_LIMITS_DEFAULTS);
+    remote.setAttachmentLimits(LIMITS);
 
     expect(seen).toEqual([
       { op: "begin" },
@@ -146,7 +149,7 @@ describe("createRemoteSurfaces — the pet-side adapter", () => {
       { op: "dismiss-input" },
       { op: "busy", busy: true },
       { op: "input-enabled", enabled: false },
-      { op: "attachment-limits", limits: ATTACHMENT_LIMITS_DEFAULTS },
+      { op: "attachment-limits", limits: LIMITS },
     ]);
   });
 
@@ -196,7 +199,7 @@ describe("createRemoteSurfaces — the pet-side adapter", () => {
   it("resends the current limits and busy state when a late window reports ready", () => {
     const { pet, message } = pair();
     const remote = createRemoteSurfaces(pet);
-    remote.setAttachmentLimits(ATTACHMENT_LIMITS_DEFAULTS);
+    remote.setAttachmentLimits(LIMITS);
     remote.setBusy(true);
 
     const seen: MessageSurfaceOp[] = [];
@@ -204,7 +207,7 @@ describe("createRemoteSurfaces — the pet-side adapter", () => {
     message.emitControl({ op: "ready" });
 
     expect(seen).toEqual([
-      { op: "attachment-limits", limits: ATTACHMENT_LIMITS_DEFAULTS },
+      { op: "attachment-limits", limits: LIMITS },
       { op: "busy", busy: true },
     ]);
   });

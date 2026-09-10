@@ -73,6 +73,7 @@ function createFixture(options: { loaded?: boolean; alpha?: number } = {}) {
     isVrmLoaded: () => loaded,
     mountWidth: () => 100,
     mountHeight: () => 100,
+    threshold: 0.1,
     log,
   } satisfies AlphaHitTestDeps);
 

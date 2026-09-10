@@ -12,7 +12,7 @@
  */
 
 import "./motion-preview.css";
-import { createConfigStore } from "../../config";
+import { type AvatarConfig, createConfigStore } from "../../config";
 import type { EmotionId, EmotionRegistry, MotionKind, MotionRegistry } from "../../contract";
 import { resolveAssetUrl } from "../../io/asset-url";
 import { createLogger } from "../../logger";
@@ -488,11 +488,13 @@ export async function mountMotionPreview(mount: HTMLElement): Promise<{ dispose(
 
   let motionsRegistry: MotionRegistry;
   let emotionsRegistry: EmotionRegistry;
+  let avatar: AvatarConfig;
   let vrmUrl: string;
   try {
     const config = await createConfigStore().load();
     motionsRegistry = config.motions;
     emotionsRegistry = config.emotionRegistry;
+    avatar = config.avatar;
     vrmUrl = await resolveAssetUrl(config.avatar.vrm_url);
   } catch (err) {
     log.error("registry_load_failed", { error: String(err) });
@@ -507,6 +509,9 @@ export async function mountMotionPreview(mount: HTMLElement): Promise<{ dispose(
     mount: vrmMount,
     motionRegistry: expandedRegistry,
     emotionRegistry: emotionsRegistry,
+    framing: avatar.framing,
+    gaze: avatar.gaze,
+    hitTestThreshold: avatar.hit_test.alpha_threshold,
   });
 
   // ─── Playback helpers (close over registry + renderer) ──────────────────

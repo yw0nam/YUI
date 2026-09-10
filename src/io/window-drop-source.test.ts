@@ -14,7 +14,7 @@
  */
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { GESTURE_CUES_DEFAULTS, PEEK_DEFAULTS } from "../config/load";
+import { avatarFixture } from "../config/load-test-helpers";
 import type { WindowRect } from "../contract";
 import type { BusEnvelope, EventBus } from "../dispatcher/event-bus";
 import {
@@ -33,12 +33,15 @@ function createWindowDropSource(
   return createWindowDropSourceImpl({
     ...deps,
     renderer: { setPerchTarget: () => {}, ...deps.renderer },
-    getPeekConfig: deps.getPeekConfig ?? (() => PEEK_DEFAULTS),
-    getGestureCues: deps.getGestureCues ?? (() => GESTURE_CUES_DEFAULTS),
+    getPeekConfig: deps.getPeekConfig ?? (() => avatarFixture().peek),
+    getGestureCues: deps.getGestureCues ?? (() => CUES),
     // The sit-down lands at once unless a test holds it.
     sitDown: deps.sitDown ?? (async () => "done" as const),
   });
 }
+
+/** The gesture cues the default fixture hands the source. */
+const CUES = avatarFixture().gesture_cues;
 
 const RELEASE_EVENT = "window_drop_release";
 
@@ -163,7 +166,7 @@ describe("window-drop-source — perch hit", () => {
     expect(env.hint_tier).toBe(2);
     expect(env.payload).toEqual({
       cue_id: "window_sit",
-      label: GESTURE_CUES_DEFAULTS.window_sit.label,
+      label: CUES.window_sit.label,
     });
     expect(env.payload).not.toHaveProperty("context");
   });
@@ -639,7 +642,7 @@ describe("window-drop-source — side peek drop", () => {
     expect(env).toBeDefined();
     expect(env.source).toBe("os_event_watcher");
     expect(env.hint_tier).toBe(2);
-    expect(env.payload).toEqual({ cue_id: "peek", label: GESTURE_CUES_DEFAULTS.peek.label });
+    expect(env.payload).toEqual({ cue_id: "peek", label: CUES.peek.label });
     expect(env.payload).not.toHaveProperty("context");
     vi.useRealTimers();
   });

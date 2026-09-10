@@ -18,8 +18,6 @@ const ALPHA_GRAB_SCALE = 1 / 8;
 const ALPHA_GRAB_MAX_W = 128;
 /** Refresh the grab every Nth frame (~20-30Hz) to spare the frame budget. */
 const ALPHA_GRAB_FRAME_GATE = 3;
-/** Fallback alpha threshold (0..1) until config injects one. */
-const DEFAULT_ALPHA_THRESHOLD = 0.1;
 
 /** Logger surface the grab path needs (matches the renderer logger). */
 interface AlphaLog {
@@ -35,6 +33,8 @@ export interface AlphaHitTestDeps {
   /** Current mount CSS width/height in px (for css→grab-cell mapping). */
   mountWidth: () => number;
   mountHeight: () => number;
+  /** Alpha (0, 1] a pixel must reach to count as the character; null until setThreshold delivers it. */
+  threshold: number | null;
   log: AlphaLog;
 }
 
@@ -50,7 +50,7 @@ export interface AlphaHitTest {
    * Per-pixel alpha hit test: true when the rendered character pixel under the
    * canvas CSS-px point (x, y) is opaque (alpha ≥ threshold). Samples the last
    * published grab, which trails the current frame by a few ms. False until the
-   * first read resolves.
+   * first read resolves and until a threshold is set.
    */
   hitTest(x: number, y: number): boolean;
   /**
@@ -83,8 +83,8 @@ export function createAlphaHitTest(deps: AlphaHitTestDeps): AlphaHitTest {
   // Bumped whenever the pending read's result stops being publishable (VRM swap,
   // resize, dispose); a resolve from an older generation publishes nothing.
   let grabGeneration = 0;
-  // Threshold in 0..1 (config-injected); compared as 0..255 against the grab.
-  let alphaThreshold = DEFAULT_ALPHA_THRESHOLD;
+  // Threshold in 0..1 from configs/avatar.json; compared as 0..255 against the grab.
+  let alphaThreshold: number | null = deps.threshold;
   // Offscreen render target sized to the grab dims — the scene is re-rendered into
   // it at low res so the readback reads only gw×gh px (not the full device buffer).
   // Allocated once, resized only when the grab dims change (no per-frame alloc).
@@ -163,6 +163,7 @@ export function createAlphaHitTest(deps: AlphaHitTestDeps): AlphaHitTest {
   }
 
   function hitTest(x: number, y: number): boolean {
+    if (alphaThreshold === null) return false;
     if (!alphaGrab || alphaGrabW === 0 || alphaGrabH === 0) return false;
     const cell = cssToGrabCell(x, y, mountWidth(), mountHeight(), alphaGrabW, alphaGrabH);
     const threshold255 = Math.round(alphaThreshold * 255);

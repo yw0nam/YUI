@@ -5,7 +5,7 @@
  * user typed/attached. No brain, persona, or mode branching lives here.
  */
 
-import { ATTACHMENT_LIMITS_DEFAULTS, type AttachmentLimits } from "../config";
+import type { AttachmentLimits } from "../config";
 import { subscribe as subscribeLocale, t } from "./i18n";
 import { downscaleToJpeg } from "./image-resize";
 
@@ -81,8 +81,8 @@ export function createTextInput(
   let inFlight = 0;
   // Bumped by clearAttachments — reads started for an earlier turn are discarded.
   let epoch = 0;
-  // Defaults until setAttachmentLimits delivers the configured caps.
-  let limits: AttachmentLimits = ATTACHMENT_LIMITS_DEFAULTS;
+  // Caps arrive from configs/guardrails.json via setAttachmentLimits; null until they do.
+  let limits: AttachmentLimits | null = null;
   // Backend processing — the send button becomes stop and submit is blocked.
   let busy = false;
   // Input bottom offset (px) — updated by setInputAnchor, used to lift the bubble while the input is open.
@@ -180,6 +180,7 @@ export function createTextInput(
   }
 
   function addFiles(files: FileList | File[]): void {
+    if (!limits) return; // no configured caps yet — nothing is attachable.
     for (const file of Array.from(files)) {
       if (!file.type.startsWith("image/")) continue;
       if (attachments.length + inFlight >= limits.max_count) {
