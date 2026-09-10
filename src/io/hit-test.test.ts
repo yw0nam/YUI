@@ -101,7 +101,6 @@ const cfg: HitTestConfig = {
   hysteresis_margin_px: 8,
   poll_interval_ms: 33,
   debounce_samples: 2,
-  alpha_threshold: 0.1,
 };
 
 function step(

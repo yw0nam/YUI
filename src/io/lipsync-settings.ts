@@ -25,13 +25,9 @@ function clampGain(gain: number): number {
   return Math.min(LIPSYNC_GAIN_MAX, Math.max(LIPSYNC_GAIN_MIN, gain));
 }
 
-export function createLipsyncSettings(opts?: {
-  storage?: LipsyncStorage;
-  initial?: LipsyncSettings;
-}) {
+export function createLipsyncSettings(opts?: { storage?: LipsyncStorage }) {
   const core = createPersistedStore<LipsyncSettings>({
     storage: opts?.storage,
-    initial: opts?.initial,
     defaults: { gain: LIPSYNC_GAIN_DEFAULT },
     parse: (v) => (isValidSettings(v) ? { gain: clampGain(v.gain) } : null),
     equals: (a, b) => a.gain === b.gain,

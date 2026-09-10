@@ -16,8 +16,6 @@ const en: Record<string, string> = {
   // voice state labels
   "voice.state.idle": "Idle",
   "voice.state.listening": "Listening…",
-  "voice.state.processing": "Processing…",
-  "voice.state.speaking": "Speaking…",
   "voice.state.asr": "Transcribing…",
   "voice.state.fired": "Sent",
   "voice.state.error": "Error",

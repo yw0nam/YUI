@@ -344,7 +344,7 @@ describe("inCatchZone", () => {
   const U_BAND = CATCH_U * CHAR_H; // 56
   const D_BAND = CATCH_D * CHAR_H; // 46
   // Vertical band: [win.y - 56, win.y + 46] = [344, 446].
-  // Horizontal band (mx=0): [win.x, win.x + width] = [300, 820].
+  // Horizontal band (CATCH_MX=0): [win.x, win.x + width] = [300, 820].
   const cx = WIN.x + WIN.width / 2; // 560, comfortably inside horizontally
 
   it("accepts a point centered inside the band", () => {
@@ -365,30 +365,12 @@ describe("inCatchZone", () => {
     expect(inCatchZone({ x: cx, y: botOutside }, WIN, CHAR_H)).toBe(false);
   });
 
-  it("horizontal width with mx=0 is strict to the window edges", () => {
+  it("horizontal width is strict to the window edges (CATCH_MX is 0)", () => {
     const yMid = WIN.y; // inside vertical band
     expect(inCatchZone({ x: WIN.x + 1, y: yMid }, WIN, CHAR_H)).toBe(true);
     expect(inCatchZone({ x: WIN.x - 1, y: yMid }, WIN, CHAR_H)).toBe(false);
     expect(inCatchZone({ x: WIN.x + WIN.width - 1, y: yMid }, WIN, CHAR_H)).toBe(true);
     expect(inCatchZone({ x: WIN.x + WIN.width + 1, y: yMid }, WIN, CHAR_H)).toBe(false);
-  });
-
-  it("mx opt widens the horizontal band by mx*width on each side", () => {
-    const yMid = WIN.y;
-    const mx = 0.1; // 52px each side
-    // Just outside the strict edge, but inside the widened band.
-    expect(inCatchZone({ x: WIN.x - 10, y: yMid }, WIN, CHAR_H, { mx })).toBe(true);
-    // Beyond the widened band.
-    expect(inCatchZone({ x: WIN.x - mx * WIN.width - 1, y: yMid }, WIN, CHAR_H, { mx })).toBe(
-      false,
-    );
-  });
-
-  it("u/d opts override the default vertical bands", () => {
-    // Tighter u: a point 50px above the top is now outside (band = 0.1*200 = 20).
-    expect(inCatchZone({ x: cx, y: WIN.y - 50 }, WIN, CHAR_H, { u: 0.1 })).toBe(false);
-    // Wider d: a point 80px below the top is now inside (band = 0.5*200 = 100).
-    expect(inCatchZone({ x: cx, y: WIN.y + 80 }, WIN, CHAR_H, { d: 0.5 })).toBe(true);
   });
 });
 

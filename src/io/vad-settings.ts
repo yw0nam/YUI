@@ -28,10 +28,9 @@ function clampSilence(ms: number): number {
   return Math.min(VAD_SILENCE_MAX, Math.max(VAD_SILENCE_MIN, ms));
 }
 
-export function createVadSettings(opts?: { storage?: VadStorage; initial?: VadSettings }) {
+export function createVadSettings(opts?: { storage?: VadStorage }) {
   const core = createPersistedStore<VadSettings>({
     storage: opts?.storage,
-    initial: opts?.initial,
     defaults: { silenceMs: VAD_SILENCE_DEFAULT, bargeIn: true },
     parse: (v) =>
       isValidSettings(v)

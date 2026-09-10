@@ -3,9 +3,8 @@
 /**
  * voice-input-indicator.test.ts
  *
- * The indicator must render the translated state label via i18n (voice.state.*),
- * not the baked snapshot.label const from voice-input-status. This keeps it
- * correct after a locale change + host re-mount.
+ * The indicator must render the translated state label via i18n (voice.state.*).
+ * This keeps it correct after a locale change + host re-mount.
  */
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -28,7 +27,7 @@ describe("createVoiceInputIndicator — translated state labels", () => {
     setLocale("en");
   });
 
-  it("shows the i18n state label, not the baked snapshot.label", () => {
+  it("shows the i18n state label for the current state", () => {
     const status = createVoiceInputStatus();
     createVoiceInputIndicator({ mount, status, onActivate: () => {}, onOpenSettings: () => {} });
 

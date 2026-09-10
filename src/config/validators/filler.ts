@@ -4,7 +4,7 @@ import { assertValid, ConfigError, isObject } from "./shared";
 const FILLER_LANGS: readonly FillerLang[] = ["ja", "en", "ko"];
 
 /** Validates a string[] filler tier (first, repeat, long_wait, timeout, unreachable). Returns cleaned array or records issues. */
-export function validateFillerTier(issues: string[], tier: unknown, path: string): string[] {
+function validateFillerTier(issues: string[], tier: unknown, path: string): string[] {
   if (!Array.isArray(tier)) {
     issues.push(`${path}는 배열이어야 함 (받음: ${JSON.stringify(tier)})`);
     return [];
@@ -23,7 +23,7 @@ export function validateFillerTier(issues: string[], tier: unknown, path: string
 }
 
 /** Validates the tool tier — an object of tool_id (or "_default") to a string[] tier. */
-export function validateFillerToolTier(
+function validateFillerToolTier(
   issues: string[],
   tool: unknown,
   path: string,

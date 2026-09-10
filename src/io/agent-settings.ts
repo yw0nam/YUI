@@ -43,14 +43,12 @@ function coerce(v: unknown): AgentSettings {
   };
 }
 
-export function createAgentSettings(opts?: { storage?: AgentStorage; initial?: AgentSettings }) {
+export function createAgentSettings(opts?: { storage?: AgentStorage }) {
   const core = createPersistedStore<AgentSettings>({
     storage: opts?.storage,
-    initial: opts?.initial,
     defaults: { ...DEFAULT_SETTINGS },
-    // A non-object is rejected so a corrupted stored value cannot erase in-memory/initial settings.
+    // A non-object is rejected so a corrupted stored value cannot erase in-memory settings.
     parse: (v) => (isPlainObject(v) ? coerce(v) : null),
-    fromInitial: coerce,
     equals: (a, b) =>
       a.reasoning_effort === b.reasoning_effort && a.instructions === b.instructions,
   });

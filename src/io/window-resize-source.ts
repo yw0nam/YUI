@@ -99,8 +99,6 @@ export interface WindowResizeSource {
   start(): void;
   /** Unregister the wheel listener. */
   stop(): void;
-  /** Alias of stop() for HMR-dispose call sites. */
-  dispose(): void;
 }
 
 export function createWindowResizeSource(deps: WindowResizeSourceDeps): WindowResizeSource {
@@ -169,9 +167,6 @@ export function createWindowResizeSource(deps: WindowResizeSourceDeps): WindowRe
       if (!listening) return;
       listening = false;
       target.removeEventListener("wheel", onWheel);
-    },
-    dispose() {
-      this.stop();
     },
   };
 }

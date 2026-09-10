@@ -2,7 +2,6 @@ export type VoiceInputState = "idle" | "listening" | "asr" | "fired" | "error";
 
 export interface VoiceInputStatusSnapshot {
   state: VoiceInputState;
-  label: string;
   detail: string;
   visible: boolean;
 }
@@ -17,31 +16,26 @@ export interface VoiceInputStatus {
 const STATE_COPY: Record<VoiceInputState, VoiceInputStatusSnapshot> = {
   idle: {
     state: "idle",
-    label: "Idle",
     detail: "Voice input is off",
     visible: false,
   },
   listening: {
     state: "listening",
-    label: "듣는 중",
     detail: "Speech active",
     visible: true,
   },
   asr: {
     state: "asr",
-    label: "ASR 전송",
     detail: "Posting audio segment",
     visible: true,
   },
   fired: {
     state: "fired",
-    label: "전달됨",
     detail: "Voice segment fired",
     visible: true,
   },
   error: {
     state: "error",
-    label: "오류",
     detail: "Voice input error",
     visible: true,
   },

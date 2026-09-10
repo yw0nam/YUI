@@ -4,24 +4,17 @@
  */
 
 import {
-  API_KEY_MAX_LEN,
   type ApiKeySettings,
   type ApiKeyStorage,
   createApiKeySettings,
   localStorageApiKeyStorage,
 } from "./api-key-settings";
 
-/** Upper bound guarding against abnormally long input. */
-export const CHAT_KEY_MAX_LEN = API_KEY_MAX_LEN;
-
 export type ChatKeySettings = ApiKeySettings;
 export type ChatKeyStorage = ApiKeyStorage;
 
-export function createChatKeySettings(opts?: {
-  storage?: ChatKeyStorage;
-  initial?: ChatKeySettings;
-}) {
-  return createApiKeySettings({ ...opts, maxLen: CHAT_KEY_MAX_LEN });
+export function createChatKeySettings(opts?: { storage?: ChatKeyStorage }) {
+  return createApiKeySettings(opts);
 }
 
 /** chat-key store instance type (for SecretProvider injection). */

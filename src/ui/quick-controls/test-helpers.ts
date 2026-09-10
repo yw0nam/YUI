@@ -81,7 +81,6 @@ export function makeVoiceStatus() {
   return {
     get: () => ({
       state: "idle" as const,
-      label: "Idle",
       detail: "Voice input is off",
       visible: false,
     }),

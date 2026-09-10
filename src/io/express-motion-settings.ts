@@ -33,13 +33,9 @@ export function enabledExpressMotions(
   return vocabulary.filter((id) => !state.disabled.includes(id));
 }
 
-export function createExpressMotionSettings(opts?: {
-  storage?: ExpressMotionStorage;
-  initial?: ExpressMotionSettings;
-}) {
+export function createExpressMotionSettings(opts?: { storage?: ExpressMotionStorage }) {
   const core = createPersistedStore<ExpressMotionSettings>({
     storage: opts?.storage,
-    initial: opts?.initial,
     defaults: { disabled: [] },
     parse: (v) => (isValidSettings(v) ? { disabled: [...new Set(v.disabled)] } : null),
     equals: (a, b) =>

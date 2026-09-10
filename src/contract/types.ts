@@ -390,9 +390,3 @@ export interface WindowRect extends ScreenRect {
   /** kCGWindowNumber — stable window identity used to track the perched window across the stack. */
   windowNumber: number;
 }
-
-/** Client-only perch target handed to the renderer: which window edge the character sits on. */
-export interface PerchTarget {
-  rect: ScreenRect;
-  edge: "top";
-}

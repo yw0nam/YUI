@@ -230,19 +230,16 @@ export async function mountMotionPreview(mount: HTMLElement): Promise<{ dispose(
     rows.forEach((row) => {
       const rowId = row.dataset.motionId;
       const dot = row.querySelector<HTMLSpanElement>(".dot");
-      const nameEl = row.querySelector<HTMLSpanElement>(".row-name");
       if (rowId === id) {
         row.classList.add("state-playing");
         if (dot) {
           dot.className = "dot dot-filled";
         }
-        if (nameEl) nameEl.style.color = "";
       } else {
         row.classList.remove("state-playing");
         if (dot) {
           dot.className = "dot dot-hollow";
         }
-        if (nameEl) nameEl.style.color = "";
       }
     });
   }

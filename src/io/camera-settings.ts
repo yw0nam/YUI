@@ -54,10 +54,9 @@ function parse(v: unknown): CameraSettings | null {
   };
 }
 
-export function createCameraSettings(opts?: { storage?: CameraStorage; initial?: CameraSettings }) {
+export function createCameraSettings(opts?: { storage?: CameraStorage }) {
   const core = createPersistedStore<CameraSettings>({
     storage: opts?.storage,
-    initial: opts?.initial,
     defaults: {
       zoom: CAMERA_ZOOM_DEFAULT,
       azimuth: CAMERA_AZIMUTH_DEFAULT,

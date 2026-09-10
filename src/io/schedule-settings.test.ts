@@ -6,7 +6,7 @@
  *  - get() returns deep clone (entry mutation does not affect internal state)
  *  - addCue/updateCue/removeCue: persist + notify + validation
  *  - setEnabled: on actual change persist + notify, skip if same
- *  - hydration priority: saved > initial > defaults
+ *  - hydration priority: saved > defaults
  *  - malformed storage → fallback to defaults
  *  - reloadFromStorage: cross-window reload, no-op if same/absent
  *  - subscribe/unsubscribe, dispose

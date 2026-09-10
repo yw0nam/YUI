@@ -3,7 +3,7 @@
  *
  * Pins the contract for src/io/lipsync-settings.ts:
  *   LIPSYNC_GAIN_MIN / MAX / DEFAULT constants
- *   createLipsyncSettings({ storage?, initial? }) store
+ *   createLipsyncSettings({ storage? }) store
  *   localStorageLipsyncStorage(key?) localStorage adapter
  */
 
@@ -21,7 +21,7 @@ import {
 // ─────────────────────────────────────────────────────────────────────────────
 
 describe("createLipsyncSettings — defaults", () => {
-  it("returns DEFAULT gain when no storage or initial given", () => {
+  it("returns DEFAULT gain when no storage given", () => {
     const store = createLipsyncSettings();
     expect(store.get().gain).toBe(LIPSYNC_GAIN_DEFAULT);
   });

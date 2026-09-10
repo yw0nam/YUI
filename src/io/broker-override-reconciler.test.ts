@@ -20,10 +20,8 @@ function fakeBroker(): BrokerClient & {
   dispose: ReturnType<typeof vi.fn>;
 } {
   return {
-    getIds: vi.fn(async () => null),
     publish: vi.fn(async () => {}),
     start: vi.fn<() => void>(),
-    stop: vi.fn<() => void>(),
     dispose: vi.fn<() => void>(),
   };
 }

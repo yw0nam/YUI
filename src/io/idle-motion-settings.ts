@@ -44,13 +44,9 @@ export function enabledIdleVariants(
   return catalog.filter((path) => path === pool.vrma_path || !state.disabled.includes(path));
 }
 
-export function createIdleMotionSettings(opts?: {
-  storage?: IdleMotionStorage;
-  initial?: IdleMotionSettings;
-}) {
+export function createIdleMotionSettings(opts?: { storage?: IdleMotionStorage }) {
   const core = createPersistedStore<IdleMotionSettings>({
     storage: opts?.storage,
-    initial: opts?.initial,
     defaults: { disabled: [] },
     parse: (v) => (isValidSettings(v) ? { disabled: [...new Set(v.disabled)] } : null),
     equals: (a, b) =>

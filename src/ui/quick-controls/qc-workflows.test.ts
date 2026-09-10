@@ -72,12 +72,12 @@ describe("createWorkflowsSection", () => {
 
     const root = buildRoot();
     const store = createWorkflowSettings({
-      initial: {
+      storage: memoryStorage({
         entries: [
           ENTRY,
           { id: "deploy", label: "Deploy notify", url: "https://example.com/deploy" },
         ],
-      },
+      }),
     });
     const section = createWorkflowsSection({ root, store, log: makeLog(), fetchFn: vi.fn() });
 
@@ -133,7 +133,7 @@ describe("createWorkflowsSection", () => {
     const fetchFn = vi.fn().mockResolvedValue(response);
     const section = createWorkflowsSection({
       root,
-      store: createWorkflowSettings({ initial: { entries: [ENTRY] } }),
+      store: createWorkflowSettings({ storage: memoryStorage({ entries: [ENTRY] }) }),
       log: makeLog(),
       fetchFn,
     });
@@ -160,7 +160,7 @@ describe("createWorkflowsSection", () => {
     const log = makeLog();
     const section = createWorkflowsSection({
       root,
-      store: createWorkflowSettings({ initial: { entries: [ENTRY] } }),
+      store: createWorkflowSettings({ storage: memoryStorage({ entries: [ENTRY] }) }),
       log,
       fetchFn,
     });
@@ -179,7 +179,7 @@ describe("createWorkflowsSection", () => {
 
   it("deletes the selected workflow", () => {
     const root = buildRoot();
-    const store = createWorkflowSettings({ initial: { entries: [ENTRY] } });
+    const store = createWorkflowSettings({ storage: memoryStorage({ entries: [ENTRY] }) });
     const section = createWorkflowsSection({ root, store, log: makeLog(), fetchFn: vi.fn() });
 
     root.querySelector<HTMLButtonElement>(".yui-wf__delete")!.click();

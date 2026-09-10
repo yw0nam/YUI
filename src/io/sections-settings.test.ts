@@ -2,7 +2,7 @@
  * sections-settings.test.ts — Quick Controls collapsed-sections reactive settings store.
  *
  * Pins the contract for src/io/sections-settings.ts:
- *   createSectionsSettings({ storage?, initial? }) store
+ *   createSectionsSettings({ storage? }) store
  *   localStorageSectionsStorage(key?) localStorage adapter
  *
  * Default: { closed: [] } — nothing collapsed, matching today's always-expanded layout.
@@ -31,7 +31,7 @@ function makeMemStorage(): SectionsStorage & { _data: SectionsSettings | null } 
 }
 
 describe("createSectionsSettings — defaults", () => {
-  it("no storage/initial → closed: []", () => {
+  it("no storage → closed: []", () => {
     const store = createSectionsSettings();
     expect(store.get().closed).toEqual([]);
   });
@@ -48,7 +48,9 @@ describe("createSectionsSettings — setClosed", () => {
   });
 
   it("setClosed(id, false) removes the id and notifies", () => {
-    const store = createSectionsSettings({ initial: { closed: ["filler", "vrm"] } });
+    const store = createSectionsSettings({
+      storage: { load: () => ({ closed: ["filler", "vrm"] }), save: vi.fn() },
+    });
     const cb = vi.fn();
     store.subscribe(cb);
     store.setClosed("filler", false);
@@ -92,22 +94,18 @@ describe("createSectionsSettings — setClosed", () => {
 });
 
 describe("createSectionsSettings — validation", () => {
-  it("rejects a non-array closed field, falling back to initial", () => {
-    const storage: SectionsStorage = {
-      load: () => ({ closed: "vrm" as unknown as string[] }),
-      save: vi.fn(),
-    };
-    const store = createSectionsSettings({ storage, initial: { closed: ["filler"] } });
-    expect(store.get().closed).toEqual(["filler"]);
+  it("rejects a non-array closed field, falling back to defaults", () => {
+    const load = vi.fn(() => ({ closed: "vrm" as unknown as string[] }));
+    const storage: SectionsStorage = { load, save: vi.fn() };
+    expect(createSectionsSettings({ storage }).get().closed).toEqual([]);
+    expect(load).toHaveBeenCalled();
   });
 
-  it("rejects a closed array containing non-string entries, falling back to initial", () => {
-    const storage: SectionsStorage = {
-      load: () => ({ closed: [1, 2] as unknown as string[] }),
-      save: vi.fn(),
-    };
-    const store = createSectionsSettings({ storage, initial: { closed: ["filler"] } });
-    expect(store.get().closed).toEqual(["filler"]);
+  it("rejects a closed array containing non-string entries, falling back to defaults", () => {
+    const load = vi.fn(() => ({ closed: [1, 2] as unknown as string[] }));
+    const storage: SectionsStorage = { load, save: vi.fn() };
+    expect(createSectionsSettings({ storage }).get().closed).toEqual([]);
+    expect(load).toHaveBeenCalled();
   });
 
   it.each([

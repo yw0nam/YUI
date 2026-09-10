@@ -70,7 +70,7 @@ export const CLIMB_YAW_RAD = Math.PI / 2;
 /** Yaw ease (ms), run concurrently with the motion crossfade at both ends of a climb. */
 export const CLIMB_YAW_EASE_MS = 400;
 /** How long the character takes to drop off the ledge onto the wall (ms). */
-export const HANG_MS = 400;
+const HANG_MS = 400;
 /**
  * How long before the pull-over clip ends the ledge walk takes the body. The walk
  * crossfades out of the clip's settled last stretch; a oneshot left to run out drops
@@ -78,11 +78,11 @@ export const HANG_MS = 400;
  */
 export const PULL_HANDOFF_S = 0.5;
 /** Cadence (ms) of the target re-check while a sequence runs. */
-export const TARGET_WATCH_MS = 700;
+const TARGET_WATCH_MS = 700;
 /** Cadence (ms) of the diagnostic geometry sample while a leg runs. */
-export const GEOMETRY_LOG_MS = 500;
+const GEOMETRY_LOG_MS = 500;
 /** How long a descent waits for the released perch to clear before giving up (ms). */
-export const RELEASE_WAIT_MS = 1000;
+const RELEASE_WAIT_MS = 1000;
 
 /** The wall a climb runs on: a foreign window's side, or a screen edge onto the monitor above. */
 export interface ClimbTarget {
@@ -197,7 +197,7 @@ function cornerSeat(
  * the climbed edge with **inside the window positive**, on both sides, so a left wall and
  * a right wall read the same way. Diagnostic only — nothing decides anything from it.
  */
-export interface ClimbGeometrySample {
+interface ClimbGeometrySample {
   phase: string;
   side: "left" | "right";
   edgeX: number;

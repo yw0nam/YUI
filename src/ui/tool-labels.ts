@@ -11,13 +11,12 @@ import { t } from "./i18n";
 const FALLBACK = "Working…";
 
 /**
- * Returns the display label for a given tool id and optional locale.
- * The locale argument is accepted for call-site compatibility; tool labels are
- * English in every locale, so the i18n lookup resolves the same value regardless.
+ * Returns the display label for a given tool id. Tool labels are English in
+ * every locale, so the i18n lookup resolves the same value regardless.
  * Unmapped ids are humanized (snake_case → "Title case…", an mcp__<server>__<tool>
  * id by its tool name alone); empty/separator-only ids fall back to the generic label.
  */
-export function getToolLabel(toolId: string, _locale?: string): string {
+export function getToolLabel(toolId: string): string {
   if (!toolId) return FALLBACK;
   const key = `tool.${toolId}`;
   const value = t(key);

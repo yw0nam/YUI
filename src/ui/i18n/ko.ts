@@ -16,8 +16,6 @@ const ko: Record<string, string> = {
   // voice state labels
   "voice.state.idle": "대기 중",
   "voice.state.listening": "듣는 중…",
-  "voice.state.processing": "처리 중…",
-  "voice.state.speaking": "말하는 중…",
   "voice.state.asr": "ASR 전송",
   "voice.state.fired": "전달됨",
   "voice.state.error": "오류",
