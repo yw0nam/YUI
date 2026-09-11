@@ -588,7 +588,8 @@
 /* Row — paperclip + field + error */
 .yui-input__row {
   display: flex;
-  align-items: center;
+  /* Buttons ride the last line; the bottom margins re-center them on the one-line field (2.43rem). */
+  align-items: flex-end;
 }
 .yui-input__attach {
   flex: 0 0 auto;
@@ -597,6 +598,7 @@
   width: 34px;
   height: 34px;
   margin-left: 0.15rem;
+  margin-bottom: calc((2.43rem - 34px) / 2);
   border: 0;
   border-radius: var(--yui-radius-chip);
   background: transparent;
@@ -626,6 +628,8 @@
 .yui-input__field {
   flex: 1;
   min-width: 0;
+  box-sizing: border-box;
+  display: block;
   margin: 0;
   padding: 0.55rem 0.7rem;
   border: 0;
@@ -635,6 +639,12 @@
   font-size: 0.95rem;
   line-height: 1.4;
   text-shadow: var(--yui-text-shadow);
+  resize: none;
+  overflow-y: auto;
+  /* 6 lines × 1.33rem + vertical padding — grows to here, then scrolls. */
+  max-height: calc(6 * 1.33rem + 1.1rem);
+  scrollbar-width: thin;
+  scrollbar-color: var(--yui-edge-strong) transparent;
 }
 .yui-input__field:focus {
   outline: none;
@@ -659,6 +669,7 @@
   place-items: center;
   width: 34px;
   height: 34px;
+  margin-bottom: calc((2.43rem - 34px) / 2);
   border: 0;
   border-radius: var(--yui-radius-chip);
   background: transparent;
@@ -692,6 +703,7 @@
   width: 28px;
   height: 28px;
   margin-right: 0.2rem;
+  margin-bottom: calc((2.43rem - 28px) / 2);
 
   border: 0;
   border-radius: calc(var(--yui-radius-input) - 3px);
@@ -767,6 +779,7 @@
 /* Inline error (send failure) — no side-stripe, text color only */
 .yui-input__error {
   flex: 0 0 auto;
+  align-self: center;
   padding-right: 0.6rem;
   color: var(--yui-danger);
   font-size: 0.78rem;

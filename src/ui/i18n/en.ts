@@ -51,6 +51,10 @@ const en: Record<string, string> = {
   "input.attach_too_large": "Image too large · up to {max}MB each",
   "input.attach_not_ready": "Can't attach yet · loading limits",
 
+  // message window name plate
+  "plate.thinking": "Thinking",
+  "plate.responding": "Responding",
+
   // chain-break (404) recovery notice
   "chain.reset_notice": "Conversation context was reset",
   "hotkey.register_failed":

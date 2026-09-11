@@ -161,7 +161,9 @@ describe("message-window.css — the plate is a chip, not a frosted panel", () =
 
   it("takes its live-state color from the accent token, never a literal", () => {
     const css = read("message-window.css");
-    expect(extractBlock(css, ".yui-plate.is-live .yui-plate__dot")).toMatch(/var\(--yui-accent\)/);
+    expect(extractBlock(css, '.yui-plate[data-state="responding"] .yui-plate__dot')).toMatch(
+      /var\(--yui-accent\)/,
+    );
     expect(css).not.toMatch(/oklch\(/);
   });
 

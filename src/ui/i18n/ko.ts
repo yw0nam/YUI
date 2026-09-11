@@ -50,6 +50,10 @@ const ko: Record<string, string> = {
   "input.attach_too_large": "이미지가 너무 큼 · 장당 {max}MB까지",
   "input.attach_not_ready": "아직 첨부할 수 없음 · 상한을 불러오는 중",
 
+  // message window name plate
+  "plate.thinking": "생각 중",
+  "plate.responding": "응답 중",
+
   // chain-break (404) recovery notice
   "chain.reset_notice": "대화 컨텍스트가 초기화되었습니다",
   "hotkey.register_failed": "소환 단축키 {accelerator} 등록 실패 — 다른 앱이 사용 중일 수 있어요",

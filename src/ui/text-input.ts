@@ -48,7 +48,7 @@ interface TextInput {
 
 interface TextInputElements {
   formEl: HTMLFormElement;
-  field: HTMLInputElement;
+  field: HTMLTextAreaElement;
   errorEl: HTMLElement;
   trayEl: HTMLElement;
   attachBtn: HTMLButtonElement;
@@ -95,11 +95,18 @@ export function createTextInput(
     bubble.liftAboveInput(inputBottomPx + formEl.offsetHeight + BUBBLE_INPUT_GAP_PX);
   }
 
+  // Auto-grow the field with its content; the bubble rides above the taller input.
+  function fitField(): void {
+    field.style.height = "auto";
+    field.style.height = `${field.scrollHeight}px`;
+    if (!formEl.hidden) liftBubbleAboveInput();
+  }
+
   function summonInput(): void {
     formEl.hidden = false;
+    fitField();
     formEl.classList.remove("is-error", "is-pending");
     errorEl.textContent = "";
-    liftBubbleAboveInput();
     requestAnimationFrame(() => {
       formEl.classList.add("is-open");
       field.focus();
@@ -116,6 +123,8 @@ export function createTextInput(
       if (!formEl.classList.contains("is-open")) {
         formEl.hidden = true;
         field.value = "";
+        // Measuring is 0px while hidden — summon refits.
+        field.style.height = "";
         clearAttachments();
         formEl.classList.remove("is-error", "is-pending");
         errorEl.textContent = "";
@@ -133,6 +142,8 @@ export function createTextInput(
   function clearInputError(): void {
     formEl.classList.remove("is-error");
     errorEl.textContent = "";
+    // The field widens back — refit its height.
+    fitField();
   }
 
   function showInputError(message: string, action?: InputErrorAction): void {
@@ -162,6 +173,8 @@ export function createTextInput(
     errorEl.append(dismiss);
     formEl.classList.add("is-error");
     formEl.classList.remove("is-pending");
+    // The error span narrows the field — refit its height.
+    fitField();
   }
 
   function onSubmit(cb: (text: string, images: string[]) => void): void {
@@ -277,8 +290,7 @@ export function createTextInput(
     if (!formEl.hidden) liftBubbleAboveInput();
   }
 
-  function handleSubmit(e: Event): void {
-    e.preventDefault();
+  function submitCurrent(): void {
     if (busy) return; // While processing, Enter/submit is a no-op — stopping only via a button click
     const text = field.value.trim();
     if (text === "" && attachments.length === 0) return;
@@ -287,6 +299,11 @@ export function createTextInput(
     const images = attachments.slice();
     for (const cb of submitHandlers) cb(text, images);
     clearAttachments();
+  }
+
+  function handleSubmit(e: Event): void {
+    e.preventDefault();
+    submitCurrent();
   }
 
   // Button click while busy = stop (intercepts submit). When idle, passes through as type=submit.
@@ -300,6 +317,12 @@ export function createTextInput(
     if (e.key === "Escape") {
       e.preventDefault();
       dismissInput();
+      return;
+    }
+    // Textarea has no implicit submit; WebKit reports the IME-committing Enter as keyCode 229.
+    if (e.key === "Enter" && !e.shiftKey && !e.isComposing && e.keyCode !== 229) {
+      e.preventDefault();
+      submitCurrent();
     }
   }
   // Clear the error once the user types again
@@ -346,6 +369,7 @@ export function createTextInput(
   sendBtn.addEventListener("click", handleSendClick);
   field.addEventListener("keydown", handleFieldKey);
   field.addEventListener("input", clearErrorOnInput);
+  field.addEventListener("input", fitField);
   field.addEventListener("paste", onFieldPaste);
   attachBtn.addEventListener("click", onAttachClick);
   picker.addEventListener("change", onPickerChange);
@@ -359,6 +383,7 @@ export function createTextInput(
     sendBtn.removeEventListener("click", handleSendClick);
     field.removeEventListener("keydown", handleFieldKey);
     field.removeEventListener("input", clearErrorOnInput);
+    field.removeEventListener("input", fitField);
     field.removeEventListener("paste", onFieldPaste);
     attachBtn.removeEventListener("click", onAttachClick);
     picker.removeEventListener("change", onPickerChange);

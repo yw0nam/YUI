@@ -101,8 +101,8 @@ describe("image attachments — tray chips + onSubmit images", () => {
   function form(): HTMLFormElement {
     return mount.querySelector(".yui-input") as HTMLFormElement;
   }
-  function field(): HTMLInputElement {
-    return mount.querySelector(".yui-input__field") as HTMLInputElement;
+  function field(): HTMLTextAreaElement {
+    return mount.querySelector(".yui-input__field") as HTMLTextAreaElement;
   }
   function tray(): HTMLElement {
     return mount.querySelector(".yui-input__tray") as HTMLElement;
@@ -235,8 +235,8 @@ describe("attachment caps — count + per-image size", () => {
   function form(): HTMLFormElement {
     return mount.querySelector(".yui-input") as HTMLFormElement;
   }
-  function field(): HTMLInputElement {
-    return mount.querySelector(".yui-input__field") as HTMLInputElement;
+  function field(): HTMLTextAreaElement {
+    return mount.querySelector(".yui-input__field") as HTMLTextAreaElement;
   }
   function tray(): HTMLElement {
     return mount.querySelector(".yui-input__tray") as HTMLElement;
@@ -377,8 +377,8 @@ describe("setInputEnabled — disable the field while busy", () => {
     mount.remove();
   });
 
-  function field(): HTMLInputElement {
-    return mount.querySelector(".yui-input__field") as HTMLInputElement;
+  function field(): HTMLTextAreaElement {
+    return mount.querySelector(".yui-input__field") as HTMLTextAreaElement;
   }
   function form(): HTMLElement {
     return mount.querySelector(".yui-input") as HTMLElement;
@@ -448,8 +448,8 @@ describe("onStop — stop fires only on explicit button click while busy", () =>
   function form(): HTMLFormElement {
     return mount.querySelector(".yui-input") as HTMLFormElement;
   }
-  function field(): HTMLInputElement {
-    return mount.querySelector(".yui-input__field") as HTMLInputElement;
+  function field(): HTMLTextAreaElement {
+    return mount.querySelector(".yui-input__field") as HTMLTextAreaElement;
   }
   function sendBtn(): HTMLButtonElement {
     return mount.querySelector(".yui-input__send") as HTMLButtonElement;
@@ -528,7 +528,7 @@ describe("surfaces — i18n chrome", () => {
   });
 
   it("uses i18n for the input placeholder and field aria-label", () => {
-    const field = mount.querySelector<HTMLInputElement>(".yui-input__field")!;
+    const field = mount.querySelector<HTMLTextAreaElement>(".yui-input__field")!;
     expect(field.placeholder).toBe(t("input.placeholder"));
     expect(field.getAttribute("aria-label")).toBe(t("aria.input_field"));
   });
@@ -548,7 +548,7 @@ describe("surfaces — i18n chrome", () => {
   });
 
   it("re-applies static labels on locale change (surfaces is not re-mounted)", () => {
-    const field = mount.querySelector<HTMLInputElement>(".yui-input__field")!;
+    const field = mount.querySelector<HTMLTextAreaElement>(".yui-input__field")!;
     const attach = mount.querySelector<HTMLButtonElement>(".yui-input__attach")!;
     setLocale("ja");
     expect(field.placeholder).toBe(t("input.placeholder"));
@@ -656,8 +656,8 @@ describe("input error clearing — turn start, manual dismiss, existing paths", 
   function form(): HTMLElement {
     return mount.querySelector(".yui-input") as HTMLElement;
   }
-  function field(): HTMLInputElement {
-    return mount.querySelector(".yui-input__field") as HTMLInputElement;
+  function field(): HTMLTextAreaElement {
+    return mount.querySelector(".yui-input__field") as HTMLTextAreaElement;
   }
   function errorEl(): HTMLElement {
     return mount.querySelector(".yui-input__error") as HTMLElement;
@@ -798,5 +798,140 @@ describe("input row pop-out button", () => {
     expect(popBtn().getAttribute("aria-label")).toBe(t("aria.pop_message"));
     expect(popBtn().getAttribute("title")).toBe(t("aria.pop_message"));
     expect(popBtn().getAttribute("aria-label")).not.toBe("Move speech to the message window");
+  });
+});
+
+// The textarea has no implicit submit — Enter is wired by hand, IME-safe, and the
+// field grows with its content while the bubble rides above it.
+describe("multiline field — Enter, IME safety, auto-grow", () => {
+  let mount: HTMLElement;
+  let s: ReturnType<typeof createSurfaces>;
+
+  beforeEach(() => {
+    ({ s, mount } = makeSurfaces());
+  });
+
+  afterEach(() => {
+    s.dispose();
+    mount.remove();
+  });
+
+  function form(): HTMLFormElement {
+    return mount.querySelector(".yui-input") as HTMLFormElement;
+  }
+  function field(): HTMLTextAreaElement {
+    return mount.querySelector(".yui-input__field") as HTMLTextAreaElement;
+  }
+  function bubble(): HTMLElement {
+    return mount.querySelector(".yui-bubble") as HTMLElement;
+  }
+  function pressEnter(init?: KeyboardEventInit): KeyboardEvent {
+    const e = new KeyboardEvent("keydown", {
+      key: "Enter",
+      bubbles: true,
+      cancelable: true,
+      ...init,
+    });
+    field().dispatchEvent(e);
+    return e;
+  }
+
+  it("renders a textarea, not a single-line input", () => {
+    expect(field()).toBeInstanceOf(HTMLTextAreaElement);
+  });
+
+  it("sends on Enter and hands the text to onSubmit", () => {
+    const onSubmit = vi.fn();
+    s.onSubmit(onSubmit);
+    field().value = "안녕";
+
+    const e = pressEnter();
+
+    expect(e.defaultPrevented).toBe(true);
+    expect(onSubmit).toHaveBeenCalledTimes(1);
+    expect(onSubmit).toHaveBeenCalledWith("안녕", []);
+  });
+
+  it("keeps Shift+Enter as a line break — no submit, default not prevented", () => {
+    const onSubmit = vi.fn();
+    s.onSubmit(onSubmit);
+    field().value = "안녕";
+
+    const e = pressEnter({ shiftKey: true });
+
+    expect(e.defaultPrevented).toBe(false);
+    expect(onSubmit).not.toHaveBeenCalled();
+  });
+
+  it("does not send on the Enter that commits IME composition (isComposing)", () => {
+    const onSubmit = vi.fn();
+    s.onSubmit(onSubmit);
+    field().value = "안녕";
+
+    pressEnter({ isComposing: true });
+
+    expect(onSubmit).not.toHaveBeenCalled();
+  });
+
+  it("does not send on WebKit's IME-committing Enter (keyCode 229)", () => {
+    const onSubmit = vi.fn();
+    s.onSubmit(onSubmit);
+    field().value = "안녕";
+
+    const e = new KeyboardEvent("keydown", { key: "Enter", bubbles: true, cancelable: true });
+    Object.defineProperty(e, "keyCode", { value: 229 });
+    field().dispatchEvent(e);
+
+    expect(onSubmit).not.toHaveBeenCalled();
+  });
+
+  it("neither sends nor stops on Enter while busy", () => {
+    const onSubmit = vi.fn();
+    const onStop = vi.fn();
+    s.onSubmit(onSubmit);
+    s.onStop(onStop);
+    field().value = "안녕";
+    s.setBusy(true);
+
+    pressEnter();
+
+    expect(onSubmit).not.toHaveBeenCalled();
+    expect(onStop).not.toHaveBeenCalled();
+  });
+
+  it("grows the field to its content height on input", () => {
+    const f = field();
+    Object.defineProperty(f, "scrollHeight", { configurable: true, get: () => 120 });
+
+    f.dispatchEvent(new Event("input", { bubbles: true }));
+
+    expect(f.style.height).toBe("120px");
+  });
+
+  it("refits the field when an inline error changes the row width", () => {
+    const f = field();
+    let scrollHeight = 40;
+    Object.defineProperty(f, "scrollHeight", { configurable: true, get: () => scrollHeight });
+
+    s.summonInput();
+    scrollHeight = 80;
+    s.showInputError("x");
+
+    expect(f.style.height).toBe("80px");
+  });
+
+  it("lifts the bubble as the field grows", () => {
+    let formHeight = 40;
+    Object.defineProperty(form(), "offsetHeight", { configurable: true, get: () => formHeight });
+
+    s.summonInput();
+    const before = Number.parseFloat(bubble().style.getPropertyValue("--yui-bubble-bottom"));
+
+    formHeight = 100;
+    Object.defineProperty(field(), "scrollHeight", { configurable: true, get: () => 120 });
+    field().dispatchEvent(new Event("input", { bubbles: true }));
+    const after = Number.parseFloat(bubble().style.getPropertyValue("--yui-bubble-bottom"));
+
+    expect(after - before).toBe(60);
   });
 });
