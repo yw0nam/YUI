@@ -1,7 +1,7 @@
 {
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "message",
-  "description": "message window — a frameless always-on-top surface hosting the speech bubble and the text input; drags, resizes and repositions itself, and creates no windows",
+  "description": "message window — a frameless always-on-top surface hosting the speech bubble and the text input; drags, resizes and repositions itself, creates no windows, and opens bubble links in the default browser",
   "windows": [
     "message"
   ],
@@ -14,6 +14,10 @@
     "core:window:allow-hide",
     "core:window:allow-set-focus",
     "core:window:allow-set-always-on-top",
-    "log:default"
+    "log:default",
+    {
+      "identifier": "opener:allow-open-url",
+      "allow": [{ "url": "http://*" }, { "url": "https://*" }]
+    }
   ]
 }

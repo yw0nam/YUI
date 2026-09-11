@@ -22,19 +22,20 @@ function openerEntries(file: string): OpenUrlEntry[] {
   };
   return parsed.permissions.filter(
     (p): p is OpenUrlEntry =>
-      typeof p === "object" && p !== null && (p as OpenUrlEntry).identifier === "opener:allow-open-url",
+      typeof p === "object" &&
+      p !== null &&
+      (p as OpenUrlEntry).identifier === "opener:allow-open-url",
   );
 }
 
 describe("opener capability wiring", () => {
-  it.each(CAPABILITY_FILES)(
-    "%s grants exactly one opener:allow-open-url scoped to http/https",
-    (file) => {
-      const entries = openerEntries(file);
-      expect(entries).toHaveLength(1);
-      expect(entries[0].allow).toEqual([{ url: "http://*" }, { url: "https://*" }]);
-    },
-  );
+  it.each(
+    CAPABILITY_FILES,
+  )("%s grants exactly one opener:allow-open-url scoped to http/https", (file) => {
+    const entries = openerEntries(file);
+    expect(entries).toHaveLength(1);
+    expect(entries[0].allow).toEqual([{ url: "http://*" }, { url: "https://*" }]);
+  });
 
   it("declares the tauri-plugin-opener dependency in Cargo.toml", () => {
     const cargo = readFileSync(join(ROOT, "src-tauri/Cargo.toml"), "utf8");
