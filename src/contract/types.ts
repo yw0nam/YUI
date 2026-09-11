@@ -297,6 +297,16 @@ export interface TriggerMeta {
   };
 }
 
+/** How the last turn that tried to speak ended. */
+export type TurnEnded = "complete" | "interrupted" | "failed";
+
+/** The last turn that tried to speak, as the client remembers it. */
+export interface PreviousTurn {
+  event_name: string;
+  ended: TurnEnded;
+  ts: number;
+}
+
 /**
  * Flat system-message context object. Carries environment, screenshot meta (no data_url),
  * body state and trigger — never carries user utterance text.
@@ -314,6 +324,8 @@ export interface ClientContext {
   };
   /** Populated on every turn; `standing` is the free-state posture. */
   body_state?: BodyState;
+  /** Present only when the last turn that tried to speak ended `interrupted` or `failed`. */
+  previous?: PreviousTurn;
   trigger: TriggerMeta;
 }
 

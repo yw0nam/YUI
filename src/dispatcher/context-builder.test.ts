@@ -360,3 +360,46 @@ describe("buildClientContext — milestone forwarding", () => {
     }
   });
 });
+
+describe("context builder — previous turn", () => {
+  it("carries a previous turn that ended interrupted", async () => {
+    const previous = {
+      event_name: "time_milestone.first_activity",
+      ended: "interrupted",
+      ts: 1_717_000_000_000,
+    } as const;
+    const built = await buildContext(ENV, { getPrevious: () => previous });
+    expect(built.clientContext.previous).toEqual(previous);
+  });
+
+  it("carries a previous turn that ended failed", async () => {
+    const previous = {
+      event_name: "user.text_submitted",
+      ended: "failed",
+      ts: 1_717_000_000_000,
+    } as const;
+    const built = await buildContext(ENV, { getPrevious: () => previous });
+    expect(built.clientContext.previous).toEqual(previous);
+  });
+
+  it("omits a previous turn that ended complete", async () => {
+    const built = await buildContext(ENV, {
+      getPrevious: () => ({
+        event_name: "user.text_submitted",
+        ended: "complete",
+        ts: 1_717_000_000_000,
+      }),
+    });
+    expect("previous" in built.clientContext).toBe(false);
+  });
+
+  it("omits the field when the slot is empty", async () => {
+    const built = await buildContext(ENV, { getPrevious: () => undefined });
+    expect("previous" in built.clientContext).toBe(false);
+  });
+
+  it("omits the field when no provider is wired", async () => {
+    const built = await buildContext(ENV, {});
+    expect("previous" in built.clientContext).toBe(false);
+  });
+});

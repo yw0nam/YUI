@@ -44,6 +44,10 @@ interface VoicePipelineDeps {
   speakerSelection: { getActive(): SpeakerOption };
   voiceInputStatus: Pick<VoiceInputStatus, "set">;
   onVoiceSegment: (text: string) => void;
+  /** A backend utterance opened. */
+  onUtteranceStart: () => void;
+  /** The backend utterance opened by the last onUtteranceStart closed. */
+  onUtteranceEnd: (ended: "complete" | "interrupted") => void;
   /** An ambient stroll is moving the window — thinking and cue-less speech leave the body to it. */
   isStrolling: () => boolean;
 }
@@ -159,6 +163,8 @@ export function wireVoicePipeline(deps: VoicePipelineDeps): VoicePipeline {
     isStrolling: deps.isStrolling,
     onPlaybackEnd: () => fillerLoop?.onUtteranceDone(),
     reportAudioOwed: (owed) => deps.turnLog.setAudioOwed(owed),
+    onUtteranceStart: deps.onUtteranceStart,
+    onUtteranceEnd: deps.onUtteranceEnd,
     pipeline: {
       sink: createWebAudioSink({ getGain: () => deps.lipsyncSettings.get().gain }),
       maxInflight: () => deps.getEndpoints().tts_max_inflight ?? 1,
@@ -170,7 +176,7 @@ export function wireVoicePipeline(deps: VoicePipelineDeps): VoicePipeline {
   });
 
   fillerLoop = createFillerLoop({
-    speak: (text) => speechPlayback.onSpeech(text),
+    speak: (text) => speechPlayback.speakAside(text),
     getPools: effectiveFiller,
     getTiming: () => ({
       gapMs: deps.getFillerConfig().gap_ms,
@@ -255,8 +261,7 @@ export function wireVoicePipeline(deps: VoicePipelineDeps): VoicePipeline {
           ? unreachableBag.draw(pool.unreachable)
           : undefined;
     if (phrase === undefined) return;
-    turnOutput.speak(phrase);
-    turnOutput.end();
+    speechPlayback.speakAside(phrase);
   }
 
   async function createSttEngine(): Promise<SttVad> {

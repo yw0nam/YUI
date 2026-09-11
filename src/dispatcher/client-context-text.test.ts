@@ -162,6 +162,44 @@ describe("renderClientContext — body line", () => {
   });
 });
 
+describe("renderClientContext — previous line", () => {
+  it("renders between the body line and the trigger line, with minutes since ts", () => {
+    const cc = baseContext({ kind: "user" });
+    cc.body_state = { posture: { state: "standing" }, since: SINCE };
+    cc.previous = {
+      event_name: "time_milestone.first_activity",
+      ended: "interrupted",
+      ts: SINCE,
+    };
+    const lines = renderClientContext(cc, SINCE + 720_000).split("\n");
+    const previousIndex = lines.findIndex((line) => line.startsWith("previous:"));
+    expect(lines[previousIndex]).toBe(
+      "previous: time_milestone.first_activity interrupted (12min ago)",
+    );
+    expect(lines[previousIndex - 1]).toBe("body: standing (for 12min)");
+    expect(lines[previousIndex + 1]).toBe("trigger: user message");
+  });
+
+  it("renders a failed outcome", () => {
+    const cc = baseContext({ kind: "user" });
+    cc.previous = { event_name: "user.text_submitted", ended: "failed", ts: SINCE };
+    const text = renderClientContext(cc, SINCE + 180_000);
+    expect(text).toContain("previous: user.text_submitted failed (3min ago)");
+  });
+
+  it("collapses a newline inside event_name", () => {
+    const cc = baseContext({ kind: "user" });
+    cc.previous = { event_name: "user.text\nsubmitted", ended: "failed", ts: SINCE };
+    const text = renderClientContext(cc, SINCE);
+    expect(text).toContain("previous: user.text submitted failed (0min ago)");
+  });
+
+  it("absent entirely -> line omitted", () => {
+    const text = renderClientContext(baseContext({ kind: "user" }), NOW);
+    expect(text).not.toContain("previous:");
+  });
+});
+
 describe("renderClientContext — trigger: user", () => {
   it("renders 'trigger: user message'", () => {
     const text = renderClientContext(baseContext({ kind: "user" }), NOW);

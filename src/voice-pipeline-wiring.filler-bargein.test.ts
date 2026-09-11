@@ -106,6 +106,8 @@ function setup(): { voice: VoicePipeline; turnLog: ReturnType<typeof createTurnL
     speakerSelection: { getActive: () => ({ id: "speaker-a", ref_url: "/speaker-a.wav" }) },
     voiceInputStatus: { set: vi.fn() },
     onVoiceSegment: vi.fn(),
+    onUtteranceStart: vi.fn(),
+    onUtteranceEnd: vi.fn(),
     isStrolling: () => false,
   });
   wired.push(voice);

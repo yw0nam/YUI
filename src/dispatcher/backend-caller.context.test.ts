@@ -6,7 +6,7 @@
  */
 
 import { beforeEach, describe, expect, it, type Mock, vi } from "vitest";
-import type { InputContext, ToolStatus, Usage } from "../contract";
+import type { InputContext, PreviousTurn, ToolStatus, Usage } from "../contract";
 import type { Logger } from "../logger";
 import { type BackendCaller, createBackendCaller } from "./backend-caller";
 import type { BusEnvelope } from "./event-bus";
@@ -545,5 +545,43 @@ describe("backend_caller — agent settings (reasoning effort + instructions)", 
     const [, request] = script.spy.mock.calls[0];
     expect("reasoning_effort" in request).toBe(false);
     expect("instructions" in request).toBe(false);
+  });
+});
+
+describe("backend_caller — previous-turn line", () => {
+  it("reads the slot after the pre-turn interrupt, so a superseded turn is already recorded", async () => {
+    script.events = [completedEvent({ speech_text: "" })];
+    let previous: PreviousTurn | undefined;
+    const output = makeTurnOutput();
+    // interrupt() is what reports the superseded turn's cut-off utterance into the slot.
+    output.interrupt.mockImplementation(() => {
+      previous = { event_name: "user.text_submitted", ended: "interrupted", ts: Date.now() };
+    });
+    const caller2 = createBackendCaller({
+      config: CONFIG,
+      renderer: { applyDirective } as never,
+      getApiKey: async () => "k",
+      getFetch: async () => undefined,
+      stream: script.stream,
+      turnOutput: output,
+      getPrevious: () => previous,
+      logger,
+    });
+
+    await caller2.call(turnOf(userEnv()));
+
+    const [, request] = script.spy.mock.calls[0];
+    const items = request.input as Array<{ role: string; content: string }>;
+    const text = clientContextTextOf(items.find((m) => m.role === "user")!.content);
+    expect(text).toContain("previous: user.text_submitted interrupted (0min ago)");
+  });
+
+  it("renders no previous line when the slot is empty", async () => {
+    script.events = [completedEvent({ speech_text: "" })];
+    await caller.call(turnOf(userEnv()));
+    const [, request] = script.spy.mock.calls[0];
+    const items = request.input as Array<{ role: string; content: string }>;
+    const text = clientContextTextOf(items.find((m) => m.role === "user")!.content);
+    expect(text).not.toContain("previous:");
   });
 });
