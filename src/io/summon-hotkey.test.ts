@@ -8,7 +8,7 @@
  *  - re-applying the same accelerator is a no-op (prevents double registration).
  *  - accelerator change: unregister the previous one, then register the new one.
  *  - empty string: unregister the existing binding + no new registration (disabled).
- *  - stale registration held by this process from a previous page: unregistered before registering.
+ *  - every registration a previous page left in this process is released once, before the first apply.
  *  - register rejection (invalid accelerator/OS-occupied): stays disabled without throwing (fail-soft).
  *  - transient register rejection (fast restart, the previous process still holds the key): retried until it takes.
  *  - summonInput is still called even if focusWindow fails.
@@ -27,12 +27,16 @@ function fakeDeps() {
   let inputOpen = false;
   const deps = {
     register: vi.fn(async (accelerator: string, handler: SummonHotkeyTrigger) => {
+      if (handlers.has(accelerator))
+        throw new Error(`RegisterEventHotKey failed for ${accelerator}`);
       handlers.set(accelerator, handler);
     }),
     unregister: vi.fn(async (accelerator: string) => {
       handlers.delete(accelerator);
     }),
-    isRegistered: vi.fn(async (accelerator: string) => handlers.has(accelerator)),
+    unregisterAll: vi.fn(async () => {
+      handlers.clear();
+    }),
     focusWindow: vi.fn(async () => {
       calls.push("focus");
     }),
@@ -106,30 +110,58 @@ describe("createSummonHotkey — apply", () => {
 });
 
 describe("createSummonHotkey — stale registration", () => {
-  it("이전 페이지가 이 프로세스에 남긴 등록을 register 전에 해제한다", async () => {
+  /** Drives a hotkey promise past the register backoff without waiting in real time. */
+  async function settle<T>(promise: Promise<T>): Promise<T> {
+    await vi.advanceTimersByTimeAsync(60_000);
+    return promise;
+  }
+
+  it("이전 페이지가 같은 accelerator를 남겨도 새 핸들러로 등록된다", async () => {
     const f = fakeDeps();
-    // Seed a stale handler as a page reload would leave behind in this process.
     const stale = vi.fn();
     await f.deps.register("CmdOrCtrl+Shift+Y", stale);
     f.deps.register.mockClear();
-    const hotkey = createSummonHotkey(f.deps);
-    await hotkey.apply("CmdOrCtrl+Shift+Y");
-    expect(f.deps.unregister).toHaveBeenCalledWith("CmdOrCtrl+Shift+Y");
-    expect(f.deps.unregister.mock.invocationCallOrder[0]).toBeLessThan(
-      f.deps.register.mock.invocationCallOrder[0],
-    );
+    const onRegisterFailed = vi.fn();
+    const hotkey = createSummonHotkey({ ...f.deps, onRegisterFailed });
+    vi.useFakeTimers();
+    try {
+      await settle(hotkey.apply("CmdOrCtrl+Shift+Y"));
+    } finally {
+      vi.useRealTimers();
+    }
+    expect(onRegisterFailed).not.toHaveBeenCalled();
+    expect(hotkey.current()).toBe("CmdOrCtrl+Shift+Y");
     f.trigger("CmdOrCtrl+Shift+Y");
     await flush();
-    expect(stale).not.toHaveBeenCalled();
     expect(f.deps.focusWindow).toHaveBeenCalled();
+    expect(stale).not.toHaveBeenCalled();
   });
 
-  it("등록된 게 없으면 unregister하지 않는다", async () => {
+  it("이전 페이지가 다른 accelerator를 남겼으면 그 등록도 해제된다", async () => {
     const f = fakeDeps();
+    const stale = vi.fn();
+    await f.deps.register("Alt+Space", stale);
+    const hotkey = createSummonHotkey(f.deps);
+    vi.useFakeTimers();
+    try {
+      await settle(hotkey.apply("CmdOrCtrl+Shift+Y"));
+    } finally {
+      vi.useRealTimers();
+    }
+    f.trigger("Alt+Space");
+    await flush();
+    expect(stale).not.toHaveBeenCalled();
+    expect(f.deps.focusWindow).not.toHaveBeenCalled();
+    expect(hotkey.current()).toBe("CmdOrCtrl+Shift+Y");
+  });
+
+  it("unregisterAll이 거부돼도 register를 시도한다", async () => {
+    const f = fakeDeps();
+    f.deps.unregisterAll.mockRejectedValueOnce(new Error("not allowed"));
     const hotkey = createSummonHotkey(f.deps);
     await hotkey.apply("CmdOrCtrl+Shift+Y");
-    expect(f.deps.unregister).not.toHaveBeenCalled();
-    expect(f.deps.register).toHaveBeenCalledTimes(1);
+    expect(f.deps.register).toHaveBeenCalledWith("CmdOrCtrl+Shift+Y", expect.any(Function));
+    expect(hotkey.current()).toBe("CmdOrCtrl+Shift+Y");
   });
 });
 

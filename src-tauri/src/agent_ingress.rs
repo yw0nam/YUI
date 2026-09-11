@@ -1128,19 +1128,37 @@ mod tests {
     // ── Listener claim ────────────────────────────────────────────────────
 
     #[test]
-    fn claim_listener_grants_only_the_first_call() {
-        let flag = AtomicBool::new(false);
-        assert!(claim_listener(&flag));
-        assert!(!claim_listener(&flag));
-        assert!(!claim_listener(&flag));
+    fn claim_and_bind_skips_when_already_claimed() {
+        let holder = std::net::TcpListener::bind(("127.0.0.1", 0)).unwrap();
+        let port = holder.local_addr().unwrap().port();
+        drop(holder);
+        let claim = AtomicBool::new(true);
+        assert!(claim_and_bind(&claim, port, 1, Duration::ZERO).is_none());
+        assert!(std::net::TcpListener::bind(("127.0.0.1", port)).is_ok());
     }
 
     #[test]
-    fn claim_listener_grants_again_after_release() {
-        let flag = AtomicBool::new(false);
-        assert!(claim_listener(&flag));
-        flag.store(false, Ordering::SeqCst);
-        assert!(claim_listener(&flag));
+    fn claim_and_bind_releases_the_claim_when_bind_fails() {
+        let holder = std::net::TcpListener::bind(("127.0.0.1", 0)).unwrap();
+        let port = holder.local_addr().unwrap().port();
+        let claim = AtomicBool::new(false);
+        let result = claim_and_bind(&claim, port, 2, Duration::from_millis(10));
+        assert!(matches!(result, Some(Err(_))));
+        assert!(!claim.load(Ordering::SeqCst));
+    }
+
+    #[test]
+    fn claim_and_bind_keeps_the_claim_after_a_bind() {
+        let holder = std::net::TcpListener::bind(("127.0.0.1", 0)).unwrap();
+        let port = holder.local_addr().unwrap().port();
+        drop(holder);
+        let claim = AtomicBool::new(false);
+        assert!(matches!(
+            claim_and_bind(&claim, port, 1, Duration::ZERO),
+            Some(Ok(_))
+        ));
+        assert!(claim.load(Ordering::SeqCst));
+        assert!(claim_and_bind(&claim, port, 1, Duration::ZERO).is_none());
     }
 
     #[test]
