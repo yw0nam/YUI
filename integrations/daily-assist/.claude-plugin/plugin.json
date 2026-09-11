@@ -1,0 +1,7 @@
+{
+  "name": "daily-assist",
+  "description": "Skills the YUI backend follows for the first-activity daily briefing, plus the design-time skill that builds its producer.",
+  "version": "0.1.0",
+  "author": { "name": "yw0nam", "url": "https://github.com/yw0nam/YUI" },
+  "license": "PolyForm-Noncommercial-1.0.0"
+}
