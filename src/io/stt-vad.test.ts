@@ -553,6 +553,7 @@ describe("createSttVad — per-request deadline (#275)", () => {
     await pending;
 
     expect(onState).toHaveBeenCalledWith("error", "STT request timed out");
+    expect(JSON.stringify(warnSpy.mock.calls)).toContain("STT request timed out");
     warnSpy.mockRestore();
   });
 });
