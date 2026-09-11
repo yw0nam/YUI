@@ -202,6 +202,102 @@ describe("createTtsSynth", () => {
       // No pending timer should remain once the request has already settled.
       expect(vi.getTimerCount()).toBe(0);
     });
+
+    // Mirrors tauri-plugin-cors-fetch, which ignores signal.reason and rejects with this bare string.
+    it("rejects with the deadline reason when the transport rejects with its own cancel error", async () => {
+      vi.useFakeTimers();
+      const fetchMock = vi.fn<FetchFn>(
+        (_url, init) =>
+          new Promise((_resolve, reject) => {
+            if (init.signal?.aborted) reject("User cancelled the request");
+            else init.signal?.addEventListener("abort", () => reject("User cancelled the request"));
+          }),
+      );
+      const synth = createTtsSynth({
+        baseUrl: BASE_URL,
+        fetch: fetchMock as unknown as typeof fetch,
+      });
+
+      const pending = synth("hi");
+      const assertion = expect(pending).rejects.toMatchObject({
+        name: "TimeoutError",
+        message: "TTS request timed out",
+      });
+      await vi.advanceTimersByTimeAsync(TTS_SYNTH_TIMEOUT_MS + 10);
+      await assertion;
+    });
+
+    it("reports a caller abort as the caller's abort, not a timeout", async () => {
+      vi.useFakeTimers();
+      const fetchMock = vi.fn<FetchFn>(
+        (_url, init) =>
+          new Promise((_resolve, reject) => {
+            if (init.signal?.aborted) reject("User cancelled the request");
+            else init.signal?.addEventListener("abort", () => reject("User cancelled the request"));
+          }),
+      );
+      const synth = createTtsSynth({
+        baseUrl: BASE_URL,
+        fetch: fetchMock as unknown as typeof fetch,
+      });
+
+      const controller = new AbortController();
+      const pending = synth("hi", controller.signal);
+      const assertion = expect(pending).rejects.toMatchObject({ name: "AbortError" });
+      controller.abort();
+      await assertion;
+    });
+
+    it("keeps the HTTP status when the deadline fires while reading an error body", async () => {
+      vi.useFakeTimers();
+      const fetchMock = vi.fn<FetchFn>(async (_url, init) => {
+        return {
+          ok: false,
+          status: 500,
+          headers: new Headers(),
+          json: () =>
+            new Promise((_resolve, reject) => {
+              init.signal?.addEventListener("abort", () => reject("User cancelled the request"));
+            }),
+        } as unknown as Response;
+      });
+      const synth = createTtsSynth({
+        baseUrl: BASE_URL,
+        fetch: fetchMock as unknown as typeof fetch,
+      });
+
+      const pending = synth("hi");
+      const assertion = expect(pending).rejects.toThrow("TTS request failed (HTTP 500)");
+      await vi.advanceTimersByTimeAsync(TTS_SYNTH_TIMEOUT_MS + 10);
+      await assertion;
+    });
+
+    it("rejects with the deadline reason when the deadline fires while reading the audio body", async () => {
+      vi.useFakeTimers();
+      const fetchMock = vi.fn<FetchFn>(async (_url, init) => {
+        return {
+          ok: true,
+          status: 200,
+          headers: new Headers(),
+          arrayBuffer: () =>
+            new Promise<ArrayBuffer>((_resolve, reject) => {
+              init.signal?.addEventListener("abort", () => reject("User cancelled the request"));
+            }),
+        } as unknown as Response;
+      });
+      const synth = createTtsSynth({
+        baseUrl: BASE_URL,
+        fetch: fetchMock as unknown as typeof fetch,
+      });
+
+      const pending = synth("hi");
+      const assertion = expect(pending).rejects.toMatchObject({
+        name: "TimeoutError",
+        message: "TTS request timed out",
+      });
+      await vi.advanceTimersByTimeAsync(TTS_SYNTH_TIMEOUT_MS + 10);
+      await assertion;
+    });
   });
 
   it("adds Authorization: Bearer when getApiKey resolves a key, keeping Content-Type", async () => {
