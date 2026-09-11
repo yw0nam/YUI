@@ -307,3 +307,56 @@ describe("buildClientContext — screen forwarding", () => {
     expect("recent" in client.trigger.screen!).toBe(false);
   });
 });
+
+describe("buildClientContext — milestone forwarding", () => {
+  const CTX: InputContext = { env: { timestamp: "2026-09-11T08:12:00+09:00", timezone: "UTC" } };
+
+  function milestoneEnv(payload: Record<string, unknown>): BusEnvelope {
+    return {
+      seq_id: 4,
+      source: "timer_scheduler",
+      event_name: "time_milestone.first_activity",
+      ts: 1_717_000_000_000,
+      hint_tier: 2,
+      payload,
+    };
+  }
+
+  it("maps the event-name prefix to kind 'milestone' and forwards name + local_time", () => {
+    const client = buildClientContext(
+      CTX,
+      milestoneEnv({ name: "first_activity", local_time: "08:12" }),
+    );
+
+    expect(client.trigger.kind).toBe("milestone");
+    expect(client.trigger.milestone).toEqual({ name: "first_activity", local_time: "08:12" });
+  });
+
+  it("carries drained signal groups on a milestone turn", () => {
+    const client = buildClientContext(
+      CTX,
+      milestoneEnv({
+        name: "first_activity",
+        local_time: "08:12",
+        signals: [{ items: [{ skill: "yui-daily-briefing" }] }],
+      }),
+    );
+
+    expect(client.trigger.signals).toEqual([{ items: [{ skill: "yui-daily-briefing" }] }]);
+  });
+
+  it("keeps the kind but omits the milestone field on a malformed payload", () => {
+    const malformed: Array<Record<string, unknown>> = [
+      { name: "first_activity" },
+      { name: "first_activity", local_time: 812 },
+      { local_time: "08:12" },
+      { name: 1, local_time: "08:12" },
+    ];
+
+    for (const payload of malformed) {
+      const client = buildClientContext(CTX, milestoneEnv(payload));
+      expect(client.trigger.kind).toBe("milestone");
+      expect("milestone" in client.trigger).toBe(false);
+    }
+  });
+});

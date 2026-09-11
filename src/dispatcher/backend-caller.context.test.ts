@@ -436,6 +436,22 @@ describe("backend_caller — flat client_context envelope", () => {
     expect(text).not.toMatch(/\(user idle /);
   });
 
+  it("(c2) first_activity milestone envelope → trigger headline + the day-start marker", async () => {
+    script.events = [completedEvent({ speech_text: "" })];
+    const env: BusEnvelope = {
+      seq_id: 6,
+      source: "timer_scheduler",
+      event_name: "time_milestone.first_activity",
+      ts: 1_717_000_000_000,
+      hint_tier: 2,
+      payload: { name: "first_activity", local_time: "08:12" },
+    };
+    await caller.call(turnOf(env));
+    const [, request] = script.spy.mock.calls[0];
+    expect(clientContextOf(request.input)).toContain("trigger: milestone first_activity (08:12)");
+    expect(userMessageContentOf(request.input)).toContain("(I've just started my day)");
+  });
+
   it("(d) voice envelope → user message content is the STT transcript text, not the proactive marker", async () => {
     script.events = [completedEvent({ speech_text: "" })];
     const env: BusEnvelope = {
