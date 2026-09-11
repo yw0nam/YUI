@@ -381,8 +381,7 @@ describe("liveness poll", () => {
   });
 });
 
-// An outage warns once, not once per poll cycle, and recovery gets one info — a broker down for
-// an hour used to add hundreds of warn pairs to the log.
+// An outage warns once and recovery logs one info, however many poll cycles it spans.
 describe("outage logging", () => {
   const payload: BrokerPayload = {
     emotionIds: ["neutral", "happy"],
@@ -430,6 +429,7 @@ describe("outage logging", () => {
     await tick();
 
     expect(warnEvents(logger)).toEqual(["rpc_threw"]);
+    expect(logger.info).not.toHaveBeenCalled();
   });
 
   it("logs broker_reachable once on recovery and warns again on the next outage", async () => {
@@ -454,6 +454,43 @@ describe("outage logging", () => {
     down = true;
     await tick();
     expect(warnEvents(logger)).toEqual(["rpc_threw", "rpc_threw"]);
+  });
+
+  it("stays at one warn when initialize succeeds but the rest of the handshake throws", async () => {
+    const fetch = vi.fn<FetchFn>(async (_input, init) => {
+      const body = JSON.parse(String(init?.body ?? "{}")) as { method: string; id: number };
+      if (body.method === "initialize") return sseResponse(initResult(body.id));
+      throw new Error("ECONNRESET");
+    });
+    const logger = silentLogger();
+    const { client, tick } = polledClient(fetch, logger);
+
+    await client.publish(payload);
+    client.start();
+    await tick();
+    await tick();
+    await tick();
+
+    expect(warnEvents(logger)).toEqual(["rpc_threw"]);
+    expect(logger.info).not.toHaveBeenCalled();
+  });
+
+  it("warns get_ids_payload_invalid when get_ids replies with a JSON primitive", async () => {
+    const fetch = vi.fn<FetchFn>(async (_input, init) => {
+      const body = JSON.parse(String(init?.body ?? "{}")) as Record<string, unknown>;
+      const id = body.id as number;
+      if (body.method === "initialize") return sseResponse(initResult(id));
+      if (body.method === "notifications/initialized") return acceptedResponse();
+      const params = body.params as { name: string };
+      if (params.name === "get_ids") return sseResponse(toolResult(id, 42));
+      return sseResponse(toolResult(id, { ok: true, version: 1 }));
+    });
+    const logger = silentLogger();
+    const { client } = polledClient(fetch, logger);
+
+    await client.publish(payload);
+
+    expect(warnEvents(logger)).toContain("get_ids_payload_invalid");
   });
 
   it("warns initialize_failed once across repeated non-ok handshakes", async () => {
