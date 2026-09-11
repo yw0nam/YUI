@@ -18,8 +18,8 @@ export type SummonHotkeyTrigger = (event: { state: string }) => void;
 interface SummonHotkeyDeps {
   register(accelerator: string, handler: SummonHotkeyTrigger): Promise<void>;
   unregister(accelerator: string): Promise<void>;
-  /** Whether this process currently holds the OS registration for the accelerator. */
-  isRegistered(accelerator: string): Promise<boolean>;
+  /** Releases every shortcut this process holds. */
+  unregisterAll(): Promise<void>;
   /** Bring the window forward + focus (including activating the app from the background). */
   focusWindow(): Promise<void>;
   summonInput(): void;
@@ -61,7 +61,10 @@ export async function retryOnReject(
 export function createSummonHotkey(deps: SummonHotkeyDeps): SummonHotkey {
   let registered: string | null = null;
   // Serialize apply — keeps hot-reload key mashing from overlapping register/unregister.
-  let chain: Promise<void> = Promise.resolve();
+  // A page reload leaves the previous page's registrations in this process.
+  let chain: Promise<void> = deps
+    .unregisterAll()
+    .catch((err) => log.warn("unregister_all_failed", { error: String(err) }));
   // Only one focus+summon cycle at a time. summonInput's is-open class is attached after an rAF,
   // so isInputOpen() lags by one frame; drop repeats (key repeat) arriving mid-cycle to prevent
   // double summons.
@@ -99,12 +102,6 @@ export function createSummonHotkey(deps: SummonHotkeyDeps): SummonHotkey {
     if (accelerator === "") {
       log.info("disabled", { reason: "empty_accelerator" });
       return;
-    }
-    // A page reload leaves this process's previous registration in place, bound to the old page's handler.
-    try {
-      if (await deps.isRegistered(accelerator)) await deps.unregister(accelerator);
-    } catch (err) {
-      log.warn("stale_unregister_failed", { accelerator, error: String(err) });
     }
     try {
       await retryOnReject(

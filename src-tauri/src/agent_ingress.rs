@@ -459,11 +459,6 @@ const BIND_RETRY_DELAY: Duration = Duration::from_millis(500);
 /// Set while this process owns the ingress listener.
 static LISTENER_CLAIMED: AtomicBool = AtomicBool::new(false);
 
-/// Claims the single listener slot; false when this process already runs (or is binding) one.
-fn claim_listener(flag: &AtomicBool) -> bool {
-    !flag.swap(true, Ordering::SeqCst)
-}
-
 /// Binds the loopback listener, retrying while the port is still taken.
 fn bind_with_retry(
     port: u16,
@@ -482,34 +477,52 @@ fn bind_with_retry(
     tiny_http::Server::http(("127.0.0.1", port))
 }
 
+/// Binds the listener unless this process already claimed it; a failed bind releases the claim.
+/// `None` means another call holds the claim.
+fn claim_and_bind(
+    claim: &AtomicBool,
+    port: u16,
+    attempts: u32,
+    delay: Duration,
+) -> Option<Result<tiny_http::Server, Box<dyn std::error::Error + Send + Sync + 'static>>> {
+    if claim.swap(true, Ordering::SeqCst) {
+        return None;
+    }
+    let result = bind_with_retry(port, attempts, delay);
+    if result.is_err() {
+        claim.store(false, Ordering::SeqCst);
+    }
+    Some(result)
+}
+
 /// Spawns the loopback HTTP listener on the given port.
 ///
 /// Bind failure after the retry window is non-fatal: the app continues without the
 /// ingress endpoint.
 pub fn start(app: &AppHandle, port: u16) {
-    // A page reload calls start again while the first listener still serves this process.
-    if !claim_listener(&LISTENER_CLAIMED) {
-        log::debug!("agent_ingress_already_listening port={port}");
-        return;
-    }
     let app = app.clone();
     thread::Builder::new()
         .name("agent_ingress".into())
         .spawn(move || {
-            let server = match bind_with_retry(port, BIND_ATTEMPTS, BIND_RETRY_DELAY) {
-                Ok(s) => s,
-                Err(e) => {
-                    LISTENER_CLAIMED.store(false, Ordering::SeqCst);
-                    log::warn!("agent_ingress_bind_failed port={port} error={e}");
-                    // The bind retries span ~3.5s, so the webview is normally listening by now.
-                    if let Err(e) =
-                        app.emit(INGRESS_DEAD_CHANNEL, serde_json::json!({ "port": port }))
-                    {
-                        log::warn!("agent_ingress_dead_emit_failed error={e}");
+            let server =
+                match claim_and_bind(&LISTENER_CLAIMED, port, BIND_ATTEMPTS, BIND_RETRY_DELAY) {
+                    // A page reload calls start again while an earlier call holds the listener.
+                    None => {
+                        log::debug!("agent_ingress_start_skipped requested_port={port}");
+                        return;
                     }
-                    return;
-                }
-            };
+                    Some(Ok(s)) => s,
+                    Some(Err(e)) => {
+                        log::warn!("agent_ingress_bind_failed port={port} error={e}");
+                        // Reaches the page that is loaded when the retries end; a reload inside that window misses it.
+                        if let Err(e) =
+                            app.emit(INGRESS_DEAD_CHANNEL, serde_json::json!({ "port": port }))
+                        {
+                            log::warn!("agent_ingress_dead_emit_failed error={e}");
+                        }
+                        return;
+                    }
+                };
             log::debug!("agent_ingress_listening port={port}");
             for request in server.incoming_requests() {
                 handle_request(&app, request);
