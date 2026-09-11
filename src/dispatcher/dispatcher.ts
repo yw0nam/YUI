@@ -39,7 +39,7 @@ import type { BackendCaller, TurnFailure, TurnOutcome } from "./backend-caller";
 import type { BusEnvelope, EventBus } from "./event-bus";
 import type { Guardrails } from "./guardrails";
 import type { ProactivePacer } from "./proactive-pacer";
-import type { TurnLog } from "./turn";
+import type { Turn, TurnLog } from "./turn";
 
 const baseLog = createLogger("dispatcher");
 
@@ -84,6 +84,11 @@ interface DispatcherDeps {
     reason: Exclude<TurnFailure, "superseded_by_user">,
     source: UserTurnSource,
   ) => void;
+  /**
+   * A backend call of any turn settled in a failure, reported with the turn it belonged to.
+   * superseded_by_user returns early and never reaches this.
+   */
+  onTurnFailed?: (turn: Turn, reason: TurnFailure) => void;
   /** Structured logging (defaults to the dispatcher namespace logger). */
   logger?: Logger;
 }
@@ -490,6 +495,7 @@ export function createDispatcher(deps: DispatcherDeps): Dispatcher {
         }
         if (outcome === "superseded_by_user") return;
         recordDrop(env, outcome);
+        deps.onTurnFailed?.(turn, outcome);
         noteCallFailure();
         const source = userTurnSourceOf(env);
         if (source) deps.onUserTurnFailed?.(outcome, source);
@@ -498,6 +504,7 @@ export function createDispatcher(deps: DispatcherDeps): Dispatcher {
         if (openTurn?.id === turn.id) openTurn.outcome = "network_drop";
         log.error("backend_call.unexpected_error", { error: String(err) });
         recordDrop(env, "network_drop");
+        deps.onTurnFailed?.(turn, "network_drop");
         noteCallFailure();
         const source = userTurnSourceOf(env);
         if (source) deps.onUserTurnFailed?.("network_drop", source);

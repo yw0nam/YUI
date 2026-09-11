@@ -3,6 +3,7 @@ import type {
   ClientContext,
   FrontmostState,
   InputContext,
+  PreviousTurn,
   TriggerMeta,
 } from "../contract";
 import type { BusEnvelope } from "./event-bus";
@@ -12,6 +13,7 @@ interface ContextProviders {
   onScreenshotError?: (error: unknown) => void;
   getBodyState?: () => BodyState | undefined;
   getFrontmost?: () => FrontmostState | undefined;
+  getPrevious?: () => PreviousTurn | undefined;
 }
 
 interface BuiltContext {
@@ -206,6 +208,7 @@ export function buildClientContext(
   env: BusEnvelope,
   bodyState?: BodyState,
   frontmost?: FrontmostState,
+  previous?: PreviousTurn,
 ): ClientContext {
   const payload = env.payload;
   const cue =
@@ -227,10 +230,17 @@ export function buildClientContext(
     ? { enabled: ctx.screenshot.enabled, source: ctx.screenshot.source }
     : undefined;
 
+  // A turn that spoke to the end leaves nothing worth telling the backend.
+  const badEnding =
+    previous && (previous.ended === "interrupted" || previous.ended === "failed")
+      ? previous
+      : undefined;
+
   return {
     env: { ...ctx.env, ...(frontmost ? { frontmost } : {}) },
     ...(screenshot ? { screenshot } : {}),
     ...(bodyState ? { body_state: bodyState } : {}),
+    ...(badEnding ? { previous: badEnding } : {}),
     trigger: {
       kind: triggerKind(env.event_name),
       ...(cue ? { cue } : {}),
@@ -276,6 +286,7 @@ export async function buildContext(
       env,
       providers.getBodyState?.(),
       providers.getFrontmost?.(),
+      providers.getPrevious?.(),
     ),
   };
 }

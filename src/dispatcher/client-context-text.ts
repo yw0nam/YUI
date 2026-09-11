@@ -64,6 +64,12 @@ function renderBody(bodyState: ClientContext["body_state"], nowMs: number): stri
   return `body: ${bodyState.posture.state}${on} (for ${mins}min)`;
 }
 
+function renderPrevious(previous: ClientContext["previous"], nowMs: number): string | undefined {
+  if (!previous) return undefined;
+  // The event bus's own name for the turn, which the trigger headline rewords.
+  return `previous: ${oneLine(previous.event_name)} ${previous.ended} (${minutesSince(previous.ts, nowMs)}min ago)`;
+}
+
 function renderTrigger(trigger: TriggerMeta, nowMs: number): string[] {
   const lines: string[] = [];
   const idleClause =
@@ -150,6 +156,9 @@ export function renderClientContext(clientContext: ClientContext, nowMs: number)
 
   const body = renderBody(clientContext.body_state, nowMs);
   if (body) lines.push(body);
+
+  const previous = renderPrevious(clientContext.previous, nowMs);
+  if (previous) lines.push(previous);
 
   lines.push(...renderTrigger(clientContext.trigger, nowMs));
 

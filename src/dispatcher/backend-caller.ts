@@ -27,6 +27,7 @@ import type {
   EndpointsConfig,
   FrontmostState,
   InputContext,
+  PreviousTurn,
   ToolStatus,
   TriggerMeta,
   Usage,
@@ -178,6 +179,8 @@ interface BackendCallerDeps {
   getBodyState?: () => BodyState | undefined;
   /** Latest frontmost sample lookup — called per turn; undefined until a sample exists. */
   getFrontmost?: () => FrontmostState | undefined;
+  /** Previous-turn slot lookup — read after the pre-turn interrupt, so a superseded turn is already recorded. */
+  getPrevious?: () => PreviousTurn | undefined;
   /** tool_status sink — called only when present. */
   onToolStatus?: (status: ToolStatus) => void;
   /** B4 speech-gate outcome sink — whether the turn returned speech text, independent of TTS. */
@@ -347,6 +350,7 @@ export function createBackendCaller(deps: BackendCallerDeps): BackendCaller {
         getScreenshot: deps.getScreenshot,
         getBodyState: deps.getBodyState,
         getFrontmost: deps.getFrontmost,
+        getPrevious: deps.getPrevious,
         onScreenshotError: (error) => log.warn("screenshot.failed", { error: String(error) }),
       });
       // Single "now" snapshot reused for every duration computed into this turn's rendered
@@ -496,6 +500,12 @@ export function createBackendCaller(deps: BackendCallerDeps): BackendCaller {
           return "network_drop";
         }
 
+        // Ahead of the stall branch: a superseded turn whose stream hangs rather than rejecting
+        // would otherwise tear down the pipeline the next turn already owns.
+        if (externalSignal?.aborted) {
+          return "superseded_by_user";
+        }
+
         if (stallStage) {
           // Nothing landed inside the budget for this phase — stalled.
           if (streamedAny) deps.turnOutput?.abort();
@@ -505,10 +515,6 @@ export function createBackendCaller(deps: BackendCallerDeps): BackendCaller {
               stallStage === "pre_speech_timeout" ? PRE_SPEECH_TIMEOUT_MS : SPEECH_IDLE_TIMEOUT_MS,
           });
           return "network_stall";
-        }
-
-        if (externalSignal?.aborted) {
-          return "superseded_by_user";
         }
 
         if (streamError) {
@@ -554,6 +560,8 @@ export function createBackendCaller(deps: BackendCallerDeps): BackendCaller {
 
         if (!envelope) {
           // No completed received = broken/empty response.
+          // If delta arrived, clean up speech bubble/audio — a half-spoken turn would otherwise stay open.
+          if (streamedAny) deps.turnOutput?.abort();
           log.warn("parse_error", { event_name: env.event_name });
           return "parse_error";
         }

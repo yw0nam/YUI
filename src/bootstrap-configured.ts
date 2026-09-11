@@ -32,6 +32,7 @@ import { createBackendCaller, isChatConfigured } from "./dispatcher/backend-call
 import { createDispatcher, type Dispatcher } from "./dispatcher/dispatcher";
 import type { EventBus } from "./dispatcher/event-bus";
 import { createGuardrails, type Guardrails, type GuardrailsConfig } from "./dispatcher/guardrails";
+import { createPreviousTurn } from "./dispatcher/previous-turn";
 import { createProactivePacer } from "./dispatcher/proactive-pacer";
 import { createTurnLog } from "./dispatcher/turn";
 import type { UserInputSource } from "./dispatcher/user-input-source";
@@ -255,6 +256,7 @@ const realFactories: ConfiguredBootstrapFactories = {
     const voiceInput = wireVoiceInput({ voiceInputStatus, sttSettings });
     register(voiceInput.dispose);
     const turnLog = createTurnLog();
+    const previousTurn = createPreviousTurn({ currentTurn: () => turnLog.current() });
     // Voice creation precedes the walker, so the stroll query stays late-bound across that cycle.
     let strollingRef: { isStrolling(): boolean } | null = null;
     const voice = wireVoicePipeline({
@@ -276,6 +278,8 @@ const realFactories: ConfiguredBootstrapFactories = {
         userInput.submitVoice(text);
         proactiveSourceRef?.noteInteraction();
       },
+      onUtteranceStart: previousTurn.utteranceStart,
+      onUtteranceEnd: previousTurn.utteranceEnd,
     });
     register(voice.dispose);
 
@@ -317,6 +321,7 @@ const realFactories: ConfiguredBootstrapFactories = {
       },
       getBodyState: () => dispatcher.getBodyState(),
       getFrontmost: () => frontmostTracker.get(),
+      getPrevious: previousTurn.get,
       contextHistory,
       appendTurnRecord: (record) => appendRecord(record),
       getAgentSettings: () => agentSettings.get(),
@@ -342,6 +347,7 @@ const realFactories: ConfiguredBootstrapFactories = {
       turnLog,
       pacer,
       appendSkipRecord: (record) => appendRecord(record),
+      onTurnFailed: previousTurn.callFailed,
       onUserTurnFailed: (reason, source) => {
         voice.speakFailure(reason);
         const message = turnErrorMessage(reason);
