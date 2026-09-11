@@ -202,6 +202,51 @@ describe("createTtsSynth", () => {
       // No pending timer should remain once the request has already settled.
       expect(vi.getTimerCount()).toBe(0);
     });
+
+    // Mirrors tauri-plugin-cors-fetch, which ignores signal.reason and rejects with this bare string.
+    it("rejects with the deadline reason when the transport rejects with its own cancel error", async () => {
+      vi.useFakeTimers();
+      const fetchMock = vi.fn<FetchFn>(
+        (_url, init) =>
+          new Promise((_resolve, reject) => {
+            if (init.signal?.aborted) reject("User cancelled the request");
+            else init.signal?.addEventListener("abort", () => reject("User cancelled the request"));
+          }),
+      );
+      const synth = createTtsSynth({
+        baseUrl: BASE_URL,
+        fetch: fetchMock as unknown as typeof fetch,
+      });
+
+      const pending = synth("hi");
+      const assertion = expect(pending).rejects.toMatchObject({
+        name: "TimeoutError",
+        message: "TTS request timed out",
+      });
+      await vi.advanceTimersByTimeAsync(TTS_SYNTH_TIMEOUT_MS + 10);
+      await assertion;
+    });
+
+    it("passes a caller abort through unchanged", async () => {
+      vi.useFakeTimers();
+      const fetchMock = vi.fn<FetchFn>(
+        (_url, init) =>
+          new Promise((_resolve, reject) => {
+            if (init.signal?.aborted) reject("User cancelled the request");
+            else init.signal?.addEventListener("abort", () => reject("User cancelled the request"));
+          }),
+      );
+      const synth = createTtsSynth({
+        baseUrl: BASE_URL,
+        fetch: fetchMock as unknown as typeof fetch,
+      });
+
+      const controller = new AbortController();
+      const pending = synth("hi", controller.signal);
+      const assertion = expect(pending).rejects.toBe("User cancelled the request");
+      controller.abort();
+      await assertion;
+    });
   });
 
   it("adds Authorization: Bearer when getApiKey resolves a key, keeping Content-Type", async () => {

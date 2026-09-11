@@ -528,6 +528,33 @@ describe("createSttVad — per-request deadline (#275)", () => {
     expect(warnSpy).toHaveBeenCalled();
     warnSpy.mockRestore();
   });
+
+  it("reports the deadline message when the transport rejects with its own cancel error", async () => {
+    vi.useFakeTimers();
+    const fetchMock = vi.fn((_: URL | RequestInfo, init?: RequestInit) => {
+      return new Promise<Response>((_resolve, reject) => {
+        if (init?.signal?.aborted) reject("User cancelled the request");
+        else init?.signal?.addEventListener("abort", () => reject("User cancelled the request"));
+      });
+    });
+    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+
+    const onState = vi.fn();
+    const stt = createSttVad({
+      config: () => CONFIG,
+      onVoiceSegment: vi.fn(),
+      onState,
+      fetch: fetchMock,
+    });
+    await stt.start();
+
+    const pending = triggerSpeechEnd!(new Float32Array(16));
+    await vi.advanceTimersByTimeAsync(STT_REQUEST_TIMEOUT_MS + 10);
+    await pending;
+
+    expect(onState).toHaveBeenCalledWith("error", "STT request timed out");
+    warnSpy.mockRestore();
+  });
 });
 
 describe("createSttVad — stop() and dispose()", () => {
