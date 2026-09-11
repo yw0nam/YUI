@@ -6,6 +6,7 @@
  *  - later ticks the same day → nothing, and the signal buffers stay untouched.
  *  - persisted day latch survives a restart; a crossed midnight re-arms the milestone.
  *  - away / null idle / isEnabled() false → no fire and no drain.
+ *  - a bus-rejected push leaves the day unlatched; a failed or empty drain still fires.
  *  - off-Tauri degrade + start idempotency.
  */
 
@@ -16,12 +17,16 @@ import type { OsEventListen, OsEventPayload } from "../io/tauri-listen";
 import type { BusEnvelope, EventBus } from "./event-bus";
 import { createMilestoneSource } from "./milestone-source";
 
-function fakeBus(): { bus: Pick<EventBus, "push">; pushed: BusEnvelope[] } {
+/** `accepts` answers per push, so a test can make the bus reject the first candidate. */
+function fakeBus(accepts: () => boolean = () => true): {
+  bus: Pick<EventBus, "push">;
+  pushed: BusEnvelope[];
+} {
   const pushed: BusEnvelope[] = [];
   const bus: Pick<EventBus, "push"> = {
     push: vi.fn((e: BusEnvelope) => {
       pushed.push(e);
-      return true;
+      return accepts();
     }),
   };
   return { bus, pushed };
@@ -103,7 +108,7 @@ describe("milestone_source — first present tick of the day", () => {
 
     expect(pushed).toEqual([
       {
-        source: "timer_scheduler",
+        source: "os_event_watcher",
         event_name: "time_milestone.first_activity",
         ts: t,
         hint_tier: 2,
@@ -192,6 +197,83 @@ describe("milestone_source — once-per-day latch", () => {
 
     expect(pushed).toHaveLength(2);
     expect(pushed[1].payload?.local_time).toBe("00:05");
+  });
+});
+
+describe("milestone_source — bus rejection", () => {
+  it("leaves the day unlatched when the bus rejects the candidate, and retries next tick", async () => {
+    let accepted = false;
+    const { bus, pushed } = fakeBus(() => accepted);
+    const { listen, emit } = fakeListen();
+    const { storage, save } = fakeFiredStorage();
+    let t = at(2026, 5, 15, 8, 12);
+    const src = createMilestoneSource({
+      bus,
+      present_max_idle_ms: PRESENT_MAX,
+      isEnabled: () => true,
+      drainSignals: () => [],
+      firedStorage: storage,
+      listen,
+      now: () => t,
+    });
+    await src.start();
+
+    emit(idleTick(500));
+    expect(pushed).toHaveLength(1);
+    expect(save).not.toHaveBeenCalled();
+
+    accepted = true;
+    t = at(2026, 5, 15, 8, 30);
+    emit(idleTick(500));
+
+    expect(pushed).toHaveLength(2);
+    expect(pushed[1].payload?.local_time).toBe("08:30");
+    expect(save).toHaveBeenCalledTimes(1);
+    expect(save).toHaveBeenCalledWith({ first_activity: "2026-5-15" });
+  });
+});
+
+describe("milestone_source — drained groups", () => {
+  it("omits the signals key when no group was buffered", async () => {
+    const { bus, pushed } = fakeBus();
+    const { listen, emit } = fakeListen();
+    const src = createMilestoneSource({
+      bus,
+      present_max_idle_ms: PRESENT_MAX,
+      isEnabled: () => true,
+      drainSignals: () => [],
+      firedStorage: fakeFiredStorage().storage,
+      listen,
+      now: () => at(2026, 5, 15, 8, 12),
+    });
+    await src.start();
+
+    emit(idleTick(500));
+
+    expect(pushed[0].payload).toEqual({ name: "first_activity", local_time: "08:12" });
+  });
+
+  it("still fires, without signals, when the drain throws", async () => {
+    const { bus, pushed } = fakeBus();
+    const { listen, emit } = fakeListen();
+    const drainSignals = vi.fn((): SignalGroup[] => {
+      throw new Error("buffer unreachable");
+    });
+    const src = createMilestoneSource({
+      bus,
+      present_max_idle_ms: PRESENT_MAX,
+      isEnabled: () => true,
+      drainSignals,
+      firedStorage: fakeFiredStorage().storage,
+      listen,
+      now: () => at(2026, 5, 15, 8, 12),
+    });
+    await src.start();
+
+    expect(() => emit(idleTick(500))).not.toThrow();
+    expect(drainSignals).toHaveBeenCalledTimes(1);
+    expect(pushed).toHaveLength(1);
+    expect(pushed[0].payload).toEqual({ name: "first_activity", local_time: "08:12" });
   });
 });
 
