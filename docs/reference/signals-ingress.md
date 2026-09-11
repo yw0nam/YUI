@@ -46,6 +46,11 @@ Returning to present or transitioning from busy to idle emits one catch-up conta
 both away-buffered and batched groups in their original arrival order. Returning before
 a batched group's deadline therefore includes it in that catch-up.
 
+Two client-fired turns also drain the buffers and carry the groups themselves: a
+`proactive.tap_bored` turn and the `time_milestone.first_activity` turn. Both take
+every pending group in arrival order, and a drain empties the away buffer and the
+batch buffer together.
+
 Each buffer retains at most five groups and drops its oldest group on overflow.
 
 ## Validation and legacy behavior

@@ -2,9 +2,11 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 // Capture the deps each source factory is created with, and record start() calls.
 // vi.hoisted so the shared state exists before the hoisted vi.mock factories run.
-const { created, started, makeSource } = vi.hoisted(() => {
+const { created, started, drainQueue, makeSource } = vi.hoisted(() => {
   const created: Record<string, unknown> = {};
   const started: string[] = [];
+  // Groups a test posts to the signals source before a drain — emptied by drain(), as the real one does.
+  const drainQueue: unknown[] = [];
   const makeSource = (name: string) => (deps: unknown) => {
     created[name] = deps;
     return {
@@ -13,10 +15,10 @@ const { created, started, makeSource } = vi.hoisted(() => {
       },
       stop: () => {},
       noteInteraction: () => {},
-      drain: () => [],
+      drain: () => drainQueue.splice(0),
     };
   };
-  return { created, started, makeSource };
+  return { created, started, drainQueue, makeSource };
 });
 
 vi.mock("./dispatcher/proactive-source", () => ({
@@ -33,6 +35,9 @@ vi.mock("./dispatcher/signals-source", () => ({
 }));
 vi.mock("./dispatcher/screen-source", () => ({
   createScreenSource: vi.fn(makeSource("screen")),
+}));
+vi.mock("./dispatcher/milestone-source", () => ({
+  createMilestoneSource: vi.fn(makeSource("milestone")),
 }));
 // i18n is a side-effecting singleton; stub it so the settings-sync tests stay isolated.
 const { unsubscribeLocale } = vi.hoisted(() => ({ unsubscribeLocale: vi.fn() }));
@@ -310,6 +315,7 @@ describe("wireDispatcherSources", () => {
   beforeEach(() => {
     for (const k of Object.keys(created)) delete created[k];
     started.length = 0;
+    drainQueue.length = 0;
   });
 
   const screenConfig = {
@@ -340,7 +346,7 @@ describe("wireDispatcherSources", () => {
     };
   }
 
-  it("creates and starts all five utterance sources", () => {
+  it("creates and starts all six utterance sources", () => {
     const bus = {} as never;
     const pipelineBusy = { isBusy: () => false, subscribe: vi.fn(() => vi.fn()) };
     const subscribeBusy = vi.fn(() => vi.fn());
@@ -359,13 +365,21 @@ describe("wireDispatcherSources", () => {
 
     expect(Object.keys(result).sort()).toEqual([
       "agentSource",
+      "milestoneSource",
       "proactiveSource",
       "scheduleSource",
       "screenSource",
       "signalsSource",
     ]);
     // Each source is started (fire-and-forget) so candidate events flow once wired.
-    expect(started.sort()).toEqual(["agent", "proactive", "schedule", "screen", "signals"]);
+    expect(started.sort()).toEqual([
+      "agent",
+      "milestone",
+      "proactive",
+      "schedule",
+      "screen",
+      "signals",
+    ]);
     // The dispatcher threshold is read from the presence store at creation time.
     expect((created.proactive as { present_max_idle_ms: number }).present_max_idle_ms).toBe(5000);
     // isEnabled reads live from the per-feature store.
@@ -379,6 +393,54 @@ describe("wireDispatcherSources", () => {
     signalsDeps.subscribePipelineBusy(vi.fn());
     expect(pipelineBusy.subscribe).toHaveBeenCalled();
     expect((created.proactive as { isPipelineBusy?: unknown }).isPipelineBusy).toBeUndefined();
+    expect(result.signalsSource.drain()).toEqual([]);
+  });
+
+  it("gates the milestone source on the schedule setting, read live", () => {
+    const schedule = { enabled: false, entries: [] };
+    wireDispatcherSources({
+      bus: {} as never,
+      presenceSettings: { get: () => ({ value: 5000 }) },
+      proactiveSettings: { get: () => ({ enabled: true, entries: [] }) },
+      scheduleSettings: { get: () => schedule },
+      agentNotifySettings: { get: () => ({ enabled: true, port: 8770 }) },
+      screenSettings: { get: () => ({ enabled: false }) },
+      getScreenConfig: () => screenConfig,
+      subscribeBusy: vi.fn(() => vi.fn()),
+      pipelineBusy: { isBusy: () => false, subscribe: vi.fn(() => vi.fn()) },
+      pacer: fakePacer(),
+    });
+
+    const milestone = created.milestone as {
+      present_max_idle_ms: number;
+      isEnabled: () => boolean;
+    };
+    expect(milestone.present_max_idle_ms).toBe(5000);
+    expect(milestone.isEnabled()).toBe(false);
+    schedule.enabled = true;
+    expect(milestone.isEnabled()).toBe(true);
+  });
+
+  it("hands the milestone source a drain that empties the signals buffers", () => {
+    const result = wireDispatcherSources({
+      bus: {} as never,
+      presenceSettings: { get: () => ({ value: 5000 }) },
+      proactiveSettings: { get: () => ({ enabled: true, entries: [] }) },
+      scheduleSettings: { get: () => ({ enabled: true, entries: [] }) },
+      agentNotifySettings: { get: () => ({ enabled: true, port: 8770 }) },
+      screenSettings: { get: () => ({ enabled: false }) },
+      getScreenConfig: () => screenConfig,
+      subscribeBusy: vi.fn(() => vi.fn()),
+      pipelineBusy: { isBusy: () => false, subscribe: vi.fn(() => vi.fn()) },
+      pacer: fakePacer(),
+    });
+
+    const group = { items: [{ skill: "yui-daily-briefing" }] };
+    drainQueue.push(group);
+    const milestone = created.milestone as { drainSignals: () => unknown[] };
+
+    expect(milestone.drainSignals()).toEqual([group]);
+    // The groups rode the milestone turn, so the signals source has nothing left to deliver.
     expect(result.signalsSource.drain()).toEqual([]);
   });
 

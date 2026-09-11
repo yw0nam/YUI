@@ -141,8 +141,8 @@ the avatar relocates, not when the same posture is re-affirmed.
 
 Exactly one headline `trigger: …` line describes what fired the turn, chosen by what
 the turn actually carries (screen transition, cue, single agent event, agent catchup
-burst, or a bare kind fallback); zero or more follow-up lines add detail. `trigger.kind`
-is one of `user` \| `schedule` \| `proactive` \| `agent` \| `signals`.
+burst, milestone, or a bare kind fallback); zero or more follow-up lines add detail. `trigger.kind`
+is one of `user` \| `schedule` \| `proactive` \| `agent` \| `signals` \| `milestone`.
 
 | `kind` | What fired | User content |
 |---|---|---|
@@ -151,8 +151,9 @@ is one of `user` \| `schedule` \| `proactive` \| `agent` \| `signals`.
 | `proactive` | A configured engagement cue, tap-bored cue, region-touch cue, or screen transition fired | Background marker |
 | `agent` | An external coding-agent lifecycle hook posted a completion or needs-input signal | Background marker |
 | `signals` | An external producer POSTed a burst to the `/signals` ingress | Background marker |
+| `milestone` | A once-per-day client clock fact fired on the first present tick of the local day | Background marker |
 
-For `schedule`, `proactive`, `agent`, and `signals` turns there is no user utterance —
+For `schedule`, `proactive`, `agent`, `signals`, and `milestone` turns there is no user utterance —
 the agent reads the trigger lines to decide whether and what to say. Firing a turn does
 not guarantee speech: the client renders whatever text the agent returns, and silence
 means the agent returns empty or no speech text. No client-side gate decides whether to
@@ -283,6 +284,20 @@ heterogeneous objects with no client-known shape, so JSON preserves their struct
 Signal lines are independent of the headline and also appear alongside a cue headline:
 `proactive.tap_bored` turns carry both their configured cue and drained signal groups.
 
+### Milestone
+
+```text
+trigger: milestone first_activity (08:12)
+signal [n8n/daily_briefing @2026-09-11T22:30:00.000Z, id daily-briefing:2026-09-11]: {"skill":"yui-daily-briefing", ...}
+```
+
+`time_milestone.first_activity` fires once per local day, on the first `os_idle_tick`
+that finds the user present with the schedule setting enabled. The headline names the
+milestone and the local clock time it fired at. The day key is latched in
+`yui.milestone-fired`, so a same-day restart fires nothing and an app left running
+overnight fires again on the first present tick after midnight. Buffered `/signals`
+groups drain into the same turn and render as `signal` lines under the headline.
+
 ## Deliberately omitted fields
 
 A few `ClientContext` fields carry no rendered line, by design:
@@ -324,6 +339,7 @@ all situational detail still lives in the trigger lines above.
 | `signals.push` | `(a new signal just arrived for you)` |
 | `signals.batch` | `(a few signals batched up for you)` |
 | `signals.catchup` | `(signals piled up while I was away)` |
+| `time_milestone.first_activity` | `(I've just started my day)` |
 | any other | `(something just caught your attention)` |
 
 The `agent.*` markers name the coding agent that fired. `agent.done` and

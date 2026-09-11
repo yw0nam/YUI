@@ -308,8 +308,8 @@ function parsePeekDropPayload(env: BusEnvelope): PeekDropPayload | null {
 /**
  * Which sources the global proactive gap applies to. Loop cues, schedule and the buffered
  * inboxes (signals, agent) all push as timer_scheduler, screen transitions as screen_watcher;
- * gesture cues and typed/spoken input are the user's own doing and pass ungated. Record forces
- * a new source value to answer paced-or-not at compile time.
+ * gesture cues, typed/spoken input and the once-a-day milestone push as os_event_watcher and
+ * pass ungated. Record forces a new source value to answer paced-or-not at compile time.
  */
 const PACED_SOURCES: Record<BusEnvelope["source"], boolean> = {
   timer_scheduler: true,

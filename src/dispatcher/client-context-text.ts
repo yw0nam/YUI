@@ -106,6 +106,9 @@ function renderTrigger(trigger: TriggerMeta, nowMs: number): string[] {
       );
       if (item.detail) lines.push(`agent detail: ${oneLine(item.detail)}`);
     }
+  } else if (trigger.milestone) {
+    const m = trigger.milestone;
+    lines.push(`trigger: milestone ${oneLine(m.name)} (${oneLine(m.local_time)})`);
   } else if (trigger.kind === "user") {
     lines.push(`trigger: user message${idleClause}`);
   } else if (trigger.kind === "signals") {
