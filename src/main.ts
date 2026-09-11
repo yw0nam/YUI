@@ -493,20 +493,14 @@ async function bootstrap(): Promise<BootstrapHandle> {
   // No runtime override + no build-time key → chat call looks like silent 401 →
   // warn early in bootstrap. Never log key value itself (secret).
   if (import.meta.env.DEV && !chatKeySettings.get().apiKey && !import.meta.env.VITE_YUI_CHAT_KEY) {
-    log.warn(
-      "chat API 키 미설정 — chat은 무인증 placeholder로 호출돼 401 가능. 설정 패널의 채팅 API 키 또는 .env.local(VITE_YUI_CHAT_KEY) 참고.",
-    );
+    log.warn("chat_key_missing", { env: "VITE_YUI_CHAT_KEY" });
   }
   // STT/TTS key warning (prevent 401 on gated backends requiring keys).
   if (import.meta.env.DEV && !sttKeySettings.get().apiKey && !import.meta.env.VITE_YUI_STT_KEY) {
-    log.warn(
-      "STT API 키 미설정 — 키를 요구하는 STT 서버라면 401 가능. .env.local(VITE_YUI_STT_KEY) 참고.",
-    );
+    log.warn("stt_key_missing", { env: "VITE_YUI_STT_KEY" });
   }
   if (import.meta.env.DEV && !ttsKeySettings.get().apiKey && !import.meta.env.VITE_YUI_TTS_KEY) {
-    log.warn(
-      "TTS API 키 미설정 — TTS 서버가 키를 요구하면 401 가능. .env.local(VITE_YUI_TTS_KEY) 참고.",
-    );
+    log.warn("tts_key_missing", { env: "VITE_YUI_TTS_KEY" });
   }
   try {
     const cfg = await config.load();
