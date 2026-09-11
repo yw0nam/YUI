@@ -1,5 +1,6 @@
 {
   "name": "yui",
+  "description": "Plugins for the YUI desktop pet and the backend it delegates to.",
   "owner": { "name": "yw0nam", "url": "https://github.com/yw0nam/YUI" },
   "plugins": [
     {

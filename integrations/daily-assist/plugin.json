@@ -1,6 +1,8 @@
 {
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
   "name": "daily-assist",
   "version": "0.1.0",
   "description": "Skills the YUI backend follows for the first-activity daily briefing, plus the design-time skill that builds its producer.",
-  "skills": "./skills/"
+  "author": { "name": "yw0nam", "url": "https://github.com/yw0nam/YUI" },
+  "license": "PolyForm-Noncommercial-1.0.0"
 }
