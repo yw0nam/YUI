@@ -149,8 +149,10 @@ export function createSttVad(options: SttVadOptions): SttVad {
       onVoiceSegment(data.text);
       onState?.("fired");
     } catch (err) {
-      log.warn("stt_error", { error: String(err) });
-      const detail = err instanceof Error ? err.message : "STT request failed";
+      // The Tauri transport rejects with its own cancel error; the deadline's reason names the timeout.
+      const cause = deadline.signal.aborted ? deadline.signal.reason : err;
+      log.warn("stt_error", { error: String(cause) });
+      const detail = cause instanceof Error ? cause.message : "STT request failed";
       onState?.("error", detail);
     } finally {
       deadline.clear();

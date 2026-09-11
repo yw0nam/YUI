@@ -74,6 +74,9 @@ export function createTtsSynth(opts: TtsSynthOptions): TtsSynth {
       }
 
       return await res.arrayBuffer();
+    } catch (err) {
+      // The Tauri transport rejects with its own cancel error; the deadline's reason names the timeout.
+      throw deadline.signal.aborted ? deadline.signal.reason : err;
     } finally {
       deadline.clear();
     }
