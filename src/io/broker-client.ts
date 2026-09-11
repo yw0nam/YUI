@@ -1,9 +1,10 @@
 /**
  * Expression Broker MCP write-only client. YUI publishes its renderable vocabulary;
  * it never subscribes. Stateless + best-effort: never throws to the caller, never blocks boot
- * — all transport failures degrade to a warn log. publish() is idempotent: it diffs
- * against the broker's current ids and only sends the tools that changed. start() runs a liveness
- * poll that re-publishes when a broker restart is inferred (version regression / drift).
+ * — an outage logs one warn and the first successful handshake after it one info, so a down
+ * broker never floods the log. publish() is idempotent: it diffs against the broker's current
+ * ids and only sends the tools that changed. start() runs a liveness poll that re-publishes when
+ * a broker restart is inferred (version regression / drift).
  *
  * Transport: FastMCP streamable-http. Each rpc cycle = initialize → notifications/initialized →
  * tools/call(s), reusing the mcp-session-id captured from the initialize response. Responses are
@@ -95,6 +96,8 @@ export function createBrokerClient(opts: BrokerClientOptions): BrokerClient {
   let lastObservedVersion: number | null = null;
   let inflight: Promise<void> = Promise.resolve();
   let disposed = false;
+  // Outage gate: one warn per outage, one info when the handshake recovers.
+  let unreachable = false;
 
   /**
    * One MCP cycle: initialize, send initialized, then run the provided tool calls on the same
@@ -121,8 +124,13 @@ export function createBrokerClient(opts: BrokerClientOptions): BrokerClient {
         }),
       });
       if (!initRes.ok) {
-        log.warn("initialize_failed", { status: initRes.status });
+        if (!unreachable) log.warn("initialize_failed", { status: initRes.status });
+        unreachable = true;
         return null;
+      }
+      if (unreachable) {
+        log.info("broker_reachable");
+        unreachable = false;
       }
       const sessionId = initRes.headers.get("mcp-session-id") ?? undefined;
       // drain the SSE body so the connection is consumed (result unused)
@@ -167,7 +175,8 @@ export function createBrokerClient(opts: BrokerClientOptions): BrokerClient {
       }
       return results;
     } catch (err) {
-      log.warn("rpc_threw", { error: String(err) });
+      if (!unreachable) log.warn("rpc_threw", { error: String(err) });
+      unreachable = true;
       return null;
     }
   }
@@ -281,10 +290,7 @@ export function createBrokerClient(opts: BrokerClientOptions): BrokerClient {
   async function poll(): Promise<void> {
     if (!lastPayload) return;
     const vocab = await getIds();
-    if (!vocab) {
-      log.warn("poll_unreachable", { retry: true });
-      return;
-    }
+    if (!vocab) return;
     const regressed = lastObservedVersion !== null && vocab.version < lastObservedVersion;
     const drifted =
       !sameIds(vocab.emotion_ids, lastPayload.emotionIds) ||
