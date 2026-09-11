@@ -98,7 +98,7 @@ This system explicitly rejects the bottom-right SaaS chatbot widget (Intercom/Dr
 Near-achromatic warm neutral with a single point of amber. The model is **dark scrim + light warm text**: a light surface with dark ink vanishes against a white IDE, so surfaces read like a subtitle, a semi-transparent dark scrim under light warm text with its own shadow. All hues anchor to warm amber (~72°).
 
 ### Primary
-- **Hearth Amber** (`oklch(0.8 0.13 75)`): the sole accent and the only carrier of warmth. Used in *moments* only: active input border, speech onset caret, focus and hover. A soft (`/ 0.45`) and faint (`/ 0.16`) variant carry focus rings and underlines.
+- **Hearth Amber** (`oklch(0.8 0.13 75)`): the sole accent and the only carrier of warmth. Used in *moments* only: active input border, speech onset caret, focus and hover, and the message window's waiting glow — the input border while thinking, the bubble border while responding. A soft (`/ 0.45`) and faint (`/ 0.16`) variant carry focus rings and underlines.
 
 ### Neutral
 - **Speech White** (`oklch(0.95 0.012 80)`): primary body/speech text on a floating surface; warm, not pure white.
@@ -178,7 +178,7 @@ Paired status pills at the top edge (`capture-indicator.css`, `voice-input-indic
 
 ### Do:
 - **Do** micro-tint every neutral toward amber (chroma ~0.005–0.016) in OKLCH; never `#000`/`#fff`.
-- **Do** keep Hearth Amber ≤10% of a surface, ignited only in *moments* (active input, speech onset, hover).
+- **Do** keep Hearth Amber ≤10% of a surface, ignited only in *moments* (active input, speech onset, hover, the message window's waiting glow).
 - **Do** give a floating surface its own dark scrim plus light text for legibility on any background, and only where legibility is needed (the speech bubble), never decoratively.
 - **Do** keep motion Responsive: smooth enter/exit and feedback on an ease-out exponential curve, attenuated under `prefers-reduced-motion`.
 - **Do** stay flat, adding the single Float shadow only when a surface lifts.
