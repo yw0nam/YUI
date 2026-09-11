@@ -12,7 +12,7 @@
 use crate::os_event_watcher::epoch_ms;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::mpsc::{channel, Receiver, Sender};
 use std::sync::{Arc, Mutex, OnceLock};
 use std::thread;
@@ -456,6 +456,14 @@ fn handle_request(app: &AppHandle, mut request: tiny_http::Request) {
 const BIND_ATTEMPTS: u32 = 8;
 const BIND_RETRY_DELAY: Duration = Duration::from_millis(500);
 
+/// Set while this process owns the ingress listener.
+static LISTENER_CLAIMED: AtomicBool = AtomicBool::new(false);
+
+/// Claims the single listener slot; false when this process already runs (or is binding) one.
+fn claim_listener(flag: &AtomicBool) -> bool {
+    !flag.swap(true, Ordering::SeqCst)
+}
+
 /// Binds the loopback listener, retrying while the port is still taken.
 fn bind_with_retry(
     port: u16,
@@ -479,6 +487,11 @@ fn bind_with_retry(
 /// Bind failure after the retry window is non-fatal: the app continues without the
 /// ingress endpoint.
 pub fn start(app: &AppHandle, port: u16) {
+    // A page reload calls start again while the first listener still serves this process.
+    if !claim_listener(&LISTENER_CLAIMED) {
+        log::debug!("agent_ingress_already_listening port={port}");
+        return;
+    }
     let app = app.clone();
     thread::Builder::new()
         .name("agent_ingress".into())
@@ -486,6 +499,7 @@ pub fn start(app: &AppHandle, port: u16) {
             let server = match bind_with_retry(port, BIND_ATTEMPTS, BIND_RETRY_DELAY) {
                 Ok(s) => s,
                 Err(e) => {
+                    LISTENER_CLAIMED.store(false, Ordering::SeqCst);
                     log::warn!("agent_ingress_bind_failed port={port} error={e}");
                     // The bind retries span ~3.5s, so the webview is normally listening by now.
                     if let Err(e) =

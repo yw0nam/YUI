@@ -18,6 +18,8 @@ export type SummonHotkeyTrigger = (event: { state: string }) => void;
 interface SummonHotkeyDeps {
   register(accelerator: string, handler: SummonHotkeyTrigger): Promise<void>;
   unregister(accelerator: string): Promise<void>;
+  /** Whether this process currently holds the OS registration for the accelerator. */
+  isRegistered(accelerator: string): Promise<boolean>;
   /** Bring the window forward + focus (including activating the app from the background). */
   focusWindow(): Promise<void>;
   summonInput(): void;
@@ -97,6 +99,12 @@ export function createSummonHotkey(deps: SummonHotkeyDeps): SummonHotkey {
     if (accelerator === "") {
       log.info("disabled", { reason: "empty_accelerator" });
       return;
+    }
+    // A page reload leaves this process's previous registration in place, bound to the old page's handler.
+    try {
+      if (await deps.isRegistered(accelerator)) await deps.unregister(accelerator);
+    } catch (err) {
+      log.warn("stale_unregister_failed", { accelerator, error: String(err) });
     }
     try {
       await retryOnReject(
