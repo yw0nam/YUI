@@ -42,10 +42,11 @@ above. Otherwise it is plain text.
 
 Everything between the header line and the closing tag is a sequence of `key: value`
 plain-text lines built by `renderClientContext` (`src/dispatcher/client-context-text.ts`).
-One line per fact, in this fixed order — `time`, `frontmost`, `screenshot`, `body`, then
-one or more `trigger:`/`cue note:`/`agent note:`/`agent event:`/`agent detail:`/`signal:`/
-`recent:` lines depending on what fired. A line is omitted outright when its underlying
-field is absent (e.g. no `screenshot:` line when screen capture is off).
+One line per fact, in this fixed order — `time`, `frontmost`, `screenshot`, `body`,
+`previous`, then one or more `trigger:`/`cue note:`/`agent note:`/`agent event:`/
+`agent detail:`/`signal:`/`recent:` lines depending on what fired. A line is omitted
+outright when its underlying field is absent (e.g. no `screenshot:` line when screen
+capture is off).
 
 Any field value that could contain whitespace runs, a newline, or the block's own tags (an
 app name, a window title, a cue label, an agent-hook string) is sanitized before being
@@ -136,6 +137,38 @@ descent in `standing` on the floor, and neither fires a turn either. The duratio
 last posture change (`body_state.since`), or when an agent-driven `move_to` relocates
 it, which returns it to standing — it moves only when the posture itself changes or
 the avatar relocates, not when the same posture is re-affirmed.
+
+### `previous`
+
+How the last turn that tried to speak ended. The line renders only when that turn
+ended badly.
+
+```text
+previous: time_milestone.first_activity interrupted (12min ago)
+previous: user.text_submitted failed (3min ago)
+```
+
+The label is that turn's raw `event_name`, the vocabulary the event bus uses, so it
+reads `time_milestone.first_activity` where a `trigger:` headline for the same turn
+reads `milestone first_activity`. The duration is minutes since the client recorded
+the outcome. The client stores one of three values and renders two of them:
+
+1. `complete`: backend speech started and its playback ended, with TTS off as well
+   as on. The line is omitted, and storing `complete` clears whatever the turn
+   before it left behind.
+2. `interrupted`: backend speech had started and was cut by user input, the stop
+   control, voice barge-in, or a stream stall, stream error, or missing completion
+   after a delta.
+3. `failed`: the call settled in `network_drop`, `network_stall`, `http_4xx_drop`,
+   or `parse_error` before any backend speech.
+
+Only the backend's own turn writes the value. The thinking filler phrases and the
+client's failure phrases leave it as it was, and so does a turn the backend answers
+with silence on a call that succeeds. The value lives in `localStorage` under
+`yui.previous-turn`, so it survives a restart of the app.
+
+The client records the outcome and renders it. What to make of a cut-off or missing
+reply is the backend's judgment.
 
 ## Trigger lines
 
