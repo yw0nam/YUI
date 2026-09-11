@@ -381,6 +381,139 @@ describe("liveness poll", () => {
   });
 });
 
+// An outage warns once and recovery logs one info, however many poll cycles it spans.
+describe("outage logging", () => {
+  const payload: BrokerPayload = {
+    emotionIds: ["neutral", "happy"],
+    motionIds: ["idle", "happy"],
+    emotionText: { mode: "free", table: null },
+  };
+
+  /** Client whose poll fires manually via tick(). */
+  function polledClient(fetch: ReturnType<typeof vi.fn<FetchFn>>, logger: Logger) {
+    let captured: (() => void) | null = null;
+    const fakeSetInterval = vi.fn((cb: () => void) => {
+      captured = cb;
+      return 1 as unknown as ReturnType<typeof setInterval>;
+    });
+    const client = createBrokerClient({
+      baseUrl: BASE,
+      fetch,
+      logger,
+      setInterval: fakeSetInterval as unknown as typeof setInterval,
+      clearInterval: vi.fn() as unknown as typeof clearInterval,
+    });
+    return {
+      client,
+      tick: async () => {
+        await captured!();
+      },
+    };
+  }
+
+  function warnEvents(logger: Logger): string[] {
+    return vi.mocked(logger.warn).mock.calls.map((c) => c[0]);
+  }
+
+  it("warns once across repeated failed polls and logs no other event", async () => {
+    const fetch = vi.fn<FetchFn>(async () => {
+      throw new Error("ECONNREFUSED");
+    });
+    const logger = silentLogger();
+    const { client, tick } = polledClient(fetch, logger);
+
+    await client.publish(payload);
+    client.start();
+    await tick();
+    await tick();
+    await tick();
+
+    expect(warnEvents(logger)).toEqual(["rpc_threw"]);
+    expect(logger.info).not.toHaveBeenCalled();
+  });
+
+  it("logs broker_reachable once on recovery and warns again on the next outage", async () => {
+    let down = true;
+    const up = scriptedFetch(SAMPLE_VOCAB);
+    const fetch = vi.fn<FetchFn>(async (input, init) => {
+      if (down) throw new Error("ECONNREFUSED");
+      return up.fetch(input, init);
+    });
+    const logger = silentLogger();
+    const { client, tick } = polledClient(fetch, logger);
+
+    await client.publish(payload); // outage
+    client.start();
+    await tick(); // still down → silent
+
+    down = false;
+    await tick();
+    await tick();
+    expect(vi.mocked(logger.info).mock.calls.map((c) => c[0])).toEqual(["broker_reachable"]);
+
+    down = true;
+    await tick();
+    expect(warnEvents(logger)).toEqual(["rpc_threw", "rpc_threw"]);
+  });
+
+  it("stays at one warn when initialize succeeds but the rest of the handshake throws", async () => {
+    const fetch = vi.fn<FetchFn>(async (_input, init) => {
+      const body = JSON.parse(String(init?.body ?? "{}")) as { method: string; id: number };
+      if (body.method === "initialize") return sseResponse(initResult(body.id));
+      throw new Error("ECONNRESET");
+    });
+    const logger = silentLogger();
+    const { client, tick } = polledClient(fetch, logger);
+
+    await client.publish(payload);
+    client.start();
+    await tick();
+    await tick();
+    await tick();
+
+    expect(warnEvents(logger)).toEqual(["rpc_threw"]);
+    expect(logger.info).not.toHaveBeenCalled();
+  });
+
+  it("warns get_ids_payload_invalid when get_ids replies with a JSON primitive", async () => {
+    const fetch = vi.fn<FetchFn>(async (_input, init) => {
+      const body = JSON.parse(String(init?.body ?? "{}")) as Record<string, unknown>;
+      const id = body.id as number;
+      if (body.method === "initialize") return sseResponse(initResult(id));
+      if (body.method === "notifications/initialized") return acceptedResponse();
+      const params = body.params as { name: string };
+      if (params.name === "get_ids") return sseResponse(toolResult(id, 42));
+      return sseResponse(toolResult(id, { ok: true, version: 1 }));
+    });
+    const logger = silentLogger();
+    const { client } = polledClient(fetch, logger);
+
+    await client.publish(payload);
+
+    expect(warnEvents(logger)).toContain("get_ids_payload_invalid");
+  });
+
+  it("warns initialize_failed once across repeated non-ok handshakes", async () => {
+    const fetch = vi.fn<FetchFn>(async () => {
+      return {
+        ok: false,
+        status: 503,
+        headers: new Headers(),
+        text: async () => "",
+      } as unknown as Response;
+    });
+    const logger = silentLogger();
+    const { client, tick } = polledClient(fetch, logger);
+
+    await client.publish(payload);
+    client.start();
+    await tick();
+    await tick();
+
+    expect(warnEvents(logger)).toEqual(["initialize_failed"]);
+  });
+});
+
 /**
  * The publish queue's own failure modes. Serialization made publish a queue, and a queue can be
  * wedged, outlive its client, or carry a payload the poller no longer recognizes as current.
