@@ -48,7 +48,7 @@ interface TextInput {
 
 interface TextInputElements {
   formEl: HTMLFormElement;
-  field: HTMLInputElement;
+  field: HTMLTextAreaElement;
   errorEl: HTMLElement;
   trayEl: HTMLElement;
   attachBtn: HTMLButtonElement;
@@ -95,8 +95,16 @@ export function createTextInput(
     bubble.liftAboveInput(inputBottomPx + formEl.offsetHeight + BUBBLE_INPUT_GAP_PX);
   }
 
+  // Auto-grow the field with its content; the bubble rides above the taller input.
+  function fitField(): void {
+    field.style.height = "auto";
+    field.style.height = `${field.scrollHeight}px`;
+    if (!formEl.hidden) liftBubbleAboveInput();
+  }
+
   function summonInput(): void {
     formEl.hidden = false;
+    fitField();
     formEl.classList.remove("is-error", "is-pending");
     errorEl.textContent = "";
     liftBubbleAboveInput();
@@ -116,6 +124,7 @@ export function createTextInput(
       if (!formEl.classList.contains("is-open")) {
         formEl.hidden = true;
         field.value = "";
+        fitField();
         clearAttachments();
         formEl.classList.remove("is-error", "is-pending");
         errorEl.textContent = "";
@@ -300,6 +309,12 @@ export function createTextInput(
     if (e.key === "Escape") {
       e.preventDefault();
       dismissInput();
+      return;
+    }
+    // Textarea has no implicit submit; WebKit reports the IME-committing Enter as keyCode 229.
+    if (e.key === "Enter" && !e.shiftKey && !e.isComposing && e.keyCode !== 229) {
+      e.preventDefault();
+      formEl.requestSubmit();
     }
   }
   // Clear the error once the user types again
@@ -345,6 +360,7 @@ export function createTextInput(
   formEl.addEventListener("submit", handleSubmit);
   sendBtn.addEventListener("click", handleSendClick);
   field.addEventListener("keydown", handleFieldKey);
+  field.addEventListener("input", fitField);
   field.addEventListener("input", clearErrorOnInput);
   field.addEventListener("paste", onFieldPaste);
   attachBtn.addEventListener("click", onAttachClick);
@@ -358,6 +374,7 @@ export function createTextInput(
     formEl.removeEventListener("submit", handleSubmit);
     sendBtn.removeEventListener("click", handleSendClick);
     field.removeEventListener("keydown", handleFieldKey);
+    field.removeEventListener("input", fitField);
     field.removeEventListener("input", clearErrorOnInput);
     field.removeEventListener("paste", onFieldPaste);
     attachBtn.removeEventListener("click", onAttachClick);

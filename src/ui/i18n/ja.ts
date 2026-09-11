@@ -50,6 +50,10 @@ const ja: Record<string, string> = {
   "input.attach_too_large": "画像が大きすぎ · 1枚{max}MBまで",
   "input.attach_not_ready": "まだ添付できない · 上限を読み込み中",
 
+  // message window name plate
+  "plate.thinking": "考え中",
+  "plate.responding": "応答中",
+
   // chain-break (404) recovery notice
   "chain.reset_notice": "会話コンテキストがリセットされました",
   "hotkey.register_failed":

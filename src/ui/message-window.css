@@ -13,6 +13,8 @@
   align-items: flex-start;
   gap: 8px;
   width: 340px;
+  /* 12 lines × 1.425rem (0.95rem × 1.5) + 1.4rem padding + 2px border */
+  --yui-bubble-max-h: calc(12 * 1.425rem + 1.4rem + 2px);
   padding: 8px;
   pointer-events: auto;
 }
@@ -41,7 +43,7 @@
   background: var(--yui-text-mute);
   opacity: 0.55;
 }
-.yui-plate.is-live .yui-plate__dot {
+.yui-plate[data-state="responding"] .yui-plate__dot {
   background: var(--yui-accent);
   opacity: 1;
   animation: yui-plate-pulse 1.6s var(--yui-ease) infinite;
@@ -53,11 +55,40 @@
   }
 }
 
+.yui-plate[data-state="thinking"] .yui-plate__dot {
+  background: var(--yui-text-dim);
+  opacity: 1;
+  animation: yui-plate-breathe 2.4s ease-in-out infinite;
+}
+
+@keyframes yui-plate-breathe {
+  0%,
+  100% {
+    opacity: 0.3;
+    transform: scale(0.75);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
 .yui-plate__name {
   font-size: 0.8rem;
   font-weight: 600;
   color: var(--yui-text);
   text-shadow: var(--yui-text-shadow);
+}
+
+.yui-plate__state {
+  font-size: 0.72rem;
+  font-weight: 500;
+  letter-spacing: 0.02em;
+  color: var(--yui-text-dim);
+  text-shadow: var(--yui-text-shadow);
+}
+.yui-plate__state:empty {
+  display: none;
 }
 
 .yui-plate__dock {
@@ -127,12 +158,64 @@
   display: none;
 }
 
+/* 12 lines × 1.33rem (0.95rem × 1.4) + vertical padding — grows to here, then scrolls. */
+.yui-ui--message .yui-input__field {
+  max-height: calc(12 * 1.33rem + 1.1rem);
+}
+
+/* Waiting tells — the input embers while thinking, the bubble border while responding. */
+.yui-ui--message:has(.yui-plate[data-state="thinking"]) .yui-input {
+  animation: yui-input-ember 2.4s ease-in-out infinite;
+}
+
+@keyframes yui-input-ember {
+  0%,
+  100% {
+    border-color: var(--yui-edge-strong);
+    box-shadow:
+      var(--yui-float),
+      0 0 0 1px transparent;
+  }
+  50% {
+    border-color: var(--yui-accent);
+    box-shadow:
+      var(--yui-float),
+      0 0 0 1px var(--yui-accent-soft);
+  }
+}
+
+.yui-ui--message:has(.yui-plate[data-state="responding"]) .yui-bubble {
+  animation: yui-bubble-ember 2.4s ease-in-out infinite;
+}
+
+@keyframes yui-bubble-ember {
+  0%,
+  100% {
+    border-color: var(--yui-edge);
+  }
+  50% {
+    border-color: var(--yui-accent-soft);
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .yui-ui--message .yui-bubble,
   .yui-ui--message .yui-input {
     transform: none !important;
   }
-  .yui-plate.is-live .yui-plate__dot {
+  .yui-plate[data-state="responding"] .yui-plate__dot,
+  .yui-plate[data-state="thinking"] .yui-plate__dot {
     animation: none;
+  }
+  .yui-plate[data-state="thinking"] .yui-plate__dot {
+    opacity: 1;
+  }
+  .yui-ui--message:has(.yui-plate[data-state="thinking"]) .yui-input {
+    animation: none;
+    border-color: var(--yui-accent);
+  }
+  .yui-ui--message:has(.yui-plate[data-state="responding"]) .yui-bubble {
+    animation: none;
+    border-color: var(--yui-accent-soft);
   }
 }

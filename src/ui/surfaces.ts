@@ -124,13 +124,13 @@ export function createSurfaces({
             <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48" />
           </svg>
         </button>
-        <input
+        <textarea
           class="yui-input__field"
-          type="text"
+          rows="1"
           autocomplete="off"
           autocapitalize="off"
           spellcheck="false"
-        />
+        ></textarea>
         <span class="yui-input__error" role="alert"></span>
         <button type="button" class="yui-input__pop">⤢</button>
         <button class="yui-input__send" type="submit">
@@ -161,7 +161,7 @@ export function createSurfaces({
   const bubblePop = el.querySelector<HTMLButtonElement>(".yui-bubble__pop")!;
   const inputPop = el.querySelector<HTMLButtonElement>(".yui-input__pop")!;
   const formEl = el.querySelector<HTMLFormElement>(".yui-input")!;
-  const field = el.querySelector<HTMLInputElement>(".yui-input__field")!;
+  const field = el.querySelector<HTMLTextAreaElement>(".yui-input__field")!;
   const errorEl = el.querySelector<HTMLSpanElement>(".yui-input__error")!;
   const trayEl = el.querySelector<HTMLDivElement>(".yui-input__tray")!;
   const attachBtn = el.querySelector<HTMLButtonElement>(".yui-input__attach")!;

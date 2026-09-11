@@ -32,8 +32,7 @@ describe("createMessagePlate", () => {
   const el = (): HTMLElement => mount.querySelector(".yui-plate") as HTMLElement;
   const dock = (): HTMLButtonElement =>
     mount.querySelector(".yui-plate__dock") as HTMLButtonElement;
-  const stateLabel = (): HTMLElement =>
-    el().querySelector(".yui-plate__state") as HTMLElement;
+  const stateLabel = (): HTMLElement => el().querySelector(".yui-plate__state") as HTMLElement;
 
   it("renders a state dot, the name and a labelled dock button", () => {
     expect(el()).not.toBeNull();
