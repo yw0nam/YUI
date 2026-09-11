@@ -123,6 +123,7 @@
    Both surfaces keep their own material; only the positioning is replaced. */
 .yui-ui--message .yui-bubble {
   position: static;
+  box-sizing: border-box;
   transform: none;
   max-width: 100%;
   max-height: var(--yui-bubble-max-h, 34vh);
@@ -163,15 +164,16 @@
   max-height: calc(12 * 1.33rem + 1.1rem);
 }
 
-/* Waiting tells — the input embers while thinking, the bubble border while responding. */
-.yui-ui--message:has(.yui-plate[data-state="thinking"]) .yui-input {
+/* Waiting tells — the input embers while thinking, the bubble border while responding.
+   The plate precedes both in the column, so the sibling combinator carries the state. */
+.yui-plate[data-state="thinking"] ~ .yui-input {
   animation: yui-input-ember 2.4s ease-in-out infinite;
 }
 
 @keyframes yui-input-ember {
   0%,
   100% {
-    border-color: var(--yui-edge-strong);
+    border-color: var(--yui-edge);
     box-shadow:
       var(--yui-float),
       0 0 0 1px transparent;
@@ -184,7 +186,7 @@
   }
 }
 
-.yui-ui--message:has(.yui-plate[data-state="responding"]) .yui-bubble {
+.yui-plate[data-state="responding"] ~ .yui-bubble {
   animation: yui-bubble-ember 2.4s ease-in-out infinite;
 }
 
@@ -210,11 +212,11 @@
   .yui-plate[data-state="thinking"] .yui-plate__dot {
     opacity: 1;
   }
-  .yui-ui--message:has(.yui-plate[data-state="thinking"]) .yui-input {
+  .yui-plate[data-state="thinking"] ~ .yui-input {
     animation: none;
     border-color: var(--yui-accent);
   }
-  .yui-ui--message:has(.yui-plate[data-state="responding"]) .yui-bubble {
+  .yui-plate[data-state="responding"] ~ .yui-bubble {
     animation: none;
     border-color: var(--yui-accent-soft);
   }
