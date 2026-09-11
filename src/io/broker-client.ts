@@ -128,10 +128,6 @@ export function createBrokerClient(opts: BrokerClientOptions): BrokerClient {
         unreachable = true;
         return null;
       }
-      if (unreachable) {
-        log.info("broker_reachable");
-        unreachable = false;
-      }
       const sessionId = initRes.headers.get("mcp-session-id") ?? undefined;
       // drain the SSE body so the connection is consumed (result unused)
       await initRes.text();
@@ -147,6 +143,10 @@ export function createBrokerClient(opts: BrokerClientOptions): BrokerClient {
         headers: sessionHeaders,
         body: JSON.stringify({ jsonrpc: "2.0", method: "notifications/initialized" }),
       });
+      if (unreachable) {
+        log.info("broker_reachable");
+        unreachable = false;
+      }
 
       const results: (unknown | null)[] = [];
       for (const call of calls) {
@@ -214,9 +214,10 @@ export function createBrokerClient(opts: BrokerClientOptions): BrokerClient {
   async function getIds(): Promise<BrokerVocab | null> {
     const out = await rpc([{ name: "get_ids", arguments: {} }]);
     const payload = out?.[0];
-    if (!payload || typeof payload !== "object") return null;
+    if (payload === null || payload === undefined) return null;
     const p = payload as Partial<BrokerVocab>;
     if (
+      typeof payload !== "object" ||
       !Array.isArray(p.emotion_ids) ||
       !Array.isArray(p.motion_ids) ||
       (p.emotion_text_mode !== "free" && p.emotion_text_mode !== "enum") ||
