@@ -72,10 +72,17 @@ export function createMilestoneSource(deps: MilestoneSourceDeps): MilestoneSourc
     if (fired[MILESTONE_NAME] === dayKey) return;
 
     const localTime = `${pad2(d.getHours())}:${pad2(d.getMinutes())}`;
-    // ponytail: pushing as timer_scheduler means the pacer can drop this candidate, and the
-    // drained groups ride it — same ceiling as proactive.tap_bored.
+    let signals: SignalGroup[] = [];
+    try {
+      signals = drainSignals();
+    } catch (error) {
+      log.warn("signal drain failed", error);
+    }
+    // ponytail: the guardrail (cooldown, debounce, rate limit) and the degraded state can still
+    // drop the candidate after the drain, and those groups are gone for the day — re-buffer them
+    // on drop if that bites.
     const env: BusEnvelope = {
-      source: "timer_scheduler",
+      source: "os_event_watcher",
       event_name: `time_milestone.${MILESTONE_NAME}`,
       ts,
       hint_tier: 2,
@@ -83,10 +90,13 @@ export function createMilestoneSource(deps: MilestoneSourceDeps): MilestoneSourc
       payload: {
         name: MILESTONE_NAME,
         local_time: localTime,
-        signals: drainSignals(),
+        ...(signals.length > 0 ? { signals } : {}),
       },
     };
-    bus.push(env);
+    if (!bus.push(env)) {
+      log.warn("push rejected", { name: MILESTONE_NAME });
+      return;
+    }
     log.info("fire", { name: MILESTONE_NAME, local_time: localTime });
     fired[MILESTONE_NAME] = dayKey;
     firedStorage.save({ ...fired });
