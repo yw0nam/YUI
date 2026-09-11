@@ -908,6 +908,18 @@ describe("multiline field — Enter, IME safety, auto-grow", () => {
     expect(f.style.height).toBe("120px");
   });
 
+  it("refits the field when an inline error changes the row width", () => {
+    const f = field();
+    let scrollHeight = 40;
+    Object.defineProperty(f, "scrollHeight", { configurable: true, get: () => scrollHeight });
+
+    s.summonInput();
+    scrollHeight = 80;
+    s.showInputError("x");
+
+    expect(f.style.height).toBe("80px");
+  });
+
   it("lifts the bubble as the field grows", () => {
     let formHeight = 40;
     Object.defineProperty(form(), "offsetHeight", { configurable: true, get: () => formHeight });
