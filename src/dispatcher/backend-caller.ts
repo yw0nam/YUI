@@ -165,7 +165,7 @@ interface BackendCallerDeps {
   config: EndpointsConfig;
   /** render directive sink (applyDirective). */
   renderer: Pick<Renderer, "applyDirective">;
-  /** Hermes auth key resolution (SecretProvider). Unauthenticated placeholder if absent. */
+  /** Chat backend auth key resolution (SecretProvider). Unauthenticated placeholder if absent. */
   getApiKey: () => Promise<string | undefined>;
   /** Transport fetch selection (selectFetch). Tauri=cors-fetch, dev=undefined. */
   getFetch: () => Promise<typeof globalThis.fetch | undefined>;

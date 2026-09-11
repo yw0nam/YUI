@@ -1,5 +1,5 @@
 /**
- * YUI ↔ Hermes contract — TypeScript types. These types are the wire schema source of truth.
+ * YUI ↔ backend contract — TypeScript types. These types are the wire schema source of truth.
  *
  * Transmission protocol summary:
  *  - Control signals (emotion_id/motion_id/emotion_text) arrive as arguments to the server-side
@@ -125,7 +125,7 @@ export interface Usage {
   total_tokens: number;
 }
 
-/** Derived from client observation of function_call items from native Hermes tools (not express). */
+/** Derived from client observation of function_call items from the backend's native tools (not express). */
 export interface ToolStatus {
   state: "idle" | "running" | "done" | "error";
   /** function_call name. */
@@ -150,7 +150,7 @@ export interface ControlEnvelope {
   /** Accumulated response.output_text.delta. Empty string if no utterance. */
   speech_text: string;
 
-  // --- Derived from observation of native Hermes tool function_call items ---
+  // --- Derived from observation of the backend's native tool function_call items ---
   tool_status?: ToolStatus | null;
 
   /** All ignored in v0. */
@@ -237,7 +237,7 @@ export interface CueMeta {
   idle_min?: number;
 }
 
-/** one item in a signals.kind burst. heterogeneous by design — taxonomy owned by n8n + Hermes, client forwards verbatim. */
+/** one item in a signals.kind burst. heterogeneous by design — taxonomy owned by the signal producers (n8n workflows, the backend), client forwards verbatim. */
 export type SignalItem = Record<string, unknown>;
 
 export type SignalEnvelope = {

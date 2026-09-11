@@ -301,7 +301,7 @@ export interface GuardrailsConfig {
   attachments: AttachmentLimits;
 }
 
-/** TTFT filler language — closed union, never crosses the Hermes wire. */
+/** TTFT filler language — closed union, never crosses the backend wire. */
 export type FillerLang = "ja" | "en" | "ko";
 
 /** Per-language filler phrase pool, one list per waiting tier. */
@@ -399,12 +399,12 @@ export const CONFIG_FILES: Record<ConfigSection, string> = {
  * The async signature is there to accommodate keychain access (IPC) up front.
  */
 export interface SecretProvider {
-  /** undefined when absent. Never throws (a missing key is normal — local Hermes is unauthenticated). */
+  /** undefined when absent. Never throws (a missing key is normal — a local backend may be unauthenticated). */
   get(key: string): Promise<string | undefined>;
 }
 
 /**
- * Name used to look up the Hermes chat key in the SecretProvider. Corresponds to backend env `API_SERVER_KEY`.
+ * Name used to look up the chat backend key in the SecretProvider (adapter specifics: `integrations/hermes/README.md`).
  * Call site (dispatcher): `streamChat(ep, req, { apiKey: await secrets.get(CHAT_API_KEY_SECRET) })`.
  * (Kept here rather than in chat-client — the secret name is config/SecretProvider's concern, unrelated to the openai SDK.)
  */

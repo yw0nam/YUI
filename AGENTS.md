@@ -1,6 +1,6 @@
 # YUI — Agent Guide
 
-> **YUI = embodied frontend (head) for Hermes Agent (brain).** VRM character rendering + desktop-pet behavior + I/O surfaces only. The brain (judgment · persona · agent loop) is **delegated to the backend (Hermes)**. This file orients you to the project; read it before touching any code.
+> **YUI = embodied frontend (head) for the selected backend (brain).** VRM character rendering + desktop-pet behavior + I/O surfaces only. The brain (judgment · persona · agent loop) is **delegated to the backend**. This file orients you to the project; read it before touching any code.
 
 ## Core Principle: firing ≠ judgment
 
@@ -37,8 +37,9 @@ Read these when the trigger applies; they are not loaded by default.
 - **Standalone Mods (independent MCP servers)** → `Mods/README.md` — not part of the app runtime; own Python/uv toolchain + `mods` CI job
 - **Adding a Mod / Mods CI rules** → `docs/agent-guide/mods.md` — per-mod uv-project layout, router registration, the two-loop CI, ruff
 - **Agent desire system (Hermes-side)** → `integrations/hermes/desire/README.md`
+- **Connecting Hermes Agent as the backend (Responses mode, dev proxy, auth)** → `integrations/hermes/README.md`
 - **Handing a `ready-for-agent` issue to the backend agent for headless implementation** → `integrations/hermes/skills/yui-dispatch/SKILL.md`
-- **IO or backend work (chat/STT/TTS/broker)** → `docs/agent-guide/hermes-integration.md`
+- **IO or backend work (chat/STT/TTS/broker)** → `docs/agent-guide/backend-integration.md`
 - **Wiring an external coding-agent's lifecycle hooks** → `docs/agent-guide/agent-completion-hooks.md`
 - **Checking how a rule is enforced** → `docs/agent-guide/harness-enforcement.md`
 - **Build / run / find logs** → `docs/agent-guide/build-run.md`

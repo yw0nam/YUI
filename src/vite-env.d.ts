@@ -2,7 +2,7 @@
 
 interface ImportMetaEnv {
   /**
-   * Dev-only Hermes chat API key. Injected via `VITE_YUI_CHAT_KEY` in `.env.local`.
+   * Dev-only chat backend API key. Injected via `VITE_YUI_CHAT_KEY` in `.env.local`.
    * prod/OSS replaces the plaintext env with an OS keychain SecretProvider implementation.
    */
   readonly VITE_YUI_CHAT_KEY?: string;

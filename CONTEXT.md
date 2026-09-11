@@ -1,6 +1,6 @@
 # YUI
 
-Embodied desktop-pet frontend (the head) for the Hermes agent (the brain): it renders a VRM character, fires candidate events at the backend, and performs whatever the backend sends back. Judgment lives in the backend, so the language here is about _firing_ and _performing_, never about deciding what to say. This glossary is the canonical vocabulary; issue titles, test names, and proposals use these terms.
+Embodied desktop-pet frontend (the head) for the selected backend agent (the brain): it renders a VRM character, fires candidate events at the backend, and performs whatever the backend sends back. Judgment lives in the backend, so the language here is about _firing_ and _performing_, never about deciding what to say. This glossary is the canonical vocabulary; issue titles, test names, and proposals use these terms.
 
 ## Language
 
@@ -11,7 +11,7 @@ YUI itself — VRM rendering, sensing, and I/O surfaces. Holds no judgment.
 _Avoid_: client-side brain, frontend agent
 
 **Brain**:
-The Hermes backend — judgment, persona, memory, and the agent loop.
+The selected backend — judgment, persona, memory, and the agent loop.
 _Avoid_: server, LLM (as a component name)
 
 **Firing**:

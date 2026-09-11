@@ -10,11 +10,11 @@ Personal use first (currently the developer), with future OSS release in mind.
 
 Usage context: in front of a computer all day. The YUI character **lives on the desktop** as a transparent, always-on-top overlay — the main experience is a presence in a corner of the workspace, while settings open in a separate utility window.
 
-Job-to-be-done: a companion that is alive beside you. A character you can talk to via text and voice, that notices screen context, and occasionally initiates conversation. The brain (judgment · memory · tools · persona) is handled by the Hermes backend; YUI handles only the **head** (rendering + sensing + I/O surfaces).
+Job-to-be-done: a companion that is alive beside you. A character you can talk to via text and voice, that notices screen context, and occasionally initiates conversation. The brain (judgment · memory · tools · persona) is handled by the selected backend; YUI handles only the **head** (rendering + sensing + I/O surfaces).
 
 ## Product Purpose
 
-Embodied frontend (head) for Hermes Agent (brain). Renders a VRM character as a desktop pet, senses input (text · voice · screen), speaks via TTS + lipsync, displays chat/tool-status, and *fires* proactive triggers — but **all judgment is delegated to the backend** (`firing ≠ judgment`).
+Embodied frontend (head) for the selected backend (brain). Renders a VRM character as a desktop pet, senses input (text · voice · screen), speaks via TTS + lipsync, displays chat/tool-status, and *fires* proactive triggers — but **all judgment is delegated to the backend** (`firing ≠ judgment`).
 
 Success looks like: **the UI stays out of the way and the character feels alive.** The user is not *operating* a chat app — they are *with* a character.
 
