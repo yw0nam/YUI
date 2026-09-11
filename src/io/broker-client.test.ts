@@ -381,6 +381,102 @@ describe("liveness poll", () => {
   });
 });
 
+// An outage warns once, not once per poll cycle, and recovery gets one info — a broker down for
+// an hour used to add hundreds of warn pairs to the log.
+describe("outage logging", () => {
+  const payload: BrokerPayload = {
+    emotionIds: ["neutral", "happy"],
+    motionIds: ["idle", "happy"],
+    emotionText: { mode: "free", table: null },
+  };
+
+  /** Client whose poll fires manually via tick(). */
+  function polledClient(fetch: ReturnType<typeof vi.fn<FetchFn>>, logger: Logger) {
+    let captured: (() => void) | null = null;
+    const fakeSetInterval = vi.fn((cb: () => void) => {
+      captured = cb;
+      return 1 as unknown as ReturnType<typeof setInterval>;
+    });
+    const client = createBrokerClient({
+      baseUrl: BASE,
+      fetch,
+      logger,
+      setInterval: fakeSetInterval as unknown as typeof setInterval,
+      clearInterval: vi.fn() as unknown as typeof clearInterval,
+    });
+    return {
+      client,
+      tick: async () => {
+        await captured!();
+      },
+    };
+  }
+
+  function warnEvents(logger: Logger): string[] {
+    return vi.mocked(logger.warn).mock.calls.map((c) => c[0]);
+  }
+
+  it("warns once across repeated failed polls and logs no other event", async () => {
+    const fetch = vi.fn<FetchFn>(async () => {
+      throw new Error("ECONNREFUSED");
+    });
+    const logger = silentLogger();
+    const { client, tick } = polledClient(fetch, logger);
+
+    await client.publish(payload);
+    client.start();
+    await tick();
+    await tick();
+    await tick();
+
+    expect(warnEvents(logger)).toEqual(["rpc_threw"]);
+  });
+
+  it("logs broker_reachable once on recovery and warns again on the next outage", async () => {
+    let down = true;
+    const up = scriptedFetch(SAMPLE_VOCAB);
+    const fetch = vi.fn<FetchFn>(async (input, init) => {
+      if (down) throw new Error("ECONNREFUSED");
+      return up.fetch(input, init);
+    });
+    const logger = silentLogger();
+    const { client, tick } = polledClient(fetch, logger);
+
+    await client.publish(payload); // outage
+    client.start();
+    await tick(); // still down → silent
+
+    down = false;
+    await tick();
+    await tick();
+    expect(vi.mocked(logger.info).mock.calls.map((c) => c[0])).toEqual(["broker_reachable"]);
+
+    down = true;
+    await tick();
+    expect(warnEvents(logger)).toEqual(["rpc_threw", "rpc_threw"]);
+  });
+
+  it("warns initialize_failed once across repeated non-ok handshakes", async () => {
+    const fetch = vi.fn<FetchFn>(async () => {
+      return {
+        ok: false,
+        status: 503,
+        headers: new Headers(),
+        text: async () => "",
+      } as unknown as Response;
+    });
+    const logger = silentLogger();
+    const { client, tick } = polledClient(fetch, logger);
+
+    await client.publish(payload);
+    client.start();
+    await tick();
+    await tick();
+
+    expect(warnEvents(logger)).toEqual(["initialize_failed"]);
+  });
+});
+
 /**
  * The publish queue's own failure modes. Serialization made publish a queue, and a queue can be
  * wedged, outlive its client, or carry a payload the poller no longer recognizes as current.
