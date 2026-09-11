@@ -6,6 +6,7 @@ const mocks = vi.hoisted(() => {
     onSpeechDelta: vi.fn(),
     onSpeechEnd: vi.fn(),
     onSpeech: vi.fn(),
+    speakAside: vi.fn(),
     setCue: vi.fn(),
     holdMotion: vi.fn(),
     interrupt: vi.fn(),
@@ -188,6 +189,8 @@ function setup(over: { isStrolling?: () => boolean } = {}) {
   const getTtsApiKey = vi.fn().mockResolvedValue("tts-key");
   const getSttApiKey = vi.fn().mockResolvedValue("stt-key");
   const onVoiceSegment = vi.fn();
+  const onUtteranceStart = vi.fn();
+  const onUtteranceEnd = vi.fn();
   const voiceInputStatus = { set: vi.fn() };
   const turnLog = createTurnLog();
 
@@ -206,6 +209,8 @@ function setup(over: { isStrolling?: () => boolean } = {}) {
     speakerSelection: { getActive: () => activeSpeaker },
     voiceInputStatus,
     onVoiceSegment,
+    onUtteranceStart,
+    onUtteranceEnd,
     isStrolling: over.isStrolling ?? (() => false),
   });
 
@@ -216,6 +221,8 @@ function setup(over: { isStrolling?: () => boolean } = {}) {
     getTtsApiKey,
     getSttApiKey,
     onVoiceSegment,
+    onUtteranceStart,
+    onUtteranceEnd,
     voiceInputStatus,
     setEndpoints: (next: EndpointsConfig) => {
       currentEndpoints = next;
@@ -626,6 +633,8 @@ describe("wireVoicePipeline", () => {
         speakerSelection: windowB,
         voiceInputStatus: { set: vi.fn() },
         onVoiceSegment: vi.fn(),
+        onUtteranceStart: vi.fn(),
+        onUtteranceEnd: vi.fn(),
         isStrolling: () => false,
       });
       const synth = playbackOptions().pipeline!.synth!;
@@ -726,6 +735,38 @@ describe("wireVoicePipeline", () => {
     expect((sttOptions.silenceMs as () => number)()).toBe(1_500);
     state.setSilenceMs(900);
     expect((sttOptions.silenceMs as () => number)()).toBe(900);
+  });
+
+  describe("backend utterance lifecycle", () => {
+    it("hands both utterance callbacks to speech playback unchanged", () => {
+      const state = setup();
+      expect(playbackOptions().onUtteranceStart).toBe(state.onUtteranceStart);
+      expect(playbackOptions().onUtteranceEnd).toBe(state.onUtteranceEnd);
+    });
+
+    it("the filler loop speaks as an aside", () => {
+      setup();
+      fillerOptions().speak("えーと");
+      expect(mocks.speechPlayback.speakAside).toHaveBeenCalledWith("えーと");
+      expect(mocks.speechPlayback.onSpeech).not.toHaveBeenCalled();
+      expect(mocks.speechPlayback.onSpeechEnd).not.toHaveBeenCalled();
+    });
+
+    it("speakFailure speaks as an aside", () => {
+      const state = setup();
+      state.setFillerConfig({
+        gap_ms: 1_000,
+        gap_jitter_ms: 100,
+        max_repeats: 3,
+        gap_growth: 2,
+        long_wait_ms: 40000,
+        pools: { ja: fillerPool({ timeout: ["少し待ってね"] }) },
+      });
+      state.voice.speakFailure("network_stall");
+      expect(mocks.speechPlayback.speakAside).toHaveBeenCalledWith("少し待ってね");
+      expect(mocks.speechPlayback.onSpeech).not.toHaveBeenCalled();
+      expect(mocks.speechPlayback.onSpeechEnd).not.toHaveBeenCalled();
+    });
   });
 
   it("notifies the filler loop when speech playback ends", () => {

@@ -71,6 +71,20 @@ describe("backend_caller — failure classification (§7.3)", () => {
     expect(applyDirective).not.toHaveBeenCalled();
   });
 
+  it("a parse_error after a delta aborts the open utterance", async () => {
+    script.events = [deltaEvent("half a sentence")];
+    const res = await caller.call(turnOf(userEnv()));
+    expect(res).toBe("parse_error");
+    expect(turnOutput.abort).toHaveBeenCalledTimes(1);
+  });
+
+  it("a parse_error with nothing streamed leaves the utterance alone", async () => {
+    script.events = [keepaliveEvent()];
+    const res = await caller.call(turnOf(userEnv()));
+    expect(res).toBe("parse_error");
+    expect(turnOutput.abort).not.toHaveBeenCalled();
+  });
+
   it("an error event surfaces as network_drop and applies nothing", async () => {
     script.events = [{ type: "error", message: "401 unauthorized" }];
     const res = await caller.call(turnOf(userEnv()));
@@ -149,6 +163,20 @@ describe("backend_caller — idle-gap watchdog", () => {
     expect(res).toBe("network_stall");
     expect(turnOutput.abort).toHaveBeenCalledTimes(1);
     expect(turnOutput.end).not.toHaveBeenCalled();
+  });
+
+  it("a superseded call that then stalls returns superseded_by_user without tearing down the next turn", async () => {
+    script.events = [deltaEvent("partial")];
+    script.hangAt = 1;
+    const external = new AbortController();
+    const p = caller.call(turnOf(userEnv()), external.signal);
+    // The delta lands, then the user supersedes this turn while the stream is still hanging.
+    await vi.advanceTimersByTimeAsync(0);
+    external.abort();
+    await vi.advanceTimersByTimeAsync(SPEECH_IDLE_TIMEOUT_MS + 1_000);
+    const res = await p;
+    expect(res).toBe("superseded_by_user");
+    expect(turnOutput.abort).not.toHaveBeenCalled();
   });
 
   it("resets on every speech_delta: many gaps under the deadline never time out, even though their sum exceeds it", async () => {

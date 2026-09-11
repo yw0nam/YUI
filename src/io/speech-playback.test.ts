@@ -13,7 +13,7 @@
 import { describe, expect, it, vi } from "vitest";
 import type { ExpressArgs } from "../contract";
 import { createSpeechPlayback } from "./speech-playback";
-import type { TtsPipeline, TtsPipelineOptions } from "./tts-pipeline";
+import { TTS_SKIP, type TtsPipeline, type TtsPipelineOptions } from "./tts-pipeline";
 
 /** These tests replace pipeline construction with a factory stub, so this synth is never called. */
 const NO_PIPELINE = {
@@ -1272,5 +1272,200 @@ describe("createSpeechPlayback — stripper carry reset on interrupt/abort", () 
       (c[0] as string).includes("✨"),
     );
     expect(staleEmojiCall).toBeUndefined();
+  });
+});
+
+describe("createSpeechPlayback — backend utterance tracking", () => {
+  /** Playback over a stub pipeline with both utterance callbacks spied. */
+  function trackedPlayback() {
+    const stub = stubPipelineFactory();
+    const onUtteranceStart = vi.fn();
+    const onUtteranceEnd = vi.fn<(ended: "complete" | "interrupted") => void>();
+    const sp = createSpeechPlayback({
+      renderer: spyRenderer(),
+      surfaces: spySurfaces(),
+      pipeline: NO_PIPELINE,
+      createPipeline: stub.factory,
+      isStrolling: () => false,
+      onUtteranceStart,
+      onUtteranceEnd,
+    });
+    return { sp, stub, onUtteranceStart, onUtteranceEnd };
+  }
+
+  it("the first backend delta opens the utterance once; a second delta does not reopen it", () => {
+    const { sp, onUtteranceStart } = trackedPlayback();
+
+    sp.onSpeechDelta("hel");
+    expect(onUtteranceStart).toHaveBeenCalledTimes(1);
+
+    sp.onSpeechDelta("lo");
+    expect(onUtteranceStart).toHaveBeenCalledTimes(1);
+  });
+
+  it("a played-out utterance ends complete when its boundary fires", () => {
+    const { sp, stub, onUtteranceEnd } = trackedPlayback();
+
+    sp.onSpeechDelta("hello");
+    sp.onSpeechEnd();
+    expect(onUtteranceEnd).not.toHaveBeenCalled();
+
+    stub.emitPlaybackEnd();
+    expect(onUtteranceEnd).toHaveBeenCalledTimes(1);
+    expect(onUtteranceEnd).toHaveBeenCalledWith("complete");
+  });
+
+  it("interrupt mid-utterance ends it interrupted, and a second interrupt adds nothing", () => {
+    const { sp, onUtteranceEnd } = trackedPlayback();
+
+    sp.onSpeechDelta("hello");
+    sp.interrupt();
+    expect(onUtteranceEnd).toHaveBeenCalledTimes(1);
+    expect(onUtteranceEnd).toHaveBeenCalledWith("interrupted");
+
+    sp.interrupt();
+    expect(onUtteranceEnd).toHaveBeenCalledTimes(1);
+  });
+
+  it("abort mid-utterance ends it interrupted", () => {
+    const { sp, onUtteranceEnd } = trackedPlayback();
+
+    sp.onSpeechDelta("hello");
+    sp.abort();
+    expect(onUtteranceEnd).toHaveBeenCalledTimes(1);
+    expect(onUtteranceEnd).toHaveBeenCalledWith("interrupted");
+  });
+
+  it("interrupt before a queued boundary fires ends the utterance interrupted", () => {
+    const { sp, onUtteranceEnd } = trackedPlayback();
+
+    sp.onSpeechDelta("hello");
+    sp.onSpeechEnd();
+    sp.interrupt();
+
+    expect(onUtteranceEnd).toHaveBeenCalledTimes(1);
+    expect(onUtteranceEnd).toHaveBeenCalledWith("interrupted");
+  });
+
+  it("a barge-in interrupt ends the utterance and leaves the muted remainder untracked", () => {
+    const { sp, stub, onUtteranceStart, onUtteranceEnd } = trackedPlayback();
+
+    sp.onSpeechDelta("hello");
+    sp.interrupt({ muteCurrentTurn: true });
+    expect(onUtteranceEnd).toHaveBeenCalledTimes(1);
+    expect(onUtteranceEnd).toHaveBeenCalledWith("interrupted");
+
+    sp.onSpeechDelta("still arriving");
+    expect(onUtteranceStart).toHaveBeenCalledTimes(1);
+
+    sp.onSpeechEnd();
+    stub.emitPlaybackEnd();
+    expect(onUtteranceEnd).toHaveBeenCalledTimes(1);
+  });
+
+  it("speakAside is untracked and does not consume the backend utterance's boundary", () => {
+    const { sp, stub, onUtteranceStart, onUtteranceEnd } = trackedPlayback();
+
+    sp.speakAside("잠깐만");
+    stub.emitPlaybackEnd();
+    expect(onUtteranceStart).not.toHaveBeenCalled();
+    expect(onUtteranceEnd).not.toHaveBeenCalled();
+
+    sp.speakAside("조금만 더");
+    sp.onSpeechDelta("답이야");
+    sp.onSpeechEnd();
+    expect(onUtteranceStart).toHaveBeenCalledTimes(1);
+
+    stub.emitPlaybackEnd();
+    expect(onUtteranceEnd).not.toHaveBeenCalled();
+
+    stub.emitPlaybackEnd();
+    expect(onUtteranceEnd).toHaveBeenCalledTimes(1);
+    expect(onUtteranceEnd).toHaveBeenCalledWith("complete");
+  });
+
+  it("a routine pre-turn interrupt with nothing tracked reports nothing", () => {
+    const { sp, onUtteranceStart, onUtteranceEnd } = trackedPlayback();
+
+    sp.interrupt();
+
+    expect(onUtteranceStart).not.toHaveBeenCalled();
+    expect(onUtteranceEnd).not.toHaveBeenCalled();
+  });
+
+  it("abort behind an untracked boundary still ends the backend utterance once", () => {
+    const { sp, onUtteranceEnd } = trackedPlayback();
+
+    sp.speakAside("잠깐만");
+    sp.onSpeechDelta("답이야");
+    sp.onSpeechEnd();
+    sp.abort();
+
+    expect(onUtteranceEnd).toHaveBeenCalledTimes(1);
+    expect(onUtteranceEnd).toHaveBeenCalledWith("interrupted");
+  });
+
+  it("a pipeline that fires its boundary inside end() still ends the utterance complete", () => {
+    const onUtteranceEnd = vi.fn<(ended: "complete" | "interrupted") => void>();
+    const sp = createSpeechPlayback({
+      renderer: spyRenderer(),
+      surfaces: spySurfaces(),
+      pipeline: NO_PIPELINE,
+      // What the real pipeline does when end() finds nothing submitted to play.
+      createPipeline: (opts): TtsPipeline => ({
+        pushTextDelta: () => {},
+        setCue: () => {},
+        end: () => opts.onPlaybackEnd?.(),
+        hasOutstandingWork: () => false,
+        dispose: () => {},
+      }),
+      isStrolling: () => false,
+      onUtteranceEnd,
+    });
+
+    sp.onSpeechDelta("hello");
+    sp.onSpeechEnd();
+
+    expect(onUtteranceEnd).toHaveBeenCalledTimes(1);
+    expect(onUtteranceEnd).toHaveBeenCalledWith("complete");
+  });
+
+  it("backend speech arriving after a barge-in reports start then interrupted, once", () => {
+    const { sp, stub, onUtteranceStart, onUtteranceEnd } = trackedPlayback();
+
+    // Barge-in landed while only the filler was speaking, before any backend delta.
+    sp.interrupt({ muteCurrentTurn: true });
+    sp.onSpeechDelta("the answer");
+
+    expect(onUtteranceStart).toHaveBeenCalledTimes(1);
+    expect(onUtteranceEnd).toHaveBeenCalledTimes(1);
+    expect(onUtteranceEnd).toHaveBeenCalledWith("interrupted");
+
+    sp.onSpeechDelta(" keeps arriving");
+    sp.onSpeechEnd();
+    stub.emitPlaybackEnd();
+
+    expect(onUtteranceStart).toHaveBeenCalledTimes(1);
+    expect(onUtteranceEnd).toHaveBeenCalledTimes(1);
+  });
+
+  it("a real pipeline whose synth skips still ends the utterance complete", async () => {
+    const onUtteranceEnd = vi.fn<(ended: "complete" | "interrupted") => void>();
+    const sp = createSpeechPlayback({
+      renderer: spyRenderer(),
+      surfaces: spySurfaces(),
+      pipeline: {
+        synth: () => Promise.reject(TTS_SKIP),
+        sink: { play: async () => {}, stop: () => {} },
+      },
+      isStrolling: () => false,
+      onUtteranceEnd,
+    });
+
+    sp.onSpeech("hi");
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    expect(onUtteranceEnd).toHaveBeenCalledTimes(1);
+    expect(onUtteranceEnd).toHaveBeenCalledWith("complete");
   });
 });

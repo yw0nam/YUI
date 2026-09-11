@@ -2664,3 +2664,114 @@ describe("dispatcher — structured logging: turn events", () => {
     expect(lines[0]![1].outcome).toBe("ok");
   });
 });
+
+describe("dispatcher — onTurnFailed seam", () => {
+  function makeDispatcherWithTurnFailedSink(caller: BackendCaller = backendCaller): {
+    d: Dispatcher;
+    sink: ReturnType<typeof vi.fn>;
+    userSink: ReturnType<typeof vi.fn>;
+  } {
+    const sink = vi.fn();
+    const userSink = vi.fn();
+    const d = createDispatcher({
+      bus,
+      renderer: renderer as never,
+      peekConfig: () => PEEK_CONFIG,
+      tapConfig: () => TAP_CONFIG,
+      backendCaller: caller,
+      guardrails,
+      turnLog,
+      logger,
+      onTurnFailed: sink,
+      onUserTurnFailed: userSink,
+    });
+    return { d, sink, userSink };
+  }
+
+  it("fires once with the failed turn and its reason", async () => {
+    const { d, sink } = makeDispatcherWithTurnFailedSink();
+    d.start();
+    bus.push(env({ event_name: "user.text_submitted" }));
+    await vi.advanceTimersByTimeAsync(20);
+    callDeferred[0].resolve("network_drop");
+    await vi.advanceTimersByTimeAsync(20);
+    expect(sink).toHaveBeenCalledTimes(1);
+    const [turn, reason] = sink.mock.calls[0];
+    expect((turn as Turn).trigger.event_name).toBe("user.text_submitted");
+    expect(reason).toBe("network_drop");
+    d.stop();
+  });
+
+  it("fires for a proactive turn that never reaches onUserTurnFailed", async () => {
+    const { d, sink, userSink } = makeDispatcherWithTurnFailedSink();
+    d.start();
+    bus.push(
+      env({
+        event_name: "proactive.tap_bored",
+        dnd_override: undefined,
+        source: "os_event_watcher",
+      }),
+    );
+    await vi.advanceTimersByTimeAsync(20);
+    callDeferred[0].resolve("network_stall");
+    await vi.advanceTimersByTimeAsync(20);
+    expect(sink).toHaveBeenCalledTimes(1);
+    expect(sink.mock.calls[0][1]).toBe("network_stall");
+    expect(userSink).not.toHaveBeenCalled();
+    d.stop();
+  });
+
+  it("fires for a schedule turn that never reaches onUserTurnFailed", async () => {
+    const { d, sink, userSink } = makeDispatcherWithTurnFailedSink();
+    d.start();
+    bus.push(
+      env({
+        event_name: "schedule.daily_checkin",
+        dnd_override: undefined,
+        source: "timer_scheduler",
+      }),
+    );
+    await vi.advanceTimersByTimeAsync(20);
+    callDeferred[0].resolve("network_drop");
+    await vi.advanceTimersByTimeAsync(20);
+    expect(sink).toHaveBeenCalledTimes(1);
+    expect(sink.mock.calls[0][1]).toBe("network_drop");
+    expect(userSink).not.toHaveBeenCalled();
+    d.stop();
+  });
+
+  it("stays quiet on a successful turn", async () => {
+    const { d, sink } = makeDispatcherWithTurnFailedSink();
+    d.start();
+    bus.push(env({ event_name: "user.text_submitted" }));
+    await vi.advanceTimersByTimeAsync(20);
+    callDeferred[0].resolve("ok");
+    await vi.advanceTimersByTimeAsync(20);
+    expect(sink).not.toHaveBeenCalled();
+    d.stop();
+  });
+
+  it("stays quiet when the turn was superseded by the user", async () => {
+    const { d, sink } = makeDispatcherWithTurnFailedSink();
+    d.start();
+    bus.push(env({ event_name: "user.text_submitted" }));
+    await vi.advanceTimersByTimeAsync(20);
+    callDeferred[0].resolve("superseded_by_user");
+    await vi.advanceTimersByTimeAsync(20);
+    expect(sink).not.toHaveBeenCalled();
+    d.stop();
+  });
+
+  it("fires with network_drop when the call throws", async () => {
+    const throwing: BackendCaller = { call: vi.fn(() => Promise.reject(new Error("boom"))) };
+    const { d, sink } = makeDispatcherWithTurnFailedSink(throwing);
+    d.start();
+    bus.push(env({ event_name: "user.text_submitted" }));
+    await vi.advanceTimersByTimeAsync(20);
+    expect(sink).toHaveBeenCalledTimes(1);
+    const [turn, reason] = sink.mock.calls[0];
+    expect((turn as Turn).trigger.event_name).toBe("user.text_submitted");
+    expect(reason).toBe("network_drop");
+    d.stop();
+  });
+});
