@@ -1419,11 +1419,14 @@ export function wireSummonHotkey(deps: {
   };
   if (!isTauri()) return handle;
   void (async () => {
-    const { register, unregister } = await import("@tauri-apps/plugin-global-shortcut");
+    const { register, unregister, unregisterAll } = await import(
+      "@tauri-apps/plugin-global-shortcut"
+    );
     const { getCurrentWindow } = await import("@tauri-apps/api/window");
     summonHotkey = createSummonHotkey({
       register,
       unregister,
+      unregisterAll,
       // On macOS, include background app activation, bring forward (show before hidden).
       focusWindow: async () => {
         await showAndFocusFromSummon({ win: getCurrentWindow(), peek, bus });

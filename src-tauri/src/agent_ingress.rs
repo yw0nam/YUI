@@ -12,7 +12,7 @@
 use crate::os_event_watcher::epoch_ms;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::mpsc::{channel, Receiver, Sender};
 use std::sync::{Arc, Mutex, OnceLock};
 use std::thread;
@@ -456,6 +456,9 @@ fn handle_request(app: &AppHandle, mut request: tiny_http::Request) {
 const BIND_ATTEMPTS: u32 = 8;
 const BIND_RETRY_DELAY: Duration = Duration::from_millis(500);
 
+/// Set while this process owns the ingress listener.
+static LISTENER_CLAIMED: AtomicBool = AtomicBool::new(false);
+
 /// Binds the loopback listener, retrying while the port is still taken.
 fn bind_with_retry(
     port: u16,
@@ -474,6 +477,24 @@ fn bind_with_retry(
     tiny_http::Server::http(("127.0.0.1", port))
 }
 
+/// Binds the listener unless this process already claimed it; a failed bind releases the claim.
+/// `None` means another call holds the claim.
+fn claim_and_bind(
+    claim: &AtomicBool,
+    port: u16,
+    attempts: u32,
+    delay: Duration,
+) -> Option<Result<tiny_http::Server, Box<dyn std::error::Error + Send + Sync + 'static>>> {
+    if claim.swap(true, Ordering::SeqCst) {
+        return None;
+    }
+    let result = bind_with_retry(port, attempts, delay);
+    if result.is_err() {
+        claim.store(false, Ordering::SeqCst);
+    }
+    Some(result)
+}
+
 /// Spawns the loopback HTTP listener on the given port.
 ///
 /// Bind failure after the retry window is non-fatal: the app continues without the
@@ -483,19 +504,25 @@ pub fn start(app: &AppHandle, port: u16) {
     thread::Builder::new()
         .name("agent_ingress".into())
         .spawn(move || {
-            let server = match bind_with_retry(port, BIND_ATTEMPTS, BIND_RETRY_DELAY) {
-                Ok(s) => s,
-                Err(e) => {
-                    log::warn!("agent_ingress_bind_failed port={port} error={e}");
-                    // The bind retries span ~3.5s, so the webview is normally listening by now.
-                    if let Err(e) =
-                        app.emit(INGRESS_DEAD_CHANNEL, serde_json::json!({ "port": port }))
-                    {
-                        log::warn!("agent_ingress_dead_emit_failed error={e}");
+            let server =
+                match claim_and_bind(&LISTENER_CLAIMED, port, BIND_ATTEMPTS, BIND_RETRY_DELAY) {
+                    // A page reload calls start again while an earlier call holds the listener.
+                    None => {
+                        log::debug!("agent_ingress_start_skipped requested_port={port}");
+                        return;
                     }
-                    return;
-                }
-            };
+                    Some(Ok(s)) => s,
+                    Some(Err(e)) => {
+                        log::warn!("agent_ingress_bind_failed port={port} error={e}");
+                        // Reaches the page that is loaded when the retries end; a reload inside that window misses it.
+                        if let Err(e) =
+                            app.emit(INGRESS_DEAD_CHANNEL, serde_json::json!({ "port": port }))
+                        {
+                            log::warn!("agent_ingress_dead_emit_failed error={e}");
+                        }
+                        return;
+                    }
+                };
             log::debug!("agent_ingress_listening port={port}");
             for request in server.incoming_requests() {
                 handle_request(&app, request);
@@ -1109,6 +1136,42 @@ mod tests {
         let holder = std::net::TcpListener::bind(("127.0.0.1", 0)).unwrap();
         let port = holder.local_addr().unwrap().port();
         assert!(bind_with_retry(port, 2, Duration::from_millis(10)).is_err());
+    }
+
+    // ── Listener claim ────────────────────────────────────────────────────
+
+    #[test]
+    fn claim_and_bind_skips_when_already_claimed() {
+        let holder = std::net::TcpListener::bind(("127.0.0.1", 0)).unwrap();
+        let port = holder.local_addr().unwrap().port();
+        drop(holder);
+        let claim = AtomicBool::new(true);
+        assert!(claim_and_bind(&claim, port, 1, Duration::ZERO).is_none());
+        assert!(std::net::TcpListener::bind(("127.0.0.1", port)).is_ok());
+    }
+
+    #[test]
+    fn claim_and_bind_releases_the_claim_when_bind_fails() {
+        let holder = std::net::TcpListener::bind(("127.0.0.1", 0)).unwrap();
+        let port = holder.local_addr().unwrap().port();
+        let claim = AtomicBool::new(false);
+        let result = claim_and_bind(&claim, port, 2, Duration::from_millis(10));
+        assert!(matches!(result, Some(Err(_))));
+        assert!(!claim.load(Ordering::SeqCst));
+    }
+
+    #[test]
+    fn claim_and_bind_keeps_the_claim_after_a_bind() {
+        let holder = std::net::TcpListener::bind(("127.0.0.1", 0)).unwrap();
+        let port = holder.local_addr().unwrap().port();
+        drop(holder);
+        let claim = AtomicBool::new(false);
+        assert!(matches!(
+            claim_and_bind(&claim, port, 1, Duration::ZERO),
+            Some(Ok(_))
+        ));
+        assert!(claim.load(Ordering::SeqCst));
+        assert!(claim_and_bind(&claim, port, 1, Duration::ZERO).is_none());
     }
 
     #[test]
