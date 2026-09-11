@@ -50,7 +50,7 @@ YUI/
     styles.css                       # Pet-window base stylesheet
     vite-env.d.ts                    # Vite client types and build-time env declarations
     contract/                        # TS contract types — the wire schema source of truth
-      types.ts                       # Wire schema source of truth for the YUI to Hermes contract
+      types.ts                       # Wire schema source of truth for the YUI to backend contract
       index.ts                       # Contract barrel
     config/                          # Config load, validate, reactive store, hot-reload
       load.ts                        # configs/*.json loader and validation, fail-loud
@@ -317,6 +317,7 @@ YUI/
     README.md                        # Mod setup and operation
   integrations/                      # Backend-side integrations, independent of the YUI app runtime
     hermes/
+      README.md                      # Hermes Agent adapter setup (Responses mode, dev proxy, auth)
       desire/                        # Agent desire middleware, state helpers, monitor, and prompts (Python/uv)
       skills/                        # Backend-agent skills (yui-dispatch)
   docs/                              # Design source of truth

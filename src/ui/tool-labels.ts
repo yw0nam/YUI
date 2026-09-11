@@ -25,7 +25,7 @@ export function getToolLabel(toolId: string): string {
 }
 
 function humanize(toolId: string): string {
-  // Hermes names MCP tools mcp__<server>__<tool>; the chip shows what is being done, not where.
+  // An mcp__<server>__<tool> id shows only its tool segment; the chip says what is being done, not where.
   const parts = toolId.split("__");
   const name = parts[0] === "mcp" ? (parts.at(-1) ?? "") : toolId;
   const spaced = name.replace(/_/g, " ").trim();

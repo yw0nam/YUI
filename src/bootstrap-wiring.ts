@@ -1710,7 +1710,7 @@ export async function wireDevGlobals(deps: {
     __yuiVoiceInputStatus: voiceInputStatus,
     // DEV-ONLY trigger: fire E2E loop directly from console.
     //   window.__yui_send("hello") → user.text_submitted → dispatcher → backend_caller →
-    //   streamChat → Hermes → ControlEnvelope → renderer.applyDirective + bubble.
+    //   streamChat → backend → ControlEnvelope → renderer.applyDirective + bubble.
     // Screenshot-validation handle: fires a real submit without a real gesture.
     __yui_send: (text: string) => userInput.submit(text),
     // Dispatcher observation: __yui_dispatcher.inFlight()/queue()/recentDrops().

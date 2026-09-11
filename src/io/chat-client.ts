@@ -13,13 +13,13 @@
  *
  * express tool naming: the tool is matched by SUFFIX (`name.endsWith("generate_express")`),
  *   so it recognizes both the plain `generate_express` and the MCP-namespaced
- *   `mcp_<server>_generate_express` the live backend emits. Sibling MCP tools
+ *   `mcp_<server>_generate_express` form some backends emit. Sibling MCP tools
  *   (e.g. `..._get_ids`) do NOT match → they stay generic tool_status chips.
  *
  * express args shape: the spec streams args via response.function_call_arguments.done,
- *   but the live backend instead ships the complete `arguments` JSON inside the
+ *   but some backends instead ship the complete `arguments` JSON inside the
  *   function_call item of response.output_item.added/done. Both paths are parsed;
- *   whichever arrives first for a given call wins. Hermes emits one generate_express
+ *   whichever arrives first for a given call wins. A backend may emit one generate_express
  *   per expressive beat — every distinct call emits its own express event, deduped
  *   per call (by function-call item id, falling back to output_index).
  *
@@ -178,7 +178,7 @@ export interface ChatRequest {
 
 export interface StreamChatOptions {
   /**
-   * Hermes auth key (Bearer). SecretProvider resolves and caller passes it.
+   * Backend auth key (Bearer). SecretProvider resolves and caller passes it.
    * Unset defaults to unauthenticated local placeholder — backends enforcing keys return 401.
    */
   apiKey?: string;
@@ -201,8 +201,8 @@ export async function selectFetch(): Promise<typeof globalThis.fetch | undefined
 }
 
 /**
- * Selects baseURL. Tauri uses absolute URLs directly via cors-fetch. Dev web rewrites to same-origin
- * `/__hermes` proxy mount to avoid CORS preflight. Prod web/no origin pass through unchanged.
+ * Selects baseURL. Tauri uses absolute URLs directly via cors-fetch. Dev web rewrites to the same-origin
+ * `/__hermes` dev-proxy mount (vite.config.ts) to avoid CORS preflight. Prod web/no origin pass through unchanged.
  *
  * Chat Completions mode (chatApi==="chat_completions") always skips this rewrite — `/__hermes` is
  * hard-proxied to Responses backend, preventing CC requests silently going to wrong server instead of
@@ -280,7 +280,7 @@ export async function* streamChat(
   let stream: AsyncIterable<ResponseStreamEvent>;
   try {
     const params: ResponseCreateParamsStreaming = {
-      // model: config-driven (EndpointsConfig.chat_model). Hermes Responses requires model —
+      // model: config-driven (EndpointsConfig.chat_model). The Responses API requires model —
       // omit if unset (for test mocks and model-less backends). Prod endpoints.json must set.
       ...(config.chat_model ? { model: config.chat_model } : {}),
       // instructions: request override takes priority, fallback to config nudge. Omit if both absent.

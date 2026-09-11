@@ -461,7 +461,7 @@ async function bootstrap(): Promise<BootstrapHandle> {
   register(() => stage.removeEventListener("contextmenu", onContextMenu));
 
   // ── Dispatcher spine ──────────────────────────────────────────────────────
-  // event_bus → dispatcher → backend_caller → streamChat → Hermes → ControlEnvelope →
+  // event_bus → dispatcher → backend_caller → streamChat → backend → ControlEnvelope →
   // renderer.applyDirective. user.text_submitted drives this loop.
   // bus/dispatcher safe to create before config load (backend_caller reads endpoints at call time
   // from config). backend_caller needs config store, so wire after config creation.
