@@ -50,17 +50,24 @@ export function createTtsSynth(opts: TtsSynthOptions): TtsSynth {
     const key = (await opts.getApiKey?.())?.trim() || undefined;
     const deadline = createDeadlineSignal(TTS_SYNTH_TIMEOUT_MS, "TTS request timed out");
     const requestSignal = signal ? AbortSignal.any([signal, deadline.signal]) : deadline.signal;
+    // The Tauri transport rejects with its own cancel error; the combined signal's reason names the abort that fired first.
+    const viaTransport = <T>(p: Promise<T>): Promise<T> =>
+      p.catch((err) => {
+        throw requestSignal.aborted ? requestSignal.reason : err;
+      });
 
     try {
-      const res = await fetchImpl(url, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          ...(key ? { Authorization: `Bearer ${key}` } : {}),
-        },
-        body: JSON.stringify(body),
-        signal: requestSignal,
-      });
+      const res = await viaTransport(
+        fetchImpl(url, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            ...(key ? { Authorization: `Bearer ${key}` } : {}),
+          },
+          body: JSON.stringify(body),
+          signal: requestSignal,
+        }),
+      );
 
       if (!res.ok) {
         let detail = "";
@@ -73,10 +80,7 @@ export function createTtsSynth(opts: TtsSynthOptions): TtsSynth {
         throw new Error(`TTS request failed (HTTP ${res.status})${detail}`);
       }
 
-      return await res.arrayBuffer();
-    } catch (err) {
-      // The Tauri transport rejects with its own cancel error; the deadline's reason names the timeout.
-      throw deadline.signal.aborted ? deadline.signal.reason : err;
+      return await viaTransport(res.arrayBuffer());
     } finally {
       deadline.clear();
     }
