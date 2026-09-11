@@ -1111,6 +1111,24 @@ mod tests {
         assert!(bind_with_retry(port, 2, Duration::from_millis(10)).is_err());
     }
 
+    // ── Listener claim ────────────────────────────────────────────────────
+
+    #[test]
+    fn claim_listener_grants_only_the_first_call() {
+        let flag = AtomicBool::new(false);
+        assert!(claim_listener(&flag));
+        assert!(!claim_listener(&flag));
+        assert!(!claim_listener(&flag));
+    }
+
+    #[test]
+    fn claim_listener_grants_again_after_release() {
+        let flag = AtomicBool::new(false);
+        assert!(claim_listener(&flag));
+        flag.store(false, Ordering::SeqCst);
+        assert!(claim_listener(&flag));
+    }
+
     #[test]
     fn pending_receiver_times_out_when_unanswered() {
         let id = next_rpc_id();

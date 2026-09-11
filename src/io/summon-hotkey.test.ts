@@ -8,6 +8,7 @@
  *  - re-applying the same accelerator is a no-op (prevents double registration).
  *  - accelerator change: unregister the previous one, then register the new one.
  *  - empty string: unregister the existing binding + no new registration (disabled).
+ *  - stale registration held by this process from a previous page: unregistered before registering.
  *  - register rejection (invalid accelerator/OS-occupied): stays disabled without throwing (fail-soft).
  *  - transient register rejection (fast restart, the previous process still holds the key): retried until it takes.
  *  - summonInput is still called even if focusWindow fails.
@@ -31,6 +32,7 @@ function fakeDeps() {
     unregister: vi.fn(async (accelerator: string) => {
       handlers.delete(accelerator);
     }),
+    isRegistered: vi.fn(async (accelerator: string) => handlers.has(accelerator)),
     focusWindow: vi.fn(async () => {
       calls.push("focus");
     }),
@@ -100,6 +102,34 @@ describe("createSummonHotkey — apply", () => {
     expect(f.deps.register).not.toHaveBeenCalled();
     expect(f.deps.unregister).not.toHaveBeenCalled();
     expect(hotkey.current()).toBeNull();
+  });
+});
+
+describe("createSummonHotkey — stale registration", () => {
+  it("이전 페이지가 이 프로세스에 남긴 등록을 register 전에 해제한다", async () => {
+    const f = fakeDeps();
+    // Seed a stale handler as a page reload would leave behind in this process.
+    const stale = vi.fn();
+    await f.deps.register("CmdOrCtrl+Shift+Y", stale);
+    f.deps.register.mockClear();
+    const hotkey = createSummonHotkey(f.deps);
+    await hotkey.apply("CmdOrCtrl+Shift+Y");
+    expect(f.deps.unregister).toHaveBeenCalledWith("CmdOrCtrl+Shift+Y");
+    expect(f.deps.unregister.mock.invocationCallOrder[0]).toBeLessThan(
+      f.deps.register.mock.invocationCallOrder[0],
+    );
+    f.trigger("CmdOrCtrl+Shift+Y");
+    await flush();
+    expect(stale).not.toHaveBeenCalled();
+    expect(f.deps.focusWindow).toHaveBeenCalled();
+  });
+
+  it("등록된 게 없으면 unregister하지 않는다", async () => {
+    const f = fakeDeps();
+    const hotkey = createSummonHotkey(f.deps);
+    await hotkey.apply("CmdOrCtrl+Shift+Y");
+    expect(f.deps.unregister).not.toHaveBeenCalled();
+    expect(f.deps.register).toHaveBeenCalledTimes(1);
   });
 });
 
