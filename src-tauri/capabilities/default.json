@@ -22,10 +22,6 @@
     "log:default",
     "dialog:allow-open",
     "global-shortcut:allow-register",
-    "global-shortcut:allow-unregister",
-    {
-      "identifier": "opener:allow-open-url",
-      "allow": [{ "url": "http://*" }, { "url": "https://*" }]
-    }
+    "global-shortcut:allow-unregister"
   ]
 }
