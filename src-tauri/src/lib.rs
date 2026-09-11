@@ -188,6 +188,8 @@ pub fn run() {
         .plugin(tauri_plugin_dialog::init())
         // Global hotkey — registration/removal handled by JS guest binding (input summon hotkey).
         .plugin(tauri_plugin_global_shortcut::Builder::new().build())
+        // Bubble links (target=_blank) open in the default browser.
+        .plugin(tauri_plugin_opener::init())
         .setup(|app| {
             // Lets the pet window cross onto a lower-scale monitor mid-move instead of
             // being clamped to whichever screen its frame still overlaps.
