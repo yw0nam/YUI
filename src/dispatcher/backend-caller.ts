@@ -101,6 +101,7 @@ function backgroundMarker(eventName: string, trigger: TriggerMeta): string {
   if (eventName === "signals.push") return "(a new signal just arrived for you)";
   if (eventName === "signals.batch") return "(a few signals batched up for you)";
   if (eventName === "signals.catchup") return "(signals piled up while I was away)";
+  if (eventName === "time_milestone.first_activity") return "(I've just started my day)";
   return "(something just caught your attention)";
 }
 

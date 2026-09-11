@@ -26,6 +26,7 @@ import { isReflexTurn } from "./dispatcher/backend-caller";
 import type { Dispatcher } from "./dispatcher/dispatcher";
 import type { EventBus } from "./dispatcher/event-bus";
 import type { Guardrails, GuardrailsConfig } from "./dispatcher/guardrails";
+import { createMilestoneSource, type MilestoneSource } from "./dispatcher/milestone-source";
 import type { ProactivePacer } from "./dispatcher/proactive-pacer";
 import { createProactiveSource, type ProactiveSource } from "./dispatcher/proactive-source";
 import { createScheduleSource, type ScheduleSource } from "./dispatcher/schedule-source";
@@ -1235,7 +1236,8 @@ export function composePacedPipelineBusy(deps: {
 
 /**
  * tier2 utterance candidate sources: proactive.<id> (idle dramatization) + schedule.<id>
- * (time-of-day greeting) + agent.done/needs_input/catchup + signals.push/batch/catchup, all over the
+ * (time-of-day greeting) + agent.done/needs_input/catchup + signals.push/batch/catchup +
+ * time_milestone.first_activity (first present tick of the local day), all over the
  * presence gate.
  * Created and started; the started refs are returned for interaction-notes and teardown.
  */
@@ -1257,6 +1259,7 @@ export function wireDispatcherSources(deps: {
   scheduleSource: ScheduleSource;
   agentSource: ReturnType<typeof createAgentSource>;
   signalsSource: SignalsSource;
+  milestoneSource: MilestoneSource;
   screenSource: ScreenSource;
 } {
   const {
@@ -1302,6 +1305,13 @@ export function wireDispatcherSources(deps: {
     subscribePipelineBusy: pacedPipelineBusy.subscribe,
   });
   void signalsSource.start();
+  const milestoneSource = createMilestoneSource({
+    bus,
+    present_max_idle_ms: presenceSettings.get().value,
+    isEnabled: () => scheduleSettings.get().enabled,
+    drainSignals: () => signalsSource.drain(),
+  });
+  void milestoneSource.start();
   const screenSource = createScreenSource({
     bus,
     present_max_idle_ms: presenceSettings.get().value,
@@ -1313,7 +1323,14 @@ export function wireDispatcherSources(deps: {
     appendSkipRecord: (record) => appendRecord(record),
   });
   void screenSource.start();
-  return { proactiveSource, scheduleSource, agentSource, signalsSource, screenSource };
+  return {
+    proactiveSource,
+    scheduleSource,
+    agentSource,
+    signalsSource,
+    milestoneSource,
+    screenSource,
+  };
 }
 
 export async function wirePeekExitTriggers(deps: {

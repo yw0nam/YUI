@@ -252,8 +252,10 @@ export type SignalGroup = { envelope?: SignalEnvelope; items: SignalItem[] };
 
 /** trigger envelope describing what fired this backend turn. */
 export interface TriggerMeta {
-  kind: "user" | "schedule" | "proactive" | "agent" | "signals";
+  kind: "user" | "schedule" | "proactive" | "agent" | "signals" | "milestone";
   cue?: CueMeta;
+  /** time_milestone.* — a once-per-day client clock fact. */
+  milestone?: { name: string; local_time: string };
   /** proactive only: Math.round(gap_ms / 60000). */
   idle_elapsed_min?: number;
   /** agent.done / agent.needs_input — single coding-agent lifecycle event. */

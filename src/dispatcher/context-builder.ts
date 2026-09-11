@@ -93,8 +93,21 @@ function agentCatchupOf(env: BusEnvelope): TriggerMeta["agent_catchup"] | undefi
   };
 }
 
+function milestoneOf(env: BusEnvelope): TriggerMeta["milestone"] | undefined {
+  if (!env.event_name.startsWith("time_milestone.")) return undefined;
+  const payload = env.payload;
+  if (typeof payload?.name !== "string" || typeof payload?.local_time !== "string") {
+    return undefined;
+  }
+  return { name: payload.name, local_time: payload.local_time };
+}
+
 function signalsOf(env: BusEnvelope): TriggerMeta["signals"] | undefined {
-  if (!env.event_name.startsWith("signals.") && env.event_name !== "proactive.tap_bored") {
+  if (
+    !env.event_name.startsWith("signals.") &&
+    !env.event_name.startsWith("time_milestone.") &&
+    env.event_name !== "proactive.tap_bored"
+  ) {
     return undefined;
   }
   const signals = env.payload?.signals;
@@ -184,6 +197,7 @@ function triggerKind(eventName: string): TriggerMeta["kind"] {
   if (eventName.startsWith("proactive.")) return "proactive";
   if (eventName.startsWith("agent.")) return "agent";
   if (eventName.startsWith("signals.")) return "signals";
+  if (eventName.startsWith("time_milestone.")) return "milestone";
   return "user";
 }
 
@@ -206,6 +220,7 @@ export function buildClientContext(
   const gapMs = typeof payload?.gap_ms === "number" ? payload.gap_ms : undefined;
   const agent = agentOf(env);
   const agentCatchup = agentCatchupOf(env);
+  const milestone = milestoneOf(env);
   const signals = signalsOf(env);
   const screen = screenOf(env);
   const screenshot = ctx.screenshot
@@ -222,6 +237,7 @@ export function buildClientContext(
       ...(gapMs != null ? { idle_elapsed_min: Math.round(gapMs / 60_000) } : {}),
       ...(agent ? { agent } : {}),
       ...(agentCatchup ? { agent_catchup: agentCatchup } : {}),
+      ...(milestone ? { milestone } : {}),
       ...(signals ? { signals } : {}),
       ...(screen ? { screen } : {}),
     },
