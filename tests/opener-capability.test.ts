@@ -10,10 +10,8 @@ interface OpenUrlEntry {
   allow: Array<{ url: string }>;
 }
 
-const CAPABILITY_FILES = [
-  "src-tauri/capabilities/default.json",
-  "src-tauri/capabilities/message.json",
-] as const;
+const MESSAGE_CAPABILITY = "src-tauri/capabilities/message.json";
+const DEFAULT_CAPABILITY = "src-tauri/capabilities/default.json";
 
 /** Object-form `opener:allow-open-url` entries in one capability file's permissions. */
 function openerEntries(file: string): OpenUrlEntry[] {
@@ -29,12 +27,19 @@ function openerEntries(file: string): OpenUrlEntry[] {
 }
 
 describe("opener capability wiring", () => {
-  it.each(
-    CAPABILITY_FILES,
-  )("%s grants exactly one opener:allow-open-url scoped to http/https", (file) => {
-    const entries = openerEntries(file);
+  it("message window grants exactly one opener:allow-open-url scoped to http/https/mailto/tel", () => {
+    const entries = openerEntries(MESSAGE_CAPABILITY);
     expect(entries).toHaveLength(1);
-    expect(entries[0].allow).toEqual([{ url: "http://*" }, { url: "https://*" }]);
+    expect(entries[0].allow).toEqual([
+      { url: "http://*" },
+      { url: "https://*" },
+      { url: "mailto:*" },
+      { url: "tel:*" },
+    ]);
+  });
+
+  it("main window capability grants no opener:allow-open-url entry", () => {
+    expect(openerEntries(DEFAULT_CAPABILITY)).toHaveLength(0);
   });
 
   it("declares the tauri-plugin-opener dependency in Cargo.toml", () => {
