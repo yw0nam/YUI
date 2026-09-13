@@ -53,6 +53,64 @@ batch buffer together.
 
 Each buffer retains at most five groups and drops its oldest group on overflow.
 
+## Daily briefing items
+
+The client keeps every signal item opaque. A producer of the daily briefing posts one
+group per scheduled run, one run per local day, carrying a single item of this shape:
+
+```json
+{
+  "skill": "yui-daily-briefing",
+  "summary": "3 pull requests, 1 issue, 2 mails since 2026-09-10 18:00",
+  "sources": [
+    { "name": "repo-status", "status": "ok", "last_ok": "2026-09-11T06:00:00+09:00" },
+    { "name": "gmail", "status": "stale", "last_ok": "2026-09-09T22:10:00+09:00" }
+  ],
+  "refs": [
+    {
+      "kind": "pull_request",
+      "title": "feat: open speech-bubble links in the default browser",
+      "url": "https://github.com/yw0nam/YUI/pull/887",
+      "at": "2026-09-11T05:24:26Z",
+      "excerpt": ""
+    }
+  ]
+}
+```
+
+| Field | Rule |
+|---|---|
+| `skill` | Name of the skill the backend loads for the item |
+| `summary` | One line, at most 200 characters |
+| `sources[]` | One entry per source the producer reads, at most 10 entries |
+| `sources[].name` | At most 40 characters |
+| `sources[].status` | One of `ok`, `stale`, `failed`, `disabled` |
+| `sources[].last_ok` | ISO-8601 timestamp, or absent |
+| `refs[]` | At most 30 entries, newest first, one entry per distinct `url` |
+| `refs[].kind` | One of `pull_request`, `issue`, `mail`, `other` |
+| `refs[].title` | At most 200 characters |
+| `refs[].url` | `http` or `https`, at most 2048 characters |
+| `refs[].at` | ISO-8601 timestamp |
+| `refs[].excerpt` | At most 280 characters, possibly the empty string |
+
+The serialized request runs to at most 49,152 bytes of UTF-8. The producer measures the
+body and drops its oldest refs until the body fits that cap.
+
+A group whose `refs` is `[]` says the day brought nothing new. A morning that receives
+zero groups means the producer skipped its run.
+
+The group travels under this envelope:
+
+| Field | Value |
+|---|---|
+| `source` | The producer's own name |
+| `event_type` | `daily_briefing` |
+| `delivery` | `immediate` |
+| `event_id` | `daily-briefing:<YYYY-MM-DD>` |
+| `occurred_at` | Epoch milliseconds |
+
+The client delivers every group it receives, so two runs on one day produce two turns.
+
 ## Validation and legacy behavior
 
 The HTTP ingress requires `POST /signals`, valid JSON, and a `signals` array. A request
