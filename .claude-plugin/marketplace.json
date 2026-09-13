@@ -7,7 +7,7 @@
       "name": "daily-assist",
       "source": "./integrations/daily-assist",
       "description": "First-activity daily briefing skills for the YUI backend.",
-      "version": "0.1.0"
+      "version": "0.2.0"
     }
   ]
 }

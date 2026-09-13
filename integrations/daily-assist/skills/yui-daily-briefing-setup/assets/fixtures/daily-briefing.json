@@ -1,0 +1,42 @@
+{
+  "signals": [
+    {
+      "skill": "yui-daily-briefing",
+      "summary": "2 pull requests, 1 mail since 2026-09-10 18:00",
+      "sources": [
+        { "name": "repo-status", "status": "ok", "last_ok": "2026-09-11T06:00:00+09:00" },
+        { "name": "gmail", "status": "stale", "last_ok": "2026-09-09T22:10:00+09:00" }
+      ],
+      "refs": [
+        {
+          "kind": "pull_request",
+          "title": "fix: keep the ingress listener and summon hotkey across a page reload",
+          "url": "https://github.com/yw0nam/YUI/pull/896",
+          "at": "2026-09-11T05:24:26Z",
+          "excerpt": ""
+        },
+        {
+          "kind": "pull_request",
+          "title": "feat: open speech-bubble links in the default browser",
+          "url": "https://github.com/yw0nam/YUI/pull/887",
+          "at": "2026-09-11T03:11:02Z",
+          "excerpt": "Speech-bubble links open in the system browser."
+        },
+        {
+          "kind": "mail",
+          "title": "Weekly build report",
+          "url": "https://mail.google.com/mail/#inbox/example",
+          "at": "2026-09-10T21:40:00Z",
+          "excerpt": "someone@example.com: the nightly build finished with three warnings."
+        }
+      ]
+    }
+  ],
+  "envelope": {
+    "source": "n8n",
+    "event_type": "daily_briefing",
+    "delivery": "immediate",
+    "event_id": "daily-briefing:2026-09-11",
+    "occurred_at": 1789077600000
+  }
+}

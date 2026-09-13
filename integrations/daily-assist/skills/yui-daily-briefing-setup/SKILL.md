@@ -1,9 +1,99 @@
 ---
 name: yui-daily-briefing-setup
-description: "Build and verify the producer that posts the daily briefing signal group to YUI's /signals ingress before the user's first activity. Use when setting up the daily briefing for a new machine, source set, or automation tool."
+description: "Install and wire the YUI daily briefing when the user asks to install it from a YUI checkout: turn on the ingress, register the runtime skill in this agent's skill store, post a fixture, and build the morning producer."
 license: PolyForm-Noncommercial-1.0.0
 ---
 
 # yui-daily-briefing-setup
 
-Design-time skill. An agent with no other context follows it to confirm the ingress, choose sources, implement the producer to the contract, post a fixture, register the runtime skill in the backend, and watch one morning run.
+The user has asked you to install the YUI daily briefing from a YUI checkout. Work through
+the six steps in order and stop at each check before moving on.
+
+Two variables run through every step:
+
+- `YUI`: the YUI checkout the user named. Every path below reads
+  `$YUI/integrations/daily-assist/...`.
+- `YUI_SIGNALS_URL`: the ingress base URL. Its host is loopback and its port is the
+  "Listener port" field in YUI Settings → Reactions, so its default value reads
+  `http://127.0.0.1:8770`.
+
+## 1. Turn the ingress on
+
+Ask the user to open YUI Settings → Reactions, switch "Agent notifications" on, and read
+the "Listener port" back to you. Ask them to open Settings → Proactive and switch
+"Scheduled greeting" on. Ask them to restart YUI, since both fields take effect at launch.
+
+Once they report the restart, run the check yourself:
+
+```bash
+curl -sS -o /dev/null -w '%{http_code}\n' -X POST "$YUI_SIGNALS_URL/signals" \
+  -H 'content-type: application/json' --data '{"signals":[]}'
+```
+
+Check: the command prints `200`. From another machine, reach the port through an SSH
+reverse tunnel first.
+
+## 2. Register the runtime skill in your skill store
+
+Add `$YUI/integrations/daily-assist/skills/yui-daily-briefing` to the place you load your
+own skills from. The plugin directory `$YUI/integrations/daily-assist` follows the Agent
+Plugins layout (`plugin.json` beside `skills/<name>/SKILL.md`), and the repository lists it
+in `$YUI/.claude-plugin/marketplace.json` and `$YUI/.agents/plugins/marketplace.json`.
+Take the route your tool offers: a skills directory setting, a plugin install from one of
+those marketplace files, or a copy of the skill directory.
+
+Check: your own skill list shows `yui-daily-briefing`.
+
+## 3. Post a fixture
+
+Run `$YUI/integrations/daily-assist/skills/yui-daily-briefing-setup/scripts/post-fixture.sh`.
+It posts `assets/fixtures/daily-briefing.json` by default and reads `YUI_SIGNALS_URL` from
+the environment. A fixture path as its one argument posts that file:
+
+```bash
+SKILL_DIR="$YUI/integrations/daily-assist/skills/yui-daily-briefing-setup"
+"$SKILL_DIR/scripts/post-fixture.sh" "$SKILL_DIR/assets/fixtures/daily-briefing-empty.json"
+```
+
+The turn log lives at `$YUI/logs/turns_<date>.jsonl` in a dev run and at
+`~/Library/Logs/com.yui.desktop/turns_<date>.jsonl` in a macOS release build.
+
+Check: the script prints `200`, the turn log gains one line whose
+`client_context.trigger.signals[0].items[0].skill` reads `yui-daily-briefing`, and the
+bubble shows a link. That line's `event_name` reads `signals.push` while the user is
+present and the pipeline idle, and reads `signals.catchup`,
+`time_milestone.first_activity`, or `proactive.tap_bored` otherwise. Posting the empty
+fixture yields a turn line and silence.
+
+## 4. Choose sources
+
+With the user, list each source the producer reads, giving its `name` and the rule that
+yields `ok`, `stale`, `failed`, and `disabled`.
+
+Check: every source has a rule that names a time bound or an error condition.
+
+## 5. Implement the producer
+
+Build the producer to `references/producer-contract.md`.
+
+With n8n: import `references/n8n-daily-briefing.template.json` into the user's n8n, fill
+the two placeholders `{{YUI_SIGNALS_URL}}` and `{{SIGNAL_QUEUE_TABLE_ID}}`, and set
+`triggerAtHour` on the `Run Every Morning` node to an hour ahead of the user's usual first
+activity. The template ships `7`. Edit the `SOURCES` list and `STALE_HOURS` at the top of
+the `Compose Daily Briefing` node so they match the source list from step 4, since a source
+missing from `SOURCES` stays out of `sources[]`. `sources[]` holds at most 10 entries, and
+each `name` runs to 40 characters at most.
+
+With another tool: build the same request.
+
+Check: trigger a manual run against a stopped YUI, which ends on the `Leave Rows Pending`
+node and leaves every row as it was. Trigger a second manual run against a running YUI,
+which ends on `Mark Row Sent`, and the turn log gains the line from step 3.
+
+## 6. Watch one morning
+
+The producer runs ahead of the user's first activity. The group waits in the away buffer,
+and the first present tick fires the turn that carries it.
+
+Check, the following morning: the turn log shows one line carrying the group with
+`event_id` `daily-briefing:<today>`, and the bubble shows a link.

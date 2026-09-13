@@ -1,0 +1,285 @@
+{
+ "name": "daily-briefing",
+ "nodes": [
+  {
+   "name": "Run Every Morning",
+   "type": "n8n-nodes-base.scheduleTrigger",
+   "typeVersion": 1.3,
+   "position": [
+    0,
+    300
+   ],
+   "parameters": {
+    "rule": {
+     "interval": [
+      {
+       "field": "days",
+       "daysInterval": 1,
+       "triggerAtHour": 7,
+       "triggerAtMinute": 0
+      }
+     ]
+    }
+   }
+  },
+  {
+   "name": "Fetch Signal Queue Rows",
+   "type": "n8n-nodes-base.dataTable",
+   "typeVersion": 1.1,
+   "position": [
+    260,
+    300
+   ],
+   "parameters": {
+    "resource": "row",
+    "operation": "get",
+    "dataTableId": {
+     "__rl": true,
+     "mode": "id",
+     "value": "{{SIGNAL_QUEUE_TABLE_ID}}",
+     "cachedResultName": "signal_queue"
+    },
+    "matchType": "allConditions",
+    "filters": {
+     "conditions": [
+      {
+       "keyName": "key",
+       "condition": "isNotEmpty"
+      }
+     ]
+    },
+    "returnAll": true,
+    "orderBy": true,
+    "orderByColumn": "createdAt",
+    "orderByDirection": "DESC"
+   },
+   "alwaysOutputData": true
+  },
+  {
+   "name": "Compose Daily Briefing",
+   "type": "n8n-nodes-base.code",
+   "typeVersion": 2,
+   "position": [
+    520,
+    300
+   ],
+   "parameters": {
+    "mode": "runOnceForAllItems",
+    "language": "javaScript",
+    "jsCode": "const SOURCES = ['repo-status', 'gmail'];\nconst STALE_HOURS = 72;\nconst MAX_REFS = 30;\nconst TITLE_MAX = 200;\nconst EXCERPT_MAX = 280;\nconst SUMMARY_MAX = 200;\nconst URL_MAX = 2048;\nconst BODY_MAX_BYTES = 48 * 1024;\nconst KIND = { github_pr: 'pull_request', github_issue: 'issue', gmail: 'mail' };\nconst LABEL = { pull_request: 'pull request', issue: 'issue', mail: 'mail', other: 'other' };\n\nconst rows = $input.all().map(i => i.json).filter(r => r.id != null);\nconst nowMs = Date.now();\nconst day = $now.toFormat('yyyy-LL-dd');\n\nfunction parse(text) { try { return JSON.parse(text) || {}; } catch (e) { return {}; } }\nfunction clip(s, max) { const t = String(s || '').replace(/\\s+/g, ' ').trim(); return t.length > max ? t.slice(0, max - 1) + '…' : t; }\nfunction iso(value, fallback) { const t = Date.parse(value); if (Number.isFinite(t)) return new Date(t).toISOString(); const f = Date.parse(fallback); return new Date(Number.isFinite(f) ? f : Date.now()).toISOString(); }\nfunction utf8Bytes(s) { return encodeURIComponent(s).replace(/%[0-9A-F]{2}/g, 'x').length; }\n\nconst pending = rows.filter(r => r.status === 'pending').sort((a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt));\n\nconst refs = [];\nconst counts = {};\nconst seen = new Set();\nfor (const row of pending) {\n  const p = parse(row.payload);\n  const kind = KIND[p.source] || 'other';\n  const url = p.url || (p.source === 'gmail' && p.thread_id ? 'https://mail.google.com/mail/#inbox/' + p.thread_id : '');\n  if (seen.has(url)) continue;\n  if (url) seen.add(url);\n  counts[kind] = (counts[kind] || 0) + 1;\n  if (!/^https?:\\/\\//.test(url) || url.length > URL_MAX || refs.length >= MAX_REFS) continue;\n  refs.push({ kind, title: clip(p.title || p.subject || row.key, TITLE_MAX), url, at: iso(p.updated_at || p.date, row.createdAt), excerpt: clip(p.snippet || '', EXCERPT_MAX) });\n}\n\nconst oldest = pending.length ? pending[pending.length - 1].createdAt : null;\nconst since = oldest ? oldest.slice(0, 16).replace('T', ' ') : $now.minus({ days: 1 }).toFormat('yyyy-LL-dd HH:mm');\nconst parts = Object.entries(counts).map(([kind, n]) => n + ' ' + LABEL[kind] + (n === 1 ? '' : 's'));\nconst summary = clip((parts.length ? parts.join(', ') : 'nothing new') + ' since ' + since, SUMMARY_MAX);\n\nconst sources = SOURCES.map(name => {\n  const stamps = rows.filter(r => r.source === name).map(r => Date.parse(r.createdAt)).filter(Number.isFinite);\n  if (!stamps.length) return { name, status: 'stale' };\n  const newest = Math.max(...stamps);\n  return { name, status: nowMs - newest <= STALE_HOURS * 3600000 ? 'ok' : 'stale', last_ok: new Date(newest).toISOString() };\n});\n\nconst envelope = { source: 'n8n', event_type: 'daily_briefing', delivery: 'immediate', event_id: 'daily-briefing:' + day, occurred_at: nowMs };\nfunction render() { return JSON.stringify({ signals: [{ skill: 'yui-daily-briefing', summary, sources, refs }], envelope }); }\nlet body = render();\nwhile (utf8Bytes(body) > BODY_MAX_BYTES && refs.length) { refs.pop(); body = render(); }\n\nreturn [{ json: { body, posted_ids: pending.map(r => r.id), ref_count: refs.length, pending_count: pending.length } }];"
+   }
+  },
+  {
+   "name": "Post Briefing to YUI",
+   "type": "n8n-nodes-base.httpRequest",
+   "typeVersion": 4.4,
+   "position": [
+    780,
+    300
+   ],
+   "parameters": {
+    "method": "POST",
+    "url": "{{YUI_SIGNALS_URL}}/signals",
+    "sendBody": true,
+    "specifyBody": "json",
+    "jsonBody": "={{ $json.body }}",
+    "options": {
+     "response": {
+      "response": {
+       "fullResponse": true,
+       "neverError": true
+      }
+     },
+     "timeout": 10000
+    }
+   },
+   "executeOnce": true,
+   "alwaysOutputData": true,
+   "onError": "continueRegularOutput"
+  },
+  {
+   "name": "YUI Responded 2xx?",
+   "type": "n8n-nodes-base.if",
+   "typeVersion": 2.3,
+   "position": [
+    1040,
+    300
+   ],
+   "parameters": {
+    "conditions": {
+     "options": {
+      "caseSensitive": true,
+      "leftValue": "",
+      "typeValidation": "strict"
+     },
+     "conditions": [
+      {
+       "leftValue": "={{ $json.statusCode >= 200 && $json.statusCode < 300 }}",
+       "rightValue": "",
+       "operator": {
+        "type": "boolean",
+        "operation": "true",
+        "singleValue": true
+       }
+      }
+     ],
+     "combinator": "and"
+    },
+    "options": {}
+   }
+  },
+  {
+   "name": "Restore Posted Rows",
+   "type": "n8n-nodes-base.code",
+   "typeVersion": 2,
+   "position": [
+    1300,
+    200
+   ],
+   "parameters": {
+    "mode": "runOnceForAllItems",
+    "language": "javaScript",
+    "jsCode": "return $('Compose Daily Briefing').first().json.posted_ids.map(id => ({ json: { id } }));"
+   }
+  },
+  {
+   "name": "Mark Row Sent",
+   "type": "n8n-nodes-base.dataTable",
+   "typeVersion": 1.1,
+   "position": [
+    1560,
+    200
+   ],
+   "parameters": {
+    "resource": "row",
+    "operation": "update",
+    "dataTableId": {
+     "__rl": true,
+     "mode": "id",
+     "value": "{{SIGNAL_QUEUE_TABLE_ID}}",
+     "cachedResultName": "signal_queue"
+    },
+    "matchType": "allConditions",
+    "filters": {
+     "conditions": [
+      {
+       "keyName": "id",
+       "condition": "eq",
+       "keyValue": "={{ String($json.id) }}"
+      }
+     ]
+    },
+    "columns": {
+     "mappingMode": "defineBelow",
+     "value": {
+      "status": "sent",
+      "sent_at": "={{ $now.toISO() }}"
+     }
+    },
+    "options": {}
+   }
+  },
+  {
+   "name": "Leave Rows Pending",
+   "type": "n8n-nodes-base.noOp",
+   "typeVersion": 1,
+   "position": [
+    1300,
+    420
+   ]
+  },
+  {
+   "name": "Sticky Note",
+   "type": "n8n-nodes-base.stickyNote",
+   "typeVersion": 1,
+   "position": [
+    210,
+    250
+   ],
+   "parameters": {
+    "content": "## Daily briefing producer\nOnce a morning, before the first activity: every pending signal_queue row becomes one briefing item (skill yui-daily-briefing) posted to YUI /signals with event_id daily-briefing:<date>. Rows are marked sent only on a 2xx; a refused connection leaves them pending for tomorrow. An empty day still posts a group with refs: []. Source health is a proxy: a source is ok when it queued a row within STALE_HOURS.",
+    "color": 5,
+    "width": 820,
+    "height": 200
+   }
+  }
+ ],
+ "connections": {
+  "Run Every Morning": {
+   "main": [
+    [
+     {
+      "node": "Fetch Signal Queue Rows",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Fetch Signal Queue Rows": {
+   "main": [
+    [
+     {
+      "node": "Compose Daily Briefing",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Compose Daily Briefing": {
+   "main": [
+    [
+     {
+      "node": "Post Briefing to YUI",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Post Briefing to YUI": {
+   "main": [
+    [
+     {
+      "node": "YUI Responded 2xx?",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "YUI Responded 2xx?": {
+   "main": [
+    [
+     {
+      "node": "Restore Posted Rows",
+      "type": "main",
+      "index": 0
+     }
+    ],
+    [
+     {
+      "node": "Leave Rows Pending",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Restore Posted Rows": {
+   "main": [
+    [
+     {
+      "node": "Mark Row Sent",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  }
+ },
+ "settings": {
+  "executionOrder": "v1"
+ }
+}
