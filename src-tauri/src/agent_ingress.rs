@@ -565,10 +565,10 @@ mod tests {
     }
 
     #[test]
-    fn parse_request_wrong_method_returns_400() {
+    fn parse_request_wrong_method_returns_405() {
         assert_eq!(
             parse_request("GET", "/agent-event", valid_body()).unwrap_err(),
-            400
+            405
         );
     }
 
@@ -734,10 +734,10 @@ mod tests {
     }
 
     #[test]
-    fn parse_signals_request_wrong_method_returns_400() {
+    fn parse_signals_request_wrong_method_returns_405() {
         assert_eq!(
             parse_signals_request("GET", "/signals", valid_signals_body()).unwrap_err(),
-            400
+            405
         );
     }
 
@@ -861,7 +861,7 @@ mod tests {
         );
         assert_eq!(
             parse_avatar_request("POST", "/avatar/state", "").unwrap_err(),
-            400
+            405
         );
     }
 
@@ -873,7 +873,7 @@ mod tests {
         );
         assert_eq!(
             parse_avatar_request("POST", "/avatar/perch-targets", "").unwrap_err(),
-            400
+            405
         );
     }
 
@@ -894,11 +894,11 @@ mod tests {
     }
 
     #[test]
-    fn parse_avatar_known_path_wrong_method_returns_400() {
-        // The route exists, the method does not — a client error, not a missing resource.
+    fn parse_avatar_known_path_wrong_method_returns_405() {
+        // The route exists, the method does not — a method mismatch, not a missing resource.
         assert_eq!(
             parse_avatar_request("DELETE", "/avatar/state", "").unwrap_err(),
-            400
+            405
         );
     }
 
@@ -907,7 +907,7 @@ mod tests {
         assert_eq!(
             parse_avatar_request("GET", "/avatar/command", r#"{"action":"stand_down"}"#)
                 .unwrap_err(),
-            400
+            405
         );
     }
 
@@ -1038,6 +1038,15 @@ mod tests {
                 .unwrap_err(),
             400
         );
+    }
+
+    // ── rejected_level ──────────────────────────────────────────────────
+
+    #[test]
+    fn rejected_level_is_debug_for_a_method_mismatch_and_warn_otherwise() {
+        assert_eq!(rejected_level(405), log::Level::Debug);
+        assert_eq!(rejected_level(400), log::Level::Warn);
+        assert_eq!(rejected_level(404), log::Level::Warn);
     }
 
     // ── RPC request payload ───────────────────────────────────────────────────
