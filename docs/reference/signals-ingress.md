@@ -55,8 +55,9 @@ Each buffer retains at most five groups and drops its oldest group on overflow.
 
 ## Validation and legacy behavior
 
-The HTTP ingress requires `POST /signals`, valid JSON, and a `signals` array. Invalid
-requests receive HTTP 400. It forwards a present, non-null envelope without validating
+The HTTP ingress requires `POST /signals`, valid JSON, and a `signals` array. A request
+with another method on `/signals` receives HTTP 405. Invalid JSON or a missing `signals`
+array receives HTTP 400. It forwards a present, non-null envelope without validating
 or rewriting it and stamps the emitted batch with server time.
 
 The signal source validates the envelope fields. An invalid envelope is discarded and
