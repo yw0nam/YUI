@@ -290,6 +290,131 @@ describe("createPushSocket — reconnect", () => {
   });
 });
 
+describe("createPushSocket — refusing to open", () => {
+  it("stays disconnected when no chat endpoint is configured", async () => {
+    chatBaseUrl = "";
+    socket = build();
+    socket.connect();
+    await vi.advanceTimersByTimeAsync(0);
+
+    expect(FakeSocket.instances).toEqual([]);
+    expect(socket.getState()).toEqual({ kind: "disconnected" });
+    expect(logger.warn).toHaveBeenCalledWith("ws_not_configured", expect.anything());
+  });
+
+  it("treats a whitespace-only chat endpoint as none at all", async () => {
+    chatBaseUrl = "   ";
+    socket = build();
+    socket.connect();
+    await vi.advanceTimersByTimeAsync(0);
+
+    expect(FakeSocket.instances).toEqual([]);
+    expect(socket.getState()).toEqual({ kind: "disconnected" });
+  });
+
+  it("schedules a retry when the WebSocket constructor throws", async () => {
+    class ThrowingSocket {
+      constructor() {
+        throw new Error("insecure connection");
+      }
+    }
+    socket = build({ WebSocketImpl: ThrowingSocket as unknown as typeof WebSocket });
+    socket.connect();
+    await vi.advanceTimersByTimeAsync(0);
+
+    expect(socket.getState()).toEqual({ kind: "reconnecting", delay_ms: 1_000 });
+    expect(logger.warn).toHaveBeenCalledWith("ws_open_failed", expect.anything());
+  });
+
+  it("schedules a retry when the key cannot be resolved", async () => {
+    socket = build({
+      getKey: async () => {
+        throw new Error("keychain locked");
+      },
+    });
+    socket.connect();
+    await vi.advanceTimersByTimeAsync(0);
+
+    expect(FakeSocket.instances).toEqual([]);
+    expect(socket.getState()).toEqual({ kind: "reconnecting", delay_ms: 1_000 });
+  });
+
+  it("retries after a failed attempt on the same doubling schedule", async () => {
+    class ThrowingSocket {
+      constructor() {
+        throw new Error("insecure connection");
+      }
+    }
+    socket = build({ WebSocketImpl: ThrowingSocket as unknown as typeof WebSocket });
+    socket.connect();
+    await vi.advanceTimersByTimeAsync(0);
+    await vi.advanceTimersByTimeAsync(1_000);
+
+    expect(socket.getState()).toEqual({ kind: "reconnecting", delay_ms: 2_000 });
+  });
+});
+
+describe("createPushSocket — disconnect", () => {
+  it("closes the open socket and stays down", async () => {
+    await connected();
+    socket.disconnect();
+
+    expect(FakeSocket.last().closedWith).toBe(1000);
+    expect(socket.getState()).toEqual({ kind: "disconnected" });
+
+    await vi.advanceTimersByTimeAsync(60_000);
+    expect(FakeSocket.instances).toHaveLength(1);
+  });
+
+  it("cancels a reconnect already waiting", async () => {
+    socket = build();
+    socket.connect();
+    await vi.advanceTimersByTimeAsync(0);
+    FakeSocket.last().drop();
+    expect(socket.getState()).toEqual({ kind: "reconnecting", delay_ms: 1_000 });
+
+    socket.disconnect();
+    await vi.advanceTimersByTimeAsync(60_000);
+
+    expect(FakeSocket.instances).toHaveLength(1);
+    expect(socket.getState()).toEqual({ kind: "disconnected" });
+  });
+
+  it("refuses turns once disconnected", async () => {
+    await connected();
+    socket.disconnect();
+
+    expect(socket.sendTurn({ turn_id: "7", client_context: "", text: "hi" })).toBe(false);
+  });
+
+  it("opens again on a later connect, with the endpoint as it stands then", async () => {
+    await connected();
+    socket.disconnect();
+
+    chatBaseUrl = "https://agent.example:9000";
+    socket.connect();
+    await vi.advanceTimersByTimeAsync(0);
+
+    expect(FakeSocket.instances).toHaveLength(2);
+    expect(FakeSocket.last().url).toBe("wss://agent.example:9000/ws");
+  });
+
+  it("is inert when nothing is open", () => {
+    socket = build();
+    expect(() => socket.disconnect()).not.toThrow();
+    expect(socket.getState()).toEqual({ kind: "disconnected" });
+  });
+
+  it("ignores a second connect while one is already in flight", async () => {
+    socket = build();
+    socket.connect();
+    socket.connect();
+    await vi.advanceTimersByTimeAsync(0);
+
+    expect(FakeSocket.instances).toHaveLength(1);
+  });
+});
+
 describe("createPushSocket — outbound frames", () => {
   it("sends a turn frame once ready", async () => {
     await connected();
