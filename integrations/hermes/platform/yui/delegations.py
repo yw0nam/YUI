@@ -91,9 +91,9 @@ def on_subagent_start(
     _announce(chat_id)
 
 
-def on_subagent_stop(child_session_id: Any = None, **_kwargs: Any) -> None:
+def on_subagent_stop(child_session_id: Any = None, child_subagent_id: Any = None, **_kwargs: Any) -> None:
     """Close a delegation out; a failed one is finished too, the agent says so in speech."""
-    key = str(child_session_id or "")
+    key = str(child_session_id or child_subagent_id or "")
     chat_id = session.current_chat_id()
     if not chat_id or not key:
         return

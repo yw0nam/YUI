@@ -9,8 +9,8 @@ from __future__ import annotations
 
 from typing import NamedTuple
 
-# CJK terminators close a sentence on their own; an ASCII one needs whitespace or the end of the
-# text after it, so a decimal point or an abbreviation does not cut the speech.
+# CJK terminators close a sentence on their own; an ASCII one closes it only when whitespace or
+# the end of the text follows, so a decimal point does not cut the speech.
 _ASCII_TERMINATORS = ".!?"
 _CJK_TERMINATORS = "。！？"
 _TERMINATORS = _ASCII_TERMINATORS + _CJK_TERMINATORS

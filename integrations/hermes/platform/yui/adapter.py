@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import asyncio
 import contextlib
+import ipaddress
 import json
 import logging
 import os
@@ -43,6 +44,33 @@ def build_message_text(client_context: str, text: str) -> str:
     """The client_context block, then the utterance — the shape every YUI transport sends."""
     parts = [part for part in (client_context.strip(), text.strip()) if part]
     return "\n\n".join(parts)
+
+
+def is_loopback(host: str) -> bool:
+    """A host only this machine can reach, so a missing key exposes nothing."""
+    if host == "localhost":
+        return True
+    try:
+        return ipaddress.ip_address(host).is_loopback
+    except ValueError:
+        return False
+
+
+def fit_frame(frame: dict) -> str:
+    """The cap is symmetric, and the client closes an oversize frame; trim a render to fit."""
+    body = json.dumps(frame, ensure_ascii=False)
+    if len(body.encode("utf-8")) <= MAX_FRAME_BYTES:
+        return body
+    segments = frame.get("segments")
+    while isinstance(segments, list) and segments:
+        segments.pop()
+        body = json.dumps(frame, ensure_ascii=False)
+        if len(body.encode("utf-8")) <= MAX_FRAME_BYTES:
+            break
+    logger.warning(
+        "yui: %s frame over %d bytes, trailing segments dropped", frame.get("type"), MAX_FRAME_BYTES
+    )
+    return body
 
 
 def _message_id() -> str:
@@ -88,6 +116,10 @@ class YuiAdapter(BasePlatformAdapter):
         return app
 
     async def connect(self, *, is_reconnect: bool = False) -> bool:
+        if not self._key and not is_loopback(self.host):
+            logger.error("yui: refusing to serve %s without a key", self.host)
+            self._set_fatal_error("no_key", f"YUI needs a key before serving {self.host}", retryable=False)
+            return False
         self._loop = asyncio.get_running_loop()
         delegations.set_notifier(self.notify_delegations)
         self._runner = web.AppRunner(self.build_app())
@@ -275,7 +307,7 @@ class YuiAdapter(BasePlatformAdapter):
             logger.warning("yui: no client for chat=%s, dropped %s", chat_id, frame.get("type"))
             return False
         try:
-            await ws.send_str(json.dumps(frame, ensure_ascii=False))
+            await ws.send_str(fit_frame(frame))
             return True
         except (ConnectionError, RuntimeError, ValueError) as e:
             logger.warning("yui: send failed chat=%s — %s", chat_id, e)
