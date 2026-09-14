@@ -275,6 +275,48 @@ describe("createPushSocket — reconnect", () => {
     expect(FakeSocket.instances).toHaveLength(2);
   });
 
+  it("holds the wrong-key state across the retries, instead of flickering", async () => {
+    socket = build();
+    socket.connect();
+    await vi.advanceTimersByTimeAsync(0);
+    FakeSocket.last().accept();
+    FakeSocket.last().drop(4401);
+    expect(socket.getState()).toEqual({ kind: "failed", code: 4401 });
+
+    await vi.advanceTimersByTimeAsync(1_000);
+    expect(FakeSocket.instances).toHaveLength(2);
+    expect(socket.getState()).toEqual({ kind: "failed", code: 4401 });
+
+    FakeSocket.last().accept();
+    FakeSocket.last().drop(4401);
+    expect(socket.getState()).toEqual({ kind: "failed", code: 4401 });
+  });
+
+  it("clears the wrong-key state once the backend accepts the key", async () => {
+    socket = build();
+    socket.connect();
+    await vi.advanceTimersByTimeAsync(0);
+    FakeSocket.last().accept();
+    FakeSocket.last().drop(4401);
+
+    await vi.advanceTimersByTimeAsync(1_000);
+    FakeSocket.last().accept();
+    FakeSocket.last().push({ type: "ready", chat_id: "yui-3f9a2c1d" });
+
+    expect(socket.getState()).toEqual({ kind: "ready", chat_id: "yui-3f9a2c1d" });
+  });
+
+  it("returns to an ordinary retry when the next close is not about the key", async () => {
+    socket = build();
+    socket.connect();
+    await vi.advanceTimersByTimeAsync(0);
+    FakeSocket.last().drop(4401);
+    await vi.advanceTimersByTimeAsync(1_000);
+    FakeSocket.last().drop(1006);
+
+    expect(socket.getState()).toEqual({ kind: "reconnecting", delay_ms: 2_000 });
+  });
+
   it("dispose() closes the socket and stops reconnecting", async () => {
     socket = build();
     socket.connect();
@@ -474,6 +516,30 @@ describe("createPushSocket — outbound frames", () => {
   it("sends nothing when the vocabulary is unchanged", async () => {
     await connected();
     socket.sendVocabulary();
+    expect(
+      FakeSocket.last()
+        .frames()
+        .map((f) => f.type),
+    ).toEqual(["hello"]);
+  });
+
+  it("sends a vocabulary that changed while the handshake was still in flight", async () => {
+    socket = build();
+    socket.connect();
+    await vi.advanceTimersByTimeAsync(0);
+    FakeSocket.last().accept();
+
+    vocabulary = { ...VOCAB, motion_ids: ["idle", "dance"] };
+    FakeSocket.last().push({ type: "ready", chat_id: "yui-3f9a2c1d" });
+
+    expect(FakeSocket.last().frames().at(-1)).toEqual({
+      type: "vocabulary",
+      vocabulary: { ...VOCAB, motion_ids: ["idle", "dance"] },
+    });
+  });
+
+  it("sends no vocabulary frame on a ready whose hello already carried it", async () => {
+    await connected();
     expect(
       FakeSocket.last()
         .frames()
