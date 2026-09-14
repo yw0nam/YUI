@@ -4,7 +4,6 @@
  * DOM nodes are queried directly from deps.root (entry handlers querying the same node yields the same node, so no harm).
  */
 
-import "../delegation-chip.css";
 import type { createAgentNotifySettings } from "../../io/agent-notify-settings";
 import { type createAgentSettings, REASONING_EFFORTS } from "../../io/agent-settings";
 import {

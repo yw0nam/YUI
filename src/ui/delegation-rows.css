@@ -1,0 +1,42 @@
+/* YUI delegation rows — status dot · title · elapsed or done-ago. Shared by the chip's list
+   popover and the settings panel's session section. Tokens live in ./tokens.css. */
+
+.yui-deleg__item {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  gap: 0.5rem;
+  align-items: center;
+  padding: 0.3rem 0;
+  border-top: 1px solid var(--yui-edge);
+  color: var(--yui-text-dim);
+  font-size: 0.78rem;
+}
+
+.yui-deleg__item:first-child {
+  border-top: 0;
+}
+
+.yui-deleg__item-dot {
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: 50%;
+  background: var(--yui-accent);
+}
+
+.yui-deleg__item[data-state="done"] .yui-deleg__item-dot {
+  background: var(--yui-ok);
+}
+
+.yui-deleg__item-title {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--yui-text);
+  text-shadow: var(--yui-text-shadow);
+}
+
+.yui-deleg__item-time {
+  color: var(--yui-text-mute);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}

@@ -5,6 +5,7 @@
  * re-renders once a minute to keep them current.
  */
 
+import "./delegation-rows.css";
 import type { DelegationItem } from "../io/push-socket";
 import { t } from "./i18n";
 
