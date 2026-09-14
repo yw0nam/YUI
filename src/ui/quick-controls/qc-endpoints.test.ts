@@ -714,7 +714,7 @@ describe("createQuickControls — endpoints + API keys", () => {
     return qc.el.querySelector<HTMLSelectElement>(".yui-chat-type")!;
   }
 
-  it("renders an interactive Chat-API dropdown (responses/chat_completions) in the Chat section", () => {
+  it("renders an interactive Chat-API dropdown (responses/chat_completions/push) in the Chat section", () => {
     const qc = buildQc({ getDefaultChatApi: () => "responses" });
     qc.open();
 
@@ -725,7 +725,11 @@ describe("createQuickControls — endpoints + API keys", () => {
     );
     expect(sel.classList.contains("yui-select--single")).toBe(false);
     expect(sel.disabled).toBe(false);
-    expect(Array.from(sel.options).map((o) => o.value)).toEqual(["responses", "chat_completions"]);
+    expect(Array.from(sel.options).map((o) => o.value)).toEqual([
+      "responses",
+      "chat_completions",
+      "push",
+    ]);
 
     qc.dispose();
   });

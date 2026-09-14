@@ -408,6 +408,13 @@ describe("mergeEndpoints", () => {
     expect(out.chat_api).toBe("responses");
   });
 
+  it("applies chat_api = 'push'", () => {
+    const base = baseConfig();
+    base.chat_api = "chat_completions";
+    const out = mergeEndpoints(base, { ...EMPTY, chat_api: "push" });
+    expect(out.chat_api).toBe("push");
+  });
+
   it("ignores an empty chat_api override (keeps base default)", () => {
     const base = baseConfig();
     base.chat_api = "responses";
@@ -561,7 +568,7 @@ describe("ENDPOINT_FIELD_SPECS", () => {
   it("assigns kind 'enum' to chat_api with its valid-value list", () => {
     const chatApi = ENDPOINT_FIELD_SPECS.find((s) => s.key === "chat_api")!;
     expect(chatApi.kind).toBe("enum");
-    expect(chatApi.enum).toEqual(["responses", "chat_completions"]);
+    expect(chatApi.enum).toEqual(["responses", "chat_completions", "push"]);
   });
 });
 

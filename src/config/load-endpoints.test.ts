@@ -120,6 +120,13 @@ describe("loadConfig — endpoints chat_api", () => {
     expect(cfg.endpoints.chat_api).toBe("chat_completions");
   });
 
+  it("chat_api: push를 그대로 보존한다", async () => {
+    const map = goodFixture();
+    map["endpoints.json"] = { ...baseEndpoints(), chat_api: "push" };
+    const cfg = await loadConfig({ read: readerOf(map) });
+    expect(cfg.endpoints.chat_api).toBe("push");
+  });
+
   it("chat_api이 없으면 undefined(선택, default는 상위 레이어 소관)", async () => {
     const map = goodFixture();
     map["endpoints.json"] = baseEndpoints();
