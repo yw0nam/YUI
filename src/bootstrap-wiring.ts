@@ -54,7 +54,7 @@ import type { GuardrailsSettingsStore } from "./io/guardrails-settings";
 import { attachKeepOnScreen, type KeepOnScreenHandle } from "./io/keep-on-screen";
 import type { ClampedIntSettingsStore } from "./io/persisted-store";
 import type { ProactiveSettings } from "./io/proactive-settings";
-import type { DelegationItem, RenderFrame } from "./io/push-socket";
+import type { DelegationItem, PushSocket, RenderFrame } from "./io/push-socket";
 import type { ScheduleSettings } from "./io/schedule-settings";
 import { type DescentEdge, type PetWindow, toScreenMonitor } from "./io/screen-geometry";
 import { createSettingsBridge, type SettingsBridge, type WindowKind } from "./io/settings-bridge";
@@ -1841,6 +1841,52 @@ export function wirePushTransport(deps: {
     deps.socket.onRender((frame) => renderTurn.render(frame)),
     deps.socket.onDelegations((items) => deps.delegations.replace(items)),
     deps.expressMotionSettings.subscribe(() => deps.socket.sendVocabulary()),
+  ];
+  return () => {
+    for (const off of unsubscribes) off();
+  };
+}
+
+/**
+ * Keeps the push socket on whatever the chat settings now say. It opens once the protocol is push
+ * and an endpoint is set, closes when the protocol changes, and reopens on an endpoint or key edit
+ * so the next attempt reads the new value — every other endpoint setting applies live too.
+ */
+export function wirePushMode(deps: {
+  socket: Pick<PushSocket, "connect" | "disconnect">;
+  /** Effective endpoints, read at call time. */
+  getEndpoints: () => Pick<EndpointsConfig, "chat_api" | "chat_base_url">;
+  endpointsSettings: { subscribe(cb: () => void): () => void };
+  chatKeySettings: { subscribe(cb: () => void): () => void };
+}): () => void {
+  // The endpoint the socket is currently on, or null while it is meant to be down.
+  let openOn: string | null = null;
+
+  /** Where the socket belongs now, or null when push mode is off or unconfigured. */
+  function target(): string | null {
+    const endpoints = deps.getEndpoints();
+    if (endpoints.chat_api !== "push") return null;
+    return deps.getEndpoints().chat_base_url.trim() || null;
+  }
+
+  function apply(reopen: boolean): void {
+    const next = target();
+    if (next === null) {
+      if (openOn !== null) deps.socket.disconnect();
+      openOn = null;
+      return;
+    }
+    if (openOn === next && !reopen) return;
+    if (openOn !== null) deps.socket.disconnect();
+    deps.socket.connect();
+    openOn = next;
+  }
+
+  apply(false);
+  const unsubscribes = [
+    deps.endpointsSettings.subscribe(() => apply(false)),
+    // The key is not part of the target, so an edit to it asks for the reopen explicitly.
+    deps.chatKeySettings.subscribe(() => apply(true)),
   ];
   return () => {
     for (const off of unsubscribes) off();

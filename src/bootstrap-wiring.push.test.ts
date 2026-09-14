@@ -2,7 +2,7 @@
  * bootstrap-wiring.push.test.ts — routing an open push socket into the client.
  */
 
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, type Mock, vi } from "vitest";
 import { wirePushMode, wirePushTransport } from "./bootstrap-wiring";
 import type { ControlEnvelope } from "./contract";
 import { makeTurnOutput } from "./dispatcher/test-helpers";
@@ -136,8 +136,8 @@ describe("wirePushTransport", () => {
 });
 
 describe("wirePushMode", () => {
-  let connect: ReturnType<typeof vi.fn>;
-  let disconnect: ReturnType<typeof vi.fn>;
+  let connect: Mock<() => void>;
+  let disconnect: Mock<() => void>;
   let endpoints: { chat_api?: string; chat_base_url: string };
   let endpointsSettings: ReturnType<typeof fakeMotionSettings>;
   let chatKeySettings: ReturnType<typeof fakeMotionSettings>;
@@ -152,8 +152,8 @@ describe("wirePushMode", () => {
   }
 
   beforeEach(() => {
-    connect = vi.fn();
-    disconnect = vi.fn();
+    connect = vi.fn<() => void>();
+    disconnect = vi.fn<() => void>();
     endpoints = { chat_api: "push", chat_base_url: "http://localhost:8646" };
     endpointsSettings = fakeMotionSettings();
     chatKeySettings = fakeMotionSettings();

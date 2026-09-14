@@ -18,6 +18,7 @@ import { createConfiguredBootstrap } from "./bootstrap-configured";
 import {
   wireCrossWindowSync,
   wireDevGlobals,
+  wirePushMode,
   wireSettingsReload,
   wireSpeakerSelection,
   wireVrmSelection,
@@ -544,7 +545,14 @@ async function bootstrap(): Promise<BootstrapHandle> {
     register(configured.dispose);
     if (disposed) return { dispose };
     publishedVocabulary = configured.broker.vocabulary;
-    if (getEndpoints().chat_api === "push") pushSocket.connect();
+    register(
+      wirePushMode({
+        socket: pushSocket,
+        getEndpoints,
+        endpointsSettings,
+        chatKeySettings,
+      }),
+    );
     if (import.meta.env.DEV) {
       Object.assign(globalThis as Record<string, unknown>, {
         __yuiSpeech: configured.voice.speechPlayback,
