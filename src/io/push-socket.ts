@@ -142,6 +142,8 @@ export function createPushSocket(deps: PushSocketDeps): PushSocket {
   let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
   /** The vocabulary the backend last received, serialized, so only a real change resends it. */
   let sentVocabulary: string | null = null;
+  /** Set while the last close was the backend rejecting the key — the retries must not read as progress. */
+  let authCode: number | null = null;
   let state: PushSocketState = { kind: "disconnected" };
 
   function setState(next: PushSocketState): void {
@@ -169,6 +171,15 @@ export function createPushSocket(deps: PushSocketDeps): PushSocket {
     return true;
   }
 
+  /** Sends the vocabulary when it differs from the one the backend last received. */
+  function syncVocabulary(): void {
+    if (!ready) return;
+    const vocabulary = deps.vocabulary();
+    const serialized = JSON.stringify(vocabulary);
+    if (serialized === sentVocabulary) return;
+    if (sendFrame({ type: "vocabulary", vocabulary })) sentVocabulary = serialized;
+  }
+
   function handleFrame(data: unknown): void {
     if (typeof data !== "string") return;
     if (byteLength(data) > PUSH_FRAME_MAX_BYTES) {
@@ -190,9 +201,12 @@ export function createPushSocket(deps: PushSocketDeps): PushSocket {
         readyTimer = null;
         ready = true;
         delayMs = RECONNECT_MIN_MS;
+        authCode = null;
         const chatId = typeof frame.chat_id === "string" ? frame.chat_id : deps.chatId();
         log.info("ws_ready", { chat_id: chatId });
         setState({ kind: "ready", chat_id: chatId });
+        // The vocabulary may have moved while the handshake was in flight; hello carried the old one.
+        syncVocabulary();
         return;
       }
       case "render": {
@@ -222,15 +236,17 @@ export function createPushSocket(deps: PushSocketDeps): PushSocket {
     if (disposed || !active) return;
     const wait = delayMs;
     delayMs = Math.min(delayMs * 2, RECONNECT_MAX_MS);
+    authCode = code === AUTH_CLOSE_CODE ? code : null;
     setState(
-      code === AUTH_CLOSE_CODE
-        ? { kind: "failed", code }
+      authCode !== null
+        ? { kind: "failed", code: authCode }
         : { kind: "reconnecting", delay_ms: wait },
     );
     log.info("ws_reconnect", { delay_ms: wait });
     reconnectTimer = setTimeout(() => {
       reconnectTimer = null;
-      setState({ kind: "connecting" });
+      // A rejected key stays rejected until a ready says otherwise — retrying is not progress.
+      if (authCode === null) setState({ kind: "connecting" });
       void open();
     }, wait);
   }
@@ -300,6 +316,7 @@ export function createPushSocket(deps: PushSocketDeps): PushSocket {
       }
       active = true;
       delayMs = RECONNECT_MIN_MS;
+      authCode = null;
       setState({ kind: "connecting" });
       void open();
     },
@@ -309,6 +326,7 @@ export function createPushSocket(deps: PushSocketDeps): PushSocket {
       clearTimers();
       ready = false;
       sentVocabulary = null;
+      authCode = null;
       const socket = ws;
       ws = null;
       socket?.close(NORMAL_CLOSE_CODE);
@@ -344,13 +362,7 @@ export function createPushSocket(deps: PushSocketDeps): PushSocket {
       return sendFrame({ type: "reset" });
     },
 
-    sendVocabulary(): void {
-      if (!ready) return;
-      const vocabulary = deps.vocabulary();
-      const serialized = JSON.stringify(vocabulary);
-      if (serialized === sentVocabulary) return;
-      if (sendFrame({ type: "vocabulary", vocabulary })) sentVocabulary = serialized;
-    },
+    sendVocabulary: syncVocabulary,
 
     onRender: (cb) => subscribe(renderSubs, cb),
     onDelegations: (cb) => subscribe(delegationSubs, cb),
