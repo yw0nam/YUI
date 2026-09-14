@@ -1,0 +1,445 @@
+/**
+ * push-socket.test.ts — the one WebSocket `chat_api: "push"` runs on.
+ *
+ * Covers the handshake, the reconnect schedule, the outbound frames and the inbound dispatch
+ * described in docs/reference/push-transport.md.
+ */
+
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import type { Logger } from "../logger";
+import {
+  createPushSocket,
+  PUSH_FRAME_MAX_BYTES,
+  type PushSocket,
+  type PushVocabulary,
+  pushSocketUrl,
+} from "./push-socket";
+
+interface Frame {
+  type: string;
+  [key: string]: unknown;
+}
+
+/** Stand-in for the browser WebSocket: every instance stays reachable so a test can drive it. */
+class FakeSocket {
+  static instances: FakeSocket[] = [];
+  static last(): FakeSocket {
+    const s = FakeSocket.instances.at(-1);
+    if (!s) throw new Error("no socket was opened");
+    return s;
+  }
+
+  readonly sent: string[] = [];
+  closedWith: number | null = null;
+  onopen: (() => void) | null = null;
+  onmessage: ((ev: { data: unknown }) => void) | null = null;
+  onclose: ((ev: { code: number }) => void) | null = null;
+  onerror: (() => void) | null = null;
+
+  readonly url: string;
+
+  constructor(url: string) {
+    this.url = url;
+    FakeSocket.instances.push(this);
+  }
+
+  send(data: string): void {
+    this.sent.push(data);
+  }
+
+  close(code = 1000): void {
+    if (this.closedWith !== null) return;
+    this.closedWith = code;
+    this.onclose?.({ code });
+  }
+
+  /** The server accepted the connection. */
+  accept(): void {
+    this.onopen?.();
+  }
+
+  /** The server pushed one frame. */
+  push(frame: unknown): void {
+    this.onmessage?.({ data: typeof frame === "string" ? frame : JSON.stringify(frame) });
+  }
+
+  /** The server (or the network) dropped the connection. */
+  drop(code = 1006): void {
+    if (this.closedWith !== null) return;
+    this.closedWith = code;
+    this.onclose?.({ code });
+  }
+
+  frames(): Frame[] {
+    return this.sent.map((s) => JSON.parse(s) as Frame);
+  }
+}
+
+const VOCAB: PushVocabulary = {
+  emotion_ids: ["neutral", "happy"],
+  motion_ids: ["idle"],
+  emotion_text_mode: "enum",
+  emotion_text_map: { "😆": "joyfully" },
+};
+
+let logger: Logger;
+let vocabulary: PushVocabulary;
+let socket: PushSocket;
+
+function makeLogger(): Logger {
+  return { debug: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn() };
+}
+
+function build(overrides: Partial<Parameters<typeof createPushSocket>[0]> = {}): PushSocket {
+  return createPushSocket({
+    chatBaseUrl: "http://localhost:8646",
+    chatId: "yui-3f9a2c1d",
+    getKey: async () => "secret-key",
+    vocabulary: () => vocabulary,
+    WebSocketImpl: FakeSocket as unknown as typeof WebSocket,
+    logger,
+    ...overrides,
+  });
+}
+
+/** Connects and completes the handshake, leaving the socket ready. */
+async function connected(overrides?: Partial<Parameters<typeof createPushSocket>[0]>) {
+  socket = build(overrides);
+  socket.connect();
+  await vi.advanceTimersByTimeAsync(0);
+  FakeSocket.last().accept();
+  FakeSocket.last().push({ type: "ready", chat_id: "yui-3f9a2c1d" });
+  return socket;
+}
+
+beforeEach(() => {
+  vi.useFakeTimers();
+  FakeSocket.instances = [];
+  logger = makeLogger();
+  vocabulary = { ...VOCAB };
+});
+
+afterEach(() => {
+  socket?.dispose();
+  vi.useRealTimers();
+});
+
+describe("pushSocketUrl", () => {
+  it("gives wss://host:8646/ws for an https base", () => {
+    expect(pushSocketUrl("https://host:8646")).toBe("wss://host:8646/ws");
+  });
+
+  it("gives ws://…/ws for an http base and keeps the base path", () => {
+    expect(pushSocketUrl("http://localhost:8643/v1")).toBe("ws://localhost:8643/v1/ws");
+  });
+
+  it("collapses trailing slashes on the base", () => {
+    expect(pushSocketUrl("http://localhost:8646//")).toBe("ws://localhost:8646/ws");
+  });
+});
+
+describe("createPushSocket — handshake", () => {
+  it("opens the socket at the /ws URL and sends hello first", async () => {
+    socket = build();
+    socket.connect();
+    await vi.advanceTimersByTimeAsync(0);
+
+    expect(FakeSocket.last().url).toBe("ws://localhost:8646/ws");
+    FakeSocket.last().accept();
+
+    expect(FakeSocket.last().frames()).toEqual([
+      {
+        type: "hello",
+        key: "secret-key",
+        chat_id: "yui-3f9a2c1d",
+        vocabulary: VOCAB,
+      },
+    ]);
+  });
+
+  it("reports ready once the backend answers, and logs ws_open and ws_ready", async () => {
+    await connected();
+
+    expect(socket.getState()).toEqual({ kind: "ready", chat_id: "yui-3f9a2c1d" });
+    expect(logger.info).toHaveBeenCalledWith("ws_open", { url: "ws://localhost:8646/ws" });
+    expect(logger.info).toHaveBeenCalledWith("ws_ready", { chat_id: "yui-3f9a2c1d" });
+  });
+
+  it("is connecting between connect() and ready", async () => {
+    socket = build();
+    socket.connect();
+    expect(socket.getState()).toEqual({ kind: "connecting" });
+    await vi.advanceTimersByTimeAsync(0);
+    FakeSocket.last().accept();
+    expect(socket.getState()).toEqual({ kind: "connecting" });
+  });
+
+  it("closes and reconnects when ready does not arrive within 10 s", async () => {
+    socket = build();
+    socket.connect();
+    await vi.advanceTimersByTimeAsync(0);
+    FakeSocket.last().accept();
+
+    await vi.advanceTimersByTimeAsync(9_999);
+    expect(FakeSocket.last().closedWith).toBeNull();
+
+    await vi.advanceTimersByTimeAsync(1);
+    expect(FakeSocket.instances[0]!.closedWith).toBe(1000);
+
+    await vi.advanceTimersByTimeAsync(1_000);
+    expect(FakeSocket.instances).toHaveLength(2);
+  });
+
+  it("notifies state subscribers on every transition", async () => {
+    const seen: unknown[] = [];
+    socket = build();
+    socket.onState((s) => seen.push(s));
+    socket.connect();
+    await vi.advanceTimersByTimeAsync(0);
+    FakeSocket.last().accept();
+    FakeSocket.last().push({ type: "ready", chat_id: "yui-3f9a2c1d" });
+
+    expect(seen).toEqual([{ kind: "connecting" }, { kind: "ready", chat_id: "yui-3f9a2c1d" }]);
+  });
+});
+
+describe("createPushSocket — reconnect", () => {
+  it("waits 1 s, then doubles up to a 30 s cap", async () => {
+    socket = build();
+    socket.connect();
+    await vi.advanceTimersByTimeAsync(0);
+
+    const delays: number[] = [];
+    for (let i = 0; i < 7; i++) {
+      FakeSocket.last().drop();
+      const state = socket.getState();
+      if (state.kind === "reconnecting") delays.push(state.delay_ms);
+      await vi.advanceTimersByTimeAsync(state.kind === "reconnecting" ? state.delay_ms : 0);
+    }
+
+    expect(delays).toEqual([1_000, 2_000, 4_000, 8_000, 16_000, 30_000, 30_000]);
+  });
+
+  it("logs ws_close with the code and ws_reconnect with the delay", async () => {
+    socket = build();
+    socket.connect();
+    await vi.advanceTimersByTimeAsync(0);
+    FakeSocket.last().drop(1006);
+
+    expect(logger.info).toHaveBeenCalledWith("ws_close", { code: 1006 });
+    expect(logger.info).toHaveBeenCalledWith("ws_reconnect", { delay_ms: 1_000 });
+  });
+
+  it("resets the delay to 1 s after a ready", async () => {
+    socket = build();
+    socket.connect();
+    await vi.advanceTimersByTimeAsync(0);
+    FakeSocket.last().drop();
+    await vi.advanceTimersByTimeAsync(1_000);
+    FakeSocket.last().drop();
+    await vi.advanceTimersByTimeAsync(2_000);
+
+    FakeSocket.last().accept();
+    FakeSocket.last().push({ type: "ready", chat_id: "yui-3f9a2c1d" });
+    FakeSocket.last().drop();
+
+    expect(socket.getState()).toEqual({ kind: "reconnecting", delay_ms: 1_000 });
+  });
+
+  it("surfaces a wrong-key close as failed with its code, and still retries", async () => {
+    socket = build();
+    socket.connect();
+    await vi.advanceTimersByTimeAsync(0);
+    FakeSocket.last().accept();
+    FakeSocket.last().drop(4401);
+
+    expect(socket.getState()).toEqual({ kind: "failed", code: 4401 });
+
+    await vi.advanceTimersByTimeAsync(1_000);
+    expect(FakeSocket.instances).toHaveLength(2);
+  });
+
+  it("dispose() closes the socket and stops reconnecting", async () => {
+    socket = build();
+    socket.connect();
+    await vi.advanceTimersByTimeAsync(0);
+    FakeSocket.last().accept();
+    socket.dispose();
+
+    expect(FakeSocket.last().closedWith).toBe(1000);
+    expect(socket.getState()).toEqual({ kind: "disconnected" });
+
+    await vi.advanceTimersByTimeAsync(60_000);
+    expect(FakeSocket.instances).toHaveLength(1);
+  });
+});
+
+describe("createPushSocket — outbound frames", () => {
+  it("sends a turn frame once ready", async () => {
+    await connected();
+    expect(
+      socket.sendTurn({
+        turn_id: "7",
+        client_context: "<client_context>\nx\n</client_context>",
+        text: "hi",
+      }),
+    ).toBe(true);
+
+    expect(FakeSocket.last().frames().at(-1)).toEqual({
+      type: "turn",
+      turn_id: "7",
+      client_context: "<client_context>\nx\n</client_context>",
+      text: "hi",
+    });
+  });
+
+  it("refuses a turn before ready and sends nothing", async () => {
+    socket = build();
+    socket.connect();
+    await vi.advanceTimersByTimeAsync(0);
+    FakeSocket.last().accept();
+
+    expect(socket.sendTurn({ turn_id: "7", client_context: "", text: "hi" })).toBe(false);
+    expect(
+      FakeSocket.last()
+        .frames()
+        .map((f) => f.type),
+    ).toEqual(["hello"]);
+  });
+
+  it("sends a reset frame once ready and refuses one before", async () => {
+    socket = build();
+    socket.connect();
+    await vi.advanceTimersByTimeAsync(0);
+    expect(socket.sendReset()).toBe(false);
+
+    FakeSocket.last().accept();
+    FakeSocket.last().push({ type: "ready", chat_id: "yui-3f9a2c1d" });
+    expect(socket.sendReset()).toBe(true);
+    expect(FakeSocket.last().frames().at(-1)).toEqual({ type: "reset" });
+  });
+
+  it("sends a vocabulary frame when the renderable set changed", async () => {
+    await connected();
+    vocabulary = { ...VOCAB, motion_ids: ["idle", "dance"] };
+    socket.sendVocabulary();
+
+    expect(FakeSocket.last().frames().at(-1)).toEqual({
+      type: "vocabulary",
+      vocabulary: { ...VOCAB, motion_ids: ["idle", "dance"] },
+    });
+  });
+
+  it("sends nothing when the vocabulary is unchanged", async () => {
+    await connected();
+    socket.sendVocabulary();
+    expect(
+      FakeSocket.last()
+        .frames()
+        .map((f) => f.type),
+    ).toEqual(["hello"]);
+  });
+
+  it("carries the vocabulary current at reconnect time in the new hello", async () => {
+    await connected();
+    vocabulary = { ...VOCAB, emotion_ids: ["neutral"] };
+    FakeSocket.last().drop();
+    await vi.advanceTimersByTimeAsync(1_000);
+    FakeSocket.last().accept();
+
+    expect(FakeSocket.last().frames()[0]).toMatchObject({
+      type: "hello",
+      vocabulary: { ...VOCAB, emotion_ids: ["neutral"] },
+    });
+  });
+
+  it("drops an outbound frame over the size cap instead of sending it", async () => {
+    await connected();
+    const huge = "x".repeat(PUSH_FRAME_MAX_BYTES);
+
+    expect(socket.sendTurn({ turn_id: "7", client_context: huge, text: "" })).toBe(false);
+    expect(
+      FakeSocket.last()
+        .frames()
+        .map((f) => f.type),
+    ).toEqual(["hello"]);
+    expect(logger.warn).toHaveBeenCalledWith(
+      "frame_oversize",
+      expect.objectContaining({ type: "turn" }),
+    );
+  });
+});
+
+describe("createPushSocket — inbound frames", () => {
+  const RENDER = {
+    type: "render",
+    turn_id: "7",
+    source: "hermes",
+    segments: [
+      { cues: [{ emotion_id: "happy" }], speech: "All green." },
+      { cues: [], speech: "Want the list?" },
+    ],
+  };
+
+  it("hands a render frame to every subscriber", async () => {
+    await connected();
+    const seen: unknown[] = [];
+    socket.onRender((frame) => seen.push(frame));
+    FakeSocket.last().push(RENDER);
+
+    expect(seen).toEqual([RENDER]);
+  });
+
+  it("stops delivering after the subscription is dropped", async () => {
+    await connected();
+    const seen: unknown[] = [];
+    const off = socket.onRender((frame) => seen.push(frame));
+    off();
+    FakeSocket.last().push(RENDER);
+
+    expect(seen).toEqual([]);
+  });
+
+  it("hands a delegations frame's items to every subscriber", async () => {
+    await connected();
+    const seen: unknown[] = [];
+    socket.onDelegations((items) => seen.push(items));
+    const items = [{ id: "d-1", title: "Sort the list", started_at: 1, state: "running" }];
+    FakeSocket.last().push({ type: "delegations", items });
+
+    expect(seen).toEqual([items]);
+  });
+
+  it("ignores a frame that is not JSON", async () => {
+    await connected();
+    socket.onRender(() => {
+      throw new Error("must not fire");
+    });
+    expect(() => FakeSocket.last().push("not json")).not.toThrow();
+    expect(logger.warn).toHaveBeenCalledWith("frame_parse_failed", expect.anything());
+  });
+
+  it("ignores a frame over the size cap", async () => {
+    await connected();
+    const seen: unknown[] = [];
+    socket.onRender((frame) => seen.push(frame));
+    FakeSocket.last().push(JSON.stringify({ ...RENDER, source: "x".repeat(PUSH_FRAME_MAX_BYTES) }));
+
+    expect(seen).toEqual([]);
+    expect(logger.warn).toHaveBeenCalledWith("frame_oversize", expect.anything());
+  });
+
+  it("ignores a render frame whose segments are missing", async () => {
+    await connected();
+    const seen: unknown[] = [];
+    socket.onRender((frame) => seen.push(frame));
+    FakeSocket.last().push({ type: "render", turn_id: null, source: "hermes" });
+
+    expect(seen).toEqual([]);
+  });
+
+  it("ignores a frame type it does not know", async () => {
+    await connected();
+    expect(() => FakeSocket.last().push({ type: "weather" })).not.toThrow();
+  });
+});
