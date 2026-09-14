@@ -47,6 +47,7 @@ function fakeDelegations(initial: DelegationItem[] = []) {
       for (const cb of subs) cb(next);
     },
     listenerCount: () => subs.size,
+    refresh: vi.fn(),
   };
 }
 
@@ -149,6 +150,18 @@ describe("createQuickControls — session section delegated list", () => {
     vi.advanceTimersByTime(60_000);
 
     expect(rowTimes(qc)).toEqual(["5분"]);
+
+    qc.dispose();
+  });
+
+  it("asks the mirror to refresh on the minute tick, so it re-filters past its TTL", () => {
+    const delegations = fakeDelegations([running("d-1", 4 * 60_000)]);
+    const qc = buildQc(delegations);
+    qc.open();
+
+    vi.advanceTimersByTime(60_000);
+
+    expect(delegations.refresh).toHaveBeenCalledOnce();
 
     qc.dispose();
   });
