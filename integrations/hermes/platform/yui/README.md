@@ -15,13 +15,18 @@ turns in and finished replies out. The contract both sides speak is
   and naming the sentence each one belongs before.
 - Sends the final reply as a `render` frame: the speech split into sentences, each carrying the
   cues that landed on it. A turn the agent answers with `[SILENT]`, or with nothing, closes with
-  an empty `segments` list.
+  no speech, and the cues it placed still play.
 - Delivers the reply whole when the turn ends, so the gateway's `streaming` setting does not
   apply to this platform.
 - Sends a `delegations` frame whenever background work starts or finishes, so the client can show
   what is running.
 - Holds reports that arrive while the client is away, up to twenty, and delivers them as one
-  summary turn when it connects again.
+  summary turn when it connects again. Held reports live in memory, so a gateway restart while
+  the client is away drops them.
+- Starts a new conversation on `reset` and ends the delegations still running for that chat. The
+  gateway asks to confirm `/new`, and the plugin approves it because the client already did.
+- Serves one client at a time: the `generate_express` schema is declared once per process, from
+  the vocabulary of the client that published last.
 
 ## Install
 
@@ -63,7 +68,7 @@ carries the general tools and `delegation` carries `delegate_task`.
 |---|---|---|
 | `host` | `127.0.0.1` | Bind address of the WebSocket server |
 | `port` | `8646` | Port of the WebSocket server |
-| `key` | unset | Key the `hello` frame must carry. `YUI_PLATFORM_KEY` sets it from the environment. With no key set, any `hello` is accepted, which is why the default bind is loopback |
+| `key` | unset | Key the `hello` frame must carry. `YUI_PLATFORM_KEY` sets it from the environment. With no key set, any `hello` on a loopback `host` is accepted; a `host` reachable from elsewhere is refused until a key is set |
 
 Set `chat_api: "push"` in the client and point `chat_base_url` at this server. A
 `chat_base_url` of `https://host:8646` gives `wss://host:8646/ws`.
@@ -72,8 +77,8 @@ Set `chat_api: "push"` in the client and point `chat_base_url` at this server. A
 
 Expose the WebSocket port, and only that port: the gateway's own API server is a separate
 service and this transport does not use it. Most tunnels forward WebSocket upgrades on an
-ordinary HTTPS route, so `https://<tunnel-host>` as `chat_base_url` is enough. Set `key` before
-the port leaves loopback, and keep `host` at `127.0.0.1` with the tunnel connecting locally.
+ordinary HTTPS route, so `https://<tunnel-host>` as `chat_base_url` is enough. Keep `host` at
+`127.0.0.1` with the tunnel connecting locally, and set `key` before the port leaves loopback.
 
 ## Development
 
