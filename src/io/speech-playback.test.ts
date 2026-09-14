@@ -1118,6 +1118,87 @@ describe("createSpeechPlayback — emoji sanitization in delta", () => {
   });
 });
 
+describe("createSpeechPlayback — markdown links in delta", () => {
+  it("bubble keeps the markdown, pipeline receives the label only", () => {
+    const stub = stubPipelineFactory();
+    const renderer = spyRenderer();
+    const surfaces = spySurfaces();
+    const sp = createSpeechPlayback({
+      renderer,
+      surfaces,
+      pipeline: NO_PIPELINE,
+      createPipeline: stub.factory,
+      isStrolling: () => false,
+    });
+
+    sp.onSpeechDelta("Docs: [Example](https://example.com) 확인해봐");
+    // the bubble renders markdown itself, so it gets the raw text.
+    expect(surfaces.pushSpeech).toHaveBeenCalledWith(
+      "Docs: [Example](https://example.com) 확인해봐",
+    );
+    expect(stub.calls.pushTextDelta).toEqual(["Docs: Example 확인해봐"]);
+  });
+
+  it("a link split across two deltas reaches the pipeline stripped as a whole", () => {
+    const stub = stubPipelineFactory();
+    const renderer = spyRenderer();
+    const surfaces = spySurfaces();
+    const sp = createSpeechPlayback({
+      renderer,
+      surfaces,
+      pipeline: NO_PIPELINE,
+      createPipeline: stub.factory,
+      isStrolling: () => false,
+    });
+
+    sp.onSpeechDelta("봐 [Exa");
+    sp.onSpeechDelta("mple](https://example.com/a) 끝");
+    expect(stub.calls.pushTextDelta).toEqual(["봐 ", "Example 끝"]);
+    expect(surfaces.pushSpeech.mock.calls.map((c) => c[0])).toEqual([
+      "봐 [Exa",
+      "mple](https://example.com/a) 끝",
+    ]);
+  });
+
+  it("a held bracket run that never became a link is spoken on end, before the pipeline ends", () => {
+    const stub = stubPipelineFactory();
+    const renderer = spyRenderer();
+    const surfaces = spySurfaces();
+    const sp = createSpeechPlayback({
+      renderer,
+      surfaces,
+      pipeline: NO_PIPELINE,
+      createPipeline: stub.factory,
+      isStrolling: () => false,
+    });
+
+    sp.onSpeechDelta("[abc");
+    expect(stub.calls.pushTextDelta).toEqual([""]);
+    sp.onSpeechEnd();
+    expect(stub.calls.pushTextDelta).toEqual(["", "[abc"]);
+    expect(stub.calls.ended).toBe(1);
+  });
+
+  it("interrupt resets the carry: a stale bracket run does not leak into the next turn", () => {
+    const multi = multiPipelineFactory();
+    const renderer = spyRenderer();
+    const surfaces = spySurfaces();
+    const sp = createSpeechPlayback({
+      renderer,
+      surfaces,
+      pipeline: NO_PIPELINE,
+      createPipeline: multi.factory,
+      isStrolling: () => false,
+    });
+
+    sp.onSpeechDelta("[abc");
+    sp.interrupt();
+    sp.onSpeechDelta("z");
+    const newPipelineCalls = multi.instances[1].pushTextDelta.mock.calls.map((c) => c[0]);
+    expect(newPipelineCalls).toEqual(["z"]);
+  });
+});
+
 describe("createSpeechPlayback — holdMotion suppresses playMotion(null) for null cues", () => {
   it("holdMotion(true): null-cue onCuePlay does NOT call playMotion(null) but DOES easeEmotionToNeutral", () => {
     const stub = stubPipelineFactory();
