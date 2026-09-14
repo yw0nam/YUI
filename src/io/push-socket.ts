@@ -269,7 +269,10 @@ export function createPushSocket(deps: PushSocketDeps): PushSocket {
     }
     ws = socket;
 
+    // Every handler is guarded on identity: a socket the client has moved on from still fires its
+    // events on a later task, and must not touch the state of the one that replaced it.
     socket.onopen = () => {
+      if (ws !== socket) return;
       log.info("ws_open", { url });
       const vocabulary = deps.vocabulary();
       sentVocabulary = JSON.stringify(vocabulary);
@@ -281,9 +284,16 @@ export function createPushSocket(deps: PushSocketDeps): PushSocket {
       }, READY_WAIT_MS);
     };
 
-    socket.onmessage = (ev: { data: unknown }) => handleFrame(ev.data);
+    socket.onmessage = (ev: { data: unknown }) => {
+      if (ws !== socket) return;
+      handleFrame(ev.data);
+    };
 
     socket.onclose = (ev: { code: number }) => {
+      if (ws !== socket) {
+        log.debug("ws_close.stale", { code: ev.code });
+        return;
+      }
       if (readyTimer) clearTimeout(readyTimer);
       readyTimer = null;
       ws = null;
