@@ -95,6 +95,8 @@ export interface PushSocketPanelPort {
 export interface DelegationsPanelPort {
   get(): DelegationItem[];
   subscribe(cb: (items: DelegationItem[]) => void): () => void;
+  /** Ask the owner again — a mirror's only way to re-filter past its TTL without a new frame. */
+  refresh?(): void;
 }
 
 interface QuickControlsOptions {
@@ -672,7 +674,10 @@ export function createQuickControls({
     if (!delegations) return;
     const has = delegations.get().length > 0;
     if (has && delegationsTimer === null) {
-      delegationsTimer = setInterval(() => reflect.reflectDelegations(), DELEGATION_REFRESH_MS);
+      delegationsTimer = setInterval(() => {
+        delegations.refresh?.();
+        reflect.reflectDelegations();
+      }, DELEGATION_REFRESH_MS);
     } else if (!has && delegationsTimer !== null) {
       clearInterval(delegationsTimer);
       delegationsTimer = null;
