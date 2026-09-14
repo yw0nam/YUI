@@ -15,6 +15,7 @@ import {
 import { TTS_API_KEY_SECRET } from "./config/load";
 import { createConfigStore } from "./config/store";
 import { agentTriggerableMotionIds } from "./io/broker-client";
+import { createMirroredDelegations } from "./io/delegations-bridge";
 import { endpointDefaultsFromConfig } from "./io/endpoints-settings";
 import { rateLimitDefaultsFromConfig } from "./io/guardrails-settings";
 import { createMirroredPushSocket } from "./io/push-socket-bridge";
@@ -177,9 +178,12 @@ async function bootstrap(): Promise<void> {
   broadcastSpeaker = broadcastSettings;
   // The push socket lives in the pet window; this window mirrors it and asks it to reset.
   const pushSocket = createMirroredPushSocket({ bridge });
+  // The delegations list rides the same bridge; this window mirrors it, never a second socket.
+  const delegations = createMirroredDelegations({ bridge });
   window.addEventListener("focus", () => {
     reloadOnFocus();
     pushSocket.refresh();
+    delegations.refresh();
   });
 
   const buildQuickControls = (): ReturnType<typeof createQuickControls> =>
@@ -187,6 +191,7 @@ async function bootstrap(): Promise<void> {
       mount: app,
       variant: "window",
       pushSocket,
+      delegations,
       // Close settings window with Escape — closing for window variant is OS window's job.
       onCloseWindow: closeSettingsWindow,
       agentSettings,
@@ -335,6 +340,7 @@ async function bootstrap(): Promise<void> {
     unsubscribeLocale();
     unsubscribeVoiceRefresh();
     pushSocket.dispose();
+    delegations.dispose();
     disposeSync();
     window.removeEventListener("focus", reloadOnFocus);
     for (const store of Object.values(settingsStores)) store.dispose();

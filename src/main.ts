@@ -30,6 +30,8 @@ import { createUserInputSource } from "./dispatcher/user-input-source";
 import { agentTriggerableMotionIds, type BrokerPayload } from "./io/broker-client";
 import { CAMERA_WHEEL_SENSITIVITY, CAMERA_ZOOM_MAX, CAMERA_ZOOM_MIN } from "./io/camera-settings";
 import { createChatIdSettings, localStorageChatIdStorage } from "./io/chat-id-settings";
+import { publishDelegations } from "./io/delegations-bridge";
+import { createDelegationsStore } from "./io/delegations-store";
 import { createDevtoolsWindowOpener } from "./io/devtools-window";
 import { endpointDefaultsFromConfig, mergeEndpoints } from "./io/endpoints-settings";
 import { mergeGuardrails, rateLimitDefaultsFromConfig } from "./io/guardrails-settings";
@@ -326,8 +328,12 @@ async function bootstrap(): Promise<BootstrapHandle> {
   });
   register(pushSocket.dispose);
   register(chatIdSettings.dispose);
+  // The backend's delegations frames land here; the chip and the settings mirror both read it.
+  const delegations = createDelegationsStore();
   // The settings window has no socket of its own: it reads this one and asks it to reset.
   register(publishPushSocket({ socket: pushSocket, bridge: windowBridge }));
+  // The delegations list rides the same bridge; a fresh settings window asks for the current list.
+  register(publishDelegations({ store: delegations, bridge: windowBridge }));
 
   const buildQuickControls = (): ReturnType<typeof createQuickControls> =>
     createQuickControls({
@@ -543,6 +549,7 @@ async function bootstrap(): Promise<BootstrapHandle> {
       stage,
       getQuickControls: () => quickControls,
       pushSocket,
+      delegations,
       getEndpoints,
       getGuardrails,
       isDisposed: () => disposed,

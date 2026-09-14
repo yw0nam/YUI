@@ -42,7 +42,11 @@ import { CAMERA_ORBIT_SENSITIVITY } from "./io/camera-settings";
 import { selectFetch } from "./io/chat-client";
 import { createClientToolRegistry, createGenerateExpressTool } from "./io/client-tools";
 import { createCursorTracker } from "./io/cursor-tracker";
-import { createDelegationsStore } from "./io/delegations-store";
+import {
+  createDelegationChipSettings,
+  localStorageDelegationChipStorage,
+} from "./io/delegation-chip-settings";
+import type { DelegationsStore } from "./io/delegations-store";
 import { createDragHoldSource } from "./io/drag-hold-source";
 import { createFrontmostTracker } from "./io/frontmost-tracker";
 import { createHitTestController, type HitTestController } from "./io/hit-test";
@@ -62,6 +66,7 @@ import { appendRecord } from "./io/turn-record-log";
 import { createLogger } from "./logger";
 import type { Renderer } from "./renderer";
 import { showChainResetNotice } from "./ui/chain-reset-notice";
+import { createDelegationChip } from "./ui/delegation-chip";
 import { maybeShowFirstRunHint } from "./ui/first-run-hint";
 import { t } from "./ui/i18n";
 import { wireIngressDeadNotice } from "./ui/ingress-dead-notice";
@@ -105,6 +110,8 @@ interface Phase1Handles {
   getQuickControls(): ReturnType<typeof createQuickControls>;
   /** The push socket, when the chat protocol is push. The host owns its lifetime. */
   pushSocket?: PushSocket;
+  /** The backend's delegations list, fed by the push socket's `delegations` frames. */
+  delegations: DelegationsStore;
   getEndpoints(): EndpointsConfig;
   /** Effective guardrails — the editable caps layered on configs/guardrails.json. */
   getGuardrails(): GuardrailsConfig;
@@ -216,6 +223,7 @@ const realFactories: ConfiguredBootstrapFactories = {
       stage,
       getQuickControls,
       pushSocket,
+      delegations,
       getEndpoints,
       getGuardrails,
     } = phase1;
@@ -736,11 +744,24 @@ const realFactories: ConfiguredBootstrapFactories = {
           socket: pushSocket,
           turnOutput: voice.turnOutput,
           renderer,
-          delegations: createDelegationsStore(),
+          delegations,
           appendTurnRecord: (record) => appendRecord(record),
           appendTranscript: (entry) => chatHistoryStore.append(entry),
         }),
       );
+    }
+    // Only push mode carries a delegations list; the chip draws whatever the socket feeds the store.
+    if (getEndpoints().chat_api === "push") {
+      const chipCollapsed = createDelegationChipSettings({
+        storage: localStorageDelegationChipStorage(),
+      });
+      register(chipCollapsed.dispose);
+      const chip = createDelegationChip({
+        mount: root,
+        store: delegations,
+        collapsed: chipCollapsed,
+      });
+      register(() => chip.dispose());
     }
     ensureActive();
     wireStopControl({
