@@ -7,6 +7,7 @@
 
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { EndpointsConfig } from "../contract";
+import type { ChatHistoryEntry } from "../io/chat-history-store";
 import type { PushTurnFrame } from "../io/push-socket";
 import type { Logger } from "../logger";
 import { createBackendCaller } from "./backend-caller";
@@ -20,13 +21,25 @@ let sent: PushTurnFrame[];
 let records: unknown[];
 let contexts: unknown[];
 let spoke: boolean[];
+let transcript: ChatHistoryEntry[];
+let sessionToken: string;
+/** Runs when the turn frame goes out — the window a mid-turn reset lands in. */
+let onTurnSent: (() => void) | null;
 
 function callerWith(accepted: boolean, config: EndpointsConfig = PUSH_CONFIG) {
   sent = [];
   records = [];
   contexts = [];
   spoke = [];
+  transcript = [];
+  sessionToken = "s-1";
+  onTurnSent = null;
   return createBackendCaller({
+    transcript: {
+      entriesAfterLastBoundary: () => [],
+      append: (entry) => transcript.push(entry),
+      sessionToken: () => sessionToken,
+    },
     config,
     renderer: { applyDirective: vi.fn() } as never,
     getApiKey: async () => "k",
@@ -39,6 +52,7 @@ function callerWith(accepted: boolean, config: EndpointsConfig = PUSH_CONFIG) {
     turnOutput,
     pushTurn: (frame) => {
       sent.push(frame);
+      onTurnSent?.();
       return accepted;
     },
     reportSpokeText: (v) => spoke.push(v),
@@ -98,6 +112,47 @@ describe("backend_caller — push transport", () => {
       trigger_kind: "user",
       spoke_text: false,
     });
+  });
+
+  it("puts the user utterance in the transcript, as the other modes do", async () => {
+    await callerWith(true).call(turnOf(userEnv("안녕"), 1));
+
+    expect(transcript).toEqual([{ role: "user", text: "안녕", ts: expect.any(Number) }]);
+  });
+
+  it("writes nothing to the transcript for a turn no user spoke", async () => {
+    const caller = callerWith(true);
+    await caller.call(
+      turnOf(
+        {
+          seq_id: 3,
+          source: "timer_scheduler",
+          event_name: "schedule.morning",
+          ts: 1_717_000_000_000,
+          payload: { cue_id: "morning", label: "morning check-in" },
+          hint_tier: 2,
+        },
+        2,
+      ),
+    );
+
+    expect(transcript).toEqual([]);
+  });
+
+  it("keeps the utterance out of a conversation the user reset to mid-turn", async () => {
+    const caller = callerWith(true);
+    onTurnSent = () => {
+      sessionToken = "s-2";
+    };
+    await caller.call(turnOf(userEnv(), 1));
+
+    expect(transcript).toEqual([]);
+  });
+
+  it("writes nothing to the transcript when the socket refused the turn", async () => {
+    await callerWith(false).call(turnOf(userEnv(), 1));
+
+    expect(transcript).toEqual([]);
   });
 
   it("appends the sent context to the context history", async () => {

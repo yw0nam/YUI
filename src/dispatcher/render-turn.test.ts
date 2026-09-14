@@ -4,6 +4,7 @@
 
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { ControlEnvelope, ExpressArgs } from "../contract";
+import type { ChatHistoryEntry } from "../io/chat-history-store";
 import type { RenderFrame, RenderSegment } from "../io/push-socket";
 import { createSentenceSegmenter } from "../io/sentence-segmenter";
 import type { Logger } from "../logger";
@@ -46,6 +47,7 @@ let pipeline: ReturnType<typeof makePendingCuePipeline>;
 let directives: ControlEnvelope[];
 let logger: Logger;
 let records: unknown[];
+let transcript: ChatHistoryEntry[];
 
 function frame(segments: RenderSegment[], overrides: Partial<RenderFrame> = {}): RenderFrame {
   return { type: "render", turn_id: "7", source: "hermes", segments, ...overrides };
@@ -53,10 +55,12 @@ function frame(segments: RenderSegment[], overrides: Partial<RenderFrame> = {}):
 
 function turn() {
   records = [];
+  transcript = [];
   return createRenderTurn({
     turnOutput,
     renderer: { applyDirective: (env) => directives.push(env) },
     appendTurnRecord: (record) => records.push(record),
+    appendTranscript: (entry) => transcript.push(entry),
     logger,
   });
 }
@@ -228,6 +232,42 @@ describe("render_turn — silent segments", () => {
       r.render(frame([{ cues: [{ emotion_id: "sad" }] }, { speech: "Here." }])),
     ).not.toThrow();
     expect(pipeline.spoken).toEqual([{ text: "Here.", cue: null }]);
+  });
+});
+
+describe("render_turn — transcript", () => {
+  it("puts the spoken reply in the transcript as one assistant turn", () => {
+    turn().render(frame([{ speech: "All green." }, { speech: "Want the list?" }]));
+
+    expect(transcript).toEqual([
+      { role: "assistant", text: "All green. Want the list?", ts: expect.any(Number) },
+    ]);
+  });
+
+  it("leaves the silent segments out of the transcribed reply", () => {
+    turn().render(frame([{ speech: "[SILENT]" }, { speech: "Here." }, { speech: "  " }]));
+
+    expect(transcript).toEqual([{ role: "assistant", text: "Here.", ts: expect.any(Number) }]);
+  });
+
+  it("writes nothing for a reply that spoke nothing at all", () => {
+    turn().render(frame([{ cues: [{ emotion_id: "sad" }], speech: "[SILENT]" }]));
+
+    expect(transcript).toEqual([]);
+  });
+
+  it("a failed transcript append never breaks the render", () => {
+    const r = createRenderTurn({
+      turnOutput,
+      renderer: { applyDirective: (env) => directives.push(env) },
+      appendTranscript: vi.fn(() => {
+        throw new Error("store gone");
+      }),
+      logger,
+    });
+
+    expect(() => r.render(frame([{ speech: "Hello." }]))).not.toThrow();
+    expect(pipeline.spoken[0]!.text).toBe("Hello.");
   });
 });
 
