@@ -250,6 +250,33 @@ describe("createDelegationChip", () => {
     expect(listEl().hidden).toBe(true);
   });
 
+  it("cancels the list's pending fade-out on dispose, so a later tick can't flip its hidden state", () => {
+    const { store, chip } = build();
+    store.replace([running("d-1", 60_000)]);
+    chipButton().click();
+    const list = listEl();
+    chipButton().click();
+    expect(list.hidden).toBe(false);
+
+    chip.dispose();
+
+    expect(() => settle()).not.toThrow();
+    expect(list.hidden).toBe(false);
+  });
+
+  it("cancels the chip's own pending fade-out on dispose, so a later tick can't flip its hidden state", () => {
+    const { store, chip } = build();
+    store.replace([running("d-1", 60_000)]);
+    const el = chip.el;
+    store.replace([]);
+    expect(el.hidden).toBe(false);
+
+    chip.dispose();
+
+    expect(() => settle()).not.toThrow();
+    expect(el.hidden).toBe(false);
+  });
+
   // The pet window is click-through passthrough; the window-level hit test only grants OS
   // clicks to rects collected from INTERACTIVE_OVERLAY_SELECTORS. Without a registered
   // selector the DOM handlers never fire, so the chip is two dead changes.
