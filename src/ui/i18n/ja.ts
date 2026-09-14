@@ -481,6 +481,14 @@ const ja: Record<string, string> = {
   "session.confirm_q": "やり直しますか？",
   "session.confirm_go": "新しく始める",
   "session.confirm_cancel": "キャンセル",
+
+  // delegations
+  "deleg.chip_running": "作業{n}件を実行中",
+  "deleg.list_title": "委任した作業",
+  "deleg.min": "{n}分",
+  "deleg.hour_min": "{h}時間{m}分",
+  "deleg.done": "完了",
+  "deleg.done_ago": "完了 · {time}前",
 };
 
 export default ja;

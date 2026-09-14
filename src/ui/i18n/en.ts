@@ -482,6 +482,14 @@ const en: Record<string, string> = {
   "session.confirm_q": "Start over?",
   "session.confirm_go": "Start fresh",
   "session.confirm_cancel": "Cancel",
+
+  // delegations
+  "deleg.chip_running": "{n} task(s) in progress",
+  "deleg.list_title": "Delegated tasks",
+  "deleg.min": "{n}m",
+  "deleg.hour_min": "{h}h {m}m",
+  "deleg.done": "Done",
+  "deleg.done_ago": "Done · {time} ago",
 };
 
 export default en;

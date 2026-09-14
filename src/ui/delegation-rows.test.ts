@@ -7,7 +7,7 @@
 
 import { afterEach, describe, expect, it } from "vitest";
 import type { DelegationItem } from "../io/push-socket";
-import { setLocale } from "./i18n";
+import { type Locale, setLocale } from "./i18n";
 import {
   formatDelegationDuration,
   formatDelegationTime,
@@ -36,14 +36,15 @@ afterEach(() => {
 });
 
 describe("formatDelegationDuration — minutes under an hour, hours and minutes above", () => {
-  it.each([
+  const cases: [Locale, number, string][] = [
     ["en", 4 * 60_000, "4m"],
     ["en", 72 * 60_000, "1h 12m"],
     ["ko", 4 * 60_000, "4분"],
     ["ko", 72 * 60_000, "1시간 12분"],
     ["ja", 4 * 60_000, "4分"],
     ["ja", 72 * 60_000, "1時間12分"],
-  ])("formats %ims in %s as %s", (locale, ms, expected) => {
+  ];
+  it.each(cases)("formats %ims in %s as %s", (locale, ms, expected) => {
     setLocale(locale);
     expect(formatDelegationDuration(ms)).toBe(expected);
   });

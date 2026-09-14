@@ -479,6 +479,14 @@ const ko: Record<string, string> = {
   "session.confirm_q": "새로 시작할까요?",
   "session.confirm_go": "새로 시작",
   "session.confirm_cancel": "취소",
+
+  // delegations
+  "deleg.chip_running": "작업 {n}개 진행 중",
+  "deleg.list_title": "위임한 작업",
+  "deleg.min": "{n}분",
+  "deleg.hour_min": "{h}시간 {m}분",
+  "deleg.done": "끝남",
+  "deleg.done_ago": "끝남 · {time} 전",
 };
 
 export default ko;
