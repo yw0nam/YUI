@@ -140,6 +140,16 @@ describe("delegations across windows", () => {
     expect(mirror.get()).toEqual([]);
   });
 
+  it("treats a non-array delegations payload as an empty list instead of throwing", () => {
+    const mirror = createMirroredDelegations({ bridge: settingsBridge });
+
+    expect(() => {
+      petBridge.emitDelegations(null as unknown as DelegationItem[]);
+    }).not.toThrow();
+
+    expect(mirror.get()).toEqual([]);
+  });
+
   it("ignores its own window's publishes", () => {
     const seen: DelegationItem[][] = [];
     const stopAsk = petBridge.onDelegationsAsk(vi.fn());
