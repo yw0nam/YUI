@@ -189,8 +189,10 @@ is one of `user` \| `schedule` \| `proactive` \| `agent` \| `signals` \| `milest
 For `schedule`, `proactive`, `agent`, `signals`, and `milestone` turns there is no user utterance —
 the agent reads the trigger lines to decide whether and what to say. Firing a turn does
 not guarantee speech: the client renders whatever text the agent returns, and silence
-means the agent returns empty or no speech text. No client-side gate decides whether to
-speak (firing ≠ judgment).
+means the agent returns empty or no speech text. Speech text that, after trimming
+whitespace, is exactly `[SILENT]` is also a deliberate silence, equivalent to no speech
+text; `[SILENT]` inside a longer reply is ordinary text. No client-side gate decides
+whether to speak (firing ≠ judgment).
 
 ### `trigger: user message`
 
