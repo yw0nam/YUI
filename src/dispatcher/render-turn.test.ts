@@ -5,26 +5,36 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { ControlEnvelope, ExpressArgs } from "../contract";
 import type { RenderFrame, RenderSegment } from "../io/push-socket";
+import { createSentenceSegmenter } from "../io/sentence-segmenter";
 import type { Logger } from "../logger";
 import { createRenderTurn } from "./render-turn";
 import { makeLogger, makeTurnOutput } from "./test-helpers";
 
 /**
- * Mirrors the contract a cue really meets in the TTS pipeline: `cue()` parks one pending cue and
- * only a sentence consumes it, so a cue parked with no sentence behind it renders nothing. The
- * silent-segment assertions rest on that.
+ * Mirrors what a cue really meets in the TTS pipeline: text runs through the same sentence
+ * segmenter the pipeline uses, and each sentence consumes the one parked cue. A cue parked with no
+ * sentence behind it renders nothing, and two segments that the segmenter merges share one cue —
+ * which is what the boundary and silent-segment assertions rest on.
  */
 function makePendingCuePipeline() {
+  const segmenter = createSentenceSegmenter();
   let pendingCue: ExpressArgs | null = null;
   const spoken: { text: string; cue: ExpressArgs | null }[] = [];
+  const take = (text: string): void => {
+    spoken.push({ text, cue: pendingCue });
+    pendingCue = null;
+  };
   return {
     spoken,
     setCue(cue: ExpressArgs): void {
       pendingCue = cue;
     },
     pushText(text: string): void {
-      spoken.push({ text, cue: pendingCue });
-      pendingCue = null;
+      for (const sentence of segmenter.push(text)) take(sentence);
+    },
+    end(): void {
+      const rest = segmenter.flush();
+      if (rest) take(rest);
     },
     /** A cue still parked when the turn is over never reached the renderer. */
     unconsumed: () => pendingCue,
@@ -59,6 +69,7 @@ beforeEach(() => {
   // Route the spy output into the pending-cue pipeline: a cue renders only when a sentence takes it.
   turnOutput.cue.mockImplementation((args: ExpressArgs) => pipeline.setCue(args));
   turnOutput.delta.mockImplementation((text: string) => pipeline.pushText(text));
+  turnOutput.end.mockImplementation(() => pipeline.end());
 });
 
 describe("render_turn — speaking segments", () => {
@@ -76,6 +87,29 @@ describe("render_turn — speaking segments", () => {
     ]);
     expect(pipeline.unconsumed()).toBeNull();
     expect(turnOutput.end).toHaveBeenCalledTimes(1);
+  });
+
+  it("ends a segment that carries no terminator, so the next one does not swallow it", () => {
+    turn().render(
+      frame([
+        { cues: [{ emotion_id: "happy" }], speech: "All green" },
+        { cues: [{ emotion_id: "curious" }], speech: "Want the list?" },
+      ]),
+    );
+
+    expect(pipeline.spoken).toEqual([
+      { text: "All green", cue: { emotion_id: "happy" } },
+      { text: "Want the list?", cue: { emotion_id: "curious" } },
+    ]);
+  });
+
+  it("keeps a segment of several sentences together, each taking the cue in turn", () => {
+    turn().render(frame([{ cues: [{ emotion_id: "happy" }], speech: "All green. Every one." }]));
+
+    expect(pipeline.spoken).toEqual([
+      { text: "All green.", cue: { emotion_id: "happy" } },
+      { text: "Every one.", cue: null },
+    ]);
   });
 
   it("merges a segment's cues so every channel survives", () => {
