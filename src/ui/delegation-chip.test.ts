@@ -146,6 +146,20 @@ describe("createDelegationChip", () => {
     expect(listEl().hidden).toBe(true);
   });
 
+  it("closes the open list popover on Escape", () => {
+    const { store } = build();
+    store.replace([running("d-1", 60_000)]);
+
+    chipButton().click();
+    expect(listEl().hidden).toBe(false);
+
+    document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" }));
+
+    expect(chipButton().getAttribute("aria-expanded")).toBe("false");
+    settle();
+    expect(listEl().hidden).toBe(true);
+  });
+
   it("re-renders the open list when the store changes", () => {
     const { store } = build();
     store.replace([running("d-1", 60_000)]);
