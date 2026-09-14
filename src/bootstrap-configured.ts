@@ -8,6 +8,7 @@ import {
   wireGuardrailsOverrides,
   wirePeekExitTriggers,
   wirePercher,
+  wirePushTransport,
   type wireSpeakerSelection,
   wireStopControl,
   wireStrollReflexCancel,
@@ -41,11 +42,13 @@ import { CAMERA_ORBIT_SENSITIVITY } from "./io/camera-settings";
 import { selectFetch } from "./io/chat-client";
 import { createClientToolRegistry, createGenerateExpressTool } from "./io/client-tools";
 import { createCursorTracker } from "./io/cursor-tracker";
+import { createDelegationsStore } from "./io/delegations-store";
 import { createDragHoldSource } from "./io/drag-hold-source";
 import { createFrontmostTracker } from "./io/frontmost-tracker";
 import { createHitTestController, type HitTestController } from "./io/hit-test";
 import { enabledIdleVariants } from "./io/idle-motion-settings";
 import { createPeekState } from "./io/peek-state";
+import type { PushSocket } from "./io/push-socket";
 import type { DescentEdge } from "./io/screen-geometry";
 import { mergeScreen } from "./io/screen-settings";
 import type { ScreenCapturer } from "./io/screen-source-provider";
@@ -98,6 +101,8 @@ interface Phase1Handles {
   root: HTMLElement;
   stage: HTMLElement;
   getQuickControls(): ReturnType<typeof createQuickControls>;
+  /** The push socket, when the chat protocol is push. The host owns its lifetime. */
+  pushSocket?: PushSocket;
   getEndpoints(): EndpointsConfig;
   /** Effective guardrails — the editable caps layered on configs/guardrails.json. */
   getGuardrails(): GuardrailsConfig;
@@ -208,6 +213,7 @@ const realFactories: ConfiguredBootstrapFactories = {
       root,
       stage,
       getQuickControls,
+      pushSocket,
       getEndpoints,
       getGuardrails,
     } = phase1;
@@ -327,6 +333,7 @@ const realFactories: ConfiguredBootstrapFactories = {
       getAgentSettings: () => agentSettings.get(),
       // Built per turn from the published vocabulary, so a live edit reaches the next tool schema.
       clientTools: () => createClientToolRegistry([createGenerateExpressTool(broker.vocabulary())]),
+      pushTurn: (frame) => pushSocket?.sendTurn(frame) ?? false,
     });
     const guardrails = createGuardrails(getGuardrails());
     const pacer = createProactivePacer({ getIntervalMs: () => pacerGapSettings.get().value });
@@ -719,6 +726,17 @@ const realFactories: ConfiguredBootstrapFactories = {
       log,
     });
     register(broker.dispose);
+    if (pushSocket) {
+      register(
+        wirePushTransport({
+          socket: pushSocket,
+          turnOutput: voice.turnOutput,
+          delegations: createDelegationsStore(),
+          expressMotionSettings,
+          appendTurnRecord: (record) => appendRecord(record),
+        }),
+      );
+    }
     ensureActive();
     wireStopControl({
       onStop: (callback) => surfaces.onStop(callback),

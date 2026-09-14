@@ -29,9 +29,11 @@ import type { Guardrails, GuardrailsConfig } from "./dispatcher/guardrails";
 import { createMilestoneSource, type MilestoneSource } from "./dispatcher/milestone-source";
 import type { ProactivePacer } from "./dispatcher/proactive-pacer";
 import { createProactiveSource, type ProactiveSource } from "./dispatcher/proactive-source";
+import { createRenderTurn } from "./dispatcher/render-turn";
 import { createScheduleSource, type ScheduleSource } from "./dispatcher/schedule-source";
 import { createScreenSource, type ScreenSource } from "./dispatcher/screen-source";
 import { createSignalsSource, type SignalsSource } from "./dispatcher/signals-source";
+import type { TurnOutput } from "./dispatcher/turn-output";
 import type { UserInputSource } from "./dispatcher/user-input-source";
 import type { AgentNotifySettings } from "./io/agent-notify-settings";
 import { resolveAssetUrl, resolveUserFileSrc } from "./io/asset-url";
@@ -45,12 +47,14 @@ import {
 } from "./io/broker-client";
 import { createBrokerOverrideReconciler } from "./io/broker-override-reconciler";
 import { selectFetch } from "./io/chat-client";
+import type { DelegationsStore } from "./io/delegations-store";
 import { type EndpointOverrides, mergeEndpoints } from "./io/endpoints-settings";
 import type { ExpressMotionSettings } from "./io/express-motion-settings";
 import type { GuardrailsSettingsStore } from "./io/guardrails-settings";
 import { attachKeepOnScreen, type KeepOnScreenHandle } from "./io/keep-on-screen";
 import type { ClampedIntSettingsStore } from "./io/persisted-store";
 import type { ProactiveSettings } from "./io/proactive-settings";
+import type { DelegationItem, RenderFrame } from "./io/push-socket";
 import type { ScheduleSettings } from "./io/schedule-settings";
 import { type DescentEdge, type PetWindow, toScreenMonitor } from "./io/screen-geometry";
 import { createSettingsBridge, type SettingsBridge, type WindowKind } from "./io/settings-bridge";
@@ -73,6 +77,7 @@ import { createSummonHotkey, type SummonHotkey } from "./io/summon-hotkey";
 import { isTauri } from "./io/tauri-env";
 import { createTravelFrame, type FrameWindow, type Travel } from "./io/travel-frame";
 import { deleteVoice, upsertVoice } from "./io/tts-voices";
+import type { RenderRecord } from "./io/turn-record-log";
 import { appendRecord } from "./io/turn-record-log";
 import { removeOrphanImport } from "./io/user-asset-import";
 import { removeUserVoice as removeUserVoiceFile } from "./io/voice-import";
@@ -1807,4 +1812,34 @@ export async function wireDevGlobals(deps: {
       idleReturn: () => ambient.trigger("idle_returned"),
     },
   });
+}
+
+/**
+ * Routes an open push socket into the client: a `render` frame plays as a turn, a `delegations`
+ * frame replaces the tracked list, and a change to the renderable vocabulary is sent on. The
+ * socket itself is created and connected by the host, which owns its lifetime.
+ */
+export function wirePushTransport(deps: {
+  socket: {
+    onRender(cb: (frame: RenderFrame) => void): () => void;
+    onDelegations(cb: (items: DelegationItem[]) => void): () => void;
+    sendVocabulary(): void;
+  };
+  turnOutput: TurnOutput;
+  delegations: DelegationsStore;
+  expressMotionSettings: { subscribe(cb: () => void): () => void };
+  appendTurnRecord: (record: RenderRecord) => void;
+}): () => void {
+  const renderTurn = createRenderTurn({
+    turnOutput: deps.turnOutput,
+    appendTurnRecord: deps.appendTurnRecord,
+  });
+  const unsubscribes = [
+    deps.socket.onRender((frame) => renderTurn.render(frame)),
+    deps.socket.onDelegations((items) => deps.delegations.replace(items)),
+    deps.expressMotionSettings.subscribe(() => deps.socket.sendVocabulary()),
+  ];
+  return () => {
+    for (const off of unsubscribes) off();
+  };
 }

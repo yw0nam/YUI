@@ -26,8 +26,9 @@ import { CHAT_API_KEY_SECRET, STT_API_KEY_SECRET, TTS_API_KEY_SECRET } from "./c
 import { createConfigStore } from "./config/store";
 import { createEventBus } from "./dispatcher/event-bus";
 import { createUserInputSource } from "./dispatcher/user-input-source";
-import { agentTriggerableMotionIds } from "./io/broker-client";
+import { agentTriggerableMotionIds, type BrokerPayload } from "./io/broker-client";
 import { CAMERA_WHEEL_SENSITIVITY, CAMERA_ZOOM_MAX, CAMERA_ZOOM_MIN } from "./io/camera-settings";
+import { createChatIdSettings, localStorageChatIdStorage } from "./io/chat-id-settings";
 import { createDevtoolsWindowOpener } from "./io/devtools-window";
 import { endpointDefaultsFromConfig, mergeEndpoints } from "./io/endpoints-settings";
 import { mergeGuardrails, rateLimitDefaultsFromConfig } from "./io/guardrails-settings";
@@ -37,6 +38,7 @@ import { createRemoteSurfaces } from "./io/message-remote";
 import { createMessageWindowController, listenTrayToggle } from "./io/message-window";
 import { wireMessageWindowMode } from "./io/message-window-mode";
 import type { MessageWindowMode } from "./io/message-window-settings";
+import { createPushSocket, pushVocabularyOf } from "./io/push-socket";
 import { screenDefaultsFromConfig } from "./io/screen-settings";
 import { createSettingsSecretProvider } from "./io/secret-provider";
 import { createSettingsStores } from "./io/settings-stores";
@@ -309,9 +311,22 @@ async function bootstrap(): Promise<BootstrapHandle> {
     log,
   });
 
+  // One WebSocket carries turns out and finished replies in while the chat protocol is push. It is
+  // inert until connect(), which runs once the configured bootstrap has a vocabulary to advertise.
+  let publishedVocabulary: (() => BrokerPayload) | null = null;
+  const chatIdSettings = createChatIdSettings({ storage: localStorageChatIdStorage() });
+  const pushSocket = createPushSocket({
+    chatBaseUrl: () => getEndpoints().chat_base_url,
+    chatId: () => chatIdSettings.get().chat_id,
+    getKey: () => config.secrets.get(CHAT_API_KEY_SECRET),
+    vocabulary: () => pushVocabularyOf(publishedVocabulary?.()),
+  });
+  register(pushSocket.dispose);
+
   const buildQuickControls = (): ReturnType<typeof createQuickControls> =>
     createQuickControls({
       mount: root,
+      pushSocket,
       settings: screenshotSettings,
       idleThrottleSettings,
       gazeSettings,
@@ -521,12 +536,15 @@ async function bootstrap(): Promise<BootstrapHandle> {
       root,
       stage,
       getQuickControls: () => quickControls,
+      pushSocket,
       getEndpoints,
       getGuardrails,
       isDisposed: () => disposed,
     });
     register(configured.dispose);
     if (disposed) return { dispose };
+    publishedVocabulary = configured.broker.vocabulary;
+    if (getEndpoints().chat_api === "push") pushSocket.connect();
     if (import.meta.env.DEV) {
       Object.assign(globalThis as Record<string, unknown>, {
         __yuiSpeech: configured.voice.speechPlayback,
