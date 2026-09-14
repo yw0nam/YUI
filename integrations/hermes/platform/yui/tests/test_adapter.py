@@ -12,7 +12,6 @@ from aiohttp.test_utils import TestClient, TestServer
 from gateway_stub import SLASH_CONFIRM, STUB_ENV, MessageEvent, MessageType, ProcessingOutcome
 from yui import delegations, reports, state
 from yui.adapter import MAX_FRAME_BYTES, YuiAdapter, is_loopback
-from yui.segments import Placement
 
 CHAT = "yui-3f9a2c1d"
 KEY = "test-key"
@@ -90,6 +89,12 @@ async def wait_for(predicate, timeout=2.0):
             return
         await asyncio.sleep(0.01)
     raise AssertionError("condition never held")
+
+
+def user_turn(adapter, turn_id):
+    return MessageEvent(
+        text="hi", message_id=turn_id, source=adapter.build_source(chat_id=CHAT, chat_type="dm")
+    )
 
 
 def internal_event(adapter, text):
@@ -193,7 +198,7 @@ async def test_a_vocabulary_frame_replaces_what_the_cues_are_checked_against(cli
 
 async def test_the_final_reply_renders_as_cued_sentences(client, adapter):
     ws = await ready(client)
-    state.set_turn_id(CHAT, "1789365854947")
+    await adapter.on_processing_start(user_turn(adapter, "1789365854947"))
     state.append_cue(CHAT, {"emotion_id": "happy"}, "All green")
     state.append_cue(CHAT, {"emotion_id": "curious"}, "Want the slow ones")
     await adapter.send(CHAT, "All green. Want the slow ones listed?", metadata={"notify": True})
@@ -209,24 +214,43 @@ async def test_the_final_reply_renders_as_cued_sentences(client, adapter):
     }
 
 
-async def test_a_progress_send_never_reaches_the_client(client, adapter):
+async def test_a_reply_the_gateway_did_not_mark_final_still_renders(client, adapter):
     ws = await ready(client)
-    await adapter.send(CHAT, "still working", metadata=None)
-    await adapter.send(CHAT, "done", metadata={"notify": True})
-    frame = await recv(ws)
-    assert frame["segments"] == [{"cues": [], "speech": "done"}]
+    await adapter.send(CHAT, "The tests passed.", metadata={"thread_id": "t1"})
+    assert (await recv(ws))["segments"] == [{"cues": [], "speech": "The tests passed."}]
+
+
+async def test_an_interim_stream_frame_is_not_rendered(client, adapter):
+    ws = await ready(client)
+    await adapter.send(CHAT, "The tests", metadata={"expect_edits": True})
+    await adapter.send(CHAT, "The tests passed.", metadata={"notify": True})
+    assert (await recv(ws))["segments"] == [{"cues": [], "speech": "The tests passed."}]
+
+
+async def test_a_mid_turn_status_line_is_not_rendered(client, adapter):
+    ws = await ready(client)
+    await adapter.send(CHAT, "⏳ Working — 2 min", metadata={"_interim_send": True})
+    await adapter.send(CHAT, "Done.", metadata={"notify": True})
+    assert (await recv(ws))["segments"] == [{"cues": [], "speech": "Done."}]
+
+
+async def test_a_send_with_no_words_is_not_rendered(client, adapter):
+    ws = await ready(client)
+    await adapter.send(CHAT, "   ", metadata={"notify": True})
+    await adapter.send(CHAT, "Done.", metadata={"notify": True})
+    assert (await recv(ws))["segments"] == [{"cues": [], "speech": "Done."}]
 
 
 async def test_a_reply_the_agent_speaks_on_its_own_carries_no_turn_id(client, adapter):
     ws = await ready(client)
-    state.set_turn_id(CHAT, None)
+    await adapter.on_processing_start(internal_event(adapter, "the build finished"))
     await adapter.send(CHAT, "The build finished.", metadata={"notify": True})
     assert (await recv(ws))["turn_id"] is None
 
 
 async def test_a_silent_turn_with_no_cues_closes_with_no_segments(client, adapter):
     ws = await ready(client)
-    state.set_turn_id(CHAT, "7")
+    await adapter.on_processing_start(user_turn(adapter, "7"))
     event = MessageEvent(text="hi", source=adapter.build_source(chat_id=CHAT))
     await adapter.on_processing_complete(event, ProcessingOutcome.SUCCESS)
     assert await recv(ws) == {
@@ -373,28 +397,38 @@ async def test_approving_the_confirmation_leaves_the_next_reply_speakable(client
     assert frame["segments"] == [{"cues": [], "speech": "Hello again."}]
 
 
-async def test_the_turn_id_is_bound_when_the_gateway_starts_the_turn(adapter):
-    await adapter.on_processing_start(
-        MessageEvent(text="hi", message_id="777", source=adapter.build_source(chat_id=CHAT))
-    )
-    assert state.turn_id(CHAT) == "777"
+async def test_the_turn_id_is_bound_when_the_gateway_starts_the_turn(client, adapter):
+    ws = await ready(client)
+    await adapter.on_processing_start(user_turn(adapter, "777"))
+    await adapter.send(CHAT, "Done.", metadata={"notify": True})
+    assert (await recv(ws))["turn_id"] == "777"
 
 
-async def test_a_report_turn_renders_without_a_turn_id(adapter):
-    state.set_turn_id(CHAT, "777")
+async def test_a_report_turn_renders_without_a_turn_id(client, adapter):
+    ws = await ready(client)
     await adapter.on_processing_start(internal_event(adapter, "the build finished"))
-    assert state.turn_id(CHAT) is None
+    await adapter.send(CHAT, "The build finished.", metadata={"notify": True})
+    assert (await recv(ws))["turn_id"] is None
+
+
+async def test_only_the_first_reply_of_a_run_names_the_turn(client, adapter):
+    ws = await ready(client)
+    await adapter.on_processing_start(user_turn(adapter, "777"))
+    await adapter.send(CHAT, "The tests passed.", metadata={"thread_id": "t1"})
+    await adapter.send(CHAT, "And the child finished.", metadata={"notify": True})
+    assert (await recv(ws))["turn_id"] == "777"
+    assert (await recv(ws))["turn_id"] is None
 
 
 async def test_a_report_admitted_mid_turn_leaves_the_running_turn_alone(client, adapter):
-    await ready(client)
-    await adapter.on_processing_start(
-        MessageEvent(text="hi", message_id="777", source=adapter.build_source(chat_id=CHAT))
-    )
+    ws = await ready(client)
+    await adapter.on_processing_start(user_turn(adapter, "777"))
     state.append_cue(CHAT, {"emotion_id": "happy"}, "")
     await adapter.handle_message(internal_event(adapter, "the build finished"))
-    assert state.turn_id(CHAT) == "777"
-    assert state.pop_cues(CHAT) == [Placement({"emotion_id": "happy"}, "")]
+    await adapter.send(CHAT, "Done.", metadata={"notify": True})
+    frame = await recv(ws)
+    assert frame["turn_id"] == "777"
+    assert frame["segments"] == [{"cues": [{"emotion_id": "happy"}], "speech": "Done."}]
 
 
 async def test_an_empty_turn_is_answered_so_the_client_is_not_left_waiting(client, adapter):
@@ -406,7 +440,7 @@ async def test_an_empty_turn_is_answered_so_the_client_is_not_left_waiting(clien
 
 async def test_a_silent_turn_still_plays_its_cues(client, adapter):
     ws = await ready(client)
-    state.set_turn_id(CHAT, "7")
+    await adapter.on_processing_start(user_turn(adapter, "7"))
     state.append_cue(CHAT, {"emotion_id": "happy"}, "One")
     state.append_cue(CHAT, {"motion_id": "idle"}, "")
     event = MessageEvent(text="hi", source=adapter.build_source(chat_id=CHAT))
@@ -421,7 +455,7 @@ async def test_a_silent_turn_still_plays_its_cues(client, adapter):
 
 async def test_an_oversize_render_loses_its_trailing_segments(client, adapter):
     ws = await ready(client)
-    state.set_turn_id(CHAT, "7")
+    await adapter.on_processing_start(user_turn(adapter, "7"))
     await adapter.send(CHAT, ("x" * 1000 + ". ") * 300, metadata={"notify": True})
     frame = await recv(ws)
     assert len(json.dumps(frame, ensure_ascii=False).encode("utf-8")) <= MAX_FRAME_BYTES

@@ -58,11 +58,10 @@ def test_nothing_is_renderable_until_a_vocabulary_is_published():
     assert state.vocabulary("yui").emotion_ids == ["happy"]
 
 
-def test_a_turn_with_no_id_renders_without_one():
+def test_only_the_first_reply_of_a_run_takes_the_turn_id():
     state.set_turn_id("yui", "17893")
-    assert state.turn_id("yui") == "17893"
-    state.set_turn_id("yui", None)
-    assert state.turn_id("yui") is None
+    assert state.take_turn_id("yui") == "17893"
+    assert state.take_turn_id("yui") is None
 
 
 def test_delivery_mark_is_taken_once():
