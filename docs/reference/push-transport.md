@@ -84,7 +84,7 @@ The `vocabulary` object from `hello`, sent again whenever the renderable set cha
 { "type": "reset" }
 ```
 
-The backend starts a new conversation under the same `chat_id`. Long-term memory the backend keeps across conversations stays. The transcript starts empty. Work the backend delegated before the reset continues, and its report arrives in the new conversation.
+The backend starts a new conversation under the same `chat_id`. Long-term memory the backend keeps across conversations stays. The transcript starts empty. Work the backend delegated in the old conversation ends with it, and the next `delegations` frame lists nothing.
 
 ## Replies
 
