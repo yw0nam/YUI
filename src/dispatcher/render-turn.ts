@@ -12,6 +12,7 @@
  */
 
 import type { ControlEnvelope, EmotionId, ExpressArgs } from "../contract";
+import type { ChatHistoryEntry } from "../io/chat-history-store";
 import type { RenderFrame } from "../io/push-socket";
 import { isSilenceToken } from "../io/silence-token";
 import { buildRenderRecord, type RenderRecord } from "../io/turn-record-log";
@@ -25,6 +26,8 @@ export interface RenderTurnDeps {
   turnOutput: TurnOutput;
   /** Render sink for a cue with no audio behind it. */
   renderer: Pick<Renderer, "applyDirective">;
+  /** Conversation transcript — the reply half of a push turn lands here. */
+  appendTranscript?: (entry: ChatHistoryEntry) => void;
   appendTurnRecord?: (record: RenderRecord) => void;
   logger?: Logger;
 }
@@ -63,6 +66,7 @@ export function createRenderTurn(deps: RenderTurnDeps): RenderTurn {
       deps.turnOutput.interrupt();
 
       let spokeText = false;
+      const said: string[] = [];
       for (const segment of segments) {
         const cue = mergeCues(segment.cues ?? []);
         const speech = segment.speech ?? "";
@@ -73,6 +77,7 @@ export function createRenderTurn(deps: RenderTurnDeps): RenderTurn {
           // The newline is a sentence boundary to the segmenter, so a segment that ends without a
           // terminator still closes here instead of running into the next segment and its cue.
           deps.turnOutput.delta(`${speech}\n`);
+          said.push(speech.trim());
           spokeText = true;
           continue;
         }
@@ -92,6 +97,14 @@ export function createRenderTurn(deps: RenderTurnDeps): RenderTurn {
         segments: segments.length,
         spoke_text: spokeText,
       });
+
+      if (said.length > 0) {
+        try {
+          deps.appendTranscript?.({ role: "assistant", text: said.join(" "), ts: Date.now() });
+        } catch (err) {
+          log.debug("transcript_append_failed", { error: String(err) });
+        }
+      }
 
       try {
         deps.appendTurnRecord?.(

@@ -391,6 +391,14 @@ export function createBackendCaller(deps: BackendCallerDeps): BackendCaller {
         // Handed over, nothing to speak now: the same silent ending an empty backend reply has.
         log.info("push_turn", { event_name: env.event_name, turn_id: String(turn.id) });
         deps.reportSpokeText?.(false);
+        // The reply arrives on its own later and is appended there; this half is the user's.
+        if (deps.transcript && ctx.user_text !== undefined) {
+          if (deps.transcript.sessionToken() === startSessionToken) {
+            deps.transcript.append({ role: "user", text: ctx.user_text, ts: Date.now() });
+          } else {
+            log.info("transcript_skipped", { reason: "session_reset", event_name: env.event_name });
+          }
+        }
         deps.contextHistory?.append({
           ts: Date.now(),
           event_name: env.event_name,

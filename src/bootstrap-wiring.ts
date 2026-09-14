@@ -47,6 +47,7 @@ import {
 } from "./io/broker-client";
 import { createBrokerOverrideReconciler } from "./io/broker-override-reconciler";
 import { selectFetch } from "./io/chat-client";
+import type { ChatHistoryEntry } from "./io/chat-history-store";
 import type { DelegationsStore } from "./io/delegations-store";
 import { type EndpointOverrides, mergeEndpoints } from "./io/endpoints-settings";
 import type { ExpressMotionSettings } from "./io/express-motion-settings";
@@ -1834,11 +1835,14 @@ export function wirePushTransport(deps: {
   delegations: DelegationsStore;
   expressMotionSettings: { subscribe(cb: () => void): () => void };
   appendTurnRecord: (record: RenderRecord) => void;
+  /** Conversation transcript — the reply half of a push turn lands here. */
+  appendTranscript: (entry: ChatHistoryEntry) => void;
 }): () => void {
   const renderTurn = createRenderTurn({
     turnOutput: deps.turnOutput,
     renderer: deps.renderer,
     appendTurnRecord: deps.appendTurnRecord,
+    appendTranscript: deps.appendTranscript,
   });
   const unsubscribes = [
     deps.socket.onRender((frame) => renderTurn.render(frame)),

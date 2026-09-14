@@ -735,6 +735,7 @@ const realFactories: ConfiguredBootstrapFactories = {
           delegations: createDelegationsStore(),
           expressMotionSettings,
           appendTurnRecord: (record) => appendRecord(record),
+          appendTranscript: (entry) => chatHistoryStore.append(entry),
         }),
       );
     }
