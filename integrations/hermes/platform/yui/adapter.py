@@ -217,6 +217,8 @@ class YuiAdapter(BasePlatformAdapter):
         await self._send_frame(chat_id, {"type": "ready", "chat_id": chat_id})
         await self._send_delegations(chat_id)
         logger.info("yui: client ready chat=%s", chat_id)
+        # The reply it missed comes before the agent starts a new turn on the held reports.
+        await self._flush_renders(chat_id)
         await self._flush_reports(chat_id)
         return chat_id
 
@@ -316,6 +318,21 @@ class YuiAdapter(BasePlatformAdapter):
             logger.warning("yui: send failed chat=%s — %s", chat_id, e)
             return False
 
+    async def _send_render(self, chat_id: str, frame: dict) -> bool:
+        """Hold a reply for a client that is away, so a turn answered mid-outage is not lost."""
+        if state.is_connected(chat_id):
+            return await self._send_frame(chat_id, frame)
+        reports.queue_render(chat_id, frame)
+        logger.info("yui: reply held for an away client chat=%s", chat_id)
+        return True
+
+    async def _flush_renders(self, chat_id: str) -> None:
+        held, dropped = reports.take_renders(chat_id)
+        if dropped:
+            logger.warning("yui: %d held reply(s) dropped chat=%s", dropped, chat_id)
+        for frame in held:
+            await self._send_frame(chat_id, frame)
+
     # -- reports and delegations --------------------------------------------------------------
 
     async def handle_message(self, event: MessageEvent) -> None:
@@ -380,7 +397,7 @@ class YuiAdapter(BasePlatformAdapter):
             return SendResult(success=True, message_id=_message_id())
         segments = build_segments(content, state.pop_cues(chat_id))
         state.mark_delivered(chat_id)
-        sent = await self._send_frame(chat_id, self._render(state.take_turn_id(chat_id), segments))
+        sent = await self._send_render(chat_id, self._render(state.take_turn_id(chat_id), segments))
         return SendResult(
             success=sent,
             message_id=_message_id(),
@@ -412,4 +429,4 @@ class YuiAdapter(BasePlatformAdapter):
         logger.info("yui: turn ended without speech chat=%s outcome=%s", chat_id, outcome)
         # Cues on a silent turn still play; the segment they ride on carries no speech.
         segments = [{"cues": cues, "speech": ""}] if cues else []
-        await self._send_frame(chat_id, self._render(state.take_turn_id(chat_id), segments))
+        await self._send_render(chat_id, self._render(state.take_turn_id(chat_id), segments))

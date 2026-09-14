@@ -23,8 +23,9 @@ turns in and finished replies out. The contract both sides speak is
 - Sends a `delegations` frame whenever background work starts or finishes, so the client can show
   what is running.
 - Holds reports that arrive while the client is away, up to twenty, and delivers them as one
-  summary turn when it connects again. Held reports live in memory, so a gateway restart while
-  the client is away drops them.
+  summary turn when it connects again. A reply that finishes while the client is away is held the
+  same way and sent first when it reconnects. Both live in memory, so a gateway restart while the
+  client is away drops them.
 - Starts a new conversation on `reset` and ends the delegations still running for that chat. The
   gateway asks to confirm `/new`, and the plugin approves it because the client already did.
 - Serves one client at a time: the `generate_express` schema is declared once per process, from
