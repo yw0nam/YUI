@@ -1,0 +1,28 @@
+name: yui
+label: YUI
+kind: platform
+version: 0.1.0
+description: >
+  YUI (embodied VRM frontend) as a gateway platform channel. A loopback HTTP server accepts one
+  pushed turn per POST /turn — the rendered client_context block, the user utterance, and the
+  emotion/motion/emotion_text vocabulary the client can render — and answers 202 immediately.
+  The agent's final reply leaves through the adapter and is POSTed to YUI's loopback /render
+  route together with the generate_express cues fired during that turn, so speech and cue arrive
+  as one payload and the standalone Expression Broker is not in the path.
+
+  Because this is a platform channel rather than the stateless API server, the gateway grants it
+  async delivery: a delegate_task(background=true) completion comes back as a new turn and is
+  spoken whenever it finishes.
+author: YUI
+provides_tools:
+  - generate_express
+requires_env: []
+optional_env:
+  - name: YUI_PLATFORM_PORT
+    description: "Loopback port this platform accepts pushed turns on (default 8646)."
+    prompt: "YUI platform port (default 8646)"
+    password: false
+  - name: YUI_INGRESS_PORT
+    description: "Port of YUI's loopback ingress, where finished turns are rendered (default 8770)."
+    prompt: "YUI ingress port (default 8770)"
+    password: false

@@ -1,0 +1,23 @@
+[project]
+name = "yui-hermes-platform"
+version = "0.1.0"
+description = "Hermes gateway platform plugin for the YUI push transport"
+requires-python = ">=3.10"
+dependencies = [
+    "aiohttp>=3.12",
+]
+
+[dependency-groups]
+dev = [
+    "pytest>=8.0",
+    "pytest-asyncio>=0.24",
+    "ruff>=0.6",
+]
+
+[tool.pytest.ini_options]
+pythonpath = [".."]
+testpaths = ["tests"]
+asyncio_mode = "auto"
+
+[tool.ruff]
+line-length = 110
