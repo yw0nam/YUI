@@ -61,12 +61,17 @@ const RENDER: RenderFrame = {
   segments: [{ cues: [{ emotion_id: "happy" }], speech: "All green." }],
 };
 
+function fakeLog() {
+  return { info: vi.fn(), warn: () => {}, error: () => {}, debug: () => {} };
+}
+
 let socket: ReturnType<typeof fakeSocket>;
 let turnOutput: ReturnType<typeof makeTurnOutput>;
 let delegations: ReturnType<typeof createDelegationsStore>;
 let records: unknown[];
 let directives: ControlEnvelope[];
 let transcript: ChatHistoryEntry[];
+let log: ReturnType<typeof fakeLog>;
 
 function wire() {
   return wirePushTransport({
@@ -76,6 +81,7 @@ function wire() {
     delegations,
     appendTurnRecord: (record) => records.push(record),
     appendTranscript: (entry) => transcript.push(entry),
+    log,
   });
 }
 
@@ -86,6 +92,7 @@ beforeEach(() => {
   records = [];
   directives = [];
   transcript = [];
+  log = fakeLog();
 });
 
 describe("wirePushTransport", () => {
@@ -125,6 +132,16 @@ describe("wirePushTransport", () => {
     ]);
 
     expect(delegations.get().map((d) => d.id)).toEqual(["d-1"]);
+  });
+
+  it("logs one info line per delegations frame with the total and running counts", () => {
+    wire();
+    socket.pushDelegations([
+      { id: "d-1", title: "Sort the list", started_at: 1, state: "running" },
+      { id: "d-2", title: "Done already", started_at: 1, state: "done", ended_at: 2 },
+    ]);
+
+    expect(log.info).toHaveBeenCalledExactlyOnceWith("delegations", { total: 2, running: 1 });
   });
 
   it("drops every subscription on dispose", () => {
