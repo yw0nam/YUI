@@ -491,3 +491,23 @@ async def test_a_reply_finished_while_the_client_is_away_arrives_on_reconnect(cl
         "source": "hermes",
         "segments": [{"cues": [], "speech": "The tests passed."}],
     }
+
+
+async def test_a_reply_the_socket_cannot_take_is_held_not_failed(client, adapter):
+    ws = await ready(client)
+    await adapter.on_processing_start(user_turn(adapter, "777"))
+    await ws.close()
+    # The connected mark can outlive a socket the client has already dropped.
+    await wait_for(lambda: not state.is_connected(CHAT))
+    state.set_connected(CHAT, True)
+    assert (await adapter.send(CHAT, "The tests passed.", metadata={"notify": True})).success is True
+    back = await ready(client)
+    assert (await recv(back))["turn_id"] == "777"
+
+
+async def test_a_socket_that_dies_mid_flush_keeps_the_replies_it_did_not_take(adapter):
+    for turn_id in ("1", "2"):
+        reports.queue_render(CHAT, {"type": "render", "turn_id": turn_id, "segments": []})
+    await adapter._flush_renders(CHAT)
+    held, _dropped = reports.take_renders(CHAT)
+    assert [frame["turn_id"] for frame in held] == ["1", "2"]
