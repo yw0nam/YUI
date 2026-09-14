@@ -13,6 +13,7 @@ _cues: dict[str, list[Placement]] = {}
 _turn_ids: dict[str, str | None] = {}
 _delivered: set[str] = set()
 _connected: set[str] = set()
+_muted: set[str] = set()
 
 
 def set_vocabulary(chat_id: str, vocab: Vocabulary) -> None:
@@ -62,6 +63,23 @@ def take_delivered(chat_id: str) -> bool:
         had = chat_id in _delivered
         _delivered.discard(chat_id)
         return had
+
+
+def set_muted(chat_id: str, muted: bool) -> None:
+    """Arm or disarm swallowing the next final reply for this chat."""
+    with _lock:
+        if muted:
+            _muted.add(chat_id)
+        else:
+            _muted.discard(chat_id)
+
+
+def take_muted(chat_id: str) -> bool:
+    """Whether this chat's next final reply stays unspoken; clears the mark."""
+    with _lock:
+        muted = chat_id in _muted
+        _muted.discard(chat_id)
+        return muted
 
 
 def set_connected(chat_id: str, connected: bool) -> None:

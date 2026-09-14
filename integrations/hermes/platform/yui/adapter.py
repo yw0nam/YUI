@@ -69,6 +69,7 @@ class YuiAdapter(BasePlatformAdapter):
         self._sockets: dict[str, web.WebSocketResponse] = {}
         self._loop: asyncio.AbstractEventLoop | None = None
         self._runner: web.AppRunner | None = None
+        self._confirmations: set[asyncio.Task] = set()
         self._site: web.TCPSite | None = None
 
     @property
@@ -234,6 +235,8 @@ class YuiAdapter(BasePlatformAdapter):
         """The gateway's own /new: the transcript starts empty under the same chat."""
         state.reset(chat_id)
         state.set_turn_id(chat_id, None)
+        # The client asked for the reset, so its acknowledgement is not worth speaking.
+        state.set_muted(chat_id, True)
         logger.info("yui: reset chat=%s", chat_id)
         await self.handle_message(
             MessageEvent(
@@ -243,6 +246,30 @@ class YuiAdapter(BasePlatformAdapter):
                 source=self._source(chat_id),
             )
         )
+        # /new ends the delegations still running for this chat.
+        delegations.forget(chat_id)
+        await self._send_delegations(chat_id)
+
+    async def send_slash_confirm(
+        self,
+        chat_id: str,
+        title: str,
+        message: str,
+        session_key: str,
+        confirm_id: str,
+        metadata: dict | None = None,
+    ) -> SendResult:
+        """Approve the gateway's confirmation: the client's own confirm button was the approval."""
+        from tools import slash_confirm
+
+        # Resolving runs the command inline, so it waits for this dispatch to unwind first.
+        task = asyncio.create_task(slash_confirm.resolve(session_key, confirm_id, "once"))
+        self._confirmations.add(task)
+        task.add_done_callback(self._confirmations.discard)
+        # The command's own reply comes back to that task instead of through send().
+        state.set_muted(chat_id, False)
+        logger.info("yui: approved %s for chat=%s", title, chat_id)
+        return SendResult(success=True, message_id=_message_id())
 
     async def _send_frame(self, chat_id: str, frame: dict) -> bool:
         ws = self._sockets.get(chat_id)
@@ -312,6 +339,11 @@ class YuiAdapter(BasePlatformAdapter):
         """Render the final reply; progress sends carry no notify mark and stay here."""
         if not (metadata or {}).get("notify"):
             logger.debug("yui: ignoring non-final send chat=%s", chat_id)
+            return SendResult(success=True, message_id=_message_id())
+        if state.take_muted(chat_id):
+            state.pop_cues(chat_id)
+            state.mark_delivered(chat_id)
+            logger.info("yui: reset acknowledgement not spoken chat=%s", chat_id)
             return SendResult(success=True, message_id=_message_id())
         segments = build_segments(content or "", state.pop_cues(chat_id))
         state.mark_delivered(chat_id)

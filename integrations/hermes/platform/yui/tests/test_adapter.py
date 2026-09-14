@@ -34,6 +34,7 @@ def clean():
         state.reset(chat)
         state.set_connected(chat, False)
         state.set_turn_id(chat, None)
+        state.set_muted(chat, False)
         reports.take(chat)
         delegations.forget(chat)
     delegations.set_notifier(None)
