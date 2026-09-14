@@ -37,6 +37,7 @@ import { buildCCMessages } from "../io/chat-completions";
 import { type ChatHistoryEntry, selectSendSuffix } from "../io/chat-history-store";
 import type { ClientToolRegistry } from "../io/client-tools";
 import type { ContextHistoryEntry } from "../io/context-history";
+import { createSilenceTokenFilter, isSilenceToken } from "../io/silence-token";
 import { buildTurnRecord, type TurnRecord } from "../io/turn-record-log";
 import type { Logger } from "../logger";
 import { createLogger } from "../logger";
@@ -423,6 +424,8 @@ export function createBackendCaller(deps: BackendCallerDeps): BackendCaller {
       let streamedAny = false;
       // Did at least one express cue arrive during stream (completion drives pipeline ownership branching).
       let cueStreamed = false;
+      // Holds back the stream head until a bare [SILENT] token can be ruled out — re-created per attempt.
+      let silenceFilter = createSilenceTokenFilter();
       // Chain-break 404 recovery: retry at most once, so this flips true before the retry attempt.
       let chainBreakRetried = false;
       // Attempt loop: body runs once, `continue`s exactly once on a 404 chain-break, then always exits via break/return.
@@ -431,6 +434,7 @@ export function createBackendCaller(deps: BackendCallerDeps): BackendCaller {
         newResponseId = undefined;
         streamedAny = false;
         cueStreamed = false;
+        silenceFilter = createSilenceTokenFilter();
         let streamError: string | undefined;
         // HTTP status carried by stream error event (openai SDK APIError.status) — distinguish
         // 401/403 as http_4xx_drop (auth-ish) instead of network_drop.
@@ -453,13 +457,18 @@ export function createBackendCaller(deps: BackendCallerDeps): BackendCaller {
           )) {
             if (externalSignal?.aborted) break;
             switch (ev.type) {
-              case "speech_delta":
+              case "speech_delta": {
                 // Actual response speech start — end thinking only here (thinkingDone ensures only first delta).
                 // usage/express/tool_status before don't break thinking.
                 endThinking();
-                deps.turnOutput?.delta(ev.text);
-                streamedAny = true;
+                // A bare [SILENT] token stays held in the filter — only real speech reaches the bubble.
+                const speech = silenceFilter.push(ev.text);
+                if (speech) {
+                  deps.turnOutput?.delta(speech);
+                  streamedAny = true;
+                }
                 break;
+              }
               case "express":
                 // Pass the entire cue as-is — TTS pipeline applies audio-timed at sentence playback.
                 deps.turnOutput?.cue(ev.args);
@@ -569,6 +578,14 @@ export function createBackendCaller(deps: BackendCallerDeps): BackendCaller {
         break;
       }
 
+      // A head the stream ended on before it could diverge is either a bare [SILENT]
+      // (dropped) or a partial prefix cut short (spoken as-is).
+      const rest = silenceFilter.flush();
+      if (rest) {
+        deps.turnOutput?.delta(rest);
+        streamedAny = true;
+      }
+
       // B5 (render half): when per-beat cue streamed and speech present (streamedAny), TTS pipeline
       //   applies cue audio-timed at sentence playback — don't double-apply here.
       //   Otherwise (no cue, or cue but silent turn), apply once at completed:
@@ -605,20 +622,21 @@ export function createBackendCaller(deps: BackendCallerDeps): BackendCaller {
         });
       }
 
-      // B4 (speech gate): speak only when speech_text is not empty.
-      //   Empty text = silence — no separate flag/decision, no failure outcome.
+      // B4 (speech gate): speak only when speech_text is not empty and not the [SILENT] token.
+      //   Empty text or a bare [SILENT] = silence — no separate flag/decision, no failure outcome.
+      const silentToken = isSilenceToken(envelope.speech_text);
       if (streamedAny) {
         // Streaming path: delta already drove speech, only signal end (don't call speak).
         deps.turnOutput?.end();
         log.debug("speech", { text: envelope.speech_text });
-      } else if (envelope.speech_text) {
+      } else if (envelope.speech_text && !silentToken) {
         // Legacy fallback: backend that only provides completed without delta.
         deps.turnOutput?.speak(envelope.speech_text);
         log.debug("speech", { text: envelope.speech_text });
       } else {
         log.info("empty_speech", { trigger: env.event_name });
       }
-      const spokeText = streamedAny || Boolean(envelope.speech_text);
+      const spokeText = streamedAny || (Boolean(envelope.speech_text) && !silentToken);
       deps.reportSpokeText?.(spokeText);
 
       // Conversation state progress (Responses only): persist only at this point after passing all
