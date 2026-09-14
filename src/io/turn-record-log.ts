@@ -46,8 +46,26 @@ export interface PacerSkipRecord {
 
 type SkipRecord = ScreenSkipRecord | PacerSkipRecord;
 
+/** A backend turn that arrived as a push `render` frame — the client fired no trigger for it. */
+export interface RenderRecord {
+  type: "turn";
+  ts: number;
+  event_name: "push.render";
+  trigger_kind: "push";
+  source: string;
+  turn_id?: string;
+  segments: number;
+  spoke_text: boolean;
+}
+
 export function buildTurnRecord(fields: Omit<TurnRecord, "type">): TurnRecord {
   return { type: "turn", ...fields };
+}
+
+export function buildRenderRecord(
+  fields: Omit<RenderRecord, "type" | "event_name" | "trigger_kind">,
+): RenderRecord {
+  return { type: "turn", event_name: "push.render", trigger_kind: "push", ...fields };
 }
 
 export function buildSkipRecord(
@@ -77,7 +95,10 @@ async function defaultDeps(): Promise<TurnRecordLogDeps | undefined> {
  * Fire-and-forget append to the day's turns JSONL file. Never throws; a failed
  * write (no Tauri runtime, IPC error, etc.) is caught and logged at debug.
  */
-export function appendRecord(record: TurnRecord | SkipRecord, deps?: TurnRecordLogDeps): void {
+export function appendRecord(
+  record: TurnRecord | SkipRecord | RenderRecord,
+  deps?: TurnRecordLogDeps,
+): void {
   const run = async () => {
     const line = JSON.stringify(record);
     const d = deps ?? (await defaultDeps());
