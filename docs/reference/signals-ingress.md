@@ -149,7 +149,7 @@ That group's envelope reads `event_type: "source_health"` and
 | Missed run (the producer never fired: automation down or the workflow unpublished) | Zero groups on that day; nothing posts on the producer's behalf |
 | Receiver offline | The ingress refuses the connection; the producer keeps its rows pending and the following run carries them; no health group is posted |
 | Delivery acceptance | HTTP 2xx from the ingress; the producer marks its rows sent |
-| Duplicate delivery | Every group the ingress accepts becomes one turn; two posts make two turns |
+| Duplicate delivery | Every group the ingress accepts is delivered as its own `signal [...]` line; groups that wait in a buffer together arrive in one catch-up turn, and groups that each find the pipeline idle arrive in one turn apiece |
 | Backend handling | One line in `logs/turns_<date>.jsonl` carrying the group |
 | Completed output | The `[backend-caller] speech` line in the app log |
 | Interrupted playback | The following turn's `previous:` line reads `interrupted` (see `docs/reference/client-context.md`) |
