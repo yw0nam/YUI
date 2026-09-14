@@ -8,6 +8,7 @@
 
 import type { ExpressArgs } from "../contract";
 import { createLogger, type Logger } from "../logger";
+import type { BrokerPayload } from "./broker-client";
 
 const baseLog = createLogger("push-socket");
 
@@ -68,10 +69,10 @@ export type PushSocketState =
   | { kind: "failed"; code: number };
 
 export interface PushSocketDeps {
-  /** Chat endpoint base; the socket URL is this with the `/ws` path and a ws scheme. */
-  chatBaseUrl: string;
+  /** Chat endpoint base, read on every attempt; the socket URL is this with `/ws` and a ws scheme. */
+  chatBaseUrl: () => string;
   /** The conversation id the backend keeps state under. */
-  chatId: string;
+  chatId: () => string;
   /** Chat API key, resolved on every connection attempt so a key edit lands on the next one. */
   getKey: () => Promise<string | undefined>;
   /** The renderable vocabulary as it stands now. */
@@ -100,6 +101,16 @@ export function pushSocketUrl(chatBaseUrl: string): string {
   return `${base.replace(/^http/, "ws")}/ws`;
 }
 
+/** The published renderable vocabulary in the shape the backend receives. */
+export function pushVocabularyOf(published: BrokerPayload | undefined): PushVocabulary {
+  return {
+    emotion_ids: published?.emotionIds ?? [],
+    motion_ids: published?.motionIds ?? [],
+    emotion_text_mode: published?.emotionText.mode ?? "free",
+    emotion_text_map: published?.emotionText.table ?? {},
+  };
+}
+
 function byteLength(text: string): number {
   return new TextEncoder().encode(text).length;
 }
@@ -111,7 +122,6 @@ function isRenderFrame(v: Record<string, unknown>): boolean {
 
 export function createPushSocket(deps: PushSocketDeps): PushSocket {
   const log = deps.logger ?? baseLog;
-  const url = pushSocketUrl(deps.chatBaseUrl);
   const WS = deps.WebSocketImpl ?? globalThis.WebSocket;
 
   const renderSubs = new Set<(frame: RenderFrame) => void>();
@@ -166,7 +176,7 @@ export function createPushSocket(deps: PushSocketDeps): PushSocket {
         readyTimer = null;
         ready = true;
         delayMs = RECONNECT_MIN_MS;
-        const chatId = typeof frame.chat_id === "string" ? frame.chat_id : deps.chatId;
+        const chatId = typeof frame.chat_id === "string" ? frame.chat_id : deps.chatId();
         log.info("ws_ready", { chat_id: chatId });
         setState({ kind: "ready", chat_id: chatId });
         return;
@@ -214,6 +224,7 @@ export function createPushSocket(deps: PushSocketDeps): PushSocket {
     const key = await deps.getKey();
     if (disposed) return;
 
+    const url = pushSocketUrl(deps.chatBaseUrl());
     const socket = new WS(url);
     ws = socket;
 
@@ -221,7 +232,7 @@ export function createPushSocket(deps: PushSocketDeps): PushSocket {
       log.info("ws_open", { url });
       const vocabulary = deps.vocabulary();
       sentVocabulary = JSON.stringify(vocabulary);
-      sendFrame({ type: "hello", key: key ?? "", chat_id: deps.chatId, vocabulary });
+      sendFrame({ type: "hello", key: key ?? "", chat_id: deps.chatId(), vocabulary });
       readyTimer = setTimeout(() => {
         readyTimer = null;
         log.warn("ws_ready_timeout", { wait_ms: READY_WAIT_MS });
