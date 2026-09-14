@@ -61,6 +61,8 @@ export function createDelegationChip({
   let visible = false;
   let listOpen = false;
   let refreshTimer: ReturnType<typeof setInterval> | null = null;
+  let cancelListFade: (() => void) | null = null;
+  let cancelHideFade: (() => void) | null = null;
 
   function clearRefreshTimer(): void {
     if (refreshTimer !== null) {
@@ -83,7 +85,9 @@ export function createDelegationChip({
     listOpen = false;
     chipBtn.setAttribute("aria-expanded", "false");
     listEl.classList.remove("is-open");
-    afterFadeOut(listEl, () => {
+    cancelListFade?.();
+    cancelListFade = afterFadeOut(listEl, () => {
+      cancelListFade = null;
       if (!listOpen) listEl.hidden = true;
     });
   }
@@ -94,7 +98,9 @@ export function createDelegationChip({
     clearRefreshTimer();
     closeList();
     el.classList.remove("is-visible");
-    afterFadeOut(el, () => {
+    cancelHideFade?.();
+    cancelHideFade = afterFadeOut(el, () => {
+      cancelHideFade = null;
       if (!visible) el.hidden = true;
     });
   }
@@ -182,6 +188,8 @@ export function createDelegationChip({
   function dispose(): void {
     clearRefreshTimer();
     clearFold();
+    cancelListFade?.();
+    cancelHideFade?.();
     unsubscribeStore();
     unsubscribeCollapsed();
     unsubscribeLocale();
