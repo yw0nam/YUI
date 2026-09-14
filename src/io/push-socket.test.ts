@@ -13,6 +13,7 @@ import {
   type PushSocket,
   type PushVocabulary,
   pushSocketUrl,
+  pushVocabularyOf,
 } from "./push-socket";
 
 interface Frame {
@@ -84,6 +85,7 @@ const VOCAB: PushVocabulary = {
 
 let logger: Logger;
 let vocabulary: PushVocabulary;
+let chatBaseUrl: string;
 let socket: PushSocket;
 
 function makeLogger(): Logger {
@@ -92,8 +94,8 @@ function makeLogger(): Logger {
 
 function build(overrides: Partial<Parameters<typeof createPushSocket>[0]> = {}): PushSocket {
   return createPushSocket({
-    chatBaseUrl: "http://localhost:8646",
-    chatId: "yui-3f9a2c1d",
+    chatBaseUrl: () => chatBaseUrl,
+    chatId: () => "yui-3f9a2c1d",
     getKey: async () => "secret-key",
     vocabulary: () => vocabulary,
     WebSocketImpl: FakeSocket as unknown as typeof WebSocket,
@@ -117,6 +119,7 @@ beforeEach(() => {
   FakeSocket.instances = [];
   logger = makeLogger();
   vocabulary = { ...VOCAB };
+  chatBaseUrl = "http://localhost:8646";
 });
 
 afterEach(() => {
@@ -188,6 +191,19 @@ describe("createPushSocket — handshake", () => {
 
     await vi.advanceTimersByTimeAsync(1_000);
     expect(FakeSocket.instances).toHaveLength(2);
+  });
+
+  it("reads the chat endpoint again on every attempt, so an edited URL lands on the next one", async () => {
+    socket = build();
+    socket.connect();
+    await vi.advanceTimersByTimeAsync(0);
+    expect(FakeSocket.last().url).toBe("ws://localhost:8646/ws");
+
+    chatBaseUrl = "https://agent.example:9000";
+    FakeSocket.last().drop();
+    await vi.advanceTimersByTimeAsync(1_000);
+
+    expect(FakeSocket.last().url).toBe("wss://agent.example:9000/ws");
   });
 
   it("notifies state subscribers on every transition", async () => {
@@ -441,5 +457,36 @@ describe("createPushSocket — inbound frames", () => {
   it("ignores a frame type it does not know", async () => {
     await connected();
     expect(() => FakeSocket.last().push({ type: "weather" })).not.toThrow();
+  });
+});
+
+describe("pushVocabularyOf", () => {
+  it("maps the published broker payload to the frame's vocabulary", () => {
+    expect(
+      pushVocabularyOf({
+        emotionIds: ["neutral", "happy"],
+        motionIds: ["idle"],
+        emotionText: { mode: "enum", table: { "\u{1F606}": "joyfully" } },
+      }),
+    ).toEqual(VOCAB);
+  });
+
+  it("renders nothing when no vocabulary has been published yet", () => {
+    expect(pushVocabularyOf(undefined)).toEqual({
+      emotion_ids: [],
+      motion_ids: [],
+      emotion_text_mode: "free",
+      emotion_text_map: {},
+    });
+  });
+
+  it("treats an absent emotion_text table as an empty one", () => {
+    expect(
+      pushVocabularyOf({
+        emotionIds: [],
+        motionIds: [],
+        emotionText: { mode: "free", table: null },
+      }).emotion_text_map,
+    ).toEqual({});
   });
 });
