@@ -9,8 +9,10 @@ from yui import reports
 @pytest.fixture(autouse=True)
 def clean():
     reports.take("yui")
+    reports.take_renders("yui")
     yield
     reports.take("yui")
+    reports.take_renders("yui")
 
 
 def test_one_report_comes_back_alone():
@@ -54,3 +56,12 @@ def test_merged_text_opens_with_the_count_and_keeps_each_report():
 def test_merged_text_names_the_dropped_reports():
     text = reports.merged_text(["only"], 5)
     assert text.startswith("While the client was disconnected, 1 reports arrived (5 older ones dropped). ")
+
+
+def test_held_replies_keep_the_newest_twenty_and_count_the_rest():
+    for n in range(25):
+        reports.queue_render("yui", {"n": n})
+    kept, dropped = reports.take_renders("yui")
+    assert len(kept) == reports.MAX_QUEUED
+    assert dropped == 5
+    assert kept[0] == {"n": 5}

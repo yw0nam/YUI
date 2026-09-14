@@ -37,6 +37,7 @@ def clean():
         state.set_turn_id(chat, None)
         state.set_muted(chat, False)
         reports.take(chat)
+        reports.take_renders(chat)
         delegations.forget(chat)
     delegations.set_notifier(None)
     SLASH_CONFIRM.pending.clear()
@@ -475,3 +476,18 @@ async def test_binding_past_loopback_without_a_key_is_refused():
     assert await refused.connect() is False
     assert refused.fatal is not None
     assert refused.fatal[0] == "no_key"
+
+
+async def test_a_reply_finished_while_the_client_is_away_arrives_on_reconnect(client, adapter):
+    ws = await ready(client)
+    await adapter.on_processing_start(user_turn(adapter, "777"))
+    await ws.close()
+    await wait_for(lambda: not state.is_connected(CHAT))
+    assert (await adapter.send(CHAT, "The tests passed.", metadata={"notify": True})).success is True
+    back = await ready(client)
+    assert await recv(back) == {
+        "type": "render",
+        "turn_id": "777",
+        "source": "hermes",
+        "segments": [{"cues": [], "speech": "The tests passed."}],
+    }
