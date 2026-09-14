@@ -72,7 +72,10 @@ yields `ok`, `stale`, `failed`, and `disabled`. A source the user switches off o
 machine is listed with the rule `disabled`, so its absence is told apart from a missed
 run.
 
-Check: every source has a rule that names a time bound or an error condition.
+Check: every source has a rule that names a time bound or an error condition. Post
+`assets/fixtures/daily-briefing-sources-down.json` with `post-fixture.sh` and confirm the
+speech names all three sources — `failed`, `stale` with its `last_ok`, and `disabled` —
+in one sentence ahead of anything else.
 
 ## 5. Implement the producer
 
@@ -92,23 +95,25 @@ Check: trigger a manual run against a stopped YUI, which ends on the `Leave Rows
 node and leaves every row as it was. Trigger a second manual run against a running YUI,
 which ends on `Mark Row Sent`, and the turn log gains the line from step 3.
 
-## 6. Watch one morning
+## 6. Wire the error workflow
+
+Import `references/n8n-daily-briefing-health.template.json` into the user's n8n and fill
+the placeholder `{{YUI_SIGNALS_URL}}`. Open the `daily-briefing` workflow's Settings and
+pick the imported workflow as its Error Workflow. The template runs only when a
+daily-briefing execution raises, and it posts nothing when YUI itself is offline. A
+manual run of the daily-briefing workflow never fires the error workflow — n8n's Error
+Trigger only fires for automatic executions — which is why the check below posts the
+fixture directly.
+
+Check: post `assets/fixtures/source-health-run-failed.json` with `post-fixture.sh`; the
+turn log gains one line whose
+`client_context.trigger.signals[0].items[0].sources[0].status` reads `failed`, and the
+bubble names the workflow with a link.
+
+## 7. Watch one morning
 
 The producer runs ahead of the user's first activity. The group waits in the away buffer,
 and the first present tick fires the turn that carries it.
 
 Check, the following morning: the turn log shows one line carrying the group with
 `event_id` `daily-briefing:<today>`, and the bubble shows a link.
-
-## 7. Wire the error workflow
-
-Import `references/n8n-daily-briefing-health.template.json` into the user's n8n, fill
-the placeholder `{{YUI_SIGNALS_URL}}`, and publish it. Open the `daily-briefing`
-workflow's Settings and pick the new workflow as its Error Workflow. The template runs
-only when a daily-briefing execution raises, and it posts nothing when YUI itself is
-offline.
-
-Check: post `assets/fixtures/source-health-run-failed.json` with `post-fixture.sh`; the
-turn log gains one line whose
-`client_context.trigger.signals[0].items[0].sources[0].status` reads `failed`, and the
-bubble names the workflow with a link.

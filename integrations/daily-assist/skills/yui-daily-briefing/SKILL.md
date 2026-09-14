@@ -70,5 +70,5 @@ Check: the answer contains the ref's `url`.
 
 ## Completion
 
-Every spoken item carries exactly one link, and a turn that brings nothing new stays
-silent.
+Every spoken item carries exactly one link, and a turn whose refs are empty and whose
+sources all read `ok` stays silent.

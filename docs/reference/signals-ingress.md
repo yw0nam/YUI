@@ -110,6 +110,10 @@ The group travels under this envelope:
 | `event_id` | `daily-briefing:<YYYY-MM-DD>` \| `source-health:<workflow id>:<execution id>` |
 | `occurred_at` | Epoch milliseconds |
 
+The `source-health` execution slot reads the epoch milliseconds of the failure in place
+of an execution id when the failure struck before an execution record existed (a
+trigger-time failure).
+
 The client delivers every group it receives, so two runs on one day produce two turns.
 
 A producer's error path posts a group of the same item shape, naming the run that raised

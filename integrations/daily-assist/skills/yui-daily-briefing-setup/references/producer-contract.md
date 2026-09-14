@@ -88,9 +88,12 @@ A run that raises posts a group of the same item shape from the producer's error
 workflow, carrying one `sources[]` entry named after the failed workflow, `status:
 "failed"`, `run_url` set to the failed execution, `last_ok` absent, and `refs: []`. The
 envelope reads `event_type: "source_health"` and `event_id:
-"source-health:<workflow id>:<execution id>"`. The error workflow is wired through the
-producer workflow's Settings → Error Workflow, and it fires only for a run that raised —
-a refused ingress connection is not an error, since that run ends on the pending branch.
+"source-health:<workflow id>:<execution id>"`, where the execution slot reads the epoch
+milliseconds of the failure in place of an execution id when the failure struck before an
+execution record existed (a trigger-time failure). The error workflow is wired through
+the producer workflow's Settings → Error Workflow, and it fires only for a run that
+raised — a refused ingress connection is not an error, since that run ends on the pending
+branch.
 
 ## Retry
 

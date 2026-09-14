@@ -153,11 +153,9 @@ describe("daily briefing fixtures", () => {
 
       expect(item.sources.length).toBeLessThanOrEqual(10);
       for (const source of item.sources) {
-        expect(
-          Object.keys(source).every((key) =>
-            ["name", "status", "last_ok", "run_url"].includes(key),
-          ),
-        ).toBe(true);
+        for (const key of Object.keys(source)) {
+          expect(["name", "status", "last_ok", "run_url"]).toContain(key);
+        }
         expect(typeof source.name).toBe("string");
         expect(source.name.length).toBeLessThanOrEqual(40);
         expect(STATUSES).toContain(source.status);
@@ -659,6 +657,51 @@ describe("n8n health template compose code", () => {
     expect(source.name.length).toBe(40);
     expect("run_url" in source).toBe(false);
     expect(request.envelope.event_id).toBe("source-health:9:9");
+  });
+
+  it("omits run_url for a non-http execution url", () => {
+    for (const url of ["javascript:alert(1)", "/execution/2"]) {
+      const { request } = compose({
+        execution: { id: "1", url },
+        workflow: { id: "1", name: "daily-briefing" },
+      });
+      expect("run_url" in request.signals[0].sources[0]).toBe(false);
+    }
+  });
+
+  it("clips a long error message to exactly 200 characters ending in an ellipsis", () => {
+    const { request } = compose({
+      execution: { id: "1", error: { message: "e".repeat(300) } },
+      workflow: { id: "1", name: "daily-briefing" },
+    });
+    const summary = request.signals[0].summary;
+    expect(summary.length).toBe(200);
+    expect(summary.endsWith("…")).toBe(true);
+  });
+
+  it("composes from a trigger-time failure that carries no execution record", () => {
+    const { request } = compose({
+      trigger: {
+        error: {
+          name: "WorkflowActivationError",
+          message: "",
+          cause: { message: "listen EADDRINUSE" },
+        },
+        mode: "trigger",
+      },
+      workflow: { id: "1", name: "daily-briefing" },
+    });
+    const item = request.signals[0];
+    expect(item.summary).toContain("WorkflowActivationError");
+    expect(item.summary).toContain("listen EADDRINUSE");
+    expect("run_url" in item.sources[0]).toBe(false);
+    expect(request.envelope.event_id).toMatch(/^source-health:1:\d+$/);
+  });
+
+  it("falls back to a workflow name and a timestamp-based execution id on an empty item", () => {
+    const { request } = compose({});
+    expect(request.signals[0].sources[0].name).toBe("workflow");
+    expect(request.envelope.event_id).toMatch(/^source-health:unknown:\d+$/);
   });
 });
 

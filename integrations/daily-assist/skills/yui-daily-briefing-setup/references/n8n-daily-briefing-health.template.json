@@ -22,7 +22,7 @@
    "parameters": {
     "mode": "runOnceForAllItems",
     "language": "javaScript",
-    "jsCode": "function clip(s, max) { const t = String(s || '').replace(/\\s+/g, ' ').trim(); return t.length > max ? t.slice(0, max - 1) + '…' : t; }\nconst SUMMARY_MAX = 200;\nconst NAME_MAX = 40;\n\nconst item = $input.first().json || {};\nconst execution = item.execution || {};\nconst workflow = item.workflow || {};\nconst error = execution.error || {};\n\nconst name = clip(workflow.name || '', NAME_MAX);\nconst prefix = execution.lastNodeExecuted ? execution.lastNodeExecuted + ': ' : '';\nconst summary = clip((workflow.name || '') + ' run failed: ' + prefix + (error.message || ''), SUMMARY_MAX);\n\nconst source = { name, status: 'failed' };\nif (/^https?:\\/\\//.test(execution.url || '')) source.run_url = execution.url;\n\nconst envelope = { source: 'n8n', event_type: 'source_health', delivery: 'immediate', event_id: 'source-health:' + workflow.id + ':' + execution.id, occurred_at: Date.now() };\nconst body = JSON.stringify({ signals: [{ skill: 'yui-daily-briefing', summary, sources: [source], refs: [] }], envelope });\n\nreturn [{ json: { body } }];"
+    "jsCode": "function clip(s, max) { const t = String(s || '').replace(/\\s+/g, ' ').trim(); return t.length > max ? t.slice(0, max - 1) + '…' : t; }\nconst SUMMARY_MAX = 200;\nconst NAME_MAX = 40;\n\nconst item = $input.first().json || {};\nconst execution = item.execution || {};\nconst trigger = item.trigger || {};\nconst workflow = item.workflow || {};\nconst error = execution.error || trigger.error || {};\nconst nowMs = Date.now();\n\nconst workflowName = workflow.name || 'workflow';\nconst name = clip(workflowName, NAME_MAX);\nconst prefix = execution.lastNodeExecuted ? execution.lastNodeExecuted + ': ' : (trigger.error ? (error.name || '') + ': ' : '');\nconst message = error.message || (error.cause || {}).message || '';\nconst summary = clip(workflowName + ' run failed: ' + prefix + message, SUMMARY_MAX);\n\nconst source = { name, status: 'failed' };\nif (/^https?:\\/\\//.test(execution.url || '')) source.run_url = execution.url;\n\nconst envelope = { source: 'n8n', event_type: 'source_health', delivery: 'immediate', event_id: 'source-health:' + (workflow.id || 'unknown') + ':' + (execution.id || String(nowMs)), occurred_at: nowMs };\nconst body = JSON.stringify({ signals: [{ skill: 'yui-daily-briefing', summary, sources: [source], refs: [] }], envelope });\n\nreturn [{ json: { body } }];"
    }
   },
   {
@@ -48,7 +48,10 @@
      },
      "timeout": 10000
     }
-   }
+   },
+   "executeOnce": true,
+   "alwaysOutputData": true,
+   "onError": "continueRegularOutput"
   },
   {
    "name": "Sticky Note",
@@ -59,7 +62,7 @@
     250
    ],
    "parameters": {
-    "content": "## Daily briefing health producer\nSet this workflow as the daily-briefing workflow's Error Workflow (Settings → Error Workflow). It fires once per failed execution and posts one source_health group naming the failed workflow, with a run_url link to that execution. Nothing is posted when YUI itself is offline; the post simply fails to deliver.",
+    "content": "## Daily briefing health producer\nSet this workflow as the daily-briefing workflow's Error Workflow (Settings → Error Workflow). It fires once per failed execution and posts one source_health group naming the failed workflow, with a run_url link to that execution. Nothing is posted when YUI itself is offline; the post fails without erroring the health workflow itself.",
     "color": 5,
     "width": 600,
     "height": 200
