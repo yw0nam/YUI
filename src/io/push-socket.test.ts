@@ -30,8 +30,11 @@ class FakeSocket {
     return s;
   }
 
+  static deferClose = false;
+
   readonly sent: string[] = [];
   closedWith: number | null = null;
+  pendingClose: (() => void) | null = null;
   onopen: (() => void) | null = null;
   onmessage: ((ev: { data: unknown }) => void) | null = null;
   onclose: ((ev: { code: number }) => void) | null = null;
@@ -51,7 +54,17 @@ class FakeSocket {
   close(code = 1000): void {
     if (this.closedWith !== null) return;
     this.closedWith = code;
-    this.onclose?.({ code });
+    // A real WebSocket fires onclose on a later task. Deferring it here lets a test place that
+    // event after the socket that replaced this one is already open.
+    if (FakeSocket.deferClose) this.pendingClose = () => this.onclose?.({ code });
+    else this.onclose?.({ code });
+  }
+
+  /** Delivers a close deferred by `deferClose`. */
+  settleClose(): void {
+    const pending = this.pendingClose;
+    this.pendingClose = null;
+    pending?.();
   }
 
   /** The server accepted the connection. */
@@ -117,6 +130,7 @@ async function connected(overrides?: Partial<Parameters<typeof createPushSocket>
 beforeEach(() => {
   vi.useFakeTimers();
   FakeSocket.instances = [];
+  FakeSocket.deferClose = false;
   logger = makeLogger();
   vocabulary = { ...VOCAB };
   chatBaseUrl = "http://localhost:8646";
@@ -439,6 +453,60 @@ describe("createPushSocket — disconnect", () => {
 
     expect(FakeSocket.instances).toHaveLength(2);
     expect(FakeSocket.last().url).toBe("wss://agent.example:9000/ws");
+  });
+
+  it("keeps the socket a reopen just opened when the old one closes a task later", async () => {
+    FakeSocket.deferClose = true;
+    await connected();
+    const abandoned = FakeSocket.last();
+
+    socket.disconnect();
+    socket.connect();
+    await vi.advanceTimersByTimeAsync(0);
+    const fresh = FakeSocket.last();
+    expect(fresh).not.toBe(abandoned);
+    fresh.accept();
+    fresh.push({ type: "ready", chat_id: "yui-3f9a2c1d" });
+
+    // The close of the socket left behind by the reopen lands only now.
+    abandoned.settleClose();
+
+    expect(socket.getState()).toEqual({ kind: "ready", chat_id: "yui-3f9a2c1d" });
+    expect(socket.sendTurn({ turn_id: "7", client_context: "", text: "hi" })).toBe(true);
+    expect(fresh.frames().at(-1)).toMatchObject({ type: "turn" });
+
+    await vi.advanceTimersByTimeAsync(60_000);
+    expect(FakeSocket.instances).toHaveLength(2);
+  });
+
+  it("leaves the new handshake's deadline running when the old socket closes late", async () => {
+    FakeSocket.deferClose = true;
+    await connected();
+    const abandoned = FakeSocket.last();
+
+    socket.disconnect();
+    socket.connect();
+    await vi.advanceTimersByTimeAsync(0);
+    FakeSocket.last().accept();
+    abandoned.settleClose();
+
+    // The replacement never hears a ready, so its own deadline must still close it.
+    await vi.advanceTimersByTimeAsync(10_000);
+    expect(FakeSocket.instances[1]!.closedWith).toBe(1000);
+  });
+
+  it("ignores a late open from a socket the reopen left behind", async () => {
+    socket = build();
+    socket.connect();
+    await vi.advanceTimersByTimeAsync(0);
+    const abandoned = FakeSocket.last();
+
+    socket.disconnect();
+    socket.connect();
+    await vi.advanceTimersByTimeAsync(0);
+    abandoned.accept();
+
+    expect(abandoned.sent).toEqual([]);
   });
 
   it("is inert when nothing is open", () => {
