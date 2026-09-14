@@ -52,8 +52,17 @@ describe("createChatIdSettings", () => {
   });
 
   it("localStorageChatIdStorage round-trips under the yui.chat-id key", () => {
+    const cells = new Map<string, string>();
+    (globalThis as unknown as { localStorage: unknown }).localStorage = {
+      getItem: (k: string) => cells.get(k) ?? null,
+      setItem: (k: string, v: string) => cells.set(k, v),
+    };
+
     const store = localStorageChatIdStorage();
     store.save("yui-0a1b2c3d");
+    expect(cells.has("yui.chat-id")).toBe(true);
     expect(store.load()).toBe("yui-0a1b2c3d");
+
+    delete (globalThis as unknown as { localStorage?: unknown }).localStorage;
   });
 });
