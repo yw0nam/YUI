@@ -75,6 +75,12 @@ describe("backend_caller — push transport", () => {
     expect(spoke).toEqual([false]);
   });
 
+  it("leaves a render still playing alone — this turn speaks nothing of its own", async () => {
+    await callerWith(true).call(turnOf(userEnv(), 1));
+
+    expect(turnOutput.interrupt).not.toHaveBeenCalled();
+  });
+
   it("shows no thinking bridge even when filler is available", async () => {
     turnOutput.hasFiller.mockReturnValue(true);
     await callerWith(true).call(turnOf(userEnv(), 1));
