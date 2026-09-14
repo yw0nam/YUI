@@ -21,6 +21,8 @@ const RECONNECT_MAX_MS = 30_000;
 /** Close code the backend uses for a rejected key. */
 const AUTH_CLOSE_CODE = 4401;
 const NORMAL_CLOSE_CODE = 1000;
+/** Stands in for a close code when the attempt failed before a socket existed. */
+const OPEN_FAILED_CODE = 0;
 
 /** What the client can render right now, in the shape the backend receives. */
 export interface PushVocabulary {
@@ -83,6 +85,8 @@ export interface PushSocketDeps {
 
 export interface PushSocket {
   connect(): void;
+  /** Close and stay closed. A later connect() opens again with the settings as they stand then. */
+  disconnect(): void;
   dispose(): void;
   /** True when the frame went out; false when the socket is not ready or the frame is too large. */
   sendTurn(turn: PushTurnFrame): boolean;
@@ -131,6 +135,8 @@ export function createPushSocket(deps: PushSocketDeps): PushSocket {
   let ws: WebSocket | null = null;
   let ready = false;
   let disposed = false;
+  /** Between connect() and disconnect()/dispose() — only then does a close earn a reconnect. */
+  let active = false;
   let delayMs = RECONNECT_MIN_MS;
   let readyTimer: ReturnType<typeof setTimeout> | null = null;
   let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
@@ -139,8 +145,16 @@ export function createPushSocket(deps: PushSocketDeps): PushSocket {
   let state: PushSocketState = { kind: "disconnected" };
 
   function setState(next: PushSocketState): void {
+    if (JSON.stringify(state) === JSON.stringify(next)) return;
     state = next;
     for (const cb of stateSubs) cb(next);
+  }
+
+  function clearTimers(): void {
+    if (readyTimer) clearTimeout(readyTimer);
+    if (reconnectTimer) clearTimeout(reconnectTimer);
+    readyTimer = null;
+    reconnectTimer = null;
   }
 
   function sendFrame(frame: Record<string, unknown>): boolean {
@@ -205,6 +219,7 @@ export function createPushSocket(deps: PushSocketDeps): PushSocket {
   }
 
   function scheduleReconnect(code: number): void {
+    if (disposed || !active) return;
     const wait = delayMs;
     delayMs = Math.min(delayMs * 2, RECONNECT_MAX_MS);
     setState(
@@ -221,11 +236,21 @@ export function createPushSocket(deps: PushSocketDeps): PushSocket {
   }
 
   async function open(): Promise<void> {
-    const key = await deps.getKey();
-    if (disposed) return;
-
-    const url = pushSocketUrl(deps.chatBaseUrl());
-    const socket = new WS(url);
+    let key: string | undefined;
+    let socket: WebSocket;
+    let url: string;
+    try {
+      key = await deps.getKey();
+      if (disposed || !active) return;
+      url = pushSocketUrl(deps.chatBaseUrl());
+      socket = new WS(url);
+    } catch (err) {
+      // A rejected key or a constructor the platform refuses leaves nothing to close — retry from here.
+      log.warn("ws_open_failed", { error: String(err) });
+      ws = null;
+      scheduleReconnect(OPEN_FAILED_CODE);
+      return;
+    }
     ws = socket;
 
     socket.onopen = () => {
@@ -249,7 +274,7 @@ export function createPushSocket(deps: PushSocketDeps): PushSocket {
       ready = false;
       sentVocabulary = null;
       log.info("ws_close", { code: ev.code });
-      if (disposed) {
+      if (disposed || !active) {
         setState({ kind: "disconnected" });
         return;
       }
@@ -266,17 +291,34 @@ export function createPushSocket(deps: PushSocketDeps): PushSocket {
 
   return {
     connect(): void {
-      if (disposed || ws) return;
+      if (disposed || active) return;
+      // An unconfigured endpoint resolves against the app's own origin, which is never a backend.
+      if (!deps.chatBaseUrl().trim()) {
+        log.warn("ws_not_configured", { missing: "chat_base_url" });
+        setState({ kind: "disconnected" });
+        return;
+      }
+      active = true;
+      delayMs = RECONNECT_MIN_MS;
       setState({ kind: "connecting" });
       void open();
     },
 
+    disconnect(): void {
+      active = false;
+      clearTimers();
+      ready = false;
+      sentVocabulary = null;
+      const socket = ws;
+      ws = null;
+      socket?.close(NORMAL_CLOSE_CODE);
+      setState({ kind: "disconnected" });
+    },
+
     dispose(): void {
       disposed = true;
-      if (readyTimer) clearTimeout(readyTimer);
-      if (reconnectTimer) clearTimeout(reconnectTimer);
-      readyTimer = null;
-      reconnectTimer = null;
+      active = false;
+      clearTimers();
       renderSubs.clear();
       delegationSubs.clear();
       ws?.close(NORMAL_CLOSE_CODE);
