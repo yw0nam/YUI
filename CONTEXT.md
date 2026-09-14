@@ -19,7 +19,7 @@ Client-side detection that a candidate event occurred and a turn should be sent.
 _Avoid_: triggering judgment, deciding to speak
 
 **Judgment**:
-The brain's decision whether and what to speak. Silence is expressed as empty speech text, never a client-side gate.
+The brain's decision whether and what to speak. Silence is expressed as empty speech text or the bare `[SILENT]` token, never a client-side gate.
 
 ### Turn lifecycle
 
