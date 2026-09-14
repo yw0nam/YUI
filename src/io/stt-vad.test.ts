@@ -553,7 +553,45 @@ describe("createSttVad — per-request deadline (#275)", () => {
     await pending;
 
     expect(onState).toHaveBeenCalledWith("error", "STT request timed out");
-    expect(JSON.stringify(warnSpy.mock.calls)).toContain("STT request timed out");
+    const errorCall = warnSpy.mock.calls.find((call) => String(call[0]).includes("stt_error"));
+    expect(JSON.stringify(errorCall)).toContain("STT request timed out");
+    warnSpy.mockRestore();
+  });
+
+  it("reports the consumer's own error when onVoiceSegment throws after the deadline fired", async () => {
+    vi.useFakeTimers();
+    const fetchMock = vi.fn(
+      (): Promise<Response> =>
+        Promise.resolve({
+          ok: true,
+          json: () =>
+            new Promise((resolve) => {
+              setTimeout(() => resolve({ text: "hello" }), STT_REQUEST_TIMEOUT_MS + 10);
+            }),
+        } as unknown as Response),
+    );
+    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+
+    const onState = vi.fn();
+    const onVoiceSegment = vi.fn(() => {
+      throw new Error("consumer exploded");
+    });
+    const stt = createSttVad({
+      config: () => CONFIG,
+      onVoiceSegment,
+      onState,
+      fetch: fetchMock,
+    });
+    await stt.start();
+
+    const pending = triggerSpeechEnd!(new Float32Array(16));
+    await vi.advanceTimersByTimeAsync(STT_REQUEST_TIMEOUT_MS + 10);
+    await pending;
+
+    expect(onState).toHaveBeenCalledWith("error", "consumer exploded");
+    const errorCall = warnSpy.mock.calls.find((call) => String(call[0]).includes("stt_error"));
+    expect(JSON.stringify(errorCall)).toContain("consumer exploded");
+    expect(JSON.stringify(errorCall)).not.toContain("STT request timed out");
     warnSpy.mockRestore();
   });
 });
