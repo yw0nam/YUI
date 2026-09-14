@@ -216,10 +216,10 @@ class YuiAdapter(BasePlatformAdapter):
         turn_id = str(frame.get("turn_id") or "")
         text = build_message_text(str(frame.get("client_context") or ""), str(frame.get("text") or ""))
         if not text:
-            logger.warning("yui: dropped an empty turn chat=%s", chat_id)
+            # The contract gives the client no turn timeout, so an empty turn is closed at once.
+            logger.warning("yui: nothing to say for an empty turn chat=%s", chat_id)
+            await self._send_frame(chat_id, self._render(turn_id or None, []))
             return
-        state.reset(chat_id)
-        state.set_turn_id(chat_id, turn_id or None)
         logger.info("yui: turn accepted chat=%s turn_id=%s chars=%d", chat_id, turn_id, len(text))
         await self.handle_message(
             MessageEvent(
@@ -233,8 +233,6 @@ class YuiAdapter(BasePlatformAdapter):
 
     async def _on_reset(self, chat_id: str) -> None:
         """The gateway's own /new: the transcript starts empty under the same chat."""
-        state.reset(chat_id)
-        state.set_turn_id(chat_id, None)
         # The client asked for the reset, so its acknowledgement is not worth speaking.
         state.set_muted(chat_id, True)
         logger.info("yui: reset chat=%s", chat_id)
@@ -289,7 +287,6 @@ class YuiAdapter(BasePlatformAdapter):
         """Hold a report for a client that is away; everything else goes to the gateway now."""
         if getattr(event, "internal", False):
             chat_id = _chat_of(event)
-            state.set_turn_id(chat_id, None)
             if not state.is_connected(chat_id):
                 reports.queue(chat_id, event)
                 # This adapter owns delivery from here, so the gateway must not requeue it.
@@ -347,20 +344,15 @@ class YuiAdapter(BasePlatformAdapter):
             return SendResult(success=True, message_id=_message_id())
         segments = build_segments(content or "", state.pop_cues(chat_id))
         state.mark_delivered(chat_id)
-        sent = await self._send_frame(
-            chat_id,
-            {
-                "type": "render",
-                "turn_id": state.turn_id(chat_id),
-                "source": SOURCE,
-                "segments": segments,
-            },
-        )
+        sent = await self._send_frame(chat_id, self._render(state.turn_id(chat_id), segments))
         return SendResult(
             success=sent,
             message_id=_message_id(),
             error=None if sent else "no client socket",
         )
+
+    def _render(self, turn_id: str | None, segments: list[dict]) -> dict:
+        return {"type": "render", "turn_id": turn_id, "source": SOURCE, "segments": segments}
 
     async def send_typing(self, chat_id: str, metadata: dict | None = None) -> None:
         return None
@@ -368,14 +360,20 @@ class YuiAdapter(BasePlatformAdapter):
     async def get_chat_info(self, chat_id: str) -> dict:
         return {"name": "YUI", "type": "dm", "chat_id": chat_id}
 
+    async def on_processing_start(self, event: MessageEvent) -> None:
+        """The turn opens here: the gateway serialises this per session, admission does not."""
+        chat_id = _chat_of(event)
+        state.reset(chat_id)
+        internal = getattr(event, "internal", False)
+        state.set_turn_id(chat_id, None if internal else (event.message_id or None))
+
     async def on_processing_complete(self, event: MessageEvent, outcome: ProcessingOutcome) -> None:
         """Close the turn: a reply already rendered, anything else renders as silence."""
         chat_id = _chat_of(event)
-        state.pop_cues(chat_id)
+        cues = [placement.cue for placement in state.pop_cues(chat_id)]
         if state.take_delivered(chat_id):
             return
         logger.info("yui: turn ended without speech chat=%s outcome=%s", chat_id, outcome)
-        await self._send_frame(
-            chat_id,
-            {"type": "render", "turn_id": state.turn_id(chat_id), "source": SOURCE, "segments": []},
-        )
+        # Cues on a silent turn still play; the segment they ride on carries no speech.
+        segments = [{"cues": cues, "speech": ""}] if cues else []
+        await self._send_frame(chat_id, self._render(state.turn_id(chat_id), segments))

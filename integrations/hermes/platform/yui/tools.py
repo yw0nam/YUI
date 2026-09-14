@@ -28,11 +28,12 @@ def set_context(ctx: Any) -> None:
 
 
 def _description(vocab: Vocabulary) -> str:
-    channels = (
-        "facial expression, body motion, and voice tone"
-        if vocab.motion_ids
-        else "facial expression and voice tone"
-    )
+    named = [
+        name
+        for ids, name in ((vocab.emotion_ids, "facial expression"), (vocab.motion_ids, "body motion"))
+        if ids
+    ]
+    channels = ", ".join([*named, "voice tone"])
     return (
         f"Place expression cues on the words you are about to speak: {channels}. Call this once "
         "per reply, listing every cue in speaking order, and name for each one the sentence it "
@@ -52,13 +53,13 @@ def _emotion_text_schema(vocab: Vocabulary) -> dict:
 
 
 def _cue_schema(vocab: Vocabulary) -> dict:
-    properties: dict[str, Any] = {
-        "emotion_id": {
+    properties: dict[str, Any] = {}
+    if vocab.emotion_ids:
+        properties["emotion_id"] = {
             "type": "string",
             "description": "facial expression",
             "enum": list(vocab.emotion_ids),
         }
-    }
     if vocab.motion_ids:
         properties["motion_id"] = {
             "type": "string",

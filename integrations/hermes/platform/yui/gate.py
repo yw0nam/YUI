@@ -11,28 +11,13 @@ from dataclasses import dataclass, field
 
 CAPTION_MAX_LEN = 200
 
-# Stand-in until YUI publishes its own on the first pushed turn.
-DEFAULT_EMOTION_IDS = [
-    "neutral",
-    "happy",
-    "angry",
-    "sad",
-    "relaxed",
-    "surprised",
-    "thinking",
-    "curious",
-    "sleepy",
-    "embarrassed",
-]
-DEFAULT_MOTION_IDS = ["idle", "happy", "laughing", "shy_point"]
-
 
 @dataclass
 class Vocabulary:
-    """What the client can currently render, as published on the last pushed turn."""
+    """What the client can currently render, as published in its hello."""
 
-    emotion_ids: list[str] = field(default_factory=lambda: DEFAULT_EMOTION_IDS[:])
-    motion_ids: list[str] = field(default_factory=lambda: DEFAULT_MOTION_IDS[:])
+    emotion_ids: list[str] = field(default_factory=list)
+    motion_ids: list[str] = field(default_factory=list)
     emotion_text_mode: str = "free"
     emotion_text_map: dict[str, str] = field(default_factory=dict)
 
@@ -42,14 +27,13 @@ class Vocabulary:
         mode = data.get("emotion_text_mode")
         table = data.get("emotion_text_map")
 
-        def ids(key: str, fallback: list[str]) -> list[str]:
+        def ids(key: str) -> list[str]:
             raw = data.get(key)
-            clean = [i for i in raw or [] if isinstance(i, str) and i.strip()]
-            return clean if clean else fallback[:]
+            return [i for i in raw or [] if isinstance(i, str) and i.strip()]
 
         return cls(
-            emotion_ids=ids("emotion_ids", DEFAULT_EMOTION_IDS),
-            motion_ids=ids("motion_ids", DEFAULT_MOTION_IDS),
+            emotion_ids=ids("emotion_ids"),
+            motion_ids=ids("motion_ids"),
             emotion_text_mode="enum" if mode == "enum" else "free",
             emotion_text_map=dict(table) if isinstance(table, dict) else {},
         )
