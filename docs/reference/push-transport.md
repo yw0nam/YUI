@@ -135,7 +135,7 @@ The full list of work the backend has handed to background workers for this conv
 | `started_at`, `ended_at` | Epoch milliseconds |
 | `state` | `"running"` or `"done"`. A failed delegation is `"done"`; the backend says what happened in speech |
 
-The client shows the count of `running` items beside the avatar and the list in the settings panel's session section. A `done` item leaves the client's list 30 minutes after `ended_at`.
+The client keeps the latest list. A `done` item leaves it 30 minutes after `ended_at`.
 
 ## Logging
 
