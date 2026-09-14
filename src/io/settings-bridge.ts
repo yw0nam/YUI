@@ -14,6 +14,7 @@
 
 import { createLogger } from "../logger";
 import type { VoiceInputState } from "../ui/voice-input-status";
+import type { DelegationItem } from "./push-socket";
 import type { PushSocketState } from "./push-socket";
 import { isTauri } from "./tauri-env";
 
@@ -26,6 +27,8 @@ const CH_VOICE_STATE = "yui://voice-state";
 const CH_PUSH_STATE = "yui://push-state";
 const CH_PUSH_STATE_ASK = "yui://push-state-ask";
 const CH_PUSH_RESET = "yui://push-reset";
+const CH_DELEGATIONS = "yui://delegations";
+const CH_DELEGATIONS_ASK = "yui://delegations-ask";
 
 interface VoiceStateSnapshot {
   state: VoiceInputState;
@@ -57,6 +60,12 @@ export interface SettingsBridge {
   /** A window with no socket of its own asking the owner to start a new conversation. */
   emitPushReset(): void;
   onPushReset(cb: () => void): () => void;
+  /** The delegations list the push socket last fed. Only the window that owns the socket emits it. */
+  emitDelegations(items: DelegationItem[]): void;
+  onDelegations(cb: (items: DelegationItem[]) => void): () => void;
+  /** A window with no socket of its own asking the owner to send the current list. */
+  emitDelegationsAsk(): void;
+  onDelegationsAsk(cb: () => void): () => void;
   dispose(): void;
 }
 
@@ -256,6 +265,18 @@ export function createSettingsBridge(
     },
     onPushReset(cb) {
       return on<unknown>(CH_PUSH_RESET, () => cb());
+    },
+    emitDelegations(items) {
+      safeEmit(CH_DELEGATIONS, items);
+    },
+    onDelegations(cb) {
+      return on<DelegationItem[]>(CH_DELEGATIONS, (items) => cb(items));
+    },
+    emitDelegationsAsk() {
+      safeEmit(CH_DELEGATIONS_ASK);
+    },
+    onDelegationsAsk(cb) {
+      return on<unknown>(CH_DELEGATIONS_ASK, () => cb());
     },
     dispose: core.dispose,
   };

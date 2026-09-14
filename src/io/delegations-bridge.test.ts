@@ -121,14 +121,13 @@ describe("delegations across windows", () => {
   });
 
   it("stops publishing after the pet side is disposed", () => {
-    const stop = publishDelegations({ store, bridge: petBridge });
+    publishDelegations({ store, bridge: petBridge })();
     const mirror = createMirroredDelegations({ bridge: settingsBridge });
 
     store.set([running("d-1")]);
 
     expect(mirror.get()).toEqual([]);
     expect(store.listenerCount()).toBe(0);
-    stop();
   });
 
   it("stops updating after the mirror is disposed", () => {
