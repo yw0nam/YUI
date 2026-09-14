@@ -70,7 +70,9 @@ export function createRenderTurn(deps: RenderTurnDeps): RenderTurn {
 
         if (speaks) {
           if (Object.keys(cue).length > 0) deps.turnOutput.cue(cue);
-          deps.turnOutput.delta(speech);
+          // The newline is a sentence boundary to the segmenter, so a segment that ends without a
+          // terminator still closes here instead of running into the next segment and its cue.
+          deps.turnOutput.delta(`${speech}\n`);
           spokeText = true;
           continue;
         }
