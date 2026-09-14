@@ -17,6 +17,7 @@ import { createConfigStore } from "./config/store";
 import { agentTriggerableMotionIds } from "./io/broker-client";
 import { endpointDefaultsFromConfig } from "./io/endpoints-settings";
 import { rateLimitDefaultsFromConfig } from "./io/guardrails-settings";
+import { createMirroredPushSocket } from "./io/push-socket-bridge";
 import { screenDefaultsFromConfig } from "./io/screen-settings";
 import { createSettingsSecretProvider } from "./io/secret-provider";
 import { createSettingsStores } from "./io/settings-stores";
@@ -174,12 +175,18 @@ async function bootstrap(): Promise<void> {
     log,
   });
   broadcastSpeaker = broadcastSettings;
-  window.addEventListener("focus", reloadOnFocus);
+  // The push socket lives in the pet window; this window mirrors it and asks it to reset.
+  const pushSocket = createMirroredPushSocket({ bridge });
+  window.addEventListener("focus", () => {
+    reloadOnFocus();
+    pushSocket.refresh();
+  });
 
   const buildQuickControls = (): ReturnType<typeof createQuickControls> =>
     createQuickControls({
       mount: app,
       variant: "window",
+      pushSocket,
       // Close settings window with Escape — closing for window variant is OS window's job.
       onCloseWindow: closeSettingsWindow,
       agentSettings,
@@ -327,6 +334,7 @@ async function bootstrap(): Promise<void> {
     quickControls.dispose();
     unsubscribeLocale();
     unsubscribeVoiceRefresh();
+    pushSocket.dispose();
     disposeSync();
     window.removeEventListener("focus", reloadOnFocus);
     for (const store of Object.values(settingsStores)) store.dispose();

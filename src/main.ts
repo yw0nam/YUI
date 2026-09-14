@@ -40,6 +40,7 @@ import { createMessageWindowController, listenTrayToggle } from "./io/message-wi
 import { wireMessageWindowMode } from "./io/message-window-mode";
 import type { MessageWindowMode } from "./io/message-window-settings";
 import { createPushSocket, pushVocabularyOf } from "./io/push-socket";
+import { publishPushSocket } from "./io/push-socket-bridge";
 import { screenDefaultsFromConfig } from "./io/screen-settings";
 import { createSettingsSecretProvider } from "./io/secret-provider";
 import { createSettingsStores } from "./io/settings-stores";
@@ -264,6 +265,7 @@ async function bootstrap(): Promise<BootstrapHandle> {
   const {
     broadcastSettings,
     onRemoteChange,
+    bridge: windowBridge,
     dispose: disposeCrossWindowSync,
   } = wireCrossWindowSync({
     renderer,
@@ -323,6 +325,8 @@ async function bootstrap(): Promise<BootstrapHandle> {
     vocabulary: () => pushVocabularyOf(publishedVocabulary?.()),
   });
   register(pushSocket.dispose);
+  // The settings window has no socket of its own: it reads this one and asks it to reset.
+  register(publishPushSocket({ socket: pushSocket, bridge: windowBridge }));
 
   const buildQuickControls = (): ReturnType<typeof createQuickControls> =>
     createQuickControls({

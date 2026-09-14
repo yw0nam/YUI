@@ -1624,6 +1624,8 @@ export function wireCrossWindowSync(deps: {
 }): {
   broadcastSettings: () => void;
   onRemoteChange: (cb: () => void) => void;
+  /** The window's bus, for the channels this helper does not own itself. */
+  bridge: SettingsBridge;
   dispose: () => void;
 } {
   const { renderer, voiceInputStatus, stores, log } = deps;
@@ -1645,6 +1647,7 @@ export function wireCrossWindowSync(deps: {
   return {
     broadcastSettings: core.broadcastSettings,
     onRemoteChange: core.onRemoteChange,
+    bridge: core.bridge,
     dispose: core.dispose,
   };
 }

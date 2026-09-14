@@ -14,6 +14,7 @@
 
 import { createLogger } from "../logger";
 import type { VoiceInputState } from "../ui/voice-input-status";
+import type { PushSocketState } from "./push-socket";
 import { isTauri } from "./tauri-env";
 
 const log = createLogger("settings-bridge");
@@ -22,6 +23,9 @@ const CH_SETTINGS_CHANGED = "yui://settings-changed";
 const CH_MOUTH_PREVIEW = "yui://mouth-preview";
 const CH_VOICE_SET = "yui://voice-set";
 const CH_VOICE_STATE = "yui://voice-state";
+const CH_PUSH_STATE = "yui://push-state";
+const CH_PUSH_STATE_ASK = "yui://push-state-ask";
+const CH_PUSH_RESET = "yui://push-reset";
 
 interface VoiceStateSnapshot {
   state: VoiceInputState;
@@ -44,6 +48,15 @@ export interface SettingsBridge {
   onVoiceSet(cb: (on: boolean) => void): () => void;
   emitVoiceState(snapshot: VoiceStateSnapshot): void;
   onVoiceState(cb: (snapshot: VoiceStateSnapshot) => void): () => void;
+  /** Where the push socket stands. Only the window that owns the socket emits it. */
+  emitPushState(state: PushSocketState): void;
+  onPushState(cb: (state: PushSocketState) => void): () => void;
+  /** A window with no socket of its own asking the owner to state where it stands. */
+  emitPushStateAsk(): void;
+  onPushStateAsk(cb: () => void): () => void;
+  /** A window with no socket of its own asking the owner to start a new conversation. */
+  emitPushReset(): void;
+  onPushReset(cb: () => void): () => void;
   dispose(): void;
 }
 
@@ -225,6 +238,24 @@ export function createSettingsBridge(
     },
     onVoiceState(cb) {
       return on<VoiceStateSnapshot>(CH_VOICE_STATE, (s) => cb(s));
+    },
+    emitPushState(state) {
+      safeEmit(CH_PUSH_STATE, state);
+    },
+    onPushState(cb) {
+      return on<PushSocketState>(CH_PUSH_STATE, (s) => cb(s));
+    },
+    emitPushStateAsk() {
+      safeEmit(CH_PUSH_STATE_ASK);
+    },
+    onPushStateAsk(cb) {
+      return on<unknown>(CH_PUSH_STATE_ASK, () => cb());
+    },
+    emitPushReset() {
+      safeEmit(CH_PUSH_RESET);
+    },
+    onPushReset(cb) {
+      return on<unknown>(CH_PUSH_RESET, () => cb());
     },
     dispose: core.dispose,
   };
