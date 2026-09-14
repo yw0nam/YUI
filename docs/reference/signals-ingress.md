@@ -86,6 +86,7 @@ group per scheduled run, one run per local day, carrying a single item of this s
 | `sources[].name` | At most 40 characters |
 | `sources[].status` | One of `ok`, `stale`, `failed`, `disabled` |
 | `sources[].last_ok` | ISO-8601 timestamp, or absent |
+| `sources[].run_url` | `http` or `https`, at most 2048 characters, or absent |
 | `refs[]` | At most 30 entries, newest first, one entry per distinct `url` |
 | `refs[].kind` | One of `pull_request`, `issue`, `mail`, `other` |
 | `refs[].title` | At most 200 characters |
@@ -104,12 +105,53 @@ The group travels under this envelope:
 | Field | Value |
 |---|---|
 | `source` | The producer's own name |
-| `event_type` | `daily_briefing` |
+| `event_type` | `daily_briefing` \| `source_health` |
 | `delivery` | `immediate` |
-| `event_id` | `daily-briefing:<YYYY-MM-DD>` |
+| `event_id` | `daily-briefing:<YYYY-MM-DD>` \| `source-health:<workflow id>:<execution id>` |
 | `occurred_at` | Epoch milliseconds |
 
 The client delivers every group it receives, so two runs on one day produce two turns.
+
+A producer's error path posts a group of the same item shape, naming the run that raised
+in its own `sources[]` entry:
+
+```json
+{
+  "skill": "yui-daily-briefing",
+  "summary": "daily-briefing run failed: Fetch Signal Queue Rows: connect ECONNREFUSED",
+  "sources": [
+    {
+      "name": "daily-briefing",
+      "status": "failed",
+      "run_url": "https://n8n.example.com/execution/231"
+    }
+  ],
+  "refs": []
+}
+```
+
+That group's envelope reads `event_type: "source_health"` and
+`event_id: "source-health:<workflow id>:<execution id>"`.
+
+### Health observations
+
+| Observation | Where it shows |
+|---|---|
+| Collection failure | `sources[].status` reads `failed` |
+| No data | A group with `refs: []` whose sources all read `ok` |
+| Stale data | `sources[].status` reads `stale`, with `last_ok` |
+| Intentional inactivity | `sources[].status` reads `disabled` |
+| Run that raised | A `source_health` group from the producer's error path, carrying `run_url` |
+| Missed run (the producer never fired: automation down or the workflow unpublished) | Zero groups on that day; nothing posts on the producer's behalf |
+| Receiver offline | The ingress refuses the connection; the producer keeps its rows pending and the following run carries them; no health group is posted |
+| Delivery acceptance | HTTP 2xx from the ingress; the producer marks its rows sent |
+| Duplicate delivery | Every group the ingress accepts becomes one turn; two posts make two turns |
+| Backend handling | One line in `logs/turns_<date>.jsonl` carrying the group |
+| Completed output | The `[backend-caller] speech` line in the app log |
+| Interrupted playback | The following turn's `previous:` line reads `interrupted` (see `docs/reference/client-context.md`) |
+
+The client records none of these judgments: it transports the group, writes the turn
+line, and speaks whatever text returns.
 
 ## Validation and legacy behavior
 

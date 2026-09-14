@@ -1,0 +1,21 @@
+{
+  "signals": [
+    {
+      "skill": "yui-daily-briefing",
+      "summary": "nothing new since 2026-09-13 18:00",
+      "sources": [
+        { "name": "repo-status", "status": "failed", "last_ok": "2026-09-12T06:00:00+09:00" },
+        { "name": "gmail", "status": "stale", "last_ok": "2026-09-09T22:10:00+09:00" },
+        { "name": "calendar", "status": "disabled" }
+      ],
+      "refs": []
+    }
+  ],
+  "envelope": {
+    "source": "n8n",
+    "event_type": "daily_briefing",
+    "delivery": "immediate",
+    "event_id": "daily-briefing:2026-09-14",
+    "occurred_at": 1789336800000
+  }
+}

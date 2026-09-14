@@ -37,9 +37,11 @@ Check: each ref is read in full once.
 
 After the continuation clause and ahead of the first ref, name in one sentence every
 source whose `status` reads something other than `ok`: `stale` together with its
-`last_ok`, `failed`, and `disabled`.
+`last_ok`, `failed`, and `disabled`. A source carrying `run_url` gets it as a markdown
+link, `[name](run_url)`, inside that sentence.
 
-Check: one sentence holds all of them, and it stands ahead of the first ref.
+Check: one sentence holds all of them, each `run_url` rendered as its link, and it stands
+ahead of the first ref.
 
 ## 5. Speak the briefing
 

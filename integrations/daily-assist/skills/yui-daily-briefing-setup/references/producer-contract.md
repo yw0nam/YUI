@@ -49,6 +49,7 @@ The body is JSON: a `signals` array holding one item, and an `envelope`.
 | `refs[].title` | 200 characters |
 | `refs[].url` | `http` or `https` scheme, 2048 characters |
 | `refs[].excerpt` | 280 characters, possibly the empty string |
+| `sources[].run_url` | `http` or `https` scheme, 2048 characters, optional |
 | Whole body | At most 49,152 bytes of UTF-8 |
 
 `refs[].kind` reads `pull_request`, `issue`, `mail`, or `other`. `refs[].at` is an
@@ -78,7 +79,18 @@ the source's own rule yields:
 | `failed` | The last read raised an error |
 | `disabled` | The source is switched off on this machine |
 
-`last_ok` is an ISO-8601 timestamp and may be absent.
+`last_ok` is an ISO-8601 timestamp and may be absent. `run_url` points at the execution
+or delivery record behind the observation and may be absent.
+
+## Error path
+
+A run that raises posts a group of the same item shape from the producer's error
+workflow, carrying one `sources[]` entry named after the failed workflow, `status:
+"failed"`, `run_url` set to the failed execution, `last_ok` absent, and `refs: []`. The
+envelope reads `event_type: "source_health"` and `event_id:
+"source-health:<workflow id>:<execution id>"`. The error workflow is wired through the
+producer workflow's Settings → Error Workflow, and it fires only for a run that raised —
+a refused ingress connection is not an error, since that run ends on the pending branch.
 
 ## Retry
 

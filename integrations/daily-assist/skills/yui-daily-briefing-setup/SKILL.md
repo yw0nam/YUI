@@ -7,7 +7,7 @@ license: PolyForm-Noncommercial-1.0.0
 # yui-daily-briefing-setup
 
 The user has asked you to install the YUI daily briefing from a YUI checkout. Work through
-the six steps in order and stop at each check before moving on.
+the seven steps in order and stop at each check before moving on.
 
 Two variables run through every step:
 
@@ -68,7 +68,9 @@ fixture yields a turn line and silence.
 ## 4. Choose sources
 
 With the user, list each source the producer reads, giving its `name` and the rule that
-yields `ok`, `stale`, `failed`, and `disabled`.
+yields `ok`, `stale`, `failed`, and `disabled`. A source the user switches off on this
+machine is listed with the rule `disabled`, so its absence is told apart from a missed
+run.
 
 Check: every source has a rule that names a time bound or an error condition.
 
@@ -97,3 +99,16 @@ and the first present tick fires the turn that carries it.
 
 Check, the following morning: the turn log shows one line carrying the group with
 `event_id` `daily-briefing:<today>`, and the bubble shows a link.
+
+## 7. Wire the error workflow
+
+Import `references/n8n-daily-briefing-health.template.json` into the user's n8n, fill
+the placeholder `{{YUI_SIGNALS_URL}}`, and publish it. Open the `daily-briefing`
+workflow's Settings and pick the new workflow as its Error Workflow. The template runs
+only when a daily-briefing execution raises, and it posts nothing when YUI itself is
+offline.
+
+Check: post `assets/fixtures/source-health-run-failed.json` with `post-fixture.sh`; the
+turn log gains one line whose
+`client_context.trigger.signals[0].items[0].sources[0].status` reads `failed`, and the
+bubble names the workflow with a link.
