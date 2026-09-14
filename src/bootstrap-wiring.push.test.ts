@@ -97,7 +97,8 @@ describe("wirePushTransport", () => {
     socket.pushRender(RENDER);
 
     expect(turnOutput.cue).toHaveBeenCalledWith({ emotion_id: "happy" });
-    expect(turnOutput.delta).toHaveBeenCalledWith("All green.");
+    // The trailing newline is the segment boundary render-turn closes each segment with.
+    expect(turnOutput.delta).toHaveBeenCalledWith("All green.\n");
     expect(records).toHaveLength(1);
   });
 
