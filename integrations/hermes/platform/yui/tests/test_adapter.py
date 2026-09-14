@@ -11,6 +11,7 @@ from aiohttp.test_utils import TestClient, TestServer
 from gateway_stub import SLASH_CONFIRM, STUB_ENV, MessageEvent, MessageType, ProcessingOutcome
 from yui import delegations, reports, state
 from yui.adapter import MAX_FRAME_BYTES, YuiAdapter
+from yui.segments import Placement
 
 CHAT = "yui-3f9a2c1d"
 KEY = "test-key"
@@ -161,7 +162,7 @@ async def test_a_turn_reaches_the_gateway_as_context_then_utterance(client, adap
     assert event.allow_gateway_control is False
     assert event.source.chat_id == CHAT
     assert event.source.chat_type == "dm"
-    assert state.turn_id(CHAT) == "1789365854947"
+    assert event.message_id == "1789365854947"
 
 
 async def test_a_turn_with_no_utterance_still_carries_its_context(client, adapter):
@@ -222,10 +223,9 @@ async def test_a_reply_the_agent_speaks_on_its_own_carries_no_turn_id(client, ad
     assert (await recv(ws))["turn_id"] is None
 
 
-async def test_a_silent_turn_closes_with_no_segments(client, adapter):
+async def test_a_silent_turn_with_no_cues_closes_with_no_segments(client, adapter):
     ws = await ready(client)
     state.set_turn_id(CHAT, "7")
-    state.append_cue(CHAT, {"emotion_id": "happy"}, "")
     event = MessageEvent(text="hi", source=adapter.build_source(chat_id=CHAT))
     await adapter.on_processing_complete(event, ProcessingOutcome.SUCCESS)
     assert await recv(ws) == {
@@ -370,3 +370,49 @@ async def test_approving_the_confirmation_leaves_the_next_reply_speakable(client
     await adapter.send(CHAT, "Hello again.", metadata={"notify": True})
     frame = await recv(ws)
     assert frame["segments"] == [{"cues": [], "speech": "Hello again."}]
+
+
+async def test_the_turn_id_is_bound_when_the_gateway_starts_the_turn(adapter):
+    await adapter.on_processing_start(
+        MessageEvent(text="hi", message_id="777", source=adapter.build_source(chat_id=CHAT))
+    )
+    assert state.turn_id(CHAT) == "777"
+
+
+async def test_a_report_turn_renders_without_a_turn_id(adapter):
+    state.set_turn_id(CHAT, "777")
+    await adapter.on_processing_start(internal_event(adapter, "the build finished"))
+    assert state.turn_id(CHAT) is None
+
+
+async def test_a_report_admitted_mid_turn_leaves_the_running_turn_alone(client, adapter):
+    await ready(client)
+    await adapter.on_processing_start(
+        MessageEvent(text="hi", message_id="777", source=adapter.build_source(chat_id=CHAT))
+    )
+    state.append_cue(CHAT, {"emotion_id": "happy"}, "")
+    await adapter.handle_message(internal_event(adapter, "the build finished"))
+    assert state.turn_id(CHAT) == "777"
+    assert state.pop_cues(CHAT) == [Placement({"emotion_id": "happy"}, "")]
+
+
+async def test_an_empty_turn_is_answered_so_the_client_is_not_left_waiting(client, adapter):
+    ws = await ready(client)
+    await ws.send_json({"type": "turn", "turn_id": "9", "client_context": "", "text": ""})
+    assert await recv(ws) == {"type": "render", "turn_id": "9", "source": "hermes", "segments": []}
+    assert adapter.dispatched == []
+
+
+async def test_a_silent_turn_still_plays_its_cues(client, adapter):
+    ws = await ready(client)
+    state.set_turn_id(CHAT, "7")
+    state.append_cue(CHAT, {"emotion_id": "happy"}, "One")
+    state.append_cue(CHAT, {"motion_id": "idle"}, "")
+    event = MessageEvent(text="hi", source=adapter.build_source(chat_id=CHAT))
+    await adapter.on_processing_complete(event, ProcessingOutcome.SUCCESS)
+    assert await recv(ws) == {
+        "type": "render",
+        "turn_id": "7",
+        "source": "hermes",
+        "segments": [{"cues": [{"emotion_id": "happy"}, {"motion_id": "idle"}], "speech": ""}],
+    }

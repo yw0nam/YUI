@@ -88,11 +88,22 @@ def test_an_empty_call_applies_nothing():
     assert result["ok"] is True
 
 
-def test_vocabulary_from_payload_falls_back_to_the_defaults():
+def test_a_vocabulary_renders_nothing_until_the_client_publishes_one():
+    assert Vocabulary().emotion_ids == []
+    assert Vocabulary().motion_ids == []
+
+
+def test_an_empty_published_list_stays_empty():
     v = Vocabulary.from_payload({"emotion_ids": [], "motion_ids": None})
-    assert "neutral" in v.emotion_ids
-    assert "idle" in v.motion_ids
+    assert v.emotion_ids == []
+    assert v.motion_ids == []
     assert v.emotion_text_mode == "free"
+
+
+def test_blank_and_non_string_ids_are_dropped():
+    v = Vocabulary.from_payload({"emotion_ids": ["happy", "  ", 3], "motion_ids": ["idle"]})
+    assert v.emotion_ids == ["happy"]
+    assert v.motion_ids == ["idle"]
 
 
 def test_vocabulary_from_payload_takes_the_published_ids():

@@ -52,8 +52,8 @@ def test_reset_drops_a_previous_turns_cues():
     assert state.pop_cues("yui") == []
 
 
-def test_vocabulary_defaults_until_one_is_published():
-    assert "neutral" in state.vocabulary("yui").emotion_ids
+def test_nothing_is_renderable_until_a_vocabulary_is_published():
+    assert state.vocabulary("yui").emotion_ids == []
     state.set_vocabulary("yui", Vocabulary(emotion_ids=["happy"], motion_ids=[]))
     assert state.vocabulary("yui").emotion_ids == ["happy"]
 

@@ -51,6 +51,12 @@ def test_the_description_asks_for_one_call_per_reply():
     assert "never" in description
 
 
+def test_an_empty_emotion_vocabulary_drops_emotion_from_the_schema_and_the_description():
+    vocab = Vocabulary(emotion_ids=[], motion_ids=["dance"])
+    assert "emotion_id" not in cues_property(vocab)["items"]["properties"]
+    assert "facial expression" not in tools.build_schema(vocab)["description"]
+
+
 def test_an_empty_motion_vocabulary_drops_motion_from_the_schema_and_the_description():
     schema = tools.build_schema(Vocabulary(emotion_ids=["happy"], motion_ids=[]))
     assert (
