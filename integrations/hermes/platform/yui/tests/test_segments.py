@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from yui.segments import Placement, build_segments, split_sentences
+from yui.segments import Placement, build_segments, place_matched, split_sentences
 
 
 def test_the_terminator_stays_with_its_sentence():
@@ -109,3 +109,18 @@ def test_speech_with_no_sentences_yields_no_segments():
 def test_the_placement_hint_never_reaches_the_frame():
     segments = build_segments("One.", [Placement({"emotion_id": "happy"}, "One")])
     assert segments[0]["cues"] == [{"emotion_id": "happy"}]
+
+
+def test_only_the_named_cues_ride_on_commentary():
+    placements = [
+        Placement({"emotion_id": "curious"}, "Let me check"),
+        Placement({"emotion_id": "happy"}, "All green"),
+    ]
+    segments, waiting = place_matched("Let me check the tests.", placements)
+    assert segments == [{"cues": [{"emotion_id": "curious"}], "speech": "Let me check the tests."}]
+    assert waiting == [Placement({"emotion_id": "happy"}, "All green")]
+
+
+def test_commentary_with_no_sentences_keeps_every_cue_waiting():
+    placements = [Placement({"emotion_id": "happy"}, "")]
+    assert place_matched("", placements) == ([], placements)

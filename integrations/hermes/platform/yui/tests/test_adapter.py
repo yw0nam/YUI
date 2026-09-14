@@ -511,3 +511,31 @@ async def test_a_socket_that_dies_mid_flush_keeps_the_replies_it_did_not_take(ad
     await adapter._flush_renders(CHAT)
     held, _dropped = reports.take_renders(CHAT)
     assert [frame["turn_id"] for frame in held] == ["1", "2"]
+
+
+async def test_commentary_places_only_the_cues_it_names(client, adapter):
+    ws = await ready(client)
+    await adapter.on_processing_start(user_turn(adapter, "777"))
+    state.append_cue(CHAT, {"emotion_id": "curious"}, "Let me check")
+    state.append_cue(CHAT, {"emotion_id": "happy"}, "All green")
+    await adapter.send(CHAT, "Let me check the tests.", metadata={"thread_id": "t1"})
+    first = await recv(ws)
+    await adapter.send(CHAT, "All green.", metadata={"notify": True})
+    second = await recv(ws)
+    assert first["segments"] == [{"cues": [{"emotion_id": "curious"}], "speech": "Let me check the tests."}]
+    assert second["segments"] == [{"cues": [{"emotion_id": "happy"}], "speech": "All green."}]
+
+
+async def test_a_socket_that_arrives_during_the_send_still_gets_the_reply(client, adapter, monkeypatch):
+    ws = await ready(client)
+    connected = state.is_connected
+    seen: list[str] = []
+
+    def racing(chat_id: str) -> bool:
+        # The first look happens before the new socket marks itself ready.
+        seen.append(chat_id)
+        return connected(chat_id) if len(seen) > 1 else False
+
+    monkeypatch.setattr(state, "is_connected", racing)
+    await adapter.send(CHAT, "The tests passed.", metadata={"notify": True})
+    assert (await recv(ws))["segments"] == [{"cues": [], "speech": "The tests passed."}]
