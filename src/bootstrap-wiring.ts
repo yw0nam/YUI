@@ -1463,6 +1463,8 @@ export async function wireBroker(deps: {
     get(): ExpressMotionSettings;
     subscribe(cb: () => void): () => void;
   };
+  /** Called whenever the renderable vocabulary may have moved, for consumers other than the broker. */
+  onVocabularyChange?: () => void;
   log: Logger;
 }): Promise<{
   onConfigChange: (cfg: AppConfig, changed: ReadonlySet<ConfigSection>) => void;
@@ -1471,6 +1473,8 @@ export async function wireBroker(deps: {
   dispose: () => void;
 }> {
   const { getConfig, getEndpoints, endpointsSettings, expressMotionSettings, log } = deps;
+  // Announced from every site the vocabulary moves at, whether or not a broker is configured.
+  const announce = (): void => deps.onVocabularyChange?.();
   // In the Tauri webview the broker (localhost:3201) is cross-origin → inject the CORS-bypass fetch.
   // Resolved once and reused when the client is retargeted.
   const brokerFetch = (await selectFetch()) ?? undefined;
@@ -1487,6 +1491,7 @@ export async function wireBroker(deps: {
       log.warn("emotion_text_load_failed", { fallback: "free", error: String(err) });
       table = null;
     }
+    announce();
     return table;
   };
   /** Every payload goes through here, so the motion selection reaches publish and tools alike. */
@@ -1527,18 +1532,18 @@ export async function wireBroker(deps: {
   // The selection is broadcast-synced, so this fires for the settings window's edit too.
   const unsubscribeExpressMotions = expressMotionSettings.subscribe(() => {
     if (broker) void broker.publish(vocabulary());
+    announce();
   });
 
   const onConfigChange = (cfg: AppConfig, changed: ReadonlySet<ConfigSection>): void => {
-    if (
-      broker &&
-      (changed.has("emotionRegistry") || changed.has("motions") || changed.has("endpoints"))
-    ) {
-      const eff = getEndpoints();
-      void loadBrokerTable().then((loaded) => {
-        void broker?.publish(derive(cfg, eff, loaded));
-      });
+    if (!(changed.has("emotionRegistry") || changed.has("motions") || changed.has("endpoints"))) {
+      return;
     }
+    const eff = getEndpoints();
+    // The table reload announces the change; the broker only hears about it when it is configured.
+    void loadBrokerTable().then((loaded) => {
+      if (broker) void broker.publish(derive(cfg, eff, loaded));
+    });
   };
 
   const dispose = (): void => {
@@ -1819,21 +1824,19 @@ export async function wireDevGlobals(deps: {
 }
 
 /**
- * Routes an open push socket into the client: a `render` frame plays as a turn, a `delegations`
- * frame replaces the tracked list, and a change to the renderable vocabulary is sent on. The
- * socket itself is created and connected by the host, which owns its lifetime.
+ * Routes an open push socket into the client: a `render` frame plays as a turn and a `delegations`
+ * frame replaces the tracked list. The socket itself is created and connected by the host, which
+ * owns its lifetime.
  */
 export function wirePushTransport(deps: {
   socket: {
     onRender(cb: (frame: RenderFrame) => void): () => void;
     onDelegations(cb: (items: DelegationItem[]) => void): () => void;
-    sendVocabulary(): void;
   };
   turnOutput: TurnOutput;
   /** Render sink for a cue on a segment that speaks nothing. */
   renderer: Pick<Renderer, "applyDirective">;
   delegations: DelegationsStore;
-  expressMotionSettings: { subscribe(cb: () => void): () => void };
   appendTurnRecord: (record: RenderRecord) => void;
   /** Conversation transcript — the reply half of a push turn lands here. */
   appendTranscript: (entry: ChatHistoryEntry) => void;
@@ -1847,7 +1850,6 @@ export function wirePushTransport(deps: {
   const unsubscribes = [
     deps.socket.onRender((frame) => renderTurn.render(frame)),
     deps.socket.onDelegations((items) => deps.delegations.replace(items)),
-    deps.expressMotionSettings.subscribe(() => deps.socket.sendVocabulary()),
   ];
   return () => {
     for (const off of unsubscribes) off();

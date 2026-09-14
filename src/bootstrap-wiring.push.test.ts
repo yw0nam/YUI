@@ -62,7 +62,6 @@ const RENDER: RenderFrame = {
 };
 
 let socket: ReturnType<typeof fakeSocket>;
-let expressMotionSettings: ReturnType<typeof fakeMotionSettings>;
 let turnOutput: ReturnType<typeof makeTurnOutput>;
 let delegations: ReturnType<typeof createDelegationsStore>;
 let records: unknown[];
@@ -75,7 +74,6 @@ function wire() {
     turnOutput,
     renderer: { applyDirective: (env) => directives.push(env) },
     delegations,
-    expressMotionSettings,
     appendTurnRecord: (record) => records.push(record),
     appendTranscript: (entry) => transcript.push(entry),
   });
@@ -83,7 +81,6 @@ function wire() {
 
 beforeEach(() => {
   socket = fakeSocket();
-  expressMotionSettings = fakeMotionSettings();
   turnOutput = makeTurnOutput();
   delegations = createDelegationsStore();
   records = [];
@@ -130,20 +127,12 @@ describe("wirePushTransport", () => {
     expect(delegations.get().map((d) => d.id)).toEqual(["d-1"]);
   });
 
-  it("resends the vocabulary when the motion selection changes", () => {
-    wire();
-    expressMotionSettings.change();
-
-    expect(socket.sendVocabulary).toHaveBeenCalledTimes(1);
-  });
-
   it("drops every subscription on dispose", () => {
     const dispose = wire();
     dispose();
 
     expect(socket.hasRenderSubscriber()).toBe(false);
     expect(socket.hasDelegationsSubscriber()).toBe(false);
-    expect(expressMotionSettings.count()).toBe(0);
   });
 });
 

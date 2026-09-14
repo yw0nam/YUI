@@ -1533,18 +1533,22 @@ describe("wireBroker", () => {
     expect(onVocabularyChange).toHaveBeenCalledTimes(1);
   });
 
+  // Retargeting the broker reloads the table through the loader handed to the reconciler, so that
+  // loader is the one that must announce. The reconciler itself is mocked here.
   it("tells them when retargeting the broker reloads the table", async () => {
-    const { deps, onVocabularyChange, changeEndpoints } = makeDeps({
-      broker_base_url: "http://localhost:3201",
-    });
+    const { deps, onVocabularyChange } = makeDeps({ broker_base_url: "http://localhost:3201" });
     await wireBroker(deps);
     await flush();
     onVocabularyChange.mockClear();
 
-    changeEndpoints({ broker_base_url: "http://localhost:3202" });
-    await flush();
+    // The last call is this test's — the mock is shared across the block.
+    const [reconcilerOpts] = createReconciler.mock.calls.at(-1) as unknown as [
+      { loadTable: () => Promise<unknown> },
+    ];
+    const { loadTable } = reconcilerOpts;
+    await loadTable();
 
-    expect(onVocabularyChange).toHaveBeenCalled();
+    expect(onVocabularyChange).toHaveBeenCalledTimes(1);
   });
 
   it("tells them even with no broker configured — the vocabulary has other consumers", async () => {

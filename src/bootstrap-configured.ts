@@ -723,6 +723,8 @@ const realFactories: ConfiguredBootstrapFactories = {
       getEndpoints,
       endpointsSettings,
       expressMotionSettings,
+      // The socket advertises the same vocabulary the broker publishes; it diffs before it sends.
+      onVocabularyChange: () => pushSocket?.sendVocabulary(),
       log,
     });
     register(broker.dispose);
@@ -733,7 +735,6 @@ const realFactories: ConfiguredBootstrapFactories = {
           turnOutput: voice.turnOutput,
           renderer,
           delegations: createDelegationsStore(),
-          expressMotionSettings,
           appendTurnRecord: (record) => appendRecord(record),
           appendTranscript: (entry) => chatHistoryStore.append(entry),
         }),
