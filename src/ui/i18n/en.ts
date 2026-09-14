@@ -484,7 +484,7 @@ const en: Record<string, string> = {
   "session.confirm_cancel": "Cancel",
 
   // delegations
-  "deleg.chip_running": "{n} task(s) in progress",
+  "deleg.chip_running": "{n} tasks in progress",
   "deleg.list_title": "Delegated tasks",
   "deleg.min": "{n}m",
   "deleg.hour_min": "{h}h {m}m",
