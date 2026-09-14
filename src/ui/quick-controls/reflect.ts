@@ -4,6 +4,7 @@
  * DOM nodes are queried directly from deps.root (entry handlers querying the same node yields the same node, so no harm).
  */
 
+import "../delegation-chip.css";
 import type { createAgentNotifySettings } from "../../io/agent-notify-settings";
 import { type createAgentSettings, REASONING_EFFORTS } from "../../io/agent-settings";
 import {
@@ -19,11 +20,12 @@ import {
   LIPSYNC_GAIN_MIN,
 } from "../../io/lipsync-settings";
 import type { ClampedIntSettingsStore } from "../../io/persisted-store";
-import type { PushSocketState } from "../../io/push-socket";
+import type { DelegationItem, PushSocketState } from "../../io/push-socket";
 import type { ScreenKnobSettingsStore, ScreenOverrides } from "../../io/screen-settings";
 import type { createScreenshotSettings } from "../../io/screenshot-settings";
 import type { createSessionDiagnosticsStore } from "../../io/session-diagnostics";
 import { type createVadSettings, VAD_SILENCE_MAX, VAD_SILENCE_MIN } from "../../io/vad-settings";
+import { renderDelegationRows } from "../delegation-rows";
 import { getLocale, t } from "../i18n";
 import { reflectUnlessEditing } from "../reflect-unless-editing";
 import type { VoiceInputStatusSnapshot } from "../voice-input-status";
@@ -91,6 +93,11 @@ interface ReflectDeps {
   getDefaultChatApi?: () => string | undefined;
   /** Push socket state for the chat section's connection line. Absent outside push mode. */
   getPushState?: () => PushSocketState;
+  /** The delegations list the session section renders. Absent where nothing mirrors it. */
+  delegations?: {
+    get(): DelegationItem[];
+    subscribe(cb: (items: DelegationItem[]) => void): () => void;
+  };
   /** Reactions tab numeric inputs — provided when the feature is enabled. */
   agentPortInput?: HTMLInputElement;
   presenceInput?: HTMLInputElement;
@@ -130,6 +137,7 @@ export interface Reflect {
   reflectEndpoints(): void;
   reflectKeyRows(): void;
   reflectSession(): void;
+  reflectDelegations(): void;
   reflectVoiceStatus(snapshot: VoiceInputStatusSnapshot): void;
 }
 
@@ -149,6 +157,7 @@ export function createReflect(deps: ReflectDeps): Reflect {
     getEndpointDefaults,
     getDefaultChatApi,
     getPushState,
+    delegations,
     agentPortInput,
     presenceInput,
     presenceSettings,
@@ -208,6 +217,8 @@ export function createReflect(deps: ReflectDeps): Reflect {
   }
   const sessionStatEl = root.querySelector<HTMLDivElement>(".yui-session__stat");
   const sessionValueEl = root.querySelector<HTMLSpanElement>(".yui-session__value");
+  const sessionDelegEl = root.querySelector<HTMLDivElement>(".yui-session__deleg");
+  const sessionDelegRowsEl = root.querySelector<HTMLDivElement>(".yui-session__deleg-rows");
   const screenKnobsEl = root.querySelector<HTMLDivElement>(".yui-screen-knobs");
   const screenGapSlider = root.querySelector<HTMLInputElement>(".yui-screen-gap__slider");
   const screenGapValue = root.querySelector<HTMLSpanElement>(".yui-screen-gap__value");
@@ -476,6 +487,14 @@ export function createReflect(deps: ReflectDeps): Reflect {
     }
   }
 
+  // Render the delegated-work list from the mirrored store. Hidden while the backend reports none.
+  function reflectDelegations(): void {
+    if (!sessionDelegEl || !sessionDelegRowsEl || !delegations) return;
+    const items = delegations.get();
+    sessionDelegEl.hidden = items.length === 0;
+    renderDelegationRows(sessionDelegRowsEl, items, Date.now());
+  }
+
   function reflectVoiceStatus(snapshot: VoiceInputStatusSnapshot): void {
     const on = snapshot.state !== "idle";
     voiceSwitchBtn.setAttribute("aria-checked", String(on));
@@ -501,6 +520,7 @@ export function createReflect(deps: ReflectDeps): Reflect {
     reflectEndpoints,
     reflectKeyRows,
     reflectSession,
+    reflectDelegations,
     reflectVoiceStatus,
   };
 }

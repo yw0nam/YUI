@@ -60,7 +60,10 @@ describe("createQuickControls — session section delegated list", () => {
       return ++rafId;
     });
     vi.spyOn(globalThis, "cancelAnimationFrame").mockImplementation(() => {});
-    vi.useFakeTimers({ now: NOW, toFake: ["setTimeout", "clearTimeout", "setInterval", "clearInterval", "Date"] });
+    vi.useFakeTimers({
+      now: NOW,
+      toFake: ["setTimeout", "clearTimeout", "setInterval", "clearInterval", "Date"],
+    });
 
     setLocale("ko");
     mount = document.createElement("div");
@@ -92,9 +95,9 @@ describe("createQuickControls — session section delegated list", () => {
   }
 
   function rowTimes(qc: { el: HTMLElement }): string[] {
-    return [...qc.el.querySelectorAll<HTMLElement>(".yui-session__deleg-rows .yui-deleg__item-time")].map(
-      (el) => el.textContent,
-    );
+    return [
+      ...qc.el.querySelectorAll<HTMLElement>(".yui-session__deleg-rows .yui-deleg__item-time"),
+    ].map((el) => el.textContent);
   }
 
   it("stays hidden while the mirrored list is empty", () => {

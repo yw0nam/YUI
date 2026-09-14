@@ -7,13 +7,13 @@
 
 import { afterEach, describe, expect, it } from "vitest";
 import type { DelegationItem } from "../io/push-socket";
-import { type Locale, setLocale } from "./i18n";
 import {
   formatDelegationDuration,
   formatDelegationTime,
   renderDelegationRows,
   sortDelegations,
 } from "./delegation-rows";
+import { type Locale, setLocale } from "./i18n";
 
 const NOW = 1_789_365_900_000;
 
@@ -75,7 +75,12 @@ describe("formatDelegationTime — one row's right-side text", () => {
 
 describe("sortDelegations — running first, each group in the backend's order", () => {
   it("partitions done items behind running ones", () => {
-    const items = [done("d-3", 60_000), running("d-1", 60_000), done("d-4", 60_000), running("d-2", 60_000)];
+    const items = [
+      done("d-3", 60_000),
+      running("d-1", 60_000),
+      done("d-4", 60_000),
+      running("d-2", 60_000),
+    ];
     expect(sortDelegations(items).map((d) => d.id)).toEqual(["d-1", "d-2", "d-3", "d-4"]);
   });
 });

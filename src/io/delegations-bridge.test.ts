@@ -5,8 +5,8 @@
  */
 
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { DelegationItem } from "./push-socket";
 import { createMirroredDelegations, publishDelegations } from "./delegations-bridge";
+import type { DelegationItem } from "./push-socket";
 import { type BridgeTransport, createSettingsBridge } from "./settings-bridge";
 
 /** In-memory pub/sub shared by two bridges — one per window. */

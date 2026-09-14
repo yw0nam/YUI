@@ -1134,6 +1134,27 @@
   padding: 0.5rem 0 0.2rem;
 }
 
+/* Delegated-work list under the context stat line — rows carry the shared .yui-deleg__item styles. */
+.yui-session__deleg {
+  margin-top: 0.2rem;
+}
+
+.yui-session__deleg[hidden] {
+  display: none;
+}
+
+.yui-session__deleg-title {
+  margin: 0.45rem 0 0.15rem;
+  color: var(--yui-text-mute);
+  font-size: 0.68rem;
+  font-weight: 500;
+  letter-spacing: 0.02em;
+}
+
+.yui-session__deleg-rows .yui-deleg__item {
+  font-size: 0.8rem;
+}
+
 .yui-session__statline {
   display: flex;
   align-items: baseline;

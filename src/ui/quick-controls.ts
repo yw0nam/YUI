@@ -24,7 +24,7 @@ import {
 import type { MessageWindowSettingsStore } from "../io/message-window-settings";
 import type { ClampedIntSettingsStore, FlagSettingsStore } from "../io/persisted-store";
 import type { createProactiveSettings } from "../io/proactive-settings";
-import type { PushSocketState } from "../io/push-socket";
+import type { DelegationItem, PushSocketState } from "../io/push-socket";
 import type { createScheduleSettings } from "../io/schedule-settings";
 import type { ScreenKnobSettingsStore, ScreenOverrides } from "../io/screen-settings";
 import type { ScreenSourceProvider } from "../io/screen-source-provider";
@@ -39,6 +39,7 @@ import type { createVrmSelection } from "../io/vrm-selection";
 import type { createWorkflowSettings } from "../io/workflow-settings";
 import { createLogger } from "../logger";
 import { type CueListInstance, createCueList } from "./cue-list";
+import { DELEGATION_REFRESH_MS } from "./delegation-rows";
 import { type Locale, setLocale, t } from "./i18n";
 import {
   type QuickControlsTab,
@@ -88,6 +89,12 @@ export interface PushSocketPanelPort {
   getState(): PushSocketState;
   onState(cb: (state: PushSocketState) => void): () => void;
   sendReset(): boolean;
+}
+
+/** The delegations list as the settings window sees it — mirrored over the bridge. */
+export interface DelegationsPanelPort {
+  get(): DelegationItem[];
+  subscribe(cb: (items: DelegationItem[]) => void): () => void;
 }
 
 interface QuickControlsOptions {
@@ -152,6 +159,8 @@ interface QuickControlsOptions {
   getDefaultChatApi?: () => string | undefined;
   /** Push transport — the chat section shows its state, and "Start fresh" resets the conversation on it. */
   pushSocket?: PushSocketPanelPort;
+  /** Delegated-work list for the session section (window variant). The pet window publishes it. */
+  delegations?: DelegationsPanelPort;
   /** Session diagnostics (context usage · last compression). The occupancy readout renders in the window variant only. */
   sessionDiagnostics?: SessionDiagnosticsStore;
   /** Current session id pointer. "Start fresh" clears it along with diagnostics. */
@@ -441,6 +450,7 @@ export function createQuickControls({
   getEndpointDefaults,
   getDefaultChatApi,
   pushSocket,
+  delegations,
   sessionDiagnostics,
   sessionStore,
   transcript,
@@ -639,6 +649,7 @@ export function createQuickControls({
     getEndpointDefaults,
     getDefaultChatApi,
     ...(pushSocket ? { getPushState: () => pushSocket.getState() } : {}),
+    ...(delegations ? { delegations } : {}),
     agentPortInput: agentPortInput ?? undefined,
     presenceInput: presenceInput ?? undefined,
     presenceSettings,
@@ -653,8 +664,22 @@ export function createQuickControls({
     getScreenDefaults,
   });
 
-  // ── VRM section ──
+  // The session section's delegated list re-renders on every list change, and a once-a-minute
+  // refresh keeps its elapsed and ago text current while the list holds items.
+  let delegationsTimer: ReturnType<typeof setInterval> | null = null;
+  function syncDelegations(): void {
+    reflect.reflectDelegations();
+    if (!delegations) return;
+    const has = delegations.get().length > 0;
+    if (has && delegationsTimer === null) {
+      delegationsTimer = setInterval(() => reflect.reflectDelegations(), DELEGATION_REFRESH_MS);
+    } else if (!has && delegationsTimer !== null) {
+      clearInterval(delegationsTimer);
+      delegationsTimer = null;
+    }
+  }
 
+  // ── VRM section ──
   const vrmList = createVrmList({
     root: el,
     vrmSelection,
@@ -728,6 +753,7 @@ export function createQuickControls({
       reflect.reflectChatType();
       reflect.reflectChatPreset();
       reflect.reflectSession();
+      syncDelegations();
       sections.reflect();
       // The confirm is static markup — disarm it so a reopen never lands on the destructive pill.
       hideSessionConfirm();
@@ -1359,6 +1385,9 @@ export function createQuickControls({
   const unsubscribeSession = sessionDiagnostics?.subscribe(() => {
     if (popover.isOpen()) reflect.reflectSession();
   });
+  // Reflect delegated-work updates to the session section through the same sync that arms
+  // its minute refresh.
+  const unsubscribeDelegations = delegations?.subscribe(() => syncDelegations());
   // Reflect idle-motion updates (this window's toggle · other window's reloadFromStorage) to the rows.
   const unsubscribeIdleMotion = idleMotionSettings?.subscribe(() => {
     if (popover.isOpen()) idleMotionList?.render();
@@ -1459,6 +1488,8 @@ export function createQuickControls({
     unsubscribeVrm();
     unsubscribeSpk();
     unsubscribeSession?.();
+    unsubscribeDelegations?.();
+    if (delegationsTimer !== null) clearInterval(delegationsTimer);
     unsubscribeIdleMotion?.();
     unsubscribeExpressMotion?.();
     expressMotionList?.dispose();

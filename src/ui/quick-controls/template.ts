@@ -298,6 +298,10 @@ ${RATE_LIMIT_FIELDS.map((f) =>
             <span class="yui-session__value"></span>
           </div>
         </div>
+        <div class="yui-session__deleg" hidden>
+          <h3 class="yui-session__deleg-title">${t("deleg.list_title")}</h3>
+          <div class="yui-session__deleg-rows"></div>
+        </div>
       </div>
       </details>`
     : "";

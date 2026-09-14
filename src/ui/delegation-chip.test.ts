@@ -10,14 +10,14 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 vi.mock("./delegation-chip.css", () => ({}));
 
 import { INTERACTIVE_OVERLAY_SELECTORS } from "../bootstrap-configured";
-import { createDelegationsStore } from "../io/delegations-store";
 import {
   createDelegationChipSettings,
   localStorageDelegationChipStorage,
 } from "../io/delegation-chip-settings";
+import { createDelegationsStore } from "../io/delegations-store";
 import type { DelegationItem } from "../io/push-socket";
-import { setLocale, t } from "./i18n";
 import { createDelegationChip } from "./delegation-chip";
+import { setLocale, t } from "./i18n";
 
 const NOW = 1_789_365_900_000;
 const STORAGE_KEY = "yui.test.delegation-chip";
@@ -107,9 +107,9 @@ describe("createDelegationChip", () => {
     store.replace([running("d-1", 60_000), running("d-2", 60_000), done("d-3", 60_000)]);
 
     expect(chipEl().hidden).toBe(false);
-    expect(
-      mount.querySelector<HTMLElement>(".yui-deleg__label")!.textContent,
-    ).toBe(t("deleg.chip_running", { n: 2 }));
+    expect(mount.querySelector<HTMLElement>(".yui-deleg__label")!.textContent).toBe(
+      t("deleg.chip_running", { n: 2 }),
+    );
     expect(chipEl().classList.contains("is-mini")).toBe(false);
   });
 
@@ -117,9 +117,9 @@ describe("createDelegationChip", () => {
     const { store } = build();
     setLocale("en");
     store.replace([running("d-1", 60_000)]);
-    expect(
-      mount.querySelector<HTMLElement>(".yui-deleg__label")!.textContent,
-    ).toBe(t("deleg.chip_running", { n: 1 }));
+    expect(mount.querySelector<HTMLElement>(".yui-deleg__label")!.textContent).toBe(
+      t("deleg.chip_running", { n: 1 }),
+    );
   });
 
   it("opens the list popover on tap, running items first with the right times", () => {
@@ -192,8 +192,9 @@ describe("createDelegationChip", () => {
 
     expect(chipEl().classList.contains("is-mini")).toBe(true);
     expect(
-      createDelegationChipSettings({ storage: localStorageDelegationChipStorage(STORAGE_KEY) }).get()
-        .collapsed,
+      createDelegationChipSettings({
+        storage: localStorageDelegationChipStorage(STORAGE_KEY),
+      }).get().collapsed,
     ).toBe(true);
   });
 

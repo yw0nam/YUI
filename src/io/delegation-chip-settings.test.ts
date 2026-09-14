@@ -31,8 +31,15 @@ describe("createDelegationChipSettings", () => {
   });
 
   it("ignores a stored value that is not a boolean flag", () => {
-    globalThis.localStorage?.setItem("yui.test.delegation-chip", JSON.stringify({ collapsed: "yes" }));
-    expect(createDelegationChipSettings({ storage: localStorageDelegationChipStorage("yui.test.delegation-chip") }).get()).toEqual({ collapsed: false });
+    globalThis.localStorage?.setItem(
+      "yui.test.delegation-chip",
+      JSON.stringify({ collapsed: "yes" }),
+    );
+    expect(
+      createDelegationChipSettings({
+        storage: localStorageDelegationChipStorage("yui.test.delegation-chip"),
+      }).get(),
+    ).toEqual({ collapsed: false });
   });
 
   it("restores the stored choice in a fresh store — the per-device persistence", () => {
