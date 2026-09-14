@@ -19,6 +19,7 @@ import {
   LIPSYNC_GAIN_MIN,
 } from "../../io/lipsync-settings";
 import type { ClampedIntSettingsStore } from "../../io/persisted-store";
+import type { PushSocketState } from "../../io/push-socket";
 import type { ScreenKnobSettingsStore, ScreenOverrides } from "../../io/screen-settings";
 import type { createScreenshotSettings } from "../../io/screenshot-settings";
 import type { createSessionDiagnosticsStore } from "../../io/session-diagnostics";
@@ -28,6 +29,7 @@ import { reflectUnlessEditing } from "../reflect-unless-editing";
 import type { VoiceInputStatusSnapshot } from "../voice-input-status";
 import {
   CHAT_API_LABEL_KEYS,
+  CHAT_APIS,
   CHAT_PRESET_CUSTOM,
   CHAT_PROVIDER_PRESETS,
   type ChatApi,
@@ -87,6 +89,8 @@ interface ReflectDeps {
   getEndpointDefaults?: () => EndpointOverrides | undefined;
   /** Bundled config default that effective chat_api falls back to when no override exists (undefined if not loaded). */
   getDefaultChatApi?: () => string | undefined;
+  /** Push socket state for the chat section's connection line. Absent outside push mode. */
+  getPushState?: () => PushSocketState;
   /** Reactions tab numeric inputs — provided when the feature is enabled. */
   agentPortInput?: HTMLInputElement;
   presenceInput?: HTMLInputElement;
@@ -122,6 +126,7 @@ export interface Reflect {
   reflectLanguage(): void;
   reflectChatType(): void;
   reflectChatPreset(): void;
+  reflectChatStatus(): void;
   reflectEndpoints(): void;
   reflectKeyRows(): void;
   reflectSession(): void;
@@ -143,6 +148,7 @@ export function createReflect(deps: ReflectDeps): Reflect {
     keyRows,
     getEndpointDefaults,
     getDefaultChatApi,
+    getPushState,
     agentPortInput,
     presenceInput,
     presenceSettings,
@@ -168,6 +174,11 @@ export function createReflect(deps: ReflectDeps): Reflect {
   const chatTypeEl = root.querySelector<HTMLSelectElement>(".yui-chat-type")!;
   const chatSummaryHintEl = root.querySelector<HTMLSpanElement>(".yui-chat-summary-hint")!;
   const chatPresetEl = root.querySelector<HTMLSelectElement>(".yui-chat-preset")!;
+  const chatStatusEl = root.querySelector<HTMLParagraphElement>(".yui-chat-status")!;
+  const chatStatusTextEl = chatStatusEl.querySelector<HTMLSpanElement>(".yui-chat-status__text")!;
+  const chatModelRowEl = root.querySelector<HTMLDivElement>(
+    '.yui-input-row[data-ep-field="chat_model"]',
+  )!;
   const instructionsEl = root.querySelector<HTMLTextAreaElement>(".yui-textarea")!;
   const fillerLangSegEl = root.querySelector<HTMLDivElement>(".yui-filler-lang-seg");
   const fillerLangBtns = fillerLangSegEl
@@ -338,27 +349,71 @@ export function createReflect(deps: ReflectDeps): Reflect {
     langSegEl.style.setProperty("--seg", String(idx));
   }
 
+  function isChatApi(v: string | undefined): v is ChatApi {
+    return v !== undefined && (CHAT_APIS as readonly string[]).includes(v);
+  }
+
   // Effective chat API — use valid override if present, else bundled default, else fall back to responses.
   function effectiveChatApi(): ChatApi {
     const ov = endpointsSettings.get().chat_api;
-    if (ov === "responses" || ov === "chat_completions") return ov;
+    if (isChatApi(ov)) return ov;
     const def = getDefaultChatApi?.();
-    return def === "chat_completions" ? "chat_completions" : "responses";
+    return isChatApi(def) ? def : "responses";
   }
 
   // Chat API dropdown value + summary hint, matching effective chat_api (no subview).
+  // The model row belongs to the request-shaped modes — push carries no model of its own.
   function reflectChatType(): void {
     const eff = effectiveChatApi();
     if (chatTypeEl.value !== eff) chatTypeEl.value = eff;
     chatSummaryHintEl.textContent = t(CHAT_API_LABEL_KEYS[eff]);
+    chatModelRowEl.hidden = eff === "push";
+    reflectChatStatus();
   }
 
-  // Chat provider preset dropdown — the preset whose URL the chat_base_url override matches exactly, else Custom.
+  // Chat provider preset dropdown — the preset the current settings match, else Custom. A preset
+  // that names a protocol is matched on it; the rest are matched on the chat_base_url override.
   function reflectChatPreset(): void {
+    const api = effectiveChatApi();
     const url = endpointsSettings.get().chat_base_url.trim();
-    const match = CHAT_PROVIDER_PRESETS.find((p) => p.url === url);
+    const match = CHAT_PROVIDER_PRESETS.find((p) =>
+      p.chatApi !== undefined ? p.chatApi === api : p.url === url && api !== "push",
+    );
     const next = match ? match.id : CHAT_PRESET_CUSTOM;
     if (chatPresetEl.value !== next) chatPresetEl.value = next;
+  }
+
+  // One line under the key row: where the push socket stands. Hidden in the request-shaped modes.
+  function reflectChatStatus(): void {
+    const state = effectiveChatApi() === "push" ? getPushState?.() : undefined;
+    chatStatusEl.hidden = state === undefined;
+    chatStatusEl.classList.remove("is-ready", "is-waiting", "is-failed");
+    if (state === undefined) {
+      chatStatusTextEl.textContent = "";
+      return;
+    }
+    switch (state.kind) {
+      case "ready":
+        chatStatusEl.classList.add("is-ready");
+        chatStatusTextEl.textContent = t("svc.chat_status_connected", { id: state.chat_id });
+        return;
+      case "connecting":
+        chatStatusEl.classList.add("is-waiting");
+        chatStatusTextEl.textContent = t("svc.chat_status_connecting");
+        return;
+      case "reconnecting":
+        chatStatusEl.classList.add("is-waiting");
+        chatStatusTextEl.textContent = t("svc.chat_status_reconnecting", {
+          seconds: Math.ceil(state.delay_ms / 1000),
+        });
+        return;
+      case "failed":
+        chatStatusEl.classList.add("is-failed");
+        chatStatusTextEl.textContent = t("svc.chat_status_failed", { code: state.code });
+        return;
+      default:
+        chatStatusTextEl.textContent = t("svc.chat_status_offline");
+    }
   }
 
   function reflectEndpoints(): void {
@@ -442,6 +497,7 @@ export function createReflect(deps: ReflectDeps): Reflect {
     reflectLanguage,
     reflectChatType,
     reflectChatPreset,
+    reflectChatStatus,
     reflectEndpoints,
     reflectKeyRows,
     reflectSession,

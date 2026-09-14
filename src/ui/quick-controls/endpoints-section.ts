@@ -16,9 +16,11 @@ import {
 import type { Logger } from "../../logger";
 import { t } from "../i18n";
 import {
+  CHAT_APIS,
   CHAT_PROVIDER_PRESETS,
   CHATKEY_EYE_OFF_SVG,
   CHATKEY_EYE_SVG,
+  type ChatApi,
   ENDPOINT_FIELDS,
 } from "./constants";
 import { validateEndpointInput } from "./reflect";
@@ -63,6 +65,10 @@ interface EndpointsSection {
   commitDirtyEndpoints(): void;
   /** Permanent teardown — commit pending keys + unsubscribe all listeners. */
   dispose(): void;
+}
+
+function isChatApi(v: string): v is ChatApi {
+  return (CHAT_APIS as readonly string[]).includes(v);
 }
 
 export function createEndpointsSection(deps: EndpointsSectionDeps): EndpointsSection {
@@ -178,7 +184,7 @@ export function createEndpointsSection(deps: EndpointsSectionDeps): EndpointsSec
   // Native select owns keyboard — write to store only on change event.
   function handleChatTypeChange(): void {
     const api = chatTypeEl.value;
-    if (api !== "responses" && api !== "chat_completions") return;
+    if (!isChatApi(api)) return;
     endpointsSettings.set({ chat_api: api });
     log.info("chat_api_change", { api });
     // Store subscription (unsubscribeEndpoints) calls reflect.reflectChatType to update value/summary hint.
@@ -199,7 +205,8 @@ export function createEndpointsSection(deps: EndpointsSectionDeps): EndpointsSec
   function handleChatPresetChange(): void {
     const preset = CHAT_PROVIDER_PRESETS.find((p) => p.id === chatPresetEl.value);
     if (!preset) return;
-    commitEndpointField("chat_base_url", preset.url);
+    if (preset.url !== undefined) commitEndpointField("chat_base_url", preset.url);
+    if (preset.chatApi !== undefined) endpointsSettings.set({ chat_api: preset.chatApi });
     log.info("chat_preset_select", { preset: preset.id });
     // Store subscription (unsubscribeEndpoints) calls reflect.reflectChatPreset to re-derive the selected preset.
   }

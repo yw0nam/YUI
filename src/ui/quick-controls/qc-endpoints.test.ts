@@ -813,6 +813,7 @@ describe("createQuickControls — endpoints + API keys", () => {
     expect(sel.disabled).toBe(false);
     expect(Array.from(sel.options).map((o) => o.value)).toEqual([
       ...PRESET_URLS.map(([id]) => id),
+      "hermes",
       "custom",
     ]);
     // Brand names are not localized.
@@ -821,6 +822,7 @@ describe("createQuickControls — endpoints + API keys", () => {
       "Ollama",
       "LM Studio",
       "Groq",
+      "Hermes Agent",
       t("svc.chat_preset_custom"),
     ]);
 

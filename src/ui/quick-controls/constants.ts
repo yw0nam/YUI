@@ -165,19 +165,23 @@ export const CHAT_API_LABEL_KEYS: Record<ChatApi, string> = {
 };
 
 // Chat provider presets (Advanced tab, chat card) — selecting one autofills chat_base_url with the
-// provider's OpenAI-compatible path. Brand names are display-as-is, never localized. "custom" is the
-// no-autofill entry the dropdown falls back to when the URL matches no preset.
+// provider's OpenAI-compatible path, the chat protocol, or both. Brand names are display-as-is,
+// never localized. "custom" is the no-autofill entry the dropdown falls back to when nothing matches.
 export const CHAT_PRESET_CUSTOM = "custom";
 interface ChatProviderPreset {
   id: string;
   name: string;
-  url: string;
+  /** Autofilled chat_base_url. Absent where the address is the user's own deployment. */
+  url?: string;
+  /** Protocol the provider speaks. Absent where the provider speaks the current one. */
+  chatApi?: ChatApi;
 }
 export const CHAT_PROVIDER_PRESETS: readonly ChatProviderPreset[] = [
   { id: "openai", name: "OpenAI", url: "https://api.openai.com/v1" },
   { id: "ollama", name: "Ollama", url: "http://localhost:11434/v1" },
   { id: "lmstudio", name: "LM Studio", url: "http://localhost:1234/v1" },
   { id: "groq", name: "Groq", url: "https://api.groq.com/openai/v1" },
+  { id: "hermes", name: "Hermes Agent", chatApi: "push" },
 ];
 
 // Tab icons — same line-icon vocabulary as other icon buttons (1.7 stroke, 24x24 viewBox). Only clue when rail collapses.

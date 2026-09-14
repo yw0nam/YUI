@@ -137,3 +137,37 @@
   background-image: none;
   padding-right: 0.6rem;
 }
+
+/* Push connection line — one row under the chat key row, a coloured dot before the state. */
+.yui-chat-status {
+  display: flex;
+  align-items: center;
+  gap: 0.42rem;
+  margin: 0.1rem 0 0;
+  font-size: 0.74rem;
+  line-height: 1.35;
+  color: var(--yui-text-mute);
+}
+
+.yui-chat-status__dot {
+  flex: none;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--yui-text-mute);
+}
+
+.yui-chat-status.is-ready .yui-chat-status__dot {
+  background: var(--yui-ok);
+  box-shadow: 0 0 0 3px var(--yui-ok-soft);
+}
+
+.yui-chat-status.is-waiting .yui-chat-status__dot {
+  background: var(--yui-accent);
+  box-shadow: 0 0 0 3px var(--yui-accent-faint);
+}
+
+.yui-chat-status.is-failed .yui-chat-status__dot {
+  background: var(--yui-danger);
+  box-shadow: 0 0 0 3px var(--yui-danger-faint);
+}

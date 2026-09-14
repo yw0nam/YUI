@@ -4,9 +4,12 @@
  * the Hermes provider preset, the hidden model row, the connection status line, and the reset frame.
  */
 
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, type Mock, vi } from "vitest";
+import { createChatHistoryStore } from "../../io/chat-history-store";
 import { createEndpointsSettings } from "../../io/endpoints-settings";
 import type { PushSocketState } from "../../io/push-socket";
+import { createSessionDiagnosticsStore } from "../../io/session-diagnostics";
+import { createSessionStore } from "../../io/session-store";
 import { setLocale, t } from "../i18n";
 import { createQuickControls } from "../quick-controls";
 import { defaultQcArgs } from "./test-helpers";
@@ -16,7 +19,7 @@ describe("createQuickControls — push mode", () => {
   let endpointsSettings: ReturnType<typeof createEndpointsSettings>;
   let state: PushSocketState;
   let listeners: ((s: PushSocketState) => void)[];
-  let sendReset: ReturnType<typeof vi.fn>;
+  let sendReset: Mock<() => boolean>;
 
   function pushSocket() {
     return {
@@ -50,7 +53,7 @@ describe("createQuickControls — push mode", () => {
     endpointsSettings = createEndpointsSettings();
     state = { kind: "disconnected" };
     listeners = [];
-    sendReset = vi.fn(() => true);
+    sendReset = vi.fn<() => boolean>(() => true);
   });
 
   afterEach(() => {
@@ -60,6 +63,15 @@ describe("createQuickControls — push mode", () => {
 
   function buildQc(extra?: Partial<Parameters<typeof createQuickControls>[0]>) {
     return createQuickControls({ ...defaultQcArgs(mount), endpointsSettings, ...extra });
+  }
+
+  /** The three stores the "Start fresh" footer needs before it renders. */
+  function sessionArgs() {
+    return {
+      transcript: createChatHistoryStore(),
+      sessionStore: createSessionStore(),
+      sessionDiagnostics: createSessionDiagnosticsStore(),
+    };
   }
 
   function statusEl(qc: { el: HTMLElement }): HTMLElement {
@@ -245,7 +257,7 @@ describe("createQuickControls — push mode", () => {
 
   it("sends a reset frame when the conversation is reset in push mode", () => {
     endpointsSettings.set({ chat_api: "push" });
-    const qc = buildQc({ variant: "popover", pushSocket: pushSocket() });
+    const qc = buildQc({ variant: "popover", pushSocket: pushSocket(), ...sessionArgs() });
     qc.open();
 
     qc.el.querySelector<HTMLButtonElement>(".yui-hist__action .yui-session__reset")!.click();
@@ -257,7 +269,7 @@ describe("createQuickControls — push mode", () => {
   });
 
   it("sends no reset frame outside push mode", () => {
-    const qc = buildQc({ variant: "popover", pushSocket: pushSocket() });
+    const qc = buildQc({ variant: "popover", pushSocket: pushSocket(), ...sessionArgs() });
     qc.open();
 
     qc.el.querySelector<HTMLButtonElement>(".yui-hist__action .yui-session__reset")!.click();

@@ -24,6 +24,7 @@ import {
 import type { MessageWindowSettingsStore } from "../io/message-window-settings";
 import type { ClampedIntSettingsStore, FlagSettingsStore } from "../io/persisted-store";
 import type { createProactiveSettings } from "../io/proactive-settings";
+import type { PushSocketState } from "../io/push-socket";
 import type { createScheduleSettings } from "../io/schedule-settings";
 import type { ScreenKnobSettingsStore, ScreenOverrides } from "../io/screen-settings";
 import type { ScreenSourceProvider } from "../io/screen-source-provider";
@@ -81,6 +82,13 @@ type SpeakerSelectionStore = ReturnType<typeof createSpeakerSelection>;
 type SessionDiagnosticsStore = ReturnType<typeof createSessionDiagnosticsStore>;
 type SessionStore = ReturnType<typeof createSessionStore>;
 type ChatHistoryStore = ReturnType<typeof createChatHistoryStore>;
+
+/** The push transport as the settings panel uses it: a state to show and a conversation to reset. */
+export interface PushSocketPanelPort {
+  getState(): PushSocketState;
+  onState(cb: (state: PushSocketState) => void): () => void;
+  sendReset(): boolean;
+}
 
 interface QuickControlsOptions {
   mount: HTMLElement;
@@ -142,6 +150,8 @@ interface QuickControlsOptions {
   getEndpointDefaults?: () => EndpointOverrides | undefined;
   /** Default bundled-config value for Chat API dropdown when no override (undefined if not loaded). */
   getDefaultChatApi?: () => string | undefined;
+  /** Push transport — the chat section shows its state, and "Start fresh" resets the conversation on it. */
+  pushSocket?: PushSocketPanelPort;
   /** Session diagnostics (context usage · last compression). The occupancy readout renders in the window variant only. */
   sessionDiagnostics?: SessionDiagnosticsStore;
   /** Current session id pointer. "Start fresh" clears it along with diagnostics. */
@@ -430,6 +440,7 @@ export function createQuickControls({
   ttsKeySettings,
   getEndpointDefaults,
   getDefaultChatApi,
+  pushSocket,
   sessionDiagnostics,
   sessionStore,
   transcript,
@@ -627,6 +638,7 @@ export function createQuickControls({
     keyRows: endpoints.keyRows,
     getEndpointDefaults,
     getDefaultChatApi,
+    ...(pushSocket ? { getPushState: () => pushSocket.getState() } : {}),
     agentPortInput: agentPortInput ?? undefined,
     presenceInput: presenceInput ?? undefined,
     presenceSettings,
@@ -993,10 +1005,17 @@ export function createQuickControls({
 
   // Closes the running conversation: the id pointer and diagnostics reset, the transcript keeps
   // its turns behind a session boundary so the History tab can still read them.
+  // Effective chat protocol: the user's override, else the bundled default.
+  function isPushMode(): boolean {
+    return (endpointsSettings.get().chat_api || getDefaultChatApi?.()) === "push";
+  }
+
   function handleSessionReset(): void {
     sessionStore?.clear();
     sessionDiagnostics?.clear();
     transcript?.startNewSession();
+    // Push mode keeps its conversation on the backend — it ends only when the frame lands.
+    if (isPushMode()) pushSocket?.sendReset();
     hideSessionConfirm();
     log.info("session_reset");
   }
@@ -1311,6 +1330,10 @@ export function createQuickControls({
       reflect.reflectChatPreset();
     }
   });
+  // The socket moves on its own — its line follows whether or not a setting changed.
+  const unsubscribePushState = pushSocket?.onState(() => {
+    if (popover.isOpen()) reflect.reflectChatStatus();
+  });
   // Reflect thinking-filler store updates to section (includes other-window reloadFromStorage).
   const unsubscribeFiller = fillerSettings?.subscribe(() => {
     if (popover.isOpen()) {
@@ -1430,6 +1453,7 @@ export function createQuickControls({
     unsubscribeVad();
     unsubscribeAgent();
     unsubscribeEndpoints();
+    unsubscribePushState?.();
     unsubscribeFiller?.();
     unsubscribeSections?.();
     unsubscribeVrm();
