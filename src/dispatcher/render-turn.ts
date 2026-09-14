@@ -1,28 +1,57 @@
 /**
  * render-turn — plays a finished backend turn that arrived as a `render` frame on the push socket.
  *
- * The backend pushed it rather than answering a stream, so the whole reply is already in hand: each
- * segment's cues go to the same express path a streamed cue takes, then its speech to the same TTS
- * and bubble path, in segment order. A segment whose speech is empty or a bare `[SILENT]` stays
- * quiet while its cues still play — firing ≠ judgment holds here too.
+ * The backend pushed it rather than answering a stream, so the whole reply is already in hand and
+ * each segment renders in order. A segment's cues merge into one, because the cue channel carries a
+ * single pending cue: a later cue overrides the same field, an empty one overrides nothing.
+ *
+ * Where the cue goes depends on the segment. With speech it rides the TTS pipeline, which applies it
+ * as the audio starts. Without speech there is no audio to wait for and the pipeline would hold it
+ * forever, so it goes straight to the renderer — the path a silent streamed turn already takes.
+ * Firing ≠ judgment holds here too: a silent segment still renders its expression and motion.
  */
 
+import type { ControlEnvelope, EmotionId, ExpressArgs } from "../contract";
 import type { RenderFrame } from "../io/push-socket";
 import { isSilenceToken } from "../io/silence-token";
 import { buildRenderRecord, type RenderRecord } from "../io/turn-record-log";
 import { createLogger, type Logger } from "../logger";
+import type { Renderer } from "../renderer";
 import type { TurnOutput } from "./turn-output";
 
 const baseLog = createLogger("render-turn");
 
 export interface RenderTurnDeps {
   turnOutput: TurnOutput;
+  /** Render sink for a cue with no audio behind it. */
+  renderer: Pick<Renderer, "applyDirective">;
   appendTurnRecord?: (record: RenderRecord) => void;
   logger?: Logger;
 }
 
 export interface RenderTurn {
   render(frame: RenderFrame): void;
+}
+
+/** One segment's cues as a single cue. Later values win; an empty value never overrides. */
+function mergeCues(cues: readonly ExpressArgs[]): ExpressArgs {
+  const merged: ExpressArgs = {};
+  for (const cue of cues) {
+    if (cue.emotion_id) merged.emotion_id = cue.emotion_id;
+    if (cue.motion_id) merged.motion_id = cue.motion_id;
+    if (cue.emotion_text) merged.emotion_text = cue.emotion_text;
+    if (cue.caption) merged.caption = cue.caption;
+  }
+  return merged;
+}
+
+/** The render channels of a cue, in the renderer's shape. The voice channels need audio, so they stay out. */
+function directiveOf(cue: ExpressArgs): ControlEnvelope {
+  return {
+    speech_text: "",
+    ...(cue.emotion_id ? { emotion: { id: cue.emotion_id as EmotionId } } : {}),
+    ...(cue.motion_id ? { motion: { id: cue.motion_id } } : {}),
+  };
 }
 
 export function createRenderTurn(deps: RenderTurnDeps): RenderTurn {
@@ -35,11 +64,23 @@ export function createRenderTurn(deps: RenderTurnDeps): RenderTurn {
 
       let spokeText = false;
       for (const segment of segments) {
-        for (const cue of segment.cues ?? []) deps.turnOutput.cue(cue);
+        const cue = mergeCues(segment.cues ?? []);
         const speech = segment.speech ?? "";
-        if (!speech.trim() || isSilenceToken(speech)) continue;
-        deps.turnOutput.delta(speech);
-        spokeText = true;
+        const speaks = Boolean(speech.trim()) && !isSilenceToken(speech);
+
+        if (speaks) {
+          if (Object.keys(cue).length > 0) deps.turnOutput.cue(cue);
+          deps.turnOutput.delta(speech);
+          spokeText = true;
+          continue;
+        }
+        if (!cue.emotion_id && !cue.motion_id) continue;
+        try {
+          deps.renderer.applyDirective(directiveOf(cue));
+        } catch (err) {
+          // The renderer owns its own fallback; a failed cue must not cost the rest of the render.
+          log.error("silent_cue.render_error", { error: String(err) });
+        }
       }
       if (spokeText) deps.turnOutput.end();
 

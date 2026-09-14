@@ -731,6 +731,7 @@ const realFactories: ConfiguredBootstrapFactories = {
         wirePushTransport({
           socket: pushSocket,
           turnOutput: voice.turnOutput,
+          renderer,
           delegations: createDelegationsStore(),
           expressMotionSettings,
           appendTurnRecord: (record) => appendRecord(record),

@@ -1826,12 +1826,15 @@ export function wirePushTransport(deps: {
     sendVocabulary(): void;
   };
   turnOutput: TurnOutput;
+  /** Render sink for a cue on a segment that speaks nothing. */
+  renderer: Pick<Renderer, "applyDirective">;
   delegations: DelegationsStore;
   expressMotionSettings: { subscribe(cb: () => void): () => void };
   appendTurnRecord: (record: RenderRecord) => void;
 }): () => void {
   const renderTurn = createRenderTurn({
     turnOutput: deps.turnOutput,
+    renderer: deps.renderer,
     appendTurnRecord: deps.appendTurnRecord,
   });
   const unsubscribes = [
