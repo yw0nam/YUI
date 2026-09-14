@@ -1385,7 +1385,14 @@ describe("wireBroker", () => {
 
   const makeDeps = (endpoints: Record<string, unknown>) => {
     const unsub = vi.fn();
-    const endpointsSettings = { subscribe: vi.fn(() => unsub) };
+    let notifyEndpoints: () => void = () => {};
+    const endpointsSettings = {
+      subscribe: vi.fn((cb: () => void) => {
+        notifyEndpoints = cb;
+        return unsub;
+      }),
+    };
+    const onVocabularyChange = vi.fn();
     const unsubExpress = vi.fn();
     // Minimal express-motion store: the wiring only reads it and reacts to its notifications.
     let notify: () => void = () => {};
@@ -1402,11 +1409,17 @@ describe("wireBroker", () => {
         getEndpoints: () => endpoints as never,
         endpointsSettings,
         expressMotionSettings,
+        onVocabularyChange,
         log: noopLog,
       },
       unsub,
       unsubExpress,
+      onVocabularyChange,
       changeExpressMotions: () => notify(),
+      changeEndpoints: (next: Record<string, unknown>) => {
+        Object.assign(endpoints, next);
+        notifyEndpoints();
+      },
     };
   };
 
@@ -1490,6 +1503,63 @@ describe("wireBroker", () => {
       { "🤭": "Giggle" },
       expect.anything(),
     );
+  });
+
+  it("tells the vocabulary's other consumers when a config change reloads the table", async () => {
+    const { deps, onVocabularyChange } = makeDeps({ broker_base_url: "http://localhost:3201" });
+    const handle = await wireBroker(deps);
+    await flush();
+    onVocabularyChange.mockClear();
+
+    handle.onConfigChange(
+      { emotionRegistry: {}, motions: {}, endpoints: {} } as never,
+      new Set(["motions"]) as never,
+    );
+    await flush();
+
+    expect(onVocabularyChange).toHaveBeenCalledTimes(1);
+  });
+
+  it("tells them when the expression-motion selection changes", async () => {
+    const { deps, onVocabularyChange, changeExpressMotions } = makeDeps({
+      broker_base_url: "http://localhost:3201",
+    });
+    await wireBroker(deps);
+    await flush();
+    onVocabularyChange.mockClear();
+
+    changeExpressMotions();
+
+    expect(onVocabularyChange).toHaveBeenCalledTimes(1);
+  });
+
+  it("tells them when retargeting the broker reloads the table", async () => {
+    const { deps, onVocabularyChange, changeEndpoints } = makeDeps({
+      broker_base_url: "http://localhost:3201",
+    });
+    await wireBroker(deps);
+    await flush();
+    onVocabularyChange.mockClear();
+
+    changeEndpoints({ broker_base_url: "http://localhost:3202" });
+    await flush();
+
+    expect(onVocabularyChange).toHaveBeenCalled();
+  });
+
+  it("tells them even with no broker configured — the vocabulary has other consumers", async () => {
+    const { deps, onVocabularyChange } = makeDeps({ broker_base_url: "" });
+    const handle = await wireBroker(deps);
+    await flush();
+    onVocabularyChange.mockClear();
+
+    handle.onConfigChange(
+      { emotionRegistry: {}, motions: {}, endpoints: {} } as never,
+      new Set(["motions"]) as never,
+    );
+    await flush();
+
+    expect(onVocabularyChange).toHaveBeenCalledTimes(1);
   });
 
   it("re-publishes when the expression-motion selection changes", async () => {
