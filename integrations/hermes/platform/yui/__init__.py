@@ -1,7 +1,8 @@
-"""YUI platform plugin: the inbound pushed-turn channel and the generate_express cue tool."""
+"""YUI platform plugin: the client WebSocket, the cue tool, and the delegation hooks."""
 
 from __future__ import annotations
 
+import importlib.util
 import logging
 import os
 
@@ -13,30 +14,31 @@ _PLATFORM_HINT = (
     "You are speaking through YUI, an on-screen VRM character. Each turn arrives as a "
     "<client_context> block followed by the user's words; the block is client-injected context, "
     "not something the user typed. Reply with the words to say out loud — no markdown, no lists, "
-    "no stage directions. Call generate_express to place a facial expression, body motion or "
-    "voice-tone cue on the speech; never write expression cues into the speech itself. Reply with "
-    "[SILENT] when the turn does not deserve a spoken answer."
+    "no stage directions. Call generate_express once per reply to place facial expression, body "
+    "motion and voice-tone cues on the sentences you are about to speak; never write expression "
+    "cues into the speech itself. Reply with [SILENT] when the turn does not deserve a spoken "
+    "answer."
 )
 
 
 def check_requirements() -> bool:
-    """Stdlib only, loopback only."""
-    return True
+    """The socket server needs aiohttp; the probe stays passive."""
+    return importlib.util.find_spec("aiohttp") is not None
 
 
 def validate_config(config) -> bool:
-    """Ports have safe defaults; nothing is required."""
+    """Host and port have defaults; nothing is required."""
     return True
 
 
 def is_connected(config) -> bool:
-    """Configured when the platform block enables it or a port is set in the environment."""
+    """Configured when the platform block enables it or a key is set in the environment."""
     extra = getattr(config, "extra", {}) or {}
-    return bool(extra.get("enabled")) or bool(os.getenv("YUI_PLATFORM_PORT"))
+    return bool(extra.get("enabled")) or bool(os.getenv("YUI_PLATFORM_KEY"))
 
 
 def register(ctx) -> None:
-    from . import tools
+    from . import delegations, tools
     from .gate import Vocabulary
 
     tools.set_context(ctx)
@@ -44,6 +46,14 @@ def register(ctx) -> None:
         tools.declare(Vocabulary())
     except Exception:
         logger.warning("YUI: failed to declare generate_express", exc_info=True)
+    for hook, callback in (
+        ("subagent_start", delegations.on_subagent_start),
+        ("subagent_stop", delegations.on_subagent_stop),
+    ):
+        try:
+            ctx.register_hook(hook, callback)
+        except Exception:
+            logger.warning("YUI: failed to register the %s hook", hook, exc_info=True)
     try:
         from .adapter import YuiAdapter
 
@@ -55,7 +65,7 @@ def register(ctx) -> None:
             validate_config=validate_config,
             is_connected=is_connected,
             required_env=[],
-            install_hint="No extra packages needed (stdlib only)",
+            install_hint="Needs aiohttp (pip install aiohttp)",
             emoji="\U0001f9cd",
             allow_update_command=False,
             platform_hint=_PLATFORM_HINT,
