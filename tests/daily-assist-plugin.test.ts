@@ -10,7 +10,7 @@ const ROOT = resolve(__dirname, "..");
 const PLUGIN_DIR = "integrations/daily-assist";
 const CLAUDE_PLUGIN = `${PLUGIN_DIR}/.claude-plugin/plugin.json`;
 const PORTABLE_SCHEMA = "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json";
-const PLUGIN_VERSION = "0.2.1";
+const PLUGIN_VERSION = "0.3.0";
 
 function readJson(relativePath: string) {
   return JSON.parse(readFileSync(join(ROOT, relativePath), "utf8"));
@@ -119,7 +119,10 @@ const SETUP_DIR = `${PLUGIN_DIR}/skills/${SETUP_SKILL}`;
 const FIXTURE_DIR = `${SETUP_DIR}/assets/fixtures`;
 const DEFAULT_FIXTURE = `${FIXTURE_DIR}/daily-briefing.json`;
 const EMPTY_FIXTURE = `${FIXTURE_DIR}/daily-briefing-empty.json`;
+const SOURCES_DOWN_FIXTURE = `${FIXTURE_DIR}/daily-briefing-sources-down.json`;
+const RUN_FAILED_FIXTURE = `${FIXTURE_DIR}/source-health-run-failed.json`;
 const TEMPLATE = `${SETUP_DIR}/references/n8n-daily-briefing.template.json`;
+const HEALTH_TEMPLATE = `${SETUP_DIR}/references/n8n-daily-briefing-health.template.json`;
 const CONTRACT = `${SETUP_DIR}/references/producer-contract.md`;
 const POST_SCRIPT = join(ROOT, SETUP_DIR, "scripts/post-fixture.sh");
 
@@ -133,7 +136,12 @@ function readText(relativePath: string): string {
 }
 
 describe("daily briefing fixtures", () => {
-  for (const fixture of [DEFAULT_FIXTURE, EMPTY_FIXTURE]) {
+  for (const fixture of [
+    DEFAULT_FIXTURE,
+    EMPTY_FIXTURE,
+    SOURCES_DOWN_FIXTURE,
+    RUN_FAILED_FIXTURE,
+  ]) {
     it(`${fixture} is a well-formed briefing request`, () => {
       const request = readJson(fixture);
       expect(request.signals).toHaveLength(1);
@@ -145,9 +153,21 @@ describe("daily briefing fixtures", () => {
 
       expect(item.sources.length).toBeLessThanOrEqual(10);
       for (const source of item.sources) {
+        expect(
+          Object.keys(source).every((key) =>
+            ["name", "status", "last_ok", "run_url"].includes(key),
+          ),
+        ).toBe(true);
         expect(typeof source.name).toBe("string");
         expect(source.name.length).toBeLessThanOrEqual(40);
         expect(STATUSES).toContain(source.status);
+        if ("run_url" in source) {
+          expect(source.run_url).toMatch(/^https?:\/\//);
+          expect(source.run_url.length).toBeLessThanOrEqual(2048);
+        }
+        if ("last_ok" in source) {
+          expect(Number.isFinite(Date.parse(source.last_ok))).toBe(true);
+        }
       }
 
       expect(item.refs.length).toBeLessThanOrEqual(30);
@@ -168,8 +188,12 @@ describe("daily briefing fixtures", () => {
         ["delivery", "event_id", "event_type", "occurred_at", "source"].sort(),
       );
       expect(envelope.delivery).toBe("immediate");
-      expect(envelope.event_type).toBe("daily_briefing");
-      expect(envelope.event_id.startsWith("daily-briefing:")).toBe(true);
+      expect(["daily_briefing", "source_health"]).toContain(envelope.event_type);
+      expect(
+        envelope.event_id.startsWith(
+          `${envelope.event_type === "daily_briefing" ? "daily-briefing" : "source-health"}:`,
+        ),
+      ).toBe(true);
       expect(Number.isFinite(envelope.occurred_at)).toBe(true);
       expect(Math.abs(envelope.occurred_at)).toBeLessThanOrEqual(8.64e15);
 
@@ -183,6 +207,25 @@ describe("daily briefing fixtures", () => {
     for (const source of item.sources) {
       expect(source.status).toBe("ok");
     }
+  });
+
+  it("the sources-down fixture carries no refs and reports failed, stale, and disabled in order", () => {
+    const item = readJson(SOURCES_DOWN_FIXTURE).signals[0];
+    expect(item.refs).toEqual([]);
+    expect(item.sources.map((s: any) => s.status)).toEqual(["failed", "stale", "disabled"]);
+    const disabled = item.sources.find((s: any) => s.status === "disabled");
+    expect("last_ok" in disabled).toBe(false);
+  });
+
+  it("the run-failed fixture carries a single failed source and a source_health envelope", () => {
+    const request = readJson(RUN_FAILED_FIXTURE);
+    const item = request.signals[0];
+    expect(item.refs).toEqual([]);
+    expect(item.sources).toHaveLength(1);
+    expect(item.sources[0].status).toBe("failed");
+    expect(typeof item.sources[0].run_url).toBe("string");
+    expect("last_ok" in item.sources[0]).toBe(false);
+    expect(request.envelope.event_type).toBe("source_health");
   });
 });
 
@@ -293,8 +336,11 @@ describe("shipped daily briefing files", () => {
   it("name no host, account, or secret of the instance they came from", () => {
     const shipped: Array<[string, string]> = [
       [TEMPLATE, JSON.stringify(readJson(TEMPLATE))],
+      [HEALTH_TEMPLATE, JSON.stringify(readJson(HEALTH_TEMPLATE))],
       [DEFAULT_FIXTURE, JSON.stringify(readJson(DEFAULT_FIXTURE))],
       [EMPTY_FIXTURE, JSON.stringify(readJson(EMPTY_FIXTURE))],
+      [SOURCES_DOWN_FIXTURE, JSON.stringify(readJson(SOURCES_DOWN_FIXTURE))],
+      [RUN_FAILED_FIXTURE, JSON.stringify(readJson(RUN_FAILED_FIXTURE))],
       [CONTRACT, readText(CONTRACT)],
     ];
     for (const [name, text] of shipped) {
@@ -517,6 +563,105 @@ describe("n8n template compose code", () => {
   });
 });
 
+describe("n8n health template", () => {
+  const template = () => readJson(HEALTH_TEMPLATE);
+
+  function nodesOfType(type: string) {
+    return template().nodes.filter((node: any) => node.type === type);
+  }
+
+  it("wires exactly one error trigger", () => {
+    const triggers = nodesOfType("n8n-nodes-base.errorTrigger");
+    expect(triggers).toHaveLength(1);
+  });
+
+  it("posts the composed body to the ingress placeholder", () => {
+    const requests = nodesOfType("n8n-nodes-base.httpRequest");
+    expect(requests).toHaveLength(1);
+    const parameters = requests[0].parameters;
+    expect(parameters.method).toBe("POST");
+    expect(parameters.url).toBe("{{YUI_SIGNALS_URL}}/signals");
+    expect(parameters.jsonBody).toBe("={{ $json.body }}");
+    expect(parameters.options.response.response.fullResponse).toBe(true);
+    expect(parameters.options.response.response.neverError).toBe(true);
+  });
+
+  it("carries neither credentials nor instance ids", () => {
+    for (const node of template().nodes) {
+      expect(Object.keys(node)).not.toContain("credentials");
+      expect(Object.keys(node)).not.toContain("id");
+    }
+  });
+
+  it("has no data table nodes", () => {
+    expect(nodesOfType("n8n-nodes-base.dataTable")).toHaveLength(0);
+  });
+
+  it("chains the error trigger through the code node to the http request", () => {
+    const parsed = template();
+    const trigger = parsed.nodes.find((n: any) => n.type === "n8n-nodes-base.errorTrigger").name;
+    const code = parsed.nodes.find((n: any) => n.type === "n8n-nodes-base.code").name;
+    const request = parsed.nodes.find((n: any) => n.type === "n8n-nodes-base.httpRequest").name;
+    expect(parsed.connections[trigger].main[0].map((l: any) => l.node)).toEqual([code]);
+    expect(parsed.connections[code].main[0].map((l: any) => l.node)).toEqual([request]);
+  });
+});
+
+describe("n8n health template compose code", () => {
+  function compose(item: Record<string, unknown>) {
+    const template = readJson(HEALTH_TEMPLATE);
+    const node = template.nodes.find((n: any) => n.name === "Compose Health Signal");
+    expect(node).toBeTruthy();
+    const run = new Function("$input", node.parameters.jsCode);
+    const result = run({ first: () => ({ json: item }) });
+    return { output: result[0].json, request: JSON.parse(result[0].json.body) };
+  }
+
+  const documentedItem = {
+    execution: {
+      id: "231",
+      url: "https://n8n.example.com/execution/231",
+      retryOf: null,
+      error: { message: "connect ECONNREFUSED", stack: "" },
+      lastNodeExecuted: "Fetch Signal Queue Rows",
+      mode: "trigger",
+    },
+    workflow: { id: "1", name: "daily-briefing" },
+  };
+
+  it("composes a source_health group from a failed execution", () => {
+    const { output, request } = compose(documentedItem);
+    const item = request.signals[0];
+    expect(item.skill).toBe(RUNTIME_SKILL);
+    expect(item.sources[0]).toEqual({
+      name: "daily-briefing",
+      status: "failed",
+      run_url: "https://n8n.example.com/execution/231",
+    });
+    expect(item.refs).toEqual([]);
+    expect(item.summary).toContain("Fetch Signal Queue Rows");
+    expect(item.summary).toContain("connect ECONNREFUSED");
+    expect(item.summary.length).toBeLessThanOrEqual(200);
+    expect(request.envelope.event_type).toBe("source_health");
+    expect(request.envelope.event_id).toBe("source-health:1:231");
+    expect(request.envelope.delivery).toBe("immediate");
+    expect(Number.isFinite(request.envelope.occurred_at)).toBe(true);
+    expect(Buffer.byteLength(output.body)).toBeLessThanOrEqual(BODY_LIMIT);
+  });
+
+  it("clips a long workflow name, omits a missing run_url, and survives a missing error", () => {
+    const longName = "w".repeat(60);
+    const { request } = compose({
+      execution: { id: "9", lastNodeExecuted: "" },
+      workflow: { id: "9", name: longName },
+    });
+    const source = request.signals[0].sources[0];
+    expect(source.name.length).toBe(40);
+    expect("run_url" in source).toBe(false);
+    expect(request.envelope.event_id).toBe("source-health:9:9");
+  });
+});
+
 describe("post-fixture.sh", () => {
   type Received = { method: string; path: string; contentType: string; payload: string };
 
@@ -606,6 +751,7 @@ describe("skill bodies", () => {
     const text = readText(`${PLUGIN_DIR}/skills/${RUNTIME_SKILL}/SKILL.md`);
     expect(text).toContain("previous:");
     expect(text).toContain("[title](url)");
+    expect(text).toContain("run_url");
     for (const kind of KINDS) {
       expect(text).toContain(kind);
     }
@@ -626,6 +772,8 @@ describe("skill bodies", () => {
       "{{YUI_SIGNALS_URL}}",
       "{{SIGNAL_QUEUE_TABLE_ID}}",
       "SOURCES",
+      "n8n-daily-briefing-health.template.json",
+      "source-health-run-failed.json",
     ]) {
       expect(text).toContain(marker);
     }
@@ -635,6 +783,8 @@ describe("skill bodies", () => {
     const text = readText(CONTRACT);
     expect(text).toContain("daily-briefing:");
     expect(text).toMatch(/49,?152/);
+    expect(text).toContain("source_health");
+    expect(text).toContain("run_url");
     for (const kind of KINDS) {
       expect(text).toContain(kind);
     }
