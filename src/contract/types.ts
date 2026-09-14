@@ -356,10 +356,12 @@ export interface EndpointsConfig {
    */
   chat_model?: string;
   /**
-   * Chat protocol for YUI to use. "responses" (default, legacy) | "chat_completions" (new).
-   * If not set, streamChat operates as "responses" (backward compatible).
+   * Chat protocol for YUI to use. "responses" (default, legacy) | "chat_completions" (new) |
+   * "push" (one persistent WebSocket to `<chat_base_url>/ws`; turns go out on it, finished
+   * replies arrive on it — see docs/reference/push-transport.md). If not set, streamChat
+   * operates as "responses" (backward compatible).
    */
-  chat_api?: "responses" | "chat_completions";
+  chat_api?: "responses" | "chat_completions" | "push";
   /** Separate ASR service (OpenAI-compatible) → /audio/transcriptions. `""` = STT off. */
   stt_base_url: string;
   /** Separate TTS service (OpenAI-compatible) → /audio/speech. `""` = TTS off. */

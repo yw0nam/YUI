@@ -336,6 +336,7 @@ const ja: Record<string, string> = {
   "svc.chat_aria": "チャット API の種類",
   "svc.chat_type_responses": "Responses API",
   "svc.chat_type_completions": "Chat Completions",
+  "svc.chat_type_push": "Push · 継続接続",
   "svc.chat_preset_label": "プロバイダー",
   "svc.chat_preset_aria": "チャットプロバイダーのプリセット",
   "svc.chat_preset_custom": "カスタム",

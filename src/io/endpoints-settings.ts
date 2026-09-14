@@ -17,7 +17,7 @@ export const ENDPOINT_VALUE_MAX_LEN = 2048;
 
 /**
  * Editable override fields. Empty string = no override. URL fields are validated by isValidEndpointUrl.
- * chat_api is valid only as "responses"|"chat_completions" — anything else (including empty) means no override.
+ * chat_api is valid only as "responses"|"chat_completions"|"push" — anything else (including empty) means no override.
  */
 export interface EndpointOverrides {
   chat_base_url: string;
@@ -32,7 +32,7 @@ export interface EndpointOverrides {
 export type EndpointsStorage = PersistedStorage<EndpointOverrides>;
 
 /** Valid chat_api values that mergeEndpoints applies. Anything else (including empty) means no override. */
-const VALID_CHAT_APIS = ["responses", "chat_completions"] as const;
+const VALID_CHAT_APIS = ["responses", "chat_completions", "push"] as const;
 
 interface EndpointFieldBase {
   key: keyof EndpointOverrides;
@@ -152,7 +152,7 @@ function isOneOf<T extends string>(list: readonly T[], v: string): v is T {
 /**
  * Builds a new EndpointsConfig by layering overrides onto the base EndpointsConfig (base unchanged).
  * URL fields apply only when non-empty + isValidEndpointUrl, chat_model only when non-empty, and
- * chat_api only when a valid enum ("responses"|"chat_completions"). Applied values are trimmed.
+ * chat_api only when a valid enum ("responses"|"chat_completions"|"push"). Applied values are trimmed.
  * An invalid URL/chat_api is ignored (effective keeps the base default) — the UI surfaces the error separately.
  */
 export function mergeEndpoints(base: EndpointsConfig, ov: EndpointOverrides): EndpointsConfig {

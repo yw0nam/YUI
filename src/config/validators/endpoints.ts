@@ -34,15 +34,16 @@ export function validateEndpoints(file: string, raw: unknown): EndpointsConfig {
   if (chat_instructions !== undefined && typeof chat_instructions !== "string") {
     issues.push(`chat_instructions는 문자열이어야 함 (받음: ${JSON.stringify(chat_instructions)})`);
   }
-  // chat_api: optional enum. When set, only "responses"|"chat_completions" allowed; omitted when unset (upstream default).
+  // chat_api: optional enum. When set, only a CHAT_APIS value is allowed; omitted when unset (upstream default).
   const rawChatApi = raw.chat_api;
-  if (rawChatApi !== undefined && rawChatApi !== "responses" && rawChatApi !== "chat_completions") {
+  const isChatApi = (v: unknown): v is NonNullable<EndpointsConfig["chat_api"]> =>
+    v === "responses" || v === "chat_completions" || v === "push";
+  if (rawChatApi !== undefined && !isChatApi(rawChatApi)) {
     issues.push(
-      `chat_api는 "responses" | "chat_completions" 중 하나여야 함 (받음: ${JSON.stringify(rawChatApi)})`,
+      `chat_api는 "responses" | "chat_completions" | "push" 중 하나여야 함 (받음: ${JSON.stringify(rawChatApi)})`,
     );
   }
-  const chat_api: EndpointsConfig["chat_api"] =
-    rawChatApi === "responses" || rawChatApi === "chat_completions" ? rawChatApi : undefined;
+  const chat_api: EndpointsConfig["chat_api"] = isChatApi(rawChatApi) ? rawChatApi : undefined;
   // tts_model / tts_speaker: optional. TTS service default when unset.
   const optStr = (k: "tts_model" | "tts_speaker"): string | undefined => {
     const v = raw[k];

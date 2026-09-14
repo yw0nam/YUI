@@ -334,6 +334,7 @@ const ko: Record<string, string> = {
   "svc.chat_aria": "채팅 API 종류",
   "svc.chat_type_responses": "Responses API",
   "svc.chat_type_completions": "Chat Completions",
+  "svc.chat_type_push": "Push · 연결 유지",
   "svc.chat_preset_label": "제공자",
   "svc.chat_preset_aria": "채팅 제공자 프리셋",
   "svc.chat_preset_custom": "직접 입력",
