@@ -3,10 +3,10 @@
    Tokens live in ./tokens.css. */
 
 .yui-deleg {
-  /* Right-shoulder height beside the character; --yui-deleg-left re-aims it after build. */
+  /* Right-shoulder height beside the character. */
   position: absolute;
   top: 30%;
-  left: var(--yui-deleg-left, calc(50% + 3.5rem));
+  left: calc(50% + 3.5rem);
   display: inline-flex;
   flex-direction: column;
   align-items: flex-start;
