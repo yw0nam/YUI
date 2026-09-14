@@ -224,6 +224,30 @@ describe("createDelegationChip", () => {
     expect(chipEl().classList.contains("is-mini")).toBe(false);
   });
 
+  it("does not fold when a long-press is interrupted by pointercancel", () => {
+    const { store, collapsed } = build();
+    store.replace([running("d-1", 60_000)]);
+
+    press("down");
+    chipButton().dispatchEvent(new PointerEvent("pointercancel"));
+    vi.advanceTimersByTime(600);
+
+    expect(chipEl().classList.contains("is-mini")).toBe(false);
+    expect(collapsed.get().collapsed).toBe(false);
+  });
+
+  it("does not fold when a long-press is interrupted by pointerleave", () => {
+    const { store, collapsed } = build();
+    store.replace([running("d-1", 60_000)]);
+
+    press("down");
+    chipButton().dispatchEvent(new PointerEvent("pointerleave"));
+    vi.advanceTimersByTime(600);
+
+    expect(chipEl().classList.contains("is-mini")).toBe(false);
+    expect(collapsed.get().collapsed).toBe(false);
+  });
+
   it("expands again on a tap of the folded chip", () => {
     const { store, collapsed } = build();
     collapsed.setCollapsed(true);
