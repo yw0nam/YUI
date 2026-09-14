@@ -98,3 +98,9 @@ def test_a_delegation_with_no_chat_in_context_is_ignored():
     STUB_ENV.pop("HERMES_SESSION_CHAT_ID", None)
     delegations.on_subagent_start(child_subagent_id="sa-1", child_session_id="s-1", child_goal="Work")
     assert delegations.items("yui") == []
+
+
+def test_a_stop_naming_only_the_subagent_closes_the_item():
+    delegations.on_subagent_start(child_subagent_id="sa-1", child_session_id=None, child_goal="Work")
+    delegations.on_subagent_stop(child_subagent_id="sa-1")
+    assert delegations.items("yui")[0]["state"] == "done"

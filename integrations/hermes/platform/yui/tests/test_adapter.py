@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import json
 import time
 
 import aiohttp
@@ -10,7 +11,7 @@ import pytest
 from aiohttp.test_utils import TestClient, TestServer
 from gateway_stub import SLASH_CONFIRM, STUB_ENV, MessageEvent, MessageType, ProcessingOutcome
 from yui import delegations, reports, state
-from yui.adapter import MAX_FRAME_BYTES, YuiAdapter
+from yui.adapter import MAX_FRAME_BYTES, YuiAdapter, is_loopback
 from yui.segments import Placement
 
 CHAT = "yui-3f9a2c1d"
@@ -416,3 +417,27 @@ async def test_a_silent_turn_still_plays_its_cues(client, adapter):
         "source": "hermes",
         "segments": [{"cues": [{"emotion_id": "happy"}, {"motion_id": "idle"}], "speech": ""}],
     }
+
+
+async def test_an_oversize_render_loses_its_trailing_segments(client, adapter):
+    ws = await ready(client)
+    state.set_turn_id(CHAT, "7")
+    await adapter.send(CHAT, ("x" * 1000 + ". ") * 300, metadata={"notify": True})
+    frame = await recv(ws)
+    assert len(json.dumps(frame, ensure_ascii=False).encode("utf-8")) <= MAX_FRAME_BYTES
+    assert 0 < len(frame["segments"]) < 300
+
+
+def test_only_a_loopback_host_needs_no_key():
+    assert is_loopback("127.0.0.1") is True
+    assert is_loopback("localhost") is True
+    assert is_loopback("::1") is True
+    assert is_loopback("0.0.0.0") is False
+    assert is_loopback("example.invalid") is False
+
+
+async def test_binding_past_loopback_without_a_key_is_refused():
+    refused = YuiAdapter(FakeConfig(host="0.0.0.0"))
+    assert await refused.connect() is False
+    assert refused.fatal is not None
+    assert refused.fatal[0] == "no_key"

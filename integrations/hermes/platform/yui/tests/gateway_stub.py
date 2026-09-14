@@ -80,6 +80,7 @@ class BasePlatformAdapter:
         self.platform = platform
         self.dispatched: list[MessageEvent] = []
         self.connected = False
+        self.fatal: tuple[str, str] | None = None
         self._message_handler = object()  # truthy: the real base drops events without one
 
     @property
@@ -103,9 +104,12 @@ class BasePlatformAdapter:
 
     def _mark_disconnected(self) -> None:
         self.connected = False
+        self.fatal: tuple[str, str] | None = None
 
     def _set_fatal_error(self, code: str, message: str, *, retryable: bool) -> None:
         self.connected = False
+        self.fatal = (code, message)
+        self.fatal: tuple[str, str] | None = None
 
 
 def get_session_env(name: str, default: str | None = None) -> str | None:
