@@ -622,21 +622,21 @@ export function createBackendCaller(deps: BackendCallerDeps): BackendCaller {
         });
       }
 
-      // B4 (speech gate): speak only when speech_text is not empty and not the [SILENT] token.
-      //   Empty text or a bare [SILENT] = silence — no separate flag/decision, no failure outcome.
+      // B4 (speech gate): speak only when speech_text has non-whitespace text and is not the [SILENT] token.
+      //   Whitespace-only text or a bare [SILENT] = silence — no separate flag/decision, no failure outcome.
       const silentToken = isSilenceToken(envelope.speech_text);
       if (streamedAny) {
         // Streaming path: delta already drove speech, only signal end (don't call speak).
         deps.turnOutput?.end();
         log.debug("speech", { text: envelope.speech_text });
-      } else if (envelope.speech_text && !silentToken) {
+      } else if (envelope.speech_text?.trim() && !silentToken) {
         // Legacy fallback: backend that only provides completed without delta.
         deps.turnOutput?.speak(envelope.speech_text);
         log.debug("speech", { text: envelope.speech_text });
       } else {
         log.info("empty_speech", { trigger: env.event_name });
       }
-      const spokeText = streamedAny || (Boolean(envelope.speech_text) && !silentToken);
+      const spokeText = streamedAny || (Boolean(envelope.speech_text?.trim()) && !silentToken);
       deps.reportSpokeText?.(spokeText);
 
       // Conversation state progress (Responses only): persist only at this point after passing all
