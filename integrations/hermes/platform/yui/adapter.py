@@ -318,20 +318,23 @@ class YuiAdapter(BasePlatformAdapter):
             logger.warning("yui: send failed chat=%s — %s", chat_id, e)
             return False
 
-    async def _send_render(self, chat_id: str, frame: dict) -> bool:
-        """Hold a reply for a client that is away, so a turn answered mid-outage is not lost."""
-        if state.is_connected(chat_id):
-            return await self._send_frame(chat_id, frame)
+    async def _send_render(self, chat_id: str, frame: dict) -> None:
+        """A reply the client cannot take waits for it; reporting failure would make the gateway
+        resend it through its plain-text fallback, stripped of its turn and its cues."""
+        if state.is_connected(chat_id) and await self._send_frame(chat_id, frame):
+            return
         reports.queue_render(chat_id, frame)
         logger.info("yui: reply held for an away client chat=%s", chat_id)
-        return True
 
     async def _flush_renders(self, chat_id: str) -> None:
         held, dropped = reports.take_renders(chat_id)
         if dropped:
             logger.warning("yui: %d held reply(s) dropped chat=%s", dropped, chat_id)
-        for frame in held:
-            await self._send_frame(chat_id, frame)
+        for index, frame in enumerate(held):
+            if not await self._send_frame(chat_id, frame):
+                for unsent in held[index:]:
+                    reports.queue_render(chat_id, unsent)
+                return
 
     # -- reports and delegations --------------------------------------------------------------
 
@@ -397,12 +400,8 @@ class YuiAdapter(BasePlatformAdapter):
             return SendResult(success=True, message_id=_message_id())
         segments = build_segments(content, state.pop_cues(chat_id))
         state.mark_delivered(chat_id)
-        sent = await self._send_render(chat_id, self._render(state.take_turn_id(chat_id), segments))
-        return SendResult(
-            success=sent,
-            message_id=_message_id(),
-            error=None if sent else "no client socket",
-        )
+        await self._send_render(chat_id, self._render(state.take_turn_id(chat_id), segments))
+        return SendResult(success=True, message_id=_message_id())
 
     def _render(self, turn_id: str | None, segments: list[dict]) -> dict:
         return {"type": "render", "turn_id": turn_id, "source": SOURCE, "segments": segments}
