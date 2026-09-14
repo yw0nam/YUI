@@ -110,6 +110,17 @@ describe("push socket across windows", () => {
     expect(socket.sendReset).not.toHaveBeenCalled();
   });
 
+  it("asks again on refresh, for a window that opened before the socket did", () => {
+    const mirror = createMirroredPushSocket({ bridge: settingsBridge });
+    expect(mirror.getState()).toEqual({ kind: "disconnected" });
+
+    socket = fakeSocket({ kind: "ready", chat_id: "yui-0a1b2c3d" });
+    publishPushSocket({ socket, bridge: petBridge });
+    mirror.refresh();
+
+    expect(mirror.getState()).toEqual({ kind: "ready", chat_id: "yui-0a1b2c3d" });
+  });
+
   it("stops publishing after the pet side is disposed", () => {
     publishPushSocket({ socket, bridge: petBridge })();
     const mirror = createMirroredPushSocket({ bridge: settingsBridge });
