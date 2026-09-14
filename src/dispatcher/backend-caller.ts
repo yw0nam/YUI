@@ -321,7 +321,9 @@ export function createBackendCaller(deps: BackendCallerDeps): BackendCaller {
     }
 
     // Clean up remaining audio/speech bubble from the previous (superseded) turn — once before first delta.
-    deps.turnOutput?.interrupt();
+    // Push mode speaks nothing here, so it leaves a render still playing alone; the next render
+    // frame interrupts when it arrives.
+    if (!isPush) deps.turnOutput?.interrupt();
 
     // TTFT thinking — when filler is active, start immediately on call() entry (not judgment, first line no delay).
     // End once on actual response speech start (first speech_delta) — usage/express/tool_status before don't
