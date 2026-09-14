@@ -325,6 +325,7 @@ async function bootstrap(): Promise<BootstrapHandle> {
     vocabulary: () => pushVocabularyOf(publishedVocabulary?.()),
   });
   register(pushSocket.dispose);
+  register(chatIdSettings.dispose);
   // The settings window has no socket of its own: it reads this one and asks it to reset.
   register(publishPushSocket({ socket: pushSocket, bridge: windowBridge }));
 
