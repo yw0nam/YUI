@@ -8,7 +8,7 @@ import time
 import aiohttp
 import pytest
 from aiohttp.test_utils import TestClient, TestServer
-from gateway_stub import MessageEvent, MessageType, ProcessingOutcome
+from gateway_stub import SLASH_CONFIRM, STUB_ENV, MessageEvent, MessageType, ProcessingOutcome
 from yui import delegations, reports, state
 from yui.adapter import MAX_FRAME_BYTES, YuiAdapter
 
@@ -37,6 +37,9 @@ def clean():
         reports.take(chat)
         delegations.forget(chat)
     delegations.set_notifier(None)
+    SLASH_CONFIRM.pending.clear()
+    SLASH_CONFIRM.resolved.clear()
+    STUB_ENV.pop("HERMES_SESSION_CHAT_ID", None)
 
 
 @pytest.fixture
@@ -63,9 +66,18 @@ async def hello(client, chat_id=CHAT, key=KEY, vocabulary=VOCABULARY):
 async def ready(client, chat_id=CHAT, **kwargs):
     """Open a socket through the handshake and hand back the socket past its ready frame."""
     ws = await hello(client, chat_id=chat_id, **kwargs)
-    assert await ws.receive_json() == {"type": "ready", "chat_id": chat_id}
-    assert (await ws.receive_json())["type"] == "delegations"
+    assert await recv(ws) == {"type": "ready", "chat_id": chat_id}
+    assert (await recv(ws))["type"] == "delegations"
     return ws
+
+
+async def recv(ws):
+    """One frame, or a failure; a missing frame must not hang the suite."""
+    return await asyncio.wait_for(ws.receive_json(), 2.0)
+
+
+async def recv_raw(ws):
+    return await asyncio.wait_for(ws.receive(), 2.0)
 
 
 async def wait_for(predicate, timeout=2.0):
@@ -88,12 +100,12 @@ def internal_event(adapter, text):
 
 async def test_a_hello_with_the_right_key_is_answered_with_ready(client):
     ws = await hello(client)
-    assert await ws.receive_json() == {"type": "ready", "chat_id": CHAT}
+    assert await recv(ws) == {"type": "ready", "chat_id": CHAT}
 
 
 async def test_a_wrong_key_closes_the_socket_and_says_nothing(client):
     ws = await hello(client, key="wrong")
-    message = await ws.receive()
+    message = await recv_raw(ws)
     assert message.type is aiohttp.WSMsgType.CLOSE
     assert message.data == 4401
 
@@ -101,7 +113,7 @@ async def test_a_wrong_key_closes_the_socket_and_says_nothing(client):
 async def test_a_hello_with_no_chat_id_is_turned_away(client):
     ws = await client.ws_connect("/ws")
     await ws.send_json({"type": "hello", "key": KEY})
-    message = await ws.receive()
+    message = await recv_raw(ws)
     assert message.type is aiohttp.WSMsgType.CLOSE
     assert message.data == 4401
 
@@ -109,7 +121,7 @@ async def test_a_hello_with_no_chat_id_is_turned_away(client):
 async def test_an_oversized_frame_closes_the_socket(client):
     ws = await ready(client)
     await ws.send_str("x" * (MAX_FRAME_BYTES + 1))
-    message = await ws.receive()
+    message = await recv_raw(ws)
     assert message.type is aiohttp.WSMsgType.CLOSE
     assert message.data == 1009
 
@@ -117,7 +129,7 @@ async def test_an_oversized_frame_closes_the_socket(client):
 async def test_a_second_hello_for_one_chat_replaces_the_first(client, adapter):
     first = await ready(client)
     second = await ready(client)
-    message = await first.receive()
+    message = await recv_raw(first)
     assert message.type is aiohttp.WSMsgType.CLOSE
     assert message.data == 4409
     assert state.is_connected(CHAT) is True
@@ -182,7 +194,7 @@ async def test_the_final_reply_renders_as_cued_sentences(client, adapter):
     state.append_cue(CHAT, {"emotion_id": "happy"}, "All green")
     state.append_cue(CHAT, {"emotion_id": "curious"}, "Want the slow ones")
     await adapter.send(CHAT, "All green. Want the slow ones listed?", metadata={"notify": True})
-    frame = await ws.receive_json()
+    frame = await recv(ws)
     assert frame == {
         "type": "render",
         "turn_id": "1789365854947",
@@ -198,7 +210,7 @@ async def test_a_progress_send_never_reaches_the_client(client, adapter):
     ws = await ready(client)
     await adapter.send(CHAT, "still working", metadata=None)
     await adapter.send(CHAT, "done", metadata={"notify": True})
-    frame = await ws.receive_json()
+    frame = await recv(ws)
     assert frame["segments"] == [{"cues": [], "speech": "done"}]
 
 
@@ -206,7 +218,7 @@ async def test_a_reply_the_agent_speaks_on_its_own_carries_no_turn_id(client, ad
     ws = await ready(client)
     state.set_turn_id(CHAT, None)
     await adapter.send(CHAT, "The build finished.", metadata={"notify": True})
-    assert (await ws.receive_json())["turn_id"] is None
+    assert (await recv(ws))["turn_id"] is None
 
 
 async def test_a_silent_turn_closes_with_no_segments(client, adapter):
@@ -215,7 +227,7 @@ async def test_a_silent_turn_closes_with_no_segments(client, adapter):
     state.append_cue(CHAT, {"emotion_id": "happy"}, "")
     event = MessageEvent(text="hi", source=adapter.build_source(chat_id=CHAT))
     await adapter.on_processing_complete(event, ProcessingOutcome.SUCCESS)
-    assert await ws.receive_json() == {
+    assert await recv(ws) == {
         "type": "render",
         "turn_id": "7",
         "source": "hermes",
@@ -226,11 +238,11 @@ async def test_a_silent_turn_closes_with_no_segments(client, adapter):
 async def test_a_turn_that_already_spoke_is_not_closed_twice(client, adapter):
     ws = await ready(client)
     await adapter.send(CHAT, "Done.", metadata={"notify": True})
-    await ws.receive_json()
+    await recv(ws)
     event = MessageEvent(text="hi", source=adapter.build_source(chat_id=CHAT))
     await adapter.on_processing_complete(event, ProcessingOutcome.SUCCESS)
     await adapter.send(CHAT, "Next.", metadata={"notify": True})
-    assert (await ws.receive_json())["segments"] == [{"cues": [], "speech": "Next."}]
+    assert (await recv(ws))["segments"] == [{"cues": [], "speech": "Next."}]
 
 
 async def test_a_report_arriving_with_a_client_connected_goes_straight_through(client, adapter):
@@ -294,12 +306,66 @@ async def test_a_typed_turn_is_never_held_while_away(client, adapter):
 async def test_the_delegation_list_arrives_right_after_ready(client):
     ws = await client.ws_connect("/ws")
     await ws.send_json({"type": "hello", "key": KEY, "chat_id": CHAT, "vocabulary": VOCABULARY})
-    assert (await ws.receive_json())["type"] == "ready"
-    assert await ws.receive_json() == {"type": "delegations", "items": []}
+    assert (await recv(ws))["type"] == "ready"
+    assert await recv(ws) == {"type": "delegations", "items": []}
 
 
 async def test_a_delegation_change_reaches_the_connected_client(client, adapter):
     ws = await ready(client)
     adapter.notify_delegations(CHAT)
-    frame = await ws.receive_json()
+    frame = await recv(ws)
     assert frame["type"] == "delegations"
+
+
+async def test_the_plugin_approves_the_gateway_confirmation_of_its_own_reset(adapter):
+    SLASH_CONFIRM.register("agent:main:yui:dm:" + CHAT, "7", "new")
+    result = await adapter.send_slash_confirm(
+        chat_id=CHAT,
+        title="/new",
+        message="⚠️ **Confirm /new**",
+        session_key="agent:main:yui:dm:" + CHAT,
+        confirm_id="7",
+    )
+    assert result.success is True
+    await wait_for(lambda: SLASH_CONFIRM.resolved)
+    assert SLASH_CONFIRM.resolved == [("agent:main:yui:dm:" + CHAT, "7", "once")]
+
+
+async def test_a_reset_clears_the_delegations_the_client_was_shown(client, adapter):
+    STUB_ENV["HERMES_SESSION_CHAT_ID"] = CHAT
+    delegations.on_subagent_start(child_subagent_id="sa-1", child_session_id="s-1", child_goal="Work")
+    ws = await ready(client)
+    assert delegations.items(CHAT)
+    await ws.send_json({"type": "reset"})
+    await wait_for(lambda: adapter.dispatched)
+    assert await recv(ws) == {"type": "delegations", "items": []}
+    assert delegations.items(CHAT) == []
+
+
+async def test_the_reset_reply_is_not_spoken_but_the_next_one_is(client, adapter):
+    ws = await ready(client)
+    await ws.send_json({"type": "reset"})
+    await wait_for(lambda: adapter.dispatched)
+    assert (await recv(ws))["type"] == "delegations"
+    await adapter.send(CHAT, "✨ New conversation started.", metadata={"notify": True})
+    await adapter.send(CHAT, "Hello again.", metadata={"notify": True})
+    frame = await recv(ws)
+    assert frame["segments"] == [{"cues": [], "speech": "Hello again."}]
+
+
+async def test_approving_the_confirmation_leaves_the_next_reply_speakable(client, adapter):
+    ws = await ready(client)
+    await ws.send_json({"type": "reset"})
+    await wait_for(lambda: adapter.dispatched)
+    assert (await recv(ws))["type"] == "delegations"
+    SLASH_CONFIRM.register("agent:main:yui:dm:" + CHAT, "7", "new")
+    await adapter.send_slash_confirm(
+        chat_id=CHAT,
+        title="/new",
+        message="⚠️ **Confirm /new**",
+        session_key="agent:main:yui:dm:" + CHAT,
+        confirm_id="7",
+    )
+    await adapter.send(CHAT, "Hello again.", metadata={"notify": True})
+    frame = await recv(ws)
+    assert frame["segments"] == [{"cues": [], "speech": "Hello again."}]

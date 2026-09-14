@@ -112,6 +112,29 @@ def get_session_env(name: str, default: str | None = None) -> str | None:
     return STUB_ENV.get(name, default)
 
 
+class SlashConfirmStub:
+    """Stand-in for tools.slash_confirm: records what the adapter registers and resolves."""
+
+    def __init__(self) -> None:
+        self.pending: dict[str, dict] = {}
+        self.resolved: list[tuple[str, str, str]] = []
+
+    def register(self, session_key: str, confirm_id: str, command: str, handler=None) -> None:
+        self.pending[session_key] = {"confirm_id": confirm_id, "command": command}
+
+    def get_pending(self, session_key: str) -> dict | None:
+        entry = self.pending.get(session_key)
+        return dict(entry) if entry else None
+
+    async def resolve(self, session_key: str, confirm_id: str, choice: str) -> str | None:
+        self.resolved.append((session_key, confirm_id, choice))
+        self.pending.pop(session_key, None)
+        return "✨ New conversation started."
+
+
+SLASH_CONFIRM = SlashConfirmStub()
+
+
 def install_stubs() -> None:
     if "gateway.platforms.base" in sys.modules:
         return
@@ -130,6 +153,12 @@ def install_stubs() -> None:
     event.ProcessingOutcome = ProcessingOutcome
     session_context = types.ModuleType("gateway.session_context")
     session_context.get_session_env = get_session_env
+    tools = types.ModuleType("tools")
+    tools.__path__ = []
+    slash_confirm = types.ModuleType("tools.slash_confirm")
+    slash_confirm.register = SLASH_CONFIRM.register
+    slash_confirm.get_pending = SLASH_CONFIRM.get_pending
+    slash_confirm.resolve = SLASH_CONFIRM.resolve
     sys.modules.update(
         {
             "gateway": gateway,
@@ -138,8 +167,11 @@ def install_stubs() -> None:
             "gateway.platforms.base": base,
             "gateway.platforms.event": event,
             "gateway.session_context": session_context,
+            "tools": tools,
+            "tools.slash_confirm": slash_confirm,
         }
     )
+    tools.slash_confirm = slash_confirm
     gateway.config = config
     gateway.platforms = platforms
     platforms.base = base
