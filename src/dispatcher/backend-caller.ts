@@ -37,6 +37,7 @@ import { buildCCMessages } from "../io/chat-completions";
 import { type ChatHistoryEntry, selectSendSuffix } from "../io/chat-history-store";
 import type { ClientToolRegistry } from "../io/client-tools";
 import type { ContextHistoryEntry } from "../io/context-history";
+import type { PushTurnFrame } from "../io/push-socket";
 import { createSilenceTokenFilter, isSilenceToken } from "../io/silence-token";
 import { buildTurnRecord, type TurnRecord } from "../io/turn-record-log";
 import type { Logger } from "../logger";
@@ -210,6 +211,8 @@ interface BackendCallerDeps {
   appendTurnRecord?: (record: TurnRecord) => void;
   /** Client-declared tool registry, resolved per turn so vocabulary edits land on the next call. */
   clientTools?: () => ClientToolRegistry;
+  /** Push transport sender — present in push mode; false means the socket was not ready. */
+  pushTurn?: (frame: PushTurnFrame) => boolean;
   /** Structured logging (defaults to backend_caller namespace logger if absent). */
   logger?: Logger;
   /** Chat stream transport. Defaults to the real streamChat; injected in tests to script a turn. */
@@ -274,6 +277,19 @@ export function createBackendCaller(deps: BackendCallerDeps): BackendCaller {
    * turn's user message and earlier items land in plain history, so context rides inside the turn.
    * Context leads and the utterance trails it — recall on the trailing query holds as the block grows.
    */
+  /** The tagged client_context block every transport sends. */
+  function contextBlock(
+    clientContext: Awaited<ReturnType<typeof buildContext>>["clientContext"],
+    nowMs: number,
+  ): string {
+    return [
+      "<client_context>",
+      "Client-injected context; not typed by the user.",
+      renderClientContext(clientContext, nowMs),
+      "</client_context>",
+    ].join("\n");
+  }
+
   function encodeInput(
     ctx: InputContext,
     env: BusEnvelope,
@@ -281,10 +297,7 @@ export function createBackendCaller(deps: BackendCallerDeps): BackendCaller {
     nowMs: number,
   ): ChatRequest["input"] {
     const text = [
-      "<client_context>",
-      "Client-injected context; not typed by the user.",
-      renderClientContext(clientContext, nowMs),
-      "</client_context>",
+      contextBlock(clientContext, nowMs),
       "",
       ctx.user_text ?? backgroundMarker(env.event_name, clientContext.trigger),
     ].join("\n");
@@ -301,6 +314,8 @@ export function createBackendCaller(deps: BackendCallerDeps): BackendCaller {
 
   async function call(turn: Turn, externalSignal?: AbortSignal): Promise<TurnOutcome> {
     const env = turn.trigger;
+    // Push mode hands the turn to the socket and ends; the reply arrives later as a render frame.
+    const isPush = deps.config.chat_api === "push";
     if (externalSignal?.aborted) {
       return "superseded_by_user";
     }
@@ -337,7 +352,9 @@ export function createBackendCaller(deps: BackendCallerDeps): BackendCaller {
     try {
       // If filler is active, show first line immediately (synchronous start). Don't start if disabled/pool empty,
       // or on a reflex turn — a "thinking" bridge before an immediate reaction reads as dissonant.
-      if (deps.turnOutput?.hasFiller() && !isReflexTurn(env.event_name)) startThinking();
+      if (deps.turnOutput?.hasFiller() && !isReflexTurn(env.event_name) && !isPush) {
+        startThinking();
+      }
 
       // No chat backend configured — settle before any context/network work so the UI can point
       // the user at the settings panel instead of showing a generic connection failure.
@@ -357,6 +374,43 @@ export function createBackendCaller(deps: BackendCallerDeps): BackendCaller {
       // Single "now" snapshot reused for every duration computed into this turn's rendered
       // client_context (Responses input and CC system message alike) so both stay consistent.
       const nowMs = Date.now();
+
+      if (isPush) {
+        if (externalSignal?.aborted) return "superseded_by_user";
+        const accepted = deps.pushTurn?.({
+          turn_id: String(turn.id),
+          client_context: contextBlock(clientContext, nowMs),
+          text: ctx.user_text ?? "",
+        });
+        if (!accepted) {
+          log.warn("network_drop", { stage: "push", event_name: env.event_name });
+          return "network_drop";
+        }
+        // Handed over, nothing to speak now: the same silent ending an empty backend reply has.
+        log.info("push_turn", { event_name: env.event_name, turn_id: String(turn.id) });
+        deps.reportSpokeText?.(false);
+        deps.contextHistory?.append({
+          ts: Date.now(),
+          event_name: env.event_name,
+          trigger_kind: clientContext.trigger.kind,
+          client_context: clientContext,
+        });
+        try {
+          deps.appendTurnRecord?.(
+            buildTurnRecord({
+              ts: Date.now(),
+              event_name: env.event_name,
+              trigger_kind: clientContext.trigger.kind,
+              client_context: clientContext,
+              spoke_text: false,
+            }),
+          );
+        } catch (err) {
+          log.debug("turn_record_append_failed", { error: String(err) });
+        }
+        return "ok";
+      }
+
       const input = encodeInput(ctx, env, clientContext, nowMs);
       log.debug("backend_call", { event_name: env.event_name, seq_id: env.seq_id });
 
