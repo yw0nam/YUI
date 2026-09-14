@@ -15,6 +15,7 @@
 
 import type { ControlEnvelope, EmotionId, ExpressArgs } from "../contract";
 import { createEmojiStripper } from "./strip-emoji";
+import { createLinkStripper } from "./strip-links";
 import { createTtsPipeline, type TtsPipeline, type TtsPipelineOptions } from "./tts-pipeline";
 
 /** Ease duration (ms) to return the expression to neutral after speech ends — slow (no snap). */
@@ -133,6 +134,7 @@ export function createSpeechPlayback(options: SpeechPlaybackOptions): SpeechPlay
 
   let pipeline = buildPipeline();
   const stripper = createEmojiStripper();
+  const links = createLinkStripper();
 
   // Reports the tracked utterance the caller is about to cut, then drops the whole queue —
   // the disposed pipeline never fires the boundaries it held.
@@ -165,11 +167,14 @@ export function createSpeechPlayback(options: SpeechPlaybackOptions): SpeechPlay
       }
     }
     surfaces.pushSpeech(clean);
-    if (!muted) pipeline.pushTextDelta(clean);
+    if (!muted) pipeline.pushTextDelta(links.push(clean));
     reportAudioOwed();
   }
 
   function end(): void {
+    // a held-back `[…` that never became a link is still spoken.
+    const tail = links.flush();
+    if (tail) pipeline.pushTextDelta(tail);
     muted = false;
     mutedReported = false;
     if (open === null) return;
@@ -221,6 +226,7 @@ export function createSpeechPlayback(options: SpeechPlaybackOptions): SpeechPlay
     },
     interrupt(opts) {
       stripper.reset();
+      links.reset();
       pipeline.dispose();
       pipeline = buildPipeline();
       // Release the held bubble immediately (not deferred).
@@ -235,6 +241,7 @@ export function createSpeechPlayback(options: SpeechPlaybackOptions): SpeechPlay
     },
     abort() {
       stripper.reset();
+      links.reset();
       // Abnormal end: dispose the pipeline + release the held bubble immediately. No rebuild, as there's no next turn.
       pipeline.dispose();
       surfaces.endSpeech();

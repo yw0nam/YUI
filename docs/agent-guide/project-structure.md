@@ -137,6 +137,7 @@ YUI/
       deadline.ts                    # Per-request deadline so a hung fetch settles
       sentence-segmenter.ts          # Segments streamed text into sentences
       strip-emoji.ts                 # Stateful emoji stripper for spoken text deltas
+      strip-links.ts                 # Stateful markdown-link stripper for spoken text deltas
       stt-vad.ts                     # Voice input pipeline: VAD segmentation then STT upload
       tts-pipeline.ts                # Sentence-level TTS synthesis with in-order playback
       tts-synth.ts                   # Single-sentence speech synthesis request
