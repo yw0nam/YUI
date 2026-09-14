@@ -1,0 +1,199 @@
+/* YUI delegation chip — the backend's background work as a pill beside the avatar, with its
+   tap-to-open list and the folded dot variant. Same pill family as the capture indicator.
+   Tokens live in ./tokens.css. */
+
+.yui-deleg {
+  /* Right-shoulder height beside the character; --yui-deleg-left re-aims it after build. */
+  position: absolute;
+  top: 30%;
+  left: var(--yui-deleg-left, calc(50% + 3.5rem));
+  display: inline-flex;
+  flex-direction: column;
+  align-items: flex-start;
+  font-family: var(--yui-font, system-ui, -apple-system, "Segoe UI", sans-serif);
+  pointer-events: none;
+
+  opacity: 0;
+  transform: translateY(-6px);
+  transition:
+    opacity var(--yui-dur) var(--yui-ease),
+    transform var(--yui-dur) var(--yui-ease);
+}
+
+/* display: inline-flex beats the UA's [hidden] rule, so hide it explicitly (zero running). */
+.yui-deleg[hidden] {
+  display: none;
+}
+
+.yui-deleg.is-visible {
+  opacity: 1;
+  transform: translateY(0);
+  pointer-events: auto;
+}
+
+.yui-deleg__chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0.3rem 0.66rem;
+  border-radius: var(--yui-radius-chip);
+  background: var(--yui-scrim-strong);
+  border: 1px solid var(--yui-edge);
+  box-shadow: var(--yui-float);
+  color: var(--yui-text-dim);
+  font-size: 0.76rem;
+  font-weight: 500;
+  letter-spacing: 0.01em;
+  white-space: nowrap;
+  text-shadow: var(--yui-text-shadow);
+  cursor: pointer;
+  user-select: none;
+}
+
+.yui-deleg__chip:hover {
+  border-color: var(--yui-edge-strong);
+}
+
+/* Amber pulse dot — a calm tell that backend work is running */
+.yui-deleg__dot {
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: 50%;
+  background: var(--yui-accent);
+  box-shadow: 0 0 0 3px var(--yui-accent-faint);
+  flex: 0 0 auto;
+  animation: yui-deleg-pulse 1.6s var(--yui-ease) infinite;
+}
+
+@keyframes yui-deleg-pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.35;
+  }
+}
+
+/* Folded (is-mini): the chip shrinks to its dot with the running count as a badge. */
+.yui-deleg__count {
+  display: none;
+}
+
+.yui-deleg.is-mini .yui-deleg__label {
+  display: none;
+}
+
+.yui-deleg.is-mini .yui-deleg__chip {
+  position: relative;
+  gap: 0;
+  padding: 0.3rem 0.4rem;
+}
+
+.yui-deleg.is-mini .yui-deleg__count {
+  display: grid;
+  place-items: center;
+  position: absolute;
+  top: -0.35rem;
+  right: -0.35rem;
+  min-width: 1rem;
+  height: 1rem;
+  padding: 0 0.2rem;
+  border-radius: var(--yui-radius-chip);
+  background: var(--yui-accent);
+  color: oklch(0.22 0.01 70); /* warm ink — dark text the amber badge needs */
+  font-size: 0.65rem;
+  font-weight: 600;
+  text-shadow: none;
+}
+
+.yui-deleg__list {
+  position: absolute;
+  top: calc(100% + 0.4rem);
+  left: 0;
+  width: max-content;
+  min-width: 15rem;
+  max-width: 18rem;
+  padding: 0.5rem 0.6rem;
+  border-radius: var(--yui-radius-row);
+  background: var(--yui-scrim-strong);
+  border: 1px solid var(--yui-edge-strong);
+  box-shadow: var(--yui-float);
+
+  opacity: 0;
+  transform: translateY(-4px);
+  transition:
+    opacity var(--yui-dur-fast) var(--yui-ease),
+    transform var(--yui-dur-fast) var(--yui-ease);
+}
+
+.yui-deleg__list[hidden] {
+  display: none;
+}
+
+.yui-deleg__list.is-open {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.yui-deleg__list-title {
+  margin: 0 0 0.25rem;
+  color: var(--yui-text-mute);
+  font-size: 0.68rem;
+  font-weight: 500;
+  letter-spacing: 0.02em;
+}
+
+/* One delegation row — status dot · title · elapsed or done-ago. Shared with the
+   settings panel's session section. */
+.yui-deleg__item {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  gap: 0.5rem;
+  align-items: center;
+  padding: 0.3rem 0;
+  border-top: 1px solid var(--yui-edge);
+  color: var(--yui-text-dim);
+  font-size: 0.78rem;
+}
+
+.yui-deleg__item:first-child {
+  border-top: 0;
+}
+
+.yui-deleg__item-dot {
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: 50%;
+  background: var(--yui-accent);
+}
+
+.yui-deleg__item[data-state="done"] .yui-deleg__item-dot {
+  background: var(--yui-ok);
+}
+
+.yui-deleg__item-title {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--yui-text);
+  text-shadow: var(--yui-text-shadow);
+}
+
+.yui-deleg__item-time {
+  color: var(--yui-text-mute);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .yui-deleg,
+  .yui-deleg__list {
+    transition-duration: var(--yui-dur-fast) !important;
+    transition-property: opacity !important;
+    transform: none !important;
+  }
+  .yui-deleg__dot {
+    animation: none !important;
+  }
+}

@@ -84,6 +84,8 @@ export const INTERACTIVE_OVERLAY_SELECTORS = [
   ".yui-bubble.is-visible .yui-bubble__close",
   ".yui-bubble.is-visible .yui-bubble__pop",
   '.yui-voice.is-visible[data-fix="settings"]',
+  ".yui-deleg.is-visible .yui-deleg__chip",
+  ".yui-deleg.is-visible .yui-deleg__list.is-open",
 ] as const;
 
 interface Phase1Handles {

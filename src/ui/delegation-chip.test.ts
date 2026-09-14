@@ -286,11 +286,11 @@ describe("createDelegationChip", () => {
   it("stops listening after dispose", () => {
     const { store, chip } = build();
     store.replace([running("d-1", 60_000)]);
-    const before = chipEl().cloneNode(true) as HTMLElement;
+    const before = chip.el.outerHTML;
 
     chip.dispose();
     store.replace([running("d-2", 60_000), running("d-3", 60_000)]);
 
-    expect(chipEl().outerHTML).toBe(before.outerHTML);
+    expect(chip.el.outerHTML).toBe(before);
   });
 });
