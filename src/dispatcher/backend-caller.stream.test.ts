@@ -137,6 +137,38 @@ describe("backend_caller — [SILENT] token silence", () => {
     expect(turnOutput.delta.mock.calls.map((c) => c[0])).toEqual(["[SILENT] is what I would say"]);
     expect(spokeTextSink).toHaveBeenCalledWith(true);
   });
+
+  it("whitespace-only streamed reply → no delta, no speak, no end, spokeText false", async () => {
+    script.events = [deltaEvent("   "), completedEvent({ speech_text: "  " })];
+    const res = await caller.call(turnOf(userEnv()));
+    expect(res).toBe("ok");
+    expect(turnOutput.delta).not.toHaveBeenCalled();
+    expect(turnOutput.speak).not.toHaveBeenCalled();
+    expect(turnOutput.end).not.toHaveBeenCalled();
+    expect(spokeTextSink).toHaveBeenCalledWith(false);
+  });
+
+  it("streamed [SILENT] with an express cue → completed-path applyDirective, no delta, no end", async () => {
+    const env: ControlEnvelope = { speech_text: "[SILENT]", emotion: { id: "thinking" } };
+    script.events = [
+      expressEvent({ emotion_id: "thinking" }),
+      deltaEvent("[SILENT]"),
+      completedEvent(env),
+    ];
+    const res = await caller.call(turnOf(userEnv()));
+    expect(res).toBe("ok");
+    expect(applyDirective).toHaveBeenCalledWith(env);
+    expect(turnOutput.delta).not.toHaveBeenCalled();
+    expect(turnOutput.end).not.toHaveBeenCalled();
+  });
+
+  it("stream truncated mid-token at [SIL → flush emits it once, end fires, spokeText true", async () => {
+    script.events = [deltaEvent("[SIL"), completedEvent({ speech_text: "[SIL" })];
+    await caller.call(turnOf(userEnv()));
+    expect(turnOutput.delta.mock.calls.map((c) => c[0])).toEqual(["[SIL"]);
+    expect(turnOutput.end).toHaveBeenCalledTimes(1);
+    expect(spokeTextSink).toHaveBeenCalledWith(true);
+  });
 });
 
 describe("backend_caller — B5 cue forwarding + tool_status callbacks", () => {
