@@ -56,6 +56,10 @@ def _chat_of(event: MessageEvent) -> str:
 class YuiAdapter(BasePlatformAdapter):
     """The client's socket, seen from the gateway side."""
 
+    # The client renders finished sentences, so partial text has nowhere to go and the gateway
+    # skips streaming for this platform.
+    SUPPORTS_MESSAGE_EDITING = False
+
     def __init__(self, config: Any, **_kwargs: Any) -> None:
         super().__init__(config=config, platform=Platform("yui"))
         extra = getattr(config, "extra", {}) or {}

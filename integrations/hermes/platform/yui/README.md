@@ -16,6 +16,8 @@ turns in and finished replies out. The contract both sides speak is
 - Sends the final reply as a `render` frame: the speech split into sentences, each carrying the
   cues that landed on it. A turn the agent answers with `[SILENT]`, or with nothing, closes with
   an empty `segments` list.
+- Delivers the reply whole when the turn ends, so the gateway's `streaming` setting does not
+  apply to this platform.
 - Sends a `delegations` frame whenever background work starts or finishes, so the client can show
   what is running.
 - Holds reports that arrive while the client is away, up to twenty, and delivers them as one
