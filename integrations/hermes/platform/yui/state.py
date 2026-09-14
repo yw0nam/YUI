@@ -31,10 +31,10 @@ def set_turn_id(chat_id: str, turn_id: str | None) -> None:
         _turn_ids[chat_id] = turn_id
 
 
-def turn_id(chat_id: str) -> str | None:
-    """The turn being answered, or ``None`` when the agent speaks on its own."""
+def take_turn_id(chat_id: str) -> str | None:
+    """The turn this reply answers; only the first reply of a run names it."""
     with _lock:
-        return _turn_ids.get(chat_id)
+        return _turn_ids.pop(chat_id, None)
 
 
 def append_cue(chat_id: str, cue: dict, sentence: str) -> None:

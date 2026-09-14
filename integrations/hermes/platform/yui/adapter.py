@@ -35,6 +35,9 @@ WS_PATH = "/ws"
 SOURCE = "hermes"
 MAX_FRAME_BYTES = 262_144
 
+# The gateway marks its mid-turn sends; everything else it sends is reply text to speak.
+INTERIM_MARKERS = ("expect_edits", "_interim_send")
+
 CLOSE_UNAUTHORIZED = 4401
 CLOSE_REPLACED = 4409
 CLOSE_TOO_BIG = 1009
@@ -365,18 +368,19 @@ class YuiAdapter(BasePlatformAdapter):
         reply_to: str | None = None,
         metadata: dict | None = None,
     ) -> SendResult:
-        """Render the final reply; progress sends carry no notify mark and stay here."""
-        if not (metadata or {}).get("notify"):
-            logger.debug("yui: ignoring non-final send chat=%s", chat_id)
+        """Render a reply; only the gateway's own mid-turn markers keep a send off the wire."""
+        meta = metadata or {}
+        if not (content or "").strip() or any(meta.get(marker) for marker in INTERIM_MARKERS):
+            logger.debug("yui: nothing to render for this send chat=%s", chat_id)
             return SendResult(success=True, message_id=_message_id())
         if state.take_muted(chat_id):
             state.pop_cues(chat_id)
             state.mark_delivered(chat_id)
             logger.info("yui: reset acknowledgement not spoken chat=%s", chat_id)
             return SendResult(success=True, message_id=_message_id())
-        segments = build_segments(content or "", state.pop_cues(chat_id))
+        segments = build_segments(content, state.pop_cues(chat_id))
         state.mark_delivered(chat_id)
-        sent = await self._send_frame(chat_id, self._render(state.turn_id(chat_id), segments))
+        sent = await self._send_frame(chat_id, self._render(state.take_turn_id(chat_id), segments))
         return SendResult(
             success=sent,
             message_id=_message_id(),
@@ -408,4 +412,4 @@ class YuiAdapter(BasePlatformAdapter):
         logger.info("yui: turn ended without speech chat=%s outcome=%s", chat_id, outcome)
         # Cues on a silent turn still play; the segment they ride on carries no speech.
         segments = [{"cues": cues, "speech": ""}] if cues else []
-        await self._send_frame(chat_id, self._render(state.turn_id(chat_id), segments))
+        await self._send_frame(chat_id, self._render(state.take_turn_id(chat_id), segments))

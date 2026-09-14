@@ -18,6 +18,8 @@ turns in and finished replies out. The contract both sides speak is
   no speech, and the cues it placed still play.
 - Delivers the reply whole when the turn ends, so the gateway's `streaming` setting does not
   apply to this platform.
+- Names the client turn in the first reply of a run only. A reply the agent adds later in the
+  same run, such as the answer to a queued follow-up, carries a null `turn_id`.
 - Sends a `delegations` frame whenever background work starts or finishes, so the client can show
   what is running.
 - Holds reports that arrive while the client is away, up to twenty, and delivers them as one
