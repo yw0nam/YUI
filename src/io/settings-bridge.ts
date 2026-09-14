@@ -269,7 +269,7 @@ export function createSettingsBridge(
       safeEmit(CH_DELEGATIONS, items);
     },
     onDelegations(cb) {
-      return on<DelegationItem[]>(CH_DELEGATIONS, (items) => cb(items));
+      return on<DelegationItem[]>(CH_DELEGATIONS, (items) => cb(Array.isArray(items) ? items : []));
     },
     emitDelegationsAsk() {
       safeEmit(CH_DELEGATIONS_ASK);
