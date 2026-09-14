@@ -1840,6 +1840,7 @@ export function wirePushTransport(deps: {
   appendTurnRecord: (record: RenderRecord) => void;
   /** Conversation transcript — the reply half of a push turn lands here. */
   appendTranscript: (entry: ChatHistoryEntry) => void;
+  log: Logger;
 }): () => void {
   const renderTurn = createRenderTurn({
     turnOutput: deps.turnOutput,
@@ -1849,7 +1850,11 @@ export function wirePushTransport(deps: {
   });
   const unsubscribes = [
     deps.socket.onRender((frame) => renderTurn.render(frame)),
-    deps.socket.onDelegations((items) => deps.delegations.replace(items)),
+    deps.socket.onDelegations((items) => {
+      deps.delegations.replace(items);
+      const running = items.filter((item) => item.state === "running").length;
+      deps.log.info("delegations", { total: items.length, running });
+    }),
   ];
   return () => {
     for (const off of unsubscribes) off();

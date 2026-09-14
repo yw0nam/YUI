@@ -747,6 +747,7 @@ const realFactories: ConfiguredBootstrapFactories = {
           delegations,
           appendTurnRecord: (record) => appendRecord(record),
           appendTranscript: (entry) => chatHistoryStore.append(entry),
+          log,
         }),
       );
     }
