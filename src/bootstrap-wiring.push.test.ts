@@ -3,7 +3,7 @@
  */
 
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { wirePushTransport } from "./bootstrap-wiring";
+import { wirePushMode, wirePushTransport } from "./bootstrap-wiring";
 import type { ControlEnvelope } from "./contract";
 import { makeTurnOutput } from "./dispatcher/test-helpers";
 import { createDelegationsStore } from "./io/delegations-store";
@@ -132,5 +132,131 @@ describe("wirePushTransport", () => {
     expect(socket.hasRenderSubscriber()).toBe(false);
     expect(socket.hasDelegationsSubscriber()).toBe(false);
     expect(expressMotionSettings.count()).toBe(0);
+  });
+});
+
+describe("wirePushMode", () => {
+  let connect: ReturnType<typeof vi.fn>;
+  let disconnect: ReturnType<typeof vi.fn>;
+  let endpoints: { chat_api?: string; chat_base_url: string };
+  let endpointsSettings: ReturnType<typeof fakeMotionSettings>;
+  let chatKeySettings: ReturnType<typeof fakeMotionSettings>;
+
+  function wireMode() {
+    return wirePushMode({
+      socket: { connect, disconnect },
+      getEndpoints: () => endpoints as never,
+      endpointsSettings,
+      chatKeySettings,
+    });
+  }
+
+  beforeEach(() => {
+    connect = vi.fn();
+    disconnect = vi.fn();
+    endpoints = { chat_api: "push", chat_base_url: "http://localhost:8646" };
+    endpointsSettings = fakeMotionSettings();
+    chatKeySettings = fakeMotionSettings();
+  });
+
+  it("connects straight away when the mode is push and an endpoint is set", () => {
+    wireMode();
+    expect(connect).toHaveBeenCalledTimes(1);
+  });
+
+  it("stays down in the other protocol modes", () => {
+    endpoints.chat_api = "responses";
+    wireMode();
+
+    expect(connect).not.toHaveBeenCalled();
+    expect(disconnect).not.toHaveBeenCalled();
+  });
+
+  it("stays down while the chat endpoint is empty", () => {
+    endpoints.chat_base_url = "   ";
+    wireMode();
+
+    expect(connect).not.toHaveBeenCalled();
+  });
+
+  it("connects when the user switches into push mode", () => {
+    endpoints.chat_api = "chat_completions";
+    wireMode();
+
+    endpoints.chat_api = "push";
+    endpointsSettings.change();
+
+    expect(connect).toHaveBeenCalledTimes(1);
+  });
+
+  it("connects when the user fills in the endpoint afterwards", () => {
+    endpoints.chat_base_url = "";
+    wireMode();
+
+    endpoints.chat_base_url = "http://localhost:8646";
+    endpointsSettings.change();
+
+    expect(connect).toHaveBeenCalledTimes(1);
+  });
+
+  it("disconnects when the user leaves push mode", () => {
+    wireMode();
+
+    endpoints.chat_api = "responses";
+    endpointsSettings.change();
+
+    expect(disconnect).toHaveBeenCalledTimes(1);
+    expect(connect).toHaveBeenCalledTimes(1);
+  });
+
+  it("reopens on the new endpoint when the URL is edited", () => {
+    wireMode();
+
+    endpoints.chat_base_url = "https://agent.example:9000";
+    endpointsSettings.change();
+
+    expect(disconnect).toHaveBeenCalledTimes(1);
+    expect(connect).toHaveBeenCalledTimes(2);
+  });
+
+  it("reopens so the next attempt carries the edited key", () => {
+    wireMode();
+    chatKeySettings.change();
+
+    expect(disconnect).toHaveBeenCalledTimes(1);
+    expect(connect).toHaveBeenCalledTimes(2);
+  });
+
+  it("leaves the open socket alone when nothing about the connection changed", () => {
+    wireMode();
+    endpointsSettings.change();
+
+    expect(disconnect).not.toHaveBeenCalled();
+    expect(connect).toHaveBeenCalledTimes(1);
+  });
+
+  it("ignores a key edit while the mode is not push", () => {
+    endpoints.chat_api = "responses";
+    wireMode();
+    chatKeySettings.change();
+
+    expect(connect).not.toHaveBeenCalled();
+    expect(disconnect).not.toHaveBeenCalled();
+  });
+
+  it("does not disconnect twice when the mode is left and left again", () => {
+    wireMode();
+    endpoints.chat_api = "responses";
+    endpointsSettings.change();
+    endpointsSettings.change();
+
+    expect(disconnect).toHaveBeenCalledTimes(1);
+  });
+
+  it("drops both subscriptions on dispose", () => {
+    wireMode()();
+
+    expect(endpointsSettings.count()).toBe(0);
+    expect(chatKeySettings.count()).toBe(0);
   });
 });
