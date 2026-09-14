@@ -10,7 +10,7 @@ const ROOT = resolve(__dirname, "..");
 const PLUGIN_DIR = "integrations/daily-assist";
 const CLAUDE_PLUGIN = `${PLUGIN_DIR}/.claude-plugin/plugin.json`;
 const PORTABLE_SCHEMA = "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json";
-const PLUGIN_VERSION = "0.2.0";
+const PLUGIN_VERSION = "0.2.1";
 
 function readJson(relativePath: string) {
   return JSON.parse(readFileSync(join(ROOT, relativePath), "utf8"));

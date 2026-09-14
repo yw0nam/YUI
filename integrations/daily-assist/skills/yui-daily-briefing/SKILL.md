@@ -53,10 +53,10 @@ at most.
 
 ## 6. Stay silent on an empty day
 
-An empty `refs` whose sources all read `ok` produces empty speech text, and the empty day
-itself goes unspoken.
+An empty `refs` whose sources all read `ok` answers exactly `[SILENT]` — the client treats
+the bare token as silence — and the empty day itself goes unspoken.
 
-Check: the output is empty.
+Check: the output is exactly `[SILENT]`.
 
 ## 7. Answer follow-ups
 
