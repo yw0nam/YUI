@@ -53,6 +53,4 @@ def test_merged_text_opens_with_the_count_and_keeps_each_report():
 
 def test_merged_text_names_the_dropped_reports():
     text = reports.merged_text(["only"], 5)
-    assert text.startswith(
-        "While the client was disconnected, 1 reports arrived (5 older ones dropped). "
-    )
+    assert text.startswith("While the client was disconnected, 1 reports arrived (5 older ones dropped). ")

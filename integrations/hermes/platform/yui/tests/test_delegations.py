@@ -3,9 +3,8 @@
 from __future__ import annotations
 
 import pytest
-from yui import delegations
-
 from gateway_stub import STUB_ENV
+from yui import delegations
 
 
 @pytest.fixture(autouse=True)
@@ -18,7 +17,9 @@ def clean():
 
 
 def test_a_started_delegation_is_running_and_carries_its_goal_title():
-    delegations.on_subagent_start(child_subagent_id="sa-1", child_session_id="s-1", child_goal="Sort the list")
+    delegations.on_subagent_start(
+        child_subagent_id="sa-1", child_session_id="s-1", child_goal="Sort the list"
+    )
     (item,) = delegations.items("yui")
     assert item["id"] == "sa-1"
     assert item["title"] == "Sort the list"
@@ -60,7 +61,9 @@ def test_a_stop_for_an_unknown_delegation_changes_nothing():
 
 def test_the_list_is_capped_and_drops_the_oldest_finished_one():
     for n in range(delegations.MAX_ITEMS):
-        delegations.on_subagent_start(child_subagent_id=f"sa-{n}", child_session_id=f"s-{n}", child_goal=f"g{n}")
+        delegations.on_subagent_start(
+            child_subagent_id=f"sa-{n}", child_session_id=f"s-{n}", child_goal=f"g{n}"
+        )
     delegations.on_subagent_stop(child_session_id="s-7")
     delegations.on_subagent_start(child_subagent_id="sa-new", child_session_id="s-new", child_goal="new")
     ids = [item["id"] for item in delegations.items("yui")]
@@ -72,7 +75,9 @@ def test_the_list_is_capped_and_drops_the_oldest_finished_one():
 
 def test_with_nothing_finished_the_cap_drops_the_oldest_running_one():
     for n in range(delegations.MAX_ITEMS + 1):
-        delegations.on_subagent_start(child_subagent_id=f"sa-{n}", child_session_id=f"s-{n}", child_goal=f"g{n}")
+        delegations.on_subagent_start(
+            child_subagent_id=f"sa-{n}", child_session_id=f"s-{n}", child_goal=f"g{n}"
+        )
     ids = [item["id"] for item in delegations.items("yui")]
     assert len(ids) == delegations.MAX_ITEMS
     assert "sa-0" not in ids

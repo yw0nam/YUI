@@ -5,11 +5,10 @@ from __future__ import annotations
 import json
 
 import pytest
+from gateway_stub import STUB_ENV
 from yui import state, tools
 from yui.gate import Vocabulary
 from yui.segments import Placement
-
-from gateway_stub import STUB_ENV
 
 ENUM_TABLE = {"😆": "joyfully", "👂": "whisper"}
 
@@ -54,7 +53,10 @@ def test_the_description_asks_for_one_call_per_reply():
 
 def test_an_empty_motion_vocabulary_drops_motion_from_the_schema_and_the_description():
     schema = tools.build_schema(Vocabulary(emotion_ids=["happy"], motion_ids=[]))
-    assert "motion_id" not in cues_property(Vocabulary(emotion_ids=["happy"], motion_ids=[]))["items"]["properties"]
+    assert (
+        "motion_id"
+        not in cues_property(Vocabulary(emotion_ids=["happy"], motion_ids=[]))["items"]["properties"]
+    )
     assert "body motion" not in schema["description"]
 
 

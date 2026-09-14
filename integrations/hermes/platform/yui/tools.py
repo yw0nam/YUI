@@ -1,4 +1,4 @@
-"""The ``generate_express`` tool: the cue contract, declared to the model with YUI's vocabulary.
+"""The ``generate_express`` tool: every cue of one reply, declared with the client's vocabulary.
 
 The tool list the model sees is memoized per registry generation, so an updated vocabulary reaches
 the model by registering the tool again — the registry bumps its generation and the memo drops.
@@ -10,7 +10,7 @@ import json
 import logging
 from typing import Any
 
-from . import state
+from . import session, state
 from .gate import Vocabulary, cue_of, validate_cue
 
 logger = logging.getLogger(__name__)
@@ -34,9 +34,9 @@ def _description(vocab: Vocabulary) -> str:
         else "facial expression and voice tone"
     )
     return (
-        f"Place an expression cue on the speech around this call: {channels}. Call it per sentence "
-        "or expressive beat, at the point where the expression should change, and include only the "
-        "fields that change. Spoken words never go in the arguments."
+        f"Place expression cues on the words you are about to speak: {channels}. Call this once "
+        "per reply, listing every cue in speaking order, and name for each one the sentence it "
+        "belongs before. Spoken words never go in the arguments, and cues never go in the speech."
     )
 
 
@@ -51,8 +51,7 @@ def _emotion_text_schema(vocab: Vocabulary) -> dict:
     }
 
 
-def build_schema(vocab: Vocabulary) -> dict:
-    """The JSON schema the model reads, carrying the ids YUI says it can render."""
+def _cue_schema(vocab: Vocabulary) -> dict:
     properties: dict[str, Any] = {
         "emotion_id": {
             "type": "string",
@@ -70,34 +69,54 @@ def build_schema(vocab: Vocabulary) -> dict:
     properties["caption"] = {
         "type": "string",
         "description": (
-            "voice direction in natural language (Japanese reads best), applied to the speech "
-            "around this call — independent of emotion_text, and omitted when the default voice fits"
+            "voice direction in natural language (Japanese reads best), applied to the sentence "
+            "this cue sits on — independent of emotion_text, and omitted when the default voice fits"
         ),
     }
-    return {
-        "name": TOOL_NAME,
-        "description": _description(vocab),
-        "parameters": {"type": "object", "properties": properties, "additionalProperties": False},
+    properties["sentence"] = {
+        "type": "string",
+        "description": (
+            "the opening words of the sentence this cue is placed before, copied from your reply"
+        ),
     }
+    return {"type": "object", "properties": properties, "additionalProperties": False}
 
 
-def _chat_id() -> str:
-    from gateway.session_context import get_session_env
-
-    return str(get_session_env("HERMES_SESSION_CHAT_ID") or "") or "yui"
+def build_schema(vocab: Vocabulary) -> dict:
+    """The JSON schema the model reads, carrying the ids the client says it can render."""
+    return {
+        "description": _description(vocab),
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "cues": {
+                    "type": "array",
+                    "description": "every cue of this reply, in speaking order",
+                    "items": _cue_schema(vocab),
+                }
+            },
+            "required": ["cues"],
+            "additionalProperties": False,
+        },
+    }
 
 
 def handler(args: dict, **_kwargs: Any) -> str:
-    """Gate the cue against the chat's last published vocabulary and buffer it for this turn."""
-    chat_id = _chat_id()
+    """Gate each cue against the chat's vocabulary and buffer it for the turn in flight."""
+    chat_id = session.current_chat_id()
     vocab = state.vocabulary(chat_id)
-    result = validate_cue(args if isinstance(args, dict) else {}, vocab)
-    cue = cue_of(result["applied"])
-    state.append_cue(chat_id, cue)
-    if result["warnings"]:
-        logger.warning("yui: generate_express dropped input chat=%s %s", chat_id, result["warnings"])
-    logger.info("yui: generate_express chat=%s cue=%s", chat_id, cue)
-    return json.dumps(result, ensure_ascii=False)
+    calls = (args or {}).get("cues")
+    results = []
+    for call in calls if isinstance(calls, list) else []:
+        result = validate_cue(call if isinstance(call, dict) else {}, vocab)
+        cue = cue_of(result["applied"])
+        sentence = call.get("sentence") if isinstance(call, dict) else None
+        state.append_cue(chat_id, cue, str(sentence or ""))
+        if result["warnings"]:
+            logger.warning("yui: generate_express dropped input chat=%s %s", chat_id, result["warnings"])
+        results.append(result)
+    logger.info("yui: generate_express chat=%s cues=%d", chat_id, len(results))
+    return json.dumps({"ok": True, "cues": results}, ensure_ascii=False)
 
 
 def declare(vocab: Vocabulary) -> None:

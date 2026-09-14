@@ -1,16 +1,18 @@
-"""Per-chat turn state: the vocabulary of the last pushed turn and the cues fired during it."""
+"""Per-chat runtime state: the turn in flight, its cues, and who has a ready socket."""
 
 from __future__ import annotations
 
 import threading
 
 from .gate import Vocabulary
+from .segments import Placement
 
 _lock = threading.Lock()
 _vocabularies: dict[str, Vocabulary] = {}
-_cues: dict[str, list[dict]] = {}
-_turn_ids: dict[str, str] = {}
+_cues: dict[str, list[Placement]] = {}
+_turn_ids: dict[str, str | None] = {}
 _delivered: set[str] = set()
+_connected: set[str] = set()
 
 
 def set_vocabulary(chat_id: str, vocab: Vocabulary) -> None:
@@ -23,26 +25,27 @@ def vocabulary(chat_id: str) -> Vocabulary:
         return _vocabularies.get(chat_id) or Vocabulary()
 
 
-def set_turn_id(chat_id: str, turn_id: str) -> None:
+def set_turn_id(chat_id: str, turn_id: str | None) -> None:
     with _lock:
         _turn_ids[chat_id] = turn_id
 
 
-def turn_id(chat_id: str) -> str:
+def turn_id(chat_id: str) -> str | None:
+    """The turn being answered, or ``None`` when the agent speaks on its own."""
     with _lock:
-        return _turn_ids.get(chat_id, "")
+        return _turn_ids.get(chat_id)
 
 
-def append_cue(chat_id: str, cue: dict) -> None:
-    """Buffer one cue for the turn in flight; an all-empty cue carries nothing and is dropped."""
+def append_cue(chat_id: str, cue: dict, sentence: str) -> None:
+    """Buffer one gated cue for the turn in flight; an all-empty cue carries nothing."""
     if not cue:
         return
     with _lock:
-        _cues.setdefault(chat_id, []).append(cue)
+        _cues.setdefault(chat_id, []).append(Placement(cue, sentence))
 
 
-def pop_cues(chat_id: str) -> list[dict]:
-    """Take the cues buffered for this chat, in the order the model fired them."""
+def pop_cues(chat_id: str) -> list[Placement]:
+    """Take the cues buffered for this chat, in the order the model listed them."""
     with _lock:
         return _cues.pop(chat_id, [])
 
@@ -59,6 +62,24 @@ def take_delivered(chat_id: str) -> bool:
         had = chat_id in _delivered
         _delivered.discard(chat_id)
         return had
+
+
+def set_connected(chat_id: str, connected: bool) -> None:
+    with _lock:
+        if connected:
+            _connected.add(chat_id)
+        else:
+            _connected.discard(chat_id)
+
+
+def is_connected(chat_id: str) -> bool:
+    with _lock:
+        return chat_id in _connected
+
+
+def connected_chats() -> list[str]:
+    with _lock:
+        return sorted(_connected)
 
 
 def reset(chat_id: str) -> None:
