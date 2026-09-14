@@ -25,7 +25,7 @@ from gateway.platforms.event import MessageEvent, MessageType, ProcessingOutcome
 
 from . import delegations, reports, state, tools
 from .gate import Vocabulary
-from .segments import build_segments
+from .segments import build_segments, place_matched
 
 logger = logging.getLogger(__name__)
 
@@ -325,6 +325,9 @@ class YuiAdapter(BasePlatformAdapter):
             return
         reports.queue_render(chat_id, frame)
         logger.info("yui: reply held for an away client chat=%s", chat_id)
+        # A socket that became ready during the send above has already run its own flush.
+        if state.is_connected(chat_id):
+            await self._flush_renders(chat_id)
 
     async def _flush_renders(self, chat_id: str) -> None:
         held, dropped = reports.take_renders(chat_id)
@@ -398,7 +401,14 @@ class YuiAdapter(BasePlatformAdapter):
             state.mark_delivered(chat_id)
             logger.info("yui: reset acknowledgement not spoken chat=%s", chat_id)
             return SendResult(success=True, message_id=_message_id())
-        segments = build_segments(content, state.pop_cues(chat_id))
+        placements = state.pop_cues(chat_id)
+        if meta.get("notify"):
+            segments = build_segments(content, placements)
+        else:
+            # Mid-turn text takes only the cues it names; the rest belong to what comes after.
+            segments, waiting = place_matched(content, placements)
+            for placement in waiting:
+                state.append_cue(chat_id, placement.cue, placement.sentence)
         state.mark_delivered(chat_id)
         await self._send_render(chat_id, self._render(state.take_turn_id(chat_id), segments))
         return SendResult(success=True, message_id=_message_id())

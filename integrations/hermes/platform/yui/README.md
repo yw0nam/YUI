@@ -76,6 +76,12 @@ carries the general tools and `delegation` carries `delegate_task`.
 Set `chat_api: "push"` in the client and point `chat_base_url` at this server. A
 `chat_base_url` of `https://host:8646` gives `wss://host:8646/ws`.
 
+Text the agent sends before a tool call is spoken as it arrives, the same as its answer. Two
+display settings are worth a look for a voice client, both under `display.platforms.yui`. Set
+`busy_ack_detail: false` to stop the busy acknowledgement being spoken when a turn lands while
+the agent is still working. Leave `runtime_footer.enabled` off, its default: when it is on the
+footer is concatenated into the reply text, so the model name and working directory get read out.
+
 ## Reaching it from outside the machine
 
 Expose the WebSocket port, and only that port: the gateway's own API server is a separate

@@ -75,20 +75,29 @@ def _match(sentences: list[str], hint: str) -> int | None:
     return None
 
 
-def build_segments(speech: str, placements: list[Placement]) -> list[dict]:
-    """The ``render`` frame's segments: every sentence, each carrying the cues that landed on it."""
+def place_matched(speech: str, placements: list[Placement]) -> tuple[list[dict], list[Placement]]:
+    """Segments carrying only the cues this speech names, and the cues still waiting for theirs."""
     sentences = split_sentences(speech)
     if not sentences:
-        return []
+        return [], list(placements)
     cues: list[list[dict]] = [[] for _ in sentences]
-    unplaced: list[dict] = []
+    waiting: list[Placement] = []
     for placement in placements:
         index = _match(sentences, placement.sentence)
         if index is None:
-            unplaced.append(placement.cue)
+            waiting.append(placement)
         else:
             cues[index].append(placement.cue)
-    free = [index for index, holding in enumerate(cues) if not holding]
-    for offset, cue in enumerate(unplaced):
-        cues[free[offset] if offset < len(free) else len(sentences) - 1].append(cue)
-    return [{"cues": cues[index], "speech": sentence} for index, sentence in enumerate(sentences)]
+    return [{"cues": cues[i], "speech": sentence} for i, sentence in enumerate(sentences)], waiting
+
+
+def build_segments(speech: str, placements: list[Placement]) -> list[dict]:
+    """The ``render`` frame's segments: every sentence, each carrying the cues that landed on it."""
+    segments, waiting = place_matched(speech, placements)
+    if not segments:
+        return []
+    free = [index for index, segment in enumerate(segments) if not segment["cues"]]
+    for offset, placement in enumerate(waiting):
+        target = free[offset] if offset < len(free) else len(segments) - 1
+        segments[target]["cues"].append(placement.cue)
+    return segments
