@@ -71,6 +71,10 @@ export function createDelegationChip({
     }
   }
 
+  function onListKeydown(e: KeyboardEvent): void {
+    if (e.key === "Escape") closeList();
+  }
+
   function openList(): void {
     if (listOpen) return;
     listOpen = true;
@@ -78,6 +82,7 @@ export function createDelegationChip({
     renderDelegationRows(rowsEl, store.get(), now());
     listEl.hidden = false;
     requestAnimationFrame(() => listEl.classList.add("is-open"));
+    document.addEventListener("keydown", onListKeydown);
   }
 
   function closeList(): void {
@@ -85,6 +90,7 @@ export function createDelegationChip({
     listOpen = false;
     chipBtn.setAttribute("aria-expanded", "false");
     listEl.classList.remove("is-open");
+    document.removeEventListener("keydown", onListKeydown);
     cancelListFade?.();
     cancelListFade = afterFadeOut(listEl, () => {
       cancelListFade = null;
@@ -188,6 +194,7 @@ export function createDelegationChip({
   function dispose(): void {
     clearRefreshTimer();
     clearFold();
+    document.removeEventListener("keydown", onListKeydown);
     cancelListFade?.();
     cancelHideFade?.();
     unsubscribeStore();
