@@ -1,3 +1,4 @@
+// @vitest-environment jsdom
 /**
  * delegation-chip-settings.test.ts — the chip's per-device fold choice: collapsed chip with only
  * its dot and count badge, persisted so a relaunch keeps the choice.
