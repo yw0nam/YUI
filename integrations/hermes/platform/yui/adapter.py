@@ -446,8 +446,7 @@ class YuiAdapter(BasePlatformAdapter):
 
     def _arm_reasoning_flush(self, chat_id: str) -> None:
         if chat_id not in self._reasoning_flushes:
-            with contextlib.suppress(RuntimeError):
-                self._reasoning_flushes[chat_id] = asyncio.create_task(self._flush_reasoning(chat_id))
+            self._reasoning_flushes[chat_id] = asyncio.create_task(self._flush_reasoning(chat_id))
 
     def _forget_reasoning(self, chat_id: str) -> None:
         """A new turn thinks from nothing, so the last one's tail is not its opening words."""
@@ -465,11 +464,13 @@ class YuiAdapter(BasePlatformAdapter):
             if delta:
                 await self._send_frame(chat_id, {"type": "reasoning", "delta": delta})
         finally:
-            if self._reasoning_flushes.get(chat_id) is asyncio.current_task():
-                self._reasoning_flushes.pop(chat_id, None)
-            # A delta that arrived during the send found this flush still armed and scheduled none.
-            if self._reasoning_pending.get(chat_id):
-                self._arm_reasoning_flush(chat_id)
+            # No running loop only when the coroutine is collected after loop teardown.
+            with contextlib.suppress(RuntimeError):
+                if self._reasoning_flushes.get(chat_id) is asyncio.current_task():
+                    self._reasoning_flushes.pop(chat_id, None)
+                # A delta that arrived during the send found this flush still armed and scheduled none.
+                if self._reasoning_pending.get(chat_id):
+                    self._arm_reasoning_flush(chat_id)
 
     # -- replies ------------------------------------------------------------------------------
 
