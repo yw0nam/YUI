@@ -138,8 +138,10 @@
   padding-right: 0.6rem;
 }
 
-/* Push connection line — one row under the chat key row, a coloured dot before the state. */
-.yui-chat-status {
+/* Push connection line — one row under the chat key row, a coloured dot before the state.
+   The session section's own lost line wears the same pill, in Ember Red throughout. */
+.yui-chat-status,
+.yui-session__deleg-lost {
   display: flex;
   align-items: center;
   gap: 0.42rem;
@@ -149,7 +151,8 @@
   color: var(--yui-text-mute);
 }
 
-.yui-chat-status__dot {
+.yui-chat-status__dot,
+.yui-session__deleg-lost-dot {
   flex: none;
   width: 7px;
   height: 7px;
@@ -167,7 +170,8 @@
   box-shadow: 0 0 0 3px var(--yui-accent-faint);
 }
 
-.yui-chat-status.is-failed .yui-chat-status__dot {
+.yui-chat-status.is-failed .yui-chat-status__dot,
+.yui-session__deleg-lost-dot {
   background: var(--yui-danger);
   box-shadow: 0 0 0 3px var(--yui-danger-faint);
 }
