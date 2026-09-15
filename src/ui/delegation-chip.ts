@@ -10,8 +10,7 @@
 
 import "./delegation-chip.css";
 import type { DelegationChipSettingsStore } from "../io/delegation-chip-settings";
-import type { DelegationsStore } from "../io/delegations-store";
-import type { PushSocketState } from "../io/push-socket";
+import type { DelegationItem, PushSocketState } from "../io/push-socket";
 import { DELEGATION_REFRESH_MS, renderDelegationRows } from "./delegation-rows";
 import { afterFadeOut } from "./fade-out";
 import { subscribe as subscribeLocale, t } from "./i18n";
@@ -25,9 +24,16 @@ export interface PushStatePort {
   onState(cb: (state: PushSocketState) => void): () => void;
 }
 
+/** The delegations list as the chip reads it — the pet window's store or a window's mirror. */
+export interface DelegationsPort {
+  get(): DelegationItem[];
+  runningCount(): number;
+  subscribe(cb: (items: DelegationItem[]) => void): () => void;
+}
+
 interface DelegationChipOptions {
   mount: HTMLElement;
-  store: DelegationsStore;
+  store: DelegationsPort;
   /** Per-device fold choice. */
   collapsed: DelegationChipSettingsStore;
   /** The transport the chip reports on. Anything but ready reads as a lost connection. */

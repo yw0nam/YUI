@@ -9,6 +9,11 @@
 
 import "./styles.css";
 import "./ui/message-window.css";
+import {
+  createDelegationChipSettings,
+  localStorageDelegationChipStorage,
+} from "./io/delegation-chip-settings";
+import { createMirroredDelegations } from "./io/delegations-bridge";
 import { attachKeepOnScreen } from "./io/keep-on-screen";
 import { createMessageBridge } from "./io/message-bridge";
 import { MESSAGE_WINDOW_WIDTH } from "./io/message-window";
@@ -17,10 +22,13 @@ import {
   localStorageMessageWindowStorage,
 } from "./io/message-window-settings";
 import { createFlagSettings, localStorageStore } from "./io/persisted-store";
+import { createMirroredPushSocket } from "./io/push-socket-bridge";
 import { toScreenMonitor } from "./io/screen-geometry";
 import { createSettingsBridge } from "./io/settings-bridge";
+import { createSettingsWindowOpener } from "./io/settings-window";
 import { isTauri } from "./io/tauri-env";
 import { createLogger, initLogger } from "./logger";
+import { createDelegationChip } from "./ui/delegation-chip";
 import { reloadFromStorage as reloadLocale } from "./ui/i18n";
 import { createMessagePlate } from "./ui/message-plate";
 import { attachSummonKey } from "./ui/summon-key";
@@ -54,10 +62,29 @@ async function bootstrap(): Promise<void> {
   surfaces.onSubmit((text, images) => bridge.emitControl({ op: "submit", text, images }));
   surfaces.onStop(() => bridge.emitControl({ op: "stop" }));
 
+  // The plate and the chip share the column's first row; the chip sits to the plate's right.
+  const plateRow = document.createElement("div");
+  plateRow.className = "yui-plate-row";
+  surfaces.el.prepend(plateRow);
   const plate = createMessagePlate({
-    mount: surfaces.el,
+    mount: plateRow,
     onDock: () => bridge.emitControl({ op: "dock" }),
     startDragging: () => void startDragging(),
+  });
+
+  // The socket lives in the pet window; this one mirrors its state and its delegations list.
+  const pushSocket = createMirroredPushSocket({ bridge: settingsBridge });
+  const delegations = createMirroredDelegations({ bridge: settingsBridge });
+  const chipCollapsed = createDelegationChipSettings({
+    storage: localStorageDelegationChipStorage(),
+  });
+  const openSettings = createSettingsWindowOpener();
+  const chip = createDelegationChip({
+    mount: plateRow,
+    store: delegations,
+    collapsed: chipCollapsed,
+    pushState: pushSocket,
+    onOpenSettings: openSettings,
   });
 
   bridge.onSurface((op) => {
@@ -122,6 +149,8 @@ async function bootstrap(): Promise<void> {
   const reloadShared = (): void => {
     reloadLocale();
     bubblePersistSettings.reloadFromStorage();
+    pushSocket.refresh();
+    delegations.refresh();
   };
   const unlistenSettings = settingsBridge.onSettingsChanged(reloadShared);
   window.addEventListener("focus", reloadShared);
@@ -137,7 +166,12 @@ async function bootstrap(): Promise<void> {
     detachSummonKey();
     window.removeEventListener("focus", reloadShared);
     unlistenSettings();
+    chip.dispose();
+    chipCollapsed.dispose();
+    pushSocket.dispose();
+    delegations.dispose();
     plate.dispose();
+    plateRow.remove();
     surfaces.dispose();
     bridge.dispose();
     settingsBridge.dispose();

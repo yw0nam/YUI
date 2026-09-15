@@ -19,6 +19,32 @@
   pointer-events: auto;
 }
 
+/* ── Plate row — the handle and the delegation chip, side by side ── */
+.yui-plate-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+}
+
+/* The chip is absolutely placed beside the character; here it flows in the row, and its
+   list flows under it so the window grows to hold it instead of clipping it. */
+.yui-ui--message .yui-deleg {
+  position: relative;
+  top: auto;
+  left: auto;
+}
+
+.yui-ui--message .yui-deleg__chip {
+  min-height: 26px;
+  box-sizing: border-box;
+}
+
+.yui-ui--message .yui-deleg__list {
+  position: static;
+  margin-top: 0.4rem;
+  max-width: 100%;
+}
+
 /* ── Name plate — the handle, the state tell and the way back to the character ── */
 .yui-plate {
   display: inline-flex;
@@ -165,8 +191,8 @@
 }
 
 /* Waiting tells — the input embers while thinking, the bubble border while responding.
-   The plate precedes both in the column, so the sibling combinator carries the state. */
-.yui-plate[data-state="thinking"] ~ .yui-input {
+   The plate's row precedes both in the column, so the sibling combinator carries the state. */
+.yui-plate-row:has(.yui-plate[data-state="thinking"]) ~ .yui-input {
   animation: yui-input-ember 2.4s ease-in-out infinite;
 }
 
@@ -186,7 +212,7 @@
   }
 }
 
-.yui-plate[data-state="responding"] ~ .yui-bubble {
+.yui-plate-row:has(.yui-plate[data-state="responding"]) ~ .yui-bubble {
   animation: yui-bubble-ember 2.4s ease-in-out infinite;
 }
 
@@ -212,11 +238,11 @@
   .yui-plate[data-state="thinking"] .yui-plate__dot {
     opacity: 1;
   }
-  .yui-plate[data-state="thinking"] ~ .yui-input {
+  .yui-plate-row:has(.yui-plate[data-state="thinking"]) ~ .yui-input {
     animation: none;
     border-color: var(--yui-accent);
   }
-  .yui-plate[data-state="responding"] ~ .yui-bubble {
+  .yui-plate-row:has(.yui-plate[data-state="responding"]) ~ .yui-bubble {
     animation: none;
     border-color: var(--yui-accent-soft);
   }

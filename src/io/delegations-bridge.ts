@@ -18,6 +18,7 @@ type DelegationsBridge = Pick<
 /** The delegations list as another window sees it — the shape the settings panel's section needs. */
 export interface DelegationsMirror {
   get(): DelegationItem[];
+  runningCount(): number;
   subscribe(cb: (items: DelegationItem[]) => void): () => void;
   /** Ask the owner again — for a window that opened before the list had anything on it. */
   refresh(): void;
@@ -60,6 +61,10 @@ export function createMirroredDelegations(deps: { bridge: DelegationsBridge }): 
 
   return {
     get: () => items,
+
+    runningCount(): number {
+      return items.filter((item) => item.state === "running").length;
+    },
 
     subscribe(cb): () => void {
       subscribers.add(cb);

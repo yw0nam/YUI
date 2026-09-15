@@ -92,8 +92,8 @@ it("draws the running count once the mirrored socket is ready", async () => {
 
   answer({ kind: "ready", chat_id: "yui-3f9a2c1d" }, [running("d-1"), running("d-2")]);
 
-  await vi.waitFor(() => expect(chipEl().hidden).toBe(false));
-  expect(label()).toBe(t("deleg.chip_running", { n: 2 }));
+  await vi.waitFor(() => expect(label()).toBe(t("deleg.chip_running", { n: 2 })));
+  expect(chipEl().hidden).toBe(false);
 });
 
 it("stays hidden while the socket is ready with nothing running", async () => {
@@ -101,6 +101,6 @@ it("stays hidden while the socket is ready with nothing running", async () => {
 
   answer({ kind: "ready", chat_id: "yui-3f9a2c1d" });
 
-  await vi.waitFor(() => expect(chipEl().classList.contains("is-lost")).toBe(false));
-  expect(chipEl().hidden).toBe(true);
+  await vi.waitFor(() => expect(chipEl().hidden).toBe(true));
+  expect(chipEl().classList.contains("is-lost")).toBe(false);
 });
