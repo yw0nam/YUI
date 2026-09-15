@@ -151,6 +151,12 @@
   color: var(--yui-text-mute);
 }
 
+/* display: flex beats the UA's [hidden] rule, so hide it explicitly. */
+.yui-chat-status[hidden],
+.yui-session__deleg-lost[hidden] {
+  display: none;
+}
+
 .yui-chat-status__dot,
 .yui-session__deleg-lost-dot {
   flex: none;
