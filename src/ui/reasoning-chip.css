@@ -1,0 +1,85 @@
+/* YUI reasoning chip — the backend's reasoning as a pill on the message window's plate row.
+   Same pill family as the delegation chip, no status dot. Tokens live in ./tokens.css. */
+
+/* display: contents unwraps the root so the button and the panel are direct flex items
+   of the wrapping plate row. */
+.yui-think {
+  display: contents;
+  font-family: var(--yui-font, system-ui, -apple-system, "Segoe UI", sans-serif);
+}
+
+/* display: contents would otherwise beat the UA [hidden] rule and keep a hidden chip's
+   children in the row. */
+.yui-think[hidden] {
+  display: none;
+}
+
+.yui-think__chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0.3rem 0.66rem;
+  border-radius: var(--yui-radius-chip);
+  background: var(--yui-scrim-strong);
+  border: 1px solid var(--yui-edge);
+  box-shadow: var(--yui-float);
+  color: var(--yui-text-dim);
+  font-size: 0.76rem;
+  font-weight: 500;
+  letter-spacing: 0.01em;
+  white-space: nowrap;
+  text-shadow: var(--yui-text-shadow);
+  cursor: pointer;
+  user-select: none;
+}
+
+.yui-think__chip:hover {
+  border-color: var(--yui-edge-strong);
+}
+
+.yui-think__chip.is-live .yui-think__glyph {
+  animation: yui-plate-breathe 2.4s ease-in-out infinite;
+}
+
+.yui-think__panel {
+  flex: 1 0 100%;
+  min-width: 0;
+  box-sizing: border-box;
+  order: 1;
+  padding: 0.5rem 0.65rem;
+  border-radius: var(--yui-radius-row);
+  background: var(--yui-scrim);
+  border: 1px solid var(--yui-edge);
+}
+
+.yui-think__panel[hidden] {
+  display: none;
+}
+
+.yui-think__text {
+  margin: 0;
+  white-space: pre-wrap;
+  font-size: 0.78rem;
+  line-height: 1.45;
+  color: var(--yui-text-mute);
+  max-height: calc(6 * 1.45em);
+  overflow-y: auto;
+}
+
+.yui-think__text.is-live::after {
+  content: "▍";
+  animation: yui-think-blink 1s step-end infinite;
+}
+
+@keyframes yui-think-blink {
+  50% {
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .yui-think__chip.is-live .yui-think__glyph,
+  .yui-think__text.is-live::after {
+    animation: none !important;
+  }
+}

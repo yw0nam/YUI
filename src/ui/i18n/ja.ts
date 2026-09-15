@@ -494,6 +494,10 @@ const ja: Record<string, string> = {
   "deleg.hour_min": "{h}時間{m}分",
   "deleg.done": "完了",
   "deleg.done_ago": "完了 · {time}前",
+
+  // reasoning
+  "think.chip": "思考",
+  "aria.think_toggle": "思考の表示・非表示",
 };
 
 export default ja;

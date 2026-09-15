@@ -492,6 +492,10 @@ const ko: Record<string, string> = {
   "deleg.hour_min": "{h}시간 {m}분",
   "deleg.done": "끝남",
   "deleg.done_ago": "끝남 · {time} 전",
+
+  // reasoning
+  "think.chip": "추론",
+  "aria.think_toggle": "추론 내용 보기·숨기기",
 };
 
 export default ko;

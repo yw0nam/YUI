@@ -12,8 +12,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 vi.mock("./reasoning-chip.css", () => ({}));
 
 import type { ReasoningState } from "../io/reasoning-store";
-import { createReasoningChip } from "./reasoning-chip";
 import { setLocale, t } from "./i18n";
+import { createReasoningChip } from "./reasoning-chip";
 
 function fakePort(initial: ReasoningState = { text: "", live: false }) {
   let state = initial;
@@ -93,7 +93,9 @@ describe("createReasoningChip", () => {
     store.set({ text: "A", live: true });
     store.set({ text: "AB", live: false });
 
-    expect(mount.querySelector<HTMLElement>(".yui-think__label")!.textContent).toBe(t("think.chip"));
+    expect(mount.querySelector<HTMLElement>(".yui-think__label")!.textContent).toBe(
+      t("think.chip"),
+    );
     expect(mount.querySelector<HTMLElement>(".yui-think__caret")!.textContent).toBe("▾");
   });
 
@@ -154,15 +156,18 @@ describe("createReasoningChip", () => {
 
   it("toggles the panel on tap", () => {
     build();
-    store.set({ text: "A", live: true });
+    store.set({ text: "AB", live: false });
+    expect(panelEl().hidden).toBe(true);
 
     chipButton().click();
     expect(panelEl().hidden).toBe(false);
     expect(chipButton().getAttribute("aria-expanded")).toBe("true");
+    expect(mount.querySelector<HTMLElement>(".yui-think__caret")!.textContent).toBe("▴");
 
     chipButton().click();
     expect(panelEl().hidden).toBe(true);
     expect(chipButton().getAttribute("aria-expanded")).toBe("false");
+    expect(mount.querySelector<HTMLElement>(".yui-think__caret")!.textContent).toBe("▾");
   });
 
   it("keeps closePanel() idempotent", () => {

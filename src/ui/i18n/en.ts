@@ -495,6 +495,10 @@ const en: Record<string, string> = {
   "deleg.hour_min": "{h}h {m}m",
   "deleg.done": "Done",
   "deleg.done_ago": "Done · {time} ago",
+
+  // reasoning
+  "think.chip": "Reasoning",
+  "aria.think_toggle": "Show or hide the reasoning",
 };
 
 export default en;

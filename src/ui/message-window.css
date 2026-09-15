@@ -64,6 +64,8 @@
   min-width: 0;
   max-width: none;
   box-sizing: border-box;
+  /* Both full-width panels — this one and the reasoning panel — sit after both buttons. */
+  order: 1;
 }
 
 /* ── Name plate — the handle, the state tell and the way back to the character ── */

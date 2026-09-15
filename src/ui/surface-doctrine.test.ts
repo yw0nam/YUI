@@ -227,7 +227,6 @@ describe("reasoning-chip.css — the reasoning panel wraps under the plate row",
     const css = read("reasoning-chip.css");
     expect(extractBlock(css, ".yui-think")).toMatch(/display:/);
     expect(extractBlock(css, ".yui-think[hidden]")).toMatch(/display:\s*none/);
-    expect(extractBlock(css, ".yui-think__panel")).toMatch(/display:/);
     expect(extractBlock(css, ".yui-think__panel[hidden]")).toMatch(/display:\s*none/);
   });
 
