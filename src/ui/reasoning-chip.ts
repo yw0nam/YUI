@@ -83,7 +83,8 @@ export function createReasoningChip({
     if (state.text === "" || suppressed) {
       el.hidden = true;
       closePanel();
-      prevLive = state.live;
+      // A suppressed state was never rendered, so it does not count as the previous one.
+      if (!suppressed) prevLive = state.live;
       return;
     }
     el.hidden = false;
@@ -108,7 +109,6 @@ export function createReasoningChip({
   const unsubscribeLocale = subscribeLocale(() => {
     labelEl.textContent = t("think.chip");
     chipBtn.setAttribute("aria-label", t("aria.think_toggle"));
-    render(store.get());
   });
   labelEl.textContent = t("think.chip");
   chipBtn.setAttribute("aria-label", t("aria.think_toggle"));
