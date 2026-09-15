@@ -23,7 +23,7 @@ The client opens `wss://` (or `ws://`) to `chat_base_url` with the path `/ws`. A
 
 Every frame is one JSON object with a `type` field. The client sends `hello` first. Other frames follow the backend's `ready`. A `hello` without a `ready` inside the wait in the limits table closes the socket and schedules a reconnect.
 
-The client reconnects with the delay schedule in the limits table on every close but `4401`, and resets the delay to the first value after a `ready`. A `4401` close arms no retry: the socket stays closed until the protocol, endpoint or key setting changes, or until the user asks for a reconnect from the settings window's chat status line. A turn that starts before `ready` ends as a network failure.
+The client reconnects with the delay schedule in the limits table on every close but `4401`, and resets the delay to the first value after a `ready`. A `4401` close arms no retry: the socket stays closed until the protocol, endpoint or key setting changes, or until the user asks for a reconnect. A turn that starts before `ready` ends as a network failure.
 
 ### `hello` (client → backend)
 
