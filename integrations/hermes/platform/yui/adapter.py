@@ -23,7 +23,7 @@ from gateway.config import Platform
 from gateway.platforms.base import BasePlatformAdapter, SendResult
 from gateway.platforms.event import MessageEvent, MessageType, ProcessingOutcome
 
-from . import delegations, reports, state, tools
+from . import delegations, reasoning, reports, state, tools
 from .gate import Vocabulary
 from .segments import build_segments, place_matched
 
@@ -39,6 +39,9 @@ MAX_FRAME_BYTES = 262_144
 INTERIM_MARKERS = ("expect_edits", "_interim_send")
 # The gateway's own notices reach send() unmarked, so _send_with_retry stamps them on the way in.
 NOTICE_MARKER = "_yui_gateway_notice"
+
+# One reasoning frame per window, so a token stream does not become a frame stream.
+REASONING_WINDOW_SECONDS = 0.1
 
 CLOSE_UNAUTHORIZED = 4401
 CLOSE_REPLACED = 4409
@@ -110,6 +113,9 @@ class YuiAdapter(BasePlatformAdapter):
         self._runner: web.AppRunner | None = None
         self._confirmations: set[asyncio.Task] = set()
         self._site: web.TCPSite | None = None
+        self._homed: set[str] = set()
+        self._reasoning_pending: dict[str, list[str]] = {}
+        self._reasoning_flushes: dict[str, asyncio.Task] = {}
 
     @property
     def name(self) -> str:
@@ -133,6 +139,7 @@ class YuiAdapter(BasePlatformAdapter):
             return False
         self._loop = asyncio.get_running_loop()
         delegations.set_notifier(self.notify_delegations)
+        reasoning.set_sink(self.push_reasoning)
         self._runner = web.AppRunner(self.build_app())
         await self._runner.setup()
         try:
@@ -157,6 +164,11 @@ class YuiAdapter(BasePlatformAdapter):
     async def disconnect(self) -> None:
         self._mark_disconnected()
         delegations.set_notifier(None)
+        reasoning.set_sink(None)
+        for task in list(self._reasoning_flushes.values()):
+            task.cancel()
+        self._reasoning_flushes.clear()
+        self._reasoning_pending.clear()
         for chat_id, ws in list(self._sockets.items()):
             state.set_connected(chat_id, False)
             with contextlib.suppress(Exception):
@@ -221,6 +233,7 @@ class YuiAdapter(BasePlatformAdapter):
                 await replaced.close(code=CLOSE_REPLACED, message=b"replaced")
         self._sockets[chat_id] = ws
         state.set_connected(chat_id, True)
+        self._adopt_home_channel(chat_id)
         self._publish_vocabulary(chat_id, frame.get("vocabulary"))
         await self._send_frame(chat_id, {"type": "ready", "chat_id": chat_id})
         await self._send_delegations(chat_id)
@@ -246,6 +259,22 @@ class YuiAdapter(BasePlatformAdapter):
             del self._sockets[chat_id]
             state.set_connected(chat_id, False)
             logger.info("yui: client gone chat=%s", chat_id)
+
+    def _adopt_home_channel(self, chat_id: str) -> None:
+        """The chat on the socket is where cron results and cross-platform messages belong; without
+        one the gateway asks the user for `/sethome` on the first message of every session."""
+        if chat_id in self._homed or getattr(self.config, "home_channel", None) is not None:
+            return
+        self._homed.add(chat_id)
+        try:
+            from gateway.config import HomeChannel, persist_home_channel
+
+            home = HomeChannel(platform=self.platform, chat_id=chat_id, name="YUI")
+            persist_home_channel(home)
+            self.config.home_channel = home
+            logger.info("yui: home channel set chat=%s", chat_id)
+        except Exception:
+            logger.warning("yui: could not set the home channel chat=%s", chat_id, exc_info=True)
 
     def _publish_vocabulary(self, chat_id: str, payload: object) -> None:
         vocab = Vocabulary.from_payload(payload)
@@ -390,6 +419,31 @@ class YuiAdapter(BasePlatformAdapter):
         with contextlib.suppress(RuntimeError):
             asyncio.run_coroutine_threadsafe(self._send_delegations(chat_id), loop)
 
+    # -- reasoning ----------------------------------------------------------------------------
+
+    def push_reasoning(self, chat_id: str, delta: str) -> None:
+        """Called from the stream hook, which runs on a hook worker thread, not this loop."""
+        loop = self._loop
+        if loop is None or not state.is_connected(chat_id):
+            return
+        with contextlib.suppress(RuntimeError):
+            loop.call_soon_threadsafe(self._collect_reasoning, chat_id, delta)
+
+    def _collect_reasoning(self, chat_id: str, delta: str) -> None:
+        self._reasoning_pending.setdefault(chat_id, []).append(delta)
+        if chat_id not in self._reasoning_flushes:
+            self._reasoning_flushes[chat_id] = asyncio.create_task(self._flush_reasoning(chat_id))
+
+    async def _flush_reasoning(self, chat_id: str) -> None:
+        """What arrived during the window leaves as one frame; the client shows thinking, not text."""
+        try:
+            await asyncio.sleep(REASONING_WINDOW_SECONDS)
+            delta = "".join(self._reasoning_pending.pop(chat_id, []))
+            if delta:
+                await self._send_frame(chat_id, {"type": "reasoning", "delta": delta})
+        finally:
+            self._reasoning_flushes.pop(chat_id, None)
+
     # -- replies ------------------------------------------------------------------------------
 
     async def _send_with_retry(
@@ -446,6 +500,9 @@ class YuiAdapter(BasePlatformAdapter):
             state.mark_delivered(chat_id)
             logger.info("yui: reset acknowledgement not spoken chat=%s", chat_id)
             return SendResult(success=True, message_id=_message_id())
+        block, content = reasoning.split_block(content)
+        if block:
+            logger.debug("yui: reasoning block stripped chat=%s", chat_id)
         placements = state.pop_cues(chat_id)
         if meta.get("notify"):
             segments = build_segments(content, placements)
@@ -455,14 +512,87 @@ class YuiAdapter(BasePlatformAdapter):
             for placement in waiting:
                 state.append_cue(chat_id, placement.cue, placement.sentence)
         state.mark_delivered(chat_id)
-        await self._send_render(chat_id, self._render(state.take_turn_id(chat_id), segments))
+        # The streamed tokens are the whole thought; the block is cut to fifteen lines.
+        frame = self._render(state.take_turn_id(chat_id), segments, reasoning.live_text(chat_id) or block)
+        await self._send_render(chat_id, frame)
         return SendResult(success=True, message_id=_message_id())
 
-    def _render(self, turn_id: str | None, segments: list[dict]) -> dict:
-        return {"type": "render", "turn_id": turn_id, "source": SOURCE, "segments": segments}
+    def _render(self, turn_id: str | None, segments: list[dict], reasoning_text: str = "") -> dict:
+        frame = {"type": "render", "turn_id": turn_id, "source": SOURCE, "segments": segments}
+        if reasoning_text:
+            frame["reasoning"] = reasoning_text
+        return frame
 
     async def send_typing(self, chat_id: str, metadata: dict | None = None) -> None:
         return None
+
+    # -- media --------------------------------------------------------------------------------
+
+    def _should_auto_tts_for_chat(self, chat_id: str) -> bool:
+        """The client speaks the reply itself, so `voice.auto_tts` buys this platform nothing."""
+        return False
+
+    def _drop_media(self, kind: str, chat_id: str, path: str) -> SendResult:
+        """The base defaults put a "couldn't deliver" line in the reply; this platform speaks only."""
+        logger.info("yui: %s not delivered chat=%s path=%s", kind, chat_id, path)
+        return SendResult(success=True, message_id=_message_id())
+
+    async def send_voice(
+        self,
+        chat_id: str,
+        audio_path: str,
+        caption: str | None = None,
+        reply_to: str | None = None,
+        metadata: dict | None = None,
+        **_kwargs: Any,
+    ) -> SendResult:
+        """`/voice all` reaches here past the auto-TTS probe, so the drop has to happen here too."""
+        return self._drop_media("audio", chat_id, audio_path)
+
+    async def send_document(
+        self,
+        chat_id: str,
+        file_path: str,
+        caption: str | None = None,
+        file_name: str | None = None,
+        reply_to: str | None = None,
+        metadata: dict | None = None,
+        **_kwargs: Any,
+    ) -> SendResult:
+        return self._drop_media("file", chat_id, file_path)
+
+    async def send_video(
+        self,
+        chat_id: str,
+        video_path: str,
+        caption: str | None = None,
+        reply_to: str | None = None,
+        metadata: dict | None = None,
+        **_kwargs: Any,
+    ) -> SendResult:
+        return self._drop_media("video", chat_id, video_path)
+
+    async def send_image_file(
+        self,
+        chat_id: str,
+        image_path: str,
+        caption: str | None = None,
+        reply_to: str | None = None,
+        metadata: dict | None = None,
+        **_kwargs: Any,
+    ) -> SendResult:
+        return self._drop_media("image", chat_id, image_path)
+
+    async def send_image(
+        self,
+        chat_id: str,
+        image_url: str,
+        caption: str | None = None,
+        reply_to: str | None = None,
+        metadata: dict | None = None,
+    ) -> SendResult:
+        """The base default speaks the URL; a link has nothing to say out loud."""
+        return self._drop_media("image", chat_id, image_url)
 
     async def get_chat_info(self, chat_id: str) -> dict:
         return {"name": "YUI", "type": "dm", "chat_id": chat_id}
@@ -471,6 +601,7 @@ class YuiAdapter(BasePlatformAdapter):
         """The turn opens here: the gateway serialises this per session, admission does not."""
         chat_id = _chat_of(event)
         state.reset(chat_id)
+        reasoning.clear(chat_id)
         internal = getattr(event, "internal", False)
         state.set_turn_id(chat_id, None if internal else (event.message_id or None))
 

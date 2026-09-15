@@ -38,7 +38,7 @@ def is_connected(config) -> bool:
 
 
 def register(ctx) -> None:
-    from . import delegations, tools
+    from . import delegations, reasoning, tools
     from .gate import Vocabulary
 
     tools.set_context(ctx)
@@ -49,6 +49,7 @@ def register(ctx) -> None:
     for hook, callback in (
         ("subagent_start", delegations.on_subagent_start),
         ("subagent_stop", delegations.on_subagent_stop),
+        ("on_stream_delta", reasoning.on_stream_delta),
     ):
         try:
             ctx.register_hook(hook, callback)

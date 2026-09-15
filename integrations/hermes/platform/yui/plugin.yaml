@@ -23,6 +23,7 @@ provides_tools:
 hooks:
   - subagent_start
   - subagent_stop
+  - on_stream_delta
 requires_env: []
 optional_env:
   - name: YUI_PLATFORM_KEY
