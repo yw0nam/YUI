@@ -184,6 +184,9 @@ export function createReflect(deps: ReflectDeps): Reflect {
   const chatPresetEl = root.querySelector<HTMLSelectElement>(".yui-chat-preset")!;
   const chatStatusEl = root.querySelector<HTMLParagraphElement>(".yui-chat-status")!;
   const chatStatusTextEl = chatStatusEl.querySelector<HTMLSpanElement>(".yui-chat-status__text")!;
+  const chatStatusActionEl = chatStatusEl.querySelector<HTMLButtonElement>(
+    ".yui-chat-status__action",
+  )!;
   const chatModelRowEl = root.querySelector<HTMLDivElement>(
     '.yui-input-row[data-ep-field="chat_model"]',
   )!;
@@ -371,6 +374,11 @@ export function createReflect(deps: ReflectDeps): Reflect {
     return isChatApi(def) ? def : "responses";
   }
 
+  /** Where the socket stands, or undefined outside push mode and where nothing mirrors it. */
+  function pushState(): PushSocketState | undefined {
+    return effectiveChatApi() === "push" ? getPushState?.() : undefined;
+  }
+
   // Chat API dropdown value + summary hint, matching effective chat_api (no subview).
   // The model row belongs to the request-shaped modes — push carries no model of its own.
   function reflectChatType(): void {
@@ -393,11 +401,13 @@ export function createReflect(deps: ReflectDeps): Reflect {
     if (chatPresetEl.value !== next) chatPresetEl.value = next;
   }
 
-  // One line under the key row: where the push socket stands. Hidden in the request-shaped modes.
+  // One line under the key row: where the push socket stands, and the button that opens the
+  // socket without waiting. Hidden in the request-shaped modes.
   function reflectChatStatus(): void {
-    const state = effectiveChatApi() === "push" ? getPushState?.() : undefined;
+    const state = pushState();
     chatStatusEl.hidden = state === undefined;
     chatStatusEl.classList.remove("is-ready", "is-waiting", "is-failed");
+    chatStatusActionEl.hidden = true;
     if (state === undefined) {
       chatStatusTextEl.textContent = "";
       return;
@@ -416,10 +426,14 @@ export function createReflect(deps: ReflectDeps): Reflect {
         chatStatusTextEl.textContent = t("svc.chat_status_reconnecting", {
           seconds: Math.ceil(state.delay_ms / 1000),
         });
+        chatStatusActionEl.textContent = t("svc.chat_status_connect_now");
+        chatStatusActionEl.hidden = false;
         return;
       case "failed":
         chatStatusEl.classList.add("is-failed");
-        chatStatusTextEl.textContent = t("svc.chat_status_failed", { code: state.code });
+        chatStatusTextEl.textContent = t("svc.chat_status_refused");
+        chatStatusActionEl.textContent = t("svc.chat_status_reconnect");
+        chatStatusActionEl.hidden = false;
         return;
       default:
         chatStatusTextEl.textContent = t("svc.chat_status_offline");

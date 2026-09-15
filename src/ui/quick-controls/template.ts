@@ -676,7 +676,7 @@ ${switchRowsHtml("react", 8) || "        "}
             ${endpointRowHtml("chat_base_url")}
             ${endpointRowHtml("chat_model")}
             ${keyRowHtml("chatkey", "chatkey")}
-            <p class="yui-chat-status" role="status" hidden><span class="yui-chat-status__dot" aria-hidden="true"></span><span class="yui-chat-status__text"></span></p>
+            <p class="yui-chat-status" role="status" hidden><span class="yui-chat-status__dot" aria-hidden="true"></span><span class="yui-chat-status__text"></span><button class="yui-chat-status__action" type="button" hidden></button></p>
             <button class="yui-reset yui-svc-reset" type="button" data-svc-reset="chat">${t("svc.reset_chat")}</button>
           </div>
         </details>

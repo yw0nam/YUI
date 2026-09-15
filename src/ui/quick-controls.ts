@@ -89,6 +89,8 @@ export interface PushSocketPanelPort {
   getState(): PushSocketState;
   onState(cb: (state: PushSocketState) => void): () => void;
   sendReset(): boolean;
+  /** Drop the backoff wait and open now — what the status line's button asks for. */
+  reconnectNow(): void;
 }
 
 /** The delegations list as the settings window sees it — mirrored over the bridge. */
@@ -612,6 +614,7 @@ export function createQuickControls({
     : null;
 
   // Start-fresh footer nodes in the History tab (null when the reset stores are absent).
+  const chatStatusActionBtn = el.querySelector<HTMLButtonElement>(".yui-chat-status__action")!;
   const sessionResetBtn = el.querySelector<HTMLButtonElement>(".yui-session__reset");
   // Cue rows also use the .yui-confirm pattern, so scope the session's specifically.
   const sessionConfirmEl = el.querySelector<HTMLDivElement>(".yui-hist__action .yui-confirm");
@@ -1435,6 +1438,8 @@ export function createQuickControls({
   instructionsEl.addEventListener("blur", handleInstructionsBlur);
   resetBtn.addEventListener("click", handleResetInstructions);
   viewpointResetBtn?.addEventListener("click", handleResetViewpoint);
+  const handleChatStatusAction = (): void => pushSocket?.reconnectNow();
+  chatStatusActionBtn.addEventListener("click", handleChatStatusAction);
   sessionResetBtn?.addEventListener("click", showSessionConfirm);
   sessionConfirmBtn?.addEventListener("click", handleSessionReset);
   sessionCancelBtn?.addEventListener("click", hideSessionConfirm);
@@ -1531,6 +1536,7 @@ export function createQuickControls({
     instructionsEl.removeEventListener("blur", handleInstructionsBlur);
     resetBtn.removeEventListener("click", handleResetInstructions);
     viewpointResetBtn?.removeEventListener("click", handleResetViewpoint);
+    chatStatusActionBtn.removeEventListener("click", handleChatStatusAction);
     sessionResetBtn?.removeEventListener("click", showSessionConfirm);
     sessionConfirmBtn?.removeEventListener("click", handleSessionReset);
     sessionCancelBtn?.removeEventListener("click", hideSessionConfirm);

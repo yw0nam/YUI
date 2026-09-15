@@ -171,3 +171,33 @@
   background: var(--yui-danger);
   box-shadow: 0 0 0 3px var(--yui-danger-faint);
 }
+
+/* The way out of a stalled connection, at the row's right end — same underlined link
+   affordance as the section's other text buttons. */
+.yui-chat-status__action {
+  margin-left: auto;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--yui-text-mute);
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+  text-decoration: underline;
+  text-decoration-color: var(--yui-edge-strong);
+  text-underline-offset: 0.18em;
+  transition:
+    color var(--yui-dur-fast) var(--yui-ease),
+    text-decoration-color var(--yui-dur-fast) var(--yui-ease);
+}
+
+.yui-chat-status__action:hover {
+  color: var(--yui-accent);
+  text-decoration-color: var(--yui-accent-soft);
+}
+
+.yui-chat-status__action:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px var(--yui-accent-soft);
+  border-radius: 4px;
+}
