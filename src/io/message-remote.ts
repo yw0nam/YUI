@@ -31,6 +31,8 @@ export interface RemoteSurfaces {
   onStop(cb: () => void): void;
   /** The ⤓ button on the message window's plate. */
   onDock(cb: () => void): void;
+  /** A surface in the message window asking for the settings panel. */
+  onOpenSettings(cb: () => void): void;
   dispose(): void;
 }
 
@@ -38,6 +40,7 @@ export function createRemoteSurfaces(bridge: MessageBridge): RemoteSurfaces {
   const submitHandlers: Array<(text: string, images: string[]) => void> = [];
   const stopHandlers: Array<() => void> = [];
   const dockHandlers: Array<() => void> = [];
+  const openSettingsHandlers: Array<() => void> = [];
   let inputOpen = false;
   let busy = false;
   let limits: AttachmentLimits | null = null;
@@ -56,6 +59,9 @@ export function createRemoteSurfaces(bridge: MessageBridge): RemoteSurfaces {
         break;
       case "input-error-action":
         pendingErrorAction?.();
+        break;
+      case "open-settings":
+        for (const cb of openSettingsHandlers) cb();
         break;
       case "dock":
         for (const cb of dockHandlers) cb();
@@ -124,11 +130,15 @@ export function createRemoteSurfaces(bridge: MessageBridge): RemoteSurfaces {
     onDock(cb) {
       dockHandlers.push(cb);
     },
+    onOpenSettings(cb) {
+      openSettingsHandlers.push(cb);
+    },
     dispose() {
       unlisten();
       submitHandlers.length = 0;
       stopHandlers.length = 0;
       dockHandlers.length = 0;
+      openSettingsHandlers.length = 0;
       pendingErrorAction = null;
     },
   };

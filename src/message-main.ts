@@ -32,7 +32,6 @@ import { createFlagSettings, localStorageStore } from "./io/persisted-store";
 import { createMirroredPushSocket } from "./io/push-socket-bridge";
 import { toScreenMonitor } from "./io/screen-geometry";
 import { createSettingsBridge } from "./io/settings-bridge";
-import { createSettingsWindowOpener } from "./io/settings-window";
 import { isTauri } from "./io/tauri-env";
 import { createLogger, initLogger } from "./logger";
 import { createDelegationChip } from "./ui/delegation-chip";
@@ -88,13 +87,13 @@ async function bootstrap(): Promise<void> {
   const chipCollapsed = createDelegationChipSettings({
     storage: localStorageDelegationChipStorage(),
   });
-  const openSettings = createSettingsWindowOpener();
   const chip = createDelegationChip({
     mount: plateRow,
     store: delegations,
     collapsed: chipCollapsed,
     pushState: pushSocket,
-    onOpenSettings: openSettings,
+    // The character window owns the settings panel, and opens it on the tab the chat section is on.
+    onOpenSettings: () => bridge.emitControl({ op: "open-settings" }),
     suppressed: true,
   });
 

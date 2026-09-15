@@ -34,6 +34,7 @@ export type MessageControlOp =
   | { op: "input-open"; open: boolean }
   | { op: "input-error-action" }
   | { op: "dock" }
+  | { op: "open-settings" }
   | { op: "ready" };
 
 export interface MessageBridge {

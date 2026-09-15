@@ -446,6 +446,8 @@ async function bootstrap(): Promise<BootstrapHandle> {
   // let bindings; onActivate arrows read the live binding, so recreating is safe.
   let quickControls = buildQuickControls();
   register(() => quickControls.dispose());
+  // A popped-out surface has no settings panel of its own; it asks this window for one.
+  remoteSurfaces.onOpenSettings(() => quickControls.open(undefined, { tab: "adv" }));
   const buildCaptureIndicator = (): ReturnType<typeof createCaptureIndicator> =>
     createCaptureIndicator({
       mount: root,
