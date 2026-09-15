@@ -16,11 +16,11 @@ turns in and finished replies out. The contract both sides speak is
 - Sends the final reply as a `render` frame: the speech split into sentences, each carrying the
   cues that landed on it. A turn the agent answers with `[SILENT]`, or with nothing, closes with
   no speech, and the cues it placed still play.
-- Speaks the agent and nobody else. Text the gateway writes for itself is logged and never
-  rendered: the busy acknowledgement when a turn lands mid-run, every status notice, and the
-  restart, startup and shutdown pings, which the plugin turns off for this platform. What the
-  agent writes before a tool call, its final reply, and its answer to a delegation report all
-  render as usual.
+- Logs and never renders the text the gateway writes for itself: the busy acknowledgement when
+  a turn lands mid-run, every status notice, and the restart, startup and shutdown pings, which
+  the plugin turns off for this platform. What the agent writes before a tool call, its final
+  reply, and its answer to a delegation report all render as usual, and so does the gateway's
+  notice that a turn failed, which reaches the plugin in the same shape as the agent's words.
 - Delivers the reply whole when the turn ends, so the gateway's `streaming` setting does not
   apply to this platform.
 - Names the client turn in the first reply of a run only. A reply the agent adds later in the

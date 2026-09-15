@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import logging
 import time
 
 import aiohttp
@@ -257,8 +258,18 @@ async def test_a_gateway_status_notice_is_not_rendered(client, adapter):
 def test_the_gateway_says_nothing_to_this_platform_when_it_restarts():
     """The home-channel ping and the restart and shutdown notices share this one gate."""
     config = FakeConfig(key=KEY)
+    config.gateway_restart_notification = True
     YuiAdapter(config)
     assert config.gateway_restart_notification is False
+
+
+def test_a_config_without_the_restart_gate_is_reported_and_left_alone(caplog):
+    """An upstream rename of the gate shows up in the log instead of silently bringing pings back."""
+    config = FakeConfig(key=KEY)
+    with caplog.at_level(logging.WARNING):
+        YuiAdapter(config)
+    assert not hasattr(config, "gateway_restart_notification")
+    assert "gateway_restart_notification" in caplog.text
 
 
 async def test_the_words_before_a_tool_call_still_render(client, adapter):

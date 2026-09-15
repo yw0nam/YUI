@@ -97,8 +97,11 @@ class YuiAdapter(BasePlatformAdapter):
         super().__init__(config=config, platform=Platform("yui"))
         extra = getattr(config, "extra", {}) or {}
         # The restart, startup and shutdown pings are the gateway talking about itself.
-        with contextlib.suppress(AttributeError):
+        if hasattr(config, "gateway_restart_notification"):
             config.gateway_restart_notification = False
+            logger.info("yui: gateway restart notifications off for this platform")
+        else:
+            logger.warning("yui: config has no gateway_restart_notification; restart pings stay on")
         self.host = str(extra.get("host") or DEFAULT_HOST)
         self.port = int(extra.get("port") or DEFAULT_PORT)
         self._key = str(extra.get("key") or os.getenv("YUI_PLATFORM_KEY") or "")
