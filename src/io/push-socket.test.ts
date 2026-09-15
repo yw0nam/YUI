@@ -14,6 +14,7 @@ import {
   type PushVocabulary,
   pushSocketUrl,
   pushVocabularyOf,
+  type RenderFrame,
 } from "./push-socket";
 
 interface Frame {
@@ -813,6 +814,63 @@ describe("createPushSocket — inbound frames", () => {
   it("ignores a frame type it does not know", async () => {
     await connected();
     expect(() => FakeSocket.last().push({ type: "weather" })).not.toThrow();
+  });
+
+  it("hands a reasoning frame's delta to every subscriber", async () => {
+    await connected();
+    const seen: string[] = [];
+    socket.onReasoning((delta) => seen.push(delta));
+    FakeSocket.last().push({ type: "reasoning", delta: "The log is the first place to look." });
+
+    expect(seen).toEqual(["The log is the first place to look."]);
+  });
+
+  it("stops delivering reasoning after the subscription is dropped", async () => {
+    await connected();
+    const seen: string[] = [];
+    const off = socket.onReasoning((delta) => seen.push(delta));
+    off();
+    FakeSocket.last().push({ type: "reasoning", delta: "late" });
+
+    expect(seen).toEqual([]);
+  });
+
+  it("warns and drops a reasoning frame whose delta is not a string", async () => {
+    await connected();
+    const seen: string[] = [];
+    socket.onReasoning((delta) => seen.push(delta));
+    FakeSocket.last().push({ type: "reasoning", delta: 5 });
+
+    expect(seen).toEqual([]);
+    expect(logger.warn).toHaveBeenCalledWith("frame_malformed", { type: "reasoning" });
+  });
+
+  it("delivers nothing for an empty-string reasoning delta", async () => {
+    await connected();
+    const seen: string[] = [];
+    socket.onReasoning((delta) => seen.push(delta));
+    FakeSocket.last().push({ type: "reasoning", delta: "" });
+
+    expect(seen).toEqual([]);
+  });
+
+  it("carries a render frame's reasoning field through to subscribers", async () => {
+    await connected();
+    const seen: unknown[] = [];
+    socket.onRender((frame) => seen.push(frame));
+    FakeSocket.last().push({ ...RENDER, reasoning: "thought so" });
+
+    expect(seen).toEqual([{ ...RENDER, reasoning: "thought so" }]);
+  });
+
+  it("removes a non-string reasoning field from a render frame before publishing", async () => {
+    await connected();
+    const seen: RenderFrame[] = [];
+    socket.onRender((frame) => seen.push(frame));
+    FakeSocket.last().push({ ...RENDER, reasoning: 5 });
+
+    expect(seen).toHaveLength(1);
+    expect("reasoning" in seen[0]!).toBe(false);
   });
 });
 
