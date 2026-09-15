@@ -51,6 +51,16 @@ function running(id: string): DelegationItem {
   return { id, title: `work ${id}`, started_at: 1_789_365_900_000, state: "running" };
 }
 
+function done(id: string): DelegationItem {
+  return {
+    id,
+    title: `work ${id}`,
+    started_at: 1_789_365_900_000,
+    state: "done",
+    ended_at: 1_789_365_960_000,
+  };
+}
+
 let transport: BridgeTransport;
 let petBridge: ReturnType<typeof createSettingsBridge>;
 let settingsBridge: ReturnType<typeof createSettingsBridge>;
@@ -101,6 +111,22 @@ describe("delegations across windows", () => {
     const mirror = createMirroredDelegations({ bridge: settingsBridge });
 
     expect(mirror.get().map((d) => d.id)).toEqual(["d-1"]);
+  });
+
+  it("counts the running items, the way the chip reads the list", () => {
+    publishDelegations({ store, bridge: petBridge });
+    const mirror = createMirroredDelegations({ bridge: settingsBridge });
+
+    store.set([running("d-1"), done("d-2"), running("d-3")]);
+
+    expect(mirror.runningCount()).toBe(2);
+  });
+
+  it("counts nothing running on an empty list", () => {
+    publishDelegations({ store, bridge: petBridge });
+    const mirror = createMirroredDelegations({ bridge: settingsBridge });
+
+    expect(mirror.runningCount()).toBe(0);
   });
 
   it("starts empty while no pet window answers", () => {
