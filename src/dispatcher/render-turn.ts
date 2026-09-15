@@ -7,9 +7,9 @@
  *
  * Where the cue goes depends on the segment. With speech it rides the TTS pipeline, which applies it
  * as the audio starts. Without speech there is no audio to wait for and the pipeline would hold it
- * forever, so it goes straight to the renderer — the path a silent streamed turn already takes. When
- * a speaking segment came earlier in the same frame, that direct call still waits for the queued
- * speech to finish playing, so segment order in the frame stays the order it renders on screen.
+ * forever, so it goes straight to the renderer — the path a silent streamed turn already takes. A
+ * silent segment with speech earlier in the frame instead waits for the speech queued so far to
+ * finish playing, so it doesn't cut ahead of audio still queued when the frame arrived.
  * Firing ≠ judgment holds here too: a silent segment still renders its expression and motion.
  */
 
@@ -68,7 +68,6 @@ export function createRenderTurn(deps: RenderTurnDeps): RenderTurn {
       deps.turnOutput.interrupt();
 
       let spokeText = false;
-      let sawSpeech = false;
       const said: string[] = [];
       for (const segment of segments) {
         const cue = mergeCues(segment.cues ?? []);
@@ -82,7 +81,6 @@ export function createRenderTurn(deps: RenderTurnDeps): RenderTurn {
           deps.turnOutput.delta(`${speech}\n`);
           said.push(speech.trim());
           spokeText = true;
-          sawSpeech = true;
           continue;
         }
         if (!cue.emotion_id && !cue.motion_id) continue;
@@ -96,7 +94,7 @@ export function createRenderTurn(deps: RenderTurnDeps): RenderTurn {
         };
         // A speaking segment earlier in the frame is still queued on the pipeline — wait for it
         // to finish playing so this segment's cue lands in the same order it renders on screen.
-        if (sawSpeech) {
+        if (spokeText) {
           deps.turnOutput.onQueueDrained(applyCue);
         } else {
           applyCue();

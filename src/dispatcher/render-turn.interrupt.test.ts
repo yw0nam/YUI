@@ -10,8 +10,8 @@
 
 import { describe, expect, it } from "vitest";
 import type { ControlEnvelope } from "../contract";
-import { createSpeechPlayback } from "../io/speech-playback";
 import type { RenderFrame } from "../io/push-socket";
+import { createSpeechPlayback } from "../io/speech-playback";
 import type { TtsPipeline, TtsPipelineOptions } from "../io/tts-pipeline";
 import { createRenderTurn } from "./render-turn";
 import { makeLogger } from "./test-helpers";
@@ -88,10 +88,7 @@ describe("render_turn — a superseding frame drops a pending silent cue", () =>
 
     // Frame A: speech ahead of a silent cue — the cue waits behind the queued speech.
     renderTurn.render(
-      frame(
-        [{ speech: "Here." }, { cues: [{ emotion_id: "sad" }], speech: "[SILENT]" }],
-        "a",
-      ),
+      frame([{ speech: "Here." }, { cues: [{ emotion_id: "sad" }], speech: "[SILENT]" }], "a"),
     );
 
     // Frame B supersedes A before A's queued speech ever finishes playing.
