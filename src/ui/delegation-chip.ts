@@ -174,10 +174,9 @@ export function createDelegationChip({
     labelEl.textContent = t("deleg.chip_running", { n: running });
     countEl.textContent = String(running);
     if (listOpen) renderDelegationRows(rowsEl, items, now());
-    if (visible) return;
     show();
-    clearRefreshTimer();
-    refreshTimer = setInterval(refresh, DELEGATION_REFRESH_MS);
+    // A chip already visible from the lost state still needs the timer the lost branch cleared.
+    if (refreshTimer === null) refreshTimer = setInterval(refresh, DELEGATION_REFRESH_MS);
   }
 
   function applyCollapsed(isFolded: boolean): void {
