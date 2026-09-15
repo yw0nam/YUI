@@ -405,6 +405,22 @@ describe("createPushSocket — reconnectNow", () => {
     expect(FakeSocket.instances).toHaveLength(2);
   });
 
+  it("opens one socket when it is asked twice before the key resolves", async () => {
+    let releaseKey!: (key: string) => void;
+    const pendingKey = new Promise<string>((resolve) => {
+      releaseKey = resolve;
+    });
+    socket = build({ getKey: () => pendingKey });
+    socket.connect();
+
+    socket.reconnectNow();
+    socket.reconnectNow();
+    releaseKey("secret-key");
+    await vi.advanceTimersByTimeAsync(0);
+
+    expect(FakeSocket.instances).toHaveLength(1);
+  });
+
   it("does nothing while the socket is already up", async () => {
     await connected();
 
