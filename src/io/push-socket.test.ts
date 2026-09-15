@@ -276,7 +276,7 @@ describe("createPushSocket — reconnect", () => {
     expect(socket.getState()).toEqual({ kind: "reconnecting", delay_ms: 1_000 });
   });
 
-  it("surfaces a wrong-key close as failed with its code, and still retries", async () => {
+  it("stops retrying after a wrong-key close", async () => {
     socket = build();
     socket.connect();
     await vi.advanceTimersByTimeAsync(0);
@@ -285,25 +285,37 @@ describe("createPushSocket — reconnect", () => {
 
     expect(socket.getState()).toEqual({ kind: "failed", code: 4401 });
 
-    await vi.advanceTimersByTimeAsync(1_000);
-    expect(FakeSocket.instances).toHaveLength(2);
+    await vi.advanceTimersByTimeAsync(60_000);
+    expect(FakeSocket.instances).toHaveLength(1);
   });
 
-  it("holds the wrong-key state across the retries, instead of flickering", async () => {
+  it("sends no second hello while the key stands rejected", async () => {
+    socket = build();
+    socket.connect();
+    await vi.advanceTimersByTimeAsync(0);
+    FakeSocket.last().accept();
+    const rejected = FakeSocket.last();
+    rejected.drop(4401);
+
+    await vi.advanceTimersByTimeAsync(60_000);
+
+    expect(rejected.sent).toHaveLength(1);
+    expect(FakeSocket.instances.flatMap((s) => s.sent)).toHaveLength(1);
+  });
+
+  it("opens again when a settings change reopens it", async () => {
     socket = build();
     socket.connect();
     await vi.advanceTimersByTimeAsync(0);
     FakeSocket.last().accept();
     FakeSocket.last().drop(4401);
-    expect(socket.getState()).toEqual({ kind: "failed", code: 4401 });
 
-    await vi.advanceTimersByTimeAsync(1_000);
+    socket.disconnect();
+    socket.connect();
+    await vi.advanceTimersByTimeAsync(0);
+
     expect(FakeSocket.instances).toHaveLength(2);
-    expect(socket.getState()).toEqual({ kind: "failed", code: 4401 });
-
-    FakeSocket.last().accept();
-    FakeSocket.last().drop(4401);
-    expect(socket.getState()).toEqual({ kind: "failed", code: 4401 });
+    expect(socket.getState()).toEqual({ kind: "connecting" });
   });
 
   it("clears the wrong-key state once the backend accepts the key", async () => {
@@ -313,22 +325,12 @@ describe("createPushSocket — reconnect", () => {
     FakeSocket.last().accept();
     FakeSocket.last().drop(4401);
 
-    await vi.advanceTimersByTimeAsync(1_000);
+    socket.reconnectNow();
+    await vi.advanceTimersByTimeAsync(0);
     FakeSocket.last().accept();
     FakeSocket.last().push({ type: "ready", chat_id: "yui-3f9a2c1d" });
 
     expect(socket.getState()).toEqual({ kind: "ready", chat_id: "yui-3f9a2c1d" });
-  });
-
-  it("returns to an ordinary retry when the next close is not about the key", async () => {
-    socket = build();
-    socket.connect();
-    await vi.advanceTimersByTimeAsync(0);
-    FakeSocket.last().drop(4401);
-    await vi.advanceTimersByTimeAsync(1_000);
-    FakeSocket.last().drop(1006);
-
-    expect(socket.getState()).toEqual({ kind: "reconnecting", delay_ms: 2_000 });
   });
 
   it("dispose() closes the socket and stops reconnecting", async () => {
@@ -343,6 +345,85 @@ describe("createPushSocket — reconnect", () => {
 
     await vi.advanceTimersByTimeAsync(60_000);
     expect(FakeSocket.instances).toHaveLength(1);
+  });
+});
+
+describe("createPushSocket — reconnectNow", () => {
+  it("opens at once from the wrong-key state", async () => {
+    socket = build();
+    socket.connect();
+    await vi.advanceTimersByTimeAsync(0);
+    FakeSocket.last().accept();
+    FakeSocket.last().drop(4401);
+
+    socket.reconnectNow();
+    await vi.advanceTimersByTimeAsync(0);
+
+    expect(FakeSocket.instances).toHaveLength(2);
+    expect(socket.getState()).toEqual({ kind: "connecting" });
+  });
+
+  it("carries the key as it stands when it opens", async () => {
+    let key = "old-key";
+    socket = build({ getKey: async () => key });
+    socket.connect();
+    await vi.advanceTimersByTimeAsync(0);
+    FakeSocket.last().accept();
+    FakeSocket.last().drop(4401);
+
+    key = "new-key";
+    socket.reconnectNow();
+    await vi.advanceTimersByTimeAsync(0);
+    FakeSocket.last().accept();
+
+    expect(JSON.parse(FakeSocket.last().sent[0]!).key).toBe("new-key");
+  });
+
+  it("skips the wait a backoff had already armed", async () => {
+    socket = build();
+    socket.connect();
+    await vi.advanceTimersByTimeAsync(0);
+    FakeSocket.last().drop(1006);
+    expect(socket.getState()).toEqual({ kind: "reconnecting", delay_ms: 1_000 });
+
+    socket.reconnectNow();
+    await vi.advanceTimersByTimeAsync(0);
+
+    expect(FakeSocket.instances).toHaveLength(2);
+    expect(socket.getState()).toEqual({ kind: "connecting" });
+  });
+
+  it("leaves no armed timer behind, so the skipped wait opens nothing later", async () => {
+    socket = build();
+    socket.connect();
+    await vi.advanceTimersByTimeAsync(0);
+    FakeSocket.last().drop(1006);
+
+    socket.reconnectNow();
+    await vi.advanceTimersByTimeAsync(60_000);
+
+    expect(FakeSocket.instances).toHaveLength(2);
+  });
+
+  it("does nothing while the socket is already up", async () => {
+    await connected();
+
+    socket.reconnectNow();
+    await vi.advanceTimersByTimeAsync(0);
+
+    expect(FakeSocket.instances).toHaveLength(1);
+    expect(socket.getState()).toEqual({ kind: "ready", chat_id: "yui-3f9a2c1d" });
+  });
+
+  it("does nothing once disconnected", async () => {
+    await connected();
+    socket.disconnect();
+
+    socket.reconnectNow();
+    await vi.advanceTimersByTimeAsync(0);
+
+    expect(FakeSocket.instances).toHaveLength(1);
+    expect(socket.getState()).toEqual({ kind: "disconnected" });
   });
 });
 

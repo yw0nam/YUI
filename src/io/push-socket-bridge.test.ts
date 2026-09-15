@@ -33,6 +33,7 @@ function fakeSocket(initial: PushSocketState = { kind: "disconnected" }) {
   const subs = new Set<(s: PushSocketState) => void>();
   return {
     sendReset: vi.fn(() => true),
+    reconnectNow: vi.fn(),
     getState: () => state,
     onState(cb: (s: PushSocketState) => void) {
       subs.add(cb);
@@ -110,6 +111,22 @@ describe("push socket across windows", () => {
     expect(socket.sendReset).not.toHaveBeenCalled();
   });
 
+  it("sends the mirror's reconnect request to the real socket", () => {
+    publishPushSocket({ socket, bridge: petBridge });
+    const mirror = createMirroredPushSocket({ bridge: settingsBridge });
+
+    mirror.reconnectNow();
+
+    expect(socket.reconnectNow).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not reconnect the socket from its own window's publish", () => {
+    publishPushSocket({ socket, bridge: petBridge });
+    petBridge.emitPushReconnect();
+
+    expect(socket.reconnectNow).not.toHaveBeenCalled();
+  });
+
   it("asks again on refresh, for a window that opened before the socket did", () => {
     const mirror = createMirroredPushSocket({ bridge: settingsBridge });
     expect(mirror.getState()).toEqual({ kind: "disconnected" });
@@ -138,6 +155,15 @@ describe("push socket across windows", () => {
     mirror.sendReset();
 
     expect(socket.sendReset).not.toHaveBeenCalled();
+  });
+
+  it("stops the reconnect path after the pet side is disposed", () => {
+    publishPushSocket({ socket, bridge: petBridge })();
+    const mirror = createMirroredPushSocket({ bridge: settingsBridge });
+
+    mirror.reconnectNow();
+
+    expect(socket.reconnectNow).not.toHaveBeenCalled();
   });
 
   it("stops updating after the mirror is disposed", () => {
