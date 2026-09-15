@@ -221,4 +221,14 @@ describe("createRemoteSurfaces — the pet-side adapter", () => {
     message.emitControl({ op: "dock" });
     expect(onDock).toHaveBeenCalledTimes(1);
   });
+
+  it("reports a settings request to the registered callback", () => {
+    const { pet, message } = pair();
+    const remote = createRemoteSurfaces(pet);
+    const onOpenSettings = vi.fn();
+    remote.onOpenSettings(onOpenSettings);
+
+    message.emitControl({ op: "open-settings" });
+    expect(onOpenSettings).toHaveBeenCalledTimes(1);
+  });
 });

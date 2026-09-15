@@ -16,6 +16,7 @@ vi.mock("./ui/tokens.css", () => ({}));
 vi.mock("./ui/delegation-chip.css", () => ({}));
 vi.mock("./ui/delegation-rows.css", () => ({}));
 
+import { createMessageBridge, type MessageControlOp } from "./io/message-bridge";
 import type { DelegationItem, PushSocketState } from "./io/push-socket";
 import { createSettingsBridge, type SettingsBridge } from "./io/settings-bridge";
 import { setLocale, t } from "./ui/i18n";
@@ -143,4 +144,18 @@ it("shows the chip once a settings change turns push on", async () => {
 
   await vi.waitFor(() => expect(chipEl().hidden).toBe(false));
   expect(label()).toBe(t("deleg.chip_lost"));
+});
+
+it("asks the character window for the settings surface when the lost chip is tapped", async () => {
+  const petMessageBridge = createMessageBridge(undefined, { windowKind: "pet" });
+  const seen: MessageControlOp[] = [];
+  petMessageBridge.onControl((op) => seen.push(op));
+  await boot();
+  answer({ kind: "reconnecting", delay_ms: 4_000 });
+  await vi.waitFor(() => expect(chipEl().hidden).toBe(false));
+
+  document.querySelector<HTMLButtonElement>(".yui-deleg__chip")!.click();
+
+  await vi.waitFor(() => expect(seen.map((op) => op.op)).toContain("open-settings"));
+  petMessageBridge.dispose();
 });
