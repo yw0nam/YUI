@@ -164,6 +164,19 @@ describe("createDelegationChip", () => {
     );
   });
 
+  it("uses the singular form in English at n=1 and the plural form at n=2", () => {
+    const { store } = build();
+    setLocale("en");
+    store.replace([running("d-1", 60_000)]);
+    expect(mount.querySelector<HTMLElement>(".yui-deleg__label")!.textContent).toBe(
+      "1 task in progress",
+    );
+    store.replace([running("d-1", 60_000), running("d-2", 60_000)]);
+    expect(mount.querySelector<HTMLElement>(".yui-deleg__label")!.textContent).toBe(
+      "2 tasks in progress",
+    );
+  });
+
   it("opens the list popover on tap, running items first with the right times", () => {
     const { store } = build();
     store.replace([done("d-2", 12 * 60_000), running("d-1", 4 * 60_000)]);
