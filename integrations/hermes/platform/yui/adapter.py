@@ -84,9 +84,10 @@ def fit_frame(frame: dict) -> str:
         body, size = _encoded(frame)
     if size > MAX_FRAME_BYTES and isinstance(frame.get("delta"), str):
         logger.debug("yui: reasoning delta cut to fit the frame")
-        while size > MAX_FRAME_BYTES and frame["delta"]:
-            frame["delta"] = frame["delta"][: len(frame["delta"]) - (size - MAX_FRAME_BYTES)]
-            body, size = _encoded(frame)
+        raw = frame["delta"].encode("utf-8")
+        budget = max(len(raw) - (size - MAX_FRAME_BYTES), 0)
+        frame["delta"] = raw[:budget].decode("utf-8", "ignore")
+        body, size = _encoded(frame)
     logger.warning("yui: %s frame over %d bytes, trimmed to fit", frame.get("type"), MAX_FRAME_BYTES)
     return body
 
@@ -445,10 +446,12 @@ class YuiAdapter(BasePlatformAdapter):
 
     def _arm_reasoning_flush(self, chat_id: str) -> None:
         if chat_id not in self._reasoning_flushes:
-            self._reasoning_flushes[chat_id] = asyncio.create_task(self._flush_reasoning(chat_id))
+            with contextlib.suppress(RuntimeError):
+                self._reasoning_flushes[chat_id] = asyncio.create_task(self._flush_reasoning(chat_id))
 
     def _forget_reasoning(self, chat_id: str) -> None:
         """A new turn thinks from nothing, so the last one's tail is not its opening words."""
+        # Pending goes first: a cancelled flush re-arms from its finally only when pending is non-empty.
         self._reasoning_pending.pop(chat_id, None)
         flush = self._reasoning_flushes.pop(chat_id, None)
         if flush is not None:
@@ -462,7 +465,8 @@ class YuiAdapter(BasePlatformAdapter):
             if delta:
                 await self._send_frame(chat_id, {"type": "reasoning", "delta": delta})
         finally:
-            self._reasoning_flushes.pop(chat_id, None)
+            if self._reasoning_flushes.get(chat_id) is asyncio.current_task():
+                self._reasoning_flushes.pop(chat_id, None)
             # A delta that arrived during the send found this flush still armed and scheduled none.
             if self._reasoning_pending.get(chat_id):
                 self._arm_reasoning_flush(chat_id)
