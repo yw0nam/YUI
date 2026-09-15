@@ -44,6 +44,8 @@ export interface RenderFrame {
   turn_id: string | null;
   source: string;
   segments: RenderSegment[];
+  /** The reasoning written so far for this turn when the reply was sent; absent when there was none. */
+  reasoning?: string;
 }
 
 /** One piece of work the backend handed to a background worker. */
@@ -97,6 +99,7 @@ export interface PushSocket {
   sendVocabulary(): void;
   onRender(cb: (frame: RenderFrame) => void): () => void;
   onDelegations(cb: (items: DelegationItem[]) => void): () => void;
+  onReasoning(cb: (delta: string) => void): () => void;
   onState(cb: (state: PushSocketState) => void): () => void;
   getState(): PushSocketState;
 }
@@ -132,6 +135,7 @@ export function createPushSocket(deps: PushSocketDeps): PushSocket {
 
   const renderSubs = new Set<(frame: RenderFrame) => void>();
   const delegationSubs = new Set<(items: DelegationItem[]) => void>();
+  const reasoningSubs = new Set<(delta: string) => void>();
   const stateSubs = new Set<(state: PushSocketState) => void>();
 
   let ws: WebSocket | null = null;
@@ -215,8 +219,20 @@ export function createPushSocket(deps: PushSocketDeps): PushSocket {
           log.warn("frame_malformed", { type: "render" });
           return;
         }
+        if (frame.reasoning !== undefined && typeof frame.reasoning !== "string") {
+          delete frame.reasoning;
+        }
         const render = frame as unknown as RenderFrame;
         for (const cb of renderSubs) cb(render);
+        return;
+      }
+      case "reasoning": {
+        if (typeof frame.delta !== "string") {
+          log.warn("frame_malformed", { type: "reasoning" });
+          return;
+        }
+        if (frame.delta === "") return;
+        for (const cb of reasoningSubs) cb(frame.delta);
         return;
       }
       case "delegations": {
@@ -365,6 +381,7 @@ export function createPushSocket(deps: PushSocketDeps): PushSocket {
       clearTimers();
       renderSubs.clear();
       delegationSubs.clear();
+      reasoningSubs.clear();
       ws?.close(NORMAL_CLOSE_CODE);
       ws = null;
       ready = false;
@@ -392,6 +409,7 @@ export function createPushSocket(deps: PushSocketDeps): PushSocket {
 
     onRender: (cb) => subscribe(renderSubs, cb),
     onDelegations: (cb) => subscribe(delegationSubs, cb),
+    onReasoning: (cb) => subscribe(reasoningSubs, cb),
     onState: (cb) => subscribe(stateSubs, cb),
     getState: () => state,
   };
