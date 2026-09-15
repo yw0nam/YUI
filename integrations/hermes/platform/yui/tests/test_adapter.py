@@ -19,7 +19,7 @@ from gateway_stub import (
     ProcessingOutcome,
 )
 from yui import delegations, reasoning, reports, state
-from yui.adapter import MAX_FRAME_BYTES, YuiAdapter, is_loopback
+from yui.adapter import MAX_FRAME_BYTES, YuiAdapter, fit_frame, is_loopback
 
 CHAT = "yui-3f9a2c1d"
 KEY = "test-key"
@@ -718,3 +718,55 @@ async def test_a_render_with_no_reasoning_at_all_carries_no_reasoning_field(clie
     await adapter.on_processing_start(user_turn(adapter, "7"))
     await adapter.send(CHAT, "All green.", metadata={"notify": True})
     assert "reasoning" not in await recv(ws)
+
+
+async def test_a_delta_that_lands_during_a_flush_leaves_on_the_next_one(client, adapter, monkeypatch):
+    """The window pops its buffer before the send, so a token can arrive with the flush still armed."""
+    ws = await ready(client)
+    send_frame = adapter._send_frame
+    admitted: list[bool] = []
+
+    async def admitting(chat_id, frame):
+        if not admitted:
+            admitted.append(True)
+            adapter._collect_reasoning(chat_id, "TAIL")
+        return await send_frame(chat_id, frame)
+
+    monkeypatch.setattr(adapter, "_send_frame", admitting)
+    adapter._collect_reasoning(CHAT, "HEAD")
+    assert (await recv(ws))["delta"] == "HEAD"
+    assert (await recv(ws))["delta"] == "TAIL"
+
+
+async def test_a_new_turn_keeps_none_of_the_last_turns_reasoning(client, adapter, monkeypatch):
+    ws = await ready(client)
+    send_frame = adapter._send_frame
+    admitted: list[bool] = []
+
+    async def admitting(chat_id, frame):
+        if not admitted:
+            admitted.append(True)
+            adapter._collect_reasoning(chat_id, "TAIL")
+        return await send_frame(chat_id, frame)
+
+    monkeypatch.setattr(adapter, "_send_frame", admitting)
+    adapter._collect_reasoning(CHAT, "HEAD")
+    assert (await recv(ws))["delta"] == "HEAD"
+    await adapter.on_processing_start(user_turn(adapter, "8"))
+    assert adapter._reasoning_pending == {}
+    assert adapter._reasoning_flushes == {}
+
+
+def test_an_oversize_render_drops_its_reasoning_before_any_speech():
+    segments = [{"cues": [], "speech": "x" * 1000} for _ in range(3)]
+    frame = {"type": "render", "turn_id": "7", "segments": segments, "reasoning": "y" * MAX_FRAME_BYTES}
+    fitted = json.loads(fit_frame(frame))
+    assert "reasoning" not in fitted
+    assert len(fitted["segments"]) == 3
+
+
+def test_an_oversize_reasoning_frame_keeps_what_fits_of_its_delta():
+    frame = {"type": "reasoning", "delta": "y" * (MAX_FRAME_BYTES * 2)}
+    fitted = json.loads(fit_frame(frame))
+    assert len(json.dumps(fitted, ensure_ascii=False).encode("utf-8")) <= MAX_FRAME_BYTES
+    assert 0 < len(fitted["delta"]) < MAX_FRAME_BYTES * 2
