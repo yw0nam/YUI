@@ -8,11 +8,14 @@ import type { ControlEnvelope } from "./contract";
 import { makeTurnOutput } from "./dispatcher/test-helpers";
 import type { ChatHistoryEntry } from "./io/chat-history-store";
 import { createDelegationsStore } from "./io/delegations-store";
-import type { DelegationItem, RenderFrame } from "./io/push-socket";
+import { createReasoningStore } from "./io/reasoning-store";
+import type { DelegationItem, PushSocketState, RenderFrame } from "./io/push-socket";
 
 function fakeSocket() {
   let renderCb: ((frame: RenderFrame) => void) | null = null;
   let delegationsCb: ((items: DelegationItem[]) => void) | null = null;
+  let reasoningCb: ((delta: string) => void) | null = null;
+  let stateCb: ((state: PushSocketState) => void) | null = null;
   return {
     sendVocabulary: vi.fn(),
     onRender(cb: (frame: RenderFrame) => void) {
@@ -27,14 +30,34 @@ function fakeSocket() {
         delegationsCb = null;
       };
     },
+    onReasoning(cb: (delta: string) => void) {
+      reasoningCb = cb;
+      return () => {
+        reasoningCb = null;
+      };
+    },
+    onState(cb: (state: PushSocketState) => void) {
+      stateCb = cb;
+      return () => {
+        stateCb = null;
+      };
+    },
     pushRender(frame: RenderFrame): void {
       renderCb?.(frame);
     },
     pushDelegations(items: DelegationItem[]): void {
       delegationsCb?.(items);
     },
+    pushReasoning(delta: string): void {
+      reasoningCb?.(delta);
+    },
+    pushState(state: PushSocketState): void {
+      stateCb?.(state);
+    },
     hasRenderSubscriber: () => renderCb !== null,
     hasDelegationsSubscriber: () => delegationsCb !== null,
+    hasReasoningSubscriber: () => reasoningCb !== null,
+    hasStateSubscriber: () => stateCb !== null,
   };
 }
 
@@ -68,6 +91,7 @@ function fakeLog() {
 let socket: ReturnType<typeof fakeSocket>;
 let turnOutput: ReturnType<typeof makeTurnOutput>;
 let delegations: ReturnType<typeof createDelegationsStore>;
+let reasoning: ReturnType<typeof createReasoningStore>;
 let records: unknown[];
 let directives: ControlEnvelope[];
 let transcript: ChatHistoryEntry[];
@@ -79,6 +103,7 @@ function wire() {
     turnOutput,
     renderer: { applyDirective: (env) => directives.push(env) },
     delegations,
+    reasoning,
     appendTurnRecord: (record) => records.push(record),
     appendTranscript: (entry) => transcript.push(entry),
     log,
@@ -89,6 +114,7 @@ beforeEach(() => {
   socket = fakeSocket();
   turnOutput = makeTurnOutput();
   delegations = createDelegationsStore();
+  reasoning = createReasoningStore();
   records = [];
   directives = [];
   transcript = [];
@@ -144,12 +170,38 @@ describe("wirePushTransport", () => {
     expect(log.info).toHaveBeenCalledExactlyOnceWith("delegations", { total: 2, running: 1 });
   });
 
+  it("appends a reasoning delta into the reasoning store", () => {
+    wire();
+    socket.pushReasoning("A");
+    socket.pushReasoning("B");
+
+    expect(reasoning.get()).toEqual({ text: "AB", live: true });
+  });
+
+  it("closes the live reasoning cycle with the render frame's reasoning", () => {
+    wire();
+    socket.pushReasoning("A");
+    socket.pushRender({ ...RENDER, reasoning: "AB" });
+
+    expect(reasoning.get()).toEqual({ text: "AB", live: false });
+  });
+
+  it("interrupts the reasoning on a non-ready socket state", () => {
+    wire();
+    socket.pushReasoning("A");
+    socket.pushState({ kind: "reconnecting", delay_ms: 1_000 });
+
+    expect(reasoning.get()).toEqual({ text: "", live: false });
+  });
+
   it("drops every subscription on dispose", () => {
     const dispose = wire();
     dispose();
 
     expect(socket.hasRenderSubscriber()).toBe(false);
     expect(socket.hasDelegationsSubscriber()).toBe(false);
+    expect(socket.hasReasoningSubscriber()).toBe(false);
+    expect(socket.hasStateSubscriber()).toBe(false);
   });
 });
 
