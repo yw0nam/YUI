@@ -19,30 +19,44 @@
   pointer-events: auto;
 }
 
-/* ── Plate row — the handle and the delegation chip, side by side ── */
+/* ── Plate row — the handle and the delegation chip, side by side, with the
+   list wrapping onto its own full-width line beneath them ── */
 .yui-plate-row {
   display: flex;
   align-items: flex-start;
   gap: 6px;
+  flex-wrap: wrap;
 }
 
-/* The chip is absolutely placed beside the character; here it flows in the row, and its
-   list flows under it so the window grows to hold it instead of clipping it. */
+/* The chip is absolutely placed beside the character; here display: contents unwraps it
+   so the chip button and the list become direct flex items of the row. */
 .yui-ui--message .yui-deleg {
-  position: relative;
-  top: auto;
-  left: auto;
+  display: contents;
+}
+
+/* display: contents would otherwise beat the UA [hidden] rule and keep a hidden chip's
+   children in the row. */
+.yui-ui--message .yui-deleg[hidden] {
+  display: none;
 }
 
 .yui-ui--message .yui-deleg__chip {
   min-height: 26px;
   box-sizing: border-box;
+  /* A display: contents parent does not carry pointer-events to its children. */
+  pointer-events: auto;
 }
 
+/* Full width on its own line under the plate and chip, instead of anchored beside
+   the chip where min-width: 15rem would overrun the window's 340px column. */
 .yui-ui--message .yui-deleg__list {
   position: static;
-  margin-top: 0.4rem;
-  max-width: 100%;
+  flex: 1 0 100%;
+  width: auto;
+  min-width: 0;
+  max-width: none;
+  box-sizing: border-box;
+  margin-top: 2px;
 }
 
 /* ── Name plate — the handle, the state tell and the way back to the character ── */
