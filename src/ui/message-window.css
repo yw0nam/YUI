@@ -40,15 +40,23 @@
   display: none;
 }
 
+/* display: contents leaves .yui-deleg with no box to fade, so the chip button carries
+   the fade in this scope; transitionend still bubbles from it to .yui-deleg for afterFadeOut. */
 .yui-ui--message .yui-deleg__chip {
   min-height: 26px;
   box-sizing: border-box;
-  /* A display: contents parent does not carry pointer-events to its children. */
-  pointer-events: auto;
+  opacity: 0;
+  transform: translateY(-6px);
+  transition:
+    opacity var(--yui-dur) var(--yui-ease),
+    transform var(--yui-dur) var(--yui-ease);
+}
+.yui-ui--message .yui-deleg.is-visible .yui-deleg__chip {
+  opacity: 1;
+  transform: none;
 }
 
-/* Full width on its own line under the plate and chip, instead of anchored beside
-   the chip where min-width: 15rem would overrun the window's 340px column. */
+/* The list takes its own full-width line under the plate and chip. */
 .yui-ui--message .yui-deleg__list {
   position: static;
   flex: 1 0 100%;
@@ -56,7 +64,6 @@
   min-width: 0;
   max-width: none;
   box-sizing: border-box;
-  margin-top: 2px;
 }
 
 /* ── Name plate — the handle, the state tell and the way back to the character ── */
@@ -243,6 +250,11 @@
 @media (prefers-reduced-motion: reduce) {
   .yui-ui--message .yui-bubble,
   .yui-ui--message .yui-input {
+    transform: none !important;
+  }
+  .yui-ui--message .yui-deleg__chip {
+    transition-duration: var(--yui-dur-fast) !important;
+    transition-property: opacity !important;
     transform: none !important;
   }
   .yui-plate[data-state="responding"] .yui-plate__dot,
