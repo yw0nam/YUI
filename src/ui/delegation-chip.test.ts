@@ -501,6 +501,20 @@ describe("createDelegationChip", () => {
       );
     });
 
+    it("keeps refreshing the elapsed times after the connection comes back", () => {
+      const { store, pushState } = build();
+      store.replace([running("d-1", 4 * 60_000)]);
+      pushState.set({ kind: "reconnecting", delay_ms: 1_000 });
+      pushState.set({ kind: "ready", chat_id: "yui-3f9a2c1d" });
+      chipButton().click();
+      expect(listEl().querySelector<HTMLElement>(".yui-deleg__item-time")!.textContent).toBe("4분");
+
+      clock = NOW + 60_000;
+      vi.advanceTimersByTime(60_000);
+
+      expect(listEl().querySelector<HTMLElement>(".yui-deleg__item-time")!.textContent).toBe("5분");
+    });
+
     it("hides on a ready with nothing running", () => {
       const { pushState } = build(
         localStorageDelegationChipStorage(STORAGE_KEY),
