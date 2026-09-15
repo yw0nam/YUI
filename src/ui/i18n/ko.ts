@@ -484,6 +484,7 @@ const ko: Record<string, string> = {
 
   // delegations
   "deleg.chip_running": "작업 {n}개 진행 중",
+  "deleg.chip_lost": "연결 끕김",
   "deleg.list_title": "위임한 작업",
   "deleg.min": "{n}분",
   "deleg.hour_min": "{h}시간 {m}분",

@@ -423,6 +423,12 @@ describe("createDelegationChip", () => {
       });
     }
 
+    it("words the lost pill in the active locale", () => {
+      build(localStorageDelegationChipStorage(STORAGE_KEY), fakePushState({ kind: "connecting" }));
+
+      expect(mount.querySelector<HTMLElement>(".yui-deleg__label")!.textContent).toBe("연결 끕김");
+    });
+
     it("shows the lost pill over the running count", () => {
       const { store, pushState } = build();
       store.replace([running("d-1", 60_000), running("d-2", 60_000)]);

@@ -548,6 +548,7 @@ async function bootstrap(): Promise<BootstrapHandle> {
       root,
       stage,
       getQuickControls: () => quickControls,
+      getMessageMode: messageMode,
       pushSocket,
       delegations,
       getEndpoints,

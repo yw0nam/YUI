@@ -75,6 +75,13 @@
   }
 }
 
+/* Lost connection: the same pill in Ember Red, holding still — nothing is running to pulse for. */
+.yui-deleg.is-lost .yui-deleg__dot {
+  background: var(--yui-danger);
+  box-shadow: 0 0 0 3px var(--yui-danger-faint);
+  animation: none;
+}
+
 /* Folded (is-mini): the chip shrinks to its dot with the running count as a badge. */
 .yui-deleg__count {
   display: none;
@@ -105,6 +112,11 @@
   font-size: 0.65rem;
   font-weight: 600;
   text-shadow: none;
+}
+
+/* No count belongs on a folded dot that reports a connection rather than a queue. */
+.yui-deleg.is-lost.is-mini .yui-deleg__count {
+  display: none;
 }
 
 .yui-deleg__list {
