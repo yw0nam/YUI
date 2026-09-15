@@ -770,3 +770,12 @@ def test_an_oversize_reasoning_frame_keeps_what_fits_of_its_delta():
     fitted = json.loads(fit_frame(frame))
     assert len(json.dumps(fitted, ensure_ascii=False).encode("utf-8")) <= MAX_FRAME_BYTES
     assert 0 < len(fitted["delta"]) < MAX_FRAME_BYTES * 2
+
+
+def test_an_oversize_multibyte_reasoning_delta_is_cut_by_bytes_not_characters():
+    frame = {"type": "reasoning", "delta": "안" * MAX_FRAME_BYTES}
+    fitted = json.loads(fit_frame(frame))
+    assert len(json.dumps(fitted, ensure_ascii=False).encode("utf-8")) <= MAX_FRAME_BYTES
+    # Three bytes per character; the frame's own keys cost well under 64 bytes.
+    assert len(fitted["delta"]) >= (MAX_FRAME_BYTES - 64) // 3
+    assert set(fitted["delta"]) == {"안"}
