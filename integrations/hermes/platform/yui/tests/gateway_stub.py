@@ -99,6 +99,18 @@ class BasePlatformAdapter:
         self.dispatched.append(event)
         event._gateway_accepted = True
 
+    async def _send_with_retry(
+        self,
+        chat_id: str,
+        content: str,
+        reply_to=None,
+        metadata=None,
+        max_retries: int = 2,
+        base_delay: float = 2.0,
+    ) -> SendResult:
+        """The gateway's busy path calls this; the real base retries around the same send()."""
+        return await self.send(chat_id=chat_id, content=content, reply_to=reply_to, metadata=metadata)
+
     def _mark_connected(self) -> None:
         self.connected = True
 
