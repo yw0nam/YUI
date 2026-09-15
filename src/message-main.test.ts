@@ -15,9 +15,11 @@ vi.mock("./ui/surfaces.css", () => ({}));
 vi.mock("./ui/tokens.css", () => ({}));
 vi.mock("./ui/delegation-chip.css", () => ({}));
 vi.mock("./ui/delegation-rows.css", () => ({}));
+vi.mock("./ui/reasoning-chip.css", () => ({}));
 
 import { createMessageBridge, type MessageControlOp } from "./io/message-bridge";
 import type { DelegationItem, PushSocketState } from "./io/push-socket";
+import type { ReasoningState } from "./io/reasoning-store";
 import { createSettingsBridge, type SettingsBridge } from "./io/settings-bridge";
 import { setLocale, t } from "./ui/i18n";
 
@@ -49,12 +51,34 @@ function label(): string {
   return document.querySelector<HTMLElement>(".yui-deleg__label")!.textContent ?? "";
 }
 
+function thinkEl(): HTMLElement {
+  return document.querySelector<HTMLElement>(".yui-think")!;
+}
+
+function thinkPanel(): HTMLElement {
+  return document.querySelector<HTMLElement>(".yui-think__panel")!;
+}
+
+function delegList(): HTMLElement {
+  return document.querySelector<HTMLElement>(".yui-deleg__list")!;
+}
+
+function delegChipButton(): HTMLButtonElement {
+  return document.querySelector<HTMLButtonElement>(".yui-deleg__chip")!;
+}
+
 /** The pet window answers the ask every mirror sends on creation, then pushes its own updates. */
 function answer(state: PushSocketState, items: DelegationItem[] = []): void {
   petBridge.onPushStateAsk(() => petBridge.emitPushState(state));
   petBridge.onDelegationsAsk(() => petBridge.emitDelegations(items));
   petBridge.emitPushState(state);
   petBridge.emitDelegations(items);
+}
+
+/** The pet window answers the reasoning ask the mirror sends on creation, then pushes its own state. */
+function answerReasoning(state: ReasoningState): void {
+  petBridge.onReasoningAsk(() => petBridge.emitReasoning(state));
+  petBridge.emitReasoning(state);
 }
 
 beforeEach(() => {
@@ -158,4 +182,77 @@ it("asks the character window for the settings surface when the lost chip is tap
 
   await vi.waitFor(() => expect(seen.map((op) => op.op)).toContain("open-settings"));
   petMessageBridge.dispose();
+});
+
+// The reasoning chip lives on the same plate row and shares the chip-mode suppression.
+it("shows the reasoning chip when the mirror carries reasoning text in push mode", async () => {
+  await boot();
+  answer({ kind: "ready", chat_id: "yui-3f9a2c1d" });
+  answerReasoning({ text: "checking the logs", live: true });
+
+  await vi.waitFor(() => expect(thinkEl().hidden).toBe(false));
+  expect(thinkPanel().hidden).toBe(false);
+  expect(document.querySelector<HTMLElement>(".yui-think__text")!.textContent).toBe(
+    "checking the logs",
+  );
+});
+
+it("stays bare until the pet window answers where the socket stands", async () => {
+  await boot();
+
+  answerReasoning({ text: "too early", live: true });
+
+  await vi.waitFor(() => expect(document.querySelector(".yui-think__text")!.textContent).toBe("too early"));
+  expect(thinkEl().hidden).toBe(true);
+});
+
+it("shows no reasoning chip while the protocol is not push", async () => {
+  setChatApi("chat_completions");
+  await boot();
+  answer({ kind: "reconnecting", delay_ms: 4_000 });
+
+  answerReasoning({ text: "hmm", live: true });
+
+  await vi.waitFor(() => expect(chipEl().classList.contains("is-lost")).toBe(true));
+  expect(thinkEl().hidden).toBe(true);
+});
+
+it("hides the reasoning chip while the protocol leaves push and shows it again on push", async () => {
+  await boot();
+  answer({ kind: "ready", chat_id: "yui-3f9a2c1d" });
+  answerReasoning({ text: "hmm", live: true });
+  await vi.waitFor(() => expect(thinkEl().hidden).toBe(false));
+
+  setChatApi("responses");
+  petBridge.emitSettingsChanged();
+  await vi.waitFor(() => expect(thinkEl().hidden).toBe(true));
+
+  setChatApi("push");
+  petBridge.emitSettingsChanged();
+  await vi.waitFor(() => expect(thinkEl().hidden).toBe(false));
+});
+
+it("closes the delegation list when a live reasoning state arrives", async () => {
+  await boot();
+  answer({ kind: "ready", chat_id: "yui-3f9a2c1d" }, [running("d-1")]);
+  await vi.waitFor(() => expect(chipEl().hidden).toBe(false));
+  delegChipButton().click();
+  expect(delegList().hidden).toBe(false);
+
+  answerReasoning({ text: "hmm", live: true });
+
+  await vi.waitFor(() => expect(delegList().hidden).toBe(true));
+  expect(delegChipButton().getAttribute("aria-expanded")).toBe("false");
+});
+
+it("closes the reasoning panel when the delegation list opens", async () => {
+  await boot();
+  answer({ kind: "ready", chat_id: "yui-3f9a2c1d" }, [running("d-1")]);
+  answerReasoning({ text: "hmm", live: true });
+  await vi.waitFor(() => expect(thinkPanel().hidden).toBe(false));
+
+  delegChipButton().click();
+
+  await vi.waitFor(() => expect(thinkPanel().hidden).toBe(true));
+  expect(delegList().hidden).toBe(false);
 });

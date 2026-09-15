@@ -594,4 +594,62 @@ describe("createDelegationChip", () => {
       expect(chipEl().hidden).toBe(false);
     });
   });
+
+  // The message window closes the list when the reasoning chip's panel opens.
+  describe("closeList / onListOpen", () => {
+    it("closeList() closes an open list", () => {
+      const { store, chip } = build();
+      store.replace([running("d-1", 60_000)]);
+      chipButton().click();
+      expect(listEl().hidden).toBe(false);
+
+      chip.closeList();
+
+      expect(chipButton().getAttribute("aria-expanded")).toBe("false");
+      settle();
+      expect(listEl().hidden).toBe(true);
+    });
+
+    it("closeList() on an already closed list is a no-op", () => {
+      const { store, chip } = build();
+      store.replace([running("d-1", 60_000)]);
+
+      expect(() => chip.closeList()).not.toThrow();
+      expect(chipButton().getAttribute("aria-expanded")).toBe("false");
+      expect(listEl().hidden).toBe(true);
+    });
+
+    it("onListOpen fires once per closed → open transition and stops on unsubscribe", () => {
+      const { store, chip } = build();
+      store.replace([running("d-1", 60_000)]);
+      const onOpen = vi.fn();
+      const off = chip.onListOpen(onOpen);
+
+      chipButton().click();
+      expect(onOpen).toHaveBeenCalledTimes(1);
+      chipButton().click();
+      settle();
+      chipButton().click();
+      expect(onOpen).toHaveBeenCalledTimes(2);
+
+      off();
+      chipButton().click();
+      settle();
+      chipButton().click();
+      expect(onOpen).toHaveBeenCalledTimes(2);
+    });
+
+    it("fires onListOpen no more after dispose", () => {
+      const { store, chip } = build();
+      store.replace([running("d-1", 60_000)]);
+      const onOpen = vi.fn();
+      chip.onListOpen(onOpen);
+      const btn = chipButton();
+
+      chip.dispose();
+      expect(() => btn.click()).not.toThrow();
+
+      expect(onOpen).not.toHaveBeenCalled();
+    });
+  });
 });
