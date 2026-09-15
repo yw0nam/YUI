@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import logging
 import time
 
 import aiohttp
@@ -226,6 +227,57 @@ async def test_an_interim_stream_frame_is_not_rendered(client, adapter):
     await adapter.send(CHAT, "The tests", metadata={"expect_edits": True})
     await adapter.send(CHAT, "The tests passed.", metadata={"notify": True})
     assert (await recv(ws))["segments"] == [{"cues": [], "speech": "The tests passed."}]
+
+
+async def test_the_busy_acknowledgement_is_not_rendered(client, adapter):
+    """The gateway's busy path sends it through _send_with_retry, carrying no marker of its own."""
+    ws = await ready(client)
+    await adapter.on_processing_start(user_turn(adapter, "1789365854947"))
+    await adapter._send_with_retry(
+        chat_id=CHAT,
+        content="⏳ Still working on the previous message — this one is queued.",
+        reply_to="1789365854948",
+        metadata=None,
+    )
+    await adapter.send(CHAT, "Done.", metadata={"notify": True})
+    assert (await recv(ws))["segments"] == [{"cues": [], "speech": "Done."}]
+
+
+async def test_a_gateway_status_notice_is_not_rendered(client, adapter):
+    """_send_or_update_status_coro routes every status notice to send_or_update_status."""
+    ws = await ready(client)
+    await adapter.on_processing_start(user_turn(adapter, "1789365854947"))
+    result = await adapter.send_or_update_status(
+        CHAT, "context_pressure", "⚠️ Context is nearly full.", metadata=None
+    )
+    assert result.success is True
+    await adapter.send(CHAT, "Done.", metadata={"notify": True})
+    assert (await recv(ws))["segments"] == [{"cues": [], "speech": "Done."}]
+
+
+def test_the_gateway_says_nothing_to_this_platform_when_it_restarts():
+    """The home-channel ping and the restart and shutdown notices share this one gate."""
+    config = FakeConfig(key=KEY)
+    config.gateway_restart_notification = True
+    YuiAdapter(config)
+    assert config.gateway_restart_notification is False
+
+
+def test_a_config_without_the_restart_gate_is_reported_and_left_alone(caplog):
+    """An upstream rename of the gate shows up in the log instead of silently bringing pings back."""
+    config = FakeConfig(key=KEY)
+    with caplog.at_level(logging.WARNING):
+        YuiAdapter(config)
+    assert not hasattr(config, "gateway_restart_notification")
+    assert "gateway_restart_notification" in caplog.text
+
+
+async def test_the_words_before_a_tool_call_still_render(client, adapter):
+    """Interim commentary reaches send() with no metadata at all; it is the agent speaking."""
+    ws = await ready(client)
+    await adapter.on_processing_start(user_turn(adapter, "1789365854947"))
+    await adapter.send(CHAT, "Let me look at the logs.", metadata=None)
+    assert (await recv(ws))["segments"] == [{"cues": [], "speech": "Let me look at the logs."}]
 
 
 async def test_a_mid_turn_status_line_is_not_rendered(client, adapter):

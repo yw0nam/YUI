@@ -42,16 +42,11 @@ import { CAMERA_ORBIT_SENSITIVITY } from "./io/camera-settings";
 import { selectFetch } from "./io/chat-client";
 import { createClientToolRegistry, createGenerateExpressTool } from "./io/client-tools";
 import { createCursorTracker } from "./io/cursor-tracker";
-import {
-  createDelegationChipSettings,
-  localStorageDelegationChipStorage,
-} from "./io/delegation-chip-settings";
 import type { DelegationsStore } from "./io/delegations-store";
 import { createDragHoldSource } from "./io/drag-hold-source";
 import { createFrontmostTracker } from "./io/frontmost-tracker";
 import { createHitTestController, type HitTestController } from "./io/hit-test";
 import { enabledIdleVariants } from "./io/idle-motion-settings";
-import type { MessageWindowMode } from "./io/message-window-settings";
 import { createPeekState } from "./io/peek-state";
 import type { PushSocket } from "./io/push-socket";
 import type { DescentEdge } from "./io/screen-geometry";
@@ -67,7 +62,6 @@ import { appendRecord } from "./io/turn-record-log";
 import { createLogger } from "./logger";
 import type { Renderer } from "./renderer";
 import { showChainResetNotice } from "./ui/chain-reset-notice";
-import { createDelegationChip } from "./ui/delegation-chip";
 import { maybeShowFirstRunHint } from "./ui/first-run-hint";
 import { t } from "./ui/i18n";
 import { wireIngressDeadNotice } from "./ui/ingress-dead-notice";
@@ -109,8 +103,6 @@ interface Phase1Handles {
   root: HTMLElement;
   stage: HTMLElement;
   getQuickControls(): ReturnType<typeof createQuickControls>;
-  /** Where the speech bubble and the input live now — the chip follows them. */
-  getMessageMode(): MessageWindowMode;
   /** The push socket, when the chat protocol is push. The host owns its lifetime. */
   pushSocket?: PushSocket;
   /** The backend's delegations list, fed by the push socket's `delegations` frames. */
@@ -225,7 +217,6 @@ const realFactories: ConfiguredBootstrapFactories = {
       root,
       stage,
       getQuickControls,
-      getMessageMode,
       pushSocket,
       delegations,
       getEndpoints,
@@ -753,27 +744,6 @@ const realFactories: ConfiguredBootstrapFactories = {
           appendTranscript: (entry) => chatHistoryStore.append(entry),
           log,
         }),
-      );
-    }
-    // Only push mode carries a delegations list; the chip draws whatever the socket feeds the store.
-    if (getEndpoints().chat_api === "push" && pushSocket) {
-      const chipCollapsed = createDelegationChipSettings({
-        storage: localStorageDelegationChipStorage(),
-      });
-      register(chipCollapsed.dispose);
-      const chip = createDelegationChip({
-        mount: root,
-        store: delegations,
-        collapsed: chipCollapsed,
-        pushState: pushSocket,
-        onOpenSettings: () => getQuickControls().open(undefined, { tab: "adv" }),
-        suppressed: getMessageMode() === "popped",
-      });
-      register(() => chip.dispose());
-      register(
-        settings.messageWindowSettings.subscribe(() =>
-          chip.setSuppressed(getMessageMode() === "popped"),
-        ),
       );
     }
     ensureActive();

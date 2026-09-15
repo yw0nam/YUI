@@ -16,6 +16,11 @@ turns in and finished replies out. The contract both sides speak is
 - Sends the final reply as a `render` frame: the speech split into sentences, each carrying the
   cues that landed on it. A turn the agent answers with `[SILENT]`, or with nothing, closes with
   no speech, and the cues it placed still play.
+- Logs and never renders the text the gateway writes for itself: the busy acknowledgement when
+  a turn lands mid-run, every status notice, and the restart, startup and shutdown pings, which
+  the plugin turns off for this platform. What the agent writes before a tool call, its final
+  reply, and its answer to a delegation report all render as usual, and so does the gateway's
+  notice that a turn failed, which reaches the plugin in the same shape as the agent's words.
 - Delivers the reply whole when the turn ends, so the gateway's `streaming` setting does not
   apply to this platform.
 - Names the client turn in the first reply of a run only. A reply the agent adds later in the
@@ -76,11 +81,9 @@ carries the general tools and `delegation` carries `delegate_task`.
 Set `chat_api: "push"` in the client and point `chat_base_url` at this server. A
 `chat_base_url` of `https://host:8646` gives `wss://host:8646/ws`.
 
-Text the agent sends before a tool call is spoken as it arrives, the same as its answer. Two
-display settings are worth a look for a voice client, both under `display.platforms.yui`. Set
-`busy_ack_detail: false` to stop the busy acknowledgement being spoken when a turn lands while
-the agent is still working. Leave `runtime_footer.enabled` off, its default: when it is on the
-footer is concatenated into the reply text, so the model name and working directory get read out.
+One display setting is worth a look for a voice client, under `display.platforms.yui`. Leave
+`runtime_footer.enabled` off, its default: when it is on the footer is concatenated into the reply
+text, so the model name and working directory get read out.
 
 ## Reaching it from outside the machine
 

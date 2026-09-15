@@ -77,6 +77,8 @@ export interface SpeechPlayback {
   interrupt(opts?: { muteCurrentTurn?: boolean }): void;
   /** Cleanup on abnormal end (error/network drop): dispose the pipeline + release the held bubble immediately. No rebuild, as there's no next turn. */
   abort(): void;
+  /** Registers a one-shot callback for the next playback-end boundary — a caller sequencing its own work behind whatever speech is already queued. */
+  onQueueDrained(callback: () => void): void;
   dispose(): void;
 }
 
@@ -95,6 +97,8 @@ export function createSpeechPlayback(options: SpeechPlaybackOptions): SpeechPlay
   const queued: boolean[] = [];
   // The current mute window already reported its cut-off backend utterance. Clears with `muted`.
   let mutedReported = false;
+  // Callbacks waiting for the next playback-end boundary — drained and cleared each time it fires.
+  let drainedCallbacks: Array<() => void> = [];
 
   // fires when a sentence begins playback or its synth fails — audio-timed expression seam.
   function applyCue(cue: ExpressArgs | null): void {
@@ -128,6 +132,9 @@ export function createSpeechPlayback(options: SpeechPlaybackOptions): SpeechPlay
         if (queued.shift() === true) options.onUtteranceEnd?.("complete");
         options.onPlaybackEnd?.();
         reportAudioOwed();
+        const callbacks = drainedCallbacks;
+        drainedCallbacks = [];
+        for (const callback of callbacks) callback();
       },
     });
   }
@@ -229,6 +236,9 @@ export function createSpeechPlayback(options: SpeechPlaybackOptions): SpeechPlay
       links.reset();
       pipeline.dispose();
       pipeline = buildPipeline();
+      // The disposed pipeline never fires its boundary — a callback still waiting on it would
+      // otherwise fire on whatever drains next, applying a now-superseded turn's cue.
+      drainedCallbacks = [];
       // Release the held bubble immediately (not deferred).
       surfaces.endSpeech();
       const reported = closeTracked();
@@ -244,6 +254,8 @@ export function createSpeechPlayback(options: SpeechPlaybackOptions): SpeechPlay
       links.reset();
       // Abnormal end: dispose the pipeline + release the held bubble immediately. No rebuild, as there's no next turn.
       pipeline.dispose();
+      // No next turn to drain them, and nothing here should still speak.
+      drainedCallbacks = [];
       surfaces.endSpeech();
       closeTracked();
       // Terminal like onPlaybackEnd — no next turn to re-assert an expression, so always ease.
@@ -253,8 +265,12 @@ export function createSpeechPlayback(options: SpeechPlaybackOptions): SpeechPlay
       mutedReported = false;
       reportAudioOwed();
     },
+    onQueueDrained(callback) {
+      drainedCallbacks.push(callback);
+    },
     dispose() {
       pipeline.dispose();
+      drainedCallbacks = [];
     },
   };
 }

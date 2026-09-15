@@ -235,6 +235,46 @@ describe("render_turn — silent segments", () => {
   });
 });
 
+describe("render_turn — segment order", () => {
+  it("[speaking, silent] defers the silent cue until the preceding speech finishes playing", () => {
+    turn().render(
+      frame([
+        { speech: "Here." },
+        { cues: [{ emotion_id: "sad", motion_id: "sit" }], speech: "[SILENT]" },
+      ]),
+    );
+
+    expect(directives).toEqual([]);
+    expect(turnOutput.onQueueDrained).toHaveBeenCalledOnce();
+
+    const drained = turnOutput.onQueueDrained.mock.calls[0]![0] as () => void;
+    drained();
+
+    expect(directives).toEqual([
+      { speech_text: "", emotion: { id: "sad" }, motion: { id: "sit" } },
+    ]);
+  });
+
+  it("[silent] alone still applies at once, with no speaking segment in the frame", () => {
+    turn().render(frame([{ cues: [{ emotion_id: "sad" }], speech: "[SILENT]" }]));
+
+    expect(directives).toEqual([{ speech_text: "", emotion: { id: "sad" } }]);
+    expect(turnOutput.onQueueDrained).not.toHaveBeenCalled();
+  });
+
+  it("[silent, speaking] applies the silent cue first, without waiting on the speech that follows", () => {
+    turn().render(
+      frame([
+        { cues: [{ emotion_id: "sad" }], speech: "[SILENT]" },
+        { cues: [{ emotion_id: "happy" }], speech: "Here." },
+      ]),
+    );
+
+    expect(directives).toEqual([{ speech_text: "", emotion: { id: "sad" } }]);
+    expect(turnOutput.onQueueDrained).not.toHaveBeenCalled();
+  });
+});
+
 describe("render_turn — transcript", () => {
   it("puts the spoken reply in the transcript as one assistant turn", () => {
     turn().render(frame([{ speech: "All green." }, { speech: "Want the list?" }]));

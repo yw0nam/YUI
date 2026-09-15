@@ -222,6 +222,7 @@ export function makeTurnOutput(): TurnOutput & Record<keyof TurnOutput, Mock> {
     cue: vi.fn(),
     toolStatus: vi.fn(),
     activity: vi.fn(),
+    onQueueDrained: vi.fn(),
   };
 }
 

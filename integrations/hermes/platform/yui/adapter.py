@@ -37,6 +37,8 @@ MAX_FRAME_BYTES = 262_144
 
 # The gateway marks its mid-turn sends; everything else it sends is reply text to speak.
 INTERIM_MARKERS = ("expect_edits", "_interim_send")
+# The gateway's own notices reach send() unmarked, so _send_with_retry stamps them on the way in.
+NOTICE_MARKER = "_yui_gateway_notice"
 
 CLOSE_UNAUTHORIZED = 4401
 CLOSE_REPLACED = 4409
@@ -94,6 +96,12 @@ class YuiAdapter(BasePlatformAdapter):
     def __init__(self, config: Any, **_kwargs: Any) -> None:
         super().__init__(config=config, platform=Platform("yui"))
         extra = getattr(config, "extra", {}) or {}
+        # The restart, startup and shutdown pings are the gateway talking about itself.
+        if hasattr(config, "gateway_restart_notification"):
+            config.gateway_restart_notification = False
+            logger.info("yui: gateway restart notifications off for this platform")
+        else:
+            logger.warning("yui: config has no gateway_restart_notification; restart pings stay on")
         self.host = str(extra.get("host") or DEFAULT_HOST)
         self.port = int(extra.get("port") or DEFAULT_PORT)
         self._key = str(extra.get("key") or os.getenv("YUI_PLATFORM_KEY") or "")
@@ -384,6 +392,40 @@ class YuiAdapter(BasePlatformAdapter):
 
     # -- replies ------------------------------------------------------------------------------
 
+    async def _send_with_retry(
+        self,
+        chat_id: str,
+        content: str,
+        reply_to: str | None = None,
+        metadata: Any = None,
+        max_retries: int = 2,
+        base_delay: float = 2.0,
+    ) -> SendResult:
+        """The busy path sends its acknowledgement here and marks nothing; the agent's own replies
+        arrive marked notify. Mark the rest, so send() knows the gateway wrote it."""
+        meta = dict(metadata or {})
+        if not meta.get("notify"):
+            meta[NOTICE_MARKER] = True
+        return await super()._send_with_retry(
+            chat_id=chat_id,
+            content=content,
+            reply_to=reply_to,
+            metadata=meta,
+            max_retries=max_retries,
+            base_delay=base_delay,
+        )
+
+    async def send_or_update_status(
+        self,
+        chat_id: str,
+        status_key: str,
+        content: str,
+        metadata: dict | None = None,
+    ) -> SendResult:
+        """Every status notice the gateway writes lands here, and none of it is speech."""
+        logger.info("yui: status %s not spoken chat=%s", status_key, chat_id)
+        return SendResult(success=True, message_id=_message_id())
+
     async def send(
         self,
         chat_id: str,
@@ -391,8 +433,11 @@ class YuiAdapter(BasePlatformAdapter):
         reply_to: str | None = None,
         metadata: dict | None = None,
     ) -> SendResult:
-        """Render a reply; only the gateway's own mid-turn markers keep a send off the wire."""
+        """Render a reply; only the gateway's own markers keep a send off the wire."""
         meta = metadata or {}
+        if meta.get(NOTICE_MARKER):
+            logger.info("yui: gateway notice not spoken chat=%s", chat_id)
+            return SendResult(success=True, message_id=_message_id())
         if not (content or "").strip() or any(meta.get(marker) for marker in INTERIM_MARKERS):
             logger.debug("yui: nothing to render for this send chat=%s", chat_id)
             return SendResult(success=True, message_id=_message_id())

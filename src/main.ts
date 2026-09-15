@@ -30,6 +30,10 @@ import { createUserInputSource } from "./dispatcher/user-input-source";
 import { agentTriggerableMotionIds, type BrokerPayload } from "./io/broker-client";
 import { CAMERA_WHEEL_SENSITIVITY, CAMERA_ZOOM_MAX, CAMERA_ZOOM_MIN } from "./io/camera-settings";
 import { createChatIdSettings, localStorageChatIdStorage } from "./io/chat-id-settings";
+import {
+  createDelegationChipSettings,
+  localStorageDelegationChipStorage,
+} from "./io/delegation-chip-settings";
 import { publishDelegations } from "./io/delegations-bridge";
 import { createDelegationsStore } from "./io/delegations-store";
 import { createDevtoolsWindowOpener } from "./io/devtools-window";
@@ -62,6 +66,7 @@ import {
 } from "./ui/anchor";
 import { showBootError } from "./ui/boot-error";
 import { createCaptureIndicator } from "./ui/capture-indicator";
+import { createDelegationChip } from "./ui/delegation-chip";
 import { getLocale, subscribe as subscribeLocale } from "./ui/i18n";
 import { createQuickControls } from "./ui/quick-controls";
 import { attachSummonKey } from "./ui/summon-key";
@@ -550,7 +555,6 @@ async function bootstrap(): Promise<BootstrapHandle> {
       root,
       stage,
       getQuickControls: () => quickControls,
-      getMessageMode: messageMode,
       pushSocket,
       delegations,
       getEndpoints,
@@ -560,9 +564,39 @@ async function bootstrap(): Promise<BootstrapHandle> {
     register(configured.dispose);
     if (disposed) return { dispose };
     publishedVocabulary = configured.broker.vocabulary;
+    // Only push mode carries a delegations list; the chip draws whatever the socket feeds the store.
+    let chip: ReturnType<typeof createDelegationChip> | null = null;
+    let chipCollapsed: ReturnType<typeof createDelegationChipSettings> | null = null;
+    let offChipMode: (() => void) | null = null;
     register(
       wirePushMode({
         socket: pushSocket,
+        chip: {
+          create: () => {
+            chipCollapsed = createDelegationChipSettings({
+              storage: localStorageDelegationChipStorage(),
+            });
+            chip = createDelegationChip({
+              mount: root,
+              store: delegations,
+              collapsed: chipCollapsed,
+              pushState: pushSocket,
+              onOpenSettings: () => quickControls.open(undefined, { tab: "adv" }),
+              suppressed: messageMode() === "popped",
+            });
+            offChipMode = messageWindowSettings.subscribe(() =>
+              chip?.setSuppressed(messageMode() === "popped"),
+            );
+          },
+          dispose: () => {
+            offChipMode?.();
+            offChipMode = null;
+            chip?.dispose();
+            chipCollapsed?.dispose();
+            chip = null;
+            chipCollapsed = null;
+          },
+        },
         getEndpoints,
         endpointsSettings,
         chatKeySettings,
