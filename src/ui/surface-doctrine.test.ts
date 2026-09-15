@@ -219,3 +219,53 @@ describe("message-window.css — the delegation list wraps under the plate row",
     );
   });
 });
+
+// The reasoning chip mirrors the delegation chip's layout: both chips' buttons sit in the
+// row and both panels take a full-width line after them, kept there by flex order.
+describe("reasoning-chip.css — the reasoning panel wraps under the plate row", () => {
+  it("keeps a hidden root and a hidden panel out of the flow row", () => {
+    const css = read("reasoning-chip.css");
+    expect(extractBlock(css, ".yui-think")).toMatch(/display:/);
+    expect(extractBlock(css, ".yui-think[hidden]")).toMatch(/display:\s*none/);
+    expect(extractBlock(css, ".yui-think__panel")).toMatch(/display:/);
+    expect(extractBlock(css, ".yui-think__panel[hidden]")).toMatch(/display:\s*none/);
+  });
+
+  it("takes the row's next full-width line after both buttons", () => {
+    const block = extractBlock(read("reasoning-chip.css"), ".yui-think__panel");
+    expect(block).toMatch(/flex:\s*1 0 100%/);
+    expect(block).toMatch(/order:\s*1/);
+  });
+
+  it("keeps the delegation list on the same line order, after the row's buttons", () => {
+    const block = extractBlock(read("message-window.css"), ".yui-ui--message .yui-deleg__list");
+    expect(block).toMatch(/order:\s*1/);
+  });
+
+  it("clips the text at six lines and scrolls it", () => {
+    const block = extractBlock(read("reasoning-chip.css"), ".yui-think__text");
+    expect(block).toMatch(/max-height:\s*calc\(6 \* 1\.45em\)/);
+    expect(block).toMatch(/overflow-y:\s*auto/);
+    expect(block).toMatch(/white-space:\s*pre-wrap/);
+  });
+
+  it("styles the panel with the scrim and edge tokens, never literals", () => {
+    const css = read("reasoning-chip.css");
+    const block = extractBlock(css, ".yui-think__panel");
+    expect(block).toMatch(/var\(--yui-scrim\)/);
+    expect(block).toMatch(/var\(--yui-edge\)/);
+    expect(css).not.toMatch(/oklch\(/);
+  });
+
+  it("breathes the glyph and blinks the cursor while live, and stops both under reduced motion", () => {
+    const css = read("reasoning-chip.css");
+    expect(extractBlock(css, ".yui-think__chip.is-live .yui-think__glyph")).toMatch(
+      /animation:.*yui-plate-breathe/,
+    );
+    expect(extractBlock(css, ".yui-think__text.is-live::after")).toMatch(/animation:/);
+    const reduced = css.slice(css.indexOf("@media (prefers-reduced-motion"));
+    expect(reduced).toContain(".yui-think__chip.is-live .yui-think__glyph");
+    expect(reduced).toContain(".yui-think__text.is-live::after");
+    expect(reduced).toMatch(/animation:\s*none/);
+  });
+});
