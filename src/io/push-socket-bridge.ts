@@ -20,6 +20,8 @@ type PushBridge = Pick<
   | "onPushStateAsk"
   | "emitPushReset"
   | "onPushReset"
+  | "emitPushReconnect"
+  | "onPushReconnect"
 >;
 
 /** The socket as another window sees it — the shape the settings panel's port needs. */
@@ -27,6 +29,8 @@ export interface PushSocketMirror {
   getState(): PushSocketState;
   onState(cb: (state: PushSocketState) => void): () => void;
   sendReset(): boolean;
+  /** Ask the owner to drop the backoff wait and open now. */
+  reconnectNow(): void;
   /** Ask the owner again — for a window that opened before the socket had anything to say. */
   refresh(): void;
   dispose(): void;
@@ -41,6 +45,7 @@ export function publishPushSocket(deps: {
     getState(): PushSocketState;
     onState(cb: (state: PushSocketState) => void): () => void;
     sendReset(): boolean;
+    reconnectNow(): void;
   };
   bridge: PushBridge;
 }): () => void {
@@ -50,6 +55,10 @@ export function publishPushSocket(deps: {
     deps.bridge.onPushReset(() => {
       log.info("reset_requested");
       deps.socket.sendReset();
+    }),
+    deps.bridge.onPushReconnect(() => {
+      log.info("reconnect_requested");
+      deps.socket.reconnectNow();
     }),
   ];
   return () => {
@@ -85,6 +94,10 @@ export function createMirroredPushSocket(deps: { bridge: PushBridge }): PushSock
     sendReset(): boolean {
       deps.bridge.emitPushReset();
       return true;
+    },
+
+    reconnectNow(): void {
+      deps.bridge.emitPushReconnect();
     },
 
     refresh(): void {

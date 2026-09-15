@@ -26,6 +26,7 @@ const CH_VOICE_STATE = "yui://voice-state";
 const CH_PUSH_STATE = "yui://push-state";
 const CH_PUSH_STATE_ASK = "yui://push-state-ask";
 const CH_PUSH_RESET = "yui://push-reset";
+const CH_PUSH_RECONNECT = "yui://push-reconnect";
 const CH_DELEGATIONS = "yui://delegations";
 const CH_DELEGATIONS_ASK = "yui://delegations-ask";
 
@@ -59,6 +60,9 @@ export interface SettingsBridge {
   /** A window with no socket of its own asking the owner to start a new conversation. */
   emitPushReset(): void;
   onPushReset(cb: () => void): () => void;
+  /** A window with no socket of its own asking the owner to open the socket now. */
+  emitPushReconnect(): void;
+  onPushReconnect(cb: () => void): () => void;
   /** The delegations list the push socket last fed. Only the window that owns the socket emits it. */
   emitDelegations(items: DelegationItem[]): void;
   onDelegations(cb: (items: DelegationItem[]) => void): () => void;
@@ -264,6 +268,12 @@ export function createSettingsBridge(
     },
     onPushReset(cb) {
       return on<unknown>(CH_PUSH_RESET, () => cb());
+    },
+    emitPushReconnect() {
+      safeEmit(CH_PUSH_RECONNECT);
+    },
+    onPushReconnect(cb) {
+      return on<unknown>(CH_PUSH_RECONNECT, () => cb());
     },
     emitDelegations(items) {
       safeEmit(CH_DELEGATIONS, items);

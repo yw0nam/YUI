@@ -87,6 +87,8 @@ export interface PushSocket {
   connect(): void;
   /** Close and stay closed. A later connect() opens again with the settings as they stand then. */
   disconnect(): void;
+  /** Drop any pending backoff wait and open now, with the key as it stands. */
+  reconnectNow(): void;
   dispose(): void;
   /** True when the frame went out; false when the socket is not ready or the frame is too large. */
   sendTurn(turn: PushTurnFrame): boolean;
@@ -142,8 +144,6 @@ export function createPushSocket(deps: PushSocketDeps): PushSocket {
   let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
   /** The vocabulary the backend last received, serialized, so only a real change resends it. */
   let sentVocabulary: string | null = null;
-  /** Set while the last close was the backend rejecting the key — the retries must not read as progress. */
-  let authCode: number | null = null;
   let state: PushSocketState = { kind: "disconnected" };
 
   function setState(next: PushSocketState): void {
@@ -201,7 +201,6 @@ export function createPushSocket(deps: PushSocketDeps): PushSocket {
         readyTimer = null;
         ready = true;
         delayMs = RECONNECT_MIN_MS;
-        authCode = null;
         const chatId = typeof frame.chat_id === "string" ? frame.chat_id : deps.chatId();
         log.info("ws_ready", { chat_id: chatId });
         setState({ kind: "ready", chat_id: chatId });
@@ -234,19 +233,20 @@ export function createPushSocket(deps: PushSocketDeps): PushSocket {
 
   function scheduleReconnect(code: number): void {
     if (disposed || !active) return;
+    // Retrying a key the backend refuses only repeats the refusal; the socket waits for a
+    // settings change or an explicit reconnectNow().
+    if (code === AUTH_CLOSE_CODE) {
+      delayMs = RECONNECT_MIN_MS;
+      setState({ kind: "failed", code });
+      return;
+    }
     const wait = delayMs;
     delayMs = Math.min(delayMs * 2, RECONNECT_MAX_MS);
-    authCode = code === AUTH_CLOSE_CODE ? code : null;
-    setState(
-      authCode !== null
-        ? { kind: "failed", code: authCode }
-        : { kind: "reconnecting", delay_ms: wait },
-    );
+    setState({ kind: "reconnecting", delay_ms: wait });
     log.info("ws_reconnect", { delay_ms: wait });
     reconnectTimer = setTimeout(() => {
       reconnectTimer = null;
-      // A rejected key stays rejected until a ready says otherwise — retrying is not progress.
-      if (authCode === null) setState({ kind: "connecting" });
+      setState({ kind: "connecting" });
       void open();
     }, wait);
   }
@@ -326,7 +326,6 @@ export function createPushSocket(deps: PushSocketDeps): PushSocket {
       }
       active = true;
       delayMs = RECONNECT_MIN_MS;
-      authCode = null;
       setState({ kind: "connecting" });
       void open();
     },
@@ -336,11 +335,20 @@ export function createPushSocket(deps: PushSocketDeps): PushSocket {
       clearTimers();
       ready = false;
       sentVocabulary = null;
-      authCode = null;
       const socket = ws;
       ws = null;
       socket?.close(NORMAL_CLOSE_CODE);
       setState({ kind: "disconnected" });
+    },
+
+    reconnectNow(): void {
+      if (disposed || !active) return;
+      if (reconnectTimer) clearTimeout(reconnectTimer);
+      reconnectTimer = null;
+      // An attempt already in flight is the one this would start.
+      if (ws !== null) return;
+      setState({ kind: "connecting" });
+      void open();
     },
 
     dispose(): void {
