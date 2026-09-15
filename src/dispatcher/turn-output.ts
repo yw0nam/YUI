@@ -20,6 +20,9 @@ import type { ExpressArgs, ToolStatus } from "../contract";
  *   from, so a superseded turn's late event is ignored rather than reaching whichever turn is
  *   thinking now.
  * - `activity(turnId)` carries non-tool progress (an express cue) — same turn-id-gated rule.
+ * - `onQueueDrained(callback)` registers a one-shot callback for the next point the pipeline has
+ *   nothing left queued to play — the seam a caller uses to sequence its own work behind whatever
+ *   speech is already playing.
  */
 export interface TurnOutput {
   interrupt(): void;
@@ -33,4 +36,5 @@ export interface TurnOutput {
   cue(args: ExpressArgs): void;
   toolStatus(turnId: number, state: ToolStatus["state"], toolId?: string): void;
   activity(turnId: number): void;
+  onQueueDrained(callback: () => void): void;
 }

@@ -1057,6 +1057,70 @@ describe("createSpeechPlayback — options.onPlaybackEnd passthrough", () => {
   });
 });
 
+describe("createSpeechPlayback — onQueueDrained", () => {
+  it("fires a registered callback on the next playback-end boundary", () => {
+    const stub = stubPipelineFactory();
+    const renderer = spyRenderer();
+    const surfaces = spySurfaces();
+    const sp = createSpeechPlayback({
+      renderer,
+      surfaces,
+      pipeline: NO_PIPELINE,
+      createPipeline: stub.factory,
+      isStrolling: () => false,
+    });
+
+    const callback = vi.fn();
+    sp.onQueueDrained(callback);
+    expect(callback).not.toHaveBeenCalled();
+
+    stub.emitPlaybackEnd();
+    expect(callback).toHaveBeenCalledOnce();
+  });
+
+  it("is one-shot: a second playback-end never calls it again", () => {
+    const stub = stubPipelineFactory();
+    const renderer = spyRenderer();
+    const surfaces = spySurfaces();
+    const sp = createSpeechPlayback({
+      renderer,
+      surfaces,
+      pipeline: NO_PIPELINE,
+      createPipeline: stub.factory,
+      isStrolling: () => false,
+    });
+
+    const callback = vi.fn();
+    sp.onQueueDrained(callback);
+    stub.emitPlaybackEnd();
+    stub.emitPlaybackEnd();
+
+    expect(callback).toHaveBeenCalledOnce();
+  });
+
+  it("runs every callback registered before the boundary fires", () => {
+    const stub = stubPipelineFactory();
+    const renderer = spyRenderer();
+    const surfaces = spySurfaces();
+    const sp = createSpeechPlayback({
+      renderer,
+      surfaces,
+      pipeline: NO_PIPELINE,
+      createPipeline: stub.factory,
+      isStrolling: () => false,
+    });
+
+    const first = vi.fn();
+    const second = vi.fn();
+    sp.onQueueDrained(first);
+    sp.onQueueDrained(second);
+    stub.emitPlaybackEnd();
+
+    expect(first).toHaveBeenCalledOnce();
+    expect(second).toHaveBeenCalledOnce();
+  });
+});
+
 describe("createSpeechPlayback — onSpeech is sugar over delta+end", () => {
   it("begins, pushes text to bubble+pipeline, defers the bubble, and flushes once", () => {
     const stub = stubPipelineFactory();
