@@ -208,6 +208,16 @@ describe("createReasoningChip", () => {
     expect(rootEl().hidden).toBe(false);
   });
 
+  it("opens the panel when a live cycle is unsuppressed mid-stream", () => {
+    const { chip } = build(true);
+    store.set({ text: "A", live: true });
+
+    chip.setSuppressed(false);
+
+    expect(panelEl().hidden).toBe(false);
+    expect(chipButton().getAttribute("aria-expanded")).toBe("true");
+  });
+
   it("relabels on a locale change", () => {
     build();
     store.set({ text: "A", live: true });
@@ -217,6 +227,17 @@ describe("createReasoningChip", () => {
 
     expect(mount.querySelector<HTMLElement>(".yui-think__label")!.textContent).toBe("Reasoning");
     expect(chipButton().getAttribute("aria-label")).toBe(t("aria.think_toggle"));
+  });
+
+  it("keeps a tap-opened panel open across a locale change", () => {
+    build();
+    store.set({ text: "A", live: false });
+    chipButton().click();
+    expect(panelEl().hidden).toBe(false);
+
+    setLocale("en");
+
+    expect(panelEl().hidden).toBe(false);
   });
 
   it("replaces the text and reopens on a second turn", () => {
