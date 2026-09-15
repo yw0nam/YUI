@@ -64,20 +64,30 @@ def is_loopback(host: str) -> bool:
         return False
 
 
-def fit_frame(frame: dict) -> str:
-    """The cap is symmetric, and the client closes an oversize frame; trim a render to fit."""
+def _encoded(frame: dict) -> tuple[str, int]:
     body = json.dumps(frame, ensure_ascii=False)
-    if len(body.encode("utf-8")) <= MAX_FRAME_BYTES:
+    return body, len(body.encode("utf-8"))
+
+
+def fit_frame(frame: dict) -> str:
+    """The cap is symmetric, and the client closes an oversize frame; trim one down to fit."""
+    body, size = _encoded(frame)
+    if size <= MAX_FRAME_BYTES:
         return body
+    # Reasoning is commentary on the reply, so it goes before any of the speech does.
+    if frame.pop("reasoning", None) is not None:
+        logger.debug("yui: reasoning dropped from an oversize %s frame", frame.get("type"))
+        body, size = _encoded(frame)
     segments = frame.get("segments")
-    while isinstance(segments, list) and segments:
+    while size > MAX_FRAME_BYTES and isinstance(segments, list) and segments:
         segments.pop()
-        body = json.dumps(frame, ensure_ascii=False)
-        if len(body.encode("utf-8")) <= MAX_FRAME_BYTES:
-            break
-    logger.warning(
-        "yui: %s frame over %d bytes, trailing segments dropped", frame.get("type"), MAX_FRAME_BYTES
-    )
+        body, size = _encoded(frame)
+    if size > MAX_FRAME_BYTES and isinstance(frame.get("delta"), str):
+        logger.debug("yui: reasoning delta cut to fit the frame")
+        while size > MAX_FRAME_BYTES and frame["delta"]:
+            frame["delta"] = frame["delta"][: len(frame["delta"]) - (size - MAX_FRAME_BYTES)]
+            body, size = _encoded(frame)
+    logger.warning("yui: %s frame over %d bytes, trimmed to fit", frame.get("type"), MAX_FRAME_BYTES)
     return body
 
 
