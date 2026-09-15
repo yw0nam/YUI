@@ -125,6 +125,28 @@ describe("createQuickControls — history tab", () => {
     qc.dispose();
   });
 
+  it("uses the singular form in English at n=1 and the plural form at n=2", () => {
+    const store = createChatHistoryStore();
+    store.append({
+      role: "user",
+      text: "hi",
+      ts: Date.parse("2026-08-13T09:12:00Z"),
+    });
+    const qc = buildQc({ transcript: store });
+    qc.open();
+
+    const rows = Array.from(qc.el.querySelectorAll<HTMLButtonElement>(".yui-hist__sess"));
+    expect(rows).toHaveLength(1);
+    expect(rows[0].querySelector(".yui-hist__sess-count")!.textContent).toBe("1 turn");
+
+    store.append({ role: "assistant", text: "hello", ts: Date.parse("2026-08-13T09:13:00Z") });
+
+    expect(qc.el.querySelectorAll(".yui-hist__sess")[0].querySelector(".yui-hist__sess-count")!
+      .textContent).toBe("2 turns");
+
+    qc.dispose();
+  });
+
   it("expands the current session by default and collapses the older ones", () => {
     const qc = buildQc({ transcript: seedStore() });
     qc.open();
