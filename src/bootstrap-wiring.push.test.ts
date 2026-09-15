@@ -156,6 +156,8 @@ describe("wirePushTransport", () => {
 describe("wirePushMode", () => {
   let connect: Mock<() => void>;
   let disconnect: Mock<() => void>;
+  let chipCreate: Mock<() => void>;
+  let chipDispose: Mock<() => void>;
   let endpoints: { chat_api?: string; chat_base_url: string };
   let endpointsSettings: ReturnType<typeof fakeMotionSettings>;
   let chatKeySettings: ReturnType<typeof fakeMotionSettings>;
@@ -163,6 +165,7 @@ describe("wirePushMode", () => {
   function wireMode() {
     return wirePushMode({
       socket: { connect, disconnect },
+      chip: { create: chipCreate, dispose: chipDispose },
       getEndpoints: () => endpoints as never,
       endpointsSettings,
       chatKeySettings,
@@ -172,6 +175,8 @@ describe("wirePushMode", () => {
   beforeEach(() => {
     connect = vi.fn<() => void>();
     disconnect = vi.fn<() => void>();
+    chipCreate = vi.fn<() => void>();
+    chipDispose = vi.fn<() => void>();
     endpoints = { chat_api: "push", chat_base_url: "http://localhost:8646" };
     endpointsSettings = fakeMotionSettings();
     chatKeySettings = fakeMotionSettings();
@@ -269,6 +274,72 @@ describe("wirePushMode", () => {
     endpointsSettings.change();
 
     expect(disconnect).toHaveBeenCalledTimes(1);
+  });
+
+  it("creates the chip straight away when starting in push mode", () => {
+    wireMode();
+    expect(chipCreate).toHaveBeenCalledTimes(1);
+  });
+
+  it("never creates the chip in the other protocol modes", () => {
+    endpoints.chat_api = "responses";
+    wireMode();
+
+    expect(chipCreate).not.toHaveBeenCalled();
+  });
+
+  it("creates the chip even while the endpoint is unset", () => {
+    endpoints.chat_base_url = "";
+    wireMode();
+
+    expect(chipCreate).toHaveBeenCalledTimes(1);
+  });
+
+  it("creates the chip when the user switches into push mode", () => {
+    endpoints.chat_api = "chat_completions";
+    wireMode();
+
+    endpoints.chat_api = "push";
+    endpointsSettings.change();
+
+    expect(chipCreate).toHaveBeenCalledTimes(1);
+    expect(chipDispose).not.toHaveBeenCalled();
+  });
+
+  it("disposes the chip when the user leaves push mode", () => {
+    wireMode();
+
+    endpoints.chat_api = "responses";
+    endpointsSettings.change();
+
+    expect(chipDispose).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not recreate the chip on an endpoint or key edit while staying in push mode", () => {
+    wireMode();
+
+    endpoints.chat_base_url = "https://agent.example:9000";
+    endpointsSettings.change();
+    chatKeySettings.change();
+
+    expect(chipCreate).toHaveBeenCalledTimes(1);
+    expect(chipDispose).not.toHaveBeenCalled();
+  });
+
+  it("disposes the chip on teardown while the mode is still push", () => {
+    const dispose = wireMode();
+    dispose();
+
+    expect(chipDispose).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not dispose the chip again on teardown once the mode already left push", () => {
+    const dispose = wireMode();
+    endpoints.chat_api = "responses";
+    endpointsSettings.change();
+    dispose();
+
+    expect(chipDispose).toHaveBeenCalledTimes(1);
   });
 
   it("drops both subscriptions on dispose", () => {
