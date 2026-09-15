@@ -40,6 +40,8 @@ interface DelegationChipOptions {
   pushState: PushStatePort;
   /** Opens the settings window at the chat section — what a tap does while the connection is lost. */
   onOpenSettings(): void;
+  /** Starts hidden, for a window that has nothing to report yet. */
+  suppressed?: boolean;
   now?: () => number;
 }
 
@@ -56,6 +58,7 @@ export function createDelegationChip({
   collapsed,
   pushState,
   onOpenSettings,
+  suppressed: initialSuppressed = false,
   now = Date.now,
 }: DelegationChipOptions): DelegationChip {
   const el = document.createElement("div");
@@ -83,7 +86,7 @@ export function createDelegationChip({
 
   let visible = false;
   let listOpen = false;
-  let suppressed = false;
+  let suppressed = initialSuppressed;
   let refreshTimer: ReturnType<typeof setInterval> | null = null;
   let cancelListFade: (() => void) | null = null;
   let cancelHideFade: (() => void) | null = null;
@@ -143,13 +146,13 @@ export function createDelegationChip({
   }
 
   function refresh(): void {
+    // Every state but ready reads the same here; the cause is named in the settings window.
+    const lost = pushState.getState().kind !== "ready";
+    el.classList.toggle("is-lost", lost);
     if (suppressed) {
       hide();
       return;
     }
-    // Every state but ready reads the same here; the cause is named in the settings window.
-    const lost = pushState.getState().kind !== "ready";
-    el.classList.toggle("is-lost", lost);
     if (lost) {
       clearRefreshTimer();
       closeList();

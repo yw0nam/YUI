@@ -767,11 +767,14 @@ const realFactories: ConfiguredBootstrapFactories = {
         collapsed: chipCollapsed,
         pushState: pushSocket,
         onOpenSettings: () => getQuickControls().open(undefined, { tab: "adv" }),
+        suppressed: getMessageMode() === "popped",
       });
       register(() => chip.dispose());
-      const applyChipMode = (): void => chip.setSuppressed(getMessageMode() === "popped");
-      applyChipMode();
-      register(settings.messageWindowSettings.subscribe(applyChipMode));
+      register(
+        settings.messageWindowSettings.subscribe(() =>
+          chip.setSuppressed(getMessageMode() === "popped"),
+        ),
+      );
     }
     ensureActive();
     wireStopControl({

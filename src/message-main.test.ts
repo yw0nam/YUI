@@ -92,8 +92,9 @@ it("draws the lost pill while the mirrored socket is not ready", async () => {
 
   answer({ kind: "reconnecting", delay_ms: 4_000 });
 
-  await vi.waitFor(() => expect(chipEl().classList.contains("is-lost")).toBe(true));
-  expect(label()).toBe(t("deleg.chip_lost"));
+  await vi.waitFor(() => expect(label()).toBe(t("deleg.chip_lost")));
+  expect(chipEl().classList.contains("is-lost")).toBe(true);
+  expect(chipEl().hidden).toBe(false);
 });
 
 it("draws the running count once the mirrored socket is ready", async () => {
@@ -110,8 +111,8 @@ it("stays hidden while the socket is ready with nothing running", async () => {
 
   answer({ kind: "ready", chat_id: "yui-3f9a2c1d" });
 
-  await vi.waitFor(() => expect(chipEl().hidden).toBe(true));
-  expect(chipEl().classList.contains("is-lost")).toBe(false);
+  await vi.waitFor(() => expect(chipEl().classList.contains("is-lost")).toBe(false));
+  expect(chipEl().hidden).toBe(true);
 });
 
 it("stays bare until the pet window answers where the socket stands", async () => {
