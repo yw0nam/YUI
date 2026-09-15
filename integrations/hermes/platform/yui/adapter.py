@@ -431,8 +431,18 @@ class YuiAdapter(BasePlatformAdapter):
 
     def _collect_reasoning(self, chat_id: str, delta: str) -> None:
         self._reasoning_pending.setdefault(chat_id, []).append(delta)
+        self._arm_reasoning_flush(chat_id)
+
+    def _arm_reasoning_flush(self, chat_id: str) -> None:
         if chat_id not in self._reasoning_flushes:
             self._reasoning_flushes[chat_id] = asyncio.create_task(self._flush_reasoning(chat_id))
+
+    def _forget_reasoning(self, chat_id: str) -> None:
+        """A new turn thinks from nothing, so the last one's tail is not its opening words."""
+        self._reasoning_pending.pop(chat_id, None)
+        flush = self._reasoning_flushes.pop(chat_id, None)
+        if flush is not None:
+            flush.cancel()
 
     async def _flush_reasoning(self, chat_id: str) -> None:
         """What arrived during the window leaves as one frame; the client shows thinking, not text."""
@@ -443,6 +453,9 @@ class YuiAdapter(BasePlatformAdapter):
                 await self._send_frame(chat_id, {"type": "reasoning", "delta": delta})
         finally:
             self._reasoning_flushes.pop(chat_id, None)
+            # A delta that arrived during the send found this flush still armed and scheduled none.
+            if self._reasoning_pending.get(chat_id):
+                self._arm_reasoning_flush(chat_id)
 
     # -- replies ------------------------------------------------------------------------------
 
@@ -602,6 +615,7 @@ class YuiAdapter(BasePlatformAdapter):
         chat_id = _chat_of(event)
         state.reset(chat_id)
         reasoning.clear(chat_id)
+        self._forget_reasoning(chat_id)
         internal = getattr(event, "internal", False)
         state.set_turn_id(chat_id, None if internal else (event.message_id or None))
 
