@@ -299,6 +299,7 @@ const en: Record<string, string> = {
   // history tab
   "history.current": "Current conversation",
   "history.turns": "{n} turns",
+  "history.turns_one": "1 turn",
   "history.who_user": "You",
   "history.who_yui": "YUI",
   "history.empty": "Nothing has been said yet",

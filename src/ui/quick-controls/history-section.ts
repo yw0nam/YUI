@@ -119,7 +119,10 @@ export function createHistorySection({
 
     const count = document.createElement("span");
     count.className = "yui-hist__sess-count";
-    count.textContent = t("history.turns", { n: session.entries.length });
+    count.textContent =
+      session.entries.length === 1
+        ? t("history.turns_one")
+        : t("history.turns", { n: session.entries.length });
 
     head.append(chev, main, count);
     group.append(head);

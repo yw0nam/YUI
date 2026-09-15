@@ -141,8 +141,10 @@ describe("createQuickControls — history tab", () => {
 
     store.append({ role: "assistant", text: "hello", ts: Date.parse("2026-08-13T09:13:00Z") });
 
-    expect(qc.el.querySelectorAll(".yui-hist__sess")[0].querySelector(".yui-hist__sess-count")!
-      .textContent).toBe("2 turns");
+    expect(
+      qc.el.querySelectorAll(".yui-hist__sess")[0].querySelector(".yui-hist__sess-count")!
+        .textContent,
+    ).toBe("2 turns");
 
     qc.dispose();
   });

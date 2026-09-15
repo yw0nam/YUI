@@ -298,6 +298,7 @@ const ko: Record<string, string> = {
   // history tab
   "history.current": "현재 대화",
   "history.turns": "{n}턴",
+  "history.turns_one": "1턴",
   "history.who_user": "나",
   "history.who_yui": "유이",
   "history.empty": "아직 나눈 대화가 없어요",

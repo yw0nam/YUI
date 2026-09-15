@@ -300,6 +300,7 @@ const ja: Record<string, string> = {
   // history tab
   "history.current": "現在の会話",
   "history.turns": "{n}ターン",
+  "history.turns_one": "1ターン",
   "history.who_user": "あなた",
   "history.who_yui": "ユイ",
   "history.empty": "まだ会話がありません",
