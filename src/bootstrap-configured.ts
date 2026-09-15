@@ -42,10 +42,6 @@ import { CAMERA_ORBIT_SENSITIVITY } from "./io/camera-settings";
 import { selectFetch } from "./io/chat-client";
 import { createClientToolRegistry, createGenerateExpressTool } from "./io/client-tools";
 import { createCursorTracker } from "./io/cursor-tracker";
-import {
-  createDelegationChipSettings,
-  localStorageDelegationChipStorage,
-} from "./io/delegation-chip-settings";
 import type { DelegationsStore } from "./io/delegations-store";
 import { createDragHoldSource } from "./io/drag-hold-source";
 import { createFrontmostTracker } from "./io/frontmost-tracker";
@@ -66,7 +62,6 @@ import { appendRecord } from "./io/turn-record-log";
 import { createLogger } from "./logger";
 import type { Renderer } from "./renderer";
 import { showChainResetNotice } from "./ui/chain-reset-notice";
-import { createDelegationChip } from "./ui/delegation-chip";
 import { maybeShowFirstRunHint } from "./ui/first-run-hint";
 import { t } from "./ui/i18n";
 import { wireIngressDeadNotice } from "./ui/ingress-dead-notice";
@@ -750,19 +745,6 @@ const realFactories: ConfiguredBootstrapFactories = {
           log,
         }),
       );
-    }
-    // Only push mode carries a delegations list; the chip draws whatever the socket feeds the store.
-    if (getEndpoints().chat_api === "push") {
-      const chipCollapsed = createDelegationChipSettings({
-        storage: localStorageDelegationChipStorage(),
-      });
-      register(chipCollapsed.dispose);
-      const chip = createDelegationChip({
-        mount: root,
-        store: delegations,
-        collapsed: chipCollapsed,
-      });
-      register(() => chip.dispose());
     }
     ensureActive();
     wireStopControl({

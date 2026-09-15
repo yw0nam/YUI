@@ -1862,12 +1862,15 @@ export function wirePushTransport(deps: {
 }
 
 /**
- * Keeps the push socket on whatever the chat settings now say. It opens once the protocol is push
- * and an endpoint is set, closes when the protocol changes, and reopens on an endpoint or key edit
- * so the next attempt reads the new value — every other endpoint setting applies live too.
+ * Keeps the push socket and the delegation chip on whatever the chat settings now say. The socket
+ * opens once the protocol is push and an endpoint is set, closes when the protocol changes, and
+ * reopens on an endpoint or key edit so the next attempt reads the new value — every other
+ * endpoint setting applies live too. The chip follows the protocol alone: it shows for push mode
+ * regardless of the endpoint, and survives an endpoint or key edit that keeps the mode as push.
  */
 export function wirePushMode(deps: {
   socket: Pick<PushSocket, "connect" | "disconnect">;
+  chip: { create(): void; dispose(): void };
   /** Effective endpoints, read at call time. */
   getEndpoints: () => Pick<EndpointsConfig, "chat_api" | "chat_base_url">;
   endpointsSettings: { subscribe(cb: () => void): () => void };
@@ -1875,6 +1878,7 @@ export function wirePushMode(deps: {
 }): () => void {
   // The endpoint the socket is currently on, or null while it is meant to be down.
   let openOn: string | null = null;
+  let chipOpen = false;
 
   /** Where the socket belongs now, or null when push mode is off or unconfigured. */
   function target(): string | null {
@@ -1884,6 +1888,15 @@ export function wirePushMode(deps: {
   }
 
   function apply(reopen: boolean): void {
+    const pushMode = deps.getEndpoints().chat_api === "push";
+    if (pushMode && !chipOpen) {
+      deps.chip.create();
+      chipOpen = true;
+    } else if (!pushMode && chipOpen) {
+      deps.chip.dispose();
+      chipOpen = false;
+    }
+
     const next = target();
     if (next === null) {
       if (openOn !== null) deps.socket.disconnect();
@@ -1904,5 +1917,9 @@ export function wirePushMode(deps: {
   ];
   return () => {
     for (const off of unsubscribes) off();
+    if (chipOpen) {
+      deps.chip.dispose();
+      chipOpen = false;
+    }
   };
 }
