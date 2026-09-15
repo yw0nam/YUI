@@ -129,8 +129,10 @@ describe("TurnOutput — backend-caller → tts-pipeline ordering", () => {
         order.push(`activity:${turnId}`);
       },
       onQueueDrained: (callback) => {
-        order.push("onQueueDrained");
-        speechPlayback.onQueueDrained(callback);
+        speechPlayback.onQueueDrained(() => {
+          order.push("onQueueDrained");
+          callback();
+        });
       },
     };
   });

@@ -1119,6 +1119,67 @@ describe("createSpeechPlayback — onQueueDrained", () => {
     expect(first).toHaveBeenCalledOnce();
     expect(second).toHaveBeenCalledOnce();
   });
+
+  it("drops a callback registered before interrupt — it never fires on the next pipeline's boundary", () => {
+    const multi = multiPipelineFactory();
+    const renderer = spyRenderer();
+    const surfaces = spySurfaces();
+    const sp = createSpeechPlayback({
+      renderer,
+      surfaces,
+      pipeline: NO_PIPELINE,
+      createPipeline: multi.factory,
+      isStrolling: () => false,
+    });
+
+    const callback = vi.fn();
+    sp.onQueueDrained(callback);
+    sp.interrupt();
+    // the fresh pipeline's own boundary — a superseding turn's speech finishing playing.
+    multi.instances[1]!.onPlaybackEnd?.();
+
+    expect(callback).not.toHaveBeenCalled();
+  });
+
+  it("drops a callback registered before abort — a stray late boundary never calls it", () => {
+    const stub = stubPipelineFactory();
+    const renderer = spyRenderer();
+    const surfaces = spySurfaces();
+    const sp = createSpeechPlayback({
+      renderer,
+      surfaces,
+      pipeline: NO_PIPELINE,
+      createPipeline: stub.factory,
+      isStrolling: () => false,
+    });
+
+    const callback = vi.fn();
+    sp.onQueueDrained(callback);
+    sp.abort();
+    stub.emitPlaybackEnd();
+
+    expect(callback).not.toHaveBeenCalled();
+  });
+
+  it("drops a callback registered before dispose — a stray late boundary never calls it", () => {
+    const stub = stubPipelineFactory();
+    const renderer = spyRenderer();
+    const surfaces = spySurfaces();
+    const sp = createSpeechPlayback({
+      renderer,
+      surfaces,
+      pipeline: NO_PIPELINE,
+      createPipeline: stub.factory,
+      isStrolling: () => false,
+    });
+
+    const callback = vi.fn();
+    sp.onQueueDrained(callback);
+    sp.dispose();
+    stub.emitPlaybackEnd();
+
+    expect(callback).not.toHaveBeenCalled();
+  });
 });
 
 describe("createSpeechPlayback — onSpeech is sugar over delta+end", () => {
