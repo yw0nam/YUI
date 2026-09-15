@@ -184,3 +184,24 @@ describe("message-window.css — the plate is a chip, not a frosted panel", () =
     );
   });
 });
+
+// The chip's list opens at min-width: 15rem anchored to the chip's left edge in
+// delegation-chip.css, which overruns the window's fixed 340px column; the message
+// window instead wraps the list onto its own full-width line under the plate row.
+describe("message-window.css — the delegation list wraps under the plate row", () => {
+  it("lets the plate row wrap onto a second line", () => {
+    expect(extractBlock(read("message-window.css"), ".yui-plate-row")).toMatch(/flex-wrap:\s*wrap/);
+  });
+
+  it("spans the list the full row width instead of anchoring beside the chip", () => {
+    const block = extractBlock(read("message-window.css"), ".yui-ui--message .yui-deleg__list");
+    expect(block).toMatch(/flex:\s*1 0 100%/);
+    expect(block).toMatch(/min-width:\s*0/);
+  });
+
+  it("keeps a hidden chip out of the flow row", () => {
+    expect(extractBlock(read("message-window.css"), ".yui-ui--message .yui-deleg[hidden]")).toMatch(
+      /display:\s*none/,
+    );
+  });
+});
