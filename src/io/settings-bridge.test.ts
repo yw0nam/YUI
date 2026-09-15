@@ -185,4 +185,70 @@ describe("createSettingsBridge", () => {
     expect(() => bridge.emitMouthPreview(0.1)).not.toThrow();
     expect(() => bridge.emitSettingsChanged()).not.toThrow();
   });
+
+  it("delivers a reasoning state from A to B", () => {
+    const t = createFakeTransport();
+    const a = createSettingsBridge(t, { windowKind: "pet" });
+    const b = createSettingsBridge(t, { windowKind: "message" });
+    const cb = vi.fn();
+    b.onReasoning(cb);
+
+    a.emitReasoning({ text: "checking the logs", live: true });
+
+    expect(cb).toHaveBeenCalledWith({ text: "checking the logs", live: true });
+  });
+
+  it("ignores a reasoning payload whose text is not a string", () => {
+    const t = createFakeTransport();
+    const a = createSettingsBridge(t, { windowKind: "pet" });
+    const b = createSettingsBridge(t, { windowKind: "message" });
+    const cb = vi.fn();
+    b.onReasoning(cb);
+
+    a.emitReasoning({ text: 5, live: true } as never);
+
+    expect(cb).not.toHaveBeenCalled();
+  });
+
+  it("ignores a reasoning payload whose live is not a boolean", () => {
+    const t = createFakeTransport();
+    const a = createSettingsBridge(t, { windowKind: "pet" });
+    const b = createSettingsBridge(t, { windowKind: "message" });
+    const cb = vi.fn();
+    b.onReasoning(cb);
+
+    a.emitReasoning({ text: "x", live: "yes" } as never);
+
+    expect(cb).not.toHaveBeenCalled();
+  });
+
+  it("answers a reasoning ask with the state as it stands", () => {
+    const t = createFakeTransport();
+    const a = createSettingsBridge(t, { windowKind: "pet" });
+    const b = createSettingsBridge(t, { windowKind: "message" });
+    const ask = vi.fn();
+    b.onReasoningAsk(ask);
+
+    b.emitReasoningAsk();
+
+    expect(ask).toHaveBeenCalledTimes(1);
+  });
+
+  it("stops reasoning delivery on the per-listener disposer and on dispose()", () => {
+    const t = createFakeTransport();
+    const a = createSettingsBridge(t, { windowKind: "pet" });
+    const b = createSettingsBridge(t, { windowKind: "message" });
+    const cb = vi.fn();
+    const ask = vi.fn();
+    const off = b.onReasoning(cb);
+    b.onReasoningAsk(ask);
+
+    off();
+    a.emitReasoning({ text: "late", live: false });
+    expect(cb).not.toHaveBeenCalled();
+
+    b.dispose();
+    b.emitReasoningAsk();
+    expect(ask).not.toHaveBeenCalled();
+  });
 });
