@@ -124,6 +124,19 @@ describe("quick-controls.css — components with a display rule honour [hidden]"
   }
 });
 
+// Same rule on the quick-controls endpoints section: the chat-status line and the
+// session lost line both carry `display: flex`, so without their own [hidden] rule
+// reflect.ts setting `hidden` on either leaves it painted in the layout.
+describe("endpoints-section.css — components with a display rule honour [hidden]", () => {
+  it(".yui-chat-status and .yui-session__deleg-lost set display:none under [hidden]", () => {
+    const css = read("quick-controls/endpoints-section.css");
+    expect(extractBlock(css, ".yui-chat-status,\n.yui-session__deleg-lost")).toMatch(/display:/);
+    expect(
+      extractBlock(css, ".yui-chat-status[hidden],\n.yui-session__deleg-lost[hidden]"),
+    ).toMatch(/display:\s*none/);
+  });
+});
+
 // Same rule on the overlay surfaces: .yui-tool carries `display: inline-flex`, so without
 // its own [hidden] rule a hidden chip keeps painting whenever `is-visible` is on it.
 describe("surfaces.css — components with a display rule honour [hidden]", () => {
