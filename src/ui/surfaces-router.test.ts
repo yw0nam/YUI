@@ -60,6 +60,7 @@ function makeRemote(): RemoteSurfaces {
     onSubmit: vi.fn(),
     onStop: vi.fn(),
     onDock: vi.fn(),
+    onOpenSettings: vi.fn(),
     dispose: vi.fn(),
   };
 }
