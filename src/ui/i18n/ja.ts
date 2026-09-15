@@ -486,6 +486,7 @@ const ja: Record<string, string> = {
 
   // delegations
   "deleg.chip_running": "作業{n}件を実行中",
+  "deleg.chip_running_one": "作業1件を実行中",
   "deleg.chip_lost": "接続が切れました",
   "deleg.list_title": "委任した作業",
   "deleg.min": "{n}分",

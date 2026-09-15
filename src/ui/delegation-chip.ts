@@ -171,7 +171,8 @@ export function createDelegationChip({
       hide();
       return;
     }
-    labelEl.textContent = t("deleg.chip_running", { n: running });
+    labelEl.textContent =
+      running === 1 ? t("deleg.chip_running_one") : t("deleg.chip_running", { n: running });
     countEl.textContent = String(running);
     if (listOpen) renderDelegationRows(rowsEl, items, now());
     show();

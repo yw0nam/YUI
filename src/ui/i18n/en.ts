@@ -487,6 +487,7 @@ const en: Record<string, string> = {
 
   // delegations
   "deleg.chip_running": "{n} tasks in progress",
+  "deleg.chip_running_one": "1 task in progress",
   "deleg.chip_lost": "Connection lost",
   "deleg.list_title": "Delegated tasks",
   "deleg.min": "{n}m",

@@ -151,7 +151,7 @@ describe("createDelegationChip", () => {
     setLocale("en");
     store.replace([running("d-1", 60_000)]);
     expect(mount.querySelector<HTMLElement>(".yui-deleg__label")!.textContent).toBe(
-      t("deleg.chip_running", { n: 1 }),
+      t("deleg.chip_running_one"),
     );
   });
 
