@@ -21,6 +21,15 @@ turns in and finished replies out. The contract both sides speak is
   the plugin turns off for this platform. What the agent writes before a tool call, its final
   reply, and its answer to a delegation report all render as usual, and so does the gateway's
   notice that a turn failed, which reaches the plugin in the same shape as the agent's words.
+- Streams the agent's reasoning to the client as `reasoning` frames, coalesced to one frame per
+  100 ms, and puts the whole text on the `render` frame that closes the turn. The gateway offers
+  the live tokens only while `plugins.stream_reasoning_deltas` is `true`; with it off, the
+  reasoning the gateway prepends to the reply is what the `render` frame carries.
+- Drops the audio, image, video and file attachments the gateway offers, and never lets it
+  synthesize TTS for this chat, so `voice.auto_tts` and `/voice` change nothing here. The client
+  speaks the reply itself.
+- Makes the first chat that connects the platform's home channel, which is where the gateway
+  delivers cron results and cross-platform messages.
 - Delivers the reply whole when the turn ends, so the gateway's `streaming` setting does not
   apply to this platform.
 - Names the client turn in the first reply of a run only. A reply the agent adds later in the
@@ -81,9 +90,28 @@ carries the general tools and `delegation` carries `delegate_task`.
 Set `chat_api: "push"` in the client and point `chat_base_url` at this server. A
 `chat_base_url` of `https://host:8646` gives `wss://host:8646/ws`.
 
-One display setting is worth a look for a voice client, under `display.platforms.yui`. Leave
+Two display settings are worth a look for a voice client, under `display.platforms.yui`. Leave
 `runtime_footer.enabled` off, its default: when it is on the footer is concatenated into the reply
-text, so the model name and working directory get read out.
+text, so the model name and working directory get read out. Set `show_reasoning: false` as well —
+with it on the gateway prepends the reasoning, cut to fifteen lines, to the reply text, and the
+plugin has to take it back off:
+
+```yaml
+display:
+  platforms:
+    yui:
+      show_reasoning: false
+```
+
+The live reasoning stream is a separate switch, off by default and global to the gateway:
+
+```yaml
+plugins:
+  stream_reasoning_deltas: true
+```
+
+With it on the client receives the reasoning as it is written, and the `render` frame carries the
+whole text rather than the truncated block.
 
 ## Reaching it from outside the machine
 

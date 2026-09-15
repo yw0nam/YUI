@@ -107,12 +107,32 @@ The backend starts a new conversation under the same `chat_id`. Long-term memory
 | `turn_id` | The `turn` this answers, or `null` when the backend speaks on its own |
 | `source` | Backend name for logs |
 | `segments` | Ordered. Each segment's `cues` render first, then its `speech` goes to TTS and the bubble |
+| `reasoning` | Optional. The backend's whole reasoning for this reply. Absent when the backend produced none |
 
 A cue is a `generate_express` argument object as defined in [client-context.md](client-context.md): `emotion_id`, `motion_id`, `emotion_text`, `caption`, all optional. Cues render through the same path a streamed cue takes.
 
 Silence is a `render` whose segments carry no speech: every `speech` is empty or the bare `[SILENT]` token. Cues on a silent render still play. A `render` with an empty `segments` array closes the turn.
 
 A `render` interrupts speech in progress, the same way a new streamed reply does.
+
+### `reasoning` (backend → client)
+
+The backend's reasoning as it is written, sent while the turn is running.
+
+```json
+{
+  "type": "reasoning",
+  "delta": "The log is the first place to look."
+}
+```
+
+| Field | Value |
+|---|---|
+| `delta` | The reasoning written since the previous `reasoning` frame |
+
+Frames are coalesced, so one carries however much arrived in the window. They are best effort: a
+backend under load drops them, and a turn may carry none at all. The `render` frame's `reasoning`
+field is the complete text.
 
 ### `delegations` (backend → client)
 
