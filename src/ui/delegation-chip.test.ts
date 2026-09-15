@@ -510,7 +510,7 @@ describe("createDelegationChip", () => {
 
       expect(chipEl().classList.contains("is-lost")).toBe(false);
       expect(mount.querySelector<HTMLElement>(".yui-deleg__label")!.textContent).toBe(
-        t("deleg.chip_running", { n: 1 }),
+        t("deleg.chip_running_one"),
       );
     });
 
