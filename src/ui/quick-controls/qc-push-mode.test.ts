@@ -20,6 +20,7 @@ describe("createQuickControls — push mode", () => {
   let state: PushSocketState;
   let listeners: ((s: PushSocketState) => void)[];
   let sendReset: Mock<() => boolean>;
+  let reconnectNow: Mock<() => void>;
 
   function pushSocket() {
     return {
@@ -31,6 +32,7 @@ describe("createQuickControls — push mode", () => {
         };
       },
       sendReset,
+      reconnectNow,
     };
   }
 
@@ -54,6 +56,7 @@ describe("createQuickControls — push mode", () => {
     state = { kind: "disconnected" };
     listeners = [];
     sendReset = vi.fn<() => boolean>(() => true);
+    reconnectNow = vi.fn<() => void>();
   });
 
   afterEach(() => {
@@ -76,6 +79,10 @@ describe("createQuickControls — push mode", () => {
 
   function statusEl(qc: { el: HTMLElement }): HTMLElement {
     return qc.el.querySelector<HTMLElement>(".yui-chat-status")!;
+  }
+
+  function actionBtn(qc: { el: HTMLElement }): HTMLButtonElement {
+    return qc.el.querySelector<HTMLButtonElement>(".yui-chat-status__action")!;
   }
 
   function modelRow(qc: { el: HTMLElement }): HTMLElement {
@@ -215,14 +222,103 @@ describe("createQuickControls — push mode", () => {
     qc.dispose();
   });
 
-  it("shows the close code the backend refused the connection with", () => {
+  it("names the refused key as the reason, instead of the bare close code", () => {
     endpointsSettings.set({ chat_api: "push" });
     state = { kind: "failed", code: 4401 };
     const qc = buildQc({ pushSocket: pushSocket() });
     qc.open();
 
-    expect(statusEl(qc).textContent).toContain(t("svc.chat_status_failed", { code: 4401 }));
+    expect(statusEl(qc).textContent).toContain(t("svc.chat_status_refused"));
+    expect(statusEl(qc).textContent).not.toContain("4401");
     expect(statusEl(qc).classList.contains("is-failed")).toBe(true);
+
+    qc.dispose();
+  });
+
+  // ── Reconnect button ───────────────────────────────────────────────────────
+
+  it("offers Reconnect in the refused state", () => {
+    endpointsSettings.set({ chat_api: "push" });
+    state = { kind: "failed", code: 4401 };
+    const qc = buildQc({ pushSocket: pushSocket() });
+    qc.open();
+
+    expect(actionBtn(qc).hidden).toBe(false);
+    expect(actionBtn(qc).textContent).toBe(t("svc.chat_status_reconnect"));
+
+    qc.dispose();
+  });
+
+  it("opens the socket when Reconnect is pressed", () => {
+    endpointsSettings.set({ chat_api: "push" });
+    state = { kind: "failed", code: 4401 };
+    const qc = buildQc({ pushSocket: pushSocket() });
+    qc.open();
+
+    actionBtn(qc).click();
+
+    expect(reconnectNow).toHaveBeenCalledTimes(1);
+
+    qc.dispose();
+  });
+
+  it("offers Connect now while a reconnect waits", () => {
+    endpointsSettings.set({ chat_api: "push" });
+    state = { kind: "reconnecting", delay_ms: 8_000 };
+    const qc = buildQc({ pushSocket: pushSocket() });
+    qc.open();
+
+    expect(actionBtn(qc).hidden).toBe(false);
+    expect(actionBtn(qc).textContent).toBe(t("svc.chat_status_connect_now"));
+
+    qc.dispose();
+  });
+
+  it("skips the wait when Connect now is pressed", () => {
+    endpointsSettings.set({ chat_api: "push" });
+    state = { kind: "reconnecting", delay_ms: 8_000 };
+    const qc = buildQc({ pushSocket: pushSocket() });
+    qc.open();
+
+    actionBtn(qc).click();
+
+    expect(reconnectNow).toHaveBeenCalledTimes(1);
+
+    qc.dispose();
+  });
+
+  it("offers no button while the socket is connecting", () => {
+    endpointsSettings.set({ chat_api: "push" });
+    state = { kind: "connecting" };
+    const qc = buildQc({ pushSocket: pushSocket() });
+    qc.open();
+
+    expect(actionBtn(qc).hidden).toBe(true);
+
+    qc.dispose();
+  });
+
+  it("offers no button once the socket is ready", () => {
+    endpointsSettings.set({ chat_api: "push" });
+    state = { kind: "ready", chat_id: "yui-3f9a2c1d" };
+    const qc = buildQc({ pushSocket: pushSocket() });
+    qc.open();
+
+    expect(actionBtn(qc).hidden).toBe(true);
+
+    qc.dispose();
+  });
+
+  it("drops the button again when the socket comes back", () => {
+    endpointsSettings.set({ chat_api: "push" });
+    state = { kind: "reconnecting", delay_ms: 1_000 };
+    const qc = buildQc({ pushSocket: pushSocket() });
+    qc.open();
+    expect(actionBtn(qc).hidden).toBe(false);
+
+    emit({ kind: "ready", chat_id: "yui-0a1b2c3d" });
+
+    expect(actionBtn(qc).hidden).toBe(true);
 
     qc.dispose();
   });
