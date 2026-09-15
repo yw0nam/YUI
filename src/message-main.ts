@@ -30,6 +30,7 @@ import {
 } from "./io/message-window-settings";
 import { createFlagSettings, localStorageStore } from "./io/persisted-store";
 import { createMirroredPushSocket } from "./io/push-socket-bridge";
+import { createMirroredReasoning } from "./io/reasoning-bridge";
 import { toScreenMonitor } from "./io/screen-geometry";
 import { createSettingsBridge } from "./io/settings-bridge";
 import { isTauri } from "./io/tauri-env";
@@ -37,6 +38,7 @@ import { createLogger, initLogger } from "./logger";
 import { createDelegationChip } from "./ui/delegation-chip";
 import { reloadFromStorage as reloadLocale } from "./ui/i18n";
 import { createMessagePlate } from "./ui/message-plate";
+import { createReasoningChip } from "./ui/reasoning-chip";
 import { attachSummonKey } from "./ui/summon-key";
 import { createSurfaces } from "./ui/surfaces";
 
@@ -96,6 +98,15 @@ async function bootstrap(): Promise<void> {
     onOpenSettings: () => bridge.emitControl({ op: "open-settings" }),
     suppressed: true,
   });
+  const reasoning = createMirroredReasoning({ bridge: settingsBridge });
+  const thinkChip = createReasoningChip({
+    mount: plateRow,
+    store: reasoning,
+    suppressed: true,
+  });
+  // One panel at a time on the shared plate row.
+  thinkChip.onPanelOpen(() => chip.closeList());
+  chip.onListOpen(() => thinkChip.closePanel());
 
   // Only push mode has a transport to report on, and the pet window publishes its socket in every
   // mode, so elsewhere that socket sits disconnected and the chip would draw a permanent loss.
@@ -111,7 +122,9 @@ async function bootstrap(): Promise<void> {
   }
 
   function applyChipMode(): void {
-    chip.setSuppressed(!sawPushState || effectiveChatApi() !== "push");
+    const suppressed = !sawPushState || effectiveChatApi() !== "push";
+    chip.setSuppressed(suppressed);
+    thinkChip.setSuppressed(suppressed);
   }
 
   applyChipMode();
@@ -195,6 +208,7 @@ async function bootstrap(): Promise<void> {
     applyChipMode();
     pushSocket.refresh();
     delegations.refresh();
+    reasoning.refresh();
   };
   const unlistenSettings = settingsBridge.onSettingsChanged(reloadShared);
   window.addEventListener("focus", reloadShared);
@@ -214,6 +228,8 @@ async function bootstrap(): Promise<void> {
     unsubscribeEndpoints();
     chip.dispose();
     chipCollapsed.dispose();
+    thinkChip.dispose();
+    reasoning.dispose();
     endpointsSettings.dispose();
     pushSocket.dispose();
     delegations.dispose();

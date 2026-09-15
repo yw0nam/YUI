@@ -104,12 +104,16 @@ afterEach(() => {
   setLocale("en");
 });
 
-it("mounts the chip in the plate's row, to the plate's right", async () => {
+it("mounts the plate, the delegation chip and the reasoning chip in the plate's row", async () => {
   await boot();
 
   const row = document.querySelector<HTMLElement>(".yui-plate-row")!;
   const children = [...row.children];
-  expect(children.map((el) => el.className.split(" ")[0])).toEqual(["yui-plate", "yui-deleg"]);
+  expect(children.map((el) => el.className.split(" ")[0])).toEqual([
+    "yui-plate",
+    "yui-deleg",
+    "yui-think",
+  ]);
 });
 
 it("draws the lost pill while the mirrored socket is not ready", async () => {
@@ -197,12 +201,13 @@ it("shows the reasoning chip when the mirror carries reasoning text in push mode
   );
 });
 
-it("stays bare until the pet window answers where the socket stands", async () => {
+it("stays bare while no push state has arrived", async () => {
   await boot();
 
   answerReasoning({ text: "too early", live: true });
+  // A suppressed chip draws nothing, so the arrival is only observable by the chip staying bare.
+  await new Promise((resolve) => setTimeout(resolve, 50));
 
-  await vi.waitFor(() => expect(document.querySelector(".yui-think__text")!.textContent).toBe("too early"));
   expect(thinkEl().hidden).toBe(true);
 });
 
