@@ -144,6 +144,8 @@ export function createPushSocket(deps: PushSocketDeps): PushSocket {
   let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
   /** The vocabulary the backend last received, serialized, so only a real change resends it. */
   let sentVocabulary: string | null = null;
+  /** An attempt between its key lookup and its socket, where `ws` is not yet the one being opened. */
+  let opening = false;
   let state: PushSocketState = { kind: "disconnected" };
 
   function setState(next: PushSocketState): void {
@@ -255,18 +257,24 @@ export function createPushSocket(deps: PushSocketDeps): PushSocket {
     let key: string | undefined;
     let socket: WebSocket;
     let url: string;
+    opening = true;
     try {
       key = await deps.getKey();
-      if (disposed || !active) return;
+      if (disposed || !active) {
+        opening = false;
+        return;
+      }
       url = pushSocketUrl(deps.chatBaseUrl());
       socket = new WS(url);
     } catch (err) {
       // A rejected key or a constructor the platform refuses leaves nothing to close — retry from here.
+      opening = false;
       log.warn("ws_open_failed", { error: String(err) });
       ws = null;
       scheduleReconnect(OPEN_FAILED_CODE);
       return;
     }
+    opening = false;
     ws = socket;
 
     // Every handler is guarded on identity: a socket the client has moved on from still fires its
@@ -346,7 +354,7 @@ export function createPushSocket(deps: PushSocketDeps): PushSocket {
       if (reconnectTimer) clearTimeout(reconnectTimer);
       reconnectTimer = null;
       // An attempt already in flight is the one this would start.
-      if (ws !== null) return;
+      if (opening || ws !== null) return;
       setState({ kind: "connecting" });
       void open();
     },
