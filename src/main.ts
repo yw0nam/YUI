@@ -47,6 +47,8 @@ import { wireMessageWindowMode } from "./io/message-window-mode";
 import type { MessageWindowMode } from "./io/message-window-settings";
 import { createPushSocket, pushVocabularyOf } from "./io/push-socket";
 import { publishPushSocket } from "./io/push-socket-bridge";
+import { publishReasoning } from "./io/reasoning-bridge";
+import { createReasoningStore } from "./io/reasoning-store";
 import { screenDefaultsFromConfig } from "./io/screen-settings";
 import { createSettingsSecretProvider } from "./io/secret-provider";
 import { createSettingsStores } from "./io/settings-stores";
@@ -335,10 +337,13 @@ async function bootstrap(): Promise<BootstrapHandle> {
   register(chatIdSettings.dispose);
   // The backend's delegations frames land here; the chip and the settings mirror both read it.
   const delegations = createDelegationsStore();
+  // The backend's reasoning deltas land here; the message window's chip mirrors it.
+  const reasoning = createReasoningStore();
   // The settings window has no socket of its own: it reads this one and asks it to reset.
   register(publishPushSocket({ socket: pushSocket, bridge: windowBridge }));
   // The delegations list rides the same bridge; a fresh settings window asks for the current list.
   register(publishDelegations({ store: delegations, bridge: windowBridge }));
+  register(publishReasoning({ store: reasoning, bridge: windowBridge }));
 
   const buildQuickControls = (): ReturnType<typeof createQuickControls> =>
     createQuickControls({
@@ -557,6 +562,7 @@ async function bootstrap(): Promise<BootstrapHandle> {
       getQuickControls: () => quickControls,
       pushSocket,
       delegations,
+      reasoning,
       getEndpoints,
       getGuardrails,
       isDisposed: () => disposed,

@@ -8,8 +8,8 @@ import type { ControlEnvelope } from "./contract";
 import { makeTurnOutput } from "./dispatcher/test-helpers";
 import type { ChatHistoryEntry } from "./io/chat-history-store";
 import { createDelegationsStore } from "./io/delegations-store";
-import { createReasoningStore } from "./io/reasoning-store";
 import type { DelegationItem, PushSocketState, RenderFrame } from "./io/push-socket";
+import { createReasoningStore } from "./io/reasoning-store";
 
 function fakeSocket() {
   let renderCb: ((frame: RenderFrame) => void) | null = null;

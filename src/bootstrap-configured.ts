@@ -49,6 +49,7 @@ import { createHitTestController, type HitTestController } from "./io/hit-test";
 import { enabledIdleVariants } from "./io/idle-motion-settings";
 import { createPeekState } from "./io/peek-state";
 import type { PushSocket } from "./io/push-socket";
+import type { ReasoningStore } from "./io/reasoning-store";
 import type { DescentEdge } from "./io/screen-geometry";
 import { mergeScreen } from "./io/screen-settings";
 import type { ScreenCapturer } from "./io/screen-source-provider";
@@ -107,6 +108,8 @@ interface Phase1Handles {
   pushSocket?: PushSocket;
   /** The backend's delegations list, fed by the push socket's `delegations` frames. */
   delegations: DelegationsStore;
+  /** The backend's reasoning text, fed by the push socket's `reasoning` frames. */
+  reasoning: ReasoningStore;
   getEndpoints(): EndpointsConfig;
   /** Effective guardrails — the editable caps layered on configs/guardrails.json. */
   getGuardrails(): GuardrailsConfig;
@@ -219,6 +222,7 @@ const realFactories: ConfiguredBootstrapFactories = {
       getQuickControls,
       pushSocket,
       delegations,
+      reasoning,
       getEndpoints,
       getGuardrails,
     } = phase1;
@@ -740,6 +744,7 @@ const realFactories: ConfiguredBootstrapFactories = {
           turnOutput: voice.turnOutput,
           renderer,
           delegations,
+          reasoning,
           appendTurnRecord: (record) => appendRecord(record),
           appendTranscript: (entry) => chatHistoryStore.append(entry),
           log,

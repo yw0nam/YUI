@@ -55,7 +55,8 @@ import type { GuardrailsSettingsStore } from "./io/guardrails-settings";
 import { attachKeepOnScreen, type KeepOnScreenHandle } from "./io/keep-on-screen";
 import type { ClampedIntSettingsStore } from "./io/persisted-store";
 import type { ProactiveSettings } from "./io/proactive-settings";
-import type { DelegationItem, PushSocket, RenderFrame } from "./io/push-socket";
+import type { DelegationItem, PushSocket, PushSocketState, RenderFrame } from "./io/push-socket";
+import type { ReasoningStore } from "./io/reasoning-store";
 import type { ScheduleSettings } from "./io/schedule-settings";
 import { type DescentEdge, type PetWindow, toScreenMonitor } from "./io/screen-geometry";
 import { createSettingsBridge, type SettingsBridge, type WindowKind } from "./io/settings-bridge";
@@ -1824,19 +1825,23 @@ export async function wireDevGlobals(deps: {
 }
 
 /**
- * Routes an open push socket into the client: a `render` frame plays as a turn and a `delegations`
- * frame replaces the tracked list. The socket itself is created and connected by the host, which
- * owns its lifetime.
+ * Routes an open push socket into the client: a `render` frame plays as a turn and closes the
+ * live reasoning cycle, a `reasoning` frame appends to it, and a `delegations` frame replaces
+ * the tracked list. The socket itself is created and connected by the host, which owns its
+ * lifetime.
  */
 export function wirePushTransport(deps: {
   socket: {
     onRender(cb: (frame: RenderFrame) => void): () => void;
     onDelegations(cb: (items: DelegationItem[]) => void): () => void;
+    onReasoning(cb: (delta: string) => void): () => void;
+    onState(cb: (state: PushSocketState) => void): () => void;
   };
   turnOutput: TurnOutput;
   /** Render sink for a cue on a segment that speaks nothing. */
   renderer: Pick<Renderer, "applyDirective">;
   delegations: DelegationsStore;
+  reasoning: ReasoningStore;
   appendTurnRecord: (record: RenderRecord) => void;
   /** Conversation transcript — the reply half of a push turn lands here. */
   appendTranscript: (entry: ChatHistoryEntry) => void;
@@ -1849,11 +1854,19 @@ export function wirePushTransport(deps: {
     appendTranscript: deps.appendTranscript,
   });
   const unsubscribes = [
-    deps.socket.onRender((frame) => renderTurn.render(frame)),
+    deps.socket.onRender((frame) => {
+      renderTurn.render(frame);
+      deps.reasoning.finish(frame.reasoning);
+    }),
     deps.socket.onDelegations((items) => {
       deps.delegations.replace(items);
       const running = items.filter((item) => item.state === "running").length;
       deps.log.info("delegations", { total: items.length, running });
+    }),
+    deps.socket.onReasoning((delta) => deps.reasoning.append(delta)),
+    deps.socket.onState((state) => {
+      // A cycle without its closing render dies with the connection; a finished text stays.
+      if (state.kind !== "ready") deps.reasoning.interrupt();
     }),
   ];
   return () => {
