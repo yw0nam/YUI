@@ -107,7 +107,7 @@ The backend starts a new conversation under the same `chat_id`. Long-term memory
 | `turn_id` | The `turn` this answers, or `null` when the backend speaks on its own |
 | `source` | Backend name for logs |
 | `segments` | Ordered. Each segment's `cues` render first, then its `speech` goes to TTS and the bubble |
-| `reasoning` | Optional. The backend's whole reasoning for this reply. Absent when the backend produced none |
+| `reasoning` | Optional. The reasoning written so far for this turn when this reply was sent; on the reply that ends the turn, the whole text. A backend that sends no `reasoning` frames may put a shortened version here instead. Absent when the backend produced none |
 
 A cue is a `generate_express` argument object as defined in [client-context.md](client-context.md): `emotion_id`, `motion_id`, `emotion_text`, `caption`, all optional. Cues render through the same path a streamed cue takes.
 
@@ -132,7 +132,7 @@ The backend's reasoning as it is written, sent while the turn is running.
 
 Frames are coalesced, so one carries however much arrived in the window. They are best effort: a
 backend under load drops them, and a turn may carry none at all. The `render` frame's `reasoning`
-field is the complete text.
+field is where the text arrives whole.
 
 ### `delegations` (backend → client)
 

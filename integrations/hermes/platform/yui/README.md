@@ -22,12 +22,13 @@ turns in and finished replies out. The contract both sides speak is
   reply, and its answer to a delegation report all render as usual, and so does the gateway's
   notice that a turn failed, which reaches the plugin in the same shape as the agent's words.
 - Streams the agent's reasoning to the client as `reasoning` frames, coalesced to one frame per
-  100 ms, and puts the whole text on the `render` frame that closes the turn. The gateway offers
-  the live tokens only while `plugins.stream_reasoning_deltas` is `true`; with it off, the
-  reasoning the gateway prepends to the reply is what the `render` frame carries.
-- Drops the audio, image, video and file attachments the gateway offers, and never lets it
-  synthesize TTS for this chat, so `voice.auto_tts` and `/voice` change nothing here. The client
-  speaks the reply itself.
+  100 ms. The `render` frame carries the reasoning written so far for its turn, which on the
+  reply that ends the turn is the whole text. The gateway offers the live tokens only while
+  `plugins.stream_reasoning_deltas` is `true`; with it off, the `render` frame carries the block
+  the gateway rendered into the reply instead, cut to fifteen lines and still carrying the
+  gateway's display escaping of any code fence inside it.
+- Never delivers audio, images, video or files. `voice.auto_tts` is off for this platform, and
+  the audio a `/voice all` chat still makes is discarded. The client speaks the reply itself.
 - Makes the first chat that connects the platform's home channel, which is where the gateway
   delivers cron results and cross-platform messages.
 - Delivers the reply whole when the turn ends, so the gateway's `streaming` setting does not
@@ -111,7 +112,7 @@ plugins:
 ```
 
 With it on the client receives the reasoning as it is written, and the `render` frame carries the
-whole text rather than the truncated block.
+streamed text rather than the block the gateway rendered into the reply.
 
 ## Reaching it from outside the machine
 
