@@ -177,6 +177,7 @@ describe("dispatcher — turn admission across the amplitude flag (#512)", () =>
         cue: () => {},
         toolStatus: () => {},
         activity: () => {},
+        onQueueDrained: (callback) => speechPlayback.onQueueDrained(callback),
       },
       logger: makeLogger(),
     });

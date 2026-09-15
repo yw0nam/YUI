@@ -246,6 +246,7 @@ export function wireVoicePipeline(deps: VoicePipelineDeps): VoicePipeline {
       if (turnId !== thinkingTurnId) return;
       fillerLoop?.onActivity();
     },
+    onQueueDrained: (callback) => speechPlayback.onQueueDrained(callback),
   };
 
   // One bag per failure tier, drawn the same way the filler loop draws its own tiers.

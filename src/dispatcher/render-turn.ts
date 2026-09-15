@@ -7,7 +7,9 @@
  *
  * Where the cue goes depends on the segment. With speech it rides the TTS pipeline, which applies it
  * as the audio starts. Without speech there is no audio to wait for and the pipeline would hold it
- * forever, so it goes straight to the renderer — the path a silent streamed turn already takes.
+ * forever, so it goes straight to the renderer — the path a silent streamed turn already takes. When
+ * a speaking segment came earlier in the same frame, that direct call still waits for the queued
+ * speech to finish playing, so segment order in the frame stays the order it renders on screen.
  * Firing ≠ judgment holds here too: a silent segment still renders its expression and motion.
  */
 
@@ -66,6 +68,7 @@ export function createRenderTurn(deps: RenderTurnDeps): RenderTurn {
       deps.turnOutput.interrupt();
 
       let spokeText = false;
+      let sawSpeech = false;
       const said: string[] = [];
       for (const segment of segments) {
         const cue = mergeCues(segment.cues ?? []);
@@ -79,14 +82,24 @@ export function createRenderTurn(deps: RenderTurnDeps): RenderTurn {
           deps.turnOutput.delta(`${speech}\n`);
           said.push(speech.trim());
           spokeText = true;
+          sawSpeech = true;
           continue;
         }
         if (!cue.emotion_id && !cue.motion_id) continue;
-        try {
-          deps.renderer.applyDirective(directiveOf(cue));
-        } catch (err) {
-          // The renderer owns its own fallback; a failed cue must not cost the rest of the render.
-          log.error("silent_cue.render_error", { error: String(err) });
+        const applyCue = (): void => {
+          try {
+            deps.renderer.applyDirective(directiveOf(cue));
+          } catch (err) {
+            // The renderer owns its own fallback; a failed cue must not cost the rest of the render.
+            log.error("silent_cue.render_error", { error: String(err) });
+          }
+        };
+        // A speaking segment earlier in the frame is still queued on the pipeline — wait for it
+        // to finish playing so this segment's cue lands in the same order it renders on screen.
+        if (sawSpeech) {
+          deps.turnOutput.onQueueDrained(applyCue);
+        } else {
+          applyCue();
         }
       }
       if (spokeText) deps.turnOutput.end();
