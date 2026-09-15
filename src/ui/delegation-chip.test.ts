@@ -426,7 +426,7 @@ describe("createDelegationChip", () => {
     it("words the lost pill in the active locale", () => {
       build(localStorageDelegationChipStorage(STORAGE_KEY), fakePushState({ kind: "connecting" }));
 
-      expect(mount.querySelector<HTMLElement>(".yui-deleg__label")!.textContent).toBe("연결 끕김");
+      expect(mount.querySelector<HTMLElement>(".yui-deleg__label")!.textContent).toBe("연결 끊김");
     });
 
     it("shows the lost pill over the running count", () => {
