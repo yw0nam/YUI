@@ -3,7 +3,8 @@
  * message-main.test.ts — the popped-out window carries the delegation chip.
  *
  * The socket lives in the pet window, so this window mirrors its state and its delegations list
- * over the cross-window bridge and draws the same chip beside the name plate.
+ * over the cross-window bridge and draws the same chip beside the name plate. Only push mode has
+ * a transport to report on, and only a state the pet window actually sent is worth drawing.
  */
 
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
@@ -26,6 +27,11 @@ function running(id: string): DelegationItem {
 }
 
 let petBridge: SettingsBridge;
+
+/** The chat protocol the window reads out of the shared endpoint overrides. */
+function setChatApi(api: string): void {
+  localStorage.setItem("yui.endpoints", JSON.stringify({ chat_api: api }));
+}
 
 /** Boots the window and waits for the chip the bootstrap mounts. */
 async function boot(): Promise<void> {
@@ -59,6 +65,8 @@ beforeEach(() => {
   });
   vi.spyOn(globalThis, "cancelAnimationFrame").mockImplementation(() => {});
   setLocale("en");
+  localStorage.clear();
+  setChatApi("push");
   petBridge = createSettingsBridge(undefined, { windowKind: "pet" });
 });
 
@@ -66,6 +74,7 @@ afterEach(() => {
   petBridge.dispose();
   window.dispatchEvent(new Event("beforeunload"));
   document.body.innerHTML = "";
+  localStorage.clear();
   vi.restoreAllMocks();
   setLocale("en");
 });
@@ -103,4 +112,34 @@ it("stays hidden while the socket is ready with nothing running", async () => {
 
   await vi.waitFor(() => expect(chipEl().hidden).toBe(true));
   expect(chipEl().classList.contains("is-lost")).toBe(false);
+});
+
+it("stays bare until the pet window answers where the socket stands", async () => {
+  await boot();
+
+  expect(chipEl().hidden).toBe(true);
+});
+
+it("shows no chip while the protocol is not push", async () => {
+  setChatApi("chat_completions");
+  await boot();
+
+  answer({ kind: "reconnecting", delay_ms: 4_000 });
+
+  await vi.waitFor(() => expect(chipEl().classList.contains("is-lost")).toBe(true));
+  expect(chipEl().hidden).toBe(true);
+});
+
+it("shows the chip once a settings change turns push on", async () => {
+  setChatApi("chat_completions");
+  await boot();
+  answer({ kind: "reconnecting", delay_ms: 4_000 });
+  await vi.waitFor(() => expect(chipEl().classList.contains("is-lost")).toBe(true));
+  expect(chipEl().hidden).toBe(true);
+
+  setChatApi("push");
+  petBridge.emitSettingsChanged();
+
+  await vi.waitFor(() => expect(chipEl().hidden).toBe(false));
+  expect(label()).toBe(t("deleg.chip_lost"));
 });
