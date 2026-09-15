@@ -46,6 +46,25 @@ class SessionSource:
 
 
 @dataclass
+class HomeChannel:
+    """Stand-in for gateway.config.HomeChannel."""
+
+    platform: Platform
+    chat_id: str
+    name: str
+    thread_id: str | None = None
+
+
+# What persist_home_channel was asked to write; tests read and clear it.
+PERSISTED_HOMES: list[HomeChannel] = []
+
+
+def persist_home_channel(home: HomeChannel, *, enabled_if_new: bool = False) -> None:
+    """The real one writes config.yaml; here the call itself is the observable."""
+    PERSISTED_HOMES.append(home)
+
+
+@dataclass
 class MessageEvent:
     text: str
     message_type: MessageType = MessageType.TEXT
@@ -98,6 +117,49 @@ class BasePlatformAdapter:
     async def handle_message(self, event: MessageEvent) -> None:
         self.dispatched.append(event)
         event._gateway_accepted = True
+
+    def _should_auto_tts_for_chat(self, chat_id: str) -> bool:
+        """The real base answers from voice.auto_tts; True here so an override is visible."""
+        return True
+
+    async def _send_media_fallback_notice(
+        self, method, kind, path, chat_id, caption=None, reply_to=None, metadata=None, *, file_name=None
+    ) -> SendResult:
+        """The real base's "couldn't deliver" notice, which reaches the chat as ordinary text."""
+        return await self.send(
+            chat_id=chat_id,
+            content=f"\u26a0\ufe0f Couldn't deliver the {kind} attachment.",
+            reply_to=reply_to,
+            metadata=metadata,
+        )
+
+    async def send_voice(self, chat_id, audio_path, caption=None, reply_to=None, metadata=None, **kwargs):
+        return await self._send_media_fallback_notice(
+            "send_voice", "audio", audio_path, chat_id, caption, reply_to, metadata
+        )
+
+    async def send_document(
+        self, chat_id, file_path, caption=None, file_name=None, reply_to=None, metadata=None, **kwargs
+    ):
+        return await self._send_media_fallback_notice(
+            "send_document", "file", file_path, chat_id, caption, reply_to, metadata, file_name=file_name
+        )
+
+    async def send_video(self, chat_id, video_path, caption=None, reply_to=None, metadata=None, **kwargs):
+        return await self._send_media_fallback_notice(
+            "send_video", "video", video_path, chat_id, caption, reply_to, metadata
+        )
+
+    async def send_image_file(
+        self, chat_id, image_path, caption=None, reply_to=None, metadata=None, **kwargs
+    ):
+        return await self._send_media_fallback_notice(
+            "send_image_file", "image", image_path, chat_id, caption, reply_to, metadata
+        )
+
+    async def send_image(self, chat_id, image_url, caption=None, reply_to=None, metadata=None) -> SendResult:
+        """The real base falls back to sending the URL as text."""
+        return await self.send(chat_id=chat_id, content=image_url, reply_to=reply_to, metadata=metadata)
 
     async def _send_with_retry(
         self,
@@ -156,6 +218,8 @@ def install_stubs() -> None:
     gateway.__path__ = []
     config = types.ModuleType("gateway.config")
     config.Platform = Platform
+    config.HomeChannel = HomeChannel
+    config.persist_home_channel = persist_home_channel
     platforms = types.ModuleType("gateway.platforms")
     platforms.__path__ = []
     base = types.ModuleType("gateway.platforms.base")

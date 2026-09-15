@@ -10,8 +10,15 @@ import time
 import aiohttp
 import pytest
 from aiohttp.test_utils import TestClient, TestServer
-from gateway_stub import SLASH_CONFIRM, STUB_ENV, MessageEvent, MessageType, ProcessingOutcome
-from yui import delegations, reports, state
+from gateway_stub import (
+    PERSISTED_HOMES,
+    SLASH_CONFIRM,
+    STUB_ENV,
+    MessageEvent,
+    MessageType,
+    ProcessingOutcome,
+)
+from yui import delegations, reasoning, reports, state
 from yui.adapter import MAX_FRAME_BYTES, YuiAdapter, is_loopback
 
 CHAT = "yui-3f9a2c1d"
@@ -40,7 +47,10 @@ def clean():
         reports.take(chat)
         reports.take_renders(chat)
         delegations.forget(chat)
+        reasoning.clear(chat)
     delegations.set_notifier(None)
+    reasoning.set_sink(None)
+    PERSISTED_HOMES.clear()
     SLASH_CONFIRM.pending.clear()
     SLASH_CONFIRM.resolved.clear()
     STUB_ENV.pop("HERMES_SESSION_CHAT_ID", None)
@@ -591,3 +601,120 @@ async def test_a_socket_that_arrives_during_the_send_still_gets_the_reply(client
     monkeypatch.setattr(state, "is_connected", racing)
     await adapter.send(CHAT, "The tests passed.", metadata={"notify": True})
     assert (await recv(ws))["segments"] == [{"cues": [], "speech": "The tests passed."}]
+
+
+# -- the audio, files and images the gateway offers ------------------------------------------
+
+
+def test_the_gateway_never_synthesizes_audio_for_this_platform(adapter):
+    """voice.auto_tts drives the base probe, and the client runs its own TTS."""
+    assert adapter._should_auto_tts_for_chat(CHAT) is False
+
+
+@pytest.mark.parametrize(
+    "deliver",
+    [
+        lambda a: a.send_voice(chat_id=CHAT, audio_path="/tmp/reply.ogg"),
+        lambda a: a.send_document(chat_id=CHAT, file_path="/tmp/notes.pdf"),
+        lambda a: a.send_image(chat_id=CHAT, image_url="https://example.invalid/cat.png"),
+        lambda a: a.send_video(chat_id=CHAT, video_path="/tmp/clip.mp4"),
+        lambda a: a.send_image_file(chat_id=CHAT, image_path="/tmp/cat.png"),
+    ],
+)
+async def test_media_is_dropped_without_a_word_reaching_the_reply(adapter, deliver, monkeypatch):
+    """The base defaults put a "couldn't deliver" line in the chat; this platform speaks only."""
+    spoken: list[str] = []
+
+    async def spy(chat_id, content, reply_to=None, metadata=None):
+        spoken.append(content)
+
+    monkeypatch.setattr(adapter, "send", spy)
+    result = await deliver(adapter)
+    assert result.success is True
+    assert spoken == []
+
+
+# -- the home channel ------------------------------------------------------------------------
+
+
+async def test_the_first_client_becomes_the_platform_home_channel(client, adapter):
+    """Without one the gateway hints about /sethome on the first message of every session."""
+    await ready(client)
+    (home,) = PERSISTED_HOMES
+    assert home.chat_id == CHAT
+    assert home.name == "YUI"
+    assert home.platform.value == "yui"
+    assert adapter.config.home_channel is home
+
+
+async def test_a_reconnecting_client_does_not_set_the_home_channel_again(client):
+    ws = await ready(client)
+    await ws.close()
+    await ready(client)
+    assert len(PERSISTED_HOMES) == 1
+
+
+async def test_a_configured_home_channel_is_left_alone(client, adapter):
+    adapter.config.home_channel = "already set"
+    await ready(client)
+    assert PERSISTED_HOMES == []
+
+
+async def test_a_home_channel_that_cannot_be_saved_leaves_the_client_connected(client, monkeypatch):
+    import gateway.config as gateway_config
+
+    def refuse(home, **_kwargs):
+        raise OSError("read-only config")
+
+    monkeypatch.setattr(gateway_config, "persist_home_channel", refuse)
+    ws = await ready(client)
+    await ws.send_json({"type": "vocabulary", "vocabulary": {"emotion_ids": ["smug"], "motion_ids": []}})
+    await wait_for(lambda: state.vocabulary(CHAT).emotion_ids == ["smug"])
+
+
+# -- reasoning -------------------------------------------------------------------------------
+
+
+async def test_the_reasoning_stream_reaches_the_client_as_one_coalesced_frame(client, adapter):
+    """The hook runs on a worker thread, so the deltas are marshaled onto the adapter's loop."""
+    ws = await ready(client)
+    reasoning.set_sink(adapter.push_reasoning)
+    STUB_ENV["HERMES_SESSION_CHAT_ID"] = CHAT
+    for delta in ("I will ", "check ", "the log."):
+        await asyncio.to_thread(reasoning.on_stream_delta, delta=delta, kind="reasoning", surface="yui")
+    assert await recv(ws) == {"type": "reasoning", "delta": "I will check the log."}
+
+
+async def test_the_render_carries_the_streamed_reasoning_over_the_prepended_block(client, adapter):
+    ws = await ready(client)
+    STUB_ENV["HERMES_SESSION_CHAT_ID"] = CHAT
+    await adapter.on_processing_start(user_turn(adapter, "7"))
+    reasoning.on_stream_delta(delta="The whole thought.", kind="reasoning", surface="yui")
+    await adapter.send(
+        CHAT,
+        "\U0001f4ad **Reasoning:**\n```\nThe truncated thought.\n```\n\nAll green.",
+        metadata={"notify": True},
+    )
+    frame = await recv(ws)
+    assert frame["reasoning"] == "The whole thought."
+    assert frame["segments"] == [{"cues": [], "speech": "All green."}]
+
+
+async def test_the_render_carries_the_prepended_block_when_nothing_streamed(client, adapter):
+    ws = await ready(client)
+    await adapter.on_processing_start(user_turn(adapter, "7"))
+    await adapter.send(
+        CHAT,
+        "\U0001f4ad **Reasoning:**\n```\nThe log is the first place to look.\n```\n\nAll green.",
+        metadata={"notify": True},
+    )
+    frame = await recv(ws)
+    assert frame["reasoning"] == "The log is the first place to look."
+    assert frame["segments"] == [{"cues": [], "speech": "All green."}]
+
+
+async def test_a_render_with_no_reasoning_at_all_carries_no_reasoning_field(client, adapter):
+    ws = await ready(client)
+    await adapter.on_processing_start(user_turn(adapter, "7"))
+    await adapter.send(CHAT, "All green.", metadata={"notify": True})
+    assert "reasoning" not in await recv(ws)
