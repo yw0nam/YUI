@@ -15,6 +15,7 @@
 import { createLogger } from "../logger";
 import type { VoiceInputState } from "../ui/voice-input-status";
 import type { DelegationItem, PushSocketState } from "./push-socket";
+import type { ReasoningState } from "./reasoning-store";
 import { isTauri } from "./tauri-env";
 
 const log = createLogger("settings-bridge");
@@ -29,6 +30,8 @@ const CH_PUSH_RESET = "yui://push-reset";
 const CH_PUSH_RECONNECT = "yui://push-reconnect";
 const CH_DELEGATIONS = "yui://delegations";
 const CH_DELEGATIONS_ASK = "yui://delegations-ask";
+const CH_REASONING = "yui://reasoning";
+const CH_REASONING_ASK = "yui://reasoning-ask";
 
 interface VoiceStateSnapshot {
   state: VoiceInputState;
@@ -69,6 +72,12 @@ export interface SettingsBridge {
   /** A window with no socket of its own asking the owner to send the current list. */
   emitDelegationsAsk(): void;
   onDelegationsAsk(cb: () => void): () => void;
+  /** The reasoning state the push socket last fed. Only the window that owns the socket emits it. */
+  emitReasoning(state: ReasoningState): void;
+  onReasoning(cb: (state: ReasoningState) => void): () => void;
+  /** A window with no socket of its own asking the owner to send the current reasoning state. */
+  emitReasoningAsk(): void;
+  onReasoningAsk(cb: () => void): () => void;
   dispose(): void;
 }
 
@@ -286,6 +295,23 @@ export function createSettingsBridge(
     },
     onDelegationsAsk(cb) {
       return on<unknown>(CH_DELEGATIONS_ASK, () => cb());
+    },
+    emitReasoning(state) {
+      safeEmit(CH_REASONING, state);
+    },
+    onReasoning(cb) {
+      return on<unknown>(CH_REASONING, (state) => {
+        if (state === null || typeof state !== "object") return;
+        const s = state as Partial<ReasoningState>;
+        if (typeof s.text !== "string" || typeof s.live !== "boolean") return;
+        cb(s as ReasoningState);
+      });
+    },
+    emitReasoningAsk() {
+      safeEmit(CH_REASONING_ASK);
+    },
+    onReasoningAsk(cb) {
+      return on<unknown>(CH_REASONING_ASK, () => cb());
     },
     dispose: core.dispose,
   };
