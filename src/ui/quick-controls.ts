@@ -1364,9 +1364,13 @@ export function createQuickControls({
       reflect.reflectChatPreset();
     }
   });
-  // The socket moves on its own — its line follows whether or not a setting changed.
+  // The socket moves on its own — its line and the session section's rows follow whether or not
+  // a setting changed.
   const unsubscribePushState = pushSocket?.onState(() => {
-    if (popover.isOpen()) reflect.reflectChatStatus();
+    if (popover.isOpen()) {
+      reflect.reflectChatStatus();
+      reflect.reflectDelegations();
+    }
   });
   // Reflect thinking-filler store updates to section (includes other-window reloadFromStorage).
   const unsubscribeFiller = fillerSettings?.subscribe(() => {

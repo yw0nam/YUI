@@ -300,6 +300,7 @@ ${RATE_LIMIT_FIELDS.map((f) =>
         </div>
         <div class="yui-session__deleg" hidden>
           <h3 class="yui-session__deleg-title">${t("deleg.list_title")}</h3>
+          <p class="yui-chat-status is-failed yui-session__deleg-lost" hidden><span class="yui-chat-status__dot" aria-hidden="true"></span><span class="yui-chat-status__text">${t("deleg.chip_lost")}</span></p>
           <div class="yui-session__deleg-rows"></div>
         </div>
       </div>

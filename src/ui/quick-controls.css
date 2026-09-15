@@ -1151,6 +1151,10 @@
   letter-spacing: 0.02em;
 }
 
+.yui-session__deleg-lost {
+  margin: 0.15rem 0 0.25rem;
+}
+
 .yui-session__deleg-rows .yui-deleg__item {
   font-size: 0.8rem;
 }
