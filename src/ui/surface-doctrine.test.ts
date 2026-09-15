@@ -197,6 +197,7 @@ describe("message-window.css — the delegation list wraps under the plate row",
     const block = extractBlock(read("message-window.css"), ".yui-ui--message .yui-deleg__list");
     expect(block).toMatch(/flex:\s*1 0 100%/);
     expect(block).toMatch(/min-width:\s*0/);
+    expect(block).toMatch(/box-sizing:\s*border-box/);
   });
 
   it("keeps a hidden chip out of the flow row", () => {
