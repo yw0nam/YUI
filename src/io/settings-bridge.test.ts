@@ -222,12 +222,12 @@ describe("createSettingsBridge", () => {
     expect(cb).not.toHaveBeenCalled();
   });
 
-  it("answers a reasoning ask with the state as it stands", () => {
+  it("delivers a reasoning ask from A to B", () => {
     const t = createFakeTransport();
     const a = createSettingsBridge(t, { windowKind: "pet" });
     const b = createSettingsBridge(t, { windowKind: "message" });
     const ask = vi.fn();
-    b.onReasoningAsk(ask);
+    a.onReasoningAsk(ask);
 
     b.emitReasoningAsk();
 
