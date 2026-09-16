@@ -5,11 +5,17 @@
  * each segment renders in order. A segment's cues merge into one, because the cue channel carries a
  * single pending cue: a later cue overrides the same field, an empty one overrides nothing.
  *
+ * A frame never cuts the speech already playing — it queues behind it, and the pipeline plays the
+ * queue in order. Speech stops on what the user does, so a frame of a turn the user stopped is
+ * dropped whole: nothing spoken, nothing rendered, nothing recorded.
+ *
  * Where the cue goes depends on the segment. With speech it rides the TTS pipeline, which applies it
  * as the audio starts. Without speech there is no audio to wait for and the pipeline would hold it
  * forever, so it goes straight to the renderer — the path a silent streamed turn already takes. A
- * silent segment with speech earlier in the frame instead waits for the speech queued so far to
- * finish playing, so it doesn't cut ahead of audio still queued when the frame arrived.
+ * silent segment waits on the next playback boundary instead whenever speech is still owed, whether
+ * this frame queued it or an earlier one did, so it doesn't override the expression of audio still
+ * playing. That boundary is the pipeline's and not the frame's: every waiting cue fires at the next
+ * one playback reaches, which for a frame still being synthesised is before its own speech.
  * Firing ≠ judgment holds here too: a silent segment still renders its expression and motion.
  */
 
@@ -20,12 +26,15 @@ import { isSilenceToken } from "../io/silence-token";
 import { buildRenderRecord, type RenderRecord } from "../io/turn-record-log";
 import { createLogger, type Logger } from "../logger";
 import type { Renderer } from "../renderer";
+import type { PushTurns } from "./push-turn";
 import type { TurnOutput } from "./turn-output";
 
 const baseLog = createLogger("render-turn");
 
 export interface RenderTurnDeps {
   turnOutput: TurnOutput;
+  /** Which push turns the user stopped — a frame of one of them never plays. */
+  pushTurns: Pick<PushTurns, "rendered" | "isCut">;
   /** Render sink for a cue with no audio behind it. */
   renderer: Pick<Renderer, "applyDirective">;
   /** Conversation transcript — the reply half of a push turn lands here. */
@@ -65,8 +74,19 @@ export function createRenderTurn(deps: RenderTurnDeps): RenderTurn {
   return {
     render(frame) {
       const segments = frame.segments ?? [];
+      if (deps.pushTurns.isCut(frame.turn_id)) {
+        log.info("render", {
+          source: frame.source,
+          turn_id: frame.turn_id,
+          segments: segments.length,
+          dropped: "cut_turn",
+        });
+        return;
+      }
       const queuedBehind = deps.turnOutput.hasOutstandingSpeech();
-      deps.turnOutput.interrupt();
+      // A barge-in mute outlives the turn it cut, and no interrupt clears it here any more.
+      deps.turnOutput.releaseMute();
+      deps.pushTurns.rendered(frame.turn_id);
 
       let spokeText = false;
       const said: string[] = [];
@@ -93,9 +113,9 @@ export function createRenderTurn(deps: RenderTurnDeps): RenderTurn {
             log.error("silent_cue.render_error", { error: String(err) });
           }
         };
-        // A speaking segment earlier in the frame is still queued on the pipeline — wait for it
-        // to finish playing so this segment's cue lands in the same order it renders on screen.
-        if (spokeText) {
+        // Speech is still queued on the pipeline — wait for a playback boundary so this cue does
+        // not override the expression of audio that is still playing.
+        if (spokeText || queuedBehind) {
           deps.turnOutput.onQueueDrained(applyCue);
         } else {
           applyCue();
@@ -108,6 +128,7 @@ export function createRenderTurn(deps: RenderTurnDeps): RenderTurn {
         turn_id: frame.turn_id,
         segments: segments.length,
         spoke_text: spokeText,
+        queued_behind: queuedBehind,
       });
 
       if (said.length > 0) {

@@ -35,6 +35,7 @@ import type { EventBus } from "./dispatcher/event-bus";
 import { createGuardrails, type Guardrails, type GuardrailsConfig } from "./dispatcher/guardrails";
 import { createPreviousTurn } from "./dispatcher/previous-turn";
 import { createProactivePacer } from "./dispatcher/proactive-pacer";
+import { createPushTurns } from "./dispatcher/push-turn";
 import { createTurnLog } from "./dispatcher/turn";
 import type { UserInputSource } from "./dispatcher/user-input-source";
 import { initDrag, type PatGesture } from "./drag";
@@ -274,6 +275,7 @@ const realFactories: ConfiguredBootstrapFactories = {
     const previousTurn = createPreviousTurn({ currentTurn: () => turnLog.current() });
     // Voice creation precedes the walker, so the stroll query stays late-bound across that cycle.
     let strollingRef: { isStrolling(): boolean } | null = null;
+    const pushTurns = createPushTurns();
     const voice = wireVoicePipeline({
       renderer,
       surfaces,
@@ -742,6 +744,7 @@ const realFactories: ConfiguredBootstrapFactories = {
         wirePushTransport({
           socket: pushSocket,
           turnOutput: voice.turnOutput,
+          pushTurns,
           renderer,
           delegations,
           reasoning,

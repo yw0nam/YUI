@@ -29,6 +29,7 @@ import type { Guardrails, GuardrailsConfig } from "./dispatcher/guardrails";
 import { createMilestoneSource, type MilestoneSource } from "./dispatcher/milestone-source";
 import type { ProactivePacer } from "./dispatcher/proactive-pacer";
 import { createProactiveSource, type ProactiveSource } from "./dispatcher/proactive-source";
+import type { PushTurns } from "./dispatcher/push-turn";
 import { createRenderTurn } from "./dispatcher/render-turn";
 import { createScheduleSource, type ScheduleSource } from "./dispatcher/schedule-source";
 import { createScreenSource, type ScreenSource } from "./dispatcher/screen-source";
@@ -1838,6 +1839,8 @@ export function wirePushTransport(deps: {
     onState(cb: (state: PushSocketState) => void): () => void;
   };
   turnOutput: TurnOutput;
+  /** Which push turns the user stopped — a frame of one of them never plays. */
+  pushTurns: PushTurns;
   /** Render sink for a cue on a segment that speaks nothing. */
   renderer: Pick<Renderer, "applyDirective">;
   delegations: DelegationsStore;
@@ -1849,6 +1852,7 @@ export function wirePushTransport(deps: {
 }): () => void {
   const renderTurn = createRenderTurn({
     turnOutput: deps.turnOutput,
+    pushTurns: deps.pushTurns,
     renderer: deps.renderer,
     appendTurnRecord: deps.appendTurnRecord,
     appendTranscript: deps.appendTranscript,

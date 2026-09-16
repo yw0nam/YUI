@@ -5,6 +5,7 @@
 import { beforeEach, describe, expect, it, type Mock, vi } from "vitest";
 import { wirePushMode, wirePushTransport } from "./bootstrap-wiring";
 import type { ControlEnvelope } from "./contract";
+import { createPushTurns } from "./dispatcher/push-turn";
 import { makeTurnOutput } from "./dispatcher/test-helpers";
 import type { ChatHistoryEntry } from "./io/chat-history-store";
 import { createDelegationsStore } from "./io/delegations-store";
@@ -101,6 +102,7 @@ function wire() {
   return wirePushTransport({
     socket,
     turnOutput,
+    pushTurns: createPushTurns(),
     renderer: { applyDirective: (env) => directives.push(env) },
     delegations,
     reasoning,
