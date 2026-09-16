@@ -391,7 +391,6 @@ class YuiAdapter(BasePlatformAdapter):
             return False
         body = fit_frame(frame)
         if body is None:
-            logger.warning("yui: dropped an oversize %s frame chat=%s", frame.get("type"), chat_id)
             return False
         try:
             await ws.send_str(body)
