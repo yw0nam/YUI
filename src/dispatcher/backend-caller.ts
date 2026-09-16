@@ -326,10 +326,14 @@ export function createBackendCaller(deps: BackendCallerDeps): BackendCaller {
    * frame of its own, so the call stays open until that turn's first render. The wait also ends
    * when the user stops the reply, when the budget expires, when the socket leaves `ready`, or
    * when a newer turn supersedes this one. A render arriving after the budget still plays.
+   *
+   * `onSettle` runs inside the render, before its segments are read, so the thinking bridge is
+   * down by the time the frame's cues reach the pipeline.
    */
   async function awaitPushReply(
     turnId: string,
     eventName: string,
+    onSettle: () => void,
     externalSignal?: AbortSignal,
   ): Promise<TurnOutcome> {
     let timer: ReturnType<typeof setTimeout> | undefined;
@@ -344,7 +348,7 @@ export function createBackendCaller(deps: BackendCallerDeps): BackendCaller {
           unsubscribe = deps.onPushSocketNotReady?.(() => resolve("network_drop"));
         }),
       ];
-      const firstRender = deps.pushTurns?.awaitFirstRender(turnId);
+      const firstRender = deps.pushTurns?.awaitFirstRender(turnId, onSettle);
       if (firstRender) {
         ends.push(firstRender.then((end) => (end === "rendered" ? "ok" : "superseded_by_user")));
       }
@@ -479,7 +483,7 @@ export function createBackendCaller(deps: BackendCallerDeps): BackendCaller {
           log.debug("turn_record_append_failed", { error: String(err) });
         }
         if (externalSignal?.aborted) return "superseded_by_user";
-        return await awaitPushReply(String(turn.id), env.event_name, externalSignal);
+        return await awaitPushReply(String(turn.id), env.event_name, endThinking, externalSignal);
       }
 
       const input = encodeInput(ctx, env, clientContext, nowMs);

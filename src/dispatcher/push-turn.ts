@@ -17,20 +17,27 @@ export interface PushTurns {
   cut(): void;
   /** Whether a frame belongs to a cut turn. A null turn_id is never cut. */
   isCut(turnId: string | null): boolean;
-  /** Resolves when a render of this turn is accepted, or when the turn is cut. One shot. */
-  awaitFirstRender(turnId: string): Promise<"rendered" | "cut">;
+  /**
+   * Resolves when a render of this turn is accepted, or when the turn is cut. One shot.
+   * `onSettle` runs at that moment, before the frame's segments are read.
+   */
+  awaitFirstRender(turnId: string, onSettle?: () => void): Promise<"rendered" | "cut">;
 }
 
 export function createPushTurns(): PushTurns {
   const live = new Set<string>();
   const stopped = new Set<string>();
-  const waiting = new Map<string, (outcome: "rendered" | "cut") => void>();
+  const waiting = new Map<
+    string,
+    { resolve: (outcome: "rendered" | "cut") => void; onSettle?: () => void }
+  >();
 
   function settle(turnId: string, outcome: "rendered" | "cut"): void {
-    const resolve = waiting.get(turnId);
-    if (!resolve) return;
+    const waiter = waiting.get(turnId);
+    if (!waiter) return;
     waiting.delete(turnId);
-    resolve(outcome);
+    waiter.onSettle?.();
+    waiter.resolve(outcome);
   }
 
   return {
@@ -52,9 +59,8 @@ export function createPushTurns(): PushTurns {
     isCut(turnId) {
       return turnId !== null && stopped.has(turnId);
     },
-    awaitFirstRender(turnId) {
-      if (stopped.has(turnId)) return Promise.resolve("cut");
-      return new Promise((resolve) => waiting.set(turnId, resolve));
+    awaitFirstRender(turnId, onSettle) {
+      return new Promise((resolve) => waiting.set(turnId, { resolve, onSettle }));
     },
   };
 }

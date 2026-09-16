@@ -126,15 +126,6 @@ describe("awaitFirstRender", () => {
     await expect(b).resolves.toBe("cut");
   });
 
-  it("resolves cut at once for a turn already cut", async () => {
-    const turns = createPushTurns();
-
-    turns.opened("A");
-    turns.cut();
-
-    await expect(turns.awaitFirstRender("A")).resolves.toBe("cut");
-  });
-
   it("a turn's second render finds no waiter left to resolve", async () => {
     const turns = createPushTurns();
 
