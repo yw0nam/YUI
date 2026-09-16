@@ -132,6 +132,7 @@ YUI/
       settings/
         api-key-settings.ts            # Generic API-key override store behind the chat, STT, and TTS key settings
         chat-key-settings.ts           # Chat API key override store
+        chat-id-settings.ts            # Conversation id this installation identifies itself with to the backend
         filler-settings.ts             # Filler phrase pools and behaviour flags
         settings-stores.ts             # Constructs and synchronises the settings-store family
         persisted-store.ts             # Shared bootstrap, notify, reload, and localStorage core for the settings stores
@@ -144,6 +145,7 @@ YUI/
         idle-motion-settings.ts        # Selects which ambient idle variants may play
         lipsync-settings.ts            # Lip-sync gain
         message-window-settings.ts     # Message-window mode and last outer position
+        delegation-chip-settings.ts    # Whether the delegation chip shows only its dot and count badge
         cue-list-settings.ts           # Shared on/off flag plus editable cue list behind the schedule and proactive stores
         proactive-settings.ts          # Idle-gap proactive cue list and its on/off flag
         proactive-seeds.ts             # Per-locale default proactive cues seeded on a first run
@@ -157,6 +159,8 @@ YUI/
       chat/
         chat-client.ts                 # Adapter over the openai SDK Responses stream
         chat-completions.ts            # Pure Chat Completions request builders and stream-chunk reducer
+        push-socket.ts                 # The single WebSocket the push chat_api runs on
+        silence-token.ts               # Stateful [SILENT] token filter for spoken output_text deltas
         chat-history-store.ts          # Unified conversation transcript with session boundaries
         client-tools.ts                # Registry of the tools YUI declares and runs itself
         context-history.ts             # Capped ring of recent client-context entries
@@ -218,6 +222,11 @@ YUI/
         settings-bridge.ts             # Typed cross-window settings bus over Tauri emit and listen
         message-bridge.ts              # Cross-window bus linking the pet window and the message window
         message-remote.ts              # The message window's bubble and input as a remote Surfaces half
+        push-socket-bridge.ts          # The push socket seen from a window that does not own it
+        reasoning-bridge.ts            # The reasoning text seen from a window that does not own the push socket
+        reasoning-store.ts             # The backend's reasoning text as the current turn writes it
+        delegations-bridge.ts          # The delegations list seen from a window that does not own the push socket
+        delegations-store.ts           # The background work the backend reports on the push socket
       assets/
         vrm-import.ts                  # VRM import: OS picker, native copy, avatar-option registration
         user-asset-import.ts           # Dialog result shape, lazy Tauri loaders, and orphan cleanup shared by the voice and VRM imports
