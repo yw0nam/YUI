@@ -162,6 +162,25 @@ the outcome. The client stores one of three values and renders two of them:
 3. `failed`: the call settled in `network_drop`, `network_stall`, `http_4xx_drop`,
    or `parse_error` before any backend speech.
 
+An `interrupted` line carries what the listener heard of the reply and what was
+still owed:
+
+```text
+previous: user.text_submitted interrupted (0min ago), spoken: "Three logs are left." unspoken: "Two of them are from yesterday."
+```
+
+1. `spoken`: the last 50 characters of the sentences whose playback had started.
+2. `unspoken`: the first 50 characters of what was left, the sentences still
+   queued and any text that had not closed a sentence.
+
+Both are plain slices of the reply, with nothing marking where they were cut. A
+sentence whose synthesis failed belongs to `unspoken`, since playback skipped it.
+A part that is empty is left out, and a record with neither part renders the
+plain line.
+
+When two replies overlap, the line names the turn whose utterance opened most
+recently.
+
 Only the backend's own turn writes the value. The thinking filler phrases and the
 client's failure phrases leave it as it was, and so does a turn the backend answers
 with silence on a call that succeeds. The value lives in `localStorage` under

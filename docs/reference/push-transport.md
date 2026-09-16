@@ -76,7 +76,7 @@ The `vocabulary` object from `hello`, sent again whenever the renderable set cha
 }
 ```
 
-`client_context` is the block described in [client-context.md](client-context.md), exactly as the other modes send it. `text` is the user utterance, or `""` on a turn no user typed or spoke. The reply is a `render` frame carrying the same `turn_id`.
+`client_context` is the block described in [client-context.md](client-context.md), exactly as the other modes send it. `text` is the user utterance, or `""` on a turn no user typed or spoke. Every reply to the turn is a `render` frame carrying the same `turn_id`.
 
 ### `reset` (client → backend)
 
@@ -111,9 +111,15 @@ The backend starts a new conversation under the same `chat_id`. Long-term memory
 
 A cue is a `generate_express` argument object as defined in [client-context.md](client-context.md): `emotion_id`, `motion_id`, `emotion_text`, `caption`, all optional. Cues render through the same path a streamed cue takes.
 
-Silence is a `render` whose segments carry no speech: every `speech` is empty or the bare `[SILENT]` token. Cues on a silent render still play. A `render` with an empty `segments` array closes the turn.
+Silence is a `render` whose segments carry no speech: every `speech` is empty or the bare `[SILENT]` token. Cues on a silent render still play. A `render` with an empty `segments` array closes the turn. A cue on a silent segment renders as it arrives when nothing is playing, and at the next playback boundary when speech is still owed. Every cue waiting on a boundary fires at the first one playback reaches, so a cue belonging to a reply still being synthesised lands before that reply's speech.
 
-A `render` interrupts speech in progress, the same way a new streamed reply does.
+A `render` plays after the speech already queued, in the order the frames arrived. Three user actions stop speech:
+
+1. A turn the user typed or spoke.
+2. Voice barge-in.
+3. The stop button.
+
+The renders still to come for a turn stopped that way are dropped. A `render` with `turn_id: null` always plays.
 
 ### `reasoning` (backend → client)
 
@@ -159,4 +165,4 @@ The client keeps the latest list. A `done` item leaves it 30 minutes after `ende
 
 ## Logging
 
-A `turn` sent over the socket writes a turn record with `spoke_text: false`. A `render` writes a `push.render` record with `source`, `turn_id`, the segment count, and whether any speech played. The app log carries `ws_open`, `ws_ready`, `ws_close` with the close code, and `ws_reconnect` with the delay.
+A `turn` sent over the socket writes a turn record with `spoke_text: false`. A `render` writes a `push.render` record with `source`, `turn_id`, the segment count, whether any speech played, and whether speech was still owed when the frame arrived. A `render` dropped for a stopped turn is logged as a `render` line with `dropped: "cut_turn"`. The app log carries `ws_open`, `ws_ready`, `ws_close` with the close code, and `ws_reconnect` with the delay.
