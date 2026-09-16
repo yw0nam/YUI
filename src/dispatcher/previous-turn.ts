@@ -8,12 +8,16 @@
 
 import type { PreviousTurn, TurnEnded } from "../contract";
 import { isPlainObject, localStorageStore, type PersistedStorage } from "../io/persisted-store";
+import type { SpokenSplit } from "../io/tts-pipeline";
 import type { TurnFailure } from "./backend-caller";
 import type { Turn } from "./turn";
 
 const STORAGE_KEY = "yui.previous-turn";
 
 const ENDED_VALUES: readonly string[] = ["complete", "interrupted", "failed"];
+
+/** How much of a cut-off reply the `previous:` line carries. */
+const SPLIT_CHARS = 50;
 
 /** Failures that say a turn never got to speak. not_configured and superseded_by_user say nothing. */
 const RECORDED_FAILURES: ReadonlySet<TurnFailure> = new Set([
@@ -36,7 +40,7 @@ export interface PreviousTurnSlot {
   /** speech-playback opened a backend utterance. */
   utteranceStart(): void;
   /** speech-playback closed the utterance opened by the last utteranceStart. */
-  utteranceEnd(ended: "complete" | "interrupted"): void;
+  utteranceEnd(ended: "complete" | "interrupted", split?: SpokenSplit): void;
   /** The backend call for `turn` settled in a failure. */
   callFailed(turn: Turn, reason: TurnFailure): void;
   /** The record as stored, `complete` included — the context builder decides what renders. */
@@ -45,11 +49,24 @@ export interface PreviousTurnSlot {
 
 function parse(loaded: unknown): PreviousTurn | undefined {
   if (!isPlainObject(loaded)) return undefined;
-  const { event_name, ended, ts } = loaded as Record<string, unknown>;
+  const { event_name, ended, ts, spoken, unspoken } = loaded as Record<string, unknown>;
   if (typeof event_name !== "string" || event_name === "") return undefined;
   if (typeof ended !== "string" || !ENDED_VALUES.includes(ended)) return undefined;
   if (typeof ts !== "number" || !Number.isFinite(ts)) return undefined;
-  return { event_name, ended: ended as TurnEnded, ts };
+  return {
+    event_name,
+    ended: ended as TurnEnded,
+    ts,
+    ...(typeof spoken === "string" ? { spoken } : {}),
+    ...(typeof unspoken === "string" ? { unspoken } : {}),
+  };
+}
+
+/** The tail of what was heard and the head of what was not, each cut to SPLIT_CHARS. */
+function cutParts(split: SpokenSplit | undefined): Pick<PreviousTurn, "spoken" | "unspoken"> {
+  const spoken = (split?.spoken ?? "").slice(-SPLIT_CHARS).trim();
+  const unspoken = (split?.unspoken ?? "").slice(0, SPLIT_CHARS).trim();
+  return { ...(spoken ? { spoken } : {}), ...(unspoken ? { unspoken } : {}) };
 }
 
 export function createPreviousTurn(deps: PreviousTurnDeps): PreviousTurnSlot {
@@ -57,13 +74,14 @@ export function createPreviousTurn(deps: PreviousTurnDeps): PreviousTurnSlot {
   const now = deps.now ?? Date.now;
 
   let slot = parse(storage.load());
-  // The event name of the turn holding the open utterance, held from its first backend delta.
+  // The event name of the turn that opened an utterance most recently, held from its first
+  // backend delta until the next start replaces it.
   let speakingEventName: string | null = null;
   // The last turn that opened an utterance — its call failure is already told as the utterance's ending.
   let lastStartedId: number | null = null;
 
-  function save(event_name: string, ended: TurnEnded): void {
-    slot = { event_name, ended, ts: now() };
+  function save(event_name: string, ended: TurnEnded, parts?: SpokenSplit): void {
+    slot = { event_name, ended, ts: now(), ...(ended === "interrupted" ? cutParts(parts) : {}) };
     storage.save(slot);
   }
 
@@ -74,10 +92,9 @@ export function createPreviousTurn(deps: PreviousTurnDeps): PreviousTurnSlot {
       speakingEventName = turn.trigger.event_name;
       lastStartedId = turn.id;
     },
-    utteranceEnd(ended) {
+    utteranceEnd(ended, split) {
       if (speakingEventName === null) return;
-      save(speakingEventName, ended);
-      speakingEventName = null;
+      save(speakingEventName, ended, split);
     },
     callFailed(turn, reason) {
       if (!RECORDED_FAILURES.has(reason)) return;

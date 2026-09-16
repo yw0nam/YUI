@@ -305,6 +305,10 @@ export interface PreviousTurn {
   event_name: string;
   ended: TurnEnded;
   ts: number;
+  /** Last 50 characters the user heard of a cut-off reply. */
+  spoken?: string;
+  /** First 50 characters of what that reply still owed. */
+  unspoken?: string;
 }
 
 /**
