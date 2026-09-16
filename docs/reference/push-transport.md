@@ -79,7 +79,7 @@ The `vocabulary` object from `hello`, sent again whenever the renderable set cha
 
 `client_context` is the block described in [client-context.md](client-context.md), exactly as the other modes send it. `text` is the user utterance, or `""` on a turn no user typed or spoke. Every reply to the turn is a `render` frame carrying the same `turn_id`.
 
-A `turn_id` names one turn for as long as the backend remembers it. The client reads the wall clock when a run starts and counts up from there, one per turn. A restart moves the clock on by the time it takes and a run moves the counter on by its turn count, so a late `render` from an earlier run carries an id outside the range this run issues.
+A `turn_id` names one turn for as long as the backend remembers it. The client reads the wall clock when a run starts and counts up from there, one per turn. A run moves the counter on by its turn count and a restart reseeds from the clock, so a late `render` from a run that began at an earlier clock reading carries an id below the range this run issues.
 
 The client holds the turn open until the first `render` carrying its `turn_id`, and shows the turn running for that whole time:
 
