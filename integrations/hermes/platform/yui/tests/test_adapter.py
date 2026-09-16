@@ -42,7 +42,7 @@ def clean():
     for chat in (CHAT, "other"):
         state.reset(chat)
         state.set_connected(chat, False)
-        state.set_turn_id(chat, None)
+        state.take_turn_id(chat)
         state.set_muted(chat, False)
         reports.take(chat)
         reports.take_renders(chat)
@@ -304,11 +304,27 @@ async def test_a_send_with_no_words_is_not_rendered(client, adapter):
     assert (await recv(ws))["segments"] == [{"cues": [], "speech": "Done."}]
 
 
-async def test_a_reply_the_agent_speaks_on_its_own_carries_no_turn_id(client, adapter):
+async def test_an_internal_turn_carries_a_minted_id_through_its_frames(client, adapter):
     ws = await ready(client)
     await adapter.on_processing_start(internal_event(adapter, "the build finished"))
     await adapter.send(CHAT, "The build finished.", metadata={"notify": True})
-    assert (await recv(ws))["turn_id"] is None
+    render = await recv(ws)
+    assert isinstance(render["turn_id"], str)
+    assert render["turn_id"].startswith("hermes-")
+    event = MessageEvent(text="hi", source=adapter.build_source(chat_id=CHAT))
+    await adapter.on_processing_complete(event, ProcessingOutcome.SUCCESS)
+    assert await recv(ws) == {"type": "turn_end", "turn_id": render["turn_id"]}
+
+
+async def test_two_internal_turns_get_different_minted_ids(client, adapter):
+    await ready(client)
+    await adapter.on_processing_start(internal_event(adapter, "the build finished"))
+    first = state.turn_id(CHAT)
+    await adapter.on_processing_start(internal_event(adapter, "the deploy finished"))
+    second = state.turn_id(CHAT)
+    assert isinstance(first, str) and first.startswith("hermes-")
+    assert isinstance(second, str) and second.startswith("hermes-")
+    assert first != second
 
 
 async def test_a_silent_turn_with_no_cues_gets_only_a_turn_end(client, adapter):
@@ -462,13 +478,6 @@ async def test_the_turn_id_is_bound_when_the_gateway_starts_the_turn(client, ada
     await adapter.on_processing_start(user_turn(adapter, "777"))
     await adapter.send(CHAT, "Done.", metadata={"notify": True})
     assert (await recv(ws))["turn_id"] == "777"
-
-
-async def test_a_report_turn_renders_without_a_turn_id(client, adapter):
-    ws = await ready(client)
-    await adapter.on_processing_start(internal_event(adapter, "the build finished"))
-    await adapter.send(CHAT, "The build finished.", metadata={"notify": True})
-    assert (await recv(ws))["turn_id"] is None
 
 
 async def test_every_reply_of_a_turn_names_it(client, adapter):

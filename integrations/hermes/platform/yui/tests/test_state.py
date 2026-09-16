@@ -13,12 +13,12 @@ def clean():
     for chat in ("yui", "other"):
         state.reset(chat)
         state.set_connected(chat, False)
-        state.set_turn_id(chat, None)
+        state.take_turn_id(chat)
     yield
     for chat in ("yui", "other"):
         state.reset(chat)
         state.set_connected(chat, False)
-        state.set_turn_id(chat, None)
+        state.take_turn_id(chat)
 
 
 def test_cues_pop_in_the_order_they_were_placed():
