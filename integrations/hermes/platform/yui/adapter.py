@@ -48,7 +48,6 @@ REASONING_WINDOW_SECONDS = 0.1
 
 CLOSE_UNAUTHORIZED = 4401
 CLOSE_REPLACED = 4409
-CLOSE_TOO_BIG = 1009
 
 # A run the gateway starts on its own still names a turn; the client's ids are decimal digits only.
 _TURN_IDS = itertools.count(1)
@@ -223,10 +222,6 @@ class YuiAdapter(BasePlatformAdapter):
             async for message in ws:
                 if message.type is not WSMsgType.TEXT:
                     continue
-                if len(message.data.encode("utf-8")) > MAX_FRAME_BYTES:
-                    logger.warning("yui: frame over %d bytes, closing", MAX_FRAME_BYTES)
-                    await ws.close(code=CLOSE_TOO_BIG, message=b"frame too large")
-                    break
                 frame = self._parse(message.data)
                 if frame is None:
                     continue
