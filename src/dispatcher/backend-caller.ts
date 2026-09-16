@@ -413,7 +413,7 @@ export function createBackendCaller(deps: BackendCallerDeps): BackendCaller {
     try {
       // If filler is active, show first line immediately (synchronous start). Don't start if disabled/pool empty,
       // or on a reflex turn — a "thinking" bridge before an immediate reaction reads as dissonant.
-      if (deps.turnOutput?.hasFiller() && !isReflexTurn(env.event_name) && !isPush) {
+      if (deps.turnOutput?.hasFiller() && !isReflexTurn(env.event_name)) {
         startThinking();
       }
 
