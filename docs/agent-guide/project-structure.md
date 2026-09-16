@@ -284,7 +284,7 @@ YUI/
         reflect.ts                   # Store to DOM reflection for every panel section
         constants.ts                 # Display constants shared by the panel and its sections
         sections.ts                  # Wires the collapsible details groups to the sections store
-        switch-row.ts                # Switch-row element contract
+        switch-row.ts                # Switch-row element contract and the row table filling it
         hint-tooltip.ts              # Shared hover, focus, and click tooltip for data-tip elements
         endpoints-section.ts         # Endpoint URL fields, API-key rows, chat-API picker, and resets
         monitors-section.ts          # Screen-source list and its load state
