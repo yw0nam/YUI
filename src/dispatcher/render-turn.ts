@@ -44,7 +44,8 @@ export interface RenderTurnDeps {
 }
 
 export interface RenderTurn {
-  render(frame: RenderFrame): void;
+  /** False when the frame belonged to a turn the user stopped — none of it played. */
+  render(frame: RenderFrame): boolean;
 }
 
 /** One segment's cues as a single cue. Later values win; an empty value never overrides. */
@@ -81,7 +82,7 @@ export function createRenderTurn(deps: RenderTurnDeps): RenderTurn {
           segments: segments.length,
           dropped: "cut_turn",
         });
-        return;
+        return false;
       }
       const queuedBehind = deps.turnOutput.hasOutstandingSpeech();
       // A barge-in mute outlives the turn it cut, so an accepted frame is what ends the window.
@@ -153,6 +154,7 @@ export function createRenderTurn(deps: RenderTurnDeps): RenderTurn {
       } catch (err) {
         log.debug("turn_record_append_failed", { error: String(err) });
       }
+      return true;
     },
   };
 }
