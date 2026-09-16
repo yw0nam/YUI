@@ -472,6 +472,24 @@ async def test_a_failed_delegations_push_is_logged(client, adapter, monkeypatch,
     assert "socket exploded" in caplog.text
 
 
+async def test_a_cancelled_delegations_push_is_not_reported(client, adapter, monkeypatch, caplog):
+    """A cancelled push has no exception to hand back, and asking it for one raises."""
+    await ready(client)
+    pushes: list = []
+    schedule = asyncio.run_coroutine_threadsafe
+
+    def capturing(coro, loop):
+        pushes.append(schedule(coro, loop))
+        return pushes[-1]
+
+    monkeypatch.setattr(asyncio, "run_coroutine_threadsafe", capturing)
+    adapter.notify_delegations(CHAT)
+    with caplog.at_level(logging.ERROR):
+        assert pushes[0].cancel() is True
+    assert "CancelledError" not in caplog.text
+    await asyncio.sleep(0)
+
+
 async def test_the_plugin_approves_the_gateway_confirmation_of_its_own_reset(adapter):
     SLASH_CONFIRM.register("agent:main:yui:dm:" + CHAT, "7", "new")
     result = await adapter.send_slash_confirm(
