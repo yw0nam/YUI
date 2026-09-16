@@ -9,6 +9,7 @@ the socket stays open, a report the agent produces on its own leaves the same wa
 from __future__ import annotations
 
 import asyncio
+import concurrent.futures
 import contextlib
 import hmac
 import ipaddress
@@ -449,8 +450,14 @@ class YuiAdapter(BasePlatformAdapter):
         loop = self._loop
         if loop is None or not state.is_connected(chat_id):
             return
+
+        def report(future: concurrent.futures.Future) -> None:
+            error = future.exception()
+            if error is not None:
+                logger.warning("yui: delegations push failed chat=%s — %s", chat_id, error)
+
         with contextlib.suppress(RuntimeError):
-            asyncio.run_coroutine_threadsafe(self._send_delegations(chat_id), loop)
+            asyncio.run_coroutine_threadsafe(self._send_delegations(chat_id), loop).add_done_callback(report)
 
     # -- reasoning ----------------------------------------------------------------------------
 
