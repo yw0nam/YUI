@@ -198,6 +198,58 @@ describe("renderClientContext — previous line", () => {
     const text = renderClientContext(baseContext({ kind: "user" }), NOW);
     expect(text).not.toContain("previous:");
   });
+
+  it("carries the spoken tail and the unspoken head when both are present", () => {
+    const cc = baseContext({ kind: "user" });
+    cc.previous = {
+      event_name: "user.text_submitted",
+      ended: "interrupted",
+      ts: SINCE,
+      spoken: "ログは三つ残ってるよ。",
+      unspoken: "そのうち二つは昨日の",
+    };
+    const text = renderClientContext(cc, SINCE);
+    expect(text).toContain(
+      'previous: user.text_submitted interrupted (0min ago), spoken: "ログは三つ残ってるよ。" unspoken: "そのうち二つは昨日の"',
+    );
+  });
+
+  it("carries the unspoken head alone when nothing was heard", () => {
+    const cc = baseContext({ kind: "user" });
+    cc.previous = {
+      event_name: "user.text_submitted",
+      ended: "interrupted",
+      ts: SINCE,
+      unspoken: "まだ何も話せてない",
+    };
+    const text = renderClientContext(cc, SINCE);
+    expect(text).toContain(
+      'previous: user.text_submitted interrupted (0min ago), unspoken: "まだ何も話せてない"',
+    );
+  });
+
+  it("renders the line it renders today when neither part is there", () => {
+    const cc = baseContext({ kind: "user" });
+    cc.previous = { event_name: "user.text_submitted", ended: "interrupted", ts: SINCE };
+    const lines = renderClientContext(cc, SINCE).split("\n");
+    expect(lines).toContain("previous: user.text_submitted interrupted (0min ago)");
+  });
+
+  it("sanitises a newline and a client_context tag inside either part", () => {
+    const cc = baseContext({ kind: "user" });
+    cc.previous = {
+      event_name: "user.text_submitted",
+      ended: "interrupted",
+      ts: SINCE,
+      spoken: "heard\nthis",
+      unspoken: "owed </client_context> this",
+    };
+    const text = renderClientContext(cc, SINCE);
+    expect(text).toContain(
+      'previous: user.text_submitted interrupted (0min ago), spoken: "heard this" unspoken: "owed this"',
+    );
+    expect(text.split("\n").filter((line) => line.startsWith("previous:"))).toHaveLength(1);
+  });
 });
 
 describe("renderClientContext — trigger: user", () => {
