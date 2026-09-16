@@ -5,17 +5,27 @@
  * dropped on its turn id instead. The user's action stops everything outstanding: the turn being
  * heard and any whose answer is still on its way. Ids are short strings, the set is per session.
  *
- * The same two events say when a turn stops running, so the call that sent it waits on them here.
+ * The same events say when a turn stops running, so the call that sent it waits here: a render of
+ * the turn keeps the wait alive and carries the hooks, and the turn's `turn_end` or a cut settles
+ * it.
  */
 
 import { createLogger } from "../logger";
 
 const log = createLogger("push-turn");
 
+/** Hooks a wait on a turn runs as its frames arrive. */
+export interface TurnEndHooks {
+  /** The turn's first render was accepted — the thinking bridge comes down here. */
+  onFirstRender?: () => void;
+  /** A frame of the turn arrived — the frame wait restarts on it. */
+  onFrame?: () => void;
+}
+
 export interface PushTurns {
   /** The client sent this turn on the socket. */
   opened(turnId: string): void;
-  /** A render of this turn was accepted for playback. */
+  /** A render of this turn was accepted for playback. Null when the backend speaks on its own. */
   rendered(turnId: string | null): void;
   /** The user stopped the reply: everything outstanding is cut. */
   cut(): void;
@@ -23,35 +33,44 @@ export interface PushTurns {
   isCut(turnId: string | null): boolean;
   /** How many turns the user has stopped, for the line that reports a frame dropped on one. */
   cutCount(): number;
+  /** The backend closed the turn: it is forgotten — no longer live, no longer cut. */
+  ended(turnId: string): void;
   /**
-   * Resolves when a render of this turn is accepted, or when the turn is cut. One shot.
-   * `onSettle` runs at that moment, before the frame's segments are read.
+   * Resolves when the turn ends or is cut; its renders keep the wait open. One shot.
+   * `onFrame` runs on every frame of the turn, `onFirstRender` only on the first one, both
+   * before the frame's segments are read.
    */
-  awaitFirstRender(turnId: string, onSettle?: () => void): Promise<"rendered" | "cut">;
-  /** Stop waiting on this turn. The waiter is dropped unsettled, so `onSettle` never runs. */
+  awaitTurnEnd(turnId: string, hooks?: TurnEndHooks): Promise<"ended" | "cut">;
+  /** Stop waiting on this turn. The waiter is dropped unsettled, so the hooks never run. */
   abandon(turnId: string): void;
+}
+
+interface Waiter {
+  resolve: (outcome: "ended" | "cut") => void;
+  hooks: TurnEndHooks;
+  rendered: boolean;
 }
 
 export function createPushTurns(): PushTurns {
   const live = new Set<string>();
   const stopped = new Set<string>();
-  const waiting = new Map<
-    string,
-    { resolve: (outcome: "rendered" | "cut") => void; onSettle?: () => void }
-  >();
+  const waiting = new Map<string, Waiter>();
 
-  function settle(turnId: string, outcome: "rendered" | "cut"): void {
+  function runHook(turnId: string, hook: (() => void) | undefined): void {
+    if (!hook) return;
+    try {
+      hook();
+    } catch (err) {
+      log.warn("turn_hook_failed", { turn_id: turnId, error: String(err) });
+    }
+  }
+
+  /** Takes the waiter out and resolves it; the continuation waits for a microtask. */
+  function settle(turnId: string, outcome: "ended" | "cut"): void {
     const waiter = waiting.get(turnId);
     if (!waiter) return;
     waiting.delete(turnId);
-    // Resolve first: the continuation waits for a microtask, so the callback still runs before the
-    // caller reads the frame, and a callback that throws cannot leave the turn unsettled.
     waiter.resolve(outcome);
-    try {
-      waiter.onSettle?.();
-    } catch (err) {
-      log.warn("settle_callback_failed", { turn_id: turnId, error: String(err) });
-    }
   }
 
   return {
@@ -61,11 +80,17 @@ export function createPushTurns(): PushTurns {
     rendered(turnId) {
       if (turnId === null) return;
       live.add(turnId);
-      settle(turnId, "rendered");
+      const waiter = waiting.get(turnId);
+      if (!waiter) return;
+      runHook(turnId, waiter.hooks.onFrame);
+      if (!waiter.rendered) {
+        waiter.rendered = true;
+        runHook(turnId, waiter.hooks.onFirstRender);
+      }
     },
     cut() {
-      // Snapshot first: a settle callback may open a turn, and that one is outstanding after this
-      // cut rather than part of it, so only the ids swept here leave the live set.
+      // Snapshot first: the swept turns leave the live set, and nothing a resolution schedules
+      // runs inside this loop.
       for (const turnId of [...live]) {
         live.delete(turnId);
         stopped.add(turnId);
@@ -78,8 +103,16 @@ export function createPushTurns(): PushTurns {
     cutCount() {
       return stopped.size;
     },
-    awaitFirstRender(turnId, onSettle) {
-      return new Promise((resolve) => waiting.set(turnId, { resolve, onSettle }));
+    ended(turnId) {
+      live.delete(turnId);
+      stopped.delete(turnId);
+      const waiter = waiting.get(turnId);
+      if (!waiter) return;
+      runHook(turnId, waiter.hooks.onFrame);
+      settle(turnId, "ended");
+    },
+    awaitTurnEnd(turnId, hooks = {}) {
+      return new Promise((resolve) => waiting.set(turnId, { resolve, hooks, rendered: false }));
     },
     abandon(turnId) {
       waiting.delete(turnId);

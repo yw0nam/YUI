@@ -67,6 +67,7 @@ import type {
   PushSocket,
   PushSocketState,
   RenderFrame,
+  TurnEndFrame,
 } from "../io/chat/push-socket";
 import type { RenderRecord } from "../io/chat/turn-record-log";
 import { appendRecord } from "../io/chat/turn-record-log";
@@ -1848,6 +1849,7 @@ export async function wireDevGlobals(deps: {
 export function wirePushTransport(deps: {
   socket: {
     onRender(cb: (frame: RenderFrame) => void): () => void;
+    onTurnEnd(cb: (frame: TurnEndFrame) => void): () => void;
     onDelegations(cb: (items: DelegationItem[]) => void): () => void;
     onReasoning(cb: (delta: string) => void): () => void;
     onState(cb: (state: PushSocketState) => void): () => void;
@@ -1877,6 +1879,11 @@ export function wirePushTransport(deps: {
       // under: the cycle it was writing is abandoned, an earlier finished text is left alone.
       if (renderTurn.render(frame)) deps.reasoning.finish(frame.reasoning);
       else deps.reasoning.interrupt();
+    }),
+    deps.socket.onTurnEnd((frame) => {
+      // The frame the running state was waiting for: the turn is forgotten, whatever it held.
+      deps.pushTurns.ended(frame.turn_id);
+      deps.log.info("push.turn_end", { turn_id: frame.turn_id });
     }),
     deps.socket.onDelegations((items) => {
       deps.delegations.replace(items);

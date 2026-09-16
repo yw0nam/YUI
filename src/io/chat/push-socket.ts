@@ -57,6 +57,12 @@ export interface DelegationItem {
   ended_at?: number;
 }
 
+/** The backend closed a turn: the running state the `turn` frame set is released. */
+export interface TurnEndFrame {
+  type: "turn_end";
+  turn_id: string;
+}
+
 export interface PushTurnFrame {
   turn_id: string;
   /** The `<client_context>` block text, exactly as the other transports send it. */
@@ -98,6 +104,7 @@ export interface PushSocket {
   /** Sends the current vocabulary when it differs from the one the backend last received. */
   sendVocabulary(): void;
   onRender(cb: (frame: RenderFrame) => void): () => void;
+  onTurnEnd(cb: (frame: TurnEndFrame) => void): () => void;
   onDelegations(cb: (items: DelegationItem[]) => void): () => void;
   onReasoning(cb: (delta: string) => void): () => void;
   onState(cb: (state: PushSocketState) => void): () => void;
@@ -141,6 +148,7 @@ export function createPushSocket(deps: PushSocketDeps): PushSocket {
   const WS = deps.WebSocketImpl ?? globalThis.WebSocket;
 
   const renderSubs = new Set<(frame: RenderFrame) => void>();
+  const turnEndSubs = new Set<(frame: TurnEndFrame) => void>();
   const delegationSubs = new Set<(items: DelegationItem[]) => void>();
   const reasoningSubs = new Set<(delta: string) => void>();
   const stateSubs = new Set<(state: PushSocketState) => void>();
@@ -234,6 +242,15 @@ export function createPushSocket(deps: PushSocketDeps): PushSocket {
         }
         const render = frame as unknown as RenderFrame;
         for (const cb of renderSubs) cb(render);
+        return;
+      }
+      case "turn_end": {
+        if (typeof frame.turn_id !== "string") {
+          log.warn("frame_malformed", { type: "turn_end", field: "turn_id" });
+          return;
+        }
+        const turnEnd = frame as unknown as TurnEndFrame;
+        for (const cb of turnEndSubs) cb(turnEnd);
         return;
       }
       case "reasoning": {
@@ -418,6 +435,7 @@ export function createPushSocket(deps: PushSocketDeps): PushSocket {
     sendVocabulary: syncVocabulary,
 
     onRender: (cb) => subscribe(renderSubs, cb),
+    onTurnEnd: (cb) => subscribe(turnEndSubs, cb),
     onDelegations: (cb) => subscribe(delegationSubs, cb),
     onReasoning: (cb) => subscribe(reasoningSubs, cb),
     onState: (cb) => subscribe(stateSubs, cb),
