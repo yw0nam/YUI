@@ -763,7 +763,7 @@ const realFactories: ConfiguredBootstrapFactories = {
       cancel: () => dispatcher.cancel(),
       // Nothing rebuilds a pipeline abort() disposed, so the next reply the backend starts on its
       // own would be silent; interrupt() stops the same audio and leaves the pipeline alive.
-      abortSpeech: () => voice.speechPlayback.interrupt(),
+      stopSpeech: () => voice.speechPlayback.interrupt(),
       cutPushTurns: () => pushTurns.cut(),
     });
     surfaces.onSubmit((text, images) => {

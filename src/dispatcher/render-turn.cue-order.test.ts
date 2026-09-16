@@ -1,5 +1,5 @@
 /**
- * render-turn.interrupt.test.ts — when a silent segment's cue lands once frames queue up.
+ * render-turn.cue-order.test.ts — when a silent segment's cue lands once frames queue up.
  *
  * Wires createRenderTurn to a real createSpeechPlayback over the real TTS pipeline — only the
  * synth and the audio sink are controlled — so the cue timing under test is the pipeline's own

@@ -104,7 +104,7 @@ function setup() {
       onStop = callback;
     },
     cancel: () => {},
-    abortSpeech: () => speechPlayback.interrupt(),
+    stopSpeech: () => speechPlayback.interrupt(),
     cutPushTurns: () => pushTurns.cut(),
   });
 

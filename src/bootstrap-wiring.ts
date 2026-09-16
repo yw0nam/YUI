@@ -336,14 +336,14 @@ export function wireStopControl(deps: {
   onStop: (cb: () => void) => void;
   cancel: () => void;
   /** Stops the queued speech and leaves the pipeline able to speak the next reply. */
-  abortSpeech: () => void;
+  stopSpeech: () => void;
   /** Drops the renders still to come for every turn outstanding. */
   cutPushTurns: () => void;
 }): void {
   deps.onStop(() => {
     deps.cancel();
     deps.cutPushTurns();
-    deps.abortSpeech();
+    deps.stopSpeech();
   });
 }
 

@@ -1702,20 +1702,20 @@ describe("wireStopControl", () => {
     let stopCb: (() => void) | null = null;
     const order: string[] = [];
     const cancel = vi.fn(() => order.push("cancel"));
-    const abortSpeech = vi.fn(() => order.push("abortSpeech"));
+    const stopSpeech = vi.fn(() => order.push("stopSpeech"));
     const cutPushTurns = vi.fn(() => order.push("cutPushTurns"));
     wireStopControl({
       onStop: (cb) => {
         stopCb = cb;
       },
       cancel,
-      abortSpeech,
+      stopSpeech,
       cutPushTurns,
     });
 
     expect(cancel).not.toHaveBeenCalled();
     stopCb!();
-    expect(order).toEqual(["cancel", "cutPushTurns", "abortSpeech"]);
+    expect(order).toEqual(["cancel", "cutPushTurns", "stopSpeech"]);
   });
 });
 
