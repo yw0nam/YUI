@@ -200,6 +200,7 @@ describe("dispatcher — turn admission across the amplitude flag (#512)", () =>
       backendCaller,
       guardrails,
       turnLog,
+      hasOutstandingSpeech: () => speechPlayback.hasOutstandingSpeech(),
       logger: makeLogger(),
     });
   });
@@ -213,7 +214,7 @@ describe("dispatcher — turn admission across the amplitude flag (#512)", () =>
     await vi.advanceTimersByTimeAsync(20);
     // Stream reached completed → pipeline.end() queued a boundary, but synth hasn't resolved yet.
     expect(script.spy.mock.calls.length).toBe(1);
-    expect(turnLog.isAudioOwed()).toBe(true);
+    expect(speechPlayback.hasOutstandingSpeech()).toBe(true);
     // The window this test guards: stream done, audio owed, but no frame has played yet —
     // this is precisely why the old amplitude flag read false.
     expect(played).toHaveLength(0);

@@ -2,15 +2,24 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => {
   const captured: Record<string, unknown> = {};
+  // Stands in for the pipeline's own owed-audio state, which is what the barge-in guard reads.
+  const speech = { outstanding: false };
   const speechPlayback = {
-    onSpeechDelta: vi.fn(),
+    onSpeechDelta: vi.fn(() => {
+      speech.outstanding = true;
+    }),
     onSpeechEnd: vi.fn(),
-    onSpeech: vi.fn(),
+    onSpeech: vi.fn(() => {
+      speech.outstanding = true;
+    }),
     speakAside: vi.fn(),
     setCue: vi.fn(),
     silentCue: vi.fn(),
     holdMotion: vi.fn(() => false),
-    interrupt: vi.fn(),
+    interrupt: vi.fn(() => {
+      speech.outstanding = false;
+    }),
+    hasOutstandingSpeech: vi.fn(() => speech.outstanding),
     abort: vi.fn(),
     dispose: vi.fn(),
   };
@@ -42,6 +51,7 @@ const mocks = vi.hoisted(() => {
 
   return {
     captured,
+    speech,
     speechPlayback,
     fillerLoop,
     sttVad,
@@ -263,6 +273,7 @@ function fillerOptions(): FillerLoopDeps {
 describe("wireVoicePipeline", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mocks.speech.outstanding = false;
     for (const key of Object.keys(mocks.captured)) delete mocks.captured[key];
     mocks.selectFetch.mockResolvedValue(mocks.fetchImpl);
     mocks.fetchImpl.mockImplementation(
@@ -896,9 +907,23 @@ describe("wireVoicePipeline", () => {
     onSpeechActive();
     expect(mocks.speechPlayback.interrupt).not.toHaveBeenCalled();
 
-    state.turnLog.begin(trigger());
-    state.turnLog.setAudioOwed(true);
+    state.voice.turnOutput.delta("여기 있어.");
+    state.voice.turnOutput.end();
     onSpeechActive();
+    expect(mocks.speechPlayback.interrupt).toHaveBeenCalledWith({ muteCurrentTurn: true });
+  });
+
+  it("barges in on speech a render started, with no turn on the ledger", async () => {
+    const state = setup();
+    await state.voice.createSttEngine();
+    const onSpeechActive = (mocks.captured.sttVad as SttVadOptions).onSpeechActive!;
+
+    state.setBargeIn(true);
+    state.voice.turnOutput.delta("여기 있어.");
+    state.voice.turnOutput.end();
+    onSpeechActive();
+
+    expect(state.turnLog.current()).toBeNull();
     expect(mocks.speechPlayback.interrupt).toHaveBeenCalledWith({ muteCurrentTurn: true });
   });
 
@@ -911,8 +936,8 @@ describe("wireVoicePipeline", () => {
     onSpeechActive();
     expect(state.onBargeIn).not.toHaveBeenCalled();
 
-    state.turnLog.begin(trigger());
-    state.turnLog.setAudioOwed(true);
+    state.voice.turnOutput.delta("여기 있어.");
+    state.voice.turnOutput.end();
     onSpeechActive();
     expect(state.onBargeIn).toHaveBeenCalledOnce();
   });
@@ -923,9 +948,9 @@ describe("wireVoicePipeline", () => {
     const onSpeechActive = (mocks.captured.sttVad as SttVadOptions).onSpeechActive!;
 
     state.setBargeIn(true);
-    state.turnLog.begin(trigger());
     state.voice.turnOutput.thinkingStart(1);
-    state.turnLog.setAudioOwed(true);
+    state.voice.turnOutput.delta("여기 있어.");
+    state.voice.turnOutput.end();
     onSpeechActive();
 
     // The interrupted utterance is disposed, so its onPlaybackEnd can never reschedule the loop.

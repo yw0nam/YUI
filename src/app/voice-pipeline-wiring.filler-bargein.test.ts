@@ -133,7 +133,7 @@ describe("filler scheduling after a barge-in", () => {
     await vi.waitFor(() => expect(mocks.sink.play).toHaveBeenCalledTimes(1));
 
     // The user talks over the filler: the utterance is cut and can never report completion.
-    expect(turnLog.isAudioOwed()).toBe(true);
+    expect(voice.speechPlayback.hasOutstandingSpeech()).toBe(true);
     onSpeechActive();
 
     // The muted turn completes on the non-streaming path, which still ends thinking-window speech.

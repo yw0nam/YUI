@@ -87,7 +87,6 @@ describe("turn — ledger", () => {
     log.settle(first.id);
     log.begin(userEnv());
     expect(log.isOver()).toBe(false);
-    expect(log.isAudioOwed()).toBe(false);
   });
 
   it("subscribe fires only on the over⟷live boundary, with the right boolean", () => {

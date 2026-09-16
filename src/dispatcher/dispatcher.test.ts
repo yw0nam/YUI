@@ -98,14 +98,14 @@ let guardrails: Guardrails;
 let dispatcher: Dispatcher;
 let logger: Logger;
 let turnLog: TurnLog;
+let speaking: boolean;
 
 /**
- * Simulates "audio is still playing" independent of any backend call in flight — begins a
- * throwaway turn first if none is current, since a live turn is a precondition for audio-owed
- * (matching how a reply's audio can outlive the call that produced it).
+ * Simulates "audio is still playing" the way the speech pipeline does: it answers the dispatcher
+ * directly, and reports to the ledger as well — where a turn with none current is ignored.
  */
 function setSpeaking(owed: boolean): void {
-  if (!turnLog.current()) turnLog.begin(env());
+  speaking = owed;
   turnLog.setAudioOwed(owed);
 }
 
@@ -160,12 +160,14 @@ beforeEach(() => {
   guardrails = createGuardrails(permissiveGuardrailsConfig(), { now: () => Date.now() });
   logger = makeLogger();
   turnLog = createTurnLog();
+  speaking = false;
   const deps = {
     bus,
     renderer: renderer as never,
     backendCaller,
     guardrails,
     turnLog,
+    hasOutstandingSpeech: () => speaking,
     peek: { enter: peekEnter, exit: peekExit },
     logger,
     peekConfig: () => PEEK_CONFIG,
@@ -197,6 +199,7 @@ describe("dispatcher — state machine (§9)", () => {
       backendCaller,
       guardrails: g,
       turnLog,
+      hasOutstandingSpeech: () => speaking,
       logger,
     });
     d.start();
@@ -759,6 +762,7 @@ describe("dispatcher — routing (§5.1)", () => {
       backendCaller,
       guardrails,
       turnLog,
+      hasOutstandingSpeech: () => speaking,
       logger,
       peekConfig: () => livePeekConfig,
       tapConfig: () => TAP_CONFIG,
@@ -858,6 +862,7 @@ describe("dispatcher — routing (§5.1)", () => {
       backendCaller,
       guardrails,
       turnLog,
+      hasOutstandingSpeech: () => speaking,
       logger,
     });
     dispatcher.start();
@@ -1195,13 +1200,14 @@ describe("dispatcher — tap emotion revert (touch_emotion_hold_ms)", () => {
     pushEmotionTap();
     await vi.advanceTimersByTimeAsync(20);
     setSpeaking(true);
+    expect(turnLog.current()).toBeNull();
     await vi.advanceTimersByTimeAsync(TAP_CONFIG.touch_emotion_hold_ms);
     expect(easeEmotionToNeutral).not.toHaveBeenCalled();
     await vi.advanceTimersByTimeAsync(TAP_CONFIG.touch_emotion_hold_ms * 2);
     expect(easeEmotionToNeutral).not.toHaveBeenCalled();
   });
 
-  it("fires while a silent backend call is in flight (regression: isAudioOwed, not !isOver)", async () => {
+  it("fires while a silent backend call is in flight (regression: speech owed, not !isOver)", async () => {
     dispatcher.start();
     pushEmotionTap();
     await vi.advanceTimersByTimeAsync(20);
@@ -1406,6 +1412,8 @@ describe("dispatcher — playback-gated drain (§337)", () => {
 
     expect(backendCaller.call as ReturnType<typeof vi.fn>).not.toHaveBeenCalled();
     expect(dispatcher.queue()).toContain(queued);
+    // The backend started this speech on its own, so no turn on the ledger owns it.
+    expect(turnLog.current()).toBeNull();
     expect(dispatcher.recentDrops(10).map((drop) => drop.event_name)).not.toContain(
       queued.event_name,
     );
@@ -1514,6 +1522,7 @@ describe("dispatcher — global proactive pacer gate", () => {
       backendCaller,
       guardrails: over.guardrails ?? guardrails,
       turnLog,
+      hasOutstandingSpeech: () => speaking,
       logger,
       peekConfig: () => PEEK_CONFIG,
       tapConfig: () => TAP_CONFIG,
@@ -1773,6 +1782,7 @@ describe("dispatcher — onUserTurnFailed seam (issue #274)", () => {
       backendCaller,
       guardrails,
       turnLog,
+      hasOutstandingSpeech: () => speaking,
       logger,
       onUserTurnFailed: sink,
     });
@@ -1995,6 +2005,7 @@ describe("dispatcher — guardrail gating (§6)", () => {
       backendCaller,
       guardrails: g,
       turnLog,
+      hasOutstandingSpeech: () => speaking,
       logger,
     });
     return { d, g };
@@ -2013,6 +2024,7 @@ describe("dispatcher — guardrail gating (§6)", () => {
       backendCaller,
       guardrails: g,
       turnLog,
+      hasOutstandingSpeech: () => speaking,
       logger,
     });
     d.start();
@@ -2335,6 +2347,7 @@ describe("dispatcher — cooldown state mirror (§6.3/§9)", () => {
       backendCaller,
       guardrails: g,
       turnLog,
+      hasOutstandingSpeech: () => speaking,
       logger,
     });
     d.start();
@@ -2684,6 +2697,7 @@ describe("dispatcher — onTurnFailed seam", () => {
       backendCaller: caller,
       guardrails,
       turnLog,
+      hasOutstandingSpeech: () => speaking,
       logger,
       onTurnFailed: sink,
       onUserTurnFailed: userSink,
