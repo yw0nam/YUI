@@ -200,9 +200,14 @@ export function createTtsPipeline(options: TtsPipelineOptions): TtsPipeline {
       if (disposed) return { spoken: "", unspoken: "" };
       const spoken: string[] = [];
       const unspoken: string[] = [];
-      for (const entry of entries.values()) {
+      // What is still owed starts after the last sentence playback began: a sentence the listener
+      // heard past — one whose synth failed — was no longer owed, whether or not it made a sound.
+      let lastPlayed = -1;
+      for (const [index, entry] of entries) if (entry.played) lastPlayed = index;
+      for (const [index, entry] of entries) {
         if (!entry.tracked) continue;
-        (entry.played ? spoken : unspoken).push(entry.text);
+        if (entry.played) spoken.push(entry.text);
+        else if (index > lastPlayed) unspoken.push(entry.text);
       }
       const tail = segmenter.peek();
       if (tail && tailTracked) unspoken.push(tail);

@@ -173,10 +173,11 @@ previous: user.text_submitted interrupted (0min ago), spoken: "Three logs are le
 2. `unspoken`: the first 50 characters of what was left, the sentences still
    queued and any text that had not closed a sentence.
 
-Both are plain slices of the reply, with nothing marking where they were cut. A
-sentence whose synthesis failed belongs to `unspoken`, since playback skipped it.
-A part that is empty is left out, and a record with neither part renders the
-plain line.
+Both are plain slices of the reply, with nothing marking where they were cut.
+`unspoken` starts after the last sentence whose playback began, so a sentence
+whose synthesis failed belongs to it only when playback never reached past it; one
+the listener heard past appears in neither part. A part that is empty is left out,
+and a record with neither part renders the plain line.
 
 When two replies overlap, the line names the turn whose utterance opened most
 recently.
