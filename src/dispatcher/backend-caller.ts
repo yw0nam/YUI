@@ -44,7 +44,7 @@ import type { Logger } from "../logger";
 import { createLogger } from "../logger";
 import type { Renderer } from "../renderer";
 import { renderClientContext } from "./client-context-text";
-import { buildContext, imageDataUrlsOf } from "./context-builder";
+import { buildContext, imageDataUrlsOf, userTextOf } from "./context-builder";
 import type { BusEnvelope } from "./event-bus";
 import type { Turn } from "./turn";
 import type { TurnOutput } from "./turn-output";
@@ -213,6 +213,10 @@ interface BackendCallerDeps {
   clientTools?: () => ClientToolRegistry;
   /** Push transport sender — present in push mode; false means the socket was not ready. */
   pushTurn?: (frame: PushTurnFrame) => boolean;
+  /** The user typed or spoke, so the push turns still outstanding are stopped with the speech. */
+  onPushTurnCut?: () => void;
+  /** The socket accepted this turn's frame. */
+  onPushTurnSent?: (turnId: string) => void;
   /** Structured logging (defaults to backend_caller namespace logger if absent). */
   logger?: Logger;
   /** Chat stream transport. Defaults to the real streamChat; injected in tests to script a turn. */
@@ -321,9 +325,12 @@ export function createBackendCaller(deps: BackendCallerDeps): BackendCaller {
     }
 
     // Clean up remaining audio/speech bubble from the previous (superseded) turn — once before first delta.
-    // Push mode speaks nothing here, so it leaves a render still playing alone; the next render
-    // frame interrupts when it arrives.
-    if (!isPush) deps.turnOutput?.interrupt();
+    // In push mode nothing the backend pushes stops speech, so only a turn the user typed or spoke
+    // does: it cuts the reply being spoken and the renders still to come for it. This runs before
+    // buildContext, which reads the previous-turn record the cut is about to write.
+    const userSpoke = userTextOf(env) !== undefined;
+    if (!isPush || userSpoke) deps.turnOutput?.interrupt();
+    if (isPush && userSpoke) deps.onPushTurnCut?.();
 
     // TTFT thinking — when filler is active, start immediately on call() entry (not judgment, first line no delay).
     // End once on actual response speech start (first speech_delta) — usage/express/tool_status before don't
@@ -388,6 +395,7 @@ export function createBackendCaller(deps: BackendCallerDeps): BackendCaller {
           log.warn("network_drop", { stage: "push", event_name: env.event_name });
           return "network_drop";
         }
+        deps.onPushTurnSent?.(String(turn.id));
         // Handed over, nothing to speak now: the same silent ending an empty backend reply has.
         log.info("push_turn", { event_name: env.event_name, turn_id: String(turn.id) });
         deps.reportSpokeText?.(false);

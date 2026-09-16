@@ -21,7 +21,8 @@ interface BuiltContext {
   clientContext: ClientContext;
 }
 
-function userTextOf(env: BusEnvelope): string | undefined {
+/** The text the user typed or spoke on this turn, absent on a turn the client fired by itself. */
+export function userTextOf(env: BusEnvelope): string | undefined {
   const text = env.payload?.text;
   return typeof text === "string" ? text : undefined;
 }
