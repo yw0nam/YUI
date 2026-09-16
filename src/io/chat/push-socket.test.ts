@@ -613,6 +613,25 @@ describe("createPushSocket — disconnect", () => {
     expect(socket.getState()).toEqual({ kind: "disconnected" });
   });
 
+  it("opens one socket when a disconnect and a connect race the key lookup", async () => {
+    let releaseKey!: (key: string) => void;
+    const pendingKey = new Promise<string>((resolve) => {
+      releaseKey = resolve;
+    });
+    socket = build({ getKey: () => pendingKey });
+    socket.connect();
+    socket.disconnect();
+    socket.connect();
+    releaseKey("secret-key");
+    await vi.advanceTimersByTimeAsync(0);
+
+    expect(FakeSocket.instances).toHaveLength(1);
+
+    FakeSocket.last().accept();
+    FakeSocket.last().push({ type: "ready", chat_id: "yui-3f9a2c1d" });
+    expect(socket.getState()).toEqual({ kind: "ready", chat_id: "yui-3f9a2c1d" });
+  });
+
   it("ignores a second connect while one is already in flight", async () => {
     socket = build();
     socket.connect();
