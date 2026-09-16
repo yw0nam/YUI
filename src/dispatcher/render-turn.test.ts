@@ -8,6 +8,7 @@ import type { ChatHistoryEntry } from "../io/chat-history-store";
 import type { RenderFrame, RenderSegment } from "../io/push-socket";
 import { createSentenceSegmenter } from "../io/sentence-segmenter";
 import type { Logger } from "../logger";
+import { createPushTurns, type PushTurns } from "./push-turn";
 import { createRenderTurn } from "./render-turn";
 import { makeLogger, makeTurnOutput } from "./test-helpers";
 
@@ -43,6 +44,7 @@ function makePendingCuePipeline() {
 }
 
 let turnOutput: ReturnType<typeof makeTurnOutput>;
+let pushTurns: PushTurns;
 let pipeline: ReturnType<typeof makePendingCuePipeline>;
 let directives: ControlEnvelope[];
 let logger: Logger;
@@ -58,6 +60,7 @@ function turn() {
   transcript = [];
   return createRenderTurn({
     turnOutput,
+    pushTurns,
     renderer: { applyDirective: (env) => directives.push(env) },
     appendTurnRecord: (record) => records.push(record),
     appendTranscript: (entry) => transcript.push(entry),
@@ -67,6 +70,7 @@ function turn() {
 
 beforeEach(() => {
   turnOutput = makeTurnOutput();
+  pushTurns = createPushTurns();
   pipeline = makePendingCuePipeline();
   directives = [];
   logger = makeLogger();
@@ -155,9 +159,26 @@ describe("render_turn — speaking segments", () => {
     expect(pipeline.spoken).toEqual([{ text: "Hi.", cue: null }]);
   });
 
-  it("interrupts speech in progress before rendering", () => {
+  it("leaves speech in progress alone — the frame queues behind it", () => {
     turn().render(frame([{ speech: "Hello." }]));
-    expect(turnOutput.interrupt).toHaveBeenCalledTimes(1);
+    expect(turnOutput.interrupt).not.toHaveBeenCalled();
+  });
+
+  it("plays two frames of one turn in the order they arrived", () => {
+    const renderTurn = turn();
+    renderTurn.render(frame([{ speech: "One moment." }]));
+    renderTurn.render(frame([{ speech: "Here it is." }]));
+
+    expect(pipeline.spoken).toEqual([
+      { text: "One moment.", cue: null },
+      { text: "Here it is.", cue: null },
+    ]);
+    expect(turnOutput.interrupt).not.toHaveBeenCalled();
+  });
+
+  it("releases the barge-in mute before queueing an accepted frame", () => {
+    turn().render(frame([{ speech: "Hello." }]));
+    expect(turnOutput.releaseMute).toHaveBeenCalledTimes(1);
   });
 
   it("[SILENT] inside a longer reply is ordinary text", () => {
@@ -220,6 +241,7 @@ describe("render_turn — silent segments", () => {
   it("a renderer that throws never breaks the rest of the render", () => {
     const r = createRenderTurn({
       turnOutput,
+      pushTurns,
       renderer: {
         applyDirective: vi.fn(() => {
           throw new Error("renderer gone");
@@ -262,6 +284,19 @@ describe("render_turn — segment order", () => {
     expect(turnOutput.onQueueDrained).not.toHaveBeenCalled();
   });
 
+  it("[silent] waits on the queue when speech from an earlier frame is still owed", () => {
+    turnOutput.hasOutstandingSpeech.mockReturnValue(true);
+    turn().render(frame([{ cues: [{ emotion_id: "sad" }], speech: "[SILENT]" }]));
+
+    expect(directives).toEqual([]);
+    expect(turnOutput.onQueueDrained).toHaveBeenCalledOnce();
+
+    const drained = turnOutput.onQueueDrained.mock.calls[0]![0] as () => void;
+    drained();
+
+    expect(directives).toEqual([{ speech_text: "", emotion: { id: "sad" } }]);
+  });
+
   it("[silent, speaking] applies the silent cue first, without waiting on the speech that follows", () => {
     turn().render(
       frame([
@@ -272,6 +307,62 @@ describe("render_turn — segment order", () => {
 
     expect(directives).toEqual([{ speech_text: "", emotion: { id: "sad" } }]);
     expect(turnOutput.onQueueDrained).not.toHaveBeenCalled();
+  });
+});
+
+describe("render_turn — a turn the user stopped", () => {
+  function cutSeven(): void {
+    pushTurns.opened("7");
+    pushTurns.cut();
+  }
+
+  it("drops every frame of a cut turn", () => {
+    cutSeven();
+    turn().render(
+      frame([
+        { cues: [{ emotion_id: "happy" }], speech: "Here it is." },
+        { cues: [{ emotion_id: "sad" }], speech: "[SILENT]" },
+      ]),
+    );
+
+    expect(pipeline.spoken).toEqual([]);
+    expect(turnOutput.delta).not.toHaveBeenCalled();
+    expect(turnOutput.cue).not.toHaveBeenCalled();
+    expect(turnOutput.end).not.toHaveBeenCalled();
+    expect(turnOutput.releaseMute).not.toHaveBeenCalled();
+    expect(directives).toEqual([]);
+    expect(transcript).toEqual([]);
+    expect(records).toEqual([]);
+  });
+
+  it("logs the dropped frame with the turn it belonged to", () => {
+    cutSeven();
+    turn().render(frame([{ speech: "Here it is." }]));
+
+    expect(logger.info).toHaveBeenCalledWith("render", {
+      source: "hermes",
+      turn_id: "7",
+      segments: 1,
+      dropped: "cut_turn",
+    });
+  });
+
+  it("plays a frame of a turn the user never stopped", () => {
+    pushTurns.opened("7");
+    pushTurns.opened("8");
+    pushTurns.cut();
+    pushTurns.opened("9");
+    turn().render(frame([{ speech: "Here it is." }], { turn_id: "9" }));
+
+    expect(pipeline.spoken).toEqual([{ text: "Here it is.", cue: null }]);
+  });
+
+  it("plays a reply the backend started on its own, cut or not", () => {
+    cutSeven();
+    turn().render(frame([{ speech: "One more thing." }], { turn_id: null }));
+
+    expect(pipeline.spoken).toEqual([{ text: "One more thing.", cue: null }]);
+    expect(turnOutput.releaseMute).toHaveBeenCalledTimes(1);
   });
 });
 
@@ -299,6 +390,7 @@ describe("render_turn — transcript", () => {
   it("a failed transcript append never breaks the render", () => {
     const r = createRenderTurn({
       turnOutput,
+      pushTurns,
       renderer: { applyDirective: (env) => directives.push(env) },
       appendTranscript: vi.fn(() => {
         throw new Error("store gone");
@@ -320,7 +412,7 @@ describe("render_turn — records", () => {
   it("an empty segment list closes the turn without speaking", () => {
     turn().render(frame([]));
 
-    expect(turnOutput.interrupt).toHaveBeenCalledTimes(1);
+    expect(turnOutput.interrupt).not.toHaveBeenCalled();
     expect(pipeline.spoken).toEqual([]);
     expect(directives).toEqual([]);
     expect(records[0]).toMatchObject({ spoke_text: false, segments: 0 });
@@ -344,6 +436,20 @@ describe("render_turn — records", () => {
     ]);
   });
 
+  it("marks a frame that arrived while speech was still owed", () => {
+    turnOutput.hasOutstandingSpeech.mockReturnValue(true);
+    turn().render(frame([{ speech: "Here it is." }]));
+
+    expect(records[0]).toMatchObject({ queued_behind: true });
+    expect(logger.info).toHaveBeenCalledWith("render", {
+      source: "hermes",
+      turn_id: "7",
+      segments: 1,
+      spoke_text: true,
+      queued_behind: true,
+    });
+  });
+
   it("omits turn_id on a turn the backend started on its own", () => {
     turn().render(frame([{ speech: "Done." }], { turn_id: null }));
     expect(records[0]).not.toHaveProperty("turn_id");
@@ -356,12 +462,14 @@ describe("render_turn — records", () => {
       turn_id: "7",
       segments: 1,
       spoke_text: true,
+      queued_behind: false,
     });
   });
 
   it("a failed record append never breaks the render", () => {
     const r = createRenderTurn({
       turnOutput,
+      pushTurns,
       renderer: { applyDirective: (env) => directives.push(env) },
       appendTurnRecord: vi.fn(() => {
         throw new Error("disk gone");
