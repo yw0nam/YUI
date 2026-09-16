@@ -12,7 +12,7 @@ The client renders what arrives and judges nothing. Everything the backend must 
 | Reconnect delay, growth | doubles per failed attempt |
 | Reconnect delay, cap | 30 s |
 | `hello` reply wait | 10 s |
-| First `render` wait, per turn | 240 s |
+| Frame wait, per turn | 240 s |
 | Text frame size, either direction | 256 KiB |
 | Delegation item `title` | 120 characters |
 | Delegation list `items` | 50 entries |
@@ -24,7 +24,7 @@ The client opens `wss://` (or `ws://`) to `chat_base_url` with the path `/ws`. A
 
 Every frame is one JSON object with a `type` field. The client sends `hello` first. Other frames follow the backend's `ready`. A `hello` without a `ready` inside the wait in the limits table closes the socket and schedules a reconnect.
 
-The client reconnects with the delay schedule in the limits table on every close but `4401`, and resets the delay to the first value after a `ready`. A `4401` close arms no retry: the socket stays closed until the protocol, endpoint or key setting changes, or until the user asks for a reconnect. A turn that starts before `ready` ends as a network failure, and so does a turn waiting for its first `render` when the socket leaves `ready`.
+The client reconnects with the delay schedule in the limits table on every close but `4401`, and resets the delay to the first value after a `ready`. A `4401` close arms no retry: the socket stays closed until the protocol, endpoint or key setting changes, or until the user asks for a reconnect. A turn that starts before `ready` ends as a network failure, and so does a turn still running when the socket leaves `ready`.
 
 ### `hello` (client → backend)
 
@@ -77,17 +77,17 @@ The `vocabulary` object from `hello`, sent again whenever the renderable set cha
 }
 ```
 
-`client_context` is the block described in [client-context.md](client-context.md), exactly as the other modes send it. `text` is the user utterance, or `""` on a turn no user typed or spoke. Every reply to the turn is a `render` frame carrying the same `turn_id`.
+`client_context` is the block described in [client-context.md](client-context.md), exactly as the other modes send it. `text` is the user utterance, or `""` on a turn no user typed or spoke. Every frame the backend sends for the turn carries the same `turn_id`, and a `turn_end` frame closes it.
 
-A `turn_id` names one turn for as long as the backend remembers it. The client reads the wall clock when a run starts and counts up from there, one per turn. A run moves the counter on by its turn count and a restart reseeds from the clock, so a late `render` from a run that began at an earlier clock reading carries an id below the range this run issues.
+A `turn_id` names one turn for as long as the backend remembers it. The client reads the wall clock when a run starts and counts up from there, one per turn. A run moves the counter on by its turn count and a restart reseeds from the clock, so a late `render` from a run that began at an earlier clock reading carries an id below the range this run issues. A run the backend starts on its own, such as a report on finished work, carries a `turn_id` the backend mints. Backend ids never collide with client ids; the backend adapter states the form its ids take.
 
-The client holds the turn open until the first `render` carrying its `turn_id`, and shows the turn running for that whole time:
+The client shows the turn running from the `turn` frame to its `turn_end`:
 
-1. The composer is locked and the send button becomes a stop button.
-2. The message plate reads thinking.
-3. The character plays the thinking motion and speaks the filler line.
+1. The composer is locked and the send button becomes a stop button, until `turn_end`.
+2. The message plate reads thinking, until `turn_end`.
+3. The character plays the thinking motion and speaks the filler line, until the first `render` of the turn.
 
-The wait in the limits table passing before a `render` arrives, or the socket leaving `ready`, ends the wait and the client speaks a failure line. A `render` that arrives after the wait ended plays like any other frame, as long as the turn is still outstanding: a turn whose wait ended this way stays outstanding, so the next user action that stops speech stops it too and its late `render` is dropped.
+The client waits for each frame of the turn for the wait in the limits table, counted from the `turn` frame and again from every frame carrying its `turn_id`. The wait passing before the first `render` ends the turn and the client speaks a failure line. The wait passing after the first `render` ends the turn and writes a log line. The socket leaving `ready` ends the turn at once, with the same two outcomes. A `render` that arrives after the turn ended this way plays like any other frame, as long as the turn is still outstanding: a turn whose wait ended stays outstanding, so the next user action that stops speech stops it too and its late `render` is dropped.
 
 ### `reset` (client → backend)
 
@@ -115,14 +115,14 @@ The backend starts a new conversation under the same `chat_id`. Long-term memory
 
 | Field | Value |
 |---|---|
-| `turn_id` | The `turn` this answers, or `null` when the backend speaks on its own. A frame that leaves the field out reads as `null` |
+| `turn_id` | The turn this frame belongs to: the `turn` the client sent, or the id the backend minted for a run it started on its own |
 | `source` | Backend name for logs |
 | `segments` | Ordered. Each segment's `cues` render first, then its `speech` goes to TTS and the bubble |
-| `reasoning` | Optional. The reasoning written so far for this turn when this reply was sent; on the reply that ends the turn, the whole text. A backend that sends no `reasoning` frames may put a shortened version here instead. Absent when the backend produced none |
+| `reasoning` | Optional. The reasoning written so far for this turn when this reply was sent; on the last reply of the turn, the whole text. A backend that sends no `reasoning` frames may put a shortened version here instead. Absent when the backend produced none |
 
 A cue is a `generate_express` argument object as defined in [client-context.md](client-context.md): `emotion_id`, `motion_id`, `emotion_text`, `caption`, all optional. Cues render through the same path a streamed cue takes.
 
-Silence is a `render` whose segments carry no speech: every `speech` is empty or the bare `[SILENT]` token. Cues on a silent render still play. A `render` with an empty `segments` array closes the turn. A cue on a silent segment renders as it arrives when nothing is playing, and at the next playback boundary when speech is still owed. Every cue waiting on a boundary fires at the first one playback reaches, so a cue belonging to a reply still being synthesised lands before that reply's speech.
+Silence is a `render` whose segments carry no speech: every `speech` is empty or the bare `[SILENT]` token. Cues on a silent render still play. A turn with cues and no speech is one `render` whose single segment carries the cues and an empty `speech`; a turn with nothing to render sends only its `turn_end`. A cue on a silent segment renders as it arrives when nothing is playing, and at the next playback boundary when speech is still owed. Every cue waiting on a boundary fires at the first one playback reaches, so a cue belonging to a reply still being synthesised lands before that reply's speech. A cue that arrives while the character plays the thinking motion of another running turn lands when that motion ends.
 
 A `render` plays after the speech already queued, in the order the frames arrived. Three user actions stop speech:
 
@@ -130,7 +130,28 @@ A `render` plays after the speech already queued, in the order the frames arrive
 2. Voice barge-in.
 3. The stop button.
 
-The renders still to come for a turn stopped that way are dropped. A `render` with `turn_id: null` always plays.
+The renders still to come for a turn stopped that way are dropped, and its `turn_end` is the frame on which the client forgets the turn.
+
+### `turn_end` (backend → client)
+
+```json
+{ "type": "turn_end", "turn_id": "1789365854947" }
+```
+
+Sent once per turn after its last `render`; a turn with no `render` sends it alone. It releases the running state the `turn` frame set. A backend that holds renders for a client that is away holds `turn_end` behind them, in the same order. A `turn_end` for a turn the client does not hold is ignored.
+
+### `tool_status` (backend → client)
+
+```json
+{ "type": "tool_status", "turn_id": "1789365854947", "state": "running", "tool_id": "read_file" }
+```
+
+| Field | Value |
+|---|---|
+| `state` | `"running"` when the tool call starts, `"done"` when it returns |
+| `tool_id` | The tool name as the backend knows it |
+
+Sent while the turn runs, once per state change of a tool call. It counts as a frame of the turn for the frame wait and leaves the running state, the thinking motion and speech as they are. A turn may carry none.
 
 ### `reasoning` (backend → client)
 
@@ -178,4 +199,4 @@ The client keeps the latest list. A `done` item leaves it 30 minutes after `ende
 
 ## Logging
 
-A `turn` sent over the socket writes a turn record with `spoke_text: false`. A `render` writes a `push.render` record with `source`, `turn_id`, the segment count, whether any speech played, and whether speech was still owed when the frame arrived. A `render` dropped for a stopped turn is logged as a `render` line with `dropped: "cut_turn"` and `stopped_count`, how many turns the user has stopped this session. A wait that reaches the limit writes `network_stall` with `stage: push_wait`, and a wait the socket leaving `ready` ended writes `network_drop` with the same stage. The app log carries `ws_open`, `ws_ready`, `ws_close` with the close code, and `ws_reconnect` with the delay.
+A `turn` sent over the socket writes a turn record with `spoke_text: false`. A `render` writes a `push.render` record with `source`, `turn_id`, the segment count, whether any speech played, and whether speech was still owed when the frame arrived. A `render` dropped for a stopped turn is logged as a `render` line with `dropped: "cut_turn"` and `stopped_count`, how many turns the user has stopped this session. A frame wait that reaches the limit writes `network_stall` with `stage: push_wait`, and a wait the socket leaving `ready` ended writes `network_drop` with the same stage. A `turn_end` writes a `push.turn_end` record with `turn_id`. The app log carries `ws_open`, `ws_ready`, `ws_close` with the close code, and `ws_reconnect` with the delay.
