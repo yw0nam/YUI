@@ -246,15 +246,17 @@ class YuiAdapter(BasePlatformAdapter):
             logger.warning("yui: refused a hello for chat %r", chat_id)
             await ws.close(code=CLOSE_UNAUTHORIZED, message=b"unauthorized")
             return ""
+        # The new socket is registered before any await, so a send mid-handshake cannot land on
+        # the socket that is being replaced.
         replaced = self._sockets.get(chat_id)
-        if replaced is not None and replaced is not ws:
-            with contextlib.suppress(Exception):
-                await replaced.close(code=CLOSE_REPLACED, message=b"replaced")
         self._sockets[chat_id] = ws
         state.set_connected(chat_id, True)
         self._adopt_home_channel(chat_id)
         self._publish_vocabulary(chat_id, frame.get("vocabulary"))
         await self._send_frame(chat_id, {"type": "ready", "chat_id": chat_id})
+        if replaced is not None and replaced is not ws:
+            with contextlib.suppress(Exception):
+                await replaced.close(code=CLOSE_REPLACED, message=b"replaced")
         await self._send_delegations(chat_id)
         logger.info("yui: client ready chat=%s", chat_id)
         # The reply it missed comes before the agent starts a new turn on the held reports.
