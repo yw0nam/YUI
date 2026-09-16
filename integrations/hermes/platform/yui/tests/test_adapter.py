@@ -427,16 +427,16 @@ async def test_several_reports_held_while_away_arrive_as_one_summary_turn(client
     ]
 
 
-async def test_a_flood_of_reports_keeps_twenty_and_counts_the_rest(client, adapter):
-    for number in range(25):
+async def test_a_flood_of_reports_keeps_forty_and_counts_the_rest(client, adapter):
+    for number in range(45):
         await adapter.handle_message(internal_event(adapter, f"report {number}"))
     await ready(client)
     await wait_for(lambda: adapter.dispatched)
     lines = adapter.dispatched[-1].text.split("\n\n")
     assert lines[0].startswith(
-        "While the client was disconnected, 20 reports arrived (5 older ones dropped)."
+        "While the client was disconnected, 40 reports arrived (5 older ones dropped)."
     )
-    assert lines[1:] == [f"report {number}" for number in range(5, 25)]
+    assert lines[1:] == [f"report {number}" for number in range(5, 45)]
 
 
 async def test_a_typed_turn_is_never_held_while_away(client, adapter):

@@ -33,14 +33,14 @@ def test_queues_are_per_chat():
     assert reports.take("other") == (["theirs"], 0)
 
 
-def test_the_queue_keeps_the_newest_twenty_and_counts_the_rest():
-    for n in range(25):
+def test_the_queue_keeps_the_newest_forty_and_counts_the_rest():
+    for n in range(45):
         reports.queue("yui", f"report {n}")
     kept, dropped = reports.take("yui")
-    assert len(kept) == reports.MAX_QUEUED == 20
+    assert len(kept) == reports.MAX_QUEUED == 40
     assert dropped == 5
     assert kept[0] == "report 5"
-    assert kept[-1] == "report 24"
+    assert kept[-1] == "report 44"
 
 
 def test_merged_text_opens_with_the_count_and_keeps_each_report():
@@ -58,8 +58,8 @@ def test_merged_text_names_the_dropped_reports():
     assert text.startswith("While the client was disconnected, 1 reports arrived (5 older ones dropped). ")
 
 
-def test_held_replies_keep_the_newest_twenty_and_count_the_rest():
-    for n in range(25):
+def test_held_replies_keep_the_newest_forty_and_count_the_rest():
+    for n in range(45):
         reports.queue_render("yui", {"n": n})
     kept, dropped = reports.take_renders("yui")
     assert len(kept) == reports.MAX_QUEUED
