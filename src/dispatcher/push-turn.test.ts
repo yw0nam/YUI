@@ -126,6 +126,30 @@ describe("awaitFirstRender", () => {
     await expect(b).resolves.toBe("cut");
   });
 
+  it("runs the callback before the render that settled it returns", () => {
+    const turns = createPushTurns();
+    const order: string[] = [];
+
+    turns.opened("A");
+    void turns.awaitFirstRender("A", () => order.push("settle"));
+    turns.rendered("A");
+    order.push("returned");
+
+    expect(order).toEqual(["settle", "returned"]);
+  });
+
+  it("settles the wait when its callback throws, and keeps the render going", async () => {
+    const turns = createPushTurns();
+
+    turns.opened("A");
+    const first = turns.awaitFirstRender("A", () => {
+      throw new Error("the renderer is down");
+    });
+
+    expect(() => turns.rendered("A")).not.toThrow();
+    await expect(first).resolves.toBe("rendered");
+  });
+
   it("an abandoned wait settles nothing when its render finally arrives", async () => {
     const turns = createPushTurns();
     const settled: string[] = [];
