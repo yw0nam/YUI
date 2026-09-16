@@ -126,6 +126,19 @@ describe("awaitFirstRender", () => {
     await expect(b).resolves.toBe("cut");
   });
 
+  it("an abandoned wait settles nothing when its render finally arrives", async () => {
+    const turns = createPushTurns();
+    const settled: string[] = [];
+
+    turns.opened("A");
+    const first = watch(turns.awaitFirstRender("A", () => settled.push("A")));
+    turns.abandon("A");
+    turns.rendered("A");
+
+    expect(settled).toEqual([]);
+    expect(await first.value()).toBeNull();
+  });
+
   it("a turn's second render finds no waiter left to resolve", async () => {
     const turns = createPushTurns();
 

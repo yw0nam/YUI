@@ -49,6 +49,8 @@ let order: string[];
 let cuts: number;
 let sentIds: string[];
 let pushTurns: ReturnType<typeof createPushTurns>;
+/** Turn ids the call told the store to stop waiting on. */
+let abandoned: string[];
 /** Whether an accepted frame answers itself with a render — off for the tests that drive the wait. */
 let autoRender: boolean;
 let socket: ReturnType<typeof fakeSocketState>;
@@ -83,6 +85,7 @@ function callerWith(accepted: boolean, config: EndpointsConfig = PUSH_CONFIG) {
   cuts = 0;
   sentIds = [];
   pushTurns = createPushTurns();
+  abandoned = [];
   socket = fakeSocketState();
   turnOutput.interrupt.mockImplementation(() => {
     order.push("interrupt");
@@ -124,7 +127,13 @@ function callerWith(accepted: boolean, config: EndpointsConfig = PUSH_CONFIG) {
       sentIds.push(turnId);
       pushTurns.opened(turnId);
     },
-    pushTurns,
+    pushTurns: {
+      awaitFirstRender: (turnId, onSettle) => pushTurns.awaitFirstRender(turnId, onSettle),
+      abandon: (turnId) => {
+        abandoned.push(turnId);
+        pushTurns.abandon(turnId);
+      },
+    },
     onPushSocketNotReady: (cb) => socket.subscribe(cb),
     reportSpokeText: (v) => spoke.push(v),
     contextHistory: { append: (entry) => contexts.push(entry) },
@@ -399,6 +408,12 @@ describe("backend_caller — push transport, the turn stays open", () => {
 
     expect(vi.getTimerCount()).toBe(0);
     expect(socket.subscriberCount()).toBe(0);
+  });
+
+  it.each(EXITS)("%s leaves no waiter behind in the store", async (_label, _outcome, exit) => {
+    await runToExit(exit);
+
+    expect(abandoned).toEqual(["7"]);
   });
 });
 
