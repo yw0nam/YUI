@@ -52,7 +52,10 @@ function setup() {
       setMouthOpen: () => {},
       stopMouth: () => {},
       easeEmotionToNeutral: () => {},
-      applyDirective: () => {},
+      applyDirective: (env) => {
+        directives.push(env);
+        order.push(`cue:${env.emotion?.id ?? env.motion?.id ?? ""}`);
+      },
       playMotion: () => {},
     },
     surfaces: {
@@ -77,6 +80,7 @@ function setup() {
     abort: () => speechPlayback.abort(),
     cue: (args) => speechPlayback.setCue(args),
     cueWithSpeech: (args) => speechPlayback.setCue(args, { withSpeech: true }),
+    silentCue: (args) => speechPlayback.silentCue(args),
     toolStatus: () => {},
     activity: () => {},
     releaseMute: () => speechPlayback.releaseMute(),
@@ -87,12 +91,6 @@ function setup() {
   const renderTurn = createRenderTurn({
     turnOutput,
     pushTurns: createPushTurns(),
-    renderer: {
-      applyDirective: (env) => {
-        directives.push(env);
-        order.push(`cue:${env.emotion?.id ?? env.motion?.id ?? ""}`);
-      },
-    },
     logger: makeLogger(),
   });
 

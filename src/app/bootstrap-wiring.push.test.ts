@@ -3,7 +3,6 @@
  */
 
 import { beforeEach, describe, expect, it, type Mock, vi } from "vitest";
-import type { ControlEnvelope } from "../contract";
 import { createPushTurns } from "../dispatcher/push-turn";
 import { makeTurnOutput } from "../dispatcher/test-helpers";
 import { createDelegationsStore } from "../io/bridge/delegations-store";
@@ -111,7 +110,6 @@ let pushTurns: ReturnType<typeof createPushTurns>;
 let delegations: ReturnType<typeof createDelegationsStore>;
 let reasoning: ReturnType<typeof createReasoningStore>;
 let records: unknown[];
-let directives: ControlEnvelope[];
 let transcript: ChatHistoryEntry[];
 let log: ReturnType<typeof fakeLog>;
 
@@ -120,7 +118,6 @@ function wire() {
     socket,
     turnOutput,
     pushTurns,
-    renderer: { applyDirective: (env) => directives.push(env) },
     delegations,
     reasoning,
     appendTurnRecord: (record) => records.push(record),
@@ -136,7 +133,6 @@ beforeEach(() => {
   delegations = createDelegationsStore();
   reasoning = createReasoningStore();
   records = [];
-  directives = [];
   transcript = [];
   log = fakeLog();
 });
@@ -159,7 +155,7 @@ describe("wirePushTransport", () => {
     expect(transcript).toEqual([{ role: "assistant", text: "All green.", ts: expect.any(Number) }]);
   });
 
-  it("renders a silent frame's cues through the renderer it was given", () => {
+  it("sends a silent frame's cues out as a speechless cue", () => {
     wire();
     socket.pushRender({
       type: "render",
@@ -168,7 +164,7 @@ describe("wirePushTransport", () => {
       segments: [{ cues: [{ emotion_id: "sad" }], speech: "[SILENT]" }],
     });
 
-    expect(directives).toEqual([{ speech_text: "", emotion: { id: "sad" } }]);
+    expect(turnOutput.silentCue).toHaveBeenCalledWith({ emotion_id: "sad" });
   });
 
   it("replaces the delegations list with each frame", () => {

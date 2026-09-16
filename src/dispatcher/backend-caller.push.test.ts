@@ -482,7 +482,6 @@ describe("backend_caller — push transport, the turn stays open", () => {
     const renderTurn = createRenderTurn({
       turnOutput,
       pushTurns,
-      renderer: { applyDirective: vi.fn() },
       appendTranscript: (entry) => transcript.push(entry),
       logger,
     });

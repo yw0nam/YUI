@@ -754,7 +754,6 @@ const realFactories: ConfiguredBootstrapFactories = {
           socket: pushSocket,
           turnOutput: voice.turnOutput,
           pushTurns,
-          renderer,
           delegations,
           reasoning,
           appendTurnRecord: (record) => appendRecord(record),

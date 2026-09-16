@@ -221,10 +221,11 @@ export function wireVoicePipeline(deps: VoicePipelineDeps): VoicePipeline {
   function onThinkingEnd(turnId: number): void {
     if (turnId !== thinkingTurnId) return;
     thinkingTurnId = null;
-    speechPlayback.holdMotion(false);
+    // A cue parked under the hold applies here; its motion is the one to keep.
+    const applied = speechPlayback.holdMotion(false);
     fillerLoop?.stop();
     // thinking is loop:true — without an explicit return to idle it spins forever and pollutes previousStable.
-    if (!deps.isStrolling()) deps.renderer.playMotion(null);
+    if (!applied && !deps.isStrolling()) deps.renderer.playMotion(null);
   }
 
   const turnOutput: TurnOutput = {
@@ -238,6 +239,7 @@ export function wireVoicePipeline(deps: VoicePipelineDeps): VoicePipeline {
     abort: () => speechPlayback.abort(),
     cue: (args) => speechPlayback.setCue(args),
     cueWithSpeech: (args) => speechPlayback.setCue(args, { withSpeech: true }),
+    silentCue: (args) => speechPlayback.silentCue(args),
     toolStatus: (turnId, state, toolId) => {
       // Ignores an event from a turn other than the one currently thinking — a superseded turn's
       // late tool_status must not reach whichever newer turn's filler loop is now running.

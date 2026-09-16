@@ -1836,8 +1836,6 @@ export function wirePushTransport(deps: {
   turnOutput: TurnOutput;
   /** Which push turns the user stopped — a frame of one of them never plays. */
   pushTurns: PushTurns;
-  /** Render sink for a cue on a segment that speaks nothing. */
-  renderer: Pick<Renderer, "applyDirective">;
   delegations: DelegationsStore;
   reasoning: ReasoningStore;
   appendTurnRecord: (record: RenderRecord) => void;
@@ -1848,7 +1846,6 @@ export function wirePushTransport(deps: {
   const renderTurn = createRenderTurn({
     turnOutput: deps.turnOutput,
     pushTurns: deps.pushTurns,
-    renderer: deps.renderer,
     appendTurnRecord: deps.appendTurnRecord,
     appendTranscript: deps.appendTranscript,
   });

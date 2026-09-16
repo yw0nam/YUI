@@ -11,21 +11,20 @@
  *
  * Where the cue goes depends on the segment. With speech it rides the TTS pipeline, which applies it
  * as the audio starts. Without speech there is no audio to wait for and the pipeline would hold it
- * forever, so it goes straight to the renderer — the path a silent streamed turn already takes. A
- * silent segment waits on the next playback boundary instead whenever speech is still owed, whether
+ * forever, so it goes out as a silent cue, which renders once no thinking motion holds the body.
+ * A silent segment waits on the next playback boundary too whenever speech is still owed, whether
  * this frame queued it or an earlier one did, so it doesn't override the expression of audio still
  * playing. That boundary is the pipeline's and not the frame's: every waiting cue fires at the next
  * one playback reaches, which for a frame still being synthesised is before its own speech.
  * Firing ≠ judgment holds here too: a silent segment still renders its expression and motion.
  */
 
-import type { ControlEnvelope, EmotionId, ExpressArgs } from "../contract";
+import type { ExpressArgs } from "../contract";
 import type { ChatHistoryEntry } from "../io/chat/chat-history-store";
 import type { RenderFrame } from "../io/chat/push-socket";
 import { isSilenceToken } from "../io/chat/silence-token";
 import { buildRenderRecord, type RenderRecord } from "../io/chat/turn-record-log";
 import { createLogger, type Logger } from "../logger";
-import type { Renderer } from "../renderer";
 import type { PushTurns } from "./push-turn";
 import type { TurnOutput } from "./turn-output";
 
@@ -35,8 +34,6 @@ export interface RenderTurnDeps {
   turnOutput: TurnOutput;
   /** Which push turns the user stopped — a frame of one of them never plays. */
   pushTurns: Pick<PushTurns, "rendered" | "isCut" | "cutCount">;
-  /** Render sink for a cue with no audio behind it. */
-  renderer: Pick<Renderer, "applyDirective">;
   /** Conversation transcript — the reply half of a push turn lands here. */
   appendTranscript?: (entry: ChatHistoryEntry) => void;
   appendTurnRecord?: (record: RenderRecord) => void;
@@ -58,15 +55,6 @@ function mergeCues(cues: readonly ExpressArgs[]): ExpressArgs {
     if (cue.caption) merged.caption = cue.caption;
   }
   return merged;
-}
-
-/** The render channels of a cue, in the renderer's shape. The voice channels need audio, so they stay out. */
-function directiveOf(cue: ExpressArgs): ControlEnvelope {
-  return {
-    speech_text: "",
-    ...(cue.emotion_id ? { emotion: { id: cue.emotion_id as EmotionId } } : {}),
-    ...(cue.motion_id ? { motion: { id: cue.motion_id } } : {}),
-  };
 }
 
 export function createRenderTurn(deps: RenderTurnDeps): RenderTurn {
@@ -109,7 +97,7 @@ export function createRenderTurn(deps: RenderTurnDeps): RenderTurn {
         if (!cue.emotion_id && !cue.motion_id) continue;
         const applyCue = (): void => {
           try {
-            deps.renderer.applyDirective(directiveOf(cue));
+            deps.turnOutput.silentCue(cue);
           } catch (err) {
             // The renderer owns its own fallback; a failed cue must not cost the rest of the render.
             log.error("silent_cue.render_error", { error: String(err) });

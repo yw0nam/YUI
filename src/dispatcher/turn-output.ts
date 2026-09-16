@@ -17,6 +17,8 @@ import type { ExpressArgs, ToolStatus } from "../contract";
  *   carries `emotion_text` alone, because `applyDirective` already rendered emotion/motion.
  * - `cueWithSpeech(args)` carries a cue whose sentence is submitted in the same stretch of work,
  *   so the cue is consumed by that sentence and never waits on a thinking turn's motion hold.
+ * - `silentCue(args)` carries a cue with no speech of its own: it renders as soon as nothing
+ *   holds the motion, and waits out a running thinking motion otherwise.
  * - `toolStatus(turnId, state, toolId?)` carries each streamed tool_status event, independent of
  *   the UI chip sink — like `thinkingStart`/`thinkingEnd`, `turnId` ties it to the turn it came
  *   from, so a superseded turn's late event is ignored rather than reaching whichever turn is
@@ -40,6 +42,7 @@ export interface TurnOutput {
   abort(): void;
   cue(args: ExpressArgs): void;
   cueWithSpeech(args: ExpressArgs): void;
+  silentCue(args: ExpressArgs): void;
   toolStatus(turnId: number, state: ToolStatus["state"], toolId?: string): void;
   activity(turnId: number): void;
   releaseMute(): void;

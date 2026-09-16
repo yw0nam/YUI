@@ -176,6 +176,7 @@ describe("dispatcher — turn admission across the amplitude flag (#512)", () =>
         abort: () => speechPlayback.abort(),
         cue: () => {},
         cueWithSpeech: () => {},
+        silentCue: (args) => speechPlayback.silentCue(args),
         toolStatus: () => {},
         activity: () => {},
         releaseMute: () => speechPlayback.releaseMute(),
