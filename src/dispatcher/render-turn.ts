@@ -84,7 +84,7 @@ export function createRenderTurn(deps: RenderTurnDeps): RenderTurn {
         return;
       }
       const queuedBehind = deps.turnOutput.hasOutstandingSpeech();
-      // A barge-in mute outlives the turn it cut, and no interrupt clears it here any more.
+      // A barge-in mute outlives the turn it cut, so an accepted frame is what ends the window.
       deps.turnOutput.releaseMute();
       deps.pushTurns.rendered(frame.turn_id);
 
