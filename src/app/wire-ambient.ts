@@ -1,4 +1,5 @@
-import { type Climber, type ClimbTarget, createClimber } from "../ambient/climber";
+import type { ClimbTarget } from "../ambient/climb-geometry";
+import { type Climber, createClimber } from "../ambient/climber";
 import { createFaller, type DropOptions, type Faller } from "../ambient/faller";
 import { createJumper } from "../ambient/jumper";
 import { createPercher, type Percher, type PercherWindow } from "../ambient/percher";

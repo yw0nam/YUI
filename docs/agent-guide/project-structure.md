@@ -131,6 +131,7 @@ YUI/
       walker.ts                      # Floor stroll along the monitor's work-area bottom
       percher.ts                     # Perched dwell, stroll, and sit-back-down on a foreign window top
       climber.ts                     # Climb up a window or screen edge, dwell, and climb back down
+      climb-geometry.ts              # Pure wall geometry and the climb and descent target picks
       jumper.ts                      # Jump across to an adjacent window top
       faller.ts                      # Fall to the first surface below a character left in mid-air
       sitter.ts                      # Sit-down and stand-up seat transitions
