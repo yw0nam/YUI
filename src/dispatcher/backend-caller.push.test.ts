@@ -17,7 +17,7 @@ import type { Logger } from "../logger";
 import { createBackendCaller, PRE_SPEECH_TIMEOUT_MS, type TurnOutcome } from "./backend-caller";
 import type { BusEnvelope } from "./event-bus";
 import { createPushTurns } from "./push-turn";
-import { CONFIG, makeLogger, makeTurnOutput, turnOf, userEnv } from "./test-helpers";
+import { CONFIG, makeLogger, makeTurnOutput, touchEnv, turnOf, userEnv } from "./test-helpers";
 
 function scheduleEnv(): BusEnvelope {
   return {
@@ -205,13 +205,6 @@ describe("backend_caller — push transport", () => {
     await callerWith(false).call(turnOf(userEnv(), 7));
 
     expect(sentIds).toEqual([]);
-  });
-
-  it("shows no thinking bridge even when filler is available", async () => {
-    turnOutput.hasFiller.mockReturnValue(true);
-    await callerWith(true).call(turnOf(userEnv(), 1));
-
-    expect(turnOutput.thinkingStart).not.toHaveBeenCalled();
   });
 
   it("writes one turn record with spoke_text false for the handover", async () => {
@@ -406,5 +399,61 @@ describe("backend_caller — push transport, the turn stays open", () => {
 
     expect(vi.getTimerCount()).toBe(0);
     expect(socket.subscriberCount()).toBe(0);
+  });
+});
+
+describe("backend_caller — push transport, the thinking bridge", () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+    autoRender = false;
+    turnOutput.hasFiller.mockReturnValue(true);
+  });
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it("holds the thinking bridge for the whole wait", async () => {
+    const caller = callerWith(true);
+    const turn = running(caller.call(turnOf(userEnv(), 7)));
+    await vi.advanceTimersByTimeAsync(0);
+
+    expect(turnOutput.thinkingStart).toHaveBeenCalledWith(7);
+    expect(turnOutput.thinkingEnd).not.toHaveBeenCalled();
+    expect(turn.settled()).toBeNull();
+
+    pushTurns.rendered("7");
+    await turn.promise;
+
+    expect(turnOutput.thinkingEnd).toHaveBeenCalledWith(7);
+  });
+
+  it("shows no thinking bridge on a reflex turn", async () => {
+    const caller = callerWith(true);
+    running(caller.call(turnOf(touchEnv(), 7)));
+    await vi.advanceTimersByTimeAsync(0);
+
+    expect(turnOutput.thinkingStart).not.toHaveBeenCalled();
+
+    pushTurns.rendered("7");
+    await vi.advanceTimersByTimeAsync(0);
+  });
+
+  it("shows no thinking bridge when the filler pool is empty", async () => {
+    turnOutput.hasFiller.mockReturnValue(false);
+    const caller = callerWith(true);
+    running(caller.call(turnOf(userEnv(), 7)));
+    await vi.advanceTimersByTimeAsync(0);
+
+    expect(turnOutput.thinkingStart).not.toHaveBeenCalled();
+
+    pushTurns.rendered("7");
+    await vi.advanceTimersByTimeAsync(0);
+  });
+
+  it.each(EXITS)("%s ends the thinking bridge exactly once", async (_label, _outcome, exit) => {
+    await runToExit(exit);
+
+    expect(turnOutput.thinkingStart).toHaveBeenCalledTimes(1);
+    expect(turnOutput.thinkingEnd).toHaveBeenCalledTimes(1);
   });
 });
