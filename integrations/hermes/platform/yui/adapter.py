@@ -541,9 +541,6 @@ class YuiAdapter(BasePlatformAdapter):
             state.mark_delivered(chat_id)
             logger.info("yui: reset acknowledgement not spoken chat=%s", chat_id)
             return SendResult(success=True, message_id=_message_id())
-        block, content = reasoning.split_block(content)
-        if block:
-            logger.debug("yui: reasoning block stripped chat=%s", chat_id)
         placements = state.pop_cues(chat_id)
         if meta.get("notify"):
             segments = build_segments(content, placements)
@@ -554,7 +551,7 @@ class YuiAdapter(BasePlatformAdapter):
                 state.append_cue(chat_id, placement.cue, placement.sentence)
         state.mark_delivered(chat_id)
         turn_id = state.turn_id(chat_id)
-        frame = self._render(turn_id, segments, reasoning.live_text(chat_id) or block)
+        frame = self._render(turn_id, segments, reasoning.live_text(chat_id))
         await self._send_render(chat_id, frame)
         # A render with no turn in flight ends the turn it minted; nothing else closes it.
         if turn_id is None:

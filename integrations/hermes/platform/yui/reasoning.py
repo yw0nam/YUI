@@ -1,16 +1,13 @@
-"""The backend's reasoning, from the two places the gateway offers it.
+"""The backend's reasoning as it is streamed.
 
 Live tokens arrive on the ``on_stream_delta`` hook with ``kind="reasoning"``, on a hook worker
-thread, and only while the gateway's ``plugins.stream_reasoning_deltas`` is on. The finished text
-arrives a second way: with ``display.show_reasoning`` on for this platform the gateway prepends a
-fenced block to the reply, which is speech text everywhere else and must come off before the reply
-is segmented.
+thread, and only while the gateway's ``plugins.stream_reasoning_deltas`` is on. ``live_text``
+hands the text written so far for the turn in flight to the ``render`` frame that closes it.
 """
 
 from __future__ import annotations
 
 import logging
-import re
 import threading
 from collections.abc import Callable
 
@@ -19,9 +16,6 @@ from . import session
 logger = logging.getLogger(__name__)
 
 PLATFORM = "yui"
-
-# The default reasoning style: the header line, the fenced body, then a blank line before the reply.
-_BLOCK = re.compile("^\U0001f4ad \\*\\*Reasoning:\\*\\*\n```\n(.*?)\n```\n\n", re.DOTALL)
 
 _lock = threading.Lock()
 _live: dict[str, list[str]] = {}
@@ -65,11 +59,3 @@ def clear(chat_id: str) -> None:
     """A new turn reasons from nothing."""
     with _lock:
         _live.pop(chat_id, None)
-
-
-def split_block(content: str) -> tuple[str, str]:
-    """The prepended reasoning block and the reply under it; text without one is the reply."""
-    match = _BLOCK.match(content)
-    if match is None:
-        return "", content
-    return match.group(1), content[match.end() :]

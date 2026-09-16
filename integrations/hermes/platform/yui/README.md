@@ -24,9 +24,8 @@ turns in and finished replies out. The contract both sides speak is
 - Streams the agent's reasoning to the client as `reasoning` frames, coalesced to one frame per
   100 ms. The `render` frame carries the reasoning written so far for its turn, which on the
   reply that ends the turn is the whole text. The gateway offers the live tokens only while
-  `plugins.stream_reasoning_deltas` is `true`; with it off, the `render` frame carries the block
-  the gateway rendered into the reply instead, cut to fifteen lines and still carrying the
-  gateway's display escaping of any code fence inside it.
+  `plugins.stream_reasoning_deltas` is `true`; with it off, the `render` frame carries no
+  `reasoning`.
 - Never delivers audio, images, video or files. `voice.auto_tts` is off for this platform, and
   the audio a `/voice all` chat still makes is discarded. The client speaks the reply itself.
 - Makes the first chat that connects the platform's home channel, which is where the gateway
@@ -97,16 +96,17 @@ carries the general tools and `delegation` carries `delegate_task`.
 Set `chat_api: "push"` in the client and point `chat_base_url` at this server. A
 `chat_base_url` of `https://host:8646` gives `wss://host:8646/ws`.
 
-Two display settings are worth a look for a voice client, under `display.platforms.yui`. Leave
-`runtime_footer.enabled` off, its default: when it is on the footer is concatenated into the reply
-text, so the model name and working directory get read out. Set `show_reasoning: false` as well —
-with it on the gateway prepends the reasoning, cut to fifteen lines, to the reply text, and the
-plugin has to take it back off:
+Two display settings are required for a voice client, under `display.platforms.yui`. Set
+`runtime_footer.enabled: false` — without it the footer is concatenated into the reply text, so
+the model name and working directory get spoken. Set `show_reasoning: false` as well — without it
+the gateway prepends the reasoning to the reply text, so the reasoning gets spoken:
 
 ```yaml
 display:
   platforms:
     yui:
+      runtime_footer:
+        enabled: false
       show_reasoning: false
 ```
 
@@ -118,7 +118,9 @@ plugins:
 ```
 
 With it on the client receives the reasoning as it is written, and the `render` frame carries the
-streamed text rather than the block the gateway rendered into the reply.
+streamed text.
+
+Run the plugin from the same commit as the client: the frames carry no version field.
 
 ## Reaching it from outside the machine
 
