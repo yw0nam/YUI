@@ -46,6 +46,7 @@ import type { Renderer } from "../renderer";
 import { renderClientContext } from "./client-context-text";
 import { buildContext, imageDataUrlsOf, userTextOf } from "./context-builder";
 import type { BusEnvelope } from "./event-bus";
+import type { PushTurns } from "./push-turn";
 import type { Turn } from "./turn";
 import type { TurnOutput } from "./turn-output";
 
@@ -217,6 +218,10 @@ interface BackendCallerDeps {
   onPushTurnCut?: () => void;
   /** The socket accepted this turn's frame. */
   onPushTurnSent?: (turnId: string) => void;
+  /** Push turn store — the call waits on it for the render that ends its turn. */
+  pushTurns?: Pick<PushTurns, "awaitFirstRender">;
+  /** Registers a callback for the push socket leaving `ready`; returns the unsubscribe. */
+  onPushSocketNotReady?: (cb: () => void) => () => void;
   /** Structured logging (defaults to backend_caller namespace logger if absent). */
   logger?: Logger;
   /** Chat stream transport. Defaults to the real streamChat; injected in tests to script a turn. */
@@ -316,9 +321,56 @@ export function createBackendCaller(deps: BackendCallerDeps): BackendCaller {
     return [{ role: "user", content: userContent }];
   }
 
+  /**
+   * How long a push turn runs: the frame is on the socket and the reply comes back as a render
+   * frame of its own, so the call stays open until that turn's first render. The wait also ends
+   * when the user stops the reply, when the budget expires, when the socket leaves `ready`, or
+   * when a newer turn supersedes this one. A render arriving after the budget still plays.
+   */
+  async function awaitPushReply(
+    turnId: string,
+    eventName: string,
+    externalSignal?: AbortSignal,
+  ): Promise<TurnOutcome> {
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    let unsubscribe: (() => void) | undefined;
+    let onAbort: (() => void) | undefined;
+    try {
+      const ends: Array<Promise<TurnOutcome>> = [
+        new Promise<TurnOutcome>((resolve) => {
+          timer = setTimeout(() => resolve("network_stall"), PRE_SPEECH_TIMEOUT_MS);
+        }),
+        new Promise<TurnOutcome>((resolve) => {
+          unsubscribe = deps.onPushSocketNotReady?.(() => resolve("network_drop"));
+        }),
+      ];
+      const firstRender = deps.pushTurns?.awaitFirstRender(turnId);
+      if (firstRender) {
+        ends.push(firstRender.then((end) => (end === "rendered" ? "ok" : "superseded_by_user")));
+      }
+      if (externalSignal) {
+        ends.push(
+          new Promise<TurnOutcome>((resolve) => {
+            onAbort = () => resolve("superseded_by_user");
+            externalSignal.addEventListener("abort", onAbort, { once: true });
+          }),
+        );
+      }
+      const outcome = await Promise.race(ends);
+      if (outcome === "network_stall" || outcome === "network_drop") {
+        log.warn(outcome, { stage: "push_wait", event_name: eventName, turn_id: turnId });
+      }
+      return outcome;
+    } finally {
+      clearTimeout(timer);
+      unsubscribe?.();
+      if (onAbort) externalSignal?.removeEventListener("abort", onAbort);
+    }
+  }
+
   async function call(turn: Turn, externalSignal?: AbortSignal): Promise<TurnOutcome> {
     const env = turn.trigger;
-    // Push mode hands the turn to the socket and ends; the reply arrives later as a render frame.
+    // Push mode sends the turn on the socket and holds the call open until its first render.
     const isPush = deps.config.chat_api === "push";
     if (externalSignal?.aborted) {
       return "superseded_by_user";
@@ -396,7 +448,7 @@ export function createBackendCaller(deps: BackendCallerDeps): BackendCaller {
           return "network_drop";
         }
         deps.onPushTurnSent?.(String(turn.id));
-        // Handed over, nothing to speak now: the same silent ending an empty backend reply has.
+        // The reply speaks from its own render frame, so this call never speaks.
         log.info("push_turn", { event_name: env.event_name, turn_id: String(turn.id) });
         deps.reportSpokeText?.(false);
         // The reply arrives on its own later and is appended there; this half is the user's.
@@ -426,7 +478,8 @@ export function createBackendCaller(deps: BackendCallerDeps): BackendCaller {
         } catch (err) {
           log.debug("turn_record_append_failed", { error: String(err) });
         }
-        return "ok";
+        if (externalSignal?.aborted) return "superseded_by_user";
+        return await awaitPushReply(String(turn.id), env.event_name, externalSignal);
       }
 
       const input = encodeInput(ctx, env, clientContext, nowMs);

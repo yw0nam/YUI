@@ -7,14 +7,14 @@
  */
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import type { PeekConfig, TapConfig } from "../config/load";
 import { guardrailsFixture } from "../config/load-test-helpers";
-import type { EndpointsConfig, PeekConfig, TapConfig } from "../contract";
+import type { EndpointsConfig } from "../contract";
 import { createBackendCaller } from "./backend-caller";
 import { createDispatcher, type Dispatcher } from "./dispatcher";
 import { type BusEnvelope, createEventBus, type EventBus } from "./event-bus";
 import { createGuardrails } from "./guardrails";
-import { createPushTurns } from "./push-turn";
-import type { PushTurns } from "./push-turn";
+import { createPushTurns, type PushTurns } from "./push-turn";
 import { CONFIG, makeLogger, makeTurnOutput, userEnv } from "./test-helpers";
 import { createTurnLog } from "./turn";
 

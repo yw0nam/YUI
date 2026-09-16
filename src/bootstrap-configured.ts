@@ -348,6 +348,11 @@ const realFactories: ConfiguredBootstrapFactories = {
       pushTurn: (frame) => pushSocket?.sendTurn(frame) ?? false,
       onPushTurnCut: () => pushTurns.cut(),
       onPushTurnSent: (turnId) => pushTurns.opened(turnId),
+      pushTurns,
+      onPushSocketNotReady: (cb) =>
+        pushSocket?.onState((state) => {
+          if (state.kind !== "ready") cb();
+        }) ?? (() => {}),
     });
     const guardrails = createGuardrails(getGuardrails());
     const pacer = createProactivePacer({ getIntervalMs: () => pacerGapSettings.get().value });

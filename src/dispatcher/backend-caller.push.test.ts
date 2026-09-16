@@ -401,7 +401,7 @@ describe("backend_caller — push transport, the turn stays open", () => {
     expect(turn.settled()).toBe("network_stall");
   });
 
-  it.each(EXITS)("%s leaves no timer and no socket subscriber behind", async (_label, _outcome, exit) => {
+  it.each(EXITS)("%s leaves no timer or subscriber behind", async (_label, _outcome, exit) => {
     await runToExit(exit);
 
     expect(vi.getTimerCount()).toBe(0);
