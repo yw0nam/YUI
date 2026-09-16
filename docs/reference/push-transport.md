@@ -12,6 +12,7 @@ The client renders what arrives and judges nothing. Everything the backend must 
 | Reconnect delay, growth | doubles per failed attempt |
 | Reconnect delay, cap | 30 s |
 | `hello` reply wait | 10 s |
+| First `render` wait, per turn | 240 s |
 | Text frame size, either direction | 256 KiB |
 | Delegation item `title` | 120 characters |
 | Delegation list `items` | 50 entries |
@@ -23,7 +24,7 @@ The client opens `wss://` (or `ws://`) to `chat_base_url` with the path `/ws`. A
 
 Every frame is one JSON object with a `type` field. The client sends `hello` first. Other frames follow the backend's `ready`. A `hello` without a `ready` inside the wait in the limits table closes the socket and schedules a reconnect.
 
-The client reconnects with the delay schedule in the limits table on every close but `4401`, and resets the delay to the first value after a `ready`. A `4401` close arms no retry: the socket stays closed until the protocol, endpoint or key setting changes, or until the user asks for a reconnect. A turn that starts before `ready` ends as a network failure.
+The client reconnects with the delay schedule in the limits table on every close but `4401`, and resets the delay to the first value after a `ready`. A `4401` close arms no retry: the socket stays closed until the protocol, endpoint or key setting changes, or until the user asks for a reconnect. A turn that starts before `ready` ends as a network failure, and so does a turn waiting for its first `render` when the socket leaves `ready`.
 
 ### `hello` (client → backend)
 
@@ -77,6 +78,14 @@ The `vocabulary` object from `hello`, sent again whenever the renderable set cha
 ```
 
 `client_context` is the block described in [client-context.md](client-context.md), exactly as the other modes send it. `text` is the user utterance, or `""` on a turn no user typed or spoke. Every reply to the turn is a `render` frame carrying the same `turn_id`.
+
+The client holds the turn open until the first `render` carrying its `turn_id`, and shows the turn running for that whole time:
+
+1. The composer is locked and the send button becomes a stop button.
+2. The message plate reads thinking.
+3. The character plays the thinking motion and speaks the filler line.
+
+The wait in the limits table passing before a `render` arrives, or the socket leaving `ready`, ends the wait and the client speaks a failure line. A `render` that arrives after the wait ended plays like any other frame.
 
 ### `reset` (client → backend)
 
@@ -167,4 +176,4 @@ The client keeps the latest list. A `done` item leaves it 30 minutes after `ende
 
 ## Logging
 
-A `turn` sent over the socket writes a turn record with `spoke_text: false`. A `render` writes a `push.render` record with `source`, `turn_id`, the segment count, whether any speech played, and whether speech was still owed when the frame arrived. A `render` dropped for a stopped turn is logged as a `render` line with `dropped: "cut_turn"`. The app log carries `ws_open`, `ws_ready`, `ws_close` with the close code, and `ws_reconnect` with the delay.
+A `turn` sent over the socket writes a turn record with `spoke_text: false`. A `render` writes a `push.render` record with `source`, `turn_id`, the segment count, whether any speech played, and whether speech was still owed when the frame arrived. A `render` dropped for a stopped turn is logged as a `render` line with `dropped: "cut_turn"`. A wait that reaches the limit writes `network_stall` with `stage: push_wait`, and a wait the socket leaving `ready` ended writes `network_drop` with the same stage. The app log carries `ws_open`, `ws_ready`, `ws_close` with the close code, and `ws_reconnect` with the delay.
