@@ -197,9 +197,11 @@ class YuiAdapter(BasePlatformAdapter):
         self._mark_disconnected()
         delegations.set_notifier(None)
         reasoning.set_sink(None)
-        for task in list(self._reasoning_flushes.values()):
+        for task in (*self._reasoning_flushes.values(), *self._closings, *self._confirmations):
             task.cancel()
         self._reasoning_flushes.clear()
+        self._closings.clear()
+        self._confirmations.clear()
         self._reasoning_pending.clear()
         for chat_id, ws in list(self._sockets.items()):
             state.set_connected(chat_id, False)
