@@ -139,15 +139,17 @@ describe("awaitFirstRender", () => {
     expect(await first.value()).toBeNull();
   });
 
-  it("a turn's second render finds no waiter left to resolve", async () => {
+  it("the render that resolves a wait takes the waiter with it", async () => {
     const turns = createPushTurns();
 
     turns.opened("A");
     const first = turns.awaitFirstRender("A");
     turns.rendered("A");
-    turns.rendered("A");
-    turns.cut();
 
     await expect(first).resolves.toBe("rendered");
+
+    const second = watch(turns.awaitFirstRender("A"));
+
+    expect(await second.value()).toBeNull();
   });
 });
