@@ -1135,7 +1135,7 @@ describe("createTtsPipeline — spokenSplit", () => {
     expect(pipe.spokenSplit()).toEqual({ spoken: "First.", unspoken: "Second." });
   });
 
-  it("a sentence whose synth failed was never heard", async () => {
+  it("a sentence whose synth failed under what playback reached is in neither half", async () => {
     const { synth, resolvers } = deferredSynth();
     const { sink } = recordingSink();
     const pipe = createTtsPipeline({ synth, sink, maxInflight: 2, logger: makeLogger() });
@@ -1146,7 +1146,42 @@ describe("createTtsPipeline — spokenSplit", () => {
     resolvers[1].resolve(bufFor(1));
     await tick();
 
+    expect(pipe.spokenSplit()).toEqual({ spoken: "Will play.", unspoken: "" });
+  });
+
+  it("a sentence whose synth failed over what playback reached is still owed", async () => {
+    const { synth, resolvers } = deferredSynth();
+    const { sink } = recordingSink();
+    const pipe = createTtsPipeline({ synth, sink, maxInflight: 2, logger: makeLogger() });
+
+    pipe.pushTextDelta("Will play. Will fail.", true);
+    await tick();
+    resolvers[0].resolve(bufFor(0));
+    resolvers[1].reject(new Error("synth down"));
+    await tick();
+
     expect(pipe.spokenSplit()).toEqual({ spoken: "Will play.", unspoken: "Will fail." });
+  });
+
+  it("a mid-reply synth failure the listener heard past is in neither half", async () => {
+    const { synth, resolvers } = deferredSynth();
+    const { sink, finish } = recordingSink();
+    const pipe = createTtsPipeline({ synth, sink, maxInflight: 4, logger: makeLogger() });
+
+    pipe.pushTextDelta("One. Two. Three. Four.", true);
+    await tick();
+    resolvers[0].resolve(bufFor(0));
+    resolvers[1].reject(new Error("synth down"));
+    resolvers[2].resolve(bufFor(2));
+    resolvers[3].resolve(bufFor(3));
+    await tick();
+    // "One." plays, the failed "Two." is skipped, "Three." plays, and the listener cuts in on "Four.".
+    finish();
+    await tick();
+    finish();
+    await tick();
+
+    expect(pipe.spokenSplit()).toEqual({ spoken: "One. Three. Four.", unspoken: "" });
   });
 
   it("a backend tail still inside the segmenter is unspoken", async () => {
