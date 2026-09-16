@@ -589,6 +589,32 @@ describe("createSpeechPlayback — holdMotion buffers and flushes cues", () => {
     expect(multi.instances[0].setCue).not.toHaveBeenCalled();
   });
 
+  it("while held: a cue arriving with its own speech forwards to pipeline.setCue anyway", () => {
+    const multi = multiPipelineFactory();
+    const renderer = spyRenderer();
+    const surfaces = spySurfaces();
+    const sp = createSpeechPlayback({
+      renderer,
+      surfaces,
+      pipeline: NO_PIPELINE,
+      createPipeline: multi.factory,
+      isStrolling: () => false,
+    });
+
+    sp.holdMotion(true);
+    sp.setCue({ emotion_id: "calm", motion_id: "calm" }, { withSpeech: true });
+
+    expect(multi.instances[0].setCue).toHaveBeenCalledWith({
+      emotion_id: "calm",
+      motion_id: "calm",
+    });
+
+    // It went straight through, so the release has nothing left to flush.
+    sp.holdMotion(false);
+
+    expect(multi.instances[0].setCue).toHaveBeenCalledTimes(1);
+  });
+
   it("while held: holdMotion(false) flushes the buffered cue to pipeline.setCue exactly once", () => {
     const multi = multiPipelineFactory();
     const renderer = spyRenderer();

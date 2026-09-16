@@ -12,7 +12,7 @@
 
 import { describe, expect, it, vi } from "vitest";
 import { wireStopControl } from "./bootstrap-wiring";
-import type { ControlEnvelope } from "./contract";
+import type { ControlEnvelope, ExpressArgs } from "./contract";
 import { createPushTurns } from "./dispatcher/push-turn";
 import { createRenderTurn } from "./dispatcher/render-turn";
 import { makeLogger } from "./dispatcher/test-helpers";
@@ -153,6 +153,8 @@ function setup() {
     finishPlayback: sink.finish,
     /** A filler line, spoken the way the thinking loop speaks one. */
     speakFiller: (text: string): void => speechPlayback.speakAside(text),
+    /** A cue on its own, the way a streamed express cue arrives ahead of its speech. */
+    cue: (args: ExpressArgs): void => turnOutput.cue(args),
     /** Sends a turn the way the backend call does, bridge and all, and waits for its render. */
     openTurn: (turnId: string): void => {
       pushTurns.opened(turnId);
@@ -284,5 +286,50 @@ describe("a reply that lands while a filler line is playing", () => {
       { speech_text: "", emotion: { id: "happy" } },
       { speech_text: "", emotion: { id: "curious" } },
     ]);
+  });
+});
+
+describe("a reply for another turn, arriving while a bridge is up", () => {
+  const REPLY = [
+    { cues: [{ emotion_id: "happy", emotion_text: "\u{1F606}" }], speech: "All green." },
+    { cues: [{ emotion_id: "curious", emotion_text: "\u{1F442}" }], speech: "Want the list?" },
+  ];
+
+  it.each([
+    ["another turn's", "B"],
+    ["one the backend started on its own", null],
+  ])("gives each segment of %s reply its own cue", async (_label, turnId) => {
+    const seq = setup();
+    seq.openTurn("A");
+
+    seq.renderTurn.render({ type: "render", turn_id: turnId, source: "hermes", segments: REPLY });
+
+    expect(seq.synth.inputs).toEqual(["\u{1F606} All green.", "\u{1F442} Want the list?"]);
+
+    seq.synth.deliver(0);
+    await vi.waitFor(() => expect(seq.played).toEqual(["play:0"]));
+
+    expect(seq.directives).toEqual([{ speech_text: "", emotion: { id: "happy" } }]);
+  });
+
+  it("leaves no cue of that reply waiting for the bridge to come down", () => {
+    const seq = setup();
+    seq.openTurn("A");
+    seq.renderTurn.render({ type: "render", turn_id: "B", source: "hermes", segments: REPLY });
+
+    // A's own reply ends its bridge; nothing of B's is parked to ride the next line out.
+    seq.renderTurn.render({ type: "render", turn_id: "A", source: "hermes", segments: [] });
+    seq.speakFiller("Still working.");
+
+    expect(seq.synth.inputs.at(-1)).toBe("Still working.");
+  });
+
+  it("still keeps a filler line off a cue waiting for its own speech", () => {
+    const seq = setup();
+    seq.openTurn("A");
+    seq.cue({ emotion_id: "happy", emotion_text: "\u{1F606}" });
+    seq.speakFiller("Let me check.");
+
+    expect(seq.synth.inputs).toEqual(["Let me check."]);
   });
 });
