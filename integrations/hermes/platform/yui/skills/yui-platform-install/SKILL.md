@@ -100,23 +100,26 @@ Check: step 7's ready line appears. A socket closing with `4401` is this step.
 
 ## 5. Keep the reply free of gateway text
 
-This client speaks its replies aloud, so two `display` settings keep the gateway's own text out of
-the spoken reply:
+This client speaks its replies aloud, so `show_reasoning: false` keeps the reasoning out of the
+spoken reply. It is required:
 
 ```yaml
 display:
   platforms:
     yui:
       show_reasoning: false
-  runtime_footer:
-    enabled: false
 ```
 
 ```bash
-python3 -c "import yaml,os;d=yaml.safe_load(open(os.path.expanduser('~/.hermes/profiles/<profile>/config.yaml')));print(d['display']['platforms']['yui']['show_reasoning'],d['display']['runtime_footer']['enabled'])"
+python3 -c "import yaml,os;d=yaml.safe_load(open(os.path.expanduser('~/.hermes/profiles/<profile>/config.yaml')));print(d['display']['platforms']['yui']['show_reasoning'])"
 ```
 
-Check: prints `False False`.
+Check: prints `False`.
+
+The runtime footer is off by default, and its switch is global to the gateway at
+`display.runtime_footer.enabled`. Turned on, the footer is concatenated into the reply text and
+the model name and working directory get spoken, so a host that turned it on sets it back to
+`false`.
 
 A client that shows a reasoning chip wants the live stream as well, one switch global to the
 gateway:
@@ -126,8 +129,7 @@ plugins:
   stream_reasoning_deltas: true
 ```
 
-With it on the `render` frame carries the streamed text; with it off it carries the block the
-gateway rendered into the reply, cut to fifteen lines.
+With it on the `render` frame carries the streamed text; with it off it carries no `reasoning`.
 
 ## 6. Restart the gateway
 
