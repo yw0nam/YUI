@@ -2,9 +2,13 @@
  * turn.test.ts — turn identity + the "over" definition (ledger, no wiring).
  */
 
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { userEnv } from "./test-helpers";
 import { createTurnLog } from "./turn";
+
+afterEach(() => {
+  vi.useRealTimers();
+});
 
 describe("turn — ledger", () => {
   it("isOver() is true and current() is null before any turn", () => {
@@ -13,14 +17,27 @@ describe("turn — ledger", () => {
     expect(log.isOver()).toBe(true);
   });
 
-  it("begin() returns increasing ids starting at 1; current() reflects the latest", () => {
+  it("begin() returns increasing ids; current() reflects the latest", () => {
     const log = createTurnLog();
     const first = log.begin(userEnv());
-    expect(first.id).toBe(1);
     expect(log.current()).toBe(first);
     const second = log.begin(userEnv());
-    expect(second.id).toBe(2);
+    expect(second.id).toBeGreaterThan(first.id);
     expect(log.current()).toBe(second);
+  });
+
+  it("a log built later never hands out an id an earlier one already used", () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(1_717_000_000_000);
+    const before = createTurnLog();
+    before.begin(userEnv());
+    const last = before.begin(userEnv());
+
+    // The app restarts; the backend still remembers the ids the old log handed out.
+    vi.setSystemTime(1_717_000_000_500);
+    const after = createTurnLog();
+
+    expect(after.begin(userEnv()).id).toBeGreaterThan(last.id);
   });
 
   it("after begin(), isOver() is false (not settled)", () => {

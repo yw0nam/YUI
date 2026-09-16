@@ -6,8 +6,10 @@
  * afterwards starts clean.
  */
 
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { createPushTurns } from "./push-turn";
+import { userEnv } from "./test-helpers";
+import { createTurnLog } from "./turn";
 
 describe("createPushTurns", () => {
   it("cut marks every turn outstanding at that moment", () => {
@@ -190,5 +192,27 @@ describe("awaitFirstRender", () => {
     const second = watch(turns.awaitFirstRender("A"));
 
     expect(await second.value()).toBeNull();
+  });
+});
+
+describe("a turn id the backend remembers across a restart", () => {
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it("does not cut this session's first turn with the last session's sweep", () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(1_717_000_000_000);
+    const lastSession = String(createTurnLog().begin(userEnv()).id);
+
+    const turns = createPushTurns();
+    // The backend answers a turn this session never sent, and the user types over it.
+    turns.rendered(lastSession);
+    turns.cut();
+
+    vi.setSystemTime(1_717_000_000_500);
+    const thisSession = String(createTurnLog().begin(userEnv()).id);
+
+    expect(turns.isCut(thisSession)).toBe(false);
   });
 });

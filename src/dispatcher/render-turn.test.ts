@@ -335,7 +335,7 @@ describe("render_turn — a turn the user stopped", () => {
     expect(records).toEqual([]);
   });
 
-  it("logs the dropped frame with the turn it belonged to", () => {
+  it("logs the dropped frame with the turn it belonged to and the cut that swallowed it", () => {
     cutSeven();
     turn().render(frame([{ speech: "Here it is." }]));
 
@@ -344,6 +344,7 @@ describe("render_turn — a turn the user stopped", () => {
       turn_id: "7",
       segments: 1,
       dropped: "cut_turn",
+      stopped_turns: ["7"],
     });
   });
 
