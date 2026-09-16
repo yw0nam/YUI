@@ -541,7 +541,7 @@ class YuiAdapter(BasePlatformAdapter):
                 state.append_cue(chat_id, placement.cue, placement.sentence)
         state.mark_delivered(chat_id)
         # The streamed tokens are the whole thought; the block is cut to fifteen lines.
-        frame = self._render(state.take_turn_id(chat_id), segments, reasoning.live_text(chat_id) or block)
+        frame = self._render(state.turn_id(chat_id), segments, reasoning.live_text(chat_id) or block)
         await self._send_render(chat_id, frame)
         return SendResult(success=True, message_id=_message_id())
 
@@ -638,9 +638,10 @@ class YuiAdapter(BasePlatformAdapter):
         """Close the turn: a reply already rendered, anything else renders as silence."""
         chat_id = _chat_of(event)
         cues = [placement.cue for placement in state.pop_cues(chat_id)]
+        turn_id = state.take_turn_id(chat_id)
         if state.take_delivered(chat_id):
             return
         logger.info("yui: turn ended without speech chat=%s outcome=%s", chat_id, outcome)
         # Cues on a silent turn still play; the segment they ride on carries no speech.
         segments = [{"cues": cues, "speech": ""}] if cues else []
-        await self._send_render(chat_id, self._render(state.take_turn_id(chat_id), segments))
+        await self._send_render(chat_id, self._render(turn_id, segments))

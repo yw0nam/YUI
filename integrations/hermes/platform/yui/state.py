@@ -31,8 +31,14 @@ def set_turn_id(chat_id: str, turn_id: str | None) -> None:
         _turn_ids[chat_id] = turn_id
 
 
+def turn_id(chat_id: str) -> str | None:
+    """The turn in flight; every reply of a turn names it."""
+    with _lock:
+        return _turn_ids.get(chat_id)
+
+
 def take_turn_id(chat_id: str) -> str | None:
-    """The turn this reply answers; only the first reply of a run names it."""
+    """The turn in flight, cleared — the turn is over."""
     with _lock:
         return _turn_ids.pop(chat_id, None)
 
