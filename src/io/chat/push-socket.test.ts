@@ -889,11 +889,14 @@ describe("createPushSocket — inbound frames", () => {
     });
   });
 
-  it("ignores a render frame whose cues are not a list of objects", async () => {
+  it.each([
+    ["not a list", { cues: 5 }],
+    ["a list holding a list", { cues: [[]] }],
+  ])("ignores a render frame whose cues are %s", async (_label, segment) => {
     await connected();
     const seen: unknown[] = [];
     socket.onRender((frame) => seen.push(frame));
-    FakeSocket.last().push({ ...RENDER, segments: [{ cues: 5 }] });
+    FakeSocket.last().push({ ...RENDER, segments: [segment] });
 
     expect(seen).toEqual([]);
     expect(logger.warn).toHaveBeenCalledWith("frame_malformed", {
