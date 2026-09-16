@@ -445,6 +445,19 @@ async def test_a_delegation_change_reaches_the_connected_client(client, adapter)
     assert frame["type"] == "delegations"
 
 
+async def test_a_failed_delegations_push_is_logged(client, adapter, monkeypatch, caplog):
+    await ready(client)
+
+    async def broken(chat_id):
+        raise RuntimeError("socket exploded")
+
+    monkeypatch.setattr(adapter, "_send_delegations", broken)
+    with caplog.at_level(logging.WARNING):
+        adapter.notify_delegations(CHAT)
+        await wait_for(lambda: "delegations push failed" in caplog.text)
+    assert "socket exploded" in caplog.text
+
+
 async def test_the_plugin_approves_the_gateway_confirmation_of_its_own_reset(adapter):
     SLASH_CONFIRM.register("agent:main:yui:dm:" + CHAT, "7", "new")
     result = await adapter.send_slash_confirm(
@@ -870,9 +883,7 @@ def test_a_frame_that_cannot_be_trimmed_logs_that_it_is_still_over(caplog):
     """Nothing in a delegations frame is trimmable, so the oversized frame leaves with a warning."""
     frame = {
         "type": "delegations",
-        "items": [
-            {"id": "d-1", "title": "x" * (MAX_FRAME_BYTES + 100), "started_at": 1, "state": "running"}
-        ],
+        "items": [{"id": "d-1", "title": "x" * (MAX_FRAME_BYTES + 100), "started_at": 1, "state": "running"}],
     }
     with caplog.at_level(logging.WARNING):
         body = fit_frame(frame)
