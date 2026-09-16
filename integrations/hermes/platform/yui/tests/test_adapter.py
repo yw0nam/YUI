@@ -138,6 +138,20 @@ async def test_a_hello_with_no_chat_id_is_turned_away(client):
     assert message.data == 4401
 
 
+def padded(frame: dict, size: int) -> str:
+    """The frame as JSON text of exactly `size` bytes; the plugin ignores the padding field."""
+    body = json.dumps({**frame, "pad": ""}, ensure_ascii=False)
+    return json.dumps({**frame, "pad": "x" * (size - len(body.encode("utf-8")))}, ensure_ascii=False)
+
+
+async def test_a_frame_of_exactly_the_cap_is_accepted(client):
+    ws = await client.ws_connect("/ws")
+    body = padded({"type": "hello", "key": KEY, "chat_id": CHAT, "vocabulary": VOCABULARY}, MAX_FRAME_BYTES)
+    assert len(body.encode("utf-8")) == MAX_FRAME_BYTES
+    await ws.send_str(body)
+    assert await recv(ws) == {"type": "ready", "chat_id": CHAT}
+
+
 async def test_an_oversized_frame_closes_the_socket(client):
     ws = await ready(client)
     await ws.send_str("x" * (MAX_FRAME_BYTES + 1))
