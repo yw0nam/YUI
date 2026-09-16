@@ -3,6 +3,8 @@
 interface SentenceSegmenter {
   push(text: string): string[];
   flush(): string | null;
+  /** The text held back since the last boundary, left in place. */
+  peek(): string;
 }
 
 const CLOSERS = "\"'”’」』）)\\]}";
@@ -38,6 +40,10 @@ export function createSentenceSegmenter(): SentenceSegmenter {
 
       buffer = buffer.slice(lastEnd);
       return out;
+    },
+
+    peek() {
+      return buffer.trim();
     },
 
     flush() {

@@ -28,6 +28,7 @@ function capturingPipelineFactory() {
       setCue: () => {},
       end: () => {},
       hasOutstandingWork: () => false,
+      spokenSplit: () => ({ spoken: "", unspoken: "" }),
       dispose: () => {},
     };
   };

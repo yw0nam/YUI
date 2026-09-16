@@ -34,6 +34,7 @@ function stubPipelineFactory() {
         calls.ended++;
       },
       hasOutstandingWork: () => outstanding,
+      spokenSplit: () => ({ spoken: "", unspoken: "" }),
       dispose: () => {
         calls.disposed++;
         outstanding = false;
@@ -881,7 +882,7 @@ describe("createSpeechPlayback — muted interrupted turn", () => {
     sp.interrupt();
     sp.onSpeechDelta("next");
 
-    expect(multi.instances[2].pushTextDelta).toHaveBeenCalledWith("next");
+    expect(multi.instances[2].pushTextDelta).toHaveBeenCalledWith("next", true);
   });
 
   it("clears mute when the interrupted turn completes", () => {
@@ -899,7 +900,7 @@ describe("createSpeechPlayback — muted interrupted turn", () => {
     sp.onSpeechEnd();
     sp.onSpeech("filler");
 
-    expect(multi.instances[1].pushTextDelta).toHaveBeenCalledWith("filler");
+    expect(multi.instances[1].pushTextDelta).toHaveBeenCalledWith("filler", true);
   });
 
   it("drops cues while muted without leaking one into a later filler", () => {
@@ -921,7 +922,7 @@ describe("createSpeechPlayback — muted interrupted turn", () => {
     sp.onSpeech("filler");
 
     expect(multi.instances[1].setCue).not.toHaveBeenCalled();
-    expect(multi.instances[1].pushTextDelta).toHaveBeenCalledWith("filler");
+    expect(multi.instances[1].pushTextDelta).toHaveBeenCalledWith("filler", true);
   });
 
   it("keeps delta routing unchanged after a plain interrupt", () => {
@@ -937,7 +938,7 @@ describe("createSpeechPlayback — muted interrupted turn", () => {
     sp.interrupt();
     sp.onSpeechDelta("next");
 
-    expect(multi.instances[1].pushTextDelta).toHaveBeenCalledWith("next");
+    expect(multi.instances[1].pushTextDelta).toHaveBeenCalledWith("next", true);
   });
 
   it("clears mute when the interrupted turn completes without a delta", () => {
@@ -954,7 +955,7 @@ describe("createSpeechPlayback — muted interrupted turn", () => {
     sp.onSpeechEnd();
     sp.onSpeech("filler");
 
-    expect(multi.instances[1].pushTextDelta).toHaveBeenCalledWith("filler");
+    expect(multi.instances[1].pushTextDelta).toHaveBeenCalledWith("filler", true);
   });
 });
 
@@ -1623,6 +1624,7 @@ describe("createSpeechPlayback — backend utterance tracking", () => {
         setCue: () => {},
         end: () => opts.onPlaybackEnd?.(),
         hasOutstandingWork: () => false,
+        spokenSplit: () => ({ spoken: "", unspoken: "" }),
         dispose: () => {},
       }),
       isStrolling: () => false,

@@ -58,7 +58,7 @@ describe.skipIf(!LIVE)("tts-synth — LIVE :8088", () => {
       stop() {},
     };
     const tts = createTtsPipeline({ synth: liveSynth(), sink: fakeSink });
-    tts.pushTextDelta("First sentence. Second sentence! Third one?");
+    tts.pushTextDelta("First sentence. Second sentence! Third one?", true);
     tts.end();
 
     // Wait (poll) until every synth + playback has finished.

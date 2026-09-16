@@ -92,7 +92,7 @@ describe("createTtsPipeline — ordered playback", () => {
     const { sink, playedOrder, finish } = recordingSink();
     const pipe = createTtsPipeline({ synth, sink, maxInflight: 3 });
 
-    pipe.pushTextDelta("First. Second. Third.");
+    pipe.pushTextDelta("First. Second. Third.", true);
     await tick();
     expect(resolvers).toHaveLength(3);
 
@@ -122,7 +122,7 @@ describe("createTtsPipeline — synth concurrency cap", () => {
     const { sink } = recordingSink();
     const pipe = createTtsPipeline({ synth, sink });
 
-    pipe.pushTextDelta("First. Second. Third.");
+    pipe.pushTextDelta("First. Second. Third.", true);
     await tick();
     // Only synth #1 is dispatched; #2/#3 wait in the queue.
     expect(resolvers).toHaveLength(1);
@@ -146,7 +146,7 @@ describe("createTtsPipeline — synth concurrency cap", () => {
     const { sink } = recordingSink();
     const pipe = createTtsPipeline({ synth, sink, maxInflight: 3 });
 
-    pipe.pushTextDelta("First. Second. Third.");
+    pipe.pushTextDelta("First. Second. Third.", true);
     await tick();
     expect(resolvers).toHaveLength(3);
     expect(peakConcurrency()).toBe(3);
@@ -160,7 +160,7 @@ describe("createTtsPipeline — synth concurrency cap", () => {
     const { sink, playedOrder, finish } = recordingSink();
     const pipe = createTtsPipeline({ synth, sink });
 
-    pipe.pushTextDelta("First. Second. Third.");
+    pipe.pushTextDelta("First. Second. Third.", true);
     await tick();
     expect(resolvers).toHaveLength(1);
 
@@ -187,7 +187,7 @@ describe("createTtsPipeline — synth concurrency cap", () => {
     const { sink } = recordingSink();
     const pipe = createTtsPipeline({ synth, sink, maxInflight: 0 });
 
-    pipe.pushTextDelta("First. Second.");
+    pipe.pushTextDelta("First. Second.", true);
     await tick();
     expect(resolvers).toHaveLength(1);
     expect(peakConcurrency()).toBe(1);
@@ -209,7 +209,7 @@ describe("createTtsPipeline — synth concurrency cap", () => {
       maxInflight: () => NaN,
     });
 
-    pipe.pushTextDelta("First. Second.");
+    pipe.pushTextDelta("First. Second.", true);
     pipe.end();
     await tick();
     // Buggy impl dispatches nothing here → this fails fast (no hang).
@@ -234,7 +234,7 @@ describe("createTtsPipeline — synth concurrency cap", () => {
     const { sink } = recordingSink();
     const pipe = createTtsPipeline({ synth, sink, maxInflight: NaN });
 
-    pipe.pushTextDelta("First. Second.");
+    pipe.pushTextDelta("First. Second.", true);
     await tick();
     expect(resolvers).toHaveLength(1);
     expect(peakConcurrency()).toBe(1);
@@ -248,7 +248,7 @@ describe("createTtsPipeline — synth concurrency cap", () => {
     const { sink } = recordingSink();
     const pipe = createTtsPipeline({ synth, sink, maxInflight: () => Infinity });
 
-    pipe.pushTextDelta("First. Second.");
+    pipe.pushTextDelta("First. Second.", true);
     await tick();
     expect(resolvers).toHaveLength(1);
     expect(peakConcurrency()).toBe(1);
@@ -260,7 +260,7 @@ describe("createTtsPipeline — synth concurrency cap", () => {
     const { sink } = recordingSink();
     const pipe = createTtsPipeline({ synth, sink, maxInflight: () => 3 });
 
-    pipe.pushTextDelta("First. Second. Third.");
+    pipe.pushTextDelta("First. Second. Third.", true);
     await tick();
     expect(resolvers).toHaveLength(3);
     expect(peakConcurrency()).toBe(3);
@@ -276,7 +276,7 @@ describe("createTtsPipeline — synth concurrency cap", () => {
     const pipe = createTtsPipeline({ synth, sink, maxInflight: () => cap });
 
     // First batch with cap 1: only one synth dispatches.
-    pipe.pushTextDelta("One. Two.");
+    pipe.pushTextDelta("One. Two.", true);
     await tick();
     expect(resolvers).toHaveLength(1);
     expect(peakConcurrency()).toBe(1);
@@ -294,7 +294,7 @@ describe("createTtsPipeline — synth concurrency cap", () => {
 
     // Raise the cap, then submit a second batch — the new value is honored.
     cap = 3;
-    pipe.pushTextDelta("Three. Four. Five.");
+    pipe.pushTextDelta("Three. Four. Five.", true);
     await tick();
     expect(resolvers).toHaveLength(5); // 2 from batch one + 3 from batch two
     expect(peakConcurrency()).toBe(3);
@@ -311,7 +311,7 @@ describe("createTtsPipeline — emotion_text voice tag baking", () => {
     const pipe = createTtsPipeline({ synth, sink });
 
     pipe.setCue({ emotion_text: "[whisper]" });
-    pipe.pushTextDelta("Can you hear me?");
+    pipe.pushTextDelta("Can you hear me?", true);
     await tick();
     expect(inputs).toEqual(["[whisper] Can you hear me?"]);
     resolvers[0].resolve(bufFor(0));
@@ -322,7 +322,7 @@ describe("createTtsPipeline — emotion_text voice tag baking", () => {
     const { sink } = recordingSink();
     const pipe = createTtsPipeline({ synth, sink });
 
-    pipe.pushTextDelta("Plain sentence.");
+    pipe.pushTextDelta("Plain sentence.", true);
     await tick();
     expect(inputs).toEqual(["Plain sentence."]);
   });
@@ -333,9 +333,9 @@ describe("createTtsPipeline — emotion_text voice tag baking", () => {
     const pipe = createTtsPipeline({ synth, sink, maxInflight: 3 });
 
     pipe.setCue({ emotion_text: "[happy]" });
-    pipe.pushTextDelta("One. ");
+    pipe.pushTextDelta("One. ", true);
     pipe.setCue({ emotion_text: "[sad]" });
-    pipe.pushTextDelta("Two. ");
+    pipe.pushTextDelta("Two. ", true);
     await tick();
     expect(inputs).toEqual(["[happy] One.", "[sad] Two."]);
   });
@@ -348,7 +348,7 @@ describe("createTtsPipeline — caption voice direction", () => {
     const pipe = createTtsPipeline({ synth, sink });
 
     pipe.setCue({ caption: "落ち着いた低めの声で。" });
-    pipe.pushTextDelta("Can you hear me?");
+    pipe.pushTextDelta("Can you hear me?", true);
     await tick();
 
     // The caption travels out-of-band — the spoken input is untouched.
@@ -362,8 +362,8 @@ describe("createTtsPipeline — caption voice direction", () => {
     const pipe = createTtsPipeline({ synth, sink, maxInflight: 3 });
 
     pipe.setCue({ caption: "落ち着いた低めの声で。" });
-    pipe.pushTextDelta("One. ");
-    pipe.pushTextDelta("Two. ");
+    pipe.pushTextDelta("One. ", true);
+    pipe.pushTextDelta("Two. ", true);
     await tick();
 
     expect(synthOpts[0]?.caption).toBe("落ち着いた低めの声で。");
@@ -376,9 +376,9 @@ describe("createTtsPipeline — caption voice direction", () => {
     const pipe = createTtsPipeline({ synth, sink, maxInflight: 3 });
 
     pipe.setCue({ caption: "明るく弾んだ声で。" });
-    pipe.pushTextDelta("One. ");
+    pipe.pushTextDelta("One. ", true);
     pipe.setCue({ caption: "落ち着いた低めの声で。" });
-    pipe.pushTextDelta("Two. ");
+    pipe.pushTextDelta("Two. ", true);
     await tick();
 
     expect(synthOpts[0]?.caption).toBe("明るく弾んだ声で。");
@@ -391,7 +391,7 @@ describe("createTtsPipeline — caption voice direction", () => {
     const pipe = createTtsPipeline({ synth, sink });
 
     pipe.setCue({ emotion_text: "👂", caption: "囁くような小さな声で。" });
-    pipe.pushTextDelta("Good night.");
+    pipe.pushTextDelta("Good night.", true);
     await tick();
 
     expect(inputs).toEqual(["👂 Good night."]);
@@ -404,7 +404,7 @@ describe("createTtsPipeline — caption voice direction", () => {
     const pipe = createTtsPipeline({ synth, sink });
 
     pipe.setCue({ emotion_id: "happy" });
-    pipe.pushTextDelta("Plain sentence.");
+    pipe.pushTextDelta("Plain sentence.", true);
     await tick();
 
     expect(synthOpts[0]?.caption).toBeUndefined();
@@ -415,7 +415,7 @@ describe("createTtsPipeline — caption voice direction", () => {
     const { sink } = recordingSink();
     const pipe = createTtsPipeline({ synth, sink });
 
-    pipe.pushTextDelta("Plain sentence.");
+    pipe.pushTextDelta("Plain sentence.", true);
     await tick();
 
     expect(synthOpts[0]?.caption).toBeUndefined();
@@ -429,7 +429,7 @@ describe("createTtsPipeline — caption voice direction", () => {
     const pipe = createTtsPipeline({ synth, sink, onCuePlay: (cue) => cuePlays.push(cue) });
 
     pipe.setCue({ caption: "落ち着いた低めの声で。" });
-    pipe.pushTextDelta("Hello.");
+    pipe.pushTextDelta("Hello.", true);
     await tick();
     expect(synthOpts[0]?.caption).toBe("落ち着いた低めの声で。");
 
@@ -446,7 +446,7 @@ describe("createTtsPipeline — caption voice direction", () => {
     const pipe = createTtsPipeline({ synth, sink });
 
     pipe.setCue({ caption: "   " });
-    pipe.pushTextDelta("Hello.");
+    pipe.pushTextDelta("Hello.", true);
     await tick();
 
     expect(synthOpts[0]?.caption).toBeUndefined();
@@ -459,7 +459,7 @@ describe("createTtsPipeline — end() flush", () => {
     const { sink } = recordingSink();
     const pipe = createTtsPipeline({ synth, sink, maxInflight: 3 });
 
-    pipe.pushTextDelta("Complete. trailing remainder");
+    pipe.pushTextDelta("Complete. trailing remainder", true);
     await tick();
     expect(inputs).toEqual(["Complete."]);
     pipe.end();
@@ -475,7 +475,7 @@ describe("createTtsPipeline — error resilience", () => {
     const errSpy = vi.spyOn(console, "error").mockImplementation(() => {});
     const pipe = createTtsPipeline({ synth, sink, maxInflight: 3 });
 
-    pipe.pushTextDelta("A. B. C.");
+    pipe.pushTextDelta("A. B. C.", true);
     await tick();
 
     resolvers[0].reject(new Error("synth boom"));
@@ -498,7 +498,7 @@ describe("createTtsPipeline — empty input", () => {
     const { synth, inputs } = deferredSynth();
     const { sink } = recordingSink();
     const pipe = createTtsPipeline({ synth, sink });
-    pipe.pushTextDelta("   \n  ");
+    pipe.pushTextDelta("   \n  ", true);
     pipe.end();
     await tick();
     expect(inputs).toEqual([]);
@@ -512,7 +512,7 @@ describe("createTtsPipeline — onPlaybackEnd signal", () => {
     const onPlaybackEnd = vi.fn();
     const pipe = createTtsPipeline({ synth, sink, onPlaybackEnd, maxInflight: 3 });
 
-    pipe.pushTextDelta("First. Second.");
+    pipe.pushTextDelta("First. Second.", true);
     pipe.end();
     await tick();
     // synths resolved, chunks queued → still playing, not done yet.
@@ -536,7 +536,7 @@ describe("createTtsPipeline — onPlaybackEnd signal", () => {
     const onPlaybackEnd = vi.fn();
     const pipe = createTtsPipeline({ synth, sink, onPlaybackEnd });
 
-    pipe.pushTextDelta("Only one. ");
+    pipe.pushTextDelta("Only one. ", true);
     await tick();
     resolvers[0].resolve(bufFor(0));
     await tick();
@@ -556,7 +556,7 @@ describe("createTtsPipeline — onPlaybackEnd signal", () => {
     const onPlaybackEnd = vi.fn();
     const pipe = createTtsPipeline({ synth, sink, onPlaybackEnd });
 
-    pipe.pushTextDelta("   \n  ");
+    pipe.pushTextDelta("   \n  ", true);
     pipe.end();
     await tick();
     expect(onPlaybackEnd).toHaveBeenCalledTimes(1);
@@ -569,7 +569,7 @@ describe("createTtsPipeline — onPlaybackEnd signal", () => {
     const onPlaybackEnd = vi.fn();
     const pipe = createTtsPipeline({ synth, sink, onPlaybackEnd, maxInflight: 3 });
 
-    pipe.pushTextDelta("A. B.");
+    pipe.pushTextDelta("A. B.", true);
     pipe.end();
     await tick();
     resolvers[0].reject(new Error("boom 0"));
@@ -587,7 +587,7 @@ describe("createTtsPipeline — onPlaybackEnd signal", () => {
     const onPlaybackEnd = vi.fn();
     const pipe = createTtsPipeline({ synth, sink, onPlaybackEnd, maxInflight: 3 });
 
-    pipe.pushTextDelta("A. B. C.");
+    pipe.pushTextDelta("A. B. C.", true);
     pipe.end();
     await tick();
     resolvers[0].reject(new Error("boom 0"));
@@ -613,7 +613,7 @@ describe("createTtsPipeline — onPlaybackEnd signal", () => {
     const pipe = createTtsPipeline({ synth, sink, onPlaybackEnd });
 
     // Turn N: one sentence, end() called while its only chunk is still playing.
-    pipe.pushTextDelta("First.");
+    pipe.pushTextDelta("First.", true);
     await tick();
     resolvers[0].resolve(bufFor(0));
     await tick();
@@ -623,7 +623,7 @@ describe("createTtsPipeline — onPlaybackEnd signal", () => {
     expect(onPlaybackEnd).not.toHaveBeenCalled();
 
     // Turn N+1's first delta arrives before turn N's chunk finishes playing.
-    pipe.pushTextDelta("Second.");
+    pipe.pushTextDelta("Second.", true);
     await tick();
 
     // Turn N's chunk finishes — its onPlaybackEnd must fire now, not be dropped.
@@ -656,9 +656,9 @@ describe("createTtsPipeline — setCue / onCuePlay", () => {
     });
 
     pipe.setCue({ emotion_id: "happy", motion_id: "dance", emotion_text: "😆" });
-    pipe.pushTextDelta("Hello.");
+    pipe.pushTextDelta("Hello.", true);
     pipe.setCue({ emotion_id: "curious", emotion_text: "🤔" });
-    pipe.pushTextDelta("World.");
+    pipe.pushTextDelta("World.", true);
     await tick();
     expect(resolvers).toHaveLength(2);
 
@@ -691,7 +691,7 @@ describe("createTtsPipeline — setCue / onCuePlay", () => {
       onCuePlay: (cue) => cuePlays.push(cue),
     });
 
-    pipe.pushTextDelta("No cue here.");
+    pipe.pushTextDelta("No cue here.", true);
     await tick();
     resolvers[0].resolve(bufFor(0));
     await tick();
@@ -713,8 +713,8 @@ describe("createTtsPipeline — setCue / onCuePlay", () => {
     });
 
     pipe.setCue({ emotion_id: "happy", emotion_text: "😊" });
-    pipe.pushTextDelta("First.");
-    pipe.pushTextDelta(" Second.");
+    pipe.pushTextDelta("First.", true);
+    pipe.pushTextDelta(" Second.", true);
     await tick();
     expect(resolvers).toHaveLength(2);
 
@@ -737,8 +737,8 @@ describe("createTtsPipeline — setCue / onCuePlay", () => {
     const pipe = createTtsPipeline({ synth, sink, maxInflight: 2 });
 
     pipe.setCue({ emotion_text: "😆" });
-    pipe.pushTextDelta("Cued.");
-    pipe.pushTextDelta(" Uncued.");
+    pipe.pushTextDelta("Cued.", true);
+    pipe.pushTextDelta(" Uncued.", true);
     await tick();
     expect(inputs[0]).toBe("😆 Cued.");
     expect(inputs[1]).toBe("Uncued.");
@@ -759,8 +759,8 @@ describe("createTtsPipeline — setCue / onCuePlay", () => {
     });
 
     pipe.setCue({ emotion_id: "happy", emotion_text: "😊" });
-    pipe.pushTextDelta("Will fail.");
-    pipe.pushTextDelta(" Will play.");
+    pipe.pushTextDelta("Will fail.", true);
+    pipe.pushTextDelta(" Will play.", true);
     await tick();
 
     resolvers[0].reject(new Error("synth boom"));
@@ -783,7 +783,7 @@ describe("createTtsPipeline — dispose()", () => {
     const { sink, playedOrder, stopMock } = recordingSink();
     const pipe = createTtsPipeline({ synth, sink, maxInflight: 3 });
 
-    pipe.pushTextDelta("One. Two.");
+    pipe.pushTextDelta("One. Two.", true);
     await tick();
     expect(signals[0]).toBeInstanceOf(AbortSignal);
 
@@ -842,7 +842,7 @@ describe("createTtsPipeline — observability logging seam", () => {
     const logger = makeLogger();
     const pipe = createTtsPipeline({ synth, sink, logger });
 
-    pipe.pushTextDelta("Hello world.");
+    pipe.pushTextDelta("Hello world.", true);
     await tick();
 
     expect(logger.debug).toHaveBeenCalledWith(
@@ -858,7 +858,7 @@ describe("createTtsPipeline — observability logging seam", () => {
     const logger = makeLogger();
     const pipe = createTtsPipeline({ synth, sink, logger });
 
-    pipe.pushTextDelta("Sentence one.");
+    pipe.pushTextDelta("Sentence one.", true);
     await tick();
     resolvers[0].resolve(bufFor(0));
     await tick();
@@ -875,7 +875,7 @@ describe("createTtsPipeline — observability logging seam", () => {
     const logger = makeLogger();
     const pipe = createTtsPipeline({ synth, sink, logger });
 
-    pipe.pushTextDelta("Will fail.");
+    pipe.pushTextDelta("Will fail.", true);
     await tick();
     resolvers[0].reject(new Error("network error"));
     await tick();
@@ -892,7 +892,7 @@ describe("createTtsPipeline — observability logging seam", () => {
     const logger = makeLogger();
     const pipe = createTtsPipeline({ synth, sink, logger });
 
-    pipe.pushTextDelta("Will be disposed.");
+    pipe.pushTextDelta("Will be disposed.", true);
     await tick();
     pipe.dispose();
     resolvers[0].reject(new Error("aborted"));
@@ -907,7 +907,7 @@ describe("createTtsPipeline — observability logging seam", () => {
     const logger = makeLogger();
     const pipe = createTtsPipeline({ synth, sink, logger });
 
-    pipe.pushTextDelta("Play me.");
+    pipe.pushTextDelta("Play me.", true);
     await tick();
     resolvers[0].resolve(bufFor(0));
     await tick();
@@ -926,7 +926,7 @@ describe("createTtsPipeline — observability logging seam", () => {
     const { sink, finish } = amplitudeSink([0.1, 0.5, 0.2]);
     const pipe = createTtsPipeline({ synth, sink, logger });
 
-    pipe.pushTextDelta("Amplitude test.");
+    pipe.pushTextDelta("Amplitude test.", true);
     await tick();
     resolvers[0].resolve(bufFor(0));
     await tick();
@@ -945,7 +945,7 @@ describe("createTtsPipeline — observability logging seam", () => {
     const logger = makeLogger();
     const pipe = createTtsPipeline({ synth, sink, logger });
 
-    pipe.pushTextDelta("Silent clip.");
+    pipe.pushTextDelta("Silent clip.", true);
     await tick();
     resolvers[0].resolve(bufFor(0));
     await tick();
@@ -971,7 +971,7 @@ describe("createTtsPipeline — observability logging seam", () => {
       maxInflight: 3,
     });
 
-    pipe.pushTextDelta("First. Second.");
+    pipe.pushTextDelta("First. Second.", true);
     pipe.end();
     await tick();
     resolvers[0].resolve(bufFor(0));
@@ -1019,7 +1019,7 @@ describe("createTtsPipeline — TTS_SKIP sentinel (silent skip)", () => {
     });
 
     pipe.setCue({ emotion_id: "happy", emotion_text: "😊" });
-    pipe.pushTextDelta("Skip me.");
+    pipe.pushTextDelta("Skip me.", true);
     pipe.end();
     await tick();
 
@@ -1055,7 +1055,7 @@ describe("createTtsPipeline — TTS_SKIP sentinel (silent skip)", () => {
       maxInflight: 2,
     });
 
-    pipe.pushTextDelta("Skip. Play.");
+    pipe.pushTextDelta("Skip. Play.", true);
     pipe.end();
     await tick();
 
@@ -1078,7 +1078,7 @@ describe("createTtsPipeline — hasOutstandingWork (audio still owed)", () => {
 
     expect(pipe.hasOutstandingWork()).toBe(false);
 
-    pipe.pushTextDelta("Hello.");
+    pipe.pushTextDelta("Hello.", true);
     pipe.end();
     await tick();
     // Stream done, synth in flight — no audio frame has fired yet.
@@ -1109,7 +1109,7 @@ describe("createTtsPipeline — hasOutstandingWork (audio still owed)", () => {
     const { sink } = recordingSink();
     const pipe = createTtsPipeline({ synth, sink });
 
-    pipe.pushTextDelta("Hello.");
+    pipe.pushTextDelta("Hello.", true);
     pipe.end();
     await tick();
     expect(pipe.hasOutstandingWork()).toBe(true);

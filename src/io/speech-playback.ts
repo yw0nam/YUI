@@ -174,14 +174,14 @@ export function createSpeechPlayback(options: SpeechPlaybackOptions): SpeechPlay
       }
     }
     surfaces.pushSpeech(clean);
-    if (!muted) pipeline.pushTextDelta(links.push(clean));
+    if (!muted) pipeline.pushTextDelta(links.push(clean), tracked);
     reportAudioOwed();
   }
 
   function end(): void {
     // a held-back `[…` that never became a link is still spoken.
     const tail = links.flush();
-    if (tail) pipeline.pushTextDelta(tail);
+    if (tail) pipeline.pushTextDelta(tail, open?.tracked === true);
     muted = false;
     mutedReported = false;
     if (open === null) return;

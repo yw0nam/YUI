@@ -27,13 +27,22 @@ export interface TtsPipelineOptions {
   logger?: Logger;
 }
 
+/** What the listener heard of the tracked text, and what was still owed when it was cut. */
+export interface SpokenSplit {
+  spoken: string;
+  unspoken: string;
+}
+
 export interface TtsPipeline {
-  pushTextDelta(token: string): void;
+  /** `tracked` marks backend speech; client-side phrases push it false. */
+  pushTextDelta(token: string, tracked: boolean): void;
   setCue(cue: ExpressArgs | null): void;
   end(): void;
   dispose(): void;
   /** True whenever the pipeline still owes audio playback (submitted-not-played, or a chunk mid-play). */
   hasOutstandingWork(): boolean;
+  /** The tracked text split at what playback reached. Read it before dispose(); after, both halves are empty. */
+  spokenSplit(): SpokenSplit;
 }
 
 export function createTtsPipeline(options: TtsPipelineOptions): TtsPipeline {
@@ -56,6 +65,10 @@ export function createTtsPipeline(options: TtsPipelineOptions): TtsPipeline {
   let disposed = false;
 
   const results = new Map<number, ArrayBuffer>();
+  // One entry per submitted sentence, in index order, until its completion boundary fires.
+  const entries = new Map<number, { text: string; tracked: boolean; played: boolean }>();
+  // The flag of the most recent push — it owns whatever is still sitting in the segmenter.
+  let tailTracked = false;
   const failed = new Set<number>();
   const cues = new Map<number, ExpressArgs | null>();
   const pending: Array<{ index: number; input: string; caption?: string }> = [];
@@ -73,7 +86,9 @@ export function createTtsPipeline(options: TtsPipelineOptions): TtsPipeline {
   function maybeFireComplete(): void {
     if (disposed || pumping) return;
     while (pendingCompletions.length > 0 && nextToPlay >= pendingCompletions[0]) {
-      pendingCompletions.shift();
+      const boundary = pendingCompletions.shift()!;
+      // A finished utterance is reported complete, so it is no longer what a later interrupt cut.
+      for (const index of entries.keys()) if (index < boundary) entries.delete(index);
       log.info("playback", { state: "complete", segments: nextToPlay });
       options.onPlaybackEnd?.();
     }
@@ -97,6 +112,8 @@ export function createTtsPipeline(options: TtsPipelineOptions): TtsPipeline {
         results.delete(nextToPlay);
         const idx = nextToPlay;
         nextToPlay++;
+        const entry = entries.get(idx);
+        if (entry) entry.played = true;
         options.onCuePlay?.(cues.get(idx) ?? null);
         cues.delete(idx);
         try {
@@ -151,7 +168,7 @@ export function createTtsPipeline(options: TtsPipelineOptions): TtsPipeline {
     }
   }
 
-  function submit(sentence: string): void {
+  function submit(sentence: string, tracked: boolean): void {
     const trimmed = sentence.trim();
     if (!trimmed) return;
     const cue = pendingCue;
@@ -162,6 +179,7 @@ export function createTtsPipeline(options: TtsPipelineOptions): TtsPipeline {
     const caption = cue?.caption?.trim() || undefined;
     const index = submitted++;
     cues.set(index, cue);
+    entries.set(index, { text: trimmed, tracked, played: false });
     log.debug("synth", { index, chars: trimmed.length });
     pending.push({ index, input, ...(caption ? { caption } : {}) });
     drainSynth();
@@ -172,9 +190,23 @@ export function createTtsPipeline(options: TtsPipelineOptions): TtsPipeline {
       return !disposed && (submitted > nextToPlay || pumping);
     },
 
-    pushTextDelta(token) {
+    pushTextDelta(token, tracked) {
       if (disposed) return;
-      for (const sentence of segmenter.push(token)) submit(sentence);
+      tailTracked = tracked;
+      for (const sentence of segmenter.push(token)) submit(sentence, tracked);
+    },
+
+    spokenSplit() {
+      if (disposed) return { spoken: "", unspoken: "" };
+      const spoken: string[] = [];
+      const unspoken: string[] = [];
+      for (const entry of entries.values()) {
+        if (!entry.tracked) continue;
+        (entry.played ? spoken : unspoken).push(entry.text);
+      }
+      const tail = segmenter.peek();
+      if (tail && tailTracked) unspoken.push(tail);
+      return { spoken: spoken.join(" "), unspoken: unspoken.join(" ") };
     },
 
     setCue(cue) {
@@ -193,7 +225,7 @@ export function createTtsPipeline(options: TtsPipelineOptions): TtsPipeline {
     end() {
       if (disposed) return;
       const rest = segmenter.flush();
-      if (rest) submit(rest);
+      if (rest) submit(rest, tailTracked);
       pendingCompletions.push(submitted);
       // If there are no chunks to play at all (empty input / all failed), fire completion immediately here.
       maybeFireComplete();
@@ -207,6 +239,7 @@ export function createTtsPipeline(options: TtsPipelineOptions): TtsPipeline {
       results.clear();
       failed.clear();
       cues.clear();
+      entries.clear();
       pending.length = 0;
       pendingCompletions.length = 0;
     },
