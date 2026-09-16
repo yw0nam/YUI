@@ -256,8 +256,7 @@ class YuiAdapter(BasePlatformAdapter):
             logger.warning("yui: refused a hello for chat %r", chat_id)
             await ws.close(code=CLOSE_UNAUTHORIZED, message=b"unauthorized")
             return ""
-        # The new socket is registered before any await, so a send mid-handshake cannot land on
-        # the socket that is being replaced.
+        # The new socket is registered before any await, so a mid-handshake send cannot land elsewhere.
         replaced = self._sockets.get(chat_id)
         self._sockets[chat_id] = ws
         state.set_connected(chat_id, True)
