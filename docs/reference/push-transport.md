@@ -79,6 +79,8 @@ The `vocabulary` object from `hello`, sent again whenever the renderable set cha
 
 `client_context` is the block described in [client-context.md](client-context.md), exactly as the other modes send it. `text` is the user utterance, or `""` on a turn no user typed or spoke. Every reply to the turn is a `render` frame carrying the same `turn_id`.
 
+A `turn_id` names one turn for as long as the backend remembers it. The client draws each one from the wall clock, so the ids a restarted client sends are above every id it sent before, and a `render` for a turn from an earlier run answers that turn alone.
+
 The client holds the turn open until the first `render` carrying its `turn_id`, and shows the turn running for that whole time:
 
 1. The composer is locked and the send button becomes a stop button.
