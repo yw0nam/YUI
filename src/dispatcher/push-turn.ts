@@ -8,6 +8,10 @@
  * The same two events say when a turn stops running, so the call that sent it waits on them here.
  */
 
+import { createLogger } from "../logger";
+
+const log = createLogger("push-turn");
+
 export interface PushTurns {
   /** The client sent this turn on the socket. */
   opened(turnId: string): void;
@@ -38,8 +42,14 @@ export function createPushTurns(): PushTurns {
     const waiter = waiting.get(turnId);
     if (!waiter) return;
     waiting.delete(turnId);
-    waiter.onSettle?.();
+    // Resolve first: the continuation waits for a microtask, so the callback still runs before the
+    // caller reads the frame, and a callback that throws cannot leave the turn unsettled.
     waiter.resolve(outcome);
+    try {
+      waiter.onSettle?.();
+    } catch (err) {
+      log.warn("settle_callback_failed", { turn_id: turnId, error: String(err) });
+    }
   }
 
   return {
