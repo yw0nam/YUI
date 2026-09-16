@@ -632,6 +632,32 @@ describe("createPushSocket — disconnect", () => {
     expect(socket.getState()).toEqual({ kind: "ready", chat_id: "yui-3f9a2c1d" });
   });
 
+  it("opens with the key the reconnecting window asked for, not the one already in flight", async () => {
+    const keys = ["old", "new"];
+    const getKey = vi.fn(async () => keys.shift());
+    let releaseKey!: () => void;
+    const held = new Promise<void>((resolve) => {
+      releaseKey = resolve;
+    });
+    socket = build({
+      getKey: async () => {
+        const key = await getKey();
+        if (key === "old") await held;
+        return key;
+      },
+    });
+    socket.connect();
+    socket.disconnect();
+    socket.connect();
+    releaseKey();
+    await vi.advanceTimersByTimeAsync(0);
+
+    expect(FakeSocket.instances).toHaveLength(1);
+
+    FakeSocket.last().accept();
+    expect(FakeSocket.last().frames()[0]!.key).toBe("new");
+  });
+
   it("ignores a second connect while one is already in flight", async () => {
     socket = build();
     socket.connect();
