@@ -205,7 +205,7 @@ class YuiAdapter(BasePlatformAdapter):
     async def _serve(self, request: web.Request) -> web.WebSocketResponse:
         """One client connection: the handshake, then turns until it goes away."""
         self._loop = asyncio.get_running_loop()
-        ws = web.WebSocketResponse(max_msg_size=MAX_FRAME_BYTES * 4, heartbeat=30)
+        ws = web.WebSocketResponse(max_msg_size=MAX_FRAME_BYTES, heartbeat=30)
         await ws.prepare(request)
         chat_id = ""
         try:
