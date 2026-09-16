@@ -47,6 +47,8 @@ export function publishPushSocket(deps: {
     sendReset(): boolean;
     reconnectNow(): void;
   };
+  /** Ends the running turn, the way the pet window's own reset does. */
+  stopTurn: () => void;
   bridge: PushBridge;
 }): () => void {
   const unsubscribes = [
@@ -54,6 +56,8 @@ export function publishPushSocket(deps: {
     deps.bridge.onPushStateAsk(() => deps.bridge.emitPushState(deps.socket.getState())),
     deps.bridge.onPushReset(() => {
       log.info("reset_requested");
+      // A turn still running stops with the conversation, before the reset frame goes out.
+      deps.stopTurn();
       deps.socket.sendReset();
     }),
     deps.bridge.onPushReconnect(() => {

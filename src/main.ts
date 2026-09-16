@@ -343,15 +343,17 @@ async function bootstrap(): Promise<BootstrapHandle> {
   const delegations = createDelegationsStore();
   // The backend's reasoning deltas land here; the message window's chip mirrors it.
   const reasoning = createReasoningStore();
+  // The panel's session reset stops the running turn the way the stop button does; the shared
+  // closure exists once the configured bootstrap has wired it.
+  let stopTurn: () => void = () => {};
   // The settings window has no socket of its own: it reads this one and asks it to reset.
-  register(publishPushSocket({ socket: pushSocket, bridge: windowBridge }));
+  register(
+    publishPushSocket({ socket: pushSocket, stopTurn: () => stopTurn(), bridge: windowBridge }),
+  );
   // The delegations list rides the same bridge; a fresh settings window asks for the current list.
   register(publishDelegations({ store: delegations, bridge: windowBridge }));
   register(publishReasoning({ store: reasoning, bridge: windowBridge }));
 
-  // The panel's session reset stops the running turn the way the stop button does; the shared
-  // closure exists once the configured bootstrap has wired it.
-  let stopTurn: () => void = () => {};
   const buildQuickControls = (): ReturnType<typeof createQuickControls> =>
     createQuickControls({
       mount: root,

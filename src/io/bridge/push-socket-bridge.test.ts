@@ -53,7 +53,7 @@ let transport: BridgeTransport;
 let petBridge: ReturnType<typeof createSettingsBridge>;
 let settingsBridge: ReturnType<typeof createSettingsBridge>;
 let socket: ReturnType<typeof fakeSocket>;
-let stopTurn: ReturnType<typeof vi.fn>;
+let stopTurn: ReturnType<typeof vi.fn<() => void>>;
 
 function publish(): () => void {
   return publishPushSocket({ socket, stopTurn, bridge: petBridge });
@@ -64,7 +64,7 @@ beforeEach(() => {
   petBridge = createSettingsBridge(transport, { windowKind: "pet" });
   settingsBridge = createSettingsBridge(transport, { windowKind: "settings" });
   socket = fakeSocket();
-  stopTurn = vi.fn();
+  stopTurn = vi.fn<() => void>();
 });
 
 describe("push socket across windows", () => {
