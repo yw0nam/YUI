@@ -159,6 +159,10 @@ describe("awaitFirstRender", () => {
 
     expect(turns.isCut("A")).toBe(true);
     expect(turns.isCut("B")).toBe(false);
+
+    turns.cut();
+
+    expect(turns.isCut("B")).toBe(true);
   });
 
   it("an abandoned wait settles nothing when its render finally arrives", async () => {

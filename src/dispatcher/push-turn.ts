@@ -62,11 +62,13 @@ export function createPushTurns(): PushTurns {
       settle(turnId, "rendered");
     },
     cut() {
-      for (const turnId of live) {
+      // Snapshot first: a settle callback may open a turn, and that one is outstanding after this
+      // cut rather than part of it, so only the ids swept here leave the live set.
+      for (const turnId of [...live]) {
+        live.delete(turnId);
         stopped.add(turnId);
         settle(turnId, "cut");
       }
-      live.clear();
     },
     isCut(turnId) {
       return turnId !== null && stopped.has(turnId);
