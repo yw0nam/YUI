@@ -197,9 +197,7 @@ async def test_a_render_sent_while_the_replaced_socket_closes_reaches_the_new_so
     assert (await recv(second))["segments"] == [{"cues": [], "speech": "The tests passed."}]
 
 
-async def test_the_handshake_does_not_wait_for_the_replaced_socket_to_close(
-    client, adapter, monkeypatch
-):
+async def test_the_handshake_does_not_wait_for_the_replaced_socket_to_close(client, adapter, monkeypatch):
     """A peer that is gone takes the whole close timeout, and the frames after ready cannot wait."""
     await ready(client)
     replaced = adapter._sockets[CHAT]
@@ -213,7 +211,12 @@ async def test_the_handshake_does_not_wait_for_the_replaced_socket_to_close(
     monkeypatch.setattr(replaced, "close", pausing_close)
     reports.queue_render(
         CHAT,
-        {"type": "render", "turn_id": "777", "source": "hermes", "segments": [{"cues": [], "speech": "Held."}]},
+        {
+            "type": "render",
+            "turn_id": "777",
+            "source": "hermes",
+            "segments": [{"cues": [], "speech": "Held."}],
+        },
     )
     second = await hello(client)
     assert await recv(second) == {"type": "ready", "chat_id": CHAT}
