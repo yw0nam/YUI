@@ -773,6 +773,21 @@ describe("createSpeechPlayback — a cue with no speech behind it", () => {
     ]);
   });
 
+  it.each([
+    ["interrupt", (sp: ReturnType<typeof createSpeechPlayback>) => sp.interrupt()],
+    ["abort", (sp: ReturnType<typeof createSpeechPlayback>) => sp.abort()],
+  ])("drops a parked cue the user's %s swept away", (_label, stop) => {
+    const { sp, renderer } = playback();
+
+    sp.holdMotion(true);
+    sp.silentCue({ motion_id: "wave" });
+    stop(sp);
+    renderer.applyDirective.mockClear();
+
+    expect(sp.holdMotion(false)).toBe(false);
+    expect(renderer.applyDirective).not.toHaveBeenCalled();
+  });
+
   it("reports no motion applied when the release had no cue parked", () => {
     const { sp } = playback();
 
