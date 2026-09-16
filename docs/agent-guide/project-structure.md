@@ -27,7 +27,7 @@ YUI/
     agents/                          # Vendored sub-agent definitions
   scripts/                           # Dev launchers (dev-port.mjs, tauri-dev.mjs, dev-auto.mjs), release.sh, worktree-setup.sh, ci/test-guard.sh
   configs/                           # Runtime-loaded config (no hardcoding)
-    endpoints.json                   # chat nudge/API/context window (chat_instructions, chat_api, chat_model_context_window) + TTS service (tts_model, tts_max_inflight)
+    endpoints.json                   # chat/stt/tts/broker base urls + chat_instructions, chat_api, chat_model_context_window + tts_model/tts_speaker/tts_max_inflight; the shipped file leaves the urls empty and the settings panel overrides per device
     emotion_registry.json            # emotion id -> vrm_expression + fallback
     motions.json                     # Motion registry
     avatar.json                      # VRM avatar config
@@ -106,7 +106,7 @@ YUI/
       turn.ts                        # Turn identity ledger and the single definition of over
       turn-output.ts                 # Speech lifecycle port between the backend caller and the voice pipeline
       previous-turn.ts               # Persisted record of how the last turn that tried to speak ended
-      push-turn.ts                   # Push-turn ids the user stopped, so their late frames drop whole
+      push-turn.ts                   # Push-turn ids the user stopped, so their late frames drop whole, and the wait for a sent turn to finish
       render-turn.ts                 # Plays a finished backend turn that arrived as a render frame on the push socket
       buffered-inbox-source.ts       # Shared presence-gated core for the inbox-push firing sources
       agent-source.ts                # Agent-lifecycle firing source
