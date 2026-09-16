@@ -178,6 +178,8 @@ export function createPushSocket(deps: PushSocketDeps): PushSocket {
   let sentVocabulary: string | null = null;
   /** An attempt between its key lookup and its socket, where `ws` is not yet the one being opened. */
   let opening = false;
+  /** Bumped by every connect(); an attempt whose key resolved under an older one reads it again. */
+  let epoch = 0;
   let state: PushSocketState = { kind: "disconnected" };
 
   function setState(next: PushSocketState): void {
@@ -324,7 +326,14 @@ export function createPushSocket(deps: PushSocketDeps): PushSocket {
     let url: string;
     opening = true;
     try {
+      let mine = epoch;
       key = await deps.getKey();
+      // A connect() that arrived during the wait may carry an edited key — read it again rather
+      // than opening on the one this attempt started with.
+      while (epoch !== mine && !disposed && active) {
+        mine = epoch;
+        key = await deps.getKey();
+      }
       if (disposed || !active) {
         opening = false;
         return;
@@ -391,6 +400,7 @@ export function createPushSocket(deps: PushSocketDeps): PushSocket {
   return {
     connect(): void {
       if (disposed || active) return;
+      epoch++;
       // An attempt already between its key lookup and its socket is the one this would start; a
       // disconnect() during that wait is undone here so the single attempt continues instead of
       // a second socket opening behind it.
