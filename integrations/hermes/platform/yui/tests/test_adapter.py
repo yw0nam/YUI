@@ -156,6 +156,32 @@ async def test_a_second_hello_for_one_chat_replaces_the_first(client, adapter):
     await second.close()
 
 
+async def test_a_render_sent_while_the_replaced_socket_closes_reaches_the_new_socket(
+    client, adapter, monkeypatch
+):
+    """The new socket is registered before the replaced one closes, so a send during that close
+    cannot fall back to the socket that is going away."""
+    await ready(client)
+    replaced = adapter._sockets[CHAT]
+    paused = asyncio.Event()
+    resume = asyncio.Event()
+    real_close = replaced.close
+
+    async def pausing_close(**kwargs):
+        paused.set()
+        await resume.wait()
+        return await real_close(**kwargs)
+
+    monkeypatch.setattr(replaced, "close", pausing_close)
+    opened = asyncio.create_task(hello(client))
+    await asyncio.wait_for(paused.wait(), 2)
+    await adapter.send(CHAT, "The tests passed.", metadata={"notify": True})
+    resume.set()
+    second = await asyncio.wait_for(opened, 2)
+    assert await recv(second) == {"type": "ready", "chat_id": CHAT}
+    assert (await recv(second))["segments"] == [{"cues": [], "speech": "The tests passed."}]
+
+
 async def test_closing_the_socket_leaves_the_chat_disconnected(client):
     ws = await ready(client)
     await ws.close()
