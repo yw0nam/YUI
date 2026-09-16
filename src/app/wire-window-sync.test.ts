@@ -8,8 +8,7 @@ vi.mock("../ui/i18n", () => ({
   reloadFromStorage: vi.fn(),
 }));
 
-// Fake bridge for wireCrossWindowSync: captures the onMouthPreview/onVoiceSet callbacks so
-// tests can invoke them directly (a real bridge instance never delivers its own emits to itself).
+// Fake bridge for wireWindowSync: the settings-changed channel these tests drive.
 const { fakeBridge, createSettingsBridge } = vi.hoisted(() => {
   const fakeBridge = {
     emitSettingsChanged: vi.fn(),

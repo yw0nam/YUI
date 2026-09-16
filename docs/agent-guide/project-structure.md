@@ -46,7 +46,7 @@ YUI/
       wire-sources.ts                # Tauri window sources and the dispatcher's paced proactive sources
       wire-summon.ts                 # Peek exit triggers, tray summon, and the global summon hotkey
       wire-voice.ts                  # Expression broker client and the voice input lifecycle
-      wire-devtools.ts               # Per-window sync for the pet, settings, and devtools windows plus DEV globals
+      wire-cross-window.ts           # Per-window sync for the pet, settings, and devtools windows plus DEV globals
       wire-push.ts                   # Push socket frames into turns and the push mode chip
       bootstrap-configured.ts        # Config-derived bootstrap: pat gesture, fall and descend configs, ambient handles
       voice-pipeline-wiring.ts       # Wires filler, TTS, and speech playback to the turn lifecycle

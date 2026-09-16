@@ -59,7 +59,7 @@ import {
   wireDevGlobals,
   wireDevtoolsSync,
   wireSettingsWindowSync,
-} from "./wire-devtools";
+} from "./wire-cross-window";
 
 const noopLog = { info: () => {}, warn: () => {}, error: () => {}, debug: () => {} } as never;
 

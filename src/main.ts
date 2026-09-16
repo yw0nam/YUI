@@ -16,7 +16,7 @@ import "./styles.css";
 import { createTier1Engine } from "./ambient/tier1";
 import { createConfiguredBootstrap } from "./app/bootstrap-configured";
 import { wireSpeakerSelection, wireVrmSelection } from "./app/wire-avatar";
-import { wireCrossWindowSync, wireDevGlobals } from "./app/wire-devtools";
+import { wireCrossWindowSync, wireDevGlobals } from "./app/wire-cross-window";
 import { wirePushMode } from "./app/wire-push";
 import { wireSettingsReload } from "./app/wire-window-sync";
 import { CHAT_API_KEY_SECRET, STT_API_KEY_SECRET, TTS_API_KEY_SECRET } from "./config/load";

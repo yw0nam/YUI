@@ -1,28 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-// Broker fakes for wireBroker: a single captured client so tests can assert publish/start/dispose.
-const { createBrokerClient, deriveBrokerPayload, createReconciler, selectFetch } = vi.hoisted(
-  () => {
-    const brokerClient = {
-      publish: vi.fn().mockResolvedValue(undefined),
-      start: vi.fn(),
-      dispose: vi.fn(),
-    };
-    return {
-      brokerClient,
-      createBrokerClient: vi.fn(() => brokerClient),
-      deriveBrokerPayload: vi.fn(() => ({ derived: true })),
-      createReconciler: vi.fn(() => ({ onChange: vi.fn().mockResolvedValue(undefined) })),
-      selectFetch: vi.fn().mockResolvedValue(undefined),
-    };
-  },
-);
-vi.mock("../io/chat/broker-client", () => ({ createBrokerClient, deriveBrokerPayload }));
-
-vi.mock("../io/chat/broker-override-reconciler", () => ({
-  createBrokerOverrideReconciler: createReconciler,
-}));
-
+// chat-client fake: wireSpeakerSelection's fetch selection never hits the network.
+const { selectFetch } = vi.hoisted(() => ({ selectFetch: vi.fn().mockResolvedValue(undefined) }));
 vi.mock("../io/chat/chat-client", () => ({ selectFetch }));
 
 // Voices-API fakes — wireSpeakerSelection's refreshVoiceList exercises listVoices;

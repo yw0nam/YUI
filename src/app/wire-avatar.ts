@@ -1,4 +1,4 @@
-/** Bootstrap wiring helpers extracted from main.ts: VRM + speaker selection stores and their swap/import flows. */
+/** VRM and speaker selection stores, their swap/import flows, and the effective endpoints derived from overrides. */
 import type { EndpointsConfig } from "../contract";
 import { resolveAssetUrl, resolveUserFileSrc } from "../io/assets/asset-url";
 import { removeOrphanImport } from "../io/assets/user-asset-import";
