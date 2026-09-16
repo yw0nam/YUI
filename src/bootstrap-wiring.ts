@@ -1864,8 +1864,10 @@ export function wirePushTransport(deps: {
   });
   const unsubscribes = [
     deps.socket.onRender((frame) => {
-      // A dropped frame puts no reply in the message window, so its reasoning has nothing to sit under.
+      // A dropped frame puts no reply in the message window, so its reasoning has nothing to sit
+      // under: the cycle it was writing is abandoned, an earlier finished text is left alone.
       if (renderTurn.render(frame)) deps.reasoning.finish(frame.reasoning);
+      else deps.reasoning.interrupt();
     }),
     deps.socket.onDelegations((items) => {
       deps.delegations.replace(items);

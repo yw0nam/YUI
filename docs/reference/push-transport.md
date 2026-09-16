@@ -139,7 +139,8 @@ The backend's reasoning as it is written, sent while the turn is running.
 Frames are coalesced, so one carries however much arrived in the window. They are best effort: a
 backend under load drops them, and a turn may carry none at all. The `render` frame's `reasoning`
 field is where the text arrives whole — from a frame that plays. A `render` dropped for a stopped
-turn leaves the reasoning where it stood, since no reply of that turn reached the message window.
+turn abandons the reasoning still streaming for that turn; a text an earlier render already
+finished stays.
 
 ### `delegations` (backend → client)
 
