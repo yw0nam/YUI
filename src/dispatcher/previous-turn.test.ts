@@ -212,6 +212,21 @@ describe("createPreviousTurn — what the user heard of a cut-off reply", () => 
     ]);
   });
 
+  it("cuts on whole characters, so one outside the basic plane never lands halved", () => {
+    const { slot, storage } = makeSlot(turnOf(17, "user.text_submitted"));
+
+    slot.utteranceStart();
+    slot.utteranceEnd("interrupted", {
+      spoken: `\u{1F600}${"b".repeat(49)}`,
+      unspoken: `${"a".repeat(49)}\u{1F600}${"c".repeat(10)}`,
+    });
+
+    expect(storage.saved.at(-1)).toMatchObject({
+      spoken: `\u{1F600}${"b".repeat(49)}`,
+      unspoken: `${"a".repeat(49)}\u{1F600}`,
+    });
+  });
+
   it("stores neither part for a completed utterance", () => {
     const { slot, storage } = makeSlot(turnOf(12, "user.text_submitted"));
 
