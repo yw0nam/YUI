@@ -79,7 +79,7 @@ The `vocabulary` object from `hello`, sent again whenever the renderable set cha
 
 `client_context` is the block described in [client-context.md](client-context.md), exactly as the other modes send it. `text` is the user utterance, or `""` on a turn no user typed or spoke. Every reply to the turn is a `render` frame carrying the same `turn_id`.
 
-A `turn_id` names one turn for as long as the backend remembers it. The client draws each one from the wall clock, so the ids a restarted client sends are above every id it sent before, and a `render` for a turn from an earlier run answers that turn alone.
+A `turn_id` names one turn for as long as the backend remembers it. The client reads the wall clock when a run starts and counts up from there, one per turn. A restart moves the clock on by the time it takes and a run moves the counter on by its turn count, so a late `render` from an earlier run carries an id outside the range this run issues.
 
 The client holds the turn open until the first `render` carrying its `turn_id`, and shows the turn running for that whole time:
 
@@ -178,4 +178,4 @@ The client keeps the latest list. A `done` item leaves it 30 minutes after `ende
 
 ## Logging
 
-A `turn` sent over the socket writes a turn record with `spoke_text: false`. A `render` writes a `push.render` record with `source`, `turn_id`, the segment count, whether any speech played, and whether speech was still owed when the frame arrived. A `render` dropped for a stopped turn is logged as a `render` line with `dropped: "cut_turn"`. A wait that reaches the limit writes `network_stall` with `stage: push_wait`, and a wait the socket leaving `ready` ended writes `network_drop` with the same stage. The app log carries `ws_open`, `ws_ready`, `ws_close` with the close code, and `ws_reconnect` with the delay.
+A `turn` sent over the socket writes a turn record with `spoke_text: false`. A `render` writes a `push.render` record with `source`, `turn_id`, the segment count, whether any speech played, and whether speech was still owed when the frame arrived. A `render` dropped for a stopped turn is logged as a `render` line with `dropped: "cut_turn"` and `stopped_count`, how many turns the user has stopped this session. A wait that reaches the limit writes `network_stall` with `stage: push_wait`, and a wait the socket leaving `ready` ended writes `network_drop` with the same stage. The app log carries `ws_open`, `ws_ready`, `ws_close` with the close code, and `ws_reconnect` with the delay.
