@@ -113,7 +113,7 @@ The backend starts a new conversation under the same `chat_id`. Long-term memory
 
 | Field | Value |
 |---|---|
-| `turn_id` | The `turn` this answers, or `null` when the backend speaks on its own |
+| `turn_id` | The `turn` this answers, or `null` when the backend speaks on its own. A frame that leaves the field out reads as `null` |
 | `source` | Backend name for logs |
 | `segments` | Ordered. Each segment's `cues` render first, then its `speech` goes to TTS and the bubble |
 | `reasoning` | Optional. The reasoning written so far for this turn when this reply was sent; on the reply that ends the turn, the whole text. A backend that sends no `reasoning` frames may put a shortened version here instead. Absent when the backend produced none |
