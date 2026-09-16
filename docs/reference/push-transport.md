@@ -85,7 +85,7 @@ The client holds the turn open until the first `render` carrying its `turn_id`, 
 2. The message plate reads thinking.
 3. The character plays the thinking motion and speaks the filler line.
 
-The wait in the limits table passing before a `render` arrives, or the socket leaving `ready`, ends the wait and the client speaks a failure line. A `render` that arrives after the wait ended plays like any other frame, as long as the turn is still outstanding: a turn whose wait ended this way stays outstanding, so the next turn the user types or speaks stops it and its late `render` is dropped.
+The wait in the limits table passing before a `render` arrives, or the socket leaving `ready`, ends the wait and the client speaks a failure line. A `render` that arrives after the wait ended plays like any other frame, as long as the turn is still outstanding: a turn whose wait ended this way stays outstanding, so the next user action that stops speech stops it too and its late `render` is dropped.
 
 ### `reset` (client → backend)
 
