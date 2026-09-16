@@ -344,7 +344,7 @@ describe("render_turn — a turn the user stopped", () => {
       turn_id: "7",
       segments: 1,
       dropped: "cut_turn",
-      stopped_turns: ["7"],
+      stopped_count: 1,
     });
   });
 

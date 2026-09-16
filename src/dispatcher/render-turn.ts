@@ -34,7 +34,7 @@ const baseLog = createLogger("render-turn");
 export interface RenderTurnDeps {
   turnOutput: TurnOutput;
   /** Which push turns the user stopped — a frame of one of them never plays. */
-  pushTurns: Pick<PushTurns, "rendered" | "isCut" | "cutIds">;
+  pushTurns: Pick<PushTurns, "rendered" | "isCut" | "cutCount">;
   /** Render sink for a cue with no audio behind it. */
   renderer: Pick<Renderer, "applyDirective">;
   /** Conversation transcript — the reply half of a push turn lands here. */
@@ -81,7 +81,7 @@ export function createRenderTurn(deps: RenderTurnDeps): RenderTurn {
           turn_id: frame.turn_id,
           segments: segments.length,
           dropped: "cut_turn",
-          stopped_turns: deps.pushTurns.cutIds(),
+          stopped_count: deps.pushTurns.cutCount(),
         });
         return false;
       }

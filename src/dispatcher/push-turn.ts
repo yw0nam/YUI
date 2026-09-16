@@ -21,8 +21,8 @@ export interface PushTurns {
   cut(): void;
   /** Whether a frame belongs to a cut turn. A null turn_id is never cut. */
   isCut(turnId: string | null): boolean;
-  /** The turns the user stopped, for the line that reports a frame dropped on one. */
-  cutIds(): string[];
+  /** How many turns the user has stopped, for the line that reports a frame dropped on one. */
+  cutCount(): number;
   /**
    * Resolves when a render of this turn is accepted, or when the turn is cut. One shot.
    * `onSettle` runs at that moment, before the frame's segments are read.
@@ -75,8 +75,8 @@ export function createPushTurns(): PushTurns {
     isCut(turnId) {
       return turnId !== null && stopped.has(turnId);
     },
-    cutIds() {
-      return [...stopped];
+    cutCount() {
+      return stopped.size;
     },
     awaitFirstRender(turnId, onSettle) {
       return new Promise((resolve) => waiting.set(turnId, { resolve, onSettle }));
