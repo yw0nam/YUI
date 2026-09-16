@@ -1,20 +1,22 @@
 /**
  * backend-caller.push.test.ts — the push transport (chat_api: "push").
  *
- * The turn goes out as one frame on the WebSocket and nothing streams back: a sent frame ends the
- * turn silently, a socket that is not ready ends it as a network failure.
+ * The turn goes out as one frame on the WebSocket and the call stays open until that turn's first
+ * render arrives, so the app shows the turn running for as long as the backend works on it. A
+ * socket that is not ready ends the turn as a network failure before it is sent.
  *
  * Nothing the backend pushes stops speech here; a turn the user typed or spoke does, and stops the
  * push turns still outstanding with it.
  */
 
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { EndpointsConfig } from "../contract";
 import type { ChatHistoryEntry } from "../io/chat-history-store";
 import type { PushTurnFrame } from "../io/push-socket";
 import type { Logger } from "../logger";
-import { createBackendCaller } from "./backend-caller";
+import { createBackendCaller, PRE_SPEECH_TIMEOUT_MS, type TurnOutcome } from "./backend-caller";
 import type { BusEnvelope } from "./event-bus";
+import { createPushTurns } from "./push-turn";
 import { CONFIG, makeLogger, makeTurnOutput, turnOf, userEnv } from "./test-helpers";
 
 function scheduleEnv(): BusEnvelope {
@@ -46,6 +48,27 @@ let onContextBuilt: (() => void) | null;
 let order: string[];
 let cuts: number;
 let sentIds: string[];
+let pushTurns: ReturnType<typeof createPushTurns>;
+/** Whether an accepted frame answers itself with a render — off for the tests that drive the wait. */
+let autoRender: boolean;
+let socket: ReturnType<typeof fakeSocketState>;
+
+/** The socket-not-ready subscription, counting the subscribers still registered. */
+function fakeSocketState() {
+  const subs = new Set<() => void>();
+  return {
+    subscribe(cb: () => void) {
+      subs.add(cb);
+      return () => {
+        subs.delete(cb);
+      };
+    },
+    leaveReady(): void {
+      for (const cb of [...subs]) cb();
+    },
+    subscriberCount: () => subs.size,
+  };
+}
 
 function callerWith(accepted: boolean, config: EndpointsConfig = PUSH_CONFIG) {
   sent = [];
@@ -59,6 +82,8 @@ function callerWith(accepted: boolean, config: EndpointsConfig = PUSH_CONFIG) {
   order = [];
   cuts = 0;
   sentIds = [];
+  pushTurns = createPushTurns();
+  socket = fakeSocketState();
   turnOutput.interrupt.mockImplementation(() => {
     order.push("interrupt");
   });
@@ -86,13 +111,21 @@ function callerWith(accepted: boolean, config: EndpointsConfig = PUSH_CONFIG) {
     pushTurn: (frame) => {
       sent.push(frame);
       onTurnSent?.();
+      // The backend's answer lands after the call registered its waiter, as the real socket's does.
+      if (accepted && autoRender) queueMicrotask(() => pushTurns.rendered(frame.turn_id));
       return accepted;
     },
     onPushTurnCut: () => {
       order.push("cut");
       cuts++;
+      pushTurns.cut();
     },
-    onPushTurnSent: (turnId) => sentIds.push(turnId),
+    onPushTurnSent: (turnId) => {
+      sentIds.push(turnId);
+      pushTurns.opened(turnId);
+    },
+    pushTurns,
+    onPushSocketNotReady: (cb) => socket.subscribe(cb),
     reportSpokeText: (v) => spoke.push(v),
     contextHistory: { append: (entry) => contexts.push(entry) },
     appendTurnRecord: (record) => records.push(record),
@@ -103,6 +136,7 @@ function callerWith(accepted: boolean, config: EndpointsConfig = PUSH_CONFIG) {
 beforeEach(() => {
   turnOutput = makeTurnOutput();
   logger = makeLogger();
+  autoRender = true;
 });
 
 describe("backend_caller — push transport", () => {
@@ -249,5 +283,128 @@ describe("backend_caller — push transport", () => {
 
     expect(outcome).toBe("not_configured");
     expect(sent).toEqual([]);
+  });
+});
+
+/** Tracks a call still running: the outcome stays null until the wait ends. */
+function running(promise: Promise<TurnOutcome>) {
+  let settled: TurnOutcome | null = null;
+  void promise.then((outcome) => {
+    settled = outcome;
+  });
+  return { settled: (): TurnOutcome | null => settled, promise };
+}
+
+/** Every way the wait ends, with the outcome it settles to. */
+const EXITS = [
+  ["a render of the turn", "ok", "render"],
+  ["the user stopping the reply", "superseded_by_user", "cut"],
+  ["the external signal", "superseded_by_user", "abort"],
+  ["240 seconds with no render", "network_stall", "timeout"],
+  ["the socket leaving ready", "network_drop", "drop"],
+] as const;
+
+type Exit = (typeof EXITS)[number][2];
+
+/** Sends one push turn and ends its wait the named way; resolves to the call's outcome. */
+async function runToExit(exit: Exit): Promise<TurnOutcome> {
+  const controller = new AbortController();
+  const caller = callerWith(true);
+  const call = caller.call(turnOf(userEnv(), 7), controller.signal);
+  await vi.advanceTimersByTimeAsync(0);
+  if (exit === "render") pushTurns.rendered("7");
+  if (exit === "cut") pushTurns.cut();
+  if (exit === "abort") controller.abort();
+  if (exit === "drop") socket.leaveReady();
+  if (exit === "timeout") await vi.advanceTimersByTimeAsync(PRE_SPEECH_TIMEOUT_MS);
+  await vi.advanceTimersByTimeAsync(0);
+  return call;
+}
+
+describe("backend_caller — push transport, the turn stays open", () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+    autoRender = false;
+  });
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it("stays open until a render of its turn is accepted", async () => {
+    const caller = callerWith(true);
+    const turn = running(caller.call(turnOf(userEnv(), 7)));
+    await vi.advanceTimersByTimeAsync(0);
+
+    expect(turn.settled()).toBeNull();
+
+    pushTurns.rendered("7");
+    await vi.advanceTimersByTimeAsync(0);
+
+    expect(turn.settled()).toBe("ok");
+  });
+
+  it("another turn's render leaves it open", async () => {
+    const caller = callerWith(true);
+    const turn = running(caller.call(turnOf(userEnv(), 7)));
+    await vi.advanceTimersByTimeAsync(0);
+    pushTurns.rendered("9");
+    pushTurns.rendered(null);
+    await vi.advanceTimersByTimeAsync(0);
+
+    expect(turn.settled()).toBeNull();
+  });
+
+  it("records the user's half of the turn at send, before the wait", async () => {
+    const caller = callerWith(true);
+    const turn = running(caller.call(turnOf(userEnv("안녕"), 7)));
+    await vi.advanceTimersByTimeAsync(0);
+
+    expect(turn.settled()).toBeNull();
+    expect(sentIds).toEqual(["7"]);
+    expect(spoke).toEqual([false]);
+    expect(transcript).toEqual([{ role: "user", text: "안녕", ts: expect.any(Number) }]);
+    expect(contexts).toHaveLength(1);
+    expect(records).toHaveLength(1);
+  });
+
+  it.each(EXITS)("%s ends the turn as %s", async (_label, outcome, exit) => {
+    await expect(runToExit(exit)).resolves.toBe(outcome);
+  });
+
+  it("logs the expired wait as a stall of the push wait", async () => {
+    await runToExit("timeout");
+
+    expect(logger.warn).toHaveBeenCalledWith(
+      "network_stall",
+      expect.objectContaining({ stage: "push_wait", turn_id: "7" }),
+    );
+  });
+
+  it("logs the socket leaving ready as a drop of the push wait", async () => {
+    await runToExit("drop");
+
+    expect(logger.warn).toHaveBeenCalledWith(
+      "network_drop",
+      expect.objectContaining({ stage: "push_wait", turn_id: "7" }),
+    );
+  });
+
+  it("holds the wait for the whole budget before it expires", async () => {
+    const caller = callerWith(true);
+    const turn = running(caller.call(turnOf(userEnv(), 7)));
+    await vi.advanceTimersByTimeAsync(PRE_SPEECH_TIMEOUT_MS - 1);
+
+    expect(turn.settled()).toBeNull();
+
+    await vi.advanceTimersByTimeAsync(1);
+
+    expect(turn.settled()).toBe("network_stall");
+  });
+
+  it.each(EXITS)("%s leaves no timer and no socket subscriber behind", async (_label, _outcome, exit) => {
+    await runToExit(exit);
+
+    expect(vi.getTimerCount()).toBe(0);
+    expect(socket.subscriberCount()).toBe(0);
   });
 });
