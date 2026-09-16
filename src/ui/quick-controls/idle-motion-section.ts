@@ -3,7 +3,7 @@ import {
   enabledIdleVariants,
   type IdleMotionSettingsStore,
   type IdleVariantPool,
-} from "../../io/idle-motion-settings";
+} from "../../io/settings/idle-motion-settings";
 import type { Logger } from "../../logger";
 import { t } from "../i18n";
 

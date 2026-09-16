@@ -5,7 +5,7 @@
  * is expanded by default, and every turn renders as plain text (never markdown).
  */
 import "./history-section.css";
-import type { ChatSession } from "../../io/chat-history-store";
+import type { ChatSession } from "../../io/chat/chat-history-store";
 import { getLocale, t } from "../i18n";
 import { HIST_CHEVRON_SVG } from "./constants";
 

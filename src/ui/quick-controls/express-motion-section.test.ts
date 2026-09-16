@@ -2,7 +2,7 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 import type { MotionRegistry } from "../../contract";
-import { agentTriggerableMotionIds } from "../../io/broker-client";
+import { agentTriggerableMotionIds } from "../../io/chat/broker-client";
 import en from "../i18n/en";
 import ja from "../i18n/ja";
 import ko from "../i18n/ko";

@@ -11,26 +11,26 @@ import {
   createEffectiveEndpoints,
   wireSettingsWindowSync,
   wireSpeakerSelection,
-} from "./bootstrap-wiring";
+} from "./app/bootstrap-wiring";
 import { TTS_API_KEY_SECRET } from "./config/load";
 import { createConfigStore } from "./config/store";
-import { agentTriggerableMotionIds } from "./io/broker-client";
-import { createMirroredDelegations } from "./io/delegations-bridge";
-import { endpointDefaultsFromConfig } from "./io/endpoints-settings";
-import { rateLimitDefaultsFromConfig } from "./io/guardrails-settings";
-import { createMirroredPushSocket } from "./io/push-socket-bridge";
-import { screenDefaultsFromConfig } from "./io/screen-settings";
-import { createSettingsSecretProvider } from "./io/secret-provider";
-import { createSettingsStores } from "./io/settings-stores";
-import { closeSettingsWindow } from "./io/settings-window";
-import { resolveScreenSourceProvider } from "./io/tauri-screen";
-import { wireVoiceListAutoRefresh } from "./io/voice-list-refresh";
-import { importVrmFromFile, removeUserVrm } from "./io/vrm-import";
+import { importVrmFromFile, removeUserVrm } from "./io/assets/vrm-import";
 import {
   createVrmSelection,
   localStorageUserVrmStorage,
   localStorageVrmStorage,
-} from "./io/vrm-selection";
+} from "./io/assets/vrm-selection";
+import { createMirroredDelegations } from "./io/bridge/delegations-bridge";
+import { createMirroredPushSocket } from "./io/bridge/push-socket-bridge";
+import { agentTriggerableMotionIds } from "./io/chat/broker-client";
+import { createSettingsSecretProvider } from "./io/chat/secret-provider";
+import { endpointDefaultsFromConfig } from "./io/settings/endpoints-settings";
+import { rateLimitDefaultsFromConfig } from "./io/settings/guardrails-settings";
+import { screenDefaultsFromConfig } from "./io/settings/screen-settings";
+import { createSettingsStores } from "./io/settings/settings-stores";
+import { wireVoiceListAutoRefresh } from "./io/voice/voice-list-refresh";
+import { closeSettingsWindow } from "./io/window/settings-window";
+import { resolveScreenSourceProvider } from "./io/window/tauri-screen";
 import { createLogger, initLogger } from "./logger";
 import { getLocale, subscribe as subscribeLocale } from "./ui/i18n";
 import { createQuickControls } from "./ui/quick-controls";

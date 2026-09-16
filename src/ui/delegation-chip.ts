@@ -9,8 +9,8 @@
  */
 
 import "./delegation-chip.css";
-import type { DelegationChipSettingsStore } from "../io/delegation-chip-settings";
-import type { DelegationItem, PushSocketState } from "../io/push-socket";
+import type { DelegationItem, PushSocketState } from "../io/chat/push-socket";
+import type { DelegationChipSettingsStore } from "../io/settings/delegation-chip-settings";
 import { DELEGATION_REFRESH_MS, renderDelegationRows } from "./delegation-rows";
 import { afterFadeOut } from "./fade-out";
 import { subscribe as subscribeLocale, t } from "./i18n";

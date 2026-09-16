@@ -39,11 +39,12 @@ YUI/
   public/motions/                    # VRMA motion assets
   src/
     main.ts                          # Application entry: config load, renderer, dispatcher, and the I/O graph
-    bootstrap-wiring.ts              # VRM and speaker selection stores plus their swap and import flows
-    bootstrap-configured.ts          # Config-derived bootstrap: pat gesture, fall and descend configs, ambient handles
-    voice-pipeline-wiring.ts         # Wires filler, TTS, and speech playback to the turn lifecycle
+    app/
+      bootstrap-wiring.ts            # VRM and speaker selection stores plus their swap and import flows
+      bootstrap-configured.ts        # Config-derived bootstrap: pat gesture, fall and descend configs, ambient handles
+      voice-pipeline-wiring.ts       # Wires filler, TTS, and speech playback to the turn lifecycle
+      drag.ts                        # Main-window drag gesture detection and OS-native drag handoff
     logger.ts                        # Namespaced frontend logger with a runtime level
-    drag.ts                          # Main-window drag gesture detection and OS-native drag handoff
     settings-main.ts                 # Settings-window entry
     devtools-main.ts                 # Developer Tools window entry
     message-main.ts                  # Message-window entry
@@ -124,96 +125,102 @@ YUI/
       sitter.ts                      # Sit-down and stand-up seat transitions
       clip-leg.ts                    # A window leg paced by an in-place clip
     io/                              # I/O layer: chat, voice, settings stores, window and OS seams
-      chat-client.ts                 # Adapter over the openai SDK Responses stream
-      chat-completions.ts            # Pure Chat Completions request builders and stream-chunk reducer
-      chat-history-store.ts          # Unified conversation transcript with session boundaries
-      client-tools.ts                # Registry of the tools YUI declares and runs itself
-      context-history.ts             # Capped ring of recent client-context entries
-      session-store.ts               # Holds the last Responses response.id for conversation continuation
-      session-diagnostics.ts         # Used tokens and context window for the settings window
-      secret-provider.ts             # Resolves each secret from its runtime store, then the build-time fallback
-      api-key-settings.ts            # Generic API-key override store behind the chat, STT, and TTS key settings
-      chat-key-settings.ts           # Chat API key override store
-      deadline.ts                    # Per-request deadline so a hung fetch settles
-      sentence-segmenter.ts          # Segments streamed text into sentences
-      strip-emoji.ts                 # Stateful emoji stripper for spoken text deltas
-      strip-links.ts                 # Stateful markdown-link stripper for spoken text deltas
-      stt-vad.ts                     # Voice input pipeline: VAD segmentation then STT upload
-      tts-pipeline.ts                # Sentence-level TTS synthesis with in-order playback
-      tts-synth.ts                   # Single-sentence speech synthesis request
-      tts-voices.ts                  # Lists, uploads, and deletes reference voices on the TTS server
-      audio-player.ts                # Web Audio sink that plays a wav clip and reports mouth-open amplitude
-      speech-playback.ts             # Glue between TTS playback, the renderer mouth, and bubble lifetime
-      filler-loop.ts                 # Bounded, event-aware TTFT filler scheduler
-      filler-pool.ts                 # Resolves the effective filler pool per language and tier
-      filler-settings.ts             # Filler phrase pools and behaviour flags
-      filler-audio-cache.ts          # Session-scoped audio memo for filler phrases
-      shuffle-bag.ts                 # Draws phrases without replacement until the pool is exhausted
-      voice-import.ts                # Voice import: OS picker, native copy, speaker registration
-      voice-import-flow.ts           # Two-step voice import so a naming row sits between pick and copy
-      voice-list-refresh.ts          # Refetches the TTS server's voice list into a speaker manifest
-      reference-clip.ts              # Reference-clip URL resolution and transport selection
-      speaker-selection.ts           # Owns the active TTS speaker selection
-      vrm-import.ts                  # VRM import: OS picker, native copy, avatar-option registration
-      user-asset-import.ts           # Dialog result shape, lazy Tauri loaders, and orphan cleanup shared by the voice and VRM imports
-      vrm-selection.ts               # Owns the active VRM selection
-      selection-store.ts             # Generic selection store behind VRM and speaker selection
-      safe-id.ts                     # TS mirror of the native stem sanitizer for persisted option ids
-      broker-client.ts               # Write-only Expression Broker MCP client that publishes the renderable vocabulary
-      broker-override-reconciler.ts  # Applies a broker-URL override to the live broker client
-      avatar-rpc.ts                  # Webview end of the loopback avatar RPC surface
-      avatar-executor.ts             # Answers the bridged avatar RPCs from live client state
-      agent-inbox.ts                 # Subscribes to the Rust agent-inbox event channel
-      signals-inbox.ts               # Subscribes to the Rust signals-inbox event channel
-      create-inbox.ts                # Generic Tauri event-channel subscription seam
-      tauri-listen.ts                # Shared os_event channel payload shape and listen resolver
-      tauri-env.ts                   # Tauri runtime detection
-      tauri-screen.ts                # Tauri-backed screen enumeration and capture
-      screen-source-provider.ts      # Monitor enumeration seam
-      screen-geometry.ts             # Monitor containment and work-area floor math shared by every window mover
-      screenshot-context.ts          # Pure encoder for the screenshot context block
-      asset-url.ts                   # Logical asset paths to runtime-fetchable URLs
-      window-statics.ts              # Cached window origin and scale factors for the global-cursor poll loops
-      cursor-tracker.ts              # Forwards the OS cursor position to the gaze apply layer
-      frontmost-tracker.ts           # Latest frontmost-window sample off the os_event channel
-      hit-test.ts                    # Click-through hit-test controller for the transparent window
-      keep-on-screen.ts              # Pushes a window back until its centre lands on a monitor
-      travel-frame.ts                # Parks the real window once for a scale-seam crossing
-      peek-state.ts                  # Holds the current peek side and its lifecycle
-      tap-source.ts                  # Turns taps on the character into bus envelopes
-      drag-hold-source.ts            # Fires one proactive.drag_held candidate per sustained drag
-      window-drop-source.ts          # Drag-release perch decision plus the occlusion-aware detach poll
-      window-resize-source.ts        # Ctrl+wheel over the character resizes the pet window
-      summon-hotkey.ts               # Registers the OS-wide summon accelerator and summons the input
-      settings-bridge.ts             # Typed cross-window settings bus over Tauri emit and listen
-      settings-stores.ts             # Constructs and synchronises the settings-store family
-      settings-window.ts             # Settings window opener and cross-window settings sync
-      devtools-window.ts             # Developer Tools window opener
-      message-window.ts              # Message-window opener and its placement rule
-      message-window-mode.ts         # Keeps the message window in step with the stored mode and the dock request
-      message-bridge.ts              # Cross-window bus linking the pet window and the message window
-      message-remote.ts              # The message window's bubble and input as a remote Surfaces half
-      persisted-store.ts             # Shared bootstrap, notify, reload, and localStorage core for the settings stores
-      turn-record-log.ts             # Appends one JSONL record per completed turn or skipped fire
-      agent-settings.ts              # Reasoning effort and system-instructions override
-      agent-notify-settings.ts       # Agent-notification enabled flag and listener port
-      camera-settings.ts             # Camera zoom and orbit viewpoint
-      endpoints-settings.ts          # User-editable endpoint and model overrides
-      express-motion-settings.ts     # Curates the motion vocabulary the agent may choose from
-      guardrails-settings.ts         # User-editable guardrail rate-limit caps
-      idle-motion-settings.ts        # Selects which ambient idle variants may play
-      lipsync-settings.ts            # Lip-sync gain
-      message-window-settings.ts     # Message-window mode and last outer position
-      cue-list-settings.ts           # Shared on/off flag plus editable cue list behind the schedule and proactive stores
-      proactive-settings.ts          # Idle-gap proactive cue list and its on/off flag
-      proactive-seeds.ts             # Per-locale default proactive cues seeded on a first run
-      schedule-settings.ts           # Clock-time schedule cue list and its on/off flag
-      schedule-seeds.ts              # Per-locale default schedule cues seeded on a first run
-      screen-settings.ts             # User-editable screen-watch thresholds
-      screenshot-settings.ts         # Screenshot enabled state and source
-      sections-settings.ts           # Collapsed state of the Quick Controls sections
-      vad-settings.ts                # VAD silence window
-      workflow-settings.ts           # Workflow entry list and URL validation
+      settings/
+        api-key-settings.ts            # Generic API-key override store behind the chat, STT, and TTS key settings
+        chat-key-settings.ts           # Chat API key override store
+        filler-settings.ts             # Filler phrase pools and behaviour flags
+        settings-stores.ts             # Constructs and synchronises the settings-store family
+        persisted-store.ts             # Shared bootstrap, notify, reload, and localStorage core for the settings stores
+        agent-settings.ts              # Reasoning effort and system-instructions override
+        agent-notify-settings.ts       # Agent-notification enabled flag and listener port
+        camera-settings.ts             # Camera zoom and orbit viewpoint
+        endpoints-settings.ts          # User-editable endpoint and model overrides
+        express-motion-settings.ts     # Curates the motion vocabulary the agent may choose from
+        guardrails-settings.ts         # User-editable guardrail rate-limit caps
+        idle-motion-settings.ts        # Selects which ambient idle variants may play
+        lipsync-settings.ts            # Lip-sync gain
+        message-window-settings.ts     # Message-window mode and last outer position
+        cue-list-settings.ts           # Shared on/off flag plus editable cue list behind the schedule and proactive stores
+        proactive-settings.ts          # Idle-gap proactive cue list and its on/off flag
+        proactive-seeds.ts             # Per-locale default proactive cues seeded on a first run
+        schedule-settings.ts           # Clock-time schedule cue list and its on/off flag
+        schedule-seeds.ts              # Per-locale default schedule cues seeded on a first run
+        screen-settings.ts             # User-editable screen-watch thresholds
+        screenshot-settings.ts         # Screenshot enabled state and source
+        sections-settings.ts           # Collapsed state of the Quick Controls sections
+        vad-settings.ts                # VAD silence window
+        workflow-settings.ts           # Workflow entry list and URL validation
+      chat/
+        chat-client.ts                 # Adapter over the openai SDK Responses stream
+        chat-completions.ts            # Pure Chat Completions request builders and stream-chunk reducer
+        chat-history-store.ts          # Unified conversation transcript with session boundaries
+        client-tools.ts                # Registry of the tools YUI declares and runs itself
+        context-history.ts             # Capped ring of recent client-context entries
+        session-store.ts               # Holds the last Responses response.id for conversation continuation
+        session-diagnostics.ts         # Used tokens and context window for the settings window
+        secret-provider.ts             # Resolves each secret from its runtime store, then the build-time fallback
+        broker-client.ts               # Write-only Expression Broker MCP client that publishes the renderable vocabulary
+        broker-override-reconciler.ts  # Applies a broker-URL override to the live broker client
+        turn-record-log.ts             # Appends one JSONL record per completed turn or skipped fire
+      voice/
+        deadline.ts                    # Per-request deadline so a hung fetch settles
+        sentence-segmenter.ts          # Segments streamed text into sentences
+        strip-emoji.ts                 # Stateful emoji stripper for spoken text deltas
+        strip-links.ts                 # Stateful markdown-link stripper for spoken text deltas
+        stt-vad.ts                     # Voice input pipeline: VAD segmentation then STT upload
+        tts-pipeline.ts                # Sentence-level TTS synthesis with in-order playback
+        tts-synth.ts                   # Single-sentence speech synthesis request
+        tts-voices.ts                  # Lists, uploads, and deletes reference voices on the TTS server
+        audio-player.ts                # Web Audio sink that plays a wav clip and reports mouth-open amplitude
+        speech-playback.ts             # Glue between TTS playback, the renderer mouth, and bubble lifetime
+        filler-loop.ts                 # Bounded, event-aware TTFT filler scheduler
+        filler-pool.ts                 # Resolves the effective filler pool per language and tier
+        filler-audio-cache.ts          # Session-scoped audio memo for filler phrases
+        shuffle-bag.ts                 # Draws phrases without replacement until the pool is exhausted
+        voice-import.ts                # Voice import: OS picker, native copy, speaker registration
+        voice-import-flow.ts           # Two-step voice import so a naming row sits between pick and copy
+        voice-list-refresh.ts          # Refetches the TTS server's voice list into a speaker manifest
+        reference-clip.ts              # Reference-clip URL resolution and transport selection
+        speaker-selection.ts           # Owns the active TTS speaker selection
+      window/
+        tauri-listen.ts                # Shared os_event channel payload shape and listen resolver
+        tauri-env.ts                   # Tauri runtime detection
+        tauri-screen.ts                # Tauri-backed screen enumeration and capture
+        screen-source-provider.ts      # Monitor enumeration seam
+        screen-geometry.ts             # Monitor containment and work-area floor math shared by every window mover
+        screenshot-context.ts          # Pure encoder for the screenshot context block
+        window-statics.ts              # Cached window origin and scale factors for the global-cursor poll loops
+        cursor-tracker.ts              # Forwards the OS cursor position to the gaze apply layer
+        frontmost-tracker.ts           # Latest frontmost-window sample off the os_event channel
+        hit-test.ts                    # Click-through hit-test controller for the transparent window
+        keep-on-screen.ts              # Pushes a window back until its centre lands on a monitor
+        travel-frame.ts                # Parks the real window once for a scale-seam crossing
+        peek-state.ts                  # Holds the current peek side and its lifecycle
+        tap-source.ts                  # Turns taps on the character into bus envelopes
+        drag-hold-source.ts            # Fires one proactive.drag_held candidate per sustained drag
+        window-drop-source.ts          # Drag-release perch decision plus the occlusion-aware detach poll
+        window-resize-source.ts        # Ctrl+wheel over the character resizes the pet window
+        summon-hotkey.ts               # Registers the OS-wide summon accelerator and summons the input
+        settings-window.ts             # Settings window opener and cross-window settings sync
+        devtools-window.ts             # Developer Tools window opener
+        message-window.ts              # Message-window opener and its placement rule
+        message-window-mode.ts         # Keeps the message window in step with the stored mode and the dock request
+      bridge/
+        avatar-rpc.ts                  # Webview end of the loopback avatar RPC surface
+        avatar-executor.ts             # Answers the bridged avatar RPCs from live client state
+        agent-inbox.ts                 # Subscribes to the Rust agent-inbox event channel
+        signals-inbox.ts               # Subscribes to the Rust signals-inbox event channel
+        create-inbox.ts                # Generic Tauri event-channel subscription seam
+        settings-bridge.ts             # Typed cross-window settings bus over Tauri emit and listen
+        message-bridge.ts              # Cross-window bus linking the pet window and the message window
+        message-remote.ts              # The message window's bubble and input as a remote Surfaces half
+      assets/
+        vrm-import.ts                  # VRM import: OS picker, native copy, avatar-option registration
+        user-asset-import.ts           # Dialog result shape, lazy Tauri loaders, and orphan cleanup shared by the voice and VRM imports
+        vrm-selection.ts               # Owns the active VRM selection
+        selection-store.ts             # Generic selection store behind VRM and speaker selection
+        safe-id.ts                     # TS mirror of the native stem sanitizer for persisted option ids
+        asset-url.ts                   # Logical asset paths to runtime-fetchable URLs
     ui/                              # Floating surfaces, panels, and indicators
       surfaces.ts                    # Mounts the speech bubble, tool-status chip, and text input as one system
       surfaces-router.ts             # One Surfaces handle over the pet window and the message window

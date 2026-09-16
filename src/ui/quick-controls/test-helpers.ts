@@ -7,22 +7,22 @@
 
 import { vi } from "vitest";
 import type { AvatarOption } from "../../config/load";
+import { createVrmSelection } from "../../io/assets/vrm-selection";
 import {
   type AgentSettings,
   type AgentStorage,
   createAgentSettings,
-} from "../../io/agent-settings";
-import { createSttKeySettings, createTtsKeySettings } from "../../io/api-key-settings";
-import { createChatKeySettings } from "../../io/chat-key-settings";
-import { createEndpointsSettings } from "../../io/endpoints-settings";
-import { createLipsyncSettings } from "../../io/lipsync-settings";
-import { createFlagSettings } from "../../io/persisted-store";
-import { createProactiveSettings } from "../../io/proactive-settings";
-import { createScheduleSettings } from "../../io/schedule-settings";
-import { createSpeakerSelection, type SpeakerOption } from "../../io/speaker-selection";
-import { createVadSettings } from "../../io/vad-settings";
-import { createVrmSelection } from "../../io/vrm-selection";
-import { createWorkflowSettings } from "../../io/workflow-settings";
+} from "../../io/settings/agent-settings";
+import { createSttKeySettings, createTtsKeySettings } from "../../io/settings/api-key-settings";
+import { createChatKeySettings } from "../../io/settings/chat-key-settings";
+import { createEndpointsSettings } from "../../io/settings/endpoints-settings";
+import { createLipsyncSettings } from "../../io/settings/lipsync-settings";
+import { createFlagSettings } from "../../io/settings/persisted-store";
+import { createProactiveSettings } from "../../io/settings/proactive-settings";
+import { createScheduleSettings } from "../../io/settings/schedule-settings";
+import { createVadSettings } from "../../io/settings/vad-settings";
+import { createWorkflowSettings } from "../../io/settings/workflow-settings";
+import { createSpeakerSelection, type SpeakerOption } from "../../io/voice/speaker-selection";
 
 // jsdom 29 lacks CSS.escape (browsers have it) — polyfill so selector-escaping paths run.
 // Escapes ASCII chars that aren't safe identifier chars; non-ASCII passes through (safe unescaped).
@@ -46,7 +46,7 @@ export function inMemoryAgentStorage(): AgentStorage {
 }
 
 // In-memory ApiKeyStorage so stt/tts key stores don't share localStorage in tests.
-export function inMemoryApiKeyStorage(): import("../../io/api-key-settings").ApiKeyStorage {
+export function inMemoryApiKeyStorage(): import("../../io/settings/api-key-settings").ApiKeyStorage {
   let value: { apiKey: string } | null = null;
   return {
     load: () => (value ? { ...value } : null),

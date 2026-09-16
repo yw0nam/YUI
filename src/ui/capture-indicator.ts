@@ -4,7 +4,7 @@
  */
 
 import "./capture-indicator.css";
-import type { createScreenshotSettings } from "../io/screenshot-settings";
+import type { createScreenshotSettings } from "../io/settings/screenshot-settings";
 import { afterFadeOut } from "./fade-out";
 import { t } from "./i18n";
 

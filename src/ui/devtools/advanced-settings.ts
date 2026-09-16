@@ -1,4 +1,4 @@
-import type { createEndpointsSettings } from "../../io/endpoints-settings";
+import type { createEndpointsSettings } from "../../io/settings/endpoints-settings";
 import { t } from "../i18n";
 import { reflectUnlessEditing } from "../reflect-unless-editing";
 

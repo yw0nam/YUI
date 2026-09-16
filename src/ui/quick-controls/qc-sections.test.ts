@@ -4,15 +4,15 @@
  * wrapping every heading-bearing settings group, persisted via sectionsSettings (yui.sections).
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { createExpressMotionSettings } from "../../io/express-motion-settings";
-import { createFillerSettings } from "../../io/filler-settings";
-import { createGuardrailsSettings } from "../../io/guardrails-settings";
-import { createIdleMotionSettings } from "../../io/idle-motion-settings";
-import { createFlagSettings } from "../../io/persisted-store";
-import { createScreenKnobSettings } from "../../io/screen-settings";
-import { createSectionsSettings } from "../../io/sections-settings";
-import { createSessionDiagnosticsStore } from "../../io/session-diagnostics";
-import { createSessionStore } from "../../io/session-store";
+import { createSessionDiagnosticsStore } from "../../io/chat/session-diagnostics";
+import { createSessionStore } from "../../io/chat/session-store";
+import { createExpressMotionSettings } from "../../io/settings/express-motion-settings";
+import { createFillerSettings } from "../../io/settings/filler-settings";
+import { createGuardrailsSettings } from "../../io/settings/guardrails-settings";
+import { createIdleMotionSettings } from "../../io/settings/idle-motion-settings";
+import { createFlagSettings } from "../../io/settings/persisted-store";
+import { createScreenKnobSettings } from "../../io/settings/screen-settings";
+import { createSectionsSettings } from "../../io/settings/sections-settings";
 import { setLocale } from "../i18n";
 import { createQuickControls } from "../quick-controls";
 import { defaultQcArgs } from "./test-helpers";

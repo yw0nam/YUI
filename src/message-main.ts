@@ -11,29 +11,29 @@ import "./styles.css";
 import "./ui/message-window.css";
 import { loadConfig } from "./config/load";
 import type { EndpointsConfig } from "./contract";
+import { createMirroredDelegations } from "./io/bridge/delegations-bridge";
+import { createMessageBridge } from "./io/bridge/message-bridge";
+import { createMirroredPushSocket } from "./io/bridge/push-socket-bridge";
+import { createMirroredReasoning } from "./io/bridge/reasoning-bridge";
+import { createSettingsBridge } from "./io/bridge/settings-bridge";
 import {
   createDelegationChipSettings,
   localStorageDelegationChipStorage,
-} from "./io/delegation-chip-settings";
-import { createMirroredDelegations } from "./io/delegations-bridge";
+} from "./io/settings/delegation-chip-settings";
 import {
   createEndpointsSettings,
   localStorageEndpointsStorage,
   mergeEndpoints,
-} from "./io/endpoints-settings";
-import { attachKeepOnScreen } from "./io/keep-on-screen";
-import { createMessageBridge } from "./io/message-bridge";
-import { MESSAGE_WINDOW_WIDTH } from "./io/message-window";
+} from "./io/settings/endpoints-settings";
 import {
   createMessageWindowSettings,
   localStorageMessageWindowStorage,
-} from "./io/message-window-settings";
-import { createFlagSettings, localStorageStore } from "./io/persisted-store";
-import { createMirroredPushSocket } from "./io/push-socket-bridge";
-import { createMirroredReasoning } from "./io/reasoning-bridge";
-import { toScreenMonitor } from "./io/screen-geometry";
-import { createSettingsBridge } from "./io/settings-bridge";
-import { isTauri } from "./io/tauri-env";
+} from "./io/settings/message-window-settings";
+import { createFlagSettings, localStorageStore } from "./io/settings/persisted-store";
+import { attachKeepOnScreen } from "./io/window/keep-on-screen";
+import { MESSAGE_WINDOW_WIDTH } from "./io/window/message-window";
+import { toScreenMonitor } from "./io/window/screen-geometry";
+import { isTauri } from "./io/window/tauri-env";
 import { createLogger, initLogger } from "./logger";
 import { createDelegationChip } from "./ui/delegation-chip";
 import { reloadFromStorage as reloadLocale } from "./ui/i18n";

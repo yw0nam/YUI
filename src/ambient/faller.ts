@@ -26,8 +26,8 @@ import {
   monitorAt,
   type PetWindow,
   type ScreenMonitor,
-} from "../io/screen-geometry";
-import { PERCH_POLL_MS, uncoveredSpan } from "../io/window-drop-source";
+} from "../io/window/screen-geometry";
+import { PERCH_POLL_MS, uncoveredSpan } from "../io/window/window-drop-source";
 import { createLogger } from "../logger";
 import type { Renderer } from "../renderer";
 import { prefersReducedMotion } from "./tier1";

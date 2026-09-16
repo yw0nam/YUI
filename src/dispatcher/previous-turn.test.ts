@@ -7,7 +7,7 @@
 
 import { describe, expect, it } from "vitest";
 import type { PreviousTurn } from "../contract";
-import type { PersistedStorage } from "../io/persisted-store";
+import type { PersistedStorage } from "../io/settings/persisted-store";
 import type { BusEnvelope } from "./event-bus";
 import { createPreviousTurn } from "./previous-turn";
 import type { Turn } from "./turn";

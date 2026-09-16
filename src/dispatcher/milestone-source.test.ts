@@ -12,8 +12,8 @@
 
 import { describe, expect, it, vi } from "vitest";
 import type { SignalGroup } from "../contract";
-import type { PersistedStorage } from "../io/persisted-store";
-import type { OsEventListen, OsEventPayload } from "../io/tauri-listen";
+import type { PersistedStorage } from "../io/settings/persisted-store";
+import type { OsEventListen, OsEventPayload } from "../io/window/tauri-listen";
 import type { BusEnvelope, EventBus } from "./event-bus";
 import { createMilestoneSource } from "./milestone-source";
 

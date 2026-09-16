@@ -34,12 +34,12 @@ const { mountMotionPreview, motionPreviewState } = vi.hoisted(() => {
   return { mountMotionPreview, motionPreviewState };
 });
 
-vi.mock("./bootstrap-wiring", () => ({ wireDevtoolsSync }));
+vi.mock("./app/bootstrap-wiring", () => ({ wireDevtoolsSync }));
 vi.mock("./config/store", () => ({ createConfigStore }));
 vi.mock("./logger", () => ({ initLogger, createLogger }));
 vi.mock("./ui/devtools/motion-preview", () => ({ mountMotionPreview }));
-vi.mock("./io/settings-stores", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("./io/settings-stores")>();
+vi.mock("./io/settings/settings-stores", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("./io/settings/settings-stores")>();
   return { ...actual, createSettingsStores: vi.fn(actual.createSettingsStores) };
 });
 

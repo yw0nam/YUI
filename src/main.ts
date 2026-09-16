@@ -14,7 +14,7 @@
 
 import "./styles.css";
 import { createTier1Engine } from "./ambient/tier1";
-import { createConfiguredBootstrap } from "./bootstrap-configured";
+import { createConfiguredBootstrap } from "./app/bootstrap-configured";
 import {
   wireCrossWindowSync,
   wireDevGlobals,
@@ -22,41 +22,45 @@ import {
   wireSettingsReload,
   wireSpeakerSelection,
   wireVrmSelection,
-} from "./bootstrap-wiring";
+} from "./app/bootstrap-wiring";
 import { CHAT_API_KEY_SECRET, STT_API_KEY_SECRET, TTS_API_KEY_SECRET } from "./config/load";
 import { createConfigStore } from "./config/store";
 import { createEventBus } from "./dispatcher/event-bus";
 import { createUserInputSource } from "./dispatcher/user-input-source";
-import { agentTriggerableMotionIds, type BrokerPayload } from "./io/broker-client";
-import { CAMERA_WHEEL_SENSITIVITY, CAMERA_ZOOM_MAX, CAMERA_ZOOM_MIN } from "./io/camera-settings";
-import { createChatIdSettings, localStorageChatIdStorage } from "./io/chat-id-settings";
+import { removeUserVrm } from "./io/assets/vrm-import";
+import { publishDelegations } from "./io/bridge/delegations-bridge";
+import { createDelegationsStore } from "./io/bridge/delegations-store";
+import { createMessageBridge } from "./io/bridge/message-bridge";
+import { createRemoteSurfaces } from "./io/bridge/message-remote";
+import { publishPushSocket } from "./io/bridge/push-socket-bridge";
+import { publishReasoning } from "./io/bridge/reasoning-bridge";
+import { createReasoningStore } from "./io/bridge/reasoning-store";
+import { agentTriggerableMotionIds, type BrokerPayload } from "./io/chat/broker-client";
+import { createPushSocket, pushVocabularyOf } from "./io/chat/push-socket";
+import { createSettingsSecretProvider } from "./io/chat/secret-provider";
+import {
+  CAMERA_WHEEL_SENSITIVITY,
+  CAMERA_ZOOM_MAX,
+  CAMERA_ZOOM_MIN,
+} from "./io/settings/camera-settings";
+import { createChatIdSettings, localStorageChatIdStorage } from "./io/settings/chat-id-settings";
 import {
   createDelegationChipSettings,
   localStorageDelegationChipStorage,
-} from "./io/delegation-chip-settings";
-import { publishDelegations } from "./io/delegations-bridge";
-import { createDelegationsStore } from "./io/delegations-store";
-import { createDevtoolsWindowOpener } from "./io/devtools-window";
-import { endpointDefaultsFromConfig, mergeEndpoints } from "./io/endpoints-settings";
-import { mergeGuardrails, rateLimitDefaultsFromConfig } from "./io/guardrails-settings";
-import { enabledIdleVariants } from "./io/idle-motion-settings";
-import { createMessageBridge } from "./io/message-bridge";
-import { createRemoteSurfaces } from "./io/message-remote";
-import { createMessageWindowController, listenTrayToggle } from "./io/message-window";
-import { wireMessageWindowMode } from "./io/message-window-mode";
-import type { MessageWindowMode } from "./io/message-window-settings";
-import { createPushSocket, pushVocabularyOf } from "./io/push-socket";
-import { publishPushSocket } from "./io/push-socket-bridge";
-import { publishReasoning } from "./io/reasoning-bridge";
-import { createReasoningStore } from "./io/reasoning-store";
-import { screenDefaultsFromConfig } from "./io/screen-settings";
-import { createSettingsSecretProvider } from "./io/secret-provider";
-import { createSettingsStores } from "./io/settings-stores";
-import { createSettingsWindowOpener } from "./io/settings-window";
-import { isTauri } from "./io/tauri-env";
-import { resolveScreenCapturer, resolveScreenSourceProvider } from "./io/tauri-screen";
-import { wireVoiceListAutoRefresh } from "./io/voice-list-refresh";
-import { removeUserVrm } from "./io/vrm-import";
+} from "./io/settings/delegation-chip-settings";
+import { endpointDefaultsFromConfig, mergeEndpoints } from "./io/settings/endpoints-settings";
+import { mergeGuardrails, rateLimitDefaultsFromConfig } from "./io/settings/guardrails-settings";
+import { enabledIdleVariants } from "./io/settings/idle-motion-settings";
+import type { MessageWindowMode } from "./io/settings/message-window-settings";
+import { screenDefaultsFromConfig } from "./io/settings/screen-settings";
+import { createSettingsStores } from "./io/settings/settings-stores";
+import { wireVoiceListAutoRefresh } from "./io/voice/voice-list-refresh";
+import { createDevtoolsWindowOpener } from "./io/window/devtools-window";
+import { createMessageWindowController, listenTrayToggle } from "./io/window/message-window";
+import { wireMessageWindowMode } from "./io/window/message-window-mode";
+import { createSettingsWindowOpener } from "./io/window/settings-window";
+import { isTauri } from "./io/window/tauri-env";
+import { resolveScreenCapturer, resolveScreenSourceProvider } from "./io/window/tauri-screen";
 import { createLogger, initLogger } from "./logger";
 import { createRenderer } from "./renderer";
 import { nextZoom } from "./renderer/camera-fit";

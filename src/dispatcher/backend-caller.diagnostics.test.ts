@@ -11,8 +11,8 @@ import type {
   ChatHistoryEntry,
   ChatHistoryItem,
   ChatHistoryStorage,
-} from "../io/chat-history-store";
-import { createChatHistoryStore } from "../io/chat-history-store";
+} from "../io/chat/chat-history-store";
+import { createChatHistoryStore } from "../io/chat/chat-history-store";
 import type { Logger } from "../logger";
 import {
   type BackendCaller,

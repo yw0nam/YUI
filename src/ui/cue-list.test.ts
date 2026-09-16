@@ -7,8 +7,8 @@
  */
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import type { ProactiveCue } from "../io/proactive-settings";
-import type { ScheduledCue } from "../io/schedule-settings";
+import type { ProactiveCue } from "../io/settings/proactive-settings";
+import type { ScheduledCue } from "../io/settings/schedule-settings";
 import { createCueList } from "./cue-list";
 import { t } from "./i18n";
 

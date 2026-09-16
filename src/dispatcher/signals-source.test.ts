@@ -8,9 +8,9 @@
  */
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { composePacedPipelineBusy } from "../bootstrap-wiring";
-import type { SignalsBatch } from "../io/signals-inbox";
-import type { OsEventListen, OsEventPayload } from "../io/tauri-listen";
+import { composePacedPipelineBusy } from "../app/bootstrap-wiring";
+import type { SignalsBatch } from "../io/bridge/signals-inbox";
+import type { OsEventListen, OsEventPayload } from "../io/window/tauri-listen";
 import type { BusEnvelope, EventBus } from "./event-bus";
 import { createSignalsSource } from "./signals-source";
 

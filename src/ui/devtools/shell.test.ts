@@ -1,8 +1,8 @@
 // @vitest-environment jsdom
 
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { createContextHistory } from "../../io/context-history";
-import { createEndpointsSettings } from "../../io/endpoints-settings";
+import { createContextHistory } from "../../io/chat/context-history";
+import { createEndpointsSettings } from "../../io/settings/endpoints-settings";
 import { setLocale } from "../i18n";
 import { createDevtoolsShell } from "./shell";
 

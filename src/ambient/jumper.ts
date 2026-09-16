@@ -12,7 +12,7 @@
 
 import type { JumpConfig, PerchWalkConfig } from "../config/load";
 import type { WindowRect } from "../contract";
-import { MOVE_TH, uncoveredSpan } from "../io/window-drop-source";
+import { MOVE_TH, uncoveredSpan } from "../io/window/window-drop-source";
 import { createLogger } from "../logger";
 import type { TickFn } from "../renderer";
 import { WALK_YAW_EASE_MS, WALK_YAW_RAD } from "./walker";

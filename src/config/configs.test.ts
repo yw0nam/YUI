@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
-import { agentTriggerableMotionIds } from "../io/broker-client";
+import { agentTriggerableMotionIds } from "../io/chat/broker-client";
 import { validateAvatar } from "./validators/avatar";
 import { validateEndpoints } from "./validators/endpoints";
 import { validateGuardrails } from "./validators/guardrails";

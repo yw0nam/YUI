@@ -14,7 +14,7 @@
 
 import "./surfaces.css";
 import type { AttachmentLimits } from "../config/load";
-import { isTauri } from "../io/tauri-env";
+import { isTauri } from "../io/window/tauri-env";
 import { subscribe as subscribeLocale, t } from "./i18n";
 import { createSpeechBubble } from "./speech-bubble";
 import { createTextInput, type InputErrorAction } from "./text-input";

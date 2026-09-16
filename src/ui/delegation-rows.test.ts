@@ -6,7 +6,7 @@
  */
 
 import { afterEach, describe, expect, it } from "vitest";
-import type { DelegationItem } from "../io/push-socket";
+import type { DelegationItem } from "../io/chat/push-socket";
 import {
   formatDelegationDuration,
   formatDelegationTime,

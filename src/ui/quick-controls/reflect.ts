@@ -4,26 +4,33 @@
  * DOM nodes are queried directly from deps.root (entry handlers querying the same node yields the same node, so no harm).
  */
 
-import type { createAgentNotifySettings } from "../../io/agent-notify-settings";
-import { type createAgentSettings, REASONING_EFFORTS } from "../../io/agent-settings";
+import type { DelegationItem, PushSocketState } from "../../io/chat/push-socket";
+import type { createSessionDiagnosticsStore } from "../../io/chat/session-diagnostics";
+import type { createAgentNotifySettings } from "../../io/settings/agent-notify-settings";
+import { type createAgentSettings, REASONING_EFFORTS } from "../../io/settings/agent-settings";
 import {
   type createEndpointsSettings,
   type EndpointOverrides,
   isValidEndpointUrl,
-} from "../../io/endpoints-settings";
-import type { createFillerSettings } from "../../io/filler-settings";
-import type { GuardrailsSettingsStore, RateLimitOverrides } from "../../io/guardrails-settings";
+} from "../../io/settings/endpoints-settings";
+import type { createFillerSettings } from "../../io/settings/filler-settings";
+import type {
+  GuardrailsSettingsStore,
+  RateLimitOverrides,
+} from "../../io/settings/guardrails-settings";
 import {
   type createLipsyncSettings,
   LIPSYNC_GAIN_MAX,
   LIPSYNC_GAIN_MIN,
-} from "../../io/lipsync-settings";
-import type { ClampedIntSettingsStore } from "../../io/persisted-store";
-import type { DelegationItem, PushSocketState } from "../../io/push-socket";
-import type { ScreenKnobSettingsStore, ScreenOverrides } from "../../io/screen-settings";
-import type { createScreenshotSettings } from "../../io/screenshot-settings";
-import type { createSessionDiagnosticsStore } from "../../io/session-diagnostics";
-import { type createVadSettings, VAD_SILENCE_MAX, VAD_SILENCE_MIN } from "../../io/vad-settings";
+} from "../../io/settings/lipsync-settings";
+import type { ClampedIntSettingsStore } from "../../io/settings/persisted-store";
+import type { ScreenKnobSettingsStore, ScreenOverrides } from "../../io/settings/screen-settings";
+import type { createScreenshotSettings } from "../../io/settings/screenshot-settings";
+import {
+  type createVadSettings,
+  VAD_SILENCE_MAX,
+  VAD_SILENCE_MIN,
+} from "../../io/settings/vad-settings";
 import { renderDelegationRows } from "../delegation-rows";
 import { getLocale, t } from "../i18n";
 import { reflectUnlessEditing } from "../reflect-unless-editing";

@@ -16,7 +16,7 @@
  */
 
 import { describe, expect, it, vi } from "vitest";
-import type { OsEventListen, OsEventPayload } from "../io/tauri-listen";
+import type { OsEventListen, OsEventPayload } from "../io/window/tauri-listen";
 import type { Logger } from "../logger";
 import { createBufferedInboxSource, type InboxFiring } from "./buffered-inbox-source";
 import type { BusEnvelope, EventBus } from "./event-bus";

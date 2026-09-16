@@ -1,8 +1,8 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { createGuardrailsSettings } from "../../io/guardrails-settings";
-import { createFlagSettings } from "../../io/persisted-store";
-import { createScreenKnobSettings } from "../../io/screen-settings";
+import { createGuardrailsSettings } from "../../io/settings/guardrails-settings";
+import { createFlagSettings } from "../../io/settings/persisted-store";
+import { createScreenKnobSettings } from "../../io/settings/screen-settings";
 import { setLocale } from "../i18n";
 import ko from "../i18n/ko";
 import { createQuickControls } from "../quick-controls";

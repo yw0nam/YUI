@@ -1,9 +1,9 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { createChatHistoryStore } from "../../io/chat-history-store";
-import { createFillerSettings, type FillerSettings } from "../../io/filler-settings";
-import { createFlagSettings, localStorageStore } from "../../io/persisted-store";
-import { createVadSettings, VAD_SILENCE_DEFAULT } from "../../io/vad-settings";
+import { createChatHistoryStore } from "../../io/chat/chat-history-store";
+import { createFillerSettings, type FillerSettings } from "../../io/settings/filler-settings";
+import { createFlagSettings, localStorageStore } from "../../io/settings/persisted-store";
+import { createVadSettings, VAD_SILENCE_DEFAULT } from "../../io/settings/vad-settings";
 import { setLocale } from "../i18n";
 import { createQuickControls } from "../quick-controls";
 import type { QuickControlsTab } from "./constants";

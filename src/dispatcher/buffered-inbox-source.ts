@@ -21,8 +21,8 @@
  * skeleton.
  */
 
-import type { OsEventListen, OsEventPayload } from "../io/tauri-listen";
-import { subscribeOsEvent } from "../io/tauri-listen";
+import type { OsEventListen, OsEventPayload } from "../io/window/tauri-listen";
+import { subscribeOsEvent } from "../io/window/tauri-listen";
 import type { Logger } from "../logger";
 import type { EventBus } from "./event-bus";
 

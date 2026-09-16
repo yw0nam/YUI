@@ -1,4 +1,4 @@
-import type { ContextHistoryEntry, createContextHistory } from "../../io/context-history";
+import type { ContextHistoryEntry, createContextHistory } from "../../io/chat/context-history";
 import { t } from "../i18n";
 
 type ContextHistoryStore = ReturnType<typeof createContextHistory>;

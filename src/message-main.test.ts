@@ -17,10 +17,10 @@ vi.mock("./ui/delegation-chip.css", () => ({}));
 vi.mock("./ui/delegation-rows.css", () => ({}));
 vi.mock("./ui/reasoning-chip.css", () => ({}));
 
-import { createMessageBridge, type MessageControlOp } from "./io/message-bridge";
-import type { DelegationItem, PushSocketState } from "./io/push-socket";
-import type { ReasoningState } from "./io/reasoning-store";
-import { createSettingsBridge, type SettingsBridge } from "./io/settings-bridge";
+import { createMessageBridge, type MessageControlOp } from "./io/bridge/message-bridge";
+import type { ReasoningState } from "./io/bridge/reasoning-store";
+import { createSettingsBridge, type SettingsBridge } from "./io/bridge/settings-bridge";
+import type { DelegationItem, PushSocketState } from "./io/chat/push-socket";
 import { setLocale, t } from "./ui/i18n";
 
 const NOW = 1_789_365_900_000;

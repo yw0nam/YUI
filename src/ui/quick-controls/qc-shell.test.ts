@@ -1,19 +1,19 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, describe, expect, it, type Mock, vi } from "vitest";
 import type { AvatarOption } from "../../config/load";
-import { createAgentNotifySettings } from "../../io/agent-notify-settings";
-import { createAgentSettings } from "../../io/agent-settings";
-import { createChatKeySettings } from "../../io/chat-key-settings";
-import { createEndpointsSettings } from "../../io/endpoints-settings";
-import { createGuardrailsSettings } from "../../io/guardrails-settings";
-import { createLipsyncSettings } from "../../io/lipsync-settings";
-import { createProactiveSettings } from "../../io/proactive-settings";
-import { createScheduleSettings } from "../../io/schedule-settings";
-import { createSessionDiagnosticsStore } from "../../io/session-diagnostics";
-import { createSessionStore } from "../../io/session-store";
-import { createPacerGapStore, createPresenceStore } from "../../io/settings-stores";
-import type { createSpeakerSelection, SpeakerOption } from "../../io/speaker-selection";
-import type { createVrmSelection } from "../../io/vrm-selection";
+import type { createVrmSelection } from "../../io/assets/vrm-selection";
+import { createSessionDiagnosticsStore } from "../../io/chat/session-diagnostics";
+import { createSessionStore } from "../../io/chat/session-store";
+import { createAgentNotifySettings } from "../../io/settings/agent-notify-settings";
+import { createAgentSettings } from "../../io/settings/agent-settings";
+import { createChatKeySettings } from "../../io/settings/chat-key-settings";
+import { createEndpointsSettings } from "../../io/settings/endpoints-settings";
+import { createGuardrailsSettings } from "../../io/settings/guardrails-settings";
+import { createLipsyncSettings } from "../../io/settings/lipsync-settings";
+import { createProactiveSettings } from "../../io/settings/proactive-settings";
+import { createScheduleSettings } from "../../io/settings/schedule-settings";
+import { createPacerGapStore, createPresenceStore } from "../../io/settings/settings-stores";
+import type { createSpeakerSelection, SpeakerOption } from "../../io/voice/speaker-selection";
 import { getLocale, subscribe as i18nSubscribe, LOCALE_DISPLAY_NAMES, setLocale } from "../i18n";
 import { createQuickControls } from "../quick-controls";
 import {

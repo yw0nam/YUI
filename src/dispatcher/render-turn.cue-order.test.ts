@@ -13,10 +13,10 @@
 
 import { describe, expect, it, vi } from "vitest";
 import type { ControlEnvelope } from "../contract";
-import type { AudioSink } from "../io/audio-player";
-import type { RenderFrame } from "../io/push-socket";
-import { createSpeechPlayback } from "../io/speech-playback";
-import type { TtsSynth } from "../io/tts-synth";
+import type { RenderFrame } from "../io/chat/push-socket";
+import type { AudioSink } from "../io/voice/audio-player";
+import { createSpeechPlayback } from "../io/voice/speech-playback";
+import type { TtsSynth } from "../io/voice/tts-synth";
 import { createPushTurns } from "./push-turn";
 import { createRenderTurn } from "./render-turn";
 import { makeLogger } from "./test-helpers";

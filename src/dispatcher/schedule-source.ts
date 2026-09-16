@@ -11,10 +11,14 @@
  * whether/what to speak.
  */
 
-import { isPlainObject, localStorageStore, type PersistedStorage } from "../io/persisted-store";
-import type { ScheduledCue } from "../io/schedule-settings";
-import type { OsEventListen, OsEventPayload } from "../io/tauri-listen";
-import { subscribeOsEvent } from "../io/tauri-listen";
+import {
+  isPlainObject,
+  localStorageStore,
+  type PersistedStorage,
+} from "../io/settings/persisted-store";
+import type { ScheduledCue } from "../io/settings/schedule-settings";
+import type { OsEventListen, OsEventPayload } from "../io/window/tauri-listen";
+import { subscribeOsEvent } from "../io/window/tauri-listen";
 import { createLogger } from "../logger";
 import type { BusEnvelope, EventBus } from "./event-bus";
 

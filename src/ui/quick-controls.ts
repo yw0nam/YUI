@@ -6,37 +6,44 @@
 
 import "./quick-controls.css";
 import type { AvatarOption } from "../config/load";
-import type { createAgentNotifySettings } from "../io/agent-notify-settings";
-import { type createAgentSettings, REASONING_EFFORTS } from "../io/agent-settings";
-import type { ApiKeySettingsStore } from "../io/api-key-settings";
-import type { createChatHistoryStore } from "../io/chat-history-store";
-import type { ChatKeySettingsStore } from "../io/chat-key-settings";
-import type { createEndpointsSettings, EndpointOverrides } from "../io/endpoints-settings";
-import type { ExpressMotionSettingsStore } from "../io/express-motion-settings";
-import type { createFillerSettings } from "../io/filler-settings";
-import type { GuardrailsSettingsStore, RateLimitOverrides } from "../io/guardrails-settings";
-import type { IdleMotionSettingsStore, IdleVariantPool } from "../io/idle-motion-settings";
+import type { createVrmSelection } from "../io/assets/vrm-selection";
+import type { createChatHistoryStore } from "../io/chat/chat-history-store";
+import type { DelegationItem, PushSocketState } from "../io/chat/push-socket";
+import type { createSessionDiagnosticsStore } from "../io/chat/session-diagnostics";
+import type { createSessionStore } from "../io/chat/session-store";
+import type { createAgentNotifySettings } from "../io/settings/agent-notify-settings";
+import { type createAgentSettings, REASONING_EFFORTS } from "../io/settings/agent-settings";
+import type { ApiKeySettingsStore } from "../io/settings/api-key-settings";
+import type { ChatKeySettingsStore } from "../io/settings/chat-key-settings";
+import type { createEndpointsSettings, EndpointOverrides } from "../io/settings/endpoints-settings";
+import type { ExpressMotionSettingsStore } from "../io/settings/express-motion-settings";
+import type { createFillerSettings } from "../io/settings/filler-settings";
+import type {
+  GuardrailsSettingsStore,
+  RateLimitOverrides,
+} from "../io/settings/guardrails-settings";
+import type { IdleMotionSettingsStore, IdleVariantPool } from "../io/settings/idle-motion-settings";
 import {
   type createLipsyncSettings,
   LIPSYNC_GAIN_MAX,
   LIPSYNC_GAIN_MIN,
-} from "../io/lipsync-settings";
-import type { MessageWindowSettingsStore } from "../io/message-window-settings";
-import type { ClampedIntSettingsStore, FlagSettingsStore } from "../io/persisted-store";
-import type { createProactiveSettings } from "../io/proactive-settings";
-import type { DelegationItem, PushSocketState } from "../io/push-socket";
-import type { createScheduleSettings } from "../io/schedule-settings";
-import type { ScreenKnobSettingsStore, ScreenOverrides } from "../io/screen-settings";
-import type { ScreenSourceProvider } from "../io/screen-source-provider";
-import type { createScreenshotSettings } from "../io/screenshot-settings";
-import type { createSectionsSettings } from "../io/sections-settings";
-import type { createSessionDiagnosticsStore } from "../io/session-diagnostics";
-import type { createSessionStore } from "../io/session-store";
-import type { createSpeakerSelection, SpeakerOption } from "../io/speaker-selection";
-import { isTauri } from "../io/tauri-env";
-import { type createVadSettings, VAD_SILENCE_MAX, VAD_SILENCE_MIN } from "../io/vad-settings";
-import type { createVrmSelection } from "../io/vrm-selection";
-import type { createWorkflowSettings } from "../io/workflow-settings";
+} from "../io/settings/lipsync-settings";
+import type { MessageWindowSettingsStore } from "../io/settings/message-window-settings";
+import type { ClampedIntSettingsStore, FlagSettingsStore } from "../io/settings/persisted-store";
+import type { createProactiveSettings } from "../io/settings/proactive-settings";
+import type { createScheduleSettings } from "../io/settings/schedule-settings";
+import type { ScreenKnobSettingsStore, ScreenOverrides } from "../io/settings/screen-settings";
+import type { createScreenshotSettings } from "../io/settings/screenshot-settings";
+import type { createSectionsSettings } from "../io/settings/sections-settings";
+import {
+  type createVadSettings,
+  VAD_SILENCE_MAX,
+  VAD_SILENCE_MIN,
+} from "../io/settings/vad-settings";
+import type { createWorkflowSettings } from "../io/settings/workflow-settings";
+import type { createSpeakerSelection, SpeakerOption } from "../io/voice/speaker-selection";
+import type { ScreenSourceProvider } from "../io/window/screen-source-provider";
+import { isTauri } from "../io/window/tauri-env";
 import { createLogger } from "../logger";
 import { type CueListInstance, createCueList } from "./cue-list";
 import { DELEGATION_REFRESH_MS } from "./delegation-rows";

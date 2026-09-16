@@ -10,8 +10,8 @@
 
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { guardrailsFixture } from "../config/load-test-helpers";
-import type { RemoteSurfaces } from "../io/message-remote";
-import type { MessageWindowMode } from "../io/message-window-settings";
+import type { RemoteSurfaces } from "../io/bridge/message-remote";
+import type { MessageWindowMode } from "../io/settings/message-window-settings";
 import type { Surfaces } from "./surfaces";
 import { createSurfacesRouter } from "./surfaces-router";
 

@@ -5,7 +5,7 @@ import type {
   ChatStreamEvent,
   StreamChatOptions,
   streamChat,
-} from "../io/chat-client";
+} from "../io/chat/chat-client";
 import type { Logger } from "../logger";
 import type { BusEnvelope } from "./event-bus";
 import type { Turn } from "./turn";

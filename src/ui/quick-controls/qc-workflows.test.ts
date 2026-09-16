@@ -5,7 +5,7 @@ import {
   createWorkflowSettings,
   type WorkflowSettings,
   type WorkflowStorage,
-} from "../../io/workflow-settings";
+} from "../../io/settings/workflow-settings";
 import type { Logger } from "../../logger";
 import { setLocale } from "../i18n";
 import { createWorkflowsSection } from "./workflows-section";

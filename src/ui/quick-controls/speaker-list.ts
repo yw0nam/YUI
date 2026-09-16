@@ -7,9 +7,9 @@
  */
 import "./speaker-list.css";
 
-import { resolveReferenceClipUrl } from "../../io/reference-clip";
-import { voiceIdFromName } from "../../io/safe-id";
-import type { createSpeakerSelection, SpeakerOption } from "../../io/speaker-selection";
+import { voiceIdFromName } from "../../io/assets/safe-id";
+import { resolveReferenceClipUrl } from "../../io/voice/reference-clip";
+import type { createSpeakerSelection, SpeakerOption } from "../../io/voice/speaker-selection";
 import type { Logger } from "../../logger";
 import { t } from "../i18n";
 import { createUserAssetList, resolveRovedId } from "./user-asset-list";

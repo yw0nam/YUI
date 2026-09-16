@@ -1,13 +1,13 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, describe, expect, it, type Mock, vi } from "vitest";
 import type { AvatarOption } from "../../config/load";
-import { createAgentSettings } from "../../io/agent-settings";
-import { createEndpointsSettings } from "../../io/endpoints-settings";
-import { createLipsyncSettings } from "../../io/lipsync-settings";
-import { createProactiveSettings } from "../../io/proactive-settings";
-import { createScheduleSettings } from "../../io/schedule-settings";
-import type { createSpeakerSelection, SpeakerOption } from "../../io/speaker-selection";
-import { createVrmSelection } from "../../io/vrm-selection";
+import { createVrmSelection } from "../../io/assets/vrm-selection";
+import { createAgentSettings } from "../../io/settings/agent-settings";
+import { createEndpointsSettings } from "../../io/settings/endpoints-settings";
+import { createLipsyncSettings } from "../../io/settings/lipsync-settings";
+import { createProactiveSettings } from "../../io/settings/proactive-settings";
+import { createScheduleSettings } from "../../io/settings/schedule-settings";
+import type { createSpeakerSelection, SpeakerOption } from "../../io/voice/speaker-selection";
 import { setLocale } from "../i18n";
 import { createQuickControls } from "../quick-controls";
 import {

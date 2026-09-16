@@ -1,7 +1,7 @@
 /**
  * Local summon key — the focused window's "/" opens its text input. Both bootstraps (pet
  * window, message window) bind the same key and the same typing guard; the OS-wide
- * accelerator that summons from any app is a separate path (src/io/summon-hotkey.ts).
+ * accelerator that summons from any app is a separate path (src/io/window/summon-hotkey.ts).
  */
 
 import type { Surfaces } from "./surfaces";

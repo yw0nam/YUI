@@ -11,7 +11,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("./reasoning-chip.css", () => ({}));
 
-import type { ReasoningState } from "../io/reasoning-store";
+import type { ReasoningState } from "../io/bridge/reasoning-store";
 import { setLocale, t } from "./i18n";
 import { createReasoningChip } from "./reasoning-chip";
 

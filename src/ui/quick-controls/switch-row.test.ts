@@ -1,11 +1,11 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { createAgentNotifySettings } from "../../io/agent-notify-settings";
-import { createFillerSettings } from "../../io/filler-settings";
-import { createMessageWindowSettings } from "../../io/message-window-settings";
-import { createFlagSettings } from "../../io/persisted-store";
-import { createScreenKnobSettings } from "../../io/screen-settings";
-import { createVadSettings } from "../../io/vad-settings";
+import { createAgentNotifySettings } from "../../io/settings/agent-notify-settings";
+import { createFillerSettings } from "../../io/settings/filler-settings";
+import { createMessageWindowSettings } from "../../io/settings/message-window-settings";
+import { createFlagSettings } from "../../io/settings/persisted-store";
+import { createScreenKnobSettings } from "../../io/settings/screen-settings";
+import { createVadSettings } from "../../io/settings/vad-settings";
 import { createSwitchRows } from "../quick-controls";
 import { reflectSwitchRows } from "./reflect";
 import type { SwitchRow } from "./switch-row";

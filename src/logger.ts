@@ -1,4 +1,4 @@
-import { isTauri } from "./io/tauri-env";
+import { isTauri } from "./io/window/tauri-env";
 
 export type LogLevel = "debug" | "info" | "warn" | "error";
 

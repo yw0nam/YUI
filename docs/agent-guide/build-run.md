@@ -53,7 +53,7 @@ Frontend (`src/logger.ts` → `[YUI][namespace] …`) and Rust (`log` crate) lin
 
 ### Turn records
 
-Alongside the app log, `turns_YYYY-MM-DD.jsonl` accumulates one JSON line per completed backend turn and one per fire skipped before becoming a turn — the long-horizon source for speak-rate/suppression measurement, readable with `jq` while the app runs. Same directory, rotation, and 14-day retention as the app log: dev `<repo>/logs/`, release `~/Library/Logs/com.yui.desktop/` (macOS). Written via the Rust `append_turn_record(line)` command; `src/io/turn-record-log.ts` builds each line and calls it fire-and-forget, so a failed write never breaks the turn or the fire path.
+Alongside the app log, `turns_YYYY-MM-DD.jsonl` accumulates one JSON line per completed backend turn and one per fire skipped before becoming a turn — the long-horizon source for speak-rate/suppression measurement, readable with `jq` while the app runs. Same directory, rotation, and 14-day retention as the app log: dev `<repo>/logs/`, release `~/Library/Logs/com.yui.desktop/` (macOS). Written via the Rust `append_turn_record(line)` command; `src/io/chat/turn-record-log.ts` builds each line and calls it fire-and-forget, so a failed write never breaks the turn or the fire path.
 
 Two record shapes, distinguished by `type`:
 

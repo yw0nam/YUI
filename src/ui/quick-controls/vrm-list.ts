@@ -1,7 +1,7 @@
 /** VRM list cluster — VRM radiogroup in Character tab: render, rename, import, swap, keyboard. */
 import type { AvatarOption } from "../../config/load";
-import { sanitizeStem } from "../../io/safe-id";
-import type { createVrmSelection } from "../../io/vrm-selection";
+import { sanitizeStem } from "../../io/assets/safe-id";
+import type { createVrmSelection } from "../../io/assets/vrm-selection";
 import type { Logger } from "../../logger";
 import { t } from "../i18n";
 import { createUserAssetList, resolveRovedId } from "./user-asset-list";

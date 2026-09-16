@@ -21,9 +21,9 @@
  * the async window reads, and the per-frame translation.
  */
 
+import { clampToWorkArea } from "../app/drag";
 import type { DescendConfig, WalkConfig } from "../config/load";
 import type { MotionKind } from "../contract";
-import { clampToWorkArea } from "../drag";
 import {
   clampToFloorSegments,
   type DescentEdge,
@@ -34,8 +34,8 @@ import {
   monitorAt,
   type PetWindow,
   type ScreenMonitor,
-} from "../io/screen-geometry";
-import type { Travel } from "../io/travel-frame";
+} from "../io/window/screen-geometry";
+import type { Travel } from "../io/window/travel-frame";
 import { createLogger } from "../logger";
 import type { Renderer } from "../renderer";
 import { type Rng, randRange } from "./cues";

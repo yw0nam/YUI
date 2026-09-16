@@ -11,8 +11,8 @@
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { EndpointsConfig } from "../contract";
-import type { ChatHistoryEntry } from "../io/chat-history-store";
-import type { PushTurnFrame } from "../io/push-socket";
+import type { ChatHistoryEntry } from "../io/chat/chat-history-store";
+import type { PushTurnFrame } from "../io/chat/push-socket";
 import type { Logger } from "../logger";
 import { createBackendCaller, PRE_SPEECH_TIMEOUT_MS, type TurnOutcome } from "./backend-caller";
 import type { BusEnvelope } from "./event-bus";

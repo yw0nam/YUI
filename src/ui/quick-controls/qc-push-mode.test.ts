@@ -5,11 +5,11 @@
  */
 
 import { afterEach, beforeEach, describe, expect, it, type Mock, vi } from "vitest";
-import { createChatHistoryStore } from "../../io/chat-history-store";
-import { createEndpointsSettings } from "../../io/endpoints-settings";
-import type { PushSocketState } from "../../io/push-socket";
-import { createSessionDiagnosticsStore } from "../../io/session-diagnostics";
-import { createSessionStore } from "../../io/session-store";
+import { createChatHistoryStore } from "../../io/chat/chat-history-store";
+import type { PushSocketState } from "../../io/chat/push-socket";
+import { createSessionDiagnosticsStore } from "../../io/chat/session-diagnostics";
+import { createSessionStore } from "../../io/chat/session-store";
+import { createEndpointsSettings } from "../../io/settings/endpoints-settings";
 import { setLocale, t } from "../i18n";
 import { createQuickControls } from "../quick-controls";
 import { defaultQcArgs } from "./test-helpers";

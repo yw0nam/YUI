@@ -11,13 +11,13 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("./delegation-chip.css", () => ({}));
 
-import { INTERACTIVE_OVERLAY_SELECTORS } from "../bootstrap-configured";
+import { INTERACTIVE_OVERLAY_SELECTORS } from "../app/bootstrap-configured";
+import { createDelegationsStore } from "../io/bridge/delegations-store";
+import type { DelegationItem, PushSocketState } from "../io/chat/push-socket";
 import {
   createDelegationChipSettings,
   localStorageDelegationChipStorage,
-} from "../io/delegation-chip-settings";
-import { createDelegationsStore } from "../io/delegations-store";
-import type { DelegationItem, PushSocketState } from "../io/push-socket";
+} from "../io/settings/delegation-chip-settings";
 import { createDelegationChip } from "./delegation-chip";
 import { setLocale, t } from "./i18n";
 

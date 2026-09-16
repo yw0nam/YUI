@@ -11,9 +11,9 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { PeekConfig, TapConfig } from "../config/load";
 import { guardrailsFixture } from "../config/load-test-helpers";
-import type { AudioSink } from "../io/audio-player";
-import { createSpeechPlayback, type SpeechPlayback } from "../io/speech-playback";
-import type { TtsSynth } from "../io/tts-synth";
+import type { AudioSink } from "../io/voice/audio-player";
+import { createSpeechPlayback, type SpeechPlayback } from "../io/voice/speech-playback";
+import type { TtsSynth } from "../io/voice/tts-synth";
 import { createBackendCaller } from "./backend-caller";
 import { createDispatcher, type Dispatcher } from "./dispatcher";
 import { type BusEnvelope, createEventBus, type EventBus } from "./event-bus";

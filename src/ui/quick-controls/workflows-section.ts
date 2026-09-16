@@ -4,7 +4,7 @@ import {
   type createWorkflowSettings,
   isValidWorkflowUrl,
   type WorkflowEntry,
-} from "../../io/workflow-settings";
+} from "../../io/settings/workflow-settings";
 import type { Logger } from "../../logger";
 import { t } from "../i18n";
 

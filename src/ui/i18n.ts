@@ -5,7 +5,7 @@
  * subscriber notification. Dictionaries live in ./i18n/{en,ja,ko}.ts.
  */
 
-import { localStorageStore } from "../io/persisted-store";
+import { localStorageStore } from "../io/settings/persisted-store";
 import en from "./i18n/en";
 import ja from "./i18n/ja";
 import ko from "./i18n/ko";

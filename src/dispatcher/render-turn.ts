@@ -20,10 +20,10 @@
  */
 
 import type { ControlEnvelope, EmotionId, ExpressArgs } from "../contract";
-import type { ChatHistoryEntry } from "../io/chat-history-store";
-import type { RenderFrame } from "../io/push-socket";
-import { isSilenceToken } from "../io/silence-token";
-import { buildRenderRecord, type RenderRecord } from "../io/turn-record-log";
+import type { ChatHistoryEntry } from "../io/chat/chat-history-store";
+import type { RenderFrame } from "../io/chat/push-socket";
+import { isSilenceToken } from "../io/chat/silence-token";
+import { buildRenderRecord, type RenderRecord } from "../io/chat/turn-record-log";
 import { createLogger, type Logger } from "../logger";
 import type { Renderer } from "../renderer";
 import type { PushTurns } from "./push-turn";

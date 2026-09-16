@@ -9,8 +9,8 @@
  * whichever side the user typed on.
  */
 
-import type { RemoteSurfaces } from "../io/message-remote";
-import type { MessageWindowMode } from "../io/message-window-settings";
+import type { RemoteSurfaces } from "../io/bridge/message-remote";
+import type { MessageWindowMode } from "../io/settings/message-window-settings";
 import type { Surfaces } from "./surfaces";
 
 interface SurfacesRouterOptions {

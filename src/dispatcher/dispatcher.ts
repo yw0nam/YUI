@@ -30,8 +30,8 @@
 
 import type { PeekConfig, TapConfig } from "../config/load";
 import type { BodyState, ControlEnvelope, EmotionId, Posture } from "../contract";
-import { buildPacerSkipRecord, type PacerSkipRecord } from "../io/turn-record-log";
-import { PERCH_MOTION_ID } from "../io/window-drop-source";
+import { buildPacerSkipRecord, type PacerSkipRecord } from "../io/chat/turn-record-log";
+import { PERCH_MOTION_ID } from "../io/window/window-drop-source";
 import type { Logger, LogLevel } from "../logger";
 import { createLogger } from "../logger";
 import type { Renderer } from "../renderer";

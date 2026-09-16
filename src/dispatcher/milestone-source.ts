@@ -12,9 +12,13 @@
  */
 
 import type { SignalGroup } from "../contract";
-import { isPlainObject, localStorageStore, type PersistedStorage } from "../io/persisted-store";
-import type { OsEventListen, OsEventPayload } from "../io/tauri-listen";
-import { subscribeOsEvent } from "../io/tauri-listen";
+import {
+  isPlainObject,
+  localStorageStore,
+  type PersistedStorage,
+} from "../io/settings/persisted-store";
+import type { OsEventListen, OsEventPayload } from "../io/window/tauri-listen";
+import { subscribeOsEvent } from "../io/window/tauri-listen";
 import { createLogger } from "../logger";
 import type { BusEnvelope, EventBus } from "./event-bus";
 

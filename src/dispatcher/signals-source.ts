@@ -7,9 +7,9 @@
  */
 
 import type { SignalEnvelope, SignalGroup } from "../contract";
-import type { SignalsBatch } from "../io/signals-inbox";
-import { onSignalsInbox } from "../io/signals-inbox";
-import type { OsEventListen } from "../io/tauri-listen";
+import type { SignalsBatch } from "../io/bridge/signals-inbox";
+import { onSignalsInbox } from "../io/bridge/signals-inbox";
+import type { OsEventListen } from "../io/window/tauri-listen";
 import { createLogger } from "../logger";
 import { createBufferedInboxSource, type InboxFiring } from "./buffered-inbox-source";
 import type { EventBus } from "./event-bus";

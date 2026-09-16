@@ -15,14 +15,14 @@
 
 import type { FallConfig, JumpConfig, PerchWalkConfig } from "../config/load";
 import type { MotionKind, WindowRect } from "../contract";
-import { monitorAt, type ScreenMonitor } from "../io/screen-geometry";
+import { monitorAt, type ScreenMonitor } from "../io/window/screen-geometry";
 import {
   MOVE_TH,
   PERCH_AMBIGUOUS_LOST_TICKS,
   PERCH_MOTION_ID,
   PERCH_POLL_MS,
   uncoveredSpan,
-} from "../io/window-drop-source";
+} from "../io/window/window-drop-source";
 import { createLogger } from "../logger";
 import type { TickFn } from "../renderer";
 import { type JumpOutcome, type JumpPlan, pickJumpTarget } from "./jumper";

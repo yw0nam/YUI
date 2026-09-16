@@ -5,8 +5,8 @@
 import "./monitors-section.css";
 
 import type { ScreenSource } from "../../contract";
-import type { MonitorInfo, ScreenSourceProvider } from "../../io/screen-source-provider";
-import type { createScreenshotSettings } from "../../io/screenshot-settings";
+import type { createScreenshotSettings } from "../../io/settings/screenshot-settings";
+import type { MonitorInfo, ScreenSourceProvider } from "../../io/window/screen-source-provider";
 import type { Logger } from "../../logger";
 import { t } from "../i18n";
 

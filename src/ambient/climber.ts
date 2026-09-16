@@ -36,9 +36,9 @@ import {
   monitorAt,
   type PetWindow,
   type ScreenMonitor,
-} from "../io/screen-geometry";
-import type { Travel } from "../io/travel-frame";
-import { MOVE_TH } from "../io/window-drop-source";
+} from "../io/window/screen-geometry";
+import type { Travel } from "../io/window/travel-frame";
+import { MOVE_TH } from "../io/window/window-drop-source";
 import { createLogger } from "../logger";
 import type { Renderer } from "../renderer";
 import { createLegRunner } from "./clip-leg";

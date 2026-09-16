@@ -5,7 +5,7 @@
  * failure staying log-only.
  */
 
-import { onIngressDead } from "../io/agent-inbox";
+import { onIngressDead } from "../io/bridge/agent-inbox";
 
 interface IngressDeadNoticeDeps {
   surfaces: {

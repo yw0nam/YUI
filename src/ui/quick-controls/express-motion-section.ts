@@ -3,7 +3,7 @@ import "./express-motion-section.css";
 import {
   type ExpressMotionSettingsStore,
   enabledExpressMotions,
-} from "../../io/express-motion-settings";
+} from "../../io/settings/express-motion-settings";
 import type { Logger } from "../../logger";
 import { t } from "../i18n";
 import { HIST_CHEVRON_SVG } from "./constants";

@@ -7,7 +7,7 @@
 
 import { beforeEach, describe, expect, it, type Mock, vi } from "vitest";
 import type { EndpointsConfig, ToolStatus, Usage } from "../contract";
-import { type ChatHistoryEntry, createChatHistoryStore } from "../io/chat-history-store";
+import { type ChatHistoryEntry, createChatHistoryStore } from "../io/chat/chat-history-store";
 import type { Logger } from "../logger";
 import { type BackendCaller, createBackendCaller, isChatConfigured } from "./backend-caller";
 import type { BusEnvelope } from "./event-bus";

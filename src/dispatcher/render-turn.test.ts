@@ -4,9 +4,9 @@
 
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { ControlEnvelope, ExpressArgs } from "../contract";
-import type { ChatHistoryEntry } from "../io/chat-history-store";
-import type { RenderFrame, RenderSegment } from "../io/push-socket";
-import { createSentenceSegmenter } from "../io/sentence-segmenter";
+import type { ChatHistoryEntry } from "../io/chat/chat-history-store";
+import type { RenderFrame, RenderSegment } from "../io/chat/push-socket";
+import { createSentenceSegmenter } from "../io/voice/sentence-segmenter";
 import type { Logger } from "../logger";
 import { createPushTurns, type PushTurns } from "./push-turn";
 import { createRenderTurn } from "./render-turn";

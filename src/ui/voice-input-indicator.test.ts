@@ -8,7 +8,7 @@
  */
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { INTERACTIVE_OVERLAY_SELECTORS } from "../bootstrap-configured";
+import { INTERACTIVE_OVERLAY_SELECTORS } from "../app/bootstrap-configured";
 import { setLocale, t } from "./i18n";
 import { createVoiceInputIndicator } from "./voice-input-indicator";
 import { createVoiceInputStatus } from "./voice-input-status";

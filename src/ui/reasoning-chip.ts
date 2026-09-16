@@ -7,7 +7,7 @@
  */
 
 import "./reasoning-chip.css";
-import type { ReasoningState } from "../io/reasoning-store";
+import type { ReasoningState } from "../io/bridge/reasoning-store";
 import { subscribe as subscribeLocale, t } from "./i18n";
 
 /** The reasoning state as the chip reads it — the pet window's store or a window's mirror. */

@@ -7,7 +7,7 @@ vi.mock("../logger", () => ({ createLogger: () => log }));
 
 import type { FallConfig } from "../config/load";
 import type { MotionKind, WindowRect } from "../contract";
-import type { ScreenMonitor } from "../io/screen-geometry";
+import type { ScreenMonitor } from "../io/window/screen-geometry";
 import type { RenderMotionSignal, TickContext, TickFn } from "../renderer";
 import {
   createFaller,

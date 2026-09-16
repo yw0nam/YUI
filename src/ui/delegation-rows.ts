@@ -6,7 +6,7 @@
  */
 
 import "./delegation-rows.css";
-import type { DelegationItem } from "../io/push-socket";
+import type { DelegationItem } from "../io/chat/push-socket";
 import { t } from "./i18n";
 
 /** How often a visible delegation list recomputes its elapsed and ago text. */

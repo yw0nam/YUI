@@ -1,7 +1,7 @@
 /** Quick-controls panel markup — pure string construction (no DOM, no state). */
-import { INSTRUCTIONS_MAX_LEN, REASONING_EFFORTS } from "../../io/agent-settings";
-import type { EndpointOverrides } from "../../io/endpoints-settings";
-import { RATE_LIMIT_MAX } from "../../io/guardrails-settings";
+import { INSTRUCTIONS_MAX_LEN, REASONING_EFFORTS } from "../../io/settings/agent-settings";
+import type { EndpointOverrides } from "../../io/settings/endpoints-settings";
+import { RATE_LIMIT_MAX } from "../../io/settings/guardrails-settings";
 import { LOCALE_DISPLAY_NAMES, t } from "../i18n";
 import {
   CHAT_API_LABEL_KEYS,

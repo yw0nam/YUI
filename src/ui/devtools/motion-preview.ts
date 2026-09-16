@@ -15,7 +15,7 @@ import "./motion-preview.css";
 import type { AvatarConfig } from "../../config/load";
 import { createConfigStore } from "../../config/store";
 import type { EmotionId, EmotionRegistry, MotionKind, MotionRegistry } from "../../contract";
-import { resolveAssetUrl } from "../../io/asset-url";
+import { resolveAssetUrl } from "../../io/assets/asset-url";
 import { createLogger } from "../../logger";
 import { createRenderer, type RenderMotionSignal } from "../../renderer";
 

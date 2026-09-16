@@ -4,10 +4,10 @@
  * Input-tab "keep bubble until dismissed" switch.
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { createChatHistoryStore } from "../../io/chat-history-store";
-import { createFlagSettings } from "../../io/persisted-store";
-import { createSessionDiagnosticsStore } from "../../io/session-diagnostics";
-import { createSessionStore } from "../../io/session-store";
+import { createChatHistoryStore } from "../../io/chat/chat-history-store";
+import { createSessionDiagnosticsStore } from "../../io/chat/session-diagnostics";
+import { createSessionStore } from "../../io/chat/session-store";
+import { createFlagSettings } from "../../io/settings/persisted-store";
 import { setLocale } from "../i18n";
 import { createQuickControls } from "../quick-controls";
 import { defaultQcArgs } from "./test-helpers";

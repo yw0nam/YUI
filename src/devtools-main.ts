@@ -1,9 +1,9 @@
 import "./styles.css";
 import "./ui/quick-controls.css";
 import "./ui/devtools/devtools.css";
-import { wireDevtoolsSync } from "./bootstrap-wiring";
+import { wireDevtoolsSync } from "./app/bootstrap-wiring";
 import { createConfigStore } from "./config/store";
-import { createSettingsStores } from "./io/settings-stores";
+import { createSettingsStores } from "./io/settings/settings-stores";
 import { createLogger, initLogger } from "./logger";
 import { createDevtoolsShell } from "./ui/devtools/shell";
 import { getLocale, subscribe as subscribeLocale, t } from "./ui/i18n";

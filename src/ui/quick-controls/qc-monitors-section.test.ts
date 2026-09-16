@@ -1,8 +1,8 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { ScreenSource } from "../../contract";
-import type { ScreenSourceProvider } from "../../io/screen-source-provider";
-import type { createScreenshotSettings } from "../../io/screenshot-settings";
+import type { createScreenshotSettings } from "../../io/settings/screenshot-settings";
+import type { ScreenSourceProvider } from "../../io/window/screen-source-provider";
 import type { Logger } from "../../logger";
 import { setLocale } from "../i18n";
 import { createMonitorsSection } from "./monitors-section";

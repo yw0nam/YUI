@@ -32,14 +32,14 @@ import type {
   TriggerMeta,
   Usage,
 } from "../contract";
-import { type ChatRequest, streamChat } from "../io/chat-client";
-import { buildCCMessages } from "../io/chat-completions";
-import { type ChatHistoryEntry, selectSendSuffix } from "../io/chat-history-store";
-import type { ClientToolRegistry } from "../io/client-tools";
-import type { ContextHistoryEntry } from "../io/context-history";
-import type { PushTurnFrame } from "../io/push-socket";
-import { createSilenceTokenFilter, isSilenceToken } from "../io/silence-token";
-import { buildTurnRecord, type TurnRecord } from "../io/turn-record-log";
+import { type ChatRequest, streamChat } from "../io/chat/chat-client";
+import { buildCCMessages } from "../io/chat/chat-completions";
+import { type ChatHistoryEntry, selectSendSuffix } from "../io/chat/chat-history-store";
+import type { ClientToolRegistry } from "../io/chat/client-tools";
+import type { ContextHistoryEntry } from "../io/chat/context-history";
+import type { PushTurnFrame } from "../io/chat/push-socket";
+import { createSilenceTokenFilter, isSilenceToken } from "../io/chat/silence-token";
+import { buildTurnRecord, type TurnRecord } from "../io/chat/turn-record-log";
 import type { Logger } from "../logger";
 import { createLogger } from "../logger";
 import type { Renderer } from "../renderer";
@@ -199,7 +199,7 @@ interface BackendCallerDeps {
   /** usage (token occupancy) sink — called only when present. Diagnostic channel independent of ControlEnvelope. */
   onUsage?: (usage: Usage) => void;
   /** Current agent setting (reasoning effort + instructions override) snapshot. Reflected in request only when present. */
-  getAgentSettings?: () => import("../io/agent-settings").AgentSettings;
+  getAgentSettings?: () => import("../io/settings/agent-settings").AgentSettings;
   /** Integrated conversation transcript — append after completely successful turn in both protocol modes, unless a reset opened a new session meanwhile (sessionToken). CC mode replays the current session from here. */
   transcript?: {
     entriesAfterLastBoundary(): ChatHistoryEntry[];

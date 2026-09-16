@@ -1,5 +1,5 @@
-import type { createContextHistory } from "../../io/context-history";
-import type { createEndpointsSettings } from "../../io/endpoints-settings";
+import type { createContextHistory } from "../../io/chat/context-history";
+import type { createEndpointsSettings } from "../../io/settings/endpoints-settings";
 import { t } from "../i18n";
 import { createAdvancedSettings } from "./advanced-settings";
 import { createContextInspector } from "./context-inspector";
