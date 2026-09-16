@@ -196,6 +196,31 @@ async def test_a_render_sent_while_the_replaced_socket_closes_reaches_the_new_so
     assert (await recv(second))["segments"] == [{"cues": [], "speech": "The tests passed."}]
 
 
+async def test_the_handshake_does_not_wait_for_the_replaced_socket_to_close(
+    client, adapter, monkeypatch
+):
+    """A peer that is gone takes the whole close timeout, and the frames after ready cannot wait."""
+    await ready(client)
+    replaced = adapter._sockets[CHAT]
+    resume = asyncio.Event()
+    real_close = replaced.close
+
+    async def pausing_close(**kwargs):
+        await resume.wait()
+        return await real_close(**kwargs)
+
+    monkeypatch.setattr(replaced, "close", pausing_close)
+    reports.queue_render(
+        CHAT,
+        {"type": "render", "turn_id": "777", "source": "hermes", "segments": [{"cues": [], "speech": "Held."}]},
+    )
+    second = await hello(client)
+    assert await recv(second) == {"type": "ready", "chat_id": CHAT}
+    assert (await recv(second))["type"] == "delegations"
+    assert (await recv(second))["turn_id"] == "777"
+    resume.set()
+
+
 async def test_closing_the_socket_leaves_the_chat_disconnected(client):
     ws = await ready(client)
     await ws.close()
