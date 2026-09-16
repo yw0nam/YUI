@@ -78,6 +78,8 @@ describe("render_turn — a superseding frame drops a pending silent cue", () =>
       cue: (args) => speechPlayback.setCue(args),
       toolStatus: () => {},
       activity: () => {},
+      releaseMute: () => speechPlayback.releaseMute(),
+      hasOutstandingSpeech: () => speechPlayback.hasOutstandingSpeech(),
       onQueueDrained: (callback) => speechPlayback.onQueueDrained(callback),
     };
 

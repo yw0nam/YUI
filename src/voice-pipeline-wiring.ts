@@ -13,7 +13,7 @@ import { createShuffleBag } from "./io/shuffle-bag";
 import type { SpeakerOption } from "./io/speaker-selection";
 import { createSpeechPlayback, type SpeechPlayback } from "./io/speech-playback";
 import type { SttVad } from "./io/stt-vad";
-import { TTS_SKIP } from "./io/tts-pipeline";
+import { type SpokenSplit, TTS_SKIP } from "./io/tts-pipeline";
 import { createTtsProvider, type TtsSynthCallOptions } from "./io/tts-synth";
 import type { Renderer } from "./renderer";
 import type { Surfaces } from "./ui/surfaces";
@@ -47,7 +47,7 @@ interface VoicePipelineDeps {
   /** A backend utterance opened. */
   onUtteranceStart: () => void;
   /** The backend utterance opened by the last onUtteranceStart closed. */
-  onUtteranceEnd: (ended: "complete" | "interrupted") => void;
+  onUtteranceEnd: (ended: "complete" | "interrupted", split?: SpokenSplit) => void;
   /** An ambient stroll is moving the window — thinking and cue-less speech leave the body to it. */
   isStrolling: () => boolean;
 }
@@ -246,6 +246,8 @@ export function wireVoicePipeline(deps: VoicePipelineDeps): VoicePipeline {
       if (turnId !== thinkingTurnId) return;
       fillerLoop?.onActivity();
     },
+    releaseMute: () => speechPlayback.releaseMute(),
+    hasOutstandingSpeech: () => speechPlayback.hasOutstandingSpeech(),
     onQueueDrained: (callback) => speechPlayback.onQueueDrained(callback),
   };
 

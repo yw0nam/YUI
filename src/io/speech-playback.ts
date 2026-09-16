@@ -16,7 +16,12 @@
 import type { ControlEnvelope, EmotionId, ExpressArgs } from "../contract";
 import { createEmojiStripper } from "./strip-emoji";
 import { createLinkStripper } from "./strip-links";
-import { createTtsPipeline, type TtsPipeline, type TtsPipelineOptions } from "./tts-pipeline";
+import {
+  createTtsPipeline,
+  type SpokenSplit,
+  type TtsPipeline,
+  type TtsPipelineOptions,
+} from "./tts-pipeline";
 
 /** Ease duration (ms) to return the expression to neutral after speech ends — slow (no snap). */
 const EMOTION_REVERT_MS = 1000;
@@ -48,8 +53,9 @@ export interface SpeechPlaybackOptions {
   onPlaybackEnd?: () => void;
   /** A backend utterance opened. Client-side phrases (speakAside) never report. */
   onUtteranceStart?: () => void;
-  /** The backend utterance opened by the last onUtteranceStart closed. Exactly one per start. */
-  onUtteranceEnd?: (ended: "complete" | "interrupted") => void;
+  /** The backend utterance opened by the last onUtteranceStart closed. Exactly one per start.
+   *  A cut utterance carries what was heard of it and what was still owed. */
+  onUtteranceEnd?: (ended: "complete" | "interrupted", split?: SpokenSplit) => void;
   /** Reports whether the pipeline still owes audio. Called after every state change that can flip it. */
   reportAudioOwed?: (owed: boolean) => void;
   /** An ambient stroll is moving the window — a cue-less beat leaves the walk clip alone. */
@@ -75,6 +81,10 @@ export interface SpeechPlayback {
   holdMotion(held: boolean): void;
   /** Interrupts an in-progress utterance: dispose/rebuild the pipeline + release the held bubble immediately. */
   interrupt(opts?: { muteCurrentTurn?: boolean }): void;
+  /** Ends a barge-in mute window, so the next reply is spoken and not only shown in the bubble. */
+  releaseMute(): void;
+  /** Whether audio is still owed — speech the backend started on its own included. */
+  hasOutstandingSpeech(): boolean;
   /** Cleanup on abnormal end (error/network drop): dispose the pipeline + release the held bubble immediately. No rebuild, as there's no next turn. */
   abort(): void;
   /** Registers a one-shot callback for the next playback-end boundary — a caller sequencing its own work behind whatever speech is already queued. */
@@ -145,11 +155,11 @@ export function createSpeechPlayback(options: SpeechPlaybackOptions): SpeechPlay
 
   // Reports the tracked utterance the caller is about to cut, then drops the whole queue —
   // the disposed pipeline never fires the boundaries it held.
-  function closeTracked(): boolean {
+  function closeTracked(split: SpokenSplit): boolean {
     const tracked = open?.tracked === true || queued.includes(true);
     open = null;
     queued.length = 0;
-    if (tracked) options.onUtteranceEnd?.("interrupted");
+    if (tracked) options.onUtteranceEnd?.("interrupted", split);
     return tracked;
   }
 
@@ -234,6 +244,8 @@ export function createSpeechPlayback(options: SpeechPlaybackOptions): SpeechPlay
     interrupt(opts) {
       stripper.reset();
       links.reset();
+      // Read before the dispose below — a disposed pipeline reports nothing.
+      const split = pipeline.spokenSplit();
       pipeline.dispose();
       pipeline = buildPipeline();
       // The disposed pipeline never fires its boundary — a callback still waiting on it would
@@ -241,7 +253,7 @@ export function createSpeechPlayback(options: SpeechPlaybackOptions): SpeechPlay
       drainedCallbacks = [];
       // Release the held bubble immediately (not deferred).
       surfaces.endSpeech();
-      const reported = closeTracked();
+      const reported = closeTracked(split);
       // Also runs as routine pre-turn cleanup when nothing was speaking — only ease if it cut off real audio.
       if (heardAudio) renderer.easeEmotionToNeutral(EMOTION_REVERT_MS);
       heardAudio = false;
@@ -252,18 +264,26 @@ export function createSpeechPlayback(options: SpeechPlaybackOptions): SpeechPlay
     abort() {
       stripper.reset();
       links.reset();
+      const split = pipeline.spokenSplit();
       // Abnormal end: dispose the pipeline + release the held bubble immediately. No rebuild, as there's no next turn.
       pipeline.dispose();
       // No next turn to drain them, and nothing here should still speak.
       drainedCallbacks = [];
       surfaces.endSpeech();
-      closeTracked();
+      closeTracked(split);
       // Terminal like onPlaybackEnd — no next turn to re-assert an expression, so always ease.
       renderer.easeEmotionToNeutral(EMOTION_REVERT_MS);
       heardAudio = false;
       muted = false;
       mutedReported = false;
       reportAudioOwed();
+    },
+    releaseMute() {
+      muted = false;
+      mutedReported = false;
+    },
+    hasOutstandingSpeech() {
+      return pipeline.hasOutstandingWork();
     },
     onQueueDrained(callback) {
       drainedCallbacks.push(callback);
