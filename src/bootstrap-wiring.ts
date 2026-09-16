@@ -330,7 +330,7 @@ export function createSettingsBroadcast(deps: {
  * Stop click → client-side cancel of the in-flight turn, the push turns still outstanding cut, and
  * the queued speech stopped. cancel() alone leaves already-queued TTS segments playing: backend-
  * caller's superseded path defers speech cleanup to the next turn, which never comes on an explicit
- * stop. The cut runs before the speech stops, so a render arriving in between is already dropped.
+ * stop.
  */
 export function wireStopControl(deps: {
   onStop: (cb: () => void) => void;

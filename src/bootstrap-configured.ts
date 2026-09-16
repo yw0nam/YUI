@@ -761,8 +761,7 @@ const realFactories: ConfiguredBootstrapFactories = {
     wireStopControl({
       onStop: (callback) => surfaces.onStop(callback),
       cancel: () => dispatcher.cancel(),
-      // Nothing rebuilds a pipeline abort() disposed, so the next reply the backend starts on its
-      // own would be silent; interrupt() stops the same audio and leaves the pipeline alive.
+      // interrupt() stops the queued audio and leaves the pipeline able to speak the next reply.
       stopSpeech: () => voice.speechPlayback.interrupt(),
       cutPushTurns: () => pushTurns.cut(),
     });

@@ -53,8 +53,8 @@ export interface SpeechPlaybackOptions {
   onPlaybackEnd?: () => void;
   /** A backend utterance opened. Client-side phrases (speakAside) never report. */
   onUtteranceStart?: () => void;
-  /** The backend utterance opened by the last onUtteranceStart closed. Exactly one per start.
-   *  A cut utterance carries what was heard of it and what was still owed. */
+  /** A backend utterance closed: "complete" when a start reaches its playback boundary, or one
+   *  "interrupted" folding every queued utterance, with what was heard and what was still owed. */
   onUtteranceEnd?: (ended: "complete" | "interrupted", split?: SpokenSplit) => void;
   /** Reports whether the pipeline still owes audio. Called after every state change that can flip it. */
   reportAudioOwed?: (owed: boolean) => void;
