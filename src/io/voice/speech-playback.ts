@@ -26,6 +26,14 @@ import {
 /** Ease duration (ms) to return the expression to neutral after speech ends — slow (no snap). */
 const EMOTION_REVERT_MS = 1000;
 
+/** Two cues as one. A later value wins the field it carries; an empty value never overrides. */
+function mergeCues(base: ExpressArgs | null, next: ExpressArgs): ExpressArgs {
+  const merged: ExpressArgs = { ...base };
+  if (next.emotion_id) merged.emotion_id = next.emotion_id;
+  if (next.motion_id) merged.motion_id = next.motion_id;
+  return merged;
+}
+
 /** The render channels of a cue, in the renderer's shape. The voice channels need audio, so they stay out. */
 function directiveOf(cue: ExpressArgs): ControlEnvelope {
   return {
@@ -244,7 +252,8 @@ export function createSpeechPlayback(options: SpeechPlaybackOptions): SpeechPlay
       }
     },
     silentCue(cue) {
-      if (motionHeld) heldSilentCue = cue;
+      // Segments of one frame park together, the way a segment's own cues merge before they arrive.
+      if (motionHeld) heldSilentCue = mergeCues(heldSilentCue, cue);
       else renderer.applyDirective(directiveOf(cue));
     },
     holdMotion(held) {
