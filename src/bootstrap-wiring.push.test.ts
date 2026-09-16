@@ -91,6 +91,7 @@ function fakeLog() {
 
 let socket: ReturnType<typeof fakeSocket>;
 let turnOutput: ReturnType<typeof makeTurnOutput>;
+let pushTurns: ReturnType<typeof createPushTurns>;
 let delegations: ReturnType<typeof createDelegationsStore>;
 let reasoning: ReturnType<typeof createReasoningStore>;
 let records: unknown[];
@@ -102,7 +103,7 @@ function wire() {
   return wirePushTransport({
     socket,
     turnOutput,
-    pushTurns: createPushTurns(),
+    pushTurns,
     renderer: { applyDirective: (env) => directives.push(env) },
     delegations,
     reasoning,
@@ -115,6 +116,7 @@ function wire() {
 beforeEach(() => {
   socket = fakeSocket();
   turnOutput = makeTurnOutput();
+  pushTurns = createPushTurns();
   delegations = createDelegationsStore();
   reasoning = createReasoningStore();
   records = [];
@@ -186,6 +188,16 @@ describe("wirePushTransport", () => {
     socket.pushRender({ ...RENDER, reasoning: "AB" });
 
     expect(reasoning.get()).toEqual({ text: "AB", live: false });
+  });
+
+  it("leaves the reasoning cycle open for a frame of a turn the user stopped", () => {
+    wire();
+    pushTurns.opened("7");
+    socket.pushReasoning("A");
+    pushTurns.cut();
+    socket.pushRender({ ...RENDER, reasoning: "AB" });
+
+    expect(reasoning.get()).toEqual({ text: "A", live: true });
   });
 
   it("interrupts the reasoning on a non-ready socket state", () => {

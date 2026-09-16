@@ -357,6 +357,16 @@ describe("render_turn — a turn the user stopped", () => {
     expect(pipeline.spoken).toEqual([{ text: "Here it is.", cue: null }]);
   });
 
+  it("tells its caller the frame was dropped", () => {
+    cutSeven();
+
+    expect(turn().render(frame([{ speech: "Here it is." }]))).toBe(false);
+  });
+
+  it("tells its caller a frame it played was accepted", () => {
+    expect(turn().render(frame([{ speech: "Here it is." }]))).toBe(true);
+  });
+
   it("plays a reply the backend started on its own, cut or not", () => {
     cutSeven();
     turn().render(frame([{ speech: "One more thing." }], { turn_id: null }));
