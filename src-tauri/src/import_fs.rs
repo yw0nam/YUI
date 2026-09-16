@@ -83,7 +83,7 @@ fn is_unsafe_stem_char(c: char) -> bool {
 /// Windows reserved device names — matched case-insensitively against the part of the
 /// stem before its first `.`, so both a bare `CON` and a `CON.txt`-shaped stem are caught.
 /// Includes COM0/LPT0 alongside COM1-9/LPT1-9 per current Microsoft file-naming docs.
-/// Keep this list in lockstep with src/io/safe-id.ts's RESERVED_STEM_NAMES.
+/// Keep this list in lockstep with src/io/assets/safe-id.ts's RESERVED_STEM_NAMES.
 const RESERVED_STEM_NAMES: [&str; 24] = [
     "CON", "PRN", "AUX", "NUL", "COM0", "COM1", "COM2", "COM3", "COM4", "COM5", "COM6", "COM7",
     "COM8", "COM9", "LPT0", "LPT1", "LPT2", "LPT3", "LPT4", "LPT5", "LPT6", "LPT7", "LPT8", "LPT9",
@@ -401,7 +401,7 @@ mod tests {
 
     #[test]
     fn sanitize_stem_matches_the_shared_cross_language_fixture() {
-        // Shared with src/io/safe-id.test.ts's sanitizeStem reimplementation — a single source of
+        // Shared with src/io/assets/safe-id.test.ts's sanitizeStem reimplementation — a single source of
         // truth for what sanitize_stem produces, so the Rust and TS charset rules cannot drift.
         let raw = include_str!("../../fixtures/sanitize-stem-cases.json");
         let cases: Vec<serde_json::Value> = serde_json::from_str(raw).unwrap();

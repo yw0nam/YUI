@@ -8,11 +8,11 @@
 //! internally. The OS DWM / Quartz Compositor handles the physical-to-logical remapping when
 //! the window crosses a monitor boundary; we do NOT need to manually reposition after a drag.
 //!
-//! The `onScaleChanged` JS listener (see `src/drag.ts`) is the seam for reacting to DPI changes
+//! The `onScaleChanged` JS listener (see `src/app/drag.ts`) is the seam for reacting to DPI changes
 //! (e.g., snapping or re-centering).
 //!
 //! # Dispatcher seam
-//! Click/pet-gesture events on the character region belong to the dispatcher. `src/drag.ts` emits
+//! Click/pet-gesture events on the character region belong to the dispatcher. `src/app/drag.ts` emits
 //! a placeholder `"__yui_gesture_stub"` custom event at the drag-start site as the gesture seam.
 
 use tauri::{command, Runtime, WebviewWindow};

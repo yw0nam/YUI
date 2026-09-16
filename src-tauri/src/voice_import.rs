@@ -621,7 +621,7 @@ mod tests {
 
     #[test]
     fn voice_id_matches_the_shared_cross_language_fixture() {
-        // Shared with src/io/safe-id.test.ts's voiceIdFromName mirror — a single source of truth
+        // Shared with src/io/assets/safe-id.test.ts's voiceIdFromName mirror — a single source of truth
         // for what voice_id_from_name produces, so the Rust and TS derivations cannot drift.
         let raw = include_str!("../../fixtures/voice-id-cases.json");
         let cases: Vec<serde_json::Value> = serde_json::from_str(raw).unwrap();
