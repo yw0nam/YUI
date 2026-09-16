@@ -66,8 +66,11 @@ function renderBody(bodyState: ClientContext["body_state"], nowMs: number): stri
 
 function renderPrevious(previous: ClientContext["previous"], nowMs: number): string | undefined {
   if (!previous) return undefined;
+  const spoken = previous.spoken ? ` spoken: "${oneLine(previous.spoken)}"` : "";
+  const unspoken = previous.unspoken ? ` unspoken: "${oneLine(previous.unspoken)}"` : "";
+  const heard = spoken || unspoken ? `,${spoken}${unspoken}` : "";
   // The event bus's own name for the turn, which the trigger headline rewords.
-  return `previous: ${oneLine(previous.event_name)} ${previous.ended} (${minutesSince(previous.ts, nowMs)}min ago)`;
+  return `previous: ${oneLine(previous.event_name)} ${previous.ended} (${minutesSince(previous.ts, nowMs)}min ago)${heard}`;
 }
 
 function renderTrigger(trigger: TriggerMeta, nowMs: number): string[] {
