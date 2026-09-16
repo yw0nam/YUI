@@ -5,10 +5,14 @@
  * synth and the audio sink under the test's control. The two ways a user stops a reply — voice
  * barge-in and the stop button — each leave the pipeline able to speak the next reply the backend
  * starts on its own, while the renders still to come for the stopped turn are dropped.
+ *
+ * The same path carries a reply that lands while the turn's thinking bridge is still up: the
+ * bridge holds the motion, so it has to come down before the render's cues are read.
  */
 
 import { describe, expect, it, vi } from "vitest";
 import { wireStopControl } from "./bootstrap-wiring";
+import type { ControlEnvelope } from "./contract";
 import { createPushTurns } from "./dispatcher/push-turn";
 import { createRenderTurn } from "./dispatcher/render-turn";
 import { makeLogger } from "./dispatcher/test-helpers";
@@ -51,19 +55,34 @@ function frame(speech: string, turnId: string | null): RenderFrame {
   return { type: "render", turn_id: turnId, source: "hermes", segments: [{ speech }] };
 }
 
+/** Records the calls that decide which expression and motion the character is wearing. */
+function recordingRenderer() {
+  const directives: ControlEnvelope[] = [];
+  const motions: Array<{ id: string } | null> = [];
+  return {
+    directives,
+    motions,
+    setMouthOpen: () => {},
+    stopMouth: () => {},
+    easeEmotionToNeutral: () => {},
+    applyDirective: (envelope: ControlEnvelope) => {
+      directives.push(envelope);
+      if (envelope.motion) motions.push({ id: envelope.motion.id });
+    },
+    playMotion: (motion: { id: string } | null) => {
+      motions.push(motion ? { id: motion.id } : null);
+    },
+  };
+}
+
 function setup() {
   const played: string[] = [];
   const synth = controlledSynth();
   const pushTurns = createPushTurns();
+  const renderer = recordingRenderer();
 
   const speechPlayback = createSpeechPlayback({
-    renderer: {
-      setMouthOpen: () => {},
-      stopMouth: () => {},
-      easeEmotionToNeutral: () => {},
-      applyDirective: () => {},
-      playMotion: () => {},
-    },
+    renderer,
     surfaces: {
       beginSpeech: () => {},
       pushSpeech: () => {},
@@ -76,9 +95,15 @@ function setup() {
 
   const turnOutput: TurnOutput = {
     interrupt: () => speechPlayback.interrupt(),
-    hasFiller: () => false,
-    thinkingStart: () => {},
-    thinkingEnd: () => {},
+    hasFiller: () => true,
+    thinkingStart: () => {
+      speechPlayback.holdMotion(true);
+      renderer.playMotion({ id: "thinking" });
+    },
+    thinkingEnd: () => {
+      speechPlayback.holdMotion(false);
+      renderer.playMotion(null);
+    },
     delta: (text) => speechPlayback.onSpeechDelta(text),
     speak: (text) => speechPlayback.onSpeech(text),
     end: () => speechPlayback.onSpeechEnd(),
@@ -94,9 +119,17 @@ function setup() {
   const renderTurn = createRenderTurn({
     turnOutput,
     pushTurns,
-    renderer: { applyDirective: () => {} },
+    renderer,
     logger: makeLogger(),
   });
+
+  // The bridge the backend call holds: up at send, down once, whichever way the wait ends.
+  let thinkingDone = false;
+  const endThinking = (): void => {
+    if (thinkingDone) return;
+    thinkingDone = true;
+    turnOutput.thinkingEnd(1);
+  };
 
   let onStop = (): void => {};
   wireStopControl({
@@ -113,6 +146,14 @@ function setup() {
     synth,
     pushTurns,
     renderTurn,
+    directives: renderer.directives,
+    motions: renderer.motions,
+    /** Sends a turn the way the backend call does, bridge and all, and waits for its render. */
+    openTurn: (turnId: string): void => {
+      pushTurns.opened(turnId);
+      turnOutput.thinkingStart(1);
+      void pushTurns.awaitFirstRender(turnId, endThinking).then(endThinking);
+    },
     stopButton: () => onStop(),
     // The pair voice-pipeline-wiring performs when the user talks over the reply.
     bargeIn: () => {
@@ -157,5 +198,44 @@ describe("a reply the backend starts on its own, after the user stopped the last
     expect(seq.synth.inputs).toEqual(["Long answer.", "One more thing."]);
     seq.synth.deliver(1);
     await vi.waitFor(() => expect(seq.played).toEqual(["play:0", "play:1"]));
+  });
+});
+
+describe("a reply that lands while the turn's thinking bridge is still up", () => {
+  it("gives each segment its own cue", async () => {
+    const seq = setup();
+    seq.openTurn("1");
+
+    seq.renderTurn.render({
+      type: "render",
+      turn_id: "1",
+      source: "hermes",
+      segments: [
+        { cues: [{ emotion_id: "happy", emotion_text: "\u{1F606}" }], speech: "All green." },
+        { cues: [{ emotion_id: "curious", emotion_text: "\u{1F442}" }], speech: "Want the list?" },
+      ],
+    });
+
+    expect(seq.synth.inputs).toEqual(["\u{1F606} All green.", "\u{1F442} Want the list?"]);
+
+    seq.synth.deliver(0);
+    await vi.waitFor(() => expect(seq.played).toEqual(["play:0"]));
+
+    expect(seq.directives).toEqual([{ speech_text: "", emotion: { id: "happy" } }]);
+  });
+
+  it("keeps a cue-only render's motion", async () => {
+    const seq = setup();
+    seq.openTurn("1");
+
+    seq.renderTurn.render({
+      type: "render",
+      turn_id: "1",
+      source: "hermes",
+      segments: [{ cues: [{ motion_id: "happy" }], speech: "" }],
+    });
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    expect(seq.motions.at(-1)).toEqual({ id: "happy" });
   });
 });
