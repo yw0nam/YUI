@@ -13,12 +13,6 @@ const { fakeBridge, createSettingsBridge } = vi.hoisted(() => {
   const fakeBridge = {
     emitSettingsChanged: vi.fn(),
     onSettingsChanged: vi.fn(() => vi.fn()),
-    emitMouthPreview: vi.fn(),
-    onMouthPreview: vi.fn(),
-    emitVoiceSet: vi.fn(),
-    onVoiceSet: vi.fn(),
-    emitVoiceState: vi.fn(),
-    onVoiceState: vi.fn(),
     dispose: vi.fn(),
   };
   return { fakeBridge, createSettingsBridge: vi.fn(() => fakeBridge) };
