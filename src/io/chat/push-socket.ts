@@ -448,6 +448,7 @@ export function createPushSocket(deps: PushSocketDeps): PushSocket {
       active = false;
       clearTimers();
       renderSubs.clear();
+      turnEndSubs.clear();
       delegationSubs.clear();
       reasoningSubs.clear();
       ws?.close(NORMAL_CLOSE_CODE);
