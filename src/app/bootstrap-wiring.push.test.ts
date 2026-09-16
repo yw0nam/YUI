@@ -9,7 +9,12 @@ import { makeTurnOutput } from "../dispatcher/test-helpers";
 import { createDelegationsStore } from "../io/bridge/delegations-store";
 import { createReasoningStore } from "../io/bridge/reasoning-store";
 import type { ChatHistoryEntry } from "../io/chat/chat-history-store";
-import type { DelegationItem, PushSocketState, RenderFrame, TurnEndFrame } from "../io/chat/push-socket";
+import type {
+  DelegationItem,
+  PushSocketState,
+  RenderFrame,
+  TurnEndFrame,
+} from "../io/chat/push-socket";
 import { wirePushMode, wirePushTransport } from "./bootstrap-wiring";
 
 function fakeSocket() {

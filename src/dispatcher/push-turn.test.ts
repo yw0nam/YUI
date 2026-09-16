@@ -235,9 +235,7 @@ describe("awaitTurnEnd", () => {
     const settled: string[] = [];
 
     turns.opened("A");
-    const wait = watch(
-      turns.awaitTurnEnd("A", { onFirstRender: () => settled.push("A") }),
-    );
+    const wait = watch(turns.awaitTurnEnd("A", { onFirstRender: () => settled.push("A") }));
     turns.abandon("A");
     turns.rendered("A");
     turns.ended("A");
