@@ -193,6 +193,7 @@ async def test_a_render_sent_while_the_replaced_socket_closes_reaches_the_new_so
     resume.set()
     second = await asyncio.wait_for(opened, 2)
     assert await recv(second) == {"type": "ready", "chat_id": CHAT}
+    assert (await recv(second))["type"] == "delegations"
     assert (await recv(second))["segments"] == [{"cues": [], "speech": "The tests passed."}]
 
 

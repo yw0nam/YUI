@@ -143,6 +143,7 @@ class YuiAdapter(BasePlatformAdapter):
         self._loop: asyncio.AbstractEventLoop | None = None
         self._runner: web.AppRunner | None = None
         self._confirmations: set[asyncio.Task] = set()
+        self._closings: set[asyncio.Task] = set()
         self._site: web.TCPSite | None = None
         self._homed: set[str] = set()
         self._reasoning_pending: dict[str, list[str]] = {}
@@ -263,14 +264,20 @@ class YuiAdapter(BasePlatformAdapter):
         self._publish_vocabulary(chat_id, frame.get("vocabulary"))
         await self._send_frame(chat_id, {"type": "ready", "chat_id": chat_id})
         if replaced is not None and replaced is not ws:
-            with contextlib.suppress(Exception):
-                await replaced.close(code=CLOSE_REPLACED, message=b"replaced")
+            # A peer that is gone takes the whole close timeout, and the frames below cannot wait.
+            task = asyncio.create_task(self._close_replaced(replaced))
+            self._closings.add(task)
+            task.add_done_callback(self._closings.discard)
         await self._send_delegations(chat_id)
         logger.info("yui: client ready chat=%s", chat_id)
         # The reply it missed comes before the agent starts a new turn on the held reports.
         await self._flush_renders(chat_id)
         await self._flush_reports(chat_id)
         return chat_id
+
+    async def _close_replaced(self, ws: web.WebSocketResponse) -> None:
+        with contextlib.suppress(Exception):
+            await ws.close(code=CLOSE_REPLACED, message=b"replaced")
 
     async def _on_frame(self, chat_id: str, frame: dict) -> None:
         kind = frame.get("type")
