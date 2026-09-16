@@ -1,4 +1,5 @@
 import { type Mock, vi } from "vitest";
+import { guardrailsFixture } from "../config/load-test-helpers";
 import type { ControlEnvelope, EndpointsConfig, ExpressArgs, ToolStatus } from "../contract";
 import type {
   ChatRequest,
@@ -7,9 +8,13 @@ import type {
   streamChat,
 } from "../io/chat/chat-client";
 import type { Logger } from "../logger";
+import type { BackendCaller, TurnOutcome } from "./backend-caller";
 import type { BusEnvelope } from "./event-bus";
+import type { GuardrailsConfig } from "./guardrails";
 import type { Turn } from "./turn";
 import type { TurnOutput } from "./turn-output";
+
+export const NOW = 1_717_000_000_000;
 
 function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -92,6 +97,72 @@ export const CONFIG: EndpointsConfig = {
 /** Wraps a trigger in a Turn for BackendCaller.call — id defaults to 1 (irrelevant to most tests). */
 export function turnOf(trigger: BusEnvelope, id = 1): Turn {
   return { id, trigger };
+}
+
+/**
+ * Permissive guardrails config for routing/supersede testing — debounce 0, generous cap.
+ * Guardrails validation itself is guardrails.test.ts responsibility, so we don't interfere here.
+ */
+export function permissiveGuardrailsConfig(): GuardrailsConfig {
+  return {
+    debounce_ms: {
+      os_event_watcher: 0,
+      user_input_source: 0,
+      screen_watcher: 5000,
+    },
+    rate_limit: {
+      window_ms: 3_600_000,
+      tier2_max: 1000,
+      tier3_max: 1000,
+      overall_max: 1000,
+      cooldown_ms: 300_000,
+    },
+    attachments: guardrailsFixture().attachments,
+  };
+}
+
+/** Guardrails config using §6 SOT values as-is (for gating testing). */
+export function realGuardrailsConfig(): GuardrailsConfig {
+  return {
+    debounce_ms: {
+      os_event_watcher: 5_000,
+      user_input_source: 0,
+      screen_watcher: 5000,
+    },
+    rate_limit: {
+      window_ms: 3_600_000,
+      tier2_max: 6,
+      tier3_max: 2,
+      overall_max: 20,
+      cooldown_ms: 300_000,
+    },
+    attachments: guardrailsFixture().attachments,
+  };
+}
+
+export function env(over: Partial<BusEnvelope> = {}): BusEnvelope {
+  return {
+    source: "user_input_source",
+    event_name: "user.text_submitted",
+    ts: NOW,
+    dnd_override: true,
+    ...over,
+  };
+}
+
+export interface DeferredCall {
+  resolve: (r: TurnOutcome) => void;
+  signal?: AbortSignal;
+}
+
+export function makeDeferredBackendCaller(callDeferred: DeferredCall[]): BackendCaller {
+  return {
+    call: vi.fn((_turn: Turn, signal?: AbortSignal) => {
+      return new Promise<TurnOutcome>((resolve) => {
+        callDeferred.push({ resolve, signal });
+      });
+    }),
+  };
 }
 
 export function userEnv(text = "안녕"): BusEnvelope {
