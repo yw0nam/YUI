@@ -150,6 +150,17 @@ describe("awaitFirstRender", () => {
     await expect(first).resolves.toBe("rendered");
   });
 
+  it("a turn a settle callback opens is outside the cut that ran it", () => {
+    const turns = createPushTurns();
+
+    turns.opened("A");
+    void turns.awaitFirstRender("A", () => turns.opened("B"));
+    turns.cut();
+
+    expect(turns.isCut("A")).toBe(true);
+    expect(turns.isCut("B")).toBe(false);
+  });
+
   it("an abandoned wait settles nothing when its render finally arrives", async () => {
     const turns = createPushTurns();
     const settled: string[] = [];
