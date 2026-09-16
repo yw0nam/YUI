@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import threading
 
-# A turn costs two slots: the reply it renders and the frame that ends it.
+# Caps each queue: the reports held, and the replies held, where a turn costs a render and its end.
 MAX_QUEUED = 40
 
 _HEADER = (
