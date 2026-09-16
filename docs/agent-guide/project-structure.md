@@ -161,6 +161,8 @@ YUI/
         sections-settings.ts           # Collapsed state of the Quick Controls sections
         vad-settings.ts                # VAD silence window
         workflow-settings.ts           # Workflow entry list and URL validation
+        chat-id-settings.ts            # Conversation id this installation sends in every push hello
+        delegation-chip-settings.ts    # Per-device fold state of the delegation chip
       chat/
         chat-client.ts                 # Adapter over the openai SDK Responses stream
         chat-completions.ts            # Pure Chat Completions request builders and stream-chunk reducer
@@ -173,6 +175,8 @@ YUI/
         broker-client.ts               # Write-only Expression Broker MCP client that publishes the renderable vocabulary
         broker-override-reconciler.ts  # Applies a broker-URL override to the live broker client
         turn-record-log.ts             # Appends one JSONL record per completed turn or skipped fire
+        push-socket.ts                 # Single WebSocket the push transport runs turns and replies on
+        silence-token.ts               # Stateful [SILENT] token filter for spoken output_text deltas
       voice/
         deadline.ts                    # Per-request deadline so a hung fetch settles
         sentence-segmenter.ts          # Segments streamed text into sentences
@@ -225,6 +229,11 @@ YUI/
         settings-bridge.ts             # Typed cross-window settings bus over Tauri emit and listen
         message-bridge.ts              # Cross-window bus linking the pet window and the message window
         message-remote.ts              # The message window's bubble and input as a remote Surfaces half
+        push-socket-bridge.ts          # Push socket state as seen from a window that does not own it
+        delegations-store.ts           # Background work the backend reports on the push socket
+        delegations-bridge.ts          # Delegations list as seen from a window that does not own the push socket
+        reasoning-store.ts             # Backend reasoning text as the current turn writes it
+        reasoning-bridge.ts            # Reasoning text as seen from a window that does not own the push socket
       assets/
         vrm-import.ts                  # VRM import: OS picker, native copy, avatar-option registration
         user-asset-import.ts           # Dialog result shape, lazy Tauri loaders, and orphan cleanup shared by the voice and VRM imports
