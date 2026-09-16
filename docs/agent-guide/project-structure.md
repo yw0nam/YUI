@@ -342,6 +342,7 @@ YUI/
         mod.rs                       # OS polling loop that emits os_event to the webview
         macos.rs                     # macOS idle, window enumeration, and camera polling
         windows.rs                   # Windows idle, foreground window, and window enumeration polling
+  fixtures/                          # JSON case tables the TS and Rust sanitizer tests both read
   Mods/                              # Standalone MCP servers, independent of the app runtime (Python/uv, own `mods` CI job)
     avatar/                          # Avatar body-state and movement Mod
     browser-cdp/                     # Browser CDP Mod

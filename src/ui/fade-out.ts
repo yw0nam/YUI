@@ -10,7 +10,7 @@
 // shorter than the fade (--yui-dur 200ms / -fast 140ms) and would cut it off, so the timer must
 // exceed that ceiling. A caller whose own transition runs longer (e.g. --yui-dur-out) passes its
 // own fallbackMs instead of raising this default for everyone.
-const FADE_FALLBACK_MS = 400; // ponytail: safety net exceeding the --yui-dur/-fast ceiling
+const FADE_FALLBACK_MS = 400;
 
 /**
  * Runs `settle` once — on the element's opacity transitionend, or on the fallback timer.

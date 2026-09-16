@@ -1,5 +1,5 @@
 /**
- * bootstrap-wiring.push.test.ts — routing an open push socket into the client.
+ * wire-push.test.ts — routing an open push socket into the client.
  */
 
 import { beforeEach, describe, expect, it, type Mock, vi } from "vitest";
