@@ -3,7 +3,7 @@
  */
 
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { ControlEnvelope, ExpressArgs } from "../contract";
+import type { ExpressArgs } from "../contract";
 import type { ChatHistoryEntry } from "../io/chat/chat-history-store";
 import type { RenderFrame, RenderSegment } from "../io/chat/push-socket";
 import { createSentenceSegmenter } from "../io/voice/sentence-segmenter";
@@ -46,7 +46,7 @@ function makePendingCuePipeline() {
 let turnOutput: ReturnType<typeof makeTurnOutput>;
 let pushTurns: PushTurns;
 let pipeline: ReturnType<typeof makePendingCuePipeline>;
-let directives: ControlEnvelope[];
+let silentCues: ExpressArgs[];
 let logger: Logger;
 let records: unknown[];
 let transcript: ChatHistoryEntry[];
@@ -61,7 +61,6 @@ function turn() {
   return createRenderTurn({
     turnOutput,
     pushTurns,
-    renderer: { applyDirective: (env) => directives.push(env) },
     appendTurnRecord: (record) => records.push(record),
     appendTranscript: (entry) => transcript.push(entry),
     logger,
@@ -72,8 +71,9 @@ beforeEach(() => {
   turnOutput = makeTurnOutput();
   pushTurns = createPushTurns();
   pipeline = makePendingCuePipeline();
-  directives = [];
+  silentCues = [];
   logger = makeLogger();
+  turnOutput.silentCue.mockImplementation((cue: ExpressArgs) => silentCues.push(cue));
   // Route the spy output into the pending-cue pipeline: a cue renders only when a sentence takes it.
   turnOutput.cueWithSpeech.mockImplementation((args: ExpressArgs) => pipeline.setCue(args));
   turnOutput.delta.mockImplementation((text: string) => pipeline.pushText(text));
@@ -188,12 +188,10 @@ describe("render_turn — speaking segments", () => {
 });
 
 describe("render_turn — silent segments", () => {
-  it("renders a silent segment's cues through the renderer, where nothing waits on audio", () => {
+  it("hands a silent segment's cues to the speech pipeline, which owns the motion hold", () => {
     turn().render(frame([{ cues: [{ emotion_id: "sad", motion_id: "sit" }], speech: "[SILENT]" }]));
 
-    expect(directives).toEqual([
-      { speech_text: "", emotion: { id: "sad" }, motion: { id: "sit" } },
-    ]);
+    expect(silentCues).toEqual([{ emotion_id: "sad", motion_id: "sit" }]);
     expect(turnOutput.cueWithSpeech).not.toHaveBeenCalled();
     expect(pipeline.unconsumed()).toBeNull();
     expect(turnOutput.end).not.toHaveBeenCalled();
@@ -202,27 +200,25 @@ describe("render_turn — silent segments", () => {
   it("renders the cues of a segment whose speech is only whitespace", () => {
     turn().render(frame([{ cues: [{ emotion_id: "happy" }], speech: "   " }]));
 
-    expect(directives).toEqual([{ speech_text: "", emotion: { id: "happy" } }]);
+    expect(silentCues).toEqual([{ emotion_id: "happy" }]);
   });
 
   it("renders the cues of a segment carrying no speech field at all", () => {
     turn().render(frame([{ cues: [{ motion_id: "wave" }] }]));
 
-    expect(directives).toEqual([{ speech_text: "", motion: { id: "wave" } }]);
+    expect(silentCues).toEqual([{ motion_id: "wave" }]);
   });
 
-  it("merges a silent segment's cues into one directive", () => {
+  it("merges a silent segment's cues into one", () => {
     turn().render(frame([{ cues: [{ motion_id: "wave" }, { emotion_id: "happy" }], speech: "" }]));
 
-    expect(directives).toEqual([
-      { speech_text: "", emotion: { id: "happy" }, motion: { id: "wave" } },
-    ]);
+    expect(silentCues).toEqual([{ emotion_id: "happy", motion_id: "wave" }]);
   });
 
-  it("renders nothing for a silent segment that carries no cue", () => {
+  it("sends nothing for a silent segment that carries no cue", () => {
     turn().render(frame([{ speech: "[SILENT]" }]));
 
-    expect(directives).toEqual([]);
+    expect(silentCues).toEqual([]);
     expect(turnOutput.cueWithSpeech).not.toHaveBeenCalled();
   });
 
@@ -234,21 +230,15 @@ describe("render_turn — silent segments", () => {
       ]),
     );
 
-    expect(directives).toEqual([{ speech_text: "", emotion: { id: "sad" } }]);
+    expect(silentCues).toEqual([{ emotion_id: "sad" }]);
     expect(pipeline.spoken).toEqual([{ text: "Here.", cue: { emotion_id: "happy" } }]);
   });
 
-  it("a renderer that throws never breaks the rest of the render", () => {
-    const r = createRenderTurn({
-      turnOutput,
-      pushTurns,
-      renderer: {
-        applyDirective: vi.fn(() => {
-          throw new Error("renderer gone");
-        }),
-      },
-      logger,
+  it("a cue sink that throws never breaks the rest of the render", () => {
+    turnOutput.silentCue.mockImplementation(() => {
+      throw new Error("renderer gone");
     });
+    const r = createRenderTurn({ turnOutput, pushTurns, logger });
 
     expect(() =>
       r.render(frame([{ cues: [{ emotion_id: "sad" }] }, { speech: "Here." }])),
@@ -266,21 +256,19 @@ describe("render_turn — segment order", () => {
       ]),
     );
 
-    expect(directives).toEqual([]);
+    expect(silentCues).toEqual([]);
     expect(turnOutput.onQueueDrained).toHaveBeenCalledOnce();
 
     const drained = turnOutput.onQueueDrained.mock.calls[0]![0] as () => void;
     drained();
 
-    expect(directives).toEqual([
-      { speech_text: "", emotion: { id: "sad" }, motion: { id: "sit" } },
-    ]);
+    expect(silentCues).toEqual([{ emotion_id: "sad", motion_id: "sit" }]);
   });
 
   it("[silent] alone still applies at once, with no speaking segment in the frame", () => {
     turn().render(frame([{ cues: [{ emotion_id: "sad" }], speech: "[SILENT]" }]));
 
-    expect(directives).toEqual([{ speech_text: "", emotion: { id: "sad" } }]);
+    expect(silentCues).toEqual([{ emotion_id: "sad" }]);
     expect(turnOutput.onQueueDrained).not.toHaveBeenCalled();
   });
 
@@ -288,13 +276,13 @@ describe("render_turn — segment order", () => {
     turnOutput.hasOutstandingSpeech.mockReturnValue(true);
     turn().render(frame([{ cues: [{ emotion_id: "sad" }], speech: "[SILENT]" }]));
 
-    expect(directives).toEqual([]);
+    expect(silentCues).toEqual([]);
     expect(turnOutput.onQueueDrained).toHaveBeenCalledOnce();
 
     const drained = turnOutput.onQueueDrained.mock.calls[0]![0] as () => void;
     drained();
 
-    expect(directives).toEqual([{ speech_text: "", emotion: { id: "sad" } }]);
+    expect(silentCues).toEqual([{ emotion_id: "sad" }]);
   });
 
   it("[silent, speaking] applies the silent cue first, without waiting on the speech that follows", () => {
@@ -305,7 +293,7 @@ describe("render_turn — segment order", () => {
       ]),
     );
 
-    expect(directives).toEqual([{ speech_text: "", emotion: { id: "sad" } }]);
+    expect(silentCues).toEqual([{ emotion_id: "sad" }]);
     expect(turnOutput.onQueueDrained).not.toHaveBeenCalled();
   });
 });
@@ -330,7 +318,7 @@ describe("render_turn — a turn the user stopped", () => {
     expect(turnOutput.cueWithSpeech).not.toHaveBeenCalled();
     expect(turnOutput.end).not.toHaveBeenCalled();
     expect(turnOutput.releaseMute).not.toHaveBeenCalled();
-    expect(directives).toEqual([]);
+    expect(silentCues).toEqual([]);
     expect(transcript).toEqual([]);
     expect(records).toEqual([]);
   });
@@ -402,7 +390,6 @@ describe("render_turn — transcript", () => {
     const r = createRenderTurn({
       turnOutput,
       pushTurns,
-      renderer: { applyDirective: (env) => directives.push(env) },
       appendTranscript: vi.fn(() => {
         throw new Error("store gone");
       }),
@@ -425,7 +412,7 @@ describe("render_turn — records", () => {
 
     expect(turnOutput.interrupt).not.toHaveBeenCalled();
     expect(pipeline.spoken).toEqual([]);
-    expect(directives).toEqual([]);
+    expect(silentCues).toEqual([]);
     expect(records[0]).toMatchObject({ spoke_text: false, segments: 0 });
   });
 
@@ -481,7 +468,6 @@ describe("render_turn — records", () => {
     const r = createRenderTurn({
       turnOutput,
       pushTurns,
-      renderer: { applyDirective: (env) => directives.push(env) },
       appendTurnRecord: vi.fn(() => {
         throw new Error("disk gone");
       }),

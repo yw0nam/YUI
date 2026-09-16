@@ -720,6 +720,77 @@ describe("createSpeechPlayback — holdMotion buffers and flushes cues", () => {
   });
 });
 
+describe("createSpeechPlayback — a cue with no speech behind it", () => {
+  function playback() {
+    const multi = multiPipelineFactory();
+    const renderer = spyRenderer();
+    const sp = createSpeechPlayback({
+      renderer,
+      surfaces: spySurfaces(),
+      pipeline: NO_PIPELINE,
+      createPipeline: multi.factory,
+      isStrolling: () => false,
+    });
+    return { sp, renderer, multi };
+  }
+
+  it("applies the cue's emotion and motion at once when no motion is held", () => {
+    const { sp, renderer, multi } = playback();
+
+    sp.silentCue({ emotion_id: "sad", motion_id: "sit" });
+
+    expect(renderer.applyDirective).toHaveBeenCalledWith({
+      speech_text: "",
+      emotion: { id: "sad" },
+      motion: { id: "sit" },
+    });
+    expect(multi.instances[0].setCue).not.toHaveBeenCalled();
+  });
+
+  it("waits out a held motion, then applies the cue once on release", () => {
+    const { sp, renderer } = playback();
+
+    sp.holdMotion(true);
+    sp.silentCue({ motion_id: "wave" });
+    expect(renderer.applyDirective).not.toHaveBeenCalled();
+
+    expect(sp.holdMotion(false)).toBe(true);
+    expect(renderer.applyDirective.mock.calls).toEqual([
+      [{ speech_text: "", motion: { id: "wave" } }],
+    ]);
+  });
+
+  it("keeps only the latest cue that arrived while the motion was held", () => {
+    const { sp, renderer } = playback();
+
+    sp.holdMotion(true);
+    sp.silentCue({ motion_id: "wave" });
+    sp.silentCue({ emotion_id: "happy" });
+    sp.holdMotion(false);
+
+    expect(renderer.applyDirective.mock.calls).toEqual([
+      [{ speech_text: "", emotion: { id: "happy" } }],
+    ]);
+  });
+
+  it("reports no motion applied when the release had no cue parked", () => {
+    const { sp } = playback();
+
+    sp.holdMotion(true);
+
+    expect(sp.holdMotion(false)).toBe(false);
+  });
+
+  it("reports no motion applied when the parked cue carried emotion alone", () => {
+    const { sp } = playback();
+
+    sp.holdMotion(true);
+    sp.silentCue({ emotion_id: "happy" });
+
+    expect(sp.holdMotion(false)).toBe(false);
+  });
+});
+
 describe("createSpeechPlayback — onCuePlay drives renderer directives", () => {
   it("onCuePlay with emotion_id+motion_id calls applyDirective with both mapped fields", () => {
     const stub = stubPipelineFactory();

@@ -101,8 +101,7 @@ function setup() {
       renderer.playMotion({ id: "thinking" });
     },
     thinkingEnd: () => {
-      speechPlayback.holdMotion(false);
-      renderer.playMotion(null);
+      if (!speechPlayback.holdMotion(false)) renderer.playMotion(null);
     },
     delta: (text) => speechPlayback.onSpeechDelta(text),
     speak: (text) => speechPlayback.onSpeech(text),
@@ -110,6 +109,7 @@ function setup() {
     abort: () => speechPlayback.abort(),
     cue: (args) => speechPlayback.setCue(args),
     cueWithSpeech: (args) => speechPlayback.setCue(args, { withSpeech: true }),
+    silentCue: (args) => speechPlayback.silentCue(args),
     toolStatus: () => {},
     activity: () => {},
     releaseMute: () => speechPlayback.releaseMute(),
@@ -117,12 +117,7 @@ function setup() {
     onQueueDrained: (callback) => speechPlayback.onQueueDrained(callback),
   };
 
-  const renderTurn = createRenderTurn({
-    turnOutput,
-    pushTurns,
-    renderer,
-    logger: makeLogger(),
-  });
+  const renderTurn = createRenderTurn({ turnOutput, pushTurns, logger: makeLogger() });
 
   // The bridge the backend call holds: up at send, down once, whichever way the wait ends.
   let thinkingDone = false;
@@ -320,6 +315,25 @@ describe("a reply for another turn, arriving while a bridge is up", () => {
     seq.speakFiller("Still working.");
 
     expect(seq.synth.inputs.at(-1)).toBe("Still working.");
+  });
+
+  it("lands a cue-only reply's motion when the bridge it arrived under comes down", () => {
+    const seq = setup();
+    seq.openTurn("A");
+
+    seq.renderTurn.render({
+      type: "render",
+      turn_id: "B",
+      source: "hermes",
+      segments: [{ cues: [{ motion_id: "wave" }] }],
+    });
+
+    expect(seq.motions.at(-1)).toEqual({ id: "thinking" });
+
+    // A's own reply ends its bridge, which is where B's parked cue lands.
+    seq.renderTurn.render({ type: "render", turn_id: "A", source: "hermes", segments: [] });
+
+    expect(seq.motions.at(-1)).toEqual({ id: "wave" });
   });
 
   it("still keeps a filler line off a cue waiting for its own speech", () => {

@@ -8,7 +8,8 @@ const mocks = vi.hoisted(() => {
     onSpeech: vi.fn(),
     speakAside: vi.fn(),
     setCue: vi.fn(),
-    holdMotion: vi.fn(),
+    silentCue: vi.fn(),
+    holdMotion: vi.fn(() => false),
     interrupt: vi.fn(),
     abort: vi.fn(),
     dispose: vi.fn(),
@@ -306,6 +307,19 @@ describe("wireVoicePipeline", () => {
     expect(mocks.speechPlayback.holdMotion).toHaveBeenCalledWith(false);
     expect(mocks.fillerLoop.stop).toHaveBeenCalledOnce();
     expect(renderer.playMotion).toHaveBeenCalledWith(null);
+  });
+
+  it("keeps the motion released by the hold, instead of returning the body to idle", () => {
+    const { voice, renderer } = setup();
+
+    voice.turnOutput.thinkingStart(1);
+    voice.turnOutput.silentCue({ motion_id: "wave" });
+    renderer.playMotion.mockClear();
+    mocks.speechPlayback.holdMotion.mockReturnValueOnce(true);
+    voice.turnOutput.thinkingEnd(1);
+
+    expect(mocks.speechPlayback.silentCue).toHaveBeenCalledWith({ motion_id: "wave" });
+    expect(renderer.playMotion).not.toHaveBeenCalled();
   });
 
   it("holds motion before starting the thinking motion and filler", () => {
