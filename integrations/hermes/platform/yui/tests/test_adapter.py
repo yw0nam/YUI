@@ -474,13 +474,52 @@ async def test_a_report_turn_renders_without_a_turn_id(client, adapter):
     assert (await recv(ws))["turn_id"] is None
 
 
-async def test_only_the_first_reply_of_a_run_names_the_turn(client, adapter):
+async def test_every_reply_of_a_turn_names_it(client, adapter):
     ws = await ready(client)
     await adapter.on_processing_start(user_turn(adapter, "777"))
     await adapter.send(CHAT, "The tests passed.", metadata={"thread_id": "t1"})
     await adapter.send(CHAT, "And the child finished.", metadata={"notify": True})
     assert (await recv(ws))["turn_id"] == "777"
-    assert (await recv(ws))["turn_id"] is None
+    assert (await recv(ws))["turn_id"] == "777"
+
+
+async def test_a_turn_that_spoke_leaves_its_id_cleared(client, adapter):
+    ws = await ready(client)
+    await adapter.on_processing_start(user_turn(adapter, "777"))
+    await adapter.send(CHAT, "Done.", metadata={"notify": True})
+    assert (await recv(ws))["turn_id"] == "777"
+    event = MessageEvent(text="hi", source=adapter.build_source(chat_id=CHAT))
+    await adapter.on_processing_complete(event, ProcessingOutcome.SUCCESS)
+    assert state.turn_id(CHAT) is None
+
+
+async def test_a_turn_that_ended_empty_leaves_its_id_cleared(client, adapter):
+    ws = await ready(client)
+    await adapter.on_processing_start(user_turn(adapter, "777"))
+    event = MessageEvent(text="hi", source=adapter.build_source(chat_id=CHAT))
+    await adapter.on_processing_complete(event, ProcessingOutcome.SUCCESS)
+    assert (await recv(ws))["turn_id"] == "777"
+    assert state.turn_id(CHAT) is None
+
+
+async def test_a_cue_only_turn_leaves_its_id_cleared(client, adapter):
+    ws = await ready(client)
+    await adapter.on_processing_start(user_turn(adapter, "777"))
+    state.append_cue(CHAT, {"emotion_id": "happy"}, "")
+    event = MessageEvent(text="hi", source=adapter.build_source(chat_id=CHAT))
+    await adapter.on_processing_complete(event, ProcessingOutcome.SUCCESS)
+    assert (await recv(ws))["turn_id"] == "777"
+    assert state.turn_id(CHAT) is None
+
+
+async def test_a_muted_turn_leaves_its_id_cleared(client, adapter):
+    await ready(client)
+    await adapter.on_processing_start(user_turn(adapter, "777"))
+    state.set_muted(CHAT, True)
+    await adapter.send(CHAT, "✨ New conversation started.", metadata={"notify": True})
+    event = MessageEvent(text="hi", source=adapter.build_source(chat_id=CHAT))
+    await adapter.on_processing_complete(event, ProcessingOutcome.SUCCESS)
+    assert state.turn_id(CHAT) is None
 
 
 async def test_a_report_admitted_mid_turn_leaves_the_running_turn_alone(client, adapter):

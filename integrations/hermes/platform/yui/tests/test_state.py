@@ -13,10 +13,12 @@ def clean():
     for chat in ("yui", "other"):
         state.reset(chat)
         state.set_connected(chat, False)
+        state.set_turn_id(chat, None)
     yield
     for chat in ("yui", "other"):
         state.reset(chat)
         state.set_connected(chat, False)
+        state.set_turn_id(chat, None)
 
 
 def test_cues_pop_in_the_order_they_were_placed():
@@ -58,10 +60,17 @@ def test_nothing_is_renderable_until_a_vocabulary_is_published():
     assert state.vocabulary("yui").emotion_ids == ["happy"]
 
 
-def test_only_the_first_reply_of_a_run_takes_the_turn_id():
+def test_reading_the_turn_id_leaves_it_in_place():
+    state.set_turn_id("yui", "17893")
+    assert state.turn_id("yui") == "17893"
+    assert state.turn_id("yui") == "17893"
+
+
+def test_taking_the_turn_id_removes_it():
     state.set_turn_id("yui", "17893")
     assert state.take_turn_id("yui") == "17893"
     assert state.take_turn_id("yui") is None
+    assert state.turn_id("yui") is None
 
 
 def test_delivery_mark_is_taken_once():
