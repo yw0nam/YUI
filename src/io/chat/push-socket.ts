@@ -133,11 +133,24 @@ function byteLength(text: string): number {
 
 /**
  * The field that makes a render frame unreadable, or null when the client can act on it: an
- * ordered list of well-formed segments, a source to log, and the string turn id it answers. A
- * turn_id of another type would leave the turn that sent it waiting out its whole budget.
+ * ordered list of well-formed segments (objects whose speech is text and whose cues are objects),
+ * a source to log, and the string turn id it answers. A turn_id of another type would leave the
+ * turn that sent it waiting out its whole budget.
  */
 function renderFrameFault(v: Record<string, unknown>): string | null {
   if (!Array.isArray(v.segments)) return "segments";
+  for (const segment of v.segments) {
+    if (segment === null || typeof segment !== "object" || Array.isArray(segment))
+      return "segments";
+    const { speech, cues } = segment as { speech?: unknown; cues?: unknown };
+    if (speech !== undefined && typeof speech !== "string") return "segments";
+    if (
+      cues !== undefined &&
+      (!Array.isArray(cues) || cues.some((cue) => cue === null || typeof cue !== "object"))
+    ) {
+      return "segments";
+    }
+  }
   if (typeof v.source !== "string") return "source";
   if (typeof v.turn_id !== "string") return "turn_id";
   return null;
@@ -201,6 +214,17 @@ export function createPushSocket(deps: PushSocketDeps): PushSocket {
     if (sendFrame({ type: "vocabulary", vocabulary })) sentVocabulary = serialized;
   }
 
+  /** One broken subscriber is logged, not allowed to cost the rest of the frame's listeners. */
+  function dispatch<T>(subs: Set<(value: T) => void>, value: T): void {
+    for (const cb of subs) {
+      try {
+        cb(value);
+      } catch (err) {
+        log.warn("subscriber_failed", { error: String(err) });
+      }
+    }
+  }
+
   function handleFrame(data: unknown): void {
     if (typeof data !== "string") return;
     if (byteLength(data) > PUSH_FRAME_MAX_BYTES) {
@@ -239,7 +263,7 @@ export function createPushSocket(deps: PushSocketDeps): PushSocket {
           delete frame.reasoning;
         }
         const render = frame as unknown as RenderFrame;
-        for (const cb of renderSubs) cb(render);
+        dispatch(renderSubs, render);
         return;
       }
       case "turn_end": {
@@ -248,7 +272,7 @@ export function createPushSocket(deps: PushSocketDeps): PushSocket {
           return;
         }
         const turnEnd = frame as unknown as TurnEndFrame;
-        for (const cb of turnEndSubs) cb(turnEnd);
+        dispatch(turnEndSubs, turnEnd);
         return;
       }
       case "reasoning": {
@@ -257,7 +281,7 @@ export function createPushSocket(deps: PushSocketDeps): PushSocket {
           return;
         }
         if (frame.delta === "") return;
-        for (const cb of reasoningSubs) cb(frame.delta);
+        dispatch(reasoningSubs, frame.delta);
         return;
       }
       case "delegations": {
@@ -266,7 +290,7 @@ export function createPushSocket(deps: PushSocketDeps): PushSocket {
           return;
         }
         const items = frame.items as DelegationItem[];
-        for (const cb of delegationSubs) cb(items);
+        dispatch(delegationSubs, items);
         return;
       }
       default:
