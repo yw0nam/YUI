@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import asyncio
 import contextlib
+import hmac
 import ipaddress
 import itertools
 import json
@@ -242,7 +243,7 @@ class YuiAdapter(BasePlatformAdapter):
         if frame.get("type") != "hello":
             return ""
         chat_id = str(frame.get("chat_id") or "").strip()
-        if not chat_id or (self._key and str(frame.get("key") or "") != self._key):
+        if not chat_id or (self._key and not hmac.compare_digest(str(frame.get("key") or ""), self._key)):
             logger.warning("yui: refused a hello for chat %r", chat_id)
             await ws.close(code=CLOSE_UNAUTHORIZED, message=b"unauthorized")
             return ""
