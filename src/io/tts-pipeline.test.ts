@@ -1118,3 +1118,126 @@ describe("createTtsPipeline — hasOutstandingWork (audio still owed)", () => {
     expect(pipe.hasOutstandingWork()).toBe(false);
   });
 });
+
+// ── spokenSplit: which sentences reached the speakers and which never did ──────
+
+describe("createTtsPipeline — spokenSplit", () => {
+  it("a sentence whose playback started is spoken, one still queued is unspoken", async () => {
+    const { synth, resolvers } = deferredSynth();
+    const { sink } = recordingSink();
+    const pipe = createTtsPipeline({ synth, sink });
+
+    pipe.pushTextDelta("First. Second.", true);
+    await tick();
+    resolvers[0].resolve(bufFor(0));
+    await tick();
+
+    expect(pipe.spokenSplit()).toEqual({ spoken: "First.", unspoken: "Second." });
+  });
+
+  it("a sentence whose synth failed was never heard", async () => {
+    const { synth, resolvers } = deferredSynth();
+    const { sink } = recordingSink();
+    const pipe = createTtsPipeline({ synth, sink, maxInflight: 2, logger: makeLogger() });
+
+    pipe.pushTextDelta("Will fail. Will play.", true);
+    await tick();
+    resolvers[0].reject(new Error("synth down"));
+    resolvers[1].resolve(bufFor(1));
+    await tick();
+
+    expect(pipe.spokenSplit()).toEqual({ spoken: "Will play.", unspoken: "Will fail." });
+  });
+
+  it("a backend tail still inside the segmenter is unspoken", async () => {
+    const { synth, resolvers } = deferredSynth();
+    const { sink } = recordingSink();
+    const pipe = createTtsPipeline({ synth, sink });
+
+    pipe.pushTextDelta("Complete. trailing remainder", true);
+    await tick();
+    resolvers[0].resolve(bufFor(0));
+    await tick();
+
+    expect(pipe.spokenSplit()).toEqual({ spoken: "Complete.", unspoken: "trailing remainder" });
+  });
+
+  it("backend text that never closed a sentence is unspoken with nothing submitted at all", () => {
+    const { synth } = deferredSynth();
+    const { sink } = recordingSink();
+    const pipe = createTtsPipeline({ synth, sink });
+
+    pipe.pushTextDelta("no terminator yet", true);
+
+    expect(pipe.spokenSplit()).toEqual({ spoken: "", unspoken: "no terminator yet" });
+  });
+
+  it("unspoken sentences join with one space, the segmenter tail last", async () => {
+    const { synth, resolvers } = deferredSynth();
+    const { sink } = recordingSink();
+    const pipe = createTtsPipeline({ synth, sink });
+
+    pipe.pushTextDelta("One. Two. Three. tail", true);
+    await tick();
+    resolvers[0].resolve(bufFor(0));
+    await tick();
+
+    expect(pipe.spokenSplit()).toEqual({ spoken: "One.", unspoken: "Two. Three. tail" });
+  });
+
+  it("an untracked tail is reported nowhere", () => {
+    const { synth } = deferredSynth();
+    const { sink } = recordingSink();
+    const pipe = createTtsPipeline({ synth, sink });
+
+    pipe.pushTextDelta("잠깐만", false);
+
+    expect(pipe.spokenSplit()).toEqual({ spoken: "", unspoken: "" });
+  });
+
+  it("an untracked sentence is in neither half", async () => {
+    const { synth, resolvers } = deferredSynth();
+    const { sink } = recordingSink();
+    const pipe = createTtsPipeline({ synth, sink });
+
+    pipe.pushTextDelta("Filler sentence.", false);
+    await tick();
+    resolvers[0].resolve(bufFor(0));
+    await tick();
+
+    expect(pipe.spokenSplit()).toEqual({ spoken: "", unspoken: "" });
+  });
+
+  it("entries below a fired completion boundary are in neither half", async () => {
+    const { synth, resolvers } = deferredSynth();
+    const { sink, finish } = recordingSink();
+    const pipe = createTtsPipeline({ synth, sink });
+
+    pipe.pushTextDelta("Done.", true);
+    pipe.end();
+    await tick();
+    resolvers[0].resolve(bufFor(0));
+    await tick();
+    finish();
+    await tick();
+
+    expect(pipe.spokenSplit()).toEqual({ spoken: "", unspoken: "" });
+
+    pipe.pushTextDelta("Next one.", true);
+    expect(pipe.spokenSplit()).toEqual({ spoken: "", unspoken: "Next one." });
+  });
+
+  it("after dispose it reports two empty strings", async () => {
+    const { synth, resolvers } = deferredSynth();
+    const { sink } = recordingSink();
+    const pipe = createTtsPipeline({ synth, sink });
+
+    pipe.pushTextDelta("Heard this. Not this.", true);
+    await tick();
+    resolvers[0].resolve(bufFor(0));
+    await tick();
+    pipe.dispose();
+
+    expect(pipe.spokenSplit()).toEqual({ spoken: "", unspoken: "" });
+  });
+});
