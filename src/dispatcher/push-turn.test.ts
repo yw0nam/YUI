@@ -78,41 +78,88 @@ describe("createPushTurns", () => {
   });
 });
 
-describe("awaitFirstRender", () => {
+describe("ended", () => {
+  it("removes a cut turn's id from the stopped set", () => {
+    const turns = createPushTurns();
+
+    turns.opened("A");
+    turns.cut();
+    expect(turns.isCut("A")).toBe(true);
+
+    turns.ended("A");
+
+    expect(turns.isCut("A")).toBe(false);
+  });
+
+  it("removes a live turn so the cut that follows sweeps nothing", () => {
+    const turns = createPushTurns();
+
+    turns.opened("A");
+    turns.rendered("A");
+    turns.ended("A");
+    turns.cut();
+
+    expect(turns.isCut("A")).toBe(false);
+    expect(turns.cutCount()).toBe(0);
+  });
+
+  it("changes nothing for an id nobody holds", () => {
+    const turns = createPushTurns();
+
+    turns.opened("A");
+
+    expect(() => turns.ended("X")).not.toThrow();
+    expect(turns.isCut("A")).toBe(false);
+    expect(turns.cutCount()).toBe(0);
+  });
+});
+
+describe("awaitTurnEnd", () => {
   /** Lets a pending promise settle without asserting on a value it may never have. */
-  function watch(promise: Promise<"rendered" | "cut">) {
-    let settled: "rendered" | "cut" | null = null;
+  function watch(promise: Promise<"ended" | "cut">) {
+    let settled: "ended" | "cut" | null = null;
     void promise.then((outcome) => {
       settled = outcome;
     });
     return {
-      value: async (): Promise<"rendered" | "cut" | null> => {
+      value: async (): Promise<"ended" | "cut" | null> => {
         await new Promise((resolve) => setTimeout(resolve, 0));
         return settled;
       },
     };
   }
 
-  it("resolves rendered on the turn's first accepted frame", async () => {
+  it("stays open across renders until the backend ends the turn", async () => {
     const turns = createPushTurns();
 
     turns.opened("A");
-    const first = turns.awaitFirstRender("A");
+    const wait = watch(turns.awaitTurnEnd("A"));
+    turns.rendered("A");
     turns.rendered("A");
 
-    await expect(first).resolves.toBe("rendered");
+    expect(await wait.value()).toBeNull();
   });
 
-  it("stays open while another turn renders", async () => {
+  it("another turn's frames leave it open", async () => {
     const turns = createPushTurns();
 
     turns.opened("A");
     turns.opened("B");
-    const first = watch(turns.awaitFirstRender("A"));
+    const wait = watch(turns.awaitTurnEnd("A"));
     turns.rendered("B");
-    turns.rendered(null);
+    turns.ended("B");
 
-    expect(await first.value()).toBeNull();
+    expect(await wait.value()).toBeNull();
+  });
+
+  it("resolves ended when the backend closes the turn", async () => {
+    const turns = createPushTurns();
+
+    turns.opened("A");
+    const wait = turns.awaitTurnEnd("A");
+    turns.ended("A");
+
+    await expect(wait).resolves.toBe("ended");
   });
 
   it("resolves cut for every turn the cut sweeps", async () => {
@@ -120,78 +167,83 @@ describe("awaitFirstRender", () => {
 
     turns.opened("A");
     turns.opened("B");
-    const a = turns.awaitFirstRender("A");
-    const b = turns.awaitFirstRender("B");
+    const a = turns.awaitTurnEnd("A");
+    const b = turns.awaitTurnEnd("B");
     turns.cut();
 
     await expect(a).resolves.toBe("cut");
     await expect(b).resolves.toBe("cut");
   });
 
-  it("runs the callback before the render that settled it returns", () => {
+  it("fires onFirstRender once across two rendered calls", () => {
+    const turns = createPushTurns();
+    const firsts: string[] = [];
+
+    turns.opened("A");
+    void turns.awaitTurnEnd("A", { onFirstRender: () => firsts.push("first") });
+    turns.rendered("A");
+    turns.rendered("A");
+
+    expect(firsts).toEqual(["first"]);
+  });
+
+  it("fires onFrame on every rendered and on ended", () => {
+    const turns = createPushTurns();
+    const frames: string[] = [];
+
+    turns.opened("A");
+    void turns.awaitTurnEnd("A", { onFrame: () => frames.push("frame") });
+    turns.rendered("A");
+    turns.rendered("A");
+    turns.ended("A");
+
+    expect(frames).toEqual(["frame", "frame", "frame"]);
+  });
+
+  it("runs onFirstRender before the render that carries it returns", () => {
     const turns = createPushTurns();
     const order: string[] = [];
 
     turns.opened("A");
-    void turns.awaitFirstRender("A", () => order.push("settle"));
+    void turns.awaitTurnEnd("A", { onFirstRender: () => order.push("hook") });
     turns.rendered("A");
     order.push("returned");
 
-    expect(order).toEqual(["settle", "returned"]);
+    expect(order).toEqual(["hook", "returned"]);
   });
 
-  it("settles the wait when its callback throws, and keeps the render going", async () => {
+  it("a throwing hook leaves the render going and the wait open", async () => {
     const turns = createPushTurns();
 
     turns.opened("A");
-    const first = turns.awaitFirstRender("A", () => {
-      throw new Error("the renderer is down");
-    });
+    const wait = watch(
+      turns.awaitTurnEnd("A", {
+        onFirstRender: () => {
+          throw new Error("the renderer is down");
+        },
+      }),
+    );
 
     expect(() => turns.rendered("A")).not.toThrow();
-    await expect(first).resolves.toBe("rendered");
+    turns.ended("A");
+
+    expect(await wait.value()).toBe("ended");
   });
 
-  it("a turn a settle callback opens is outside the cut that ran it", () => {
-    const turns = createPushTurns();
-
-    turns.opened("A");
-    void turns.awaitFirstRender("A", () => turns.opened("B"));
-    turns.cut();
-
-    expect(turns.isCut("A")).toBe(true);
-    expect(turns.isCut("B")).toBe(false);
-
-    turns.cut();
-
-    expect(turns.isCut("B")).toBe(true);
-  });
-
-  it("an abandoned wait settles nothing when its render finally arrives", async () => {
+  it("an abandoned wait settles nothing when its turn ends", async () => {
     const turns = createPushTurns();
     const settled: string[] = [];
 
     turns.opened("A");
-    const first = watch(turns.awaitFirstRender("A", () => settled.push("A")));
+    const wait = watch(
+      turns.awaitTurnEnd("A", { onFirstRender: () => settled.push("A") }),
+    );
     turns.abandon("A");
     turns.rendered("A");
+    turns.ended("A");
 
     expect(settled).toEqual([]);
-    expect(await first.value()).toBeNull();
-  });
-
-  it("the render that resolves a wait takes the waiter with it", async () => {
-    const turns = createPushTurns();
-    const settled: string[] = [];
-
-    turns.opened("A");
-    const first = turns.awaitFirstRender("A", () => settled.push("A"));
-    turns.rendered("A");
-    turns.rendered("A");
-    turns.cut();
-
-    await expect(first).resolves.toBe("rendered");
-    expect(settled).toEqual(["A"]);
+    expect(await wait.value()).toBeNull();
   });
 });
 

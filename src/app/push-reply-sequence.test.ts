@@ -156,11 +156,12 @@ function setup() {
     speakFiller: (text: string): void => speechPlayback.speakAside(text),
     /** A cue on its own, the way a streamed express cue arrives ahead of its speech. */
     cue: (args: ExpressArgs): void => turnOutput.cue(args),
-    /** Sends a turn the way the backend call does, bridge and all, and waits for its render. */
+    /** Sends a turn the way the backend call does, bridge and all, and waits for its end. */
     openTurn: (turnId: string): void => {
       pushTurns.opened(turnId);
       turnOutput.thinkingStart(1);
-      void pushTurns.awaitFirstRender(turnId, endThinking).then(endThinking);
+      // call()'s finally ends the bridge however the wait settles; onFirstRender is the render half.
+      void pushTurns.awaitTurnEnd(turnId, { onFirstRender: endThinking }).then(endThinking);
     },
     stopButton: () => onStop(),
     // The pair voice-pipeline-wiring performs when the user talks over the reply.

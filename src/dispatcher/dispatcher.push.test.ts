@@ -3,7 +3,7 @@
  *
  * The real dispatcher over the real backend caller in push mode. The busy edge the composer and
  * the message plate follow is the backend call being open, and in push mode the call is open from
- * the frame going out to the turn's first render.
+ * the frame going out to the turn's turn_end.
  */
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -102,7 +102,7 @@ afterEach(() => {
 });
 
 describe("dispatcher — a push turn in flight", () => {
-  it("stays busy from the frame going out to the turn's first render", async () => {
+  it("stays busy from the frame going out to the turn's turn_end", async () => {
     dispatcher.start();
     bus.push(userEnv() as BusEnvelope);
     await vi.advanceTimersByTimeAsync(20);
@@ -110,12 +110,13 @@ describe("dispatcher — a push turn in flight", () => {
     expect(sentIds).toHaveLength(1);
     expect(busyEdges).toEqual([true]);
 
+    pushTurns.rendered(sentIds[0]!);
     await vi.advanceTimersByTimeAsync(60_000);
 
     expect(busyEdges).toEqual([true]);
     expect(dispatcher.inFlight()).not.toBeNull();
 
-    pushTurns.rendered(sentIds[0]!);
+    pushTurns.ended(sentIds[0]!);
     await vi.advanceTimersByTimeAsync(20);
 
     expect(busyEdges).toEqual([true, false]);

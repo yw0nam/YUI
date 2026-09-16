@@ -849,6 +849,28 @@ describe("createPushSocket — inbound frames", () => {
     expect(seen).toEqual([own]);
   });
 
+  it("hands a turn_end frame to every subscriber", async () => {
+    await connected();
+    const seen: unknown[] = [];
+    socket.onTurnEnd((frame) => seen.push(frame));
+    FakeSocket.last().push({ type: "turn_end", turn_id: "7" });
+
+    expect(seen).toEqual([{ type: "turn_end", turn_id: "7" }]);
+  });
+
+  it("drops a turn_end frame whose turn_id is not a string", async () => {
+    await connected();
+    const seen: unknown[] = [];
+    socket.onTurnEnd((frame) => seen.push(frame));
+    FakeSocket.last().push({ type: "turn_end", turn_id: 5 });
+
+    expect(seen).toEqual([]);
+    expect(logger.warn).toHaveBeenCalledWith("frame_malformed", {
+      type: "turn_end",
+      field: "turn_id",
+    });
+  });
+
   it("ignores a frame type it does not know", async () => {
     await connected();
     expect(() => FakeSocket.last().push({ type: "weather" })).not.toThrow();

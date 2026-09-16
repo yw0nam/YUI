@@ -1,9 +1,10 @@
 /**
  * backend-caller.push.test.ts — the push transport (chat_api: "push").
  *
- * The turn goes out as one frame on the WebSocket and the call stays open until that turn's first
- * render arrives, so the app shows the turn running for as long as the backend works on it. A
- * socket that is not ready ends the turn as a network failure before it is sent.
+ * The turn goes out as one frame on the WebSocket and the call stays open until that turn's
+ * `turn_end`, so the app shows the turn running for as long as the backend works on it. The frame
+ * wait restarts on every frame of the turn; a socket that is not ready ends the turn as a network
+ * failure before it is sent.
  *
  * Nothing the backend pushes stops speech here; a turn the user typed or spoke does, and stops the
  * push turns still outstanding with it.
@@ -114,8 +115,14 @@ function callerWith(accepted: boolean, config: EndpointsConfig = PUSH_CONFIG) {
     pushTurn: (frame) => {
       sent.push(frame);
       onTurnSent?.();
-      // The backend's answer lands after the call registered its waiter, as the real socket's does.
-      if (accepted && autoRender) queueMicrotask(() => pushTurns.rendered(frame.turn_id));
+      // The backend's answer lands after the call registered its waiter, as the real socket's does:
+      // the render, then the turn_end that closes the turn.
+      if (accepted && autoRender) {
+        queueMicrotask(() => {
+          pushTurns.rendered(frame.turn_id);
+          pushTurns.ended(frame.turn_id);
+        });
+      }
       return accepted;
     },
     onPushTurnCut: () => {
@@ -128,7 +135,7 @@ function callerWith(accepted: boolean, config: EndpointsConfig = PUSH_CONFIG) {
       pushTurns.opened(turnId);
     },
     pushTurns: {
-      awaitFirstRender: (turnId, onSettle) => pushTurns.awaitFirstRender(turnId, onSettle),
+      awaitTurnEnd: (turnId, hooks) => pushTurns.awaitTurnEnd(turnId, hooks),
       abandon: (turnId) => {
         abandoned.push(turnId);
         pushTurns.abandon(turnId);
@@ -299,10 +306,10 @@ function running(promise: Promise<TurnOutcome>) {
 
 /** Every way the wait ends, with the outcome it settles to. */
 const EXITS = [
-  ["a render of the turn", "ok", "render"],
+  ["the turn's turn_end", "ok", "ended"],
   ["the user stopping the reply", "superseded_by_user", "cut"],
   ["the external signal", "superseded_by_user", "abort"],
-  ["240 seconds with no render", "network_stall", "timeout"],
+  ["240 seconds with no frame", "network_stall", "timeout"],
   ["the socket leaving ready", "network_drop", "drop"],
 ] as const;
 
@@ -314,7 +321,7 @@ async function runToExit(exit: Exit): Promise<TurnOutcome> {
   const caller = callerWith(true);
   const call = caller.call(turnOf(userEnv(), 7), controller.signal);
   await vi.advanceTimersByTimeAsync(0);
-  if (exit === "render") pushTurns.rendered("7");
+  if (exit === "ended") pushTurns.ended("7");
   if (exit === "cut") pushTurns.cut();
   if (exit === "abort") controller.abort();
   if (exit === "drop") socket.leaveReady();
@@ -332,7 +339,7 @@ describe("backend_caller — push transport, the turn stays open", () => {
     vi.useRealTimers();
   });
 
-  it("stays open until a render of its turn is accepted", async () => {
+  it("stays open after a render and resolves ok on the turn's turn_end", async () => {
     const caller = callerWith(true);
     const turn = running(caller.call(turnOf(userEnv(), 7)));
     await vi.advanceTimersByTimeAsync(0);
@@ -340,6 +347,28 @@ describe("backend_caller — push transport, the turn stays open", () => {
     expect(turn.settled()).toBeNull();
 
     pushTurns.rendered("7");
+    await vi.advanceTimersByTimeAsync(0);
+
+    expect(turn.settled()).toBeNull();
+
+    pushTurns.ended("7");
+    await vi.advanceTimersByTimeAsync(0);
+
+    expect(turn.settled()).toBe("ok");
+  });
+
+  it("restarts the frame wait on every frame of the turn", async () => {
+    const caller = callerWith(true);
+    const turn = running(caller.call(turnOf(userEnv(), 7)));
+    await vi.advanceTimersByTimeAsync(0);
+
+    await vi.advanceTimersByTimeAsync(200_000);
+    pushTurns.rendered("7");
+    await vi.advanceTimersByTimeAsync(200_000);
+
+    expect(turn.settled()).toBeNull();
+
+    pushTurns.ended("7");
     await vi.advanceTimersByTimeAsync(0);
 
     expect(turn.settled()).toBe("ok");
@@ -350,10 +379,40 @@ describe("backend_caller — push transport, the turn stays open", () => {
     const turn = running(caller.call(turnOf(userEnv(), 7)));
     await vi.advanceTimersByTimeAsync(0);
     pushTurns.rendered("9");
-    pushTurns.rendered(null);
     await vi.advanceTimersByTimeAsync(0);
 
     expect(turn.settled()).toBeNull();
+  });
+
+  it("a render then 240 seconds of silence resolves ok with a turn-end stall logged", async () => {
+    const caller = callerWith(true);
+    const turn = running(caller.call(turnOf(userEnv(), 7)));
+    await vi.advanceTimersByTimeAsync(0);
+    pushTurns.rendered("7");
+
+    await vi.advanceTimersByTimeAsync(PRE_SPEECH_TIMEOUT_MS);
+
+    expect(turn.settled()).toBe("ok");
+    expect(logger.warn).toHaveBeenCalledWith(
+      "network_stall",
+      expect.objectContaining({ stage: "push_turn_end", turn_id: "7" }),
+    );
+  });
+
+  it("the socket leaving ready after a render resolves ok with a turn-end drop logged", async () => {
+    const caller = callerWith(true);
+    const turn = running(caller.call(turnOf(userEnv(), 7)));
+    await vi.advanceTimersByTimeAsync(0);
+    pushTurns.rendered("7");
+
+    socket.leaveReady();
+    await vi.advanceTimersByTimeAsync(0);
+
+    expect(turn.settled()).toBe("ok");
+    expect(logger.warn).toHaveBeenCalledWith(
+      "network_drop",
+      expect.objectContaining({ stage: "push_turn_end", turn_id: "7" }),
+    );
   });
 
   it("records the user's half of the turn at send, before the wait", async () => {
@@ -427,7 +486,7 @@ describe("backend_caller — push transport, the thinking bridge", () => {
     vi.useRealTimers();
   });
 
-  it("holds the thinking bridge for the whole wait", async () => {
+  it("ends the thinking bridge at the first render, exactly once", async () => {
     const caller = callerWith(true);
     const turn = running(caller.call(turnOf(userEnv(), 7)));
     await vi.advanceTimersByTimeAsync(0);
@@ -437,9 +496,16 @@ describe("backend_caller — push transport, the thinking bridge", () => {
     expect(turn.settled()).toBeNull();
 
     pushTurns.rendered("7");
+    await vi.advanceTimersByTimeAsync(0);
+
+    expect(turnOutput.thinkingEnd).toHaveBeenCalledTimes(1);
+    expect(turn.settled()).toBeNull();
+
+    pushTurns.rendered("7");
+    pushTurns.ended("7");
     await turn.promise;
 
-    expect(turnOutput.thinkingEnd).toHaveBeenCalledWith(7);
+    expect(turnOutput.thinkingEnd).toHaveBeenCalledTimes(1);
   });
 
   it("shows no thinking bridge on a reflex turn", async () => {

@@ -9,11 +9,12 @@ import { makeTurnOutput } from "../dispatcher/test-helpers";
 import { createDelegationsStore } from "../io/bridge/delegations-store";
 import { createReasoningStore } from "../io/bridge/reasoning-store";
 import type { ChatHistoryEntry } from "../io/chat/chat-history-store";
-import type { DelegationItem, PushSocketState, RenderFrame } from "../io/chat/push-socket";
+import type { DelegationItem, PushSocketState, RenderFrame, TurnEndFrame } from "../io/chat/push-socket";
 import { wirePushMode, wirePushTransport } from "./bootstrap-wiring";
 
 function fakeSocket() {
   let renderCb: ((frame: RenderFrame) => void) | null = null;
+  let turnEndCb: ((frame: TurnEndFrame) => void) | null = null;
   let delegationsCb: ((items: DelegationItem[]) => void) | null = null;
   let reasoningCb: ((delta: string) => void) | null = null;
   let stateCb: ((state: PushSocketState) => void) | null = null;
@@ -23,6 +24,12 @@ function fakeSocket() {
       renderCb = cb;
       return () => {
         renderCb = null;
+      };
+    },
+    onTurnEnd(cb: (frame: TurnEndFrame) => void) {
+      turnEndCb = cb;
+      return () => {
+        turnEndCb = null;
       };
     },
     onDelegations(cb: (items: DelegationItem[]) => void) {
@@ -46,6 +53,9 @@ function fakeSocket() {
     pushRender(frame: RenderFrame): void {
       renderCb?.(frame);
     },
+    pushTurnEnd(frame: TurnEndFrame): void {
+      turnEndCb?.(frame);
+    },
     pushDelegations(items: DelegationItem[]): void {
       delegationsCb?.(items);
     },
@@ -56,6 +66,7 @@ function fakeSocket() {
       stateCb?.(state);
     },
     hasRenderSubscriber: () => renderCb !== null,
+    hasTurnEndSubscriber: () => turnEndCb !== null,
     hasDelegationsSubscriber: () => delegationsCb !== null,
     hasReasoningSubscriber: () => reasoningCb !== null,
     hasStateSubscriber: () => stateCb !== null,
@@ -200,6 +211,17 @@ describe("wirePushTransport", () => {
     expect(reasoning.get()).toEqual({ text: "", live: false });
   });
 
+  it("forgets the turn and logs it when its turn_end arrives", () => {
+    wire();
+    pushTurns.opened("7");
+
+    socket.pushTurnEnd({ type: "turn_end", turn_id: "7" });
+
+    expect(log.info).toHaveBeenCalledWith("push.turn_end", { turn_id: "7" });
+    pushTurns.cut();
+    expect(pushTurns.isCut("7")).toBe(false);
+  });
+
   it("keeps a reasoning text an earlier render finished when a later frame is dropped", () => {
     wire();
     pushTurns.opened("7");
@@ -225,6 +247,7 @@ describe("wirePushTransport", () => {
     dispose();
 
     expect(socket.hasRenderSubscriber()).toBe(false);
+    expect(socket.hasTurnEndSubscriber()).toBe(false);
     expect(socket.hasDelegationsSubscriber()).toBe(false);
     expect(socket.hasReasoningSubscriber()).toBe(false);
     expect(socket.hasStateSubscriber()).toBe(false);
