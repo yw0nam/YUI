@@ -831,6 +831,45 @@ describe("createPushSocket — inbound frames", () => {
     expect(seen).toEqual([]);
   });
 
+  it("ignores a render frame carrying a segment that is not an object", async () => {
+    await connected();
+    const seen: unknown[] = [];
+    socket.onRender((frame) => seen.push(frame));
+    FakeSocket.last().push({ ...RENDER, segments: [null] });
+
+    expect(seen).toEqual([]);
+    expect(logger.warn).toHaveBeenCalledWith("frame_malformed", {
+      type: "render",
+      field: "segments",
+    });
+  });
+
+  it("ignores a render frame whose cues are not a list of objects", async () => {
+    await connected();
+    const seen: unknown[] = [];
+    socket.onRender((frame) => seen.push(frame));
+    FakeSocket.last().push({ ...RENDER, segments: [{ cues: 5 }] });
+
+    expect(seen).toEqual([]);
+    expect(logger.warn).toHaveBeenCalledWith("frame_malformed", {
+      type: "render",
+      field: "segments",
+    });
+  });
+
+  it("a throwing subscriber is logged and the others still run", async () => {
+    await connected();
+    const seen: unknown[] = [];
+    socket.onRender(() => {
+      throw new Error("the stage is on fire");
+    });
+    socket.onRender((frame) => seen.push(frame));
+    FakeSocket.last().push(RENDER);
+
+    expect(seen).toEqual([RENDER]);
+    expect(logger.warn).toHaveBeenCalledWith("subscriber_failed", expect.anything());
+  });
+
   it("names the field that made a render frame unreadable", async () => {
     await connected();
     FakeSocket.last().push({ ...RENDER, turn_id: 7 });
