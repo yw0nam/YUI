@@ -48,6 +48,8 @@ interface VoicePipelineDeps {
   onUtteranceStart: () => void;
   /** The backend utterance opened by the last onUtteranceStart closed. */
   onUtteranceEnd: (ended: "complete" | "interrupted", split?: SpokenSplit) => void;
+  /** The user talked over the reply — the renders still to come for it are dropped. */
+  onBargeIn?: () => void;
   /** An ambient stroll is moving the window — thinking and cue-less speech leave the body to it. */
   isStrolling: () => boolean;
 }
@@ -279,6 +281,7 @@ export function wireVoicePipeline(deps: VoicePipelineDeps): VoicePipeline {
       onSpeechActive: () => {
         if (deps.vadSettings.get().bargeIn && deps.turnLog.isAudioOwed()) {
           speechPlayback.interrupt({ muteCurrentTurn: true });
+          deps.onBargeIn?.();
           // The disposed utterance can no longer report completion, and the user is talking —
           // this window's filler is over, not merely waiting.
           fillerLoop?.stop();

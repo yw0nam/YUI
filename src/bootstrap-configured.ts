@@ -297,6 +297,7 @@ const realFactories: ConfiguredBootstrapFactories = {
       },
       onUtteranceStart: previousTurn.utteranceStart,
       onUtteranceEnd: previousTurn.utteranceEnd,
+      onBargeIn: () => pushTurns.cut(),
     });
     register(voice.dispose);
 
@@ -345,6 +346,8 @@ const realFactories: ConfiguredBootstrapFactories = {
       // Built per turn from the published vocabulary, so a live edit reaches the next tool schema.
       clientTools: () => createClientToolRegistry([createGenerateExpressTool(broker.vocabulary())]),
       pushTurn: (frame) => pushSocket?.sendTurn(frame) ?? false,
+      onPushTurnCut: () => pushTurns.cut(),
+      onPushTurnSent: (turnId) => pushTurns.opened(turnId),
     });
     const guardrails = createGuardrails(getGuardrails());
     const pacer = createProactivePacer({ getIntervalMs: () => pacerGapSettings.get().value });
@@ -758,7 +761,10 @@ const realFactories: ConfiguredBootstrapFactories = {
     wireStopControl({
       onStop: (callback) => surfaces.onStop(callback),
       cancel: () => dispatcher.cancel(),
-      abortSpeech: () => voice.speechPlayback.abort(),
+      // Nothing rebuilds a pipeline abort() disposed, so the next reply the backend starts on its
+      // own would be silent; interrupt() stops the same audio and leaves the pipeline alive.
+      abortSpeech: () => voice.speechPlayback.interrupt(),
+      cutPushTurns: () => pushTurns.cut(),
     });
     surfaces.onSubmit((text, images) => {
       userInput.submit(text, images);
