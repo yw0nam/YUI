@@ -225,6 +225,27 @@ async def test_the_handshake_does_not_wait_for_the_replaced_socket_to_close(clie
     resume.set()
 
 
+async def test_shutdown_cancels_a_close_still_waiting(client, adapter, monkeypatch):
+    """A close left pending at shutdown is destroyed with the loop unless it is cancelled first."""
+    await ready(client)
+    replaced = adapter._sockets[CHAT]
+    resume = asyncio.Event()
+    real_close = replaced.close
+
+    async def pausing_close(**kwargs):
+        await resume.wait()
+        return await real_close(**kwargs)
+
+    monkeypatch.setattr(replaced, "close", pausing_close)
+    await hello(client)
+    await wait_for(lambda: adapter._closings)
+    (closing,) = adapter._closings
+    await adapter.disconnect()
+    await wait_for(closing.done)
+    assert closing.cancelled() is True
+    resume.set()
+
+
 async def test_closing_the_socket_leaves_the_chat_disconnected(client):
     ws = await ready(client)
     await ws.close()
