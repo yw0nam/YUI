@@ -23,8 +23,6 @@ export interface TurnLog {
   setSpokeText(spoke: boolean): void;
   /** The most recent turn, settled or not. Null only before the first `begin`. */
   current(): Turn | null;
-  /** Audio is queued or playing. */
-  isAudioOwed(): boolean;
   /** Audio was owed at some point during the current turn. Reset by begin(). */
   didOweAudio(): boolean;
   /** The current turn returned speech text, independent of whether it was voiced. */
@@ -88,9 +86,6 @@ export function createTurnLog(): TurnLog {
     },
     current() {
       return current;
-    },
-    isAudioOwed() {
-      return audioOwed;
     },
     didOweAudio() {
       return owedAudioEver;

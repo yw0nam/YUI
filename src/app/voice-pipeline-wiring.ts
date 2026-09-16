@@ -282,7 +282,7 @@ export function wireVoicePipeline(deps: VoicePipelineDeps): VoicePipeline {
       onVoiceSegment: deps.onVoiceSegment,
       onState: (state, detail) => deps.voiceInputStatus.set(state, detail),
       onSpeechActive: () => {
-        if (deps.vadSettings.get().bargeIn && deps.turnLog.isAudioOwed()) {
+        if (deps.vadSettings.get().bargeIn && speechPlayback.hasOutstandingSpeech()) {
           deps.onBargeIn?.();
           speechPlayback.interrupt({ muteCurrentTurn: true });
           // The disposed utterance can no longer report completion, and the user is talking —

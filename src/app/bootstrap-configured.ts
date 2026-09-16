@@ -372,6 +372,7 @@ const realFactories: ConfiguredBootstrapFactories = {
       peekConfig: () => config.get().avatar.peek,
       tapConfig: () => config.get().avatar.tap,
       turnLog,
+      hasOutstandingSpeech: () => voice.turnOutput.hasOutstandingSpeech(),
       pacer,
       appendSkipRecord: (record) => appendRecord(record),
       onTurnFailed: previousTurn.callFailed,

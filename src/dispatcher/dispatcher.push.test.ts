@@ -89,6 +89,7 @@ beforeEach(() => {
       attachments: guardrailsFixture().attachments,
     }),
     turnLog: createTurnLog(),
+    hasOutstandingSpeech: () => false,
     peekConfig: () => PEEK_CONFIG,
     tapConfig: () => TAP_CONFIG,
     logger: makeLogger(),

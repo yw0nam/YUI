@@ -60,8 +60,10 @@ interface DispatcherDeps {
   backendCaller: BackendCaller;
   /** Guardrails — debounce/rate-limit gate + cooldown verdict (pure). */
   guardrails: Guardrails;
-  /** Turn identity + admission ledger. The dispatcher begins/settles turns on it and reads busy/audio-owed state from it. */
+  /** Turn identity + admission ledger. The dispatcher begins/settles turns on it and reads busy state from it. */
   turnLog: TurnLog;
+  /** Whether the speech pipeline still owes audio — speech the backend started on its own included. */
+  hasOutstandingSpeech: () => boolean;
   /**
    * Global proactive gap. Every turn start anchors its window; a fire from a paced source
    * (see PACED_SOURCES) that arrives while it holds is dropped at the routing gate, before the
@@ -548,7 +550,7 @@ export function createDispatcher(deps: DispatcherDeps): Dispatcher {
 
   /** Hold a non-user pending turn while playback is ongoing (user supersede is immediate). */
   function shouldHoldForPlayback(head: BusEnvelope): boolean {
-    return userTurnSourceOf(head) === undefined && deps.turnLog.isAudioOwed();
+    return userTurnSourceOf(head) === undefined && deps.hasOutstandingSpeech();
   }
 
   /** tier2/3 enqueue: start immediately if in-flight is empty, otherwise defer (with two or more, drop the oldest). */
@@ -574,7 +576,7 @@ export function createDispatcher(deps: DispatcherDeps): Dispatcher {
     // While speech is playing, the TTS cue path owns the expression; playback end/interrupt/abort each ease it to neutral.
     emotionRevertTimer = setTimeout(() => {
       emotionRevertTimer = null;
-      if (deps.turnLog.isAudioOwed()) return;
+      if (deps.hasOutstandingSpeech()) return;
       renderer.easeEmotionToNeutral();
     }, deps.tapConfig().touch_emotion_hold_ms);
   }
