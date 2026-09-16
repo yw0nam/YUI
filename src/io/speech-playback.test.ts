@@ -13,7 +13,12 @@
 import { describe, expect, it, vi } from "vitest";
 import type { ExpressArgs } from "../contract";
 import { createSpeechPlayback } from "./speech-playback";
-import { TTS_SKIP, type TtsPipeline, type TtsPipelineOptions } from "./tts-pipeline";
+import {
+  type SpokenSplit,
+  TTS_SKIP,
+  type TtsPipeline,
+  type TtsPipelineOptions,
+} from "./tts-pipeline";
 
 /** These tests replace pipeline construction with a factory stub, so this synth is never called. */
 const NO_PIPELINE = {
@@ -25,8 +30,11 @@ function stubPipelineFactory() {
   const calls = { pushTextDelta: [] as string[], ended: 0, disposed: 0 };
   let captured: TtsPipelineOptions | null = null;
   let outstanding = false;
+  let split: SpokenSplit = { spoken: "", unspoken: "" };
+  let disposed = false;
   const factory = (opts: TtsPipelineOptions): TtsPipeline => {
     captured = opts;
+    disposed = false;
     return {
       pushTextDelta: (t: string) => calls.pushTextDelta.push(t),
       setCue: () => {},
@@ -34,9 +42,11 @@ function stubPipelineFactory() {
         calls.ended++;
       },
       hasOutstandingWork: () => outstanding,
-      spokenSplit: () => ({ spoken: "", unspoken: "" }),
+      // Mirrors the real pipeline: a disposed one has nothing left to report.
+      spokenSplit: () => (disposed ? { spoken: "", unspoken: "" } : split),
       dispose: () => {
         calls.disposed++;
+        disposed = true;
         outstanding = false;
       },
     };
@@ -46,6 +56,9 @@ function stubPipelineFactory() {
     calls,
     setOutstandingWork: (v: boolean) => {
       outstanding = v;
+    },
+    setSpokenSplit: (v: SpokenSplit) => {
+      split = v;
     },
     emitAmplitude: (v: number) => captured?.onAmplitude?.(v),
     emitPlaybackEnd: () => captured?.onPlaybackEnd?.(),
@@ -1675,5 +1688,83 @@ describe("createSpeechPlayback — backend utterance tracking", () => {
 
     expect(onUtteranceEnd).toHaveBeenCalledTimes(1);
     expect(onUtteranceEnd).toHaveBeenCalledWith("complete");
+  });
+});
+
+describe("createSpeechPlayback — what the user heard of a cut-off reply", () => {
+  function trackedPlayback() {
+    const stub = stubPipelineFactory();
+    const onUtteranceEnd = vi.fn<(ended: "complete" | "interrupted", split?: SpokenSplit) => void>();
+    const sp = createSpeechPlayback({
+      renderer: spyRenderer(),
+      surfaces: spySurfaces(),
+      pipeline: NO_PIPELINE,
+      createPipeline: stub.factory,
+      isStrolling: () => false,
+      onUtteranceEnd,
+    });
+    return { sp, stub, onUtteranceEnd };
+  }
+
+  it("interrupt reports the split as it stood before the pipeline was disposed", () => {
+    const { sp, stub, onUtteranceEnd } = trackedPlayback();
+    stub.setSpokenSplit({ spoken: "heard this.", unspoken: "never heard this." });
+
+    sp.onSpeechDelta("heard this. never heard this.");
+    sp.interrupt();
+
+    expect(onUtteranceEnd).toHaveBeenCalledWith("interrupted", {
+      spoken: "heard this.",
+      unspoken: "never heard this.",
+    });
+  });
+
+  it("abort reports the split as it stood before the pipeline was disposed", () => {
+    const { sp, stub, onUtteranceEnd } = trackedPlayback();
+    stub.setSpokenSplit({ spoken: "heard this.", unspoken: "never heard this." });
+
+    sp.onSpeechDelta("heard this. never heard this.");
+    sp.abort();
+
+    expect(onUtteranceEnd).toHaveBeenCalledWith("interrupted", {
+      spoken: "heard this.",
+      unspoken: "never heard this.",
+    });
+  });
+
+  it("a completed utterance reports no split", () => {
+    const { sp, stub, onUtteranceEnd } = trackedPlayback();
+    stub.setSpokenSplit({ spoken: "all of it.", unspoken: "" });
+
+    sp.onSpeechDelta("all of it.");
+    sp.onSpeechEnd();
+    stub.emitPlaybackEnd();
+
+    expect(onUtteranceEnd).toHaveBeenCalledWith("complete");
+  });
+
+  it("releaseMute lets the reply after a barge-in reach the pipeline again", () => {
+    const multi = multiPipelineFactory();
+    const sp = createSpeechPlayback({
+      renderer: spyRenderer(),
+      surfaces: spySurfaces(),
+      pipeline: NO_PIPELINE,
+      createPipeline: multi.factory,
+      isStrolling: () => false,
+    });
+
+    sp.interrupt({ muteCurrentTurn: true });
+    sp.releaseMute();
+    sp.onSpeechDelta("the answer");
+
+    expect(multi.instances[1].pushTextDelta).toHaveBeenCalledWith("the answer", true);
+  });
+
+  it("hasOutstandingSpeech follows the pipeline's own answer", () => {
+    const { sp, stub } = trackedPlayback();
+
+    expect(sp.hasOutstandingSpeech()).toBe(false);
+    stub.setOutstandingWork(true);
+    expect(sp.hasOutstandingSpeech()).toBe(true);
   });
 });
