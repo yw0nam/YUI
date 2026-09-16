@@ -668,11 +668,11 @@ class YuiAdapter(BasePlatformAdapter):
     async def on_processing_complete(self, event: MessageEvent, outcome: ProcessingOutcome) -> None:
         """Close the turn: a reply already rendered, anything else renders as silence."""
         chat_id = _chat_of(event)
-        turn_id = state.take_turn_id(chat_id)
+        turn_id = state.take_turn_id(chat_id) or _mint_turn_id()
         if not state.take_delivered(chat_id):
             logger.info("yui: turn ended without speech chat=%s outcome=%s", chat_id, outcome)
             cues = [placement.cue for placement in state.pop_cues(chat_id)]
             # Cues on a silent turn still play; the segment they ride on carries no speech.
             if cues:
                 await self._send_render(chat_id, self._render(turn_id, [{"cues": cues, "speech": ""}]))
-        await self._send_render(chat_id, {"type": "turn_end", "turn_id": turn_id or _mint_turn_id()})
+        await self._send_render(chat_id, {"type": "turn_end", "turn_id": turn_id})
