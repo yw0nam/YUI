@@ -541,9 +541,10 @@ async def test_a_cancelled_delegations_push_is_not_reported(client, adapter, mon
 
     monkeypatch.setattr(asyncio, "run_coroutine_threadsafe", capturing)
     adapter.notify_delegations(CHAT)
-    with caplog.at_level(logging.ERROR):
+    with caplog.at_level(logging.WARNING):
         assert pushes[0].cancel() is True
     assert "CancelledError" not in caplog.text
+    assert "delegations push failed" not in caplog.text
     await asyncio.sleep(0)
 
 
