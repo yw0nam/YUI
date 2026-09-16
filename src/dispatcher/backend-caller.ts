@@ -219,7 +219,7 @@ interface BackendCallerDeps {
   /** The socket accepted this turn's frame. */
   onPushTurnSent?: (turnId: string) => void;
   /** Push turn store — the call waits on it for the render that ends its turn. */
-  pushTurns?: Pick<PushTurns, "awaitFirstRender">;
+  pushTurns?: Pick<PushTurns, "awaitFirstRender" | "abandon">;
   /** Registers a callback for the push socket leaving `ready`; returns the unsubscribe. */
   onPushSocketNotReady?: (cb: () => void) => () => void;
   /** Structured logging (defaults to backend_caller namespace logger if absent). */
@@ -369,6 +369,7 @@ export function createBackendCaller(deps: BackendCallerDeps): BackendCaller {
       clearTimeout(timer);
       unsubscribe?.();
       if (onAbort) externalSignal?.removeEventListener("abort", onAbort);
+      deps.pushTurns?.abandon(turnId);
     }
   }
 

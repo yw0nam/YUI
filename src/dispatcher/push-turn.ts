@@ -22,6 +22,8 @@ export interface PushTurns {
    * `onSettle` runs at that moment, before the frame's segments are read.
    */
   awaitFirstRender(turnId: string, onSettle?: () => void): Promise<"rendered" | "cut">;
+  /** Stop waiting on this turn. The waiter is dropped unsettled, so `onSettle` never runs. */
+  abandon(turnId: string): void;
 }
 
 export function createPushTurns(): PushTurns {
@@ -61,6 +63,9 @@ export function createPushTurns(): PushTurns {
     },
     awaitFirstRender(turnId, onSettle) {
       return new Promise((resolve) => waiting.set(turnId, { resolve, onSettle }));
+    },
+    abandon(turnId) {
+      waiting.delete(turnId);
     },
   };
 }
