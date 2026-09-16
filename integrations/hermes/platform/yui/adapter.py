@@ -97,7 +97,15 @@ def fit_frame(frame: dict) -> str:
         budget = max(len(raw) - (size - MAX_FRAME_BYTES), 0)
         frame["delta"] = raw[:budget].decode("utf-8", "ignore")
         body, size = _encoded(frame)
-    logger.warning("yui: %s frame over %d bytes, trimmed to fit", frame.get("type"), MAX_FRAME_BYTES)
+    if size > MAX_FRAME_BYTES:
+        logger.warning(
+            "yui: %s frame still over %d bytes at %d after trimming",
+            frame.get("type"),
+            MAX_FRAME_BYTES,
+            size,
+        )
+    else:
+        logger.warning("yui: %s frame over %d bytes, trimmed to fit", frame.get("type"), MAX_FRAME_BYTES)
     return body
 
 
