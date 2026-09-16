@@ -34,7 +34,8 @@ turns in and finished replies out. The contract both sides speak is
 - Delivers the reply whole when the turn ends, so the gateway's `streaming` setting does not
   apply to this platform.
 - Names the client turn in every reply of a run, and clears the name when the turn ends. A turn
-  the gateway started on its own, such as a cron result, carries a null `turn_id`.
+  the gateway started on its own, such as a cron result, carries an id the plugin mints, of the
+  form `hermes-<n>`, counted per gateway process.
 - Sends a `delegations` frame whenever background work starts or finishes, so the client can show
   what is running.
 - Holds reports that arrive while the client is away, up to twenty, and delivers them as one

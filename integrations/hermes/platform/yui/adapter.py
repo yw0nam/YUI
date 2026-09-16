@@ -11,6 +11,7 @@ from __future__ import annotations
 import asyncio
 import contextlib
 import ipaddress
+import itertools
 import json
 import logging
 import os
@@ -46,6 +47,13 @@ REASONING_WINDOW_SECONDS = 0.1
 CLOSE_UNAUTHORIZED = 4401
 CLOSE_REPLACED = 4409
 CLOSE_TOO_BIG = 1009
+
+# A run the gateway starts on its own still names a turn; the client's ids are decimal digits only.
+_TURN_IDS = itertools.count(1)
+
+
+def _mint_turn_id() -> str:
+    return f"hermes-{next(_TURN_IDS)}"
 
 
 def build_message_text(client_context: str, text: str) -> str:
@@ -543,12 +551,18 @@ class YuiAdapter(BasePlatformAdapter):
             for placement in waiting:
                 state.append_cue(chat_id, placement.cue, placement.sentence)
         state.mark_delivered(chat_id)
-        # The streamed tokens are the whole thought; the block is cut to fifteen lines.
-        frame = self._render(state.turn_id(chat_id), segments, reasoning.live_text(chat_id) or block)
+        turn_id = state.turn_id(chat_id)
+        frame = self._render(turn_id, segments, reasoning.live_text(chat_id) or block)
         await self._send_render(chat_id, frame)
+        # A render with no turn in flight ends the turn it minted; nothing else closes it.
+        if turn_id is None:
+            await self._send_render(chat_id, {"type": "turn_end", "turn_id": frame["turn_id"]})
         return SendResult(success=True, message_id=_message_id())
 
     def _render(self, turn_id: str | None, segments: list[dict], reasoning_text: str = "") -> dict:
+        if turn_id is None:
+            turn_id = _mint_turn_id()
+            logger.warning("yui: render with no turn in flight, minted %s", turn_id)
         frame = {"type": "render", "turn_id": turn_id, "source": SOURCE, "segments": segments}
         if reasoning_text:
             frame["reasoning"] = reasoning_text
@@ -635,7 +649,7 @@ class YuiAdapter(BasePlatformAdapter):
         reasoning.clear(chat_id)
         self._forget_reasoning(chat_id)
         internal = getattr(event, "internal", False)
-        state.set_turn_id(chat_id, None if internal else (event.message_id or None))
+        state.set_turn_id(chat_id, _mint_turn_id() if internal else (event.message_id or None))
 
     async def on_processing_complete(self, event: MessageEvent, outcome: ProcessingOutcome) -> None:
         """Close the turn: a reply already rendered, anything else renders as silence."""
@@ -647,4 +661,4 @@ class YuiAdapter(BasePlatformAdapter):
             # Cues on a silent turn still play; the segment they ride on carries no speech.
             if cues:
                 await self._send_render(chat_id, self._render(turn_id, [{"cues": cues, "speech": ""}]))
-        await self._send_render(chat_id, {"type": "turn_end", "turn_id": turn_id})
+        await self._send_render(chat_id, {"type": "turn_end", "turn_id": turn_id or _mint_turn_id()})
