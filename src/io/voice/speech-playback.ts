@@ -275,6 +275,7 @@ export function createSpeechPlayback(options: SpeechPlaybackOptions): SpeechPlay
       // The disposed pipeline never fires its boundary — a callback still waiting on it would
       // otherwise fire on whatever drains next, applying a now-superseded turn's cue.
       drainedCallbacks = [];
+      heldSilentCue = null;
       // Release the held bubble immediately (not deferred).
       surfaces.endSpeech();
       const reported = closeTracked(split);
@@ -293,6 +294,7 @@ export function createSpeechPlayback(options: SpeechPlaybackOptions): SpeechPlay
       pipeline.dispose();
       // No next turn to drain them, and nothing here should still speak.
       drainedCallbacks = [];
+      heldSilentCue = null;
       surfaces.endSpeech();
       closeTracked(split);
       // Terminal like onPlaybackEnd — no next turn to re-assert an expression, so always ease.
