@@ -9,6 +9,7 @@
  */
 
 import type { AttachmentLimits } from "../../config/load";
+import { createLogger } from "../../logger";
 import type { InputErrorAction } from "../../ui/text-input";
 import type { MessageBridge } from "./message-bridge";
 
@@ -37,6 +38,7 @@ export interface RemoteSurfaces {
 }
 
 export function createRemoteSurfaces(bridge: MessageBridge): RemoteSurfaces {
+  const log = createLogger("message-remote");
   const submitHandlers: Array<(text: string, images: string[]) => void> = [];
   const stopHandlers: Array<() => void> = [];
   const dockHandlers: Array<() => void> = [];
@@ -106,6 +108,7 @@ export function createRemoteSurfaces(bridge: MessageBridge): RemoteSurfaces {
       bridge.emitSurface({ op: "input-enabled", enabled });
     },
     setBusy(value) {
+      log.info("busy_emit", { busy: value });
       busy = value;
       bridge.emitSurface({ op: "busy", busy: value });
     },

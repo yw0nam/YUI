@@ -170,6 +170,7 @@ async function bootstrap(): Promise<void> {
         surfaces.dismissInput();
         break;
       case "busy":
+        log.info("busy_recv", { busy: op.busy });
         plate.setBusy(op.busy);
         surfaces.setBusy(op.busy);
         break;
