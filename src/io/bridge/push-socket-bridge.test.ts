@@ -53,17 +53,23 @@ let transport: BridgeTransport;
 let petBridge: ReturnType<typeof createSettingsBridge>;
 let settingsBridge: ReturnType<typeof createSettingsBridge>;
 let socket: ReturnType<typeof fakeSocket>;
+let stopTurn: ReturnType<typeof vi.fn>;
+
+function publish(): () => void {
+  return publishPushSocket({ socket, stopTurn, bridge: petBridge });
+}
 
 beforeEach(() => {
   transport = createFakeTransport();
   petBridge = createSettingsBridge(transport, { windowKind: "pet" });
   settingsBridge = createSettingsBridge(transport, { windowKind: "settings" });
   socket = fakeSocket();
+  stopTurn = vi.fn();
 });
 
 describe("push socket across windows", () => {
   it("carries every state change from the pet window to the mirror", () => {
-    publishPushSocket({ socket, bridge: petBridge });
+    publish();
     const mirror = createMirroredPushSocket({ bridge: settingsBridge });
 
     socket.set({ kind: "ready", chat_id: "yui-3f9a2c1d" });
@@ -72,7 +78,7 @@ describe("push socket across windows", () => {
   });
 
   it("notifies the mirror's own subscribers", () => {
-    publishPushSocket({ socket, bridge: petBridge });
+    publish();
     const mirror = createMirroredPushSocket({ bridge: settingsBridge });
     const seen: PushSocketState[] = [];
     mirror.onState((s) => seen.push(s));
@@ -84,7 +90,7 @@ describe("push socket across windows", () => {
 
   it("answers a mirror opened after the socket settled", () => {
     socket = fakeSocket({ kind: "ready", chat_id: "yui-0a1b2c3d" });
-    publishPushSocket({ socket, bridge: petBridge });
+    publish();
 
     const mirror = createMirroredPushSocket({ bridge: settingsBridge });
 
@@ -97,22 +103,37 @@ describe("push socket across windows", () => {
   });
 
   it("sends the mirror's reset request to the real socket", () => {
-    publishPushSocket({ socket, bridge: petBridge });
+    publish();
     const mirror = createMirroredPushSocket({ bridge: settingsBridge });
 
     expect(mirror.sendReset()).toBe(true);
     expect(socket.sendReset).toHaveBeenCalledTimes(1);
   });
 
+  it("stops the running turn before the mirror's reset reaches the socket", () => {
+    const calls: string[] = [];
+    stopTurn.mockImplementation(() => calls.push("stopTurn"));
+    socket.sendReset.mockImplementation(() => {
+      calls.push("sendReset");
+      return true;
+    });
+    publish();
+    const mirror = createMirroredPushSocket({ bridge: settingsBridge });
+
+    mirror.sendReset();
+
+    expect(calls).toEqual(["stopTurn", "sendReset"]);
+  });
+
   it("does not reset the socket from its own window's publish", () => {
-    publishPushSocket({ socket, bridge: petBridge });
+    publish();
     petBridge.emitPushReset();
 
     expect(socket.sendReset).not.toHaveBeenCalled();
   });
 
   it("sends the mirror's reconnect request to the real socket", () => {
-    publishPushSocket({ socket, bridge: petBridge });
+    publish();
     const mirror = createMirroredPushSocket({ bridge: settingsBridge });
 
     mirror.reconnectNow();
@@ -121,7 +142,7 @@ describe("push socket across windows", () => {
   });
 
   it("does not reconnect the socket from its own window's publish", () => {
-    publishPushSocket({ socket, bridge: petBridge });
+    publish();
     petBridge.emitPushReconnect();
 
     expect(socket.reconnectNow).not.toHaveBeenCalled();
@@ -132,14 +153,14 @@ describe("push socket across windows", () => {
     expect(mirror.getState()).toEqual({ kind: "disconnected" });
 
     socket = fakeSocket({ kind: "ready", chat_id: "yui-0a1b2c3d" });
-    publishPushSocket({ socket, bridge: petBridge });
+    publish();
     mirror.refresh();
 
     expect(mirror.getState()).toEqual({ kind: "ready", chat_id: "yui-0a1b2c3d" });
   });
 
   it("stops publishing after the pet side is disposed", () => {
-    publishPushSocket({ socket, bridge: petBridge })();
+    publish()();
     const mirror = createMirroredPushSocket({ bridge: settingsBridge });
 
     socket.set({ kind: "ready", chat_id: "yui-3f9a2c1d" });
@@ -149,7 +170,7 @@ describe("push socket across windows", () => {
   });
 
   it("stops the reset path after the pet side is disposed", () => {
-    publishPushSocket({ socket, bridge: petBridge })();
+    publish()();
     const mirror = createMirroredPushSocket({ bridge: settingsBridge });
 
     mirror.sendReset();
@@ -158,7 +179,7 @@ describe("push socket across windows", () => {
   });
 
   it("stops the reconnect path after the pet side is disposed", () => {
-    publishPushSocket({ socket, bridge: petBridge })();
+    publish()();
     const mirror = createMirroredPushSocket({ bridge: settingsBridge });
 
     mirror.reconnectNow();
@@ -167,7 +188,7 @@ describe("push socket across windows", () => {
   });
 
   it("stops updating after the mirror is disposed", () => {
-    publishPushSocket({ socket, bridge: petBridge });
+    publish();
     const mirror = createMirroredPushSocket({ bridge: settingsBridge });
     mirror.dispose();
 
