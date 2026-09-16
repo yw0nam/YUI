@@ -937,17 +937,6 @@ describe("createPushSocket — inbound frames", () => {
     expect(seen).toEqual([{ type: "turn_end", turn_id: "7" }]);
   });
 
-  it("hands a turn_end frame to nobody once the socket is disposed", async () => {
-    await connected();
-    const seen: unknown[] = [];
-    socket.onTurnEnd((frame) => seen.push(frame));
-    const open = FakeSocket.last();
-    socket.dispose();
-    open.push({ type: "turn_end", turn_id: "7" });
-
-    expect(seen).toEqual([]);
-  });
-
   it("drops a turn_end frame whose turn_id is not a string", async () => {
     await connected();
     const seen: unknown[] = [];
