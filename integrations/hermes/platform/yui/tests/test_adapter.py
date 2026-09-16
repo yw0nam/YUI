@@ -311,25 +311,22 @@ async def test_a_reply_the_agent_speaks_on_its_own_carries_no_turn_id(client, ad
     assert (await recv(ws))["turn_id"] is None
 
 
-async def test_a_silent_turn_with_no_cues_closes_with_no_segments(client, adapter):
+async def test_a_silent_turn_with_no_cues_gets_only_a_turn_end(client, adapter):
     ws = await ready(client)
     await adapter.on_processing_start(user_turn(adapter, "7"))
     event = MessageEvent(text="hi", source=adapter.build_source(chat_id=CHAT))
     await adapter.on_processing_complete(event, ProcessingOutcome.SUCCESS)
-    assert await recv(ws) == {
-        "type": "render",
-        "turn_id": "7",
-        "source": "hermes",
-        "segments": [],
-    }
+    assert await recv(ws) == {"type": "turn_end", "turn_id": "7"}
 
 
-async def test_a_turn_that_already_spoke_is_not_closed_twice(client, adapter):
+async def test_a_delivered_turn_still_gets_one_turn_end_after_its_render(client, adapter):
     ws = await ready(client)
+    await adapter.on_processing_start(user_turn(adapter, "777"))
     await adapter.send(CHAT, "Done.", metadata={"notify": True})
     await recv(ws)
     event = MessageEvent(text="hi", source=adapter.build_source(chat_id=CHAT))
     await adapter.on_processing_complete(event, ProcessingOutcome.SUCCESS)
+    assert await recv(ws) == {"type": "turn_end", "turn_id": "777"}
     await adapter.send(CHAT, "Next.", metadata={"notify": True})
     assert (await recv(ws))["segments"] == [{"cues": [], "speech": "Next."}]
 
@@ -533,10 +530,21 @@ async def test_a_report_admitted_mid_turn_leaves_the_running_turn_alone(client, 
     assert frame["segments"] == [{"cues": [{"emotion_id": "happy"}], "speech": "Done."}]
 
 
-async def test_an_empty_turn_is_answered_so_the_client_is_not_left_waiting(client, adapter):
+async def test_an_empty_turn_is_closed_at_once(client, adapter):
     ws = await ready(client)
     await ws.send_json({"type": "turn", "turn_id": "9", "client_context": "", "text": ""})
-    assert await recv(ws) == {"type": "render", "turn_id": "9", "source": "hermes", "segments": []}
+    assert await recv(ws) == {"type": "turn_end", "turn_id": "9"}
+    assert adapter.dispatched == []
+
+
+async def test_a_turn_without_a_turn_id_is_dropped(client, adapter, caplog):
+    ws = await ready(client)
+    with caplog.at_level(logging.WARNING):
+        await ws.send_json({"type": "turn", "client_context": "", "text": ""})
+        await wait_for(lambda: "turn_id" in caplog.text)
+        # The next frame proves the dropped turn sent nothing of its own.
+        adapter.notify_delegations(CHAT)
+        assert (await recv(ws))["type"] == "delegations"
     assert adapter.dispatched == []
 
 
@@ -553,6 +561,25 @@ async def test_a_silent_turn_still_plays_its_cues(client, adapter):
         "source": "hermes",
         "segments": [{"cues": [{"emotion_id": "happy"}, {"motion_id": "idle"}], "speech": ""}],
     }
+    assert await recv(ws) == {"type": "turn_end", "turn_id": "7"}
+
+
+async def test_a_turn_end_held_while_away_follows_its_render_on_reconnect(client, adapter):
+    ws = await ready(client)
+    await adapter.on_processing_start(user_turn(adapter, "777"))
+    await ws.close()
+    await wait_for(lambda: not state.is_connected(CHAT))
+    await adapter.send(CHAT, "The tests passed.", metadata={"notify": True})
+    event = MessageEvent(text="hi", source=adapter.build_source(chat_id=CHAT))
+    await adapter.on_processing_complete(event, ProcessingOutcome.SUCCESS)
+    back = await ready(client)
+    assert await recv(back) == {
+        "type": "render",
+        "turn_id": "777",
+        "source": "hermes",
+        "segments": [{"cues": [], "speech": "The tests passed."}],
+    }
+    assert await recv(back) == {"type": "turn_end", "turn_id": "777"}
 
 
 async def test_an_oversize_render_loses_its_trailing_segments(client, adapter):
@@ -608,7 +635,9 @@ async def test_a_reply_the_socket_cannot_take_is_held_not_failed(client, adapter
 
 async def test_a_socket_that_dies_mid_flush_keeps_the_replies_it_did_not_take(adapter):
     for turn_id in ("1", "2"):
-        reports.queue_render(CHAT, {"type": "render", "turn_id": turn_id, "segments": []})
+        reports.queue_render(
+            CHAT, {"type": "render", "turn_id": turn_id, "segments": [{"cues": [], "speech": "hi"}]}
+        )
     await adapter._flush_renders(CHAT)
     held, _dropped = reports.take_renders(CHAT)
     assert [frame["turn_id"] for frame in held] == ["1", "2"]
