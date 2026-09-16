@@ -866,6 +866,20 @@ def test_an_oversize_render_drops_its_reasoning_before_any_speech():
     assert len(fitted["segments"]) == 3
 
 
+def test_a_frame_that_cannot_be_trimmed_logs_that_it_is_still_over(caplog):
+    """Nothing in a delegations frame is trimmable, so the oversized frame leaves with a warning."""
+    frame = {
+        "type": "delegations",
+        "items": [
+            {"id": "d-1", "title": "x" * (MAX_FRAME_BYTES + 100), "started_at": 1, "state": "running"}
+        ],
+    }
+    with caplog.at_level(logging.WARNING):
+        body = fit_frame(frame)
+    assert len(body.encode("utf-8")) > MAX_FRAME_BYTES
+    assert "still over" in caplog.text
+
+
 def test_an_oversize_reasoning_frame_keeps_what_fits_of_its_delta():
     frame = {"type": "reasoning", "delta": "y" * (MAX_FRAME_BYTES * 2)}
     fitted = json.loads(fit_frame(frame))
