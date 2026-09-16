@@ -124,9 +124,16 @@ function byteLength(text: string): number {
   return new TextEncoder().encode(text).length;
 }
 
-/** A render frame the client can act on: an ordered segment list and a source to log. */
+/**
+ * A render frame the client can act on: an ordered segment list, a source to log, and the turn it
+ * answers. A turn_id of another type would leave the turn that sent it waiting out its whole budget.
+ */
 function isRenderFrame(v: Record<string, unknown>): boolean {
-  return Array.isArray(v.segments) && typeof v.source === "string";
+  return (
+    Array.isArray(v.segments) &&
+    typeof v.source === "string" &&
+    (typeof v.turn_id === "string" || v.turn_id === null)
+  );
 }
 
 export function createPushSocket(deps: PushSocketDeps): PushSocket {
