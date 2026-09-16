@@ -958,16 +958,26 @@ def test_an_oversize_render_drops_its_reasoning_before_any_speech():
     assert len(fitted["segments"]) == 3
 
 
-def test_a_frame_that_cannot_be_trimmed_logs_that_it_is_still_over(caplog):
-    """Nothing in a delegations frame is trimmable, so the oversized frame leaves with a warning."""
+def test_a_frame_that_cannot_be_trimmed_has_nothing_to_send(caplog):
+    """Nothing in a delegations frame is trimmable, and the client closes the socket on one."""
     frame = {
         "type": "delegations",
         "items": [{"id": "d-1", "title": "x" * (MAX_FRAME_BYTES + 100), "started_at": 1, "state": "running"}],
     }
     with caplog.at_level(logging.WARNING):
-        body = fit_frame(frame)
-    assert len(body.encode("utf-8")) > MAX_FRAME_BYTES
+        assert fit_frame(frame) is None
     assert "still over" in caplog.text
+
+
+async def test_a_frame_that_cannot_be_trimmed_is_dropped_instead_of_sent(client, adapter):
+    ws = await ready(client)
+    frame = {
+        "type": "delegations",
+        "items": [{"id": "d-1", "title": "x" * (MAX_FRAME_BYTES + 100), "started_at": 1, "state": "running"}],
+    }
+    assert await adapter._send_frame(CHAT, frame) is False
+    assert await adapter._send_frame(CHAT, {"type": "turn_end", "turn_id": "7"}) is True
+    assert await recv(ws) == {"type": "turn_end", "turn_id": "7"}
 
 
 def test_an_oversize_reasoning_frame_keeps_what_fits_of_its_delta():
