@@ -191,6 +191,7 @@ function setup(over: { isStrolling?: () => boolean } = {}) {
   const onVoiceSegment = vi.fn();
   const onUtteranceStart = vi.fn();
   const onUtteranceEnd = vi.fn();
+  const onBargeIn = vi.fn();
   const voiceInputStatus = { set: vi.fn() };
   const turnLog = createTurnLog();
 
@@ -211,6 +212,7 @@ function setup(over: { isStrolling?: () => boolean } = {}) {
     onVoiceSegment,
     onUtteranceStart,
     onUtteranceEnd,
+    onBargeIn,
     isStrolling: over.isStrolling ?? (() => false),
   });
 
@@ -223,6 +225,7 @@ function setup(over: { isStrolling?: () => boolean } = {}) {
     onVoiceSegment,
     onUtteranceStart,
     onUtteranceEnd,
+    onBargeIn,
     voiceInputStatus,
     setEndpoints: (next: EndpointsConfig) => {
       currentEndpoints = next;
@@ -883,6 +886,21 @@ describe("wireVoicePipeline", () => {
     state.turnLog.setAudioOwed(true);
     onSpeechActive();
     expect(mocks.speechPlayback.interrupt).toHaveBeenCalledWith({ muteCurrentTurn: true });
+  });
+
+  it("reports the barge-in, so the reply the user talked over stops arriving", async () => {
+    const state = setup();
+    await state.voice.createSttEngine();
+    const onSpeechActive = (mocks.captured.sttVad as SttVadOptions).onSpeechActive!;
+
+    state.setBargeIn(true);
+    onSpeechActive();
+    expect(state.onBargeIn).not.toHaveBeenCalled();
+
+    state.turnLog.begin(trigger());
+    state.turnLog.setAudioOwed(true);
+    onSpeechActive();
+    expect(state.onBargeIn).toHaveBeenCalledOnce();
   });
 
   it("stops the filler loop when barge-in interrupts", async () => {

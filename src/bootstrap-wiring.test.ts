@@ -1698,22 +1698,24 @@ describe("wireVoiceInput", () => {
 });
 
 describe("wireStopControl", () => {
-  it("stop click cancels the in-flight turn and aborts speech playback", () => {
+  it("stop click cancels the in-flight turn, cuts the push turns and stops speech playback", () => {
     let stopCb: (() => void) | null = null;
-    const cancel = vi.fn();
-    const abortSpeech = vi.fn();
+    const order: string[] = [];
+    const cancel = vi.fn(() => order.push("cancel"));
+    const abortSpeech = vi.fn(() => order.push("abortSpeech"));
+    const cutPushTurns = vi.fn(() => order.push("cutPushTurns"));
     wireStopControl({
       onStop: (cb) => {
         stopCb = cb;
       },
       cancel,
       abortSpeech,
+      cutPushTurns,
     });
 
     expect(cancel).not.toHaveBeenCalled();
     stopCb!();
-    expect(cancel).toHaveBeenCalledTimes(1);
-    expect(abortSpeech).toHaveBeenCalledTimes(1);
+    expect(order).toEqual(["cancel", "cutPushTurns", "abortSpeech"]);
   });
 });
 
