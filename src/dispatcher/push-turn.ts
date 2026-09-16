@@ -31,7 +31,8 @@ export interface PushTurns {
   cut(): void;
   /** Whether a frame belongs to a cut turn. */
   isCut(turnId: string): boolean;
-  /** How many turns the user has stopped, for the line that reports a frame dropped on one. */
+  /** How many stopped turns are still waiting for their turn_end, for the line that reports a
+   *  frame dropped on one. */
   cutCount(): number;
   /** The backend closed the turn: it is forgotten — no longer live, no longer cut. */
   ended(turnId: string): void;
