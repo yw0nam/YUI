@@ -62,10 +62,17 @@ function parse(loaded: unknown): PreviousTurn | undefined {
   };
 }
 
-/** The tail of what was heard and the head of what was not, each cut to SPLIT_CHARS. */
+/** The tail of what was heard and the head of what was not, each cut to SPLIT_CHARS.
+ *  The cut counts code points, so a character outside the basic plane is never halved. */
 function cutParts(split: SpokenSplit | undefined): Pick<PreviousTurn, "spoken" | "unspoken"> {
-  const spoken = (split?.spoken ?? "").slice(-SPLIT_CHARS).trim();
-  const unspoken = (split?.unspoken ?? "").slice(0, SPLIT_CHARS).trim();
+  const spoken = Array.from(split?.spoken ?? "")
+    .slice(-SPLIT_CHARS)
+    .join("")
+    .trim();
+  const unspoken = Array.from(split?.unspoken ?? "")
+    .slice(0, SPLIT_CHARS)
+    .join("")
+    .trim();
   return { ...(spoken ? { spoken } : {}), ...(unspoken ? { unspoken } : {}) };
 }
 
