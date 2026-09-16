@@ -557,6 +557,17 @@ async def test_a_cue_only_turn_leaves_its_id_cleared(client, adapter):
     assert state.turn_id(CHAT) is None
 
 
+async def test_a_cue_only_turn_with_no_turn_in_flight_names_one_id(client, adapter):
+    ws = await ready(client)
+    state.append_cue(CHAT, {"emotion_id": "happy"}, "")
+    event = MessageEvent(text="hi", source=adapter.build_source(chat_id=CHAT))
+    await adapter.on_processing_complete(event, ProcessingOutcome.SUCCESS)
+    render = await recv(ws)
+    assert render["type"] == "render"
+    assert render["turn_id"].startswith("hermes-")
+    assert await recv(ws) == {"type": "turn_end", "turn_id": render["turn_id"]}
+
+
 async def test_a_muted_turn_leaves_its_id_cleared(client, adapter):
     await ready(client)
     await adapter.on_processing_start(user_turn(adapter, "777"))
