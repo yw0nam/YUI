@@ -63,10 +63,14 @@ A copy works the same way. The directory name is the plugin id, so keep it `yui`
 
 ## Enable
 
-Two top-level blocks in the config the profile reads, `~/.hermes/profiles/<profile>/config.yaml`
+Three top-level blocks in the config the profile reads, `~/.hermes/profiles/<profile>/config.yaml`
 for a profile install and `~/.hermes/config.yaml` for the global one:
 
 ```yaml
+plugins:
+  enabled:
+    - yui
+
 platforms:
   yui:
     enabled: true
@@ -78,8 +82,6 @@ platforms:
 platform_toolsets:
   yui: [hermes-cli, delegation, yui]
 ```
-
-A plugin the gateway leaves out of its load lists under `plugins.enabled` as well.
 
 `platform_toolsets.yui` has to be listed: without it the platform falls back to a default toolset
 and the model never sees `generate_express`. The `yui` toolset is this plugin's own; `hermes-cli`

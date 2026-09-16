@@ -54,7 +54,7 @@ Check: the `ls` prints the path.
 
 ## 3. Configure the platform
 
-Two blocks in `~/.hermes/profiles/<profile>/config.yaml`, both at the top level:
+Three top-level blocks in `~/.hermes/profiles/<profile>/config.yaml`:
 
 ```yaml
 platforms:
@@ -66,6 +66,10 @@ platforms:
 
 platform_toolsets:
   yui: [hermes-cli, delegation, yui]
+
+plugins:
+  enabled:
+    - yui
 ```
 
 `platform_toolsets.yui` is what puts `generate_express` in front of the model. A platform left out
@@ -75,10 +79,10 @@ of it falls back to a default toolset, and its replies arrive as speech with no 
 other than loopback.
 
 ```bash
-python3 -c "import yaml,os;d=yaml.safe_load(open(os.path.expanduser('~/.hermes/profiles/<profile>/config.yaml')));print(d['platforms']['yui']['enabled'],d['platform_toolsets']['yui'])"
+python3 -c "import yaml,os;d=yaml.safe_load(open(os.path.expanduser('~/.hermes/profiles/<profile>/config.yaml')));print(d['platforms']['yui']['enabled'],d['platform_toolsets']['yui'],'yui' in d['plugins']['enabled'])"
 ```
 
-Check: prints `True ['hermes-cli', 'delegation', 'yui']`.
+Check: prints `True ['hermes-cli', 'delegation', 'yui'] True`.
 
 ## 4. Set the key
 
@@ -162,7 +166,7 @@ expression.
 | The socket closes with `4401` | 4 |
 | The reply is spoken flat, with no expression or motion | 3, `platform_toolsets.yui` |
 | Nothing is listening on the port | 6 |
-| The gateway log never mentions `hermes_plugins.yui` | 2, then 3; add `yui` to `plugins.enabled` |
+| The gateway log never mentions `hermes_plugins.yui` | 2, then 3 |
 | The model name and working directory are read out | 5, `runtime_footer` |
 | The reasoning is read out as part of the reply | 5, `show_reasoning` |
 | The client connects, and a turn draws no reply | the client's own wait, `docs/reference/push-transport.md` |
