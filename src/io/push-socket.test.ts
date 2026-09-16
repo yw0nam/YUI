@@ -811,6 +811,34 @@ describe("createPushSocket — inbound frames", () => {
     expect(seen).toEqual([]);
   });
 
+  it("ignores a render frame whose turn_id is not a string", async () => {
+    await connected();
+    const seen: unknown[] = [];
+    socket.onRender((frame) => seen.push(frame));
+    FakeSocket.last().push({ ...RENDER, turn_id: 7 });
+
+    expect(seen).toEqual([]);
+  });
+
+  it("ignores a render frame that carries no turn_id at all", async () => {
+    await connected();
+    const seen: unknown[] = [];
+    socket.onRender((frame) => seen.push(frame));
+    FakeSocket.last().push({ type: "render", source: "hermes", segments: [] });
+
+    expect(seen).toEqual([]);
+  });
+
+  it("hands a render frame the backend started on its own to every subscriber", async () => {
+    await connected();
+    const seen: unknown[] = [];
+    socket.onRender((frame) => seen.push(frame));
+    const own = { ...RENDER, turn_id: null };
+    FakeSocket.last().push(own);
+
+    expect(seen).toEqual([own]);
+  });
+
   it("ignores a frame type it does not know", async () => {
     await connected();
     expect(() => FakeSocket.last().push({ type: "weather" })).not.toThrow();
