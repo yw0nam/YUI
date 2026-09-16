@@ -801,6 +801,17 @@ describe("createSpeechPlayback — a cue with no speech behind it", () => {
     expect(renderer.applyDirective).not.toHaveBeenCalled();
   });
 
+  it("discards the cue parked under the previous hold when a new one goes up", () => {
+    const { sp, renderer } = playback();
+
+    sp.holdMotion(true);
+    sp.silentCue({ motion_id: "wave" });
+    sp.holdMotion(true);
+
+    expect(sp.holdMotion(false)).toBe(false);
+    expect(renderer.applyDirective).not.toHaveBeenCalled();
+  });
+
   it("reports no motion applied when the release had no cue parked", () => {
     const { sp } = playback();
 

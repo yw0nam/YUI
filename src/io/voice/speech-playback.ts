@@ -260,6 +260,7 @@ export function createSpeechPlayback(options: SpeechPlaybackOptions): SpeechPlay
       if (held) {
         motionHeld = true;
         heldCue = null;
+        // A new hold belongs to a newer turn — the cue parked under the old one is superseded.
         heldSilentCue = null;
         return false;
       }
