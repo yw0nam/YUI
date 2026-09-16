@@ -190,3 +190,113 @@ describe("createPreviousTurn — the stored value at creation", () => {
     expect(slot.get()).toBeUndefined();
   });
 });
+
+describe("createPreviousTurn — what the user heard of a cut-off reply", () => {
+  it("keeps the last 50 characters spoken and the first 50 still owed", () => {
+    const { slot, storage } = makeSlot(turnOf(11, "user.text_submitted"));
+
+    slot.utteranceStart();
+    slot.utteranceEnd("interrupted", {
+      spoken: `${"x".repeat(60)}END`,
+      unspoken: `START${"y".repeat(60)}`,
+    });
+
+    expect(storage.saved).toEqual([
+      {
+        event_name: "user.text_submitted",
+        ended: "interrupted",
+        ts: NOW,
+        spoken: `${"x".repeat(47)}END`,
+        unspoken: `START${"y".repeat(45)}`,
+      },
+    ]);
+  });
+
+  it("stores neither part for a completed utterance", () => {
+    const { slot, storage } = makeSlot(turnOf(12, "user.text_submitted"));
+
+    slot.utteranceStart();
+    slot.utteranceEnd("complete", { spoken: "all of it", unspoken: "" });
+
+    expect(storage.saved).toEqual([
+      { event_name: "user.text_submitted", ended: "complete", ts: NOW },
+    ]);
+  });
+
+  it("stores neither part when both halves are empty", () => {
+    const { slot, storage } = makeSlot(turnOf(13, "user.text_submitted"));
+
+    slot.utteranceStart();
+    slot.utteranceEnd("interrupted", { spoken: "", unspoken: "" });
+
+    expect(storage.saved).toEqual([
+      { event_name: "user.text_submitted", ended: "interrupted", ts: NOW },
+    ]);
+  });
+
+  it("records the interruption of the second utterance after the first completed", () => {
+    const { slot, storage } = makeSlot(turnOf(14, "push.render"));
+
+    slot.utteranceStart();
+    slot.utteranceStart();
+    slot.utteranceEnd("complete");
+    slot.utteranceEnd("interrupted", { spoken: "heard this", unspoken: "owed this" });
+
+    expect(storage.saved.at(-1)).toEqual({
+      event_name: "push.render",
+      ended: "interrupted",
+      ts: NOW,
+      spoken: "heard this",
+      unspoken: "owed this",
+    });
+  });
+
+  it("names the utterance opened most recently when two overlap", () => {
+    const storage = memoryStorage();
+    let current = turnOf(15, "user.text_submitted");
+    const slot = createPreviousTurn({
+      currentTurn: () => current,
+      storage,
+      now: () => NOW,
+    });
+
+    slot.utteranceStart();
+    current = turnOf(16, "push.render");
+    slot.utteranceStart();
+    slot.utteranceEnd("interrupted", { spoken: "heard this", unspoken: "owed this" });
+
+    expect(storage.saved.at(-1)).toMatchObject({ event_name: "push.render" });
+  });
+});
+
+describe("createPreviousTurn — the stored split at creation", () => {
+  it("keeps both parts of a stored record", () => {
+    const stored = {
+      event_name: "user.text_submitted",
+      ended: "interrupted",
+      ts: NOW,
+      spoken: "heard this",
+      unspoken: "owed this",
+    };
+    const { slot } = makeSlot(null, stored);
+
+    expect(slot.get()).toEqual(stored);
+  });
+
+  it("drops a part that is not a string", () => {
+    const { slot } = makeSlot(null, {
+      event_name: "user.text_submitted",
+      ended: "interrupted",
+      ts: NOW,
+      spoken: 7,
+      unspoken: "owed this",
+    });
+
+    expect(slot.get()).toEqual({
+      event_name: "user.text_submitted",
+      ended: "interrupted",
+      ts: NOW,
+      unspoken: "owed this",
+    });
+  });
+});
