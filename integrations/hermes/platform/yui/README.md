@@ -37,7 +37,7 @@ turns in and finished replies out. The contract both sides speak is
   form `hermes-<n>`, counted per gateway process.
 - Sends a `delegations` frame whenever background work starts or finishes, so the client can show
   what is running.
-- Holds reports that arrive while the client is away, up to twenty, and delivers them as one
+- Holds reports that arrive while the client is away, up to forty, and delivers them as one
   summary turn when it connects again. A reply that finishes while the client is away is held the
   same way and sent first when it reconnects. Both live in memory, so a gateway restart while the
   client is away drops them.
@@ -96,19 +96,20 @@ carries the general tools and `delegation` carries `delegate_task`.
 Set `chat_api: "push"` in the client and point `chat_base_url` at this server. A
 `chat_base_url` of `https://host:8646` gives `wss://host:8646/ws`.
 
-Two display settings are required for a voice client, under `display.platforms.yui`. Set
-`runtime_footer.enabled: false` — without it the footer is concatenated into the reply text, so
-the model name and working directory get spoken. Set `show_reasoning: false` as well — without it
-the gateway prepends the reasoning to the reply text, so the reasoning gets spoken:
+One display setting is required for a voice client, under `display.platforms.yui`: set
+`show_reasoning: false`, because with it on the gateway prepends the reasoning to the reply text
+and the reasoning gets spoken.
 
 ```yaml
 display:
   platforms:
     yui:
-      runtime_footer:
-        enabled: false
       show_reasoning: false
 ```
+
+The runtime footer is off by default, and its switch is global to the gateway at
+`display.runtime_footer.enabled`. Turned on, the footer is concatenated into the reply text, so
+the model name and working directory get spoken. Leave it off.
 
 The live reasoning stream is a separate switch, off by default and global to the gateway:
 
