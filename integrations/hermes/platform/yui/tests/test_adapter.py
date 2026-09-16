@@ -409,8 +409,15 @@ async def test_a_delivered_turn_still_gets_one_turn_end_after_its_render(client,
     event = MessageEvent(text="hi", source=adapter.build_source(chat_id=CHAT))
     await adapter.on_processing_complete(event, ProcessingOutcome.SUCCESS)
     assert await recv(ws) == {"type": "turn_end", "turn_id": "777"}
+
+
+async def test_a_send_with_no_turn_in_flight_ends_the_turn_it_mints(client, adapter):
+    ws = await ready(client)
     await adapter.send(CHAT, "Next.", metadata={"notify": True})
-    assert (await recv(ws))["segments"] == [{"cues": [], "speech": "Next."}]
+    render = await recv(ws)
+    assert render["turn_id"].startswith("hermes-")
+    assert render["segments"] == [{"cues": [], "speech": "Next."}]
+    assert await recv(ws) == {"type": "turn_end", "turn_id": render["turn_id"]}
 
 
 async def test_a_report_arriving_with_a_client_connected_goes_straight_through(client, adapter):
@@ -915,7 +922,7 @@ async def test_the_render_carries_the_streamed_reasoning(client, adapter):
     await adapter.send(CHAT, reply, metadata={"notify": True})
     frame = await recv(ws)
     assert frame["reasoning"] == "The whole thought."
-    # The block the gateway prepended is reply text now: nothing is stripped off the front.
+    # The block the gateway prepended is part of the reply; nothing is stripped off the front.
     assert frame["segments"][0]["speech"].startswith("\U0001f4ad **Reasoning:**")
     assert frame["segments"][-1]["speech"] == "All green."
 
@@ -926,7 +933,7 @@ async def test_the_reply_text_reaches_the_client_unchanged(client, adapter):
     reply = "\U0001f4ad **Reasoning:**\n```\nThe log is the first place to look.\n```\n\nAll green."
     await adapter.send(CHAT, reply, metadata={"notify": True})
     frame = await recv(ws)
-    # The block the gateway prepended is reply text now: nothing is stripped off the front.
+    # The block the gateway prepended is part of the reply; nothing is stripped off the front.
     assert frame["segments"][0]["speech"].startswith("\U0001f4ad **Reasoning:**")
     assert frame["segments"][-1]["speech"] == "All green."
     assert "reasoning" not in frame
