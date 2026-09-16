@@ -299,18 +299,21 @@ class YuiAdapter(BasePlatformAdapter):
 
     async def _on_turn(self, chat_id: str, frame: dict) -> None:
         turn_id = str(frame.get("turn_id") or "")
+        if not turn_id:
+            logger.warning("yui: turn without a turn_id chat=%s", chat_id)
+            return
         text = build_message_text(str(frame.get("client_context") or ""), str(frame.get("text") or ""))
         if not text:
             # The contract gives the client no turn timeout, so an empty turn is closed at once.
             logger.warning("yui: nothing to say for an empty turn chat=%s", chat_id)
-            await self._send_frame(chat_id, self._render(turn_id or None, []))
+            await self._send_frame(chat_id, {"type": "turn_end", "turn_id": turn_id})
             return
         logger.info("yui: turn accepted chat=%s turn_id=%s chars=%d", chat_id, turn_id, len(text))
         await self.handle_message(
             MessageEvent(
                 text=text,
                 message_type=MessageType.TEXT,
-                message_id=turn_id or None,
+                message_id=turn_id,
                 allow_gateway_control=False,
                 source=self._source(chat_id),
             )
@@ -637,11 +640,11 @@ class YuiAdapter(BasePlatformAdapter):
     async def on_processing_complete(self, event: MessageEvent, outcome: ProcessingOutcome) -> None:
         """Close the turn: a reply already rendered, anything else renders as silence."""
         chat_id = _chat_of(event)
-        cues = [placement.cue for placement in state.pop_cues(chat_id)]
         turn_id = state.take_turn_id(chat_id)
-        if state.take_delivered(chat_id):
-            return
-        logger.info("yui: turn ended without speech chat=%s outcome=%s", chat_id, outcome)
-        # Cues on a silent turn still play; the segment they ride on carries no speech.
-        segments = [{"cues": cues, "speech": ""}] if cues else []
-        await self._send_render(chat_id, self._render(turn_id, segments))
+        if not state.take_delivered(chat_id):
+            logger.info("yui: turn ended without speech chat=%s outcome=%s", chat_id, outcome)
+            cues = [placement.cue for placement in state.pop_cues(chat_id)]
+            # Cues on a silent turn still play; the segment they ride on carries no speech.
+            if cues:
+                await self._send_render(chat_id, self._render(turn_id, [{"cues": cues, "speech": ""}]))
+        await self._send_render(chat_id, {"type": "turn_end", "turn_id": turn_id})
