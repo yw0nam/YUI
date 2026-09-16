@@ -391,6 +391,15 @@ export function createPushSocket(deps: PushSocketDeps): PushSocket {
   return {
     connect(): void {
       if (disposed || active) return;
+      // An attempt already between its key lookup and its socket is the one this would start; a
+      // disconnect() during that wait is undone here so the single attempt continues instead of
+      // a second socket opening behind it.
+      if (opening) {
+        active = true;
+        delayMs = RECONNECT_MIN_MS;
+        setState({ kind: "connecting" });
+        return;
+      }
       // An unconfigured endpoint resolves against the app's own origin, which is never a backend.
       if (!deps.chatBaseUrl().trim()) {
         log.warn("ws_not_configured", { missing: "chat_base_url" });
