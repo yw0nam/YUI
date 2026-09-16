@@ -2504,13 +2504,14 @@ describe("dispatcher — structured logging: turn events", () => {
     dispatcher.start();
     bus.push(env());
     await vi.advanceTimersByTimeAsync(20);
+    const id = turnLog.current()!.id;
     callDeferred[0].resolve("ok");
     await vi.advanceTimersByTimeAsync(20);
 
     const lines = turnLines();
     expect(lines).toHaveLength(1);
     const [, payload] = lines[0]!;
-    expect(payload.id).toBe(1);
+    expect(payload.id).toBe(id);
     expect(payload.outcome).toBe("ok");
     expect(payload.spoke).toBe(false);
     expect(typeof payload.duration_ms).toBe("number");
@@ -2567,18 +2568,21 @@ describe("dispatcher — structured logging: turn events", () => {
     dispatcher.start();
     bus.push(env({ ts: NOW }));
     await vi.advanceTimersByTimeAsync(20);
+    const firstId = turnLog.current()!.id;
     callDeferred[0].resolve("ok");
     await vi.advanceTimersByTimeAsync(20);
 
     bus.push(env({ ts: NOW + 1 }));
     await vi.advanceTimersByTimeAsync(20);
+    const secondId = turnLog.current()!.id;
     callDeferred[1].resolve("ok");
     await vi.advanceTimersByTimeAsync(20);
 
     const lines = turnLines();
     expect(lines).toHaveLength(2);
-    expect(lines[0]![1].id).toBe(1);
-    expect(lines[1]![1].id).toBe(2);
+    expect(lines[0]![1].id).toBe(firstId);
+    expect(lines[1]![1].id).toBe(secondId);
+    expect(secondId).toBeGreaterThan(firstId);
   });
 
   it("a user turn superseding an in-flight turn: the superseded turn gets a turn line before the successor starts", async () => {
@@ -2586,12 +2590,11 @@ describe("dispatcher — structured logging: turn events", () => {
     bus.push(env({ ts: NOW }));
     await vi.advanceTimersByTimeAsync(20);
     const firstId = turnLog.current()!.id;
-    expect(firstId).toBe(1);
 
     bus.push(env({ ts: NOW + 1 }));
     await vi.advanceTimersByTimeAsync(20);
     const secondId = turnLog.current()!.id;
-    expect(secondId).toBe(2);
+    expect(secondId).toBeGreaterThan(firstId);
 
     const lines = turnLines();
     expect(lines).toHaveLength(1);

@@ -42,7 +42,9 @@ export function createTurnLog(): TurnLog {
   let audioOwed = false;
   let owedAudioEver = false;
   let spokeText = false;
-  let nextId = 1;
+  // Wall-clock seed: the backend outlives the app, so a restart's ids must not repeat the last
+  // session's — it echoes a turn id back on a render long after the log that issued it is gone.
+  let nextId = Date.now();
   const subscribers = new Set<(over: boolean) => void>();
 
   function isOver(): boolean {
