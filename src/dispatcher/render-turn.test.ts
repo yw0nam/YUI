@@ -339,6 +339,7 @@ describe("render_turn — records", () => {
         turn_id: "7",
         segments: 2,
         spoke_text: true,
+        queued_behind: false,
       },
     ]);
   });

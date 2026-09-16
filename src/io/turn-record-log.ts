@@ -56,6 +56,8 @@ export interface RenderRecord {
   turn_id?: string;
   segments: number;
   spoke_text: boolean;
+  /** Speech was still owed when the frame arrived, so it played behind what was already queued. */
+  queued_behind: boolean;
 }
 
 export function buildTurnRecord(fields: Omit<TurnRecord, "type">): TurnRecord {

@@ -65,6 +65,7 @@ export function createRenderTurn(deps: RenderTurnDeps): RenderTurn {
   return {
     render(frame) {
       const segments = frame.segments ?? [];
+      const queuedBehind = deps.turnOutput.hasOutstandingSpeech();
       deps.turnOutput.interrupt();
 
       let spokeText = false;
@@ -125,6 +126,7 @@ export function createRenderTurn(deps: RenderTurnDeps): RenderTurn {
             ...(frame.turn_id !== null ? { turn_id: frame.turn_id } : {}),
             segments: segments.length,
             spoke_text: spokeText,
+            queued_behind: queuedBehind,
           }),
         );
       } catch (err) {
