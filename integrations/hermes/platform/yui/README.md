@@ -48,7 +48,12 @@ turns in and finished replies out. The contract both sides speak is
 
 ## Install
 
-The gateway loads plugins from `~/.hermes/plugins/`. Link this directory in:
+[`skills/yui-platform-install/SKILL.md`](skills/yui-platform-install/SKILL.md) walks a host through
+the whole install, one checked step at a time. The rest of this section is the reference the skill
+draws on.
+
+The gateway loads plugins from `~/.hermes/plugins/`, and from
+`~/.hermes/profiles/<profile>/plugins/` for one profile alone. Link this directory in:
 
 ```bash
 ln -s "$PWD/integrations/hermes/platform/yui" ~/.hermes/plugins/yui
