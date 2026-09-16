@@ -78,8 +78,11 @@ def _encoded(frame: dict) -> tuple[str, int]:
     return body, len(body.encode("utf-8"))
 
 
-def fit_frame(frame: dict) -> str:
-    """The cap is symmetric, and the client closes an oversize frame; trim one down to fit."""
+def fit_frame(frame: dict) -> str | None:
+    """The cap is symmetric, and the client closes an oversize frame; trim one down to fit.
+
+    A frame with nothing left to trim has no body to send.
+    """
     body, size = _encoded(frame)
     if size <= MAX_FRAME_BYTES:
         return body
@@ -104,8 +107,8 @@ def fit_frame(frame: dict) -> str:
             MAX_FRAME_BYTES,
             size,
         )
-    else:
-        logger.warning("yui: %s frame over %d bytes, trimmed to fit", frame.get("type"), MAX_FRAME_BYTES)
+        return None
+    logger.warning("yui: %s frame over %d bytes, trimmed to fit", frame.get("type"), MAX_FRAME_BYTES)
     return body
 
 
@@ -377,8 +380,12 @@ class YuiAdapter(BasePlatformAdapter):
         if ws is None or ws.closed:
             logger.warning("yui: no client for chat=%s, dropped %s", chat_id, frame.get("type"))
             return False
+        body = fit_frame(frame)
+        if body is None:
+            logger.warning("yui: dropped an oversize %s frame chat=%s", frame.get("type"), chat_id)
+            return False
         try:
-            await ws.send_str(fit_frame(frame))
+            await ws.send_str(body)
             return True
         except (ConnectionError, RuntimeError, ValueError) as e:
             logger.warning("yui: send failed chat=%s — %s", chat_id, e)
