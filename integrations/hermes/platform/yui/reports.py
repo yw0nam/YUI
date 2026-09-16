@@ -4,7 +4,8 @@ from __future__ import annotations
 
 import threading
 
-MAX_QUEUED = 20
+# A turn costs two slots: the reply it renders and the frame that ends it.
+MAX_QUEUED = 40
 
 _HEADER = (
     "While the client was disconnected, {count} reports arrived{dropped}. "
