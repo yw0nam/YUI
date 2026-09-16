@@ -494,6 +494,42 @@ async def test_the_reset_reply_is_not_spoken_but_the_next_one_is(client, adapter
     assert frame["segments"] == [{"cues": [], "speech": "Hello again."}]
 
 
+async def test_the_reset_turn_runs_under_a_turn_id_of_its_own(client, adapter):
+    ws = await ready(client)
+    await ws.send_json({"type": "reset"})
+    await wait_for(lambda: adapter.dispatched)
+    assert (await recv(ws))["type"] == "delegations"
+    event = adapter.dispatched[-1]
+    await adapter.on_processing_start(event)
+    running = state.turn_id(CHAT)
+    assert isinstance(running, str)
+    await adapter.send(CHAT, "\u2728 New conversation started.", metadata={"notify": True})
+    await adapter.on_processing_complete(event, ProcessingOutcome.SUCCESS)
+    assert await recv(ws) == {"type": "turn_end", "turn_id": running}
+
+
+async def test_the_approved_reset_reply_ends_the_reset_turn_once(client, adapter):
+    ws = await ready(client)
+    await ws.send_json({"type": "reset"})
+    await wait_for(lambda: adapter.dispatched)
+    assert (await recv(ws))["type"] == "delegations"
+    event = adapter.dispatched[-1]
+    await adapter.on_processing_start(event)
+    running = state.turn_id(CHAT)
+    SLASH_CONFIRM.register("agent:main:yui:dm:" + CHAT, "7", "new")
+    await adapter.send_slash_confirm(
+        chat_id=CHAT,
+        title="/new",
+        message="\u26a0\ufe0f **Confirm /new**",
+        session_key="agent:main:yui:dm:" + CHAT,
+        confirm_id="7",
+    )
+    await adapter.send(CHAT, "\u2728 New conversation started.", metadata={"notify": True})
+    await adapter.on_processing_complete(event, ProcessingOutcome.SUCCESS)
+    assert (await recv(ws))["turn_id"] == running
+    assert await recv(ws) == {"type": "turn_end", "turn_id": running}
+
+
 async def test_approving_the_confirmation_leaves_the_next_reply_speakable(client, adapter):
     ws = await ready(client)
     await ws.send_json({"type": "reset"})
