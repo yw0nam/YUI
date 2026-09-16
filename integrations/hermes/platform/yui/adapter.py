@@ -447,6 +447,8 @@ class YuiAdapter(BasePlatformAdapter):
             return
 
         def report(future: concurrent.futures.Future) -> None:
+            if future.cancelled():
+                return
             error = future.exception()
             if error is not None:
                 logger.warning("yui: delegations push failed chat=%s — %s", chat_id, error)
