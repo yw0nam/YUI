@@ -190,14 +190,26 @@ describe("wirePushTransport", () => {
     expect(reasoning.get()).toEqual({ text: "AB", live: false });
   });
 
-  it("leaves the reasoning cycle open for a frame of a turn the user stopped", () => {
+  it("abandons the reasoning still streaming for a turn the user stopped", () => {
     wire();
     pushTurns.opened("7");
     socket.pushReasoning("A");
     pushTurns.cut();
     socket.pushRender({ ...RENDER, reasoning: "AB" });
 
-    expect(reasoning.get()).toEqual({ text: "A", live: true });
+    expect(reasoning.get()).toEqual({ text: "", live: false });
+  });
+
+  it("keeps a reasoning text an earlier render finished when a later frame is dropped", () => {
+    wire();
+    pushTurns.opened("7");
+    socket.pushReasoning("A");
+    socket.pushRender({ ...RENDER, reasoning: "AB" });
+    pushTurns.opened("8");
+    pushTurns.cut();
+    socket.pushRender({ ...RENDER, turn_id: "8", reasoning: "CD" });
+
+    expect(reasoning.get()).toEqual({ text: "AB", live: false });
   });
 
   it("interrupts the reasoning on a non-ready socket state", () => {
