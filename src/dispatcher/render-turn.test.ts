@@ -370,7 +370,7 @@ describe("render_turn — a turn the user stopped", () => {
 
   it("plays a reply the backend started on its own, cut or not", () => {
     cutSeven();
-    turn().render(frame([{ speech: "One more thing." }], { turn_id: null }));
+    turn().render(frame([{ speech: "One more thing." }], { turn_id: "hermes-1" }));
 
     expect(pipeline.spoken).toEqual([{ text: "One more thing.", cue: null }]);
     expect(turnOutput.releaseMute).toHaveBeenCalledTimes(1);
@@ -461,9 +461,9 @@ describe("render_turn — records", () => {
     });
   });
 
-  it("omits turn_id on a turn the backend started on its own", () => {
-    turn().render(frame([{ speech: "Done." }], { turn_id: null }));
-    expect(records[0]).not.toHaveProperty("turn_id");
+  it("names the turn the reply belongs to in the record", () => {
+    turn().render(frame([{ speech: "Done." }], { turn_id: "hermes-1" }));
+    expect(records[0]).toMatchObject({ turn_id: "hermes-1" });
   });
 
   it("logs the render with its source and segment count", () => {

@@ -49,17 +49,6 @@ describe("createPushTurns", () => {
     expect(turns.isCut("A")).toBe(true);
   });
 
-  it("a render the backend started on its own adds nothing and removes nothing", () => {
-    const turns = createPushTurns();
-
-    turns.opened("A");
-    turns.rendered(null);
-    turns.cut();
-
-    expect(turns.isCut("A")).toBe(true);
-    expect(turns.isCut(null)).toBe(false);
-  });
-
   it("a cue-only frame keeps its turn live like any other accepted frame", () => {
     const turns = createPushTurns();
 

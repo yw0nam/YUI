@@ -163,7 +163,7 @@ describe("wirePushTransport", () => {
     wire();
     socket.pushRender({
       type: "render",
-      turn_id: null,
+      turn_id: "hermes-1",
       source: "hermes",
       segments: [{ cues: [{ emotion_id: "sad" }], speech: "[SILENT]" }],
     });

@@ -51,7 +51,7 @@ function heldSink(played: string[]) {
   return { sink, finish: () => holds.shift()?.() };
 }
 
-function frame(speech: string, turnId: string | null): RenderFrame {
+function frame(speech: string, turnId: string): RenderFrame {
   return { type: "render", turn_id: turnId, source: "hermes", segments: [{ speech }] };
 }
 
@@ -185,7 +185,7 @@ describe("a reply the backend starts on its own, after the user stopped the last
     seq.renderTurn.render(frame("Three logs are left.", "1"));
     expect(seq.synth.inputs).toEqual(["Let me look."]);
 
-    seq.renderTurn.render(frame("One more thing.", null));
+    seq.renderTurn.render(frame("One more thing.", "hermes-1"));
     expect(seq.synth.inputs).toEqual(["Let me look.", "One more thing."]);
     seq.synth.deliver(1);
     await vi.waitFor(() => expect(seq.played).toEqual(["play:0", "play:1"]));
@@ -203,7 +203,7 @@ describe("a reply the backend starts on its own, after the user stopped the last
     seq.renderTurn.render(frame("And the rest.", "2"));
     expect(seq.synth.inputs).toEqual(["Long answer."]);
 
-    seq.renderTurn.render(frame("One more thing.", null));
+    seq.renderTurn.render(frame("One more thing.", "hermes-1"));
     expect(seq.synth.inputs).toEqual(["Long answer.", "One more thing."]);
     seq.synth.deliver(1);
     await vi.waitFor(() => expect(seq.played).toEqual(["play:0", "play:1"]));
@@ -299,7 +299,7 @@ describe("a reply for another turn, arriving while a bridge is up", () => {
 
   it.each([
     ["another turn's", "B"],
-    ["one the backend started on its own", null],
+    ["one the backend started on its own", "hermes-1"],
   ])("gives each segment of %s reply its own cue", async (_label, turnId) => {
     const seq = setup();
     seq.openTurn("A");

@@ -806,7 +806,7 @@ describe("createPushSocket — inbound frames", () => {
     await connected();
     const seen: unknown[] = [];
     socket.onRender((frame) => seen.push(frame));
-    FakeSocket.last().push({ type: "render", turn_id: null, source: "hermes" });
+    FakeSocket.last().push({ type: "render", turn_id: "7", source: "hermes" });
 
     expect(seen).toEqual([]);
   });
@@ -820,13 +820,15 @@ describe("createPushSocket — inbound frames", () => {
     expect(seen).toEqual([]);
   });
 
-  it("reads a render frame that carries no turn_id as one the backend started on its own", async () => {
+  it("drops a render frame whose turn_id is null", async () => {
     await connected();
     const seen: unknown[] = [];
     socket.onRender((frame) => seen.push(frame));
-    FakeSocket.last().push({ type: "render", source: "hermes", segments: [] });
+    const frame: Record<string, unknown> = { ...RENDER };
+    frame.turn_id = null;
+    FakeSocket.last().push(frame);
 
-    expect(seen).toEqual([{ type: "render", turn_id: null, source: "hermes", segments: [] }]);
+    expect(seen).toEqual([]);
   });
 
   it("names the field that made a render frame unreadable", async () => {
@@ -837,16 +839,6 @@ describe("createPushSocket — inbound frames", () => {
       type: "render",
       field: "turn_id",
     });
-  });
-
-  it("hands a render frame the backend started on its own to every subscriber", async () => {
-    await connected();
-    const seen: unknown[] = [];
-    socket.onRender((frame) => seen.push(frame));
-    const own = { ...RENDER, turn_id: null };
-    FakeSocket.last().push(own);
-
-    expect(seen).toEqual([own]);
   });
 
   it("hands a turn_end frame to every subscriber", async () => {
