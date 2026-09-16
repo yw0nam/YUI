@@ -20,7 +20,6 @@ import type { RenderFrame } from "../io/chat/push-socket";
 import type { AudioSink } from "../io/voice/audio-player";
 import { createSpeechPlayback } from "../io/voice/speech-playback";
 import type { TtsSynth } from "../io/voice/tts-synth";
-import { wireStopControl } from "./bootstrap-wiring";
 
 /** A synth the test releases one sentence at a time; the wav names its own index. */
 function controlledSynth() {
@@ -133,15 +132,12 @@ function setup() {
     turnOutput.thinkingEnd(1);
   };
 
-  let onStop = (): void => {};
-  wireStopControl({
-    onStop: (callback) => {
-      onStop = callback;
-    },
-    cancel: () => {},
-    stopSpeech: () => speechPlayback.interrupt(),
-    cutPushTurns: () => pushTurns.cut(),
-  });
+  // The stop closure bootstrap-configured hands to surfaces.onStop — the session reset runs the
+  // same one: the outstanding turns are cut and the queued speech is stopped.
+  const stopTurn = (): void => {
+    pushTurns.cut();
+    speechPlayback.interrupt();
+  };
 
   return {
     played,
@@ -163,7 +159,7 @@ function setup() {
       // call()'s finally ends the bridge however the wait settles; onFirstRender is the render half.
       void pushTurns.awaitTurnEnd(turnId, { onFirstRender: endThinking }).then(endThinking);
     },
-    stopButton: () => onStop(),
+    stopButton: () => stopTurn(),
     // The pair voice-pipeline-wiring performs when the user talks over the reply.
     bargeIn: () => {
       speechPlayback.interrupt({ muteCurrentTurn: true });

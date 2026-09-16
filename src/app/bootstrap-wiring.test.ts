@@ -172,7 +172,6 @@ import {
   wireSettingsReload,
   wireSettingsWindowSync,
   wireSpeakerSelection,
-  wireStopControl,
   wireStrollReflexCancel,
   wireSummonHotkey,
   wireVoiceInput,
@@ -1696,28 +1695,6 @@ describe("wireVoiceInput", () => {
     voiceInputStatus.set("listening");
     await flush();
     expect(sttVad.start).not.toHaveBeenCalled();
-  });
-});
-
-describe("wireStopControl", () => {
-  it("stop click cancels the in-flight turn, cuts the push turns and stops speech playback", () => {
-    let stopCb: (() => void) | null = null;
-    const order: string[] = [];
-    const cancel = vi.fn(() => order.push("cancel"));
-    const stopSpeech = vi.fn(() => order.push("stopSpeech"));
-    const cutPushTurns = vi.fn(() => order.push("cutPushTurns"));
-    wireStopControl({
-      onStop: (cb) => {
-        stopCb = cb;
-      },
-      cancel,
-      stopSpeech,
-      cutPushTurns,
-    });
-
-    expect(cancel).not.toHaveBeenCalled();
-    stopCb!();
-    expect(order).toEqual(["cancel", "cutPushTurns", "stopSpeech"]);
   });
 });
 

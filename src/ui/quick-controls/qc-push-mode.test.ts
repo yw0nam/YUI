@@ -364,6 +364,32 @@ describe("createQuickControls — push mode", () => {
     qc.dispose();
   });
 
+  it("stops the running turn before the reset frame goes out", () => {
+    endpointsSettings.set({ chat_api: "push" });
+    const calls: string[] = [];
+    sendReset.mockImplementation(() => {
+      calls.push("sendReset");
+      return true;
+    });
+    const stopTurn = vi.fn(() => {
+      calls.push("stopTurn");
+    });
+    const qc = buildQc({
+      variant: "popover",
+      pushSocket: pushSocket(),
+      stopTurn,
+      ...sessionArgs(),
+    });
+    qc.open();
+
+    qc.el.querySelector<HTMLButtonElement>(".yui-hist__action .yui-session__reset")!.click();
+    qc.el.querySelector<HTMLButtonElement>(".yui-hist__action .yui-session__confirm")!.click();
+
+    expect(calls).toEqual(["stopTurn", "sendReset"]);
+
+    qc.dispose();
+  });
+
   it("sends no reset frame outside push mode", () => {
     const qc = buildQc({ variant: "popover", pushSocket: pushSocket(), ...sessionArgs() });
     qc.open();

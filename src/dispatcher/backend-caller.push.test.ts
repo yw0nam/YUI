@@ -18,6 +18,7 @@ import type { Logger } from "../logger";
 import { createBackendCaller, PRE_SPEECH_TIMEOUT_MS, type TurnOutcome } from "./backend-caller";
 import type { BusEnvelope } from "./event-bus";
 import { createPushTurns } from "./push-turn";
+import { createRenderTurn } from "./render-turn";
 import { CONFIG, makeLogger, makeTurnOutput, touchEnv, turnOf, userEnv } from "./test-helpers";
 
 function scheduleEnv(): BusEnvelope {
@@ -473,6 +474,38 @@ describe("backend_caller — push transport, the turn stays open", () => {
     await runToExit(exit);
 
     expect(abandoned).toEqual(["7"]);
+  });
+
+  it("a session reset mid-wait supersedes the call and drops the turn's late render", async () => {
+    const caller = callerWith(true);
+    const controller = new AbortController();
+    const renderTurn = createRenderTurn({
+      turnOutput,
+      pushTurns,
+      renderer: { applyDirective: vi.fn() },
+      appendTranscript: (entry) => transcript.push(entry),
+      logger,
+    });
+    const call = caller.call(turnOf(userEnv("안녕"), 7), controller.signal);
+    await vi.advanceTimersByTimeAsync(0);
+    expect(transcript).toEqual([{ role: "user", text: "안녕", ts: expect.any(Number) }]);
+
+    // The reset path the panel runs: the stop closure first, then the reset frame.
+    controller.abort();
+    pushTurns.cut();
+
+    await expect(call).resolves.toBe("superseded_by_user");
+
+    expect(pushTurns.isCut("7")).toBe(true);
+    expect(
+      renderTurn.render({
+        type: "render",
+        turn_id: "7",
+        source: "hermes",
+        segments: [{ speech: "Too late." }],
+      }),
+    ).toBe(false);
+    expect(transcript).toEqual([{ role: "user", text: "안녕", ts: expect.any(Number) }]);
   });
 });
 
