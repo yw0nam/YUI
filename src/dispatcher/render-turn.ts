@@ -146,7 +146,7 @@ export function createRenderTurn(deps: RenderTurnDeps): RenderTurn {
           buildRenderRecord({
             ts: Date.now(),
             source: frame.source,
-            ...(frame.turn_id !== null ? { turn_id: frame.turn_id } : {}),
+            turn_id: frame.turn_id,
             segments: segments.length,
             spoke_text: spokeText,
             queued_behind: queuedBehind,

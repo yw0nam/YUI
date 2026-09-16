@@ -53,7 +53,7 @@ export interface RenderRecord {
   event_name: "push.render";
   trigger_kind: "push";
   source: string;
-  turn_id?: string;
+  turn_id: string;
   segments: number;
   spoke_text: boolean;
   /** Speech was still owed when the frame arrived, so it played behind what was already queued. */

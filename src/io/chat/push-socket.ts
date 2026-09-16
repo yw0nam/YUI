@@ -38,10 +38,10 @@ export interface RenderSegment {
   speech?: string;
 }
 
-/** A finished backend turn. `turn_id` is null when the backend speaks on its own. */
+/** A finished backend turn. Every frame the backend sends names the turn it belongs to. */
 export interface RenderFrame {
   type: "render";
-  turn_id: string | null;
+  turn_id: string;
   source: string;
   segments: RenderSegment[];
   /** The reasoning written so far for this turn when the reply was sent; absent when there was none. */
@@ -133,13 +133,13 @@ function byteLength(text: string): number {
 
 /**
  * The field that makes a render frame unreadable, or null when the client can act on it: an
- * ordered segment list, a source to log, and the turn it answers. A turn_id of another type would
- * leave the turn that sent it waiting out its whole budget.
+ * ordered list of well-formed segments, a source to log, and the string turn id it answers. A
+ * turn_id of another type would leave the turn that sent it waiting out its whole budget.
  */
 function renderFrameFault(v: Record<string, unknown>): string | null {
   if (!Array.isArray(v.segments)) return "segments";
   if (typeof v.source !== "string") return "source";
-  if (typeof v.turn_id !== "string" && v.turn_id !== null) return "turn_id";
+  if (typeof v.turn_id !== "string") return "turn_id";
   return null;
 }
 
@@ -230,8 +230,6 @@ export function createPushSocket(deps: PushSocketDeps): PushSocket {
         return;
       }
       case "render": {
-        // A serialiser that drops null fields leaves the turn_id off a reply the backend started.
-        if (frame.turn_id === undefined) frame.turn_id = null;
         const fault = renderFrameFault(frame);
         if (fault !== null) {
           log.warn("frame_malformed", { type: "render", field: fault });

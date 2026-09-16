@@ -25,12 +25,12 @@ export interface TurnEndHooks {
 export interface PushTurns {
   /** The client sent this turn on the socket. */
   opened(turnId: string): void;
-  /** A render of this turn was accepted for playback. Null when the backend speaks on its own. */
-  rendered(turnId: string | null): void;
+  /** A render of this turn was accepted for playback. */
+  rendered(turnId: string): void;
   /** The user stopped the reply: everything outstanding is cut. */
   cut(): void;
-  /** Whether a frame belongs to a cut turn. A null turn_id is never cut. */
-  isCut(turnId: string | null): boolean;
+  /** Whether a frame belongs to a cut turn. */
+  isCut(turnId: string): boolean;
   /** How many turns the user has stopped, for the line that reports a frame dropped on one. */
   cutCount(): number;
   /** The backend closed the turn: it is forgotten — no longer live, no longer cut. */
@@ -78,7 +78,6 @@ export function createPushTurns(): PushTurns {
       live.add(turnId);
     },
     rendered(turnId) {
-      if (turnId === null) return;
       live.add(turnId);
       const waiter = waiting.get(turnId);
       if (!waiter) return;
@@ -98,7 +97,7 @@ export function createPushTurns(): PushTurns {
       }
     },
     isCut(turnId) {
-      return turnId !== null && stopped.has(turnId);
+      return stopped.has(turnId);
     },
     cutCount() {
       return stopped.size;
