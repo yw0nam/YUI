@@ -110,6 +110,7 @@ function setup() {
     end: () => speechPlayback.onSpeechEnd(),
     abort: () => speechPlayback.abort(),
     cue: (args) => speechPlayback.setCue(args),
+    cueWithSpeech: (args) => speechPlayback.setCue(args, { withSpeech: true }),
     toolStatus: () => {},
     activity: () => {},
     releaseMute: () => speechPlayback.releaseMute(),

@@ -98,7 +98,7 @@ export function createRenderTurn(deps: RenderTurnDeps): RenderTurn {
         const speaks = Boolean(speech.trim()) && !isSilenceToken(speech);
 
         if (speaks) {
-          if (Object.keys(cue).length > 0) deps.turnOutput.cue(cue);
+          if (Object.keys(cue).length > 0) deps.turnOutput.cueWithSpeech(cue);
           // The newline is a sentence boundary to the segmenter, so a segment that ends without a
           // terminator still closes here instead of running into the next segment and its cue.
           deps.turnOutput.delta(`${speech}\n`);

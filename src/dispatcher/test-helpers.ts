@@ -220,6 +220,7 @@ export function makeTurnOutput(): TurnOutput & Record<keyof TurnOutput, Mock> {
     end: vi.fn(),
     abort: vi.fn(),
     cue: vi.fn(),
+    cueWithSpeech: vi.fn(),
     toolStatus: vi.fn(),
     activity: vi.fn(),
     releaseMute: vi.fn(),

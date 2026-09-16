@@ -75,7 +75,7 @@ beforeEach(() => {
   directives = [];
   logger = makeLogger();
   // Route the spy output into the pending-cue pipeline: a cue renders only when a sentence takes it.
-  turnOutput.cue.mockImplementation((args: ExpressArgs) => pipeline.setCue(args));
+  turnOutput.cueWithSpeech.mockImplementation((args: ExpressArgs) => pipeline.setCue(args));
   turnOutput.delta.mockImplementation((text: string) => pipeline.pushText(text));
   turnOutput.end.mockImplementation(() => pipeline.end());
 });
@@ -155,7 +155,7 @@ describe("render_turn — speaking segments", () => {
   it("sends no cue for a segment that carries none", () => {
     turn().render(frame([{ speech: "Hi." }]));
 
-    expect(turnOutput.cue).not.toHaveBeenCalled();
+    expect(turnOutput.cueWithSpeech).not.toHaveBeenCalled();
     expect(pipeline.spoken).toEqual([{ text: "Hi.", cue: null }]);
   });
 
@@ -194,7 +194,7 @@ describe("render_turn — silent segments", () => {
     expect(directives).toEqual([
       { speech_text: "", emotion: { id: "sad" }, motion: { id: "sit" } },
     ]);
-    expect(turnOutput.cue).not.toHaveBeenCalled();
+    expect(turnOutput.cueWithSpeech).not.toHaveBeenCalled();
     expect(pipeline.unconsumed()).toBeNull();
     expect(turnOutput.end).not.toHaveBeenCalled();
   });
@@ -223,7 +223,7 @@ describe("render_turn — silent segments", () => {
     turn().render(frame([{ speech: "[SILENT]" }]));
 
     expect(directives).toEqual([]);
-    expect(turnOutput.cue).not.toHaveBeenCalled();
+    expect(turnOutput.cueWithSpeech).not.toHaveBeenCalled();
   });
 
   it("mixes the two paths inside one render, each in segment order", () => {
@@ -327,7 +327,7 @@ describe("render_turn — a turn the user stopped", () => {
 
     expect(pipeline.spoken).toEqual([]);
     expect(turnOutput.delta).not.toHaveBeenCalled();
-    expect(turnOutput.cue).not.toHaveBeenCalled();
+    expect(turnOutput.cueWithSpeech).not.toHaveBeenCalled();
     expect(turnOutput.end).not.toHaveBeenCalled();
     expect(turnOutput.releaseMute).not.toHaveBeenCalled();
     expect(directives).toEqual([]);

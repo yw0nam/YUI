@@ -130,7 +130,7 @@ describe("wirePushTransport", () => {
     wire();
     socket.pushRender(RENDER);
 
-    expect(turnOutput.cue).toHaveBeenCalledWith({ emotion_id: "happy" });
+    expect(turnOutput.cueWithSpeech).toHaveBeenCalledWith({ emotion_id: "happy" });
     // The trailing newline is the segment boundary render-turn closes each segment with.
     expect(turnOutput.delta).toHaveBeenCalledWith("All green.\n");
     expect(records).toHaveLength(1);

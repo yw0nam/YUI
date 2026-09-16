@@ -122,6 +122,10 @@ describe("TurnOutput — backend-caller → tts-pipeline ordering", () => {
         order.push(`cue:${args.emotion_text ?? args.emotion_id ?? args.motion_id ?? ""}`);
         speechPlayback.setCue(args);
       },
+      cueWithSpeech: (args) => {
+        order.push(`cue:${args.emotion_text ?? args.emotion_id ?? args.motion_id ?? ""}`);
+        speechPlayback.setCue(args, { withSpeech: true });
+      },
       toolStatus: (turnId, state) => {
         order.push(`toolStatus:${turnId}:${state}`);
       },

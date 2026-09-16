@@ -71,8 +71,11 @@ export interface SpeechPlayback {
   onSpeech(text: string): void;
   /** One client-side phrase (thinking filler, failure): spoken like onSpeech, never tracked as backend speech. */
   speakAside(text: string): void;
-  /** Forwards a per-beat cue to the pipeline. */
-  setCue(cue: ExpressArgs | null): void;
+  /**
+   * Forwards a per-beat cue to the pipeline. `withSpeech` marks a cue whose own sentence follows
+   * it in the same stretch of work, so the motion hold has nothing to protect it from.
+   */
+  setCue(cue: ExpressArgs | null, options?: { withSpeech?: boolean }): void;
   /**
    * While held (true), null-cue applyCue suppresses playMotion(null) so an externally
    * started looping motion (e.g. thinking) is not reset by cue-less filler sentences.
@@ -221,9 +224,9 @@ export function createSpeechPlayback(options: SpeechPlaybackOptions): SpeechPlay
       delta(text, false);
       end();
     },
-    setCue(cue) {
+    setCue(cue, options) {
       if (muted) return;
-      if (motionHeld) {
+      if (motionHeld && !options?.withSpeech) {
         heldCue = cue;
       } else {
         pipeline.setCue(cue);

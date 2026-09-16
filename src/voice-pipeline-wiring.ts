@@ -237,6 +237,7 @@ export function wireVoicePipeline(deps: VoicePipelineDeps): VoicePipeline {
     end: () => speechPlayback.onSpeechEnd(),
     abort: () => speechPlayback.abort(),
     cue: (args) => speechPlayback.setCue(args),
+    cueWithSpeech: (args) => speechPlayback.setCue(args, { withSpeech: true }),
     toolStatus: (turnId, state, toolId) => {
       // Ignores an event from a turn other than the one currently thinking — a superseded turn's
       // late tool_status must not reach whichever newer turn's filler loop is now running.
