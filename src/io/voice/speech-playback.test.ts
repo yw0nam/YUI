@@ -760,7 +760,7 @@ describe("createSpeechPlayback — a cue with no speech behind it", () => {
     ]);
   });
 
-  it("keeps only the latest cue that arrived while the motion was held", () => {
+  it("merges the cues that arrived while the motion was held into one directive", () => {
     const { sp, renderer } = playback();
 
     sp.holdMotion(true);
@@ -769,7 +769,20 @@ describe("createSpeechPlayback — a cue with no speech behind it", () => {
     sp.holdMotion(false);
 
     expect(renderer.applyDirective.mock.calls).toEqual([
-      [{ speech_text: "", emotion: { id: "happy" } }],
+      [{ speech_text: "", emotion: { id: "happy" }, motion: { id: "wave" } }],
+    ]);
+  });
+
+  it("lets a later value win the field it carries, leaving the rest of the parked cue alone", () => {
+    const { sp, renderer } = playback();
+
+    sp.holdMotion(true);
+    sp.silentCue({ emotion_id: "sad", motion_id: "sit" });
+    sp.silentCue({ emotion_id: "happy" });
+    sp.holdMotion(false);
+
+    expect(renderer.applyDirective.mock.calls).toEqual([
+      [{ speech_text: "", emotion: { id: "happy" }, motion: { id: "sit" } }],
     ]);
   });
 
