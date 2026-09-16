@@ -20,7 +20,7 @@ vi.mock("@tauri-apps/api/window", () => ({
   availableMonitors: vi.fn(async () => []),
 }));
 
-import { wireFaller } from "./bootstrap-wiring";
+import { wireFaller } from "./wire-ambient";
 
 const noopLog = { info: () => {}, warn: () => {}, error: () => {}, debug: () => {} } as never;
 

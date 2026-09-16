@@ -32,7 +32,7 @@ vi.mock("@tauri-apps/api/window", () => ({
 vi.mock("@tauri-apps/api/dpi", () => ({ LogicalPosition: class {} }));
 
 import { invoke } from "@tauri-apps/api/core";
-import { wireTravelFrame } from "./bootstrap-wiring";
+import { wireTravelFrame } from "./wire-ambient";
 
 const noopLog = { info: () => {}, warn: () => {}, error: () => {}, debug: () => {} } as never;
 

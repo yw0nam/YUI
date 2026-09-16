@@ -10,7 +10,7 @@ import { createDelegationsStore } from "../io/bridge/delegations-store";
 import { createReasoningStore } from "../io/bridge/reasoning-store";
 import type { ChatHistoryEntry } from "../io/chat/chat-history-store";
 import type { DelegationItem, PushSocketState, RenderFrame } from "../io/chat/push-socket";
-import { wirePushMode, wirePushTransport } from "./bootstrap-wiring";
+import { wirePushMode, wirePushTransport } from "./wire-push";
 
 function fakeSocket() {
   let renderCb: ((frame: RenderFrame) => void) | null = null;

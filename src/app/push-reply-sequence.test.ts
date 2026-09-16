@@ -20,7 +20,7 @@ import type { RenderFrame } from "../io/chat/push-socket";
 import type { AudioSink } from "../io/voice/audio-player";
 import { createSpeechPlayback } from "../io/voice/speech-playback";
 import type { TtsSynth } from "../io/voice/tts-synth";
-import { wireStopControl } from "./bootstrap-wiring";
+import { wireStopControl } from "./wire-window-sync";
 
 /** A synth the test releases one sentence at a time; the wav names its own index. */
 function controlledSynth() {

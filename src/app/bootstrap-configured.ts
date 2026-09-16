@@ -52,27 +52,22 @@ import type { Surfaces } from "../ui/surfaces";
 import { routeTurnFailure, turnErrorFixAction, turnErrorMessage } from "../ui/turn-error";
 import { createVoiceErrorDwell } from "../ui/voice-error-dwell";
 import type { VoiceInputStatus } from "../ui/voice-input-status";
-import {
-  wireBroker,
-  wireClimber,
-  wireDispatcherSources,
-  wireFaller,
-  wireGuardrailsOverrides,
-  wirePeekExitTriggers,
-  wirePercher,
-  wirePushTransport,
-  type wireSpeakerSelection,
-  wireStopControl,
-  wireStrollReflexCancel,
-  wireSummonHotkey,
-  wireTravelFrame,
-  wireVoiceInput,
-  type wireVrmSelection,
-  wireWalker,
-  wireWindowSources,
-} from "./bootstrap-wiring";
 import { initDrag, type PatGesture } from "./drag";
 import { type VoicePipeline, wireVoicePipeline } from "./voice-pipeline-wiring";
+import {
+  wireClimber,
+  wireFaller,
+  wirePercher,
+  wireStrollReflexCancel,
+  wireTravelFrame,
+  wireWalker,
+} from "./wire-ambient";
+import type { wireSpeakerSelection, wireVrmSelection } from "./wire-avatar";
+import { wirePushTransport } from "./wire-push";
+import { wireDispatcherSources, wireWindowSources } from "./wire-sources";
+import { wirePeekExitTriggers, wireSummonHotkey } from "./wire-summon";
+import { wireBroker, wireVoiceInput } from "./wire-voice";
+import { wireGuardrailsOverrides, wireStopControl } from "./wire-window-sync";
 
 const log = createLogger("bootstrap");
 

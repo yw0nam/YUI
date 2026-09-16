@@ -15,7 +15,7 @@ const { wireDevtoolsSync, createDevtoolsShell, createConfigStore, initLogger, cr
     };
   });
 
-vi.mock("./app/bootstrap-wiring", () => ({ wireDevtoolsSync }));
+vi.mock("./app/wire-devtools", () => ({ wireDevtoolsSync }));
 vi.mock("./ui/devtools/shell", () => ({ createDevtoolsShell }));
 vi.mock("./config/store", () => ({ createConfigStore }));
 vi.mock("./logger", () => ({ initLogger, createLogger }));

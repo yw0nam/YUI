@@ -592,8 +592,8 @@ describe("wireVoicePipeline", () => {
       // pet window after a voice was imported in a prior session.
       const windowB = createSpeakerSelection({ defaultValue: "", ...storageOpts() });
       // Production wires speakerSelection.subscribe(broadcastSettings), which (via the bridge and
-      // the other window's onSettingsChanged, see bootstrap-wiring.ts) ends in the other window's
-      // reloadFromStorage() — that glue is covered by settings-window.test.ts/bootstrap-wiring.test.ts.
+      // the other window's onSettingsChanged, see wire-window-sync.ts) ends in the other window's
+      // reloadFromStorage() — that glue is covered by settings-window.test.ts/wire-window-sync.test.ts.
       // Standing in for it directly here keeps this test scoped to what actually broke: window B
       // is only ever woken through window A's own subscriber, never by an unconditional reload.
       let windowAChanged = false;
