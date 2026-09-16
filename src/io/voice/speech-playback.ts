@@ -272,7 +272,8 @@ export function createSpeechPlayback(options: SpeechPlaybackOptions): SpeechPlay
       heldSilentCue = null;
       if (silent === null) return false;
       renderer.applyDirective(directiveOf(silent));
-      return silent.motion_id !== undefined;
+      // An empty motion is no motion — directiveOf leaves the channel out for it.
+      return Boolean(silent.motion_id);
     },
     interrupt(opts) {
       stripper.reset();

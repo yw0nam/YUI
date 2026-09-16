@@ -809,11 +809,14 @@ describe("createSpeechPlayback — a cue with no speech behind it", () => {
     expect(sp.holdMotion(false)).toBe(false);
   });
 
-  it("reports no motion applied when the parked cue carried emotion alone", () => {
+  it.each([
+    ["emotion alone", { emotion_id: "happy" }],
+    ["an empty motion, which the directive leaves out", { motion_id: "" }],
+  ])("reports no motion applied when the parked cue carried %s", (_label, cue) => {
     const { sp } = playback();
 
     sp.holdMotion(true);
-    sp.silentCue({ emotion_id: "happy" });
+    sp.silentCue(cue);
 
     expect(sp.holdMotion(false)).toBe(false);
   });
