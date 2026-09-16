@@ -146,7 +146,8 @@ function renderFrameFault(v: Record<string, unknown>): string | null {
     if (speech !== undefined && typeof speech !== "string") return "segments";
     if (
       cues !== undefined &&
-      (!Array.isArray(cues) || cues.some((cue) => cue === null || typeof cue !== "object"))
+      (!Array.isArray(cues) ||
+        cues.some((cue) => cue === null || typeof cue !== "object" || Array.isArray(cue)))
     ) {
       return "segments";
     }
