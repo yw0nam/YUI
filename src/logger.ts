@@ -21,9 +21,7 @@ export function resolveLevel(env: { DEV?: boolean; VITE_YUI_LOG_LEVEL?: string }
   return env.DEV ? "debug" : "warn";
 }
 
-const currentLevel: LogLevel = resolveLevel(
-  import.meta.env as { DEV?: boolean; VITE_YUI_LOG_LEVEL?: string },
-);
+const currentLevel: LogLevel = resolveLevel(import.meta.env);
 
 // plugin-log sink, populated by initLogger() in Tauri only.
 type PluginLog = typeof import("@tauri-apps/plugin-log");

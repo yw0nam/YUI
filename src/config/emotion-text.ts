@@ -7,6 +7,7 @@
  */
 
 import { type AssetUrlResolver, ConfigError, type ConfigReader, fetchReader } from "./load";
+import { isObject } from "./validators/shared";
 
 interface LoadEmotionTextOptions {
   /** provider key in configs/emotion_text/<provider>.json (e.g. "irodori"). */
@@ -19,10 +20,6 @@ interface LoadEmotionTextOptions {
   resolveUrl?: AssetUrlResolver;
   /** fetch injection (tests). Defaults to globalThis.fetch when unset. */
   fetch?: typeof fetch;
-}
-
-function isObject(v: unknown): v is Record<string, unknown> {
-  return typeof v === "object" && v !== null && !Array.isArray(v);
 }
 
 /**

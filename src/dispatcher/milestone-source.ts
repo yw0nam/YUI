@@ -42,10 +42,6 @@ export interface MilestoneSource {
   stop(): void;
 }
 
-function pad2(n: number): string {
-  return n < 10 ? `0${n}` : String(n);
-}
-
 export function createMilestoneSource(deps: MilestoneSourceDeps): MilestoneSource {
   const { bus, present_max_idle_ms, isEnabled, drainSignals } = deps;
   const now = deps.now ?? Date.now;
@@ -71,7 +67,7 @@ export function createMilestoneSource(deps: MilestoneSourceDeps): MilestoneSourc
     const dayKey = `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
     if (fired[MILESTONE_NAME] === dayKey) return;
 
-    const localTime = `${pad2(d.getHours())}:${pad2(d.getMinutes())}`;
+    const localTime = `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
     let signals: SignalGroup[] = [];
     try {
       signals = drainSignals();

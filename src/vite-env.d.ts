@@ -10,6 +10,7 @@ interface ImportMetaEnv {
   readonly VITE_YUI_STT_KEY?: string;
   /** dev TTS server key (Bearer). `VITE_YUI_TTS_KEY` in `.env.local`. Only needed for TTS servers that require a key. */
   readonly VITE_YUI_TTS_KEY?: string;
+  readonly VITE_YUI_LOG_LEVEL?: string;
 }
 
 interface ImportMeta {

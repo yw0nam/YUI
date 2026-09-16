@@ -41,10 +41,6 @@ export interface ScheduleSource {
   stop(): void;
 }
 
-function pad2(n: number): string {
-  return n < 10 ? `0${n}` : String(n);
-}
-
 export function createScheduleSource(deps: ScheduleSourceDeps): ScheduleSource {
   const { bus, present_max_idle_ms, getCues, isEnabled } = deps;
   const now = deps.now ?? Date.now;
@@ -68,7 +64,7 @@ export function createScheduleSource(deps: ScheduleSourceDeps): ScheduleSource {
 
     const d = new Date(now());
     const dayKey = `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
-    const currentHHMM = `${pad2(d.getHours())}:${pad2(d.getMinutes())}`;
+    const currentHHMM = `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
     const nowMinutes = d.getHours() * 60 + d.getMinutes();
 
     if (!isEnabled()) return;

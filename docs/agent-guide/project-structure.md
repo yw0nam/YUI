@@ -27,7 +27,7 @@ YUI/
     agents/                          # Vendored sub-agent definitions
   scripts/                           # Dev launchers (dev-port.mjs, tauri-dev.mjs, dev-auto.mjs), release.sh, worktree-setup.sh, ci/test-guard.sh
   configs/                           # Runtime-loaded config (no hardcoding)
-    endpoints.json                   # chat/stt/tts base urls + tts_model/tts_speaker + broker_base_url
+    endpoints.json                   # chat nudge/API/context window (chat_instructions, chat_api, chat_model_context_window) + TTS service (tts_model, tts_max_inflight)
     emotion_registry.json            # emotion id -> vrm_expression + fallback
     motions.json                     # Motion registry
     avatar.json                      # VRM avatar config
@@ -105,12 +105,16 @@ YUI/
       client-context-text.ts         # Renders a client context into the plain-line prompt block
       turn.ts                        # Turn identity ledger and the single definition of over
       turn-output.ts                 # Speech lifecycle port between the backend caller and the voice pipeline
+      previous-turn.ts               # Persisted record of how the last turn that tried to speak ended
+      push-turn.ts                   # Push-turn ids the user stopped, so their late frames drop whole
+      render-turn.ts                 # Plays a finished backend turn that arrived as a render frame on the push socket
       buffered-inbox-source.ts       # Shared presence-gated core for the inbox-push firing sources
       agent-source.ts                # Agent-lifecycle firing source
       signals-source.ts              # Grouped signals-ingress firing source
       proactive-source.ts            # Idle-gap proactive firing source
       proactive-pacer.ts             # The quiet gap after a turn that every proactive source shares
       schedule-source.ts             # Clock-time schedule firing source
+      milestone-source.ts            # Once-per-day first-activity milestone firing source
       screen-source.ts               # Frontmost-app transition firing source with a dwell state machine
       user-input-source.ts           # Normalises typed text and STT results into bus envelopes
     ambient/                         # Backend-independent local liveliness and movement
@@ -222,6 +226,9 @@ YUI/
       summon-key.ts                  # Binds the focused window's "/" key to open the text input
       tool-status.ts                 # Tool-status chip observing backend tool calls
       tool-labels.ts                 # Tool id to display label lookup
+      delegation-chip.ts             # Push-transport delegation chip beside the avatar with its tap-to-toggle list popover
+      delegation-rows.ts             # Delegation list's shared row rendering and relative time text
+      reasoning-chip.ts              # Backend reasoning pill on the message window's plate row
       turn-error.ts                  # Backend-failure reason to inline input-error message
       message-plate.ts               # Message-window name plate and OS drag handle
       anchor.ts                      # Pure mapping from the on-screen feet to the input's bottom offset
@@ -250,6 +257,9 @@ YUI/
       capture-indicator.css          # Capture-indicator pill styles
       voice-input-indicator.css      # Voice-indicator pill styles
       boot-error.css                 # Boot-failure notice styles
+      delegation-chip.css            # Delegation-chip pill, list popover, and folded-dot styles
+      delegation-rows.css            # Delegation row styles shared by the chip's list and the settings panel
+      reasoning-chip.css             # Reasoning-chip pill and panel styles
       i18n/                          # Locale catalogs
         en.ts                        # English strings, the source of truth for the key set
         ja.ts                        # Japanese strings
@@ -320,6 +330,8 @@ YUI/
     hermes/
       README.md                      # Hermes Agent adapter setup (Responses mode, dev proxy, auth)
       desire/                        # Agent desire middleware, state helpers, monitor, and prompts (Python/uv)
+      platform/                      # Hermes gateway push-transport plugin: one WebSocket carrying turns in and finished replies out (Python/uv)
       skills/                        # Backend-agent skills (yui-dispatch)
+    daily-assist/                    # Skills the YUI backend follows for the first-activity daily briefing, plus the design-time skill that builds its producer
   docs/                              # Design source of truth
 ```

@@ -50,7 +50,9 @@ Read these when the trigger applies; they are not loaded by default.
 - **Any UI or visual work** → `docs/agent-guide/design-context.md` (+ `PRODUCT.md`, `DESIGN.md`)
 - **`generate_express` cue contract, or the `client_context` prompt-text format sent to the backend** → `docs/reference/client-context.md`
 - **`POST /signals` envelope, buffering, and delivery rules** → `docs/reference/signals-ingress.md`
+- **Push transport (`chat_api: "push"`) frames, reconnect, and limits** → `docs/reference/push-transport.md`
 - **Motion catalog** → `docs/reference/motions.md`
 - **TTS emotion_text vocabulary** → `docs/reference/tts-emotion/`
 - **Logging convention** → `docs/reference/logging.md`
+- **Witness activity log (format, location, retention)** → `docs/reference/witness-log.md`
 - **TS contract shapes** → `src/contract/types.ts`

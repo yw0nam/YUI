@@ -22,7 +22,6 @@
   "devDependencies": {
     "@biomejs/biome": "2.4.16",
     "@tauri-apps/cli": "^2.11.2",
-    "@types/jsdom": "^28.0.3",
     "@types/node": "^26.1.0",
     "@types/three": "~0.180.0",
     "jsdom": "^29.1.1",
