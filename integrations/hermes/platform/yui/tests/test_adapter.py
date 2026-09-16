@@ -788,32 +788,30 @@ async def test_the_reasoning_stream_reaches_the_client_as_one_coalesced_frame(cl
     assert await recv(ws) == {"type": "reasoning", "delta": "I will check the log."}
 
 
-async def test_the_render_carries_the_streamed_reasoning_over_the_prepended_block(client, adapter):
+async def test_the_render_carries_the_streamed_reasoning(client, adapter):
     ws = await ready(client)
     STUB_ENV["HERMES_SESSION_CHAT_ID"] = CHAT
     await adapter.on_processing_start(user_turn(adapter, "7"))
     reasoning.on_stream_delta(delta="The whole thought.", kind="reasoning", surface="yui")
-    await adapter.send(
-        CHAT,
-        "\U0001f4ad **Reasoning:**\n```\nThe truncated thought.\n```\n\nAll green.",
-        metadata={"notify": True},
-    )
+    reply = "\U0001f4ad **Reasoning:**\n```\nThe truncated thought.\n```\n\nAll green."
+    await adapter.send(CHAT, reply, metadata={"notify": True})
     frame = await recv(ws)
     assert frame["reasoning"] == "The whole thought."
-    assert frame["segments"] == [{"cues": [], "speech": "All green."}]
+    # The block the gateway prepended is reply text now: nothing is stripped off the front.
+    assert frame["segments"][0]["speech"].startswith("\U0001f4ad **Reasoning:**")
+    assert frame["segments"][-1]["speech"] == "All green."
 
 
-async def test_the_render_carries_the_prepended_block_when_nothing_streamed(client, adapter):
+async def test_the_reply_text_reaches_the_client_unchanged(client, adapter):
     ws = await ready(client)
     await adapter.on_processing_start(user_turn(adapter, "7"))
-    await adapter.send(
-        CHAT,
-        "\U0001f4ad **Reasoning:**\n```\nThe log is the first place to look.\n```\n\nAll green.",
-        metadata={"notify": True},
-    )
+    reply = "\U0001f4ad **Reasoning:**\n```\nThe log is the first place to look.\n```\n\nAll green."
+    await adapter.send(CHAT, reply, metadata={"notify": True})
     frame = await recv(ws)
-    assert frame["reasoning"] == "The log is the first place to look."
-    assert frame["segments"] == [{"cues": [], "speech": "All green."}]
+    # The block the gateway prepended is reply text now: nothing is stripped off the front.
+    assert frame["segments"][0]["speech"].startswith("\U0001f4ad **Reasoning:**")
+    assert frame["segments"][-1]["speech"] == "All green."
+    assert "reasoning" not in frame
 
 
 async def test_a_render_with_no_reasoning_at_all_carries_no_reasoning_field(client, adapter):
