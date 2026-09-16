@@ -36,7 +36,7 @@ function controlledSynth() {
   return { synth, inputs, deliver: (index: number) => releases[index]!() };
 }
 
-/** A sink that holds each buffer mid-playback until the pipeline is stopped. */
+/** A sink that holds each buffer mid-playback until the pipeline is stopped, or the test lets it end. */
 function heldSink(played: string[]) {
   const holds: Array<() => void> = [];
   const sink: AudioSink = {
@@ -48,7 +48,7 @@ function heldSink(played: string[]) {
       for (const release of holds.splice(0)) release();
     },
   };
-  return sink;
+  return { sink, finish: () => holds.shift()?.() };
 }
 
 function frame(speech: string, turnId: string | null): RenderFrame {
@@ -80,6 +80,7 @@ function setup() {
   const synth = controlledSynth();
   const pushTurns = createPushTurns();
   const renderer = recordingRenderer();
+  const sink = heldSink(played);
 
   const speechPlayback = createSpeechPlayback({
     renderer,
@@ -89,7 +90,7 @@ function setup() {
       endSpeech: () => {},
       finishSpeech: () => {},
     },
-    pipeline: { synth: synth.synth, sink: heldSink(played), maxInflight: () => 5 },
+    pipeline: { synth: synth.synth, sink: sink.sink, maxInflight: () => 5 },
     isStrolling: () => false,
   });
 
@@ -148,6 +149,10 @@ function setup() {
     renderTurn,
     directives: renderer.directives,
     motions: renderer.motions,
+    /** Lets the sentence playing now reach its end, so the next one starts. */
+    finishPlayback: sink.finish,
+    /** A filler line, spoken the way the thinking loop speaks one. */
+    speakFiller: (text: string): void => speechPlayback.speakAside(text),
     /** Sends a turn the way the backend call does, bridge and all, and waits for its render. */
     openTurn: (turnId: string): void => {
       pushTurns.opened(turnId);
@@ -237,5 +242,47 @@ describe("a reply that lands while the turn's thinking bridge is still up", () =
     await new Promise((resolve) => setTimeout(resolve, 0));
 
     expect(seq.motions.at(-1)).toEqual({ id: "happy" });
+  });
+});
+
+describe("a reply that lands while a filler line is playing", () => {
+  it("plays after the filler, and still gives each segment its own cue", async () => {
+    const seq = setup();
+    seq.openTurn("1");
+    seq.speakFiller("Let me check.");
+    seq.synth.deliver(0);
+    await vi.waitFor(() => expect(seq.played).toEqual(["play:0"]));
+
+    seq.renderTurn.render({
+      type: "render",
+      turn_id: "1",
+      source: "hermes",
+      segments: [
+        { cues: [{ emotion_id: "happy", emotion_text: "\u{1F606}" }], speech: "All green." },
+        { cues: [{ emotion_id: "curious", emotion_text: "\u{1F442}" }], speech: "Want the list?" },
+      ],
+    });
+
+    expect(seq.synth.inputs).toEqual([
+      "Let me check.",
+      "\u{1F606} All green.",
+      "\u{1F442} Want the list?",
+    ]);
+    expect(seq.played).toEqual(["play:0"]);
+
+    seq.synth.deliver(1);
+    seq.synth.deliver(2);
+    seq.finishPlayback();
+    await vi.waitFor(() => expect(seq.played).toEqual(["play:0", "play:1"]));
+
+    expect(seq.directives).toEqual([{ speech_text: "", emotion: { id: "happy" } }]);
+
+    seq.finishPlayback();
+    await vi.waitFor(() => expect(seq.played).toEqual(["play:0", "play:1", "play:2"]));
+
+    expect(seq.directives).toEqual([
+      { speech_text: "", emotion: { id: "happy" } },
+      { speech_text: "", emotion: { id: "curious" } },
+    ]);
   });
 });
