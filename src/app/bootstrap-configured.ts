@@ -62,7 +62,6 @@ import {
   wirePercher,
   wirePushTransport,
   type wireSpeakerSelection,
-  wireStopControl,
   wireStrollReflexCancel,
   wireSummonHotkey,
   wireTravelFrame,
@@ -125,6 +124,8 @@ interface ConfiguredBootstrapHandles {
   broker: Awaited<ReturnType<typeof wireBroker>>;
   /** The seat transitions — the dev perch plays its sit-down through it. */
   sitter: Pick<Sitter, "sitDown">;
+  /** Cancels the in-flight turn, cuts the outstanding push turns and stops the queued speech. */
+  stopTurn: () => void;
   dispose(): void;
 }
 
@@ -763,19 +764,22 @@ const realFactories: ConfiguredBootstrapFactories = {
       );
     }
     ensureActive();
-    wireStopControl({
-      onStop: (callback) => surfaces.onStop(callback),
-      cancel: () => dispatcher.cancel(),
-      // interrupt() stops the queued audio and leaves the pipeline able to speak the next reply.
-      stopSpeech: () => voice.speechPlayback.interrupt(),
-      cutPushTurns: () => pushTurns.cut(),
-    });
+    // The stop button and the panel's session reset share one path: cancel the in-flight turn, cut
+    // the push turns still outstanding, and stop the queued speech. cancel() alone leaves
+    // already-queued TTS segments playing: backend-caller's superseded path defers speech cleanup
+    // to the next turn, which never comes on an explicit stop.
+    const stopTurn = (): void => {
+      dispatcher.cancel();
+      pushTurns.cut();
+      voice.speechPlayback.interrupt();
+    };
+    surfaces.onStop(stopTurn);
     surfaces.onSubmit((text, images) => {
       userInput.submit(text, images);
       proactiveSource.noteInteraction();
     });
 
-    return { voice, dispatcher, guardrails, summonHotkey, broker, sitter };
+    return { voice, dispatcher, guardrails, summonHotkey, broker, sitter, stopTurn };
   },
 };
 

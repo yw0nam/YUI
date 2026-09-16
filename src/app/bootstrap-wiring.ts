@@ -337,27 +337,6 @@ export function createSettingsBroadcast(deps: {
 }
 
 /**
- * Stop click → client-side cancel of the in-flight turn, the push turns still outstanding cut, and
- * the queued speech stopped. cancel() alone leaves already-queued TTS segments playing: backend-
- * caller's superseded path defers speech cleanup to the next turn, which never comes on an explicit
- * stop.
- */
-export function wireStopControl(deps: {
-  onStop: (cb: () => void) => void;
-  cancel: () => void;
-  /** Stops the queued speech and leaves the pipeline able to speak the next reply. */
-  stopSpeech: () => void;
-  /** Drops the renders still to come for every turn outstanding. */
-  cutPushTurns: () => void;
-}): void {
-  deps.onStop(() => {
-    deps.cancel();
-    deps.cutPushTurns();
-    deps.stopSpeech();
-  });
-}
-
-/**
  * Editable rate-limit caps → the running limiter. setConfig replaces config values only, so an edit
  * re-caps the limiter with its rolling counters intact. Returns the unsubscribe.
  */

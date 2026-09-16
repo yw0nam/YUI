@@ -170,6 +170,8 @@ interface QuickControlsOptions {
   getDefaultChatApi?: () => string | undefined;
   /** Push transport — the chat section shows its state, and "Start fresh" resets the conversation on it. */
   pushSocket?: PushSocketPanelPort;
+  /** Stops the in-flight turn the way the stop button does, before the reset frame goes out. */
+  stopTurn?: () => void;
   /** Delegated-work list for the session section (window variant). The pet window publishes it. */
   delegations?: DelegationsPanelPort;
   /** Session diagnostics (context usage · last compression). The occupancy readout renders in the window variant only. */
@@ -461,6 +463,7 @@ export function createQuickControls({
   getEndpointDefaults,
   getDefaultChatApi,
   pushSocket,
+  stopTurn,
   delegations,
   sessionDiagnostics,
   sessionStore,
@@ -1052,6 +1055,8 @@ export function createQuickControls({
   }
 
   function handleSessionReset(): void {
+    // A turn still running stops with the conversation, before the reset frame goes out.
+    stopTurn?.();
     sessionStore?.clear();
     sessionDiagnostics?.clear();
     transcript?.startNewSession();

@@ -349,10 +349,14 @@ async function bootstrap(): Promise<BootstrapHandle> {
   register(publishDelegations({ store: delegations, bridge: windowBridge }));
   register(publishReasoning({ store: reasoning, bridge: windowBridge }));
 
+  // The panel's session reset stops the running turn the way the stop button does; the shared
+  // closure exists once the configured bootstrap has wired it.
+  let stopTurn: () => void = () => {};
   const buildQuickControls = (): ReturnType<typeof createQuickControls> =>
     createQuickControls({
       mount: root,
       pushSocket,
+      stopTurn: () => stopTurn(),
       settings: screenshotSettings,
       idleThrottleSettings,
       gazeSettings,
@@ -574,6 +578,7 @@ async function bootstrap(): Promise<BootstrapHandle> {
     register(configured.dispose);
     if (disposed) return { dispose };
     publishedVocabulary = configured.broker.vocabulary;
+    stopTurn = configured.stopTurn;
     // Only push mode carries a delegations list; the chip draws whatever the socket feeds the store.
     let chip: ReturnType<typeof createDelegationChip> | null = null;
     let chipCollapsed: ReturnType<typeof createDelegationChipSettings> | null = null;
