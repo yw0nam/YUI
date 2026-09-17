@@ -30,7 +30,6 @@ export interface Tier1RenderDeps {
 }
 
 export interface Tier1Render {
-  /** tier1 event → renderer.applyDirective (local, backend-independent). */
   render(env: BusEnvelope): void;
   getBodyState(): BodyState;
   /** The avatar moved on its own; posture returns to standing with a fresh stamp. */
