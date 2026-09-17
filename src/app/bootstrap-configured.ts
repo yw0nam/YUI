@@ -760,10 +760,7 @@ const realFactories: ConfiguredBootstrapFactories = {
       );
     }
     ensureActive();
-    // The stop button and the panel's session reset share one path: cancel the in-flight turn, cut
-    // the push turns still outstanding, and stop the queued speech. cancel() alone leaves
-    // already-queued TTS segments playing: backend-caller's superseded path defers speech cleanup
-    // to the next turn, which never comes on an explicit stop.
+    // The stop button and the panel's session reset share this path; cancel() alone leaves queued speech playing.
     const stopTurn = (): void => {
       dispatcher.cancel();
       pushTurns.cut();
