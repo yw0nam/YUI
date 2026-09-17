@@ -56,8 +56,44 @@ def split_sentences(text: str) -> list[str]:
     return [s for s in (s.strip() for s in sentences) if s]
 
 
+def split_finished(text: str) -> tuple[list[str], int]:
+    """The sentences of text still being written that no later character can change, and the
+    length of ``text`` they cover; a terminator run at the end of the text so far may still grow."""
+    sentences: list[str] = []
+    start = 0
+    index = 0
+    while index < len(text):
+        char = text[index]
+        if char == "\n":
+            sentences.append(text[start:index])
+            index += 1
+            start = index
+            continue
+        if char in _TERMINATORS and index + 1 < len(text) and _ends_sentence(text, index):
+            while index + 1 < len(text) and text[index + 1] in _TERMINATORS:
+                index += 1
+            if index + 1 >= len(text):
+                break
+            index += 1
+            sentences.append(text[start:index])
+            start = index
+            continue
+        index += 1
+    return [s for s in (s.strip() for s in sentences) if s], start
+
+
 def _normalize(text: str) -> str:
     return " ".join(text.split()).casefold()
+
+
+def opening_cues(sentence: str, placements: list[Placement]) -> list[Placement]:
+    """The cues a sentence sent on its own takes: every one whose hint opens it, else the first
+    that names no sentence."""
+    spoken = _normalize(sentence)
+    opened = [p for p in placements if _normalize(p.sentence) and spoken.startswith(_normalize(p.sentence))]
+    if opened:
+        return opened
+    return next(([p] for p in placements if not _normalize(p.sentence)), [])
 
 
 def _match(sentences: list[str], hint: str) -> int | None:

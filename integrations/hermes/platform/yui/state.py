@@ -105,6 +105,21 @@ def pop_cues(chat_id: str) -> list[Placement]:
         return _cues.pop(chat_id, [])
 
 
+def cues(chat_id: str) -> list[Placement]:
+    """The cues buffered for this chat, left in the buffer."""
+    with _lock:
+        return list(_cues.get(chat_id, ()))
+
+
+def drop_cues(chat_id: str, placements: list[Placement]) -> None:
+    """Take these cues out of the buffer, leaving the rest in order."""
+    with _lock:
+        held = _cues.get(chat_id, [])
+        for placement in placements:
+            if placement in held:
+                held.remove(placement)
+
+
 def mark_delivered(chat_id: str) -> None:
     """Record that this turn already reached the client, so its end needs no empty render."""
     with _lock:
@@ -126,6 +141,12 @@ def set_muted(chat_id: str, muted: bool) -> None:
             _muted.add(chat_id)
         else:
             _muted.discard(chat_id)
+
+
+def is_muted(chat_id: str) -> bool:
+    """Whether this chat's next final reply stays unspoken; leaves the mark."""
+    with _lock:
+        return chat_id in _muted
 
 
 def take_muted(chat_id: str) -> bool:

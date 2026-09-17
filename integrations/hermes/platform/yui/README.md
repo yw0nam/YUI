@@ -13,9 +13,12 @@ turns in and finished replies out. The contract both sides speak is
 - Registers `generate_express`, whose enums are the emotion ids, motion ids and voice-tone tags
   the client published. The model calls it once per reply, listing every cue in speaking order
   and naming the sentence each one belongs before.
-- Sends the final reply as a `render` frame: the speech split into sentences, each carrying the
-  cues that landed on it. A turn the agent answers with `[SILENT]`, or with nothing, closes with
-  no speech, and the cues it placed still play.
+- Sends the answer while the agent writes it: each finished sentence leaves as a `speech` frame
+  carrying every cue whose `sentence` opens it, or else the next cue that names no sentence. The
+  reply the gateway sends then leaves as a `render` frame carrying the sentences not yet sent, each
+  with the cues that landed on it, and cues left over after streamed speech still play. A reply
+  that does not continue the streamed text renders whole. A turn the agent answers with
+  `[SILENT]`, or with nothing, closes with no speech, and the cues it placed still play.
 - Logs and never renders the text the gateway writes for itself: the busy acknowledgement when
   a turn lands mid-run, every status notice, and the restart, startup and shutdown pings, which
   the plugin turns off for this platform. What the agent writes before a tool call, its final
@@ -31,8 +34,12 @@ turns in and finished replies out. The contract both sides speak is
   the audio a `/voice all` chat still makes is discarded. The client speaks the reply itself.
 - Makes the first chat that connects the platform's home channel, which is where the gateway
   delivers cron results and cross-platform messages.
-- Delivers the reply whole when the turn ends, so the gateway's `streaming` setting does not
-  apply to this platform.
+- Reads the answer from the gateway's `on_stream_delta` hook, so the gateway's `streaming` setting
+  does not apply to this platform. The hook names no chat, so the answer streams to the sole
+  connected client. Text a background review streams is not spoken. The gateway drops a newline
+  that opens a streamed chunk, so a line with no terminator joins the next sentence. A `speech`
+  frame is never held for a client that is away: once one cannot be sent, the rest of that turn
+  waits for its `render`.
 - Names the most recently opened turn in every reply of a run, and clears the name when the turn
   ends. A turn the gateway runs inside a turn it interrupted ends first, and the interrupted turn
   ends behind it. A turn whose text the gateway takes into a turn already running on the same chat

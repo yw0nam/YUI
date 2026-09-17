@@ -1,4 +1,4 @@
-"""The reply is delivered whole, so the gateway must not stream it in pieces."""
+"""The gateway's own edited-message stream stays off; the answer streams through the hook."""
 
 from __future__ import annotations
 
