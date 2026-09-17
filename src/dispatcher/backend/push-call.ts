@@ -13,7 +13,7 @@ import { PRE_SPEECH_TIMEOUT_MS } from "./idle-watchdog";
 import { contextBlock } from "./request-input";
 import type { TurnOutcome } from "./turn-outcome";
 
-/** The deps of `createBackendCaller` the push path reads, plus its logger. */
+/** The subset of `createBackendCaller`'s deps the push path reads. */
 export interface PushCallDeps {
   /** B4 speech-gate outcome sink — whether the turn returned speech text, independent of TTS. */
   reportSpokeText?: (spoke: boolean) => void;
