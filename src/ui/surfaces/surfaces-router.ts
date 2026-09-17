@@ -3,10 +3,11 @@
  * message window's, reached over the bridge.
  *
  * Every consumer keeps its single `Surfaces` handle: the router picks the side
- * the current mode names for the bubble and the input, and keeps the tool chip,
- * the feet anchor and the overlay element local, since those belong to the
- * character. Submit and stop callbacks are registered once here and fire
- * whichever side the user typed on.
+ * the current mode names for the bubble and the input, sends busy and the
+ * attachment limits to both sides so either one is current when the mode flips,
+ * and keeps the tool chip, the feet anchor and the overlay element local, since
+ * those belong to the character. Submit and stop callbacks are registered once
+ * here and fire whichever side the user typed on.
  */
 
 import type { RemoteSurfaces } from "../../io/bridge/message-remote";
@@ -32,13 +33,7 @@ export function createSurfacesRouter({
   > => (getMode() === "popped" ? remote : local);
   const input = (): Pick<
     Surfaces,
-    | "summonInput"
-    | "dismissInput"
-    | "isInputOpen"
-    | "setInputEnabled"
-    | "setBusy"
-    | "showInputError"
-    | "setAttachmentLimits"
+    "summonInput" | "dismissInput" | "isInputOpen" | "setInputEnabled" | "showInputError"
   > => (getMode() === "popped" ? remote : local);
 
   // Speech left behind on the side being abandoned would hang there with nothing to dismiss it,
@@ -75,9 +70,15 @@ export function createSurfacesRouter({
     dismissInput: () => input().dismissInput(),
     isInputOpen: () => input().isInputOpen(),
     setInputEnabled: (enabled) => input().setInputEnabled(enabled),
-    setBusy: (busy) => input().setBusy(busy),
+    setBusy(busy) {
+      local.setBusy(busy);
+      remote.setBusy(busy);
+    },
     showInputError: (message, action) => input().showInputError(message, action),
-    setAttachmentLimits: (limits) => input().setAttachmentLimits(limits),
+    setAttachmentLimits(limits) {
+      local.setAttachmentLimits(limits);
+      remote.setAttachmentLimits(limits);
+    },
 
     onSubmit(cb) {
       local.onSubmit(cb);
