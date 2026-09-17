@@ -130,7 +130,34 @@ A `render` plays after the speech already queued, in the order the frames arrive
 2. Voice barge-in.
 3. The stop button.
 
-The renders still to come for a turn stopped that way are dropped, and its `turn_end` is the frame on which the client forgets the turn.
+The `render` and `speech` frames still to come for a turn stopped that way are dropped, and its `turn_end` is the frame on which the client forgets the turn.
+
+### `speech` (backend → client)
+
+One finished sentence of a reply the backend is still writing.
+
+```json
+{ "type": "speech", "turn_id": "1789365854947", "segments": [ { "cues": [{ "emotion_id": "happy" }], "speech": "All green." } ] }
+```
+
+| Field | Value |
+|---|---|
+| `turn_id` | The turn this frame belongs to, as on `render` |
+| `segments` | The `render` segment shape, played the same way. The backend sends one sentence per frame |
+
+A `speech` frame counts as a frame of the turn for the frame wait, and the first one counts as the turn's first `render`.
+
+The `speech` frames of a turn open one utterance. The next `render` of that turn plays its segments and closes the utterance, a silent `render` included. That `render` carries the rest of the reply and the cues still unplaced.
+
+The utterance also closes on the turn's `turn_end`, on the frame wait passing, and on the socket leaving `ready`. The sentences already sent finish playing. A `render` or `speech` frame of another turn closes the open utterance before it plays. A user action that stops speech ends the utterance through the same interruption that stops a `render`.
+
+A reply sent as `speech` frames carries the limits of the text stream it is cut from:
+
+1. A newline at the start of a streamed chunk is lost, so a line without a terminator joins the next sentence.
+2. A provider retry in the middle of an answer can repeat sentences.
+3. Text the backend drops under load is missing from the `speech` frames, and the `render` may then repeat the whole answer.
+4. A backend whose text stream falls a whole turn behind can speak that turn's text under the next turn.
+5. Streaming follows the sole client connected to the backend. With more than one connected, the reply arrives in the `render` alone.
 
 ### `turn_end` (backend → client)
 
@@ -199,4 +226,4 @@ The client keeps the latest list. A `done` item leaves it 30 minutes after `ende
 
 ## Logging
 
-A `turn` sent over the socket writes a turn record with `spoke_text: false`. A `render` writes a `push.render` record with `source`, `turn_id`, the segment count, whether any speech played, and whether speech was still owed when the frame arrived. A `render` dropped for a stopped turn is logged as a `render` line with `dropped: "cut_turn"` and `stopped_count`, how many stopped turns are still waiting for their `turn_end`. A frame wait that reaches the limit writes `network_stall` with `stage: push_wait`, and a wait the socket leaving `ready` ended writes `network_drop` with the same stage. A `turn_end` writes `push.turn_end` to the app log with `turn_id`. The app log carries `ws_open`, `ws_ready`, `ws_close` with the close code, and `ws_reconnect` with the delay.
+A `turn` sent over the socket writes a turn record with `spoke_text: false`. A `render` writes a `push.render` record with `source`, `turn_id`, the segment count, whether any speech played, and whether speech was still owed when the frame arrived. A `render` dropped for a stopped turn is logged as a `render` line with `dropped: "cut_turn"` and `stopped_count`, how many stopped turns are still waiting for their `turn_end`. A `speech` frame writes `push.speech` to the app log with `turn_id` and the segment count; one dropped for a stopped turn also carries `dropped: "cut_turn"` and `stopped_count`. A frame wait that reaches the limit writes `network_stall` with `stage: push_wait`, and a wait the socket leaving `ready` ended writes `network_drop` with the same stage. A `turn_end` writes `push.turn_end` to the app log with `turn_id`. The app log carries `ws_open`, `ws_ready`, `ws_close` with the close code, and `ws_reconnect` with the delay.
