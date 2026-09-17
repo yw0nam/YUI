@@ -1,6 +1,6 @@
 ---
 name: yui-platform-install
-description: "Install, verify or repair the yui platform plugin on a Hermes host — the WebSocket a YUI client connects to. Triggers on a first install, a client that cannot connect, a socket closing with 4401, or a reply spoken with no expression."
+description: "Install, verify or repair the yui platform plugin on a Hermes host — the WebSocket a YUI client connects to. Triggers on a first install, a client that cannot connect, a socket closing with 4401, a reply spoken with no expression, or a character that calls a motion it has unavailable."
 version: 0.1.0
 author: yw0nam
 platforms: [linux, macos]
@@ -77,6 +77,16 @@ plugins:
 `platform_toolsets.yui` is what puts `generate_express` in front of the model. A platform left out
 of it falls back to a default toolset, and its replies arrive as speech with no cues.
 
+MCP servers reach the yui platform through the same list. When `platform_toolsets.yui` names no MCP
+server the platform gets every enabled MCP server, when it names one or more it gets only those, and
+`no_mcp` gives it none. The list above names no MCP server, so a profile that carries the Expression
+Broker MCP server hands the broker to the yui platform. Name the MCP servers the character uses, as in
+`yui: [hermes-cli, delegation, yui, <other MCP server>]`, or add `no_mcp` when it uses none, as in
+`yui: [hermes-cli, delegation, yui, no_mcp]`. On the yui platform the broker's `get_ids` can answer
+with a vocabulary that differs from the one the client sent in `hello`, and a cue sent through the
+broker's `generate_express` never reaches a `render` frame. Saving this platform's tools from Hermes's
+tool settings removes `no_mcp` and keeps named MCP servers, so run the second check below after that.
+
 `README.md` beside this skill carries what each `extra` key means and what to change for a host
 other than loopback.
 
@@ -84,7 +94,14 @@ other than loopback.
 python3 -c "import yaml,os;d=yaml.safe_load(open(os.path.expanduser('~/.hermes/profiles/<profile>/config.yaml')));print(d['platforms']['yui']['enabled'],d['platform_toolsets']['yui'],'yui' in d['plugins']['enabled'])"
 ```
 
-Check: prints `True ['hermes-cli', 'delegation', 'yui'] True`.
+Check: prints `True`, a list that holds `hermes-cli`, `delegation` and `yui`, and `True`.
+
+```bash
+python3 -c "import yaml,os;d=yaml.safe_load(open(os.path.expanduser('~/.hermes/profiles/<profile>/config.yaml')));y=[str(t) for t in d['platform_toolsets']['yui']];m={str(k) for k,v in (d.get('mcp_servers') or {}).items() if isinstance(v,dict) and str(v.get('enabled',True)).strip().lower() not in ('false','0','no','off')};print(sorted(set() if 'no_mcp' in y else (m&set(y) or m)))"
+```
+
+Check: the printed MCP servers the yui platform gets leave out the key the profile's `mcp_servers`
+gives the Expression Broker. MCP servers a plugin registers are outside this check.
 
 ## 4. Set the key
 
@@ -173,6 +190,7 @@ expression.
 |---|---|
 | The socket closes with `4401` | 4 |
 | The reply is spoken flat, with no expression or motion | 3, `platform_toolsets.yui` |
+| The character says a motion or expression it has is unavailable, or a reply carries no cues, and `logs/agent.log` has a `tool mcp__<broker server>__get_ids completed` or `tool mcp__<broker server>__generate_express completed` line for that turn | 3, the Expression Broker MCP server on the yui platform |
 | Nothing is listening on the port | 6 |
 | The gateway log never mentions `hermes_plugins.yui` | 2, then 3 |
 | An empty `turn` draws a `render` with no segments and no `turn_end` | 2, a second `plugin.yaml` named `yui` under `plugins/` |

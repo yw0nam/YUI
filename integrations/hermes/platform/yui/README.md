@@ -90,6 +90,12 @@ platform_toolsets:
 and the model never sees `generate_express`. The `yui` toolset is this plugin's own; `hermes-cli`
 carries the general tools and `delegation` carries `delegate_task`.
 
+MCP servers reach the platform through the same list. With no MCP server named the platform gets
+every enabled one, with any named it gets only those, and `no_mcp` gives it none. The list above
+names none, so a profile that carries the Expression Broker MCP server hands the broker to the
+platform. Name the MCP servers the character uses there, or add `no_mcp` when it uses none, because a
+cue sent through the broker's `generate_express` never reaches a `render` frame.
+
 | Key | Default | Meaning |
 |---|---|---|
 | `host` | `127.0.0.1` | Bind address of the WebSocket server |
