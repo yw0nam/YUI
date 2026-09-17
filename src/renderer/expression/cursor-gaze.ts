@@ -1,6 +1,6 @@
 /**
  * Cursor-gaze head/eye tracking — the stateful three.js apply layer over the
- * pure ./gaze-tracker math.
+ * pure ../geometry/gaze-tracker math.
  *
  * Maps the cursor's screen offset from the head directly to a yaw/pitch residual
  * (VTube-Studio style) rather than unprojecting into a 3D target — a screen-space
