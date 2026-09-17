@@ -125,6 +125,9 @@ YUI/
         render-turn.ts               # Plays a finished backend turn that arrived as a render frame on the push socket
       backend/
         backend-caller.ts            # Sends a tier-2 or tier-3 event to backend judgment and streams the reply
+        push-call.ts                 # Push transport path of a turn: frame send and the wait for its turn_end
+        request-input.ts             # Pure encoders for a turn's Responses input: client_context block and user item
+        turn-outcome.ts              # How a backend call settled
         background-marker.ts         # Placeholder user-content text for a turn with no real user utterance
         idle-watchdog.ts             # Idle-gap watchdog over the backend event stream and its two timeout budgets
         context-builder.ts           # Builds the per-turn client context and image attachments

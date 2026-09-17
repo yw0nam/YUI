@@ -42,7 +42,6 @@ import { buildTurnRecord, type TurnRecord } from "../../io/chat/turn-record-log"
 import type { Logger } from "../../logger";
 import { createLogger } from "../../logger";
 import type { Renderer } from "../../renderer";
-import type { BusEnvelope } from "../core/event-bus";
 import type { PushTurns } from "../turn/push-turn";
 import type { Turn } from "../turn/turn";
 import type { TurnOutput } from "../turn/turn-output";
@@ -55,6 +54,9 @@ import {
   type StallStage,
   withIdleWatchdog,
 } from "./idle-watchdog";
+import { createPushCall } from "./push-call";
+import { encodeInput } from "./request-input";
+import type { TurnOutcome } from "./turn-outcome";
 
 const baseLog = createLogger("backend-caller");
 
@@ -83,18 +85,7 @@ export function isChatConfigured(cfg: Pick<EndpointsConfig, "chat_base_url">): b
   return Boolean(cfg.chat_base_url);
 }
 
-/** Every outcome a backend call can settle to. */
-export type TurnOutcome =
-  | "ok"
-  | "not_configured"
-  | "parse_error"
-  | "network_drop"
-  | "network_stall"
-  | "http_4xx_drop"
-  | "superseded_by_user";
-
-/** Every outcome except success — what a drop record and the UI error surface deal in. */
-export type TurnFailure = Exclude<TurnOutcome, "ok">;
+export type { TurnFailure, TurnOutcome } from "./turn-outcome";
 
 interface BackendCallerDeps {
   /** chat endpoint config. */
@@ -170,140 +161,7 @@ export interface BackendCaller {
 export function createBackendCaller(deps: BackendCallerDeps): BackendCaller {
   const log = deps.logger ?? baseLog;
   const stream = deps.stream ?? streamChat;
-
-  /**
-   * InputContext → OpenAI Responses input — one user item carrying the tagged client_context
-   * block followed by userText ?? backgroundMarker(env.event_name, trigger) (+ image content-parts when
-   * images present). The `input` array has no contractual system slot: its last item becomes the
-   * turn's user message and earlier items land in plain history, so context rides inside the turn.
-   * Context leads and the utterance trails it — recall on the trailing query holds as the block grows.
-   */
-  /** The tagged client_context block every transport sends. */
-  function contextBlock(
-    clientContext: Awaited<ReturnType<typeof buildContext>>["clientContext"],
-    nowMs: number,
-  ): string {
-    return [
-      "<client_context>",
-      "Client-injected context; not typed by the user.",
-      renderClientContext(clientContext, nowMs),
-      "</client_context>",
-    ].join("\n");
-  }
-
-  function encodeInput(
-    ctx: InputContext,
-    env: BusEnvelope,
-    clientContext: Awaited<ReturnType<typeof buildContext>>["clientContext"],
-    nowMs: number,
-  ): ChatRequest["input"] {
-    const text = [
-      contextBlock(clientContext, nowMs),
-      "",
-      ctx.user_text ?? backgroundMarker(env.event_name, clientContext.trigger),
-    ].join("\n");
-    const images = imageDataUrlsOf(ctx);
-    const userContent = images.length
-      ? [
-          { type: "input_text", text },
-          ...images.map((image_url) => ({ type: "input_image", image_url })),
-        ]
-      : text;
-
-    return [{ role: "user", content: userContent }];
-  }
-
-  /**
-   * How long a push turn runs: the frame is on the socket and the reply comes back as render
-   * frames of its own, so the call stays open until that turn's `turn_end`. The wait also ends
-   * when the user stops the reply, when the budget expires, when the socket leaves `ready`, or
-   * when a newer turn supersedes this one. The budget restarts on every frame of the turn; a
-   * render arriving after it expired still plays.
-   *
-   * Before the first render a budget expiry or a not-ready socket is a failure the dispatcher
-   * speaks a line for; after it, the reply is already out, so the call settles `ok` on a log
-   * line alone.
-   */
-  async function awaitPushReply(
-    turnId: string,
-    eventName: string,
-    endThinking: () => void,
-    externalSignal?: AbortSignal,
-  ): Promise<TurnOutcome> {
-    let timer: ReturnType<typeof setTimeout> | undefined;
-    let unsubscribe: (() => void) | undefined;
-    let onAbort: (() => void) | undefined;
-    let firstRender = false;
-    try {
-      let stallExpired: ((value: "stall") => void) | undefined;
-      const stall = new Promise<"stall">((resolve) => {
-        stallExpired = resolve;
-      });
-      // The frame wait restarts on every frame carrying the turn's id.
-      const armStall = (): void => {
-        clearTimeout(timer);
-        timer = setTimeout(() => stallExpired?.("stall"), PRE_SPEECH_TIMEOUT_MS);
-      };
-      armStall();
-      const ends: Array<Promise<TurnOutcome>> = [
-        stall.then(() => {
-          if (firstRender) {
-            log.warn("network_stall", {
-              stage: "push_turn_end",
-              event_name: eventName,
-              turn_id: turnId,
-            });
-            return "ok";
-          }
-          return "network_stall";
-        }),
-        new Promise<TurnOutcome>((resolve) => {
-          unsubscribe = deps.onPushSocketNotReady?.(() => {
-            if (firstRender) {
-              log.warn("network_drop", {
-                stage: "push_turn_end",
-                event_name: eventName,
-                turn_id: turnId,
-              });
-              resolve("ok");
-              return;
-            }
-            resolve("network_drop");
-          });
-        }),
-      ];
-      const turnEnd = deps.pushTurns?.awaitTurnEnd(turnId, {
-        onFrame: armStall,
-        onFirstRender: () => {
-          firstRender = true;
-          endThinking();
-        },
-      });
-      ends.push(
-        (turnEnd ?? new Promise<"cut">(() => {})).then((end) =>
-          end === "ended" ? "ok" : "superseded_by_user",
-        ),
-      );
-      if (externalSignal) {
-        ends.push(
-          new Promise<TurnOutcome>((resolve) => {
-            onAbort = () => resolve("superseded_by_user");
-            externalSignal.addEventListener("abort", onAbort, { once: true });
-          }),
-        );
-      }
-      const outcome = await Promise.race(ends);
-      if (outcome === "network_stall" || outcome === "network_drop") {
-        log.warn(outcome, { stage: "push_wait", event_name: eventName, turn_id: turnId });
-      }
-      return outcome;
-    } finally {
-      clearTimeout(timer);
-      unsubscribe?.();
-      if (onAbort) externalSignal?.removeEventListener("abort", onAbort);
-      deps.pushTurns?.abandon(turnId);
-    }
-  }
+  const pushCall = createPushCall(deps, log);
 
   async function call(turn: Turn, externalSignal?: AbortSignal): Promise<TurnOutcome> {
     const env = turn.trigger;
@@ -374,49 +232,16 @@ export function createBackendCaller(deps: BackendCallerDeps): BackendCaller {
       const nowMs = Date.now();
 
       if (isPush) {
-        if (externalSignal?.aborted) return "superseded_by_user";
-        const accepted = deps.pushTurn?.({
-          turn_id: String(turn.id),
-          client_context: contextBlock(clientContext, nowMs),
-          text: ctx.user_text ?? "",
+        return await pushCall.send({
+          turn,
+          env,
+          ctx,
+          clientContext,
+          nowMs,
+          startSessionToken,
+          endThinking,
+          externalSignal,
         });
-        if (!accepted) {
-          log.warn("network_drop", { stage: "push", event_name: env.event_name });
-          return "network_drop";
-        }
-        deps.onPushTurnSent?.(String(turn.id));
-        // The reply speaks from its own render frame, so this call never speaks.
-        log.info("push_turn", { event_name: env.event_name, turn_id: String(turn.id) });
-        deps.reportSpokeText?.(false);
-        // The reply arrives on its own later and is appended there; this half is the user's.
-        if (deps.transcript && ctx.user_text !== undefined) {
-          if (deps.transcript.sessionToken() === startSessionToken) {
-            deps.transcript.append({ role: "user", text: ctx.user_text, ts: Date.now() });
-          } else {
-            log.info("transcript_skipped", { reason: "session_reset", event_name: env.event_name });
-          }
-        }
-        deps.contextHistory?.append({
-          ts: Date.now(),
-          event_name: env.event_name,
-          trigger_kind: clientContext.trigger.kind,
-          client_context: clientContext,
-        });
-        try {
-          deps.appendTurnRecord?.(
-            buildTurnRecord({
-              ts: Date.now(),
-              event_name: env.event_name,
-              trigger_kind: clientContext.trigger.kind,
-              client_context: clientContext,
-              spoke_text: false,
-            }),
-          );
-        } catch (err) {
-          log.debug("turn_record_append_failed", { error: String(err) });
-        }
-        if (externalSignal?.aborted) return "superseded_by_user";
-        return await awaitPushReply(String(turn.id), env.event_name, endThinking, externalSignal);
       }
 
       const input = encodeInput(ctx, env, clientContext, nowMs);
