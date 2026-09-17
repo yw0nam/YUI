@@ -146,6 +146,10 @@ sleep 45 && ss -ltn | grep :8646
 
 Check: the `grep` prints a listening line.
 
+An agent that runs inside this gateway cannot restart it: its shell tool refuses the detached
+wrapper, and a foreground restart dies with the gateway it stops. Report the link and config
+changes and leave the restart to the operator.
+
 ## 7. Point the client at it and send one turn
 
 In the client set `chat_api` to `push` and `chat_base_url` to this server, in
