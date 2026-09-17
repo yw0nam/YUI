@@ -32,8 +32,9 @@ def _ends_sentence(text: str, index: int) -> bool:
     return index + 1 >= len(text) or text[index + 1].isspace()
 
 
-def split_sentences(text: str) -> list[str]:
-    """Cut ``text`` at sentence terminators and newlines; a terminator stays with its sentence."""
+def _cut(text: str, complete: bool) -> tuple[list[str], int]:
+    """The sentences ``text`` closes, and where the text after them starts. Text that is not
+    ``complete`` closes no sentence at its end, where a terminator run may still grow."""
     sentences: list[str] = []
     start = 0
     index = 0
@@ -44,42 +45,34 @@ def split_sentences(text: str) -> list[str]:
             index += 1
             start = index
             continue
-        if char in _TERMINATORS and _ends_sentence(text, index):
+        if char in _TERMINATORS and (complete or index + 1 < len(text)) and _ends_sentence(text, index):
             while index + 1 < len(text) and text[index + 1] in _TERMINATORS:
                 index += 1
-            index += 1
-            sentences.append(text[start:index])
-            start = index
-            continue
-        index += 1
-    sentences.append(text[start:])
-    return [s for s in (s.strip() for s in sentences) if s]
-
-
-def split_finished(text: str) -> tuple[list[str], int]:
-    """The sentences of text still being written that no later character can change, and the
-    length of ``text`` they cover; a terminator run at the end of the text so far may still grow."""
-    sentences: list[str] = []
-    start = 0
-    index = 0
-    while index < len(text):
-        char = text[index]
-        if char == "\n":
-            sentences.append(text[start:index])
-            index += 1
-            start = index
-            continue
-        if char in _TERMINATORS and index + 1 < len(text) and _ends_sentence(text, index):
-            while index + 1 < len(text) and text[index + 1] in _TERMINATORS:
-                index += 1
-            if index + 1 >= len(text):
+            if not complete and index + 1 >= len(text):
                 break
             index += 1
             sentences.append(text[start:index])
             start = index
             continue
         index += 1
-    return [s for s in (s.strip() for s in sentences) if s], start
+    return sentences, start
+
+
+def _spoken(sentences: list[str]) -> list[str]:
+    return [s for s in (s.strip() for s in sentences) if s]
+
+
+def split_sentences(text: str) -> list[str]:
+    """Cut ``text`` at sentence terminators and newlines; a terminator stays with its sentence."""
+    sentences, start = _cut(text, complete=True)
+    return _spoken([*sentences, text[start:]])
+
+
+def split_finished(text: str) -> tuple[list[str], int]:
+    """The sentences of text still being written that no later character can change, and the
+    length of ``text`` they cover."""
+    sentences, start = _cut(text, complete=False)
+    return _spoken(sentences), start
 
 
 def _normalize(text: str) -> str:
