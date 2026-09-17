@@ -842,6 +842,20 @@ async def test_a_failed_turn_ends_after_its_failure_line_renders(client, adapter
     assert await recv(ws) == {"type": "turn_end", "turn_id": "777"}
 
 
+async def test_a_turn_joined_to_a_failed_one_ends_behind_its_failure_line(client, adapter):
+    ws = await ready(client)
+    failed = user_turn(adapter, "777")
+    await adapter.on_processing_start(failed)
+    adapter._active_sessions[adapter._event_session_key(failed)] = object()
+    await ws.send_json({"type": "turn", "turn_id": "778", "client_context": "", "text": "and the docs?"})
+    await wait_for(lambda: adapter.dispatched)
+    await adapter.on_processing_complete(failed, ProcessingOutcome.FAILURE)
+    await adapter.send(CHAT, "Sorry, that one broke.", metadata={"notify": True})
+    assert (await recv(ws))["type"] == "render"
+    assert await recv(ws) == {"type": "turn_end", "turn_id": "777"}
+    assert await recv(ws) == {"type": "turn_end", "turn_id": "778"}
+
+
 async def test_a_failed_turn_with_no_failure_line_ends_before_the_next_turn_opens(client, adapter):
     ws = await ready(client)
     failed = user_turn(adapter, "777")
