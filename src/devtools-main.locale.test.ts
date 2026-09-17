@@ -6,7 +6,7 @@ const { wireDevtoolsSync, createConfigStore, initLogger, createLogger } = await 
   async () => (await import("./devtools-main.test-helpers")).makeDevtoolsMainMocks(),
 );
 
-vi.mock("./app/bootstrap-wiring", () => ({ wireDevtoolsSync }));
+vi.mock("./app/wire-cross-window", () => ({ wireDevtoolsSync }));
 vi.mock("./config/store", () => ({ createConfigStore }));
 vi.mock("./logger", () => ({ initLogger, createLogger }));
 vi.mock("./io/settings/settings-stores", async (importOriginal) => {

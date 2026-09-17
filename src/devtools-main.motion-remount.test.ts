@@ -34,7 +34,7 @@ const { mountMotionPreview, motionPreviewState } = vi.hoisted(() => {
   return { mountMotionPreview, motionPreviewState };
 });
 
-vi.mock("./app/bootstrap-wiring", () => ({ wireDevtoolsSync }));
+vi.mock("./app/wire-cross-window", () => ({ wireDevtoolsSync }));
 vi.mock("./config/store", () => ({ createConfigStore }));
 vi.mock("./logger", () => ({ initLogger, createLogger }));
 vi.mock("./ui/devtools/motion-preview", () => ({ mountMotionPreview }));

@@ -7,11 +7,8 @@
  */
 
 import "./styles.css";
-import {
-  createEffectiveEndpoints,
-  wireSettingsWindowSync,
-  wireSpeakerSelection,
-} from "./app/bootstrap-wiring";
+import { createEffectiveEndpoints, wireSpeakerSelection } from "./app/wire-avatar";
+import { wireSettingsWindowSync } from "./app/wire-cross-window";
 import { TTS_API_KEY_SECRET } from "./config/load";
 import { createConfigStore } from "./config/store";
 import { importVrmFromFile, removeUserVrm } from "./io/assets/vrm-import";

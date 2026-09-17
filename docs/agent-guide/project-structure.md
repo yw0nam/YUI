@@ -40,7 +40,14 @@ YUI/
   src/
     main.ts                          # Application entry: config load, renderer, dispatcher, and the I/O graph
     app/
-      bootstrap-wiring.ts            # VRM and speaker selection stores plus their swap and import flows
+      wire-avatar.ts                 # VRM and speaker selection stores, their swap and import flows, and effective endpoints
+      wire-window-sync.ts            # Settings broadcast, guardrail overrides, and the shared cross-window sync core
+      wire-ambient.ts                # Travel frame plus the walk, perch, fall, and climb ambient loops
+      wire-sources.ts                # Tauri window sources and the dispatcher's paced proactive sources
+      wire-summon.ts                 # Peek exit triggers, tray summon, and the global summon hotkey
+      wire-voice.ts                  # Expression broker client and the voice input lifecycle
+      wire-cross-window.ts           # Per-window sync for the pet, settings, and devtools windows plus DEV globals
+      wire-push.ts                   # Push socket frames into turns and the push mode chip
       bootstrap-configured.ts        # Config-derived bootstrap: pat gesture, fall and descend configs, ambient handles
       voice-pipeline-wiring.ts       # Wires filler, TTS, and speech playback to the turn lifecycle
       drag.ts                        # Main-window drag gesture detection and OS-native drag handoff
@@ -109,21 +116,23 @@ YUI/
       previous-turn.ts               # Persisted record of how the last turn that tried to speak ended
       push-turn.ts                   # Push-turn ids the user stopped, so their late frames drop whole, and the wait for a sent turn to finish
       render-turn.ts                 # Plays a finished backend turn that arrived as a render frame on the push socket
-      buffered-inbox-source.ts       # Shared presence-gated core for the inbox-push firing sources
-      agent-source.ts                # Agent-lifecycle firing source
-      signals-source.ts              # Grouped signals-ingress firing source
-      proactive-source.ts            # Idle-gap proactive firing source
       proactive-pacer.ts             # The quiet gap after a turn that every proactive source shares
-      schedule-source.ts             # Clock-time schedule firing source
-      milestone-source.ts            # Once-per-day first-activity milestone firing source
-      screen-source.ts               # Frontmost-app transition firing source with a dwell state machine
-      user-input-source.ts           # Normalises typed text and STT results into bus envelopes
+      sources/
+        buffered-inbox-source.ts     # Shared presence-gated core for the inbox-push firing sources
+        agent-source.ts              # Agent-lifecycle firing source
+        signals-source.ts            # Grouped signals-ingress firing source
+        proactive-source.ts          # Idle-gap proactive firing source
+        schedule-source.ts           # Clock-time schedule firing source
+        milestone-source.ts          # Once-per-day first-activity milestone firing source
+        screen-source.ts             # Frontmost-app transition firing source with a dwell state machine
+        user-input-source.ts         # Normalises typed text and STT results into bus envelopes
     ambient/                         # Backend-independent local liveliness and movement
       tier1.ts                       # Tier 1 ambient engine: blink, idle sway, breath, look-around
       cues.ts                        # Pure, side-effect-free cue math for Tier 1
       walker.ts                      # Floor stroll along the monitor's work-area bottom
       percher.ts                     # Perched dwell, stroll, and sit-back-down on a foreign window top
       climber.ts                     # Climb up a window or screen edge, dwell, and climb back down
+      climb-geometry.ts              # Pure wall geometry and the climb and descent target picks
       jumper.ts                      # Jump across to an adjacent window top
       faller.ts                      # Fall to the first surface below a character left in mid-air
       sitter.ts                      # Sit-down and stand-up seat transitions
@@ -154,6 +163,8 @@ YUI/
         sections-settings.ts           # Collapsed state of the Quick Controls sections
         vad-settings.ts                # VAD silence window
         workflow-settings.ts           # Workflow entry list and URL validation
+        chat-id-settings.ts            # Conversation id this installation sends in every push hello
+        delegation-chip-settings.ts    # Per-device fold state of the delegation chip
       chat/
         chat-client.ts                 # Adapter over the openai SDK Responses stream
         chat-completions.ts            # Pure Chat Completions request builders and stream-chunk reducer
@@ -166,6 +177,8 @@ YUI/
         broker-client.ts               # Write-only Expression Broker MCP client that publishes the renderable vocabulary
         broker-override-reconciler.ts  # Applies a broker-URL override to the live broker client
         turn-record-log.ts             # Appends one JSONL record per completed turn or skipped fire
+        push-socket.ts                 # Single WebSocket the push transport runs turns and replies on
+        silence-token.ts               # Stateful [SILENT] token filter for spoken output_text deltas
       voice/
         deadline.ts                    # Per-request deadline so a hung fetch settles
         sentence-segmenter.ts          # Segments streamed text into sentences
@@ -218,6 +231,11 @@ YUI/
         settings-bridge.ts             # Typed cross-window settings bus over Tauri emit and listen
         message-bridge.ts              # Cross-window bus linking the pet window and the message window
         message-remote.ts              # The message window's bubble and input as a remote Surfaces half
+        push-socket-bridge.ts          # Push socket state as seen from a window that does not own it
+        delegations-store.ts           # Background work the backend reports on the push socket
+        delegations-bridge.ts          # Delegations list as seen from a window that does not own the push socket
+        reasoning-store.ts             # Backend reasoning text as the current turn writes it
+        reasoning-bridge.ts            # Reasoning text as seen from a window that does not own the push socket
       assets/
         vrm-import.ts                  # VRM import: OS picker, native copy, avatar-option registration
         user-asset-import.ts           # Dialog result shape, lazy Tauri loaders, and orphan cleanup shared by the voice and VRM imports
@@ -284,7 +302,7 @@ YUI/
         reflect.ts                   # Store to DOM reflection for every panel section
         constants.ts                 # Display constants shared by the panel and its sections
         sections.ts                  # Wires the collapsible details groups to the sections store
-        switch-row.ts                # Switch-row element contract
+        switch-row.ts                # Switch-row element contract and the row table filling it
         hint-tooltip.ts              # Shared hover, focus, and click tooltip for data-tip elements
         endpoints-section.ts         # Endpoint URL fields, API-key rows, chat-API picker, and resets
         monitors-section.ts          # Screen-source list and its load state
@@ -325,6 +343,7 @@ YUI/
         mod.rs                       # OS polling loop that emits os_event to the webview
         macos.rs                     # macOS idle, window enumeration, and camera polling
         windows.rs                   # Windows idle, foreground window, and window enumeration polling
+  fixtures/                          # JSON case tables the TS and Rust sanitizer tests both read
   Mods/                              # Standalone MCP servers, independent of the app runtime (Python/uv, own `mods` CI job)
     avatar/                          # Avatar body-state and movement Mod
     browser-cdp/                     # Browser CDP Mod

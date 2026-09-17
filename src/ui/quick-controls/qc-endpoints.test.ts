@@ -948,7 +948,7 @@ describe("createQuickControls — endpoints + API keys", () => {
       input.dispatchEvent(new Event("input", { bubbles: true }));
     }
     // Every intermediate prefix would otherwise reach the store, and each store change retargets
-    // the broker client (bootstrap-wiring's endpointsSettings.subscribe → reconciler.onChange).
+    // the broker client (wire-voice's endpointsSettings.subscribe → reconciler.onChange).
     expect(commits).toEqual([]);
     expect(endpointsSettings.get().broker_base_url).toBe("");
 

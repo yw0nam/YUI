@@ -8,8 +8,6 @@
  * Trust boundary: backend speech text is rendered as HTML, so DOMPurify
  * sanitises it. Scripts and event handlers are stripped; javascript: and data:
  * URLs are rejected on href/src; links open externally (target/rel injected).
- *
- * ponytail: name kept (was inline-only) so callers need no import change.
  */
 
 import DOMPurify, { type Config } from "dompurify";

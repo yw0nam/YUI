@@ -6,9 +6,8 @@ import { createMessageWindowSettings } from "../../io/settings/message-window-se
 import { createFlagSettings } from "../../io/settings/persisted-store";
 import { createScreenKnobSettings } from "../../io/settings/screen-settings";
 import { createVadSettings } from "../../io/settings/vad-settings";
-import { createSwitchRows } from "../quick-controls";
 import { reflectSwitchRows } from "./reflect";
-import type { SwitchRow } from "./switch-row";
+import { createSwitchRows, type SwitchRow } from "./switch-row";
 import { buildPanelHtml } from "./template";
 
 function makeSwitchRows(): SwitchRow[] {
