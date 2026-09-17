@@ -171,10 +171,12 @@ describe("createScreenProbes", () => {
     const headWorld = head.getWorldPosition(new THREE.Vector3());
     expect(taps!.charHpx).toBeCloseTo(characterScreenHeight(headWorld, feet, camera, W, H)!, 9);
 
-    // The chest point falls back to `chest` on a model with no `upperChest`.
+    // The chest point prefers `upperChest`, falling back to the lower `chest` bone.
     const noUpperChest = makeFixture();
     noUpperChest.removeBone("upperChest");
-    expect(noUpperChest.make().getTapPoints()!.chest).not.toBeNull();
+    const fallback = noUpperChest.make().getTapPoints()!.chest;
+    expect(fallback).not.toBeNull();
+    expect(fallback!.y).toBeGreaterThan(taps!.chest!.y); // chest sits below upperChest
   });
 
   it("seats the perch probe at the hips dropped by seatDrop", () => {
