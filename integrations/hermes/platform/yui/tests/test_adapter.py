@@ -42,7 +42,8 @@ def clean():
     for chat in (CHAT, "other"):
         state.reset(chat)
         state.set_connected(chat, False)
-        state.take_turn_id(chat)
+        state.close_turns(chat)
+        state.take_closing(chat)
         state.set_muted(chat, False)
         reports.take(chat)
         reports.take_renders(chat)

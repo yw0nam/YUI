@@ -556,8 +556,13 @@ class YuiAdapter(BasePlatformAdapter):
         reply_to: str | None = None,
         metadata: dict | None = None,
     ) -> SendResult:
+        """Render a reply, then end the failed turns that were waiting for it."""
+        result = await self._deliver(chat_id, content, metadata or {})
+        await self._close_failed(chat_id)
+        return result
+
+    async def _deliver(self, chat_id: str, content: str, meta: dict) -> SendResult:
         """Render a reply; only the gateway's own markers keep a send off the wire."""
-        meta = metadata or {}
         if meta.get(NOTICE_MARKER):
             logger.info("yui: gateway notice not spoken chat=%s", chat_id)
             return SendResult(success=True, message_id=_message_id())
@@ -669,24 +674,47 @@ class YuiAdapter(BasePlatformAdapter):
     async def get_chat_info(self, chat_id: str) -> dict:
         return {"name": "YUI", "type": "dm", "chat_id": chat_id}
 
+    async def _close_failed(self, chat_id: str) -> None:
+        """A failed turn ends behind the failure line the gateway writes after it."""
+        if not state.take_closing(chat_id):
+            return
+        for turn_id in state.close_turns(chat_id):
+            await self._send_render(chat_id, {"type": "turn_end", "turn_id": turn_id})
+
     async def on_processing_start(self, event: MessageEvent) -> None:
         """The turn opens here: the gateway serialises this per session, admission does not."""
         chat_id = _chat_of(event)
+        await self._close_failed(chat_id)
         state.reset(chat_id)
         reasoning.clear(chat_id)
         self._forget_reasoning(chat_id)
         internal = getattr(event, "internal", False)
         message_id = getattr(event, "message_id", "") or ""
-        state.set_turn_id(chat_id, _mint_turn_id() if internal or not message_id else message_id)
+        turn_id = _mint_turn_id() if internal or not message_id else message_id
+        # A minted id has nowhere else to live, and the completion of that event has to find it.
+        event._yui_turn_id = turn_id
+        state.open_turn(chat_id, turn_id)
 
     async def on_processing_complete(self, event: MessageEvent, outcome: ProcessingOutcome) -> None:
         """Close the turn: a reply already rendered, anything else renders as silence."""
         chat_id = _chat_of(event)
-        turn_id = state.take_turn_id(chat_id) or _mint_turn_id()
+        turn_id = getattr(event, "_yui_turn_id", "") or getattr(event, "message_id", "") or ""
+        if turn_id in state.open_turns(chat_id)[1:]:
+            # An older turn is still open, and its task delivers this reply after this hook.
+            logger.debug("yui: turn %s finished inside an open turn chat=%s", turn_id, chat_id)
+            return
+        if outcome is ProcessingOutcome.FAILURE:
+            logger.info("yui: failed turn waits for its failure line chat=%s", chat_id)
+            state.mark_closing(chat_id)
+            return
+        ended = state.close_turns(chat_id)
         if not state.take_delivered(chat_id):
             logger.info("yui: turn ended without speech chat=%s outcome=%s", chat_id, outcome)
             cues = [placement.cue for placement in state.pop_cues(chat_id)]
             # Cues on a silent turn still play; the segment they ride on carries no speech.
             if cues:
-                await self._send_render(chat_id, self._render(turn_id, [{"cues": cues, "speech": ""}]))
-        await self._send_render(chat_id, {"type": "turn_end", "turn_id": turn_id})
+                frame = self._render(ended[0] if ended else None, [{"cues": cues, "speech": ""}])
+                await self._send_render(chat_id, frame)
+                ended = ended or [frame["turn_id"]]
+        for ended_id in ended:
+            await self._send_render(chat_id, {"type": "turn_end", "turn_id": ended_id})

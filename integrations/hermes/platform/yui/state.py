@@ -1,4 +1,4 @@
-"""Per-chat runtime state: the turn in flight, its cues, and who has a ready socket."""
+"""Per-chat runtime state: the open turns, their cues, and who has a ready socket."""
 
 from __future__ import annotations
 
@@ -10,7 +10,8 @@ from .segments import Placement
 _lock = threading.Lock()
 _vocabularies: dict[str, Vocabulary] = {}
 _cues: dict[str, list[Placement]] = {}
-_turn_ids: dict[str, str] = {}
+_open_turns: dict[str, list[str]] = {}
+_closing: set[str] = set()
 _delivered: set[str] = set()
 _connected: set[str] = set()
 _muted: set[str] = set()
@@ -26,21 +27,43 @@ def vocabulary(chat_id: str) -> Vocabulary:
         return _vocabularies.get(chat_id) or Vocabulary()
 
 
-def set_turn_id(chat_id: str, turn_id: str) -> None:
+def open_turn(chat_id: str, turn_id: str) -> None:
+    """Open one more turn; the backend can run a later turn inside one already open."""
     with _lock:
-        _turn_ids[chat_id] = turn_id
+        _open_turns.setdefault(chat_id, []).append(turn_id)
 
 
 def turn_id(chat_id: str) -> str | None:
-    """The turn in flight; every reply of a turn names it."""
+    """The most recently opened turn; every reply names it."""
     with _lock:
-        return _turn_ids.get(chat_id)
+        turns = _open_turns.get(chat_id)
+        return turns[-1] if turns else None
 
 
-def take_turn_id(chat_id: str) -> str | None:
-    """The turn in flight, cleared — the turn is over."""
+def open_turns(chat_id: str) -> list[str]:
+    """The turns still open on this chat, in the order they opened."""
     with _lock:
-        return _turn_ids.pop(chat_id, None)
+        return list(_open_turns.get(chat_id, ()))
+
+
+def close_turns(chat_id: str) -> list[str]:
+    """Every open turn, most recently opened first, cleared — they are all over."""
+    with _lock:
+        return list(reversed(_open_turns.pop(chat_id, [])))
+
+
+def mark_closing(chat_id: str) -> None:
+    """Arm ending this chat's open turns behind the failure line the gateway still owes."""
+    with _lock:
+        _closing.add(chat_id)
+
+
+def take_closing(chat_id: str) -> bool:
+    """Whether this chat's open turns are waiting on a failure line; clears the mark."""
+    with _lock:
+        closing = chat_id in _closing
+        _closing.discard(chat_id)
+        return closing
 
 
 def append_cue(chat_id: str, cue: dict, sentence: str) -> None:

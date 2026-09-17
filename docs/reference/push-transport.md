@@ -138,7 +138,7 @@ The renders still to come for a turn stopped that way are dropped, and its `turn
 { "type": "turn_end", "turn_id": "1789365854947" }
 ```
 
-Sent once per turn after its last `render`; a turn with no `render` sends it alone. It releases the running state the `turn` frame set. A backend that holds renders for a client that is away holds `turn_end` behind them, in the same order. A `turn_end` for a turn the client does not hold is ignored.
+Sent once per turn after its last `render`; a turn with no `render` sends it alone. It releases the running state the `turn` frame set. A backend that holds renders for a client that is away holds `turn_end` behind them, in the same order. A turn the backend interrupts to run a later turn on the same chat gets its `turn_end` after the later turn's frames. A turn that fails gets its `turn_end` after the backend's failure line renders. A `turn_end` for a turn the client does not hold is ignored.
 
 ### `tool_status` (backend → client)
 

@@ -1,4 +1,4 @@
-"""Per-chat turn state: the cue buffer, the turn in flight, and who is connected."""
+"""Per-chat turn state: the cue buffer, the open turns, and who is connected."""
 
 from __future__ import annotations
 
@@ -13,12 +13,14 @@ def clean():
     for chat in ("yui", "other"):
         state.reset(chat)
         state.set_connected(chat, False)
-        state.take_turn_id(chat)
+        state.close_turns(chat)
+        state.take_closing(chat)
     yield
     for chat in ("yui", "other"):
         state.reset(chat)
         state.set_connected(chat, False)
-        state.take_turn_id(chat)
+        state.close_turns(chat)
+        state.take_closing(chat)
 
 
 def test_cues_pop_in_the_order_they_were_placed():
@@ -61,16 +63,30 @@ def test_nothing_is_renderable_until_a_vocabulary_is_published():
 
 
 def test_reading_the_turn_id_leaves_it_in_place():
-    state.set_turn_id("yui", "17893")
+    state.open_turn("yui", "17893")
     assert state.turn_id("yui") == "17893"
     assert state.turn_id("yui") == "17893"
 
 
-def test_taking_the_turn_id_removes_it():
-    state.set_turn_id("yui", "17893")
-    assert state.take_turn_id("yui") == "17893"
-    assert state.take_turn_id("yui") is None
+def test_a_turn_opened_inside_another_leaves_both_open():
+    state.open_turn("yui", "17893")
+    state.open_turn("yui", "17894")
+    assert state.open_turns("yui") == ["17893", "17894"]
+    assert state.turn_id("yui") == "17894"
+
+
+def test_closing_ends_every_open_turn_most_recently_opened_first():
+    state.open_turn("yui", "17893")
+    state.open_turn("yui", "17894")
+    assert state.close_turns("yui") == ["17894", "17893"]
+    assert state.close_turns("yui") == []
     assert state.turn_id("yui") is None
+
+
+def test_the_closing_mark_is_taken_once():
+    state.mark_closing("yui")
+    assert state.take_closing("yui") is True
+    assert state.take_closing("yui") is False
 
 
 def test_delivery_mark_is_taken_once():

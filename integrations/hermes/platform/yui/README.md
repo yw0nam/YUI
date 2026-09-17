@@ -20,7 +20,8 @@ turns in and finished replies out. The contract both sides speak is
   a turn lands mid-run, every status notice, and the restart, startup and shutdown pings, which
   the plugin turns off for this platform. What the agent writes before a tool call, its final
   reply, and its answer to a delegation report all render as usual, and so does the gateway's
-  notice that a turn failed, which reaches the plugin in the same shape as the agent's words.
+  notice that a turn failed, which reaches the plugin in the same shape as the agent's words. The
+  failed turn ends behind that notice.
 - Streams the agent's reasoning to the client as `reasoning` frames, coalesced to one frame per
   100 ms. The `render` frame carries the reasoning written so far for its turn, which on the
   reply that ends the turn is the whole text. The gateway offers the live tokens only while
@@ -32,9 +33,10 @@ turns in and finished replies out. The contract both sides speak is
   delivers cron results and cross-platform messages.
 - Delivers the reply whole when the turn ends, so the gateway's `streaming` setting does not
   apply to this platform.
-- Names the client turn in every reply of a run, and clears the name when the turn ends. A turn
-  the gateway started on its own, such as a cron result, carries an id the plugin mints, of the
-  form `hermes-<n>`, counted per gateway process.
+- Names the most recently opened turn in every reply of a run, and clears the name when the turn
+  ends. A turn the gateway runs inside a turn it interrupted ends first, and the interrupted turn
+  ends behind it. A turn the gateway started on its own, such as a cron result, carries an id the
+  plugin mints, of the form `hermes-<n>`, counted per gateway process.
 - Sends a `delegations` frame whenever background work starts or finishes, so the client can show
   what is running.
 - Holds reports that arrive while the client is away, up to forty, and delivers them as one
