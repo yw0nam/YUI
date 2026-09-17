@@ -79,7 +79,7 @@ YUI/
       apply-directive.ts             # Pure routing of a control envelope into the emotion and motion sinks
       pin-controller.ts              # Stateful perch and peek pin apply layer
       vrm-participant.ts             # The per-frame lifecycle every VRM-bound sub-controller implements
-      geometry/
+      geometry/                      # Pure math and pixel sampling with no three.js state
         alpha-hit-test.ts            # CPU-side low-res silhouette grab and sampling
         body-yaw.ts                  # Pure easing math for the root yaw a stroll turns by
         camera-fit.ts                # Pure fit-to-bounds framing math
@@ -92,7 +92,7 @@ YUI/
         stage-coords.ts              # Client CSS px to stage-local coordinate conversion
         tap-region.ts                # Classifies a tap point into a body region
         view-window.ts               # Draws the reference-size framing at an offset inside a parked canvas
-      motion/
+      motion/                        # Clip scheduling, variant swaps, and clip processing
         cycle-dwell.ts               # Single-timer scheduler for a cycle motion's variant swap
         mirror-clip.ts               # Mirrors a clip across the YZ plane
         motion-controller.ts         # Pure motion scheduling and variant-resolution state machine
@@ -101,7 +101,7 @@ YUI/
         perch-hold.ts                # Held-posture suppression and baseline rules
         recenter-root-motion.ts      # Strips baked horizontal drift from VRMA root motion
         self-crossfade.ts            # Clip-cache key composition and playback clip selection
-      expression/
+      expression/                    # Emotion, mouth, and gaze apply layers over the face
         cursor-gaze.ts               # Stateful three.js apply layer for cursor head and eye tracking
         ease-emotion.ts              # Eases the expression back to neutral when playback ends
         emotion-crossfade.ts         # Stateful VRM-expression crossfade apply layer
