@@ -45,15 +45,9 @@ import {
   orbitPosition,
 } from "./geometry/camera-fit";
 import { isActive, shouldRenderFrame } from "./geometry/frame-gate";
-import {
-  characterScreenHeight,
-  projectToScreen,
-  SEAT_DROP_DEFAULT,
-  seatAnchorWorld,
-  worldYPerPixel,
-} from "./geometry/perch-geometry";
+import { SEAT_DROP_DEFAULT } from "./geometry/perch-geometry";
 import { clampPixelRatio } from "./geometry/pixel-ratio";
-import { projectBoxWidthPx, projectFeetAnchor } from "./geometry/project-anchor";
+import { createScreenProbes } from "./geometry/screen-probes";
 import { clientToStage } from "./geometry/stage-coords";
 import { applyViewWindow, type ViewWindow } from "./geometry/view-window";
 import { createCycleDwell } from "./motion/cycle-dwell";
@@ -162,11 +156,15 @@ export function createRenderer(options: RendererOptions): Renderer {
     mountWidth: () => mount.clientWidth || 1,
     mountHeight: () => mount.clientHeight || 1,
   });
-  const liveBoxScratch = new THREE.Box3();
-  const pxPerMetreScratch = new THREE.Vector3();
-  const pxPerMetreForward = new THREE.Vector3();
-  const liveFeetScratch = new THREE.Vector3();
-  const liveHeadScratch = new THREE.Vector3();
+  const probes = createScreenProbes({
+    camera,
+    getVrm: () => currentVrm,
+    getModelBox: () => modelBox,
+    mountWidth: () => mount.clientWidth || 1,
+    mountHeight: () => mount.clientHeight || 1,
+    hipsBone: () => pins.hipsBone(),
+    seatDrop: SEAT_DROP,
+  });
 
   /** Reframe the camera to the current model box; no-op when no model is loaded. */
   function fitCamera(): void {
@@ -842,20 +840,6 @@ export function createRenderer(options: RendererOptions): Renderer {
     fitCamera(); // apply the azimuth change immediately.
   }
 
-  function liveCharacterHeight(head: THREE.Object3D, w: number, h: number): number | null {
-    const liveBox = currentVrm ? liveBoxScratch.setFromObject(currentVrm.scene) : null;
-    const box = liveBox && !liveBox.isEmpty() ? liveBox : modelBox;
-    if (!box) return null;
-    liveFeetScratch.set((box.min.x + box.max.x) / 2, box.min.y, (box.min.z + box.max.z) / 2);
-    return characterScreenHeight(
-      head.getWorldPosition(liveHeadScratch),
-      liveFeetScratch,
-      camera,
-      w,
-      h,
-    );
-  }
-
   return {
     loadVRM,
     onTick(fn) {
@@ -888,16 +872,8 @@ export function createRenderer(options: RendererOptions): Renderer {
     setViewWindow,
     setZoom,
     setOrbit,
-    getCharacterAnchor() {
-      if (!modelBox) return null;
-      camera.updateMatrixWorld();
-      return projectFeetAnchor(modelBox, camera, mount.clientWidth || 1, mount.clientHeight || 1);
-    },
-    getCharacterWidthPx() {
-      if (!modelBox) return null;
-      camera.updateMatrixWorld();
-      return projectBoxWidthPx(modelBox, camera, mount.clientWidth || 1);
-    },
+    getCharacterAnchor: probes.getCharacterAnchor,
+    getCharacterWidthPx: probes.getCharacterWidthPx,
     hitTest(x, y) {
       const stage = clientToStage(x, y, mountRect);
       return alphaHitTest.hitTest(stage.x, stage.y);
@@ -905,66 +881,9 @@ export function createRenderer(options: RendererOptions): Renderer {
     setHitTestThreshold(threshold) {
       alphaHitTest.setThreshold(threshold);
     },
-    getPerchProbe() {
-      if (!currentVrm) return null;
-      const head = currentVrm.humanoid?.getNormalizedBoneNode("head");
-      const hips = pins.hipsBone();
-      if (!head || !hips) return null;
-      const w = mount.clientWidth || 1;
-      const h = mount.clientHeight || 1;
-      camera.updateMatrixWorld();
-
-      // Seat: live hips (+SEAT_DROP) → pet-window px (mirrors getCharacterAnchor's project path).
-      const hipsWorld = hips.getWorldPosition(new THREE.Vector3());
-      const seat = seatAnchorWorld(hipsWorld, SEAT_DROP);
-      const seatPx = projectToScreen(seat, camera, w, h);
-      if (!seatPx) return null;
-
-      const charHpx = liveCharacterHeight(head, w, h);
-      if (charHpx === null) return null;
-
-      return { seatPx: { x: seatPx.x, y: seatPx.y }, charHpx };
-    },
-    getTapPoints() {
-      if (!currentVrm) return null;
-      const humanoid = currentVrm.humanoid;
-      const head = humanoid?.getNormalizedBoneNode("head");
-      if (!head) return null;
-      const w = mount.clientWidth || 1;
-      const h = mount.clientHeight || 1;
-      camera.updateMatrixWorld();
-      const charHpx = liveCharacterHeight(head, w, h);
-      if (charHpx === null || !Number.isFinite(charHpx) || charHpx <= 0) return null;
-      const project = (bone: THREE.Object3D | null | undefined) =>
-        bone ? projectToScreen(bone.getWorldPosition(new THREE.Vector3()), camera, w, h) : null;
-      const chest =
-        humanoid?.getNormalizedBoneNode("upperChest") ?? humanoid?.getNormalizedBoneNode("chest");
-      return {
-        head: project(head),
-        chest: project(chest),
-        hips: project(pins.hipsBone()),
-        charHpx,
-      };
-    },
-    getHandAnchors() {
-      if (!currentVrm) return null;
-      const humanoid = currentVrm.humanoid;
-      const left = humanoid?.getNormalizedBoneNode("leftHand");
-      const right = humanoid?.getNormalizedBoneNode("rightHand");
-      if (!left || !right) return null;
-      const w = mount.clientWidth || 1;
-      const h = mount.clientHeight || 1;
-      camera.updateMatrixWorld();
-      const project = (bone: THREE.Object3D) =>
-        projectToScreen(bone.getWorldPosition(new THREE.Vector3()), camera, w, h);
-      const leftPx = project(left);
-      const rightPx = project(right);
-      if (!leftPx || !rightPx) return null;
-      return {
-        left: { x: leftPx.x, y: leftPx.y },
-        right: { x: rightPx.x, y: rightPx.y },
-      };
-    },
+    getPerchProbe: probes.getPerchProbe,
+    getTapPoints: probes.getTapPoints,
+    getHandAnchors: probes.getHandAnchors,
     setPerchTarget(target) {
       const changed = pins.setPerchTarget(target);
       if (!changed) return;
@@ -989,18 +908,7 @@ export function createRenderer(options: RendererOptions): Renderer {
     setBodyYaw(rad, easeMs) {
       rootYaw.setTarget(rad, easeMs);
     },
-    getPxPerMetre() {
-      if (!currentVrm || !modelBox) return null;
-      camera.updateMatrixWorld();
-      // Measured at the feet — the same point the floor gate and the stroll travel on.
-      const { min, max } = modelBox;
-      const depth = pxPerMetreScratch
-        .set((min.x + max.x) / 2, min.y, (min.z + max.z) / 2)
-        .sub(camera.position)
-        .dot(camera.getWorldDirection(pxPerMetreForward));
-      const perPixel = worldYPerPixel(camera, depth, mount.clientHeight || 1);
-      return Number.isFinite(perPixel) && perPixel > 0 ? 1 / perPixel : null;
-    },
+    getPxPerMetre: probes.getPxPerMetre,
     getMotionDuration(id) {
       const key = registryClipKey(id);
       const clip = key ? clipCache.get(key) : undefined;

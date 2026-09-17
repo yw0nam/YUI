@@ -90,6 +90,7 @@ YUI/
         perch-geometry.ts            # Pure math for the window-sit perch
         pixel-ratio.ts               # Pure devicePixelRatio clamp
         project-anchor.ts            # Projects the world feet point into canvas pixels
+        screen-probes.ts             # Read-only screen probes of the loaded model: feet anchor, width, seat and tap points, hand anchors, pixels per metre
         stage-coords.ts              # Client CSS px to stage-local coordinate conversion
         tap-region.ts                # Classifies a tap point into a body region
         view-window.ts               # Draws the reference-size framing at an offset inside a parked canvas
