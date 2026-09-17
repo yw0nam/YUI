@@ -115,6 +115,7 @@ YUI/
         guardrails.ts                # Cooldown, debounce, and rate-limit evaluation
         proactive-pacer.ts           # The quiet gap after a turn that every proactive source shares
         tier1-directive.ts           # Pure tier-1 control directive for sit, drop, peek and pat events
+        tier1-render.ts              # Tier-1 rendering: local directives, posture ledger, pin targets, and the tap-emotion revert
       turn/
         turn.ts                      # Turn identity ledger and the single definition of over
         turn-output.ts               # Speech lifecycle port between the backend caller and the voice pipeline
