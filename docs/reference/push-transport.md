@@ -151,13 +151,12 @@ The `speech` frames of a turn open one utterance. The next `render` of that turn
 
 The utterance also closes on the turn's `turn_end`, on the frame wait passing, and on the socket leaving `ready`. The sentences already sent finish playing. A `render` or `speech` frame of another turn closes the open utterance before it plays. A user action that stops speech ends the utterance through the same interruption that stops a `render`.
 
-A reply sent as `speech` frames carries the limits of the text stream it is cut from:
+The backend cuts `speech` frames from its reply while it is still writing it, and the client plays them as they arrive:
 
-1. A newline at the start of a streamed chunk is lost, so a line without a terminator joins the next sentence.
-2. A provider retry in the middle of an answer can repeat sentences.
-3. Text the backend drops under load is missing from the `speech` frames, and the `render` may then repeat the whole answer.
-4. A backend whose text stream falls a whole turn behind can speak that turn's text under the next turn.
-5. Streaming follows the sole client connected to the backend. With more than one connected, the reply arrives in the `render` alone.
+1. A `speech` sentence may join two lines of the finished reply with no space between them, and a cue that names the second line then plays on a later sentence.
+2. `speech` frames may repeat a sentence.
+3. The `render` may repeat sentences already sent as `speech`.
+4. A turn may carry no `speech` frames, and its whole reply then arrives in the `render`.
 
 ### `turn_end` (backend → client)
 
