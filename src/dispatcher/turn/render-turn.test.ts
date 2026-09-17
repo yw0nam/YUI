@@ -346,6 +346,14 @@ describe("render_turn — a turn the user stopped", () => {
     expect(pipeline.spoken).toEqual([{ text: "Here it is.", cue: null }]);
   });
 
+  it("plays a frame of a turn the backend already ended", () => {
+    pushTurns.opened("7");
+    pushTurns.ended("7");
+    turn().render(frame([{ speech: "Here it is." }]));
+
+    expect(pipeline.spoken).toEqual([{ text: "Here it is.", cue: null }]);
+  });
+
   it("tells its caller the frame was dropped", () => {
     cutSeven();
 

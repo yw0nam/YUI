@@ -126,6 +126,11 @@ class BasePlatformAdapter:
     async def handle_message(self, event: MessageEvent) -> None:
         self.dispatched.append(event)
         event._gateway_accepted = True
+        if self._event_session_key(event) in self._active_sessions:
+            await self._handle_message_while_active(event)
+
+    async def _handle_message_while_active(self, event: MessageEvent) -> None:
+        """The real base awaits its busy handler here; tests replace it to fire the event's hooks."""
 
     def _should_auto_tts_for_chat(self, chat_id: str) -> bool:
         """The real base answers from voice.auto_tts; True here so an override is visible."""
