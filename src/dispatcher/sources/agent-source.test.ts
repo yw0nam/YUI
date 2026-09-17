@@ -17,10 +17,10 @@
  */
 
 import { describe, expect, it, vi } from "vitest";
-import type { AgentEvent } from "../io/bridge/agent-inbox";
-import type { OsEventListen, OsEventPayload } from "../io/window/tauri-listen";
+import type { AgentEvent } from "../../io/bridge/agent-inbox";
+import type { OsEventListen, OsEventPayload } from "../../io/window/tauri-listen";
+import type { BusEnvelope, EventBus } from "../event-bus";
 import { createAgentSource } from "./agent-source";
-import type { BusEnvelope, EventBus } from "./event-bus";
 
 const PRESENT_MAX = 10_000;
 const LOW_IDLE = 500; // present

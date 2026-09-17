@@ -16,10 +16,10 @@
  */
 
 import { describe, expect, it, vi } from "vitest";
-import type { OsEventListen, OsEventPayload } from "../io/window/tauri-listen";
-import type { Logger } from "../logger";
+import type { OsEventListen, OsEventPayload } from "../../io/window/tauri-listen";
+import type { Logger } from "../../logger";
+import type { BusEnvelope, EventBus } from "../event-bus";
 import { createBufferedInboxSource, type InboxFiring } from "./buffered-inbox-source";
-import type { BusEnvelope, EventBus } from "./event-bus";
 
 const PRESENT_MAX = 10_000;
 const LOW_IDLE = 500; // present

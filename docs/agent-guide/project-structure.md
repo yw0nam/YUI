@@ -116,15 +116,16 @@ YUI/
       previous-turn.ts               # Persisted record of how the last turn that tried to speak ended
       push-turn.ts                   # Push-turn ids the user stopped, so their late frames drop whole, and the wait for a sent turn to finish
       render-turn.ts                 # Plays a finished backend turn that arrived as a render frame on the push socket
-      buffered-inbox-source.ts       # Shared presence-gated core for the inbox-push firing sources
-      agent-source.ts                # Agent-lifecycle firing source
-      signals-source.ts              # Grouped signals-ingress firing source
-      proactive-source.ts            # Idle-gap proactive firing source
       proactive-pacer.ts             # The quiet gap after a turn that every proactive source shares
-      schedule-source.ts             # Clock-time schedule firing source
-      milestone-source.ts            # Once-per-day first-activity milestone firing source
-      screen-source.ts               # Frontmost-app transition firing source with a dwell state machine
-      user-input-source.ts           # Normalises typed text and STT results into bus envelopes
+      sources/
+        buffered-inbox-source.ts     # Shared presence-gated core for the inbox-push firing sources
+        agent-source.ts              # Agent-lifecycle firing source
+        signals-source.ts            # Grouped signals-ingress firing source
+        proactive-source.ts          # Idle-gap proactive firing source
+        schedule-source.ts           # Clock-time schedule firing source
+        milestone-source.ts          # Once-per-day first-activity milestone firing source
+        screen-source.ts             # Frontmost-app transition firing source with a dwell state machine
+        user-input-source.ts         # Normalises typed text and STT results into bus envelopes
     ambient/                         # Backend-independent local liveliness and movement
       tier1.ts                       # Tier 1 ambient engine: blink, idle sway, breath, look-around
       cues.ts                        # Pure, side-effect-free cue math for Tier 1

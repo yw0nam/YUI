@@ -21,10 +21,10 @@
  * skeleton.
  */
 
-import type { OsEventListen, OsEventPayload } from "../io/window/tauri-listen";
-import { subscribeOsEvent } from "../io/window/tauri-listen";
-import type { Logger } from "../logger";
-import type { EventBus } from "./event-bus";
+import type { OsEventListen, OsEventPayload } from "../../io/window/tauri-listen";
+import { subscribeOsEvent } from "../../io/window/tauri-listen";
+import type { Logger } from "../../logger";
+import type { EventBus } from "../event-bus";
 
 /** { event_name, payload } — the core fills in the shared envelope fields. */
 export interface InboxFiring {

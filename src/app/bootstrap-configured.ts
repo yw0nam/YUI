@@ -17,8 +17,8 @@ import { createGuardrails, type Guardrails, type GuardrailsConfig } from "../dis
 import { createPreviousTurn } from "../dispatcher/previous-turn";
 import { createProactivePacer } from "../dispatcher/proactive-pacer";
 import { createPushTurns } from "../dispatcher/push-turn";
+import type { UserInputSource } from "../dispatcher/sources/user-input-source";
 import { createTurnLog } from "../dispatcher/turn";
-import type { UserInputSource } from "../dispatcher/user-input-source";
 import type { DelegationsStore } from "../io/bridge/delegations-store";
 import type { ReasoningStore } from "../io/bridge/reasoning-store";
 import { selectFetch } from "../io/chat/chat-client";

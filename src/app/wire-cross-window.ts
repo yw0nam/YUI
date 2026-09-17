@@ -2,7 +2,7 @@ import type { Tier1Engine } from "../ambient/tier1";
 import type { WindowRect } from "../contract";
 import type { Dispatcher } from "../dispatcher/dispatcher";
 import type { EventBus } from "../dispatcher/event-bus";
-import type { UserInputSource } from "../dispatcher/user-input-source";
+import type { UserInputSource } from "../dispatcher/sources/user-input-source";
 import type { SettingsBridge } from "../io/bridge/settings-bridge";
 import type { SettingsStores } from "../io/settings/settings-stores";
 import { isTauri } from "../io/window/tauri-env";

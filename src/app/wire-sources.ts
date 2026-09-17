@@ -1,13 +1,19 @@
 import type { GestureCuesConfig, PeekConfig, ScreenConfig } from "../config/load";
 import type { Posture, WindowRect } from "../contract";
-import { createAgentSource } from "../dispatcher/agent-source";
 import type { EventBus } from "../dispatcher/event-bus";
-import { createMilestoneSource, type MilestoneSource } from "../dispatcher/milestone-source";
 import type { ProactivePacer } from "../dispatcher/proactive-pacer";
-import { createProactiveSource, type ProactiveSource } from "../dispatcher/proactive-source";
-import { createScheduleSource, type ScheduleSource } from "../dispatcher/schedule-source";
-import { createScreenSource, type ScreenSource } from "../dispatcher/screen-source";
-import { createSignalsSource, type SignalsSource } from "../dispatcher/signals-source";
+import { createAgentSource } from "../dispatcher/sources/agent-source";
+import {
+  createMilestoneSource,
+  type MilestoneSource,
+} from "../dispatcher/sources/milestone-source";
+import {
+  createProactiveSource,
+  type ProactiveSource,
+} from "../dispatcher/sources/proactive-source";
+import { createScheduleSource, type ScheduleSource } from "../dispatcher/sources/schedule-source";
+import { createScreenSource, type ScreenSource } from "../dispatcher/sources/screen-source";
+import { createSignalsSource, type SignalsSource } from "../dispatcher/sources/signals-source";
 import { type AvatarExecutor, createAvatarExecutor } from "../io/bridge/avatar-executor";
 import { onAvatarRpc, respondAvatarRpc } from "../io/bridge/avatar-rpc";
 import { appendRecord } from "../io/chat/turn-record-log";

@@ -11,10 +11,10 @@
  */
 
 import { describe, expect, it, vi } from "vitest";
-import type { PersistedStorage } from "../io/settings/persisted-store";
-import type { ScheduledCue } from "../io/settings/schedule-settings";
-import type { OsEventListen, OsEventPayload } from "../io/window/tauri-listen";
-import type { BusEnvelope, EventBus } from "./event-bus";
+import type { PersistedStorage } from "../../io/settings/persisted-store";
+import type { ScheduledCue } from "../../io/settings/schedule-settings";
+import type { OsEventListen, OsEventPayload } from "../../io/window/tauri-listen";
+import type { BusEnvelope, EventBus } from "../event-bus";
 import { createScheduleSource, GRACE_MINUTES } from "./schedule-source";
 
 function fakeBus(): { bus: Pick<EventBus, "push">; pushed: BusEnvelope[] } {
