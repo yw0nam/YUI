@@ -84,9 +84,12 @@ export interface SettingsBridge {
 /** Tauri transport. listen returns Promise<UnlistenFn>, so wrap it in a synchronous disposer. */
 function createTauriTransport(): BridgeTransport {
   const eventMod = import("@tauri-apps/api/event");
+  // Tauri runs each emit as its own async task, so each emit waits for the previous one to keep send order.
+  let sending: Promise<void> = Promise.resolve();
   return {
     emit(name, payload) {
-      void eventMod
+      sending = sending
+        .then(() => eventMod)
         .then((m) => m.emit(name, payload))
         .catch((err) => log.warn("tauri_emit_failed", { error: String(err) }));
     },
