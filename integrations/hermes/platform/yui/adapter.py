@@ -336,15 +336,21 @@ class YuiAdapter(BasePlatformAdapter):
             await self._send_frame(chat_id, {"type": "turn_end", "turn_id": turn_id})
             return
         logger.info("yui: turn accepted chat=%s turn_id=%s chars=%d", chat_id, turn_id, len(text))
-        await self.handle_message(
-            MessageEvent(
-                text=text,
-                message_type=MessageType.TEXT,
-                message_id=turn_id,
-                allow_gateway_control=False,
-                source=self._source(chat_id),
-            )
+        event = MessageEvent(
+            text=text,
+            message_type=MessageType.TEXT,
+            message_id=turn_id,
+            allow_gateway_control=False,
+            source=self._source(chat_id),
         )
+        # A busy session takes this text into the turn it is already running, and runs no hooks for it.
+        busy = self._event_session_key(event) in self._active_sessions
+        await self.handle_message(event)
+        if not busy:
+            return
+        await self._send_render(chat_id, {"type": "turn_end", "turn_id": turn_id})
+        logger.info("yui: turn %s joins the running turn chat=%s", turn_id, chat_id)
+        state.mark_merged(chat_id, turn_id)
 
     async def _on_reset(self, chat_id: str) -> None:
         """The gateway's own /new: the transcript starts empty under the same chat."""
@@ -685,11 +691,18 @@ class YuiAdapter(BasePlatformAdapter):
         """The turn opens here: the gateway serialises this per session, admission does not."""
         chat_id = _chat_of(event)
         await self._close_failed(chat_id)
+        internal = getattr(event, "internal", False)
+        message_id = getattr(event, "message_id", "") or ""
+        if state.is_merged(chat_id, message_id):
+            if state.open_turns(chat_id):
+                # The turn it joined is still open and its frames carry this reply.
+                logger.debug("yui: turn %s runs inside the turn it joined chat=%s", message_id, chat_id)
+                return
+            # The gateway held it back instead, so it runs as a turn of its own.
+            state.drop_merged(chat_id, message_id)
         state.reset(chat_id)
         reasoning.clear(chat_id)
         self._forget_reasoning(chat_id)
-        internal = getattr(event, "internal", False)
-        message_id = getattr(event, "message_id", "") or ""
         turn_id = _mint_turn_id() if internal or not message_id else message_id
         # A minted id has nowhere else to live, and the completion of that event has to find it.
         event._yui_turn_id = turn_id
@@ -699,6 +712,11 @@ class YuiAdapter(BasePlatformAdapter):
         """Close the turn: a reply already rendered, anything else renders as silence."""
         chat_id = _chat_of(event)
         turn_id = getattr(event, "_yui_turn_id", "") or getattr(event, "message_id", "") or ""
+        if state.is_merged(chat_id, turn_id):
+            # It was closed as it arrived, and the turn it joined owns every frame of the reply.
+            state.drop_merged(chat_id, turn_id)
+            logger.debug("yui: turn %s ended inside the turn it joined chat=%s", turn_id, chat_id)
+            return
         if turn_id in state.open_turns(chat_id)[1:]:
             # An older turn is still open, and its task delivers this reply after this hook.
             logger.debug("yui: turn %s finished inside an open turn chat=%s", turn_id, chat_id)
