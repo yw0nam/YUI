@@ -273,6 +273,8 @@ class YuiAdapter(BasePlatformAdapter):
         replaced = self._sockets.get(chat_id)
         self._sockets[chat_id] = ws
         state.set_connected(chat_id, True)
+        if replaced is not None:
+            self._stop_stream(chat_id)
         self._adopt_home_channel(chat_id)
         self._publish_vocabulary(chat_id, frame.get("vocabulary"))
         await self._send_frame(chat_id, {"type": "ready", "chat_id": chat_id})
@@ -307,10 +309,7 @@ class YuiAdapter(BasePlatformAdapter):
         if chat_id and self._sockets.get(chat_id) is ws:
             del self._sockets[chat_id]
             state.set_connected(chat_id, False)
-            stream = self._streams.get(chat_id)
-            if stream is not None:
-                # What streams while it is away never reaches it, so the render carries the rest.
-                stream.off = True
+            self._stop_stream(chat_id)
             # Client turn ids restart at 1 per process, so a mark left here would name a new turn.
             state.forget_joined(chat_id)
             logger.info("yui: client gone chat=%s", chat_id)
@@ -572,6 +571,12 @@ class YuiAdapter(BasePlatformAdapter):
                 if stream.off:
                     return
                 await self._send_speech(chat_id, stream, sentence)
+
+    def _stop_stream(self, chat_id: str) -> None:
+        """A socket that goes away may not have taken what streamed to it, so the render carries the rest."""
+        stream = self._streams.get(chat_id)
+        if stream is not None:
+            stream.off = True
 
     async def _stop_streams(self) -> None:
         """Text that reached no chat leaves a gap in every stream, so their renders carry the rest."""
