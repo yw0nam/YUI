@@ -12,11 +12,11 @@ import { projectBoxWidthPx, projectFeetAnchor } from "./project-anchor";
 
 export interface ScreenProbeDeps {
   camera: THREE.PerspectiveCamera;
-  getVrm: () => VRM | null | undefined;
-  getModelBox: () => THREE.Box3 | null | undefined;
+  getVrm: () => VRM | undefined;
+  getModelBox: () => THREE.Box3 | undefined;
   mountWidth: () => number;
   mountHeight: () => number;
-  hipsBone: () => THREE.Object3D | null | undefined;
+  hipsBone: () => THREE.Object3D | null;
   seatDrop: number;
 }
 
@@ -76,7 +76,7 @@ export function createScreenProbes(deps: ScreenProbeDeps): ScreenProbes {
       const h = mountHeight();
       camera.updateMatrixWorld();
 
-      // Seat: live hips (+SEAT_DROP) → pet-window px (mirrors getCharacterAnchor's project path).
+      // Seat: live hips (+seatDrop) → pet-window px (mirrors getCharacterAnchor's project path).
       const hipsWorld = hips.getWorldPosition(new THREE.Vector3());
       const seat = seatAnchorWorld(hipsWorld, seatDrop);
       const seatPx = projectToScreen(seat, camera, w, h);

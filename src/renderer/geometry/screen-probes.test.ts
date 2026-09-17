@@ -68,12 +68,9 @@ function makeFixture() {
   const modelBox = new THREE.Box3().setFromObject(scene);
 
   // Mutable locals the probes read through the deps — each case sets its own.
-  let currentVrm: VRM | null = vrm;
-  let box: THREE.Box3 | null = modelBox;
-  const make = (overrides?: {
-    hipsBone?: () => THREE.Object3D | null | undefined;
-    seatDrop?: number;
-  }) =>
+  let currentVrm: VRM | undefined = vrm;
+  let box: THREE.Box3 | undefined = modelBox;
+  const make = (overrides?: { hipsBone?: () => THREE.Object3D | null; seatDrop?: number }) =>
     createScreenProbes({
       camera,
       getVrm: () => currentVrm,
@@ -92,10 +89,15 @@ function makeFixture() {
     rightHand,
     make,
     hideVrm: (): void => {
-      currentVrm = null;
+      currentVrm = undefined;
     },
     hideBox: (): void => {
-      box = null;
+      box = undefined;
+    },
+    /** Move the posed model without touching the box captured at load time. */
+    moveBody: (dy: number): void => {
+      body.position.y += dy;
+      scene.updateWorldMatrix(true, true);
     },
     removeBone: (name: string): void => {
       bones.delete(name);
@@ -198,6 +200,27 @@ describe("createScreenProbes", () => {
     const got = probes.getCharacterAnchor();
     camera.updateMatrixWorld(); // only now refresh, to build the expectation
     expect(got).toEqual(projectFeetAnchor(modelBox, camera, W, H));
+  });
+
+  it("measures the height from the live scene bounds, not the box captured at load", () => {
+    const { camera, modelBox, head, make, moveBody } = makeFixture();
+    const probes = make();
+    moveBody(0.5); // the posed model rises; the cached box stays where it was
+    const headWorld = head.getWorldPosition(new THREE.Vector3());
+    const live = new THREE.Vector3(
+      (modelBox.min.x + modelBox.max.x) / 2,
+      modelBox.min.y + 0.5,
+      (modelBox.min.z + modelBox.max.z) / 2,
+    );
+    const cached = new THREE.Vector3(
+      (modelBox.min.x + modelBox.max.x) / 2,
+      modelBox.min.y,
+      (modelBox.min.z + modelBox.max.z) / 2,
+    );
+    const fromLive = characterScreenHeight(headWorld, live, camera, W, H)!;
+    const fromCached = characterScreenHeight(headWorld, cached, camera, W, H)!;
+    expect(fromLive).not.toBeCloseTo(fromCached, 3); // the two arms must be distinguishable
+    expect(probes.getTapPoints()!.charHpx).toBeCloseTo(fromLive, 9);
   });
 
   it("returns null from the perch probe with no hips bone", () => {
