@@ -7,7 +7,7 @@
  */
 
 import type { TurnFailure } from "../../dispatcher/backend/backend-caller";
-import type { UserTurnSource } from "../../dispatcher/dispatcher";
+import type { UserTurnSource } from "../../dispatcher/core/classify";
 import { t } from "../i18n";
 import type { InputErrorAction } from "../input/text-input";
 import type { QuickControlsTab } from "../quick-controls/constants";

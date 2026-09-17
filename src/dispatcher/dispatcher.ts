@@ -29,16 +29,23 @@
  */
 
 import type { PeekConfig, TapConfig } from "../config/load";
-import type { BodyState, ControlEnvelope, EmotionId, Posture } from "../contract";
+import type { BodyState, Posture } from "../contract";
 import { buildPacerSkipRecord, type PacerSkipRecord } from "../io/chat/turn-record-log";
-import { PERCH_MOTION_ID } from "../io/window/window-drop-source";
 import type { Logger, LogLevel } from "../logger";
 import { createLogger } from "../logger";
 import type { Renderer } from "../renderer";
 import type { BackendCaller, TurnFailure, TurnOutcome } from "./backend/backend-caller";
+import { classify, PACED_SOURCES, type UserTurnSource, userTurnSourceOf } from "./core/classify";
 import type { BusEnvelope, EventBus } from "./core/event-bus";
 import type { Guardrails } from "./core/guardrails";
 import type { ProactivePacer } from "./core/proactive-pacer";
+import {
+  isSitDrop,
+  type PeekDropPayload,
+  parsePeekDropPayload,
+  samePosture,
+  tier1Directive,
+} from "./core/tier1-directive";
 import type { Turn, TurnLog } from "./turn/turn";
 
 const baseLog = createLogger("dispatcher");
@@ -154,176 +161,6 @@ export interface Dispatcher {
   /** Subscribe to pipeline-busy transitions (in-flight OR speaking). Fires only at the idle⟷busy boundary; returns an unsubscribe fn. */
   subscribePipelineBusy(cb: (busy: boolean) => void): () => void;
 }
-
-type Tier = 1 | 2 | 3;
-type Target = "tier1" | "backend_caller" | "drop";
-
-interface Classification {
-  tier: Tier;
-  target: Target;
-}
-
-/**
- * classify. Only handled events are routed; the rest are dropped (= no-op).
- * Tap reactions are handled as tier1 local events.
- */
-function classify(env: BusEnvelope): Classification {
-  const n = env.event_name;
-  if (n === "user.text_submitted" || n === "user.voice_segment_ready") {
-    return { tier: 2, target: "backend_caller" };
-  }
-  if (n.startsWith("time_milestone.")) {
-    return { tier: 2, target: "backend_caller" };
-  }
-  if (n.startsWith("proactive.")) {
-    return { tier: 2, target: "backend_caller" };
-  }
-  if (n.startsWith("schedule.")) {
-    return { tier: 2, target: "backend_caller" };
-  }
-  if (n.startsWith("agent.")) {
-    return { tier: 2, target: "backend_caller" };
-  }
-  if (n.startsWith("signals.")) {
-    return { tier: 2, target: "backend_caller" };
-  }
-  if (
-    n === "user.drag_start" ||
-    n === "user.drag_end" ||
-    n === "user.tap" ||
-    n === "user.tap_region" ||
-    n === "user.pat_start" ||
-    n === "user.pat_end" ||
-    n === "user.window_sit_enter" ||
-    n === "user.window_sit_exit" ||
-    n === "user.window_sit_drop" ||
-    n === "user.peek_drop" ||
-    n === "user.peek_exit" ||
-    n === "avatar.walk_start" ||
-    n === "avatar.walk_end" ||
-    n === "avatar.climb_start" ||
-    n === "avatar.climb_end" ||
-    n === "avatar.window_sit" ||
-    n === "avatar.jump" ||
-    n === "user.fall_land"
-  ) {
-    return { tier: 1, target: "tier1" };
-  }
-  return { tier: (env.hint_tier ?? 3) as Tier, target: "drop" };
-}
-
-/** A sit that pins the perch target: the drag drop and the ambient climb's ledge sit. */
-function isSitDrop(eventName: string): boolean {
-  return eventName === "user.window_sit_drop" || eventName === "avatar.window_sit";
-}
-
-function samePosture(a: Posture, b: Posture): boolean {
-  return (
-    a.state === b.state &&
-    a.perched_on?.app === b.perched_on?.app &&
-    a.perched_on?.window_title === b.perched_on?.window_title
-  );
-}
-
-/** Source of a user-initiated turn (typed vs voice) — filters onUserTurnFailed targets and hints routing.
- * Other triggers such as proactive/schedule/agent are undefined (§274, not a UI error-surface target). */
-export type UserTurnSource = "text" | "voice";
-
-function userTurnSourceOf(env: BusEnvelope): UserTurnSource | undefined {
-  if (env.event_name === "user.text_submitted") return "text";
-  if (env.event_name === "user.voice_segment_ready") return "voice";
-  return undefined;
-}
-
-/**
- * tier1 event → render directive mapping (local, backend-independent).
- *  - drag_start → play motion "drag" / drag_end → return to idle (motion null).
- *  - user.tap → observability only; tap_region / pat_start → payload motion.
- *  - pat_end → return to idle (motion null).
- *  - avatar.walk_* → no render; the ambient walker owns the walk clip and only the posture moves.
- *  - avatar.climb_* → no render; the climber owns the climb clips and only the posture moves.
- *  - avatar.window_sit → the sit the climber reached on its own, rendered like a drop.
- *  - user.fall_land → no render; the faller owns the falling/landing clips and the posture is unchanged.
- *  - avatar.jump → no render; the jumper owns the jump clip and the posture stays walking.
- * Returning null means no render.
- */
-function tier1Directive(env: BusEnvelope, log: Logger): ControlEnvelope | null {
-  switch (env.event_name) {
-    case "user.drag_start":
-      return { speech_text: "", motion: { id: "drag" } };
-    case "user.drag_end":
-      return { speech_text: "", motion: null };
-    case "user.window_sit_enter":
-      return { speech_text: "", motion: { id: PERCH_MOTION_ID } };
-    case "user.window_sit_drop":
-    case "avatar.window_sit":
-      return { speech_text: "", motion: { id: PERCH_MOTION_ID } };
-    case "user.window_sit_exit":
-      return { speech_text: "", motion: null };
-    case "user.peek_drop":
-      return { speech_text: "", motion: { id: "peek" } };
-    case "user.peek_exit":
-      return { speech_text: "", motion: null };
-    case "user.tap":
-    case "user.fall_land":
-    case "avatar.jump":
-    case "avatar.climb_start":
-    case "avatar.climb_end":
-      return null;
-    case "user.pat_end":
-      return { speech_text: "", motion: null };
-    case "user.tap_region":
-    case "user.pat_start": {
-      const motionId = env.payload?.motion_id;
-      if (typeof motionId !== "string" || motionId.length === 0) {
-        log.warn("tap_motion.malformed", { seq_id: env.seq_id, payload: env.payload });
-        return null;
-      }
-      // emotion is enrichment, motion is primary — a malformed emotion_id degrades to motion-only.
-      const emotionId = env.payload?.emotion_id;
-      return {
-        speech_text: "",
-        motion: { id: motionId },
-        ...(typeof emotionId === "string" && emotionId.length > 0
-          ? { emotion: { id: emotionId as EmotionId } }
-          : {}),
-      };
-    }
-    default:
-      return null;
-  }
-}
-
-interface PeekDropPayload {
-  side: "left" | "right";
-  targetLocalXpx: number;
-}
-
-function parsePeekDropPayload(env: BusEnvelope): PeekDropPayload | null {
-  const side = env.payload?.side;
-  const targetLocalXpx = env.payload?.target_local_xpx;
-  if (
-    (side !== "left" && side !== "right") ||
-    typeof targetLocalXpx !== "number" ||
-    !Number.isFinite(targetLocalXpx)
-  ) {
-    return null;
-  }
-  return { side, targetLocalXpx };
-}
-
-/**
- * Which sources the global proactive gap applies to. Loop cues, schedule and the buffered
- * inboxes (signals, agent) all push as timer_scheduler, screen transitions as screen_watcher;
- * gesture cues, typed/spoken input and the once-a-day milestone push as os_event_watcher and
- * pass ungated. Record forces a new source value to answer paced-or-not at compile time.
- */
-const PACED_SOURCES: Record<BusEnvelope["source"], boolean> = {
-  timer_scheduler: true,
-  screen_watcher: true,
-  os_event_watcher: false,
-  user_input_source: false,
-};
 
 const DEFAULT_PUMP_MS = 16;
 const MAX_DROP_RECORDS = 50;
