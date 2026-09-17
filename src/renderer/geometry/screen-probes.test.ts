@@ -10,7 +10,7 @@
 import type { VRM } from "@pixiv/three-vrm";
 import * as THREE from "three";
 import { describe, expect, it } from "vitest";
-import { projectToScreen, seatAnchorWorld } from "./perch-geometry";
+import { characterScreenHeight, projectToScreen, seatAnchorWorld } from "./perch-geometry";
 import { projectBoxWidthPx, projectFeetAnchor } from "./project-anchor";
 import { createScreenProbes } from "./screen-probes";
 
@@ -48,7 +48,7 @@ function makeFixture() {
     bones.set(name, node);
     return node;
   };
-  bone("head", 0, 1.5, 0);
+  const head = bone("head", 0, 1.5, 0);
   const hips = bone("hips", 0, 0.9, 0);
   bone("upperChest", 0, 1.2, 0);
   bone("leftHand", -0.4, 0.9, 0);
@@ -82,6 +82,7 @@ function makeFixture() {
     camera,
     modelBox,
     hips,
+    head,
     rightHand,
     make,
     hideVrm: (): void => {
@@ -128,6 +129,7 @@ describe("createScreenProbes", () => {
     modelBox.translate(new THREE.Vector3(0, 0, 1)); // 1 unit toward the camera at z=5.
     const near = probes.getPxPerMetre();
     expect(near).not.toBeNull();
+    expect(Number.isFinite(near!)).toBe(true);
     expect(near!).toBeGreaterThan(far!);
   });
 
@@ -138,17 +140,24 @@ describe("createScreenProbes", () => {
     expect(hands!.left.x).toBeLessThan(hands!.right.x);
     removeBone(rightHand.name);
     expect(make().getHandAnchors()).toBeNull();
+
+    const noLeft = makeFixture();
+    noLeft.removeBone("leftHand");
+    expect(noLeft.make().getHandAnchors()).toBeNull();
   });
 
-  it("returns tap points with a positive character height", () => {
-    const { make } = makeFixture();
+  it("returns tap points with the projected character height", () => {
+    const { camera, modelBox, head, make } = makeFixture();
     const taps = make().getTapPoints();
     expect(taps).not.toBeNull();
     expect(taps!.head).not.toBeNull();
     expect(taps!.chest).not.toBeNull();
     expect(taps!.hips).not.toBeNull();
-    expect(taps!.charHpx).toBeGreaterThan(0);
     expect(taps!.head!.y).toBeLessThan(taps!.hips!.y); // screen y grows downward
+    const { min, max } = modelBox;
+    const feet = new THREE.Vector3((min.x + max.x) / 2, min.y, (min.z + max.z) / 2);
+    const headWorld = head.getWorldPosition(new THREE.Vector3());
+    expect(taps!.charHpx).toBeCloseTo(characterScreenHeight(headWorld, feet, camera, W, H)!, 9);
   });
 
   it("seats the perch probe at the hips dropped by seatDrop", () => {
