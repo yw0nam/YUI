@@ -3,9 +3,9 @@
  * surfaces-router.test.ts — one Surfaces facade over two destinations.
  *
  * Every consumer keeps talking to a single `Surfaces`; the router sends the
- * bubble and input halves to whichever side the current mode names, sends busy
- * and the attachment limits to both, keeps the tool chip and the anchor local,
- * and hides the surface on the side being left when the mode flips.
+ * bubble and input halves to whichever side the current mode names, keeps the
+ * tool chip and the anchor local, and hides the surface on the side being left
+ * when the mode flips.
  */
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -405,7 +405,7 @@ describe("createSurfacesRouter over the message bridge", () => {
     expect(messageWindow.form.classList.contains("is-running")).toBe(true);
   });
 
-  it("catches a window created after a docked start up on the limits and busy", () => {
+  it("brings a window created after a docked start up to date on the limits and busy", () => {
     const { router, setMode, mountMessageWindow } = setup("docked");
     router.setAttachmentLimits(LIMITS);
     router.setBusy(true);

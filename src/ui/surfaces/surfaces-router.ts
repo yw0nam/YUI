@@ -3,11 +3,10 @@
  * message window's, reached over the bridge.
  *
  * Every consumer keeps its single `Surfaces` handle: the router picks the side
- * the current mode names for the bubble and the input, sends busy and the
- * attachment limits to both sides so either one is current when the mode flips,
- * and keeps the tool chip, the feet anchor and the overlay element local, since
- * those belong to the character. Submit and stop callbacks are registered once
- * here and fire whichever side the user typed on.
+ * the current mode names for the bubble and the input, and keeps the tool chip,
+ * the feet anchor and the overlay element local, since those belong to the
+ * character. Submit and stop callbacks are registered once here and fire
+ * whichever side the user typed on.
  */
 
 import type { RemoteSurfaces } from "../../io/bridge/message-remote";
@@ -70,6 +69,7 @@ export function createSurfacesRouter({
     dismissInput: () => input().dismissInput(),
     isInputOpen: () => input().isInputOpen(),
     setInputEnabled: (enabled) => input().setInputEnabled(enabled),
+    // Busy and the attachment limits go to both sides, so the side a mode flip reveals is current.
     setBusy(busy) {
       local.setBusy(busy);
       remote.setBusy(busy);
