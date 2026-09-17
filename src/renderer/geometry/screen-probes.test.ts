@@ -10,7 +10,12 @@
 import type { VRM } from "@pixiv/three-vrm";
 import * as THREE from "three";
 import { describe, expect, it } from "vitest";
-import { characterScreenHeight, projectToScreen, seatAnchorWorld } from "./perch-geometry";
+import {
+  characterScreenHeight,
+  projectToScreen,
+  seatAnchorWorld,
+  worldYPerPixel,
+} from "./perch-geometry";
 import { projectBoxWidthPx, projectFeetAnchor } from "./project-anchor";
 import { createScreenProbes } from "./screen-probes";
 
@@ -51,6 +56,7 @@ function makeFixture() {
   const head = bone("head", 0, 1.5, 0);
   const hips = bone("hips", 0, 0.9, 0);
   bone("upperChest", 0, 1.2, 0);
+  bone("chest", 0, 1.1, 0);
   bone("leftHand", -0.4, 0.9, 0);
   const rightHand = bone("rightHand", 0.4, 0.9, 0);
   scene.updateWorldMatrix(true, true);
@@ -120,12 +126,16 @@ describe("createScreenProbes", () => {
   });
 
   it("reports a finite positive pixels-per-metre that grows as the model comes closer", () => {
-    const { modelBox, make } = makeFixture();
+    const { camera, modelBox, make } = makeFixture();
     const probes = make();
     const far = probes.getPxPerMetre();
     expect(far).not.toBeNull();
     expect(Number.isFinite(far!)).toBe(true);
-    expect(far!).toBeGreaterThan(0);
+    // A positive, growing value survives any constant rescale; pin the scale itself.
+    const { min, max } = modelBox;
+    const feet = new THREE.Vector3((min.x + max.x) / 2, min.y, (min.z + max.z) / 2);
+    const depth = feet.sub(camera.position).dot(camera.getWorldDirection(new THREE.Vector3()));
+    expect(far!).toBeCloseTo(1 / worldYPerPixel(camera, depth, H)!, 9);
     modelBox.translate(new THREE.Vector3(0, 0, 1)); // 1 unit toward the camera at z=5.
     const near = probes.getPxPerMetre();
     expect(near).not.toBeNull();
@@ -158,19 +168,36 @@ describe("createScreenProbes", () => {
     const feet = new THREE.Vector3((min.x + max.x) / 2, min.y, (min.z + max.z) / 2);
     const headWorld = head.getWorldPosition(new THREE.Vector3());
     expect(taps!.charHpx).toBeCloseTo(characterScreenHeight(headWorld, feet, camera, W, H)!, 9);
+
+    // The chest point falls back to `chest` on a model with no `upperChest`.
+    const noUpperChest = makeFixture();
+    noUpperChest.removeBone("upperChest");
+    expect(noUpperChest.make().getTapPoints()!.chest).not.toBeNull();
   });
 
   it("seats the perch probe at the hips dropped by seatDrop", () => {
-    const { camera, hips, make } = makeFixture();
+    const { camera, hips, head, modelBox, make } = makeFixture();
     const probe = make().getPerchProbe();
     expect(probe).not.toBeNull();
-    expect(probe!.charHpx).toBeGreaterThan(0);
+    const headWorld = head.getWorldPosition(new THREE.Vector3());
+    const { min, max } = modelBox;
+    const feet = new THREE.Vector3((min.x + max.x) / 2, min.y, (min.z + max.z) / 2);
+    expect(probe!.charHpx).toBeCloseTo(characterScreenHeight(headWorld, feet, camera, W, H)!, 9);
     const hipsWorld = hips.getWorldPosition(new THREE.Vector3());
     const expected = projectToScreen(seatAnchorWorld(hipsWorld, 0.1), camera, W, H)!;
     expect(probe!.seatPx.x).toBeCloseTo(expected.x, 9);
     expect(probe!.seatPx.y).toBeCloseTo(expected.y, 9);
     const deeper = make({ seatDrop: 0.5 }).getPerchProbe()!;
     expect(deeper.seatPx.y).toBeGreaterThan(probe!.seatPx.y); // a larger drop seats lower
+  });
+
+  it("projects against the camera's current transform without the caller refreshing it", () => {
+    const { camera, modelBox, make } = makeFixture();
+    const probes = make();
+    camera.position.set(0, 1, 3); // move in, and deliberately leave the matrices stale
+    const got = probes.getCharacterAnchor();
+    camera.updateMatrixWorld(); // only now refresh, to build the expectation
+    expect(got).toEqual(projectFeetAnchor(modelBox, camera, W, H));
   });
 
   it("returns null from the perch probe with no hips bone", () => {
