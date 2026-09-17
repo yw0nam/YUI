@@ -35,10 +35,9 @@ turns in and finished replies out. The contract both sides speak is
   apply to this platform.
 - Names the most recently opened turn in every reply of a run, and clears the name when the turn
   ends. A turn the gateway runs inside a turn it interrupted ends first, and the interrupted turn
-  ends behind it. A turn that arrives while the gateway is running another turn on the same chat is
-  closed as it is accepted, and its text joins the running turn. A turn the gateway started on its
-  own, such as a cron result, carries an id the plugin mints, of the form `hermes-<n>`, counted per
-  gateway process.
+  ends behind it. A turn whose text the gateway takes into a turn already running on the same chat
+  ends when that turn ends. A turn the gateway started on its own, such as a cron result, carries an
+  id the plugin mints, of the form `hermes-<n>`, counted per gateway process.
 - Sends a `delegations` frame whenever background work starts or finishes, so the client can show
   what is running.
 - Holds reports that arrive while the client is away, up to forty, and delivers them as one

@@ -11,7 +11,7 @@ _lock = threading.Lock()
 _vocabularies: dict[str, Vocabulary] = {}
 _cues: dict[str, list[Placement]] = {}
 _open_turns: dict[str, list[str]] = {}
-_merged: dict[str, set[str]] = {}
+_joined: dict[str, list[str]] = {}
 _closing: set[str] = set()
 _delivered: set[str] = set()
 _connected: set[str] = set()
@@ -48,33 +48,33 @@ def open_turns(chat_id: str) -> list[str]:
 
 
 def close_turns(chat_id: str) -> list[str]:
-    """Every open turn, most recently opened first, cleared — they and the turns that joined them are over."""
+    """Every open turn most recently opened first, then the turns that joined them, cleared."""
     with _lock:
-        _merged.pop(chat_id, None)
-        return list(reversed(_open_turns.pop(chat_id, [])))
+        open_first = reversed(_open_turns.pop(chat_id, []))
+        return [*open_first, *reversed(_joined.pop(chat_id, []))]
 
 
-def mark_merged(chat_id: str, turn_id: str) -> None:
-    """Record a turn the backend took into the turn already running on this chat."""
+def mark_joined(chat_id: str, turn_id: str) -> None:
+    """Record a turn the backend took while this chat was busy, in arrival order."""
     with _lock:
-        _merged.setdefault(chat_id, set()).add(turn_id)
+        _joined.setdefault(chat_id, []).append(turn_id)
 
 
-def is_merged(chat_id: str, turn_id: str) -> bool:
-    """Whether this turn joined the one already running; the mark stays."""
+def drop_joined(chat_id: str, turn_id: str) -> None:
+    """Forget one mark; a turn the gateway ran on its own was never a joined one."""
     with _lock:
-        return turn_id in _merged.get(chat_id, ())
-
-
-def drop_merged(chat_id: str, turn_id: str) -> None:
-    """Forget the mark once the joined turn runs on its own or ends."""
-    with _lock:
-        held = _merged.get(chat_id)
-        if held is None:
+        held = _joined.get(chat_id)
+        if held is None or turn_id not in held:
             return
-        held.discard(turn_id)
+        held.remove(turn_id)
         if not held:
-            del _merged[chat_id]
+            del _joined[chat_id]
+
+
+def forget_joined(chat_id: str) -> None:
+    """Drop every mark on this chat; a departed client's ids mean nothing to the next one."""
+    with _lock:
+        _joined.pop(chat_id, None)
 
 
 def mark_closing(chat_id: str) -> None:
