@@ -13,7 +13,7 @@
  */
 
 import { describe, expect, it } from "vitest";
-import { guardrailsFixture } from "../config/load-test-helpers";
+import { guardrailsFixture } from "../../config/load-test-helpers";
 import type { BusEnvelope } from "./event-bus";
 import { createGuardrails, type Guardrails, type GuardrailsConfig } from "./guardrails";
 

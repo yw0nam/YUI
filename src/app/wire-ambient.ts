@@ -15,9 +15,9 @@ import type {
   WalkConfig,
 } from "../config/load";
 import type { MotionKind, WindowRect } from "../contract";
-import { isReflexTurn } from "../dispatcher/backend-caller";
+import { isReflexTurn } from "../dispatcher/backend/backend-caller";
+import type { EventBus } from "../dispatcher/core/event-bus";
 import type { Dispatcher } from "../dispatcher/dispatcher";
-import type { EventBus } from "../dispatcher/event-bus";
 import { type DescentEdge, type PetWindow, toScreenMonitor } from "../io/window/screen-geometry";
 import { isTauri } from "../io/window/tauri-env";
 import { createTravelFrame, type FrameWindow, type Travel } from "../io/window/travel-frame";

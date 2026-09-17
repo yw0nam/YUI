@@ -6,21 +6,15 @@
  */
 
 import { afterEach, beforeEach, describe, expect, it, type Mock, vi } from "vitest";
-import type { ToolStatus, Usage } from "../contract";
+import type { ToolStatus, Usage } from "../../contract";
 import type {
   ChatHistoryEntry,
   ChatHistoryItem,
   ChatHistoryStorage,
-} from "../io/chat/chat-history-store";
-import { createChatHistoryStore } from "../io/chat/chat-history-store";
-import type { Logger } from "../logger";
-import {
-  type BackendCaller,
-  createBackendCaller,
-  PRE_SPEECH_TIMEOUT_MS,
-  SPEECH_IDLE_TIMEOUT_MS,
-} from "./backend-caller";
-import type { BusEnvelope } from "./event-bus";
+} from "../../io/chat/chat-history-store";
+import { createChatHistoryStore } from "../../io/chat/chat-history-store";
+import type { Logger } from "../../logger";
+import type { BusEnvelope } from "../core/event-bus";
 import {
   CONFIG,
   completedEvent,
@@ -33,7 +27,13 @@ import {
   toolStatusEvent,
   turnOf,
   userEnv,
-} from "./test-helpers";
+} from "../test-helpers";
+import {
+  type BackendCaller,
+  createBackendCaller,
+  PRE_SPEECH_TIMEOUT_MS,
+  SPEECH_IDLE_TIMEOUT_MS,
+} from "./backend-caller";
 
 const script = createScriptedStream();
 let applyDirective: ReturnType<typeof vi.fn>;

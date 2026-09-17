@@ -6,10 +6,9 @@
  */
 
 import { beforeEach, describe, expect, it, type Mock, vi } from "vitest";
-import type { InputContext, PreviousTurn, ToolStatus, Usage } from "../contract";
-import type { Logger } from "../logger";
-import { type BackendCaller, createBackendCaller } from "./backend-caller";
-import type { BusEnvelope } from "./event-bus";
+import type { InputContext, PreviousTurn, ToolStatus, Usage } from "../../contract";
+import type { Logger } from "../../logger";
+import type { BusEnvelope } from "../core/event-bus";
 import {
   CONFIG,
   clientContextTextOf,
@@ -20,7 +19,8 @@ import {
   makeTurnOutput,
   turnOf,
   userEnv,
-} from "./test-helpers";
+} from "../test-helpers";
+import { type BackendCaller, createBackendCaller } from "./backend-caller";
 
 const script = createScriptedStream();
 let applyDirective: ReturnType<typeof vi.fn>;

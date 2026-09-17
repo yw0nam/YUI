@@ -10,7 +10,7 @@
  * it.
  */
 
-import { createLogger } from "../logger";
+import { createLogger } from "../../logger";
 
 const log = createLogger("push-turn");
 

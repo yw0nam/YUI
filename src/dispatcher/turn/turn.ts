@@ -5,7 +5,7 @@
  * isOver(); it drives nothing.
  */
 
-import type { BusEnvelope } from "./event-bus";
+import type { BusEnvelope } from "../core/event-bus";
 
 export interface Turn {
   readonly id: number;

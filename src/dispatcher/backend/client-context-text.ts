@@ -5,7 +5,7 @@
  * model, not machine-parseable.
  */
 
-import type { ClientContext, TriggerMeta } from "../contract";
+import type { ClientContext, TriggerMeta } from "../../contract";
 
 /** Collapses embedded newlines/whitespace runs to a single space and strips any
     `<client_context>`/`</client_context>` tag sequence, so a sampled or user-authored string can

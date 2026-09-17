@@ -31,7 +31,7 @@ vi.mock("../io/voice/audio-player", () => ({ createWebAudioSink: mocks.createWeb
 vi.mock("../io/chat/chat-client", () => ({ selectFetch: mocks.selectFetch }));
 
 import type { FillerPool } from "../config/load";
-import { createTurnLog } from "../dispatcher/turn";
+import { createTurnLog } from "../dispatcher/turn/turn";
 import type { FillerSettings } from "../io/settings/filler-settings";
 import { fillerPool as pool } from "../io/voice/filler-test-helpers";
 import type { Surfaces } from "../ui/surfaces/surfaces";

@@ -12,9 +12,8 @@
  */
 
 import { beforeEach, describe, expect, it, type Mock, vi } from "vitest";
-import type { ToolStatus, Usage } from "../contract";
-import type { Logger } from "../logger";
-import { type BackendCaller, createBackendCaller } from "./backend-caller";
+import type { ToolStatus, Usage } from "../../contract";
+import type { Logger } from "../../logger";
 import {
   CONFIG,
   completedEvent,
@@ -24,7 +23,8 @@ import {
   makeTurnOutput,
   turnOf,
   userEnv,
-} from "./test-helpers";
+} from "../test-helpers";
+import { type BackendCaller, createBackendCaller } from "./backend-caller";
 
 const script = createScriptedStream();
 

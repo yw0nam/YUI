@@ -10,13 +10,13 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { PeekConfig, TapConfig } from "../config/load";
 import { guardrailsFixture } from "../config/load-test-helpers";
 import type { EndpointsConfig } from "../contract";
-import { createBackendCaller } from "./backend-caller";
+import { createBackendCaller } from "./backend/backend-caller";
+import { type BusEnvelope, createEventBus, type EventBus } from "./core/event-bus";
+import { createGuardrails } from "./core/guardrails";
 import { createDispatcher, type Dispatcher } from "./dispatcher";
-import { type BusEnvelope, createEventBus, type EventBus } from "./event-bus";
-import { createGuardrails } from "./guardrails";
-import { createPushTurns, type PushTurns } from "./push-turn";
 import { CONFIG, makeLogger, makeTurnOutput, userEnv } from "./test-helpers";
-import { createTurnLog } from "./turn";
+import { createPushTurns, type PushTurns } from "./turn/push-turn";
+import { createTurnLog } from "./turn/turn";
 
 const PUSH_CONFIG: EndpointsConfig = { ...CONFIG, chat_api: "push" };
 

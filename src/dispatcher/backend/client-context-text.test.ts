@@ -6,7 +6,7 @@
  */
 
 import { describe, expect, it } from "vitest";
-import type { ClientContext } from "../contract";
+import type { ClientContext } from "../../contract";
 import { renderClientContext } from "./client-context-text";
 
 const NOW = 1_717_000_600_000; // 10min after the shared `since` fixtures below (1_717_000_000_000)

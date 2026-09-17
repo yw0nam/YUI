@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import type { BusEnvelope, EventBus } from "../../dispatcher/event-bus";
+import type { BusEnvelope, EventBus } from "../../dispatcher/core/event-bus";
 import { createTapSource, type TapConfig, type TapPoints } from "./tap-source";
 
 const config: TapConfig = {

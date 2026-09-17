@@ -7,7 +7,7 @@
  * Both events carry the utterance in payload.text.
  */
 
-import type { BusEnvelope, EventBus } from "../event-bus";
+import type { BusEnvelope, EventBus } from "../core/event-bus";
 
 export interface UserInputSource {
   /** Chat submit → bus push. Pushes when text is non-empty OR ≥1 image is attached. */

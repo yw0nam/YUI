@@ -1,6 +1,6 @@
 import type { TapConfig } from "../../config/load";
 import type { SignalGroup } from "../../contract";
-import type { EventBus } from "../../dispatcher/event-bus";
+import type { EventBus } from "../../dispatcher/core/event-bus";
 import { createLogger } from "../../logger";
 import {
   type CssPoint,

@@ -13,7 +13,7 @@
  * Time read only via injected now() (bare Date.now() forbidden).
  */
 
-import type { GuardrailsConfig } from "../config/load";
+import type { GuardrailsConfig } from "../../config/load";
 import type { BusEnvelope } from "./event-bus";
 
 export type { GuardrailsConfig };

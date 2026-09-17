@@ -32,7 +32,7 @@
 
 import type { GestureCueConfig, GestureCuesConfig, PeekConfig } from "../../config/load";
 import type { ScreenRect, WindowRect } from "../../contract";
-import type { EventBus } from "../../dispatcher/event-bus";
+import type { EventBus } from "../../dispatcher/core/event-bus";
 import { createLogger } from "../../logger";
 import type { ScreenPoint } from "../../renderer/perch-geometry";
 import {

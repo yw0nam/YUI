@@ -12,14 +12,14 @@
  */
 
 import { describe, expect, it, vi } from "vitest";
-import type { ControlEnvelope } from "../contract";
-import type { RenderFrame } from "../io/chat/push-socket";
-import type { AudioSink } from "../io/voice/audio-player";
-import { createSpeechPlayback } from "../io/voice/speech-playback";
-import type { TtsSynth } from "../io/voice/tts-synth";
+import type { ControlEnvelope } from "../../contract";
+import type { RenderFrame } from "../../io/chat/push-socket";
+import type { AudioSink } from "../../io/voice/audio-player";
+import { createSpeechPlayback } from "../../io/voice/speech-playback";
+import type { TtsSynth } from "../../io/voice/tts-synth";
+import { makeLogger } from "../test-helpers";
 import { createPushTurns } from "./push-turn";
 import { createRenderTurn } from "./render-turn";
-import { makeLogger } from "./test-helpers";
 import type { TurnOutput } from "./turn-output";
 
 /** A synth the test releases one sentence at a time, in whichever order it likes. */

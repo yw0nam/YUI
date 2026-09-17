@@ -9,7 +9,7 @@
  */
 
 import { describe, expect, it, vi } from "vitest";
-import type { BusEnvelope, EventBus } from "../event-bus";
+import type { BusEnvelope, EventBus } from "../core/event-bus";
 import { createUserInputSource } from "./user-input-source";
 
 function fakeBus(): { bus: EventBus; pushed: BusEnvelope[] } {

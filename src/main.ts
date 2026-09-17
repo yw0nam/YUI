@@ -21,7 +21,7 @@ import { wirePushMode } from "./app/wire-push";
 import { wireSettingsReload } from "./app/wire-window-sync";
 import { CHAT_API_KEY_SECRET, STT_API_KEY_SECRET, TTS_API_KEY_SECRET } from "./config/load";
 import { createConfigStore } from "./config/store";
-import { createEventBus } from "./dispatcher/event-bus";
+import { createEventBus } from "./dispatcher/core/event-bus";
 import { createUserInputSource } from "./dispatcher/sources/user-input-source";
 import { removeUserVrm } from "./io/assets/vrm-import";
 import { publishDelegations } from "./io/bridge/delegations-bridge";

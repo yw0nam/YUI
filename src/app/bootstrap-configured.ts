@@ -10,15 +10,19 @@ import {
 } from "../config/load";
 import type { ConfigStore } from "../config/store";
 import type { EndpointsConfig, WindowRect } from "../contract";
-import { createBackendCaller, isChatConfigured } from "../dispatcher/backend-caller";
+import { createBackendCaller, isChatConfigured } from "../dispatcher/backend/backend-caller";
+import { createPreviousTurn } from "../dispatcher/backend/previous-turn";
+import type { EventBus } from "../dispatcher/core/event-bus";
+import {
+  createGuardrails,
+  type Guardrails,
+  type GuardrailsConfig,
+} from "../dispatcher/core/guardrails";
+import { createProactivePacer } from "../dispatcher/core/proactive-pacer";
 import { createDispatcher, type Dispatcher } from "../dispatcher/dispatcher";
-import type { EventBus } from "../dispatcher/event-bus";
-import { createGuardrails, type Guardrails, type GuardrailsConfig } from "../dispatcher/guardrails";
-import { createPreviousTurn } from "../dispatcher/previous-turn";
-import { createProactivePacer } from "../dispatcher/proactive-pacer";
-import { createPushTurns } from "../dispatcher/push-turn";
 import type { UserInputSource } from "../dispatcher/sources/user-input-source";
-import { createTurnLog } from "../dispatcher/turn";
+import { createPushTurns } from "../dispatcher/turn/push-turn";
+import { createTurnLog } from "../dispatcher/turn/turn";
 import type { DelegationsStore } from "../io/bridge/delegations-store";
 import type { ReasoningStore } from "../io/bridge/reasoning-store";
 import { selectFetch } from "../io/chat/chat-client";

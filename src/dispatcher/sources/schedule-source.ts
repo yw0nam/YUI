@@ -20,7 +20,7 @@ import type { ScheduledCue } from "../../io/settings/schedule-settings";
 import type { OsEventListen, OsEventPayload } from "../../io/window/tauri-listen";
 import { subscribeOsEvent } from "../../io/window/tauri-listen";
 import { createLogger } from "../../logger";
-import type { BusEnvelope, EventBus } from "../event-bus";
+import type { BusEnvelope, EventBus } from "../core/event-bus";
 
 const log = createLogger("schedule-source");
 

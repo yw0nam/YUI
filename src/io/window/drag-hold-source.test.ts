@@ -6,7 +6,7 @@
  */
 
 import { beforeEach, describe, expect, it } from "vitest";
-import type { BusEnvelope, EventBus } from "../../dispatcher/event-bus";
+import type { BusEnvelope, EventBus } from "../../dispatcher/core/event-bus";
 import { createDragHoldSource } from "./drag-hold-source";
 
 /** Minimal in-memory bus capturing pushes. */

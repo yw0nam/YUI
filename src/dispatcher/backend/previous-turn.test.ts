@@ -6,11 +6,11 @@
  */
 
 import { describe, expect, it } from "vitest";
-import type { PreviousTurn } from "../contract";
-import type { PersistedStorage } from "../io/settings/persisted-store";
-import type { BusEnvelope } from "./event-bus";
+import type { PreviousTurn } from "../../contract";
+import type { PersistedStorage } from "../../io/settings/persisted-store";
+import type { BusEnvelope } from "../core/event-bus";
+import type { Turn } from "../turn/turn";
 import { createPreviousTurn } from "./previous-turn";
-import type { Turn } from "./turn";
 
 const NOW = 1_717_000_000_000;
 

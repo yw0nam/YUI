@@ -11,15 +11,15 @@
  */
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import type { EndpointsConfig } from "../contract";
-import type { ChatHistoryEntry } from "../io/chat/chat-history-store";
-import type { PushTurnFrame } from "../io/chat/push-socket";
-import type { Logger } from "../logger";
+import type { EndpointsConfig } from "../../contract";
+import type { ChatHistoryEntry } from "../../io/chat/chat-history-store";
+import type { PushTurnFrame } from "../../io/chat/push-socket";
+import type { Logger } from "../../logger";
+import type { BusEnvelope } from "../core/event-bus";
+import { CONFIG, makeLogger, makeTurnOutput, touchEnv, turnOf, userEnv } from "../test-helpers";
+import { createPushTurns } from "../turn/push-turn";
+import { createRenderTurn } from "../turn/render-turn";
 import { createBackendCaller, PRE_SPEECH_TIMEOUT_MS, type TurnOutcome } from "./backend-caller";
-import type { BusEnvelope } from "./event-bus";
-import { createPushTurns } from "./push-turn";
-import { createRenderTurn } from "./render-turn";
-import { CONFIG, makeLogger, makeTurnOutput, touchEnv, turnOf, userEnv } from "./test-helpers";
 
 function scheduleEnv(): BusEnvelope {
   return {

@@ -3,7 +3,7 @@
  */
 
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { userEnv } from "./test-helpers";
+import { userEnv } from "../test-helpers";
 import { createTurnLog } from "./turn";
 
 afterEach(() => {

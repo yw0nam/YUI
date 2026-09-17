@@ -100,8 +100,8 @@ vi.mock("../io/voice/voice-import", () => ({
 
 import type { FillerConfig, FillerPool } from "../config/load";
 import type { EndpointsConfig } from "../contract";
-import type { BusEnvelope } from "../dispatcher/event-bus";
-import { createTurnLog } from "../dispatcher/turn";
+import type { BusEnvelope } from "../dispatcher/core/event-bus";
+import { createTurnLog } from "../dispatcher/turn/turn";
 import type { FillerLoopDeps } from "../io/voice/filler-loop";
 import {
   createSpeakerSelection,

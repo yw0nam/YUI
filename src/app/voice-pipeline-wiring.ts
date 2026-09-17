@@ -1,8 +1,8 @@
 import type { AppConfig } from "../config/load";
 import type { EndpointsConfig } from "../contract";
-import type { TurnFailure } from "../dispatcher/backend-caller";
-import type { TurnLog } from "../dispatcher/turn";
-import type { TurnOutput } from "../dispatcher/turn-output";
+import type { TurnFailure } from "../dispatcher/backend/backend-caller";
+import type { TurnLog } from "../dispatcher/turn/turn";
+import type { TurnOutput } from "../dispatcher/turn/turn-output";
 import { selectFetch } from "../io/chat/chat-client";
 import type { FillerSettings } from "../io/settings/filler-settings";
 import { createWebAudioSink } from "../io/voice/audio-player";

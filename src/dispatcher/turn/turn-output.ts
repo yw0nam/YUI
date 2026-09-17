@@ -1,4 +1,4 @@
-import type { ExpressArgs, ToolStatus } from "../contract";
+import type { ExpressArgs, ToolStatus } from "../../contract";
 
 /**
  * Speech lifecycle port between the backend caller and the voice pipeline.

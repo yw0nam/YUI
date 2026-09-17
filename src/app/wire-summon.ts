@@ -1,4 +1,4 @@
-import type { EventBus } from "../dispatcher/event-bus";
+import type { EventBus } from "../dispatcher/core/event-bus";
 import { createSummonHotkey, type SummonHotkey } from "../io/window/summon-hotkey";
 import { isTauri } from "../io/window/tauri-env";
 import type { Logger } from "../logger";

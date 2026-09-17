@@ -16,8 +16,8 @@ import { describe, expect, it, vi } from "vitest";
 import type { ScreenConfig } from "../../config/load";
 import type { InputContext } from "../../contract";
 import type { OsEventListen, OsEventPayload } from "../../io/window/tauri-listen";
-import { buildClientContext } from "../context-builder";
-import type { BusEnvelope, EventBus } from "../event-bus";
+import { buildClientContext } from "../backend/context-builder";
+import type { BusEnvelope, EventBus } from "../core/event-bus";
 import { createScreenSource } from "./screen-source";
 
 const MIN = 60_000;

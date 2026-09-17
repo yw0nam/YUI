@@ -3,8 +3,8 @@
  */
 
 import { beforeEach, describe, expect, it, type Mock, vi } from "vitest";
-import { createPushTurns } from "../dispatcher/push-turn";
 import { makeTurnOutput } from "../dispatcher/test-helpers";
+import { createPushTurns } from "../dispatcher/turn/push-turn";
 import { createDelegationsStore } from "../io/bridge/delegations-store";
 import { createReasoningStore } from "../io/bridge/reasoning-store";
 import type { ChatHistoryEntry } from "../io/chat/chat-history-store";

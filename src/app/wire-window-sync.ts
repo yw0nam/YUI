@@ -1,4 +1,4 @@
-import type { Guardrails, GuardrailsConfig } from "../dispatcher/guardrails";
+import type { Guardrails, GuardrailsConfig } from "../dispatcher/core/guardrails";
 import type { createVrmSelection } from "../io/assets/vrm-selection";
 import {
   createSettingsBridge,

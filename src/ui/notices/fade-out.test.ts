@@ -6,7 +6,7 @@
  */
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { afterFadeOut } from "./fade-out.ts";
+import { afterFadeOut } from "./fade-out";
 
 // jsdom has no TransitionEvent constructor, so attach propertyName by hand.
 function transitionEnd(el: HTMLElement, propertyName = "opacity"): void {

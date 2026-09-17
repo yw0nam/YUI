@@ -6,9 +6,8 @@
  */
 
 import { beforeEach, describe, expect, it, type Mock, vi } from "vitest";
-import type { ControlEnvelope, ExpressArgs, ToolStatus, Usage } from "../contract";
-import type { Logger } from "../logger";
-import { type BackendCaller, createBackendCaller } from "./backend-caller";
+import type { ControlEnvelope, ExpressArgs, ToolStatus, Usage } from "../../contract";
+import type { Logger } from "../../logger";
 import {
   CONFIG,
   completedEvent,
@@ -27,7 +26,8 @@ import {
   usageEvent,
   userEnv,
   windowSitEnv,
-} from "./test-helpers";
+} from "../test-helpers";
+import { type BackendCaller, createBackendCaller } from "./backend-caller";
 
 const script = createScriptedStream();
 let applyDirective: ReturnType<typeof vi.fn>;

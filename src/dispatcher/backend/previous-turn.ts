@@ -6,15 +6,15 @@
  * record onto the next turn's client_context. What to do about a cut-off reply is the backend's.
  */
 
-import type { PreviousTurn, TurnEnded } from "../contract";
+import type { PreviousTurn, TurnEnded } from "../../contract";
 import {
   isPlainObject,
   localStorageStore,
   type PersistedStorage,
-} from "../io/settings/persisted-store";
-import type { SpokenSplit } from "../io/voice/tts-pipeline";
+} from "../../io/settings/persisted-store";
+import type { SpokenSplit } from "../../io/voice/tts-pipeline";
+import type { Turn } from "../turn/turn";
 import type { TurnFailure } from "./backend-caller";
-import type { Turn } from "./turn";
 
 const STORAGE_KEY = "yui.previous-turn";
 

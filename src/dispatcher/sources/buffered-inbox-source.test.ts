@@ -18,7 +18,7 @@
 import { describe, expect, it, vi } from "vitest";
 import type { OsEventListen, OsEventPayload } from "../../io/window/tauri-listen";
 import type { Logger } from "../../logger";
-import type { BusEnvelope, EventBus } from "../event-bus";
+import type { BusEnvelope, EventBus } from "../core/event-bus";
 import { createBufferedInboxSource, type InboxFiring } from "./buffered-inbox-source";
 
 const PRESENT_MAX = 10_000;

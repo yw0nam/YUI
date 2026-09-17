@@ -8,10 +8,10 @@
  */
 
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { AudioSink } from "../io/voice/audio-player";
-import { createSpeechPlayback, type SpeechPlayback } from "../io/voice/speech-playback";
-import type { TtsSynth } from "../io/voice/tts-synth";
-import { createBackendCaller } from "./backend-caller";
+import type { AudioSink } from "../../io/voice/audio-player";
+import { createSpeechPlayback, type SpeechPlayback } from "../../io/voice/speech-playback";
+import type { TtsSynth } from "../../io/voice/tts-synth";
+import { createBackendCaller } from "../backend/backend-caller";
 import {
   CONFIG,
   completedEvent,
@@ -21,7 +21,7 @@ import {
   makeLogger,
   turnOf,
   userEnv,
-} from "./test-helpers";
+} from "../test-helpers";
 import type { TurnOutput } from "./turn-output";
 
 /** A synth whose resolve the test controls, and which records each input in call order. */

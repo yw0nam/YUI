@@ -7,7 +7,7 @@
  */
 
 import type { GestureCueConfig } from "../../config/load";
-import type { EventBus } from "../../dispatcher/event-bus";
+import type { EventBus } from "../../dispatcher/core/event-bus";
 
 interface DragHoldSourceDeps {
   bus: Pick<EventBus, "push">;

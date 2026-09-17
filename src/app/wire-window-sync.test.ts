@@ -33,7 +33,7 @@ const { wireStorageSyncDispose, wireStorageSync } = vi.hoisted(() => {
 vi.mock("../io/window/settings-window", () => ({ wireStorageSync }));
 
 import type { GuardrailsConfig } from "../config/load";
-import { createGuardrails } from "../dispatcher/guardrails";
+import { createGuardrails } from "../dispatcher/core/guardrails";
 import type { BridgeTransport } from "../io/bridge/settings-bridge";
 import { createGuardrailsSettings, mergeGuardrails } from "../io/settings/guardrails-settings";
 import { reloadFromStorage as reloadLocaleFromStorage } from "../ui/i18n";

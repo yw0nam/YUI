@@ -8,11 +8,11 @@ import type {
   streamChat,
 } from "../io/chat/chat-client";
 import type { Logger } from "../logger";
-import type { BackendCaller, TurnOutcome } from "./backend-caller";
-import type { BusEnvelope } from "./event-bus";
-import type { GuardrailsConfig } from "./guardrails";
-import type { Turn } from "./turn";
-import type { TurnOutput } from "./turn-output";
+import type { BackendCaller, TurnOutcome } from "./backend/backend-caller";
+import type { BusEnvelope } from "./core/event-bus";
+import type { GuardrailsConfig } from "./core/guardrails";
+import type { Turn } from "./turn/turn";
+import type { TurnOutput } from "./turn/turn-output";
 
 export const NOW = 1_717_000_000_000;
 

@@ -14,10 +14,10 @@ import { guardrailsFixture } from "../config/load-test-helpers";
 import type { AudioSink } from "../io/voice/audio-player";
 import { createSpeechPlayback, type SpeechPlayback } from "../io/voice/speech-playback";
 import type { TtsSynth } from "../io/voice/tts-synth";
-import { createBackendCaller } from "./backend-caller";
+import { createBackendCaller } from "./backend/backend-caller";
+import { type BusEnvelope, createEventBus, type EventBus } from "./core/event-bus";
+import { createGuardrails, type Guardrails, type GuardrailsConfig } from "./core/guardrails";
 import { createDispatcher, type Dispatcher } from "./dispatcher";
-import { type BusEnvelope, createEventBus, type EventBus } from "./event-bus";
-import { createGuardrails, type Guardrails, type GuardrailsConfig } from "./guardrails";
 import {
   CONFIG,
   completedEvent,
@@ -26,7 +26,7 @@ import {
   makeLogger,
   userEnv,
 } from "./test-helpers";
-import { createTurnLog, type TurnLog } from "./turn";
+import { createTurnLog, type TurnLog } from "./turn/turn";
 
 const NOW = 1_717_000_000_000;
 

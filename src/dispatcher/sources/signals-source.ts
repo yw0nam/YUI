@@ -11,7 +11,7 @@ import type { SignalsBatch } from "../../io/bridge/signals-inbox";
 import { onSignalsInbox } from "../../io/bridge/signals-inbox";
 import type { OsEventListen } from "../../io/window/tauri-listen";
 import { createLogger } from "../../logger";
-import type { EventBus } from "../event-bus";
+import type { EventBus } from "../core/event-bus";
 import { createBufferedInboxSource, type InboxFiring } from "./buffered-inbox-source";
 
 const log = createLogger("signals-source");

@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
-import type { InputContext } from "../contract";
+import type { InputContext } from "../../contract";
+import type { BusEnvelope } from "../core/event-bus";
 import { buildClientContext, buildContext } from "./context-builder";
-import type { BusEnvelope } from "./event-bus";
 
 const ENV: BusEnvelope = {
   seq_id: 1,

@@ -21,7 +21,7 @@ import type { AgentEvent } from "../../io/bridge/agent-inbox";
 import { onAgentInbox } from "../../io/bridge/agent-inbox";
 import type { OsEventListen } from "../../io/window/tauri-listen";
 import { createLogger } from "../../logger";
-import type { EventBus } from "../event-bus";
+import type { EventBus } from "../core/event-bus";
 import { createBufferedInboxSource, type InboxFiring } from "./buffered-inbox-source";
 
 const log = createLogger("agent-source");

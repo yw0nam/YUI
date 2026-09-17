@@ -12,10 +12,10 @@
 
 import { describe, expect, it, vi } from "vitest";
 import type { ControlEnvelope, ExpressArgs } from "../contract";
-import { createPushTurns } from "../dispatcher/push-turn";
-import { createRenderTurn } from "../dispatcher/render-turn";
 import { makeLogger } from "../dispatcher/test-helpers";
-import type { TurnOutput } from "../dispatcher/turn-output";
+import { createPushTurns } from "../dispatcher/turn/push-turn";
+import { createRenderTurn } from "../dispatcher/turn/render-turn";
+import type { TurnOutput } from "../dispatcher/turn/turn-output";
 import type { RenderFrame } from "../io/chat/push-socket";
 import type { AudioSink } from "../io/voice/audio-player";
 import { createSpeechPlayback } from "../io/voice/speech-playback";

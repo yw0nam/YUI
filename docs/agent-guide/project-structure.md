@@ -106,17 +106,20 @@ YUI/
       vrm-participant.ts             # The per-frame lifecycle every VRM-bound sub-controller implements
     dispatcher/                      # Event bus + classify, guardrail, route
       dispatcher.ts                  # The router that enforces the firing-is-not-judgment boundary
-      event-bus.ts                   # Priority queue collecting every speech-candidate event
-      guardrails.ts                  # Cooldown, debounce, and rate-limit evaluation
-      backend-caller.ts              # Sends a tier-2 or tier-3 event to backend judgment and streams the reply
-      context-builder.ts             # Builds the per-turn client context and image attachments
-      client-context-text.ts         # Renders a client context into the plain-line prompt block
-      turn.ts                        # Turn identity ledger and the single definition of over
-      turn-output.ts                 # Speech lifecycle port between the backend caller and the voice pipeline
-      previous-turn.ts               # Persisted record of how the last turn that tried to speak ended
-      push-turn.ts                   # Push-turn ids the user stopped, so their late frames drop whole, and the wait for a sent turn to finish
-      render-turn.ts                 # Plays a finished backend turn that arrived as a render frame on the push socket
-      proactive-pacer.ts             # The quiet gap after a turn that every proactive source shares
+      core/
+        event-bus.ts                 # Priority queue collecting every speech-candidate event
+        guardrails.ts                # Cooldown, debounce, and rate-limit evaluation
+        proactive-pacer.ts           # The quiet gap after a turn that every proactive source shares
+      turn/
+        turn.ts                      # Turn identity ledger and the single definition of over
+        turn-output.ts               # Speech lifecycle port between the backend caller and the voice pipeline
+        push-turn.ts                 # Push-turn ids the user stopped, so their late frames drop whole, and the wait for a sent turn to finish
+        render-turn.ts               # Plays a finished backend turn that arrived as a render frame on the push socket
+      backend/
+        backend-caller.ts            # Sends a tier-2 or tier-3 event to backend judgment and streams the reply
+        context-builder.ts           # Builds the per-turn client context and image attachments
+        client-context-text.ts       # Renders a client context into the plain-line prompt block
+        previous-turn.ts             # Persisted record of how the last turn that tried to speak ended
       sources/
         buffered-inbox-source.ts     # Shared presence-gated core for the inbox-push firing sources
         agent-source.ts              # Agent-lifecycle firing source

@@ -1,7 +1,7 @@
 import type { EndpointsConfig } from "../contract";
-import type { PushTurns } from "../dispatcher/push-turn";
-import { createRenderTurn } from "../dispatcher/render-turn";
-import type { TurnOutput } from "../dispatcher/turn-output";
+import type { PushTurns } from "../dispatcher/turn/push-turn";
+import { createRenderTurn } from "../dispatcher/turn/render-turn";
+import type { TurnOutput } from "../dispatcher/turn/turn-output";
 import type { DelegationsStore } from "../io/bridge/delegations-store";
 import type { ReasoningStore } from "../io/bridge/reasoning-store";
 import type { ChatHistoryEntry } from "../io/chat/chat-history-store";

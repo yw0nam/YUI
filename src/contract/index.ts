@@ -1,6 +1,6 @@
 /**
  * Contract barrel — single entry point for the wire contract types.
- * Other modules access them via `import { ... } from "../contract"`.
+ * Other modules access them via `import { ... } from "./"`.
  */
 export type {
   // Current posture reported each turn

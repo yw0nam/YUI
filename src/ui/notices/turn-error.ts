@@ -6,7 +6,7 @@
  * anything else renders nothing rather than inventing text.
  */
 
-import type { TurnFailure } from "../../dispatcher/backend-caller";
+import type { TurnFailure } from "../../dispatcher/backend/backend-caller";
 import type { UserTurnSource } from "../../dispatcher/dispatcher";
 import { t } from "../i18n";
 import type { InputErrorAction } from "../input/text-input";

@@ -1,7 +1,7 @@
 import type { GestureCuesConfig, PeekConfig, ScreenConfig } from "../config/load";
 import type { Posture, WindowRect } from "../contract";
-import type { EventBus } from "../dispatcher/event-bus";
-import type { ProactivePacer } from "../dispatcher/proactive-pacer";
+import type { EventBus } from "../dispatcher/core/event-bus";
+import type { ProactivePacer } from "../dispatcher/core/proactive-pacer";
 import { createAgentSource } from "../dispatcher/sources/agent-source";
 import {
   createMilestoneSource,

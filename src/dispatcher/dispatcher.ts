@@ -35,11 +35,11 @@ import { PERCH_MOTION_ID } from "../io/window/window-drop-source";
 import type { Logger, LogLevel } from "../logger";
 import { createLogger } from "../logger";
 import type { Renderer } from "../renderer";
-import type { BackendCaller, TurnFailure, TurnOutcome } from "./backend-caller";
-import type { BusEnvelope, EventBus } from "./event-bus";
-import type { Guardrails } from "./guardrails";
-import type { ProactivePacer } from "./proactive-pacer";
-import type { Turn, TurnLog } from "./turn";
+import type { BackendCaller, TurnFailure, TurnOutcome } from "./backend/backend-caller";
+import type { BusEnvelope, EventBus } from "./core/event-bus";
+import type { Guardrails } from "./core/guardrails";
+import type { ProactivePacer } from "./core/proactive-pacer";
+import type { Turn, TurnLog } from "./turn/turn";
 
 const baseLog = createLogger("dispatcher");
 

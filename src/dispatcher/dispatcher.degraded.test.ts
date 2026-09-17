@@ -10,10 +10,10 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { PeekConfig, TapConfig } from "../config/load";
 import type { Logger } from "../logger";
-import type { BackendCaller, TurnOutcome } from "./backend-caller";
+import type { BackendCaller, TurnOutcome } from "./backend/backend-caller";
+import { type BusEnvelope, createEventBus, type EventBus } from "./core/event-bus";
+import { createGuardrails, type Guardrails } from "./core/guardrails";
 import { createDispatcher, type Dispatcher } from "./dispatcher";
-import { type BusEnvelope, createEventBus, type EventBus } from "./event-bus";
-import { createGuardrails, type Guardrails } from "./guardrails";
 import {
   type DeferredCall,
   env,
@@ -22,7 +22,7 @@ import {
   NOW,
   permissiveGuardrailsConfig,
 } from "./test-helpers";
-import { createTurnLog, type TurnLog } from "./turn";
+import { createTurnLog, type TurnLog } from "./turn/turn";
 
 const PEEK_CONFIG: PeekConfig = {
   side_out_frac: 0.28,

@@ -5,8 +5,8 @@ import type {
   InputContext,
   PreviousTurn,
   TriggerMeta,
-} from "../contract";
-import type { BusEnvelope } from "./event-bus";
+} from "../../contract";
+import type { BusEnvelope } from "../core/event-bus";
 
 interface ContextProviders {
   getScreenshot?: () => Promise<InputContext["screenshot"] | undefined>;
