@@ -33,16 +33,13 @@ import type {
 } from "../../contract";
 import { type ChatRequest, streamChat } from "../../io/chat/chat-client";
 import { buildCCMessages } from "../../io/chat/chat-completions";
-import { type ChatHistoryEntry, selectSendSuffix } from "../../io/chat/chat-history-store";
+import { selectSendSuffix } from "../../io/chat/chat-history-store";
 import type { ClientToolRegistry } from "../../io/chat/client-tools";
-import type { ContextHistoryEntry } from "../../io/chat/context-history";
-import type { PushTurnFrame } from "../../io/chat/push-socket";
 import { createSilenceTokenFilter, isSilenceToken } from "../../io/chat/silence-token";
-import { buildTurnRecord, type TurnRecord } from "../../io/chat/turn-record-log";
+import { buildTurnRecord } from "../../io/chat/turn-record-log";
 import type { Logger } from "../../logger";
 import { createLogger } from "../../logger";
 import type { Renderer } from "../../renderer";
-import type { PushTurns } from "../turn/push-turn";
 import type { Turn } from "../turn/turn";
 import type { TurnOutput } from "../turn/turn-output";
 import { backgroundMarker } from "./background-marker";
@@ -54,7 +51,7 @@ import {
   type StallStage,
   withIdleWatchdog,
 } from "./idle-watchdog";
-import { createPushCall } from "./push-call";
+import { createPushCall, type PushCallDeps } from "./push-call";
 import { encodeInput } from "./request-input";
 import type { TurnOutcome } from "./turn-outcome";
 
@@ -87,7 +84,8 @@ export function isChatConfigured(cfg: Pick<EndpointsConfig, "chat_base_url">): b
 
 export type { TurnFailure, TurnOutcome } from "./turn-outcome";
 
-interface BackendCallerDeps {
+/** Adds the streaming path's own deps to the set the push path declares, so each field is declared once. */
+interface BackendCallerDeps extends PushCallDeps {
   /** chat endpoint config. */
   config: EndpointsConfig;
   /** render directive sink (applyDirective). */
@@ -108,8 +106,6 @@ interface BackendCallerDeps {
   getPrevious?: () => PreviousTurn | undefined;
   /** tool_status sink — called only when present. */
   onToolStatus?: (status: ToolStatus) => void;
-  /** B4 speech-gate outcome sink — whether the turn returned speech text, independent of TTS. */
-  reportSpokeText?: (spoke: boolean) => void;
   /** Previous response id lookup — when present, included in request to continue conversation. Called per turn (reflects reset/rotation). */
   getPreviousResponseId?: () => string | undefined;
   /** New response id persist — called only after a completely successful turn (conversation state progress). */
@@ -122,28 +118,10 @@ interface BackendCallerDeps {
   onUsage?: (usage: Usage) => void;
   /** Current agent setting (reasoning effort + instructions override) snapshot. Reflected in request only when present. */
   getAgentSettings?: () => import("../../io/settings/agent-settings").AgentSettings;
-  /** Integrated conversation transcript — append after completely successful turn in both protocol modes, unless a reset opened a new session meanwhile (sessionToken). CC mode replays the current session from here. */
-  transcript?: {
-    entriesAfterLastBoundary(): ChatHistoryEntry[];
-    append(e: ChatHistoryEntry): void;
-    sessionToken(): string;
-  };
-  /** Local sent-context history, appended only after the turn is confirmed successful. */
-  contextHistory?: { append(entry: ContextHistoryEntry): void };
-  /** Turn-record JSONL sink — best-effort disk log for speak-rate/suppression analysis. */
-  appendTurnRecord?: (record: TurnRecord) => void;
   /** Client-declared tool registry, resolved per turn so vocabulary edits land on the next call. */
   clientTools?: () => ClientToolRegistry;
-  /** Push transport sender — present in push mode; false means the socket was not ready. */
-  pushTurn?: (frame: PushTurnFrame) => boolean;
   /** The user typed or spoke, so the push turns still outstanding are stopped with the speech. */
   onPushTurnCut?: () => void;
-  /** The socket accepted this turn's frame. */
-  onPushTurnSent?: (turnId: string) => void;
-  /** Push turn store — the call waits on it for the turn_end that closes its turn. */
-  pushTurns?: Pick<PushTurns, "awaitTurnEnd" | "abandon">;
-  /** Registers a callback for the push socket leaving `ready`; returns the unsubscribe. */
-  onPushSocketNotReady?: (cb: () => void) => () => void;
   /** Structured logging (defaults to backend_caller namespace logger if absent). */
   logger?: Logger;
   /** Chat stream transport. Defaults to the real streamChat; injected in tests to script a turn. */
