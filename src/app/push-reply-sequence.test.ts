@@ -16,7 +16,7 @@ import { makeLogger } from "../dispatcher/test-helpers";
 import { createPushTurns } from "../dispatcher/turn/push-turn";
 import { createRenderTurn } from "../dispatcher/turn/render-turn";
 import type { TurnOutput } from "../dispatcher/turn/turn-output";
-import type { RenderFrame } from "../io/chat/push-socket";
+import type { RenderFrame, SpeechFrame } from "../io/chat/push-socket";
 import type { AudioSink } from "../io/voice/audio-player";
 import { createSpeechPlayback } from "../io/voice/speech-playback";
 import type { TtsSynth } from "../io/voice/tts-synth";
@@ -80,6 +80,7 @@ function setup() {
   const pushTurns = createPushTurns();
   const renderer = recordingRenderer();
   const sink = heldSink(played);
+  const utterances: string[] = [];
 
   const speechPlayback = createSpeechPlayback({
     renderer,
@@ -91,6 +92,8 @@ function setup() {
     },
     pipeline: { synth: synth.synth, sink: sink.sink, maxInflight: () => 5 },
     isStrolling: () => false,
+    onUtteranceStart: () => utterances.push("start"),
+    onUtteranceEnd: (ended) => utterances.push(ended),
   });
 
   const turnOutput: TurnOutput = {
@@ -137,6 +140,7 @@ function setup() {
   return {
     played,
     synth,
+    utterances,
     pushTurns,
     renderTurn,
     directives: renderer.directives,
@@ -198,6 +202,64 @@ describe("a reply the backend starts on its own, after the user stopped the last
     expect(seq.synth.inputs).toEqual(["Long answer.", "One more thing."]);
     seq.synth.deliver(1);
     await vi.waitFor(() => expect(seq.played).toEqual(["play:0", "play:1"]));
+  });
+});
+
+describe("a reply streamed as speech frames", () => {
+  function speech(text: string, turnId: string): SpeechFrame {
+    return { type: "speech", turn_id: turnId, segments: [{ speech: text }] };
+  }
+
+  it("speaks the first sentence before the turn's render and plays the reply as one utterance", async () => {
+    const seq = setup();
+    seq.openTurn("1");
+
+    seq.renderTurn.stream(speech("All green.", "1"));
+
+    expect(seq.synth.inputs).toEqual(["All green."]);
+    expect(seq.motions.at(-1)).toBeNull();
+
+    seq.synth.deliver(0);
+    await vi.waitFor(() => expect(seq.played).toEqual(["play:0"]));
+    seq.renderTurn.stream(speech("Every one.", "1"));
+    seq.renderTurn.render(frame("Want the list?", "1"));
+
+    expect(seq.synth.inputs).toEqual(["All green.", "Every one.", "Want the list?"]);
+
+    seq.synth.deliver(1);
+    seq.synth.deliver(2);
+    seq.finishPlayback();
+    await vi.waitFor(() => expect(seq.played).toEqual(["play:0", "play:1"]));
+    seq.finishPlayback();
+    await vi.waitFor(() => expect(seq.played).toEqual(["play:0", "play:1", "play:2"]));
+
+    expect(seq.utterances).toEqual(["start"]);
+
+    seq.finishPlayback();
+    await vi.waitFor(() => expect(seq.utterances).toEqual(["start", "complete"]));
+  });
+
+  it("keeps the barge-in mute when the user talks over it, and drops the turn's later frames", async () => {
+    const seq = setup();
+    // The pairing wirePushTransport makes.
+    seq.pushTurns.onCut((turnId) => seq.renderTurn.drop(turnId));
+    seq.openTurn("1");
+    seq.renderTurn.stream(speech("All green.", "1"));
+    seq.synth.deliver(0);
+    await vi.waitFor(() => expect(seq.played).toEqual(["play:0"]));
+
+    seq.bargeIn();
+    seq.renderTurn.stream(speech("Every one.", "1"));
+    seq.renderTurn.render(frame("Want the list?", "1"));
+    // A line spoken inside the mute window stays silent.
+    seq.speakFiller("Hmm.");
+
+    expect(seq.synth.inputs).toEqual(["All green."]);
+    expect(seq.utterances).toEqual(["start", "interrupted"]);
+
+    seq.renderTurn.render(frame("One more thing.", "hermes-1"));
+
+    expect(seq.synth.inputs).toEqual(["All green.", "One more thing."]);
   });
 });
 

@@ -67,6 +67,64 @@ describe("createPushTurns", () => {
   });
 });
 
+describe("onCut", () => {
+  it("hears every turn a cut sweeps, once each, before cut() returns", () => {
+    const turns = createPushTurns();
+    const heard: string[] = [];
+    turns.onCut((turnId) => heard.push(turnId));
+
+    turns.opened("A");
+    turns.rendered("hermes-1");
+    turns.cut();
+    heard.push("returned");
+
+    expect(heard).toEqual(["A", "hermes-1", "returned"]);
+  });
+
+  it("hears nothing for a turn an earlier cut already swept", () => {
+    const turns = createPushTurns();
+    const heard: string[] = [];
+    turns.onCut((turnId) => heard.push(turnId));
+
+    turns.opened("A");
+    turns.cut();
+    turns.cut();
+
+    expect(heard).toEqual(["A"]);
+  });
+
+  it("hears nothing once the listener is removed", () => {
+    const turns = createPushTurns();
+    const heard: string[] = [];
+    const off = turns.onCut((turnId) => heard.push(turnId));
+    off();
+
+    turns.opened("A");
+    turns.cut();
+
+    expect(heard).toEqual([]);
+    expect(turns.isCut("A")).toBe(true);
+  });
+
+  it("a throwing listener leaves the rest of the sweep going", async () => {
+    const turns = createPushTurns();
+    const heard: string[] = [];
+    turns.onCut(() => {
+      throw new Error("the stage is gone");
+    });
+    turns.onCut((turnId) => heard.push(turnId));
+
+    turns.opened("A");
+    turns.opened("B");
+    const b = turns.awaitTurnEnd("B");
+
+    expect(() => turns.cut()).not.toThrow();
+    expect(heard).toEqual(["A", "B"]);
+    expect(turns.isCut("B")).toBe(true);
+    await expect(b).resolves.toBe("cut");
+  });
+});
+
 describe("ended", () => {
   it("removes a cut turn's id from the stopped set", () => {
     const turns = createPushTurns();

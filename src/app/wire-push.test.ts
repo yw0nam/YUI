@@ -2,7 +2,8 @@
  * wire-push.test.ts — routing an open push socket into the client.
  */
 
-import { beforeEach, describe, expect, it, type Mock, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, type Mock, vi } from "vitest";
+import { PRE_SPEECH_TIMEOUT_MS } from "../dispatcher/backend/idle-watchdog";
 import { makeTurnOutput } from "../dispatcher/test-helpers";
 import { createPushTurns } from "../dispatcher/turn/push-turn";
 import { createDelegationsStore } from "../io/bridge/delegations-store";
@@ -12,12 +13,14 @@ import type {
   DelegationItem,
   PushSocketState,
   RenderFrame,
+  SpeechFrame,
   TurnEndFrame,
 } from "../io/chat/push-socket";
 import { wirePushMode, wirePushTransport } from "./wire-push";
 
 function fakeSocket() {
   let renderCb: ((frame: RenderFrame) => void) | null = null;
+  let speechCb: ((frame: SpeechFrame) => void) | null = null;
   let turnEndCb: ((frame: TurnEndFrame) => void) | null = null;
   let delegationsCb: ((items: DelegationItem[]) => void) | null = null;
   let reasoningCb: ((delta: string) => void) | null = null;
@@ -28,6 +31,12 @@ function fakeSocket() {
       renderCb = cb;
       return () => {
         renderCb = null;
+      };
+    },
+    onSpeech(cb: (frame: SpeechFrame) => void) {
+      speechCb = cb;
+      return () => {
+        speechCb = null;
       };
     },
     onTurnEnd(cb: (frame: TurnEndFrame) => void) {
@@ -57,6 +66,9 @@ function fakeSocket() {
     pushRender(frame: RenderFrame): void {
       renderCb?.(frame);
     },
+    pushSpeech(frame: SpeechFrame): void {
+      speechCb?.(frame);
+    },
     pushTurnEnd(frame: TurnEndFrame): void {
       turnEndCb?.(frame);
     },
@@ -70,6 +82,7 @@ function fakeSocket() {
       stateCb?.(state);
     },
     hasRenderSubscriber: () => renderCb !== null,
+    hasSpeechSubscriber: () => speechCb !== null,
     hasTurnEndSubscriber: () => turnEndCb !== null,
     hasDelegationsSubscriber: () => delegationsCb !== null,
     hasReasoningSubscriber: () => reasoningCb !== null,
@@ -248,10 +261,145 @@ describe("wirePushTransport", () => {
     dispose();
 
     expect(socket.hasRenderSubscriber()).toBe(false);
+    expect(socket.hasSpeechSubscriber()).toBe(false);
     expect(socket.hasTurnEndSubscriber()).toBe(false);
     expect(socket.hasDelegationsSubscriber()).toBe(false);
     expect(socket.hasReasoningSubscriber()).toBe(false);
     expect(socket.hasStateSubscriber()).toBe(false);
+  });
+});
+
+describe("wirePushTransport — speech frames", () => {
+  const SPEECH: SpeechFrame = {
+    type: "speech",
+    turn_id: "7",
+    segments: [{ speech: "All green." }],
+  };
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it("plays speech frames into one utterance the turn's render closes", () => {
+    wire();
+    socket.pushSpeech(SPEECH);
+    socket.pushSpeech({ ...SPEECH, segments: [{ speech: "Every one." }] });
+
+    expect(turnOutput.delta).toHaveBeenCalledWith("All green.\n");
+    expect(turnOutput.delta).toHaveBeenCalledWith("Every one.\n");
+    expect(turnOutput.end).not.toHaveBeenCalled();
+
+    socket.pushRender({ ...RENDER, segments: [] });
+
+    expect(turnOutput.end).toHaveBeenCalledOnce();
+    expect(transcript).toEqual([
+      { role: "assistant", text: "All green. Every one.", ts: expect.any(Number) },
+    ]);
+  });
+
+  it.each([
+    ["the client's", "7"],
+    ["a backend-minted", "hermes-1"],
+  ])("ends %s turn's open utterance on its turn_end, before the turn is forgotten", (_label, turnId) => {
+    const ended = vi.spyOn(pushTurns, "ended");
+    wire();
+    socket.pushSpeech({ ...SPEECH, turn_id: turnId });
+    socket.pushTurnEnd({ type: "turn_end", turn_id: turnId });
+
+    expect(turnOutput.end).toHaveBeenCalledOnce();
+    expect(turnOutput.end.mock.invocationCallOrder[0]).toBeLessThan(
+      ended.mock.invocationCallOrder[0]!,
+    );
+    expect(transcript).toEqual([{ role: "assistant", text: "All green.", ts: expect.any(Number) }]);
+  });
+
+  it("leaves the open utterance alone on another turn's turn_end", () => {
+    wire();
+    socket.pushSpeech(SPEECH);
+    socket.pushTurnEnd({ type: "turn_end", turn_id: "8" });
+
+    expect(turnOutput.end).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ["the client's", "7"],
+    ["a backend-minted", "hermes-1"],
+  ])("ends %s turn's open utterance when the socket leaves ready", (_label, turnId) => {
+    wire();
+    socket.pushSpeech({ ...SPEECH, turn_id: turnId });
+    socket.pushState({ kind: "reconnecting", delay_ms: 1_000 });
+
+    expect(turnOutput.end).toHaveBeenCalledOnce();
+    expect(transcript).toHaveLength(1);
+  });
+
+  it("keeps the open utterance on a ready socket state", () => {
+    wire();
+    socket.pushSpeech(SPEECH);
+    socket.pushState({ kind: "ready", chat_id: "yui-1" });
+
+    expect(turnOutput.end).not.toHaveBeenCalled();
+  });
+
+  it("ends the open utterance once the frame wait passes with no frame of its turn", () => {
+    vi.useFakeTimers();
+    wire();
+    socket.pushSpeech({ ...SPEECH, turn_id: "hermes-1" });
+    vi.advanceTimersByTime(PRE_SPEECH_TIMEOUT_MS);
+
+    expect(turnOutput.end).toHaveBeenCalledOnce();
+  });
+
+  it("drops a cut turn's open utterance: one transcript entry before the user's next, no end()", () => {
+    wire();
+    pushTurns.opened("7");
+    socket.pushSpeech(SPEECH);
+    pushTurns.cut();
+    // The user's own half of the turn that cut the reply.
+    transcript.push({ role: "user", text: "Stop there.", ts: 1 });
+    socket.pushRender({ ...RENDER, segments: [{ speech: "Want the list?" }] });
+
+    expect(transcript).toEqual([
+      { role: "assistant", text: "All green.", ts: expect.any(Number) },
+      { role: "user", text: "Stop there.", ts: 1 },
+    ]);
+    expect(turnOutput.end).not.toHaveBeenCalled();
+  });
+
+  it("brings the thinking bridge down on the first speech frame, once", () => {
+    wire();
+    const onFirstRender = vi.fn();
+    pushTurns.opened("7");
+    void pushTurns.awaitTurnEnd("7", { onFirstRender });
+    socket.pushSpeech(SPEECH);
+
+    expect(onFirstRender).toHaveBeenCalledOnce();
+
+    socket.pushSpeech(SPEECH);
+    socket.pushRender(RENDER);
+
+    expect(onFirstRender).toHaveBeenCalledOnce();
+  });
+
+  it("leaves the reasoning as it is on a speech frame", () => {
+    wire();
+    socket.pushReasoning("A");
+    socket.pushSpeech(SPEECH);
+
+    expect(reasoning.get()).toEqual({ text: "A", live: true });
+  });
+
+  it("stops hearing cuts and the frame wait once disposed", () => {
+    vi.useFakeTimers();
+    const dispose = wire();
+    pushTurns.opened("7");
+    socket.pushSpeech(SPEECH);
+    dispose();
+    pushTurns.cut();
+    vi.advanceTimersByTime(PRE_SPEECH_TIMEOUT_MS);
+
+    expect(transcript).toEqual([]);
+    expect(turnOutput.end).not.toHaveBeenCalled();
   });
 });
 

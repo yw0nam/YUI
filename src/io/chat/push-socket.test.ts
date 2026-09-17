@@ -1013,6 +1013,74 @@ describe("createPushSocket — inbound frames", () => {
   });
 });
 
+describe("createPushSocket — speech frames", () => {
+  const SPEECH = {
+    type: "speech",
+    turn_id: "7",
+    segments: [{ cues: [{ emotion_id: "happy" }], speech: "All green." }],
+  };
+
+  it("hands a speech frame to every subscriber", async () => {
+    await connected();
+    const seen: unknown[] = [];
+    socket.onSpeech((frame) => seen.push(frame));
+    socket.onSpeech((frame) => seen.push(frame));
+    FakeSocket.last().push(SPEECH);
+
+    expect(seen).toEqual([SPEECH, SPEECH]);
+  });
+
+  it("hands a speech frame to no render subscriber", async () => {
+    await connected();
+    const seen: unknown[] = [];
+    socket.onRender((frame) => seen.push(frame));
+    FakeSocket.last().push(SPEECH);
+
+    expect(seen).toEqual([]);
+  });
+
+  it("stops delivering speech after the subscription is dropped", async () => {
+    await connected();
+    const seen: unknown[] = [];
+    const off = socket.onSpeech((frame) => seen.push(frame));
+    off();
+    FakeSocket.last().push(SPEECH);
+
+    expect(seen).toEqual([]);
+  });
+
+  it("drops a speech frame whose turn_id is not a string", async () => {
+    await connected();
+    const seen: unknown[] = [];
+    socket.onSpeech((frame) => seen.push(frame));
+    FakeSocket.last().push({ ...SPEECH, turn_id: 7 });
+
+    expect(seen).toEqual([]);
+    expect(logger.warn).toHaveBeenCalledWith("frame_malformed", {
+      type: "speech",
+      field: "turn_id",
+    });
+  });
+
+  it.each([
+    ["missing", undefined],
+    ["holding a segment that is not an object", [null]],
+    ["holding cues that are not a list", [{ cues: 5, speech: "Hi." }]],
+    ["holding speech that is not text", [{ speech: 5 }]],
+  ])("drops a speech frame whose segments are %s", async (_label, segments) => {
+    await connected();
+    const seen: unknown[] = [];
+    socket.onSpeech((frame) => seen.push(frame));
+    FakeSocket.last().push({ ...SPEECH, segments });
+
+    expect(seen).toEqual([]);
+    expect(logger.warn).toHaveBeenCalledWith("frame_malformed", {
+      type: "speech",
+      field: "segments",
+    });
+  });
+});
+
 describe("pushVocabularyOf", () => {
   it("maps the published broker payload to the frame's vocabulary", () => {
     expect(

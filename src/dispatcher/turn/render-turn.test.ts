@@ -2,12 +2,13 @@
  * render-turn.test.ts — a finished backend turn arriving as a `render` frame on the push socket.
  */
 
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { ExpressArgs } from "../../contract";
 import type { ChatHistoryEntry } from "../../io/chat/chat-history-store";
-import type { RenderFrame, RenderSegment } from "../../io/chat/push-socket";
+import type { RenderFrame, RenderSegment, SpeechFrame } from "../../io/chat/push-socket";
 import { createSentenceSegmenter } from "../../io/voice/sentence-segmenter";
 import type { Logger } from "../../logger";
+import { PRE_SPEECH_TIMEOUT_MS } from "../backend/idle-watchdog";
 import { makeLogger, makeTurnOutput } from "../test-helpers";
 import { createPushTurns, type PushTurns } from "./push-turn";
 import { createRenderTurn } from "./render-turn";
@@ -53,6 +54,10 @@ let transcript: ChatHistoryEntry[];
 
 function frame(segments: RenderSegment[], overrides: Partial<RenderFrame> = {}): RenderFrame {
   return { type: "render", turn_id: "7", source: "hermes", segments, ...overrides };
+}
+
+function speech(segments: RenderSegment[], overrides: Partial<SpeechFrame> = {}): SpeechFrame {
+  return { type: "speech", turn_id: "7", segments, ...overrides };
 }
 
 function turn() {
@@ -484,5 +489,320 @@ describe("render_turn — records", () => {
 
     expect(() => r.render(frame([{ speech: "Hello." }]))).not.toThrow();
     expect(pipeline.spoken[0]!.text).toBe("Hello.");
+  });
+});
+
+describe("render_turn — a reply streamed as speech frames", () => {
+  it("speaks each sentence as its frame arrives, with the cue its segment carries", () => {
+    const r = turn();
+    r.stream(speech([{ cues: [{ emotion_id: "happy" }], speech: "All green." }]));
+
+    expect(pipeline.spoken).toEqual([{ text: "All green.", cue: { emotion_id: "happy" } }]);
+
+    r.stream(speech([{ cues: [{ emotion_id: "curious" }], speech: "Every one." }]));
+
+    expect(pipeline.spoken).toEqual([
+      { text: "All green.", cue: { emotion_id: "happy" } },
+      { text: "Every one.", cue: { emotion_id: "curious" } },
+    ]);
+    expect(turnOutput.end).not.toHaveBeenCalled();
+  });
+
+  it("plays the stream and the turn's render as one utterance with a single end()", () => {
+    const r = turn();
+    r.stream(speech([{ speech: "All green." }]));
+    r.stream(speech([{ speech: "Every one." }]));
+    r.render(frame([{ cues: [{ emotion_id: "curious" }], speech: "Want the list?" }]));
+
+    expect(pipeline.spoken).toEqual([
+      { text: "All green.", cue: null },
+      { text: "Every one.", cue: null },
+      { text: "Want the list?", cue: { emotion_id: "curious" } },
+    ]);
+    expect(turnOutput.end).toHaveBeenCalledOnce();
+    expect(turnOutput.end.mock.invocationCallOrder[0]).toBeGreaterThan(
+      turnOutput.delta.mock.invocationCallOrder.at(-1)!,
+    );
+  });
+
+  it.each<[string, RenderSegment[]]>([
+    ["no segments", []],
+    ["only a silent segment", [{ cues: [{ emotion_id: "happy" }], speech: "" }]],
+  ])("ends the utterance on the turn's render carrying %s", (_label, segments) => {
+    const r = turn();
+    r.stream(speech([{ speech: "All green." }]));
+    r.render(frame(segments));
+
+    expect(turnOutput.end).toHaveBeenCalledOnce();
+  });
+
+  it("writes the streamed and rendered sentences to the transcript as one entry", () => {
+    const r = turn();
+    r.stream(speech([{ speech: "All green." }]));
+    r.stream(speech([{ speech: "Every one." }]));
+
+    expect(transcript).toEqual([]);
+
+    r.render(frame([{ speech: "Want the list?" }]));
+
+    expect(transcript).toEqual([
+      { role: "assistant", text: "All green. Every one. Want the list?", ts: expect.any(Number) },
+    ]);
+  });
+
+  it("writes the streamed sentences as one entry when the render carries none", () => {
+    const r = turn();
+    r.stream(speech([{ speech: "All green." }]));
+    r.render(frame([]));
+
+    expect(transcript).toEqual([{ role: "assistant", text: "All green.", ts: expect.any(Number) }]);
+  });
+
+  it("writes a render record for the render alone", () => {
+    const r = turn();
+    r.stream(speech([{ speech: "All green." }]));
+
+    expect(records).toEqual([]);
+
+    r.render(frame([]));
+
+    expect(records).toHaveLength(1);
+  });
+
+  it("releases the barge-in mute before a speech frame's sentence is queued", () => {
+    turn().stream(speech([{ speech: "All green." }]));
+
+    expect(turnOutput.releaseMute).toHaveBeenCalledOnce();
+    expect(turnOutput.releaseMute.mock.invocationCallOrder[0]).toBeLessThan(
+      turnOutput.delta.mock.invocationCallOrder[0]!,
+    );
+  });
+
+  it("brings the thinking bridge down on the first speech frame, once for the whole turn", () => {
+    const onFirstRender = vi.fn();
+    const onFrame = vi.fn();
+    pushTurns.opened("7");
+    void pushTurns.awaitTurnEnd("7", { onFirstRender, onFrame });
+    const r = turn();
+
+    r.stream(speech([{ speech: "All green." }]));
+
+    expect(onFirstRender).toHaveBeenCalledOnce();
+
+    r.stream(speech([{ speech: "Every one." }]));
+    r.render(frame([]));
+
+    expect(onFirstRender).toHaveBeenCalledOnce();
+    expect(onFrame).toHaveBeenCalledTimes(3);
+  });
+
+  it("logs each speech frame with its turn", () => {
+    turn().stream(speech([{ speech: "All green." }]));
+
+    expect(logger.info).toHaveBeenCalledWith("push.speech", { turn_id: "7", segments: 1 });
+  });
+});
+
+describe("render_turn — a streamed reply closed without its render", () => {
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it("close(turnId) ends the open utterance and writes its sentences as one entry", () => {
+    const r = turn();
+    r.stream(speech([{ speech: "All green." }]));
+    r.stream(speech([{ speech: "Every one." }]));
+    r.close("7");
+
+    expect(turnOutput.end).toHaveBeenCalledOnce();
+    expect(transcript).toEqual([
+      { role: "assistant", text: "All green. Every one.", ts: expect.any(Number) },
+    ]);
+  });
+
+  it("close() with no turn named ends whichever utterance is open", () => {
+    const r = turn();
+    r.stream(speech([{ speech: "All green." }], { turn_id: "hermes-1" }));
+    r.close();
+
+    expect(turnOutput.end).toHaveBeenCalledOnce();
+    expect(transcript).toHaveLength(1);
+  });
+
+  it("close of another turn leaves the open utterance alone", () => {
+    const r = turn();
+    r.stream(speech([{ speech: "All green." }]));
+    r.close("8");
+
+    expect(turnOutput.end).not.toHaveBeenCalled();
+    expect(transcript).toEqual([]);
+  });
+
+  it("close with nothing open ends nothing", () => {
+    const r = turn();
+    r.close("7");
+    r.close();
+
+    expect(turnOutput.end).not.toHaveBeenCalled();
+  });
+
+  it("a silent render of the turn after its close plays as a reply of its own", () => {
+    const r = turn();
+    r.stream(speech([{ speech: "All green." }]));
+    r.close("7");
+    r.render(frame([]));
+
+    expect(turnOutput.end).toHaveBeenCalledOnce();
+    expect(transcript).toHaveLength(1);
+  });
+
+  it.each([
+    ["the client's", "7"],
+    ["a backend-minted", "hermes-1"],
+  ])("ends %s turn's utterance once the frame wait passes with no frame", (_label, turnId) => {
+    vi.useFakeTimers();
+    const r = turn();
+    r.stream(speech([{ speech: "All green." }], { turn_id: turnId }));
+
+    vi.advanceTimersByTime(PRE_SPEECH_TIMEOUT_MS - 1);
+    expect(turnOutput.end).not.toHaveBeenCalled();
+
+    vi.advanceTimersByTime(1);
+    expect(turnOutput.end).toHaveBeenCalledOnce();
+    expect(transcript).toEqual([{ role: "assistant", text: "All green.", ts: expect.any(Number) }]);
+  });
+
+  it("restarts the frame wait on every speech frame", () => {
+    vi.useFakeTimers();
+    const r = turn();
+    r.stream(speech([{ speech: "All green." }]));
+    vi.advanceTimersByTime(PRE_SPEECH_TIMEOUT_MS - 1);
+    r.stream(speech([{ speech: "Every one." }]));
+    vi.advanceTimersByTime(PRE_SPEECH_TIMEOUT_MS - 1);
+
+    expect(turnOutput.end).not.toHaveBeenCalled();
+
+    vi.advanceTimersByTime(1);
+    expect(turnOutput.end).toHaveBeenCalledOnce();
+  });
+
+  it.each<[string, (r: ReturnType<typeof turn>) => void]>([
+    ["the turn's render", (r) => r.render(frame([]))],
+    ["close", (r) => r.close("7")],
+    ["dispose", (r) => r.dispose()],
+  ])("stops the frame wait on %s", (_label, settle) => {
+    vi.useFakeTimers();
+    const r = turn();
+    r.stream(speech([{ speech: "All green." }]));
+    settle(r);
+    const ends = turnOutput.end.mock.calls.length;
+
+    vi.advanceTimersByTime(PRE_SPEECH_TIMEOUT_MS);
+
+    expect(turnOutput.end).toHaveBeenCalledTimes(ends);
+  });
+
+  it("a render of another turn closes the open utterance before it plays", () => {
+    const r = turn();
+    r.stream(speech([{ speech: "All green." }]));
+    r.render(frame([{ speech: "Something else." }], { turn_id: "8" }));
+
+    expect(turnOutput.end).toHaveBeenCalledTimes(2);
+    expect(turnOutput.end.mock.invocationCallOrder[0]).toBeLessThan(
+      turnOutput.delta.mock.invocationCallOrder[1]!,
+    );
+    expect(transcript.map((entry) => entry.text)).toEqual(["All green.", "Something else."]);
+  });
+
+  it("a speech frame of another turn closes the open utterance before it plays", () => {
+    const r = turn();
+    r.stream(speech([{ speech: "All green." }]));
+    r.stream(speech([{ speech: "Something else." }], { turn_id: "8" }));
+
+    expect(turnOutput.end).toHaveBeenCalledOnce();
+    expect(turnOutput.end.mock.invocationCallOrder[0]).toBeLessThan(
+      turnOutput.delta.mock.invocationCallOrder[1]!,
+    );
+    expect(transcript.map((entry) => entry.text)).toEqual(["All green."]);
+
+    r.render(frame([], { turn_id: "8" }));
+
+    expect(turnOutput.end).toHaveBeenCalledTimes(2);
+    expect(transcript.map((entry) => entry.text)).toEqual(["All green.", "Something else."]);
+  });
+});
+
+describe("render_turn — a streamed reply the user stopped", () => {
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  function streamThenCut(r: ReturnType<typeof turn>): void {
+    pushTurns.opened("7");
+    r.stream(speech([{ speech: "All green." }]));
+    pushTurns.cut();
+    r.drop("7");
+  }
+
+  it("drop(turnId) writes the sentences accepted so far and leaves playback to the interruption", () => {
+    const r = turn();
+    streamThenCut(r);
+
+    expect(transcript).toEqual([{ role: "assistant", text: "All green.", ts: expect.any(Number) }]);
+    expect(turnOutput.end).not.toHaveBeenCalled();
+  });
+
+  it("drops the cut turn's later frames without a second transcript entry", () => {
+    const r = turn();
+    streamThenCut(r);
+    r.stream(speech([{ speech: "Every one." }]));
+    r.render(frame([{ speech: "Want the list?" }]));
+
+    expect(pipeline.spoken).toEqual([{ text: "All green.", cue: null }]);
+    expect(turnOutput.end).not.toHaveBeenCalled();
+    expect(transcript).toHaveLength(1);
+  });
+
+  it("logs a dropped speech frame with its turn and the cut that swallowed it", () => {
+    const r = turn();
+    streamThenCut(r);
+    r.stream(speech([{ speech: "Every one." }]));
+
+    expect(logger.info).toHaveBeenCalledWith("push.speech", {
+      turn_id: "7",
+      segments: 1,
+      dropped: "cut_turn",
+      stopped_count: 1,
+    });
+  });
+
+  it("stops the frame wait", () => {
+    vi.useFakeTimers();
+    const r = turn();
+    streamThenCut(r);
+
+    vi.advanceTimersByTime(PRE_SPEECH_TIMEOUT_MS);
+
+    expect(turnOutput.end).not.toHaveBeenCalled();
+    expect(transcript).toHaveLength(1);
+  });
+
+  it("drop of another turn leaves the open utterance alone", () => {
+    const r = turn();
+    r.stream(speech([{ speech: "All green." }], { turn_id: "hermes-1" }));
+    r.drop("7");
+    r.render(frame([], { turn_id: "hermes-1" }));
+
+    expect(turnOutput.end).toHaveBeenCalledOnce();
+    expect(transcript).toHaveLength(1);
+  });
+
+  it("a dropped speech frame leaves another turn's open utterance alone", () => {
+    const r = turn();
+    streamThenCut(r);
+    r.stream(speech([{ speech: "One more thing." }], { turn_id: "hermes-1" }));
+    r.stream(speech([{ speech: "Every one." }]));
+
+    expect(turnOutput.end).not.toHaveBeenCalled();
   });
 });
