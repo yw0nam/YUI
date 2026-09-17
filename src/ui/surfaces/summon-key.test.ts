@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 /**
- * Tests for src/ui/summon-key.ts — the focused window's "/" opens its text input.
+ * Tests for src/ui/surfaces/summon-key.ts — the focused window's "/" opens its text input.
  * Both bootstraps bind this, so the guards live here rather than in either entry point.
  */
 

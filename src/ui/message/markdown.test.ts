@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 /**
- * Tests for src/ui/markdown.ts — full markdown renderer (marked + DOMPurify).
+ * Tests for src/ui/message/markdown.ts — full markdown renderer (marked + DOMPurify).
  *
  * The speech bubble re-renders the FULL accumulated text on each streaming
  * delta, so the renderer must (1) handle full markdown — bold/italic/code/

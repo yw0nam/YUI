@@ -1,5 +1,5 @@
 /**
- * Tests for src/ui/tool-labels.ts — tool-id → display label lookup.
+ * Tests for src/ui/chips/tool-labels.ts — tool-id → display label lookup.
  *
  * Requirements:
  * - English labels by default (tool.* keys stay English in every locale).
