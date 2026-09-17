@@ -32,7 +32,7 @@ export function createRootYaw(deps: { getElapsedMs: () => number }): RootYaw {
     /** One frame of the root-yaw ease, written absolutely onto the model's base rotation. */
     step(ctx) {
       if (bodyYawConverging) {
-        const t = ctx.elapsed * 1000 - bodyYawStartMs;
+        const t = deps.getElapsedMs() - bodyYawStartMs;
         bodyYaw = yawAt(bodyYawFrom, bodyYawTo, t, bodyYawDurationMs);
         if (t >= bodyYawDurationMs) bodyYawConverging = false;
       }

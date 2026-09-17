@@ -23,13 +23,13 @@ describe("createRootYaw", () => {
 
     rootYaw.onVrmLoaded(vrm);
     rootYaw.setTarget(1, 1000);
-    elapsedMs = 500;
-    rootYaw.step({ vrm, dt: 0.5, elapsed: 0.5 });
-    expect(vrm.scene.rotation.y).toBeCloseTo(Math.PI + yawAt(0, 1, 500, 1000));
+    elapsedMs = 250;
+    rootYaw.step({ vrm, dt: 0.25, elapsed: 0.25 });
+    expect(vrm.scene.rotation.y).toBeCloseTo(Math.PI + yawAt(0, 1, 250, 1000));
     expect(rootYaw.isConverging()).toBe(true);
 
     elapsedMs = 1000;
-    rootYaw.step({ vrm, dt: 0.5, elapsed: 1 });
+    rootYaw.step({ vrm, dt: 0.75, elapsed: 1 });
     expect(vrm.scene.rotation.y).toBe(Math.PI + 1);
     expect(rootYaw.isConverging()).toBe(false);
   });
