@@ -29,7 +29,6 @@ import type {
   InputContext,
   PreviousTurn,
   ToolStatus,
-  TriggerMeta,
   Usage,
 } from "../../contract";
 import { type ChatRequest, streamChat } from "../../io/chat/chat-client";
@@ -47,67 +46,17 @@ import type { BusEnvelope } from "../core/event-bus";
 import type { PushTurns } from "../turn/push-turn";
 import type { Turn } from "../turn/turn";
 import type { TurnOutput } from "../turn/turn-output";
+import { backgroundMarker } from "./background-marker";
 import { renderClientContext } from "./client-context-text";
 import { buildContext, imageDataUrlsOf, userTextOf } from "./context-builder";
+import {
+  PRE_SPEECH_TIMEOUT_MS,
+  SPEECH_IDLE_TIMEOUT_MS,
+  type StallStage,
+  withIdleWatchdog,
+} from "./idle-watchdog";
 
 const baseLog = createLogger("backend-caller");
-
-/** "a" / "a and b" / "a, b and c". */
-function joinNames(names: string[]): string {
-  if (names.length < 2) return names[0] ?? "";
-  return `${names.slice(0, -1).join(", ")} and ${names[names.length - 1]}`;
-}
-
-/**
- * Interpolated into the user turn, so a hostile hook payload can't forge structure: the ingress
- * is unauthenticated and caps `summary`/`detail` but not `tool`. Collapsing whitespace keeps the
- * marker one line and the clamp keeps it a name. `trigger.agent.tool` still carries it verbatim.
- */
-const TOOL_NAME_MAX = 40;
-const toolName = (raw: string): string => raw.replace(/\s+/g, " ").trim().slice(0, TOOL_NAME_MAX);
-
-/**
- * User message for non-user turns (no user_text) — a short, per-trigger notice. Delivered in a
- * role: "user" message, so it is written from the user's POV: "I" is the user, "you" is the
- * agent. Describes what happened, never how to respond (firing ≠ judgment). The only payload
- * interpolation is the coding-agent tool name on `agent.*` turns, which falls back to unnamed
- * wording when validation rejected the payload and the trigger field is absent.
- */
-function backgroundMarker(eventName: string, trigger: TriggerMeta): string {
-  if (eventName === "proactive.tap_bored") return "(I keep poking at you)";
-  if (eventName.startsWith("proactive.touch_")) return "(I just poked you)";
-  if (eventName === "proactive.head_pat") return "(I just patted your head)";
-  if (eventName === "proactive.drag_held") return "(I keep dragging you around)";
-  if (eventName === "proactive.window_sit") return "(I just sat you down on a window's edge)";
-  if (eventName === "proactive.peek") return "(I left you peeking out from the screen edge)";
-  if (eventName === "proactive.dropped") return "(I just dropped you from mid-air)";
-  if (eventName === "proactive.screen_app_switched") {
-    return "(I just moved over to something else on my screen)";
-  }
-  if (eventName === "proactive.screen_long_session") {
-    return "(I've been in the same thing on my screen for a while)";
-  }
-  if (eventName.startsWith("proactive.")) return "(I've gone quiet for a while)";
-  if (eventName.startsWith("schedule.")) return "(it's the time of day you check in on me)";
-  if (eventName === "agent.done" || eventName === "agent.needs_input") {
-    const tool = trigger.agent ? toolName(trigger.agent.tool) : "";
-    const subject = tool ? `my ${tool} task` : "one of my coding tasks";
-    return eventName === "agent.done"
-      ? `(${subject} just finished)`
-      : `(${subject} is waiting on my input)`;
-  }
-  if (eventName === "agent.catchup") {
-    const named = trigger.agent_catchup?.items.map((item) => toolName(item.tool)).filter(Boolean);
-    const tools = [...new Set(named ?? [])];
-    const subject = tools.length ? `my ${joinNames(tools)} tasks` : "my coding tasks";
-    return `(${subject} piled up while I was away)`;
-  }
-  if (eventName === "signals.push") return "(a new signal just arrived for you)";
-  if (eventName === "signals.batch") return "(a few signals batched up for you)";
-  if (eventName === "signals.catchup") return "(signals piled up while I was away)";
-  if (eventName === "time_milestone.first_activity") return "(I've just started my day)";
-  return "(something just caught your attention)";
-}
 
 /**
  * Reflex turns are immediate reactions to physical interaction — they skip the TTFT thinking
@@ -127,30 +76,12 @@ export function isReflexTurn(eventName: string): boolean {
 }
 
 /**
- * Idle-gap watchdog deadline (ms) applied whenever the last event was assistant speech — a
- * speech_delta or the speech_done marker that closes it. Stall baseline that resets on each
- * event, not a cap on total elapsed time.
- */
-export const SPEECH_IDLE_TIMEOUT_MS = 45_000;
-
-/**
- * Idle-gap watchdog deadline (ms) applied whenever the last event wasn't speech (speech_delta or
- * speech_done): the initial wait, and any wait after keepalive/tool_status/express/usage. The
- * backend may run context compaction or a tool round with no speech in flight, so these waits
- * get the long budget instead of the streaming-speech one.
- */
-export const PRE_SPEECH_TIMEOUT_MS = 240_000;
-
-/**
  * Whether a chat turn has an address to reach. `""` means not configured — a turn settles
  * `not_configured` and the onboarding hint points the user at the settings panel.
  */
 export function isChatConfigured(cfg: Pick<EndpointsConfig, "chat_base_url">): boolean {
   return Boolean(cfg.chat_base_url);
 }
-
-/** Which watchdog budget expired — carried into the network_stall log. */
-type StallStage = "pre_speech_timeout" | "speech_idle_timeout";
 
 /** Every outcome a backend call can settle to. */
 export type TurnOutcome =
@@ -234,45 +165,6 @@ export interface BackendCaller {
    * Never throws — failures expressed as a TurnOutcome failure value (dispatcher branches).
    */
   call(turn: Turn, externalSignal?: AbortSignal): Promise<TurnOutcome>;
-}
-
-/**
- * Idle-gap watchdog over a stream: yields events as they arrive, but stops (without
- * throwing) and calls `onIdle` with the expired stage if nothing lands in time. Each wait gets
- * `budgets.speechIdle` when the previous event was speech (per `isSpeech`), `budgets.preSpeech`
- * otherwise — reset on each event — so a tool round or compaction gap after speech isn't held to
- * the short streaming-speech deadline, and only an actual stall aborts the turn.
- */
-async function* withIdleWatchdog<T>(
-  source: AsyncIterable<T>,
-  budgets: { preSpeech: number; speechIdle: number },
-  onIdle: (stage: StallStage) => void,
-  isSpeech: (ev: T) => boolean,
-): AsyncGenerator<T> {
-  const it = source[Symbol.asyncIterator]();
-  let lastWasSpeech = false;
-  while (true) {
-    const next = it.next();
-    let timer: ReturnType<typeof setTimeout>;
-    const idle = new Promise<"idle">((resolve) => {
-      timer = setTimeout(
-        () => resolve("idle"),
-        lastWasSpeech ? budgets.speechIdle : budgets.preSpeech,
-      );
-    });
-    const race = await Promise.race([next.then((r) => ({ done: r.done, value: r.value })), idle]);
-    clearTimeout(timer!);
-    if (race === "idle") {
-      onIdle(lastWasSpeech ? "speech_idle_timeout" : "pre_speech_timeout");
-      // the abandoned `next` will settle once the aborted stream unwinds — swallow it
-      // so it doesn't surface as an unhandled rejection.
-      next.catch(() => {});
-      return;
-    }
-    if (race.done) return;
-    lastWasSpeech = isSpeech(race.value as T);
-    yield race.value as T;
-  }
 }
 
 export function createBackendCaller(deps: BackendCallerDeps): BackendCaller {

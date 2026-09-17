@@ -120,6 +120,8 @@ YUI/
         render-turn.ts               # Plays a finished backend turn that arrived as a render frame on the push socket
       backend/
         backend-caller.ts            # Sends a tier-2 or tier-3 event to backend judgment and streams the reply
+        background-marker.ts         # Prompt text marking a proactive turn's trigger and background tools
+        idle-watchdog.ts             # Idle-gap watchdog over the backend event stream and its two timeout budgets
         context-builder.ts           # Builds the per-turn client context and image attachments
         client-context-text.ts       # Renders a client context into the plain-line prompt block
         previous-turn.ts             # Persisted record of how the last turn that tried to speak ended

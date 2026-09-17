@@ -19,7 +19,8 @@ import type { BusEnvelope } from "../core/event-bus";
 import { CONFIG, makeLogger, makeTurnOutput, touchEnv, turnOf, userEnv } from "../test-helpers";
 import { createPushTurns } from "../turn/push-turn";
 import { createRenderTurn } from "../turn/render-turn";
-import { createBackendCaller, PRE_SPEECH_TIMEOUT_MS, type TurnOutcome } from "./backend-caller";
+import { createBackendCaller, type TurnOutcome } from "./backend-caller";
+import { PRE_SPEECH_TIMEOUT_MS } from "./idle-watchdog";
 
 function scheduleEnv(): BusEnvelope {
   return {
