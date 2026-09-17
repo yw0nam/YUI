@@ -345,12 +345,13 @@ class YuiAdapter(BasePlatformAdapter):
         )
         # A busy session takes this text into the turn it is already running, and runs no hooks for it.
         busy = self._event_session_key(event) in self._active_sessions
+        if busy:
+            state.mark_merged(chat_id, turn_id)
         await self.handle_message(event)
         if not busy:
             return
         await self._send_render(chat_id, {"type": "turn_end", "turn_id": turn_id})
         logger.info("yui: turn %s joins the running turn chat=%s", turn_id, chat_id)
-        state.mark_merged(chat_id, turn_id)
 
     async def _on_reset(self, chat_id: str) -> None:
         """The gateway's own /new: the transcript starts empty under the same chat."""

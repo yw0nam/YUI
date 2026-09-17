@@ -48,8 +48,9 @@ def open_turns(chat_id: str) -> list[str]:
 
 
 def close_turns(chat_id: str) -> list[str]:
-    """Every open turn, most recently opened first, cleared — they are all over."""
+    """Every open turn, most recently opened first, cleared — they and the turns that joined them are over."""
     with _lock:
+        _merged.pop(chat_id, None)
         return list(reversed(_open_turns.pop(chat_id, [])))
 
 
