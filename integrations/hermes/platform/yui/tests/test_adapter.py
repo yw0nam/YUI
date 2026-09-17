@@ -729,6 +729,55 @@ async def test_a_follow_up_completed_inside_an_open_turn_waits_for_the_outer_one
     assert (await recv(ws))["type"] == "delegations"
 
 
+async def test_a_turn_that_arrives_while_the_chat_is_busy_is_closed_at_once(client, adapter):
+    """The gateway folds it into the running turn, whose frames carry the answer."""
+    ws = await ready(client)
+    running = user_turn(adapter, "777")
+    await adapter.on_processing_start(running)
+    adapter._active_sessions[adapter._event_session_key(running)] = object()
+    await ws.send_json({"type": "turn", "turn_id": "778", "client_context": "", "text": "and the docs?"})
+    assert await recv(ws) == {"type": "turn_end", "turn_id": "778"}
+    joined = user_turn(adapter, "778")
+    await adapter.on_processing_start(joined)
+    await adapter.send(CHAT, "answer", metadata={"notify": True})
+    render = await recv(ws)
+    assert render["type"] == "render"
+    assert render["turn_id"] == "777"
+    await adapter.on_processing_complete(joined, ProcessingOutcome.SUCCESS)
+    await adapter.on_processing_complete(running, ProcessingOutcome.SUCCESS)
+    assert await recv(ws) == {"type": "turn_end", "turn_id": "777"}
+    # The next frame proves the joined turn closed nothing of its own.
+    adapter.notify_delegations(CHAT)
+    assert (await recv(ws))["type"] == "delegations"
+
+
+async def test_a_turn_the_gateway_queued_past_the_running_one_runs_under_its_own_id(client, adapter):
+    """Accepted while the chat was busy, then run as its own task once the first turn ended."""
+    ws = await ready(client)
+    running = user_turn(adapter, "777")
+    await adapter.on_processing_start(running)
+    adapter._active_sessions[adapter._event_session_key(running)] = object()
+    await ws.send_json({"type": "turn", "turn_id": "778", "client_context": "", "text": "and the docs?"})
+    assert await recv(ws) == {"type": "turn_end", "turn_id": "778"}
+    await adapter.on_processing_complete(running, ProcessingOutcome.SUCCESS)
+    assert await recv(ws) == {"type": "turn_end", "turn_id": "777"}
+    queued = user_turn(adapter, "778")
+    await adapter.on_processing_start(queued)
+    await adapter.send(CHAT, "late", metadata={"notify": True})
+    assert (await recv(ws))["turn_id"] == "778"
+    await adapter.on_processing_complete(queued, ProcessingOutcome.SUCCESS)
+    assert await recv(ws) == {"type": "turn_end", "turn_id": "778"}
+
+
+async def test_a_turn_that_arrives_on_an_idle_chat_stays_open(client, adapter):
+    ws = await ready(client)
+    await ws.send_json({"type": "turn", "turn_id": "778", "client_context": "", "text": "how did it go?"})
+    await wait_for(lambda: adapter.dispatched)
+    # The next frame proves the accepted turn closed nothing of its own.
+    adapter.notify_delegations(CHAT)
+    assert (await recv(ws))["type"] == "delegations"
+
+
 async def test_a_failed_turn_ends_after_its_failure_line_renders(client, adapter):
     ws = await ready(client)
     failed = user_turn(adapter, "777")

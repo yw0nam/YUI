@@ -101,6 +101,8 @@ class BasePlatformAdapter:
         self.connected = False
         self.fatal: tuple[str, str] | None = None
         self._message_handler = object()  # truthy: the real base drops events without one
+        # The real base holds an interrupt Event per busy session; tests only ask who is in here.
+        self._active_sessions: dict[str, object] = {}
 
     @property
     def name(self) -> str:
@@ -113,6 +115,13 @@ class BasePlatformAdapter:
             chat_id=str(chat_id),
             **{k: kwargs[k] for k in known if kwargs.get(k) is not None},
         )
+
+    def _event_session_key(self, event: MessageEvent) -> str:
+        """The real base builds ``agent:<ns>:<platform>:<chat_type>:<chat_id>...`` from the source."""
+        source = event.source
+        platform = getattr(getattr(source, "platform", None), "value", "stub")
+        chat_type = getattr(source, "chat_type", "dm")
+        return ":".join(("agent:main", platform, chat_type, getattr(source, "chat_id", "") or ""))
 
     async def handle_message(self, event: MessageEvent) -> None:
         self.dispatched.append(event)
