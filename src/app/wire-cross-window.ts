@@ -8,8 +8,8 @@ import type { SettingsStores } from "../io/settings/settings-stores";
 import { isTauri } from "../io/window/tauri-env";
 import type { Logger } from "../logger";
 import type { Renderer } from "../renderer";
-import type { Surfaces } from "../ui/surfaces";
-import type { VoiceInputStatus } from "../ui/voice-input-status";
+import type { VoiceInputStatus } from "../ui/chips/voice-input-status";
+import type { Surfaces } from "../ui/surfaces/surfaces";
 import { wireWindowSync } from "./wire-window-sync";
 
 /**
@@ -126,7 +126,7 @@ export async function wireDevGlobals(deps: {
     getDispatcher,
     sitDown,
   } = deps;
-  const { createMockDriver } = await import("../ui/mock");
+  const { createMockDriver } = await import("../ui/surfaces/mock");
   const mock: ReturnType<typeof createMockDriver> = createMockDriver(surfaces);
   Object.assign(globalThis as Record<string, unknown>, {
     __yuiRenderer: renderer,

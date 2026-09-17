@@ -34,7 +34,7 @@ import type { FillerPool } from "../config/load";
 import { createTurnLog } from "../dispatcher/turn";
 import type { FillerSettings } from "../io/settings/filler-settings";
 import { fillerPool as pool } from "../io/voice/filler-test-helpers";
-import type { Surfaces } from "../ui/surfaces";
+import type { Surfaces } from "../ui/surfaces/surfaces";
 import { type VoicePipeline, wireVoicePipeline } from "./voice-pipeline-wiring";
 
 const TIMEOUT_PHRASE = "ごめん、諦めちゃった。";

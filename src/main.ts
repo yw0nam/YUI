@@ -60,22 +60,22 @@ import { resolveScreenCapturer, resolveScreenSourceProvider } from "./io/window/
 import { createLogger, initLogger } from "./logger";
 import { createRenderer } from "./renderer";
 import { nextZoom } from "./renderer/camera-fit";
+import { createCaptureIndicator } from "./ui/chips/capture-indicator";
+import { createDelegationChip } from "./ui/chips/delegation-chip";
+import { createVoiceInputIndicator } from "./ui/chips/voice-input-indicator";
+import { createVoiceInputStatus } from "./ui/chips/voice-input-status";
+import { getLocale, subscribe as subscribeLocale } from "./ui/i18n";
+import { showBootError } from "./ui/notices/boot-error";
+import { createQuickControls } from "./ui/quick-controls/quick-controls";
 import {
   INPUT_ANCHOR_EPSILON_PX,
   INPUT_ANCHOR_MIN_BOTTOM_PX,
   INPUT_FEET_GAP_PX,
   inputBottomFromAnchor,
-} from "./ui/anchor";
-import { showBootError } from "./ui/boot-error";
-import { createCaptureIndicator } from "./ui/capture-indicator";
-import { createDelegationChip } from "./ui/delegation-chip";
-import { getLocale, subscribe as subscribeLocale } from "./ui/i18n";
-import { createQuickControls } from "./ui/quick-controls";
-import { attachSummonKey } from "./ui/summon-key";
-import { createSurfaces } from "./ui/surfaces";
-import { createSurfacesRouter } from "./ui/surfaces-router";
-import { createVoiceInputIndicator } from "./ui/voice-input-indicator";
-import { createVoiceInputStatus } from "./ui/voice-input-status";
+} from "./ui/surfaces/anchor";
+import { attachSummonKey } from "./ui/surfaces/summon-key";
+import { createSurfaces } from "./ui/surfaces/surfaces";
+import { createSurfacesRouter } from "./ui/surfaces/surfaces-router";
 
 const log = createLogger("bootstrap");
 

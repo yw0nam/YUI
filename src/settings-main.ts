@@ -29,9 +29,9 @@ import { wireVoiceListAutoRefresh } from "./io/voice/voice-list-refresh";
 import { closeSettingsWindow } from "./io/window/settings-window";
 import { resolveScreenSourceProvider } from "./io/window/tauri-screen";
 import { createLogger, initLogger } from "./logger";
+import { createVoiceInputStatus } from "./ui/chips/voice-input-status";
 import { getLocale, subscribe as subscribeLocale } from "./ui/i18n";
-import { createQuickControls } from "./ui/quick-controls";
-import { createVoiceInputStatus } from "./ui/voice-input-status";
+import { createQuickControls } from "./ui/quick-controls/quick-controls";
 
 const log = createLogger("settings-bootstrap");
 

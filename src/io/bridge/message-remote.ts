@@ -10,7 +10,7 @@
 
 import type { AttachmentLimits } from "../../config/load";
 import { createLogger } from "../../logger";
-import type { InputErrorAction } from "../../ui/text-input";
+import type { InputErrorAction } from "../../ui/input/text-input";
 import type { MessageBridge } from "./message-bridge";
 
 /** The half of `Surfaces` the message window owns, plus the dock request it can raise. */

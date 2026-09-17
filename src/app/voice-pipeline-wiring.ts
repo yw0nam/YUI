@@ -16,8 +16,8 @@ import type { SttVad } from "../io/voice/stt-vad";
 import { type SpokenSplit, TTS_SKIP } from "../io/voice/tts-pipeline";
 import { createTtsProvider, type TtsSynthCallOptions } from "../io/voice/tts-synth";
 import type { Renderer } from "../renderer";
-import type { Surfaces } from "../ui/surfaces";
-import type { VoiceInputStatus } from "../ui/voice-input-status";
+import type { VoiceInputStatus } from "../ui/chips/voice-input-status";
+import type { Surfaces } from "../ui/surfaces/surfaces";
 
 type VoiceRenderer = Pick<
   Renderer,

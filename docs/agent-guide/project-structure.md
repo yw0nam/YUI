@@ -243,85 +243,90 @@ YUI/
         selection-store.ts             # Generic selection store behind VRM and speaker selection
         safe-id.ts                     # TS mirror of the native stem sanitizer for persisted option ids
         asset-url.ts                   # Logical asset paths to runtime-fetchable URLs
-    ui/                              # Floating surfaces, panels, and indicators
-      surfaces.ts                    # Mounts the speech bubble, tool-status chip, and text input as one system
-      surfaces-router.ts             # One Surfaces handle over the pet window and the message window
-      speech-bubble.ts               # Speech bubble: dwell, scroll, markdown, and aria for streamed speech
-      text-input.ts                  # Text input: submit, busy, error, and feet anchoring
-      summon-key.ts                  # Binds the focused window's "/" key to open the text input
-      tool-status.ts                 # Tool-status chip observing backend tool calls
-      tool-labels.ts                 # Tool id to display label lookup
-      delegation-chip.ts             # Push-transport delegation chip beside the avatar with its tap-to-toggle list popover
-      delegation-rows.ts             # Delegation list's shared row rendering and relative time text
-      reasoning-chip.ts              # Backend reasoning pill on the message window's plate row
-      turn-error.ts                  # Backend-failure reason to inline input-error message
-      message-plate.ts               # Message-window name plate and OS drag handle
-      anchor.ts                      # Pure mapping from the on-screen feet to the input's bottom offset
-      markdown.ts                    # Speech markdown rendering through marked and DOMPurify
-      image-resize.ts                # Downscales and re-encodes user-attached images
-      fade-out.ts                    # Settle callback for elements that fade before leaving the a11y tree
-      reflect-unless-editing.ts      # Writes a store value onto an input unless the user is editing it
-      format-accel.ts                # Renders an accelerator string for display
-      i18n.ts                        # Locale type, persisted locale, lookup, and subscriber notification
-      cue-list.ts                    # Reusable cue-list section for schedule and proactive cues
-      quick-controls.ts              # Quick-controls panel: header, tab strip, and tab body
-      capture-indicator.ts           # Always-on screen-capture privacy tell
-      voice-input-indicator.ts       # Voice-input indicator surface
-      voice-input-status.ts          # Voice-input status model
-      voice-error-dwell.ts           # How long a voice-turn failure holds the indicator's error state
-      boot-error.ts                  # Boot-failure notice card
-      chain-reset-notice.ts          # One-off notice when the backend resets a broken response chain
-      ingress-dead-notice.ts         # One-off notice when the Rust agent ingress listener dies
-      first-run-hint.ts              # First-run controls hint through the speech bubble
-      mock.ts                        # Mock driver that replays every surface state from seed data
-      tokens.css                     # Design tokens: colour, radius, shadow, duration
-      surfaces.css                   # Speech bubble, text input, and tool-status chip styles
-      message-window.css             # Message-window layout and name-plate styles
-      quick-controls.css             # Quick-controls shell, tabs, rows, and switch styles
-      cue-list.css                   # Cue-list section styles
-      capture-indicator.css          # Capture-indicator pill styles
-      voice-input-indicator.css      # Voice-indicator pill styles
-      boot-error.css                 # Boot-failure notice styles
-      delegation-chip.css            # Delegation-chip pill, list popover, and folded-dot styles
-      delegation-rows.css            # Delegation row styles shared by the chip's list and the settings panel
-      reasoning-chip.css             # Reasoning-chip pill and panel styles
-      i18n/                          # Locale catalogs
-        en.ts                        # English strings, the source of truth for the key set
-        ja.ts                        # Japanese strings
-        ko.ts                        # Korean strings
-      devtools/                      # Developer Tools window views
-        shell.ts                     # Developer Tools window shell and section navigation
-        context-inspector.ts         # Client-context inspector view
-        advanced-settings.ts         # Advanced settings view
-        motion-preview.ts            # Motion and emotion preview, lazy-loaded
-        devtools.css                 # Developer Tools shell styles
-        motion-preview.css           # Motion-preview styles
-      quick-controls/                # Quick-controls shell parts and sections
-        template.ts                  # Panel markup as pure string construction
-        popover.ts                   # Popover shell: positioning, dragging, open and close lifecycle
-        reflect.ts                   # Store to DOM reflection for every panel section
-        constants.ts                 # Display constants shared by the panel and its sections
-        sections.ts                  # Wires the collapsible details groups to the sections store
-        switch-row.ts                # Switch-row element contract and the row table filling it
-        hint-tooltip.ts              # Shared hover, focus, and click tooltip for data-tip elements
-        endpoints-section.ts         # Endpoint URL fields, API-key rows, chat-API picker, and resets
-        monitors-section.ts          # Screen-source list and its load state
-        history-section.ts           # History tab session accordion over the persisted transcript
-        workflows-section.ts         # Workflow entry list editing
-        express-motion-section.ts    # Category accordion curating the agent-selectable motion vocabulary
-        idle-motion-section.ts       # Per-variant switches for the ambient idle pool
-        filler-tool-lines.ts         # Textarea round-trip for the filler pool's tool tier
-        speaker-list.ts              # Speaker radiogroup with reference-voice refresh and audition
-        vrm-list.ts                  # VRM radiogroup: render, rename, import, swap, keyboard
-        user-asset-list.ts           # Shared scaffolding for the VRM and speaker asset radiogroups
-        endpoints-section.css        # Endpoints section and yui-select dropdown styles
-        monitors-section.css         # Monitors section styles
-        history-section.css          # Session history accordion styles
-        workflows-section.css        # Workflows section styles
-        express-motion-section.css   # Express-motion accordion styles
-        hint-tooltip.css             # Hint tooltip styles
-        speaker-list.css             # Speaker list styles
-        user-asset-list.css          # User asset list row styles
+    ui/                               # Floating surfaces, panels, and indicators
+      i18n.ts                         # Locale type, persisted locale, lookup, and subscriber notification
+      tokens.css                      # Design tokens: colour, radius, shadow, duration
+      surfaces/                       # Speech-bubble, text-input, and tool-status host surface
+        surfaces.ts                   # Mounts the speech bubble, tool-status chip, and text input as one system
+        surfaces-router.ts            # One Surfaces handle over the pet window and the message window
+        summon-key.ts                 # Binds the focused window's "/" key to open the text input
+        anchor.ts                     # Pure mapping from the on-screen feet to the input's bottom offset
+        reflect-unless-editing.ts     # Writes a store value onto an input unless the user is editing it
+        mock.ts                       # Mock driver that replays every surface state from seed data
+        surfaces.css                  # Speech bubble, text input, and tool-status chip styles
+      input/                          # Text entry and its supporting transforms
+        text-input.ts                 # Text input: submit, busy, error, and feet anchoring
+        image-resize.ts               # Downscales and re-encodes user-attached images
+        format-accel.ts               # Renders an accelerator string for display
+      message/                        # Message-window plate, bubble, and cue-list rendering
+        speech-bubble.ts              # Speech bubble: dwell, scroll, markdown, and aria for streamed speech
+        message-plate.ts              # Message-window name plate and OS drag handle
+        markdown.ts                   # Speech markdown rendering through marked and DOMPurify
+        cue-list.ts                   # Reusable cue-list section for schedule and proactive cues
+        message-window.css            # Message-window layout and name-plate styles
+        cue-list.css                  # Cue-list section styles
+      chips/                          # Status and delegation chips beside the avatar and on the message-window plate
+        tool-status.ts                # Tool-status chip observing backend tool calls
+        tool-labels.ts                # Tool id to display label lookup
+        delegation-chip.ts            # Push-transport delegation chip beside the avatar with its tap-to-toggle list popover
+        delegation-rows.ts            # Delegation list's shared row rendering and relative time text
+        reasoning-chip.ts             # Backend reasoning pill on the message window's plate row
+        capture-indicator.ts          # Always-on screen-capture privacy tell
+        voice-input-indicator.ts      # Voice-input indicator surface
+        voice-input-status.ts         # Voice-input status model
+        voice-error-dwell.ts          # How long a voice-turn failure holds the indicator's error state
+        capture-indicator.css         # Capture-indicator pill styles
+        voice-input-indicator.css     # Voice-indicator pill styles
+        delegation-chip.css           # Delegation-chip pill, list popover, and folded-dot styles
+        delegation-rows.css           # Delegation row styles shared by the chip's list and the settings panel
+        reasoning-chip.css            # Reasoning-chip pill and panel styles
+      notices/                        # One-off and error notices
+        turn-error.ts                 # Backend-failure reason to inline input-error message
+        fade-out.ts                   # Settle callback for elements that fade before leaving the a11y tree
+        boot-error.ts                 # Boot-failure notice card
+        chain-reset-notice.ts         # One-off notice when the backend resets a broken response chain
+        ingress-dead-notice.ts        # One-off notice when the Rust agent ingress listener dies
+        first-run-hint.ts             # First-run controls hint through the speech bubble
+        boot-error.css                # Boot-failure notice styles
+      quick-controls/                 # Quick-controls shell parts and sections
+        quick-controls.ts             # Quick-controls panel: header, tab strip, and tab body
+        quick-controls.css            # Quick-controls shell, tabs, rows, and switch styles
+        template.ts                   # Panel markup as pure string construction
+        popover.ts                    # Popover shell: positioning, dragging, open and close lifecycle
+        reflect.ts                    # Store to DOM reflection for every panel section
+        constants.ts                  # Display constants shared by the panel and its sections
+        sections.ts                   # Wires the collapsible details groups to the sections store
+        switch-row.ts                 # Switch-row element contract and the row table filling it
+        hint-tooltip.ts               # Shared hover, focus, and click tooltip for data-tip elements
+        endpoints-section.ts          # Endpoint URL fields, API-key rows, chat-API picker, and resets
+        monitors-section.ts           # Screen-source list and its load state
+        history-section.ts            # History tab session accordion over the persisted transcript
+        workflows-section.ts          # Workflow entry list editing
+        express-motion-section.ts     # Category accordion curating the agent-selectable motion vocabulary
+        idle-motion-section.ts        # Per-variant switches for the ambient idle pool
+        filler-tool-lines.ts          # Textarea round-trip for the filler pool's tool tier
+        speaker-list.ts               # Speaker radiogroup with reference-voice refresh and audition
+        vrm-list.ts                   # VRM radiogroup: render, rename, import, swap, keyboard
+        user-asset-list.ts            # Shared scaffolding for the VRM and speaker asset radiogroups
+        endpoints-section.css         # Endpoints section and yui-select dropdown styles
+        monitors-section.css          # Monitors section styles
+        history-section.css           # Session history accordion styles
+        workflows-section.css         # Workflows section styles
+        express-motion-section.css    # Express-motion accordion styles
+        hint-tooltip.css              # Hint tooltip styles
+        speaker-list.css              # Speaker list styles
+        user-asset-list.css           # User asset list row styles
+      i18n/                           # Locale catalogs
+        en.ts                         # English strings, the source of truth for the key set
+        ja.ts                         # Japanese strings
+        ko.ts                         # Korean strings
+      devtools/                       # Developer Tools window views
+        shell.ts                      # Developer Tools window shell and section navigation
+        context-inspector.ts          # Client-context inspector view
+        advanced-settings.ts          # Advanced settings view
+        motion-preview.ts             # Motion and emotion preview, lazy-loaded
+        devtools.css                  # Developer Tools shell styles
+        motion-preview.css            # Motion-preview styles
   src-tauri/
     tauri.conf.json                  # Transparent always-on-top pet window
     src/                             # Rust shell

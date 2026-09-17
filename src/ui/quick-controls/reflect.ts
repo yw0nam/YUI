@@ -31,10 +31,10 @@ import {
   VAD_SILENCE_MAX,
   VAD_SILENCE_MIN,
 } from "../../io/settings/vad-settings";
-import { renderDelegationRows } from "../delegation-rows";
+import { renderDelegationRows } from "../chips/delegation-rows";
+import type { VoiceInputStatusSnapshot } from "../chips/voice-input-status";
 import { getLocale, t } from "../i18n";
-import { reflectUnlessEditing } from "../reflect-unless-editing";
-import type { VoiceInputStatusSnapshot } from "../voice-input-status";
+import { reflectUnlessEditing } from "../surfaces/reflect-unless-editing";
 import {
   CHAT_API_LABEL_KEYS,
   CHAT_APIS,

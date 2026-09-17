@@ -14,7 +14,7 @@ import { createFlagSettings } from "../../io/settings/persisted-store";
 import { createScreenKnobSettings } from "../../io/settings/screen-settings";
 import { createSectionsSettings } from "../../io/settings/sections-settings";
 import { setLocale } from "../i18n";
-import { createQuickControls } from "../quick-controls";
+import { createQuickControls } from "./quick-controls";
 import { defaultQcArgs } from "./test-helpers";
 
 const IDLE_POOL = {

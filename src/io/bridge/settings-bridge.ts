@@ -13,7 +13,7 @@
  */
 
 import { createLogger } from "../../logger";
-import type { VoiceInputState } from "../../ui/voice-input-status";
+import type { VoiceInputState } from "../../ui/chips/voice-input-status";
 import type { DelegationItem, PushSocketState } from "../chat/push-socket";
 import { isTauri } from "../window/tauri-env";
 import type { ReasoningState } from "./reasoning-store";

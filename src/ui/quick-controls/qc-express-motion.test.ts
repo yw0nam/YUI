@@ -2,7 +2,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createExpressMotionSettings } from "../../io/settings/express-motion-settings";
 import { setLocale } from "../i18n";
-import { createQuickControls } from "../quick-controls";
+import { createQuickControls } from "./quick-controls";
 import { defaultQcArgs } from "./test-helpers";
 
 const VOCAB = ["happy", "laugh", "embarrassed", "sheepish", "calm", "sulk", "sleeping", "dance"];

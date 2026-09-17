@@ -44,7 +44,7 @@ const { mockDriver, createMockDriver } = vi.hoisted(() => {
   return { mockDriver, createMockDriver: vi.fn(() => mockDriver) };
 });
 
-vi.mock("../ui/mock", () => ({ createMockDriver }));
+vi.mock("../ui/surfaces/mock", () => ({ createMockDriver }));
 
 import {
   broadcastSyncStores,
@@ -52,8 +52,8 @@ import {
   reloadSyncStores,
   type SyncedStore,
 } from "../io/settings/settings-stores";
+import { createVoiceInputStatus } from "../ui/chips/voice-input-status";
 import { reloadFromStorage as reloadLocaleFromStorage } from "../ui/i18n";
-import { createVoiceInputStatus } from "../ui/voice-input-status";
 import {
   wireCrossWindowSync,
   wireDevGlobals,

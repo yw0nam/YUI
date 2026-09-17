@@ -5,7 +5,7 @@ import { createFlagSettings } from "../../io/settings/persisted-store";
 import { createScreenKnobSettings } from "../../io/settings/screen-settings";
 import { setLocale } from "../i18n";
 import ko from "../i18n/ko";
-import { createQuickControls } from "../quick-controls";
+import { createQuickControls } from "./quick-controls";
 import { defaultQcArgs } from "./test-helpers";
 
 const SCREEN_DEFAULTS = {

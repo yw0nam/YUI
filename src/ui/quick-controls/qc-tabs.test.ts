@@ -5,8 +5,8 @@ import { createFillerSettings, type FillerSettings } from "../../io/settings/fil
 import { createFlagSettings, localStorageStore } from "../../io/settings/persisted-store";
 import { createVadSettings, VAD_SILENCE_DEFAULT } from "../../io/settings/vad-settings";
 import { setLocale } from "../i18n";
-import { createQuickControls } from "../quick-controls";
 import type { QuickControlsTab } from "./constants";
+import { createQuickControls } from "./quick-controls";
 import { defaultQcArgs } from "./test-helpers";
 
 /** A filler store hydrated from storage with the given settings. */

@@ -12,7 +12,7 @@ import { selectFetch } from "../io/chat/chat-client";
 import type { ExpressMotionSettings } from "../io/settings/express-motion-settings";
 import type { SttVad } from "../io/voice/stt-vad";
 import type { Logger } from "../logger";
-import type { VoiceInputStatus } from "../ui/voice-input-status";
+import type { VoiceInputStatus } from "../ui/chips/voice-input-status";
 
 /**
  * Expression Broker publish (D6). Resolves the CORS-bypass fetch once, does the fire-and-forget

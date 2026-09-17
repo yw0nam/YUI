@@ -13,7 +13,7 @@ import { createScheduleSettings } from "../../io/settings/schedule-settings";
 import { createVadSettings, VAD_SILENCE_DEFAULT } from "../../io/settings/vad-settings";
 import type { createSpeakerSelection, SpeakerOption } from "../../io/voice/speaker-selection";
 import { setLocale, t } from "../i18n";
-import { createQuickControls, PREVIEW_PEAK_RMS } from "../quick-controls";
+import { createQuickControls, PREVIEW_PEAK_RMS } from "./quick-controls";
 import {
   defaultQcArgs,
   inMemoryAgentStorage,

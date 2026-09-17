@@ -11,7 +11,7 @@ import { createSessionDiagnosticsStore } from "../../io/chat/session-diagnostics
 import { createSessionStore } from "../../io/chat/session-store";
 import { createEndpointsSettings } from "../../io/settings/endpoints-settings";
 import { setLocale, t } from "../i18n";
-import { createQuickControls } from "../quick-controls";
+import { createQuickControls } from "./quick-controls";
 import { defaultQcArgs } from "./test-helpers";
 
 describe("createQuickControls — push mode", () => {

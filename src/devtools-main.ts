@@ -1,5 +1,5 @@
 import "./styles.css";
-import "./ui/quick-controls.css";
+import "./ui/quick-controls/quick-controls.css";
 import "./ui/devtools/devtools.css";
 import { wireDevtoolsSync } from "./app/wire-cross-window";
 import { createConfigStore } from "./config/store";

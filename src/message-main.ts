@@ -8,7 +8,7 @@
  */
 
 import "./styles.css";
-import "./ui/message-window.css";
+import "./ui/message/message-window.css";
 import { loadConfig } from "./config/load";
 import type { EndpointsConfig } from "./contract";
 import { createMirroredDelegations } from "./io/bridge/delegations-bridge";
@@ -35,12 +35,12 @@ import { MESSAGE_WINDOW_WIDTH } from "./io/window/message-window";
 import { toScreenMonitor } from "./io/window/screen-geometry";
 import { isTauri } from "./io/window/tauri-env";
 import { createLogger, initLogger } from "./logger";
-import { createDelegationChip } from "./ui/delegation-chip";
+import { createDelegationChip } from "./ui/chips/delegation-chip";
+import { createReasoningChip } from "./ui/chips/reasoning-chip";
 import { reloadFromStorage as reloadLocale } from "./ui/i18n";
-import { createMessagePlate } from "./ui/message-plate";
-import { createReasoningChip } from "./ui/reasoning-chip";
-import { attachSummonKey } from "./ui/summon-key";
-import { createSurfaces } from "./ui/surfaces";
+import { createMessagePlate } from "./ui/message/message-plate";
+import { attachSummonKey } from "./ui/surfaces/summon-key";
+import { createSurfaces } from "./ui/surfaces/surfaces";
 
 const log = createLogger("message-bootstrap");
 

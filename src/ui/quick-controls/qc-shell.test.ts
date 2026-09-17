@@ -15,7 +15,7 @@ import { createScheduleSettings } from "../../io/settings/schedule-settings";
 import { createPacerGapStore, createPresenceStore } from "../../io/settings/settings-stores";
 import type { createSpeakerSelection, SpeakerOption } from "../../io/voice/speaker-selection";
 import { getLocale, subscribe as i18nSubscribe, LOCALE_DISPLAY_NAMES, setLocale } from "../i18n";
-import { createQuickControls } from "../quick-controls";
+import { createQuickControls } from "./quick-controls";
 import {
   defaultQcArgs,
   inMemoryAgentStorage,

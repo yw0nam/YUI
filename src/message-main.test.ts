@@ -10,12 +10,12 @@
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 
 vi.mock("./styles.css", () => ({}));
-vi.mock("./ui/message-window.css", () => ({}));
-vi.mock("./ui/surfaces.css", () => ({}));
+vi.mock("./ui/message/message-window.css", () => ({}));
+vi.mock("./ui/surfaces/surfaces.css", () => ({}));
 vi.mock("./ui/tokens.css", () => ({}));
-vi.mock("./ui/delegation-chip.css", () => ({}));
-vi.mock("./ui/delegation-rows.css", () => ({}));
-vi.mock("./ui/reasoning-chip.css", () => ({}));
+vi.mock("./ui/chips/delegation-chip.css", () => ({}));
+vi.mock("./ui/chips/delegation-rows.css", () => ({}));
+vi.mock("./ui/chips/reasoning-chip.css", () => ({}));
 
 import { createMessageBridge, type MessageControlOp } from "./io/bridge/message-bridge";
 import type { ReasoningState } from "./io/bridge/reasoning-store";

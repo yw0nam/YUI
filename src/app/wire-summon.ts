@@ -2,7 +2,7 @@ import type { EventBus } from "../dispatcher/event-bus";
 import { createSummonHotkey, type SummonHotkey } from "../io/window/summon-hotkey";
 import { isTauri } from "../io/window/tauri-env";
 import type { Logger } from "../logger";
-import type { Surfaces } from "../ui/surfaces";
+import type { Surfaces } from "../ui/surfaces/surfaces";
 
 export async function wirePeekExitTriggers(deps: {
   bus: EventBus;

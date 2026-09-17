@@ -6,7 +6,7 @@
  */
 
 import "./hint-tooltip.css";
-import { afterFadeOut } from "../fade-out";
+import { afterFadeOut } from "../notices/fade-out";
 
 const OPEN_DELAY_MS = 150;
 const VIEWPORT_MARGIN = 8;

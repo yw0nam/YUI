@@ -29,7 +29,7 @@ vi.mock("../config/emotion-text", () => ({
 }));
 
 import { loadEmotionTextTable } from "../config/emotion-text";
-import { createVoiceInputStatus } from "../ui/voice-input-status";
+import { createVoiceInputStatus } from "../ui/chips/voice-input-status";
 import { wireBroker, wireVoiceInput } from "./wire-voice";
 
 const noopLog = { info: () => {}, warn: () => {}, error: () => {}, debug: () => {} } as never;

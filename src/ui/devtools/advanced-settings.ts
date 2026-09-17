@@ -1,6 +1,6 @@
 import type { createEndpointsSettings } from "../../io/settings/endpoints-settings";
 import { t } from "../i18n";
-import { reflectUnlessEditing } from "../reflect-unless-editing";
+import { reflectUnlessEditing } from "../surfaces/reflect-unless-editing";
 
 type EndpointsStore = ReturnType<typeof createEndpointsSettings>;
 

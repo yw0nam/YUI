@@ -9,7 +9,7 @@ import { createSessionDiagnosticsStore } from "../../io/chat/session-diagnostics
 import { createSessionStore } from "../../io/chat/session-store";
 import { createFlagSettings } from "../../io/settings/persisted-store";
 import { setLocale } from "../i18n";
-import { createQuickControls } from "../quick-controls";
+import { createQuickControls } from "./quick-controls";
 import { defaultQcArgs } from "./test-helpers";
 
 function seedStore() {

@@ -12,7 +12,7 @@
 import { MicVAD } from "@ricky0123/vad-web";
 import type { EndpointsConfig } from "../../contract";
 import { createLogger } from "../../logger";
-import type { VoiceInputState } from "../../ui/voice-input-status";
+import type { VoiceInputState } from "../../ui/chips/voice-input-status";
 import { createDeadlineSignal } from "./deadline";
 
 const log = createLogger("stt-vad");
