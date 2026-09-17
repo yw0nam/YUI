@@ -54,8 +54,9 @@ def test_text_streamed_outside_a_gateway_turn_is_not_the_reply(turn_id):
     assert taken == []
 
 
-def test_a_delta_with_no_client_to_speak_to_is_dropped():
+def test_a_delta_with_no_single_client_to_speak_to_reaches_the_sink_with_no_chat():
+    """The adapter learns that this text reached no client."""
     taken = collect()
     state.set_connected(CHAT, False)
     speech.on_stream_delta(delta="All green.", kind="text", turn_id=ANSWER, iteration=1, surface="yui")
-    assert taken == []
+    assert taken == [("", ANSWER, 1, "All green.")]
