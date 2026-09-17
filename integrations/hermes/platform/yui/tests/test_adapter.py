@@ -704,6 +704,62 @@ async def test_a_muted_turn_leaves_its_id_cleared(client, adapter):
     assert state.turn_id(CHAT) is None
 
 
+async def test_a_follow_up_completed_inside_an_open_turn_waits_for_the_outer_one(client, adapter):
+    """The backend interrupts the running turn and answers the later one inside its task."""
+    ws = await ready(client)
+    outer = user_turn(adapter, "777")
+    await adapter.on_processing_start(outer)
+    follow_up = user_turn(adapter, "778")
+    await adapter.on_processing_start(follow_up)
+    state.append_cue(CHAT, {"emotion_id": "happy"}, "All green")
+    await adapter.on_processing_complete(follow_up, ProcessingOutcome.SUCCESS)
+    await adapter.send(CHAT, "All green.", metadata={"notify": True})
+    assert await recv(ws) == {
+        "type": "render",
+        "turn_id": "778",
+        "source": "hermes",
+        "segments": [{"cues": [{"emotion_id": "happy"}], "speech": "All green."}],
+    }
+    await adapter.on_processing_complete(outer, ProcessingOutcome.SUCCESS)
+    assert await recv(ws) == {"type": "turn_end", "turn_id": "778"}
+    assert await recv(ws) == {"type": "turn_end", "turn_id": "777"}
+    # The next frame proves the two ends were all the pair sent.
+    adapter.notify_delegations(CHAT)
+    assert (await recv(ws))["type"] == "delegations"
+
+
+async def test_a_failed_turn_ends_after_its_failure_line_renders(client, adapter):
+    ws = await ready(client)
+    failed = user_turn(adapter, "777")
+    await adapter.on_processing_start(failed)
+    await adapter.on_processing_complete(failed, ProcessingOutcome.FAILURE)
+    await adapter.send(CHAT, "Sorry, that one broke.", metadata={"notify": True})
+    assert await recv(ws) == {
+        "type": "render",
+        "turn_id": "777",
+        "source": "hermes",
+        "segments": [{"cues": [], "speech": "Sorry, that one broke."}],
+    }
+    assert await recv(ws) == {"type": "turn_end", "turn_id": "777"}
+
+
+async def test_a_failed_turn_with_no_failure_line_ends_before_the_next_turn_opens(client, adapter):
+    ws = await ready(client)
+    failed = user_turn(adapter, "777")
+    await adapter.on_processing_start(failed)
+    await adapter.on_processing_complete(failed, ProcessingOutcome.FAILURE)
+    # The next frame proves the failed turn ended nothing on its own.
+    adapter.notify_delegations(CHAT)
+    assert (await recv(ws))["type"] == "delegations"
+    following = user_turn(adapter, "778")
+    await adapter.on_processing_start(following)
+    assert await recv(ws) == {"type": "turn_end", "turn_id": "777"}
+    await adapter.on_processing_complete(following, ProcessingOutcome.SUCCESS)
+    assert await recv(ws) == {"type": "turn_end", "turn_id": "778"}
+    adapter.notify_delegations(CHAT)
+    assert (await recv(ws))["type"] == "delegations"
+
+
 async def test_a_report_admitted_mid_turn_leaves_the_running_turn_alone(client, adapter):
     ws = await ready(client)
     await adapter.on_processing_start(user_turn(adapter, "777"))
