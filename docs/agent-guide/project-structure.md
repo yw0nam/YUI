@@ -76,6 +76,7 @@ YUI/
         shared.ts                    # Shared ConfigError plus issue-recording helpers
     renderer/                        # three.js + VRM rendering
       index.ts                       # three.js and VRM output layer: scene, rAF loop, VRM load and hot-swap
+      types.ts                       # Renderer options, per-frame tick context, and the Renderer surface
       apply-directive.ts             # Pure routing of a control envelope into the emotion and motion sinks
       pin-controller.ts              # Stateful perch and peek pin apply layer
       vrm-participant.ts             # The per-frame lifecycle every VRM-bound sub-controller implements
