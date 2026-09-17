@@ -1,4 +1,4 @@
-/** Text for the background marker a proactive turn carries into the backend prompt. */
+/** Placeholder user-content text a turn with no real user utterance carries into the backend prompt. */
 
 import type { TriggerMeta } from "../../contract";
 
