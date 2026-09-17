@@ -29,6 +29,8 @@ export interface PushTurns {
   rendered(turnId: string): void;
   /** The user stopped the reply: everything outstanding is cut. */
   cut(): void;
+  /** Runs the listener inside cut(), once for each turn it sweeps. Returns the removal. */
+  onCut(listener: (turnId: string) => void): () => void;
   /** Whether a frame belongs to a cut turn. */
   isCut(turnId: string): boolean;
   /** How many stopped turns are still waiting for their turn_end, for the line that reports a
@@ -56,6 +58,7 @@ export function createPushTurns(): PushTurns {
   const live = new Set<string>();
   const stopped = new Set<string>();
   const waiting = new Map<string, Waiter>();
+  const cutListeners = new Set<(turnId: string) => void>();
 
   function runHook(turnId: string, hook: (() => void) | undefined): void {
     if (!hook) return;
@@ -95,7 +98,14 @@ export function createPushTurns(): PushTurns {
         live.delete(turnId);
         stopped.add(turnId);
         settle(turnId, "cut");
+        for (const listener of cutListeners) runHook(turnId, () => listener(turnId));
       }
+    },
+    onCut(listener) {
+      cutListeners.add(listener);
+      return () => {
+        cutListeners.delete(listener);
+      };
     },
     isCut(turnId) {
       return stopped.has(turnId);

@@ -12,7 +12,8 @@ import type { ExpressArgs, ToolStatus } from "../../contract";
  * - `delta(text)` streams speech; the first one ends thinking.
  * - `end()` closes a streamed utterance; `speak(text)` is the whole-utterance fallback for a
  *   delta-less backend. Exactly one of the two per successful speaking turn — never both.
- * - `abort()` replaces `end()` when the stream died after at least one `delta`.
+ * - `abort()` replaces `end()` when the stream died after at least one `delta`. Only the streaming
+ *   chat modes abort; push closes every utterance with `end()`.
  * - `cue(args)` carries per-beat express cues while streaming; on the completed-only path it
  *   carries `emotion_text` alone, because `applyDirective` already rendered emotion/motion.
  * - `cueWithSpeech(args)` carries a cue whose sentence is submitted in the same stretch of work,

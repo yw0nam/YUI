@@ -48,6 +48,13 @@ export interface RenderFrame {
   reasoning?: string;
 }
 
+/** One finished sentence of a reply the backend is still writing; the turn's next render closes it. */
+export interface SpeechFrame {
+  type: "speech";
+  turn_id: string;
+  segments: RenderSegment[];
+}
+
 /** One piece of work the backend handed to a background worker. */
 export interface DelegationItem {
   id: string;
@@ -104,6 +111,7 @@ export interface PushSocket {
   /** Sends the current vocabulary when it differs from the one the backend last received. */
   sendVocabulary(): void;
   onRender(cb: (frame: RenderFrame) => void): () => void;
+  onSpeech(cb: (frame: SpeechFrame) => void): () => void;
   onTurnEnd(cb: (frame: TurnEndFrame) => void): () => void;
   onDelegations(cb: (items: DelegationItem[]) => void): () => void;
   onReasoning(cb: (delta: string) => void): () => void;
@@ -131,28 +139,39 @@ function byteLength(text: string): number {
   return new TextEncoder().encode(text).length;
 }
 
-/**
- * The field that makes a render frame unreadable, or null when the client can act on it: an
- * ordered list of well-formed segments (objects whose speech is text and whose cues are objects),
- * a source to log, and the string turn id it answers. A turn_id of another type would leave the
- * turn that sent it waiting out its whole budget.
- */
-function renderFrameFault(v: Record<string, unknown>): string | null {
-  if (!Array.isArray(v.segments)) return "segments";
-  for (const segment of v.segments) {
-    if (segment === null || typeof segment !== "object" || Array.isArray(segment))
-      return "segments";
+/** An ordered list of objects whose speech is text and whose cues are objects. */
+function segmentsReadable(segments: unknown): boolean {
+  if (!Array.isArray(segments)) return false;
+  for (const segment of segments) {
+    if (segment === null || typeof segment !== "object" || Array.isArray(segment)) return false;
     const { speech, cues } = segment as { speech?: unknown; cues?: unknown };
-    if (speech !== undefined && typeof speech !== "string") return "segments";
+    if (speech !== undefined && typeof speech !== "string") return false;
     if (
       cues !== undefined &&
       (!Array.isArray(cues) ||
         cues.some((cue) => cue === null || typeof cue !== "object" || Array.isArray(cue)))
     ) {
-      return "segments";
+      return false;
     }
   }
+  return true;
+}
+
+/**
+ * The field that makes a render frame unreadable, or null when the client can act on it: readable
+ * segments, a source to log, and the string turn id it answers. A turn_id of another type would
+ * leave the turn that sent it waiting out its whole budget.
+ */
+function renderFrameFault(v: Record<string, unknown>): string | null {
+  if (!segmentsReadable(v.segments)) return "segments";
   if (typeof v.source !== "string") return "source";
+  if (typeof v.turn_id !== "string") return "turn_id";
+  return null;
+}
+
+/** The field that makes a speech frame unreadable, or null: readable segments and a string turn id. */
+function speechFrameFault(v: Record<string, unknown>): string | null {
+  if (!segmentsReadable(v.segments)) return "segments";
   if (typeof v.turn_id !== "string") return "turn_id";
   return null;
 }
@@ -162,6 +181,7 @@ export function createPushSocket(deps: PushSocketDeps): PushSocket {
   const WS = deps.WebSocketImpl ?? globalThis.WebSocket;
 
   const renderSubs = new Set<(frame: RenderFrame) => void>();
+  const speechSubs = new Set<(frame: SpeechFrame) => void>();
   const turnEndSubs = new Set<(frame: TurnEndFrame) => void>();
   const delegationSubs = new Set<(items: DelegationItem[]) => void>();
   const reasoningSubs = new Set<(delta: string) => void>();
@@ -267,6 +287,15 @@ export function createPushSocket(deps: PushSocketDeps): PushSocket {
         }
         const render = frame as unknown as RenderFrame;
         dispatch(renderSubs, render);
+        return;
+      }
+      case "speech": {
+        const fault = speechFrameFault(frame);
+        if (fault !== null) {
+          log.warn("frame_malformed", { type: "speech", field: fault });
+          return;
+        }
+        dispatch(speechSubs, frame as unknown as SpeechFrame);
         return;
       }
       case "turn_end": {
@@ -449,6 +478,7 @@ export function createPushSocket(deps: PushSocketDeps): PushSocket {
       active = false;
       clearTimers();
       renderSubs.clear();
+      speechSubs.clear();
       turnEndSubs.clear();
       delegationSubs.clear();
       reasoningSubs.clear();
@@ -478,6 +508,7 @@ export function createPushSocket(deps: PushSocketDeps): PushSocket {
     sendVocabulary: syncVocabulary,
 
     onRender: (cb) => subscribe(renderSubs, cb),
+    onSpeech: (cb) => subscribe(speechSubs, cb),
     onTurnEnd: (cb) => subscribe(turnEndSubs, cb),
     onDelegations: (cb) => subscribe(delegationSubs, cb),
     onReasoning: (cb) => subscribe(reasoningSubs, cb),

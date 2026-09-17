@@ -10,6 +10,7 @@ import type {
   PushSocket,
   PushSocketState,
   RenderFrame,
+  SpeechFrame,
   TurnEndFrame,
 } from "../io/chat/push-socket";
 import type { RenderRecord } from "../io/chat/turn-record-log";
@@ -17,13 +18,14 @@ import type { Logger } from "../logger";
 
 /**
  * Routes an open push socket into the client: a `render` frame plays as a turn and closes the
- * live reasoning cycle, a `reasoning` frame appends to it, and a `delegations` frame replaces
- * the tracked list. The socket itself is created and connected by the host, which owns its
- * lifetime.
+ * live reasoning cycle, a `speech` frame plays into the utterance its turn's `render` closes, a
+ * `reasoning` frame appends to the cycle, and a `delegations` frame replaces the tracked list. The
+ * socket itself is created and connected by the host, which owns its lifetime.
  */
 export function wirePushTransport(deps: {
   socket: {
     onRender(cb: (frame: RenderFrame) => void): () => void;
+    onSpeech(cb: (frame: SpeechFrame) => void): () => void;
     onTurnEnd(cb: (frame: TurnEndFrame) => void): () => void;
     onDelegations(cb: (items: DelegationItem[]) => void): () => void;
     onReasoning(cb: (delta: string) => void): () => void;
@@ -52,11 +54,14 @@ export function wirePushTransport(deps: {
       if (renderTurn.render(frame)) deps.reasoning.finish(frame.reasoning);
       else deps.reasoning.interrupt();
     }),
+    deps.socket.onSpeech((frame) => renderTurn.stream(frame)),
     deps.socket.onTurnEnd((frame) => {
+      renderTurn.close(frame.turn_id);
       // The frame the running state was waiting for: the turn is forgotten, whatever it held.
       deps.pushTurns.ended(frame.turn_id);
       deps.log.info("push.turn_end", { turn_id: frame.turn_id });
     }),
+    deps.pushTurns.onCut((turnId) => renderTurn.drop(turnId)),
     deps.socket.onDelegations((items) => {
       deps.delegations.replace(items);
       const running = items.filter((item) => item.state === "running").length;
@@ -64,12 +69,15 @@ export function wirePushTransport(deps: {
     }),
     deps.socket.onReasoning((delta) => deps.reasoning.append(delta)),
     deps.socket.onState((state) => {
+      if (state.kind === "ready") return;
       // A cycle without its closing render dies with the connection; a finished text stays.
-      if (state.kind !== "ready") deps.reasoning.interrupt();
+      deps.reasoning.interrupt();
+      renderTurn.close();
     }),
   ];
   return () => {
     for (const off of unsubscribes) off();
+    renderTurn.dispose();
   };
 }
 
