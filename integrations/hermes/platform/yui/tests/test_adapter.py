@@ -1481,6 +1481,20 @@ async def test_a_client_that_drops_mid_answer_hears_no_more_speech_of_that_turn(
     )
 
 
+async def test_a_client_whose_socket_is_replaced_mid_answer_gets_the_rest_in_its_render(client, adapter):
+    """The replaced socket may have been half open, and what streamed to it never arrived."""
+    first = await ready(client)
+    await adapter.on_processing_start(user_turn(adapter, "777"))
+    await hooked(adapter, "All green. Want")
+    assert await recv(first) == speech_frame("777", "All green.")
+    second = await ready(client)
+    await hooked(adapter, " details? Done. ")
+    await adapter.send(CHAT, "All green. Want details? Done.", metadata={"notify": True})
+    assert await recv(second) == render_frame(
+        "777", [{"cues": [], "speech": "Want details?"}, {"cues": [], "speech": "Done."}]
+    )
+
+
 async def test_text_streamed_while_no_single_client_is_connected_stops_the_stream(client, adapter):
     ws = await ready(client)
     await adapter.on_processing_start(user_turn(adapter, "777"))
