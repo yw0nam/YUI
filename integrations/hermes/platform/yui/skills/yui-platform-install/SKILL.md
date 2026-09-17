@@ -48,7 +48,9 @@ ln -sfn $YUI/integrations/hermes/platform/yui ~/.hermes/profiles/<profile>/plugi
 ls -L ~/.hermes/profiles/<profile>/plugins/yui/plugin.yaml
 ```
 
-The directory name is the plugin id, so keep it `yui`.
+The plugin id is the `name` in `plugin.yaml`, and when two directories under `plugins/` carry the
+same name the one that sorts last is loaded. A backup copy such as `plugins/yui.bak` runs in place of
+the link, so keep backups outside `plugins/`.
 
 Check: the `ls` prints the path.
 
@@ -100,23 +102,26 @@ Check: step 7's ready line appears. A socket closing with `4401` is this step.
 
 ## 5. Keep the reply free of gateway text
 
-This client speaks its replies aloud, so two `display` settings keep the gateway's own text out of
-the spoken reply:
+This client speaks its replies aloud, so `show_reasoning: false` keeps the reasoning out of the
+spoken reply. It is required:
 
 ```yaml
 display:
   platforms:
     yui:
       show_reasoning: false
-  runtime_footer:
-    enabled: false
 ```
 
 ```bash
-python3 -c "import yaml,os;d=yaml.safe_load(open(os.path.expanduser('~/.hermes/profiles/<profile>/config.yaml')));print(d['display']['platforms']['yui']['show_reasoning'],d['display']['runtime_footer']['enabled'])"
+python3 -c "import yaml,os;d=yaml.safe_load(open(os.path.expanduser('~/.hermes/profiles/<profile>/config.yaml')));print(d['display']['platforms']['yui']['show_reasoning'])"
 ```
 
-Check: prints `False False`.
+Check: prints `False`.
+
+The runtime footer is off by default, and its switch is global to the gateway at
+`display.runtime_footer.enabled`. Turned on, the footer is concatenated into the reply text and
+the model name and working directory get spoken, so a host that turned it on sets it back to
+`false`.
 
 A client that shows a reasoning chip wants the live stream as well, one switch global to the
 gateway:
@@ -126,8 +131,7 @@ plugins:
   stream_reasoning_deltas: true
 ```
 
-With it on the `render` frame carries the streamed text; with it off it carries the block the
-gateway rendered into the reply, cut to fifteen lines.
+With it on the `render` frame carries the streamed text; with it off it carries no `reasoning`.
 
 ## 6. Restart the gateway
 
@@ -141,6 +145,10 @@ sleep 45 && ss -ltn | grep :8646
 ```
 
 Check: the `grep` prints a listening line.
+
+An agent that runs inside this gateway cannot restart it: its shell tool refuses the detached
+wrapper, and a foreground restart dies with the gateway it stops. Report the link and config
+changes and leave the restart to the operator.
 
 ## 7. Point the client at it and send one turn
 
@@ -167,6 +175,7 @@ expression.
 | The reply is spoken flat, with no expression or motion | 3, `platform_toolsets.yui` |
 | Nothing is listening on the port | 6 |
 | The gateway log never mentions `hermes_plugins.yui` | 2, then 3 |
+| An empty `turn` draws a `render` with no segments and no `turn_end` | 2, a second `plugin.yaml` named `yui` under `plugins/` |
 | The model name and working directory are read out | 5, `runtime_footer` |
 | The reasoning is read out as part of the reply | 5, `show_reasoning` |
 | The client connects, and a turn draws no reply | the client's own wait, `docs/reference/push-transport.md` |

@@ -10,7 +10,7 @@ from .segments import Placement
 _lock = threading.Lock()
 _vocabularies: dict[str, Vocabulary] = {}
 _cues: dict[str, list[Placement]] = {}
-_turn_ids: dict[str, str | None] = {}
+_turn_ids: dict[str, str] = {}
 _delivered: set[str] = set()
 _connected: set[str] = set()
 _muted: set[str] = set()
@@ -26,7 +26,7 @@ def vocabulary(chat_id: str) -> Vocabulary:
         return _vocabularies.get(chat_id) or Vocabulary()
 
 
-def set_turn_id(chat_id: str, turn_id: str | None) -> None:
+def set_turn_id(chat_id: str, turn_id: str) -> None:
     with _lock:
         _turn_ids[chat_id] = turn_id
 

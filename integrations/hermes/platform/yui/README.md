@@ -24,9 +24,8 @@ turns in and finished replies out. The contract both sides speak is
 - Streams the agent's reasoning to the client as `reasoning` frames, coalesced to one frame per
   100 ms. The `render` frame carries the reasoning written so far for its turn, which on the
   reply that ends the turn is the whole text. The gateway offers the live tokens only while
-  `plugins.stream_reasoning_deltas` is `true`; with it off, the `render` frame carries the block
-  the gateway rendered into the reply instead, cut to fifteen lines and still carrying the
-  gateway's display escaping of any code fence inside it.
+  `plugins.stream_reasoning_deltas` is `true`; with it off, the `render` frame carries no
+  `reasoning`.
 - Never delivers audio, images, video or files. `voice.auto_tts` is off for this platform, and
   the audio a `/voice all` chat still makes is discarded. The client speaks the reply itself.
 - Makes the first chat that connects the platform's home channel, which is where the gateway
@@ -34,10 +33,11 @@ turns in and finished replies out. The contract both sides speak is
 - Delivers the reply whole when the turn ends, so the gateway's `streaming` setting does not
   apply to this platform.
 - Names the client turn in every reply of a run, and clears the name when the turn ends. A turn
-  the gateway started on its own, such as a cron result, carries a null `turn_id`.
+  the gateway started on its own, such as a cron result, carries an id the plugin mints, of the
+  form `hermes-<n>`, counted per gateway process.
 - Sends a `delegations` frame whenever background work starts or finishes, so the client can show
   what is running.
-- Holds reports that arrive while the client is away, up to twenty, and delivers them as one
+- Holds reports that arrive while the client is away, up to forty, and delivers them as one
   summary turn when it connects again. A reply that finishes while the client is away is held the
   same way and sent first when it reconnects. Both live in memory, so a gateway restart while the
   client is away drops them.
@@ -96,11 +96,9 @@ carries the general tools and `delegation` carries `delegate_task`.
 Set `chat_api: "push"` in the client and point `chat_base_url` at this server. A
 `chat_base_url` of `https://host:8646` gives `wss://host:8646/ws`.
 
-Two display settings are worth a look for a voice client, under `display.platforms.yui`. Leave
-`runtime_footer.enabled` off, its default: when it is on the footer is concatenated into the reply
-text, so the model name and working directory get read out. Set `show_reasoning: false` as well —
-with it on the gateway prepends the reasoning, cut to fifteen lines, to the reply text, and the
-plugin has to take it back off:
+One display setting is required for a voice client, under `display.platforms.yui`: set
+`show_reasoning: false`, because with it on the gateway prepends the reasoning to the reply text
+and the reasoning gets spoken.
 
 ```yaml
 display:
@@ -108,6 +106,10 @@ display:
     yui:
       show_reasoning: false
 ```
+
+The runtime footer is off by default, and its switch is global to the gateway at
+`display.runtime_footer.enabled`. Turned on, the footer is concatenated into the reply text, so
+the model name and working directory get spoken. Leave it off.
 
 The live reasoning stream is a separate switch, off by default and global to the gateway:
 
@@ -117,7 +119,9 @@ plugins:
 ```
 
 With it on the client receives the reasoning as it is written, and the `render` frame carries the
-streamed text rather than the block the gateway rendered into the reply.
+streamed text.
+
+Run the plugin from the same commit as the client: the frames carry no version field.
 
 ## Reaching it from outside the machine
 

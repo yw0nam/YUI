@@ -4,7 +4,8 @@ from __future__ import annotations
 
 import threading
 
-MAX_QUEUED = 20
+# Caps each queue: the reports held, and the replies held, where a turn costs a render and its end.
+MAX_QUEUED = 40
 
 _HEADER = (
     "While the client was disconnected, {count} reports arrived{dropped}. "

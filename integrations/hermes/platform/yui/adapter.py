@@ -9,8 +9,11 @@ the socket stays open, a report the agent produces on its own leaves the same wa
 from __future__ import annotations
 
 import asyncio
+import concurrent.futures
 import contextlib
+import hmac
 import ipaddress
+import itertools
 import json
 import logging
 import os
@@ -45,7 +48,13 @@ REASONING_WINDOW_SECONDS = 0.1
 
 CLOSE_UNAUTHORIZED = 4401
 CLOSE_REPLACED = 4409
-CLOSE_TOO_BIG = 1009
+
+# A run the gateway starts on its own still names a turn; the client's ids are decimal digits only.
+_TURN_IDS = itertools.count(1)
+
+
+def _mint_turn_id() -> str:
+    return f"hermes-{next(_TURN_IDS)}"
 
 
 def build_message_text(client_context: str, text: str) -> str:
@@ -69,8 +78,11 @@ def _encoded(frame: dict) -> tuple[str, int]:
     return body, len(body.encode("utf-8"))
 
 
-def fit_frame(frame: dict) -> str:
-    """The cap is symmetric, and the client closes an oversize frame; trim one down to fit."""
+def fit_frame(frame: dict) -> str | None:
+    """The cap is symmetric, and the client closes an oversize frame; trim one down to fit.
+
+    A frame with nothing left to trim has no body to send.
+    """
     body, size = _encoded(frame)
     if size <= MAX_FRAME_BYTES:
         return body
@@ -88,6 +100,14 @@ def fit_frame(frame: dict) -> str:
         budget = max(len(raw) - (size - MAX_FRAME_BYTES), 0)
         frame["delta"] = raw[:budget].decode("utf-8", "ignore")
         body, size = _encoded(frame)
+    if size > MAX_FRAME_BYTES:
+        logger.warning(
+            "yui: %s frame still over %d bytes at %d after trimming",
+            frame.get("type"),
+            MAX_FRAME_BYTES,
+            size,
+        )
+        return None
     logger.warning("yui: %s frame over %d bytes, trimmed to fit", frame.get("type"), MAX_FRAME_BYTES)
     return body
 
@@ -123,6 +143,7 @@ class YuiAdapter(BasePlatformAdapter):
         self._loop: asyncio.AbstractEventLoop | None = None
         self._runner: web.AppRunner | None = None
         self._confirmations: set[asyncio.Task] = set()
+        self._closings: set[asyncio.Task] = set()
         self._site: web.TCPSite | None = None
         self._homed: set[str] = set()
         self._reasoning_pending: dict[str, list[str]] = {}
@@ -176,9 +197,11 @@ class YuiAdapter(BasePlatformAdapter):
         self._mark_disconnected()
         delegations.set_notifier(None)
         reasoning.set_sink(None)
-        for task in list(self._reasoning_flushes.values()):
+        for task in (*self._reasoning_flushes.values(), *self._closings, *self._confirmations):
             task.cancel()
         self._reasoning_flushes.clear()
+        self._closings.clear()
+        self._confirmations.clear()
         self._reasoning_pending.clear()
         for chat_id, ws in list(self._sockets.items()):
             state.set_connected(chat_id, False)
@@ -197,17 +220,14 @@ class YuiAdapter(BasePlatformAdapter):
     async def _serve(self, request: web.Request) -> web.WebSocketResponse:
         """One client connection: the handshake, then turns until it goes away."""
         self._loop = asyncio.get_running_loop()
-        ws = web.WebSocketResponse(max_msg_size=MAX_FRAME_BYTES * 4, heartbeat=30)
+        # aiohttp refuses an uncompressed frame at max_msg_size, so the cap sits one over the contract's.
+        ws = web.WebSocketResponse(max_msg_size=MAX_FRAME_BYTES + 1, heartbeat=30)
         await ws.prepare(request)
         chat_id = ""
         try:
             async for message in ws:
                 if message.type is not WSMsgType.TEXT:
                     continue
-                if len(message.data.encode("utf-8")) > MAX_FRAME_BYTES:
-                    logger.warning("yui: frame over %d bytes, closing", MAX_FRAME_BYTES)
-                    await ws.close(code=CLOSE_TOO_BIG, message=b"frame too large")
-                    break
                 frame = self._parse(message.data)
                 if frame is None:
                     continue
@@ -234,25 +254,32 @@ class YuiAdapter(BasePlatformAdapter):
         if frame.get("type") != "hello":
             return ""
         chat_id = str(frame.get("chat_id") or "").strip()
-        if not chat_id or (self._key and str(frame.get("key") or "") != self._key):
+        if not chat_id or (self._key and not hmac.compare_digest(str(frame.get("key") or ""), self._key)):
             logger.warning("yui: refused a hello for chat %r", chat_id)
             await ws.close(code=CLOSE_UNAUTHORIZED, message=b"unauthorized")
             return ""
+        # The new socket is registered before any await, so a mid-handshake send cannot land elsewhere.
         replaced = self._sockets.get(chat_id)
-        if replaced is not None and replaced is not ws:
-            with contextlib.suppress(Exception):
-                await replaced.close(code=CLOSE_REPLACED, message=b"replaced")
         self._sockets[chat_id] = ws
         state.set_connected(chat_id, True)
         self._adopt_home_channel(chat_id)
         self._publish_vocabulary(chat_id, frame.get("vocabulary"))
         await self._send_frame(chat_id, {"type": "ready", "chat_id": chat_id})
+        if replaced is not None and replaced is not ws:
+            # A peer that is gone takes the whole close timeout, and the frames below cannot wait.
+            task = asyncio.create_task(self._close_replaced(replaced))
+            self._closings.add(task)
+            task.add_done_callback(self._closings.discard)
         await self._send_delegations(chat_id)
         logger.info("yui: client ready chat=%s", chat_id)
         # The reply it missed comes before the agent starts a new turn on the held reports.
         await self._flush_renders(chat_id)
         await self._flush_reports(chat_id)
         return chat_id
+
+    async def _close_replaced(self, ws: web.WebSocketResponse) -> None:
+        with contextlib.suppress(Exception):
+            await ws.close(code=CLOSE_REPLACED, message=b"replaced")
 
     async def _on_frame(self, chat_id: str, frame: dict) -> None:
         kind = frame.get("type")
@@ -299,18 +326,21 @@ class YuiAdapter(BasePlatformAdapter):
 
     async def _on_turn(self, chat_id: str, frame: dict) -> None:
         turn_id = str(frame.get("turn_id") or "")
+        if not turn_id:
+            logger.warning("yui: turn without a turn_id chat=%s", chat_id)
+            return
         text = build_message_text(str(frame.get("client_context") or ""), str(frame.get("text") or ""))
         if not text:
             # The contract gives the client no turn timeout, so an empty turn is closed at once.
             logger.warning("yui: nothing to say for an empty turn chat=%s", chat_id)
-            await self._send_frame(chat_id, self._render(turn_id or None, []))
+            await self._send_frame(chat_id, {"type": "turn_end", "turn_id": turn_id})
             return
         logger.info("yui: turn accepted chat=%s turn_id=%s chars=%d", chat_id, turn_id, len(text))
         await self.handle_message(
             MessageEvent(
                 text=text,
                 message_type=MessageType.TEXT,
-                message_id=turn_id or None,
+                message_id=turn_id,
                 allow_gateway_control=False,
                 source=self._source(chat_id),
             )
@@ -359,8 +389,11 @@ class YuiAdapter(BasePlatformAdapter):
         if ws is None or ws.closed:
             logger.warning("yui: no client for chat=%s, dropped %s", chat_id, frame.get("type"))
             return False
+        body = fit_frame(frame)
+        if body is None:
+            return False
         try:
-            await ws.send_str(fit_frame(frame))
+            await ws.send_str(body)
             return True
         except (ConnectionError, RuntimeError, ValueError) as e:
             logger.warning("yui: send failed chat=%s — %s", chat_id, e)
@@ -427,8 +460,16 @@ class YuiAdapter(BasePlatformAdapter):
         loop = self._loop
         if loop is None or not state.is_connected(chat_id):
             return
+
+        def report(future: concurrent.futures.Future) -> None:
+            if future.cancelled():
+                return
+            error = future.exception()
+            if error is not None:
+                logger.warning("yui: delegations push failed chat=%s — %s", chat_id, error)
+
         with contextlib.suppress(RuntimeError):
-            asyncio.run_coroutine_threadsafe(self._send_delegations(chat_id), loop)
+            asyncio.run_coroutine_threadsafe(self._send_delegations(chat_id), loop).add_done_callback(report)
 
     # -- reasoning ----------------------------------------------------------------------------
 
@@ -528,9 +569,6 @@ class YuiAdapter(BasePlatformAdapter):
             state.mark_delivered(chat_id)
             logger.info("yui: reset acknowledgement not spoken chat=%s", chat_id)
             return SendResult(success=True, message_id=_message_id())
-        block, content = reasoning.split_block(content)
-        if block:
-            logger.debug("yui: reasoning block stripped chat=%s", chat_id)
         placements = state.pop_cues(chat_id)
         if meta.get("notify"):
             segments = build_segments(content, placements)
@@ -540,12 +578,18 @@ class YuiAdapter(BasePlatformAdapter):
             for placement in waiting:
                 state.append_cue(chat_id, placement.cue, placement.sentence)
         state.mark_delivered(chat_id)
-        # The streamed tokens are the whole thought; the block is cut to fifteen lines.
-        frame = self._render(state.turn_id(chat_id), segments, reasoning.live_text(chat_id) or block)
+        turn_id = state.turn_id(chat_id)
+        frame = self._render(turn_id, segments, reasoning.live_text(chat_id))
         await self._send_render(chat_id, frame)
+        # A render with no turn in flight ends the turn it minted; nothing else closes it.
+        if turn_id is None:
+            await self._send_render(chat_id, {"type": "turn_end", "turn_id": frame["turn_id"]})
         return SendResult(success=True, message_id=_message_id())
 
     def _render(self, turn_id: str | None, segments: list[dict], reasoning_text: str = "") -> dict:
+        if turn_id is None:
+            turn_id = _mint_turn_id()
+            logger.warning("yui: render with no turn in flight, minted %s", turn_id)
         frame = {"type": "render", "turn_id": turn_id, "source": SOURCE, "segments": segments}
         if reasoning_text:
             frame["reasoning"] = reasoning_text
@@ -632,16 +676,17 @@ class YuiAdapter(BasePlatformAdapter):
         reasoning.clear(chat_id)
         self._forget_reasoning(chat_id)
         internal = getattr(event, "internal", False)
-        state.set_turn_id(chat_id, None if internal else (event.message_id or None))
+        message_id = getattr(event, "message_id", "") or ""
+        state.set_turn_id(chat_id, _mint_turn_id() if internal or not message_id else message_id)
 
     async def on_processing_complete(self, event: MessageEvent, outcome: ProcessingOutcome) -> None:
         """Close the turn: a reply already rendered, anything else renders as silence."""
         chat_id = _chat_of(event)
-        cues = [placement.cue for placement in state.pop_cues(chat_id)]
-        turn_id = state.take_turn_id(chat_id)
-        if state.take_delivered(chat_id):
-            return
-        logger.info("yui: turn ended without speech chat=%s outcome=%s", chat_id, outcome)
-        # Cues on a silent turn still play; the segment they ride on carries no speech.
-        segments = [{"cues": cues, "speech": ""}] if cues else []
-        await self._send_render(chat_id, self._render(turn_id, segments))
+        turn_id = state.take_turn_id(chat_id) or _mint_turn_id()
+        if not state.take_delivered(chat_id):
+            logger.info("yui: turn ended without speech chat=%s outcome=%s", chat_id, outcome)
+            cues = [placement.cue for placement in state.pop_cues(chat_id)]
+            # Cues on a silent turn still play; the segment they ride on carries no speech.
+            if cues:
+                await self._send_render(chat_id, self._render(turn_id, [{"cues": cues, "speech": ""}]))
+        await self._send_render(chat_id, {"type": "turn_end", "turn_id": turn_id})

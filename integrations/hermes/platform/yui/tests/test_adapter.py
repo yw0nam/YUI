@@ -42,7 +42,7 @@ def clean():
     for chat in (CHAT, "other"):
         state.reset(chat)
         state.set_connected(chat, False)
-        state.set_turn_id(chat, None)
+        state.take_turn_id(chat)
         state.set_muted(chat, False)
         reports.take(chat)
         reports.take_renders(chat)
@@ -138,6 +138,20 @@ async def test_a_hello_with_no_chat_id_is_turned_away(client):
     assert message.data == 4401
 
 
+def padded(frame: dict, size: int) -> str:
+    """The frame as JSON text of exactly `size` bytes; the plugin ignores the padding field."""
+    body = json.dumps({**frame, "pad": ""}, ensure_ascii=False)
+    return json.dumps({**frame, "pad": "x" * (size - len(body.encode("utf-8")))}, ensure_ascii=False)
+
+
+async def test_a_frame_of_exactly_the_cap_is_accepted(client):
+    ws = await client.ws_connect("/ws")
+    body = padded({"type": "hello", "key": KEY, "chat_id": CHAT, "vocabulary": VOCABULARY}, MAX_FRAME_BYTES)
+    assert len(body.encode("utf-8")) == MAX_FRAME_BYTES
+    await ws.send_str(body)
+    assert await recv(ws) == {"type": "ready", "chat_id": CHAT}
+
+
 async def test_an_oversized_frame_closes_the_socket(client):
     ws = await ready(client)
     await ws.send_str("x" * (MAX_FRAME_BYTES + 1))
@@ -154,6 +168,82 @@ async def test_a_second_hello_for_one_chat_replaces_the_first(client, adapter):
     assert message.data == 4409
     assert state.is_connected(CHAT) is True
     await second.close()
+
+
+async def test_a_render_sent_while_the_replaced_socket_closes_reaches_the_new_socket(
+    client, adapter, monkeypatch
+):
+    """The new socket is registered before the replaced one closes, so a send during that close
+    cannot fall back to the socket that is going away."""
+    await ready(client)
+    replaced = adapter._sockets[CHAT]
+    paused = asyncio.Event()
+    resume = asyncio.Event()
+    real_close = replaced.close
+
+    async def pausing_close(**kwargs):
+        paused.set()
+        await resume.wait()
+        return await real_close(**kwargs)
+
+    monkeypatch.setattr(replaced, "close", pausing_close)
+    opened = asyncio.create_task(hello(client))
+    await asyncio.wait_for(paused.wait(), 2)
+    await adapter.send(CHAT, "The tests passed.", metadata={"notify": True})
+    resume.set()
+    second = await asyncio.wait_for(opened, 2)
+    assert await recv(second) == {"type": "ready", "chat_id": CHAT}
+    assert (await recv(second))["type"] == "delegations"
+    assert (await recv(second))["segments"] == [{"cues": [], "speech": "The tests passed."}]
+
+
+async def test_the_handshake_does_not_wait_for_the_replaced_socket_to_close(client, adapter, monkeypatch):
+    """A peer that is gone takes the whole close timeout, and the frames after ready cannot wait."""
+    await ready(client)
+    replaced = adapter._sockets[CHAT]
+    resume = asyncio.Event()
+    real_close = replaced.close
+
+    async def pausing_close(**kwargs):
+        await resume.wait()
+        return await real_close(**kwargs)
+
+    monkeypatch.setattr(replaced, "close", pausing_close)
+    reports.queue_render(
+        CHAT,
+        {
+            "type": "render",
+            "turn_id": "777",
+            "source": "hermes",
+            "segments": [{"cues": [], "speech": "Held."}],
+        },
+    )
+    second = await hello(client)
+    assert await recv(second) == {"type": "ready", "chat_id": CHAT}
+    assert (await recv(second))["type"] == "delegations"
+    assert (await recv(second))["turn_id"] == "777"
+    resume.set()
+
+
+async def test_shutdown_cancels_a_close_still_waiting(client, adapter, monkeypatch):
+    """A close left pending at shutdown is destroyed with the loop unless it is cancelled first."""
+    await ready(client)
+    replaced = adapter._sockets[CHAT]
+    resume = asyncio.Event()
+    real_close = replaced.close
+
+    async def pausing_close(**kwargs):
+        await resume.wait()
+        return await real_close(**kwargs)
+
+    monkeypatch.setattr(replaced, "close", pausing_close)
+    await hello(client)
+    await wait_for(lambda: adapter._closings)
+    (closing,) = adapter._closings
+    await adapter.disconnect()
+    await wait_for(closing.done)
+    assert closing.cancelled() is True
+    resume.set()
 
 
 async def test_closing_the_socket_leaves_the_chat_disconnected(client):
@@ -304,34 +394,54 @@ async def test_a_send_with_no_words_is_not_rendered(client, adapter):
     assert (await recv(ws))["segments"] == [{"cues": [], "speech": "Done."}]
 
 
-async def test_a_reply_the_agent_speaks_on_its_own_carries_no_turn_id(client, adapter):
+async def test_an_internal_turn_carries_a_minted_id_through_its_frames(client, adapter):
     ws = await ready(client)
     await adapter.on_processing_start(internal_event(adapter, "the build finished"))
     await adapter.send(CHAT, "The build finished.", metadata={"notify": True})
-    assert (await recv(ws))["turn_id"] is None
+    render = await recv(ws)
+    assert isinstance(render["turn_id"], str)
+    assert render["turn_id"].startswith("hermes-")
+    event = MessageEvent(text="hi", source=adapter.build_source(chat_id=CHAT))
+    await adapter.on_processing_complete(event, ProcessingOutcome.SUCCESS)
+    assert await recv(ws) == {"type": "turn_end", "turn_id": render["turn_id"]}
 
 
-async def test_a_silent_turn_with_no_cues_closes_with_no_segments(client, adapter):
+async def test_two_internal_turns_get_different_minted_ids(client, adapter):
+    await ready(client)
+    await adapter.on_processing_start(internal_event(adapter, "the build finished"))
+    first = state.turn_id(CHAT)
+    await adapter.on_processing_start(internal_event(adapter, "the deploy finished"))
+    second = state.turn_id(CHAT)
+    assert isinstance(first, str) and first.startswith("hermes-")
+    assert isinstance(second, str) and second.startswith("hermes-")
+    assert first != second
+
+
+async def test_a_silent_turn_with_no_cues_gets_only_a_turn_end(client, adapter):
     ws = await ready(client)
     await adapter.on_processing_start(user_turn(adapter, "7"))
     event = MessageEvent(text="hi", source=adapter.build_source(chat_id=CHAT))
     await adapter.on_processing_complete(event, ProcessingOutcome.SUCCESS)
-    assert await recv(ws) == {
-        "type": "render",
-        "turn_id": "7",
-        "source": "hermes",
-        "segments": [],
-    }
+    assert await recv(ws) == {"type": "turn_end", "turn_id": "7"}
 
 
-async def test_a_turn_that_already_spoke_is_not_closed_twice(client, adapter):
+async def test_a_delivered_turn_still_gets_one_turn_end_after_its_render(client, adapter):
     ws = await ready(client)
+    await adapter.on_processing_start(user_turn(adapter, "777"))
     await adapter.send(CHAT, "Done.", metadata={"notify": True})
     await recv(ws)
     event = MessageEvent(text="hi", source=adapter.build_source(chat_id=CHAT))
     await adapter.on_processing_complete(event, ProcessingOutcome.SUCCESS)
+    assert await recv(ws) == {"type": "turn_end", "turn_id": "777"}
+
+
+async def test_a_send_with_no_turn_in_flight_ends_the_turn_it_mints(client, adapter):
+    ws = await ready(client)
     await adapter.send(CHAT, "Next.", metadata={"notify": True})
-    assert (await recv(ws))["segments"] == [{"cues": [], "speech": "Next."}]
+    render = await recv(ws)
+    assert render["turn_id"].startswith("hermes-")
+    assert render["segments"] == [{"cues": [], "speech": "Next."}]
+    assert await recv(ws) == {"type": "turn_end", "turn_id": render["turn_id"]}
 
 
 async def test_a_report_arriving_with_a_client_connected_goes_straight_through(client, adapter):
@@ -374,16 +484,16 @@ async def test_several_reports_held_while_away_arrive_as_one_summary_turn(client
     ]
 
 
-async def test_a_flood_of_reports_keeps_twenty_and_counts_the_rest(client, adapter):
-    for number in range(25):
+async def test_a_flood_of_reports_keeps_forty_and_counts_the_rest(client, adapter):
+    for number in range(45):
         await adapter.handle_message(internal_event(adapter, f"report {number}"))
     await ready(client)
     await wait_for(lambda: adapter.dispatched)
     lines = adapter.dispatched[-1].text.split("\n\n")
     assert lines[0].startswith(
-        "While the client was disconnected, 20 reports arrived (5 older ones dropped)."
+        "While the client was disconnected, 40 reports arrived (5 older ones dropped)."
     )
-    assert lines[1:] == [f"report {number}" for number in range(5, 25)]
+    assert lines[1:] == [f"report {number}" for number in range(5, 45)]
 
 
 async def test_a_typed_turn_is_never_held_while_away(client, adapter):
@@ -404,6 +514,38 @@ async def test_a_delegation_change_reaches_the_connected_client(client, adapter)
     adapter.notify_delegations(CHAT)
     frame = await recv(ws)
     assert frame["type"] == "delegations"
+
+
+async def test_a_failed_delegations_push_is_logged(client, adapter, monkeypatch, caplog):
+    await ready(client)
+
+    async def broken(chat_id):
+        raise RuntimeError("socket exploded")
+
+    monkeypatch.setattr(adapter, "_send_delegations", broken)
+    with caplog.at_level(logging.WARNING):
+        adapter.notify_delegations(CHAT)
+        await wait_for(lambda: "delegations push failed" in caplog.text)
+    assert "socket exploded" in caplog.text
+
+
+async def test_a_cancelled_delegations_push_is_not_reported(client, adapter, monkeypatch, caplog):
+    """A cancelled push has no exception to hand back, and asking it for one raises."""
+    await ready(client)
+    pushes: list = []
+    schedule = asyncio.run_coroutine_threadsafe
+
+    def capturing(coro, loop):
+        pushes.append(schedule(coro, loop))
+        return pushes[-1]
+
+    monkeypatch.setattr(asyncio, "run_coroutine_threadsafe", capturing)
+    adapter.notify_delegations(CHAT)
+    with caplog.at_level(logging.WARNING):
+        assert pushes[0].cancel() is True
+    assert "CancelledError" not in caplog.text
+    assert "delegations push failed" not in caplog.text
+    await asyncio.sleep(0)
 
 
 async def test_the_plugin_approves_the_gateway_confirmation_of_its_own_reset(adapter):
@@ -442,6 +584,42 @@ async def test_the_reset_reply_is_not_spoken_but_the_next_one_is(client, adapter
     assert frame["segments"] == [{"cues": [], "speech": "Hello again."}]
 
 
+async def test_the_reset_turn_runs_under_a_turn_id_of_its_own(client, adapter):
+    ws = await ready(client)
+    await ws.send_json({"type": "reset"})
+    await wait_for(lambda: adapter.dispatched)
+    assert (await recv(ws))["type"] == "delegations"
+    event = adapter.dispatched[-1]
+    await adapter.on_processing_start(event)
+    running = state.turn_id(CHAT)
+    assert isinstance(running, str)
+    await adapter.send(CHAT, "\u2728 New conversation started.", metadata={"notify": True})
+    await adapter.on_processing_complete(event, ProcessingOutcome.SUCCESS)
+    assert await recv(ws) == {"type": "turn_end", "turn_id": running}
+
+
+async def test_the_approved_reset_reply_ends_the_reset_turn_once(client, adapter):
+    ws = await ready(client)
+    await ws.send_json({"type": "reset"})
+    await wait_for(lambda: adapter.dispatched)
+    assert (await recv(ws))["type"] == "delegations"
+    event = adapter.dispatched[-1]
+    await adapter.on_processing_start(event)
+    running = state.turn_id(CHAT)
+    SLASH_CONFIRM.register("agent:main:yui:dm:" + CHAT, "7", "new")
+    await adapter.send_slash_confirm(
+        chat_id=CHAT,
+        title="/new",
+        message="\u26a0\ufe0f **Confirm /new**",
+        session_key="agent:main:yui:dm:" + CHAT,
+        confirm_id="7",
+    )
+    await adapter.send(CHAT, "\u2728 New conversation started.", metadata={"notify": True})
+    await adapter.on_processing_complete(event, ProcessingOutcome.SUCCESS)
+    assert (await recv(ws))["turn_id"] == running
+    assert await recv(ws) == {"type": "turn_end", "turn_id": running}
+
+
 async def test_approving_the_confirmation_leaves_the_next_reply_speakable(client, adapter):
     ws = await ready(client)
     await ws.send_json({"type": "reset"})
@@ -465,13 +643,6 @@ async def test_the_turn_id_is_bound_when_the_gateway_starts_the_turn(client, ada
     await adapter.on_processing_start(user_turn(adapter, "777"))
     await adapter.send(CHAT, "Done.", metadata={"notify": True})
     assert (await recv(ws))["turn_id"] == "777"
-
-
-async def test_a_report_turn_renders_without_a_turn_id(client, adapter):
-    ws = await ready(client)
-    await adapter.on_processing_start(internal_event(adapter, "the build finished"))
-    await adapter.send(CHAT, "The build finished.", metadata={"notify": True})
-    assert (await recv(ws))["turn_id"] is None
 
 
 async def test_every_reply_of_a_turn_names_it(client, adapter):
@@ -512,6 +683,17 @@ async def test_a_cue_only_turn_leaves_its_id_cleared(client, adapter):
     assert state.turn_id(CHAT) is None
 
 
+async def test_a_cue_only_turn_with_no_turn_in_flight_names_one_id(client, adapter):
+    ws = await ready(client)
+    state.append_cue(CHAT, {"emotion_id": "happy"}, "")
+    event = MessageEvent(text="hi", source=adapter.build_source(chat_id=CHAT))
+    await adapter.on_processing_complete(event, ProcessingOutcome.SUCCESS)
+    render = await recv(ws)
+    assert render["type"] == "render"
+    assert render["turn_id"].startswith("hermes-")
+    assert await recv(ws) == {"type": "turn_end", "turn_id": render["turn_id"]}
+
+
 async def test_a_muted_turn_leaves_its_id_cleared(client, adapter):
     await ready(client)
     await adapter.on_processing_start(user_turn(adapter, "777"))
@@ -533,10 +715,21 @@ async def test_a_report_admitted_mid_turn_leaves_the_running_turn_alone(client, 
     assert frame["segments"] == [{"cues": [{"emotion_id": "happy"}], "speech": "Done."}]
 
 
-async def test_an_empty_turn_is_answered_so_the_client_is_not_left_waiting(client, adapter):
+async def test_an_empty_turn_is_closed_at_once(client, adapter):
     ws = await ready(client)
     await ws.send_json({"type": "turn", "turn_id": "9", "client_context": "", "text": ""})
-    assert await recv(ws) == {"type": "render", "turn_id": "9", "source": "hermes", "segments": []}
+    assert await recv(ws) == {"type": "turn_end", "turn_id": "9"}
+    assert adapter.dispatched == []
+
+
+async def test_a_turn_without_a_turn_id_is_dropped(client, adapter, caplog):
+    ws = await ready(client)
+    with caplog.at_level(logging.WARNING):
+        await ws.send_json({"type": "turn", "client_context": "", "text": ""})
+        await wait_for(lambda: "turn_id" in caplog.text)
+        # The next frame proves the dropped turn sent nothing of its own.
+        adapter.notify_delegations(CHAT)
+        assert (await recv(ws))["type"] == "delegations"
     assert adapter.dispatched == []
 
 
@@ -553,6 +746,25 @@ async def test_a_silent_turn_still_plays_its_cues(client, adapter):
         "source": "hermes",
         "segments": [{"cues": [{"emotion_id": "happy"}, {"motion_id": "idle"}], "speech": ""}],
     }
+    assert await recv(ws) == {"type": "turn_end", "turn_id": "7"}
+
+
+async def test_a_turn_end_held_while_away_follows_its_render_on_reconnect(client, adapter):
+    ws = await ready(client)
+    await adapter.on_processing_start(user_turn(adapter, "777"))
+    await ws.close()
+    await wait_for(lambda: not state.is_connected(CHAT))
+    await adapter.send(CHAT, "The tests passed.", metadata={"notify": True})
+    event = MessageEvent(text="hi", source=adapter.build_source(chat_id=CHAT))
+    await adapter.on_processing_complete(event, ProcessingOutcome.SUCCESS)
+    back = await ready(client)
+    assert await recv(back) == {
+        "type": "render",
+        "turn_id": "777",
+        "source": "hermes",
+        "segments": [{"cues": [], "speech": "The tests passed."}],
+    }
+    assert await recv(back) == {"type": "turn_end", "turn_id": "777"}
 
 
 async def test_an_oversize_render_loses_its_trailing_segments(client, adapter):
@@ -608,7 +820,9 @@ async def test_a_reply_the_socket_cannot_take_is_held_not_failed(client, adapter
 
 async def test_a_socket_that_dies_mid_flush_keeps_the_replies_it_did_not_take(adapter):
     for turn_id in ("1", "2"):
-        reports.queue_render(CHAT, {"type": "render", "turn_id": turn_id, "segments": []})
+        reports.queue_render(
+            CHAT, {"type": "render", "turn_id": turn_id, "segments": [{"cues": [], "speech": "hi"}]}
+        )
     await adapter._flush_renders(CHAT)
     held, _dropped = reports.take_renders(CHAT)
     assert [frame["turn_id"] for frame in held] == ["1", "2"]
@@ -724,32 +938,30 @@ async def test_the_reasoning_stream_reaches_the_client_as_one_coalesced_frame(cl
     assert await recv(ws) == {"type": "reasoning", "delta": "I will check the log."}
 
 
-async def test_the_render_carries_the_streamed_reasoning_over_the_prepended_block(client, adapter):
+async def test_the_render_carries_the_streamed_reasoning(client, adapter):
     ws = await ready(client)
     STUB_ENV["HERMES_SESSION_CHAT_ID"] = CHAT
     await adapter.on_processing_start(user_turn(adapter, "7"))
     reasoning.on_stream_delta(delta="The whole thought.", kind="reasoning", surface="yui")
-    await adapter.send(
-        CHAT,
-        "\U0001f4ad **Reasoning:**\n```\nThe truncated thought.\n```\n\nAll green.",
-        metadata={"notify": True},
-    )
+    reply = "\U0001f4ad **Reasoning:**\n```\nThe truncated thought.\n```\n\nAll green."
+    await adapter.send(CHAT, reply, metadata={"notify": True})
     frame = await recv(ws)
     assert frame["reasoning"] == "The whole thought."
-    assert frame["segments"] == [{"cues": [], "speech": "All green."}]
+    # The block the gateway prepended is part of the reply; nothing is stripped off the front.
+    assert frame["segments"][0]["speech"].startswith("\U0001f4ad **Reasoning:**")
+    assert frame["segments"][-1]["speech"] == "All green."
 
 
-async def test_the_render_carries_the_prepended_block_when_nothing_streamed(client, adapter):
+async def test_the_reply_text_reaches_the_client_unchanged(client, adapter):
     ws = await ready(client)
     await adapter.on_processing_start(user_turn(adapter, "7"))
-    await adapter.send(
-        CHAT,
-        "\U0001f4ad **Reasoning:**\n```\nThe log is the first place to look.\n```\n\nAll green.",
-        metadata={"notify": True},
-    )
+    reply = "\U0001f4ad **Reasoning:**\n```\nThe log is the first place to look.\n```\n\nAll green."
+    await adapter.send(CHAT, reply, metadata={"notify": True})
     frame = await recv(ws)
-    assert frame["reasoning"] == "The log is the first place to look."
-    assert frame["segments"] == [{"cues": [], "speech": "All green."}]
+    # The block the gateway prepended is part of the reply; nothing is stripped off the front.
+    assert frame["segments"][0]["speech"].startswith("\U0001f4ad **Reasoning:**")
+    assert frame["segments"][-1]["speech"] == "All green."
+    assert "reasoning" not in frame
 
 
 async def test_a_render_with_no_reasoning_at_all_carries_no_reasoning_field(client, adapter):
@@ -802,6 +1014,28 @@ def test_an_oversize_render_drops_its_reasoning_before_any_speech():
     fitted = json.loads(fit_frame(frame))
     assert "reasoning" not in fitted
     assert len(fitted["segments"]) == 3
+
+
+def test_a_frame_that_cannot_be_trimmed_has_nothing_to_send(caplog):
+    """Nothing in a delegations frame is trimmable, and the client closes the socket on one."""
+    frame = {
+        "type": "delegations",
+        "items": [{"id": "d-1", "title": "x" * (MAX_FRAME_BYTES + 100), "started_at": 1, "state": "running"}],
+    }
+    with caplog.at_level(logging.WARNING):
+        assert fit_frame(frame) is None
+    assert "still over" in caplog.text
+
+
+async def test_a_frame_that_cannot_be_trimmed_is_dropped_instead_of_sent(client, adapter):
+    ws = await ready(client)
+    frame = {
+        "type": "delegations",
+        "items": [{"id": "d-1", "title": "x" * (MAX_FRAME_BYTES + 100), "started_at": 1, "state": "running"}],
+    }
+    assert await adapter._send_frame(CHAT, frame) is False
+    assert await adapter._send_frame(CHAT, {"type": "turn_end", "turn_id": "7"}) is True
+    assert await recv(ws) == {"type": "turn_end", "turn_id": "7"}
 
 
 def test_an_oversize_reasoning_frame_keeps_what_fits_of_its_delta():

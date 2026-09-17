@@ -1,4 +1,4 @@
-"""The backend's reasoning: the live stream hook and the block the gateway prepends to a reply."""
+"""The backend's reasoning: the live stream hook."""
 
 from __future__ import annotations
 
@@ -50,27 +50,3 @@ def test_a_new_turn_starts_with_no_reasoning():
     reasoning.on_stream_delta(delta="stale", kind="reasoning", surface="yui")
     reasoning.clear(CHAT)
     assert reasoning.live_text(CHAT) == ""
-
-
-def test_the_prepended_block_is_split_off_the_reply():
-    block, reply = reasoning.split_block(
-        "\U0001f4ad **Reasoning:**\n```\nThe log is the first place to look.\n```\n\nAll green."
-    )
-    assert block == "The log is the first place to look."
-    assert reply == "All green."
-
-
-def test_a_truncated_block_is_split_the_same_way():
-    body = "\n".join(f"line {n}" for n in range(15)) + "\n_... (4 more lines)_"
-    block, reply = reasoning.split_block(f"\U0001f4ad **Reasoning:**\n```\n{body}\n```\n\nAll green.")
-    assert block == body
-    assert reply == "All green."
-
-
-def test_a_reply_that_merely_starts_with_the_emoji_is_left_alone():
-    spoken = "\U0001f4ad I was thinking about that too."
-    assert reasoning.split_block(spoken) == ("", spoken)
-
-
-def test_a_plain_reply_is_left_alone():
-    assert reasoning.split_block("All green.") == ("", "All green.")
