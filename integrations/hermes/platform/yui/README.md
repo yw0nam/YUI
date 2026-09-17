@@ -37,9 +37,12 @@ turns in and finished replies out. The contract both sides speak is
 - Reads the answer from the gateway's `on_stream_delta` hook, so the gateway's `streaming` setting
   does not apply to this platform. The hook names no chat, so the answer streams to the sole
   connected client. Text a background review streams is not spoken. The gateway drops a newline
-  that opens a streamed chunk, so a line with no terminator joins the next sentence. A `speech`
-  frame is never held for a client that is away: once one cannot be sent, the rest of that turn
-  waits for its `render`.
+  that opens a streamed chunk, so a line that does not end in a CJK terminator runs into the next
+  line with no space between them, and a cue that names that next line lands on a later sentence.
+- Never holds a `speech` frame for a client that is away. A client that disconnects mid-answer, or
+  connects while a turn runs, gets the rest of that turn in its `render`. The same holds for a turn
+  whose text streams while no single client is connected, while the reset acknowledgement is still
+  unspoken, or after a `speech` frame fails to send.
 - Names the most recently opened turn in every reply of a run, and clears the name when the turn
   ends. A turn the gateway runs inside a turn it interrupted ends first, and the interrupted turn
   ends behind it. A turn whose text the gateway takes into a turn already running on the same chat

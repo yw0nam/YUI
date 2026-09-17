@@ -307,6 +307,10 @@ class YuiAdapter(BasePlatformAdapter):
         if chat_id and self._sockets.get(chat_id) is ws:
             del self._sockets[chat_id]
             state.set_connected(chat_id, False)
+            stream = self._streams.get(chat_id)
+            if stream is not None:
+                # What streams while it is away never reaches it, so the render carries the rest.
+                stream.off = True
             # Client turn ids restart at 1 per process, so a mark left here would name a new turn.
             state.forget_joined(chat_id)
             logger.info("yui: client gone chat=%s", chat_id)
@@ -553,14 +557,27 @@ class YuiAdapter(BasePlatformAdapter):
 
     async def _speak_delta(self, chat_id: str, turn_id: str, iteration: int, delta: str) -> None:
         """Send each sentence this delta finishes as a speech frame of its own."""
+        if not chat_id:
+            await self._stop_streams()
+            return
         stream = self._stream(chat_id)
         async with stream.lock:
-            if not stream.takes(turn_id, iteration) or state.is_muted(chat_id):
+            if not stream.takes(turn_id, iteration):
+                return
+            if state.is_muted(chat_id):
+                # The swallowed reply takes the mute, and text streamed after it would open mid-answer.
+                stream.off = True
                 return
             for sentence in stream.feed(turn_id, iteration, delta):
                 if stream.off:
                     return
                 await self._send_speech(chat_id, stream, sentence)
+
+    async def _stop_streams(self) -> None:
+        """Text that reached no chat leaves a gap in every stream, so their renders carry the rest."""
+        for stream in list(self._streams.values()):
+            async with stream.lock:
+                stream.off = True
 
     async def _send_speech(self, chat_id: str, stream: speech.Stream, sentence: str) -> None:
         placements = opening_cues(sentence, state.cues(chat_id))
@@ -768,7 +785,7 @@ class YuiAdapter(BasePlatformAdapter):
         stream = self._stream(chat_id)
         async with stream.lock:
             state.reset(chat_id)
-            stream.begin()
+            stream.begin(connected=state.is_connected(chat_id))
             reasoning.clear(chat_id)
             self._forget_reasoning(chat_id)
             internal = getattr(event, "internal", False)

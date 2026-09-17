@@ -1,9 +1,10 @@
 """The answer as the agent writes it, cut into the finished sentences ``speech`` frames carry.
 
 Answer tokens arrive on the ``on_stream_delta`` hook with ``kind="text"``, on a hook worker thread
-where the gateway's session context is invisible, so they go to the sole connected client. A
-gateway turn runs its agent under a turn id whose session and task parts are the same; a background
-review streams on the same surface under a task of its own, and its text is not the reply.
+where the gateway's session context is invisible, so they go to the sole connected client; with no
+single client connected they go to no chat, and the adapter stops every open stream. A gateway turn
+runs its agent under a turn id whose session and task parts are the same; a background review
+streams on the same surface under a task of its own, and its text is not the reply.
 """
 
 from __future__ import annotations
@@ -50,7 +51,7 @@ def on_stream_delta(
     text = str(delta or "")
     chat_id = session.current_chat_id()
     sink = _sink
-    if not text or not chat_id or sink is None:
+    if not text or sink is None:
         return
     try:
         sink(chat_id, turn, int(iteration or 0), text)
@@ -82,13 +83,16 @@ class Stream:
     cut: int = 0
     # The sentences sent since the last send() that continued them.
     sent: str = ""
+    # Where the current source's sentences start in ``sent``.
+    source_start: int = 0
 
-    def begin(self) -> None:
-        """A turn opens; the turns seen so far are over, and their late text is not its own."""
+    def begin(self, connected: bool) -> None:
+        """A turn opens; the turns seen so far are over, and their late text is not its own. A turn
+        that opens with no client connected speaks through its render alone."""
         self.retired.extend(self.turns)
         self.turns = []
         self.sealed.clear()
-        self.off = False
+        self.off = not connected
         self.forget()
         self.open = True
 
@@ -107,6 +111,7 @@ class Stream:
         self.raw = ""
         self.cut = 0
         self.sent = ""
+        self.source_start = 0
 
     def takes(self, turn_id: str, iteration: int) -> bool:
         """Whether a delta belongs to the open stream; records its turn as seen either way."""
@@ -122,6 +127,7 @@ class Stream:
             self.source = (turn_id, iteration)
             self.raw = ""
             self.cut = 0
+            self.source_start = len(self.sent)
         self.raw += delta
         sentences, end = split_finished(self.raw[self.cut :])
         self.cut += end
@@ -132,19 +138,23 @@ class Stream:
 
     def unspoken(self, content: str) -> str | None:
         """What a sent reply says past the streamed sentences, or None when it does not continue
-        the stream."""
+        the stream. A reply goes on from every sentence sent, or else from the current source's
+        own, when text streamed before a tool call reached no send."""
         whole = _squash(content)
         written = _squash(self.raw)
-        if not whole.startswith(self.sent):
-            return None
-        if not self.sent and not (written and whole.startswith(written)):
-            return None
-        remaining = len(self.sent)
-        if not remaining:
-            return content
-        for index, char in enumerate(content):
-            if not char.isspace():
-                remaining -= 1
-                if not remaining:
-                    return content[index + 1 :]
-        return ""
+        for spoken in (self.sent, self.sent[self.source_start :]):
+            if whole.startswith(spoken) and (spoken or (written and whole.startswith(written))):
+                return _past(content, len(spoken))
+        return None
+
+
+def _past(content: str, count: int) -> str:
+    """``content`` after its first ``count`` non-whitespace characters."""
+    if not count:
+        return content
+    for index, char in enumerate(content):
+        if not char.isspace():
+            count -= 1
+            if not count:
+                return content[index + 1 :]
+    return ""
