@@ -3,16 +3,19 @@
  * surfaces-router.test.ts — one Surfaces facade over two destinations.
  *
  * Every consumer keeps talking to a single `Surfaces`; the router sends the
- * bubble and input halves to whichever side the current mode names, keeps the
- * tool chip and the anchor local, and hides the surface on the side being left
- * when the mode flips.
+ * bubble and input halves to whichever side the current mode names, sends busy
+ * and the attachment limits to both, keeps the tool chip and the anchor local,
+ * and hides the surface on the side being left when the mode flips.
  */
 
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { guardrailsFixture } from "../../config/load-test-helpers";
-import type { RemoteSurfaces } from "../../io/bridge/message-remote";
+import { createMessageBridge } from "../../io/bridge/message-bridge";
+import { createRemoteSurfaces, type RemoteSurfaces } from "../../io/bridge/message-remote";
+import type { BridgeTransport } from "../../io/bridge/settings-bridge";
 import type { MessageWindowMode } from "../../io/settings/message-window-settings";
-import type { Surfaces } from "./surfaces";
+import { createMessagePlate } from "../message/message-plate";
+import { createSurfaces, type Surfaces } from "./surfaces";
 import { createSurfacesRouter } from "./surfaces-router";
 
 /** The caps configs/guardrails.json delivers through setAttachmentLimits. */
@@ -132,22 +135,50 @@ describe("createSurfacesRouter", () => {
 
   it("sends the input ops to the side the mode names", () => {
     router.summonInput();
-    router.setBusy(true);
     router.setInputEnabled(false);
-    router.setAttachmentLimits(LIMITS);
     expect(local.summonInput).toHaveBeenCalledTimes(1);
-    expect(local.setBusy).toHaveBeenCalledWith(true);
     expect(local.setInputEnabled).toHaveBeenCalledWith(false);
-    expect(local.setAttachmentLimits).toHaveBeenCalledWith(LIMITS);
 
     setMode("popped");
     router.summonInput();
     router.dismissInput();
-    router.setBusy(false);
     expect(remote.summonInput).toHaveBeenCalledTimes(1);
     expect(remote.dismissInput).toHaveBeenCalledTimes(1);
-    expect(remote.setBusy).toHaveBeenCalledWith(false);
     expect(local.summonInput).toHaveBeenCalledTimes(1);
+  });
+
+  it("sends busy to both sides in either mode", () => {
+    router.setBusy(true);
+    expect(local.setBusy).toHaveBeenCalledWith(true);
+    expect(remote.setBusy).toHaveBeenCalledWith(true);
+
+    setMode("popped");
+    router.setBusy(false);
+    expect(remote.setBusy).toHaveBeenLastCalledWith(false);
+    expect(local.setBusy).toHaveBeenLastCalledWith(false);
+  });
+
+  it("leaves neither side busy when a turn started popped ends after a dock", () => {
+    setMode("popped");
+    router.setBusy(true);
+    setMode("docked");
+    router.setBusy(false);
+
+    expect(remote.setBusy).toHaveBeenLastCalledWith(false);
+    expect(local.setBusy).toHaveBeenLastCalledWith(false);
+  });
+
+  it("sends the attachment limits to both sides in either mode", () => {
+    router.setAttachmentLimits(LIMITS);
+    expect(local.setAttachmentLimits).toHaveBeenCalledTimes(1);
+    expect(remote.setAttachmentLimits).toHaveBeenCalledTimes(1);
+    expect(remote.setAttachmentLimits).toHaveBeenCalledWith(LIMITS);
+
+    setMode("popped");
+    router.setAttachmentLimits(LIMITS);
+    expect(remote.setAttachmentLimits).toHaveBeenCalledTimes(2);
+    expect(local.setAttachmentLimits).toHaveBeenCalledTimes(2);
+    expect(local.setAttachmentLimits).toHaveBeenLastCalledWith(LIMITS);
   });
 
   it("passes the error action through to whichever side owns the input", () => {
@@ -257,5 +288,133 @@ describe("createSurfacesRouter", () => {
     router.dispose();
     setMode("popped");
     expect(local.hideSpeech).not.toHaveBeenCalled();
+  });
+});
+
+function createFakeTransport(): BridgeTransport {
+  const listeners = new Map<string, Set<(p: unknown) => void>>();
+  return {
+    emit(name, payload) {
+      for (const cb of [...(listeners.get(name) ?? [])]) cb(payload);
+    },
+    listen(name, cb) {
+      let set = listeners.get(name);
+      if (!set) {
+        set = new Set();
+        listeners.set(name, set);
+      }
+      set.add(cb);
+      return () => set!.delete(cb);
+    },
+  };
+}
+
+describe("createSurfacesRouter over the message bridge", () => {
+  let disposers: Array<() => void>;
+
+  beforeEach(() => {
+    disposers = [];
+  });
+
+  afterEach(() => {
+    for (const dispose of disposers) dispose();
+  });
+
+  function setup(initial: MessageWindowMode) {
+    const transport = createFakeTransport();
+    const petBridge = createMessageBridge(transport, { windowKind: "pet" });
+    const messageBridge = createMessageBridge(transport, { windowKind: "message" });
+    let mode = initial;
+    const listeners: Array<(m: MessageWindowMode) => void> = [];
+    const router = createSurfacesRouter({
+      local: makeLocal(),
+      remote: createRemoteSurfaces(petBridge),
+      getMode: () => mode,
+      subscribeMode: (cb) => {
+        listeners.push(cb);
+        return () => {};
+      },
+    });
+    disposers.push(router.dispose, petBridge.dispose, messageBridge.dispose);
+
+    const setMode = (next: MessageWindowMode): void => {
+      mode = next;
+      for (const cb of listeners) cb(next);
+    };
+
+    /** The message window's surfaces and plate, wired to the bridge as its bootstrap does. */
+    const mountMessageWindow = () => {
+      const surfaces = createSurfaces({ mount: document.createElement("div") });
+      surfaces.onSubmit((text, images) =>
+        messageBridge.emitControl({ op: "submit", text, images }),
+      );
+      const plate = createMessagePlate({
+        mount: surfaces.el,
+        onDock: () => {},
+        startDragging: () => {},
+      });
+      messageBridge.onSurface((op) => {
+        if (op.op === "busy") {
+          plate.setBusy(op.busy);
+          surfaces.setBusy(op.busy);
+        } else if (op.op === "attachment-limits") {
+          surfaces.setAttachmentLimits(op.limits);
+        }
+      });
+      disposers.push(plate.dispose, surfaces.dispose);
+      messageBridge.emitControl({ op: "ready" });
+
+      const form = surfaces.el.querySelector(".yui-input") as HTMLFormElement;
+      return {
+        plate,
+        form,
+        field: surfaces.el.querySelector(".yui-input__field") as HTMLTextAreaElement,
+        attachBtn: surfaces.el.querySelector(".yui-input__attach") as HTMLButtonElement,
+      };
+    };
+
+    return { router, setMode, mountMessageWindow };
+  }
+
+  it("unlocks the message window when a turn started popped ends while docked", () => {
+    const { router, setMode, mountMessageWindow } = setup("popped");
+    const messageWindow = mountMessageWindow();
+    const submitted = vi.fn();
+    router.onSubmit(submitted);
+
+    router.setBusy(true);
+    setMode("docked");
+    router.setBusy(false);
+    setMode("popped");
+
+    expect(messageWindow.plate.el.dataset.state).toBe("idle");
+    expect(messageWindow.form.classList.contains("is-running")).toBe(false);
+    messageWindow.field.value = "hi";
+    messageWindow.form.dispatchEvent(new Event("submit", { cancelable: true }));
+    expect(submitted).toHaveBeenCalledWith("hi", []);
+  });
+
+  it("shows thinking when the window pops out during a turn started docked", () => {
+    const { router, setMode, mountMessageWindow } = setup("docked");
+    const messageWindow = mountMessageWindow();
+
+    router.setBusy(true);
+    setMode("popped");
+
+    expect(messageWindow.plate.el.dataset.state).toBe("thinking");
+    expect(messageWindow.form.classList.contains("is-running")).toBe(true);
+  });
+
+  it("catches a window created after a docked start up on the limits and busy", () => {
+    const { router, setMode, mountMessageWindow } = setup("docked");
+    router.setAttachmentLimits(LIMITS);
+    router.setBusy(true);
+    setMode("popped");
+
+    const messageWindow = mountMessageWindow();
+
+    expect(messageWindow.attachBtn.disabled).toBe(false);
+    expect(messageWindow.plate.el.dataset.state).toBe("thinking");
+    expect(messageWindow.form.classList.contains("is-running")).toBe(true);
   });
 });
