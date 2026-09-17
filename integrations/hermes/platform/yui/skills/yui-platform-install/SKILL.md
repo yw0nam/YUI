@@ -48,7 +48,9 @@ ln -sfn $YUI/integrations/hermes/platform/yui ~/.hermes/profiles/<profile>/plugi
 ls -L ~/.hermes/profiles/<profile>/plugins/yui/plugin.yaml
 ```
 
-The directory name is the plugin id, so keep it `yui`.
+The plugin id is the `name` in `plugin.yaml`, and when two directories under `plugins/` carry the
+same name the one that sorts last is loaded. A backup copy such as `plugins/yui.bak` runs in place of
+the link, so keep backups outside `plugins/`.
 
 Check: the `ls` prints the path.
 
@@ -169,6 +171,7 @@ expression.
 | The reply is spoken flat, with no expression or motion | 3, `platform_toolsets.yui` |
 | Nothing is listening on the port | 6 |
 | The gateway log never mentions `hermes_plugins.yui` | 2, then 3 |
+| An empty `turn` draws a `render` with no segments and no `turn_end` | 2, a second `plugin.yaml` named `yui` under `plugins/` |
 | The model name and working directory are read out | 5, `runtime_footer` |
 | The reasoning is read out as part of the reply | 5, `show_reasoning` |
 | The client connects, and a turn draws no reply | the client's own wait, `docs/reference/push-transport.md` |
