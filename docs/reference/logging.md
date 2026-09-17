@@ -18,7 +18,7 @@ Applies to all TypeScript in `src/` and all Rust in `src-tauri/src/`.
 |---|---|
 | `motion-controller.ts` | `"motion-controller"` |
 | `tts-pipeline.ts` | `"tts-pipeline"` |
-| `dispatcher/backend-caller.ts` | `"backend-caller"` |
+| `dispatcher/backend/backend-caller.ts` | `"backend-caller"` |
 
 ## Levels
 

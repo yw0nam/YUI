@@ -41,7 +41,7 @@ above. Otherwise it is plain text.
 ## Rendered lines
 
 Everything between the header line and the closing tag is a sequence of `key: value`
-plain-text lines built by `renderClientContext` (`src/dispatcher/client-context-text.ts`).
+plain-text lines built by `renderClientContext` (`src/dispatcher/backend/client-context-text.ts`).
 One line per fact, in this fixed order — `time`, `frontmost`, `screenshot`, `body`,
 `previous`, then one or more `trigger:`/`cue note:`/`agent note:`/`agent event:`/
 `agent detail:`/`signal:`/`recent:` lines depending on what fired. A line is omitted
