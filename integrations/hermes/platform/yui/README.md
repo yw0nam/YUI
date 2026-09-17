@@ -38,7 +38,11 @@ turns in and finished replies out. The contract both sides speak is
   does not apply to this platform. The hook names no chat, so the answer streams to the sole
   connected client. Text a background review streams is not spoken. The gateway drops a newline
   that opens a streamed chunk, so a line that does not end in a CJK terminator runs into the next
-  line with no space between them, and a cue that names that next line lands on a later sentence.
+  line with no space between them, and a cue that names that next line plays later in the reply.
+  A provider retry in the middle of an answer streams its text again, so `speech` frames can repeat
+  sentences. Deltas the gateway's hook queue drops under load leave a gap, and the `render` can then
+  repeat the whole answer. A hook queue that falls a whole turn behind speaks that turn's text under
+  the next turn.
 - Never holds a `speech` frame for a client that is away. A client that disconnects mid-answer, or
   connects while a turn runs, gets the rest of that turn in its `render`. The same holds for a turn
   whose text streams while no single client is connected, while the reset acknowledgement is still

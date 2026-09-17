@@ -153,7 +153,7 @@ The utterance also closes on the turn's `turn_end`, on the frame wait passing, a
 
 The backend cuts `speech` frames from its reply while it is still writing it, and the client plays them as they arrive:
 
-1. A `speech` sentence may join two lines of the finished reply with no space between them, and a cue that names the second line then plays on a later sentence.
+1. A `speech` sentence may join two lines of the finished reply with no space between them, and a cue that names the second line then plays later in the reply.
 2. `speech` frames may repeat a sentence.
 3. The `render` may repeat sentences already sent as `speech`.
 4. A turn may carry no `speech` frames, and its whole reply then arrives in the `render`.
