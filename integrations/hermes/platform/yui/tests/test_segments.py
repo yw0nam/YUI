@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from yui.segments import Placement, build_segments, place_matched, split_sentences
+from yui.segments import Placement, build_segments, place_matched, split_finished, split_sentences
 
 
 def test_the_terminator_stays_with_its_sentence():
@@ -124,3 +124,35 @@ def test_only_the_named_cues_ride_on_commentary():
 def test_commentary_with_no_sentences_keeps_every_cue_waiting():
     placements = [Placement({"emotion_id": "happy"}, "")]
     assert place_matched("", placements) == ([], placements)
+
+
+def test_a_streamed_sentence_is_finished_once_whitespace_follows_its_terminator():
+    assert split_finished("Done. ") == (["Done."], 5)
+
+
+def test_a_streamed_sentence_at_the_end_of_the_text_so_far_waits():
+    assert split_finished("Done.") == ([], 0)
+    assert split_finished("Really?") == ([], 0)
+
+
+def test_a_streamed_cjk_sentence_waits_for_the_next_character():
+    assert split_finished("これは完了。") == ([], 0)
+    assert split_finished("これは完了。次") == (["これは完了。"], 6)
+
+
+def test_a_streamed_terminator_run_is_finished_only_once_it_ends():
+    assert split_finished("Really?!") == ([], 0)
+    assert split_finished("全部。。") == ([], 0)
+    assert split_finished("Really?! Yes") == (["Really?!"], 8)
+
+
+def test_a_newline_finishes_a_streamed_sentence():
+    assert split_finished("First line\nSecond") == (["First line"], 11)
+
+
+def test_a_decimal_point_does_not_finish_a_streamed_sentence():
+    assert split_finished("It took 3.5 sec") == ([], 0)
+
+
+def test_every_finished_sentence_of_the_streamed_text_comes_back_in_order():
+    assert split_finished("All green. Want details? Or") == (["All green.", "Want details?"], 24)

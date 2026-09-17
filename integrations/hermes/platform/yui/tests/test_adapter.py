@@ -1221,3 +1221,313 @@ def test_an_oversize_multibyte_reasoning_delta_is_cut_by_bytes_not_characters():
     # Three bytes per character; the frame's own keys cost well under 64 bytes.
     assert len(fitted["delta"]) >= (MAX_FRAME_BYTES - 64) // 3
     assert set(fitted["delta"]) == {"안"}
+
+
+# -- streamed speech -------------------------------------------------------------------------
+
+# The hermes turn id of a gateway turn: its session and task parts are the same.
+ANSWER = "20260917_101010_ab12:20260917_101010_ab12:0f3c9a1e"
+NEXT_ANSWER = "20260917_101010_ab12:20260917_101010_ab12:7d2e4b90"
+
+
+def speech_frame(turn_id, speech, cues=()):
+    return {"type": "speech", "turn_id": turn_id, "segments": [{"cues": list(cues), "speech": speech}]}
+
+
+def render_frame(turn_id, segments):
+    return {"type": "render", "turn_id": turn_id, "source": "hermes", "segments": segments}
+
+
+async def stream(adapter, *deltas, turn=ANSWER, iteration=1):
+    """Hand deltas over as the hook does, each taken before the next."""
+    for delta in deltas:
+        await adapter._speak_delta(CHAT, turn, iteration, delta)
+
+
+async def quiet(adapter, ws):
+    """The next frame proves nothing else was sent before it."""
+    adapter.notify_delegations(CHAT)
+    assert (await recv(ws))["type"] == "delegations"
+
+
+async def test_the_answer_leaves_sentence_by_sentence_as_the_hook_hands_it_over(client, adapter):
+    ws = await ready(client)
+    await adapter.on_processing_start(user_turn(adapter, "777"))
+    for delta in ("All gr", "een. Want the slow", " ones listed? ", "Or"):
+        await asyncio.to_thread(adapter.push_speech, CHAT, ANSWER, 1, delta)
+    assert await recv(ws) == speech_frame("777", "All green.")
+    assert await recv(ws) == speech_frame("777", "Want the slow ones listed?")
+
+
+async def test_a_streamed_sentence_waits_for_the_character_after_its_terminator(client, adapter):
+    ws = await ready(client)
+    await adapter.on_processing_start(user_turn(adapter, "777"))
+    await stream(adapter, "All green.")
+    await quiet(adapter, ws)
+    await stream(adapter, " ")
+    assert await recv(ws) == speech_frame("777", "All green.")
+
+
+async def test_a_streamed_sentence_takes_the_cues_it_opens_else_one_naming_nothing(client, adapter):
+    ws = await ready(client)
+    await adapter.on_processing_start(user_turn(adapter, "777"))
+    state.append_cue(CHAT, {"emotion_id": "happy"}, "All green")
+    state.append_cue(CHAT, {"motion_id": "idle"}, "")
+    state.append_cue(CHAT, {"emotion_id": "curious"}, "Want the slow")
+    state.append_cue(CHAT, {"emotion_id": "neutral"}, "")
+    await stream(adapter, "All green. The slow ones took long. Want")
+    assert await recv(ws) == speech_frame("777", "All green.", [{"emotion_id": "happy"}])
+    assert await recv(ws) == speech_frame("777", "The slow ones took long.", [{"motion_id": "idle"}])
+    await adapter.send(
+        CHAT, "All green. The slow ones took long. Want the slow ones listed?", metadata={"notify": True}
+    )
+    assert await recv(ws) == render_frame(
+        "777",
+        [
+            {
+                "cues": [{"emotion_id": "curious"}, {"emotion_id": "neutral"}],
+                "speech": "Want the slow ones listed?",
+            }
+        ],
+    )
+
+
+async def test_every_cue_a_streamed_sentence_opens_rides_its_frame(client, adapter):
+    ws = await ready(client)
+    await adapter.on_processing_start(user_turn(adapter, "777"))
+    state.append_cue(CHAT, {"emotion_id": "happy"}, "All green")
+    state.append_cue(CHAT, {"motion_id": "idle"}, "")
+    state.append_cue(CHAT, {"emotion_id": "curious"}, "all")
+    await stream(adapter, "All green. Next", " one. ")
+    assert await recv(ws) == speech_frame(
+        "777", "All green.", [{"emotion_id": "happy"}, {"emotion_id": "curious"}]
+    )
+    assert await recv(ws) == speech_frame("777", "Next one.", [{"motion_id": "idle"}])
+
+
+async def test_cues_left_after_the_stream_spoke_everything_ride_a_silent_segment(client, adapter):
+    ws = await ready(client)
+    await adapter.on_processing_start(user_turn(adapter, "777"))
+    state.append_cue(CHAT, {"emotion_id": "happy"}, "All green")
+    state.append_cue(CHAT, {"emotion_id": "curious"}, "Nothing like this")
+    await stream(adapter, "All green. ")
+    assert await recv(ws) == speech_frame("777", "All green.", [{"emotion_id": "happy"}])
+    await adapter.send(CHAT, "All green.", metadata={"notify": True})
+    assert await recv(ws) == render_frame("777", [{"cues": [{"emotion_id": "curious"}], "speech": ""}])
+
+
+async def test_a_reply_the_stream_already_spoke_still_renders_to_close_it(client, adapter):
+    ws = await ready(client)
+    await adapter.on_processing_start(user_turn(adapter, "777"))
+    await stream(adapter, "All green. ")
+    assert await recv(ws) == speech_frame("777", "All green.")
+    await adapter.send(CHAT, "All green.", metadata={"notify": True})
+    assert await recv(ws) == render_frame("777", [])
+
+
+async def test_deltas_while_no_turn_is_open_are_not_spoken(client, adapter):
+    ws = await ready(client)
+    await stream(adapter, "Stale words. ")
+    await quiet(adapter, ws)
+    turn = user_turn(adapter, "777")
+    await adapter.on_processing_start(turn)
+    await adapter.on_processing_complete(turn, ProcessingOutcome.SUCCESS)
+    assert await recv(ws) == {"type": "turn_end", "turn_id": "777"}
+    await stream(adapter, "Late words. ", turn=NEXT_ANSWER)
+    await quiet(adapter, ws)
+
+
+async def test_an_interrupted_turns_late_deltas_are_not_spoken_under_the_next_turn(client, adapter):
+    ws = await ready(client)
+    await adapter.on_processing_start(user_turn(adapter, "777"))
+    await stream(adapter, "Working on")
+    await adapter.on_processing_start(user_turn(adapter, "778"))
+    await stream(adapter, " it. Still here. ")
+    await stream(adapter, "Next answer. ", turn=NEXT_ANSWER)
+    assert await recv(ws) == speech_frame("778", "Next answer.")
+
+
+async def test_a_send_that_continues_the_stream_renders_the_rest_and_seals_its_source(client, adapter):
+    ws = await ready(client)
+    await adapter.on_processing_start(user_turn(adapter, "777"))
+    await stream(adapter, "All green. Want")
+    assert await recv(ws) == speech_frame("777", "All green.")
+    await adapter.send(CHAT, "All green. Want the slow ones listed?", metadata=None)
+    assert await recv(ws) == render_frame("777", [{"cues": [], "speech": "Want the slow ones listed?"}])
+    await stream(adapter, " the slow ones listed? Late. ")
+    await stream(adapter, "Next part. ", iteration=2)
+    assert await recv(ws) == speech_frame("777", "Next part.")
+
+
+async def test_a_send_matching_the_stream_before_any_sentence_left_seals_its_source(client, adapter):
+    ws = await ready(client)
+    await adapter.on_processing_start(user_turn(adapter, "777"))
+    await stream(adapter, "Let me check the logs.")
+    await adapter.send(CHAT, "Let me check the logs.", metadata=None)
+    assert await recv(ws) == render_frame("777", [{"cues": [], "speech": "Let me check the logs."}])
+    await stream(adapter, " More. And more. ")
+    await quiet(adapter, ws)
+
+
+async def test_commentary_the_stream_never_carried_leaves_the_streamed_record_alone(client, adapter):
+    ws = await ready(client)
+    await adapter.on_processing_start(user_turn(adapter, "777"))
+    await stream(adapter, "All green. ")
+    assert await recv(ws) == speech_frame("777", "All green.")
+    await adapter.send(CHAT, "Let me check the docs too.", metadata=None)
+    assert await recv(ws) == render_frame("777", [{"cues": [], "speech": "Let me check the docs too."}])
+    await adapter.send(CHAT, "All green. Want details?", metadata={"notify": True})
+    assert await recv(ws) == render_frame("777", [{"cues": [], "speech": "Want details?"}])
+
+
+async def test_a_sentence_queued_behind_the_reply_is_not_spoken_after_it(client, adapter, monkeypatch):
+    ws = await ready(client)
+    await adapter.on_processing_start(user_turn(adapter, "777"))
+    paused = asyncio.Event()
+    resume = asyncio.Event()
+    send_frame = adapter._send_frame
+
+    async def pausing(chat_id, frame):
+        if frame["type"] == "speech" and not paused.is_set():
+            paused.set()
+            await resume.wait()
+        return await send_frame(chat_id, frame)
+
+    monkeypatch.setattr(adapter, "_send_frame", pausing)
+    adapter._collect_speech(CHAT, ANSWER, 1, "All green. ")
+    await asyncio.wait_for(paused.wait(), 2)
+    replying = asyncio.create_task(adapter.send(CHAT, "All green. Want details?", metadata={"notify": True}))
+    await asyncio.sleep(0.01)
+    adapter._collect_speech(CHAT, ANSWER, 1, "Want details? Extra. ")
+    await asyncio.sleep(0.01)
+    resume.set()
+    await asyncio.wait_for(replying, 2)
+    assert await recv(ws) == speech_frame("777", "All green.")
+    assert await recv(ws) == render_frame("777", [{"cues": [], "speech": "Want details?"}])
+    await quiet(adapter, ws)
+
+
+async def test_the_reply_skips_the_streamed_words_when_the_stream_lost_a_newline(client, adapter):
+    """The gateway drops a newline that opens a delta."""
+    ws = await ready(client)
+    await adapter.on_processing_start(user_turn(adapter, "777"))
+    await stream(adapter, "First line", "Second line. Third")
+    assert await recv(ws) == speech_frame("777", "First lineSecond line.")
+    await adapter.send(CHAT, "First line\nSecond line. Third line.", metadata={"notify": True})
+    assert await recv(ws) == render_frame("777", [{"cues": [], "speech": "Third line."}])
+
+
+async def test_a_reply_that_does_not_continue_the_stream_renders_whole(client, adapter, caplog):
+    ws = await ready(client)
+    await adapter.on_processing_start(user_turn(adapter, "777"))
+    await stream(adapter, "All green. ")
+    assert await recv(ws) == speech_frame("777", "All green.")
+    with caplog.at_level(logging.INFO):
+        await adapter.send(CHAT, "Something else entirely. Sorry.", metadata={"notify": True})
+    assert await recv(ws) == render_frame(
+        "777", [{"cues": [], "speech": "Something else entirely."}, {"cues": [], "speech": "Sorry."}]
+    )
+    assert "send does not continue the streamed text" in caplog.text
+
+
+async def test_a_client_that_went_away_hears_no_more_speech_and_the_render_carries_the_rest(client, adapter):
+    ws = await ready(client)
+    await adapter.on_processing_start(user_turn(adapter, "777"))
+    state.append_cue(CHAT, {"emotion_id": "happy"}, "All green")
+    state.append_cue(CHAT, {"emotion_id": "curious"}, "Want")
+    await stream(adapter, "All green. ")
+    assert await recv(ws) == speech_frame("777", "All green.", [{"emotion_id": "happy"}])
+    await ws.close()
+    await wait_for(lambda: not state.is_connected(CHAT))
+    await stream(adapter, "Want details? ")
+    back = await ready(client)
+    await stream(adapter, "Anything else? ")
+    await adapter.send(CHAT, "All green. Want details? Anything else?", metadata={"notify": True})
+    assert await recv(back) == render_frame(
+        "777",
+        [
+            {"cues": [{"emotion_id": "curious"}], "speech": "Want details?"},
+            {"cues": [], "speech": "Anything else?"},
+        ],
+    )
+
+
+async def test_a_failed_speech_send_stops_the_stream_and_the_render_carries_its_cues(
+    client, adapter, monkeypatch
+):
+    ws = await ready(client)
+    await adapter.on_processing_start(user_turn(adapter, "777"))
+    state.append_cue(CHAT, {"emotion_id": "happy"}, "All green")
+    state.append_cue(CHAT, {"emotion_id": "curious"}, "Want")
+    send_frame = adapter._send_frame
+    attempts: list[dict] = []
+
+    async def failing(chat_id, frame):
+        if frame["type"] == "speech":
+            attempts.append(frame)
+            return False
+        return await send_frame(chat_id, frame)
+
+    monkeypatch.setattr(adapter, "_send_frame", failing)
+    await stream(adapter, "All green. Want details? ")
+    assert len(attempts) == 1
+    await adapter.send(CHAT, "All green. Want details?", metadata={"notify": True})
+    assert await recv(ws) == render_frame(
+        "777",
+        [
+            {"cues": [{"emotion_id": "happy"}], "speech": "All green."},
+            {"cues": [{"emotion_id": "curious"}], "speech": "Want details?"},
+        ],
+    )
+
+
+async def test_a_muted_chat_streams_nothing_and_stays_muted(client, adapter):
+    ws = await ready(client)
+    await adapter.on_processing_start(user_turn(adapter, "777"))
+    state.set_muted(CHAT, True)
+    await stream(adapter, "New conversation started. ")
+    await adapter.send(CHAT, "New conversation started.", metadata={"notify": True})
+    await quiet(adapter, ws)
+
+
+async def test_the_turn_end_plays_cues_left_after_streamed_speech_even_after_commentary(client, adapter):
+    ws = await ready(client)
+    turn = user_turn(adapter, "777")
+    await adapter.on_processing_start(turn)
+    state.append_cue(CHAT, {"motion_id": "idle"}, "Nothing matches")
+    await adapter.send(CHAT, "Let me check.", metadata=None)
+    assert await recv(ws) == render_frame("777", [{"cues": [], "speech": "Let me check."}])
+    await stream(adapter, "All green. ", iteration=2)
+    assert await recv(ws) == speech_frame("777", "All green.")
+    await adapter.on_processing_complete(turn, ProcessingOutcome.SUCCESS)
+    assert await recv(ws) == render_frame("777", [{"cues": [{"motion_id": "idle"}], "speech": ""}])
+    assert await recv(ws) == {"type": "turn_end", "turn_id": "777"}
+
+
+async def test_the_turn_end_and_its_cue_only_render_follow_a_speech_frame_on_its_way(
+    client, adapter, monkeypatch
+):
+    ws = await ready(client)
+    turn = user_turn(adapter, "777")
+    await adapter.on_processing_start(turn)
+    state.append_cue(CHAT, {"motion_id": "idle"}, "Nothing matches")
+    paused = asyncio.Event()
+    resume = asyncio.Event()
+    send_frame = adapter._send_frame
+
+    async def pausing(chat_id, frame):
+        if frame["type"] == "speech":
+            paused.set()
+            await resume.wait()
+        return await send_frame(chat_id, frame)
+
+    monkeypatch.setattr(adapter, "_send_frame", pausing)
+    speaking = asyncio.create_task(stream(adapter, "All green. "))
+    await asyncio.wait_for(paused.wait(), 2)
+    completing = asyncio.create_task(adapter.on_processing_complete(turn, ProcessingOutcome.SUCCESS))
+    await asyncio.sleep(0.01)
+    resume.set()
+    await asyncio.wait_for(asyncio.gather(speaking, completing), 2)
+    assert await recv(ws) == speech_frame("777", "All green.")
+    assert await recv(ws) == render_frame("777", [{"cues": [{"motion_id": "idle"}], "speech": ""}])
+    assert await recv(ws) == {"type": "turn_end", "turn_id": "777"}
