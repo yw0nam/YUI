@@ -7,13 +7,6 @@ import { renderClientContext } from "./client-context-text";
 import type { buildContext } from "./context-builder";
 import { imageDataUrlsOf } from "./context-builder";
 
-/**
- * InputContext → OpenAI Responses input — one user item carrying the tagged client_context
- * block followed by userText ?? backgroundMarker(env.event_name, trigger) (+ image content-parts when
- * images present). The `input` array has no contractual system slot: its last item becomes the
- * turn's user message and earlier items land in plain history, so context rides inside the turn.
- * Context leads and the utterance trails it — recall on the trailing query holds as the block grows.
- */
 /** The tagged client_context block every transport sends. */
 export function contextBlock(
   clientContext: Awaited<ReturnType<typeof buildContext>>["clientContext"],
@@ -27,6 +20,13 @@ export function contextBlock(
   ].join("\n");
 }
 
+/**
+ * InputContext → OpenAI Responses input — one user item carrying the tagged client_context
+ * block followed by userText ?? backgroundMarker(env.event_name, trigger) (+ image content-parts when
+ * images present). The `input` array has no contractual system slot: its last item becomes the
+ * turn's user message and earlier items land in plain history, so context rides inside the turn.
+ * Context leads and the utterance trails it — recall on the trailing query holds as the block grows.
+ */
 export function encodeInput(
   ctx: InputContext,
   env: BusEnvelope,
