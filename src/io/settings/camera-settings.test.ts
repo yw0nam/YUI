@@ -15,7 +15,7 @@ import {
   CAMERA_POLAR_DEFAULT,
   CAMERA_POLAR_FREE_MAX,
   CAMERA_POLAR_FREE_MIN,
-} from "../../renderer/camera-fit";
+} from "../../renderer/geometry/camera-fit";
 import type { CameraSettings, CameraStorage } from "./camera-settings";
 import {
   CAMERA_ZOOM_DEFAULT,

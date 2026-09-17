@@ -10,8 +10,8 @@
  *   createMotionController(registry, opts?) → MotionController
  */
 
-import type { InterruptPolicy, MotionKind, MotionRegistry, MotionSignal } from "../contract";
-import { createLogger } from "../logger";
+import type { InterruptPolicy, MotionKind, MotionRegistry, MotionSignal } from "../../contract";
+import { createLogger } from "../../logger";
 
 const log = createLogger("motion-controller");
 

@@ -15,7 +15,7 @@
  */
 
 import { describe, expect, it } from "vitest";
-import type { GazeKnobs } from "../config/load";
+import type { GazeKnobs } from "../../config/load";
 import {
   advanceGaze,
   clampDeg,

@@ -17,7 +17,7 @@ import {
   seatAnchorWorldInto,
   seatOffsetWorldY,
   worldYPerPixel,
-} from "./perch-geometry";
+} from "./geometry/perch-geometry";
 
 /** Per-frame convergence rate for the seat-pin offset (proportional step). */
 const PERCH_PIN_RATE = 0.6;

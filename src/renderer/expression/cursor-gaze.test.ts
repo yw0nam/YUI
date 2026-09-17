@@ -8,7 +8,7 @@
 import type { VRM } from "@pixiv/three-vrm";
 import * as THREE from "three";
 import { describe, expect, it } from "vitest";
-import type { GazeKnobs } from "../config/load";
+import type { GazeKnobs } from "../../config/load";
 import { createCursorGaze, cursorToResidual } from "./cursor-gaze";
 
 const RAD2DEG = 180 / Math.PI;

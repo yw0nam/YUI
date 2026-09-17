@@ -34,13 +34,13 @@ import type { GestureCueConfig, GestureCuesConfig, PeekConfig } from "../../conf
 import type { ScreenRect, WindowRect } from "../../contract";
 import type { EventBus } from "../../dispatcher/core/event-bus";
 import { createLogger } from "../../logger";
-import type { ScreenPoint } from "../../renderer/perch-geometry";
+import type { ScreenPoint } from "../../renderer/geometry/perch-geometry";
 import {
   inCatchZone,
   inSideCatchZone,
   peekTargetPx,
   petPxToGlobalPoints,
-} from "../../renderer/perch-geometry";
+} from "../../renderer/geometry/perch-geometry";
 
 const log = createLogger("window-drop");
 

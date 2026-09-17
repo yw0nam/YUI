@@ -26,9 +26,17 @@ import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import type { FramingConfig, GazeKnobs } from "../config/load";
 import type { ControlEnvelope, EmotionRegistry, MotionRegistry } from "../contract";
 import { createLogger } from "../logger";
-import { type AlphaHitTest, createAlphaHitTest } from "./alpha-hit-test";
 import { routeDirective } from "./apply-directive";
-import { yawAt } from "./body-yaw";
+import { type CursorGaze, createCursorGaze } from "./expression/cursor-gaze";
+import { createEmotionCrossfade, type EmotionCrossfade } from "./expression/emotion-crossfade";
+import type { RenderEmotionSignal } from "./expression/emotion-resolver";
+import {
+  createMouthLipsync,
+  describeExpressions,
+  MOUTH_EXPRESSION_KEY,
+} from "./expression/mouth-lipsync";
+import { type AlphaHitTest, createAlphaHitTest } from "./geometry/alpha-hit-test";
+import { yawAt } from "./geometry/body-yaw";
 import {
   CAMERA_AZIMUTH_DEFAULT,
   CAMERA_POLAR_DEFAULT,
@@ -36,13 +44,21 @@ import {
   computeCameraFit,
   type OrbitAngles,
   orbitPosition,
-} from "./camera-fit";
-import { type CursorGaze, createCursorGaze } from "./cursor-gaze";
-import { createCycleDwell } from "./cycle-dwell";
-import { createEmotionCrossfade, type EmotionCrossfade } from "./emotion-crossfade";
-import type { RenderEmotionSignal } from "./emotion-resolver";
-import { isActive, shouldRenderFrame } from "./frame-gate";
-import { mirrorClipTracks } from "./mirror-clip";
+} from "./geometry/camera-fit";
+import { isActive, shouldRenderFrame } from "./geometry/frame-gate";
+import {
+  characterScreenHeight,
+  projectToScreen,
+  SEAT_DROP_DEFAULT,
+  seatAnchorWorld,
+  worldYPerPixel,
+} from "./geometry/perch-geometry";
+import { clampPixelRatio } from "./geometry/pixel-ratio";
+import { projectBoxWidthPx, projectFeetAnchor, type ScreenAnchor } from "./geometry/project-anchor";
+import { clientToStage } from "./geometry/stage-coords";
+import { applyViewWindow, type ViewWindow } from "./geometry/view-window";
+import { createCycleDwell } from "./motion/cycle-dwell";
+import { mirrorClipTracks } from "./motion/mirror-clip";
 import {
   createMotionController,
   type MotionController,
@@ -50,30 +66,18 @@ import {
   type RenderMotionSignal,
   type ResolvedMotion,
   shouldRestartIdle,
-} from "./motion-controller";
-import { createDeadClipRegistry, resolveBaselineFallback } from "./motion-fallback";
-import { createMotionStartGeneration } from "./motion-start-generation";
-import { createMouthLipsync, describeExpressions, MOUTH_EXPRESSION_KEY } from "./mouth-lipsync";
-import {
-  characterScreenHeight,
-  projectToScreen,
-  SEAT_DROP_DEFAULT,
-  seatAnchorWorld,
-  worldYPerPixel,
-} from "./perch-geometry";
-import { baselineWhileHeld, suppressWhileHeld } from "./perch-hold";
-import { createPinController, type PinController } from "./pin-controller";
-import { clampPixelRatio } from "./pixel-ratio";
-import { projectBoxWidthPx, projectFeetAnchor, type ScreenAnchor } from "./project-anchor";
+} from "./motion/motion-controller";
+import { createDeadClipRegistry, resolveBaselineFallback } from "./motion/motion-fallback";
+import { createMotionStartGeneration } from "./motion/motion-start-generation";
+import { baselineWhileHeld, suppressWhileHeld } from "./motion/perch-hold";
 import {
   detrendClipRootY,
   type RootYCurve,
   recenterClipRootMotion,
   sampleRootYCurve,
-} from "./recenter-root-motion";
-import { clipCacheKey, playbackClip } from "./self-crossfade";
-import { clientToStage } from "./stage-coords";
-import { applyViewWindow, type ViewWindow } from "./view-window";
+} from "./motion/recenter-root-motion";
+import { clipCacheKey, playbackClip } from "./motion/self-crossfade";
+import { createPinController, type PinController } from "./pin-controller";
 import {
   anyConverging,
   buildVrmParticipants,
@@ -337,14 +341,14 @@ export interface Renderer {
   dispose(): void;
 }
 
-export type { RenderEmotionSignal } from "./emotion-resolver";
-export type { RenderMotionSignal } from "./motion-controller";
-export type { MouthLipsync, MouthLipsyncOptions } from "./mouth-lipsync";
+export type { RenderEmotionSignal } from "./expression/emotion-resolver";
+export type { MouthLipsync, MouthLipsyncOptions } from "./expression/mouth-lipsync";
 export {
   createMouthLipsync,
   describeExpressions,
   MOUTH_EXPRESSION_KEY,
-} from "./mouth-lipsync";
+} from "./expression/mouth-lipsync";
+export type { RenderMotionSignal } from "./motion/motion-controller";
 
 export function createRenderer(options: RendererOptions): Renderer {
   const { mount } = options;

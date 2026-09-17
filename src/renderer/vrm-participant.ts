@@ -12,10 +12,10 @@
 
 import type { VRM } from "@pixiv/three-vrm";
 import type { PerspectiveCamera } from "three";
-import type { CursorGaze } from "./cursor-gaze";
-import type { EmotionCrossfade } from "./emotion-crossfade";
-import { isMouthConverging } from "./frame-gate";
-import type { MouthLipsync } from "./mouth-lipsync";
+import type { CursorGaze } from "./expression/cursor-gaze";
+import type { EmotionCrossfade } from "./expression/emotion-crossfade";
+import type { MouthLipsync } from "./expression/mouth-lipsync";
+import { isMouthConverging } from "./geometry/frame-gate";
 import type { PinController } from "./pin-controller";
 
 /** Per-frame context passed to every participant's step, before vrm.update(dt). */

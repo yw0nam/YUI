@@ -15,7 +15,7 @@
  */
 
 import * as THREE from "three";
-import type { ScreenRect } from "../contract";
+import type { ScreenRect } from "../../contract";
 
 /** Screen point in pet-window pixels (== logical px == points). */
 export interface ScreenPoint {

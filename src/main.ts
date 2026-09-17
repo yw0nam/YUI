@@ -59,7 +59,7 @@ import { isTauri } from "./io/window/tauri-env";
 import { resolveScreenCapturer, resolveScreenSourceProvider } from "./io/window/tauri-screen";
 import { createLogger, initLogger } from "./logger";
 import { createRenderer } from "./renderer";
-import { nextZoom } from "./renderer/camera-fit";
+import { nextZoom } from "./renderer/geometry/camera-fit";
 import { createCaptureIndicator } from "./ui/chips/capture-indicator";
 import { createDelegationChip } from "./ui/chips/delegation-chip";
 import { createVoiceInputIndicator } from "./ui/chips/voice-input-indicator";

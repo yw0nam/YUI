@@ -15,8 +15,8 @@
  *   FALLBACK_EXPRESSION = "neutral"
  */
 
-import type { EmotionId, EmotionRegistry, EmotionSignal } from "../contract";
-import { createLogger } from "../logger";
+import type { EmotionId, EmotionRegistry, EmotionSignal } from "../../contract";
+import { createLogger } from "../../logger";
 
 const log = createLogger("emotion-resolver");
 

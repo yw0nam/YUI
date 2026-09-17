@@ -7,7 +7,7 @@ import {
   classifyTapRegion,
   type TapRegion,
   type TapRegionBones,
-} from "../../renderer/tap-region";
+} from "../../renderer/geometry/tap-region";
 
 const log = createLogger("tap-source");
 

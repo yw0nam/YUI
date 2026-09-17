@@ -6,7 +6,7 @@
  */
 
 import { describe, expect, it } from "vitest";
-import type { MotionKind, MotionSignal } from "../contract";
+import type { MotionKind, MotionSignal } from "../../contract";
 import { baselineWhileHeld, suppressWhileHeld } from "./perch-hold";
 
 const kinds: Record<string, MotionKind> = {

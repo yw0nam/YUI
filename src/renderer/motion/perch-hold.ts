@@ -1,4 +1,4 @@
-import type { MotionKind, MotionSignal } from "../contract";
+import type { MotionKind, MotionSignal } from "../../contract";
 
 /** A held posture ignores idle returns and non-state motion requests. */
 export function suppressWhileHeld(

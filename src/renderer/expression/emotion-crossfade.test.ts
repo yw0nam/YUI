@@ -9,7 +9,7 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import type { VRM } from "@pixiv/three-vrm";
 import { describe, expect, it, vi } from "vitest";
-import type { EmotionRegistry } from "../contract";
+import type { EmotionRegistry } from "../../contract";
 import { createEmotionCrossfade } from "./emotion-crossfade";
 
 const realRegistry: EmotionRegistry = JSON.parse(

@@ -14,8 +14,8 @@
 
 import type { VRM } from "@pixiv/three-vrm";
 import * as THREE from "three";
-import type { GazeKnobs } from "../config/load";
-import { advanceGaze, type GazeState, NEUTRAL_GAZE, splitHeadNeck } from "./gaze-tracker";
+import type { GazeKnobs } from "../../config/load";
+import { advanceGaze, type GazeState, NEUTRAL_GAZE, splitHeadNeck } from "../geometry/gaze-tracker";
 
 const DEG2RAD = Math.PI / 180;
 

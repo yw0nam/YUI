@@ -9,7 +9,7 @@ import {
   CAMERA_AZIMUTH_DEFAULT,
   CAMERA_POLAR_DEFAULT,
   clampPolar,
-} from "../../renderer/camera-fit";
+} from "../../renderer/geometry/camera-fit";
 import { createPersistedStore, localStorageStore, type PersistedStorage } from "./persisted-store";
 
 export const CAMERA_ZOOM_MIN = 0.5;

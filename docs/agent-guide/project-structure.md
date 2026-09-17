@@ -76,34 +76,37 @@ YUI/
         shared.ts                    # Shared ConfigError plus issue-recording helpers
     renderer/                        # three.js + VRM rendering
       index.ts                       # three.js and VRM output layer: scene, rAF loop, VRM load and hot-swap
-      alpha-hit-test.ts              # CPU-side low-res silhouette grab and sampling
       apply-directive.ts             # Pure routing of a control envelope into the emotion and motion sinks
-      body-yaw.ts                    # Pure easing math for the root yaw a stroll turns by
-      camera-fit.ts                  # Pure fit-to-bounds framing math
-      cursor-gaze.ts                 # Stateful three.js apply layer for cursor head and eye tracking
-      cycle-dwell.ts                 # Single-timer scheduler for a cycle motion's variant swap
-      ease-emotion.ts                # Eases the expression back to neutral when playback ends
-      emotion-crossfade.ts           # Stateful VRM-expression crossfade apply layer
-      emotion-resolver.ts            # Pure expression lookup and fallback-chain traversal
-      frame-gate.ts                  # Pure idle and active frame-throttle decision
-      gaze-tracker.ts                # Pure cursor-gaze zone curve and angle damping
-      hit-test.ts                    # Pure helpers for the alpha silhouette predicate
-      mirror-clip.ts                 # Mirrors a clip across the YZ plane
-      motion-controller.ts           # Pure motion scheduling and variant-resolution state machine
-      motion-fallback.ts             # Idle-fallback decision for a motion whose clip fails to load
-      motion-start-generation.ts     # Tracks which asynchronous motion start owns mixer playback
-      mouth-lipsync.ts               # Amplitude-only mouth state machine and expression describe helper
-      perch-geometry.ts              # Pure math for the window-sit perch
-      perch-hold.ts                  # Held-posture suppression and baseline rules
       pin-controller.ts              # Stateful perch and peek pin apply layer
-      pixel-ratio.ts                 # Pure devicePixelRatio clamp
-      project-anchor.ts              # Projects the world feet point into canvas pixels
-      recenter-root-motion.ts        # Strips baked horizontal drift from VRMA root motion
-      self-crossfade.ts              # Clip-cache key composition and playback clip selection
-      stage-coords.ts                # Client CSS px to stage-local coordinate conversion
-      tap-region.ts                  # Classifies a tap point into a body region
-      view-window.ts                 # Draws the reference-size framing at an offset inside a parked canvas
       vrm-participant.ts             # The per-frame lifecycle every VRM-bound sub-controller implements
+      geometry/
+        alpha-hit-test.ts            # CPU-side low-res silhouette grab and sampling
+        body-yaw.ts                  # Pure easing math for the root yaw a stroll turns by
+        camera-fit.ts                # Pure fit-to-bounds framing math
+        frame-gate.ts                # Pure idle and active frame-throttle decision
+        gaze-tracker.ts              # Pure cursor-gaze zone curve and angle damping
+        hit-test.ts                  # Pure helpers for the alpha silhouette predicate
+        perch-geometry.ts            # Pure math for the window-sit perch
+        pixel-ratio.ts               # Pure devicePixelRatio clamp
+        project-anchor.ts            # Projects the world feet point into canvas pixels
+        stage-coords.ts              # Client CSS px to stage-local coordinate conversion
+        tap-region.ts                # Classifies a tap point into a body region
+        view-window.ts               # Draws the reference-size framing at an offset inside a parked canvas
+      motion/
+        cycle-dwell.ts               # Single-timer scheduler for a cycle motion's variant swap
+        mirror-clip.ts               # Mirrors a clip across the YZ plane
+        motion-controller.ts         # Pure motion scheduling and variant-resolution state machine
+        motion-fallback.ts           # Idle-fallback decision for a motion whose clip fails to load
+        motion-start-generation.ts   # Tracks which asynchronous motion start owns mixer playback
+        perch-hold.ts                # Held-posture suppression and baseline rules
+        recenter-root-motion.ts      # Strips baked horizontal drift from VRMA root motion
+        self-crossfade.ts            # Clip-cache key composition and playback clip selection
+      expression/
+        cursor-gaze.ts               # Stateful three.js apply layer for cursor head and eye tracking
+        ease-emotion.ts              # Eases the expression back to neutral when playback ends
+        emotion-crossfade.ts         # Stateful VRM-expression crossfade apply layer
+        emotion-resolver.ts          # Pure expression lookup and fallback-chain traversal
+        mouth-lipsync.ts             # Amplitude-only mouth state machine and expression describe helper
     dispatcher/                      # Event bus + classify, guardrail, route
       dispatcher.ts                  # The router that enforces the firing-is-not-judgment boundary
       core/

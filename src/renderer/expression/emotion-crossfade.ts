@@ -10,7 +10,7 @@
  */
 
 import type { VRM } from "@pixiv/three-vrm";
-import type { EmotionRegistry } from "../contract";
+import type { EmotionRegistry } from "../../contract";
 import { revertEmotionToNeutral } from "./ease-emotion";
 import {
   createEmotionResolver,

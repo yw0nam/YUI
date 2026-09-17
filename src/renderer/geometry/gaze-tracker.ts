@@ -13,7 +13,7 @@
  *   ≥disengageDeg       disengage — targets 0, damping eases back to neutral
  */
 
-import type { GazeKnobs } from "../config/load";
+import type { GazeKnobs } from "../../config/load";
 
 interface GazeWeights {
   eyeWeight: number;
