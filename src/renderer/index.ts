@@ -36,7 +36,6 @@ import {
   MOUTH_EXPRESSION_KEY,
 } from "./expression/mouth-lipsync";
 import { type AlphaHitTest, createAlphaHitTest } from "./geometry/alpha-hit-test";
-import { yawAt } from "./geometry/body-yaw";
 import {
   CAMERA_AZIMUTH_DEFAULT,
   CAMERA_POLAR_DEFAULT,
@@ -76,6 +75,7 @@ import {
   recenterClipRootMotion,
   sampleRootYCurve,
 } from "./motion/recenter-root-motion";
+import { createRootYaw } from "./motion/root-yaw";
 import { clipCacheKey, playbackClip } from "./motion/self-crossfade";
 import { createPinController, type PinController } from "./pin-controller";
 import type { Renderer, RendererOptions, TickContext, TickFn, VrmLoadResult } from "./types";
@@ -335,18 +335,6 @@ export function createRenderer(options: RendererOptions): Renderer {
   const ro = new ResizeObserver(resize);
   ro.observe(mount);
 
-  // ── Root yaw (ambient stroll facing) ──────────────────────────────────
-  // vrm.scene.rotation.y is a channel nothing else writes after load — the mixer
-  // animates bones and the pins own scene.position — so the eased yaw is applied
-  // on top of the model's own base rotation (π for VRM0, 0 for VRM1).
-  let baseYaw = 0;
-  let bodyYaw = 0;
-  let bodyYawFrom = 0;
-  let bodyYawTo = 0;
-  let bodyYawStartMs = 0;
-  let bodyYawDurationMs = 0;
-  let bodyYawConverging = false;
-
   const tickHooks = new Set<TickFn>();
   const clock = new THREE.Clock();
   let elapsed = 0;
@@ -359,6 +347,9 @@ export function createRenderer(options: RendererOptions): Renderer {
   // Idle 30fps cap toggle (runtime). Disabled ⇒ idle frames render at full refresh.
   let idleThrottleEnabled = true;
 
+  // ── Root yaw (ambient stroll facing) ──────────────────────────────────
+  const rootYaw = createRootYaw({ getElapsedMs: () => elapsed * 1000 });
+
   // ── Emotion crossfade ─────────────────────────────────────────────────
   // Owns the in-flight crossfade + resolver + per-model has-expression predicate.
   const emotion: EmotionCrossfade = createEmotionCrossfade({
@@ -367,17 +358,6 @@ export function createRenderer(options: RendererOptions): Renderer {
     registry: options.emotionRegistry,
     log,
   });
-
-  /** One frame of the root-yaw ease, written absolutely onto the model's base rotation. */
-  function stepBodyYaw(): void {
-    if (!currentVrm) return;
-    if (bodyYawConverging) {
-      const t = elapsed * 1000 - bodyYawStartMs;
-      bodyYaw = yawAt(bodyYawFrom, bodyYawTo, t, bodyYawDurationMs);
-      if (t >= bodyYawDurationMs) bodyYawConverging = false;
-    }
-    currentVrm.scene.rotation.y = baseYaw + bodyYaw;
-  }
 
   /** True while a non-baseline motion clip is actively playing via the mixer. */
   function isMotionActive(): boolean {
@@ -408,7 +388,7 @@ export function createRenderer(options: RendererOptions): Renderer {
         motionActive: isMotionActive(),
       }) ||
       orbitConverging ||
-      bodyYawConverging;
+      rootYaw.isConverging();
     const now = performance.now();
     if (!shouldRenderFrame(now, lastRenderMs, active, IDLE_FPS, idleThrottleEnabled)) return;
     lastRenderMs = now;
@@ -439,7 +419,7 @@ export function createRenderer(options: RendererOptions): Renderer {
           log.error("mixer_update_error", { error: String(err) });
         }
       }
-      stepBodyYaw();
+      rootYaw.step(ctx);
       // pins/gaze (bones) then emotion/mouth (expression weights) — all before
       // vrm.update so expressionManager.update()/spring bones see this frame's writes.
       stepParticipants(participants, ctx);
@@ -722,10 +702,7 @@ export function createRenderer(options: RendererOptions): Renderer {
     VRMUtils.rotateVRM0(vrm); // If VRM0.0, rotate to +Z front; VRM1.0 is no-op.
 
     disposeCurrent(); // Hotswap: prepare new model fully, then release prior.
-    // The model's own front-facing rotation is the baseline the stroll yaw adds onto.
-    baseYaw = vrm.scene.rotation.y;
-    bodyYaw = 0;
-    bodyYawConverging = false;
+    rootYaw.onVrmLoaded(vrm);
     vrmEpoch += 1; // Invalidate async clip loads tied to prior model.
     currentVrm = vrm;
     scene.add(vrm.scene);
@@ -1010,12 +987,7 @@ export function createRenderer(options: RendererOptions): Renderer {
       motionMirror = on;
     },
     setBodyYaw(rad, easeMs) {
-      if (!Number.isFinite(rad)) return;
-      bodyYawFrom = bodyYaw;
-      bodyYawTo = rad;
-      bodyYawStartMs = elapsed * 1000;
-      bodyYawDurationMs = Number.isFinite(easeMs) ? Math.max(0, easeMs) : 0;
-      bodyYawConverging = true;
+      rootYaw.setTarget(rad, easeMs);
     },
     getPxPerMetre() {
       if (!currentVrm || !modelBox) return null;

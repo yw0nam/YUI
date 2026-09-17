@@ -101,6 +101,7 @@ YUI/
         motion-start-generation.ts   # Tracks which asynchronous motion start owns mixer playback
         perch-hold.ts                # Held-posture suppression and baseline rules
         recenter-root-motion.ts      # Strips baked horizontal drift from VRMA root motion
+        root-yaw.ts                  # Eased root yaw the ambient stroll turns the character by, written onto the model's base rotation each frame
         self-crossfade.ts            # Clip-cache key composition and playback clip selection
       expression/                    # Emotion, mouth, and gaze apply layers over the face
         cursor-gaze.ts               # Stateful three.js apply layer for cursor head and eye tracking
