@@ -1,0 +1,173 @@
+/**
+ * screen-probes.test.ts
+ *
+ * Pins the renderer's read-only screen probes (feet anchor, width, pixels per
+ * metre, hand anchors, tap points, perch seat) against a bare camera and a fake
+ * humanoid, comparing against the pure helpers they delegate to. Node env, no
+ * DOM/WebGL (same pattern as perch-geometry.test.ts).
+ */
+
+import type { VRM } from "@pixiv/three-vrm";
+import * as THREE from "three";
+import { describe, expect, it } from "vitest";
+import { projectToScreen, seatAnchorWorld } from "./perch-geometry";
+import { projectBoxWidthPx, projectFeetAnchor } from "./project-anchor";
+import { createScreenProbes } from "./screen-probes";
+
+const W = 400;
+const H = 600;
+
+/** Camera at (0, 1, 5) looking at (0, 1, 0) — the model stands 5 units in front. */
+function makeCamera(): THREE.PerspectiveCamera {
+  const camera = new THREE.PerspectiveCamera(30, 1, 0.1, 100);
+  camera.position.set(0, 1, 5);
+  camera.lookAt(0, 1, 0);
+  camera.updateProjectionMatrix();
+  camera.updateMatrixWorld();
+  return camera;
+}
+
+/**
+ * Bare camera + fake humanoid fixtures. The bones are world-space Object3D
+ * nodes exposed through a fake VRM humanoid; the body is a mesh spanning the
+ * character box (−0.3, 0, −0.2)–(0.3, 1.6, 0.2) so Box3.setFromObject(scene)
+ * is non-empty (bare Object3Ds contribute nothing to a box).
+ */
+function makeFixture() {
+  const camera = makeCamera();
+  const scene = new THREE.Group();
+  const body = new THREE.Mesh(new THREE.BoxGeometry(0.6, 1.6, 0.4));
+  body.position.y = 0.8; // rest the box on the ground: y ∈ [0, 1.6]
+  scene.add(body);
+  const bones = new Map<string, THREE.Object3D>();
+  const bone = (name: string, x: number, y: number, z: number): THREE.Object3D => {
+    const node = new THREE.Object3D();
+    node.name = name;
+    node.position.set(x, y, z);
+    scene.add(node);
+    bones.set(name, node);
+    return node;
+  };
+  bone("head", 0, 1.5, 0);
+  const hips = bone("hips", 0, 0.9, 0);
+  bone("upperChest", 0, 1.2, 0);
+  bone("leftHand", -0.4, 0.9, 0);
+  const rightHand = bone("rightHand", 0.4, 0.9, 0);
+  scene.updateWorldMatrix(true, true);
+
+  const vrm = {
+    scene,
+    humanoid: { getNormalizedBoneNode: (name: string) => bones.get(name) ?? null },
+  } as unknown as VRM;
+  const modelBox = new THREE.Box3().setFromObject(scene);
+
+  // Mutable locals the probes read through the deps — each case sets its own.
+  let currentVrm: VRM | null = vrm;
+  let box: THREE.Box3 | null = modelBox;
+  const make = (overrides?: {
+    hipsBone?: () => THREE.Object3D | null | undefined;
+    seatDrop?: number;
+  }) =>
+    createScreenProbes({
+      camera,
+      getVrm: () => currentVrm,
+      getModelBox: () => box,
+      mountWidth: () => W,
+      mountHeight: () => H,
+      hipsBone: () => hips,
+      seatDrop: 0.1,
+      ...overrides,
+    });
+  return {
+    camera,
+    modelBox,
+    hips,
+    rightHand,
+    make,
+    hideVrm: (): void => {
+      currentVrm = null;
+    },
+    hideBox: (): void => {
+      box = null;
+    },
+    removeBone: (name: string): void => {
+      bones.delete(name);
+    },
+  };
+}
+
+describe("createScreenProbes", () => {
+  it("returns null from every probe with no VRM and no model box", () => {
+    const { make, hideVrm, hideBox } = makeFixture();
+    hideVrm();
+    hideBox();
+    const probes = make();
+    expect(probes.getCharacterAnchor()).toBeNull();
+    expect(probes.getCharacterWidthPx()).toBeNull();
+    expect(probes.getPerchProbe()).toBeNull();
+    expect(probes.getTapPoints()).toBeNull();
+    expect(probes.getHandAnchors()).toBeNull();
+    expect(probes.getPxPerMetre()).toBeNull();
+  });
+
+  it("projects the feet anchor and width the same way the pure helpers do", () => {
+    const { camera, modelBox, make, hideVrm } = makeFixture();
+    hideVrm();
+    const probes = make();
+    expect(probes.getCharacterAnchor()).toEqual(projectFeetAnchor(modelBox, camera, W, H));
+    expect(probes.getCharacterWidthPx()).toBeCloseTo(projectBoxWidthPx(modelBox, camera, W)!);
+  });
+
+  it("reports a finite positive pixels-per-metre that grows as the model comes closer", () => {
+    const { modelBox, make } = makeFixture();
+    const probes = make();
+    const far = probes.getPxPerMetre();
+    expect(far).not.toBeNull();
+    expect(Number.isFinite(far!)).toBe(true);
+    expect(far!).toBeGreaterThan(0);
+    modelBox.translate(new THREE.Vector3(0, 0, 1)); // 1 unit toward the camera at z=5.
+    const near = probes.getPxPerMetre();
+    expect(near).not.toBeNull();
+    expect(near!).toBeGreaterThan(far!);
+  });
+
+  it("returns hand anchors only when both hand bones exist", () => {
+    const { make, removeBone, rightHand } = makeFixture();
+    const hands = make().getHandAnchors();
+    expect(hands).not.toBeNull();
+    expect(hands!.left.x).toBeLessThan(hands!.right.x);
+    removeBone(rightHand.name);
+    expect(make().getHandAnchors()).toBeNull();
+  });
+
+  it("returns tap points with a positive character height", () => {
+    const { make } = makeFixture();
+    const taps = make().getTapPoints();
+    expect(taps).not.toBeNull();
+    expect(taps!.head).not.toBeNull();
+    expect(taps!.chest).not.toBeNull();
+    expect(taps!.hips).not.toBeNull();
+    expect(taps!.charHpx).toBeGreaterThan(0);
+    expect(taps!.head!.y).toBeLessThan(taps!.hips!.y); // screen y grows downward
+  });
+
+  it("seats the perch probe at the hips dropped by seatDrop", () => {
+    const { camera, hips, make } = makeFixture();
+    const probe = make().getPerchProbe();
+    expect(probe).not.toBeNull();
+    expect(probe!.charHpx).toBeGreaterThan(0);
+    const hipsWorld = hips.getWorldPosition(new THREE.Vector3());
+    const expected = projectToScreen(seatAnchorWorld(hipsWorld, 0.1), camera, W, H)!;
+    expect(probe!.seatPx.x).toBeCloseTo(expected.x, 9);
+    expect(probe!.seatPx.y).toBeCloseTo(expected.y, 9);
+    const deeper = make({ seatDrop: 0.5 }).getPerchProbe()!;
+    expect(deeper.seatPx.y).toBeGreaterThan(probe!.seatPx.y); // a larger drop seats lower
+  });
+
+  it("returns null from the perch probe with no hips bone", () => {
+    const { make } = makeFixture();
+    const probes = make({ hipsBone: () => null });
+    expect(probes.getPerchProbe()).toBeNull();
+    expect(probes.getCharacterAnchor()).not.toBeNull();
+  });
+});
