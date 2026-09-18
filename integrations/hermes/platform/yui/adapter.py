@@ -803,7 +803,7 @@ class YuiAdapter(BasePlatformAdapter):
         vocab = state.vocabulary(chat_id)
         # ponytail: one schema per process; chats whose turns overlap can read each other's ids
         if vocab is not None:
-            tools.declare(vocab)
+            tools.declare(vocab, chat_id)
 
     async def on_processing_complete(self, event: MessageEvent, outcome: ProcessingOutcome) -> None:
         """Close the turn: a reply already rendered, anything else renders as silence."""
