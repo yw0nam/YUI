@@ -27,6 +27,7 @@ import { rateLimitDefaultsFromConfig } from "./io/settings/guardrails-settings";
 import { screenDefaultsFromConfig } from "./io/settings/screen-settings";
 import { createSettingsStores } from "./io/settings/settings-stores";
 import { wireVoiceListAutoRefresh } from "./io/voice/voice-list-refresh";
+import { excludeOwnOriginFromCorsFetch } from "./io/window/own-origin-fetch";
 import { closeSettingsWindow } from "./io/window/settings-window";
 import { resolveScreenSourceProvider } from "./io/window/tauri-screen";
 import { createLogger, initLogger } from "./logger";
@@ -37,6 +38,7 @@ import { createQuickControls } from "./ui/quick-controls/quick-controls";
 const log = createLogger("settings-bootstrap");
 
 async function bootstrap(): Promise<void> {
+  excludeOwnOriginFromCorsFetch();
   await initLogger();
   const app = document.querySelector<HTMLDivElement>("#app");
   if (!app) {

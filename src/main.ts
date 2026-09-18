@@ -55,6 +55,7 @@ import { wireVoiceListAutoRefresh } from "./io/voice/voice-list-refresh";
 import { createDevtoolsWindowOpener } from "./io/window/devtools-window";
 import { createMessageWindowController, listenTrayToggle } from "./io/window/message-window";
 import { wireMessageWindowMode } from "./io/window/message-window-mode";
+import { excludeOwnOriginFromCorsFetch } from "./io/window/own-origin-fetch";
 import { createSettingsWindowOpener } from "./io/window/settings-window";
 import { isTauri } from "./io/window/tauri-env";
 import { resolveScreenCapturer, resolveScreenSourceProvider } from "./io/window/tauri-screen";
@@ -85,6 +86,7 @@ interface BootstrapHandle {
 }
 
 async function bootstrap(): Promise<BootstrapHandle> {
+  excludeOwnOriginFromCorsFetch();
   await initLogger();
   const app = document.querySelector<HTMLDivElement>("#app");
   if (!app) {

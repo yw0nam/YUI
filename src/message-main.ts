@@ -32,6 +32,7 @@ import {
 import { createFlagSettings, localStorageStore } from "./io/settings/persisted-store";
 import { attachKeepOnScreen } from "./io/window/keep-on-screen";
 import { MESSAGE_WINDOW_WIDTH } from "./io/window/message-window";
+import { excludeOwnOriginFromCorsFetch } from "./io/window/own-origin-fetch";
 import { toScreenMonitor } from "./io/window/screen-geometry";
 import { isTauri } from "./io/window/tauri-env";
 import { createLogger, initLogger } from "./logger";
@@ -45,6 +46,7 @@ import { createSurfaces } from "./ui/surfaces/surfaces";
 const log = createLogger("message-bootstrap");
 
 async function bootstrap(): Promise<void> {
+  excludeOwnOriginFromCorsFetch();
   await initLogger();
   const app = document.querySelector<HTMLDivElement>("#app");
   if (!app) {
