@@ -292,6 +292,28 @@ describe("awaitTurnEnd", () => {
   });
 });
 
+describe("toolStatus", () => {
+  it("runs the waiter's onFrame, then onToolStatus with the state and the tool id", () => {
+    const turns = createPushTurns();
+    const order: string[] = [];
+
+    turns.opened("A");
+    void turns.awaitTurnEnd("A", {
+      onFrame: () => order.push("frame"),
+      onToolStatus: (state, toolId) => order.push(`tool ${state} ${toolId}`),
+    });
+    turns.toolStatus("A", "running", "read_file");
+
+    expect(order).toEqual(["frame", "tool running read_file"]);
+  });
+
+  it("a turn with no waiter does nothing and throws nothing", () => {
+    const turns = createPushTurns();
+
+    expect(() => turns.toolStatus("A", "done", "read_file")).not.toThrow();
+  });
+});
+
 describe("a turn id the backend remembers across a restart", () => {
   afterEach(() => {
     vi.useRealTimers();

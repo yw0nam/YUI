@@ -18,7 +18,7 @@ from gateway_stub import (
     MessageType,
     ProcessingOutcome,
 )
-from yui import delegations, reasoning, reports, speech, state, tools
+from yui import delegations, reasoning, reports, speech, state, tool_status, tools
 from yui.adapter import MAX_FRAME_BYTES, YuiAdapter, fit_frame, is_loopback
 
 CHAT = "yui-3f9a2c1d"
@@ -52,6 +52,7 @@ def clean():
     delegations.set_notifier(None)
     reasoning.set_sink(None)
     speech.set_sink(None)
+    tool_status.set_sink(None)
     PERSISTED_HOMES.clear()
     SLASH_CONFIRM.pending.clear()
     SLASH_CONFIRM.resolved.clear()
@@ -1239,6 +1240,47 @@ def test_an_oversize_multibyte_reasoning_delta_is_cut_by_bytes_not_characters():
     assert set(fitted["delta"]) == {"안"}
 
 
+# -- tool status -----------------------------------------------------------------------------
+
+
+async def test_a_tool_call_reaches_the_client_as_tool_status_frames(client, adapter):
+    """The hook runs on a worker thread, so the states are marshaled onto the adapter's loop."""
+    ws = await ready(client)
+    STUB_ENV["HERMES_SESSION_CHAT_ID"] = CHAT
+    tool_status.set_sink(adapter.push_tool_status)
+    state.open_turn(CHAT, "t-1")
+    await asyncio.to_thread(tool_status.on_pre_tool_call, tool_name="read_file", task_id="s", session_id="s")
+    assert await recv(ws) == {
+        "type": "tool_status",
+        "turn_id": "t-1",
+        "state": "running",
+        "tool_id": "read_file",
+    }
+    await asyncio.to_thread(tool_status.on_post_tool_call, tool_name="read_file", task_id="s", session_id="s")
+    assert await recv(ws) == {
+        "type": "tool_status",
+        "turn_id": "t-1",
+        "state": "done",
+        "tool_id": "read_file",
+    }
+
+
+async def test_a_tool_call_on_a_chat_with_no_open_turn_sends_no_frame(client, adapter):
+    """A call on a chat with no open turn is not a YUI turn's; the fence proves none was sent."""
+    ws = await ready(client)
+    STUB_ENV["HERMES_SESSION_CHAT_ID"] = CHAT
+    tool_status.set_sink(adapter.push_tool_status)
+    await asyncio.to_thread(tool_status.on_pre_tool_call, tool_name="read_file", task_id="s", session_id="s")
+    state.open_turn(CHAT, "t-1")
+    await asyncio.to_thread(tool_status.on_pre_tool_call, tool_name="read_file", task_id="s", session_id="s")
+    assert await recv(ws) == {
+        "type": "tool_status",
+        "turn_id": "t-1",
+        "state": "running",
+        "tool_id": "read_file",
+    }
+
+
 # -- streamed speech -------------------------------------------------------------------------
 
 # The hermes turn id of a gateway turn: its session and task parts are the same.
@@ -1266,7 +1308,7 @@ async def hooked(adapter, *deltas, turn=ANSWER, iteration=1):
     for delta in deltas:
         speech.on_stream_delta(delta=delta, kind="text", turn_id=turn, iteration=iteration, surface="yui")
     await asyncio.sleep(0)
-    await asyncio.gather(*adapter._speaking)
+    await asyncio.gather(*adapter._sends)
 
 
 async def quiet(adapter, ws):

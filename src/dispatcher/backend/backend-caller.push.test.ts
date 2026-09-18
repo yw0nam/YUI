@@ -376,6 +376,24 @@ describe("backend_caller — push transport, the turn stays open", () => {
     expect(turn.settled()).toBe("ok");
   });
 
+  it("names the tool a tool_status frame carries to the phrase sink and re-arms the frame wait", async () => {
+    const caller = callerWith(true);
+    const call = running(caller.call(turnOf(userEnv(), 7)));
+    await vi.advanceTimersByTimeAsync(0);
+
+    await vi.advanceTimersByTimeAsync(PRE_SPEECH_TIMEOUT_MS - 1);
+    pushTurns.toolStatus("7", "running", "read_file");
+    await vi.advanceTimersByTimeAsync(PRE_SPEECH_TIMEOUT_MS - 1);
+
+    expect(turnOutput.toolStatus).toHaveBeenCalledWith(7, "running", "read_file");
+    expect(call.settled()).toBeNull();
+
+    pushTurns.ended("7");
+    await vi.advanceTimersByTimeAsync(0);
+
+    expect(call.settled()).toBe("ok");
+  });
+
   it("another turn's render leaves it open", async () => {
     const caller = callerWith(true);
     const turn = running(caller.call(turnOf(userEnv(), 7)));

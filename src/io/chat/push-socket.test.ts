@@ -993,6 +993,40 @@ describe("createPushSocket — inbound frames", () => {
     expect(seen).toEqual([]);
   });
 
+  it("hands a tool_status frame to every subscriber", async () => {
+    await connected();
+    const seen: unknown[] = [];
+    socket.onToolStatus((frame) => seen.push(frame));
+    FakeSocket.last().push({
+      type: "tool_status",
+      turn_id: "7",
+      state: "running",
+      tool_id: "read_file",
+    });
+
+    expect(seen).toEqual([
+      { type: "tool_status", turn_id: "7", state: "running", tool_id: "read_file" },
+    ]);
+  });
+
+  it("warns and drops a tool_status frame whose state is not running or done", async () => {
+    await connected();
+    const seen: unknown[] = [];
+    socket.onToolStatus((frame) => seen.push(frame));
+    FakeSocket.last().push({
+      type: "tool_status",
+      turn_id: "7",
+      state: "started",
+      tool_id: "read_file",
+    });
+
+    expect(seen).toEqual([]);
+    expect(logger.warn).toHaveBeenCalledWith("frame_malformed", {
+      type: "tool_status",
+      field: "state",
+    });
+  });
+
   it("carries a render frame's reasoning field through to subscribers", async () => {
     await connected();
     const seen: unknown[] = [];

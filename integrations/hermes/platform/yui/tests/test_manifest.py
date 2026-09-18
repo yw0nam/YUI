@@ -4,7 +4,13 @@ import re
 from pathlib import Path
 
 MANIFEST = Path(__file__).resolve().parents[1] / "plugin.yaml"
-REGISTERED_HOOKS = {"subagent_start", "subagent_stop", "on_stream_delta"}
+REGISTERED_HOOKS = {
+    "subagent_start",
+    "subagent_stop",
+    "on_stream_delta",
+    "pre_tool_call",
+    "post_tool_call",
+}
 
 
 def _list_under(key: str) -> set[str]:

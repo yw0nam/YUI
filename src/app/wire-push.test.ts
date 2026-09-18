@@ -3,6 +3,7 @@
  */
 
 import { afterEach, beforeEach, describe, expect, it, type Mock, vi } from "vitest";
+import type { ToolStatus } from "../contract";
 import { PRE_SPEECH_TIMEOUT_MS } from "../dispatcher/backend/idle-watchdog";
 import { makeTurnOutput } from "../dispatcher/test-helpers";
 import { createPushTurns } from "../dispatcher/turn/push-turn";
@@ -14,6 +15,7 @@ import type {
   PushSocketState,
   RenderFrame,
   SpeechFrame,
+  ToolStatusFrame,
   TurnEndFrame,
 } from "../io/chat/push-socket";
 import { wirePushMode, wirePushTransport } from "./wire-push";
@@ -25,6 +27,7 @@ function fakeSocket() {
   let delegationsCb: ((items: DelegationItem[]) => void) | null = null;
   let reasoningCb: ((delta: string) => void) | null = null;
   let stateCb: ((state: PushSocketState) => void) | null = null;
+  let toolStatusCb: ((frame: ToolStatusFrame) => void) | null = null;
   return {
     sendVocabulary: vi.fn(),
     onRender(cb: (frame: RenderFrame) => void) {
@@ -63,6 +66,12 @@ function fakeSocket() {
         stateCb = null;
       };
     },
+    onToolStatus(cb: (frame: ToolStatusFrame) => void) {
+      toolStatusCb = cb;
+      return () => {
+        toolStatusCb = null;
+      };
+    },
     pushRender(frame: RenderFrame): void {
       renderCb?.(frame);
     },
@@ -81,12 +90,16 @@ function fakeSocket() {
     pushState(state: PushSocketState): void {
       stateCb?.(state);
     },
+    pushToolStatus(frame: ToolStatusFrame): void {
+      toolStatusCb?.(frame);
+    },
     hasRenderSubscriber: () => renderCb !== null,
     hasSpeechSubscriber: () => speechCb !== null,
     hasTurnEndSubscriber: () => turnEndCb !== null,
     hasDelegationsSubscriber: () => delegationsCb !== null,
     hasReasoningSubscriber: () => reasoningCb !== null,
     hasStateSubscriber: () => stateCb !== null,
+    hasToolStatusSubscriber: () => toolStatusCb !== null,
   };
 }
 
@@ -125,6 +138,7 @@ let reasoning: ReturnType<typeof createReasoningStore>;
 let records: unknown[];
 let transcript: ChatHistoryEntry[];
 let log: ReturnType<typeof fakeLog>;
+let toolStatusSink: Mock<(status: ToolStatus) => void>;
 
 function wire() {
   return wirePushTransport({
@@ -133,6 +147,7 @@ function wire() {
     pushTurns,
     delegations,
     reasoning,
+    onToolStatus: toolStatusSink,
     appendTurnRecord: (record) => records.push(record),
     appendTranscript: (entry) => transcript.push(entry),
     log,
@@ -148,6 +163,7 @@ beforeEach(() => {
   records = [];
   transcript = [];
   log = fakeLog();
+  toolStatusSink = vi.fn();
 });
 
 describe("wirePushTransport", () => {
@@ -256,6 +272,116 @@ describe("wirePushTransport", () => {
     expect(reasoning.get()).toEqual({ text: "", live: false });
   });
 
+  it("hands every tool_status frame to the tool chip sink and the turn's waiter", () => {
+    wire();
+    const waiter = vi.fn();
+    pushTurns.opened("7");
+    void pushTurns.awaitTurnEnd("7", { onToolStatus: waiter });
+    socket.pushToolStatus({
+      type: "tool_status",
+      turn_id: "7",
+      state: "running",
+      tool_id: "read_file",
+    });
+
+    expect(toolStatusSink).toHaveBeenCalledWith({ state: "running", tool_id: "read_file" });
+    expect(waiter).toHaveBeenCalledWith("running", "read_file");
+  });
+
+  it("calls the tool chip sink for a frame of a turn with no waiter", () => {
+    wire();
+    socket.pushToolStatus({
+      type: "tool_status",
+      turn_id: "hermes-1",
+      state: "done",
+      tool_id: "read_file",
+    });
+
+    expect(toolStatusSink).toHaveBeenCalledWith({ state: "done", tool_id: "read_file" });
+  });
+
+  it("flows one idle to the chip when a turn ends with its tool still running", () => {
+    wire();
+    pushTurns.opened("7");
+    socket.pushToolStatus({
+      type: "tool_status",
+      turn_id: "7",
+      state: "running",
+      tool_id: "read_file",
+    });
+    socket.pushTurnEnd({ type: "turn_end", turn_id: "7" });
+
+    expect(toolStatusSink).toHaveBeenLastCalledWith({ state: "idle" });
+  });
+
+  it("a turn_end for another turn leaves the running tool's chip alone", () => {
+    wire();
+    pushTurns.opened("7");
+    socket.pushToolStatus({
+      type: "tool_status",
+      turn_id: "7",
+      state: "running",
+      tool_id: "read_file",
+    });
+    socket.pushTurnEnd({ type: "turn_end", turn_id: "hermes-1" });
+
+    expect(toolStatusSink).not.toHaveBeenCalledWith({ state: "idle" });
+
+    socket.pushTurnEnd({ type: "turn_end", turn_id: "7" });
+
+    expect(toolStatusSink).toHaveBeenCalledWith({ state: "idle" });
+  });
+
+  it("never flows idle behind a done frame, so the chip's done hold is not cut short", () => {
+    wire();
+    pushTurns.opened("7");
+    socket.pushToolStatus({
+      type: "tool_status",
+      turn_id: "7",
+      state: "running",
+      tool_id: "read_file",
+    });
+    socket.pushToolStatus({
+      type: "tool_status",
+      turn_id: "7",
+      state: "done",
+      tool_id: "read_file",
+    });
+    socket.pushTurnEnd({ type: "turn_end", turn_id: "7" });
+
+    expect(toolStatusSink.mock.calls).toEqual([
+      [{ state: "running", tool_id: "read_file" }],
+      [{ state: "done", tool_id: "read_file" }],
+    ]);
+  });
+
+  it("flows one idle to the chip when the socket leaves ready with a tool still running", () => {
+    wire();
+    socket.pushToolStatus({
+      type: "tool_status",
+      turn_id: "7",
+      state: "running",
+      tool_id: "read_file",
+    });
+    socket.pushState({ kind: "reconnecting", delay_ms: 1_000 });
+
+    expect(toolStatusSink).toHaveBeenLastCalledWith({ state: "idle" });
+  });
+
+  it("never lights the chip for a frame of a turn the user stopped", () => {
+    wire();
+    pushTurns.opened("7");
+    pushTurns.cut();
+    socket.pushToolStatus({
+      type: "tool_status",
+      turn_id: "7",
+      state: "running",
+      tool_id: "read_file",
+    });
+
+    expect(toolStatusSink).not.toHaveBeenCalled();
+  });
+
   it("drops every subscription on dispose", () => {
     const dispose = wire();
     dispose();
@@ -266,6 +392,7 @@ describe("wirePushTransport", () => {
     expect(socket.hasDelegationsSubscriber()).toBe(false);
     expect(socket.hasReasoningSubscriber()).toBe(false);
     expect(socket.hasStateSubscriber()).toBe(false);
+    expect(socket.hasToolStatusSubscriber()).toBe(false);
   });
 });
 
