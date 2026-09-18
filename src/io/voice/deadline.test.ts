@@ -6,7 +6,7 @@
  */
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { createDeadlineSignal } from "./deadline";
+import { createDeadlineSignal, untilAborted } from "./deadline";
 
 describe("createDeadlineSignal", () => {
   beforeEach(() => {
@@ -44,5 +44,38 @@ describe("createDeadlineSignal", () => {
     vi.advanceTimersByTime(2000);
 
     expect(signal.aborted).toBe(false);
+  });
+});
+
+describe("untilAborted", () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it("resolves a settled promise through while the signal never aborts", async () => {
+    const { signal } = createDeadlineSignal(1000, "x");
+
+    await expect(untilAborted(Promise.resolve("value"), signal)).resolves.toBe("value");
+  });
+
+  it("rejects a never-settling promise with signal.reason when the deadline fires", async () => {
+    const { signal } = createDeadlineSignal(1000, "x");
+    const pending = untilAborted(new Promise<never>(() => {}), signal);
+
+    vi.advanceTimersByTime(1000);
+
+    await expect(pending).rejects.toBe(signal.reason);
+  });
+
+  it("rejects at once with the reason of an already-aborted signal and swallows the late rejection", async () => {
+    const signal = AbortSignal.abort(new Error("x"));
+
+    await expect(untilAborted(Promise.reject(new Error("late")), signal)).rejects.toBe(
+      signal.reason,
+    );
   });
 });

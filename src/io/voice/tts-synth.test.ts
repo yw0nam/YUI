@@ -298,6 +298,51 @@ describe("createTtsSynth", () => {
       await vi.advanceTimersByTimeAsync(TTS_SYNTH_TIMEOUT_MS + 10);
       await assertion;
     });
+
+    it("rejects with the deadline reason when the audio body never settles and the transport ignores the abort", async () => {
+      vi.useFakeTimers();
+      const fetchMock = vi.fn<FetchFn>(async () => {
+        return {
+          ok: true,
+          status: 200,
+          headers: new Headers(),
+          arrayBuffer: () => new Promise<ArrayBuffer>(() => {}),
+        } as unknown as Response;
+      });
+      const synth = createTtsSynth({
+        baseUrl: BASE_URL,
+        fetch: fetchMock as unknown as typeof fetch,
+      });
+
+      const pending = synth("hi");
+      const assertion = expect(pending).rejects.toMatchObject({
+        name: "TimeoutError",
+        message: "TTS request timed out",
+      });
+      await vi.advanceTimersByTimeAsync(TTS_SYNTH_TIMEOUT_MS + 10);
+      await assertion;
+    });
+
+    it("rejects with the HTTP error when the error body never settles and the transport ignores the abort", async () => {
+      vi.useFakeTimers();
+      const fetchMock = vi.fn<FetchFn>(async () => {
+        return {
+          ok: false,
+          status: 500,
+          headers: new Headers(),
+          json: () => new Promise(() => {}),
+        } as unknown as Response;
+      });
+      const synth = createTtsSynth({
+        baseUrl: BASE_URL,
+        fetch: fetchMock as unknown as typeof fetch,
+      });
+
+      const pending = synth("hi");
+      const assertion = expect(pending).rejects.toThrow("TTS request failed (HTTP 500)");
+      await vi.advanceTimersByTimeAsync(TTS_SYNTH_TIMEOUT_MS + 10);
+      await assertion;
+    });
   });
 
   it("adds Authorization: Bearer when getApiKey resolves a key, keeping Content-Type", async () => {

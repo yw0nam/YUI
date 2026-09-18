@@ -558,7 +558,7 @@ describe("createSttVad — per-request deadline (#275)", () => {
     warnSpy.mockRestore();
   });
 
-  it("reports the consumer's own error when onVoiceSegment throws after the deadline fired", async () => {
+  it("reports the timeout when the transcript settles only after the deadline fired", async () => {
     vi.useFakeTimers();
     const fetchMock = vi.fn(
       (): Promise<Response> =>
@@ -588,11 +588,40 @@ describe("createSttVad — per-request deadline (#275)", () => {
     await vi.advanceTimersByTimeAsync(STT_REQUEST_TIMEOUT_MS + 10);
     await pending;
 
-    expect(onState).toHaveBeenCalledWith("error", "consumer exploded");
+    expect(onState).toHaveBeenCalledWith("error", "STT request timed out");
+    expect(onVoiceSegment).not.toHaveBeenCalled();
     const errorCall = warnSpy.mock.calls.find((call) => String(call[0]).includes("stt_error"));
-    expect(JSON.stringify(errorCall)).toContain("consumer exploded");
-    expect(JSON.stringify(errorCall)).not.toContain("STT request timed out");
+    expect(JSON.stringify(errorCall)).toContain("STT request timed out");
+    expect(JSON.stringify(errorCall)).not.toContain("consumer exploded");
     warnSpy.mockRestore();
+  });
+
+  it("reports a timeout when the transcript body never settles and the transport ignores the abort", async () => {
+    vi.useFakeTimers();
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: () => new Promise(() => {}),
+    });
+    vi.spyOn(console, "warn").mockImplementation(() => {});
+
+    const onState = vi.fn();
+    const onVoiceSegment = vi.fn();
+    const stt = createSttVad({
+      config: () => CONFIG,
+      onVoiceSegment,
+      onState,
+      fetch: fetchMock,
+    });
+    await stt.start();
+
+    const pending = triggerSpeechEnd!(new Float32Array([0.1, 0.2]));
+    await vi.advanceTimersByTimeAsync(STT_REQUEST_TIMEOUT_MS + 10);
+    await pending;
+
+    expect(onState).toHaveBeenCalledWith("asr");
+    expect(onState).toHaveBeenCalledWith("error", "STT request timed out");
+    expect(onVoiceSegment).not.toHaveBeenCalled();
   });
 });
 
