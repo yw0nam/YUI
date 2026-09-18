@@ -1203,7 +1203,7 @@ def test_an_oversize_render_drops_its_reasoning_before_any_speech():
 
 
 def test_a_frame_that_cannot_be_trimmed_has_nothing_to_send(caplog):
-    """Nothing in a delegations frame is trimmable, and the client closes the socket on one."""
+    """A delegations frame whose items carry no summary has nothing to trim, and the client closes the socket on one."""
     frame = {
         "type": "delegations",
         "items": [{"id": "d-1", "title": "x" * (MAX_FRAME_BYTES + 100), "started_at": 1, "state": "running"}],
@@ -1211,6 +1211,20 @@ def test_a_frame_that_cannot_be_trimmed_has_nothing_to_send(caplog):
     with caplog.at_level(logging.WARNING):
         assert fit_frame(frame) is None
     assert "still over" in caplog.text
+
+
+def test_an_oversize_delegations_frame_drops_summaries_oldest_first_until_it_fits():
+    items = [
+        {"id": f"d-{n}", "title": "t", "started_at": n, "state": "done", "ended_at": n, "status": "ok", "summary": "안" * 2000}
+        for n in range(50)
+    ]
+    frame = {"type": "delegations", "items": items}
+    fitted = json.loads(fit_frame(frame))
+    assert len(json.dumps(fitted, ensure_ascii=False).encode("utf-8")) <= MAX_FRAME_BYTES
+    kept = [item for item in fitted["items"] if "summary" in item]
+    assert kept and kept[0]["id"] != "d-0"
+    assert all("summary" in item for item in fitted["items"][len(fitted["items"]) - len(kept):])
+    assert [item["id"] for item in fitted["items"]] == [f"d-{n}" for n in range(50)]
 
 
 async def test_a_frame_that_cannot_be_trimmed_is_dropped_instead_of_sent(client, adapter):

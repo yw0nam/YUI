@@ -97,6 +97,12 @@ def test_a_stop_with_no_summary_sends_none():
     assert "summary" not in delegations.items("yui")[0]
 
 
+def test_a_summary_that_is_not_text_is_dropped():
+    delegations.on_subagent_start(child_subagent_id="sa-1", child_session_id="s-1", child_goal="Work")
+    delegations.on_subagent_stop(child_session_id="s-1", child_status="completed", child_summary={"blocks": []})
+    assert "summary" not in delegations.items("yui")[0]
+
+
 def test_a_stop_for_an_unknown_delegation_changes_nothing():
     delegations.on_subagent_stop(child_session_id="never-started")
     assert delegations.items("yui") == []
