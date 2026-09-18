@@ -32,7 +32,10 @@ const flush = (): Promise<void> => new Promise((resolve) => setTimeout(resolve, 
 
 function makePlayback(loadImpl?: (path: string) => Promise<THREE.AnimationClip | null>) {
   const clips = {
-    load: vi.fn(async (path: string) => new THREE.AnimationClip(path, 1, [])),
+    load: vi.fn(
+      async (path: string): Promise<THREE.AnimationClip | null> =>
+        new THREE.AnimationClip(path, 1, []),
+    ),
     playbackClip: vi.fn((clip: THREE.AnimationClip) => clip),
   };
   if (loadImpl) clips.load.mockImplementation(loadImpl);

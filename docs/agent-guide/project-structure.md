@@ -100,6 +100,7 @@ YUI/
         mirror-clip.ts               # Mirrors a clip across the YZ plane
         motion-controller.ts         # Pure motion scheduling and variant-resolution state machine
         motion-fallback.ts           # Idle-fallback decision for a motion whose clip fails to load
+        motion-playback.ts           # Mixer-driven motion playback: controller decisions, action crossfade, finish → next, idle baseline
         motion-start-generation.ts   # Tracks which asynchronous motion start owns mixer playback
         perch-hold.ts                # Held-posture suppression and baseline rules
         recenter-root-motion.ts      # Strips baked horizontal drift from VRMA root motion

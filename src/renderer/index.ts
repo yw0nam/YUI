@@ -45,18 +45,7 @@ import { createScreenProbes } from "./geometry/screen-probes";
 import { clientToStage } from "./geometry/stage-coords";
 import { applyViewWindow, type ViewWindow } from "./geometry/view-window";
 import { createClipLibrary } from "./motion/clip-library";
-import { createCycleDwell } from "./motion/cycle-dwell";
-import {
-  createMotionController,
-  type MotionController,
-  poolSelectionChanged,
-  type RenderMotionSignal,
-  type ResolvedMotion,
-  shouldRestartIdle,
-} from "./motion/motion-controller";
-import { resolveBaselineFallback } from "./motion/motion-fallback";
-import { createMotionStartGeneration } from "./motion/motion-start-generation";
-import { baselineWhileHeld, suppressWhileHeld } from "./motion/perch-hold";
+import { createMotionPlayback } from "./motion/motion-playback";
 import { createRootYaw } from "./motion/root-yaw";
 import { createPinController, type PinController } from "./pin-controller";
 import type { Renderer, RendererOptions, TickContext, TickFn, VrmLoadResult } from "./types";
@@ -86,9 +75,6 @@ const ORBIT_SETTLE_EPS = 1e-3;
 
 /** Idle (ambient-only) frame cap — full refresh is reserved for active animation. */
 const IDLE_FPS = 30;
-
-/** Ambient baseline pool id — the only pool whose variants the user selects. */
-const IDLE_POOL_ID = "idle";
 
 export type { RenderEmotionSignal } from "./expression/emotion-resolver";
 export type { MouthLipsync, MouthLipsyncOptions } from "./expression/mouth-lipsync";
@@ -210,34 +196,15 @@ export function createRenderer(options: RendererOptions): Renderer {
   let currentVrm: VRM | undefined;
 
   // ── Motion playback state ──────────────────────────────────────────────
+  // Live motion registry — the clip library reads it through getRegistry.
   let motionRegistry: MotionRegistry | undefined = options.motionRegistry;
-  /** User-selected ambient idle variants; null until the settings overlay is applied. */
-  let idleVariants: readonly string[] | null = null;
-  /** Every controller resolves the ambient pool through the live selection. */
-  function newMotionController(registry: MotionRegistry): MotionController {
-    return createMotionController(registry, {
-      variantFilter: (id, variants) => {
-        const enabled = idleVariants;
-        if (id !== IDLE_POOL_ID || !enabled) return variants;
-        return variants.filter((v) => enabled.includes(v));
-      },
-    });
-  }
-  let controller: MotionController | undefined = motionRegistry
-    ? newMotionController(motionRegistry)
-    : undefined;
-  /** AnimationMixer for current VRM only (recreated on each hotswap). */
-  let mixer: THREE.AnimationMixer | undefined;
-  /** Currently playing AnimationAction (prev in crossfade). */
-  let currentAction: THREE.AnimationAction | undefined;
-  let currentActionId: string | undefined;
-  let lastStateMotionId: string | null = null;
-  /** mixer "finished" event → AnimationAction → motion id reverse lookup. */
-  const actionToId = new Map<THREE.AnimationAction, string>();
-  const motionStartGeneration = createMotionStartGeneration();
-  /** Scheduler for dwell (settling frame hold) before cycle motion variant swap — startMotion is cancel chokepoint. */
-  const cycleDwell = createCycleDwell();
   const clips = createClipLibrary({ loader, getRegistry: () => motionRegistry, log });
+  const motion = createMotionPlayback({
+    clips,
+    registry: motionRegistry,
+    heldPosture: () => (pins.isPerched() ? "sitting" : pins.isPeeking() ? "peeking" : null),
+    log,
+  });
 
   // ── Lipsync state ──────────────────────────────────────────────────────
   // Mouth (`aa`) is lipsync-only — separate from ambient/emotion. Applied each frame via lerp in same
@@ -267,28 +234,6 @@ export function createRenderer(options: RendererOptions): Renderer {
     mountWidth: () => mount.clientWidth || 1,
     mountHeight: () => mount.clientHeight || 1,
   });
-
-  /** mixer "finished" handler (oneshot end → controller.finish → return playback). */
-  const onMixerFinished = (e: { action: THREE.AnimationAction }): void => {
-    try {
-      const id = actionToId.get(e.action);
-      actionToId.delete(e.action);
-      if (!controller || !id) return;
-      // if cycle motion, hold settling final frame for cycle_dwell_ms then swap.
-      const isCycle = controller.current()?.cycle ?? false;
-      const dwell = motionRegistry?.[id]?.cycle_dwell_ms;
-      const swap = (): void => {
-        const decision = controller!.finish(id);
-        controller!.commit(decision);
-        if (decision.action === "play") {
-          void startMotion(decision.motion);
-        }
-      };
-      cycleDwell.onFinish(isCycle, dwell, swap);
-    } catch (err) {
-      log.error("motion_finish_handler_error", { error: String(err) });
-    }
-  };
 
   // Cached mount rect (viewport-relative) for client→stage-local conversion
   // (hitTest/setGazeCursor). Refreshed alongside size in resize() — mount is
@@ -333,13 +278,6 @@ export function createRenderer(options: RendererOptions): Renderer {
     log,
   });
 
-  /** True while a non-baseline motion clip is actively playing via the mixer. */
-  function isMotionActive(): boolean {
-    if (!currentAction?.isRunning()) return false;
-    const id = controller?.current()?.id;
-    return id != null && id !== controller?.baseline();
-  }
-
   // ── VrmParticipant unification ──────────────────────────────────────────
   // pins/gaze/emotion/mouth share the same per-frame lifecycle (adopt on load,
   // step before vrm.update, drop on dispose, report convergence) under mismatched
@@ -359,7 +297,7 @@ export function createRenderer(options: RendererOptions): Renderer {
     const active =
       isActive({
         participantsConverging: anyConverging(participants),
-        motionActive: isMotionActive(),
+        motionActive: motion.isConverging(),
       }) ||
       orbitConverging ||
       rootYaw.isConverging();
@@ -386,13 +324,7 @@ export function createRenderer(options: RendererOptions): Renderer {
         }
       }
       // Mixer first — after bone update, vrm.update applies spring/expression.
-      if (mixer) {
-        try {
-          mixer.update(dt);
-        } catch (err) {
-          log.error("mixer_update_error", { error: String(err) });
-        }
-      }
+      motion.step(ctx);
       rootYaw.step(ctx);
       // pins/gaze (bones) then emotion/mouth (expression weights) — all before
       // vrm.update so expressionManager.update()/spring bones see this frame's writes.
@@ -426,27 +358,9 @@ export function createRenderer(options: RendererOptions): Renderer {
   }
   document.addEventListener("visibilitychange", onVisibilityChange);
 
-  /** Tear down mixer/clip/action cache + controller state (shared hotswap/dispose). */
-  function teardownMotion(): void {
-    cycleDwell.cancel(); // prevent stale swap on mixer being disposed.
-    motionStartGeneration.invalidate();
-    if (mixer) {
-      mixer.removeEventListener("finished", onMixerFinished as never);
-      mixer.stopAllAction();
-      if (currentVrm) mixer.uncacheRoot(currentVrm.scene);
-      mixer = undefined;
-    }
-    clips.onVrmDisposed();
-    actionToId.clear();
-    currentAction = undefined;
-    currentActionId = undefined;
-    // Controller has no simple no-op reset, so recreate to empty current/queue.
-    // (Clips are VRM-specific so idle baseline must be replayed on next VRM anyway.)
-    if (motionRegistry) controller = newMotionController(motionRegistry);
-  }
-
   function disposeCurrent(): void {
-    teardownMotion();
+    motion.onVrmDisposed();
+    clips.onVrmDisposed();
     // Drop each participant's VRM-bound state (reset in-flight fade/bone refs/damped
     // state) so nothing carries to the next VRM or writes to the disposed one.
     notifyVrmDisposed(participants);
@@ -457,94 +371,6 @@ export function createRenderer(options: RendererOptions): Renderer {
     }
     modelBox = undefined; // drop stale bounds so fitCamera no-ops until next load.
     alphaHitTest.clearGrab(); // stale silhouette can't outlive its VRM.
-  }
-
-  /**
-   * Actually play resolved motion (load clip → compose action → crossfade).
-   * controller.commit is performed by caller (playMotion/finish) with the decision.
-   */
-  async function startMotion(motion: ResolvedMotion): Promise<void> {
-    const startToken = motionStartGeneration.begin();
-    // Single play sink — cancel any pending dwell swap for new motion (prevents interrupt delay/stale swap).
-    cycleDwell.cancel();
-    if (!currentVrm || !mixer) return;
-    try {
-      let clip = await clips.load(motion.vrma_path, motion.root_lock_y);
-      if (!motionStartGeneration.isCurrent(startToken)) return;
-      if (!clip) {
-        // Real load failure (clip missing/invalid for the live VRM) → fall back to idle.
-        // A hotswap/teardown drop (no vrm / no mixer) just returns silently.
-        if (currentVrm && mixer) fallbackToBaseline(motion.id);
-        return;
-      }
-      if (!mixer) return;
-
-      log.debug("start_motion", { id: motion.id, vrma_path: motion.vrma_path });
-
-      const fadeMs = Math.max(0, motion.fade_ms);
-      const prev = currentAction;
-      clip = clips.playbackClip(clip, prev ? prev.getClip() : null, fadeMs);
-
-      const action = mixer.clipAction(clip);
-      action.timeScale = motion.speed;
-      if (motion.loop && !motion.cycle) {
-        // plain loop or single-variant pingpong (continuous).
-        action.setLoop(motion.pingpong ? THREE.LoopPingPong : THREE.LoopRepeat, Infinity);
-        action.clampWhenFinished = false;
-      } else {
-        // oneshot or cycle: if pingpong then after 2N reps, otherwise once then controller.finish via finished.
-        action.setLoop(
-          motion.pingpong ? THREE.LoopPingPong : THREE.LoopOnce,
-          motion.pingpong ? motion.loop_reps : 1,
-        );
-        action.clampWhenFinished = true;
-        actionToId.set(action, motion.id);
-      }
-      // The outgoing action keeps advancing during the fade and can still cross its own
-      // clip end, dispatching a stale "finished" for it once a new motion has replaced it.
-      if (prev && prev !== action) actionToId.delete(prev);
-
-      const fade = fadeMs / 1000;
-      action.reset();
-      action.enabled = true;
-      if (prev && prev !== action && fade > 0) {
-        action.crossFadeFrom(prev, fade, false).play();
-      } else {
-        if (prev && prev !== action) prev.stop();
-        if (fade > 0) action.fadeIn(fade);
-        action.play();
-      }
-      currentAction = action;
-      currentActionId = motion.id;
-      if (motion.kind === "state") lastStateMotionId = motion.id;
-    } catch (err) {
-      log.error("start_motion", { error: String(err) });
-      // Loader threw for the live VRM → recover to idle. Drops (hotswap/teardown) return silently.
-      if (motionStartGeneration.isCurrent(startToken) && currentVrm && mixer) {
-        fallbackToBaseline(motion.id);
-      }
-    }
-  }
-
-  /**
-   * A motion's clip failed to load → repair controller state to idle and (re)play it.
-   * playMotion commits before the async load, so a failed clip leaves current +
-   * previousStable pinned at the dead id and a later idle blocked by priority;
-   * force-committing idle (motion-fallback) overwrites both. Recursion guard: idle's
-   * own failure resolves to null and no-ops. Honors public/purchased_motions/AGENTS.md.
-   */
-  function fallbackToBaseline(failedId: string): void {
-    if (!controller) return;
-    log.warn("motion_fallback_to_idle", { failed_id: failedId });
-    const idle = resolveBaselineFallback(controller, failedId);
-    if (idle) void startMotion(idle);
-  }
-
-  /** If registry exists, lay down baseline so ambient always plays. */
-  function playIdleBaseline(): void {
-    if (!controller) return;
-    const held = pins.isPerched() || pins.isPeeking();
-    playMotion({ id: baselineWhileHeld(held, lastStateMotionId, controller.baseline()) });
   }
 
   // Read display name from VRM meta — VRM1.0 uses meta.name, VRM0.0 uses meta.title. null if neither.
@@ -596,68 +422,9 @@ export function createRenderer(options: RendererOptions): Renderer {
       });
     }
 
-    // New mixer for this VRM (clips are VRM-specific so start fresh).
-    mixer = new THREE.AnimationMixer(vrm.scene);
-    mixer.addEventListener("finished", onMixerFinished as never);
-
-    playIdleBaseline(); // If registry exists, auto-play idle ambient.
+    motion.onVrmLoaded(vrm); // New mixer for this VRM; if a registry exists, auto-play idle ambient.
 
     return { metaName: readVrmMetaName(vrm) };
-  }
-
-  /** playMotion implementation — request → (play/queue/ignore) → commit + actual playback. */
-  function playMotion(motion: RenderMotionSignal | null): void {
-    if (!controller) {
-      log.warn("play_motion_no_registry");
-      return;
-    }
-    if (!currentVrm || !mixer) return; // Playback not possible if VRM not loaded.
-    const perched = pins.isPerched();
-    const peeking = pins.isPeeking();
-    if (suppressWhileHeld(motion, perched || peeking, (id) => motionRegistry?.[id]?.kind)) {
-      if (motion) {
-        log.info("motion_dropped_held_posture", {
-          id: motion.id,
-          posture: perched ? "sitting" : "peeking",
-        });
-      }
-      return;
-    }
-    try {
-      const decision = controller.request(motion);
-      controller.commit(decision);
-      if (decision.action === "play") {
-        void startMotion(decision.motion);
-      }
-      // "queue" is stored in slot via commit — drained on finish.
-      // "ignore" is no-op.
-    } catch (err) {
-      log.error("play_motion", { error: String(err) });
-    }
-  }
-
-  function setMotionRegistry(registry: MotionRegistry): void {
-    motionRegistry = registry;
-    controller = newMotionController(registry);
-    // If VRM is already loaded, immediately start idle baseline.
-    if (currentVrm && mixer) playIdleBaseline();
-  }
-
-  function setIdleVariants(paths: readonly string[]): void {
-    const previous = idleVariants;
-    const next = [...paths];
-    idleVariants = next;
-    if (!poolSelectionChanged(previous, next)) return;
-    // Nothing is playable before a VRM+mixer exist, so no motion can be stuck yet.
-    const playing = currentVrm && mixer ? (controller?.current() ?? null) : null;
-    if (shouldRestartIdle(previous, next, playing, IDLE_POOL_ID)) {
-      // A pool of one loops without ever finishing — only a replay picks the change up.
-      playIdleBaseline();
-      return;
-    }
-    // Otherwise the change rides the next re-resolve. Drop the cached return target so a motion
-    // playing over the pool cannot restore a resolution captured before the change.
-    controller?.invalidatePool(IDLE_POOL_ID);
   }
 
   /** setEmotion — delegate to emotion crossfade (stable reference for routeDirective). */
@@ -716,7 +483,7 @@ export function createRenderer(options: RendererOptions): Renderer {
     },
     applyDirective(env) {
       // route emotion/motion into setEmotion/playMotion per render rules.
-      routeDirective(env, { setEmotion, playMotion });
+      routeDirective(env, { setEmotion, playMotion: motion.playMotion });
     },
     setEmotion,
     easeEmotionToNeutral,
@@ -726,13 +493,16 @@ export function createRenderer(options: RendererOptions): Renderer {
     stopMouth() {
       mouth.stop();
     },
-    playMotion,
+    playMotion: motion.playMotion,
     getCurrentMotion() {
-      const cur = controller?.current();
+      const cur = motion.current();
       return cur ? { id: cur.id, vrma_path: cur.vrma_path } : null;
     },
-    setMotionRegistry,
-    setIdleVariants,
+    setMotionRegistry(registry) {
+      motionRegistry = registry;
+      motion.setRegistry(registry);
+    },
+    setIdleVariants: motion.setIdleVariants,
     setEmotionRegistry,
     setFraming,
     setViewWindow,
@@ -755,7 +525,7 @@ export function createRenderer(options: RendererOptions): Renderer {
       if (!changed) return;
       if (target === null) {
         orbitConverging = true; // ease the polar back to the stored free angle.
-        playMotion(null); // perch cleared — explicit return to idle baseline.
+        motion.playMotion(null); // perch cleared — explicit return to idle baseline.
         return;
       }
       orbitConverging = true; // ease the polar into the perched [60°,120°] band.
@@ -766,7 +536,7 @@ export function createRenderer(options: RendererOptions): Renderer {
     setPeekTarget(target) {
       const changed = pins.setPeekTarget(target);
       if (!changed) return;
-      if (target === null) playMotion(null);
+      if (target === null) motion.playMotion(null);
     },
     setMotionMirror(on) {
       clips.setMirror(on);
@@ -778,12 +548,7 @@ export function createRenderer(options: RendererOptions): Renderer {
     getMotionDuration: clips.duration,
     getMotionTravelY: clips.travelY,
     getMotionTravelAt: clips.travelAt,
-    getCurrentMotionTime() {
-      const current = controller?.current();
-      if (!current || !currentAction || current.id !== currentActionId) return null;
-      // A start is asynchronous, so the action can still be holding the previous clip.
-      return currentAction.time;
-    },
+    getCurrentMotionTime: motion.currentTime,
     preloadMotion: clips.preload,
     setIdleThrottleEnabled(enabled) {
       idleThrottleEnabled = enabled;
