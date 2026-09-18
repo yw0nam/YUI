@@ -255,6 +255,7 @@ YUI/
         push-socket-bridge.ts          # Push socket state as seen from a window that does not own it
         delegations-store.ts           # Background work the backend reports on the push socket
         delegations-bridge.ts          # Delegations list as seen from a window that does not own the push socket
+        delegation-history.ts          # Every delegation the client has seen, persisted for the settings window's Session section
         reasoning-store.ts             # Backend reasoning text as the current turn writes it
         reasoning-bridge.ts            # Reasoning text as seen from a window that does not own the push socket
       assets/
@@ -315,7 +316,7 @@ YUI/
         template.ts                  # Panel markup as pure string construction
         popover.ts                   # Popover shell: positioning, dragging, open and close lifecycle
         reflect.ts                   # Store to DOM reflection for every panel section
-        constants.ts                 # Display constants shared by the panel and its sections
+        constants.ts                 # Display constants shared by the panel, its sections, and the chips that reuse its glyphs
         sections.ts                  # Wires the collapsible details groups to the sections store
         switch-row.ts                # Switch-row element contract and the row table filling it
         seg-keyboard.ts              # Arrow, Home, End and commit keyboard handling shared by the segmented controls

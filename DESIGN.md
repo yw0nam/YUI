@@ -109,8 +109,8 @@ Near-achromatic warm neutral with a single point of amber. The model is **dark s
 - **Warm Ink** (`oklch(0.22 0.01 70)`): dark body text, retained for light contexts only; never used on a floating surface.
 
 ### Functional
-- **Ember Red** (`oklch(0.77 0.11 35)`, `--yui-danger`): undo and failure messaging only. Hue 35 keeps it clear of the amber accent; soft and faint variants match the accent pattern.
-- **Ok Green** (`oklch(0.82 0.14 150)`, `--yui-ok`): tool-chip completion only. Hue 150 keeps it clear of both the amber accent and Ember Red; the soft variant (`--yui-ok-soft`, `/ 0.4`) carries the completion blink.
+- **Ember Red** (`oklch(0.77 0.11 35)`, `--yui-danger`): undo, failure messaging and the failed-delegation dot. Hue 35 keeps it clear of the amber accent; soft and faint variants match the accent pattern.
+- **Ok Green** (`oklch(0.82 0.14 150)`, `--yui-ok`): tool-chip completion and the finished-delegation dot. Hue 150 keeps it clear of both the amber accent and Ember Red; the soft variant (`--yui-ok-soft`, `/ 0.4`) carries the completion blink.
 
 ### Named Rules
 **The 10% Warmth Rule.** Hearth Amber occupies ≤10% of any surface. Scarcity is the warmth; once common it reads as branding and breaks invisible-by-default.
@@ -170,6 +170,9 @@ A custom-styled `<select>` (`quick-controls/endpoints-section.css`) used as the 
 
 ### Session history accordion
 The settings panel's History tab (`quick-controls/history-section.css`), a read-only record rather than a chat surface. Each conversation session is one collapsed row carrying its start time, the first thing you said (ellipsized) and its message count; the current session sits at the top, opened by default inside an amber-faint frame, and older ones expand in place on click (`aria-expanded`). Open sessions read as a script: a three-column row per message (speaker · text · time) where YUI's name is the only Hearth Amber in the list, over hairline separation and a Muted-Ash footnote on retention and local-only storage.
+
+### Delegation list
+The backend's delegated work as rows (`chips/delegation-rows.css`), shared by the chip's popover beside the avatar and the settings panel's Session section. Each row is a dot, an ellipsized title and a tabular-nums time: the dot is Hearth Amber while the work runs, Ok Green once it finished and Ember Red when it failed; the time reads the elapsed minutes while running and "Done · 4m ago" or "Failed · 4m ago" after. In the Session section, which lists the client's persisted history, a finished row that carries a summary is a chevron disclosure (`aria-expanded`) opening the worker's summary and "Took 12m" underneath; the popover's rows never open.
 
 ### Capture & voice indicators
 Paired status pills at the top edge (`capture-indicator.css`, `voice-input-indicator.css`). Same pill shape and Strong-Scrim as the tool chip. The capture tell carries an amber pulse dot while the screen is being attached (an always-on privacy cue); the voice tell carries a dot that pulses amber while listening, settles to a steady full Hearth Amber when a turn fires (the label carries the state change), and turns Ember Red on error. In the one error the settings panel can resolve — an unconfigured backend — that voice pill is also an inline link: the label states the reason under a Hearth-Amber-soft underline and gains a trailing gear glyph in Muted-Ash, both igniting to full Hearth Amber on hover and `:focus-visible` (with an amber-soft focus ring), and clicking it opens the settings panel's Advanced tab.

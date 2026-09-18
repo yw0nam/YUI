@@ -53,7 +53,9 @@ turns in and finished replies out. The contract both sides speak is
   ends when that turn ends. A turn the gateway started on its own, such as a cron result, carries an
   id the plugin mints, of the form `hermes-<n>`, counted per gateway process.
 - Sends a `delegations` frame whenever background work starts or finishes, so the client can show
-  what is running; each finished item carries its `status` and `summary`.
+  what is running; each finished item carries its `status` and `summary`. The plugin holds fifty
+  items per chat, dropping the oldest finished one past that, and drops summaries oldest-first
+  from a frame over the size limit.
 - Sends a `tool_status` frame from the gateway's `pre_tool_call` and `post_tool_call` hooks for
   each tool call of an open YUI turn, so the client can show and name the tool in use. A frame for
   a chat with no connected client or no open turn is dropped, never held and never retried.
