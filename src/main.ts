@@ -24,6 +24,7 @@ import { createConfigStore } from "./config/store";
 import { createEventBus } from "./dispatcher/core/event-bus";
 import { createUserInputSource } from "./dispatcher/sources/user-input-source";
 import { removeUserVrm } from "./io/assets/vrm-import";
+import { createDelegationHistory } from "./io/bridge/delegation-history";
 import { publishDelegations } from "./io/bridge/delegations-bridge";
 import { createDelegationsStore } from "./io/bridge/delegations-store";
 import { createMessageBridge } from "./io/bridge/message-bridge";
@@ -337,6 +338,8 @@ async function bootstrap(): Promise<BootstrapHandle> {
   register(chatIdSettings.dispose);
   // The backend's delegations frames land here; the chip and the settings mirror both read it.
   const delegations = createDelegationsStore();
+  const delegationHistory = createDelegationHistory();
+  register(delegationHistory.dispose);
   // The backend's reasoning deltas land here; the message window's chip mirrors it.
   const reasoning = createReasoningStore();
   // The panel's session reset stops the running turn the way the stop button does; the shared
@@ -568,6 +571,7 @@ async function bootstrap(): Promise<BootstrapHandle> {
       getQuickControls: () => quickControls,
       pushSocket,
       delegations,
+      delegationHistory,
       reasoning,
       getEndpoints,
       getGuardrails,

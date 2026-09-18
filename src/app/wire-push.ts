@@ -2,6 +2,7 @@ import type { EndpointsConfig, ToolStatus } from "../contract";
 import type { PushTurns } from "../dispatcher/turn/push-turn";
 import { createRenderTurn } from "../dispatcher/turn/render-turn";
 import type { TurnOutput } from "../dispatcher/turn/turn-output";
+import type { DelegationHistory } from "../io/bridge/delegation-history";
 import type { DelegationsStore } from "../io/bridge/delegations-store";
 import type { ReasoningStore } from "../io/bridge/reasoning-store";
 import type { ChatHistoryEntry } from "../io/chat/chat-history-store";
@@ -38,6 +39,8 @@ export function wirePushTransport(deps: {
   /** Which push turns the user stopped — a frame of one of them never plays. */
   pushTurns: PushTurns;
   delegations: DelegationsStore;
+  /** The persisted list every `delegations` frame folds into. */
+  delegationHistory: Pick<DelegationHistory, "merge">;
   reasoning: ReasoningStore;
   /** The tool chip sink — every tool_status frame reaches it, whether or not the client sent the turn. */
   onToolStatus: (status: ToolStatus) => void;
@@ -98,6 +101,8 @@ export function wirePushTransport(deps: {
     }),
     deps.pushTurns.onCut((turnId) => renderTurn.drop(turnId)),
     deps.socket.onDelegations((items) => {
+      // The history reaches storage before the live list's bridge emit tells the settings window to reload.
+      deps.delegationHistory.merge(items);
       deps.delegations.replace(items);
       const running = items.filter((item) => item.state === "running").length;
       deps.log.info("delegations", { total: items.length, running });

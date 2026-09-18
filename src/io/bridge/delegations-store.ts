@@ -21,7 +21,7 @@ export interface DelegationsStore {
   subscribe(cb: (items: DelegationItem[]) => void): () => void;
 }
 
-function sanitize(raw: unknown): DelegationItem | null {
+export function sanitizeDelegation(raw: unknown): DelegationItem | null {
   if (raw === null || typeof raw !== "object") return null;
   const v = raw as Record<string, unknown>;
   if (typeof v.id !== "string" || v.id === "") return null;
@@ -55,7 +55,7 @@ export function createDelegationsStore(deps: { now?: () => number } = {}): Deleg
   return {
     replace(next): void {
       items = (Array.isArray(next) ? next : [])
-        .map(sanitize)
+        .map(sanitizeDelegation)
         .filter((item): item is DelegationItem => item !== null)
         .slice(0, DELEGATIONS_MAX_ITEMS);
       const list = visible();

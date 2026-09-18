@@ -17,6 +17,7 @@ import {
   localStorageUserVrmStorage,
   localStorageVrmStorage,
 } from "./io/assets/vrm-selection";
+import { createDelegationHistory } from "./io/bridge/delegation-history";
 import { createMirroredDelegations } from "./io/bridge/delegations-bridge";
 import { createMirroredPushSocket } from "./io/bridge/push-socket-bridge";
 import { agentTriggerableMotionIds } from "./io/chat/broker-client";
@@ -177,18 +178,29 @@ async function bootstrap(): Promise<void> {
   const pushSocket = createMirroredPushSocket({ bridge });
   // The delegations list rides the same bridge; this window mirrors it, never a second socket.
   const delegations = createMirroredDelegations({ bridge });
-  window.addEventListener("focus", () => {
+  // The pet window writes the history to storage before it emits the live list, so each emit is the cue to re-read it.
+  const delegationHistory = createDelegationHistory();
+  const unsubscribeDelegationHistory = delegations.subscribe(() =>
+    delegationHistory.reloadFromStorage(),
+  );
+  const onWindowFocus = (): void => {
     reloadOnFocus();
     pushSocket.refresh();
     delegations.refresh();
-  });
+    delegationHistory.reloadFromStorage();
+  };
+  window.addEventListener("focus", onWindowFocus);
 
   const buildQuickControls = (): ReturnType<typeof createQuickControls> =>
     createQuickControls({
       mount: app,
       variant: "window",
       pushSocket,
-      delegations,
+      delegations: {
+        get: delegationHistory.get,
+        subscribe: delegationHistory.subscribe,
+        refresh: delegationHistory.reloadFromStorage,
+      },
       // Close settings window with Escape — closing for window variant is OS window's job.
       onCloseWindow: closeSettingsWindow,
       agentSettings,
@@ -338,8 +350,10 @@ async function bootstrap(): Promise<void> {
     unsubscribeVoiceRefresh();
     pushSocket.dispose();
     delegations.dispose();
+    unsubscribeDelegationHistory();
+    delegationHistory.dispose();
     disposeSync();
-    window.removeEventListener("focus", reloadOnFocus);
+    window.removeEventListener("focus", onWindowFocus);
     for (const store of Object.values(settingsStores)) store.dispose();
     vrmSelection.dispose();
     speakerSelection.dispose();

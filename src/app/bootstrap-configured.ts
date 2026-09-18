@@ -23,6 +23,7 @@ import { createDispatcher, type Dispatcher } from "../dispatcher/dispatcher";
 import type { UserInputSource } from "../dispatcher/sources/user-input-source";
 import { createPushTurns } from "../dispatcher/turn/push-turn";
 import { createTurnLog } from "../dispatcher/turn/turn";
+import type { DelegationHistory } from "../io/bridge/delegation-history";
 import type { DelegationsStore } from "../io/bridge/delegations-store";
 import type { ReasoningStore } from "../io/bridge/reasoning-store";
 import { selectFetch } from "../io/chat/chat-client";
@@ -108,6 +109,8 @@ interface Phase1Handles {
   pushSocket?: PushSocket;
   /** The backend's delegations list, fed by the push socket's `delegations` frames. */
   delegations: DelegationsStore;
+  /** The persisted history every `delegations` frame folds into. */
+  delegationHistory: DelegationHistory;
   /** The backend's reasoning text, fed by the push socket's `reasoning` frames. */
   reasoning: ReasoningStore;
   getEndpoints(): EndpointsConfig;
@@ -224,6 +227,7 @@ const realFactories: ConfiguredBootstrapFactories = {
       getQuickControls,
       pushSocket,
       delegations,
+      delegationHistory,
       reasoning,
       getEndpoints,
       getGuardrails,
@@ -757,6 +761,7 @@ const realFactories: ConfiguredBootstrapFactories = {
           turnOutput: voice.turnOutput,
           pushTurns,
           delegations,
+          delegationHistory,
           reasoning,
           onToolStatus: applyToolStatus,
           appendTurnRecord: (record) => appendRecord(record),

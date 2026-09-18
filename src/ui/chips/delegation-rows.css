@@ -44,3 +44,67 @@
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
 }
+
+/* A finished row that carries a summary opens it underneath, the History tab's disclosure. */
+.yui-deleg__item--toggle {
+  grid-template-columns: auto 1fr auto auto;
+  width: 100%;
+  margin: 0;
+  border-right: 0;
+  border-bottom: 0;
+  border-left: 0;
+  border-radius: 0;
+  background: none;
+  color: var(--yui-text-dim);
+  font-family: inherit;
+  font-size: 0.78rem;
+  text-align: left;
+  cursor: pointer;
+  transition: background var(--yui-dur-fast) var(--yui-ease);
+}
+
+.yui-deleg__item--toggle:hover {
+  background: oklch(0.97 0.01 80 / 0.04);
+}
+
+.yui-deleg__item--toggle:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px var(--yui-accent-soft);
+}
+
+.yui-deleg__item-chev {
+  display: inline-flex;
+  flex: 0 0 auto;
+  color: var(--yui-text-mute);
+  transition: transform var(--yui-dur-fast) var(--yui-ease);
+}
+
+.yui-deleg__item--toggle.is-open .yui-deleg__item-chev {
+  transform: rotate(90deg);
+}
+
+.yui-deleg__summary {
+  padding: 0.1rem 0 0.5rem 1rem;
+}
+
+.yui-deleg__summary-text {
+  margin: 0;
+  font-size: 0.78rem;
+  line-height: 1.45;
+  color: var(--yui-text-dim);
+  overflow-wrap: anywhere;
+}
+
+.yui-deleg__summary-meta {
+  margin: 0.3rem 0 0;
+  font-size: 0.68rem;
+  color: var(--yui-text-mute);
+  font-variant-numeric: tabular-nums;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .yui-deleg__item--toggle,
+  .yui-deleg__item-chev {
+    transition: none;
+  }
+}
