@@ -12,7 +12,7 @@ import type { DelegationItem, PushSocketState } from "../../io/chat/push-socket"
 import type { createSessionDiagnosticsStore } from "../../io/chat/session-diagnostics";
 import type { createSessionStore } from "../../io/chat/session-store";
 import type { createAgentNotifySettings } from "../../io/settings/agent-notify-settings";
-import { type createAgentSettings, REASONING_EFFORTS } from "../../io/settings/agent-settings";
+import type { createAgentSettings } from "../../io/settings/agent-settings";
 import type { ApiKeySettingsStore } from "../../io/settings/api-key-settings";
 import type { ChatKeySettingsStore } from "../../io/settings/chat-key-settings";
 import type {
@@ -52,8 +52,9 @@ import type { ScreenSourceProvider } from "../../io/window/screen-source-provide
 import { createLogger } from "../../logger";
 import { DELEGATION_REFRESH_MS } from "../chips/delegation-rows";
 import type { VoiceInputStatus } from "../chips/voice-input-status";
-import { type Locale, setLocale, t } from "../i18n";
+import { t } from "../i18n";
 import { type CueListInstance, createCueList } from "../message/cue-list";
+import { createAgentSection } from "./agent-section";
 import type { QuickControlsTab } from "./constants";
 import { createEndpointsSection } from "./endpoints-section";
 import { createExpressMotionList } from "./express-motion-section";
@@ -369,11 +370,7 @@ export function createQuickControls({
   const popOutBtn = el.querySelector<HTMLButtonElement>(".yui-iconbtn--popout");
   const devtoolsBtn = el.querySelector<HTMLButtonElement>(".yui-devtools-open");
   const closeBtn = el.querySelector<HTMLButtonElement>(".yui-iconbtn--close");
-  const segEl = el.querySelector<HTMLDivElement>(".yui-field-row .yui-seg")!;
-  const segButtons = Array.from(segEl.querySelectorAll<HTMLButtonElement>(".yui-seg__btn"));
   const spkAddBtn = el.querySelector<HTMLButtonElement>(".yui-spk--add")!;
-  const instructionsEl = el.querySelector<HTMLTextAreaElement>(".yui-textarea")!;
-  const resetBtn = el.querySelector<HTMLButtonElement>(".yui-reset")!;
   // Viewpoint reset button — exists only when onResetViewpoint is injected (null otherwise).
   const viewpointResetBtn = el.querySelector<HTMLButtonElement>(".yui-viewpoint-reset");
   // Thinking filler section node — exists only when fillerSettings is injected (null otherwise).
@@ -395,9 +392,6 @@ export function createQuickControls({
   const fillerLangBtns = fillerLangSegEl
     ? Array.from(fillerLangSegEl.querySelectorAll<HTMLButtonElement>(".yui-seg__btn"))
     : [];
-  // Language picker segment (3 buttons) node.
-  const langSegEl = el.querySelector<HTMLDivElement>(".yui-lang-seg")!;
-  const langSegButtons = Array.from(langSegEl.querySelectorAll<HTMLButtonElement>(".yui-seg__btn"));
 
   // ── Endpoints section (URL fields · API key rows · TTS/Chat dropdowns · per-service resets) ──
   const endpoints = createEndpointsSection({
@@ -435,11 +429,6 @@ export function createQuickControls({
   vadSlider.min = String(VAD_SILENCE_MIN);
   vadSlider.max = String(VAD_SILENCE_MAX);
   vadSlider.step = "50";
-
-  // Default instructions placeholder.
-  const defaultInstr = getDefaultInstructions?.();
-  instructionsEl.placeholder =
-    defaultInstr && defaultInstr.length > 0 ? defaultInstr : t("instructions.placeholder_default");
 
   let gainPreviewing = false;
   // After dispose, prevent in-flight refresh from repainting/timering on destroyed DOM.
@@ -614,6 +603,17 @@ export function createQuickControls({
     isOpen: popover.isOpen,
   });
 
+  // ── Agent section (locale segment · reasoning-effort segment · instructions textarea) ──
+  const agent = createAgentSection({
+    root: el,
+    agentSettings,
+    getDefaultInstructions,
+    reflectAgent: reflect.reflectAgent,
+    reflectLanguage: reflect.reflectLanguage,
+    isOpen: popover.isOpen,
+    log,
+  });
+
   // ── Event handlers ──
 
   function handleSwitchClick(): void {
@@ -685,58 +685,6 @@ export function createQuickControls({
     });
   }
 
-  // Language picker — WAI-ARIA "selection doesn't follow focus" radio pattern.
-  // setLocale changes entire UI language and triggers host remount (expensive/destructive),
-  // so arrows only move focus; Space/Enter/click commits.
-
-  // Arrows/Home/End — roving tabindex + move focus only (no commit/aria-checked change).
-  function moveLocaleFocus(index: number): void {
-    const clamped = Math.min(langSegButtons.length - 1, Math.max(0, index));
-    const btn = langSegButtons[clamped];
-    if (!btn) return;
-    for (const b of langSegButtons) b.tabIndex = -1;
-    btn.tabIndex = 0;
-    btn.focus();
-  }
-
-  // Commit (click/Space/Enter) — only path that actually changes display language.
-  function commitLocale(index: number): void {
-    const clamped = Math.min(langSegButtons.length - 1, Math.max(0, index));
-    const locale = langSegButtons[clamped]?.dataset.locale as Locale | undefined;
-    if (!locale) return;
-    log.info("ui_language_change", { locale });
-    setLocale(locale);
-    // locale seg has no store subscription — directly reflect aria/tabindex until remount.
-    reflect.reflectLanguage();
-    langSegButtons[clamped]?.focus();
-  }
-
-  function handleLangSegClick(e: MouseEvent): void {
-    const btn = (e.target as HTMLElement).closest<HTMLButtonElement>(".yui-seg__btn");
-    if (!btn) return;
-    const idx = langSegButtons.indexOf(btn);
-    if (idx < 0) return;
-    commitLocale(idx);
-  }
-
-  function handleLangSegKeydown(e: KeyboardEvent): void {
-    handleSegmentKeydown(e, langSegButtons, {
-      length: langSegButtons.length,
-      // Arrow baseline: currently focused radio (else checked one, else 0).
-      getBaseIndex: () => {
-        const active = document.activeElement;
-        const focusIdx = active instanceof HTMLButtonElement ? langSegButtons.indexOf(active) : -1;
-        const checkedIdx = langSegButtons.findIndex(
-          (b) => b.getAttribute("aria-checked") === "true",
-        );
-        return focusIdx >= 0 ? focusIdx : checkedIdx < 0 ? 0 : checkedIdx;
-      },
-      onNavigate: (index) => moveLocaleFocus(index),
-      // Prevent double-commit from native button click — same guard as before (e.preventDefault in shared fn).
-      onCommit: (index) => commitLocale(index),
-    });
-  }
-
   // When editing any one field, write every field's current value together so none clobbers another.
   function handleFillerTextareaInput(): void {
     if (!fillerSettings) return;
@@ -759,53 +707,6 @@ export function createQuickControls({
 
   function handlePopOut(): void {
     onPopOut?.();
-  }
-
-  // ── Chat section: reasoning-effort segment ──
-
-  function selectEffort(index: number, focus = false): void {
-    const clamped = Math.min(REASONING_EFFORTS.length - 1, Math.max(0, index));
-    const effort = REASONING_EFFORTS[clamped];
-    agentSettings.setReasoningEffort(effort);
-    log.info("reasoning_effort_change", { effort });
-    // Store subscription will call reflect.reflectAgent to update visuals/aria.
-    if (focus) segButtons[clamped]?.focus();
-  }
-
-  function handleSegClick(e: MouseEvent): void {
-    const btn = (e.target as HTMLElement).closest<HTMLButtonElement>(".yui-seg__btn");
-    if (!btn) return;
-    selectEffort(segButtons.indexOf(btn));
-  }
-
-  function handleSegKeydown(e: KeyboardEvent): void {
-    handleSegmentKeydown(e, segButtons, {
-      length: REASONING_EFFORTS.length,
-      getBaseIndex: () => {
-        const current = segButtons.findIndex((b) => b.getAttribute("aria-checked") === "true");
-        return current < 0 ? 0 : current;
-      },
-      onNavigate: (index, focus) => selectEffort(index, focus),
-      // No onCommit — native <button> Space/Enter already fires click (handleSegClick), matching prior behavior.
-    });
-  }
-
-  // ── Chat section: instructions textarea ──
-
-  function handleInstructionsInput(): void {
-    agentSettings.setInstructions(instructionsEl.value);
-    log.info("instructions_change", { length: instructionsEl.value.length });
-  }
-
-  // On blur, reflect pending remote changes from mid-edit.
-  function handleInstructionsBlur(): void {
-    reflect.reflectAgent();
-  }
-
-  function handleResetInstructions(): void {
-    agentSettings.setInstructions("");
-    instructionsEl.value = "";
-    log.info("instructions_reset");
   }
 
   function handleResetViewpoint(): void {
@@ -1014,9 +915,6 @@ export function createQuickControls({
       reflect.reflectVad();
     }
   });
-  const unsubscribeAgent = agentSettings.subscribe(() => {
-    if (popover.isOpen()) reflect.reflectAgent();
-  });
   const unsubscribeEndpoints = endpointsSettings.subscribe(() => {
     if (popover.isOpen()) {
       reflect.reflectEndpoints();
@@ -1079,8 +977,6 @@ export function createQuickControls({
   });
   fillerLangSegEl?.addEventListener("click", handleFillerLangClick);
   fillerLangSegEl?.addEventListener("keydown", handleFillerLangKeydown);
-  langSegEl.addEventListener("click", handleLangSegClick);
-  langSegEl.addEventListener("keydown", handleLangSegKeydown);
   fillerFirstTextareaEl?.addEventListener("input", handleFillerTextareaInput);
   fillerRepeatTextareaEl?.addEventListener("input", handleFillerTextareaInput);
   fillerLongWaitTextareaEl?.addEventListener("input", handleFillerTextareaInput);
@@ -1092,15 +988,10 @@ export function createQuickControls({
   tablistEl.addEventListener("click", handleTabClick);
   tablistEl.addEventListener("keydown", handleTabKeydown);
   railCollapseBtn.addEventListener("click", handleRailCollapseClick);
-  segEl.addEventListener("click", handleSegClick);
-  segEl.addEventListener("keydown", handleSegKeydown);
   vrmsEl.addEventListener("keydown", vrmList.handleKeydown);
   vrmAddBtn.addEventListener("click", vrmList.handleAddClick);
   spksEl.addEventListener("keydown", speakerList.handleKeydown);
   spkAddBtn.addEventListener("click", speakerList.handleAddClick);
-  instructionsEl.addEventListener("input", handleInstructionsInput);
-  instructionsEl.addEventListener("blur", handleInstructionsBlur);
-  resetBtn.addEventListener("click", handleResetInstructions);
   viewpointResetBtn?.addEventListener("click", handleResetViewpoint);
   const handleChatStatusAction = (): void => pushSocket?.reconnectNow();
   chatStatusActionBtn.addEventListener("click", handleChatStatusAction);
@@ -1119,6 +1010,7 @@ export function createQuickControls({
     workflows.dispose();
     screen.dispose();
     reactions.dispose();
+    agent.dispose();
     hintTooltip.dispose();
     sections.dispose();
     history?.dispose();
@@ -1135,7 +1027,6 @@ export function createQuickControls({
     unsubscribeVoice();
     unsubscribeLipsync();
     unsubscribeVad();
-    unsubscribeAgent();
     unsubscribeEndpoints();
     unsubscribePushState?.();
     unsubscribeFiller?.();
@@ -1157,8 +1048,6 @@ export function createQuickControls({
     });
     fillerLangSegEl?.removeEventListener("click", handleFillerLangClick);
     fillerLangSegEl?.removeEventListener("keydown", handleFillerLangKeydown);
-    langSegEl.removeEventListener("click", handleLangSegClick);
-    langSegEl.removeEventListener("keydown", handleLangSegKeydown);
     fillerFirstTextareaEl?.removeEventListener("input", handleFillerTextareaInput);
     fillerRepeatTextareaEl?.removeEventListener("input", handleFillerTextareaInput);
     fillerLongWaitTextareaEl?.removeEventListener("input", handleFillerTextareaInput);
@@ -1171,15 +1060,10 @@ export function createQuickControls({
     tablistEl.removeEventListener("click", handleTabClick);
     tablistEl.removeEventListener("keydown", handleTabKeydown);
     railCollapseBtn.removeEventListener("click", handleRailCollapseClick);
-    segEl.removeEventListener("click", handleSegClick);
-    segEl.removeEventListener("keydown", handleSegKeydown);
     vrmsEl.removeEventListener("keydown", vrmList.handleKeydown);
     vrmAddBtn.removeEventListener("click", vrmList.handleAddClick);
     spksEl.removeEventListener("keydown", speakerList.handleKeydown);
     spkAddBtn.removeEventListener("click", speakerList.handleAddClick);
-    instructionsEl.removeEventListener("input", handleInstructionsInput);
-    instructionsEl.removeEventListener("blur", handleInstructionsBlur);
-    resetBtn.removeEventListener("click", handleResetInstructions);
     viewpointResetBtn?.removeEventListener("click", handleResetViewpoint);
     chatStatusActionBtn.removeEventListener("click", handleChatStatusAction);
     sessionResetBtn?.removeEventListener("click", showSessionConfirm);

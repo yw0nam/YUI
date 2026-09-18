@@ -321,6 +321,7 @@ YUI/
         seg-keyboard.ts              # Arrow, Home, End and commit keyboard handling shared by the segmented controls
         slider-binding.ts            # Input and release wiring shared by the range sliders
         hint-tooltip.ts              # Shared hover, focus, and click tooltip for data-tip elements
+        agent-section.ts             # Locale segment, reasoning-effort segment, and instructions textarea
         endpoints-section.ts         # Endpoint URL fields, API-key rows, chat-API picker, and resets
         monitors-section.ts          # Screen-source list and its load state
         screen-section.ts            # Screen-watch threshold knobs and the min-gap slider
