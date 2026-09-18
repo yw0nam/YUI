@@ -210,7 +210,11 @@ export interface Renderer {
    * line. Signed metres from the clip's first key. null until the clip is cached.
    */
   getMotionTravelAt(id: string, timeS: number): number | null;
-  /** Clip-local playhead (s) of the committed motion. null when nothing is playing. */
+  /**
+   * Clip-local playhead (s) of the committed motion. null when nothing is playing. Pairs
+   * with getMotionTravelAt only for a variant-free id: a pool plays a variant, not its
+   * representative clip.
+   */
   getCurrentMotionTime(): number | null;
   /**
    * Load a registered motion's clip into the cache without playing it, so its duration

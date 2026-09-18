@@ -1,4 +1,4 @@
-import { type VRM } from "@pixiv/three-vrm";
+import type { VRM } from "@pixiv/three-vrm";
 import * as THREE from "three";
 import type { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import { describe, expect, it, vi } from "vitest";

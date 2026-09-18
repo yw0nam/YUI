@@ -95,6 +95,7 @@ YUI/
         tap-region.ts                # Classifies a tap point into a body region
         view-window.ts               # Draws the reference-size framing at an offset inside a parked canvas
       motion/                        # Clip scheduling, variant swaps, and clip processing
+        clip-library.ts              # Per-VRM .vrma clip cache: load, mirror, root-lock detrend, dead-clip memo, crossfade clone
         cycle-dwell.ts               # Single-timer scheduler for a cycle motion's variant swap
         mirror-clip.ts               # Mirrors a clip across the YZ plane
         motion-controller.ts         # Pure motion scheduling and variant-resolution state machine

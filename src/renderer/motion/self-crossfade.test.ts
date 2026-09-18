@@ -76,10 +76,9 @@ describe("clipCacheKey", () => {
 describe("playbackClip", () => {
   it("returns the cached clip unchanged on first play (no prev clip)", () => {
     const clip = makeClip();
-    const cache = new Map<string, THREE.AnimationClip>();
-    cache.set("calm.vrma", clip);
+    const clones = new Map<string, THREE.AnimationClip>();
 
-    const result = playbackClip("calm.vrma", false, null, 200, cache);
+    const result = playbackClip(clip, null, 200, clones);
 
     expect(result).toBe(clip);
   });
@@ -88,16 +87,14 @@ describe("playbackClip", () => {
     const root = new THREE.Object3D();
     const mixer = new THREE.AnimationMixer(root);
     const clip = makeClip();
-    const cache = new Map<string, THREE.AnimationClip>();
-    const vrmaPath = "calm.vrma";
-    cache.set(vrmaPath, clip);
+    const clones = new Map<string, THREE.AnimationClip>();
 
-    const firstClip = playbackClip(vrmaPath, false, null, 200, cache);
+    const firstClip = playbackClip(clip, null, 200, clones);
     const prevAction = mixer.clipAction(firstClip);
     prevAction.play();
     mixer.update(0.5);
 
-    const nextClip = playbackClip(vrmaPath, false, prevAction.getClip(), 200, cache);
+    const nextClip = playbackClip(clip, prevAction.getClip(), 200, clones);
 
     expect(nextClip).not.toBe(clip);
     const nextAction = mixer.clipAction(nextClip);
@@ -115,38 +112,31 @@ describe("playbackClip", () => {
 
   it("clones on a same-clip re-trigger for a non-cycle, oneshot-style motion too — the decision is cycle-agnostic", () => {
     const clip = makeClip();
-    const cache = new Map<string, THREE.AnimationClip>();
-    const vrmaPath = "wave.vrma"; // a oneshot motion, not a cycle motion
-    cache.set(vrmaPath, clip);
+    const clones = new Map<string, THREE.AnimationClip>();
 
-    const first = playbackClip(vrmaPath, false, null, 200, cache);
-    const second = playbackClip(vrmaPath, false, first, 200, cache);
+    const first = playbackClip(clip, null, 200, clones);
+    const second = playbackClip(clip, first, 200, clones);
 
     expect(second).not.toBe(clip);
   });
 
-  it("caches the mirrored clone under a distinct key from the unmirrored clone", () => {
-    const clip = makeClip();
-    const mirroredClip = makeClip();
-    const cache = new Map<string, THREE.AnimationClip>();
-    const vrmaPath = "calm.vrma";
-    cache.set(vrmaPath, clip);
-    cache.set(`${vrmaPath}#mirror`, mirroredClip);
+  it("keeps one clone per base clip, so an upright clip and its mirror never share one", () => {
+    const upright = makeClip();
+    const mirrored = upright.clone();
+    const clones = new Map<string, THREE.AnimationClip>();
 
-    const unmirroredClone = playbackClip(vrmaPath, false, clip, 200, cache);
-    const mirroredClone = playbackClip(vrmaPath, true, mirroredClip, 200, cache);
+    const uprightClone = playbackClip(upright, upright, 200, clones);
+    const mirroredClone = playbackClip(mirrored, mirrored, 200, clones);
 
-    expect(cache.get(`${vrmaPath}#xfade`)).toBe(unmirroredClone);
-    expect(cache.get(`${vrmaPath}#mirror#xfade`)).toBe(mirroredClone);
-    expect(unmirroredClone).not.toBe(mirroredClone);
+    expect(clones.size).toBe(2);
+    expect(uprightClone).not.toBe(mirroredClone);
   });
 
   it("passes the clip through unchanged when fadeMs is 0", () => {
     const clip = makeClip();
-    const cache = new Map<string, THREE.AnimationClip>();
-    cache.set("calm.vrma", clip);
+    const clones = new Map<string, THREE.AnimationClip>();
 
-    const result = playbackClip("calm.vrma", false, clip, 0, cache);
+    const result = playbackClip(clip, clip, 0, clones);
 
     expect(result).toBe(clip);
   });
@@ -154,41 +144,35 @@ describe("playbackClip", () => {
   it("passes the clip through unchanged when the previous clip differs", () => {
     const clip = makeClip();
     const otherClip = makeClip();
-    const cache = new Map<string, THREE.AnimationClip>();
-    cache.set("calm.vrma", clip);
+    const clones = new Map<string, THREE.AnimationClip>();
 
-    const result = playbackClip("calm.vrma", false, otherClip, 200, cache);
+    const result = playbackClip(clip, otherClip, 200, clones);
 
     expect(result).toBe(clip);
   });
 
   it("reuses the same cloned instance across calls with the same key", () => {
     const clip = makeClip();
-    const cache = new Map<string, THREE.AnimationClip>();
-    const vrmaPath = "calm.vrma";
-    cache.set(vrmaPath, clip);
+    const clones = new Map<string, THREE.AnimationClip>();
 
-    const first = playbackClip(vrmaPath, false, clip, 200, cache);
-    const second = playbackClip(vrmaPath, false, clip, 200, cache);
+    const first = playbackClip(clip, clip, 200, clones);
+    const second = playbackClip(clip, clip, 200, clones);
 
     expect(first).toBe(second);
   });
 
   it("alternating from the clone back to the original returns the original clip and creates no additional clone", () => {
     const clip = makeClip();
-    const cache = new Map<string, THREE.AnimationClip>();
-    const vrmaPath = "calm.vrma";
-    cache.set(vrmaPath, clip);
+    const clones = new Map<string, THREE.AnimationClip>();
 
-    const cloned = playbackClip(vrmaPath, false, clip, 200, cache);
+    const cloned = playbackClip(clip, clip, 200, clones);
     expect(cloned).not.toBe(clip);
 
     // prev is now the clone (a different uuid from the base clip), so the base clip
     // resolves unchanged rather than producing a second clone.
-    const result = playbackClip(vrmaPath, false, cloned, 200, cache);
+    const result = playbackClip(clip, cloned, 200, clones);
 
     expect(result).toBe(clip);
-    const xfadeEntries = Array.from(cache.keys()).filter((key) => key.endsWith("#xfade"));
-    expect(xfadeEntries).toHaveLength(1);
+    expect(clones.size).toBe(1);
   });
 });

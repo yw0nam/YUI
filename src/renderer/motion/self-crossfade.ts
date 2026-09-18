@@ -10,30 +10,25 @@ export function clipCacheKey(vrmaPath: string, mirrored: boolean, rootLockY = fa
 }
 
 /**
- * Resolves the cached clip for a motion, unless a same-clip re-trigger with a fade is
+ * Resolves the clip an action should play, unless a same-clip re-trigger with a fade is
  * in flight: clipAction caches one action per clip, and reset+fadeIn on the sole active
  * action dips weight below 1, blending toward the bind pose — so that case must
- * crossfade via a cloned clip instead. Mutates `cache`: stores the clone under
- * `<key>#xfade` for reuse. Cycle-free by design: any same-clip re-trigger clones,
+ * crossfade via a cloned clip instead. Mutates `clones`: stores the clone under the
+ * clip's uuid for reuse. Cycle-free by design: any same-clip re-trigger clones,
  * whether the motion loops, cycles, or plays once.
  */
 export function playbackClip(
-  vrmaPath: string,
-  mirrored: boolean,
+  clip: AnimationClip,
   prevClip: AnimationClip | null,
   fadeMs: number,
-  cache: Map<string, AnimationClip>,
-  rootLockY = false,
+  clones: Map<string, AnimationClip>,
 ): AnimationClip {
-  const cacheKey = clipCacheKey(vrmaPath, mirrored, rootLockY);
-  const clip = cache.get(cacheKey)!;
   if (fadeMs <= 0 || !prevClip || prevClip.uuid !== clip.uuid) return clip;
 
-  const cloneKey = `${cacheKey}#xfade`;
-  let cloneClip = cache.get(cloneKey);
+  let cloneClip = clones.get(clip.uuid);
   if (!cloneClip) {
     cloneClip = clip.clone();
-    cache.set(cloneKey, cloneClip);
+    clones.set(clip.uuid, cloneClip);
   }
   return cloneClip;
 }
