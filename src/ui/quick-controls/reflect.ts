@@ -117,8 +117,6 @@ interface ReflectDeps {
   getRateLimitDefaults?: () => RateLimitOverrides | undefined;
   /** Screen-watch on/off — gates the knob group's visibility. */
   screenSettings?: { get(): { enabled: boolean } };
-  /** Screen-watch threshold inputs, keyed by the threshold they edit (empty when the store is absent). */
-  screenKnobInputs: ReadonlyMap<ScreenKnobFieldDef["key"], HTMLInputElement>;
   screenKnobSettings?: ScreenKnobSettingsStore;
   /** Bundled config thresholds a knob falls back to when it carries no override (undefined if not loaded). */
   getScreenDefaults?: () => ScreenOverrides | undefined;
@@ -173,7 +171,6 @@ export function createReflect(deps: ReflectDeps): Reflect {
     rateLimitSettings,
     getRateLimitDefaults,
     screenSettings,
-    screenKnobInputs,
     screenKnobSettings,
     getScreenDefaults,
   } = deps;
@@ -232,6 +229,12 @@ export function createReflect(deps: ReflectDeps): Reflect {
   const screenKnobsEl = root.querySelector<HTMLDivElement>(".yui-screen-knobs");
   const screenGapSlider = root.querySelector<HTMLInputElement>(".yui-screen-gap__slider");
   const screenGapValue = root.querySelector<HTMLSpanElement>(".yui-screen-gap__value");
+  // Screen-watch threshold inputs — map of input nodes by field key (empty when the store is absent).
+  const screenKnobInputs = new Map<ScreenKnobFieldDef["key"], HTMLInputElement>();
+  for (const field of SCREEN_KNOB_FIELDS) {
+    const input = root.querySelector<HTMLInputElement>(`#${field.id}`);
+    if (input) screenKnobInputs.set(field.key, input);
+  }
 
   function reflectSettings(): void {
     const s = settings.get();

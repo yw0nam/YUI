@@ -54,14 +54,7 @@ import { DELEGATION_REFRESH_MS } from "../chips/delegation-rows";
 import type { VoiceInputStatus } from "../chips/voice-input-status";
 import { type Locale, setLocale, t } from "../i18n";
 import { type CueListInstance, createCueList } from "../message/cue-list";
-import {
-  type QuickControlsTab,
-  RATE_LIMIT_FIELDS,
-  SCREEN_KNOB_FIELDS,
-  SCREEN_MIN_GAP_MAX,
-  SCREEN_MIN_GAP_MIN,
-  type ScreenKnobFieldDef,
-} from "./constants";
+import { type QuickControlsTab, RATE_LIMIT_FIELDS } from "./constants";
 import { createEndpointsSection } from "./endpoints-section";
 import { createExpressMotionList } from "./express-motion-section";
 import { parseToolLines, serializeToolLines } from "./filler-tool-lines";
@@ -71,6 +64,7 @@ import { createIdleMotionList } from "./idle-motion-section";
 import { createMonitorsSection } from "./monitors-section";
 import { createPopover } from "./popover";
 import { createReflect } from "./reflect";
+import { createScreenSection } from "./screen-section";
 import { createSections } from "./sections";
 import { createSpeakerList } from "./speaker-list";
 import { createSwitchRows, type SwitchRow } from "./switch-row";
@@ -365,13 +359,6 @@ export function createQuickControls({
     const input = el.querySelector<HTMLInputElement>(`#${field.id}`);
     if (input) rateLimitInputs.set(field.key, input);
   }
-  const screenKnobInputs = new Map<ScreenKnobFieldDef["key"], HTMLInputElement>();
-  for (const field of SCREEN_KNOB_FIELDS) {
-    const input = el.querySelector<HTMLInputElement>(`#${field.id}`);
-    if (input) screenKnobInputs.set(field.key, input);
-  }
-  const screenGapSlider = el.querySelector<HTMLInputElement>(".yui-screen-gap__slider");
-  const screenGapValue = el.querySelector<HTMLSpanElement>(".yui-screen-gap__value");
   const voiceSwitchBtn = el.querySelector<HTMLButtonElement>(".yui-voice-switch")!;
   const monitorsSection = createMonitorsSection({ root: el, sourceProvider, settings, log });
   const vrmsEl = el.querySelector<HTMLDivElement>(".yui-vrms")!;
@@ -489,7 +476,6 @@ export function createQuickControls({
     rateLimitSettings,
     getRateLimitDefaults,
     screenSettings,
-    screenKnobInputs,
     screenKnobSettings,
     getScreenDefaults,
   });
@@ -610,6 +596,16 @@ export function createQuickControls({
       endpoints.commitDirtyKeys();
       endpoints.commitDirtyEndpoints();
     },
+  });
+
+  // ── Screen section (screen-watch threshold knobs · min-gap slider) ──
+  const screen = createScreenSection({
+    root: el,
+    screenSettings,
+    screenKnobSettings,
+    reflectScreen: reflect.reflectScreen,
+    reflectSwitchRows: reflect.reflectSwitchRows,
+    isOpen: popover.isOpen,
   });
 
   // ── Event handlers ──
@@ -1053,16 +1049,6 @@ export function createQuickControls({
   const unsubscribeRateLimit = rateLimitSettings?.subscribe(() => {
     if (popover.isOpen()) reflect.reflectRateLimits();
   });
-  const unsubscribeScreen = screenSettings?.subscribe(() => {
-    if (popover.isOpen()) {
-      reflect.reflectSwitchRows();
-      reflect.reflectScreen();
-    }
-  });
-  const unsubscribeScreenKnobs = screenKnobSettings?.subscribe(() => {
-    if (popover.isOpen()) reflect.reflectScreen();
-  });
-
   function handleAgentPortChange(): void {
     if (!agentNotifySettings || !agentPortInput) return;
     agentNotifySettings.setPort(Math.round(Number(agentPortInput.value)));
@@ -1090,40 +1076,6 @@ export function createQuickControls({
     rateLimitSettings.set({ [key]: Math.round(Number(input.value)) });
     reflect.reflectRateLimits();
   }
-  // Same settle point as the caps above: a knob commits on blur/Enter, never mid-typing.
-  // An emptied field clears the override and falls back to configs/screen.json. The row's
-  // min/max only bind the spinner, so a typed value is clamped here — the producer must never
-  // run outside the range the row advertises.
-  function handleScreenKnobChange(e: Event): void {
-    const input = e.target;
-    if (!screenKnobSettings || !(input instanceof HTMLInputElement)) return;
-    const field = SCREEN_KNOB_FIELDS.find((f) => f.id === input.id);
-    if (!field) return;
-    const typed = Math.round(Number(input.value));
-    const units = typed > 0 ? Math.min(Math.max(typed, field.min), field.max) : 0;
-    screenKnobSettings.set({ [field.key]: units * field.unitMs });
-    reflect.reflectScreen();
-  }
-  const screenGapMinutes = (): number =>
-    Math.min(
-      Math.max(Math.round(Number(screenGapSlider?.value)), SCREEN_MIN_GAP_MIN),
-      SCREEN_MIN_GAP_MAX,
-    );
-  // Slider commits on release only — dragging must not re-time the live producer on every frame.
-  function handleScreenGapInput(): void {
-    if (!screenGapSlider) return;
-    const minutes = screenGapMinutes();
-    if (screenGapValue) screenGapValue.textContent = t("screen.min_gap_value", { n: minutes });
-    screenGapSlider.style.setProperty(
-      "--fill",
-      String((minutes - SCREEN_MIN_GAP_MIN) / (SCREEN_MIN_GAP_MAX - SCREEN_MIN_GAP_MIN)),
-    );
-  }
-  function handleScreenGapChange(): void {
-    if (!screenKnobSettings || !screenGapSlider) return;
-    screenKnobSettings.set({ min_gap_ms: screenGapMinutes() * 60_000 });
-    reflect.reflectScreen();
-  }
   agentPortInput?.addEventListener("change", handleAgentPortChange);
   presenceInput?.addEventListener("change", handlePresenceChange);
   presenceInput?.addEventListener("blur", reflect.reflectPresence);
@@ -1133,12 +1085,6 @@ export function createQuickControls({
     input.addEventListener("change", handleRateLimitChange);
     input.addEventListener("blur", reflect.reflectRateLimits);
   }
-  for (const input of screenKnobInputs.values()) {
-    input.addEventListener("change", handleScreenKnobChange);
-    input.addEventListener("blur", reflect.reflectScreen);
-  }
-  screenGapSlider?.addEventListener("input", handleScreenGapInput);
-  screenGapSlider?.addEventListener("change", handleScreenGapChange);
 
   // Cue-list components — both in the Proactive tab: proactive in .yui-loop-cue-section, schedule in .yui-cue-sections.
   const loopCueMountEl = el.querySelector<HTMLDivElement>(".yui-loop-cue-section")!;
@@ -1284,6 +1230,7 @@ export function createQuickControls({
     disposed = true;
     endpoints.dispose();
     workflows.dispose();
+    screen.dispose();
     hintTooltip.dispose();
     sections.dispose();
     history?.dispose();
@@ -1301,14 +1248,6 @@ export function createQuickControls({
     unsubscribePresence?.();
     unsubscribePacerGap?.();
     unsubscribeRateLimit?.();
-    unsubscribeScreen?.();
-    unsubscribeScreenKnobs?.();
-    for (const input of screenKnobInputs.values()) {
-      input.removeEventListener("change", handleScreenKnobChange);
-      input.removeEventListener("blur", reflect.reflectScreen);
-    }
-    screenGapSlider?.removeEventListener("input", handleScreenGapInput);
-    screenGapSlider?.removeEventListener("change", handleScreenGapChange);
     agentPortInput?.removeEventListener("change", handleAgentPortChange);
     presenceInput?.removeEventListener("change", handlePresenceChange);
     presenceInput?.removeEventListener("blur", reflect.reflectPresence);
