@@ -95,6 +95,7 @@ const en: Record<string, string> = {
   "panel.tablist_label": "Settings area",
   "panel.drag_hint": "Drag to move",
   "panel.pop_out": "Pop out to window",
+  "panel.message": "Message",
   "panel.close": "Close",
   "panel.rail_collapse": "Collapse sections rail",
   "panel.rail_expand": "Expand sections rail",

@@ -152,6 +152,8 @@ interface QuickControlsOptions {
   /** Reset the camera viewpoint (orbit angles) to head-on. Renders the section when set. */
   onResetViewpoint?: () => void;
   onPopOut?: () => void;
+  /** Opens the message bar. Renders the header Message button (popover variant) when set. */
+  onMessage?: () => void;
   onOpenDevtools?: () => void;
   variant?: "popover" | "window";
   /** In window variant, path for Escape to close OS window (host injected). Without it, Escape is no-op. */
@@ -265,6 +267,7 @@ export function createQuickControls({
   onGainPreviewEnd,
   onResetViewpoint,
   onPopOut,
+  onMessage,
   onOpenDevtools,
   variant = "popover",
   onCloseWindow,
@@ -348,6 +351,7 @@ export function createQuickControls({
     showPacerGap: !!pacerGapSettings,
     showRateLimits: !!rateLimitSettings,
     showDevtools: !isWindow && !!onOpenDevtools,
+    showMessage: !isWindow && !!onMessage,
     showHistory: !!transcript,
     railCollapsed: railCollapsedSettings?.get().enabled ?? false,
     closedSections: new Set(sectionsSettings?.get().closed ?? []),
@@ -368,6 +372,7 @@ export function createQuickControls({
   const railCollapseBtn = el.querySelector<HTMLButtonElement>(".yui-rail-collapse")!;
   const barEl = el.querySelector<HTMLDivElement>(".yui-quick__bar");
   const popOutBtn = el.querySelector<HTMLButtonElement>(".yui-iconbtn--popout");
+  const messageBtn = el.querySelector<HTMLButtonElement>(".yui-iconbtn--message");
   const devtoolsBtn = el.querySelector<HTMLButtonElement>(".yui-devtools-open");
   const closeBtn = el.querySelector<HTMLButtonElement>(".yui-iconbtn--close");
   const spkAddBtn = el.querySelector<HTMLButtonElement>(".yui-spk--add")!;
@@ -709,6 +714,12 @@ export function createQuickControls({
     onPopOut?.();
   }
 
+  // Close first: the panel restores focus on close, and the message bar must take it after.
+  function handleMessage(): void {
+    popover.close();
+    onMessage?.();
+  }
+
   function handleResetViewpoint(): void {
     onResetViewpoint?.();
     log.info("viewpoint_reset");
@@ -999,6 +1010,7 @@ export function createQuickControls({
   sessionConfirmBtn?.addEventListener("click", handleSessionReset);
   sessionCancelBtn?.addEventListener("click", hideSessionConfirm);
   popOutBtn?.addEventListener("click", handlePopOut);
+  messageBtn?.addEventListener("click", handleMessage);
   devtoolsBtn?.addEventListener("click", () => onOpenDevtools?.());
   closeBtn?.addEventListener("click", popover.close);
   // window variant is always visible, so open it immediately.
@@ -1070,6 +1082,7 @@ export function createQuickControls({
     sessionConfirmBtn?.removeEventListener("click", handleSessionReset);
     sessionCancelBtn?.removeEventListener("click", hideSessionConfirm);
     popOutBtn?.removeEventListener("click", handlePopOut);
+    messageBtn?.removeEventListener("click", handleMessage);
     closeBtn?.removeEventListener("click", popover.close);
     el.remove();
     scrimEl.remove();

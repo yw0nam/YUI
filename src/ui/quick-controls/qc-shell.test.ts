@@ -148,6 +148,35 @@ describe("createQuickControls — shell", () => {
     qc.dispose();
   });
 
+  // ── message button ────────────────────────────────────────────────────────
+
+  it("renders the header Message button only when onMessage is provided", () => {
+    const qc = buildQc({ onMessage: vi.fn() });
+    expect(qc.el.querySelector(".yui-quick__bar .yui-iconbtn--message")).not.toBeNull();
+    qc.dispose();
+
+    const without = buildQc();
+    expect(without.el.querySelector(".yui-iconbtn--message")).toBeNull();
+    without.dispose();
+  });
+
+  it("clicking the Message button closes the panel, then calls onMessage", () => {
+    let openWhenCalled: boolean | undefined;
+    const qc = buildQc({ onMessage: () => (openWhenCalled = qc.isOpen()) });
+    qc.open();
+
+    qc.el.querySelector<HTMLButtonElement>(".yui-iconbtn--message")!.click();
+
+    expect(openWhenCalled).toBe(false);
+    qc.dispose();
+  });
+
+  it("the window variant renders no Message button", () => {
+    const qc = buildQc({ variant: "window", onMessage: vi.fn() });
+    expect(qc.el.querySelector(".yui-iconbtn--message")).toBeNull();
+    qc.dispose();
+  });
+
   it("renders the Developer Tools row only when its opener is provided", () => {
     const onOpenDevtools = vi.fn();
     const qc = buildQc({ onOpenDevtools });

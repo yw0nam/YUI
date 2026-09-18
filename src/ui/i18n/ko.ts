@@ -94,6 +94,7 @@ const ko: Record<string, string> = {
   "panel.tablist_label": "설정 영역",
   "panel.drag_hint": "드래그해서 옮기기",
   "panel.pop_out": "창으로 빼기",
+  "panel.message": "메시지",
   "panel.close": "닫기",
   "panel.rail_collapse": "섹션 목록 접기",
   "panel.rail_expand": "섹션 목록 펼치기",
