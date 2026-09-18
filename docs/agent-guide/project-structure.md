@@ -201,7 +201,7 @@ YUI/
         push-socket.ts                 # Single WebSocket the push transport runs turns and replies on
         silence-token.ts               # Stateful [SILENT] token filter for spoken output_text deltas
       voice/
-        deadline.ts                    # Per-request deadline so a hung fetch settles
+        deadline.ts                    # Per-request deadline and the body-read race that settle a stalled fetch
         sentence-segmenter.ts          # Segments streamed text into sentences
         strip-emoji.ts                 # Stateful emoji stripper for spoken text deltas
         strip-links.ts                 # Stateful markdown-link stripper for spoken text deltas
