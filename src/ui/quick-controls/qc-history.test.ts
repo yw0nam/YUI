@@ -113,7 +113,7 @@ describe("createQuickControls — history tab", () => {
     qc.dispose();
   });
 
-  it("renders one row per session, newest first, with turn counts", () => {
+  it("renders one row per session, newest first, with message counts", () => {
     const qc = buildQc({ transcript: seedStore() });
     qc.open();
 
@@ -137,14 +137,14 @@ describe("createQuickControls — history tab", () => {
 
     const rows = Array.from(qc.el.querySelectorAll<HTMLButtonElement>(".yui-hist__sess"));
     expect(rows).toHaveLength(1);
-    expect(rows[0].querySelector(".yui-hist__sess-count")!.textContent).toBe("1 turn");
+    expect(rows[0].querySelector(".yui-hist__sess-count")!.textContent).toBe("1 message");
 
     store.append({ role: "assistant", text: "hello", ts: Date.parse("2026-08-13T09:13:00Z") });
 
     expect(
       qc.el.querySelectorAll(".yui-hist__sess")[0].querySelector(".yui-hist__sess-count")!
         .textContent,
-    ).toBe("2 turns");
+    ).toBe("2 messages");
 
     qc.dispose();
   });
