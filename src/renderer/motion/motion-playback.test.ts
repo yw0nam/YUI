@@ -56,11 +56,15 @@ describe("createMotionPlayback", () => {
     motion.onVrmLoaded(vrm);
     await flush();
     expect(motion.current()?.id).toBe("idle");
+    expect(motion.isConverging()).toBe(false);
 
     motion.playMotion({ id: "wave" });
+    // Committed but not yet started: the running action is still idle's, so no playhead.
+    expect(motion.currentTime()).toBeNull();
     await flush();
     expect(motion.current()?.id).toBe("wave");
     expect(motion.currentTime()).toBe(0);
+    expect(motion.isConverging()).toBe(true);
 
     // Past the 1s clip end — the mixer dispatches "finished" for the oneshot.
     motion.step({ dt: 1.5 });
