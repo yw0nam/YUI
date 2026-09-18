@@ -172,7 +172,7 @@ export function createReflect(deps: ReflectDeps): Reflect {
   const gainValue = root.querySelector<HTMLSpanElement>(".yui-lipsync-gain__value")!;
   const vadSlider = root.querySelector<HTMLInputElement>(".yui-vad__slider")!;
   const vadValue = root.querySelector<HTMLSpanElement>(".yui-vad__value")!;
-  const segEl = root.querySelector<HTMLDivElement>(".yui-field-row .yui-seg")!;
+  const segEl = root.querySelector<HTMLDivElement>(".yui-effort-seg")!;
   const segButtons = Array.from(segEl.querySelectorAll<HTMLButtonElement>(".yui-seg__btn"));
   const chatTypeEl = root.querySelector<HTMLSelectElement>(".yui-chat-type")!;
   const chatSummaryHintEl = root.querySelector<HTMLSpanElement>(".yui-chat-summary-hint")!;

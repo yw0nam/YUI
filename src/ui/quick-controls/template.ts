@@ -396,7 +396,7 @@ ${RATE_LIMIT_FIELDS.map((f) =>
         <details class="yui-field-row yui-section" data-section="reasoning"${sectionOpenAttr("reasoning")}>
           <summary><span class="yui-field-row__label">${t("reasoning.label")}</span></summary>
           <span class="yui-field-row__sub">${t("reasoning.sub")}</span>
-          <div class="yui-seg" role="radiogroup" aria-label="${t("reasoning.label")}" style="--seg:0;">
+          <div class="yui-seg yui-effort-seg" role="radiogroup" aria-label="${t("reasoning.label")}" style="--seg:0;">
             <span class="yui-seg__ind" aria-hidden="true"></span>
             ${segButtonsHtml}
           </div>

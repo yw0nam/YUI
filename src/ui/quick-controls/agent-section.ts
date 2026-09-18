@@ -43,7 +43,7 @@ export function createAgentSection(deps: AgentSectionDeps): AgentSection {
     log,
   } = deps;
 
-  const segEl = el.querySelector<HTMLDivElement>(".yui-field-row .yui-seg")!;
+  const segEl = el.querySelector<HTMLDivElement>(".yui-effort-seg")!;
   const segButtons = Array.from(segEl.querySelectorAll<HTMLButtonElement>(".yui-seg__btn"));
   const instructionsEl = el.querySelector<HTMLTextAreaElement>(".yui-textarea")!;
   const resetBtn = el.querySelector<HTMLButtonElement>(".yui-reset")!;
