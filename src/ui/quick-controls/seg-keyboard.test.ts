@@ -29,11 +29,13 @@ function makeCfg(): SegKeydownConfig {
 }
 
 describe("handleSegmentKeydown", () => {
-  it("ArrowRight/ArrowLeft/Home/End navigate from base and preventDefault", () => {
+  it("arrows/Home/End navigate from base and preventDefault", () => {
     const { buttons, cfg } = setup();
     const cases: Array<[string, number]> = [
       ["ArrowRight", 2],
+      ["ArrowDown", 2],
       ["ArrowLeft", 0],
+      ["ArrowUp", 0],
       ["Home", 0],
       ["End", 2],
     ];
@@ -41,25 +43,30 @@ describe("handleSegmentKeydown", () => {
       const e = keydown(key);
       handleSegmentKeydown(e, buttons, cfg);
       expect(e.defaultPrevented).toBe(true);
-      expect(cfg.onNavigate).toHaveBeenCalledWith(expected, true);
+      expect(cfg.onNavigate).toHaveBeenLastCalledWith(expected, true);
     }
     expect(cfg.onCommit).not.toHaveBeenCalled();
   });
 
   it("Space/Enter commit the targeted button; without onCommit nothing happens", () => {
     const { buttons, cfg } = setup();
-    const commit = keydown("Enter");
-    Object.defineProperty(commit, "target", { value: buttons[2] });
-    handleSegmentKeydown(commit, buttons, cfg);
-    expect(commit.defaultPrevented).toBe(true);
-    expect(cfg.onCommit).toHaveBeenCalledWith(2);
+    for (const [key, target] of [
+      ["Enter", 2],
+      [" ", 0],
+    ] as const) {
+      const e = keydown(key);
+      Object.defineProperty(e, "target", { value: buttons[target] });
+      handleSegmentKeydown(e, buttons, cfg);
+      expect(e.defaultPrevented).toBe(true);
+      expect(cfg.onCommit).toHaveBeenLastCalledWith(target);
+    }
+    expect(cfg.onNavigate).not.toHaveBeenCalled();
 
     const noCommit = { ...makeCfg(), onCommit: undefined };
-    const e = keydown(" ");
+    const e = keydown("Enter");
     Object.defineProperty(e, "target", { value: buttons[0] });
     handleSegmentKeydown(e, buttons, noCommit);
     expect(e.defaultPrevented).toBe(false);
-    expect(noCommit.onNavigate).not.toHaveBeenCalled();
   });
 
   it("an unrelated key is ignored", () => {
