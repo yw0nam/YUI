@@ -318,6 +318,8 @@ YUI/
         constants.ts                 # Display constants shared by the panel and its sections
         sections.ts                  # Wires the collapsible details groups to the sections store
         switch-row.ts                # Switch-row element contract and the row table filling it
+        seg-keyboard.ts              # Arrow, Home, End and commit keyboard handling shared by the segmented controls
+        slider-binding.ts            # Input and release wiring shared by the range sliders
         hint-tooltip.ts              # Shared hover, focus, and click tooltip for data-tip elements
         endpoints-section.ts         # Endpoint URL fields, API-key rows, chat-API picker, and resets
         monitors-section.ts          # Screen-source list and its load state

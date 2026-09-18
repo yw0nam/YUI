@@ -72,6 +72,8 @@ import { createMonitorsSection } from "./monitors-section";
 import { createPopover } from "./popover";
 import { createReflect } from "./reflect";
 import { createSections } from "./sections";
+import { handleSegmentKeydown } from "./seg-keyboard";
+import { bindSlider } from "./slider-binding";
 import { createSpeakerList } from "./speaker-list";
 import { createSwitchRows, type SwitchRow } from "./switch-row";
 import { buildPanelHtml } from "./template";
@@ -641,45 +643,6 @@ export function createQuickControls({
       .filter((l) => l.length > 0);
   }
 
-  // ── Shared segmented-control keyboard pattern ──
-  // Arrows/Home/End always navigate (clamped by the domain's own select/move function); an optional
-  // commit step handles Space/Enter separately for patterns where focus doesn't imply selection
-  // (see handleLangSegKeydown). getBaseIndex lets each caller define its own "current position" —
-  // by checked state for combined navigate+select segments, by focus for roving-focus-only segments.
-  interface SegKeydownConfig {
-    length: number;
-    getBaseIndex: () => number;
-    onNavigate: (index: number, focus: boolean) => void;
-    onCommit?: (index: number) => void;
-  }
-
-  function handleSegmentKeydown(
-    e: KeyboardEvent,
-    buttons: HTMLButtonElement[],
-    cfg: SegKeydownConfig,
-  ): void {
-    const base = cfg.getBaseIndex();
-    if (e.key === "ArrowRight" || e.key === "ArrowDown") {
-      e.preventDefault();
-      cfg.onNavigate(base + 1, true);
-    } else if (e.key === "ArrowLeft" || e.key === "ArrowUp") {
-      e.preventDefault();
-      cfg.onNavigate(base - 1, true);
-    } else if (e.key === "Home") {
-      e.preventDefault();
-      cfg.onNavigate(0, true);
-    } else if (e.key === "End") {
-      e.preventDefault();
-      cfg.onNavigate(cfg.length - 1, true);
-    } else if (cfg.onCommit && (e.key === " " || e.key === "Enter")) {
-      const btn = (e.target as HTMLElement).closest<HTMLButtonElement>(".yui-seg__btn");
-      const idx = btn ? buttons.indexOf(btn) : -1;
-      if (idx < 0) return;
-      e.preventDefault();
-      cfg.onCommit(idx);
-    }
-  }
-
   const FILLER_LANGS = ["ja", "en", "ko"] as const;
 
   // Move segment selection + focus. aria/tabindex updated by store subscription (reflectFiller).
@@ -881,69 +844,41 @@ export function createQuickControls({
     log.info("session_reset");
   }
 
-  // ── Shared slider input/end pattern ──
-  // input: parse the raw value, commit it to the store (a subscription redraws the row), optionally
-  // run an extra side effect (gain's lipsync preview). end (pointerup/blur): optionally end that side
-  // effect, then always log the committed value.
-  interface SliderBinding<T> {
-    slider: HTMLInputElement;
-    parse: (raw: string) => T;
-    setValue: (v: T) => void;
-    logKey: string;
-    logField: string;
-    onInputExtra?: (v: T) => void;
-    onEndExtra?: () => void;
-  }
-
-  function bindSlider<T>(cfg: SliderBinding<T>): () => void {
-    function handleInput(): void {
-      const v = cfg.parse(cfg.slider.value);
-      cfg.setValue(v);
-      cfg.onInputExtra?.(v);
-    }
-    function handleEnd(): void {
-      cfg.onEndExtra?.();
-      log.info(cfg.logKey, { [cfg.logField]: cfg.parse(cfg.slider.value) });
-    }
-    cfg.slider.addEventListener("input", handleInput);
-    cfg.slider.addEventListener("pointerup", handleEnd);
-    cfg.slider.addEventListener("blur", handleEnd);
-    return () => {
-      cfg.slider.removeEventListener("input", handleInput);
-      cfg.slider.removeEventListener("pointerup", handleEnd);
-      cfg.slider.removeEventListener("blur", handleEnd);
-    };
-  }
-
   // ── Gain slider ──
 
-  const disposeGainSlider = bindSlider({
-    slider: gainSlider,
-    parse: parseFloat,
-    setValue: (v: number) => lipsync.setGain(v), // On value change, lipsync subscription calls reflect.reflectGain to redraw gain row
-    logKey: "mouth_gain_change",
-    logField: "gain",
-    onInputExtra: (v: number) => {
-      gainPreviewing = true;
-      onGainPreview(previewMouth(v));
+  const disposeGainSlider = bindSlider(
+    {
+      slider: gainSlider,
+      parse: parseFloat,
+      setValue: (v: number) => lipsync.setGain(v), // On value change, lipsync subscription calls reflect.reflectGain to redraw gain row
+      logKey: "mouth_gain_change",
+      logField: "gain",
+      onInputExtra: (v: number) => {
+        gainPreviewing = true;
+        onGainPreview(previewMouth(v));
+      },
+      onEndExtra: () => {
+        if (gainPreviewing) {
+          onGainPreviewEnd();
+          gainPreviewing = false;
+        }
+      },
     },
-    onEndExtra: () => {
-      if (gainPreviewing) {
-        onGainPreviewEnd();
-        gainPreviewing = false;
-      }
-    },
-  });
+    log,
+  );
 
   // ── Silence threshold (VAD) slider ──
 
-  const disposeVadSlider = bindSlider({
-    slider: vadSlider,
-    parse: (raw: string) => parseInt(raw, 10),
-    setValue: (v: number) => vad.setSilenceMs(v), // Store subscription calls reflect.reflectVad to redraw value row
-    logKey: "vad_silence_change",
-    logField: "silenceMs",
-  });
+  const disposeVadSlider = bindSlider(
+    {
+      slider: vadSlider,
+      parse: (raw: string) => parseInt(raw, 10),
+      setValue: (v: number) => vad.setSilenceMs(v), // Store subscription calls reflect.reflectVad to redraw value row
+      logKey: "vad_silence_change",
+      logField: "silenceMs",
+    },
+    log,
+  );
 
   // ── Tab switching ──
   // Toggle aria-selected/hidden + roving tabindex only. Arrows (←/→/Home/End) activate immediately.
