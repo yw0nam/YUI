@@ -199,6 +199,8 @@ pub fn run() {
 
             let log_offset = resolve_log_offset();
             let mut builder = tauri_plugin_log::Builder::new()
+                // Drop the plugin's default Stdout + LogDir targets; only the ones below apply.
+                .clear_targets()
                 .level(level_for(cfg!(debug_assertions)))
                 .format(move |out, message, record| {
                     out.finish(format_args!(
