@@ -1,7 +1,7 @@
 /** Single-sentence input → POST {tts_base_url}/v1/audio/speech → wav ArrayBuffer. */
 
 import type { EndpointsConfig } from "../../contract";
-import { createDeadlineSignal } from "./deadline";
+import { createDeadlineSignal, untilAborted } from "./deadline";
 
 /** Per-call synthesis direction that is not part of the spoken text. */
 export interface TtsSynthCallOptions {
@@ -50,14 +50,9 @@ export function createTtsSynth(opts: TtsSynthOptions): TtsSynth {
     const key = (await opts.getApiKey?.())?.trim() || undefined;
     const deadline = createDeadlineSignal(TTS_SYNTH_TIMEOUT_MS, "TTS request timed out");
     const requestSignal = signal ? AbortSignal.any([signal, deadline.signal]) : deadline.signal;
-    // The Tauri transport rejects with its own cancel error; the combined signal's reason names the abort that fired first.
-    const viaTransport = <T>(p: Promise<T>): Promise<T> =>
-      p.catch((err) => {
-        throw requestSignal.aborted ? requestSignal.reason : err;
-      });
 
     try {
-      const res = await viaTransport(
+      const res = await untilAborted(
         fetchImpl(url, {
           method: "POST",
           headers: {
@@ -67,12 +62,15 @@ export function createTtsSynth(opts: TtsSynthOptions): TtsSynth {
           body: JSON.stringify(body),
           signal: requestSignal,
         }),
+        requestSignal,
       );
 
       if (!res.ok) {
         let detail = "";
         try {
-          const j = (await res.json()) as { error?: { message?: string } };
+          const j = (await untilAborted(res.json(), requestSignal)) as {
+            error?: { message?: string };
+          };
           if (j?.error?.message) detail = `: ${j.error.message}`;
         } catch {
           /* non-JSON body */
@@ -80,7 +78,7 @@ export function createTtsSynth(opts: TtsSynthOptions): TtsSynth {
         throw new Error(`TTS request failed (HTTP ${res.status})${detail}`);
       }
 
-      return await viaTransport(res.arrayBuffer());
+      return await untilAborted(res.arrayBuffer(), requestSignal);
     } finally {
       deadline.clear();
     }

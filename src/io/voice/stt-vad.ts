@@ -13,7 +13,7 @@ import { MicVAD } from "@ricky0123/vad-web";
 import type { EndpointsConfig } from "../../contract";
 import { createLogger } from "../../logger";
 import type { VoiceInputState } from "../../ui/chips/voice-input-status";
-import { createDeadlineSignal } from "./deadline";
+import { createDeadlineSignal, untilAborted } from "./deadline";
 
 const log = createLogger("stt-vad");
 
@@ -131,7 +131,6 @@ export function createSttVad(options: SttVadOptions): SttVad {
     form.append("file", wav, "audio.wav");
 
     const deadline = createDeadlineSignal(STT_REQUEST_TIMEOUT_MS, "STT request timed out");
-    let transportDone = false;
     try {
       // Bearer only — never set Content-Type here: FormData needs the browser-set multipart boundary.
       const key = (await getApiKey?.())?.trim() || undefined;
@@ -146,14 +145,12 @@ export function createSttVad(options: SttVadOptions): SttVad {
         onState?.("error", `HTTP ${res.status}`);
         return;
       }
-      const data = (await res.json()) as { text: string };
-      transportDone = true;
+      const data = (await untilAborted(res.json(), deadline.signal)) as { text: string };
       onVoiceSegment(data.text);
       onState?.("fired");
     } catch (err) {
       // The Tauri transport rejects with its own cancel error; the deadline's reason names the timeout.
-      // Only relabel a transport failure — a throw from onVoiceSegment after the transport finished keeps its own message.
-      const cause = !transportDone && deadline.signal.aborted ? deadline.signal.reason : err;
+      const cause = deadline.signal.aborted ? deadline.signal.reason : err;
       log.warn("stt_error", { error: String(cause) });
       const detail = cause instanceof Error ? cause.message : "STT request failed";
       onState?.("error", detail);
