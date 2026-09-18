@@ -1,7 +1,12 @@
 /** OpenAI-compatible voices API — lists, uploads, and deletes reference voices. */
 
 import { createLogger, type Logger } from "../../logger";
+import { createDeadlineSignal, untilAborted } from "./deadline";
 import { fetchReferenceClip } from "./reference-clip";
+
+export const VOICES_REQUEST_TIMEOUT_MS = 10_000;
+/** One budget for the clip read, the POST and the PUT fallback; the server may embed the clip before answering. */
+export const VOICE_UPLOAD_TIMEOUT_MS = 30_000;
 
 interface VoicesRequestOptions {
   baseUrl: string;
@@ -19,9 +24,9 @@ async function authHeaders(
 }
 
 /** Reduces an OpenAI-style `{error:{message}}` body to one appendable line. */
-async function errorDetail(res: Response): Promise<string> {
+async function errorDetail(res: Response, signal: AbortSignal): Promise<string> {
   try {
-    const j = (await res.json()) as { error?: { message?: string } };
+    const j = (await untilAborted(res.json(), signal)) as { error?: { message?: string } };
     return j?.error?.message ? `: ${j.error.message}` : "";
   } catch {
     return "";
@@ -36,21 +41,30 @@ async function errorDetail(res: Response): Promise<string> {
 export async function listVoices(opts: VoicesRequestOptions): Promise<string[]> {
   const log = opts.logger ?? createLogger("tts-voices");
   const fetchImpl = opts.fetch ?? globalThis.fetch;
+  const deadline = createDeadlineSignal(VOICES_REQUEST_TIMEOUT_MS, "TTS voice list timed out");
   try {
-    const res = await fetchImpl(`${opts.baseUrl}/v1/audio/voices`, {
-      headers: await authHeaders(opts.getApiKey),
-    });
+    const res = await untilAborted(
+      fetchImpl(`${opts.baseUrl}/v1/audio/voices`, {
+        headers: await authHeaders(opts.getApiKey),
+        signal: deadline.signal,
+      }),
+      deadline.signal,
+    );
     if (!res.ok) {
       log.warn("voice_list_failed", { status: res.status });
       return [];
     }
-    const body = (await res.json()) as { data?: Array<{ id?: unknown }> };
+    const body = (await untilAborted(res.json(), deadline.signal)) as {
+      data?: Array<{ id?: unknown }>;
+    };
     return (body.data ?? [])
       .map((v) => v.id)
       .filter((id): id is string => typeof id === "string" && id.length > 0);
   } catch (err) {
     log.warn("voice_list_failed", { error: String(err) });
     return [];
+  } finally {
+    deadline.clear();
   }
 }
 
@@ -77,44 +91,70 @@ export async function upsertVoice(opts: UpsertVoiceOptions): Promise<void> {
   if (!opts.refUrl) {
     throw new Error("upsertVoice requires a reference clip");
   }
-  const fetchImpl = opts.fetch ?? globalThis.fetch;
-  const filename = `${opts.id}.${extensionOf(opts.refUrl)}`;
-  const blob = await fetchReferenceClip(opts.refUrl, { fetch: fetchImpl });
-  const headers = await authHeaders(opts.getApiKey);
-  const voicesUrl = `${opts.baseUrl}/v1/audio/voices`;
+  const deadline = createDeadlineSignal(VOICE_UPLOAD_TIMEOUT_MS, "TTS voice upload timed out");
+  try {
+    const fetchImpl = opts.fetch ?? globalThis.fetch;
+    const filename = `${opts.id}.${extensionOf(opts.refUrl)}`;
+    const blob = await untilAborted(
+      fetchReferenceClip(opts.refUrl, { fetch: fetchImpl, signal: deadline.signal }),
+      deadline.signal,
+    );
+    const headers = await authHeaders(opts.getApiKey);
+    const voicesUrl = `${opts.baseUrl}/v1/audio/voices`;
 
-  const createForm = new FormData();
-  createForm.append("file", blob, filename);
-  createForm.append("voice_id", opts.id);
-  let res = await fetchImpl(voicesUrl, { method: "POST", body: createForm, headers });
+    const createForm = new FormData();
+    createForm.append("file", blob, filename);
+    createForm.append("voice_id", opts.id);
+    let res = await untilAborted(
+      fetchImpl(voicesUrl, { method: "POST", body: createForm, headers, signal: deadline.signal }),
+      deadline.signal,
+    );
 
-  if (res.status === 409) {
-    // voice_id travels in the path — PUT's body takes only the clip.
-    const replaceForm = new FormData();
-    replaceForm.append("file", blob, filename);
-    res = await fetchImpl(`${voicesUrl}/${encodeURIComponent(opts.id)}`, {
-      method: "PUT",
-      body: replaceForm,
-      headers,
-    });
+    if (res.status === 409) {
+      // voice_id travels in the path — PUT's body takes only the clip.
+      const replaceForm = new FormData();
+      replaceForm.append("file", blob, filename);
+      res = await untilAborted(
+        fetchImpl(`${voicesUrl}/${encodeURIComponent(opts.id)}`, {
+          method: "PUT",
+          body: replaceForm,
+          headers,
+          signal: deadline.signal,
+        }),
+        deadline.signal,
+      );
+    }
+
+    if (!res.ok) {
+      throw new Error(
+        `TTS voice upload failed (HTTP ${res.status})${await errorDetail(res, deadline.signal)}`,
+      );
+    }
+    log.info("voice_uploaded", { id: opts.id });
+  } finally {
+    deadline.clear();
   }
-
-  if (!res.ok) {
-    throw new Error(`TTS voice upload failed (HTTP ${res.status})${await errorDetail(res)}`);
-  }
-  log.info("voice_uploaded", { id: opts.id });
 }
 
 export async function deleteVoice(opts: VoicesRequestOptions & { id: string }): Promise<void> {
   const log = opts.logger ?? createLogger("tts-voices");
   const fetchImpl = opts.fetch ?? globalThis.fetch;
-  const res = await fetchImpl(`${opts.baseUrl}/v1/audio/voices/${encodeURIComponent(opts.id)}`, {
-    method: "DELETE",
-    headers: await authHeaders(opts.getApiKey),
-  });
-  const detail = res.ok ? "" : await errorDetail(res);
-  if (!res.ok && (res.status !== 404 || !detail)) {
-    throw new Error(`TTS voice delete failed (HTTP ${res.status})${detail}`);
+  const deadline = createDeadlineSignal(VOICES_REQUEST_TIMEOUT_MS, "TTS voice delete timed out");
+  try {
+    const res = await untilAborted(
+      fetchImpl(`${opts.baseUrl}/v1/audio/voices/${encodeURIComponent(opts.id)}`, {
+        method: "DELETE",
+        headers: await authHeaders(opts.getApiKey),
+        signal: deadline.signal,
+      }),
+      deadline.signal,
+    );
+    const detail = res.ok ? "" : await errorDetail(res, deadline.signal);
+    if (!res.ok && (res.status !== 404 || !detail)) {
+      throw new Error(`TTS voice delete failed (HTTP ${res.status})${detail}`);
+    }
+    log.info("voice_deleted", { id: opts.id });
+  } finally {
+    deadline.clear();
   }
-  log.info("voice_deleted", { id: opts.id });
 }
