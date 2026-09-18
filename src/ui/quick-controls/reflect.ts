@@ -511,21 +511,16 @@ export function createReflect(deps: ReflectDeps): Reflect {
     }
   }
 
-  // Render the delegated-work list from the mirrored store. Hidden while the backend reports none.
-  // A transport that is not ready leaves the rows describing nothing, so one line stands in for them.
+  // The delegated-work list from the history; the lost line joins it while the transport is not ready.
   const openSummaries = new Set<string>();
   function reflectDelegations(): void {
     if (!sessionDelegEl || !sessionDelegRowsEl || !sessionDelegLostEl || !delegations) return;
     const state = pushState();
     const lost = state !== undefined && state.kind !== "ready";
-    sessionDelegLostEl.hidden = !lost;
-    sessionDelegRowsEl.hidden = lost;
-    if (lost) {
-      sessionDelegEl.hidden = false;
-      return;
-    }
     const items = delegations.get();
-    sessionDelegEl.hidden = items.length === 0;
+    sessionDelegLostEl.hidden = !lost;
+    sessionDelegRowsEl.hidden = false;
+    sessionDelegEl.hidden = !lost && items.length === 0;
     renderDelegationRows(sessionDelegRowsEl, items, Date.now(), {
       open: openSummaries,
       onToggle: reflectDelegations,

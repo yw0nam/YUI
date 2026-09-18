@@ -86,6 +86,9 @@ export function renderDelegationRows(
   now: number,
   disclosure?: SummaryDisclosure,
 ): void {
+  const focused = container.contains(document.activeElement)
+    ? (document.activeElement as HTMLElement).dataset.id
+    : undefined;
   container.replaceChildren();
   sortDelegations(items).forEach((item, n) => {
     const openable =
@@ -95,6 +98,7 @@ export function renderDelegationRows(
       item.summary !== "";
     const row = document.createElement(openable ? "button" : "div");
     row.className = openable ? "yui-deleg__item yui-deleg__item--toggle" : "yui-deleg__item";
+    row.dataset.id = item.id;
     row.dataset.state = item.state;
     if (item.status !== undefined) row.dataset.status = item.status;
     row.append(...rowParts(item, now));
@@ -116,9 +120,15 @@ export function renderDelegationRows(
       if (disclosure.open.has(item.id)) disclosure.open.delete(item.id);
       else disclosure.open.add(item.id);
       disclosure.onToggle();
-      container.querySelector<HTMLElement>(`#yui-deleg-row-${n}`)?.focus();
     });
     container.append(button);
     if (disclosure.open.has(item.id)) container.append(summaryPanel(item, n));
   });
+  if (focused === undefined) return;
+  for (const el of container.querySelectorAll<HTMLElement>("button.yui-deleg__item")) {
+    if (el.dataset.id === focused) {
+      el.focus();
+      break;
+    }
+  }
 }

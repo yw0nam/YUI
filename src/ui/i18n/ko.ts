@@ -493,7 +493,7 @@ const ko: Record<string, string> = {
   "deleg.done": "끝남",
   "deleg.done_ago": "끝남 · {time} 전",
   "deleg.failed": "실패",
-  "deleg.failed_ago": "失敗 · {time} 전",
+  "deleg.failed_ago": "실패 · {time} 전",
   "deleg.took": "걸린 시간 {time}",
 
   // reasoning

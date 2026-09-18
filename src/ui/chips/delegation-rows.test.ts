@@ -163,6 +163,8 @@ describe("renderDelegationRows — the row DOM", () => {
 
       const button = (): HTMLButtonElement =>
         container.querySelector<HTMLButtonElement>("button.yui-deleg__item--toggle")!;
+      // jsdom's click() skips the native focus-on-click, so emulate it.
+      button().focus();
       button().click();
 
       expect(button().getAttribute("aria-expanded")).toBe("true");
@@ -186,7 +188,10 @@ describe("renderDelegationRows — the row DOM", () => {
         renderDelegationRows(container, items, NOW, { open, onToggle: () => render(items) });
       render([item]);
 
-      container.querySelector<HTMLButtonElement>("button.yui-deleg__item--toggle")!.click();
+      const first = container.querySelector<HTMLButtonElement>("button.yui-deleg__item--toggle")!;
+      // jsdom's click() skips the native focus-on-click, so emulate it.
+      first.focus();
+      first.click();
       expect(document.activeElement!.tagName).toBe("BUTTON");
 
       // A new running item lands before the done row, so its index changes.

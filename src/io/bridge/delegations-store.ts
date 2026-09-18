@@ -10,6 +10,7 @@ import type { DelegationItem } from "../chat/push-socket";
 /** How long a `done` item stays in the list after `ended_at`. */
 export const DELEGATION_DONE_TTL_MS = 30 * 60 * 1000;
 export const DELEGATION_TITLE_MAX_LEN = 120;
+export const DELEGATION_SUMMARY_MAX_LEN = 2000;
 export const DELEGATIONS_MAX_ITEMS = 50;
 
 export interface DelegationsStore {
@@ -36,7 +37,9 @@ export function sanitizeDelegation(raw: unknown): DelegationItem | null {
     ...(v.state === "done" && (v.status === "ok" || v.status === "error" || v.status === "unknown")
       ? { status: v.status }
       : {}),
-    ...(v.state === "done" && typeof v.summary === "string" ? { summary: v.summary } : {}),
+    ...(v.state === "done" && typeof v.summary === "string"
+      ? { summary: v.summary.slice(0, DELEGATION_SUMMARY_MAX_LEN) }
+      : {}),
   };
 }
 

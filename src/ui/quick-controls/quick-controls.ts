@@ -460,13 +460,13 @@ export function createQuickControls({
     getScreenDefaults,
   });
 
-  // The session section's delegated list re-renders on every list change, and a once-a-minute
-  // refresh keeps its elapsed and ago text current while the list holds items.
+  // The session section's delegated list re-renders on every list change; a once-a-minute refresh keeps
+  // the elapsed text current while something is running.
   let delegationsTimer: ReturnType<typeof setInterval> | null = null;
   function syncDelegations(): void {
     reflect.reflectDelegations();
     if (!delegations) return;
-    const has = delegations.get().length > 0;
+    const has = delegations.get().some((item) => item.state === "running");
     if (has && delegationsTimer === null) {
       delegationsTimer = setInterval(() => {
         delegations.refresh?.();
