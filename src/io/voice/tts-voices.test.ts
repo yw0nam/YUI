@@ -13,7 +13,13 @@ const { fetchReferenceClip } = vi.hoisted(() => ({
 }));
 vi.mock("./reference-clip", () => ({ fetchReferenceClip }));
 
-import { deleteVoice, listVoices, upsertVoice } from "./tts-voices";
+import {
+  deleteVoice,
+  listVoices,
+  upsertVoice,
+  VOICE_UPLOAD_TIMEOUT_MS,
+  VOICES_REQUEST_TIMEOUT_MS,
+} from "./tts-voices";
 
 type FetchFn = (url: string, init?: RequestInit) => Promise<Response>;
 
@@ -140,6 +146,29 @@ describe("listVoices", () => {
         logger: noopLog,
       }),
     ).resolves.toEqual([]);
+  });
+
+  it("resolves to [] and warns with the timeout when the body never settles", async () => {
+    vi.useFakeTimers();
+    try {
+      const fetchMock = vi.fn<FetchFn>(
+        async () =>
+          ({ ok: true, status: 200, json: () => new Promise(() => {}) }) as unknown as Response,
+      );
+
+      const pending = listVoices({
+        baseUrl: BASE_URL,
+        fetch: fetchMock as unknown as typeof fetch,
+        logger: noopLog,
+      });
+      await vi.advanceTimersByTimeAsync(VOICES_REQUEST_TIMEOUT_MS + 10);
+      await expect(pending).resolves.toEqual([]);
+      expect(noopLog.warn).toHaveBeenCalledWith("voice_list_failed", {
+        error: expect.stringContaining("TTS voice list timed out"),
+      });
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });
 
@@ -284,6 +313,29 @@ describe("upsertVoice", () => {
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
+  it("rejects with the upload timeout when the server never answers the POST", async () => {
+    vi.useFakeTimers();
+    try {
+      const fetchMock = vi.fn<FetchFn>(() => new Promise(() => {}));
+
+      const pending = upsertVoice({
+        baseUrl: BASE_URL,
+        id: "myvoice",
+        refUrl: REF_URL,
+        fetch: fetchMock as unknown as typeof fetch,
+      });
+      const assertion = expect(pending).rejects.toMatchObject({
+        name: "TimeoutError",
+        message: "TTS voice upload timed out",
+      });
+      await vi.advanceTimersByTimeAsync(VOICE_UPLOAD_TIMEOUT_MS + 10);
+      await assertion;
+      expect(fetchMock.mock.calls[0][1]?.signal).toBeInstanceOf(AbortSignal);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it("propagates a reference-clip read failure", async () => {
     fetchReferenceClip.mockRejectedValue(new Error("reference clip fetch failed (HTTP 404)"));
     const fetchMock = vi.fn<FetchFn>();
@@ -389,5 +441,27 @@ describe("deleteVoice", () => {
         logger: noopLog,
       }),
     ).rejects.toThrow("TTS voice delete failed (HTTP 500): database unavailable");
+  });
+
+  it("rejects with the delete timeout when the error body never settles", async () => {
+    vi.useFakeTimers();
+    try {
+      const fetchMock = vi.fn<FetchFn>(
+        async () =>
+          ({ ok: false, status: 500, json: () => new Promise(() => {}) }) as unknown as Response,
+      );
+
+      const pending = deleteVoice({
+        baseUrl: BASE_URL,
+        id: "myvoice",
+        fetch: fetchMock as unknown as typeof fetch,
+        logger: noopLog,
+      });
+      const assertion = expect(pending).rejects.toThrow("TTS voice delete failed (HTTP 500)");
+      await vi.advanceTimersByTimeAsync(VOICES_REQUEST_TIMEOUT_MS + 10);
+      await assertion;
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });
