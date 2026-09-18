@@ -785,10 +785,6 @@ class YuiAdapter(BasePlatformAdapter):
     async def on_processing_start(self, event: MessageEvent) -> None:
         """The turn opens here: the gateway serialises this per session, admission does not."""
         chat_id = _chat_of(event)
-        # ponytail: one schema per gateway process; two chats opening turns at the same moment can run one turn with the other's ids
-        vocab = state.vocabulary(chat_id)
-        if vocab is not None:
-            tools.declare(vocab)
         await self._close_failed(chat_id)
         stream = self._stream(chat_id)
         async with stream.lock:
@@ -804,6 +800,10 @@ class YuiAdapter(BasePlatformAdapter):
             # A minted id has nowhere else to live, and the completion of that event has to find it.
             event._yui_turn_id = turn_id
             state.open_turn(chat_id, turn_id)
+        vocab = state.vocabulary(chat_id)
+        # ponytail: one schema per process; chats whose turns overlap can read each other's ids
+        if vocab is not None:
+            tools.declare(vocab)
 
     async def on_processing_complete(self, event: MessageEvent, outcome: ProcessingOutcome) -> None:
         """Close the turn: a reply already rendered, anything else renders as silence."""
