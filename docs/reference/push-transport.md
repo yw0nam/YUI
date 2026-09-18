@@ -227,7 +227,7 @@ The full list of work the backend has handed to background workers for this conv
 | `status` | On a `done` item only. `"ok"`, `"error"`, or `"unknown"` when the backend cannot tell |
 | `summary` | On a `done` item only, when the worker returned text: its final answer, cut to the limit in the limits table |
 
-The client keeps the latest list. A `done` item leaves it 30 minutes after `ended_at`.
+The client keeps the latest list; a `done` item leaves the chip 30 minutes after `ended_at`. The client also keeps a history of every item it has seen across backend restarts: past 200 items the oldest `done` ones are dropped, and a `running` item is never dropped. The settings window's Session section lists the history and opens a finished item's `summary` under its row.
 
 ## Logging
 
