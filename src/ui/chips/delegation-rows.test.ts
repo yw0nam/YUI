@@ -177,6 +177,28 @@ describe("renderDelegationRows — the row DOM", () => {
       container.remove();
     });
 
+    it("keeps focus on the open row across a re-render", () => {
+      const container = document.createElement("div");
+      document.body.appendChild(container);
+      const open = new Set<string>();
+      const item = { ...done("d-1", 100_000), status: "ok" as const, summary: "All green." };
+      const render = (items: DelegationItem[]): void =>
+        renderDelegationRows(container, items, NOW, { open, onToggle: () => render(items) });
+      render([item]);
+
+      container.querySelector<HTMLButtonElement>("button.yui-deleg__item--toggle")!.click();
+      expect(document.activeElement!.tagName).toBe("BUTTON");
+
+      // A new running item lands before the done row, so its index changes.
+      render([running("d-2", 60_000), item]);
+
+      const button = container.querySelector<HTMLButtonElement>("button.yui-deleg__item");
+      expect(button!.dataset.id).toBe("d-1");
+      expect(document.activeElement).toBe(button);
+      expect(button!.getAttribute("aria-expanded")).toBe("true");
+      container.remove();
+    });
+
     it("leaves a running item, a done item without a summary, and one with an empty summary as plain rows", () => {
       const container = document.createElement("div");
       renderDelegationRows(

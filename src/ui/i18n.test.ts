@@ -270,6 +270,14 @@ describe("session & cue copy — shape", () => {
     }
   });
 
+  it("keeps the Korean bundle free of Japanese script", () => {
+    const japanese = /[぀-ヿ一-鿿]/;
+    const offenders = Object.entries(ko)
+      .filter(([, v]) => japanese.test(v))
+      .map(([k]) => k);
+    expect(offenders, `ko carries Japanese script in: ${offenders.join(", ")}`).toHaveLength(0);
+  });
+
   it("every locale carries the cue delete-confirm keys", () => {
     for (const dict of [en, ja, ko]) {
       expect(dict["cue.confirm_q"]).toBeTruthy();

@@ -7,6 +7,7 @@ import type { DelegationItem } from "../chat/push-socket";
 import {
   createDelegationsStore,
   DELEGATION_DONE_TTL_MS,
+  DELEGATION_SUMMARY_MAX_LEN,
   DELEGATION_TITLE_MAX_LEN,
   DELEGATIONS_MAX_ITEMS,
 } from "./delegations-store";
@@ -104,6 +105,14 @@ describe("createDelegationsStore", () => {
     const s = store();
     s.replace([{ ...running("d-1"), title: "x".repeat(DELEGATION_TITLE_MAX_LEN + 40) }]);
     expect(s.get()[0]!.title).toHaveLength(DELEGATION_TITLE_MAX_LEN);
+  });
+
+  it("cuts a summary to its limit", () => {
+    const s = store();
+    s.replace([
+      { ...done("d-1", NOW - 1000), summary: "x".repeat(DELEGATION_SUMMARY_MAX_LEN + 1) },
+    ]);
+    expect(s.get()[0]!.summary).toHaveLength(DELEGATION_SUMMARY_MAX_LEN);
   });
 
   it("keeps at most the item limit", () => {

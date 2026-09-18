@@ -203,7 +203,20 @@ describe("createQuickControls — session section delegated list", () => {
     qc.dispose();
   });
 
-  // The rows describe work the backend is doing; with the transport down they describe nothing.
+  it("does not arm the minute timer for a list of finished items", () => {
+    const delegations = fakeDelegations();
+    const qc = buildQc(delegations);
+    qc.open();
+
+    delegations.emit([done("d-1", 60_000)]);
+    vi.advanceTimersByTime(60_000);
+
+    expect(delegations.refresh).not.toHaveBeenCalled();
+
+    qc.dispose();
+  });
+
+  // The rows come from the history; with the transport down the lost line sits above them.
   describe("lost connection", () => {
     function buildPushQc(
       delegations: ReturnType<typeof fakeDelegations>,
@@ -231,7 +244,7 @@ describe("createQuickControls — session section delegated list", () => {
       return qc.el.querySelector<HTMLElement>(".yui-session__deleg-rows")!;
     }
 
-    it("swaps the rows for one lost line while the socket is not ready", () => {
+    it("shows the lost line above the rows while the socket is not ready", () => {
       const delegations = fakeDelegations([running("d-1", 60_000)]);
       const qc = buildPushQc(
         delegations,
@@ -242,7 +255,8 @@ describe("createQuickControls — session section delegated list", () => {
       expect(delegEl(qc).hidden).toBe(false);
       expect(lostEl(qc).hidden).toBe(false);
       expect(lostEl(qc).textContent).toContain(t("deleg.chip_lost"));
-      expect(rowsEl(qc).hidden).toBe(true);
+      expect(rowsEl(qc).hidden).toBe(false);
+      expect(rowTimes(qc)).toEqual(["1분"]);
 
       qc.dispose();
     });
@@ -280,12 +294,14 @@ describe("createQuickControls — session section delegated list", () => {
       qc.dispose();
     });
 
-    it("brings the rows back on the next frame after the socket returns", () => {
+    it("drops the lost line once the socket returns", () => {
       const delegations = fakeDelegations();
       const pushSocket = fakePushSocket({ kind: "connecting" });
       const qc = buildPushQc(delegations, pushSocket);
       qc.open();
+
       expect(lostEl(qc).hidden).toBe(false);
+      expect(rowsEl(qc).hidden).toBe(false);
 
       pushSocket.emit({ kind: "ready", chat_id: "yui-3f9a2c1d" });
       delegations.emit([running("d-1", 4 * 60_000)]);
