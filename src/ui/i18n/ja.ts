@@ -299,12 +299,12 @@ const ja: Record<string, string> = {
 
   // history tab
   "history.current": "現在の会話",
-  "history.turns": "{n}ターン",
-  "history.turns_one": "1ターン",
+  "history.messages": "メッセージ{n}件",
+  "history.messages_one": "メッセージ1件",
   "history.who_user": "あなた",
   "history.who_yui": "ユイ",
   "history.empty": "まだ会話がありません",
-  "history.foot": "直近200ターン · この端末にのみ保存",
+  "history.foot": "直近200件のメッセージ · この端末にのみ保存",
 
   // TTS output toggle
   "tts_output.label": "音声出力",

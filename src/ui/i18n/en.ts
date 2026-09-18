@@ -298,12 +298,12 @@ const en: Record<string, string> = {
 
   // history tab
   "history.current": "Current conversation",
-  "history.turns": "{n} turns",
-  "history.turns_one": "1 turn",
+  "history.messages": "{n} messages",
+  "history.messages_one": "1 message",
   "history.who_user": "You",
   "history.who_yui": "YUI",
   "history.empty": "Nothing has been said yet",
-  "history.foot": "Last 200 turns · stored on this device only",
+  "history.foot": "Last 200 messages · stored on this device only",
 
   // TTS output toggle
   "tts_output.label": "Voice output",

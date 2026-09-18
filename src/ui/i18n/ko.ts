@@ -297,12 +297,12 @@ const ko: Record<string, string> = {
 
   // history tab
   "history.current": "현재 대화",
-  "history.turns": "{n}턴",
-  "history.turns_one": "1턴",
+  "history.messages": "메시지 {n}개",
+  "history.messages_one": "메시지 1개",
   "history.who_user": "나",
   "history.who_yui": "유이",
   "history.empty": "아직 나눈 대화가 없어요",
-  "history.foot": "최근 200턴 · 이 기기에만 저장",
+  "history.foot": "최근 메시지 200개 · 이 기기에만 저장",
 
   // TTS output toggle
   "tts_output.label": "음성 출력",

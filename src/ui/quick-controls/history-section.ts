@@ -121,8 +121,8 @@ export function createHistorySection({
     count.className = "yui-hist__sess-count";
     count.textContent =
       session.entries.length === 1
-        ? t("history.turns_one")
-        : t("history.turns", { n: session.entries.length });
+        ? t("history.messages_one")
+        : t("history.messages", { n: session.entries.length });
 
     head.append(chev, main, count);
     group.append(head);
