@@ -494,6 +494,8 @@ const ja: Record<string, string> = {
   "deleg.hour_min": "{h}時間{m}分",
   "deleg.done": "完了",
   "deleg.done_ago": "完了 · {time}前",
+  "deleg.failed": "失敗",
+  "deleg.failed_ago": "失敗 · {time}前",
 
   // reasoning
   "think.chip": "思考",

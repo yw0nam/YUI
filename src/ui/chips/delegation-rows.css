@@ -27,6 +27,10 @@
   background: var(--yui-ok);
 }
 
+.yui-deleg__item[data-status="error"] .yui-deleg__item-dot {
+  background: var(--yui-danger);
+}
+
 .yui-deleg__item-title {
   overflow: hidden;
   text-overflow: ellipsis;

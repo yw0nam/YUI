@@ -19,6 +19,10 @@ logger = logging.getLogger(__name__)
 
 MAX_ITEMS = 50
 TITLE_MAX_LEN = 120
+SUMMARY_MAX_LEN = 2000
+
+# What the child reports at subagent_stop, folded to the frame's ok / error / unknown.
+_STATUS = {"completed": "ok", "failed": "error", "error": "error", "timeout": "error", "interrupted": "error"}
 
 _lock = threading.Lock()
 _items: dict[str, list[dict]] = {}
@@ -83,6 +87,8 @@ def on_subagent_start(
         "started_at": int(time.time() * 1000),
         "state": "running",
         "ended_at": None,
+        "status": None,
+        "summary": None,
     }
     with _lock:
         held = _items.setdefault(chat_id, [])
@@ -91,8 +97,14 @@ def on_subagent_start(
     _announce(chat_id)
 
 
-def on_subagent_stop(child_session_id: Any = None, child_subagent_id: Any = None, **_kwargs: Any) -> None:
-    """Close a delegation out; a failed one is finished too, the agent says so in speech."""
+def on_subagent_stop(
+    child_session_id: Any = None,
+    child_subagent_id: Any = None,
+    child_status: Any = None,
+    child_summary: Any = None,
+    **_kwargs: Any,
+) -> None:
+    """Close a delegation out with the child's status and its final answer, cut to the limit."""
     key = str(child_session_id or child_subagent_id or "")
     chat_id = session.current_chat_id()
     if not chat_id or not key:
@@ -104,4 +116,6 @@ def on_subagent_stop(child_session_id: Any = None, child_subagent_id: Any = None
             return
         found["state"] = "done"
         found["ended_at"] = int(time.time() * 1000)
+        found["status"] = _STATUS.get(str(child_status or "").lower(), "unknown")
+        found["summary"] = str(child_summary)[:SUMMARY_MAX_LEN] if child_summary else None
     _announce(chat_id)

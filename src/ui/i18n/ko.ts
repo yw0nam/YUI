@@ -492,6 +492,8 @@ const ko: Record<string, string> = {
   "deleg.hour_min": "{h}시간 {m}분",
   "deleg.done": "끝남",
   "deleg.done_ago": "끝남 · {time} 전",
+  "deleg.failed": "실패",
+  "deleg.failed_ago": "실패 · {time} 전",
 
   // reasoning
   "think.chip": "추론",

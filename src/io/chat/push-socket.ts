@@ -62,6 +62,8 @@ export interface DelegationItem {
   started_at: number;
   state: "running" | "done";
   ended_at?: number;
+  status?: "ok" | "error" | "unknown";
+  summary?: string;
 }
 
 /** The backend closed a turn: the running state the `turn` frame set is released. */

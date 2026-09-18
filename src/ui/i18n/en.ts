@@ -495,6 +495,8 @@ const en: Record<string, string> = {
   "deleg.hour_min": "{h}h {m}m",
   "deleg.done": "Done",
   "deleg.done_ago": "Done · {time} ago",
+  "deleg.failed": "Failed",
+  "deleg.failed_ago": "Failed · {time} ago",
 
   // reasoning
   "think.chip": "Reasoning",

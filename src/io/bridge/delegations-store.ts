@@ -33,6 +33,10 @@ function sanitize(raw: unknown): DelegationItem | null {
     started_at: typeof v.started_at === "number" ? v.started_at : 0,
     state: v.state,
     ...(typeof v.ended_at === "number" ? { ended_at: v.ended_at } : {}),
+    ...(v.state === "done" && (v.status === "ok" || v.status === "error" || v.status === "unknown")
+      ? { status: v.status }
+      : {}),
+    ...(v.state === "done" && typeof v.summary === "string" ? { summary: v.summary } : {}),
   };
 }
 

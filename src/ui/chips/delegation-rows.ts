@@ -19,11 +19,13 @@ export function formatDelegationDuration(ms: number): string {
   return t("deleg.hour_min", { h: Math.floor(minutes / 60), m: minutes % 60 });
 }
 
-/** One row's right-side text — running elapsed, or done with an "ago" stamp. */
+/** One row's right-side text — running elapsed, or done (or failed) with an "ago" stamp. */
 export function formatDelegationTime(item: DelegationItem, now: number): string {
   if (item.state === "running") return formatDelegationDuration(now - item.started_at);
-  if (item.ended_at === undefined) return t("deleg.done");
-  return t("deleg.done_ago", { time: formatDelegationDuration(now - item.ended_at) });
+  const failed = item.status === "error";
+  if (item.ended_at === undefined) return t(failed ? "deleg.failed" : "deleg.done");
+  const time = formatDelegationDuration(now - item.ended_at);
+  return t(failed ? "deleg.failed_ago" : "deleg.done_ago", { time });
 }
 
 /** Running items first, then done; each group keeps the backend's order. */
@@ -45,6 +47,7 @@ export function renderDelegationRows(
     const row = document.createElement("div");
     row.className = "yui-deleg__item";
     row.dataset.state = item.state;
+    if (item.status !== undefined) row.dataset.status = item.status;
     const dot = document.createElement("span");
     dot.className = "yui-deleg__item-dot";
     dot.setAttribute("aria-hidden", "true");
