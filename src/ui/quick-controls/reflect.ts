@@ -43,6 +43,7 @@ import {
   type ChatApi,
   ENDPOINT_FIELDS,
   LANG_PICKER_ORDER,
+  RATE_LIMIT_FIELDS,
   SCREEN_KNOB_FIELDS,
   SCREEN_MIN_GAP_MAX,
   SCREEN_MIN_GAP_MIN,
@@ -104,14 +105,8 @@ interface ReflectDeps {
     get(): DelegationItem[];
     subscribe(cb: (items: DelegationItem[]) => void): () => void;
   };
-  /** Reactions tab numeric inputs — provided when the feature is enabled. */
-  agentPortInput?: HTMLInputElement;
-  presenceInput?: HTMLInputElement;
   presenceSettings?: ClampedIntSettingsStore;
-  pacerGapInput?: HTMLInputElement;
   pacerGapSettings?: ClampedIntSettingsStore;
-  /** Rate-limit cap inputs, keyed by the cap they edit (empty when the store is absent). */
-  rateLimitInputs: ReadonlyMap<keyof RateLimitOverrides, HTMLInputElement>;
   rateLimitSettings?: GuardrailsSettingsStore;
   /** Bundled config caps a field falls back to when it carries no override (undefined if not loaded). */
   getRateLimitDefaults?: () => RateLimitOverrides | undefined;
@@ -162,12 +157,8 @@ export function createReflect(deps: ReflectDeps): Reflect {
     getDefaultChatApi,
     getPushState,
     delegations,
-    agentPortInput,
-    presenceInput,
     presenceSettings,
-    pacerGapInput,
     pacerGapSettings,
-    rateLimitInputs,
     rateLimitSettings,
     getRateLimitDefaults,
     screenSettings,
@@ -234,6 +225,15 @@ export function createReflect(deps: ReflectDeps): Reflect {
   for (const field of SCREEN_KNOB_FIELDS) {
     const input = root.querySelector<HTMLInputElement>(`#${field.id}`);
     if (input) screenKnobInputs.set(field.key, input);
+  }
+  // Reactions tab numeric inputs — null or empty when the row is not rendered.
+  const agentPortInput = root.querySelector<HTMLInputElement>("#yui-agent-port");
+  const presenceInput = root.querySelector<HTMLInputElement>("#yui-presence");
+  const pacerGapInput = root.querySelector<HTMLInputElement>("#yui-pacer-gap");
+  const rateLimitInputs = new Map<keyof RateLimitOverrides, HTMLInputElement>();
+  for (const field of RATE_LIMIT_FIELDS) {
+    const input = root.querySelector<HTMLInputElement>(`#${field.id}`);
+    if (input) rateLimitInputs.set(field.key, input);
   }
 
   function reflectSettings(): void {

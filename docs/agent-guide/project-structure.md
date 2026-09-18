@@ -324,6 +324,7 @@ YUI/
         endpoints-section.ts         # Endpoint URL fields, API-key rows, chat-API picker, and resets
         monitors-section.ts          # Screen-source list and its load state
         screen-section.ts            # Screen-watch threshold knobs and the min-gap slider
+        reactions-section.ts         # Agent-port, presence, pacer-gap, and rate-limit cap inputs
         history-section.ts           # History tab session accordion over the persisted transcript
         workflows-section.ts         # Workflow entry list editing
         express-motion-section.ts    # Category accordion curating the agent-selectable motion vocabulary

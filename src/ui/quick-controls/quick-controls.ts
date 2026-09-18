@@ -54,7 +54,7 @@ import { DELEGATION_REFRESH_MS } from "../chips/delegation-rows";
 import type { VoiceInputStatus } from "../chips/voice-input-status";
 import { type Locale, setLocale, t } from "../i18n";
 import { type CueListInstance, createCueList } from "../message/cue-list";
-import { type QuickControlsTab, RATE_LIMIT_FIELDS } from "./constants";
+import type { QuickControlsTab } from "./constants";
 import { createEndpointsSection } from "./endpoints-section";
 import { createExpressMotionList } from "./express-motion-section";
 import { parseToolLines, serializeToolLines } from "./filler-tool-lines";
@@ -63,6 +63,7 @@ import { createHistorySection } from "./history-section";
 import { createIdleMotionList } from "./idle-motion-section";
 import { createMonitorsSection } from "./monitors-section";
 import { createPopover } from "./popover";
+import { createReactionsSection } from "./reactions-section";
 import { createReflect } from "./reflect";
 import { createScreenSection } from "./screen-section";
 import { createSections } from "./sections";
@@ -353,14 +354,6 @@ export function createQuickControls({
 
   const switchBtn = el.querySelector<HTMLButtonElement>(".yui-screenshot-switch")!;
   const cueSectionsMountEl = el.querySelector<HTMLDivElement>(".yui-cue-sections")!;
-  const agentPortInput = el.querySelector<HTMLInputElement>("#yui-agent-port");
-  const presenceInput = el.querySelector<HTMLInputElement>("#yui-presence");
-  const pacerGapInput = el.querySelector<HTMLInputElement>("#yui-pacer-gap");
-  const rateLimitInputs = new Map<keyof RateLimitOverrides, HTMLInputElement>();
-  for (const field of RATE_LIMIT_FIELDS) {
-    const input = el.querySelector<HTMLInputElement>(`#${field.id}`);
-    if (input) rateLimitInputs.set(field.key, input);
-  }
   const voiceSwitchBtn = el.querySelector<HTMLButtonElement>(".yui-voice-switch")!;
   const monitorsSection = createMonitorsSection({ root: el, sourceProvider, settings, log });
   const vrmsEl = el.querySelector<HTMLDivElement>(".yui-vrms")!;
@@ -469,12 +462,8 @@ export function createQuickControls({
     getDefaultChatApi,
     ...(pushSocket ? { getPushState: () => pushSocket.getState() } : {}),
     ...(delegations ? { delegations } : {}),
-    agentPortInput: agentPortInput ?? undefined,
-    presenceInput: presenceInput ?? undefined,
     presenceSettings,
-    pacerGapInput: pacerGapInput ?? undefined,
     pacerGapSettings,
-    rateLimitInputs,
     rateLimitSettings,
     getRateLimitDefaults,
     screenSettings,
@@ -606,6 +595,21 @@ export function createQuickControls({
     screenSettings,
     screenKnobSettings,
     reflectScreen: reflect.reflectScreen,
+    reflectSwitchRows: reflect.reflectSwitchRows,
+    isOpen: popover.isOpen,
+  });
+
+  // ── Reactions section (agent port · presence · pacer gap · rate-limit caps) ──
+  const reactions = createReactionsSection({
+    root: el,
+    agentNotifySettings,
+    presenceSettings,
+    pacerGapSettings,
+    rateLimitSettings,
+    reflectAgentNotify: reflect.reflectAgentNotify,
+    reflectPresence: reflect.reflectPresence,
+    reflectPacerGap: reflect.reflectPacerGap,
+    reflectRateLimits: reflect.reflectRateLimits,
     reflectSwitchRows: reflect.reflectSwitchRows,
     isOpen: popover.isOpen,
   });
@@ -969,58 +973,6 @@ export function createQuickControls({
   const unsubscribeMessageWindow = messageWindowSettings?.subscribe(() => {
     if (popover.isOpen()) reflect.reflectSwitchRows();
   });
-  const unsubscribeAgentNotify = agentNotifySettings?.subscribe(() => {
-    if (popover.isOpen()) {
-      reflect.reflectSwitchRows();
-      reflect.reflectAgentNotify();
-    }
-  });
-  const unsubscribePresence = presenceSettings?.subscribe(() => {
-    if (popover.isOpen()) reflect.reflectPresence();
-  });
-  const unsubscribePacerGap = pacerGapSettings?.subscribe(() => {
-    if (popover.isOpen()) reflect.reflectPacerGap();
-  });
-  const unsubscribeRateLimit = rateLimitSettings?.subscribe(() => {
-    if (popover.isOpen()) reflect.reflectRateLimits();
-  });
-  function handleAgentPortChange(): void {
-    if (!agentNotifySettings || !agentPortInput) return;
-    agentNotifySettings.setPort(Math.round(Number(agentPortInput.value)));
-    reflect.reflectAgentNotify();
-  }
-  function handlePresenceChange(): void {
-    if (!presenceSettings || !presenceInput) return;
-    const v = Math.round(Number(presenceInput.value));
-    presenceSettings.set(v * 1000);
-    reflect.reflectPresence();
-  }
-  function handlePacerGapChange(): void {
-    if (!pacerGapSettings || !pacerGapInput) return;
-    const v = Math.round(Number(pacerGapInput.value));
-    pacerGapSettings.set(v * 60_000);
-    reflect.reflectPacerGap();
-  }
-  // Commit on change (blur / Enter), the same settle point as the agent port — a mid-typing
-  // keystroke must not re-cap the live limiter. An emptied field clears the override.
-  function handleRateLimitChange(e: Event): void {
-    const input = e.target;
-    if (!rateLimitSettings || !(input instanceof HTMLInputElement)) return;
-    const key = RATE_LIMIT_FIELDS.find((f) => f.id === input.id)?.key;
-    if (!key) return;
-    rateLimitSettings.set({ [key]: Math.round(Number(input.value)) });
-    reflect.reflectRateLimits();
-  }
-  agentPortInput?.addEventListener("change", handleAgentPortChange);
-  presenceInput?.addEventListener("change", handlePresenceChange);
-  presenceInput?.addEventListener("blur", reflect.reflectPresence);
-  pacerGapInput?.addEventListener("change", handlePacerGapChange);
-  pacerGapInput?.addEventListener("blur", reflect.reflectPacerGap);
-  for (const input of rateLimitInputs.values()) {
-    input.addEventListener("change", handleRateLimitChange);
-    input.addEventListener("blur", reflect.reflectRateLimits);
-  }
-
   // Cue-list components — both in the Proactive tab: proactive in .yui-loop-cue-section, schedule in .yui-cue-sections.
   const loopCueMountEl = el.querySelector<HTMLDivElement>(".yui-loop-cue-section")!;
 
@@ -1166,6 +1118,7 @@ export function createQuickControls({
     endpoints.dispose();
     workflows.dispose();
     screen.dispose();
+    reactions.dispose();
     hintTooltip.dispose();
     sections.dispose();
     history?.dispose();
@@ -1179,19 +1132,6 @@ export function createQuickControls({
     unsubscribeFall?.();
     unsubscribeBubblePersist?.();
     unsubscribeMessageWindow?.();
-    unsubscribeAgentNotify?.();
-    unsubscribePresence?.();
-    unsubscribePacerGap?.();
-    unsubscribeRateLimit?.();
-    agentPortInput?.removeEventListener("change", handleAgentPortChange);
-    presenceInput?.removeEventListener("change", handlePresenceChange);
-    presenceInput?.removeEventListener("blur", reflect.reflectPresence);
-    pacerGapInput?.removeEventListener("change", handlePacerGapChange);
-    pacerGapInput?.removeEventListener("blur", reflect.reflectPacerGap);
-    for (const input of rateLimitInputs.values()) {
-      input.removeEventListener("change", handleRateLimitChange);
-      input.removeEventListener("blur", reflect.reflectRateLimits);
-    }
     unsubscribeVoice();
     unsubscribeLipsync();
     unsubscribeVad();
