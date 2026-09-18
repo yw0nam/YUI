@@ -15,6 +15,7 @@ The client renders what arrives and judges nothing. Everything the backend must 
 | Frame wait, per turn | 240 s |
 | Text frame size, either direction | 256 KiB |
 | Delegation item `title` | 120 characters |
+| Delegation item `summary` | 2,000 characters |
 | Delegation list `items` | 50 entries |
 | `done` item kept on the client after `ended_at` | 30 min |
 
@@ -209,7 +210,7 @@ The full list of work the backend has handed to background workers for this conv
   "type": "delegations",
   "items": [
     { "id": "d-7f21", "title": "Sort the regression test list", "started_at": 1789365854947, "state": "running" },
-    { "id": "d-5a03", "title": "Check log file sizes", "started_at": 1789365123000, "state": "done", "ended_at": 1789365701000 }
+    { "id": "d-5a03", "title": "Check log file sizes", "started_at": 1789365123000, "state": "done", "ended_at": 1789365701000, "status": "ok", "summary": "All three logs are under 10 MB." }
   ]
 }
 ```
@@ -219,9 +220,11 @@ The full list of work the backend has handed to background workers for this conv
 | `id` | Stable per delegation |
 | `title` | First line of the task the backend handed over, cut to the limit in the limits table |
 | `started_at`, `ended_at` | Epoch milliseconds |
-| `state` | `"running"` or `"done"`. A failed delegation is `"done"`; the backend says what happened in speech |
+| `state` | `"running"` or `"done"`. A failed delegation is `"done"` with `status: "error"` |
+| `status` | On a `done` item only. `"ok"`, `"error"`, or `"unknown"` when the backend cannot tell |
+| `summary` | On a `done` item only, when the worker returned text: its final answer, cut to the limit in the limits table |
 
-The client keeps the latest list. A `done` item leaves it 30 minutes after `ended_at`.
+Character limits count Unicode code points. The client keeps the latest list. A `done` item leaves it 30 minutes after `ended_at`.
 
 ## Logging
 
