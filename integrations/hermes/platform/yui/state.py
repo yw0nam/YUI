@@ -23,9 +23,10 @@ def set_vocabulary(chat_id: str, vocab: Vocabulary) -> None:
         _vocabularies[chat_id] = vocab
 
 
-def vocabulary(chat_id: str) -> Vocabulary:
+def vocabulary(chat_id: str) -> Vocabulary | None:
+    """This chat's published vocabulary, or None when it has never published one."""
     with _lock:
-        return _vocabularies.get(chat_id) or Vocabulary()
+        return _vocabularies.get(chat_id)
 
 
 def open_turn(chat_id: str, turn_id: str) -> None:

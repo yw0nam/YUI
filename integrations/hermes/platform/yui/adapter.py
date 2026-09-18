@@ -333,7 +333,6 @@ class YuiAdapter(BasePlatformAdapter):
     def _publish_vocabulary(self, chat_id: str, payload: object) -> None:
         vocab = Vocabulary.from_payload(payload)
         state.set_vocabulary(chat_id, vocab)
-        tools.declare(vocab)
 
     def _source(self, chat_id: str):
         return self.build_source(
@@ -786,6 +785,10 @@ class YuiAdapter(BasePlatformAdapter):
     async def on_processing_start(self, event: MessageEvent) -> None:
         """The turn opens here: the gateway serialises this per session, admission does not."""
         chat_id = _chat_of(event)
+        # ponytail: one schema per gateway process; two chats opening turns at the same moment can run one turn with the other's ids
+        vocab = state.vocabulary(chat_id)
+        if vocab is not None:
+            tools.declare(vocab)
         await self._close_failed(chat_id)
         stream = self._stream(chat_id)
         async with stream.lock:

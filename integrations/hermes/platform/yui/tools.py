@@ -105,7 +105,7 @@ def build_schema(vocab: Vocabulary) -> dict:
 def handler(args: dict, **_kwargs: Any) -> str:
     """Gate each cue against the chat's vocabulary and buffer it for the turn in flight."""
     chat_id = session.current_chat_id()
-    vocab = state.vocabulary(chat_id)
+    vocab = state.vocabulary(chat_id) or Vocabulary()
     calls = (args or {}).get("cues")
     results = []
     for call in calls if isinstance(calls, list) else []:
