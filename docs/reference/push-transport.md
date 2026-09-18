@@ -19,6 +19,8 @@ The client renders what arrives and judges nothing. Everything the backend must 
 | Delegation list `items` | 50 entries |
 | `done` item kept on the client after `ended_at` | 30 min |
 
+The backend cuts `title` and `summary` to their limits, counting Unicode code points.
+
 ## Connection
 
 The client opens `wss://` (or `ws://`) to `chat_base_url` with the path `/ws`. A `chat_base_url` of `https://host:8646` gives `wss://host:8646/ws`.
@@ -224,7 +226,7 @@ The full list of work the backend has handed to background workers for this conv
 | `status` | On a `done` item only. `"ok"`, `"error"`, or `"unknown"` when the backend cannot tell |
 | `summary` | On a `done` item only, when the worker returned text: its final answer, cut to the limit in the limits table |
 
-Character limits count Unicode code points. The client keeps the latest list. A `done` item leaves it 30 minutes after `ended_at`.
+The client keeps the latest list. A `done` item leaves it 30 minutes after `ended_at`.
 
 ## Logging
 

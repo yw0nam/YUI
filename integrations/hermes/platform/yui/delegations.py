@@ -87,6 +87,7 @@ def on_subagent_start(
         "started_at": int(time.time() * 1000),
         "state": "running",
         "ended_at": None,
+        # Seeded so a stop only rebinds keys; items() copies these dicts outside the lock.
         "status": None,
         "summary": None,
     }
@@ -117,5 +118,7 @@ def on_subagent_stop(
         found["state"] = "done"
         found["ended_at"] = int(time.time() * 1000)
         found["status"] = _STATUS.get(str(child_status or "").lower(), "unknown")
-        found["summary"] = str(child_summary)[:SUMMARY_MAX_LEN] if child_summary else None
+        found["summary"] = (
+            child_summary[:SUMMARY_MAX_LEN] if isinstance(child_summary, str) and child_summary else None
+        )
     _announce(chat_id)

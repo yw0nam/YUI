@@ -101,6 +101,15 @@ def fit_frame(frame: dict) -> str | None:
         budget = max(len(raw) - (size - MAX_FRAME_BYTES), 0)
         frame["delta"] = raw[:budget].decode("utf-8", "ignore")
         body, size = _encoded(frame)
+    items = frame.get("items")
+    if size > MAX_FRAME_BYTES and isinstance(items, list):
+        # Oldest first; the summary is the least of what a row shows.
+        for item in items:
+            if not isinstance(item, dict) or item.pop("summary", None) is None:
+                continue
+            body, size = _encoded(frame)
+            if size <= MAX_FRAME_BYTES:
+                break
     if size > MAX_FRAME_BYTES:
         logger.warning(
             "yui: %s frame still over %d bytes at %d after trimming",

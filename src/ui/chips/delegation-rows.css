@@ -27,7 +27,7 @@
   background: var(--yui-ok);
 }
 
-.yui-deleg__item[data-status="error"] .yui-deleg__item-dot {
+.yui-deleg__item[data-state="done"][data-status="error"] .yui-deleg__item-dot {
   background: var(--yui-danger);
 }
 

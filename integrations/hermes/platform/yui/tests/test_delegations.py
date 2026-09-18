@@ -88,7 +88,7 @@ def test_the_summary_is_cut_to_the_limit():
     delegations.on_subagent_start(child_subagent_id="sa-1", child_session_id="s-1", child_goal="Work")
     delegations.on_subagent_stop(child_session_id="s-1", child_status="completed", child_summary="x" * 3000)
     summary = delegations.items("yui")[0]["summary"]
-    assert len(summary) == delegations.SUMMARY_MAX_LEN == 2000
+    assert len(summary) == delegations.SUMMARY_MAX_LEN
 
 
 def test_a_stop_with_no_summary_sends_none():
@@ -99,7 +99,9 @@ def test_a_stop_with_no_summary_sends_none():
 
 def test_a_summary_that_is_not_text_is_dropped():
     delegations.on_subagent_start(child_subagent_id="sa-1", child_session_id="s-1", child_goal="Work")
-    delegations.on_subagent_stop(child_session_id="s-1", child_status="completed", child_summary={"blocks": []})
+    delegations.on_subagent_stop(
+        child_session_id="s-1", child_status="completed", child_summary={"blocks": []}
+    )
     assert "summary" not in delegations.items("yui")[0]
 
 

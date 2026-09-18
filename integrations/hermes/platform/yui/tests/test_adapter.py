@@ -1215,7 +1215,15 @@ def test_a_frame_that_cannot_be_trimmed_has_nothing_to_send(caplog):
 
 def test_an_oversize_delegations_frame_drops_summaries_oldest_first_until_it_fits():
     items = [
-        {"id": f"d-{n}", "title": "t", "started_at": n, "state": "done", "ended_at": n, "status": "ok", "summary": "안" * 2000}
+        {
+            "id": f"d-{n}",
+            "title": "t",
+            "started_at": n,
+            "state": "done",
+            "ended_at": n,
+            "status": "ok",
+            "summary": "안" * 2000,
+        }
         for n in range(50)
     ]
     frame = {"type": "delegations", "items": items}
@@ -1223,7 +1231,7 @@ def test_an_oversize_delegations_frame_drops_summaries_oldest_first_until_it_fit
     assert len(json.dumps(fitted, ensure_ascii=False).encode("utf-8")) <= MAX_FRAME_BYTES
     kept = [item for item in fitted["items"] if "summary" in item]
     assert kept and kept[0]["id"] != "d-0"
-    assert all("summary" in item for item in fitted["items"][len(fitted["items"]) - len(kept):])
+    assert all("summary" in item for item in fitted["items"][len(fitted["items"]) - len(kept) :])
     assert [item["id"] for item in fitted["items"]] == [f"d-{n}" for n in range(50)]
 
 
