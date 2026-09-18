@@ -134,4 +134,65 @@ describe("renderDelegationRows — the row DOM", () => {
     expect(rows[0]!.dataset.status).toBe("error");
     expect(rows[1]!.dataset.status).toBeUndefined();
   });
+
+  describe("with a summary disclosure", () => {
+    it("renders a done item with a summary as a closed disclosure button", () => {
+      const container = document.createElement("div");
+      renderDelegationRows(
+        container,
+        [{ ...done("d-1", 100_000), status: "ok", summary: "All three logs are under 10 MB." }],
+        NOW,
+        { open: new Set<string>(), onToggle: () => {} },
+      );
+
+      const button = container.querySelector<HTMLButtonElement>("button.yui-deleg__item--toggle");
+      expect(button).not.toBeNull();
+      expect(button!.getAttribute("aria-expanded")).toBe("false");
+      expect(button!.querySelector(".yui-deleg__item-chev")).not.toBeNull();
+      expect(container.querySelector(".yui-deleg__summary")).toBeNull();
+    });
+
+    it("opens the summary and the duration on click, keeps focus on the rebuilt row, and closes on the next", () => {
+      const container = document.createElement("div");
+      document.body.appendChild(container);
+      const open = new Set<string>();
+      const item = { ...done("d-1", 100_000), status: "ok" as const, summary: "All green." };
+      const render = (): void =>
+        renderDelegationRows(container, [item], NOW, { open, onToggle: render });
+      render();
+
+      const button = (): HTMLButtonElement =>
+        container.querySelector<HTMLButtonElement>("button.yui-deleg__item--toggle")!;
+      button().click();
+
+      expect(button().getAttribute("aria-expanded")).toBe("true");
+      expect(container.querySelector(".yui-deleg__summary-text")!.textContent).toBe("All green.");
+      expect(container.querySelector(".yui-deleg__summary-meta")!.textContent).toBe("Took 10m");
+      expect(document.activeElement).toBe(button());
+
+      button().click();
+
+      expect(container.querySelector(".yui-deleg__summary")).toBeNull();
+      expect(open.size).toBe(0);
+      container.remove();
+    });
+
+    it("leaves a running item, a done item without a summary, and one with an empty summary as plain rows", () => {
+      const container = document.createElement("div");
+      renderDelegationRows(
+        container,
+        [running("d-1", 60_000), done("d-2", 60_000), { ...done("d-3", 60_000), summary: "" }],
+        NOW,
+        { open: new Set<string>(), onToggle: () => {} },
+      );
+
+      const rows = [...container.querySelectorAll(".yui-deleg__item")];
+      expect(rows).toHaveLength(3);
+      for (const row of rows) {
+        expect(row.tagName).toBe("DIV");
+        expect(row.classList.contains("yui-deleg__item--toggle")).toBe(false);
+        expect(row.querySelector(".yui-deleg__item-chev")).toBeNull();
+      }
+    });
+  });
 });

@@ -164,6 +164,20 @@ describe("createQuickControls — session section delegated list", () => {
     qc.dispose();
   });
 
+  it("opens a finished item's summary under its row in the session section", () => {
+    const delegations = fakeDelegations();
+    const qc = buildQc(delegations);
+    qc.open();
+
+    delegations.emit([{ ...done("d-1", 60_000), status: "ok", summary: "All green." }]);
+
+    qc.el.querySelector<HTMLButtonElement>(".yui-session__deleg-rows button")!.click();
+
+    expect(qc.el.querySelector(".yui-deleg__summary-text")!.textContent).toBe("All green.");
+
+    qc.dispose();
+  });
+
   it("refreshes the times once a minute while items are held", () => {
     const delegations = fakeDelegations([running("d-1", 4 * 60_000)]);
     const qc = buildQc(delegations);

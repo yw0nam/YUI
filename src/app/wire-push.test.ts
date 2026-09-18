@@ -134,6 +134,7 @@ let socket: ReturnType<typeof fakeSocket>;
 let turnOutput: ReturnType<typeof makeTurnOutput>;
 let pushTurns: ReturnType<typeof createPushTurns>;
 let delegations: ReturnType<typeof createDelegationsStore>;
+let delegationHistory: { merge: Mock<(items: DelegationItem[]) => void> };
 let reasoning: ReturnType<typeof createReasoningStore>;
 let records: unknown[];
 let transcript: ChatHistoryEntry[];
@@ -146,6 +147,7 @@ function wire() {
     turnOutput,
     pushTurns,
     delegations,
+    delegationHistory,
     reasoning,
     onToolStatus: toolStatusSink,
     appendTurnRecord: (record) => records.push(record),
@@ -159,6 +161,7 @@ beforeEach(() => {
   turnOutput = makeTurnOutput();
   pushTurns = createPushTurns();
   delegations = createDelegationsStore();
+  delegationHistory = { merge: vi.fn() };
   reasoning = createReasoningStore();
   records = [];
   transcript = [];
@@ -203,6 +206,20 @@ describe("wirePushTransport", () => {
     ]);
 
     expect(delegations.get().map((d) => d.id)).toEqual(["d-1"]);
+  });
+
+  it("folds a delegations frame into the history before the live list replaces", () => {
+    wire();
+    const replace = vi.spyOn(delegations, "replace");
+    const items: DelegationItem[] = [
+      { id: "d-1", title: "Sort the list", started_at: 1, state: "running" },
+    ];
+    socket.pushDelegations(items);
+
+    expect(delegationHistory.merge).toHaveBeenCalledWith(items);
+    expect(delegationHistory.merge.mock.invocationCallOrder[0]).toBeLessThan(
+      replace.mock.invocationCallOrder[0],
+    );
   });
 
   it("logs one info line per delegations frame with the total and running counts", () => {
