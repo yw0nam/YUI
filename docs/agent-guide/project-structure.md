@@ -80,6 +80,8 @@ YUI/
       apply-directive.ts             # Pure routing of a control envelope into the emotion and motion sinks
       pin-controller.ts              # Stateful perch and peek pin apply layer
       vrm-participant.ts             # The per-frame lifecycle every VRM-bound sub-controller implements
+      camera/                        # Camera framing, zoom, and orbit state
+        rig.ts                       # Fit-to-bounds framing, wheel zoom, the eased orbit polar, and the travel view window
       geometry/                      # Pure math and pixel sampling with no three.js state
         alpha-hit-test.ts            # CPU-side low-res silhouette grab and sampling
         body-yaw.ts                  # Pure easing math for the root yaw a stroll turns by
