@@ -9,7 +9,7 @@ import {
   TTS_API_KEY_SECRET,
 } from "../config/load";
 import type { ConfigStore } from "../config/store";
-import type { EndpointsConfig, WindowRect } from "../contract";
+import type { EndpointsConfig, ToolStatus, WindowRect } from "../contract";
 import { createBackendCaller, isChatConfigured } from "../dispatcher/backend/backend-caller";
 import { createPreviousTurn } from "../dispatcher/backend/previous-turn";
 import type { EventBus } from "../dispatcher/core/event-bus";
@@ -306,6 +306,12 @@ const realFactories: ConfiguredBootstrapFactories = {
     const unlistenFrontmost = await subscribeOsEvent({ onTick: frontmostTracker.onTick, log });
     if (unlistenFrontmost) register(unlistenFrontmost);
 
+    const applyToolStatus = (status: ToolStatus): void => {
+      if (status.state === "running") surfaces.showTool(status.tool_id ?? "");
+      else if (status.state === "done") surfaces.finishTool();
+      else surfaces.hideTool();
+    };
+
     const backendCaller = createBackendCaller({
       get config() {
         return getEndpoints();
@@ -326,12 +332,7 @@ const realFactories: ConfiguredBootstrapFactories = {
       },
       turnOutput: voice.turnOutput,
       reportSpokeText: (spoke) => turnLog.setSpokeText(spoke),
-      onToolStatus: (state) =>
-        state.state === "running"
-          ? surfaces.showTool(state.tool_id ?? "")
-          : state.state === "done"
-            ? surfaces.finishTool()
-            : surfaces.hideTool(),
+      onToolStatus: applyToolStatus,
       getScreenshot: async () => {
         const screenshot = settings.screenshotSettings.get();
         if (!screenshot.enabled) return undefined;
@@ -757,6 +758,7 @@ const realFactories: ConfiguredBootstrapFactories = {
           pushTurns,
           delegations,
           reasoning,
+          onToolStatus: applyToolStatus,
           appendTurnRecord: (record) => appendRecord(record),
           appendTranscript: (entry) => chatHistoryStore.append(entry),
           log,

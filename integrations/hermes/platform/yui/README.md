@@ -54,6 +54,9 @@ turns in and finished replies out. The contract both sides speak is
   id the plugin mints, of the form `hermes-<n>`, counted per gateway process.
 - Sends a `delegations` frame whenever background work starts or finishes, so the client can show
   what is running.
+- Sends a `tool_status` frame from the gateway's `pre_tool_call` and `post_tool_call` hooks for
+  each tool call of an open YUI turn, so the client can show and name the tool in use.
+  `generate_express` sends none, and neither does a tool call a delegated child makes.
 - Holds reports that arrive while the client is away, up to forty, and delivers them as one
   summary turn when it connects again. A reply that finishes while the client is away is held the
   same way and sent first when it reconnects. Both live in memory, so a gateway restart while the

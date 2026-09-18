@@ -41,7 +41,6 @@ import type { Logger } from "../../logger";
 import { createLogger } from "../../logger";
 import type { Renderer } from "../../renderer";
 import type { Turn } from "../turn/turn";
-import type { TurnOutput } from "../turn/turn-output";
 import { backgroundMarker } from "./background-marker";
 import { renderClientContext } from "./client-context-text";
 import { buildContext, imageDataUrlsOf, userTextOf } from "./context-builder";
@@ -94,8 +93,6 @@ interface BackendCallerDeps extends PushCallDeps {
   getApiKey: () => Promise<string | undefined>;
   /** Transport fetch selection (selectFetch). Tauri=cors-fetch, dev=undefined. */
   getFetch: () => Promise<typeof globalThis.fetch | undefined>;
-  /** Speech lifecycle port — the voice pipeline implements it. */
-  turnOutput?: TurnOutput;
   /** When toggle is ON, assembles and returns screenshot block (undefined if OFF/failed). main.ts composes with settings+capturer+buildScreenshotBlock. */
   getScreenshot?: () => Promise<InputContext["screenshot"] | undefined>;
   /** Held posture lookup — called per turn. Optional for callers with no dispatcher wired; the real client always provides one. */

@@ -24,6 +24,8 @@ provides_hooks:
   - subagent_start
   - subagent_stop
   - on_stream_delta
+  - pre_tool_call
+  - post_tool_call
 requires_env: []
 optional_env:
   - name: YUI_PLATFORM_KEY

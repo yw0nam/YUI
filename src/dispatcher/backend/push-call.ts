@@ -8,6 +8,7 @@ import type { Logger } from "../../logger";
 import type { BusEnvelope } from "../core/event-bus";
 import type { PushTurns } from "../turn/push-turn";
 import type { Turn } from "../turn/turn";
+import type { TurnOutput } from "../turn/turn-output";
 import type { buildContext } from "./context-builder";
 import { PRE_SPEECH_TIMEOUT_MS } from "./idle-watchdog";
 import { contextBlock } from "./request-input";
@@ -33,6 +34,8 @@ export interface PushCallDeps {
   onPushTurnSent?: (turnId: string) => void;
   /** Push turn store — the call waits on it for the turn_end that closes its turn. */
   pushTurns?: Pick<PushTurns, "awaitTurnEnd" | "abandon">;
+  /** Speech lifecycle port — the voice pipeline implements it. */
+  turnOutput?: TurnOutput;
   /** Registers a callback for the push socket leaving `ready`; returns the unsubscribe. */
   onPushSocketNotReady?: (cb: () => void) => () => void;
 }
@@ -66,11 +69,12 @@ export function createPushCall(deps: PushCallDeps, log: Logger): PushCall {
    * line alone.
    */
   async function awaitPushReply(
-    turnId: string,
+    turn: Turn,
     eventName: string,
     endThinking: () => void,
     externalSignal?: AbortSignal,
   ): Promise<TurnOutcome> {
+    const turnId = String(turn.id);
     let timer: ReturnType<typeof setTimeout> | undefined;
     let unsubscribe: (() => void) | undefined;
     let onAbort: (() => void) | undefined;
@@ -119,6 +123,7 @@ export function createPushCall(deps: PushCallDeps, log: Logger): PushCall {
           firstRender = true;
           endThinking();
         },
+        onToolStatus: (state, toolId) => deps.turnOutput?.toolStatus(turn.id, state, toolId),
       });
       ends.push(
         (turnEnd ?? new Promise<"cut">(() => {})).then((end) =>
@@ -198,7 +203,7 @@ export function createPushCall(deps: PushCallDeps, log: Logger): PushCall {
       log.debug("turn_record_append_failed", { error: String(err) });
     }
     if (externalSignal?.aborted) return "superseded_by_user";
-    return await awaitPushReply(String(turn.id), env.event_name, endThinking, externalSignal);
+    return await awaitPushReply(turn, env.event_name, endThinking, externalSignal);
   }
 
   return { send };

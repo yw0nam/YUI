@@ -1,4 +1,4 @@
-import type { EndpointsConfig } from "../contract";
+import type { EndpointsConfig, ToolStatus } from "../contract";
 import type { PushTurns } from "../dispatcher/turn/push-turn";
 import { createRenderTurn } from "../dispatcher/turn/render-turn";
 import type { TurnOutput } from "../dispatcher/turn/turn-output";
@@ -11,6 +11,7 @@ import type {
   PushSocketState,
   RenderFrame,
   SpeechFrame,
+  ToolStatusFrame,
   TurnEndFrame,
 } from "../io/chat/push-socket";
 import type { RenderRecord } from "../io/chat/turn-record-log";
@@ -19,14 +20,16 @@ import type { Logger } from "../logger";
 /**
  * Routes an open push socket into the client: a `render` frame plays as a turn and closes the
  * live reasoning cycle, a `speech` frame plays into the utterance its turn's `render` closes, a
- * `reasoning` frame appends to the cycle, and a `delegations` frame replaces the tracked list. The
- * socket itself is created and connected by the host, which owns its lifetime.
+ * `reasoning` frame appends to the cycle, a `tool_status` frame names the tool to the chip and to
+ * the turn's own waiter, and a `delegations` frame replaces the tracked list. The socket itself
+ * is created and connected by the host, which owns its lifetime.
  */
 export function wirePushTransport(deps: {
   socket: {
     onRender(cb: (frame: RenderFrame) => void): () => void;
     onSpeech(cb: (frame: SpeechFrame) => void): () => void;
     onTurnEnd(cb: (frame: TurnEndFrame) => void): () => void;
+    onToolStatus(cb: (frame: ToolStatusFrame) => void): () => void;
     onDelegations(cb: (items: DelegationItem[]) => void): () => void;
     onReasoning(cb: (delta: string) => void): () => void;
     onState(cb: (state: PushSocketState) => void): () => void;
@@ -36,6 +39,8 @@ export function wirePushTransport(deps: {
   pushTurns: PushTurns;
   delegations: DelegationsStore;
   reasoning: ReasoningStore;
+  /** The tool chip sink — every tool_status frame reaches it, whether or not the client sent the turn. */
+  onToolStatus: (status: ToolStatus) => void;
   appendTurnRecord: (record: RenderRecord) => void;
   /** Conversation transcript — the reply half of a push turn lands here. */
   appendTranscript: (entry: ChatHistoryEntry) => void;
@@ -47,6 +52,14 @@ export function wirePushTransport(deps: {
     appendTurnRecord: deps.appendTurnRecord,
     appendTranscript: deps.appendTranscript,
   });
+  let runningTurn: string | null = null;
+  /** The done frame may never come — drop, restart, a tool that raises; idle brings the chip down. */
+  function endRunningTool(turnId?: string): void {
+    if (runningTurn === null) return;
+    if (turnId !== undefined && turnId !== runningTurn) return;
+    runningTurn = null;
+    deps.onToolStatus({ state: "idle" });
+  }
   const unsubscribes = [
     deps.socket.onRender((frame) => {
       // A dropped frame puts no reply in the message window, so its reasoning has nothing to sit
@@ -60,6 +73,28 @@ export function wirePushTransport(deps: {
       // The frame the running state was waiting for: the turn is forgotten, whatever it held.
       deps.pushTurns.ended(frame.turn_id);
       deps.log.info("push.turn_end", { turn_id: frame.turn_id });
+      endRunningTool(frame.turn_id);
+    }),
+    deps.socket.onToolStatus((frame) => {
+      // A cut turn's frames never play, so the chip never lights for one.
+      if (deps.pushTurns.isCut(frame.turn_id)) {
+        deps.log.debug("push.tool_status", {
+          turn_id: frame.turn_id,
+          tool_id: frame.tool_id,
+          dropped: "cut_turn",
+          stopped_count: deps.pushTurns.cutCount(),
+        });
+        return;
+      }
+      // Latest wins: the chip is a single slot.
+      runningTurn = frame.state === "running" ? frame.turn_id : null;
+      deps.onToolStatus({ state: frame.state, tool_id: frame.tool_id });
+      deps.pushTurns.toolStatus(frame.turn_id, frame.state, frame.tool_id);
+      deps.log.debug("push.tool_status", {
+        turn_id: frame.turn_id,
+        state: frame.state,
+        tool_id: frame.tool_id,
+      });
     }),
     deps.pushTurns.onCut((turnId) => renderTurn.drop(turnId)),
     deps.socket.onDelegations((items) => {
@@ -73,6 +108,7 @@ export function wirePushTransport(deps: {
       // A cycle without its closing render dies with the connection; a finished text stays.
       deps.reasoning.interrupt();
       renderTurn.close();
+      endRunningTool();
     }),
   ];
   return () => {

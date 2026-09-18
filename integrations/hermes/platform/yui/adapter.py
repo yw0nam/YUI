@@ -27,7 +27,7 @@ from gateway.config import Platform
 from gateway.platforms.base import BasePlatformAdapter, SendResult
 from gateway.platforms.event import MessageEvent, MessageType, ProcessingOutcome
 
-from . import delegations, reasoning, reports, speech, state, tools
+from . import delegations, reasoning, reports, speech, state, tool_status, tools
 from .gate import Vocabulary
 from .segments import build_segments, opening_cues, place_matched
 
@@ -150,7 +150,7 @@ class YuiAdapter(BasePlatformAdapter):
         self._reasoning_pending: dict[str, list[str]] = {}
         self._reasoning_flushes: dict[str, asyncio.Task] = {}
         self._streams: dict[str, speech.Stream] = {}
-        self._speaking: set[asyncio.Task] = set()
+        self._sends: set[asyncio.Task] = set()
 
     @property
     def name(self) -> str:
@@ -176,6 +176,7 @@ class YuiAdapter(BasePlatformAdapter):
         delegations.set_notifier(self.notify_delegations)
         reasoning.set_sink(self.push_reasoning)
         speech.set_sink(self.push_speech)
+        tool_status.set_sink(self.push_tool_status)
         self._runner = web.AppRunner(self.build_app())
         await self._runner.setup()
         try:
@@ -202,17 +203,18 @@ class YuiAdapter(BasePlatformAdapter):
         delegations.set_notifier(None)
         reasoning.set_sink(None)
         speech.set_sink(None)
+        tool_status.set_sink(None)
         for task in (
             *self._reasoning_flushes.values(),
             *self._closings,
             *self._confirmations,
-            *self._speaking,
+            *self._sends,
         ):
             task.cancel()
         self._reasoning_flushes.clear()
         self._closings.clear()
         self._confirmations.clear()
-        self._speaking.clear()
+        self._sends.clear()
         self._reasoning_pending.clear()
         for chat_id, ws in list(self._sockets.items()):
             state.set_connected(chat_id, False)
@@ -544,8 +546,8 @@ class YuiAdapter(BasePlatformAdapter):
     def _collect_speech(self, chat_id: str, turn_id: str, iteration: int, delta: str) -> None:
         # Deltas wait on the stream lock in the order they arrive.
         task = asyncio.create_task(self._speak_delta(chat_id, turn_id, iteration, delta))
-        self._speaking.add(task)
-        task.add_done_callback(self._speaking.discard)
+        self._sends.add(task)
+        task.add_done_callback(self._sends.discard)
 
     def _stream(self, chat_id: str) -> speech.Stream:
         stream = self._streams.get(chat_id)
@@ -598,6 +600,31 @@ class YuiAdapter(BasePlatformAdapter):
             return
         state.drop_cues(chat_id, placements)
         stream.spoke(sentence)
+
+    # -- tool status --------------------------------------------------------------------------
+
+    def push_tool_status(self, chat_id: str, tool_state: str, tool_name: str) -> None:
+        """Called from the tool hooks, which run on a hook worker thread, not this loop."""
+        loop = self._loop
+        if loop is None or not state.is_connected(chat_id):
+            return
+        with contextlib.suppress(RuntimeError):
+            loop.call_soon_threadsafe(self._collect_tool_status, chat_id, tool_state, tool_name)
+
+    def _collect_tool_status(self, chat_id: str, tool_state: str, tool_name: str) -> None:
+        task = asyncio.create_task(self._send_tool_status(chat_id, tool_state, tool_name))
+        self._sends.add(task)
+        task.add_done_callback(self._sends.discard)
+
+    async def _send_tool_status(self, chat_id: str, tool_state: str, tool_name: str) -> None:
+        """A call on a chat with no open turn is not a YUI turn's; never held, never retried."""
+        turn = state.turn_id(chat_id)
+        if turn is None:
+            return
+        await self._send_frame(
+            chat_id,
+            {"type": "tool_status", "turn_id": turn, "state": tool_state, "tool_id": tool_name},
+        )
 
     # -- replies ------------------------------------------------------------------------------
 

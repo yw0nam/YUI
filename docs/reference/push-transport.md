@@ -177,7 +177,7 @@ Sent once per turn after its last `render`; a turn with no `render` sends it alo
 | `state` | `"running"` when the tool call starts, `"done"` when it returns |
 | `tool_id` | The tool name as the backend knows it |
 
-Sent while the turn runs, once per state change of a tool call. It counts as a frame of the turn for the frame wait and leaves the running state, the thinking motion and speech as they are. A turn may carry none.
+Sent while the turn runs, once per state change of a tool call. It counts as a frame of the turn for the frame wait and leaves the running state, the thinking motion and speech as they are. A turn may carry none. A `tool_status` for a turn the client did not send shows the tool chip and speaks no tool phrase.
 
 ### `reasoning` (backend → client)
 

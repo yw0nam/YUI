@@ -70,6 +70,14 @@ export interface TurnEndFrame {
   turn_id: string;
 }
 
+/** The backend names the tool a turn is using; `running` when the call starts, `done` when it returns. */
+export interface ToolStatusFrame {
+  type: "tool_status";
+  turn_id: string;
+  state: "running" | "done";
+  tool_id: string;
+}
+
 export interface PushTurnFrame {
   turn_id: string;
   /** The `<client_context>` block text, exactly as the other transports send it. */
@@ -113,6 +121,7 @@ export interface PushSocket {
   onRender(cb: (frame: RenderFrame) => void): () => void;
   onSpeech(cb: (frame: SpeechFrame) => void): () => void;
   onTurnEnd(cb: (frame: TurnEndFrame) => void): () => void;
+  onToolStatus(cb: (frame: ToolStatusFrame) => void): () => void;
   onDelegations(cb: (items: DelegationItem[]) => void): () => void;
   onReasoning(cb: (delta: string) => void): () => void;
   onState(cb: (state: PushSocketState) => void): () => void;
@@ -183,6 +192,7 @@ export function createPushSocket(deps: PushSocketDeps): PushSocket {
   const renderSubs = new Set<(frame: RenderFrame) => void>();
   const speechSubs = new Set<(frame: SpeechFrame) => void>();
   const turnEndSubs = new Set<(frame: TurnEndFrame) => void>();
+  const toolStatusSubs = new Set<(frame: ToolStatusFrame) => void>();
   const delegationSubs = new Set<(items: DelegationItem[]) => void>();
   const reasoningSubs = new Set<(delta: string) => void>();
   const stateSubs = new Set<(state: PushSocketState) => void>();
@@ -305,6 +315,22 @@ export function createPushSocket(deps: PushSocketDeps): PushSocket {
         }
         const turnEnd = frame as unknown as TurnEndFrame;
         dispatch(turnEndSubs, turnEnd);
+        return;
+      }
+      case "tool_status": {
+        const field =
+          typeof frame.turn_id !== "string"
+            ? "turn_id"
+            : frame.state !== "running" && frame.state !== "done"
+              ? "state"
+              : typeof frame.tool_id !== "string"
+                ? "tool_id"
+                : null;
+        if (field !== null) {
+          log.warn("frame_malformed", { type: "tool_status", field });
+          return;
+        }
+        dispatch(toolStatusSubs, frame as unknown as ToolStatusFrame);
         return;
       }
       case "reasoning": {
@@ -480,6 +506,7 @@ export function createPushSocket(deps: PushSocketDeps): PushSocket {
       renderSubs.clear();
       speechSubs.clear();
       turnEndSubs.clear();
+      toolStatusSubs.clear();
       delegationSubs.clear();
       reasoningSubs.clear();
       ws?.close(NORMAL_CLOSE_CODE);
@@ -510,6 +537,7 @@ export function createPushSocket(deps: PushSocketDeps): PushSocket {
     onRender: (cb) => subscribe(renderSubs, cb),
     onSpeech: (cb) => subscribe(speechSubs, cb),
     onTurnEnd: (cb) => subscribe(turnEndSubs, cb),
+    onToolStatus: (cb) => subscribe(toolStatusSubs, cb),
     onDelegations: (cb) => subscribe(delegationSubs, cb),
     onReasoning: (cb) => subscribe(reasoningSubs, cb),
     onState: (cb) => subscribe(stateSubs, cb),
