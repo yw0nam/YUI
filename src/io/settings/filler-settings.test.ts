@@ -51,6 +51,19 @@ describe("createFillerSettings — defaults", () => {
     expect(s.language).toBe("ja");
     expect(s.customPools).toEqual({});
   });
+
+  it("no stored value → language follows the app locale", () => {
+    expect(createFillerSettings({ locale: "en" }).get().language).toBe("en");
+    expect(createFillerSettings({ locale: "ko" }).get().language).toBe("ko");
+  });
+
+  it("a stored language wins over the app locale", () => {
+    const storage: FillerStorage = {
+      load: () => ({ enabled: true, language: "ko", customPools: {} }),
+      save: vi.fn(),
+    };
+    expect(createFillerSettings({ storage, locale: "en" }).get().language).toBe("ko");
+  });
 });
 
 // ─────────────────────────────────────────────────────────────────────────────

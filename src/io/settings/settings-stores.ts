@@ -105,6 +105,7 @@ export function createSettingsStores(opts?: { locale?: CueLocale }) {
   // TTFT filler (thinking motion + filler utterance) settings. Both windows sync via wireStorageSync.
   const fillerSettings = createFillerSettings({
     storage: localStorageFillerStorage(),
+    locale: opts?.locale,
   });
   // Session-continuity store: rotating id pointer + diagnostics (used/window/last-compression). Both windows
   // sync via wireStorageSync, so build it early alongside the other stores (no config/dispatcher dependency).
