@@ -385,8 +385,10 @@ export function wireFaller(deps: {
   const { bus, renderer, log } = deps;
   let faller: Faller | null = null;
   let disposed = false;
+  let ready: Promise<void> = Promise.resolve();
   const handle = {
     drop: async (opts?: DropOptions) => {
+      if (!faller) await ready;
       if (deps.isEnabled()) await faller?.drop(opts);
     },
     cancel: () => faller?.cancel(),
@@ -396,7 +398,7 @@ export function wireFaller(deps: {
     },
   };
   if (!isTauri()) return handle;
-  void (async () => {
+  ready = (async () => {
     const { invoke } = await import("@tauri-apps/api/core");
     const { availableMonitors } = await import("@tauri-apps/api/window");
     await deps.travelFrame.ready;

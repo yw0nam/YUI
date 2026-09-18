@@ -35,7 +35,7 @@ const TARGET: WindowRect = {
   windowNumber: 5,
 };
 
-async function wire(opts: { isEnabled?: () => boolean } = {}) {
+async function wire(opts: { isEnabled?: () => boolean; ready?: Promise<void> } = {}) {
   vi.stubGlobal("__TAURI_INTERNALS__", {});
   createFaller.mockClear();
   fallerDrop.mockClear();
@@ -45,7 +45,7 @@ async function wire(opts: { isEnabled?: () => boolean } = {}) {
     isEnabled: opts.isEnabled ?? (() => true),
     bus: { push: (env: { event_name: string }) => pushed.push(env) } as never,
     renderer: {} as never,
-    travelFrame: { getWindow: () => ({}) as never, ready: Promise.resolve() },
+    travelFrame: { getWindow: () => ({}) as never, ready: opts.ready ?? Promise.resolve() },
     getFallConfig: () => ({}) as never,
     getMotionKind: () => undefined,
     getFloorTolerancePx: () => 24,
@@ -54,10 +54,12 @@ async function wire(opts: { isEnabled?: () => boolean } = {}) {
     onWindowLand,
     log: noopLog,
   });
-  await vi.waitFor(() => expect(createFaller).toHaveBeenCalled());
+  if (!opts.ready) await vi.waitFor(() => expect(createFaller).toHaveBeenCalled());
   return {
-    deps: createFaller.mock.calls[0][0] as unknown as {
-      onLand(landing: { heightPx: number; surface: unknown; fell: boolean }): void;
+    get deps() {
+      return createFaller.mock.calls[0][0] as unknown as {
+        onLand(landing: { heightPx: number; surface: unknown; fell: boolean }): void;
+      };
     },
     pushed,
     onWindowLand,
@@ -84,6 +86,18 @@ describe("wireFaller — fall toggle", () => {
     enabled = true;
     handle.drop();
     expect(fallerDrop).toHaveBeenCalledTimes(2);
+  });
+
+  it("holds a drop asked for before the loop is built and runs it once it is", async () => {
+    let ready!: () => void;
+    const { handle } = await wire({ ready: new Promise<void>((resolve) => (ready = resolve)) });
+
+    const pending = handle.drop({ place: true });
+    expect(fallerDrop).not.toHaveBeenCalled();
+
+    ready();
+    await pending;
+    expect(fallerDrop).toHaveBeenCalledWith({ place: true });
   });
 });
 

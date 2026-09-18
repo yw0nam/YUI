@@ -596,6 +596,8 @@ const realFactories: ConfiguredBootstrapFactories = {
       log,
     });
     register(faller.dispose);
+    // The OS opens the window wherever it likes; put her on the floor so the stroll can start.
+    void faller.drop({ place: true });
 
     const windowSources = wireWindowSources({
       bus,

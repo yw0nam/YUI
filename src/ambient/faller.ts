@@ -176,6 +176,11 @@ export interface DropOptions {
    * Off by default: a step-off standing exactly on the seam falls through it.
    */
   landOnSeam?: boolean;
+  /**
+   * Put her on the floor line where she stands, as at launch: no fall clip, no window top
+   * to catch her, no landing report. Nothing fell, so there is nothing to tell the backend.
+   */
+  place?: boolean;
 }
 
 /**
@@ -381,7 +386,7 @@ export function createFaller(deps: FallerDeps): Faller {
     const charWpx = renderer.getCharacterWidthPx();
     const win = deps.getWindow();
     // Without a width there is no standing-room test, so nothing but the floor can catch her.
-    const roomPx = charWpx === null ? null : cfg.land_room_frac * charWpx;
+    const roomPx = charWpx === null || opts.place ? null : cfg.land_room_frac * charWpx;
     const [pos, sf, monitors, windows] = await Promise.all([
       win.outerPosition(),
       win.scaleFactor(),
@@ -441,9 +446,9 @@ export function createFaller(deps: FallerDeps): Faller {
     const toY = Math.round(plan.toY * scale);
     // A drop too short to read as a fall, or a user who asked for no motion: land her there.
     // A window top still owes the hand-off that puts her back on a perch.
-    if (plan.kind === "snap" || reducedMotion()) {
+    if (opts.place || plan.kind === "snap" || reducedMotion()) {
       await win.setPositionLogical(pos.x / scale, toY / scale);
-      if (plan.kind === "fall" || surface.kind === "window") {
+      if (!opts.place && (plan.kind === "fall" || surface.kind === "window")) {
         reportLanding(plan.heightPx, surface, plan.kind === "fall");
       }
       return false;

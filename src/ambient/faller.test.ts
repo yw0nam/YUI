@@ -473,6 +473,24 @@ describe("createFaller", () => {
     expect(h.ends).not.toHaveBeenCalled();
   });
 
+  it("places her on the floor from mid-air with no clip and nothing to report", async () => {
+    const h = makeHarness();
+    await h.faller.drop({ place: true });
+    expect(h.positions).toEqual([{ x: WINDOW_POS.x, y: GROUNDED_Y }]);
+    expect(h.motions).toEqual([]);
+    expect(h.starts).not.toHaveBeenCalled();
+    expect(h.lands).not.toHaveBeenCalled();
+    expect(h.cues).not.toHaveBeenCalled();
+  });
+
+  it("places her on the floor even where a window top would have caught her", async () => {
+    const h = makeHarness({ windows: async () => [CATCHER] });
+    await h.faller.drop({ place: true });
+    expect(h.positions).toEqual([{ x: WINDOW_POS.x, y: GROUNDED_Y }]);
+    expect(h.windowReads()).toBe(0);
+    expect(h.lands).not.toHaveBeenCalled();
+  });
+
   it("falls in physical-px arithmetic but reports logical px on a scaled screen", async () => {
     // Scale 2 ⇒ floor 750 and feet 450 in logical px: a 300 px drop, 600 px of window travel.
     const h = makeHarness({ position: { x: 500, y: 60 }, scale: 2 });
