@@ -18,7 +18,7 @@ from gateway_stub import (
     MessageType,
     ProcessingOutcome,
 )
-from yui import delegations, reasoning, reports, speech, state
+from yui import delegations, reasoning, reports, speech, state, tools
 from yui.adapter import MAX_FRAME_BYTES, YuiAdapter, fit_frame, is_loopback
 
 CHAT = "yui-3f9a2c1d"
@@ -71,6 +71,21 @@ async def client(adapter):
     await served.start_server()
     yield served
     await served.close()
+
+
+@pytest.fixture
+def declared(monkeypatch):
+    """Every schema registered during the test, and a clean slate for the module globals."""
+    schemas = []
+
+    class Ctx:
+        def register_tool(self, **kwargs):
+            schemas.append(kwargs["schema"])
+
+    monkeypatch.setattr(tools, "_ctx", Ctx())
+    monkeypatch.setattr(tools, "_declared", "")
+    monkeypatch.setattr(state, "_vocabularies", {})
+    return schemas
 
 
 async def hello(client, chat_id=CHAT, key=KEY, vocabulary=VOCABULARY):
@@ -1643,3 +1658,16 @@ async def test_the_turn_end_and_its_cue_only_render_follow_a_speech_frame_on_its
     assert await recv(ws) == speech_frame("777", "All green.")
     assert await recv(ws) == render_frame("777", [{"cues": [{"motion_id": "idle"}], "speech": ""}])
     assert await recv(ws) == {"type": "turn_end", "turn_id": "777"}
+
+
+async def test_a_turn_reads_the_ids_its_own_chat_published(client, adapter, declared):
+    await ready(client, vocabulary={**VOCABULARY, "motion_ids": ["idle", "dance"]})
+    await ready(client, chat_id="other", vocabulary={**VOCABULARY, "motion_ids": ["idle"]})
+    await adapter.on_processing_start(user_turn(adapter, "t1"))
+    motion_enum = declared[-1]["parameters"]["properties"]["cues"]["items"]["properties"]["motion_id"]["enum"]
+    assert "dance" in motion_enum
+
+
+async def test_a_turn_on_a_chat_that_never_published_leaves_the_schema_alone(adapter, declared):
+    await adapter.on_processing_start(user_turn(adapter, "t1"))
+    assert declared == []
