@@ -48,7 +48,7 @@ export function createTauriScreenSourceProvider(
       const dtos = await invoke<ScreenSourceDto[]>("list_screen_sources");
       return dtos.map((dto) => ({
         index: dto.index,
-        label: dto.name ?? `디스플레이 ${dto.index + 1}`,
+        label: dto.name ?? `Display ${dto.index + 1}`,
         width: dto.width,
         height: dto.height,
         primary: dto.isPrimary,

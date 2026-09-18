@@ -40,7 +40,7 @@ export function createBrowserScreenSourceProvider(screen?: {
         screen ?? (typeof globalThis.screen !== "undefined" ? globalThis.screen : undefined);
       const monitor: MonitorInfo = {
         index: 0,
-        label: "이 화면",
+        label: "This screen",
         primary: true,
       };
       if (src) {

@@ -14,7 +14,7 @@ const log = createLogger("settings-window");
 
 const SETTINGS_LABEL = "settings";
 const SETTINGS_URL = "settings.html";
-const SETTINGS_TITLE = "YUI 설정";
+const SETTINGS_TITLE = "YUI Settings";
 
 export interface SettingsWindowEnv {
   isTauri: boolean;

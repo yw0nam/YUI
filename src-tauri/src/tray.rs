@@ -72,7 +72,7 @@ fn open_settings(app: &AppHandle) {
                 "settings",
                 WebviewUrl::App("settings.html".into()),
             )
-            .title("YUI 설정")
+            .title("YUI Settings")
             .inner_size(480.0, 660.0)
             .min_inner_size(380.0, 480.0)
             .resizable(true)

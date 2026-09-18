@@ -41,15 +41,15 @@ describe("createTauriScreenSourceProvider — DTO mapping", () => {
     });
   });
 
-  it("uses fallback label '디스플레이 N+1' when name is null", async () => {
+  it("uses fallback label 'Display N+1' when name is null", async () => {
     const fakeInvoke = vi.fn().mockResolvedValue([
       { index: 0, name: null, width: 1920, height: 1080, isPrimary: true, x: 0, y: 0 },
       { index: 1, name: null, width: 2560, height: 1440, isPrimary: false, x: 1920, y: 0 },
     ]);
     const provider = createTauriScreenSourceProvider(fakeInvoke);
     const monitors = await provider.listMonitors();
-    expect(monitors[0].label).toBe("디스플레이 1");
-    expect(monitors[1].label).toBe("디스플레이 2");
+    expect(monitors[0].label).toBe("Display 1");
+    expect(monitors[1].label).toBe("Display 2");
   });
 
   it("maps isPrimary to primary field", async () => {

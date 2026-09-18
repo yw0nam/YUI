@@ -17,7 +17,7 @@ describe("createBrowserScreenSourceProvider — with injected screen", () => {
     expect(monitors).toHaveLength(1);
     expect(monitors[0]).toEqual({
       index: 0,
-      label: "이 화면",
+      label: "This screen",
       width: 2560,
       height: 1440,
       primary: true,
@@ -32,7 +32,7 @@ describe("createBrowserScreenSourceProvider — without injected screen", () => 
     expect(monitors).toHaveLength(1);
     const m = monitors[0];
     expect(m.index).toBe(0);
-    expect(m.label).toBe("이 화면");
+    expect(m.label).toBe("This screen");
     expect(m.primary).toBe(true);
     expect(m.width).toBeUndefined();
     expect(m.height).toBeUndefined();
@@ -40,11 +40,11 @@ describe("createBrowserScreenSourceProvider — without injected screen", () => 
 });
 
 describe("createBrowserScreenSourceProvider — structure", () => {
-  it("index is always 0, label is '이 화면', primary is true", async () => {
+  it("index is always 0, label is 'This screen', primary is true", async () => {
     const provider = createBrowserScreenSourceProvider({ width: 800, height: 600 });
     const [m] = await provider.listMonitors();
     expect(m.index).toBe(0);
-    expect(m.label).toBe("이 화면");
+    expect(m.label).toBe("This screen");
     expect(m.primary).toBe(true);
   });
 });
