@@ -71,6 +71,21 @@ describe("formatDelegationTime — one row's right-side text", () => {
     const item = { ...done("d-1", 0), ended_at: undefined };
     expect(formatDelegationTime(item, NOW)).toBe("끝남");
   });
+
+  it("reads failed with an ago stamp when the status is error", () => {
+    expect(formatDelegationTime({ ...done("d-1", 4 * 60_000), status: "error" }, NOW)).toBe(
+      "Failed · 4m ago",
+    );
+  });
+
+  it("reads done for ok and unknown alike", () => {
+    expect(formatDelegationTime({ ...done("d-1", 4 * 60_000), status: "ok" }, NOW)).toBe(
+      "Done · 4m ago",
+    );
+    expect(formatDelegationTime({ ...done("d-2", 4 * 60_000), status: "unknown" }, NOW)).toBe(
+      "Done · 4m ago",
+    );
+  });
 });
 
 describe("sortDelegations — running first, each group in the backend's order", () => {
@@ -109,5 +124,14 @@ describe("renderDelegationRows — the row DOM", () => {
     expect(rows.map((r) => r.querySelector(".yui-deleg__item-title")!.textContent)).toEqual([
       "work d-2",
     ]);
+  });
+
+  it("stamps the status on the row and leaves it off when the backend sent none", () => {
+    const container = document.createElement("div");
+    renderDelegationRows(container, [{ ...done("d-1", 0), status: "error" }, done("d-2", 0)], NOW);
+
+    const rows = [...container.querySelectorAll<HTMLDivElement>(".yui-deleg__item")];
+    expect(rows[0]!.dataset.status).toBe("error");
+    expect(rows[1]!.dataset.status).toBeUndefined();
   });
 });

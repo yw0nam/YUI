@@ -111,4 +111,23 @@ describe("createDelegationsStore", () => {
     s.replace(Array.from({ length: DELEGATIONS_MAX_ITEMS + 10 }, (_, i) => running(`d-${i}`)));
     expect(s.get()).toHaveLength(DELEGATIONS_MAX_ITEMS);
   });
+
+  it("keeps status and summary on a done item", () => {
+    const s = store();
+    s.replace([{ ...done("d-1", NOW - 1000), status: "error", summary: "Disk full." }]);
+    expect(s.get()[0]!.status).toBe("error");
+    expect(s.get()[0]!.summary).toBe("Disk full.");
+  });
+
+  it("drops a status it does not know, a summary that is not text, and both on a running item", () => {
+    const s = store();
+    s.replace([
+      { ...done("d-1", NOW - 1000), status: "meh", summary: 42 },
+      { ...running("d-2"), status: "ok", summary: "early" },
+    ] as unknown as DelegationItem[]);
+    for (const item of s.get()) {
+      expect("status" in item).toBe(false);
+      expect("summary" in item).toBe(false);
+    }
+  });
 });

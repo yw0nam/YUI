@@ -54,6 +54,49 @@ def test_a_failed_delegation_is_done_too():
     assert delegations.items("yui")[0]["state"] == "done"
 
 
+def test_a_running_item_carries_neither_status_nor_summary():
+    delegations.on_subagent_start(child_subagent_id="sa-1", child_session_id="s-1", child_goal="Work")
+    (item,) = delegations.items("yui")
+    assert "status" not in item
+    assert "summary" not in item
+
+
+def test_a_completed_child_reads_ok_and_carries_its_summary():
+    delegations.on_subagent_start(child_subagent_id="sa-1", child_session_id="s-1", child_goal="Work")
+    delegations.on_subagent_stop(child_session_id="s-1", child_status="completed", child_summary="All green.")
+    (item,) = delegations.items("yui")
+    assert item["status"] == "ok"
+    assert item["summary"] == "All green."
+
+
+@pytest.mark.parametrize("child_status", ["failed", "error", "timeout", "interrupted"])
+def test_a_failed_interrupted_or_timed_out_child_reads_error(child_status):
+    delegations.on_subagent_start(child_subagent_id="sa-1", child_session_id="s-1", child_goal="Work")
+    delegations.on_subagent_stop(child_session_id="s-1", child_status=child_status)
+    assert delegations.items("yui")[0]["status"] == "error"
+
+
+def test_a_missing_or_foreign_status_reads_unknown():
+    delegations.on_subagent_start(child_subagent_id="sa-1", child_session_id="s-1", child_goal="Work")
+    delegations.on_subagent_stop(child_session_id="s-1")
+    delegations.on_subagent_start(child_subagent_id="sa-2", child_session_id="s-2", child_goal="Work")
+    delegations.on_subagent_stop(child_session_id="s-2", child_status="something-else")
+    assert [item["status"] for item in delegations.items("yui")] == ["unknown", "unknown"]
+
+
+def test_the_summary_is_cut_to_the_limit():
+    delegations.on_subagent_start(child_subagent_id="sa-1", child_session_id="s-1", child_goal="Work")
+    delegations.on_subagent_stop(child_session_id="s-1", child_status="completed", child_summary="x" * 3000)
+    summary = delegations.items("yui")[0]["summary"]
+    assert len(summary) == delegations.SUMMARY_MAX_LEN == 2000
+
+
+def test_a_stop_with_no_summary_sends_none():
+    delegations.on_subagent_start(child_subagent_id="sa-1", child_session_id="s-1", child_goal="Work")
+    delegations.on_subagent_stop(child_session_id="s-1", child_status="completed")
+    assert "summary" not in delegations.items("yui")[0]
+
+
 def test_a_stop_for_an_unknown_delegation_changes_nothing():
     delegations.on_subagent_stop(child_session_id="never-started")
     assert delegations.items("yui") == []
