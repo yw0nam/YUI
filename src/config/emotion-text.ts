@@ -40,17 +40,17 @@ export async function loadEmotionTextTable(
   const raw = await read(file);
 
   if (!isObject(raw)) {
-    throw new ConfigError(file, ["객체가 아님"]);
+    throw new ConfigError(file, ["not an object"]);
   }
   const entries = Object.entries(raw);
   if (entries.length === 0) {
-    throw new ConfigError(file, ["빈 테이블 — 최소 1개 항목이 필요함"]);
+    throw new ConfigError(file, ["empty table — at least 1 entry is required"]);
   }
   const issues: string[] = [];
   const out: Record<string, string> = {};
   for (const [emoji, meaning] of entries) {
     if (typeof meaning !== "string") {
-      issues.push(`${emoji}의 값은 문자열이어야 함 (받음: ${JSON.stringify(meaning)})`);
+      issues.push(`${emoji}: value must be a string (got: ${JSON.stringify(meaning)})`);
       continue;
     }
     out[emoji] = meaning;

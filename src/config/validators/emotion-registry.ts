@@ -16,24 +16,24 @@ export const EMOTION_IDS: ReadonlySet<EmotionId> = new Set<EmotionId>([
 ]);
 
 export function validateEmotionRegistry(file: string, raw: unknown): EmotionRegistry {
-  if (!isObject(raw)) throw new ConfigError(file, ["객체가 아님"]);
+  if (!isObject(raw)) throw new ConfigError(file, ["not an object"]);
   const issues: string[] = [];
   const out: EmotionRegistry = {};
   for (const [id, entry] of Object.entries(raw)) {
     if (!EMOTION_IDS.has(id as EmotionId)) {
-      issues.push(`${id}: 알 수 없는 emotion id (enum 외)`);
+      issues.push(`${id}: not a known emotion id`);
       continue;
     }
     if (!isObject(entry)) {
-      issues.push(`${id}: 항목이 객체가 아님`);
+      issues.push(`${id}: entry is not an object`);
       continue;
     }
     if (typeof entry.vrm_expression !== "string") {
-      issues.push(`${id}.vrm_expression은 문자열이어야 함`);
+      issues.push(`${id}.vrm_expression must be a string`);
       continue;
     }
     if (typeof entry.fallback !== "string") {
-      issues.push(`${id}.fallback은 문자열이어야 함`);
+      issues.push(`${id}.fallback must be a string`);
       continue;
     }
     out[id as EmotionId] = {

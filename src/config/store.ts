@@ -112,7 +112,7 @@ export function createConfigStore(opts: ConfigStoreOptions = {}): ConfigStore {
     },
     get() {
       if (current === null) {
-        throw new Error("[config] store.get() before load() — load()를 먼저 await 하라");
+        throw new Error("[config] store.get() before load() — await load() first");
       }
       return current;
     },

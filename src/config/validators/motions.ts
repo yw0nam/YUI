@@ -14,24 +14,24 @@ const VARIANT_POLICIES: readonly NonNullable<MotionRegistryEntry["variant_policy
 ];
 
 export function validateMotions(file: string, raw: unknown): MotionRegistry {
-  if (!isObject(raw)) throw new ConfigError(file, ["객체가 아님"]);
+  if (!isObject(raw)) throw new ConfigError(file, ["not an object"]);
   const issues: string[] = [];
   const out: MotionRegistry = {};
   for (const [id, entry] of Object.entries(raw)) {
     if (!isObject(entry)) {
-      issues.push(`${id}: 항목이 객체가 아님`);
+      issues.push(`${id}: entry is not an object`);
       continue;
     }
     if (typeof entry.vrma_path !== "string" || !entry.vrma_path.endsWith(".vrma")) {
-      issues.push(`${id}.vrma_path는 .vrma로 끝나는 문자열이어야 함`);
+      issues.push(`${id}.vrma_path must be a string ending in .vrma`);
     }
     if (!MOTION_KINDS.includes(entry.kind as MotionKind)) {
       issues.push(
-        `${id}.kind는 ${MOTION_KINDS.join("|")} 중 하나여야 함 (받음: ${JSON.stringify(entry.kind)})`,
+        `${id}.kind must be one of ${MOTION_KINDS.join("|")} (got: ${JSON.stringify(entry.kind)})`,
       );
     }
     if (typeof entry.loop !== "boolean") {
-      issues.push(`${id}.loop은 boolean이어야 함`);
+      issues.push(`${id}.loop must be a boolean`);
     }
     // priority 0~100. typeof number lets NaN/Infinity through, so check the range too.
     if (
@@ -41,22 +41,22 @@ export function validateMotions(file: string, raw: unknown): MotionRegistry {
       entry.priority > 100
     ) {
       issues.push(
-        `${id}.priority는 0~100 사이 유한 number여야 함 (받음: ${JSON.stringify(entry.priority)})`,
+        `${id}.priority must be a finite number in [0, 100] (got: ${JSON.stringify(entry.priority)})`,
       );
     }
     if (!INTERRUPT_POLICIES.includes(entry.interrupt_policy as InterruptPolicy)) {
-      issues.push(`${id}.interrupt_policy는 ${INTERRUPT_POLICIES.join("|")} 중 하나여야 함`);
+      issues.push(`${id}.interrupt_policy must be one of ${INTERRUPT_POLICIES.join("|")}`);
     }
     // variants: if present, a pool of 2+ .vrma strings. A single one is meaningless.
     const rawVariants = entry.variants;
     let variants: string[] | undefined;
     if (rawVariants !== undefined) {
       if (!Array.isArray(rawVariants) || rawVariants.some((v) => typeof v !== "string")) {
-        issues.push(`${id}.variants는 문자열 배열이어야 함`);
+        issues.push(`${id}.variants must be an array of strings`);
       } else if (rawVariants.length < 2) {
-        issues.push(`${id}.variants는 2개 이상이어야 함 (받음: ${rawVariants.length}개)`);
+        issues.push(`${id}.variants must have at least 2 entries (got: ${rawVariants.length})`);
       } else if (rawVariants.some((v) => !(v as string).endsWith(".vrma"))) {
-        issues.push(`${id}.variants의 각 항목은 .vrma로 끝나야 함`);
+        issues.push(`${id}.variants entries must end in .vrma`);
       } else {
         variants = rawVariants as string[];
       }
@@ -65,20 +65,20 @@ export function validateMotions(file: string, raw: unknown): MotionRegistry {
     let variant_policy: MotionRegistryEntry["variant_policy"];
     if (rawVariantPolicy !== undefined) {
       if (!VARIANT_POLICIES.includes(rawVariantPolicy as NonNullable<typeof variant_policy>)) {
-        issues.push(`${id}.variant_policy는 ${VARIANT_POLICIES.join("|")} 중 하나여야 함`);
+        issues.push(`${id}.variant_policy must be one of ${VARIANT_POLICIES.join("|")}`);
       } else {
         variant_policy = rawVariantPolicy as MotionRegistryEntry["variant_policy"];
       }
     }
     // variant_policy without variants is a dead field ignored by resolve() — fail-loud.
     if (rawVariantPolicy !== undefined && rawVariants === undefined) {
-      issues.push(`${id}.variant_policy는 variants 없이 의미 없음 (variants 필요)`);
+      issues.push(`${id}.variant_policy has no meaning without variants`);
     }
     const rawBrokerPublish = entry.broker_publish;
     let broker_publish: boolean | undefined;
     if (rawBrokerPublish !== undefined) {
       if (typeof rawBrokerPublish !== "boolean") {
-        issues.push(`${id}.broker_publish는 boolean이어야 함`);
+        issues.push(`${id}.broker_publish must be a boolean`);
       } else {
         broker_publish = rawBrokerPublish;
       }
@@ -88,7 +88,7 @@ export function validateMotions(file: string, raw: unknown): MotionRegistry {
     let root_lock_y: boolean | undefined;
     if (rawRootLockY !== undefined) {
       if (typeof rawRootLockY !== "boolean") {
-        issues.push(`${id}.root_lock_y는 boolean이어야 함`);
+        issues.push(`${id}.root_lock_y must be a boolean`);
       } else {
         root_lock_y = rawRootLockY;
       }
@@ -103,13 +103,13 @@ export function validateMotions(file: string, raw: unknown): MotionRegistry {
         rawCycleDwell < 0 ||
         rawCycleDwell > 60000
       ) {
-        issues.push(`${id}.cycle_dwell_ms는 0~60000 사이 정수여야 함`);
+        issues.push(`${id}.cycle_dwell_ms must be an integer in [0, 60000]`);
       } else {
         cycle_dwell_ms = rawCycleDwell;
       }
       // A dead field ignored by resolve() unless this is a cycle motion (variants>1 + loop) — fail-loud.
       if (!(Array.isArray(variants) && variants.length > 1 && entry.loop === true)) {
-        issues.push(`${id}.cycle_dwell_ms는 cycle 모션(variants>1 + loop)에만 유효함`);
+        issues.push(`${id}.cycle_dwell_ms is valid only for a cycle motion (variants>1 + loop)`);
       }
     }
     // pingpong: forward↔reverse loop. Requires loop, mutually exclusive with crossfade_loop.
@@ -117,15 +117,15 @@ export function validateMotions(file: string, raw: unknown): MotionRegistry {
     let pingpong: boolean | undefined;
     if (rawPingpong !== undefined) {
       if (typeof rawPingpong !== "boolean") {
-        issues.push(`${id}.pingpong은 boolean이어야 함`);
+        issues.push(`${id}.pingpong must be a boolean`);
       } else {
         pingpong = rawPingpong;
       }
       if (rawPingpong === true && entry.loop !== true) {
-        issues.push(`${id}.pingpong:true는 loop:true를 요구함`);
+        issues.push(`${id}.pingpong:true requires loop:true`);
       }
       if (rawPingpong === true && entry.crossfade_loop === true) {
-        issues.push(`${id}.pingpong과 crossfade_loop는 상호 배타임`);
+        issues.push(`${id}.pingpong and crossfade_loop are mutually exclusive`);
       }
     }
     // crossfade_loop: crossfade from loop end to start. Requires loop.
@@ -133,12 +133,12 @@ export function validateMotions(file: string, raw: unknown): MotionRegistry {
     let crossfade_loop: boolean | undefined;
     if (rawCrossfadeLoop !== undefined) {
       if (typeof rawCrossfadeLoop !== "boolean") {
-        issues.push(`${id}.crossfade_loop은 boolean이어야 함`);
+        issues.push(`${id}.crossfade_loop must be a boolean`);
       } else {
         crossfade_loop = rawCrossfadeLoop;
       }
       if (rawCrossfadeLoop === true && entry.loop !== true) {
-        issues.push(`${id}.crossfade_loop:true는 loop:true를 요구함`);
+        issues.push(`${id}.crossfade_loop:true requires loop:true`);
       }
     }
     // loop_cycles: [min,max] round-trip count. Two positive integers + lo<=hi. Valid only with pingpong:true.
@@ -151,13 +151,13 @@ export function validateMotions(file: string, raw: unknown): MotionRegistry {
         rawLoopCycles.some((v) => typeof v !== "number" || !Number.isInteger(v) || v < 1) ||
         (rawLoopCycles[0] as number) > (rawLoopCycles[1] as number)
       ) {
-        issues.push(`${id}.loop_cycles는 lo<=hi인 양의 정수 2개 배열이어야 함`);
+        issues.push(`${id}.loop_cycles must be an array of 2 positive integers with lo<=hi`);
       } else {
         loop_cycles = [rawLoopCycles[0] as number, rawLoopCycles[1] as number];
       }
       // A dead field ignored by resolve() unless pingpong:true — fail-loud.
       if (rawPingpong !== true) {
-        issues.push(`${id}.loop_cycles는 pingpong:true 없이 의미 없음`);
+        issues.push(`${id}.loop_cycles has no meaning without pingpong:true`);
       }
     }
     // fade_ms: entry-level default crossfade ms. Valid for all entries.
@@ -170,7 +170,7 @@ export function validateMotions(file: string, raw: unknown): MotionRegistry {
         rawFade < 0 ||
         rawFade > 5000
       ) {
-        issues.push(`${id}.fade_ms는 0~5000 사이 정수여야 함`);
+        issues.push(`${id}.fade_ms must be an integer in [0, 5000]`);
       } else {
         fade_ms = rawFade;
       }
@@ -192,7 +192,7 @@ export function validateMotions(file: string, raw: unknown): MotionRegistry {
       interrupt_policy: entry.interrupt_policy as InterruptPolicy,
     } satisfies MotionRegistryEntry;
   }
-  if (Object.keys(out).length === 0) issues.push("최소 1개 모션이 등록되어야 함");
+  if (Object.keys(out).length === 0) issues.push("at least one motion must be registered");
   assertValid(file, issues);
   return out;
 }

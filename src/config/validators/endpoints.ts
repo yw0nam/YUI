@@ -9,12 +9,12 @@ function unset(v: unknown): boolean {
 export function validateEndpoints(file: string, raw: unknown): EndpointsConfig {
   const issues: string[] = [];
   if (!isObject(raw)) {
-    throw new ConfigError(file, ["객체가 아님"]);
+    throw new ConfigError(file, ["not an object"]);
   }
   const httpUrl = (k: string): string => {
     const v = raw[k];
     if (typeof v !== "string" || !/^https?:\/\//.test(v)) {
-      issues.push(`${k}는 http(s) URL이어야 함 (받음: ${JSON.stringify(v)})`);
+      issues.push(`${k} must be an http(s) URL (got: ${JSON.stringify(v)})`);
       return "";
     }
     return v;
@@ -27,12 +27,12 @@ export function validateEndpoints(file: string, raw: unknown): EndpointsConfig {
   // chat_model: optional. If present, must be a non-empty string (model ID is config's concern).
   const chat_model = raw.chat_model;
   if (chat_model !== undefined && (typeof chat_model !== "string" || chat_model.trim() === "")) {
-    issues.push(`chat_model은 비어있지 않은 문자열이어야 함 (받음: ${JSON.stringify(chat_model)})`);
+    issues.push(`chat_model must be a non-blank string (got: ${JSON.stringify(chat_model)})`);
   }
   // chat_instructions: optional. If present, must be a string (Responses `instructions` nudge, config's concern).
   const chat_instructions = raw.chat_instructions;
   if (chat_instructions !== undefined && typeof chat_instructions !== "string") {
-    issues.push(`chat_instructions는 문자열이어야 함 (받음: ${JSON.stringify(chat_instructions)})`);
+    issues.push(`chat_instructions must be a string (got: ${JSON.stringify(chat_instructions)})`);
   }
   // chat_api: optional enum. When set, only a CHAT_APIS value is allowed; omitted when unset (upstream default).
   const rawChatApi = raw.chat_api;
@@ -40,7 +40,7 @@ export function validateEndpoints(file: string, raw: unknown): EndpointsConfig {
     v === "responses" || v === "chat_completions" || v === "push";
   if (rawChatApi !== undefined && !isChatApi(rawChatApi)) {
     issues.push(
-      `chat_api는 "responses" | "chat_completions" | "push" 중 하나여야 함 (받음: ${JSON.stringify(rawChatApi)})`,
+      `chat_api must be one of "responses" | "chat_completions" | "push" (got: ${JSON.stringify(rawChatApi)})`,
     );
   }
   const chat_api: EndpointsConfig["chat_api"] = isChatApi(rawChatApi) ? rawChatApi : undefined;
@@ -48,7 +48,7 @@ export function validateEndpoints(file: string, raw: unknown): EndpointsConfig {
   const optStr = (k: "tts_model" | "tts_speaker"): string | undefined => {
     const v = raw[k];
     if (v !== undefined && (typeof v !== "string" || v.trim() === "")) {
-      issues.push(`${k}는 비어있지 않은 문자열이어야 함 (받음: ${JSON.stringify(v)})`);
+      issues.push(`${k} must be a non-blank string (got: ${JSON.stringify(v)})`);
       return undefined;
     }
     return typeof v === "string" ? v : undefined;
@@ -69,7 +69,7 @@ export function validateEndpoints(file: string, raw: unknown): EndpointsConfig {
       tts_max_inflight < 1)
   ) {
     issues.push(
-      `tts_max_inflight는 1 이상 정수여야 함 (받음: ${JSON.stringify(tts_max_inflight)})`,
+      `tts_max_inflight must be an integer >= 1 (got: ${JSON.stringify(tts_max_inflight)})`,
     );
   }
 
@@ -83,7 +83,7 @@ export function validateEndpoints(file: string, raw: unknown): EndpointsConfig {
       chat_model_context_window <= 0)
   ) {
     issues.push(
-      `chat_model_context_window는 0보다 큰 유한 number여야 함 (받음: ${JSON.stringify(chat_model_context_window)})`,
+      `chat_model_context_window must be a finite number > 0 (got: ${JSON.stringify(chat_model_context_window)})`,
     );
   }
 

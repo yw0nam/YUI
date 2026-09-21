@@ -2,7 +2,7 @@ import type { HotkeysConfig } from "../load";
 import { assertValid, ConfigError, isObject } from "./shared";
 
 export function validateHotkeys(file: string, raw: unknown): HotkeysConfig {
-  if (!isObject(raw)) throw new ConfigError(file, ["객체가 아님"]);
+  if (!isObject(raw)) throw new ConfigError(file, ["not an object"]);
   const issues: string[] = [];
 
   const v = raw.summon_global;
@@ -11,7 +11,7 @@ export function validateHotkeys(file: string, raw: unknown): HotkeysConfig {
     // Missing key / empty string = disabled.
     summon_global = "";
   } else if (typeof v !== "string") {
-    issues.push(`summon_global은 문자열이어야 함 (받음: ${JSON.stringify(v)})`);
+    issues.push(`summon_global must be a string (got: ${JSON.stringify(v)})`);
   } else {
     // Accelerator syntax validation is the plugin/OS's job at registration time — pass here (fail-soft).
     summon_global = v;

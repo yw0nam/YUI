@@ -477,7 +477,7 @@ export function fetchReader(opts: {
     try {
       return await res.json();
     } catch {
-      throw new ConfigError(file, ["응답이 JSON이 아님"]);
+      throw new ConfigError(file, ["response is not JSON"]);
     }
   };
 }

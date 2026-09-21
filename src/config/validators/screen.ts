@@ -11,14 +11,14 @@ const KEYS = [
 ] as const;
 
 export function validateScreen(file: string, raw: unknown): ScreenConfig {
-  if (!isObject(raw)) throw new ConfigError(file, ["객체가 아님"]);
+  if (!isObject(raw)) throw new ConfigError(file, ["not an object"]);
   const issues: string[] = [];
 
   const out = {} as Record<(typeof KEYS)[number], number>;
   for (const key of KEYS) {
     const v = raw[key];
     if (typeof v !== "number" || !Number.isFinite(v) || v < 0) {
-      issues.push(`${key}는 0 이상 유한 number여야 함 (받음: ${JSON.stringify(v)})`);
+      issues.push(`${key} must be a finite number >= 0 (got: ${JSON.stringify(v)})`);
       continue;
     }
     out[key] = v;

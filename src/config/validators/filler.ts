@@ -6,14 +6,14 @@ const FILLER_LANGS: readonly FillerLang[] = ["ja", "en", "ko"];
 /** Validates a string[] filler tier (first, repeat, long_wait, timeout, unreachable). Returns cleaned array or records issues. */
 function validateFillerTier(issues: string[], tier: unknown, path: string): string[] {
   if (!Array.isArray(tier)) {
-    issues.push(`${path}는 배열이어야 함 (받음: ${JSON.stringify(tier)})`);
+    issues.push(`${path} must be an array (got: ${JSON.stringify(tier)})`);
     return [];
   }
   const out: string[] = [];
   let clean = true;
   for (let i = 0; i < tier.length; i++) {
     if (typeof tier[i] !== "string") {
-      issues.push(`${path}[${i}]는 문자열이어야 함 (받음: ${JSON.stringify(tier[i])})`);
+      issues.push(`${path}[${i}] must be a string (got: ${JSON.stringify(tier[i])})`);
       clean = false;
     } else {
       out.push(tier[i] as string);
@@ -29,7 +29,7 @@ function validateFillerToolTier(
   path: string,
 ): Record<string, string[]> {
   if (!isObject(tool)) {
-    issues.push(`${path}는 객체여야 함 (받음: ${JSON.stringify(tool)})`);
+    issues.push(`${path} must be an object (got: ${JSON.stringify(tool)})`);
     return {};
   }
   const out: Record<string, string[]> = {};
@@ -44,14 +44,14 @@ function validateFillerToolTier(
 }
 
 export function validateFiller(file: string, raw: unknown): FillerConfig {
-  if (!isObject(raw)) throw new ConfigError(file, ["객체가 아님"]);
+  if (!isObject(raw)) throw new ConfigError(file, ["not an object"]);
   const issues: string[] = [];
 
   /** Whether obj[key] is a finite number ≥ 0. Otherwise records an issue and returns 0. */
   const nonNegNum = (key: string): number => {
     const v = raw[key];
     if (typeof v !== "number" || !Number.isFinite(v) || v < 0) {
-      issues.push(`${key}는 0 이상 유한 number여야 함 (받음: ${JSON.stringify(v)})`);
+      issues.push(`${key} must be a finite number >= 0 (got: ${JSON.stringify(v)})`);
       return 0;
     }
     return v;
@@ -67,7 +67,7 @@ export function validateFiller(file: string, raw: unknown): FillerConfig {
     !Number.isInteger(max_repeats_raw) ||
     max_repeats_raw < 0
   ) {
-    issues.push(`max_repeats는 0 이상 정수여야 함 (받음: ${JSON.stringify(max_repeats_raw)})`);
+    issues.push(`max_repeats must be an integer >= 0 (got: ${JSON.stringify(max_repeats_raw)})`);
   } else {
     max_repeats = max_repeats_raw;
   }
@@ -79,7 +79,7 @@ export function validateFiller(file: string, raw: unknown): FillerConfig {
     !Number.isFinite(gap_growth_raw) ||
     gap_growth_raw < 1
   ) {
-    issues.push(`gap_growth는 1 이상 유한 number여야 함 (받음: ${JSON.stringify(gap_growth_raw)})`);
+    issues.push(`gap_growth must be a finite number >= 1 (got: ${JSON.stringify(gap_growth_raw)})`);
   } else {
     gap_growth = gap_growth_raw;
   }
@@ -91,19 +91,19 @@ export function validateFiller(file: string, raw: unknown): FillerConfig {
   const rawPools = raw.pools;
   const pools: Partial<Record<FillerLang, FillerPool>> = {};
   if (!isObject(rawPools)) {
-    issues.push(`pools는 객체여야 함 (받음: ${JSON.stringify(rawPools)})`);
+    issues.push(`pools must be an object (got: ${JSON.stringify(rawPools)})`);
   } else if (Object.keys(rawPools).length === 0) {
-    issues.push("pools는 최소 한 개의 언어(ja | en | ko)를 포함해야 함");
+    issues.push("pools must contain at least one language (ja | en | ko)");
   } else {
     for (const key of Object.keys(rawPools)) {
       if (!(FILLER_LANGS as readonly string[]).includes(key)) {
-        issues.push(`pools의 알 수 없는 키: ${JSON.stringify(key)} (허용: ja | en | ko)`);
+        issues.push(`pools.${key} is an unknown key (allowed: ja | en | ko)`);
         continue;
       }
       const lang = key as FillerLang;
       const entry = rawPools[lang];
       if (!isObject(entry)) {
-        issues.push(`pools.${lang}는 객체여야 함 (받음: ${JSON.stringify(entry)})`);
+        issues.push(`pools.${lang} must be an object (got: ${JSON.stringify(entry)})`);
         continue;
       }
       const first = validateFillerTier(issues, entry.first, `pools.${lang}.first`);

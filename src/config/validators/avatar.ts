@@ -31,11 +31,11 @@ const GESTURE_CUE_KEYS = ["drag_held", "window_sit", "peek", "dropped"] as const
  * read; assertValid throws before the return whenever one of them is still missing.
  */
 export function validateAvatar(file: string, raw: unknown): AvatarConfig {
-  if (!isObject(raw)) throw new ConfigError(file, ["객체가 아님"]);
+  if (!isObject(raw)) throw new ConfigError(file, ["not an object"]);
   const vrm_url = raw.vrm_url;
   if (typeof vrm_url !== "string" || vrm_url.length === 0) {
     throw new ConfigError(file, [
-      `vrm_url은 비어 있지 않은 문자열이어야 함 (받음: ${JSON.stringify(vrm_url)})`,
+      `vrm_url must be a non-empty string (got: ${JSON.stringify(vrm_url)})`,
     ]);
   }
   const issues: string[] = [];
@@ -50,7 +50,7 @@ export function validateAvatar(file: string, raw: unknown): AvatarConfig {
   ): number | undefined => {
     const value = obj[key];
     if (typeof value !== "number" || !Number.isFinite(value) || !ok(value)) {
-      issues.push(`${path}.${key}는 ${expected}여야 함 (받음: ${JSON.stringify(value)})`);
+      issues.push(`${path}.${key} must be ${expected} (got: ${JSON.stringify(value)})`);
       return undefined;
     }
     return value;
@@ -66,7 +66,7 @@ export function validateAvatar(file: string, raw: unknown): AvatarConfig {
   ): number | undefined => {
     const value = obj[key];
     if (typeof value !== "number" || !Number.isInteger(value) || !ok(value)) {
-      issues.push(`${path}.${key}는 ${expected}여야 함 (받음: ${JSON.stringify(value)})`);
+      issues.push(`${path}.${key} must be ${expected} (got: ${JSON.stringify(value)})`);
       return undefined;
     }
     return value;
@@ -76,9 +76,7 @@ export function validateAvatar(file: string, raw: unknown): AvatarConfig {
   const str = (obj: Record<string, unknown>, path: string, key: string): string | undefined => {
     const value = obj[key];
     if (typeof value !== "string" || value.length === 0) {
-      issues.push(
-        `${path}.${key}는 비어 있지 않은 문자열이어야 함 (받음: ${JSON.stringify(value)})`,
-      );
+      issues.push(`${path}.${key} must be a non-empty string (got: ${JSON.stringify(value)})`);
       return undefined;
     }
     return value;
@@ -93,7 +91,7 @@ export function validateAvatar(file: string, raw: unknown): AvatarConfig {
     max: number | undefined,
   ): void => {
     if (min === undefined || max === undefined || min <= max) return;
-    issues.push(`${path}.${minKey}는 ${path}.${maxKey} 이하여야 함 (받음: ${min} > ${max})`);
+    issues.push(`${path}.${minKey} must be <= ${path}.${maxKey} (got: ${min} > ${max})`);
   };
 
   /** One `{ label, context? }` cue. label is required; context stays optional user intent. */
@@ -101,9 +99,7 @@ export function validateAvatar(file: string, raw: unknown): AvatarConfig {
     const label = str(obj, path, "label");
     const context = obj.context;
     if (context !== undefined && (typeof context !== "string" || context.length === 0)) {
-      issues.push(
-        `${path}.context는 비어 있지 않은 문자열이어야 함 (받음: ${JSON.stringify(context)})`,
-      );
+      issues.push(`${path}.context must be a non-empty string (got: ${JSON.stringify(context)})`);
       return undefined;
     }
     if (label === undefined) return undefined;
@@ -120,26 +116,26 @@ export function validateAvatar(file: string, raw: unknown): AvatarConfig {
   if (rawAvailable !== undefined) {
     if (!Array.isArray(rawAvailable)) {
       throw new ConfigError(file, [
-        `available은 배열이어야 함 (받음: ${JSON.stringify(rawAvailable)})`,
+        `available must be an array (got: ${JSON.stringify(rawAvailable)})`,
       ]);
     }
     available = [];
     rawAvailable.forEach((entry, i) => {
       if (!isObject(entry)) {
-        issues.push(`available[${i}]: 항목이 객체가 아님`);
+        issues.push(`available[${i}]: entry is not an object`);
         return;
       }
       for (const k of ["id", "label", "url"] as const) {
         if (typeof entry[k] !== "string" || (entry[k] as string).length === 0) {
           issues.push(
-            `available[${i}].${k}는 비어 있지 않은 문자열이어야 함 (받음: ${JSON.stringify(entry[k])})`,
+            `available[${i}].${k} must be a non-empty string (got: ${JSON.stringify(entry[k])})`,
           );
         }
       }
       // id is a persistence key + CSS selector value — no whitespace/quotes or other special chars ([A-Za-z0-9._-]).
       if (typeof entry.id === "string" && !AVATAR_ID_RE.test(entry.id)) {
         issues.push(
-          `available[${i}].id는 [A-Za-z0-9._-]만 허용 (받음: ${JSON.stringify(entry.id)})`,
+          `available[${i}].id must contain only [A-Za-z0-9._-] (got: ${JSON.stringify(entry.id)})`,
         );
       }
       const source = entry.source;
@@ -148,7 +144,7 @@ export function validateAvatar(file: string, raw: unknown): AvatarConfig {
         !AVATAR_SOURCES.includes(source as AvatarOption["source"] & string)
       ) {
         issues.push(
-          `available[${i}].source는 ${AVATAR_SOURCES.join("|")} 중 하나여야 함 (받음: ${JSON.stringify(source)})`,
+          `available[${i}].source must be one of ${AVATAR_SOURCES.join("|")} (got: ${JSON.stringify(source)})`,
         );
       }
       available!.push({
@@ -162,7 +158,7 @@ export function validateAvatar(file: string, raw: unknown): AvatarConfig {
     const seen = new Set<string>();
     available.forEach((opt, i) => {
       if (seen.has(opt.id)) {
-        issues.push(`available[${i}].id 중복: ${JSON.stringify(opt.id)}`);
+        issues.push(`available[${i}].id is a duplicate (got: ${JSON.stringify(opt.id)})`);
       }
       seen.add(opt.id);
     });
@@ -172,15 +168,15 @@ export function validateAvatar(file: string, raw: unknown): AvatarConfig {
   const framing: Partial<FramingConfig> = {};
   const rawFraming = raw.framing;
   if (!isObject(rawFraming)) {
-    issues.push(`framing은 객체여야 함 (받음: ${JSON.stringify(rawFraming)})`);
+    issues.push(`framing must be an object (got: ${JSON.stringify(rawFraming)})`);
   } else {
-    framing.margin = num(rawFraming, "framing", "margin", nonNegative, "0 이상 유한 number");
+    framing.margin = num(rawFraming, "framing", "margin", nonNegative, "a finite number >= 0");
     framing.fov = num(
       rawFraming,
       "framing",
       "fov",
       (v) => v > 0 && v < 180,
-      "(0, 180) 열린구간 number",
+      "a finite number in (0, 180)",
     );
   }
 
@@ -188,35 +184,35 @@ export function validateAvatar(file: string, raw: unknown): AvatarConfig {
   const hit_test: Partial<HitTestKnobs> = {};
   const rawHitTest = raw.hit_test;
   if (!isObject(rawHitTest)) {
-    issues.push(`hit_test은 객체여야 함 (받음: ${JSON.stringify(rawHitTest)})`);
+    issues.push(`hit_test must be an object (got: ${JSON.stringify(rawHitTest)})`);
   } else {
     hit_test.hysteresis_margin_px = num(
       rawHitTest,
       "hit_test",
       "hysteresis_margin_px",
       nonNegative,
-      "0 이상 유한 number",
+      "a finite number >= 0",
     );
     hit_test.poll_interval_ms = num(
       rawHitTest,
       "hit_test",
       "poll_interval_ms",
       positive,
-      "0보다 큰 유한 number",
+      "a finite number > 0",
     );
     hit_test.debounce_samples = int(
       rawHitTest,
       "hit_test",
       "debounce_samples",
       (v) => v >= 1,
-      "1 이상 정수",
+      "an integer >= 1",
     );
     hit_test.alpha_threshold = num(
       rawHitTest,
       "hit_test",
       "alpha_threshold",
       (v) => v > 0 && v <= 1,
-      "(0, 1] 범위 유한 number",
+      "a finite number in (0, 1]",
     );
   }
 
@@ -224,42 +220,44 @@ export function validateAvatar(file: string, raw: unknown): AvatarConfig {
   const tap: Partial<TapConfig> = {};
   const rawTap = raw.tap;
   if (!isObject(rawTap)) {
-    issues.push(`tap은 객체여야 함 (받음: ${JSON.stringify(rawTap)})`);
+    issues.push(`tap must be an object (got: ${JSON.stringify(rawTap)})`);
   } else {
-    tap.spam_count = int(rawTap, "tap", "spam_count", (v) => v >= 2, "2 이상 정수");
+    tap.spam_count = int(rawTap, "tap", "spam_count", (v) => v >= 2, "an integer >= 2");
     tap.spam_window_ms = int(
       rawTap,
       "tap",
       "spam_window_ms",
       (v) => v >= 1 && v <= 60_000,
-      "1..60000 범위 정수",
+      "an integer in [1, 60000]",
     );
     tap.region_radius_frac = num(
       rawTap,
       "tap",
       "region_radius_frac",
       (v) => v > 0 && v <= 1,
-      "(0, 1] 범위 유한 number",
+      "a finite number in (0, 1]",
     );
     tap.touch_cue_cooldown_ms = int(
       rawTap,
       "tap",
       "touch_cue_cooldown_ms",
       nonNegative,
-      "0 이상 정수",
+      "an integer >= 0",
     );
     tap.touch_emotion_hold_ms = int(
       rawTap,
       "tap",
       "touch_emotion_hold_ms",
       (v) => v >= 1,
-      "1 이상 정수",
+      "an integer >= 1",
     );
-    tap.pat_hold_ms = int(rawTap, "tap", "pat_hold_ms", (v) => v >= 1, "1 이상 정수");
+    tap.pat_hold_ms = int(rawTap, "tap", "pat_hold_ms", (v) => v >= 1, "an integer >= 1");
 
     const rawRegionMotions = rawTap.region_motions;
     if (!isObject(rawRegionMotions)) {
-      issues.push(`tap.region_motions은 객체여야 함 (받음: ${JSON.stringify(rawRegionMotions)})`);
+      issues.push(
+        `tap.region_motions must be an object (got: ${JSON.stringify(rawRegionMotions)})`,
+      );
     } else {
       rejectUnknownKeys(issues, rawRegionMotions, TAP_REGIONS, "tap.region_motions");
       const motions: Partial<TapConfig["region_motions"]> = {};
@@ -271,7 +269,7 @@ export function validateAvatar(file: string, raw: unknown): AvatarConfig {
 
     const rawBoredCue = rawTap.bored_cue;
     if (!isObject(rawBoredCue)) {
-      issues.push(`tap.bored_cue은 객체여야 함 (받음: ${JSON.stringify(rawBoredCue)})`);
+      issues.push(`tap.bored_cue must be an object (got: ${JSON.stringify(rawBoredCue)})`);
     } else {
       tap.bored_cue = cue(rawBoredCue, "tap.bored_cue");
     }
@@ -281,7 +279,7 @@ export function validateAvatar(file: string, raw: unknown): AvatarConfig {
     if (rawRegionEmotions !== undefined) {
       if (!isObject(rawRegionEmotions)) {
         issues.push(
-          `tap.region_emotions은 객체여야 함 (받음: ${JSON.stringify(rawRegionEmotions)})`,
+          `tap.region_emotions must be an object (got: ${JSON.stringify(rawRegionEmotions)})`,
         );
       } else {
         rejectUnknownKeys(issues, rawRegionEmotions, TAP_REGIONS, "tap.region_emotions");
@@ -298,7 +296,7 @@ export function validateAvatar(file: string, raw: unknown): AvatarConfig {
     const rawRegionCues = rawTap.region_cues;
     if (rawRegionCues !== undefined) {
       if (!isObject(rawRegionCues)) {
-        issues.push(`tap.region_cues은 객체여야 함 (받음: ${JSON.stringify(rawRegionCues)})`);
+        issues.push(`tap.region_cues must be an object (got: ${JSON.stringify(rawRegionCues)})`);
       } else {
         rejectUnknownKeys(issues, rawRegionCues, TAP_REGIONS, "tap.region_cues");
         const cues: NonNullable<TapConfig["region_cues"]> = {};
@@ -306,7 +304,9 @@ export function validateAvatar(file: string, raw: unknown): AvatarConfig {
           const entry = rawRegionCues[region];
           if (entry === undefined) continue;
           if (!isObject(entry)) {
-            issues.push(`tap.region_cues.${region}는 객체여야 함 (받음: ${JSON.stringify(entry)})`);
+            issues.push(
+              `tap.region_cues.${region} must be an object (got: ${JSON.stringify(entry)})`,
+            );
             continue;
           }
           cues[region] = cue(entry, `tap.region_cues.${region}`);
@@ -320,16 +320,22 @@ export function validateAvatar(file: string, raw: unknown): AvatarConfig {
   const peek: Partial<PeekConfig> = {};
   const rawPeek = raw.peek;
   if (!isObject(rawPeek)) {
-    issues.push(`peek은 객체여야 함 (받음: ${JSON.stringify(rawPeek)})`);
+    issues.push(`peek must be an object (got: ${JSON.stringify(rawPeek)})`);
   } else {
     for (const field of ["side_out_frac", "side_in_frac"] as const) {
-      peek[field] = num(rawPeek, "peek", field, (v) => v > 0 && v <= 2, "(0, 2] 범위 유한 number");
+      peek[field] = num(
+        rawPeek,
+        "peek",
+        field,
+        (v) => v > 0 && v <= 2,
+        "a finite number in (0, 2]",
+      );
     }
-    peek.inset_frac = num(rawPeek, "peek", "inset_frac", unit, "[0, 1] 범위 유한 number");
+    peek.inset_frac = num(rawPeek, "peek", "inset_frac", unit, "a finite number in [0, 1]");
     const mirrorSide = rawPeek.mirror_side;
     if (mirrorSide !== "left" && mirrorSide !== "right" && mirrorSide !== "none") {
       issues.push(
-        `peek.mirror_side는 left|right|none 중 하나여야 함 (받음: ${JSON.stringify(mirrorSide)})`,
+        `peek.mirror_side must be one of left|right|none (got: ${JSON.stringify(mirrorSide)})`,
       );
     } else {
       peek.mirror_side = mirrorSide;
@@ -340,7 +346,7 @@ export function validateAvatar(file: string, raw: unknown): AvatarConfig {
   const walk: Partial<WalkConfig> = {};
   const rawWalk = raw.walk;
   if (!isObject(rawWalk)) {
-    issues.push(`walk은 객체여야 함 (받음: ${JSON.stringify(rawWalk)})`);
+    issues.push(`walk must be an object (got: ${JSON.stringify(rawWalk)})`);
   } else {
     for (const field of [
       "interval_min_ms",
@@ -348,14 +354,14 @@ export function validateAvatar(file: string, raw: unknown): AvatarConfig {
       "distance_min_px",
       "distance_max_px",
     ] as const) {
-      walk[field] = num(rawWalk, "walk", field, positive, "0보다 큰 유한 number");
+      walk[field] = num(rawWalk, "walk", field, positive, "a finite number > 0");
     }
     walk.floor_tolerance_px = num(
       rawWalk,
       "walk",
       "floor_tolerance_px",
       nonNegative,
-      "0 이상 유한 number",
+      "a finite number >= 0",
     );
     requireOrder(
       "walk",
@@ -377,27 +383,27 @@ export function validateAvatar(file: string, raw: unknown): AvatarConfig {
   const perch_walk: Partial<PerchWalkConfig> = {};
   const rawPerchWalk = raw.perch_walk;
   if (!isObject(rawPerchWalk)) {
-    issues.push(`perch_walk은 객체여야 함 (받음: ${JSON.stringify(rawPerchWalk)})`);
+    issues.push(`perch_walk must be an object (got: ${JSON.stringify(rawPerchWalk)})`);
   } else {
     for (const field of ["dwell_min_ms", "dwell_max_ms"] as const) {
-      perch_walk[field] = int(rawPerchWalk, "perch_walk", field, nonNegative, "0 이상 정수");
+      perch_walk[field] = int(rawPerchWalk, "perch_walk", field, nonNegative, "an integer >= 0");
     }
     for (const field of ["distance_min_px", "distance_max_px"] as const) {
-      perch_walk[field] = num(rawPerchWalk, "perch_walk", field, positive, "0보다 큰 유한 number");
+      perch_walk[field] = num(rawPerchWalk, "perch_walk", field, positive, "a finite number > 0");
     }
     perch_walk.edge_margin_frac = num(
       rawPerchWalk,
       "perch_walk",
       "edge_margin_frac",
       unit,
-      "0 이상 1 이하 number",
+      "a finite number in [0, 1]",
     );
     perch_walk.level_tolerance_px = num(
       rawPerchWalk,
       "perch_walk",
       "level_tolerance_px",
       nonNegative,
-      "0 이상 유한 number",
+      "a finite number >= 0",
     );
     requireOrder(
       "perch_walk",
@@ -419,19 +425,19 @@ export function validateAvatar(file: string, raw: unknown): AvatarConfig {
   const fall: Partial<FallConfig> = {};
   const rawFall = raw.fall;
   if (!isObject(rawFall)) {
-    issues.push(`fall은 객체여야 함 (받음: ${JSON.stringify(rawFall)})`);
+    issues.push(`fall must be an object (got: ${JSON.stringify(rawFall)})`);
   } else {
     for (const field of ["gravity_px_s2", "max_speed_px_s", "land_room_frac"] as const) {
-      fall[field] = num(rawFall, "fall", field, positive, "0보다 큰 유한 number");
+      fall[field] = num(rawFall, "fall", field, positive, "a finite number > 0");
     }
-    fall.min_drop_frac = num(rawFall, "fall", "min_drop_frac", unit, "[0, 1] 범위 유한 number");
-    fall.cue_cooldown_ms = int(rawFall, "fall", "cue_cooldown_ms", nonNegative, "0 이상 정수");
+    fall.min_drop_frac = num(rawFall, "fall", "min_drop_frac", unit, "a finite number in [0, 1]");
+    fall.cue_cooldown_ms = int(rawFall, "fall", "cue_cooldown_ms", nonNegative, "an integer >= 0");
     fall.step_off_probability = num(
       rawFall,
       "fall",
       "step_off_probability",
       unit,
-      "[0, 1] 범위 유한 number",
+      "a finite number in [0, 1]",
     );
   }
 
@@ -439,10 +445,10 @@ export function validateAvatar(file: string, raw: unknown): AvatarConfig {
   const descend: Partial<DescendConfig> = {};
   const rawDescend = raw.descend;
   if (!isObject(rawDescend)) {
-    issues.push(`descend은 객체여야 함 (받음: ${JSON.stringify(rawDescend)})`);
+    issues.push(`descend must be an object (got: ${JSON.stringify(rawDescend)})`);
   } else {
     for (const field of ["chance", "climb_down_chance"] as const) {
-      descend[field] = num(rawDescend, "descend", field, unit, "[0, 1] 범위 유한 number");
+      descend[field] = num(rawDescend, "descend", field, unit, "a finite number in [0, 1]");
     }
   }
 
@@ -450,7 +456,7 @@ export function validateAvatar(file: string, raw: unknown): AvatarConfig {
   const climb: Partial<ClimbConfig> = {};
   const rawClimb = raw.climb;
   if (!isObject(rawClimb)) {
-    issues.push(`climb은 객체여야 함 (받음: ${JSON.stringify(rawClimb)})`);
+    issues.push(`climb must be an object (got: ${JSON.stringify(rawClimb)})`);
   } else {
     for (const field of [
       "interval_min_ms",
@@ -458,7 +464,7 @@ export function validateAvatar(file: string, raw: unknown): AvatarConfig {
       "perch_dwell_min_ms",
       "perch_dwell_max_ms",
     ] as const) {
-      climb[field] = int(rawClimb, "climb", field, nonNegative, "0 이상 정수");
+      climb[field] = int(rawClimb, "climb", field, nonNegative, "an integer >= 0");
     }
     for (const field of [
       "max_height_frac",
@@ -468,7 +474,7 @@ export function validateAvatar(file: string, raw: unknown): AvatarConfig {
       "ledge_walk_min_frac",
       "ledge_walk_max_frac",
     ] as const) {
-      climb[field] = num(rawClimb, "climb", field, positive, "0보다 큰 유한 number");
+      climb[field] = num(rawClimb, "climb", field, positive, "a finite number > 0");
     }
     requireOrder(
       "climb",
@@ -497,10 +503,10 @@ export function validateAvatar(file: string, raw: unknown): AvatarConfig {
   const jump: Partial<JumpConfig> = {};
   const rawJump = raw.jump;
   if (!isObject(rawJump)) {
-    issues.push(`jump은 객체여야 함 (받음: ${JSON.stringify(rawJump)})`);
+    issues.push(`jump must be an object (got: ${JSON.stringify(rawJump)})`);
   } else {
     for (const field of ["probability", "takeoff_frac", "land_frac"] as const) {
-      jump[field] = num(rawJump, "jump", field, unit, "[0, 1] 범위 유한 number");
+      jump[field] = num(rawJump, "jump", field, unit, "a finite number in [0, 1]");
     }
     for (const field of [
       "height_up_max_frac",
@@ -508,16 +514,16 @@ export function validateAvatar(file: string, raw: unknown): AvatarConfig {
       "gap_max_width_frac",
       "apex_lift_frac",
     ] as const) {
-      jump[field] = num(rawJump, "jump", field, positive, "0보다 큰 유한 number");
+      jump[field] = num(rawJump, "jump", field, positive, "a finite number > 0");
     }
-    jump.flight_timeout_ms = int(rawJump, "jump", "flight_timeout_ms", positive, "0보다 큰 정수");
+    jump.flight_timeout_ms = int(rawJump, "jump", "flight_timeout_ms", positive, "an integer > 0");
     if (
       jump.takeoff_frac !== undefined &&
       jump.land_frac !== undefined &&
       jump.takeoff_frac >= jump.land_frac
     ) {
       issues.push(
-        `jump.takeoff_frac는 jump.land_frac 미만이어야 함 (받음: ${jump.takeoff_frac} >= ${jump.land_frac})`,
+        `jump.takeoff_frac must be < jump.land_frac (got: ${jump.takeoff_frac} >= ${jump.land_frac})`,
       );
     }
   }
@@ -526,7 +532,7 @@ export function validateAvatar(file: string, raw: unknown): AvatarConfig {
   const rawDragHoldMs = raw.drag_hold_ms;
   let drag_hold_ms: number | undefined;
   if (typeof rawDragHoldMs !== "number" || !Number.isInteger(rawDragHoldMs) || rawDragHoldMs < 1) {
-    issues.push(`drag_hold_ms는 1 이상 정수여야 함 (받음: ${JSON.stringify(rawDragHoldMs)})`);
+    issues.push(`drag_hold_ms must be an integer >= 1 (got: ${JSON.stringify(rawDragHoldMs)})`);
   } else {
     drag_hold_ms = rawDragHoldMs;
   }
@@ -535,13 +541,13 @@ export function validateAvatar(file: string, raw: unknown): AvatarConfig {
   const gesture_cues: Partial<GestureCuesConfig> = {};
   const rawGestureCues = raw.gesture_cues;
   if (!isObject(rawGestureCues)) {
-    issues.push(`gesture_cues은 객체여야 함 (받음: ${JSON.stringify(rawGestureCues)})`);
+    issues.push(`gesture_cues must be an object (got: ${JSON.stringify(rawGestureCues)})`);
   } else {
     rejectUnknownKeys(issues, rawGestureCues, GESTURE_CUE_KEYS, "gesture_cues");
     for (const key of GESTURE_CUE_KEYS) {
       const entry = rawGestureCues[key];
       if (!isObject(entry)) {
-        issues.push(`gesture_cues.${key}는 객체여야 함 (받음: ${JSON.stringify(entry)})`);
+        issues.push(`gesture_cues.${key} must be an object (got: ${JSON.stringify(entry)})`);
         continue;
       }
       gesture_cues[key] = cue(entry, `gesture_cues.${key}`);
@@ -552,7 +558,7 @@ export function validateAvatar(file: string, raw: unknown): AvatarConfig {
   const gaze: Partial<GazeKnobs> = {};
   const rawGaze = raw.gaze;
   if (!isObject(rawGaze)) {
-    issues.push(`gaze는 객체여야 함 (받음: ${JSON.stringify(rawGaze)})`);
+    issues.push(`gaze must be an object (got: ${JSON.stringify(rawGaze)})`);
   } else {
     /** Only deadDeg and headNeckSplit accept their lower bound; the other angles are above it. */
     const ranged = (
@@ -566,7 +572,7 @@ export function validateAvatar(file: string, raw: unknown): AvatarConfig {
         "gaze",
         key,
         (v) => (minInclusive ? v >= min : v > min) && v <= max,
-        `${minInclusive ? min : `${min} 초과`}..${max} 범위 유한 number`,
+        `a finite number in ${minInclusive ? "[" : "("}${min}, ${max}]`,
       );
     };
     ranged("deadDeg", 0, 180, true);
@@ -610,6 +616,6 @@ function rejectUnknownKeys(
   path: string,
 ): void {
   for (const key of Object.keys(obj)) {
-    if (!allowed.includes(key)) issues.push(`${path}.${key}는 허용되지 않는 키`);
+    if (!allowed.includes(key)) issues.push(`${path}.${key} is an unknown key`);
   }
 }
