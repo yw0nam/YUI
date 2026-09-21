@@ -42,19 +42,21 @@ YUI/
     app/                             # Composes the pet window from the layers below
       bootstrap-configured.ts        # Config-derived bootstrap: calls the wire functions in order and drains their teardowns
       turn/                          # The path of a turn: sources, voice, and push
+        wire-dispatcher.ts           # Turn feed, backend caller, guardrails, pacer, and the dispatcher
         wire-sources.ts              # Tauri window sources and the dispatcher's paced proactive sources
-        wire-voice.ts                # Expression broker client and the voice input lifecycle
+        wire-voice.ts                # Expression broker client and the voice-input and turn-voice wiring
         wire-voice-pipeline.ts       # Wires filler, TTS, and speech playback to the turn lifecycle
         wire-push.ts                 # Push socket frames into turns and the push mode chip
       stage/                         # What is bound to the pet window's stage and overlay
+        wire-gestures.ts             # Pointer gestures on the stage: taps, pats, the window drag, and the camera orbit
         wire-locomotion.ts           # Travel frame, the five locomotion loops, and the window sources composed into one handle
-        wire-summon.ts               # Peek exit triggers, tray summon, and the global summon hotkey
+        wire-summon.ts               # Peek state and exit triggers, tray summon, and the global summon hotkey
         wire-stage.ts                # Click-through hit-test and cursor-gaze wiring over the stage
       cross-window/                  # State the windows share
         wire-cross-window.ts         # Per-window sync for the pet, settings, and devtools windows plus DEV globals
         wire-window-sync.ts          # Settings broadcast, guardrail overrides, and the shared cross-window sync core
       settings/                      # Selections applied to the running app
-        wire-avatar.ts               # VRM and speaker selection stores, their swap and import flows, and effective endpoints
+        wire-avatar.ts               # VRM and speaker selection stores, their swap and import flows, and the avatar config applied at boot
     logger.ts                        # Namespaced frontend logger with a runtime level
     settings-main.ts                 # Settings-window entry
     devtools-main.ts                 # Developer Tools window entry

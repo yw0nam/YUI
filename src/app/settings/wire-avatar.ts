@@ -1,4 +1,6 @@
 /** VRM and speaker selection stores, their swap/import flows, and the effective endpoints derived from overrides. */
+
+import type { AppConfig } from "../../config/load";
 import type { EndpointsConfig } from "../../contract";
 import { resolveAssetUrl, resolveUserFileSrc } from "../../io/assets/asset-url";
 import { removeOrphanImport } from "../../io/assets/user-asset-import";
@@ -10,6 +12,8 @@ import {
 } from "../../io/assets/vrm-selection";
 import { selectFetch } from "../../io/chat/chat-client";
 import { type EndpointOverrides, mergeEndpoints } from "../../io/settings/endpoints-settings";
+import { enabledIdleVariants } from "../../io/settings/idle-motion-settings";
+import type { SettingsStores } from "../../io/settings/settings-stores";
 import {
   createSpeakerSelection,
   localStorageSpeakerStorage,
@@ -190,4 +194,32 @@ export function wireSpeakerSelection(deps: {
     removeVoice,
     refreshVoiceList,
   };
+}
+
+export function applyAvatarConfig(deps: {
+  cfg: AppConfig;
+  getConfig: () => AppConfig;
+  renderer: Renderer;
+  idleMotionSettings: Pick<SettingsStores["idleMotionSettings"], "get" | "subscribe">;
+  vrmSelection: Pick<ReturnType<typeof createVrmSelection>, "setManifest">;
+  register: (teardown: () => void) => void;
+}): void {
+  const { cfg, getConfig, renderer, idleMotionSettings, vrmSelection, register } = deps;
+  renderer.setEmotionRegistry(cfg.emotionRegistry);
+  // Ambient idle pool = catalog ∩ the user's selection; applied before the registry so the
+  // first baseline play already honors it, then re-applied live on every store change.
+  const applyIdleVariants = (): void => {
+    const pool = getConfig().motions.idle;
+    if (pool) renderer.setIdleVariants(enabledIdleVariants(pool, idleMotionSettings.get()));
+  };
+  applyIdleVariants();
+  register(idleMotionSettings.subscribe(applyIdleVariants));
+  renderer.setMotionRegistry(cfg.motions);
+  renderer.setFraming(cfg.avatar.framing);
+  renderer.setGaze(cfg.avatar.gaze);
+  renderer.setHitTestThreshold(cfg.avatar.hit_test.alpha_threshold);
+  vrmSelection.setManifest({
+    available: cfg.avatar.available,
+    defaultValue: cfg.avatar.vrm_url,
+  });
 }

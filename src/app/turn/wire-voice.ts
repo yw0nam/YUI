@@ -1,6 +1,14 @@
 import { loadEmotionTextTable } from "../../config/emotion-text";
-import type { AppConfig, ConfigSection } from "../../config/load";
+import {
+  type AppConfig,
+  type ConfigSection,
+  STT_API_KEY_SECRET,
+  TTS_API_KEY_SECRET,
+} from "../../config/load";
 import type { EndpointsConfig } from "../../contract";
+import { createPreviousTurn, type PreviousTurnSlot } from "../../dispatcher/backend/previous-turn";
+import { createPushTurns, type PushTurns } from "../../dispatcher/turn/push-turn";
+import { createTurnLog, type TurnLog } from "../../dispatcher/turn/turn";
 import {
   type BrokerClient,
   type BrokerPayload,
@@ -10,9 +18,15 @@ import {
 import { createBrokerOverrideReconciler } from "../../io/chat/broker-override-reconciler";
 import { selectFetch } from "../../io/chat/chat-client";
 import type { ExpressMotionSettings } from "../../io/settings/express-motion-settings";
+import type { SettingsStores } from "../../io/settings/settings-stores";
 import type { SttVad } from "../../io/voice/stt-vad";
+import type { SpeakerOption } from "../../io/voice/voices/speaker-selection";
 import type { Logger } from "../../logger";
+import type { Renderer } from "../../renderer";
+import { createVoiceErrorDwell } from "../../ui/chips/voice-error-dwell";
 import type { VoiceInputStatus } from "../../ui/chips/voice-input-status";
+import type { Surfaces } from "../../ui/surfaces/surfaces";
+import { type VoicePipeline, wireVoicePipeline } from "./wire-voice-pipeline";
 
 /**
  * Expression Broker publish (D6). Resolves the CORS-bypass fetch once, does the fire-and-forget
@@ -120,6 +134,102 @@ export async function wireBroker(deps: {
   };
 
   return { onConfigChange, vocabulary, dispose };
+}
+
+export function wireTurnVoice(deps: {
+  renderer: Renderer;
+  surfaces: Pick<Surfaces, "beginSpeech" | "pushSpeech" | "endSpeech" | "finishSpeech">;
+  voiceInputStatus: VoiceInputStatus;
+  sttSettings: { get(): { enabled: boolean }; setEnabled(enabled: boolean): void };
+  ttsSettings: { get(): { enabled: boolean } };
+  lipsyncSettings: { get(): { gain: number } };
+  fillerSettings: SettingsStores["fillerSettings"];
+  vadSettings: { get(): { silenceMs: number; bargeIn: boolean } };
+  speakerSelection: { getActive(): SpeakerOption };
+  getEndpoints: () => EndpointsConfig;
+  getConfig: () => AppConfig;
+  getSecret: (name: string) => Promise<string | undefined>;
+  submitVoice: (text: string) => void;
+  register: (teardown: () => void) => void;
+}): {
+  voice: VoicePipeline;
+  voiceInput: ReturnType<typeof wireVoiceInput>;
+  voiceErrorDwell: ReturnType<typeof createVoiceErrorDwell>;
+  turnLog: TurnLog;
+  previousTurn: PreviousTurnSlot;
+  pushTurns: PushTurns;
+  setProactiveSource(source: { noteInteraction(ts?: number): void }): void;
+  setStrolling(walker: { isStrolling(): boolean }): void;
+} {
+  const {
+    renderer,
+    surfaces,
+    voiceInputStatus,
+    sttSettings,
+    ttsSettings,
+    lipsyncSettings,
+    fillerSettings,
+    vadSettings,
+    speakerSelection,
+    getEndpoints,
+    getConfig,
+    getSecret,
+    submitVoice,
+    register,
+  } = deps;
+
+  const voiceErrorDwell = createVoiceErrorDwell(voiceInputStatus);
+  register(() => voiceErrorDwell.dispose());
+
+  // Voice creation precedes sources, so interaction notes stay late-bound across that cycle.
+  let proactiveSourceRef: { noteInteraction(ts?: number): void } | null = null;
+
+  const voiceInput = wireVoiceInput({ voiceInputStatus, sttSettings });
+  register(voiceInput.dispose);
+  const turnLog = createTurnLog();
+  const previousTurn = createPreviousTurn({ currentTurn: () => turnLog.current() });
+  // Voice creation precedes the walker, so the stroll query stays late-bound across that cycle.
+  let strollingRef: { isStrolling(): boolean } | null = null;
+  const pushTurns = createPushTurns();
+  const voice = wireVoicePipeline({
+    renderer,
+    surfaces,
+    turnLog,
+    isStrolling: () => strollingRef?.isStrolling() ?? false,
+    getEndpoints,
+    getFillerConfig: () => getConfig().filler,
+    getTtsApiKey: () => getSecret(TTS_API_KEY_SECRET),
+    getSttApiKey: () => getSecret(STT_API_KEY_SECRET),
+    ttsSettings,
+    lipsyncSettings,
+    fillerSettings,
+    vadSettings,
+    speakerSelection,
+    voiceInputStatus,
+    onVoiceSegment: (text) => {
+      submitVoice(text);
+      proactiveSourceRef?.noteInteraction();
+    },
+    onUtteranceStart: previousTurn.utteranceStart,
+    onUtteranceEnd: previousTurn.utteranceEnd,
+    onBargeIn: () => pushTurns.cut(),
+  });
+  register(voice.dispose);
+
+  return {
+    voice,
+    voiceInput,
+    voiceErrorDwell,
+    turnLog,
+    previousTurn,
+    pushTurns,
+    setProactiveSource(source) {
+      proactiveSourceRef = source;
+    },
+    setStrolling(walker) {
+      strollingRef = walker;
+    },
+  };
 }
 
 /**

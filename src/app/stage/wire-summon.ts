@@ -1,4 +1,5 @@
 import type { EventBus } from "../../dispatcher/core/event-bus";
+import { createPeekState, type PeekState } from "../../io/window/pet/peek-state";
 import { createSummonHotkey, type SummonHotkey } from "../../io/window/pet/summon-hotkey";
 import { isTauri } from "../../io/window/tauri-env";
 import type { Logger } from "../../logger";
@@ -56,6 +57,31 @@ export async function showAndFocusFromSummon(deps: {
     });
   }
   await deps.win.setFocus();
+}
+
+export async function wirePeek(deps: {
+  bus: EventBus;
+  register: (teardown: () => void) => void;
+  ensureActive: () => void;
+}): Promise<PeekState | null> {
+  const { bus, register, ensureActive } = deps;
+  if (!isTauri()) return null;
+  const { getCurrentWindow } = await import("@tauri-apps/api/window");
+  ensureActive();
+  const win = getCurrentWindow();
+  const peekState = createPeekState({ getWindow: getCurrentWindow });
+  register(() => void peekState.dispose());
+  const disposePeekExitTriggers = await wirePeekExitTriggers({
+    bus,
+    peek: peekState,
+    win: {
+      onFocusChanged: (handler) => win.onFocusChanged(handler),
+      listen: (event, handler) => win.listen(event, handler),
+    },
+  });
+  register(disposePeekExitTriggers);
+  ensureActive();
+  return peekState;
 }
 
 /**

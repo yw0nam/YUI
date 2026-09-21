@@ -9,7 +9,7 @@ interface PeekStateDeps {
   };
 }
 
-interface PeekState {
+export interface PeekState {
   enter(): Promise<void>;
   exit(): Promise<void>;
   active(): boolean;

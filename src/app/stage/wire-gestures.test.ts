@@ -58,11 +58,13 @@ describe("wireStageGestures", () => {
     const order: string[] = [];
     const registered: Array<() => void> = [];
     const disposer = vi.fn();
-    let dragOpts: {
-      onDragStart?: () => void | Promise<void>;
-      onDragEnd?: () => void;
-      onOrbit?: (delta: { dx: number; dy: number }) => void;
-    } | undefined;
+    let dragOpts:
+      | {
+          onDragStart?: () => void | Promise<void>;
+          onDragEnd?: () => void;
+          onOrbit?: (delta: { dx: number; dy: number }) => void;
+        }
+      | undefined;
     initDrag.mockImplementation(async (_stage: unknown, opts: typeof dragOpts) => {
       dragOpts = opts;
       return disposer;
@@ -79,6 +81,7 @@ describe("wireStageGestures", () => {
         polar = next;
       }),
     };
+    const travelAbort = Promise.resolve();
     const locomotion = {
       setDragging: vi.fn((dragging: boolean) => order.push(`setDragging:${dragging}`)),
       cancel: vi.fn(() => order.push("cancel")),
@@ -86,7 +89,7 @@ describe("wireStageGestures", () => {
         noteUserDrag: vi.fn(() => order.push("noteUserDrag")),
         noteUserDragEnd: vi.fn(() => order.push("noteUserDragEnd")),
       },
-      abortTravel: vi.fn(() => Promise.resolve("travel-aborted")),
+      abortTravel: vi.fn(() => travelAbort),
     };
     const hitTest = {
       suspend: vi.fn(() => order.push("suspend")),
@@ -99,7 +102,14 @@ describe("wireStageGestures", () => {
       bus: bus as never,
       renderer: {} as never,
       ambient: {} as never,
-      getConfig: () => ({}) as never,
+      getConfig: () =>
+        ({
+          avatar: {
+            tap: { pat_hold_ms: 300 },
+            drag_hold_ms: 500,
+            gesture_cues: { drag_held: {} },
+          },
+        }) as never,
       drainSignals: () => [],
       hitTest,
       locomotion,
@@ -109,7 +119,17 @@ describe("wireStageGestures", () => {
       },
     });
 
-    return { order, registered, disposer, dragOpts: dragOpts!, bus, hitTest, locomotion, cameraSettings };
+    return {
+      order,
+      registered,
+      disposer,
+      dragOpts: dragOpts!,
+      bus,
+      hitTest,
+      locomotion,
+      cameraSettings,
+      travelAbort,
+    };
   };
 
   it("on drag start cancels locomotion, suspends the hit-test and returns the travel abort", async () => {
@@ -127,7 +147,8 @@ describe("wireStageGestures", () => {
         dnd_override: true,
       }),
     );
-    await expect(result).resolves.toBe("travel-aborted");
+    // The drag start hands the OS drag the still-unparking travel's abort promise itself.
+    expect(result).toBe(s.travelAbort);
   });
 
   it("on drag end resumes the hit-test and reports the release", async () => {

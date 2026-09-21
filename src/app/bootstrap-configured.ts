@@ -1,69 +1,47 @@
 import type { Tier1Engine } from "../ambient/liveliness/tier1";
 import type { Sitter } from "../ambient/locomotion/sitter";
-import {
-  type AppConfig,
-  CHAT_API_KEY_SECRET,
-  STT_API_KEY_SECRET,
-  TTS_API_KEY_SECRET,
-} from "../config/load";
+import type { AppConfig } from "../config/load";
 import type { ConfigStore } from "../config/store";
-import type { EndpointsConfig, ToolStatus } from "../contract";
-import { createBackendCaller, isChatConfigured } from "../dispatcher/backend/backend-caller";
-import { createPreviousTurn } from "../dispatcher/backend/previous-turn";
+import type { EndpointsConfig } from "../contract";
+import { isChatConfigured } from "../dispatcher/backend/backend-caller";
 import type { EventBus } from "../dispatcher/core/event-bus";
-import {
-  createGuardrails,
-  type Guardrails,
-  type GuardrailsConfig,
-} from "../dispatcher/core/guardrails";
-import { createProactivePacer } from "../dispatcher/core/proactive-pacer";
-import { createDispatcher, type Dispatcher } from "../dispatcher/dispatcher";
-import { createDragHoldSource } from "../dispatcher/sources/drag-hold-source";
-import { createTapSource, type TapSource } from "../dispatcher/sources/tap-source";
+import type { Guardrails, GuardrailsConfig } from "../dispatcher/core/guardrails";
+import type { Dispatcher } from "../dispatcher/dispatcher";
 import type { UserInputSource } from "../dispatcher/sources/user-input-source";
-import { createPushTurns } from "../dispatcher/turn/push-turn";
-import { createTurnLog } from "../dispatcher/turn/turn";
-import { createTurnFeed } from "../dispatcher/turn/turn-feed";
 import type { DelegationHistory } from "../io/bridge/delegation-history";
 import type { DelegationsStore } from "../io/bridge/delegations-store";
 import type { ReasoningStore } from "../io/bridge/reasoning-store";
 import { selectFetch } from "../io/chat/chat-client";
-import { createClientToolRegistry, createGenerateExpressTool } from "../io/chat/client-tools";
 import type { PushSocket } from "../io/chat/push-socket";
 import { appendRecord } from "../io/chat/turn-record-log";
-import { CAMERA_ORBIT_SENSITIVITY } from "../io/settings/camera-settings";
-import { enabledIdleVariants } from "../io/settings/idle-motion-settings";
 import { mergeScreen } from "../io/settings/screen-settings";
 import type { SettingsStores } from "../io/settings/settings-stores";
 import type { ScreenCapturer } from "../io/window/capture/screen-source-provider";
-import { buildScreenshotBlock } from "../io/window/capture/screenshot-context";
 import { createFrontmostTracker } from "../io/window/frontmost-tracker";
-import { initDrag, type PatGesture } from "../io/window/pet/drag";
-import type { HitTestController } from "../io/window/pet/hit-test";
-import { createPeekState } from "../io/window/pet/peek-state";
 import type { SummonHotkey } from "../io/window/pet/summon-hotkey";
-import { isTauri } from "../io/window/tauri-env";
 import { subscribeOsEvent } from "../io/window/tauri-listen";
 import { createLogger } from "../logger";
 import type { Renderer } from "../renderer";
-import { createVoiceErrorDwell } from "../ui/chips/voice-error-dwell";
 import type { VoiceInputStatus } from "../ui/chips/voice-input-status";
 import { t } from "../ui/i18n";
-import { showChainResetNotice } from "../ui/notices/chain-reset-notice";
 import { maybeShowFirstRunHint } from "../ui/notices/first-run-hint";
 import { wireIngressDeadNotice } from "../ui/notices/ingress-dead-notice";
-import { routeTurnFailure, turnErrorFixAction, turnErrorMessage } from "../ui/notices/turn-error";
 import type { createQuickControls } from "../ui/quick-controls/quick-controls";
 import type { Surfaces } from "../ui/surfaces/surfaces";
-import { wireGuardrailsOverrides } from "./cross-window/wire-window-sync";
-import type { wireSpeakerSelection, wireVrmSelection } from "./settings/wire-avatar";
+import {
+  applyAvatarConfig,
+  type wireSpeakerSelection,
+  type wireVrmSelection,
+} from "./settings/wire-avatar";
+import { wireStageGestures } from "./stage/wire-gestures";
 import { wireLocomotion } from "./stage/wire-locomotion";
 import { wireGaze, wireHitTest } from "./stage/wire-stage";
-import { wirePeekExitTriggers, wireSummonHotkey } from "./stage/wire-summon";
+import { wirePeek, wireSummonHotkey } from "./stage/wire-summon";
+import { wireDispatcher } from "./turn/wire-dispatcher";
 import { wirePushTransport, wireStopButton } from "./turn/wire-push";
 import { wireDispatcherSources } from "./turn/wire-sources";
-import { wireBroker, wireVoiceInput } from "./turn/wire-voice";
-import { type VoicePipeline, wireVoicePipeline } from "./turn/wire-voice-pipeline";
+import { wireBroker, wireTurnVoice } from "./turn/wire-voice";
+import type { VoicePipeline } from "./turn/wire-voice-pipeline";
 
 const log = createLogger("bootstrap");
 
@@ -133,34 +111,6 @@ function drain(disposers: Array<() => void>, rethrow: boolean): void {
   if (rethrow && failed) throw firstError;
 }
 
-/**
- * Head-pat gesture wiring. The press holds the button and moves without starting an OS drag,
- * so the click-through hit-test stays suspended for its whole length — otherwise a move over a
- * transparent pixel flips the window to passthrough and the release never reaches the client.
- */
-export function createPatGesture(deps: {
-  hitTest: Pick<HitTestController, "suspend" | "resume">;
-  tapSource: Pick<TapSource, "isHeadPoint" | "handlePatStart" | "handlePatEnd" | "handlePatAbort">;
-  holdMs: () => number;
-}): PatGesture {
-  return {
-    isPatPoint: deps.tapSource.isHeadPoint,
-    holdMs: deps.holdMs,
-    onStart: () => {
-      deps.hitTest.suspend();
-      deps.tapSource.handlePatStart();
-    },
-    onEnd: () => {
-      deps.hitTest.resume();
-      deps.tapSource.handlePatEnd();
-    },
-    onAbort: () => {
-      deps.hitTest.resume();
-      deps.tapSource.handlePatAbort();
-    },
-  };
-}
-
 const realFactories: ConfiguredBootstrapFactories = {
   async create(cfg, phase1, register) {
     const {
@@ -207,7 +157,6 @@ const realFactories: ConfiguredBootstrapFactories = {
       sessionDiagnostics,
       chatHistoryStore,
       endpointsSettings,
-      cameraSettings,
       gazeSettings,
       climbSettings,
       fallSettings,
@@ -219,161 +168,72 @@ const realFactories: ConfiguredBootstrapFactories = {
     const { vrmSelection, loadVrmSerialized } = vrm;
     const { speakerSelection, refreshVoiceList } = speaker;
 
-    const voiceErrorDwell = createVoiceErrorDwell(voiceInputStatus);
-    register(() => voiceErrorDwell.dispose());
-
-    // Voice creation precedes sources, so interaction notes stay late-bound across that cycle.
-    let proactiveSourceRef: { noteInteraction(ts?: number): void } | null = null;
-    // Dispatcher creation precedes peek wiring, so peek callbacks stay late-bound across that cycle.
-    let peekStateRef: ReturnType<typeof createPeekState> | null = null;
-
-    const voiceInput = wireVoiceInput({ voiceInputStatus, sttSettings });
-    register(voiceInput.dispose);
-    const turnLog = createTurnLog();
-    const previousTurn = createPreviousTurn({ currentTurn: () => turnLog.current() });
-    // Voice creation precedes the walker, so the stroll query stays late-bound across that cycle.
-    let strollingRef: { isStrolling(): boolean } | null = null;
-    const pushTurns = createPushTurns();
-    const voice = wireVoicePipeline({
+    const turnVoice = wireTurnVoice({
       renderer,
       surfaces,
-      turnLog,
-      isStrolling: () => strollingRef?.isStrolling() ?? false,
-      getEndpoints,
-      getFillerConfig: () => config.get().filler,
-      getTtsApiKey: () => config.secrets.get(TTS_API_KEY_SECRET),
-      getSttApiKey: () => config.secrets.get(STT_API_KEY_SECRET),
+      voiceInputStatus,
+      sttSettings,
       ttsSettings,
       lipsyncSettings,
       fillerSettings,
       vadSettings,
       speakerSelection,
-      voiceInputStatus,
-      onVoiceSegment: (text) => {
-        userInput.submitVoice(text);
-        proactiveSourceRef?.noteInteraction();
-      },
-      onUtteranceStart: previousTurn.utteranceStart,
-      onUtteranceEnd: previousTurn.utteranceEnd,
-      onBargeIn: () => pushTurns.cut(),
+      getEndpoints,
+      getConfig: () => config.get(),
+      getSecret: (name) => config.secrets.get(name),
+      submitVoice: (text) => userInput.submitVoice(text),
+      register,
     });
-    register(voice.dispose);
+    const { voice, voiceInput, voiceErrorDwell, turnLog, previousTurn, pushTurns } = turnVoice;
 
     const frontmostTracker = createFrontmostTracker();
     const unlistenFrontmost = await subscribeOsEvent({ onTick: frontmostTracker.onTick, log });
     if (unlistenFrontmost) register(unlistenFrontmost);
 
-    const applyToolStatus = (status: ToolStatus): void => {
-      if (status.state === "running") surfaces.showTool(status.tool_id ?? "");
-      else if (status.state === "done") surfaces.finishTool();
-      else surfaces.hideTool();
-    };
-    // One feed for both transports, so a transport's frames never reach the chip or the
-    // reasoning store without an owner naming the turn they belong to.
-    const turnFeed = createTurnFeed({ onToolStatus: applyToolStatus, reasoning });
-
-    const backendCaller = createBackendCaller({
-      get config() {
-        return getEndpoints();
-      },
-      renderer,
-      getApiKey: () => config.secrets.get(CHAT_API_KEY_SECRET),
-      getFetch: () => selectFetch(),
-      getPreviousResponseId: () => sessionStore.get() ?? undefined,
-      onResponseId: (id) => sessionStore.set(id),
-      onResponseIdInvalid: () => sessionStore.clear(),
-      onChainReset: () => showChainResetNotice({ surfaces, t }),
-      transcript: chatHistoryStore,
-      onUsage: (usage) => {
-        sessionDiagnostics.setUsage(
-          usage.total_tokens,
-          getEndpoints().chat_model_context_window ?? null,
-        );
-      },
-      turnOutput: voice.turnOutput,
-      reportSpokeText: (spoke) => turnLog.setSpokeText(spoke),
-      turnFeed,
-      getScreenshot: async () => {
-        const screenshot = settings.screenshotSettings.get();
-        if (!screenshot.enabled) return undefined;
-        const capture = await screenCapturer.capture(screenshot.source);
-        return buildScreenshotBlock(screenshot, capture ?? undefined);
-      },
-      getBodyState: () => dispatcher.getBodyState(),
-      getFrontmost: () => frontmostTracker.get(),
-      getPrevious: previousTurn.get,
-      contextHistory,
-      appendTurnRecord: (record) => appendRecord(record),
-      getAgentSettings: () => agentSettings.get(),
-      // Built per turn from the published vocabulary, so a live edit reaches the next tool schema.
-      clientTools: () => createClientToolRegistry([createGenerateExpressTool(broker.vocabulary())]),
-      pushTurn: (frame) => pushSocket?.sendTurn(frame) ?? false,
-      onPushTurnCut: () => pushTurns.cut(),
-      onPushTurnSent: (turnId) => pushTurns.opened(turnId),
-      pushTurns,
-      onPushSocketNotReady: (cb) =>
-        pushSocket?.onState((state) => {
-          if (state.kind !== "ready") cb();
-        }) ?? (() => {}),
-    });
-    const guardrails = createGuardrails(getGuardrails());
-    const pacer = createProactivePacer({ getIntervalMs: () => pacerGapSettings.get().value });
-    register(pacer.stop);
-    register(pacerGapSettings.subscribe(() => pacer.noteIntervalChanged()));
-    register(wireGuardrailsOverrides({ guardrails, store: guardrailsSettings, getGuardrails }));
-    const dispatcher = createDispatcher({
+    const turnWiring = wireDispatcher({
       bus,
       renderer,
-      backendCaller,
-      guardrails,
-      peek: {
-        enter: () => peekStateRef?.enter() ?? Promise.resolve(),
-        exit: () => peekStateRef?.exit() ?? Promise.resolve(),
-      },
-      peekConfig: () => config.get().avatar.peek,
-      tapConfig: () => config.get().avatar.tap,
+      surfaces,
+      reasoning,
+      getEndpoints,
+      getGuardrails,
+      getConfig: () => config.get(),
+      getSecret: (name) => config.secrets.get(name),
+      getFetch: () => selectFetch(),
+      sessionStore,
+      sessionDiagnostics,
+      chatHistoryStore,
+      contextHistory,
+      agentSettings,
+      guardrailsSettings,
+      pacerGapSettings,
+      screenshotSettings: settings.screenshotSettings,
+      screenCapturer,
+      getFrontmost: () => frontmostTracker.get(),
+      voice,
       turnLog,
-      hasOutstandingSpeech: () => voice.turnOutput.hasOutstandingSpeech(),
-      pacer,
-      appendSkipRecord: (record) => appendRecord(record),
-      onTurnFailed: previousTurn.callFailed,
-      onUserTurnFailed: (reason, source) => {
-        voice.speakFailure(reason);
-        const message = turnErrorMessage(reason);
-        if (!message) return;
-        const action = routeTurnFailure(source, surfaces.isInputOpen());
-        if (action.kind === "show_input_error") {
-          surfaces.showInputError(
-            message,
-            turnErrorFixAction(reason, (tab) => getQuickControls().open(undefined, { tab })),
-          );
-        } else if (action.kind === "voice_error") {
-          voiceErrorDwell.show(reason);
-        }
-      },
+      previousTurn,
+      pushTurns,
+      pushSocket: pushSocket ?? null,
+      getVocabulary: () => broker.vocabulary(),
+      openQuickControls: (tab) => getQuickControls().open(undefined, { tab }),
+      showVoiceError: voiceErrorDwell.show,
+      appendTurnRecord: (record) => appendRecord(record),
+      t,
+      register,
     });
-    register(() => dispatcher.stop());
-    register(dispatcher.subscribeBusy((busy) => surfaces.setBusy(busy)));
+    const { dispatcher, guardrails, pacer, turnFeed } = turnWiring;
 
     const sttVad = await voice.createSttEngine();
     voiceInput.setStt(sttVad);
     ensureActive();
-    renderer.setEmotionRegistry(cfg.emotionRegistry);
-    // Ambient idle pool = catalog ∩ the user's selection; applied before the registry so the
-    // first baseline play already honors it, then re-applied live on every store change.
-    const applyIdleVariants = (): void => {
-      const pool = config.get().motions.idle;
-      if (pool) renderer.setIdleVariants(enabledIdleVariants(pool, idleMotionSettings.get()));
-    };
-    applyIdleVariants();
-    register(idleMotionSettings.subscribe(applyIdleVariants));
-    renderer.setMotionRegistry(cfg.motions);
-    renderer.setFraming(cfg.avatar.framing);
-    renderer.setGaze(cfg.avatar.gaze);
-    renderer.setHitTestThreshold(cfg.avatar.hit_test.alpha_threshold);
-    vrmSelection.setManifest({
-      available: cfg.avatar.available,
-      defaultValue: cfg.avatar.vrm_url,
+    applyAvatarConfig({
+      cfg,
+      getConfig: () => config.get(),
+      renderer,
+      idleMotionSettings,
+      vrmSelection,
+      register,
     });
     void refreshVoiceList();
     await loadVrmSerialized(vrmSelection.getActive().url);
@@ -388,23 +248,8 @@ const realFactories: ConfiguredBootstrapFactories = {
       t,
     });
 
-    if (isTauri()) {
-      const { getCurrentWindow } = await import("@tauri-apps/api/window");
-      ensureActive();
-      const win = getCurrentWindow();
-      peekStateRef = createPeekState({ getWindow: getCurrentWindow });
-      register(() => void peekStateRef?.dispose());
-      const disposePeekExitTriggers = await wirePeekExitTriggers({
-        bus,
-        peek: peekStateRef,
-        win: {
-          onFocusChanged: (handler) => win.onFocusChanged(handler),
-          listen: (event, handler) => win.listen(event, handler),
-        },
-      });
-      register(disposePeekExitTriggers);
-      ensureActive();
-    }
+    const peekState = await wirePeek({ bus, register, ensureActive });
+    if (peekState) turnWiring.setPeek(peekState);
 
     dispatcher.start();
     const {
@@ -429,26 +274,13 @@ const realFactories: ConfiguredBootstrapFactories = {
       },
       pacer,
     });
-    proactiveSourceRef = proactiveSource;
+    turnVoice.setProactiveSource(proactiveSource);
     register(proactiveSource.stop);
     register(scheduleSource.stop);
     register(agentSource.stop);
     register(signalsSource.stop);
     register(milestoneSource.stop);
     register(screenSource.stop);
-    const tapSource = createTapSource({
-      bus,
-      renderer,
-      ambient,
-      config: config.get().avatar.tap,
-      drainSignals: () => signalsSource.drain(),
-    });
-    const dragHold = createDragHoldSource({
-      bus,
-      getHoldMs: () => config.get().avatar.drag_hold_ms,
-      getCue: () => config.get().avatar.gesture_cues.drag_held,
-    });
-    register(() => dragHold.noteDragEnd());
     const hitTest = wireHitTest({
       root,
       renderer,
@@ -464,7 +296,7 @@ const realFactories: ConfiguredBootstrapFactories = {
       getConfig: () => config.get(),
       dispatcher,
       hitTest,
-      peekActive: () => peekStateRef?.active() ?? false,
+      peekActive: () => peekState?.active() ?? false,
       fallSettings,
       climbSettings,
       agentNotifySettings,
@@ -475,62 +307,28 @@ const realFactories: ConfiguredBootstrapFactories = {
       register,
       log,
     });
-    strollingRef = locomotion.walker;
+    turnVoice.setStrolling(locomotion.walker);
 
-    const cleanupDrag = await initDrag(stage, {
-      onClick: tapSource.handleClick,
-      pat: createPatGesture({
-        hitTest,
-        tapSource,
-        holdMs: () => config.get().avatar.tap.pat_hold_ms,
-      }),
-      onDragStart: () => {
-        locomotion.setDragging(true);
-        locomotion.cancel();
-        hitTest.suspend();
-        dragHold.noteDragStart();
-        locomotion.dropSource.noteUserDrag();
-        bus.push({
-          source: "os_event_watcher",
-          event_name: "user.drag_start",
-          ts: Date.now(),
-          hint_tier: 1,
-          dnd_override: true,
-        });
-        // A cancelled climb or stroll may still be unparking its travel; the native
-        // drag waits for this before it can grab the window.
-        return locomotion.abortTravel();
-      },
-      onDragEnd: () => {
-        locomotion.setDragging(false);
-        hitTest.resume();
-        dragHold.noteDragEnd();
-        locomotion.dropSource.noteUserDragEnd();
-        bus.push({
-          source: "os_event_watcher",
-          event_name: "user.drag_end",
-          ts: Date.now(),
-          hint_tier: 1,
-          dnd_override: true,
-        });
-      },
-      onOrbitStart: hitTest.suspend,
-      onOrbitEnd: hitTest.resume,
-      onOrbit: ({ dx, dy }) => {
-        const current = cameraSettings.get();
-        cameraSettings.setAzimuth(current.azimuth + dx * CAMERA_ORBIT_SENSITIVITY);
-        cameraSettings.setPolar(current.polar - dy * CAMERA_ORBIT_SENSITIVITY);
-      },
+    await wireStageGestures({
+      stage,
+      bus,
+      renderer,
+      ambient,
+      getConfig: () => config.get(),
+      drainSignals: () => signalsSource.drain(),
+      hitTest,
+      locomotion,
+      cameraSettings: settings.cameraSettings,
+      register,
     });
-    register(cleanupDrag);
     ensureActive();
 
     const summonHotkey = wireSummonHotkey({
       surfaces,
       bus,
       peek: {
-        active: () => peekStateRef?.active() ?? false,
-        exit: () => peekStateRef?.exit() ?? Promise.resolve(),
+        active: () => peekState?.active() ?? false,
+        exit: () => peekState?.exit() ?? Promise.resolve(),
       },
       accelerator: cfg.hotkeys.summon_global,
       onRegisterFailed: (accelerator) => {
