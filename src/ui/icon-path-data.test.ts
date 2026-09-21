@@ -31,37 +31,49 @@ const ARGS: Record<string, number> = {
   Z: 0,
   z: 0,
 };
+const COMMAND = /[MmZzLlHhVvCcSsQqTtAa][^MmZzLlHhVvCcSsQqTtAa]*/g;
+const NUMBER = /-?\d*\.?\d+(?:[eE][-+]?\d+)?/g;
 /** Literal path data only: a `d` built at render time is not readable from the source. */
-const INLINE_PATH = /<path[^>]*\sd="([MmZzLlHhVvCcSsQqTtAa][^"]*)"/g;
+const INLINE_PATH = /<path[^>]*\sd="([^"]*)"/g;
 
+/**
+ * Commands whose argument count does not match what they take. Arc flags are read as
+ * ordinary numbers, so the compact `a1 1 0 011 1` spelling would miscount.
+ */
 function malformedCommands(d: string): string[] {
   const bad: string[] = [];
-  for (const command of d.match(/[A-Za-z][^A-Za-z]*/g) ?? []) {
+  for (const command of d.match(COMMAND) ?? []) {
     const takes = ARGS[command[0]];
-    // Arc flags carry their own separator here; the compact `0 011 1` form would miscount.
-    const given = (command.slice(1).match(/-?\d*\.?\d+/g) ?? []).length;
-    const ok =
-      takes === undefined ? false : takes === 0 ? given === 0 : given > 0 && given % takes === 0;
-    if (!ok) bad.push(command.trim());
+    const given = (command.slice(1).match(NUMBER) ?? []).length;
+    if (takes === 0 ? given !== 0 : given === 0 || given % takes !== 0) bad.push(command.trim());
   }
   return bad;
 }
 
 describe("inline icon paths", () => {
-  it("give every path command the arguments it takes", () => {
+  it("reads argument counts off a path, exponents and all", () => {
+    expect(malformedCommands("M5 6h14a1 1 0 0 1 1 1v9z")).toEqual([]);
+    expect(malformedCommands("M1e2 3L-.5.5 2 3")).toEqual([]);
+    // One argument too many for an arc: the icon this check was written for.
+    expect(malformedCommands("M5 6v9a1 1 1 0 0 1-1 1z")).toEqual(["a1 1 1 0 0 1-1 1"]);
+  });
+
+  it("gives every path command in src/ui the arguments it takes", () => {
     const malformed: string[] = [];
     let paths = 0;
     for (const entry of readdirSync(SRC, { recursive: true, withFileTypes: true })) {
-      if (!entry.isFile() || !entry.name.endsWith(".ts")) continue;
+      if (!entry.isFile() || !/\.(ts|html)$/.test(entry.name)) continue;
       const file = `${entry.parentPath}/${entry.name}`;
       for (const [, d] of readFileSync(file, "utf8").matchAll(INLINE_PATH)) {
+        // A `d` assembled at render time holds no readable path data.
+        if (d.includes("${")) continue;
         paths += 1;
         for (const command of malformedCommands(d)) {
           malformed.push(`${relative(SRC, file)}: ${command}`);
         }
       }
     }
-    expect(paths).toBeGreaterThan(0);
+    expect(paths).toBeGreaterThan(50);
     expect(malformed).toEqual([]);
   });
 });
