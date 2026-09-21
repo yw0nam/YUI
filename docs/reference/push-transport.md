@@ -217,6 +217,8 @@ field is where the text arrives whole — from a frame that plays. A `render` dr
 turn abandons the reasoning still streaming for that turn; a text an earlier render already
 finished stays. A `reasoning` frame of a turn the user stopped is dropped like the turn's other
 frames, and the turn's `turn_end` ends reasoning still showing.
+While one turn's reasoning is streaming, the `reasoning` of a `render` that belongs to another turn
+is not shown.
 
 ### `delegations` (backend → client)
 

@@ -100,7 +100,7 @@ export function wirePushTransport(deps: {
       deps.log.info("delegations", { total: items.length, running });
     }),
     deps.socket.onReasoning((frame) => {
-      // A cut turn's frames never play, so the chip never lights for one.
+      // A cut turn's frames never play, so its reasoning never shows.
       if (deps.pushTurns.isCut(frame.turn_id)) {
         deps.log.debug("push.reasoning", {
           turn_id: frame.turn_id,
