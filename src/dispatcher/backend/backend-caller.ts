@@ -31,6 +31,7 @@ import type {
   ToolStatus,
   Usage,
 } from "../../contract";
+import type { ReasoningStore } from "../../io/bridge/reasoning-store";
 import { type ChatRequest, streamChat } from "../../io/chat/chat-client";
 import { buildCCMessages } from "../../io/chat/chat-completions";
 import { selectSendSuffix } from "../../io/chat/chat-history-store";
@@ -103,6 +104,8 @@ interface BackendCallerDeps extends PushCallDeps {
   getPrevious?: () => PreviousTurn | undefined;
   /** tool_status sink — called only when present. */
   onToolStatus?: (status: ToolStatus) => void;
+  /** The reasoning chip's store — the streaming path's reasoning deltas land here. */
+  reasoning?: Pick<ReasoningStore, "append" | "finish" | "interrupt">;
   /** Previous response id lookup — when present, included in request to continue conversation. Called per turn (reflects reset/rotation). */
   getPreviousResponseId?: () => string | undefined;
   /** New response id persist — called only after a completely successful turn (conversation state progress). */
@@ -349,9 +352,13 @@ export function createBackendCaller(deps: BackendCallerDeps): BackendCaller {
                 deps.turnOutput?.toolStatus(turn.id, ev.status.state, ev.status.tool_id);
                 toolRunning = ev.status.state === "running";
                 break;
+              case "reasoning":
+                deps.reasoning?.append(ev.delta);
+                break;
               case "completed":
                 envelope = ev.envelope;
                 newResponseId = ev.responseId || undefined;
+                deps.reasoning?.finish(undefined);
                 break;
               case "error":
                 streamError = ev.message;
@@ -553,6 +560,8 @@ export function createBackendCaller(deps: BackendCallerDeps): BackendCaller {
       return "ok";
     } finally {
       endThinking();
+      // A cycle without its completed reply dies with the turn; the push socket owns its own.
+      if (!isPush) deps.reasoning?.interrupt();
       // Prevent running chip from surviving without done — on all exit paths including dead turns
       // (abort·drop·stall), flow one idle so consumer brings chip down.
       if (toolRunning) deps.onToolStatus?.({ state: "idle" });

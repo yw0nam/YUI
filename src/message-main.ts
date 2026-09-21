@@ -102,15 +102,14 @@ async function bootstrap(): Promise<void> {
   const thinkChip = createReasoningChip({
     mount: plateRow,
     store: reasoning,
-    suppressed: true,
   });
   // One panel at a time on the shared plate row.
   thinkChip.onPanelOpen(() => chip.closeList());
   chip.onListOpen(() => thinkChip.closePanel());
 
   // Only push mode has a transport to report on, and the pet window publishes its socket in every
-  // mode, so elsewhere that socket sits disconnected and the chip would draw a permanent loss.
-  // A state the pet window has not sent yet is not a loss either, so the chip starts away.
+  // mode, so elsewhere that socket sits disconnected and the delegation chip would draw a
+  // permanent loss. A state the pet window has not sent yet is not a loss either, so it starts away.
   let bundledEndpoints: EndpointsConfig | null = null;
   let sawPushState = false;
 
@@ -124,7 +123,6 @@ async function bootstrap(): Promise<void> {
   function applyChipMode(): void {
     const suppressed = !sawPushState || effectiveChatApi() !== "push";
     chip.setSuppressed(suppressed);
-    thinkChip.setSuppressed(suppressed);
   }
 
   applyChipMode();

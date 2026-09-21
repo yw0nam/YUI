@@ -26,6 +26,10 @@
  * Event → ChatStreamEvent mapping:
  *  - response.output_text.delta → speech_delta (accumulated into speech_text).
  *  - response.output_text.done  → speech_done.
+ *  - response.reasoning_summary_text.delta / response.reasoning_text.delta → reasoning
+ *    (the chip's text as it streams; never spoken, never stored).
+ *  - response.reasoning_summary_part.added → the "\n\n" break between summary parts
+ *    (the first part adds nothing).
  *  - response.output_item.added (function_call):
  *      · isExpressTool(name) → if item.arguments present and call not yet emitted,
  *        JSON.parse → express.
@@ -79,6 +83,8 @@ import type { ClientToolRegistry } from "./client-tools";
 export type ChatStreamEvent =
   | { type: "speech_delta"; text: string }
   | { type: "speech_done"; text: string }
+  /** The backend's reasoning text as it streams; never spoken, never stored. */
+  | { type: "reasoning"; delta: string }
   | { type: "express"; args: ExpressArgs }
   | { type: "tool_status"; status: ToolStatus }
   | { type: "usage"; usage: Usage }
@@ -271,6 +277,8 @@ export async function* streamChat(
   // Same call (id, or output_index if absent) appears multiple times across added/done/arguments.done
   // but emits once. Different calls each emit (per-beat cue).
   const emittedExpressKeys = new Set<string>();
+  // A response carries at most one reasoning summary at a time; a later part is a new paragraph.
+  let sawSummaryPart = false;
 
   // instructions: request override (if non-empty takes priority) → falls back to config.chat_instructions.
   const effectiveInstructions = request.instructions?.trim()
@@ -427,8 +435,20 @@ export async function* streamChat(
           break;
         }
 
+        case "response.reasoning_summary_text.delta":
+        case "response.reasoning_text.delta": {
+          if (event.delta) yield { type: "reasoning", delta: event.delta };
+          break;
+        }
+
+        case "response.reasoning_summary_part.added": {
+          if (sawSummaryPart) yield { type: "reasoning", delta: "\n\n" };
+          sawSummaryPart = true;
+          break;
+        }
+
         default:
-          // Unhandled events (reasoning deltas, backend heartbeats during long work such as
+          // Unhandled events (backend heartbeats during long work such as
           // context compaction) carry no payload we consume but prove the wire is alive.
           yield { type: "keepalive" };
           break;

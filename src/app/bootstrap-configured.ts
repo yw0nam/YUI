@@ -337,6 +337,7 @@ const realFactories: ConfiguredBootstrapFactories = {
       turnOutput: voice.turnOutput,
       reportSpokeText: (spoke) => turnLog.setSpokeText(spoke),
       onToolStatus: applyToolStatus,
+      reasoning,
       getScreenshot: async () => {
         const screenshot = settings.screenshotSettings.get();
         if (!screenshot.enabled) return undefined;
