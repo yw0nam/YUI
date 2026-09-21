@@ -143,6 +143,16 @@ describe("createReasoningChip", () => {
     expect(rootEl().hidden).toBe(true);
   });
 
+  it("opens the panel again on the cycle after an abandoned one", () => {
+    build();
+    store.set({ text: "A", live: true });
+    store.set({ text: "", live: false });
+
+    store.set({ text: "B", live: true });
+
+    expect(panelEl().hidden).toBe(false);
+  });
+
   it("closes on every not-live update, even a manual open from a finished cycle", () => {
     build();
     store.set({ text: "AB", live: false });
