@@ -29,7 +29,9 @@ const mocks = vi.hoisted(() => {
   };
 });
 
-vi.mock("../../io/voice/audio-player", () => ({ createWebAudioSink: mocks.createWebAudioSink }));
+vi.mock("../../io/voice/tts/audio-player", () => ({
+  createWebAudioSink: mocks.createWebAudioSink,
+}));
 vi.mock("../../io/chat/chat-client", () => ({ selectFetch: mocks.selectFetch }));
 
 import { createTurnLog } from "../../dispatcher/turn/turn";

@@ -8,9 +8,9 @@
  */
 
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { AudioSink } from "../../io/voice/audio-player";
-import { createSpeechPlayback, type SpeechPlayback } from "../../io/voice/speech-playback";
-import type { TtsSynth } from "../../io/voice/tts-synth";
+import type { AudioSink } from "../../io/voice/tts/audio-player";
+import { createSpeechPlayback, type SpeechPlayback } from "../../io/voice/tts/speech-playback";
+import type { TtsSynth } from "../../io/voice/tts/tts-synth";
 import { createBackendCaller } from "../backend/backend-caller";
 import {
   CONFIG,

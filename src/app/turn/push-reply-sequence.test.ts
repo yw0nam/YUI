@@ -17,9 +17,9 @@ import { createPushTurns } from "../../dispatcher/turn/push-turn";
 import { createRenderTurn } from "../../dispatcher/turn/render-turn";
 import type { TurnOutput } from "../../dispatcher/turn/turn-output";
 import type { RenderFrame, SpeechFrame } from "../../io/chat/push-socket";
-import type { AudioSink } from "../../io/voice/audio-player";
-import { createSpeechPlayback } from "../../io/voice/speech-playback";
-import type { TtsSynth } from "../../io/voice/tts-synth";
+import type { AudioSink } from "../../io/voice/tts/audio-player";
+import { createSpeechPlayback } from "../../io/voice/tts/speech-playback";
+import type { TtsSynth } from "../../io/voice/tts/tts-synth";
 
 /** A synth the test releases one sentence at a time; the wav names its own index. */
 function controlledSynth() {

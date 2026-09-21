@@ -11,9 +11,17 @@ import type { MotionKind, WindowRect } from "../../contract";
 import { isReflexTurn } from "../../dispatcher/backend/backend-caller";
 import type { EventBus } from "../../dispatcher/core/event-bus";
 import type { Dispatcher } from "../../dispatcher/dispatcher";
-import { type DescentEdge, type PetWindow, toScreenMonitor } from "../../io/window/screen-geometry";
+import {
+  type DescentEdge,
+  type PetWindow,
+  toScreenMonitor,
+} from "../../io/window/geometry/screen-geometry";
+import {
+  createTravelFrame,
+  type FrameWindow,
+  type Travel,
+} from "../../io/window/geometry/travel-frame";
 import { isTauri } from "../../io/window/tauri-env";
-import { createTravelFrame, type FrameWindow, type Travel } from "../../io/window/travel-frame";
 import type { Logger } from "../../logger";
 import type { Renderer } from "../../renderer";
 import type { ClimbTarget } from "./climb-geometry";

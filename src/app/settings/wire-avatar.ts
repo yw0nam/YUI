@@ -16,11 +16,11 @@ import {
   localStorageUserSpeakerStorage,
   nextRevision,
   type SpeakerOption,
-} from "../../io/voice/speaker-selection";
-import { deleteVoice, upsertVoice } from "../../io/voice/tts-voices";
-import { removeUserVoice as removeUserVoiceFile } from "../../io/voice/voice-import";
-import { createVoiceImportFlow } from "../../io/voice/voice-import-flow";
-import { createVoiceListRefresh } from "../../io/voice/voice-list-refresh";
+} from "../../io/voice/voices/speaker-selection";
+import { deleteVoice, upsertVoice } from "../../io/voice/voices/tts-voices";
+import { removeUserVoice as removeUserVoiceFile } from "../../io/voice/voices/voice-import";
+import { createVoiceImportFlow } from "../../io/voice/voices/voice-import-flow";
+import { createVoiceListRefresh } from "../../io/voice/voices/voice-list-refresh";
 import type { Logger } from "../../logger";
 import type { Renderer, VrmLoadResult } from "../../renderer";
 

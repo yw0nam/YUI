@@ -9,14 +9,14 @@
 
 import type { ClimbConfig } from "../../config/load";
 import type { WindowRect } from "../../contract";
-import { MOVE_TH } from "../../io/window/perch";
+import { MOVE_TH } from "../../io/window/geometry/perch";
 import {
   type DescentEdge,
   FLOOR_LINE_TOLERANCE_PX,
   floorPx,
   logicalWorkArea,
   type ScreenMonitor,
-} from "../../io/window/screen-geometry";
+} from "../../io/window/geometry/screen-geometry";
 import { type Rng, randRange } from "../liveliness/cues";
 
 /** The wall a climb runs on: a foreign window's side, or a screen edge onto the monitor above. */

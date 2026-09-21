@@ -14,14 +14,14 @@ const { createPercher, createWindowDropSource } = vi.hoisted(() => ({
   })),
 }));
 vi.mock("../../ambient/locomotion/percher", () => ({ createPercher }));
-vi.mock("../../io/window/window-drop-source", () => ({ createWindowDropSource }));
-vi.mock("../../io/window/window-resize-source", () => ({
+vi.mock("../../dispatcher/sources/window-drop-source", () => ({ createWindowDropSource }));
+vi.mock("../../io/window/pet/window-resize-source", () => ({
   createWindowResizeSource: () => ({ start: () => {}, stop: () => {} }),
 }));
-vi.mock("../../io/bridge/avatar-executor", () => ({
+vi.mock("../../io/bridge/inbox/avatar-executor", () => ({
   createAvatarExecutor: () => ({ start: () => {}, stop: () => {} }),
 }));
-vi.mock("../../io/bridge/avatar-rpc", () => ({
+vi.mock("../../io/bridge/inbox/avatar-rpc", () => ({
   onAvatarRpc: () => () => {},
   respondAvatarRpc: () => {},
 }));

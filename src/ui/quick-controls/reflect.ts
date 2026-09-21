@@ -49,7 +49,7 @@ import {
   SCREEN_MIN_GAP_MIN,
   type ScreenKnobFieldDef,
 } from "./constants";
-import { serializeToolLines } from "./filler-tool-lines";
+import { serializeToolLines } from "./sections/filler-tool-lines";
 import type { SwitchRow } from "./switch-row";
 
 // Format token count as "18.2K" / "18K" / "200K". Below 1000 stays as-is,

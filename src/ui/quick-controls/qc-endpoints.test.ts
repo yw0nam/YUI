@@ -9,7 +9,10 @@ import { createEndpointsSettings } from "../../io/settings/endpoints-settings";
 import { createLipsyncSettings } from "../../io/settings/lipsync-settings";
 import { createProactiveSettings } from "../../io/settings/proactive-settings";
 import { createScheduleSettings } from "../../io/settings/schedule-settings";
-import type { createSpeakerSelection, SpeakerOption } from "../../io/voice/speaker-selection";
+import type {
+  createSpeakerSelection,
+  SpeakerOption,
+} from "../../io/voice/voices/speaker-selection";
 import { setLocale, t } from "../i18n";
 import { createQuickControls } from "./quick-controls";
 import {

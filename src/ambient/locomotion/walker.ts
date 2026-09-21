@@ -34,8 +34,8 @@ import {
   monitorAt,
   type PetWindow,
   type ScreenMonitor,
-} from "../../io/window/screen-geometry";
-import type { Travel } from "../../io/window/travel-frame";
+} from "../../io/window/geometry/screen-geometry";
+import type { Travel } from "../../io/window/geometry/travel-frame";
 import { createLogger } from "../../logger";
 import type { Renderer } from "../../renderer";
 import { type Rng, randRange } from "../liveliness/cues";

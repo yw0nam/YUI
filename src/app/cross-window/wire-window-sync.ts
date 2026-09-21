@@ -12,8 +12,8 @@ import {
   type SettingsStores,
   type SyncedStore,
 } from "../../io/settings/settings-stores";
-import type { createSpeakerSelection } from "../../io/voice/speaker-selection";
-import { wireStorageSync } from "../../io/window/settings-window";
+import type { createSpeakerSelection } from "../../io/voice/voices/speaker-selection";
+import { wireStorageSync } from "../../io/window/openers/settings-window";
 import type { Logger } from "../../logger";
 import type { VrmLoadResult } from "../../renderer";
 import {

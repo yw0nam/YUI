@@ -18,7 +18,7 @@ const { createTravelFrame, fakeTravel } = vi.hoisted(() => {
     createTravelFrame: vi.fn((_deps: Record<string, unknown>) => fakeTravel),
   };
 });
-vi.mock("../../io/window/travel-frame", () => ({ createTravelFrame }));
+vi.mock("../../io/window/geometry/travel-frame", () => ({ createTravelFrame }));
 vi.mock("@tauri-apps/api/core", () => ({ invoke: vi.fn(async () => {}) }));
 vi.mock("@tauri-apps/api/window", () => ({
   availableMonitors: vi.fn(async () => []),

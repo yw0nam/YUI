@@ -17,8 +17,8 @@
  * speak. No speak/don't-speak gate and no persona state live here.
  */
 
-import type { AgentEvent } from "../../io/bridge/agent-inbox";
-import { onAgentInbox } from "../../io/bridge/agent-inbox";
+import type { AgentEvent } from "../../io/bridge/inbox/agent-inbox";
+import { onAgentInbox } from "../../io/bridge/inbox/agent-inbox";
 import type { OsEventListen } from "../../io/window/tauri-listen";
 import { createLogger } from "../../logger";
 import type { EventBus } from "../core/event-bus";

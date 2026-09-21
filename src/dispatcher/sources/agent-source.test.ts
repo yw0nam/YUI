@@ -17,7 +17,7 @@
  */
 
 import { describe, expect, it, vi } from "vitest";
-import type { AgentEvent } from "../../io/bridge/agent-inbox";
+import type { AgentEvent } from "../../io/bridge/inbox/agent-inbox";
 import type { OsEventListen, OsEventPayload } from "../../io/window/tauri-listen";
 import type { BusEnvelope, EventBus } from "../core/event-bus";
 import { createAgentSource } from "./agent-source";

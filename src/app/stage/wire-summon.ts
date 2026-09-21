@@ -1,5 +1,5 @@
 import type { EventBus } from "../../dispatcher/core/event-bus";
-import { createSummonHotkey, type SummonHotkey } from "../../io/window/summon-hotkey";
+import { createSummonHotkey, type SummonHotkey } from "../../io/window/pet/summon-hotkey";
 import { isTauri } from "../../io/window/tauri-env";
 import type { Logger } from "../../logger";
 import type { Surfaces } from "../../ui/surfaces/surfaces";

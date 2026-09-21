@@ -12,7 +12,7 @@
 
 import type { JumpConfig, PerchWalkConfig } from "../../config/load";
 import type { WindowRect } from "../../contract";
-import { MOVE_TH, uncoveredSpan } from "../../io/window/perch";
+import { MOVE_TH, uncoveredSpan } from "../../io/window/geometry/perch";
 import { createLogger } from "../../logger";
 import type { TickFn } from "../../renderer";
 import { WALK_YAW_EASE_MS, WALK_YAW_RAD } from "./walker";

@@ -22,7 +22,10 @@ import { createProactiveSettings } from "../../io/settings/proactive-settings";
 import { createScheduleSettings } from "../../io/settings/schedule-settings";
 import { createVadSettings } from "../../io/settings/vad-settings";
 import { createWorkflowSettings } from "../../io/settings/workflow-settings";
-import { createSpeakerSelection, type SpeakerOption } from "../../io/voice/speaker-selection";
+import {
+  createSpeakerSelection,
+  type SpeakerOption,
+} from "../../io/voice/voices/speaker-selection";
 
 // jsdom 29 lacks CSS.escape (browsers have it) — polyfill so selector-escaping paths run.
 // Escapes ASCII chars that aren't safe identifier chars; non-ASCII passes through (safe unescaped).

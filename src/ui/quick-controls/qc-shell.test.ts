@@ -13,7 +13,10 @@ import { createLipsyncSettings } from "../../io/settings/lipsync-settings";
 import { createProactiveSettings } from "../../io/settings/proactive-settings";
 import { createScheduleSettings } from "../../io/settings/schedule-settings";
 import { createPacerGapStore, createPresenceStore } from "../../io/settings/settings-stores";
-import type { createSpeakerSelection, SpeakerOption } from "../../io/voice/speaker-selection";
+import type {
+  createSpeakerSelection,
+  SpeakerOption,
+} from "../../io/voice/voices/speaker-selection";
 import { getLocale, subscribe as i18nSubscribe, LOCALE_DISPLAY_NAMES, setLocale } from "../i18n";
 import { createQuickControls } from "./quick-controls";
 import {

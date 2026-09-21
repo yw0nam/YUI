@@ -32,12 +32,14 @@ const mocks = vi.hoisted(() => {
   };
 });
 
-vi.mock("../../io/voice/audio-player", () => ({ createWebAudioSink: mocks.createWebAudioSink }));
+vi.mock("../../io/voice/tts/audio-player", () => ({
+  createWebAudioSink: mocks.createWebAudioSink,
+}));
 vi.mock("../../io/chat/chat-client", () => ({ selectFetch: mocks.selectFetch }));
 
 import type { FillerPool } from "../../config/load";
 import { createTurnLog } from "../../dispatcher/turn/turn";
-import { fillerPool } from "../../io/voice/filler-test-helpers";
+import { fillerPool } from "../../io/voice/filler/filler-test-helpers";
 import { type VoicePipeline, wireVoicePipeline } from "./wire-voice-pipeline";
 
 const UNCACHED = "えーっと。";

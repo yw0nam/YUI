@@ -23,10 +23,10 @@ import {
   localStorageMessageWindowStorage,
 } from "./io/settings/message-window-settings";
 import { createFlagSettings, localStorageStore } from "./io/settings/persisted-store";
-import { attachKeepOnScreen } from "./io/window/keep-on-screen";
-import { MESSAGE_WINDOW_WIDTH } from "./io/window/message-window";
+import { attachKeepOnScreen } from "./io/window/geometry/keep-on-screen";
+import { toScreenMonitor } from "./io/window/geometry/screen-geometry";
+import { MESSAGE_WINDOW_WIDTH } from "./io/window/openers/message-window";
 import { excludeOwnOriginFromCorsFetch } from "./io/window/own-origin-fetch";
-import { toScreenMonitor } from "./io/window/screen-geometry";
 import { isTauri } from "./io/window/tauri-env";
 import { createLogger, initLogger } from "./logger";
 import { createDelegationChip } from "./ui/chips/delegation-chip";

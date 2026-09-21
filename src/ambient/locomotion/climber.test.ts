@@ -7,7 +7,7 @@ vi.mock("../../logger", () => ({ createLogger: () => log }));
 
 import type { DescendConfig, FallConfig, WalkConfig } from "../../config/load";
 import type { MotionKind, WindowRect } from "../../contract";
-import type { DescentEdge, ScreenMonitor } from "../../io/window/screen-geometry";
+import type { DescentEdge, ScreenMonitor } from "../../io/window/geometry/screen-geometry";
 import type { RenderMotionSignal, TickContext, TickFn } from "../../renderer";
 import { type ClimbTarget, wallStandX } from "./climb-geometry";
 import {

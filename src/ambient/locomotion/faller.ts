@@ -20,14 +20,14 @@
 
 import type { FallConfig } from "../../config/load";
 import type { MotionKind, WindowRect } from "../../contract";
-import { PERCH_POLL_MS, uncoveredSpan } from "../../io/window/perch";
+import { PERCH_POLL_MS, uncoveredSpan } from "../../io/window/geometry/perch";
 import {
   floorPx,
   logicalWorkArea,
   monitorAt,
   type PetWindow,
   type ScreenMonitor,
-} from "../../io/window/screen-geometry";
+} from "../../io/window/geometry/screen-geometry";
 import { createLogger } from "../../logger";
 import type { Renderer } from "../../renderer";
 import { prefersReducedMotion } from "../liveliness/tier1";

@@ -114,7 +114,7 @@ describe("surfaces.css — tool chip and input error use doctrine tokens", () =>
 // a border on the retention note would stack a second rule right beside it.
 describe("history-section.css — a single separator above the start-fresh footer", () => {
   it(".yui-hist__foot carries no border of its own", () => {
-    const css = read("../quick-controls/history-section.css");
+    const css = read("../quick-controls/sections/history-section.css");
     expect(extractBlock(css, ".yui-hist__foot")).not.toMatch(/border-top/);
   });
 });
@@ -136,7 +136,7 @@ describe("quick-controls.css — components with a display rule honour [hidden]"
 // reflect.ts setting `hidden` on either leaves it painted in the layout.
 describe("endpoints-section.css — components with a display rule honour [hidden]", () => {
   it(".yui-chat-status and .yui-session__deleg-lost set display:none under [hidden]", () => {
-    const css = read("../quick-controls/endpoints-section.css");
+    const css = read("../quick-controls/sections/endpoints-section.css");
     expect(extractBlock(css, ".yui-chat-status,\n.yui-session__deleg-lost")).toMatch(/display:/);
     expect(
       extractBlock(css, ".yui-chat-status[hidden],\n.yui-session__deleg-lost[hidden]"),

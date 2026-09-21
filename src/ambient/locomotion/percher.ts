@@ -21,8 +21,8 @@ import {
   PERCH_MOTION_ID,
   PERCH_POLL_MS,
   uncoveredSpan,
-} from "../../io/window/perch";
-import { monitorAt, type ScreenMonitor } from "../../io/window/screen-geometry";
+} from "../../io/window/geometry/perch";
+import { monitorAt, type ScreenMonitor } from "../../io/window/geometry/screen-geometry";
 import { createLogger } from "../../logger";
 import type { TickFn } from "../../renderer";
 import { prefersReducedMotion } from "../liveliness/tier1";

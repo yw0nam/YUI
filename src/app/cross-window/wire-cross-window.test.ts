@@ -37,7 +37,7 @@ const { wireStorageSyncDispose, wireStorageSync } = vi.hoisted(() => {
   return { wireStorageSyncDispose, wireStorageSync };
 });
 
-vi.mock("../../io/window/settings-window", () => ({ wireStorageSync }));
+vi.mock("../../io/window/openers/settings-window", () => ({ wireStorageSync }));
 
 const { mockDriver, createMockDriver } = vi.hoisted(() => {
   const mockDriver = { reply: vi.fn(), proactive: vi.fn(), speak: vi.fn() };

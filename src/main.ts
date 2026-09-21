@@ -51,14 +51,20 @@ import { enabledIdleVariants } from "./io/settings/idle-motion-settings";
 import type { MessageWindowMode } from "./io/settings/message-window-settings";
 import { screenDefaultsFromConfig } from "./io/settings/screen-settings";
 import { createSettingsStores } from "./io/settings/settings-stores";
-import { wireVoiceListAutoRefresh } from "./io/voice/voice-list-refresh";
-import { createDevtoolsWindowOpener } from "./io/window/devtools-window";
-import { createMessageWindowController, listenTrayToggle } from "./io/window/message-window";
-import { wireMessageWindowMode } from "./io/window/message-window-mode";
+import { wireVoiceListAutoRefresh } from "./io/voice/voices/voice-list-refresh";
+import {
+  resolveScreenCapturer,
+  resolveScreenSourceProvider,
+} from "./io/window/capture/tauri-screen";
+import { createDevtoolsWindowOpener } from "./io/window/openers/devtools-window";
+import {
+  createMessageWindowController,
+  listenTrayToggle,
+} from "./io/window/openers/message-window";
+import { wireMessageWindowMode } from "./io/window/openers/message-window-mode";
+import { createSettingsWindowOpener } from "./io/window/openers/settings-window";
 import { excludeOwnOriginFromCorsFetch } from "./io/window/own-origin-fetch";
-import { createSettingsWindowOpener } from "./io/window/settings-window";
 import { isTauri } from "./io/window/tauri-env";
-import { resolveScreenCapturer, resolveScreenSourceProvider } from "./io/window/tauri-screen";
 import { createLogger, initLogger } from "./logger";
 import { createRenderer } from "./renderer";
 import { nextZoom } from "./renderer/geometry/camera-fit";

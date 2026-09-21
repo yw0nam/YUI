@@ -47,34 +47,37 @@ import {
   VAD_SILENCE_MIN,
 } from "../../io/settings/vad-settings";
 import type { createWorkflowSettings } from "../../io/settings/workflow-settings";
-import type { createSpeakerSelection, SpeakerOption } from "../../io/voice/speaker-selection";
-import type { ScreenSourceProvider } from "../../io/window/screen-source-provider";
+import type {
+  createSpeakerSelection,
+  SpeakerOption,
+} from "../../io/voice/voices/speaker-selection";
+import type { ScreenSourceProvider } from "../../io/window/capture/screen-source-provider";
 import { createLogger } from "../../logger";
 import { DELEGATION_REFRESH_MS } from "../chips/delegation-rows";
 import type { VoiceInputStatus } from "../chips/voice-input-status";
 import { t } from "../i18n";
 import { type CueListInstance, createCueList } from "../message/cue-list";
-import { createAgentSection } from "./agent-section";
+import { createSections } from "./collapsible-sections";
 import type { QuickControlsTab } from "./constants";
-import { createEndpointsSection } from "./endpoints-section";
-import { createExpressMotionList } from "./express-motion-section";
-import { parseToolLines, serializeToolLines } from "./filler-tool-lines";
 import { createHintTooltip } from "./hint-tooltip";
-import { createHistorySection } from "./history-section";
-import { createIdleMotionList } from "./idle-motion-section";
-import { createMonitorsSection } from "./monitors-section";
 import { createPopover } from "./popover";
-import { createReactionsSection } from "./reactions-section";
 import { createReflect } from "./reflect";
-import { createScreenSection } from "./screen-section";
-import { createSections } from "./sections";
+import { createAgentSection } from "./sections/agent-section";
+import { createEndpointsSection } from "./sections/endpoints-section";
+import { createExpressMotionList } from "./sections/express-motion-section";
+import { parseToolLines, serializeToolLines } from "./sections/filler-tool-lines";
+import { createHistorySection } from "./sections/history-section";
+import { createIdleMotionList } from "./sections/idle-motion-section";
+import { createMonitorsSection } from "./sections/monitors-section";
+import { createReactionsSection } from "./sections/reactions-section";
+import { createScreenSection } from "./sections/screen-section";
+import { createSpeakerList } from "./sections/speaker-list";
+import { createVrmList } from "./sections/vrm-list";
+import { createWorkflowsSection } from "./sections/workflows-section";
 import { handleSegmentKeydown } from "./seg-keyboard";
 import { bindSlider } from "./slider-binding";
-import { createSpeakerList } from "./speaker-list";
 import { createSwitchRows, type SwitchRow } from "./switch-row";
 import { buildPanelHtml } from "./template";
-import { createVrmList } from "./vrm-list";
-import { createWorkflowsSection } from "./workflows-section";
 
 type ScreenshotSettingsStore = ReturnType<typeof createScreenshotSettings>;
 type AgentNotifySettingsStore = ReturnType<typeof createAgentNotifySettings>;

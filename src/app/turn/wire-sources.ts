@@ -17,18 +17,21 @@ import {
 } from "../../dispatcher/sources/schedule-source";
 import { createScreenSource, type ScreenSource } from "../../dispatcher/sources/screen-source";
 import { createSignalsSource, type SignalsSource } from "../../dispatcher/sources/signals-source";
-import { type AvatarExecutor, createAvatarExecutor } from "../../io/bridge/avatar-executor";
-import { onAvatarRpc, respondAvatarRpc } from "../../io/bridge/avatar-rpc";
+import { createWindowDropSource } from "../../dispatcher/sources/window-drop-source";
+import { type AvatarExecutor, createAvatarExecutor } from "../../io/bridge/inbox/avatar-executor";
+import { onAvatarRpc, respondAvatarRpc } from "../../io/bridge/inbox/avatar-rpc";
 import { appendRecord } from "../../io/chat/turn-record-log";
 import type { AgentNotifySettings } from "../../io/settings/agent-notify-settings";
 import type { ClampedIntSettingsStore } from "../../io/settings/persisted-store";
 import type { ProactiveSettings } from "../../io/settings/proactive-settings";
 import type { ScheduleSettings } from "../../io/settings/schedule-settings";
-import { attachKeepOnScreen, type KeepOnScreenHandle } from "../../io/window/keep-on-screen";
-import { toScreenMonitor } from "../../io/window/screen-geometry";
+import {
+  attachKeepOnScreen,
+  type KeepOnScreenHandle,
+} from "../../io/window/geometry/keep-on-screen";
+import { toScreenMonitor } from "../../io/window/geometry/screen-geometry";
+import { createWindowResizeSource } from "../../io/window/pet/window-resize-source";
 import { isTauri } from "../../io/window/tauri-env";
-import { createWindowDropSource } from "../../io/window/window-drop-source";
-import { createWindowResizeSource } from "../../io/window/window-resize-source";
 import type { Logger } from "../../logger";
 import type { Renderer } from "../../renderer";
 

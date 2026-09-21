@@ -12,7 +12,7 @@ import {
   localStorageStore,
   type PersistedStorage,
 } from "../../io/settings/persisted-store";
-import type { SpokenSplit } from "../../io/voice/tts-pipeline";
+import type { SpokenSplit } from "../../io/voice/tts/tts-pipeline";
 import type { Turn } from "../turn/turn";
 import type { TurnFailure } from "./backend-caller";
 

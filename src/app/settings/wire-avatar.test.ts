@@ -12,7 +12,7 @@ const { deleteVoice, listVoices, upsertVoice } = vi.hoisted(() => ({
   upsertVoice: vi.fn().mockResolvedValue(undefined),
 }));
 
-vi.mock("../../io/voice/tts-voices", () => ({ deleteVoice, listVoices, upsertVoice }));
+vi.mock("../../io/voice/voices/tts-voices", () => ({ deleteVoice, listVoices, upsertVoice }));
 
 // voice-import fakes — wireSpeakerSelection's pickVoiceImport/commitVoiceImport exercise these
 // directly; keeps the suite off the real dialog plugin / Tauri invoke.
@@ -26,7 +26,7 @@ const { pickVoiceFile, copyVoiceFile, removeOrphanImport, removeUserVoiceMock } 
     removeUserVoiceMock: vi.fn().mockResolvedValue(undefined),
   }),
 );
-vi.mock("../../io/voice/voice-import", () => ({
+vi.mock("../../io/voice/voices/voice-import", () => ({
   pickVoiceFile,
   copyVoiceFile,
   fileStemFromPath: (path: string) => {
@@ -45,7 +45,7 @@ vi.mock("../../io/assets/user-asset-import", async (importOriginal) => ({
 
 import type { EndpointsConfig } from "../../contract";
 import type { EndpointOverrides } from "../../io/settings/endpoints-settings";
-import { createVoiceListRefresh } from "../../io/voice/voice-list-refresh";
+import { createVoiceListRefresh } from "../../io/voice/voices/voice-list-refresh";
 import { createEffectiveEndpoints, wireSpeakerSelection } from "./wire-avatar";
 
 const noopLog = { info: () => {}, warn: () => {}, error: () => {}, debug: () => {} } as never;
