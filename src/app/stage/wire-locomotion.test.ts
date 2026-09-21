@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { avatarFixture } from "../../config/load-test-helpers";
 import type { WindowRect } from "../../contract";
-import type { DescentEdge } from "../../io/window/screen-geometry";
+import type { DescentEdge } from "../../io/window/geometry/screen-geometry";
 
 // The five loops, the travel frame, the sitter and the window sources are faked so each
 // test can drive the deps wireLocomotion hands out and assert the composed handle.
@@ -28,7 +29,12 @@ vi.mock("../../ambient/locomotion/sitter", () => ({ createSitter: mocks.createSi
 
 vi.mock("../turn/wire-sources", () => ({ wireWindowSources: mocks.wireWindowSources }));
 
-import { wireLocomotion } from "./wire-locomotion";
+import {
+  createSitLossFall,
+  descendConfigFor,
+  fallConfigFor,
+  wireLocomotion,
+} from "./wire-locomotion";
 
 const noopLog = { info: () => {}, warn: () => {}, error: () => {}, debug: () => {} } as never;
 
@@ -169,7 +175,16 @@ describe("wireLocomotion", () => {
 
   it("hands a faller window landing to the percher", () => {
     const s = setup();
-    const target: WindowRect = { x: 10, y: 20, width: 300, height: 200 };
+    const target: WindowRect = {
+      x: 10,
+      y: 20,
+      width: 300,
+      height: 200,
+      name: "Test",
+      ownerName: "Test",
+      pid: 42,
+      windowNumber: 7,
+    };
 
     s.fallerDeps.onWindowLand(target);
 
@@ -237,5 +252,65 @@ describe("wireLocomotion", () => {
       "climbSettings.unsubscribe",
       "climber.dispose",
     ]);
+  });
+});
+
+describe("fallConfigFor", () => {
+  const fall = { ...avatarFixture().fall, step_off_probability: 0.3 };
+
+  it("passes the config through while the fall is on", () => {
+    expect(fallConfigFor(fall, true)).toBe(fall);
+  });
+
+  it("never steps off the ledge while the fall is off", () => {
+    expect(fallConfigFor(fall, false)).toEqual({ ...fall, step_off_probability: 0 });
+  });
+});
+
+describe("descendConfigFor", () => {
+  const descend = { chance: 0.5, climb_down_chance: 0.5 };
+
+  it("passes the config through while the fall is on", () => {
+    expect(descendConfigFor(descend, true)).toBe(descend);
+  });
+
+  it("always climbs down while the fall is off", () => {
+    expect(descendConfigFor(descend, false)).toEqual({ ...descend, climb_down_chance: 1 });
+  });
+});
+
+describe("createSitLossFall", () => {
+  it("stops a running climb before handing the window to the fall", () => {
+    const order: string[] = [];
+    const climber = { cancel: () => order.push("climber.cancel") };
+    const onSitLost = createSitLossFall({
+      getClimber: () => climber,
+      faller: {
+        drop: async () => {
+          order.push("faller.drop");
+        },
+      },
+    });
+
+    onSitLost();
+
+    // A descent still inside its window survey would resume onto a falling window.
+    expect(order).toEqual(["climber.cancel", "faller.drop"]);
+  });
+
+  it("falls when no climb is running", () => {
+    const order: string[] = [];
+    const onSitLost = createSitLossFall({
+      getClimber: () => null,
+      faller: {
+        drop: async () => {
+          order.push("faller.drop");
+        },
+      },
+    });
+
+    onSitLost();
+
+    expect(order).toEqual(["faller.drop"]);
   });
 });

@@ -47,6 +47,7 @@ YUI/
         wire-voice-pipeline.ts       # Wires filler, TTS, and speech playback to the turn lifecycle
         wire-push.ts                 # Push socket frames into turns and the push mode chip
       stage/                         # What is bound to the pet window's stage and overlay
+        wire-locomotion.ts           # Travel frame, the five locomotion loops, and the window sources composed into one handle
         wire-summon.ts               # Peek exit triggers, tray summon, and the global summon hotkey
         wire-stage.ts                # Click-through hit-test and cursor-gaze wiring over the stage
       cross-window/                  # State the windows share
