@@ -313,6 +313,8 @@ class YuiAdapter(BasePlatformAdapter):
             self._publish_vocabulary(chat_id, frame.get("vocabulary"))
         elif kind == "reset":
             await self._on_reset(chat_id)
+        elif kind == "stop":
+            await self._on_stop(chat_id, frame)
         else:
             logger.debug("yui: ignoring frame type %r", kind)
 
@@ -391,6 +393,34 @@ class YuiAdapter(BasePlatformAdapter):
         # /new ends the delegations still running for this chat.
         delegations.forget(chat_id)
         await self._send_delegations(chat_id)
+
+    async def _on_stop(self, chat_id: str, frame: dict) -> None:
+        """The gateway's own /stop: the client stopped every turn outstanding on its side."""
+        turn_ids = frame.get("turn_ids")
+        if (
+            not isinstance(turn_ids, list)
+            or not turn_ids
+            or not all(isinstance(turn_id, str) for turn_id in turn_ids)
+        ):
+            logger.debug("yui: ignoring a stop without turn ids chat=%s", chat_id)
+            return
+        open_ids = state.open_turns(chat_id)
+        # A turn opened after the client stopped is not named; stopping with it would end one
+        # the client never meant to stop.
+        if not open_ids or not all(turn_id in turn_ids for turn_id in open_ids):
+            logger.debug("yui: stop names no open turn chat=%s", chat_id)
+            return
+        # The client asked for the stop, so its acknowledgement is not worth speaking.
+        state.set_muted(chat_id, True)
+        logger.info("yui: stop chat=%s turns=%s", chat_id, ",".join(open_ids))
+        await self.handle_message(
+            MessageEvent(
+                text="/stop",
+                message_type=MessageType.TEXT,
+                allow_gateway_control=True,
+                source=self._source(chat_id),
+            )
+        )
 
     async def send_slash_confirm(
         self,

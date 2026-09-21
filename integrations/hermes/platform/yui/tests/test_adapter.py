@@ -702,9 +702,7 @@ async def test_a_stop_naming_only_closed_turns_dispatches_nothing(client, adapte
     assert adapter.dispatched == []
 
 
-async def test_a_stop_leaving_a_newer_turn_unnamed_dispatches_nothing_and_ends_neither(
-    client, adapter
-):
+async def test_a_stop_leaving_a_newer_turn_unnamed_dispatches_nothing_and_ends_neither(client, adapter):
     ws = await ready(client)
     await adapter.on_processing_start(user_turn(adapter, "777"))
     await adapter.on_processing_start(user_turn(adapter, "778"))
