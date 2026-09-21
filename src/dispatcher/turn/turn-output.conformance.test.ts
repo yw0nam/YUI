@@ -1,6 +1,12 @@
 /**
- * turn-output.conformance.test.ts — one logical reply, routed through either transport, drives the
- * same speech/cue/expression sequence into the voice pipeline port (TurnOutput + renderer).
+ * turn-output.conformance.test.ts — one logical reply, routed through either transport, reaches
+ * the voice pipeline port (TurnOutput + renderer) with the same cue content and order, the same
+ * text after whitespace collapse, the same rendered expression and one close.
+ *
+ * Not compared: the thinking-motion hold `cue` respects and `cueWithSpeech` bypasses (no filler
+ * here, so no hold is armed), the playback boundary a silent cue waits on, and `releaseMute`.
+ * The stream deltas are cut at the push segment boundaries, and a completed envelope echoes its
+ * express args. The sentence boundary push appends is pinned in render-turn.cue-order.test.ts.
  */
 
 import { describe, expect, it, vi } from "vitest";
@@ -26,35 +32,31 @@ import { createPushTurns } from "./push-turn";
 import { createTurnFeed } from "./turn-feed";
 
 const CUE_A: ExpressArgs = { emotion_id: "happy", motion_id: "nod" };
-const CUE_B: ExpressArgs = { emotion_id: "curious", motion_id: "tilt" };
-
-/** The cue fields the voice pipeline reads; unset fields stay out so both paths compare equal. */
-interface CueFields {
-  emotion_id?: string;
-  motion_id?: string;
-  emotion_text?: string;
-  caption?: string;
-}
+const CUE_B: ExpressArgs = {
+  emotion_id: "curious",
+  motion_id: "tilt",
+  emotion_text: "softly",
+  caption: "leaning in",
+};
 
 type Entry =
-  | { cue: CueFields }
+  | { cue: ExpressArgs }
   | { text: string }
   | { expression: { emotion?: string; motion?: string } }
   | { close: true };
 
-function cueOf(args: ExpressArgs): CueFields {
-  return {
-    ...(args.emotion_id !== undefined ? { emotion_id: args.emotion_id } : {}),
-    ...(args.motion_id !== undefined ? { motion_id: args.motion_id } : {}),
-    ...(args.emotion_text !== undefined ? { emotion_text: args.emotion_text } : {}),
-    ...(args.caption !== undefined ? { caption: args.caption } : {}),
-  };
+/** Every field the contract carries, so one a path drops shows up as an inequality. */
+function cueOf(args: ExpressArgs): ExpressArgs {
+  return Object.fromEntries(Object.entries(args).filter(([, v]) => v !== undefined));
 }
 
 /** TurnOutput + renderer fakes that record one shared, ordered entry list per side. */
 function recordingSinks() {
   const entries: Entry[] = [];
   const turnOutput = makeTurnOutput();
+  turnOutput.hasOutstandingSpeech.mockReturnValue(false);
+  // The fake drains at once, so a cue routed through the playback boundary still lands in the list.
+  turnOutput.onQueueDrained.mockImplementation((cb: () => void) => cb());
   turnOutput.cue.mockImplementation((args: ExpressArgs) => entries.push({ cue: cueOf(args) }));
   turnOutput.cueWithSpeech.mockImplementation((args: ExpressArgs) =>
     entries.push({ cue: cueOf(args) }),
@@ -66,20 +68,17 @@ function recordingSinks() {
     entries.push({ expression: { emotion: args.emotion_id, motion: args.motion_id } }),
   );
   const renderer = {
-    // An envelope with neither channel renders no expression (emotion absent holds, motion absent idles).
+    // An envelope with no motion still reaches the body: the renderer returns it to idle.
     applyDirective: vi.fn((envelope: ControlEnvelope) => {
-      if (envelope.emotion || envelope.motion) {
-        entries.push({
-          expression: { emotion: envelope.emotion?.id, motion: envelope.motion?.id },
-        });
-      }
+      entries.push({ expression: { emotion: envelope.emotion?.id, motion: envelope.motion?.id } });
     }),
   };
   return { entries, renderer, turnOutput };
 }
 
 /** The pipeline consumes a pending cue only at sentence submission and drops it on dispose, so a
- *  cue no text follows before the close never reaches the body. */
+ *  cue no text follows before the close never reaches the body. Holds while every text run ends
+ *  at a sentence terminator: the close flushes an unterminated tail, which would consume the cue. */
 function normalize(entries: Entry[]): Entry[] {
   const speaksAfter = (from: number): boolean => {
     for (let j = from + 1; j < entries.length; j++) {
@@ -125,7 +124,7 @@ async function runStream(events: ChatStreamEvent[]): Promise<Entry[]> {
 function runPush(frame: RenderFrame): Entry[] {
   const { entries, turnOutput } = recordingSinks();
   let onRender: ((frame: RenderFrame) => void) | null = null;
-  wirePushTransport({
+  const dispose = wirePushTransport({
     socket: {
       onRender(cb) {
         onRender = cb;
@@ -148,6 +147,7 @@ function runPush(frame: RenderFrame): Entry[] {
     log: makeLogger(),
   });
   onRender!(frame);
+  dispose();
   return entries;
 }
 
@@ -196,7 +196,7 @@ describe("turn-output conformance", () => {
     const expected: Entry[] = [
       { cue: { emotion_id: "happy", motion_id: "nod" } },
       { text: "Good morning. Did you sleep well?" },
-      { cue: { emotion_id: "curious", motion_id: "tilt" } },
+      { cue: CUE_B },
       { text: "Let me know." },
       { close: true },
     ];
@@ -220,7 +220,7 @@ describe("turn-output conformance", () => {
     expect(normalize(push)).toEqual(expected);
   });
 
-  it("a bare [SILENT] reply speaks nothing", async () => {
+  it("a bare [SILENT] reply speaks nothing, and only the stream path returns the body to idle", async () => {
     const stream = await runStream([
       deltaEvent("[SILE"),
       deltaEvent("NT]"),
@@ -232,7 +232,9 @@ describe("turn-output conformance", () => {
       source: "hermes",
       segments: [{ speech: "[SILENT]" }],
     });
-    expect(normalize(stream)).toEqual([]);
+    // The stream path routes every completed envelope to the renderer, and one with no motion
+    // idles the body; push renders only the cues a segment carries, so it leaves the body alone.
+    expect(normalize(stream)).toEqual([{ expression: {} }]);
     expect(normalize(push)).toEqual([]);
   });
 });
