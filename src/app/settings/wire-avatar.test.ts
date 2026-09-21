@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 // chat-client fake: wireSpeakerSelection's fetch selection never hits the network.
 const { selectFetch } = vi.hoisted(() => ({ selectFetch: vi.fn().mockResolvedValue(undefined) }));
-vi.mock("../io/chat/chat-client", () => ({ selectFetch }));
+vi.mock("../../io/chat/chat-client", () => ({ selectFetch }));
 
 // Voices-API fakes — wireSpeakerSelection's refreshVoiceList exercises listVoices;
 // commitVoiceImport and refreshSpeaker (tests below) exercise upsertVoice directly.
@@ -12,7 +12,7 @@ const { deleteVoice, listVoices, upsertVoice } = vi.hoisted(() => ({
   upsertVoice: vi.fn().mockResolvedValue(undefined),
 }));
 
-vi.mock("../io/voice/tts-voices", () => ({ deleteVoice, listVoices, upsertVoice }));
+vi.mock("../../io/voice/tts-voices", () => ({ deleteVoice, listVoices, upsertVoice }));
 
 // voice-import fakes — wireSpeakerSelection's pickVoiceImport/commitVoiceImport exercise these
 // directly; keeps the suite off the real dialog plugin / Tauri invoke.
@@ -26,7 +26,7 @@ const { pickVoiceFile, copyVoiceFile, removeOrphanImport, removeUserVoiceMock } 
     removeUserVoiceMock: vi.fn().mockResolvedValue(undefined),
   }),
 );
-vi.mock("../io/voice/voice-import", () => ({
+vi.mock("../../io/voice/voice-import", () => ({
   pickVoiceFile,
   copyVoiceFile,
   fileStemFromPath: (path: string) => {
@@ -38,14 +38,14 @@ vi.mock("../io/voice/voice-import", () => ({
 }));
 
 // The orphan cleanup itself is shared with the VRM import — fake it where it lives.
-vi.mock("../io/assets/user-asset-import", async (importOriginal) => ({
-  ...(await importOriginal<typeof import("../io/assets/user-asset-import")>()),
+vi.mock("../../io/assets/user-asset-import", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("../../io/assets/user-asset-import")>()),
   removeOrphanImport,
 }));
 
-import type { EndpointsConfig } from "../contract";
-import type { EndpointOverrides } from "../io/settings/endpoints-settings";
-import { createVoiceListRefresh } from "../io/voice/voice-list-refresh";
+import type { EndpointsConfig } from "../../contract";
+import type { EndpointOverrides } from "../../io/settings/endpoints-settings";
+import { createVoiceListRefresh } from "../../io/voice/voice-list-refresh";
 import { createEffectiveEndpoints, wireSpeakerSelection } from "./wire-avatar";
 
 const noopLog = { info: () => {}, warn: () => {}, error: () => {}, debug: () => {} } as never;

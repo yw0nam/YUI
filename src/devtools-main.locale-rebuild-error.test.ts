@@ -36,7 +36,7 @@ const { createDevtoolsShell, shellState } = vi.hoisted(() => {
   return { createDevtoolsShell, shellState };
 });
 
-vi.mock("./app/wire-cross-window", () => ({ wireDevtoolsSync }));
+vi.mock("./app/cross-window/wire-cross-window", () => ({ wireDevtoolsSync }));
 vi.mock("./config/store", () => ({ createConfigStore }));
 vi.mock("./logger", () => ({ initLogger, createLogger }));
 vi.mock("./ui/devtools/shell", () => ({ createDevtoolsShell }));

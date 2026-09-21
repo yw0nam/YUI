@@ -1,15 +1,15 @@
-import type { Tier1Engine } from "../ambient/liveliness/tier1";
-import type { WindowRect } from "../contract";
-import type { EventBus } from "../dispatcher/core/event-bus";
-import type { Dispatcher } from "../dispatcher/dispatcher";
-import type { UserInputSource } from "../dispatcher/sources/user-input-source";
-import type { SettingsBridge } from "../io/bridge/settings-bridge";
-import type { SettingsStores } from "../io/settings/settings-stores";
-import { isTauri } from "../io/window/tauri-env";
-import type { Logger } from "../logger";
-import type { Renderer } from "../renderer";
-import type { VoiceInputStatus } from "../ui/chips/voice-input-status";
-import type { Surfaces } from "../ui/surfaces/surfaces";
+import type { Tier1Engine } from "../../ambient/liveliness/tier1";
+import type { WindowRect } from "../../contract";
+import type { EventBus } from "../../dispatcher/core/event-bus";
+import type { Dispatcher } from "../../dispatcher/dispatcher";
+import type { UserInputSource } from "../../dispatcher/sources/user-input-source";
+import type { SettingsBridge } from "../../io/bridge/settings-bridge";
+import type { SettingsStores } from "../../io/settings/settings-stores";
+import { isTauri } from "../../io/window/tauri-env";
+import type { Logger } from "../../logger";
+import type { Renderer } from "../../renderer";
+import type { VoiceInputStatus } from "../../ui/chips/voice-input-status";
+import type { Surfaces } from "../../ui/surfaces/surfaces";
 import { wireWindowSync } from "./wire-window-sync";
 
 /**
@@ -126,7 +126,7 @@ export async function wireDevGlobals(deps: {
     getDispatcher,
     sitDown,
   } = deps;
-  const { createMockDriver } = await import("../ui/surfaces/mock");
+  const { createMockDriver } = await import("../../ui/surfaces/mock");
   const mock: ReturnType<typeof createMockDriver> = createMockDriver(surfaces);
   Object.assign(globalThis as Record<string, unknown>, {
     __yuiRenderer: renderer,

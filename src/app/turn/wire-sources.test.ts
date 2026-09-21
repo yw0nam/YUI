@@ -21,33 +21,33 @@ const { created, started, drainQueue, makeSource } = vi.hoisted(() => {
   return { created, started, drainQueue, makeSource };
 });
 
-vi.mock("../dispatcher/sources/proactive-source", () => ({
+vi.mock("../../dispatcher/sources/proactive-source", () => ({
   createProactiveSource: vi.fn(makeSource("proactive")),
 }));
 
-vi.mock("../dispatcher/sources/schedule-source", () => ({
+vi.mock("../../dispatcher/sources/schedule-source", () => ({
   createScheduleSource: vi.fn(makeSource("schedule")),
 }));
 
-vi.mock("../dispatcher/sources/agent-source", () => ({
+vi.mock("../../dispatcher/sources/agent-source", () => ({
   createAgentSource: vi.fn(makeSource("agent")),
 }));
 
-vi.mock("../dispatcher/sources/signals-source", () => ({
+vi.mock("../../dispatcher/sources/signals-source", () => ({
   createSignalsSource: vi.fn(makeSource("signals")),
 }));
 
-vi.mock("../dispatcher/sources/screen-source", () => ({
+vi.mock("../../dispatcher/sources/screen-source", () => ({
   createScreenSource: vi.fn(makeSource("screen")),
 }));
 
-vi.mock("../dispatcher/sources/milestone-source", () => ({
+vi.mock("../../dispatcher/sources/milestone-source", () => ({
   createMilestoneSource: vi.fn(makeSource("milestone")),
 }));
 
-import { createScreenKnobSettings, mergeScreen } from "../io/settings/screen-settings";
+import { createScreenKnobSettings, mergeScreen } from "../../io/settings/screen-settings";
+import { wireSummonHotkey } from "../stage/wire-summon";
 import { wireDispatcherSources, wireWindowSources } from "./wire-sources";
-import { wireSummonHotkey } from "./wire-summon";
 
 describe("configured platform wiring", () => {
   it("returns stable no-op handles outside Tauri", async () => {

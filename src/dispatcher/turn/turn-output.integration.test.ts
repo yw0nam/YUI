@@ -2,7 +2,7 @@
  * turn-output.integration.test.ts — drives backend-caller → TurnOutput → tts-pipeline ordering.
  *
  * Wires a real createBackendCaller to a real createSpeechPlayback through a TurnOutput literal
- * shaped like the one voice-pipeline-wiring.ts builds — only the chat stream, the TTS synth, and
+ * shaped like the one wire-voice-pipeline.ts builds — only the chat stream, the TTS synth, and
  * the audio sink are faked. Asserts the ordering the port's doc comment promises, not just that
  * calls happened.
  */
@@ -86,7 +86,7 @@ describe("TurnOutput — backend-caller → tts-pipeline ordering", () => {
       isStrolling: () => false,
     });
 
-    // Same literal shape voice-pipeline-wiring.ts builds — order-tracking wraps each member.
+    // Same literal shape wire-voice-pipeline.ts builds — order-tracking wraps each member.
     turnOutput = {
       interrupt: () => {
         order.push("interrupt");

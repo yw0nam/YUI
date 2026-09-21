@@ -3,14 +3,14 @@
  */
 
 import { afterEach, beforeEach, describe, expect, it, type Mock, vi } from "vitest";
-import type { ToolStatus } from "../contract";
-import { PRE_SPEECH_TIMEOUT_MS } from "../dispatcher/backend/idle-watchdog";
-import { makeTurnOutput } from "../dispatcher/test-helpers";
-import { createPushTurns } from "../dispatcher/turn/push-turn";
-import { createTurnFeed, type TurnFeed } from "../dispatcher/turn/turn-feed";
-import { createDelegationsStore } from "../io/bridge/delegations-store";
-import { createReasoningStore } from "../io/bridge/reasoning-store";
-import type { ChatHistoryEntry } from "../io/chat/chat-history-store";
+import type { ToolStatus } from "../../contract";
+import { PRE_SPEECH_TIMEOUT_MS } from "../../dispatcher/backend/idle-watchdog";
+import { makeTurnOutput } from "../../dispatcher/test-helpers";
+import { createPushTurns } from "../../dispatcher/turn/push-turn";
+import { createTurnFeed, type TurnFeed } from "../../dispatcher/turn/turn-feed";
+import { createDelegationsStore } from "../../io/bridge/delegations-store";
+import { createReasoningStore } from "../../io/bridge/reasoning-store";
+import type { ChatHistoryEntry } from "../../io/chat/chat-history-store";
 import type {
   DelegationItem,
   PushSocketState,
@@ -19,7 +19,7 @@ import type {
   SpeechFrame,
   ToolStatusFrame,
   TurnEndFrame,
-} from "../io/chat/push-socket";
+} from "../../io/chat/push-socket";
 import { wirePushMode, wirePushTransport, wireStopButton } from "./wire-push";
 
 function fakeSocket() {

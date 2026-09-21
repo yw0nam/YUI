@@ -1,25 +1,25 @@
-import type { Guardrails, GuardrailsConfig } from "../dispatcher/core/guardrails";
-import type { createVrmSelection } from "../io/assets/vrm-selection";
+import type { Guardrails, GuardrailsConfig } from "../../dispatcher/core/guardrails";
+import type { createVrmSelection } from "../../io/assets/vrm-selection";
 import {
   createSettingsBridge,
   type SettingsBridge,
   type WindowKind,
-} from "../io/bridge/settings-bridge";
-import type { GuardrailsSettingsStore } from "../io/settings/guardrails-settings";
+} from "../../io/bridge/settings-bridge";
+import type { GuardrailsSettingsStore } from "../../io/settings/guardrails-settings";
 import {
   broadcastSyncStores,
   reloadSyncStores,
   type SettingsStores,
   type SyncedStore,
-} from "../io/settings/settings-stores";
-import type { createSpeakerSelection } from "../io/voice/speaker-selection";
-import { wireStorageSync } from "../io/window/settings-window";
-import type { Logger } from "../logger";
-import type { VrmLoadResult } from "../renderer";
+} from "../../io/settings/settings-stores";
+import type { createSpeakerSelection } from "../../io/voice/speaker-selection";
+import { wireStorageSync } from "../../io/window/settings-window";
+import type { Logger } from "../../logger";
+import type { VrmLoadResult } from "../../renderer";
 import {
   reloadFromStorage as reloadLocaleFromStorage,
   subscribe as subscribeLocale,
-} from "../ui/i18n";
+} from "../../ui/i18n";
 
 /**
  * Cross-window settings broadcast half (loop-guarded, debounced). Local edits to any synced store

@@ -1,5 +1,5 @@
 /**
- * voice-pipeline-wiring.speak-failure.test.ts — spoken failure lines + their prewarm.
+ * wire-voice-pipeline.speak-failure.test.ts — spoken failure lines + their prewarm.
  *
  * Only the audio sink and fetch are faked; the real speech path (speechPlayback → TTS synth →
  * sink) plays out so a failure phrase's audio can be observed reaching the sink.
@@ -27,15 +27,15 @@ const mocks = vi.hoisted(() => {
   };
 });
 
-vi.mock("../io/voice/audio-player", () => ({ createWebAudioSink: mocks.createWebAudioSink }));
-vi.mock("../io/chat/chat-client", () => ({ selectFetch: mocks.selectFetch }));
+vi.mock("../../io/voice/audio-player", () => ({ createWebAudioSink: mocks.createWebAudioSink }));
+vi.mock("../../io/chat/chat-client", () => ({ selectFetch: mocks.selectFetch }));
 
-import type { FillerPool } from "../config/load";
-import { createTurnLog } from "../dispatcher/turn/turn";
-import type { FillerSettings } from "../io/settings/filler-settings";
-import { fillerPool as pool } from "../io/voice/filler-test-helpers";
-import type { Surfaces } from "../ui/surfaces/surfaces";
-import { type VoicePipeline, wireVoicePipeline } from "./voice-pipeline-wiring";
+import type { FillerPool } from "../../config/load";
+import { createTurnLog } from "../../dispatcher/turn/turn";
+import type { FillerSettings } from "../../io/settings/filler-settings";
+import { fillerPool as pool } from "../../io/voice/filler-test-helpers";
+import type { Surfaces } from "../../ui/surfaces/surfaces";
+import { type VoicePipeline, wireVoicePipeline } from "./wire-voice-pipeline";
 
 const TIMEOUT_PHRASE = "ごめん、諦めちゃった。";
 const UNREACHABLE_PHRASE = "今つながらないみたい。";

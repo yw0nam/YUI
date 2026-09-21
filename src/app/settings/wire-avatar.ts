@@ -1,28 +1,28 @@
 /** VRM and speaker selection stores, their swap/import flows, and the effective endpoints derived from overrides. */
-import type { EndpointsConfig } from "../contract";
-import { resolveAssetUrl, resolveUserFileSrc } from "../io/assets/asset-url";
-import { removeOrphanImport } from "../io/assets/user-asset-import";
-import { importVrmFromFile, removeUserVrm } from "../io/assets/vrm-import";
+import type { EndpointsConfig } from "../../contract";
+import { resolveAssetUrl, resolveUserFileSrc } from "../../io/assets/asset-url";
+import { removeOrphanImport } from "../../io/assets/user-asset-import";
+import { importVrmFromFile, removeUserVrm } from "../../io/assets/vrm-import";
 import {
   createVrmSelection,
   localStorageUserVrmStorage,
   localStorageVrmStorage,
-} from "../io/assets/vrm-selection";
-import { selectFetch } from "../io/chat/chat-client";
-import { type EndpointOverrides, mergeEndpoints } from "../io/settings/endpoints-settings";
+} from "../../io/assets/vrm-selection";
+import { selectFetch } from "../../io/chat/chat-client";
+import { type EndpointOverrides, mergeEndpoints } from "../../io/settings/endpoints-settings";
 import {
   createSpeakerSelection,
   localStorageSpeakerStorage,
   localStorageUserSpeakerStorage,
   nextRevision,
   type SpeakerOption,
-} from "../io/voice/speaker-selection";
-import { deleteVoice, upsertVoice } from "../io/voice/tts-voices";
-import { removeUserVoice as removeUserVoiceFile } from "../io/voice/voice-import";
-import { createVoiceImportFlow } from "../io/voice/voice-import-flow";
-import { createVoiceListRefresh } from "../io/voice/voice-list-refresh";
-import type { Logger } from "../logger";
-import type { Renderer, VrmLoadResult } from "../renderer";
+} from "../../io/voice/speaker-selection";
+import { deleteVoice, upsertVoice } from "../../io/voice/tts-voices";
+import { removeUserVoice as removeUserVoiceFile } from "../../io/voice/voice-import";
+import { createVoiceImportFlow } from "../../io/voice/voice-import-flow";
+import { createVoiceListRefresh } from "../../io/voice/voice-list-refresh";
+import type { Logger } from "../../logger";
+import type { Renderer, VrmLoadResult } from "../../renderer";
 
 export function wireVrmSelection(deps: {
   renderer: Renderer;

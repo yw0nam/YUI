@@ -3,7 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 // i18n is a side-effecting singleton; stub it so the settings-sync tests stay isolated.
 const { unsubscribeLocale } = vi.hoisted(() => ({ unsubscribeLocale: vi.fn() }));
 
-vi.mock("../ui/i18n", () => ({
+vi.mock("../../ui/i18n", () => ({
   subscribe: () => unsubscribeLocale,
   reloadFromStorage: vi.fn(),
 }));
@@ -18,7 +18,7 @@ const { fakeBridge, createSettingsBridge } = vi.hoisted(() => {
   return { fakeBridge, createSettingsBridge: vi.fn(() => fakeBridge) };
 });
 
-vi.mock("../io/bridge/settings-bridge", () => ({ createSettingsBridge }));
+vi.mock("../../io/bridge/settings-bridge", () => ({ createSettingsBridge }));
 
 const { wireStorageSyncDispose, wireStorageSync } = vi.hoisted(() => {
   const wireStorageSyncDispose = vi.fn();
@@ -30,13 +30,13 @@ const { wireStorageSyncDispose, wireStorageSync } = vi.hoisted(() => {
   return { wireStorageSyncDispose, wireStorageSync };
 });
 
-vi.mock("../io/window/settings-window", () => ({ wireStorageSync }));
+vi.mock("../../io/window/settings-window", () => ({ wireStorageSync }));
 
-import type { GuardrailsConfig } from "../config/load";
-import { createGuardrails } from "../dispatcher/core/guardrails";
-import type { BridgeTransport } from "../io/bridge/settings-bridge";
-import { createGuardrailsSettings, mergeGuardrails } from "../io/settings/guardrails-settings";
-import { reloadFromStorage as reloadLocaleFromStorage } from "../ui/i18n";
+import type { GuardrailsConfig } from "../../config/load";
+import { createGuardrails } from "../../dispatcher/core/guardrails";
+import type { BridgeTransport } from "../../io/bridge/settings-bridge";
+import { createGuardrailsSettings, mergeGuardrails } from "../../io/settings/guardrails-settings";
+import { reloadFromStorage as reloadLocaleFromStorage } from "../../ui/i18n";
 import {
   createSettingsBroadcast,
   wireGuardrailsOverrides,
@@ -255,8 +255,8 @@ describe("wireWindowSync", () => {
     (fakeBridge.onSettingsChanged.mock.calls as unknown as Array<[(from: string) => void]>)[0]![0];
 
   it("logs each remote change against the window kind that sent it", async () => {
-    const bridgeModule = await vi.importActual<typeof import("../io/bridge/settings-bridge")>(
-      "../io/bridge/settings-bridge",
+    const bridgeModule = await vi.importActual<typeof import("../../io/bridge/settings-bridge")>(
+      "../../io/bridge/settings-bridge",
     );
     const transport = createFakeTransport();
     createSettingsBridge.mockImplementationOnce(((_transport: unknown, opts: never) =>

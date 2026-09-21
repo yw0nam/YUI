@@ -3,7 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 // i18n is a side-effecting singleton; stub it so the settings-sync tests stay isolated.
 const { unsubscribeLocale } = vi.hoisted(() => ({ unsubscribeLocale: vi.fn() }));
 
-vi.mock("../ui/i18n", () => ({
+vi.mock("../../ui/i18n", () => ({
   subscribe: () => unsubscribeLocale,
   reloadFromStorage: vi.fn(),
 }));
@@ -25,7 +25,7 @@ const { fakeBridge, createSettingsBridge } = vi.hoisted(() => {
   return { fakeBridge, createSettingsBridge: vi.fn(() => fakeBridge) };
 });
 
-vi.mock("../io/bridge/settings-bridge", () => ({ createSettingsBridge }));
+vi.mock("../../io/bridge/settings-bridge", () => ({ createSettingsBridge }));
 
 const { wireStorageSyncDispose, wireStorageSync } = vi.hoisted(() => {
   const wireStorageSyncDispose = vi.fn();
@@ -37,23 +37,23 @@ const { wireStorageSyncDispose, wireStorageSync } = vi.hoisted(() => {
   return { wireStorageSyncDispose, wireStorageSync };
 });
 
-vi.mock("../io/window/settings-window", () => ({ wireStorageSync }));
+vi.mock("../../io/window/settings-window", () => ({ wireStorageSync }));
 
 const { mockDriver, createMockDriver } = vi.hoisted(() => {
   const mockDriver = { reply: vi.fn(), proactive: vi.fn(), speak: vi.fn() };
   return { mockDriver, createMockDriver: vi.fn(() => mockDriver) };
 });
 
-vi.mock("../ui/surfaces/mock", () => ({ createMockDriver }));
+vi.mock("../../ui/surfaces/mock", () => ({ createMockDriver }));
 
 import {
   broadcastSyncStores,
   createSettingsStores,
   reloadSyncStores,
   type SyncedStore,
-} from "../io/settings/settings-stores";
-import { createVoiceInputStatus } from "../ui/chips/voice-input-status";
-import { reloadFromStorage as reloadLocaleFromStorage } from "../ui/i18n";
+} from "../../io/settings/settings-stores";
+import { createVoiceInputStatus } from "../../ui/chips/voice-input-status";
+import { reloadFromStorage as reloadLocaleFromStorage } from "../../ui/i18n";
 import {
   wireCrossWindowSync,
   wireDevGlobals,

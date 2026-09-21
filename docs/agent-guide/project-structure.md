@@ -39,16 +39,20 @@ YUI/
   public/motions/                    # VRMA motion assets
   src/
     main.ts                          # Application entry: config load, renderer, dispatcher, and the I/O graph
-    app/
-      wire-avatar.ts                 # VRM and speaker selection stores, their swap and import flows, and effective endpoints
-      wire-window-sync.ts            # Settings broadcast, guardrail overrides, and the shared cross-window sync core
-      wire-sources.ts                # Tauri window sources and the dispatcher's paced proactive sources
-      wire-summon.ts                 # Peek exit triggers, tray summon, and the global summon hotkey
-      wire-voice.ts                  # Expression broker client and the voice input lifecycle
-      wire-cross-window.ts           # Per-window sync for the pet, settings, and devtools windows plus DEV globals
-      wire-push.ts                   # Push socket frames into turns and the push mode chip
+    app/                             # Composes the pet window from the layers below
       bootstrap-configured.ts        # Config-derived bootstrap: pat gesture, fall and descend configs, ambient handles
-      voice-pipeline-wiring.ts       # Wires filler, TTS, and speech playback to the turn lifecycle
+      turn/                          # The path of a turn: sources, voice, and push
+        wire-sources.ts              # Tauri window sources and the dispatcher's paced proactive sources
+        wire-voice.ts                # Expression broker client and the voice input lifecycle
+        wire-voice-pipeline.ts       # Wires filler, TTS, and speech playback to the turn lifecycle
+        wire-push.ts                 # Push socket frames into turns and the push mode chip
+      stage/                         # What is bound to the pet window's stage and overlay
+        wire-summon.ts               # Peek exit triggers, tray summon, and the global summon hotkey
+      cross-window/                  # State the windows share
+        wire-cross-window.ts         # Per-window sync for the pet, settings, and devtools windows plus DEV globals
+        wire-window-sync.ts          # Settings broadcast, guardrail overrides, and the shared cross-window sync core
+      settings/                      # Selections applied to the running app
+        wire-avatar.ts               # VRM and speaker selection stores, their swap and import flows, and effective endpoints
     logger.ts                        # Namespaced frontend logger with a runtime level
     settings-main.ts                 # Settings-window entry
     devtools-main.ts                 # Developer Tools window entry

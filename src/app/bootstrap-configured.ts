@@ -67,13 +67,13 @@ import { wireIngressDeadNotice } from "../ui/notices/ingress-dead-notice";
 import { routeTurnFailure, turnErrorFixAction, turnErrorMessage } from "../ui/notices/turn-error";
 import type { createQuickControls } from "../ui/quick-controls/quick-controls";
 import type { Surfaces } from "../ui/surfaces/surfaces";
-import { type VoicePipeline, wireVoicePipeline } from "./voice-pipeline-wiring";
-import type { wireSpeakerSelection, wireVrmSelection } from "./wire-avatar";
-import { wirePushTransport, wireStopButton } from "./wire-push";
-import { wireDispatcherSources, wireWindowSources } from "./wire-sources";
-import { wirePeekExitTriggers, wireSummonHotkey } from "./wire-summon";
-import { wireBroker, wireVoiceInput } from "./wire-voice";
-import { wireGuardrailsOverrides } from "./wire-window-sync";
+import { wireGuardrailsOverrides } from "./cross-window/wire-window-sync";
+import type { wireSpeakerSelection, wireVrmSelection } from "./settings/wire-avatar";
+import { wirePeekExitTriggers, wireSummonHotkey } from "./stage/wire-summon";
+import { wirePushTransport, wireStopButton } from "./turn/wire-push";
+import { wireDispatcherSources, wireWindowSources } from "./turn/wire-sources";
+import { wireBroker, wireVoiceInput } from "./turn/wire-voice";
+import { type VoicePipeline, wireVoicePipeline } from "./turn/wire-voice-pipeline";
 
 const log = createLogger("bootstrap");
 

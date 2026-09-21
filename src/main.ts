@@ -15,10 +15,10 @@
 import "./styles.css";
 import { createTier1Engine } from "./ambient/liveliness/tier1";
 import { createConfiguredBootstrap } from "./app/bootstrap-configured";
-import { wireSpeakerSelection, wireVrmSelection } from "./app/wire-avatar";
-import { wireCrossWindowSync, wireDevGlobals } from "./app/wire-cross-window";
-import { wirePushMode } from "./app/wire-push";
-import { wireSettingsReload } from "./app/wire-window-sync";
+import { wireCrossWindowSync, wireDevGlobals } from "./app/cross-window/wire-cross-window";
+import { wireSettingsReload } from "./app/cross-window/wire-window-sync";
+import { wireSpeakerSelection, wireVrmSelection } from "./app/settings/wire-avatar";
+import { wirePushMode } from "./app/turn/wire-push";
 import { CHAT_API_KEY_SECRET, STT_API_KEY_SECRET, TTS_API_KEY_SECRET } from "./config/load";
 import { createConfigStore } from "./config/store";
 import { createEventBus } from "./dispatcher/core/event-bus";

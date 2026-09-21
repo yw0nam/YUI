@@ -13,15 +13,15 @@ const { createPercher, createWindowDropSource } = vi.hoisted(() => ({
     stop: () => {},
   })),
 }));
-vi.mock("../ambient/locomotion/percher", () => ({ createPercher }));
-vi.mock("../io/window/window-drop-source", () => ({ createWindowDropSource }));
-vi.mock("../io/window/window-resize-source", () => ({
+vi.mock("../../ambient/locomotion/percher", () => ({ createPercher }));
+vi.mock("../../io/window/window-drop-source", () => ({ createWindowDropSource }));
+vi.mock("../../io/window/window-resize-source", () => ({
   createWindowResizeSource: () => ({ start: () => {}, stop: () => {} }),
 }));
-vi.mock("../io/bridge/avatar-executor", () => ({
+vi.mock("../../io/bridge/avatar-executor", () => ({
   createAvatarExecutor: () => ({ start: () => {}, stop: () => {} }),
 }));
-vi.mock("../io/bridge/avatar-rpc", () => ({
+vi.mock("../../io/bridge/avatar-rpc", () => ({
   onAvatarRpc: () => () => {},
   respondAvatarRpc: () => {},
 }));
@@ -37,7 +37,7 @@ vi.mock("@tauri-apps/api/dpi", () => ({
   PhysicalPosition: class {},
 }));
 
-import { wirePercher } from "../ambient/locomotion/wire";
+import { wirePercher } from "../../ambient/locomotion/wire";
 import { wireWindowSources } from "./wire-sources";
 
 const noopLog = { info: () => {}, warn: () => {}, error: () => {}, debug: () => {} } as never;

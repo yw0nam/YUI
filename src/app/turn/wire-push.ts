@@ -1,11 +1,11 @@
-import type { EndpointsConfig } from "../contract";
-import type { PushTurns } from "../dispatcher/turn/push-turn";
-import { createRenderTurn } from "../dispatcher/turn/render-turn";
-import type { TurnFeed } from "../dispatcher/turn/turn-feed";
-import type { TurnOutput } from "../dispatcher/turn/turn-output";
-import type { DelegationHistory } from "../io/bridge/delegation-history";
-import type { DelegationsStore } from "../io/bridge/delegations-store";
-import type { ChatHistoryEntry } from "../io/chat/chat-history-store";
+import type { EndpointsConfig } from "../../contract";
+import type { PushTurns } from "../../dispatcher/turn/push-turn";
+import { createRenderTurn } from "../../dispatcher/turn/render-turn";
+import type { TurnFeed } from "../../dispatcher/turn/turn-feed";
+import type { TurnOutput } from "../../dispatcher/turn/turn-output";
+import type { DelegationHistory } from "../../io/bridge/delegation-history";
+import type { DelegationsStore } from "../../io/bridge/delegations-store";
+import type { ChatHistoryEntry } from "../../io/chat/chat-history-store";
 import type {
   DelegationItem,
   PushSocket,
@@ -15,9 +15,9 @@ import type {
   SpeechFrame,
   ToolStatusFrame,
   TurnEndFrame,
-} from "../io/chat/push-socket";
-import type { RenderRecord } from "../io/chat/turn-record-log";
-import type { Logger } from "../logger";
+} from "../../io/chat/push-socket";
+import type { RenderRecord } from "../../io/chat/turn-record-log";
+import type { Logger } from "../../logger";
 
 /**
  * Routes an open push socket into the client: a `render` frame plays as a turn and closes the

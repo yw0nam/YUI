@@ -8,7 +8,7 @@
  */
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { composePacedPipelineBusy } from "../../app/wire-sources";
+import { composePacedPipelineBusy } from "../../app/turn/wire-sources";
 import type { SignalsBatch } from "../../io/bridge/signals-inbox";
 import type { OsEventListen, OsEventPayload } from "../../io/window/tauri-listen";
 import type { BusEnvelope, EventBus } from "../core/event-bus";

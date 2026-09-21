@@ -11,15 +11,15 @@
  */
 
 import { describe, expect, it, vi } from "vitest";
-import type { ControlEnvelope, ExpressArgs } from "../contract";
-import { makeLogger } from "../dispatcher/test-helpers";
-import { createPushTurns } from "../dispatcher/turn/push-turn";
-import { createRenderTurn } from "../dispatcher/turn/render-turn";
-import type { TurnOutput } from "../dispatcher/turn/turn-output";
-import type { RenderFrame, SpeechFrame } from "../io/chat/push-socket";
-import type { AudioSink } from "../io/voice/audio-player";
-import { createSpeechPlayback } from "../io/voice/speech-playback";
-import type { TtsSynth } from "../io/voice/tts-synth";
+import type { ControlEnvelope, ExpressArgs } from "../../contract";
+import { makeLogger } from "../../dispatcher/test-helpers";
+import { createPushTurns } from "../../dispatcher/turn/push-turn";
+import { createRenderTurn } from "../../dispatcher/turn/render-turn";
+import type { TurnOutput } from "../../dispatcher/turn/turn-output";
+import type { RenderFrame, SpeechFrame } from "../../io/chat/push-socket";
+import type { AudioSink } from "../../io/voice/audio-player";
+import { createSpeechPlayback } from "../../io/voice/speech-playback";
+import type { TtsSynth } from "../../io/voice/tts-synth";
 
 /** A synth the test releases one sentence at a time; the wav names its own index. */
 function controlledSynth() {
@@ -159,7 +159,7 @@ function setup() {
       void pushTurns.awaitTurnEnd(turnId, { onFirstRender: endThinking }).then(endThinking);
     },
     stopButton: () => stopTurn(),
-    // The pair voice-pipeline-wiring performs when the user talks over the reply.
+    // The pair wire-voice-pipeline performs when the user talks over the reply.
     bargeIn: () => {
       speechPlayback.interrupt({ muteCurrentTurn: true });
       pushTurns.cut();

@@ -1,33 +1,36 @@
-import type { GestureCuesConfig, PeekConfig, ScreenConfig } from "../config/load";
-import type { Posture, WindowRect } from "../contract";
-import type { EventBus } from "../dispatcher/core/event-bus";
-import type { ProactivePacer } from "../dispatcher/core/proactive-pacer";
-import { createAgentSource } from "../dispatcher/sources/agent-source";
+import type { GestureCuesConfig, PeekConfig, ScreenConfig } from "../../config/load";
+import type { Posture, WindowRect } from "../../contract";
+import type { EventBus } from "../../dispatcher/core/event-bus";
+import type { ProactivePacer } from "../../dispatcher/core/proactive-pacer";
+import { createAgentSource } from "../../dispatcher/sources/agent-source";
 import {
   createMilestoneSource,
   type MilestoneSource,
-} from "../dispatcher/sources/milestone-source";
+} from "../../dispatcher/sources/milestone-source";
 import {
   createProactiveSource,
   type ProactiveSource,
-} from "../dispatcher/sources/proactive-source";
-import { createScheduleSource, type ScheduleSource } from "../dispatcher/sources/schedule-source";
-import { createScreenSource, type ScreenSource } from "../dispatcher/sources/screen-source";
-import { createSignalsSource, type SignalsSource } from "../dispatcher/sources/signals-source";
-import { type AvatarExecutor, createAvatarExecutor } from "../io/bridge/avatar-executor";
-import { onAvatarRpc, respondAvatarRpc } from "../io/bridge/avatar-rpc";
-import { appendRecord } from "../io/chat/turn-record-log";
-import type { AgentNotifySettings } from "../io/settings/agent-notify-settings";
-import type { ClampedIntSettingsStore } from "../io/settings/persisted-store";
-import type { ProactiveSettings } from "../io/settings/proactive-settings";
-import type { ScheduleSettings } from "../io/settings/schedule-settings";
-import { attachKeepOnScreen, type KeepOnScreenHandle } from "../io/window/keep-on-screen";
-import { toScreenMonitor } from "../io/window/screen-geometry";
-import { isTauri } from "../io/window/tauri-env";
-import { createWindowDropSource } from "../io/window/window-drop-source";
-import { createWindowResizeSource } from "../io/window/window-resize-source";
-import type { Logger } from "../logger";
-import type { Renderer } from "../renderer";
+} from "../../dispatcher/sources/proactive-source";
+import {
+  createScheduleSource,
+  type ScheduleSource,
+} from "../../dispatcher/sources/schedule-source";
+import { createScreenSource, type ScreenSource } from "../../dispatcher/sources/screen-source";
+import { createSignalsSource, type SignalsSource } from "../../dispatcher/sources/signals-source";
+import { type AvatarExecutor, createAvatarExecutor } from "../../io/bridge/avatar-executor";
+import { onAvatarRpc, respondAvatarRpc } from "../../io/bridge/avatar-rpc";
+import { appendRecord } from "../../io/chat/turn-record-log";
+import type { AgentNotifySettings } from "../../io/settings/agent-notify-settings";
+import type { ClampedIntSettingsStore } from "../../io/settings/persisted-store";
+import type { ProactiveSettings } from "../../io/settings/proactive-settings";
+import type { ScheduleSettings } from "../../io/settings/schedule-settings";
+import { attachKeepOnScreen, type KeepOnScreenHandle } from "../../io/window/keep-on-screen";
+import { toScreenMonitor } from "../../io/window/screen-geometry";
+import { isTauri } from "../../io/window/tauri-env";
+import { createWindowDropSource } from "../../io/window/window-drop-source";
+import { createWindowResizeSource } from "../../io/window/window-resize-source";
+import type { Logger } from "../../logger";
+import type { Renderer } from "../../renderer";
 
 /**
  * Window-sit drop + ctrl+wheel resize producers, the agent loopback ingress bind, and the

@@ -29,11 +29,11 @@ const mocks = vi.hoisted(() => {
   };
 });
 
-vi.mock("../io/voice/audio-player", () => ({ createWebAudioSink: mocks.createWebAudioSink }));
-vi.mock("../io/chat/chat-client", () => ({ selectFetch: mocks.selectFetch }));
+vi.mock("../../io/voice/audio-player", () => ({ createWebAudioSink: mocks.createWebAudioSink }));
+vi.mock("../../io/chat/chat-client", () => ({ selectFetch: mocks.selectFetch }));
 
-import { createTurnLog } from "../dispatcher/turn/turn";
-import { type VoicePipeline, wireVoicePipeline } from "./voice-pipeline-wiring";
+import { createTurnLog } from "../../dispatcher/turn/turn";
+import { type VoicePipeline, wireVoicePipeline } from "./wire-voice-pipeline";
 
 const PHRASE = "えーっと。";
 
