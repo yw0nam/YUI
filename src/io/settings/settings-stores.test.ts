@@ -97,6 +97,14 @@ describe("createSettingsStores", () => {
     localStorage.clear();
   });
 
+  it("defaults the filler language to the app locale", () => {
+    localStorage.clear();
+
+    expect(createSettingsStores({ locale: "en" }).fillerSettings.get().language).toBe("en");
+
+    localStorage.clear();
+  });
+
   // bootstrap() registers teardown by iterating the returned bag, so every value must be disposable.
   it("returns disposable stores", () => {
     const stores = createSettingsStores();

@@ -2,10 +2,10 @@
  * filler-settings.test.ts — Filler reactive settings store.
  *
  * Pins the contract for src/io/settings/filler-settings.ts:
- *   createFillerSettings({ storage? }) store
+ *   createFillerSettings({ storage?, locale? }) store
  *   localStorageFillerStorage(key?) localStorage adapter
  *
- * Priority: stored > defaults (enabled:true, language:"ja", customPools:{})
+ * Priority: stored > defaults (enabled:true, language:the locale, "ja" without one, customPools:{})
  */
 
 import { describe, expect, it, vi } from "vitest";
