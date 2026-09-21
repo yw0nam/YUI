@@ -6,12 +6,28 @@
  *   openSettingsWindow(env) routes Tauri vs browser (pure, injectable)
  *   wireStorageSync(stores) re-reads every store on a `storage` event; disposer detaches.
  *
- * The real factory createSettingsWindowOpener() wires WebviewWindow / window.open — that's
- * integration (dynamic import in the Tauri branch) and is intentionally not unit-tested here.
+ * The real factory createSettingsWindowOpener() wires WebviewWindow / window.open — only its
+ * creation-time title is pinned here, since that title stays English while the document title
+ * follows the app language.
  */
 
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { openSettingsWindow, type SettingsWindowEnv, wireStorageSync } from "./settings-window";
+
+const { WebviewWindow } = vi.hoisted(() => ({
+  WebviewWindow: Object.assign(
+    vi.fn(() => ({ once: vi.fn() })),
+    { getByLabel: vi.fn(async () => null) },
+  ),
+}));
+
+vi.mock("@tauri-apps/api/webviewWindow", () => ({ WebviewWindow }));
+
+import {
+  createSettingsWindowOpener,
+  openSettingsWindow,
+  type SettingsWindowEnv,
+  wireStorageSync,
+} from "./settings-window";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // openSettingsWindow — routing
@@ -38,6 +54,21 @@ describe("openSettingsWindow", () => {
 
     expect(openBrowserWindow).toHaveBeenCalledOnce();
     expect(createTauriWindow).not.toHaveBeenCalled();
+  });
+
+  it("creates the Tauri window with an English title", async () => {
+    const globals = globalThis as { __TAURI_INTERNALS__?: unknown };
+    globals.__TAURI_INTERNALS__ = {};
+    try {
+      createSettingsWindowOpener()();
+      await vi.waitFor(() => expect(WebviewWindow).toHaveBeenCalledOnce());
+      expect(WebviewWindow).toHaveBeenCalledWith(
+        "settings",
+        expect.objectContaining({ title: "YUI Settings" }),
+      );
+    } finally {
+      delete globals.__TAURI_INTERNALS__;
+    }
   });
 });
 
