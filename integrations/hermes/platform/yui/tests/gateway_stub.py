@@ -7,6 +7,8 @@ recording stubs.
 
 from __future__ import annotations
 
+import os
+import re
 import sys
 import types
 from dataclasses import dataclass, field
@@ -14,6 +16,9 @@ from enum import Enum
 
 # The stand-in for the gateway's session ContextVars; tests set values directly.
 STUB_ENV: dict[str, str] = {}
+
+# An absolute path up to its last character that could not be sentence punctuation.
+_BARE_PATH_RE = re.compile(r"/\S*[^\s.,;:!?)]")
 
 
 class Platform:
@@ -136,6 +141,32 @@ class BasePlatformAdapter:
     def _should_auto_tts_for_chat(self, chat_id: str) -> bool:
         """The real base answers from voice.auto_tts; True here so an override is visible."""
         return True
+
+    @staticmethod
+    def extract_media(content: str) -> tuple[list[tuple[str, bool]], str]:
+        """The real one pulls ``MEDIA:`` tags out of the text; no test writes one."""
+        return [], content
+
+    @staticmethod
+    def extract_images(content: str) -> tuple[list[tuple[str, str]], str]:
+        """The real one pulls image links out of the text; no test writes one."""
+        return [], content
+
+    @staticmethod
+    def strip_media_directives_for_display(text: str) -> str:
+        """The real one drops the media directives extraction left behind; none are written here."""
+        return text
+
+    @staticmethod
+    def extract_local_files(content: str) -> tuple[list[str], str]:
+        """Bare absolute paths of files that exist leave the text, as the real one's regex does."""
+        paths: list[str] = []
+        cleaned = content
+        for candidate in _BARE_PATH_RE.findall(content):
+            if os.path.isfile(candidate) and candidate not in paths:
+                paths.append(candidate)
+                cleaned = cleaned.replace(candidate, "")
+        return paths, cleaned.strip()
 
     async def _send_media_fallback_notice(
         self, method, kind, path, chat_id, caption=None, reply_to=None, metadata=None, *, file_name=None

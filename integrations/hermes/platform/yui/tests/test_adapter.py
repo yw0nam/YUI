@@ -1663,6 +1663,35 @@ async def test_a_reply_that_does_not_continue_the_stream_renders_whole(client, a
     assert "send does not continue the streamed text" in caplog.text
 
 
+async def test_a_streamed_sentence_leaves_without_the_local_file_path_the_gateway_takes_out(
+    client, adapter, caplog, tmp_path
+):
+    report = tmp_path / "audit.md"
+    report.write_text("done")
+    ws = await ready(client)
+    await adapter.on_processing_start(user_turn(adapter, "777"))
+    await stream(adapter, f"The report is at {report}. Want the summary? ")
+    assert await recv(ws) == speech_frame("777", "The report is at .")
+    assert await recv(ws) == speech_frame("777", "Want the summary?")
+    with caplog.at_level(logging.INFO):
+        await adapter.send(
+            CHAT, "The report is at . Want the summary? It is short.", metadata={"notify": True}
+        )
+    assert await recv(ws) == render_frame("777", [{"cues": [], "speech": "It is short."}])
+    assert "send does not continue the streamed text" not in caplog.text
+
+
+async def test_a_streamed_sentence_that_is_only_such_a_path_is_not_spoken(client, adapter, tmp_path):
+    report = tmp_path / "audit.md"
+    report.write_text("done")
+    ws = await ready(client)
+    await adapter.on_processing_start(user_turn(adapter, "777"))
+    await stream(adapter, f"{report}\nThe summary is short. ")
+    assert await recv(ws) == speech_frame("777", "The summary is short.")
+    await adapter.send(CHAT, "The summary is short. Done.", metadata={"notify": True})
+    assert await recv(ws) == render_frame("777", [{"cues": [], "speech": "Done."}])
+
+
 async def test_a_client_that_reconnects_mid_answer_gets_the_rest_of_the_turn_in_its_render(client, adapter):
     """The text streamed while it was away never reaches the adapter under its chat."""
     ws = await ready(client)
