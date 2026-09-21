@@ -68,7 +68,7 @@ function recordingSinks() {
     entries.push({ expression: { emotion: args.emotion_id, motion: args.motion_id } }),
   );
   const renderer = {
-    // An envelope with no motion still reaches the body: the renderer returns it to idle.
+    // The completed path renders here; a channel the envelope omits records as undefined.
     applyDirective: vi.fn((envelope: ControlEnvelope) => {
       entries.push({ expression: { emotion: envelope.emotion?.id, motion: envelope.motion?.id } });
     }),
@@ -220,7 +220,7 @@ describe("turn-output conformance", () => {
     expect(normalize(push)).toEqual(expected);
   });
 
-  it("a bare [SILENT] reply speaks nothing, and only the stream path returns the body to idle", async () => {
+  it("a bare [SILENT] reply speaks nothing and leaves the body as it is", async () => {
     const stream = await runStream([
       deltaEvent("[SILE"),
       deltaEvent("NT]"),
@@ -232,9 +232,9 @@ describe("turn-output conformance", () => {
       source: "hermes",
       segments: [{ speech: "[SILENT]" }],
     });
-    // The stream path routes every completed envelope to the renderer, and one with no motion
-    // idles the body; push renders only the cues a segment carries, so it leaves the body alone.
-    expect(normalize(stream)).toEqual([{ expression: {} }]);
+    // Neither path touches the renderer: a reply that speaks nothing and carries no cue holds
+    // the expression and the motion in progress.
+    expect(normalize(stream)).toEqual([]);
     expect(normalize(push)).toEqual([]);
   });
 });

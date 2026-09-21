@@ -408,6 +408,21 @@ describe("backend_caller — per-beat cue application (pipeline ownership)", () 
     expect(applyDirective).toHaveBeenCalledWith(env);
   });
 
+  it("silent turn whose envelope carries neither channel → no applyDirective (the body keeps its motion)", async () => {
+    script.events = [deltaEvent("[SILENT]"), completedEvent({ speech_text: "[SILENT]" })];
+    const res = await caller.call(turnOf(userEnv()));
+    expect(res).toBe("ok");
+    expect(applyDirective).not.toHaveBeenCalled();
+  });
+
+  it("silent turn whose envelope carries an explicit motion: null → applyDirective at completed", async () => {
+    const env: ControlEnvelope = { speech_text: "", motion: null };
+    script.events = [completedEvent(env)];
+    const res = await caller.call(turnOf(userEnv()));
+    expect(res).toBe("ok");
+    expect(applyDirective).toHaveBeenCalledWith(env);
+  });
+
   it("completed-only backend (no express) with emotion/motion → applyDirective called at completed", async () => {
     const env: ControlEnvelope = {
       speech_text: "안녕",
