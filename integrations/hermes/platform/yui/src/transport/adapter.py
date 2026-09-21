@@ -47,9 +47,6 @@ INTERIM_MARKERS = ("expect_edits", "_interim_send")
 # The gateway's own notices reach send() unmarked, so _send_with_retry stamps them on the way in.
 NOTICE_MARKER = "_yui_gateway_notice"
 
-# One reasoning frame per window, so a token stream does not become a frame stream.
-REASONING_WINDOW_SECONDS = 0.1
-
 CLOSE_UNAUTHORIZED = 4401
 CLOSE_REPLACED = 4409
 
@@ -111,8 +108,7 @@ class YuiAdapter(BasePlatformAdapter):
         self._closings: set[asyncio.Task] = set()
         self._site: web.TCPSite | None = None
         self._homed: set[str] = set()
-        self._reasoning_pending: dict[str, list[str]] = {}
-        self._reasoning_flushes: dict[str, asyncio.Task] = {}
+        self._reasoning = reasoning.Coalescer(lambda chat_id, frame: self._send_frame(chat_id, frame))
         self._streams: dict[str, speech.Stream] = {}
         self._sends: set[asyncio.Task] = set()
 
@@ -168,18 +164,12 @@ class YuiAdapter(BasePlatformAdapter):
         reasoning.set_sink(None)
         speech.set_sink(None)
         tool_status.set_sink(None)
-        for task in (
-            *self._reasoning_flushes.values(),
-            *self._closings,
-            *self._confirmations,
-            *self._sends,
-        ):
+        for task in (*self._closings, *self._confirmations, *self._sends):
             task.cancel()
-        self._reasoning_flushes.clear()
+        self._reasoning.close()
         self._closings.clear()
         self._confirmations.clear()
         self._sends.clear()
-        self._reasoning_pending.clear()
         for chat_id, ws in list(self._sockets.items()):
             state.set_connected(chat_id, False)
             with contextlib.suppress(Exception):
@@ -499,41 +489,7 @@ class YuiAdapter(BasePlatformAdapter):
         if loop is None or not state.is_connected(chat_id):
             return
         with contextlib.suppress(RuntimeError):
-            loop.call_soon_threadsafe(self._collect_reasoning, chat_id, delta)
-
-    def _collect_reasoning(self, chat_id: str, delta: str) -> None:
-        self._reasoning_pending.setdefault(chat_id, []).append(delta)
-        self._arm_reasoning_flush(chat_id)
-
-    def _arm_reasoning_flush(self, chat_id: str) -> None:
-        if chat_id not in self._reasoning_flushes:
-            self._reasoning_flushes[chat_id] = asyncio.create_task(self._flush_reasoning(chat_id))
-
-    def _forget_reasoning(self, chat_id: str) -> None:
-        """A new turn thinks from nothing, so the last one's tail is not its opening words."""
-        # Pending goes first: a cancelled flush re-arms from its finally only when pending is non-empty.
-        self._reasoning_pending.pop(chat_id, None)
-        flush = self._reasoning_flushes.pop(chat_id, None)
-        if flush is not None:
-            flush.cancel()
-
-    async def _flush_reasoning(self, chat_id: str) -> None:
-        """What arrived during the window leaves as one frame; the client shows thinking, not text."""
-        try:
-            await asyncio.sleep(REASONING_WINDOW_SECONDS)
-            delta = "".join(self._reasoning_pending.pop(chat_id, []))
-            # A delta whose turn closed inside the window names no turn; the client could not place it.
-            turn = state.turn_id(chat_id)
-            if delta and turn is not None:
-                await self._send_frame(chat_id, {"type": "reasoning", "turn_id": turn, "delta": delta})
-        finally:
-            # No running loop only when the coroutine is collected after loop teardown.
-            with contextlib.suppress(RuntimeError):
-                if self._reasoning_flushes.get(chat_id) is asyncio.current_task():
-                    self._reasoning_flushes.pop(chat_id, None)
-                # A delta that arrived during the send found this flush still armed and scheduled none.
-                if self._reasoning_pending.get(chat_id):
-                    self._arm_reasoning_flush(chat_id)
+            loop.call_soon_threadsafe(self._reasoning.collect, chat_id, delta)
 
     # -- speech -------------------------------------------------------------------------------
 
@@ -830,7 +786,7 @@ class YuiAdapter(BasePlatformAdapter):
             state.reset(chat_id)
             stream.begin(connected=state.is_connected(chat_id))
             reasoning.clear(chat_id)
-            self._forget_reasoning(chat_id)
+            self._reasoning.forget(chat_id)
             internal = getattr(event, "internal", False)
             message_id = getattr(event, "message_id", "") or ""
             # Hooks of its own make this a turn, so it ends on its own and not with the one it joined.

@@ -1244,8 +1244,8 @@ async def test_a_reasoning_delta_flushed_after_its_turn_closed_sends_no_frame(cl
     await adapter.on_processing_complete(user_turn(adapter, "7"), ProcessingOutcome.SUCCESS)
     assert await recv(ws) == {"type": "turn_end", "turn_id": "7"}
     # The flush runs here directly: the armed task is still inside its window sleep.
-    adapter._collect_reasoning(CHAT, "HEAD")
-    await adapter._flush_reasoning(CHAT)
+    adapter._reasoning.collect(CHAT, "HEAD")
+    await adapter._reasoning.flush(CHAT)
     # An empty turn answers at once, so its turn_end proves no reasoning frame was queued ahead.
     await ws.send_json({"type": "turn", "turn_id": "9", "client_context": "", "text": ""})
     assert await recv(ws) == {"type": "turn_end", "turn_id": "9"}
@@ -1293,12 +1293,12 @@ async def test_a_delta_that_lands_during_a_flush_leaves_on_the_next_one(client, 
     async def admitting(chat_id, frame):
         if not admitted:
             admitted.append(True)
-            adapter._collect_reasoning(chat_id, "TAIL")
+            adapter._reasoning.collect(chat_id, "TAIL")
         return await send_frame(chat_id, frame)
 
     monkeypatch.setattr(adapter, "_send_frame", admitting)
     await adapter.on_processing_start(user_turn(adapter, "7"))
-    adapter._collect_reasoning(CHAT, "HEAD")
+    adapter._reasoning.collect(CHAT, "HEAD")
     assert (await recv(ws))["delta"] == "HEAD"
     assert (await recv(ws))["delta"] == "TAIL"
 
@@ -1311,16 +1311,16 @@ async def test_a_new_turn_keeps_none_of_the_last_turns_reasoning(client, adapter
     async def admitting(chat_id, frame):
         if not admitted:
             admitted.append(True)
-            adapter._collect_reasoning(chat_id, "TAIL")
+            adapter._reasoning.collect(chat_id, "TAIL")
         return await send_frame(chat_id, frame)
 
     monkeypatch.setattr(adapter, "_send_frame", admitting)
     await adapter.on_processing_start(user_turn(adapter, "7"))
-    adapter._collect_reasoning(CHAT, "HEAD")
+    adapter._reasoning.collect(CHAT, "HEAD")
     assert (await recv(ws))["delta"] == "HEAD"
     await adapter.on_processing_start(user_turn(adapter, "8"))
-    assert adapter._reasoning_pending == {}
-    assert adapter._reasoning_flushes == {}
+    assert adapter._reasoning.pending == {}
+    assert adapter._reasoning.flushes == {}
 
 
 def test_an_oversize_render_drops_its_reasoning_before_any_speech():
