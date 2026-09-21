@@ -86,6 +86,8 @@ The `vocabulary` object from `hello`, sent again whenever the renderable set cha
 
 `client_context` is the block described in [client-context.md](client-context.md), exactly as the other modes send it. `text` is the user utterance, or `""` on a turn no user typed or spoke. Every frame the backend sends for the turn carries the same `turn_id`, and a `turn_end` frame closes it.
 
+A backend that takes a new turn's text while it is still running an older one — into that run, or queued behind it — sends every frame that follows under the newer turn's `turn_id`, and closes both turns with their own `turn_end`. The client has stopped the older turn by then and drops frames that name it.
+
 A `turn_id` names one turn for as long as the backend remembers it. The client reads the wall clock when a run starts and counts up from there, one per turn. A run moves the counter on by its turn count and a restart reseeds from the clock, so a late `render` from a run that began at an earlier clock reading carries an id below the range this run issues. A run the backend starts on its own, such as a report on finished work, carries a `turn_id` the backend mints. Backend ids never collide with client ids; the backend adapter states the form its ids take.
 
 The client shows the turn running from the `turn` frame to its `turn_end`:

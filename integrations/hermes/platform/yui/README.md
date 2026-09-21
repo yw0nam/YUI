@@ -47,10 +47,11 @@ turns in and finished replies out. The contract both sides speak is
   connects while a turn runs, gets the rest of that turn in its `render`. The same holds for a turn
   whose text streams while no single client is connected, while the reset acknowledgement is still
   unspoken, or after a `speech` frame fails to send.
-- Names the most recently opened turn in every reply of a run, and clears the name when the turn
-  ends. A turn the gateway runs inside a turn it interrupted ends first, and the interrupted turn
-  ends behind it. A turn whose text the gateway takes into a turn already running on the same chat
-  ends when that turn ends. A turn the gateway started on its own, such as a cron result, carries an
+- Names the most recently arrived turn — open or joined — in every reply of a run, and clears the
+  name when the turn ends. A turn the gateway runs inside a turn it interrupted ends first, and the
+  interrupted turn ends behind it. A turn whose text the gateway takes into a turn already running
+  on the same chat ends when that turn ends, and every frame the plugin sends after that turn
+  arrives names its id. A turn the gateway started on its own, such as a cron result, carries an
   id the plugin mints, of the form `hermes-<n>`, counted per gateway process.
 - Sends a `delegations` frame whenever background work starts or finishes, so the client can show
   what is running; each finished item carries its `status` and `summary`. The plugin holds fifty
