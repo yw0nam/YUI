@@ -36,9 +36,10 @@ async function errorDetail(res: Response, signal: AbortSignal): Promise<string> 
 /**
  * GETs {baseUrl}/v1/audio/voices and returns the server's voice ids — the TTS server is the
  * source of truth for the speaker list, and its ids are opaque strings (non-ASCII included).
- * A down server or a malformed response must not throw into boot: logs a warn and resolves to [].
+ * A failed request (non-2xx, thrown request, deadline timeout) resolves to null so the caller
+ * can tell it from a server that genuinely lists no voices, which resolves to [].
  */
-export async function listVoices(opts: VoicesRequestOptions): Promise<string[]> {
+export async function listVoices(opts: VoicesRequestOptions): Promise<string[] | null> {
   const log = opts.logger ?? createLogger("tts-voices");
   const fetchImpl = opts.fetch ?? globalThis.fetch;
   const deadline = createDeadlineSignal(VOICES_REQUEST_TIMEOUT_MS, "TTS voice list timed out");
@@ -52,7 +53,7 @@ export async function listVoices(opts: VoicesRequestOptions): Promise<string[]> 
     );
     if (!res.ok) {
       log.warn("voice_list_failed", { status: res.status });
-      return [];
+      return null;
     }
     const body = (await untilAborted(res.json(), deadline.signal)) as {
       data?: Array<{ id?: unknown }>;
@@ -62,7 +63,7 @@ export async function listVoices(opts: VoicesRequestOptions): Promise<string[]> 
       .filter((id): id is string => typeof id === "string" && id.length > 0);
   } catch (err) {
     log.warn("voice_list_failed", { error: String(err) });
-    return [];
+    return null;
   } finally {
     deadline.clear();
   }

@@ -48,6 +48,8 @@ export function createVoiceListRefresh(deps: {
         logger: log,
       });
       if (mine !== generation) return; // superseded by a later refresh
+      // A failed list is not an empty server — keep the current manifest and user clips as they are.
+      if (ids === null) return;
       // A configured default the server doesn't (yet) have must not be conjured into existence.
       const defaultId = eps.tts_speaker && ids.includes(eps.tts_speaker) ? eps.tts_speaker : "";
       // A user-imported voice is uploaded to the server under its own id — once relisted it would
