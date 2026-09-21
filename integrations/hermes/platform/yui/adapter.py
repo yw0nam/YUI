@@ -664,7 +664,8 @@ class YuiAdapter(BasePlatformAdapter):
         task.add_done_callback(self._sends.discard)
 
     async def _send_tool_status(self, chat_id: str, tool_state: str, tool_name: str) -> None:
-        """A call on a chat with no open turn is not a YUI turn's; never held, never retried."""
+        """A call on a chat that holds no turn, open or joined, is not a YUI turn's; never held,
+        never retried."""
         turn = state.turn_id(chat_id)
         if turn is None:
             return
