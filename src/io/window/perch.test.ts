@@ -2,20 +2,17 @@ import { describe, expect, it } from "vitest";
 import type { WindowRect } from "../../contract";
 import { uncoveredSpan } from "./perch";
 
-const win = (over: Partial<WindowRect> = {}): WindowRect => ({
-  x: 300,
-  y: 400,
-  width: 520,
-  height: 320,
+/** A window whose top edge a perched walk runs along. */
+const SPAN_HOST: WindowRect = {
+  x: 1000,
+  y: 900,
+  width: 500,
+  height: 600,
   name: "Other",
   ownerName: "Visual Studio Code",
   pid: 999,
-  windowNumber: 7,
-  ...over,
-});
-
-/** A window whose top edge a perched walk runs along. */
-const SPAN_HOST: WindowRect = win({ x: 1000, y: 900, width: 500, height: 600, windowNumber: 42 });
+  windowNumber: 42,
+};
 
 /** A window reaching across the host's top edge (y 900) at the given x span. */
 function spanCover(x: number, width: number, windowNumber: number): WindowRect {
