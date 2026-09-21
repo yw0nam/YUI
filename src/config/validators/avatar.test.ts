@@ -126,58 +126,58 @@ describe("validateAvatar — happy path", () => {
 
 describe("validateAvatar — top-level shape", () => {
   it("rejects non-object raw", () => {
-    expectIssue([], "객체가 아님");
-    expectIssue("x", "객체가 아님");
-    expectIssue(null, "객체가 아님");
+    expectIssue([], "not an object");
+    expectIssue("x", "not an object");
+    expectIssue(null, "not an object");
   });
 
   it("rejects a missing vrm_url", () => {
-    expectIssue({}, "vrm_url은 비어 있지 않은 문자열이어야 함");
+    expectIssue({}, "vrm_url must be a non-empty string");
   });
 
   it("rejects an empty vrm_url", () => {
-    expectIssue({ vrm_url: "" }, "vrm_url은 비어 있지 않은 문자열이어야 함");
+    expectIssue({ vrm_url: "" }, "vrm_url must be a non-empty string");
   });
 
   it("rejects a non-string vrm_url", () => {
-    expectIssue({ vrm_url: 1 }, "vrm_url은 비어 있지 않은 문자열이어야 함");
+    expectIssue({ vrm_url: 1 }, "vrm_url must be a non-empty string");
   });
 });
 
 describe("validateAvatar — available[]", () => {
   it("rejects available that isn't an array", () => {
-    expectIssue(avatarWith({ available: "nope" }), "available은 배열이어야 함");
+    expectIssue(avatarWith({ available: "nope" }), "available must be an array");
   });
 
   it("rejects a non-object entry", () => {
-    expectIssue(avatarWith({ available: ["nope"] }), "available[0]: 항목이 객체가 아님");
+    expectIssue(avatarWith({ available: ["nope"] }), "available[0]: entry is not an object");
   });
 
   it("rejects an entry missing id/label/url", () => {
     expectIssue(
       avatarWith({ available: [{ id: "a" }] }),
-      "available[0].label는 비어 있지 않은 문자열이어야 함",
+      "available[0].label must be a non-empty string",
     );
   });
 
   it("rejects an entry with an empty label", () => {
     expectIssue(
       avatarWith({ available: [{ id: "a", label: "", url: "/a.vrm" }] }),
-      "available[0].label는 비어 있지 않은 문자열이어야 함",
+      "available[0].label must be a non-empty string",
     );
   });
 
   it("rejects an id with disallowed characters", () => {
     expectIssue(
       avatarWith({ available: [{ id: "a b", label: "A", url: "/a.vrm" }] }),
-      "available[0].id는 [A-Za-z0-9._-]만 허용",
+      "available[0].id must contain only [A-Za-z0-9._-]",
     );
   });
 
   it("rejects an unknown source", () => {
     expectIssue(
       avatarWith({ available: [{ id: "a", label: "A", url: "/a.vrm", source: "cdn" }] }),
-      "available[0].source는",
+      "available[0].source must be",
     );
   });
 
@@ -189,70 +189,79 @@ describe("validateAvatar — available[]", () => {
           { id: "a", label: "A2", url: "/a2.vrm" },
         ],
       }),
-      "available[1].id 중복",
+      "available[1].id is a duplicate",
     );
   });
 });
 
 describe("validateAvatar — framing", () => {
   it("rejects a non-object framing", () => {
-    expectIssue(avatarWith({ framing: "nope" }), "framing은 객체여야 함");
+    expectIssue(avatarWith({ framing: "nope" }), "framing must be an object");
   });
 
   it("rejects a negative margin", () => {
-    expectIssue(avatarWith({ framing: { margin: -1 } }), "framing.margin는 0 이상");
+    expectIssue(
+      avatarWith({ framing: { margin: -1 } }),
+      "framing.margin must be a finite number >= 0",
+    );
   });
 
   it("rejects fov <= 0", () => {
-    expectIssue(avatarWith({ framing: { fov: 0 } }), "framing.fov는 (0, 180)");
+    expectIssue(
+      avatarWith({ framing: { fov: 0 } }),
+      "framing.fov must be a finite number in (0, 180)",
+    );
   });
 
   it("rejects fov >= 180", () => {
-    expectIssue(avatarWith({ framing: { fov: 180 } }), "framing.fov는 (0, 180)");
+    expectIssue(
+      avatarWith({ framing: { fov: 180 } }),
+      "framing.fov must be a finite number in (0, 180)",
+    );
   });
 });
 
 describe("validateAvatar — hit_test", () => {
   it("rejects a non-object hit_test", () => {
-    expectIssue(avatarWith({ hit_test: "nope" }), "hit_test은 객체여야 함");
+    expectIssue(avatarWith({ hit_test: "nope" }), "hit_test must be an object");
   });
 
   it("rejects a negative hysteresis_margin_px", () => {
     expectIssue(
       avatarWith({ hit_test: { hysteresis_margin_px: -1 } }),
-      "hit_test.hysteresis_margin_px는 0 이상",
+      "hit_test.hysteresis_margin_px must be a finite number >= 0",
     );
   });
 
   it("rejects poll_interval_ms <= 0 (exclusive minimum)", () => {
     expectIssue(
       avatarWith({ hit_test: { poll_interval_ms: 0 } }),
-      "hit_test.poll_interval_ms는 0보다 큰",
+      "hit_test.poll_interval_ms must be a finite number > 0",
     );
   });
 
   it("rejects a non-integer debounce_samples", () => {
     expectIssue(
       avatarWith({ hit_test: { debounce_samples: 1.5 } }),
-      "hit_test.debounce_samples는 1 이상 정수여야 함",
+      "hit_test.debounce_samples must be an integer >= 1",
     );
   });
 
   it("rejects debounce_samples below 1", () => {
     expectIssue(
       avatarWith({ hit_test: { debounce_samples: 0 } }),
-      "hit_test.debounce_samples는 1 이상 정수여야 함",
+      "hit_test.debounce_samples must be an integer >= 1",
     );
   });
 
   it("rejects alpha_threshold outside (0, 1]", () => {
     expectIssue(
       avatarWith({ hit_test: { alpha_threshold: 0 } }),
-      "hit_test.alpha_threshold는 (0, 1]",
+      "hit_test.alpha_threshold must be a finite number in (0, 1]",
     );
     expectIssue(
       avatarWith({ hit_test: { alpha_threshold: 1.5 } }),
-      "hit_test.alpha_threshold는 (0, 1]",
+      "hit_test.alpha_threshold must be a finite number in (0, 1]",
     );
   });
 });
@@ -283,15 +292,18 @@ describe("validateAvatar — tap", () => {
   });
 
   it("rejects a non-object tap block", () => {
-    expectIssue(avatarWith({ tap: "nope" }), "tap은 객체여야 함");
+    expectIssue(avatarWith({ tap: "nope" }), "tap must be an object");
   });
 
   it.each([1, 2.5, Number.NaN, "4"])("rejects invalid spam_count: %s", (spam_count) => {
-    expectIssue(avatarWith({ tap: { spam_count } }), "tap.spam_count는 2 이상 정수");
+    expectIssue(avatarWith({ tap: { spam_count } }), "tap.spam_count must be an integer >= 2");
   });
 
   it.each([0, 60001, 1.5, "3000"])("rejects invalid spam_window_ms: %s", (spam_window_ms) => {
-    expectIssue(avatarWith({ tap: { spam_window_ms } }), "tap.spam_window_ms는 1..60000 범위 정수");
+    expectIssue(
+      avatarWith({ tap: { spam_window_ms } }),
+      "tap.spam_window_ms must be an integer in [1, 60000]",
+    );
   });
 
   it.each([
@@ -300,7 +312,10 @@ describe("validateAvatar — tap", () => {
     Number.NaN,
     "0.18",
   ])("rejects invalid region_radius_frac: %s", (region_radius_frac) => {
-    expectIssue(avatarWith({ tap: { region_radius_frac } }), "tap.region_radius_frac는 (0, 1]");
+    expectIssue(
+      avatarWith({ tap: { region_radius_frac } }),
+      "tap.region_radius_frac must be a finite number in (0, 1]",
+    );
   });
 
   it("accepts inclusive numeric boundaries", () => {
@@ -316,23 +331,26 @@ describe("validateAvatar — tap", () => {
   });
 
   it("rejects invalid or unknown region motion entries", () => {
-    expectIssue(avatarWith({ tap: { region_motions: [] } }), "tap.region_motions은 객체여야 함");
+    expectIssue(
+      avatarWith({ tap: { region_motions: [] } }),
+      "tap.region_motions must be an object",
+    );
     expectIssue(
       avatarWith({ tap: { region_motions: { feet: "wave" } } }),
-      "tap.region_motions.feet는 허용되지 않는 키",
+      "tap.region_motions.feet is an unknown key",
     );
     expectIssue(
       avatarWith({ tap: { region_motions: { chest: "" } } }),
-      "tap.region_motions.chest는 비어 있지 않은 문자열",
+      "tap.region_motions.chest must be a non-empty string",
     );
     expectIssue(
       avatarWith({ tap: { region_motions: { hips: 1 } } }),
-      "tap.region_motions.hips는 비어 있지 않은 문자열",
+      "tap.region_motions.hips must be a non-empty string",
     );
   });
 
   it("rejects a non-object bored_cue", () => {
-    expectIssue(avatarWith({ tap: { bored_cue: "nope" } }), "tap.bored_cue은 객체여야 함");
+    expectIssue(avatarWith({ tap: { bored_cue: "nope" } }), "tap.bored_cue must be an object");
   });
 
   it.each([
@@ -343,7 +361,7 @@ describe("validateAvatar — tap", () => {
   ] as const)("rejects an empty or non-string bored_cue.%s", (field, value) => {
     expectIssue(
       avatarWith({ tap: { bored_cue: { [field]: value } } }),
-      `tap.bored_cue.${field}는 비어 있지 않은 문자열`,
+      `tap.bored_cue.${field} must be a non-empty string`,
     );
   });
 });
@@ -370,26 +388,29 @@ describe("validateAvatar — tap touch reactions", () => {
   });
 
   it("rejects invalid or unknown region emotion entries", () => {
-    expectIssue(avatarWith({ tap: { region_emotions: [] } }), "tap.region_emotions은 객체여야 함");
+    expectIssue(
+      avatarWith({ tap: { region_emotions: [] } }),
+      "tap.region_emotions must be an object",
+    );
     expectIssue(
       avatarWith({ tap: { region_emotions: { feet: "happy" } } }),
-      "tap.region_emotions.feet는 허용되지 않는 키",
+      "tap.region_emotions.feet is an unknown key",
     );
     expectIssue(
       avatarWith({ tap: { region_emotions: { chest: "" } } }),
-      "tap.region_emotions.chest는 비어 있지 않은 문자열",
+      "tap.region_emotions.chest must be a non-empty string",
     );
   });
 
   it("rejects malformed region_cues", () => {
-    expectIssue(avatarWith({ tap: { region_cues: "nope" } }), "tap.region_cues은 객체여야 함");
+    expectIssue(avatarWith({ tap: { region_cues: "nope" } }), "tap.region_cues must be an object");
     expectIssue(
       avatarWith({ tap: { region_cues: { feet: { label: "a", context: "b" } } } }),
-      "tap.region_cues.feet는 허용되지 않는 키",
+      "tap.region_cues.feet is an unknown key",
     );
     expectIssue(
       avatarWith({ tap: { region_cues: { chest: "nope" } } }),
-      "tap.region_cues.chest는 객체여야 함",
+      "tap.region_cues.chest must be an object",
     );
     expectIssue(
       avatarWith({ tap: { region_cues: { chest: { label: "", context: "b" } } } }),
@@ -413,7 +434,7 @@ describe("validateAvatar — tap touch reactions", () => {
   it.each([-1, 1.5, "0"])("rejects invalid touch_cue_cooldown_ms: %s", (touch_cue_cooldown_ms) => {
     expectIssue(
       avatarWith({ tap: { touch_cue_cooldown_ms } }),
-      "tap.touch_cue_cooldown_ms는 0 이상 정수",
+      "tap.touch_cue_cooldown_ms must be an integer >= 0",
     );
   });
 
@@ -424,7 +445,7 @@ describe("validateAvatar — tap touch reactions", () => {
   ])("rejects invalid touch_emotion_hold_ms: %s", (touch_emotion_hold_ms) => {
     expectIssue(
       avatarWith({ tap: { touch_emotion_hold_ms } }),
-      "tap.touch_emotion_hold_ms는 1 이상 정수",
+      "tap.touch_emotion_hold_ms must be an integer >= 1",
     );
   });
 
@@ -450,7 +471,7 @@ describe("validateAvatar — tap touch reactions", () => {
   });
 
   it.each([0, 1.5, "300"])("rejects invalid pat_hold_ms: %s", (pat_hold_ms) => {
-    expectIssue(avatarWith({ tap: { pat_hold_ms } }), "tap.pat_hold_ms는 1 이상 정수");
+    expectIssue(avatarWith({ tap: { pat_hold_ms } }), "tap.pat_hold_ms must be an integer >= 1");
   });
 
   it("accepts a zero cooldown", () => {
@@ -475,7 +496,7 @@ describe("validateAvatar — peek", () => {
   });
 
   it("rejects a non-object peek block", () => {
-    expectIssue(avatarWith({ peek: "nope" }), "peek은 객체여야 함");
+    expectIssue(avatarWith({ peek: "nope" }), "peek must be an object");
   });
 
   it.each([
@@ -484,7 +505,10 @@ describe("validateAvatar — peek", () => {
     ["side_in_frac", Number.NaN],
     ["side_in_frac", "0.23"],
   ])("rejects invalid %s: %s", (field, value) => {
-    expectIssue(avatarWith({ peek: { [field]: value } }), `peek.${field}는 (0, 2]`);
+    expectIssue(
+      avatarWith({ peek: { [field]: value } }),
+      `peek.${field} must be a finite number in (0, 2]`,
+    );
   });
 
   it.each([
@@ -493,11 +517,17 @@ describe("validateAvatar — peek", () => {
     Number.POSITIVE_INFINITY,
     "0.12",
   ])("rejects invalid inset_frac: %s", (inset_frac) => {
-    expectIssue(avatarWith({ peek: { inset_frac } }), "peek.inset_frac는 [0, 1]");
+    expectIssue(
+      avatarWith({ peek: { inset_frac } }),
+      "peek.inset_frac must be a finite number in [0, 1]",
+    );
   });
 
   it.each(["up", true, 1])("rejects invalid mirror_side: %s", (mirror_side) => {
-    expectIssue(avatarWith({ peek: { mirror_side } }), "peek.mirror_side는 left|right|none");
+    expectIssue(
+      avatarWith({ peek: { mirror_side } }),
+      "peek.mirror_side must be one of left|right|none",
+    );
   });
 });
 
@@ -518,7 +548,7 @@ describe("validateAvatar — walk", () => {
   });
 
   it("rejects a non-object walk block", () => {
-    expectIssue(avatarWith({ walk: "nope" }), "walk은 객체여야 함");
+    expectIssue(avatarWith({ walk: "nope" }), "walk must be an object");
   });
 
   it.each([
@@ -528,7 +558,10 @@ describe("validateAvatar — walk", () => {
     ["distance_min_px", Number.NaN],
     ["distance_max_px", 0],
   ])("rejects invalid %s: %s", (field, value) => {
-    expectIssue(avatarWith({ walk: { [field]: value } }), `walk.${field}는 0보다 큰`);
+    expectIssue(
+      avatarWith({ walk: { [field]: value } }),
+      `walk.${field} must be a finite number > 0`,
+    );
   });
 
   it.each([
@@ -536,20 +569,23 @@ describe("validateAvatar — walk", () => {
     "8",
     Number.POSITIVE_INFINITY,
   ])("rejects invalid floor_tolerance_px: %s", (floor_tolerance_px) => {
-    expectIssue(avatarWith({ walk: { floor_tolerance_px } }), "walk.floor_tolerance_px는 0 이상");
+    expectIssue(
+      avatarWith({ walk: { floor_tolerance_px } }),
+      "walk.floor_tolerance_px must be a finite number >= 0",
+    );
   });
 
   it("rejects an inverted interval range", () => {
     expectIssue(
       avatarWith({ walk: { interval_min_ms: 200_000 } }),
-      "walk.interval_min_ms는 walk.interval_max_ms 이하",
+      "walk.interval_min_ms must be <= walk.interval_max_ms",
     );
   });
 
   it("rejects an inverted distance range", () => {
     expectIssue(
       avatarWith({ walk: { distance_min_px: 700 } }),
-      "walk.distance_min_px는 walk.distance_max_px 이하",
+      "walk.distance_min_px must be <= walk.distance_max_px",
     );
   });
 });
@@ -574,7 +610,7 @@ describe("validateAvatar — perch_walk", () => {
   });
 
   it("rejects a non-object perch-walk block", () => {
-    expectIssue(avatarWith({ perch_walk: "nope" }), "perch_walk은 객체여야 함");
+    expectIssue(avatarWith({ perch_walk: "nope" }), "perch_walk must be an object");
   });
 
   it.each([
@@ -593,11 +629,11 @@ describe("validateAvatar — perch_walk", () => {
   it("rejects inverted dwell and distance ranges", () => {
     expectIssue(
       avatarWith({ perch_walk: { dwell_min_ms: 130_000 } }),
-      "perch_walk.dwell_min_ms는 perch_walk.dwell_max_ms 이하",
+      "perch_walk.dwell_min_ms must be <= perch_walk.dwell_max_ms",
     );
     expectIssue(
       avatarWith({ perch_walk: { distance_min_px: 500 } }),
-      "perch_walk.distance_min_px는 perch_walk.distance_max_px 이하",
+      "perch_walk.distance_min_px must be <= perch_walk.distance_max_px",
     );
   });
 });
@@ -620,7 +656,7 @@ describe("validateAvatar — fall", () => {
   });
 
   it("rejects a non-object fall block", () => {
-    expectIssue(avatarWith({ fall: "nope" }), "fall은 객체여야 함");
+    expectIssue(avatarWith({ fall: "nope" }), "fall must be an object");
   });
 
   it.each([
@@ -631,7 +667,10 @@ describe("validateAvatar — fall", () => {
     ["land_room_frac", 0],
     ["land_room_frac", "0.5"],
   ])("rejects invalid %s: %s", (field, value) => {
-    expectIssue(avatarWith({ fall: { [field]: value } }), `fall.${field}는 0보다 큰`);
+    expectIssue(
+      avatarWith({ fall: { [field]: value } }),
+      `fall.${field} must be a finite number > 0`,
+    );
   });
 
   it.each([
@@ -640,7 +679,10 @@ describe("validateAvatar — fall", () => {
     "0.2",
     Number.NaN,
   ])("rejects a min_drop_frac outside [0, 1]: %s", (min_drop_frac) => {
-    expectIssue(avatarWith({ fall: { min_drop_frac } }), "fall.min_drop_frac는 [0, 1]");
+    expectIssue(
+      avatarWith({ fall: { min_drop_frac } }),
+      "fall.min_drop_frac must be a finite number in [0, 1]",
+    );
   });
 
   it("accepts the boundary fractions", () => {
@@ -653,7 +695,10 @@ describe("validateAvatar — fall", () => {
   });
 
   it.each([-1, "60000", 1.5])("rejects an invalid cue_cooldown_ms: %s", (cue_cooldown_ms) => {
-    expectIssue(avatarWith({ fall: { cue_cooldown_ms } }), "fall.cue_cooldown_ms는 0 이상");
+    expectIssue(
+      avatarWith({ fall: { cue_cooldown_ms } }),
+      "fall.cue_cooldown_ms must be an integer >= 0",
+    );
   });
 
   it.each([
@@ -664,7 +709,7 @@ describe("validateAvatar — fall", () => {
   ])("rejects a step_off_probability outside [0, 1]: %s", (step_off_probability) => {
     expectIssue(
       avatarWith({ fall: { step_off_probability } }),
-      "fall.step_off_probability는 [0, 1]",
+      "fall.step_off_probability must be a finite number in [0, 1]",
     );
   });
 
@@ -682,7 +727,10 @@ describe("validateAvatar — fall", () => {
 
 describe("validateAvatar — descend", () => {
   it.each([1.5, -0.1])("rejects a chance outside [0, 1]: %s", (chance) => {
-    expectIssue(avatarWith({ descend: { chance } }), "descend.chance는 [0, 1]");
+    expectIssue(
+      avatarWith({ descend: { chance } }),
+      "descend.chance must be a finite number in [0, 1]",
+    );
   });
 
   it("accepts the boundary chances", () => {
@@ -713,7 +761,7 @@ describe("validateAvatar — climb", () => {
   });
 
   it("rejects a non-object climb block", () => {
-    expectIssue(avatarWith({ climb: "nope" }), "climb은 객체여야 함");
+    expectIssue(avatarWith({ climb: "nope" }), "climb must be an object");
   });
 
   it.each([
@@ -722,7 +770,10 @@ describe("validateAvatar — climb", () => {
     ["perch_dwell_min_ms", 1.5],
     ["perch_dwell_max_ms", Number.NaN],
   ])("rejects invalid %s: %s", (field, value) => {
-    expectIssue(avatarWith({ climb: { [field]: value } }), `climb.${field}는 0 이상 정수`);
+    expectIssue(
+      avatarWith({ climb: { [field]: value } }),
+      `climb.${field} must be an integer >= 0`,
+    );
   });
 
   it.each([
@@ -733,27 +784,30 @@ describe("validateAvatar — climb", () => {
     ["ledge_walk_min_frac", 0],
     ["ledge_walk_max_frac", Number.POSITIVE_INFINITY],
   ])("rejects invalid %s: %s", (field, value) => {
-    expectIssue(avatarWith({ climb: { [field]: value } }), `climb.${field}는 0보다 큰`);
+    expectIssue(
+      avatarWith({ climb: { [field]: value } }),
+      `climb.${field} must be a finite number > 0`,
+    );
   });
 
   it("rejects an inverted interval range", () => {
     expectIssue(
       avatarWith({ climb: { interval_min_ms: 200_000 } }),
-      "climb.interval_min_ms는 climb.interval_max_ms 이하",
+      "climb.interval_min_ms must be <= climb.interval_max_ms",
     );
   });
 
   it("rejects an inverted dwell range", () => {
     expectIssue(
       avatarWith({ climb: { perch_dwell_min_ms: 200_000 } }),
-      "climb.perch_dwell_min_ms는 climb.perch_dwell_max_ms 이하",
+      "climb.perch_dwell_min_ms must be <= climb.perch_dwell_max_ms",
     );
   });
 
   it("rejects an inverted ledge-walk range", () => {
     expectIssue(
       avatarWith({ climb: { ledge_walk_min_frac: 2 } }),
-      "climb.ledge_walk_min_frac는 climb.ledge_walk_max_frac 이하",
+      "climb.ledge_walk_min_frac must be <= climb.ledge_walk_max_frac",
     );
   });
 });
@@ -780,16 +834,19 @@ describe("validateAvatar — jump", () => {
   it.each([0, -1, "4000", 1.5])("rejects an invalid flight_timeout_ms: %s", (value) => {
     expectIssue(
       avatarWith({ jump: { flight_timeout_ms: value } }),
-      "jump.flight_timeout_ms는 0보다 큰 정수",
+      "jump.flight_timeout_ms must be an integer > 0",
     );
   });
 
   it("rejects a non-object jump block", () => {
-    expectIssue(avatarWith({ jump: "nope" }), "jump은 객체여야 함");
+    expectIssue(avatarWith({ jump: "nope" }), "jump must be an object");
   });
 
   it.each([-0.1, 1.1, "0.3", Number.NaN])("rejects an invalid probability: %s", (probability) => {
-    expectIssue(avatarWith({ jump: { probability } }), "jump.probability는 [0, 1] 범위");
+    expectIssue(
+      avatarWith({ jump: { probability } }),
+      "jump.probability must be a finite number in [0, 1]",
+    );
   });
 
   it.each([
@@ -798,20 +855,26 @@ describe("validateAvatar — jump", () => {
     ["gap_max_width_frac", "1.5"],
     ["apex_lift_frac", Number.POSITIVE_INFINITY],
   ])("rejects invalid %s: %s", (field, value) => {
-    expectIssue(avatarWith({ jump: { [field]: value } }), `jump.${field}는 0보다 큰`);
+    expectIssue(
+      avatarWith({ jump: { [field]: value } }),
+      `jump.${field} must be a finite number > 0`,
+    );
   });
 
   it.each([
     ["takeoff_frac", -0.1],
     ["land_frac", 1.5],
   ])("rejects invalid %s: %s", (field, value) => {
-    expectIssue(avatarWith({ jump: { [field]: value } }), `jump.${field}는 [0, 1] 범위`);
+    expectIssue(
+      avatarWith({ jump: { [field]: value } }),
+      `jump.${field} must be a finite number in [0, 1]`,
+    );
   });
 
   it("rejects an airborne window that ends before it starts", () => {
     expectIssue(
       avatarWith({ jump: { takeoff_frac: 0.8 } }),
-      "jump.takeoff_frac는 jump.land_frac 미만",
+      "jump.takeoff_frac must be < jump.land_frac",
     );
   });
 });
@@ -823,7 +886,7 @@ describe("validateAvatar — drag_hold_ms", () => {
   });
 
   it.each([0, -1, 1.5, "5000", Number.NaN])("rejects invalid drag_hold_ms: %s", (drag_hold_ms) => {
-    expectIssue(avatarWith({ drag_hold_ms }), "drag_hold_ms는 1 이상 정수");
+    expectIssue(avatarWith({ drag_hold_ms }), "drag_hold_ms must be an integer >= 1");
   });
 });
 
@@ -855,20 +918,20 @@ describe("validateAvatar — gesture_cues", () => {
   });
 
   it("rejects a non-object gesture_cues block", () => {
-    expectIssue(avatarWith({ gesture_cues: "nope" }), "gesture_cues은 객체여야 함");
+    expectIssue(avatarWith({ gesture_cues: "nope" }), "gesture_cues must be an object");
   });
 
   it("rejects an unknown gesture_cues key", () => {
     expectIssue(
       avatarWith({ gesture_cues: { tap_bored: { label: "a", context: "b" } } }),
-      "gesture_cues.tap_bored는 허용되지 않는 키",
+      "gesture_cues.tap_bored is an unknown key",
     );
   });
 
   it("rejects a non-object cue entry", () => {
     expectIssue(
       avatarWith({ gesture_cues: { drag_held: "nope" } }),
-      "gesture_cues.drag_held는 객체여야 함",
+      "gesture_cues.drag_held must be an object",
     );
   });
 
@@ -880,14 +943,14 @@ describe("validateAvatar — gesture_cues", () => {
   ] as const)("rejects an empty or non-string gesture_cues.drag_held.%s", (field, value) => {
     expectIssue(
       avatarWith({ gesture_cues: { drag_held: { [field]: value } } }),
-      `gesture_cues.drag_held.${field}는 비어 있지 않은 문자열`,
+      `gesture_cues.drag_held.${field} must be a non-empty string`,
     );
   });
 });
 
 describe("validateAvatar — gaze", () => {
   it("rejects a non-object gaze", () => {
-    expectIssue(avatarWith({ gaze: "nope" }), "gaze는 객체여야 함");
+    expectIssue(avatarWith({ gaze: "nope" }), "gaze must be an object");
   });
 
   it("accepts deadDeg:0 (inclusive lower bound)", () => {
@@ -896,15 +959,21 @@ describe("validateAvatar — gaze", () => {
   });
 
   it("rejects headEngageDeg:0 (exclusive lower bound)", () => {
-    expectIssue(avatarWith({ gaze: { headEngageDeg: 0 } }), "gaze.headEngageDeg는");
+    expectIssue(
+      avatarWith({ gaze: { headEngageDeg: 0 } }),
+      "gaze.headEngageDeg must be a finite number in (0, 180]",
+    );
   });
 
   it("rejects maxHeadYaw above 90", () => {
-    expectIssue(avatarWith({ gaze: { maxHeadYaw: 91 } }), "gaze.maxHeadYaw는");
+    expectIssue(avatarWith({ gaze: { maxHeadYaw: 91 } }), "gaze.maxHeadYaw must be");
   });
 
   it("rejects headNeckSplit outside [0, 1]", () => {
-    expectIssue(avatarWith({ gaze: { headNeckSplit: 1.1 } }), "gaze.headNeckSplit는");
+    expectIssue(
+      avatarWith({ gaze: { headNeckSplit: 1.1 } }),
+      "gaze.headNeckSplit must be a finite number in [0, 1]",
+    );
   });
 
   it("accepts headNeckSplit:0 (inclusive lower bound)", () => {
@@ -913,10 +982,10 @@ describe("validateAvatar — gaze", () => {
   });
 
   it("rejects smooth above 1000", () => {
-    expectIssue(avatarWith({ gaze: { smooth: 1001 } }), "gaze.smooth는");
+    expectIssue(avatarWith({ gaze: { smooth: 1001 } }), "gaze.smooth must be");
   });
 
   it("rejects a non-finite gaze value", () => {
-    expectIssue(avatarWith({ gaze: { eyeMaxDeg: Number.NaN } }), "gaze.eyeMaxDeg는");
+    expectIssue(avatarWith({ gaze: { eyeMaxDeg: Number.NaN } }), "gaze.eyeMaxDeg must be");
   });
 });

@@ -45,9 +45,9 @@ describe("validateEmotionRegistry — happy path", () => {
 
 describe("validateEmotionRegistry — top-level shape", () => {
   it("rejects non-object raw", () => {
-    expectIssue([], "객체가 아님");
-    expectIssue("x", "객체가 아님");
-    expectIssue(null, "객체가 아님");
+    expectIssue([], "not an object");
+    expectIssue("x", "not an object");
+    expectIssue(null, "not an object");
   });
 });
 
@@ -55,20 +55,23 @@ describe("validateEmotionRegistry — key/entry validation", () => {
   it("rejects an id outside the emotion enum", () => {
     expectIssue(
       { bogus: { vrm_expression: "x", fallback: "neutral" } },
-      "bogus: 알 수 없는 emotion id",
+      "bogus: not a known emotion id",
     );
   });
 
   it("rejects a non-object entry", () => {
-    expectIssue({ happy: "not-an-object" }, "happy: 항목이 객체가 아님");
+    expectIssue({ happy: "not-an-object" }, "happy: entry is not an object");
   });
 
   it("rejects a non-string vrm_expression", () => {
-    expectIssue({ happy: { vrm_expression: 1, fallback: "neutral" } }, "vrm_expression은 문자열");
+    expectIssue(
+      { happy: { vrm_expression: 1, fallback: "neutral" } },
+      "vrm_expression must be a string",
+    );
   });
 
   it("rejects a non-string fallback", () => {
-    expectIssue({ happy: { vrm_expression: "happy", fallback: 1 } }, "fallback은 문자열");
+    expectIssue({ happy: { vrm_expression: "happy", fallback: 1 } }, "fallback must be a string");
   });
 
   it("accumulates issues across multiple bad entries", () => {

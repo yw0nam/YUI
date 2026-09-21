@@ -34,7 +34,7 @@ describe("validateHotkeys — top-level shape", () => {
         expect.unreachable("validateHotkeys should have thrown");
       } catch (e) {
         expect(e).toBeInstanceOf(ConfigError);
-        expect((e as ConfigError).issues).toContain("객체가 아님");
+        expect((e as ConfigError).issues).toContain("not an object");
       }
     }
   });
@@ -49,7 +49,7 @@ describe("validateHotkeys — summon_global type", () => {
       expect(e).toBeInstanceOf(ConfigError);
       const err = e as ConfigError;
       expect(err.file).toBe(FILE);
-      expect(err.issues.some((i) => i.includes("summon_global은 문자열이어야 함"))).toBe(true);
+      expect(err.issues.some((i) => i.includes("summon_global must be a string"))).toBe(true);
     }
   });
 });

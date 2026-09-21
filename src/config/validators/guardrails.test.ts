@@ -63,15 +63,15 @@ describe("validateGuardrails — happy path", () => {
 
 describe("validateGuardrails — top-level shape", () => {
   it("rejects non-object raw", () => {
-    expectIssue([], "객체가 아님");
-    expectIssue("x", "객체가 아님");
-    expectIssue(null, "객체가 아님");
+    expectIssue([], "not an object");
+    expectIssue("x", "not an object");
+    expectIssue(null, "not an object");
   });
 });
 
 describe("validateGuardrails — debounce_ms", () => {
   it("rejects a non-object debounce_ms", () => {
-    expectIssue(baseRaw({ debounce_ms: "nope" }), "debounce_ms는 객체여야 함");
+    expectIssue(baseRaw({ debounce_ms: "nope" }), "debounce_ms must be an object");
   });
 
   it("rejects a negative field", () => {
@@ -83,7 +83,7 @@ describe("validateGuardrails — debounce_ms", () => {
           screen_watcher: 5000,
         },
       }),
-      "debounce_ms.os_event_watcher는 0 이상 유한 number여야 함",
+      "debounce_ms.os_event_watcher must be a finite number >= 0",
     );
   });
 
@@ -92,14 +92,14 @@ describe("validateGuardrails — debounce_ms", () => {
       baseRaw({
         debounce_ms: { os_event_watcher: 5000 },
       }),
-      "debounce_ms.user_input_source는 0 이상 유한 number여야 함",
+      "debounce_ms.user_input_source must be a finite number >= 0",
     );
   });
 });
 
 describe("validateGuardrails — rate_limit", () => {
   it("rejects a non-object rate_limit", () => {
-    expectIssue(baseRaw({ rate_limit: "nope" }), "rate_limit는 객체여야 함");
+    expectIssue(baseRaw({ rate_limit: "nope" }), "rate_limit must be an object");
   });
 
   it("rejects a negative field", () => {
@@ -113,7 +113,7 @@ describe("validateGuardrails — rate_limit", () => {
           cooldown_ms: 300000,
         },
       }),
-      "rate_limit.tier2_max는 0 이상 유한 number여야 함",
+      "rate_limit.tier2_max must be a finite number >= 0",
     );
   });
 
@@ -140,31 +140,31 @@ describe("validateGuardrails — attachments", () => {
   it("names attachments when the block is absent", () => {
     const raw = baseRaw();
     delete raw.attachments;
-    expectIssue(raw, "attachments는 객체여야 함");
+    expectIssue(raw, "attachments must be an object");
   });
 
   it("names the key a partial block omits", () => {
     expectIssue(
       baseRaw({ attachments: { max_count: 3 } }),
-      "attachments.max_image_bytes는 0 이상 유한 number여야 함",
+      "attachments.max_image_bytes must be a finite number >= 0",
     );
   });
 
   it("rejects a malformed key", () => {
     expectIssue(
       baseRaw({ attachments: { max_count: 6, max_image_bytes: "big" } }),
-      "attachments.max_image_bytes는 0 이상 유한 number여야 함",
+      "attachments.max_image_bytes must be a finite number >= 0",
     );
   });
 
   it("rejects a non-object attachments", () => {
-    expectIssue(baseRaw({ attachments: "nope" }), "attachments는 객체여야 함");
+    expectIssue(baseRaw({ attachments: "nope" }), "attachments must be an object");
   });
 
   it("rejects a negative field", () => {
     expectIssue(
       baseRaw({ attachments: { max_count: -1, max_image_bytes: 1024 } }),
-      "attachments.max_count는 0 이상 유한 number여야 함",
+      "attachments.max_count must be a finite number >= 0",
     );
   });
 });

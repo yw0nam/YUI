@@ -37,7 +37,7 @@ describe("validateScreen — top-level shape", () => {
         expect.unreachable("validateScreen should have thrown");
       } catch (e) {
         expect(e).toBeInstanceOf(ConfigError);
-        expect((e as ConfigError).issues).toContain("객체가 아님");
+        expect((e as ConfigError).issues).toContain("not an object");
       }
     }
   });
