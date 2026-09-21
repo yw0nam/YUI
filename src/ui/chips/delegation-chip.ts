@@ -37,7 +37,7 @@ interface DelegationChipOptions {
   store: DelegationsPort;
   /** Per-device fold choice. */
   collapsed: DelegationChipSettingsStore;
-  /** The transport the chip reports on. disconnected draws nothing; the others read as a lost connection. */
+  /** The transport the chip reports on: disconnected draws nothing; connecting, reconnecting and failed read as a lost connection. */
   pushState: PushStatePort;
   /** Opens the settings window at the chat section — what a tap does while the connection is lost. */
   onOpenSettings(): void;

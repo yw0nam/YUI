@@ -48,7 +48,7 @@ function pair() {
 
 const SURFACE_OPS: MessageSurfaceOp[] = [
   { op: "begin" },
-  { op: "delta", delta: "hello" },
+  { op: "push", delta: "hello" },
   { op: "end" },
   { op: "end", defer: true },
   { op: "finish" },
@@ -141,7 +141,7 @@ describe("createRemoteSurfaces — the pet-side adapter", () => {
 
     expect(seen).toEqual([
       { op: "begin" },
-      { op: "delta", delta: "a" },
+      { op: "push", delta: "a" },
       { op: "end", defer: true },
       { op: "finish" },
       { op: "hide" },

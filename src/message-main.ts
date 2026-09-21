@@ -79,7 +79,6 @@ async function bootstrap(): Promise<void> {
   const chipCollapsed = createDelegationChipSettings({
     storage: localStorageDelegationChipStorage(),
   });
-  // No suppression here: the mirror starts disconnected, which already draws nothing.
   const chip = createDelegationChip({
     mount: plateRow,
     store: delegations,
@@ -103,7 +102,7 @@ async function bootstrap(): Promise<void> {
         plate.setLive(true);
         surfaces.beginSpeech();
         break;
-      case "delta":
+      case "push":
         surfaces.pushSpeech(op.delta);
         break;
       case "end":

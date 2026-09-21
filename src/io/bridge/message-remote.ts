@@ -84,7 +84,7 @@ export function createRemoteSurfaces(bridge: MessageBridge): RemoteSurfaces {
       bridge.emitSurface({ op: "begin" });
     },
     pushSpeech(delta) {
-      bridge.emitSurface({ op: "delta", delta });
+      bridge.emitSurface({ op: "push", delta });
     },
     endSpeech(opts) {
       bridge.emitSurface(opts?.defer ? { op: "end", defer: true } : { op: "end" });

@@ -16,7 +16,7 @@ const CH_MESSAGE_CONTROL = "yui://message-control";
 /** Pet → message: one call on the message window's local `Surfaces`. */
 export type MessageSurfaceOp =
   | { op: "begin" }
-  | { op: "delta"; delta: string }
+  | { op: "push"; delta: string }
   | { op: "end"; defer?: boolean }
   | { op: "finish" }
   | { op: "hide" }
