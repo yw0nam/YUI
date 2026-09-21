@@ -841,6 +841,45 @@ describe("backend_caller — 404 chain-break retry does not leak attempt-1 envel
     expect(applyDirective).not.toHaveBeenCalled();
     expect(onResponseId).not.toHaveBeenCalled();
   });
+
+  it("interrupts attempt 1's reasoning cycle before the retry, so its text does not join attempt 2's", async () => {
+    const onResponseId = vi.fn();
+    const onResponseIdInvalid = vi.fn();
+    const onChainReset = vi.fn();
+    let stored: string | undefined = "resp_dead";
+    const getPreviousResponseId = vi.fn(() => stored);
+    onResponseIdInvalid.mockImplementation(() => {
+      stored = undefined;
+    });
+    const store = createReasoningStore();
+
+    caller = createBackendCaller({
+      config: CONFIG,
+      renderer: { applyDirective } as never,
+      getApiKey: async () => "k",
+      getFetch: async () => undefined,
+      stream: script.stream,
+      turnOutput,
+      reasoning: store,
+      getPreviousResponseId,
+      onResponseId,
+      onResponseIdInvalid,
+      onChainReset,
+      logger,
+    });
+
+    // Attempt 1 streams reasoning, then dies on the 404 chain-break; attempt 2 is the retry.
+    script.events = [
+      reasoningEvent("stale "),
+      { type: "error", message: "Previous response not found: resp_dead", status: 404 },
+    ];
+    script.eventsRetry = [reasoningEvent("fresh"), completedEvent({ speech_text: "ok" })];
+
+    const res = await caller.call(turnOf(userEnv()));
+
+    expect(res).toBe("ok");
+    expect(store.get()).toEqual({ text: "fresh", live: false });
+  });
 });
 
 // ── Chat Completions (CC) mode — request shape ──────────────────────────────

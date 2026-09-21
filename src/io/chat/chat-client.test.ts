@@ -996,6 +996,11 @@ describe("streamChat — reasoning events", () => {
       { type: "reasoning", delta: "weighing" },
       { type: "reasoning", delta: " the odds" },
     ]);
+
+    // Reasoning rides its own channel — the reply's speech text is untouched.
+    const final = events.find((e) => e.type === "completed");
+    if (final?.type !== "completed") throw new Error("narrow");
+    expect(final.envelope.speech_text).toBe("hi");
   });
 
   it("yields a paragraph break before the second summary part and nothing for the first", async () => {
