@@ -63,7 +63,7 @@ Every tunable section in that file is required — the client reads each value f
 
 ## 3. Chat backend
 
-YUI supports two chat protocols, selected by `chat_api` in `configs/endpoints.json`. The shipped file sets `chat_completions`; if the key is removed the client behaves as `responses`.
+YUI supports three chat protocols, selected by `chat_api` in `configs/endpoints.json`. Options A and B work with any server that speaks the corresponding OpenAI API; `push` is a WebSocket contract for backends that deliver without a request, described in [push-transport.md](../reference/push-transport.md). The shipped file sets `chat_completions`; if the key is removed the client behaves as `responses`.
 
 ### Option A — Chat Completions mode (`"chat_api": "chat_completions"`, shipped default)
 
