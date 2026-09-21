@@ -656,6 +656,89 @@ async def test_approving_the_confirmation_leaves_the_next_reply_speakable(client
     assert frame["segments"] == [{"cues": [], "speech": "Hello again."}]
 
 
+async def test_a_stop_naming_an_open_turn_dispatches_the_gateway_stop_command(client, adapter):
+    ws = await ready(client)
+    await adapter.on_processing_start(user_turn(adapter, "1789365854947"))
+    await ws.send_json({"type": "stop", "turn_ids": ["1789365854947"]})
+    await wait_for(lambda: adapter.dispatched)
+    event = adapter.dispatched[-1]
+    assert event.text == "/stop"
+    assert event.allow_gateway_control is True
+    assert event.source.chat_id == CHAT
+
+
+@pytest.mark.parametrize("outcome", [ProcessingOutcome.CANCELLED, ProcessingOutcome.SUCCESS])
+async def test_the_stop_acknowledgement_is_not_spoken_but_the_next_reply_is(client, adapter, outcome):
+    """The mute holds with the run cancelled mid-flight and with it just gone idle."""
+    ws = await ready(client)
+    await adapter.on_processing_start(user_turn(adapter, "777"))
+    await ws.send_json({"type": "stop", "turn_ids": ["777"]})
+    await wait_for(lambda: adapter.dispatched)
+    await adapter.send(CHAT, "⏹ Generation stopped.", metadata={"notify": True})
+    await adapter.on_processing_complete(user_turn(adapter, "777"), outcome)
+    assert await recv(ws) == {"type": "turn_end", "turn_id": "777"}
+    await adapter.on_processing_start(user_turn(adapter, "778"))
+    await adapter.send(CHAT, "Hello again.", metadata={"notify": True})
+    assert await recv(ws) == {
+        "type": "render",
+        "turn_id": "778",
+        "source": "hermes",
+        "segments": [{"cues": [], "speech": "Hello again."}],
+    }
+    # The next frame proves the stopped turn's end was the only one the stop closed.
+    adapter.notify_delegations(CHAT)
+    assert (await recv(ws))["type"] == "delegations"
+
+
+async def test_a_stop_naming_only_closed_turns_dispatches_nothing(client, adapter):
+    ws = await ready(client)
+    await adapter.on_processing_start(user_turn(adapter, "777"))
+    await adapter.on_processing_complete(user_turn(adapter, "777"), ProcessingOutcome.SUCCESS)
+    assert await recv(ws) == {"type": "turn_end", "turn_id": "777"}
+    await ws.send_json({"type": "stop", "turn_ids": ["777"]})
+    # An empty turn answers at once, so its turn_end proves the stop frame was fully handled.
+    await ws.send_json({"type": "turn", "turn_id": "9", "client_context": "", "text": ""})
+    assert await recv(ws) == {"type": "turn_end", "turn_id": "9"}
+    assert adapter.dispatched == []
+
+
+async def test_a_stop_leaving_a_newer_turn_unnamed_dispatches_nothing_and_ends_neither(
+    client, adapter
+):
+    ws = await ready(client)
+    await adapter.on_processing_start(user_turn(adapter, "777"))
+    await adapter.on_processing_start(user_turn(adapter, "778"))
+    await ws.send_json({"type": "stop", "turn_ids": ["777"]})
+    await ws.send_json({"type": "turn", "turn_id": "9", "client_context": "", "text": ""})
+    assert await recv(ws) == {"type": "turn_end", "turn_id": "9"}
+    assert adapter.dispatched == []
+    # Both turns stay open and end through their own completions, newer one first.
+    await adapter.on_processing_complete(user_turn(adapter, "778"), ProcessingOutcome.SUCCESS)
+    await adapter.on_processing_complete(user_turn(adapter, "777"), ProcessingOutcome.SUCCESS)
+    assert await recv(ws) == {"type": "turn_end", "turn_id": "778"}
+    assert await recv(ws) == {"type": "turn_end", "turn_id": "777"}
+    adapter.notify_delegations(CHAT)
+    assert (await recv(ws))["type"] == "delegations"
+
+
+@pytest.mark.parametrize("frame", [{}, {"turn_ids": []}, {"turn_ids": [777]}])
+async def test_a_stop_with_malformed_turn_ids_dispatches_nothing(client, adapter, frame):
+    ws = await ready(client)
+    await adapter.on_processing_start(user_turn(adapter, "777"))
+    await ws.send_json({"type": "stop", **frame})
+    await ws.send_json({"type": "turn", "turn_id": "9", "client_context": "", "text": ""})
+    assert await recv(ws) == {"type": "turn_end", "turn_id": "9"}
+    assert adapter.dispatched == []
+
+
+async def test_an_unknown_frame_type_is_still_ignored(client, adapter):
+    ws = await ready(client)
+    await ws.send_json({"type": "halt", "turn_ids": ["777"]})
+    await ws.send_json({"type": "turn", "turn_id": "9", "client_context": "", "text": ""})
+    assert await recv(ws) == {"type": "turn_end", "turn_id": "9"}
+    assert adapter.dispatched == []
+
+
 async def test_the_turn_id_is_bound_when_the_gateway_starts_the_turn(client, adapter):
     ws = await ready(client)
     await adapter.on_processing_start(user_turn(adapter, "777"))
