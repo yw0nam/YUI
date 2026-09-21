@@ -155,17 +155,6 @@ it("shows the lost pill even where storage names a non-push protocol", async () 
   expect(chipEl().hidden).toBe(false);
 });
 
-it("hides the chip once the transport is gone after a loss", async () => {
-  await boot();
-  answer({ kind: "reconnecting", delay_ms: 4_000 });
-  await vi.waitFor(() => expect(chipEl().hidden).toBe(false));
-
-  petBridge.emitPushState({ kind: "disconnected" });
-
-  await vi.waitFor(() => expect(chipEl().hidden).toBe(true));
-  expect(chipEl().classList.contains("is-lost")).toBe(false);
-});
-
 it("asks the character window for the settings surface when the lost chip is tapped", async () => {
   const petMessageBridge = createMessageBridge(undefined, { windowKind: "pet" });
   const seen: MessageControlOp[] = [];

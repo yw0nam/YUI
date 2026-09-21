@@ -126,8 +126,9 @@ export function wirePushTransport(deps: {
  * Keeps the push socket and the delegation chip on whatever the chat settings now say. The socket
  * opens once the protocol is push and an endpoint is set, closes when the protocol changes, and
  * reopens on an endpoint or key edit so the next attempt reads the new value — every other
- * endpoint setting applies live too. The chip follows the protocol alone: it shows for push mode
- * regardless of the endpoint, and survives an endpoint or key edit that keeps the mode as push.
+ * endpoint setting applies live too. The chip is mounted for push mode regardless of the endpoint
+ * and draws only what the socket reports; it survives an endpoint or key edit that keeps the mode
+ * as push.
  */
 export function wirePushMode(deps: {
   socket: Pick<PushSocket, "connect" | "disconnect">;
