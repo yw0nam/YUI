@@ -9,7 +9,7 @@
  * The Tauri API is injectable — tests verify the branching without hitting the real @tauri-apps/api.
  */
 
-import { isTauri } from "../window/tauri-env";
+import { isTauri } from "../tauri-env";
 
 /** Minimal API surface needed to resolve Tauri bundle resources. */
 export interface TauriAssetApi {

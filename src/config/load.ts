@@ -18,7 +18,7 @@
  */
 
 import type { EmotionRegistry, EndpointsConfig, MotionRegistry } from "../contract";
-import { resolveAssetUrl } from "../io/assets/asset-url";
+import { resolveAssetUrl } from "./asset-url";
 import { validateAvatar } from "./validators/avatar";
 import { validateEmotionRegistry } from "./validators/emotion-registry";
 import { validateEndpoints } from "./validators/endpoints";

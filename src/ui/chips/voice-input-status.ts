@@ -1,4 +1,4 @@
-export type VoiceInputState = "idle" | "listening" | "asr" | "fired" | "error";
+import type { VoiceInputState } from "../../io/voice/stt-vad";
 
 export interface VoiceInputStatusSnapshot {
   state: VoiceInputState;

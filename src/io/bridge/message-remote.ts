@@ -10,8 +10,13 @@
 
 import type { AttachmentLimits } from "../../config/load";
 import { createLogger } from "../../logger";
-import type { InputErrorAction } from "../../ui/input/text-input";
 import type { MessageBridge } from "./message-bridge";
+
+/** In-place fix offered next to an inline error (e.g. "Open Advanced" on an unconfigured backend). */
+export interface InputErrorAction {
+  label: string;
+  onClick(): void;
+}
 
 /** The half of `Surfaces` the message window owns, plus the dock request it can raise. */
 export interface RemoteSurfaces {

@@ -41,6 +41,7 @@ YUI/
     main.ts                          # Application entry: config load, renderer, dispatcher, and the I/O graph
     app/                             # Composes the pet window from the layers below
       bootstrap-configured.ts        # Config-derived bootstrap: calls the wire functions in order and drains their teardowns
+      bootstrap-disposal.ts          # Registers the renderer's dispose and the Tier 1 engine's stop as bootstrap teardowns
       turn/                          # The path of a turn: sources, voice, and push
         wire-dispatcher.ts           # Turn feed, backend caller, guardrails, pacer, and the dispatcher
         wire-sources.ts              # Tauri window sources and the dispatcher's paced proactive sources
@@ -58,6 +59,7 @@ YUI/
       settings/                      # Selections applied to the running app
         wire-avatar.ts               # VRM and speaker selection stores, their swap and import flows, and the avatar config applied at boot
     logger.ts                        # Namespaced frontend logger with a runtime level
+    tauri-env.ts                     # Tauri runtime detection
     settings-main.ts                 # Settings-window entry
     devtools-main.ts                 # Developer Tools window entry
     message-main.ts                  # Message-window entry
@@ -66,8 +68,9 @@ YUI/
     contract/                        # TS contract types — the wire schema source of truth
       types.ts                       # Wire schema source of truth for the YUI to backend contract
       index.ts                       # Contract barrel
-    config/                          # Config load, validate, reactive store, hot-reload
+    config/                          # Config load, validate, reactive store, hot-reload, and the runtime URL resolver
       load.ts                        # configs/*.json loader and validation, fail-loud
+      asset-url.ts                   # Bundled asset paths and imported user files to runtime-fetchable URLs
       store.ts                       # Reactive config snapshot with hot-reload and change subscriptions
       emotion-text.ts                # Per-provider emotion_text emoji table loader
       validators/
@@ -238,7 +241,6 @@ YUI/
           speaker-selection.ts         # Owns the active TTS speaker selection
       window/
         tauri-listen.ts                # Shared os_event channel payload shape and listen resolver
-        tauri-env.ts                   # Tauri runtime detection
         frontmost-tracker.ts           # Latest frontmost-window sample off the os_event channel
         own-origin-fetch.ts             # Keeps each webview's own origin on native fetch instead of the CORS proxy
         capture/                       # Screen enumeration and screenshot capture
@@ -285,7 +287,6 @@ YUI/
         vrm-selection.ts               # Owns the active VRM selection
         selection-store.ts             # Generic selection store behind VRM and speaker selection
         safe-id.ts                     # TS mirror of the native stem sanitizer for persisted option ids
-        asset-url.ts                   # Logical asset paths to runtime-fetchable URLs
     ui/                              # Floating surfaces, panels, and indicators
       i18n.ts                        # Locale type, persisted locale, lookup, and subscriber notification
       tokens.css                     # Design tokens: colour, radius, shadow, duration

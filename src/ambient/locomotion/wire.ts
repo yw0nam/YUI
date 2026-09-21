@@ -21,9 +21,9 @@ import {
   type FrameWindow,
   type Travel,
 } from "../../io/window/geometry/travel-frame";
-import { isTauri } from "../../io/window/tauri-env";
 import type { Logger } from "../../logger";
 import type { Renderer } from "../../renderer";
+import { isTauri } from "../../tauri-env";
 import type { ClimbTarget } from "./climb-geometry";
 import { type Climber, createClimber } from "./climber";
 import { createFaller, type DropOptions, type Faller } from "./faller";

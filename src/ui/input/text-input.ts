@@ -6,14 +6,9 @@
  */
 
 import type { AttachmentLimits } from "../../config/load";
+import type { InputErrorAction } from "../../io/bridge/message-remote";
 import { subscribe as subscribeLocale, t } from "../i18n";
 import { downscaleToJpeg } from "./image-resize";
-
-/** In-place fix offered next to an inline error (e.g. "Open Advanced" on an unconfigured backend). */
-export interface InputErrorAction {
-  label: string;
-  onClick(): void;
-}
 
 interface TextInput {
   /** Hotkey summon — slide up + focus. */

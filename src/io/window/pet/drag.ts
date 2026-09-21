@@ -30,7 +30,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { createLogger } from "../../../logger";
-import { isTauri } from "../tauri-env";
+import { isTauri } from "../../../tauri-env";
 
 const log = createLogger("drag");
 

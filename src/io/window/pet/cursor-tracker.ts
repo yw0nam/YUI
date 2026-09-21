@@ -11,7 +11,7 @@
 
 import { cursorPosition, getCurrentWindow, primaryMonitor } from "@tauri-apps/api/window";
 import { createLogger } from "../../../logger";
-import { isTauri } from "../tauri-env";
+import { isTauri } from "../../../tauri-env";
 import { physicalCursorToLocalCss } from "./hit-test";
 import {
   createWindowStatics,

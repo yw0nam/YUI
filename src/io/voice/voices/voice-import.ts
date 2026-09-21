@@ -40,7 +40,7 @@ type VoiceRemoveDeps = Pick<VoiceCopyDeps, "invoke">;
 async function defaultCopyDeps(): Promise<VoiceCopyDeps> {
   const [{ invoke }, { resolveUserFileSrc }] = await Promise.all([
     import("@tauri-apps/api/core"),
-    import("../../assets/asset-url"),
+    import("../../../config/asset-url"),
   ]);
   return { invoke, resolveRefUrl: resolveUserFileSrc };
 }

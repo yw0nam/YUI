@@ -6,7 +6,7 @@
  * share these so the channel name and runtime guard live in one place.
  */
 
-import { isTauri } from "./tauri-env";
+import { isTauri } from "../../tauri-env";
 
 /** `os_event` channel payload — the fields this client consumes from the src-tauri payload (snake_case over IPC). */
 export interface OsEventPayload {

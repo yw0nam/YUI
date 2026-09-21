@@ -8,8 +8,8 @@
 
 import type { TurnFailure } from "../../dispatcher/backend/backend-caller";
 import type { UserTurnSource } from "../../dispatcher/core/classify";
+import type { InputErrorAction } from "../../io/bridge/message-remote";
 import { t } from "../i18n";
-import type { InputErrorAction } from "../input/text-input";
 import type { QuickControlsTab } from "../quick-controls/constants";
 
 export function turnErrorMessage(reason: TurnFailure): string | undefined {

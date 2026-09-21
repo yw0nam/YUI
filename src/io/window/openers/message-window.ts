@@ -8,6 +8,7 @@
  */
 
 import { createLogger } from "../../../logger";
+import { isTauri } from "../../../tauri-env";
 import type { MessageWindowSettingsStore } from "../../settings/message-window-settings";
 import {
   clampToWorkArea,
@@ -15,7 +16,6 @@ import {
   type ScreenMonitor,
   toScreenMonitor,
 } from "../geometry/screen-geometry";
-import { isTauri } from "../tauri-env";
 
 const log = createLogger("message-window");
 

@@ -75,7 +75,7 @@ import type {
   ToolStatus,
   Usage,
 } from "../../contract";
-import { isTauri } from "../window/tauri-env";
+import { isTauri } from "../../tauri-env";
 import { type CCMessage, type CCToolCall, createChunkReducer } from "./chat-completions";
 import type { ClientToolRegistry } from "./client-tools";
 

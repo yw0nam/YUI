@@ -1,6 +1,6 @@
 /** Owns reference-clip URL-to-bytes resolution and transport selection. */
 
-import { resolveAssetUrl } from "../../assets/asset-url";
+import { resolveAssetUrl } from "../../../config/asset-url";
 
 /**
  * Converts a ref_url into a fetchable URL for the current runtime.

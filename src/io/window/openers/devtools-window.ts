@@ -1,5 +1,5 @@
 import { createLogger } from "../../../logger";
-import { isTauri } from "../tauri-env";
+import { isTauri } from "../../../tauri-env";
 
 const log = createLogger("devtools-window");
 const DEVTOOLS_LABEL = "devtools";

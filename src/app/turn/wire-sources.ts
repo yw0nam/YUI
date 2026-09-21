@@ -31,9 +31,9 @@ import {
 } from "../../io/window/geometry/keep-on-screen";
 import { toScreenMonitor } from "../../io/window/geometry/screen-geometry";
 import { createWindowResizeSource } from "../../io/window/pet/window-resize-source";
-import { isTauri } from "../../io/window/tauri-env";
 import type { Logger } from "../../logger";
 import type { Renderer } from "../../renderer";
+import { isTauri } from "../../tauri-env";
 
 /**
  * Window-sit drop + ctrl+wheel resize producers, the agent loopback ingress bind, and the

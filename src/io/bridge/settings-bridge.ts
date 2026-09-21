@@ -13,9 +13,9 @@
  */
 
 import { createLogger } from "../../logger";
-import type { VoiceInputState } from "../../ui/chips/voice-input-status";
+import { isTauri } from "../../tauri-env";
 import type { DelegationItem, PushSocketState } from "../chat/push-socket";
-import { isTauri } from "../window/tauri-env";
+import type { VoiceInputState } from "../voice/stt-vad";
 import type { ReasoningState } from "./reasoning-store";
 
 const log = createLogger("settings-bridge");

@@ -4,7 +4,7 @@ import type { MessageWindowSettingsStore } from "../../io/settings/message-windo
 import type { FlagSettingsStore } from "../../io/settings/persisted-store";
 import type { ScreenKnobSettingsStore } from "../../io/settings/screen-settings";
 import type { createVadSettings } from "../../io/settings/vad-settings";
-import { isTauri } from "../../io/window/tauri-env";
+import { isTauri } from "../../tauri-env";
 import { SCREEN_WATCH_SVG } from "./constants";
 
 export interface SwitchRow {

@@ -9,8 +9,8 @@
 
 import type { Posture } from "../../../contract";
 import { createLogger } from "../../../logger";
+import { isTauri } from "../../../tauri-env";
 import type { PerchTargets } from "../../window/geometry/perch";
-import { isTauri } from "../../window/tauri-env";
 import { createInbox } from "./create-inbox";
 
 const log = createLogger("avatar-rpc");

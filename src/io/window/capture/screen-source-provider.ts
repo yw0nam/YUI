@@ -6,8 +6,6 @@
 import type { ScreenSource } from "../../../contract";
 import type { ScreenCapture } from "./screenshot-context";
 
-export { isTauri } from "../tauri-env";
-
 export interface MonitorInfo {
   index: number;
   label?: string;

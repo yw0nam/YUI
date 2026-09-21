@@ -14,10 +14,11 @@
 
 import "./surfaces.css";
 import type { AttachmentLimits } from "../../config/load";
-import { isTauri } from "../../io/window/tauri-env";
+import type { InputErrorAction } from "../../io/bridge/message-remote";
+import { isTauri } from "../../tauri-env";
 import { createToolStatus } from "../chips/tool-status";
 import { subscribe as subscribeLocale, t } from "../i18n";
-import { createTextInput, type InputErrorAction } from "../input/text-input";
+import { createTextInput } from "../input/text-input";
 import { createSpeechBubble } from "../message/speech-bubble";
 
 export interface Surfaces {

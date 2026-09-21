@@ -7,7 +7,7 @@ const { log, tauriEmit } = vi.hoisted(() => ({
   tauriEmit: vi.fn(async (_name: string, _payload?: unknown) => {}),
 }));
 vi.mock("../../logger", () => ({ createLogger: () => log }));
-vi.mock("../window/tauri-env", () => ({ isTauri: () => true }));
+vi.mock("../../tauri-env", () => ({ isTauri: () => true }));
 vi.mock("@tauri-apps/api/event", () => ({ emit: tauriEmit }));
 
 import { createSettingsBridge } from "./settings-bridge";

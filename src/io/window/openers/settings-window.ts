@@ -8,7 +8,7 @@
  */
 
 import { createLogger } from "../../../logger";
-import { isTauri } from "../tauri-env";
+import { isTauri } from "../../../tauri-env";
 
 const log = createLogger("settings-window");
 

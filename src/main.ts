@@ -65,10 +65,10 @@ import {
 import { wireMessageWindowMode } from "./io/window/openers/message-window-mode";
 import { createSettingsWindowOpener } from "./io/window/openers/settings-window";
 import { excludeOwnOriginFromCorsFetch } from "./io/window/own-origin-fetch";
-import { isTauri } from "./io/window/tauri-env";
 import { createLogger, initLogger } from "./logger";
 import { createRenderer } from "./renderer";
 import { nextZoom } from "./renderer/geometry/camera-fit";
+import { isTauri } from "./tauri-env";
 import { createCaptureIndicator } from "./ui/chips/capture-indicator";
 import { createDelegationChip } from "./ui/chips/delegation-chip";
 import { createVoiceInputIndicator } from "./ui/chips/voice-input-indicator";

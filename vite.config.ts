@@ -6,7 +6,7 @@ import { resolveVitePort } from "./scripts/dev-port.mjs";
 
 // Dev static serving: /vrms/* → resources/vrms/, /configs/* → configs/.
 // Exposes VRM assets (resources/vrms, gitignored) and runtime config at clean URLs without a publicDir.
-// prod (Tauri) serves via bundle.resources + the asset protocol — src/io/assets/asset-url.ts resolves the same logical paths.
+// prod (Tauri) serves via bundle.resources + the asset protocol — src/config/asset-url.ts resolves the same logical paths.
 const MIME: Record<string, string> = {
   ".vrm": "application/octet-stream",
   ".vrma": "application/octet-stream",

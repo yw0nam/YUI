@@ -1,8 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { resolveAssetUrl } from "../../assets/asset-url";
+import { resolveAssetUrl } from "../../../config/asset-url";
 import { fetchReferenceClip, resolveReferenceClipUrl } from "./reference-clip";
 
-vi.mock("../../assets/asset-url", () => ({
+vi.mock("../../../config/asset-url", () => ({
   resolveAssetUrl: vi.fn(),
 }));
 

@@ -1,8 +1,8 @@
 /** VRM and speaker selection stores, their swap/import flows, and the effective endpoints derived from overrides. */
 
+import { resolveAssetUrl, resolveUserFileSrc } from "../../config/asset-url";
 import type { AppConfig } from "../../config/load";
 import type { EndpointsConfig } from "../../contract";
-import { resolveAssetUrl, resolveUserFileSrc } from "../../io/assets/asset-url";
 import { removeOrphanImport } from "../../io/assets/user-asset-import";
 import { importVrmFromFile, removeUserVrm } from "../../io/assets/vrm-import";
 import {

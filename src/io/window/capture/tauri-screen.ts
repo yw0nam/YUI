@@ -6,9 +6,9 @@
 import { invoke as tauriInvoke } from "@tauri-apps/api/core";
 import type { ScreenSource } from "../../../contract";
 import { createLogger } from "../../../logger";
+import { isTauri } from "../../../tauri-env";
 import {
   createBrowserScreenSourceProvider,
-  isTauri,
   type MonitorInfo,
   noopScreenCapturer,
   type ScreenCapturer,

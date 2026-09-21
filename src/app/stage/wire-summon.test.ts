@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({ isTauri: vi.fn(() => false) }));
 
-vi.mock("../../io/window/tauri-env", () => ({ isTauri: mocks.isTauri }));
+vi.mock("../../tauri-env", () => ({ isTauri: mocks.isTauri }));
 
 import { showAndFocusFromSummon, wirePeek, wirePeekExitTriggers } from "./wire-summon";
 

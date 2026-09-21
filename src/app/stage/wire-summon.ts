@@ -1,8 +1,8 @@
 import type { EventBus } from "../../dispatcher/core/event-bus";
 import { createPeekState, type PeekState } from "../../io/window/pet/peek-state";
 import { createSummonHotkey, type SummonHotkey } from "../../io/window/pet/summon-hotkey";
-import { isTauri } from "../../io/window/tauri-env";
 import type { Logger } from "../../logger";
+import { isTauri } from "../../tauri-env";
 import type { Surfaces } from "../../ui/surfaces/surfaces";
 
 export async function wirePeekExitTriggers(deps: {

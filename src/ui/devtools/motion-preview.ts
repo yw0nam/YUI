@@ -12,10 +12,10 @@
  */
 
 import "./motion-preview.css";
+import { resolveAssetUrl } from "../../config/asset-url";
 import type { AvatarConfig } from "../../config/load";
 import { createConfigStore } from "../../config/store";
 import type { EmotionId, EmotionRegistry, MotionKind, MotionRegistry } from "../../contract";
-import { resolveAssetUrl } from "../../io/assets/asset-url";
 import { createLogger } from "../../logger";
 import { createRenderer, type RenderMotionSignal } from "../../renderer";
 
