@@ -83,6 +83,35 @@ def test_closing_ends_every_open_turn_most_recently_opened_first():
     assert state.turn_id("yui") is None
 
 
+def test_a_turn_joined_while_another_is_open_names_the_joined_turn():
+    state.open_turn("yui", "17893")
+    state.mark_joined("yui", "17894")
+    assert state.turn_id("yui") == "17894"
+
+
+def test_a_turn_opened_after_a_joined_one_names_the_opened_turn():
+    state.open_turn("yui", "17893")
+    state.mark_joined("yui", "17894")
+    state.open_turn("yui", "17895")
+    assert state.turn_id("yui") == "17895"
+
+
+def test_a_joined_turn_that_later_opens_counts_once_in_arrival_order():
+    state.open_turn("yui", "17893")
+    state.mark_joined("yui", "17894")
+    state.drop_joined("yui", "17894")
+    state.open_turn("yui", "17894")
+    assert state.turn_id("yui") == "17894"
+    assert state.close_turns("yui") == ["17894", "17893"]
+
+
+def test_after_forget_joined_the_last_open_turn_is_named():
+    state.open_turn("yui", "17893")
+    state.mark_joined("yui", "17894")
+    state.forget_joined("yui")
+    assert state.turn_id("yui") == "17893"
+
+
 def test_closing_ends_the_open_turns_before_the_turns_that_joined_them():
     state.open_turn("yui", "17893")
     state.open_turn("yui", "17894")
