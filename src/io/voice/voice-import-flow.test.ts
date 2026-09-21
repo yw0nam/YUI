@@ -131,9 +131,9 @@ describe("createVoiceImportFlow", () => {
     });
 
     // upsertVoice is itself create-or-replace, so the flow has nothing to branch on — a flaked
-    // list call (it resolves to [] rather than throwing) can never skip the upload.
+    // list call (it resolves to null rather than throwing) can never skip the upload.
     it("never consults listVoices — a flaked list cannot skip the upload", async () => {
-      listVoices.mockResolvedValue([]); // as if the server list call failed
+      listVoices.mockResolvedValue(null); // as if the server list call failed
       const { commitVoiceImport } = build("http://localhost:8091");
 
       await commitVoiceImport("/tmp/MyVoice.wav", "My Voice");

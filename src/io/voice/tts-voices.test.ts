@@ -149,7 +149,7 @@ describe("listVoices", () => {
     ).resolves.toEqual([]);
   });
 
-  it("resolves to [] and warns with the timeout when the body never settles", async () => {
+  it("resolves to null and warns with the timeout when the body never settles", async () => {
     vi.useFakeTimers();
     try {
       const fetchMock = vi.fn<FetchFn>(

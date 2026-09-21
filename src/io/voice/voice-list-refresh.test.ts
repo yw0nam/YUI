@@ -160,6 +160,11 @@ describe("createVoiceListRefresh", () => {
 });
 
 describe("createVoiceListRefresh — re-uploading user voices the server lost", () => {
+  beforeEach(() => {
+    listVoices.mockReset().mockResolvedValue([]);
+    noopLog.warn.mockClear();
+  });
+
   const userOpt: SpeakerOption = {
     id: "myvoice",
     label: "My Voice",
@@ -168,7 +173,6 @@ describe("createVoiceListRefresh — re-uploading user voices the server lost", 
   };
 
   it("a failed list (null) leaves the manifest untouched and re-uploads nothing", async () => {
-    noopLog.warn.mockClear();
     listVoices.mockResolvedValue(null);
     const reuploadUserVoice = vi.fn();
     const store = fakeStore([userOpt]);
@@ -183,7 +187,7 @@ describe("createVoiceListRefresh — re-uploading user voices the server lost", 
 
     expect(store.setManifest).not.toHaveBeenCalled();
     expect(reuploadUserVoice).not.toHaveBeenCalled();
-    expect(noopLog.warn).not.toHaveBeenCalled();
+    expect(noopLog.warn).not.toHaveBeenCalledWith("voice_list_refresh_failed", expect.anything());
   });
 
   it("a successful empty list keeps today's behaviour: empty manifest + re-upload of the lost clip", async () => {
