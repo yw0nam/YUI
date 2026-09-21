@@ -1,6 +1,22 @@
 import { describe, expect, it, vi } from "vitest";
 
-import { showAndFocusFromSummon, wirePeekExitTriggers } from "./wire-summon";
+const mocks = vi.hoisted(() => ({ isTauri: vi.fn(() => false) }));
+
+vi.mock("../../io/window/tauri-env", () => ({ isTauri: mocks.isTauri }));
+
+import { showAndFocusFromSummon, wirePeek, wirePeekExitTriggers } from "./wire-summon";
+
+describe("wirePeek", () => {
+  it("returns null and registers nothing outside Tauri", async () => {
+    mocks.isTauri.mockReturnValue(false);
+    const register = vi.fn();
+
+    const peekState = await wirePeek({ bus: {} as never, register, ensureActive: vi.fn() });
+
+    expect(peekState).toBeNull();
+    expect(register).not.toHaveBeenCalled();
+  });
+});
 
 describe("wirePeekExitTriggers", () => {
   const setup = async () => {

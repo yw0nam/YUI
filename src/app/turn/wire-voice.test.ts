@@ -1,5 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+// wireVoicePipeline is faked so tests can drive the deps wireTurnVoice hands it.
+const { wireVoicePipeline } = vi.hoisted(() => ({ wireVoicePipeline: vi.fn() }));
+
+vi.mock("./wire-voice-pipeline", () => ({ wireVoicePipeline }));
+
 // Broker fakes for wireBroker: a single captured client so tests can assert publish/start/dispose.
 const { brokerClient, createBrokerClient, deriveBrokerPayload, createReconciler, selectFetch } =
   vi.hoisted(() => {
@@ -30,7 +35,7 @@ vi.mock("../../config/emotion-text", () => ({
 
 import { loadEmotionTextTable } from "../../config/emotion-text";
 import { createVoiceInputStatus } from "../../ui/chips/voice-input-status";
-import { wireBroker, wireVoiceInput } from "./wire-voice";
+import { wireBroker, wireTurnVoice, wireVoiceInput } from "./wire-voice";
 
 const noopLog = { info: () => {}, warn: () => {}, error: () => {}, debug: () => {} } as never;
 
@@ -361,5 +366,55 @@ describe("wireVoiceInput", () => {
     voiceInputStatus.set("listening");
     await flush();
     expect(sttVad.start).not.toHaveBeenCalled();
+  });
+});
+
+describe("wireTurnVoice", () => {
+  beforeEach(() => {
+    wireVoicePipeline.mockReset();
+  });
+
+  const setup = () => {
+    wireVoicePipeline.mockImplementation(() => ({ dispose: vi.fn() }));
+    const submitVoice = vi.fn();
+    const handle = wireTurnVoice({
+      renderer: {} as never,
+      surfaces: {} as never,
+      voiceInputStatus: createVoiceInputStatus(),
+      sttSettings: { get: () => ({ enabled: false }), setEnabled: vi.fn() } as never,
+      ttsSettings: { get: () => ({ enabled: true }) } as never,
+      lipsyncSettings: { get: () => ({ gain: 1 }) } as never,
+      fillerSettings: { get: () => ({}) } as never,
+      vadSettings: { get: () => ({ silenceMs: 500, bargeIn: true }) } as never,
+      speakerSelection: { getActive: () => ({ id: "voice" }) } as never,
+      getEndpoints: () => ({}) as never,
+      getConfig: () => ({}) as never,
+      getSecret: () => Promise.resolve(undefined),
+      submitVoice,
+      register: vi.fn(),
+    });
+    return { handle, deps: wireVoicePipeline.mock.calls[0][0], submitVoice };
+  };
+
+  it("setStrolling reaches the pipeline's stroll query", () => {
+    const s = setup();
+
+    expect(s.deps.isStrolling()).toBe(false);
+
+    s.handle.setStrolling({ isStrolling: () => true });
+    expect(s.deps.isStrolling()).toBe(true);
+  });
+
+  it("onVoiceSegment submits the text and notes the interaction once the source is set", () => {
+    const s = setup();
+    const noteInteraction = vi.fn();
+
+    s.deps.onVoiceSegment("hello");
+    expect(s.submitVoice).toHaveBeenCalledWith("hello");
+
+    s.handle.setProactiveSource({ noteInteraction });
+    s.deps.onVoiceSegment("again");
+    expect(s.submitVoice).toHaveBeenLastCalledWith("again");
+    expect(noteInteraction).toHaveBeenCalledTimes(1);
   });
 });
