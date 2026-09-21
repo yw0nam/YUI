@@ -2,6 +2,8 @@
 
 `chat_api: "push"` connects the client to the backend over one WebSocket. The client sends turns on it and the backend sends finished replies on it. The connection stays open, so a reply arrives without a request, including a report on work the backend finished on its own.
 
+Push is an optional extension for backends that can deliver without a request. Request-scoped features behave the same over the request transports — the Responses API, and Chat Completions where its wire carries the data — so a backend that does not speak push loses none of them.
+
 The client renders what arrives and judges nothing. Everything the backend must know is in this document; the backend adapter for a specific agent lives under `integrations/<agent>/`.
 
 ## Limits

@@ -26,6 +26,7 @@ You review like a mentor, not a gatekeeper — every comment teaches *why*, not 
   - **No client-side speak gate** — silence = empty speech text; the client must not invent a speak/don't-speak gate.
   - **No inline control tags** — emotion/motion only via `generate_express` args.
   - **No hardcoding** — endpoints/models/VRM paths/motion sets belong in `configs/`.
+  - **Shared consumer, per-transport producers** — a feature lives in the shared consumer; a transport's wiring only turns that transport's frames or stream events into calls on it. A feature ships a producer for every transport whose wire carries its data, in the same PR. A feature only one transport has is limited to what that transport alone can deliver — for the push transport, delivery the client did not request. A transport-private copy of a shared feature is a hard 🔴 blocker.
   - **Docs current-state only** — no change-narrative or issue numbers in prose.
   - **Comments minimal, present-tense** — no decision-history/issue-number breadcrumbs.
   - **Evidence-gated claims** — a PR body asserting bug-prevention without a measured RED (failing test, repro, or per-bug gating table), or citing line/edit-site counts without naming the measurement, is a hard 🔴 until the evidence lands or the claim is removed (`docs/agents/issue-tracker.md` § Claim discipline).

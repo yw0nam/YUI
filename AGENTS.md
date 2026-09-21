@@ -10,6 +10,8 @@ The client handles **firing** (when a candidate event occurs). **Judgment** (whe
 
 The backend is whichever agent the user selects. No code path, doc, or skill outside `integrations/<agent>/` assumes a specific backend agent's behavior, configuration, or install route; each addresses any agent that speaks the contract in `docs/reference/`. Agent-specific wiring lives under `integrations/<agent>/`. Plugin-discovery files whose names an outside ecosystem fixes (`.claude-plugin/`, `.agents/plugins/`, `SKILL.md` frontmatter) are packaging and carry no such assumption.
 
+A feature lives in the shared consumer; a transport's wiring only turns that transport's frames or stream events into calls on it. A feature ships a producer for every transport whose wire carries its data, in the same PR. A feature only one transport has is limited to what that transport alone can deliver — for the push transport, delivery the client did not request.
+
 ## Development work
 
 Any code change — feature · bugfix · refactor · UI · schema · or any chore beyond a trivial single-file edit — load the **`yui-dev-workflow`** skill first. It carries the mandatory work rules (worktree → PR, tests, English tracker), delegation rules and the review/verification gates, and the client-side anti-patterns.
