@@ -69,7 +69,7 @@ import {
   wireWalker,
 } from "./wire-ambient";
 import type { wireSpeakerSelection, wireVrmSelection } from "./wire-avatar";
-import { wirePushTransport } from "./wire-push";
+import { wirePushStop, wirePushTransport } from "./wire-push";
 import { wireDispatcherSources, wireWindowSources } from "./wire-sources";
 import { wirePeekExitTriggers, wireSummonHotkey } from "./wire-summon";
 import { wireBroker, wireVoiceInput } from "./wire-voice";
@@ -775,12 +775,13 @@ const realFactories: ConfiguredBootstrapFactories = {
     }
     ensureActive();
     // The stop button and the panel's session reset share this path; cancel() alone leaves queued speech playing.
-    const stopTurn = (): void => {
+    const stopTurn = (): string[] => {
       dispatcher.cancel();
-      pushTurns.cut();
+      const cut = pushTurns.cut();
       voice.speechPlayback.interrupt();
+      return cut;
     };
-    surfaces.onStop(stopTurn);
+    wirePushStop({ onStop: (cb) => surfaces.onStop(cb), stopTurn, socket: pushSocket, log });
     surfaces.onSubmit((text, images) => {
       userInput.submit(text, images);
       proactiveSource.noteInteraction();

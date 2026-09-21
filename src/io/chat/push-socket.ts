@@ -118,6 +118,7 @@ export interface PushSocket {
   /** True when the frame went out; false when the socket is not ready or the frame is too large. */
   sendTurn(turn: PushTurnFrame): boolean;
   sendReset(): boolean;
+  sendStop(turnIds: string[]): boolean;
   /** Sends the current vocabulary when it differs from the one the backend last received. */
   sendVocabulary(): void;
   onRender(cb: (frame: RenderFrame) => void): () => void;
@@ -532,6 +533,14 @@ export function createPushSocket(deps: PushSocketDeps): PushSocket {
         return false;
       }
       return sendFrame({ type: "reset" });
+    },
+
+    sendStop(turnIds): boolean {
+      if (!ready) {
+        log.warn("stop_not_ready", { state: state.kind });
+        return false;
+      }
+      return sendFrame({ type: "stop", turn_ids: turnIds });
     },
 
     sendVocabulary: syncVocabulary,

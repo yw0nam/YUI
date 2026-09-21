@@ -113,6 +113,25 @@ export function wirePushTransport(deps: {
 }
 
 /**
+ * The stop button: ends the turns outstanding on the chat and tells the backend which ones went,
+ * so the ones it still runs for the user stop with them. A typed or spoken turn and a barge-in
+ * reach the backend as `turn` frames instead, and a session reset sends `reset`.
+ */
+export function wirePushStop(deps: {
+  onStop(cb: () => void): void;
+  stopTurn: () => string[];
+  socket: Pick<PushSocket, "sendStop"> | undefined;
+  log: Logger;
+}): void {
+  deps.onStop(() => {
+    const turnIds = deps.stopTurn();
+    if (turnIds.length > 0 && deps.socket?.sendStop(turnIds)) {
+      deps.log.info("push.stop", { count: turnIds.length });
+    }
+  });
+}
+
+/**
  * Keeps the push socket and the delegation chip on whatever the chat settings now say. The socket
  * opens once the protocol is push and an endpoint is set, closes when the protocol changes, and
  * reopens on an endpoint or key edit so the next attempt reads the new value — every other

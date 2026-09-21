@@ -29,8 +29,8 @@ export interface PushTurns {
   opened(turnId: string): void;
   /** A render of this turn was accepted for playback. */
   rendered(turnId: string): void;
-  /** The user stopped the reply: everything outstanding is cut. */
-  cut(): void;
+  /** The user stopped the reply: everything outstanding is cut, and the ids it swept come back. */
+  cut(): string[];
   /** Runs the listener inside cut(), once for each turn it sweeps. Returns the removal. */
   onCut(listener: (turnId: string) => void): () => void;
   /** Whether a frame belongs to a cut turn. */
@@ -98,12 +98,14 @@ export function createPushTurns(): PushTurns {
     cut() {
       // Snapshot first: the swept turns leave the live set, and nothing a resolution schedules
       // runs inside this loop.
-      for (const turnId of [...live]) {
+      const swept = [...live];
+      for (const turnId of swept) {
         live.delete(turnId);
         stopped.add(turnId);
         settle(turnId, "cut");
         for (const listener of cutListeners) runHook(turnId, () => listener(turnId));
       }
+      return swept;
     },
     onCut(listener) {
       cutListeners.add(listener);
