@@ -519,7 +519,7 @@ class YuiAdapter(BasePlatformAdapter):
         text = self.extract_images(text)[1]
         return self.extract_local_files(self.strip_media_directives_for_display(text))[1]
 
-    async def _send_speech(self, chat_id: str, sentence: str, cues: list) -> bool:
+    async def _send_speech(self, chat_id: str, sentence: str, cues: list[dict]) -> bool:
         """A speech frame is never held, and trimming it would drop its only sentence."""
         segment = {"cues": cues, "speech": sentence}
         frame = {"type": "speech", "turn_id": state.turn_id(chat_id), "segments": [segment]}

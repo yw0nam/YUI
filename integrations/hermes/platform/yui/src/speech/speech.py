@@ -2,7 +2,7 @@
 
 Answer tokens arrive on the ``on_stream_delta`` hook with ``kind="text"``, on a hook worker thread
 where the gateway's session context is invisible, so they go to the sole connected client; with no
-single client connected they go to no chat, and the adapter stops every open stream. A gateway turn
+single client connected they go to no chat, and the ``Speaker`` stops every open stream. A gateway turn
 runs its agent under a turn id whose session and task parts are the same; a background review
 streams on the same surface under a task of its own, and its text is not the reply.
 """
@@ -65,7 +65,7 @@ def _squash(text: str) -> str:
 
 @dataclass
 class Stream:
-    """One chat's answer stream; the adapter reads and changes it only while holding ``lock``.
+    """One chat's answer stream; read and changed only while holding ``lock``.
 
     A source is one ``(turn_id, iteration)`` of the agent. Whitespace never takes part in matching a
     send against the stream, because the gateway drops a newline that opens a delta.
@@ -161,11 +161,11 @@ def _past(content: str, count: int) -> str:
 
 
 class Speaker:
-    """Every chat's answer stream, and the speech frames its sentences leave as."""
+    """Every chat's answer stream, and the sentences it hands over to be sent."""
 
     def __init__(
         self,
-        send: Callable[[str, str, list], Awaitable[bool]],
+        send: Callable[[str, str, list[dict]], Awaitable[bool]],
         as_sent: Callable[[str], str],
     ) -> None:
         self._send = send
