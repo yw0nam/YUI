@@ -7,6 +7,7 @@
 
 import { beforeEach, describe, expect, it, type Mock, vi } from "vitest";
 import type { ControlEnvelope, ExpressArgs, ToolStatus, Usage } from "../../contract";
+import { createReasoningStore } from "../../io/bridge/reasoning-store";
 import type { Logger } from "../../logger";
 import {
   CONFIG,
@@ -538,6 +539,47 @@ describe("backend_caller — reasoning store feed", () => {
     expect(res).toBe("superseded_by_user");
     expect(reasoning.interrupt).toHaveBeenCalledTimes(1);
     expect(reasoning.finish).not.toHaveBeenCalled();
+  });
+
+  it("a completed turn that streamed no reasoning never calls interrupt", async () => {
+    script.events = [completedEvent({ speech_text: "so" })];
+    const res = await caller.call(turnOf(userEnv()));
+    expect(res).toBe("ok");
+    expect(reasoning.interrupt).not.toHaveBeenCalled();
+  });
+
+  it("a turn whose reasoning completed normally never calls interrupt after the finish", async () => {
+    script.events = [
+      reasoningEvent("weighing"),
+      reasoningEvent(" the odds"),
+      completedEvent({ speech_text: "so" }),
+    ];
+    const res = await caller.call(turnOf(userEnv()));
+    expect(res).toBe("ok");
+    expect(reasoning.finish).toHaveBeenCalledTimes(1);
+    expect(reasoning.interrupt).not.toHaveBeenCalled();
+  });
+
+  it("leaves the real store holding the joined text, finished", async () => {
+    const store = createReasoningStore();
+    caller = createBackendCaller({
+      config: CONFIG,
+      renderer: { applyDirective } as never,
+      getApiKey: async () => "k",
+      getFetch: async () => undefined,
+      stream: script.stream,
+      turnOutput,
+      reasoning: store,
+      logger,
+    });
+    script.events = [
+      reasoningEvent("weighing"),
+      reasoningEvent(" the odds"),
+      completedEvent({ speech_text: "so" }),
+    ];
+    const res = await caller.call(turnOf(userEnv()));
+    expect(res).toBe("ok");
+    expect(store.get()).toEqual({ text: "weighing the odds", live: false });
   });
 });
 
