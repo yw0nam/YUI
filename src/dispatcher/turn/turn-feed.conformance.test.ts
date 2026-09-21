@@ -9,7 +9,7 @@ import { wirePushTransport } from "../../app/wire-push";
 import type { ToolStatus } from "../../contract";
 import { createDelegationsStore } from "../../io/bridge/delegations-store";
 import { createReasoningStore, type ReasoningState } from "../../io/bridge/reasoning-store";
-import type { RenderFrame, ToolStatusFrame } from "../../io/chat/push-socket";
+import type { ReasoningFrame, RenderFrame, ToolStatusFrame } from "../../io/chat/push-socket";
 import { createBackendCaller } from "../backend/backend-caller";
 import {
   CONFIG,
@@ -66,7 +66,7 @@ function runPush(): Run {
   const store = createReasoningStore();
   store.subscribe((s) => states.push(s));
   let onRender: ((frame: RenderFrame) => void) | null = null;
-  let onReasoning: ((delta: string) => void) | null = null;
+  let onReasoning: ((frame: ReasoningFrame) => void) | null = null;
   let onToolStatus: ((frame: ToolStatusFrame) => void) | null = null;
   wirePushTransport({
     socket: {
@@ -102,9 +102,9 @@ function runPush(): Run {
     state: "running",
     tool_id: "web_search",
   });
-  onReasoning!("weighing");
+  onReasoning!({ type: "reasoning", turn_id: "hermes-1", delta: "weighing" });
   onToolStatus!({ type: "tool_status", turn_id: "hermes-1", state: "done", tool_id: "web_search" });
-  onReasoning!(" the odds");
+  onReasoning!({ type: "reasoning", turn_id: "hermes-1", delta: " the odds" });
   onRender!({
     type: "render",
     turn_id: "hermes-1",

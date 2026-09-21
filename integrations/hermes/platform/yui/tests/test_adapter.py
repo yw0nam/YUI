@@ -1192,9 +1192,26 @@ async def test_the_reasoning_stream_reaches_the_client_as_one_coalesced_frame(cl
     ws = await ready(client)
     reasoning.set_sink(adapter.push_reasoning)
     STUB_ENV["HERMES_SESSION_CHAT_ID"] = CHAT
+    await adapter.on_processing_start(user_turn(adapter, "7"))
     for delta in ("I will ", "check ", "the log."):
         await asyncio.to_thread(reasoning.on_stream_delta, delta=delta, kind="reasoning", surface="yui")
-    assert await recv(ws) == {"type": "reasoning", "delta": "I will check the log."}
+    assert await recv(ws) == {"type": "reasoning", "turn_id": "7", "delta": "I will check the log."}
+
+
+async def test_a_reasoning_delta_flushed_after_its_turn_closed_sends_no_frame(client, adapter):
+    """Reasoning streams inside a turn; a window that outlives it has no turn to name."""
+    ws = await ready(client)
+    reasoning.set_sink(adapter.push_reasoning)
+    STUB_ENV["HERMES_SESSION_CHAT_ID"] = CHAT
+    await adapter.on_processing_start(user_turn(adapter, "7"))
+    await adapter.on_processing_complete(user_turn(adapter, "7"), ProcessingOutcome.SUCCESS)
+    assert await recv(ws) == {"type": "turn_end", "turn_id": "7"}
+    # The flush runs here directly: the armed task is still inside its window sleep.
+    adapter._collect_reasoning(CHAT, "HEAD")
+    await adapter._flush_reasoning(CHAT)
+    # An empty turn answers at once, so its turn_end proves no reasoning frame was queued ahead.
+    await ws.send_json({"type": "turn", "turn_id": "9", "client_context": "", "text": ""})
+    assert await recv(ws) == {"type": "turn_end", "turn_id": "9"}
 
 
 async def test_the_render_carries_the_streamed_reasoning(client, adapter):
@@ -1243,6 +1260,7 @@ async def test_a_delta_that_lands_during_a_flush_leaves_on_the_next_one(client, 
         return await send_frame(chat_id, frame)
 
     monkeypatch.setattr(adapter, "_send_frame", admitting)
+    await adapter.on_processing_start(user_turn(adapter, "7"))
     adapter._collect_reasoning(CHAT, "HEAD")
     assert (await recv(ws))["delta"] == "HEAD"
     assert (await recv(ws))["delta"] == "TAIL"
@@ -1260,6 +1278,7 @@ async def test_a_new_turn_keeps_none_of_the_last_turns_reasoning(client, adapter
         return await send_frame(chat_id, frame)
 
     monkeypatch.setattr(adapter, "_send_frame", admitting)
+    await adapter.on_processing_start(user_turn(adapter, "7"))
     adapter._collect_reasoning(CHAT, "HEAD")
     assert (await recv(ws))["delta"] == "HEAD"
     await adapter.on_processing_start(user_turn(adapter, "8"))

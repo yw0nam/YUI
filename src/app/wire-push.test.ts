@@ -14,6 +14,7 @@ import type { ChatHistoryEntry } from "../io/chat/chat-history-store";
 import type {
   DelegationItem,
   PushSocketState,
+  ReasoningFrame,
   RenderFrame,
   SpeechFrame,
   ToolStatusFrame,
@@ -26,7 +27,7 @@ function fakeSocket() {
   let speechCb: ((frame: SpeechFrame) => void) | null = null;
   let turnEndCb: ((frame: TurnEndFrame) => void) | null = null;
   let delegationsCb: ((items: DelegationItem[]) => void) | null = null;
-  let reasoningCb: ((delta: string) => void) | null = null;
+  let reasoningCb: ((frame: ReasoningFrame) => void) | null = null;
   let stateCb: ((state: PushSocketState) => void) | null = null;
   let toolStatusCb: ((frame: ToolStatusFrame) => void) | null = null;
   return {
@@ -55,7 +56,7 @@ function fakeSocket() {
         delegationsCb = null;
       };
     },
-    onReasoning(cb: (delta: string) => void) {
+    onReasoning(cb: (frame: ReasoningFrame) => void) {
       reasoningCb = cb;
       return () => {
         reasoningCb = null;
@@ -85,8 +86,8 @@ function fakeSocket() {
     pushDelegations(items: DelegationItem[]): void {
       delegationsCb?.(items);
     },
-    pushReasoning(delta: string): void {
-      reasoningCb?.(delta);
+    pushReasoning(frame: ReasoningFrame): void {
+      reasoningCb?.(frame);
     },
     pushState(state: PushSocketState): void {
       stateCb?.(state);
@@ -236,24 +237,44 @@ describe("wirePushTransport", () => {
 
   it("appends a reasoning delta into the reasoning store", () => {
     wire();
-    socket.pushReasoning("A");
-    socket.pushReasoning("B");
+    socket.pushReasoning({ type: "reasoning", turn_id: "7", delta: "A" });
+    socket.pushReasoning({ type: "reasoning", turn_id: "7", delta: "B" });
 
     expect(reasoning.get()).toEqual({ text: "AB", live: true });
   });
 
   it("closes the live reasoning cycle with the render frame's reasoning", () => {
     wire();
-    socket.pushReasoning("A");
+    socket.pushReasoning({ type: "reasoning", turn_id: "7", delta: "A" });
     socket.pushRender({ ...RENDER, reasoning: "AB" });
 
     expect(reasoning.get()).toEqual({ text: "AB", live: false });
   });
 
+  it("ends the live reasoning cycle on the turn's turn_end when no render comes", () => {
+    wire();
+    pushTurns.opened("7");
+    socket.pushReasoning({ type: "reasoning", turn_id: "7", delta: "A" });
+    expect(reasoning.get()).toEqual({ text: "A", live: true });
+
+    socket.pushTurnEnd({ type: "turn_end", turn_id: "7" });
+
+    expect(reasoning.get()).toEqual({ text: "", live: false });
+  });
+
+  it("drops a reasoning delta of a turn the user stopped", () => {
+    wire();
+    pushTurns.opened("7");
+    pushTurns.cut();
+    socket.pushReasoning({ type: "reasoning", turn_id: "7", delta: "A" });
+
+    expect(reasoning.get()).toEqual({ text: "", live: false });
+  });
+
   it("abandons the reasoning still streaming for a turn the user stopped", () => {
     wire();
     pushTurns.opened("7");
-    socket.pushReasoning("A");
+    socket.pushReasoning({ type: "reasoning", turn_id: "7", delta: "A" });
     pushTurns.cut();
     socket.pushRender({ ...RENDER, reasoning: "AB" });
 
@@ -274,7 +295,7 @@ describe("wirePushTransport", () => {
   it("keeps a reasoning text an earlier render finished when a later frame is dropped", () => {
     wire();
     pushTurns.opened("7");
-    socket.pushReasoning("A");
+    socket.pushReasoning({ type: "reasoning", turn_id: "7", delta: "A" });
     socket.pushRender({ ...RENDER, reasoning: "AB" });
     pushTurns.opened("8");
     pushTurns.cut();
@@ -285,7 +306,7 @@ describe("wirePushTransport", () => {
 
   it("interrupts the reasoning on a non-ready socket state", () => {
     wire();
-    socket.pushReasoning("A");
+    socket.pushReasoning({ type: "reasoning", turn_id: "7", delta: "A" });
     socket.pushState({ kind: "reconnecting", delay_ms: 1_000 });
 
     expect(reasoning.get()).toEqual({ text: "", live: false });
@@ -529,7 +550,7 @@ describe("wirePushTransport — speech frames", () => {
 
   it("leaves the reasoning as it is on a speech frame", () => {
     wire();
-    socket.pushReasoning("A");
+    socket.pushReasoning({ type: "reasoning", turn_id: "7", delta: "A" });
     socket.pushSpeech(SPEECH);
 
     expect(reasoning.get()).toEqual({ text: "A", live: true });
@@ -558,7 +579,7 @@ describe("wirePushTransport — teardown through the shared turn feed", () => {
       state: "running",
       tool_id: "read_file",
     });
-    if (cycle === "push") socket.pushReasoning("A");
+    if (cycle === "push") socket.pushReasoning({ type: "reasoning", turn_id: "7", delta: "A" });
     else feed.reasoning("stream:12", "S");
   }
 

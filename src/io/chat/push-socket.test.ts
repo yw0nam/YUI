@@ -14,6 +14,7 @@ import {
   type PushVocabulary,
   pushSocketUrl,
   pushVocabularyOf,
+  type ReasoningFrame,
   type RenderFrame,
 } from "./push-socket";
 
@@ -967,40 +968,63 @@ describe("createPushSocket — inbound frames", () => {
     expect(() => FakeSocket.last().push({ type: "weather" })).not.toThrow();
   });
 
-  it("hands a reasoning frame's delta to every subscriber", async () => {
+  it("hands a reasoning frame to every subscriber with its turn id", async () => {
     await connected();
-    const seen: string[] = [];
-    socket.onReasoning((delta) => seen.push(delta));
-    FakeSocket.last().push({ type: "reasoning", delta: "The log is the first place to look." });
+    const seen: ReasoningFrame[] = [];
+    socket.onReasoning((frame) => seen.push(frame));
+    FakeSocket.last().push({
+      type: "reasoning",
+      turn_id: "1789365854947",
+      delta: "The log is the first place to look.",
+    });
 
-    expect(seen).toEqual(["The log is the first place to look."]);
+    expect(seen).toEqual([
+      {
+        type: "reasoning",
+        turn_id: "1789365854947",
+        delta: "The log is the first place to look.",
+      },
+    ]);
   });
 
   it("stops delivering reasoning after the subscription is dropped", async () => {
     await connected();
-    const seen: string[] = [];
-    const off = socket.onReasoning((delta) => seen.push(delta));
+    const seen: ReasoningFrame[] = [];
+    const off = socket.onReasoning((frame) => seen.push(frame));
     off();
-    FakeSocket.last().push({ type: "reasoning", delta: "late" });
+    FakeSocket.last().push({ type: "reasoning", turn_id: "1789365854947", delta: "late" });
 
     expect(seen).toEqual([]);
   });
 
   it("warns and drops a reasoning frame whose delta is not a string", async () => {
     await connected();
-    const seen: string[] = [];
-    socket.onReasoning((delta) => seen.push(delta));
-    FakeSocket.last().push({ type: "reasoning", delta: 5 });
+    const seen: ReasoningFrame[] = [];
+    socket.onReasoning((frame) => seen.push(frame));
+    FakeSocket.last().push({ type: "reasoning", turn_id: "1789365854947", delta: 5 });
 
     expect(seen).toEqual([]);
     expect(logger.warn).toHaveBeenCalledWith("frame_malformed", { type: "reasoning" });
   });
 
+  it("warns and drops a reasoning frame whose turn_id is not a non-empty string", async () => {
+    await connected();
+    const seen: ReasoningFrame[] = [];
+    socket.onReasoning((frame) => seen.push(frame));
+    FakeSocket.last().push({ type: "reasoning", delta: "The log is the first place to look." });
+
+    expect(seen).toEqual([]);
+    expect(logger.warn).toHaveBeenCalledWith("frame_malformed", {
+      type: "reasoning",
+      field: "turn_id",
+    });
+  });
+
   it("delivers nothing for an empty-string reasoning delta", async () => {
     await connected();
-    const seen: string[] = [];
-    socket.onReasoning((delta) => seen.push(delta));
-    FakeSocket.last().push({ type: "reasoning", delta: "" });
+    const seen: ReasoningFrame[] = [];
+    socket.onReasoning((frame) => seen.push(frame));
+    FakeSocket.last().push({ type: "reasoning", turn_id: "1789365854947", delta: "" });
 
     expect(seen).toEqual([]);
   });
