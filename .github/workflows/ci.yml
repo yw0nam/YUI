@@ -4,7 +4,7 @@ on:
   push:
     branches: [main]
   pull_request:
-    types: [opened, synchronize, reopened, labeled, unlabeled]
+    types: [opened, synchronize, reopened]
 
 concurrency:
   group: ci-${{ github.ref }}
@@ -44,14 +44,23 @@ jobs:
     name: test-guard (tests accompany source)
     runs-on: ubuntu-latest
     if: github.event_name == 'pull_request'
+    permissions:
+      contents: read
+      pull-requests: read
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0 # full history so we can diff against the PR base
       - name: Enforce that source changes ship tests
         env:
-          TEST_GUARD_SKIP: ${{ contains(github.event.pull_request.labels.*.name, 'skip-tests') && '1' || '' }}
-        run: bash scripts/ci/test-guard.sh "origin/${{ github.event.pull_request.base.ref }}"
+          GH_TOKEN: ${{ github.token }}
+        # Labels are read at run time, so re-running the job picks up a label added after the PR opened.
+        run: |
+          skip=
+          if gh api "repos/${{ github.repository }}/pulls/${{ github.event.pull_request.number }}" --jq '.labels[].name' | grep -qx skip-tests; then
+            skip=1
+          fi
+          TEST_GUARD_SKIP="$skip" bash scripts/ci/test-guard.sh "origin/${{ github.event.pull_request.base.ref }}"
 
   pr-title:
     name: pr-title (conventional + english)

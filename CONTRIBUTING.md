@@ -25,7 +25,8 @@ repositories** and optional — see [`docs/guide/getting-started.md`](docs/guide
   same PR. Write the failing test first (`test:`), then the implementation
   (`feat:`), then refactor if needed (`refactor:`). The `test-guard` CI job
   enforces this; the `skip-tests` label bypasses it for genuinely test-free
-  changes (docs, config).
+  changes (docs, config). The label takes effect on the next `test-guard` run,
+  so re-run the job after labelling.
 - **Verify before asking.** Anything observable (UI, DOM, logs) — verify it
   yourself and attach the proof to the PR's **Runtime evidence** section.
 

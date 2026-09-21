@@ -5,7 +5,7 @@ Mandatory rules have an enforcement point — the gate, not memory, is the sourc
 | Rule | Enforced by |
 |---|---|
 | No direct commits to `main`; PR + green CI required | GitHub branch ruleset · `PreToolUse(Bash)` hook (agent must request the user to run any `main` commit/push) |
-| New/changed behavior ships a test | `test-guard` CI job (`skip-tests` label bypass) |
+| New/changed behavior ships a test | `test-guard` CI job (`skip-tests` label bypass; the job reads the PR's labels at run time, so the label takes effect on the next `test-guard` run — re-run the job after labelling) |
 | Conventional, English PR titles | `pr-title` CI job |
 | Format + lint | `lint` CI job (`pnpm lint`, Biome) |
 | No raw `console.*` in `src/` | `lint` CI job (Biome `noConsole`) |
