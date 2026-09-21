@@ -2,10 +2,9 @@
  * turn-feed — the one consumer of tool-chip states and reasoning cycles from every transport.
  *
  * Each transport turns its own wire into calls here under an owner that names one of its turns,
- * and the feed keeps the two shared slots: the running tool and the live reasoning cycle. The
- * slots are what a superseded turn's late frames used to corrupt — a done clearing a newer
- * turn's chip, a delta concatenating two turns' text — so every slot change is checked against
- * the owner that holds it.
+ * and the feed keeps the two shared slots: the running tool and the live reasoning cycle. Every
+ * slot change is checked against the owner that holds it, so a superseded turn's late frames
+ * leave a newer turn's chip and text alone.
  */
 
 import type { ToolStatus } from "../../contract";
@@ -15,15 +14,18 @@ import type { ReasoningStore } from "../../io/bridge/reasoning-store";
 export type Owner = string;
 
 export interface TurnFeed {
-  /** A tool state of this owner's turn. The chip is one slot: a new `running` always takes it; a `done` from an owner that does not hold it is ignored. */
+  /**
+   * A tool state of this owner's turn. The chip is one slot: a `running` always takes it, and a
+   * `done` from an owner that does not hold it is ignored.
+   */
   toolStatus(owner: Owner, state: "running" | "done", toolId: string | undefined): void;
-  /** A reasoning delta. A delta from a new owner abandons the live cycle and starts its own: the newest turn wins. */
+  /** A reasoning delta. A delta from a new owner abandons the live cycle: the newest turn wins. */
   reasoning(owner: Owner, delta: string): void;
-  /** The owner's reply landed: closes the reasoning cycle. `full` replaces the streamed text when given. */
+  /** The owner's reply landed: closes its cycle. `full` replaces the streamed text when given. */
   replied(owner: Owner, full?: string): void;
-  /** The owner's turn is over however it ended: its running tool goes idle, its live cycle is abandoned. Another owner's work is left alone. */
+  /** The owner's turn is over however it ended: its running tool goes idle, its live cycle dies. */
   ended(owner: Owner): void;
-  /** A whole source went away (its connection dropped, its wiring was disposed): `ended` for every slot an owner of that source holds. */
+  /** A source's connection or wiring went away: `ended` for every slot one of its owners holds. */
   sourceLost(source: string): void;
 }
 

@@ -101,7 +101,7 @@ interface BackendCallerDeps extends PushCallDeps {
   getFrontmost?: () => FrontmostState | undefined;
   /** Previous-turn slot lookup — read after the pre-turn interrupt, so a superseded turn is already recorded. */
   getPrevious?: () => PreviousTurn | undefined;
-  /** The shared tool-chip/reasoning consumer — this path's tool states and reasoning deltas flow into it under this turn's owner. */
+  /** The shared tool-chip/reasoning consumer — the streaming path feeds it under this turn's owner. */
   turnFeed?: TurnFeed;
   /** Previous response id lookup — when present, included in request to continue conversation. Called per turn (reflects reset/rotation). */
   getPreviousResponseId?: () => string | undefined;
@@ -298,7 +298,7 @@ export function createBackendCaller(deps: BackendCallerDeps): BackendCaller {
         streamedAny = false;
         cueStreamed = false;
         silenceFilter = createSilenceTokenFilter();
-        // The previous attempt's cycle and running tool die before this one streams — never join their text.
+        // The previous attempt's cycle and running tool die before this one streams.
         deps.turnFeed?.ended(owner);
         let streamError: string | undefined;
         // HTTP status carried by stream error event (openai SDK APIError.status) — distinguish
