@@ -201,19 +201,22 @@ The backend's reasoning as it is written, sent while the turn is running.
 ```json
 {
   "type": "reasoning",
+  "turn_id": "1789365854947",
   "delta": "The log is the first place to look."
 }
 ```
 
 | Field | Value |
 |---|---|
+| `turn_id` | The turn the reasoning belongs to |
 | `delta` | The reasoning written since the previous `reasoning` frame |
 
 Frames are coalesced, so one carries however much arrived in the window. They are best effort: a
 backend under load drops them, and a turn may carry none at all. The `render` frame's `reasoning`
 field is where the text arrives whole — from a frame that plays. A `render` dropped for a stopped
 turn abandons the reasoning still streaming for that turn; a text an earlier render already
-finished stays.
+finished stays. A `reasoning` frame of a turn the user stopped is dropped like the turn's other
+frames, and the turn's `turn_end` ends reasoning still showing.
 
 ### `delegations` (backend → client)
 
