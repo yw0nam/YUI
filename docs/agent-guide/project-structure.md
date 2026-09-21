@@ -40,7 +40,7 @@ YUI/
   src/
     main.ts                          # Application entry: config load, renderer, dispatcher, and the I/O graph
     app/                             # Composes the pet window from the layers below
-      bootstrap-configured.ts        # Config-derived bootstrap: pat gesture, fall and descend configs, ambient handles
+      bootstrap-configured.ts        # Config-derived bootstrap: calls the wire functions in order and drains their teardowns
       turn/                          # The path of a turn: sources, voice, and push
         wire-sources.ts              # Tauri window sources and the dispatcher's paced proactive sources
         wire-voice.ts                # Expression broker client and the voice input lifecycle
