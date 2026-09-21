@@ -108,7 +108,7 @@ class YuiAdapter(BasePlatformAdapter):
         self._closings: set[asyncio.Task] = set()
         self._site: web.TCPSite | None = None
         self._homed: set[str] = set()
-        self._reasoning = reasoning.Coalescer(lambda chat_id, frame: self._send_frame(chat_id, frame))
+        self._reasoning = reasoning.Coalescer(self._send_reasoning)
         self._streams: dict[str, speech.Stream] = {}
         self._sends: set[asyncio.Task] = set()
 
@@ -490,6 +490,12 @@ class YuiAdapter(BasePlatformAdapter):
             return
         with contextlib.suppress(RuntimeError):
             loop.call_soon_threadsafe(self._reasoning.collect, chat_id, delta)
+
+    async def _send_reasoning(self, chat_id: str, delta: str) -> None:
+        # A delta whose turn closed inside the window names no turn; the client could not place it.
+        turn = state.turn_id(chat_id)
+        if turn is not None:
+            await self._send_frame(chat_id, {"type": "reasoning", "turn_id": turn, "delta": delta})
 
     # -- speech -------------------------------------------------------------------------------
 

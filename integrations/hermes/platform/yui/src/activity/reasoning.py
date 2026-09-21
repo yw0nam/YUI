@@ -14,7 +14,7 @@ import logging
 import threading
 from collections.abc import Awaitable, Callable
 
-from ..turns import session, state
+from ..turns import session
 
 logger = logging.getLogger(__name__)
 
@@ -26,7 +26,7 @@ _sink: Callable[[str, str], None] | None = None
 
 
 def set_sink(callback: Callable[[str, str], None] | None) -> None:
-    """Who to hand a delta to; the adapter coalesces them onto its loop."""
+    """Who to hand a delta to; the adapter puts them on its loop for the ``Coalescer``."""
     global _sink
     _sink = callback
 
@@ -69,10 +69,10 @@ WINDOW_SECONDS = 0.1
 
 
 class Coalescer:
-    """Each chat's streamed reasoning, sent as one frame per window; runs on the adapter's loop."""
+    """Each chat's streamed reasoning, joined per window and handed to ``send``; runs on the adapter's loop."""
 
-    def __init__(self, send_frame: Callable[[str, dict], Awaitable[bool]]) -> None:
-        self._send_frame = send_frame
+    def __init__(self, send: Callable[[str, str], Awaitable[None]]) -> None:
+        self._send = send
         self.pending: dict[str, list[str]] = {}
         self.flushes: dict[str, asyncio.Task] = {}
 
@@ -89,7 +89,7 @@ class Coalescer:
             flush.cancel()
 
     def close(self) -> None:
-        for flush in self.flushes.values():
+        for flush in tuple(self.flushes.values()):
             flush.cancel()
         self.flushes.clear()
         self.pending.clear()
@@ -99,10 +99,8 @@ class Coalescer:
         try:
             await asyncio.sleep(WINDOW_SECONDS)
             delta = "".join(self.pending.pop(chat_id, []))
-            # A delta whose turn closed inside the window names no turn; the client could not place it.
-            turn = state.turn_id(chat_id)
-            if delta and turn is not None:
-                await self._send_frame(chat_id, {"type": "reasoning", "turn_id": turn, "delta": delta})
+            if delta:
+                await self._send(chat_id, delta)
         finally:
             # No running loop only when the coroutine is collected after loop teardown.
             with contextlib.suppress(RuntimeError):
