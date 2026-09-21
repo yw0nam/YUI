@@ -12,11 +12,11 @@ from __future__ import annotations
 import asyncio
 import logging
 from collections import deque
-from collections.abc import Callable
+from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, field
 
-from ..express.segments import split_finished
-from ..turns import session
+from ..express.segments import opening_cues, split_finished
+from ..turns import session, state
 
 logger = logging.getLogger(__name__)
 
@@ -158,3 +158,65 @@ def _past(content: str, count: int) -> str:
             if not count:
                 return content[index + 1 :]
     return ""
+
+
+class Speaker:
+    """Every chat's answer stream, and the speech frames its sentences leave as."""
+
+    def __init__(
+        self,
+        send: Callable[[str, str, list], Awaitable[bool]],
+        as_sent: Callable[[str], str],
+    ) -> None:
+        self._send = send
+        self._as_sent = as_sent
+        self.streams: dict[str, Stream] = {}
+
+    def stream(self, chat_id: str) -> Stream:
+        stream = self.streams.get(chat_id)
+        if stream is None:
+            stream = self.streams[chat_id] = Stream()
+        return stream
+
+    async def speak(self, chat_id: str, turn_id: str, iteration: int, delta: str) -> None:
+        """Send each sentence this delta finishes as a speech frame of its own."""
+        if not chat_id:
+            await self.stop_all()
+            return
+        stream = self.stream(chat_id)
+        async with stream.lock:
+            if not stream.takes(turn_id, iteration):
+                return
+            if state.is_muted(chat_id):
+                # The swallowed reply takes the mute, and text streamed after it would open mid-answer.
+                stream.off = True
+                return
+            for sentence in stream.feed(turn_id, iteration, delta):
+                if stream.off:
+                    return
+                await self._say(chat_id, stream, sentence)
+
+    def stop(self, chat_id: str) -> None:
+        """A socket that goes away may not have taken what streamed to it, so the render carries the rest."""
+        stream = self.streams.get(chat_id)
+        if stream is not None:
+            stream.off = True
+
+    async def stop_all(self) -> None:
+        """Text that reached no chat leaves a gap in every stream, so their renders carry the rest."""
+        for stream in list(self.streams.values()):
+            async with stream.lock:
+                stream.off = True
+
+    async def _say(self, chat_id: str, stream: Stream, sentence: str) -> None:
+        # Spoken as the reply will read, so the send that follows still continues the stream.
+        sentence = self._as_sent(sentence)
+        if not sentence.strip():
+            return
+        placements = opening_cues(sentence, state.cues(chat_id))
+        if not await self._send(chat_id, sentence, [placement.cue for placement in placements]):
+            stream.off = True
+            logger.info("yui: speech stopped, the render carries the rest chat=%s", chat_id)
+            return
+        state.drop_cues(chat_id, placements)
+        stream.spoke(sentence)

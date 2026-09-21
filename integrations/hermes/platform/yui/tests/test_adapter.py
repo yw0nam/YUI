@@ -1466,7 +1466,7 @@ def render_frame(turn_id, segments):
 async def stream(adapter, *deltas, turn=ANSWER, iteration=1):
     """Hand deltas over as the hook does, each taken before the next."""
     for delta in deltas:
-        await adapter._speak_delta(CHAT, turn, iteration, delta)
+        await adapter._speaker.speak(CHAT, turn, iteration, delta)
 
 
 async def hooked(adapter, *deltas, turn=ANSWER, iteration=1):

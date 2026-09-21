@@ -30,7 +30,7 @@ from gateway.platforms.event import MessageEvent, MessageType, ProcessingOutcome
 from ..activity import delegations, reasoning, reports, tool_status
 from ..express import tools
 from ..express.gate import Vocabulary
-from ..express.segments import build_segments, opening_cues, place_matched
+from ..express.segments import build_segments, place_matched
 from ..speech import speech
 from ..turns import state
 from .frames import MAX_FRAME_BYTES, encoded, fit_frame
@@ -109,7 +109,7 @@ class YuiAdapter(BasePlatformAdapter):
         self._site: web.TCPSite | None = None
         self._homed: set[str] = set()
         self._reasoning = reasoning.Coalescer(self._send_reasoning)
-        self._streams: dict[str, speech.Stream] = {}
+        self._speaker = speech.Speaker(self._send_speech, self._as_sent)
         self._sends: set[asyncio.Task] = set()
 
     @property
@@ -230,7 +230,7 @@ class YuiAdapter(BasePlatformAdapter):
         self._sockets[chat_id] = ws
         state.set_connected(chat_id, True)
         if replaced is not None:
-            self._stop_stream(chat_id)
+            self._speaker.stop(chat_id)
         self._adopt_home_channel(chat_id)
         self._publish_vocabulary(chat_id, frame.get("vocabulary"))
         await self._send_frame(chat_id, {"type": "ready", "chat_id": chat_id})
@@ -267,7 +267,7 @@ class YuiAdapter(BasePlatformAdapter):
         if chat_id and self._sockets.get(chat_id) is ws:
             del self._sockets[chat_id]
             state.set_connected(chat_id, False)
-            self._stop_stream(chat_id)
+            self._speaker.stop(chat_id)
             # Client turn ids restart at 1 per process, so a mark left here would name a new turn.
             state.forget_joined(chat_id)
             logger.info("yui: client gone chat=%s", chat_id)
@@ -509,45 +509,9 @@ class YuiAdapter(BasePlatformAdapter):
 
     def _collect_speech(self, chat_id: str, turn_id: str, iteration: int, delta: str) -> None:
         # Deltas wait on the stream lock in the order they arrive.
-        task = asyncio.create_task(self._speak_delta(chat_id, turn_id, iteration, delta))
+        task = asyncio.create_task(self._speaker.speak(chat_id, turn_id, iteration, delta))
         self._sends.add(task)
         task.add_done_callback(self._sends.discard)
-
-    def _stream(self, chat_id: str) -> speech.Stream:
-        stream = self._streams.get(chat_id)
-        if stream is None:
-            stream = self._streams[chat_id] = speech.Stream()
-        return stream
-
-    async def _speak_delta(self, chat_id: str, turn_id: str, iteration: int, delta: str) -> None:
-        """Send each sentence this delta finishes as a speech frame of its own."""
-        if not chat_id:
-            await self._stop_streams()
-            return
-        stream = self._stream(chat_id)
-        async with stream.lock:
-            if not stream.takes(turn_id, iteration):
-                return
-            if state.is_muted(chat_id):
-                # The swallowed reply takes the mute, and text streamed after it would open mid-answer.
-                stream.off = True
-                return
-            for sentence in stream.feed(turn_id, iteration, delta):
-                if stream.off:
-                    return
-                await self._send_speech(chat_id, stream, sentence)
-
-    def _stop_stream(self, chat_id: str) -> None:
-        """A socket that goes away may not have taken what streamed to it, so the render carries the rest."""
-        stream = self._streams.get(chat_id)
-        if stream is not None:
-            stream.off = True
-
-    async def _stop_streams(self) -> None:
-        """Text that reached no chat leaves a gap in every stream, so their renders carry the rest."""
-        for stream in list(self._streams.values()):
-            async with stream.lock:
-                stream.off = True
 
     def _as_sent(self, text: str) -> str:
         """The text the gateway would send, in the order it cleans a reply."""
@@ -555,25 +519,15 @@ class YuiAdapter(BasePlatformAdapter):
         text = self.extract_images(text)[1]
         return self.extract_local_files(self.strip_media_directives_for_display(text))[1]
 
-    async def _send_speech(self, chat_id: str, stream: speech.Stream, sentence: str) -> None:
-        # Spoken as the reply will read, so the send that follows still continues the stream.
-        sentence = self._as_sent(sentence)
-        if not sentence.strip():
-            return
-        placements = opening_cues(sentence, state.cues(chat_id))
-        segment = {"cues": [placement.cue for placement in placements], "speech": sentence}
+    async def _send_speech(self, chat_id: str, sentence: str, cues: list) -> bool:
+        """A speech frame is never held, and trimming it would drop its only sentence."""
+        segment = {"cues": cues, "speech": sentence}
         frame = {"type": "speech", "turn_id": state.turn_id(chat_id), "segments": [segment]}
-        # A speech frame is never held, and trimming it would drop its only sentence.
-        if (
-            not state.is_connected(chat_id)
-            or encoded(frame)[1] > MAX_FRAME_BYTES
-            or not await self._send_frame(chat_id, frame)
-        ):
-            stream.off = True
-            logger.info("yui: speech stopped, the render carries the rest chat=%s", chat_id)
-            return
-        state.drop_cues(chat_id, placements)
-        stream.spoke(sentence)
+        return (
+            state.is_connected(chat_id)
+            and encoded(frame)[1] <= MAX_FRAME_BYTES
+            and await self._send_frame(chat_id, frame)
+        )
 
     # -- tool status --------------------------------------------------------------------------
 
@@ -661,7 +615,7 @@ class YuiAdapter(BasePlatformAdapter):
             state.mark_delivered(chat_id)
             logger.info("yui: acknowledgement not spoken chat=%s", chat_id)
             return SendResult(success=True, message_id=_message_id())
-        stream = self._stream(chat_id)
+        stream = self._speaker.stream(chat_id)
         async with stream.lock:
             rest = stream.unspoken(content)
             if rest is None:
@@ -777,7 +731,7 @@ class YuiAdapter(BasePlatformAdapter):
         """A failed turn ends behind the failure line the gateway writes after it."""
         if not state.take_closing(chat_id):
             return
-        stream = self._stream(chat_id)
+        stream = self._speaker.stream(chat_id)
         async with stream.lock:
             stream.close()
             for turn_id in state.close_turns(chat_id):
@@ -787,7 +741,7 @@ class YuiAdapter(BasePlatformAdapter):
         """The turn opens here: the gateway serialises this per session, admission does not."""
         chat_id = _chat_of(event)
         await self._close_failed(chat_id)
-        stream = self._stream(chat_id)
+        stream = self._speaker.stream(chat_id)
         async with stream.lock:
             state.reset(chat_id)
             stream.begin(connected=state.is_connected(chat_id))
@@ -818,7 +772,7 @@ class YuiAdapter(BasePlatformAdapter):
             logger.info("yui: failed turn waits for its failure line chat=%s", chat_id)
             state.mark_closing(chat_id)
             return
-        stream = self._stream(chat_id)
+        stream = self._speaker.stream(chat_id)
         async with stream.lock:
             streamed = bool(stream.sent)
             stream.close()
