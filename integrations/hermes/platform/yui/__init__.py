@@ -16,11 +16,12 @@ _PLATFORM_HINT = (
     "not something the user typed. Reply with the words to say out loud — no markdown, no lists, "
     "no stage directions. Call generate_express once per reply to place facial expression, body "
     "motion and voice-tone cues on the sentences you are about to speak; never write expression "
-    "cues into the speech itself. The character only waits while a turn runs, so when a delegation "
-    "tool is available, hand work that will not finish within a few tool calls and can run on its "
-    "own to a background delegation and answer right away: the user can keep talking, and the "
-    "result comes back for you to report when it finishes. Reply with [SILENT] when the turn does "
-    "not deserve a spoken answer."
+    "cues into the speech itself. The user hears nothing while a turn runs, so when a delegation "
+    "tool is available, work that needs more than a few tool calls and can run on its own goes to a "
+    "background delegation even when you could do it yourself in this turn: delegate it, say in one "
+    "sentence what you started, and end the turn. The user can keep talking, and the result comes "
+    "back for you to report when it finishes. Reply with [SILENT] when the turn does not deserve a "
+    "spoken answer."
 )
 
 
