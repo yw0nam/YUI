@@ -165,6 +165,8 @@ export function createBackendCaller(deps: BackendCallerDeps): BackendCaller {
     let thinkingDone = false;
     // Whether running tool_status was passed and not yet closed with done — cleanup decision in finally.
     let toolRunning = false;
+    // Whether this call opened a reasoning cycle — the finally tears down only its own.
+    let reasoningLive = false;
     const startThinking = () => {
       if (thinkingStarted || thinkingDone) return;
       thinkingStarted = true;
@@ -354,11 +356,13 @@ export function createBackendCaller(deps: BackendCallerDeps): BackendCaller {
                 break;
               case "reasoning":
                 deps.reasoning?.append(ev.delta);
+                reasoningLive = true;
                 break;
               case "completed":
                 envelope = ev.envelope;
                 newResponseId = ev.responseId || undefined;
                 deps.reasoning?.finish(undefined);
+                reasoningLive = false;
                 break;
               case "error":
                 streamError = ev.message;
@@ -560,8 +564,8 @@ export function createBackendCaller(deps: BackendCallerDeps): BackendCaller {
       return "ok";
     } finally {
       endThinking();
-      // A cycle without its completed reply dies with the turn; the push socket owns its own.
-      if (!isPush) deps.reasoning?.interrupt();
+      // Only a cycle this call opened and never completed dies with it; the push socket owns its own.
+      if (!isPush && reasoningLive) deps.reasoning?.interrupt();
       // Prevent running chip from surviving without done — on all exit paths including dead turns
       // (abort·drop·stall), flow one idle so consumer brings chip down.
       if (toolRunning) deps.onToolStatus?.({ state: "idle" });
