@@ -63,7 +63,7 @@ describe("turnFeed — reasoning cycle", () => {
 
 describe("turnFeed — sourceLost", () => {
   it("ends the slots a lost source's owners hold and leaves another source's cycle alone", () => {
-    feed.reasoning("push:reasoning", "p");
+    feed.reasoning("push:turn:8", "p");
     feed.toolStatus("push:turn:9", "running", "t");
     feed.reasoning("stream:3", "s");
 

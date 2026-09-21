@@ -10,6 +10,7 @@ import type {
   DelegationItem,
   PushSocket,
   PushSocketState,
+  ReasoningFrame,
   RenderFrame,
   SpeechFrame,
   ToolStatusFrame,
@@ -32,7 +33,7 @@ export function wirePushTransport(deps: {
     onTurnEnd(cb: (frame: TurnEndFrame) => void): () => void;
     onToolStatus(cb: (frame: ToolStatusFrame) => void): () => void;
     onDelegations(cb: (items: DelegationItem[]) => void): () => void;
-    onReasoning(cb: (delta: string) => void): () => void;
+    onReasoning(cb: (frame: ReasoningFrame) => void): () => void;
     onState(cb: (state: PushSocketState) => void): () => void;
   };
   turnOutput: TurnOutput;
@@ -58,8 +59,9 @@ export function wirePushTransport(deps: {
     deps.socket.onRender((frame) => {
       // A dropped frame puts no reply in the message window, so its reasoning has nothing to sit
       // under: the cycle it was writing is abandoned, an earlier finished text is left alone.
-      if (renderTurn.render(frame)) deps.turnFeed.replied("push:reasoning", frame.reasoning);
-      else deps.turnFeed.ended("push:reasoning");
+      if (renderTurn.render(frame))
+        deps.turnFeed.replied(`push:turn:${frame.turn_id}`, frame.reasoning);
+      else deps.turnFeed.ended(`push:turn:${frame.turn_id}`);
     }),
     deps.socket.onSpeech((frame) => renderTurn.stream(frame)),
     deps.socket.onTurnEnd((frame) => {
@@ -97,7 +99,18 @@ export function wirePushTransport(deps: {
       const running = items.filter((item) => item.state === "running").length;
       deps.log.info("delegations", { total: items.length, running });
     }),
-    deps.socket.onReasoning((delta) => deps.turnFeed.reasoning("push:reasoning", delta)),
+    deps.socket.onReasoning((frame) => {
+      // A cut turn's frames never play, so the chip never lights for one.
+      if (deps.pushTurns.isCut(frame.turn_id)) {
+        deps.log.debug("push.reasoning", {
+          turn_id: frame.turn_id,
+          dropped: "cut_turn",
+          stopped_count: deps.pushTurns.cutCount(),
+        });
+        return;
+      }
+      deps.turnFeed.reasoning(`push:turn:${frame.turn_id}`, frame.delta);
+    }),
     deps.socket.onState((state) => {
       if (state.kind === "ready") return;
       // Whatever the socket still held — a live cycle, a running tool — dies with the connection.

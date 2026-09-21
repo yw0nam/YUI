@@ -567,8 +567,10 @@ class YuiAdapter(BasePlatformAdapter):
         try:
             await asyncio.sleep(REASONING_WINDOW_SECONDS)
             delta = "".join(self._reasoning_pending.pop(chat_id, []))
-            if delta:
-                await self._send_frame(chat_id, {"type": "reasoning", "delta": delta})
+            # A delta whose turn closed inside the window names no turn; the client could not place it.
+            turn = state.turn_id(chat_id)
+            if delta and turn is not None:
+                await self._send_frame(chat_id, {"type": "reasoning", "turn_id": turn, "delta": delta})
         finally:
             # No running loop only when the coroutine is collected after loop teardown.
             with contextlib.suppress(RuntimeError):

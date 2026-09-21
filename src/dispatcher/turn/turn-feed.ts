@@ -10,7 +10,7 @@
 import type { ToolStatus } from "../../contract";
 import type { ReasoningStore } from "../../io/bridge/reasoning-store";
 
-/** `<source>:<id>` — e.g. `stream:12`, `push:turn:1789365854947`, `push:reasoning`. */
+/** `<source>:<id>` — e.g. `stream:12`, `push:turn:1789365854947`. */
 export type Owner = string;
 
 export interface TurnFeed {

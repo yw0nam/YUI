@@ -80,6 +80,13 @@ export interface ToolStatusFrame {
   tool_id: string;
 }
 
+/** The backend's reasoning as it is written, sent while the turn it names runs. */
+export interface ReasoningFrame {
+  type: "reasoning";
+  turn_id: string;
+  delta: string;
+}
+
 export interface PushTurnFrame {
   turn_id: string;
   /** The `<client_context>` block text, exactly as the other transports send it. */
@@ -126,7 +133,7 @@ export interface PushSocket {
   onTurnEnd(cb: (frame: TurnEndFrame) => void): () => void;
   onToolStatus(cb: (frame: ToolStatusFrame) => void): () => void;
   onDelegations(cb: (items: DelegationItem[]) => void): () => void;
-  onReasoning(cb: (delta: string) => void): () => void;
+  onReasoning(cb: (frame: ReasoningFrame) => void): () => void;
   onState(cb: (state: PushSocketState) => void): () => void;
   getState(): PushSocketState;
 }
@@ -197,7 +204,7 @@ export function createPushSocket(deps: PushSocketDeps): PushSocket {
   const turnEndSubs = new Set<(frame: TurnEndFrame) => void>();
   const toolStatusSubs = new Set<(frame: ToolStatusFrame) => void>();
   const delegationSubs = new Set<(items: DelegationItem[]) => void>();
-  const reasoningSubs = new Set<(delta: string) => void>();
+  const reasoningSubs = new Set<(frame: ReasoningFrame) => void>();
   const stateSubs = new Set<(state: PushSocketState) => void>();
 
   let ws: WebSocket | null = null;
@@ -341,8 +348,12 @@ export function createPushSocket(deps: PushSocketDeps): PushSocket {
           log.warn("frame_malformed", { type: "reasoning" });
           return;
         }
+        if (typeof frame.turn_id !== "string" || frame.turn_id === "") {
+          log.warn("frame_malformed", { type: "reasoning", field: "turn_id" });
+          return;
+        }
         if (frame.delta === "") return;
-        dispatch(reasoningSubs, frame.delta);
+        dispatch(reasoningSubs, frame as unknown as ReasoningFrame);
         return;
       }
       case "delegations": {
