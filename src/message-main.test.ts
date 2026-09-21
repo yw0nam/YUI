@@ -31,11 +31,6 @@ function running(id: string): DelegationItem {
 
 let petBridge: SettingsBridge;
 
-/** The chat protocol the window reads out of the shared endpoint overrides. */
-function setChatApi(api: string): void {
-  localStorage.setItem("yui.endpoints", JSON.stringify({ chat_api: api }));
-}
-
 /** Boots the window and waits for the chip the bootstrap mounts. */
 async function boot(): Promise<void> {
   document.body.innerHTML = '<div id="app"></div>';
@@ -91,7 +86,6 @@ beforeEach(() => {
   vi.spyOn(globalThis, "cancelAnimationFrame").mockImplementation(() => {});
   setLocale("en");
   localStorage.clear();
-  setChatApi("push");
   petBridge = createSettingsBridge(undefined, { windowKind: "pet" });
 });
 

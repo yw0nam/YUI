@@ -9,8 +9,6 @@
 
 import "./styles.css";
 import "./ui/message/message-window.css";
-import { loadConfig } from "./config/load";
-import type { EndpointsConfig } from "./contract";
 import { createMirroredDelegations } from "./io/bridge/delegations-bridge";
 import { createMessageBridge } from "./io/bridge/message-bridge";
 import { createMirroredPushSocket } from "./io/bridge/push-socket-bridge";
@@ -20,11 +18,6 @@ import {
   createDelegationChipSettings,
   localStorageDelegationChipStorage,
 } from "./io/settings/delegation-chip-settings";
-import {
-  createEndpointsSettings,
-  localStorageEndpointsStorage,
-  mergeEndpoints,
-} from "./io/settings/endpoints-settings";
 import {
   createMessageWindowSettings,
   localStorageMessageWindowStorage,
@@ -57,9 +50,6 @@ async function bootstrap(): Promise<void> {
   const bubblePersistSettings = createFlagSettings(false, {
     storage: localStorageStore("yui.bubble-persist"),
   });
-  const endpointsSettings = createEndpointsSettings({
-    storage: localStorageEndpointsStorage(),
-  });
 
   const bridge = createMessageBridge(undefined, { windowKind: "message" });
   const settingsBridge = createSettingsBridge(undefined, { windowKind: "message" });
@@ -89,6 +79,7 @@ async function bootstrap(): Promise<void> {
   const chipCollapsed = createDelegationChipSettings({
     storage: localStorageDelegationChipStorage(),
   });
+  // No suppression here: the mirror starts disconnected, which already draws nothing.
   const chip = createDelegationChip({
     mount: plateRow,
     store: delegations,
@@ -96,7 +87,6 @@ async function bootstrap(): Promise<void> {
     pushState: pushSocket,
     // The character window owns the settings panel, and opens it on the tab the chat section is on.
     onOpenSettings: () => bridge.emitControl({ op: "open-settings" }),
-    suppressed: true,
   });
   const reasoning = createMirroredReasoning({ bridge: settingsBridge });
   const thinkChip = createReasoningChip({
@@ -107,46 +97,13 @@ async function bootstrap(): Promise<void> {
   thinkChip.onPanelOpen(() => chip.closeList());
   chip.onListOpen(() => thinkChip.closePanel());
 
-  // Only push mode has a transport to report on, and the pet window publishes its socket in every
-  // mode, so elsewhere that socket sits disconnected and the delegation chip would draw a
-  // permanent loss. A state the pet window has not sent yet is not a loss either, so it starts away.
-  let bundledEndpoints: EndpointsConfig | null = null;
-  let sawPushState = false;
-
-  function effectiveChatApi(): string | undefined {
-    const overrides = endpointsSettings.get();
-    return bundledEndpoints === null
-      ? overrides.chat_api
-      : mergeEndpoints(bundledEndpoints, overrides).chat_api;
-  }
-
-  function applyChipMode(): void {
-    const suppressed = !sawPushState || effectiveChatApi() !== "push";
-    chip.setSuppressed(suppressed);
-  }
-
-  applyChipMode();
-  const unsubscribeChipState = pushSocket.onState(() => {
-    sawPushState = true;
-    applyChipMode();
-  });
-  const unsubscribeEndpoints = endpointsSettings.subscribe(applyChipMode);
-  // The bundled default decides the protocol only where no override names one, so the chip waits
-  // for it rather than blocking the window's own surfaces on a fetch.
-  void loadConfig()
-    .then((cfg) => {
-      bundledEndpoints = cfg.endpoints;
-      applyChipMode();
-    })
-    .catch((error) => log.warn("config_load_failed", { error: String(error) }));
-
   bridge.onSurface((op) => {
     switch (op.op) {
       case "begin":
         plate.setLive(true);
         surfaces.beginSpeech();
         break;
-      case "push":
+      case "delta":
         surfaces.pushSpeech(op.delta);
         break;
       case "end":
@@ -203,8 +160,6 @@ async function bootstrap(): Promise<void> {
   const reloadShared = (): void => {
     reloadLocale();
     bubblePersistSettings.reloadFromStorage();
-    endpointsSettings.reloadFromStorage();
-    applyChipMode();
     pushSocket.refresh();
     delegations.refresh();
     reasoning.refresh();
@@ -223,13 +178,10 @@ async function bootstrap(): Promise<void> {
     detachSummonKey();
     window.removeEventListener("focus", reloadShared);
     unlistenSettings();
-    unsubscribeChipState();
-    unsubscribeEndpoints();
     chip.dispose();
     chipCollapsed.dispose();
     thinkChip.dispose();
     reasoning.dispose();
-    endpointsSettings.dispose();
     pushSocket.dispose();
     delegations.dispose();
     plate.dispose();
