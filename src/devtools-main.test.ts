@@ -27,8 +27,11 @@ vi.mock("./io/settings/settings-stores", async (importOriginal) => {
 import { resetDevtoolsMain } from "./devtools-main.test-helpers";
 import { createSettingsStores } from "./io/settings/settings-stores";
 
+type CorsFetchGlobal = { CORSFetch?: { config: (c: { exclude: RegExp[] }) => void } };
+
 afterEach(() => {
   resetDevtoolsMain();
+  delete (globalThis as CorsFetchGlobal).CORSFetch;
 });
 
 it("passes the registry bag and its devtools stores through bootstrap by identity", async () => {
@@ -45,4 +48,18 @@ it("passes the registry bag and its devtools stores through bootstrap by identit
       endpointsSettings: bag.endpointsSettings,
     }),
   );
+});
+
+it("keeps its own origin off the cors-fetch proxy", async () => {
+  const config = vi.fn();
+  (globalThis as CorsFetchGlobal).CORSFetch = { config };
+  document.body.innerHTML = '<div id="app"></div>';
+
+  vi.resetModules();
+  await import("./devtools-main");
+
+  await vi.waitFor(() => expect(config).toHaveBeenCalledOnce());
+  const { exclude } = config.mock.calls[0][0];
+  expect(exclude).toHaveLength(1);
+  expect(exclude[0].test(`${location.origin}/x`)).toBe(true);
 });

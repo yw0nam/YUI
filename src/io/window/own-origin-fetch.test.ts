@@ -39,7 +39,21 @@ describe("excludeOwnOriginFromCorsFetch", () => {
     expect(exclude.test("http://localhostX1420/motions/idle_01.vrma")).toBe(false);
   });
 
+  it("matches the origin case-insensitively", () => {
+    const exclude = excludeFor("http://tauri.localhost");
+
+    expect(exclude.test("http://TAURI.localhost/x")).toBe(true);
+  });
+
   it("does nothing when the plugin is absent", () => {
     expect(() => excludeOwnOriginFromCorsFetch("http://localhost:1420")).not.toThrow();
+  });
+
+  it("does nothing when the window has no origin", () => {
+    const config = vi.fn();
+    (globalThis as CorsFetchGlobal).CORSFetch = { config };
+
+    expect(() => excludeOwnOriginFromCorsFetch()).not.toThrow();
+    expect(config).not.toHaveBeenCalled();
   });
 });
