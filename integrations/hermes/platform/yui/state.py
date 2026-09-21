@@ -12,6 +12,7 @@ _vocabularies: dict[str, Vocabulary] = {}
 _cues: dict[str, list[Placement]] = {}
 _open_turns: dict[str, list[str]] = {}
 _joined: dict[str, list[str]] = {}
+_arrival: dict[str, list[str]] = {}
 _closing: set[str] = set()
 _delivered: set[str] = set()
 _connected: set[str] = set()
@@ -33,13 +34,16 @@ def open_turn(chat_id: str, turn_id: str) -> None:
     """Open one more turn; the backend can run a later turn inside one already open."""
     with _lock:
         _open_turns.setdefault(chat_id, []).append(turn_id)
+        arrival = _arrival.setdefault(chat_id, [])
+        if turn_id not in arrival:
+            arrival.append(turn_id)
 
 
 def turn_id(chat_id: str) -> str | None:
-    """The most recently opened turn; every reply names it."""
+    """The most recently arrived turn, open or joined; every reply names it."""
     with _lock:
-        turns = _open_turns.get(chat_id)
-        return turns[-1] if turns else None
+        arrival = _arrival.get(chat_id)
+        return arrival[-1] if arrival else None
 
 
 def open_turns(chat_id: str) -> list[str]:
@@ -52,6 +56,7 @@ def close_turns(chat_id: str) -> list[str]:
     """Every open turn most recently opened first, then the turns that joined them, cleared."""
     with _lock:
         open_first = reversed(_open_turns.pop(chat_id, []))
+        _arrival.pop(chat_id, None)
         return [*open_first, *reversed(_joined.pop(chat_id, []))]
 
 
@@ -59,6 +64,9 @@ def mark_joined(chat_id: str, turn_id: str) -> None:
     """Record a turn the backend took while this chat was busy, in arrival order."""
     with _lock:
         _joined.setdefault(chat_id, []).append(turn_id)
+        arrival = _arrival.setdefault(chat_id, [])
+        if turn_id not in arrival:
+            arrival.append(turn_id)
 
 
 def drop_joined(chat_id: str, turn_id: str) -> None:
@@ -70,12 +78,18 @@ def drop_joined(chat_id: str, turn_id: str) -> None:
         held.remove(turn_id)
         if not held:
             del _joined[chat_id]
+        arrival = _arrival.get(chat_id)
+        if arrival is not None and turn_id in arrival:
+            arrival.remove(turn_id)
 
 
 def forget_joined(chat_id: str) -> None:
     """Drop every mark on this chat; a departed client's ids mean nothing to the next one."""
     with _lock:
-        _joined.pop(chat_id, None)
+        forgotten = _joined.pop(chat_id, [])
+        arrival = _arrival.get(chat_id)
+        if arrival is not None:
+            _arrival[chat_id] = [turn for turn in arrival if turn not in forgotten]
 
 
 def mark_closing(chat_id: str) -> None:
