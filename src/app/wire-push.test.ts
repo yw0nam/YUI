@@ -7,6 +7,7 @@ import type { ToolStatus } from "../contract";
 import { PRE_SPEECH_TIMEOUT_MS } from "../dispatcher/backend/idle-watchdog";
 import { makeTurnOutput } from "../dispatcher/test-helpers";
 import { createPushTurns } from "../dispatcher/turn/push-turn";
+import { createTurnFeed, type TurnFeed } from "../dispatcher/turn/turn-feed";
 import { createDelegationsStore } from "../io/bridge/delegations-store";
 import { createReasoningStore } from "../io/bridge/reasoning-store";
 import type { ChatHistoryEntry } from "../io/chat/chat-history-store";
@@ -544,6 +545,62 @@ describe("wirePushTransport — speech frames", () => {
 
     expect(transcript).toEqual([]);
     expect(turnOutput.end).not.toHaveBeenCalled();
+  });
+});
+
+describe("wirePushTransport — teardown through the shared turn feed", () => {
+  function wireFeed(feed: TurnFeed) {
+    return wirePushTransport({
+      socket,
+      turnOutput,
+      pushTurns,
+      delegations,
+      delegationHistory,
+      turnFeed: feed,
+      appendTurnRecord: (record) => records.push(record),
+      appendTranscript: (entry) => transcript.push(entry),
+      log,
+    });
+  }
+
+  function lightToolAndCycle(feed: TurnFeed, cycle: "push" | "stream"): void {
+    pushTurns.opened("7");
+    socket.pushToolStatus({
+      type: "tool_status",
+      turn_id: "7",
+      state: "running",
+      tool_id: "read_file",
+    });
+    if (cycle === "push") socket.pushReasoning("A");
+    else feed.reasoning("stream:12", "S");
+  }
+
+  it.each([
+    ["a push-owned cycle", "push", { text: "", live: false }],
+    ["a stream-owned cycle", "stream", { text: "S", live: true }],
+  ] as const)("the socket leaving ready idles the push tool and ends %s", (_label, cycle, expected) => {
+    const feed = createTurnFeed({ onToolStatus: toolStatusSink, reasoning });
+    wireFeed(feed);
+    lightToolAndCycle(feed, cycle);
+
+    socket.pushState({ kind: "reconnecting", delay_ms: 1_000 });
+
+    expect(toolStatusSink).toHaveBeenLastCalledWith({ state: "idle" });
+    expect(reasoning.get()).toEqual(expected);
+  });
+
+  it.each([
+    ["a push-owned cycle", "push", { text: "", live: false }],
+    ["a stream-owned cycle", "stream", { text: "S", live: true }],
+  ] as const)("dispose idles the push tool and ends %s", (_label, cycle, expected) => {
+    const feed = createTurnFeed({ onToolStatus: toolStatusSink, reasoning });
+    const dispose = wireFeed(feed);
+    lightToolAndCycle(feed, cycle);
+
+    dispose();
+
+    expect(toolStatusSink).toHaveBeenLastCalledWith({ state: "idle" });
+    expect(reasoning.get()).toEqual(expected);
   });
 });
 
