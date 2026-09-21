@@ -843,6 +843,26 @@ async def test_a_turn_the_gateway_takes_into_the_running_one_names_the_newest_tu
     assert (await recv(ws))["type"] == "delegations"
 
 
+async def test_a_cue_only_render_after_a_turn_joined_names_the_joined_turn(client, adapter):
+    """Cues left at completion ride the newest turn the chat holds, not the one that opened first."""
+    ws = await ready(client)
+    running = user_turn(adapter, "777")
+    await adapter.on_processing_start(running)
+    adapter._active_sessions[adapter._event_session_key(running)] = object()
+    await ws.send_json({"type": "turn", "turn_id": "778", "client_context": "", "text": "and the docs?"})
+    await wait_for(lambda: adapter.dispatched)
+    state.append_cue(CHAT, {"emotion_id": "happy"}, "")
+    await adapter.on_processing_complete(running, ProcessingOutcome.SUCCESS)
+    assert await recv(ws) == {
+        "type": "render",
+        "turn_id": "778",
+        "source": "hermes",
+        "segments": [{"cues": [{"emotion_id": "happy"}], "speech": ""}],
+    }
+    assert await recv(ws) == {"type": "turn_end", "turn_id": "777"}
+    assert await recv(ws) == {"type": "turn_end", "turn_id": "778"}
+
+
 async def test_a_turn_the_gateway_gives_hooks_of_its_own_keeps_its_id(client, adapter):
     """Interrupted into a turn of its own, it names its reply and ends ahead of the outer turn."""
     ws = await ready(client)
@@ -949,7 +969,12 @@ async def test_a_turn_joined_to_a_failed_one_ends_behind_its_failure_line(client
     await wait_for(lambda: adapter.dispatched)
     await adapter.on_processing_complete(failed, ProcessingOutcome.FAILURE)
     await adapter.send(CHAT, "Sorry, that one broke.", metadata={"notify": True})
-    assert (await recv(ws))["type"] == "render"
+    assert await recv(ws) == {
+        "type": "render",
+        "turn_id": "778",
+        "source": "hermes",
+        "segments": [{"cues": [], "speech": "Sorry, that one broke."}],
+    }
     assert await recv(ws) == {"type": "turn_end", "turn_id": "777"}
     assert await recv(ws) == {"type": "turn_end", "turn_id": "778"}
 
