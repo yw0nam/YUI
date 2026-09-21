@@ -159,7 +159,7 @@ class BasePlatformAdapter:
 
     @staticmethod
     def extract_local_files(content: str) -> tuple[list[str], str]:
-        """Bare absolute paths of files that exist leave the text, as the real one's regex does."""
+        """Absolute paths of files that exist leave the text; the real one also wants a media extension."""
         paths: list[str] = []
         cleaned = content
         for candidate in _BARE_PATH_RE.findall(content):

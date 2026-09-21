@@ -11,10 +11,10 @@
   carrying every cue whose `sentence` opens it, or else the next cue that names no sentence. A
   sentence goes out as the gateway sends text, with media tags, image links and paths of local
   files taken out, and a sentence those leave empty is not spoken at all. The reply the gateway
-  sends then leaves as a `render` frame carrying the sentences not yet sent, each
-  with the cues that landed on it, and cues left over after streamed speech still play. A reply
-  that does not continue the streamed text renders whole. A turn the agent answers with
-  `[SILENT]`, or with nothing, closes with no speech, and the cues it placed still play.
+  sends then leaves as a `render` frame carrying the sentences not yet sent, each with the cues that
+  landed on it, and cues left over after streamed speech still play. A reply that does not continue
+  the streamed text renders whole. A turn the agent answers with `[SILENT]`, or with nothing, closes
+  with no speech, and the cues it placed still play.
 - Logs and never renders the text the gateway writes for itself: the busy acknowledgement when
   a turn lands mid-run, every status notice, and the restart, startup and shutdown pings, which
   the plugin turns off for this platform. What the agent writes before a tool call, its final
