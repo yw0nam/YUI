@@ -4,8 +4,8 @@ from __future__ import annotations
 
 import threading
 
-from .gate import Vocabulary
-from .segments import Placement
+from ..express.gate import Vocabulary
+from ..express.segments import Placement
 
 _lock = threading.Lock()
 _vocabularies: dict[str, Vocabulary] = {}

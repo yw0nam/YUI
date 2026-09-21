@@ -4,7 +4,8 @@ from __future__ import annotations
 
 import pytest
 from gateway_stub import STUB_ENV
-from yui import state, tool_status
+from yui.src.activity import tool_status
+from yui.src.turns import state
 
 CHAT = "yui-3f9a2c1d"
 

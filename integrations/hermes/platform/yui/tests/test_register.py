@@ -2,7 +2,8 @@
 
 from __future__ import annotations
 
-from yui import register, tools
+from yui import register
+from yui.src.express import tools
 
 
 class FakeCtx:

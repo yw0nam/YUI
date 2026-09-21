@@ -3,7 +3,8 @@
 from __future__ import annotations
 
 import pytest
-from yui import speech, state
+from yui.src.speech import speech
+from yui.src.turns import state
 
 CHAT = "yui-3f9a2c1d"
 # A gateway turn runs its agent under a task id equal to the session id.

@@ -18,8 +18,11 @@ from gateway_stub import (
     MessageType,
     ProcessingOutcome,
 )
-from yui import delegations, reasoning, reports, speech, state, tool_status, tools
-from yui.adapter import MAX_FRAME_BYTES, YuiAdapter, fit_frame, is_loopback
+from yui.src.activity import delegations, reasoning, reports, tool_status
+from yui.src.express import tools
+from yui.src.speech import speech
+from yui.src.transport.adapter import MAX_FRAME_BYTES, YuiAdapter, fit_frame, is_loopback
+from yui.src.turns import state
 
 CHAT = "yui-3f9a2c1d"
 KEY = "test-key"

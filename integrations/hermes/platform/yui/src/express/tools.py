@@ -10,7 +10,7 @@ import json
 import logging
 from typing import Any
 
-from . import session, state
+from ..turns import session, state
 from .gate import Vocabulary, cue_of, validate_cue
 
 logger = logging.getLogger(__name__)

@@ -27,9 +27,12 @@ from gateway.config import Platform
 from gateway.platforms.base import BasePlatformAdapter, SendResult
 from gateway.platforms.event import MessageEvent, MessageType, ProcessingOutcome
 
-from . import delegations, reasoning, reports, speech, state, tool_status, tools
-from .gate import Vocabulary
-from .segments import build_segments, opening_cues, place_matched
+from ..activity import delegations, reasoning, reports, tool_status
+from ..express import tools
+from ..express.gate import Vocabulary
+from ..express.segments import build_segments, opening_cues, place_matched
+from ..speech import speech
+from ..turns import state
 
 logger = logging.getLogger(__name__)
 

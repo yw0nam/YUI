@@ -13,7 +13,7 @@ import time
 from collections.abc import Callable
 from typing import Any
 
-from . import session
+from ..turns import session
 
 logger = logging.getLogger(__name__)
 

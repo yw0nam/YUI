@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from yui.adapter import YuiAdapter
+from yui.src.transport.adapter import YuiAdapter
 
 
 def test_the_adapter_declares_that_it_edits_no_messages():

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import pytest
 from gateway_stub import STUB_ENV
-from yui import reasoning
+from yui.src.activity import reasoning
 
 CHAT = "yui-3f9a2c1d"
 

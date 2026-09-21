@@ -1,7 +1,8 @@
 """Minimal stand-ins for the Hermes gateway modules the plugin imports.
 
 Tests run without a gateway process; ``install_stubs`` puts these into ``sys.modules`` before
-``yui.adapter`` is imported, so the plugin's ``gateway.*`` imports resolve to recording stubs.
+``yui.src.transport.adapter`` is imported, so the plugin's ``gateway.*`` imports resolve to
+recording stubs.
 """
 
 from __future__ import annotations

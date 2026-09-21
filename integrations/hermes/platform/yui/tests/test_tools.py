@@ -6,9 +6,10 @@ import json
 
 import pytest
 from gateway_stub import STUB_ENV
-from yui import state, tools
-from yui.gate import Vocabulary
-from yui.segments import Placement
+from yui.src.express import tools
+from yui.src.express.gate import Vocabulary
+from yui.src.express.segments import Placement
+from yui.src.turns import state
 
 ENUM_TABLE = {"😆": "joyfully", "👂": "whisper"}
 

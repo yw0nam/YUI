@@ -15,8 +15,8 @@ from collections import deque
 from collections.abc import Callable
 from dataclasses import dataclass, field
 
-from . import session
-from .segments import split_finished
+from ..express.segments import split_finished
+from ..turns import session
 
 logger = logging.getLogger(__name__)
 

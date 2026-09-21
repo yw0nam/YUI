@@ -11,7 +11,7 @@ import logging
 import threading
 from collections.abc import Callable
 
-from . import session
+from ..turns import session
 
 logger = logging.getLogger(__name__)
 

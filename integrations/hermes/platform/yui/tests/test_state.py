@@ -3,9 +3,9 @@
 from __future__ import annotations
 
 import pytest
-from yui import state
-from yui.gate import Vocabulary
-from yui.segments import Placement
+from yui.src.express.gate import Vocabulary
+from yui.src.express.segments import Placement
+from yui.src.turns import state
 
 
 @pytest.fixture(autouse=True)

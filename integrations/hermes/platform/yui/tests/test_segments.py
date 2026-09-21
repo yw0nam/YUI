@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from yui.segments import Placement, build_segments, place_matched, split_finished, split_sentences
+from yui.src.express.segments import Placement, build_segments, place_matched, split_finished, split_sentences
 
 
 def test_the_terminator_stays_with_its_sentence():

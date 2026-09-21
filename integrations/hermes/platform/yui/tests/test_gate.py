@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from yui.gate import Vocabulary, cue_of, tokenize_emotion_text, validate_cue
+from yui.src.express.gate import Vocabulary, cue_of, tokenize_emotion_text, validate_cue
 
 ENUM_TABLE = {"😆": "joyfully", "👂": "whisper", "😮‍💨": "sigh"}
 

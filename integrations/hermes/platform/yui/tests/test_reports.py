@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import pytest
-from yui import reports
+from yui.src.activity import reports
 
 
 @pytest.fixture(autouse=True)

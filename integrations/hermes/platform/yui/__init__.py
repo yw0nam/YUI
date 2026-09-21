@@ -42,8 +42,10 @@ def is_connected(config) -> bool:
 
 
 def register(ctx) -> None:
-    from . import delegations, reasoning, speech, tool_status, tools
-    from .gate import Vocabulary
+    from .src.activity import delegations, reasoning, tool_status
+    from .src.express import tools
+    from .src.express.gate import Vocabulary
+    from .src.speech import speech
 
     tools.set_context(ctx)
     try:
@@ -63,7 +65,7 @@ def register(ctx) -> None:
         except Exception:
             logger.warning("YUI: failed to register the %s hook", hook, exc_info=True)
     try:
-        from .adapter import YuiAdapter
+        from .src.transport.adapter import YuiAdapter
 
         ctx.register_platform(
             name="yui",

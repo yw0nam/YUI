@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import pytest
 from gateway_stub import STUB_ENV
-from yui import delegations
+from yui.src.activity import delegations
 
 
 @pytest.fixture(autouse=True)
