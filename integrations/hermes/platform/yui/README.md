@@ -72,9 +72,9 @@ turns in and finished replies out. The contract both sides speak is
   that arrives while a turn the frame does not name is open — one the gateway started on its own
   that the client has not seen a `render` of, or one that began after the client stopped — does
   nothing, and neither turn ends. The acknowledgement `/stop` makes is never spoken, and each
-  turn the cancellation closes ends with one `turn_end`. The gateway's `/stop` also ends the
-  delegations still running for that chat; each reports `done` with `status: "error"` in the
-  next `delegations` frame.
+  turn the cancellation closes ends with one `turn_end`. The gateway's `/stop` interrupts the
+  running turn only: a delegation runs in the background apart from the turn that started it, so
+  it keeps running and reports when it finishes.
 - Declares the `generate_express` schema when a turn opens, from the vocabulary that turn's chat
   published. The gateway holds one schema per process, and a turn reads it when its agent is built
   and again when it compacts its context, so a turn that reaches either point after another chat's
