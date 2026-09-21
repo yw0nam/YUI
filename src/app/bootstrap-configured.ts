@@ -1,5 +1,13 @@
-import { createSitter, type Sitter } from "../ambient/sitter";
-import type { Tier1Engine } from "../ambient/tier1";
+import type { Tier1Engine } from "../ambient/liveliness/tier1";
+import { createSitter, type Sitter } from "../ambient/locomotion/sitter";
+import {
+  wireClimber,
+  wireFaller,
+  wirePercher,
+  wireStrollReflexCancel,
+  wireTravelFrame,
+  wireWalker,
+} from "../ambient/locomotion/wire";
 import {
   type AppConfig,
   CHAT_API_KEY_SECRET,
@@ -60,14 +68,6 @@ import { routeTurnFailure, turnErrorFixAction, turnErrorMessage } from "../ui/no
 import type { createQuickControls } from "../ui/quick-controls/quick-controls";
 import type { Surfaces } from "../ui/surfaces/surfaces";
 import { type VoicePipeline, wireVoicePipeline } from "./voice-pipeline-wiring";
-import {
-  wireClimber,
-  wireFaller,
-  wirePercher,
-  wireStrollReflexCancel,
-  wireTravelFrame,
-  wireWalker,
-} from "./wire-ambient";
 import type { wireSpeakerSelection, wireVrmSelection } from "./wire-avatar";
 import { wirePushTransport, wireStopButton } from "./wire-push";
 import { wireDispatcherSources, wireWindowSources } from "./wire-sources";

@@ -1,6 +1,6 @@
 /** Pure tier-1 control directive for sit, drop, peek and pat events. */
 import type { ControlEnvelope, EmotionId, Posture } from "../../contract";
-import { PERCH_MOTION_ID } from "../../io/window/window-drop-source";
+import { PERCH_MOTION_ID } from "../../io/window/perch";
 import type { Logger } from "../../logger";
 import type { BusEnvelope } from "./event-bus";
 

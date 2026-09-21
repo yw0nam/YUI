@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import type { WalkConfig } from "../config/load";
-import type { PetWindow, ScreenMonitor } from "../io/window/screen-geometry";
-import type { RenderMotionSignal, TickContext, TickFn } from "../renderer";
+import type { WalkConfig } from "../../config/load";
+import type { PetWindow, ScreenMonitor } from "../../io/window/screen-geometry";
+import type { RenderMotionSignal, TickContext, TickFn } from "../../renderer";
 import {
   advanceX,
   canStartStroll,

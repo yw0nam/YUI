@@ -23,8 +23,8 @@
  * timers, the async window reads, and the per-frame translation.
  */
 
-import type { ClimbConfig, DescendConfig, FallConfig, WalkConfig } from "../config/load";
-import type { MotionKind, WindowRect } from "../contract";
+import type { ClimbConfig, DescendConfig, FallConfig, WalkConfig } from "../../config/load";
+import type { MotionKind, WindowRect } from "../../contract";
 import {
   clampToFloorSegments,
   type DescentEdge,
@@ -36,10 +36,12 @@ import {
   monitorAt,
   type PetWindow,
   type ScreenMonitor,
-} from "../io/window/screen-geometry";
-import type { Travel } from "../io/window/travel-frame";
-import { createLogger } from "../logger";
-import type { Renderer } from "../renderer";
+} from "../../io/window/screen-geometry";
+import type { Travel } from "../../io/window/travel-frame";
+import { createLogger } from "../../logger";
+import type { Renderer } from "../../renderer";
+import { type Rng, randRange } from "../liveliness/cues";
+import { prefersReducedMotion } from "../liveliness/tier1";
 import {
   type Box,
   type ClimbTarget,
@@ -55,9 +57,7 @@ import {
   wallStandX,
 } from "./climb-geometry";
 import { createLegRunner } from "./clip-leg";
-import { type Rng, randRange } from "./cues";
 import type { SeatWindow, Sitter } from "./sitter";
-import { prefersReducedMotion } from "./tier1";
 import {
   canStartStroll,
   MAX_STEP_DT_S,

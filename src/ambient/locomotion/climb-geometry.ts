@@ -7,17 +7,17 @@
  * field says otherwise.
  */
 
-import type { ClimbConfig } from "../config/load";
-import type { WindowRect } from "../contract";
+import type { ClimbConfig } from "../../config/load";
+import type { WindowRect } from "../../contract";
+import { MOVE_TH } from "../../io/window/perch";
 import {
   type DescentEdge,
   FLOOR_LINE_TOLERANCE_PX,
   floorPx,
   logicalWorkArea,
   type ScreenMonitor,
-} from "../io/window/screen-geometry";
-import { MOVE_TH } from "../io/window/window-drop-source";
-import { type Rng, randRange } from "./cues";
+} from "../../io/window/screen-geometry";
+import { type Rng, randRange } from "../liveliness/cues";
 
 /** The wall a climb runs on: a foreign window's side, or a screen edge onto the monitor above. */
 export interface ClimbTarget {

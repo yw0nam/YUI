@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
-import type { JumpConfig, PerchWalkConfig } from "../config/load";
-import type { WindowRect } from "../contract";
-import type { TickContext, TickFn } from "../renderer";
+import type { JumpConfig, PerchWalkConfig } from "../../config/load";
+import type { WindowRect } from "../../contract";
+import type { TickContext, TickFn } from "../../renderer";
 import { createJumper, type JumperDeps, type JumpPlan, jumpArc, pickJumpTarget } from "./jumper";
 
 const CFG: JumpConfig = {

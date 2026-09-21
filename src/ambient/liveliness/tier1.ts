@@ -20,7 +20,7 @@
 
 import type { VRM } from "@pixiv/three-vrm";
 import type { Object3D } from "three";
-import type { Renderer, TickContext } from "../renderer";
+import type { Renderer, TickContext } from "../../renderer";
 import * as cues from "./cues";
 
 type AmbientCue = "blink" | "idle_sway" | "breath" | "look_around" | "tap_react" | "idle_returned";

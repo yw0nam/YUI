@@ -18,19 +18,19 @@
  * frame hook, the async window reads and the window translation.
  */
 
-import type { FallConfig } from "../config/load";
-import type { MotionKind, WindowRect } from "../contract";
+import type { FallConfig } from "../../config/load";
+import type { MotionKind, WindowRect } from "../../contract";
+import { PERCH_POLL_MS, uncoveredSpan } from "../../io/window/perch";
 import {
   floorPx,
   logicalWorkArea,
   monitorAt,
   type PetWindow,
   type ScreenMonitor,
-} from "../io/window/screen-geometry";
-import { PERCH_POLL_MS, uncoveredSpan } from "../io/window/window-drop-source";
-import { createLogger } from "../logger";
-import type { Renderer } from "../renderer";
-import { prefersReducedMotion } from "./tier1";
+} from "../../io/window/screen-geometry";
+import { createLogger } from "../../logger";
+import type { Renderer } from "../../renderer";
+import { prefersReducedMotion } from "../liveliness/tier1";
 import { MAX_STEP_DT_S } from "./walker";
 
 const log = createLogger("faller");

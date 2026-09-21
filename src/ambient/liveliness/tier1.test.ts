@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import type { Renderer, TickContext, TickFn } from "../renderer";
+import type { Renderer, TickContext, TickFn } from "../../renderer";
 import { createTier1Engine, type Tier1Engine } from "./tier1";
 
 /**

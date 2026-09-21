@@ -3,8 +3,8 @@
  * the climb config, the character metrics, and the target window the wall tests climb.
  */
 
-import type { ClimbConfig } from "../config/load";
-import type { WindowRect } from "../contract";
+import type { ClimbConfig } from "../../config/load";
+import type { WindowRect } from "../../contract";
 import type { ClimbTarget } from "./climb-geometry";
 
 export const CFG: ClimbConfig = {

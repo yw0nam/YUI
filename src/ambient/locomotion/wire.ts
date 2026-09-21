@@ -1,10 +1,3 @@
-import type { ClimbTarget } from "../ambient/climb-geometry";
-import { type Climber, createClimber } from "../ambient/climber";
-import { createFaller, type DropOptions, type Faller } from "../ambient/faller";
-import { createJumper } from "../ambient/jumper";
-import { createPercher, type Percher, type PercherWindow } from "../ambient/percher";
-import type { Sitter } from "../ambient/sitter";
-import { createWalker, type Walker } from "../ambient/walker";
 import type {
   ClimbConfig,
   DescendConfig,
@@ -13,16 +6,23 @@ import type {
   JumpConfig,
   PerchWalkConfig,
   WalkConfig,
-} from "../config/load";
-import type { MotionKind, WindowRect } from "../contract";
-import { isReflexTurn } from "../dispatcher/backend/backend-caller";
-import type { EventBus } from "../dispatcher/core/event-bus";
-import type { Dispatcher } from "../dispatcher/dispatcher";
-import { type DescentEdge, type PetWindow, toScreenMonitor } from "../io/window/screen-geometry";
-import { isTauri } from "../io/window/tauri-env";
-import { createTravelFrame, type FrameWindow, type Travel } from "../io/window/travel-frame";
-import type { Logger } from "../logger";
-import type { Renderer } from "../renderer";
+} from "../../config/load";
+import type { MotionKind, WindowRect } from "../../contract";
+import { isReflexTurn } from "../../dispatcher/backend/backend-caller";
+import type { EventBus } from "../../dispatcher/core/event-bus";
+import type { Dispatcher } from "../../dispatcher/dispatcher";
+import { type DescentEdge, type PetWindow, toScreenMonitor } from "../../io/window/screen-geometry";
+import { isTauri } from "../../io/window/tauri-env";
+import { createTravelFrame, type FrameWindow, type Travel } from "../../io/window/travel-frame";
+import type { Logger } from "../../logger";
+import type { Renderer } from "../../renderer";
+import type { ClimbTarget } from "./climb-geometry";
+import { type Climber, createClimber } from "./climber";
+import { createFaller, type DropOptions, type Faller } from "./faller";
+import { createJumper } from "./jumper";
+import { createPercher, type Percher, type PercherWindow } from "./percher";
+import type { Sitter } from "./sitter";
+import { createWalker, type Walker } from "./walker";
 
 /**
  * The shared travel frame: parks the real pet window once for a seam crossing (the

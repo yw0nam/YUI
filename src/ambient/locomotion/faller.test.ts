@@ -3,12 +3,12 @@ import { describe, expect, it, vi } from "vitest";
 const { log } = vi.hoisted(() => ({
   log: { info: vi.fn(), warn: vi.fn(), error: vi.fn(), debug: vi.fn() },
 }));
-vi.mock("../logger", () => ({ createLogger: () => log }));
+vi.mock("../../logger", () => ({ createLogger: () => log }));
 
-import type { FallConfig } from "../config/load";
-import type { MotionKind, WindowRect } from "../contract";
-import type { ScreenMonitor } from "../io/window/screen-geometry";
-import type { RenderMotionSignal, TickContext, TickFn } from "../renderer";
+import type { FallConfig } from "../../config/load";
+import type { MotionKind, WindowRect } from "../../contract";
+import type { ScreenMonitor } from "../../io/window/screen-geometry";
+import type { RenderMotionSignal, TickContext, TickFn } from "../../renderer";
 import {
   createFaller,
   FALL_MOTION_ID,

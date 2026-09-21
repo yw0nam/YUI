@@ -13,21 +13,21 @@
  * fall that comes down on a window top hands it back through landOn().
  */
 
-import type { FallConfig, JumpConfig, PerchWalkConfig } from "../config/load";
-import type { MotionKind, WindowRect } from "../contract";
-import { monitorAt, type ScreenMonitor } from "../io/window/screen-geometry";
+import type { FallConfig, JumpConfig, PerchWalkConfig } from "../../config/load";
+import type { MotionKind, WindowRect } from "../../contract";
 import {
   MOVE_TH,
   PERCH_AMBIGUOUS_LOST_TICKS,
   PERCH_MOTION_ID,
   PERCH_POLL_MS,
   uncoveredSpan,
-} from "../io/window/window-drop-source";
-import { createLogger } from "../logger";
-import type { TickFn } from "../renderer";
+} from "../../io/window/perch";
+import { monitorAt, type ScreenMonitor } from "../../io/window/screen-geometry";
+import { createLogger } from "../../logger";
+import type { TickFn } from "../../renderer";
+import { prefersReducedMotion } from "../liveliness/tier1";
 import { type JumpOutcome, type JumpPlan, pickJumpTarget } from "./jumper";
 import type { Sitter } from "./sitter";
-import { prefersReducedMotion } from "./tier1";
 import { WALK_YAW_EASE_MS } from "./walker";
 
 const log = createLogger("percher");

@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import type { WindowRect } from "../contract";
+import type { WindowRect } from "../../contract";
 
 // wireFaller only builds the loop under Tauri, so capture the deps it hands createFaller
 // and drive the landing callback directly.
@@ -14,13 +14,13 @@ const { createFaller, fallerDrop } = vi.hoisted(() => {
     })),
   };
 });
-vi.mock("../ambient/faller", () => ({ createFaller }));
+vi.mock("./faller", () => ({ createFaller }));
 vi.mock("@tauri-apps/api/core", () => ({ invoke: vi.fn(async () => []) }));
 vi.mock("@tauri-apps/api/window", () => ({
   availableMonitors: vi.fn(async () => []),
 }));
 
-import { wireFaller } from "./wire-ambient";
+import { wireFaller } from "./wire";
 
 const noopLog = { info: () => {}, warn: () => {}, error: () => {}, debug: () => {} } as never;
 

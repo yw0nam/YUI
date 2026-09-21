@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
-import type { MotionKind } from "../contract";
-import type { RenderMotionSignal, TickContext, TickFn } from "../renderer";
+import type { MotionKind } from "../../contract";
+import type { RenderMotionSignal, TickContext, TickFn } from "../../renderer";
 import {
   createSitter,
   SEAT_HANDOFF_S,

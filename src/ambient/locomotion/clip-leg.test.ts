@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
-import type { MotionKind } from "../contract";
-import type { RenderMotionSignal } from "../renderer";
+import type { MotionKind } from "../../contract";
+import type { RenderMotionSignal } from "../../renderer";
 import { type ClipLeg, createLegRunner } from "./clip-leg";
 
 /** Source clip lengths the renderer reports once the clips are cached. */

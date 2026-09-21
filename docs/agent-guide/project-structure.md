@@ -42,7 +42,6 @@ YUI/
     app/
       wire-avatar.ts                 # VRM and speaker selection stores, their swap and import flows, and effective endpoints
       wire-window-sync.ts            # Settings broadcast, guardrail overrides, and the shared cross-window sync core
-      wire-ambient.ts                # Travel frame plus the walk, perch, fall, and climb ambient loops
       wire-sources.ts                # Tauri window sources and the dispatcher's paced proactive sources
       wire-summon.ts                 # Peek exit triggers, tray summon, and the global summon hotkey
       wire-voice.ts                  # Expression broker client and the voice input lifecycle
@@ -147,16 +146,19 @@ YUI/
         screen-source.ts             # Frontmost-app transition firing source with a dwell state machine
         user-input-source.ts         # Normalises typed text and STT results into bus envelopes
     ambient/                         # Backend-independent local liveliness and movement
-      tier1.ts                       # Tier 1 ambient engine: blink, idle sway, breath, look-around
-      cues.ts                        # Pure, side-effect-free cue math for Tier 1
-      walker.ts                      # Floor stroll along the monitor's work-area bottom
-      percher.ts                     # Perched dwell, stroll, and sit-back-down on a foreign window top
-      climber.ts                     # Climb up a window or screen edge, dwell, and climb back down
-      climb-geometry.ts              # Pure wall geometry and the climb and descent target picks
-      jumper.ts                      # Jump across to an adjacent window top
-      faller.ts                      # Fall to the first surface below a character left in mid-air
-      sitter.ts                      # Sit-down and stand-up seat transitions
-      clip-leg.ts                    # A window leg paced by an in-place clip
+      liveliness/                    # Tier 1 idle-life engine and its cue math
+        tier1.ts                     # Tier 1 ambient engine: blink, idle sway, breath, look-around
+        cues.ts                      # Pure, side-effect-free cue math for Tier 1
+      locomotion/                    # Movement loops: stroll, perch, climb, jump, fall, and sit transitions
+        walker.ts                    # Floor stroll along the monitor's work-area bottom
+        percher.ts                   # Perched dwell, stroll, and sit-back-down on a foreign window top
+        climber.ts                   # Climb up a window or screen edge, dwell, and climb back down
+        climb-geometry.ts            # Pure wall geometry and the climb and descent target picks
+        jumper.ts                    # Jump across to an adjacent window top
+        faller.ts                    # Fall to the first surface below a character left in mid-air
+        sitter.ts                    # Sit-down and stand-up seat transitions
+        clip-leg.ts                  # A window leg paced by an in-place clip
+        wire.ts                      # Travel frame plus the walk, perch, fall, and climb ambient loops
     io/                              # I/O layer: chat, voice, settings stores, window and OS seams
       settings/
         api-key-settings.ts            # Generic API-key override store behind the chat, STT, and TTS key settings
@@ -237,6 +239,7 @@ YUI/
         tap-source.ts                  # Turns taps on the character into bus envelopes
         drag-hold-source.ts            # Fires one proactive.drag_held candidate per sustained drag
         window-drop-source.ts          # Drag-release perch decision plus the occlusion-aware detach poll
+        perch.ts                       # Perch values and the host-edge span that the drop source and the locomotion loops share
         window-resize-source.ts        # Ctrl+wheel over the character resizes the pet window
         summon-hotkey.ts               # Registers the OS-wide summon accelerator and summons the input
         settings-window.ts             # Settings window opener and cross-window settings sync

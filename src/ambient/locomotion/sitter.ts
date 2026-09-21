@@ -7,9 +7,9 @@
  * on when it resolves; a transition cut short by a pickup resolves "lost".
  */
 
-import type { MotionKind } from "../contract";
-import { createLogger } from "../logger";
-import type { Renderer } from "../renderer";
+import type { MotionKind } from "../../contract";
+import { createLogger } from "../../logger";
+import type { Renderer } from "../../renderer";
 import { createLegRunner, type LegWindow } from "./clip-leg";
 import type { WalkerDoc } from "./walker";
 

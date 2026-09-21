@@ -18,8 +18,8 @@ const { createPercher, createJumper, landOn } = vi.hoisted(() => {
     })),
   };
 });
-vi.mock("../ambient/percher", () => ({ createPercher }));
-vi.mock("../ambient/jumper", () => ({ createJumper }));
+vi.mock("./percher", () => ({ createPercher }));
+vi.mock("./jumper", () => ({ createJumper }));
 vi.mock("@tauri-apps/api/core", () => ({ invoke: vi.fn() }));
 vi.mock("@tauri-apps/api/window", () => ({
   availableMonitors: vi.fn(async () => []),
@@ -27,7 +27,7 @@ vi.mock("@tauri-apps/api/window", () => ({
 }));
 vi.mock("@tauri-apps/api/dpi", () => ({ PhysicalPosition: class {} }));
 
-import { wirePercher } from "./wire-ambient";
+import { wirePercher } from "./wire";
 
 const noopLog = { info: () => {}, warn: () => {}, error: () => {}, debug: () => {} } as never;
 

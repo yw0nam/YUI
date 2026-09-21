@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { ScreenMonitor } from "../io/window/screen-geometry";
+import type { ScreenMonitor } from "../../io/window/screen-geometry";
 import {
   type ClimbTarget,
   climbGeometrySample,

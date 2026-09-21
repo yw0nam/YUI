@@ -13,7 +13,7 @@
  */
 
 import "./styles.css";
-import { createTier1Engine } from "./ambient/tier1";
+import { createTier1Engine } from "./ambient/liveliness/tier1";
 import { createConfiguredBootstrap } from "./app/bootstrap-configured";
 import { wireSpeakerSelection, wireVrmSelection } from "./app/wire-avatar";
 import { wireCrossWindowSync, wireDevGlobals } from "./app/wire-cross-window";

@@ -13,7 +13,7 @@ const { createPercher, createWindowDropSource } = vi.hoisted(() => ({
     stop: () => {},
   })),
 }));
-vi.mock("../ambient/percher", () => ({ createPercher }));
+vi.mock("../ambient/locomotion/percher", () => ({ createPercher }));
 vi.mock("../io/window/window-drop-source", () => ({ createWindowDropSource }));
 vi.mock("../io/window/window-resize-source", () => ({
   createWindowResizeSource: () => ({ start: () => {}, stop: () => {} }),
@@ -37,7 +37,7 @@ vi.mock("@tauri-apps/api/dpi", () => ({
   PhysicalPosition: class {},
 }));
 
-import { wirePercher } from "./wire-ambient";
+import { wirePercher } from "../ambient/locomotion/wire";
 import { wireWindowSources } from "./wire-sources";
 
 const noopLog = { info: () => {}, warn: () => {}, error: () => {}, debug: () => {} } as never;

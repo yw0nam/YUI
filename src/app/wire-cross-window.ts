@@ -1,4 +1,4 @@
-import type { Tier1Engine } from "../ambient/tier1";
+import type { Tier1Engine } from "../ambient/liveliness/tier1";
 import type { WindowRect } from "../contract";
 import type { EventBus } from "../dispatcher/core/event-bus";
 import type { Dispatcher } from "../dispatcher/dispatcher";

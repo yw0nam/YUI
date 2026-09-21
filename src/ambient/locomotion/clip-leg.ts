@@ -6,9 +6,9 @@
  * seat transitions run on it.
  */
 
-import type { MotionKind } from "../contract";
-import { createLogger } from "../logger";
-import type { Renderer } from "../renderer";
+import type { MotionKind } from "../../contract";
+import { createLogger } from "../../logger";
+import type { Renderer } from "../../renderer";
 import { MAX_STEP_DT_S } from "./walker";
 
 const log = createLogger("clip-leg");
