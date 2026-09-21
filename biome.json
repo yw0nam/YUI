@@ -58,6 +58,211 @@
           }
         }
       }
+    },
+    {
+      "includes": ["src/contract/**", "src/tauri-env.ts", "src/logger.ts"],
+      "linter": {
+        "rules": {
+          "style": {
+            "noRestrictedImports": {
+              "level": "error",
+              "options": {
+                "patterns": [
+                  {
+                    "group": [
+                      "**/config",
+                      "**/config/**",
+                      "**/renderer",
+                      "**/renderer/**",
+                      "**/io",
+                      "**/io/**",
+                      "**/dispatcher",
+                      "**/dispatcher/**",
+                      "**/ambient",
+                      "**/ambient/**",
+                      "**/ui",
+                      "**/ui/**",
+                      "**/app",
+                      "**/app/**"
+                    ],
+                    "message": "A layer imports only from the layers to its left (AGENTS.md, Engineering principles)."
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "includes": ["src/config/**"],
+      "linter": {
+        "rules": {
+          "style": {
+            "noRestrictedImports": {
+              "level": "error",
+              "options": {
+                "patterns": [
+                  {
+                    "group": [
+                      "**/renderer",
+                      "**/renderer/**",
+                      "**/io",
+                      "**/io/**",
+                      "**/dispatcher",
+                      "**/dispatcher/**",
+                      "**/ambient",
+                      "**/ambient/**",
+                      "**/ui",
+                      "**/ui/**",
+                      "**/app",
+                      "**/app/**"
+                    ],
+                    "message": "A layer imports only from the layers to its left (AGENTS.md, Engineering principles)."
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "includes": ["src/renderer/**"],
+      "linter": {
+        "rules": {
+          "style": {
+            "noRestrictedImports": {
+              "level": "error",
+              "options": {
+                "patterns": [
+                  {
+                    "group": [
+                      "**/io",
+                      "**/io/**",
+                      "**/dispatcher",
+                      "**/dispatcher/**",
+                      "**/ambient",
+                      "**/ambient/**",
+                      "**/ui",
+                      "**/ui/**",
+                      "**/app",
+                      "**/app/**"
+                    ],
+                    "message": "A layer imports only from the layers to its left (AGENTS.md, Engineering principles)."
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "includes": ["src/io/**"],
+      "linter": {
+        "rules": {
+          "style": {
+            "noRestrictedImports": {
+              "level": "error",
+              "options": {
+                "patterns": [
+                  {
+                    "group": [
+                      "**/dispatcher",
+                      "**/dispatcher/**",
+                      "**/ambient",
+                      "**/ambient/**",
+                      "**/ui",
+                      "**/ui/**",
+                      "**/app",
+                      "**/app/**"
+                    ],
+                    "message": "A layer imports only from the layers to its left (AGENTS.md, Engineering principles)."
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "includes": ["src/dispatcher/**"],
+      "linter": {
+        "rules": {
+          "style": {
+            "noRestrictedImports": {
+              "level": "error",
+              "options": {
+                "patterns": [
+                  {
+                    "group": [
+                      "**/ambient",
+                      "**/ambient/**",
+                      "**/ui",
+                      "**/ui/**",
+                      "**/app",
+                      "**/app/**"
+                    ],
+                    "message": "A layer imports only from the layers to its left (AGENTS.md, Engineering principles)."
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "includes": ["src/ambient/**"],
+      "linter": {
+        "rules": {
+          "style": {
+            "noRestrictedImports": {
+              "level": "error",
+              "options": {
+                "patterns": [
+                  {
+                    "group": ["**/ui", "**/ui/**", "**/app", "**/app/**"],
+                    "message": "A layer imports only from the layers to its left (AGENTS.md, Engineering principles)."
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "includes": ["src/ui/**"],
+      "linter": {
+        "rules": {
+          "style": {
+            "noRestrictedImports": {
+              "level": "error",
+              "options": {
+                "patterns": [
+                  {
+                    "group": ["**/app", "**/app/**"],
+                    "message": "A layer imports only from the layers to its left (AGENTS.md, Engineering principles)."
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "includes": ["src/**/*.test.ts", "src/**/*test-helpers*.ts"],
+      "linter": {
+        "rules": {
+          "style": {
+            "noRestrictedImports": "off"
+          }
+        }
+      }
     }
   ]
 }

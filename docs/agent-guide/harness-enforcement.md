@@ -9,6 +9,7 @@ Mandatory rules have an enforcement point — the gate, not memory, is the sourc
 | Conventional, English PR titles | `pr-title` CI job |
 | Format + lint | `lint` CI job (`pnpm lint`, Biome) |
 | No raw `console.*` in `src/` | `lint` CI job (Biome `noConsole`) |
+| `src/` layer order: a layer imports only from the layers to its left (`AGENTS.md` § Engineering principles; the window entry files are not covered) | `lint` CI job (Biome `noRestrictedImports` `patterns`, one `overrides` entry per layer in `biome.json`; `*.test.ts` and `*test-helpers*.ts` are exempt) |
 | Rust format + clippy + test | `rust` CI job; on pull requests, `dorny/paths-filter` runs `cargo fmt --check`, `cargo clippy -D warnings`, and `cargo test` when `src-tauri/**` or `.github/workflows/ci.yml` changes, otherwise the job reports green without the heavy steps |
 | Runtime verification of UI/DOM/runtime change | PR template Runtime-evidence section |
 | Purchased motion files are protected from mutation | `PreToolUse(Write\|Edit\|NotebookEdit)` runs `pretool-write-guard.sh`, which denies writes under `purchased_motions/`; `PreToolUse(Bash)` runs `pretool-bash-guard.sh`, which denies shell move/copy/delete/overwrite, `git add`, and redirects touching the same directory; `YUI_ALLOW_MOTIONS=1` bypasses both guards |
