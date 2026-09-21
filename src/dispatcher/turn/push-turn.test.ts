@@ -25,6 +25,18 @@ describe("createPushTurns", () => {
     expect(turns.isCut("B")).toBe(true);
   });
 
+  it("cut returns the ids it swept", () => {
+    const turns = createPushTurns();
+
+    turns.opened("A");
+    turns.opened("B");
+    turns.rendered("A");
+    const swept = turns.cut();
+    turns.opened("C");
+
+    expect(swept).toEqual(["A", "B"]);
+  });
+
   it("a turn opened after the cut starts clean", () => {
     const turns = createPushTurns();
 

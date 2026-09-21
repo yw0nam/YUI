@@ -19,7 +19,7 @@ import type {
   ToolStatusFrame,
   TurnEndFrame,
 } from "../io/chat/push-socket";
-import { wirePushMode, wirePushTransport } from "./wire-push";
+import { wirePushMode, wirePushStop, wirePushTransport } from "./wire-push";
 
 function fakeSocket() {
   let renderCb: ((frame: RenderFrame) => void) | null = null;
@@ -588,6 +588,61 @@ describe("wirePushTransport — teardown through the shared turn feed", () => {
 
     expect(toolStatusSink).toHaveBeenLastCalledWith({ state: "idle" });
     expect(reasoning.get()).toEqual(expected);
+  });
+});
+
+describe("wirePushStop", () => {
+  let sendStop: Mock<(turnIds: string[]) => boolean>;
+  let onStopCb: (() => void) | null = null;
+
+  function wireStop(withSocket = true): void {
+    sendStop = vi.fn(() => true);
+    onStopCb = null;
+    wirePushStop({
+      onStop(cb) {
+        onStopCb = cb;
+      },
+      stopTurn: () => pushTurns.cut(),
+      socket: withSocket ? { sendStop } : undefined,
+      log,
+    });
+  }
+
+  it("sends one stop naming exactly the turns outstanding", () => {
+    pushTurns.opened("A");
+    pushTurns.opened("B");
+    wireStop();
+    onStopCb?.();
+
+    expect(sendStop).toHaveBeenCalledExactlyOnceWith(["A", "B"]);
+    expect(log.info).toHaveBeenCalledExactlyOnceWith("push.stop", { count: 2 });
+  });
+
+  it("does not name a turn opened after the stop", () => {
+    wireStop();
+    pushTurns.opened("A");
+    onStopCb?.();
+    pushTurns.opened("B");
+    onStopCb?.();
+
+    expect(sendStop.mock.calls).toEqual([[["A"]], [["B"]]]);
+  });
+
+  it("sends nothing with no turn outstanding", () => {
+    wireStop();
+    onStopCb?.();
+
+    expect(sendStop).not.toHaveBeenCalled();
+    expect(log.info).not.toHaveBeenCalled();
+  });
+
+  it("without a socket still stops the turn and sends nothing", () => {
+    wireStop(false);
+    pushTurns.opened("A");
+    onStopCb?.();
+
+    expect(pushTurns.isCut("A")).toBe(true);
+    expect(log.info).not.toHaveBeenCalled();
   });
 });
 

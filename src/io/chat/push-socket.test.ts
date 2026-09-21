@@ -713,6 +713,18 @@ describe("createPushSocket — outbound frames", () => {
     expect(FakeSocket.last().frames().at(-1)).toEqual({ type: "reset" });
   });
 
+  it("sends a stop frame with the stopped turn ids once ready and refuses one before", async () => {
+    socket = build();
+    socket.connect();
+    await vi.advanceTimersByTimeAsync(0);
+    expect(socket.sendStop(["7", "8"])).toBe(false);
+
+    FakeSocket.last().accept();
+    FakeSocket.last().push({ type: "ready", chat_id: "yui-3f9a2c1d" });
+    expect(socket.sendStop(["7", "8"])).toBe(true);
+    expect(FakeSocket.last().frames().at(-1)).toEqual({ type: "stop", turn_ids: ["7", "8"] });
+  });
+
   it("sends a vocabulary frame when the renderable set changed", async () => {
     await connected();
     vocabulary = { ...VOCAB, motion_ids: ["idle", "dance"] };
