@@ -1,3 +1,4 @@
+// @vitest-environment jsdom
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 // The wiring reaches isOverInteractive/onCursor only as factory options — mock the factories
@@ -16,10 +17,10 @@ const { createHitTestController, createCursorTracker } = vi.hoisted(() => ({
   ),
 }));
 
-vi.mock("../io/window/hit-test", () => ({ createHitTestController }));
-vi.mock("../io/window/cursor-tracker", () => ({ createCursorTracker }));
+vi.mock("../../io/window/pet/hit-test", () => ({ createHitTestController }));
+vi.mock("../../io/window/pet/cursor-tracker", () => ({ createCursorTracker }));
 
-import type { HitTestKnobs } from "../config/load";
+import type { HitTestKnobs } from "../../config/load";
 import { INTERACTIVE_OVERLAY_SELECTORS, wireGaze, wireHitTest } from "./wire-stage";
 
 const rectOf = (left: number, top: number, right: number, bottom: number): DOMRect =>

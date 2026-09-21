@@ -48,6 +48,7 @@ YUI/
         wire-push.ts                 # Push socket frames into turns and the push mode chip
       stage/                         # What is bound to the pet window's stage and overlay
         wire-summon.ts               # Peek exit triggers, tray summon, and the global summon hotkey
+        wire-stage.ts                # Click-through hit-test and cursor-gaze wiring over the stage
       cross-window/                  # State the windows share
         wire-cross-window.ts         # Per-window sync for the pet, settings, and devtools windows plus DEV globals
         wire-window-sync.ts          # Settings broadcast, guardrail overrides, and the shared cross-window sync core

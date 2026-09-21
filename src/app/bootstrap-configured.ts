@@ -49,9 +49,8 @@ import type { ScreenCapturer } from "../io/window/capture/screen-source-provider
 import { buildScreenshotBlock } from "../io/window/capture/screenshot-context";
 import { createFrontmostTracker } from "../io/window/frontmost-tracker";
 import type { DescentEdge } from "../io/window/geometry/screen-geometry";
-import { createCursorTracker } from "../io/window/pet/cursor-tracker";
 import { initDrag, type PatGesture } from "../io/window/pet/drag";
-import { createHitTestController, type HitTestController } from "../io/window/pet/hit-test";
+import type { HitTestController } from "../io/window/pet/hit-test";
 import { createPeekState } from "../io/window/pet/peek-state";
 import type { SummonHotkey } from "../io/window/pet/summon-hotkey";
 import { isTauri } from "../io/window/tauri-env";
@@ -69,6 +68,7 @@ import type { createQuickControls } from "../ui/quick-controls/quick-controls";
 import type { Surfaces } from "../ui/surfaces/surfaces";
 import { wireGuardrailsOverrides } from "./cross-window/wire-window-sync";
 import type { wireSpeakerSelection, wireVrmSelection } from "./settings/wire-avatar";
+import { wireGaze, wireHitTest } from "./stage/wire-stage";
 import { wirePeekExitTriggers, wireSummonHotkey } from "./stage/wire-summon";
 import { wirePushTransport, wireStopButton } from "./turn/wire-push";
 import { wireDispatcherSources, wireWindowSources } from "./turn/wire-sources";
@@ -76,20 +76,6 @@ import { wireBroker, wireVoiceInput } from "./turn/wire-voice";
 import { type VoicePipeline, wireVoicePipeline } from "./turn/wire-voice-pipeline";
 
 const log = createLogger("bootstrap");
-
-/**
- * Overlay elements that must take OS pointer events while shown — everything else in the overlay
- * stays click-through. The bubble itself is display-only; only its dismiss button is a target.
- * The voice chip earns pointer events only in the one state where it has a fix to offer.
- */
-export const INTERACTIVE_OVERLAY_SELECTORS = [
-  ".yui-input.is-open",
-  ".yui-bubble.is-visible .yui-bubble__close",
-  ".yui-bubble.is-visible .yui-bubble__pop",
-  '.yui-voice.is-visible[data-fix="settings"]',
-  ".yui-deleg.is-visible .yui-deleg__chip",
-  ".yui-deleg.is-visible .yui-deleg__list.is-open",
-] as const;
 
 interface Phase1Handles {
   config: ConfigStore;
@@ -497,45 +483,14 @@ const realFactories: ConfiguredBootstrapFactories = {
       getCue: () => config.get().avatar.gesture_cues.drag_held,
     });
     register(() => dragHold.noteDragEnd());
-    const interactiveRects = (): DOMRect[] => {
-      const rects: DOMRect[] = [];
-      for (const selector of INTERACTIVE_OVERLAY_SELECTORS) {
-        const el = root.querySelector<HTMLElement>(selector);
-        if (el) rects.push(el.getBoundingClientRect());
-      }
-      const quickControls = getQuickControls();
-      if (quickControls.isOpen()) rects.push(quickControls.el.getBoundingClientRect());
-      return rects;
-    };
-    const pointInRect = (x: number, y: number, rect: DOMRect, margin: number): boolean =>
-      x >= rect.left - margin &&
-      x <= rect.right + margin &&
-      y >= rect.top - margin &&
-      y <= rect.bottom + margin;
-    const hitTest = createHitTestController({
-      isOverInteractive: (xClient, yClient, marginPx) => {
-        if (renderer.hitTest(xClient, yClient)) return true;
-        return interactiveRects().some((rect) => pointInRect(xClient, yClient, rect, marginPx));
-      },
-      moveTarget: window,
+    const hitTest = wireHitTest({
+      root,
+      renderer,
+      getQuickControls,
       getConfig: () => config.get().avatar.hit_test,
     });
-    hitTest.start();
     register(hitTest.stop);
-    const cursorTracker = createCursorTracker({
-      onCursor: (point) => renderer.setGazeCursor(point),
-    });
-    register(cursorTracker.stop);
-    const applyGazeEnabled = (enabled: boolean): void => {
-      renderer.setGazeEnabled(enabled);
-      if (enabled) cursorTracker.start();
-      else {
-        cursorTracker.stop();
-        renderer.setGazeCursor(null);
-      }
-    };
-    applyGazeEnabled(gazeSettings.get().enabled);
-    register(gazeSettings.subscribe((state) => applyGazeEnabled(state.enabled)));
+    wireGaze({ renderer, gazeSettings, register });
 
     // Set once the drop source exists — the travel frame pauses its keep-on-screen guard
     // while it parks the window itself.
