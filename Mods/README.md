@@ -1,6 +1,6 @@
 # YUI Mods
 
-Standalone MCP servers ("Mods") that expose host capabilities to the remote backend agent (Hermes). Each Mod is an independent process, decoupled from the YUI app — the agent attaches them as tool sources alongside the Expression Broker.
+Standalone MCP servers ("Mods") that expose host capabilities to the remote backend agent. Each Mod is an independent process, decoupled from the YUI app — the agent attaches them as tool sources alongside the Expression Broker.
 
 Each mod is a self-contained `uv` project in its own folder (`Mods/<mod>/`), with its own `pyproject.toml` and `uv.lock`. See the [Mods reference](../docs/reference/mods.md) for the project convention, the port and capability catalog, and each mod's tool list.
 

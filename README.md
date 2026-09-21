@@ -180,7 +180,7 @@ server. Each is a separate, config-swappable process, and all base URLs live in
 `configs/endpoints.json`.
 
 - **Chat protocol** — selected via `chat_api` (default `chat_completions`):
-  - `responses` — routes to a backend agent (Hermes recommended) over
+  - `responses` — routes to a backend agent (for example Hermes Agent) over
   `/v1/responses` (e.g. `localhost:8643`)
   - `chat_completions` — connects over the Chat Completions API to any
   tool-calling OpenAI-compatible endpoint; the client declares

@@ -21,8 +21,8 @@ onMounted(() => {
           <h1 class="hero-title">The head.<br />Not the brain.</h1>
           <p class="hero-tagline">
             YUI renders a living VRM character on your desktop. It senses text,
-            voice, and screen context, then leaves all judgment to the Hermes
-            backend you wire in.
+            voice, and screen context, then leaves all judgment to the backend
+            agent you wire in.
           </p>
           <div class="hero-cta">
             <a :href="withBase('/guide/getting-started')" class="btn-primary"
@@ -66,7 +66,7 @@ onMounted(() => {
       <section class="framing" aria-labelledby="framing-heading">
         <div class="framing-copy">
           <h2 class="framing-heading" id="framing-heading">
-            YUI is the body.<br />Hermes is the brain.
+            YUI is the body.<br />Your agent is the brain.
           </h2>
           <p class="framing-body">
             YUI is the <em>embodied frontend</em>: rendering, sensing, and the
@@ -74,7 +74,7 @@ onMounted(() => {
           </p>
           <p class="framing-body">
             Judgment, persona, memory, and the agent loop belong to the
-            <strong>Hermes backend</strong> you connect. YUI fires events and
+            <strong>backend agent</strong> you connect. YUI fires events and
             renders whatever comes back; it never decides whether or what to
             speak. That line is the system's load-bearing principle.
           </p>
@@ -90,7 +90,7 @@ onMounted(() => {
             </p>
           </div>
           <div class="callout">
-            <p class="callout-label">Hermes · the brain</p>
+            <p class="callout-label">Your agent · the brain</p>
             <p class="callout-title">Judgment + persona + tools</p>
             <p class="callout-body">
               Agent loop · memory · LLM reasoning · tool execution ·
@@ -142,8 +142,8 @@ onMounted(() => {
                 <div>
                   <p class="tier-item-name">Chat backend</p>
                   <p class="tier-item-note">
-                    The brain: any OpenAI-compatible endpoint, or a full agent
-                    like Hermes over the Responses API.
+                    The brain: any OpenAI-compatible endpoint, or a backend
+                    agent such as Hermes Agent over the Responses API.
                   </p>
                 </div>
               </li>
