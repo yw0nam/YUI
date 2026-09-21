@@ -119,6 +119,8 @@ describe("turn-feed conformance", () => {
     const stream = await runStream();
     const push = runPush();
 
+    expect(stream.tool).toEqual([RUNNING, DONE]);
+    expect(stream.states.at(-1)).toEqual({ text: "weighing the odds", live: false });
     expect(push.tool).toEqual(stream.tool);
     expect(push.states).toEqual(stream.states);
   });

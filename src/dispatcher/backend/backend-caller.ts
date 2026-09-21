@@ -16,7 +16,7 @@
  *     no separate flag. emotion/motion rendered regardless of silence.
  *  B5 dispatch_to_renderer — when per-beat cue streamed, TTS pipeline applies
  *     emotion/motion audio-timed (express→turnOutput.cue), otherwise at completed: renderer.applyDirective(envelope).
- *     speech_text→turnOutput.speak + tool_status→turnFeed (flowed to TTS/UI in main.ts).
+ *     speech_text→turnOutput.speak + tool_status→turnFeed (flowed to TTS/UI in app/bootstrap-configured.ts).
  *
  * Silent drop classification: parse_error(WARN) / network_drop(WARN) / network_stall(WARN, idle timeout).
  */
@@ -348,11 +348,7 @@ export function createBackendCaller(deps: BackendCallerDeps): BackendCaller {
                 // Native tool observation result — pass immediately on streaming to show running chip.
                 // Do not call endThinking: tool_status does not break thinking.
                 log.debug("tool_status", { state: ev.status.state, tool_id: ev.status.tool_id });
-                deps.turnFeed?.toolStatus(
-                  owner,
-                  ev.status.state === "running" ? "running" : "done",
-                  ev.status.tool_id,
-                );
+                deps.turnFeed?.toolStatus(owner, ev.status.state, ev.status.tool_id);
                 deps.turnOutput?.toolStatus(turn.id, ev.status.state, ev.status.tool_id);
                 break;
               case "reasoning":

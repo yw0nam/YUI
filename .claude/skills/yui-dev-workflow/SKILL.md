@@ -46,3 +46,4 @@ Default by rule; ask only on the boundary.
 - **No inline control tags.** Emotion/motion goes through `generate_express` tool-call arguments only — not inline tokens in speech text.
 - **No unverified assumptions.** Consult docs first. If not in docs, record the decision in docs before implementing.
 - **No hardcoding.** Endpoints/models/VRM paths/motion sets go in `configs/`.
+- **No transport-private feature copy.** A feature lives in the shared consumer; a transport's wiring only maps its own frames or stream events onto it.
