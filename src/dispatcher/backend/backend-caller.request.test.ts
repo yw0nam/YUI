@@ -7,6 +7,7 @@
 
 import { beforeEach, describe, expect, it, type Mock, vi } from "vitest";
 import type { EndpointsConfig, ToolStatus, Usage } from "../../contract";
+import { createReasoningStore } from "../../io/bridge/reasoning-store";
 import { type ChatHistoryEntry, createChatHistoryStore } from "../../io/chat/chat-history-store";
 import type { Logger } from "../../logger";
 import type { BusEnvelope } from "../core/event-bus";
@@ -21,6 +22,7 @@ import {
   turnOf,
   userEnv,
 } from "../test-helpers";
+import { createTurnFeed } from "../turn/turn-feed";
 import { type BackendCaller, createBackendCaller, isChatConfigured } from "./backend-caller";
 
 const script = createScriptedStream();
@@ -45,7 +47,7 @@ beforeEach(() => {
     getFetch: async () => undefined,
     stream: script.stream,
     turnOutput,
-    onToolStatus: toolStatusSink,
+    turnFeed: createTurnFeed({ onToolStatus: toolStatusSink, reasoning: createReasoningStore() }),
     onUsage: usageSink,
     logger,
   });

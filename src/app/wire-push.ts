@@ -1,10 +1,10 @@
-import type { EndpointsConfig, ToolStatus } from "../contract";
+import type { EndpointsConfig } from "../contract";
 import type { PushTurns } from "../dispatcher/turn/push-turn";
 import { createRenderTurn } from "../dispatcher/turn/render-turn";
+import type { TurnFeed } from "../dispatcher/turn/turn-feed";
 import type { TurnOutput } from "../dispatcher/turn/turn-output";
 import type { DelegationHistory } from "../io/bridge/delegation-history";
 import type { DelegationsStore } from "../io/bridge/delegations-store";
-import type { ReasoningStore } from "../io/bridge/reasoning-store";
 import type { ChatHistoryEntry } from "../io/chat/chat-history-store";
 import type {
   DelegationItem,
@@ -41,9 +41,8 @@ export function wirePushTransport(deps: {
   delegations: DelegationsStore;
   /** The persisted list every `delegations` frame folds into. */
   delegationHistory: Pick<DelegationHistory, "merge">;
-  reasoning: ReasoningStore;
-  /** The tool chip sink — every tool_status frame reaches it, whether or not the client sent the turn. */
-  onToolStatus: (status: ToolStatus) => void;
+  /** The shared tool-chip/reasoning consumer — the socket feeds it under push owners. */
+  turnFeed: TurnFeed;
   appendTurnRecord: (record: RenderRecord) => void;
   /** Conversation transcript — the reply half of a push turn lands here. */
   appendTranscript: (entry: ChatHistoryEntry) => void;
@@ -55,20 +54,12 @@ export function wirePushTransport(deps: {
     appendTurnRecord: deps.appendTurnRecord,
     appendTranscript: deps.appendTranscript,
   });
-  let runningTurn: string | null = null;
-  /** The done frame may never come — drop, restart, a tool that raises; idle brings the chip down. */
-  function endRunningTool(turnId?: string): void {
-    if (runningTurn === null) return;
-    if (turnId !== undefined && turnId !== runningTurn) return;
-    runningTurn = null;
-    deps.onToolStatus({ state: "idle" });
-  }
   const unsubscribes = [
     deps.socket.onRender((frame) => {
       // A dropped frame puts no reply in the message window, so its reasoning has nothing to sit
       // under: the cycle it was writing is abandoned, an earlier finished text is left alone.
-      if (renderTurn.render(frame)) deps.reasoning.finish(frame.reasoning);
-      else deps.reasoning.interrupt();
+      if (renderTurn.render(frame)) deps.turnFeed.replied("push:reasoning", frame.reasoning);
+      else deps.turnFeed.ended("push:reasoning");
     }),
     deps.socket.onSpeech((frame) => renderTurn.stream(frame)),
     deps.socket.onTurnEnd((frame) => {
@@ -76,7 +67,7 @@ export function wirePushTransport(deps: {
       // The frame the running state was waiting for: the turn is forgotten, whatever it held.
       deps.pushTurns.ended(frame.turn_id);
       deps.log.info("push.turn_end", { turn_id: frame.turn_id });
-      endRunningTool(frame.turn_id);
+      deps.turnFeed.ended(`push:turn:${frame.turn_id}`);
     }),
     deps.socket.onToolStatus((frame) => {
       // A cut turn's frames never play, so the chip never lights for one.
@@ -90,8 +81,7 @@ export function wirePushTransport(deps: {
         return;
       }
       // Latest wins: the chip is a single slot.
-      runningTurn = frame.state === "running" ? frame.turn_id : null;
-      deps.onToolStatus({ state: frame.state, tool_id: frame.tool_id });
+      deps.turnFeed.toolStatus(`push:turn:${frame.turn_id}`, frame.state, frame.tool_id);
       deps.pushTurns.toolStatus(frame.turn_id, frame.state, frame.tool_id);
       deps.log.debug("push.tool_status", {
         turn_id: frame.turn_id,
@@ -107,17 +97,17 @@ export function wirePushTransport(deps: {
       const running = items.filter((item) => item.state === "running").length;
       deps.log.info("delegations", { total: items.length, running });
     }),
-    deps.socket.onReasoning((delta) => deps.reasoning.append(delta)),
+    deps.socket.onReasoning((delta) => deps.turnFeed.reasoning("push:reasoning", delta)),
     deps.socket.onState((state) => {
       if (state.kind === "ready") return;
-      // A cycle without its closing render dies with the connection; a finished text stays.
-      deps.reasoning.interrupt();
+      // Whatever the socket still held — a live cycle, a running tool — dies with the connection.
+      deps.turnFeed.sourceLost("push");
       renderTurn.close();
-      endRunningTool();
     }),
   ];
   return () => {
     for (const off of unsubscribes) off();
+    deps.turnFeed.sourceLost("push");
     renderTurn.dispose();
   };
 }

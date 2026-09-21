@@ -96,7 +96,12 @@ function runPush(): Run {
     appendTranscript: () => {},
     log: makeLogger(),
   });
-  onToolStatus!({ type: "tool_status", turn_id: "hermes-1", state: "running", tool_id: "web_search" });
+  onToolStatus!({
+    type: "tool_status",
+    turn_id: "hermes-1",
+    state: "running",
+    tool_id: "web_search",
+  });
   onReasoning!("weighing");
   onToolStatus!({ type: "tool_status", turn_id: "hermes-1", state: "done", tool_id: "web_search" });
   onReasoning!(" the odds");

@@ -19,6 +19,7 @@ import type { BusEnvelope } from "../core/event-bus";
 import { CONFIG, makeLogger, makeTurnOutput, touchEnv, turnOf, userEnv } from "../test-helpers";
 import { createPushTurns } from "../turn/push-turn";
 import { createRenderTurn } from "../turn/render-turn";
+import { createTurnFeed } from "../turn/turn-feed";
 import { createBackendCaller, type TurnOutcome } from "./backend-caller";
 import { PRE_SPEECH_TIMEOUT_MS } from "./idle-watchdog";
 
@@ -146,7 +147,7 @@ function callerWith(accepted: boolean, config: EndpointsConfig = PUSH_CONFIG) {
       },
     },
     onPushSocketNotReady: (cb) => socket.subscribe(cb),
-    reasoning,
+    turnFeed: createTurnFeed({ onToolStatus: () => {}, reasoning }),
     reportSpokeText: (v) => spoke.push(v),
     contextHistory: { append: (entry) => contexts.push(entry) },
     appendTurnRecord: (record) => records.push(record),

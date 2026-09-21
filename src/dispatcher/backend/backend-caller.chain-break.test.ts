@@ -13,6 +13,7 @@
 
 import { beforeEach, describe, expect, it, type Mock, vi } from "vitest";
 import type { ToolStatus, Usage } from "../../contract";
+import { createReasoningStore } from "../../io/bridge/reasoning-store";
 import type { Logger } from "../../logger";
 import {
   CONFIG,
@@ -24,6 +25,7 @@ import {
   turnOf,
   userEnv,
 } from "../test-helpers";
+import { createTurnFeed } from "../turn/turn-feed";
 import { type BackendCaller, createBackendCaller } from "./backend-caller";
 
 const script = createScriptedStream();
@@ -61,7 +63,7 @@ function make404(previousResponseId: string | undefined): void {
     getFetch: async () => undefined,
     stream: script.stream,
     turnOutput,
-    onToolStatus: toolStatusSink,
+    turnFeed: createTurnFeed({ onToolStatus: toolStatusSink, reasoning: createReasoningStore() }),
     onUsage: usageSink,
     getPreviousResponseId,
     onResponseId,

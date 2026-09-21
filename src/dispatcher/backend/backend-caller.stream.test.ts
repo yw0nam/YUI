@@ -29,6 +29,7 @@ import {
   userEnv,
   windowSitEnv,
 } from "../test-helpers";
+import { createTurnFeed } from "../turn/turn-feed";
 import { type BackendCaller, createBackendCaller } from "./backend-caller";
 
 const script = createScriptedStream();
@@ -57,8 +58,7 @@ beforeEach(() => {
     getFetch: async () => undefined,
     stream: script.stream,
     turnOutput,
-    onToolStatus: toolStatusSink,
-    reasoning,
+    turnFeed: createTurnFeed({ onToolStatus: toolStatusSink, reasoning }),
     onUsage: usageSink,
     reportSpokeText: spokeTextSink,
     logger,
@@ -569,7 +569,7 @@ describe("backend_caller — reasoning store feed", () => {
       getFetch: async () => undefined,
       stream: script.stream,
       turnOutput,
-      reasoning: store,
+      turnFeed: createTurnFeed({ onToolStatus: () => {}, reasoning: store }),
       logger,
     });
     script.events = [
@@ -816,7 +816,7 @@ describe("backend_caller — 404 chain-break retry does not leak attempt-1 envel
       getFetch: async () => undefined,
       stream: script.stream,
       turnOutput,
-      onToolStatus: toolStatusSink,
+      turnFeed: createTurnFeed({ onToolStatus: toolStatusSink, reasoning: createReasoningStore() }),
       onUsage: usageSink,
       getPreviousResponseId,
       onResponseId,
@@ -860,7 +860,7 @@ describe("backend_caller — 404 chain-break retry does not leak attempt-1 envel
       getFetch: async () => undefined,
       stream: script.stream,
       turnOutput,
-      reasoning: store,
+      turnFeed: createTurnFeed({ onToolStatus: () => {}, reasoning: store }),
       getPreviousResponseId,
       onResponseId,
       onResponseIdInvalid,

@@ -16,7 +16,7 @@
  *     no separate flag. emotion/motion rendered regardless of silence.
  *  B5 dispatch_to_renderer — when per-beat cue streamed, TTS pipeline applies
  *     emotion/motion audio-timed (express→turnOutput.cue), otherwise at completed: renderer.applyDirective(envelope).
- *     speech_text→turnOutput.speak + tool_status→onToolStatus (flowed to TTS/UI in main.ts).
+ *     speech_text→turnOutput.speak + tool_status→turnFeed (flowed to TTS/UI in main.ts).
  *
  * Silent drop classification: parse_error(WARN) / network_drop(WARN) / network_stall(WARN, idle timeout).
  */
@@ -28,10 +28,8 @@ import type {
   FrontmostState,
   InputContext,
   PreviousTurn,
-  ToolStatus,
   Usage,
 } from "../../contract";
-import type { ReasoningStore } from "../../io/bridge/reasoning-store";
 import { type ChatRequest, streamChat } from "../../io/chat/chat-client";
 import { buildCCMessages } from "../../io/chat/chat-completions";
 import { selectSendSuffix } from "../../io/chat/chat-history-store";
@@ -42,6 +40,7 @@ import type { Logger } from "../../logger";
 import { createLogger } from "../../logger";
 import type { Renderer } from "../../renderer";
 import type { Turn } from "../turn/turn";
+import type { TurnFeed } from "../turn/turn-feed";
 import { backgroundMarker } from "./background-marker";
 import { renderClientContext } from "./client-context-text";
 import { buildContext, imageDataUrlsOf, userTextOf } from "./context-builder";
@@ -102,10 +101,8 @@ interface BackendCallerDeps extends PushCallDeps {
   getFrontmost?: () => FrontmostState | undefined;
   /** Previous-turn slot lookup — read after the pre-turn interrupt, so a superseded turn is already recorded. */
   getPrevious?: () => PreviousTurn | undefined;
-  /** tool_status sink — called only when present. */
-  onToolStatus?: (status: ToolStatus) => void;
-  /** The reasoning chip's store — the streaming path's reasoning deltas land here. */
-  reasoning?: Pick<ReasoningStore, "append" | "finish" | "interrupt">;
+  /** The shared tool-chip/reasoning consumer — this path's tool states and reasoning deltas flow into it under this turn's owner. */
+  turnFeed?: TurnFeed;
   /** Previous response id lookup — when present, included in request to continue conversation. Called per turn (reflects reset/rotation). */
   getPreviousResponseId?: () => string | undefined;
   /** New response id persist — called only after a completely successful turn (conversation state progress). */
@@ -163,10 +160,9 @@ export function createBackendCaller(deps: BackendCallerDeps): BackendCaller {
     // call() may overlap turns, so keep state per-invocation local (never closure/module scope).
     let thinkingStarted = false;
     let thinkingDone = false;
-    // Whether running tool_status was passed and not yet closed with done — cleanup decision in finally.
-    let toolRunning = false;
-    // Whether this call opened a reasoning cycle — the finally tears down only its own.
-    let reasoningLive = false;
+    // Everything this call feeds the shared turn feed carries this owner, so a superseded
+    // call's late frames cannot touch a newer turn's chip or cycle.
+    const owner = `stream:${turn.id}`;
     const startThinking = () => {
       if (thinkingStarted || thinkingDone) return;
       thinkingStarted = true;
@@ -302,10 +298,8 @@ export function createBackendCaller(deps: BackendCallerDeps): BackendCaller {
         streamedAny = false;
         cueStreamed = false;
         silenceFilter = createSilenceTokenFilter();
-        if (reasoningLive) {
-          deps.reasoning?.interrupt();
-          reasoningLive = false;
-        }
+        // The previous attempt's cycle and running tool die before this one streams — never join their text.
+        deps.turnFeed?.ended(owner);
         let streamError: string | undefined;
         // HTTP status carried by stream error event (openai SDK APIError.status) — distinguish
         // 401/403 as http_4xx_drop (auth-ish) instead of network_drop.
@@ -354,19 +348,20 @@ export function createBackendCaller(deps: BackendCallerDeps): BackendCaller {
                 // Native tool observation result — pass immediately on streaming to show running chip.
                 // Do not call endThinking: tool_status does not break thinking.
                 log.debug("tool_status", { state: ev.status.state, tool_id: ev.status.tool_id });
-                deps.onToolStatus?.(ev.status);
+                deps.turnFeed?.toolStatus(
+                  owner,
+                  ev.status.state === "running" ? "running" : "done",
+                  ev.status.tool_id,
+                );
                 deps.turnOutput?.toolStatus(turn.id, ev.status.state, ev.status.tool_id);
-                toolRunning = ev.status.state === "running";
                 break;
               case "reasoning":
-                deps.reasoning?.append(ev.delta);
-                reasoningLive = true;
+                deps.turnFeed?.reasoning(owner, ev.delta);
                 break;
               case "completed":
                 envelope = ev.envelope;
                 newResponseId = ev.responseId || undefined;
-                deps.reasoning?.finish(undefined);
-                reasoningLive = false;
+                deps.turnFeed?.replied(owner);
                 break;
               case "error":
                 streamError = ev.message;
@@ -568,11 +563,9 @@ export function createBackendCaller(deps: BackendCallerDeps): BackendCaller {
       return "ok";
     } finally {
       endThinking();
-      // Only a cycle this call opened and never completed dies with it; the push socket owns its own.
-      if (!isPush && reasoningLive) deps.reasoning?.interrupt();
-      // Prevent running chip from surviving without done — on all exit paths including dead turns
-      // (abort·drop·stall), flow one idle so consumer brings chip down.
-      if (toolRunning) deps.onToolStatus?.({ state: "idle" });
+      // A cycle this call opened or a running tool it never closed dies with it, on every exit
+      // path (abort·drop·stall) — another owner's slots are left alone.
+      deps.turnFeed?.ended(owner);
     }
   }
 

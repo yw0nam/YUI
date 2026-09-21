@@ -7,6 +7,7 @@
 
 import { afterEach, beforeEach, describe, expect, it, type Mock, vi } from "vitest";
 import type { ToolStatus, Usage } from "../../contract";
+import { createReasoningStore } from "../../io/bridge/reasoning-store";
 import type {
   ChatHistoryEntry,
   ChatHistoryItem,
@@ -28,6 +29,7 @@ import {
   turnOf,
   userEnv,
 } from "../test-helpers";
+import { createTurnFeed } from "../turn/turn-feed";
 import { type BackendCaller, createBackendCaller } from "./backend-caller";
 import { PRE_SPEECH_TIMEOUT_MS, SPEECH_IDLE_TIMEOUT_MS } from "./idle-watchdog";
 
@@ -53,7 +55,7 @@ beforeEach(() => {
     getFetch: async () => undefined,
     stream: script.stream,
     turnOutput,
-    onToolStatus: toolStatusSink,
+    turnFeed: createTurnFeed({ onToolStatus: toolStatusSink, reasoning: createReasoningStore() }),
     onUsage: usageSink,
     logger,
   });

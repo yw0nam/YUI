@@ -141,16 +141,16 @@ let records: unknown[];
 let transcript: ChatHistoryEntry[];
 let log: ReturnType<typeof fakeLog>;
 let toolStatusSink: Mock<(status: ToolStatus) => void>;
+let turnFeed: TurnFeed;
 
-function wire() {
+function wire(feed: TurnFeed = turnFeed) {
   return wirePushTransport({
     socket,
     turnOutput,
     pushTurns,
     delegations,
     delegationHistory,
-    reasoning,
-    onToolStatus: toolStatusSink,
+    turnFeed: feed,
     appendTurnRecord: (record) => records.push(record),
     appendTranscript: (entry) => transcript.push(entry),
     log,
@@ -168,6 +168,7 @@ beforeEach(() => {
   transcript = [];
   log = fakeLog();
   toolStatusSink = vi.fn();
+  turnFeed = createTurnFeed({ onToolStatus: toolStatusSink, reasoning });
 });
 
 describe("wirePushTransport", () => {
@@ -549,20 +550,6 @@ describe("wirePushTransport — speech frames", () => {
 });
 
 describe("wirePushTransport — teardown through the shared turn feed", () => {
-  function wireFeed(feed: TurnFeed) {
-    return wirePushTransport({
-      socket,
-      turnOutput,
-      pushTurns,
-      delegations,
-      delegationHistory,
-      turnFeed: feed,
-      appendTurnRecord: (record) => records.push(record),
-      appendTranscript: (entry) => transcript.push(entry),
-      log,
-    });
-  }
-
   function lightToolAndCycle(feed: TurnFeed, cycle: "push" | "stream"): void {
     pushTurns.opened("7");
     socket.pushToolStatus({
@@ -580,7 +567,7 @@ describe("wirePushTransport — teardown through the shared turn feed", () => {
     ["a stream-owned cycle", "stream", { text: "S", live: true }],
   ] as const)("the socket leaving ready idles the push tool and ends %s", (_label, cycle, expected) => {
     const feed = createTurnFeed({ onToolStatus: toolStatusSink, reasoning });
-    wireFeed(feed);
+    wire(feed);
     lightToolAndCycle(feed, cycle);
 
     socket.pushState({ kind: "reconnecting", delay_ms: 1_000 });
@@ -594,7 +581,7 @@ describe("wirePushTransport — teardown through the shared turn feed", () => {
     ["a stream-owned cycle", "stream", { text: "S", live: true }],
   ] as const)("dispose idles the push tool and ends %s", (_label, cycle, expected) => {
     const feed = createTurnFeed({ onToolStatus: toolStatusSink, reasoning });
-    const dispose = wireFeed(feed);
+    const dispose = wire(feed);
     lightToolAndCycle(feed, cycle);
 
     dispose();

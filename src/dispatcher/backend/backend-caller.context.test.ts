@@ -7,6 +7,7 @@
 
 import { beforeEach, describe, expect, it, type Mock, vi } from "vitest";
 import type { InputContext, PreviousTurn, ToolStatus, Usage } from "../../contract";
+import { createReasoningStore } from "../../io/bridge/reasoning-store";
 import type { Logger } from "../../logger";
 import type { BusEnvelope } from "../core/event-bus";
 import {
@@ -20,6 +21,7 @@ import {
   turnOf,
   userEnv,
 } from "../test-helpers";
+import { createTurnFeed } from "../turn/turn-feed";
 import { type BackendCaller, createBackendCaller } from "./backend-caller";
 
 const script = createScriptedStream();
@@ -44,7 +46,7 @@ beforeEach(() => {
     getFetch: async () => undefined,
     stream: script.stream,
     turnOutput,
-    onToolStatus: toolStatusSink,
+    turnFeed: createTurnFeed({ onToolStatus: toolStatusSink, reasoning: createReasoningStore() }),
     onUsage: usageSink,
     logger,
   });
