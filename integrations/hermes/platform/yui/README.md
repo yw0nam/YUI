@@ -56,7 +56,8 @@ turns in and finished replies out. The contract both sides speak is
 - Sends a `delegations` frame whenever background work starts or finishes, so the client can show
   what is running; each finished item carries its `status` and `summary`. The plugin holds fifty
   items per chat, dropping the oldest finished one past that, and drops summaries oldest-first
-  from a frame over the size limit.
+  from a frame over the size limit. The platform hint tells the agent to hand long independent
+  work to a background delegation when a delegation tool is available.
 - Sends a `tool_status` frame from the gateway's `pre_tool_call` and `post_tool_call` hooks for
   each tool call of a YUI turn, so the client can show and name the tool in use. A frame for a chat
   with no connected client or no turn held, open or joined, is dropped, never held and never retried.
