@@ -97,6 +97,7 @@ const ko: Record<string, string> = {
   "panel.close": "닫기",
   "panel.rail_collapse": "섹션 목록 접기",
   "panel.rail_expand": "섹션 목록 펼치기",
+  "settings.title": "YUI 설정",
   "devtools.label": "개발자 도구",
   "devtools.sub": "전송 컨텍스트와 모션 미리보기",
   "devtools.open": "열기",

@@ -98,6 +98,7 @@ const en: Record<string, string> = {
   "panel.close": "Close",
   "panel.rail_collapse": "Collapse sections rail",
   "panel.rail_expand": "Expand sections rail",
+  "settings.title": "YUI Settings",
   "devtools.label": "Developer Tools",
   "devtools.sub": "Inspect sent context and preview motions",
   "devtools.open": "Open",

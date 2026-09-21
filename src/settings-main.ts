@@ -32,7 +32,7 @@ import { closeSettingsWindow } from "./io/window/settings-window";
 import { resolveScreenSourceProvider } from "./io/window/tauri-screen";
 import { createLogger, initLogger } from "./logger";
 import { createVoiceInputStatus } from "./ui/chips/voice-input-status";
-import { getLocale, subscribe as subscribeLocale } from "./ui/i18n";
+import { getLocale, subscribe as subscribeLocale, t } from "./ui/i18n";
 import { createQuickControls } from "./ui/quick-controls/quick-controls";
 
 const log = createLogger("settings-bootstrap");
@@ -193,8 +193,9 @@ async function bootstrap(): Promise<void> {
   };
   window.addEventListener("focus", onWindowFocus);
 
-  const buildQuickControls = (): ReturnType<typeof createQuickControls> =>
-    createQuickControls({
+  const buildQuickControls = (): ReturnType<typeof createQuickControls> => {
+    document.title = t("settings.title");
+    return createQuickControls({
       mount: app,
       variant: "window",
       pushSocket,
@@ -311,6 +312,7 @@ async function bootstrap(): Promise<void> {
       bubblePersistSettings,
       messageWindowSettings,
     });
+  };
 
   // quick-controls fully re-mounts on display language change (setLocale → i18n.subscribe).
   // Defer to microtask so component doesn't destroy itself during its own click handler.

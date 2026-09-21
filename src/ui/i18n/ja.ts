@@ -98,6 +98,7 @@ const ja: Record<string, string> = {
   "panel.close": "閉じる",
   "panel.rail_collapse": "セクション一覧を折りたたむ",
   "panel.rail_expand": "セクション一覧を広げる",
+  "settings.title": "YUI 設定",
   "devtools.label": "開発者ツール",
   "devtools.sub": "送信コンテキストとモーションを確認",
   "devtools.open": "開く",
