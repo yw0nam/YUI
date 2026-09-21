@@ -1,10 +1,10 @@
 // @vitest-environment jsdom
 /**
  * delegation-chip.test.ts — the chip over the delegations store and the push socket state:
- * hidden at zero running, count text, the lost-connection pill every non-ready state shows,
- * tap-to-toggle list, the 500ms long-press fold and its per-device persistence, the suppression
- * that keeps the character window bare while the surfaces are popped out, and the hit-test
- * registration that lets OS clicks reach it.
+ * hidden at zero running, count text, the lost-connection pill while the transport is meant to
+ * be up but isn't, nothing drawn while disconnected, tap-to-toggle list, the 500ms long-press
+ * fold and its per-device persistence, the suppression that keeps the character window bare
+ * while the surfaces are popped out, and the hit-test registration that lets OS clicks reach it.
  */
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -415,16 +415,16 @@ describe("createDelegationChip", () => {
     expect(chip.el.outerHTML).toBe(before);
   });
 
-  // One wording for every state that is not ready — the cause belongs to the settings window.
+  // One wording for every loss while the transport is meant to be up — the cause belongs to
+  // the settings window.
   describe("lost connection", () => {
-    const notReady: PushSocketState[] = [
+    const lost: PushSocketState[] = [
       { kind: "connecting" },
       { kind: "reconnecting", delay_ms: 4_000 },
       { kind: "failed", code: 4401 },
-      { kind: "disconnected" },
     ];
 
-    for (const state of notReady) {
+    for (const state of lost) {
       it(`shows the lost pill while the socket is ${state.kind}`, () => {
         build(localStorageDelegationChipStorage(STORAGE_KEY), fakePushState(state));
 
@@ -547,6 +547,36 @@ describe("createDelegationChip", () => {
 
       expect(pushState.listenerCount()).toBe(0);
     });
+  });
+
+  // disconnected means no transport is in use — nothing was asked to be up, so nothing is lost.
+  it("hides and closes the list once disconnected, with running work still in the store", () => {
+    const { store, pushState } = build();
+    store.replace([running("d-1", 60_000)]);
+    chipButton().click();
+    expect(chipEl().hidden).toBe(false);
+    expect(listEl().hidden).toBe(false);
+
+    pushState.set({ kind: "disconnected" });
+
+    settle();
+    expect(chipEl().hidden).toBe(true);
+    expect(listEl().hidden).toBe(true);
+    expect(chipEl().classList.contains("is-lost")).toBe(false);
+  });
+
+  it("drops the lost pill once disconnected", () => {
+    const { pushState } = build(
+      localStorageDelegationChipStorage(STORAGE_KEY),
+      fakePushState({ kind: "reconnecting", delay_ms: 1_000 }),
+    );
+    expect(chipEl().classList.contains("is-lost")).toBe(true);
+
+    pushState.set({ kind: "disconnected" });
+
+    settle();
+    expect(chipEl().hidden).toBe(true);
+    expect(chipEl().classList.contains("is-lost")).toBe(false);
   });
 
   // The surfaces popped out take the chip with them; the character window shows none.

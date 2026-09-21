@@ -3,8 +3,9 @@
  *
  * Pure renderer — firing ≠ judgment: this only *draws* the delegations list the push socket
  * feeds and the state that socket reports. While the socket is ready it carries the running
- * count and its tap toggles the list popover; while it is anything else it carries one
- * lost-connection wording and its tap opens the settings window, where the cause is named.
+ * count and its tap toggles the list popover; while it is connecting, reconnecting or failed
+ * it carries one lost-connection wording and its tap opens the settings window, where the
+ * cause is named; while it is disconnected — no transport in use — it draws nothing.
  * A held press folds the chip to its dot, and the fold is a per-device choice.
  */
 
@@ -36,7 +37,10 @@ interface DelegationChipOptions {
   store: DelegationsPort;
   /** Per-device fold choice. */
   collapsed: DelegationChipSettingsStore;
-  /** The transport the chip reports on. Anything but ready reads as a lost connection. */
+  /**
+   * The transport the chip reports on: disconnected draws nothing; connecting, reconnecting and
+   * failed read as a lost connection.
+   */
   pushState: PushStatePort;
   /** Opens the settings window at the chat section — what a tap does while the connection is lost. */
   onOpenSettings(): void;
@@ -152,8 +156,15 @@ export function createDelegationChip({
   }
 
   function refresh(): void {
-    // Every state but ready reads the same here; the cause is named in the settings window.
-    const lost = pushState.getState().kind !== "ready";
+    const kind = pushState.getState().kind;
+    // disconnected means no transport is in use — nothing was asked to be up, so nothing is lost.
+    if (kind === "disconnected") {
+      el.classList.remove("is-lost");
+      hide();
+      return;
+    }
+    // Every live loss reads the same here; the cause is named in the settings window.
+    const lost = kind !== "ready";
     el.classList.toggle("is-lost", lost);
     if (suppressed) {
       hide();

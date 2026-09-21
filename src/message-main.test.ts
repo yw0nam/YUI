@@ -3,8 +3,8 @@
  * message-main.test.ts — the popped-out window carries the delegation chip.
  *
  * The socket lives in the pet window, so this window mirrors its state and its delegations list
- * over the cross-window bridge and draws the same chip beside the name plate. Only push mode has
- * a transport to report on, and only a state the pet window actually sent is worth drawing.
+ * over the cross-window bridge and draws the same chip beside the name plate. The chip draws
+ * whatever state arrives; disconnected — no transport in use — draws nothing.
  */
 
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
@@ -30,11 +30,6 @@ function running(id: string): DelegationItem {
 }
 
 let petBridge: SettingsBridge;
-
-/** The chat protocol the window reads out of the shared endpoint overrides. */
-function setChatApi(api: string): void {
-  localStorage.setItem("yui.endpoints", JSON.stringify({ chat_api: api }));
-}
 
 /** Boots the window and waits for the chip the bootstrap mounts. */
 async function boot(): Promise<void> {
@@ -91,7 +86,6 @@ beforeEach(() => {
   vi.spyOn(globalThis, "cancelAnimationFrame").mockImplementation(() => {});
   setLocale("en");
   localStorage.clear();
-  setChatApi("push");
   petBridge = createSettingsBridge(undefined, { windowKind: "pet" });
 });
 
@@ -150,28 +144,15 @@ it("stays bare until the pet window answers where the socket stands", async () =
   expect(chipEl().hidden).toBe(true);
 });
 
-it("shows no chip while the protocol is not push", async () => {
-  setChatApi("chat_completions");
+// The window reads the pet window's states, not the chat protocol in storage.
+it("shows the lost pill even where storage names a non-push protocol", async () => {
+  localStorage.setItem("yui.endpoints", JSON.stringify({ chat_api: "responses" }));
   await boot();
 
   answer({ kind: "reconnecting", delay_ms: 4_000 });
 
-  await vi.waitFor(() => expect(chipEl().classList.contains("is-lost")).toBe(true));
-  expect(chipEl().hidden).toBe(true);
-});
-
-it("shows the chip once a settings change turns push on", async () => {
-  setChatApi("chat_completions");
-  await boot();
-  answer({ kind: "reconnecting", delay_ms: 4_000 });
-  await vi.waitFor(() => expect(chipEl().classList.contains("is-lost")).toBe(true));
-  expect(chipEl().hidden).toBe(true);
-
-  setChatApi("push");
-  petBridge.emitSettingsChanged();
-
-  await vi.waitFor(() => expect(chipEl().hidden).toBe(false));
-  expect(label()).toBe(t("deleg.chip_lost"));
+  await vi.waitFor(() => expect(label()).toBe(t("deleg.chip_lost")));
+  expect(chipEl().hidden).toBe(false);
 });
 
 it("asks the character window for the settings surface when the lost chip is tapped", async () => {
@@ -188,8 +169,8 @@ it("asks the character window for the settings surface when the lost chip is tap
   petMessageBridge.dispose();
 });
 
-// The reasoning chip lives on the same plate row; it draws the mirror's text in every mode.
-it("shows the reasoning chip when the mirror carries reasoning text in push mode", async () => {
+// The reasoning chip lives on the same plate row; it draws the mirror's text whatever the socket does.
+it("shows the reasoning chip when the mirror carries reasoning text", async () => {
   await boot();
   answer({ kind: "ready", chat_id: "yui-3f9a2c1d" });
   answerReasoning({ text: "checking the logs", live: true });
@@ -210,28 +191,16 @@ it("shows the reasoning chip before any push state arrives, while the delegation
   expect(chipEl().hidden).toBe(true);
 });
 
-it("shows the reasoning chip while the protocol is not push, and still hides the delegation chip", async () => {
-  setChatApi("chat_completions");
-  await boot();
-  answer({ kind: "reconnecting", delay_ms: 4_000 });
-
-  answerReasoning({ text: "hmm", live: true });
-
-  await vi.waitFor(() => expect(chipEl().classList.contains("is-lost")).toBe(true));
-  expect(chipEl().hidden).toBe(true);
-  await vi.waitFor(() => expect(thinkEl().hidden).toBe(false));
-});
-
-it("keeps the reasoning chip when the protocol leaves push, and hides the delegation chip", async () => {
+it("keeps the reasoning chip when the transport disconnects, and hides the delegation chip", async () => {
   await boot();
   answer({ kind: "reconnecting", delay_ms: 4_000 });
   answerReasoning({ text: "hmm", live: true });
   await vi.waitFor(() => expect(chipEl().hidden).toBe(false));
   await vi.waitFor(() => expect(thinkEl().hidden).toBe(false));
 
-  setChatApi("responses");
-  petBridge.emitSettingsChanged();
+  petBridge.emitPushState({ kind: "disconnected" });
   await vi.waitFor(() => expect(chipEl().hidden).toBe(true));
+  expect(chipEl().classList.contains("is-lost")).toBe(false);
 
   expect(thinkEl().hidden).toBe(false);
 });
