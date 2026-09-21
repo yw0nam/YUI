@@ -71,7 +71,8 @@ turns in and finished replies out. The contract both sides speak is
   only when at least one of them is still open on the chat and every open turn is named. A `stop`
   that arrives while a turn the frame does not name is open — one the gateway started on its own
   that the client has not seen a `render` of, or one that began after the client stopped — does
-  nothing, and neither turn ends. The acknowledgement `/stop` makes is never spoken, and each
+  nothing, and neither turn ends. A turn the gateway folded into the running one is not open on
+  its own and ends with it. The acknowledgement `/stop` makes is never spoken, and each
   turn the cancellation closes ends with one `turn_end`. The gateway's `/stop` interrupts the
   running turn only: a delegation runs in the background apart from the turn that started it, so
   it keeps running and reports when it finishes.
