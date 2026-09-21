@@ -58,8 +58,8 @@ turns in and finished replies out. The contract both sides speak is
   items per chat, dropping the oldest finished one past that, and drops summaries oldest-first
   from a frame over the size limit.
 - Sends a `tool_status` frame from the gateway's `pre_tool_call` and `post_tool_call` hooks for
-  each tool call of an open YUI turn, so the client can show and name the tool in use. A frame for
-  a chat with no connected client or no open turn is dropped, never held and never retried.
+  each tool call of a YUI turn, so the client can show and name the tool in use. A frame for a chat
+  with no connected client or no turn held, open or joined, is dropped, never held and never retried.
   `generate_express` sends none, and neither does a tool call a delegated child makes.
 - Holds reports that arrive while the client is away, up to forty, and delivers them as one
   summary turn when it connects again. A reply that finishes while the client is away is held the

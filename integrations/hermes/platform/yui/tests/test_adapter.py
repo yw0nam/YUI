@@ -1429,8 +1429,7 @@ async def test_a_tool_call_after_a_turn_joined_names_the_joined_turn(client, ada
 
 
 async def test_a_tool_call_on_a_chat_with_no_turn_held_sends_no_frame(client, adapter):
-    """A call on a chat with no turn held, open or joined, is not a YUI turn's; the fence proves
-    none was sent."""
+    """A call on a chat that holds no turn is not a YUI turn's; the fence proves none was sent."""
     ws = await ready(client)
     STUB_ENV["HERMES_SESSION_CHAT_ID"] = CHAT
     tool_status.set_sink(adapter.push_tool_status)
