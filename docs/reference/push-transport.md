@@ -104,6 +104,14 @@ The client waits for each frame of the turn for the wait in the limits table, co
 
 The backend starts a new conversation under the same `chat_id`. Long-term memory the backend keeps across conversations stays. The transcript starts empty. Work the backend delegated in the old conversation ends with it, and the next `delegations` frame lists nothing.
 
+### `stop` (client → backend)
+
+```json
+{ "type": "stop", "turn_ids": ["1789365854947", "1789365854950"] }
+```
+
+The user pressed stop. `turn_ids` are the turns the client just stopped — every turn that was outstanding on the chat at that moment. The backend stops generating for those of them that are still running and sends each its `turn_end`; an id it no longer holds is ignored, and a turn that is not named — one the backend started after the client's stop — keeps running. A backend that cannot stop the named turns without also stopping an unnamed one ignores the frame. A backend that ignores `stop` stays correct: the client drops the stopped turns' frames until their `turn_end`, as it does without it. Work the backend detached into the background (a delegation that already reports through `delegations`) is not stopped by it; a sub-agent still running inside the stopped turn ends with it. Sent only while the socket is `ready`.
+
 ## Replies
 
 ### `render` (backend → client)
