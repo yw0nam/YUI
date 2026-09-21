@@ -635,7 +635,17 @@ class YuiAdapter(BasePlatformAdapter):
             async with stream.lock:
                 stream.off = True
 
+    def _as_sent(self, text: str) -> str:
+        """The text the gateway would send, in the order it cleans a reply."""
+        text = self.extract_media(text)[1]
+        text = self.extract_images(text)[1]
+        return self.extract_local_files(self.strip_media_directives_for_display(text))[1]
+
     async def _send_speech(self, chat_id: str, stream: speech.Stream, sentence: str) -> None:
+        # Spoken as the reply will read, so the send that follows still continues the stream.
+        sentence = self._as_sent(sentence)
+        if not sentence.strip():
+            return
         placements = opening_cues(sentence, state.cues(chat_id))
         segment = {"cues": [placement.cue for placement in placements], "speech": sentence}
         frame = {"type": "speech", "turn_id": state.turn_id(chat_id), "segments": [segment]}

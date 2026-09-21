@@ -8,8 +8,10 @@
   the client published. The model calls it once per reply, listing every cue in speaking order
   and naming the sentence each one belongs before.
 - Sends the answer while the agent writes it: each finished sentence leaves as a `speech` frame
-  carrying every cue whose `sentence` opens it, or else the next cue that names no sentence. The
-  reply the gateway sends then leaves as a `render` frame carrying the sentences not yet sent, each
+  carrying every cue whose `sentence` opens it, or else the next cue that names no sentence. A
+  sentence goes out as the gateway sends text, with media tags, image links and paths of local
+  files taken out, and a sentence those leave empty is not spoken at all. The reply the gateway
+  sends then leaves as a `render` frame carrying the sentences not yet sent, each
   with the cues that landed on it, and cues left over after streamed speech still play. A reply
   that does not continue the streamed text renders whole. A turn the agent answers with
   `[SILENT]`, or with nothing, closes with no speech, and the cues it placed still play.
