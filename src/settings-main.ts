@@ -28,7 +28,7 @@ import { screenDefaultsFromConfig } from "./io/settings/screen-settings";
 import { createSettingsStores } from "./io/settings/settings-stores";
 import { wireVoiceListAutoRefresh } from "./io/voice/voice-list-refresh";
 import { excludeOwnOriginFromCorsFetch } from "./io/window/own-origin-fetch";
-import { closeSettingsWindow } from "./io/window/settings-window";
+import { closeSettingsWindow, titleSettingsWindow } from "./io/window/settings-window";
 import { resolveScreenSourceProvider } from "./io/window/tauri-screen";
 import { createLogger, initLogger } from "./logger";
 import { createVoiceInputStatus } from "./ui/chips/voice-input-status";
@@ -194,7 +194,7 @@ async function bootstrap(): Promise<void> {
   window.addEventListener("focus", onWindowFocus);
 
   const buildQuickControls = (): ReturnType<typeof createQuickControls> => {
-    document.title = t("settings.title");
+    titleSettingsWindow(t("settings.title"));
     return createQuickControls({
       mount: app,
       variant: "window",

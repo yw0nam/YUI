@@ -75,6 +75,16 @@ function openBrowserSettingsWindow(): void {
   }
 }
 
+/** Title the settings window. Tauri does not forward the document title, so set the native one too. */
+export function titleSettingsWindow(title: string): void {
+  document.title = title;
+  if (!isTauri()) return;
+  void (async () => {
+    const { getCurrentWindow } = await import("@tauri-apps/api/window");
+    await getCurrentWindow().setTitle(title);
+  })().catch((err) => log.warn("settings_title_set_failed", { error: String(err) }));
+}
+
 /** Close the settings window itself — Tauri: close current window, else: window.close() fallback. Does not throw. */
 export function closeSettingsWindow(): void {
   if (isTauri()) {
