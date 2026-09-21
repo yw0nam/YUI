@@ -69,10 +69,12 @@ turns in and finished replies out. The contract both sides speak is
 - Stops the session's running agent on `stop`, which the client sends when the user presses stop.
   The frame carries the turn ids the client just stopped, and the plugin hands the gateway `/stop`
   only when at least one of them is still open on the chat and every open turn is named. A `stop`
-  that arrives while a turn the frame does not name is open — one that began after the client
-  stopped — does nothing, and neither turn ends. The acknowledgement `/stop` makes is never
-  spoken, and each turn the cancellation closes ends with one `turn_end`. Work the agent handed to
-  background workers keeps running.
+  that arrives while a turn the frame does not name is open — one the gateway started on its own
+  that the client has not seen a `render` of, or one that began after the client stopped — does
+  nothing, and neither turn ends. The acknowledgement `/stop` makes is never spoken, and each
+  turn the cancellation closes ends with one `turn_end`. The gateway's `/stop` also ends the
+  delegations still running for that chat; each reports `done` with `status: "error"` in the
+  next `delegations` frame.
 - Declares the `generate_express` schema when a turn opens, from the vocabulary that turn's chat
   published. The gateway holds one schema per process, and a turn reads it when its agent is built
   and again when it compacts its context, so a turn that reaches either point after another chat's

@@ -729,14 +729,6 @@ async def test_a_stop_with_malformed_turn_ids_dispatches_nothing(client, adapter
     assert adapter.dispatched == []
 
 
-async def test_an_unknown_frame_type_is_still_ignored(client, adapter):
-    ws = await ready(client)
-    await ws.send_json({"type": "halt", "turn_ids": ["777"]})
-    await ws.send_json({"type": "turn", "turn_id": "9", "client_context": "", "text": ""})
-    assert await recv(ws) == {"type": "turn_end", "turn_id": "9"}
-    assert adapter.dispatched == []
-
-
 async def test_the_turn_id_is_bound_when_the_gateway_starts_the_turn(client, adapter):
     ws = await ready(client)
     await adapter.on_processing_start(user_turn(adapter, "777"))

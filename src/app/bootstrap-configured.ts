@@ -69,7 +69,7 @@ import {
   wireWalker,
 } from "./wire-ambient";
 import type { wireSpeakerSelection, wireVrmSelection } from "./wire-avatar";
-import { wirePushStop, wirePushTransport } from "./wire-push";
+import { wirePushTransport, wireStopButton } from "./wire-push";
 import { wireDispatcherSources, wireWindowSources } from "./wire-sources";
 import { wirePeekExitTriggers, wireSummonHotkey } from "./wire-summon";
 import { wireBroker, wireVoiceInput } from "./wire-voice";
@@ -781,7 +781,7 @@ const realFactories: ConfiguredBootstrapFactories = {
       voice.speechPlayback.interrupt();
       return cut;
     };
-    wirePushStop({ onStop: (cb) => surfaces.onStop(cb), stopTurn, socket: pushSocket, log });
+    wireStopButton({ onStop: (cb) => surfaces.onStop(cb), stopTurn, socket: pushSocket, log });
     surfaces.onSubmit((text, images) => {
       userInput.submit(text, images);
       proactiveSource.noteInteraction();

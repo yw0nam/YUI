@@ -407,8 +407,14 @@ class YuiAdapter(BasePlatformAdapter):
         open_ids = state.open_turns(chat_id)
         # A turn opened after the client stopped is not named; stopping with it would end one
         # the client never meant to stop.
-        if not open_ids or not all(turn_id in turn_ids for turn_id in open_ids):
-            logger.debug("yui: stop names no open turn chat=%s", chat_id)
+        if not open_ids:
+            logger.debug("yui: stop with no open turn chat=%s", chat_id)
+            return
+        unnamed = [turn_id for turn_id in open_ids if turn_id not in turn_ids]
+        if unnamed:
+            logger.info(
+                "yui: stop left alone, open turns unnamed chat=%s turns=%s", chat_id, ",".join(unnamed)
+            )
             return
         # The client asked for the stop, so its acknowledgement is not worth speaking.
         state.set_muted(chat_id, True)
@@ -724,7 +730,7 @@ class YuiAdapter(BasePlatformAdapter):
         if state.take_muted(chat_id):
             state.pop_cues(chat_id)
             state.mark_delivered(chat_id)
-            logger.info("yui: reset acknowledgement not spoken chat=%s", chat_id)
+            logger.info("yui: acknowledgement not spoken chat=%s", chat_id)
             return SendResult(success=True, message_id=_message_id())
         stream = self._stream(chat_id)
         async with stream.lock:

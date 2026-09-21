@@ -19,7 +19,7 @@ import type {
   ToolStatusFrame,
   TurnEndFrame,
 } from "../io/chat/push-socket";
-import { wirePushMode, wirePushStop, wirePushTransport } from "./wire-push";
+import { wirePushMode, wirePushTransport, wireStopButton } from "./wire-push";
 
 function fakeSocket() {
   let renderCb: ((frame: RenderFrame) => void) | null = null;
@@ -591,14 +591,14 @@ describe("wirePushTransport — teardown through the shared turn feed", () => {
   });
 });
 
-describe("wirePushStop", () => {
+describe("wireStopButton", () => {
   let sendStop: Mock<(turnIds: string[]) => boolean>;
   let onStopCb: (() => void) | null = null;
 
   function wireStop(withSocket = true): void {
     sendStop = vi.fn(() => true);
     onStopCb = null;
-    wirePushStop({
+    wireStopButton({
       onStop(cb) {
         onStopCb = cb;
       },

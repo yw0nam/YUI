@@ -117,7 +117,7 @@ export function wirePushTransport(deps: {
  * so the ones it still runs for the user stop with them. A typed or spoken turn and a barge-in
  * reach the backend as `turn` frames instead, and a session reset sends `reset`.
  */
-export function wirePushStop(deps: {
+export function wireStopButton(deps: {
   onStop(cb: () => void): void;
   stopTurn: () => string[];
   socket: Pick<PushSocket, "sendStop"> | undefined;
