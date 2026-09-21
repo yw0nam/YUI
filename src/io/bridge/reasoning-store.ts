@@ -1,7 +1,7 @@
 /**
  * reasoning-store — the backend's reasoning text as the current turn writes it.
  *
- * Deltas stream in while a cycle is live and each render closes the cycle. Only the latest
+ * Deltas stream in while a cycle is live and the completed reply closes the cycle. Only the latest
  * cycle is kept: a delta after a finished cycle starts a new text. The text is never spoken
  * and never stored — the reasoning chip reads it.
  */
@@ -14,11 +14,11 @@ export interface ReasoningState {
 export interface ReasoningStore {
   get(): ReasoningState;
   subscribe(cb: (s: ReasoningState) => void): () => void;
-  /** A delta from the socket. After a finished cycle the first delta starts a new text. */
+  /** A reasoning delta. After a finished cycle the first delta starts a new text. */
   append(delta: string): void;
-  /** A render arrived: it closes the current live cycle, not necessarily the backend's whole run. */
+  /** The reply landed: it closes the current live cycle, not necessarily the backend's whole run. */
   finish(full: string | undefined): void;
-  /** The socket left `ready`: a live cycle is abandoned; a finished text is kept. */
+  /** The turn or connection owning the live cycle died: a finished text is kept. */
   interrupt(): void;
 }
 

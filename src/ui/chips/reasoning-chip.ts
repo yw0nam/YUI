@@ -22,22 +22,15 @@ export interface ReasoningChip {
   closePanel(): void;
   /** Fires once per closed → open transition, from the automatic open or a tap. */
   onPanelOpen(cb: () => void): () => void;
-  /** Starts hidden, for a window that has nothing to report yet. */
-  setSuppressed(suppressed: boolean): void;
   dispose(): void;
 }
 
 interface ReasoningChipOptions {
   mount: HTMLElement;
   store: ReasoningPort;
-  suppressed?: boolean;
 }
 
-export function createReasoningChip({
-  mount,
-  store,
-  suppressed: initialSuppressed = false,
-}: ReasoningChipOptions): ReasoningChip {
+export function createReasoningChip({ mount, store }: ReasoningChipOptions): ReasoningChip {
   const el = document.createElement("div");
   el.className = "yui-think";
   el.hidden = true;
@@ -58,7 +51,6 @@ export function createReasoningChip({
   const textEl = el.querySelector<HTMLElement>(".yui-think__text")!;
 
   let panelOpen = false;
-  let suppressed = initialSuppressed;
   let prevLive = false;
   const openSubs = new Set<() => void>();
 
@@ -80,11 +72,10 @@ export function createReasoningChip({
   }
 
   function render(state: ReasoningState): void {
-    if (state.text === "" || suppressed) {
+    if (state.text === "") {
       el.hidden = true;
       closePanel();
-      // A suppressed state was never rendered, so it does not count as the previous one.
-      if (!suppressed) prevLive = state.live;
+      prevLive = state.live;
       return;
     }
     el.hidden = false;
@@ -132,11 +123,6 @@ export function createReasoningChip({
       return () => {
         openSubs.delete(cb);
       };
-    },
-    setSuppressed(next): void {
-      if (suppressed === next) return;
-      suppressed = next;
-      render(store.get());
     },
     dispose,
   };

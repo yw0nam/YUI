@@ -199,7 +199,7 @@ describe("backend_caller — idle-gap watchdog", () => {
     expect(res).toBe("ok");
   });
 
-  it("keepalive events during a long reasoning phase reset the watchdog — no stall even though the gap to first speech exceeds SPEECH_IDLE_TIMEOUT_MS", async () => {
+  it("keepalive heartbeats during a long gap before first speech reset the watchdog — no stall even though the gap exceeds SPEECH_IDLE_TIMEOUT_MS", async () => {
     const gap = SPEECH_IDLE_TIMEOUT_MS - 5_000;
     script.events = [
       keepaliveEvent(),

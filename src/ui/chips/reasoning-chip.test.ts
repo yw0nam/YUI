@@ -48,9 +48,9 @@ describe("createReasoningChip", () => {
     setLocale("en");
   });
 
-  function build(suppressed = false) {
+  function build() {
     store = fakePort();
-    const chip = createReasoningChip({ mount, store, suppressed });
+    const chip = createReasoningChip({ mount, store });
     return { store, chip };
   }
 
@@ -195,27 +195,6 @@ describe("createReasoningChip", () => {
     chip.closePanel();
     chipButton().click();
     expect(onOpen).toHaveBeenCalledTimes(2);
-  });
-
-  it("stays hidden while suppressed and returns when unsuppressed", () => {
-    const { chip } = build(true);
-
-    store.set({ text: "A", live: true });
-    expect(rootEl().hidden).toBe(true);
-    expect(panelEl().hidden).toBe(true);
-
-    chip.setSuppressed(false);
-    expect(rootEl().hidden).toBe(false);
-  });
-
-  it("opens the panel when a live cycle is unsuppressed mid-stream", () => {
-    const { chip } = build(true);
-    store.set({ text: "A", live: true });
-
-    chip.setSuppressed(false);
-
-    expect(panelEl().hidden).toBe(false);
-    expect(chipButton().getAttribute("aria-expanded")).toBe("true");
   });
 
   it("relabels on a locale change", () => {

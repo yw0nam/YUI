@@ -302,6 +302,10 @@ export function createBackendCaller(deps: BackendCallerDeps): BackendCaller {
         streamedAny = false;
         cueStreamed = false;
         silenceFilter = createSilenceTokenFilter();
+        if (reasoningLive) {
+          deps.reasoning?.interrupt();
+          reasoningLive = false;
+        }
         let streamError: string | undefined;
         // HTTP status carried by stream error event (openai SDK APIError.status) — distinguish
         // 401/403 as http_4xx_drop (auth-ish) instead of network_drop.

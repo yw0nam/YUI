@@ -111,7 +111,7 @@ interface Phase1Handles {
   delegations: DelegationsStore;
   /** The persisted history every `delegations` frame folds into. */
   delegationHistory: DelegationHistory;
-  /** The backend's reasoning text, fed by the push socket's `reasoning` frames. */
+  /** The backend's reasoning text, fed by the push socket's reasoning frames and the streaming path. */
   reasoning: ReasoningStore;
   getEndpoints(): EndpointsConfig;
   /** Effective guardrails — the editable caps layered on configs/guardrails.json. */
