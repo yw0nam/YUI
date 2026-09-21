@@ -87,8 +87,8 @@ with a vocabulary that differs from the one the client sent in `hello`, and a cu
 broker's `generate_express` never reaches a `render` frame. Saving this platform's tools from Hermes's
 tool settings removes `no_mcp` and keeps named MCP servers, so run the second check below after that.
 
-`README.md` beside this skill carries what each `extra` key means and what to change for a host
-other than loopback.
+The plugin's [`docs/install.md`](../../docs/install.md) carries what each `extra` key means and what
+to change for a host other than loopback.
 
 ```bash
 python3 -c "import yaml,os;d=yaml.safe_load(open(os.path.expanduser('~/.hermes/profiles/<profile>/config.yaml')));print(d['platforms']['yui']['enabled'],d['platform_toolsets']['yui'],'yui' in d['plugins']['enabled'])"

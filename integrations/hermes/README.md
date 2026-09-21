@@ -21,7 +21,7 @@ The chat model row is not part of this mode — the plugin picks the model. The 
 ## Profile setup
 
 - Responses mode: install the Expression Broker MCP into Hermes so it can read the published vocabulary and call the broker's `generate_express`.
-- Push mode: the platform plugin takes the vocabulary from the client and carries `generate_express` itself. `platform_toolsets.yui` gives the platform every enabled MCP server until it names some, so name the MCP servers the character uses there, or add `no_mcp`, to keep the Expression Broker off the platform, as the plugin README's [Enable](platform/yui/README.md#enable) section describes.
+- Push mode: the platform plugin takes the vocabulary from the client and carries `generate_express` itself. `platform_toolsets.yui` gives the platform every enabled MCP server until it names some, so name the MCP servers the character uses there, or add `no_mcp`, to keep the Expression Broker off the platform, as the plugin's [Enable](platform/yui/docs/install.md#enable) section describes.
 - Create a Hermes profile, add `docs/reference/client-context.md` to that profile's context, and instruct it to remember the contract.
 
 ## Pointers
