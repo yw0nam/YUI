@@ -10,7 +10,7 @@
  * push turns still outstanding with it.
  */
 
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, type Mock, vi } from "vitest";
 import type { EndpointsConfig } from "../../contract";
 import type { ChatHistoryEntry } from "../../io/chat/chat-history-store";
 import type { PushTurnFrame } from "../../io/chat/push-socket";
@@ -52,6 +52,7 @@ let order: string[];
 let cuts: number;
 let sentIds: string[];
 let pushTurns: ReturnType<typeof createPushTurns>;
+let reasoning: Record<"append" | "finish" | "interrupt", Mock>;
 /** Turn ids the call told the store to stop waiting on. */
 let abandoned: string[];
 /** Whether an accepted frame answers itself with a render — off for the tests that drive the wait. */
@@ -90,6 +91,7 @@ function callerWith(accepted: boolean, config: EndpointsConfig = PUSH_CONFIG) {
   pushTurns = createPushTurns();
   abandoned = [];
   socket = fakeSocketState();
+  reasoning = { append: vi.fn(), finish: vi.fn(), interrupt: vi.fn() };
   turnOutput.interrupt.mockImplementation(() => {
     order.push("interrupt");
   });
@@ -144,6 +146,7 @@ function callerWith(accepted: boolean, config: EndpointsConfig = PUSH_CONFIG) {
       },
     },
     onPushSocketNotReady: (cb) => socket.subscribe(cb),
+    reasoning,
     reportSpokeText: (v) => spoke.push(v),
     contextHistory: { append: (entry) => contexts.push(entry) },
     appendTurnRecord: (record) => records.push(record),
@@ -294,6 +297,14 @@ describe("backend_caller — push transport", () => {
 
     expect(outcome).toBe("not_configured");
     expect(sent).toEqual([]);
+  });
+
+  it("leaves the reasoning store alone — its cycle is the socket's, not this call's", async () => {
+    await callerWith(true).call(turnOf(userEnv(), 7));
+
+    expect(reasoning.append).not.toHaveBeenCalled();
+    expect(reasoning.finish).not.toHaveBeenCalled();
+    expect(reasoning.interrupt).not.toHaveBeenCalled();
   });
 });
 

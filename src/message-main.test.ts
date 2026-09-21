@@ -188,7 +188,7 @@ it("asks the character window for the settings surface when the lost chip is tap
   petMessageBridge.dispose();
 });
 
-// The reasoning chip lives on the same plate row and shares the chip-mode suppression.
+// The reasoning chip lives on the same plate row; it draws the mirror's text in every mode.
 it("shows the reasoning chip when the mirror carries reasoning text in push mode", async () => {
   await boot();
   answer({ kind: "ready", chat_id: "yui-3f9a2c1d" });
@@ -201,17 +201,16 @@ it("shows the reasoning chip when the mirror carries reasoning text in push mode
   );
 });
 
-it("stays bare while no push state has arrived", async () => {
+it("shows the reasoning chip before any push state arrives, while the delegation chip still waits", async () => {
   await boot();
 
   answerReasoning({ text: "too early", live: true });
-  // A suppressed chip draws nothing, so the arrival is only observable by the chip staying bare.
-  await new Promise((resolve) => setTimeout(resolve, 50));
 
-  expect(thinkEl().hidden).toBe(true);
+  await vi.waitFor(() => expect(thinkEl().hidden).toBe(false));
+  expect(chipEl().hidden).toBe(true);
 });
 
-it("shows no reasoning chip while the protocol is not push", async () => {
+it("shows the reasoning chip while the protocol is not push, and still hides the delegation chip", async () => {
   setChatApi("chat_completions");
   await boot();
   answer({ kind: "reconnecting", delay_ms: 4_000 });
@@ -219,22 +218,22 @@ it("shows no reasoning chip while the protocol is not push", async () => {
   answerReasoning({ text: "hmm", live: true });
 
   await vi.waitFor(() => expect(chipEl().classList.contains("is-lost")).toBe(true));
-  expect(thinkEl().hidden).toBe(true);
+  expect(chipEl().hidden).toBe(true);
+  await vi.waitFor(() => expect(thinkEl().hidden).toBe(false));
 });
 
-it("hides the reasoning chip while the protocol leaves push and shows it again on push", async () => {
+it("keeps the reasoning chip when the protocol leaves push, and hides the delegation chip", async () => {
   await boot();
-  answer({ kind: "ready", chat_id: "yui-3f9a2c1d" });
+  answer({ kind: "reconnecting", delay_ms: 4_000 });
   answerReasoning({ text: "hmm", live: true });
+  await vi.waitFor(() => expect(chipEl().hidden).toBe(false));
   await vi.waitFor(() => expect(thinkEl().hidden).toBe(false));
 
   setChatApi("responses");
   petBridge.emitSettingsChanged();
-  await vi.waitFor(() => expect(thinkEl().hidden).toBe(true));
+  await vi.waitFor(() => expect(chipEl().hidden).toBe(true));
 
-  setChatApi("push");
-  petBridge.emitSettingsChanged();
-  await vi.waitFor(() => expect(thinkEl().hidden).toBe(false));
+  expect(thinkEl().hidden).toBe(false);
 });
 
 it("closes the delegation list when a live reasoning state arrives", async () => {

@@ -251,6 +251,10 @@ export function deltaEvent(text: string): ChatStreamEvent {
   return { type: "speech_delta", text };
 }
 
+export function reasoningEvent(delta: string): ChatStreamEvent {
+  return { type: "reasoning", delta };
+}
+
 export function speechDoneEvent(text: string): ChatStreamEvent {
   return { type: "speech_done", text };
 }

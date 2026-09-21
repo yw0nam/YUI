@@ -20,6 +20,7 @@ import {
   makeLogger,
   makeTurnOutput,
   peekEnv,
+  reasoningEvent,
   toolStatusEvent,
   touchEnv,
   turnOf,
@@ -35,6 +36,7 @@ let turnOutput: ReturnType<typeof makeTurnOutput>;
 let toolStatusSink: Mock<(status: ToolStatus) => void>;
 let usageSink: Mock<(usage: Usage) => void>;
 let spokeTextSink: Mock<(spoke: boolean) => void>;
+let reasoning: Record<"append" | "finish" | "interrupt", Mock>;
 let caller: BackendCaller;
 let logger: Logger;
 
@@ -45,6 +47,7 @@ beforeEach(() => {
   toolStatusSink = vi.fn();
   usageSink = vi.fn();
   spokeTextSink = vi.fn();
+  reasoning = { append: vi.fn(), finish: vi.fn(), interrupt: vi.fn() };
   logger = makeLogger();
   caller = createBackendCaller({
     config: CONFIG,
@@ -54,6 +57,7 @@ beforeEach(() => {
     stream: script.stream,
     turnOutput,
     onToolStatus: toolStatusSink,
+    reasoning,
     onUsage: usageSink,
     reportSpokeText: spokeTextSink,
     logger,
@@ -500,6 +504,40 @@ describe("backend_caller — usage sink (token accounting channel)", () => {
     script.events = [usageEvent(1, 2, 3), completedEvent({ speech_text: "hi" })];
     const res = await caller.call(turnOf(userEnv()));
     expect(res).toBe("ok");
+  });
+});
+
+// ── reasoning chip feed (streaming path) ────────────────────────────────────────
+
+describe("backend_caller — reasoning store feed", () => {
+  it("each reasoning event → store.append in order; completed → finish(undefined)", async () => {
+    script.events = [
+      reasoningEvent("weighing"),
+      reasoningEvent(" the odds"),
+      completedEvent({ speech_text: "so" }),
+    ];
+    const res = await caller.call(turnOf(userEnv()));
+    expect(res).toBe("ok");
+    expect(reasoning.append.mock.calls.map((c) => c[0])).toEqual(["weighing", " the odds"]);
+    expect(reasoning.finish).toHaveBeenCalledWith(undefined);
+  });
+
+  it("a stream error event → interrupt once, never finish", async () => {
+    script.events = [reasoningEvent("weighing"), { type: "error", message: "boom" }];
+    const res = await caller.call(turnOf(userEnv()));
+    expect(res).toBe("network_drop");
+    expect(reasoning.interrupt).toHaveBeenCalledTimes(1);
+    expect(reasoning.finish).not.toHaveBeenCalled();
+  });
+
+  it("an external abort mid-stream → interrupt once, never finish", async () => {
+    const ac = new AbortController();
+    reasoning.append.mockImplementation(() => ac.abort());
+    script.events = [reasoningEvent("weighing"), reasoningEvent(" more")];
+    const res = await caller.call(turnOf(userEnv()), ac.signal);
+    expect(res).toBe("superseded_by_user");
+    expect(reasoning.interrupt).toHaveBeenCalledTimes(1);
+    expect(reasoning.finish).not.toHaveBeenCalled();
   });
 });
 

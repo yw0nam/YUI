@@ -144,7 +144,7 @@ const completedWithUsage = (text: string, usage: Record<string, unknown>): any =
   return ev;
 };
 
-/** response.reasoning_summary_text.delta — no ChatStreamEvent case handled it before the fix. */
+/** response.reasoning_summary_text.delta — one summary part's text as it streams. */
 const reasoningSummaryDelta = (delta: string): any => ({
   type: "response.reasoning_summary_text.delta",
   delta,
@@ -154,13 +154,23 @@ const reasoningSummaryDelta = (delta: string): any => ({
   sequence_number: 0,
 });
 
-/** response.reasoning_text.delta — same "unhandled reasoning event" family. */
+/** response.reasoning_text.delta — raw reasoning text as it streams. */
 const reasoningTextDelta = (delta: string): any => ({
   type: "response.reasoning_text.delta",
   delta,
   item_id: "rs_1",
   output_index: 0,
   content_index: 0,
+  sequence_number: 0,
+});
+
+/** response.reasoning_summary_part.added — each summary part of one response, in order. */
+const reasoningPartAdded = (summary_index: number): any => ({
+  type: "response.reasoning_summary_part.added",
+  item_id: "rs_1",
+  output_index: 0,
+  summary_index,
+  part: { type: "summary_text", text: "" },
   sequence_number: 0,
 });
 
@@ -968,12 +978,12 @@ describe("streamChat — usage event", () => {
   });
 });
 
-describe("streamChat — keepalive", () => {
-  it("emits keepalive for response.reasoning_summary_text.delta and response.reasoning_text.delta, before the first speech_delta", async () => {
+describe("streamChat — reasoning events", () => {
+  it("maps a summary delta and a raw reasoning-text delta each to a reasoning event, in order", async () => {
     createMock.mockResolvedValue(
       streamOf([
-        reasoningSummaryDelta("thinking..."),
-        reasoningTextDelta("more thinking..."),
+        reasoningSummaryDelta("weighing"),
+        reasoningTextDelta(" the odds"),
         textDelta("hi"),
         textDone("hi"),
         completed("hi"),
@@ -982,23 +992,42 @@ describe("streamChat — keepalive", () => {
 
     const events = await collect(streamChat(CONFIG, req()));
 
-    const keepalives = events.filter((e) => e.type === "keepalive");
-    expect(keepalives.length).toBe(2);
-
-    // keepalives must precede the first speech_delta — they cover the reasoning gap.
-    const firstSpeechIdx = events.findIndex((e) => e.type === "speech_delta");
-    const lastKeepaliveIdx = events.map((e) => e.type).lastIndexOf("keepalive");
-    expect(lastKeepaliveIdx).toBeLessThan(firstSpeechIdx);
+    expect(events.filter((e) => e.type === "reasoning")).toEqual([
+      { type: "reasoning", delta: "weighing" },
+      { type: "reasoning", delta: " the odds" },
+    ]);
   });
 
-  it("a lone reasoning event with no following text still yields a keepalive (no speech required)", async () => {
-    createMock.mockResolvedValue(streamOf([reasoningSummaryDelta("thinking..."), completed("")]));
+  it("yields a paragraph break before the second summary part and nothing for the first", async () => {
+    createMock.mockResolvedValue(
+      streamOf([
+        reasoningPartAdded(0),
+        reasoningSummaryDelta("part one"),
+        reasoningPartAdded(1),
+        reasoningSummaryDelta("part two"),
+        completed(""),
+      ]),
+    );
 
     const events = await collect(streamChat(CONFIG, req()));
 
-    expect(events).toContainEqual({ type: "keepalive" });
+    expect(events.filter((e) => e.type === "reasoning")).toEqual([
+      { type: "reasoning", delta: "part one" },
+      { type: "reasoning", delta: "\n\n" },
+      { type: "reasoning", delta: "part two" },
+    ]);
   });
 
+  it("yields nothing for an empty reasoning delta", async () => {
+    createMock.mockResolvedValue(streamOf([reasoningSummaryDelta(""), completed("")]));
+
+    const events = await collect(streamChat(CONFIG, req()));
+
+    expect(events.some((e) => e.type === "reasoning")).toBe(false);
+  });
+});
+
+describe("streamChat — keepalive", () => {
   it("any unhandled event proves the wire is alive — backend heartbeats during long work (e.g. context compaction) yield keepalives", async () => {
     createMock.mockResolvedValue(
       streamOf([
