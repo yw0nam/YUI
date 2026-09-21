@@ -574,6 +574,8 @@ After the motion loop finishes, expression and motion return to neutral/idle. If
 
 The sentence is spoken normally with neutral voice tone and idle/neutral presentation.
 
+A reply that speaks nothing and carries no cue leaves expression and motion as they are.
+
 Use no `generate_express` call when the sentence should stay neutral.
 
 ### When should `generate_express` be called?

@@ -15,7 +15,8 @@
  *  B4 speech gate — speak only when speech_text is not empty. Empty text = silence,
  *     no separate flag. emotion/motion rendered regardless of silence.
  *  B5 dispatch_to_renderer — when per-beat cue streamed, TTS pipeline applies
- *     emotion/motion audio-timed (express→turnOutput.cue), otherwise at completed: renderer.applyDirective(envelope).
+ *     emotion/motion audio-timed (express→turnOutput.cue), otherwise at completed, and only for an
+ *     envelope that carries one of the two channels: renderer.applyDirective(envelope).
  *     speech_text→turnOutput.speak + tool_status→turnFeed (flowed to TTS/UI in app/bootstrap-configured.ts).
  *
  * Silent drop classification: parse_error(WARN) / network_drop(WARN) / network_stall(WARN, idle timeout).
@@ -459,10 +460,12 @@ export function createBackendCaller(deps: BackendCallerDeps): BackendCaller {
       //   Otherwise (no cue, or cue but silent turn), apply once at completed:
       //   firing≠judgment — silent-turn-with-cue still renders emotion/motion,
       //   and completed-only backend without express streaming is preserved.
+      //   An envelope carrying neither channel renders nothing: expression and motion stay as they are.
       const pipelineOwnsCues = cueStreamed && streamedAny;
-      if (pipelineOwnsCues) {
+      const carriesChannel = "emotion" in envelope || "motion" in envelope;
+      if (pipelineOwnsCues || !carriesChannel) {
         log.debug("dispatch_to_renderer", {
-          owner: "pipeline",
+          owner: pipelineOwnsCues ? "pipeline" : "none",
           emotion: envelope.emotion ?? null,
           motion: envelope.motion ?? null,
         });
