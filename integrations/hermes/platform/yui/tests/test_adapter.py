@@ -21,7 +21,8 @@ from gateway_stub import (
 from yui.src.activity import delegations, reasoning, reports, tool_status
 from yui.src.express import tools
 from yui.src.speech import speech
-from yui.src.transport.adapter import MAX_FRAME_BYTES, YuiAdapter, fit_frame, is_loopback
+from yui.src.transport.adapter import YuiAdapter, is_loopback
+from yui.src.transport.frames import MAX_FRAME_BYTES, fit_frame
 from yui.src.turns import state
 
 CHAT = "yui-3f9a2c1d"

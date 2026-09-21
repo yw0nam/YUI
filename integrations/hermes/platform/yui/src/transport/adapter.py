@@ -33,6 +33,7 @@ from ..express.gate import Vocabulary
 from ..express.segments import build_segments, opening_cues, place_matched
 from ..speech import speech
 from ..turns import state
+from .frames import MAX_FRAME_BYTES, encoded, fit_frame
 
 logger = logging.getLogger(__name__)
 
@@ -40,7 +41,6 @@ DEFAULT_HOST = "127.0.0.1"
 DEFAULT_PORT = 8646
 WS_PATH = "/ws"
 SOURCE = "hermes"
-MAX_FRAME_BYTES = 262_144
 
 # The gateway marks its mid-turn sends; everything else it sends is reply text to speak.
 INTERIM_MARKERS = ("expect_edits", "_interim_send")
@@ -75,54 +75,6 @@ def is_loopback(host: str) -> bool:
         return ipaddress.ip_address(host).is_loopback
     except ValueError:
         return False
-
-
-def _encoded(frame: dict) -> tuple[str, int]:
-    body = json.dumps(frame, ensure_ascii=False)
-    return body, len(body.encode("utf-8"))
-
-
-def fit_frame(frame: dict) -> str | None:
-    """The cap is symmetric, and the client closes an oversize frame; trim one down to fit.
-
-    A frame with nothing left to trim has no body to send.
-    """
-    body, size = _encoded(frame)
-    if size <= MAX_FRAME_BYTES:
-        return body
-    # Reasoning is commentary on the reply, so it goes before any of the speech does.
-    if frame.pop("reasoning", None) is not None:
-        logger.debug("yui: reasoning dropped from an oversize %s frame", frame.get("type"))
-        body, size = _encoded(frame)
-    segments = frame.get("segments")
-    while size > MAX_FRAME_BYTES and isinstance(segments, list) and segments:
-        segments.pop()
-        body, size = _encoded(frame)
-    if size > MAX_FRAME_BYTES and isinstance(frame.get("delta"), str):
-        logger.debug("yui: reasoning delta cut to fit the frame")
-        raw = frame["delta"].encode("utf-8")
-        budget = max(len(raw) - (size - MAX_FRAME_BYTES), 0)
-        frame["delta"] = raw[:budget].decode("utf-8", "ignore")
-        body, size = _encoded(frame)
-    items = frame.get("items")
-    if size > MAX_FRAME_BYTES and isinstance(items, list):
-        # Oldest first; the summary is the least of what a row shows.
-        for item in items:
-            if not isinstance(item, dict) or item.pop("summary", None) is None:
-                continue
-            body, size = _encoded(frame)
-            if size <= MAX_FRAME_BYTES:
-                break
-    if size > MAX_FRAME_BYTES:
-        logger.warning(
-            "yui: %s frame still over %d bytes at %d after trimming",
-            frame.get("type"),
-            MAX_FRAME_BYTES,
-            size,
-        )
-        return None
-    logger.warning("yui: %s frame over %d bytes, trimmed to fit", frame.get("type"), MAX_FRAME_BYTES)
-    return body
 
 
 def _message_id() -> str:
@@ -652,7 +604,7 @@ class YuiAdapter(BasePlatformAdapter):
         # A speech frame is never held, and trimming it would drop its only sentence.
         if (
             not state.is_connected(chat_id)
-            or _encoded(frame)[1] > MAX_FRAME_BYTES
+            or encoded(frame)[1] > MAX_FRAME_BYTES
             or not await self._send_frame(chat_id, frame)
         ):
             stream.off = True
