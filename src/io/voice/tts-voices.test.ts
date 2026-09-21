@@ -1,8 +1,9 @@
 /**
  * tts-voices.test.ts — the OpenAI-compatible voices API client.
  *
- * listVoices: GET {tts_base_url}/v1/audio/voices → data[].id. Fail-soft ([] + warn) so a down
- * server never breaks boot. Ids are opaque strings — non-ASCII must survive untouched.
+ * listVoices: GET {tts_base_url}/v1/audio/voices → data[].id. Fail-soft: a failed fetch
+ * (non-2xx, thrown request, timeout) resolves null + warn, an empty server resolves []. Ids are
+ * opaque strings — non-ASCII must survive untouched.
  * upsertVoice: multipart POST /v1/audio/voices, falling back to PUT /v1/audio/voices/{id} on 409.
  */
 
@@ -108,7 +109,7 @@ describe("listVoices", () => {
     expect("Authorization" in headers).toBe(false);
   });
 
-  it("resolves to [] and warns on a non-2xx response", async () => {
+  it("resolves to null and warns on a non-2xx response", async () => {
     const fetchMock = vi.fn<FetchFn>(async () => errorResponse(500));
 
     await expect(
@@ -117,11 +118,11 @@ describe("listVoices", () => {
         fetch: fetchMock as unknown as typeof fetch,
         logger: noopLog,
       }),
-    ).resolves.toEqual([]);
+    ).resolves.toBeNull();
     expect(noopLog.warn).toHaveBeenCalledOnce();
   });
 
-  it("resolves to [] and warns when the request throws", async () => {
+  it("resolves to null and warns when the request throws", async () => {
     const fetchMock = vi.fn<FetchFn>(async () => {
       throw new Error("connection refused");
     });
@@ -132,7 +133,7 @@ describe("listVoices", () => {
         fetch: fetchMock as unknown as typeof fetch,
         logger: noopLog,
       }),
-    ).resolves.toEqual([]);
+    ).resolves.toBeNull();
     expect(noopLog.warn).toHaveBeenCalledOnce();
   });
 
@@ -162,7 +163,7 @@ describe("listVoices", () => {
         logger: noopLog,
       });
       await vi.advanceTimersByTimeAsync(VOICES_REQUEST_TIMEOUT_MS + 10);
-      await expect(pending).resolves.toEqual([]);
+      await expect(pending).resolves.toBeNull();
       expect(noopLog.warn).toHaveBeenCalledWith("voice_list_failed", {
         error: expect.stringContaining("TTS voice list timed out"),
       });
