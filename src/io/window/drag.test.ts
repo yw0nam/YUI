@@ -1,5 +1,5 @@
 /**
- * Tests for src/app/drag.ts — drag + multi-monitor / DPI.
+ * Tests for src/io/window/drag.ts — drag + multi-monitor / DPI.
  *
  * Environment: node (vitest default — no jsdom dependency).
  *
@@ -10,7 +10,6 @@
  * - `initDrag` attaches a `pointerdown` listener to an EventTarget.  We use a
  *   plain `EventTarget` (available in Node 18+) to test the listener contract
  *   without a full DOM / jsdom.
- * - `clampToWorkArea` is the TS counterpart of Rust `clamp_to_work_area`.
  */
 
 import { afterEach, beforeEach, describe, expect, it, type Mock, vi } from "vitest";
@@ -36,7 +35,7 @@ vi.mock("@tauri-apps/api/event", () => ({
 }));
 
 import { invoke } from "@tauri-apps/api/core";
-import { clampToWorkArea, initDrag, invokeDragWindow, type OrbitDelta } from "./drag";
+import { initDrag, invokeDragWindow, type OrbitDelta } from "./drag";
 
 const mockInvoke = invoke as ReturnType<typeof vi.fn>;
 
@@ -57,44 +56,6 @@ describe("invokeDragWindow", () => {
   it("propagates errors from invoke", async () => {
     mockInvoke.mockRejectedValueOnce(new Error("OS drag failed"));
     await expect(invokeDragWindow()).rejects.toThrow("OS drag failed");
-  });
-});
-
-// ─── clampToWorkArea ─────────────────────────────────────────────────────────
-
-describe("clampToWorkArea", () => {
-  it("no-op when window is fully inside work area", () => {
-    const r = clampToWorkArea(100, 100, 400, 600, 0, 0, 2560, 1440);
-    expect(r).toEqual({ x: 100, y: 100 });
-  });
-
-  it("clamps left edge", () => {
-    const r = clampToWorkArea(-50, 100, 400, 600, 0, 0, 2560, 1440);
-    expect(r.x).toBe(0);
-  });
-
-  it("clamps right edge", () => {
-    // x=2400 + w=400 = 2800 > 2560 → clamped to 2560-400=2160
-    const r = clampToWorkArea(2400, 100, 400, 600, 0, 0, 2560, 1440);
-    expect(r.x).toBe(2160);
-  });
-
-  it("clamps top edge", () => {
-    const r = clampToWorkArea(100, -10, 400, 600, 0, 0, 2560, 1440);
-    expect(r.y).toBe(0);
-  });
-
-  it("clamps bottom edge", () => {
-    // y=1000 + h=600 = 1600 > 1440 → clamped to 840
-    const r = clampToWorkArea(100, 1000, 400, 600, 0, 0, 2560, 1440);
-    expect(r.y).toBe(840);
-  });
-
-  it("respects non-zero work area origin (secondary monitor)", () => {
-    // Secondary monitor work area starts at x=1920
-    const r = clampToWorkArea(1800, 50, 400, 600, 1920, 0, 1920, 1080);
-    expect(r.x).toBe(1920); // clamped up to left edge
-    expect(r.y).toBe(50);
   });
 });
 

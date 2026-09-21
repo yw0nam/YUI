@@ -21,11 +21,11 @@
  * the async window reads, and the per-frame translation.
  */
 
-import { clampToWorkArea } from "../app/drag";
 import type { DescendConfig, WalkConfig } from "../config/load";
 import type { MotionKind } from "../contract";
 import {
   clampToFloorSegments,
+  clampToWorkArea,
   type DescentEdge,
   descentEdges,
   edgeAtSegmentEnd,

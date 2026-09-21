@@ -21,7 +21,7 @@
  * entering CAPTURE uses the tight box. Plus debounce_samples agreeing samples
  * and idempotent setIgnoreCursorEvents (skip if already in the desired state).
  *
- * Tauri-only: inert in a plain browser (mirrors src/app/drag.ts's guard).
+ * Tauri-only: inert in a plain browser (mirrors src/io/window/drag.ts's guard).
  */
 
 import { invoke } from "@tauri-apps/api/core";

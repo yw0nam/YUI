@@ -7,10 +7,9 @@
  * and the browser dev build never load the module.
  */
 
-import { clampToWorkArea } from "../../app/drag";
 import { createLogger } from "../../logger";
 import type { MessageWindowSettingsStore } from "../settings/message-window-settings";
-import { monitorAt, type ScreenMonitor, toScreenMonitor } from "./screen-geometry";
+import { clampToWorkArea, monitorAt, type ScreenMonitor, toScreenMonitor } from "./screen-geometry";
 import { isTauri } from "./tauri-env";
 
 const log = createLogger("message-window");

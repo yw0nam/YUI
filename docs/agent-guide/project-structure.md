@@ -50,7 +50,6 @@ YUI/
       wire-push.ts                   # Push socket frames into turns and the push mode chip
       bootstrap-configured.ts        # Config-derived bootstrap: pat gesture, fall and descend configs, ambient handles
       voice-pipeline-wiring.ts       # Wires filler, TTS, and speech playback to the turn lifecycle
-      drag.ts                        # Main-window drag gesture detection and OS-native drag handoff
     logger.ts                        # Namespaced frontend logger with a runtime level
     settings-main.ts                 # Settings-window entry
     devtools-main.ts                 # Developer Tools window entry
@@ -225,7 +224,7 @@ YUI/
         tauri-env.ts                   # Tauri runtime detection
         tauri-screen.ts                # Tauri-backed screen enumeration and capture
         screen-source-provider.ts      # Monitor enumeration seam
-        screen-geometry.ts             # Monitor containment and work-area floor math shared by every window mover
+        screen-geometry.ts             # Monitor containment, work-area floor math, and window clamping shared by every window mover
         screenshot-context.ts          # Pure encoder for the screenshot context block
         window-statics.ts              # Cached window origin and scale factors for the global-cursor poll loops
         cursor-tracker.ts              # Forwards the OS cursor position to the gaze apply layer
@@ -234,6 +233,7 @@ YUI/
         keep-on-screen.ts              # Pushes a window back until its centre lands on a monitor
         travel-frame.ts                # Parks the real window once for a scale-seam crossing
         peek-state.ts                  # Holds the current peek side and its lifecycle
+        drag.ts                        # Main-window drag gesture detection and OS-native drag handoff
         tap-source.ts                  # Turns taps on the character into bus envelopes
         drag-hold-source.ts            # Fires one proactive.drag_held candidate per sustained drag
         window-drop-source.ts          # Drag-release perch decision plus the occlusion-aware detach poll

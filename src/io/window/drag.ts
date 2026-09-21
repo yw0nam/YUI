@@ -16,9 +16,6 @@
  * - `invokeDragWindow()` — thin Tauri IPC wrapper,
  *   exported separately so callers can be tested with a mocked `invoke`.
  *
- * - `clampToWorkArea` — pure TS mirror of the Rust DPI math in
- *   src-tauri/src/drag.rs. Same semantics, same test cases.
- *
  * # Multi-monitor / DPI correctness
  * `window.startDragging()` (JS) / `Window::start_dragging()` (Rust) is OS-
  * native. The OS DWM / Quartz Compositor handles physical↔logical remapping as
@@ -32,8 +29,8 @@
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { getCurrentWindow } from "@tauri-apps/api/window";
-import { isTauri } from "../io/window/tauri-env";
-import { createLogger } from "../logger";
+import { createLogger } from "../../logger";
+import { isTauri } from "./tauri-env";
 
 const log = createLogger("drag");
 
@@ -51,30 +48,6 @@ const DRAG_THRESHOLD_PX = 4;
  */
 export async function invokeDragWindow(): Promise<void> {
   return invoke("drag_window");
-}
-
-// ─── Work-area clamp ──────────────────────────────────────────────────────────
-// Mirror of the pure `clamp_to_work_area` in src-tauri/src/drag.rs. Keep in sync.
-
-/**
- * Clamp logical position `(x, y)` so that a window of size `(w × h)` stays
- * within the monitor's logical work area `(workX, workY, workW, workH)`.
- * All arguments in logical pixels. Returns the clamped `{ x, y }`.
- */
-export function clampToWorkArea(
-  x: number,
-  y: number,
-  w: number,
-  h: number,
-  workX: number,
-  workY: number,
-  workW: number,
-  workH: number,
-): { x: number; y: number } {
-  return {
-    x: Math.max(workX, Math.min(x, workX + workW - w)),
-    y: Math.max(workY, Math.min(y, workY + workH - h)),
-  };
 }
 
 // ─── orbit gesture ──────────────────────────────────────────────────────────

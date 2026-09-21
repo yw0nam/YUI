@@ -237,3 +237,27 @@ function cutSegment(
   if (cutRight < seg.right) pieces.push({ left: cutRight, right: seg.right });
   return pieces;
 }
+
+// ─── Work-area clamp ──────────────────────────────────────────────────────
+// Mirror of the pure `clamp_to_work_area` in src-tauri/src/drag.rs. Keep in sync.
+
+/**
+ * Clamp logical position `(x, y)` so that a window of size `(w × h)` stays
+ * within the monitor's logical work area `(workX, workY, workW, workH)`.
+ * All arguments in logical pixels. Returns the clamped `{ x, y }`.
+ */
+export function clampToWorkArea(
+  x: number,
+  y: number,
+  w: number,
+  h: number,
+  workX: number,
+  workY: number,
+  workW: number,
+  workH: number,
+): { x: number; y: number } {
+  return {
+    x: Math.max(workX, Math.min(x, workX + workW - w)),
+    y: Math.max(workY, Math.min(y, workY + workH - h)),
+  };
+}

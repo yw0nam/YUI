@@ -36,6 +36,7 @@ import { enabledIdleVariants } from "../io/settings/idle-motion-settings";
 import { mergeScreen } from "../io/settings/screen-settings";
 import type { SettingsStores } from "../io/settings/settings-stores";
 import { createCursorTracker } from "../io/window/cursor-tracker";
+import { initDrag, type PatGesture } from "../io/window/drag";
 import { createDragHoldSource } from "../io/window/drag-hold-source";
 import { createFrontmostTracker } from "../io/window/frontmost-tracker";
 import { createHitTestController, type HitTestController } from "../io/window/hit-test";
@@ -58,7 +59,6 @@ import { wireIngressDeadNotice } from "../ui/notices/ingress-dead-notice";
 import { routeTurnFailure, turnErrorFixAction, turnErrorMessage } from "../ui/notices/turn-error";
 import type { createQuickControls } from "../ui/quick-controls/quick-controls";
 import type { Surfaces } from "../ui/surfaces/surfaces";
-import { initDrag, type PatGesture } from "./drag";
 import { type VoicePipeline, wireVoicePipeline } from "./voice-pipeline-wiring";
 import {
   wireClimber,
