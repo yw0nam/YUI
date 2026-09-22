@@ -10,7 +10,7 @@ import type {
 import type { RemoteSurfaces } from "../../bridge/message-remote";
 
 interface MessageWindowModeDeps {
-  store: MessageWindowSettingsStore;
+  store: Pick<MessageWindowSettingsStore, "setMode" | "subscribe">;
   remote: Pick<RemoteSurfaces, "onDock">;
   /** Show/hide handle for the message window. */
   window: { open(): void; hide(): void };

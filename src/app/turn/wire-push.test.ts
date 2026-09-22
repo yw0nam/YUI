@@ -4,13 +4,14 @@
 
 import { afterEach, beforeEach, describe, expect, it, type Mock, vi } from "vitest";
 import type { ToolStatus } from "../../contract";
-import type { BrokerPayload } from "../../io/chat/broker-client";
 import { PRE_SPEECH_TIMEOUT_MS } from "../../dispatcher/backend/idle-watchdog";
 import { makeTurnOutput } from "../../dispatcher/test-helpers";
 import { createPushTurns } from "../../dispatcher/turn/push-turn";
 import { createTurnFeed, type TurnFeed } from "../../dispatcher/turn/turn-feed";
 import { createDelegationsStore } from "../../io/bridge/delegations-store";
+import type { ReasoningState } from "../../io/bridge/reasoning-store";
 import { createReasoningStore } from "../../io/bridge/reasoning-store";
+import type { BrokerPayload } from "../../io/chat/broker-client";
 import type { ChatHistoryEntry } from "../../io/chat/chat-history-store";
 import type {
   DelegationItem,
@@ -21,7 +22,10 @@ import type {
   ToolStatusFrame,
   TurnEndFrame,
 } from "../../io/chat/push-socket";
-import type { MessageWindowMode } from "../../settings/panels/message-window-settings";
+import type {
+  MessageWindowMode,
+  MessageWindowSettings,
+} from "../../settings/panels/message-window-settings";
 
 const { createPushSocket } = vi.hoisted(() => ({ createPushSocket: vi.fn() }));
 const { createDelegationChip } = vi.hoisted(() => ({ createDelegationChip: vi.fn() }));
@@ -889,44 +893,62 @@ describe("wirePushStores", () => {
   };
 
   function fakeBridge() {
-    const cbs: Record<string, Array<() => void>> = {};
-    const on = (name: string) => (cb: () => void) => {
-      (cbs[name] ??= []).push(cb);
-      return () => {
-        cbs[name] = cbs[name].filter((f) => f !== cb);
+    const cbs: Record<string, Array<(arg?: never) => void>> = {};
+    const on =
+      <T>(name: string) =>
+      (cb: (arg: T) => void) => {
+        (cbs[name] ??= []).push(cb as (arg?: never) => void);
+        return () => {
+          cbs[name] = cbs[name].filter((f) => f !== cb);
+        };
       };
-    };
     return {
       cbs,
       emitPushState: vi.fn(),
-      onPushState: on("pushState"),
+      onPushState: on<PushSocketState>("pushState"),
       emitPushStateAsk: vi.fn(),
-      onPushStateAsk: on("pushStateAsk"),
+      onPushStateAsk: on<void>("pushStateAsk"),
       emitPushReset: vi.fn(),
-      onPushReset: on("pushReset"),
+      onPushReset: on<void>("pushReset"),
       emitPushReconnect: vi.fn(),
-      onPushReconnect: on("pushReconnect"),
+      onPushReconnect: on<void>("pushReconnect"),
       emitDelegations: vi.fn(),
-      onDelegations: on("delegations"),
+      onDelegations: on<DelegationItem[]>("delegations"),
       emitDelegationsAsk: vi.fn(),
-      onDelegationsAsk: on("delegationsAsk"),
+      onDelegationsAsk: on<void>("delegationsAsk"),
       emitReasoning: vi.fn(),
-      onReasoning: on("reasoning"),
+      onReasoning: on<ReasoningState>("reasoning"),
       emitReasoningAsk: vi.fn(),
-      onReasoningAsk: on("reasoningAsk"),
+      onReasoningAsk: on<void>("reasoningAsk"),
     };
   }
 
   function wireStores() {
+    createPushSocket.mockReset();
+    createPushSocket.mockImplementation(() => ({
+      dispose: vi.fn(),
+      connect: vi.fn(),
+      disconnect: vi.fn(),
+      reconnectNow: vi.fn(),
+      sendReset: vi.fn(() => true),
+      getState: vi.fn(() => ({ kind: "disconnected" as const })),
+      onState: vi.fn(() => () => {}),
+    }));
     const bridge = fakeBridge();
     const register = vi.fn();
+    const callsBefore = createPushSocket.mock.calls.length;
     const stores = wirePushStores({
       getEndpoints: () => ({ chat_base_url: "http://localhost:8646" }),
       getChatKey: async () => undefined,
       bridge,
       register,
     });
-    return { stores, register, bridge, socketDeps: createPushSocket.mock.calls[0][0] };
+    return {
+      stores,
+      register,
+      bridge,
+      socketDeps: createPushSocket.mock.calls[callsBefore][0],
+    };
   }
 
   it("serves an empty vocabulary until bind, then the bound one", () => {
@@ -971,7 +993,7 @@ describe("wirePushStores", () => {
 describe("createDelegationChipMount", () => {
   function setup(mode: MessageWindowMode) {
     let modeNow: MessageWindowMode = mode;
-    const subs = new Set<() => void>();
+    const subs = new Set<(s: MessageWindowSettings) => void>();
     const chip = {
       el: {},
       setSuppressed: vi.fn(),
@@ -987,7 +1009,7 @@ describe("createDelegationChipMount", () => {
       pushState: { getState: () => ({ kind: "disconnected" }), onState: () => () => {} },
       onOpenSettings: () => {},
       getMode: () => modeNow,
-      subscribeMode: (cb: () => void) => {
+      subscribeMode: (cb: (s: MessageWindowSettings) => void) => {
         subs.add(cb);
         return () => {
           subs.delete(cb);
@@ -1001,7 +1023,7 @@ describe("createDelegationChipMount", () => {
       subs,
       setMode(next: MessageWindowMode) {
         modeNow = next;
-        for (const cb of subs) cb();
+        for (const cb of subs) cb({ mode: modeNow, x: null, y: null });
       },
     };
   }

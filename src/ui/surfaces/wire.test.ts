@@ -32,7 +32,11 @@ vi.mock("../../io/window/openers/message-window-mode", () => ({ wireMessageWindo
 import { wireMessageSurfaces } from "./wire";
 
 function fakeMessageWindowSettings(mode: MessageWindowMode) {
-  return { get: () => ({ mode }), setMode: vi.fn(), subscribe: vi.fn(() => () => {}) };
+  return {
+    get: () => ({ mode, x: null, y: null }),
+    setMode: vi.fn(),
+    subscribe: vi.fn(() => () => {}),
+  };
 }
 
 function setup(mode: MessageWindowMode) {

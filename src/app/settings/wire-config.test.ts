@@ -1,10 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { AppConfig } from "../../config/load";
-import {
-  CHAT_API_KEY_SECRET,
-  STT_API_KEY_SECRET,
-  TTS_API_KEY_SECRET,
-} from "../../config/load";
+import { CHAT_API_KEY_SECRET, STT_API_KEY_SECRET, TTS_API_KEY_SECRET } from "../../config/load";
 
 const { createConfigStore } = vi.hoisted(() => ({ createConfigStore: vi.fn() }));
 vi.mock("../../config/store", () => ({ createConfigStore }));
@@ -33,13 +29,24 @@ function fakeKeyStore(apiKey = "") {
 
 function emptyStores() {
   return {
-    endpointsSettings: { get: () => ({}) },
-    guardrailsSettings: { get: () => ({}) },
+    endpointsSettings: { get: () => emptyEndpointOverrides },
+    guardrailsSettings: { get: () => emptyGuardrailOverrides },
     chatKeySettings: fakeKeyStore(),
     sttKeySettings: fakeKeyStore(),
     ttsKeySettings: fakeKeyStore(),
   };
 }
+
+const emptyEndpointOverrides = {
+  chat_base_url: "",
+  stt_base_url: "",
+  tts_base_url: "",
+  broker_base_url: "",
+  chat_model: "",
+  chat_model_context_window: "",
+  chat_api: "",
+};
+const emptyGuardrailOverrides = { tier2_max: 0, tier3_max: 0, overall_max: 0 };
 
 beforeEach(() => {
   vi.stubEnv("VITE_YUI_CHAT_KEY", "");
@@ -58,8 +65,8 @@ afterEach(() => {
 
 describe("createPetConfig", () => {
   it("merges the bundled config with the settings overrides at call time", () => {
-    let endpointOverrides: Record<string, string> = {};
-    let guardrailOverrides: Record<string, number> = {};
+    let endpointOverrides = emptyEndpointOverrides;
+    let guardrailOverrides = emptyGuardrailOverrides;
     const pet = createPetConfig({
       ...emptyStores(),
       endpointsSettings: { get: () => endpointOverrides },
@@ -70,8 +77,8 @@ describe("createPetConfig", () => {
     expect(pet.getEndpoints().chat_base_url).toBe("http://from-config:8646");
     expect(pet.getGuardrails().rate_limit.tier2_max).toBe(5);
 
-    endpointOverrides = { chat_base_url: "http://override:9000" };
-    guardrailOverrides = { tier2_max: 42 };
+    endpointOverrides = { ...emptyEndpointOverrides, chat_base_url: "http://override:9000" };
+    guardrailOverrides = { ...emptyGuardrailOverrides, tier2_max: 42 };
     expect(pet.getEndpoints().chat_base_url).toBe("http://override:9000");
     expect(pet.getGuardrails().rate_limit.tier2_max).toBe(42);
   });

@@ -3,21 +3,45 @@ import type { PushTurns } from "../../dispatcher/turn/push-turn";
 import { createRenderTurn } from "../../dispatcher/turn/render-turn";
 import type { TurnFeed } from "../../dispatcher/turn/turn-feed";
 import type { TurnOutput } from "../../dispatcher/turn/turn-output";
-import type { DelegationHistory } from "../../io/bridge/delegation-history";
-import type { DelegationsStore } from "../../io/bridge/delegations-store";
+import {
+  createDelegationHistory,
+  type DelegationHistory,
+} from "../../io/bridge/delegation-history";
+import { publishDelegations } from "../../io/bridge/delegations-bridge";
+import { createDelegationsStore, type DelegationsStore } from "../../io/bridge/delegations-store";
+import { publishPushSocket } from "../../io/bridge/push-socket-bridge";
+import { publishReasoning } from "../../io/bridge/reasoning-bridge";
+import { createReasoningStore, type ReasoningStore } from "../../io/bridge/reasoning-store";
+import type { SettingsBridge } from "../../io/bridge/settings-bridge";
+import type { BrokerPayload } from "../../io/chat/broker-client";
 import type { ChatHistoryEntry } from "../../io/chat/chat-history-store";
-import type {
-  DelegationItem,
-  PushSocket,
-  PushSocketState,
-  ReasoningFrame,
-  RenderFrame,
-  SpeechFrame,
-  ToolStatusFrame,
-  TurnEndFrame,
+import {
+  createPushSocket,
+  type DelegationItem,
+  type PushSocket,
+  type PushSocketState,
+  pushVocabularyOf,
+  type ReasoningFrame,
+  type RenderFrame,
+  type SpeechFrame,
+  type ToolStatusFrame,
+  type TurnEndFrame,
 } from "../../io/chat/push-socket";
 import type { RenderRecord } from "../../io/chat/turn-record-log";
 import type { Logger } from "../../logger";
+import {
+  createChatIdSettings,
+  localStorageChatIdStorage,
+} from "../../settings/backend/chat-id-settings";
+import {
+  createDelegationChipSettings,
+  localStorageDelegationChipStorage,
+} from "../../settings/panels/delegation-chip-settings";
+import type {
+  MessageWindowMode,
+  MessageWindowSettingsStore,
+} from "../../settings/panels/message-window-settings";
+import { createDelegationChip } from "../../ui/chips/delegation-chip";
 
 /**
  * Routes an open push socket into the client: a `render` frame plays as a turn and closes the
@@ -205,5 +229,122 @@ export function wirePushMode(deps: {
       deps.chip.dispose();
       chipOpen = false;
     }
+  };
+}
+
+/**
+ * The push protocol's shared stores — the socket, the chat id it identifies with, the delegations
+ * and reasoning its frames feed, and the bridge publishers the other windows read. Inert until
+ * bind(): the vocabulary is empty and the stop is a no-op until the configured bootstrap wires them.
+ */
+export function wirePushStores(deps: {
+  getEndpoints: () => Pick<EndpointsConfig, "chat_base_url">;
+  getChatKey: () => Promise<string | undefined>;
+  bridge: Pick<
+    SettingsBridge,
+    | "emitPushState"
+    | "onPushState"
+    | "emitPushStateAsk"
+    | "onPushStateAsk"
+    | "emitPushReset"
+    | "onPushReset"
+    | "emitPushReconnect"
+    | "onPushReconnect"
+    | "emitDelegations"
+    | "onDelegations"
+    | "emitDelegationsAsk"
+    | "onDelegationsAsk"
+    | "emitReasoning"
+    | "onReasoning"
+    | "emitReasoningAsk"
+    | "onReasoningAsk"
+  >;
+  register: (fn: () => void) => void;
+}): {
+  pushSocket: PushSocket;
+  delegations: DelegationsStore;
+  delegationHistory: DelegationHistory;
+  reasoning: ReasoningStore;
+  stopTurn(): void;
+  bind(deps: { vocabulary: () => BrokerPayload; stopTurn: () => void }): void;
+} {
+  let publishedVocabulary: (() => BrokerPayload) | null = null;
+  // The panel's session reset stops the running turn the way the stop button does; the shared
+  // closure exists once the configured bootstrap has wired it.
+  let stopTurn: () => void = () => {};
+  const chatIdSettings = createChatIdSettings({ storage: localStorageChatIdStorage() });
+  const pushSocket = createPushSocket({
+    chatBaseUrl: () => deps.getEndpoints().chat_base_url,
+    chatId: () => chatIdSettings.get().chat_id,
+    getKey: deps.getChatKey,
+    vocabulary: () => pushVocabularyOf(publishedVocabulary?.()),
+  });
+  deps.register(pushSocket.dispose);
+  deps.register(chatIdSettings.dispose);
+  // The backend's delegations frames land here; the chip and the settings mirror both read it.
+  const delegations = createDelegationsStore();
+  const delegationHistory = createDelegationHistory();
+  deps.register(delegationHistory.dispose);
+  // The backend's reasoning deltas land here; the message window's chip mirrors it.
+  const reasoning = createReasoningStore();
+  // The settings window has no socket of its own: it reads this one and asks it to reset.
+  deps.register(
+    publishPushSocket({ socket: pushSocket, stopTurn: () => stopTurn(), bridge: deps.bridge }),
+  );
+  // The delegations list rides the same bridge; a fresh settings window asks for the current list.
+  deps.register(publishDelegations({ store: delegations, bridge: deps.bridge }));
+  deps.register(publishReasoning({ store: reasoning, bridge: deps.bridge }));
+  return {
+    pushSocket,
+    delegations,
+    delegationHistory,
+    reasoning,
+    stopTurn: () => stopTurn(),
+    bind: (bound) => {
+      publishedVocabulary = bound.vocabulary;
+      stopTurn = bound.stopTurn;
+    },
+  };
+}
+
+/**
+ * The delegation chip's lazy mount — wirePushMode's chip seam. Created only for push mode and
+ * disposed when the mode leaves; suppressed while the popped message window carries the surfaces.
+ */
+export function createDelegationChipMount(deps: {
+  mount: HTMLElement;
+  store: Pick<DelegationsStore, "get" | "runningCount" | "subscribe">;
+  pushState: Pick<PushSocket, "getState" | "onState">;
+  onOpenSettings: () => void;
+  getMode: () => MessageWindowMode;
+  subscribeMode: MessageWindowSettingsStore["subscribe"];
+}): { create(): void; dispose(): void } {
+  let chip: ReturnType<typeof createDelegationChip> | null = null;
+  let chipCollapsed: ReturnType<typeof createDelegationChipSettings> | null = null;
+  let offChipMode: (() => void) | null = null;
+  return {
+    // Only push mode carries a delegations list; the chip draws whatever the socket feeds the store.
+    create: () => {
+      chipCollapsed = createDelegationChipSettings({
+        storage: localStorageDelegationChipStorage(),
+      });
+      chip = createDelegationChip({
+        mount: deps.mount,
+        store: deps.store,
+        collapsed: chipCollapsed,
+        pushState: deps.pushState,
+        onOpenSettings: deps.onOpenSettings,
+        suppressed: deps.getMode() === "popped",
+      });
+      offChipMode = deps.subscribeMode(() => chip?.setSuppressed(deps.getMode() === "popped"));
+    },
+    dispose: () => {
+      offChipMode?.();
+      offChipMode = null;
+      chip?.dispose();
+      chipCollapsed?.dispose();
+      chip = null;
+      chipCollapsed = null;
+    },
   };
 }

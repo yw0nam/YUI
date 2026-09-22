@@ -12,7 +12,7 @@ import type { ApiKeySettingsStore } from "../../settings/backend/api-key-setting
 
 interface SettingsSecretProviderOptions {
   /** secret name → runtime override store. No override if apiKey is empty. */
-  stores: Record<string, ApiKeySettingsStore>;
+  stores: Record<string, Pick<ApiKeySettingsStore, "get">>;
   /** build-time value (e.g., VITE_YUI_*). Used only when store is empty. */
   fallback?: Record<string, string | undefined>;
 }

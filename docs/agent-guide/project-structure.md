@@ -41,15 +41,17 @@ YUI/
     app/                             # Composes the pet window from the layers below
       bootstrap-configured.ts        # Config-derived bootstrap: calls the wire functions in order and drains their teardowns
       bootstrap-disposal.ts          # Registers the renderer's dispose and the Tier 1 engine's stop as bootstrap teardowns
+      disposers.ts                   # Shared teardown bag: registers teardowns at creation sites and drains them LIFO
       turn/                          # The path of a turn: sources, voice, and push
         wire-dispatcher.ts           # Turn feed, backend caller, guardrails, pacer, and the dispatcher
         wire-sources.ts              # Tauri window sources and the dispatcher's paced proactive sources
         wire-voice.ts                # Expression broker client and the voice-input and turn-voice wiring
         wire-voice-pipeline.ts       # Wires filler, TTS, and speech playback to the turn lifecycle
-        wire-push.ts                 # Push socket frames into turns and the push mode chip
+        wire-push.ts                 # Push socket frames into turns, the shared push stores, and the push mode chip
       stage/                         # What is bound to the pet window's stage and overlay
         wire-gestures.ts             # Pointer gestures on the stage: taps, pats, the window drag, and the camera orbit
         wire-locomotion.ts           # Travel frame, the five locomotion loops, and the window sources composed into one handle
+        wire-pet-stage.ts            # Stage wheel zoom, the persisted camera and throttle flow, and the feet-follow input anchor
         wire-summon.ts               # Peek state and exit triggers, tray summon, and the global summon hotkey
         wire-stage.ts                # Click-through hit-test and cursor-gaze wiring over the stage
       cross-window/                  # State the windows share
@@ -57,6 +59,7 @@ YUI/
         wire-window-sync.ts          # Settings broadcast, guardrail overrides, and the shared cross-window sync core
       settings/                      # Selections applied to the running app
         wire-avatar.ts               # VRM and speaker selection stores, their swap and import flows, and the avatar config applied at boot
+        wire-config.ts               # The config store over the bundled configs, the runtime key stores, and the live endpoint/guardrail merges
         wire-cue-locale-sync.ts      # Reseeds untouched built-in cues when the display language changes
     logger.ts                        # Namespaced frontend logger with a runtime level
     tauri-env.ts                     # Tauri runtime detection
@@ -301,6 +304,7 @@ YUI/
       surfaces/                      # Speech-bubble, text-input, and tool-status host surface
         surfaces.ts                  # Mounts the speech bubble, tool-status chip, and text input as one system
         surfaces-router.ts           # One Surfaces handle over the pet window and the message window
+        wire.ts                      # Local surfaces plus the message-window bridge, routed by the stored window mode
         summon-key.ts                # Binds the focused window's "/" key to open the text input
         anchor.ts                    # Pure mapping from the on-screen feet to the input's bottom offset
         reflect-unless-editing.ts    # Writes a store value onto an input unless the user is editing it

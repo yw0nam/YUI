@@ -106,7 +106,7 @@ async function tauriMessageWindow(): Promise<{
 }
 
 async function resolveTauriPosition(
-  store: MessageWindowSettingsStore,
+  store: Pick<MessageWindowSettingsStore, "get">,
 ): Promise<{ x: number; y: number } | null> {
   const { availableMonitors, getCurrentWindow } = await import("@tauri-apps/api/window");
   const win = getCurrentWindow();
@@ -175,7 +175,9 @@ export function listenTrayToggle(cb: (visible: boolean) => void): () => void {
  * Both halves run on one chain — a second create while the first is still in flight
  * would be refused by Tauri for the duplicate label.
  */
-export function createMessageWindowController(store: MessageWindowSettingsStore): {
+export function createMessageWindowController(
+  store: Pick<MessageWindowSettingsStore, "get" | "setMode">,
+): {
   open(): void;
   hide(): void;
 } {

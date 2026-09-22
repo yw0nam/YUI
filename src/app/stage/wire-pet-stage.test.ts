@@ -121,7 +121,7 @@ describe("wireInputAnchor", () => {
     Object.defineProperty(stage, "clientHeight", { value: 600, configurable: true });
     const unsub = vi.fn();
     const renderer = {
-      onTick: vi.fn(() => unsub),
+      onTick: vi.fn((_cb: () => void) => unsub),
       getCharacterAnchor: vi.fn<() => { x: number; y: number } | null>(() => null),
     };
     const setInputAnchor = vi.fn();
@@ -152,10 +152,13 @@ describe("wireInputAnchor", () => {
 
     renderer.getCharacterAnchor.mockReturnValue({ x: 100, y: 490 });
     tick();
-    expect(setInputAnchor).toHaveBeenNthCalledWith(2, inputBottomFromAnchor(490, 600, {
-      gap: INPUT_FEET_GAP_PX,
-      minBottom: INPUT_ANCHOR_MIN_BOTTOM_PX,
-    }));
+    expect(setInputAnchor).toHaveBeenNthCalledWith(
+      2,
+      inputBottomFromAnchor(490, 600, {
+        gap: INPUT_FEET_GAP_PX,
+        minBottom: INPUT_ANCHOR_MIN_BOTTOM_PX,
+      }),
+    );
   });
 
   it("resets to null once when the anchor disappears and reapplies when it returns", () => {
