@@ -5,7 +5,7 @@ import { CHAT_API_KEY_SECRET, STT_API_KEY_SECRET, TTS_API_KEY_SECRET } from "../
 const { createConfigStore } = vi.hoisted(() => ({ createConfigStore: vi.fn() }));
 vi.mock("../../config/store", () => ({ createConfigStore }));
 
-import { createPetConfig } from "./wire-config";
+import { createPetConfig, wireConfigReload, wireConfigWatch } from "./wire-config";
 
 const CFG = {
   endpoints: {
@@ -124,5 +124,178 @@ describe("createPetConfig", () => {
     });
 
     expect(warn).toHaveBeenCalledExactlyOnceWith("tts_key_missing", { env: "VITE_YUI_TTS_KEY" });
+  });
+});
+
+const RELOAD_CFG = {
+  endpoints: { chat_api: "sse", chat_instructions: "hi" },
+  guardrails: { attachments: { max_count: 2, max_mb: 8 } },
+  hotkeys: { summon_global: "Alt+Space" },
+  avatar: {
+    framing: { zoom: 1 },
+    gaze: { on: true },
+    hit_test: { alpha_threshold: 0.4 },
+    available: [],
+    vrm_url: "/vrms/x.vrm",
+  },
+  motions: {
+    idle: { vrma_path: "/motions/idle.vrma", variants: ["/motions/a.vrma", "/motions/b.vrma"] },
+  },
+  emotionRegistry: { emotions: [] },
+} as unknown as AppConfig;
+
+describe("wireConfigReload", () => {
+  function reloadDeps() {
+    const calls: string[] = [];
+    const unsubscribe = vi.fn();
+    const listeners: Array<(cfg: AppConfig, changed: ReadonlySet<string>) => void> = [];
+    const deps = {
+      config: {
+        subscribe: vi.fn((listener: (cfg: AppConfig, changed: ReadonlySet<string>) => void) => {
+          listeners.push(listener);
+          return unsubscribe;
+        }),
+      },
+      renderer: {
+        setEmotionRegistry: vi.fn(() => void calls.push("setEmotionRegistry")),
+        setIdleVariants: vi.fn(() => void calls.push("setIdleVariants")),
+        setMotionRegistry: vi.fn(() => void calls.push("setMotionRegistry")),
+        setFraming: vi.fn(() => void calls.push("setFraming")),
+        setGaze: vi.fn(() => void calls.push("setGaze")),
+        setHitTestThreshold: vi.fn(() => void calls.push("setHitTestThreshold")),
+      },
+      surfaces: { setAttachmentLimits: vi.fn(() => void calls.push("setAttachmentLimits")) },
+      idleMotionSettings: { get: () => ({ disabled: ["/motions/b.vrma"] }) },
+      getGuardrails: vi.fn(() => ({ tier2_max: 9 })),
+      configured: {
+        guardrails: { setConfig: vi.fn(() => void calls.push("guardrails.setConfig")) },
+        summonHotkey: { apply: vi.fn(() => void calls.push("summonHotkey.apply")) },
+        broker: { onConfigChange: vi.fn(() => void calls.push("broker.onConfigChange")) },
+      },
+      vrm: {
+        vrmSelection: {
+          setManifest: vi.fn(() => void calls.push("setManifest")),
+          getActive: () => ({ url: "/vrms/active.vrm" }),
+        },
+        loadVrmSerialized: vi.fn(async () => {
+          calls.push("loadVrmSerialized");
+          return {};
+        }),
+      },
+      refreshVoiceList: vi.fn(async () => {
+        calls.push("refreshVoiceList");
+      }),
+      log: { error: vi.fn() },
+    };
+    const returned = wireConfigReload(deps as never);
+    return { deps, calls, listeners, unsubscribe, returned };
+  }
+
+  it("returns the config subscription's own disposer", () => {
+    const { unsubscribe, returned, deps } = reloadDeps();
+    expect(returned).toBe(unsubscribe);
+    expect(deps.config.subscribe).toHaveBeenCalledExactlyOnceWith(expect.any(Function));
+  });
+
+  it("each changed section triggers only its own calls", () => {
+    const cases: Array<[string, string[]]> = [
+      ["emotionRegistry", ["setEmotionRegistry", "broker.onConfigChange"]],
+      ["guardrails", ["guardrails.setConfig", "setAttachmentLimits", "broker.onConfigChange"]],
+      ["hotkeys", ["summonHotkey.apply", "broker.onConfigChange"]],
+      ["endpoints", ["refreshVoiceList", "broker.onConfigChange"]],
+      [
+        "avatar",
+        [
+          "broker.onConfigChange",
+          "setFraming",
+          "setGaze",
+          "setHitTestThreshold",
+          "setManifest",
+          "loadVrmSerialized",
+        ],
+      ],
+    ];
+    for (const [section, expected] of cases) {
+      const { calls, listeners } = reloadDeps();
+      listeners[0]!(RELOAD_CFG, new Set([section]));
+      expect(calls).toEqual(expected);
+    }
+  });
+
+  it("sections with no reload wiring reach only the broker", () => {
+    const { calls, listeners } = reloadDeps();
+    listeners[0]!(RELOAD_CFG, new Set(["screen"]));
+    expect(calls).toEqual(["broker.onConfigChange"]);
+  });
+
+  it("applies the enabled idle variants before the motion registry", () => {
+    const { deps, calls, listeners } = reloadDeps();
+
+    listeners[0]!(RELOAD_CFG, new Set(["motions"]));
+
+    expect(calls).toEqual(["setIdleVariants", "setMotionRegistry", "broker.onConfigChange"]);
+    expect(deps.renderer.setIdleVariants).toHaveBeenCalledWith(["/motions/a.vrma"]);
+  });
+
+  it("logs vrm_hot_swap_failed when the serialized avatar load rejects", async () => {
+    const { deps, listeners } = reloadDeps();
+    deps.vrm.loadVrmSerialized.mockRejectedValue(new Error("boom"));
+
+    listeners[0]!(RELOAD_CFG, new Set(["avatar"]));
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(deps.log.error).toHaveBeenCalledWith("vrm_hot_swap_failed", { error: "Error: boom" });
+  });
+});
+
+describe("wireConfigWatch", () => {
+  function watchDeps() {
+    const registered: Array<() => void> = [];
+    const config = {
+      onError: vi.fn((_listener: (err: unknown) => void) => vi.fn()),
+      start: vi.fn(),
+      stop: vi.fn(),
+    };
+    const log = { error: vi.fn() };
+    const watch = wireConfigWatch({
+      config: config as never,
+      log: log as never,
+      register: (teardown: () => void) => {
+        registered.push(teardown);
+      },
+    });
+    return { config, log, watch, registered };
+  }
+
+  it("logs reload errors as kept_previous", () => {
+    const { config, log } = watchDeps();
+    const onError = config.onError.mock.calls[0]![0];
+
+    onError(new Error("bad json"));
+
+    expect(log.error).toHaveBeenCalledWith("config_reload_failed", {
+      kept_previous: true,
+      error: "Error: bad json",
+    });
+  });
+
+  it("does not register the onError unsubscriber", () => {
+    const { registered } = watchDeps();
+
+    expect(registered).toEqual([]);
+  });
+
+  it("startDev starts the poller, publishes __yuiConfig, and registers config.stop", () => {
+    const { config, watch, registered } = watchDeps();
+
+    watch.startDev();
+
+    expect(config.start).toHaveBeenCalledOnce();
+    expect((globalThis as Record<string, unknown>).__yuiConfig).toBe(config);
+    expect(registered).toHaveLength(1);
+    registered[0]!();
+    expect(config.stop).toHaveBeenCalledOnce();
+    delete (globalThis as Record<string, unknown>).__yuiConfig;
   });
 });

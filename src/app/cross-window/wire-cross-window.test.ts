@@ -350,6 +350,7 @@ describe("wireDevGlobals", () => {
       "__yuiLipsync",
       "__yuiAgent",
       "__yuiQuick",
+      "__yuiSpeech",
       "__yuiVoiceInputStatus",
       "__yui_send",
       "__yui_dispatcher",
@@ -371,6 +372,7 @@ describe("wireDevGlobals", () => {
       lipsyncSettings: { id: "lipsync" },
       agentSettings: { id: "agent" },
       quickControls: { id: "quick" },
+      speechPlayback: { id: "speech" },
       voiceInputStatus: createVoiceInputStatus(),
       userInput: { submit: vi.fn() },
       bus: { push: vi.fn() },
@@ -388,6 +390,14 @@ describe("wireDevGlobals", () => {
     expect(g.__yuiMock).toBe(mockDriver);
     expect(g.__yuiQuick).toBe(deps.quickControls);
     expect((g.__yui_dispatcher as () => unknown)()).toEqual({ id: "dispatcher" });
+  });
+
+  it("publishes the supplied speech playback as __yuiSpeech and keeps quick controls by value", async () => {
+    const deps = makeDeps();
+    await wireDevGlobals(deps as never);
+    const g = globalThis as Record<string, unknown>;
+    expect(g.__yuiSpeech).toBe(deps.speechPlayback);
+    expect(g.__yuiQuick).toBe(deps.quickControls);
   });
 
   it("__yui_send submits text through userInput", async () => {
