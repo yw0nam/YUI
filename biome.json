@@ -83,7 +83,9 @@
                       "**/ui",
                       "**/ui/**",
                       "**/app",
-                      "**/app/**"
+                      "**/app/**",
+                      "**/windows",
+                      "**/windows/**"
                     ],
                     "message": "A layer imports only from the layers to its left (AGENTS.md, Engineering principles)."
                   }
@@ -116,7 +118,9 @@
                       "**/ui",
                       "**/ui/**",
                       "**/app",
-                      "**/app/**"
+                      "**/app/**",
+                      "**/windows",
+                      "**/windows/**"
                     ],
                     "message": "A layer imports only from the layers to its left (AGENTS.md, Engineering principles)."
                   }
@@ -147,7 +151,9 @@
                       "**/ui",
                       "**/ui/**",
                       "**/app",
-                      "**/app/**"
+                      "**/app/**",
+                      "**/windows",
+                      "**/windows/**"
                     ],
                     "message": "A layer imports only from the layers to its left (AGENTS.md, Engineering principles)."
                   }
@@ -176,7 +182,9 @@
                       "**/ui",
                       "**/ui/**",
                       "**/app",
-                      "**/app/**"
+                      "**/app/**",
+                      "**/windows",
+                      "**/windows/**"
                     ],
                     "message": "A layer imports only from the layers to its left (AGENTS.md, Engineering principles)."
                   }
@@ -203,7 +211,9 @@
                       "**/ui",
                       "**/ui/**",
                       "**/app",
-                      "**/app/**"
+                      "**/app/**",
+                      "**/windows",
+                      "**/windows/**"
                     ],
                     "message": "A layer imports only from the layers to its left (AGENTS.md, Engineering principles)."
                   }
@@ -224,7 +234,14 @@
               "options": {
                 "patterns": [
                   {
-                    "group": ["**/ui", "**/ui/**", "**/app", "**/app/**"],
+                    "group": [
+                      "**/ui",
+                      "**/ui/**",
+                      "**/app",
+                      "**/app/**",
+                      "**/windows",
+                      "**/windows/**"
+                    ],
                     "message": "A layer imports only from the layers to its left (AGENTS.md, Engineering principles)."
                   }
                 ]
@@ -244,7 +261,27 @@
               "options": {
                 "patterns": [
                   {
-                    "group": ["**/app", "**/app/**"],
+                    "group": ["**/app", "**/app/**", "**/windows", "**/windows/**"],
+                    "message": "A layer imports only from the layers to its left (AGENTS.md, Engineering principles)."
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "includes": ["src/app/**"],
+      "linter": {
+        "rules": {
+          "style": {
+            "noRestrictedImports": {
+              "level": "error",
+              "options": {
+                "patterns": [
+                  {
+                    "group": ["**/windows", "**/windows/**"],
                     "message": "A layer imports only from the layers to its left (AGENTS.md, Engineering principles)."
                   }
                 ]
