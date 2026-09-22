@@ -46,6 +46,7 @@ const { mockDriver, createMockDriver } = vi.hoisted(() => {
 
 vi.mock("../../ui/surfaces/mock", () => ({ createMockDriver }));
 
+import { createConversationStores } from "../settings/conversation-stores";
 import {
   broadcastSyncStores,
   createSettingsStores,
@@ -79,16 +80,21 @@ describe("wireCrossWindowSync", () => {
     const voiceInputStatus = createVoiceInputStatus();
     const log = { info: vi.fn(), warn: () => {}, error: () => {}, debug: () => {} };
     const stores = createSettingsStores();
-    return { renderer, voiceInputStatus, log, stores };
+    const conversation = createConversationStores();
+    return { renderer, voiceInputStatus, log, stores, conversation };
   };
 
   const teardown = (deps: ReturnType<typeof makeDeps>) => {
     for (const store of Object.values(deps.stores)) store.dispose();
+    for (const store of Object.values(deps.conversation)) store.dispose();
   };
 
   it("wires storage sync to reload exactly the stores classified for reload", () => {
     const deps = makeDeps();
-    const allStores = Object.values(deps.stores) as SyncedStore[];
+    const allStores = [
+      ...Object.values(deps.stores),
+      ...Object.values(deps.conversation),
+    ] as SyncedStore[];
     const reloadSpies = allStores.map((store) => vi.spyOn(store, "reloadFromStorage"));
     wireCrossWindowSync(deps as never);
 
@@ -99,10 +105,36 @@ describe("wireCrossWindowSync", () => {
     const reloadedStores = new Set(
       allStores.filter((_store, index) => reloadSpies[index]!.mock.calls.length > 0),
     );
-    const expectedStores = new Set(reloadSyncStores(deps.stores));
+    const expectedStores = new Set([
+      ...reloadSyncStores(deps.stores),
+      ...Object.values(deps.conversation),
+    ]);
     expect(reloadedStores.size).toBe(expectedStores.size);
     expect(reloadedStores).toEqual(expectedStores);
     for (const spy of reloadSpies) spy.mockRestore();
+    teardown(deps);
+  });
+
+  it("subscribes the settings broadcast set plus only the conversation chat history", () => {
+    const deps = makeDeps();
+    const allStores = [
+      ...Object.values(deps.stores),
+      ...Object.values(deps.conversation),
+    ] as SyncedStore[];
+    const subscribeSpies = allStores.map((store) => vi.spyOn(store, "subscribe"));
+    wireCrossWindowSync(deps as never);
+
+    const subscribedStores = new Set(
+      allStores.filter((_store, index) => subscribeSpies[index]!.mock.calls.length > 0),
+    );
+    const expectedStores = new Set([
+      ...broadcastSyncStores(deps.stores),
+      deps.conversation.chatHistoryStore,
+    ]);
+    expect(subscribedStores.size).toBe(expectedStores.size);
+    expect(subscribedStores).toEqual(expectedStores);
+
+    for (const spy of subscribeSpies) spy.mockRestore();
     teardown(deps);
   });
 
@@ -165,6 +197,7 @@ describe("wireSettingsWindowSync", () => {
 
   const makeDeps = () => ({
     stores: createSettingsStores(),
+    conversation: createConversationStores(),
     vrmSelection: { reloadFromStorage: vi.fn() },
     speakerSelection: { reloadFromStorage: vi.fn() },
     log: noopLog,
@@ -172,11 +205,15 @@ describe("wireSettingsWindowSync", () => {
 
   const teardown = (deps: ReturnType<typeof makeDeps>) => {
     for (const store of Object.values(deps.stores)) store.dispose();
+    for (const store of Object.values(deps.conversation)) store.dispose();
   };
 
   it("resyncs the vrm and speaker selections alongside the reload set", () => {
     const deps = makeDeps();
-    const allStores = Object.values(deps.stores) as SyncedStore[];
+    const allStores = [
+      ...Object.values(deps.stores),
+      ...Object.values(deps.conversation),
+    ] as SyncedStore[];
     const reloadSpies = allStores.map((store) => vi.spyOn(store, "reloadFromStorage"));
     wireSettingsWindowSync(deps);
 
@@ -185,7 +222,10 @@ describe("wireSettingsWindowSync", () => {
     const reloadedStores = new Set(
       allStores.filter((_store, index) => reloadSpies[index]!.mock.calls.length > 0),
     );
-    const expectedStores = new Set(reloadSyncStores(deps.stores));
+    const expectedStores = new Set([
+      ...reloadSyncStores(deps.stores),
+      ...Object.values(deps.conversation),
+    ]);
     expect(reloadedStores.size).toBe(expectedStores.size);
     expect(reloadedStores).toEqual(expectedStores);
     expect(deps.vrmSelection.reloadFromStorage).toHaveBeenCalledOnce();
@@ -218,58 +258,73 @@ describe("wireDevtoolsSync", () => {
     vi.useRealTimers();
   });
 
-  it("subscribes exactly the stores classified for broadcast", () => {
-    const bag = createSettingsStores();
-    const allStores = Object.values(bag) as SyncedStore[];
+  const makeBags = () => ({ bag: createSettingsStores(), conversation: createConversationStores() });
+
+  const teardown = (bags: ReturnType<typeof makeBags>) => {
+    for (const store of Object.values(bags.bag)) store.dispose();
+    for (const store of Object.values(bags.conversation)) store.dispose();
+  };
+
+  it("subscribes the settings broadcast set plus only the conversation chat history", () => {
+    const { bag, conversation } = makeBags();
+    const allStores = [...Object.values(bag), ...Object.values(conversation)] as SyncedStore[];
     const subscribeSpies = allStores.map((store) => vi.spyOn(store, "subscribe"));
 
-    const sync = wireDevtoolsSync({ stores: bag, log: noopLog });
+    const sync = wireDevtoolsSync({ stores: bag, conversation, log: noopLog });
 
     const subscribedStores = new Set(
       allStores.filter((_store, index) => subscribeSpies[index]!.mock.calls.length > 0),
     );
-    const expectedStores = new Set(broadcastSyncStores(bag));
+    const expectedStores = new Set([
+      ...broadcastSyncStores(bag),
+      conversation.chatHistoryStore,
+    ]);
     expect(subscribedStores.size).toBe(expectedStores.size);
     expect(subscribedStores).toEqual(expectedStores);
 
     sync.dispose();
     for (const spy of subscribeSpies) spy.mockRestore();
-    for (const store of Object.values(bag)) store.dispose();
+    teardown({ bag, conversation });
   });
 
   it("wires storage sync to reload exactly the stores classified for reload", () => {
-    const bag = createSettingsStores();
-    const allStores = Object.values(bag) as SyncedStore[];
+    const { bag, conversation } = makeBags();
+    const allStores = [...Object.values(bag), ...Object.values(conversation)] as SyncedStore[];
     const reloadSpies = allStores.map((store) => vi.spyOn(store, "reloadFromStorage"));
 
-    const sync = wireDevtoolsSync({ stores: bag, log: noopLog });
+    const sync = wireDevtoolsSync({ stores: bag, conversation, log: noopLog });
     for (const entry of wireStorageSync.mock.calls[0]![0]!) entry.reloadFromStorage();
 
     const reloadedStores = new Set(
       allStores.filter((_store, index) => reloadSpies[index]!.mock.calls.length > 0),
     );
-    const expectedStores = new Set(reloadSyncStores(bag));
+    const expectedStores = new Set([
+      ...reloadSyncStores(bag),
+      ...Object.values(conversation),
+    ]);
     expect(reloadedStores.size).toBe(expectedStores.size);
     expect(reloadedStores).toEqual(expectedStores);
 
     sync.dispose();
     for (const spy of reloadSpies) spy.mockRestore();
-    for (const store of Object.values(bag)) store.dispose();
+    teardown({ bag, conversation });
   });
 
   it("runs a storage-event-driven reload under the loop guard without rebroadcasting", () => {
-    const bag = createSettingsStores();
-    const broadcastStore = broadcastSyncStores(bag)[0]!;
+    const { bag, conversation } = makeBags();
+    // chatHistoryStore is the conversation store that broadcasts: its reload notifies, and the
+    // storage path must not let that notification re-emit a settings change.
+    const historyStore = conversation.chatHistoryStore;
     let retainedSubscriber: (() => void) | undefined;
-    const subscribeSpy = vi.spyOn(broadcastStore, "subscribe").mockImplementation((callback) => {
+    const subscribeSpy = vi.spyOn(historyStore, "subscribe").mockImplementation((callback) => {
       retainedSubscriber = callback;
       return vi.fn();
     });
-    const reloadSpy = vi.spyOn(broadcastStore, "reloadFromStorage").mockImplementation(() => {
+    const reloadSpy = vi.spyOn(historyStore, "reloadFromStorage").mockImplementation(() => {
       retainedSubscriber!();
     });
 
-    const sync = wireDevtoolsSync({ stores: bag, log: noopLog });
+    const sync = wireDevtoolsSync({ stores: bag, conversation, log: noopLog });
     for (const entry of wireStorageSync.mock.calls[0]![0]!) entry.reloadFromStorage();
     vi.advanceTimersByTime(201);
 
@@ -279,22 +334,22 @@ describe("wireDevtoolsSync", () => {
     sync.dispose();
     subscribeSpy.mockRestore();
     reloadSpy.mockRestore();
-    for (const store of Object.values(bag)) store.dispose();
+    teardown({ bag, conversation });
   });
 
   it("reloads every sync store without rebroadcasting a remote change", () => {
-    const bag = createSettingsStores();
-    const reloadStores = reloadSyncStores(bag);
-    const broadcastStore = broadcastSyncStores(bag)[0]!;
+    const { bag, conversation } = makeBags();
+    const reloadStores = [...reloadSyncStores(bag), ...Object.values(conversation)];
+    const historyStore = conversation.chatHistoryStore;
     let retainedSubscriber: (() => void) | undefined;
-    const subscribeSpy = vi.spyOn(broadcastStore, "subscribe").mockImplementation((callback) => {
+    const subscribeSpy = vi.spyOn(historyStore, "subscribe").mockImplementation((callback) => {
       retainedSubscriber = callback;
       return vi.fn();
     });
     const reloadSpies = reloadStores.map((store) => vi.spyOn(store, "reloadFromStorage"));
-    const broadcastReloadIndex = reloadStores.indexOf(broadcastStore);
-    reloadSpies[broadcastReloadIndex]!.mockImplementation(() => retainedSubscriber!());
-    const sync = wireDevtoolsSync({ stores: bag, log: noopLog });
+    const historyReloadIndex = reloadStores.indexOf(historyStore);
+    reloadSpies[historyReloadIndex]!.mockImplementation(() => retainedSubscriber!());
+    const sync = wireDevtoolsSync({ stores: bag, conversation, log: noopLog });
     const settingsChangedCalls = fakeBridge.onSettingsChanged.mock.calls as unknown as Array<
       [() => void]
     >;
@@ -310,18 +365,18 @@ describe("wireDevtoolsSync", () => {
     sync.dispose();
     subscribeSpy.mockRestore();
     for (const spy of reloadSpies) spy.mockRestore();
-    for (const store of Object.values(bag)) store.dispose();
+    teardown({ bag, conversation });
   });
 
   it("disposes once and flushes a pending broadcast before the bridge closes", () => {
-    const bag = createSettingsStores();
-    const broadcastStore = broadcastSyncStores(bag)[0]!;
+    const { bag, conversation } = makeBags();
+    const historyStore = conversation.chatHistoryStore;
     let retainedSubscriber: (() => void) | undefined;
-    const subscribeSpy = vi.spyOn(broadcastStore, "subscribe").mockImplementation((callback) => {
+    const subscribeSpy = vi.spyOn(historyStore, "subscribe").mockImplementation((callback) => {
       retainedSubscriber = callback;
       return vi.fn();
     });
-    const sync = wireDevtoolsSync({ stores: bag, log: noopLog });
+    const sync = wireDevtoolsSync({ stores: bag, conversation, log: noopLog });
     const disposeSettingsChanged = fakeBridge.onSettingsChanged.mock.results[0]!
       .value as ReturnType<typeof vi.fn>;
     retainedSubscriber!();
@@ -335,7 +390,7 @@ describe("wireDevtoolsSync", () => {
     expect(fakeBridge.dispose).toHaveBeenCalledOnce();
 
     subscribeSpy.mockRestore();
-    for (const store of Object.values(bag)) store.dispose();
+    teardown({ bag, conversation });
   });
 });
 

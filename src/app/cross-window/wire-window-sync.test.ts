@@ -228,7 +228,7 @@ describe("wireWindowSync", () => {
     };
   };
 
-  // Minimal store bag covering one key of each SYNC_MODE, recording reload order by label.
+  // Minimal settings store bag with one broadcast and one local store, recording reload order by label.
   const makeBag = (order: string[]) => {
     const subscribers = new Map<string, () => void>();
     const store = (label: string) => ({
@@ -242,8 +242,31 @@ describe("wireWindowSync", () => {
       }),
     });
     return {
-      bag: { ttsSettings: store("broadcast"), contextHistory: store("reload") },
+      bag: { ttsSettings: store("broadcast"), sttSettings: store("local") },
       subscribers,
+    };
+  };
+
+  // Explicit conversation-store extras: the broadcast extra's reload notifies like chatHistoryStore does.
+  const makeExtras = (order: string[]) => {
+    const subscribers = new Map<string, () => void>();
+    const reloadStore = (label: string) => ({
+      reloadFromStorage: vi.fn(() => order.push(label)),
+    });
+    const broadcastStore = (label: string) => ({
+      subscribe: vi.fn((cb: () => void) => {
+        subscribers.set(label, cb);
+        return vi.fn();
+      }),
+      reloadFromStorage: vi.fn(() => {
+        order.push(label);
+        subscribers.get(label)?.();
+      }),
+    });
+    return {
+      subscribers,
+      reload: [reloadStore("extra-reload-1"), reloadStore("extra-reload-2")],
+      broadcast: [broadcastStore("extra-broadcast")],
     };
   };
 
@@ -276,21 +299,44 @@ describe("wireWindowSync", () => {
     sync.dispose();
   });
 
-  it("reloads the registry set, then the extra resync stores, then the display language", () => {
+  it("reloads the registry set, then the extra reload stores, then the display language", () => {
     const order: string[] = [];
     const { bag } = makeBag(order);
-    const extra = [{ reloadFromStorage: vi.fn(() => order.push("extra")) }];
+    const extras = makeExtras(order);
     vi.mocked(reloadLocaleFromStorage).mockImplementation(() => order.push("locale"));
     const sync = wireWindowSync({
       stores: bag as never,
       windowKind: "settings",
-      extraResync: extra,
+      extraReload: extras.reload,
+      extraBroadcast: extras.broadcast,
       log: noopLog,
     });
 
     sync.reload();
 
-    expect(order).toEqual(["broadcast", "reload", "extra", "locale"]);
+    expect(order).toEqual(["broadcast", "extra-reload-1", "extra-reload-2", "locale"]);
+    expect(extras.broadcast[0]!.subscribe).toHaveBeenCalledTimes(1);
+    expect(extras.broadcast[0]!.reloadFromStorage).not.toHaveBeenCalled();
+    sync.dispose();
+  });
+
+  it("suppresses an extra broadcast store's rebroadcast during a remote reload", () => {
+    const order: string[] = [];
+    const { bag } = makeBag(order);
+    const extras = makeExtras(order);
+    const sync = wireWindowSync({
+      stores: bag as never,
+      windowKind: "devtools",
+      extraReload: [...extras.reload, ...extras.broadcast],
+      extraBroadcast: extras.broadcast,
+      log: noopLog,
+    });
+
+    receiver()("settings");
+    vi.advanceTimersByTime(201);
+
+    expect(order).toEqual(["broadcast", "extra-reload-1", "extra-reload-2", "extra-broadcast"]);
+    expect(fakeBridge.emitSettingsChanged).not.toHaveBeenCalled();
     sync.dispose();
   });
 
@@ -304,7 +350,7 @@ describe("wireWindowSync", () => {
     receiver()("settings");
     vi.advanceTimersByTime(201);
 
-    expect(order).toEqual(["broadcast", "reload", "hook"]);
+    expect(order).toEqual(["broadcast", "hook"]);
     expect(fakeBridge.emitSettingsChanged).not.toHaveBeenCalled();
     sync.dispose();
   });
@@ -312,7 +358,14 @@ describe("wireWindowSync", () => {
   it("runs a storage-event-driven reload under the same loop guard as the bridge path", () => {
     const order: string[] = [];
     const { bag } = makeBag(order);
-    const sync = wireWindowSync({ stores: bag as never, windowKind: "devtools", log: noopLog });
+    const extras = makeExtras(order);
+    const sync = wireWindowSync({
+      stores: bag as never,
+      windowKind: "devtools",
+      extraReload: extras.reload,
+      extraBroadcast: extras.broadcast,
+      log: noopLog,
+    });
 
     // wireStorageSync is mocked (module-level vi.mock above) — it never installs a real
     // "storage" listener. Simulate the sibling window's storage event by invoking whatever
@@ -321,9 +374,9 @@ describe("wireWindowSync", () => {
     for (const entry of storageReloadArg) entry.reloadFromStorage();
     vi.advanceTimersByTime(201);
 
-    // Scope is pinned to what the storage path reloaded before this fix: the resync
+    // Scope is pinned to what the storage path reloads: the registry and extra reload
     // stores only — no display-language reload, no onRemoteChange hooks.
-    expect(order).toEqual(["broadcast", "reload"]);
+    expect(order).toEqual(["broadcast", "extra-reload-1", "extra-reload-2"]);
     expect(reloadLocaleFromStorage).not.toHaveBeenCalled();
     expect(fakeBridge.emitSettingsChanged).not.toHaveBeenCalled();
     sync.dispose();

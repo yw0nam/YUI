@@ -32,14 +32,10 @@ describe("createSettingsStores", () => {
       "agentNotifySettings",
       "presenceSettings",
       "pacerGapSettings",
-      "contextHistory",
       "lipsyncSettings",
       "vadSettings",
       "agentSettings",
       "fillerSettings",
-      "sessionStore",
-      "sessionDiagnostics",
-      "chatHistoryStore",
       "bubblePersistSettings",
       "messageWindowSettings",
       "endpointsSettings",
@@ -57,6 +53,16 @@ describe("createSettingsStores", () => {
       "idleMotionSettings",
       "expressMotionSettings",
     ]);
+  });
+
+  // Conversation-state stores live in app/settings/conversation-stores; a reappearance here splits window state.
+  it("holds no conversation-state store", () => {
+    const stores = createSettingsStores();
+
+    expect(Object.keys(stores)).not.toContain("contextHistory");
+    expect(Object.keys(stores)).not.toContain("sessionStore");
+    expect(Object.keys(stores)).not.toContain("sessionDiagnostics");
+    expect(Object.keys(stores)).not.toContain("chatHistoryStore");
   });
 
   it("returns reactive stores", () => {
