@@ -89,11 +89,18 @@ the `Compose Daily Briefing` node so they match the source list from step 4, sin
 missing from `SOURCES` stays out of `sources[]`. `sources[]` holds at most 10 entries, and
 each `name` runs to 40 characters at most.
 
+With cron: the queue is a JSONL file the user's own collectors append whole rows to, one
+per line (row shape in `references/producer-contract.md`). The command is
+`python3 "$SKILL_DIR/scripts/daily-briefing.py" --queue <path> --sources <names>` with
+`YUI_SIGNALS_URL` in the environment. One crontab line runs it at 07:00, for example
+`0 7 * * * YUI_SIGNALS_URL=http://127.0.0.1:8770 python3 /path/to/daily-briefing.py --queue /path/to/queue.jsonl`.
+
 With another tool: build the same request.
 
-Check: trigger a manual run against a stopped YUI, which ends on the `Leave Rows Pending`
-node and leaves every row as it was. Trigger a second manual run against a running YUI,
-which ends on `Mark Row Sent`, and the turn log gains the line from step 3.
+Check: a manual n8n run against a stopped YUI ends on the `Leave Rows Pending` node, and
+against a running YUI ends on `Mark Row Sent`; the turn log gains the line from step 3. A
+script run against a stopped YUI prints `yui unreachable` and leaves the file unchanged,
+and against a running YUI prints `sent … rows`; the turn log gains the line from step 3.
 
 ## 6. Wire the error workflow
 
@@ -103,7 +110,8 @@ pick the imported workflow as its Error Workflow. The template runs only when a
 daily-briefing execution raises, and it posts nothing when YUI itself is offline. A
 manual run of the daily-briefing workflow never fires the error workflow — n8n's Error
 Trigger only fires for automatic executions — which is why the check below posts the
-fixture directly.
+fixture directly. With the script there is nothing to wire: a run that raises posts the
+`source_health` group itself and exits 1.
 
 Check: post `assets/fixtures/source-health-run-failed.json` with `post-fixture.sh`; the
 turn log gains one line whose

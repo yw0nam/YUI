@@ -1,7 +1,7 @@
 /**
  * signals-inbox — subscribes to the Rust `signals-inbox` Tauri event channel.
  *
- * Carries the opaque `signals` batch pushed by the n8n `/signals` ingress. Mirrors
+ * Carries the opaque `signals` batch pushed through the `/signals` ingress. Mirrors
  * `agent-inbox.ts` as a lightweight seam: degrades silently off-Tauri so the module
  * is safe in browser / test / dev environments without the runtime.
  */

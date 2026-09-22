@@ -1,7 +1,10 @@
 # Daily briefing producer contract
 
 A producer of the daily briefing posts one signal group per scheduled run to YUI's
-`POST /signals` ingress. This file states everything the request has to satisfy.
+`POST /signals` ingress. This file states everything the request has to satisfy. Two
+reference producers follow it: the n8n workflow `references/n8n-daily-briefing.template.json`
+and the script `scripts/daily-briefing.py`. The envelope's `source` field names the
+producer: `n8n` or `cron`.
 
 ## Request
 
@@ -93,18 +96,24 @@ milliseconds of the failure in place of an execution id when the failure struck 
 execution record existed (a trigger-time failure). The error workflow is wired through
 the producer workflow's Settings → Error Workflow, and it fires only for a run that
 raised — a refused ingress connection is not an error, since that run ends on the pending
-branch.
+branch. The script producer has no separate error workflow: it posts the same group
+itself when a run raises, with `event_id` `source-health:daily-briefing:<epoch ms>` and
+no `run_url`.
 
 ## Retry
 
 The producer marks its rows sent once the ingress answers 2xx. A refused connection
-leaves every row pending, and the following run picks them up again.
+leaves every row pending, and the following run picks them up again. The script re-reads
+the file before marking, so rows appended during the post stay pending.
 
-## Reference mapping from `signal_queue` rows
+## Reference mapping from queue rows
 
-The reference producer reads the pending rows of an n8n `signal_queue` data table
-(columns `key`, `source`, `priority`, `payload`, `status`, `sent_at`, plus the `id` and
-`createdAt` that n8n adds) newest first, and maps each row to one ref:
+Both reference producers read the pending rows carrying the columns `key`, `source`,
+`priority`, `payload`, `status`, `sent_at`, and `createdAt` newest first, and map each row
+to one ref: the n8n workflow reads them from a `signal_queue` data table, which adds
+`id`; the script reads them from a JSONL file with one such row per line, where `payload`
+is a JSON string and `key` is the row's identity. Timestamps in rows and payloads are
+ISO-8601; a value without a zone reads as UTC.
 
 | Ref field | Value taken from the row |
 |---|---|

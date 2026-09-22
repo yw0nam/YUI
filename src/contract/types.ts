@@ -237,7 +237,7 @@ export interface CueMeta {
   idle_min?: number;
 }
 
-/** one item in a signals.kind burst. heterogeneous by design — taxonomy owned by the signal producers (n8n workflows, the backend), client forwards verbatim. */
+/** one item in a signals.kind burst. heterogeneous by design — taxonomy owned by the signal producers and the backend, client forwards verbatim. */
 export type SignalItem = Record<string, unknown>;
 
 export type SignalEnvelope = {
@@ -284,7 +284,7 @@ export interface TriggerMeta {
       ts: number;
     }>;
   };
-  /** signals.ingress — grouped opaque items forwarded from the n8n /signals ingress. */
+  /** signals.ingress — grouped opaque items forwarded from the /signals ingress. */
   signals?: SignalGroup[];
   /** proactive.screen_* — a frontmost-app transition fired this turn. */
   screen?: {
