@@ -7,9 +7,8 @@
 import { describe, expect, it, vi } from "vitest";
 import { attachSummonKey } from "./summon-key";
 
-function fakeSurfaces(opts: { inputOpen?: boolean } = {}) {
+function fakeSurfaces() {
   return {
-    isInputOpen: vi.fn(() => opts.inputOpen ?? false),
     summonInput: vi.fn(),
   };
 }

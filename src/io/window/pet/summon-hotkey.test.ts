@@ -12,7 +12,6 @@
  *  - register rejection (invalid accelerator/OS-occupied): stays disabled without throwing (fail-soft).
  *  - transient register rejection (fast restart, the previous process still holds the key): retried until it takes.
  *  - summonInput is still called even if focusWindow fails.
- *  - when input is already open, only focusWindow runs and summonInput is skipped.
  *  - dispose(): unregisters.
  */
 
@@ -23,8 +22,6 @@ import { createSummonHotkey, retryOnReject, type SummonHotkeyTrigger } from "./s
 function fakeDeps() {
   const handlers = new Map<string, SummonHotkeyTrigger>();
   const calls: string[] = [];
-  // Like the real surfaces, input is open after summonInput.
-  let inputOpen = false;
   const deps = {
     register: vi.fn(async (accelerator: string, handler: SummonHotkeyTrigger) => {
       if (handlers.has(accelerator))
@@ -42,9 +39,7 @@ function fakeDeps() {
     }),
     summonInput: vi.fn(() => {
       calls.push("summon");
-      inputOpen = true;
     }),
-    isInputOpen: vi.fn(() => inputOpen),
   };
   return {
     deps,
@@ -194,19 +189,6 @@ describe("createSummonHotkey — trigger", () => {
     await hotkey.apply("CmdOrCtrl+Shift+Y");
     f.trigger("CmdOrCtrl+Shift+Y");
     await flush();
-    expect(f.deps.summonInput).toHaveBeenCalledTimes(1);
-  });
-
-  it("입력이 이미 열려 있으면 focusWindow만 하고 summonInput은 건너뛴다", async () => {
-    const f = fakeDeps();
-    const hotkey = createSummonHotkey(f.deps);
-    await hotkey.apply("CmdOrCtrl+Shift+Y");
-    // First fire opens input → a re-fire (key repeat/re-invoked from another app) only brings the window forward.
-    f.trigger("CmdOrCtrl+Shift+Y");
-    await flush();
-    f.trigger("CmdOrCtrl+Shift+Y");
-    await flush();
-    expect(f.deps.focusWindow).toHaveBeenCalledTimes(2);
     expect(f.deps.summonInput).toHaveBeenCalledTimes(1);
   });
 

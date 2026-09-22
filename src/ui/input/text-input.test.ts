@@ -398,6 +398,42 @@ describe("setInputEnabled — disable the field while busy", () => {
   });
 });
 
+// A re-summon while open (hotkey re-fire, quick-controls message) must not reset the open session.
+describe("summonInput — no-op while the input is already open", () => {
+  let mount: HTMLElement;
+  let s: ReturnType<typeof createSurfaces>;
+
+  beforeEach(() => {
+    ({ s, mount } = makeSurfaces());
+  });
+
+  afterEach(() => {
+    s.dispose();
+    mount.remove();
+  });
+
+  function form(): HTMLElement {
+    return mount.querySelector(".yui-input") as HTMLElement;
+  }
+  function field(): HTMLTextAreaElement {
+    return mount.querySelector(".yui-input__field") as HTMLTextAreaElement;
+  }
+
+  it("keeps pending, disabled, and the typed text when summoned again while open", async () => {
+    s.summonInput();
+    // is-open lands on the next animation frame — wait for it so the re-summon hits the guard.
+    await new Promise((r) => requestAnimationFrame(r));
+    field().value = "안녕";
+    s.setInputEnabled(false);
+
+    s.summonInput();
+
+    expect(form().classList.contains("is-pending")).toBe(true);
+    expect(field().disabled).toBe(true);
+    expect(field().value).toBe("안녕");
+  });
+});
+
 describe("setBusy — send ↔ stop toggle on the input form", () => {
   let mount: HTMLElement;
   let s: ReturnType<typeof createSurfaces>;
@@ -632,7 +668,7 @@ describe("showInputError — inline fix affordance", () => {
     expect(errorEl().textContent).toBe("later");
   });
 
-  it("clears the action button when the input is summoned again", () => {
+  it("clears the action button when a closed input is summoned after an error", () => {
     s.showInputError("boom", { label: "Open settings", onClick: vi.fn() });
     s.summonInput();
 
@@ -723,7 +759,7 @@ describe("input error clearing — turn start, manual dismiss, existing paths", 
     expect(errorEl().textContent).toBe("");
   });
 
-  it("clears the error when the input is summoned again", () => {
+  it("clears the error when a closed input is summoned after an error", () => {
     s.showInputError("boom");
     s.summonInput();
 

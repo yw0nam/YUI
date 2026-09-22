@@ -90,7 +90,7 @@ describe("wirePetControls", () => {
       stopTurn: vi.fn(),
       voiceInputStatus: createVoiceInputStatus(),
       screenSourceProvider: { listMonitors: vi.fn(async () => []) },
-      surfaces: { isInputOpen: vi.fn(() => false), summonInput: vi.fn() },
+      surfaces: { summonInput: vi.fn() },
       remoteSurfaces: { onOpenSettings: vi.fn() },
       openSettings: vi.fn(),
       openDevtools: vi.fn(),
