@@ -55,11 +55,13 @@ YUI/
         wire-summon.ts               # Peek state and exit triggers, tray summon, and the global summon hotkey
         wire-stage.ts                # Click-through hit-test and cursor-gaze wiring over the stage
       cross-window/                  # State the windows share
-        wire-cross-window.ts         # Per-window sync for the pet, settings, and devtools windows plus DEV globals
+        wire-cross-window.ts         # Per-window sync for the pet, settings, and devtools windows plus the DEV globals including speech playback
         wire-window-sync.ts          # Settings broadcast, guardrail overrides, and the shared cross-window sync core
+      controls/                      # The pet window's summonable control surfaces
+        wire-pet-controls.ts         # Quick-controls panel, capture and voice-input indicators, and the stage context menu, remounted on locale change
       settings/                      # Selections applied to the running app
         wire-avatar.ts               # VRM and speaker selection stores, their swap and import flows, and the avatar config applied at boot
-        wire-config.ts               # The config store over the bundled configs, the runtime key stores, and the live endpoint/guardrail merges
+        wire-config.ts               # The config store over the bundled configs, the runtime key stores, the live endpoint/guardrail merges, and the reload/watch wiring
         wire-cue-locale-sync.ts      # Reseeds untouched built-in cues when the display language changes
     logger.ts                        # Namespaced frontend logger with a runtime level
     tauri-env.ts                     # Tauri runtime detection

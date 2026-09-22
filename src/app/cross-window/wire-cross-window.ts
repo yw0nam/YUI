@@ -105,6 +105,7 @@ export async function wireDevGlobals(deps: {
   lipsyncSettings: unknown;
   agentSettings: unknown;
   quickControls: unknown;
+  speechPlayback: unknown;
   voiceInputStatus: VoiceInputStatus;
   userInput: Pick<UserInputSource, "submit">;
   bus: EventBus;
@@ -120,6 +121,7 @@ export async function wireDevGlobals(deps: {
     lipsyncSettings,
     agentSettings,
     quickControls,
+    speechPlayback,
     voiceInputStatus,
     userInput,
     bus,
@@ -129,6 +131,7 @@ export async function wireDevGlobals(deps: {
   const { createMockDriver } = await import("../../ui/surfaces/mock");
   const mock: ReturnType<typeof createMockDriver> = createMockDriver(surfaces);
   Object.assign(globalThis as Record<string, unknown>, {
+    __yuiSpeech: speechPlayback,
     __yuiRenderer: renderer,
     __yuiAmbient: ambient,
     __yuiSurfaces: surfaces,

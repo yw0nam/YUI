@@ -74,7 +74,7 @@ interface Phase1Handles {
   isDisposed(): boolean;
 }
 
-interface ConfiguredBootstrapHandles {
+export interface ConfiguredBootstrapHandles {
   voice: VoicePipeline;
   dispatcher: Dispatcher;
   guardrails: Guardrails;

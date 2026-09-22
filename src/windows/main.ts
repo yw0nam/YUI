@@ -16,19 +16,17 @@ import "../styles.css";
 import { createTier1Engine } from "../ambient/liveliness/tier1";
 import { createConfiguredBootstrap } from "../app/bootstrap-configured";
 import { registerRendererAndAmbientDisposal } from "../app/bootstrap-disposal";
+import { wirePetControls } from "../app/controls/wire-pet-controls";
 import { wireCrossWindowSync, wireDevGlobals } from "../app/cross-window/wire-cross-window";
 import { wireSettingsReload } from "../app/cross-window/wire-window-sync";
 import { createDisposers } from "../app/disposers";
 import { wireSpeakerSelection, wireVrmSelection } from "../app/settings/wire-avatar";
-import { createPetConfig } from "../app/settings/wire-config";
-import { wireCueLocaleSync } from "../app/settings/wire-cue-locale-sync";
+import { createPetConfig, wireConfigReload, wireConfigWatch } from "../app/settings/wire-config";
 import { wireCamera, wireInputAnchor } from "../app/stage/wire-pet-stage";
 import { createDelegationChipMount, wirePushMode, wirePushStores } from "../app/turn/wire-push";
 import { CHAT_API_KEY_SECRET, TTS_API_KEY_SECRET } from "../config/load";
 import { createEventBus } from "../dispatcher/core/event-bus";
 import { createUserInputSource } from "../dispatcher/sources/user-input-source";
-import { removeUserVrm } from "../io/assets/vrm-import";
-import { agentTriggerableMotionIds } from "../io/chat/broker-client";
 import { wireVoiceListAutoRefresh } from "../io/voice/voices/voice-list-refresh";
 import {
   resolveScreenCapturer,
@@ -39,17 +37,10 @@ import { createSettingsWindowOpener } from "../io/window/openers/settings-window
 import { excludeOwnOriginFromCorsFetch } from "../io/window/own-origin-fetch";
 import { createLogger, initLogger } from "../logger";
 import { createRenderer } from "../renderer";
-import { enabledIdleVariants } from "../settings/avatar/idle-motion-settings";
-import { endpointDefaultsFromConfig } from "../settings/backend/endpoints-settings";
-import { rateLimitDefaultsFromConfig } from "../settings/backend/guardrails-settings";
-import { screenDefaultsFromConfig } from "../settings/capture/screen-settings";
 import { createSettingsStores } from "../settings/settings-stores";
-import { createCaptureIndicator } from "../ui/chips/capture-indicator";
-import { createVoiceInputIndicator } from "../ui/chips/voice-input-indicator";
 import { createVoiceInputStatus } from "../ui/chips/voice-input-status";
-import { getLocale, subscribe as subscribeLocale } from "../ui/i18n";
+import { getLocale } from "../ui/i18n";
 import { showBootError } from "../ui/notices/boot-error";
-import { createQuickControls } from "../ui/quick-controls/quick-controls";
 import { attachSummonKey } from "../ui/surfaces/summon-key";
 import { wireMessageSurfaces } from "../ui/surfaces/wire";
 
@@ -89,41 +80,6 @@ async function bootstrap(): Promise<BootstrapHandle> {
   const stage = root.querySelector<HTMLDivElement>(".yui-stage")!;
 
   const settingsStores = createSettingsStores({ locale: getLocale() });
-  const {
-    screenshotSettings,
-    ttsSettings,
-    idleThrottleSettings,
-    proactiveSettings,
-    scheduleSettings,
-    workflowSettings,
-    agentNotifySettings,
-    presenceSettings,
-    pacerGapSettings,
-    screenSettings,
-    screenKnobSettings,
-    lipsyncSettings,
-    vadSettings,
-    agentSettings,
-    fillerSettings,
-    endpointsSettings,
-    chatKeySettings,
-    sttKeySettings,
-    ttsKeySettings,
-    cameraSettings,
-    gazeSettings,
-    climbSettings,
-    fallSettings,
-    railCollapsedSettings,
-    sectionsSettings,
-    guardrailsSettings,
-    bubblePersistSettings,
-    messageWindowSettings,
-    chatHistoryStore,
-    sessionStore,
-    sessionDiagnostics,
-    idleMotionSettings,
-    expressMotionSettings,
-  } = settingsStores;
   // Every store in the bag shares the same lifecycle, so teardown iterates the bag itself:
   // a store added to createSettingsStores is disposed without touching this loop.
   for (const store of Object.values(settingsStores)) {
@@ -131,11 +87,11 @@ async function bootstrap(): Promise<BootstrapHandle> {
   }
 
   const petConfig = createPetConfig({
-    endpointsSettings,
-    guardrailsSettings,
-    chatKeySettings,
-    sttKeySettings,
-    ttsKeySettings,
+    endpointsSettings: settingsStores.endpointsSettings,
+    guardrailsSettings: settingsStores.guardrailsSettings,
+    chatKeySettings: settingsStores.chatKeySettings,
+    sttKeySettings: settingsStores.sttKeySettings,
+    ttsKeySettings: settingsStores.ttsKeySettings,
     log,
   });
   const config = petConfig.config;
@@ -145,8 +101,8 @@ async function bootstrap(): Promise<BootstrapHandle> {
     wireCamera({
       stage,
       renderer,
-      cameraSettings,
-      idleThrottleSettings,
+      cameraSettings: settingsStores.cameraSettings,
+      idleThrottleSettings: settingsStores.idleThrottleSettings,
     }),
   );
   // Tier 1 ambient: backend-independent, always on. tick fires after VRM loads, so
@@ -157,8 +113,8 @@ async function bootstrap(): Promise<BootstrapHandle> {
 
   const { surfaces, local, remote, getMode } = wireMessageSurfaces({
     mount: root,
-    bubblePersistSettings,
-    messageWindowSettings,
+    bubblePersistSettings: settingsStores.bubblePersistSettings,
+    messageWindowSettings: settingsStores.messageWindowSettings,
     register,
   });
   register(
@@ -196,7 +152,7 @@ async function bootstrap(): Promise<BootstrapHandle> {
     log,
     broadcastSettings,
   });
-  const { vrmSelection, loadVrmSerialized, swapVrm, importVrm } = vrm;
+  const { vrmSelection, loadVrmSerialized } = vrm;
   register(() => vrmSelection.dispose());
 
   const speaker = wireSpeakerSelection({
@@ -205,20 +161,12 @@ async function bootstrap(): Promise<BootstrapHandle> {
     log,
     broadcastSettings,
   });
-  const {
-    speakerSelection,
-    swapSpeaker,
-    refreshSpeaker,
-    pickVoiceImport,
-    commitVoiceImport,
-    removeVoice,
-    refreshVoiceList,
-  } = speaker;
+  const { speakerSelection, refreshVoiceList } = speaker;
   register(() => speakerSelection.dispose());
   // Config-file edits refresh via onConfigChange below; this covers the panel's override commits.
   register(
     wireVoiceListAutoRefresh({
-      subscribe: endpointsSettings.subscribe,
+      subscribe: settingsStores.endpointsSettings.subscribe,
       getEndpoints: petConfig.getEndpoints,
       refresh: refreshVoiceList,
     }),
@@ -238,164 +186,24 @@ async function bootstrap(): Promise<BootstrapHandle> {
     register,
   });
 
-  const buildQuickControls = (): ReturnType<typeof createQuickControls> =>
-    createQuickControls({
-      mount: root,
-      pushSocket: push.pushSocket,
-      stopTurn: push.stopTurn,
-      settings: screenshotSettings,
-      idleThrottleSettings,
-      gazeSettings,
-      climbSettings,
-      fallSettings,
-      proactiveSettings,
-      scheduleSettings,
-      workflowSettings,
-      agentNotifySettings,
-      bubblePersistSettings,
-      messageWindowSettings,
-      presenceSettings,
-      pacerGapSettings,
-      rateLimitSettings: guardrailsSettings,
-      getRateLimitDefaults: () => {
-        try {
-          return rateLimitDefaultsFromConfig(config.get().guardrails);
-        } catch {
-          return undefined;
-        }
-      },
-      screenSettings,
-      screenKnobSettings,
-      getScreenDefaults: () => {
-        try {
-          return screenDefaultsFromConfig(config.get().screen);
-        } catch {
-          return undefined;
-        }
-      },
-      railCollapsedSettings,
-      sectionsSettings,
-      transcript: chatHistoryStore,
-      // Same instances the dispatcher reads through, so "start fresh" takes effect on the next turn.
-      sessionStore,
-      sessionDiagnostics,
-      sourceProvider: screenSourceProvider,
-      voiceStatus: voiceInputStatus,
-      lipsync: lipsyncSettings,
-      vad: vadSettings,
-      fillerSettings,
-      ttsSettings,
-      agentSettings,
-      vrmSelection,
-      swapVrm,
-      importVrm,
-      removeUserVrm,
-      speakerSelection,
-      swapSpeaker,
-      refreshSpeaker,
-      pickVoiceImport,
-      commitVoiceImport,
-      removeVoice,
-      refreshVoiceList,
-      onGainPreview: (mouthOpen) => renderer.setMouthOpen(mouthOpen),
-      onGainPreviewEnd: () => renderer.stopMouth(),
-      onOpenDevtools: openDevtools,
-      // Reset the camera viewpoint to head-on (store drives renderer.setOrbit).
-      onResetViewpoint: () => cameraSettings.resetOrbit(),
-      // Default instructions to show as placeholder when empty (ignored if config not loaded).
-      getDefaultInstructions: () => {
-        try {
-          return config.get().endpoints.chat_instructions;
-        } catch {
-          return undefined;
-        }
-      },
-      endpointsSettings,
-      chatKeySettings,
-      sttKeySettings,
-      ttsKeySettings,
-      getEndpointDefaults: () => {
-        try {
-          return endpointDefaultsFromConfig(config.get().endpoints);
-        } catch {
-          return undefined;
-        }
-      },
-      getDefaultChatApi: () => {
-        try {
-          return config.get().endpoints.chat_api;
-        } catch {
-          return undefined;
-        }
-      },
-      idleMotionSettings,
-      getIdlePool: () => {
-        try {
-          return config.get().motions.idle;
-        } catch {
-          return undefined;
-        }
-      },
-      expressMotionSettings,
-      getExpressMotions: () => {
-        try {
-          return agentTriggerableMotionIds(config.get().motions);
-        } catch {
-          return [];
-        }
-      },
-      onPopOut: () => openSettings(),
-      onMessage: () => {
-        if (!surfaces.isInputOpen()) surfaces.summonInput();
-      },
-    });
-  // DOM surfaces re-mounted on locale change (see i18n subscriber below). Held in
-  // let bindings; onActivate arrows read the live binding, so recreating is safe.
-  let quickControls = buildQuickControls();
-  register(() => quickControls.dispose());
-  // A popped-out surface has no settings panel of its own; it asks this window for one.
-  remote.onOpenSettings(() => quickControls.open(undefined, { tab: "adv" }));
-  const buildCaptureIndicator = (): ReturnType<typeof createCaptureIndicator> =>
-    createCaptureIndicator({
-      mount: root,
-      settings: screenshotSettings,
-      onActivate: () => quickControls.open(),
-    });
-  const buildVoiceInputIndicator = (): ReturnType<typeof createVoiceInputIndicator> =>
-    createVoiceInputIndicator({
-      mount: root,
-      status: voiceInputStatus,
-      onActivate: () => quickControls.open(),
-      onOpenSettings: () => quickControls.open(undefined, { tab: "adv" }),
-    });
-  let captureIndicator = buildCaptureIndicator();
-  register(() => captureIndicator.dispose());
-  let voiceInputIndicator = buildVoiceInputIndicator();
-  register(() => voiceInputIndicator.dispose());
-
-  // Re-mount localized DOM surfaces when display language changes.
-  // Defer to microtask so triggering click handler (picker inside quick-controls) unwinds
-  // before its host is disposed. Long-lived non-UI singletons (renderer, TTS pipeline, VAD,
-  // voiceStatus store) and dispatcher-wired `surfaces` instance intentionally NOT re-created.
-  register(wireCueLocaleSync(settingsStores));
-  const unsubscribeLocale = subscribeLocale(() => {
-    queueMicrotask(() => {
-      voiceInputIndicator.dispose();
-      captureIndicator.dispose();
-      quickControls.dispose();
-      quickControls = buildQuickControls();
-      captureIndicator = buildCaptureIndicator();
-      voiceInputIndicator = buildVoiceInputIndicator();
-    });
+  const controls = wirePetControls({
+    root,
+    stage,
+    stores: settingsStores,
+    config,
+    renderer,
+    vrm,
+    speaker,
+    pushSocket: push.pushSocket,
+    stopTurn: push.stopTurn,
+    voiceInputStatus,
+    screenSourceProvider,
+    surfaces,
+    remoteSurfaces: remote,
+    openSettings,
+    openDevtools,
+    register,
   });
-  register(() => unsubscribeLocale());
-
-  function onContextMenu(e: MouseEvent): void {
-    e.preventDefault();
-    quickControls.open({ x: e.clientX, y: e.clientY });
-  }
-  stage.addEventListener("contextmenu", onContextMenu);
-  register(() => stage.removeEventListener("contextmenu", onContextMenu));
 
   // ── Dispatcher spine ──────────────────────────────────────────────────────
   // event_bus → dispatcher → backend_caller → streamChat → backend → ControlEnvelope →
@@ -429,7 +237,7 @@ async function bootstrap(): Promise<BootstrapHandle> {
       speaker,
       root,
       stage,
-      getQuickControls: () => quickControls,
+      getQuickControls: controls.get,
       pushSocket: push.pushSocket,
       delegations: push.delegations,
       delegationHistory: push.delegationHistory,
@@ -451,28 +259,26 @@ async function bootstrap(): Promise<BootstrapHandle> {
           mount: root,
           store: push.delegations,
           pushState: push.pushSocket,
-          onOpenSettings: () => quickControls.open(undefined, { tab: "adv" }),
+          onOpenSettings: () => controls.get().open(undefined, { tab: "adv" }),
           getMode,
-          subscribeMode: messageWindowSettings.subscribe,
+          subscribeMode: settingsStores.messageWindowSettings.subscribe,
         }),
         getEndpoints: petConfig.getEndpoints,
-        endpointsSettings,
-        chatKeySettings,
+        endpointsSettings: settingsStores.endpointsSettings,
+        chatKeySettings: settingsStores.chatKeySettings,
       }),
     );
     if (import.meta.env.DEV) {
-      Object.assign(globalThis as Record<string, unknown>, {
-        __yuiSpeech: configured.voice.speechPlayback,
-      });
       try {
         await wireDevGlobals({
           renderer,
           ambient,
           surfaces,
-          screenshotSettings,
-          lipsyncSettings,
-          agentSettings,
-          quickControls,
+          screenshotSettings: settingsStores.screenshotSettings,
+          lipsyncSettings: settingsStores.lipsyncSettings,
+          agentSettings: settingsStores.agentSettings,
+          quickControls: controls.get(),
+          speechPlayback: configured.voice.speechPlayback,
           voiceInputStatus,
           userInput,
           bus,
@@ -485,57 +291,29 @@ async function bootstrap(): Promise<BootstrapHandle> {
       }
       if (isDisposed()) return { dispose };
     }
-    const unsubscribeConfig = config.subscribe((cfg, changed) => {
-      if (changed.has("emotionRegistry")) renderer.setEmotionRegistry(cfg.emotionRegistry);
-      if (changed.has("motions")) {
-        // The enabled pool is catalog ∩ overlay, so a new catalog needs the intersection redone.
-        // Applied before the registry — as at boot — so the baseline it replays already honors it.
-        const idlePool = cfg.motions.idle;
-        if (idlePool) {
-          renderer.setIdleVariants(enabledIdleVariants(idlePool, idleMotionSettings.get()));
-        }
-        renderer.setMotionRegistry(cfg.motions);
-      }
-      if (changed.has("guardrails")) {
-        configured.guardrails.setConfig(petConfig.getGuardrails());
-        surfaces.setAttachmentLimits(cfg.guardrails.attachments);
-      }
-      if (changed.has("hotkeys")) void configured.summonHotkey.apply(cfg.hotkeys.summon_global);
-      if (changed.has("endpoints")) void refreshVoiceList();
-      configured.broker.onConfigChange(cfg, changed);
-      if (!changed.has("avatar")) return;
-      renderer.setFraming(cfg.avatar.framing);
-      renderer.setGaze(cfg.avatar.gaze);
-      renderer.setHitTestThreshold(cfg.avatar.hit_test.alpha_threshold);
-      vrmSelection.setManifest({
-        available: cfg.avatar.available,
-        defaultValue: cfg.avatar.vrm_url,
-      });
-      void loadVrmSerialized(vrmSelection.getActive().url).catch((err) =>
-        log.error("vrm_hot_swap_failed", { error: String(err) }),
-      );
-    });
-    register(unsubscribeConfig);
+    register(
+      wireConfigReload({
+        config,
+        renderer,
+        surfaces,
+        idleMotionSettings: settingsStores.idleMotionSettings,
+        getGuardrails: petConfig.getGuardrails,
+        configured,
+        vrm,
+        refreshVoiceList,
+        log,
+      }),
+    );
   } catch (err) {
     if (isDisposed()) return { dispose };
     log.error("config_or_vrm_load_failed", { error: String(err) });
     // Boot failure = empty transparent window. Preserve cause (ConfigError vs VRM) visible to user (#316).
     if (!isDisposed()) showBootError(root, err);
   }
-  config.onError((err) =>
-    log.error("config_reload_failed", {
-      kept_previous: true,
-      error: String(err),
-    }),
-  );
+  const configWatch = wireConfigWatch({ config, log, register });
   // DEV-only: polling watcher runs — edits to configs/*.json reflected immediately.
   if (import.meta.env.DEV) {
-    config.start();
-    Object.assign(globalThis as Record<string, unknown>, {
-      __yuiConfig: config,
-    });
-    // HMR module re-run stacks previous store's setInterval → stop in dispose.
-    register(() => config.stop());
+    configWatch.startDev();
   }
   return { dispose };
 }
