@@ -7,34 +7,34 @@
  * the message bridge, and what the user typed travels back the same way.
  */
 
-import "./styles.css";
-import "./ui/message/message-window.css";
-import { createMirroredDelegations } from "./io/bridge/delegations-bridge";
-import { createMessageBridge } from "./io/bridge/message-bridge";
-import { createMirroredPushSocket } from "./io/bridge/push-socket-bridge";
-import { createMirroredReasoning } from "./io/bridge/reasoning-bridge";
-import { createSettingsBridge } from "./io/bridge/settings-bridge";
+import "../styles.css";
+import "../ui/message/message-window.css";
+import { createMirroredDelegations } from "../io/bridge/delegations-bridge";
+import { createMessageBridge } from "../io/bridge/message-bridge";
+import { createMirroredPushSocket } from "../io/bridge/push-socket-bridge";
+import { createMirroredReasoning } from "../io/bridge/reasoning-bridge";
+import { createSettingsBridge } from "../io/bridge/settings-bridge";
 import {
   createDelegationChipSettings,
   localStorageDelegationChipStorage,
-} from "./io/settings/delegation-chip-settings";
+} from "../io/settings/delegation-chip-settings";
 import {
   createMessageWindowSettings,
   localStorageMessageWindowStorage,
-} from "./io/settings/message-window-settings";
-import { createFlagSettings, localStorageStore } from "./io/settings/persisted-store";
-import { attachKeepOnScreen } from "./io/window/geometry/keep-on-screen";
-import { toScreenMonitor } from "./io/window/geometry/screen-geometry";
-import { MESSAGE_WINDOW_WIDTH } from "./io/window/openers/message-window";
-import { excludeOwnOriginFromCorsFetch } from "./io/window/own-origin-fetch";
-import { createLogger, initLogger } from "./logger";
-import { isTauri } from "./tauri-env";
-import { createDelegationChip } from "./ui/chips/delegation-chip";
-import { createReasoningChip } from "./ui/chips/reasoning-chip";
-import { reloadFromStorage as reloadLocale } from "./ui/i18n";
-import { createMessagePlate } from "./ui/message/message-plate";
-import { attachSummonKey } from "./ui/surfaces/summon-key";
-import { createSurfaces } from "./ui/surfaces/surfaces";
+} from "../io/settings/message-window-settings";
+import { createFlagSettings, localStorageStore } from "../io/settings/persisted-store";
+import { attachKeepOnScreen } from "../io/window/geometry/keep-on-screen";
+import { toScreenMonitor } from "../io/window/geometry/screen-geometry";
+import { MESSAGE_WINDOW_WIDTH } from "../io/window/openers/message-window";
+import { excludeOwnOriginFromCorsFetch } from "../io/window/own-origin-fetch";
+import { createLogger, initLogger } from "../logger";
+import { isTauri } from "../tauri-env";
+import { createDelegationChip } from "../ui/chips/delegation-chip";
+import { createReasoningChip } from "../ui/chips/reasoning-chip";
+import { reloadFromStorage as reloadLocale } from "../ui/i18n";
+import { createMessagePlate } from "../ui/message/message-plate";
+import { attachSummonKey } from "../ui/surfaces/summon-key";
+import { createSurfaces } from "../ui/surfaces/surfaces";
 
 const log = createLogger("message-bootstrap");
 

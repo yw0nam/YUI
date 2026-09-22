@@ -6,35 +6,35 @@
  * plus reload once on focus (Tauri may not emit cross-window storage events).
  */
 
-import "./styles.css";
-import { wireSettingsWindowSync } from "./app/cross-window/wire-cross-window";
-import { createEffectiveEndpoints, wireSpeakerSelection } from "./app/settings/wire-avatar";
-import { wireCueLocaleSync } from "./app/settings/wire-cue-locale-sync";
-import { TTS_API_KEY_SECRET } from "./config/load";
-import { createConfigStore } from "./config/store";
-import { importVrmFromFile, removeUserVrm } from "./io/assets/vrm-import";
+import "../styles.css";
+import { wireSettingsWindowSync } from "../app/cross-window/wire-cross-window";
+import { createEffectiveEndpoints, wireSpeakerSelection } from "../app/settings/wire-avatar";
+import { wireCueLocaleSync } from "../app/settings/wire-cue-locale-sync";
+import { TTS_API_KEY_SECRET } from "../config/load";
+import { createConfigStore } from "../config/store";
+import { importVrmFromFile, removeUserVrm } from "../io/assets/vrm-import";
 import {
   createVrmSelection,
   localStorageUserVrmStorage,
   localStorageVrmStorage,
-} from "./io/assets/vrm-selection";
-import { createDelegationHistory } from "./io/bridge/delegation-history";
-import { createMirroredDelegations } from "./io/bridge/delegations-bridge";
-import { createMirroredPushSocket } from "./io/bridge/push-socket-bridge";
-import { agentTriggerableMotionIds } from "./io/chat/broker-client";
-import { createSettingsSecretProvider } from "./io/chat/secret-provider";
-import { endpointDefaultsFromConfig } from "./io/settings/endpoints-settings";
-import { rateLimitDefaultsFromConfig } from "./io/settings/guardrails-settings";
-import { screenDefaultsFromConfig } from "./io/settings/screen-settings";
-import { createSettingsStores } from "./io/settings/settings-stores";
-import { wireVoiceListAutoRefresh } from "./io/voice/voices/voice-list-refresh";
-import { resolveScreenSourceProvider } from "./io/window/capture/tauri-screen";
-import { closeSettingsWindow, titleSettingsWindow } from "./io/window/openers/settings-window";
-import { excludeOwnOriginFromCorsFetch } from "./io/window/own-origin-fetch";
-import { createLogger, initLogger } from "./logger";
-import { createVoiceInputStatus } from "./ui/chips/voice-input-status";
-import { getLocale, subscribe as subscribeLocale, t } from "./ui/i18n";
-import { createQuickControls } from "./ui/quick-controls/quick-controls";
+} from "../io/assets/vrm-selection";
+import { createDelegationHistory } from "../io/bridge/delegation-history";
+import { createMirroredDelegations } from "../io/bridge/delegations-bridge";
+import { createMirroredPushSocket } from "../io/bridge/push-socket-bridge";
+import { agentTriggerableMotionIds } from "../io/chat/broker-client";
+import { createSettingsSecretProvider } from "../io/chat/secret-provider";
+import { endpointDefaultsFromConfig } from "../io/settings/endpoints-settings";
+import { rateLimitDefaultsFromConfig } from "../io/settings/guardrails-settings";
+import { screenDefaultsFromConfig } from "../io/settings/screen-settings";
+import { createSettingsStores } from "../io/settings/settings-stores";
+import { wireVoiceListAutoRefresh } from "../io/voice/voices/voice-list-refresh";
+import { resolveScreenSourceProvider } from "../io/window/capture/tauri-screen";
+import { closeSettingsWindow, titleSettingsWindow } from "../io/window/openers/settings-window";
+import { excludeOwnOriginFromCorsFetch } from "../io/window/own-origin-fetch";
+import { createLogger, initLogger } from "../logger";
+import { createVoiceInputStatus } from "../ui/chips/voice-input-status";
+import { getLocale, subscribe as subscribeLocale, t } from "../ui/i18n";
+import { createQuickControls } from "../ui/quick-controls/quick-controls";
 
 const log = createLogger("settings-bootstrap");
 

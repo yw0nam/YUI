@@ -8,10 +8,10 @@ const { createQuickControls, initLogger, createLogger } = vi.hoisted(() => ({
   createLogger: vi.fn(() => ({ info: vi.fn(), warn: vi.fn(), error: vi.fn(), debug: vi.fn() })),
 }));
 
-vi.mock("./ui/quick-controls/quick-controls", () => ({ createQuickControls }));
-vi.mock("./logger", () => ({ initLogger, createLogger }));
+vi.mock("../ui/quick-controls/quick-controls", () => ({ createQuickControls }));
+vi.mock("../logger", () => ({ initLogger, createLogger }));
 
-import { setLocale } from "./ui/i18n";
+import { setLocale } from "../ui/i18n";
 
 afterEach(() => {
   window.dispatchEvent(new Event("beforeunload"));

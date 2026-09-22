@@ -1,13 +1,13 @@
-import "./styles.css";
-import "./ui/quick-controls/quick-controls.css";
-import "./ui/devtools/devtools.css";
-import { wireDevtoolsSync } from "./app/cross-window/wire-cross-window";
-import { createConfigStore } from "./config/store";
-import { createSettingsStores } from "./io/settings/settings-stores";
-import { excludeOwnOriginFromCorsFetch } from "./io/window/own-origin-fetch";
-import { createLogger, initLogger } from "./logger";
-import { createDevtoolsShell } from "./ui/devtools/shell";
-import { getLocale, subscribe as subscribeLocale, t } from "./ui/i18n";
+import "../styles.css";
+import "../ui/quick-controls/quick-controls.css";
+import "../ui/devtools/devtools.css";
+import { wireDevtoolsSync } from "../app/cross-window/wire-cross-window";
+import { createConfigStore } from "../config/store";
+import { createSettingsStores } from "../io/settings/settings-stores";
+import { excludeOwnOriginFromCorsFetch } from "../io/window/own-origin-fetch";
+import { createLogger, initLogger } from "../logger";
+import { createDevtoolsShell } from "../ui/devtools/shell";
+import { getLocale, subscribe as subscribeLocale, t } from "../ui/i18n";
 
 const log = createLogger("devtools-bootstrap");
 
@@ -87,7 +87,7 @@ async function bootstrap(): Promise<void> {
       endpointsSettings,
       defaultContextWindow,
       loadMotionPreview: async (section) => {
-        const { mountMotionPreview } = await import("./ui/devtools/motion-preview");
+        const { mountMotionPreview } = await import("../ui/devtools/motion-preview");
         return mountMotionPreview(section);
       },
     });

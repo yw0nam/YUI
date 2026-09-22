@@ -12,80 +12,80 @@
  *   - .yui-ui:    overlay — speech bubble, tool state, text input (invisible-by-default).
  */
 
-import "./styles.css";
-import { createTier1Engine } from "./ambient/liveliness/tier1";
-import { createConfiguredBootstrap } from "./app/bootstrap-configured";
-import { registerRendererAndAmbientDisposal } from "./app/bootstrap-disposal";
-import { wireCrossWindowSync, wireDevGlobals } from "./app/cross-window/wire-cross-window";
-import { wireSettingsReload } from "./app/cross-window/wire-window-sync";
-import { wireSpeakerSelection, wireVrmSelection } from "./app/settings/wire-avatar";
-import { wireCueLocaleSync } from "./app/settings/wire-cue-locale-sync";
-import { wirePushMode } from "./app/turn/wire-push";
-import { CHAT_API_KEY_SECRET, STT_API_KEY_SECRET, TTS_API_KEY_SECRET } from "./config/load";
-import { createConfigStore } from "./config/store";
-import { createEventBus } from "./dispatcher/core/event-bus";
-import { createUserInputSource } from "./dispatcher/sources/user-input-source";
-import { removeUserVrm } from "./io/assets/vrm-import";
-import { createDelegationHistory } from "./io/bridge/delegation-history";
-import { publishDelegations } from "./io/bridge/delegations-bridge";
-import { createDelegationsStore } from "./io/bridge/delegations-store";
-import { createMessageBridge } from "./io/bridge/message-bridge";
-import { createRemoteSurfaces } from "./io/bridge/message-remote";
-import { publishPushSocket } from "./io/bridge/push-socket-bridge";
-import { publishReasoning } from "./io/bridge/reasoning-bridge";
-import { createReasoningStore } from "./io/bridge/reasoning-store";
-import { agentTriggerableMotionIds, type BrokerPayload } from "./io/chat/broker-client";
-import { createPushSocket, pushVocabularyOf } from "./io/chat/push-socket";
-import { createSettingsSecretProvider } from "./io/chat/secret-provider";
+import "../styles.css";
+import { createTier1Engine } from "../ambient/liveliness/tier1";
+import { createConfiguredBootstrap } from "../app/bootstrap-configured";
+import { registerRendererAndAmbientDisposal } from "../app/bootstrap-disposal";
+import { wireCrossWindowSync, wireDevGlobals } from "../app/cross-window/wire-cross-window";
+import { wireSettingsReload } from "../app/cross-window/wire-window-sync";
+import { wireSpeakerSelection, wireVrmSelection } from "../app/settings/wire-avatar";
+import { wireCueLocaleSync } from "../app/settings/wire-cue-locale-sync";
+import { wirePushMode } from "../app/turn/wire-push";
+import { CHAT_API_KEY_SECRET, STT_API_KEY_SECRET, TTS_API_KEY_SECRET } from "../config/load";
+import { createConfigStore } from "../config/store";
+import { createEventBus } from "../dispatcher/core/event-bus";
+import { createUserInputSource } from "../dispatcher/sources/user-input-source";
+import { removeUserVrm } from "../io/assets/vrm-import";
+import { createDelegationHistory } from "../io/bridge/delegation-history";
+import { publishDelegations } from "../io/bridge/delegations-bridge";
+import { createDelegationsStore } from "../io/bridge/delegations-store";
+import { createMessageBridge } from "../io/bridge/message-bridge";
+import { createRemoteSurfaces } from "../io/bridge/message-remote";
+import { publishPushSocket } from "../io/bridge/push-socket-bridge";
+import { publishReasoning } from "../io/bridge/reasoning-bridge";
+import { createReasoningStore } from "../io/bridge/reasoning-store";
+import { agentTriggerableMotionIds, type BrokerPayload } from "../io/chat/broker-client";
+import { createPushSocket, pushVocabularyOf } from "../io/chat/push-socket";
+import { createSettingsSecretProvider } from "../io/chat/secret-provider";
 import {
   CAMERA_WHEEL_SENSITIVITY,
   CAMERA_ZOOM_MAX,
   CAMERA_ZOOM_MIN,
-} from "./io/settings/camera-settings";
-import { createChatIdSettings, localStorageChatIdStorage } from "./io/settings/chat-id-settings";
+} from "../io/settings/camera-settings";
+import { createChatIdSettings, localStorageChatIdStorage } from "../io/settings/chat-id-settings";
 import {
   createDelegationChipSettings,
   localStorageDelegationChipStorage,
-} from "./io/settings/delegation-chip-settings";
-import { endpointDefaultsFromConfig, mergeEndpoints } from "./io/settings/endpoints-settings";
-import { mergeGuardrails, rateLimitDefaultsFromConfig } from "./io/settings/guardrails-settings";
-import { enabledIdleVariants } from "./io/settings/idle-motion-settings";
-import type { MessageWindowMode } from "./io/settings/message-window-settings";
-import { screenDefaultsFromConfig } from "./io/settings/screen-settings";
-import { createSettingsStores } from "./io/settings/settings-stores";
-import { wireVoiceListAutoRefresh } from "./io/voice/voices/voice-list-refresh";
+} from "../io/settings/delegation-chip-settings";
+import { endpointDefaultsFromConfig, mergeEndpoints } from "../io/settings/endpoints-settings";
+import { mergeGuardrails, rateLimitDefaultsFromConfig } from "../io/settings/guardrails-settings";
+import { enabledIdleVariants } from "../io/settings/idle-motion-settings";
+import type { MessageWindowMode } from "../io/settings/message-window-settings";
+import { screenDefaultsFromConfig } from "../io/settings/screen-settings";
+import { createSettingsStores } from "../io/settings/settings-stores";
+import { wireVoiceListAutoRefresh } from "../io/voice/voices/voice-list-refresh";
 import {
   resolveScreenCapturer,
   resolveScreenSourceProvider,
-} from "./io/window/capture/tauri-screen";
-import { createDevtoolsWindowOpener } from "./io/window/openers/devtools-window";
+} from "../io/window/capture/tauri-screen";
+import { createDevtoolsWindowOpener } from "../io/window/openers/devtools-window";
 import {
   createMessageWindowController,
   listenTrayToggle,
-} from "./io/window/openers/message-window";
-import { wireMessageWindowMode } from "./io/window/openers/message-window-mode";
-import { createSettingsWindowOpener } from "./io/window/openers/settings-window";
-import { excludeOwnOriginFromCorsFetch } from "./io/window/own-origin-fetch";
-import { createLogger, initLogger } from "./logger";
-import { createRenderer } from "./renderer";
-import { nextZoom } from "./renderer/geometry/camera-fit";
-import { isTauri } from "./tauri-env";
-import { createCaptureIndicator } from "./ui/chips/capture-indicator";
-import { createDelegationChip } from "./ui/chips/delegation-chip";
-import { createVoiceInputIndicator } from "./ui/chips/voice-input-indicator";
-import { createVoiceInputStatus } from "./ui/chips/voice-input-status";
-import { getLocale, subscribe as subscribeLocale } from "./ui/i18n";
-import { showBootError } from "./ui/notices/boot-error";
-import { createQuickControls } from "./ui/quick-controls/quick-controls";
+} from "../io/window/openers/message-window";
+import { wireMessageWindowMode } from "../io/window/openers/message-window-mode";
+import { createSettingsWindowOpener } from "../io/window/openers/settings-window";
+import { excludeOwnOriginFromCorsFetch } from "../io/window/own-origin-fetch";
+import { createLogger, initLogger } from "../logger";
+import { createRenderer } from "../renderer";
+import { nextZoom } from "../renderer/geometry/camera-fit";
+import { isTauri } from "../tauri-env";
+import { createCaptureIndicator } from "../ui/chips/capture-indicator";
+import { createDelegationChip } from "../ui/chips/delegation-chip";
+import { createVoiceInputIndicator } from "../ui/chips/voice-input-indicator";
+import { createVoiceInputStatus } from "../ui/chips/voice-input-status";
+import { getLocale, subscribe as subscribeLocale } from "../ui/i18n";
+import { showBootError } from "../ui/notices/boot-error";
+import { createQuickControls } from "../ui/quick-controls/quick-controls";
 import {
   INPUT_ANCHOR_EPSILON_PX,
   INPUT_ANCHOR_MIN_BOTTOM_PX,
   INPUT_FEET_GAP_PX,
   inputBottomFromAnchor,
-} from "./ui/surfaces/anchor";
-import { attachSummonKey } from "./ui/surfaces/summon-key";
-import { createSurfaces } from "./ui/surfaces/surfaces";
-import { createSurfacesRouter } from "./ui/surfaces/surfaces-router";
+} from "../ui/surfaces/anchor";
+import { attachSummonKey } from "../ui/surfaces/summon-key";
+import { createSurfaces } from "../ui/surfaces/surfaces";
+import { createSurfacesRouter } from "../ui/surfaces/surfaces-router";
 
 const log = createLogger("bootstrap");
 

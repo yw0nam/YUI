@@ -9,19 +9,19 @@
 
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 
-vi.mock("./styles.css", () => ({}));
-vi.mock("./ui/message/message-window.css", () => ({}));
-vi.mock("./ui/surfaces/surfaces.css", () => ({}));
-vi.mock("./ui/tokens.css", () => ({}));
-vi.mock("./ui/chips/delegation-chip.css", () => ({}));
-vi.mock("./ui/chips/delegation-rows.css", () => ({}));
-vi.mock("./ui/chips/reasoning-chip.css", () => ({}));
+vi.mock("../styles.css", () => ({}));
+vi.mock("../ui/message/message-window.css", () => ({}));
+vi.mock("../ui/surfaces/surfaces.css", () => ({}));
+vi.mock("../ui/tokens.css", () => ({}));
+vi.mock("../ui/chips/delegation-chip.css", () => ({}));
+vi.mock("../ui/chips/delegation-rows.css", () => ({}));
+vi.mock("../ui/chips/reasoning-chip.css", () => ({}));
 
-import { createMessageBridge, type MessageControlOp } from "./io/bridge/message-bridge";
-import type { ReasoningState } from "./io/bridge/reasoning-store";
-import { createSettingsBridge, type SettingsBridge } from "./io/bridge/settings-bridge";
-import type { DelegationItem, PushSocketState } from "./io/chat/push-socket";
-import { setLocale, t } from "./ui/i18n";
+import { createMessageBridge, type MessageControlOp } from "../io/bridge/message-bridge";
+import type { ReasoningState } from "../io/bridge/reasoning-store";
+import { createSettingsBridge, type SettingsBridge } from "../io/bridge/settings-bridge";
+import type { DelegationItem, PushSocketState } from "../io/chat/push-socket";
+import { setLocale, t } from "../ui/i18n";
 
 const NOW = 1_789_365_900_000;
 

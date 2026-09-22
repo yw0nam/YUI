@@ -6,16 +6,16 @@ const { wireDevtoolsSync, createConfigStore, initLogger, createLogger } = await 
   async () => (await import("./devtools-main.test-helpers")).makeDevtoolsMainMocks(),
 );
 
-vi.mock("./app/cross-window/wire-cross-window", () => ({ wireDevtoolsSync }));
-vi.mock("./config/store", () => ({ createConfigStore }));
-vi.mock("./logger", () => ({ initLogger, createLogger }));
-vi.mock("./io/settings/settings-stores", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("./io/settings/settings-stores")>();
+vi.mock("../app/cross-window/wire-cross-window", () => ({ wireDevtoolsSync }));
+vi.mock("../config/store", () => ({ createConfigStore }));
+vi.mock("../logger", () => ({ initLogger, createLogger }));
+vi.mock("../io/settings/settings-stores", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../io/settings/settings-stores")>();
   return { ...actual, createSettingsStores: vi.fn(actual.createSettingsStores) };
 });
 
+import { setLocale } from "../ui/i18n";
 import { resetDevtoolsMain } from "./devtools-main.test-helpers";
-import { setLocale } from "./ui/i18n";
 
 // jsdom lacks CSS.escape — polyfill (mirrors quick-controls/test-helpers.ts).
 if (typeof (globalThis as { CSS?: { escape?: unknown } }).CSS?.escape !== "function") {

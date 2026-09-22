@@ -36,17 +36,17 @@ const { createDevtoolsShell, shellState } = vi.hoisted(() => {
   return { createDevtoolsShell, shellState };
 });
 
-vi.mock("./app/cross-window/wire-cross-window", () => ({ wireDevtoolsSync }));
-vi.mock("./config/store", () => ({ createConfigStore }));
-vi.mock("./logger", () => ({ initLogger, createLogger }));
-vi.mock("./ui/devtools/shell", () => ({ createDevtoolsShell }));
-vi.mock("./io/settings/settings-stores", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("./io/settings/settings-stores")>();
+vi.mock("../app/cross-window/wire-cross-window", () => ({ wireDevtoolsSync }));
+vi.mock("../config/store", () => ({ createConfigStore }));
+vi.mock("../logger", () => ({ initLogger, createLogger }));
+vi.mock("../ui/devtools/shell", () => ({ createDevtoolsShell }));
+vi.mock("../io/settings/settings-stores", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../io/settings/settings-stores")>();
   return { ...actual, createSettingsStores: vi.fn(actual.createSettingsStores) };
 });
 
+import { setLocale } from "../ui/i18n";
 import { resetDevtoolsMain } from "./devtools-main.test-helpers";
-import { setLocale } from "./ui/i18n";
 
 afterEach(() => {
   resetDevtoolsMain();

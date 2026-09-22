@@ -38,7 +38,6 @@ YUI/
     emotion_text/                    # Emoji voice-tag vocabulary (emotion_text/irodori.json)
   public/motions/                    # VRMA motion assets
   src/
-    main.ts                          # Application entry: config load, renderer, dispatcher, and the I/O graph
     app/                             # Composes the pet window from the layers below
       bootstrap-configured.ts        # Config-derived bootstrap: calls the wire functions in order and drains their teardowns
       bootstrap-disposal.ts          # Registers the renderer's dispose and the Tier 1 engine's stop as bootstrap teardowns
@@ -61,9 +60,11 @@ YUI/
         wire-cue-locale-sync.ts      # Reseeds untouched built-in cues when the display language changes
     logger.ts                        # Namespaced frontend logger with a runtime level
     tauri-env.ts                     # Tauri runtime detection
-    settings-main.ts                 # Settings-window entry
-    devtools-main.ts                 # Developer Tools window entry
-    message-main.ts                  # Message-window entry
+    windows/                         # One entry file per window, loaded by the matching HTML file
+      main.ts                        # Pet window: config load, renderer, dispatcher, and the I/O graph
+      settings-main.ts               # Settings window
+      devtools-main.ts               # Developer Tools window
+      message-main.ts                # Message window
     styles.css                       # Pet-window base stylesheet
     vite-env.d.ts                    # Vite client types and build-time env declarations
     contract/                        # TS contract types — the wire schema source of truth
