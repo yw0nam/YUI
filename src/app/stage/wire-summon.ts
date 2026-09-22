@@ -91,7 +91,7 @@ export async function wirePeek(deps: {
  * stable while the asynchronous Tauri implementation initializes.
  */
 export function wireSummonHotkey(deps: {
-  surfaces: Pick<Surfaces, "summonInput" | "isInputOpen">;
+  surfaces: Pick<Surfaces, "summonInput">;
   bus: EventBus;
   peek: { active(): boolean; exit(): Promise<void> };
   accelerator: string;
@@ -129,7 +129,6 @@ export function wireSummonHotkey(deps: {
         await showAndFocusFromSummon({ win: getCurrentWindow(), peek, bus });
       },
       summonInput: () => surfaces.summonInput(),
-      isInputOpen: () => surfaces.isInputOpen(),
       ...(deps.onRegisterFailed ? { onRegisterFailed: deps.onRegisterFailed } : {}),
     });
     if (disposed) return void summonHotkey.dispose();

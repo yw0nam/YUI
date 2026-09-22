@@ -50,7 +50,7 @@ export function wirePetControls(deps: {
   stopTurn: () => void;
   voiceInputStatus: VoiceInputStatus;
   screenSourceProvider: ScreenSourceProvider;
-  surfaces: Pick<Surfaces, "isInputOpen" | "summonInput">;
+  surfaces: Pick<Surfaces, "summonInput">;
   remoteSurfaces: Pick<RemoteSurfaces, "onOpenSettings">;
   openSettings: () => void;
   openDevtools: () => void;
@@ -227,9 +227,7 @@ export function wirePetControls(deps: {
         }
       },
       onPopOut: () => openSettings(),
-      onMessage: () => {
-        if (!surfaces.isInputOpen()) surfaces.summonInput();
-      },
+      onMessage: () => surfaces.summonInput(),
     });
   // DOM surfaces re-mounted on locale change (see i18n subscriber below). Held in
   // let bindings; onActivate arrows read the live binding, so recreating is safe.

@@ -11,7 +11,7 @@ import { subscribe as subscribeLocale, t } from "../i18n";
 import { downscaleToJpeg } from "./image-resize";
 
 interface TextInput {
-  /** Hotkey summon — slide up + focus. */
+  /** Hotkey summon — slide up + focus; a no-op while the input is already open. */
   summonInput(): void;
   /** Close the input. */
   dismissInput(): void;
@@ -98,6 +98,8 @@ export function createTextInput(
   }
 
   function summonInput(): void {
+    // Idempotent: a re-summon on an open input must not reset error/pending state or replay the reveal.
+    if (isInputOpen()) return;
     formEl.hidden = false;
     fitField();
     formEl.classList.remove("is-error", "is-pending");
