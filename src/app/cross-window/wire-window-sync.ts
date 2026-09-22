@@ -90,9 +90,9 @@ export function wireGuardrailsOverrides(deps: {
 
 /**
  * The four-part cross-window sync every window runs: the localStorage-`storage`-event fallback, the
- * bridge, the loop-guarded debounced broadcast half, and the remote-change reload half. Window-specific
- * extras (the conversation stores every window passes, pet's mouth-preview/voice channels and VRM
- * hot-swap) layer on top through `extraReload`/`extraBroadcast` and `onRemoteChange`.
+ * bridge, the loop-guarded debounced broadcast half, and the remote-change reload half. Extras beyond
+ * the settings bag (the conversation stores, pet's mouth-preview/voice channels and VRM hot-swap)
+ * layer on top through `extraReload`/`extraBroadcast` and `onRemoteChange`.
  */
 export function wireWindowSync(deps: {
   stores: SettingsStores;
@@ -105,19 +105,19 @@ export function wireWindowSync(deps: {
 }): {
   bridge: SettingsBridge;
   broadcastSettings: () => void;
-  /** Reload every resync store + display language. */
+  /** Reload every store in the reload set + display language. */
   reload: () => void;
-  /** Registers extra work to run inside the remote-change loop guard, after the resync reload. */
+  /** Registers extra work to run inside the remote-change loop guard, after the reload-set reload. */
   onRemoteChange(cb: () => void): void;
   dispose(): void;
 } {
   const { stores, windowKind, extraReload, extraBroadcast, log } = deps;
   let disposed = false;
-  const resyncStores = [...reloadSyncStores(stores), ...(extraReload ?? [])];
+  const reloadStores = [...reloadSyncStores(stores), ...(extraReload ?? [])];
   const remoteHooks: Array<() => void> = [];
   const reload = (): void => {
     if (disposed) return;
-    for (const store of resyncStores) store.reloadFromStorage();
+    for (const store of reloadStores) store.reloadFromStorage();
     // Display language changed in the other window → i18n.subscribe remount callback redraws UI.
     reloadLocaleFromStorage();
   };
@@ -137,7 +137,7 @@ export function wireWindowSync(deps: {
     {
       reloadFromStorage: () =>
         runApplyingRemote(() => {
-          for (const store of resyncStores) store.reloadFromStorage();
+          for (const store of reloadStores) store.reloadFromStorage();
         }),
     },
   ]);

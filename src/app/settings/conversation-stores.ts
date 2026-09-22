@@ -9,12 +9,7 @@ import {
 } from "../../io/chat/session-diagnostics";
 import { createSessionStore, localStorageSessionStorage } from "../../io/chat/session-store";
 
-/**
- * Cross-window conversation state: the four io/chat stores every window shares, composed here
- * because they span the pet, settings, and devtools windows rather than one setting or feature.
- * Each window constructs its own localStorage-backed instances, so sync and disposal treat the
- * bag as one unit.
- */
+/** The four io/chat conversation stores every window constructs, syncs, and disposes as one bag. */
 export function createConversationStores() {
   const contextHistory = createContextHistory({
     storage: localStorageContextHistory(),
@@ -35,3 +30,14 @@ export function createConversationStores() {
 }
 
 export type ConversationStores = ReturnType<typeof createConversationStores>;
+
+/**
+ * Every store reloads on a remote change; only the transcript broadcasts its own edits, so the
+ * settings window's History tab updates as turns land in the pet window.
+ */
+export function conversationSyncStores(bag: ConversationStores): {
+  extraReload: ConversationStores[keyof ConversationStores][];
+  extraBroadcast: ConversationStores["chatHistoryStore"][];
+} {
+  return { extraReload: Object.values(bag), extraBroadcast: [bag.chatHistoryStore] };
+}

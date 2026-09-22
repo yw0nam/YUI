@@ -210,8 +210,8 @@ export type SyncedStore = {
   reloadFromStorage(): void;
 };
 
-/** Cross-window sync participation. "broadcast" implies everything "reload" does. */
-type SyncMode = "local" | "reload" | "broadcast";
+/** Cross-window sync participation: every non-local store reloads on a remote change, "broadcast" also emits its own edits. */
+type SyncMode = "local" | "broadcast";
 
 /** Exported so a test can assert totality against the store bag's actual keys. */
 export const SYNC_MODE: Record<keyof SettingsStores, SyncMode> = {

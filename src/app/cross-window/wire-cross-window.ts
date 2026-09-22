@@ -10,7 +10,7 @@ import type { SettingsStores } from "../../settings/settings-stores";
 import { isTauri } from "../../tauri-env";
 import type { VoiceInputStatus } from "../../ui/chips/voice-input-status";
 import type { Surfaces } from "../../ui/surfaces/surfaces";
-import type { ConversationStores } from "../settings/conversation-stores";
+import { type ConversationStores, conversationSyncStores } from "../settings/conversation-stores";
 import { wireWindowSync } from "./wire-window-sync";
 
 /**
@@ -36,8 +36,7 @@ export function wireCrossWindowSync(deps: {
   const core = wireWindowSync({
     stores,
     windowKind: "pet",
-    extraReload: Object.values(conversation),
-    extraBroadcast: [conversation.chatHistoryStore],
+    ...conversationSyncStores(conversation),
     log,
   });
   // Mouth preview (separate window → this window VRM): gain slider drag moves actual mouth.
@@ -79,17 +78,18 @@ export function wireSettingsWindowSync(deps: {
   dispose: () => void;
 } {
   const { stores, conversation, vrmSelection, speakerSelection, log } = deps;
+  const conversationSync = conversationSyncStores(conversation);
   const { bridge, broadcastSettings, reload, dispose } = wireWindowSync({
     stores,
     windowKind: "settings",
-    extraReload: [...Object.values(conversation), vrmSelection, speakerSelection],
-    extraBroadcast: [conversation.chatHistoryStore],
+    extraReload: [...conversationSync.extraReload, vrmSelection, speakerSelection],
+    extraBroadcast: conversationSync.extraBroadcast,
     log,
   });
   return { bridge, broadcastSettings, reload, dispose };
 }
 
-/** Devtools-window cross-window sync — the shared core with no window-specific extras. */
+/** Devtools-window cross-window sync — the shared core plus the conversation-store extras. */
 export function wireDevtoolsSync(deps: {
   stores: SettingsStores;
   conversation: ConversationStores;
@@ -101,8 +101,7 @@ export function wireDevtoolsSync(deps: {
   const { reload, dispose } = wireWindowSync({
     stores: deps.stores,
     windowKind: "devtools",
-    extraReload: Object.values(deps.conversation),
-    extraBroadcast: [deps.conversation.chatHistoryStore],
+    ...conversationSyncStores(deps.conversation),
     log: deps.log,
   });
   return { reload, dispose };

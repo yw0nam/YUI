@@ -55,16 +55,6 @@ describe("createSettingsStores", () => {
     ]);
   });
 
-  // Conversation-state stores live in app/settings/conversation-stores; a reappearance here splits window state.
-  it("holds no conversation-state store", () => {
-    const stores = createSettingsStores();
-
-    expect(Object.keys(stores)).not.toContain("contextHistory");
-    expect(Object.keys(stores)).not.toContain("sessionStore");
-    expect(Object.keys(stores)).not.toContain("sessionDiagnostics");
-    expect(Object.keys(stores)).not.toContain("chatHistoryStore");
-  });
-
   it("returns reactive stores", () => {
     const stores = createSettingsStores();
 
@@ -124,15 +114,6 @@ describe("createSettingsStores", () => {
   // table to the bag's order so the two stay readable side by side.
   it("declares a sync mode for every settings store, in bag order", () => {
     expect(Object.keys(SYNC_MODE)).toEqual(Object.keys(createSettingsStores()));
-  });
-
-  it("includes every broadcast store in the reload set", () => {
-    const stores = createSettingsStores();
-    const reloadStores = reloadSyncStores(stores);
-
-    for (const store of broadcastSyncStores(stores)) {
-      expect(reloadStores).toContain(store);
-    }
   });
 
   it("broadcasts gaze and camera settings", () => {

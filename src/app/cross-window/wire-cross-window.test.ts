@@ -208,6 +208,31 @@ describe("wireSettingsWindowSync", () => {
     for (const store of Object.values(deps.conversation)) store.dispose();
   };
 
+  it("subscribes the settings broadcast set plus only the conversation chat history", () => {
+    const deps = makeDeps();
+    const allStores = [
+      ...Object.values(deps.stores),
+      ...Object.values(deps.conversation),
+    ] as SyncedStore[];
+    const subscribeSpies = allStores.map((store) => vi.spyOn(store, "subscribe"));
+
+    const sync = wireSettingsWindowSync(deps);
+
+    const subscribedStores = new Set(
+      allStores.filter((_store, index) => subscribeSpies[index]!.mock.calls.length > 0),
+    );
+    const expectedStores = new Set([
+      ...broadcastSyncStores(deps.stores),
+      deps.conversation.chatHistoryStore,
+    ]);
+    expect(subscribedStores.size).toBe(expectedStores.size);
+    expect(subscribedStores).toEqual(expectedStores);
+
+    sync.dispose();
+    for (const spy of subscribeSpies) spy.mockRestore();
+    teardown(deps);
+  });
+
   it("resyncs the vrm and speaker selections alongside the reload set", () => {
     const deps = makeDeps();
     const allStores = [
