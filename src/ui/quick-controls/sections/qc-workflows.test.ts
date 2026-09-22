@@ -1,12 +1,12 @@
 // @vitest-environment jsdom
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import type { Logger } from "../../../logger";
 import {
   createWorkflowSettings,
   type WorkflowSettings,
   type WorkflowStorage,
-} from "../../../io/settings/workflow-settings";
-import type { Logger } from "../../../logger";
+} from "../../../settings/backend/workflow-settings";
 import { setLocale } from "../../i18n";
 import { createWorkflowsSection } from "./workflows-section";
 

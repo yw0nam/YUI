@@ -10,7 +10,7 @@
  */
 
 import type { RemoteSurfaces } from "../../io/bridge/message-remote";
-import type { MessageWindowMode } from "../../io/settings/message-window-settings";
+import type { MessageWindowMode } from "../../settings/panels/message-window-settings";
 import type { Surfaces } from "./surfaces";
 
 interface SurfacesRouterOptions {

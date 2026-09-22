@@ -1,10 +1,10 @@
 /** Wiring bound to the stage element and the renderer's view of it. */
 
 import type { HitTestKnobs } from "../../config/load";
-import type { FlagSettingsStore } from "../../io/settings/persisted-store";
 import { createCursorTracker } from "../../io/window/pet/cursor-tracker";
 import { createHitTestController, type HitTestController } from "../../io/window/pet/hit-test";
 import type { Renderer } from "../../renderer";
+import type { FlagSettingsStore } from "../../settings/persisted-store";
 import type { createQuickControls } from "../../ui/quick-controls/quick-controls";
 
 /**

@@ -7,7 +7,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createChatHistoryStore } from "../../io/chat/chat-history-store";
 import { createSessionDiagnosticsStore } from "../../io/chat/session-diagnostics";
 import { createSessionStore } from "../../io/chat/session-store";
-import { createFlagSettings } from "../../io/settings/persisted-store";
+import { createFlagSettings } from "../../settings/persisted-store";
 import { setLocale } from "../i18n";
 import { createQuickControls } from "./quick-controls";
 import { defaultQcArgs } from "./test-helpers";

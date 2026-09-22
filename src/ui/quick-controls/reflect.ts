@@ -6,31 +6,34 @@
 
 import type { DelegationItem, PushSocketState } from "../../io/chat/push-socket";
 import type { createSessionDiagnosticsStore } from "../../io/chat/session-diagnostics";
-import type { createAgentNotifySettings } from "../../io/settings/agent-notify-settings";
-import { type createAgentSettings, REASONING_EFFORTS } from "../../io/settings/agent-settings";
-import {
-  type createEndpointsSettings,
-  type EndpointOverrides,
-  isValidEndpointUrl,
-} from "../../io/settings/endpoints-settings";
-import type { createFillerSettings } from "../../io/settings/filler-settings";
-import type {
-  GuardrailsSettingsStore,
-  RateLimitOverrides,
-} from "../../io/settings/guardrails-settings";
 import {
   type createLipsyncSettings,
   LIPSYNC_GAIN_MAX,
   LIPSYNC_GAIN_MIN,
-} from "../../io/settings/lipsync-settings";
-import type { ClampedIntSettingsStore } from "../../io/settings/persisted-store";
-import type { ScreenKnobSettingsStore, ScreenOverrides } from "../../io/settings/screen-settings";
-import type { createScreenshotSettings } from "../../io/settings/screenshot-settings";
+} from "../../settings/avatar/lipsync-settings";
+import type { createAgentNotifySettings } from "../../settings/backend/agent-notify-settings";
+import { type createAgentSettings, REASONING_EFFORTS } from "../../settings/backend/agent-settings";
+import {
+  type createEndpointsSettings,
+  type EndpointOverrides,
+  isValidEndpointUrl,
+} from "../../settings/backend/endpoints-settings";
+import type {
+  GuardrailsSettingsStore,
+  RateLimitOverrides,
+} from "../../settings/backend/guardrails-settings";
+import type {
+  ScreenKnobSettingsStore,
+  ScreenOverrides,
+} from "../../settings/capture/screen-settings";
+import type { createScreenshotSettings } from "../../settings/capture/screenshot-settings";
+import type { ClampedIntSettingsStore } from "../../settings/persisted-store";
+import type { createFillerSettings } from "../../settings/voice/filler-settings";
 import {
   type createVadSettings,
   VAD_SILENCE_MAX,
   VAD_SILENCE_MIN,
-} from "../../io/settings/vad-settings";
+} from "../../settings/voice/vad-settings";
 import { renderDelegationRows } from "../chips/delegation-rows";
 import type { VoiceInputStatusSnapshot } from "../chips/voice-input-status";
 import { getLocale, t } from "../i18n";

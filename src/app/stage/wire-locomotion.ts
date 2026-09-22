@@ -13,12 +13,12 @@ import type { WindowRect } from "../../contract";
 import type { EventBus } from "../../dispatcher/core/event-bus";
 import type { Dispatcher } from "../../dispatcher/dispatcher";
 import type { createVrmSelection } from "../../io/assets/vrm-selection";
-import type { createAgentNotifySettings } from "../../io/settings/agent-notify-settings";
-import type { FlagSettingsStore } from "../../io/settings/persisted-store";
 import type { DescentEdge } from "../../io/window/geometry/screen-geometry";
 import type { HitTestController } from "../../io/window/pet/hit-test";
 import type { Logger } from "../../logger";
 import type { Renderer } from "../../renderer";
+import type { createAgentNotifySettings } from "../../settings/backend/agent-notify-settings";
+import type { FlagSettingsStore } from "../../settings/persisted-store";
 import { wireWindowSources } from "../turn/wire-sources";
 
 /** With the fall off, a perched stroll never steps off the ledge: nothing would catch her. */

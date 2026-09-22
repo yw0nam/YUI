@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { CAMERA_ORBIT_SENSITIVITY } from "../../io/settings/camera-settings";
+import { CAMERA_ORBIT_SENSITIVITY } from "../../settings/avatar/camera-settings";
 
 // initDrag is faked so each test can drive the callbacks wireStageGestures hands it and
 // assert the disposer it returns is registered.

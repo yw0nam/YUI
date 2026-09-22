@@ -4,7 +4,7 @@
  */
 
 import type { InputContext } from "../../../contract";
-import type { ScreenshotSettings } from "../../settings/screenshot-settings";
+import type { ScreenshotSettings } from "../../../settings/capture/screenshot-settings";
 
 export interface ScreenCapture {
   data_url: string;

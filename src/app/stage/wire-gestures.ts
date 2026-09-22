@@ -5,13 +5,13 @@ import type { SignalGroup } from "../../contract";
 import type { EventBus } from "../../dispatcher/core/event-bus";
 import { createDragHoldSource } from "../../dispatcher/sources/drag-hold-source";
 import { createTapSource, type TapSource } from "../../dispatcher/sources/tap-source";
-import {
-  CAMERA_ORBIT_SENSITIVITY,
-  type createCameraSettings,
-} from "../../io/settings/camera-settings";
 import { initDrag, type PatGesture } from "../../io/window/pet/drag";
 import type { HitTestController } from "../../io/window/pet/hit-test";
 import type { Renderer } from "../../renderer";
+import {
+  CAMERA_ORBIT_SENSITIVITY,
+  type createCameraSettings,
+} from "../../settings/avatar/camera-settings";
 import type { wireLocomotion } from "./wire-locomotion";
 
 /**

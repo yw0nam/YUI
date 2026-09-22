@@ -13,7 +13,7 @@
 
 import type { EndpointsConfig } from "../../contract";
 import { createLogger, type Logger } from "../../logger";
-import { isValidEndpointUrl } from "../settings/endpoints-settings";
+import { isValidEndpointUrl } from "../../settings/backend/endpoints-settings";
 import type { BrokerClient, BrokerPayload } from "./broker-client";
 
 interface BrokerOverrideReconcilerOptions {

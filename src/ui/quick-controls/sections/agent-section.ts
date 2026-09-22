@@ -3,8 +3,12 @@
  * instructions textarea. Same pattern as sibling sections: explicit deps + wired from shell.
  * reflect (store→DOM) handled by reflect layer; this module owns handlers, subscriptions, teardown only.
  */
-import { type createAgentSettings, REASONING_EFFORTS } from "../../../io/settings/agent-settings";
+
 import type { Logger } from "../../../logger";
+import {
+  type createAgentSettings,
+  REASONING_EFFORTS,
+} from "../../../settings/backend/agent-settings";
 import { type Locale, setLocale, t } from "../../i18n";
 import { handleSegmentKeydown } from "../seg-keyboard";
 

@@ -6,14 +6,14 @@
  */
 import "./endpoints-section.css";
 
-import type { ApiKeySettingsStore } from "../../../io/settings/api-key-settings";
-import type { ChatKeySettingsStore } from "../../../io/settings/chat-key-settings";
+import type { Logger } from "../../../logger";
+import type { ApiKeySettingsStore } from "../../../settings/backend/api-key-settings";
+import type { ChatKeySettingsStore } from "../../../settings/backend/chat-key-settings";
 import {
   type createEndpointsSettings,
   ENDPOINT_FIELD_SPECS,
   type EndpointOverrides,
-} from "../../../io/settings/endpoints-settings";
-import type { Logger } from "../../../logger";
+} from "../../../settings/backend/endpoints-settings";
 import { t } from "../../i18n";
 import {
   CHAT_APIS,

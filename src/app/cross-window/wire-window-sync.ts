@@ -5,17 +5,17 @@ import {
   type SettingsBridge,
   type WindowKind,
 } from "../../io/bridge/settings-bridge";
-import type { GuardrailsSettingsStore } from "../../io/settings/guardrails-settings";
+import type { createSpeakerSelection } from "../../io/voice/voices/speaker-selection";
+import { wireStorageSync } from "../../io/window/openers/settings-window";
+import type { Logger } from "../../logger";
+import type { VrmLoadResult } from "../../renderer";
+import type { GuardrailsSettingsStore } from "../../settings/backend/guardrails-settings";
 import {
   broadcastSyncStores,
   reloadSyncStores,
   type SettingsStores,
   type SyncedStore,
-} from "../../io/settings/settings-stores";
-import type { createSpeakerSelection } from "../../io/voice/voices/speaker-selection";
-import { wireStorageSync } from "../../io/window/openers/settings-window";
-import type { Logger } from "../../logger";
-import type { VrmLoadResult } from "../../renderer";
+} from "../../settings/settings-stores";
 import {
   reloadFromStorage as reloadLocaleFromStorage,
   subscribe as subscribeLocale,

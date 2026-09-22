@@ -2,15 +2,15 @@
 import { afterEach, beforeEach, describe, expect, it, type Mock, vi } from "vitest";
 import type { AvatarOption } from "../../config/load";
 import type { createVrmSelection } from "../../io/assets/vrm-selection";
-import { createAgentSettings, INSTRUCTIONS_MAX_LEN } from "../../io/settings/agent-settings";
-import { createEndpointsSettings } from "../../io/settings/endpoints-settings";
-import { createLipsyncSettings } from "../../io/settings/lipsync-settings";
-import { createProactiveSettings } from "../../io/settings/proactive-settings";
-import { createScheduleSettings } from "../../io/settings/schedule-settings";
 import type {
   createSpeakerSelection,
   SpeakerOption,
 } from "../../io/voice/voices/speaker-selection";
+import { createLipsyncSettings } from "../../settings/avatar/lipsync-settings";
+import { createAgentSettings, INSTRUCTIONS_MAX_LEN } from "../../settings/backend/agent-settings";
+import { createEndpointsSettings } from "../../settings/backend/endpoints-settings";
+import { createProactiveSettings } from "../../settings/cues/proactive-settings";
+import { createScheduleSettings } from "../../settings/cues/schedule-settings";
 import { setLocale } from "../i18n";
 import { createQuickControls } from "./quick-controls";
 import {

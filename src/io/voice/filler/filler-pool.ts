@@ -11,7 +11,7 @@
  */
 
 import type { FillerConfig, FillerPool } from "../../../config/load";
-import type { FillerSettings } from "../../settings/filler-settings";
+import type { FillerSettings } from "../../../settings/voice/filler-settings";
 import { createSentenceSegmenter } from "../tts/sentence-segmenter";
 import { createEmojiStripper } from "../tts/strip-emoji";
 

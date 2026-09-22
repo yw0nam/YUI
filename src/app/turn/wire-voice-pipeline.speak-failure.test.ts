@@ -34,8 +34,8 @@ vi.mock("../../io/chat/chat-client", () => ({ selectFetch: mocks.selectFetch }))
 
 import type { FillerPool } from "../../config/load";
 import { createTurnLog } from "../../dispatcher/turn/turn";
-import type { FillerSettings } from "../../io/settings/filler-settings";
 import { fillerPool as pool } from "../../io/voice/filler/filler-test-helpers";
+import type { FillerSettings } from "../../settings/voice/filler-settings";
 import type { Surfaces } from "../../ui/surfaces/surfaces";
 import { type VoicePipeline, wireVoicePipeline } from "./wire-voice-pipeline";
 

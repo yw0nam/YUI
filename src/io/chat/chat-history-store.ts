@@ -10,7 +10,7 @@ import {
   createPersistedStore,
   localStorageStore,
   type PersistedStorage,
-} from "../settings/persisted-store";
+} from "../../settings/persisted-store";
 
 export interface ChatHistoryEntry {
   role: "user" | "assistant";

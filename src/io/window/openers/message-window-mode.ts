@@ -3,11 +3,11 @@
  * stored mode, the dock request and the tray's show/hide of the character.
  */
 
-import type { RemoteSurfaces } from "../../bridge/message-remote";
 import type {
   MessageWindowMode,
   MessageWindowSettingsStore,
-} from "../../settings/message-window-settings";
+} from "../../../settings/panels/message-window-settings";
+import type { RemoteSurfaces } from "../../bridge/message-remote";
 
 interface MessageWindowModeDeps {
   store: MessageWindowSettingsStore;

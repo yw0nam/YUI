@@ -11,8 +11,8 @@
 
 import { describe, expect, it, vi } from "vitest";
 import { CHAT_API_KEY_SECRET, STT_API_KEY_SECRET, TTS_API_KEY_SECRET } from "../../config/load";
-import { createApiKeySettings } from "../settings/api-key-settings";
-import { createChatKeySettings } from "../settings/chat-key-settings";
+import { createApiKeySettings } from "../../settings/backend/api-key-settings";
+import { createChatKeySettings } from "../../settings/backend/chat-key-settings";
 import { createSettingsSecretProvider } from "./secret-provider";
 
 const store = () => createApiKeySettings({ storageKey: "test" });

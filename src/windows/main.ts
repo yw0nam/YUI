@@ -37,22 +37,6 @@ import { createReasoningStore } from "../io/bridge/reasoning-store";
 import { agentTriggerableMotionIds, type BrokerPayload } from "../io/chat/broker-client";
 import { createPushSocket, pushVocabularyOf } from "../io/chat/push-socket";
 import { createSettingsSecretProvider } from "../io/chat/secret-provider";
-import {
-  CAMERA_WHEEL_SENSITIVITY,
-  CAMERA_ZOOM_MAX,
-  CAMERA_ZOOM_MIN,
-} from "../io/settings/camera-settings";
-import { createChatIdSettings, localStorageChatIdStorage } from "../io/settings/chat-id-settings";
-import {
-  createDelegationChipSettings,
-  localStorageDelegationChipStorage,
-} from "../io/settings/delegation-chip-settings";
-import { endpointDefaultsFromConfig, mergeEndpoints } from "../io/settings/endpoints-settings";
-import { mergeGuardrails, rateLimitDefaultsFromConfig } from "../io/settings/guardrails-settings";
-import { enabledIdleVariants } from "../io/settings/idle-motion-settings";
-import type { MessageWindowMode } from "../io/settings/message-window-settings";
-import { screenDefaultsFromConfig } from "../io/settings/screen-settings";
-import { createSettingsStores } from "../io/settings/settings-stores";
 import { wireVoiceListAutoRefresh } from "../io/voice/voices/voice-list-refresh";
 import {
   resolveScreenCapturer,
@@ -69,6 +53,28 @@ import { excludeOwnOriginFromCorsFetch } from "../io/window/own-origin-fetch";
 import { createLogger, initLogger } from "../logger";
 import { createRenderer } from "../renderer";
 import { nextZoom } from "../renderer/geometry/camera-fit";
+import {
+  CAMERA_WHEEL_SENSITIVITY,
+  CAMERA_ZOOM_MAX,
+  CAMERA_ZOOM_MIN,
+} from "../settings/avatar/camera-settings";
+import { enabledIdleVariants } from "../settings/avatar/idle-motion-settings";
+import {
+  createChatIdSettings,
+  localStorageChatIdStorage,
+} from "../settings/backend/chat-id-settings";
+import { endpointDefaultsFromConfig, mergeEndpoints } from "../settings/backend/endpoints-settings";
+import {
+  mergeGuardrails,
+  rateLimitDefaultsFromConfig,
+} from "../settings/backend/guardrails-settings";
+import { screenDefaultsFromConfig } from "../settings/capture/screen-settings";
+import {
+  createDelegationChipSettings,
+  localStorageDelegationChipStorage,
+} from "../settings/panels/delegation-chip-settings";
+import type { MessageWindowMode } from "../settings/panels/message-window-settings";
+import { createSettingsStores } from "../settings/settings-stores";
 import { isTauri } from "../tauri-env";
 import { createCaptureIndicator } from "../ui/chips/capture-indicator";
 import { createDelegationChip } from "../ui/chips/delegation-chip";

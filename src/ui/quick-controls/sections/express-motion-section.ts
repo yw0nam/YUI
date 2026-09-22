@@ -1,10 +1,10 @@
 /** Express motion cluster — a category accordion curating the agent-selectable motion vocabulary. */
 import "./express-motion-section.css";
+import type { Logger } from "../../../logger";
 import {
   type ExpressMotionSettingsStore,
   enabledExpressMotions,
-} from "../../../io/settings/express-motion-settings";
-import type { Logger } from "../../../logger";
+} from "../../../settings/avatar/express-motion-settings";
 import { t } from "../../i18n";
 import { HIST_CHEVRON_SVG } from "../constants";
 

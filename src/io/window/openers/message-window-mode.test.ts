@@ -10,7 +10,7 @@ import { beforeEach, describe, expect, it, type Mock, vi } from "vitest";
 import {
   createMessageWindowSettings,
   type MessageWindowSettingsStore,
-} from "../../settings/message-window-settings";
+} from "../../../settings/panels/message-window-settings";
 import { wireMessageWindowMode } from "./message-window-mode";
 
 describe("wireMessageWindowMode", () => {

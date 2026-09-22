@@ -21,10 +21,6 @@ import { createWindowDropSource } from "../../dispatcher/sources/window-drop-sou
 import { type AvatarExecutor, createAvatarExecutor } from "../../io/bridge/inbox/avatar-executor";
 import { onAvatarRpc, respondAvatarRpc } from "../../io/bridge/inbox/avatar-rpc";
 import { appendRecord } from "../../io/chat/turn-record-log";
-import type { AgentNotifySettings } from "../../io/settings/agent-notify-settings";
-import type { ClampedIntSettingsStore } from "../../io/settings/persisted-store";
-import type { ProactiveSettings } from "../../io/settings/proactive-settings";
-import type { ScheduleSettings } from "../../io/settings/schedule-settings";
 import {
   attachKeepOnScreen,
   type KeepOnScreenHandle,
@@ -33,6 +29,10 @@ import { toScreenMonitor } from "../../io/window/geometry/screen-geometry";
 import { createWindowResizeSource } from "../../io/window/pet/window-resize-source";
 import type { Logger } from "../../logger";
 import type { Renderer } from "../../renderer";
+import type { AgentNotifySettings } from "../../settings/backend/agent-notify-settings";
+import type { ProactiveSettings } from "../../settings/cues/proactive-settings";
+import type { ScheduleSettings } from "../../settings/cues/schedule-settings";
+import type { ClampedIntSettingsStore } from "../../settings/persisted-store";
 import { isTauri } from "../../tauri-env";
 
 /**

@@ -11,48 +11,51 @@ import type { createChatHistoryStore } from "../../io/chat/chat-history-store";
 import type { DelegationItem, PushSocketState } from "../../io/chat/push-socket";
 import type { createSessionDiagnosticsStore } from "../../io/chat/session-diagnostics";
 import type { createSessionStore } from "../../io/chat/session-store";
-import type { createAgentNotifySettings } from "../../io/settings/agent-notify-settings";
-import type { createAgentSettings } from "../../io/settings/agent-settings";
-import type { ApiKeySettingsStore } from "../../io/settings/api-key-settings";
-import type { ChatKeySettingsStore } from "../../io/settings/chat-key-settings";
-import type {
-  createEndpointsSettings,
-  EndpointOverrides,
-} from "../../io/settings/endpoints-settings";
-import type { ExpressMotionSettingsStore } from "../../io/settings/express-motion-settings";
-import type { createFillerSettings } from "../../io/settings/filler-settings";
-import type {
-  GuardrailsSettingsStore,
-  RateLimitOverrides,
-} from "../../io/settings/guardrails-settings";
-import type {
-  IdleMotionSettingsStore,
-  IdleVariantPool,
-} from "../../io/settings/idle-motion-settings";
-import {
-  type createLipsyncSettings,
-  LIPSYNC_GAIN_MAX,
-  LIPSYNC_GAIN_MIN,
-} from "../../io/settings/lipsync-settings";
-import type { MessageWindowSettingsStore } from "../../io/settings/message-window-settings";
-import type { ClampedIntSettingsStore, FlagSettingsStore } from "../../io/settings/persisted-store";
-import type { createProactiveSettings } from "../../io/settings/proactive-settings";
-import type { createScheduleSettings } from "../../io/settings/schedule-settings";
-import type { ScreenKnobSettingsStore, ScreenOverrides } from "../../io/settings/screen-settings";
-import type { createScreenshotSettings } from "../../io/settings/screenshot-settings";
-import type { createSectionsSettings } from "../../io/settings/sections-settings";
-import {
-  type createVadSettings,
-  VAD_SILENCE_MAX,
-  VAD_SILENCE_MIN,
-} from "../../io/settings/vad-settings";
-import type { createWorkflowSettings } from "../../io/settings/workflow-settings";
 import type {
   createSpeakerSelection,
   SpeakerOption,
 } from "../../io/voice/voices/speaker-selection";
 import type { ScreenSourceProvider } from "../../io/window/capture/screen-source-provider";
 import { createLogger } from "../../logger";
+import type { ExpressMotionSettingsStore } from "../../settings/avatar/express-motion-settings";
+import type {
+  IdleMotionSettingsStore,
+  IdleVariantPool,
+} from "../../settings/avatar/idle-motion-settings";
+import {
+  type createLipsyncSettings,
+  LIPSYNC_GAIN_MAX,
+  LIPSYNC_GAIN_MIN,
+} from "../../settings/avatar/lipsync-settings";
+import type { createAgentNotifySettings } from "../../settings/backend/agent-notify-settings";
+import type { createAgentSettings } from "../../settings/backend/agent-settings";
+import type { ApiKeySettingsStore } from "../../settings/backend/api-key-settings";
+import type { ChatKeySettingsStore } from "../../settings/backend/chat-key-settings";
+import type {
+  createEndpointsSettings,
+  EndpointOverrides,
+} from "../../settings/backend/endpoints-settings";
+import type {
+  GuardrailsSettingsStore,
+  RateLimitOverrides,
+} from "../../settings/backend/guardrails-settings";
+import type { createWorkflowSettings } from "../../settings/backend/workflow-settings";
+import type {
+  ScreenKnobSettingsStore,
+  ScreenOverrides,
+} from "../../settings/capture/screen-settings";
+import type { createScreenshotSettings } from "../../settings/capture/screenshot-settings";
+import type { createProactiveSettings } from "../../settings/cues/proactive-settings";
+import type { createScheduleSettings } from "../../settings/cues/schedule-settings";
+import type { MessageWindowSettingsStore } from "../../settings/panels/message-window-settings";
+import type { createSectionsSettings } from "../../settings/panels/sections-settings";
+import type { ClampedIntSettingsStore, FlagSettingsStore } from "../../settings/persisted-store";
+import type { createFillerSettings } from "../../settings/voice/filler-settings";
+import {
+  type createVadSettings,
+  VAD_SILENCE_MAX,
+  VAD_SILENCE_MIN,
+} from "../../settings/voice/vad-settings";
 import { DELEGATION_REFRESH_MS } from "../chips/delegation-rows";
 import type { VoiceInputStatus } from "../chips/voice-input-status";
 import { t } from "../i18n";

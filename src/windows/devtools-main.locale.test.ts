@@ -9,12 +9,12 @@ const { wireDevtoolsSync, createConfigStore, initLogger, createLogger } = await 
 vi.mock("../app/cross-window/wire-cross-window", () => ({ wireDevtoolsSync }));
 vi.mock("../config/store", () => ({ createConfigStore }));
 vi.mock("../logger", () => ({ initLogger, createLogger }));
-vi.mock("../io/settings/settings-stores", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("../io/settings/settings-stores")>();
+vi.mock("../settings/settings-stores", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../settings/settings-stores")>();
   return { ...actual, createSettingsStores: vi.fn(actual.createSettingsStores) };
 });
 
-import { createSettingsStores } from "../io/settings/settings-stores";
+import { createSettingsStores } from "../settings/settings-stores";
 import { setLocale } from "../ui/i18n";
 import { resetDevtoolsMain } from "./devtools-main.test-helpers";
 

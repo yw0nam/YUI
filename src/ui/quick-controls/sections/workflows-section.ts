@@ -1,11 +1,11 @@
 import "./workflows-section.css";
 
+import type { Logger } from "../../../logger";
 import {
   type createWorkflowSettings,
   isValidWorkflowUrl,
   type WorkflowEntry,
-} from "../../../io/settings/workflow-settings";
-import type { Logger } from "../../../logger";
+} from "../../../settings/backend/workflow-settings";
 import { t } from "../../i18n";
 
 const PLAY_SVG = `<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M8 5.5v13l11-6.5-11-6.5z" fill="currentColor"/></svg>`;

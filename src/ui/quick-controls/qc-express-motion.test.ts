@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { createExpressMotionSettings } from "../../io/settings/express-motion-settings";
+import { createExpressMotionSettings } from "../../settings/avatar/express-motion-settings";
 import { setLocale } from "../i18n";
 import { createQuickControls } from "./quick-controls";
 import { defaultQcArgs } from "./test-helpers";

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { FillerConfig } from "../../../config/load";
-import type { FillerSettings } from "../../settings/filler-settings";
+import type { FillerSettings } from "../../../settings/voice/filler-settings";
 import { effectiveFillerPool, fillerSubmissions, phraseSentences } from "./filler-pool";
 import { fillerPool as pool } from "./filler-test-helpers";
 

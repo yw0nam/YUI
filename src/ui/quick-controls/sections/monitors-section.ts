@@ -5,12 +5,12 @@
 import "./monitors-section.css";
 
 import type { ScreenSource } from "../../../contract";
-import type { createScreenshotSettings } from "../../../io/settings/screenshot-settings";
 import type {
   MonitorInfo,
   ScreenSourceProvider,
 } from "../../../io/window/capture/screen-source-provider";
 import type { Logger } from "../../../logger";
+import type { createScreenshotSettings } from "../../../settings/capture/screenshot-settings";
 import { t } from "../../i18n";
 
 type ScreenshotSettingsStore = ReturnType<typeof createScreenshotSettings>;

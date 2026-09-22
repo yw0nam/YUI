@@ -17,12 +17,12 @@ import {
 } from "../../io/chat/broker-client";
 import { createBrokerOverrideReconciler } from "../../io/chat/broker-override-reconciler";
 import { selectFetch } from "../../io/chat/chat-client";
-import type { ExpressMotionSettings } from "../../io/settings/express-motion-settings";
-import type { SettingsStores } from "../../io/settings/settings-stores";
 import type { SttVad } from "../../io/voice/stt-vad";
 import type { SpeakerOption } from "../../io/voice/voices/speaker-selection";
 import type { Logger } from "../../logger";
 import type { Renderer } from "../../renderer";
+import type { ExpressMotionSettings } from "../../settings/avatar/express-motion-settings";
+import type { SettingsStores } from "../../settings/settings-stores";
 import { createVoiceErrorDwell } from "../../ui/chips/voice-error-dwell";
 import type { VoiceInputStatus } from "../../ui/chips/voice-input-status";
 import type { Surfaces } from "../../ui/surfaces/surfaces";

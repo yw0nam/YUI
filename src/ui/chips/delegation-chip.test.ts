@@ -17,7 +17,7 @@ import type { DelegationItem, PushSocketState } from "../../io/chat/push-socket"
 import {
   createDelegationChipSettings,
   localStorageDelegationChipStorage,
-} from "../../io/settings/delegation-chip-settings";
+} from "../../settings/panels/delegation-chip-settings";
 import { setLocale, t } from "../i18n";
 import { createDelegationChip } from "./delegation-chip";
 

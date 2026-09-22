@@ -11,7 +11,7 @@ import { createChatHistoryStore } from "../../io/chat/chat-history-store";
 import type { DelegationItem, PushSocketState } from "../../io/chat/push-socket";
 import { createSessionDiagnosticsStore } from "../../io/chat/session-diagnostics";
 import { createSessionStore } from "../../io/chat/session-store";
-import { createEndpointsSettings } from "../../io/settings/endpoints-settings";
+import { createEndpointsSettings } from "../../settings/backend/endpoints-settings";
 import { setLocale, t } from "../i18n";
 import { createQuickControls } from "./quick-controls";
 import { defaultQcArgs } from "./test-helpers";

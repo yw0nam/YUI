@@ -115,7 +115,7 @@ interface BackendCallerDeps extends PushCallDeps {
   /** usage (token occupancy) sink — called only when present. Diagnostic channel independent of ControlEnvelope. */
   onUsage?: (usage: Usage) => void;
   /** Current agent setting (reasoning effort + instructions override) snapshot. Reflected in request only when present. */
-  getAgentSettings?: () => import("../../io/settings/agent-settings").AgentSettings;
+  getAgentSettings?: () => import("../../settings/backend/agent-settings").AgentSettings;
   /** Client-declared tool registry, resolved per turn so vocabulary edits land on the next call. */
   clientTools?: () => ClientToolRegistry;
   /** The user typed or spoke, so the push turns still outstanding are stopped with the speech. */

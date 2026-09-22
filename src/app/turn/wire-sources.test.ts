@@ -45,7 +45,7 @@ vi.mock("../../dispatcher/sources/milestone-source", () => ({
   createMilestoneSource: vi.fn(makeSource("milestone")),
 }));
 
-import { createScreenKnobSettings, mergeScreen } from "../../io/settings/screen-settings";
+import { createScreenKnobSettings, mergeScreen } from "../../settings/capture/screen-settings";
 import { wireSummonHotkey } from "../stage/wire-summon";
 import { wireDispatcherSources, wireWindowSources } from "./wire-sources";
 

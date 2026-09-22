@@ -1,10 +1,11 @@
 /** Idle motion cluster — per-variant on/off switches for the ambient idle pool in the Character tab. */
+
+import type { Logger } from "../../../logger";
 import {
   enabledIdleVariants,
   type IdleMotionSettingsStore,
   type IdleVariantPool,
-} from "../../../io/settings/idle-motion-settings";
-import type { Logger } from "../../../logger";
+} from "../../../settings/avatar/idle-motion-settings";
 import { t } from "../../i18n";
 
 /** i18n key stem for a variant — "/motions/idle_01.vrma" → "idle_motion.idle_01". */

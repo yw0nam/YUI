@@ -1,9 +1,9 @@
-import type { createAgentNotifySettings } from "../../io/settings/agent-notify-settings";
-import type { createFillerSettings } from "../../io/settings/filler-settings";
-import type { MessageWindowSettingsStore } from "../../io/settings/message-window-settings";
-import type { FlagSettingsStore } from "../../io/settings/persisted-store";
-import type { ScreenKnobSettingsStore } from "../../io/settings/screen-settings";
-import type { createVadSettings } from "../../io/settings/vad-settings";
+import type { createAgentNotifySettings } from "../../settings/backend/agent-notify-settings";
+import type { ScreenKnobSettingsStore } from "../../settings/capture/screen-settings";
+import type { MessageWindowSettingsStore } from "../../settings/panels/message-window-settings";
+import type { FlagSettingsStore } from "../../settings/persisted-store";
+import type { createFillerSettings } from "../../settings/voice/filler-settings";
+import type { createVadSettings } from "../../settings/voice/vad-settings";
 import { isTauri } from "../../tauri-env";
 import { SCREEN_WATCH_SVG } from "./constants";
 

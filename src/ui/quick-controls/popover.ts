@@ -7,7 +7,7 @@
  * gain/audition/key-commit cleanup is delegated to the onClose callback.
  */
 
-import { localStorageStore } from "../../io/settings/persisted-store";
+import { localStorageStore } from "../../settings/persisted-store";
 
 const VIEWPORT_MARGIN = 12;
 const POS_KEY = "yui.quick.pos";

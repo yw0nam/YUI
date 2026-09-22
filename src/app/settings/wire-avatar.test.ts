@@ -44,8 +44,8 @@ vi.mock("../../io/assets/user-asset-import", async (importOriginal) => ({
 }));
 
 import type { EndpointsConfig } from "../../contract";
-import type { EndpointOverrides } from "../../io/settings/endpoints-settings";
 import { createVoiceListRefresh } from "../../io/voice/voices/voice-list-refresh";
+import type { EndpointOverrides } from "../../settings/backend/endpoints-settings";
 import { createEffectiveEndpoints, wireSpeakerSelection } from "./wire-avatar";
 
 const noopLog = { info: () => {}, warn: () => {}, error: () => {}, debug: () => {} } as never;

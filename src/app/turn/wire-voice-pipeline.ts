@@ -4,7 +4,6 @@ import type { TurnFailure } from "../../dispatcher/backend/backend-caller";
 import type { TurnLog } from "../../dispatcher/turn/turn";
 import type { TurnOutput } from "../../dispatcher/turn/turn-output";
 import { selectFetch } from "../../io/chat/chat-client";
-import type { FillerSettings } from "../../io/settings/filler-settings";
 import { createFillerAudioCache } from "../../io/voice/filler/filler-audio-cache";
 import {
   createFillerLoop,
@@ -24,6 +23,7 @@ import { type SpokenSplit, TTS_SKIP } from "../../io/voice/tts/tts-pipeline";
 import { createTtsProvider, type TtsSynthCallOptions } from "../../io/voice/tts/tts-synth";
 import type { SpeakerOption } from "../../io/voice/voices/speaker-selection";
 import type { Renderer } from "../../renderer";
+import type { FillerSettings } from "../../settings/voice/filler-settings";
 import type { VoiceInputStatus } from "../../ui/chips/voice-input-status";
 import type { Surfaces } from "../../ui/surfaces/surfaces";
 

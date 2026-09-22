@@ -8,7 +8,7 @@
  */
 
 import { describe, expect, it } from "vitest";
-import type { ScreenshotSettings } from "../../settings/screenshot-settings";
+import type { ScreenshotSettings } from "../../../settings/capture/screenshot-settings";
 import { buildScreenshotBlock, type ScreenCapture } from "./screenshot-context";
 
 const BASE_SOURCE = { kind: "monitor" as const, index: 0 };

@@ -176,34 +176,40 @@ YUI/
         sitter.ts                    # Sit-down and stand-up seat transitions
         clip-leg.ts                  # A window leg paced by an in-place clip
         wire.ts                      # Travel frame plus the walk, perch, fall, and climb ambient loops
-    io/                              # I/O layer: chat, voice, settings stores, window and OS seams
-      settings/
-        api-key-settings.ts            # Generic API-key override store behind the chat, STT, and TTS key settings
-        chat-key-settings.ts           # Chat API key override store
-        filler-settings.ts             # Filler phrase pools and behaviour flags
-        settings-stores.ts             # Constructs and synchronises the settings-store family
-        persisted-store.ts             # Shared bootstrap, notify, reload, and localStorage core for the settings stores
-        agent-settings.ts              # Reasoning effort and system-instructions override
-        agent-notify-settings.ts       # Agent-notification enabled flag and listener port
-        camera-settings.ts             # Camera zoom and orbit viewpoint
-        endpoints-settings.ts          # User-editable endpoint and model overrides
-        express-motion-settings.ts     # Curates the motion vocabulary the agent may choose from
-        guardrails-settings.ts         # User-editable guardrail rate-limit caps
-        idle-motion-settings.ts        # Selects which ambient idle variants may play
-        lipsync-settings.ts            # Lip-sync gain
-        message-window-settings.ts     # Message-window mode and last outer position
-        cue-list-settings.ts           # Shared on/off flag plus editable cue list behind the schedule and proactive stores
-        proactive-settings.ts          # Idle-gap proactive cue list and its on/off flag
-        proactive-seeds.ts             # Per-locale default proactive cues seeded on a first run
-        schedule-settings.ts           # Clock-time schedule cue list and its on/off flag
-        schedule-seeds.ts              # Per-locale default schedule cues seeded on a first run
-        screen-settings.ts             # User-editable screen-watch thresholds
-        screenshot-settings.ts         # Screenshot enabled state and source
-        sections-settings.ts           # Collapsed state of the Quick Controls sections
-        vad-settings.ts                # VAD silence window
-        workflow-settings.ts           # Workflow entry list and URL validation
-        chat-id-settings.ts            # Conversation id this installation sends in every push hello
-        delegation-chip-settings.ts    # Per-device fold state of the delegation chip
+    settings/                        # Persisted user settings, one store per setting, grouped by the part of the app they configure
+      persisted-store.ts             # Shared bootstrap, notify, reload, and localStorage core for the settings stores
+      settings-stores.ts             # Constructs and synchronises the settings-store family
+      backend/                       # What the backend connection uses
+        agent-settings.ts            # Reasoning effort and system-instructions override
+        agent-notify-settings.ts     # Agent-notification enabled flag and listener port
+        api-key-settings.ts          # Generic API-key override store behind the chat, STT, and TTS key settings
+        chat-id-settings.ts          # Conversation id this installation sends in every push hello
+        chat-key-settings.ts         # Chat API key override store
+        endpoints-settings.ts        # User-editable endpoint and model overrides
+        guardrails-settings.ts       # User-editable guardrail rate-limit caps
+        workflow-settings.ts         # Workflow entry list and URL validation
+      cues/                          # Proactive and schedule cue lists
+        cue-list-settings.ts         # Shared on/off flag plus editable cue list behind the schedule and proactive stores
+        proactive-settings.ts        # Idle-gap proactive cue list and its on/off flag
+        proactive-seeds.ts           # Per-locale default proactive cues seeded on a first run
+        schedule-settings.ts         # Clock-time schedule cue list and its on/off flag
+        schedule-seeds.ts            # Per-locale default schedule cues seeded on a first run
+      capture/                       # Screen watching and screenshots
+        screen-settings.ts           # User-editable screen-watch thresholds
+        screenshot-settings.ts       # Screenshot enabled state and source
+      avatar/                        # Camera, motion, and lip-sync
+        camera-settings.ts           # Camera zoom and orbit viewpoint
+        express-motion-settings.ts   # Curates the motion vocabulary the agent may choose from
+        idle-motion-settings.ts      # Selects which ambient idle variants may play
+        lipsync-settings.ts          # Lip-sync gain
+      voice/                         # Filler speech and voice activity detection
+        filler-settings.ts           # Filler phrase pools and behaviour flags
+        vad-settings.ts              # VAD silence window
+      panels/                        # Panel and window state
+        delegation-chip-settings.ts  # Per-device fold state of the delegation chip
+        message-window-settings.ts   # Message-window mode and last outer position
+        sections-settings.ts         # Collapsed state of the Quick Controls sections
+    io/                              # I/O layer: chat, voice, window and OS seams
       chat/
         chat-client.ts                 # Adapter over the openai SDK Responses stream
         chat-completions.ts            # Pure Chat Completions request builders and stream-chunk reducer

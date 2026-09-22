@@ -18,7 +18,7 @@ import { createLogger, type Logger } from "../../logger";
 import {
   type ExpressMotionSettings,
   enabledExpressMotions,
-} from "../settings/express-motion-settings";
+} from "../../settings/avatar/express-motion-settings";
 
 export interface BrokerVocab {
   emotion_ids: string[];

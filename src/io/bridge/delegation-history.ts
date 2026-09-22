@@ -4,12 +4,12 @@
  * section reads this one instead.
  */
 
-import type { DelegationItem } from "../chat/push-socket";
 import {
   createPersistedStore,
   localStorageStore,
   type PersistedStorage,
-} from "../settings/persisted-store";
+} from "../../settings/persisted-store";
+import type { DelegationItem } from "../chat/push-socket";
 import { sanitizeDelegation } from "./delegations-store";
 
 export const DELEGATION_HISTORY_MAX_ITEMS = 200;

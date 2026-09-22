@@ -1,8 +1,14 @@
 /** Quick-controls display constants shared by the entry panel + its sub-modules. */
-import type { ReasoningEffort } from "../../io/settings/agent-settings";
-import { ENDPOINT_FIELD_SPECS, type EndpointOverrides } from "../../io/settings/endpoints-settings";
-import type { RateLimitOverrides } from "../../io/settings/guardrails-settings";
-import { SCREEN_RECENT_CAP_MAX, type ScreenOverrides } from "../../io/settings/screen-settings";
+import type { ReasoningEffort } from "../../settings/backend/agent-settings";
+import {
+  ENDPOINT_FIELD_SPECS,
+  type EndpointOverrides,
+} from "../../settings/backend/endpoints-settings";
+import type { RateLimitOverrides } from "../../settings/backend/guardrails-settings";
+import {
+  SCREEN_RECENT_CAP_MAX,
+  type ScreenOverrides,
+} from "../../settings/capture/screen-settings";
 import type { Locale } from "../i18n";
 
 // Tab identity — the suffix of each tab button's `yui-tab-*` element id.

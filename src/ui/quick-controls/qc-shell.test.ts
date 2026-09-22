@@ -4,19 +4,19 @@ import type { AvatarOption } from "../../config/load";
 import type { createVrmSelection } from "../../io/assets/vrm-selection";
 import { createSessionDiagnosticsStore } from "../../io/chat/session-diagnostics";
 import { createSessionStore } from "../../io/chat/session-store";
-import { createAgentNotifySettings } from "../../io/settings/agent-notify-settings";
-import { createAgentSettings } from "../../io/settings/agent-settings";
-import { createChatKeySettings } from "../../io/settings/chat-key-settings";
-import { createEndpointsSettings } from "../../io/settings/endpoints-settings";
-import { createGuardrailsSettings } from "../../io/settings/guardrails-settings";
-import { createLipsyncSettings } from "../../io/settings/lipsync-settings";
-import { createProactiveSettings } from "../../io/settings/proactive-settings";
-import { createScheduleSettings } from "../../io/settings/schedule-settings";
-import { createPacerGapStore, createPresenceStore } from "../../io/settings/settings-stores";
 import type {
   createSpeakerSelection,
   SpeakerOption,
 } from "../../io/voice/voices/speaker-selection";
+import { createLipsyncSettings } from "../../settings/avatar/lipsync-settings";
+import { createAgentNotifySettings } from "../../settings/backend/agent-notify-settings";
+import { createAgentSettings } from "../../settings/backend/agent-settings";
+import { createChatKeySettings } from "../../settings/backend/chat-key-settings";
+import { createEndpointsSettings } from "../../settings/backend/endpoints-settings";
+import { createGuardrailsSettings } from "../../settings/backend/guardrails-settings";
+import { createProactiveSettings } from "../../settings/cues/proactive-settings";
+import { createScheduleSettings } from "../../settings/cues/schedule-settings";
+import { createPacerGapStore, createPresenceStore } from "../../settings/settings-stores";
 import { getLocale, subscribe as i18nSubscribe, LOCALE_DISPLAY_NAMES, setLocale } from "../i18n";
 import { createQuickControls } from "./quick-controls";
 import {

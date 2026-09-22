@@ -8,8 +8,8 @@
  */
 
 import { createLogger } from "../../../logger";
+import type { MessageWindowSettingsStore } from "../../../settings/panels/message-window-settings";
 import { isTauri } from "../../../tauri-env";
-import type { MessageWindowSettingsStore } from "../../settings/message-window-settings";
 import {
   clampToWorkArea,
   monitorAt,

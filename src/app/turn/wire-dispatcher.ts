@@ -19,10 +19,10 @@ import type { BrokerPayload } from "../../io/chat/broker-client";
 import { createClientToolRegistry, createGenerateExpressTool } from "../../io/chat/client-tools";
 import type { PushSocket } from "../../io/chat/push-socket";
 import type { PacerSkipRecord, TurnRecord } from "../../io/chat/turn-record-log";
-import type { SettingsStores } from "../../io/settings/settings-stores";
 import type { ScreenCapturer } from "../../io/window/capture/screen-source-provider";
 import { buildScreenshotBlock } from "../../io/window/capture/screenshot-context";
 import type { Renderer } from "../../renderer";
+import type { SettingsStores } from "../../settings/settings-stores";
 import { showChainResetNotice } from "../../ui/notices/chain-reset-notice";
 import {
   routeTurnFailure,

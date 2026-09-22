@@ -11,9 +11,9 @@
  */
 
 import { describe, expect, it, vi } from "vitest";
-import type { PersistedStorage } from "../../io/settings/persisted-store";
-import type { ScheduledCue } from "../../io/settings/schedule-settings";
 import type { OsEventListen, OsEventPayload } from "../../io/window/tauri-listen";
+import type { ScheduledCue } from "../../settings/cues/schedule-settings";
+import type { PersistedStorage } from "../../settings/persisted-store";
 import type { BusEnvelope, EventBus } from "../core/event-bus";
 import { createScheduleSource, GRACE_MINUTES } from "./schedule-source";
 

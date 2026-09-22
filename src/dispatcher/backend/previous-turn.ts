@@ -7,12 +7,12 @@
  */
 
 import type { PreviousTurn, TurnEnded } from "../../contract";
+import type { SpokenSplit } from "../../io/voice/tts/tts-pipeline";
 import {
   isPlainObject,
   localStorageStore,
   type PersistedStorage,
-} from "../../io/settings/persisted-store";
-import type { SpokenSplit } from "../../io/voice/tts/tts-pipeline";
+} from "../../settings/persisted-store";
 import type { Turn } from "../turn/turn";
 import type { TurnFailure } from "./backend-caller";
 

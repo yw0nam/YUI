@@ -11,8 +11,8 @@
  */
 
 import { describe, expect, it, vi } from "vitest";
-import type { ProactiveCue } from "../../io/settings/proactive-settings";
 import type { OsEventListen, OsEventPayload } from "../../io/window/tauri-listen";
+import type { ProactiveCue } from "../../settings/cues/proactive-settings";
 import type { BusEnvelope, EventBus } from "../core/event-bus";
 import { createProactiveSource } from "./proactive-source";
 

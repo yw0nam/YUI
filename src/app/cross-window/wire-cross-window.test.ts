@@ -51,7 +51,7 @@ import {
   createSettingsStores,
   reloadSyncStores,
   type SyncedStore,
-} from "../../io/settings/settings-stores";
+} from "../../settings/settings-stores";
 import { createVoiceInputStatus } from "../../ui/chips/voice-input-status";
 import { reloadFromStorage as reloadLocaleFromStorage } from "../../ui/i18n";
 import {

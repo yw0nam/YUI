@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { createEndpointsSettings } from "../../io/settings/endpoints-settings";
+import { createEndpointsSettings } from "../../settings/backend/endpoints-settings";
 import { setLocale } from "../i18n";
 import { createAdvancedSettings } from "./advanced-settings";
 

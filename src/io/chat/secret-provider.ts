@@ -8,7 +8,7 @@
  */
 
 import type { SecretProvider } from "../../config/load";
-import type { ApiKeySettingsStore } from "../settings/api-key-settings";
+import type { ApiKeySettingsStore } from "../../settings/backend/api-key-settings";
 
 interface SettingsSecretProviderOptions {
   /** secret name → runtime override store. No override if apiKey is empty. */

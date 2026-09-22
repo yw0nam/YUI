@@ -35,7 +35,10 @@ vi.mock("../../io/window/openers/settings-window", () => ({ wireStorageSync }));
 import type { GuardrailsConfig } from "../../config/load";
 import { createGuardrails } from "../../dispatcher/core/guardrails";
 import type { BridgeTransport } from "../../io/bridge/settings-bridge";
-import { createGuardrailsSettings, mergeGuardrails } from "../../io/settings/guardrails-settings";
+import {
+  createGuardrailsSettings,
+  mergeGuardrails,
+} from "../../settings/backend/guardrails-settings";
 import { reloadFromStorage as reloadLocaleFromStorage } from "../../ui/i18n";
 import {
   createSettingsBroadcast,

@@ -3,12 +3,12 @@
  * Same pattern as sibling sections: explicit deps + wired from shell. reflect (store→DOM) handled by reflect layer;
  * this module owns inputs, handlers, subscriptions, teardown only.
  */
-import type { createAgentNotifySettings } from "../../../io/settings/agent-notify-settings";
+import type { createAgentNotifySettings } from "../../../settings/backend/agent-notify-settings";
 import type {
   GuardrailsSettingsStore,
   RateLimitOverrides,
-} from "../../../io/settings/guardrails-settings";
-import type { ClampedIntSettingsStore } from "../../../io/settings/persisted-store";
+} from "../../../settings/backend/guardrails-settings";
+import type { ClampedIntSettingsStore } from "../../../settings/persisted-store";
 import { RATE_LIMIT_FIELDS } from "../constants";
 
 type AgentNotifySettingsStore = ReturnType<typeof createAgentNotifySettings>;

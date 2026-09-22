@@ -13,7 +13,7 @@ import { guardrailsFixture } from "../../config/load-test-helpers";
 import { createMessageBridge } from "../../io/bridge/message-bridge";
 import { createRemoteSurfaces, type RemoteSurfaces } from "../../io/bridge/message-remote";
 import type { BridgeTransport } from "../../io/bridge/settings-bridge";
-import type { MessageWindowMode } from "../../io/settings/message-window-settings";
+import type { MessageWindowMode } from "../../settings/panels/message-window-settings";
 import { createMessagePlate } from "../message/message-plate";
 import { createSurfaces, type Surfaces } from "./surfaces";
 import { createSurfacesRouter } from "./surfaces-router";

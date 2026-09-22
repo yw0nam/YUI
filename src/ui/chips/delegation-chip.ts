@@ -11,7 +11,7 @@
 
 import "./delegation-chip.css";
 import type { DelegationItem, PushSocketState } from "../../io/chat/push-socket";
-import type { DelegationChipSettingsStore } from "../../io/settings/delegation-chip-settings";
+import type { DelegationChipSettingsStore } from "../../settings/panels/delegation-chip-settings";
 import { subscribe as subscribeLocale, t } from "../i18n";
 import { afterFadeOut } from "../notices/fade-out";
 import { DELEGATION_REFRESH_MS, renderDelegationRows } from "./delegation-rows";

@@ -12,14 +12,14 @@
  */
 
 import type { SignalGroup } from "../../contract";
+import type { OsEventListen, OsEventPayload } from "../../io/window/tauri-listen";
+import { subscribeOsEvent } from "../../io/window/tauri-listen";
+import { createLogger } from "../../logger";
 import {
   isPlainObject,
   localStorageStore,
   type PersistedStorage,
-} from "../../io/settings/persisted-store";
-import type { OsEventListen, OsEventPayload } from "../../io/window/tauri-listen";
-import { subscribeOsEvent } from "../../io/window/tauri-listen";
-import { createLogger } from "../../logger";
+} from "../../settings/persisted-store";
 import type { BusEnvelope, EventBus } from "../core/event-bus";
 
 const log = createLogger("milestone-source");

@@ -2,19 +2,19 @@
 import { afterEach, beforeEach, describe, expect, it, type Mock, vi } from "vitest";
 import type { AvatarOption } from "../../config/load";
 import type { createVrmSelection } from "../../io/assets/vrm-selection";
-import { createAgentNotifySettings } from "../../io/settings/agent-notify-settings";
-import { createAgentSettings } from "../../io/settings/agent-settings";
-import { createEndpointsSettings } from "../../io/settings/endpoints-settings";
-import { createLipsyncSettings } from "../../io/settings/lipsync-settings";
-import { createMessageWindowSettings } from "../../io/settings/message-window-settings";
-import { createFlagSettings } from "../../io/settings/persisted-store";
-import { createProactiveSettings } from "../../io/settings/proactive-settings";
-import { createScheduleSettings } from "../../io/settings/schedule-settings";
-import { createVadSettings, VAD_SILENCE_DEFAULT } from "../../io/settings/vad-settings";
 import type {
   createSpeakerSelection,
   SpeakerOption,
 } from "../../io/voice/voices/speaker-selection";
+import { createLipsyncSettings } from "../../settings/avatar/lipsync-settings";
+import { createAgentNotifySettings } from "../../settings/backend/agent-notify-settings";
+import { createAgentSettings } from "../../settings/backend/agent-settings";
+import { createEndpointsSettings } from "../../settings/backend/endpoints-settings";
+import { createProactiveSettings } from "../../settings/cues/proactive-settings";
+import { createScheduleSettings } from "../../settings/cues/schedule-settings";
+import { createMessageWindowSettings } from "../../settings/panels/message-window-settings";
+import { createFlagSettings } from "../../settings/persisted-store";
+import { createVadSettings, VAD_SILENCE_DEFAULT } from "../../settings/voice/vad-settings";
 import { setLocale, t } from "../i18n";
 import { createQuickControls, PREVIEW_PEAK_RMS } from "./quick-controls";
 import {

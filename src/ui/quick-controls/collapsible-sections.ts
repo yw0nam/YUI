@@ -3,7 +3,7 @@
  * (open/closed state baked into the markup by template.ts before first paint) to the sections
  * store: a user toggle persists, and a remote change (other window) reflects back into the DOM.
  */
-import type { createSectionsSettings } from "../../io/settings/sections-settings";
+import type { createSectionsSettings } from "../../settings/panels/sections-settings";
 
 type SectionsSettingsStore = ReturnType<typeof createSectionsSettings>;
 

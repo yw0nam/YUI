@@ -3,8 +3,9 @@
  * Same pattern as sibling sections: explicit deps + wired from shell. reflect (store→DOM) handled by reflect layer;
  * this module owns inputs, handlers, subscriptions, teardown only.
  */
-import type { FlagSettingsStore } from "../../../io/settings/persisted-store";
-import type { ScreenKnobSettingsStore } from "../../../io/settings/screen-settings";
+
+import type { ScreenKnobSettingsStore } from "../../../settings/capture/screen-settings";
+import type { FlagSettingsStore } from "../../../settings/persisted-store";
 import { t } from "../../i18n";
 import {
   SCREEN_KNOB_FIELDS,

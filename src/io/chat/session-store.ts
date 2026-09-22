@@ -5,7 +5,7 @@
  * subscribers only on change.
  */
 
-import { createPersistedStore, type PersistedStorage } from "../settings/persisted-store";
+import { createPersistedStore, type PersistedStorage } from "../../settings/persisted-store";
 
 export interface SessionStorage {
   load(): string | null;

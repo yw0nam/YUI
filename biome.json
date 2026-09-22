@@ -196,6 +196,37 @@
       }
     },
     {
+      "includes": ["src/settings/**"],
+      "linter": {
+        "rules": {
+          "style": {
+            "noRestrictedImports": {
+              "level": "error",
+              "options": {
+                "patterns": [
+                  {
+                    "group": [
+                      "**/dispatcher",
+                      "**/dispatcher/**",
+                      "**/ambient",
+                      "**/ambient/**",
+                      "**/ui",
+                      "**/ui/**",
+                      "**/app",
+                      "**/app/**",
+                      "**/windows",
+                      "**/windows/**"
+                    ],
+                    "message": "A layer imports only from the layers to its left (AGENTS.md, Engineering principles)."
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    {
       "includes": ["src/dispatcher/**"],
       "linter": {
         "rules": {

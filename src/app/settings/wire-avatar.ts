@@ -11,9 +11,6 @@ import {
   localStorageVrmStorage,
 } from "../../io/assets/vrm-selection";
 import { selectFetch } from "../../io/chat/chat-client";
-import { type EndpointOverrides, mergeEndpoints } from "../../io/settings/endpoints-settings";
-import { enabledIdleVariants } from "../../io/settings/idle-motion-settings";
-import type { SettingsStores } from "../../io/settings/settings-stores";
 import {
   createSpeakerSelection,
   localStorageSpeakerStorage,
@@ -27,6 +24,9 @@ import { createVoiceImportFlow } from "../../io/voice/voices/voice-import-flow";
 import { createVoiceListRefresh } from "../../io/voice/voices/voice-list-refresh";
 import type { Logger } from "../../logger";
 import type { Renderer, VrmLoadResult } from "../../renderer";
+import { enabledIdleVariants } from "../../settings/avatar/idle-motion-settings";
+import { type EndpointOverrides, mergeEndpoints } from "../../settings/backend/endpoints-settings";
+import type { SettingsStores } from "../../settings/settings-stores";
 
 export function wireVrmSelection(deps: {
   renderer: Renderer;
