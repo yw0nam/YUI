@@ -10,6 +10,7 @@ import type { SettingsStores } from "../../settings/settings-stores";
 import { isTauri } from "../../tauri-env";
 import type { VoiceInputStatus } from "../../ui/chips/voice-input-status";
 import type { Surfaces } from "../../ui/surfaces/surfaces";
+import type { ConversationStores } from "../settings/conversation-stores";
 import { wireWindowSync } from "./wire-window-sync";
 
 /**
@@ -22,6 +23,7 @@ export function wireCrossWindowSync(deps: {
   renderer: Pick<Renderer, "setMouthOpen" | "stopMouth">;
   voiceInputStatus: VoiceInputStatus;
   stores: SettingsStores;
+  conversation: ConversationStores;
   log: Logger;
 }): {
   broadcastSettings: () => void;
@@ -30,8 +32,14 @@ export function wireCrossWindowSync(deps: {
   bridge: SettingsBridge;
   dispose: () => void;
 } {
-  const { renderer, voiceInputStatus, stores, log } = deps;
-  const core = wireWindowSync({ stores, windowKind: "pet", log });
+  const { renderer, voiceInputStatus, stores, conversation, log } = deps;
+  const core = wireWindowSync({
+    stores,
+    windowKind: "pet",
+    extraReload: Object.values(conversation),
+    extraBroadcast: [conversation.chatHistoryStore],
+    log,
+  });
   // Mouth preview (separate window → this window VRM): gain slider drag moves actual mouth.
   core.bridge.onMouthPreview((mouthOpen) => {
     if (mouthOpen == null) renderer.stopMouth();
@@ -60,6 +68,7 @@ export function wireCrossWindowSync(deps: {
  */
 export function wireSettingsWindowSync(deps: {
   stores: SettingsStores;
+  conversation: ConversationStores;
   vrmSelection: { reloadFromStorage(): void };
   speakerSelection: { reloadFromStorage(): void };
   log: Logger;
@@ -69,24 +78,31 @@ export function wireSettingsWindowSync(deps: {
   reload: () => void;
   dispose: () => void;
 } {
-  const { stores, vrmSelection, speakerSelection, log } = deps;
+  const { stores, conversation, vrmSelection, speakerSelection, log } = deps;
   const { bridge, broadcastSettings, reload, dispose } = wireWindowSync({
     stores,
     windowKind: "settings",
-    extraResync: [vrmSelection, speakerSelection],
+    extraReload: [...Object.values(conversation), vrmSelection, speakerSelection],
+    extraBroadcast: [conversation.chatHistoryStore],
     log,
   });
   return { bridge, broadcastSettings, reload, dispose };
 }
 
 /** Devtools-window cross-window sync — the shared core with no window-specific extras. */
-export function wireDevtoolsSync(deps: { stores: SettingsStores; log: Logger }): {
+export function wireDevtoolsSync(deps: {
+  stores: SettingsStores;
+  conversation: ConversationStores;
+  log: Logger;
+}): {
   reload: () => void;
   dispose: () => void;
 } {
   const { reload, dispose } = wireWindowSync({
     stores: deps.stores,
     windowKind: "devtools",
+    extraReload: Object.values(deps.conversation),
+    extraBroadcast: [deps.conversation.chatHistoryStore],
     log: deps.log,
   });
   return { reload, dispose };

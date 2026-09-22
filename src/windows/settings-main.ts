@@ -8,6 +8,7 @@
 
 import "../styles.css";
 import { wireSettingsWindowSync } from "../app/cross-window/wire-cross-window";
+import { createConversationStores } from "../app/settings/conversation-stores";
 import { createEffectiveEndpoints, wireSpeakerSelection } from "../app/settings/wire-avatar";
 import { wireCueLocaleSync } from "../app/settings/wire-cue-locale-sync";
 import { TTS_API_KEY_SECRET } from "../config/load";
@@ -47,6 +48,7 @@ async function bootstrap(): Promise<void> {
   }
 
   const settingsStores = createSettingsStores({ locale: getLocale() });
+  const conversationStores = createConversationStores();
   const {
     screenshotSettings,
     idleThrottleSettings,
@@ -74,14 +76,13 @@ async function bootstrap(): Promise<void> {
     gazeSettings,
     climbSettings,
     fallSettings,
-    sessionStore,
-    sessionDiagnostics,
-    chatHistoryStore,
     bubblePersistSettings,
     messageWindowSettings,
     idleMotionSettings,
     expressMotionSettings,
   } = settingsStores;
+  // Quick Controls' session reset and History tab read the same instances the sync reloads.
+  const { sessionStore, sessionDiagnostics, chatHistoryStore } = conversationStores;
   const voiceInputStatus = createVoiceInputStatus();
   const sourceProvider = resolveScreenSourceProvider();
 
@@ -172,6 +173,7 @@ async function bootstrap(): Promise<void> {
     dispose: disposeSync,
   } = wireSettingsWindowSync({
     stores: settingsStores,
+    conversation: conversationStores,
     vrmSelection,
     speakerSelection,
     log,
@@ -362,6 +364,7 @@ async function bootstrap(): Promise<void> {
     disposeSync();
     window.removeEventListener("focus", onWindowFocus);
     for (const store of Object.values(settingsStores)) store.dispose();
+    for (const store of Object.values(conversationStores)) store.dispose();
     vrmSelection.dispose();
     speakerSelection.dispose();
     voiceInputStatus.dispose();

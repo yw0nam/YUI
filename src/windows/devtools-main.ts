@@ -2,6 +2,7 @@ import "../styles.css";
 import "../ui/quick-controls/quick-controls.css";
 import "../ui/devtools/devtools.css";
 import { wireDevtoolsSync } from "../app/cross-window/wire-cross-window";
+import { createConversationStores } from "../app/settings/conversation-stores";
 import { createConfigStore } from "../config/store";
 import { excludeOwnOriginFromCorsFetch } from "../io/window/own-origin-fetch";
 import { createLogger, initLogger } from "../logger";
@@ -69,7 +70,9 @@ async function bootstrap(): Promise<void> {
   if (!mount) throw new Error("#app mount point not found");
 
   const settingsStores = createSettingsStores({ locale: getLocale() });
-  const { contextHistory, endpointsSettings } = settingsStores;
+  const conversationStores = createConversationStores();
+  const { contextHistory } = conversationStores;
+  const { endpointsSettings } = settingsStores;
   const config = createConfigStore();
   let defaultContextWindow: number | undefined;
   try {
@@ -107,7 +110,11 @@ async function bootstrap(): Promise<void> {
       })
       .catch((error) => log.error("locale_rebuild_failed", { error: String(error) }));
   });
-  const { reload, dispose: disposeSync } = wireDevtoolsSync({ stores: settingsStores, log });
+  const { reload, dispose: disposeSync } = wireDevtoolsSync({
+    stores: settingsStores,
+    conversation: conversationStores,
+    log,
+  });
   window.addEventListener("focus", reload);
   window.addEventListener("beforeunload", () => {
     // Keeps the bridge alive until disposeSync flushes any pending broadcast.
@@ -116,6 +123,7 @@ async function bootstrap(): Promise<void> {
     window.removeEventListener("focus", reload);
     unsubscribeLocale();
     for (const store of Object.values(settingsStores)) store.dispose();
+    for (const store of Object.values(conversationStores)) store.dispose();
   });
 }
 

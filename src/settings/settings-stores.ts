@@ -1,13 +1,3 @@
-import {
-  createChatHistoryStore,
-  localStorageChatHistoryStorage,
-} from "../io/chat/chat-history-store";
-import { createContextHistory, localStorageContextHistory } from "../io/chat/context-history";
-import {
-  createSessionDiagnosticsStore,
-  localStorageSessionDiagnosticsStorage,
-} from "../io/chat/session-diagnostics";
-import { createSessionStore, localStorageSessionStorage } from "../io/chat/session-store";
 import { createCameraSettings, localStorageCameraStorage } from "./avatar/camera-settings";
 import {
   createExpressMotionSettings,
@@ -110,9 +100,6 @@ export function createSettingsStores(opts?: { locale?: CueLocale }) {
   const presenceSettings = createPresenceStore();
   // Global quiet gap every proactive source waits out after a turn start.
   const pacerGapSettings = createPacerGapStore();
-  const contextHistory = createContextHistory({
-    storage: localStorageContextHistory(),
-  });
   const lipsyncSettings = createLipsyncSettings({
     storage: localStorageLipsyncStorage(),
   });
@@ -125,14 +112,6 @@ export function createSettingsStores(opts?: { locale?: CueLocale }) {
     storage: localStorageFillerStorage(),
     locale: opts?.locale,
   });
-  // Session-continuity store: rotating id pointer + diagnostics (used/window/last-compression). Both windows
-  // sync via wireStorageSync, so build it early alongside the other stores (no config/dispatcher dependency).
-  const sessionStore = createSessionStore(localStorageSessionStorage());
-  const sessionDiagnostics = createSessionDiagnosticsStore(localStorageSessionDiagnosticsStorage());
-  // Unified conversation transcript — both protocol modes append, and only CC mode pulls its outbound share from here.
-  // "Start new conversation" writes a session boundary instead of erasing it (quick-controls). Broadcast so the
-  // settings window's History tab updates as turns land in the pet window.
-  const chatHistoryStore = createChatHistoryStore({ storage: localStorageChatHistoryStorage() });
   // Speech bubble persistence: when on, speech holds until dismissed instead of fading after dwell. Default OFF.
   const bubblePersistSettings = createFlagSettings(false, {
     storage: localStorageStore("yui.bubble-persist"),
@@ -200,14 +179,10 @@ export function createSettingsStores(opts?: { locale?: CueLocale }) {
     agentNotifySettings,
     presenceSettings,
     pacerGapSettings,
-    contextHistory,
     lipsyncSettings,
     vadSettings,
     agentSettings,
     fillerSettings,
-    sessionStore,
-    sessionDiagnostics,
-    chatHistoryStore,
     bubblePersistSettings,
     messageWindowSettings,
     endpointsSettings,
@@ -252,14 +227,10 @@ export const SYNC_MODE: Record<keyof SettingsStores, SyncMode> = {
   agentNotifySettings: "broadcast",
   presenceSettings: "broadcast",
   pacerGapSettings: "broadcast",
-  contextHistory: "reload",
   lipsyncSettings: "broadcast",
   vadSettings: "broadcast",
   agentSettings: "broadcast",
   fillerSettings: "broadcast",
-  sessionStore: "reload",
-  sessionDiagnostics: "reload",
-  chatHistoryStore: "broadcast",
   bubblePersistSettings: "broadcast",
   messageWindowSettings: "broadcast",
   endpointsSettings: "broadcast",

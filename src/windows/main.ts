@@ -20,6 +20,7 @@ import { wirePetControls } from "../app/controls/wire-pet-controls";
 import { wireCrossWindowSync, wireDevGlobals } from "../app/cross-window/wire-cross-window";
 import { wireSettingsReload } from "../app/cross-window/wire-window-sync";
 import { createDisposers } from "../app/disposers";
+import { createConversationStores } from "../app/settings/conversation-stores";
 import { wireSpeakerSelection, wireVrmSelection } from "../app/settings/wire-avatar";
 import { createPetConfig, wireConfigReload, wireConfigWatch } from "../app/settings/wire-config";
 import { wireCamera, wireInputAnchor } from "../app/stage/wire-pet-stage";
@@ -86,6 +87,11 @@ async function bootstrap(): Promise<BootstrapHandle> {
     register(() => store.dispose());
   }
 
+  const conversationStores = createConversationStores();
+  for (const store of Object.values(conversationStores)) {
+    register(() => store.dispose());
+  }
+
   const petConfig = createPetConfig({
     endpointsSettings: settingsStores.endpointsSettings,
     guardrailsSettings: settingsStores.guardrailsSettings,
@@ -144,6 +150,7 @@ async function bootstrap(): Promise<BootstrapHandle> {
     renderer,
     voiceInputStatus,
     stores: settingsStores,
+    conversation: conversationStores,
     log,
   });
   register(() => disposeCrossWindowSync());
@@ -190,6 +197,7 @@ async function bootstrap(): Promise<BootstrapHandle> {
     root,
     stage,
     stores: settingsStores,
+    conversation: conversationStores,
     config,
     renderer,
     vrm,
@@ -229,6 +237,7 @@ async function bootstrap(): Promise<BootstrapHandle> {
       ambient,
       surfaces,
       settings: settingsStores,
+      conversation: conversationStores,
       bus,
       userInput,
       voiceInputStatus,

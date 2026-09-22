@@ -32,6 +32,7 @@ import {
 import type { QuickControlsTab } from "../../ui/quick-controls/constants";
 import type { Surfaces } from "../../ui/surfaces/surfaces";
 import { wireGuardrailsOverrides } from "../cross-window/wire-window-sync";
+import type { ConversationStores } from "../settings/conversation-stores";
 import type { VoicePipeline } from "./wire-voice-pipeline";
 
 export function wireDispatcher(deps: {
@@ -55,10 +56,10 @@ export function wireDispatcher(deps: {
   getConfig: () => AppConfig;
   getSecret: (name: string) => Promise<string | undefined>;
   getFetch: () => Promise<typeof globalThis.fetch | undefined>;
-  sessionStore: SettingsStores["sessionStore"];
-  sessionDiagnostics: SettingsStores["sessionDiagnostics"];
-  chatHistoryStore: SettingsStores["chatHistoryStore"];
-  contextHistory: SettingsStores["contextHistory"];
+  sessionStore: ConversationStores["sessionStore"];
+  sessionDiagnostics: ConversationStores["sessionDiagnostics"];
+  chatHistoryStore: ConversationStores["chatHistoryStore"];
+  contextHistory: ConversationStores["contextHistory"];
   agentSettings: SettingsStores["agentSettings"];
   guardrailsSettings: SettingsStores["guardrailsSettings"];
   pacerGapSettings: SettingsStores["pacerGapSettings"];

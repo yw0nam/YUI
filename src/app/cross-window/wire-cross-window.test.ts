@@ -46,7 +46,6 @@ const { mockDriver, createMockDriver } = vi.hoisted(() => {
 
 vi.mock("../../ui/surfaces/mock", () => ({ createMockDriver }));
 
-import { createConversationStores } from "../settings/conversation-stores";
 import {
   broadcastSyncStores,
   createSettingsStores,
@@ -55,6 +54,7 @@ import {
 } from "../../settings/settings-stores";
 import { createVoiceInputStatus } from "../../ui/chips/voice-input-status";
 import { reloadFromStorage as reloadLocaleFromStorage } from "../../ui/i18n";
+import { createConversationStores } from "../settings/conversation-stores";
 import {
   wireCrossWindowSync,
   wireDevGlobals,
@@ -258,7 +258,10 @@ describe("wireDevtoolsSync", () => {
     vi.useRealTimers();
   });
 
-  const makeBags = () => ({ bag: createSettingsStores(), conversation: createConversationStores() });
+  const makeBags = () => ({
+    bag: createSettingsStores(),
+    conversation: createConversationStores(),
+  });
 
   const teardown = (bags: ReturnType<typeof makeBags>) => {
     for (const store of Object.values(bags.bag)) store.dispose();
@@ -275,10 +278,7 @@ describe("wireDevtoolsSync", () => {
     const subscribedStores = new Set(
       allStores.filter((_store, index) => subscribeSpies[index]!.mock.calls.length > 0),
     );
-    const expectedStores = new Set([
-      ...broadcastSyncStores(bag),
-      conversation.chatHistoryStore,
-    ]);
+    const expectedStores = new Set([...broadcastSyncStores(bag), conversation.chatHistoryStore]);
     expect(subscribedStores.size).toBe(expectedStores.size);
     expect(subscribedStores).toEqual(expectedStores);
 
@@ -298,10 +298,7 @@ describe("wireDevtoolsSync", () => {
     const reloadedStores = new Set(
       allStores.filter((_store, index) => reloadSpies[index]!.mock.calls.length > 0),
     );
-    const expectedStores = new Set([
-      ...reloadSyncStores(bag),
-      ...Object.values(conversation),
-    ]);
+    const expectedStores = new Set([...reloadSyncStores(bag), ...Object.values(conversation)]);
     expect(reloadedStores.size).toBe(expectedStores.size);
     expect(reloadedStores).toEqual(expectedStores);
 
@@ -314,7 +311,7 @@ describe("wireDevtoolsSync", () => {
     const { bag, conversation } = makeBags();
     // chatHistoryStore is the conversation store that broadcasts: its reload notifies, and the
     // storage path must not let that notification re-emit a settings change.
-    const historyStore = conversation.chatHistoryStore;
+    const historyStore: SyncedStore = conversation.chatHistoryStore;
     let retainedSubscriber: (() => void) | undefined;
     const subscribeSpy = vi.spyOn(historyStore, "subscribe").mockImplementation((callback) => {
       retainedSubscriber = callback;
@@ -340,7 +337,7 @@ describe("wireDevtoolsSync", () => {
   it("reloads every sync store without rebroadcasting a remote change", () => {
     const { bag, conversation } = makeBags();
     const reloadStores = [...reloadSyncStores(bag), ...Object.values(conversation)];
-    const historyStore = conversation.chatHistoryStore;
+    const historyStore: SyncedStore = conversation.chatHistoryStore;
     let retainedSubscriber: (() => void) | undefined;
     const subscribeSpy = vi.spyOn(historyStore, "subscribe").mockImplementation((callback) => {
       retainedSubscriber = callback;
@@ -370,7 +367,7 @@ describe("wireDevtoolsSync", () => {
 
   it("disposes once and flushes a pending broadcast before the bridge closes", () => {
     const { bag, conversation } = makeBags();
-    const historyStore = conversation.chatHistoryStore;
+    const historyStore: SyncedStore = conversation.chatHistoryStore;
     let retainedSubscriber: (() => void) | undefined;
     const subscribeSpy = vi.spyOn(historyStore, "subscribe").mockImplementation((callback) => {
       retainedSubscriber = callback;

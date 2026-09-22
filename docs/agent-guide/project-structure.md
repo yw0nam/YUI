@@ -60,6 +60,7 @@ YUI/
       controls/                      # The pet window's summonable control surfaces
         wire-pet-controls.ts         # Quick-controls panel, capture and voice-input indicators, and the stage context menu, remounted on locale change
       settings/                      # Selections applied to the running app
+        conversation-stores.ts       # Constructs the four shared io/chat conversation stores each window owns and disposes
         wire-avatar.ts               # VRM and speaker selection stores, their swap and import flows, and the avatar config applied at boot
         wire-config.ts               # The config store over the bundled configs, the runtime key stores, the live endpoint/guardrail merges, and the reload/watch wiring
         wire-cue-locale-sync.ts      # Reseeds untouched built-in cues when the display language changes
@@ -183,7 +184,7 @@ YUI/
         wire.ts                      # Travel frame plus the walk, perch, fall, and climb ambient loops
     settings/                        # Persisted user settings, one store per setting, grouped by the part of the app they configure
       persisted-store.ts             # Shared bootstrap, notify, reload, and localStorage core for the settings stores
-      settings-stores.ts             # Constructs and synchronises the settings-store family
+      settings-stores.ts             # Constructs and synchronises the persisted user-setting stores
       backend/                       # What the backend connection uses
         agent-settings.ts            # Reasoning effort and system-instructions override
         agent-notify-settings.ts     # Agent-notification enabled flag and listener port

@@ -23,7 +23,12 @@ vi.mock("../settings/settings-stores", async (importOriginal) => {
   const actual = await importOriginal<typeof import("../settings/settings-stores")>();
   return { ...actual, createSettingsStores: vi.fn(actual.createSettingsStores) };
 });
+vi.mock("../app/settings/conversation-stores", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../app/settings/conversation-stores")>();
+  return { ...actual, createConversationStores: vi.fn(actual.createConversationStores) };
+});
 
+import { createConversationStores } from "../app/settings/conversation-stores";
 import { createSettingsStores } from "../settings/settings-stores";
 import { resetDevtoolsMain } from "./devtools-main.test-helpers";
 
@@ -34,17 +39,18 @@ afterEach(() => {
   delete (globalThis as CorsFetchGlobal).CORSFetch;
 });
 
-it("passes the registry bag and its devtools stores through bootstrap by identity", async () => {
+it("passes both store bags and their devtools stores through bootstrap by identity", async () => {
   document.body.innerHTML = '<div id="app"></div>';
 
   await import("./devtools-main");
   await vi.waitFor(() => expect(wireDevtoolsSync).toHaveBeenCalledOnce());
 
   const bag = vi.mocked(createSettingsStores).mock.results[0]!.value;
-  expect(wireDevtoolsSync).toHaveBeenCalledWith({ stores: bag, log });
+  const conversation = vi.mocked(createConversationStores).mock.results[0]!.value;
+  expect(wireDevtoolsSync).toHaveBeenCalledWith({ stores: bag, conversation, log });
   expect(createDevtoolsShell).toHaveBeenCalledWith(
     expect.objectContaining({
-      history: bag.contextHistory,
+      history: conversation.contextHistory,
       endpointsSettings: bag.endpointsSettings,
     }),
   );

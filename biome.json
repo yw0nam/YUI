@@ -206,6 +206,8 @@
                 "patterns": [
                   {
                     "group": [
+                      "**/io",
+                      "**/io/**",
                       "**/dispatcher",
                       "**/dispatcher/**",
                       "**/ambient",

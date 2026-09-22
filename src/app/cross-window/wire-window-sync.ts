@@ -91,14 +91,16 @@ export function wireGuardrailsOverrides(deps: {
 /**
  * The four-part cross-window sync every window runs: the localStorage-`storage`-event fallback, the
  * bridge, the loop-guarded debounced broadcast half, and the remote-change reload half. Window-specific
- * extras (pet's mouth-preview/voice channels and VRM hot-swap, the settings window's vrm/speaker
- * resync) layer on top through `extraResync` and `onRemoteChange`.
+ * extras (the conversation stores every window passes, pet's mouth-preview/voice channels and VRM
+ * hot-swap) layer on top through `extraReload`/`extraBroadcast` and `onRemoteChange`.
  */
 export function wireWindowSync(deps: {
   stores: SettingsStores;
   windowKind: WindowKind;
-  /** Stores that resync alongside the registry's reload set — storage event, remote change, and focus reload. */
-  extraResync?: ReadonlyArray<{ reloadFromStorage(): void }>;
+  /** Stores reloaded with the registry set on a storage event, a remote change, and focus. */
+  extraReload?: ReadonlyArray<{ reloadFromStorage(): void }>;
+  /** Stores whose local edits broadcast with the settings broadcast set. */
+  extraBroadcast?: ReadonlyArray<SyncedStore>;
   log: Logger;
 }): {
   bridge: SettingsBridge;
@@ -109,9 +111,9 @@ export function wireWindowSync(deps: {
   onRemoteChange(cb: () => void): void;
   dispose(): void;
 } {
-  const { stores, windowKind, extraResync, log } = deps;
+  const { stores, windowKind, extraReload, extraBroadcast, log } = deps;
   let disposed = false;
-  const resyncStores = [...reloadSyncStores(stores), ...(extraResync ?? [])];
+  const resyncStores = [...reloadSyncStores(stores), ...(extraReload ?? [])];
   const remoteHooks: Array<() => void> = [];
   const reload = (): void => {
     if (disposed) return;
@@ -124,7 +126,10 @@ export function wireWindowSync(deps: {
     broadcastSettings,
     runApplyingRemote,
     dispose: disposeBroadcast,
-  } = createSettingsBroadcast({ bridge, syncedStores: broadcastSyncStores(stores) });
+  } = createSettingsBroadcast({
+    bridge,
+    syncedStores: [...broadcastSyncStores(stores), ...(extraBroadcast ?? [])],
+  });
   // Run under the same loop guard as the bridge-driven reload below — a sibling window's
   // localStorage write fires "storage" here too, and without the guard its
   // store.subscribe(broadcastSettings) would re-broadcast the change it just received.

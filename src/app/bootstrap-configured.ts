@@ -28,6 +28,7 @@ import { maybeShowFirstRunHint } from "../ui/notices/first-run-hint";
 import { wireIngressDeadNotice } from "../ui/notices/ingress-dead-notice";
 import type { createQuickControls } from "../ui/quick-controls/quick-controls";
 import type { Surfaces } from "../ui/surfaces/surfaces";
+import type { ConversationStores } from "./settings/conversation-stores";
 import {
   applyAvatarConfig,
   type wireSpeakerSelection,
@@ -51,6 +52,7 @@ interface Phase1Handles {
   ambient: Tier1Engine;
   surfaces: Surfaces;
   settings: SettingsStores;
+  conversation: ConversationStores;
   bus: EventBus;
   userInput: UserInputSource;
   voiceInputStatus: VoiceInputStatus;
@@ -119,6 +121,7 @@ const realFactories: ConfiguredBootstrapFactories = {
       ambient,
       surfaces,
       settings,
+      conversation,
       bus,
       userInput,
       voiceInputStatus,
@@ -148,14 +151,10 @@ const realFactories: ConfiguredBootstrapFactories = {
       screenKnobSettings,
       presenceSettings,
       pacerGapSettings,
-      contextHistory,
       lipsyncSettings,
       vadSettings,
       agentSettings,
       fillerSettings,
-      sessionStore,
-      sessionDiagnostics,
-      chatHistoryStore,
       endpointsSettings,
       gazeSettings,
       climbSettings,
@@ -165,6 +164,7 @@ const realFactories: ConfiguredBootstrapFactories = {
       idleMotionSettings,
       expressMotionSettings,
     } = settings;
+    const { contextHistory, sessionStore, sessionDiagnostics, chatHistoryStore } = conversation;
     const { vrmSelection, loadVrmSerialized } = vrm;
     const { speakerSelection, refreshVoiceList } = speaker;
 

@@ -20,6 +20,7 @@ import type { VoiceInputStatus } from "../../ui/chips/voice-input-status";
 import { subscribe as subscribeLocale } from "../../ui/i18n";
 import { createQuickControls } from "../../ui/quick-controls/quick-controls";
 import type { Surfaces } from "../../ui/surfaces/surfaces";
+import type { ConversationStores } from "../settings/conversation-stores";
 import type { wireSpeakerSelection, wireVrmSelection } from "../settings/wire-avatar";
 import { wireCueLocaleSync } from "../settings/wire-cue-locale-sync";
 
@@ -33,6 +34,10 @@ export function wirePetControls(deps: {
   root: HTMLElement;
   stage: HTMLElement;
   stores: SettingsStores;
+  conversation: Pick<
+    ConversationStores,
+    "sessionStore" | "sessionDiagnostics" | "chatHistoryStore"
+  >;
   config: Pick<ConfigStore, "get">;
   renderer: Pick<Renderer, "setMouthOpen" | "stopMouth">;
   vrm: Pick<ReturnType<typeof wireVrmSelection>, "vrmSelection" | "swapVrm" | "importVrm">;
@@ -60,6 +65,7 @@ export function wirePetControls(deps: {
     root,
     stage,
     stores,
+    conversation,
     config,
     renderer,
     vrm,
@@ -113,12 +119,11 @@ export function wirePetControls(deps: {
     guardrailsSettings,
     bubblePersistSettings,
     messageWindowSettings,
-    chatHistoryStore,
-    sessionStore,
-    sessionDiagnostics,
     idleMotionSettings,
     expressMotionSettings,
   } = stores;
+  // The quick-controls session reset writes the same instances the dispatcher reads through.
+  const { sessionStore, sessionDiagnostics, chatHistoryStore } = conversation;
 
   const buildQuickControls = (): ReturnType<typeof createQuickControls> =>
     createQuickControls({

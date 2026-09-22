@@ -30,6 +30,7 @@ vi.mock("../../ui/i18n", () => ({
 
 import { createSettingsStores, type SettingsStores } from "../../settings/settings-stores";
 import { createVoiceInputStatus } from "../../ui/chips/voice-input-status";
+import { createConversationStores } from "../settings/conversation-stores";
 import { wirePetControls } from "./wire-pet-controls";
 
 /** The build/dispose event trail shared by the three mocked surface factories. */
@@ -58,6 +59,7 @@ beforeEach(() => {
 describe("wirePetControls", () => {
   function makeDeps() {
     const stores: SettingsStores = createSettingsStores();
+    const conversation = createConversationStores();
     const registered: Array<() => void> = [];
     const stage = document.createElement("div");
     const removeEventListener = vi.spyOn(stage, "removeEventListener");
@@ -65,6 +67,7 @@ describe("wirePetControls", () => {
       root: document.createElement("div"),
       stage,
       stores,
+      conversation,
       config: {
         get: () => {
           throw new Error("config not loaded");
@@ -105,6 +108,7 @@ describe("wirePetControls", () => {
   function teardownDeps(wired: ReturnType<typeof makeDeps>) {
     for (const fn of wired.registered) fn();
     for (const store of Object.values(wired.stores)) store.dispose();
+    for (const store of Object.values(wired.deps.conversation)) store.dispose();
   }
 
   it("registers the six teardowns in the baseline boot order", () => {
