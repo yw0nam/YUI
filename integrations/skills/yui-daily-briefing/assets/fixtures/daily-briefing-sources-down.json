@@ -12,7 +12,7 @@
     }
   ],
   "envelope": {
-    "source": "n8n",
+    "source": "cron",
     "event_type": "daily_briefing",
     "delivery": "immediate",
     "event_id": "daily-briefing:2026-09-14",

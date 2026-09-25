@@ -343,7 +343,7 @@ Signal lines are independent of the headline and also appear alongside a cue hea
 
 ```text
 trigger: milestone first_activity (08:12)
-signal [n8n/daily_briefing @2026-09-11T22:30:00.000Z, id daily-briefing:2026-09-11]: {"skill":"yui-daily-briefing", ...}
+signal [cron/daily_briefing @2026-09-11T22:30:00.000Z, id daily-briefing:2026-09-11]: {"skill":"yui-daily-briefing", ...}
 ```
 
 `time_milestone.first_activity` fires once per local day, on the first `os_idle_tick`

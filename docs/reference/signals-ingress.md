@@ -88,7 +88,7 @@ group per scheduled run, one run per local day, carrying a single item of this s
 | `sources[].last_ok` | ISO-8601 timestamp, or absent |
 | `sources[].run_url` | `http` or `https`, at most 2048 characters, or absent |
 | `refs[]` | At most 30 entries, newest first, one entry per distinct `url` |
-| `refs[].kind` | One of `pull_request`, `issue`, `mail`, `other` |
+| `refs[].kind` | Producer-defined label, at most 40 characters |
 | `refs[].title` | At most 200 characters |
 | `refs[].url` | `http` or `https`, at most 2048 characters |
 | `refs[].at` | ISO-8601 timestamp |
@@ -107,12 +107,11 @@ The group travels under this envelope:
 | `source` | The producer's own name |
 | `event_type` | `daily_briefing` \| `source_health` |
 | `delivery` | `immediate` |
-| `event_id` | `daily-briefing:<YYYY-MM-DD>` \| `source-health:<workflow id>:<execution id>` |
+| `event_id` | `daily-briefing:<YYYY-MM-DD>` \| `source-health:<producer>:<run id>` |
 | `occurred_at` | Epoch milliseconds |
 
-The `source-health` execution slot reads the epoch milliseconds of the failure in place
-of an execution id when the failure struck before an execution record existed (a
-trigger-time failure).
+The `source-health` run id reads the scheduler's own execution id, and the epoch
+milliseconds of the failure when the scheduler keeps no run record for it.
 
 The client delivers every group it receives, so two runs on one day produce two turns.
 
@@ -122,12 +121,12 @@ in its own `sources[]` entry:
 ```json
 {
   "skill": "yui-daily-briefing",
-  "summary": "daily-briefing run failed: Fetch Signal Queue Rows: connect ECONNREFUSED",
+  "summary": "cron run failed: ValueError: stdin must hold a JSON object with sources[] and refs[]",
   "sources": [
     {
-      "name": "daily-briefing",
+      "name": "cron",
       "status": "failed",
-      "run_url": "https://n8n.example.com/execution/231"
+      "run_url": "https://scheduler.example.com/runs/231"
     }
   ],
   "refs": []
@@ -135,7 +134,7 @@ in its own `sources[]` entry:
 ```
 
 That group's envelope reads `event_type: "source_health"` and
-`event_id: "source-health:<workflow id>:<execution id>"`.
+`event_id: "source-health:<producer>:<run id>"`.
 
 ### Health observations
 
