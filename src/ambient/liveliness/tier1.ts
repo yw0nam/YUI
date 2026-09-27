@@ -20,7 +20,7 @@
 
 import type { VRM } from "@pixiv/three-vrm";
 import type { Object3D } from "three";
-import type { Renderer, TickContext } from "../../renderer";
+import { downPitchSign, type Renderer, type TickContext } from "../../renderer";
 import * as cues from "./cues";
 
 type AmbientCue = "blink" | "idle_sway" | "breath" | "look_around" | "tap_react" | "idle_returned";
@@ -43,12 +43,14 @@ const SWAY = {
 } as const;
 const BREATH_AMP = 0.022; // chest sine
 const LOOK_LAMBDA = 1.8; // look target damping speed
-const TAP_BOB_AMP = 0.13; // tap nod (downward, pitch+)
-const IDLE_RETURN_AMP = -0.09; // slight upward on idle return (pitch-)
+const TAP_BOB_AMP = 0.13; // tap nod (downward)
+const IDLE_RETURN_AMP = -0.09; // slight upward on idle return
 
 /** Capabilities resolved once per VRM (which bones/expressions exist). Re-resolved on hot-swap. */
 interface Caps {
   head: Object3D | null;
+  /** Multiplies a downward-positive head pitch into this VRM's rotation.x. */
+  pitchSign: 1 | -1;
   spine: Object3D | null;
   chest: Object3D | null;
   /** Blink expression names to use (single 'blink', or blinkLeft/Right). */
@@ -121,7 +123,7 @@ export function createTier1Engine(renderer: Renderer): Tier1Engine {
         blinkNames = pair;
       }
     }
-    return { head, spine, chest, blinkNames };
+    return { head, pitchSign: downPitchSign(vrm), spine, chest, blinkNames };
   }
 
   function tick(ctx: TickContext): void {
@@ -196,7 +198,7 @@ export function createTier1Engine(renderer: Renderer): Tier1Engine {
     // ── After composing, write absolute values (ambient owns these channels) ──
     if (c.head) {
       c.head.rotation.set(
-        sway.headPitch * SWAY.headPitch + lookPitch + bobPitch, // x = pitch
+        c.pitchSign * (sway.headPitch * SWAY.headPitch + lookPitch + bobPitch), // x = pitch
         sway.headYaw * SWAY.headYaw + lookYaw, // y = yaw
         sway.headRoll * SWAY.headRoll, // z = roll
       );

@@ -15,6 +15,7 @@
 import type { VRM } from "@pixiv/three-vrm";
 import * as THREE from "three";
 import type { GazeKnobs } from "../../config/load";
+import { downPitchSign } from "../geometry/bone-pitch";
 import { advanceGaze, type GazeState, NEUTRAL_GAZE, splitHeadNeck } from "../geometry/gaze-tracker";
 
 const DEG2RAD = Math.PI / 180;
@@ -204,7 +205,7 @@ export function createCursorGaze(deps: CursorGazeDeps): CursorGaze {
     // Cache head/neck for the per-frame gaze nudge; claim lookAt for eye control.
     gazeHeadBone = vrm.humanoid?.getNormalizedBoneNode("head") ?? null;
     gazeNeckBone = vrm.humanoid?.getNormalizedBoneNode("neck") ?? null;
-    bonePitchSign = vrm.meta?.metaVersion === "0" ? 1 : -1;
+    bonePitchSign = -downPitchSign(vrm);
     gazeState = { ...NEUTRAL_GAZE };
     gazeConverging = false;
     gazeLookAtReady = vrm.lookAt != null;

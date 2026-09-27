@@ -67,6 +67,7 @@ export {
   describeExpressions,
   MOUTH_EXPRESSION_KEY,
 } from "./expression/mouth-lipsync";
+export { downPitchSign } from "./geometry/bone-pitch";
 export type { RenderMotionSignal } from "./motion/motion-controller";
 export type { Renderer, RendererOptions, TickContext, TickFn, VrmLoadResult } from "./types";
 
