@@ -31,7 +31,7 @@ function makeBone(): FakeBone {
   return { rotation: r };
 }
 
-function makeVrm(opts: { blink?: boolean } = {}) {
+function makeVrm(opts: { blink?: boolean; metaVersion?: "0" | "1" } = {}) {
   const blink = opts.blink ?? true;
   const bones: Record<string, FakeBone> = {
     head: makeBone(),
@@ -42,6 +42,7 @@ function makeVrm(opts: { blink?: boolean } = {}) {
   const exprValues: Record<string, number> = {};
   const present = new Set(blink ? ["blink"] : []);
   const vrm = {
+    meta: { metaVersion: opts.metaVersion ?? "1" },
     humanoid: {
       getNormalizedBoneNode: (name: string) => bones[name] ?? null,
     },
@@ -166,12 +167,26 @@ describe("Tier1Engine — drives a VRM (headless)", () => {
     // advance ~110ms (≈ bob peak at 220ms/2) → large deviation
     const peak = drive(tick, m, 0.11);
     const peakX = peak[peak.length - 1].headX;
-    expect(Math.abs(peakX - before)).toBeGreaterThan(0.05); // bob is visible
+    expect(peakX - before).toBeGreaterThan(0.05); // VRM 1.0 faces +Z: pitch+ tips the face down
 
     // After bob fully elapses, pitch returns to sway-only magnitude
     drive(tick, m, 0.5);
     const after = m.bones.head.rotation.x;
     expect(Math.abs(after)).toBeLessThan(0.1);
+  });
+
+  it("tap_react nods downward on a VRM 0.x model, whose native facing flips the pitch sign", () => {
+    const { renderer, getTick } = makeRenderer();
+    const m = makeVrm({ metaVersion: "0" });
+    const engine = createTier1Engine(renderer);
+    engine.start();
+    const tick = getTick();
+
+    drive(tick, m, 2);
+    const before = m.bones.head.rotation.x;
+    engine.trigger("tap_react");
+    const peak = drive(tick, m, 0.11);
+    expect(peak[peak.length - 1].headX - before).toBeLessThan(-0.05);
   });
 
   it("gracefully no-ops on a VRM without a blink expression", () => {
