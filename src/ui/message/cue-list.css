@@ -151,7 +151,7 @@
   font-size: 0.8rem;
   font-weight: 500;
   padding: 0.2rem 0.38rem;
-  width: 5.5rem;
+  font-variant-numeric: tabular-nums;
   text-shadow: var(--yui-text-shadow);
   outline: none;
   -webkit-appearance: none;
