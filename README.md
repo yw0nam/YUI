@@ -71,20 +71,21 @@ wiring.
 <img src="docs/public/yui-locomotion.gif" alt="YUI walking along the bottom of the screen, climbing the side of a window to sit on its top edge, jumping across to the next window top, peeking around a window edge, and falling to the floor after being dropped in mid-air" width="720">
 
 She perches on a window top, peeks around a side edge, strolls the floor and window
-tops, jumps between windows, and climbs a window side or a screen edge onto the
-monitor above. Dropped in mid-air, she falls to the first surface below and lands.
+tops, and jumps between windows. Dropped in mid-air, she falls to the first surface
+below and lands. Climbing a window side or a screen edge onto the monitor above is
+in development and carries that label in the app.
 
 ### Any backend, embodied through structured cues
 
-<img src="docs/public/yui-feature-cues.png" alt="YUI laughing with a hand over her mouth and her eyes closed in a happy expression, above a speech bubble that reads: The build passed. Want me to open the pull request for review?" width="360">
+<img src="docs/public/yui-feature-cues.jpg" alt="YUI laughing with a hand over her mouth and her eyes closed in a happy expression, above a speech bubble that reads: The build passed. Want me to open the pull request for review?" width="360">
 
 YUI talks to an OpenAI-compatible Chat Completions endpoint, a Responses API agent,
 or a backend on the push WebSocket. Emotion, motion, voice tag, and caption arrive
-as `generate_express` tool calls beside the reply text.
+as `generate_express` cues beside the reply text.
 
 ### She speaks first, with restraint
 
-<img src="docs/public/yui-feature-proactive.png" alt="The Proactive settings tab: screen watch, loop reactions after 5, 10, and 30 minutes of inactivity, scheduled greetings at 9 AM, noon, 6 PM, and 11 PM, agent notifications, a 10-minute proactive gap, and hourly limits of 24 cues and 40 self-started turns" width="480">
+<img src="docs/public/yui-feature-proactive.png" alt="The Proactive settings tab: screen watch, loop reactions after 5, 10, and 30 minutes of inactivity, scheduled greetings at 09:00, 12:00, 18:00, and 23:00, a 10-minute proactive gap, and hourly limits of 24 cues and 40 self-started turns" width="400">
 
 Scheduled greetings, idle check-ins, screen-watch cues, the first activity of the
 day, external `/signals`, and a daily briefing each open a turn. Debounce, hourly
@@ -109,7 +110,7 @@ with silence when it chooses.
 | Overlay | Transparent, frameless, always-on-top window with click-through on empty pixels |
 | Drag and resize | OS-native drag across monitors, and Ctrl+wheel resize anchored at the feet |
 | Perch and peek | A seat on a window's top edge or a spot behind its side edge after a drop there, released when the window moves, closes, or covers her |
-| Locomotion | Floor walks, strolls and jumps across window tops, climbs up window sides and onto the monitor above, and falls with a landing; switches for climbing and falling in the Advanced tab |
+| Locomotion | Floor walks, strolls and jumps across window tops, and falls with a landing; climbing up window sides and onto the monitor above, labelled in development; switches for climbing and falling in the Advanced tab |
 | Touch | Reactions to taps on the head, chest, and hips and a press-and-hold head pat, with one touch cue a minute to the agent (`configs/avatar.json`) |
 | Summon and tray | Global `CmdOrCtrl+Shift+Y` shortcut that brings her forward and focuses the text input (`configs/hotkeys.json`), and a tray menu with show/hide, Settings, and Quit |
 
@@ -129,7 +130,7 @@ with silence when it chooses.
 | Feature | What it does |
 | --- | --- |
 | Chat protocols | `chat_completions`, `responses`, and `push`, selected by `chat_api` in `configs/endpoints.json` ([push transport](docs/reference/push-transport.md)) |
-| Expression cues | `generate_express` tool calls for emotion, motion, voice tag, and caption, with the vocabulary published to the Expression Broker (MCP) ([cue contract](docs/reference/client-context.md)) |
+| Expression cues | `generate_express` cues for emotion, motion, voice tag, and caption; the renderable vocabulary travels in the tool schema on Chat Completions, in the `hello` and `vocabulary` frames on push, and to the Expression Broker (MCP) when `broker_base_url` is set ([cue contract](docs/reference/client-context.md)) |
 | Provider presets | OpenAI, Ollama, LM Studio, Groq, and Hermes Agent presets, plus a custom endpoint |
 | Per-turn context | `client_context` text with local time, frontmost app and window title, an optional screenshot, body posture, and the outcome of the previous turn ([format](docs/reference/client-context.md)) |
 | Silence | An empty reply or a bare `[SILENT]` token as a silent turn |
@@ -140,12 +141,13 @@ with silence when it chooses.
 | Feature | What it does |
 | --- | --- |
 | Greetings and check-ins | Scheduled greetings (09:00, 12:00, 18:00, 23:00 by default) and idle check-ins after 5, 10, and 30 quiet minutes, all editable in the Proactive tab |
-| Screen watch | Cues on app switches and on 45 minutes in one app, off by default (`configs/screen.json`) |
+| Screen watch | Cues on a switch to another app after 10 minutes in the previous one, and on every 45 minutes in one app, off by default (`configs/screen.json`) |
 | First activity of the day | Cue on the first activity of each local day |
 | Guardrails | Per-source debounce, hourly caps of 24 cues and 40 self-started turns (`configs/guardrails.json`), and a 10-minute default quiet gap after each turn |
-| Coding-agent hooks | Loopback `POST /agent-event` for finished tasks and input requests from coding agents ([hooks guide](docs/agent-guide/agent-completion-hooks.md)) |
-| Signals ingress | Loopback `POST /signals` for batches of external signals ([envelope](docs/reference/signals-ingress.md)) |
-| Daily briefing | Skill that sets up a daily briefing and delivers it through `/signals` on any backend ([skill](integrations/skills/yui-daily-briefing/SKILL.md)) |
+| Loopback ingress | Local listener on port 8770 for coding-agent hooks, `/signals`, and the `avatar` Mod, active while the Agent notifications switch in the Proactive tab is on (off by default, applied at next launch) |
+| Coding-agent hooks | `POST /agent-event` for finished tasks and input requests from coding agents ([hooks guide](docs/agent-guide/agent-completion-hooks.md)) |
+| Signals ingress | `POST /signals` for batches of external signals ([envelope](docs/reference/signals-ingress.md)) |
+| Daily briefing | Skill that sets up a daily briefing and delivers it through `/signals` on any backend, with the loopback ingress on ([skill](integrations/skills/yui-daily-briefing/SKILL.md)) |
 | Witness log | Local JSONL of app switches and idle periods, kept for 14 days ([format](docs/reference/witness-log.md)) |
 | Workflows | Saved endpoints fired from a button in the Proactive tab |
 
@@ -153,8 +155,8 @@ with silence when it chooses.
 
 | Feature | What it does |
 | --- | --- |
-| Mods | Standalone MCP servers `router`, `desktop-control`, `shell-sandbox`, and `avatar`, whose tools seat her on a window, make her peek, or move her to a screen spot ([Mods](Mods/README.md), [tool reference](docs/reference/mods.md)) |
-| Integrations | Backend-specific wiring under [`integrations/`](integrations/), for example the Hermes Agent plugins |
+| Mods | Standalone MCP servers `router`, `desktop-control`, `shell-sandbox`, and `avatar`; the `avatar` Mod seats her on a window, makes her peek, or moves her to a screen spot through the loopback ingress ([Mods](Mods/README.md), [tool reference](docs/reference/mods.md)) |
+| Integrations | Backend-agent adapters and backend-agnostic skills under [`integrations/`](integrations/), for example the Hermes Agent plugins |
 
 ### Platform
 
@@ -162,7 +164,7 @@ with silence when it chooses.
 | --- | --- |
 | Languages | English, Japanese, and Korean UI, with the OS language as the first-run default |
 | Configuration | Runtime settings in `configs/`, validated at load, with hot-reload in development |
-| Logs | One log file for frontend and Rust lines ([convention](docs/reference/logging.md)) |
+| Logs | One log file per day shared by frontend and Rust lines ([location](docs/agent-guide/build-run.md#logs), [convention](docs/reference/logging.md)) |
 | Platforms | macOS on Apple Silicon, and experimental Windows x64 builds |
 
 ## How it works
