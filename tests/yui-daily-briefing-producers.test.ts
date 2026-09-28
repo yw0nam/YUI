@@ -1,6 +1,8 @@
 import { spawn } from "node:child_process";
+import { mkdtempSync } from "node:fs";
 import { createServer } from "node:http";
 import type { AddressInfo } from "node:net";
+import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 
@@ -13,11 +15,16 @@ const BODY_LIMIT = 49152;
 type Received = { path: string; contentType: string; payload: string };
 type Result = { status: number | null; stdout: string; stderr: string };
 
+function freshHome(): string {
+  return mkdtempSync(join(tmpdir(), "yui-briefing-"));
+}
+
 // spawnSync would block the event loop that serves the ingress below.
-function runScript(base: string, stdin: string, args: string[] = []): Promise<Result> {
+// A fresh HOME per call keeps the poster's backlog file out of the real home directory.
+function runScript(base: string, stdin: string, args: string[] = [], home = freshHome()): Promise<Result> {
   return new Promise((done) => {
     const child = spawn("python3", [SCRIPT, ...args], {
-      env: { ...process.env, YUI_SIGNALS_URL: base, NO_PROXY: "*", no_proxy: "*" },
+      env: { ...process.env, HOME: home, YUI_SIGNALS_URL: base, NO_PROXY: "*", no_proxy: "*" },
     });
     let stdout = "";
     let stderr = "";
@@ -126,15 +133,31 @@ describe("post-briefing.py", () => {
     });
   });
 
-  it("skips the morning when the ingress refuses the connection", async () => {
+  it("keeps the refs of a refused morning and carries them on the next delivered run", async () => {
+    const home = freshHome();
     const port = await closedPort();
-    const stdin = JSON.stringify({
+    const refused = await runScript(
+      `http://${LOOPBACK}:${port}`,
+      JSON.stringify({
+        sources: [{ name: "papers", status: "ok" }],
+        refs: [{ kind: "paper", title: "older", url: "https://example.com/a" }],
+      }),
+      [],
+      home,
+    );
+    expect(refused.status).toBe(0);
+    expect(refused.stderr).toContain("yui unreachable");
+
+    const next = JSON.stringify({
       sources: [{ name: "papers", status: "ok" }],
-      refs: [{ kind: "paper", title: "a ref", url: "https://example.com/a" }],
+      refs: [{ kind: "paper", title: "newer", url: "https://example.com/b" }],
     });
-    const result = await runScript(`http://${LOOPBACK}:${port}`, stdin);
-    expect(result.status).toBe(0);
-    expect(result.stderr).toContain("yui unreachable");
+    await withIngress(204, async (base, received) => {
+      expect((await runScript(base, next, [], home)).status).toBe(0);
+      expect((await runScript(base, next, [], home)).status).toBe(0);
+      const urls = received.map((r) => JSON.parse(r.payload).signals[0].refs.map((ref: { url: string }) => ref.url));
+      expect(urls).toEqual([["https://example.com/b", "https://example.com/a"], ["https://example.com/b"]]);
+    });
   });
 
   it("names the rejected status and exits 1 on a non-2xx answer", async () => {
