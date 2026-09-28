@@ -214,7 +214,7 @@ publishes its emotion/motion/voice vocabulary here in every chat mode,
 gated only on `broker_base_url` (skipped if unset) — the backend agent
 behind the chat endpoint reads it back via `get_ids`
 
-The client calls STT and TTS directly — they do not route through Hermes.
+The client calls STT and TTS directly; they do not pass through the chat backend.
 
 ## Project layout
 
