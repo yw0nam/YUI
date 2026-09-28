@@ -43,22 +43,49 @@ describe("buildCCMessages", () => {
     expect(msgs[1]).toEqual({ role: "system", content: "client_context:\ntrigger: user message" });
   });
 
-  it("maps transcript entries to role/content messages in order", () => {
+  it("orders instructions, transcript, client_context, then the user input", () => {
     const transcript: ChatHistoryEntry[] = [
       { role: "user", text: "prior user turn", ts: 1 },
       { role: "assistant", text: "prior assistant turn", ts: 2 },
     ];
     const msgs = buildCCMessages({
+      instructions: "be terse",
       clientContextText: "trigger: user message",
       transcript,
       userText: "new turn",
     });
     expect(msgs).toEqual([
-      { role: "system", content: "client_context:\ntrigger: user message" },
+      { role: "system", content: "be terse" },
       { role: "user", content: "prior user turn" },
       { role: "assistant", content: "prior assistant turn" },
+      { role: "system", content: "client_context:\ntrigger: user message" },
       { role: "user", content: "new turn" },
     ]);
+  });
+
+  it("keeps the earlier turn's instructions and transcript as the next turn's prefix", () => {
+    const transcript: ChatHistoryEntry[] = [
+      { role: "user", text: "a", ts: 1 },
+      { role: "assistant", text: "b", ts: 2 },
+    ];
+    const turnN = buildCCMessages({
+      instructions: "be terse",
+      clientContextText: "time: 10:00",
+      transcript,
+      userText: "c",
+    });
+    const turnNext = buildCCMessages({
+      instructions: "be terse",
+      clientContextText: "time: 10:05",
+      transcript: [
+        ...transcript,
+        { role: "user", text: "c", ts: 3 },
+        { role: "assistant", text: "d", ts: 4 },
+      ],
+      userText: "e",
+    });
+    const prefixLength = 1 + transcript.length;
+    expect(turnNext.slice(0, prefixLength)).toEqual(turnN.slice(0, prefixLength));
   });
 
   it("final user message is plain content when no images", () => {
