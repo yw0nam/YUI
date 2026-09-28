@@ -27,7 +27,7 @@ Ask once: "Do you want to connect a chat backend / TTS / STT now, or skip and se
 
 | Value | Where it goes |
 |---|---|
-| Chat endpoint base URL, model id | `configs/endpoints.json` → `chat_base_url` — the API root including `/v1` in the Chat Completions and Responses modes (e.g. `http://localhost:8643/v1`), where the client appends `/chat/completions` or `/responses` itself, and the WebSocket base in push mode, where the client opens `<chat_base_url>/ws`. Also `chat_model` |
+| Chat endpoint base URL, model id | `configs/endpoints.json` → `chat_base_url` — the API root including `/v1` in the Chat Completions and Responses modes (e.g. `http://localhost:8643/v1`), where the client appends `/chat/completions` or `/responses` itself, and the WebSocket base without `/v1` in push mode (e.g. `http://localhost:8646`), where the client opens `<chat_base_url>/ws`. Also `chat_model` |
 | Chat API key | `.env.local` → `VITE_YUI_CHAT_KEY` (empty if the endpoint takes none) |
 | Expression broker MCP URL | `broker_base_url` (e.g. `http://localhost:3201/mcp`) — published in every mode; a backend agent reads it back in Responses mode |
 | TTS URL / model / speaker (+ key) | `tts_base_url` **without** `/v1` (e.g. `http://localhost:8088`) / `tts_model` / `tts_speaker`, `.env.local` → `VITE_YUI_TTS_KEY` |

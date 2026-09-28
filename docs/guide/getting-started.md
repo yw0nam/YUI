@@ -178,8 +178,8 @@ Key reference:
 
 | Key | Shipped default | Purpose |
 |---|---|---|
-| `chat_api` | `chat_completions` | Chat protocol: `"chat_completions"` (client-declared `generate_express`, any tool-calling endpoint) `"responses"` (backend agent honoring the expression contract), or `"push"` (one WebSocket, see [push transport](../reference/push-transport.md)) |
-| `chat_base_url` | unset | API root including `/v1`; the client appends `/chat/completions` or `/responses` per `chat_api`, or opens `/ws` in push mode |
+| `chat_api` | `chat_completions` | Chat protocol: `"chat_completions"` (client-declared `generate_express`, any tool-calling endpoint), `"responses"` (backend agent honoring the expression contract), or `"push"` (one WebSocket, see [push transport](../reference/push-transport.md)) |
+| `chat_base_url` | unset | In `chat_completions` and `responses` modes, the API root including `/v1`, to which the client appends `/chat/completions` or `/responses`. In push mode, the WebSocket base without `/v1`, where the client opens `<chat_base_url>/ws` |
 | `chat_model` | unset | Model ID sent to the backend |
 | `chat_model_context_window` | `200000` | Token window — display in Responses mode; also trims the client-side transcript in Chat Completions mode |
 | `chat_instructions` | expression prompt | System-level nudge on how to use `generate_express`; sent as `instructions` (Responses) or a system message (Chat Completions) |

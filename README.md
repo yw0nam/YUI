@@ -187,10 +187,10 @@ server. Each is a separate, config-swappable process, and all base URLs live in
   `generate_express` with its own vocabulary, executes the call and returns
   the result, and keeps the conversation transcript client-side (no
   `previous_response_id`), trimmed to `chat_model_context_window`
-  - `push` holds one WebSocket open to `<chat_base_url>/ws`, and the backend
-  may start a reply on its own. Frames and limits are in
-  [`docs/reference/push-transport.md`](docs/reference/push-transport.md); the
-  Hermes adapter is under [`integrations/hermes/`](integrations/hermes/README.md)
+  - `push` holds one WebSocket open to `<chat_base_url>/ws`, with
+  `chat_base_url` set to the WebSocket base without `/v1`, and the backend may
+  start a reply on its own. Frames and limits are in
+  [`docs/reference/push-transport.md`](docs/reference/push-transport.md)
   
   | Mode               | Speech text | `generate_express` cues                                             |
   | ------------------ | ----------- | ------------------------------------------------------------------- |
@@ -199,11 +199,9 @@ server. Each is a separate, config-swappable process, and all base URLs live in
   | `push`             | yes         | yes, in the render and speech frames' segments                      |
   
 
-  Backend capability still varies: a plain OpenAI-compatible server (e.g.
-  vLLM) speaks standard Chat Completions tool-call streaming, while the
-  Hermes api-server's `/v1/chat/completions` never surfaces tool calls — it
-  emits a custom `hermes.tool.progress` telemetry event with no arguments
-  instead. With Hermes, use `responses` or `push` mode for cues.
+  A plain OpenAI-compatible server (e.g. vLLM) speaks standard Chat
+  Completions tool-call streaming. Backend-specific notes, including which
+  modes carry cues for that backend, live under `integrations/<agent>/`.
 - **STT** — `<stt_base_url>/audio/transcriptions` (e.g. `localhost:5517/v1`)
 - **TTS** — OpenAI-compatible `/v1/audio/speech` (e.g. `localhost:8088`), with
 `model` from `tts_model` and `voice` from the speaker picked in the panel.

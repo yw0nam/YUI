@@ -43,7 +43,7 @@ when signals are enabled, the user is present, and the pipeline is idle. If thos
 conditions are not met, the groups remain buffered without another timer.
 
 While signals are disabled, the client drops every group that arrives, and the next
-idle tick clears the groups already buffered.
+OS idle tick clears the groups already buffered.
 
 Returning to present or transitioning from busy to idle emits one catch-up containing
 both away-buffered and batched groups in their original arrival order. Returning before
@@ -118,7 +118,7 @@ milliseconds of the failure when the scheduler keeps no run record for it.
 
 The client delivers every group it receives, so two runs on one day produce two groups.
 Each group becomes its own turn when it arrives while the user is present and the
-pipeline is idle; groups that wait in a buffer share one catch-up turn.
+pipeline is idle; groups that wait in a buffer share the next turn that drains the buffers.
 
 A producer's error path posts a group of the same item shape, naming the run that raised
 in its own `sources[]` entry:
