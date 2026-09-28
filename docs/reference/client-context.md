@@ -606,9 +606,11 @@ To keep the sentence neutral, stream the text without calling `generate_express`
 In Chat Completions mode (`chat_api: "chat_completions"`) the same rendered lines are
 sent as the CC `messages` array instead of Responses `input[]`, and CC keeps a real
 system slot: a `system` message with the persona/global instructions (if configured),
-a `system` message with `client_context:\n<rendered lines>`, the trimmed conversation
-transcript, then the `user` message carrying the utterance or background marker
-alone.
+the trimmed conversation transcript, a `system` message with
+`client_context:\n<rendered lines>`, then the `user` message carrying the utterance
+or background marker alone. The `client_context` message changes every turn, so it
+sits after the transcript: the instructions and transcript stay an identical prefix
+from one turn to the next, which provider prompt caches reuse.
 
 ### Client-declared tools
 

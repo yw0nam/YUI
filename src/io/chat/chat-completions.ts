@@ -44,11 +44,11 @@ export function buildCCMessages(opts: BuildCCMessagesOpts): CCMessage[] {
   if (opts.instructions) {
     messages.push({ role: "system", content: opts.instructions });
   }
-  messages.push({ role: "system", content: `client_context:\n${opts.clientContextText}` });
-
   for (const entry of opts.transcript) {
     messages.push({ role: entry.role, content: entry.text });
   }
+  // After the transcript: it changes every turn, and provider prompt caches reuse only the unchanged prefix.
+  messages.push({ role: "system", content: `client_context:\n${opts.clientContextText}` });
 
   const images = opts.imageDataUrls ?? [];
   const userContent: string | CCContentPart[] =
