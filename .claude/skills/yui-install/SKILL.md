@@ -27,16 +27,16 @@ Ask once: "Do you want to connect a chat backend / TTS / STT now, or skip and se
 
 | Value | Where it goes |
 |---|---|
-| Chat endpoint base URL, model id | `configs/endpoints.json` → `chat_base_url` — the API root including `/v1` in both modes (e.g. `http://localhost:8643/v1`); the client appends `/chat/completions` or `/responses` itself — and `chat_model` |
+| Chat endpoint base URL, model id | `configs/endpoints.json` → `chat_base_url` — the API root including `/v1` in the Chat Completions and Responses modes (e.g. `http://localhost:8643/v1`), where the client appends `/chat/completions` or `/responses` itself, and the WebSocket base in push mode, where the client opens `<chat_base_url>/ws`. Also `chat_model` |
 | Chat API key | `.env.local` → `VITE_YUI_CHAT_KEY` (empty if the endpoint takes none) |
-| Expression broker MCP URL | `broker_base_url` (e.g. `http://localhost:3201/mcp`) — published in both modes; a backend agent reads it back in Responses mode |
+| Expression broker MCP URL | `broker_base_url` (e.g. `http://localhost:3201/mcp`) — published in every mode; a backend agent reads it back in Responses mode |
 | TTS URL / model / speaker (+ key) | `tts_base_url` **without** `/v1` (e.g. `http://localhost:8088`) / `tts_model` / `tts_speaker`, `.env.local` → `VITE_YUI_TTS_KEY` |
 | STT URL (+ key) | `stt_base_url` **with** `/v1` (e.g. `http://localhost:5517/v1`), `.env.local` → `VITE_YUI_STT_KEY` |
 
 Then:
 
 - `.env.local`: `cp -n .env.example .env.local`, then set only the keys the user gave.
-- `configs/endpoints.json`: merge the answered keys into the existing JSON; leave the rest unset — an unset URL just keeps that feature off. Keep `chat_api: "chat_completions"` unless the backend speaks the Responses API; then set `"chat_api": "responses"` and `broker_base_url`.
+- `configs/endpoints.json`: merge the answered keys into the existing JSON; leave the rest unset — an unset URL just keeps that feature off. Keep `chat_api: "chat_completions"` unless the backend speaks the Responses API; then set `"chat_api": "responses"` and `broker_base_url`. A backend that speaks the push WebSocket contract (`docs/reference/push-transport.md`) takes `"chat_api": "push"`.
 
 Done when `node -e 'const c=JSON.parse(require("fs").readFileSync("configs/endpoints.json","utf8"));for(const k of Object.keys(c).filter(k=>k.endsWith("_url")))if(c[k]!==""&&!/^https?:\/\//.test(c[k]))process.exit(1)'` exits 0 and every value the user gave is present. Full key reference and the external services (Hermes, broker, Irodori TTS): `docs/guide/getting-started.md`.
 

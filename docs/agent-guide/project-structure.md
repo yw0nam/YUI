@@ -25,9 +25,9 @@ YUI/
     hooks/                           # Workflow guards: worktree create, pre-tool bash/read/write, post-edit doc check
     skills/                          # Vendored skills (karpathy-guidelines, yui-dev-workflow, yui-install)
     agents/                          # Vendored sub-agent definitions
-  scripts/                           # Dev launchers (dev-port.mjs, tauri-dev.mjs, dev-auto.mjs), release.sh, worktree-setup.sh, ci/test-guard.sh
+  scripts/                           # Dev launchers (dev-port.mjs, tauri-dev.mjs, dev-auto.mjs, package-manager.mjs), release.sh, worktree-setup.sh, ci/test-guard.sh
   configs/                           # Runtime-loaded config (no hardcoding)
-    endpoints.json                   # chat/stt/tts/broker base urls + chat_instructions, chat_api, chat_model_context_window + tts_model/tts_speaker/tts_max_inflight; the shipped file leaves the urls empty and the settings panel overrides per device
+    endpoints.json                   # chat/stt/tts/broker base urls + chat_instructions, chat_api, chat_model_context_window + tts_model/tts_speaker/tts_max_inflight; the shipped configs/endpoints.json omits the url and speaker keys, and the settings panel overrides per device
     emotion_registry.json            # emotion id -> vrm_expression + fallback
     motions.json                     # Motion registry
     avatar.json                      # VRM avatar config
@@ -102,6 +102,7 @@ YUI/
       geometry/                      # Pure math and pixel sampling with no three.js state
         alpha-hit-test.ts            # CPU-side low-res silhouette grab and sampling
         body-yaw.ts                  # Pure easing math for the root yaw a stroll turns by
+        bone-pitch.ts                # Sign that turns a downward head pitch into a normalized bone's local rotation.x
         camera-fit.ts                # Pure fit-to-bounds framing math
         frame-gate.ts                # Pure idle and active frame-throttle decision
         gaze-tracker.ts              # Pure cursor-gaze zone curve and angle damping
@@ -414,7 +415,7 @@ YUI/
         macos.rs                     # macOS idle, window enumeration, and camera polling
         windows.rs                   # Windows idle, foreground window, and window enumeration polling
   fixtures/                          # JSON case tables the TS and Rust sanitizer tests both read
-  Mods/                              # Standalone MCP servers, independent of the app runtime (Python/uv, own `mods` CI job)
+  Mods/                              # Standalone MCP servers, independent of the app runtime (Python/uv, own `mods` and `mods-lint` CI jobs)
     avatar/                          # Avatar body-state and movement Mod
     browser-cdp/                     # Browser CDP Mod
     desktop-control/                 # macOS screen and app-control Mod

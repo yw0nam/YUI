@@ -5,7 +5,7 @@ Chat io has three protocol modes, selected by `chat_api` in `configs/endpoints.j
 Chat, STT and TTS use the **OpenAI-compatible API**; the broker is an MCP. Separate processes, all swappable via config:
 
 - **chat → selected backend** `chat_base_url` + `/responses` or `/chat/completions` per `chat_api`
-- **STT →** `localhost:5517` `/v1/audio/transcriptions`
+- **STT →** `stt_base_url` (includes `/v1`, e.g. `localhost:5517/v1`) + `/audio/transcriptions`
 - **TTS →** `tts_base_url` (`localhost:8088`) `/v1/audio/speech`, with `model` from `tts_model` and `voice` from the speaker selected in the panel. Speakers are listed by `GET {tts_base_url}/v1/audio/voices` — YUI carries no bundled catalog — plus any clip the user imports, which is uploaded to `POST`/`PUT /v1/audio/voices` and removed with `DELETE /v1/audio/voices/{voice_id}`
 - **Expression Broker** (config-driven) `broker_base_url` (`localhost:3201/mcp`, streamable-http MCP) — YUI publishes renderable emotion/motion/emotion_text vocabulary, the agent reads it (publish skipped if unset)
 

@@ -19,7 +19,7 @@ Verify locally before the PR: `cd Mods/<name> && uv run pytest && uv run ruff fo
 
 `main` requires a PR with every check green (enforcement points: `docs/agent-guide/harness-enforcement.md`):
 
-- `web (tsc + vitest)`, `lint (biome)` — the app (TS); `rust (cargo test)` — `src-tauri/`.
+- `web (tsc + vitest)`, `lint (biome)` — the app (TS); `rust (cargo test)` — `src-tauri/`; `rust-windows (cargo check)` compiles `src-tauri/` on a Windows runner.
 - `test-guard` — source changes under `src/` / `src-tauri/` must ship a test (`skip-tests` label bypasses); it does **not** scope the standalone Python projects.
 - `pr-title` — Conventional-Commit type + **printable-ASCII subject** (English; no em-dash or emoji in the title).
 - `mods (uv + pytest)` and `mods-lint (ruff)` — one job each, looping over repository-relative paths for every Mod and Hermes integration uv project. The check count stays two no matter how many projects exist; adding one means updating both loops.

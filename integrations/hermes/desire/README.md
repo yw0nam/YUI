@@ -143,7 +143,7 @@ names (`telegram`, `discord`, `slack`, …); a turn Hermes attributes to one of 
 even when it carries no `<client_context>`.
 
 `YUI_SIGNALS_URL` defaults to `http://127.0.0.1:8770/signals`, which assumes Hermes and YUI share a host. The
-`/signals` ingress listens only while AgentNotify is enabled in YUI's quick controls, and toggling AgentNotify
+`/signals` ingress listens only while Settings → Proactive → Agent notifications is on in YUI, and toggling it
 requires an app restart. When Hermes runs on
 a remote host, such as when it reaches YUI through an SSH reverse tunnel, `YUI_SIGNALS_URL` must be set to the tunnel
 endpoint.

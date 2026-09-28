@@ -22,6 +22,7 @@ The routing table is the `UPSTREAMS` dict in `router/server.py` — registering 
 UPSTREAMS = {
     "desktop": "http://127.0.0.1:9000",
     "shell":   "http://127.0.0.1:9001",
+    "avatar":  "http://127.0.0.1:9002",
 }
 ```
 
@@ -37,6 +38,7 @@ The router splits the path as `<mod>/<rest>` and forwards to `UPSTREAMS[<mod>]/<
 |---|---|
 | `http://localhost:8080/desktop/mcp` | `http://127.0.0.1:9000/mcp` |
 | `http://localhost:8080/shell/mcp` | `http://127.0.0.1:9001/mcp` |
+| `http://localhost:8080/avatar/mcp` | `http://127.0.0.1:9002/mcp` |
 
 An unregistered prefix returns **404**; a registered-but-unreachable mod returns **502**.
 
@@ -45,7 +47,8 @@ An unregistered prefix returns **404**; a registered-but-unreachable mod returns
 ```json
 [
   { "mod_name": "desktop", "endpoint": "http://localhost:8080/desktop/mcp", "upstream": "http://127.0.0.1:9000" },
-  { "mod_name": "shell",   "endpoint": "http://localhost:8080/shell/mcp",   "upstream": "http://127.0.0.1:9001" }
+  { "mod_name": "shell",   "endpoint": "http://localhost:8080/shell/mcp",   "upstream": "http://127.0.0.1:9001" },
+  { "mod_name": "avatar",  "endpoint": "http://localhost:8080/avatar/mcp",  "upstream": "http://127.0.0.1:9002" }
 ]
 ```
 

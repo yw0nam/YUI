@@ -14,7 +14,7 @@ How development happens in YUI: the mandatory work rules, delegation decisions, 
 ## Work Rules (user directive, mandatory)
 
 - **Worktree → PR.** All work happens in a git worktree and lands via PR; `main` requires a PR and green CI (`PreToolUse(Bash)` guard denies `git commit`/`git push` on `main` — the agent cannot commit/push to `main` and must request the user to run it directly). New-worktree setup: run `bash scripts/worktree-setup.sh <worktree>` after a manual `git worktree add` (Claude-created worktrees run this automatically via `WorktreeCreate` hook).
-- **GitHub tracker in English.** Issues, issue comments, and PR titles/bodies are written in English (chat with the user is any language); enforced by the `pr-title` CI job.
+- **GitHub tracker in English.** Issues, issue comments, and PR titles/bodies are written in English (chat with the user is any language). The `pr-title` CI job enforces English for PR titles; the rest is working practice.
 - **UI: review existing → propose text structure → mock HTML → implement.** Read `src/ui/`, `DESIGN.md`, `PRODUCT.md` before any UI work; propose structure, get confirmation, create a standalone mock HTML, then implement (detail: `docs/agent-guide/design-context.md`).
 - **Tests accompany behavior.** New or changed behavior ships its test in the same PR; the `test-guard` CI job enforces this (`skip-tests` label bypasses; the label takes effect on the next `test-guard` run, so re-run the job after labelling). Write the failing test first (`test:`), then implementation (`feat:`), then refactor if needed (`refactor:`).
 - **Verify what you can verify before asking the user.** Anything observable (UI rendering / DOM state / logs) — verify yourself and attach proof to the PR's Runtime-evidence section; ask the user only for things that genuinely require them (audio playback, physical input feel).
@@ -27,7 +27,7 @@ How development happens in YUI: the mandatory work rules, delegation decisions, 
 2. **Task delegation** — distribute work to sub-agents (ensure failing tests precede implementation — TDD ordering)
 3. **Integration verification** — confirm `pnpm test` + `pnpm typecheck:test` + `cargo test` + `pnpm build` + `pnpm lint` pass (vitest runs test files without typechecking them; only `typecheck:test` catches stale fixtures)
 4. **Orchestration** — manage task ordering and dependencies
-5. **Chore work** - You can directly commit and push to the main branch if the work is chore work. chore work means: 3~4 files edit and less than 100 line edit. In this case you don't need to worktree either. just edit, stage, then report back to user.
+5. **Chore work** - Chore work is an edit of 3–4 files and under 100 changed lines. The main agent edits it directly on the current checkout, with no worktree and no sub-agent, stages the changes, and asks the user to commit and push. The agent itself never commits or pushes to `main`.
 
 ## When to delegate
 

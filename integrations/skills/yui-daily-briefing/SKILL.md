@@ -71,9 +71,10 @@ Two values run through every step:
 
 ### 1. Turn the ingress on
 
-Ask the user to open YUI Settings → Reactions, switch "Agent notifications" on, and read
-the "Listener port" back to you. Ask them to open Settings → Proactive and switch
-"Scheduled greeting" on. Both fields take effect at launch, so ask them to restart YUI.
+Ask the user to open YUI Settings → Proactive → Watchers, switch "Agent notifications" on, and
+read the "Listener port" back to you. Ask them to switch "Scheduled greeting" on in Settings →
+Proactive. Agent notifications and its port take effect at launch, so ask them to restart YUI;
+Scheduled greeting applies as soon as it is switched on.
 
 Once they report the restart:
 

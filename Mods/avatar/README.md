@@ -4,7 +4,7 @@ Lets the agent query the avatar's own body state and move it on screen with sema
 
 ## Run
 
-YUI must be running with the agent ingress enabled (Quick controls → agent notify), since the ingress binds only when that toggle is on and applies on the next launch.
+YUI must be running with the agent ingress enabled (Settings → Proactive → Agent notifications), since the ingress binds only when that toggle is on and applies on the next launch.
 
 ```bash
 cd Mods/avatar && uv sync

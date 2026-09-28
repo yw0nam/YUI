@@ -16,7 +16,7 @@
 
 Set `"chat_api": "push"` in `configs/endpoints.json`, or pick **Hermes Agent** in the settings panel's chat provider dropdown. The Hermes side of this mode is the platform plugin under `integrations/hermes/platform/yui/`, and `chat_base_url` is that plugin's WebSocket base: the client opens `<chat_base_url>/ws` and identifies itself with the key and a per-installation `chat_id`. The frames, the reconnect schedule and the size limits are in [docs/reference/push-transport.md](../../docs/reference/push-transport.md).
 
-The chat model row is not part of this mode — the plugin picks the model. The settings panel's chat section carries a connection line instead, naming the conversation while the socket is up and the close code when the backend refuses it.
+The chat model row is not part of this mode — the plugin picks the model. The settings panel's chat section carries a connection line instead, naming the conversation while the socket is up and stating that the backend refused the key when it closes with `4401`.
 
 ## Profile setup
 

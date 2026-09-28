@@ -11,6 +11,7 @@ Mandatory rules have an enforcement point — the gate, not memory, is the sourc
 | No raw `console.*` in `src/` | `lint` CI job (Biome `noConsole`) |
 | `src/` layer order: a layer imports only from the layers to its left (`AGENTS.md` § Engineering principles) | `lint` CI job (Biome `noRestrictedImports` `patterns`, one `overrides` entry per layer in `biome.json`; `*.test.ts` and `*test-helpers*.ts` are exempt) |
 | Rust format + clippy + test | `rust` CI job; on pull requests, `dorny/paths-filter` runs `cargo fmt --check`, `cargo clippy -D warnings`, and `cargo test` when `src-tauri/**` or `.github/workflows/ci.yml` changes, otherwise the job reports green without the heavy steps |
+| Windows-only Rust sources compile | `rust-windows` CI job (`cargo check` on a Windows runner, gated by the same `paths-filter` as `rust`) |
 | Runtime verification of UI/DOM/runtime change | PR template Runtime-evidence section |
 | Purchased motion files are protected from mutation | `PreToolUse(Write\|Edit\|NotebookEdit)` runs `pretool-write-guard.sh`, which denies writes under `purchased_motions/`; `PreToolUse(Bash)` runs `pretool-bash-guard.sh`, which denies shell move/copy/delete/overwrite, `git add`, and redirects touching the same directory; `YUI_ALLOW_MOTIONS=1` bypasses both guards |
 | Docs are current-state only | `PostToolUse(Write\|Edit\|NotebookEdit)` hook (change-narrative vocabulary block) |
@@ -18,4 +19,4 @@ Mandatory rules have an enforcement point — the gate, not memory, is the sourc
 | Worktree runtime assets linked | `WorktreeCreate` hook + `scripts/worktree-setup.sh` |
 | TDD ordering, UI mock approval, delegation | Working style (no machine gate) |
 
-Hook scripts live in [`.claude/hooks/`](../../.claude/hooks/) and are wired in [`.claude/settings.json`](../../.claude/settings.json); all fail open. The `configs/motions.json` ↔ `docs/reference/motions.md` pair surfaces a non-blocking sync nudge.
+Hook scripts live in [`.claude/hooks/`](../../.claude/hooks/) and are wired in [`.claude/settings.json`](../../.claude/settings.json). The guard hooks fail open; `worktree-create.sh` fails closed and exits 1 when it cannot create the worktree. The `configs/motions.json` ↔ `docs/reference/motions.md` pair surfaces a non-blocking sync nudge.
