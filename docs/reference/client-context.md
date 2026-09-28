@@ -3,12 +3,13 @@
 This is **not a wire schema** — `client_context` is prompt text riding inside the
 turn's user message. Nothing on either side parses it programmatically; its only
 reader is the backend model, so the format only has to stay stable and readable to a
-model, not machine-parseable. It applies to both chat protocols YUI supports
-(`chat_api` in `configs/endpoints.json`). The sections below describe Responses mode;
+model, not machine-parseable. It applies to all three chat protocols YUI supports
+(`chat_api` in `configs/endpoints.json`: Responses, Chat Completions, and push). The sections below describe Responses mode;
 Chat Completions mode carries the same rendered lines and the same `generate_express`
 cue over a different transport, where the client declares the tool itself and answers
 the call — see [CC mode transport](#cc-mode-transport-chat-completions) at the end of
-this doc for the deltas.
+this doc for the deltas. Push mode sends the same block as the `turn` frame's
+`client_context` field; its frames are in [push-transport.md](push-transport.md).
 
 ## Per-turn client context (client → agent)
 
@@ -624,6 +625,7 @@ publishes to the broker:
 | `emotion_id` | `string`, `enum` = the loaded emotion registry's ids |
 | `motion_id` | `string`, `enum` = the loaded motion registry's agent-triggerable ids (reactive, ambient, and `broker_publish: false` motions excluded), narrowed by the user's expression-motion selection |
 | `emotion_text` | `string`; on an enum-mode TTS provider, `enum` = that provider's tag table with each tag's meaning in the description, otherwise free text |
+| `caption` | `string`, free-text voice direction for the speech around the call, separate from `emotion_text` |
 
 Every declared parameter is optional and the object takes no other properties,
 matching the [tool arguments](#tool-arguments) above. A vocabulary edit (a new

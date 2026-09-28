@@ -28,7 +28,7 @@ One backend round trip, from the moment the dispatcher admits a trigger until th
 _Avoid_: request, exchange, interaction
 
 **Trigger**:
-The event that makes a turn a candidate — typed text, a voice segment, a physical poke, a schedule tick. Carried as one of `user`, `schedule`, `proactive`, `agent`, `signals`. Firing a trigger is not a decision to speak.
+The event that makes a turn a candidate — typed text, a voice segment, a physical poke, a schedule tick. Carried as one of `user`, `schedule`, `proactive`, `agent`, `signals`, `milestone`. Firing a trigger is not a decision to speak.
 _Avoid_: intent, command, prompt
 
 **Guardrails**:
@@ -47,7 +47,7 @@ The one-way `generate_express` instruction, brain→client: emotion, motion, a T
 _Avoid_: bare "cue", expression command, tag, control token
 
 **Reflex turn**:
-A gesture-fired turn (drag-held, window-sit, peek) that skips the thinking filler — immediate reaction, no deliberative pause.
+A gesture-fired turn (head pat, drag-held, window-sit, peek, drop, touch) that skips the thinking filler — immediate reaction, no deliberative pause.
 
 **Background marker**:
 The placeholder user-content text on turns with no real user utterance.

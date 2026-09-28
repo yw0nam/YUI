@@ -26,17 +26,17 @@ ssh -R 8080:localhost:8080 <remote-host>      # all mods, via the router
 ssh -R 9000:localhost:9000 <remote-host>      # one mod directly
 ```
 
-The agent then adds the MCP tool source — `http://localhost:8080/<mod>/mcp` through the router, or `http://localhost:<port>/mcp` directly (from the remote's view).
+The agent then adds the MCP tool source — `http://localhost:8080/<prefix>/mcp` through the router (the prefixes are listed under [router](#router)), or `http://localhost:<port>/mcp` directly (from the remote's view).
 
 ## router
 
 One HTTP front door that path-routes to every mod, so a single SSH reverse tunnel exposes them all:
 
 ```
-http://host:8080/<mod>/mcp  ->  127.0.0.1:<mod port>/mcp
+http://host:8080/<prefix>/mcp  ->  127.0.0.1:<mod port>/mcp
 ```
 
-It runs host-native as a thin proxy — MCP's Streamable HTTP transport is SSE, so responses stream through unbuffered. The routing table is the `UPSTREAMS` dict in `router/server.py`. An unregistered prefix returns **404**; a registered-but-unreachable mod returns **502**. `GET /_mods` lists the registered mods so a client can discover them without reading the code.
+It runs host-native as a thin proxy — MCP's Streamable HTTP transport is SSE, so responses stream through unbuffered. The routing table is the `UPSTREAMS` dict in `router/router/server.py`; its keys are the route prefixes: `desktop` (desktop-control), `shell` (shell-sandbox), and `avatar`. An unregistered prefix returns **404**; a registered-but-unreachable mod returns **502**. `GET /_mods` lists the registered mods so a client can discover them without reading the code.
 
 ## desktop-control
 
@@ -84,14 +84,14 @@ Gives the agent its own body: where the avatar is, and where to move it. Runs **
 
 | Tool | Description |
 |---|---|
-| `get_body_state()` | Window position + monitor, posture (standing / sitting / peeking / dragging / walking and what it is perched on), loaded VRM, whether a move is running |
+| `get_body_state()` | Window position + monitor, posture (standing / sitting / peeking / dragging / walking / climbing and what it is perched on), loaded VRM, whether a move is running |
 | `list_perch_targets()` | The client's tracked perch candidates plus the peek edges; each window carries `app`, `title` and `rect`, with `app` and `title` null for an unnamed window |
 | `sit_on_window(app)` | Sit on the top edge of that app's window — the frontmost one whose top edge is reachable |
 | `peek(side)` | Peek around the `left` or `right` edge of the frontmost window |
 | `move_to(spot, monitor=None)` | Move to `center` or a named corner, optionally on a given monitor |
 | `stand_down()` | Release any perch or peek and return to the normal standing position |
 
-Movement only — expression stays on the `generate_express` stream and screen capture belongs to [desktop-control](#desktop-control). A gesture that did not happen raises a tool error carrying the client's reason: `not_found`, `blocked` (every candidate window is covered, so nothing moved), `interrupted` (the user is holding the avatar, or grabbed it mid-move), `busy` (another gesture is running), or `unsupported`. `AVATAR_INGRESS_URL` overrides the ingress address, which defaults to the client's stored ingress port.
+Movement only — expression stays on the `generate_express` stream and screen capture belongs to [desktop-control](#desktop-control). A gesture that did not happen raises a tool error carrying the client's reason: `not_found`, `blocked` (every candidate window is covered, so nothing moved), `interrupted` (the user is holding the avatar, or grabbed it mid-move), `busy` (another gesture is running), or `unsupported`. The ingress address defaults to `http://127.0.0.1:8770`; set `AVATAR_INGRESS_URL` when the client's ingress port was changed.
 
 `sit_on_window` walks the app's windows front-to-back and takes the first whose top edge is not covered, so a Stage Manager thumbnail sitting in front of the real window does not shadow it. `blocked` means every one of them was covered.
 

@@ -42,6 +42,9 @@ delivery interval. At the interval boundary, all pending batched groups fire tog
 when signals are enabled, the user is present, and the pipeline is idle. If those
 conditions are not met, the groups remain buffered without another timer.
 
+While signals are disabled, the client drops every group that arrives, and the next
+idle tick clears the groups already buffered.
+
 Returning to present or transitioning from busy to idle emits one catch-up containing
 both away-buffered and batched groups in their original arrival order. Returning before
 a batched group's deadline therefore includes it in that catch-up.
@@ -113,7 +116,9 @@ The group travels under this envelope:
 The `source-health` run id reads the scheduler's own execution id, and the epoch
 milliseconds of the failure when the scheduler keeps no run record for it.
 
-The client delivers every group it receives, so two runs on one day produce two turns.
+The client delivers every group it receives, so two runs on one day produce two groups.
+Each group becomes its own turn when it arrives while the user is present and the
+pipeline is idle; groups that wait in a buffer share one catch-up turn.
 
 A producer's error path posts a group of the same item shape, naming the run that raised
 in its own `sources[]` entry:
@@ -134,7 +139,9 @@ in its own `sources[]` entry:
 ```
 
 That group's envelope reads `event_type: "source_health"` and
-`event_id: "source-health:<producer>:<run id>"`.
+`event_id: "source-health:<producer>:<run id>"`. The `run_url` entry is present when
+the scheduler has a run page; the bundled `post-briefing.py` error path posts the failed
+source with `name` and `status` only.
 
 ### Health observations
 
@@ -144,7 +151,7 @@ That group's envelope reads `event_type: "source_health"` and
 | No data | A group with `refs: []` whose sources all read `ok` |
 | Stale data | `sources[].status` reads `stale`, with `last_ok` |
 | Intentional inactivity | `sources[].status` reads `disabled` |
-| Run that raised | A `source_health` group from the producer's error path, carrying `run_url` |
+| Run that raised | A `source_health` group from the producer's error path, carrying `run_url` when the scheduler has a run page |
 | Missed run (the producer never fired: automation down or the workflow unpublished) | Zero groups on that day; nothing posts on the producer's behalf |
 | Receiver offline | The ingress refuses the connection; the producer keeps its rows pending and the following run carries them; no health group is posted |
 | Delivery acceptance | HTTP 2xx from the ingress; the producer marks its rows sent |
