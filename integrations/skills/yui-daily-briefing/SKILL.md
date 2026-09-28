@@ -86,7 +86,10 @@ Done when: the command prints `200`.
 
 ### 2. Confirm the loop with a fixture
 
-Register `$SKILL_DIR` in the place you load your own skills from, then post a fixture:
+Register `$SKILL_DIR` in the place you load your own skills from, then post a fixture. A
+backend without skill loading (a plain model behind a Chat Completions endpoint) takes the
+Speak section verbatim in its system prompt, which YUI sends from the instructions field in
+its settings.
 
 ```bash
 "$SKILL_DIR/scripts/post-fixture.sh"                                              # a full briefing
@@ -99,6 +102,13 @@ The turn log lives at `$YUI/logs/turns_<date>.jsonl` in a dev run and at
 Done when: the script prints `200`, the turn log gains one line whose
 `client_context.trigger.signals[0].items[0].skill` reads `yui-daily-briefing`, and the
 speech bubble shows a link. The empty fixture yields a turn line and silence.
+
+A plain model keeps only what it said. The next turn carries its speech text alone, so a
+follow-up reaches only the refs it spoke aloud. It can also answer the
+turn's marker line or the earlier conversation in place of the group, which breaks the
+silence on the empty fixture and the source sentence on
+`assets/fixtures/daily-briefing-sources-down.json`. Post all three fixtures to such a
+backend and tell the user which of them it gets right.
 
 ### 3. Ask what to report
 
