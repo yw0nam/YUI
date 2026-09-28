@@ -121,7 +121,7 @@ The in-app agent settings expose reasoning effort (`none` · `minimal` · `low` 
 
 ## 4. Expression MCP Broker (optional)
 
-The broker publishes YUI's renderable emotion/motion/`emotion_text` vocabulary so a backend agent learns what the body can express at runtime. YUI publishes in both chat modes whenever `broker_base_url` is set, and silently skips it otherwise; only Responses mode needs the agent to read it back.
+The broker publishes YUI's renderable emotion/motion/`emotion_text` vocabulary so a backend agent learns what the body can express at runtime. YUI publishes in every chat mode whenever `broker_base_url` is set, and silently skips it otherwise; only Responses mode needs the agent to read it back.
 
 1. Install and serve the broker from [https://github.com/yw0nam/tts_express_broker](https://github.com/yw0nam/tts_express_broker).
 2. The broker listens by default at `http://localhost:3201/mcp` (streamable-http MCP).
@@ -178,8 +178,8 @@ Key reference:
 
 | Key | Shipped default | Purpose |
 |---|---|---|
-| `chat_api` | `chat_completions` | Chat protocol: `"chat_completions"` (client-declared `generate_express`, any tool-calling endpoint) or `"responses"` (backend agent honoring the expression contract) |
-| `chat_base_url` | unset | API root including `/v1`; the client appends `/chat/completions` or `/responses` per `chat_api` |
+| `chat_api` | `chat_completions` | Chat protocol: `"chat_completions"` (client-declared `generate_express`, any tool-calling endpoint) `"responses"` (backend agent honoring the expression contract), or `"push"` (one WebSocket, see [push transport](../reference/push-transport.md)) |
+| `chat_base_url` | unset | API root including `/v1`; the client appends `/chat/completions` or `/responses` per `chat_api`, or opens `/ws` in push mode |
 | `chat_model` | unset | Model ID sent to the backend |
 | `chat_model_context_window` | `200000` | Token window — display in Responses mode; also trims the client-side transcript in Chat Completions mode |
 | `chat_instructions` | expression prompt | System-level nudge on how to use `generate_express`; sent as `instructions` (Responses) or a system message (Chat Completions) |

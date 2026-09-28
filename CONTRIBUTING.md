@@ -51,8 +51,10 @@ Run the same checks CI does:
 
 ```bash
 pnpm test                   # vitest
+pnpm typecheck:test         # tsc over the test files
 cd src-tauri && cargo test  # Rust unit tests
 pnpm build                  # tsc + vite build
+pnpm docs:build             # vitepress build + dead-link check
 pnpm lint                   # biome
 ```
 

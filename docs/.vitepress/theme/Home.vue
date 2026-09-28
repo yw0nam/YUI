@@ -142,8 +142,9 @@ onMounted(() => {
                 <div>
                   <p class="tier-item-name">Chat backend</p>
                   <p class="tier-item-note">
-                    The brain: any OpenAI-compatible endpoint, or a backend
-                    agent such as Hermes Agent over the Responses API.
+                    The brain: any OpenAI-compatible endpoint, a backend agent
+                    such as Hermes Agent over the Responses API, or a push
+                    WebSocket where the backend starts replies on its own.
                   </p>
                 </div>
               </li>
@@ -171,7 +172,8 @@ onMounted(() => {
                 <div>
                   <p class="tier-item-name">STT + VAD</p>
                   <p class="tier-item-note">
-                    Whisper-based turn detection for voice input.
+                    Silero VAD segments speech; any OpenAI-compatible
+                    transcription server turns it into text.
                   </p>
                 </div>
               </li>
@@ -190,7 +192,8 @@ onMounted(() => {
                 <div>
                   <p class="tier-item-name">Standalone Mods</p>
                   <p class="tier-item-note">
-                    Independent MCP servers: memory, tools, integrations.
+                    Independent MCP servers: router, desktop-control,
+                    shell-sandbox, avatar.
                   </p>
                 </div>
               </li>
@@ -227,7 +230,7 @@ onMounted(() => {
     <footer class="home-footer">
       <div class="footer-inner">
         <p class="footer-copy">
-          YUI · MIT License ·
+          YUI · PolyForm Noncommercial 1.0.0 ·
           <a href="https://github.com/yw0nam/YUI" rel="noopener" target="_blank"
             >github.com/yw0nam/YUI</a
           >

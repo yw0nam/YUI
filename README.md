@@ -130,7 +130,7 @@ stream, while emotion, motion, and voice tags arrive as `generate_express`
 tool-calls with flat arguments
 `{ emotion_id?, motion_id?, emotion_text?, caption? }`.
 `emotion_text` is a TTS voice tag drawn from the emoji vocabulary the Expression
-Broker publishes so the agent knows what it can ask for. Both chat modes carry
+Broker publishes so the agent knows what it can ask for. Every chat mode carries
 them; see [Backend wiring](#backend-wiring) for how the transport differs by
 chat protocol and backend. The full cue contract handed to the
 backend lives in [`docs/reference/client-context.md`](docs/reference/client-context.md).
@@ -187,18 +187,23 @@ server. Each is a separate, config-swappable process, and all base URLs live in
   `generate_express` with its own vocabulary, executes the call and returns
   the result, and keeps the conversation transcript client-side (no
   `previous_response_id`), trimmed to `chat_model_context_window`
+  - `push` holds one WebSocket open to `<chat_base_url>/ws`, and the backend
+  may start a reply on its own. Frames and limits are in
+  [`docs/reference/push-transport.md`](docs/reference/push-transport.md); the
+  Hermes adapter is under [`integrations/hermes/`](integrations/hermes/README.md)
   
   | Mode               | Speech text | `generate_express` cues                                             |
   | ------------------ | ----------- | ------------------------------------------------------------------- |
   | `responses`        | yes         | yes — the backend agent emits them as function-call items           |
   | `chat_completions` | yes         | yes — the client declares the tool, runs it, and returns the result |
+  | `push`             | yes         | yes, in the render and speech frames' segments                      |
   
 
   Backend capability still varies: a plain OpenAI-compatible server (e.g.
   vLLM) speaks standard Chat Completions tool-call streaming, while the
   Hermes api-server's `/v1/chat/completions` never surfaces tool calls — it
   emits a custom `hermes.tool.progress` telemetry event with no arguments
-  instead. With Hermes, use `responses` mode for cues.
+  instead. With Hermes, use `responses` or `push` mode for cues.
 - **STT** — `<stt_base_url>/audio/transcriptions` (e.g. `localhost:5517/v1`)
 - **TTS** — OpenAI-compatible `/v1/audio/speech` (e.g. `localhost:8088`), with
 `model` from `tts_model` and `voice` from the speaker picked in the panel.
@@ -207,9 +212,9 @@ The TTS server is the source of truth for the speaker list
 which uploads the clip to `/v1/audio/voices`. [Irodori TTS Server](https://github.com/Aratako/Irodori-TTS-Server)
 is the recommended server for Japanese TTS.
 - **Expression Broker** — streamable-http MCP (e.g. `localhost:3201/mcp`); YUI
-publishes its emotion/motion/voice vocabulary here in both chat modes,
+publishes its emotion/motion/voice vocabulary here in every chat mode,
 gated only on `broker_base_url` (skipped if unset) — the backend agent
-behind either endpoint reads it back via `get_ids`
+behind the chat endpoint reads it back via `get_ids`
 
 The client calls STT and TTS directly — they do not route through Hermes.
 
@@ -221,21 +226,32 @@ YUI/
   resources/vrms/         # VRM models — bundled default (tracked) + your own (gitignored)
   public/motions/         # VRMA motion assets
   public/vad/             # Silero VAD + ONNX runtime assets
-  scripts/                # dev-port / worktree helpers
+  scripts/                # Dev-server, worktree, release, and CI helpers
+  integrations/           # Backend-agent adapters (hermes/) and backend-agnostic skills
   src/
     contract/             # TS contract types — source of truth
-    renderer/             # three.js + VRM: load, emotion resolver, motion controller, lipsync
-    io/                   # chat, tts, stt, os-context, screenshot, broker
-    dispatcher/           # Event bus + classify → route
-    ambient/              # Local idle liveliness (blink / sway / breath)
+    tauri-env.ts          # Tauri runtime detection
+    logger.ts             # Namespaced logger
     config/               # Config load, validate, hot-reload
-    ui/                   # Speech bubble, input, tool-status surfaces
+    renderer/             # three.js + VRM: camera, expression, geometry, motion
+    settings/             # Persisted settings: avatar, backend, capture, cues, panels, voice
+    io/                   # assets, bridge (cross-window + ingress inbox), chat, voice (STT/TTS/filler), window
+    dispatcher/           # Event bus, trigger sources, backend calls, turn rendering
+    ambient/              # Idle liveliness and locomotion (walk, jump, climb, fall, sit)
+    ui/                   # chips, devtools, i18n, input, message, notices, quick-controls, surfaces
+    app/                  # Wiring: controls, cross-window, settings, stage, turn
+    windows/              # Window entries: main, message, settings, devtools
   src-tauri/src/
     drag.rs               # OS-native window drag
     passthrough.rs        # Click-through over transparent pixels
     screenshot.rs         # Monitor capture
     tray.rs               # System tray
-    agent_ingress.rs      # Loopback /signals ingress: coding-agent hooks + remote signal batches
+    agent_ingress.rs      # Loopback /signals ingress (coding-agent hooks, remote signal batches) and /avatar RPC
+    window_frame.rs       # Pet-window frame moves past the macOS screen clamp
+    witness.rs            # Witness activity log
+    turn_log.rs           # Per-turn JSONL record
+    log_rotation.rs       # Dated log files with 14-day retention
+    import_fs.rs          # Shared import helpers: sanitize, hash, sniff
     vrm_import.rs         # Bring-your-own VRM copy into app data
     voice_import.rs       # Reference-clip import for TTS voices
     os_event_watcher/     # Idle / frontmost polling (macos · windows)
@@ -260,6 +276,9 @@ crate.
 
 Default level is `debug` in dev and `warn` in release; override the frontend
 level with `VITE_YUI_LOG_LEVEL` (`debug` · `info` · `warn` · `error`).
+
+The same directory holds `turns_YYYY-MM-DD.jsonl`, one JSON line per completed
+backend turn or skipped screen-source fire.
 
 ## Documentation
 
@@ -288,8 +307,10 @@ The `sulk` clip (`suneru.vrma`) is from necocoya's
 and bundling-with-credit are permitted; standalone resale of the raw file is
 prohibited.
 
-The `falling` and `landing` clips (`falling_loop.vrma`, `landing.vrma`) are
-original works authored in Blender by the project author.
+The locomotion clips `walk`, `jump`, `falling`, `landing`, the climb set
+(`climb_up`, `climb_up_done`, `climb_down`, `climb_down_landing`), `sit_down`
+and `stand_up` are from [Mixamo](https://www.mixamo.com/), royalty-free under
+the Mixamo terms.
 
 The bundled default VRM model
 (`resources/vrms/Sendagaya_Shino.vrm`) is **Sendagaya Shino**, originally by
