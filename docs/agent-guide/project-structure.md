@@ -23,7 +23,7 @@ YUI/
   biome.json                         # Format and lint config (curated rule set)
   .claude/
     hooks/                           # Workflow guards: worktree create, pre-tool bash/read/write, post-edit doc check
-    skills/                          # Vendored skills (karpathy-guidelines, yui-dev-workflow, yui-install)
+    skills/                          # Vendored skills (karpathy-guidelines, yui-dev-workflow)
     agents/                          # Vendored sub-agent definitions
   scripts/                           # Dev launchers (dev-port.mjs, tauri-dev.mjs, dev-auto.mjs) and their shared package-manager.mjs helper, release.sh, worktree-setup.sh, ci/test-guard.sh
   configs/                           # Runtime-loaded config (no hardcoding)

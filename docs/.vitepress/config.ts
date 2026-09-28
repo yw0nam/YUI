@@ -35,7 +35,11 @@ export default defineConfig({
       { text: 'Home', link: '/' },
       {
         text: 'Guide',
-        items: [{ text: 'Getting Started', link: '/guide/getting-started' }],
+        items: [
+          { text: 'Install with an Agent', link: '/guide/install' },
+          { text: 'Getting Started', link: '/guide/getting-started' },
+          { text: 'Features', link: '/guide/features' },
+        ],
       },
       {
         text: 'Reference',
@@ -55,7 +59,11 @@ export default defineConfig({
       '/guide/': [
         {
           text: 'Guide',
-          items: [{ text: 'Getting Started', link: '/guide/getting-started' }],
+          items: [
+          { text: 'Install with an Agent', link: '/guide/install' },
+          { text: 'Getting Started', link: '/guide/getting-started' },
+          { text: 'Features', link: '/guide/features' },
+        ],
         },
       ],
       '/reference/': [

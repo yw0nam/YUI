@@ -21,7 +21,7 @@ One VRM model — and one ships in the repo (`resources/vrms/Sendagaya_Shino.vrm
 
 ## 1. Run YUI itself
 
-With Claude Code: open the repo and type `/yui-install` — the `yui-install` skill runs sections 1–2 and the wiring in 4–7 interactively and verifies the build. The rest of this page is the manual path and the reference for the external services.
+A coding agent can run sections 1–2 and the wiring in 4–7 for you from [Install with a coding agent](install.md). The rest of this page is the manual path and the reference for the external services.
 
 ### Prerequisites
 

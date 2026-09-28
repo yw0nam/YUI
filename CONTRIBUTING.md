@@ -13,7 +13,7 @@ pnpm install
 pnpm tauri dev    # transparent desktop-pet window
 ```
 
-With Claude Code, `/yui-install` walks the setup. A default VRM ships in the
+A coding agent can walk the setup from [`docs/guide/install.md`](docs/guide/install.md). A default VRM ships in the
 repo; the backend agent, Expression Broker, TTS, and STT are **separate
 repositories** and optional — see [`docs/guide/getting-started.md`](docs/guide/getting-started.md).
 
