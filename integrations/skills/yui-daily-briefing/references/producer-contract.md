@@ -91,8 +91,8 @@ the `http` or `https` scheme or runs past 2048 characters drops out; `kind` defa
 | Exit | Output | Meaning |
 |---|---|---|
 | 0 | none | The ingress accepted the group |
-| 0 | `yui unreachable` on stderr | The ingress refused the connection or never answered |
-| 1 | `yui answered <code>` on stderr | The ingress answered outside 2xx |
+| 0 | `yui unreachable` on stderr | The ingress refused the connection or never answered; the refs wait for the next run |
+| 1 | `yui answered <code>` on stderr | The ingress answered outside 2xx; the refs wait for the next run |
 | 1 | the reason on stderr | The input was malformed; the error path below posted, unless `--dry-run` |
 
 ## Run time
@@ -133,6 +133,14 @@ connection is no such failure and posts nothing.
 
 ## Retry
 
-A refused connection skips that morning: the producer exits 0 and queues nothing, so the
-following run carries what that run gathers and no backlog. An answer outside 2xx exits 1,
-which leaves the failure in the scheduler's own record.
+A producer keeps every ref it gathered until the ingress answers 2xx. The next run puts
+them after its own refs, so the user hears on the next delivered morning what earlier
+mornings missed. The `refs[]` cap still applies, and the oldest refs drop first.
+
+A refused connection exits 0, since YUI being closed at run time is an ordinary morning.
+An answer outside 2xx exits 1, which leaves the failure in the scheduler's own record.
+
+The reference producer keeps the undelivered refs in
+`~/.local/state/yui-daily-briefing/backlog.json` and deletes the file after a 2xx answer.
+A producer that reads its sources from a queue of rows keeps those rows pending and marks
+them sent on a 2xx answer.

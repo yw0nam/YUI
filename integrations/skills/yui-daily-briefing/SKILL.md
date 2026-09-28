@@ -172,7 +172,8 @@ step 2 with today's `event_id`.
 Put the command from step 6 on the scheduler from step 4 at the time from step 4. The
 poster prints nothing on success and writes a one-line reason to stderr otherwise, so a
 scheduler that mails or messages output stays quiet on good mornings. YUI offline at run
-time exits 0 with `yui unreachable` on stderr; that morning is simply skipped.
+time exits 0 with `yui unreachable` on stderr, and its refs ride along on the next
+delivered morning.
 
 Done when: a manual trigger of the scheduled job reaches the turn log.
 

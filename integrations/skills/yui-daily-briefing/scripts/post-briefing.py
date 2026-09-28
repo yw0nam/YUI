@@ -19,6 +19,7 @@ EXCERPT_MAX = 280
 URL_MAX = 2048
 BODY_MAX_BYTES = 48 * 1024
 STATUSES = ("ok", "stale", "failed", "disabled")
+BACKLOG = os.path.expanduser("~/.local/state/yui-daily-briefing/backlog.json")
 
 
 def clip(value, cap):
@@ -91,6 +92,21 @@ def compose(item, source, event_id, now_ms):
     return body
 
 
+def load_backlog():
+    try:
+        with open(BACKLOG, encoding="utf-8") as file:
+            refs = json.load(file)
+    except (OSError, ValueError):
+        return []
+    return refs if isinstance(refs, list) else []
+
+
+def save_backlog(body):
+    os.makedirs(os.path.dirname(BACKLOG), exist_ok=True)
+    with open(BACKLOG, "w", encoding="utf-8") as file:
+        json.dump(json.loads(body)["signals"][0]["refs"], file, ensure_ascii=False)
+
+
 def post(url, body):
     request = urllib.request.Request(url, data=body.encode("utf-8"), headers={"content-type": "application/json"}, method="POST")
     with urllib.request.urlopen(request, timeout=10):
@@ -120,15 +136,21 @@ def main():
     now_ms = int(time.time() * 1000)
     event_id = args.event_id or "daily-briefing:" + datetime.datetime.fromtimestamp(now_ms // 1000).strftime("%Y-%m-%d")
     try:
-        body = compose(json.load(sys.stdin), args.source, event_id, now_ms)
+        item = json.load(sys.stdin)
+        if isinstance(item, dict) and isinstance(item.get("refs"), list):
+            # Undelivered refs are older than today's, so they follow them and drop first at the cap.
+            item["refs"] = item["refs"] + load_backlog()
+        body = compose(item, args.source, event_id, now_ms)
         if args.dry_run:
             print(body)
             return 0
         post(url, body)
     except urllib.error.HTTPError as error:
+        save_backlog(body)
         print(f"yui answered {error.code}", file=sys.stderr)
         return 1
     except (urllib.error.URLError, TimeoutError):
+        save_backlog(body)
         print("yui unreachable", file=sys.stderr)
         return 0
     except Exception as error:
@@ -136,6 +158,8 @@ def main():
             post_error(url, args.source, error)
         print(f"{type(error).__name__}: {error}", file=sys.stderr)
         return 1
+    if os.path.exists(BACKLOG):
+        os.remove(BACKLOG)
     return 0
 
 

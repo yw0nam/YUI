@@ -21,7 +21,12 @@ function freshHome(): string {
 
 // spawnSync would block the event loop that serves the ingress below.
 // A fresh HOME per call keeps the poster's backlog file out of the real home directory.
-function runScript(base: string, stdin: string, args: string[] = [], home = freshHome()): Promise<Result> {
+function runScript(
+  base: string,
+  stdin: string,
+  args: string[] = [],
+  home = freshHome(),
+): Promise<Result> {
   return new Promise((done) => {
     const child = spawn("python3", [SCRIPT, ...args], {
       env: { ...process.env, HOME: home, YUI_SIGNALS_URL: base, NO_PROXY: "*", no_proxy: "*" },
@@ -155,8 +160,13 @@ describe("post-briefing.py", () => {
     await withIngress(204, async (base, received) => {
       expect((await runScript(base, next, [], home)).status).toBe(0);
       expect((await runScript(base, next, [], home)).status).toBe(0);
-      const urls = received.map((r) => JSON.parse(r.payload).signals[0].refs.map((ref: { url: string }) => ref.url));
-      expect(urls).toEqual([["https://example.com/b", "https://example.com/a"], ["https://example.com/b"]]);
+      const urls = received.map((r) =>
+        JSON.parse(r.payload).signals[0].refs.map((ref: { url: string }) => ref.url),
+      );
+      expect(urls).toEqual([
+        ["https://example.com/b", "https://example.com/a"],
+        ["https://example.com/b"],
+      ]);
     });
   });
 
