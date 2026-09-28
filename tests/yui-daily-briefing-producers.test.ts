@@ -117,7 +117,7 @@ describe("post-briefing.py", () => {
       const request = JSON.parse(received[0].payload);
       const item = request.signals[0];
       expect(item.skill).toBe("yui-daily-briefing");
-      expect(item.summary).toBe("30 items");
+      expect(item.summary).toBe("33 items"); // counts the refs the cap dropped
       expect(item.refs).toHaveLength(30);
       const urls = item.refs.map((ref: any) => ref.url);
       expect(new Set(urls).size).toBe(30);
