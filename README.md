@@ -68,7 +68,7 @@ wiring.
 
 ### She lives on your windows
 
-<img src="docs/public/yui-locomotion.gif" alt="YUI walking along the bottom of the screen, climbing the side of a window to sit on its top edge, jumping across to the next window top, peeking around a window edge, and falling to the floor after being dropped in mid-air" width="720">
+<img src="docs/public/yui-locomotion.gif" alt="YUI walking along the bottom of the screen, climbing the side of the screen, jumping onto a window top and sitting on its edge, and falling to the floor after being dropped in mid-air" width="720">
 
 She perches on a window top, peeks around a side edge, strolls the floor and window
 tops, and jumps between windows. Dropped in mid-air, she falls to the first surface
