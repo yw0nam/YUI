@@ -15,7 +15,6 @@ export const BLINK_DURATION_MS = 150; // eye pulse 150ms
 export const BREATH_PERIOD_S = 4; // 4s period
 export const LOOK_MIN_MS = 30_000; // look_around 30~120s
 export const LOOK_MAX_MS = 120_000;
-export const TAP_BOB_MS = 220; // tap_react head bob ~200ms
 export const IDLE_RETURNED_MS = 900; // idle_returned slight upward gaze
 
 /** rng is injectable for determinism/testing (defaults to Math.random). */
@@ -70,7 +69,7 @@ export function swayOffsets(elapsedS: number): SwayOffsets {
 
 /**
  * One-shot bob (nod) peak — a single 0 → 1 → 0 hump. 0 outside the window.
- * Reused for tap_react/idle_returned (direction and amplitude decided by the engine).
+ * Used by idle_returned (direction and amplitude decided by the engine).
  */
 export function bobEnvelope(tMs: number, durationMs: number): number {
   if (tMs <= 0 || tMs >= durationMs) return 0;

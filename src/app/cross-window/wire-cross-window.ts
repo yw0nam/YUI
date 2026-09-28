@@ -231,7 +231,6 @@ export async function wireDevGlobals(deps: {
       reply: (text = "오늘 일정 뭐 있어?") => mock.reply(text),
       proactive: () => mock.proactive(),
       speak: (line = "응, 듣고 있어. 그거 지금 같이 볼까?") => mock.speak(line),
-      tap: () => ambient.trigger("tap_react"),
       idleReturn: () => ambient.trigger("idle_returned"),
     },
   });

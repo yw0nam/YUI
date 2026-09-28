@@ -1,4 +1,3 @@
-import type { Tier1Engine } from "../ambient/liveliness/tier1";
 import type { Sitter } from "../ambient/locomotion/sitter";
 import type { AppConfig } from "../config/load";
 import type { ConfigStore } from "../config/store";
@@ -49,7 +48,6 @@ const log = createLogger("bootstrap");
 interface Phase1Handles {
   config: ConfigStore;
   renderer: Renderer;
-  ambient: Tier1Engine;
   surfaces: Surfaces;
   settings: SettingsStores;
   conversation: ConversationStores;
@@ -118,7 +116,6 @@ const realFactories: ConfiguredBootstrapFactories = {
     const {
       config,
       renderer,
-      ambient,
       surfaces,
       settings,
       conversation,
@@ -313,7 +310,6 @@ const realFactories: ConfiguredBootstrapFactories = {
       stage,
       bus,
       renderer,
-      ambient,
       getConfig: () => config.get(),
       drainSignals: () => signalsSource.drain(),
       hitTest,

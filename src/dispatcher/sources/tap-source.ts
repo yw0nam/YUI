@@ -34,7 +34,6 @@ interface TapSourceDeps {
     getTapPoints(): TapPoints | null;
     getCurrentMotion(): { id: string; vrma_path: string } | null;
   };
-  ambient: { trigger(cue: "tap_react"): void };
   config: TapConfig;
   drainSignals?: () => SignalGroup[];
   now?: () => number;
@@ -77,7 +76,6 @@ export function createTapSource(deps: TapSourceDeps): TapSource {
   }
 
   function pushPlainTap(ts: number): void {
-    deps.ambient.trigger("tap_react");
     deps.bus.push({
       source: "os_event_watcher",
       event_name: "user.tap",

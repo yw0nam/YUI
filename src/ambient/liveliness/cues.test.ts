@@ -8,6 +8,7 @@ import {
   bobEnvelope,
   breathOffset,
   damp,
+  IDLE_RETURNED_MS,
   LOOK_MAX_MS,
   LOOK_MIN_MS,
   nextBlinkDelay,
@@ -15,7 +16,6 @@ import {
   nextLookTarget,
   type Rng,
   swayOffsets,
-  TAP_BOB_MS,
 } from "./cues";
 
 /** Deterministic rng sequence (for tests). */
@@ -80,11 +80,11 @@ describe("ambient/cues — sway", () => {
 
 describe("ambient/cues — one-shot bob", () => {
   it("is a single 0→1→0 hump, 0 outside the window", () => {
-    expect(bobEnvelope(-1, TAP_BOB_MS)).toBe(0);
-    expect(bobEnvelope(0, TAP_BOB_MS)).toBe(0);
-    expect(bobEnvelope(TAP_BOB_MS / 2, TAP_BOB_MS)).toBeCloseTo(1);
-    expect(bobEnvelope(TAP_BOB_MS, TAP_BOB_MS)).toBe(0);
-    expect(bobEnvelope(TAP_BOB_MS + 1, TAP_BOB_MS)).toBe(0);
+    expect(bobEnvelope(-1, IDLE_RETURNED_MS)).toBe(0);
+    expect(bobEnvelope(0, IDLE_RETURNED_MS)).toBe(0);
+    expect(bobEnvelope(IDLE_RETURNED_MS / 2, IDLE_RETURNED_MS)).toBeCloseTo(1);
+    expect(bobEnvelope(IDLE_RETURNED_MS, IDLE_RETURNED_MS)).toBe(0);
+    expect(bobEnvelope(IDLE_RETURNED_MS + 1, IDLE_RETURNED_MS)).toBe(0);
   });
 });
 

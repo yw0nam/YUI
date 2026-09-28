@@ -1,5 +1,4 @@
 /** Wires the stage's pointer gestures: taps, pats, the drag and the camera orbit. */
-import type { Tier1Engine } from "../../ambient/liveliness/tier1";
 import type { AppConfig } from "../../config/load";
 import type { SignalGroup } from "../../contract";
 import type { EventBus } from "../../dispatcher/core/event-bus";
@@ -46,7 +45,6 @@ export async function wireStageGestures(deps: {
   stage: HTMLElement;
   bus: EventBus;
   renderer: Renderer;
-  ambient: Pick<Tier1Engine, "trigger">;
   getConfig: () => AppConfig;
   drainSignals: () => SignalGroup[];
   hitTest: Pick<HitTestController, "suspend" | "resume">;
@@ -61,7 +59,6 @@ export async function wireStageGestures(deps: {
     stage,
     bus,
     renderer,
-    ambient,
     getConfig,
     drainSignals,
     hitTest,
@@ -73,7 +70,6 @@ export async function wireStageGestures(deps: {
   const tapSource = createTapSource({
     bus,
     renderer,
-    ambient,
     config: getConfig().avatar.tap,
     drainSignals,
   });

@@ -234,7 +234,6 @@ async function bootstrap(): Promise<BootstrapHandle> {
     const configured = await createConfiguredBootstrap(cfg, {
       config,
       renderer,
-      ambient,
       surfaces,
       settings: settingsStores,
       conversation: conversationStores,

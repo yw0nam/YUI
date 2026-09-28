@@ -509,12 +509,4 @@ describe("wireDevGlobals", () => {
     await Promise.resolve();
     expect(deps.bus.push).not.toHaveBeenCalled();
   });
-
-  it("__yuiDemo.tap triggers the ambient cue", async () => {
-    const deps = makeDeps();
-    await wireDevGlobals(deps as never);
-    const demo = (globalThis as unknown as Record<string, { tap: () => void }>).__yuiDemo;
-    demo.tap();
-    expect(deps.ambient.trigger).toHaveBeenCalledWith("tap_react");
-  });
 });

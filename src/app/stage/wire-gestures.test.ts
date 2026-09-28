@@ -101,7 +101,6 @@ describe("wireStageGestures", () => {
       stage: {} as HTMLElement,
       bus: bus as never,
       renderer: {} as never,
-      ambient: {} as never,
       getConfig: () =>
         ({
           avatar: {

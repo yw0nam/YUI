@@ -32,7 +32,6 @@ function harness(
       return true;
     }),
   } as Pick<EventBus, "push">;
-  const ambient = { trigger: vi.fn() };
   const renderer = {
     getTapPoints: vi.fn(() => points),
     getCurrentMotion: vi.fn(() =>
@@ -42,13 +41,12 @@ function harness(
   let time = 1_000;
   const source = createTapSource({
     bus,
-    ambient,
     renderer,
     config: configOverride,
     now: () => time,
     drainSignals,
   });
-  return { source, pushed, ambient, renderer, setTime: (next: number) => (time = next) };
+  return { source, pushed, renderer, setTime: (next: number) => (time = next) };
 }
 
 function bothRegionsPoints(): TapPoints {
@@ -78,12 +76,10 @@ function touchConfig(): TapConfig {
 }
 
 describe("createTapSource", () => {
-  it("turns a plain tap into the local cue and an observable user.tap envelope", () => {
-    const { source, pushed, ambient } = harness(null);
+  it("turns a plain tap into an observable user.tap envelope", () => {
+    const { source, pushed } = harness(null);
     source.handleClick({ x: 12, y: 34 });
 
-    expect(ambient.trigger).toHaveBeenCalledOnce();
-    expect(ambient.trigger).toHaveBeenCalledWith("tap_react");
     expect(pushed).toEqual([
       {
         source: "os_event_watcher",
@@ -95,8 +91,8 @@ describe("createTapSource", () => {
     ]);
   });
 
-  it("maps a region hit to its configured motion without playing the plain cue", () => {
-    const { source, pushed, ambient } = harness({
+  it("maps a region hit to its configured motion", () => {
+    const { source, pushed } = harness({
       head: null,
       chest: { x: 50, y: 60 },
       hips: { x: 50, y: 120 },
@@ -104,7 +100,6 @@ describe("createTapSource", () => {
     });
     source.handleClick({ x: 52, y: 61 });
 
-    expect(ambient.trigger).not.toHaveBeenCalled();
     expect(pushed).toEqual([
       {
         source: "os_event_watcher",
@@ -118,7 +113,7 @@ describe("createTapSource", () => {
   });
 
   it("suppresses a region tap while its mapped motion is already playing", () => {
-    const { source, pushed, ambient } = harness(
+    const { source, pushed } = harness(
       {
         head: null,
         chest: { x: 50, y: 60 },
@@ -132,7 +127,6 @@ describe("createTapSource", () => {
     source.handleClick({ x: 50, y: 60 });
 
     expect(pushed).toEqual([]);
-    expect(ambient.trigger).not.toHaveBeenCalled();
   });
 
   it("fires a region tap while a different motion is playing", () => {
@@ -187,7 +181,7 @@ describe("createTapSource", () => {
   });
 
   it("fires one bored candidate without a motion event, clears the streak, and makes the fifth click plain", () => {
-    const { source, pushed, ambient, setTime } = harness(null);
+    const { source, pushed, setTime } = harness(null);
     for (const time of [1_000, 1_500, 2_000, 2_500, 2_600]) {
       setTime(time);
       source.handleClick({ x: 1, y: 2 });
@@ -207,7 +201,6 @@ describe("createTapSource", () => {
       },
     ]);
     expect(pushed.at(-1)?.event_name).toBe("user.tap");
-    expect(ambient.trigger).toHaveBeenCalledTimes(4);
   });
 
   it("expires a click exactly at the window boundary and never fires bored for spaced clicks", () => {
@@ -221,7 +214,7 @@ describe("createTapSource", () => {
 
   it("suppresses a repeated region reaction and bored, then resets when that tap completes the streak", () => {
     const drainSignals = vi.fn(() => [{ items: [{ id: "buffered" }] }]);
-    const { source, pushed, ambient, setTime } = harness(
+    const { source, pushed, setTime } = harness(
       {
         head: null,
         chest: { x: 1, y: 2 },
@@ -245,7 +238,6 @@ describe("createTapSource", () => {
     expect(pushed.filter((env) => env.event_name === "user.tap_region")).toHaveLength(0);
     expect(pushed.filter((env) => env.event_name === "proactive.tap_bored")).toHaveLength(1);
     expect(pushed.at(-1)?.ts).toBe(1_700);
-    expect(ambient.trigger).toHaveBeenCalledTimes(6);
     expect(drainSignals).toHaveBeenCalledOnce();
   });
 
@@ -406,14 +398,13 @@ describe("createTapSource", () => {
   });
 
   it("degrades malformed renderer results to a plain tap without throwing", () => {
-    const { source, pushed, ambient } = harness({
+    const { source, pushed } = harness({
       head: null,
       chest: { x: 0, y: 0 },
       hips: null,
       charHpx: Number.NaN,
     });
     expect(() => source.handleClick({ x: 0, y: 0 })).not.toThrow();
-    expect(ambient.trigger).toHaveBeenCalledOnce();
     expect(pushed[0]?.event_name).toBe("user.tap");
   });
 });
@@ -433,14 +424,13 @@ describe("createTapSource — head pat", () => {
   });
 
   it("keeps a short tap on the head a plain tap, with no region reaction or touch cue", () => {
-    const { source, pushed, ambient } = harness(headPoints(), undefined, null, {
+    const { source, pushed } = harness(headPoints(), undefined, null, {
       ...patConfig(),
       region_cues: { head: { label: "head patted" }, chest: { label: "chest poked" } },
       region_motions: { head: "head_pat", chest: "shy", hips: "flustered" },
     });
     source.handleClick({ x: 50, y: 22 });
 
-    expect(ambient.trigger).toHaveBeenCalledWith("tap_react");
     expect(pushed).toEqual([
       {
         source: "os_event_watcher",
