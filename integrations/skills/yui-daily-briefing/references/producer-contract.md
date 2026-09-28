@@ -77,7 +77,7 @@ pipes it in:
 
 The gather script emits `refs` newest first; the poster keeps the first 30 and drops from the
 tail when the body runs over the size cap. `summary` is optional and reads `<n> items` when it
-is absent. A ref whose `url` misses
+is absent, where `<n>` counts every distinct ref, including those the cap drops. A ref whose `url` misses
 the `http` or `https` scheme or runs past 2048 characters drops out; `kind` defaults to
 `other`, `title` to the `url`, `at` to the moment of the run.
 

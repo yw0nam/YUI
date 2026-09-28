@@ -78,9 +78,8 @@ def compose(item, source, event_id, now_ms):
             continue
         seen.add(ref["url"])
         refs.append(ref)
-        if len(refs) == REFS_MAX:
-            break
     summary = clip(item.get("summary"), SUMMARY_MAX) or f"{len(refs)} items"
+    refs = refs[:REFS_MAX]
     envelope = {"source": source, "event_type": "daily_briefing", "delivery": "immediate",
                 "event_id": event_id, "occurred_at": now_ms}
     body = serialize(summary, sources, refs, envelope)
