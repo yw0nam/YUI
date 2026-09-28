@@ -66,56 +66,104 @@ wiring.
 
 ## Features
 
-**Agent**
+### She lives on your windows
 
-- Two chat protocols, selected by `chat_api` in `configs/endpoints.json`: a
-backend agent honoring YUI's expression contract over the OpenAI Responses
-API, or any tool-calling OpenAI-compatible Chat Completions endpoint — no
-fixed embedded model
-- Emotion, motion, and voice cues arrive as structured `generate_express`
-tool-calls, never as inline tags in the text — in both chat modes
-- YUI publishes its emotion/motion/voice vocabulary to the Expression Broker
-(MCP) in both chat modes, write-only and gated only on `broker_base_url`;
-a backend agent reads it back via `get_ids` and emits cues as
-`generate_express` tool-calls
-- In Chat Completions mode YUI declares `generate_express` itself, with that
-same vocabulary in the tool schema, runs the call locally and returns the
-result — expression on a bare model endpoint, no broker required
+<img src="docs/public/yui-locomotion.gif" alt="YUI walking along the bottom of the screen, climbing the side of a window to sit on its top edge, jumping across to the next window top, peeking around a window edge, and falling to the floor after being dropped in mid-air" width="720">
 
-**Voice &amp; chat**
+She perches on a window top, peeks around a side edge, strolls the floor and window
+tops, jumps between windows, and climbs a window side or a screen edge onto the
+monitor above. Dropped in mid-air, she falls to the first surface below and lands.
 
-- Speech input — Silero VAD + ONNX segment your voice, then an
-OpenAI-compatible endpoint transcribes it
-- Speech output — sentence-queued TTS with ordered playback and per-sentence
-voice cues
-- Amplitude lipsync drives the mouth from audio, with a user gain slider
-- Streaming, markdown-rendered speech bubble that fades in only when she speaks
+### Any backend, embodied through structured cues
 
-**Desktop pet**
+<img src="docs/public/yui-feature-cues.png" alt="YUI laughing with a hand over her mouth and her eyes closed in a happy expression, above a speech bubble that reads: The build passed. Want me to open the pull request for review?" width="360">
 
-- Sits on the top edge of a window and detaches when the window moves, closes,
-or gets covered
-- OS-native dragging on a transparent, always-on-top, multi-monitor overlay
-- Idle liveliness — blink, sway, breathing, and look-around run locally even
-with no backend connected, and respect `prefers-reduced-motion`
-- Reads OS-wide idle time and an optional user-toggled screenshot and feeds
-them to the agent each turn; the frontmost app/window is a pull tool the
-agent calls via the `desktop-control` Mod, not a per-turn push
+YUI talks to an OpenAI-compatible Chat Completions endpoint, a Responses API agent,
+or a backend on the push WebSocket. Emotion, motion, voice tag, and caption arrive
+as `generate_express` tool calls beside the reply text.
 
-**Rendering &amp; motion**
+### She speaks first, with restraint
 
-- VRM 1.0 with hot-swap and GPU cleanup, via three.js + `@pixiv/three-vrm`
-- 10 emotions and 25 registered motions, 9 of them agent-selectable, with a
-fallback chain for models that lack an expression
-- Idle and sit cycle through pools of motion clips with smooth transitions
-- Camera auto-frames the avatar, with wheel zoom and a pull-back when perched
+<img src="docs/public/yui-feature-proactive.png" alt="The Proactive settings tab: screen watch, loop reactions after 5, 10, and 30 minutes of inactivity, scheduled greetings at 9 AM, noon, 6 PM, and 11 PM, agent notifications, a 10-minute proactive gap, and hourly limits of 24 cues and 40 self-started turns" width="480">
 
-**Platform**
+Scheduled greetings, idle check-ins, screen-watch cues, the first activity of the
+day, external `/signals`, and a daily briefing each open a turn. Debounce, hourly
+caps, and a quiet gap after each turn pace them, and the backend answers any cue
+with silence when it chooses.
 
-- UI in English, 日本語, and 한국어, with a persisted locale
-- Endpoints, models, VRM paths, and motion sets all live in `configs/` — nothing
-is hardcoded
-- macOS-first; Windows x64 builds are experimental
+### Character
+
+| Feature | What it does |
+| --- | --- |
+| Models | VRM 1.0 and 0.x loading with hot-swap, the bundled Sendagaya Shino as the default, and import, rename, and delete for your own `.vrm` files |
+| Emotions and motions | 10 emotions and 25 motions, 9 of them agent-selectable, with a per-emotion fallback chain ending at `neutral` ([motion catalog](docs/reference/motions.md)) |
+| Cursor gaze | Head and eyes that follow the OS cursor anywhere on screen, with an on/off switch |
+| Lipsync | Mouth movement from speech amplitude, with a gain slider |
+| Idle liveliness | Blink, sway, breathing, and look-around on the client, reduced to blinking under `prefers-reduced-motion` |
+| Camera | Auto-framing, wheel zoom, Shift+drag orbit, and a reset to the front view |
+
+### Desktop pet
+
+| Feature | What it does |
+| --- | --- |
+| Overlay | Transparent, frameless, always-on-top window with click-through on empty pixels |
+| Drag and resize | OS-native drag across monitors, and Ctrl+wheel resize anchored at the feet |
+| Perch and peek | A seat on a window's top edge or a spot behind its side edge after a drop there, released when the window moves, closes, or covers her |
+| Locomotion | Floor walks, strolls and jumps across window tops, climbs up window sides and onto the monitor above, and falls with a landing; switches for climbing and falling in the Advanced tab |
+| Touch | Reactions to taps on the head, chest, and hips and a press-and-hold head pat, with one touch cue a minute to the agent (`configs/avatar.json`) |
+| Summon and tray | Global `CmdOrCtrl+Shift+Y` shortcut that brings her forward and focuses the text input (`configs/hotkeys.json`), and a tray menu with show/hide, Settings, and Quit |
+
+### Conversation and voice
+
+| Feature | What it does |
+| --- | --- |
+| Speech bubble | Streaming markdown with links in the default browser, plus a reasoning chip and a tool-status chip |
+| Text input | Text box with up to 6 image attachments by paste, drag-and-drop, or file picker |
+| Voice input | Silero VAD speech detection, transcription on any OpenAI-compatible STT endpoint, and barge-in over her speech |
+| Voice output | Sentence-by-sentence TTS with the `emotion_text` voice tag ([vocabulary](docs/reference/tts-emotion/)), and a voice list from the TTS server with import of your own reference clip |
+| Waiting filler | Thinking motion and short localized lines while a reply is pending, including tool-specific lines (`configs/filler.json`) |
+| History and message window | History tab stored on the device, and an optional separate message window |
+
+### Backend
+
+| Feature | What it does |
+| --- | --- |
+| Chat protocols | `chat_completions`, `responses`, and `push`, selected by `chat_api` in `configs/endpoints.json` ([push transport](docs/reference/push-transport.md)) |
+| Expression cues | `generate_express` tool calls for emotion, motion, voice tag, and caption, with the vocabulary published to the Expression Broker (MCP) ([cue contract](docs/reference/client-context.md)) |
+| Provider presets | OpenAI, Ollama, LM Studio, Groq, and Hermes Agent presets, plus a custom endpoint |
+| Per-turn context | `client_context` text with local time, frontmost app and window title, an optional screenshot, body posture, and the outcome of the previous turn ([format](docs/reference/client-context.md)) |
+| Silence | An empty reply or a bare `[SILENT]` token as a silent turn |
+| Delegated tasks | Chip for work the agent runs in the background, with persisted history (push transport) |
+
+### Proactive and context
+
+| Feature | What it does |
+| --- | --- |
+| Greetings and check-ins | Scheduled greetings (09:00, 12:00, 18:00, 23:00 by default) and idle check-ins after 5, 10, and 30 quiet minutes, all editable in the Proactive tab |
+| Screen watch | Cues on app switches and on 45 minutes in one app, off by default (`configs/screen.json`) |
+| First activity of the day | Cue on the first activity of each local day |
+| Guardrails | Per-source debounce, hourly caps of 24 cues and 40 self-started turns (`configs/guardrails.json`), and a 10-minute default quiet gap after each turn |
+| Coding-agent hooks | Loopback `POST /agent-event` for finished tasks and input requests from coding agents ([hooks guide](docs/agent-guide/agent-completion-hooks.md)) |
+| Signals ingress | Loopback `POST /signals` for batches of external signals ([envelope](docs/reference/signals-ingress.md)) |
+| Daily briefing | Skill that sets up a daily briefing and delivers it through `/signals` on any backend ([skill](integrations/skills/yui-daily-briefing/SKILL.md)) |
+| Witness log | Local JSONL of app switches and idle periods, kept for 14 days ([format](docs/reference/witness-log.md)) |
+| Workflows | Saved endpoints fired from a button in the Proactive tab |
+
+### Extensibility
+
+| Feature | What it does |
+| --- | --- |
+| Mods | Standalone MCP servers `router`, `desktop-control`, `shell-sandbox`, and `avatar`, whose tools seat her on a window, make her peek, or move her to a screen spot ([Mods](Mods/README.md), [tool reference](docs/reference/mods.md)) |
+| Integrations | Backend-specific wiring under [`integrations/`](integrations/), for example the Hermes Agent plugins |
+
+### Platform
+
+| Feature | What it does |
+| --- | --- |
+| Languages | English, Japanese, and Korean UI, with the OS language as the first-run default |
+| Configuration | Runtime settings in `configs/`, validated at load, with hot-reload in development |
+| Logs | One log file for frontend and Rust lines ([convention](docs/reference/logging.md)) |
+| Platforms | macOS on Apple Silicon, and experimental Windows x64 builds |
 
 ## How it works
 
