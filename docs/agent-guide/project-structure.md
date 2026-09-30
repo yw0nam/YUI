@@ -47,7 +47,8 @@ YUI/
         wire-sources.ts              # Tauri window sources and the dispatcher's paced proactive sources
         wire-voice.ts                # Expression broker client and the voice-input and turn-voice wiring
         wire-voice-pipeline.ts       # Wires filler, TTS, and speech playback to the turn lifecycle
-        wire-push.ts                 # Push socket frames into turns, the shared push stores, and the push mode chip
+        wire-push.ts                 # Push socket frames into turns, the stop button, and the push mode chip
+        push-stores.ts               # The push socket, its chat id, and the delegations and reasoning stores its frames feed
       stage/                         # What is bound to the pet window's stage and overlay
         wire-gestures.ts             # Pointer gestures on the stage: taps, pats, the window drag, and the camera orbit
         wire-locomotion.ts           # Travel frame, the five locomotion loops, and the window sources composed into one handle

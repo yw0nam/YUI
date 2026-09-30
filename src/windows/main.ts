@@ -25,10 +25,14 @@ import { createConversationStores } from "../app/settings/conversation-stores";
 import { wireSpeakerSelection, wireVrmSelection } from "../app/settings/wire-avatar";
 import { createPetConfig, wireConfigReload, wireConfigWatch } from "../app/settings/wire-config";
 import { wireCamera, wireInputAnchor } from "../app/stage/wire-pet-stage";
-import { createDelegationChipMount, wirePushMode, wirePushStores } from "../app/turn/wire-push";
+import { createPushStores } from "../app/turn/push-stores";
+import { createDelegationChipMount, wirePushMode } from "../app/turn/wire-push";
 import { CHAT_API_KEY_SECRET, TTS_API_KEY_SECRET } from "../config/load";
 import { createEventBus } from "../dispatcher/core/event-bus";
 import { createUserInputSource } from "../dispatcher/sources/user-input-source";
+import { publishDelegations } from "../io/bridge/delegations-bridge";
+import { publishPushSocket } from "../io/bridge/push-socket-bridge";
+import { publishReasoning } from "../io/bridge/reasoning-bridge";
 import { wireVoiceListAutoRefresh } from "../io/voice/voices/voice-list-refresh";
 import {
   resolveScreenCapturer,
@@ -199,12 +203,18 @@ async function bootstrap(): Promise<BootstrapHandle> {
     log,
   });
 
-  const push = wirePushStores({
+  const push = createPushStores({
     getEndpoints: petConfig.getEndpoints,
     getChatKey: () => config.secrets.get(CHAT_API_KEY_SECRET),
-    bridge: windowBridge,
     register,
   });
+  // The settings window has no socket of its own: it reads this one and asks it to reset.
+  register(
+    publishPushSocket({ socket: push.pushSocket, stopTurn: push.stopTurn, bridge: windowBridge }),
+  );
+  // The delegations list rides the same bridge; a fresh settings window asks for the current list.
+  register(publishDelegations({ store: push.delegations, bridge: windowBridge }));
+  register(publishReasoning({ store: push.reasoning, bridge: windowBridge }));
 
   const controls = wirePetControls({
     root,
