@@ -9,9 +9,8 @@ import { setLocale } from "../i18n";
 import { createQuickControls } from "../quick-controls/quick-controls";
 import { defaultQcArgs } from "../quick-controls/test-helpers";
 import { createSurfaces } from "../surfaces/surfaces";
+import { noTool } from "../surfaces/test-helpers";
 import { turnErrorFixAction, turnErrorMessage } from "./turn-error";
-
-const noTool = { showTool() {}, finishTool() {}, hideTool() {} };
 
 describe("not_configured → open the Advanced tab", () => {
   let mount: HTMLElement;

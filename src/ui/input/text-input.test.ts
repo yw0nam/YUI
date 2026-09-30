@@ -15,8 +15,7 @@ vi.mock("../tokens.css", () => ({}));
 import { guardrailsFixture } from "../../config/load-test-helpers";
 import { setLocale, t } from "../i18n";
 import { createSurfaces } from "../surfaces/surfaces";
-
-const noTool = { showTool() {}, finishTool() {}, hideTool() {} };
+import { noTool } from "../surfaces/test-helpers";
 
 const readSrc = (name: string): string => readFileSync(resolve(__dirname, name), "utf-8");
 

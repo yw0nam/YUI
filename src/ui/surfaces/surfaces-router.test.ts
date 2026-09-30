@@ -17,8 +17,7 @@ import type { MessageWindowMode } from "../../settings/panels/message-window-set
 import { createMessagePlate } from "../message/message-plate";
 import { createSurfaces, type Surfaces } from "./surfaces";
 import { createSurfacesRouter } from "./surfaces-router";
-
-const noTool = { showTool() {}, finishTool() {}, hideTool() {} };
+import { noTool } from "./test-helpers";
 
 /** The caps configs/guardrails.json delivers through setAttachmentLimits. */
 const LIMITS = guardrailsFixture().attachments;
