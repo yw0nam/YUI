@@ -11,7 +11,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { PeekConfig, TapConfig } from "../config/load";
 import type { Logger } from "../logger";
-import type { BackendCaller } from "./backend/backend-caller";
+import type { BackendCaller, TurnFailure } from "./backend/backend-caller";
 import { createEventBus, type EventBus } from "./core/event-bus";
 import { createGuardrails, type Guardrails } from "./core/guardrails";
 import { createDispatcher, type Dispatcher } from "./dispatcher";
@@ -23,8 +23,10 @@ import {
   NOW,
   permissiveGuardrailsConfig,
   realGuardrailsConfig,
+  userEnv,
 } from "./test-helpers";
-import { createTurnLog, type TurnLog } from "./turn/turn";
+import { createQuotedTurn } from "./turn/quoted-turn";
+import { createTurnLog, type Turn, type TurnLog } from "./turn/turn";
 
 const PEEK_CONFIG: PeekConfig = {
   side_out_frac: 0.28,
@@ -66,6 +68,9 @@ let dispatcher: Dispatcher;
 let logger: Logger;
 let turnLog: TurnLog;
 let speaking: boolean;
+// Reassigned by a test before start(); the shared dispatcher reads them through these.
+let onAdmitted: (turn: Turn) => void;
+let onFailed: (turn: Turn, reason: TurnFailure) => void;
 
 /**
  * Simulates "audio is still playing" the way the speech pipeline does: it answers the dispatcher
@@ -100,6 +105,8 @@ beforeEach(() => {
   logger = makeLogger();
   turnLog = createTurnLog();
   speaking = false;
+  onAdmitted = () => {};
+  onFailed = () => {};
   const deps = {
     bus,
     renderer: renderer as never,
@@ -111,6 +118,8 @@ beforeEach(() => {
     logger,
     peekConfig: () => PEEK_CONFIG,
     tapConfig: () => TAP_CONFIG,
+    onTurnAdmitted: (turn: Turn) => onAdmitted(turn),
+    onTurnFailed: (turn: Turn, reason: TurnFailure) => onFailed(turn, reason),
   };
   dispatcher = createDispatcher(deps);
 });
@@ -729,5 +738,75 @@ describe("dispatcher — isPipelineBusy/subscribePipelineBusy (busy = ledger not
     await vi.advanceTimersByTimeAsync(20);
 
     expect(seen).toEqual([true]);
+  });
+});
+
+describe("dispatcher — the admitted turn and the quoted-turn ledger", () => {
+  function wireQuote() {
+    const surfaces = {
+      quoteUser: vi.fn(),
+      settleQuote: vi.fn(),
+      clearQuote: vi.fn(),
+      restoreInput: vi.fn(),
+    };
+    const quoted = createQuotedTurn({ surfaces, turnLog });
+    onAdmitted = quoted.admitted;
+    onFailed = (turn) => quoted.failed(turn);
+    return surfaces;
+  }
+
+  it("reports the admitted turn before the backend call, with its trigger", async () => {
+    const spy = vi.fn();
+    onAdmitted = spy;
+    dispatcher.start();
+
+    bus.push(userEnv("hi"));
+    await vi.advanceTimersByTimeAsync(20);
+
+    expect(spy).toHaveBeenCalledTimes(1);
+    const turn = spy.mock.calls[0][0] as Turn;
+    expect(turn.trigger.payload?.text).toBe("hi");
+    expect(turn.id).toBe(turnLog.current()!.id);
+    expect(spy.mock.invocationCallOrder[0]).toBeLessThan(
+      vi.mocked(backendCaller.call).mock.invocationCallOrder[0],
+    );
+  });
+
+  it("a user turn that settles without speech flips the ledger over once", async () => {
+    const surfaces = wireQuote();
+    dispatcher.start();
+
+    bus.push(userEnv("hi"));
+    await vi.advanceTimersByTimeAsync(20);
+    callDeferred[0].resolve("ok");
+    await vi.advanceTimersByTimeAsync(20);
+
+    expect(surfaces.quoteUser).toHaveBeenCalledTimes(1);
+    expect(surfaces.settleQuote).toHaveBeenCalledTimes(1);
+    expect(surfaces.restoreInput).not.toHaveBeenCalled();
+  });
+
+  it("a pending proactive turn admitted at settlement ends the quote", async () => {
+    const surfaces = wireQuote();
+    dispatcher.start();
+
+    bus.push(userEnv("hi"));
+    await vi.advanceTimersByTimeAsync(20);
+    bus.push(
+      env({
+        source: "os_event_watcher",
+        event_name: "proactive.tap_bored",
+        ts: NOW + 1,
+        hint_tier: 2,
+        dnd_override: false,
+      }),
+    );
+    await vi.advanceTimersByTimeAsync(20);
+    callDeferred[0].resolve("ok");
+    await vi.advanceTimersByTimeAsync(20);
+
+    expect(callDeferred).toHaveLength(2);
+    expect(surfaces.clearQuote).toHaveBeenCalledTimes(1);
+    expect(surfaces.settleQuote).not.toHaveBeenCalled();
   });
 });

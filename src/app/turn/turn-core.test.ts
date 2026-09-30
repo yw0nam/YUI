@@ -12,6 +12,7 @@ vi.mock("./wire-voice", () => ({
     voiceInput: { setStt: () => {} },
     voiceErrorDwell: { show: () => {} },
     pushTurns,
+    quotedTurn: {},
     setProactiveSource: () => {},
     setStrolling: () => {},
   }),
