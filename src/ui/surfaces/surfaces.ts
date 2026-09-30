@@ -177,13 +177,10 @@ export function createSurfaces({
     dwellMs,
     keepBubbleUntilDismissed,
   );
-  // Only the first delta of a live cycle reveals the bubble, so a dismissed bubble stays down for stale reasoning.
+  // A reasoning cycle's first delta shows the bubble and holds off its fade; the cycle's end hands a
+  // bubble with no speech in flight to the dwell, or hides it when nothing is left to show.
   const think = reasoning
-    ? createReasoningDisclosure({
-        mount: bubbleBox,
-        source: reasoning,
-        onCycleStart: bubble.reveal,
-      })
+    ? createReasoningDisclosure({ mount: bubbleBox, source: reasoning, bubble })
     : null;
   const input = createTextInput(
     { formEl, field, errorEl, trayEl, attachBtn, picker, sendBtn },

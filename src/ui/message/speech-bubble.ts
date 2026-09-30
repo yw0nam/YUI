@@ -9,7 +9,7 @@ import { subscribe as subscribeLocale, t } from "../i18n";
 import { afterFadeOut } from "../notices/fade-out";
 import { renderMarkdownInline } from "./markdown";
 
-interface SpeechBubble {
+export interface SpeechBubble {
   /** Reveal the bubble (empty) + caret ON. Called before streaming starts. */
   beginSpeech(): void;
   /** Append a streaming delta. */
@@ -23,8 +23,15 @@ interface SpeechBubble {
   finishSpeech(): void;
   /** Hide the bubble immediately (ignoring dwell). */
   hideSpeech(): void;
-  /** Show an empty bubble for content other than speech; no-op while the bubble shows. */
+  /** Show the bubble for content other than speech, holding off any pending fade; speech is left as it is. */
   reveal(): void;
+  /**
+   * Content other than speech settled. Speech still streaming or awaiting playback keeps its own exit;
+   * otherwise a bubble with nothing to show hides, and one with content takes the dwell (or the hold).
+   */
+  release(hasContent: boolean): void;
+  /** Re-measure the box after content other than speech changed its height. */
+  measure(): void;
   /** Lift the bubble above the input by totalOffsetPx (input bottom + input height + gap). */
   liftAboveInput(totalOffsetPx: number): void;
   /** Restore the bubble's default (input-closed) position. */
@@ -100,6 +107,10 @@ export function createSpeechBubble(
   // Only toggle is-scrollable on overflow so the top fade applies (short speech doesn't clip its first line).
   function scrollBubbleToEnd(pin = true): void {
     if (pin) bubbleBox.scrollTop = bubbleBox.scrollHeight;
+    measure();
+  }
+
+  function measure(): void {
     bubbleEl.classList.toggle("is-scrollable", bubbleBox.scrollHeight > bubbleBox.clientHeight);
   }
 
@@ -119,9 +130,29 @@ export function createSpeechBubble(
   }
 
   function reveal(): void {
-    if (bubbleEl.classList.contains("is-visible")) return;
-    beginSpeech();
-    bubbleEl.classList.remove("is-streaming");
+    clearDwell();
+    dwellArmed = false;
+    if (cancelFade) {
+      // The fade was about to drop this speech; drop it now so it doesn't return beside the new content.
+      cancelFade();
+      cancelFade = null;
+      speechRaw = "";
+      bubbleText.replaceChildren();
+    }
+    bubbleEl.hidden = false;
+    requestAnimationFrame(() => bubbleEl.classList.add("is-visible"));
+  }
+
+  function release(hasContent: boolean): void {
+    if (bubbleEl.hidden || cancelFade || deferred) return;
+    if (bubbleEl.classList.contains("is-streaming")) return;
+    if (!hasContent && speechRaw === "") {
+      hideSpeech();
+      return;
+    }
+    if (hold()) return;
+    dwellArmed = true;
+    armDwell();
   }
 
   function pushSpeech(delta: string): void {
@@ -250,6 +281,8 @@ export function createSpeechBubble(
     finishSpeech,
     hideSpeech,
     reveal,
+    release,
+    measure,
     liftAboveInput,
     resetPosition,
     dispose,

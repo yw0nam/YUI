@@ -8,23 +8,22 @@
 
 import type { ReasoningStore } from "../../io/bridge/reasoning-store";
 import { subscribe as subscribeLocale, t } from "../i18n";
+import type { SpeechBubble } from "./speech-bubble";
 
-/** The reasoning state as the disclosure reads it — the pet window's store or a window's mirror. */
+/** The reasoning state as the disclosure reads it — the message window's mirror of the pet window's store. */
 export type ReasoningSource = Pick<ReasoningStore, "get" | "subscribe">;
 
 interface ReasoningDisclosureOptions {
   /** The bubble's box; the disclosure goes in before the speech text. */
   mount: HTMLElement;
   source: ReasoningSource;
-  /** Called on the first delta of a live cycle. */
-  onCycleStart(): void;
+  /** Revealed at a cycle's start, released at its end, re-measured as the disclosure changes height. */
+  bubble: Pick<SpeechBubble, "reveal" | "release" | "measure">;
 }
 
-export function createReasoningDisclosure({
-  mount,
-  source,
-  onCycleStart,
-}: ReasoningDisclosureOptions): { dispose(): void } {
+export function createReasoningDisclosure({ mount, source, bubble }: ReasoningDisclosureOptions): {
+  dispose(): void;
+} {
   const el = document.createElement("details");
   el.className = "yui-bubble__think";
   el.hidden = true;
@@ -46,20 +45,18 @@ export function createReasoningDisclosure({
 
   function render(state: { text: string; live: boolean }): void {
     const cycleStart = !prevLive && state.live;
+    const cycleEnd = prevLive && !state.live;
     prevLive = state.live;
-    if (state.text === "") {
-      el.hidden = true;
-      el.open = false;
-      return;
-    }
-    el.hidden = false;
+    el.hidden = state.text === "";
     textEl.classList.toggle("is-live", state.live);
     textEl.textContent = state.text;
     if (cycleStart) {
       el.open = true;
-      onCycleStart();
+      bubble.reveal();
     } else if (!state.live) el.open = false;
     if (state.live) textEl.scrollTop = textEl.scrollHeight;
+    bubble.measure();
+    if (cycleEnd) bubble.release(state.text !== "");
   }
 
   // Surfaces aren't remounted on locale change, so the label is (re)applied here.
@@ -68,11 +65,14 @@ export function createReasoningDisclosure({
   };
   applyLocaleLabel();
   const unsubscribeLocale = subscribeLocale(applyLocaleLabel);
+  const onToggle = (): void => bubble.measure();
+  el.addEventListener("toggle", onToggle);
   const unsubscribeSource = source.subscribe(render);
   render(source.get());
 
   return {
     dispose(): void {
+      el.removeEventListener("toggle", onToggle);
       unsubscribeSource();
       unsubscribeLocale();
       el.remove();

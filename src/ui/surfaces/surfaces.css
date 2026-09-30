@@ -30,6 +30,9 @@
   .yui-bubble__think-text.is-live::after {
     animation: none !important;
   }
+  .yui-bubble__think svg {
+    transition: none;
+  }
 }
 
 /* ════════════════════════════════════════════════════════════
@@ -297,13 +300,11 @@
 }
 .yui-bubble__think-text.is-live::after {
   content: "▍";
-  animation: yui-think-blink 1s step-end infinite;
+  animation: yui-caret-blink 1s steps(2, jump-none) infinite;
 }
-
-@keyframes yui-think-blink {
-  50% {
-    opacity: 0;
-  }
+/* One caret at a time: the speech caret takes over once the reply streams. */
+.yui-bubble.is-streaming .yui-bubble__think-text.is-live::after {
+  content: none;
 }
 
 /* ── Edge tools — pop-out and dismiss, riding the bubble's top edge, revealed on hover/focus ──
