@@ -218,6 +218,28 @@ describe("image attachments — tray chips + onSubmit images", () => {
 
     expect(tray().children.length).toBe(0);
   });
+
+  it("adding a chip raises the bubble", async () => {
+    Object.defineProperty(form(), "offsetHeight", {
+      configurable: true,
+      get: () => 40 + tray().children.length * 44,
+    });
+    const bubbleBottom = (): number =>
+      Number.parseFloat(
+        (mount.querySelector(".yui-bubble") as HTMLElement).style.getPropertyValue(
+          "--yui-bubble-bottom",
+        ),
+      );
+    s.setInputAnchor(40);
+    s.summonInput();
+    const before = bubbleBottom();
+
+    await pasteImages(pngFile("a.png"));
+    expect(bubbleBottom()).toBe(before + 44);
+
+    (tray().querySelector(".yui-chip__remove") as HTMLButtonElement).click();
+    expect(bubbleBottom()).toBe(before);
+  });
 });
 
 describe("attachment caps — count + per-image size", () => {
@@ -1001,5 +1023,76 @@ describe("multiline field — Enter, IME safety, auto-grow", () => {
     const after = Number.parseFloat(bubble().style.getPropertyValue("--yui-bubble-bottom"));
 
     expect(after - before).toBe(60);
+  });
+});
+
+describe("persistent input — always open, sends by button", () => {
+  let mount: HTMLElement;
+  let s: ReturnType<typeof createSurfaces>;
+
+  beforeEach(() => {
+    mount = document.createElement("div");
+    document.body.appendChild(mount);
+    s = createSurfaces({ tool: noTool, mount, persistentInput: true });
+  });
+
+  afterEach(() => {
+    s.dispose();
+    mount.remove();
+  });
+
+  function form(): HTMLFormElement {
+    return mount.querySelector(".yui-input") as HTMLFormElement;
+  }
+  function field(): HTMLTextAreaElement {
+    return mount.querySelector(".yui-input__field") as HTMLTextAreaElement;
+  }
+  function bubble(): HTMLElement {
+    return mount.querySelector(".yui-bubble") as HTMLElement;
+  }
+
+  it("is open at construction without taking focus", () => {
+    expect(form().hidden).toBe(false);
+    expect(form().classList.contains("is-open")).toBe(true);
+    expect(document.activeElement).not.toBe(field());
+    expect(s.isInputOpen()).toBe(true);
+  });
+
+  it("leaves Enter to the field as a newline", () => {
+    const onSubmit = vi.fn();
+    s.onSubmit(onSubmit);
+    field().value = "hello";
+
+    const e = new KeyboardEvent("keydown", { key: "Enter", bubbles: true, cancelable: true });
+    field().dispatchEvent(e);
+
+    expect(e.defaultPrevented).toBe(false);
+    expect(onSubmit).not.toHaveBeenCalled();
+  });
+
+  it("sends the trimmed text on submit and empties the field", () => {
+    const onSubmit = vi.fn();
+    s.onSubmit(onSubmit);
+    field().value = "  hello  ";
+
+    form().dispatchEvent(new Event("submit", { bubbles: true, cancelable: true }));
+
+    expect(onSubmit).toHaveBeenCalledWith("hello", []);
+    expect(field().value).toBe("");
+  });
+
+  it("keeps the typed text and stays open on Escape", () => {
+    field().value = "draft";
+
+    field().dispatchEvent(
+      new KeyboardEvent("keydown", { key: "Escape", bubbles: true, cancelable: true }),
+    );
+
+    expect(field().value).toBe("draft");
+    expect(form().classList.contains("is-open")).toBe(true);
+  });
+
+  it("lifts the bubble above the input from the start", () => {
+    expect(bubble().classList.contains("is-above-input")).toBe(true);
   });
 });
