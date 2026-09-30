@@ -8,7 +8,7 @@
 
 // Default fallback for environments where the transition never fires. A rAF (next frame ~16ms) is
 // shorter than the fade (--yui-dur 200ms / -fast 140ms) and would cut it off, so the timer must
-// exceed that ceiling. A caller whose own transition runs longer (e.g. --yui-dur-out) passes its
+// exceed that ceiling. A caller whose own transition runs longer passes its
 // own fallbackMs instead of raising this default for everyone.
 const FADE_FALLBACK_MS = 400;
 
