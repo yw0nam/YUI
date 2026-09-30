@@ -86,6 +86,7 @@ export default defineConfig(() => ({
         settings: resolve(__dirname, "settings.html"),
         message: resolve(__dirname, "message.html"),
         devtools: resolve(__dirname, "devtools.html"),
+        phone: resolve(__dirname, "phone.html"),
       },
     },
   },

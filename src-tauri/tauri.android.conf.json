@@ -1,6 +1,9 @@
 {
   "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
   "identifier": "com.yui.mobile",
+  "app": {
+    "windows": [{ "label": "main", "url": "phone.html" }]
+  },
   "bundle": {
     "resources": {
       "../resources/vrms/": null,

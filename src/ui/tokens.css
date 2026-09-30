@@ -77,6 +77,11 @@
   --yui-bubble-bottom: 16%; /* Character's lower-half band — bottom anchor so face isn't hidden */
   --yui-bubble-max-h: 34vh; /* Long utterance height cap — internal scroll if exceeded */
 
+  /* ── Phone stage ── */
+  --yui-stage: oklch(0.15 0.012 70); /* Warm ink stage behind the character */
+  --yui-stage-lift: oklch(0.23 0.016 72); /* Soft radial lift behind the character */
+  --yui-touch: 48px; /* Minimum touch target */
+
   /* ── Motion: responsive, ease-out exponential curve (quint). No bounce/elastic. ── */
   --yui-ease: cubic-bezier(0.22, 1, 0.36, 1);
   --yui-dur: 200ms;
