@@ -275,7 +275,7 @@ fn polling_loop(app: AppHandle) {
         .path()
         .app_data_dir()
         .ok()
-        .map(|dir| WitnessLog::new(dir.join("witness"), crate::resolve_log_offset()));
+        .map(|dir| WitnessLog::new(dir.join("witness"), crate::app_log::resolve_log_offset()));
 
     loop {
         let now = epoch_ms();
