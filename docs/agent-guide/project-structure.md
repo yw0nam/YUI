@@ -158,6 +158,7 @@ YUI/
         turn.ts                      # Turn identity ledger and the single definition of over
         turn-output.ts               # Speech lifecycle port between the backend caller and the voice pipeline
         push-turn.ts                 # Push-turn ids the user stopped, so their late frames drop whole, and the wait for a sent turn to finish
+        quoted-turn.ts               # The admitted user turn the bubble quotes, and what was observed of it
         render-turn.ts               # Plays a finished backend turn that arrived as a render frame on the push socket
         turn-feed.ts                 # Shared tool-status and reasoning consumer for every transport
       backend/
@@ -338,7 +339,8 @@ YUI/
         format-accel.ts              # Renders an accelerator string for display
       message/                       # Message-window plate, bubble, and cue-list rendering
         speech-bubble.ts             # Speech bubble: dwell, scroll, markdown, and aria for streamed speech
-        reasoning-disclosure.ts      # Backend reasoning folded at the top of the bubble in the message and phone windows
+        user-quote.ts                # The user's message quoted on the bubble's first line
+        reasoning-disclosure.ts      # Backend reasoning folded under the quoted line at the top of the bubble in the message and phone windows
         message-plate.ts             # Message-window name plate and OS drag handle
         markdown.ts                  # Speech markdown rendering through marked and DOMPurify
         cue-list.ts                  # Reusable cue-list section for schedule and proactive cues
