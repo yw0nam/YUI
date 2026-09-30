@@ -30,6 +30,8 @@ interface TextInput {
   showInputError(message: string, action?: InputErrorAction): void;
   /** Apply the configured attach-time caps (configs/guardrails.json → attachments). */
   setAttachmentLimits(limits: AttachmentLimits): void;
+  /** Puts a sent message back into an open, empty composer, attachments included; a closed composer or one holding a draft is left alone. */
+  restoreInput(text: string, images: string[]): void;
   /** Toggle the input disabled (e.g. while processing). When disabled, field disabled + pending dimming. */
   setInputEnabled(enabled: boolean): void;
   /**
@@ -313,10 +315,23 @@ export function createTextInput(
     const images = attachments.slice();
     for (const cb of submitHandlers) cb(text, images);
     clearAttachments();
-    if (persistent) {
-      field.value = "";
-      fitField();
+    field.value = "";
+    fitField();
+  }
+
+  function restoreInput(text: string, images: string[]): void {
+    if (!isInputOpen() || field.value !== "" || attachments.length > 0 || inFlight > 0) return;
+    field.value = text;
+    for (const url of images) {
+      attachments.push(url);
+      addChip(url);
     }
+    fitField();
+  }
+
+  // A button takes focus on click in Chromium and the Android WebView, which closes the soft keyboard; the field keeps it.
+  function keepFieldFocus(e: Event): void {
+    e.preventDefault();
   }
 
   function handleSubmit(e: Event): void {
@@ -392,6 +407,7 @@ export function createTextInput(
 
   formEl.addEventListener("submit", handleSubmit);
   sendBtn.addEventListener("click", handleSendClick);
+  sendBtn.addEventListener("mousedown", keepFieldFocus);
   field.addEventListener("keydown", handleFieldKey);
   field.addEventListener("input", clearErrorOnInput);
   field.addEventListener("input", fitField);
@@ -406,6 +422,7 @@ export function createTextInput(
     unsubscribeLocale();
     formEl.removeEventListener("submit", handleSubmit);
     sendBtn.removeEventListener("click", handleSendClick);
+    sendBtn.removeEventListener("mousedown", keepFieldFocus);
     field.removeEventListener("keydown", handleFieldKey);
     field.removeEventListener("input", clearErrorOnInput);
     field.removeEventListener("input", fitField);
@@ -428,6 +445,7 @@ export function createTextInput(
     setBusy,
     showInputError,
     setAttachmentLimits,
+    restoreInput,
     setInputEnabled,
     setInputAnchor,
     dispose,

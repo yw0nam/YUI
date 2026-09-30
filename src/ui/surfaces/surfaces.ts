@@ -69,6 +69,8 @@ export interface Surfaces {
   showInputError(message: string, action?: InputErrorAction): void;
   /** Apply the configured attach-time caps (configs/guardrails.json → attachments). */
   setAttachmentLimits(limits: AttachmentLimits): void;
+  /** Puts a sent message back into an open, empty composer, attachments included; a closed composer or one holding a draft is left alone. */
+  restoreInput(text: string, images: string[]): void;
   /** Toggle the input disabled (e.g. while processing). When disabled, field disabled + pending dimming. */
   setInputEnabled(enabled: boolean): void;
   /**
@@ -234,6 +236,7 @@ export function createSurfaces({
     setBusy: input.setBusy,
     showInputError: input.showInputError,
     setAttachmentLimits: input.setAttachmentLimits,
+    restoreInput: input.restoreInput,
     setInputEnabled: input.setInputEnabled,
     setInputAnchor: input.setInputAnchor,
     dispose,

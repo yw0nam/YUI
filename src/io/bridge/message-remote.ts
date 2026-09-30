@@ -33,6 +33,8 @@ export interface RemoteSurfaces {
   setBusy(busy: boolean): void;
   showInputError(message: string, action?: InputErrorAction): void;
   setAttachmentLimits(limits: AttachmentLimits): void;
+  /** Puts a sent message back into the message window's composer when it is open and empty. */
+  restoreInput(text: string, images: string[]): void;
   onSubmit(cb: (text: string, images: string[]) => void): void;
   onStop(cb: () => void): void;
   /** The dock button on the message window's plate. */
@@ -128,6 +130,9 @@ export function createRemoteSurfaces(bridge: MessageBridge): RemoteSurfaces {
     setAttachmentLimits(next) {
       limits = next;
       bridge.emitSurface({ op: "attachment-limits", limits: next });
+    },
+    restoreInput(text, images) {
+      bridge.emitSurface({ op: "restore-input", text, images });
     },
     onSubmit(cb) {
       submitHandlers.push(cb);

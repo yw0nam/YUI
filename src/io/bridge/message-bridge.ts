@@ -25,7 +25,8 @@ export type MessageSurfaceOp =
   | { op: "busy"; busy: boolean }
   | { op: "input-enabled"; enabled: boolean }
   | { op: "input-error"; message: string; action?: { label: string } }
-  | { op: "attachment-limits"; limits: AttachmentLimits };
+  | { op: "attachment-limits"; limits: AttachmentLimits }
+  | { op: "restore-input"; text: string; images: string[] };
 
 /** Message → pet: what the user did, plus the mount handshake. */
 export type MessageControlOp =

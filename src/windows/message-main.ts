@@ -143,6 +143,9 @@ async function bootstrap(): Promise<void> {
       case "attachment-limits":
         surfaces.setAttachmentLimits(op.limits);
         break;
+      case "restore-input":
+        surfaces.restoreInput(op.text, op.images);
+        break;
       default: {
         const unhandled: never = op;
         log.warn("unhandled_surface_op", { op: JSON.stringify(unhandled) });
