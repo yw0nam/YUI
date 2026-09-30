@@ -219,6 +219,23 @@ describe("validateAvatar — framing", () => {
       "framing.fov must be a finite number in (0, 180)",
     );
   });
+
+  it("rejects a missing upper_body", () => {
+    const raw = avatarFixture() as unknown as Record<string, unknown>;
+    raw.framing = { margin: 0.1, fov: 30 };
+    expectIssue(raw, "framing.upper_body must be an object");
+  });
+
+  it("rejects an upper_body band out of order or out of [0, 1]", () => {
+    expectIssue(
+      avatarWith({ framing: { upper_body: { from_frac: 0.6, to_frac: 0.5 } } }),
+      "framing.upper_body.from_frac must be <",
+    );
+    expectIssue(
+      avatarWith({ framing: { upper_body: { from_frac: -0.1, to_frac: 1 } } }),
+      "framing.upper_body.from_frac must be a finite number in [0, 1]",
+    );
+  });
 });
 
 describe("validateAvatar — hit_test", () => {

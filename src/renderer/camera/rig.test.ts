@@ -16,6 +16,7 @@ import {
   computeCameraFit,
   orbitPosition,
 } from "../geometry/camera-fit";
+import { computeBandFit } from "../geometry/fit-band";
 import { type CameraRig, createCameraRig } from "./rig";
 
 const W = 800;
@@ -240,5 +241,28 @@ describe("createCameraRig", () => {
     rig.setOrbit({ azimuth: Number.NaN, polar: Number.NaN });
     expect(rig.isConverging()).toBe(false);
     expect(camera.position.equals(settled)).toBe(true);
+  });
+
+  it("setFitBand frames the band and keeps the zoom and orbit", () => {
+    const { camera, rig } = makeFixture();
+    const band = { from_frac: 0.4, to_frac: 1 };
+    const angles = { azimuth: 0.5, polar: Math.PI / 3 };
+    rig.fit();
+    rig.setZoom(2);
+    rig.setOrbit(angles);
+    stepUntilSettled(rig);
+    const fullFit = expectedFit(camera);
+    const bandFit = computeBandFit(BOX, band, FRAMING);
+    if (!bandFit) throw new Error("fixture box must fit the band");
+
+    rig.setFitBand(band);
+    expectPosition(camera, orbitPosition(bandFit.target, bandFit.distance / 2, angles));
+
+    // A later framing application keeps the band.
+    rig.setFraming(FRAMING);
+    expectPosition(camera, orbitPosition(bandFit.target, bandFit.distance / 2, angles));
+
+    rig.setFitBand(null);
+    expectPosition(camera, orbitPosition(fullFit.target, fullFit.distance / 2, angles));
   });
 });
