@@ -725,7 +725,7 @@ describe("createQuickControls — Reactions tab", () => {
     expect(tab).not.toBeNull();
     expect(tab!.getAttribute("role")).toBe("tab");
     expect(tab!.getAttribute("aria-controls")).toBe("yui-panel-react");
-    expect(tab!.textContent?.trim()).toBe("Proactive");
+    expect(tab!.getAttribute("aria-label")).toBe("Proactive");
     qc.dispose();
   });
 

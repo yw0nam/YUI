@@ -804,7 +804,7 @@ export function createQuickControls({
     if (index >= 0) selectTab(index);
     popover.open(anchor);
     // open() lands focus on the first control; move it to the tab the caller asked for.
-    if (index >= 0) tabButtons[index]?.focus();
+    if (index >= 0) tabButtons[index]?.focus({ focusVisible: false });
   }
 
   function handleTabClick(e: MouseEvent): void {

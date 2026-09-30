@@ -88,8 +88,9 @@ export function createPopover(deps: PopoverDeps): Popover {
     );
   }
 
+  // No ring on open — a pointer-opened panel stays unlit until the user tabs.
   function focusFirst(): void {
-    focusables()[0]?.focus();
+    focusables()[0]?.focus({ focusVisible: false });
   }
 
   // ── Positioning (popover variant) ──
