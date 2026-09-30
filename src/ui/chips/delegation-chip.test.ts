@@ -370,6 +370,22 @@ describe("createDelegationChip", () => {
     expect(el.hidden).toBe(false);
   });
 
+  // The list is positioned against the wrapper that spans the overlay — never inside the chip
+  // button. Both windows' stylesheets hang off these two direct-child relationships: the
+  // character window pins the list to the wrapper's right edge, and the message window's flow
+  // layout turns the same two children into flex items of the plate row.
+  describe("list geometry contract", () => {
+    it("keeps the list a direct child of .yui-deleg, outside the chip button", () => {
+      const { store } = build();
+      store.replace([running("d-1", 60_000), done("d-2", 60_000)]);
+      chipButton().click();
+
+      expect(listEl().parentElement).toBe(chipEl());
+      expect(listEl().closest("button")).toBeNull();
+      expect([...chipEl().children]).toEqual([chipButton(), listEl()]);
+    });
+  });
+
   // The pet window is click-through passthrough; the window-level hit test only grants OS
   // clicks to rects collected from INTERACTIVE_OVERLAY_SELECTORS. Without a registered
   // selector the DOM handlers never fire, so the chip is two dead changes.

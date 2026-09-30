@@ -78,13 +78,22 @@ describe("formatDelegationTime — one row's right-side text", () => {
     );
   });
 
-  it("reads done for ok and unknown alike", () => {
+  it("reads done for ok", () => {
     expect(formatDelegationTime({ ...done("d-1", 4 * 60_000), status: "ok" }, NOW)).toBe(
       "Done · 4m ago",
     );
-    expect(formatDelegationTime({ ...done("d-2", 4 * 60_000), status: "unknown" }, NOW)).toBe(
-      "Done · 4m ago",
+  });
+
+  it("reads unknown with an ago stamp when the outcome is unverifiable", () => {
+    expect(formatDelegationTime({ ...done("d-1", 4 * 60_000), status: "unknown" }, NOW)).toBe(
+      "Outcome unverified · 4m ago",
     );
+  });
+
+  it("reads the bare unknown label when the backend sent no ended_at", () => {
+    setLocale("ko");
+    const item = { ...done("d-1", 0), status: "unknown" as const, ended_at: undefined };
+    expect(formatDelegationTime(item, NOW)).toBe("결과 확인 필요");
   });
 });
 
@@ -133,6 +142,18 @@ describe("renderDelegationRows — the row DOM", () => {
     const rows = [...container.querySelectorAll<HTMLDivElement>(".yui-deleg__item")];
     expect(rows[0]!.dataset.status).toBe("error");
     expect(rows[1]!.dataset.status).toBeUndefined();
+  });
+
+  it("stamps unknown on the row and words its time as unverified", () => {
+    setLocale("en");
+    const container = document.createElement("div");
+    renderDelegationRows(container, [{ ...done("d-1", 9 * 60_000), status: "unknown" }], NOW);
+
+    const row = container.querySelector<HTMLDivElement>(".yui-deleg__item")!;
+    expect(row.dataset.status).toBe("unknown");
+    expect(row.querySelector(".yui-deleg__item-time")!.textContent).toBe(
+      "Outcome unverified · 9m ago",
+    );
   });
 
   describe("with a summary disclosure", () => {
