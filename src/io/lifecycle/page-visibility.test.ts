@@ -27,7 +27,6 @@ function fakeDocument(initial: string) {
       visibilityState = "visible";
       for (const cb of [...listeners]) cb();
     },
-    listenerCount: () => listeners.size,
   };
 }
 
@@ -50,15 +49,16 @@ describe("watchPageVisibility", () => {
     expect(visibility.get()).toBe(false);
   });
 
-  it("stops listening on dispose", () => {
+  it("stops notifying a disposed subscriber", () => {
     const doc = fakeDocument("visible");
     const visibility = watchPageVisibility(doc);
-    const off = visibility.subscribe(() => {});
+    const seen: boolean[] = [];
+    const off = visibility.subscribe(() => seen.push(visibility.get()));
 
     off();
     doc.hide();
 
-    expect(doc.listenerCount()).toBe(0);
+    expect(seen).toEqual([]);
     expect(visibility.get()).toBe(true);
   });
 });
