@@ -39,18 +39,22 @@ export function createMessagePlate({
     <span class="yui-plate__dot" aria-hidden="true"></span>
     <span class="yui-plate__name">YUI</span>
     <span class="yui-plate__state"></span>
+    ${
+      onDock
+        ? `
     <button class="yui-plate__dock" type="button">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
            stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
         <path d="M4 14h6v6M10 14l-6 6M20 10h-6V4M14 10l6-6"/>
       </svg>
-    </button>
+    </button>`
+        : ""
+    }
   `;
   mount.prepend(el);
 
   const dockBtn = el.querySelector<HTMLButtonElement>(".yui-plate__dock");
   const stateEl = el.querySelector<HTMLSpanElement>(".yui-plate__state")!;
-  if (!onDock) dockBtn?.remove();
   if (startDragging) el.dataset.draggable = "";
 
   let live = false;
@@ -89,8 +93,10 @@ export function createMessagePlate({
     startDragging();
   }
 
+  const onDockClick = (): void => onDock?.();
+
   el.addEventListener("mousedown", onMouseDown);
-  dockBtn?.addEventListener("click", onDock!);
+  dockBtn?.addEventListener("click", onDockClick);
 
   return {
     el,
@@ -110,7 +116,7 @@ export function createMessagePlate({
     dispose() {
       unsubscribeLocale();
       el.removeEventListener("mousedown", onMouseDown);
-      dockBtn?.removeEventListener("click", onDock!);
+      dockBtn?.removeEventListener("click", onDockClick);
       el.remove();
     },
   };
