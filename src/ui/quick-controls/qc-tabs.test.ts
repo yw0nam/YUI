@@ -153,29 +153,25 @@ describe("createQuickControls — tabs + VAD slider", () => {
     const focus = vi.spyOn(HTMLElement.prototype, "focus");
     qc.open(undefined, { tab: "conn" });
 
-    expect(focus).toHaveBeenLastCalledWith({ focusVisible: false });
+    expect(focus).toHaveBeenLastCalledWith(expect.objectContaining({ focusVisible: false }));
+    expect(focus.mock.contexts.at(-1)).toBe(qc.el.querySelector("#yui-tab-conn"));
 
     qc.dispose();
   });
 
-  it("the popover rail shows icons only, each tab named by its aria-label and tooltip", () => {
-    const qc = buildQc();
-    qc.open();
+  // The narrow-panel container query hides the label; aria-label and the tooltip name the icon then.
+  it.each([
+    "popover",
+    "window",
+  ] as const)("the %s rail gives every tab a label, an aria-label and a tooltip", (variant) => {
+    const qc = buildQc({ variant });
 
     for (const tab of tabs(qc)) {
-      expect(tab.textContent!.trim()).toBe("");
-      expect(tab.getAttribute("aria-label")).toBeTruthy();
+      const name = tab.getAttribute("aria-label");
+      expect(name).toBeTruthy();
+      expect(tab.querySelector(".yui-tab__label")?.textContent).toBe(name);
       expect(tab.dataset.tip).toBeTruthy();
     }
-
-    qc.dispose();
-  });
-
-  it("the settings window rail labels each tab in text", () => {
-    const qc = buildQc({ variant: "window" });
-
-    expect(qc.el.querySelector("#yui-tab-talk")!.textContent!.trim()).toBe("대화");
-    expect(qc.el.querySelector("#yui-tab-general")!.textContent!.trim()).toBe("일반");
 
     qc.dispose();
   });
