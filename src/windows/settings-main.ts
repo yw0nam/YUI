@@ -61,8 +61,6 @@ async function bootstrap(): Promise<void> {
     screenSettings,
     screenKnobSettings,
     guardrailsSettings,
-    railCollapsedSettings,
-    sectionsSettings,
     lipsyncSettings,
     vadSettings,
     fillerSettings,
@@ -240,8 +238,6 @@ async function bootstrap(): Promise<void> {
           return undefined;
         }
       },
-      railCollapsedSettings,
-      sectionsSettings,
       sourceProvider,
       voiceStatus: voiceInputStatus,
       lipsync: lipsyncSettings,

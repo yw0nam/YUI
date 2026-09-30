@@ -13,7 +13,7 @@ import type { Locale } from "../i18n";
 
 // Tab identity — the suffix of each tab button's `yui-tab-*` element id.
 // "hist" renders only when a transcript is injected; the rest are always present.
-export type QuickControlsTab = "talk" | "char" | "input" | "adv" | "react" | "hist";
+export type QuickControlsTab = "conn" | "talk" | "char" | "input" | "react" | "hist" | "general";
 
 // Language picker display order (Japanese / English / Korean). Fixed independently of LOCALES.
 export const LANG_PICKER_ORDER: readonly Locale[] = ["ja", "en", "ko"];
@@ -170,7 +170,7 @@ export const CHAT_API_LABEL_KEYS: Record<ChatApi, string> = {
   push: "svc.chat_type_push",
 };
 
-// Chat provider presets (Advanced tab, chat card) — selecting one autofills chat_base_url with the
+// Chat provider presets (Connection tab, chat section) — selecting one autofills chat_base_url with the
 // provider's OpenAI-compatible path, the chat protocol, or both. Brand names are display-as-is,
 // never localized. "custom" is the no-autofill entry the dropdown falls back to when nothing matches.
 export const CHAT_PRESET_CUSTOM = "custom";
@@ -190,18 +190,16 @@ export const CHAT_PROVIDER_PRESETS: readonly ChatProviderPreset[] = [
   { id: "hermes", name: "Hermes Agent", chatApi: "push" },
 ];
 
-// Tab icons — same line-icon vocabulary as other icon buttons (1.7 stroke, 24x24 viewBox). Only clue when rail collapses.
+// Tab icons — same line-icon vocabulary as other icon buttons (1.7 stroke, 24x24 viewBox).
 // Input icon reuses the same path as the voice_input row icon in the input tab.
+export const TAB_ICON_CONN = `<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M9 7.5V4M15 7.5V4M12 16.5V20" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/><path d="M7 7.5h10v4a5 5 0 0 1-10 0v-4Z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/></svg>`;
 export const TAB_ICON_TALK = `<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M4 6.8A2.3 2.3 0 0 1 6.3 4.5h11.4A2.3 2.3 0 0 1 20 6.8v6.4a2.3 2.3 0 0 1-2.3 2.3H10l-4.3 3.3v-3.3H6.3A2.3 2.3 0 0 1 4 13.2V6.8Z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round" stroke-linecap="round"/></svg>`;
 export const TAB_ICON_CHAR = `<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="12" cy="8.3" r="3.1" stroke="currentColor" stroke-width="1.7"/><path d="M5.2 19c1.15-3.4 3.9-5 6.8-5s5.65 1.6 6.8 5" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
 export const TAB_ICON_INPUT = `<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 4.5v7" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/><path d="M8 9.5v1.8a4 4 0 0 0 8 0V9.5" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/><path d="M12 15.5v3" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/><path d="M9.5 18.5h5" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>`;
-export const TAB_ICON_ADV = `<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><line x1="4" y1="6" x2="20" y2="6" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/><line x1="4" y1="12" x2="20" y2="12" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/><line x1="4" y1="18" x2="20" y2="18" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/><circle cx="8" cy="6" r="1.7" fill="var(--yui-panel-bg)" stroke="currentColor" stroke-width="1.7"/><circle cx="16" cy="12" r="1.7" fill="var(--yui-panel-bg)" stroke="currentColor" stroke-width="1.7"/><circle cx="10" cy="18" r="1.7" fill="var(--yui-panel-bg)" stroke="currentColor" stroke-width="1.7"/></svg>`;
+export const TAB_ICON_GENERAL = `<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><line x1="4" y1="6" x2="20" y2="6" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/><line x1="4" y1="12" x2="20" y2="12" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/><line x1="4" y1="18" x2="20" y2="18" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/><circle cx="8" cy="6" r="1.7" fill="var(--yui-panel-bg)" stroke="currentColor" stroke-width="1.7"/><circle cx="16" cy="12" r="1.7" fill="var(--yui-panel-bg)" stroke="currentColor" stroke-width="1.7"/><circle cx="10" cy="18" r="1.7" fill="var(--yui-panel-bg)" stroke="currentColor" stroke-width="1.7"/></svg>`;
 export const TAB_ICON_REACT = `<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M13 3 5.5 13h4.7l-1 8L18 11h-4.7l1-8Z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round" stroke-linecap="round"/></svg>`;
 
 export const TAB_ICON_HIST = `<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 8v4l2.5 2.5" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/><path d="M4.5 12a7.5 7.5 0 1 1 2.2 5.3" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/><path d="M4.5 17v-4h4" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
 
 // Session-row disclosure chevron — CSS rotates it 90° when the session is open.
 export const HIST_CHEVRON_SVG = `<svg viewBox="0 0 24 24" fill="none" width="14" height="14" aria-hidden="true"><path d="M9 6l6 6-6 6" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
-
-// rail collapse/expand chevron — CSS rotates it 180° when collapsed.
-export const RAIL_COLLAPSE_SVG = `<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M14 6l-6 6 6 6" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>`;

@@ -1,6 +1,6 @@
 # YUI — Install and Wiring Guide
 
-YUI is the frontend (head): VRM character rendering, desktop-pet behavior, and I/O surfaces. The brain and voice services — backend agent, broker, TTS, STT — run as separate, config-swappable processes that YUI points at via `configs/endpoints.json` or the in-app panel (right-click the character → **Advanced**).
+YUI is the frontend (head): VRM character rendering, desktop-pet behavior, and I/O surfaces. The brain and voice services — backend agent, broker, TTS, STT — run as separate, config-swappable processes that YUI points at via `configs/endpoints.json` or the in-app panel (right-click the character → **Connection**).
 
 ## What you need
 
@@ -9,7 +9,7 @@ One VRM model — and one ships in the repo (`resources/vrms/Sendagaya_Shino.vrm
 | Component | Status | Without it |
 |---|---|---|
 | VRM model | **Bundled** — bring your own optional (§2) | — |
-| Chat backend (`chat_base_url`) | Optional | Character appears and idles; a chat turn answers with an inline "Backend not configured" pointer to **Advanced** |
+| Chat backend (`chat_base_url`) | Optional | Character appears and idles; a chat turn answers with an inline "Backend not configured" pointer to **Connection** |
 | Chat API key | Optional | Only needed when the endpoint enforces one; set in the panel or `.env.local` |
 | Expression MCP Broker | Optional — Responses mode with a backend agent | Chat Completions mode bakes the vocabulary into the client-declared tool, no broker involved |
 | TTS | Optional | Speech bubble works; no audio output |
@@ -170,7 +170,7 @@ YUI sends audio to `<stt_base_url>/audio/transcriptions`. If the server requires
 
 ## 7. Wire It All Together — `configs/endpoints.json`
 
-YUI ships with no service addresses: every URL in the bundled `configs/endpoints.json` is unset, and an unset URL means that feature is off — STT, TTS, and the expression broker stay quiet, and a chat turn with no `chat_base_url` answers with an inline "Backend not configured" error pointing at **Advanced**.
+YUI ships with no service addresses: every URL in the bundled `configs/endpoints.json` is unset, and an unset URL means that feature is off — STT, TTS, and the expression broker stay quiet, and a chat turn with no `chat_base_url` answers with an inline "Backend not configured" error pointing at **Connection**.
 
 Point YUI at your services by editing `configs/endpoints.json` or using the in-app Endpoint settings panel, which persists overrides to local storage and leaves the bundled file untouched.
 

@@ -20,7 +20,7 @@ const ja: Record<string, string> = {
   "voice.state.fired": "送信しました",
   "voice.state.error": "エラー",
   "voice.error.not_configured": "設定が必要",
-  "voice.error.not_configured_fix": "バックエンド未設定 — 詳細設定を開く",
+  "voice.error.not_configured_fix": "バックエンド未設定 — 接続設定を開く",
 
   // aria labels (parameterized)
   "aria.refresh_speaker": "{name} の参照音声を更新",
@@ -45,7 +45,7 @@ const ja: Record<string, string> = {
   "input.error_stall": "バックエンドが応答しなくなりました",
   "input.error_parse": "応答処理に失敗",
   "input.error_not_configured": "バックエンド未設定",
-  "input.error_open_advanced": "詳細を開く",
+  "input.error_open_connection": "接続を開く",
   "input.attach_too_many": "画像が多すぎ · 1ターン{max}枚まで",
   "input.attach_too_large": "画像が大きすぎ · 1枚{max}MBまで",
   "input.attach_not_ready": "まだ添付できない · 上限を読み込み中",
@@ -97,8 +97,6 @@ const ja: Record<string, string> = {
   "panel.pop_out": "ウィンドウに切り出す",
   "panel.message": "メッセージを入力",
   "panel.close": "閉じる",
-  "panel.rail_collapse": "セクション一覧を折りたたむ",
-  "panel.rail_expand": "セクション一覧を広げる",
   "settings.title": "YUI 設定",
   "devtools.label": "開発者ツール",
   "devtools.sub": "送信コンテキストとモーションを確認",
@@ -119,13 +117,14 @@ const ja: Record<string, string> = {
   "devtools.advanced.context_window_default": "デフォルト",
 
   // tabs
+  "tabs.conn": "接続",
   "tabs.talk": "会話",
   "tabs.char": "キャラクター",
   "tabs.input": "入力",
-  "tabs.adv": "詳細",
   "tabs.react": "話しかけ",
   "tabs.react_hint": "ユイの方から話しかけるときのルール",
   "tabs.hist": "履歴",
+  "tabs.general": "一般",
 
   // reasoning effort segment
   "reasoning.label": "推論の強さ",
@@ -273,7 +272,6 @@ const ja: Record<string, string> = {
 
   // screenshot / input tab
   "screenshot.label": "スクリーンショットを添付",
-  "screenshot.sub": "会話しながら画面を一緒に見ます",
   "screenshot.source_label": "送る画面",
   "screenshot.source_aria": "送る画面",
   "screenshot.monitor_primary": "メイン画面",
@@ -316,10 +314,10 @@ const ja: Record<string, string> = {
   // cue lists (input tab)
   "cue.schedule_title": "時間帯のあいさつ",
   "cue.schedule_sub": "決めた時刻に席にいると、先に話しかけます",
-  "cue.schedule_add": "+ あいさつを追加",
+  "cue.schedule_add": "あいさつを追加",
   "cue.proactive_title": "ループリアクション",
   "cue.proactive_sub": "作業中にしばらく静かにしていると、定期的に先に話しかけます",
-  "cue.proactive_add": "+ リアクションを追加",
+  "cue.proactive_add": "リアクションを追加",
 
   // endpoints
   "endpoints.section": "エンドポイント",
@@ -333,7 +331,7 @@ const ja: Record<string, string> = {
   "endpoints.broker_base_url.label": "表現ブローカー URL",
   "endpoints.chat_model.label": "チャットモデル",
 
-  // per-service sections (advanced tab)
+  // per-service sections (connection tab)
   "svc.type_label": "種類",
   "svc.chat": "チャット",
   "svc.chat_aria": "チャット API の種類",
@@ -390,7 +388,6 @@ const ja: Record<string, string> = {
   "ttskey.clear": "キーを消去",
 
   // performance
-  "perf.section": "パフォーマンス",
   "perf.idle_label": "待機中の省電力 (30fps)",
   "perf.idle_sub":
     "キャラクターが静止しているときにフレームレートを下げて電力を節約します。話したり動いたりすると自動でなめらかに戻ります。",
@@ -413,7 +410,7 @@ const ja: Record<string, string> = {
   "hint.first_run": "右クリックでコントロール · {hotkey}で話しかけてね",
   "hint.first_run_no_hotkey": "右クリックでコントロール",
   "hint.setup_backend":
-    "考えるためのバックエンドがまだないの · 右クリックして詳細タブを開いて、OpenAI 互換サーバーを指定してね",
+    "考えるためのバックエンドがまだないの · 右クリックして接続タブを開いて、OpenAI 互換サーバーを指定してね",
 
   // reactions tab
   "reactions.watchers_title": "ウォッチャー",

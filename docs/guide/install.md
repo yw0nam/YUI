@@ -39,7 +39,7 @@ Done when `pnpm install` exits 0 and `resources/vrms/Sendagaya_Shino.vrm` exists
 
 ### 3. Backend (optional)
 
-Ask once: "Do you want to connect a chat backend, TTS, or STT now, or set them later in the app (right-click the character → Advanced)?" On "later", go to step 4.
+Ask once: "Do you want to connect a chat backend, TTS, or STT now, or set them later in the app (right-click the character → Connection)?" On "later", go to step 4.
 
 Otherwise collect what the user has. Every URL starts with `http://` or `https://`; the config validator rejects anything else at launch, which shows as an empty transparent window.
 
@@ -67,6 +67,6 @@ node -e 'const c=JSON.parse(require("fs").readFileSync("configs/endpoints.json",
 Report to the user:
 
 1. The paths written, never a key value.
-2. What was skipped, with the place to set it later: right-click the character → Advanced.
-3. The launch command, run from the checkout: `pnpm tauri dev`. The first run compiles the Rust side for several minutes, then opens a transparent window with the character. With no backend she idles, and a chat turn answers with a pointer to the Advanced tab.
+2. What was skipped, with the place to set it later: right-click the character → Connection.
+3. The launch command, run from the checkout: `pnpm tauri dev`. The first run compiles the Rust side for several minutes, then opens a transparent window with the character. With no backend she idles, and a chat turn answers with a pointer to the Connection tab.
 4. The optional services (TTS, STT, Expression Broker, backend agents) are covered in the [install and wiring guide](getting-started.md).

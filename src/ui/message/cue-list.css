@@ -1,96 +1,50 @@
 /* Cue-list section component — shared pattern for time-of-day greetings and proactive reactions.
-   Tokens: src/ui/tokens.css. Local --yui-field is inherited from .yui-quick. */
+   Each cue is a row of the section's group; the add row closes the group. Tokens: src/ui/tokens.css. */
 
-/* ── Cue list container ── */
+/* ── Cue rows — hairline between cues, and above the add row once a cue exists ── */
 .yui-cue-list {
   display: grid;
-  gap: 0;
-  margin-top: 0.15rem;
 }
 
-/* ── "+ add" button — base (compound override below) ── */
-.yui-cue-add {
-  display: flex;
-  align-items: center;
-  gap: 0.4rem;
-  width: 100%;
-  margin-top: 0.25rem;
-  padding: 0.38rem 0.5rem;
-  border: 1px dashed var(--yui-edge-strong);
-  border-radius: var(--yui-radius-row);
-  background: transparent;
-  color: var(--yui-text-mute);
-  font: inherit;
-  font-size: 0.8rem;
-  font-weight: 550;
-  cursor: pointer;
-  text-align: left;
-  transition:
-    border-color var(--yui-dur-fast) var(--yui-ease),
-    color var(--yui-dur-fast) var(--yui-ease),
-    background var(--yui-dur-fast) var(--yui-ease);
+.yui-cue + .yui-cue {
+  border-top: 1px solid var(--yui-edge);
 }
 
-.yui-cue-add:hover {
-  border-color: var(--yui-accent-soft);
-  color: var(--yui-accent);
-  background: var(--yui-accent-faint);
+.yui-group > .yui-cue-list:empty + * {
+  border-top: 0;
 }
 
-.yui-cue-add svg {
-  width: 0.82rem;
-  height: 0.82rem;
-  flex: 0 0 auto;
-}
-
-/* ── Whole section — dim the list and add button when master is OFF ── */
-.yui-section--off .yui-cue-list,
-.yui-section--off .yui-cue-add {
-  opacity: 0.38;
+/* ── Whole section — dim the group when master is OFF ── */
+.yui-section--off .yui-group {
+  opacity: 0.5;
   pointer-events: none;
 }
 
-/* ── Individual cue row ── */
-.yui-cue {
-  border-radius: var(--yui-radius-row);
-  margin-bottom: 0.15rem;
-  background: oklch(0.97 0.01 80 / 0.03);
-  border: 1px solid var(--yui-edge);
-  overflow: hidden;
-}
-
-.yui-cue--off {
-  opacity: 0.42;
-}
-
-.yui-cue--expanded {
-  background: oklch(0.97 0.01 80 / 0.05);
-  border-color: var(--yui-edge-strong);
-}
-
-/* ── Collapsed row layout ── */
-/* Wraps when the name row and trigger controls cannot share one line (narrow quick panel);
-   in the wide settings window everything fits and no wrap occurs. */
+/* ── Collapsed row: switch · name over context preview · trigger · delete ── */
+/* Wraps when the name and the trigger cannot share one line (narrow quick panel). */
 .yui-cue__collapsed {
   display: flex;
+  box-sizing: border-box;
   flex-wrap: wrap;
   align-items: center;
-  gap: 0.5rem;
-  padding: 0.42rem 0.5rem;
+  gap: 0.5rem 0.75rem;
+  min-height: 3rem;
+  padding: 0.625rem 0.875rem;
 }
 
-/* Name + preview toggle button — looks like a label row but has no box/border */
+/* Name + preview toggle button — reads as the row's label, no box of its own */
 .yui-cue__label {
   flex: 1;
   min-width: 7rem;
-  display: flex;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
   align-items: center;
-  gap: 0.5rem;
-  border: 0;
-  background: none;
-  padding: 0.1rem 0.2rem;
+  column-gap: 0.375rem;
   margin: 0;
-  border-radius: 7px;
+  padding: 0;
+  border: 0;
+  border-radius: 4px;
+  background: none;
   font: inherit;
   color: inherit;
   text-align: left;
@@ -104,7 +58,6 @@
 
 /* Leading chevron — rotates 90 degrees when expanded */
 .yui-cue__chevron {
-  flex: 0 0 auto;
   display: grid;
   place-items: center;
   color: var(--yui-text-mute);
@@ -122,14 +75,30 @@
 
 /* Cue name — shrinks with ellipsis so a long name never paints over the trigger controls */
 .yui-cue__name {
-  font-size: 0.84rem;
-  font-weight: 550;
-  color: var(--yui-text);
-  white-space: nowrap;
-  flex: 0 1 auto;
-  min-width: 3.2rem;
   overflow: hidden;
+  color: var(--yui-text);
+  font-size: var(--yui-fs-body);
+  font-weight: 500;
+  line-height: 1.35;
   text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Context preview — the row's sub line under the name */
+.yui-cue__ctx-preview {
+  grid-column: 2;
+  min-width: 0;
+  margin-top: 0.125rem;
+  overflow: hidden;
+  color: var(--yui-text-mute);
+  font-size: var(--yui-fs-sub);
+  line-height: 1.45;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.yui-cue__ctx-preview:empty {
+  display: none;
 }
 
 /* Trigger area — right-aligned when wrapped onto its own line */
@@ -137,74 +106,71 @@
   flex: 0 0 auto;
   display: flex;
   align-items: center;
-  gap: 0.28rem;
+  gap: 0.375rem;
   margin-left: auto;
 }
 
-/* Time input */
-.yui-time-input {
-  background: var(--yui-field, oklch(0.16 0.012 70 / 0.7));
-  border: 1px solid var(--yui-edge);
-  border-radius: 8px;
+/* Cue switched off — its text dims, the switch stays readable. */
+.yui-cue--off .yui-cue__label,
+.yui-cue--off .yui-cue__trigger {
+  opacity: 0.5;
+}
+
+/* ── Small fields — time and number share the panel's field look ── */
+.yui-time-input,
+.yui-num-input,
+.yui-cue__name-input {
+  box-sizing: border-box;
+  height: 2rem;
+  padding: 0 0.5rem;
+  border: 1px solid transparent;
+  border-radius: var(--yui-radius-control);
+  outline: none;
+  background: var(--yui-field);
   color: var(--yui-text);
   font: inherit;
-  font-size: 0.8rem;
-  font-weight: 500;
-  padding: 0.2rem 0.38rem;
+  font-size: var(--yui-fs-body);
   font-variant-numeric: tabular-nums;
-  text-shadow: var(--yui-text-shadow);
-  outline: none;
   -webkit-appearance: none;
+  transition:
+    border-color var(--yui-dur-fast) var(--yui-ease),
+    box-shadow var(--yui-dur-fast) var(--yui-ease);
+}
+
+.yui-time-input {
   color-scheme: dark;
 }
 
-.yui-time-input:focus {
-  border-color: var(--yui-accent);
-  box-shadow: 0 0 0 1px var(--yui-accent-soft);
-}
-
-/* Minutes input */
 .yui-num-input {
-  background: var(--yui-field, oklch(0.16 0.012 70 / 0.7));
-  border: 1px solid var(--yui-edge);
-  border-radius: 8px;
-  color: var(--yui-text);
-  font: inherit;
-  font-size: 0.8rem;
-  font-weight: 500;
-  padding: 0.2rem 0.38rem;
-  width: 3.2rem;
+  width: 4rem;
   text-align: right;
-  text-shadow: var(--yui-text-shadow);
-  outline: none;
-  -webkit-appearance: none;
 }
 
-.yui-num-input:focus {
-  border-color: var(--yui-accent);
-  box-shadow: 0 0 0 1px var(--yui-accent-soft);
-}
-
-.yui-cue__suffix {
-  font-size: 0.78rem;
-  color: var(--yui-text-mute);
-}
-
-.yui-cue__minutes-label {
-  font-size: 0.72rem;
-  color: var(--yui-text-mute);
-  flex-shrink: 0;
-}
-
-/* Context preview */
-.yui-cue__ctx-preview {
+.yui-cue__name-input {
   flex: 1;
   min-width: 0;
-  font-size: 0.74rem;
+}
+
+.yui-time-input:hover,
+.yui-num-input:hover,
+.yui-cue__name-input:hover,
+.yui-cue__ctx-wrap:hover {
+  border-color: var(--yui-edge);
+}
+
+.yui-time-input:focus,
+.yui-num-input:focus,
+.yui-cue__name-input:focus,
+.yui-cue__ctx-wrap:focus-within {
+  border-color: var(--yui-accent);
+  box-shadow: 0 0 0 1px var(--yui-accent-soft);
+}
+
+.yui-cue__suffix,
+.yui-cue__minutes-label {
+  flex-shrink: 0;
+  font-size: var(--yui-fs-caption);
   color: var(--yui-text-mute);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
 }
 
 /* Delete button — shown on hover only. The icon is small but the hit area is at least 24px. */
@@ -215,7 +181,7 @@
   width: 1.5rem;
   height: 1.5rem;
   border: 0;
-  border-radius: 7px;
+  border-radius: var(--yui-radius-control);
   background: transparent;
   color: var(--yui-text-mute);
   cursor: pointer;
@@ -227,7 +193,8 @@
 }
 
 .yui-cue:hover .yui-cue__delete,
-.yui-cue--expanded .yui-cue__delete {
+.yui-cue--expanded .yui-cue__delete,
+.yui-cue__delete:focus-visible {
   opacity: 0.65;
 }
 
@@ -235,6 +202,11 @@
   opacity: 1 !important;
   background: var(--yui-danger-faint);
   color: var(--yui-danger);
+}
+
+.yui-cue__delete:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px var(--yui-danger-soft);
 }
 
 /* display: grid beats the UA's [hidden] rule, so hide it explicitly (confirm step). */
@@ -247,20 +219,17 @@
   height: 0.82rem;
 }
 
-/* Delete confirm row — reuses the same .yui-confirm pattern as session reset, inside the row */
+/* Delete confirm row — the panel's .yui-confirm, under the row's hairline */
 .yui-cue .yui-confirm {
-  margin: 0;
-  padding: 0.3rem 0.5rem 0.45rem;
   border-top: 1px solid var(--yui-edge);
 }
 
 /* ── Expanded editor pane ── */
 .yui-cue__editor {
   display: none;
-  padding: 0.5rem 0.5rem 0.55rem;
-  border-top: 1px solid var(--yui-edge);
-  gap: 0.42rem;
   flex-direction: column;
+  gap: 0.5rem;
+  padding: 0 0.875rem 0.875rem;
 }
 
 .yui-cue--expanded .yui-cue__editor {
@@ -274,71 +243,43 @@
 }
 
 .yui-cue__ed-label {
-  font-size: 0.7rem;
-  font-weight: 600;
-  letter-spacing: 0.04em;
+  flex: 0 0 4rem;
   color: var(--yui-text-mute);
-  flex: 0 0 3.2rem;
+  font-size: var(--yui-fs-sub);
+  font-weight: 500;
 }
 
-.yui-cue__name-input {
-  flex: 1;
-  background: var(--yui-field, oklch(0.16 0.012 70 / 0.7));
-  border: 1px solid var(--yui-edge);
-  border-radius: 8px;
-  color: var(--yui-text);
-  font: inherit;
-  font-size: 0.84rem;
-  padding: 0.22rem 0.45rem;
-  outline: none;
-  text-shadow: var(--yui-text-shadow);
-}
-
-.yui-cue__name-input:focus {
-  border-color: var(--yui-accent);
-  box-shadow: 0 0 0 1px var(--yui-accent-soft);
-}
-
-/* Context textarea wrapper */
+/* Context textarea — label and field inside one field box */
 .yui-cue__ctx-wrap {
-  margin-top: 0.08rem;
-  border-radius: var(--yui-radius-input);
-  background: var(--yui-field, oklch(0.16 0.012 70 / 0.7));
-  border: 1px solid var(--yui-edge);
+  border: 1px solid transparent;
+  border-radius: var(--yui-radius-control);
+  background: var(--yui-field);
   transition:
     border-color var(--yui-dur-fast) var(--yui-ease),
     box-shadow var(--yui-dur-fast) var(--yui-ease);
 }
 
-.yui-cue__ctx-wrap:focus-within {
-  border-color: var(--yui-accent);
-  box-shadow: 0 0 0 1px var(--yui-accent-soft);
-}
-
 .yui-cue__ctx-label {
   display: block;
-  padding: 0.38rem 0.52rem 0;
-  font-size: 0.66rem;
-  font-weight: 600;
-  letter-spacing: 0.05em;
+  padding: 0.5rem 0.625rem 0;
   color: var(--yui-text-mute);
-  text-transform: uppercase;
+  font-size: var(--yui-fs-caption);
+  font-weight: 500;
 }
 
 .yui-cue__ctx-textarea {
   display: block;
   width: 100%;
-  min-height: 3.6rem;
-  padding: 0.22rem 0.52rem 0.42rem;
+  min-height: 4.25rem;
+  padding: 0.25rem 0.625rem 0.5rem;
   border: 0;
+  outline: none;
   background: transparent;
   color: var(--yui-text);
   font: inherit;
-  font-size: 0.82rem;
+  font-size: var(--yui-fs-body);
   line-height: 1.5;
   resize: none;
-  text-shadow: var(--yui-text-shadow);
-  outline: none;
 }
 
 .yui-cue__ctx-textarea::placeholder {
@@ -347,7 +288,9 @@
 
 @media (prefers-reduced-motion: reduce) {
   .yui-cue__delete,
-  .yui-cue-add,
+  .yui-time-input,
+  .yui-num-input,
+  .yui-cue__name-input,
   .yui-cue__ctx-wrap,
   .yui-cue__chevron {
     transition-duration: 0ms !important;

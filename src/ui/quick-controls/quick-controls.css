@@ -1,5 +1,6 @@
 /* YUI quick-controls panel — settings panel summoned by right-click ("The Hearthlight" 4th surface).
-   Draggable header + scrollable body (chat · input source · expression). Tokens in ./tokens.css. */
+   Tab rail + scrollable body of titled sections, each a borderless group of hairline-separated rows.
+   Tokens in ../tokens.css. */
 
 /* ── scrim overlay (popover variant only) ── */
 .yui-quick-scrim {
@@ -18,15 +19,12 @@
   flex-direction: column;
   width: min(25rem, 88vw);
   max-height: 88vh;
-  padding: 0 0 0.55rem; /* Header is flush, body has own padding */
   border-radius: var(--yui-radius);
-  background: var(--yui-panel-bg); /* Opaque — replaces scrim that was showing behind */
+  background: var(--yui-panel-bg);
   border: 1px solid var(--yui-edge);
   box-shadow: var(--yui-float);
-  /* Removed backdrop-filter — decorative only on opaque background (The Float Rule) */
   color: var(--yui-text);
   font-family: var(--yui-font);
-  text-shadow: var(--yui-text-shadow);
   pointer-events: auto;
   z-index: 100;
 
@@ -52,8 +50,6 @@
   border: 0;
   border-radius: 0;
   box-shadow: none;
-  backdrop-filter: none;
-  -webkit-backdrop-filter: none;
   background: transparent; /* OS window owns the opaque background */
   opacity: 1;
   transform: none;
@@ -96,10 +92,8 @@
 .yui-quick__title {
   flex: 1;
   min-width: 0;
-  font-size: 0.68rem;
+  font-size: var(--yui-fs-sub);
   font-weight: 600;
-  letter-spacing: 0.09em;
-  text-transform: uppercase;
   color: var(--yui-text-dim);
 }
 
@@ -117,7 +111,7 @@
   height: 1.7rem;
   padding: 0;
   border: 0;
-  border-radius: 8px;
+  border-radius: var(--yui-radius-control);
   background: transparent;
   color: var(--yui-text-mute);
   cursor: pointer;
@@ -127,7 +121,7 @@
 }
 
 .yui-iconbtn:hover {
-  background: oklch(0.97 0.01 80 / 0.06);
+  background: var(--yui-hover);
   color: var(--yui-text-dim);
 }
 
@@ -146,15 +140,105 @@
   color: var(--yui-accent);
 }
 
-/* ── Scrollable body (header/footer fixed) ── */
+/* ── Two-column layout — tab rail + scrollable content ── */
+.yui-quick__cols {
+  display: flex;
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+/* window variant: no custom bar — the row sits below the native macOS titlebar (28px). */
+.yui-quick--window .yui-quick__cols {
+  padding-top: 28px;
+}
+
+/* ── Tab rail (role=tablist) — general sits at the bottom ── */
+.yui-tabs {
+  display: flex;
+  box-sizing: border-box;
+  flex: 0 0 10rem;
+  flex-direction: column;
+  gap: 2px;
+  padding: 0.5rem 0.5rem 1rem;
+  border-right: 1px solid var(--yui-edge);
+  overflow-y: auto;
+}
+
+.yui-tab {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  flex: none;
+  height: 2.125rem;
+  padding: 0 0.625rem;
+  border: 0;
+  border-radius: var(--yui-radius-control);
+  background: transparent;
+  color: var(--yui-text-dim);
+  font: inherit;
+  font-size: var(--yui-fs-body);
+  font-weight: 500;
+  text-align: left;
+  cursor: pointer;
+  transition:
+    background var(--yui-dur-fast) var(--yui-ease),
+    color var(--yui-dur-fast) var(--yui-ease);
+}
+
+#yui-tab-general {
+  margin-top: auto;
+}
+
+.yui-tab svg {
+  width: 1.0625rem;
+  height: 1.0625rem;
+  flex: none;
+  color: var(--yui-text-mute);
+}
+
+.yui-tab__label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.yui-tab:hover {
+  background: var(--yui-hover);
+  color: var(--yui-text);
+}
+
+.yui-tab:active {
+  transform: scale(0.98);
+}
+
+.yui-tab[aria-selected="true"] {
+  background: var(--yui-selected);
+  color: var(--yui-text);
+  font-weight: 600;
+}
+
+.yui-tab[aria-selected="true"] svg {
+  color: var(--yui-text);
+}
+
+.yui-tab:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px var(--yui-accent-soft);
+}
+
+/* ── Scrollable body ── */
 .yui-quick__body {
   flex: 1 1 auto;
   min-width: 0;
   min-height: 0;
   overflow-y: auto;
-  padding: 0.55rem 0.85rem 0.1rem;
+  padding: 0.5rem 1rem 1.5rem;
   scrollbar-width: thin;
   scrollbar-color: var(--yui-edge-strong) transparent;
+}
+
+.yui-quick--window .yui-quick__body {
+  padding: 0.5rem 1.75rem 2.5rem;
 }
 
 .yui-quick__body::-webkit-scrollbar,
@@ -167,7 +251,7 @@
 .yui-vrm-scroll::-webkit-scrollbar-thumb,
 .yui-spk-scroll::-webkit-scrollbar-thumb {
   background: var(--yui-edge-strong);
-  border-radius: 999px;
+  border-radius: var(--yui-radius-pill);
 }
 
 .yui-quick__body::-webkit-scrollbar-track,
@@ -176,163 +260,21 @@
   background: transparent;
 }
 
-/* ── Two-column layout — left vertical rail (.yui-rail) + right content (.yui-quick__body) ── */
-.yui-quick__cols {
-  display: flex;
-  flex: 1 1 auto;
-  min-height: 0;
-}
-
-/* window variant: no custom bar — the row sits below the native macOS titlebar (28px). */
-.yui-quick--window .yui-quick__cols {
-  margin-top: calc(28px + 0.4rem);
-}
-
-/* ── rail box — outer container holding chevron (outside role=tablist) + tablist (.yui-tabs).
-   This element is the containing block for indicator's position:absolute. ── */
-.yui-rail {
-  position: relative;
-  flex: 0 0 8rem;
+/* ── Tab panel — a column of sections under the tab title; fades in on switch ── */
+.yui-tabpanel {
   display: flex;
   flex-direction: column;
-  gap: 0.1rem;
-  padding: 0.6rem 0.4rem;
-  border-right: 1px solid var(--yui-edge);
-  overflow: hidden;
-  transition: flex-basis var(--yui-dur) var(--yui-ease);
+  gap: 1.75rem;
+  max-width: 34rem;
+  animation: yui-tab-fade var(--yui-dur) var(--yui-ease);
 }
 
-/* ── Vertical tablist — icon+label (unless collapsed). role=tablist here only
-   (chevron is a sibling outside — tablist must own only tabs per ARIA contract). ── */
-.yui-tabs {
-  display: flex;
-  flex-direction: column;
-  gap: 0.1rem;
-}
-
-/* ── rail collapse/expand chevron — top of rail, outside tablist ── */
-.yui-rail-collapse {
-  display: grid;
-  place-items: center;
-  width: 100%;
-  height: 1.7rem;
-  margin-bottom: 0.3rem;
-  border: 0;
-  border-radius: 8px;
-  background: transparent;
-  color: var(--yui-text-mute);
-  cursor: pointer;
-  transition:
-    background var(--yui-dur-fast) var(--yui-ease),
-    color var(--yui-dur-fast) var(--yui-ease);
-}
-
-.yui-rail-collapse:hover {
-  background: oklch(0.97 0.01 80 / 0.06);
-  color: var(--yui-text-dim);
-}
-
-.yui-rail-collapse svg {
-  width: 0.95rem;
-  height: 0.95rem;
-  flex: 0 0 auto;
-  transition: transform var(--yui-dur) var(--yui-ease);
-}
-
-.yui-rail-collapse:focus-visible {
-  outline: none;
-  box-shadow: 0 0 0 2px var(--yui-accent-soft);
-}
-
-/* Indicator geometry: fixed offset from rail top — top = padding (0.6rem) + chevron block (1.7rem height +
-   0.3rem margin + 0.1rem gap = 2.1rem) = 2.7rem. Row N: top + N * (row height 2.3rem + gap 0.1rem). */
-.yui-tabs__ind {
-  position: absolute;
-  left: 0.4rem;
-  right: 0.4rem;
-  top: 2.7rem;
-  height: 2.3rem;
-  border-radius: calc(var(--yui-radius-row) - 2px);
-  background: var(--yui-accent-faint);
-  border: 1px solid var(--yui-accent-soft);
-  transform: translateY(calc(var(--tab, 0) * 2.4rem));
-  transition: transform var(--yui-dur) var(--yui-ease);
-}
-
-.yui-tab {
-  position: relative;
-  z-index: 1;
-  display: flex;
-  align-items: center;
-  gap: 0.55rem;
-  flex: 0 0 2.3rem;
-  height: 2.3rem;
-  padding: 0 0.55rem;
-  border: 0;
-  background: transparent;
-  color: var(--yui-text-mute);
-  font-family: inherit;
-  font-size: 0.78rem;
-  font-weight: 550;
-  line-height: 1.1;
-  text-align: left;
-  cursor: pointer;
-  border-radius: calc(var(--yui-radius-row) - 2px);
-  transition: color var(--yui-dur-fast) var(--yui-ease);
-}
-
-.yui-tab svg {
-  width: 1.05rem;
-  height: 1.05rem;
-  flex: 0 0 auto;
-}
-
-.yui-tab__label {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.yui-tab[aria-selected="true"] {
-  color: var(--yui-accent);
-  font-weight: 650;
-}
-
-.yui-tab:not([aria-selected="true"]):hover {
-  color: var(--yui-text-dim);
-}
-
-.yui-tab:focus-visible {
-  outline: none;
-  box-shadow: 0 0 0 2px var(--yui-accent-soft);
-}
-
-/* ── Collapsed rail — icons only, label survives in tooltip/aria-label ── */
-.yui-quick__cols.is-rail-collapsed .yui-rail {
-  flex-basis: 3rem;
-}
-
-.yui-quick__cols.is-rail-collapsed .yui-tab {
-  justify-content: center;
-  padding: 0;
-  gap: 0;
-}
-
-.yui-quick__cols.is-rail-collapsed .yui-tab__label {
-  display: none;
-}
-
-.yui-quick__cols.is-rail-collapsed .yui-rail-collapse svg {
-  transform: rotate(180deg);
-}
-
-/* Tab panel — inactive is hidden, transition is opacity fade only (no slide) */
 .yui-tabpanel[hidden] {
   display: none;
 }
 
-.yui-tabpanel {
-  animation: yui-tab-fade var(--yui-dur) var(--yui-ease);
+.yui-tabpanel:focus-visible {
+  outline: none;
 }
 
 @keyframes yui-tab-fade {
@@ -344,76 +286,175 @@
   }
 }
 
-/* ── Section label / divider ── */
-.yui-quick__section {
-  display: block;
-  margin: 0.55rem 0.15rem 0.35rem;
-  font-size: 0.66rem;
+.yui-tabpanel__title {
+  /* The column gap is 1.75rem; the title sits 1.25rem above the first section. */
+  margin: 0 0 -0.5rem;
+  font-size: var(--yui-fs-title);
   font-weight: 600;
-  letter-spacing: 0.09em;
-  text-transform: uppercase;
+  letter-spacing: -0.015em;
+  line-height: 1.2;
+}
+
+/* Cue-list mounts hold one section each — let them join the panel column directly. */
+.yui-loop-cue-section,
+.yui-cue-sections {
+  display: contents;
+}
+
+/* ── Section — title row, optional note, then groups ── */
+.yui-sec {
+  min-width: 0;
+}
+
+.yui-sec__head {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin: 0 0.25rem 0.5rem;
+}
+
+.yui-sec__title {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  flex: 1;
+  min-width: 0;
+  margin: 0;
+  font-size: var(--yui-fs-head);
+  font-weight: 600;
+  line-height: 1.3;
+}
+
+.yui-sec__title svg {
+  width: 1rem;
+  height: 1rem;
+  flex: none;
   color: var(--yui-text-mute);
 }
 
-/* Every heading now lives inside its own <summary>, so it is always ":first-child" there —
-   scope the reduced top margin to the tab's actual first section instead. */
-.yui-tabpanel > .yui-section:first-child .yui-quick__section {
-  margin-top: 0.2rem;
+.yui-sec__note,
+.yui-sec__foot,
+.yui-hist__foot {
+  margin: 0 0.25rem 0.625rem;
+  font-size: var(--yui-fs-sub);
+  line-height: 1.5;
+  color: var(--yui-text-mute);
+  text-wrap: pretty;
 }
 
-.yui-quick__divider {
-  height: 1px;
-  margin: 0.75rem 0.15rem 0.2rem;
-  background: var(--yui-edge);
+.yui-sec__foot {
+  margin: 0.5rem 0.25rem 0;
 }
 
-/* ── Collapsible section (native <details>) — same "›" chevron marker as .yui-endpoints'.
-   Its heading (.yui-quick__section / .yui-field-row__label) keeps its own look unchanged. ── */
-.yui-section > summary {
+/* State text at a section title's right. */
+.yui-endpoints__hint {
+  flex: none;
+  font-size: var(--yui-fs-sub);
+  font-weight: 500;
+  color: var(--yui-text-dim);
+}
+
+/* ── Group — one borderless surface; rows inside split by hairlines ── */
+.yui-group {
+  border-radius: var(--yui-radius-group);
+  background: var(--yui-group-bg);
+}
+
+.yui-group + .yui-group {
+  margin-top: 0.5rem;
+}
+
+.yui-group > * + *,
+.yui-screen-knobs > * {
+  border-top: 1px solid var(--yui-edge);
+}
+
+/* The knob rows join the group's row flow while screen watch is on. */
+.yui-screen-knobs:not([hidden]) {
+  display: contents;
+}
+
+/* ── Row — label + sub on the left, its control on the right; wraps when narrow ── */
+.yui-row {
   display: flex;
-  align-items: baseline;
-  gap: 0.3rem;
-  list-style: none;
-  cursor: pointer;
-  user-select: none;
+  box-sizing: border-box;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 1rem;
+  min-height: 3rem;
+  padding: 0.625rem 0.875rem;
 }
 
-.yui-section > summary::-webkit-details-marker {
+.yui-row[hidden] {
   display: none;
 }
 
-.yui-section > summary::before {
-  content: "›";
+.yui-row--action {
+  min-height: 2.5rem;
+}
+
+.yui-row__main {
+  flex: 1 1 10rem;
+  min-width: 0;
+}
+
+.yui-row__label,
+.yui-input-row__label,
+.yui-gain__label,
+.yui-session__action-label {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: var(--yui-fs-body);
+  font-weight: 500;
+  line-height: 1.35;
+}
+
+.yui-row__label svg,
+.yui-gain__label svg {
+  width: 1rem;
+  height: 1rem;
   flex: none;
-  font-size: 0.85rem;
-  line-height: 1;
   color: var(--yui-text-mute);
-  transform: rotate(0deg);
-  transition: transform var(--yui-dur-fast) var(--yui-ease);
 }
 
-.yui-section[open] > summary::before {
-  transform: rotate(90deg);
+.yui-row__sub,
+.yui-input-row__sub,
+.yui-gain__sub,
+.yui-session__action-sub {
+  display: block;
+  margin-top: 0.125rem;
+  font-size: var(--yui-fs-sub);
+  line-height: 1.45;
+  color: var(--yui-text-mute);
 }
 
-/* ── `?` after a section label ── */
+/* Stacked row — label and sub above a full-width control. */
+.yui-stack {
+  padding: 0.625rem 0.875rem 0.875rem;
+}
+
+.yui-stack > .yui-row__sub {
+  margin-bottom: 0.625rem;
+}
+
+/* ── `?` after a section title ── */
 .yui-hint-dot {
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  flex: none;
   width: 0.95rem;
   height: 0.95rem;
-  margin-left: 0.35rem;
   padding: 0;
   border: 1px solid var(--yui-edge);
   border-radius: 50%;
   background: none;
   color: var(--yui-text-mute);
   font: inherit;
-  font-size: 0.62rem;
-  letter-spacing: normal;
+  font-size: 0.625rem;
+  font-weight: 500;
   line-height: 1;
-  vertical-align: text-bottom;
   cursor: help;
   transition:
     color var(--yui-dur-fast) var(--yui-ease),
@@ -426,47 +467,29 @@
   border-color: var(--yui-accent-soft);
 }
 
-/* ── Screen-watch knobs — an accent rail marks them as owned by the toggle above ── */
-.yui-screen-knobs {
-  margin: 0.1rem 0 0.2rem 0.55rem;
-  padding-left: 0.5rem;
-  border-left: 2px solid var(--yui-accent-faint);
-}
-
-/* ── Thinking fillers — hairline + guide between two lists ── */
-.yui-filler__list-sep {
-  height: 1px;
-  margin: 0 0.55rem;
-  background: var(--yui-edge);
-}
-
 .yui-field-hint {
-  font-size: 0.68rem;
+  margin: 0;
+  padding: 0.625rem 0.875rem;
+  font-size: var(--yui-fs-sub);
+  line-height: 1.5;
   color: var(--yui-text-mute);
-  padding: 0 0.55rem 0.3rem;
-  line-height: 1.45;
 }
 
-.yui-screen-knobs .yui-field-hint {
-  padding: 0.35rem 0.55rem 0.2rem;
-}
-
-/* ── "More phrases" (long_wait/timeout/unreachable/tool) — collapsible, default closed.
-   Same summary-chevron treatment as .yui-endpoints (endpoints-section.css). ── */
+/* ── "More phrases" (long_wait/timeout/unreachable/tool) — the one disclosure, default closed ── */
 .yui-filler-more {
-  margin-top: 0.3rem;
+  margin-top: 0.5rem;
 }
 
 .yui-filler-more > summary {
-  list-style: none;
   display: inline-flex;
-  align-items: baseline;
-  gap: 0.34rem;
-  min-height: 1.5rem;
-  padding: 0 0.55rem;
-  color: var(--yui-text-mute);
-  font-size: 0.72rem;
-  font-weight: 600;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.25rem;
+  border-radius: 4px;
+  list-style: none;
+  color: var(--yui-text-dim);
+  font-size: var(--yui-fs-sub);
+  font-weight: 500;
   cursor: pointer;
   user-select: none;
 }
@@ -477,11 +500,11 @@
 
 .yui-filler-more > summary::before {
   content: "›";
-  align-self: center;
   display: inline-block;
-  font-size: 0.85rem;
+  width: 0.875rem;
+  font-size: var(--yui-fs-head);
   line-height: 1;
-  transform: rotate(0deg);
+  text-align: center;
   transition: transform var(--yui-dur-fast) var(--yui-ease);
 }
 
@@ -489,65 +512,26 @@
   transform: rotate(90deg);
 }
 
-/* ── Toggle row ── */
-.yui-row {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-  padding: 0.5rem 0.55rem;
-  border-radius: var(--yui-radius-row);
-  transition: background var(--yui-dur-fast) var(--yui-ease);
+.yui-filler-more > summary:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px var(--yui-accent-soft);
 }
 
-.yui-row:hover {
-  background: oklch(0.97 0.01 80 / 0.05);
+.yui-filler-more > .yui-group {
+  margin-top: 0.5rem;
 }
 
-.yui-row--voice {
-  margin-top: 0.35rem;
-}
-
-.yui-row__main {
-  flex: 1;
-  min-width: 0;
-}
-
-.yui-row__label,
-.yui-gain__label {
-  display: flex;
-  align-items: center;
-  gap: 0.4rem;
-  font-size: 0.92rem;
-  font-weight: 550;
-  line-height: 1.2;
-}
-
-.yui-row__label svg,
-.yui-gain__label svg {
-  width: 0.95rem;
-  height: 0.95rem;
-  color: var(--yui-text-dim);
-  flex: 0 0 auto;
-}
-
-.yui-row__sub {
-  margin-top: 0.18rem;
-  font-size: 0.74rem;
-  line-height: 1.35;
-  color: var(--yui-text-mute);
-}
-
-/* ── Switch — OFF=subdued, ON=amber lit ── */
+/* ── Switch — OFF=subdued, ON=amber lit (the one selection amber keeps) ── */
 .yui-switch {
-  --w: 2.5rem;
-  --h: 1.45rem;
+  --w: 2.25rem;
+  --h: 1.3125rem;
   position: relative;
   flex: 0 0 auto;
   width: var(--w);
   height: var(--h);
   border: 0;
   padding: 0;
-  border-radius: 999px;
+  border-radius: var(--yui-radius-pill);
   background: oklch(0.5 0.01 70 / 0.35);
   cursor: pointer;
   transition:
@@ -558,13 +542,13 @@
 .yui-switch::after {
   content: "";
   position: absolute;
-  top: 0.18rem;
-  left: 0.18rem;
-  width: calc(var(--h) - 0.36rem);
-  height: calc(var(--h) - 0.36rem);
+  top: 0.15625rem;
+  left: 0.15625rem;
+  width: calc(var(--h) - 0.3125rem);
+  height: calc(var(--h) - 0.3125rem);
   border-radius: 50%;
   background: oklch(0.96 0.01 80);
-  box-shadow: 0 1px 3px oklch(0.1 0.01 70 / 0.5);
+  box-shadow: 0 1px 2px oklch(0.1 0.01 70 / 0.5);
   transition: transform var(--yui-dur) var(--yui-ease);
 }
 
@@ -587,79 +571,46 @@
   cursor: default;
 }
 
-/* ── Chat section: field row (label+sub+control) ── */
-.yui-field-row {
-  padding: 0.5rem 0.55rem 0.2rem;
-}
-
-.yui-field-row__label,
-.yui-input-row__label,
-.yui-session__action-label {
-  display: block;
-  font-size: 0.92rem;
-  font-weight: 550;
-  line-height: 1.2;
-}
-
-.yui-field-row__sub,
-.yui-input-row__sub,
-.yui-gain__sub,
-.yui-session__action-sub {
-  display: block;
-  margin-top: 0.18rem;
-  font-size: 0.74rem;
-  line-height: 1.35;
-  color: var(--yui-text-mute);
-}
-
-/* ── Segment control — pill track + sliding amber-faint indicator ── */
+/* ── Segment — as many equal cells as options; the checked cell carries the selected fill ── */
 .yui-seg {
-  position: relative;
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  margin-top: 0.5rem;
-  padding: 0.18rem;
-  border-radius: var(--yui-radius-row);
-  background: oklch(0.5 0.01 70 / 0.2);
-  border: 1px solid var(--yui-edge);
-}
-
-.yui-seg__ind {
-  position: absolute;
-  top: 0.18rem;
-  bottom: 0.18rem;
-  left: 0.18rem;
-  width: calc((100% - 0.36rem) / 4);
-  border-radius: calc(var(--yui-radius-row) - 3px);
-  background: var(--yui-accent-faint);
-  border: 1px solid var(--yui-accent-soft);
-  transform: translateX(calc(var(--seg, 0) * 100%));
-  transition: transform var(--yui-dur) var(--yui-ease);
+  grid-auto-flow: column;
+  grid-auto-columns: 1fr;
+  gap: 2px;
+  padding: 3px;
+  border-radius: var(--yui-radius-control);
+  background: var(--yui-field);
 }
 
 .yui-seg__btn {
-  position: relative;
-  z-index: 1;
-  padding: 0.34rem 0.2rem;
+  height: 1.75rem;
+  padding: 0 0.5rem;
   border: 0;
+  border-radius: calc(var(--yui-radius-control) - 2px);
   background: transparent;
   color: var(--yui-text-mute);
-  font-family: inherit;
-  font-size: 0.78rem;
-  font-weight: 550;
-  line-height: 1.1;
+  font: inherit;
+  font-size: var(--yui-fs-sub);
+  font-weight: 500;
+  white-space: nowrap;
   cursor: pointer;
-  border-radius: calc(var(--yui-radius-row) - 3px);
-  transition: color var(--yui-dur-fast) var(--yui-ease);
+  transition:
+    background var(--yui-dur-fast) var(--yui-ease),
+    color var(--yui-dur-fast) var(--yui-ease);
+}
+
+.yui-seg__btn:hover {
+  color: var(--yui-text);
+}
+
+.yui-seg__btn:active {
+  transform: scale(0.98);
 }
 
 .yui-seg__btn[aria-checked="true"] {
-  color: var(--yui-accent);
-  font-weight: 650;
-}
-
-.yui-seg__btn:not([aria-checked="true"]):hover {
-  color: var(--yui-text-dim);
+  background: var(--yui-selected);
+  color: var(--yui-text);
+  font-weight: 600;
 }
 
 .yui-seg__btn:focus-visible {
@@ -667,156 +618,65 @@
   box-shadow: 0 0 0 2px var(--yui-accent-soft);
 }
 
-/* ── Dark scrim field wrapper — instructions textarea (multi-line) · single-line input, focus → amber border ── */
-.yui-textarea-wrap {
-  margin-top: 0.5rem;
-}
-
-.yui-input-wrap {
-  margin-top: 0.42rem;
-}
-
-.yui-textarea-wrap,
-.yui-input-wrap {
-  border-radius: var(--yui-radius-input);
+/* ── Fields — field fill, transparent edge at rest, hairline on hover, amber on focus ── */
+.yui-input-wrap,
+.yui-textarea {
+  border: 1px solid transparent;
+  border-radius: var(--yui-radius-control);
   background: var(--yui-field);
-  border: 1px solid var(--yui-edge);
   transition:
     border-color var(--yui-dur-fast) var(--yui-ease),
     box-shadow var(--yui-dur-fast) var(--yui-ease);
 }
 
-.yui-textarea-wrap:focus-within,
-.yui-input-wrap:focus-within {
+.yui-input-wrap:hover,
+.yui-textarea:hover {
+  border-color: var(--yui-edge);
+}
+
+.yui-input-wrap:focus-within,
+.yui-textarea:focus {
   border-color: var(--yui-accent);
   box-shadow: 0 0 0 1px var(--yui-accent-soft);
 }
 
 .yui-textarea {
   display: block;
+  box-sizing: border-box;
   width: 100%;
-  min-height: 5.4rem;
+  min-height: 8.5rem;
   margin: 0;
-  padding: 0.55rem 0.65rem;
-  border: 0;
-  background: transparent;
+  padding: 0.625rem 0.75rem;
+  outline: none;
   color: var(--yui-text);
   font: inherit;
-  font-size: 0.84rem;
+  font-size: var(--yui-fs-body);
   line-height: 1.5;
   resize: vertical;
-  text-shadow: var(--yui-text-shadow);
 }
 
-.yui-textarea:focus {
-  outline: none;
+.yui-textarea--short {
+  min-height: 4.25rem;
 }
 
-.yui-textarea::placeholder {
+.yui-textarea::placeholder,
+.yui-ep-input::placeholder {
   color: var(--yui-text-mute);
-}
-
-/* ── Underlined link-style buttons — instructions reset (.yui-reset) · session action (.yui-link-btn) ── */
-.yui-reset {
-  display: inline-block;
-  margin: 0.4rem 0.15rem 0.2rem;
-}
-
-.yui-link-btn {
-  display: inline-block;
-  margin: 0.5rem 0.15rem 0.1rem;
-}
-
-/* The class display would otherwise beat the UA [hidden] rule while the confirm is up. */
-.yui-link-btn[hidden] {
-  display: none;
-}
-
-.yui-reset,
-.yui-link-btn {
-  padding: 0;
-  border: 0;
-  background: transparent;
-  color: var(--yui-text-mute);
-  font: inherit;
-  font-size: 0.72rem;
-  font-weight: 600;
-  cursor: pointer;
-  text-decoration: underline;
-  text-decoration-color: var(--yui-edge-strong);
-  text-underline-offset: 0.18em;
-  transition:
-    color var(--yui-dur-fast) var(--yui-ease),
-    text-decoration-color var(--yui-dur-fast) var(--yui-ease);
-}
-
-.yui-reset:hover,
-.yui-link-btn:hover {
-  color: var(--yui-accent);
-  text-decoration-color: var(--yui-accent-soft);
-}
-
-.yui-reset:focus-visible,
-.yui-link-btn:focus-visible {
-  outline: none;
-  box-shadow: 0 0 0 2px var(--yui-accent-soft);
-  border-radius: 4px;
-}
-
-/* Label + single-line input row */
-.yui-input-row {
-  padding: 0.5rem 0.55rem 0.45rem;
-}
-
-/* 2-column variant (numRowHtml) — like .yui-row toggle row, label left · input right */
-.yui-input-row--inline {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  column-gap: 0.75rem;
-  row-gap: 0.25rem;
-}
-
-.yui-input-row--inline .yui-input-row__main {
-  flex: 1;
-  min-width: 0;
-}
-
-.yui-input-row--inline .yui-input-wrap {
-  flex: 0 0 auto;
-  width: fit-content;
-  min-width: 6rem;
-  margin-top: 0;
-}
-
-/* hint wraps to a full-width line under the label/value, tight to the sub above. */
-.yui-input-row--inline .yui-field-hint {
-  flex-basis: 100%;
-  padding: 0;
-  margin: 0;
 }
 
 .yui-ep-input {
   display: block;
   width: 100%;
+  height: 2rem;
   margin: 0;
-  padding: 0.46rem 0.6rem;
+  padding: 0 0.625rem;
   border: 0;
+  outline: none;
   background: transparent;
   color: var(--yui-text);
   font: inherit;
-  font-size: 0.84rem;
-  line-height: 1.4;
-  text-shadow: var(--yui-text-shadow);
+  font-size: var(--yui-fs-body);
   box-sizing: border-box;
-}
-
-.yui-ep-input:focus {
-  outline: none;
-}
-
-.yui-ep-input::placeholder {
-  color: var(--yui-text-mute);
 }
 
 /* invalid — warm-red border + faint wash, no amber */
@@ -831,8 +691,9 @@
 
 .yui-input-row__error {
   display: none;
-  margin: 0.3rem 0.1rem 0;
-  font-size: 0.72rem;
+  flex-basis: 100%;
+  margin: 0;
+  font-size: var(--yui-fs-sub);
   line-height: 1.4;
   color: var(--yui-danger);
 }
@@ -841,41 +702,139 @@
   display: block;
 }
 
+/* ── Controls on a row's right — fields hold 15rem, segments hug their options ── */
+.yui-row > .yui-input-wrap,
+.yui-row > .yui-select {
+  flex: 0 1 15rem;
+  min-width: 10rem;
+}
+
+.yui-row > .yui-seg {
+  flex: 0 1 auto;
+  min-width: 13rem;
+}
+
+/* Numeric input with its unit on a row's right. */
+.yui-num {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+  flex: none;
+}
+
+/* ── Text buttons — reset · link · add ── */
+.yui-reset,
+.yui-link-btn,
+.yui-add-btn {
+  padding: 0.125rem 0.25rem;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--yui-text-dim);
+  font: inherit;
+  font-size: var(--yui-fs-sub);
+  font-weight: 500;
+  cursor: pointer;
+  transition: color var(--yui-dur-fast) var(--yui-ease);
+}
+
+.yui-link-btn {
+  display: inline-block;
+}
+
+/* The class display would otherwise beat the UA [hidden] rule while the confirm is up. */
+.yui-link-btn[hidden] {
+  display: none;
+}
+
+.yui-reset:hover,
+.yui-link-btn:hover,
+.yui-add-btn:hover {
+  color: var(--yui-accent);
+}
+
+.yui-reset:active,
+.yui-link-btn:active,
+.yui-add-btn:active {
+  transform: translateY(1px);
+}
+
+.yui-reset:focus-visible,
+.yui-link-btn:focus-visible,
+.yui-add-btn:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px var(--yui-accent-soft);
+}
+
+/* Action row — a text button closing its group, its label aligned with the row labels above. */
+.yui-row--action > .yui-link-btn {
+  margin-left: -0.25rem;
+}
+
+/* Add row — a plus and a label at the group's end. */
+.yui-add-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  margin-left: -0.25rem;
+}
+
+.yui-add-btn svg {
+  width: 0.875rem;
+  height: 0.875rem;
+  flex: none;
+}
+
+.yui-add-btn:disabled {
+  color: var(--yui-text-mute);
+  cursor: not-allowed;
+  transform: none;
+}
+
+/* ── Selection rows (radio) — monitor (.yui-mon) · VRM (.yui-vrm) · speaker (.yui-spk) ── */
 .yui-monitors,
 .yui-vrms,
 .yui-spks {
   display: grid;
-  gap: 0.25rem;
 }
 
-/* ── Selection row (radio) common — monitor (.yui-mon) · VRM (.yui-vrm) · speaker (.yui-spk) ── */
+.yui-vrms > * + *,
+.yui-spks > * + * {
+  border-top: 1px solid var(--yui-edge);
+}
+
 .yui-mon,
 .yui-vrm,
 .yui-spk {
   display: flex;
   align-items: center;
-  gap: 0.6rem;
-  padding: 0.5rem 0.6rem;
-  border: 0;
-  width: 100%;
-  text-align: left;
-  background: transparent;
-  border-radius: var(--yui-radius-row);
-  color: var(--yui-text);
-  font-family: inherit;
-  cursor: pointer;
-  transition: background var(--yui-dur-fast) var(--yui-ease);
-}
-
-/* Speaker row is div[role=radio], not <button> — no UA border-box, set explicitly. */
-.yui-spk {
+  gap: 0.75rem;
   box-sizing: border-box;
+  width: 100%;
+  min-height: 3rem;
+  padding: 0.625rem 0.875rem;
+  border: 0;
+  background: transparent;
+  color: var(--yui-text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
 }
 
-.yui-mon:hover,
-.yui-vrm:hover,
-.yui-spk:hover {
-  background: oklch(0.97 0.01 80 / 0.06);
+.yui-stack > .yui-row__label + .yui-monitors {
+  margin-top: 0.375rem;
+}
+
+/* Monitor rows sit inside the source stack, which already carries the row inset. */
+.yui-mon {
+  min-height: 2.25rem;
+  padding: 0.375rem 0;
+}
+
+.yui-mon:focus-visible,
+.yui-vrm:focus-visible {
+  outline: none;
+  box-shadow: inset 0 0 0 2px var(--yui-accent-soft);
 }
 
 .yui-mon__tick,
@@ -900,7 +859,7 @@
   width: 0.46rem;
   height: 0.46rem;
   border-radius: 50%;
-  background: oklch(0.99 0.01 80);
+  background: var(--yui-panel-bg);
   transform: scale(0);
   transition: transform var(--yui-dur-fast) var(--yui-ease);
 }
@@ -908,8 +867,8 @@
 .yui-mon[aria-checked="true"] .yui-mon__tick,
 .yui-vrm[aria-checked="true"] .yui-vrm__tick,
 .yui-spk[aria-checked="true"] .yui-spk__tick {
-  border-color: var(--yui-accent);
-  background: var(--yui-accent);
+  border-color: var(--yui-text);
+  background: var(--yui-text);
 }
 
 .yui-mon[aria-checked="true"] .yui-mon__tick::after,
@@ -936,7 +895,7 @@
 .yui-mon__name,
 .yui-vrm__name,
 .yui-spk__name {
-  font-size: 0.88rem;
+  font-size: var(--yui-fs-body);
   font-weight: 500;
 }
 
@@ -958,29 +917,17 @@
 .yui-mon__badge,
 .yui-vrm__badge,
 .yui-spk__badge {
-  font-size: 0.64rem;
-  letter-spacing: 0.04em;
+  font-size: var(--yui-fs-caption);
   color: var(--yui-text-dim);
   padding: 0.1rem 0.4rem;
-  border-radius: 999px;
+  border-radius: var(--yui-radius-pill);
   border: 1px solid var(--yui-edge);
   white-space: nowrap;
 }
 
-/* ── Mouth movement gain ── */
+/* ── Slider row — mouth gain · silence window · screen-watch min gap ── */
 .yui-gain {
-  margin-top: 0.35rem;
-  padding: 0.5rem 0.55rem 0.6rem;
-  border-radius: var(--yui-radius-row);
-  transition: background var(--yui-dur-fast) var(--yui-ease);
-}
-
-.yui-screen-knobs .yui-gain {
-  margin-top: 0;
-}
-
-.yui-gain:hover {
-  background: oklch(0.97 0.01 80 / 0.05);
+  padding: 0.625rem 0.875rem 0.875rem;
 }
 
 .yui-gain__head {
@@ -991,17 +938,16 @@
 
 .yui-gain__value {
   color: var(--yui-text-dim);
-  font-size: 0.8rem;
-  font-weight: 650;
+  font-size: var(--yui-fs-body);
+  font-weight: 600;
   line-height: 1.2;
   font-variant-numeric: tabular-nums;
 }
 
 .yui-gain__hint {
   display: block;
-  margin-top: 0.4rem;
-  font-size: 0.7rem;
-  line-height: 1.35;
+  font-size: var(--yui-fs-sub);
+  line-height: 1.45;
   color: var(--yui-text-mute);
 }
 
@@ -1009,7 +955,7 @@
   --fill: 0.43;
   display: block;
   width: 100%;
-  margin: 0.5rem 0;
+  margin: 0.625rem 0;
   padding: 0;
   background: transparent;
   -webkit-appearance: none;
@@ -1020,7 +966,7 @@
 
 .yui-gain__slider::-webkit-slider-runnable-track {
   height: 4px;
-  border-radius: 999px;
+  border-radius: var(--yui-radius-pill);
   background: linear-gradient(
     to right,
     var(--yui-accent) 0 calc(var(--fill, 0.43) * 100%),
@@ -1056,13 +1002,13 @@
 
 .yui-gain__slider::-moz-range-track {
   height: 4px;
-  border-radius: 999px;
+  border-radius: var(--yui-radius-pill);
   background: oklch(0.5 0.01 70 / 0.35);
 }
 
 .yui-gain__slider::-moz-range-progress {
   height: 4px;
-  border-radius: 999px;
+  border-radius: var(--yui-radius-pill);
   background: var(--yui-accent);
 }
 
@@ -1089,68 +1035,24 @@
     0 0 0 2px var(--yui-accent-soft);
 }
 
-/* ── Footer hint ── */
-.yui-quick__foot {
-  flex: 0 0 auto;
-  margin: 0.55rem 0.85rem 0.1rem;
-  padding-top: 0.55rem;
-  border-top: 1px solid var(--yui-edge);
-  font-size: 0.71rem;
-  line-height: 1.4;
-  color: var(--yui-text-mute);
-}
-
-.yui-quick.is-on .yui-quick__foot--off,
-.yui-quick:not(.is-on) .yui-quick__foot--on {
-  display: none;
-}
-
-/* ── window variant — spacious rhythm, large instructions editor ── */
-.yui-quick--window .yui-quick__section {
-  margin: 1.1rem 0.15rem 0.5rem;
-}
-
-.yui-quick--window .yui-tabpanel > .yui-section:first-child .yui-quick__section {
-  margin-top: 0;
-}
-
-.yui-quick--window .yui-textarea {
-  min-height: 11rem;
-  font-size: 0.88rem;
-}
-
 /* ── Session section (window only) — quiet context-occupancy readout ── */
-.yui-session {
-  padding: 0 0.55rem;
-}
-
-.yui-session__stat {
-  padding: 0.5rem 0 0.2rem;
-}
-
-/* Delegated-work list under the context stat line — rows carry the shared .yui-deleg__item styles. */
-.yui-session__deleg {
-  margin-top: 0.2rem;
-}
-
 .yui-session__deleg[hidden] {
   display: none;
 }
 
 .yui-session__deleg-title {
-  margin: 0.45rem 0 0.15rem;
+  margin: 0 0 0.25rem;
   color: var(--yui-text-mute);
-  font-size: 0.68rem;
+  font-size: var(--yui-fs-sub);
   font-weight: 500;
-  letter-spacing: 0.02em;
 }
 
 .yui-session__deleg-lost {
-  margin: 0.15rem 0 0.25rem;
+  margin: 0 0 0.25rem;
 }
 
 .yui-session__deleg-rows .yui-deleg__item {
-  font-size: 0.8rem;
+  font-size: var(--yui-fs-body);
 }
 
 .yui-session__statline {
@@ -1161,15 +1063,15 @@
 }
 
 .yui-session__label {
-  color: var(--yui-text-mute);
-  font-size: 0.68rem;
-  line-height: 1.2;
+  font-size: var(--yui-fs-body);
+  font-weight: 500;
+  line-height: 1.35;
 }
 
 .yui-session__value {
   color: var(--yui-text-dim);
-  font-size: 0.72rem;
-  font-weight: 650;
+  font-size: var(--yui-fs-sub);
+  font-weight: 600;
   line-height: 1.2;
   text-align: right;
   font-variant-numeric: tabular-nums;
@@ -1177,16 +1079,15 @@
 
 .yui-session__value .pct {
   color: var(--yui-text-mute);
-  font-weight: 600;
+  font-weight: 500;
   margin-left: 0.35rem;
 }
 
 .yui-meter {
-  margin-top: 0.42rem;
+  margin-top: 0.5rem;
   height: 4px;
-  border-radius: 999px;
+  border-radius: var(--yui-radius-pill);
   background: var(--yui-field);
-  border: 1px solid var(--yui-edge);
   overflow: hidden;
 }
 
@@ -1201,15 +1102,12 @@
   background: var(--yui-danger);
 }
 
-.yui-session__action {
-  padding: 0.5rem 0 0.2rem;
-}
-
+/* ── Two-step confirm (start fresh · cue delete) ── */
 .yui-confirm {
   display: flex;
   align-items: center;
   gap: 0.55rem;
-  margin: 0.45rem 0.15rem 0.1rem;
+  padding: 0.625rem 0.875rem;
 }
 
 .yui-confirm[hidden] {
@@ -1217,18 +1115,18 @@
 }
 
 .yui-confirm__q {
-  font-size: 0.74rem;
+  font-size: var(--yui-fs-sub);
   color: var(--yui-text-dim);
 }
 
 .yui-pill {
   padding: 0.28rem 0.7rem;
-  border-radius: var(--yui-radius-chip);
+  border-radius: var(--yui-radius-pill);
   border: 1px solid var(--yui-edge);
   background: transparent;
   color: var(--yui-text-dim);
   font: inherit;
-  font-size: 0.72rem;
+  font-size: var(--yui-fs-sub);
   font-weight: 600;
   cursor: pointer;
   transition:
@@ -1259,38 +1157,23 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .yui-quick,
-  .yui-switch,
-  .yui-switch::after,
-  .yui-source,
-  .yui-seg__ind,
-  .yui-rail,
-  .yui-tabs__ind,
-  .yui-rail-collapse svg,
-  .yui-mon__tick::after,
-  .yui-vrm__tick::after,
-  .yui-gain__slider::-webkit-slider-thumb,
-  .yui-gain__slider::-moz-range-thumb {
-    transition-duration: var(--yui-dur-fast) !important;
-  }
   .yui-quick {
     transform: translate(0, 0) !important;
   }
-  /* Panel transition fades without animation, immediate swap */
   .yui-tabpanel {
     animation: none;
   }
-  /* No decorative motion — loading tick just appears without rotation */
-  .yui-vrm[aria-busy="true"] .yui-vrm__tick::after {
-    animation: none;
-  }
-  .yui-endpoints > summary::before,
-  .yui-section > summary::before,
+  .yui-switch,
+  .yui-switch::after,
+  .yui-meter__fill,
   .yui-filler-more > summary::before {
     transition: none;
   }
-  .yui-meter__fill {
-    transition: none;
+  .yui-tab:active,
+  .yui-seg__btn:active,
+  .yui-reset:active,
+  .yui-link-btn:active,
+  .yui-add-btn:active {
+    transform: none;
   }
-  /* Panel transition is fade without animation, immediate swap */
 }

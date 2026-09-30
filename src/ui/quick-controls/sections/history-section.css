@@ -1,11 +1,4 @@
-/* History tab — session accordion + script-style turn rows. Tokens in ../tokens.css. */
-
-.yui-hist {
-  display: flex;
-  flex-direction: column;
-  gap: 0.35rem;
-  padding: 0.2rem 0.1rem;
-}
+/* History tab — session accordion + script-style turn rows, sessions as rows of one group. Tokens in ../tokens.css. */
 
 /* ── Session row — collapsed it doubles as the session list entry ── */
 .yui-hist__sess {
@@ -13,34 +6,19 @@
   align-items: center;
   gap: 0.5rem;
   width: 100%;
-  padding: 0.45rem 0.55rem;
-  border: 1px solid var(--yui-edge);
-  border-radius: var(--yui-radius-row);
+  min-height: 3rem;
+  padding: 0.625rem 0.875rem;
+  border: 0;
   background: none;
   color: var(--yui-text-dim);
-  font-family: inherit;
+  font: inherit;
   text-align: left;
   cursor: pointer;
-  transition:
-    border-color var(--yui-dur-fast) var(--yui-ease),
-    background var(--yui-dur-fast) var(--yui-ease);
-}
-
-.yui-hist__sess:hover {
-  border-color: var(--yui-edge-strong);
-  background: oklch(0.97 0.01 80 / 0.04);
 }
 
 .yui-hist__sess:focus-visible {
   outline: none;
-  box-shadow: 0 0 0 2px var(--yui-accent-soft);
-}
-
-/* Open: the group frame takes over the border, so the head loses its own. */
-.yui-hist__sess.is-open {
-  border-color: transparent;
-  background: none;
-  padding-bottom: 0.15rem;
+  box-shadow: inset 0 0 0 2px var(--yui-accent-soft);
 }
 
 .yui-hist__sess-chev {
@@ -59,22 +37,21 @@
   min-width: 0;
   display: flex;
   flex-direction: column;
-  gap: 0.05rem;
+  gap: 0.125rem;
 }
 
 .yui-hist__sess-date {
-  font-size: 0.75rem;
+  font-size: var(--yui-fs-body);
   font-weight: 500;
-  letter-spacing: 0.02em;
   color: var(--yui-text);
 }
 
 .yui-hist__sess.is-open .yui-hist__sess-date {
-  color: var(--yui-accent);
+  font-weight: 600;
 }
 
 .yui-hist__sess-preview {
-  font-size: 0.78rem;
+  font-size: var(--yui-fs-sub);
   color: var(--yui-text-mute);
   white-space: nowrap;
   overflow: hidden;
@@ -83,15 +60,9 @@
 
 .yui-hist__sess-count {
   flex: 0 0 auto;
-  font-size: 0.68rem;
+  font-size: var(--yui-fs-caption);
   color: var(--yui-text-mute);
   font-variant-numeric: tabular-nums;
-}
-
-.yui-hist__sess-group.is-open {
-  border: 1px solid var(--yui-accent-faint);
-  border-radius: var(--yui-radius-row);
-  padding: 0.1rem 0.2rem 0.3rem;
 }
 
 /* ── Turn rows — who / text / time ── */
@@ -99,7 +70,7 @@
   display: flex;
   flex-direction: column;
   gap: 0.3rem;
-  padding: 0.2rem 0.35rem 0.1rem;
+  padding: 0 0.875rem 0.75rem 2.25rem;
 }
 
 .yui-hist__turn {
@@ -107,18 +78,11 @@
   grid-template-columns: 3rem 1fr auto;
   gap: 0.55rem;
   align-items: baseline;
-  padding: 0.12rem 0.3rem;
-  border-radius: var(--yui-radius-row);
-}
-
-.yui-hist__turn:hover {
-  background: oklch(0.97 0.01 80 / 0.04);
 }
 
 .yui-hist__who {
-  font-size: 0.75rem;
+  font-size: var(--yui-fs-sub);
   font-weight: 500;
-  letter-spacing: 0.02em;
   color: var(--yui-text-mute);
   text-align: right;
 }
@@ -128,8 +92,8 @@
 }
 
 .yui-hist__say {
-  font-size: 0.88rem;
-  line-height: 1.45;
+  font-size: var(--yui-fs-body);
+  line-height: 1.5;
   color: var(--yui-text-dim);
   overflow-wrap: anywhere;
 }
@@ -139,33 +103,23 @@
 }
 
 .yui-hist__ts {
-  font-size: 0.68rem;
+  font-size: var(--yui-fs-caption);
   color: var(--yui-text-mute);
   font-variant-numeric: tabular-nums;
 }
 
 .yui-hist__empty {
   margin: 0;
-  padding: 0.3rem;
-  font-size: 0.78rem;
+  font-size: var(--yui-fs-sub);
   color: var(--yui-text-mute);
-}
-
-/* ── Start-fresh footer — closes the running session, the list above keeps it ── */
-.yui-hist__action {
-  padding: 0 0.1rem;
 }
 
 /* ── Footnote — retention + local-only storage ── */
 .yui-hist__foot {
-  margin: 0.55rem 0 0;
-  padding: 0 0.1rem;
-  font-size: 0.75rem;
-  color: var(--yui-text-mute);
+  margin: 0.5rem 0.25rem 0;
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .yui-hist__sess,
   .yui-hist__sess-chev {
     transition: none;
   }

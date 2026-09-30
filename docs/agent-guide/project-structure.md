@@ -215,7 +215,6 @@ YUI/
       panels/                        # Panel and window state
         delegation-chip-settings.ts  # Per-device fold state of the delegation chip
         message-window-settings.ts   # Message-window mode and last outer position
-        sections-settings.ts         # Collapsed state of the Quick Controls sections
     io/                              # I/O layer: chat, voice, window and OS seams
       chat/
         chat-client.ts                 # Adapter over the openai SDK Responses stream
@@ -346,13 +345,12 @@ YUI/
         first-run-hint.ts            # First-run controls hint through the speech bubble
         boot-error.css               # Boot-failure notice styles
       quick-controls/                # Quick-controls shell parts and sections
-        quick-controls.ts            # Quick-controls panel: header, tab strip, and tab body
-        quick-controls.css           # Quick-controls shell, tabs, rows, and switch styles
+        quick-controls.ts            # Quick-controls panel: header, tab rail, and tab body
+        quick-controls.css           # Quick-controls shell, tab rail, sections, groups, rows, and switch styles
         template.ts                  # Panel markup as pure string construction
         popover.ts                   # Popover shell: positioning, dragging, open and close lifecycle
         reflect.ts                   # Store to DOM reflection for every panel section
         constants.ts                 # Display constants shared by the panel, its sections, and the chips that reuse its glyphs
-        collapsible-sections.ts      # Wires the collapsible details groups to the sections store
         switch-row.ts                # Switch-row element contract and the row table filling it
         seg-keyboard.ts              # Arrow, Home, End and commit keyboard handling shared by the segmented controls
         slider-binding.ts            # Input and release wiring shared by the range sliders

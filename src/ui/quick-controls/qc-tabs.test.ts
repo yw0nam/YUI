@@ -183,17 +183,18 @@ describe("createQuickControls — tabs + VAD slider", () => {
 
     const tablist = qc.el.querySelector<HTMLElement>('[role="tablist"]')!;
     const t = tabs(qc);
-    t[0].focus();
+    // Arrows step from the selected tab — talk, the default, sits second.
+    t[1].focus();
 
     tablist.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowRight", bubbles: true }));
-    expect(t[1].getAttribute("aria-selected")).toBe("true");
-    expect(t[1].tabIndex).toBe(0);
-    expect(t[0].tabIndex).toBe(-1);
-    expect(panelFor(qc, t[1]).hidden).toBe(false);
+    expect(t[2].getAttribute("aria-selected")).toBe("true");
+    expect(t[2].tabIndex).toBe(0);
+    expect(t[1].tabIndex).toBe(-1);
+    expect(panelFor(qc, t[2]).hidden).toBe(false);
 
     tablist.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowLeft", bubbles: true }));
-    expect(t[0].getAttribute("aria-selected")).toBe("true");
-    expect(panelFor(qc, t[0]).hidden).toBe(false);
+    expect(t[1].getAttribute("aria-selected")).toBe("true");
+    expect(panelFor(qc, t[1]).hidden).toBe(false);
 
     qc.dispose();
   });

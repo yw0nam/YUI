@@ -21,7 +21,7 @@ const en: Record<string, string> = {
   "voice.state.error": "Error",
   // the one voice failure the settings panel resolves — the chip becomes the fix
   "voice.error.not_configured": "Setup needed",
-  "voice.error.not_configured_fix": "backend not configured — open Advanced settings",
+  "voice.error.not_configured_fix": "backend not configured — open Connection settings",
 
   // aria labels (parameterized)
   "aria.refresh_speaker": "Refresh {name} reference voice",
@@ -46,7 +46,7 @@ const en: Record<string, string> = {
   "input.error_stall": "Backend stopped responding",
   "input.error_parse": "Response parse failed",
   "input.error_not_configured": "Backend not configured",
-  "input.error_open_advanced": "Open Advanced",
+  "input.error_open_connection": "Open Connection",
   "input.attach_too_many": "Too many images · up to {max} per turn",
   "input.attach_too_large": "Image too large · up to {max}MB each",
   "input.attach_not_ready": "Can't attach yet · loading limits",
@@ -97,8 +97,6 @@ const en: Record<string, string> = {
   "panel.pop_out": "Pop out to window",
   "panel.message": "Type a message",
   "panel.close": "Close",
-  "panel.rail_collapse": "Collapse sections rail",
-  "panel.rail_expand": "Expand sections rail",
   "settings.title": "YUI Settings",
   "devtools.label": "Developer Tools",
   "devtools.sub": "Inspect sent context and preview motions",
@@ -118,13 +116,14 @@ const en: Record<string, string> = {
   "devtools.advanced.context_window_default": "Default",
 
   // tabs
+  "tabs.conn": "Connection",
   "tabs.talk": "Talk",
   "tabs.char": "Character",
   "tabs.input": "Input",
-  "tabs.adv": "Advanced",
   "tabs.react": "Proactive",
   "tabs.react_hint": "Rules for when YUI speaks up first",
   "tabs.hist": "History",
+  "tabs.general": "General",
 
   // reasoning effort segment
   "reasoning.label": "Reasoning effort",
@@ -272,7 +271,6 @@ const en: Record<string, string> = {
 
   // screenshot / input tab
   "screenshot.label": "Attach screenshot",
-  "screenshot.sub": "See your screen together while talking",
   "screenshot.source_label": "Screen to send",
   "screenshot.source_aria": "Screen to send",
   "screenshot.monitor_primary": "Primary",
@@ -315,10 +313,10 @@ const en: Record<string, string> = {
   // cue lists (input tab)
   "cue.schedule_title": "Scheduled greeting",
   "cue.schedule_sub": "Greets you first if you're at your desk at the set time",
-  "cue.schedule_add": "+ Add greeting",
+  "cue.schedule_add": "Add greeting",
   "cue.proactive_title": "Loop reaction",
   "cue.proactive_sub": "Checks in on a repeating schedule if you've been quiet at work",
-  "cue.proactive_add": "+ Add reaction",
+  "cue.proactive_add": "Add reaction",
 
   // endpoints
   "endpoints.section": "Endpoints",
@@ -332,7 +330,7 @@ const en: Record<string, string> = {
   "endpoints.broker_base_url.label": "Expression broker URL",
   "endpoints.chat_model.label": "Chat model",
 
-  // per-service sections (advanced tab)
+  // per-service sections (connection tab)
   "svc.type_label": "Type",
   "svc.chat": "Chat",
   "svc.chat_aria": "Chat API type",
@@ -389,7 +387,6 @@ const en: Record<string, string> = {
   "ttskey.clear": "Clear key",
 
   // performance
-  "perf.section": "Performance",
   "perf.idle_label": "Power saving when idle (30fps)",
   "perf.idle_sub":
     "Lowers the frame rate while the character is still to save power. It smooths out automatically when speaking or moving.",
@@ -412,7 +409,7 @@ const en: Record<string, string> = {
   "hint.first_run": "Right-click me for controls · press {hotkey} to talk",
   "hint.first_run_no_hotkey": "Right-click me for controls",
   "hint.setup_backend":
-    "I have no backend to think with yet — right-click me, open Advanced, and point me at an OpenAI-compatible server",
+    "I have no backend to think with yet — right-click me, open Connection, and point me at an OpenAI-compatible server",
 
   // reactions tab
   "reactions.watchers_title": "Watchers",

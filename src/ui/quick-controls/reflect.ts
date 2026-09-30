@@ -170,6 +170,9 @@ export function createReflect(deps: ReflectDeps): Reflect {
   } = deps;
 
   const switchBtn = root.querySelector<HTMLButtonElement>(".yui-screenshot-switch")!;
+  const switchSubEl = switchBtn
+    .closest(".yui-row")!
+    .querySelector<HTMLSpanElement>(".yui-row__sub")!;
   const voiceSwitchBtn = root.querySelector<HTMLButtonElement>(".yui-voice-switch")!;
   const gainSlider = root.querySelector<HTMLInputElement>(".yui-lipsync-gain__slider")!;
   const gainValue = root.querySelector<HTMLSpanElement>(".yui-lipsync-gain__value")!;
@@ -243,6 +246,7 @@ export function createReflect(deps: ReflectDeps): Reflect {
     const s = settings.get();
     const on = s.enabled;
     switchBtn.setAttribute("aria-checked", String(on));
+    switchSubEl.textContent = t(on ? "screenshot.foot_on" : "screenshot.foot_off");
     root.classList.toggle("is-on", on);
   }
 
@@ -329,7 +333,6 @@ export function createReflect(deps: ReflectDeps): Reflect {
       btn.setAttribute("aria-checked", String(selected));
       btn.tabIndex = selected ? 0 : -1;
     });
-    segEl.style.setProperty("--seg", String(idx));
     // Do not overwrite textarea while typing (remote changes apply on blur).
     if (
       (!document.hasFocus() || document.activeElement !== instructionsEl) &&
@@ -344,7 +347,6 @@ export function createReflect(deps: ReflectDeps): Reflect {
     if (!fillerSettings || !fillerLangSegEl || !fillerFirstTextareaEl || !fillerRepeatTextareaEl)
       return;
     const s = fillerSettings.get();
-    // Language seg indicator
     const FILLER_LANGS = ["ja", "en", "ko"] as const;
     const idx = Math.max(0, FILLER_LANGS.indexOf(s.language));
     fillerLangBtns.forEach((btn, i) => {
@@ -352,7 +354,6 @@ export function createReflect(deps: ReflectDeps): Reflect {
       btn.setAttribute("aria-checked", String(selected));
       btn.tabIndex = selected ? 0 : -1;
     });
-    fillerLangSegEl.style.setProperty("--seg", String(idx));
     // Show current language's customPool, one tier per textarea (empty if not set).
     const pool = s.customPools[s.language];
     fillerFirstTextareaEl.value = (pool?.first ?? []).join("\n");
@@ -373,7 +374,6 @@ export function createReflect(deps: ReflectDeps): Reflect {
       btn.setAttribute("aria-checked", String(selected));
       btn.tabIndex = selected ? 0 : -1;
     });
-    langSegEl.style.setProperty("--seg", String(idx));
   }
 
   function isChatApi(v: string | undefined): v is ChatApi {

@@ -69,15 +69,16 @@ describe("createQuickControls — history tab", () => {
     return createQuickControls({ ...defaultQcArgs(mount), ...extra });
   }
 
-  it("adds a 6th rail tab wired to its own panel when a transcript is injected", () => {
+  it("adds a history tab before general, wired to its own panel, when a transcript is injected", () => {
     const qc = buildQc({ transcript: seedStore() });
     qc.open();
 
     const tabs = Array.from(qc.el.querySelectorAll<HTMLButtonElement>('[role="tab"]'));
-    expect(tabs).toHaveLength(6);
-    expect(qc.el.querySelectorAll('[role="tabpanel"]')).toHaveLength(6);
+    expect(tabs).toHaveLength(7);
+    expect(qc.el.querySelectorAll('[role="tabpanel"]')).toHaveLength(7);
 
     const histTab = tabs[5];
+    expect(histTab.id).toBe("yui-tab-hist");
     expect(histTab.textContent).toContain("History");
     expect(histTab.getAttribute("aria-label")).toBeTruthy();
     expect(histTab.dataset.tip).toBeTruthy();
@@ -92,7 +93,7 @@ describe("createQuickControls — history tab", () => {
     const qc = buildQc();
     qc.open();
 
-    expect(qc.el.querySelectorAll('[role="tab"]')).toHaveLength(5);
+    expect(qc.el.querySelectorAll('[role="tab"]')).toHaveLength(6);
     expect(qc.el.querySelector(".yui-hist")).toBeNull();
 
     qc.dispose();

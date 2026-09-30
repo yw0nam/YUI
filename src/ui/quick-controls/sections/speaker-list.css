@@ -4,7 +4,7 @@
 
 .yui-spk:focus-visible {
   outline: none;
-  box-shadow: 0 0 0 2px var(--yui-accent-soft);
+  box-shadow: inset 0 0 0 2px var(--yui-accent-soft);
 }
 
 /* ── Per-row ▶ preview · ↻ reference-voice refresh — ghost, lit amber on hover only. refresh before preview (left). ── */
@@ -17,7 +17,7 @@
   flex: 0 0 auto;
   padding: 0;
   border: 0;
-  border-radius: 8px;
+  border-radius: var(--yui-radius-control);
   background: transparent;
   color: var(--yui-text-mute);
   cursor: pointer;
@@ -88,8 +88,8 @@
 
 /* Neutral/positive inline guidance — same indent as error, but subdued dim, never warm-red */
 .yui-spk__note {
-  margin: 0.1rem 0.6rem 0.35rem 2.3rem;
-  font-size: 0.72rem;
+  margin: 0 0.875rem 0.625rem 2.725rem;
+  font-size: var(--yui-fs-sub);
   line-height: 1.4;
   color: var(--yui-text-dim);
   display: flex;

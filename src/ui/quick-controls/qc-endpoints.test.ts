@@ -131,9 +131,7 @@ describe("createQuickControls — endpoints + API keys", () => {
     const qc = buildQc();
     qc.open();
 
-    const sections = Array.from(
-      qc.el.querySelectorAll<HTMLElement>("#yui-panel-conn .yui-svc"),
-    );
+    const sections = Array.from(qc.el.querySelectorAll<HTMLElement>("#yui-panel-conn .yui-svc"));
     expect(sections.map((s) => s.dataset.svc)).toEqual(["chat", "stt", "tts", "broker"]);
     // each leads with a type dropdown.
     for (const s of sections) {

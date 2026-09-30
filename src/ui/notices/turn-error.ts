@@ -47,7 +47,7 @@ export function turnErrorFixAction(
   openSettings: (tab: QuickControlsTab) => void,
 ): InputErrorAction | undefined {
   if (!isSettingsFixable(reason)) return undefined;
-  return { label: t("input.error_open_advanced"), onClick: () => openSettings("adv") };
+  return { label: t("input.error_open_connection"), onClick: () => openSettings("conn") };
 }
 
 type TurnFailureAction = { kind: "show_input_error" } | { kind: "voice_error" } | { kind: "none" };

@@ -20,7 +20,7 @@ Everything YUI does today, grouped by area. The README shows the three headline 
 | Overlay | Transparent, frameless, always-on-top window with click-through on empty pixels |
 | Drag and resize | OS-native drag across monitors, and Ctrl+wheel resize anchored at the feet |
 | Perch and peek | A seat on a window's top edge or a spot behind its side edge after a drop there, released when the window moves, closes, or covers her |
-| Locomotion | Floor walks, strolls and jumps across window tops, and falls with a landing; climbing up window sides and onto the monitor above, labelled in development; switches for climbing and falling in the Advanced tab |
+| Locomotion | Floor walks, strolls and jumps across window tops, and falls with a landing; climbing up window sides and onto the monitor above, labelled in development; switches for climbing and falling in the General tab |
 | Touch | Reactions to taps on the head, chest, and hips and a press-and-hold head pat, with one touch cue a minute to the agent (`configs/avatar.json`) |
 | Summon and tray | Global `CmdOrCtrl+Shift+Y` shortcut that brings her forward and focuses the text input (`configs/hotkeys.json`), and a tray menu with show/hide, Settings, and Quit |
 

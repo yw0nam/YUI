@@ -63,28 +63,17 @@ export function createCueList<C extends CueBase, S extends SettingsBase<C>>(
 
   // ── Section root ──
   const sectionEl = document.createElement("div");
-  sectionEl.className = "yui-section";
+  sectionEl.className = "yui-sec";
   sectionEl.setAttribute("data-testid", "cue-section");
 
-  // ── Header row ──
-  const headerRow = document.createElement("div");
-  headerRow.className = "yui-row";
+  // ── Title row: title on the left, master switch on the right ──
+  const headEl = document.createElement("div");
+  headEl.className = "yui-sec__head";
 
-  const mainEl = document.createElement("div");
-  mainEl.className = "yui-row__main";
-
-  const labelEl = document.createElement("span");
-  labelEl.className = "yui-row__label";
+  const labelEl = document.createElement("h2");
+  labelEl.className = "yui-sec__title";
   labelEl.setAttribute("data-testid", "cue-list-title");
   labelEl.innerHTML = `${iconSvg}${title}`;
-
-  const subEl = document.createElement("span");
-  subEl.className = "yui-row__sub";
-  subEl.setAttribute("data-testid", "cue-list-sub");
-  subEl.textContent = sub;
-
-  mainEl.appendChild(labelEl);
-  mainEl.appendChild(subEl);
 
   const masterSwitch = document.createElement("button");
   masterSwitch.type = "button";
@@ -93,22 +82,34 @@ export function createCueList<C extends CueBase, S extends SettingsBase<C>>(
   masterSwitch.setAttribute("data-testid", "cue-list-master-switch");
   masterSwitch.setAttribute("aria-label", title);
 
-  headerRow.appendChild(mainEl);
-  headerRow.appendChild(masterSwitch);
-  sectionEl.appendChild(headerRow);
+  headEl.appendChild(labelEl);
+  headEl.appendChild(masterSwitch);
+  sectionEl.appendChild(headEl);
 
-  // ── Cue list ──
+  const subEl = document.createElement("p");
+  subEl.className = "yui-sec__note";
+  subEl.setAttribute("data-testid", "cue-list-sub");
+  subEl.textContent = sub;
+  sectionEl.appendChild(subEl);
+
+  // ── Cue rows + add row, one group ──
+  const groupEl = document.createElement("div");
+  groupEl.className = "yui-group";
+  sectionEl.appendChild(groupEl);
+
   const listEl = document.createElement("div");
   listEl.className = "yui-cue-list";
-  sectionEl.appendChild(listEl);
+  groupEl.appendChild(listEl);
 
-  // ── Add button ──
+  const addRow = document.createElement("div");
+  addRow.className = "yui-row yui-row--action";
   const addBtn = document.createElement("button");
   addBtn.type = "button";
-  addBtn.className = "yui-cue-add";
+  addBtn.className = "yui-add-btn";
   addBtn.setAttribute("data-testid", "cue-add");
   addBtn.innerHTML = `${PLUS_SVG}${addLabel}`;
-  sectionEl.appendChild(addBtn);
+  addRow.appendChild(addBtn);
+  groupEl.appendChild(addRow);
 
   mount.appendChild(sectionEl);
 

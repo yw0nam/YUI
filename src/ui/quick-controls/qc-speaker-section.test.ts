@@ -156,20 +156,6 @@ describe("createQuickControls — speaker section", () => {
     qc.dispose();
   });
 
-  it("the speaker section sits AFTER the VRM section", () => {
-    const qc = buildQc();
-    qc.open();
-
-    const vrmGroup = qc.el.querySelector(".yui-vrms[role=radiogroup]")!;
-    const spkGroup = qc.el.querySelector(".yui-spks[role=radiogroup]")!;
-    // DOCUMENT_POSITION_FOLLOWING (4) → spkGroup comes after vrmGroup in document order
-    expect(
-      vrmGroup.compareDocumentPosition(spkGroup) & Node.DOCUMENT_POSITION_FOLLOWING,
-    ).toBeTruthy();
-
-    qc.dispose();
-  });
-
   it("marks the active speaker row aria-checked and shows the '사용 중' badge", () => {
     const qc = buildQc();
     qc.open();

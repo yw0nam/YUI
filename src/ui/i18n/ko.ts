@@ -20,7 +20,7 @@ const ko: Record<string, string> = {
   "voice.state.fired": "전달됨",
   "voice.state.error": "오류",
   "voice.error.not_configured": "설정 필요",
-  "voice.error.not_configured_fix": "백엔드 미설정 — 고급 설정 열기",
+  "voice.error.not_configured_fix": "백엔드 미설정 — 연결 설정 열기",
 
   // aria labels (parameterized)
   "aria.refresh_speaker": "{name} 참조 음성 갱신",
@@ -45,7 +45,7 @@ const ko: Record<string, string> = {
   "input.error_stall": "백엔드 응답 없음",
   "input.error_parse": "응답 처리 실패",
   "input.error_not_configured": "백엔드 미설정",
-  "input.error_open_advanced": "고급 열기",
+  "input.error_open_connection": "연결 열기",
   "input.attach_too_many": "이미지가 너무 많음 · 한 턴에 {max}장까지",
   "input.attach_too_large": "이미지가 너무 큼 · 장당 {max}MB까지",
   "input.attach_not_ready": "아직 첨부할 수 없음 · 상한을 불러오는 중",
@@ -96,8 +96,6 @@ const ko: Record<string, string> = {
   "panel.pop_out": "창으로 빼기",
   "panel.message": "메시지 입력",
   "panel.close": "닫기",
-  "panel.rail_collapse": "섹션 목록 접기",
-  "panel.rail_expand": "섹션 목록 펼치기",
   "settings.title": "YUI 설정",
   "devtools.label": "개발자 도구",
   "devtools.sub": "전송 컨텍스트와 모션 미리보기",
@@ -118,13 +116,14 @@ const ko: Record<string, string> = {
   "devtools.advanced.context_window_default": "기본값",
 
   // tabs
+  "tabs.conn": "연결",
   "tabs.talk": "대화",
   "tabs.char": "캐릭터",
   "tabs.input": "입력",
-  "tabs.adv": "고급",
   "tabs.react": "말걸기",
   "tabs.react_hint": "유이가 먼저 말을 거는 규칙",
   "tabs.hist": "기록",
+  "tabs.general": "일반",
 
   // reasoning effort segment
   "reasoning.label": "추론 강도",
@@ -271,7 +270,6 @@ const ko: Record<string, string> = {
 
   // screenshot / input tab
   "screenshot.label": "스크린샷 첨부",
-  "screenshot.sub": "대화할 때 화면을 함께 봐요",
   "screenshot.source_label": "보낼 화면",
   "screenshot.source_aria": "보낼 화면",
   "screenshot.monitor_primary": "주 화면",
@@ -314,10 +312,10 @@ const ko: Record<string, string> = {
   // cue lists (input tab)
   "cue.schedule_title": "시간대 인사",
   "cue.schedule_sub": "정한 시각에 자리에 있으면 먼저 말을 걸어요",
-  "cue.schedule_add": "+ 인사 추가",
+  "cue.schedule_add": "인사 추가",
   "cue.proactive_title": "루프 반응",
   "cue.proactive_sub": "작업 중에 한동안 조용하면 주기적으로 먼저 말을 걸어요",
-  "cue.proactive_add": "+ 반응 추가",
+  "cue.proactive_add": "반응 추가",
 
   // endpoints
   "endpoints.section": "엔드포인트",
@@ -331,7 +329,7 @@ const ko: Record<string, string> = {
   "endpoints.broker_base_url.label": "표현 브로커(Broker) URL",
   "endpoints.chat_model.label": "채팅 모델",
 
-  // per-service sections (advanced tab)
+  // per-service sections (connection tab)
   "svc.type_label": "유형",
   "svc.chat": "채팅",
   "svc.chat_aria": "채팅 API 종류",
@@ -388,7 +386,6 @@ const ko: Record<string, string> = {
   "ttskey.clear": "키 지우기",
 
   // performance
-  "perf.section": "성능",
   "perf.idle_label": "유휴 시 절전 (30fps)",
   "perf.idle_sub":
     "캐릭터가 가만히 있을 때 프레임을 낮춰 전력을 아낍니다. 말하거나 움직일 땐 자동으로 부드러워집니다.",
@@ -411,7 +408,7 @@ const ko: Record<string, string> = {
   "hint.first_run": "우클릭하면 컨트롤이 열려요 · {hotkey}로 말 걸 수 있어요",
   "hint.first_run_no_hotkey": "우클릭하면 컨트롤이 열려요",
   "hint.setup_backend":
-    "아직 생각할 백엔드가 없어요 · 우클릭해서 고급 탭을 열고 OpenAI 호환 서버를 지정해 주세요",
+    "아직 생각할 백엔드가 없어요 · 우클릭해서 연결 탭을 열고 OpenAI 호환 서버를 지정해 주세요",
 
   // reactions tab
   "reactions.watchers_title": "감시",

@@ -112,8 +112,6 @@ export function wirePetControls(deps: {
     gazeSettings,
     climbSettings,
     fallSettings,
-    railCollapsedSettings,
-    sectionsSettings,
     guardrailsSettings,
     bubblePersistSettings,
     messageWindowSettings,
@@ -158,8 +156,6 @@ export function wirePetControls(deps: {
           return undefined;
         }
       },
-      railCollapsedSettings,
-      sectionsSettings,
       transcript: chatHistoryStore,
       // Same instances the dispatcher reads through, so "start fresh" takes effect on the next turn.
       sessionStore,
@@ -236,7 +232,7 @@ export function wirePetControls(deps: {
   let quickControls = buildQuickControls();
   register(() => quickControls.dispose());
   // A popped-out surface has no settings panel of its own; it asks this window for one.
-  remote.onOpenSettings(() => quickControls.open(undefined, { tab: "adv" }));
+  remote.onOpenSettings(() => quickControls.open(undefined, { tab: "conn" }));
 
   // Re-mount localized DOM surfaces when display language changes.
   // Defer to microtask so triggering click handler (picker inside quick-controls) unwinds

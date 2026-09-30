@@ -57,7 +57,7 @@ Install https://github.com/yw0nam/YUI following https://raw.githubusercontent.co
 
 The agent installs the toolchain, clones the repo, wires the backend you name, and hands you `pnpm tauri dev`.
 
-No agent at hand? Grab the macOS (Apple Silicon) `.dmg` or the experimental Windows x64 installer from the [latest release](https://github.com/yw0nam/YUI/releases/latest). The builds are unsigned, so on macOS right-click the app → **Open** on first launch. Then right-click the character → **Advanced** and point her at any OpenAI-compatible endpoint.
+No agent at hand? Grab the macOS (Apple Silicon) `.dmg` or the experimental Windows x64 installer from the [latest release](https://github.com/yw0nam/YUI/releases/latest). The builds are unsigned, so on macOS right-click the app → **Open** on first launch. Then right-click the character → **Connection** and point her at any OpenAI-compatible endpoint.
 
 ## Features
 

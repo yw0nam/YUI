@@ -280,7 +280,7 @@ async function bootstrap(): Promise<BootstrapHandle> {
           mount: root,
           store: push.delegations,
           pushState: push.pushSocket,
-          onOpenSettings: () => controls.get().open(undefined, { tab: "adv" }),
+          onOpenSettings: () => controls.get().open(undefined, { tab: "conn" }),
           getMode,
           subscribeMode: settingsStores.messageWindowSettings.subscribe,
         }),

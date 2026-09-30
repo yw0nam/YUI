@@ -67,7 +67,7 @@ export function createPopover(deps: PopoverDeps): Popover {
   const FOCUSABLE_SEL =
     'button, [href], input, select, textarea, summary, [tabindex]:not([tabindex="-1"])';
 
-  // True for content a collapsed <details> (a section or an Advanced-tab endpoint group) hides —
+  // True for content a collapsed <details> (the filler's more-phrases group) hides —
   // its own <summary> stays reachable (that's how the user reopens it via keyboard), everything
   // else inside its collapsed body does not.
   function isInsideClosedDetails(el: HTMLElement): boolean {
@@ -77,10 +77,12 @@ export function createPopover(deps: PopoverDeps): Popover {
   }
 
   function focusables(): HTMLElement[] {
-    // Exclude controls in [hidden] subtrees (e.g. inactive tab panels) so the trap doesn't leak to an invisible end.
+    // Exclude controls in [hidden] subtrees (e.g. inactive tab panels) so the trap doesn't leak to an invisible end,
+    // and roving-tabindex members Tab skips (unselected tabs and segment cells).
     return Array.from(root.querySelectorAll<HTMLElement>(FOCUSABLE_SEL)).filter(
       (el) =>
         !(el as HTMLButtonElement).disabled &&
+        el.tabIndex >= 0 &&
         !el.closest("[hidden]") &&
         !isInsideClosedDetails(el),
     );
