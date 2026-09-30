@@ -19,7 +19,11 @@ import {
   type SpeakerOption,
 } from "../../io/voice/voices/speaker-selection";
 import { deleteVoice, upsertVoice } from "../../io/voice/voices/tts-voices";
-import { removeUserVoice as removeUserVoiceFile } from "../../io/voice/voices/voice-import";
+import { migrateUserVoiceIds } from "../../io/voice/voices/voice-id-migration";
+import {
+  removeUserVoice as removeUserVoiceFile,
+  renameUserVoice,
+} from "../../io/voice/voices/voice-import";
 import { createVoiceImportFlow } from "../../io/voice/voices/voice-import-flow";
 import { createVoiceListRefresh } from "../../io/voice/voices/voice-list-refresh";
 import type { Logger } from "../../logger";
@@ -124,6 +128,8 @@ export function wireSpeakerSelection(deps: {
   commitVoiceImport: (srcPath: string, name: string) => Promise<void>;
   removeVoice: (id: string) => Promise<void>;
   refreshVoiceList: () => Promise<void>;
+  /** Moves imported voices whose id the TTS server rejects to an ASCII id. */
+  migrateVoiceIds: () => Promise<void>;
 } {
   const { getEndpoints, getApiKey, log, broadcastSettings } = deps;
   // Speaker selection store. Starts with an empty fallback since config is not loaded yet —
@@ -193,6 +199,12 @@ export function wireSpeakerSelection(deps: {
     commitVoiceImport,
     removeVoice,
     refreshVoiceList,
+    migrateVoiceIds: () =>
+      migrateUserVoiceIds({
+        speakerSelection,
+        renameUserVoice,
+        log,
+      }),
   };
 }
 

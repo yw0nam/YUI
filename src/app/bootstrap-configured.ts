@@ -163,7 +163,7 @@ const realFactories: ConfiguredBootstrapFactories = {
     } = settings;
     const { contextHistory, sessionStore, sessionDiagnostics, chatHistoryStore } = conversation;
     const { vrmSelection, loadVrmSerialized } = vrm;
-    const { speakerSelection, refreshVoiceList } = speaker;
+    const { speakerSelection, refreshVoiceList, migrateVoiceIds } = speaker;
 
     const turnVoice = wireTurnVoice({
       renderer,
@@ -232,7 +232,8 @@ const realFactories: ConfiguredBootstrapFactories = {
       vrmSelection,
       register,
     });
-    void refreshVoiceList();
+    // The refresh re-uploads missing user voices, so it runs on the migrated ids.
+    void migrateVoiceIds().then(refreshVoiceList);
     await loadVrmSerialized(vrmSelection.getActive().url);
     ensureActive();
     maybeShowFirstRunHint({

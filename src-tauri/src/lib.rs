@@ -255,6 +255,7 @@ pub fn run() {
             vrm_import::remove_user_vrm,
             voice_import::import_voice_file,
             voice_import::remove_user_voice,
+            voice_import::rename_user_voice,
             passthrough::set_click_through,
             agent_ingress::start_agent_ingress,
             agent_ingress::avatar_rpc_response,

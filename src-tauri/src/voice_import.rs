@@ -201,6 +201,44 @@ fn remove_user_voice_at(references_dir: &Path, id: &str) -> Result<(), String> {
     Ok(())
 }
 
+/// Move `references_dir/<from>/` to `references_dir/<to>/` and return the clip under its new id.
+/// `to` must be an id `voice_id_from_name` itself produces; a `from` already gone while `to`
+/// exists counts as moved, so a rename interrupted before the caller persisted it completes.
+fn rename_user_voice_at(
+    references_dir: &Path,
+    from: &str,
+    to: &str,
+) -> Result<ImportedVoice, String> {
+    if voice_id_from_name(to) != to || sanitize_stem(from) != from {
+        return Err("invalid voice id".to_string());
+    }
+    let src = references_dir.join(from);
+    let dest = references_dir.join(to);
+    ensure_within(references_dir, &src)?;
+    ensure_within(references_dir, &dest)?;
+    if src.exists() {
+        if dest.exists() {
+            return Err("voice id taken".to_string());
+        }
+        std::fs::rename(&src, &dest).map_err(|e| {
+            log::error!("voice_rename_failed dest={} error={e}", dest.display());
+            "storage unavailable".to_string()
+        })?;
+    } else if !dest.exists() {
+        return Err("voice not found".to_string());
+    }
+    let clip = std::fs::read_dir(&dest)
+        .map_err(|_| "voice not found".to_string())?
+        .flatten()
+        .map(|e| e.path())
+        .find(|p| p.file_stem().is_some_and(|s| s == "clip"))
+        .ok_or("voice not found".to_string())?;
+    Ok(ImportedVoice {
+        id: to.to_string(),
+        ref_path: clip.to_string_lossy().into_owned(),
+    })
+}
+
 /// Copy a user-picked audio file into `<app_data_dir>/references/<id>/clip.<ext>`, where `<id>`
 /// is the server-charset voice id `voice_id_from_name` derives from the typed `desired_name`.
 #[command]
@@ -240,6 +278,24 @@ pub fn remove_user_voice(app: AppHandle, id: String) -> Result<(), String> {
         })?
         .join("references");
     remove_user_voice_at(&references_dir, &id)
+}
+
+/// Move `<app_data_dir>/references/<from>/` to `<app_data_dir>/references/<to>/`.
+#[command]
+pub fn rename_user_voice(
+    app: AppHandle,
+    from: String,
+    to: String,
+) -> Result<ImportedVoice, String> {
+    let references_dir = app
+        .path()
+        .app_data_dir()
+        .map_err(|e| {
+            log::error!("app_data_dir_unavailable error={e}");
+            "storage unavailable".to_string()
+        })?
+        .join("references");
+    rename_user_voice_at(&references_dir, &from, &to)
 }
 
 /// A `copy_into_references` transactional sibling left behind by a process death between its
