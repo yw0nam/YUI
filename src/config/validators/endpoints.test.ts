@@ -42,6 +42,7 @@ describe("validateEndpoints — happy path", () => {
         chat_model: "natsume",
         chat_instructions: "use generate_express",
         chat_api: "responses",
+        stt_model: "whisper-large-v3-turbo",
         tts_model: "irodori-tts",
         tts_speaker: "ナツメ",
         chat_model_context_window: 128000,
@@ -51,6 +52,7 @@ describe("validateEndpoints — happy path", () => {
     expect(out.chat_model).toBe("natsume");
     expect(out.chat_instructions).toBe("use generate_express");
     expect(out.chat_api).toBe("responses");
+    expect(out.stt_model).toBe("whisper-large-v3-turbo");
     expect(out.tts_model).toBe("irodori-tts");
     expect(out.tts_speaker).toBe("ナツメ");
     expect(out.chat_model_context_window).toBe(128000);
@@ -144,7 +146,11 @@ describe("validateEndpoints — chat_model / chat_instructions / chat_api", () =
   });
 });
 
-describe("validateEndpoints — tts_model / tts_speaker", () => {
+describe("validateEndpoints — stt_model / tts_model / tts_speaker", () => {
+  it("rejects a blank stt_model", () => {
+    expectIssue(baseRaw({ stt_model: "  " }), "stt_model must be a non-blank string");
+  });
+
   it("rejects an empty tts_model", () => {
     expectIssue(baseRaw({ tts_model: "" }), "tts_model must be a non-blank string");
   });
@@ -158,8 +164,9 @@ describe("validateEndpoints — tts_model / tts_speaker", () => {
     expect(out.tts_speaker).toBe("ムラサメ");
   });
 
-  it("omits tts_model / tts_speaker when unset", () => {
+  it("omits stt_model / tts_model / tts_speaker when unset", () => {
     const out = validateEndpoints(FILE, baseRaw());
+    expect(out.stt_model).toBeUndefined();
     expect(out.tts_model).toBeUndefined();
     expect(out.tts_speaker).toBeUndefined();
   });
