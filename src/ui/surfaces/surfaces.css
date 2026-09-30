@@ -26,7 +26,8 @@
     /* Drop only vertical slide/scale — keep horizontal centering (-50%) */
     transform: translateX(-50%) !important;
   }
-  .yui-bubble__caret {
+  .yui-bubble__caret,
+  .yui-bubble__think-text.is-live::after {
     animation: none !important;
   }
 }
@@ -34,6 +35,8 @@
 /* ════════════════════════════════════════════════════════════
    1. Speech bubble — floating caption panel. No tail, no hard border.
       The *only* frost backdrop location permitted by DESIGN.md (for readability).
+      The wrapper positions and fades; the box inside carries the material and scrolls,
+      so the tools on the wrapper's top edge are neither clipped nor masked.
    ════════════════════════════════════════════════════════════ */
 .yui-bubble {
   position: absolute;
@@ -45,6 +48,15 @@
   width: max-content;
   max-width: min(34ch, 78%);
 
+  opacity: 0;
+  pointer-events: none; /* Display-only — passthrough for character drag */
+  transition:
+    opacity var(--yui-dur) var(--yui-ease),
+    transform var(--yui-dur) var(--yui-ease);
+}
+
+.yui-bubble__box {
+  box-sizing: border-box;
   padding: 0.7rem 0.95rem;
   border-radius: var(--yui-radius);
   background: var(--yui-scrim);
@@ -54,16 +66,9 @@
   -webkit-backdrop-filter: blur(10px) saturate(1.1);
 
   color: var(--yui-text);
-  font-size: 0.95rem;
+  font-size: var(--yui-fs-speech);
   line-height: 1.5;
   text-wrap: pretty;
-  text-shadow: var(--yui-text-shadow);
-
-  opacity: 0;
-  pointer-events: none; /* Display-only — passthrough for character drag */
-  transition:
-    opacity var(--yui-dur) var(--yui-ease),
-    transform var(--yui-dur) var(--yui-ease);
 
   /* Long utterance height cap + internal scroll — does not grow upward over model even when overflowing. */
   max-height: var(--yui-bubble-max-h, 34vh);
@@ -72,22 +77,30 @@
   scrollbar-color: var(--yui-edge-strong) transparent;
 }
 
+@media (prefers-reduced-transparency: reduce) {
+  .yui-bubble__box {
+    background: var(--yui-scrim-strong);
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+  }
+}
+
 /* Top fade appears only when scrolling due to overflow, suggesting scroll-up.
    Short utterances (common case) show the first line intact without mask. */
-.yui-bubble.is-scrollable {
+.yui-bubble.is-scrollable .yui-bubble__box {
   mask-image: linear-gradient(to bottom, transparent 0, oklch(0 0 0) 18px);
   -webkit-mask-image: linear-gradient(to bottom, transparent 0, oklch(0 0 0) 18px);
   pointer-events: auto; /* Capture wheel/scrollbar input only when overflowing — short utterances remain passthrough for drag */
 }
 
 /* Scrollbar minimization — thin, faint thumb so it doesn't look like a SaaS panel */
-.yui-bubble::-webkit-scrollbar {
+.yui-bubble__box::-webkit-scrollbar {
   width: 6px;
 }
-.yui-bubble::-webkit-scrollbar-track {
+.yui-bubble__box::-webkit-scrollbar-track {
   background: transparent;
 }
-.yui-bubble::-webkit-scrollbar-thumb {
+.yui-bubble__box::-webkit-scrollbar-thumb {
   background: var(--yui-edge-strong);
   border-radius: 999px;
 }
@@ -109,41 +122,41 @@
 
 /* While input is open — lift the bubble above input (--yui-bubble-bottom is set to px by JS),
    constrain height further to prevent growing downward and encroaching on input area. */
-.yui-bubble.is-above-input {
+.yui-bubble.is-above-input .yui-bubble__box {
   max-height: min(var(--yui-bubble-max-h, 34vh), 28vh);
 }
 
 /* ── Markdown inside bubble ──
    Pack block/inline elements tightly to fit small caption panel. Remove first/last margins. */
-.yui-bubble p {
+.yui-bubble__text p {
   margin: 0.4em 0;
 }
-.yui-bubble > :first-child {
+.yui-bubble__text > :first-child {
   margin-top: 0;
 }
-.yui-bubble > :last-child {
+.yui-bubble__text > :last-child {
   margin-bottom: 0;
 }
-.yui-bubble ul,
-.yui-bubble ol {
+.yui-bubble__text ul,
+.yui-bubble__text ol {
   margin: 0.4em 0;
   padding-left: 1.3em;
 }
-.yui-bubble li {
+.yui-bubble__text li {
   margin: 0.12em 0;
 }
-.yui-bubble li::marker {
+.yui-bubble__text li::marker {
   color: var(--yui-text-dim);
 }
-.yui-bubble strong {
+.yui-bubble__text strong {
   font-weight: 650;
   color: var(--yui-text);
 }
-.yui-bubble em {
+.yui-bubble__text em {
   font-style: italic;
 }
 /* Inline code — subtle scrim background, small radius. */
-.yui-bubble code {
+.yui-bubble__text code {
   font-family: ui-monospace, "SF Mono", "Cascadia Code", Menlo, monospace;
   font-size: 0.86em;
   padding: 0.08em 0.34em;
@@ -152,7 +165,7 @@
   border: 1px solid var(--yui-edge);
 }
 /* Code block — long lines scroll horizontally, height-capped so it doesn't cover the bubble. */
-.yui-bubble pre {
+.yui-bubble__text pre {
   margin: 0.5em 0;
   padding: 0.55rem 0.7rem;
   border-radius: var(--yui-radius-row);
@@ -163,7 +176,7 @@
   scrollbar-width: thin;
   scrollbar-color: var(--yui-edge-strong) transparent;
 }
-.yui-bubble pre code {
+.yui-bubble__text pre code {
   display: block;
   padding: 0;
   border: 0;
@@ -173,38 +186,38 @@
   white-space: pre;
 }
 /* Headings — scaled down near body size, preserving hierarchy in small panels. */
-.yui-bubble h1,
-.yui-bubble h2,
-.yui-bubble h3,
-.yui-bubble h4,
-.yui-bubble h5,
-.yui-bubble h6 {
+.yui-bubble__text h1,
+.yui-bubble__text h2,
+.yui-bubble__text h3,
+.yui-bubble__text h4,
+.yui-bubble__text h5,
+.yui-bubble__text h6 {
   margin: 0.5em 0 0.3em;
   line-height: 1.25;
   font-weight: 650;
 }
-.yui-bubble h1 {
+.yui-bubble__text h1 {
   font-size: 1.18em;
 }
-.yui-bubble h2 {
+.yui-bubble__text h2 {
   font-size: 1.1em;
 }
-.yui-bubble h3 {
+.yui-bubble__text h3 {
   font-size: 1.02em;
 }
-.yui-bubble h4,
-.yui-bubble h5,
-.yui-bubble h6 {
+.yui-bubble__text h4,
+.yui-bubble__text h5,
+.yui-bubble__text h6 {
   font-size: 0.96em;
   color: var(--yui-text-dim);
 }
-.yui-bubble blockquote {
+.yui-bubble__text blockquote {
   margin: 0.45em 0;
   padding: 0.1em 0 0.1em 0.7em;
   border-left: 2px solid var(--yui-accent-soft);
   color: var(--yui-text-dim);
 }
-.yui-bubble hr {
+.yui-bubble__text hr {
   margin: 0.6em 0;
   border: 0;
   border-top: 1px solid var(--yui-edge);
@@ -233,117 +246,128 @@
   }
 }
 
-/* ── Dismiss button — top-right corner, revealed on hover/focus ──
-   The bubble itself is pointer-events:none (drag passthrough), so this button carries its own
-   pointer target: hovering it is what puts the bubble in :hover and fades it in; an overflowing
-   (is-scrollable) bubble takes pointer events wholesale, so hovering anywhere reveals it there. */
-.yui-bubble__close {
-  position: absolute;
-  z-index: 1;
-  top: 0.25rem;
-  right: 0.25rem;
-  display: grid;
-  place-items: center;
-  width: 1.5rem;
-  height: 1.5rem;
-  padding: 0;
-  border: 0;
-  border-radius: 50%;
-  background: var(--yui-scrim-strong);
+/* ── Reasoning disclosure — the backend's reasoning folded above the speech (message window only) ── */
+.yui-bubble__think {
+  margin: -0.15rem 0 0.4rem;
+  pointer-events: auto; /* The summary toggles and the text scrolls, though the bubble passes pointers through */
+}
+.yui-bubble__think > summary {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  list-style: none;
   color: var(--yui-text-mute);
+  font-size: var(--yui-fs-sub);
+  font-weight: 500;
   cursor: pointer;
-  pointer-events: auto;
-  opacity: 0;
-  transition:
-    opacity var(--yui-dur-fast) var(--yui-ease),
-    color var(--yui-dur-fast) var(--yui-ease);
+  user-select: none;
+}
+.yui-bubble__think > summary::-webkit-details-marker {
+  display: none;
+}
+.yui-bubble__think > summary:focus-visible {
+  outline: 2px solid var(--yui-accent-soft);
+  outline-offset: 2px;
+  border-radius: 3px;
+}
+.yui-bubble__think svg {
+  width: 0.75rem;
+  height: 0.75rem;
+  transition: transform var(--yui-dur-fast) var(--yui-ease);
+}
+.yui-bubble__think[open] svg {
+  transform: rotate(90deg);
+}
+.yui-bubble__think-text {
+  margin: 0.4rem 0 0.1rem;
+  padding: 0.1rem 0 0.1rem 0.6rem;
+  border-left: 2px solid var(--yui-edge-strong);
+  color: var(--yui-text-dim);
+  font-size: var(--yui-fs-body);
+  line-height: 1.45;
+  white-space: pre-wrap;
+  max-height: calc(6 * 1.45em);
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: var(--yui-edge-strong) transparent;
+}
+.yui-bubble__think-text.is-live::after {
+  content: "▍";
+  animation: yui-think-blink 1s step-end infinite;
 }
 
-.yui-bubble:hover .yui-bubble__close,
-.yui-bubble__close:focus-visible {
+@keyframes yui-think-blink {
+  50% {
+    opacity: 0;
+  }
+}
+
+/* ── Edge tools — pop-out and dismiss, riding the bubble's top edge, revealed on hover/focus ──
+   The bubble itself is pointer-events:none (drag passthrough), so the tools carry their own
+   pointer target: hovering them is what puts the bubble in :hover and fades them in; an overflowing
+   (is-scrollable) box takes pointer events wholesale, so hovering anywhere reveals them there. */
+.yui-bubble__tools {
+  position: absolute;
+  z-index: 1;
+  top: -0.85rem;
+  right: 0.5rem;
+  display: flex;
+  gap: 0.25rem;
+  pointer-events: auto;
+  opacity: 0;
+  transition: opacity var(--yui-dur-fast) var(--yui-ease);
+}
+
+.yui-bubble:hover .yui-bubble__tools,
+.yui-bubble__tools:focus-within {
   opacity: 1;
 }
 
 /* Held speech has no auto-fade, so its only exit stays on screen. */
-.yui-bubble.is-held .yui-bubble__close {
+.yui-bubble.is-held .yui-bubble__tools {
   opacity: 0.55;
 }
 
-.yui-bubble__close:hover {
-  color: var(--yui-text);
-}
-
-.yui-bubble__close:focus-visible {
-  outline: none;
-  box-shadow: 0 0 0 2px var(--yui-accent-soft);
-}
-
-.yui-bubble__close svg {
-  width: 0.85rem;
-  height: 0.85rem;
-}
-
-/* Clear the 18px top fade an overflowing bubble wears. */
-.yui-bubble.is-scrollable .yui-bubble__close {
-  top: 1.2rem;
-}
-
-/* ── Pop-out button — beside the dismiss button, same hover-revealed treatment ──
-   Moves speech into the message window; hidden where there is no second window. */
-.yui-bubble__pop {
-  position: absolute;
-  z-index: 1;
-  top: 0.25rem;
-  right: 1.95rem;
+.yui-bubble__tools button {
   display: grid;
   place-items: center;
   width: 1.5rem;
   height: 1.5rem;
   padding: 0;
-  border: 0;
+  border: 1px solid var(--yui-edge);
   border-radius: 50%;
   background: var(--yui-scrim-strong);
+  box-shadow: var(--yui-float);
   color: var(--yui-text-mute);
-  font-size: 0.72rem;
-  line-height: 1;
   cursor: pointer;
-  pointer-events: auto;
-  opacity: 0;
-  transition:
-    opacity var(--yui-dur-fast) var(--yui-ease),
-    color var(--yui-dur-fast) var(--yui-ease);
+  transition: color var(--yui-dur-fast) var(--yui-ease);
 }
 /* display: grid beats the UA's [hidden] rule, so hide it explicitly. */
-.yui-bubble__pop[hidden] {
+.yui-bubble__tools button[hidden] {
   display: none;
 }
 
-.yui-bubble:hover .yui-bubble__pop,
-.yui-bubble__pop:focus-visible {
-  opacity: 1;
-}
-
-.yui-bubble.is-held .yui-bubble__pop {
-  opacity: 0.55;
-}
-
-.yui-bubble__pop:hover {
+.yui-bubble__tools button:hover {
   color: var(--yui-text);
 }
 
-.yui-bubble__pop:focus-visible {
+.yui-bubble__tools button:focus-visible {
   outline: none;
-  box-shadow: 0 0 0 2px var(--yui-accent-soft);
+  box-shadow:
+    var(--yui-float),
+    0 0 0 2px var(--yui-accent-soft);
 }
 
-.yui-bubble.is-scrollable .yui-bubble__pop {
-  top: 1.2rem;
+.yui-bubble__tools svg {
+  width: 0.75rem;
+  height: 0.75rem;
+  stroke-width: 2;
 }
 
 /* ── Inline markdown links (inside bubble) ──
    Warm body color + amber-soft underline, ignite to amber on hover/focus (treatment A).
    With pointer-events:auto, only links are clickable inside display-only bubble. */
-.yui-bubble a {
+.yui-bubble__text a {
   color: var(--yui-text);
   text-decoration: underline;
   text-decoration-color: var(--yui-accent-soft);
@@ -355,19 +379,19 @@
     color var(--yui-dur-fast) var(--yui-ease),
     text-decoration-color var(--yui-dur-fast) var(--yui-ease);
 }
-.yui-bubble a:hover,
-.yui-bubble a:focus-visible {
+.yui-bubble__text a:hover,
+.yui-bubble__text a:focus-visible {
   color: var(--yui-accent);
   text-decoration-color: var(--yui-accent);
 }
-.yui-bubble a:focus-visible {
+.yui-bubble__text a:focus-visible {
   outline: 2px solid var(--yui-accent-soft);
   outline-offset: 2px;
 }
 
 /* ── Inline markdown images (inside bubble) ──
    Fit to body width and cap height so large images don't cover screen. Non-interactive (passthrough for drag). */
-.yui-bubble img {
+.yui-bubble__text img {
   display: block;
   max-width: 100%;
   height: auto;
@@ -380,7 +404,7 @@
 
 /* ── Broken image graceful fallback ──
    On src failure, expose alt in small dashed box, no broken-icon sprawl. */
-.yui-bubble img.is-broken {
+.yui-bubble__text img.is-broken {
   max-width: 100%;
   width: max-content;
   min-width: 6ch;
@@ -467,14 +491,17 @@
   height: 16px;
   display: grid;
   place-items: center;
+  padding: 0;
   border: 0;
   border-radius: var(--yui-radius-chip);
   background: oklch(0.15 0.01 70 / 0.78);
   color: var(--yui-text);
-  font-size: 11px;
-  line-height: 1;
   cursor: pointer;
   transition: background var(--yui-dur-fast) var(--yui-ease);
+}
+.yui-chip__remove svg {
+  width: 10px;
+  height: 10px;
 }
 .yui-chip__remove:hover {
   background: var(--yui-danger);
@@ -487,26 +514,45 @@
   /* Buttons ride the field's last text line; the bottom margins re-center them on the one-line field (2.43rem). */
   align-items: flex-end;
 }
-.yui-input__attach {
+/* Attach, pop-out and send — one round icon button, Muted-Ash at rest, igniting to amber on hover. */
+.yui-input__btn {
   flex: 0 0 auto;
   display: grid;
   place-items: center;
-  width: 34px;
-  height: 34px;
-  margin-left: 0.15rem;
-  margin-bottom: calc((2.43rem - 34px) / 2);
+  width: 2.125rem;
+  height: 2.125rem;
+  margin-bottom: calc((2.43rem - 2.125rem) / 2);
+  padding: 0;
   border: 0;
-  border-radius: var(--yui-radius-chip);
+  border-radius: var(--yui-radius-pill);
   background: transparent;
   color: var(--yui-text-mute);
   cursor: pointer;
   transition:
     color var(--yui-dur-fast) var(--yui-ease),
-    background var(--yui-dur-fast) var(--yui-ease);
+    background var(--yui-dur-fast) var(--yui-ease),
+    transform var(--yui-dur-fast) var(--yui-ease);
 }
-.yui-input__attach:hover {
+.yui-input__btn:hover {
   color: var(--yui-accent);
-  background: oklch(0.8 0.13 75 / 0.12);
+  background: var(--yui-accent-faint);
+}
+.yui-input__btn:active {
+  transform: scale(0.94);
+}
+.yui-input__btn:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px var(--yui-accent-soft);
+}
+.yui-input__btn svg {
+  display: block;
+  width: 1.05rem;
+  height: 1.05rem;
+  stroke-width: 1.5;
+}
+
+.yui-input__attach {
+  margin-left: 0.1rem;
 }
 .yui-input__attach:disabled {
   opacity: 0.3;
@@ -516,9 +562,8 @@
   color: var(--yui-text-mute);
   background: transparent;
 }
-.yui-input__attach svg {
-  width: 18px;
-  height: 18px;
+.yui-input__attach:disabled:active {
+  transform: none;
 }
 
 .yui-input__field {
@@ -532,12 +577,11 @@
   background: transparent;
   color: var(--yui-text);
   font: inherit;
-  font-size: 0.95rem;
+  font-size: var(--yui-fs-speech);
   line-height: 1.4;
-  text-shadow: var(--yui-text-shadow);
   resize: none;
   overflow-y: auto;
-  /* 6 lines × 1.33rem + vertical padding — grows to here, then scrolls. */
+  /* 6 lines of 1.33rem + vertical padding — grows to here, then scrolls. */
   max-height: calc(6 * 1.33rem + 1.1rem);
   scrollbar-width: thin;
   scrollbar-color: var(--yui-edge-strong) transparent;
@@ -546,8 +590,7 @@
   outline: none;
 }
 .yui-input__field::placeholder {
-  color: var(--yui-text-dim);
-  opacity: 0.7;
+  color: var(--yui-text-mute);
 }
 .yui-input.is-pending .yui-input__field {
   opacity: 0.55;
@@ -557,78 +600,21 @@
   opacity: 0.55;
 }
 
-/* ── Pop-out button — the bubble's exit, repeated in the row so a typing session
-   can move to the message window without leaving the field. ── */
-.yui-input__pop {
-  flex: 0 0 auto;
-  display: grid;
-  place-items: center;
-  width: 34px;
-  height: 34px;
-  margin-bottom: calc((2.43rem - 34px) / 2);
-  border: 0;
-  border-radius: var(--yui-radius-chip);
-  background: transparent;
-  color: var(--yui-text-mute);
-  font-size: 0.85rem;
-  line-height: 1;
-  cursor: pointer;
-  transition:
-    color var(--yui-dur-fast) var(--yui-ease),
-    background var(--yui-dur-fast) var(--yui-ease);
-}
-/* display: grid beats the UA's [hidden] rule, so hide it explicitly. */
+/* Pop-out — the bubble's exit, repeated in the row so a typing session can move to the
+   message window without leaving the field. display: grid beats the UA's [hidden] rule. */
 .yui-input__pop[hidden] {
   display: none;
 }
-.yui-input__pop:hover {
-  color: var(--yui-accent);
-  background: var(--yui-accent-faint);
-}
-.yui-input__pop:focus-visible {
-  outline: none;
-  box-shadow: 0 0 0 2px var(--yui-accent-soft);
-}
 
-/* send/stop button — fixed width flex:0 0 auto so form doesn't reflow on icon swap */
+/* send/stop button — fixed size so the form doesn't reflow on icon swap */
 .yui-input__send {
-  flex: 0 0 auto;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 28px;
-  height: 28px;
-  margin-right: 0.2rem;
-  margin-bottom: calc((2.43rem - 28px) / 2);
-
-  border: 0;
-  border-radius: calc(var(--yui-radius-input) - 3px);
-  background: transparent;
-  cursor: pointer;
-  color: var(--yui-text-mute);
-
-  transition:
-    color var(--yui-dur-fast) var(--yui-ease),
-    background-color var(--yui-dur-fast) var(--yui-ease),
-    opacity var(--yui-dur-fast) var(--yui-ease);
+  margin-right: 0.1rem;
 }
 .yui-input__send .icon-send {
   display: block;
 }
 .yui-input__send .icon-stop {
   display: none;
-}
-/* hover/focus: slightly warm (not a warmth moment) */
-.yui-input__send:hover,
-.yui-input__send:focus-visible {
-  color: var(--yui-text-dim);
-  background: var(--yui-accent-faint);
-  outline: none;
-}
-/* active(pressed): amber flash — warmth moment */
-.yui-input__send:active {
-  color: var(--yui-accent);
-  background: var(--yui-accent-faint);
 }
 
 /* running/stop: icon swap + always amber */
@@ -649,26 +635,12 @@
   outline: none;
 }
 
-.yui-input__send svg {
-  width: 14px;
-  height: 14px;
-  display: block;
-  flex-shrink: 0;
-  fill: none;
-  stroke: currentColor;
-  stroke-width: 2;
-  stroke-linecap: round;
-  stroke-linejoin: round;
-}
-/* stop icon uses fill, not stroke */
-.yui-input__send .icon-stop svg {
-  stroke: none;
-  fill: currentColor;
-}
-
 @media (prefers-reduced-motion: reduce) {
-  .yui-input__send {
+  .yui-input__btn {
     transition: none;
+  }
+  .yui-input__btn:active {
+    transform: none;
   }
 }
 

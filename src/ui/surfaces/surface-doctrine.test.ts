@@ -178,7 +178,7 @@ describe("surfaces.css — components with a display rule honour [hidden]", () =
 
   it(".yui-input__pop sets display:none under [hidden]", () => {
     const css = read("surfaces.css");
-    expect(extractBlock(css, ".yui-input__pop")).toMatch(/display:/);
+    expect(extractBlock(css, ".yui-input__btn")).toMatch(/display:/);
     expect(extractBlock(css, ".yui-input__pop[hidden]")).toMatch(/display:\s*none/);
   });
 });

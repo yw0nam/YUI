@@ -13,7 +13,7 @@
   align-items: flex-start;
   gap: 8px;
   width: 340px;
-  /* 12 lines × 1.425rem (0.95rem × 1.5) + 1.4rem padding + 2px border */
+  /* 12 lines of 1.425rem (0.95rem at line-height 1.5) + 1.4rem padding + 2px border */
   --yui-bubble-max-h: calc(12 * 1.425rem + 1.4rem + 2px);
   padding: 8px;
   pointer-events: auto;
@@ -64,8 +64,6 @@
   min-width: 0;
   max-width: none;
   box-sizing: border-box;
-  /* Both full-width panels — this one and the reasoning panel — sit after both buttons. */
-  order: 1;
 }
 
 /* ── Name plate — the handle, the state tell and the way back to the character ── */
@@ -123,18 +121,16 @@
 }
 
 .yui-plate__name {
-  font-size: 0.8rem;
+  font-size: var(--yui-fs-sub);
   font-weight: 600;
   color: var(--yui-text);
-  text-shadow: var(--yui-text-shadow);
 }
 
 .yui-plate__state {
-  font-size: 0.72rem;
+  font-size: var(--yui-fs-sub);
   font-weight: 500;
   letter-spacing: 0.02em;
   color: var(--yui-text-dim);
-  text-shadow: var(--yui-text-shadow);
 }
 .yui-plate__state:empty {
   display: none;
@@ -150,11 +146,13 @@
   border-radius: 50%;
   background: var(--yui-scrim-strong);
   color: var(--yui-text-dim);
-  font-size: 0.72rem;
-  line-height: 1;
   cursor: pointer;
   opacity: 0;
   transition: opacity var(--yui-dur-fast) var(--yui-ease);
+}
+.yui-plate__dock svg {
+  width: 0.75rem;
+  height: 0.75rem;
 }
 .yui-plate:hover .yui-plate__dock {
   opacity: 0.5;
@@ -170,19 +168,22 @@
 
 /* ── Bubble and input in flow ──
    Both surfaces keep their own material; only the positioning is replaced. */
+/* Relative, not static, so the edge tools still have the wrapper as their containing block. */
 .yui-ui--message .yui-bubble {
-  position: static;
+  position: relative;
+  inset: auto;
   box-sizing: border-box;
   transform: none;
   max-width: 100%;
-  max-height: var(--yui-bubble-max-h, 34vh);
-  border-top-left-radius: 6px;
 }
 .yui-ui--message .yui-bubble.is-visible {
   transform: none;
 }
+.yui-ui--message .yui-bubble__box {
+  border-top-left-radius: 6px;
+}
 /* The lift above the input is a pet-window trick; in flow the column already separates them. */
-.yui-ui--message .yui-bubble.is-above-input {
+.yui-ui--message .yui-bubble.is-above-input .yui-bubble__box {
   max-height: var(--yui-bubble-max-h, 34vh);
 }
 
@@ -208,7 +209,7 @@
   display: none;
 }
 
-/* 12 lines × 1.33rem (0.95rem × 1.4) + vertical padding — grows to here, then scrolls. */
+/* 12 lines of 1.33rem (0.95rem at line-height 1.4) + vertical padding — grows to here, then scrolls. */
 .yui-ui--message .yui-input__field {
   max-height: calc(12 * 1.33rem + 1.1rem);
 }
@@ -235,7 +236,7 @@
   }
 }
 
-.yui-plate-row:has(.yui-plate[data-state="responding"]) ~ .yui-bubble {
+.yui-plate-row:has(.yui-plate[data-state="responding"]) ~ .yui-bubble .yui-bubble__box {
   animation: yui-bubble-ember 2.4s ease-in-out infinite;
 }
 
@@ -270,7 +271,7 @@
     animation: none;
     border-color: var(--yui-accent);
   }
-  .yui-plate-row:has(.yui-plate[data-state="responding"]) ~ .yui-bubble {
+  .yui-plate-row:has(.yui-plate[data-state="responding"]) ~ .yui-bubble .yui-bubble__box {
     animation: none;
     border-color: var(--yui-accent-soft);
   }

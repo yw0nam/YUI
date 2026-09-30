@@ -497,7 +497,6 @@ const ko: Record<string, string> = {
 
   // reasoning
   "think.chip": "추론",
-  "aria.think_toggle": "추론 내용 보기·숨기기",
 };
 
 export default ko;

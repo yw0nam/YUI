@@ -30,7 +30,6 @@ import {
 import { createFlagSettings, localStorageStore } from "../settings/persisted-store";
 import { isTauri } from "../tauri-env";
 import { createDelegationChip } from "../ui/chips/delegation-chip";
-import { createReasoningChip } from "../ui/chips/reasoning-chip";
 import { reloadFromStorage as reloadLocale } from "../ui/i18n";
 import { createMessagePlate } from "../ui/message/message-plate";
 import { attachSummonKey } from "../ui/surfaces/summon-key";
@@ -56,12 +55,18 @@ async function bootstrap(): Promise<void> {
   const bridge = createMessageBridge(undefined, { windowKind: "message" });
   const settingsBridge = createSettingsBridge(undefined, { windowKind: "message" });
 
+  // The socket lives in the pet window; this one mirrors its state, its delegations list and its reasoning.
+  const pushSocket = createMirroredPushSocket({ bridge: settingsBridge });
+  const delegations = createMirroredDelegations({ bridge: settingsBridge });
+  const reasoning = createMirroredReasoning({ bridge: settingsBridge });
+
   const surfaces = createSurfaces({
     mount: app,
     // Tool tells stay with the character; this window draws none.
     tool: { showTool() {}, finishTool() {}, hideTool() {} },
     keepBubbleUntilDismissed: () => bubblePersistSettings.get().enabled,
     onInputOpenChange: (open) => bridge.emitControl({ op: "input-open", open }),
+    reasoning,
   });
   surfaces.el.classList.add("yui-ui--message");
   surfaces.onSubmit((text, images) => bridge.emitControl({ op: "submit", text, images }));
@@ -77,9 +82,6 @@ async function bootstrap(): Promise<void> {
     startDragging: () => void startDragging(),
   });
 
-  // The socket lives in the pet window; this one mirrors its state and its delegations list.
-  const pushSocket = createMirroredPushSocket({ bridge: settingsBridge });
-  const delegations = createMirroredDelegations({ bridge: settingsBridge });
   const chipCollapsed = createDelegationChipSettings({
     storage: localStorageDelegationChipStorage(),
   });
@@ -91,14 +93,6 @@ async function bootstrap(): Promise<void> {
     // The character window owns the settings panel, and opens it on the tab the chat section is on.
     onOpenSettings: () => bridge.emitControl({ op: "open-settings" }),
   });
-  const reasoning = createMirroredReasoning({ bridge: settingsBridge });
-  const thinkChip = createReasoningChip({
-    mount: plateRow,
-    store: reasoning,
-  });
-  // One panel at a time on the shared plate row.
-  thinkChip.onPanelOpen(() => chip.closeList());
-  chip.onListOpen(() => thinkChip.closePanel());
 
   bridge.onSurface((op) => {
     switch (op.op) {
@@ -183,13 +177,12 @@ async function bootstrap(): Promise<void> {
     unlistenSettings();
     chip.dispose();
     chipCollapsed.dispose();
-    thinkChip.dispose();
-    reasoning.dispose();
     pushSocket.dispose();
     delegations.dispose();
     plate.dispose();
     plateRow.remove();
     surfaces.dispose();
+    reasoning.dispose();
     bridge.dispose();
     settingsBridge.dispose();
     messageWindowSettings.dispose();

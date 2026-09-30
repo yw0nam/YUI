@@ -35,7 +35,7 @@ export interface RemoteSurfaces {
   setAttachmentLimits(limits: AttachmentLimits): void;
   onSubmit(cb: (text: string, images: string[]) => void): void;
   onStop(cb: () => void): void;
-  /** The ⤓ button on the message window's plate. */
+  /** The dock button on the message window's plate. */
   onDock(cb: () => void): void;
   /** A surface in the message window asking for the settings panel. */
   onOpenSettings(cb: () => void): void;

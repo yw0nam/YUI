@@ -9,13 +9,12 @@ import type { createQuickControls } from "../../ui/quick-controls/quick-controls
 
 /**
  * Overlay elements that must take OS pointer events while shown — everything else in the overlay
- * stays click-through. The bubble itself is display-only; only its dismiss button is a target.
+ * stays click-through. The bubble itself is display-only; only the buttons on its edge are targets.
  * The status pill takes them on its capture button, and as a whole only while it offers the voice fix.
  */
 export const INTERACTIVE_OVERLAY_SELECTORS = [
   ".yui-input.is-open",
-  ".yui-bubble.is-visible .yui-bubble__close",
-  ".yui-bubble.is-visible .yui-bubble__pop",
+  ".yui-bubble.is-visible .yui-bubble__tools button",
   ".yui-status.is-visible .yui-status__capture:not([hidden])",
   '.yui-status.is-visible[data-fix="settings"]',
   ".yui-deleg.is-visible .yui-deleg__chip",
@@ -32,8 +31,9 @@ export function wireHitTest(deps: {
   const interactiveRects = (): DOMRect[] => {
     const rects: DOMRect[] = [];
     for (const selector of INTERACTIVE_OVERLAY_SELECTORS) {
-      const el = root.querySelector<HTMLElement>(selector);
-      if (el) rects.push(el.getBoundingClientRect());
+      for (const el of root.querySelectorAll<HTMLElement>(selector)) {
+        rects.push(el.getBoundingClientRect());
+      }
     }
     const quickControls = getQuickControls();
     if (quickControls.isOpen()) rects.push(quickControls.el.getBoundingClientRect());

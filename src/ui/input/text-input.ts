@@ -236,11 +236,14 @@ export function createTextInput(
     chip.className = "yui-chip";
     const img = document.createElement("img");
     img.src = dataUrl;
-    img.alt = ""; // Decorative thumbnail — the chip's × button conveys the attachment's presence.
+    img.alt = ""; // Decorative thumbnail — the chip's remove button conveys the attachment's presence.
     const remove = document.createElement("button");
     remove.type = "button";
     remove.className = "yui-chip__remove";
-    remove.textContent = "×";
+    remove.innerHTML =
+      `<svg viewBox="0 0 24 24" fill="none" aria-hidden="true">` +
+      `<path d="M7 7l10 10M17 7L7 17" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/>` +
+      `</svg>`;
     remove.setAttribute("aria-label", t("aria.remove_attachment"));
     remove.addEventListener("click", () => {
       const idx = Array.from(trayEl.children).indexOf(chip);

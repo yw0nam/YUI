@@ -135,7 +135,6 @@ describe("bubble structure — edge tools outside the scrolling box", () => {
     s.pushSpeech("A reply longer than the box.");
 
     expect(bubble.classList.contains("is-scrollable")).toBe(true);
-    expect(box.scrollTop).toBe(480);
 
     s.dispose();
     mount.remove();

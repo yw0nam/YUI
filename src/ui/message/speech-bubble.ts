@@ -23,6 +23,8 @@ interface SpeechBubble {
   finishSpeech(): void;
   /** Hide the bubble immediately (ignoring dwell). */
   hideSpeech(): void;
+  /** Show an empty bubble for content other than speech; no-op while the bubble shows. */
+  reveal(): void;
   /** Lift the bubble above the input by totalOffsetPx (input bottom + input height + gap). */
   liftAboveInput(totalOffsetPx: number): void;
   /** Restore the bubble's default (input-closed) position. */
@@ -33,11 +35,14 @@ interface SpeechBubble {
 interface SpeechBubbleElements {
   /** overlay root (.yui-ui) — read for the --yui-dwell CSS token. */
   root: HTMLElement;
+  /** Positioning wrapper — carries the state classes and the fade. */
   bubbleEl: HTMLElement;
+  /** The scrolling panel inside the wrapper. */
+  bubbleBox: HTMLElement;
   bubbleText: HTMLElement;
   /** Screen-reader-only announce region — the visual bubble is not live; once speech settles, announce once here. */
   bubbleSr: HTMLElement;
-  /** Hover-revealed dismiss button. The bubble is pointer-events:none, so this is its own pointer target. */
+  /** Hover-revealed dismiss button on the bubble's edge. The bubble is pointer-events:none, so this is its own pointer target. */
   bubbleClose: HTMLElement;
 }
 
@@ -47,7 +52,7 @@ const SPEECH_RENDER_INTERVAL_MS = 50;
 const SCROLL_PIN_SLACK_PX = 8;
 
 export function createSpeechBubble(
-  { root, bubbleEl, bubbleText, bubbleSr, bubbleClose }: SpeechBubbleElements,
+  { root, bubbleEl, bubbleBox, bubbleText, bubbleSr, bubbleClose }: SpeechBubbleElements,
   dwellMs?: number,
   /** When it returns true, speech never auto-fades — the bubble holds until dismissed or replaced. */
   keepUntilDismissed?: () => boolean,
@@ -87,15 +92,15 @@ export function createSpeechBubble(
 
   function isPinnedToEnd(): boolean {
     return (
-      bubbleEl.scrollHeight - bubbleEl.scrollTop - bubbleEl.clientHeight <= SCROLL_PIN_SLACK_PX
+      bubbleBox.scrollHeight - bubbleBox.scrollTop - bubbleBox.clientHeight <= SCROLL_PIN_SLACK_PX
     );
   }
 
   // Scroll a height-capped bubble to the end so the latest line stays visible (keeps position if pin=false).
   // Only toggle is-scrollable on overflow so the top fade applies (short speech doesn't clip its first line).
   function scrollBubbleToEnd(pin = true): void {
-    if (pin) bubbleEl.scrollTop = bubbleEl.scrollHeight;
-    bubbleEl.classList.toggle("is-scrollable", bubbleEl.scrollHeight > bubbleEl.clientHeight);
+    if (pin) bubbleBox.scrollTop = bubbleBox.scrollHeight;
+    bubbleEl.classList.toggle("is-scrollable", bubbleBox.scrollHeight > bubbleBox.clientHeight);
   }
 
   function beginSpeech(): void {
@@ -111,6 +116,12 @@ export function createSpeechBubble(
     bubbleEl.classList.add("is-streaming");
     // Arm the transition on the next frame (won't animate in the same frame right after clearing hidden)
     requestAnimationFrame(() => bubbleEl.classList.add("is-visible"));
+  }
+
+  function reveal(): void {
+    if (bubbleEl.classList.contains("is-visible")) return;
+    beginSpeech();
+    bubbleEl.classList.remove("is-streaming");
   }
 
   function pushSpeech(delta: string): void {
@@ -238,6 +249,7 @@ export function createSpeechBubble(
     endSpeech,
     finishSpeech,
     hideSpeech,
+    reveal,
     liftAboveInput,
     resetPosition,
     dispose,

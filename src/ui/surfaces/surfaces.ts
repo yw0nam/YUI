@@ -19,7 +19,12 @@ import { isTauri } from "../../tauri-env";
 import type { ToolStatus } from "../chips/status-pill";
 import { subscribe as subscribeLocale, t } from "../i18n";
 import { createTextInput } from "../input/text-input";
+import { createReasoningDisclosure, type ReasoningSource } from "../message/reasoning-disclosure";
 import { createSpeechBubble } from "../message/speech-bubble";
+
+// Arrows-out: moves speech into the message window. Stroke width comes from each button's CSS.
+const POP_ICON = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round"
+     stroke-linejoin="round" aria-hidden="true"><path d="M14 4h6v6M20 4l-8 8M10 20H4v-6M4 20l8-8"/></svg>`;
 
 export interface Surfaces {
   /** overlay root (.yui-ui) */
@@ -89,6 +94,8 @@ interface SurfacesOptions {
   onPop?: () => void;
   /** Called whenever the input's open state settles. */
   onInputOpenChange?: (open: boolean) => void;
+  /** The backend's reasoning, folded at the top of the bubble; only the message window passes it. */
+  reasoning?: ReasoningSource;
 }
 
 export function createSurfaces({
@@ -98,25 +105,30 @@ export function createSurfaces({
   keepBubbleUntilDismissed,
   onPop,
   onInputOpenChange,
+  reasoning,
 }: SurfacesOptions): Surfaces {
   const el = document.createElement("div");
   el.className = "yui-ui";
   el.innerHTML = `
     <div class="yui-bubble" hidden>
-      <span class="yui-bubble__text"></span><span class="yui-bubble__caret" aria-hidden="true">|</span>
-      <button class="yui-bubble__pop" type="button">⤢</button>
-      <button class="yui-bubble__close" type="button">
-        <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
-          <path d="M7 7l10 10M17 7L7 17" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-        </svg>
-      </button>
+      <div class="yui-bubble__tools">
+        <button class="yui-bubble__pop" type="button">${POP_ICON}</button>
+        <button class="yui-bubble__close" type="button">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" aria-hidden="true">
+            <path d="M6 6l12 12M18 6L6 18"/>
+          </svg>
+        </button>
+      </div>
+      <div class="yui-bubble__box">
+        <span class="yui-bubble__text"></span><span class="yui-bubble__caret" aria-hidden="true">|</span>
+      </div>
     </div>
     <span class="yui-bubble__sr" role="status" aria-live="polite"></span>
     <form class="yui-input" novalidate hidden>
       <div class="yui-input__tray"></div>
       <div class="yui-input__row">
-        <button type="button" class="yui-input__attach">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+        <button type="button" class="yui-input__btn yui-input__attach">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
                stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
             <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48" />
           </svg>
@@ -129,18 +141,14 @@ export function createSurfaces({
           spellcheck="false"
         ></textarea>
         <span class="yui-input__error" role="alert"></span>
-        <button type="button" class="yui-input__pop">⤢</button>
-        <button class="yui-input__send" type="submit">
+        <button type="button" class="yui-input__btn yui-input__pop">${POP_ICON}</button>
+        <button class="yui-input__btn yui-input__send" type="submit">
           <span class="icon-send" aria-hidden="true">
-            <svg viewBox="0 0 16 16">
-              <line x1="8" y1="13" x2="8" y2="3"/>
-              <polyline points="4,7 8,3 12,7"/>
-            </svg>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                 stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5M6 11l6-6 6 6"/></svg>
           </span>
           <span class="icon-stop" aria-hidden="true">
-            <svg viewBox="0 0 16 16">
-              <rect x="4" y="4" width="8" height="8" rx="1.5"/>
-            </svg>
+            <svg viewBox="0 0 24 24"><rect x="6" y="6" width="12" height="12" rx="2.5" fill="currentColor"/></svg>
           </span>
         </button>
         <input type="file" class="yui-input__picker" accept="image/*" multiple hidden />
@@ -150,6 +158,7 @@ export function createSurfaces({
   mount.appendChild(el);
 
   const bubbleEl = el.querySelector<HTMLDivElement>(".yui-bubble")!;
+  const bubbleBox = el.querySelector<HTMLDivElement>(".yui-bubble__box")!;
   const bubbleText = el.querySelector<HTMLSpanElement>(".yui-bubble__text")!;
   const bubbleSr = el.querySelector<HTMLSpanElement>(".yui-bubble__sr")!;
   const bubbleClose = el.querySelector<HTMLButtonElement>(".yui-bubble__close")!;
@@ -164,10 +173,18 @@ export function createSurfaces({
   const sendBtn = el.querySelector<HTMLButtonElement>(".yui-input__send")!;
 
   const bubble = createSpeechBubble(
-    { root: el, bubbleEl, bubbleText, bubbleSr, bubbleClose },
+    { root: el, bubbleEl, bubbleBox, bubbleText, bubbleSr, bubbleClose },
     dwellMs,
     keepBubbleUntilDismissed,
   );
+  // Only the first delta of a live cycle reveals the bubble, so a dismissed bubble stays down for stale reasoning.
+  const think = reasoning
+    ? createReasoningDisclosure({
+        mount: bubbleBox,
+        source: reasoning,
+        onCycleStart: bubble.reveal,
+      })
+    : null;
   const input = createTextInput(
     { formEl, field, errorEl, trayEl, attachBtn, picker, sendBtn },
     { liftAboveInput: bubble.liftAboveInput, resetPosition: bubble.resetPosition },
@@ -195,6 +212,7 @@ export function createSurfaces({
   function dispose(): void {
     unsubscribeLocale();
     for (const button of popButtons) button.removeEventListener("click", onPopClick);
+    think?.dispose();
     bubble.dispose();
     input.dispose();
     el.remove();

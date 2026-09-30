@@ -34,7 +34,12 @@ export function createMessagePlate({
     <span class="yui-plate__dot" aria-hidden="true"></span>
     <span class="yui-plate__name">YUI</span>
     <span class="yui-plate__state"></span>
-    <button class="yui-plate__dock" type="button">⤓</button>
+    <button class="yui-plate__dock" type="button">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+           stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <path d="M4 14h6v6M10 14l-6 6M20 10h-6V4M14 10l6-6"/>
+      </svg>
+    </button>
   `;
   mount.prepend(el);
 

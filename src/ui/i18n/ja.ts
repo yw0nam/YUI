@@ -499,7 +499,6 @@ const ja: Record<string, string> = {
 
   // reasoning
   "think.chip": "思考",
-  "aria.think_toggle": "思考の表示・非表示",
 };
 
 export default ja;

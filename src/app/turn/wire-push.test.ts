@@ -997,8 +997,6 @@ describe("createDelegationChipMount", () => {
     const chip = {
       el: {},
       setSuppressed: vi.fn(),
-      closeList: vi.fn(),
-      onListOpen: vi.fn(() => () => {}),
       dispose: vi.fn(),
     };
     createDelegationChip.mockReturnValue(chip);

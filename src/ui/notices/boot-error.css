@@ -51,10 +51,13 @@
   padding: 0.1rem 0.35rem;
   background: transparent;
   color: var(--yui-text-dim);
-  font: inherit;
-  font-size: 1rem;
-  line-height: 1;
   cursor: pointer;
+}
+
+.yui-boot-error__dismiss svg {
+  display: block;
+  width: 0.75rem;
+  height: 0.75rem;
 }
 
 .yui-boot-error__dismiss:hover,

@@ -3,7 +3,7 @@
  *
  * Deltas stream in while a cycle is live and the completed reply closes the cycle. Only the latest
  * cycle is kept: a delta after a finished cycle starts a new text. The text is never spoken
- * and never stored — the reasoning chip reads it.
+ * and never stored — the message window's bubble reads it.
  */
 
 export interface ReasoningState {

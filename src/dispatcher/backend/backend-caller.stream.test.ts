@@ -523,7 +523,7 @@ describe("backend_caller — usage sink (token accounting channel)", () => {
   });
 });
 
-// ── reasoning chip feed (streaming path) ────────────────────────────────────────
+// ── reasoning feed (streaming path) ─────────────────────────────────────────────
 
 describe("backend_caller — reasoning store feed", () => {
   it("each reasoning event → store.append in order; completed → finish(undefined)", async () => {

@@ -500,7 +500,6 @@ const en: Record<string, string> = {
 
   // reasoning
   "think.chip": "Reasoning",
-  "aria.think_toggle": "Show or hide the reasoning",
 };
 
 export default en;

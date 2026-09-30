@@ -15,7 +15,7 @@ type ReasoningBridge = Pick<
   "emitReasoning" | "onReasoning" | "emitReasoningAsk" | "onReasoningAsk"
 >;
 
-/** The reasoning state as another window sees it — the shape the reasoning chip reads. */
+/** The reasoning state as another window sees it — the shape the bubble's reasoning disclosure reads. */
 export interface ReasoningMirror {
   get(): ReasoningState;
   subscribe(cb: (s: ReasoningState) => void): () => void;
