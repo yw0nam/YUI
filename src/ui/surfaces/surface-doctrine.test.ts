@@ -204,20 +204,22 @@ describe("message-window.css — the plate is a chip, not a frosted panel", () =
 
   it("adds no backdrop-filter of its own", () => {
     expect(read("../message/message-window.css")).not.toMatch(/backdrop-filter/);
+    expect(read("../message/message-plate.css")).not.toMatch(/backdrop-filter/);
   });
 
   it("styles the plate with scrim-strong", () => {
-    expect(extractBlock(read("../message/message-window.css"), ".yui-plate")).toMatch(
+    expect(extractBlock(read("../message/message-plate.css"), ".yui-plate")).toMatch(
       /var\(--yui-scrim-strong\)/,
     );
   });
 
   it("takes its live-state color from the accent token, never a literal", () => {
-    const css = read("../message/message-window.css");
+    const css = read("../message/message-plate.css");
     expect(extractBlock(css, '.yui-plate[data-state="responding"] .yui-plate__dot')).toMatch(
       /var\(--yui-accent\)/,
     );
     expect(css).not.toMatch(/oklch\(/);
+    expect(read("../message/message-window.css")).not.toMatch(/oklch\(/);
   });
 
   // In flow, a closed input whose display rule outranks [hidden] would hold the column
@@ -317,7 +319,7 @@ describe("surfaces.css — the bubble's box carries the material", () => {
 
 // The scrim alpha carries contrast on the bubble, composer and plate; none adds a text shadow.
 describe("bubble, composer and plate — no text shadow", () => {
-  for (const file of ["surfaces.css", "../message/message-window.css"]) {
+  for (const file of ["surfaces.css", "../message/message-window.css", "../message/message-plate.css"]) {
     it(`${file} carries no text shadow`, () => {
       expect(read(file)).not.toMatch(/text-shadow/);
     });

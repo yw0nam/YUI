@@ -1,9 +1,10 @@
 /**
  * Phone bootstrap — phone.html entry point, the Android window.
  *
- * Graph: stores + config → createStageRenderer (renderer, camera, Tier 1) → createSurfaces (persistent composer)
- *   → push stores → config.load() → wirePhoneStage (fit band, touch camera, tap)
- *   → createPhoneBootstrap (turn core) → wirePushMode (socket).
+ * Graph: stores + config → createStageRenderer (renderer, camera, Tier 1) → top row (plate, chip,
+ * pill) → createSurfaces (persistent composer, plate-wrapped) → push stores → visibility port
+ *   → config.load() → wirePhoneStage (fit band, touch camera, tap)
+ *   → createPhoneBootstrap (turn core) → wirePushMode (socket, suspended by visibility).
  * The root follows the visual viewport, so the soft keyboard shortens the stage.
  */
 
@@ -12,6 +13,7 @@ import "../ui/phone/phone.css";
 import { createDisposers } from "../app/disposers";
 import { createPhoneBootstrap } from "../app/phone/bootstrap-phone";
 import { wirePhoneStage } from "../app/phone/stage/wire-phone-stage";
+import { createPhoneTopRow } from "../app/phone/top-row/create-phone-top-row";
 import { createWindowStores } from "../app/settings/window-stores";
 import { wireAvatarSelection } from "../app/settings/wire-avatar";
 import { createPetConfig } from "../app/settings/wire-config";
@@ -21,9 +23,11 @@ import { wirePushMode } from "../app/turn/wire-push";
 import { CHAT_API_KEY_SECRET, TTS_API_KEY_SECRET } from "../config/load";
 import { createEventBus } from "../dispatcher/core/event-bus";
 import { createUserInputSource } from "../dispatcher/sources/user-input-source";
+import { watchPageVisibility } from "../io/lifecycle/page-visibility";
 import { excludeOwnOriginFromCorsFetch } from "../io/window/own-origin-fetch";
 import { createLogger, initLogger } from "../logger";
 import { createVoiceInputStatus } from "../ui/chips/voice-input-status";
+import { withPlate } from "../ui/message/plate-surfaces";
 import { showBootError } from "../ui/notices/boot-error";
 import { attachVisualViewport, PHONE_INPUT_BOTTOM_PX } from "../ui/phone/phone-viewport";
 import { createSurfaces } from "../ui/surfaces/surfaces";
@@ -59,6 +63,9 @@ async function bootstrap(): Promise<{ dispose(): void }> {
   const config = petConfig.config;
   const { renderer } = createStageRenderer({ stage, settings: settingsStores, register });
 
+  // Read before any await so the initial hidden state is known at startup.
+  const visibility = watchPageVisibility(document);
+
   const voiceInputStatus = createVoiceInputStatus();
   register(() => voiceInputStatus.dispose());
 
@@ -87,10 +94,17 @@ async function bootstrap(): Promise<{ dispose(): void }> {
     register,
   });
 
+  const topRow = createPhoneTopRow({
+    mount: root,
+    voice: voiceInputStatus,
+    pushSocket: push.pushSocket,
+    delegations: push.delegations,
+  });
+  register(topRow.dispose);
+
   const surfaces = createSurfaces({
     mount: root,
-    // The phone draws no tool tell.
-    tool: { showTool() {}, finishTool() {}, hideTool() {} },
+    tool: topRow.tool,
     keepBubbleUntilDismissed: () => settingsStores.bubblePersistSettings.get().enabled,
     reasoning: push.reasoning,
     persistentInput: true,
@@ -110,10 +124,11 @@ async function bootstrap(): Promise<{ dispose(): void }> {
       wirePhoneStage({ stage, renderer, cfg, bus, cameraSettings: settingsStores.cameraSettings }),
     );
     surfaces.setAttachmentLimits(cfg.guardrails.attachments);
+    const plateSurfaces = withPlate(surfaces, topRow.plate);
     const configured = await createPhoneBootstrap(cfg, {
       config,
       renderer,
-      surfaces,
+      surfaces: plateSurfaces,
       settings: settingsStores,
       conversation: conversationStores,
       bus,
@@ -135,11 +150,11 @@ async function bootstrap(): Promise<{ dispose(): void }> {
     register(
       wirePushMode({
         socket: push.pushSocket,
-        // The phone mounts no delegation chip.
-        chip: { create() {}, dispose() {} },
+        chip: topRow.chip,
         getEndpoints: petConfig.getEndpoints,
         endpointsSettings: settingsStores.endpointsSettings,
         chatKeySettings: settingsStores.chatKeySettings,
+        suspended: visibility,
       }),
     );
   } catch (err) {

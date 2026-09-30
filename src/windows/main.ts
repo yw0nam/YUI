@@ -25,7 +25,11 @@ import { createPetConfig, wireConfigReload, wireConfigWatch } from "../app/setti
 import { createStageRenderer } from "../app/stage/stage-renderer";
 import { wireInputAnchor } from "../app/stage/wire-pet-stage";
 import { createPushStores, publishPushStores } from "../app/turn/push-stores";
-import { createDelegationChipMount, wirePushMode } from "../app/turn/wire-push";
+import {
+  createDelegationChipMount,
+  messageWindowSuppression,
+  wirePushMode,
+} from "../app/turn/wire-push";
 import { CHAT_API_KEY_SECRET, TTS_API_KEY_SECRET } from "../config/load";
 import { createEventBus } from "../dispatcher/core/event-bus";
 import { createUserInputSource } from "../dispatcher/sources/user-input-source";
@@ -95,7 +99,7 @@ async function bootstrap(): Promise<BootstrapHandle> {
   });
   register(() => statusPill.dispose());
 
-  const { surfaces, local, remote, getMode } = wireMessageSurfaces({
+  const { surfaces, local, remote } = wireMessageSurfaces({
     mount: root,
     tool: statusPill,
     bubblePersistSettings: settingsStores.bubblePersistSettings,
@@ -232,8 +236,7 @@ async function bootstrap(): Promise<BootstrapHandle> {
           store: push.delegations,
           pushState: push.pushSocket,
           onOpenSettings: () => controls.get().open(undefined, { tab: "conn" }),
-          getMode,
-          subscribeMode: settingsStores.messageWindowSettings.subscribe,
+          suppression: messageWindowSuppression(settingsStores.messageWindowSettings),
         }),
         getEndpoints: petConfig.getEndpoints,
         endpointsSettings: settingsStores.endpointsSettings,

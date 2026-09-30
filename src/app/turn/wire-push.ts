@@ -248,7 +248,7 @@ export function createDelegationChipMount(deps: {
         suppressed: deps.suppression?.get(),
       });
       offSuppression =
-        deps.suppression?.subscribe(() => chip?.setSuppressed(deps.suppression.get())) ?? null;
+        deps.suppression?.subscribe(() => chip?.setSuppressed(deps.suppression!.get())) ?? null;
     },
     dispose: () => {
       offSuppression?.();

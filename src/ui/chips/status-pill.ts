@@ -216,7 +216,7 @@ export function createStatusPill({
       onOpenSettings?.();
       return;
     }
-    if (el.dataset.fix !== "settings") return;
+    if (el.dataset.fix !== "settings" || !onFixVoice) return;
     onFixVoice();
     // The held error has served its purpose; hand the pill back to the live state.
     voice.set("listening");

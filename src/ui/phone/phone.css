@@ -24,6 +24,80 @@ body {
   touch-action: none;
 }
 
+/* ── Top row — plate, delegation chip, and the pill centred beneath; inside the safe area
+   `.yui-root` already provides. Sits above the absolute stage and surfaces. ── */
+.yui-phone__head {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  pointer-events: none;
+}
+.yui-phone__head > * {
+  pointer-events: auto;
+}
+
+.yui-phone__top {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  padding: 4px 8px 0 12px;
+}
+
+/* The pill drops its character-window placing and centres in the column. */
+.yui-phone .yui-status {
+  position: relative;
+  inset: auto;
+  align-self: center;
+  transform: none;
+}
+.yui-phone .yui-status.is-visible {
+  transform: none;
+}
+
+/* The chip rides the row instead of the character's shoulder; the popover keeps its anchor. */
+.yui-phone .yui-deleg {
+  position: relative;
+  inset: auto;
+  min-width: 0;
+  padding-left: 0;
+  transform: none;
+}
+.yui-phone .yui-deleg.is-visible {
+  transform: none;
+}
+
+/* Plate label and chip text give way before the 360px row overflows. */
+.yui-phone .yui-plate {
+  min-width: 0;
+}
+.yui-phone .yui-plate__state {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.yui-phone .yui-deleg__chip {
+  position: relative;
+  min-width: 0;
+}
+.yui-phone .yui-deleg__label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* 48px touch targets around the small chips, without resizing them. */
+.yui-phone .yui-deleg__chip::after {
+  content: "";
+  position: absolute;
+  inset: -11px;
+}
+.yui-phone .yui-status[data-fix="settings"]::after {
+  content: "";
+  position: absolute;
+  inset: -10px;
+}
+
 .yui-phone .yui-input {
   width: calc(100% - 20px);
   border-radius: 24px;
@@ -64,6 +138,14 @@ body {
 .yui-phone .yui-bubble__tools button:active {
   background: var(--yui-accent-faint);
   color: var(--yui-accent);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  /* The reduced-motion !important transform is a character-window placing. */
+  .yui-phone .yui-status,
+  .yui-phone .yui-status.is-visible {
+    transform: none !important;
+  }
 }
 
 .yui-phone .yui-input__btn,
