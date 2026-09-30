@@ -2,12 +2,9 @@
    Dark-mode-first warm-neutral chrome with a single point of Hearth Amber.
    OKLCH only, every neutral micro-tinted toward warm amber (~70–80°). */
 
-@font-face {
-  font-family: 'Pretendard JP Variable';
-  font-weight: 45 920;
-  src: url('/YUI/fonts/PretendardJPVariable.woff2') format('woff2-variations');
-  font-display: swap;
-}
+/* The Pretendard JP Variable family is served as a dynamic subset via the
+   stylesheet linked in config.ts head (/fonts/pretendardjp/…); no @font-face
+   lives here. */
 
 :root {
   /* Hearthlight tokens (mirror of src/ui/tokens.css + DESIGN.md) */
@@ -40,9 +37,6 @@
   --yui-dur-fast: 140ms;
 
   --yui-font: 'Pretendard JP Variable', system-ui, sans-serif;
-  /* Display = a warm humanist for doc-page headings only; the home page and
-     body text run in Pretendard. */
-  --yui-font-display: 'Hanken Grotesk', system-ui, -apple-system, sans-serif;
 }
 
 /* Force dark-first: VitePress reads these whether or not .dark is set. */
@@ -120,7 +114,6 @@
 .vp-doc h3,
 .vp-doc h4,
 .VPNavBarTitle .title {
-  font-family: var(--yui-font-display);
   letter-spacing: -0.01em;
 }
 
@@ -520,7 +513,6 @@
   pointer-events: none;
 }
 .yui-404 .yui-404-code {
-  font-family: var(--yui-font-display);
   font-size: clamp(3.5rem, 12vw, 6rem);
   font-weight: 700;
   letter-spacing: -0.03em;
