@@ -3,9 +3,17 @@
 
 @import "./ui/tokens.css";
 
+/* Bundled variable font — one file covers Korean, Japanese and Latin. */
+@font-face {
+  font-family: "Pretendard JP Variable";
+  font-weight: 45 920;
+  font-display: swap;
+  src: url("/fonts/PretendardJPVariable.woff2") format("woff2-variations");
+}
+
 :root {
-  color-scheme: light dark;
-  font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+  color-scheme: dark;
+  font-family: var(--yui-font);
 }
 
 html,

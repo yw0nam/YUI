@@ -1,12 +1,6 @@
 /* YUI quick-controls panel — settings panel summoned by right-click ("The Hearthlight" 4th surface).
    Draggable header + scrollable body (chat · input source · expression). Tokens in ./tokens.css. */
 
-/* Component-local tokens: dark input field background (instructions textarea) + opaque panel background. */
-.yui-quick {
-  --yui-field: oklch(0.16 0.012 70 / 0.7);
-  --yui-panel-bg: oklch(0.16 0.014 70);
-}
-
 /* ── scrim overlay (popover variant only) ── */
 .yui-quick-scrim {
   position: fixed;
@@ -31,7 +25,7 @@
   box-shadow: var(--yui-float);
   /* Removed backdrop-filter — decorative only on opaque background (The Float Rule) */
   color: var(--yui-text);
-  font-family: var(--yui-font, system-ui, -apple-system, "Segoe UI", sans-serif);
+  font-family: var(--yui-font);
   text-shadow: var(--yui-text-shadow);
   pointer-events: auto;
   z-index: 100;

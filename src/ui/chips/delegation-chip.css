@@ -10,7 +10,7 @@
   display: inline-flex;
   flex-direction: column;
   align-items: flex-start;
-  font-family: var(--yui-font, system-ui, -apple-system, "Segoe UI", sans-serif);
+  font-family: var(--yui-font);
   pointer-events: none;
 
   opacity: 0;

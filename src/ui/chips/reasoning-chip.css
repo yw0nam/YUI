@@ -5,7 +5,7 @@
    of the wrapping plate row. */
 .yui-think {
   display: contents;
-  font-family: var(--yui-font, system-ui, -apple-system, "Segoe UI", sans-serif);
+  font-family: var(--yui-font);
 }
 
 /* display: contents would otherwise beat the UA [hidden] rule and keep a hidden chip's

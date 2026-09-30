@@ -17,7 +17,7 @@
   box-shadow: var(--yui-float);
   color: var(--yui-text);
   text-shadow: var(--yui-text-shadow);
-  font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+  font-family: var(--yui-font);
   font-size: 0.85rem;
   line-height: 1.5;
 }

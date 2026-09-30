@@ -14,7 +14,7 @@
   border: 1px solid var(--yui-edge);
   box-shadow: var(--yui-float);
   color: var(--yui-text-dim);
-  font-family: var(--yui-font, system-ui, -apple-system, "Segoe UI", sans-serif);
+  font-family: var(--yui-font);
   font-size: 0.76rem;
   font-weight: 500;
   letter-spacing: 0.01em;

@@ -5,6 +5,17 @@
 :root {
   /* hue anchor: warm amber ~72° */
 
+  /* ── Type ── */
+  --yui-font: "Pretendard JP Variable", system-ui, -apple-system, "Segoe UI", sans-serif;
+
+  /* ── Type scale (5 steps) ── */
+  --yui-fs-caption: 0.6875rem; /* 11px: units, footnotes */
+  --yui-fs-sub: 0.75rem; /* 12px: row descriptions, chip labels */
+  --yui-fs-body: 0.8125rem; /* 13px: row labels, field text */
+  --yui-fs-head: 0.875rem; /* 14px: section titles */
+  --yui-fs-title: 1.25rem; /* 20px: tab title */
+  --yui-fs-speech: 0.95rem; /* speech bubble and composer text; outside the panel scale on purpose */
+
   /* ── Accent: Hearth Amber ──
      Only accent for warmth and emphasis. *Moments only* (active input border·speech onset·focus/hover). ≤10% of surface. */
   --yui-accent: oklch(0.8 0.13 75);
@@ -20,10 +31,17 @@
 
   /* ── Surface (Scrim) ──
      Translucent dark background of floating surfaces like bubble, chip. Key to readability over arbitrary backgrounds. */
-  --yui-scrim: oklch(0.21 0.014 70 / 0.64);
-  --yui-scrim-strong: oklch(0.19 0.014 70 / 0.82); /* Inputs, small chips need more definition */
+  --yui-scrim: oklch(0.2 0.014 70 / 0.8); /* Legible over a light desktop without a text shadow */
+  --yui-scrim-strong: oklch(0.18 0.014 70 / 0.9); /* Darker for definition; same legibility rule */
   --yui-edge: oklch(0.97 0.01 80 / 0.1); /* Hairline holding surface edge on dark bg */
   --yui-edge-strong: oklch(0.97 0.01 80 / 0.16); /* Hover-emphasis hairline */
+
+  /* ── Panel surfaces (opaque windows) ── */
+  --yui-panel-bg: oklch(0.16 0.014 70);
+  --yui-group-bg: oklch(0.97 0.01 80 / 0.035);
+  --yui-hover: oklch(0.97 0.01 80 / 0.06);
+  --yui-selected: oklch(0.97 0.01 80 / 0.11);
+  --yui-field: oklch(0.13 0.012 70 / 0.8);
 
   /* ── Danger: restrained warm-red. For undo/failure guidance only (hue 35 to avoid amber conflict). ── */
   --yui-danger: oklch(0.77 0.11 35);
@@ -44,6 +62,11 @@
   --yui-radius-chip: 999px;
   --yui-radius-row: 10px;
   --yui-radius-img: 10px;
+
+  /* ── Shape (3 steps) ── */
+  --yui-radius-group: 12px;
+  --yui-radius-control: 8px;
+  --yui-radius-pill: 999px;
 
   /* ── Speech bubble layout ── */
   --yui-bubble-bottom: 16%; /* Character's lower-half band — bottom anchor so face isn't hidden */

@@ -12,7 +12,7 @@
   pointer-events: none;
   /* Own stacking context: above the canvas, guarantees z-order among surfaces */
   isolation: isolate;
-  font-family: var(--yui-font, system-ui, -apple-system, "Segoe UI", sans-serif);
+  font-family: var(--yui-font);
 }
 
 /* prefers-reduced-motion: soften transitions to opacity-only, drop choreography (principle ⑤) */
