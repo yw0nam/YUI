@@ -137,6 +137,10 @@
 .yui-bubble__text > :last-child {
   margin-bottom: 0;
 }
+/* markdown.ts wraps the speech in a <span>; an inline last paragraph keeps the caret on its line. */
+.yui-bubble__text > span > p:last-child {
+  display: inline;
+}
 .yui-bubble__text ul,
 .yui-bubble__text ol {
   margin: 0.4em 0;
@@ -226,7 +230,7 @@
 .yui-bubble__caret {
   display: none;
   width: 0.06em;
-  margin-left: 0.06em;
+  margin-left: 0.1em;
   color: var(--yui-accent);
   font-weight: 600;
   /* Speech onset warmth moment — blinking amber caret */
