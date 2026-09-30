@@ -285,6 +285,13 @@ describe("surfaces.css — the bubble's box carries the material", () => {
     );
   });
 
+  // markdown.ts wraps the speech in a <span>; a block last paragraph would push the caret to its own line.
+  it("runs the last speech paragraph inline so the streaming caret follows the text", () => {
+    expect(extractBlock(css(), ".yui-bubble__text > span > p:last-child")).toMatch(
+      /display:\s*inline/,
+    );
+  });
+
   it("clips the reasoning at six lines and scrolls it", () => {
     const block = extractBlock(css(), ".yui-bubble__think-text");
     expect(block).toMatch(/max-height:\s*calc\(6 \* 1\.45em\)/);
