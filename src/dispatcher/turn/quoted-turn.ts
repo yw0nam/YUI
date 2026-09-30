@@ -19,7 +19,7 @@ export interface QuoteSurfaces {
 }
 
 export interface QuotedTurn {
-  /** The dispatcher admitted a turn: a user turn replaces the quote, any other turn ends it. */
+  /** The dispatcher admitted a turn: a user turn replaces the quote, any other turn settles it. */
   admitted(turn: Turn): void;
   /** Speech playback opened a backend utterance for the current turn. */
   utteranceStart(): void;
@@ -30,7 +30,7 @@ export interface QuotedTurn {
 
 export function createQuotedTurn(deps: {
   surfaces: QuoteSurfaces;
-  turnLog: Pick<TurnLog, "current" | "subscribe">;
+  turnLog: Pick<TurnLog, "subscribe">;
 }): QuotedTurn {
   const { surfaces } = deps;
   let quoted: {
@@ -53,7 +53,7 @@ export function createQuotedTurn(deps: {
       if (via === undefined) {
         if (quoted === null) return;
         quoted = null;
-        surfaces.clearQuote();
+        surfaces.settleQuote();
         return;
       }
       const text = userTextOf(turn.trigger) ?? "";
@@ -62,7 +62,7 @@ export function createQuotedTurn(deps: {
       surfaces.quoteUser({ text, via, images: images.length });
     },
     utteranceStart() {
-      if (quoted && deps.turnLog.current()?.id === quoted.id) quoted.spoke = true;
+      if (quoted) quoted.spoke = true;
     },
     failed(turn) {
       if (quoted?.id !== turn.id) return;

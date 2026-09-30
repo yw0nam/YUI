@@ -786,7 +786,7 @@ describe("dispatcher — the admitted turn and the quoted-turn ledger", () => {
     expect(surfaces.restoreInput).not.toHaveBeenCalled();
   });
 
-  it("a pending proactive turn admitted at settlement ends the quote", async () => {
+  it("a pending proactive turn admitted at settlement settles the quote once", async () => {
     const surfaces = wireQuote();
     dispatcher.start();
 
@@ -806,7 +806,7 @@ describe("dispatcher — the admitted turn and the quoted-turn ledger", () => {
     await vi.advanceTimersByTimeAsync(20);
 
     expect(callDeferred).toHaveLength(2);
-    expect(surfaces.clearQuote).toHaveBeenCalledTimes(1);
-    expect(surfaces.settleQuote).not.toHaveBeenCalled();
+    expect(surfaces.settleQuote).toHaveBeenCalledTimes(1);
+    expect(surfaces.clearQuote).not.toHaveBeenCalled();
   });
 });

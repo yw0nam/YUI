@@ -60,12 +60,13 @@ describe("createQuotedTurn", () => {
     expect(surfaces.quoteUser).toHaveBeenCalledWith({ text: "hello", via: "voice", images: 0 });
   });
 
-  it("an admitted turn the user did not start clears the quote", () => {
+  it("an admitted turn the user did not start settles the quote", () => {
     admit(userEnv("hi"));
 
     admit(proactiveEnv());
 
-    expect(surfaces.clearQuote).toHaveBeenCalledTimes(1);
+    expect(surfaces.settleQuote).toHaveBeenCalledTimes(1);
+    expect(surfaces.clearQuote).not.toHaveBeenCalled();
     expect(surfaces.quoteUser).toHaveBeenCalledTimes(1);
   });
 
@@ -122,16 +123,6 @@ describe("createQuotedTurn", () => {
     turnLog.settle(second.id);
     expect(surfaces.settleQuote).toHaveBeenCalledTimes(1);
     expect(surfaces.quoteUser).toHaveBeenLastCalledWith({ text: "two", via: "text", images: 0 });
-  });
-
-  it("an utterance for another current turn does not mark the quote as spoken", () => {
-    const first = admit(userEnv("hi"));
-    turnLog.begin(proactiveEnv());
-
-    quoted.utteranceStart();
-    quoted.failed(first);
-
-    expect(surfaces.restoreInput).toHaveBeenCalledWith("hi", []);
   });
 
   it("dispose stops the settlement subscription", () => {
