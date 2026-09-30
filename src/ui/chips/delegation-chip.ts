@@ -43,7 +43,7 @@ interface DelegationChipOptions {
    */
   pushState: PushStatePort;
   /** Opens the settings window at the chat section — what a tap does while the connection is lost. */
-  onOpenSettings(): void;
+  onOpenSettings?: () => void;
   /** Starts hidden, for a window that has nothing to report yet. */
   suppressed?: boolean;
   now?: () => number;
@@ -168,11 +168,13 @@ export function createDelegationChip({
       clearRefreshTimer();
       closeList();
       chipBtn.removeAttribute("aria-expanded");
+      chipBtn.dataset.action = onOpenSettings ? "settings" : "none";
       labelEl.textContent = t("deleg.chip_lost");
       countEl.textContent = "";
       show();
       return;
     }
+    delete chipBtn.dataset.action;
     if (!chipBtn.hasAttribute("aria-expanded")) {
       chipBtn.setAttribute("aria-expanded", String(listOpen));
     }
@@ -232,7 +234,7 @@ export function createDelegationChip({
       return;
     }
     if (pushState.getState().kind !== "ready") {
-      onOpenSettings();
+      onOpenSettings?.();
       return;
     }
     if (listOpen) closeList();
