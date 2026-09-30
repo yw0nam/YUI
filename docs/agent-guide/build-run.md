@@ -20,7 +20,9 @@ cd src-tauri && cargo test  # Rust unit tests
 
 ## Android
 
-`src-tauri/gen/android/` holds the Android Studio project that `tauri android init` generates. `src-tauri/tauri.android.conf.json` overrides the desktop config for Android: the identifier is `com.yui.mobile` (debug builds install as `com.yui.mobile.debug`), and the bundled resources are `configs/` plus the default VRM.
+`src-tauri/gen/android/` holds the Android Studio project that `tauri android init` generates. `src-tauri/tauri.android.conf.json` overrides the desktop config for Android: the identifier is `com.yui.mobile` (debug builds install as `com.yui.mobile.debug`), the one window opens `phone.html`, and the bundled resources are `configs/` plus the default VRM.
+
+The phone window's bootstrap is `src/windows/phone-main.ts`. Chat on the phone is the push transport, selected by the effective endpoints: `configs/endpoints.json` merged with the `yui.endpoints` override store, with `chat_api` set to `push` and `chat_base_url` to the gateway. The chat key comes from `VITE_YUI_CHAT_KEY` (the process environment or `.env.local`) or the key store. The phone applies the config once per launch, so an edit to `configs/endpoints.json` takes an app restart. The emulator reaches a host-local gateway at `http://10.0.2.2:<port>`, for example `VITE_YUI_CHAT_KEY=<key> pnpm android:dev` with `"chat_base_url": "http://10.0.2.2:<port>"`.
 
 ### Toolchain
 
@@ -60,7 +62,7 @@ On the emulator, WebGL output appears only when the AVD runs on the host GPU (`h
 | System tray | `#[cfg(desktop)] mod tray` and its call in `setup.rs` | Tauri defines its `tray` module for desktop only |
 | Repo `logs/` directory in debug builds | Desktop-only branch in `app_log::log_dir` | `Read-only file system (os error 30)` on every log write |
 
-The frontend runs unchanged on Android. The summon hotkey, click-through hit-test, cursor tracker, walker, climber, faller, and keep-on-screen log a warning when their command or plugin is absent, and the VRM keeps rendering.
+The phone window invokes none of the gated commands and plugins, and its logs go to the app's private `logs/` directory (see Logs).
 
 ## Release
 

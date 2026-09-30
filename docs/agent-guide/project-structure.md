@@ -19,6 +19,7 @@ YUI/
   settings.html                      # Settings-window Vite entry
   devtools.html                      # Developer Tools Vite entry
   message.html                       # Message-window Vite entry
+  phone.html                         # Phone-window Vite entry, the Android window
   vite.config.ts                     # Dev port YUI_DEV_PORT|1420, strictPort, host 127.0.0.1
   biome.json                         # Format and lint config (curated rule set)
   .claude/
@@ -66,6 +67,8 @@ YUI/
         wire-avatar.ts               # VRM and speaker selection stores, their swap and import flows, and the avatar config applied at boot
         wire-config.ts               # The config store over the bundled configs, the runtime key stores, the live endpoint/guardrail merges, and the reload/watch wiring
         wire-cue-locale-sync.ts      # Reseeds untouched built-in cues when the display language changes
+      phone/                         # The phone window's config-derived half
+        bootstrap-phone.ts           # Phone window's config-derived bootstrap: starts and connects the turn core under one teardown bag
     logger.ts                        # Namespaced frontend logger with a runtime level
     tauri-env.ts                     # Tauri runtime detection
     windows/                         # One entry file per window, loaded by the matching HTML file
@@ -73,6 +76,7 @@ YUI/
       settings-main.ts               # Settings window
       devtools-main.ts               # Developer Tools window
       message-main.ts                # Message window
+      phone-main.ts                  # Phone window: stage, persistent composer, and push chat
     styles.css                       # Pet-window base stylesheet
     vite-env.d.ts                    # Vite client types and build-time env declarations
     contract/                        # TS contract types — the wire schema source of truth
@@ -321,7 +325,7 @@ YUI/
         format-accel.ts              # Renders an accelerator string for display
       message/                       # Message-window plate, bubble, and cue-list rendering
         speech-bubble.ts             # Speech bubble: dwell, scroll, markdown, and aria for streamed speech
-        reasoning-disclosure.ts      # Backend reasoning folded at the top of the message window's bubble
+        reasoning-disclosure.ts      # Backend reasoning folded at the top of the bubble in the message and phone windows
         message-plate.ts             # Message-window name plate and OS drag handle
         markdown.ts                  # Speech markdown rendering through marked and DOMPurify
         cue-list.ts                  # Reusable cue-list section for schedule and proactive cues
@@ -345,6 +349,9 @@ YUI/
         ingress-dead-notice.ts       # One-off notice when the Rust agent ingress listener dies
         first-run-hint.ts            # First-run controls hint through the speech bubble
         boot-error.css               # Boot-failure notice styles
+      phone/                         # Phone-window layout
+        phone-viewport.ts            # Sizes the phone root to the visual viewport and writes the keyboard overlap
+        phone.css                    # Phone root, safe area, stage background, and touch-sized composer and bubble
       quick-controls/                # Quick-controls shell parts and sections
         quick-controls.ts            # Quick-controls panel: header, tab rail, and tab body
         quick-controls.css           # Quick-controls shell, tab rail, sections, groups, and rows
