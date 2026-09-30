@@ -106,6 +106,8 @@ export function createStatusPill({
       return;
     }
     const fixable = snapshot.state === "error" && isSettingsFixable(snapshot.detail);
+    // The fix wording names the destination; without an opener the condition is announced alone.
+    const fixOffered = fixable && onFixVoice !== undefined;
     const voiceLabel = fixable
       ? t("voice.error.not_configured")
       : t(`voice.state.${snapshot.state}`);
@@ -117,8 +119,7 @@ export function createStatusPill({
 
     voiceBtn.hidden = !snapshot.visible;
     voiceBtn.dataset.voice = snapshot.state;
-    // The fix state announces the destination, not just the condition.
-    const announced = fixable ? t("voice.error.not_configured_fix") : voiceLabel;
+    const announced = fixOffered ? t("voice.error.not_configured_fix") : voiceLabel;
     voiceBtn.setAttribute("aria-label", t("aria.voice_input", { label: announced }));
 
     delete dotEl.dataset.tool;
@@ -137,8 +138,8 @@ export function createStatusPill({
     dotEl.hidden = !segment;
     sepEl.hidden = !segment || !(captureOn || snapshot.visible);
 
-    // The fix link only exists while the voice owns the segment and something can open the panel.
-    const fixShown = fixable && !tool && onFixVoice !== undefined;
+    // The fix link only exists while the voice owns the segment.
+    const fixShown = fixOffered && !tool;
     if (fixShown) el.dataset.fix = "settings";
     else delete el.dataset.fix;
     voiceBtn.tabIndex = fixShown ? 0 : -1;
