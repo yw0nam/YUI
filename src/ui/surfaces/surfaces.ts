@@ -15,7 +15,6 @@
 import "./surfaces.css";
 import type { AttachmentLimits } from "../../config/load";
 import type { InputErrorAction } from "../../io/bridge/message-remote";
-import { isTauri } from "../../tauri-env";
 import type { ToolStatus } from "../chips/status-pill";
 import { subscribe as subscribeLocale, t } from "../i18n";
 import { createTextInput } from "../input/text-input";
@@ -90,12 +89,14 @@ interface SurfacesOptions {
   dwellMs?: number;
   /** When it returns true, speech holds until the bubble's close button (or new speech) dismisses it. */
   keepBubbleUntilDismissed?: () => boolean;
-  /** Called when a pop-out button — on the bubble or on the input row — is pressed. */
+  /** Called when a pop-out button — on the bubble or on the input row — is pressed; without it both are hidden. */
   onPop?: () => void;
   /** Called whenever the input's open state settles. */
   onInputOpenChange?: (open: boolean) => void;
-  /** The backend's reasoning, folded at the top of the bubble; only the message window passes it. */
+  /** The backend's reasoning, folded at the top of the bubble. */
   reasoning?: ReasoningSource;
+  /** The input stays open from construction; the send button sends and Enter is a newline. */
+  persistentInput?: boolean;
 }
 
 export function createSurfaces({
@@ -106,6 +107,7 @@ export function createSurfaces({
   onPop,
   onInputOpenChange,
   reasoning,
+  persistentInput,
 }: SurfacesOptions): Surfaces {
   const el = document.createElement("div");
   el.className = "yui-ui";
@@ -186,12 +188,11 @@ export function createSurfaces({
     { formEl, field, errorEl, trayEl, attachBtn, picker, sendBtn },
     { liftAboveInput: bubble.liftAboveInput, resetPosition: bubble.resetPosition },
     onInputOpenChange,
+    { persistentInput },
   );
 
-  // Both exits lead to the same window; without a second OS window there is nowhere
-  // to pop into, so the browser build hides them.
   const popButtons = [bubblePop, inputPop];
-  for (const button of popButtons) button.hidden = !isTauri();
+  for (const button of popButtons) button.hidden = onPop === undefined;
 
   // Surfaces aren't remounted on locale change, so the labels are (re)applied here.
   function applyLocaleLabels(): void {

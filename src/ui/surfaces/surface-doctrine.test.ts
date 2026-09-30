@@ -227,15 +227,6 @@ describe("message-window.css — the plate is a chip, not a frosted panel", () =
       extractBlock(read("../message/message-window.css"), ".yui-ui--message .yui-input[hidden]"),
     ).toMatch(/display:\s*none/);
   });
-
-  it("hides the pop button in the window that is already popped out", () => {
-    expect(
-      extractBlock(read("../message/message-window.css"), ".yui-ui--message .yui-bubble__pop"),
-    ).toMatch(/display:\s*none/);
-    expect(
-      extractBlock(read("../message/message-window.css"), ".yui-ui--message .yui-input__pop"),
-    ).toMatch(/display:\s*none/);
-  });
 });
 
 // The chip's list opens at min-width: 15rem anchored to the chip's left edge in

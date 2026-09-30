@@ -67,7 +67,10 @@ export function createTextInput(
   { formEl, field, errorEl, trayEl, attachBtn, picker, sendBtn }: TextInputElements,
   bubble: TextInputBubbleAnchor,
   onOpenChange?: (open: boolean) => void,
+  options?: { persistentInput?: boolean },
 ): TextInput {
+  // Always shown, never summoned or dismissed: the button sends and Enter is a newline.
+  const persistent = options?.persistentInput ?? false;
   const submitHandlers: Array<(text: string, images: string[]) => void> = [];
   const stopHandlers: Array<() => void> = [];
   const attachments: string[] = [];
@@ -98,6 +101,10 @@ export function createTextInput(
   }
 
   function summonInput(): void {
+    if (persistent) {
+      field.focus();
+      return;
+    }
     // Idempotent: a re-summon on an open input must not reset error/pending state or replay the reveal.
     if (isInputOpen()) return;
     formEl.hidden = false;
@@ -112,6 +119,10 @@ export function createTextInput(
   }
 
   function dismissInput(): void {
+    if (persistent) {
+      field.blur();
+      return;
+    }
     formEl.classList.remove("is-open");
     field.blur();
     const onEnd = (e: TransitionEvent): void => {
@@ -195,6 +206,7 @@ export function createTextInput(
     inFlight = 0;
     epoch++;
     trayEl.replaceChildren();
+    if (!formEl.hidden) liftBubbleAboveInput();
   }
 
   function addFiles(files: FileList | File[]): void {
@@ -249,9 +261,11 @@ export function createTextInput(
       const idx = Array.from(trayEl.children).indexOf(chip);
       if (idx !== -1) attachments.splice(idx, 1);
       chip.remove();
+      if (!formEl.hidden) liftBubbleAboveInput();
     });
     chip.append(img, remove);
     trayEl.append(chip);
+    if (!formEl.hidden) liftBubbleAboveInput();
   }
 
   function onStop(cb: () => void): void {
@@ -299,6 +313,10 @@ export function createTextInput(
     const images = attachments.slice();
     for (const cb of submitHandlers) cb(text, images);
     clearAttachments();
+    if (persistent) {
+      field.value = "";
+      fitField();
+    }
   }
 
   function handleSubmit(e: Event): void {
@@ -319,6 +337,7 @@ export function createTextInput(
       dismissInput();
       return;
     }
+    if (persistent) return;
     // Textarea has no implicit submit; WebKit reports the IME-committing Enter as keyCode 229.
     if (e.key === "Enter" && !e.shiftKey && !e.isComposing && e.keyCode !== 229) {
       e.preventDefault();
@@ -363,6 +382,12 @@ export function createTextInput(
     e.preventDefault();
     formEl.classList.remove("is-dragover");
     if (e.dataTransfer) addFiles(e.dataTransfer.files);
+  }
+
+  if (persistent) {
+    formEl.hidden = false;
+    formEl.classList.add("is-open");
+    fitField();
   }
 
   formEl.addEventListener("submit", handleSubmit);

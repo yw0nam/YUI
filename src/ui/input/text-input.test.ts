@@ -841,7 +841,6 @@ describe("input row pop-out button", () => {
     s.dispose();
     mount.remove();
     setLocale("en");
-    delete (globalThis as { __TAURI_INTERNALS__?: unknown }).__TAURI_INTERNALS__;
   });
 
   const popBtn = (): HTMLButtonElement =>
@@ -860,27 +859,6 @@ describe("input row pop-out button", () => {
   it("reports the pop request on click", () => {
     popBtn().click();
     expect(onPop).toHaveBeenCalledTimes(1);
-  });
-
-  it("stays hidden outside Tauri, exactly like the bubble's pop button", () => {
-    const bubblePop = mount.querySelector(".yui-bubble__pop") as HTMLButtonElement;
-    expect(popBtn().hidden).toBe(true);
-    expect(popBtn().hidden).toBe(bubblePop.hidden);
-  });
-
-  it("shows in the Tauri runtime, where a second window exists to pop into", () => {
-    (globalThis as { __TAURI_INTERNALS__?: unknown }).__TAURI_INTERNALS__ = {};
-    const other = document.createElement("div");
-    document.body.appendChild(other);
-    const s2 = createSurfaces({ tool: noTool, mount: other });
-
-    const rowPop = other.querySelector(".yui-input__pop") as HTMLButtonElement;
-    const bubblePop = other.querySelector(".yui-bubble__pop") as HTMLButtonElement;
-    expect(rowPop.hidden).toBe(false);
-    expect(rowPop.hidden).toBe(bubblePop.hidden);
-
-    s2.dispose();
-    other.remove();
   });
 
   it("re-applies its label on locale change (surfaces is not re-mounted)", () => {
