@@ -20,7 +20,10 @@ import type {
   ToolStatusFrame,
   TurnEndFrame,
 } from "../../io/chat/push-socket";
-import { createMessageWindowSettings } from "../../settings/panels/message-window-settings";
+import {
+  createMessageWindowSettings,
+  type MessageWindowMode,
+} from "../../settings/panels/message-window-settings";
 
 const { createDelegationChip } = vi.hoisted(() => ({ createDelegationChip: vi.fn() }));
 vi.mock("../../ui/chips/delegation-chip", () => ({ createDelegationChip }));
@@ -1036,12 +1039,30 @@ describe("createDelegationChipMount", () => {
     expect(chip.dispose).toHaveBeenCalledOnce();
   });
 
-  it("builds the pet's suppression port from the message-window mode", () => {
+  it("builds the pet's suppression port from the pet's own mode reader", () => {
     const store = createMessageWindowSettings();
-    const port = messageWindowSuppression(store);
+    // The pet's reader carries the isTauri guard — outside Tauri it answers docked.
+    let readerMode: MessageWindowMode = "docked";
+    let notify: (() => void) | null = null;
+    const port = messageWindowSuppression({
+      getMode: () => readerMode,
+      subscribe: (cb: () => void) => {
+        notify = cb;
+        return () => {
+          notify = null;
+        };
+      },
+    });
 
-    expect(port.get()).toBe(false);
     store.setMode("popped");
+    expect(port.get()).toBe(false);
+
+    readerMode = "popped";
     expect(port.get()).toBe(true);
+
+    let notified = 0;
+    port.subscribe(() => notified++);
+    notify?.();
+    expect(notified).toBe(1);
   });
 });
