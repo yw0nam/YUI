@@ -84,7 +84,7 @@ export async function wireTurnCore(
   deps: {
     getFrontmost: DispatcherDeps["getFrontmost"];
     screenCapturer: DispatcherDeps["screenCapturer"];
-    openQuickControls: DispatcherDeps["openQuickControls"];
+    openQuickControls?: DispatcherDeps["openQuickControls"];
     register: (dispose: () => void) => void;
     ensureActive: () => void;
   },

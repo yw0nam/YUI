@@ -72,7 +72,7 @@ export function wireDispatcher(deps: {
   pushTurns: PushTurns;
   pushSocket: PushSocket | null;
   getVocabulary: () => BrokerPayload;
-  openQuickControls: (tab: QuickControlsTab) => void;
+  openQuickControls?: (tab: QuickControlsTab) => void;
   showVoiceError: (reason: string) => void;
   appendTurnRecord: (record: TurnRecord | PacerSkipRecord) => void;
   t: (key: string, vars?: Record<string, string | number>) => string;
