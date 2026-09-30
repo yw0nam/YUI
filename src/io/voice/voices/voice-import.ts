@@ -7,8 +7,8 @@
  * file touches disk, so cancelling the naming step needs no cleanup.
  *
  * Thin layer over the dialog plugin + the Rust `import_voice_file` / `rename_user_voice` /
- * `remove_user_voice` commands. Deps are injectable so tests never touch a real Tauri runtime; the real
- * Tauri APIs are lazily imported (non-Tauri/test envs never load them).
+ * `remove_user_voice` commands. Deps are injectable so tests never touch a real Tauri runtime;
+ * the real Tauri APIs are lazily imported (non-Tauri/test envs never load them).
  */
 
 import {

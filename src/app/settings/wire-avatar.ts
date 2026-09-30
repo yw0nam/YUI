@@ -203,6 +203,7 @@ export function wireSpeakerSelection(deps: {
       migrateUserVoiceIds({
         speakerSelection,
         renameUserVoice,
+        removeUserVoice: removeUserVoiceFile,
         log,
       }),
   };

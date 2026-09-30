@@ -233,7 +233,7 @@ const realFactories: ConfiguredBootstrapFactories = {
       register,
     });
     // The refresh re-uploads missing user voices, so it runs on the migrated ids.
-    void migrateVoiceIds().then(refreshVoiceList);
+    void migrateVoiceIds().finally(refreshVoiceList);
     await loadVrmSerialized(vrmSelection.getActive().url);
     ensureActive();
     maybeShowFirstRunHint({
