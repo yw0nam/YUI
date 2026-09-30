@@ -1,7 +1,7 @@
 /**
- * YUI interaction surfaces — speech bubble · tool-status · text input.
+ * YUI interaction surfaces — speech bubble · text input, forwarding tool status.
  *
- * Mounts the three surfaces as one system (DESIGN.md "The Hearthlight") and
+ * Mounts the two surfaces as one system (DESIGN.md "The Hearthlight") and
  * composes their independent controllers behind one API. The API is a **state
  * renderer** — firing ≠ judgment: it only *draws* the state the backend decides.
  * Judgment (whether/what to speak) is the backend's; speech triggers come from
@@ -16,7 +16,7 @@ import "./surfaces.css";
 import type { AttachmentLimits } from "../../config/load";
 import type { InputErrorAction } from "../../io/bridge/message-remote";
 import { isTauri } from "../../tauri-env";
-import { createToolStatus } from "../chips/tool-status";
+import type { ToolStatus } from "../chips/status-pill";
 import { subscribe as subscribeLocale, t } from "../i18n";
 import { createTextInput } from "../input/text-input";
 import { createSpeechBubble } from "../message/speech-bubble";
@@ -40,12 +40,9 @@ export interface Surfaces {
   /** Hide the bubble immediately (ignoring dwell). */
   hideSpeech(): void;
 
-  // ── tool-status (observing backend tools) ──
-  /** Show a running chip for tool_id (label from tool-labels lookup, humanized if unmapped). */
+  // ── tool status (observing backend tools), forwarded to the ToolStatus the surfaces were given ──
   showTool(toolId: string): void;
-  /** Transition the running chip to done (check), then auto-dismiss shortly after. Ignored if no chip. */
   finishTool(): void;
-  /** Hide the chip immediately. */
   hideTool(): void;
 
   // ── text input ──
@@ -82,6 +79,8 @@ export interface Surfaces {
 
 interface SurfacesOptions {
   mount: HTMLElement;
+  /** Where tool status is drawn; the surfaces render no tool tell of their own. */
+  tool: ToolStatus;
   /** dwell (config value) override. Default = --yui-dwell token. */
   dwellMs?: number;
   /** When it returns true, speech holds until the bubble's close button (or new speech) dismisses it. */
@@ -94,6 +93,7 @@ interface SurfacesOptions {
 
 export function createSurfaces({
   mount,
+  tool,
   dwellMs,
   keepBubbleUntilDismissed,
   onPop,
@@ -102,10 +102,6 @@ export function createSurfaces({
   const el = document.createElement("div");
   el.className = "yui-ui";
   el.innerHTML = `
-    <div class="yui-tool" role="status" aria-live="polite" hidden>
-      <span class="yui-tool__dot" aria-hidden="true"></span>
-      <span class="yui-tool__label"></span>
-    </div>
     <div class="yui-bubble" hidden>
       <span class="yui-bubble__text"></span><span class="yui-bubble__caret" aria-hidden="true">|</span>
       <button class="yui-bubble__pop" type="button">⤢</button>
@@ -153,8 +149,6 @@ export function createSurfaces({
   `;
   mount.appendChild(el);
 
-  const toolEl = el.querySelector<HTMLDivElement>(".yui-tool")!;
-  const toolLabel = el.querySelector<HTMLSpanElement>(".yui-tool__label")!;
   const bubbleEl = el.querySelector<HTMLDivElement>(".yui-bubble")!;
   const bubbleText = el.querySelector<HTMLSpanElement>(".yui-bubble__text")!;
   const bubbleSr = el.querySelector<HTMLSpanElement>(".yui-bubble__sr")!;
@@ -174,7 +168,6 @@ export function createSurfaces({
     dwellMs,
     keepBubbleUntilDismissed,
   );
-  const tool = createToolStatus({ toolEl, toolLabel });
   const input = createTextInput(
     { formEl, field, errorEl, trayEl, attachBtn, picker, sendBtn },
     { liftAboveInput: bubble.liftAboveInput, resetPosition: bubble.resetPosition },
@@ -203,7 +196,6 @@ export function createSurfaces({
     unsubscribeLocale();
     for (const button of popButtons) button.removeEventListener("click", onPopClick);
     bubble.dispose();
-    tool.dispose();
     input.dispose();
     el.remove();
   }

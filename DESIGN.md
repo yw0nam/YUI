@@ -57,22 +57,13 @@ components:
     textColor: "{colors.text}"
     rounded: "{rounded.input}"
     padding: "0.55rem 0.7rem"
-  tool-status:
+  status-pill:
     backgroundColor: "{colors.scrim-strong}"
     textColor: "{colors.text-dim}"
     typography: "{typography.label}"
     rounded: "{rounded.chip}"
-    padding: "0.28rem 0.7rem"
-  voice-indicator:
-    backgroundColor: "{colors.scrim-strong}"
-    textColor: "{colors.text-dim}"
-    rounded: "{rounded.chip}"
-    padding: "0.3rem 0.64rem"
-  capture-indicator:
-    backgroundColor: "{colors.scrim-strong}"
-    textColor: "{colors.text-dim}"
-    rounded: "{rounded.chip}"
-    padding: "0.3rem 0.66rem"
+    height: "1.75rem"
+    padding: "0 0.7rem"
   settings-row:
     rounded: "{rounded.row}"
     padding: "0.5rem 0.55rem"
@@ -88,7 +79,7 @@ The canonical token source is [`src/ui/tokens.css`](src/ui/tokens.css); the fron
 
 YUI's interface is the dying embers of a fireplace: it burns warmly in a corner of the room without stealing the gaze. The character owns the stage; the chrome lights up only when it has something to say, then recedes into the dark. Color is near-achromatic neutral, warmth carried by a single point of amber. Type is a warm humanist sans; motion is feedback, never choreography. The whole system's purpose is to *step back*.
 
-Every surface floats over an arbitrary desktop background in a transparent, always-on-top window, so each must be legible against any backdrop without a heavy container. The surfaces that ever appear (speech bubble, text input, tool-status chip, delegation chip, reasoning chip, capture and voice indicators, message window, boot-failure notice) are the system's entirety and its signature.
+Every surface floats over an arbitrary desktop background in a transparent, always-on-top window, so each must be legible against any backdrop without a heavy container. The surfaces that ever appear (speech bubble, text input, status pill, delegation chip, reasoning chip, message window, boot-failure notice) are the system's entirety and its signature.
 
 This system explicitly rejects the bottom-right SaaS chatbot widget (Intercom/Drift), the messenger chat list (Discord/Slack/KakaoTalk), and the pushy speech bubbles of the old desktop mascot (Clippy). YUI is not a widget, not a messenger, not a mascot.
 
@@ -107,15 +98,15 @@ Near-achromatic warm neutral with a single point of amber. The model is **dark s
 
 ### Neutral
 - **Speech White** (`oklch(0.95 0.012 80)`): primary body/speech text on a floating surface; warm, not pure white.
-- **Ash** (`oklch(0.78 0.016 75)`): labels, tool-status, secondary text.
+- **Ash** (`oklch(0.78 0.016 75)`): labels, the status pill, secondary text.
 - **Muted Ash** (`oklch(0.66 0.014 72)`): disabled text, hints, eyebrows.
-- **Scrim** (`oklch(0.2 0.014 70 / 0.8)`): the semi-transparent dark backdrop under every floating surface; a stronger variant (`oklch(0.18 0.014 70 / 0.9)`) sharpens the text input and the small-label chips (tool-status, capture/voice pills).
+- **Scrim** (`oklch(0.2 0.014 70 / 0.8)`): the semi-transparent dark backdrop under every floating surface; a stronger variant (`oklch(0.18 0.014 70 / 0.9)`) sharpens the text input and the small-label chips (the status pill).
 - **Hairline** (`oklch(0.97 0.01 80 / 0.1)`, hover `/ 0.16`): the thin edge that holds a surface outline against a dark backdrop.
 - **Warm Ink** (`oklch(0.22 0.01 70)`, `--yui-ink`): dark text for light contexts and for the count on the folded delegation chip's amber badge. Body text on a floating surface stays light.
 
 ### Functional
 - **Ember Red** (`oklch(0.77 0.11 35)`, `--yui-danger`): undo, failure messaging and the failed-delegation dot. Hue 35 keeps it clear of the amber accent; soft and faint variants match the accent pattern.
-- **Ok Green** (`oklch(0.82 0.14 150)`, `--yui-ok`): tool-chip completion and the finished-delegation dot. Hue 150 keeps it clear of both the amber accent and Ember Red; the soft variant (`--yui-ok-soft`, `/ 0.4`) carries the completion blink.
+- **Ok Green** (`oklch(0.82 0.14 150)`, `--yui-ok`): the status pill's tool-done check and the finished-delegation dot. Hue 150 keeps it clear of both the amber accent and Ember Red; the soft variant (`--yui-ok-soft`, `/ 0.4`) carries the connected ring in the settings panel.
 
 ### Named Rules
 **The 10% Warmth Rule.** Hearth Amber occupies ≤10% of any surface. Scarcity is the warmth; once common it reads as branding and breaks invisible-by-default.
@@ -168,10 +159,14 @@ The primary floating surface (`surfaces.css`). A scrim panel with no tail and no
 A slim field summoned by hotkey or the quick-controls Type a message button, sliding up from the bottom (`surfaces.css`). Stronger scrim (`oklch(0.19 0.014 70 / 0.82)`), 12px corners, transparent inner field. The field is multi-line — it starts at one line and grows with its content, up to six lines in the character window (growing upward, the bubble lifting with it) and twelve in the message window, then scrolls inside; Enter sends and Shift+Enter breaks the line, with the attach, pop-out and send buttons sitting on the last line. At rest the border is a hairline; on `:focus-within` it ignites to a Hearth Amber border plus an amber-soft ring, the design's signature warmth moment. Submit failure shows an Ember Red inline message, never a side-stripe. Between the field and the send button the row carries a ⤢ pop-out button, Muted-Ash at rest and igniting to Hearth Amber on hover, that moves speech and the typing session into the message window.
 
 ### Message window
-A separate always-on-top window (`message-window.css`) holding the speech bubble and the text input when the surfaces are popped out of the character window. 340px wide, anchored by its top-left corner and grown downward by its content: a name-plate handle, then the bubble, then the input. The plate is a Strong-Scrim chip carrying a state dot, the name and a hover-revealed ⤓ that docks the surfaces back into the character window. The dot reads three states: idle — Muted-Ash and dim, no label; thinking, a turn running with no speech streaming — a "Thinking" label on the plate, the dot breathing Ash, and the input border slowly swelling to Hearth Amber with an amber-soft ring; responding, speech streaming — a "Responding" label, the dot pulsing Hearth Amber, and the bubble border slowly swelling to amber-soft. Under reduced motion nothing animates and the borders hold steady. The bubble hangs on the plate's left edge with its top-left corner pressed to 6px, height-capped at twelve lines in this window, and keeps the frost, the caret, the scroll cap and the dismiss button it wears in the character window. Docked mode is the character-window layout plus a hover-revealed ⤢ beside the dismiss button that pops the surfaces back out. The tool-status chip and the capture and voice indicators stay with the character in both modes; the delegation chip follows the surfaces, riding the plate's row as a separate pill to its right while popped out and leaving the character window bare. The reasoning chip, a 💭 pill that opens the backend's reasoning text, shares that plate row and lives in the message window alone.
+A separate always-on-top window (`message-window.css`) holding the speech bubble and the text input when the surfaces are popped out of the character window. 340px wide, anchored by its top-left corner and grown downward by its content: a name-plate handle, then the bubble, then the input. The plate is a Strong-Scrim chip carrying a state dot, the name and a hover-revealed ⤓ that docks the surfaces back into the character window. The dot reads three states: idle — Muted-Ash and dim, no label; thinking, a turn running with no speech streaming — a "Thinking" label on the plate, the dot breathing Ash, and the input border slowly swelling to Hearth Amber with an amber-soft ring; responding, speech streaming — a "Responding" label, the dot pulsing Hearth Amber, and the bubble border slowly swelling to amber-soft. Under reduced motion nothing animates and the borders hold steady. The bubble hangs on the plate's left edge with its top-left corner pressed to 6px, height-capped at twelve lines in this window, and keeps the frost, the caret, the scroll cap and the dismiss button it wears in the character window. Docked mode is the character-window layout plus a hover-revealed ⤢ beside the dismiss button that pops the surfaces back out. The status pill stays with the character in both modes; the delegation chip follows the surfaces, riding the plate's row as a separate pill to its right while popped out and leaving the character window bare. The reasoning chip, a 💭 pill that opens the backend's reasoning text, shares that plate row and lives in the message window alone.
 
-### Tool-status chip
-A low-emphasis pill (`surfaces.css`) shown while the backend runs a tool. Pill-shaped (999px), Strong-Scrim background, Ash text, a Float shadow, and a calm opacity dot-pulse (no spinner). Amber stays absent throughout. At completion the dot solidifies into an Ok Green checkmark and the chip's border blinks ok-soft twice before it settles and dismisses, marking the finish without spending the accent.
+### Status pill
+One pill at the top edge of the character window (`chips/status-pill.css`) carries the three tells above the character: screen capture, voice input and the backend's running tool. It is centred at 4.5% from the top, 1.75rem tall and pill-shaped, with a Strong-Scrim background, a hairline edge, one Float shadow, Ash label text at the sub size and weight 500, and 0.9rem line icons at stroke 1.5. It enters and leaves with an opacity fade and a 6px drift over `--yui-dur`.
+
+The pill shows while capture is on, voice input is live or a tool runs, and leaves once all three settle. With capture on and nothing else, it holds the capture icon alone, with a steady Hearth Amber point on the icon's corner as the always-on privacy cue; clicking the icon opens the settings panel. While voice input is live, a mic icon follows, then a hairline separator, a dot and the voice state as the label. The dot pulses Hearth Amber while listening and transcribing, holds full amber with a 2px amber-soft ring once a turn fires, and turns Ember Red on error. In the one error the settings panel can resolve, an unconfigured backend, the label becomes an inline link: the reason under a Hearth-Amber-soft underline and a trailing Muted-Ash gear glyph, both igniting to full Hearth Amber on hover and keyboard focus, and a click anywhere on the pill opens the settings panel's Advanced tab.
+
+While the backend runs a tool, the tool's label takes the segment and the dot pulses Ash, keeping amber out of work. The mic icon stays and turns Ember Red itself when voice input is in error. At completion the dot solidifies into an Ok Green checkmark and holds 1.5 s with the tool's label, then the segment falls back to the voice state or the pill leaves. The capture icon, and the whole pill while it shows the voice fix, take pointer events; everywhere else clicks pass through to the character. Under reduced motion nothing pulses and the pill fades in place, and the label and dot colour carry every state.
 
 ### Boot-failure notice
 A dismissible floating notice (`boot-error.css`) shown when config or VRM loading fails and the transparent window would otherwise stay blank. Strong Scrim, Speech White guidance, and a single Float shadow preserve the legible-on-anything doctrine; a danger-colored uppercase title names the failure, and a quiet dismiss button removes the notice.
@@ -188,8 +183,8 @@ The settings panel's History tab (`quick-controls/sections/history-section.css`)
 ### Delegation list
 The backend's delegated work as rows (`chips/delegation-rows.css`), shared by the chip's popover beside the avatar and the settings panel's Session section. Each row is a dot, an ellipsized title and a tabular-nums time: the dot is Hearth Amber while the work runs, Ok Green once it finished and Ember Red when it failed; the time reads the elapsed minutes while running and "Done · 4m ago" or "Failed · 4m ago" after. In the Session section, which lists the client's persisted history, a finished row that carries a summary is a chevron disclosure (`aria-expanded`) opening the worker's summary and "Took 12m" underneath; the popover's rows never open.
 
-### Capture & voice indicators
-Paired status pills at the top edge (`capture-indicator.css`, `voice-input-indicator.css`). Same pill shape and Strong-Scrim as the tool chip. The capture tell carries an amber pulse dot while the screen is being attached (an always-on privacy cue); the voice tell carries a dot that pulses amber while listening, settles to a steady full Hearth Amber when a turn fires (the label carries the state change), and turns Ember Red on error. In the one error the settings panel can resolve — an unconfigured backend — that voice pill is also an inline link: the label states the reason under a Hearth-Amber-soft underline and gains a trailing gear glyph in Muted-Ash, both igniting to full Hearth Amber on hover and `:focus-visible` (with an amber-soft focus ring), and clicking it opens the settings panel's Advanced tab.
+### Named Rules
+**The One-Pulse Rule.** Of the status dots in the character window, only the status pill's dot pulses. The capture point and the delegation chip's dot hold still, and their state reads from colour and label.
 
 ## 6. Do's and Don'ts
 

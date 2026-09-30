@@ -10,11 +10,13 @@ import { wireMessageWindowMode } from "../../io/window/openers/message-window-mo
 import type { MessageWindowMode } from "../../settings/panels/message-window-settings";
 import type { SettingsStores } from "../../settings/settings-stores";
 import { isTauri } from "../../tauri-env";
+import type { ToolStatus } from "../chips/status-pill";
 import { createSurfaces, type Surfaces } from "./surfaces";
 import { createSurfacesRouter } from "./surfaces-router";
 
 export function wireMessageSurfaces(deps: {
   mount: HTMLElement;
+  tool: ToolStatus;
   bubblePersistSettings: Pick<SettingsStores["bubblePersistSettings"], "get">;
   messageWindowSettings: Pick<
     SettingsStores["messageWindowSettings"],
@@ -29,6 +31,7 @@ export function wireMessageSurfaces(deps: {
 } {
   const local = createSurfaces({
     mount: deps.mount,
+    tool: deps.tool,
     keepBubbleUntilDismissed: () => deps.bubblePersistSettings.get().enabled,
     onPop: () => deps.messageWindowSettings.setMode("popped"),
   });

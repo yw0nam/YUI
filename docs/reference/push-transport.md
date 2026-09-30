@@ -21,7 +21,7 @@ The client renders what arrives and judges nothing. Everything the backend must 
 | Delegation list `items` | 50 entries |
 | `done` item kept in the chip after `ended_at` | 30 min |
 | Delegation history kept by the client | 200 items |
-| `done` tool chip held before it dismisses | 1.5 s |
+| `done` state held in the status pill's tool segment before it clears | 1.5 s |
 
 The backend cuts `title` and `summary` to their limits, counting Unicode code points.
 
@@ -194,7 +194,7 @@ Sent once per turn after its last `render`; a turn with no `render` sends it alo
 | `state` | `"running"` when the tool call starts, `"done"` when it returns |
 | `tool_id` | The tool name as the backend knows it |
 
-Sent while the turn runs, once per state change of a tool call. It counts as a frame of the turn for the frame wait and leaves the running state, the thinking motion and speech as they are. A turn may carry none. A `tool_status` for a turn the client did not send shows the tool chip and speaks no tool phrase. A running tool that gets no `done` is cleared by the turn's `turn_end`, and by the socket leaving `ready`.
+Sent while the turn runs, once per state change of a tool call. It counts as a frame of the turn for the frame wait and leaves the running state, the thinking motion and speech as they are. A turn may carry none. A `tool_status` for a turn the client did not send shows the status pill's tool segment and speaks no tool phrase. A running tool that gets no `done` is cleared by the turn's `turn_end`, and by the socket leaving `ready`.
 
 ### `reasoning` (backend → client)
 

@@ -10,13 +10,14 @@ import type { createQuickControls } from "../../ui/quick-controls/quick-controls
 /**
  * Overlay elements that must take OS pointer events while shown — everything else in the overlay
  * stays click-through. The bubble itself is display-only; only its dismiss button is a target.
- * The voice chip earns pointer events only in the one state where it has a fix to offer.
+ * The status pill takes them on its capture button, and as a whole only while it offers the voice fix.
  */
 export const INTERACTIVE_OVERLAY_SELECTORS = [
   ".yui-input.is-open",
   ".yui-bubble.is-visible .yui-bubble__close",
   ".yui-bubble.is-visible .yui-bubble__pop",
-  '.yui-voice.is-visible[data-fix="settings"]',
+  ".yui-status:not([hidden]) .yui-status__capture:not([hidden])",
+  '.yui-status:not([hidden])[data-fix="settings"]',
   ".yui-deleg.is-visible .yui-deleg__chip",
   ".yui-deleg.is-visible .yui-deleg__list.is-open",
 ] as const;

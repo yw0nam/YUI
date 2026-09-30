@@ -80,7 +80,7 @@ interface DispatcherDeps {
    * Report a backend call failure of a user-initiated turn (user.text_submitted /
    * user.voice_segment_ready) along with its source (which trigger it was) —
    * superseded_by_user is excluded since it is not an error.
-   * main.ts wires this to the UI error surface (showInputError / voice-input-indicator).
+   * main.ts wires this to the UI error surface (showInputError / the status pill's voice segment).
    * proactive/schedule/agent turn failures are only logged and never surface here (silent by design).
    */
   onUserTurnFailed?: (

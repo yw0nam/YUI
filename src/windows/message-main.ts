@@ -58,6 +58,8 @@ async function bootstrap(): Promise<void> {
 
   const surfaces = createSurfaces({
     mount: app,
+    // Tool tells stay with the character; this window draws none.
+    tool: { showTool() {}, finishTool() {}, hideTool() {} },
     keepBubbleUntilDismissed: () => bubblePersistSettings.get().enabled,
     onInputOpenChange: (open) => bridge.emitControl({ op: "input-open", open }),
   });

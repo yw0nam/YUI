@@ -391,14 +391,16 @@ describe("status pill — teardown", () => {
   it("stops a pending done hold from mutating the pill after dispose", () => {
     vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
     const p = setup();
+    const root = p.root();
+    const dot = p.dot();
     p.pill.showTool("web_search");
     p.pill.finishTool();
     p.pill.dispose();
     p.pill.showTool("terminal");
     vi.advanceTimersByTime(2600);
 
-    expect(p.dot().dataset.tool).toBe("done");
-    expect(p.root().isConnected).toBe(false);
+    expect(dot.dataset.tool).toBe("done");
+    expect(root.isConnected).toBe(false);
   });
 });
 

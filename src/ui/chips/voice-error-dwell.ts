@@ -1,9 +1,9 @@
 /**
- * How long a voice-turn failure holds the indicator's error state.
+ * How long a voice-turn failure holds the status pill's voice error state.
  *
- * Transient failures clear quickly so the chip does not sit red. A settings-fixable
- * one holds far longer, because its chip carries a fix affordance that must not
- * vanish mid-reach — but it still expires: that chip is registered interactive, so
+ * Transient failures clear quickly so the pill does not sit red. A settings-fixable
+ * one holds far longer, because the pill then carries a fix affordance that must not
+ * vanish mid-reach — but it still expires: that pill is registered interactive, so
  * an unattended one would keep taking OS clicks meant for what sits behind YUI.
  */
 

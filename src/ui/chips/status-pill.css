@@ -1,0 +1,219 @@
+/* YUI status pill — the capture, voice and tool tells in one pill at the top of the character
+   window. Its dot is the only thing that pulses in that window. Tokens live in ../tokens.css. */
+
+.yui-status {
+  position: absolute;
+  top: 4.5%;
+  left: 50%;
+  transform: translate(-50%, -6px);
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  box-sizing: border-box;
+  height: 1.75rem;
+  padding: 0 0.7rem;
+  border: 1px solid var(--yui-edge);
+  border-radius: var(--yui-radius-pill);
+  background: var(--yui-scrim-strong);
+  box-shadow: var(--yui-float);
+  color: var(--yui-text-dim);
+  font-family: var(--yui-font);
+  font-size: var(--yui-fs-sub);
+  font-weight: 500;
+  white-space: nowrap;
+  user-select: none;
+  pointer-events: none;
+
+  opacity: 0;
+  transition:
+    opacity var(--yui-dur) var(--yui-ease),
+    transform var(--yui-dur) var(--yui-ease),
+    border-color var(--yui-dur-fast) var(--yui-ease);
+}
+
+/* display: inline-flex beats the UA's [hidden] rule, so hide the pill and its segments explicitly. */
+.yui-status[hidden],
+.yui-status [hidden] {
+  display: none;
+}
+
+.yui-status.is-visible {
+  opacity: 1;
+  transform: translate(-50%, 0);
+}
+
+.yui-status__capture,
+.yui-status__voice {
+  position: relative;
+  display: inline-flex;
+  padding: 0;
+  border: 0;
+  border-radius: var(--yui-radius-control);
+  background: none;
+  color: var(--yui-text-dim);
+  font: inherit;
+  cursor: default;
+  transition: color var(--yui-dur-fast) var(--yui-ease);
+}
+
+.yui-status__icon {
+  width: 0.9rem;
+  height: 0.9rem;
+}
+
+/* Capture is the pill's one standing action: it opens the settings panel. */
+.yui-status__capture {
+  pointer-events: auto;
+  cursor: pointer;
+}
+
+.yui-status__capture:hover,
+.yui-status__capture:focus-visible {
+  color: var(--yui-text);
+}
+
+.yui-status__capture:focus-visible,
+.yui-status__voice:focus-visible {
+  outline: 2px solid var(--yui-accent-soft);
+  outline-offset: 2px;
+}
+
+/* Steady amber point on the lens corner — an always-on privacy cue that never pulses. */
+.yui-status__capture-dot {
+  position: absolute;
+  top: -0.15rem;
+  right: -0.15rem;
+  width: 0.35rem;
+  height: 0.35rem;
+  border-radius: 50%;
+  background: var(--yui-accent);
+}
+
+/* Icon color only: the error never adds a second dot. */
+.yui-status__voice[data-voice="error"] {
+  color: var(--yui-danger);
+}
+
+.yui-status__sep {
+  width: 1px;
+  height: 0.9rem;
+  background: var(--yui-edge-strong);
+}
+
+.yui-status__dot {
+  flex: none;
+  width: 0.45rem;
+  height: 0.45rem;
+  border-radius: 50%;
+  background: var(--yui-accent);
+}
+
+.yui-status__dot[data-voice="listening"],
+.yui-status__dot[data-voice="asr"] {
+  animation: yui-status-pulse 1.4s var(--yui-ease) infinite;
+}
+
+.yui-status__dot[data-voice="fired"] {
+  box-shadow: 0 0 0 2px var(--yui-accent-soft);
+}
+
+.yui-status__dot[data-voice="error"] {
+  background: var(--yui-danger);
+}
+
+.yui-status__dot[data-tool="running"] {
+  background: var(--yui-text-dim);
+  animation: yui-status-pulse 1.4s var(--yui-ease) infinite;
+}
+
+/* done — the dot solidifies into a checkmark (rotated box + two-side border) in ok green. */
+.yui-status__dot[data-tool="done"] {
+  width: 0.3rem;
+  height: 0.55rem;
+  border-radius: 0;
+  background: transparent;
+  border: solid var(--yui-ok);
+  border-width: 0 0.12rem 0.12rem 0;
+  transform: translateY(-0.06rem) rotate(45deg);
+}
+
+@keyframes yui-status-pulse {
+  0%,
+  100% {
+    opacity: 0.35;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+/* not_configured voice error — the pill is the fix. Same inline-link treatment as
+   .yui-input__error-action, so "clickable" reads the same on both error surfaces. */
+.yui-status[data-fix="settings"] {
+  pointer-events: auto;
+  cursor: pointer;
+}
+
+.yui-status[data-fix="settings"] .yui-status__voice {
+  cursor: pointer;
+}
+
+.yui-status[data-fix="settings"] .yui-status__label {
+  color: var(--yui-text);
+  text-decoration: underline;
+  text-decoration-color: var(--yui-accent-soft);
+  text-underline-offset: 0.18em;
+  text-decoration-thickness: 0.08em;
+  transition:
+    color var(--yui-dur-fast) var(--yui-ease),
+    text-decoration-color var(--yui-dur-fast) var(--yui-ease);
+}
+
+.yui-status__fix-glyph {
+  display: none;
+  flex: none;
+  width: 0.72rem;
+  height: 0.72rem;
+  margin-left: -0.2rem;
+  color: var(--yui-text-mute);
+  transition: color var(--yui-dur-fast) var(--yui-ease);
+}
+
+.yui-status[data-fix="settings"] .yui-status__fix-glyph {
+  display: block;
+}
+
+.yui-status[data-fix="settings"]:hover,
+.yui-status[data-fix="settings"]:has(:focus-visible) {
+  border-color: var(--yui-accent-soft);
+}
+
+.yui-status[data-fix="settings"]:hover .yui-status__label,
+.yui-status[data-fix="settings"]:has(:focus-visible) .yui-status__label {
+  color: var(--yui-accent);
+  text-decoration-color: var(--yui-accent);
+}
+
+.yui-status[data-fix="settings"]:hover .yui-status__fix-glyph,
+.yui-status[data-fix="settings"]:has(:focus-visible) .yui-status__fix-glyph {
+  color: var(--yui-accent);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .yui-status {
+    transition-duration: var(--yui-dur-fast) !important;
+    transition-property: opacity !important;
+    transform: translate(-50%, 0) !important;
+  }
+
+  .yui-status__dot {
+    animation: none !important;
+  }
+
+  .yui-status__capture,
+  .yui-status__voice,
+  .yui-status__fix-glyph,
+  .yui-status[data-fix="settings"] .yui-status__label {
+    transition: none;
+  }
+}

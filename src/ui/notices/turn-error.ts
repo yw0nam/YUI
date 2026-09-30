@@ -60,7 +60,7 @@ type TurnFailureAction = { kind: "show_input_error" } | { kind: "voice_error" } 
  * the time the failure arrives.
  *  - text + input open   -> the inline input error.
  *  - text + input closed -> nothing (the user already dismissed it; log-only).
- *  - voice                -> always the voice-input-indicator error state.
+ *  - voice                -> always the status pill's voice error state.
  */
 export function routeTurnFailure(source: UserTurnSource, isInputOpen: boolean): TurnFailureAction {
   if (source === "voice") return { kind: "voice_error" };

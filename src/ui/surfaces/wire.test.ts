@@ -55,6 +55,7 @@ function setup(mode: MessageWindowMode) {
   const register = vi.fn();
   const result = wireMessageSurfaces({
     mount: {} as HTMLElement,
+    tool: { showTool: vi.fn(), finishTool: vi.fn(), hideTool: vi.fn() },
     bubblePersistSettings: { get: () => ({ enabled: false }) },
     messageWindowSettings,
     register,

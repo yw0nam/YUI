@@ -78,7 +78,7 @@ _Avoid_: thinking, placeholder, stall
 ### Surfaces & periphery
 
 **Surface**:
-A floating piece of chrome the character speaks or listens through (speech bubble, tool-status chip, text input, voice indicator) that appears only when it has something to show, then recedes.
+A floating piece of chrome the character speaks or listens through (speech bubble, status pill, text input) that appears only when it has something to show, then recedes.
 _Avoid_: widget, overlay, panel
 
 **Signals**:

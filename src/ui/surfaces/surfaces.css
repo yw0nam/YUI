@@ -1,10 +1,10 @@
-/* YUI interaction surfaces — speech bubble · tool-status · text input.
+/* YUI interaction surfaces — speech bubble · text input.
    "The Hearthlight" (DESIGN.md). Everything is normally gone (invisible-by-default)
    and appears warmly only when needed (warm-when-present). Tokens in ./tokens.css. */
 
 /* ── overlay layer ──
    Overlaps the stage (character canvas, drag region). Default pointer-events:none —
-   display surfaces (bubble·tool chip) pass clicks/drags through so the character stays grabbable.
+   display surfaces (bubble) pass clicks/drags through so the character stays grabbable.
    Only the input restores pointer-events. (No data-tauri-drag-region on this layer → input doesn't get dragged) */
 .yui-ui {
   position: absolute;
@@ -18,19 +18,15 @@
 /* prefers-reduced-motion: soften transitions to opacity-only, drop choreography (principle ⑤) */
 @media (prefers-reduced-motion: reduce) {
   .yui-bubble,
-  .yui-tool,
   .yui-input {
     transition-duration: var(--yui-dur-fast) !important;
     transition-property: opacity !important;
   }
-  .yui-bubble,
-  .yui-tool {
+  .yui-bubble {
     /* Drop only vertical slide/scale — keep horizontal centering (-50%) */
     transform: translateX(-50%) !important;
   }
-  .yui-bubble__caret,
-  .yui-tool__dot,
-  .yui-tool[data-state="done"] {
+  .yui-bubble__caret {
     animation: none !important;
   }
 }
@@ -399,108 +395,7 @@
 }
 
 /* ════════════════════════════════════════════════════════════
-   2. Tool-status chip — low-emphasis small pill. Shown during backend tool execution.
-      No amber used (working is not a warmth moment) — warm ash + subdued dot pulse.
-   ════════════════════════════════════════════════════════════ */
-.yui-tool {
-  position: absolute;
-  top: 4%;
-  left: 50%;
-  transform: translate(-50%, 4px);
-
-  display: inline-flex;
-  align-items: center;
-  gap: 0.4rem;
-  padding: 0.38rem 0.9rem;
-  border-radius: var(--yui-radius-chip);
-  background: var(--yui-scrim-strong);
-  border: 1px solid var(--yui-edge);
-  box-shadow: var(--yui-float);
-
-  color: var(--yui-text-dim);
-  font-size: 0.875rem;
-  font-weight: 500;
-  letter-spacing: 0.02em;
-  white-space: nowrap;
-  text-shadow: var(--yui-text-shadow);
-
-  opacity: 0;
-  pointer-events: none;
-  transition:
-    opacity var(--yui-dur) var(--yui-ease),
-    transform var(--yui-dur) var(--yui-ease);
-}
-/* display: inline-flex beats the UA's [hidden] rule, so hide it explicitly. */
-.yui-tool[hidden] {
-  display: none;
-}
-
-.yui-tool.is-visible {
-  opacity: 1;
-  transform: translate(-50%, 0);
-}
-
-/* Dismissal drifts further away (past the resting position) on a slower transition than appearance. */
-.yui-tool.is-hiding {
-  opacity: 0;
-  transform: translate(-50%, -6px);
-  transition:
-    opacity var(--yui-dur-out) ease-out,
-    transform var(--yui-dur-out) ease-out;
-}
-
-.yui-tool__dot {
-  width: 0.5rem;
-  height: 0.5rem;
-  border-radius: 50%;
-  background: var(--yui-text-dim);
-  /* Subdued opacity pulse — not a spinner, no layout animation */
-  animation: yui-dot-pulse 1.4s var(--yui-ease) infinite;
-}
-
-@keyframes yui-dot-pulse {
-  0%,
-  100% {
-    opacity: 0.35;
-  }
-  50% {
-    opacity: 1;
-  }
-}
-
-/* done — pulse dot solidifies into checkmark (rotated box + two-side border), ok green = completion. */
-.yui-tool[data-state="done"] .yui-tool__dot {
-  width: 0.34rem;
-  height: 0.6rem;
-  border-radius: 0;
-  background: transparent;
-  border: solid var(--yui-ok);
-  border-width: 0 0.13rem 0.13rem 0;
-  transform: translateY(-0.06rem) rotate(45deg);
-  animation: none;
-}
-
-/* done — the chip itself warms with a brief blink before it settles and dismisses. */
-.yui-tool[data-state="done"] {
-  color: var(--yui-text);
-  border-color: var(--yui-ok-soft);
-  animation: yui-chip-blink 0.5s var(--yui-ease) 2;
-}
-
-@keyframes yui-chip-blink {
-  0%,
-  100% {
-    box-shadow: var(--yui-float);
-  }
-  50% {
-    box-shadow:
-      var(--yui-float),
-      0 0 0 3px var(--yui-ok-soft);
-  }
-}
-
-/* ════════════════════════════════════════════════════════════
-   3. Text input — slim field summoned by hotkey. Slides up from bottom.
+   2. Text input — slim field summoned by hotkey. Slides up from bottom.
       Amber border when active = warmth moment. Normally fully hidden.
    ════════════════════════════════════════════════════════════ */
 .yui-input {

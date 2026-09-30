@@ -1,6 +1,6 @@
 /**
- * The pet window's local control surfaces: the quick-controls panel, the capture and voice-input
- * indicators, and the stage context menu — rebuilt together when the display language changes.
+ * The pet window's local control surfaces: the quick-controls panel, rebuilt when the display
+ * language changes, and the stage context menu.
  */
 
 import type { ConfigStore } from "../../config/store";
@@ -14,8 +14,6 @@ import { endpointDefaultsFromConfig } from "../../settings/backend/endpoints-set
 import { rateLimitDefaultsFromConfig } from "../../settings/backend/guardrails-settings";
 import { screenDefaultsFromConfig } from "../../settings/capture/screen-settings";
 import type { SettingsStores } from "../../settings/settings-stores";
-import { createCaptureIndicator } from "../../ui/chips/capture-indicator";
-import { createVoiceInputIndicator } from "../../ui/chips/voice-input-indicator";
 import type { VoiceInputStatus } from "../../ui/chips/voice-input-status";
 import { subscribe as subscribeLocale } from "../../ui/i18n";
 import { createQuickControls } from "../../ui/quick-controls/quick-controls";
@@ -27,7 +25,7 @@ import { wireCueLocaleSync } from "../settings/wire-cue-locale-sync";
 export type QuickControls = ReturnType<typeof createQuickControls>;
 
 /**
- * Wires the panel, both indicators, and the context menu, and hands back the live panel: `get()`
+ * Wires the panel and the context menu, and hands back the live panel: `get()`
  * follows the instance across a locale remount, so consumers read it at use time.
  */
 export function wirePetControls(deps: {
@@ -234,29 +232,11 @@ export function wirePetControls(deps: {
       onPopOut: () => openSettings(),
       onMessage: () => surfaces.summonInput(),
     });
-  // DOM surfaces re-mounted on locale change (see i18n subscriber below). Held in
-  // let bindings; onActivate arrows read the live binding, so recreating is safe.
+  // Re-mounted on locale change (see i18n subscriber below); consumers read the live binding.
   let quickControls = buildQuickControls();
   register(() => quickControls.dispose());
   // A popped-out surface has no settings panel of its own; it asks this window for one.
   remote.onOpenSettings(() => quickControls.open(undefined, { tab: "adv" }));
-  const buildCaptureIndicator = (): ReturnType<typeof createCaptureIndicator> =>
-    createCaptureIndicator({
-      mount: root,
-      settings: screenshotSettings,
-      onActivate: () => quickControls.open(),
-    });
-  const buildVoiceInputIndicator = (): ReturnType<typeof createVoiceInputIndicator> =>
-    createVoiceInputIndicator({
-      mount: root,
-      status: voiceInputStatus,
-      onActivate: () => quickControls.open(),
-      onOpenSettings: () => quickControls.open(undefined, { tab: "adv" }),
-    });
-  let captureIndicator = buildCaptureIndicator();
-  register(() => captureIndicator.dispose());
-  let voiceInputIndicator = buildVoiceInputIndicator();
-  register(() => voiceInputIndicator.dispose());
 
   // Re-mount localized DOM surfaces when display language changes.
   // Defer to microtask so triggering click handler (picker inside quick-controls) unwinds
@@ -265,12 +245,8 @@ export function wirePetControls(deps: {
   register(wireCueLocaleSync(stores));
   const unsubscribeLocale = subscribeLocale(() => {
     queueMicrotask(() => {
-      voiceInputIndicator.dispose();
-      captureIndicator.dispose();
       quickControls.dispose();
       quickControls = buildQuickControls();
-      captureIndicator = buildCaptureIndicator();
-      voiceInputIndicator = buildVoiceInputIndicator();
     });
   });
   register(() => unsubscribeLocale());

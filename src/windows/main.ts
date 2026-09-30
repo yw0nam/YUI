@@ -9,7 +9,8 @@
  *   io: streamChat(SSE) → express + text stream → renderer / surfaces / tts-pipeline.
  *
  *   - .yui-stage: transparent character stage (drag region). renderer fills with canvas.
- *   - .yui-ui:    overlay — speech bubble, tool state, text input (invisible-by-default).
+ *   - .yui-status: status pill — capture, voice, and tool state (invisible-by-default).
+ *   - .yui-ui:    overlay — speech bubble, text input (invisible-by-default).
  */
 
 import "../styles.css";
@@ -39,6 +40,7 @@ import { excludeOwnOriginFromCorsFetch } from "../io/window/own-origin-fetch";
 import { createLogger, initLogger } from "../logger";
 import { createRenderer } from "../renderer";
 import { createSettingsStores } from "../settings/settings-stores";
+import { createStatusPill } from "../ui/chips/status-pill";
 import { createVoiceInputStatus } from "../ui/chips/voice-input-status";
 import { getLocale } from "../ui/i18n";
 import { showBootError } from "../ui/notices/boot-error";
@@ -117,8 +119,21 @@ async function bootstrap(): Promise<BootstrapHandle> {
   ambient.start();
   registerRendererAndAmbientDisposal(register, renderer, ambient);
 
+  const voiceInputStatus = createVoiceInputStatus();
+  register(() => voiceInputStatus.dispose());
+  // Tool tells stay with the character in both window modes, so the pill backs the local surfaces.
+  const statusPill = createStatusPill({
+    mount: root,
+    settings: settingsStores.screenshotSettings,
+    voice: voiceInputStatus,
+    onOpenSettings: () => controls.get().open(),
+    onFixVoice: () => controls.get().open(undefined, { tab: "adv" }),
+  });
+  register(() => statusPill.dispose());
+
   const { surfaces, local, remote, getMode } = wireMessageSurfaces({
     mount: root,
+    tool: statusPill,
     bubblePersistSettings: settingsStores.bubblePersistSettings,
     messageWindowSettings: settingsStores.messageWindowSettings,
     register,
@@ -131,8 +146,6 @@ async function bootstrap(): Promise<BootstrapHandle> {
     }),
   );
 
-  const voiceInputStatus = createVoiceInputStatus();
-  register(() => voiceInputStatus.dispose());
   const screenSourceProvider = resolveScreenSourceProvider();
   const screenCapturer = resolveScreenCapturer();
   // Pop-out: Tauri uses separate WebviewWindow("settings"), otherwise browser window. Wire storage events

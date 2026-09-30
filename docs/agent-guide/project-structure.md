@@ -305,15 +305,15 @@ YUI/
     ui/                              # Floating surfaces, panels, and indicators
       i18n.ts                        # Locale type, persisted locale, lookup, and subscriber notification
       tokens.css                     # Design tokens: colour, radius, shadow, duration
-      surfaces/                      # Speech-bubble, text-input, and tool-status host surface
-        surfaces.ts                  # Mounts the speech bubble, tool-status chip, and text input as one system
+      surfaces/                      # Speech-bubble and text-input host surface
+        surfaces.ts                  # Mounts the speech bubble and text input as one system, forwarding tool status
         surfaces-router.ts           # One Surfaces handle over the pet window and the message window
         wire.ts                      # Local surfaces plus the message-window bridge, routed by the stored window mode
         summon-key.ts                # Binds the focused window's "/" key to open the text input
         anchor.ts                    # Pure mapping from the on-screen feet to the input's bottom offset
         reflect-unless-editing.ts    # Writes a store value onto an input unless the user is editing it
         mock.ts                      # Mock driver that replays every surface state from seed data
-        surfaces.css                 # Speech bubble, text input, and tool-status chip styles
+        surfaces.css                 # Speech bubble and text input styles
       input/                         # Text entry and its supporting transforms
         text-input.ts                # Text input: submit, busy, error, and feet anchoring
         image-resize.ts              # Downscales and re-encodes user-attached images
@@ -326,17 +326,14 @@ YUI/
         message-window.css           # Message-window layout and name-plate styles
         cue-list.css                 # Cue-list section styles
       chips/                         # Status and delegation chips beside the avatar and on the message-window plate
-        tool-status.ts               # Tool-status chip observing backend tool calls
+        status-pill.ts               # Status pill: capture, voice, and backend tool tells in one pill
         tool-labels.ts               # Tool id to display label lookup
         delegation-chip.ts           # Push-transport delegation chip beside the avatar with its tap-to-toggle list popover
         delegation-rows.ts           # Delegation list's shared row rendering and relative time text
         reasoning-chip.ts            # Backend reasoning pill on the message window's plate row
-        capture-indicator.ts         # Always-on screen-capture privacy tell
-        voice-input-indicator.ts     # Voice-input indicator surface
         voice-input-status.ts        # Voice-input status model
-        voice-error-dwell.ts         # How long a voice-turn failure holds the indicator's error state
-        capture-indicator.css        # Capture-indicator pill styles
-        voice-input-indicator.css    # Voice-indicator pill styles
+        voice-error-dwell.ts         # How long a voice-turn failure holds the status pill's voice error state
+        status-pill.css              # Status-pill styles
         delegation-chip.css          # Delegation-chip pill, list popover, and folded-dot styles
         delegation-rows.css          # Delegation row styles shared by the chip's list and the settings panel
         reasoning-chip.css           # Reasoning-chip pill and panel styles
