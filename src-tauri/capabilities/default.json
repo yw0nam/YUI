@@ -20,9 +20,6 @@
     "core:webview:allow-create-webview-window",
     "cors-fetch:default",
     "log:default",
-    "dialog:allow-open",
-    "global-shortcut:allow-register",
-    "global-shortcut:allow-unregister",
-    "global-shortcut:allow-unregister-all"
+    "dialog:allow-open"
   ]
 }

@@ -122,11 +122,12 @@ fn noisy_targets() -> &'static [(&'static str, log::LevelFilter)] {
     ]
 }
 
-/// Resolves the directory the app writes its own dated logs to: dev the repo's
-/// `<worktree>/logs/`, release the OS log dir (`~/Library/Logs/com.yui.desktop/` on macOS).
+/// Resolves the directory the app writes its own dated logs to: desktop dev the repo's
+/// `<worktree>/logs/`, otherwise the OS log dir (`~/Library/Logs/com.yui.desktop/` on macOS,
+/// the app's private `logs/` on Android).
 /// Shared by the app-log sink and the turn-record JSONL sink, so both land side by side.
 fn log_dir(app: &tauri::App) -> tauri::Result<PathBuf> {
-    if cfg!(debug_assertions) {
+    if cfg!(all(debug_assertions, desktop)) {
         Ok(PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../logs"))
     } else {
         app.path().app_log_dir()

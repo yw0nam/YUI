@@ -2,9 +2,11 @@
 mod os_event_watcher;
 
 // Drag + multi-monitor / DPI.
+#[cfg(desktop)]
 mod drag;
 
 // Screen-source enumeration and capture.
+#[cfg(desktop)]
 mod screenshot;
 
 // Calendar-date-based log rotation.
@@ -27,12 +29,14 @@ mod vrm_import;
 mod voice_import;
 
 // Click-through toggle (top-level + Windows child HWNDs).
+#[cfg(desktop)]
 mod passthrough;
 
 // Loopback HTTP ingress — receives agent lifecycle signals, re-emits as Tauri events.
 mod agent_ingress;
 
 // System tray controls for window visibility, settings, and quit.
+#[cfg(desktop)]
 mod tray;
 
 // Lifts AppKit's frame-constrain-to-screen on the pet window (macOS only).

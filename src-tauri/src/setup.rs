@@ -1,6 +1,6 @@
 //! Startup work run once the app is built, before the first window event.
 
-use crate::{app_log, os_event_watcher, tray, turn_log, voice_import, window_frame};
+use crate::{app_log, os_event_watcher, turn_log, voice_import, window_frame};
 use tauri::{App, Manager};
 
 pub fn run(app: &mut App) -> Result<(), Box<dyn std::error::Error>> {
@@ -22,7 +22,8 @@ pub fn run(app: &mut App) -> Result<(), Box<dyn std::error::Error>> {
 
     // Start OS event polling loop (emits `os_event` IPC to webview).
     os_event_watcher::start(app.handle());
-    tray::setup(app.handle())?;
+    #[cfg(desktop)]
+    crate::tray::setup(app.handle())?;
     // Loopback ingress starts via the `start_agent_ingress` command, invoked
     // once at boot with the user's stored port (restart-to-apply).
     Ok(())
