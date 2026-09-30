@@ -78,6 +78,8 @@ export function createSpeechBubble(
   let dwellArmed = false;
   // Whether the user dismissed this utterance — the rest of its stream stays hidden.
   let dismissed = false;
+  // Whether revealed content other than speech is still arriving — the previous reply's end arms no dwell meanwhile.
+  let revealHeld = false;
   let cancelFade: (() => void) | null = null;
 
   function clearDwell(): void {
@@ -118,6 +120,7 @@ export function createSpeechBubble(
     clearDwell();
     deferred = false;
     dismissed = false;
+    revealHeld = false;
     bubbleEl.classList.remove("is-held");
     speechRaw = "";
     lastRenderAt = Number.NEGATIVE_INFINITY;
@@ -132,6 +135,7 @@ export function createSpeechBubble(
   function reveal(): void {
     clearDwell();
     dwellArmed = false;
+    revealHeld = true;
     if (cancelFade) {
       // The fade was about to drop this speech; drop it now so it doesn't return beside the new content.
       cancelFade();
@@ -144,6 +148,7 @@ export function createSpeechBubble(
   }
 
   function release(hasContent: boolean): void {
+    revealHeld = false;
     if (bubbleEl.hidden || cancelFade || deferred) return;
     if (bubbleEl.classList.contains("is-streaming")) return;
     if (!hasContent && speechRaw === "") {
@@ -188,7 +193,7 @@ export function createSpeechBubble(
       return;
     }
     deferred = false;
-    if (hold()) return;
+    if (hold() || revealHeld) return;
     dwellArmed = true;
     armDwell();
   }
@@ -197,7 +202,7 @@ export function createSpeechBubble(
     if (!deferred) return;
     deferred = false;
     if (bubbleEl.hidden) return;
-    if (hold()) return;
+    if (hold() || revealHeld) return;
     dwellArmed = true;
     armDwell();
   }

@@ -177,8 +177,8 @@ export function createSurfaces({
     dwellMs,
     keepBubbleUntilDismissed,
   );
-  // A reasoning cycle's first delta shows the bubble and holds off its fade; the cycle's end hands a
-  // bubble with no speech in flight to the dwell, or hides it when nothing is left to show.
+  // A reasoning cycle's first delta shows the bubble and holds off its fade until the cycle ends; the end hands
+  // a bubble with no speech in flight to the dwell, or hides it when nothing is left to show.
   const think = reasoning
     ? createReasoningDisclosure({ mount: bubbleBox, source: reasoning, bubble })
     : null;
