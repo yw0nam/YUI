@@ -2,7 +2,7 @@
  * surface-doctrine.test.ts
  *
  * Guards two doctrine rules across the small-label-chip surfaces
- * (tool-status, capture, voice indicators) and the boot-error notice:
+ * (the status pill) and the boot-error notice:
  *  - the bubble is the only surface allowed a frosted backdrop-filter;
  *    chips/pills use an opaque-enough scrim instead of blur.
  *  - status colors come from tokens (--yui-accent / --yui-danger), never
@@ -27,11 +27,7 @@ function extractBlock(css: string, selector: string): string {
 }
 
 describe("chip/pill surfaces — no blur, scrim-strong background", () => {
-  for (const file of [
-    "../chips/capture-indicator.css",
-    "../chips/voice-input-indicator.css",
-    "../notices/boot-error.css",
-  ]) {
+  for (const file of ["../chips/status-pill.css", "../notices/boot-error.css"]) {
     it(`${file} has no backdrop-filter (webkit-prefixed included)`, () => {
       expect(read(file)).not.toMatch(/backdrop-filter/);
     });
@@ -45,64 +41,89 @@ describe("chip/pill surfaces — no blur, scrim-strong background", () => {
   }
 });
 
-describe("voice-input-indicator.css — status colors from tokens", () => {
-  it("has no raw green/red oklch literals for fired/error", () => {
-    const css = read("../chips/voice-input-indicator.css");
-    expect(css).not.toMatch(/oklch\(0\.76 0\.08 145/);
-    expect(css).not.toMatch(/oklch\(0\.68 0\.13 28/);
+describe("status-pill.css — the pill's shape and colors come from tokens", () => {
+  const css = (): string => read("../chips/status-pill.css");
+
+  it("sets the pill on the shared pill tokens, 1.75rem tall at the top edge", () => {
+    const block = extractBlock(css(), ".yui-status");
+    expect(block).toMatch(/top:\s*4\.5%/);
+    expect(block).toMatch(/height:\s*1\.75rem/);
+    expect(block).toMatch(/border:\s*1px solid var\(--yui-edge\)/);
+    expect(block).toMatch(/box-shadow:\s*var\(--yui-float\)/);
+    expect(block).toMatch(/border-radius:\s*var\(--yui-radius-pill\)/);
+    expect(block).toMatch(/font-size:\s*var\(--yui-fs-sub\)/);
+    expect(block).toMatch(/font-weight:\s*500/);
   });
 
-  it('[data-state="fired"] dot uses var(--yui-accent)', () => {
-    const css = read("../chips/voice-input-indicator.css");
-    const block = extractBlock(css, '.yui-voice[data-state="fired"] .yui-voice__dot');
-    expect(block).toMatch(/var\(--yui-accent\)/);
+  it("carries no text-shadow and no raw oklch literal", () => {
+    expect(css()).not.toMatch(/text-shadow/);
+    expect(css()).not.toMatch(/oklch\(/);
   });
 
-  it('[data-state="error"] dot uses var(--yui-danger)', () => {
-    const css = read("../chips/voice-input-indicator.css");
-    const block = extractBlock(css, '.yui-voice[data-state="error"] .yui-voice__dot');
-    expect(block).toMatch(/var\(--yui-danger\)/);
+  it("colors each voice state and the tool states from tokens", () => {
+    const c = css();
+    expect(extractBlock(c, '.yui-status__dot[data-voice="fired"]')).toMatch(
+      /box-shadow:\s*0 0 0 2px var\(--yui-accent-soft\)/,
+    );
+    expect(extractBlock(c, '.yui-status__dot[data-voice="error"]')).toMatch(/var\(--yui-danger\)/);
+    expect(extractBlock(c, '.yui-status__voice[data-voice="error"]')).toMatch(
+      /color:\s*var\(--yui-danger\)/,
+    );
+    expect(extractBlock(c, '.yui-status__dot[data-tool="running"]')).toMatch(
+      /var\(--yui-text-dim\)/,
+    );
+    expect(extractBlock(c, '.yui-status__dot[data-tool="done"]')).toMatch(/var\(--yui-ok\)/);
+    expect(extractBlock(c, ".yui-status__capture-dot")).toMatch(/var\(--yui-accent\)/);
+  });
+
+  it("stops every animation under reduced motion", () => {
+    const reduced = css().slice(css().indexOf("@media (prefers-reduced-motion"));
+    expect(reduced).toContain(".yui-status__dot");
+    expect(reduced).toMatch(/animation:\s*none/);
   });
 });
 
-// The chip's fix state reuses the inline-link idiom .yui-input__error-action already
-// ships, so "this is clickable" reads identically on both error surfaces.
-describe("voice-input-indicator.css — not_configured fix affordance", () => {
-  const fix = '.yui-voice[data-state="error"][data-fix="settings"]';
+// The not_configured voice error reuses the inline-link idiom .yui-input__error-action
+// already ships, so "this is clickable" reads identically on both error surfaces.
+describe("status-pill.css — not_configured fix affordance", () => {
+  const fix = '.yui-status[data-fix="settings"]';
 
   it("underlines the label in accent-soft at rest", () => {
-    const block = extractBlock(
-      read("../chips/voice-input-indicator.css"),
-      `${fix} .yui-voice__label`,
-    );
+    const block = extractBlock(read("../chips/status-pill.css"), `${fix} .yui-status__label`);
     expect(block).toMatch(/text-decoration-color:\s*var\(--yui-accent-soft\)/);
   });
 
-  it("ignites the label on hover and on focus-visible alike", () => {
-    const css = read("../chips/voice-input-indicator.css");
-    expect(css).toContain(`${fix}:hover .yui-voice__label`);
-    expect(css).toContain(`${fix}:focus-visible .yui-voice__label`);
-  });
-
-  it("carries a 2px accent-soft focus ring", () => {
-    const block = extractBlock(read("../chips/voice-input-indicator.css"), `${fix}:focus-visible`);
-    expect(block).toMatch(/outline:\s*2px solid var\(--yui-accent-soft\)/);
+  it("ignites the label on hover and on keyboard focus alike", () => {
+    const css = read("../chips/status-pill.css");
+    expect(css).toContain(`${fix}:hover .yui-status__label`);
+    expect(css).toContain(`${fix}:has(:focus-visible) .yui-status__label`);
   });
 
   it("keeps the gear glyph out of every other state", () => {
-    const css = read("../chips/voice-input-indicator.css");
-    expect(extractBlock(css, ".yui-voice__fix-glyph")).toMatch(/display:\s*none/);
-    expect(extractBlock(css, `${fix} .yui-voice__fix-glyph`)).toMatch(/display:\s*block/);
+    const css = read("../chips/status-pill.css");
+    expect(extractBlock(css, ".yui-status__fix-glyph")).toMatch(/display:\s*none/);
+    expect(extractBlock(css, `${fix} .yui-status__fix-glyph`)).toMatch(/display:\s*block/);
   });
 });
 
-describe("surfaces.css — tool chip and input error use doctrine tokens", () => {
-  it(".yui-tool chip background is var(--yui-scrim-strong)", () => {
-    const css = read("surfaces.css");
-    const block = extractBlock(css, ".yui-tool");
-    expect(block).toMatch(/var\(--yui-scrim-strong\)/);
+// The One-Pulse Rule: the pill's dot is the only thing that animates in the character window.
+describe("character-window chips — one pulse at a time", () => {
+  it("only the status pill's dot declares an animation in status-pill.css", () => {
+    const rules = read("../chips/status-pill.css").match(
+      /^[^{}@]+\{[^}]*animation:\s*yui-[^}]*\}/gm,
+    );
+    expect(rules?.length).toBeGreaterThan(0);
+    for (const rule of rules ?? []) expect(rule).toMatch(/\.yui-status__dot/);
   });
 
+  it("the delegation chip's dot holds still", () => {
+    const css = read("../chips/delegation-chip.css");
+    expect(css).not.toMatch(/@keyframes/);
+    expect(extractBlock(css, ".yui-deleg__dot")).not.toMatch(/animation/);
+  });
+});
+
+describe("surfaces.css — input error uses doctrine tokens", () => {
   it(".yui-input__error color is var(--yui-danger)", () => {
     const css = read("surfaces.css");
     const block = extractBlock(css, ".yui-input__error");
@@ -144,13 +165,15 @@ describe("endpoints-section.css — components with a display rule honour [hidde
   });
 });
 
-// Same rule on the overlay surfaces: .yui-tool carries `display: inline-flex`, so without
-// its own [hidden] rule a hidden chip keeps painting whenever `is-visible` is on it.
+// Same rule on the overlay surfaces: the status pill and its buttons carry `display: inline-flex`,
+// so without their own [hidden] rule a hidden segment keeps painting.
 describe("surfaces.css — components with a display rule honour [hidden]", () => {
-  it(".yui-tool sets display:none under [hidden]", () => {
-    const css = read("surfaces.css");
-    expect(extractBlock(css, ".yui-tool")).toMatch(/display:/);
-    expect(extractBlock(css, ".yui-tool[hidden]")).toMatch(/display:\s*none/);
+  it(".yui-status and its children set display:none under [hidden]", () => {
+    const css = read("../chips/status-pill.css");
+    expect(extractBlock(css, ".yui-status")).toMatch(/display:/);
+    expect(extractBlock(css, ".yui-status[hidden],\n.yui-status [hidden]")).toMatch(
+      /display:\s*none/,
+    );
   });
 
   it(".yui-input__pop sets display:none under [hidden]", () => {

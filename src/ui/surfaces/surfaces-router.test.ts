@@ -18,6 +18,8 @@ import { createMessagePlate } from "../message/message-plate";
 import { createSurfaces, type Surfaces } from "./surfaces";
 import { createSurfacesRouter } from "./surfaces-router";
 
+const noTool = { showTool() {}, finishTool() {}, hideTool() {} };
+
 /** The caps configs/guardrails.json delivers through setAttachmentLimits. */
 const LIMITS = guardrailsFixture().attachments;
 
@@ -344,7 +346,7 @@ describe("createSurfacesRouter over the message bridge", () => {
 
     /** The message window's surfaces and plate, wired to the bridge as its bootstrap does. */
     const mountMessageWindow = () => {
-      const surfaces = createSurfaces({ mount: document.createElement("div") });
+      const surfaces = createSurfaces({ tool: noTool, mount: document.createElement("div") });
       surfaces.onSubmit((text, images) =>
         messageBridge.emitControl({ op: "submit", text, images }),
       );

@@ -11,6 +11,8 @@ import { defaultQcArgs } from "../quick-controls/test-helpers";
 import { createSurfaces } from "../surfaces/surfaces";
 import { turnErrorFixAction, turnErrorMessage } from "./turn-error";
 
+const noTool = { showTool() {}, finishTool() {}, hideTool() {} };
+
 describe("not_configured → open the Advanced tab", () => {
   let mount: HTMLElement;
 
@@ -33,7 +35,7 @@ describe("not_configured → open the Advanced tab", () => {
   });
 
   it("clicking the inline error's button opens quick controls on Advanced", () => {
-    const surfaces = createSurfaces({ mount });
+    const surfaces = createSurfaces({ tool: noTool, mount });
     const quickControls = createQuickControls(defaultQcArgs(mount));
 
     // The bootstrap wiring: message + optional fix action for the failed turn.
@@ -61,7 +63,7 @@ describe("not_configured → open the Advanced tab", () => {
   });
 
   it("failures the panel cannot fix render no affordance", () => {
-    const surfaces = createSurfaces({ mount });
+    const surfaces = createSurfaces({ tool: noTool, mount });
 
     surfaces.showInputError(
       turnErrorMessage("network_drop")!,

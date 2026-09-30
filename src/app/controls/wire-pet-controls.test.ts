@@ -1,23 +1,13 @@
 // @vitest-environment jsdom
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const {
-  createQuickControls,
-  createCaptureIndicator,
-  createVoiceInputIndicator,
-  wireCueLocaleSync,
-  localeSubscribers,
-} = vi.hoisted(() => ({
+const { createQuickControls, wireCueLocaleSync, localeSubscribers } = vi.hoisted(() => ({
   createQuickControls: vi.fn(),
-  createCaptureIndicator: vi.fn(),
-  createVoiceInputIndicator: vi.fn(),
   wireCueLocaleSync: vi.fn(),
   localeSubscribers: [] as Array<() => void>,
 }));
 
 vi.mock("../../ui/quick-controls/quick-controls", () => ({ createQuickControls }));
-vi.mock("../../ui/chips/capture-indicator", () => ({ createCaptureIndicator }));
-vi.mock("../../ui/chips/voice-input-indicator", () => ({ createVoiceInputIndicator }));
 vi.mock("../settings/wire-cue-locale-sync", () => ({ wireCueLocaleSync }));
 vi.mock("../../ui/i18n", () => ({
   subscribe: (cb: () => void) => {
@@ -33,7 +23,7 @@ import { createVoiceInputStatus } from "../../ui/chips/voice-input-status";
 import { createConversationStores } from "../settings/conversation-stores";
 import { wirePetControls } from "./wire-pet-controls";
 
-/** The build/dispose event trail shared by the three mocked surface factories. */
+/** The build/dispose event trail of the mocked panel factory. */
 const events: string[] = [];
 
 beforeEach(() => {
@@ -42,16 +32,6 @@ beforeEach(() => {
     const panel = { open: vi.fn(), dispose: vi.fn(() => void events.push("quick.dispose")) };
     events.push("quick.build");
     return panel;
-  });
-  createCaptureIndicator.mockImplementation(() => {
-    const indicator = { dispose: vi.fn(() => void events.push("capture.dispose")) };
-    events.push("capture.build");
-    return indicator;
-  });
-  createVoiceInputIndicator.mockImplementation(() => {
-    const indicator = { dispose: vi.fn(() => void events.push("voice.dispose")) };
-    events.push("voice.build");
-    return indicator;
   });
   wireCueLocaleSync.mockImplementation(() => vi.fn());
 });
@@ -111,27 +91,21 @@ describe("wirePetControls", () => {
     for (const store of Object.values(wired.deps.conversation)) store.dispose();
   }
 
-  it("registers the six teardowns in the baseline boot order", () => {
+  it("registers the four teardowns in the baseline boot order", () => {
     const wired = makeDeps();
 
-    expect(wired.registered).toHaveLength(6);
-    // The three indicator bindings drain disposed-then-rebuilt instances live, so their slots
-    // identify them by behavior, not identity: draining 1-3 disposes quick, capture, voice.
+    expect(wired.registered).toHaveLength(4);
+    // The panel binding drains a disposed-then-rebuilt instance live, so its slot is identified
+    // by behavior, not identity.
     wired.registered[0]!();
-    wired.registered[1]!();
-    wired.registered[2]!();
-    expect(events.filter((e) => e.endsWith(".dispose"))).toEqual([
-      "quick.dispose",
-      "capture.dispose",
-      "voice.dispose",
-    ]);
-    // Slot 4 is the cue-locale sync disposer, slot 5 the locale unsubscriber, slot 6 the
+    expect(events.filter((e) => e.endsWith(".dispose"))).toEqual(["quick.dispose"]);
+    // Slot 2 is the cue-locale sync disposer, slot 3 the locale unsubscriber, slot 4 the
     // context-menu remover.
-    expect(wired.registered[3]).toBe(wireCueLocaleSync.mock.results[0]?.value);
+    expect(wired.registered[1]).toBe(wireCueLocaleSync.mock.results[0]?.value);
     expect(localeSubscribers).toHaveLength(1);
-    wired.registered[4]!();
+    wired.registered[2]!();
     expect(localeSubscribers).toHaveLength(0);
-    wired.registered[5]!();
+    wired.registered[3]!();
     expect(wired.removeEventListener).toHaveBeenCalledWith("contextmenu", expect.any(Function));
 
     teardownDeps(wired);
@@ -139,25 +113,15 @@ describe("wirePetControls", () => {
 
   it("defers the locale remount by exactly one microtask", async () => {
     const wired = makeDeps();
-    expect(events).toEqual(["quick.build", "capture.build", "voice.build"]);
+    expect(events).toEqual(["quick.build"]);
 
     localeSubscribers[0]!();
-    expect(events).toEqual(["quick.build", "capture.build", "voice.build"]);
+    expect(events).toEqual(["quick.build"]);
 
     await Promise.resolve();
-    expect(events).toEqual([
-      "quick.build",
-      "capture.build",
-      "voice.build",
-      "voice.dispose",
-      "capture.dispose",
-      "quick.dispose",
-      "quick.build",
-      "capture.build",
-      "voice.build",
-    ]);
+    expect(events).toEqual(["quick.build", "quick.dispose", "quick.build"]);
     await Promise.resolve();
-    expect(events).toHaveLength(9);
+    expect(events).toHaveLength(3);
 
     teardownDeps(wired);
   });

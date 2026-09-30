@@ -1,10 +1,10 @@
 // @vitest-environment jsdom
 /**
- * Tests for surfaces.ts — the compose shim wiring speech-bubble.ts,
- * tool-status.ts, and text-input.ts behind createSurfaces(). Per-surface
- * behavior is tested alongside its module (speech-bubble.test.ts,
- * tool-status.test.ts, text-input.test.ts); this file covers the
- * cross-surface coordination the shim owns.
+ * Tests for surfaces.ts — the compose shim wiring speech-bubble.ts and
+ * text-input.ts behind createSurfaces() and forwarding tool status to the
+ * ToolStatus it is given. Per-surface behavior is tested alongside its module
+ * (speech-bubble.test.ts, text-input.test.ts, status-pill.test.ts); this file
+ * covers what the shim owns.
  */
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -18,9 +18,28 @@ import { createSurfaces } from "./surfaces";
 function makeSurfaces() {
   const mount = document.createElement("div");
   document.body.appendChild(mount);
-  const s = createSurfaces({ mount });
-  return { s, mount };
+  const tool = { showTool: vi.fn(), finishTool: vi.fn(), hideTool: vi.fn() };
+  const s = createSurfaces({ mount, tool });
+  return { s, mount, tool };
 }
+
+describe("tool status — forwarded, never rendered", () => {
+  it("hands showTool/finishTool/hideTool to the given ToolStatus and draws no chip of its own", () => {
+    const { s, mount, tool } = makeSurfaces();
+
+    s.showTool("web_search");
+    expect(mount.textContent).not.toContain("Searching…");
+    s.finishTool();
+    s.hideTool();
+
+    expect(tool.showTool).toHaveBeenCalledWith("web_search");
+    expect(tool.finishTool).toHaveBeenCalledTimes(1);
+    expect(tool.hideTool).toHaveBeenCalledTimes(1);
+
+    s.dispose();
+    mount.remove();
+  });
+});
 
 describe("bubble ↔ input coordination — input must not obscure the bubble", () => {
   let mount: HTMLElement;

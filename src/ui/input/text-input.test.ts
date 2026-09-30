@@ -16,12 +16,14 @@ import { guardrailsFixture } from "../../config/load-test-helpers";
 import { setLocale, t } from "../i18n";
 import { createSurfaces } from "../surfaces/surfaces";
 
+const noTool = { showTool() {}, finishTool() {}, hideTool() {} };
+
 const readSrc = (name: string): string => readFileSync(resolve(__dirname, name), "utf-8");
 
 function makeSurfaces() {
   const mount = document.createElement("div");
   document.body.appendChild(mount);
-  const s = createSurfaces({ mount });
+  const s = createSurfaces({ tool: noTool, mount });
   return { s, mount };
 }
 
@@ -554,7 +556,7 @@ describe("surfaces — i18n chrome", () => {
     setLocale("en");
     mount = document.createElement("div");
     document.body.appendChild(mount);
-    s = createSurfaces({ mount });
+    s = createSurfaces({ tool: noTool, mount });
   });
 
   afterEach(() => {
@@ -811,7 +813,7 @@ describe("input row pop-out button", () => {
     mount = document.createElement("div");
     document.body.appendChild(mount);
     onPop = vi.fn<() => void>();
-    s = createSurfaces({ mount, onPop });
+    s = createSurfaces({ tool: noTool, mount, onPop });
   });
 
   afterEach(() => {
@@ -849,7 +851,7 @@ describe("input row pop-out button", () => {
     (globalThis as { __TAURI_INTERNALS__?: unknown }).__TAURI_INTERNALS__ = {};
     const other = document.createElement("div");
     document.body.appendChild(other);
-    const s2 = createSurfaces({ mount: other });
+    const s2 = createSurfaces({ tool: noTool, mount: other });
 
     const rowPop = other.querySelector(".yui-input__pop") as HTMLButtonElement;
     const bubblePop = other.querySelector(".yui-bubble__pop") as HTMLButtonElement;
