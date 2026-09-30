@@ -1,4 +1,5 @@
 // @vitest-environment jsdom
+import { readFileSync } from "node:fs";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createChatHistoryStore } from "../../io/chat/chat-history-store";
 import { createFillerSettings, type FillerSettings } from "../../settings/voice/filler-settings";
@@ -642,6 +643,22 @@ describe("createQuickControls — tabs + VAD slider", () => {
     ]) {
       expect(details.querySelector(cls)).not.toBeNull();
     }
+
+    qc.dispose();
+  });
+
+  it("draws the more-phrases chevron as an inline svg with no text-glyph fallback in the css", () => {
+    const qc = buildQc({ fillerSettings: makeFillerSettings() });
+    qc.open();
+
+    const summary = qc.el
+      .querySelector<HTMLDetailsElement>(".yui-filler .yui-filler-more")!
+      .querySelector("summary")!;
+    expect(summary.querySelector("svg")).not.toBeNull();
+
+    const css = readFileSync("src/ui/quick-controls/quick-controls.css", "utf8");
+    expect(css).not.toContain('content: "\u203A"');
+    expect(css).not.toContain(".yui-filler-more > summary::before");
 
     qc.dispose();
   });
