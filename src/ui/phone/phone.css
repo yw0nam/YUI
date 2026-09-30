@@ -19,6 +19,11 @@ body {
   --yui-bubble-max-h: calc(0.3 * var(--yui-visual-viewport-height, 100vh));
 }
 
+/* The stage owns every touch: the WebView neither scrolls nor zooms the page from it. */
+.yui-phone .yui-stage {
+  touch-action: none;
+}
+
 .yui-phone .yui-input {
   width: calc(100% - 20px);
   border-radius: 24px;

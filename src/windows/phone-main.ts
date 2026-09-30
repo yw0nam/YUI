@@ -2,7 +2,8 @@
  * Phone bootstrap — phone.html entry point, the Android window.
  *
  * Graph: stores + config → createStageRenderer (renderer, camera, Tier 1) → createSurfaces (persistent composer)
- *   → push stores → config.load() → createPhoneBootstrap (turn core) → wirePushMode (socket).
+ *   → push stores → config.load() → wirePhoneStage (fit band, touch camera, tap)
+ *   → createPhoneBootstrap (turn core) → wirePushMode (socket).
  * The root follows the visual viewport, so the soft keyboard shortens the stage.
  */
 
@@ -10,6 +11,7 @@ import "../styles.css";
 import "../ui/phone/phone.css";
 import { createDisposers } from "../app/disposers";
 import { createPhoneBootstrap } from "../app/phone/bootstrap-phone";
+import { wirePhoneStage } from "../app/phone/stage/wire-phone-stage";
 import { createWindowStores } from "../app/settings/window-stores";
 import { wireAvatarSelection } from "../app/settings/wire-avatar";
 import { createPetConfig } from "../app/settings/wire-config";
@@ -104,6 +106,9 @@ async function bootstrap(): Promise<{ dispose(): void }> {
   try {
     const cfg = await config.load();
     if (isDisposed()) return { dispose };
+    register(
+      wirePhoneStage({ stage, renderer, cfg, bus, cameraSettings: settingsStores.cameraSettings }),
+    );
     surfaces.setAttachmentLimits(cfg.guardrails.attachments);
     const configured = await createPhoneBootstrap(cfg, {
       config,
