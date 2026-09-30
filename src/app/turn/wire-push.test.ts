@@ -1017,9 +1017,10 @@ describe("createDelegationChipMount", () => {
     const { mount, chip } = setup(undefined);
     mount.create();
 
-    expect(createDelegationChip).toHaveBeenCalledExactlyOnceWith(
-      expect.not.objectContaining({ suppressed: expect.anything() }),
-    );
+    const created = (createDelegationChip.mock.calls[0] as unknown[])[0] as {
+      suppressed?: boolean;
+    };
+    expect(created.suppressed).toBeUndefined();
     expect(chip.setSuppressed).not.toHaveBeenCalled();
   });
 

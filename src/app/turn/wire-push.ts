@@ -22,10 +22,7 @@ import {
   createDelegationChipSettings,
   localStorageDelegationChipStorage,
 } from "../../settings/panels/delegation-chip-settings";
-import type {
-  MessageWindowMode,
-  MessageWindowSettingsStore,
-} from "../../settings/panels/message-window-settings";
+import type { MessageWindowSettingsStore } from "../../settings/panels/message-window-settings";
 import { createDelegationChip } from "../../ui/chips/delegation-chip";
 
 /**
@@ -157,9 +154,9 @@ export function wireStopButton(deps: {
  * Keeps the push socket and the delegation chip on whatever the chat settings now say. The socket
  * opens once the protocol is push and an endpoint is set, closes when the protocol changes, and
  * reopens on an endpoint or key edit so the next attempt reads the new value — every other
- * endpoint setting applies live too. The chip is mounted for push mode regardless of the endpoint
- * and draws only what the socket reports; it survives an endpoint or key edit that keeps the mode
- * as push.
+ * endpoint setting applies live too. While suspended (page hidden) the socket stays down: an edit
+ * asks for nothing, and resuming opens on the target as it then stands. The chip is mounted for
+ * push mode regardless of the endpoint and follows the mode only — it survives suspension.
  */
 export function wirePushMode(deps: {
   socket: Pick<PushSocket, "connect" | "disconnect">;
@@ -168,15 +165,18 @@ export function wirePushMode(deps: {
   getEndpoints: () => Pick<EndpointsConfig, "chat_api" | "chat_base_url">;
   endpointsSettings: { subscribe(cb: () => void): () => void };
   chatKeySettings: { subscribe(cb: () => void): () => void };
+  /** The page-hidden port; without it the socket never suspends. */
+  suspended?: { get(): boolean; subscribe(cb: () => void): () => void };
 }): () => void {
   // The endpoint the socket is currently on, or null while it is meant to be down.
   let openOn: string | null = null;
   let chipOpen = false;
 
-  /** Where the socket belongs now, or null when push mode is off or unconfigured. */
+  /** Where the socket belongs now, or null when push mode is off, unconfigured, or suspended. */
   function target(): string | null {
     const endpoints = deps.getEndpoints();
     if (endpoints.chat_api !== "push") return null;
+    if (deps.suspended?.get()) return null;
     return deps.getEndpoints().chat_base_url.trim() || null;
   }
 
@@ -207,6 +207,7 @@ export function wirePushMode(deps: {
     deps.endpointsSettings.subscribe(() => apply(false)),
     // The key is not part of the target, so an edit to it asks for the reopen explicitly.
     deps.chatKeySettings.subscribe(() => apply(true)),
+    ...(deps.suspended ? [deps.suspended.subscribe(() => apply(false))] : []),
   ];
   return () => {
     for (const off of unsubscribes) off();
@@ -219,19 +220,19 @@ export function wirePushMode(deps: {
 
 /**
  * The delegation chip's lazy mount — wirePushMode's chip seam. Created only for push mode and
- * disposed when the mode leaves; suppressed while the popped message window carries the surfaces.
+ * disposed when the mode leaves; suppressed while a host port says so (the pet: the popped
+ * message window carries the surfaces; the phone: never).
  */
 export function createDelegationChipMount(deps: {
   mount: HTMLElement;
   store: Pick<DelegationsStore, "get" | "runningCount" | "subscribe">;
   pushState: Pick<PushSocket, "getState" | "onState">;
-  onOpenSettings: () => void;
-  getMode: () => MessageWindowMode;
-  subscribeMode: MessageWindowSettingsStore["subscribe"];
+  onOpenSettings?: () => void;
+  suppression?: { get(): boolean; subscribe(cb: () => void): () => void };
 }): { create(): void; dispose(): void } {
   let chip: ReturnType<typeof createDelegationChip> | null = null;
   let chipCollapsed: ReturnType<typeof createDelegationChipSettings> | null = null;
-  let offChipMode: (() => void) | null = null;
+  let offSuppression: (() => void) | null = null;
   return {
     // Only push mode carries a delegations list; the chip draws whatever the socket feeds the store.
     create: () => {
@@ -244,17 +245,31 @@ export function createDelegationChipMount(deps: {
         collapsed: chipCollapsed,
         pushState: deps.pushState,
         onOpenSettings: deps.onOpenSettings,
-        suppressed: deps.getMode() === "popped",
+        suppressed: deps.suppression?.get(),
       });
-      offChipMode = deps.subscribeMode(() => chip?.setSuppressed(deps.getMode() === "popped"));
+      offSuppression =
+        deps.suppression?.subscribe(() => chip?.setSuppressed(deps.suppression.get())) ?? null;
     },
     dispose: () => {
-      offChipMode?.();
-      offChipMode = null;
+      offSuppression?.();
+      offSuppression = null;
       chip?.dispose();
       chipCollapsed?.dispose();
       chip = null;
       chipCollapsed = null;
     },
+  };
+}
+
+/**
+ * The pet's suppression port — the chip is hidden while the popped message window carries the
+ * surfaces, shown again while docked.
+ */
+export function messageWindowSuppression(
+  settings: Pick<MessageWindowSettingsStore, "get" | "subscribe">,
+): { get(): boolean; subscribe(cb: () => void): () => void } {
+  return {
+    get: () => settings.get().mode === "popped",
+    subscribe: (cb) => settings.subscribe(() => cb()),
   };
 }
