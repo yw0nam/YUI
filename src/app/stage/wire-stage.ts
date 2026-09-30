@@ -16,8 +16,8 @@ export const INTERACTIVE_OVERLAY_SELECTORS = [
   ".yui-input.is-open",
   ".yui-bubble.is-visible .yui-bubble__close",
   ".yui-bubble.is-visible .yui-bubble__pop",
-  ".yui-status:not([hidden]) .yui-status__capture:not([hidden])",
-  '.yui-status:not([hidden])[data-fix="settings"]',
+  ".yui-status.is-visible .yui-status__capture:not([hidden])",
+  '.yui-status.is-visible[data-fix="settings"]',
   ".yui-deleg.is-visible .yui-deleg__chip",
   ".yui-deleg.is-visible .yui-deleg__list.is-open",
 ] as const;

@@ -90,8 +90,10 @@ export function createStatusPill({
     const captureOn = settings.get().enabled;
     const snapshot = voice.get();
     const shown = captureOn || snapshot.visible || tool !== null;
-    // A leaving pill keeps its last content through the fade.
+    // A leaving pill keeps its last content through the fade, but no longer offers the fix.
     if (!shown) {
+      delete el.dataset.fix;
+      voiceBtn.tabIndex = -1;
       setShown(false);
       return;
     }
