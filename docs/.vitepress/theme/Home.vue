@@ -16,236 +16,220 @@ onMounted(() => {
     <main class="yui-main">
       <!-- Hero -->
       <section class="hero" aria-label="Hero">
-        <div class="hero-content">
-          <p class="hero-eyebrow">Embodied VRM desktop companion</p>
+        <div>
           <h1 class="hero-title">The head.<br />Not the brain.</h1>
-          <p class="hero-tagline">
-            YUI renders a living VRM character on your desktop. It senses text,
-            voice, and screen context, then leaves all judgment to the backend
-            agent you wire in.
+          <p class="hero-lede">
+            A VRM character who lives on your desktop, watches the cursor, and
+            speaks when the agent you connect has something to say.
           </p>
           <div class="hero-cta">
-            <a :href="withBase('/guide/getting-started')" class="btn-primary"
-              >Get Started</a
-            >
-            <a
-              href="https://github.com/yw0nam/YUI"
-              rel="noopener"
-              target="_blank"
-              class="btn-ghost"
-              >View on GitHub ↗</a
+            <a :href="withBase('/guide/getting-started')" class="btn btn--primary"
+              >Get started</a
             >
             <a
               href="https://youtu.be/dIOQdoAp0GE"
               rel="noopener"
               target="_blank"
-              class="btn-ghost"
-              >Watch demo ↗</a
+              class="btn btn--quiet"
+              >Watch the demo ↗</a
             >
           </div>
         </div>
 
-        <div class="hero-image">
-          <figure class="hero-frame">
-            <video
-              ref="heroVideo"
-              :src="withBase('/yui-hero.mp4')"
-              :poster="withBase('/yui-hero-poster.jpg')"
-              aria-label="YUI, a VRM character on the desktop: her head and eyes follow the mouse cursor, then she answers a typed question about what is on screen"
-              width="820"
-              height="462"
-              muted
-              loop
-              playsinline
+        <figure class="media">
+          <video
+            ref="heroVideo"
+            :src="withBase('/yui-hero.mp4')"
+            :poster="withBase('/yui-hero-poster.jpg')"
+            aria-label="YUI standing on top of a browser window, her eyes following the mouse cursor"
+            width="820"
+            height="462"
+            muted
+            loop
+            playsinline
+          />
+        </figure>
+      </section>
+
+      <!-- Locomotion -->
+      <section class="sec" aria-labelledby="windows-heading">
+        <h2 class="h2" id="windows-heading">She lives on your windows</h2>
+        <p class="sub">
+          She perches on a window top, peeks around a side edge, strolls the
+          floor, and jumps between windows. Dropped in mid-air, she falls to
+          the first surface below and lands.
+        </p>
+        <div class="feat-wide">
+          <figure class="media">
+            <img
+              :src="withBase('/yui-locomotion.gif')"
+              alt="YUI walking along the bottom of the screen, climbing a side edge, and sitting on a window top"
+              width="720"
+              height="465"
+              loading="lazy"
             />
           </figure>
         </div>
+
+        <!-- Feature pair -->
+        <div class="pair">
+          <article class="card">
+            <figure class="media">
+              <img
+                :src="withBase('/yui-feature-cues.jpg')"
+                alt="YUI laughing with a hand over her mouth above a speech bubble"
+                width="720"
+                height="540"
+                loading="lazy"
+              />
+            </figure>
+            <div>
+              <h3 class="h3">Any backend, embodied</h3>
+              <p>
+                Chat Completions, the Responses API, or a push WebSocket.
+                Emotion, motion, voice tag and caption arrive as
+                <code>generate_express</code> cues beside the reply, so she
+                reacts instead of just answering.
+              </p>
+            </div>
+          </article>
+          <article class="card">
+            <figure class="media">
+              <img
+                :src="withBase('/yui-feature-proactive.png')"
+                alt="The reactions settings tab with screen watch, loop reactions and scheduled greetings"
+                width="720"
+                height="540"
+                loading="lazy"
+              />
+            </figure>
+            <div>
+              <h3 class="h3">She speaks first</h3>
+              <p>
+                Screen changes, quiet stretches and set times fire cues to the
+                backend. Whether to say anything is the backend's call; YUI
+                only renders what comes back.
+              </p>
+            </div>
+          </article>
+        </div>
       </section>
 
-      <!-- Body vs Mind framing -->
-      <section class="framing" aria-labelledby="framing-heading">
-        <div class="framing-copy">
-          <h2 class="framing-heading" id="framing-heading">
-            YUI is the body.<br />Your agent is the brain.
-          </h2>
-          <p class="framing-body">
-            YUI is the <em>embodied frontend</em>: rendering, sensing, and the
-            I/O surfaces. That is its whole domain.
-          </p>
-          <p class="framing-body">
-            Judgment, persona, memory, and the agent loop belong to the
-            <strong>backend agent</strong> you connect. YUI fires events and
-            renders whatever comes back; it never decides whether or what to
-            speak. That line is the system's load-bearing principle.
-          </p>
-        </div>
-
-        <div class="framing-aside">
-          <div class="callout">
-            <p class="callout-label">YUI · the head</p>
-            <p class="callout-title">Rendering + sensing + I/O</p>
-            <p class="callout-body">
-              VRM character · lipsync · speech bubble · tool-status chip · text
-              &amp; voice input · screen capture · proactive trigger firing
-            </p>
-          </div>
-          <div class="callout">
-            <p class="callout-label">Your agent · the brain</p>
-            <p class="callout-title">Judgment + persona + tools</p>
-            <p class="callout-body">
-              Agent loop · memory · LLM reasoning · tool execution ·
-              emotion/motion cues · silence decisions, all delegated to the
-              backend you supply
-            </p>
-          </div>
-        </div>
-      </section>
-
-      <!-- Setup Map -->
-      <section class="setup" aria-labelledby="setup-heading">
-        <div class="setup-header">
-          <h2 class="setup-heading" id="setup-heading">
-            What you need to run YUI
-          </h2>
-          <p class="setup-sub">
-            One required piece, and it ships in the repo; everything else is
-            optional. Start minimal; add a brain and a voice when you're ready.
-          </p>
-        </div>
-
-        <div class="setup-tiers">
-          <!-- Required -->
-          <div class="tier tier--required">
-            <span class="tier-badge tier-badge--required">Required</span>
-            <p class="tier-title">Core</p>
-            <ul class="tier-items">
-              <li class="tier-item">
-                <span class="tier-item-dot" aria-hidden="true"></span>
-                <div>
-                  <p class="tier-item-name">VRM model file</p>
-                  <p class="tier-item-note">
-                    Your character. A default model is bundled; bring any VRM
-                    0.x/1.0 file to replace it.
-                  </p>
-                </div>
-              </li>
+      <!-- Body and brain -->
+      <section class="sec" aria-labelledby="body-brain-heading">
+        <h2 class="h2" id="body-brain-heading">
+          YUI is the body. Your agent is the brain.
+        </h2>
+        <p class="sub">
+          YUI ships no model. It renders, senses and fires; judgment, persona
+          and memory belong to whatever you plug in, so she is exactly as smart
+          and as yours as that backend.
+        </p>
+        <div class="split">
+          <div class="col">
+            <h3>YUI does</h3>
+            <ul>
+              <li>VRM rendering, lipsync, expressions and motions</li>
+              <li>Text and voice input, screen capture</li>
+              <li>Speech bubble, status pill, settings</li>
+              <li>Firing proactive cues on a schedule or a screen change</li>
             </ul>
           </div>
-
-          <!-- Optional -->
-          <div class="tier tier--optional">
-            <span class="tier-badge tier-badge--optional">Optional</span>
-            <p class="tier-title">Add-ons</p>
-            <ul class="tier-items">
-              <li class="tier-item">
-                <span class="tier-item-dot" aria-hidden="true"></span>
-                <div>
-                  <p class="tier-item-name">Chat backend</p>
-                  <p class="tier-item-note">
-                    The brain: any OpenAI-compatible endpoint, a backend agent
-                    such as Hermes Agent over the Responses API, or a push
-                    WebSocket where the backend starts replies on its own.
-                  </p>
-                </div>
-              </li>
-              <li class="tier-item">
-                <span class="tier-item-dot" aria-hidden="true"></span>
-                <div>
-                  <p class="tier-item-name">Expression broker</p>
-                  <p class="tier-item-note">
-                    Publishes the emotion/motion vocabulary a backend agent reads
-                    back to drive <code>generate_express</code>.
-                  </p>
-                </div>
-              </li>
-              <li class="tier-item">
-                <span class="tier-item-dot" aria-hidden="true"></span>
-                <div>
-                  <p class="tier-item-name">TTS provider</p>
-                  <p class="tier-item-note">
-                    Irodori TTS Server, or any OpenAI-compatible speech endpoint.
-                  </p>
-                </div>
-              </li>
-              <li class="tier-item">
-                <span class="tier-item-dot" aria-hidden="true"></span>
-                <div>
-                  <p class="tier-item-name">STT + VAD</p>
-                  <p class="tier-item-note">
-                    Silero VAD segments speech; any OpenAI-compatible
-                    transcription server turns it into text.
-                  </p>
-                </div>
-              </li>
-              <li class="tier-item">
-                <span class="tier-item-dot" aria-hidden="true"></span>
-                <div>
-                  <p class="tier-item-name">Reference voice</p>
-                  <p class="tier-item-note">
-                    A clip to clone the character's voice, uploaded to the TTS
-                    server from the panel.
-                  </p>
-                </div>
-              </li>
-              <li class="tier-item">
-                <span class="tier-item-dot" aria-hidden="true"></span>
-                <div>
-                  <p class="tier-item-name">Standalone Mods</p>
-                  <p class="tier-item-note">
-                    Independent MCP servers: router, desktop-control,
-                    shell-sandbox, avatar.
-                  </p>
-                </div>
-              </li>
-              <li class="tier-item">
-                <span class="tier-item-dot" aria-hidden="true"></span>
-                <div>
-                  <p class="tier-item-name">Custom expression set</p>
-                  <p class="tier-item-note">
-                    Map emotion cues to your VRM's own blend shapes.
-                  </p>
-                </div>
-              </li>
+          <div class="col">
+            <h3>Your agent does</h3>
+            <ul>
+              <li>The agent loop, memory and tools</li>
+              <li>Persona and mood</li>
+              <li>Emotion and motion cues</li>
+              <li>Deciding whether to speak at all</li>
             </ul>
           </div>
         </div>
       </section>
 
-      <!-- CTA strip -->
-      <div class="cta-strip">
-        <div class="cta-strip-text">
-          <h2>Ready to wire it up?</h2>
-          <p>
-            The Getting Started guide walks through every required and optional
-            piece.
-          </p>
+      <!-- What you need -->
+      <section class="sec" aria-labelledby="need-heading">
+        <h2 class="h2" id="need-heading">What you need</h2>
+        <p class="sub">
+          One required piece, and it ships in the repo. Add a brain and a voice
+          when you are ready.
+        </p>
+        <div class="req">
+          <b>Required</b>
+          <span>
+            A VRM model. A default one is bundled; bring any VRM 0.x or 1.0
+            file to replace it.
+          </span>
         </div>
-        <a :href="withBase('/guide/getting-started')" class="btn-primary"
-          >Getting Started →</a
+        <div class="opt">
+          <div>
+            <b>Chat backend</b>
+            <span
+              >Any OpenAI-compatible endpoint, a Responses API agent, or a push
+              WebSocket.</span
+            >
+          </div>
+          <div>
+            <b>Expression broker</b>
+            <span
+              >Publishes the emotion and motion vocabulary the backend reads
+              back.</span
+            >
+          </div>
+          <div>
+            <b>TTS provider</b>
+            <span
+              >Irodori TTS Server or any OpenAI-compatible speech
+              endpoint.</span
+            >
+          </div>
+          <div>
+            <b>STT and VAD</b>
+            <span
+              >Silero VAD segments speech; any transcription server turns it
+              into text.</span
+            >
+          </div>
+          <div>
+            <b>Reference voice</b>
+            <span
+              >A clip to clone the character's voice, uploaded from the
+              panel.</span
+            >
+          </div>
+          <div>
+            <b>Standalone Mods</b>
+            <span
+              >Independent MCP servers: router, desktop control, shell sandbox,
+              avatar.</span
+            >
+          </div>
+          <div>
+            <b>Custom expression set</b>
+            <span>Map emotion cues to your VRM's own blend shapes.</span>
+          </div>
+        </div>
+      </section>
+
+      <!-- Closing -->
+      <section class="close" aria-label="Get started">
+        <p>Ready to wire her up?</p>
+        <a :href="withBase('/guide/getting-started')" class="btn btn--primary"
+          >Get started</a
         >
-      </div>
+      </section>
     </main>
 
     <!-- Footer -->
-    <footer class="home-footer">
-      <div class="footer-inner">
-        <p class="footer-copy">
-          YUI · PolyForm Noncommercial 1.0.0 ·
-          <a href="https://github.com/yw0nam/YUI" rel="noopener" target="_blank"
-            >github.com/yw0nam/YUI</a
-          >
-        </p>
-        <ul class="footer-links">
-          <li><a :href="withBase('/')">Home</a></li>
-          <li><a :href="withBase('/guide/getting-started')">Guide</a></li>
-          <li><a :href="withBase('/reference/client-context')">Reference</a></li>
-          <li>
-            <a href="https://github.com/yw0nam/YUI" rel="noopener" target="_blank"
-              >GitHub ↗</a
-            >
-          </li>
-        </ul>
-      </div>
+    <footer class="home-foot">
+      <span>YUI · PolyForm Noncommercial 1.0.0</span>
+      <span class="home-foot-links">
+        <a :href="withBase('/guide/getting-started')">Guide</a>
+        <a :href="withBase('/reference/client-context')">Reference</a>
+        <a href="https://github.com/yw0nam/YUI" rel="noopener" target="_blank"
+          >GitHub</a
+        >
+      </span>
     </footer>
   </div>
 </template>
