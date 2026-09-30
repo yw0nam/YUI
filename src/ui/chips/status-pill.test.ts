@@ -26,13 +26,7 @@ function opacityTransitionEnd(el: HTMLElement): void {
   el.dispatchEvent(new TransitionEvent("transitionend", { propertyName: "opacity" }));
 }
 
-function setup(
-  opts: {
-    capture?: boolean;
-    withCaptureSetting?: boolean;
-    withFix?: boolean;
-  } = {},
-) {
+function setup(opts: { capture?: boolean; withCaptureSetting?: boolean; withFix?: boolean } = {}) {
   const mount = document.createElement("div");
   document.body.appendChild(mount);
   const settings = createScreenshotSettings();

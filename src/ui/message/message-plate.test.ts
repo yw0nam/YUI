@@ -154,8 +154,6 @@ describe("createMessagePlate without the window options", () => {
 
   it("ignores a press on the plate", () => {
     createMessagePlate({ mount });
-    expect(() =>
-      el().dispatchEvent(new MouseEvent("mousedown", { bubbles: true })),
-    ).not.toThrow();
+    expect(() => el().dispatchEvent(new MouseEvent("mousedown", { bubbles: true }))).not.toThrow();
   });
 });
