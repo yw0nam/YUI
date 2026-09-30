@@ -10,7 +10,7 @@
 
 import type { AttachmentLimits } from "../../config/load";
 import { createLogger } from "../../logger";
-import type { MessageBridge } from "./message-bridge";
+import type { MessageBridge, UserQuote } from "./message-bridge";
 
 /** In-place fix offered next to an inline error (e.g. "Open Advanced" on an unconfigured backend). */
 export interface InputErrorAction {
@@ -25,6 +25,12 @@ export interface RemoteSurfaces {
   endSpeech(opts?: { defer?: boolean }): void;
   finishSpeech(): void;
   hideSpeech(): void;
+  /** Opens the message window's bubble with the user's message quoted on its first line. */
+  quoteUser(quote: UserQuote): void;
+  /** Hands the quoted turn's bubble to its dwell. */
+  settleQuote(): void;
+  /** Drops the quoted line from the message window's bubble. */
+  clearQuote(): void;
   summonInput(): void;
   dismissInput(): void;
   /** The last open state the message window reported. */
@@ -101,6 +107,15 @@ export function createRemoteSurfaces(bridge: MessageBridge): RemoteSurfaces {
     },
     hideSpeech() {
       bridge.emitSurface({ op: "hide" });
+    },
+    quoteUser(quote) {
+      bridge.emitSurface({ op: "quote", quote });
+    },
+    settleQuote() {
+      bridge.emitSurface({ op: "settle-quote" });
+    },
+    clearQuote() {
+      bridge.emitSurface({ op: "clear-quote" });
     },
     summonInput() {
       bridge.emitSurface({ op: "summon-input" });

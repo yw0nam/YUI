@@ -114,6 +114,15 @@ async function bootstrap(): Promise<void> {
         plate.setLive(false);
         surfaces.hideSpeech();
         break;
+      case "quote":
+        surfaces.quoteUser(op.quote);
+        break;
+      case "settle-quote":
+        surfaces.settleQuote();
+        break;
+      case "clear-quote":
+        surfaces.clearQuote();
+        break;
       case "summon-input":
         // A document focus in an unfocused webview leaves the keystrokes with the pet window.
         void focusWindow().then(() => surfaces.summonInput());

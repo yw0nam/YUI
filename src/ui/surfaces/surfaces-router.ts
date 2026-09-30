@@ -28,7 +28,14 @@ export function createSurfacesRouter({
 }: SurfacesRouterOptions): Surfaces {
   const speech = (): Pick<
     Surfaces,
-    "beginSpeech" | "pushSpeech" | "endSpeech" | "finishSpeech" | "hideSpeech"
+    | "beginSpeech"
+    | "pushSpeech"
+    | "endSpeech"
+    | "finishSpeech"
+    | "hideSpeech"
+    | "quoteUser"
+    | "settleQuote"
+    | "clearQuote"
   > => (getMode() === "popped" ? remote : local);
   const input = (): Pick<
     Surfaces,
@@ -65,6 +72,9 @@ export function createSurfacesRouter({
     endSpeech: (opts) => speech().endSpeech(opts),
     finishSpeech: () => speech().finishSpeech(),
     hideSpeech: () => speech().hideSpeech(),
+    quoteUser: (quote) => speech().quoteUser(quote),
+    settleQuote: () => speech().settleQuote(),
+    clearQuote: () => speech().clearQuote(),
 
     showTool: local.showTool,
     finishTool: local.finishTool,

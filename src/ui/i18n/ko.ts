@@ -36,6 +36,8 @@ const ko: Record<string, string> = {
   "aria.stop": "멈추기",
   "aria.remove_attachment": "첨부 제거",
   "aria.dismiss_bubble": "말풍선 닫기",
+  "bubble.you": "나",
+  "bubble.quote_attached": "첨부 {count}장",
   "aria.dock_message": "말풍선을 캐릭터 창으로 되돌리기",
   "aria.pop_message": "말풍선을 메시지 창으로 분리",
   "aria.dismiss_error": "오류 닫기",

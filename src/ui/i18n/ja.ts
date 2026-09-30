@@ -36,6 +36,8 @@ const ja: Record<string, string> = {
   "aria.stop": "停止",
   "aria.remove_attachment": "添付を削除",
   "aria.dismiss_bubble": "吹き出しを閉じる",
+  "bubble.you": "自分",
+  "bubble.quote_attached": "添付 {count}件",
   "aria.dock_message": "吹き出しをキャラクターに戻す",
   "aria.pop_message": "吹き出しをメッセージウィンドウへ",
   "aria.dismiss_error": "エラーを閉じる",

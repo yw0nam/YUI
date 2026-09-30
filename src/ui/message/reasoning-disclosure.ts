@@ -1,5 +1,5 @@
 /**
- * Reasoning disclosure — the backend's reasoning folded at the top of the speech bubble.
+ * Reasoning disclosure — the backend's reasoning folded at the top of the speech bubble, under the quoted line.
  *
  * Pure renderer — firing ≠ judgment: this only *draws* the state the store holds. The disclosure
  * opens on the first delta of a live cycle, closes on every finalized render, and the summary
@@ -14,14 +14,14 @@ import type { SpeechBubble } from "./speech-bubble";
 export type ReasoningSource = Pick<ReasoningStore, "get" | "subscribe">;
 
 interface ReasoningDisclosureOptions {
-  /** The bubble's box; the disclosure goes in before the speech text. */
-  mount: HTMLElement;
+  /** The speech text; the disclosure goes in right before it, under the quoted line. */
+  before: HTMLElement;
   source: ReasoningSource;
   /** Revealed at a cycle's start, released at its end, re-measured as the disclosure changes height. */
   bubble: Pick<SpeechBubble, "reveal" | "release" | "measure">;
 }
 
-export function createReasoningDisclosure({ mount, source, bubble }: ReasoningDisclosureOptions): {
+export function createReasoningDisclosure({ before, source, bubble }: ReasoningDisclosureOptions): {
   dispose(): void;
 } {
   const el = document.createElement("details");
@@ -37,7 +37,7 @@ export function createReasoningDisclosure({ mount, source, bubble }: ReasoningDi
     </summary>
     <p class="yui-bubble__think-text"></p>
   `;
-  mount.prepend(el);
+  before.before(el);
 
   const labelEl = el.querySelector<HTMLElement>(".yui-bubble__think-label")!;
   const textEl = el.querySelector<HTMLElement>(".yui-bubble__think-text")!;
