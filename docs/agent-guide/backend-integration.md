@@ -5,7 +5,7 @@ Chat io has three protocol modes, selected by `chat_api` in `configs/endpoints.j
 Chat, STT and TTS use the **OpenAI-compatible API**; the broker is an MCP. Separate processes, all swappable via config:
 
 - **chat → selected backend** `chat_base_url` + `/responses` or `/chat/completions` per `chat_api`, or a WebSocket to `<chat_base_url>/ws` in push mode
-- **STT →** `stt_base_url` (includes `/v1`, e.g. `localhost:5517/v1`) + `/audio/transcriptions`
+- **STT →** `stt_base_url` (includes `/v1`, e.g. `localhost:5517/v1`) + `/audio/transcriptions`, with `model` from `stt_model` when set
 - **TTS →** `tts_base_url` (`localhost:8088`) `/v1/audio/speech`, with `model` from `tts_model` and `voice` from the speaker selected in the panel. Speakers are listed by `GET {tts_base_url}/v1/audio/voices` — YUI carries no bundled catalog — plus any clip the user imports, which is uploaded to `POST`/`PUT /v1/audio/voices` and removed with `DELETE /v1/audio/voices/{voice_id}`. An imported voice's `voice_id` is ASCII (`[A-Za-z0-9_-]`), derived from the name typed at import, and the panel label keeps that name as free text; at startup a user voice persisted under any other id moves to its ASCII id, or gives way to a re-import that already holds that id, before the voice list refresh re-uploads it
 - **Expression Broker** (config-driven) `broker_base_url` (`localhost:3201/mcp`, streamable-http MCP) — YUI publishes renderable emotion/motion/emotion_text vocabulary, the agent reads it (publish skipped if unset)
 

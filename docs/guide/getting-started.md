@@ -164,7 +164,7 @@ Serve any OpenAI-compatible transcription server at the configured URL, then set
 "stt_base_url": "http://localhost:5517/v1"
 ```
 
-YUI sends audio to `<stt_base_url>/audio/transcriptions`. If the server requires auth, set `VITE_YUI_STT_KEY` in `.env.local` — YUI sends it as `Authorization: Bearer`.
+YUI sends audio to `<stt_base_url>/audio/transcriptions`. If the server requires auth, set `VITE_YUI_STT_KEY` in `.env.local` — YUI sends it as `Authorization: Bearer`. A hosted API such as Groq also needs `stt_model` (for example `"stt_model": "whisper-large-v3-turbo"`), set in `configs/endpoints.json`; the Connection tab has no STT model field.
 
 ---
 
@@ -184,6 +184,7 @@ Key reference:
 | `chat_model_context_window` | `200000` | Token window — display in Responses mode; also trims the client-side transcript in Chat Completions mode |
 | `chat_instructions` | expression prompt | System-level nudge on how to use `generate_express`; sent as `instructions` (Responses) or a system message (Chat Completions) |
 | `stt_base_url` | unset | STT server base URL |
+| `stt_model` | unset | `model` sent to the STT server; omitted when unset |
 | `tts_base_url` | unset | OpenAI-compatible TTS server |
 | `tts_model` | `irodori-tts` | `model` sent to the TTS server; must match its configured name |
 | `tts_speaker` | unset | Default voice id, until another is picked in the panel |

@@ -27,7 +27,7 @@ YUI/
     agents/                          # Vendored sub-agent definitions
   scripts/                           # Dev launchers (dev-port.mjs, tauri-dev.mjs, dev-auto.mjs) and their shared package-manager.mjs helper, release.sh, worktree-setup.sh, ci/test-guard.sh
   configs/                           # Runtime-loaded config (no hardcoding)
-    endpoints.json                   # chat/stt/tts/broker base urls + chat_instructions, chat_api, chat_model_context_window + tts_model/tts_speaker/tts_max_inflight; the shipped configs/endpoints.json omits the url and speaker keys, and the settings panel overrides per device
+    endpoints.json                   # chat/stt/tts/broker base urls + chat_instructions, chat_api, chat_model_context_window + stt_model/tts_model/tts_speaker/tts_max_inflight; the shipped configs/endpoints.json omits the url and speaker keys, and the settings panel overrides per device
     emotion_registry.json            # emotion id -> vrm_expression + fallback
     motions.json                     # Motion registry
     avatar.json                      # VRM avatar config
