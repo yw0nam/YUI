@@ -20,9 +20,13 @@ export function formatDelegationDuration(ms: number): string {
   return t("deleg.hour_min", { h: Math.floor(minutes / 60), m: minutes % 60 });
 }
 
-/** One row's right-side text — running elapsed, or done (or failed) with an "ago" stamp. */
+/** One row's right-side text — running elapsed, done or failed with an "ago" stamp, unknown. */
 export function formatDelegationTime(item: DelegationItem, now: number): string {
   if (item.state === "running") return formatDelegationDuration(now - item.started_at);
+  if (item.status === "unknown") {
+    if (item.ended_at === undefined) return t("deleg.unknown");
+    return t("deleg.unknown_ago", { time: formatDelegationDuration(now - item.ended_at) });
+  }
   const failed = item.status === "error";
   if (item.ended_at === undefined) return t(failed ? "deleg.failed" : "deleg.done");
   const time = formatDelegationDuration(now - item.ended_at);

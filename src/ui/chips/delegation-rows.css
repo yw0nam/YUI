@@ -9,7 +9,6 @@
   padding: 0.3rem 0;
   border-top: 1px solid var(--yui-edge);
   color: var(--yui-text-dim);
-  font-size: 0.78rem;
 }
 
 .yui-deleg__item:first-child {
@@ -31,16 +30,22 @@
   background: var(--yui-danger);
 }
 
+/* The backend could not verify how the work ended — neither done green nor failed red. */
+.yui-deleg__item[data-state="done"][data-status="unknown"] .yui-deleg__item-dot {
+  background: var(--yui-text-mute);
+}
+
 .yui-deleg__item-title {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
   color: var(--yui-text);
-  text-shadow: var(--yui-text-shadow);
+  font-size: var(--yui-fs-body);
 }
 
 .yui-deleg__item-time {
   color: var(--yui-text-mute);
+  font-size: var(--yui-fs-sub);
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
 }
@@ -57,7 +62,7 @@
   background: none;
   color: var(--yui-text-dim);
   font-family: inherit;
-  font-size: 0.78rem;
+  font-size: var(--yui-fs-body);
   text-align: left;
   cursor: pointer;
   transition: background var(--yui-dur-fast) var(--yui-ease);

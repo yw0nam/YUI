@@ -493,6 +493,8 @@ const ko: Record<string, string> = {
   "deleg.done_ago": "끝남 · {time} 전",
   "deleg.failed": "실패",
   "deleg.failed_ago": "실패 · {time} 전",
+  "deleg.unknown": "결과 확인 필요",
+  "deleg.unknown_ago": "결과 확인 필요 · {time} 전",
   "deleg.took": "걸린 시간 {time}",
 
   // reasoning

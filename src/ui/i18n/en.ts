@@ -496,6 +496,8 @@ const en: Record<string, string> = {
   "deleg.done_ago": "Done · {time} ago",
   "deleg.failed": "Failed",
   "deleg.failed_ago": "Failed · {time} ago",
+  "deleg.unknown": "Outcome unverified",
+  "deleg.unknown_ago": "Outcome unverified · {time} ago",
   "deleg.took": "Took {time}",
 
   // reasoning
