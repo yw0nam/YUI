@@ -218,7 +218,7 @@
 .yui-bubble__text blockquote {
   margin: 0.45em 0;
   padding: 0.1em 0 0.1em 0.7em;
-  border-left: 2px solid var(--yui-accent-soft);
+  border-left: 2px solid var(--yui-edge-strong);
   color: var(--yui-text-dim);
 }
 .yui-bubble__text hr {
