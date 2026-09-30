@@ -106,7 +106,7 @@ Any backend served over the OpenAI Responses API (`/v1/responses`); the [Hermes 
 | Feature | `chat_completions` | `responses` | `push` |
 | --- | --- | --- | --- |
 | Speech text and `generate_express` cues | yes | yes | yes |
-| Tool chip (which tool the backend is running) | yes | yes | yes |
+| Status pill's tool segment (which tool the backend is running) | yes | yes | yes |
 | Reasoning chip | — | yes, when the backend streams reasoning events | yes |
 | A reply the backend starts on its own | — | — | yes |
 | Delegation list and reports | — | — | yes |

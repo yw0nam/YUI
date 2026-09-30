@@ -58,7 +58,7 @@ YUI/
         wire-cross-window.ts         # Per-window sync for the pet, settings, and devtools windows plus the DEV globals including speech playback
         wire-window-sync.ts          # Settings broadcast, guardrail overrides, and the shared cross-window sync core
       controls/                      # The pet window's summonable control surfaces
-        wire-pet-controls.ts         # Quick-controls panel, capture and voice-input indicators, and the stage context menu, remounted on locale change
+        wire-pet-controls.ts         # Quick-controls panel, remounted on locale change, and the stage context menu
       settings/                      # Selections and conversation state applied to the running app
         conversation-stores.ts       # Constructs the four shared io/chat conversation stores each window owns and disposes
         wire-avatar.ts               # VRM and speaker selection stores, their swap and import flows, and the avatar config applied at boot

@@ -28,7 +28,7 @@ Everything YUI does today, grouped by area. The README shows the three headline 
 
 | Feature | What it does |
 | --- | --- |
-| Speech bubble | Streaming markdown with links in the default browser, plus a reasoning chip and a tool-status chip |
+| Speech bubble | Streaming markdown with links in the default browser, plus a reasoning chip; the running tool shows in the status pill above the character |
 | Text input | Text box with up to 6 image attachments by paste, drag-and-drop, or file picker |
 | Voice input | Silero VAD speech detection, transcription on any OpenAI-compatible STT endpoint, and barge-in over her speech |
 | Voice output | Sentence-by-sentence TTS with the `emotion_text` voice tag ([vocabulary](../reference/tts-emotion/)), and a voice list from the TTS server with import of your own reference clip |

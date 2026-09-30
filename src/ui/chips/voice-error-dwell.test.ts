@@ -1,8 +1,8 @@
 /**
  * voice-error-dwell.test.ts
  *
- * The voice indicator's error dwell. A transient failure self-clears back to
- * listening so the chip does not sit red forever; a settings-fixable one holds,
+ * The status pill's voice error dwell. A transient failure self-clears back to
+ * listening so the pill does not sit red forever; a settings-fixable one holds,
  * because a fix affordance that vanishes mid-reach is worse than none.
  */
 

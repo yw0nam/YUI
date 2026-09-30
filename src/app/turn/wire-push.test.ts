@@ -333,7 +333,7 @@ describe("wirePushTransport", () => {
     expect(reasoning.get()).toEqual({ text: "", live: false });
   });
 
-  it("hands every tool_status frame to the tool chip sink and the turn's waiter", () => {
+  it("hands every tool_status frame to the tool-status sink and the turn's waiter", () => {
     wire();
     const waiter = vi.fn();
     pushTurns.opened("7");
@@ -349,7 +349,7 @@ describe("wirePushTransport", () => {
     expect(waiter).toHaveBeenCalledWith("running", "read_file");
   });
 
-  it("calls the tool chip sink for a frame of a turn with no waiter", () => {
+  it("calls the tool-status sink for a frame of a turn with no waiter", () => {
     wire();
     socket.pushToolStatus({
       type: "tool_status",

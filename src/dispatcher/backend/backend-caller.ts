@@ -102,7 +102,7 @@ interface BackendCallerDeps extends PushCallDeps {
   getFrontmost?: () => FrontmostState | undefined;
   /** Previous-turn slot lookup — read after the pre-turn interrupt, so a superseded turn is already recorded. */
   getPrevious?: () => PreviousTurn | undefined;
-  /** The shared tool-chip/reasoning consumer — the streaming path feeds it under this turn's owner. */
+  /** The shared tool-status/reasoning consumer — the streaming path feeds it under this turn's owner. */
   turnFeed?: TurnFeed;
   /** Previous response id lookup — when present, included in request to continue conversation. Called per turn (reflects reset/rotation). */
   getPreviousResponseId?: () => string | undefined;

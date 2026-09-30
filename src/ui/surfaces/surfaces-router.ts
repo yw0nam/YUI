@@ -3,7 +3,7 @@
  * message window's, reached over the bridge.
  *
  * Every consumer keeps its single `Surfaces` handle: the router picks the side
- * the current mode names for the bubble and the input, and keeps the tool chip,
+ * the current mode names for the bubble and the input, and keeps tool status,
  * the feet anchor and the overlay element local, since those belong to the
  * character. Submit and stop callbacks are registered once here and fire
  * whichever side the user typed on.

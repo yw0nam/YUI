@@ -1,5 +1,5 @@
 /**
- * turn-feed — the one consumer of tool-chip states and reasoning cycles from every transport.
+ * turn-feed — the one consumer of tool states and reasoning cycles from every transport.
  *
  * Each transport turns its own wire into calls here under an owner that names one of its turns,
  * and the feed keeps the two shared slots: the running tool and the live reasoning cycle. Every

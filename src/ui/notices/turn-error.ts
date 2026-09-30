@@ -32,7 +32,7 @@ export function turnErrorMessage(reason: TurnFailure): string | undefined {
 /**
  * Whether the settings panel can resolve a failure. Only an unconfigured backend
  * qualifies — every other failure is outside the panel. Takes a raw string because
- * the voice indicator reads its reason off an untyped status detail.
+ * the status pill reads its reason off an untyped status detail.
  */
 export function isSettingsFixable(reason: string): boolean {
   return reason === "not_configured";
@@ -56,7 +56,7 @@ type TurnFailureAction = { kind: "show_input_error" } | { kind: "voice_error" } 
  * Routes a classified user-turn failure to the UI surface it belongs to. Routes by
  * `source` (which trigger actually failed), not by the input form's CURRENT open
  * state alone — a typed turn dismissed with Escape mid-flight must not get
- * misrouted to the voice indicator just because the form happens to be closed by
+ * misrouted to the status pill's voice error just because the form happens to be closed by
  * the time the failure arrives.
  *  - text + input open   -> the inline input error.
  *  - text + input closed -> nothing (the user already dismissed it; log-only).

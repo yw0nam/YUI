@@ -30,7 +30,7 @@ const en: Record<string, string> = {
   "aria.preview_speaker": "Preview {name}",
   "aria.voice_input": "Voice input: {label}",
 
-  // surfaces (speech bubble · tool-status · text input)
+  // surfaces (speech bubble · status pill · text input)
   "aria.attach_image": "Attach image",
   "aria.input_field": "Talk to YUI",
   "aria.send": "Send",
@@ -68,7 +68,7 @@ const en: Record<string, string> = {
   "boot.error_vrm": "No VRM model found — put a .vrm file in resources/vrms/ and restart.",
   "boot.error_dismiss": "Dismiss",
 
-  // capture indicator
+  // status pill (capture)
   "capture.watching": "Watching your screen",
 
   // cue-list internal labels

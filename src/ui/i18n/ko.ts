@@ -29,7 +29,7 @@ const ko: Record<string, string> = {
   "aria.preview_speaker": "{name} 미리듣기",
   "aria.voice_input": "음성 입력: {label}",
 
-  // surfaces (speech bubble · tool-status · text input)
+  // surfaces (speech bubble · status pill · text input)
   "aria.attach_image": "이미지 첨부",
   "aria.input_field": "YUI에게 말 걸기",
   "aria.send": "보내기",
@@ -67,7 +67,7 @@ const ko: Record<string, string> = {
     "VRM 모델을 찾을 수 없습니다 — resources/vrms/에 .vrm 파일을 넣고 다시 시작하세요.",
   "boot.error_dismiss": "닫기",
 
-  // capture indicator
+  // status pill (capture)
   "capture.watching": "화면 보는 중",
 
   // cue-list internal labels

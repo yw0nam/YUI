@@ -4,7 +4,7 @@
  *
  * Every consumer keeps talking to a single `Surfaces`; the router sends the
  * bubble and input halves to whichever side the current mode names, keeps the
- * tool chip and the anchor local, and hides the surface on the side being left
+ * tool status and the anchor local, and hides the surface on the side being left
  * when the mode flips.
  */
 

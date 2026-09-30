@@ -66,7 +66,7 @@ export function wirePushTransport(deps: {
   delegations: DelegationsStore;
   /** The persisted list every `delegations` frame folds into. */
   delegationHistory: Pick<DelegationHistory, "merge">;
-  /** The shared tool-chip/reasoning consumer — the socket feeds it under push owners. */
+  /** The shared tool-status/reasoning consumer — the socket feeds it under push owners. */
   turnFeed: TurnFeed;
   appendTurnRecord: (record: RenderRecord) => void;
   /** Conversation transcript — the reply half of a push turn lands here. */

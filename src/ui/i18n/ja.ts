@@ -29,7 +29,7 @@ const ja: Record<string, string> = {
   "aria.preview_speaker": "{name} を試聴",
   "aria.voice_input": "音声入力: {label}",
 
-  // surfaces (speech bubble · tool-status · text input)
+  // surfaces (speech bubble · status pill · text input)
   "aria.attach_image": "画像を添付",
   "aria.input_field": "YUI に話しかける",
   "aria.send": "送信",
@@ -68,7 +68,7 @@ const ja: Record<string, string> = {
     "VRM モデルが見つかりません — resources/vrms/ に .vrm ファイルを置いて再起動してください。",
   "boot.error_dismiss": "閉じる",
 
-  // capture indicator
+  // status pill (capture)
   "capture.watching": "画面を見ています",
 
   // cue-list internal labels
