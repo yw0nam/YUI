@@ -499,17 +499,14 @@
   display: none;
 }
 
-.yui-filler-more > summary::before {
-  content: "›";
-  display: inline-block;
+.yui-filler-more > summary svg {
   width: 0.875rem;
-  font-size: var(--yui-fs-head);
-  line-height: 1;
-  text-align: center;
+  height: 0.875rem;
+  flex: none;
   transition: transform var(--yui-dur-fast) var(--yui-ease);
 }
 
-.yui-filler-more[open] > summary::before {
+.yui-filler-more[open] > summary svg {
   transform: rotate(90deg);
 }
 
@@ -1191,7 +1188,7 @@
   .yui-switch,
   .yui-switch::after,
   .yui-meter__fill,
-  .yui-filler-more > summary::before {
+  .yui-filler-more > summary svg {
     transition: none;
   }
   .yui-tab:active,

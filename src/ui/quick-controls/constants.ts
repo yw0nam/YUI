@@ -151,15 +151,15 @@ export const SCREEN_MIN_GAP_MAX = 60;
 
 // Display icon for the screen-watch row — monitor with a lens, matching the line-icon set.
 export const SCREEN_WATCH_SVG = `<svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
-  <rect x="3" y="4" width="18" height="12" rx="2" stroke="currentColor" stroke-width="1.7"/>
-  <path d="M12 16v3.5M8.5 20h7" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>
-  <circle cx="12" cy="10" r="2.4" stroke="currentColor" stroke-width="1.7"/>
+  <rect x="3" y="4" width="18" height="12" rx="2" stroke="currentColor" stroke-width="1.5"/>
+  <path d="M12 16v3.5M8.5 20h7" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+  <circle cx="12" cy="10" r="2.4" stroke="currentColor" stroke-width="1.5"/>
 </svg>`;
 
 // Eye icon (show/hide). Line-icon style matches other icon buttons.
-export const CHATKEY_EYE_SVG = `<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12Z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><circle cx="12" cy="12" r="2.6" stroke="currentColor" stroke-width="1.7"/></svg>`;
-export const CHATKEY_EYE_OFF_SVG = `<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M4 4l16 16" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/><path d="M9.6 5.9A9.6 9.6 0 0 1 12 5.5C18 5.5 21.5 12 21.5 12a16 16 0 0 1-2.7 3.3M6.3 7.7A16 16 0 0 0 2.5 12S6 18.5 12 18.5a9.3 9.3 0 0 0 2.7-.4" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><path d="M9.7 9.8a2.6 2.6 0 0 0 3.6 3.7" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/></svg>`;
-export const CHATKEY_CLEAR_SVG = `<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>`;
+export const CHATKEY_EYE_SVG = `<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12Z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/><circle cx="12" cy="12" r="2.6" stroke="currentColor" stroke-width="1.5"/></svg>`;
+export const CHATKEY_EYE_OFF_SVG = `<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M4 4l16 16" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><path d="M9.6 5.9A9.6 9.6 0 0 1 12 5.5C18 5.5 21.5 12 21.5 12a16 16 0 0 1-2.7 3.3M6.3 7.7A16 16 0 0 0 2.5 12S6 18.5 12 18.5a9.3 9.3 0 0 0 2.7-.4" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/><path d="M9.7 9.8a2.6 2.6 0 0 0 3.6 3.7" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/></svg>`;
+export const CHATKEY_CLEAR_SVG = `<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>`;
 
 export const CHAT_APIS = ["responses", "chat_completions", "push"] as const;
 export type ChatApi = (typeof CHAT_APIS)[number];
@@ -190,16 +190,17 @@ export const CHAT_PROVIDER_PRESETS: readonly ChatProviderPreset[] = [
   { id: "hermes", name: "Hermes Agent", chatApi: "push" },
 ];
 
-// Tab icons — same line-icon vocabulary as other icon buttons (1.7 stroke, 24x24 viewBox).
+// Tab icons — same line-icon vocabulary as other icon buttons (1.5 stroke, 24x24 viewBox).
 // Input icon reuses the same path as the voice_input row icon in the input tab.
-export const TAB_ICON_CONN = `<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M9 7.5V4M15 7.5V4M12 16.5V20" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/><path d="M7 7.5h10v4a5 5 0 0 1-10 0v-4Z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/></svg>`;
-export const TAB_ICON_TALK = `<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M4 6.8A2.3 2.3 0 0 1 6.3 4.5h11.4A2.3 2.3 0 0 1 20 6.8v6.4a2.3 2.3 0 0 1-2.3 2.3H10l-4.3 3.3v-3.3H6.3A2.3 2.3 0 0 1 4 13.2V6.8Z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round" stroke-linecap="round"/></svg>`;
-export const TAB_ICON_CHAR = `<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="12" cy="8.3" r="3.1" stroke="currentColor" stroke-width="1.7"/><path d="M5.2 19c1.15-3.4 3.9-5 6.8-5s5.65 1.6 6.8 5" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
-export const TAB_ICON_INPUT = `<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 4.5v7" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/><path d="M8 9.5v1.8a4 4 0 0 0 8 0V9.5" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/><path d="M12 15.5v3" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/><path d="M9.5 18.5h5" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>`;
-export const TAB_ICON_GENERAL = `<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><line x1="4" y1="6" x2="20" y2="6" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/><line x1="4" y1="12" x2="20" y2="12" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/><line x1="4" y1="18" x2="20" y2="18" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/><circle cx="8" cy="6" r="1.7" fill="var(--yui-panel-bg)" stroke="currentColor" stroke-width="1.7"/><circle cx="16" cy="12" r="1.7" fill="var(--yui-panel-bg)" stroke="currentColor" stroke-width="1.7"/><circle cx="10" cy="18" r="1.7" fill="var(--yui-panel-bg)" stroke="currentColor" stroke-width="1.7"/></svg>`;
-export const TAB_ICON_REACT = `<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M13 3 5.5 13h4.7l-1 8L18 11h-4.7l1-8Z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round" stroke-linecap="round"/></svg>`;
+export const TAB_ICON_CONN = `<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M9 7.5V4M15 7.5V4M12 16.5V20" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><path d="M7 7.5h10v4a5 5 0 0 1-10 0v-4Z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/></svg>`;
+export const TAB_ICON_TALK = `<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M4 6.8A2.3 2.3 0 0 1 6.3 4.5h11.4A2.3 2.3 0 0 1 20 6.8v6.4a2.3 2.3 0 0 1-2.3 2.3H10l-4.3 3.3v-3.3H6.3A2.3 2.3 0 0 1 4 13.2V6.8Z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round"/></svg>`;
+export const TAB_ICON_CHAR = `<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="12" cy="8.3" r="3.1" stroke="currentColor" stroke-width="1.5"/><path d="M5.2 19c1.15-3.4 3.9-5 6.8-5s5.65 1.6 6.8 5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+export const TAB_ICON_INPUT = `<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 4.5v7" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><path d="M8 9.5v1.8a4 4 0 0 0 8 0V9.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><path d="M12 15.5v3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><path d="M9.5 18.5h5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>`;
+export const TAB_ICON_GENERAL = `<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><line x1="4" y1="6" x2="20" y2="6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><line x1="4" y1="12" x2="20" y2="12" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><line x1="4" y1="18" x2="20" y2="18" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><circle cx="8" cy="6" r="1.7" fill="var(--yui-panel-bg)" stroke="currentColor" stroke-width="1.5"/><circle cx="16" cy="12" r="1.7" fill="var(--yui-panel-bg)" stroke="currentColor" stroke-width="1.5"/><circle cx="10" cy="18" r="1.7" fill="var(--yui-panel-bg)" stroke="currentColor" stroke-width="1.5"/></svg>`;
+export const TAB_ICON_REACT = `<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M13 3 5.5 13h4.7l-1 8L18 11h-4.7l1-8Z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round"/></svg>`;
 
-export const TAB_ICON_HIST = `<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 8v4l2.5 2.5" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/><path d="M4.5 12a7.5 7.5 0 1 1 2.2 5.3" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/><path d="M4.5 17v-4h4" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+export const TAB_ICON_HIST = `<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 8v4l2.5 2.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><path d="M4.5 12a7.5 7.5 0 1 1 2.2 5.3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><path d="M4.5 17v-4h4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
 
-// Session-row disclosure chevron — CSS rotates it 90° when the session is open.
-export const HIST_CHEVRON_SVG = `<svg viewBox="0 0 24 24" fill="none" width="14" height="14" aria-hidden="true"><path d="M9 6l6 6-6 6" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+// Session-row disclosure chevron — CSS rotates it 90° when the session is open. Drawn at 14px:
+// under the 0.9rem line of the 1.5-stroke icons, so it carries the heavier stroke.
+export const HIST_CHEVRON_SVG = `<svg viewBox="0 0 24 24" fill="none" width="14" height="14" aria-hidden="true"><path d="M9 6l6 6-6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>`;

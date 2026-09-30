@@ -94,9 +94,9 @@ export function createSwitchRows({
       ariaKey: "tts_output.aria",
       tab: "input",
       labelIcon: `<svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
-  <rect x="4" y="6" width="16" height="12" rx="2" stroke="currentColor" stroke-width="1.7"/>
-  <path d="M9 10l2.5 2.5L15 9" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/>
-  <path d="M4 9h2M18 9h2" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>
+  <rect x="4" y="6" width="16" height="12" rx="2" stroke="currentColor" stroke-width="1.5"/>
+  <path d="M9 10l2.5 2.5L15 9" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M4 9h2M18 9h2" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
 </svg>`,
       isVisible: true,
       isAvailable: !!ttsSettings,

@@ -242,7 +242,7 @@ export function createTextInput(
     remove.className = "yui-chip__remove";
     remove.innerHTML =
       `<svg viewBox="0 0 24 24" fill="none" aria-hidden="true">` +
-      `<path d="M7 7l10 10M17 7L7 17" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/>` +
+      `<path d="M7 7l10 10M17 7L7 17" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>` +
       `</svg>`;
     remove.setAttribute("aria-label", t("aria.remove_attachment"));
     remove.addEventListener("click", () => {

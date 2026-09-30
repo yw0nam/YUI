@@ -1,5 +1,5 @@
 /**
- * English strings — source of truth for the key set.
+ * English strings: source of truth for the key set.
  * All tool.* keys stay English in every locale (not translated).
  */
 const en: Record<string, string> = {
@@ -21,7 +21,7 @@ const en: Record<string, string> = {
   "voice.state.error": "Error",
   // the one voice failure the settings panel resolves — the chip becomes the fix
   "voice.error.not_configured": "Setup needed",
-  "voice.error.not_configured_fix": "backend not configured — open Connection settings",
+  "voice.error.not_configured_fix": "backend not configured. Open Connection settings",
 
   // aria labels (parameterized)
   "aria.refresh_speaker": "Refresh {name} reference voice",
@@ -58,14 +58,14 @@ const en: Record<string, string> = {
   // chain-break (404) recovery notice
   "chain.reset_notice": "Conversation context was reset",
   "hotkey.register_failed":
-    "Summon hotkey {accelerator} could not be registered — another app may hold it",
+    "Summon hotkey {accelerator} could not be registered: another app may hold it",
   "ingress.dead_notice":
-    "Agent event listener failed to start (port {port} in use) — agent notifications are off this session",
+    "Agent event listener failed to start (port {port} in use), so agent notifications are off this session",
 
   // boot-failure notice
   "boot.error_title": "YUI failed to start",
-  "boot.error_config": "Could not load settings — {file}",
-  "boot.error_vrm": "No VRM model found — put a .vrm file in resources/vrms/ and restart.",
+  "boot.error_config": "Could not load settings: {file}",
+  "boot.error_vrm": "No VRM model found. Put a .vrm file in resources/vrms/ and restart.",
   "boot.error_dismiss": "Dismiss",
 
   // status pill (capture)
@@ -238,7 +238,7 @@ const en: Record<string, string> = {
   // express motion (agent-selectable motion vocabulary)
   "express_motion.section": "Expression motion",
   "express_motion.sub":
-    "Motions she may pick while talking — turning one off drops it from her vocabulary",
+    "Motions she may pick while talking. Turning one off drops it from her vocabulary",
   "express_motion.group_aria": "Expression motion selection",
   "express_motion.count": "{on}/{total} on",
   "express_motion.master_aria": "All of {group}",
@@ -320,7 +320,7 @@ const en: Record<string, string> = {
 
   // endpoints
   "endpoints.section": "Endpoints",
-  "endpoints.summary_hint": "Advanced — server addresses · model",
+  "endpoints.summary_hint": "Advanced: server addresses · model",
   "endpoints.field_sub": "Leave empty to use the default",
   "endpoints.reset": "Reset to default",
   "endpoints.url_error": "Not a valid URL (http:// or https://)",
@@ -364,24 +364,24 @@ const en: Record<string, string> = {
   // chat API key
   "chatkey.section": "Chat API key",
   "chatkey.label": "Chat API key",
-  "chatkey.sub_default": "Using the default — leave empty to use the build-time key",
-  "chatkey.sub_override": "Saved on this device — clear to return to the original key",
+  "chatkey.sub_default": "Using the default: leave empty to use the build-time key",
+  "chatkey.sub_override": "Saved on this device. Clear to return to the original key",
   "chatkey.show": "Show key",
   "chatkey.hide": "Hide key",
   "chatkey.clear": "Clear key",
 
   // STT API key
   "sttkey.label": "STT API key",
-  "sttkey.sub_default": "Using the default — leave empty to use the build-time key",
-  "sttkey.sub_override": "Saved on this device — clear to return to the original key",
+  "sttkey.sub_default": "Using the default: leave empty to use the build-time key",
+  "sttkey.sub_override": "Saved on this device. Clear to return to the original key",
   "sttkey.show": "Show key",
   "sttkey.hide": "Hide key",
   "sttkey.clear": "Clear key",
 
   // TTS API key
   "ttskey.label": "TTS API key",
-  "ttskey.sub_default": "Using the default — leave empty to use the build-time key",
-  "ttskey.sub_override": "Saved on this device — clear to return to the original key",
+  "ttskey.sub_default": "Using the default: leave empty to use the build-time key",
+  "ttskey.sub_override": "Saved on this device. Clear to return to the original key",
   "ttskey.show": "Show key",
   "ttskey.hide": "Hide key",
   "ttskey.clear": "Clear key",
@@ -409,7 +409,7 @@ const en: Record<string, string> = {
   "hint.first_run": "Right-click me for controls · press {hotkey} to talk",
   "hint.first_run_no_hotkey": "Right-click me for controls",
   "hint.setup_backend":
-    "I have no backend to think with yet — right-click me, open Connection, and point me at an OpenAI-compatible server",
+    "I have no backend to think with yet. Right-click me, open Connection, and point me at an OpenAI-compatible server",
 
   // reactions tab
   "reactions.watchers_title": "Watchers",

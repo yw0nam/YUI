@@ -1,6 +1,6 @@
 /**
  * Korean strings.
- * tool.* keys stay English (same as en) — not translated per spec.
+ * tool.* keys stay English (same as en): not translated per spec.
  */
 const ko: Record<string, string> = {
   // tool labels (English — not translated)
@@ -20,7 +20,7 @@ const ko: Record<string, string> = {
   "voice.state.fired": "전달됨",
   "voice.state.error": "오류",
   "voice.error.not_configured": "설정 필요",
-  "voice.error.not_configured_fix": "백엔드 미설정 — 연결 설정 열기",
+  "voice.error.not_configured_fix": "백엔드 미설정, 연결 설정 열기",
 
   // aria labels (parameterized)
   "aria.refresh_speaker": "{name} 참조 음성 갱신",
@@ -56,15 +56,15 @@ const ko: Record<string, string> = {
 
   // chain-break (404) recovery notice
   "chain.reset_notice": "대화 컨텍스트가 초기화되었습니다",
-  "hotkey.register_failed": "소환 단축키 {accelerator} 등록 실패 — 다른 앱이 사용 중일 수 있어요",
+  "hotkey.register_failed": "소환 단축키 {accelerator} 등록 실패: 다른 앱이 사용 중일 수 있어요",
   "ingress.dead_notice":
-    "에이전트 이벤트 수신 시작 실패 (포트 {port} 사용 중) — 이번 세션에는 에이전트 알림이 꺼져요",
+    "에이전트 이벤트 수신 시작 실패 (포트 {port} 사용 중). 이번 세션에는 에이전트 알림이 꺼져요",
 
   // boot-failure notice
   "boot.error_title": "YUI를 시작하지 못했습니다",
-  "boot.error_config": "설정을 불러오지 못했습니다 — {file}",
+  "boot.error_config": "설정을 불러오지 못했습니다: {file}",
   "boot.error_vrm":
-    "VRM 모델을 찾을 수 없습니다 — resources/vrms/에 .vrm 파일을 넣고 다시 시작하세요.",
+    "VRM 모델을 찾을 수 없습니다. resources/vrms/에 .vrm 파일을 넣고 다시 시작하세요.",
   "boot.error_dismiss": "닫기",
 
   // status pill (capture)
@@ -319,7 +319,7 @@ const ko: Record<string, string> = {
 
   // endpoints
   "endpoints.section": "엔드포인트",
-  "endpoints.summary_hint": "고급 — 서버 주소·모델",
+  "endpoints.summary_hint": "고급: 서버 주소·모델",
   "endpoints.field_sub": "비우면 기본값을 사용해요",
   "endpoints.reset": "기본값으로 되돌리기",
   "endpoints.url_error": "올바른 URL이 아니에요 (http:// 또는 https://)",
@@ -363,24 +363,24 @@ const ko: Record<string, string> = {
   // chat API key
   "chatkey.section": "채팅 API 키",
   "chatkey.label": "채팅 API 키",
-  "chatkey.sub_default": "기본값 사용 중 — 비워두면 빌드 시 설정한 키를 써요",
-  "chatkey.sub_override": "이 기기에 저장됨 — 비우면 원래 키로 돌아가요",
+  "chatkey.sub_default": "기본값 사용 중: 비워두면 빌드 시 설정한 키를 써요",
+  "chatkey.sub_override": "이 기기에 저장됨. 비우면 원래 키로 돌아가요",
   "chatkey.show": "키 보기",
   "chatkey.hide": "키 숨기기",
   "chatkey.clear": "키 지우기",
 
   // STT API key
   "sttkey.label": "STT API 키",
-  "sttkey.sub_default": "기본값 사용 중 — 비워두면 빌드 시 설정한 키를 써요",
-  "sttkey.sub_override": "이 기기에 저장됨 — 비우면 원래 키로 돌아가요",
+  "sttkey.sub_default": "기본값 사용 중: 비워두면 빌드 시 설정한 키를 써요",
+  "sttkey.sub_override": "이 기기에 저장됨. 비우면 원래 키로 돌아가요",
   "sttkey.show": "키 보기",
   "sttkey.hide": "키 숨기기",
   "sttkey.clear": "키 지우기",
 
   // TTS API key
   "ttskey.label": "TTS API 키",
-  "ttskey.sub_default": "기본값 사용 중 — 비워두면 빌드 시 설정한 키를 써요",
-  "ttskey.sub_override": "이 기기에 저장됨 — 비우면 원래 키로 돌아가요",
+  "ttskey.sub_default": "기본값 사용 중: 비워두면 빌드 시 설정한 키를 써요",
+  "ttskey.sub_override": "이 기기에 저장됨. 비우면 원래 키로 돌아가요",
   "ttskey.show": "키 보기",
   "ttskey.hide": "키 숨기기",
   "ttskey.clear": "키 지우기",
@@ -427,7 +427,7 @@ const ko: Record<string, string> = {
   "reactions.rate_hint":
     "YUI가 먼저 말을 거는 빈도의 상한이에요. 내가 보낸 메시지는 세지 않아요. 비워 두면 기본값을 써요.",
   "reactions.rate_tier2_label": "시간당 말 걸기",
-  "reactions.rate_tier2_sub": "자리 비움·자발적 말 걸기·일정·에이전트 알림을 합쳐서 세요",
+  "reactions.rate_tier2_sub": "자리 비움, 자발적 말 걸기, 일정, 에이전트 알림을 합쳐서 세요",
   "reactions.rate_overall_label": "시간당 먼저 건 대화 전체",
   "reactions.rate_overall_sub": "넘어서면 쿨다운 동안 모두 멈춰요",
   "reactions.rate_hint_text":

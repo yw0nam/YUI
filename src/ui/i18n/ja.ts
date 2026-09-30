@@ -1,6 +1,6 @@
 /**
  * Japanese strings.
- * tool.* keys stay English (same as en) — not translated per spec.
+ * tool.* keys stay English (same as en): not translated per spec.
  */
 const ja: Record<string, string> = {
   // tool labels (English — not translated)
@@ -20,7 +20,7 @@ const ja: Record<string, string> = {
   "voice.state.fired": "送信しました",
   "voice.state.error": "エラー",
   "voice.error.not_configured": "設定が必要",
-  "voice.error.not_configured_fix": "バックエンド未設定 — 接続設定を開く",
+  "voice.error.not_configured_fix": "バックエンド未設定、接続設定を開く",
 
   // aria labels (parameterized)
   "aria.refresh_speaker": "{name} の参照音声を更新",
@@ -57,15 +57,15 @@ const ja: Record<string, string> = {
   // chain-break (404) recovery notice
   "chain.reset_notice": "会話コンテキストがリセットされました",
   "hotkey.register_failed":
-    "呼び出しショートカット {accelerator} を登録できませんでした — 他のアプリが使用中かもしれません",
+    "呼び出しショートカット {accelerator} を登録できませんでした。他のアプリが使用中かもしれません",
   "ingress.dead_notice":
-    "エージェントイベントの受信を開始できませんでした（ポート {port} 使用中）— このセッションでは通知が無効です",
+    "エージェントイベントの受信を開始できませんでした（ポート {port} 使用中）。このセッションでは通知が無効です",
 
   // boot-failure notice
   "boot.error_title": "YUI を起動できませんでした",
-  "boot.error_config": "設定を読み込めませんでした — {file}",
+  "boot.error_config": "設定を読み込めませんでした：{file}",
   "boot.error_vrm":
-    "VRM モデルが見つかりません — resources/vrms/ に .vrm ファイルを置いて再起動してください。",
+    "VRM モデルが見つかりません。resources/vrms/ に .vrm ファイルを置いて再起動してください。",
   "boot.error_dismiss": "閉じる",
 
   // status pill (capture)
@@ -321,7 +321,7 @@ const ja: Record<string, string> = {
 
   // endpoints
   "endpoints.section": "エンドポイント",
-  "endpoints.summary_hint": "詳細 — サーバーアドレス・モデル",
+  "endpoints.summary_hint": "詳細：サーバーアドレス・モデル",
   "endpoints.field_sub": "空欄にするとデフォルトを使います",
   "endpoints.reset": "デフォルトに戻す",
   "endpoints.url_error": "正しい URL ではありません (http:// または https://)",
@@ -365,24 +365,24 @@ const ja: Record<string, string> = {
   // chat API key
   "chatkey.section": "チャット API キー",
   "chatkey.label": "チャット API キー",
-  "chatkey.sub_default": "デフォルトを使用中 — 空欄にするとビルド時のキーを使います",
-  "chatkey.sub_override": "この端末に保存済み — 空欄にすると元のキーに戻ります",
+  "chatkey.sub_default": "デフォルトを使用中：空欄にするとビルド時のキーを使います",
+  "chatkey.sub_override": "この端末に保存済み。空欄にすると元のキーに戻ります",
   "chatkey.show": "キーを表示",
   "chatkey.hide": "キーを隠す",
   "chatkey.clear": "キーを消去",
 
   // STT API key
   "sttkey.label": "STT API キー",
-  "sttkey.sub_default": "デフォルトを使用中 — 空欄にするとビルド時のキーを使います",
-  "sttkey.sub_override": "この端末に保存済み — 空欄にすると元のキーに戻ります",
+  "sttkey.sub_default": "デフォルトを使用中：空欄にするとビルド時のキーを使います",
+  "sttkey.sub_override": "この端末に保存済み。空欄にすると元のキーに戻ります",
   "sttkey.show": "キーを表示",
   "sttkey.hide": "キーを隠す",
   "sttkey.clear": "キーを消去",
 
   // TTS API key
   "ttskey.label": "TTS API キー",
-  "ttskey.sub_default": "デフォルトを使用中 — 空欄にするとビルド時のキーを使います",
-  "ttskey.sub_override": "この端末に保存済み — 空欄にすると元のキーに戻ります",
+  "ttskey.sub_default": "デフォルトを使用中：空欄にするとビルド時のキーを使います",
+  "ttskey.sub_override": "この端末に保存済み。空欄にすると元のキーに戻ります",
   "ttskey.show": "キーを表示",
   "ttskey.hide": "キーを隠す",
   "ttskey.clear": "キーを消去",

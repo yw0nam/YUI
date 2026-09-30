@@ -189,6 +189,8 @@ The backend's delegated work as rows (`chips/delegation-rows.css`), shared by th
 ### Named Rules
 **The One-Pulse Rule.** Of the status dots in the character window, only the status pill's dot pulses. The capture point and the delegation chip's dot hold still, and their state reads from colour and label.
 
+**The Two-Stroke Rule.** Inline line icons draw at stroke 1.5 when rendered at 0.9rem or larger and at stroke 2 below that, so a 24-viewBox glyph keeps its weight down at 12px.
+
 ## 6. Do's and Don'ts
 
 ### Do:
