@@ -20,7 +20,7 @@ function cssFilesUnder(dir: string): string[] {
 }
 
 describe("redesign foundation tokens", () => {
-  it("declares the font, type-scale, shape, and panel-surface tokens", () => {
+  it("declares the font, type-scale, shape, panel-surface, and control tokens", () => {
     for (const name of [
       "--yui-font",
       "--yui-fs-caption",
@@ -37,9 +37,19 @@ describe("redesign foundation tokens", () => {
       "--yui-hover",
       "--yui-selected",
       "--yui-field",
+      "--yui-track",
+      "--yui-knob",
+      "--yui-knob-shadow",
     ]) {
       expect(tokensCss).toContain(name);
     }
+  });
+
+  it("leaves no raw oklch literal in the quick-controls stylesheets", () => {
+    const offenders = cssFilesUnder(join("src", "ui", "quick-controls")).filter((path) =>
+      readFileSync(path, "utf8").includes("oklch("),
+    );
+    expect(offenders).toEqual([]);
   });
 
   it("bundles Pretendard JP and fixes the color scheme to dark", () => {

@@ -152,6 +152,16 @@ describe("quick-controls.css — components with a display rule honour [hidden]"
   }
 });
 
+// The panel's controls live in controls.css; quick-controls.css keeps the shell, rail, body and rows.
+describe("quick-controls.css — holds no control rules", () => {
+  it("styles no switch, segment, slider or select", () => {
+    const css = read("../quick-controls/quick-controls.css");
+    for (const selector of [".yui-switch", ".yui-seg", ".yui-gain__slider", ".yui-select"]) {
+      expect(css).not.toContain(selector);
+    }
+  });
+});
+
 // Same rule on the quick-controls endpoints section: the chat-status line and the
 // session lost line both carry `display: flex`, so without their own [hidden] rule
 // reflect.ts setting `hidden` on either leaves it painted in the layout.
