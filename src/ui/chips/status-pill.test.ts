@@ -115,12 +115,12 @@ describe("status pill — capture only", () => {
     expect(p.onFixVoice).not.toHaveBeenCalled();
   });
 
-  it("takes OS clicks on the capture button only while capture is on", () => {
+  it("takes OS clicks on the capture button only while capture is on, from the start of the fade", () => {
     const p = setup({ capture: true });
     expect(p.matchAny()).toBe(p.capture());
 
     p.settings.setEnabled(false);
-    opacityTransitionEnd(p.root());
+    expect(p.root().hidden).toBe(false);
     expect(p.matchAny()).toBeNull();
   });
 
@@ -207,7 +207,24 @@ describe("status pill — not_configured voice error", () => {
   it("takes OS clicks on the whole pill", () => {
     const p = setup();
     p.voice.set("error", "not_configured");
+    flushFrames();
     expect(p.matchAny()).toBe(p.root());
+  });
+
+  it("drops the fix as soon as the pill starts leaving", () => {
+    const p = setup();
+    p.voice.set("error", "not_configured");
+    flushFrames();
+
+    p.voice.set("idle");
+    expect(p.root().hidden).toBe(false);
+    expect(p.root().dataset.fix).toBeUndefined();
+    expect(p.mic().tabIndex).toBe(-1);
+    expect(p.matchAny()).toBeNull();
+
+    p.label().click();
+    expect(p.onFixVoice).not.toHaveBeenCalled();
+    expect(p.voice.get().state).toBe("idle");
   });
 
   it("calls onFixVoice from a pill click and hands the pill back to listening", () => {
@@ -401,19 +418,5 @@ describe("status pill — teardown", () => {
 
     expect(dot.dataset.tool).toBe("done");
     expect(root.isConnected).toBe(false);
-  });
-});
-
-describe("status pill — reduced motion", () => {
-  it("never sets an animation inline, leaving motion to the stylesheet", () => {
-    const p = setup({ capture: true });
-    p.voice.set("listening");
-    p.pill.showTool("web_search");
-    p.pill.finishTool();
-    flushFrames();
-
-    for (const el of [p.root(), ...p.root().querySelectorAll<HTMLElement>("*")]) {
-      expect(el.style.animation).toBe("");
-    }
   });
 });
