@@ -17,7 +17,7 @@
  *  B5 dispatch_to_renderer — when per-beat cue streamed, TTS pipeline applies
  *     emotion/motion audio-timed (express→turnOutput.cue), otherwise at completed, and only for an
  *     envelope that carries one of the two channels: renderer.applyDirective(envelope).
- *     speech_text→turnOutput.speak + tool_status→turnFeed (flowed to TTS/UI in app/bootstrap-configured.ts).
+ *     speech_text→turnOutput.speak + tool_status→turnFeed (flowed to TTS/UI in app/turn/wire-dispatcher.ts).
  *
  * Silent drop classification: parse_error(WARN) / network_drop(WARN) / network_stall(WARN, idle timeout).
  */

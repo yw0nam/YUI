@@ -39,10 +39,11 @@ YUI/
   public/motions/                    # VRMA motion assets
   src/
     app/                             # Composes the pet window from the layers below
-      bootstrap-configured.ts        # Config-derived bootstrap: calls the wire functions in order and drains their teardowns
+      bootstrap-configured.ts        # Pet window's config-derived bootstrap: runs the turn core and the pet-only wirings in order and drains their teardowns
       bootstrap-disposal.ts          # Registers the renderer's dispose and the Tier 1 engine's stop as bootstrap teardowns
       disposers.ts                   # Shared teardown bag: registers teardowns at creation sites and drains them LIFO
       turn/                          # The path of a turn: sources, voice, and push
+        turn-core.ts                 # The chat turn every backend-facing window runs: voice, dispatcher, STT, VRM load, broker, push transport, stop, and submit
         wire-dispatcher.ts           # Turn feed, backend caller, guardrails, pacer, and the dispatcher
         wire-sources.ts              # Tauri window sources and the dispatcher's paced proactive sources
         wire-voice.ts                # Expression broker client and the voice-input and turn-voice wiring

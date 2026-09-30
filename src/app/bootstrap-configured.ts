@@ -1,76 +1,35 @@
 import type { Sitter } from "../ambient/locomotion/sitter";
 import type { AppConfig } from "../config/load";
-import type { ConfigStore } from "../config/store";
-import type { EndpointsConfig } from "../contract";
 import { isChatConfigured } from "../dispatcher/backend/backend-caller";
-import type { EventBus } from "../dispatcher/core/event-bus";
-import type { Guardrails, GuardrailsConfig } from "../dispatcher/core/guardrails";
+import type { Guardrails } from "../dispatcher/core/guardrails";
 import type { Dispatcher } from "../dispatcher/dispatcher";
-import type { UserInputSource } from "../dispatcher/sources/user-input-source";
-import type { DelegationHistory } from "../io/bridge/delegation-history";
-import type { DelegationsStore } from "../io/bridge/delegations-store";
-import type { ReasoningStore } from "../io/bridge/reasoning-store";
-import { selectFetch } from "../io/chat/chat-client";
-import type { PushSocket } from "../io/chat/push-socket";
-import { appendRecord } from "../io/chat/turn-record-log";
 import type { ScreenCapturer } from "../io/window/capture/screen-source-provider";
 import { createFrontmostTracker } from "../io/window/frontmost-tracker";
 import type { SummonHotkey } from "../io/window/pet/summon-hotkey";
 import { subscribeOsEvent } from "../io/window/tauri-listen";
 import { createLogger } from "../logger";
-import type { Renderer } from "../renderer";
 import { mergeScreen } from "../settings/capture/screen-settings";
-import type { SettingsStores } from "../settings/settings-stores";
-import type { VoiceInputStatus } from "../ui/chips/voice-input-status";
 import { t } from "../ui/i18n";
 import { maybeShowFirstRunHint } from "../ui/notices/first-run-hint";
 import { wireIngressDeadNotice } from "../ui/notices/ingress-dead-notice";
 import type { createQuickControls } from "../ui/quick-controls/quick-controls";
-import type { Surfaces } from "../ui/surfaces/surfaces";
-import type { ConversationStores } from "./settings/conversation-stores";
-import {
-  applyAvatarConfig,
-  type wireSpeakerSelection,
-  type wireVrmSelection,
-} from "./settings/wire-avatar";
 import { wireStageGestures } from "./stage/wire-gestures";
 import { wireLocomotion } from "./stage/wire-locomotion";
 import { wireGaze, wireHitTest } from "./stage/wire-stage";
 import { wirePeek, wireSummonHotkey } from "./stage/wire-summon";
-import { wireDispatcher } from "./turn/wire-dispatcher";
-import { wirePushTransport, wireStopButton } from "./turn/wire-push";
+import { type TurnCorePhase1, wireTurnCore } from "./turn/turn-core";
 import { wireDispatcherSources } from "./turn/wire-sources";
-import { wireBroker, wireTurnVoice } from "./turn/wire-voice";
+import type { wireBroker } from "./turn/wire-voice";
 import type { VoicePipeline } from "./turn/wire-voice-pipeline";
 
 const log = createLogger("bootstrap");
 
-interface Phase1Handles {
-  config: ConfigStore;
-  renderer: Renderer;
-  surfaces: Surfaces;
-  settings: SettingsStores;
-  conversation: ConversationStores;
-  bus: EventBus;
-  userInput: UserInputSource;
-  voiceInputStatus: VoiceInputStatus;
+/** The pet window's own handles, on top of what the chat turn reads. */
+interface Phase1Handles extends TurnCorePhase1 {
   screenCapturer: ScreenCapturer;
-  vrm: ReturnType<typeof wireVrmSelection>;
-  speaker: ReturnType<typeof wireSpeakerSelection>;
   root: HTMLElement;
   stage: HTMLElement;
   getQuickControls(): ReturnType<typeof createQuickControls>;
-  /** The push socket, when the chat protocol is push. The host owns its lifetime. */
-  pushSocket?: PushSocket;
-  /** The backend's delegations list, fed by the push socket's `delegations` frames. */
-  delegations: DelegationsStore;
-  /** The persisted history every `delegations` frame folds into. */
-  delegationHistory: DelegationHistory;
-  /** The backend's reasoning text, fed by the push socket's reasoning frames and the streaming path. */
-  reasoning: ReasoningStore;
-  getEndpoints(): EndpointsConfig;
-  /** Effective guardrails — the editable caps layered on configs/guardrails.json. */
-  getGuardrails(): GuardrailsConfig;
   isDisposed(): boolean;
 }
 
@@ -113,143 +72,50 @@ function drain(disposers: Array<() => void>, rethrow: boolean): void {
 
 const realFactories: ConfiguredBootstrapFactories = {
   async create(cfg, phase1, register) {
-    const {
-      config,
-      renderer,
-      surfaces,
-      settings,
-      conversation,
-      bus,
-      userInput,
-      voiceInputStatus,
-      screenCapturer,
-      vrm,
-      speaker,
-      root,
-      stage,
-      getQuickControls,
-      pushSocket,
-      delegations,
-      delegationHistory,
-      reasoning,
-      getEndpoints,
-      getGuardrails,
-    } = phase1;
+    const { config, renderer, surfaces, settings, bus, root, stage, getQuickControls } = phase1;
     const ensureActive = (): void => {
       if (phase1.isDisposed()) throw new Error("bootstrap disposed during configured construction");
     };
     const {
-      ttsSettings,
-      sttSettings,
       proactiveSettings,
       scheduleSettings,
       agentNotifySettings,
       screenSettings,
       screenKnobSettings,
       presenceSettings,
-      pacerGapSettings,
-      lipsyncSettings,
-      vadSettings,
-      agentSettings,
-      fillerSettings,
-      endpointsSettings,
       gazeSettings,
       climbSettings,
       fallSettings,
       hintSettings,
-      guardrailsSettings,
-      idleMotionSettings,
-      expressMotionSettings,
     } = settings;
-    const { contextHistory, sessionStore, sessionDiagnostics, chatHistoryStore } = conversation;
-    const { vrmSelection, loadVrmSerialized } = vrm;
-    const { speakerSelection, refreshVoiceList, migrateVoiceIds } = speaker;
-
-    const turnVoice = wireTurnVoice({
-      renderer,
-      surfaces,
-      voiceInputStatus,
-      sttSettings,
-      ttsSettings,
-      lipsyncSettings,
-      fillerSettings,
-      vadSettings,
-      speakerSelection,
-      getEndpoints,
-      getConfig: () => config.get(),
-      getSecret: (name) => config.secrets.get(name),
-      submitVoice: (text) => userInput.submitVoice(text),
-      register,
-    });
-    const { voice, voiceInput, voiceErrorDwell, turnLog, previousTurn, pushTurns } = turnVoice;
+    const { vrmSelection } = phase1.vrm;
 
     const frontmostTracker = createFrontmostTracker();
     const unlistenFrontmost = await subscribeOsEvent({ onTick: frontmostTracker.onTick, log });
     if (unlistenFrontmost) register(unlistenFrontmost);
 
-    const turnWiring = wireDispatcher({
-      bus,
-      renderer,
-      surfaces,
-      reasoning,
-      getEndpoints,
-      getGuardrails,
-      getConfig: () => config.get(),
-      getSecret: (name) => config.secrets.get(name),
-      getFetch: () => selectFetch(),
-      sessionStore,
-      sessionDiagnostics,
-      chatHistoryStore,
-      contextHistory,
-      agentSettings,
-      guardrailsSettings,
-      pacerGapSettings,
-      screenshotSettings: settings.screenshotSettings,
-      screenCapturer,
+    const core = await wireTurnCore(cfg, phase1, {
       getFrontmost: () => frontmostTracker.get(),
-      voice,
-      turnLog,
-      previousTurn,
-      pushTurns,
-      pushSocket: pushSocket ?? null,
-      getVocabulary: () => broker.vocabulary(),
+      screenCapturer: phase1.screenCapturer,
       openQuickControls: (tab) => getQuickControls().open(undefined, { tab }),
-      showVoiceError: voiceErrorDwell.show,
-      appendTurnRecord: (record) => appendRecord(record),
-      t,
       register,
+      ensureActive,
     });
-    const { dispatcher, guardrails, pacer, turnFeed } = turnWiring;
-
-    const sttVad = await voice.createSttEngine();
-    voiceInput.setStt(sttVad);
-    ensureActive();
-    applyAvatarConfig({
-      cfg,
-      getConfig: () => config.get(),
-      renderer,
-      idleMotionSettings,
-      vrmSelection,
-      register,
-    });
-    // The refresh re-uploads missing user voices, so it runs on the migrated ids.
-    void migrateVoiceIds().finally(refreshVoiceList);
-    await loadVrmSerialized(vrmSelection.getActive().url);
-    ensureActive();
+    const { voice, dispatcher, guardrails, pacer } = core;
     maybeShowFirstRunHint({
       seen: () => hintSettings.get().enabled,
       markSeen: () => hintSettings.setEnabled(true),
       surfaces,
       hotkey: cfg.hotkeys.summon_global,
       isMac: /Mac/.test(navigator.platform || navigator.userAgent),
-      chatConfigured: isChatConfigured(getEndpoints()),
+      chatConfigured: isChatConfigured(phase1.getEndpoints()),
       t,
     });
 
     const peekState = await wirePeek({ bus, register, ensureActive });
-    if (peekState) turnWiring.setPeek(peekState);
+    if (peekState) core.setPeek(peekState);
 
-    dispatcher.start();
+    core.start();
     const {
       proactiveSource,
       scheduleSource,
@@ -272,7 +138,7 @@ const realFactories: ConfiguredBootstrapFactories = {
       },
       pacer,
     });
-    turnVoice.setProactiveSource(proactiveSource);
+    core.setProactiveSource(proactiveSource);
     register(proactiveSource.stop);
     register(scheduleSource.stop);
     register(agentSource.stop);
@@ -305,7 +171,7 @@ const realFactories: ConfiguredBootstrapFactories = {
       register,
       log,
     });
-    turnVoice.setStrolling(locomotion.walker);
+    core.setStrolling(locomotion.walker);
 
     await wireStageGestures({
       stage,
@@ -337,43 +203,8 @@ const realFactories: ConfiguredBootstrapFactories = {
     });
     register(() => void summonHotkey.dispose());
     register(wireIngressDeadNotice({ surfaces, t }));
-    const broker = await wireBroker({
-      getConfig: config.get,
-      getEndpoints,
-      endpointsSettings,
-      expressMotionSettings,
-      // The socket advertises the same vocabulary the broker publishes; it diffs before it sends.
-      onVocabularyChange: () => pushSocket?.sendVocabulary(),
-      log,
-    });
-    register(broker.dispose);
-    if (pushSocket) {
-      register(
-        wirePushTransport({
-          socket: pushSocket,
-          turnOutput: voice.turnOutput,
-          pushTurns,
-          delegations,
-          delegationHistory,
-          turnFeed,
-          appendTurnRecord: (record) => appendRecord(record),
-          appendTranscript: (entry) => chatHistoryStore.append(entry),
-          log,
-        }),
-      );
-    }
-    ensureActive();
-    // The stop button and the panel's session reset share this path; cancel() alone leaves queued speech playing.
-    const stopTurn = (): string[] => {
-      dispatcher.cancel();
-      const cut = pushTurns.cut();
-      voice.speechPlayback.interrupt();
-      return cut;
-    };
-    wireStopButton({ onStop: (cb) => surfaces.onStop(cb), stopTurn, socket: pushSocket, log });
-    surfaces.onSubmit((text, images) => {
-      userInput.submit(text, images);
-      proactiveSource.noteInteraction();
+    const { broker, stopTurn } = await core.connect({
+      onSubmit: () => proactiveSource.noteInteraction(),
     });
 
     return {

@@ -130,7 +130,7 @@ function setup() {
     turnOutput.thinkingEnd(1);
   };
 
-  // The stop closure bootstrap-configured hands to surfaces.onStop — the session reset runs the
+  // The stop closure the turn core hands to surfaces.onStop — the session reset runs the
   // same one: the outstanding turns are cut and the queued speech is stopped.
   const stopTurn = (): void => {
     pushTurns.cut();
