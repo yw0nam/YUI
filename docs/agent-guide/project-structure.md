@@ -345,7 +345,8 @@ YUI/
         boot-error.css               # Boot-failure notice styles
       quick-controls/                # Quick-controls shell parts and sections
         quick-controls.ts            # Quick-controls panel: header, tab rail, and tab body
-        quick-controls.css           # Quick-controls shell, tab rail, sections, groups, rows, and switch styles
+        quick-controls.css           # Quick-controls shell, tab rail, sections, groups, and rows
+        controls.css                 # Switch, segment, field, text-button, disclosure, slider, and confirm styles
         template.ts                  # Panel markup as pure string construction
         popover.ts                   # Popover shell: positioning, dragging, open and close lifecycle
         reflect.ts                   # Store to DOM reflection for every panel section
@@ -371,11 +372,13 @@ YUI/
           user-asset-list.ts         # Shared scaffolding for the VRM and speaker asset radiogroups
           endpoints-section.css      # Endpoints section and yui-select dropdown styles
           monitors-section.css       # Monitors section styles
+          session-section.css        # Session context-occupancy readout and meter styles
           history-section.css        # Session history accordion styles
           workflows-section.css      # Workflows section styles
           express-motion-section.css # Express-motion accordion styles
           speaker-list.css           # Speaker list styles
-          user-asset-list.css        # User asset list row styles
+          vrm-list.css               # VRM list styles
+          user-asset-list.css        # Radio row, tick, and state styles shared by the monitor, VRM, and speaker lists
       i18n/                          # Locale catalogs
         en.ts                        # English strings, the source of truth for the key set
         ja.ts                        # Japanese strings

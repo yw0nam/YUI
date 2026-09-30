@@ -5,6 +5,7 @@
  */
 
 import "./quick-controls.css";
+import "./controls.css";
 import type { AvatarOption } from "../../config/load";
 import type { createVrmSelection } from "../../io/assets/vrm-selection";
 import type { createChatHistoryStore } from "../../io/chat/chat-history-store";

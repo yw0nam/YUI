@@ -1,0 +1,502 @@
+/* Quick-controls panel controls — switch, segment, fields, text buttons, disclosure, slider,
+   and two-step confirm. Tokens in ../tokens.css. */
+
+/* ── Switch — OFF=subdued, ON=amber lit (the one selection amber keeps) ── */
+.yui-switch {
+  --w: 2.25rem;
+  --h: 1.3125rem;
+  position: relative;
+  flex: 0 0 auto;
+  width: var(--w);
+  height: var(--h);
+  border: 0;
+  padding: 0;
+  border-radius: var(--yui-radius-pill);
+  background: var(--yui-track);
+  cursor: pointer;
+  transition:
+    background var(--yui-dur) var(--yui-ease),
+    box-shadow var(--yui-dur-fast) var(--yui-ease);
+}
+
+.yui-switch::after {
+  content: "";
+  position: absolute;
+  top: 0.15625rem;
+  left: 0.15625rem;
+  width: calc(var(--h) - 0.3125rem);
+  height: calc(var(--h) - 0.3125rem);
+  border-radius: 50%;
+  background: var(--yui-knob);
+  box-shadow: 0 1px 2px var(--yui-knob-shadow);
+  transition: transform var(--yui-dur) var(--yui-ease);
+}
+
+.yui-switch[aria-checked="true"] {
+  background: var(--yui-accent);
+}
+
+.yui-switch[aria-checked="true"]::after {
+  transform: translateX(calc(var(--w) - var(--h)));
+}
+
+.yui-switch:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px var(--yui-accent-soft);
+}
+
+/* Locked on — the baseline idle variant cannot be turned off. */
+.yui-switch[disabled] {
+  opacity: 0.45;
+  cursor: default;
+}
+
+/* ── Segment — as many equal cells as options; the checked cell carries the selected fill ── */
+.yui-seg {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: 1fr;
+  gap: 2px;
+  padding: 3px;
+  border-radius: var(--yui-radius-control);
+  background: var(--yui-field);
+}
+
+.yui-seg__btn {
+  height: 1.75rem;
+  padding: 0 0.5rem;
+  border: 0;
+  border-radius: calc(var(--yui-radius-control) - 2px);
+  background: transparent;
+  color: var(--yui-text-mute);
+  font: inherit;
+  font-size: var(--yui-fs-sub);
+  font-weight: 500;
+  white-space: nowrap;
+  cursor: pointer;
+  transition:
+    background var(--yui-dur-fast) var(--yui-ease),
+    color var(--yui-dur-fast) var(--yui-ease);
+}
+
+.yui-seg__btn:hover {
+  color: var(--yui-text);
+}
+
+.yui-seg__btn:active {
+  transform: scale(0.98);
+}
+
+.yui-seg__btn[aria-checked="true"] {
+  background: var(--yui-selected);
+  color: var(--yui-text);
+  font-weight: 600;
+}
+
+.yui-seg__btn:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px var(--yui-accent-soft);
+}
+
+/* ── Fields — field fill, transparent edge at rest, hairline on hover, amber on focus ── */
+.yui-input-wrap,
+.yui-textarea {
+  border: 1px solid transparent;
+  border-radius: var(--yui-radius-control);
+  background: var(--yui-field);
+  transition:
+    border-color var(--yui-dur-fast) var(--yui-ease),
+    box-shadow var(--yui-dur-fast) var(--yui-ease);
+}
+
+.yui-input-wrap:hover,
+.yui-textarea:hover {
+  border-color: var(--yui-edge);
+}
+
+.yui-input-wrap:focus-within,
+.yui-textarea:focus {
+  border-color: var(--yui-accent);
+  box-shadow: 0 0 0 1px var(--yui-accent-soft);
+}
+
+.yui-textarea {
+  display: block;
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 8.5rem;
+  margin: 0;
+  padding: 0.625rem 0.75rem;
+  outline: none;
+  color: var(--yui-text);
+  font: inherit;
+  font-size: var(--yui-fs-body);
+  line-height: 1.5;
+  resize: vertical;
+}
+
+.yui-textarea--short {
+  min-height: 4.25rem;
+}
+
+.yui-textarea::placeholder,
+.yui-ep-input::placeholder {
+  color: var(--yui-text-mute);
+}
+
+.yui-ep-input {
+  display: block;
+  width: 100%;
+  height: 2rem;
+  margin: 0;
+  padding: 0 0.625rem;
+  border: 0;
+  outline: none;
+  background: transparent;
+  color: var(--yui-text);
+  font: inherit;
+  font-size: var(--yui-fs-body);
+  box-sizing: border-box;
+}
+
+/* invalid — warm-red border + faint wash, no amber */
+.yui-input-row.is-invalid .yui-input-wrap {
+  border-color: var(--yui-danger);
+  background: var(--yui-danger-faint);
+}
+
+.yui-input-row.is-invalid .yui-input-wrap:focus-within {
+  box-shadow: 0 0 0 1px var(--yui-danger-soft);
+}
+
+.yui-input-row__error {
+  display: none;
+  flex-basis: 100%;
+  margin: 0;
+  font-size: var(--yui-fs-sub);
+  line-height: 1.4;
+  color: var(--yui-danger);
+}
+
+.yui-input-row.is-invalid .yui-input-row__error {
+  display: block;
+}
+
+/* ── Controls on a row's right — fields hold 15rem, segments hug their options ── */
+.yui-row > .yui-input-wrap,
+.yui-row > .yui-select {
+  flex: 0 1 15rem;
+  min-width: min(10rem, 100%);
+}
+
+.yui-row > .yui-seg {
+  flex: 0 1 auto;
+  min-width: min(13rem, 100%);
+}
+
+/* Numeric input with its unit on a row's right. */
+.yui-num {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+  flex: none;
+}
+
+/* ── Text buttons — reset · link · add ── */
+.yui-reset,
+.yui-link-btn,
+.yui-add-btn {
+  padding: 0.125rem 0.25rem;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--yui-text-dim);
+  font: inherit;
+  font-size: var(--yui-fs-sub);
+  font-weight: 500;
+  cursor: pointer;
+  transition: color var(--yui-dur-fast) var(--yui-ease);
+}
+
+.yui-link-btn {
+  display: inline-block;
+}
+
+/* The class display would otherwise beat the UA [hidden] rule while the confirm is up. */
+.yui-link-btn[hidden] {
+  display: none;
+}
+
+.yui-reset:hover,
+.yui-link-btn:hover,
+.yui-add-btn:hover {
+  color: var(--yui-accent);
+}
+
+.yui-reset:active,
+.yui-link-btn:active,
+.yui-add-btn:active {
+  transform: translateY(1px);
+}
+
+.yui-reset:focus-visible,
+.yui-link-btn:focus-visible,
+.yui-add-btn:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px var(--yui-accent-soft);
+}
+
+/* Action row — a text button closing its group, its label aligned with the row labels above. */
+.yui-row--action > .yui-link-btn {
+  margin-left: -0.25rem;
+}
+
+/* Add row — a plus and a label at the group's end. */
+.yui-add-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  margin-left: -0.25rem;
+}
+
+.yui-add-btn svg {
+  width: 0.875rem;
+  height: 0.875rem;
+  flex: none;
+}
+
+.yui-add-btn:disabled {
+  color: var(--yui-text-mute);
+  cursor: not-allowed;
+  transform: none;
+}
+
+/* ── "More phrases" (long_wait/timeout/unreachable/tool) — the one disclosure, default closed ── */
+.yui-filler-more {
+  margin-top: 0.5rem;
+}
+
+.yui-filler-more > summary {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.25rem;
+  border-radius: 4px;
+  list-style: none;
+  color: var(--yui-text-dim);
+  font-size: var(--yui-fs-sub);
+  font-weight: 500;
+  cursor: pointer;
+  user-select: none;
+}
+
+.yui-filler-more > summary::-webkit-details-marker {
+  display: none;
+}
+
+.yui-filler-more > summary svg {
+  width: 0.875rem;
+  height: 0.875rem;
+  flex: none;
+  transition: transform var(--yui-dur-fast) var(--yui-ease);
+}
+
+.yui-filler-more[open] > summary svg {
+  transform: rotate(90deg);
+}
+
+.yui-filler-more > summary:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px var(--yui-accent-soft);
+}
+
+.yui-filler-more > .yui-group {
+  margin-top: 0.5rem;
+}
+
+/* ── Slider row — mouth gain · silence window · screen-watch min gap ── */
+.yui-gain {
+  padding: 0.625rem 0.875rem 0.875rem;
+}
+
+.yui-gain__head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+}
+
+.yui-gain__value {
+  color: var(--yui-text-dim);
+  font-size: var(--yui-fs-body);
+  font-weight: 600;
+  line-height: 1.2;
+  font-variant-numeric: tabular-nums;
+}
+
+.yui-gain__hint {
+  display: block;
+  font-size: var(--yui-fs-sub);
+  line-height: 1.45;
+  color: var(--yui-text-mute);
+}
+
+.yui-gain__slider {
+  --fill: 0.43;
+  display: block;
+  width: 100%;
+  margin: 0.625rem 0;
+  padding: 0;
+  background: transparent;
+  -webkit-appearance: none;
+  appearance: none;
+  cursor: pointer;
+  outline: none;
+}
+
+.yui-gain__slider::-webkit-slider-runnable-track {
+  height: 4px;
+  border-radius: var(--yui-radius-pill);
+  background: linear-gradient(
+    to right,
+    var(--yui-accent) 0 calc(var(--fill, 0.43) * 100%),
+    var(--yui-track) calc(var(--fill, 0.43) * 100%) 100%
+  );
+}
+
+.yui-gain__slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 14px;
+  height: 14px;
+  margin-top: -5px;
+  border: 0;
+  border-radius: 50%;
+  background: var(--yui-knob);
+  box-shadow: 0 1px 3px var(--yui-knob-shadow);
+  transition: box-shadow var(--yui-dur-fast) var(--yui-ease);
+}
+
+.yui-gain__slider:hover::-webkit-slider-thumb,
+.yui-gain__slider:active::-webkit-slider-thumb {
+  box-shadow:
+    0 1px 3px var(--yui-knob-shadow),
+    0 0 0 4px var(--yui-accent-faint);
+}
+
+.yui-gain__slider:focus-visible::-webkit-slider-thumb {
+  box-shadow:
+    0 1px 3px var(--yui-knob-shadow),
+    0 0 0 2px var(--yui-accent-soft);
+}
+
+.yui-gain__slider::-moz-range-track {
+  height: 4px;
+  border-radius: var(--yui-radius-pill);
+  background: var(--yui-track);
+}
+
+.yui-gain__slider::-moz-range-progress {
+  height: 4px;
+  border-radius: var(--yui-radius-pill);
+  background: var(--yui-accent);
+}
+
+.yui-gain__slider::-moz-range-thumb {
+  width: 14px;
+  height: 14px;
+  border: 0;
+  border-radius: 50%;
+  background: var(--yui-knob);
+  box-shadow: 0 1px 3px var(--yui-knob-shadow);
+  transition: box-shadow var(--yui-dur-fast) var(--yui-ease);
+}
+
+.yui-gain__slider:hover::-moz-range-thumb,
+.yui-gain__slider:active::-moz-range-thumb {
+  box-shadow:
+    0 1px 3px var(--yui-knob-shadow),
+    0 0 0 4px var(--yui-accent-faint);
+}
+
+.yui-gain__slider:focus-visible::-moz-range-thumb {
+  box-shadow:
+    0 1px 3px var(--yui-knob-shadow),
+    0 0 0 2px var(--yui-accent-soft);
+}
+
+/* ── Two-step confirm (start fresh · cue delete) ── */
+.yui-confirm {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  padding: 0.625rem 0.875rem;
+}
+
+.yui-confirm[hidden] {
+  display: none;
+}
+
+.yui-confirm__q {
+  font-size: var(--yui-fs-sub);
+  color: var(--yui-text-dim);
+}
+
+.yui-pill {
+  padding: 0.28rem 0.7rem;
+  border-radius: var(--yui-radius-pill);
+  border: 1px solid var(--yui-edge);
+  background: transparent;
+  color: var(--yui-text-dim);
+  font: inherit;
+  font-size: var(--yui-fs-sub);
+  font-weight: 600;
+  cursor: pointer;
+  transition:
+    border-color var(--yui-dur-fast) var(--yui-ease),
+    color var(--yui-dur-fast) var(--yui-ease),
+    background var(--yui-dur-fast) var(--yui-ease);
+}
+
+.yui-pill:hover {
+  border-color: var(--yui-edge-strong);
+  color: var(--yui-text);
+}
+
+.yui-pill--go {
+  color: var(--yui-danger);
+  border-color: var(--yui-danger-soft);
+}
+
+.yui-pill--go:hover {
+  background: var(--yui-danger-faint);
+  border-color: var(--yui-danger);
+  color: var(--yui-danger);
+}
+
+.yui-pill:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px var(--yui-accent-soft);
+}
+
+/* A control wrapped under its label in a narrow panel spans the row. */
+@container (width < 30rem) {
+  .yui-row > .yui-input-wrap,
+  .yui-row > .yui-select,
+  .yui-row > .yui-seg {
+    flex-grow: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .yui-switch,
+  .yui-switch::after,
+  .yui-filler-more > summary svg {
+    transition: none;
+  }
+  .yui-seg__btn:active,
+  .yui-reset:active,
+  .yui-link-btn:active,
+  .yui-add-btn:active {
+    transform: none;
+  }
+}

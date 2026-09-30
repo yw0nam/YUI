@@ -142,10 +142,10 @@ describe("history-section.css — a single separator above the start-fresh foote
 
 // A class-level `display` outranks the UA [hidden] rule, so every such component
 // has to restate [hidden] itself or the attribute silently stops hiding it.
-describe("quick-controls.css — components with a display rule honour [hidden]", () => {
+describe("controls.css — components with a display rule honour [hidden]", () => {
   for (const selector of [".yui-link-btn", ".yui-confirm"]) {
     it(`${selector} sets display:none under [hidden]`, () => {
-      const css = read("../quick-controls/quick-controls.css");
+      const css = read("../quick-controls/controls.css");
       expect(extractBlock(css, selector)).toMatch(/display:/);
       expect(extractBlock(css, `${selector}[hidden]`)).toMatch(/display:\s*none/);
     });

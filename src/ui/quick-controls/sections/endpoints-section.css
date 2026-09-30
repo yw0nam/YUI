@@ -1,6 +1,14 @@
 /* ── Connection tab — per-service sections (chat · STT · TTS · broker), rows from quick-controls.css ── */
 
-/* Endpoint URL field's numeric-URL variant of the shared .yui-ep-input (base in quick-controls.css). */
+/* State text at a section title's right. */
+.yui-endpoints__hint {
+  flex: none;
+  font-size: var(--yui-fs-sub);
+  font-weight: 500;
+  color: var(--yui-text-dim);
+}
+
+/* Endpoint URL field's numeric-URL variant of the shared .yui-ep-input (base in ../controls.css). */
 .yui-ep-input--url {
   font-variant-numeric: tabular-nums;
 }

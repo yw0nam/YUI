@@ -1,4 +1,5 @@
 /** Quick-controls panel markup — pure string construction (no DOM, no state). */
+import "./sections/session-section.css";
 import { INSTRUCTIONS_MAX_LEN, REASONING_EFFORTS } from "../../settings/backend/agent-settings";
 import type { EndpointOverrides } from "../../settings/backend/endpoints-settings";
 import { RATE_LIMIT_MAX } from "../../settings/backend/guardrails-settings";

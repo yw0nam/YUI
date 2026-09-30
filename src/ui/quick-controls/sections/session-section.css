@@ -1,0 +1,72 @@
+/* ── Session section (window only) — quiet context-occupancy readout ── */
+.yui-session__deleg[hidden] {
+  display: none;
+}
+
+.yui-session__deleg-title {
+  margin: 0 0 0.25rem;
+  color: var(--yui-text-mute);
+  font-size: var(--yui-fs-sub);
+  font-weight: 500;
+}
+
+.yui-session__deleg-lost {
+  margin: 0 0 0.25rem;
+}
+
+.yui-session__deleg-rows .yui-deleg__item {
+  font-size: var(--yui-fs-body);
+}
+
+.yui-session__statline {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.65rem;
+}
+
+.yui-session__label {
+  font-size: var(--yui-fs-body);
+  font-weight: 500;
+  line-height: 1.35;
+}
+
+.yui-session__value {
+  color: var(--yui-text-dim);
+  font-size: var(--yui-fs-sub);
+  font-weight: 600;
+  line-height: 1.2;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.yui-session__value .pct {
+  color: var(--yui-text-mute);
+  font-weight: 500;
+  margin-left: 0.35rem;
+}
+
+.yui-meter {
+  margin-top: 0.5rem;
+  height: 4px;
+  border-radius: var(--yui-radius-pill);
+  background: var(--yui-field);
+  overflow: hidden;
+}
+
+.yui-meter__fill {
+  height: 100%;
+  border-radius: inherit;
+  background: var(--yui-accent);
+  transition: width var(--yui-dur) var(--yui-ease);
+}
+
+.yui-meter__fill.is-high {
+  background: var(--yui-danger);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .yui-meter__fill {
+    transition: none;
+  }
+}

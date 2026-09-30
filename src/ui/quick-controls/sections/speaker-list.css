@@ -1,10 +1,25 @@
 /* ── Speaker section — row is div[role=radio]. To nest ▶ preview <button>,
    row cannot be <button> (invalid nested HTML). List·row·state styles shared with VRM
-   in quick-controls.css / user-asset-list.css. ── */
+   in user-asset-list.css. ── */
 
 .yui-spk:focus-visible {
   outline: none;
   box-shadow: inset 0 0 0 2px var(--yui-accent-soft);
+}
+
+/* Speaker names ellipsize; the badge keeps its width. */
+.yui-spk__body {
+  overflow: hidden;
+}
+
+.yui-spk__name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.yui-spk__badge {
+  flex: 0 0 auto;
 }
 
 /* ── Per-row ▶ preview · ↻ reference-voice refresh — ghost, lit amber on hover only. refresh before preview (left). ── */

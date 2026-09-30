@@ -656,7 +656,7 @@ describe("createQuickControls — tabs + VAD slider", () => {
       .querySelector("summary")!;
     expect(summary.querySelector("svg")).not.toBeNull();
 
-    const css = readFileSync("src/ui/quick-controls/quick-controls.css", "utf8");
+    const css = readFileSync("src/ui/quick-controls/controls.css", "utf8");
     expect(css).not.toContain('content: "\u203A"');
     expect(css).not.toContain(".yui-filler-more > summary::before");
 
