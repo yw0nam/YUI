@@ -52,6 +52,7 @@ YUI/
         wire-push.ts                 # Push socket frames into turns, the stop button, and the push mode chip
         push-stores.ts               # The push socket, its chat id, and the delegations and reasoning stores its frames feed
       stage/                         # What is bound to the pet window's stage and overlay
+        stage-renderer.ts            # The renderer on the stage with its persisted camera and idle throttle, plus Tier 1 liveliness, for the pet and phone windows
         wire-gestures.ts             # Pointer gestures on the stage: taps, pats, the window drag, and the camera orbit
         wire-locomotion.ts           # Travel frame, the five locomotion loops, and the window sources composed into one handle
         wire-pet-stage.ts            # Stage wheel zoom, the persisted camera and throttle flow, and the feet-follow input anchor
@@ -64,7 +65,8 @@ YUI/
         wire-pet-controls.ts         # Quick-controls panel, remounted on locale change, and the stage context menu
       settings/                      # Selections and conversation state applied to the running app
         conversation-stores.ts       # Constructs the four shared io/chat conversation stores each window owns and disposes
-        wire-avatar.ts               # VRM and speaker selection stores, their swap and import flows, and the avatar config applied at boot
+        window-stores.ts             # Creates the settings and conversation store bags of the pet and phone windows and registers each store's teardown
+        wire-avatar.ts               # VRM and speaker selection stores, their swap and import flows, the voice-list refresh on override commits, and the avatar config applied at boot
         wire-config.ts               # The config store over the bundled configs, the runtime key stores, the live endpoint/guardrail merges, and the reload/watch wiring
         wire-cue-locale-sync.ts      # Reseeds untouched built-in cues when the display language changes
       phone/                         # The phone window's config-derived half

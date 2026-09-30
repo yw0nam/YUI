@@ -14,23 +14,21 @@
  */
 
 import "../styles.css";
-import { createTier1Engine } from "../ambient/liveliness/tier1";
 import { createConfiguredBootstrap } from "../app/bootstrap-configured";
-import { registerRendererAndAmbientDisposal } from "../app/bootstrap-disposal";
 import { wirePetControls } from "../app/controls/wire-pet-controls";
 import { wireCrossWindowSync, wireDevGlobals } from "../app/cross-window/wire-cross-window";
 import { wireSettingsReload } from "../app/cross-window/wire-window-sync";
 import { createDisposers } from "../app/disposers";
-import { createConversationStores } from "../app/settings/conversation-stores";
-import { wireSpeakerSelection, wireVrmSelection } from "../app/settings/wire-avatar";
+import { createWindowStores } from "../app/settings/window-stores";
+import { wireAvatarSelection } from "../app/settings/wire-avatar";
 import { createPetConfig, wireConfigReload, wireConfigWatch } from "../app/settings/wire-config";
-import { wireCamera, wireInputAnchor } from "../app/stage/wire-pet-stage";
+import { createStageRenderer } from "../app/stage/stage-renderer";
+import { wireInputAnchor } from "../app/stage/wire-pet-stage";
 import { createPushStores, publishPushStores } from "../app/turn/push-stores";
 import { createDelegationChipMount, wirePushMode } from "../app/turn/wire-push";
 import { CHAT_API_KEY_SECRET, TTS_API_KEY_SECRET } from "../config/load";
 import { createEventBus } from "../dispatcher/core/event-bus";
 import { createUserInputSource } from "../dispatcher/sources/user-input-source";
-import { wireVoiceListAutoRefresh } from "../io/voice/voices/voice-list-refresh";
 import {
   resolveScreenCapturer,
   resolveScreenSourceProvider,
@@ -39,11 +37,8 @@ import { createDevtoolsWindowOpener } from "../io/window/openers/devtools-window
 import { createSettingsWindowOpener } from "../io/window/openers/settings-window";
 import { excludeOwnOriginFromCorsFetch } from "../io/window/own-origin-fetch";
 import { createLogger, initLogger } from "../logger";
-import { createRenderer } from "../renderer";
-import { createSettingsStores } from "../settings/settings-stores";
 import { createStatusPill } from "../ui/chips/status-pill";
 import { createVoiceInputStatus } from "../ui/chips/voice-input-status";
-import { getLocale } from "../ui/i18n";
 import { showBootError } from "../ui/notices/boot-error";
 import { attachSummonKey } from "../ui/surfaces/summon-key";
 import { wireMessageSurfaces } from "../ui/surfaces/wire";
@@ -83,42 +78,10 @@ async function bootstrap(): Promise<BootstrapHandle> {
   const root = app.querySelector<HTMLDivElement>(".yui-root")!;
   const stage = root.querySelector<HTMLDivElement>(".yui-stage")!;
 
-  const settingsStores = createSettingsStores({ locale: getLocale() });
-  // Every store in the bag shares the same lifecycle, so teardown iterates the bag itself:
-  // a store added to createSettingsStores is disposed without touching this loop.
-  for (const store of Object.values(settingsStores)) {
-    register(() => store.dispose());
-  }
-
-  const conversationStores = createConversationStores();
-  for (const store of Object.values(conversationStores)) {
-    register(() => store.dispose());
-  }
-
-  const petConfig = createPetConfig({
-    endpointsSettings: settingsStores.endpointsSettings,
-    guardrailsSettings: settingsStores.guardrailsSettings,
-    chatKeySettings: settingsStores.chatKeySettings,
-    sttKeySettings: settingsStores.sttKeySettings,
-    ttsKeySettings: settingsStores.ttsKeySettings,
-    log,
-  });
+  const { settingsStores, conversationStores } = createWindowStores(register);
+  const petConfig = createPetConfig({ ...settingsStores, log });
   const config = petConfig.config;
-
-  const renderer = createRenderer({ mount: stage });
-  register(
-    wireCamera({
-      stage,
-      renderer,
-      cameraSettings: settingsStores.cameraSettings,
-      idleThrottleSettings: settingsStores.idleThrottleSettings,
-    }),
-  );
-  // Tier 1 ambient: backend-independent, always on. tick fires after VRM loads, so
-  // starting before loadVRM is safe (frames without VRM are no-op).
-  const ambient = createTier1Engine(renderer);
-  ambient.start();
-  registerRendererAndAmbientDisposal(register, renderer, ambient);
+  const { renderer, ambient } = createStageRenderer({ stage, settings: settingsStores, register });
 
   const voiceInputStatus = createVoiceInputStatus();
   register(() => voiceInputStatus.dispose());
@@ -168,30 +131,17 @@ async function bootstrap(): Promise<BootstrapHandle> {
     log,
   });
   register(() => disposeCrossWindowSync());
-  const vrm = wireVrmSelection({
+  const { vrm, speaker } = wireAvatarSelection({
     renderer,
+    getEndpoints: petConfig.getEndpoints,
+    getTtsKey: () => config.secrets.get(TTS_API_KEY_SECRET),
+    endpointsSettings: settingsStores.endpointsSettings,
     log,
     broadcastSettings,
+    register,
   });
   const { vrmSelection, loadVrmSerialized } = vrm;
-  register(() => vrmSelection.dispose());
-
-  const speaker = wireSpeakerSelection({
-    getEndpoints: petConfig.getEndpoints,
-    getApiKey: () => config.secrets.get(TTS_API_KEY_SECRET),
-    log,
-    broadcastSettings,
-  });
   const { speakerSelection, refreshVoiceList } = speaker;
-  register(() => speakerSelection.dispose());
-  // Config-file edits refresh via onConfigChange below; this covers the panel's override commits.
-  register(
-    wireVoiceListAutoRefresh({
-      subscribe: settingsStores.endpointsSettings.subscribe,
-      getEndpoints: petConfig.getEndpoints,
-      refresh: refreshVoiceList,
-    }),
-  );
   wireSettingsReload({
     onRemoteChange,
     vrmSelection,

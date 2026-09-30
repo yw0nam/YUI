@@ -11,7 +11,7 @@ import { subscribe as subscribeLocale, t } from "../i18n";
 import { downscaleToJpeg } from "./image-resize";
 
 interface TextInput {
-  /** Hotkey summon — slide up + focus; a no-op while the input is already open. */
+  /** Hotkey summon — slide up + focus; a no-op while the input is already open. A persistent input only takes focus. */
   summonInput(): void;
   /** Close the input. */
   dismissInput(): void;

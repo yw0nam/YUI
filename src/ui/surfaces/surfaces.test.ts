@@ -159,7 +159,7 @@ describe("composer — three equal icon buttons", () => {
   });
 });
 
-describe("reasoning disclosure — message window only", () => {
+describe("reasoning disclosure — only when a reasoning source is given", () => {
   let mount: HTMLElement;
 
   beforeEach(() => {

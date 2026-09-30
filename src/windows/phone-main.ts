@@ -1,33 +1,27 @@
 /**
  * Phone bootstrap — phone.html entry point, the Android window.
  *
- * Graph: stores + config → createRenderer(stage) + Tier 1 → createSurfaces (persistent composer)
+ * Graph: stores + config → createStageRenderer (renderer, camera, Tier 1) → createSurfaces (persistent composer)
  *   → push stores → config.load() → createPhoneBootstrap (turn core) → wirePushMode (socket).
  * The root follows the visual viewport, so the soft keyboard shortens the stage.
  */
 
 import "../styles.css";
 import "../ui/phone/phone.css";
-import { createTier1Engine } from "../ambient/liveliness/tier1";
-import { registerRendererAndAmbientDisposal } from "../app/bootstrap-disposal";
 import { createDisposers } from "../app/disposers";
 import { createPhoneBootstrap } from "../app/phone/bootstrap-phone";
-import { createConversationStores } from "../app/settings/conversation-stores";
-import { wireSpeakerSelection, wireVrmSelection } from "../app/settings/wire-avatar";
+import { createWindowStores } from "../app/settings/window-stores";
+import { wireAvatarSelection } from "../app/settings/wire-avatar";
 import { createPetConfig } from "../app/settings/wire-config";
-import { wireCamera } from "../app/stage/wire-pet-stage";
+import { createStageRenderer } from "../app/stage/stage-renderer";
 import { createPushStores } from "../app/turn/push-stores";
 import { wirePushMode } from "../app/turn/wire-push";
 import { CHAT_API_KEY_SECRET, TTS_API_KEY_SECRET } from "../config/load";
 import { createEventBus } from "../dispatcher/core/event-bus";
 import { createUserInputSource } from "../dispatcher/sources/user-input-source";
-import { wireVoiceListAutoRefresh } from "../io/voice/voices/voice-list-refresh";
 import { excludeOwnOriginFromCorsFetch } from "../io/window/own-origin-fetch";
 import { createLogger, initLogger } from "../logger";
-import { createRenderer } from "../renderer";
-import { createSettingsStores } from "../settings/settings-stores";
 import { createVoiceInputStatus } from "../ui/chips/voice-input-status";
-import { getLocale } from "../ui/i18n";
 import { showBootError } from "../ui/notices/boot-error";
 import { attachVisualViewport, PHONE_INPUT_BOTTOM_PX } from "../ui/phone/phone-viewport";
 import { createSurfaces } from "../ui/surfaces/surfaces";
@@ -58,37 +52,10 @@ async function bootstrap(): Promise<{ dispose(): void }> {
   const root = phone.querySelector<HTMLDivElement>(".yui-root")!;
   const stage = root.querySelector<HTMLDivElement>(".yui-stage")!;
 
-  const settingsStores = createSettingsStores({ locale: getLocale() });
-  for (const store of Object.values(settingsStores)) {
-    register(() => store.dispose());
-  }
-  const conversationStores = createConversationStores();
-  for (const store of Object.values(conversationStores)) {
-    register(() => store.dispose());
-  }
-
-  const petConfig = createPetConfig({
-    endpointsSettings: settingsStores.endpointsSettings,
-    guardrailsSettings: settingsStores.guardrailsSettings,
-    chatKeySettings: settingsStores.chatKeySettings,
-    sttKeySettings: settingsStores.sttKeySettings,
-    ttsKeySettings: settingsStores.ttsKeySettings,
-    log,
-  });
+  const { settingsStores, conversationStores } = createWindowStores(register);
+  const petConfig = createPetConfig({ ...settingsStores, log });
   const config = petConfig.config;
-
-  const renderer = createRenderer({ mount: stage });
-  register(
-    wireCamera({
-      stage,
-      renderer,
-      cameraSettings: settingsStores.cameraSettings,
-      idleThrottleSettings: settingsStores.idleThrottleSettings,
-    }),
-  );
-  const ambient = createTier1Engine(renderer);
-  ambient.start();
-  registerRendererAndAmbientDisposal(register, renderer, ambient);
+  const { renderer } = createStageRenderer({ stage, settings: settingsStores, register });
 
   const voiceInputStatus = createVoiceInputStatus();
   register(() => voiceInputStatus.dispose());
@@ -101,23 +68,16 @@ async function bootstrap(): Promise<{ dispose(): void }> {
     }),
   );
 
-  // A single window has no other window to broadcast a selection to.
-  const vrm = wireVrmSelection({ renderer, log, broadcastSettings: () => {} });
-  register(() => vrm.vrmSelection.dispose());
-  const speaker = wireSpeakerSelection({
+  const { vrm, speaker } = wireAvatarSelection({
+    renderer,
     getEndpoints: petConfig.getEndpoints,
-    getApiKey: () => config.secrets.get(TTS_API_KEY_SECRET),
+    getTtsKey: () => config.secrets.get(TTS_API_KEY_SECRET),
+    endpointsSettings: settingsStores.endpointsSettings,
     log,
+    // A single window has no other window to broadcast a selection to.
     broadcastSettings: () => {},
+    register,
   });
-  register(() => speaker.speakerSelection.dispose());
-  register(
-    wireVoiceListAutoRefresh({
-      subscribe: settingsStores.endpointsSettings.subscribe,
-      getEndpoints: petConfig.getEndpoints,
-      refresh: speaker.refreshVoiceList,
-    }),
-  );
 
   const push = createPushStores({
     getEndpoints: petConfig.getEndpoints,
