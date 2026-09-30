@@ -219,6 +219,58 @@ describe("image attachments — tray chips + onSubmit images", () => {
     expect(tray().children.length).toBe(0);
   });
 
+  async function summonOpen(): Promise<void> {
+    s.summonInput();
+    // is-open lands on the next animation frame.
+    await new Promise((r) => requestAnimationFrame(r));
+  }
+
+  it("submit clears the field and the tray in the summoned input", async () => {
+    const seen: Array<[string, string[]]> = [];
+    s.onSubmit((text, images) => seen.push([text, images]));
+    await summonOpen();
+    field().value = "hello";
+    await pasteImages(pngFile("a.png"));
+
+    submit();
+
+    expect(seen).toHaveLength(1);
+    expect(seen[0][0]).toBe("hello");
+    expect(seen[0][1][0]).toMatch(/^data:image\/png/);
+    expect(field().value).toBe("");
+    expect(tray().children.length).toBe(0);
+  });
+
+  it("restoreInput puts the text and the attachments back into an open, empty field", async () => {
+    const seen: string[][] = [];
+    s.onSubmit((_text, images) => seen.push(images));
+    await summonOpen();
+    field().value = "hello";
+    await pasteImages(pngFile("a.png"));
+    submit();
+
+    s.restoreInput("hello", seen[0]);
+
+    expect(field().value).toBe("hello");
+    expect(tray().querySelectorAll(".yui-chip")).toHaveLength(1);
+  });
+
+  it("restoreInput leaves a drafted field alone", async () => {
+    await summonOpen();
+    field().value = "new";
+
+    s.restoreInput("hello", ["data:image/png;base64,AAAA"]);
+
+    expect(field().value).toBe("new");
+    expect(tray().querySelector(".yui-chip")).toBeNull();
+  });
+
+  it("restoreInput leaves a closed input alone", () => {
+    s.restoreInput("hello", []);
+
+    expect(field().value).toBe("");
+  });
+
   it("adding a chip raises the bubble", async () => {
     Object.defineProperty(form(), "offsetHeight", {
       configurable: true,
@@ -454,6 +506,21 @@ describe("summonInput — no-op while the input is already open", () => {
     expect(form().classList.contains("is-pending")).toBe(true);
     expect(field().disabled).toBe(true);
     expect(field().value).toBe("안녕");
+  });
+});
+
+describe("send button — the field keeps focus", () => {
+  it("mousedown on the send button keeps the field's focus", () => {
+    const { s, mount } = makeSurfaces();
+    const send = mount.querySelector(".yui-input__send") as HTMLButtonElement;
+
+    const notPrevented = send.dispatchEvent(
+      new MouseEvent("mousedown", { bubbles: true, cancelable: true }),
+    );
+
+    expect(notPrevented).toBe(false);
+    s.dispose();
+    mount.remove();
   });
 });
 
