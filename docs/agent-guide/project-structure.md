@@ -319,6 +319,7 @@ YUI/
         format-accel.ts              # Renders an accelerator string for display
       message/                       # Message-window plate, bubble, and cue-list rendering
         speech-bubble.ts             # Speech bubble: dwell, scroll, markdown, and aria for streamed speech
+        reasoning-disclosure.ts      # Backend reasoning folded at the top of the message window's bubble
         message-plate.ts             # Message-window name plate and OS drag handle
         markdown.ts                  # Speech markdown rendering through marked and DOMPurify
         cue-list.ts                  # Reusable cue-list section for schedule and proactive cues
@@ -329,13 +330,11 @@ YUI/
         tool-labels.ts               # Tool id to display label lookup
         delegation-chip.ts           # Push-transport delegation chip beside the avatar with its tap-to-toggle list popover
         delegation-rows.ts           # Delegation list's shared row rendering and relative time text
-        reasoning-chip.ts            # Backend reasoning pill on the message window's plate row
         voice-input-status.ts        # Voice-input status model
         voice-error-dwell.ts         # How long a voice-turn failure holds the status pill's voice error state
         status-pill.css              # Status-pill styles
         delegation-chip.css          # Delegation-chip pill, list popover, and folded-dot styles
         delegation-rows.css          # Delegation row styles shared by the chip's list and the settings panel
-        reasoning-chip.css           # Reasoning-chip pill and panel styles
       notices/                       # One-off and error notices
         turn-error.ts                # Backend-failure reason to inline input-error message
         fade-out.ts                  # Settle callback for elements that fade before leaving the a11y tree

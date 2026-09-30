@@ -140,8 +140,8 @@ The runtime footer is off by default, and its switch is global to the gateway at
 the model name and working directory get spoken, so a host that turned it on sets it back to
 `false`.
 
-A client that shows a reasoning chip wants the live stream as well, one switch global to the
-gateway:
+A client that shows the reasoning as it is written wants the live stream as well, one switch
+global to the gateway:
 
 ```yaml
 plugins:
