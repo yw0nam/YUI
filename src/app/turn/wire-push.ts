@@ -22,7 +22,7 @@ import {
   createDelegationChipSettings,
   localStorageDelegationChipStorage,
 } from "../../settings/panels/delegation-chip-settings";
-import type { MessageWindowSettingsStore } from "../../settings/panels/message-window-settings";
+import { type MessageWindowMode } from "../../settings/panels/message-window-settings";
 import { createDelegationChip } from "../../ui/chips/delegation-chip";
 
 /**
@@ -263,13 +263,15 @@ export function createDelegationChipMount(deps: {
 
 /**
  * The pet's suppression port — the chip is hidden while the popped message window carries the
- * surfaces, shown again while docked.
+ * surfaces, shown again while docked. Takes the pet's own reader (wireMessageSurfaces' `getMode`,
+ * with its isTauri guard), never the settings store directly.
  */
-export function messageWindowSuppression(
-  settings: Pick<MessageWindowSettingsStore, "get" | "subscribe">,
-): { get(): boolean; subscribe(cb: () => void): () => void } {
+export function messageWindowSuppression(deps: {
+  getMode: () => MessageWindowMode;
+  subscribe: (cb: () => void) => () => void;
+}): { get(): boolean; subscribe(cb: () => void): () => void } {
   return {
-    get: () => settings.get().mode === "popped",
-    subscribe: (cb) => settings.subscribe(() => cb()),
+    get: () => deps.getMode() === "popped",
+    subscribe: (cb) => deps.subscribe(() => cb()),
   };
 }

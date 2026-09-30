@@ -99,7 +99,7 @@ async function bootstrap(): Promise<BootstrapHandle> {
   });
   register(() => statusPill.dispose());
 
-  const { surfaces, local, remote } = wireMessageSurfaces({
+  const { surfaces, local, remote, getMode } = wireMessageSurfaces({
     mount: root,
     tool: statusPill,
     bubblePersistSettings: settingsStores.bubblePersistSettings,
@@ -236,7 +236,10 @@ async function bootstrap(): Promise<BootstrapHandle> {
           store: push.delegations,
           pushState: push.pushSocket,
           onOpenSettings: () => controls.get().open(undefined, { tab: "conn" }),
-          suppression: messageWindowSuppression(settingsStores.messageWindowSettings),
+          suppression: messageWindowSuppression({
+            getMode,
+            subscribe: settingsStores.messageWindowSettings.subscribe,
+          }),
         }),
         getEndpoints: petConfig.getEndpoints,
         endpointsSettings: settingsStores.endpointsSettings,
