@@ -59,6 +59,10 @@ const SURFACE_OPS: MessageSurfaceOp[] = [
   { op: "input-enabled", enabled: false },
   { op: "input-error", message: "no backend", action: { label: "Open Advanced" } },
   { op: "attachment-limits", limits: LIMITS },
+  { op: "quote", quote: { text: "hi", via: "voice", images: 1 } },
+  { op: "settle-quote" },
+  { op: "clear-quote" },
+  { op: "restore-input", text: "hi", images: ["data:image/jpeg;base64,x"] },
 ];
 
 const CONTROL_OPS: MessageControlOp[] = [
@@ -150,6 +154,25 @@ describe("createRemoteSurfaces — the pet-side adapter", () => {
       { op: "busy", busy: true },
       { op: "input-enabled", enabled: false },
       { op: "attachment-limits", limits: LIMITS },
+    ]);
+  });
+
+  it("emits the quote and the restore ops", () => {
+    const { pet, message } = pair();
+    const remote = createRemoteSurfaces(pet);
+    const seen: MessageSurfaceOp[] = [];
+    message.onSurface((op) => seen.push(op));
+
+    remote.quoteUser({ text: "hi", via: "text", images: 0 });
+    remote.settleQuote();
+    remote.clearQuote();
+    remote.restoreInput("hi", ["data:image/jpeg;base64,x"]);
+
+    expect(seen).toEqual([
+      { op: "quote", quote: { text: "hi", via: "text", images: 0 } },
+      { op: "settle-quote" },
+      { op: "clear-quote" },
+      { op: "restore-input", text: "hi", images: ["data:image/jpeg;base64,x"] },
     ]);
   });
 
