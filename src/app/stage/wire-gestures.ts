@@ -7,10 +7,8 @@ import { createTapSource, type TapSource } from "../../dispatcher/sources/tap-so
 import { initDrag, type PatGesture } from "../../io/window/pet/drag";
 import type { HitTestController } from "../../io/window/pet/hit-test";
 import type { Renderer } from "../../renderer";
-import {
-  CAMERA_ORBIT_SENSITIVITY,
-  type createCameraSettings,
-} from "../../settings/avatar/camera-settings";
+import { orbitCamera } from "../../settings/avatar/camera-gestures";
+import type { createCameraSettings } from "../../settings/avatar/camera-settings";
 import type { wireLocomotion } from "./wire-locomotion";
 
 /**
@@ -118,11 +116,7 @@ export async function wireStageGestures(deps: {
     },
     onOrbitStart: hitTest.suspend,
     onOrbitEnd: hitTest.resume,
-    onOrbit: ({ dx, dy }) => {
-      const current = cameraSettings.get();
-      cameraSettings.setAzimuth(current.azimuth + dx * CAMERA_ORBIT_SENSITIVITY);
-      cameraSettings.setPolar(current.polar - dy * CAMERA_ORBIT_SENSITIVITY);
-    },
+    onOrbit: (d) => orbitCamera(cameraSettings, d),
   });
   register(cleanupDrag);
 }

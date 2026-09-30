@@ -30,6 +30,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { createLogger } from "../../../logger";
+import type { OrbitDelta } from "../../../settings/avatar/camera-gestures";
 import { isTauri } from "../../../tauri-env";
 import { exceedsPressTravel } from "../../stage/press-travel";
 
@@ -46,12 +47,6 @@ export async function invokeDragWindow(): Promise<void> {
 }
 
 // ─── orbit gesture ──────────────────────────────────────────────────────────
-
-/** Per-move pointer delta (CSS px) fed to the camera-orbit callback. */
-export interface OrbitDelta {
-  dx: number;
-  dy: number;
-}
 
 /**
  * Attach the Shift + left-drag orbit gesture to `el`. Pure JS (no Tauri IPC),
