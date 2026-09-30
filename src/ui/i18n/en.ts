@@ -56,6 +56,8 @@ const en: Record<string, string> = {
   // message window name plate
   "plate.thinking": "Thinking",
   "plate.responding": "Responding",
+  "plate.reconnecting": "Reconnecting",
+  "plate.key_rejected": "Key rejected",
 
   // chain-break (404) recovery notice
   "chain.reset_notice": "Conversation context was reset",

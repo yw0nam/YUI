@@ -55,6 +55,8 @@ const ko: Record<string, string> = {
   // message window name plate
   "plate.thinking": "생각 중",
   "plate.responding": "응답 중",
+  "plate.reconnecting": "재연결 중",
+  "plate.key_rejected": "키 거부됨",
 
   // chain-break (404) recovery notice
   "chain.reset_notice": "대화 컨텍스트가 초기화되었습니다",
