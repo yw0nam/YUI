@@ -353,18 +353,18 @@ describe("createQuickControls — shell", () => {
     const tabs = Array.from(qc.el.querySelectorAll<HTMLButtonElement>(".yui-tab"));
     const firstTab = tabs[0]!;
     const lastTab = tabs[tabs.length - 1]!;
-    const advTab = qc.el.querySelector<HTMLButtonElement>("#yui-tab-adv")!;
+    const reactTab = qc.el.querySelector<HTMLButtonElement>("#yui-tab-react")!;
 
     document.dispatchEvent(new MouseEvent("pointerdown", { bubbles: true }));
-    advTab.focus();
+    reactTab.focus();
     expect(document.querySelector(".yui-hint-tip.is-open")).toBeNull();
-    advTab.dispatchEvent(new KeyboardEvent("keydown", { key: "Home", bubbles: true }));
+    reactTab.dispatchEvent(new KeyboardEvent("keydown", { key: "Home", bubbles: true }));
     expect(document.querySelector(".yui-hint-tip.is-open")?.textContent).toBe(firstTab.dataset.tip);
 
     document.dispatchEvent(new MouseEvent("pointerdown", { bubbles: true }));
-    advTab.focus();
+    reactTab.focus();
     expect(document.querySelector(".yui-hint-tip.is-open")).toBeNull();
-    advTab.dispatchEvent(new KeyboardEvent("keydown", { key: "End", bubbles: true }));
+    reactTab.dispatchEvent(new KeyboardEvent("keydown", { key: "End", bubbles: true }));
     expect(document.querySelector(".yui-hint-tip.is-open")?.textContent).toBe(lastTab.dataset.tip);
 
     qc.dispose();
@@ -606,7 +606,7 @@ describe("createQuickControls — language picker", () => {
     const qc = buildQc();
     qc.open();
     // The reasoning-effort field label is keyed; ko renders the Korean copy.
-    const label = qc.el.querySelector<HTMLElement>(".yui-field-row__label")!;
+    const label = qc.el.querySelector<HTMLElement>("#yui-panel-talk .yui-row__label")!;
     expect(label.textContent).toBe("추론 강도");
     qc.dispose();
   });
@@ -750,15 +750,15 @@ describe("createQuickControls — Reactions tab", () => {
     qc.dispose();
   });
 
-  it("agentNotify switch lives inside #yui-panel-react, not #yui-panel-adv", () => {
+  it("agentNotify switch lives inside #yui-panel-react, not #yui-panel-general", () => {
     const qc = buildQc({ agentNotifySettings: createAgentNotifySettings() });
     qc.open();
     const reactPanel = qc.el.querySelector<HTMLElement>("#yui-panel-react")!;
-    const advPanel = qc.el.querySelector<HTMLElement>("#yui-panel-adv")!;
+    const generalPanel = qc.el.querySelector<HTMLElement>("#yui-panel-general")!;
     const agentNotifySwitch = qc.el.querySelector(".yui-agentnotify-switch");
     expect(agentNotifySwitch).not.toBeNull();
     expect(reactPanel.contains(agentNotifySwitch)).toBe(true);
-    expect(advPanel.contains(agentNotifySwitch)).toBe(false);
+    expect(generalPanel.contains(agentNotifySwitch)).toBe(false);
     qc.dispose();
   });
 

@@ -127,17 +127,16 @@ describe("createQuickControls — endpoints + API keys", () => {
 
   // ── Endpoint section ─────────────────────────────────────────────────────
 
-  it("renders four collapsible per-service sections (chat/stt/tts/broker), each with a yui-select", () => {
+  it("renders four per-service sections (chat/stt/tts/broker), each with a yui-select", () => {
     const qc = buildQc();
     qc.open();
 
     const sections = Array.from(
-      qc.el.querySelectorAll<HTMLDetailsElement>("#yui-panel-adv details.yui-svc"),
+      qc.el.querySelectorAll<HTMLElement>("#yui-panel-conn .yui-svc"),
     );
     expect(sections.map((s) => s.dataset.svc)).toEqual(["chat", "stt", "tts", "broker"]);
-    // collapsible (default collapsed) + each leads with a type dropdown.
+    // each leads with a type dropdown.
     for (const s of sections) {
-      expect(s.open).toBe(false);
       expect(s.querySelector(".yui-select")).not.toBeNull();
     }
     // Chat is the only interactive dropdown (chat_api); STT/TTS/broker are inert (--single).
@@ -150,7 +149,7 @@ describe("createQuickControls — endpoints + API keys", () => {
 
     // each section carries its own URL field(s) inside it.
     const fieldIn = (svc: string, key: string): boolean =>
-      !!qc.el.querySelector(`details[data-svc="${svc}"] .yui-input-row[data-ep-field="${key}"]`);
+      !!qc.el.querySelector(`.yui-svc[data-svc="${svc}"] .yui-input-row[data-ep-field="${key}"]`);
     expect(fieldIn("chat", "chat_base_url")).toBe(true);
     expect(fieldIn("chat", "chat_model")).toBe(true);
     expect(fieldIn("stt", "stt_base_url")).toBe(true);
@@ -307,7 +306,7 @@ describe("createQuickControls — endpoints + API keys", () => {
     return qc.el.querySelector<HTMLInputElement>(".yui-chatkey__input")!;
   }
 
-  it("renders a masked chat API-key field in the advanced panel with no autofill leakage", () => {
+  it("renders a masked chat API-key field in the connection panel with no autofill leakage", () => {
     const qc = buildQc();
     qc.open();
 
@@ -318,9 +317,9 @@ describe("createQuickControls — endpoints + API keys", () => {
     expect(input.getAttribute("autocomplete")).toBe("off");
     expect(input.getAttribute("spellcheck")).toBe("false");
     expect(input.hasAttribute("name")).toBe(false);
-    // Lives in the advanced tab, near the endpoint rows (chat credential).
-    const advPanel = qc.el.querySelector<HTMLElement>("#yui-panel-adv")!;
-    expect(advPanel.contains(input)).toBe(true);
+    // Lives in the connection tab, near the endpoint rows (chat credential).
+    const connPanel = qc.el.querySelector<HTMLElement>("#yui-panel-conn")!;
+    expect(connPanel.contains(input)).toBe(true);
 
     qc.dispose();
   });
@@ -613,7 +612,7 @@ describe("createQuickControls — endpoints + API keys", () => {
 
     const input = keyInput(qc, "sttkey");
     expect(input.type).toBe("password");
-    expect(qc.el.querySelector('details[data-svc="stt"]')!.contains(input)).toBe(true);
+    expect(qc.el.querySelector('.yui-svc[data-svc="stt"]')!.contains(input)).toBe(true);
 
     input.value = "sk-stt-abc";
     input.dispatchEvent(new Event("input", { bubbles: true }));
@@ -641,7 +640,7 @@ describe("createQuickControls — endpoints + API keys", () => {
 
     const input = keyInput(qc, "ttskey");
     expect(input.type).toBe("password");
-    expect(qc.el.querySelector('#yui-panel-adv details[data-svc="tts"]')!.contains(input)).toBe(
+    expect(qc.el.querySelector('#yui-panel-conn .yui-svc[data-svc="tts"]')!.contains(input)).toBe(
       true,
     );
 
@@ -696,7 +695,7 @@ describe("createQuickControls — endpoints + API keys", () => {
     const qc = buildQc();
     qc.open();
 
-    const tts = qc.el.querySelector<HTMLElement>('#yui-panel-adv details[data-svc="tts"]')!;
+    const tts = qc.el.querySelector<HTMLElement>('#yui-panel-conn .yui-svc[data-svc="tts"]')!;
     expect(tts.querySelector('.yui-input-row[data-ep-field="tts_base_url"]')).not.toBeNull();
     expect(tts.querySelector(".yui-spk-scroll")).not.toBeNull();
     expect(tts.querySelector('[data-key-prefix="ttskey"]')).not.toBeNull();
@@ -726,7 +725,7 @@ describe("createQuickControls — endpoints + API keys", () => {
 
     const sel = chatTypeSelect(qc);
     expect(sel).not.toBeNull();
-    expect(qc.el.querySelector('#yui-panel-adv details[data-svc="chat"]')!.contains(sel)).toBe(
+    expect(qc.el.querySelector('#yui-panel-conn .yui-svc[data-svc="chat"]')!.contains(sel)).toBe(
       true,
     );
     expect(sel.classList.contains("yui-select--single")).toBe(false);
@@ -812,7 +811,7 @@ describe("createQuickControls — endpoints + API keys", () => {
 
     const sel = chatPresetSelect(qc);
     expect(sel).not.toBeNull();
-    expect(qc.el.querySelector('#yui-panel-adv details[data-svc="chat"]')!.contains(sel)).toBe(
+    expect(qc.el.querySelector('#yui-panel-conn .yui-svc[data-svc="chat"]')!.contains(sel)).toBe(
       true,
     );
     expect(sel.classList.contains("yui-select")).toBe(true);

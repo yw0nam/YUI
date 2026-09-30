@@ -1,7 +1,6 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createChatHistoryStore } from "../../io/chat/chat-history-store";
-import { createFlagSettings, localStorageStore } from "../../settings/persisted-store";
 import { createFillerSettings, type FillerSettings } from "../../settings/voice/filler-settings";
 import { createVadSettings, VAD_SILENCE_DEFAULT } from "../../settings/voice/vad-settings";
 import { setLocale } from "../i18n";
@@ -61,15 +60,20 @@ describe("createQuickControls — tabs + VAD slider", () => {
     return qc.el.querySelector<HTMLElement>(`#${tab.getAttribute("aria-controls")}`)!;
   }
 
-  it("renders a tablist with 5 tabs and 5 tabpanels", () => {
+  it("renders the tabs conn, talk, char, input, react, general in order, each wired to its panel", () => {
     const qc = buildQc();
     qc.open();
 
-    const tablist = qc.el.querySelector<HTMLElement>('[role="tablist"]');
-    expect(tablist).not.toBeNull();
     const t = tabs(qc);
-    expect(t.length).toBe(5);
-    expect(qc.el.querySelectorAll('[role="tabpanel"]').length).toBe(5);
+    expect(t.map((tab) => tab.id)).toEqual([
+      "yui-tab-conn",
+      "yui-tab-talk",
+      "yui-tab-char",
+      "yui-tab-input",
+      "yui-tab-react",
+      "yui-tab-general",
+    ]);
+    expect(qc.el.querySelectorAll('[role="tabpanel"]').length).toBe(6);
 
     // Each tab is wired to a panel and each panel back to its tab.
     for (const tab of t) {
@@ -82,12 +86,23 @@ describe("createQuickControls — tabs + VAD slider", () => {
     qc.dispose();
   });
 
+  it("renders no rail collapse button and no sliding tab indicator", () => {
+    const qc = buildQc();
+    qc.open();
+
+    expect(qc.el.querySelector(".yui-rail-collapse")).toBeNull();
+    expect(qc.el.querySelector(".yui-tabs__ind")).toBeNull();
+
+    qc.dispose();
+  });
+
   it("defaults to the 대화 tab active; its panel visible, others hidden", () => {
     const qc = buildQc();
     qc.open();
 
     const t = tabs(qc);
     const active = t.find((tab) => tab.getAttribute("aria-selected") === "true")!;
+    expect(active.id).toBe("yui-tab-talk");
     expect(active.textContent).toContain("대화");
 
     for (const tab of t) {
@@ -105,7 +120,7 @@ describe("createQuickControls — tabs + VAD slider", () => {
     qc.open();
 
     const t = tabs(qc);
-    const target = t[2]; // Input
+    const target = qc.el.querySelector<HTMLButtonElement>("#yui-tab-general")!;
     target.click();
 
     expect(target.getAttribute("aria-selected")).toBe("true");
@@ -121,14 +136,14 @@ describe("createQuickControls — tabs + VAD slider", () => {
 
   it("open({ tab }) lands directly on the requested tab", () => {
     const qc = buildQc();
-    qc.open(undefined, { tab: "adv" });
+    qc.open(undefined, { tab: "conn" });
 
-    const adv = tabs(qc).find((tab) => tab.id === "yui-tab-adv")!;
-    expect(adv.getAttribute("aria-selected")).toBe("true");
-    expect(panelFor(qc, adv).hidden).toBe(false);
+    const conn = tabs(qc).find((tab) => tab.id === "yui-tab-conn")!;
+    expect(conn.getAttribute("aria-selected")).toBe("true");
+    expect(panelFor(qc, conn).hidden).toBe(false);
     expect(qc.isOpen()).toBe(true);
     // Focus follows the requested tab, not the first control the popover would land on.
-    expect(document.activeElement).toBe(adv);
+    expect(document.activeElement).toBe(conn);
 
     qc.dispose();
   });
@@ -136,18 +151,18 @@ describe("createQuickControls — tabs + VAD slider", () => {
   it("open({ tab }) switches an already-open panel to that tab", () => {
     const qc = buildQc();
     qc.open();
-    qc.open(undefined, { tab: "adv" });
+    qc.open(undefined, { tab: "conn" });
 
-    const adv = tabs(qc).find((tab) => tab.id === "yui-tab-adv")!;
-    expect(adv.getAttribute("aria-selected")).toBe("true");
-    expect(panelFor(qc, adv).hidden).toBe(false);
+    const conn = tabs(qc).find((tab) => tab.id === "yui-tab-conn")!;
+    expect(conn.getAttribute("aria-selected")).toBe("true");
+    expect(panelFor(qc, conn).hidden).toBe(false);
 
     qc.dispose();
   });
 
-  it("open({ tab }) reaches every tab the tablist renders", () => {
+  it("open({ tab }) reaches every tab the tablist renders, hist sitting before general", () => {
     // The tab union is the panel's public vocabulary — it must not omit a rendered tab.
-    const names: QuickControlsTab[] = ["talk", "char", "input", "adv", "react", "hist"];
+    const names: QuickControlsTab[] = ["conn", "talk", "char", "input", "react", "hist", "general"];
     // A transcript is what renders the history tab, so inject one to get the full rail.
     const qc = buildQc({ transcript: createChatHistoryStore() });
     expect(tabs(qc).map((tab) => tab.id)).toEqual(names.map((name) => `yui-tab-${name}`));
@@ -192,8 +207,9 @@ describe("createQuickControls — tabs + VAD slider", () => {
     t[0].focus();
 
     tablist.dispatchEvent(new KeyboardEvent("keydown", { key: "End", bubbles: true }));
-    expect(t[4].getAttribute("aria-selected")).toBe("true");
-    expect(panelFor(qc, t[4]).hidden).toBe(false);
+    expect(t[5].id).toBe("yui-tab-general");
+    expect(t[5].getAttribute("aria-selected")).toBe("true");
+    expect(panelFor(qc, t[5]).hidden).toBe(false);
 
     tablist.dispatchEvent(new KeyboardEvent("keydown", { key: "Home", bubbles: true }));
     expect(t[0].getAttribute("aria-selected")).toBe("true");
@@ -670,205 +686,6 @@ describe("createQuickControls — tabs + VAD slider", () => {
     expect(timeout.value).toBe("諦めちゃった");
     expect(unreachable.value).toBe("つながらない");
     expect(tool.value).toBe("checking...\nweb_search = searching");
-
-    qc.dispose();
-  });
-});
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Settings rail — collapsible two-column layout (talk/character/input/adv/react)
-// ─────────────────────────────────────────────────────────────────────────────
-
-describe("createQuickControls — sections rail collapse", () => {
-  const RAIL_COLLAPSED_KEY = "yui.quickControls.railCollapsed";
-  let mount: HTMLElement;
-
-  beforeEach(() => {
-    let rafId = 0;
-    vi.spyOn(globalThis, "requestAnimationFrame").mockImplementation((cb) => {
-      cb(0);
-      return ++rafId;
-    });
-    vi.spyOn(globalThis, "cancelAnimationFrame").mockImplementation(() => {});
-    mount = document.createElement("div");
-    document.body.appendChild(mount);
-    try {
-      globalThis.localStorage?.clear();
-    } catch {
-      /* Ignore environments without localStorage */
-    }
-    setLocale("en");
-  });
-
-  afterEach(() => {
-    document.body.innerHTML = "";
-    vi.restoreAllMocks();
-  });
-
-  function buildQc(extra?: Partial<Parameters<typeof createQuickControls>[0]>) {
-    return createQuickControls({
-      ...defaultQcArgs(mount),
-      railCollapsedSettings: createFlagSettings(false, {
-        storage: localStorageStore("yui.quickControls.railCollapsed"),
-      }),
-      ...extra,
-    });
-  }
-
-  it("renders expanded by default: aria-expanded=true, no is-rail-collapsed class", () => {
-    const qc = buildQc();
-    qc.open();
-
-    const cols = qc.el.querySelector<HTMLElement>(".yui-quick__cols")!;
-    const collapseBtn = qc.el.querySelector<HTMLButtonElement>(".yui-rail-collapse")!;
-    expect(collapseBtn).not.toBeNull();
-    expect(collapseBtn.getAttribute("aria-expanded")).toBe("true");
-    expect(cols.classList.contains("is-rail-collapsed")).toBe(false);
-
-    qc.dispose();
-  });
-
-  it("clicking the collapse button toggles is-rail-collapsed + aria-expanded, and persists to localStorage", () => {
-    const qc = buildQc();
-    qc.open();
-
-    const cols = qc.el.querySelector<HTMLElement>(".yui-quick__cols")!;
-    const collapseBtn = qc.el.querySelector<HTMLButtonElement>(".yui-rail-collapse")!;
-
-    collapseBtn.click();
-    expect(cols.classList.contains("is-rail-collapsed")).toBe(true);
-    expect(collapseBtn.getAttribute("aria-expanded")).toBe("false");
-    expect(globalThis.localStorage.getItem(RAIL_COLLAPSED_KEY)).toBe('{"enabled":true}');
-
-    collapseBtn.click();
-    expect(cols.classList.contains("is-rail-collapsed")).toBe(false);
-    expect(collapseBtn.getAttribute("aria-expanded")).toBe("true");
-    expect(globalThis.localStorage.getItem(RAIL_COLLAPSED_KEY)).toBe('{"enabled":false}');
-
-    qc.dispose();
-  });
-
-  it("reads the persisted collapsed state on build, applied before first paint", () => {
-    globalThis.localStorage.setItem(RAIL_COLLAPSED_KEY, '{"enabled":true}');
-    const qc = buildQc();
-    qc.open();
-
-    const cols = qc.el.querySelector<HTMLElement>(".yui-quick__cols")!;
-    const collapseBtn = qc.el.querySelector<HTMLButtonElement>(".yui-rail-collapse")!;
-    expect(cols.classList.contains("is-rail-collapsed")).toBe(true);
-    expect(collapseBtn.getAttribute("aria-expanded")).toBe("false");
-
-    qc.dispose();
-  });
-
-  it("tabs stay clickable and switch panels while the rail is collapsed", () => {
-    globalThis.localStorage.setItem(RAIL_COLLAPSED_KEY, '{"enabled":true}');
-    const qc = buildQc();
-    qc.open();
-
-    const tabs = Array.from(qc.el.querySelectorAll<HTMLButtonElement>('[role="tab"]'));
-    const target = tabs[2];
-    target.click();
-
-    expect(target.getAttribute("aria-selected")).toBe("true");
-    const panel = qc.el.querySelector<HTMLElement>(`#${target.getAttribute("aria-controls")}`)!;
-    expect(panel.hidden).toBe(false);
-    for (const tab of tabs) {
-      if (tab === target) continue;
-      expect(tab.getAttribute("aria-selected")).toBe("false");
-    }
-
-    qc.dispose();
-  });
-
-  it("the indicator still tracks the active tab (--tab custom property) while collapsed", () => {
-    globalThis.localStorage.setItem(RAIL_COLLAPSED_KEY, '{"enabled":true}');
-    const qc = buildQc();
-    qc.open();
-
-    const tablist = qc.el.querySelector<HTMLElement>('[role="tablist"]')!;
-    const tabs = Array.from(qc.el.querySelectorAll<HTMLButtonElement>('[role="tab"]'));
-    tabs[3].click();
-
-    expect(tablist.style.getPropertyValue("--tab")).toBe("3");
-
-    qc.dispose();
-  });
-
-  it("every tab keeps an accessible name and tooltip for the icon-only collapsed state", () => {
-    const qc = buildQc();
-    qc.open();
-
-    const tabs = Array.from(qc.el.querySelectorAll<HTMLButtonElement>('[role="tab"]'));
-    expect(tabs).toHaveLength(5);
-    for (const tab of tabs) {
-      expect(tab.getAttribute("aria-label")).toBeTruthy();
-      expect(tab.dataset.tip).toBeTruthy();
-      expect(tab.hasAttribute("title")).toBe(false);
-    }
-
-    const reactions = qc.el.querySelector<HTMLButtonElement>("#yui-tab-react")!;
-    document.dispatchEvent(new KeyboardEvent("keydown", { key: "Tab", bubbles: true }));
-    reactions.focus();
-    expect(document.querySelector(".yui-hint-tip.is-open")?.textContent).toBe(
-      reactions.dataset.tip,
-    );
-    expect(reactions.dataset.tip).not.toBe(reactions.getAttribute("aria-label"));
-
-    qc.dispose();
-  });
-
-  it("guards localStorage access — a throwing localStorage does not break construction or the toggle", () => {
-    const original = Object.getOwnPropertyDescriptor(globalThis, "localStorage");
-    Object.defineProperty(globalThis, "localStorage", {
-      configurable: true,
-      get() {
-        throw new Error("blocked");
-      },
-    });
-
-    expect(() => {
-      const qc = buildQc();
-      qc.open();
-      const collapseBtn = qc.el.querySelector<HTMLButtonElement>(".yui-rail-collapse")!;
-      collapseBtn.click();
-      qc.dispose();
-    }).not.toThrow();
-
-    if (original) Object.defineProperty(globalThis, "localStorage", original);
-  });
-
-  // ── a11y: the collapse button must not be an owned child of role=tablist ──
-
-  it("the collapse button lives outside [role=tablist] (ARIA tablist owns only tabs)", () => {
-    const qc = buildQc();
-    qc.open();
-
-    const tablist = qc.el.querySelector<HTMLElement>('[role="tablist"]')!;
-    expect(tablist).not.toBeNull();
-    expect(tablist.querySelector(".yui-rail-collapse")).toBeNull();
-
-    const collapseBtn = qc.el.querySelector<HTMLButtonElement>(".yui-rail-collapse")!;
-    expect(collapseBtn).not.toBeNull();
-    expect(tablist.contains(collapseBtn)).toBe(false);
-
-    qc.dispose();
-  });
-
-  it("ArrowDown/ArrowRight pressed while the collapse button is focused does not change the selected tab", () => {
-    const qc = buildQc();
-    qc.open();
-
-    const collapseBtn = qc.el.querySelector<HTMLButtonElement>(".yui-rail-collapse")!;
-    const tabs = Array.from(qc.el.querySelectorAll<HTMLButtonElement>('[role="tab"]'));
-    const activeBefore = tabs.find((tab) => tab.getAttribute("aria-selected") === "true")!;
-
-    collapseBtn.focus();
-    collapseBtn.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowDown", bubbles: true }));
-    collapseBtn.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowRight", bubbles: true }));
-
-    const activeAfter = tabs.find((tab) => tab.getAttribute("aria-selected") === "true")!;
-    expect(activeAfter).toBe(activeBefore);
 
     qc.dispose();
   });

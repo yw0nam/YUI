@@ -98,7 +98,7 @@ describe("createQuickControls — history tab", () => {
     qc.dispose();
   });
 
-  it("End key selects the history tab and moves the rail indicator", () => {
+  it("End key selects the general tab, which sits after history", () => {
     const qc = buildQc({ transcript: seedStore() });
     qc.open();
 
@@ -107,8 +107,8 @@ describe("createQuickControls — history tab", () => {
     tabs[0].focus();
     tablist.dispatchEvent(new KeyboardEvent("keydown", { key: "End", bubbles: true }));
 
-    expect(tabs[5].getAttribute("aria-selected")).toBe("true");
-    expect(tablist.style.getPropertyValue("--tab")).toBe("5");
+    expect(tabs.map((tab) => tab.id).slice(-2)).toEqual(["yui-tab-hist", "yui-tab-general"]);
+    expect(tabs[6].getAttribute("aria-selected")).toBe("true");
 
     qc.dispose();
   });

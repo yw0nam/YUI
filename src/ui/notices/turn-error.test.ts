@@ -51,7 +51,7 @@ describe("turnErrorMessage", () => {
       setLocale(locale);
       const message = turnErrorMessage("not_configured");
       expect(message).toBeTruthy();
-      expect(message).not.toContain(t("tabs.adv"));
+      expect(message).not.toContain(t("tabs.conn"));
     }
   });
 
@@ -74,20 +74,20 @@ describe("turnErrorFixAction", () => {
   beforeEach(() => setLocale("en"));
   afterEach(() => setLocale("en"));
 
-  it("gives not_configured a labeled action that opens the Advanced tab", () => {
+  it("gives not_configured a labeled action that opens the Connection tab", () => {
     const openSettings = vi.fn();
 
     const action = turnErrorFixAction("not_configured", openSettings);
 
-    expect(action?.label).toBe(t("input.error_open_advanced"));
+    expect(action?.label).toBe(t("input.error_open_connection"));
     action?.onClick();
-    expect(openSettings).toHaveBeenCalledWith("adv");
+    expect(openSettings).toHaveBeenCalledWith("conn");
   });
 
-  it("names the Advanced tab on the label, in every locale", () => {
+  it("names the Connection tab on the label, in every locale", () => {
     for (const locale of ["en", "ko", "ja"] as const) {
       setLocale(locale);
-      expect(turnErrorFixAction("not_configured", () => {})?.label).toContain(t("tabs.adv"));
+      expect(turnErrorFixAction("not_configured", () => {})?.label).toContain(t("tabs.conn"));
     }
   });
 

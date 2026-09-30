@@ -47,8 +47,6 @@ describe("createSettingsStores", () => {
       "climbSettings",
       "fallSettings",
       "hintSettings",
-      "railCollapsedSettings",
-      "sectionsSettings",
       "guardrailsSettings",
       "idleMotionSettings",
       "expressMotionSettings",
@@ -71,7 +69,6 @@ describe("createSettingsStores", () => {
     ["fallSettings", "yui.fall", true, false],
     ["hintSettings", "yui.hint", false, true],
     ["idleThrottleSettings", "yui.idle-throttle", true, false],
-    ["railCollapsedSettings", "yui.quickControls.railCollapsed", false, true],
     ["bubblePersistSettings", "yui.bubble-persist", false, true],
     ["presenceSettings", "yui.presence", 180000, 200000],
     ["pacerGapSettings", "yui.proactive-pacer-gap", 600000, 0],
@@ -139,22 +136,6 @@ describe("createSettingsStores", () => {
     expect(localStorage.getItem("yui.express_motions")).toBe(
       JSON.stringify({ disabled: ["dance"] }),
     );
-    localStorage.clear();
-  });
-
-  it("broadcasts collapsed-sections state across windows", () => {
-    const stores = createSettingsStores();
-
-    expect(broadcastSyncStores(stores)).toContain(stores.sectionsSettings);
-  });
-
-  it("persists closed sections under yui.sections", () => {
-    localStorage.clear();
-    const stores = createSettingsStores();
-
-    stores.sectionsSettings.setClosed("vrm", true);
-
-    expect(localStorage.getItem("yui.sections")).toBe(JSON.stringify({ closed: ["vrm"] }));
     localStorage.clear();
   });
 

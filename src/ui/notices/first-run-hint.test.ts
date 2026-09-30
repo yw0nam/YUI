@@ -126,12 +126,12 @@ describe("maybeShowFirstRunHint — unconfigured chat backend", () => {
 describe("hint.setup_backend copy", () => {
   afterEach(() => setLocale("en"));
 
-  it("names the Advanced tab in every locale", () => {
+  it("names the Connection tab in every locale", () => {
     for (const locale of ["en", "ko", "ja"] as const) {
       setLocale(locale);
       const copy = t("hint.setup_backend");
       expect(copy).not.toBe("hint.setup_backend");
-      expect(copy).toContain(t("tabs.adv"));
+      expect(copy).toContain(t("tabs.conn"));
     }
   });
 });

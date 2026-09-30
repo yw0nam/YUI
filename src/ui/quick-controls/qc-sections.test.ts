@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 /**
- * Collapsible Quick Controls sections — native <details class="yui-section" data-section>
- * wrapping every heading-bearing settings group, persisted via sectionsSettings (yui.sections).
+ * Settings panel layout — which sections each tab holds, always-open groups (no collapsible
+ * sections), segments sized by their options, and the screenshot row's state hint.
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createSessionDiagnosticsStore } from "../../io/chat/session-diagnostics";
@@ -10,10 +10,10 @@ import { createExpressMotionSettings } from "../../settings/avatar/express-motio
 import { createIdleMotionSettings } from "../../settings/avatar/idle-motion-settings";
 import { createGuardrailsSettings } from "../../settings/backend/guardrails-settings";
 import { createScreenKnobSettings } from "../../settings/capture/screen-settings";
-import { createSectionsSettings } from "../../settings/panels/sections-settings";
+import { createScreenshotSettings } from "../../settings/capture/screenshot-settings";
 import { createFlagSettings } from "../../settings/persisted-store";
 import { createFillerSettings } from "../../settings/voice/filler-settings";
-import { setLocale } from "../i18n";
+import { setLocale, t } from "../i18n";
 import { createQuickControls } from "./quick-controls";
 import { defaultQcArgs } from "./test-helpers";
 
@@ -23,18 +23,7 @@ const IDLE_POOL = {
 };
 const EXPRESS_VOCAB = ["happy", "laugh"];
 
-// jsdom 29 flips a <details>'s `.open` on a native click but — unlike a real browser — does not
-// dispatch the follow-up `toggle` event; simulate that second half explicitly.
-function clickSummary(details: HTMLDetailsElement): void {
-  details.querySelector("summary")!.click();
-  details.dispatchEvent(new Event("toggle"));
-}
-
-function sectionsOf(root: HTMLElement): HTMLDetailsElement[] {
-  return Array.from(root.querySelectorAll<HTMLDetailsElement>("details.yui-section[data-section]"));
-}
-
-describe("createQuickControls — collapsible sections", () => {
+describe("createQuickControls — settings layout", () => {
   let mount: HTMLElement;
 
   beforeEach(() => {
@@ -46,11 +35,6 @@ describe("createQuickControls — collapsible sections", () => {
     vi.spyOn(globalThis, "cancelAnimationFrame").mockImplementation(() => {});
     mount = document.createElement("div");
     document.body.appendChild(mount);
-    try {
-      globalThis.localStorage?.clear();
-    } catch {
-      /* Ignore environments without localStorage */
-    }
     setLocale("en");
   });
 
@@ -59,17 +43,10 @@ describe("createQuickControls — collapsible sections", () => {
     vi.restoreAllMocks();
   });
 
-  function buildQc(extra?: Partial<Parameters<typeof createQuickControls>[0]>) {
+  // Every optional section wired in, so the whole panel renders.
+  function buildFullQc(extra?: Partial<Parameters<typeof createQuickControls>[0]>) {
     return createQuickControls({
       ...defaultQcArgs(mount),
-      sectionsSettings: createSectionsSettings(),
-      ...extra,
-    });
-  }
-
-  // Every optional section wired in, so all 16 ids render for the full-inventory assertion.
-  function buildFullQc(extra?: Partial<Parameters<typeof createQuickControls>[0]>) {
-    return buildQc({
       variant: "window",
       fillerSettings: createFillerSettings(),
       idleMotionSettings: createIdleMotionSettings(),
@@ -86,141 +63,69 @@ describe("createQuickControls — collapsible sections", () => {
     });
   }
 
-  it("renders every section as details.yui-section[data-section], open by default", () => {
+  function panel(qc: ReturnType<typeof createQuickControls>, tab: string): HTMLElement {
+    return qc.el.querySelector<HTMLElement>(`#yui-panel-${tab}`)!;
+  }
+
+  it("puts the four endpoint sections in the Connection tab", () => {
     const qc = buildFullQc();
     qc.open();
 
-    const ids = sectionsOf(qc.el).map((s) => s.dataset.section);
-    expect(ids).toEqual([
-      "reasoning",
-      "language",
-      "instructions",
-      "filler",
-      "vrm",
-      "expression",
-      "idle-motion",
-      "express-motion",
-      "viewpoint",
-      "screen",
-      "reactions-watchers",
-      "workflows",
-      "reactions-shared",
-      "reactions-rate",
-      "perf",
-      "session",
-    ]);
-    for (const s of sectionsOf(qc.el)) expect(s.open).toBe(true);
+    const svcs = Array.from(panel(qc, "conn").querySelectorAll<HTMLElement>(".yui-endpoints"));
+    expect(svcs.map((s) => s.dataset.svc)).toEqual(["chat", "stt", "tts", "broker"]);
 
     qc.dispose();
   });
 
-  it("only a tab's first section heading matches the reduced-top-margin selector", () => {
+  it("puts the display language, performance switches and session in the General tab", () => {
     const qc = buildFullQc();
     qc.open();
 
-    const byId = new Map(sectionsOf(qc.el).map((s) => [s.dataset.section, s]));
-    const MARGIN_SEL = ".yui-tabpanel > .yui-section:first-child .yui-quick__section";
-    const vrmHeading = byId.get("vrm")!.querySelector(".yui-quick__section")!;
-    const expressionHeading = byId.get("expression")!.querySelector(".yui-quick__section")!;
-
-    // vrm is the char tab's first section — it gets the reduced top margin.
-    expect(vrmHeading.matches(MARGIN_SEL)).toBe(true);
-    // expression follows it in the same tab — it does not.
-    expect(expressionHeading.matches(MARGIN_SEL)).toBe(false);
+    const general = panel(qc, "general");
+    expect(general.querySelector(".yui-lang-seg")).not.toBeNull();
+    expect(general.querySelector(".yui-idle-throttle-switch")).not.toBeNull();
+    expect(general.querySelector(".yui-session")).not.toBeNull();
+    expect(panel(qc, "talk").querySelector(".yui-lang-seg")).toBeNull();
 
     qc.dispose();
   });
 
-  it("no section is nested inside another section (each toggles independently)", () => {
+  it("renders no <details> except the filler's more-phrases disclosure", () => {
     const qc = buildFullQc();
     qc.open();
 
-    for (const s of sectionsOf(qc.el)) {
-      expect(s.querySelector("details.yui-section")).toBeNull();
-    }
+    const details = Array.from(qc.el.querySelectorAll("details"));
+    expect(details).toHaveLength(1);
+    expect(details[0]!.classList.contains("yui-filler-more")).toBe(true);
 
     qc.dispose();
   });
 
-  it("a stored closed id renders without `open` on first paint (no flash)", () => {
-    const qc = buildQc({
-      sectionsSettings: createSectionsSettings({
-        storage: { load: () => ({ closed: ["vrm"] }), save: () => {} },
-      }),
-    });
+  it("sizes a segment by its options — three buttons, no sliding indicator", () => {
+    const qc = buildFullQc();
     qc.open();
 
-    const byId = new Map(sectionsOf(qc.el).map((s) => [s.dataset.section, s]));
-    expect(byId.get("vrm")!.open).toBe(false);
-    // An untouched section keeps today's always-expanded layout.
-    expect(byId.get("reasoning")!.open).toBe(true);
+    const seg = qc.el.querySelector<HTMLElement>(".yui-lang-seg")!;
+    expect(seg.querySelectorAll(".yui-seg__btn")).toHaveLength(3);
+    expect(qc.el.querySelector(".yui-seg__ind")).toBeNull();
 
     qc.dispose();
   });
 
-  it("closing a section writes its id to the store", () => {
-    const sectionsSettings = createSectionsSettings();
-    const qc = buildQc({ sectionsSettings });
+  it("shows the screenshot row's on/off hint as its sub text and no footer", () => {
+    const settings = createScreenshotSettings({ storage: { load: () => null, save: () => {} } });
+    const qc = buildFullQc({ settings });
     qc.open();
 
-    const vrm = sectionsOf(qc.el).find((s) => s.dataset.section === "vrm")!;
-    expect(vrm.open).toBe(true);
+    const sw = qc.el.querySelector<HTMLButtonElement>(".yui-screenshot-switch")!;
+    const sub = sw.closest(".yui-row")!.querySelector(".yui-row__sub")!;
+    expect(sw.getAttribute("aria-checked")).toBe("false");
+    expect(sub.textContent).toBe(t("screenshot.foot_off"));
 
-    clickSummary(vrm);
-
-    expect(vrm.open).toBe(false);
-    expect(sectionsSettings.get().closed).toContain("vrm");
-
-    qc.dispose();
-  });
-
-  it("reopening a section removes its id from the store", () => {
-    const sectionsSettings = createSectionsSettings({
-      storage: { load: () => ({ closed: ["vrm"] }), save: () => {} },
-    });
-    const qc = buildQc({ sectionsSettings });
-    qc.open();
-
-    const vrm = sectionsOf(qc.el).find((s) => s.dataset.section === "vrm")!;
-    expect(vrm.open).toBe(false);
-
-    clickSummary(vrm);
-
-    expect(vrm.open).toBe(true);
-    expect(sectionsSettings.get().closed).not.toContain("vrm");
-
-    qc.dispose();
-  });
-
-  it("a store change from elsewhere (other-window reload) reflects into the DOM", () => {
-    const sectionsSettings = createSectionsSettings();
-    const qc = buildQc({ sectionsSettings });
-    qc.open();
-
-    const vrm = sectionsOf(qc.el).find((s) => s.dataset.section === "vrm")!;
-    expect(vrm.open).toBe(true);
-
-    // Simulate another window's edit landing via the store's own subscription (broadcast/reload).
-    sectionsSettings.setClosed("vrm", true);
-
-    expect(vrm.open).toBe(false);
-
-    qc.dispose();
-  });
-
-  it("a store change made while the panel is closed reflects into the DOM on reopen", () => {
-    const sectionsSettings = createSectionsSettings();
-    const qc = buildQc({ sectionsSettings });
-    qc.open();
-    qc.close();
-
-    // Edit lands while closed (subscription is gated on popover.isOpen()) — panel markup is built
-    // once, so nothing re-syncs the DOM until the next open() reflect batch runs.
-    sectionsSettings.setClosed("vrm", true);
-
-    qc.open();
-    const vrm = sectionsOf(qc.el).find((s) => s.dataset.section === "vrm")!;
-    expect(vrm.open).toBe(false);
+    settings.setEnabled(true);
+    expect(sw.getAttribute("aria-checked")).toBe("true");
+    expect(sub.textContent).toBe(t("screenshot.foot_on"));
+    expect(qc.el.querySelector(".yui-quick__foot")).toBeNull();
 
     qc.dispose();
   });

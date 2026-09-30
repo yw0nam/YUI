@@ -207,11 +207,11 @@ describe("createQuickControls — toggles + gain row", () => {
     expect(() => qc.dispose()).not.toThrow();
   });
 
-  // ── Idle power-saving toggle row (Advanced tab) ──────────────────────────
+  // ── Idle power-saving toggle row (General tab) ──────────────────────────
   // Unlike the gated rows below, idleThrottleSettings is part of defaultQcArgs, so this row
   // always renders — it has no "absent" case to check.
 
-  it("renders the idle-throttle toggle row in the Advanced tab, ON by default", () => {
+  it("renders the idle-throttle toggle row in the General tab, ON by default", () => {
     const qc = buildQc();
     qc.open();
 
@@ -345,7 +345,7 @@ describe("createQuickControls — toggles + gain row", () => {
     qc.dispose();
   });
 
-  // ── Falling toggle row (Advanced tab) ─────────────────────────────────────
+  // ── Falling toggle row (General tab) ─────────────────────────────────────
 
   it("renders the fall toggle row only when fallSettings is provided, ON by default", () => {
     const withoutFall = buildQc();
