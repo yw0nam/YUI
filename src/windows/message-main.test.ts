@@ -1,10 +1,11 @@
 // @vitest-environment jsdom
 /**
- * message-main.test.ts — the popped-out window carries the delegation chip.
+ * message-main.test.ts — the popped-out window carries the delegation chip and the reasoning.
  *
- * The socket lives in the pet window, so this window mirrors its state and its delegations list
- * over the cross-window bridge and draws the same chip beside the name plate. The chip draws
- * whatever state arrives; disconnected — no transport in use — draws nothing.
+ * The socket lives in the pet window, so this window mirrors its state, its delegations list and
+ * its reasoning over the cross-window bridge. The chip sits beside the name plate and the reasoning
+ * opens at the top of the bubble. Both draw whatever state arrives; disconnected — no transport in
+ * use — draws no chip.
  */
 
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
@@ -15,7 +16,6 @@ vi.mock("../ui/surfaces/surfaces.css", () => ({}));
 vi.mock("../ui/tokens.css", () => ({}));
 vi.mock("../ui/chips/delegation-chip.css", () => ({}));
 vi.mock("../ui/chips/delegation-rows.css", () => ({}));
-vi.mock("../ui/chips/reasoning-chip.css", () => ({}));
 
 import { createMessageBridge, type MessageControlOp } from "../io/bridge/message-bridge";
 import type { ReasoningState } from "../io/bridge/reasoning-store";
@@ -46,20 +46,12 @@ function label(): string {
   return document.querySelector<HTMLElement>(".yui-deleg__label")!.textContent ?? "";
 }
 
-function thinkEl(): HTMLElement {
-  return document.querySelector<HTMLElement>(".yui-think")!;
+function thinkEl(): HTMLDetailsElement {
+  return document.querySelector<HTMLDetailsElement>(".yui-bubble__think")!;
 }
 
-function thinkPanel(): HTMLElement {
-  return document.querySelector<HTMLElement>(".yui-think__panel")!;
-}
-
-function delegList(): HTMLElement {
-  return document.querySelector<HTMLElement>(".yui-deleg__list")!;
-}
-
-function delegChipButton(): HTMLButtonElement {
-  return document.querySelector<HTMLButtonElement>(".yui-deleg__chip")!;
+function bubbleEl(): HTMLElement {
+  return document.querySelector<HTMLElement>(".yui-bubble")!;
 }
 
 /** The pet window answers the ask every mirror sends on creation, then pushes its own updates. */
@@ -98,16 +90,12 @@ afterEach(() => {
   setLocale("en");
 });
 
-it("mounts the plate, the delegation chip and the reasoning chip in the plate's row", async () => {
+it("mounts the plate and the delegation chip in the plate's row", async () => {
   await boot();
 
   const row = document.querySelector<HTMLElement>(".yui-plate-row")!;
   const children = [...row.children];
-  expect(children.map((el) => el.className.split(" ")[0])).toEqual([
-    "yui-plate",
-    "yui-deleg",
-    "yui-think",
-  ]);
+  expect(children.map((el) => el.className.split(" ")[0])).toEqual(["yui-plate", "yui-deleg"]);
 });
 
 it("draws the lost pill while the mirrored socket is not ready", async () => {
@@ -169,29 +157,30 @@ it("asks the character window for the settings surface when the lost chip is tap
   petMessageBridge.dispose();
 });
 
-// The reasoning chip lives on the same plate row; it draws the mirror's text whatever the socket does.
-it("shows the reasoning chip when the mirror carries reasoning text", async () => {
+// The reasoning opens at the top of the bubble; it draws the mirror's text whatever the socket does.
+it("opens the mirrored reasoning at the top of the bubble", async () => {
   await boot();
   answer({ kind: "ready", chat_id: "yui-3f9a2c1d" });
   answerReasoning({ text: "checking the logs", live: true });
 
   await vi.waitFor(() => expect(thinkEl().hidden).toBe(false));
-  expect(thinkPanel().hidden).toBe(false);
-  expect(document.querySelector<HTMLElement>(".yui-think__text")!.textContent).toBe(
+  expect(thinkEl().open).toBe(true);
+  expect(document.querySelector<HTMLElement>(".yui-bubble__think-text")!.textContent).toBe(
     "checking the logs",
   );
 });
 
-it("shows the reasoning chip before any push state arrives, while the delegation chip still waits", async () => {
+it("shows the bubble for reasoning before any push state arrives, while the delegation chip still waits", async () => {
   await boot();
 
   answerReasoning({ text: "too early", live: true });
 
   await vi.waitFor(() => expect(thinkEl().hidden).toBe(false));
+  expect(bubbleEl().hidden).toBe(false);
   expect(chipEl().hidden).toBe(true);
 });
 
-it("keeps the reasoning chip when the transport disconnects, and hides the delegation chip", async () => {
+it("keeps the reasoning when the transport disconnects, and hides the delegation chip", async () => {
   await boot();
   answer({ kind: "reconnecting", delay_ms: 4_000 });
   answerReasoning({ text: "hmm", live: true });
@@ -203,29 +192,4 @@ it("keeps the reasoning chip when the transport disconnects, and hides the deleg
   expect(chipEl().classList.contains("is-lost")).toBe(false);
 
   expect(thinkEl().hidden).toBe(false);
-});
-
-it("closes the delegation list when a live reasoning state arrives", async () => {
-  await boot();
-  answer({ kind: "ready", chat_id: "yui-3f9a2c1d" }, [running("d-1")]);
-  await vi.waitFor(() => expect(chipEl().hidden).toBe(false));
-  delegChipButton().click();
-  expect(delegList().hidden).toBe(false);
-
-  answerReasoning({ text: "hmm", live: true });
-
-  await vi.waitFor(() => expect(delegList().hidden).toBe(true));
-  expect(delegChipButton().getAttribute("aria-expanded")).toBe("false");
-});
-
-it("closes the reasoning panel when the delegation list opens", async () => {
-  await boot();
-  answer({ kind: "ready", chat_id: "yui-3f9a2c1d" }, [running("d-1")]);
-  answerReasoning({ text: "hmm", live: true });
-  await vi.waitFor(() => expect(thinkPanel().hidden).toBe(false));
-
-  delegChipButton().click();
-
-  await vi.waitFor(() => expect(thinkPanel().hidden).toBe(true));
-  expect(delegList().hidden).toBe(false);
 });

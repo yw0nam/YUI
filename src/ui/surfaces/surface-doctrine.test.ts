@@ -255,54 +255,56 @@ describe("message-window.css — the delegation list wraps under the plate row",
   });
 });
 
-// The reasoning chip mirrors the delegation chip's layout: both chips' buttons sit in the
-// row and both panels take a full-width line after them, kept there by flex order.
-describe("reasoning-chip.css — the reasoning panel wraps under the plate row", () => {
-  it("keeps a hidden root and a hidden panel out of the flow row", () => {
-    const css = read("../chips/reasoning-chip.css");
-    expect(extractBlock(css, ".yui-think")).toMatch(/display:/);
-    expect(extractBlock(css, ".yui-think[hidden]")).toMatch(/display:\s*none/);
-    expect(extractBlock(css, ".yui-think__panel[hidden]")).toMatch(/display:\s*none/);
+// The bubble is a positioning wrapper around a box: the box wears the frost and scrolls, so the
+// edge tools can sit outside it without being clipped or faded by the scroll mask.
+describe("surfaces.css — the bubble's box carries the material", () => {
+  const css = (): string => read("surfaces.css");
+
+  it("leaves the wrapper bare: no background, no frost, no overflow", () => {
+    const block = extractBlock(css(), ".yui-bubble");
+    expect(block).not.toMatch(/background|backdrop-filter|overflow/);
   });
 
-  it("takes the row's next full-width line after both buttons", () => {
-    const block = extractBlock(read("../chips/reasoning-chip.css"), ".yui-think__panel");
-    expect(block).toMatch(/flex:\s*1 0 100%/);
-    expect(block).toMatch(/order:\s*1/);
+  it("gives the box the scrim, the frost, the scroll cap and the speech size", () => {
+    const block = extractBlock(css(), ".yui-bubble__box");
+    expect(block).toMatch(/background:\s*var\(--yui-scrim\)/);
+    expect(block).toMatch(/backdrop-filter:\s*blur\(10px\) saturate\(1\.1\)/);
+    expect(block).toMatch(/overflow-y:\s*auto/);
+    expect(block).toMatch(/font-size:\s*var\(--yui-fs-speech\)/);
   });
 
-  it("keeps the delegation list on the same line order, after the row's buttons", () => {
-    const block = extractBlock(
-      read("../message/message-window.css"),
-      ".yui-ui--message .yui-deleg__list",
+  it("fades the top of the box, not the wrapper, once it overflows", () => {
+    expect(extractBlock(css(), ".yui-bubble.is-scrollable .yui-bubble__box")).toMatch(/mask-image/);
+  });
+
+  it("drops the frost for a solid strong scrim under reduced transparency", () => {
+    const c = css();
+    const reduced = c.slice(c.indexOf("@media (prefers-reduced-transparency: reduce)"));
+    expect(reduced).toMatch(
+      /\.yui-bubble__box\s*\{\s*background:\s*var\(--yui-scrim-strong\);\s*backdrop-filter:\s*none;/,
     );
-    expect(block).toMatch(/order:\s*1/);
   });
 
-  it("clips the text at six lines and scrolls it", () => {
-    const block = extractBlock(read("../chips/reasoning-chip.css"), ".yui-think__text");
+  it("clips the reasoning at six lines and scrolls it", () => {
+    const block = extractBlock(css(), ".yui-bubble__think-text");
     expect(block).toMatch(/max-height:\s*calc\(6 \* 1\.45em\)/);
     expect(block).toMatch(/overflow-y:\s*auto/);
     expect(block).toMatch(/white-space:\s*pre-wrap/);
   });
 
-  it("styles the panel with the scrim and edge tokens, never literals", () => {
-    const css = read("../chips/reasoning-chip.css");
-    const block = extractBlock(css, ".yui-think__panel");
-    expect(block).toMatch(/var\(--yui-scrim\)/);
-    expect(block).toMatch(/var\(--yui-edge\)/);
-    expect(css).not.toMatch(/oklch\(/);
+  it("stops the live reasoning cursor under reduced motion", () => {
+    const c = css();
+    expect(extractBlock(c, ".yui-bubble__think-text.is-live::after")).toMatch(/animation:/);
+    const reduced = c.slice(c.indexOf("@media (prefers-reduced-motion"));
+    expect(reduced).toContain(".yui-bubble__think-text.is-live::after");
   });
+});
 
-  it("breathes the glyph and blinks the cursor while live, and stops both under reduced motion", () => {
-    const css = read("../chips/reasoning-chip.css");
-    expect(extractBlock(css, ".yui-think__chip.is-live .yui-think__glyph")).toMatch(
-      /animation:.*yui-plate-breathe/,
-    );
-    expect(extractBlock(css, ".yui-think__text.is-live::after")).toMatch(/animation:/);
-    const reduced = css.slice(css.indexOf("@media (prefers-reduced-motion"));
-    expect(reduced).toContain(".yui-think__chip.is-live .yui-think__glyph");
-    expect(reduced).toContain(".yui-think__text.is-live::after");
-    expect(reduced).toMatch(/animation:\s*none/);
-  });
+// The scrim alpha carries contrast on the bubble, composer and plate; none adds a text shadow.
+describe("bubble, composer and plate — no text shadow", () => {
+  for (const file of ["surfaces.css", "../message/message-window.css"]) {
+    it(`${file} carries no text shadow`, () => {
+      expect(read(file)).not.toMatch(/text-shadow/);
+    });
+  }
 });

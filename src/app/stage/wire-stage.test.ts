@@ -35,7 +35,7 @@ const knobs = (): HitTestKnobs => ({
 
 const setupHitTest = (opts: {
   hit?: (x: number, y: number) => boolean;
-  overlays?: Record<string, DOMRect>;
+  overlays?: Record<string, DOMRect[]>;
   quickControls?: { rect: DOMRect };
 }) => {
   const controller = {
@@ -47,12 +47,13 @@ const setupHitTest = (opts: {
   };
   createHitTestController.mockImplementation(() => controller);
   let quickOpen = false;
-  const querySelector = vi.fn((selector: string) => {
-    const rect = opts.overlays?.[selector];
-    return rect ? ({ getBoundingClientRect: () => rect } as unknown as HTMLElement) : null;
-  });
+  const querySelectorAll = vi.fn((selector: string) =>
+    (opts.overlays?.[selector] ?? []).map(
+      (rect) => ({ getBoundingClientRect: () => rect }) as unknown as HTMLElement,
+    ),
+  );
   const hitTest = wireHitTest({
-    root: { querySelector } as unknown as HTMLElement,
+    root: { querySelectorAll } as unknown as HTMLElement,
     renderer: { hitTest: opts.hit ?? (() => false) },
     getQuickControls: () => ({
       isOpen: () => quickOpen,
@@ -65,7 +66,7 @@ const setupHitTest = (opts: {
   return {
     hitTest,
     controller,
-    querySelector,
+    querySelectorAll,
     setQuickControlsOpen: (open: boolean) => {
       quickOpen = open;
     },
@@ -115,15 +116,28 @@ describe("wireHitTest", () => {
   it("counts a point on the character as interactive without any rect lookup", () => {
     const s = setupHitTest({ hit: () => true });
     expect(s.isOverInteractive(50, 60, 10)).toBe(true);
-    expect(s.querySelector).not.toHaveBeenCalled();
+    expect(s.querySelectorAll).not.toHaveBeenCalled();
   });
 
   it("counts a point inside an overlay's margin and rejects one outside it", () => {
     const s = setupHitTest({
-      overlays: { [INTERACTIVE_OVERLAY_SELECTORS[0]]: rectOf(100, 100, 200, 140) },
+      overlays: { [INTERACTIVE_OVERLAY_SELECTORS[0]]: [rectOf(100, 100, 200, 140)] },
     });
     expect(s.isOverInteractive(95, 120, 10)).toBe(true);
     expect(s.isOverInteractive(85, 120, 10)).toBe(false);
+  });
+
+  // One selector can name several targets, such as the bubble's two edge buttons.
+  it("counts every element a selector matches, not only the first", () => {
+    const s = setupHitTest({
+      overlays: {
+        [INTERACTIVE_OVERLAY_SELECTORS[0]]: [
+          rectOf(100, 100, 120, 120),
+          rectOf(130, 100, 150, 120),
+        ],
+      },
+    });
+    expect(s.isOverInteractive(140, 110, 0)).toBe(true);
   });
 
   it("counts the quick-controls rect only while it is open", () => {

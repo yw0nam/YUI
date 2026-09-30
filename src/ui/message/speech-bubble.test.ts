@@ -26,6 +26,17 @@ import { createSurfaces } from "../surfaces/surfaces";
 import { noTool } from "../surfaces/test-helpers";
 import { renderMarkdownInline } from "./markdown";
 
+const TOOLS_SELECTOR = ".yui-bubble.is-visible .yui-bubble__tools button";
+
+// Both edge buttons register through the one tools entry; the pet window hit-tests nothing else of the bubble.
+describe("hit-test registration", () => {
+  it("lists the tools selector and no per-button entry", () => {
+    expect(INTERACTIVE_OVERLAY_SELECTORS).toContain(TOOLS_SELECTOR);
+    const bubbleEntries = INTERACTIVE_OVERLAY_SELECTORS.filter((s) => s.includes("yui-bubble"));
+    expect(bubbleEntries).toEqual([TOOLS_SELECTOR]);
+  });
+});
+
 function makeSurfaces() {
   const mount = document.createElement("div");
   document.body.appendChild(mount);
@@ -49,8 +60,8 @@ describe("pushSpeech — auto-scroll to newest line", () => {
     vi.useRealTimers();
   });
 
-  function bubble(): HTMLElement {
-    return mount.querySelector(".yui-bubble") as HTMLElement;
+  function box(): HTMLElement {
+    return mount.querySelector(".yui-bubble__box") as HTMLElement;
   }
 
   function stub(el: HTMLElement, scrollHeight: number, clientHeight: number): void {
@@ -60,23 +71,23 @@ describe("pushSpeech — auto-scroll to newest line", () => {
 
   it("scrolls the bubble to the bottom after pushSpeech", () => {
     s.beginSpeech();
-    const bubbleEl = bubble();
-    stub(bubbleEl, 240, 240); // scrollTop 0 → at the bottom before the delta
+    const boxEl = box();
+    stub(boxEl, 240, 240); // scrollTop 0 → at the bottom before the delta
     s.pushSpeech("A long line that overflows the capped bubble height.");
-    expect(bubbleEl.scrollTop).toBe(240);
+    expect(boxEl.scrollTop).toBe(240);
   });
 
   it("re-scrolls to the new end as more text arrives", () => {
     s.beginSpeech();
-    const bubbleEl = bubble();
-    stub(bubbleEl, 240, 240);
+    const boxEl = box();
+    stub(boxEl, 240, 240);
     s.pushSpeech("First chunk.");
-    expect(bubbleEl.scrollTop).toBe(240);
+    expect(boxEl.scrollTop).toBe(240);
 
     vi.advanceTimersByTime(50);
-    stub(bubbleEl, 480, 240);
+    stub(boxEl, 480, 240);
     s.pushSpeech(" Second chunk that grows the content further.");
-    expect(bubbleEl.scrollTop).toBe(480);
+    expect(boxEl.scrollTop).toBe(480);
   });
 });
 
@@ -96,8 +107,8 @@ describe("pushSpeech — scroll pinning respects the user's scroll position", ()
     vi.useRealTimers();
   });
 
-  function bubble(): HTMLElement {
-    return mount.querySelector(".yui-bubble") as HTMLElement;
+  function box(): HTMLElement {
+    return mount.querySelector(".yui-bubble__box") as HTMLElement;
   }
 
   function stub(el: HTMLElement, scrollHeight: number, clientHeight: number): void {
@@ -107,49 +118,49 @@ describe("pushSpeech — scroll pinning respects the user's scroll position", ()
 
   it("preserves scrollTop when the user has scrolled up to re-read", () => {
     s.beginSpeech();
-    const bubbleEl = bubble();
-    stub(bubbleEl, 240, 240);
+    const boxEl = box();
+    stub(boxEl, 240, 240);
     s.pushSpeech("Long overflowing reply.");
-    expect(bubbleEl.scrollTop).toBe(240); // pinned while at the bottom
+    expect(boxEl.scrollTop).toBe(240); // pinned while at the bottom
 
     // user scrolls up to re-read
-    bubbleEl.scrollTop = 0;
+    boxEl.scrollTop = 0;
     vi.advanceTimersByTime(50);
-    stub(bubbleEl, 480, 240);
+    stub(boxEl, 480, 240);
     s.pushSpeech(" More text arrives.");
-    expect(bubbleEl.scrollTop).toBe(0); // not yanked back down
+    expect(boxEl.scrollTop).toBe(0); // not yanked back down
   });
 
   it("keeps pinning while the user stays at the bottom", () => {
     s.beginSpeech();
-    const bubbleEl = bubble();
-    stub(bubbleEl, 240, 240);
+    const boxEl = box();
+    stub(boxEl, 240, 240);
     s.pushSpeech("First chunk.");
-    expect(bubbleEl.scrollTop).toBe(240);
+    expect(boxEl.scrollTop).toBe(240);
 
     vi.advanceTimersByTime(50);
-    stub(bubbleEl, 480, 240);
+    stub(boxEl, 480, 240);
     s.pushSpeech(" Second chunk.");
-    expect(bubbleEl.scrollTop).toBe(480);
+    expect(boxEl.scrollTop).toBe(480);
   });
 
   it("treats within-8px of the bottom as pinned", () => {
     s.beginSpeech();
-    const bubbleEl = bubble();
-    stub(bubbleEl, 480, 240);
-    bubbleEl.scrollTop = 234; // 480 - 234 - 240 = 6px from the bottom
+    const boxEl = box();
+    stub(boxEl, 480, 240);
+    boxEl.scrollTop = 234; // 480 - 234 - 240 = 6px from the bottom
     s.pushSpeech("More.");
-    expect(bubbleEl.scrollTop).toBe(480);
+    expect(boxEl.scrollTop).toBe(480);
   });
 
   it("does not yank endSpeech either when the user is reading above", () => {
     s.beginSpeech();
-    const bubbleEl = bubble();
-    stub(bubbleEl, 480, 240);
+    const boxEl = box();
+    stub(boxEl, 480, 240);
     s.pushSpeech("Long overflowing reply.");
-    bubbleEl.scrollTop = 0;
+    boxEl.scrollTop = 0;
     s.endSpeech();
-    expect(bubbleEl.scrollTop).toBe(0);
+    expect(boxEl.scrollTop).toBe(0);
   });
 });
 
@@ -304,6 +315,9 @@ describe("pushSpeech — is-scrollable toggle (top-fade only when overflowing)",
   function bubble(): HTMLElement {
     return mount.querySelector(".yui-bubble") as HTMLElement;
   }
+  function box(): HTMLElement {
+    return mount.querySelector(".yui-bubble__box") as HTMLElement;
+  }
 
   function stub(el: HTMLElement, scrollHeight: number, clientHeight: number): void {
     Object.defineProperty(el, "scrollHeight", { value: scrollHeight, configurable: true });
@@ -313,7 +327,7 @@ describe("pushSpeech — is-scrollable toggle (top-fade only when overflowing)",
   it("does NOT mark a short (non-overflowing) bubble scrollable — first line stays unfaded", () => {
     s.beginSpeech();
     const bubbleEl = bubble();
-    stub(bubbleEl, 40, 40); // content fits — no overflow
+    stub(box(), 40, 40); // content fits — no overflow
     s.pushSpeech("Short reply.");
     expect(bubbleEl.classList.contains("is-scrollable")).toBe(false);
   });
@@ -321,7 +335,7 @@ describe("pushSpeech — is-scrollable toggle (top-fade only when overflowing)",
   it("marks an overflowing bubble scrollable so the top fade applies", () => {
     s.beginSpeech();
     const bubbleEl = bubble();
-    stub(bubbleEl, 480, 240); // content overflows the capped height
+    stub(box(), 480, 240); // content overflows the capped height
     s.pushSpeech("A very long reply that exceeds the capped bubble height.");
     expect(bubbleEl.classList.contains("is-scrollable")).toBe(true);
   });
@@ -329,12 +343,12 @@ describe("pushSpeech — is-scrollable toggle (top-fade only when overflowing)",
   it("clears is-scrollable when content shrinks back to fitting", () => {
     s.beginSpeech();
     const bubbleEl = bubble();
-    stub(bubbleEl, 480, 240);
+    stub(box(), 480, 240);
     s.pushSpeech("Long overflowing reply.");
     expect(bubbleEl.classList.contains("is-scrollable")).toBe(true);
 
     s.beginSpeech(); // replace-on-new resets content
-    stub(bubbleEl, 40, 40);
+    stub(box(), 40, 40);
     s.pushSpeech("Short.");
     expect(bubbleEl.classList.contains("is-scrollable")).toBe(false);
   });
@@ -360,6 +374,9 @@ describe("dwell-pause on hover", () => {
   function bubble(): HTMLElement {
     return mount.querySelector(".yui-bubble") as HTMLElement;
   }
+  function box(): HTMLElement {
+    return mount.querySelector(".yui-bubble__box") as HTMLElement;
+  }
 
   function stub(el: HTMLElement, scrollHeight: number, clientHeight: number): void {
     Object.defineProperty(el, "scrollHeight", { value: scrollHeight, configurable: true });
@@ -369,7 +386,7 @@ describe("dwell-pause on hover", () => {
   it("pauses the dwell while hovering an overflowing bubble", () => {
     s.beginSpeech();
     const bubbleEl = bubble();
-    stub(bubbleEl, 480, 240); // overflows the capped height
+    stub(box(), 480, 240); // overflows the capped height
     s.pushSpeech("A very long reply that exceeds the capped bubble height.");
     s.endSpeech();
     expect(bubbleEl.classList.contains("is-visible")).toBe(true); // precondition
@@ -383,7 +400,7 @@ describe("dwell-pause on hover", () => {
   it("resumes the dwell when the pointer leaves", () => {
     s.beginSpeech();
     const bubbleEl = bubble();
-    stub(bubbleEl, 480, 240);
+    stub(box(), 480, 240);
     s.pushSpeech("A very long reply that exceeds the capped bubble height.");
     s.endSpeech();
 
@@ -399,7 +416,7 @@ describe("dwell-pause on hover", () => {
   it("does NOT pause for a short (non-overflowing) bubble", () => {
     s.beginSpeech();
     const bubbleEl = bubble();
-    stub(bubbleEl, 40, 40); // fits — not scrollable
+    stub(box(), 40, 40); // fits — not scrollable
     s.pushSpeech("Short reply.");
     s.endSpeech();
     expect(bubbleEl.classList.contains("is-scrollable")).toBe(false);
@@ -599,22 +616,26 @@ describe("close button — dismiss the bubble by hand", () => {
     return mount.querySelector(".yui-bubble__close") as HTMLButtonElement;
   }
 
-  it("renders a labelled close button inside the bubble", () => {
-    expect(closeBtn()).not.toBeNull();
-    expect(bubble().contains(closeBtn())).toBe(true);
+  it("renders a labelled icon close button on the bubble's edge, outside the box", () => {
+    const tools = mount.querySelector(".yui-bubble__tools") as HTMLElement;
+    const box = mount.querySelector(".yui-bubble__box") as HTMLElement;
+    expect(tools.contains(closeBtn())).toBe(true);
+    expect(box.contains(tools)).toBe(false);
+    expect(closeBtn().querySelector("svg")).not.toBeNull();
+    expect(closeBtn().textContent?.trim()).toBe("");
     expect(closeBtn().getAttribute("aria-label")).toBeTruthy();
   });
 
   // The pet window is click-through wherever nothing interactive sits, so the button must be a
   // registered hit-test target — otherwise the OS never delivers the hover or the click.
   it("is registered as an interactive overlay target while the bubble shows", () => {
-    expect(mount.querySelector(INTERACTIVE_OVERLAY_SELECTORS[1])).toBeNull();
+    expect(mount.querySelectorAll(TOOLS_SELECTOR)).toHaveLength(0);
 
     s.beginSpeech();
     s.pushSpeech("Hello.");
     s.endSpeech();
 
-    expect(mount.querySelector(INTERACTIVE_OVERLAY_SELECTORS[1])).toBe(closeBtn());
+    expect([...mount.querySelectorAll(TOOLS_SELECTOR)]).toContain(closeBtn());
   });
 
   it("clicking it hides the bubble immediately, without waiting for dwell", () => {
@@ -780,22 +801,23 @@ describe("pop-out button — moving speech to the message window", () => {
   const popBtn = (): HTMLButtonElement =>
     mount.querySelector(".yui-bubble__pop") as HTMLButtonElement;
 
-  it("renders a labelled pop button inside the bubble", () => {
-    expect(popBtn()).not.toBeNull();
-    expect(bubble().contains(popBtn())).toBe(true);
+  it("renders a labelled icon pop button beside the close button", () => {
+    const tools = mount.querySelector(".yui-bubble__tools") as HTMLElement;
+    expect(bubble().contains(tools)).toBe(true);
+    expect(tools.contains(popBtn())).toBe(true);
+    expect(popBtn().querySelector("svg")).not.toBeNull();
+    expect(popBtn().textContent?.trim()).toBe("");
     expect(popBtn().getAttribute("aria-label")).toBeTruthy();
   });
 
   it("is registered as an interactive overlay target while the bubble shows", () => {
-    const selector = ".yui-bubble.is-visible .yui-bubble__pop";
-    expect(INTERACTIVE_OVERLAY_SELECTORS).toContain(selector);
-    expect(mount.querySelector(selector)).toBeNull();
+    expect(mount.querySelectorAll(TOOLS_SELECTOR)).toHaveLength(0);
 
     s.beginSpeech();
     s.pushSpeech("Hello.");
     s.endSpeech();
 
-    expect(mount.querySelector(selector)).toBe(popBtn());
+    expect([...mount.querySelectorAll(TOOLS_SELECTOR)]).toContain(popBtn());
   });
 
   it("reports the pop request on click", () => {
