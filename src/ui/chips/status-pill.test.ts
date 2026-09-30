@@ -26,7 +26,13 @@ function opacityTransitionEnd(el: HTMLElement): void {
   el.dispatchEvent(new TransitionEvent("transitionend", { propertyName: "opacity" }));
 }
 
-function setup(opts: { capture?: boolean } = {}) {
+function setup(
+  opts: {
+    capture?: boolean;
+    withCaptureSetting?: boolean;
+    withFix?: boolean;
+  } = {},
+) {
   const mount = document.createElement("div");
   document.body.appendChild(mount);
   const settings = createScreenshotSettings();
@@ -34,7 +40,13 @@ function setup(opts: { capture?: boolean } = {}) {
   const voice = createVoiceInputStatus();
   const onOpenSettings = vi.fn();
   const onFixVoice = vi.fn();
-  const pill = createStatusPill({ mount, settings, voice, onOpenSettings, onFixVoice });
+  const pill = createStatusPill({
+    ...(opts.withCaptureSetting === false ? {} : { settings }),
+    mount,
+    voice,
+    onOpenSettings,
+    ...(opts.withFix === false ? {} : { onFixVoice }),
+  });
   flushFrames();
   const q = <T extends Element>(sel: string): T => mount.querySelector<T>(sel)!;
   return {
@@ -256,6 +268,49 @@ describe("status pill — not_configured voice error", () => {
 
     expect(p.root().dataset.fix).toBeUndefined();
     expect(p.label().textContent).toBe(t("voice.state.error"));
+  });
+});
+
+describe("status pill — phone, no capture setting and no fix", () => {
+  it("renders no capture button at all", () => {
+    const p = setup({ withCaptureSetting: false });
+    p.voice.set("listening");
+
+    expect(p.mount.querySelector(".yui-status__capture")).toBeNull();
+    expect(p.mic().hidden).toBe(false);
+    expect(p.sep().hidden).toBe(false);
+  });
+
+  it("shows the tool segment alone, without the separator", () => {
+    const p = setup({ withCaptureSetting: false });
+    p.pill.showTool("web_search");
+
+    expect(p.mount.querySelector(".yui-status__capture")).toBeNull();
+    expect(p.sep().hidden).toBe(true);
+    expect(p.dot().dataset.tool).toBe("running");
+  });
+
+  it("renders a settings-fixable error as plain status text", () => {
+    const p = setup({ withFix: false });
+    p.voice.set("error", "not_configured");
+
+    expect(p.root().dataset.fix).toBeUndefined();
+    expect(p.mic().tabIndex).toBe(-1);
+    expect(p.label().textContent).toBe(t("voice.error.not_configured"));
+    expect(p.mic().getAttribute("aria-label")).toBe(
+      t("aria.voice_input", { label: t("voice.error.not_configured") }),
+    );
+  });
+
+  it("keeps the error through a tap instead of resetting it", () => {
+    const p = setup({ withFix: false });
+    p.voice.set("error", "not_configured");
+
+    p.label().click();
+
+    expect(p.onFixVoice).not.toHaveBeenCalled();
+    expect(p.voice.get().state).toBe("error");
+    expect(p.root().dataset.fix).toBeUndefined();
   });
 });
 
