@@ -20,7 +20,7 @@ cd src-tauri && cargo test  # Rust unit tests
 
 ## Android
 
-`src-tauri/gen/android/` holds the Android Studio project that `tauri android init` generates. `src-tauri/tauri.android.conf.json` overrides the desktop config for Android: the identifier is `com.yui.mobile` (debug builds install as `com.yui.mobile.debug`), the one window opens `phone.html`, and the bundled resources are `configs/` plus the default VRM.
+`src-tauri/gen/android/` holds the Android Studio project that `tauri android init` generates. `src-tauri/tauri.android.conf.json` overrides the desktop config for Android: the identifier is `com.yui.mobile` (debug builds install as `com.yui.mobile.debug`), the one window opens `phone.html`, and the bundled resources are `configs/` plus the default VRM. The generated project carries two hand edits a fresh `tauri android init` would lose: `MainActivity.kt` enables edge-to-edge with transparent dark-style system bars (light status-bar icons over the dark stage), and the manifest's main activity pins `android:screenOrientation="portrait"`.
 
 The phone window's bootstrap is `src/windows/phone-main.ts`. Chat on the phone is the push transport, selected by the effective endpoints: `configs/endpoints.json` merged with the `yui.endpoints` override store, with `chat_api` set to `push` and `chat_base_url` to the gateway. The chat key comes from `VITE_YUI_CHAT_KEY` (the process environment or `.env.local`) or the key store. The phone applies the config once per launch, so an edit to `configs/endpoints.json` takes an app restart. The emulator reaches a host-local gateway at `http://10.0.2.2:<port>`, for example `VITE_YUI_CHAT_KEY=<key> pnpm android:dev` with `"chat_base_url": "http://10.0.2.2:<port>"`.
 
