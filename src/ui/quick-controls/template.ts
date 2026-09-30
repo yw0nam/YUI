@@ -439,13 +439,13 @@ ${RATE_LIMIT_FIELDS.map((f) =>
       </span>
     </div>`;
 
-  // The popover rail is icons only — the name rides aria-label and the tooltip.
+  // A narrow panel hides the label; aria-label and the tooltip name the icon then.
   function tabHtml(id: string, icon: string, tipKey = `tabs.${id}`): string {
     const selected = id === "talk";
-    const label = isWindow ? `<span class="yui-tab__label">${t(`tabs.${id}`)}</span>` : "";
     return `
         <button class="yui-tab" type="button" role="tab" id="yui-tab-${id}" aria-selected="${String(selected)}" aria-controls="yui-panel-${id}" tabindex="${selected ? "0" : "-1"}" data-tip="${t(tipKey)}" aria-label="${t(`tabs.${id}`)}">
-          ${icon}${label}
+          ${icon}
+          <span class="yui-tab__label">${t(`tabs.${id}`)}</span>
         </button>`;
   }
 
