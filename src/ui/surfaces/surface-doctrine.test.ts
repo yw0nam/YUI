@@ -319,7 +319,11 @@ describe("surfaces.css — the bubble's box carries the material", () => {
 
 // The scrim alpha carries contrast on the bubble, composer and plate; none adds a text shadow.
 describe("bubble, composer and plate — no text shadow", () => {
-  for (const file of ["surfaces.css", "../message/message-window.css", "../message/message-plate.css"]) {
+  for (const file of [
+    "surfaces.css",
+    "../message/message-window.css",
+    "../message/message-plate.css",
+  ]) {
     it(`${file} carries no text shadow`, () => {
       expect(read(file)).not.toMatch(/text-shadow/);
     });
