@@ -732,6 +732,64 @@ mod tests {
         std::fs::remove_dir_all(&dir).ok();
     }
 
+    // ── rename_user_voice_at ─────────────────────────────────────────────────
+
+    #[test]
+    fn rename_at_moves_the_voice_dir_and_returns_its_clip() {
+        let references = unique_dir("rename_ok");
+        std::fs::create_dir_all(references.join("芳乃")).unwrap();
+        std::fs::write(references.join("芳乃").join("clip.wav"), b"clip").unwrap();
+        let to = voice_id_from_name("芳乃");
+
+        let renamed = rename_user_voice_at(&references, "芳乃", &to).unwrap();
+
+        assert_eq!(renamed.id, to);
+        assert_eq!(
+            PathBuf::from(&renamed.ref_path),
+            references.join(&to).join("clip.wav")
+        );
+        assert_eq!(
+            std::fs::read(references.join(&to).join("clip.wav")).unwrap(),
+            b"clip"
+        );
+        assert!(!references.join("芳乃").exists());
+        std::fs::remove_dir_all(&references).ok();
+    }
+
+    #[test]
+    fn rename_at_refuses_a_to_outside_references_and_moves_nothing() {
+        let app_data = unique_dir("rename_escape");
+        let references = app_data.join("references");
+        std::fs::create_dir_all(references.join("希")).unwrap();
+        std::fs::write(references.join("希").join("clip.wav"), b"clip").unwrap();
+
+        for to in ["../escaped", "..", "sub/dir", "希"] {
+            assert!(
+                rename_user_voice_at(&references, "希", to).is_err(),
+                "{to:?} must be refused"
+            );
+        }
+        assert!(references.join("希").join("clip.wav").exists());
+        assert!(!app_data.join("escaped").exists());
+        std::fs::remove_dir_all(&app_data).ok();
+    }
+
+    #[test]
+    fn rename_at_completes_a_rename_whose_folder_already_moved() {
+        let references = unique_dir("rename_retry");
+        let to = voice_id_from_name("希");
+        std::fs::create_dir_all(references.join(&to)).unwrap();
+        std::fs::write(references.join(&to).join("clip.mp3"), b"clip").unwrap();
+
+        let renamed = rename_user_voice_at(&references, "希", &to).unwrap();
+
+        assert_eq!(
+            PathBuf::from(&renamed.ref_path),
+            references.join(&to).join("clip.mp3")
+        );
+        std::fs::remove_dir_all(&references).ok();
+    }
+
     // ── sweep_stale_import_artifacts: startup recovery for the unclosed rename window ────────
 
     #[test]
