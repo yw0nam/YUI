@@ -65,6 +65,7 @@ async function bootstrap(): Promise<{ dispose(): void }> {
 
   // Read before any await so the initial hidden state is known at startup.
   const visibility = watchPageVisibility(document);
+  register(() => visibility.dispose());
 
   const voiceInputStatus = createVoiceInputStatus();
   register(() => voiceInputStatus.dispose());

@@ -8,6 +8,8 @@ export interface PageVisibility {
   /** True while the page is hidden. */
   get(): boolean;
   subscribe(cb: () => void): () => void;
+  /** Detaches the document listener; the port is dead afterwards. */
+  dispose(): void;
 }
 
 export function watchPageVisibility(
@@ -25,6 +27,9 @@ export function watchPageVisibility(
       return () => {
         listeners.delete(cb);
       };
+    },
+    dispose(): void {
+      doc.removeEventListener("visibilitychange", onChange);
     },
   };
 }
