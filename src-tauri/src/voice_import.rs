@@ -831,6 +831,28 @@ mod tests {
     }
 
     #[test]
+    fn rename_at_refuses_when_both_folders_exist_and_changes_neither() {
+        let references = unique_dir("rename_taken");
+        let to = voice_id_from_name("芳乃");
+        std::fs::create_dir_all(references.join("芳乃")).unwrap();
+        std::fs::write(references.join("芳乃").join("clip.wav"), b"old").unwrap();
+        std::fs::create_dir_all(references.join(&to)).unwrap();
+        std::fs::write(references.join(&to).join("clip.wav"), b"new").unwrap();
+
+        assert!(rename_user_voice_at(&references, "芳乃", &to).is_err());
+
+        assert_eq!(
+            std::fs::read(references.join("芳乃").join("clip.wav")).unwrap(),
+            b"old"
+        );
+        assert_eq!(
+            std::fs::read(references.join(&to).join("clip.wav")).unwrap(),
+            b"new"
+        );
+        std::fs::remove_dir_all(&references).ok();
+    }
+
+    #[test]
     fn rename_at_completes_a_rename_whose_folder_already_moved() {
         let references = unique_dir("rename_retry");
         let to = voice_id_from_name("希");
