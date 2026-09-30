@@ -1,5 +1,5 @@
 /**
- * Speaker list cluster — speaker radiogroup in the Advanced tab's TTS section.
+ * Speaker list cluster — speaker radiogroup in the Connection tab's TTS section.
  * Mirrors VRM section but differs in one way: rows are div[role=radio], not <button>
  * (to hold nested ▶ preview <button> — button-in-button is invalid HTML, parser strips it).
  * So wires roving tabindex/Enter·Space/arrow keyboard directly.

@@ -692,7 +692,7 @@ ${
                 <span class="yui-row__sub">${t("language.sub")}</span>
               </div>
               <div class="yui-seg yui-lang-seg" role="radiogroup" aria-label="${t("language.aria")}">${langButtonsHtml}</div>
-            </div>${switchRowsHtml("advanced")}${
+            </div>${switchRowsHtml("general")}${
               showDevtools
                 ? `
             <div class="yui-row">

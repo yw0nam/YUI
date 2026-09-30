@@ -120,7 +120,7 @@ export function createCueList<C extends CueBase, S extends SettingsBase<C>>(
 
   function reflectMaster(enabled: boolean): void {
     masterSwitch.setAttribute("aria-checked", String(enabled));
-    sectionEl.classList.toggle("yui-section--off", !enabled);
+    sectionEl.classList.toggle("yui-sec--off", !enabled);
   }
 
   function buildTriggerInput(cue: C): HTMLElement {

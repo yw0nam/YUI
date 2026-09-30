@@ -15,7 +15,7 @@
 }
 
 /* ── Whole section — dim the group when master is OFF ── */
-.yui-section--off .yui-group {
+.yui-sec--off .yui-group {
   opacity: 0.5;
   pointer-events: none;
 }

@@ -1,5 +1,5 @@
 /**
- * Endpoints section — owns endpoint URL fields in Advanced tab, chat/STT/TTS API key rows (secret),
+ * Endpoints section — owns endpoint URL fields in the Connection tab, chat/STT/TTS API key rows (secret),
  * the Chat API (chat_api) dropdown, and per-service resets.
  * Same pattern as VRM/speaker sections: explicit deps + wired from shell. reflect (store→DOM) handled by reflect layer;
  * this module owns inputs, handlers, subscriptions, teardown only.
@@ -84,7 +84,7 @@ export function createEndpointsSection(deps: EndpointsSectionDeps): EndpointsSec
     log,
   } = deps;
 
-  // Chat API dropdown (Advanced tab).
+  // Chat API dropdown (Connection tab).
   const chatTypeEl = el.querySelector<HTMLSelectElement>(".yui-chat-type")!;
   const chatPresetEl = el.querySelector<HTMLSelectElement>(".yui-chat-preset")!;
 
@@ -180,7 +180,7 @@ export function createEndpointsSection(deps: EndpointsSectionDeps): EndpointsSec
     }
   }
 
-  // ── Advanced section: Chat API dropdown (chat_api) ──
+  // ── Chat section: Chat API dropdown (chat_api) ──
   // Native select owns keyboard — write to store only on change event.
   function handleChatTypeChange(): void {
     const api = chatTypeEl.value;

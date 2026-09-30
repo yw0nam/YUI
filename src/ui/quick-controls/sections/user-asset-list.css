@@ -140,17 +140,6 @@
   margin: 0.375rem 0 0;
 }
 
-.yui-vrm__soon,
-.yui-spk__soon {
-  margin-left: auto;
-  font-size: var(--yui-fs-caption);
-  color: var(--yui-text-mute);
-  padding: 0.1rem 0.4rem;
-  border-radius: var(--yui-radius-pill);
-  border: 1px dashed var(--yui-edge-strong);
-  white-space: nowrap;
-}
-
 /* ── Active "Add from file…" row — interactive, lit amber on hover like every text button ── */
 .yui-vrm--add.is-ready,
 .yui-spk--add.is-ready {

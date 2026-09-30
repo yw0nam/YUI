@@ -12,7 +12,7 @@ export interface SwitchRow {
   labelKey: string;
   subKey?: string;
   ariaKey: string;
-  tab: "talk" | "input" | "react" | "advanced";
+  tab: "talk" | "input" | "react" | "general";
   position?: "after-vad" | "filler" | "screen";
   accessory?: "agent-port";
   labelIcon?: string;
@@ -79,7 +79,7 @@ export function createSwitchRows({
       labelKey: "perf.idle_label",
       subKey: "perf.idle_sub",
       ariaKey: "perf.idle_aria",
-      tab: "advanced",
+      tab: "general",
       isVisible: true,
       isAvailable: true,
       initialEnabled: false,
@@ -152,7 +152,7 @@ export function createSwitchRows({
       labelKey: "gaze.label",
       subKey: "gaze.sub",
       ariaKey: "gaze.aria",
-      tab: "advanced",
+      tab: "general",
       isVisible: !!gazeSettings,
       isAvailable: !!gazeSettings,
       initialEnabled: gazeSettings?.get().enabled ?? false,
@@ -165,7 +165,7 @@ export function createSwitchRows({
       labelKey: "climb.label",
       subKey: "climb.sub",
       ariaKey: "climb.aria",
-      tab: "advanced",
+      tab: "general",
       isVisible: !!climbSettings,
       isAvailable: !!climbSettings,
       initialEnabled: climbSettings?.get().enabled ?? true,
@@ -178,7 +178,7 @@ export function createSwitchRows({
       labelKey: "fall.label",
       subKey: "fall.sub",
       ariaKey: "fall.aria",
-      tab: "advanced",
+      tab: "general",
       isVisible: !!fallSettings,
       isAvailable: !!fallSettings,
       initialEnabled: fallSettings?.get().enabled ?? true,
