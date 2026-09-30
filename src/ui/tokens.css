@@ -43,6 +43,11 @@
   --yui-selected: oklch(0.97 0.01 80 / 0.11);
   --yui-field: oklch(0.13 0.012 70 / 0.8);
 
+  /* ── Switch and slider: grey track at rest, light knob; the lit track is --yui-accent ── */
+  --yui-track: oklch(0.5 0.01 70 / 0.35);
+  --yui-knob: oklch(0.96 0.01 80);
+  --yui-knob-shadow: oklch(0.1 0.01 70 / 0.5); /* Knob drop-shadow color */
+
   /* ── Danger: restrained warm-red. For undo/failure guidance only (hue 35 to avoid amber conflict). ── */
   --yui-danger: oklch(0.77 0.11 35);
   --yui-danger-soft: oklch(0.77 0.11 35 / 0.45);

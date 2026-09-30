@@ -61,7 +61,7 @@
 
 /* Mixed — half the track lit, knob parked mid-travel. */
 .yui-express__master[aria-checked="mixed"] {
-  background: linear-gradient(90deg, var(--yui-accent) 50%, oklch(0.5 0.01 70 / 0.35) 50%);
+  background: linear-gradient(90deg, var(--yui-accent) 50%, var(--yui-track) 50%);
 }
 
 .yui-express__master[aria-checked="mixed"]::after {

@@ -530,7 +530,7 @@
   border: 0;
   padding: 0;
   border-radius: var(--yui-radius-pill);
-  background: oklch(0.5 0.01 70 / 0.35);
+  background: var(--yui-track);
   cursor: pointer;
   transition:
     background var(--yui-dur) var(--yui-ease),
@@ -545,8 +545,8 @@
   width: calc(var(--h) - 0.3125rem);
   height: calc(var(--h) - 0.3125rem);
   border-radius: 50%;
-  background: oklch(0.96 0.01 80);
-  box-shadow: 0 1px 2px oklch(0.1 0.01 70 / 0.5);
+  background: var(--yui-knob);
+  box-shadow: 0 1px 2px var(--yui-knob-shadow);
   transition: transform var(--yui-dur) var(--yui-ease);
 }
 
@@ -968,7 +968,7 @@
   background: linear-gradient(
     to right,
     var(--yui-accent) 0 calc(var(--fill, 0.43) * 100%),
-    oklch(0.5 0.01 70 / 0.35) calc(var(--fill, 0.43) * 100%) 100%
+    var(--yui-track) calc(var(--fill, 0.43) * 100%) 100%
   );
 }
 
@@ -980,28 +980,28 @@
   margin-top: -5px;
   border: 0;
   border-radius: 50%;
-  background: oklch(0.96 0.01 80);
-  box-shadow: 0 1px 3px oklch(0.1 0.01 70 / 0.5);
+  background: var(--yui-knob);
+  box-shadow: 0 1px 3px var(--yui-knob-shadow);
   transition: box-shadow var(--yui-dur-fast) var(--yui-ease);
 }
 
 .yui-gain__slider:hover::-webkit-slider-thumb,
 .yui-gain__slider:active::-webkit-slider-thumb {
   box-shadow:
-    0 1px 3px oklch(0.1 0.01 70 / 0.5),
+    0 1px 3px var(--yui-knob-shadow),
     0 0 0 4px var(--yui-accent-faint);
 }
 
 .yui-gain__slider:focus-visible::-webkit-slider-thumb {
   box-shadow:
-    0 1px 3px oklch(0.1 0.01 70 / 0.5),
+    0 1px 3px var(--yui-knob-shadow),
     0 0 0 2px var(--yui-accent-soft);
 }
 
 .yui-gain__slider::-moz-range-track {
   height: 4px;
   border-radius: var(--yui-radius-pill);
-  background: oklch(0.5 0.01 70 / 0.35);
+  background: var(--yui-track);
 }
 
 .yui-gain__slider::-moz-range-progress {
@@ -1015,21 +1015,21 @@
   height: 14px;
   border: 0;
   border-radius: 50%;
-  background: oklch(0.96 0.01 80);
-  box-shadow: 0 1px 3px oklch(0.1 0.01 70 / 0.5);
+  background: var(--yui-knob);
+  box-shadow: 0 1px 3px var(--yui-knob-shadow);
   transition: box-shadow var(--yui-dur-fast) var(--yui-ease);
 }
 
 .yui-gain__slider:hover::-moz-range-thumb,
 .yui-gain__slider:active::-moz-range-thumb {
   box-shadow:
-    0 1px 3px oklch(0.1 0.01 70 / 0.5),
+    0 1px 3px var(--yui-knob-shadow),
     0 0 0 4px var(--yui-accent-faint);
 }
 
 .yui-gain__slider:focus-visible::-moz-range-thumb {
   box-shadow:
-    0 1px 3px oklch(0.1 0.01 70 / 0.5),
+    0 1px 3px var(--yui-knob-shadow),
     0 0 0 2px var(--yui-accent-soft);
 }
 
