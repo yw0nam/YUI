@@ -8,6 +8,7 @@ import {
 import type { EndpointsConfig } from "../../contract";
 import { createPreviousTurn, type PreviousTurnSlot } from "../../dispatcher/backend/previous-turn";
 import { createPushTurns, type PushTurns } from "../../dispatcher/turn/push-turn";
+import { createQuotedTurn, type QuotedTurn } from "../../dispatcher/turn/quoted-turn";
 import { createTurnLog, type TurnLog } from "../../dispatcher/turn/turn";
 import {
   type BrokerClient,
@@ -138,7 +139,17 @@ export async function wireBroker(deps: {
 
 export function wireTurnVoice(deps: {
   renderer: Renderer;
-  surfaces: Pick<Surfaces, "beginSpeech" | "pushSpeech" | "endSpeech" | "finishSpeech">;
+  surfaces: Pick<
+    Surfaces,
+    | "beginSpeech"
+    | "pushSpeech"
+    | "endSpeech"
+    | "finishSpeech"
+    | "quoteUser"
+    | "settleQuote"
+    | "clearQuote"
+    | "restoreInput"
+  >;
   voiceInputStatus: VoiceInputStatus;
   sttSettings: { get(): { enabled: boolean }; setEnabled(enabled: boolean): void };
   ttsSettings: { get(): { enabled: boolean } };
@@ -157,6 +168,7 @@ export function wireTurnVoice(deps: {
   voiceErrorDwell: ReturnType<typeof createVoiceErrorDwell>;
   turnLog: TurnLog;
   previousTurn: PreviousTurnSlot;
+  quotedTurn: QuotedTurn;
   pushTurns: PushTurns;
   setProactiveSource(source: { noteInteraction(ts?: number): void }): void;
   setStrolling(walker: { isStrolling(): boolean }): void;
@@ -188,6 +200,8 @@ export function wireTurnVoice(deps: {
   register(voiceInput.dispose);
   const turnLog = createTurnLog();
   const previousTurn = createPreviousTurn({ currentTurn: () => turnLog.current() });
+  const quotedTurn = createQuotedTurn({ surfaces, turnLog });
+  register(quotedTurn.dispose);
   // Voice creation precedes the walker, so the stroll query stays late-bound across that cycle.
   let strollingRef: { isStrolling(): boolean } | null = null;
   const pushTurns = createPushTurns();
@@ -210,7 +224,10 @@ export function wireTurnVoice(deps: {
       submitVoice(text);
       proactiveSourceRef?.noteInteraction();
     },
-    onUtteranceStart: previousTurn.utteranceStart,
+    onUtteranceStart: () => {
+      previousTurn.utteranceStart();
+      quotedTurn.utteranceStart();
+    },
     onUtteranceEnd: previousTurn.utteranceEnd,
     onBargeIn: () => pushTurns.cut(),
   });
@@ -222,6 +239,7 @@ export function wireTurnVoice(deps: {
     voiceErrorDwell,
     turnLog,
     previousTurn,
+    quotedTurn,
     pushTurns,
     setProactiveSource(source) {
       proactiveSourceRef = source;

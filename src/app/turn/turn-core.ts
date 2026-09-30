@@ -130,7 +130,8 @@ export async function wireTurnCore(
     submitVoice: (text) => userInput.submitVoice(text),
     register,
   });
-  const { voice, voiceInput, voiceErrorDwell, turnLog, previousTurn, pushTurns } = turnVoice;
+  const { voice, voiceInput, voiceErrorDwell, turnLog, previousTurn, quotedTurn, pushTurns } =
+    turnVoice;
 
   const turnWiring = wireDispatcher({
     bus,
@@ -155,6 +156,7 @@ export async function wireTurnCore(
     voice,
     turnLog,
     previousTurn,
+    quotedTurn,
     pushTurns,
     pushSocket: pushSocket ?? null,
     getVocabulary: () => broker!.vocabulary(),

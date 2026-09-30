@@ -4,10 +4,10 @@
  * A real turn log drives settlement; the surface port is a set of spies.
  */
 
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, type Mock, vi } from "vitest";
 import type { BusEnvelope } from "../core/event-bus";
 import { userEnv } from "../test-helpers";
-import { createQuotedTurn, type QuotedTurn } from "./quoted-turn";
+import { createQuotedTurn, type QuotedTurn, type QuoteSurfaces } from "./quoted-turn";
 import { createTurnLog, type TurnLog } from "./turn";
 
 const IMAGE = "data:image/jpeg;base64,x";
@@ -28,12 +28,7 @@ function proactiveEnv(): BusEnvelope {
 
 describe("createQuotedTurn", () => {
   let turnLog: TurnLog;
-  let surfaces: {
-    quoteUser: ReturnType<typeof vi.fn>;
-    settleQuote: ReturnType<typeof vi.fn>;
-    clearQuote: ReturnType<typeof vi.fn>;
-    restoreInput: ReturnType<typeof vi.fn>;
-  };
+  let surfaces: { [K in keyof QuoteSurfaces]: Mock<QuoteSurfaces[K]> };
   let quoted: QuotedTurn;
 
   beforeEach(() => {

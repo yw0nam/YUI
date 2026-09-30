@@ -27,7 +27,8 @@ export function userTextOf(env: BusEnvelope): string | undefined {
   return typeof text === "string" ? text : undefined;
 }
 
-function userImagesOf(env: BusEnvelope): string[] | undefined {
+/** The images the user attached on this turn, absent when none came with it. */
+export function userImagesOf(env: BusEnvelope): string[] | undefined {
   const images = env.payload?.images;
   return Array.isArray(images) && images.every((url) => typeof url === "string")
     ? (images as string[])

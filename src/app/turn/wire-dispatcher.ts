@@ -12,6 +12,7 @@ import {
 import { createProactivePacer, type ProactivePacer } from "../../dispatcher/core/proactive-pacer";
 import { createDispatcher, type Dispatcher } from "../../dispatcher/dispatcher";
 import type { PushTurns } from "../../dispatcher/turn/push-turn";
+import type { QuotedTurn } from "../../dispatcher/turn/quoted-turn";
 import type { TurnLog } from "../../dispatcher/turn/turn";
 import { createTurnFeed, type TurnFeed } from "../../dispatcher/turn/turn-feed";
 import type { ReasoningStore } from "../../io/bridge/reasoning-store";
@@ -69,6 +70,7 @@ export function wireDispatcher(deps: {
   voice: Pick<VoicePipeline, "turnOutput" | "speakFailure">;
   turnLog: TurnLog;
   previousTurn: PreviousTurnSlot;
+  quotedTurn: Pick<QuotedTurn, "admitted" | "failed">;
   pushTurns: PushTurns;
   pushSocket: PushSocket | null;
   getVocabulary: () => BrokerPayload;
@@ -107,6 +109,7 @@ export function wireDispatcher(deps: {
     voice,
     turnLog,
     previousTurn,
+    quotedTurn,
     pushTurns,
     pushSocket,
     getVocabulary,
@@ -192,7 +195,11 @@ export function wireDispatcher(deps: {
     hasOutstandingSpeech: () => voice.turnOutput.hasOutstandingSpeech(),
     pacer,
     appendSkipRecord: appendTurnRecord,
-    onTurnFailed: previousTurn.callFailed,
+    onTurnAdmitted: quotedTurn.admitted,
+    onTurnFailed: (turn, reason) => {
+      previousTurn.callFailed(turn, reason);
+      quotedTurn.failed(turn);
+    },
     onUserTurnFailed: (reason, source) => {
       voice.speakFailure(reason);
       const message = turnErrorMessage(reason);
