@@ -71,6 +71,10 @@ YUI/
         wire-cue-locale-sync.ts      # Reseeds untouched built-in cues when the display language changes
       phone/                         # The phone window's config-derived half
         bootstrap-phone.ts           # Phone window's config-derived bootstrap: starts and connects the turn core under one teardown bag
+        stage/                       # The phone stage's touch camera and tap
+          wire-phone-stage.ts        # Upper-body fit band, the tap source and the stage touch gesture composed for the phone
+          touch-camera.ts            # Binds orbit, pinch and tap callbacks to the camera store and the tap
+          stage-tap.ts               # Hands a tap to the tap source in stage-local px
     logger.ts                        # Namespaced frontend logger with a runtime level
     tauri-env.ts                     # Tauri runtime detection
     windows/                         # One entry file per window, loaded by the matching HTML file
@@ -112,6 +116,7 @@ YUI/
         body-yaw.ts                  # Pure easing math for the root yaw a stroll turns by
         bone-pitch.ts                # Sign that turns a downward head pitch into a normalized bone's local rotation.x
         camera-fit.ts                # Pure fit-to-bounds framing math
+        fit-band.ts                  # Pure height-bound fit of a vertical band of the model box
         frame-gate.ts                # Pure idle and active frame-throttle decision
         gaze-tracker.ts              # Pure cursor-gaze zone curve and angle damping
         hit-test.ts                  # Pure helpers for the alpha silhouette predicate
@@ -214,6 +219,7 @@ YUI/
         screenshot-settings.ts       # Screenshot enabled state and source
       avatar/                        # Camera, motion, and lip-sync
         camera-settings.ts           # Camera zoom and orbit viewpoint
+        camera-gestures.ts           # Maps orbit moves and pinch ratios onto the camera store
         express-motion-settings.ts   # Curates the motion vocabulary the agent may choose from
         idle-motion-settings.ts      # Selects which ambient idle variants may play
         lipsync-settings.ts          # Lip-sync gain
@@ -261,6 +267,11 @@ YUI/
           voice-list-refresh.ts        # Refetches the TTS server's voice list into a speaker manifest
           reference-clip.ts            # Reference-clip URL resolution and transport selection
           speaker-selection.ts         # Owns the active TTS speaker selection
+      stage/                           # What every stage surface shares for pointer gestures
+        press-travel.ts                # Pointer travel past which a press is a drag
+        touch/                         # Touch gestures on the stage
+          touch-gesture.ts             # Pure orbit, pinch and tap recognizer over pointer ids
+          stage-touch.ts               # Feeds the stage's pointer events into the recognizer
       window/
         tauri-listen.ts                # Shared os_event channel payload shape and listen resolver
         frontmost-tracker.ts           # Latest frontmost-window sample off the os_event channel
