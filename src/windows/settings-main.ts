@@ -322,9 +322,10 @@ async function bootstrap(): Promise<void> {
   const unsubscribeCueSync = wireCueLocaleSync(settingsStores);
   const unsubscribeLocale = subscribeLocale(() => {
     queueMicrotask(() => {
+      const tab = quickControls.selectedTab();
       quickControls.dispose();
       quickControls = buildQuickControls();
-      quickControls.open();
+      quickControls.open(undefined, { tab });
     });
   });
 

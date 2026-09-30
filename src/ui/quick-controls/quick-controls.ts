@@ -231,6 +231,8 @@ interface QuickControls {
   el: HTMLElement;
   /** Summon the panel. `tab` lands on that tab instead of the one last left selected. */
   open(anchor?: { x: number; y: number }, opts?: { tab?: QuickControlsTab }): void;
+  /** The tab the panel shows now. */
+  selectedTab(): QuickControlsTab;
   close(): void;
   isOpen(): boolean;
   dispose(): void;
@@ -807,6 +809,11 @@ export function createQuickControls({
     if (index >= 0) tabButtons[index]?.focus({ focusVisible: false });
   }
 
+  function selectedTab(): QuickControlsTab {
+    const tab = tabButtons.find((b) => b.getAttribute("aria-selected") === "true")!;
+    return tab.id.slice("yui-tab-".length) as QuickControlsTab;
+  }
+
   function handleTabClick(e: MouseEvent): void {
     const btn = (e.target as HTMLElement).closest<HTMLButtonElement>(".yui-tab");
     if (!btn) return;
@@ -1056,5 +1063,12 @@ export function createQuickControls({
     scrimEl.remove();
   }
 
-  return { el, open: openPanel, close: popover.close, isOpen: popover.isOpen, dispose };
+  return {
+    el,
+    open: openPanel,
+    selectedTab,
+    close: popover.close,
+    isOpen: popover.isOpen,
+    dispose,
+  };
 }

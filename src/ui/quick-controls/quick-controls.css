@@ -27,6 +27,7 @@
   font-family: var(--yui-font);
   pointer-events: auto;
   z-index: 100;
+  container-type: inline-size;
 
   /* Animation start state — bottom anchor default */
   opacity: 0;
@@ -224,17 +225,6 @@
 .yui-tab:focus-visible {
   outline: none;
   box-shadow: 0 0 0 2px var(--yui-accent-soft);
-}
-
-/* Popover rail — icons only, so the pet window's narrow panel keeps its content width. */
-.yui-quick:not(.yui-quick--window) .yui-tabs {
-  flex-basis: 3rem;
-  padding-inline: 0.375rem;
-}
-
-.yui-quick:not(.yui-quick--window) .yui-tab {
-  justify-content: center;
-  padding: 0;
 }
 
 /* ── Scrollable body ── */
@@ -717,19 +707,12 @@
 .yui-row > .yui-input-wrap,
 .yui-row > .yui-select {
   flex: 0 1 15rem;
-  min-width: 10rem;
+  min-width: min(10rem, 100%);
 }
 
 .yui-row > .yui-seg {
   flex: 0 1 auto;
-  min-width: 13rem;
-}
-
-/* The popover's narrow body wraps a row's control under its label; there it spans the row. */
-.yui-quick:not(.yui-quick--window) .yui-row > .yui-input-wrap,
-.yui-quick:not(.yui-quick--window) .yui-row > .yui-select,
-.yui-quick:not(.yui-quick--window) .yui-row > .yui-seg {
-  flex-grow: 1;
+  min-width: min(13rem, 100%);
 }
 
 /* Numeric input with its unit on a row's right. */
@@ -1172,6 +1155,30 @@
 .yui-pill:focus-visible {
   outline: none;
   box-shadow: 0 0 0 2px var(--yui-accent-soft);
+}
+
+/* A narrow panel (the pet window's popover, a settings window near its 380px minimum) keeps its
+   content width: the rail drops to icons and a control wrapped under its label spans the row. */
+@container (width < 30rem) {
+  .yui-tabs {
+    flex-basis: 3rem;
+    padding-inline: 0.375rem;
+  }
+
+  .yui-tab {
+    justify-content: center;
+    padding: 0;
+  }
+
+  .yui-tab__label {
+    display: none;
+  }
+
+  .yui-row > .yui-input-wrap,
+  .yui-row > .yui-select,
+  .yui-row > .yui-seg {
+    flex-grow: 1;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
