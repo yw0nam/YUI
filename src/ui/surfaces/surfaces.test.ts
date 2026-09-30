@@ -302,6 +302,23 @@ describe("reasoning disclosure — message window only", () => {
     s.dispose();
   });
 
+  it("holds the bubble through a live cycle when the previous reply's playback ends inside it", () => {
+    const { s, reasoning } = build();
+    s.beginSpeech();
+    s.pushSpeech("Reply one.");
+    s.endSpeech({ defer: true });
+    reasoning.append("turn two");
+
+    s.finishSpeech();
+    vi.advanceTimersByTime(DWELL + 500);
+    expect(shown()).toBe(true);
+
+    reasoning.finish("turn two");
+    vi.advanceTimersByTime(DWELL + 500);
+    expect(bubble().hidden).toBe(true);
+    s.dispose();
+  });
+
   it("leaves the streaming speech and its caret alone when a cycle starts mid-reply", () => {
     const { s, reasoning } = build();
     s.beginSpeech();
