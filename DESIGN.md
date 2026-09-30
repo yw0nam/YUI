@@ -8,8 +8,8 @@ colors:
   text: "oklch(0.95 0.012 80)"
   text-dim: "oklch(0.78 0.016 75)"
   text-mute: "oklch(0.66 0.014 72)"
-  scrim: "oklch(0.21 0.014 70 / 0.64)"
-  scrim-strong: "oklch(0.19 0.014 70 / 0.82)"
+  scrim: "oklch(0.2 0.014 70 / 0.8)"
+  scrim-strong: "oklch(0.18 0.014 70 / 0.9)"
   edge: "oklch(0.97 0.01 80 / 0.1)"
   edge-strong: "oklch(0.97 0.01 80 / 0.16)"
   ink: "oklch(0.22 0.01 70)"
@@ -20,19 +20,19 @@ colors:
   ok-soft: "oklch(0.82 0.14 150 / 0.4)"
 typography:
   display:
-    fontFamily: "system-ui, -apple-system, Segoe UI, sans-serif"
+    fontFamily: '"Pretendard JP Variable", system-ui, -apple-system, Segoe UI, sans-serif'
     fontWeight: 600
   title:
-    fontFamily: "system-ui, -apple-system, Segoe UI, sans-serif"
+    fontFamily: '"Pretendard JP Variable", system-ui, -apple-system, Segoe UI, sans-serif'
     fontSize: "1.0rem"
     fontWeight: 600
   body:
-    fontFamily: "system-ui, -apple-system, Segoe UI, sans-serif"
+    fontFamily: '"Pretendard JP Variable", system-ui, -apple-system, Segoe UI, sans-serif'
     fontSize: "0.95rem"
     fontWeight: 400
     lineHeight: 1.5
   label:
-    fontFamily: "system-ui, -apple-system, Segoe UI, sans-serif"
+    fontFamily: '"Pretendard JP Variable", system-ui, -apple-system, Segoe UI, sans-serif'
     fontSize: "0.75rem"
     fontWeight: 500
     letterSpacing: "0.02em"
@@ -42,6 +42,9 @@ rounded:
   chip: "999px"
   row: "10px"
   img: "10px"
+  group: "12px"
+  control: "8px"
+  pill: "999px"
 components:
   speech-bubble:
     backgroundColor: "{colors.scrim}"
@@ -106,7 +109,7 @@ Near-achromatic warm neutral with a single point of amber. The model is **dark s
 - **Speech White** (`oklch(0.95 0.012 80)`): primary body/speech text on a floating surface; warm, not pure white.
 - **Ash** (`oklch(0.78 0.016 75)`): labels, tool-status, secondary text.
 - **Muted Ash** (`oklch(0.66 0.014 72)`): disabled text, hints, eyebrows.
-- **Scrim** (`oklch(0.21 0.014 70 / 0.64)`): the semi-transparent dark backdrop under every floating surface; a stronger variant (`oklch(0.19 0.014 70 / 0.82)`) sharpens the text input and the small-label chips (tool-status, capture/voice pills).
+- **Scrim** (`oklch(0.2 0.014 70 / 0.8)`): the semi-transparent dark backdrop under every floating surface; a stronger variant (`oklch(0.18 0.014 70 / 0.9)`) sharpens the text input and the small-label chips (tool-status, capture/voice pills).
 - **Hairline** (`oklch(0.97 0.01 80 / 0.1)`, hover `/ 0.16`): the thin edge that holds a surface outline against a dark backdrop.
 - **Warm Ink** (`oklch(0.22 0.01 70)`, `--yui-ink`): dark text for light contexts and for the count on the folded delegation chip's amber badge. Body text on a floating surface stays light.
 
@@ -121,7 +124,7 @@ Near-achromatic warm neutral with a single point of amber. The model is **dark s
 
 ## 3. Typography
 
-**Display / Body / Label Font:** a single warm humanist sans (`system-ui, -apple-system, "Segoe UI", sans-serif`, overridable via the runtime `--yui-font`).
+**Display / Body / Label Font:** Pretendard JP Variable, bundled with the app as a single variable file (`public/fonts/PretendardJPVariable.woff2`) covering Korean, Japanese and Latin; weights 400/500/600 only.
 
 **Character:** one warm, slightly rounded humanist family carries everything. No separate mono, which would read tool-like. Crisp at small sizes (bubbles, labels), never cold or mechanical.
 
@@ -130,6 +133,15 @@ Near-achromatic warm neutral with a single point of amber. The model is **dark s
 - **Title** (~600, ~1.0rem): emphasis inside a speech bubble, tool-result headings.
 - **Body** (~400, ~0.95rem, line-height ~1.5): speech text, set as short conversational bursts in a narrow column fitted to bubble width, not document width.
 - **Label** (~500, ~0.75rem, light uppercase tracking ~0.02em): tool status ("Searching…"), timestamps.
+
+### Panel scale
+Panels (quick-controls, settings) set text in five fixed steps (`--yui-fs-*` in tokens.css):
+- **Caption** (11px): units, footnotes.
+- **Sub** (12px): row descriptions, chip labels.
+- **Body** (13px): row labels, field text.
+- **Head** (14px): section titles.
+- **Title** (20px): tab title.
+- **Speech** (0.95rem, `--yui-fs-speech`): bubble and composer text, outside the panel scale on purpose.
 
 ### Named Rules
 **The Speech-First Rule.** Body type is tuned for short conversational bursts inside a bubble. Document layout rules (long measure, dense columns) are never imported.
