@@ -20,7 +20,7 @@ const ja: Record<string, string> = {
   "voice.state.fired": "送信しました",
   "voice.state.error": "エラー",
   "voice.error.not_configured": "設定が必要",
-  "voice.error.not_configured_fix": "バックエンド未設定、接続設定を開く",
+  "voice.error.not_configured_fix": "バックエンド未設定。接続設定を開く",
 
   // aria labels (parameterized)
   "aria.refresh_speaker": "{name} の参照音声を更新",
@@ -321,7 +321,6 @@ const ja: Record<string, string> = {
 
   // endpoints
   "endpoints.section": "エンドポイント",
-  "endpoints.summary_hint": "詳細：サーバーアドレス・モデル",
   "endpoints.field_sub": "空欄にするとデフォルトを使います",
   "endpoints.reset": "デフォルトに戻す",
   "endpoints.url_error": "正しい URL ではありません (http:// または https://)",

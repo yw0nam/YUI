@@ -20,7 +20,7 @@ const ko: Record<string, string> = {
   "voice.state.fired": "전달됨",
   "voice.state.error": "오류",
   "voice.error.not_configured": "설정 필요",
-  "voice.error.not_configured_fix": "백엔드 미설정, 연결 설정 열기",
+  "voice.error.not_configured_fix": "백엔드 미설정. 연결 설정 열기",
 
   // aria labels (parameterized)
   "aria.refresh_speaker": "{name} 참조 음성 갱신",
@@ -319,7 +319,6 @@ const ko: Record<string, string> = {
 
   // endpoints
   "endpoints.section": "엔드포인트",
-  "endpoints.summary_hint": "고급: 서버 주소·모델",
   "endpoints.field_sub": "비우면 기본값을 사용해요",
   "endpoints.reset": "기본값으로 되돌리기",
   "endpoints.url_error": "올바른 URL이 아니에요 (http:// 또는 https://)",

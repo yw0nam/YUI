@@ -320,7 +320,6 @@ const en: Record<string, string> = {
 
   // endpoints
   "endpoints.section": "Endpoints",
-  "endpoints.summary_hint": "Advanced: server addresses · model",
   "endpoints.field_sub": "Leave empty to use the default",
   "endpoints.reset": "Reset to default",
   "endpoints.url_error": "Not a valid URL (http:// or https://)",
