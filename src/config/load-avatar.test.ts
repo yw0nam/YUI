@@ -15,6 +15,8 @@ async function expectAvatarError(p: Promise<unknown>): Promise<void> {
   expect((err as ConfigError).issues.length).toBeGreaterThan(0);
 }
 
+const UPPER_BODY = { from_frac: 0.4, to_frac: 1 };
+
 /** Loads the good fixture with avatar.json replaced. */
 async function loadWithAvatar(avatar: unknown): Promise<Awaited<ReturnType<typeof loadConfig>>> {
   const map = goodFixture();
@@ -70,8 +72,10 @@ describe("loadConfig — avatar.available", () => {
 
 describe("loadConfig — avatar.framing", () => {
   it("유효한 framing {margin, fov}를 그대로 보존한다", async () => {
-    const cfg = await loadWithAvatar(avatarWith({ framing: { margin: 0.2, fov: 45 } }));
-    expect(cfg.avatar.framing).toEqual({ margin: 0.2, fov: 45 });
+    const cfg = await loadWithAvatar(
+      avatarWith({ framing: { margin: 0.2, fov: 45, upper_body: UPPER_BODY } }),
+    );
+    expect(cfg.avatar.framing).toEqual({ margin: 0.2, fov: 45, upper_body: UPPER_BODY });
   });
 
   it("framing이 없으면 실패", async () => {
@@ -81,28 +85,40 @@ describe("loadConfig — avatar.framing", () => {
   });
 
   it("fov: 0 (열린구간 밖)이면 실패", async () => {
-    await expectAvatarError(loadWithAvatar(avatarWith({ framing: { margin: 0.1, fov: 0 } })));
+    await expectAvatarError(
+      loadWithAvatar(avatarWith({ framing: { margin: 0.1, fov: 0, upper_body: UPPER_BODY } })),
+    );
   });
 
   it("fov: 180 (열린구간 밖)이면 실패", async () => {
-    await expectAvatarError(loadWithAvatar(avatarWith({ framing: { margin: 0.1, fov: 180 } })));
+    await expectAvatarError(
+      loadWithAvatar(avatarWith({ framing: { margin: 0.1, fov: 180, upper_body: UPPER_BODY } })),
+    );
   });
 
   it("fov: -5 (음수)이면 실패", async () => {
-    await expectAvatarError(loadWithAvatar(avatarWith({ framing: { margin: 0.1, fov: -5 } })));
+    await expectAvatarError(
+      loadWithAvatar(avatarWith({ framing: { margin: 0.1, fov: -5, upper_body: UPPER_BODY } })),
+    );
   });
 
   it('fov: "30" (문자열)이면 실패', async () => {
-    await expectAvatarError(loadWithAvatar(avatarWith({ framing: { margin: 0.1, fov: "30" } })));
+    await expectAvatarError(
+      loadWithAvatar(avatarWith({ framing: { margin: 0.1, fov: "30", upper_body: UPPER_BODY } })),
+    );
   });
 
   it("margin: -0.1 (음수)이면 실패", async () => {
-    await expectAvatarError(loadWithAvatar(avatarWith({ framing: { margin: -0.1, fov: 30 } })));
+    await expectAvatarError(
+      loadWithAvatar(avatarWith({ framing: { margin: -0.1, fov: 30, upper_body: UPPER_BODY } })),
+    );
   });
 
   it("margin: NaN (비유한)이면 실패", async () => {
     await expectAvatarError(
-      loadWithAvatar(avatarWith({ framing: { margin: Number.NaN, fov: 30 } })),
+      loadWithAvatar(
+        avatarWith({ framing: { margin: Number.NaN, fov: 30, upper_body: UPPER_BODY } }),
+      ),
     );
   });
 });
