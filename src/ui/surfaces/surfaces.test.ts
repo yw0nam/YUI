@@ -179,9 +179,11 @@ describe("reasoning disclosure — message window only", () => {
   const thinkText = (): HTMLElement => mount.querySelector<HTMLElement>(".yui-bubble__think-text")!;
   const shown = (): boolean => !bubble().hidden && bubble().classList.contains("is-visible");
 
+  const DWELL = 1000;
+
   function build() {
     const reasoning = createReasoningStore();
-    const s = createSurfaces({ mount, tool: noTool, reasoning });
+    const s = createSurfaces({ mount, tool: noTool, reasoning, dwellMs: DWELL });
     return { s, reasoning };
   }
 
@@ -254,6 +256,99 @@ describe("reasoning disclosure — message window only", () => {
 
     expect(bubble().hidden).toBe(true);
     expect(bubble().classList.contains("is-visible")).toBe(false);
+    s.dispose();
+  });
+
+  it("hides a reasoning-only bubble when the turn stops mid-reasoning", () => {
+    const { s, reasoning } = build();
+    reasoning.append("hmm");
+    vi.advanceTimersByTime(20);
+    expect(shown()).toBe(true);
+
+    reasoning.interrupt();
+    vi.advanceTimersByTime(400);
+
+    expect(bubble().hidden).toBe(true);
+    s.dispose();
+  });
+
+  it("fades a reasoning-only bubble after the dwell once a silent reply finalizes it", () => {
+    const { s, reasoning } = build();
+    reasoning.append("hmm");
+    vi.advanceTimersByTime(20);
+
+    reasoning.finish("hmm, nothing to say");
+    vi.advanceTimersByTime(DWELL - 100);
+    expect(shown()).toBe(true);
+
+    vi.advanceTimersByTime(600);
+    expect(bubble().hidden).toBe(true);
+    s.dispose();
+  });
+
+  it("keeps the bubble up when a new cycle starts inside the previous reply's dwell", () => {
+    const { s, reasoning } = build();
+    s.beginSpeech();
+    s.pushSpeech("Reply one.");
+    s.endSpeech();
+    vi.advanceTimersByTime(DWELL / 2);
+
+    reasoning.append("turn two");
+    vi.advanceTimersByTime(DWELL + 500);
+    reasoning.append(" goes on");
+
+    expect(shown()).toBe(true);
+    expect(think().open).toBe(true);
+    s.dispose();
+  });
+
+  it("leaves the streaming speech and its caret alone when a cycle starts mid-reply", () => {
+    const { s, reasoning } = build();
+    s.beginSpeech();
+    s.pushSpeech("hello");
+    reasoning.append("hmm");
+    vi.advanceTimersByTime(60);
+    s.pushSpeech(" world");
+
+    expect(mount.querySelector(".yui-bubble__text")!.textContent).toBe("hello world");
+    expect(bubble().classList.contains("is-streaming")).toBe(true);
+    s.dispose();
+  });
+
+  it("reopens the disclosure for a new cycle after a finished one", () => {
+    const { s, reasoning } = build();
+    reasoning.append("first");
+    reasoning.finish("first");
+    expect(think().open).toBe(false);
+
+    reasoning.append("second");
+
+    expect(think().open).toBe(true);
+    expect(thinkText().textContent).toBe("second");
+    s.dispose();
+  });
+
+  it("lets the summary close it, and a later delta keeps it closed", () => {
+    const { s, reasoning } = build();
+    reasoning.append("hmm");
+
+    think().querySelector<HTMLElement>("summary")!.click();
+    expect(think().open).toBe(false);
+    reasoning.append(" more");
+
+    expect(think().open).toBe(false);
+    s.dispose();
+  });
+
+  it("marks the bubble scrollable when reasoning pushes the box past its cap", () => {
+    const { s, reasoning } = build();
+    const box = mount.querySelector<HTMLElement>(".yui-bubble__box")!;
+    Object.defineProperty(box, "scrollHeight", { value: 480, configurable: true });
+    Object.defineProperty(box, "clientHeight", { value: 240, configurable: true });
+
+    reasoning.append("a long chain of thought");
+
+    expect(bubble().classList.contains("is-scrollable")).toBe(true);
     s.dispose();
   });
 });

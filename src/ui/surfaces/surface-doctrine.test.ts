@@ -299,6 +299,13 @@ describe("surfaces.css — the bubble's box carries the material", () => {
     expect(block).toMatch(/white-space:\s*pre-wrap/);
   });
 
+  // The stream transport closes the reasoning cycle only after the speech, so both would blink.
+  it("hides the reasoning cursor while the speech caret streams", () => {
+    expect(
+      extractBlock(css(), ".yui-bubble.is-streaming .yui-bubble__think-text.is-live::after"),
+    ).toMatch(/content:\s*none/);
+  });
+
   it("stops the live reasoning cursor under reduced motion", () => {
     const c = css();
     expect(extractBlock(c, ".yui-bubble__think-text.is-live::after")).toMatch(/animation:/);
