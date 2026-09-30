@@ -193,11 +193,13 @@ describe("reasoning disclosure — only when a reasoning source is given", () =>
     s.dispose();
   });
 
-  it("sits inside the box, before the text, and stays hidden while the text is empty", () => {
+  it("sits inside the box, under the quoted line, before the text, and stays hidden while the text is empty", () => {
     const { s } = build();
     const box = mount.querySelector<HTMLElement>(".yui-bubble__box")!;
 
-    expect(box.firstElementChild).toBe(think());
+    expect(box.firstElementChild).toBe(mount.querySelector(".yui-bubble__quote"));
+    expect(box.children[1]).toBe(think());
+    expect(box.children[2]).toBe(mount.querySelector(".yui-bubble__text"));
     expect(think().hidden).toBe(true);
     s.dispose();
   });
