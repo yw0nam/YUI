@@ -103,7 +103,7 @@ describe("createQuickControls — tabs + VAD slider", () => {
     const t = tabs(qc);
     const active = t.find((tab) => tab.getAttribute("aria-selected") === "true")!;
     expect(active.id).toBe("yui-tab-talk");
-    expect(active.textContent).toContain("대화");
+    expect(active.getAttribute("aria-label")).toBe("대화");
 
     for (const tab of t) {
       const on = tab === active;
@@ -144,6 +144,38 @@ describe("createQuickControls — tabs + VAD slider", () => {
     expect(qc.isOpen()).toBe(true);
     // Focus follows the requested tab, not the first control the popover would land on.
     expect(document.activeElement).toBe(conn);
+
+    qc.dispose();
+  });
+
+  it("open({ tab }) moves focus to that tab without a visible focus ring", () => {
+    const qc = buildQc();
+    const focus = vi.spyOn(HTMLElement.prototype, "focus");
+    qc.open(undefined, { tab: "conn" });
+
+    expect(focus).toHaveBeenLastCalledWith({ focusVisible: false });
+
+    qc.dispose();
+  });
+
+  it("the popover rail shows icons only, each tab named by its aria-label and tooltip", () => {
+    const qc = buildQc();
+    qc.open();
+
+    for (const tab of tabs(qc)) {
+      expect(tab.textContent!.trim()).toBe("");
+      expect(tab.getAttribute("aria-label")).toBeTruthy();
+      expect(tab.dataset.tip).toBeTruthy();
+    }
+
+    qc.dispose();
+  });
+
+  it("the settings window rail labels each tab in text", () => {
+    const qc = buildQc({ variant: "window" });
+
+    expect(qc.el.querySelector("#yui-tab-talk")!.textContent!.trim()).toBe("대화");
+    expect(qc.el.querySelector("#yui-tab-general")!.textContent!.trim()).toBe("일반");
 
     qc.dispose();
   });

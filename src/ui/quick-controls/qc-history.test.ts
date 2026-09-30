@@ -79,7 +79,7 @@ describe("createQuickControls — history tab", () => {
 
     const histTab = tabs[5];
     expect(histTab.id).toBe("yui-tab-hist");
-    expect(histTab.textContent).toContain("History");
+    expect(histTab.getAttribute("aria-label")).toBe("History");
     expect(histTab.getAttribute("aria-label")).toBeTruthy();
     expect(histTab.dataset.tip).toBeTruthy();
     expect(histTab.hasAttribute("title")).toBe(false);

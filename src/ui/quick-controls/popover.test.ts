@@ -73,6 +73,17 @@ describe("createPopover — focus management", () => {
     pop.dispose();
   });
 
+  // A pointer-opened panel must not open with a lit ring; the ring comes back on the first Tab.
+  it("open() moves focus without a visible focus ring", () => {
+    const focus = vi.spyOn(HTMLElement.prototype, "focus");
+    const { pop } = makePopover();
+    pop.open();
+
+    expect(focus).toHaveBeenLastCalledWith({ focusVisible: false });
+
+    pop.dispose();
+  });
+
   it("close() restores focus to the element focused before open()", () => {
     const trigger = document.createElement("button");
     trigger.type = "button";
