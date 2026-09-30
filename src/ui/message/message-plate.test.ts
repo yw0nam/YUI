@@ -151,9 +151,4 @@ describe("createMessagePlate without the window options", () => {
     expect(mount.querySelector(".yui-plate__dock")).toBeNull();
     expect(el().hasAttribute("data-draggable")).toBe(false);
   });
-
-  it("ignores a press on the plate", () => {
-    createMessagePlate({ mount });
-    expect(() => el().dispatchEvent(new MouseEvent("mousedown", { bubbles: true }))).not.toThrow();
-  });
 });

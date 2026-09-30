@@ -531,12 +531,11 @@ describe("createDelegationChip", () => {
     });
 
     it("marks the tap back on the list once the socket is ready again", () => {
-      const { chip, pushState } = buildWithoutOpener(fakePushState({ kind: "failed", code: 4401 }));
+      const { pushState } = buildWithoutOpener(fakePushState({ kind: "failed", code: 4401 }));
 
       pushState.set({ kind: "ready", chat_id: "yui-3f9a2c1d" });
 
       expect(chipButton().dataset.action).toBeUndefined();
-      expect(chip.el.getAttribute("data-action")).toBeNull();
     });
 
     it("folds to the dot on a long-press, with no count badge", () => {

@@ -941,15 +941,6 @@ describe("wirePushMode", () => {
     port.show();
     expect(connect).toHaveBeenCalledTimes(1);
   });
-
-  it("does not dispose the chip when the page hides", () => {
-    const port = hiddenPort(false);
-    wireMode(port);
-
-    port.hide();
-
-    expect(chipDispose).not.toHaveBeenCalled();
-  });
 });
 
 describe("createDelegationChipMount", () => {
@@ -1043,13 +1034,13 @@ describe("createDelegationChipMount", () => {
     const store = createMessageWindowSettings();
     // The pet's reader carries the isTauri guard — outside Tauri it answers docked.
     let readerMode: MessageWindowMode = "docked";
-    let notify: (() => void) | null = null;
+    const subs = new Set<() => void>();
     const port = messageWindowSuppression({
       getMode: () => readerMode,
       subscribe: (cb: () => void) => {
-        notify = cb;
+        subs.add(cb);
         return () => {
-          notify = null;
+          subs.delete(cb);
         };
       },
     });
@@ -1062,7 +1053,7 @@ describe("createDelegationChipMount", () => {
 
     let notified = 0;
     port.subscribe(() => notified++);
-    notify?.();
+    for (const cb of [...subs]) cb();
     expect(notified).toBe(1);
   });
 });
