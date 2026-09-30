@@ -5,7 +5,7 @@
  * - `initDrag(el, opts)` — attaches a threshold gesture detector to the given
  *   EventTarget (typically `.yui-stage`). On primary left-button press it records
  *   the start point and waits: only once a `pointermove` crosses
- *   `DRAG_THRESHOLD_PX` does it fire `opts.onDragStart` (once) and invoke the Rust
+ *   `PRESS_TRAVEL_PX` does it fire `opts.onDragStart` (once) and invoke the Rust
  *   `drag_window` command via Tauri IPC — the OS then owns the pointer and moves
  *   the window natively. A sub-threshold press-release fires `opts.onClick`.
  *   Installs an `onScaleChanged` listener that logs DPI changes when the window
@@ -31,14 +31,9 @@ import { listen } from "@tauri-apps/api/event";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { createLogger } from "../../../logger";
 import { isTauri } from "../../../tauri-env";
+import { exceedsPressTravel } from "../../stage/press-travel";
 
 const log = createLogger("drag");
-
-/**
- * Pointer travel (CSS/logical px) past which a primary press becomes a drag
- * gesture rather than a click. Below this, a press-release is a click.
- */
-const DRAG_THRESHOLD_PX = 4;
 
 // ─── IPC wrappers ─────────────────────────────────────────────────────────────
 
@@ -227,7 +222,10 @@ function attachClickGesture(
   function onMove(e: Event): void {
     const pe = e as PointerEvent;
     if (pe.pointerId !== pointerId || crossedThreshold) return;
-    crossedThreshold = Math.hypot(pe.clientX - startX, pe.clientY - startY) >= DRAG_THRESHOLD_PX;
+    crossedThreshold = exceedsPressTravel(
+      { x: startX, y: startY },
+      { x: pe.clientX, y: pe.clientY },
+    );
     // Travel before the hold elapses is a drag, not a pat.
     if (crossedThreshold) clearHoldTimer();
   }
@@ -271,7 +269,7 @@ function attachClickGesture(
  *
  * @param el - The drag surface element (typically `.yui-stage`).
  * @param opts.onDragStart - Fired once per gesture when the pointer crosses
- *   `DRAG_THRESHOLD_PX`. The OS-native drag waits for its return value to resolve
+ *   `PRESS_TRAVEL_PX`. The OS-native drag waits for its return value to resolve
  *   (or starts right away for a synchronous callback), so a caller that shrinks a
  *   parked window can do so before the native drag grabs it. A rejection is logged
  *   and does not block the native drag.
@@ -333,7 +331,7 @@ export async function initDrag(
   });
 
   // ── threshold gesture detector ─────────────────────────────────────────────
-  // A primary press arms; a move past DRAG_THRESHOLD_PX promotes it to a drag,
+  // A primary press arms; a move past PRESS_TRAVEL_PX promotes it to a drag,
   // firing onDragStart + the OS-native drag once. The shared click detector
   // handles a press-release below the threshold.
   //
@@ -366,9 +364,7 @@ export async function initDrag(
     if (started || clickGesture.isPatting()) return;
     const pe = e as PointerEvent;
     if (pe.pointerId !== activePointerId) return;
-    const dx = pe.clientX - startX;
-    const dy = pe.clientY - startY;
-    if (Math.hypot(dx, dy) < DRAG_THRESHOLD_PX) return;
+    if (!exceedsPressTravel({ x: startX, y: startY }, { x: pe.clientX, y: pe.clientY })) return;
     started = true;
     el.removeEventListener("pointermove", onPointerMove);
     void startNativeDrag();
