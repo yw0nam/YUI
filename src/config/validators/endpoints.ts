@@ -44,8 +44,8 @@ export function validateEndpoints(file: string, raw: unknown): EndpointsConfig {
     );
   }
   const chat_api: EndpointsConfig["chat_api"] = isChatApi(rawChatApi) ? rawChatApi : undefined;
-  // tts_model / tts_speaker: optional. TTS service default when unset.
-  const optStr = (k: "tts_model" | "tts_speaker"): string | undefined => {
+  // stt_model / tts_model / tts_speaker: optional. The service default applies when unset.
+  const optStr = (k: "stt_model" | "tts_model" | "tts_speaker"): string | undefined => {
     const v = raw[k];
     if (v !== undefined && (typeof v !== "string" || v.trim() === "")) {
       issues.push(`${k} must be a non-blank string (got: ${JSON.stringify(v)})`);
@@ -55,6 +55,7 @@ export function validateEndpoints(file: string, raw: unknown): EndpointsConfig {
   };
   const tts_model = optStr("tts_model");
   const tts_speaker = optStr("tts_speaker");
+  const stt_model = optStr("stt_model");
   // broker_base_url: optional. If set, must be an http(s) URL (Expression Broker MCP endpoint).
   let broker_base_url: string | undefined;
   if (!unset(raw.broker_base_url)) {
@@ -94,6 +95,7 @@ export function validateEndpoints(file: string, raw: unknown): EndpointsConfig {
     ...(typeof chat_model === "string" ? { chat_model } : {}),
     ...(chat_api !== undefined ? { chat_api } : {}),
     stt_base_url,
+    ...(stt_model !== undefined ? { stt_model } : {}),
     tts_base_url,
     ...(tts_model !== undefined ? { tts_model } : {}),
     ...(tts_speaker !== undefined ? { tts_speaker } : {}),

@@ -135,7 +135,9 @@ export function createSttVad(options: SttVadOptions): SttVad {
     try {
       // Bearer only — never set Content-Type here: FormData needs the browser-set multipart boundary.
       const key = (await getApiKey?.())?.trim() || undefined;
-      const res = await fetchImpl(`${config().stt_base_url}/audio/transcriptions`, {
+      const cfg = config();
+      if (cfg.stt_model) form.append("model", cfg.stt_model);
+      const res = await fetchImpl(`${cfg.stt_base_url}/audio/transcriptions`, {
         method: "POST",
         body: form,
         headers: key ? { Authorization: `Bearer ${key}` } : undefined,

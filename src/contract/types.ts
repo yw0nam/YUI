@@ -368,6 +368,8 @@ export interface EndpointsConfig {
   chat_api?: "responses" | "chat_completions" | "push";
   /** Separate ASR service (OpenAI-compatible) → /audio/transcriptions. `""` = STT off. */
   stt_base_url: string;
+  /** /audio/transcriptions `model`. Omitted from the request when unset. */
+  stt_model?: string;
   /** Separate TTS service (OpenAI-compatible) → /audio/speech. `""` = TTS off. */
   tts_base_url: string;
   /** /v1/audio/speech `model`. Must match the name the TTS server is configured under. */
