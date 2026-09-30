@@ -180,6 +180,17 @@ describe("createQuickControls — tabs + VAD slider", () => {
     qc.dispose();
   });
 
+  it("selectedTab() names the tab the user is on", () => {
+    const qc = buildQc();
+    qc.open();
+    expect(qc.selectedTab()).toBe("talk");
+
+    qc.el.querySelector<HTMLButtonElement>("#yui-tab-general")!.click();
+    expect(qc.selectedTab()).toBe("general");
+
+    qc.dispose();
+  });
+
   it("open({ tab }) switches an already-open panel to that tab", () => {
     const qc = buildQc();
     qc.open();

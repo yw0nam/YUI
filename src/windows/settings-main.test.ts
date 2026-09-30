@@ -3,7 +3,11 @@
 import { afterEach, expect, it, vi } from "vitest";
 
 const { createQuickControls, initLogger, createLogger } = vi.hoisted(() => ({
-  createQuickControls: vi.fn(() => ({ open: vi.fn(), dispose: vi.fn() })),
+  createQuickControls: vi.fn(() => ({
+    open: vi.fn(),
+    dispose: vi.fn(),
+    selectedTab: vi.fn(() => "general"),
+  })),
   initLogger: vi.fn(async () => {}),
   createLogger: vi.fn(() => ({ info: vi.fn(), warn: vi.fn(), error: vi.fn(), debug: vi.fn() })),
 }));
@@ -29,4 +33,20 @@ it("titles the settings window in the app language", async () => {
 
   setLocale("ja");
   await vi.waitFor(() => expect(document.title).toBe("YUI 設定"));
+});
+
+it("reopens the remounted panel on the tab the user was on when the language changes", async () => {
+  vi.resetModules();
+  createQuickControls.mockClear();
+  document.body.innerHTML = '<div id="app"></div>';
+
+  await import("./settings-main");
+  await vi.waitFor(() => expect(createQuickControls).toHaveBeenCalledOnce());
+
+  // resetModules gave settings-main a fresh i18n module; drive that one.
+  const i18n = await import("../ui/i18n");
+  i18n.setLocale("ko");
+  await vi.waitFor(() => expect(createQuickControls).toHaveBeenCalledTimes(2));
+  const remounted = createQuickControls.mock.results[1]!.value;
+  expect(remounted.open).toHaveBeenCalledWith(undefined, { tab: "general" });
 });

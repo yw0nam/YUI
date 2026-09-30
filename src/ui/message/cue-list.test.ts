@@ -552,7 +552,7 @@ describe("createCueList — schedule (time trigger)", () => {
     expect(masterSwitch.getAttribute("aria-checked")).toBe("true");
   });
 
-  it("section dims (yui-section--off) when master is off", () => {
+  it("section dims (yui-sec--off) when master is off", () => {
     const store = makeScheduleStore({ enabled: false });
     createCueList({
       mount,
@@ -565,10 +565,10 @@ describe("createCueList — schedule (time trigger)", () => {
     });
 
     const section = mount.querySelector("[data-testid='cue-section']");
-    expect(section?.classList.contains("yui-section--off")).toBe(true);
+    expect(section?.classList.contains("yui-sec--off")).toBe(true);
   });
 
-  it("section removes yui-section--off when master turns on", () => {
+  it("section removes yui-sec--off when master turns on", () => {
     const store = makeScheduleStore({ enabled: false });
     createCueList({
       mount,
@@ -582,7 +582,7 @@ describe("createCueList — schedule (time trigger)", () => {
 
     store.setEnabled(true);
     const section = mount.querySelector("[data-testid='cue-section']");
-    expect(section?.classList.contains("yui-section--off")).toBe(false);
+    expect(section?.classList.contains("yui-sec--off")).toBe(false);
   });
 
   it("destroy() unsubscribes and clears the mount", () => {
