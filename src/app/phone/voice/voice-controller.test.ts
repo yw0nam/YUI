@@ -32,7 +32,10 @@ function setup(opts: { mode?: VoiceMode; stt?: string; hidden?: boolean; started
     status,
     mode,
     visibility,
-    getEndpoints: () => endpoints,
+    getEndpoints: () => {
+      if (opts.started === false) throw new Error("config not loaded");
+      return endpoints;
+    },
     openSttSettings,
     log,
   });
@@ -234,6 +237,7 @@ describe("voice controller — selecting keep listening", () => {
     s.controller.selectMode("always");
 
     s.status.set("error", "mic_denied");
+    s.controller.onCaptureFailed();
     s.controller.onCaptureStarted();
 
     expect(s.mode.get().mode).toBe("tap");
@@ -266,11 +270,12 @@ describe("voice controller — mic failures", () => {
     "mic_denied",
     "no_mic",
     "mic_unavailable",
-  ])("turns intent off on %s and keeps the error on the status", (code) => {
+  ])("turns intent off on a failed start (%s) and keeps the error on the status", (code) => {
     const s = setup();
     s.controller.toggle();
 
     s.status.set("error", code);
+    s.controller.onCaptureFailed();
 
     expect(s.controller.wanted()).toBe(false);
     expect(s.status.get()).toMatchObject({ state: "error", detail: code });
@@ -282,6 +287,7 @@ describe("voice controller — mic failures", () => {
       const s = setup();
       s.controller.toggle();
       s.status.set("error", "mic_denied");
+      s.controller.onCaptureFailed();
 
       vi.advanceTimersByTime(120_000);
       expect(s.status.get().state).toBe("error");
@@ -294,7 +300,17 @@ describe("voice controller — mic failures", () => {
     }
   });
 
-  it("keeps intent on for an error that is not a mic cause", () => {
+  it("turns intent off on a failed start whatever the detail says", () => {
+    const s = setup();
+    s.controller.toggle();
+
+    s.status.set("error", "Voice init failed: worklet failed");
+    s.controller.onCaptureFailed();
+
+    expect(s.controller.wanted()).toBe(false);
+  });
+
+  it("keeps intent on for a status error that is not a failed start", () => {
     const s = setup();
     s.controller.toggle();
 
@@ -306,12 +322,48 @@ describe("voice controller — mic failures", () => {
   it("does not listen again after a failure until the next return in always mode", () => {
     const s = setup({ mode: "always" });
     s.status.set("error", "mic_denied");
+    s.controller.onCaptureFailed();
     expect(s.controller.wanted()).toBe(false);
 
     s.setHidden(true);
     s.setHidden(false);
 
     expect(s.controller.wanted()).toBe(true);
+  });
+});
+
+describe("voice controller — before start()", () => {
+  it("toggle and selectMode do nothing before the config has loaded", () => {
+    const s = setup({ started: false });
+    expect(() => {
+      s.controller.toggle();
+      s.controller.selectMode("always");
+    }).not.toThrow();
+
+    expect(s.controller.wanted()).toBe(false);
+    expect(s.openSttSettings).not.toHaveBeenCalled();
+  });
+});
+
+describe("voice controller — re-selecting the checked mode", () => {
+  it("keeps listening when tap is selected again in tap mode", () => {
+    const s = setup();
+    s.controller.toggle();
+    s.controller.onCaptureStarted();
+
+    s.controller.selectMode("tap");
+
+    expect(s.controller.wanted()).toBe(true);
+    expect(s.status.get().state).toBe("listening");
+  });
+
+  it("changes nothing when always is selected again in always mode", () => {
+    const s = setup({ mode: "always" });
+    s.controller.toggle();
+
+    s.controller.selectMode("always");
+
+    expect(s.controller.wanted()).toBe(false);
   });
 });
 

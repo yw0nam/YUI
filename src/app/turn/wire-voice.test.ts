@@ -363,7 +363,7 @@ describe("wireVoiceInput", () => {
 
   describe("voice host", () => {
     const bound = (
-      voiceHost: { wanted(): boolean; onCaptureStarted(): void },
+      voiceHost: { wanted(): boolean; onCaptureStarted(): void; onCaptureFailed(): void },
       sttVad = makeSttVad(),
     ) => {
       const voiceInputStatus = createVoiceInputStatus();
@@ -371,7 +371,11 @@ describe("wireVoiceInput", () => {
       voiceInput.setStt(sttVad as never);
       return { voiceInputStatus, sttVad };
     };
-    const host = () => ({ wanted: () => true, onCaptureStarted: vi.fn() });
+    const host = () => ({
+      wanted: () => true,
+      onCaptureStarted: vi.fn(),
+      onCaptureFailed: vi.fn(),
+    });
 
     it("reports a started capture once start() resolves", async () => {
       const h = host();
@@ -392,6 +396,7 @@ describe("wireVoiceInput", () => {
       await flush();
       await flush();
       expect(h.onCaptureStarted).not.toHaveBeenCalled();
+      expect(h.onCaptureFailed).toHaveBeenCalledTimes(1);
       expect(voiceInputStatus.get()).toMatchObject({ state: "error", detail: "mic_denied" });
     });
 
@@ -470,7 +475,7 @@ describe("wireTurnVoice", () => {
         renderer: {} as never,
         surfaces: {} as never,
         voiceInputStatus,
-        voiceHost: { wanted: () => false, onCaptureStarted: vi.fn() },
+        voiceHost: { wanted: () => false, onCaptureStarted: vi.fn(), onCaptureFailed: vi.fn() },
         ttsSettings: { get: () => ({ enabled: true }) } as never,
         lipsyncSettings: { get: () => ({ gain: 1 }) } as never,
         fillerSettings: { get: () => ({}) } as never,
