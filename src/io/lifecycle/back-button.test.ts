@@ -4,7 +4,7 @@
  * unregistered on release, serialized across races, and failing safe on a rejected registration.
  */
 import { afterEach, describe, expect, it, type Mock, vi } from "vitest";
-import { createBackButtonClaim, type BackButtonRegister } from "./back-button";
+import { type BackButtonRegister, createBackButtonClaim } from "./back-button";
 
 afterEach(() => {
   document.body.innerHTML = "";
@@ -71,7 +71,10 @@ describe("createBackButtonClaim", () => {
     const claim = createBackButtonClaim(fake.register);
     const first: Mock<() => void> = vi.fn();
     const second: Mock<() => void> = vi.fn();
-    const unlistens = [vi.fn<() => Promise<void>>(() => Promise.resolve()), vi.fn<() => Promise<void>>(() => Promise.resolve())];
+    const unlistens = [
+      vi.fn<() => Promise<void>>(() => Promise.resolve()),
+      vi.fn<() => Promise<void>>(() => Promise.resolve()),
+    ];
 
     claim.claim(first);
     claim.release();
@@ -87,10 +90,11 @@ describe("createBackButtonClaim", () => {
 
     fake.calls[1].resolve(unlistens[1]);
     await flush();
+    // A stale delivery from the first registration routes to the live handler, never the old one.
     fake.calls[0].cb();
     fake.calls[1].cb();
     expect(first).not.toHaveBeenCalled();
-    expect(second).toHaveBeenCalledTimes(1);
+    expect(second).toHaveBeenCalledTimes(2);
 
     claim.release();
     await flush();
