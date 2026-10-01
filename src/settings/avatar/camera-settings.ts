@@ -98,6 +98,15 @@ export function createCameraSettings(opts?: { storage?: CameraStorage }) {
       });
     },
 
+    /** Reset zoom and both orbit angles to their defaults in one commit. */
+    resetView(): void {
+      core.commit({
+        zoom: CAMERA_ZOOM_DEFAULT,
+        azimuth: CAMERA_AZIMUTH_DEFAULT,
+        polar: CAMERA_POLAR_DEFAULT,
+      });
+    },
+
     reloadFromStorage: core.reloadFromStorage,
     subscribe: core.subscribe,
     dispose: core.dispose,
