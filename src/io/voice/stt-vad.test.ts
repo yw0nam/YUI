@@ -75,7 +75,16 @@ async function deferMicVadLoad(): Promise<{ resolve: () => void }> {
   return { resolve };
 }
 
+// The wrapper acquires the mic stream itself and hands it to the VAD.
+let getUserMedia: ReturnType<typeof vi.fn>;
+let track: { stop: ReturnType<typeof vi.fn> };
+let stream: { getTracks: () => (typeof track)[] };
+
 beforeEach(() => {
+  track = { stop: vi.fn() };
+  stream = { getTracks: () => [track] };
+  getUserMedia = vi.fn(async () => stream);
+  vi.stubGlobal("navigator", { mediaDevices: { getUserMedia } });
   capturedOptions = {};
   triggerSpeechStart = null;
   triggerSpeechEnd = null;
@@ -240,7 +249,7 @@ describe("createSttVad — start() failure handling", () => {
   }
 
   function failCapture(error: unknown): void {
-    mockMicVadInstance.start.mockRejectedValueOnce(error);
+    getUserMedia.mockRejectedValueOnce(error);
   }
 
   async function startError(stt: { start(): Promise<void> }): Promise<unknown> {
@@ -296,19 +305,20 @@ describe("createSttVad — start() failure handling", () => {
     expect(detail).toBe("Voice init failed: failed to fetch /vad/silero_vad_v5.onnx");
   });
 
-  it("destroys the instance after a first-start capture failure and recreates it on the next start", async () => {
+  it("keeps the loaded model through a denied start: the next start does not reload it", async () => {
     const { MicVAD } = await import("@ricky0123/vad-web");
     failCapture(new DOMException("denied", "NotAllowedError"));
     const stt = createSttVad({ config: () => CONFIG, onVoiceSegment: vi.fn() });
 
     await startError(stt);
-    expect(mockMicVadInstance.destroy).toHaveBeenCalledOnce();
-
     await stt.start();
-    expect(MicVAD.new).toHaveBeenCalledTimes(2);
+
+    expect(MicVAD.new).toHaveBeenCalledTimes(1);
+    expect(mockMicVadInstance.destroy).not.toHaveBeenCalled();
+    expect(mockMicVadInstance.start).toHaveBeenCalledTimes(1);
   });
 
-  it("destroys the instance after a resume-path capture failure and recreates it on the next start", async () => {
+  it("keeps the instance through a denied resume as well", async () => {
     const { MicVAD } = await import("@ricky0123/vad-web");
     const stt = createSttVad({ config: () => CONFIG, onVoiceSegment: vi.fn() });
     await stt.start();
@@ -316,6 +326,19 @@ describe("createSttVad — start() failure handling", () => {
     failCapture(new DOMException("busy", "NotReadableError"));
 
     await startError(stt);
+    await stt.start();
+
+    expect(MicVAD.new).toHaveBeenCalledTimes(1);
+    expect(mockMicVadInstance.destroy).not.toHaveBeenCalled();
+  });
+
+  it("stops the tracks and drops the instance when the VAD fails to start with a stream in hand", async () => {
+    const { MicVAD } = await import("@ricky0123/vad-web");
+    mockMicVadInstance.start.mockRejectedValueOnce(new Error("worklet failed"));
+    const stt = createSttVad({ config: () => CONFIG, onVoiceSegment: vi.fn() });
+
+    await expect(stt.start()).rejects.toThrow("Voice init failed: worklet failed");
+    expect(track.stop).toHaveBeenCalled();
     expect(mockMicVadInstance.destroy).toHaveBeenCalledOnce();
 
     await stt.start();
@@ -323,22 +346,99 @@ describe("createSttVad — start() failure handling", () => {
   });
 
   it("a failed destroy of the dropped instance does not mask the start error", async () => {
-    failCapture(new DOMException("denied", "NotAllowedError"));
+    mockMicVadInstance.start.mockRejectedValueOnce(new Error("worklet failed"));
     mockMicVadInstance.destroy.mockRejectedValueOnce(new Error("null stream"));
     const stt = createSttVad({ config: () => CONFIG, onVoiceSegment: vi.fn() });
 
-    await expect(stt.start()).rejects.toThrow("mic_denied");
+    await expect(stt.start()).rejects.toThrow("Voice init failed: worklet failed");
   });
 
-  it("does not retain a VAD instance after a failed load (next start() retries)", async () => {
+  it("retries a failed model load on the next start", async () => {
     const { MicVAD } = await import("@ricky0123/vad-web");
-    await failLoad(new DOMException("denied", "NotAllowedError"));
+    await failLoad(new Error("onnx wasm load error"));
     const stt = createSttVad({ config: () => CONFIG, onVoiceSegment: vi.fn() });
 
     await startError(stt);
     await stt.start();
 
     expect(MicVAD.new).toHaveBeenCalledTimes(2);
+  });
+});
+
+describe("createSttVad — stream ownership", () => {
+  it("acquires the mic with the VAD's constraints and hands the stream to getStream", async () => {
+    mockMicVadInstance.start.mockImplementationOnce(async () => {
+      expect(await (capturedOptions.getStream as () => Promise<unknown>)()).toBe(stream);
+    });
+    const stt = createSttVad({ config: () => CONFIG, onVoiceSegment: vi.fn() });
+
+    await stt.start();
+
+    expect(getUserMedia).toHaveBeenCalledWith({
+      audio: {
+        channelCount: 1,
+        echoCancellation: true,
+        autoGainControl: true,
+        noiseSuppression: true,
+      },
+    });
+    expect(mockMicVadInstance.start).toHaveBeenCalledOnce();
+  });
+
+  it("hands a fresh stream to resumeStream on a resume", async () => {
+    const stt = createSttVad({ config: () => CONFIG, onVoiceSegment: vi.fn() });
+    await stt.start();
+    stt.stop();
+    const second = { getTracks: () => [track] };
+    getUserMedia.mockResolvedValueOnce(second);
+    mockMicVadInstance.start.mockImplementationOnce(async () => {
+      expect(await (capturedOptions.resumeStream as () => Promise<unknown>)()).toBe(second);
+    });
+
+    await stt.start();
+
+    expect(getUserMedia).toHaveBeenCalledTimes(2);
+  });
+
+  it("does not ask for the mic again while capture runs", async () => {
+    const stt = createSttVad({ config: () => CONFIG, onVoiceSegment: vi.fn() });
+    await stt.start();
+    await stt.start();
+
+    expect(getUserMedia).toHaveBeenCalledTimes(1);
+  });
+
+  it("stops the acquired tracks and starts nothing when stop() lands during the prompt", async () => {
+    let grant!: (s: typeof stream) => void;
+    getUserMedia.mockImplementationOnce(
+      () =>
+        new Promise((r) => {
+          grant = r;
+        }),
+    );
+    const stt = createSttVad({ config: () => CONFIG, onVoiceSegment: vi.fn() });
+    const started = stt.start();
+    await vi.waitFor(() => expect(getUserMedia).toHaveBeenCalled());
+
+    stt.stop();
+    grant(stream);
+    await started;
+
+    expect(track.stop).toHaveBeenCalled();
+    expect(mockMicVadInstance.start).not.toHaveBeenCalled();
+  });
+
+  it("dispose() of an instance that never started does not reject, whatever destroy does", async () => {
+    mockMicVadInstance.destroy.mockRejectedValueOnce(new Error("null stream"));
+    const { resolve } = await deferMicVadLoad();
+    const stt = createSttVad({ config: () => CONFIG, onVoiceSegment: vi.fn() });
+    const started = stt.start();
+    stt.stop();
+    resolve();
+    await started;
+
+    await expect(stt.dispose()).resolves.toBeUndefined();
+    expect(mockMicVadInstance.start).not.toHaveBeenCalled();
   });
 });
 
