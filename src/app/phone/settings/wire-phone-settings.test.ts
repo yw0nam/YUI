@@ -5,6 +5,7 @@
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { EndpointsConfig } from "../../../contract";
+import { createStageBackground } from "../../../io/assets/stage/stage-background";
 import { createVrmSelection } from "../../../io/assets/vrm-selection";
 import type { PushSocket } from "../../../io/chat/push-socket";
 import {
@@ -53,18 +54,30 @@ describe("createPhoneSettings", () => {
       available: [{ id: "shino", label: "Shino", url: "/vrms/shino.vrm", source: "bundled" }],
       defaultValue: "/vrms/shino.vrm",
     });
+    const stageBackground = createStageBackground();
+    const importStageImage = vi.fn(async () => {});
     const phoneSettings = createPhoneSettings({
       mount,
       stores,
       vrm: { vrmSelection, swapVrm: async () => {}, importVrm: async () => {} },
       removeUserVrm: async () => {},
+      stageBackground,
+      importStageImage,
       conversation: createConversationStores(),
       pushSocket,
       stopTurn: () => {},
       getEndpoints: () => ENDPOINTS,
       config,
     });
-    return { stores, unsubscribeState, mount, phoneSettings, vrmSelection };
+    return {
+      stores,
+      unsubscribeState,
+      mount,
+      phoneSettings,
+      vrmSelection,
+      stageBackground,
+      importStageImage,
+    };
   }
 
   it("dispose commits dirty input and removes the push-state subscription", () => {
@@ -117,6 +130,25 @@ describe("createPhoneSettings", () => {
     expect(stores.cameraSettings.get().zoom).toBe(CAMERA_ZOOM_DEFAULT);
     expect(stores.cameraSettings.get().azimuth).toBe(CAMERA_AZIMUTH_DEFAULT);
     expect(stores.cameraSettings.get().polar).toBe(CAMERA_POLAR_DEFAULT);
+    phoneSettings.dispose();
+  });
+
+  it("the General tab drives the stage, the import and the bubble switch", () => {
+    const { stores, mount, phoneSettings, stageBackground, importStageImage } = setup({
+      get() {
+        throw new Error("config not loaded");
+      },
+    });
+    stageBackground.setImage({ id: "beach.jpg", path: "/data/stage/beach.jpg" });
+    phoneSettings.open("general");
+
+    expect(mount.querySelector<HTMLElement>("#yui-panel-general")!.hidden).toBe(false);
+    mount.querySelector<HTMLButtonElement>('.yui-seg__btn[data-mode="default"]')!.click();
+    expect(stageBackground.get().mode).toBe("default");
+    mount.querySelector<HTMLButtonElement>(".yui-stage-choose")!.click();
+    expect(importStageImage).toHaveBeenCalledTimes(1);
+    mount.querySelector<HTMLButtonElement>(".yui-bubble-persist-switch")!.click();
+    expect(stores.bubblePersistSettings.get().enabled).toBe(true);
     phoneSettings.dispose();
   });
 });
