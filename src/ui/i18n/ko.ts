@@ -49,6 +49,8 @@ const ko: Record<string, string> = {
   // phone top-row openers
   "phone.open_history": "대화 기록",
   "phone.open_settings": "설정",
+  "phone.voice.start_aria": "음성 입력 켜기",
+  "phone.voice.stop_aria": "음성 입력 끄기",
   "phone.general.stage_section": "무대",
   "phone.general.bubble_section": "말풍선",
   "phone.general.stage_aria": "무대 배경",

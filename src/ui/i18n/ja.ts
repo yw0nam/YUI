@@ -49,6 +49,8 @@ const ja: Record<string, string> = {
   // phone top-row openers
   "phone.open_history": "会話履歴",
   "phone.open_settings": "設定",
+  "phone.voice.start_aria": "音声入力を開始",
+  "phone.voice.stop_aria": "音声入力を停止",
   "phone.general.stage_section": "ステージ",
   "phone.general.bubble_section": "吹き出し",
   "phone.general.stage_aria": "ステージの背景",

@@ -656,15 +656,28 @@
   display: none;
 }
 
-/* send/stop button — fixed size so the form doesn't reflow on icon swap */
+/* send/stop/mic button — fixed size so the form doesn't reflow on icon swap */
 .yui-input__send {
   margin-right: 0.1rem;
 }
 .yui-input__send .icon-send {
   display: block;
 }
-.yui-input__send .icon-stop {
+.yui-input__send .icon-stop,
+.yui-input__send .icon-mic {
   display: none;
+}
+
+/* mic: the empty composer's action while the host offers voice input; live while it listens */
+.yui-input__send[data-mode="mic"] .icon-send {
+  display: none;
+}
+.yui-input__send[data-mode="mic"] .icon-mic {
+  display: block;
+}
+.yui-input__send.is-live {
+  color: var(--yui-accent);
+  background: var(--yui-accent-faint);
 }
 
 /* running/stop: icon swap + always amber */

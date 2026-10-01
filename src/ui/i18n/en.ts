@@ -50,6 +50,8 @@ const en: Record<string, string> = {
   // phone top-row openers
   "phone.open_history": "Conversation history",
   "phone.open_settings": "Settings",
+  "phone.voice.start_aria": "Start voice input",
+  "phone.voice.stop_aria": "Stop voice input",
   "phone.general.stage_section": "Stage",
   "phone.general.bubble_section": "Speech bubble",
   "phone.general.stage_aria": "Stage background",
