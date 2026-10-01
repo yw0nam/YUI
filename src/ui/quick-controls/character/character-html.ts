@@ -83,7 +83,7 @@ const viewpointHtml = (variant: CharacterVariant): string =>
   variant === "phone"
     ? `
         <div class="yui-sec">
-          ${secHeadHtml(t("viewpoint.section"))}
+          ${secHeadHtml(t("viewpoint.view_section"))}
           <div class="yui-group">
             <div class="yui-row">
               <div class="yui-row__main">

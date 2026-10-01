@@ -279,6 +279,7 @@ const ja: Record<string, string> = {
   "viewpoint.section": "視点",
   "viewpoint.sub": "Shift + ドラッグで回転、スクロールでズーム",
   "viewpoint.reset": "正面に戻す",
+  "viewpoint.view_section": "表示",
   "viewpoint.reset_view_label": "視点をリセット",
   "viewpoint.reset_view_sub": "回転とズームを初期状態に戻します。",
   "viewpoint.reset_view_button": "リセット",

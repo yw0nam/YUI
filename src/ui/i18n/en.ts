@@ -278,6 +278,7 @@ const en: Record<string, string> = {
   "viewpoint.section": "Viewpoint",
   "viewpoint.sub": "Shift + drag to orbit, scroll to zoom",
   "viewpoint.reset": "Reset to front",
+  "viewpoint.view_section": "View",
   "viewpoint.reset_view_label": "Reset view",
   "viewpoint.reset_view_sub": "Restores rotation and zoom.",
   "viewpoint.reset_view_button": "Reset",
