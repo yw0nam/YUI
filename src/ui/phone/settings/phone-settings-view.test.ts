@@ -40,8 +40,8 @@ describe("createPhoneSettingsView", () => {
     expect(view.isOpen()).toBe(true);
     expect(titleOf(view)).toBe(t("tabs.conn"));
     expect(view.el.querySelector("#yui-tab-conn")!.getAttribute("aria-selected")).toBe("true");
-    expect(view.el.querySelector("#yui-panel-conn")!.hidden).toBe(false);
-    expect(view.el.querySelector("#yui-panel-hist")!.hidden).toBe(true);
+    expect(view.el.querySelector<HTMLElement>("#yui-panel-conn")!.hidden).toBe(false);
+    expect(view.el.querySelector<HTMLElement>("#yui-panel-hist")!.hidden).toBe(true);
     // Both tabs render fresh content on open.
     expect(connection.refresh).toHaveBeenCalledTimes(1);
     expect(history.refresh).toHaveBeenCalledTimes(1);
@@ -59,7 +59,7 @@ describe("createPhoneSettingsView", () => {
     view.open("hist");
 
     expect(titleOf(view)).toBe(t("tabs.hist"));
-    expect(view.el.querySelector("#yui-panel-hist")!.hidden).toBe(false);
+    expect(view.el.querySelector<HTMLElement>("#yui-panel-hist")!.hidden).toBe(false);
 
     view.dispose();
   });
@@ -71,8 +71,8 @@ describe("createPhoneSettingsView", () => {
     view.el.querySelector<HTMLButtonElement>("#yui-tab-hist")!.click();
 
     expect(titleOf(view)).toBe(t("tabs.hist"));
-    expect(view.el.querySelector("#yui-panel-conn")!.hidden).toBe(true);
-    expect(view.el.querySelector("#yui-panel-hist")!.hidden).toBe(false);
+    expect(view.el.querySelector<HTMLElement>("#yui-panel-conn")!.hidden).toBe(true);
+    expect(view.el.querySelector<HTMLElement>("#yui-panel-hist")!.hidden).toBe(false);
 
     view.dispose();
   });

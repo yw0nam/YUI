@@ -1,0 +1,130 @@
+/* Phone settings/history view — the full-screen sheet over stage and top row (tokens in ../tokens.css).
+   The rows and fields are the shared panel markup (quick-controls.css, controls.css); only the
+   sheet's layout and the touch-sized rail live here. */
+
+.yui-phone-settings {
+  position: absolute;
+  left: 0;
+  right: 0;
+  /* Follow the visual viewport like .yui-phone, so the body scrolls above the soft keyboard. */
+  top: var(--yui-visual-viewport-top, 0px);
+  height: var(--yui-visual-viewport-height, 100%);
+  z-index: 5;
+  box-sizing: border-box;
+  /* The absolute child does not inherit the root's safe-area padding — carry the same values. */
+  padding-top: env(safe-area-inset-top);
+  padding-bottom: env(safe-area-inset-bottom);
+  background: var(--yui-panel-bg);
+  display: flex;
+  flex-direction: column;
+}
+
+.yui-phone-settings__head {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  height: 56px;
+  padding: 0 8px;
+}
+
+.yui-phone-settings__back {
+  width: var(--yui-touch);
+  height: var(--yui-touch);
+  flex: none;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--yui-text-dim);
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.yui-phone-settings__back:active {
+  background: var(--yui-accent-faint);
+  color: var(--yui-accent);
+}
+
+.yui-phone-settings__back svg {
+  width: 22px;
+  height: 22px;
+}
+
+.yui-phone-settings__title {
+  margin: 0;
+  font-size: var(--yui-fs-title);
+  font-weight: 600;
+  letter-spacing: -0.015em;
+}
+
+.yui-phone-settings__body {
+  flex: 1;
+  display: flex;
+  min-height: 0;
+}
+
+/* Icon rail — 3.5rem wide, 48px tab buttons (the shared .yui-tab is text-sized for the desktop). */
+.yui-phone-settings__rail {
+  width: 3.5rem;
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 4px;
+}
+
+.yui-phone-settings .yui-tab {
+  width: var(--yui-touch);
+  height: var(--yui-touch);
+  justify-content: center;
+  padding: 0;
+  border-radius: var(--yui-radius-control);
+}
+
+.yui-phone-settings .yui-tab svg {
+  width: 22px;
+  height: 22px;
+}
+
+.yui-phone-settings .yui-tab:active {
+  background: var(--yui-accent-faint);
+}
+
+.yui-phone-settings .yui-tab[aria-selected="true"] {
+  background: var(--yui-selected);
+  color: var(--yui-text);
+}
+
+/* The scrolling tab body. */
+.yui-phone-settings__tabs {
+  flex: 1;
+  min-width: 0;
+  overflow-y: auto;
+  padding: 4px 16px 24px 8px;
+}
+
+.yui-phone-settings__panel:focus-visible {
+  outline: none;
+}
+
+/* Rows stack per the phone mock: label and sub above a full-width field. */
+.yui-phone-settings .yui-input-row {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0.375rem;
+}
+
+.yui-phone-settings .yui-row > .yui-input-wrap,
+.yui-phone-settings .yui-row > .yui-select {
+  flex: 1 1 auto;
+}
+
+/* Touch-sized key rows: the reveal/clear buttons grow to the shared touch target. */
+.yui-phone-settings .yui-chatkey__toggle,
+.yui-phone-settings .yui-chatkey__clear {
+  width: var(--yui-touch);
+  height: var(--yui-touch);
+}
