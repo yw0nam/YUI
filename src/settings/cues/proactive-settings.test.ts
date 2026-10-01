@@ -190,7 +190,7 @@ describe("createProactiveSettings — malformed storage", () => {
 describe("createProactiveSettings — locale", () => {
   it("switches untouched seeded entries to the new locale", () => {
     const store = createProactiveSettings({ storage: fakeStorage(null), locale: "ko" });
-    store.syncLocale("ko", "en");
+    store.syncLocale("en");
     expect(store.get().entries[0].label).toBe("Quick break");
     expect(store.get().entries[0].context).toContain("fresh air");
   });
@@ -200,14 +200,14 @@ describe("createProactiveSettings — locale", () => {
       storage: fakeStorage(JSON.parse(JSON.stringify(defaultSettings("ko")))),
       locale: "ko",
     });
-    store.syncLocale("ko", "en");
+    store.syncLocale("en");
     expect(store.get().entries[0].label).toBe("Quick break");
   });
 
   it("keeps edited entries when the locale changes", () => {
     const store = createProactiveSettings({ storage: fakeStorage(null), locale: "ko" });
     store.updateCue("short_break", { label: "My break" });
-    store.syncLocale("ko", "en");
+    store.syncLocale("en");
     expect(store.get().entries[0].label).toBe("My break");
   });
 
@@ -215,7 +215,7 @@ describe("createProactiveSettings — locale", () => {
     const store = createProactiveSettings({ storage: fakeStorage(null), locale: "ko" });
     const second = store.get().entries[1]!;
     store.updateCue(second.id, { enabled: false });
-    store.syncLocale("ko", "en");
+    store.syncLocale("en");
     const english = createProactiveSettings({ storage: fakeStorage(null), locale: "en" });
 
     expect(store.get().entries[0]!.context).toBe(english.get().entries[0]!.context);

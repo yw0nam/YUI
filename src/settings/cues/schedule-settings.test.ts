@@ -15,6 +15,7 @@
 import { describe, expect, it, vi } from "vitest";
 import {
   createScheduleSettings,
+  defaultSettings,
   type ScheduleSettings,
   type ScheduleStorage,
 } from "./schedule-settings";
@@ -198,15 +199,24 @@ describe("createScheduleSettings — malformed storage", () => {
 describe("createScheduleSettings — locale", () => {
   it("switches untouched seeded entries to the new locale", () => {
     const store = createScheduleSettings({ storage: fakeStorage(null), locale: "ko" });
-    store.syncLocale("ko", "en");
+    store.syncLocale("en");
     expect(store.get().entries[0].label).toBe("Morning");
     expect(store.get().entries[0].context).toContain("morning greeting");
+  });
+
+  it("reseeds stored entries seeded in a locale other than the previous one", () => {
+    const store = createScheduleSettings({
+      storage: fakeStorage(JSON.parse(JSON.stringify(defaultSettings("ko")))),
+      locale: "en",
+    });
+    store.syncLocale("ja");
+    expect(store.get().entries).toEqual(defaultSettings("ja").entries);
   });
 
   it("keeps edited entries when the locale changes", () => {
     const store = createScheduleSettings({ storage: fakeStorage(null), locale: "ko" });
     store.updateCue("morning", { label: "My morning" });
-    store.syncLocale("ko", "en");
+    store.syncLocale("en");
     expect(store.get().entries[0].label).toBe("My morning");
   });
 
@@ -214,7 +224,7 @@ describe("createScheduleSettings — locale", () => {
     const store = createScheduleSettings({ storage: fakeStorage(null), locale: "ko" });
     const second = store.get().entries[1]!;
     store.updateCue(second.id, { enabled: false });
-    store.syncLocale("ko", "en");
+    store.syncLocale("en");
     const english = createScheduleSettings({ storage: fakeStorage(null), locale: "en" });
 
     expect(store.get().entries[0]!.context).toBe(english.get().entries[0]!.context);
