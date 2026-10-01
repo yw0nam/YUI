@@ -84,21 +84,16 @@ export function createCueListSettings<C extends Cue>(cfg: CueListConfig<C>) {
   return {
     get: core.get,
 
-    syncLocale(previous: CueListSettings<C>, next: CueListSettings<C>): void {
+    /** Replaces each cue that still equals a seed cue of any locale with `next`'s cue of that id. */
+    syncLocale(seeds: CueListSettings<C>[], next: CueListSettings<C>): void {
       const current = core.current();
       const nextById = new Map(next.entries.map((cue) => [cue.id, cue]));
-      const previousById = new Map(previous.entries.map((cue) => [cue.id, cue]));
-      let changed = false;
+      const seedJson = new Set(seeds.flatMap((s) => s.entries.map((cue) => JSON.stringify(cue))));
       const entries = current.entries.map((cue) => {
-        const previousCue = previousById.get(cue.id);
         const nextCue = nextById.get(cue.id);
-        if (previousCue && nextCue && JSON.stringify(cue) === JSON.stringify(previousCue)) {
-          changed = true;
-          return structuredClone(nextCue);
-        }
-        return cue;
+        return nextCue && seedJson.has(JSON.stringify(cue)) ? structuredClone(nextCue) : cue;
       });
-      if (changed) core.commit({ ...current, entries });
+      core.commit({ ...current, entries });
     },
 
     setEnabled(enabled: boolean): void {

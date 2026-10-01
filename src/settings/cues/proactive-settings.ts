@@ -38,8 +38,11 @@ export function createProactiveSettings(opts?: { storage?: ProactiveStorage; loc
   });
   return {
     ...store,
-    syncLocale(previous: CueLocale, next: CueLocale): void {
-      store.syncLocale(defaultSettings(previous), defaultSettings(next));
+    syncLocale(next: CueLocale): void {
+      store.syncLocale(
+        (Object.keys(PROACTIVE_CUE_SEEDS) as CueLocale[]).map(defaultSettings),
+        defaultSettings(next),
+      );
     },
   };
 }
