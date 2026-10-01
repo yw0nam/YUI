@@ -52,7 +52,7 @@ Otherwise collect what the user has. Every URL starts with `http://` or `https:/
 | TTS URL, model, speaker, key | `tts_base_url` without `/v1` (`http://localhost:8088`), `tts_model`, `tts_speaker`, `.env.local` → `VITE_YUI_TTS_KEY` |
 | STT URL, model, key | `stt_base_url` with `/v1` (`http://localhost:5517/v1`), `stt_model`, `.env.local` → `VITE_YUI_STT_KEY` |
 
-Create `.env.local` with `cp -n .env.example .env.local` and set only the keys the user gave. Merge the answered keys into `configs/endpoints.json` and leave the rest out; an unset URL keeps that feature off. `pnpm tauri dev` reloads `configs/` on change; a change to `.env.local` needs a restart.
+Create `.env.local` with `cp -n .env.example .env.local` and set only the keys the user gave. The `VITE_YUI_*_KEY` values in it apply to dev runs only; a release build carries no key and reads the keys entered in the Connection tab. Merge the answered keys into `configs/endpoints.json` and leave the rest out; an unset URL keeps that feature off. `pnpm tauri dev` reloads `configs/` on change; a change to `.env.local` needs a restart.
 
 Done when this exits 0 and every value the user gave is in place:
 
