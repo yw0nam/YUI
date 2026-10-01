@@ -168,13 +168,11 @@ export function createDelegationChip({
       clearRefreshTimer();
       closeList();
       chipBtn.removeAttribute("aria-expanded");
-      chipBtn.dataset.action = "settings";
       labelEl.textContent = t("deleg.chip_lost");
       countEl.textContent = "";
       show();
       return;
     }
-    delete chipBtn.dataset.action;
     if (!chipBtn.hasAttribute("aria-expanded")) {
       chipBtn.setAttribute("aria-expanded", String(listOpen));
     }

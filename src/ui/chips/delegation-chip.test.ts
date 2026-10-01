@@ -491,7 +491,6 @@ describe("createDelegationChip", () => {
       chipButton().click();
 
       expect(onOpenSettings).toHaveBeenCalledTimes(1);
-      expect(chipButton().dataset.action).toBe("settings");
       expect(listEl().hidden).toBe(true);
     });
 

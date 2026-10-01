@@ -58,11 +58,13 @@ describe("watchPageVisibility", () => {
     const off = visibility.subscribe(() => removed.push(visibility.get()));
 
     off();
-    visibility.dispose();
     doc.hide();
-
-    expect(seen).toEqual([]);
     expect(removed).toEqual([]);
-    expect(visibility.get()).toBe(true);
+    expect(seen).toEqual([true]);
+
+    visibility.dispose();
+    doc.show();
+    expect(seen).toEqual([true]);
+    expect(visibility.get()).toBe(false);
   });
 });

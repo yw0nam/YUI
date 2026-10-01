@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 /**
  * character-tab.test.ts — the extracted Character tab: the phone rows render and bind only the
- * VRM list and the view reset; the desktop rows add the gain slider, whose preview ends on close.
+ * VRM list and the view reset; the desktop rows add the gain slider.
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { setLocale, t } from "../../i18n";
