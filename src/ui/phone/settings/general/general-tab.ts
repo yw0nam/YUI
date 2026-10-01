@@ -6,8 +6,8 @@
 import type { StageBackgroundStore } from "../../../../io/assets/stage/stage-background";
 import type { Logger } from "../../../../logger";
 import type { FlagSettingsStore } from "../../../../settings/persisted-store";
-import { createBubbleSection } from "./bubble-section";
-import { createStageSection } from "./stage-section";
+import { createBubbleSection } from "./bubble/bubble-section";
+import { createStageSection } from "./stage/stage-section";
 
 export interface GeneralTab {
   el: HTMLElement;

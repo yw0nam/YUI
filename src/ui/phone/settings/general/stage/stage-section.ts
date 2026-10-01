@@ -4,13 +4,16 @@
  * after the tab is gone only cleans up.
  */
 
-import type { StageBackgroundStore, StageMode } from "../../../../io/assets/stage/stage-background";
-import type { Logger } from "../../../../logger";
-import { t } from "../../../i18n";
-import { secHeadHtml } from "../../../quick-controls/markup";
-import "../../../quick-controls/sections/user-asset-list.css";
-import { handleSegmentKeydown } from "../../../quick-controls/seg-keyboard";
-import "./general-tab.css";
+import type {
+  StageBackgroundStore,
+  StageMode,
+} from "../../../../../io/assets/stage/stage-background";
+import type { Logger } from "../../../../../logger";
+import { t } from "../../../../i18n";
+import { secHeadHtml } from "../../../../quick-controls/markup";
+import "../../../../quick-controls/sections/user-asset-list.css";
+import { handleSegmentKeydown } from "../../../../quick-controls/seg-keyboard";
+import "./stage-section.css";
 
 const MODES: readonly StageMode[] = ["default", "image"];
 

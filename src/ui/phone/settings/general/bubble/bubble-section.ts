@@ -1,11 +1,11 @@
 /** General tab, Speech bubble section: the keep-until-dismissed switch over its store. */
 
-import type { Logger } from "../../../../logger";
-import type { FlagSettingsStore } from "../../../../settings/persisted-store";
-import { t } from "../../../i18n";
-import { secHeadHtml } from "../../../quick-controls/markup";
-import { createBubblePersistRow } from "../../../quick-controls/switch-row";
-import { bindSwitchRows, switchRowHtml } from "../../../quick-controls/switches/switch-rows";
+import type { Logger } from "../../../../../logger";
+import type { FlagSettingsStore } from "../../../../../settings/persisted-store";
+import { t } from "../../../../i18n";
+import { secHeadHtml } from "../../../../quick-controls/markup";
+import { createBubblePersistRow } from "../../../../quick-controls/switch-row";
+import { bindSwitchRows, switchRowHtml } from "../../../../quick-controls/switches/switch-rows";
 
 export function createBubbleSection(deps: {
   bubblePersistSettings: FlagSettingsStore;
