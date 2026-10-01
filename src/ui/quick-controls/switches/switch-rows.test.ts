@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createFlagSettings } from "../../../settings/persisted-store";
-import { setLocale } from "../../i18n";
+import { setLocale, t } from "../../i18n";
 import { createBubblePersistRow } from "../switch-row";
 import { bindSwitchRows, reflectSwitchRows, switchRowHtml } from "./switch-rows";
 
@@ -28,7 +28,7 @@ describe("switch rows", () => {
 
   it("the bubble row needs only its store and renders its label, sub and aria state", () => {
     const { root, button } = mount(createFlagSettings(true));
-    expect(root.querySelector(".yui-row__label")?.textContent).toBe("Keep until dismissed");
+    expect(root.querySelector(".yui-row__label")?.textContent).toBe(t("bubble_persist.label"));
     expect(root.querySelector(".yui-row__sub")).not.toBeNull();
     expect(button.getAttribute("role")).toBe("switch");
     expect(button.getAttribute("aria-checked")).toBe("true");

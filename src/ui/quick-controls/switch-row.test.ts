@@ -6,8 +6,8 @@ import { createMessageWindowSettings } from "../../settings/panels/message-windo
 import { createFlagSettings } from "../../settings/persisted-store";
 import { createFillerSettings } from "../../settings/voice/filler-settings";
 import { createVadSettings } from "../../settings/voice/vad-settings";
-import { reflectSwitchRows } from "./reflect";
 import { createSwitchRows, type SwitchRow } from "./switch-row";
+import { reflectSwitchRows } from "./switches/switch-rows";
 import { buildPanelHtml } from "./template";
 
 function makeSwitchRows(): SwitchRow[] {

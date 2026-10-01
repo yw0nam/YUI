@@ -72,7 +72,8 @@ import { createSpeakerList, speakerPickerHtml } from "./sections/speaker-list";
 import { createWorkflowsSection } from "./sections/workflows-section";
 import { handleSegmentKeydown } from "./seg-keyboard";
 import { bindSlider } from "./slider-binding";
-import { createSwitchRows, type SwitchRow } from "./switch-row";
+import { createSwitchRows } from "./switch-row";
+import { bindSwitchRows } from "./switches/switch-rows";
 import { createTabRail } from "./tabs/tab-rail";
 import { buildPanelHtml } from "./template";
 
@@ -588,13 +589,6 @@ export function createQuickControls({
     }
   }
 
-  function handleToggleClick(spec: SwitchRow): void {
-    if (!spec.isAvailable) return;
-    const next = !spec.getEnabled();
-    spec.setEnabled(next);
-    if (spec.logKey) log.info(spec.logKey, { enabled: next });
-  }
-
   // ── Thinking filler event handlers ──
 
   // Parse textarea rows line-by-line (trim + remove empty lines).
@@ -814,13 +808,7 @@ export function createQuickControls({
   const unsubscribeDelegations = delegations?.subscribe(() => syncDelegations());
 
   switchBtn.addEventListener("click", handleSwitchClick);
-  const toggleButtons = TOGGLE_SPECS.map((spec) =>
-    el.querySelector<HTMLButtonElement>(spec.selector),
-  );
-  const toggleClickHandlers = TOGGLE_SPECS.map((spec) => () => handleToggleClick(spec));
-  toggleButtons.forEach((button, i) => {
-    button?.addEventListener("click", toggleClickHandlers[i]);
-  });
+  const switchRows = bindSwitchRows(el, TOGGLE_SPECS, log);
   fillerLangSegEl?.addEventListener("click", handleFillerLangClick);
   fillerLangSegEl?.addEventListener("keydown", handleFillerLangKeydown);
   fillerFirstTextareaEl?.addEventListener("input", handleFillerTextareaInput);
@@ -871,9 +859,7 @@ export function createQuickControls({
     speakerList.dispose();
     popover.dispose();
     switchBtn.removeEventListener("click", handleSwitchClick);
-    toggleButtons.forEach((button, i) => {
-      button?.removeEventListener("click", toggleClickHandlers[i]);
-    });
+    switchRows.dispose();
     fillerLangSegEl?.removeEventListener("click", handleFillerLangClick);
     fillerLangSegEl?.removeEventListener("keydown", handleFillerLangKeydown);
     fillerFirstTextareaEl?.removeEventListener("input", handleFillerTextareaInput);

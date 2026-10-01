@@ -20,6 +20,7 @@ import {
 } from "./constants";
 import { escapeAttr, secHeadHtml } from "./markup";
 import type { SwitchRow } from "./switch-row";
+import { switchButtonHtml, switchRowHtml } from "./switches/switch-rows";
 import { tabButtonHtml, tabPanelOpenHtml } from "./tabs/tab-rail";
 
 /**
@@ -66,20 +67,6 @@ export function buildPanelHtml(o: PanelHtmlOptions): string {
     showHistory,
   } = o;
   const visibleSwitchRows = switchRows.filter((row) => row.isVisible);
-
-  function switchButtonHtml(row: SwitchRow): string {
-    return `<button class="yui-switch ${row.selector.slice(1)}" type="button" role="switch" aria-checked="${String(row.initialEnabled)}" aria-label="${t(row.ariaKey)}"></button>`;
-  }
-
-  function switchRowHtml(row: SwitchRow): string {
-    const label = `<span class="yui-row__label">${row.labelIcon ?? ""}${t(row.labelKey)}</span>`;
-    const sub = row.subKey ? `<span class="yui-row__sub">${t(row.subKey)}</span>` : "";
-    return `
-          <div class="yui-row">
-            <div class="yui-row__main">${label}${sub}</div>
-            ${switchButtonHtml(row)}
-          </div>`;
-  }
 
   function switchRowsHtml(tab: SwitchRow["tab"], position?: SwitchRow["position"]): string {
     return visibleSwitchRows

@@ -43,6 +43,24 @@ interface SwitchRowOptions {
   screenKnobSettings?: ScreenKnobSettingsStore;
 }
 
+/** The speech bubble's keep-until-dismissed row; the phone's General tab renders it on its own. */
+export function createBubblePersistRow(bubblePersistSettings?: FlagSettingsStore): SwitchRow {
+  return {
+    selector: ".yui-bubble-persist-switch",
+    labelKey: "bubble_persist.label",
+    subKey: "bubble_persist.sub",
+    ariaKey: "bubble_persist.aria",
+    tab: "input",
+    position: "after-vad",
+    isVisible: !!bubblePersistSettings,
+    isAvailable: !!bubblePersistSettings,
+    initialEnabled: bubblePersistSettings?.get().enabled ?? false,
+    getEnabled: () => bubblePersistSettings!.get().enabled,
+    setEnabled: (v) => bubblePersistSettings!.setEnabled(v),
+    logKey: "bubble_persist_toggle",
+  };
+}
+
 export function createSwitchRows({
   idleThrottleSettings,
   ttsSettings,
@@ -118,20 +136,7 @@ export function createSwitchRows({
       setEnabled: (v) => vad.setBargeIn(v),
       logKey: "bargein_toggle",
     },
-    {
-      selector: ".yui-bubble-persist-switch",
-      labelKey: "bubble_persist.label",
-      subKey: "bubble_persist.sub",
-      ariaKey: "bubble_persist.aria",
-      tab: "input",
-      position: "after-vad",
-      isVisible: !!bubblePersistSettings,
-      isAvailable: !!bubblePersistSettings,
-      initialEnabled: bubblePersistSettings?.get().enabled ?? false,
-      getEnabled: () => bubblePersistSettings!.get().enabled,
-      setEnabled: (v) => bubblePersistSettings!.setEnabled(v),
-      logKey: "bubble_persist_toggle",
-    },
+    createBubblePersistRow(bubblePersistSettings),
     {
       selector: ".yui-message-window-switch",
       labelKey: "message_window.label",

@@ -39,6 +39,7 @@ import {
 } from "./constants";
 import { serializeToolLines } from "./sections/filler-tool-lines";
 import type { SwitchRow } from "./switch-row";
+import { reflectSwitchRows } from "./switches/switch-rows";
 
 // Format token count as "18.2K" / "18K" / "200K". Below 1000 stays as-is,
 // below 100K shows one decimal (dropping .0), 100K+ shows integer.
@@ -47,15 +48,6 @@ function formatTokenCount(n: number): string {
   const k = n / 1000;
   if (k >= 100) return `${Math.round(k)}K`;
   return `${k.toFixed(1).replace(/\.0$/, "")}K`;
-}
-
-export function reflectSwitchRows(root: HTMLElement, switchRows: readonly SwitchRow[]): void {
-  for (const row of switchRows) {
-    if (!row.isVisible || !row.isAvailable) continue;
-    root
-      .querySelector<HTMLButtonElement>(row.selector)
-      ?.setAttribute("aria-checked", String(row.getEnabled()));
-  }
 }
 
 interface ReflectDeps {
