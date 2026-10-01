@@ -58,27 +58,27 @@ describe("namespace + prefix formatting", () => {
 
 describe("resolveLevel — pure function", () => {
   it("DEV:true → 'debug'", () => {
-    expect(resolveLevel({ DEV: true })).toBe("debug");
+    expect(resolveLevel(true, undefined)).toBe("debug");
   });
 
   it("DEV:false → 'warn'", () => {
-    expect(resolveLevel({ DEV: false })).toBe("warn");
+    expect(resolveLevel(false, undefined)).toBe("warn");
   });
 
-  it("DEV undefined ({}) → 'warn'", () => {
-    expect(resolveLevel({})).toBe("warn");
+  it("DEV undefined → 'warn'", () => {
+    expect(resolveLevel(undefined, undefined)).toBe("warn");
   });
 
   it("explicit override wins over DEV:true → 'error'", () => {
-    expect(resolveLevel({ DEV: true, VITE_YUI_LOG_LEVEL: "error" })).toBe("error");
+    expect(resolveLevel(true, "error")).toBe("error");
   });
 
   it("explicit override wins over DEV:false → 'debug'", () => {
-    expect(resolveLevel({ DEV: false, VITE_YUI_LOG_LEVEL: "debug" })).toBe("debug");
+    expect(resolveLevel(false, "debug")).toBe("debug");
   });
 
   it("invalid override ignored → falls back to DEV-based default ('debug')", () => {
-    expect(resolveLevel({ DEV: true, VITE_YUI_LOG_LEVEL: "bogus" })).toBe("debug");
+    expect(resolveLevel(true, "bogus")).toBe("debug");
   });
 });
 

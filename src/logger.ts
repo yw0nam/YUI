@@ -15,13 +15,18 @@ function isLevel(v: unknown): v is LogLevel {
   return v === "debug" || v === "info" || v === "warn" || v === "error";
 }
 
-// dev → debug, prod → warn; VITE_YUI_LOG_LEVEL overrides when valid.
-export function resolveLevel(env: { DEV?: boolean; VITE_YUI_LOG_LEVEL?: string }): LogLevel {
-  if (isLevel(env.VITE_YUI_LOG_LEVEL)) return env.VITE_YUI_LOG_LEVEL;
-  return env.DEV ? "debug" : "warn";
+// dev → debug, prod → warn; VITE_YUI_LOG_LEVEL overrides when valid. Values are read as static
+// property accesses at the call site — passing the whole env object would inline every VITE_*
+// value (build-time keys included) into the bundle.
+export function resolveLevel(dev: boolean | undefined, level: string | undefined): LogLevel {
+  if (isLevel(level)) return level;
+  return dev ? "debug" : "warn";
 }
 
-const currentLevel: LogLevel = resolveLevel(import.meta.env);
+const currentLevel: LogLevel = resolveLevel(
+  import.meta.env.DEV,
+  import.meta.env.VITE_YUI_LOG_LEVEL,
+);
 
 // plugin-log sink, populated by initLogger() in Tauri only.
 type PluginLog = typeof import("@tauri-apps/plugin-log");
