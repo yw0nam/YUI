@@ -801,3 +801,26 @@ describe("renderClientContext — exhaustiveness", () => {
     }
   });
 });
+
+describe("renderClientContext — guide block", () => {
+  it("a turn carrying a guide key renders the matching doc after the trigger line", () => {
+    const text = renderClientContext(baseContext({ kind: "user", guide: "controls" }), NOW);
+
+    expect(text).toContain("trigger: user message\nguide:\n");
+    expect(text).toContain("The user pressed the in-app help button.");
+    expect(text).toContain("# Controls");
+    expect(text).not.toContain("# Features");
+  });
+
+  it("the capabilities key renders the feature list", () => {
+    const text = renderClientContext(baseContext({ kind: "user", guide: "capabilities" }), NOW);
+
+    expect(text).toContain("# Features");
+  });
+
+  it("a turn without a guide key renders no guide block", () => {
+    const text = renderClientContext(baseContext({ kind: "user" }), NOW);
+
+    expect(text).not.toContain("guide:");
+  });
+});

@@ -126,6 +126,44 @@ describe("backend_caller — sent history", () => {
   });
 });
 
+describe("backend_caller — guide turn", () => {
+  it("contextHistory and the turn record hold the key, never the doc body; the transcript entry keeps the key", async () => {
+    const contextHistory = { append: vi.fn() };
+    const appendTurnRecord = vi.fn();
+    const transcript = {
+      append: vi.fn(),
+      entriesAfterLastBoundary: () => [],
+      sessionToken: () => "s",
+    };
+    caller = createBackendCaller({
+      config: CONFIG,
+      renderer: { applyDirective } as never,
+      getApiKey: async () => "k",
+      getFetch: async () => undefined,
+      stream: script.stream,
+      contextHistory,
+      appendTurnRecord,
+      transcript,
+    });
+    const env = {
+      ...userEnv("YUI 조작법 알려줘"),
+      payload: { text: "YUI 조작법 알려줘", guide: "controls" },
+    };
+
+    script.events = [completedEvent({ speech_text: "hi" })];
+    await caller.call(turnOf(env));
+
+    const [, request] = script.spy.mock.calls[0];
+    expect(JSON.stringify(request)).toContain("# Controls");
+    expect(contextHistory.append.mock.calls[0][0].client_context.trigger.guide).toBe("controls");
+    expect(JSON.stringify(contextHistory.append.mock.calls)).not.toContain("# Controls");
+    expect(JSON.stringify(appendTurnRecord.mock.calls)).not.toContain("# Controls");
+    expect(transcript.append).toHaveBeenCalledWith(
+      expect.objectContaining({ role: "user", text: "YUI 조작법 알려줘", guide: "controls" }),
+    );
+  });
+});
+
 describe("backend_caller — turn record log", () => {
   it("appends one turn record per outcome, with spoke_text reflecting whether speech_text was non-empty", async () => {
     const appendTurnRecord = vi.fn();

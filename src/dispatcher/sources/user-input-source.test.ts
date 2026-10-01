@@ -124,3 +124,15 @@ describe("user_input_source — submitVoice", () => {
     expect(pushed[0].payload?.text).toBe("hello");
   });
 });
+
+describe("user_input_source — submitGuide", () => {
+  it("pushes a user.text_submitted envelope whose payload carries the text and the guide key", () => {
+    const { bus, pushed } = fakeBus();
+    createUserInputSource(bus).submitGuide("controls", "YUI 조작법 알려줘");
+
+    expect(pushed).toHaveLength(1);
+    expect(pushed[0].event_name).toBe("user.text_submitted");
+    expect(pushed[0].dnd_override).toBe(true);
+    expect(pushed[0].payload).toEqual({ text: "YUI 조작법 알려줘", guide: "controls" });
+  });
+});

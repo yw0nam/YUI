@@ -83,6 +83,18 @@ describe("createQuotedTurn", () => {
     expect(surfaces.settleQuote).not.toHaveBeenCalled();
   });
 
+  it("a guide turn that fails before any utterance clears the quote and restores nothing", () => {
+    const turn = admit({
+      ...userEnv("YUI 조작법 알려줘"),
+      payload: { text: "YUI 조작법 알려줘", guide: "controls" },
+    });
+
+    quoted.failed(turn);
+
+    expect(surfaces.clearQuote).toHaveBeenCalledTimes(1);
+    expect(surfaces.restoreInput).not.toHaveBeenCalled();
+  });
+
   it("a failure after the utterance opened settles the quote and restores nothing", () => {
     const turn = admit(userEnv("hi"));
 

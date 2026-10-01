@@ -247,6 +247,19 @@ describe("backend_caller — push transport", () => {
     expect(transcript).toEqual([{ role: "user", text: "안녕", ts: expect.any(Number) }]);
   });
 
+  it("stores the guide key on the user entry of a guide turn", async () => {
+    const env = {
+      ...userEnv("YUI 조작법 알려줘"),
+      payload: { text: "YUI 조작법 알려줘", guide: "controls" },
+    };
+
+    await callerWith(true).call(turnOf(env, 1));
+
+    expect(transcript).toEqual([
+      { role: "user", text: "YUI 조작법 알려줘", ts: expect.any(Number), guide: "controls" },
+    ]);
+  });
+
   it("writes nothing to the transcript for a turn no user spoke", async () => {
     const caller = callerWith(true);
     await caller.call(turnOf(scheduleEnv(), 2));

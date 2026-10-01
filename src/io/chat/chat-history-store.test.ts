@@ -756,3 +756,46 @@ describe("estimateTokens", () => {
     expect(estimateTokens(emoji)).toBe(Math.ceil(1 / 4));
   });
 });
+
+describe("createChatHistoryStore — guide key", () => {
+  it("keeps a valid guide key through reload and drops an invalid one", () => {
+    const storage = seeded([
+      { role: "user", text: "a", ts: 1, guide: "controls" },
+      { role: "user", text: "b", ts: 2, guide: "nope" as never },
+    ]);
+
+    const store = createChatHistoryStore({ storage });
+
+    expect(store.get()).toEqual([
+      { role: "user", text: "a", ts: 1, guide: "controls" },
+      { role: "user", text: "b", ts: 2 },
+    ]);
+  });
+
+  it("an entry that differs only in its guide key is a change", () => {
+    const saved: ChatHistoryItem[][] = [];
+    const storage: ChatHistoryStorage = {
+      load: () => [{ role: "user", text: "a", ts: 1, guide: "controls" }],
+      save: (items) => saved.push(items),
+    };
+    const store = createChatHistoryStore({ storage });
+    const seen = vi.fn();
+    store.subscribe(seen);
+
+    store.reloadFromStorage();
+    expect(seen).not.toHaveBeenCalled();
+
+    storage.load = () => [{ role: "user", text: "a", ts: 1, guide: "capabilities" }];
+    store.reloadFromStorage();
+    expect(seen).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("selectSendSuffix — guide cost", () => {
+  it("an entry that carried a guide costs the guide's tokens, so it drops out first", () => {
+    const plain = entry("user", "hi", 1);
+
+    expect(selectSendSuffix([plain], 50)).toEqual([plain]);
+    expect(selectSendSuffix([{ ...plain, guide: "controls" }], 50)).toEqual([]);
+  });
+});

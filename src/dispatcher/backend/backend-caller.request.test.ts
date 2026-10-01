@@ -8,7 +8,11 @@
 import { beforeEach, describe, expect, it, type Mock, vi } from "vitest";
 import type { EndpointsConfig, ToolStatus, Usage } from "../../contract";
 import { createReasoningStore } from "../../io/bridge/reasoning-store";
-import { type ChatHistoryEntry, createChatHistoryStore } from "../../io/chat/chat-history-store";
+import {
+  type ChatHistoryEntry,
+  type ChatHistoryItem,
+  createChatHistoryStore,
+} from "../../io/chat/chat-history-store";
 import type { Logger } from "../../logger";
 import type { BusEnvelope } from "../core/event-bus";
 import {
@@ -970,6 +974,38 @@ describe("backend_caller — Chat Completions (CC) mode request shape", () => {
     expect(msgs).toEqual(expect.arrayContaining([{ role: "user", content: "새 세션 질문" }]));
     expect(msgs.some((m) => m.content === "지난 세션 질문")).toBe(false);
     expect(msgs.some((m) => m.content === "지난 세션 답변")).toBe(false);
+  });
+
+  it("replays the guide block before the user entry that carried it, from a transcript reloaded from storage", async () => {
+    script.events = [completedEvent({ speech_text: "" }, "")];
+    let saved: ChatHistoryItem[] = [];
+    const storage = { load: () => saved, save: (items: ChatHistoryItem[]) => (saved = items) };
+    createChatHistoryStore({ storage }).append({
+      role: "user",
+      text: "YUI 조작법 알려줘",
+      ts: 1,
+      guide: "controls",
+    });
+    saved.push({ role: "user", text: "bad key", ts: 2, guide: "nope" } as never);
+    caller = createBackendCaller({
+      config: CC_CONFIG,
+      renderer: { applyDirective } as never,
+      getApiKey: async () => "k",
+      getFetch: async () => undefined,
+      stream: script.stream,
+      turnOutput,
+      transcript: createChatHistoryStore({ storage }),
+    });
+
+    await caller.call(turnOf(userEnv("이어서")));
+
+    const msgs = messagesOf(script.spy.mock.calls[0][1]);
+    const at = msgs.findIndex((m) => m.content === "YUI 조작법 알려줘");
+    expect(at).toBeGreaterThan(0);
+    expect(msgs[at - 1].role).toBe("system");
+    expect(String(msgs[at - 1].content)).toMatch(/^client_context:\nguide:\n[\s\S]*# Controls/);
+    const bad = msgs.findIndex((m) => m.content === "bad key");
+    expect(String(msgs[bad - 1].content)).not.toContain("guide:");
   });
 
   it("no transcript dep → messages still built with empty transcript (no crash)", async () => {
