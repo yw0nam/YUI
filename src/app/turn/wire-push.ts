@@ -227,7 +227,7 @@ export function createDelegationChipMount(deps: {
   mount: HTMLElement;
   store: Pick<DelegationsStore, "get" | "runningCount" | "subscribe">;
   pushState: Pick<PushSocket, "getState" | "onState">;
-  onOpenSettings?: () => void;
+  onOpenSettings: () => void;
   suppression?: { get(): boolean; subscribe(cb: () => void): () => void };
 }): { create(): void; dispose(): void } {
   let chip: ReturnType<typeof createDelegationChip> | null = null;

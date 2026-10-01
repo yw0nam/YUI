@@ -34,8 +34,8 @@ interface StatusPillOptions {
   voice: VoiceInputStatus;
   /** Opens the settings panel; without it the pill never offers the voice fix. */
   onOpenSettings?: () => void;
-  /** Hands a settings-fixable voice error to the settings panel; without it the error stays text. */
-  onFixVoice?: () => void;
+  /** Hands a settings-fixable voice error to the settings panel. */
+  onFixVoice: () => void;
   /** Makes the voice button a toggle that stops the listening; without it the button is a plain tell. */
   onToggleVoice?: () => void;
 }
@@ -118,8 +118,6 @@ export function createStatusPill({
       return;
     }
     const fixable = snapshot.state === "error" && isSettingsFixable(snapshot.detail);
-    // The fix wording names the destination; without an opener the condition is announced alone.
-    const fixOffered = fixable && onFixVoice !== undefined;
     const voiceLabel = voiceLabelOf(snapshot, fixable);
 
     if (captureBtn) {
@@ -129,7 +127,7 @@ export function createStatusPill({
 
     voiceBtn.hidden = !snapshot.visible;
     voiceBtn.dataset.voice = snapshot.state;
-    const announced = fixOffered ? t("voice.error.not_configured_fix") : voiceLabel;
+    const announced = fixable ? t("voice.error.not_configured_fix") : voiceLabel;
     voiceBtn.setAttribute("aria-label", t("aria.voice_input", { label: announced }));
 
     delete dotEl.dataset.tool;
@@ -149,7 +147,7 @@ export function createStatusPill({
     sepEl.hidden = !segment || !(captureOn || snapshot.visible);
 
     // The fix link only exists while the voice owns the segment.
-    const fixShown = fixOffered && !tool;
+    const fixShown = fixable && !tool;
     if (fixShown) el.dataset.fix = "settings";
     else delete el.dataset.fix;
     const toggleOffered = onToggleVoice !== undefined && snapshot.visible && !fixShown;
@@ -228,7 +226,7 @@ export function createStatusPill({
       onOpenSettings?.();
       return;
     }
-    if (el.dataset.fix === "settings" && onFixVoice) {
+    if (el.dataset.fix === "settings") {
       onFixVoice();
       return;
     }
