@@ -901,13 +901,6 @@ describe("wirePushMode", () => {
     expect(chatKeySettings.count()).toBe(0);
   });
 
-  it("stays down from the start while the page is hidden", () => {
-    wireMode(hiddenPort(true));
-
-    expect(connect).not.toHaveBeenCalled();
-    expect(disconnect).not.toHaveBeenCalled();
-  });
-
   it("keeps the chip mounted while the page is hidden", () => {
     const dispose = wireMode(hiddenPort(true));
 

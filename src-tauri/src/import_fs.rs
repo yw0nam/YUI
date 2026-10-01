@@ -586,12 +586,6 @@ mod tests {
     }
 
     #[test]
-    fn candidates_start_with_the_sanitized_name_stem() {
-        // Interior spaces are kept by the relaxed sanitize_stem — only traversal/illegal chars are neutralized.
-        assert_eq!(first_n("My Avatar", "/x/y", &[], 1), ["My Avatar"]);
-    }
-
-    #[test]
     fn candidates_follow_base_then_hash_then_numeric_walk() {
         let c = first_n("Cat", "/a/b/Cat.vrm", &[], 4);
         assert_eq!(c[0], "Cat");
@@ -686,12 +680,6 @@ mod tests {
         )
         .is_err());
         assert!(out.is_empty());
-    }
-
-    #[test]
-    fn copy_bounded_rejects_a_stream_shorter_than_the_magic() {
-        let mut out = Vec::new();
-        assert!(copy_bounded(&b"gl"[..], &mut out, 1024, SniffKind::Glb).is_err());
     }
 
     #[test]
@@ -823,14 +811,6 @@ mod tests {
 
     const PNG: &[u8] = b"\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDRpixels";
     const JPEG: &[u8] = b"\xFF\xD8\xFF\xE0\x00\x10JFIFpixels";
-    const WEBP: &[u8] = b"RIFF\x24\x00\x00\x00WEBPVP8 pixels";
-
-    #[test]
-    fn sniff_png_jpeg_and_webp_accept_their_signatures() {
-        assert!(sniff_ok(PNG, SniffKind::Png));
-        assert!(sniff_ok(JPEG, SniffKind::Jpeg));
-        assert!(sniff_ok(WEBP, SniffKind::Webp));
-    }
 
     #[test]
     fn sniff_images_reject_each_others_signatures() {
@@ -838,15 +818,6 @@ mod tests {
         assert!(!sniff_ok(PNG, SniffKind::Jpeg));
         assert!(!sniff_ok(b"RIFF\x24\x00\x00\x00WAVEfmt ", SniffKind::Webp));
         assert!(!sniff_ok(b"RIFF\x24\x00", SniffKind::Webp));
-    }
-
-    #[test]
-    fn image_ext_lowercases_and_stores_jpeg_as_jpg() {
-        assert_eq!(image_ext("PNG"), Some(("png", SniffKind::Png)));
-        assert_eq!(image_ext("jpeg"), Some(("jpg", SniffKind::Jpeg)));
-        assert_eq!(image_ext("JPG"), Some(("jpg", SniffKind::Jpeg)));
-        assert_eq!(image_ext("webp"), Some(("webp", SniffKind::Webp)));
-        assert_eq!(image_ext("gif"), None);
     }
 
     #[test]

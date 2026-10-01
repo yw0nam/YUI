@@ -97,12 +97,16 @@ describe("createPhoneSettingsView", () => {
     view.dispose();
   });
 
-  it("open(char) titles the view Character and the rail runs Connection, Character, History, General", () => {
+  it.each([
+    "char",
+    "hist",
+    "general",
+  ] as const)("open(%s) titles the view and shows its panel, and the rail runs Connection, Character, History, General", (tab) => {
     const { view } = build();
-    view.open("char");
+    view.open(tab);
 
-    expect(titleOf(view)).toBe(t("tabs.char"));
-    expect(view.el.querySelector<HTMLElement>("#yui-panel-char")!.hidden).toBe(false);
+    expect(titleOf(view)).toBe(t(`tabs.${tab}`));
+    expect(view.el.querySelector<HTMLElement>(`#yui-panel-${tab}`)!.hidden).toBe(false);
     expect(view.el.querySelector<HTMLElement>("#yui-panel-conn")!.hidden).toBe(true);
     const order = Array.from(view.el.querySelectorAll(".yui-tab")).map((b) => b.id);
     expect(order).toEqual(["yui-tab-conn", "yui-tab-char", "yui-tab-hist", "yui-tab-general"]);
@@ -110,33 +114,15 @@ describe("createPhoneSettingsView", () => {
     view.dispose();
   });
 
-  it("open(hist) titles the view History", () => {
-    const { view } = build();
-    view.open("hist");
-
-    expect(titleOf(view)).toBe(t("tabs.hist"));
-    expect(view.el.querySelector<HTMLElement>("#yui-panel-hist")!.hidden).toBe(false);
-
-    view.dispose();
-  });
-
-  it("open(general) titles the view General", () => {
-    const { view } = build();
-    view.open("general");
-
-    expect(titleOf(view)).toBe(t("tabs.general"));
-    expect(view.el.querySelector<HTMLElement>("#yui-panel-general")!.hidden).toBe(false);
-
-    view.dispose();
-  });
-
-  it("dispose while open commits the connection tab", () => {
-    const { connection, view } = build();
+  it("dispose while open commits the connection tab, restores the background and removes the view", () => {
+    const { mount, background, connection, view } = build();
     view.open("conn");
 
     view.dispose();
 
     expect(connection.commit).toHaveBeenCalledTimes(1);
+    expect(background.hasAttribute("inert")).toBe(false);
+    expect(mount.querySelector(".yui-phone-settings")).toBeNull();
   });
 
   it("selecting a tab on the rail moves the panel and updates the title", () => {
@@ -190,15 +176,5 @@ describe("createPhoneSettingsView", () => {
     expect(connection.commit).not.toHaveBeenCalled();
 
     view.dispose();
-  });
-
-  it("dispose() while open restores the background and removes the view", () => {
-    const { mount, background, view } = build();
-    view.open("conn");
-
-    view.dispose();
-
-    expect(background.hasAttribute("inert")).toBe(false);
-    expect(mount.querySelector(".yui-phone-settings")).toBeNull();
   });
 });

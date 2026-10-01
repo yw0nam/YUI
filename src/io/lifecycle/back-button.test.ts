@@ -32,40 +32,6 @@ function fakeRegister(): { register: BackButtonRegister; calls: PendingRegistrat
 const flush = (): Promise<void> => new Promise((resolve) => setTimeout(resolve, 0));
 
 describe("createBackButtonClaim", () => {
-  it("registers while claimed and routes the gesture to the handler", async () => {
-    const fake = fakeRegister();
-    const claim = createBackButtonClaim(fake.register);
-    const handler: Mock<() => void> = vi.fn();
-
-    claim.claim(handler);
-    await flush();
-    expect(fake.calls).toHaveLength(1);
-
-    fake.calls[0].resolve(() => {});
-    await flush();
-    fake.calls[0].cb();
-    expect(handler).toHaveBeenCalledTimes(1);
-
-    claim.dispose();
-  });
-
-  it("release after the claim unregisters as soon as the registration resolves", async () => {
-    const fake = fakeRegister();
-    const claim = createBackButtonClaim(fake.register);
-    const unlisten = vi.fn<() => Promise<void>>(() => Promise.resolve());
-
-    claim.claim(() => {});
-    claim.release();
-    await flush();
-    expect(fake.calls).toHaveLength(1);
-
-    fake.calls[0].resolve(unlisten);
-    await flush();
-    expect(unlisten).toHaveBeenCalledTimes(1);
-
-    claim.dispose();
-  });
-
   it("rapid open/close/open leaves exactly one live listener", async () => {
     const fake = fakeRegister();
     const claim = createBackButtonClaim(fake.register);

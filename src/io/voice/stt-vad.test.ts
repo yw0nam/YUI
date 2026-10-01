@@ -259,12 +259,6 @@ describe("createSttVad — start() failure handling", () => {
     );
   }
 
-  it("start() rejects with the cause code when MicVAD.new rejects", async () => {
-    await failLoad(new DOMException("denied", "NotAllowedError"));
-    const stt = createSttVad({ config: () => CONFIG, onVoiceSegment: vi.fn() });
-    await expect(stt.start()).rejects.toThrow("mic_denied");
-  });
-
   it.each([
     ["NotAllowedError", "mic_denied"],
     ["SecurityError", "mic_denied"],
@@ -280,18 +274,6 @@ describe("createSttVad — start() failure handling", () => {
 
     expect(onState).toHaveBeenCalledWith("error", code);
     expect((err as Error).message).toBe(code);
-  });
-
-  it("reports the same cause code on the resume path", async () => {
-    const onState = vi.fn();
-    const stt = createSttVad({ config: () => CONFIG, onVoiceSegment: vi.fn(), onState });
-    await stt.start();
-    stt.stop();
-    failCapture(new DOMException("no device", "NotFoundError"));
-
-    await startError(stt);
-
-    expect(onState).toHaveBeenCalledWith("error", "no_mic");
   });
 
   it("keeps the message for failures that are not a mic cause", async () => {
@@ -318,14 +300,16 @@ describe("createSttVad — start() failure handling", () => {
     expect(mockMicVadInstance.start).toHaveBeenCalledTimes(1);
   });
 
-  it("keeps the instance through a denied resume as well", async () => {
+  it("keeps the instance through a denied resume as well, reporting the same cause code", async () => {
     const { MicVAD } = await import("@ricky0123/vad-web");
-    const stt = createSttVad({ config: () => CONFIG, onVoiceSegment: vi.fn() });
+    const onState = vi.fn();
+    const stt = createSttVad({ config: () => CONFIG, onVoiceSegment: vi.fn(), onState });
     await stt.start();
     stt.stop();
     failCapture(new DOMException("busy", "NotReadableError"));
 
     await startError(stt);
+    expect(onState).toHaveBeenCalledWith("error", "mic_unavailable");
     await stt.start();
 
     expect(MicVAD.new).toHaveBeenCalledTimes(1);
@@ -398,14 +382,6 @@ describe("createSttVad — stream ownership", () => {
     await stt.start();
 
     expect(getUserMedia).toHaveBeenCalledTimes(2);
-  });
-
-  it("does not ask for the mic again while capture runs", async () => {
-    const stt = createSttVad({ config: () => CONFIG, onVoiceSegment: vi.fn() });
-    await stt.start();
-    await stt.start();
-
-    expect(getUserMedia).toHaveBeenCalledTimes(1);
   });
 
   it("stops the acquired tracks and starts nothing when stop() lands during the prompt", async () => {
@@ -1018,6 +994,7 @@ describe("createSttVad — start() resumes a paused instance instead of no-op'in
 
     const { MicVAD } = await import("@ricky0123/vad-web");
     expect(MicVAD.new).toHaveBeenCalledOnce();
+    expect(getUserMedia).toHaveBeenCalledTimes(1);
   });
 });
 

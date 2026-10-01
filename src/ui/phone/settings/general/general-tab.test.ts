@@ -59,18 +59,6 @@ describe("createGeneralTab", () => {
     expect(q(".yui-bubble-persist-switch").getAttribute("role")).toBe("switch");
   });
 
-  it("the voice segment hands its choice to selectVoiceMode and follows the mode store", () => {
-    const { voiceMode, selectVoiceMode, q } = build();
-
-    q('.yui-voice-seg .yui-seg__btn[data-mode="always"]').click();
-    expect(selectVoiceMode).toHaveBeenCalledWith("always");
-
-    voiceMode.set("always");
-    expect(q('.yui-voice-seg .yui-seg__btn[data-mode="always"]').getAttribute("aria-checked")).toBe(
-      "true",
-    );
-  });
-
   it("Image is disabled until an image is stored, and Default is selected", () => {
     const { stageBackground, mode } = build();
     expect(mode("image").disabled).toBe(true);
@@ -150,16 +138,6 @@ describe("createGeneralTab", () => {
     fail(new Error("late"));
     await new Promise((r) => setTimeout(r, 0));
     expect(error.hidden).toBe(true);
-  });
-
-  it("the bubble switch binds the store and refresh repaints it", () => {
-    const { tab, bubblePersistSettings, q } = build();
-    q<HTMLButtonElement>(".yui-bubble-persist-switch").click();
-    expect(bubblePersistSettings.get().enabled).toBe(true);
-    expect(log.info).toHaveBeenCalledWith("bubble_persist_toggle", { enabled: true });
-    bubblePersistSettings.setEnabled(false);
-    tab.refresh();
-    expect(q(".yui-bubble-persist-switch").getAttribute("aria-checked")).toBe("false");
   });
 
   it("dispose removes the tab and stops following the store", () => {

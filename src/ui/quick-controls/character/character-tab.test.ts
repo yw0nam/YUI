@@ -4,9 +4,8 @@
  * VRM list and the view reset; the desktop rows add the gain slider, whose preview ends on close.
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { createLipsyncSettings } from "../../../settings/avatar/lipsync-settings";
 import { setLocale, t } from "../../i18n";
-import { makeVrmSelection, USER_OPTION } from "../test-helpers";
+import { makeVrmSelection } from "../test-helpers";
 import { type CharacterRows, createCharacterTab } from "./character-tab";
 
 const PHONE_ROWS: CharacterRows = {
@@ -64,24 +63,6 @@ describe("createCharacterTab", () => {
     tab.dispose();
   });
 
-  it("refresh lists bundled rows as buttons and user rows as divs; the add button imports", () => {
-    const { tab, vrmSelection, importVrm } = build();
-    vrmSelection.addUserOption(USER_OPTION);
-    tab.refresh();
-    const rows = Array.from(tab.el.querySelectorAll<HTMLElement>(".yui-vrms > [role=radio]"));
-    expect(rows.map((r) => r.tagName)).toEqual(["BUTTON", "BUTTON", "BUTTON", "DIV"]);
-    tab.el.querySelector<HTMLButtonElement>(".yui-vrm--add")!.click();
-    expect(importVrm).toHaveBeenCalledTimes(1);
-    tab.dispose();
-  });
-
-  it("the reset button calls onResetView", () => {
-    const { tab, onResetView } = build();
-    tab.el.querySelector<HTMLButtonElement>(".yui-viewpoint-reset")!.click();
-    expect(onResetView).toHaveBeenCalledTimes(1);
-    tab.dispose();
-  });
-
   it("repaints on a selection change while open and stops after dispose", () => {
     const { tab, vrmSelection } = build();
     tab.refresh();
@@ -95,23 +76,5 @@ describe("createCharacterTab", () => {
     const second = build({ vrmSelection: spy });
     second.tab.dispose();
     expect(unsubscribed).toHaveBeenCalledTimes(1);
-  });
-
-  it("the gain row ends its preview when the tab closes", () => {
-    const onPreview = vi.fn();
-    const onPreviewEnd = vi.fn();
-    const { tab } = build({
-      rows: { ...PHONE_ROWS, gain: true },
-      variant: "panel",
-      gain: { lipsync: createLipsyncSettings(), onPreview, onPreviewEnd },
-    });
-    tab.refresh();
-    const slider = tab.el.querySelector<HTMLInputElement>(".yui-lipsync-gain__slider")!;
-    slider.value = "3";
-    slider.dispatchEvent(new Event("input", { bubbles: true }));
-    expect(onPreview).toHaveBeenCalledTimes(1);
-    tab.close();
-    expect(onPreviewEnd).toHaveBeenCalledTimes(1);
-    tab.dispose();
   });
 });

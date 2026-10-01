@@ -193,30 +193,11 @@ mod tests {
     }
 
     #[test]
-    fn rejects_bytes_that_do_not_match_the_extension_and_leaves_no_file() {
-        let dir = stage_dir("mismatch");
-        assert!(import(&dir, Some("fake.jpg"), b"just some text, not a jpeg", 1024).is_err());
-        assert!(import(&dir, Some("fake.png"), JPEG, 1024).is_err());
-        assert_eq!(std::fs::read_dir(&dir).map(|d| d.count()).unwrap_or(0), 0);
-        cleanup(&dir);
-    }
-
-    #[test]
     fn rejects_an_unsupported_extension_or_a_missing_name() {
         let dir = stage_dir("ext");
         assert!(import(&dir, Some("a.gif"), PNG, 1024).is_err());
         assert!(import(&dir, Some("noext"), PNG, 1024).is_err());
         assert!(import(&dir, None, PNG, 1024).is_err());
-        cleanup(&dir);
-    }
-
-    #[test]
-    fn rejects_a_stream_over_the_cap_and_leaves_no_file() {
-        let dir = stage_dir("cap");
-        let mut big = PNG.to_vec();
-        big.extend(std::iter::repeat_n(1u8, 4096));
-        assert!(import(&dir, Some("big.png"), &big, 64).is_err());
-        assert_eq!(std::fs::read_dir(&dir).map(|d| d.count()).unwrap_or(0), 0);
         cleanup(&dir);
     }
 

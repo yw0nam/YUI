@@ -27,21 +27,13 @@ function fakeSocket(initial: PushSocketState) {
 }
 
 describe("bindPlateConnection", () => {
-  it("applies the state read before subscribing", () => {
+  it("applies the state read before subscribing, then maps connecting and reconnecting to reconnecting, failed to failed, the rest to up", () => {
     const socket = fakeSocket({ kind: "reconnecting", delay_ms: 4000 });
     const plate = { setConnection: vi.fn() };
-
     bindPlateConnection(plate, socket);
-
     expect(plate.setConnection).toHaveBeenCalledTimes(1);
     expect(plate.setConnection).toHaveBeenCalledWith("reconnecting");
     expect(socket.listenerCount()).toBe(1);
-  });
-
-  it("maps connecting and reconnecting to reconnecting, failed to failed, the rest to up", () => {
-    const socket = fakeSocket({ kind: "disconnected" });
-    const plate = { setConnection: vi.fn() };
-    bindPlateConnection(plate, socket);
 
     socket.set({ kind: "connecting" });
     socket.set({ kind: "reconnecting", delay_ms: 1000 });
@@ -50,7 +42,7 @@ describe("bindPlateConnection", () => {
     socket.set({ kind: "disconnected" });
 
     expect(plate.setConnection.mock.calls).toEqual([
-      ["up"],
+      ["reconnecting"],
       ["reconnecting"],
       ["reconnecting"],
       ["failed"],

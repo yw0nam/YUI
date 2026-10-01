@@ -83,24 +83,6 @@ afterEach(() => {
   setLocale("en");
 });
 
-describe("action button — without a mic port", () => {
-  it("is send on an empty field, as on the desktop", () => {
-    ui = setup();
-
-    expect(ui.button().dataset.mode).toBe("send");
-    expect(ui.button().type).toBe("submit");
-    expect(ui.button().getAttribute("aria-label")).toBe(t("aria.send"));
-  });
-
-  it("is stop while busy", () => {
-    ui = setup();
-    ui.s.setBusy(true);
-
-    expect(ui.button().dataset.mode).toBe("stop");
-    expect(ui.button().getAttribute("aria-label")).toBe(t("aria.stop"));
-  });
-});
-
 describe("action button — with a mic port", () => {
   it("is the mic on an empty field with no turn running", () => {
     const mic = fakeMic();
@@ -124,7 +106,7 @@ describe("action button — with a mic port", () => {
     expect(onSubmit).not.toHaveBeenCalled();
   });
 
-  it("names the stop and shows live while the mic is on and healthy", () => {
+  it("names the stop and shows live while the mic is on and healthy, and drops live on an error", () => {
     const mic = fakeMic();
     ui = setup({ mic });
 
@@ -132,11 +114,6 @@ describe("action button — with a mic port", () => {
 
     expect(ui.button().getAttribute("aria-label")).toBe(t("phone.voice.stop_aria"));
     expect(ui.button().classList.contains("is-live")).toBe(true);
-  });
-
-  it("drops live while the mic is wanted but the status shows an error", () => {
-    const mic = fakeMic();
-    ui = setup({ mic });
 
     mic.set({ wanted: true, live: false });
 

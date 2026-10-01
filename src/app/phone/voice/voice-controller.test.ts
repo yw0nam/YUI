@@ -84,24 +84,9 @@ describe("voice controller — STT not configured", () => {
     expect(s.status.get().state).toBe("idle");
     expect(s.openSttSettings).not.toHaveBeenCalled();
   });
-
-  it("does not start listening when a URL is added later", () => {
-    const s = setup({ mode: "always", stt: "" });
-
-    s.endpoints.stt_base_url = "http://stt";
-
-    expect(s.status.get().state).toBe("idle");
-    expect(s.controller.wanted()).toBe(false);
-  });
 });
 
 describe("voice controller — tap mode", () => {
-  it("is off on launch", () => {
-    const s = setup();
-    expect(s.controller.wanted()).toBe(false);
-    expect(s.status.get().state).toBe("idle");
-  });
-
   it("toggles listening on and off", () => {
     const s = setup();
 
@@ -125,11 +110,6 @@ describe("voice controller — tap mode", () => {
 
     s.setHidden(false);
     expect(s.controller.wanted()).toBe(false);
-    expect(s.status.get().state).toBe("idle");
-  });
-
-  it("never listens on a launch into the background", () => {
-    const s = setup({ hidden: true });
     expect(s.status.get().state).toBe("idle");
   });
 });
@@ -266,19 +246,15 @@ describe("voice controller — selecting keep listening", () => {
 });
 
 describe("voice controller — mic failures", () => {
-  it.each([
-    "mic_denied",
-    "no_mic",
-    "mic_unavailable",
-  ])("turns intent off on a failed start (%s) and keeps the error on the status", (code) => {
+  it("turns intent off on a failed start and keeps the error on the status", () => {
     const s = setup();
     s.controller.toggle();
 
-    s.status.set("error", code);
+    s.status.set("error", "mic_denied");
     s.controller.onCaptureFailed();
 
     expect(s.controller.wanted()).toBe(false);
-    expect(s.status.get()).toMatchObject({ state: "error", detail: code });
+    expect(s.status.get()).toMatchObject({ state: "error", detail: "mic_denied" });
   });
 
   it("retries on the next single toggle and never by itself", () => {

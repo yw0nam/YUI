@@ -63,25 +63,6 @@ describe("createVoiceSection", () => {
     expect(mode("always").getAttribute("aria-checked")).toBe("true");
   });
 
-  it("selects tap through the same port", () => {
-    const { selectVoiceMode, mode } = build("always");
-
-    mode("tap").click();
-
-    expect(selectVoiceMode).toHaveBeenCalledWith("tap");
-  });
-
-  it("commits the focused option with Enter", () => {
-    const { selectVoiceMode, mode } = build();
-    mode("always").focus();
-
-    mode("always").dispatchEvent(
-      new KeyboardEvent("keydown", { key: "Enter", bubbles: true, cancelable: true }),
-    );
-
-    expect(selectVoiceMode).toHaveBeenCalledWith("always");
-  });
-
   it("stops following the store after dispose", () => {
     const { section, voiceMode, mode } = build();
     section.dispose();

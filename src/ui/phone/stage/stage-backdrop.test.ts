@@ -29,15 +29,11 @@ describe("createStageBackdrop", () => {
     vi.clearAllMocks();
   });
 
-  it("the default stage carries neither the class nor the property", async () => {
-    const { root } = setup();
+  it("an image sets the class and the property once it decodes, and Default clears both", async () => {
+    const { root, store } = setup();
     await flush();
     expect(root.classList.contains("has-stage-image")).toBe(false);
     expect(root.style.getPropertyValue("--yui-stage-image")).toBe("");
-  });
-
-  it("an image sets the class and the property once it decodes, and Default clears both", async () => {
-    const { root, store } = setup();
     store.setImage(IMAGE);
     await flush();
     expect(root.classList.contains("has-stage-image")).toBe(true);

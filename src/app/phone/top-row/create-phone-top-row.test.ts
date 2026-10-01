@@ -75,22 +75,14 @@ describe("createPhoneTopRow — openers", () => {
     return { mount, onOpenView, onFixVoice, onToggleVoice, voice, row };
   }
 
-  it("renders the history and settings icon buttons with their labels", () => {
-    const { mount, row } = build();
-
-    const buttons = Array.from(mount.querySelectorAll<HTMLButtonElement>(".yui-phone__open"));
-    expect(buttons.map((b) => b.getAttribute("aria-label"))).toEqual([
-      t("phone.open_history"),
-      t("phone.open_settings"),
-    ]);
-
-    row.dispose();
-  });
-
   it("the history button opens the view on History, the settings button on Connection", () => {
     const { mount, onOpenView, row } = build();
 
     const [historyBtn, settingsBtn] = mount.querySelectorAll<HTMLButtonElement>(".yui-phone__open");
+    expect([historyBtn, settingsBtn].map((b) => b!.getAttribute("aria-label"))).toEqual([
+      t("phone.open_history"),
+      t("phone.open_settings"),
+    ]);
     historyBtn!.click();
     settingsBtn!.click();
 
@@ -99,25 +91,19 @@ describe("createPhoneTopRow — openers", () => {
     row.dispose();
   });
 
-  it("the pill's voice button toggles the voice while it listens", () => {
-    const { mount, voice, onToggleVoice, row } = build();
+  it("the pill's voice button toggles the voice while it listens, and its setup-needed fix goes to the voice fix port", () => {
+    const { mount, voice, onFixVoice, onToggleVoice, row } = build();
     voice.set("listening");
 
     mount.querySelector<HTMLButtonElement>(".yui-status__voice")!.click();
 
     expect(onToggleVoice).toHaveBeenCalledTimes(1);
-    row.dispose();
-  });
 
-  it("the pill's setup-needed fix goes to the voice fix port and leaves the status alone", () => {
-    const { mount, voice, onFixVoice, onToggleVoice, row } = build();
     voice.set("error", "not_configured");
-
     mount.querySelector<HTMLElement>(".yui-status")!.click();
 
     expect(onFixVoice).toHaveBeenCalledTimes(1);
-    expect(onToggleVoice).not.toHaveBeenCalled();
-    expect(voice.get().state).toBe("error");
+    expect(onToggleVoice).toHaveBeenCalledTimes(1);
     row.dispose();
   });
 

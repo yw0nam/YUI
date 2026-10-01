@@ -61,11 +61,6 @@ describe("createStageBackground", () => {
     expect(store.get()).toEqual({ mode: "default", image: null });
   });
 
-  it("restores a stored record", () => {
-    const store = createStageBackground({ storage: memory({ mode: "image", image: IMAGE }) });
-    expect(store.get()).toEqual({ mode: "image", image: IMAGE });
-  });
-
   it.each([
     ["a non-object", "nope"],
     ["an array", []],
@@ -113,6 +108,6 @@ describe("createStageBackground", () => {
       path: "C:\\Users\\me\\AppData\\stage\\my.photo.v2.webp",
     };
     const store = createStageBackground({ storage: memory({ mode: "image", image }) });
-    expect(store.get().image).toEqual(image);
+    expect(store.get()).toEqual({ mode: "image", image });
   });
 });

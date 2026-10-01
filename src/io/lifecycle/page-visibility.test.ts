@@ -49,28 +49,20 @@ describe("watchPageVisibility", () => {
     expect(visibility.get()).toBe(false);
   });
 
-  it("stops notifying a disposed subscriber", () => {
-    const doc = fakeDocument("visible");
-    const visibility = watchPageVisibility(doc);
-    const seen: boolean[] = [];
-    const off = visibility.subscribe(() => seen.push(visibility.get()));
-
-    off();
-    doc.hide();
-
-    expect(seen).toEqual([]);
-    expect(visibility.get()).toBe(true);
-  });
-
   it("detaches the document listener on dispose", () => {
     const doc = fakeDocument("visible");
     const visibility = watchPageVisibility(doc);
     const seen: boolean[] = [];
+    const removed: boolean[] = [];
     visibility.subscribe(() => seen.push(visibility.get()));
+    const off = visibility.subscribe(() => removed.push(visibility.get()));
 
+    off();
     visibility.dispose();
     doc.hide();
 
     expect(seen).toEqual([]);
+    expect(removed).toEqual([]);
+    expect(visibility.get()).toBe(true);
   });
 });

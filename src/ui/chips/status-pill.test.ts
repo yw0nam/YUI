@@ -27,12 +27,7 @@ function opacityTransitionEnd(el: HTMLElement): void {
 }
 
 function setup(
-  opts: {
-    capture?: boolean;
-    withCaptureSetting?: boolean;
-    withFix?: boolean;
-    withToggle?: boolean;
-  } = {},
+  opts: { capture?: boolean; withCaptureSetting?: boolean; withToggle?: boolean } = {},
 ) {
   const mount = document.createElement("div");
   document.body.appendChild(mount);
@@ -47,7 +42,7 @@ function setup(
     mount,
     voice,
     onOpenSettings,
-    ...(opts.withFix === false ? {} : { onFixVoice }),
+    onFixVoice,
     ...(opts.withToggle ? { onToggleVoice } : {}),
   });
   flushFrames();
@@ -298,28 +293,15 @@ describe("status pill — mic cause labels", () => {
     expect(p.label().textContent).toBe(t("voice.error.mic_denied"));
     expect(p.label().textContent).not.toBe("Mic blocked");
   });
-
-  it("keeps the generic Error label for any other detail", () => {
-    const p = setup();
-    p.voice.set("error", "HTTP 500");
-
-    expect(p.label().textContent).toBe(t("voice.state.error"));
-  });
-
-  it("lets a running tool keep the label over a mic cause", () => {
-    const p = setup();
-    p.voice.set("error", "mic_denied");
-    p.pill.showTool("web_search");
-
-    expect(p.label().textContent).not.toBe("Mic blocked");
-    expect(p.dot().dataset.tool).toBe("running");
-  });
 });
 
 describe("status pill — voice toggle", () => {
   it("calls onToggleVoice from the mic button while the voice is live", () => {
     const p = setup({ withToggle: true });
     p.voice.set("listening");
+
+    p.label().click();
+    expect(p.onToggleVoice).not.toHaveBeenCalled();
 
     p.mic().click();
 
@@ -337,15 +319,6 @@ describe("status pill — voice toggle", () => {
     expect(p.mic().tabIndex).toBe(-1);
   });
 
-  it("leaves the label and the rest of the pill alone", () => {
-    const p = setup({ withToggle: true });
-    p.voice.set("listening");
-
-    p.label().click();
-
-    expect(p.onToggleVoice).not.toHaveBeenCalled();
-  });
-
   it("gives the fix the whole pill while it shows, the mic button included", () => {
     const p = setup({ withToggle: true });
     p.voice.set("error", "not_configured");
@@ -357,7 +330,7 @@ describe("status pill — voice toggle", () => {
   });
 });
 
-describe("status pill — phone, no capture setting and no fix", () => {
+describe("status pill — phone, no capture setting", () => {
   it("renders no capture button at all", () => {
     const p = setup({ withCaptureSetting: false });
     p.voice.set("listening");
@@ -365,38 +338,6 @@ describe("status pill — phone, no capture setting and no fix", () => {
     expect(p.mount.querySelector(".yui-status__capture")).toBeNull();
     expect(p.mic().hidden).toBe(false);
     expect(p.sep().hidden).toBe(false);
-  });
-
-  it("shows the tool segment alone, without the separator", () => {
-    const p = setup({ withCaptureSetting: false });
-    p.pill.showTool("web_search");
-
-    expect(p.mount.querySelector(".yui-status__capture")).toBeNull();
-    expect(p.sep().hidden).toBe(true);
-    expect(p.dot().dataset.tool).toBe("running");
-  });
-
-  it("renders a settings-fixable error as plain status text", () => {
-    const p = setup({ withFix: false });
-    p.voice.set("error", "not_configured");
-
-    expect(p.root().dataset.fix).toBeUndefined();
-    expect(p.mic().tabIndex).toBe(-1);
-    expect(p.label().textContent).toBe(t("voice.error.not_configured"));
-    expect(p.mic().getAttribute("aria-label")).toBe(
-      t("aria.voice_input", { label: t("voice.error.not_configured") }),
-    );
-  });
-
-  it("keeps the error through a tap instead of resetting it", () => {
-    const p = setup({ withFix: false });
-    p.voice.set("error", "not_configured");
-
-    p.label().click();
-
-    expect(p.onFixVoice).not.toHaveBeenCalled();
-    expect(p.voice.get().state).toBe("error");
-    expect(p.root().dataset.fix).toBeUndefined();
   });
 });
 

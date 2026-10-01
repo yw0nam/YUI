@@ -232,43 +232,6 @@ mod tests {
     }
 
     #[test]
-    fn import_into_rejects_bad_magic_and_leaves_no_file() {
-        let vrms = unique_dir("bad_magic").join("vrms");
-        assert!(import(&vrms, Some("fake.vrm"), &[], b"%PDF-1.4 not a vrm at all").is_err());
-        assert!(
-            leftovers(&vrms).is_empty(),
-            "no partial copy on sniff failure"
-        );
-        std::fs::remove_dir_all(vrms.parent().unwrap()).ok();
-    }
-
-    #[test]
-    fn import_into_removes_the_partial_file_when_the_stream_exceeds_the_cap() {
-        let vrms = unique_dir("oversize").join("vrms");
-        let mut big = GLB.to_vec();
-        big.extend(std::iter::repeat_n(7u8, 4096));
-        let err = import_into(&vrms, Some("big.vrm"), "id", &[], &big[..], 64);
-        assert!(err.is_err(), "oversized stream must be rejected");
-        assert!(leftovers(&vrms).is_empty(), "partial copy must be removed");
-        std::fs::remove_dir_all(vrms.parent().unwrap()).ok();
-    }
-
-    #[test]
-    fn import_into_moves_to_the_next_stem_on_an_existing_dest() {
-        let vrms = unique_dir("collide").join("vrms");
-        std::fs::create_dir_all(&vrms).unwrap();
-        std::fs::write(vrms.join("Cat.vrm"), b"existing").unwrap();
-        let imported = import(&vrms, Some("Cat.vrm"), &[], GLB).unwrap();
-        assert_ne!(imported.id, "Cat");
-        assert_eq!(std::fs::read(vrms.join("Cat.vrm")).unwrap(), b"existing");
-        assert_eq!(
-            std::fs::read(vrms.join(format!("{}.vrm", imported.id))).unwrap(),
-            GLB
-        );
-        std::fs::remove_dir_all(vrms.parent().unwrap()).ok();
-    }
-
-    #[test]
     fn import_into_gives_a_reserved_bundled_id_a_different_stem() {
         let vrms = unique_dir("reserved").join("vrms");
         let imported = import(

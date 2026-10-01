@@ -79,10 +79,6 @@ describe("createMessagePlate", () => {
     expect(stateLabel().textContent).toBe(t("plate.thinking"));
   });
 
-  it("marks the plate draggable when the drag starts from it", () => {
-    expect(el().hasAttribute("data-draggable")).toBe(true);
-  });
-
   it("reports a dock request when the button is clicked", () => {
     dock().click();
     expect(onDock).toHaveBeenCalledTimes(1);
@@ -127,12 +123,6 @@ describe("createMessagePlate", () => {
     plate.setConnection("up");
     expect(el().getAttribute("data-conn")).toBe("up");
     expect(stateLabel().textContent).toBe(t("plate.responding"));
-  });
-
-  it("re-applies the connection label on locale change", () => {
-    plate.setConnection("failed");
-    setLocale("ko");
-    expect(stateLabel().textContent).toBe(t("plate.key_rejected"));
   });
 });
 

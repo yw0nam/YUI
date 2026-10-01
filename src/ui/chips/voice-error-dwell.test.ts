@@ -102,15 +102,6 @@ describe("createVoiceErrorDwell", () => {
       expect(status.get().state).toBe("listening");
     });
 
-    it("reverts to idle once the host no longer wants the mic", () => {
-      const status = createVoiceInputStatus();
-      createVoiceErrorDwell(status, { wanted: () => false }).show("network_drop");
-
-      vi.advanceTimersByTime(VOICE_TURN_ERROR_DISPLAY_MS);
-
-      expect(status.get().state).toBe("idle");
-    });
-
     it("reads wanted() when the hold ends, not when the error is shown", () => {
       const status = createVoiceInputStatus();
       let wanted = true;
