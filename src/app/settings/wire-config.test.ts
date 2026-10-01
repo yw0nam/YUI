@@ -40,6 +40,7 @@ function emptyStores() {
 const emptyEndpointOverrides = {
   chat_base_url: "",
   stt_base_url: "",
+  stt_model: "",
   tts_base_url: "",
   broker_base_url: "",
   chat_model: "",

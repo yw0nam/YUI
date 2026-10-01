@@ -330,6 +330,7 @@ const ja: Record<string, string> = {
   "endpoints.url_error": "正しい URL ではありません (http:// または https://)",
   "endpoints.chat_base_url.label": "チャットサーバー URL",
   "endpoints.stt_base_url.label": "音声認識 (STT) サーバー URL",
+  "endpoints.stt_model.label": "STTモデル",
   "endpoints.tts_base_url.label": "音声合成 (TTS) サーバー URL",
   "endpoints.broker_base_url.label": "表現ブローカー URL",
   "endpoints.chat_model.label": "チャットモデル",

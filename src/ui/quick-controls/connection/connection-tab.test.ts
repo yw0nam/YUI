@@ -13,7 +13,11 @@ import { createChatKeySettings } from "../../../settings/backend/chat-key-settin
 import { createEndpointsSettings } from "../../../settings/backend/endpoints-settings";
 import { setLocale } from "../../i18n";
 import { inMemoryApiKeyStorage } from "../test-helpers";
-import { createConnectionTab, type ConnectionRows, type PushSocketPanelPort } from "./connection-tab";
+import {
+  type ConnectionRows,
+  createConnectionTab,
+  type PushSocketPanelPort,
+} from "./connection-tab";
 
 const DESKTOP_ROWS: ConnectionRows = { chat: "full", stt: true, tts: "full", broker: true };
 const PHONE_ROWS: ConnectionRows = { chat: "push", stt: true, tts: "url-key", broker: false };
@@ -98,7 +102,9 @@ describe("createConnectionTab", () => {
   });
 
   it("shows the push status line on the phone rows", () => {
-    const tab = build(PHONE_ROWS, { pushSocket: fakeSocket({ kind: "ready", chat_id: "yui-7731" }) });
+    const tab = build(PHONE_ROWS, {
+      pushSocket: fakeSocket({ kind: "ready", chat_id: "yui-7731" }),
+    });
     tab.refresh();
 
     const status = tab.el.querySelector<HTMLElement>(".yui-chat-status")!;

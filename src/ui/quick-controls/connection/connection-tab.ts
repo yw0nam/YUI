@@ -139,13 +139,23 @@ function chatSectionHtml(rows: ConnectionRows): string {
         </section>`;
 }
 
-function sttSectionHtml(): string {
+function sttSectionHtml(rows: ConnectionRows): string {
+  // The disabled type row names the protocol; the desktop rows render it, the phone drops it.
+  const typeRow =
+    rows.chat === "full"
+      ? selectRowHtml(
+          "yui-svc-stt-type",
+          "svc.type_label",
+          `<select class="yui-select yui-select--single" id="yui-svc-stt-type" disabled><option>${t("svc.stt_type")}</option></select>`,
+        )
+      : "";
   return `
         <section class="yui-sec yui-endpoints yui-svc" data-svc="stt">
           ${secHeadHtml(t("svc.stt"), `<span class="yui-endpoints__hint">${t("svc.stt_hint")}</span>`)}
           <div class="yui-group">
-            ${selectRowHtml("yui-svc-stt-type", "svc.type_label", `<select class="yui-select yui-select--single" id="yui-svc-stt-type" disabled><option>${t("svc.stt_type")}</option></select>`)}
+            ${typeRow}
             ${endpointRowHtml("stt_base_url")}
+            ${endpointRowHtml("stt_model")}
             ${keyRowHtml("sttkey", "sttkey")}
             ${svcResetRowHtml("stt")}
           </div>
@@ -154,11 +164,19 @@ function sttSectionHtml(): string {
 
 function ttsSectionHtml(rows: ConnectionRows): string {
   const full = rows.tts === "full";
+  // The disabled type row names the protocol; the desktop rows render it, the phone drops it.
+  const typeRow = full
+    ? selectRowHtml(
+        "yui-svc-tts-type",
+        "svc.type_label",
+        `<select class="yui-select yui-select--single" id="yui-svc-tts-type" disabled><option>${t("svc.tts_type")}</option></select>`,
+      )
+    : "";
   return `
         <section class="yui-sec yui-endpoints yui-svc" data-svc="tts">
           ${secHeadHtml(t("svc.tts"), `<span class="yui-endpoints__hint">${t("svc.tts_hint")}</span>`)}
           <div class="yui-group">
-            ${full ? selectRowHtml("yui-svc-tts-type", "svc.type_label", `<select class="yui-select yui-select--single" id="yui-svc-tts-type" disabled><option>${t("svc.tts_type")}</option></select>`) : ""}
+            ${typeRow}
             ${endpointRowHtml("tts_base_url")}
             ${keyRowHtml("ttskey", "ttskey")}
             ${svcResetRowHtml("tts")}
@@ -214,7 +232,7 @@ export function createConnectionTab(deps: {
   } = deps;
 
   const el = document.createElement("div");
-  el.innerHTML = `${chatSectionHtml(rows)}${rows.stt ? sttSectionHtml() : ""}${ttsSectionHtml(rows)}${rows.broker ? brokerSectionHtml() : ""}`;
+  el.innerHTML = `${chatSectionHtml(rows)}${rows.stt ? sttSectionHtml(rows) : ""}${ttsSectionHtml(rows)}${rows.broker ? brokerSectionHtml() : ""}`;
   if (ttsExtra) {
     el.querySelector<HTMLElement>('.yui-svc[data-svc="tts"]')!.append(ttsExtra);
   }

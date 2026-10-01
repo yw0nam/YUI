@@ -328,6 +328,7 @@ const ko: Record<string, string> = {
   "endpoints.url_error": "올바른 URL이 아니에요 (http:// 또는 https://)",
   "endpoints.chat_base_url.label": "채팅 서버 URL",
   "endpoints.stt_base_url.label": "음성 인식(STT) 서버 URL",
+  "endpoints.stt_model.label": "STT 모델",
   "endpoints.tts_base_url.label": "음성 합성(TTS) 서버 URL",
   "endpoints.broker_base_url.label": "표현 브로커(Broker) URL",
   "endpoints.chat_model.label": "채팅 모델",

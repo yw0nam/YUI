@@ -388,6 +388,7 @@ describe("createEffectiveEndpoints", () => {
   const overrides = (patch: Partial<EndpointOverrides> = {}): EndpointOverrides => ({
     chat_base_url: "",
     stt_base_url: "",
+    stt_model: "",
     tts_base_url: "",
     broker_base_url: "",
     chat_model: "",

@@ -329,6 +329,7 @@ const en: Record<string, string> = {
   "endpoints.url_error": "Not a valid URL (http:// or https://)",
   "endpoints.chat_base_url.label": "Chat server URL",
   "endpoints.stt_base_url.label": "Speech recognition (STT) server URL",
+  "endpoints.stt_model.label": "STT model",
   "endpoints.tts_base_url.label": "Speech synthesis (TTS) server URL",
   "endpoints.broker_base_url.label": "Expression broker URL",
   "endpoints.chat_model.label": "Chat model",

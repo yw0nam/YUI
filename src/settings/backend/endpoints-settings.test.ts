@@ -24,6 +24,7 @@ import {
 const EMPTY: EndpointOverrides = {
   chat_base_url: "",
   stt_base_url: "",
+  stt_model: "",
   tts_base_url: "",
   broker_base_url: "",
   chat_model: "",
@@ -555,9 +556,9 @@ describe("ENDPOINT_FIELD_SPECS", () => {
     );
   });
 
-  it("assigns kind 'string' to chat_model only", () => {
+  it("assigns kind 'string' to chat_model and stt_model", () => {
     const stringKeys = ENDPOINT_FIELD_SPECS.filter((s) => s.kind === "string").map((s) => s.key);
-    expect(stringKeys).toEqual(["chat_model"]);
+    expect(stringKeys).toEqual(["stt_model", "chat_model"]);
   });
 
   it("assigns kind 'posInt' to chat_model_context_window only", () => {
@@ -586,8 +587,8 @@ describe("ENDPOINT_FIELD_SPECS — resetGroup (endpoints-section.ts per-service 
     expect(bySvc("chat")).toEqual(["chat_api", "chat_base_url", "chat_model"].sort());
   });
 
-  it("stt reset group is stt_base_url only", () => {
-    expect(bySvc("stt")).toEqual(["stt_base_url"]);
+  it("stt reset group is stt_base_url + stt_model", () => {
+    expect(bySvc("stt")).toEqual(["stt_base_url", "stt_model"].sort());
   });
 
   it("tts reset group is tts_base_url only", () => {
@@ -649,6 +650,7 @@ describe("endpointDefaultsFromConfig", () => {
     expect(endpointDefaultsFromConfig(baseConfig())).toEqual({
       chat_base_url: "http://localhost:8643/v1",
       stt_base_url: "http://localhost:5517",
+      stt_model: "",
       tts_base_url: "http://localhost:8092",
       broker_base_url: "",
       chat_model: "natsume",
