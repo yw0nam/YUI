@@ -23,6 +23,15 @@ type SttVadRuntimeState = Exclude<VoiceInputState, "idle">;
 
 const VAD_ASSET_PATH = "/vad/";
 
+// The constraints @ricky0123/vad-web asks getUserMedia for by default.
+const MIC_CONSTRAINTS: MediaStreamConstraints = {
+  audio: { channelCount: 1, echoCancellation: true, autoGainControl: true, noiseSuppression: true },
+};
+
+function releaseTracks(stream: MediaStream): void {
+  for (const track of stream.getTracks()) track.stop();
+}
+
 // Deadline so a hung STT request settles instead of silently discarding the captured utterance forever.
 // Magnitude mirrors tts-synth's TTS_SYNTH_TIMEOUT_MS.
 export const STT_REQUEST_TIMEOUT_MS = 10_000;
@@ -122,6 +131,9 @@ export function createSttVad(options: SttVadOptions): SttVad {
 
   let vad: Awaited<ReturnType<typeof MicVAD.new>> | null = null;
   let startPromise: Promise<void> | null = null;
+  // The stream acquired for the VAD's next getStream/resumeStream call.
+  let handoff: MediaStream | null = null;
+  let capturing = false;
   // The latest start()/stop() outcome the caller asked for; a load or capture in flight applies it when it lands.
   let wanted = false;
   // Bumped by stop() and dispose(): a transcription that began under an older value is dropped.
@@ -169,7 +181,13 @@ export function createSttVad(options: SttVadOptions): SttVad {
     }
   }
 
-  /** Drops a MicVAD that failed to capture: an errored instance ignores later starts. */
+  function takeStream(): Promise<MediaStream> {
+    const taken = handoff;
+    handoff = null;
+    return taken ? Promise.resolve(taken) : Promise.reject(new Error("no mic stream handed over"));
+  }
+
+  /** Drops a MicVAD that failed to start: an errored instance ignores later starts. */
   async function discard(instance: NonNullable<typeof vad>): Promise<void> {
     vad = null;
     try {
@@ -182,27 +200,41 @@ export function createSttVad(options: SttVadOptions): SttVad {
   async function run(): Promise<void> {
     try {
       if (vad === null) {
-        const instance = await MicVAD.new({
+        vad = await MicVAD.new({
           redemptionMs: options.silenceMs?.() ?? 1500,
           baseAssetPath: VAD_ASSET_PATH,
           onnxWASMBasePath: VAD_ASSET_PATH,
           startOnLoad: false,
+          // The wrapper acquires the stream, so a denied prompt never reaches the instance.
+          getStream: takeStream,
+          resumeStream: takeStream,
           onSpeechStart: () => onState?.("listening"),
           onSpeechRealStart: () => onSpeechActive?.(),
           onSpeechEnd,
         });
-        vad = instance;
       }
-      if (!wanted) return;
+      if (!wanted || capturing) return;
       const instance = vad;
+      const acquired = await navigator.mediaDevices.getUserMedia(MIC_CONSTRAINTS);
+      if (!wanted) {
+        releaseTracks(acquired);
+        return;
+      }
+      handoff = acquired;
       try {
         await instance.start();
       } catch (err) {
+        handoff = null;
+        releaseTracks(acquired);
         await discard(instance);
         throw err;
       }
+      capturing = true;
       // stop() landed while capture was starting; the pause releases it.
-      if (!wanted) instance.pause();
+      if (!wanted) {
+        capturing = false;
+        void instance.pause();
+      }
     } catch (err) {
       // getUserMedia / VAD asset load can fail (e.g. denied mic permission); surface the cause.
       log.warn("start_failed", { error: String(err) });
@@ -228,7 +260,10 @@ export function createSttVad(options: SttVadOptions): SttVad {
     stop() {
       wanted = false;
       generation++;
-      if (startPromise === null) vad?.pause();
+      if (startPromise === null) {
+        capturing = false;
+        void vad?.pause();
+      }
     },
 
     async dispose() {
@@ -238,7 +273,10 @@ export function createSttVad(options: SttVadOptions): SttVad {
       if (vad) {
         const instance = vad;
         vad = null;
-        await instance.destroy();
+        capturing = false;
+        await instance.destroy().catch((err: unknown) => {
+          log.debug("destroy_failed", { error: String(err) });
+        });
       }
     },
   };
