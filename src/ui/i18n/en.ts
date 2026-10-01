@@ -31,9 +31,14 @@ const en: Record<string, string> = {
   "aria.voice_input": "Voice input: {label}",
 
   // surfaces (speech bubble · status pill · text input)
+  "aria.back": "Back",
   "aria.attach_image": "Attach image",
   "aria.input_field": "Talk to YUI",
   "aria.send": "Send",
+
+  // phone top-row openers
+  "phone.open_history": "Conversation history",
+  "phone.open_settings": "Settings",
   "aria.stop": "Stop",
   "aria.remove_attachment": "Remove attachment",
   "aria.dismiss_bubble": "Dismiss speech bubble",

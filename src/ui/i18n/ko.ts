@@ -30,9 +30,14 @@ const ko: Record<string, string> = {
   "aria.voice_input": "음성 입력: {label}",
 
   // surfaces (speech bubble · status pill · text input)
+  "aria.back": "뒤로",
   "aria.attach_image": "이미지 첨부",
   "aria.input_field": "YUI에게 말 걸기",
   "aria.send": "보내기",
+
+  // phone top-row openers
+  "phone.open_history": "대화 기록",
+  "phone.open_settings": "설정",
   "aria.stop": "멈추기",
   "aria.remove_attachment": "첨부 제거",
   "aria.dismiss_bubble": "말풍선 닫기",

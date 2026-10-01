@@ -43,6 +43,49 @@ body {
   padding: 4px 8px 0 12px;
 }
 
+/* The view openers sit right of a spacer; the head passes pointers through, so they carry
+   their own targets, sized and chip-backed like the mock's icon buttons. */
+.yui-phone__spacer {
+  flex: 1;
+}
+
+.yui-phone__open {
+  pointer-events: auto;
+  width: var(--yui-touch);
+  height: var(--yui-touch);
+  flex: none;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--yui-text-dim);
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.yui-phone__open > span {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: var(--yui-scrim-strong);
+  border: 1px solid var(--yui-edge);
+  box-shadow: var(--yui-float);
+  transition: transform var(--yui-dur-fast) var(--yui-ease);
+}
+
+.yui-phone__open:active > span {
+  transform: scale(0.94);
+}
+
+.yui-phone__open svg {
+  width: 20px;
+  height: 20px;
+}
+
 /* The pill drops its character-window placing and centres in the column. */
 .yui-phone .yui-status {
   position: static;
