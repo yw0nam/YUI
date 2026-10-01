@@ -52,6 +52,8 @@ export interface ConnectionTab {
   refresh(): void;
   /** Commit dirty key and endpoint inputs to the stores — the close hook. */
   commit(): void;
+  /** Scroll the STT section into view and focus its URL field. */
+  focusStt(): void;
   dispose(): void;
 }
 
@@ -379,6 +381,11 @@ export function createConnectionTab(deps: {
     endpointsSection.commitDirtyEndpoints();
   }
 
+  function focusStt(): void {
+    el.querySelector<HTMLElement>('[data-svc="stt"]')?.scrollIntoView?.({ block: "nearest" });
+    epInputs.get("stt_base_url")?.focus();
+  }
+
   const handleChatStatusAction = (): void => pushSocket?.reconnectNow();
   chatStatusActionEl.addEventListener("click", handleChatStatusAction);
 
@@ -398,6 +405,7 @@ export function createConnectionTab(deps: {
     el,
     refresh,
     commit,
+    focusStt,
     dispose(): void {
       // Commit first: the locale remount relies on dispose landing typed keys and endpoints.
       commit();

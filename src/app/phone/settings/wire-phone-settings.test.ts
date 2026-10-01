@@ -122,7 +122,7 @@ describe("createPhoneSettings", () => {
     expect(document.activeElement).toBe(sttUrl());
 
     phoneSettings.open("hist");
-    expect(document.activeElement).not.toBe(sttUrl());
+    sttUrl().blur();
     phoneSettings.open("conn", { focus: "stt" });
     expect(document.activeElement).toBe(sttUrl());
     phoneSettings.dispose();

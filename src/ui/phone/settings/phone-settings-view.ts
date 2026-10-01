@@ -21,10 +21,16 @@ import { createTabRail, tabButtonHtml } from "../../quick-controls/tabs/tab-rail
 /** The phone's settings tabs. */
 export type PhoneSettingsTab = "conn" | "char" | "hist" | "general";
 
+/** A field the view puts the focus on once its tab shows. */
+export type PhoneSettingsFocus = "stt";
+
 export interface PhoneSettingsView {
   el: HTMLElement;
-  /** Open on a tab: refresh every tab, pull the background inert, focus the selected tab. */
-  open(tab: PhoneSettingsTab): void;
+  /**
+   * Open on a tab: refresh every tab, pull the background inert, focus the selected tab, or the
+   * field the focus names — also when the view is already open.
+   */
+  open(tab: PhoneSettingsTab, opts?: { focus?: PhoneSettingsFocus }): void;
   /** Close: commit the connection tab and hand focus back to the opener. */
   close(): void;
   isOpen(): boolean;
@@ -35,7 +41,7 @@ const BACK_SVG = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" str
 
 export function createPhoneSettingsView(deps: {
   mount: HTMLElement;
-  connection: { el: HTMLElement; refresh(): void; commit(): void };
+  connection: { el: HTMLElement; refresh(): void; commit(): void; focusStt(): void };
   character: { el: HTMLElement; refresh(): void };
   history: { el: HTMLElement; refresh(): void };
   general: { el: HTMLElement; refresh(): void };
@@ -102,9 +108,16 @@ export function createPhoneSettingsView(deps: {
     }
   }
 
-  function open(tab: PhoneSettingsTab): void {
+  function focusField(focus: PhoneSettingsFocus | undefined): void {
+    if (focus === "stt") connection.focusStt();
+  }
+
+  function open(tab: PhoneSettingsTab, opts?: { focus?: PhoneSettingsFocus }): void {
     rail.select(tab);
-    if (openState) return;
+    if (openState) {
+      focusField(opts?.focus);
+      return;
+    }
     openState = true;
     opener = document.activeElement instanceof HTMLElement ? document.activeElement : null;
     el.hidden = false;
@@ -114,6 +127,7 @@ export function createPhoneSettingsView(deps: {
     history.refresh();
     general.refresh();
     rail.select(tab, { focusVisible: false });
+    focusField(opts?.focus);
   }
 
   function close(): void {

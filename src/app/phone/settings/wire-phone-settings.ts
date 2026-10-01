@@ -16,6 +16,7 @@ import type { SettingsStores } from "../../../settings/settings-stores";
 import { createGeneralTab } from "../../../ui/phone/settings/general/general-tab";
 import {
   createPhoneSettingsView,
+  type PhoneSettingsFocus,
   type PhoneSettingsTab,
 } from "../../../ui/phone/settings/phone-settings-view";
 import { createCharacterTab } from "../../../ui/quick-controls/character/character-tab";
@@ -24,8 +25,8 @@ import { createHistoryTab } from "../../../ui/quick-controls/history/history-tab
 import type { ConversationStores } from "../../settings/conversation-stores";
 
 export interface PhoneSettings {
-  /** Open the view on a tab. */
-  open(tab: PhoneSettingsTab): void;
+  /** Open the view on a tab, optionally focusing a field on it. */
+  open(tab: PhoneSettingsTab, opts?: { focus?: PhoneSettingsFocus }): void;
   close(): void;
   isOpen(): boolean;
   dispose(): void;
@@ -136,9 +137,9 @@ export function createPhoneSettings(deps: {
   });
 
   return {
-    open(tab) {
+    open(tab, opts) {
       back.claim(view.close);
-      view.open(tab);
+      view.open(tab, opts);
     },
     close: view.close,
     isOpen: view.isOpen,
