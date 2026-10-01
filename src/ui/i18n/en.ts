@@ -22,6 +22,9 @@ const en: Record<string, string> = {
   // the one voice failure the settings panel resolves — the chip becomes the fix
   "voice.error.not_configured": "Setup needed",
   "voice.error.not_configured_fix": "backend not configured. Open Connection settings",
+  "voice.error.mic_denied": "Mic blocked",
+  "voice.error.no_mic": "No mic",
+  "voice.error.mic_unavailable": "Mic unavailable",
 
   // aria labels (parameterized)
   "aria.refresh_speaker": "Refresh {name} reference voice",

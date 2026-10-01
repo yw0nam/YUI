@@ -21,6 +21,9 @@ const ja: Record<string, string> = {
   "voice.state.error": "エラー",
   "voice.error.not_configured": "設定が必要",
   "voice.error.not_configured_fix": "バックエンド未設定。接続設定を開く",
+  "voice.error.mic_denied": "マイク拒否",
+  "voice.error.no_mic": "マイクなし",
+  "voice.error.mic_unavailable": "マイク使用不可",
 
   // aria labels (parameterized)
   "aria.refresh_speaker": "{name} の参照音声を更新",

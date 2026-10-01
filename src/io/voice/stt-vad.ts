@@ -13,6 +13,7 @@ import { MicVAD } from "@ricky0123/vad-web";
 import type { EndpointsConfig } from "../../contract";
 import { createLogger } from "../../logger";
 import { createDeadlineSignal, untilAborted } from "./deadline";
+import type { MicErrorCode } from "./mic-error";
 
 const log = createLogger("stt-vad");
 
@@ -47,9 +48,6 @@ export interface SttVadOptions {
   /** Resolves the STT server key (Bearer) per request. Omitted/empty → no auth header. */
   getApiKey?: () => Promise<string | undefined>;
 }
-
-/** Cause codes a mic failure reports as the state detail; the surfaces map them to localized labels. */
-export type MicErrorCode = "mic_denied" | "no_mic" | "mic_unavailable";
 
 export interface SttVad {
   /**
@@ -102,19 +100,18 @@ function encodeWav(samples: Float32Array): Blob {
   return new Blob([buffer], { type: "audio/wav" });
 }
 
+const MIC_ERROR_BY_NAME: Record<string, MicErrorCode> = {
+  NotAllowedError: "mic_denied",
+  SecurityError: "mic_denied",
+  NotFoundError: "no_mic",
+  DevicesNotFoundError: "no_mic",
+  NotReadableError: "mic_unavailable",
+};
+
 /** Map a start() failure to a stable cause code, or to its message when it is not a mic cause. */
 function describeStartError(err: unknown): string {
-  const name = err instanceof DOMException ? err.name : "";
-  switch (name) {
-    case "NotAllowedError":
-    case "SecurityError":
-      return "mic_denied";
-    case "NotFoundError":
-    case "DevicesNotFoundError":
-      return "no_mic";
-    case "NotReadableError":
-      return "mic_unavailable";
-  }
+  const code = err instanceof DOMException ? MIC_ERROR_BY_NAME[err.name] : undefined;
+  if (code) return code;
   const message = err instanceof Error ? err.message : "";
   return message ? `Voice init failed: ${message}` : "Voice init failed";
 }

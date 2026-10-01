@@ -6,12 +6,13 @@
  */
 
 import "./status-pill.css";
+import { isMicErrorCode } from "../../io/voice/mic-error";
 import type { createScreenshotSettings } from "../../settings/capture/screenshot-settings";
 import { subscribe as subscribeLocale, t } from "../i18n";
 import { afterFadeOut } from "../notices/fade-out";
 import { isSettingsFixable } from "../notices/turn-error";
 import { getToolLabel } from "./tool-labels";
-import type { VoiceInputStatus } from "./voice-input-status";
+import type { VoiceInputStatus, VoiceInputStatusSnapshot } from "./voice-input-status";
 
 export interface ToolStatus {
   /** Show the running tool segment for tool_id (label from tool-labels lookup, humanized if unmapped). */
@@ -35,9 +36,19 @@ interface StatusPillOptions {
   onOpenSettings?: () => void;
   /** Hands a settings-fixable voice error to the settings panel; without it the error stays text. */
   onFixVoice?: () => void;
+  /** Makes the voice button a toggle that stops the listening; without it the button is a plain tell. */
+  onToggleVoice?: () => void;
 }
 
 const TOOL_DONE_HOLD_MS = 1500;
+
+function voiceLabelOf(snapshot: VoiceInputStatusSnapshot, fixable: boolean): string {
+  if (fixable) return t("voice.error.not_configured");
+  if (snapshot.state === "error" && isMicErrorCode(snapshot.detail)) {
+    return t(`voice.error.${snapshot.detail}`);
+  }
+  return t(`voice.state.${snapshot.state}`);
+}
 
 export function createStatusPill({
   mount,
@@ -45,6 +56,7 @@ export function createStatusPill({
   voice,
   onOpenSettings,
   onFixVoice,
+  onToggleVoice,
 }: StatusPillOptions): StatusPill {
   const el = document.createElement("div");
   el.className = "yui-status";
@@ -108,9 +120,7 @@ export function createStatusPill({
     const fixable = snapshot.state === "error" && isSettingsFixable(snapshot.detail);
     // The fix wording names the destination; without an opener the condition is announced alone.
     const fixOffered = fixable && onFixVoice !== undefined;
-    const voiceLabel = fixable
-      ? t("voice.error.not_configured")
-      : t(`voice.state.${snapshot.state}`);
+    const voiceLabel = voiceLabelOf(snapshot, fixable);
 
     if (captureBtn) {
       captureBtn.hidden = !captureOn;
@@ -142,7 +152,9 @@ export function createStatusPill({
     const fixShown = fixOffered && !tool;
     if (fixShown) el.dataset.fix = "settings";
     else delete el.dataset.fix;
-    voiceBtn.tabIndex = fixShown ? 0 : -1;
+    const toggleOffered = onToggleVoice !== undefined && snapshot.visible && !fixShown;
+    voiceBtn.classList.toggle("is-toggle", toggleOffered);
+    voiceBtn.tabIndex = fixShown || toggleOffered ? 0 : -1;
 
     setShown(true);
   }
@@ -216,10 +228,11 @@ export function createStatusPill({
       onOpenSettings?.();
       return;
     }
-    if (el.dataset.fix !== "settings" || !onFixVoice) return;
-    onFixVoice();
-    // The held error has served its purpose; hand the pill back to the live state.
-    voice.set("listening");
+    if (el.dataset.fix === "settings" && onFixVoice) {
+      onFixVoice();
+      return;
+    }
+    if (onToggleVoice && voiceBtn.contains(e.target as Node)) onToggleVoice();
   }
 
   render();

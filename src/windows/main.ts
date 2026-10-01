@@ -96,7 +96,10 @@ async function bootstrap(): Promise<BootstrapHandle> {
     settings: settingsStores.screenshotSettings,
     voice: voiceInputStatus,
     onOpenSettings: () => controls.get().open(),
-    onFixVoice: () => controls.get().open(undefined, { tab: "conn" }),
+    onFixVoice: () => {
+      controls.get().open(undefined, { tab: "conn" });
+      voiceInputStatus.set("listening");
+    },
   });
   register(() => statusPill.dispose());
 

@@ -89,6 +89,15 @@
   background: var(--yui-accent);
 }
 
+/* A voice button that stops the listening takes the pointer; the padding widens its target and the
+   negative margin keeps the pill's layout. */
+.yui-status__voice.is-toggle {
+  padding: 0.4rem;
+  margin: -0.4rem;
+  pointer-events: auto;
+  cursor: pointer;
+}
+
 /* Icon color only: the error never adds a second dot. */
 .yui-status__voice[data-voice="error"] {
   color: var(--yui-danger);

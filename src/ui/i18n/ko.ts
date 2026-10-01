@@ -21,6 +21,9 @@ const ko: Record<string, string> = {
   "voice.state.error": "오류",
   "voice.error.not_configured": "설정 필요",
   "voice.error.not_configured_fix": "백엔드 미설정. 연결 설정 열기",
+  "voice.error.mic_denied": "마이크 차단됨",
+  "voice.error.no_mic": "마이크 없음",
+  "voice.error.mic_unavailable": "마이크 사용 불가",
 
   // aria labels (parameterized)
   "aria.refresh_speaker": "{name} 참조 음성 갱신",
