@@ -30,7 +30,6 @@ export type MessageSurfaceOp =
   | { op: "summon-input" }
   | { op: "dismiss-input" }
   | { op: "busy"; busy: boolean }
-  | { op: "input-enabled"; enabled: boolean }
   | { op: "input-error"; message: string; action?: { label: string } }
   | { op: "attachment-limits"; limits: AttachmentLimits }
   | { op: "quote"; quote: UserQuote }

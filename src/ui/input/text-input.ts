@@ -32,8 +32,6 @@ interface TextInput {
   setAttachmentLimits(limits: AttachmentLimits): void;
   /** Puts a sent message back into an open, empty composer, attachments included; a closed composer or one holding a draft is left alone. */
   restoreInput(text: string, images: string[]): void;
-  /** Toggle the input disabled (e.g. while processing). When disabled, field disabled + pending dimming. */
-  setInputEnabled(enabled: boolean): void;
   /**
    * Set the input's bottom offset (px) for tracking the character's feet. Overrides
    * the CSS `bottom: var(--yui-input-bottom, 4%)` in pixels. null clears the var,
@@ -107,10 +105,10 @@ export function createTextInput(
       field.focus();
       return;
     }
-    // Idempotent: a re-summon on an open input must not reset error/pending state or replay the reveal.
+    // Idempotent: a re-summon on an open input must not reset the error state or replay the reveal.
     if (isInputOpen()) return;
     formEl.hidden = false;
-    formEl.classList.remove("is-error", "is-pending");
+    formEl.classList.remove("is-error");
     errorEl.textContent = "";
     fitField();
     requestAnimationFrame(() => {
@@ -136,7 +134,7 @@ export function createTextInput(
         // Measuring is 0px while hidden — summon refits.
         field.style.height = "";
         clearAttachments();
-        formEl.classList.remove("is-error", "is-pending");
+        formEl.classList.remove("is-error");
         errorEl.textContent = "";
         bubble.resetPosition();
         onOpenChange?.(false);
@@ -159,7 +157,6 @@ export function createTextInput(
   function showInputError(message: string, action?: InputErrorAction): void {
     // Shown first — the alert only announces content inserted while it is in the tree.
     formEl.classList.add("is-error");
-    formEl.classList.remove("is-pending");
     errorEl.textContent = message;
     if (action) {
       const button = document.createElement("button");
@@ -293,11 +290,6 @@ export function createTextInput(
   }
   applyLocaleLabels();
   const unsubscribeLocale = subscribeLocale(applyLocaleLabels);
-
-  function setInputEnabled(enabled: boolean): void {
-    field.disabled = !enabled;
-    formEl.classList.toggle("is-pending", !enabled);
-  }
 
   function setInputAnchor(bottomPx: number | null): void {
     if (bottomPx === null) formEl.style.removeProperty("--yui-input-bottom");
@@ -446,7 +438,6 @@ export function createTextInput(
     showInputError,
     setAttachmentLimits,
     restoreInput,
-    setInputEnabled,
     setInputAnchor,
     dispose,
   };

@@ -439,40 +439,6 @@ describe("attachment caps — count + per-image size", () => {
   });
 });
 
-describe("setInputEnabled — disable the field while busy", () => {
-  let mount: HTMLElement;
-  let s: ReturnType<typeof createSurfaces>;
-
-  beforeEach(() => {
-    ({ s, mount } = makeSurfaces());
-  });
-
-  afterEach(() => {
-    s.dispose();
-    mount.remove();
-  });
-
-  function field(): HTMLTextAreaElement {
-    return mount.querySelector(".yui-input__field") as HTMLTextAreaElement;
-  }
-  function form(): HTMLElement {
-    return mount.querySelector(".yui-input") as HTMLElement;
-  }
-
-  it("disables the field and marks the form pending when disabled", () => {
-    s.setInputEnabled(false);
-    expect(field().disabled).toBe(true);
-    expect(form().classList.contains("is-pending")).toBe(true);
-  });
-
-  it("re-enables the field and clears pending when enabled", () => {
-    s.setInputEnabled(false);
-    s.setInputEnabled(true);
-    expect(field().disabled).toBe(false);
-    expect(form().classList.contains("is-pending")).toBe(false);
-  });
-});
-
 // A re-summon while open (hotkey re-fire, quick-controls message) must not reset the open session.
 describe("summonInput — no-op while the input is already open", () => {
   let mount: HTMLElement;
@@ -494,17 +460,16 @@ describe("summonInput — no-op while the input is already open", () => {
     return mount.querySelector(".yui-input__field") as HTMLTextAreaElement;
   }
 
-  it("keeps pending, disabled, and the typed text when summoned again while open", async () => {
+  it("keeps the error and the typed text when summoned again while open", async () => {
     s.summonInput();
     // is-open lands on the next animation frame — wait for it so the re-summon hits the guard.
     await new Promise((r) => requestAnimationFrame(r));
     field().value = "안녕";
-    s.setInputEnabled(false);
+    s.showInputError("전송 실패");
 
     s.summonInput();
 
-    expect(form().classList.contains("is-pending")).toBe(true);
-    expect(field().disabled).toBe(true);
+    expect(form().classList.contains("is-error")).toBe(true);
     expect(field().value).toBe("안녕");
   });
 });

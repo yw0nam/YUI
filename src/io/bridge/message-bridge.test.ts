@@ -56,7 +56,6 @@ const SURFACE_OPS: MessageSurfaceOp[] = [
   { op: "summon-input" },
   { op: "dismiss-input" },
   { op: "busy", busy: true },
-  { op: "input-enabled", enabled: false },
   { op: "input-error", message: "no backend", action: { label: "Open Advanced" } },
   { op: "attachment-limits", limits: LIMITS },
   { op: "quote", quote: { text: "hi", via: "voice", images: 1 } },
@@ -140,7 +139,6 @@ describe("createRemoteSurfaces — the pet-side adapter", () => {
     remote.summonInput();
     remote.dismissInput();
     remote.setBusy(true);
-    remote.setInputEnabled(false);
     remote.setAttachmentLimits(LIMITS);
 
     expect(seen).toEqual([
@@ -152,7 +150,6 @@ describe("createRemoteSurfaces — the pet-side adapter", () => {
       { op: "summon-input" },
       { op: "dismiss-input" },
       { op: "busy", busy: true },
-      { op: "input-enabled", enabled: false },
       { op: "attachment-limits", limits: LIMITS },
     ]);
   });

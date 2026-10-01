@@ -645,9 +645,6 @@
 .yui-input__field::placeholder {
   color: var(--yui-text-mute);
 }
-.yui-input.is-pending .yui-input__field {
-  opacity: 0.55;
-}
 /* Processing field dimming — ignited together with send→stop toggle */
 .yui-input.is-running .yui-input__field {
   opacity: 0.55;

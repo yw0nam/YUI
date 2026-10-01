@@ -35,7 +35,6 @@ export interface RemoteSurfaces {
   dismissInput(): void;
   /** The last open state the message window reported. */
   isInputOpen(): boolean;
-  setInputEnabled(enabled: boolean): void;
   setBusy(busy: boolean): void;
   showInputError(message: string, action?: InputErrorAction): void;
   setAttachmentLimits(limits: AttachmentLimits): void;
@@ -125,9 +124,6 @@ export function createRemoteSurfaces(bridge: MessageBridge): RemoteSurfaces {
     },
     isInputOpen() {
       return inputOpen;
-    },
-    setInputEnabled(enabled) {
-      bridge.emitSurface({ op: "input-enabled", enabled });
     },
     setBusy(value) {
       log.info("busy_emit", { busy: value });

@@ -135,9 +135,6 @@ async function bootstrap(): Promise<void> {
         plate.setBusy(op.busy);
         surfaces.setBusy(op.busy);
         break;
-      case "input-enabled":
-        surfaces.setInputEnabled(op.enabled);
-        break;
       case "input-error":
         surfaces.showInputError(
           op.message,

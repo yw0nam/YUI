@@ -79,8 +79,6 @@ export interface Surfaces {
   setAttachmentLimits(limits: AttachmentLimits): void;
   /** Puts a sent message back into an open, empty composer, attachments included; a closed composer or one holding a draft is left alone. */
   restoreInput(text: string, images: string[]): void;
-  /** Toggle the input disabled (e.g. while processing). When disabled, field disabled + pending dimming. */
-  setInputEnabled(enabled: boolean): void;
   /**
    * Set the input's bottom offset (px) for tracking the character's feet. Overrides
    * the CSS `bottom: var(--yui-input-bottom, 4%)` in pixels. null clears the var,
@@ -249,7 +247,6 @@ export function createSurfaces({
     showInputError: input.showInputError,
     setAttachmentLimits: input.setAttachmentLimits,
     restoreInput: input.restoreInput,
-    setInputEnabled: input.setInputEnabled,
     setInputAnchor: input.setInputAnchor,
     dispose,
   };

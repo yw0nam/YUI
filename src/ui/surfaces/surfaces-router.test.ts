@@ -45,7 +45,6 @@ function makeLocal(): Surfaces {
     showInputError: vi.fn(),
     setAttachmentLimits: vi.fn(),
     restoreInput: vi.fn(),
-    setInputEnabled: vi.fn(),
     setInputAnchor: vi.fn(),
     dispose: vi.fn(),
   };
@@ -64,7 +63,6 @@ function makeRemote(): RemoteSurfaces {
     summonInput: vi.fn(),
     dismissInput: vi.fn(),
     isInputOpen: vi.fn(() => false),
-    setInputEnabled: vi.fn(),
     setBusy: vi.fn(),
     showInputError: vi.fn(),
     setAttachmentLimits: vi.fn(),
@@ -173,9 +171,7 @@ describe("createSurfacesRouter", () => {
 
   it("sends the input ops to the side the mode names", () => {
     router.summonInput();
-    router.setInputEnabled(false);
     expect(local.summonInput).toHaveBeenCalledTimes(1);
-    expect(local.setInputEnabled).toHaveBeenCalledWith(false);
 
     setMode("popped");
     router.summonInput();
