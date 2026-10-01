@@ -57,7 +57,8 @@ describe("createCharacterTab", () => {
     expect(tab.el.querySelector(".yui-lipsync-gain__slider")).toBeNull();
     expect(tab.el.querySelector(".yui-idle-motion")).toBeNull();
     expect(tab.el.querySelector(".yui-express-motion")).toBeNull();
-    // The phone's reset row carries its own copy.
+    // The phone's reset section carries its own heading and row copy.
+    expect(tab.el.textContent).toContain(t("viewpoint.view_section"));
     expect(tab.el.textContent).toContain(t("viewpoint.reset_view_label"));
     expect(tab.el.textContent).toContain(t("viewpoint.reset_view_sub"));
     tab.dispose();

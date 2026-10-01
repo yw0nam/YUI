@@ -7,6 +7,11 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { EndpointsConfig } from "../../../contract";
 import { createVrmSelection } from "../../../io/assets/vrm-selection";
 import type { PushSocket } from "../../../io/chat/push-socket";
+import {
+  CAMERA_AZIMUTH_DEFAULT,
+  CAMERA_POLAR_DEFAULT,
+} from "../../../renderer/geometry/camera-fit";
+import { CAMERA_ZOOM_DEFAULT } from "../../../settings/avatar/camera-settings";
 import { createSettingsStores } from "../../../settings/settings-stores";
 import { setLocale } from "../../../ui/i18n";
 import { createConversationStores } from "../../settings/conversation-stores";
@@ -100,6 +105,7 @@ describe("createPhoneSettings", () => {
     });
     stores.cameraSettings.setZoom(2);
     stores.cameraSettings.setAzimuth(1);
+    stores.cameraSettings.setPolar(1);
     phoneSettings.open("char");
 
     const ids = Array.from(mount.querySelectorAll<HTMLElement>(".yui-vrm[data-vrm-id]")).map(
@@ -108,8 +114,9 @@ describe("createPhoneSettings", () => {
     expect(ids).toEqual(vrmSelection.list().map((o) => o.id));
     mount.querySelector<HTMLButtonElement>(".yui-viewpoint-reset")!.click();
 
-    expect(stores.cameraSettings.get().zoom).toBe(1);
-    expect(stores.cameraSettings.get().azimuth).toBe(0);
+    expect(stores.cameraSettings.get().zoom).toBe(CAMERA_ZOOM_DEFAULT);
+    expect(stores.cameraSettings.get().azimuth).toBe(CAMERA_AZIMUTH_DEFAULT);
+    expect(stores.cameraSettings.get().polar).toBe(CAMERA_POLAR_DEFAULT);
     phoneSettings.dispose();
   });
 });
