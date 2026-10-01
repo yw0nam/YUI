@@ -43,6 +43,8 @@ export interface ConfiguredBootstrapHandles {
   sitter: Pick<Sitter, "sitDown">;
   /** Cancels the in-flight turn, cuts the outstanding push turns and stops the queued speech. */
   stopTurn: () => void;
+  /** Resets the proactive gap, the way a typed submit does. */
+  noteInteraction: () => void;
   dispose(): void;
 }
 
@@ -215,6 +217,7 @@ const realFactories: ConfiguredBootstrapFactories = {
       broker,
       sitter: locomotion.sitter,
       stopTurn,
+      noteInteraction: () => proactiveSource.noteInteraction(),
     };
   },
 };

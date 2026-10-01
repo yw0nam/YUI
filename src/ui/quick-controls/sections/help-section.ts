@@ -1,6 +1,7 @@
 /** Help section of the General tab: one Ask button per bundled guide. */
 
 import type { GuideKey } from "../../../contract";
+import { isGuideKey } from "../../../io/guide/guide-docs";
 import { t } from "../../i18n";
 import { secHeadHtml } from "../markup";
 
@@ -32,7 +33,7 @@ export function bindHelpSection(
 ): () => void {
   const onClick = (e: Event): void => {
     const guide = (e.target as Element).closest<HTMLElement>("[data-guide]")?.dataset.guide;
-    if (guide) onGuide(guide as GuideKey, t(`help.${guide}.request`));
+    if (isGuideKey(guide)) onGuide(guide, t(`help.${guide}.request`));
   };
   root.addEventListener("click", onClick);
   return () => root.removeEventListener("click", onClick);

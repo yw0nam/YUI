@@ -11,8 +11,21 @@ export function wireHelpGuide(deps: {
   userInput: Pick<UserInputSource, "submitGuide">;
   bridge: Pick<SettingsBridge, "onHelpGuide">;
   register: (teardown: () => void) => void;
-}): (guide: GuideKey, text: string) => void {
-  const ask = (guide: GuideKey, text: string): void => deps.userInput.submitGuide(guide, text);
+}): {
+  ask: (guide: GuideKey, text: string) => void;
+  /** The proactive source exists only after config loads; a press counts as interaction from then on. */
+  bindInteraction: (noteInteraction: () => void) => void;
+} {
+  let noteInteraction = (): void => {};
+  const ask = (guide: GuideKey, text: string): void => {
+    deps.userInput.submitGuide(guide, text);
+    noteInteraction();
+  };
   deps.register(deps.bridge.onHelpGuide(({ guide, text }) => ask(guide, text)));
-  return ask;
+  return {
+    ask,
+    bindInteraction: (fn) => {
+      noteInteraction = fn;
+    },
+  };
 }

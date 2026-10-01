@@ -163,11 +163,12 @@ async function bootstrap(): Promise<BootstrapHandle> {
   publishPushStores(push, windowBridge, register);
 
   // The bus and input source come first: the settings panel submits its help requests through them.
+  // The bus is safe to create before config load: it only queues until the dispatcher starts popping.
   const bus = createEventBus({
     onDrop: (env, reason) => log.info("drop", { event_name: env.event_name, reason }),
   });
   const userInput = createUserInputSource(bus);
-  const askGuide = wireHelpGuide({ userInput, bridge: windowBridge, register });
+  const help = wireHelpGuide({ userInput, bridge: windowBridge, register });
 
   const controls = wirePetControls({
     root,
@@ -185,7 +186,7 @@ async function bootstrap(): Promise<BootstrapHandle> {
     surfaces,
     remoteSurfaces: remote,
     openSettings,
-    onGuide: askGuide,
+    onGuide: help.ask,
     openDevtools,
     register,
   });
@@ -193,8 +194,6 @@ async function bootstrap(): Promise<BootstrapHandle> {
   // ── Dispatcher spine ──────────────────────────────────────────────────────
   // event_bus → dispatcher → backend_caller → streamChat → backend → ControlEnvelope →
   // renderer.applyDirective. user.text_submitted drives this loop.
-  // bus/dispatcher safe to create before config load (backend_caller reads endpoints at call time
-  // from config). backend_caller needs config store, so wire after config creation.
 
   register(attachSummonKey(surfaces));
 
@@ -229,6 +228,7 @@ async function bootstrap(): Promise<BootstrapHandle> {
     });
     register(configured.dispose);
     if (isDisposed()) return { dispose };
+    help.bindInteraction(configured.noteInteraction);
     push.bind({
       vocabulary: configured.broker.vocabulary,
       stopTurn: configured.stopTurn,
