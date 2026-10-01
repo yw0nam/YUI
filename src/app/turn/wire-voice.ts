@@ -147,6 +147,8 @@ export interface VoicePersistence {
 export interface VoiceHost {
   wanted(): boolean;
   onCaptureStarted(): void;
+  /** The engine could not start capture, whatever the cause. */
+  onCaptureFailed(): void;
 }
 
 export function wireTurnVoice(deps: {
@@ -292,6 +294,7 @@ export function wireVoiceInput(deps: {
     } catch (err) {
       const detail = err instanceof Error ? err.message : "Voice input failed";
       voiceInputStatus.set("error", detail);
+      voiceHost?.onCaptureFailed();
       return;
     }
     // A stop() that landed while the capture started cancels it, and there is nothing to report.

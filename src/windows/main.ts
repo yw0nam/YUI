@@ -31,6 +31,7 @@ import {
   messageWindowSuppression,
   wirePushMode,
 } from "../app/turn/wire-push";
+import { createVoiceFix } from "../app/voice/voice-fix";
 import { CHAT_API_KEY_SECRET, TTS_API_KEY_SECRET } from "../config/load";
 import { createEventBus } from "../dispatcher/core/event-bus";
 import { createUserInputSource } from "../dispatcher/sources/user-input-source";
@@ -96,10 +97,10 @@ async function bootstrap(): Promise<BootstrapHandle> {
     settings: settingsStores.screenshotSettings,
     voice: voiceInputStatus,
     onOpenSettings: () => controls.get().open(),
-    onFixVoice: () => {
-      controls.get().open(undefined, { tab: "conn" });
-      voiceInputStatus.set("listening");
-    },
+    onFixVoice: createVoiceFix({
+      openConnection: () => controls.get().open(undefined, { tab: "conn" }),
+      status: voiceInputStatus,
+    }),
   });
   register(() => statusPill.dispose());
 
