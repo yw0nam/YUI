@@ -44,6 +44,9 @@ export function createVoiceController(deps: {
   // Keep listening was picked and waits for the capture to start before it is saved.
   let pendingAlways = false;
   let started = false;
+  // The app went to the background while the capture was still starting: the OS permission prompt does
+  // that, so the intent holds until the capture reports in.
+  let hiddenWhileStarting = false;
   const listeners = new Set<() => void>();
 
   const notify = (): void => {
@@ -55,6 +58,7 @@ export function createVoiceController(deps: {
     if (!next) {
       capturing = false;
       pendingAlways = false;
+      hiddenWhileStarting = false;
     }
     if (on !== next) log.info("voice_intent", { on: next, reason });
     on = next;
@@ -68,8 +72,14 @@ export function createVoiceController(deps: {
 
   const unsubscribeVisibility = visibility.subscribe(() => {
     if (!started) return;
-    if (visibility.get()) setIntent(false, "background");
-    else enterForeground("foreground");
+    if (!visibility.get()) {
+      hiddenWhileStarting = false;
+      enterForeground("foreground");
+    } else if (on && !capturing) {
+      hiddenWhileStarting = true;
+    } else {
+      setIntent(false, "background");
+    }
   });
 
   // A start failure leaves the error on the status for the pill; only the intent goes off.
@@ -114,6 +124,10 @@ export function createVoiceController(deps: {
     },
     onCaptureStarted() {
       if (!on) return;
+      if (hiddenWhileStarting) {
+        setIntent(false, "background");
+        return;
+      }
       capturing = true;
       if (pendingAlways) {
         pendingAlways = false;
