@@ -6,6 +6,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { EndpointsConfig } from "../../../contract";
 import type { PushSocket } from "../../../io/chat/push-socket";
+import { createVrmSelection } from "../../../io/assets/vrm-selection";
 import { createSettingsStores } from "../../../settings/settings-stores";
 import { setLocale } from "../../../ui/i18n";
 import { createConversationStores } from "../../settings/conversation-stores";
@@ -43,16 +44,22 @@ describe("createPhoneSettings", () => {
     } as unknown as PushSocket;
     const mount = document.createElement("div");
     document.body.append(mount);
+    const vrmSelection = createVrmSelection({
+      available: [{ id: "shino", label: "Shino", url: "/vrms/shino.vrm", source: "bundled" }],
+      defaultValue: "/vrms/shino.vrm",
+    });
     const phoneSettings = createPhoneSettings({
       mount,
       stores,
+      vrm: { vrmSelection, swapVrm: async () => {}, importVrm: async () => {} },
+      removeUserVrm: async () => {},
       conversation: createConversationStores(),
       pushSocket,
       stopTurn: () => {},
       getEndpoints: () => ENDPOINTS,
       config,
     });
-    return { stores, unsubscribeState, mount, phoneSettings };
+    return { stores, unsubscribeState, mount, phoneSettings, vrmSelection };
   }
 
   it("dispose commits dirty input and removes the push-state subscription", () => {
@@ -82,6 +89,27 @@ describe("createPhoneSettings", () => {
     expect(mount.querySelector<HTMLInputElement>("#yui-ep-stt_base_url")!.placeholder).toBe(
       "http://bundled.test/v1",
     );
+    phoneSettings.dispose();
+  });
+
+  it("the Character tab lists the VRMs and its reset button resets the camera view", () => {
+    const { stores, mount, phoneSettings, vrmSelection } = setup({
+      get() {
+        throw new Error("config not loaded");
+      },
+    });
+    stores.cameraSettings.setZoom(2);
+    stores.cameraSettings.setAzimuth(1);
+    phoneSettings.open("char");
+
+    const ids = Array.from(mount.querySelectorAll<HTMLElement>(".yui-vrm[data-vrm-id]")).map(
+      (r) => r.dataset.vrmId,
+    );
+    expect(ids).toEqual(vrmSelection.list().map((o) => o.id));
+    mount.querySelector<HTMLButtonElement>(".yui-viewpoint-reset")!.click();
+
+    expect(stores.cameraSettings.get().zoom).toBe(1);
+    expect(stores.cameraSettings.get().azimuth).toBe(0);
     phoneSettings.dispose();
   });
 });

@@ -24,9 +24,10 @@ describe("createPhoneSettingsView", () => {
     const background = document.createElement("div");
     mount.appendChild(background);
     const connection = { el: document.createElement("div"), refresh: vi.fn(), commit: vi.fn() };
+    const character = { el: document.createElement("div"), refresh: vi.fn() };
     const history = { el: document.createElement("div"), refresh: vi.fn() };
-    const view = createPhoneSettingsView({ mount, connection, history });
-    return { mount, background, connection, history, view };
+    const view = createPhoneSettingsView({ mount, connection, character, history });
+    return { mount, background, connection, character, history, view };
   }
 
   function titleOf(view: ReturnType<typeof createPhoneSettingsView>): string {
@@ -34,7 +35,7 @@ describe("createPhoneSettingsView", () => {
   }
 
   it("open(conn) shows the view titled Connection, hides the background, focuses the tab", () => {
-    const { background, connection, history, view } = build();
+    const { background, connection, character, history, view } = build();
     view.open("conn");
 
     expect(view.isOpen()).toBe(true);
@@ -42,14 +43,28 @@ describe("createPhoneSettingsView", () => {
     expect(view.el.querySelector("#yui-tab-conn")!.getAttribute("aria-selected")).toBe("true");
     expect(view.el.querySelector<HTMLElement>("#yui-panel-conn")!.hidden).toBe(false);
     expect(view.el.querySelector<HTMLElement>("#yui-panel-hist")!.hidden).toBe(true);
-    // Both tabs render fresh content on open.
+    // Every tab renders fresh content on open.
     expect(connection.refresh).toHaveBeenCalledTimes(1);
+    expect(character.refresh).toHaveBeenCalledTimes(1);
     expect(history.refresh).toHaveBeenCalledTimes(1);
     // The phone behind the view is inert and hidden from assistive tech.
     expect(background.hasAttribute("inert")).toBe(true);
     expect(background.getAttribute("aria-hidden")).toBe("true");
     // Focus lands on the selected tab.
     expect(document.activeElement).toBe(view.el.querySelector("#yui-tab-conn"));
+
+    view.dispose();
+  });
+
+  it("open(char) titles the view Character and the rail runs Connection, Character, History", () => {
+    const { view } = build();
+    view.open("char");
+
+    expect(titleOf(view)).toBe(t("tabs.char"));
+    expect(view.el.querySelector<HTMLElement>("#yui-panel-char")!.hidden).toBe(false);
+    expect(view.el.querySelector<HTMLElement>("#yui-panel-conn")!.hidden).toBe(true);
+    const order = Array.from(view.el.querySelectorAll(".yui-tab")).map((b) => b.id);
+    expect(order).toEqual(["yui-tab-conn", "yui-tab-char", "yui-tab-hist"]);
 
     view.dispose();
   });
