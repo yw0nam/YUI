@@ -226,6 +226,26 @@ pub(crate) fn derive_dest_stem(src: &Path, taken: impl Fn(&str) -> bool) -> Stri
     unreachable!()
 }
 
+/// Stream `reader` into `writer`, bounded to `cap` bytes, after checking the GLB magic.
+pub(crate) fn copy_bounded(
+    reader: impl Read,
+    writer: impl std::io::Write,
+    cap: u64,
+) -> Result<u64, String> {
+    let _ = (reader, writer, cap);
+    unimplemented!()
+}
+
+/// Candidate dest stems in claim order, skipping reserved ids.
+pub(crate) fn dest_stem_candidates<'a>(
+    name_stem: &str,
+    identity: &str,
+    reserved: &'a [String],
+) -> impl Iterator<Item = String> + 'a {
+    let _ = (name_stem, identity);
+    reserved.iter().cloned()
+}
+
 /// True when `dest` already exists — any existing dest is a collision, so the
 /// caller must disambiguate rather than overwrite.
 pub(crate) fn collides(dest: &Path) -> bool {
@@ -465,57 +485,128 @@ mod tests {
         assert!(ensure_within(&parent, &sibling).is_err());
     }
 
-    // ── derive_dest_stem ─────────────────────────────────────────────────────
+    // ── dest_stem_candidates ─────────────────────────────────────────────────
+
+    fn first_n(name: &str, identity: &str, reserved: &[String], n: usize) -> Vec<String> {
+        dest_stem_candidates(name, identity, reserved)
+            .take(n)
+            .collect()
+    }
 
     #[test]
-    fn derive_uses_sanitized_stem_when_no_collision() {
-        let src = PathBuf::from("/Users/me/Downloads/My Avatar.vrm");
-        let stem = derive_dest_stem(&src, |_| false);
+    fn candidates_start_with_the_sanitized_name_stem() {
         // Interior spaces are kept by the relaxed sanitize_stem — only traversal/illegal chars are neutralized.
-        assert_eq!(stem, "My Avatar");
+        assert_eq!(first_n("My Avatar", "/x/y", &[], 1), ["My Avatar"]);
     }
 
     #[test]
-    fn derive_disambiguates_on_any_existing_dest() {
-        let src = PathBuf::from("/a/b/Cat.vrm");
-        let stem = derive_dest_stem(&src, |candidate| candidate == "Cat");
-        assert_ne!(stem, "Cat");
-        assert!(stem.starts_with("Cat"));
-        assert!(is_safe_stem(&stem));
+    fn candidates_follow_base_then_hash_then_numeric_walk() {
+        let c = first_n("Cat", "/a/b/Cat.vrm", &[], 4);
+        assert_eq!(c[0], "Cat");
+        assert_eq!(c[1], format!("Cat-{}", short_hash("/a/b/Cat.vrm")));
+        assert_eq!(c[2], "Cat-2");
+        assert_eq!(c[3], "Cat-3");
+        assert!(c.iter().all(|s| is_safe_stem(s)));
     }
 
     #[test]
-    fn derive_is_deterministic_for_a_given_src_path() {
-        let src = PathBuf::from("/a/b/Cat.vrm");
-        let a = derive_dest_stem(&src, |c| c == "Cat");
-        let b = derive_dest_stem(&src, |c| c == "Cat");
-        assert_eq!(a, b);
+    fn candidates_skip_reserved_ids() {
+        let reserved = vec!["Cat".to_string(), "Cat-2".to_string()];
+        let c = first_n("Cat", "/a/b/Cat.vrm", &reserved, 2);
+        assert!(!c.contains(&"Cat".to_string()));
+        assert!(!c.contains(&"Cat-2".to_string()));
+        assert_eq!(c[0], format!("Cat-{}", short_hash("/a/b/Cat.vrm")));
+        assert_eq!(c[1], "Cat-3");
     }
 
     #[test]
-    fn derive_distinct_src_paths_disambiguate_differently() {
-        let src1 = PathBuf::from("/dir-one/Cat.vrm");
-        let src2 = PathBuf::from("/dir-two/Cat.vrm");
-        let a = derive_dest_stem(&src1, |c| c == "Cat");
-        let b = derive_dest_stem(&src2, |c| c == "Cat");
-        assert_ne!(a, b);
+    fn candidates_use_the_identity_for_disambiguation_only() {
+        let a = first_n("Cat", "content://x/1", &[], 2);
+        let b = first_n("Cat", "content://x/2", &[], 2);
+        assert_eq!(a[0], b[0]);
+        assert_ne!(a[1], b[1]);
     }
 
-    // ── collides ─────────────────────────────────────────────────────────────
+    // ── copy_bounded ─────────────────────────────────────────────────────────
+
+    /// A reader that yields one byte per call.
+    struct OneByte<'a>(&'a [u8]);
+
+    impl Read for OneByte<'_> {
+        fn read(&mut self, buf: &mut [u8]) -> std::io::Result<usize> {
+            match self.0.split_first() {
+                Some((b, rest)) if !buf.is_empty() => {
+                    buf[0] = *b;
+                    self.0 = rest;
+                    Ok(1)
+                }
+                _ => Ok(0),
+            }
+        }
+    }
+
+    struct FailingWriter;
+
+    impl std::io::Write for FailingWriter {
+        fn write(&mut self, _: &[u8]) -> std::io::Result<usize> {
+            Err(std::io::Error::other("disk full"))
+        }
+        fn flush(&mut self) -> std::io::Result<()> {
+            Ok(())
+        }
+    }
+
+    const GLB: &[u8] = b"glTF\x02\x00\x00\x00binary chunk of the model";
 
     #[test]
-    fn collides_is_false_when_dest_absent() {
-        let dest = std::env::temp_dir().join("yui_collides_absent_xyz.vrm");
-        let _ = std::fs::remove_file(&dest);
-        assert!(!collides(&dest));
+    fn copy_bounded_copies_a_glb_stream_under_the_cap() {
+        let mut out = Vec::new();
+        let n = copy_bounded(GLB, &mut out, 1024).unwrap();
+        assert_eq!(n, GLB.len() as u64);
+        assert_eq!(out, GLB);
     }
 
     #[test]
-    fn collides_is_true_for_any_existing_dest_regardless_of_length() {
-        let dest = std::env::temp_dir().join("yui_collides_present.vrm");
-        std::fs::write(&dest, b"any bytes").unwrap();
-        assert!(collides(&dest));
-        let _ = std::fs::remove_file(&dest);
+    fn copy_bounded_accepts_exactly_the_cap_and_rejects_one_over() {
+        let mut out = Vec::new();
+        assert!(copy_bounded(GLB, &mut out, GLB.len() as u64).is_ok());
+        let mut out = Vec::new();
+        assert!(copy_bounded(GLB, &mut out, GLB.len() as u64 - 1).is_err());
+    }
+
+    #[test]
+    fn copy_bounded_stops_reading_past_the_cap() {
+        let mut data = GLB.to_vec();
+        data.extend(std::iter::repeat_n(0u8, 10_000));
+        let mut out = Vec::new();
+        assert!(copy_bounded(&data[..], &mut out, 64).is_err());
+        assert!(out.len() <= 65, "wrote {} bytes past the cap", out.len());
+    }
+
+    #[test]
+    fn copy_bounded_rejects_bad_magic_without_writing() {
+        let mut out = Vec::new();
+        assert!(copy_bounded(&b"%PDF-1.4 not a vrm at all"[..], &mut out, 1024).is_err());
+        assert!(out.is_empty());
+    }
+
+    #[test]
+    fn copy_bounded_rejects_a_stream_shorter_than_the_magic() {
+        let mut out = Vec::new();
+        assert!(copy_bounded(&b"gl"[..], &mut out, 1024).is_err());
+    }
+
+    #[test]
+    fn copy_bounded_handles_one_byte_reads() {
+        let mut out = Vec::new();
+        let n = copy_bounded(OneByte(GLB), &mut out, 1024).unwrap();
+        assert_eq!(n, GLB.len() as u64);
+        assert_eq!(out, GLB);
+    }
+
+    #[test]
+    fn copy_bounded_surfaces_a_write_error() {
+        assert!(copy_bounded(GLB, FailingWriter, 1024).is_err());
     }
 
     // ── short_hash ───────────────────────────────────────────────────────────
