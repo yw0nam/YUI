@@ -1,5 +1,5 @@
-//! Shared import filesystem helpers — sanitize, hash, derive stem, collision
-//! check, and container-signature sniffing.
+//! Shared import filesystem helpers — sanitize, hash, dest stem candidates, bounded streamed
+//! copy, and container-signature sniffing.
 
 use std::io::{Read, Write};
 use std::path::{Component, Path, PathBuf};
@@ -265,7 +265,6 @@ pub(crate) fn copy_bounded(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::path::PathBuf;
 
     /// A safe stem can never be empty, `.`, `..`, contain a path separator, a Windows-illegal
     /// character, an ASCII control char, or carry a leading/trailing dot or whitespace —

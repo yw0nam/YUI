@@ -225,8 +225,6 @@ interface QuickControls {
   dispose(): void;
 }
 
-export { PREVIEW_PEAK_RMS } from "./character/gain-row";
-
 export function createQuickControls({
   mount,
   settings,

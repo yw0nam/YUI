@@ -380,6 +380,16 @@ YUI/
         slider-binding.ts            # Input and release wiring shared by the range sliders
         hint-tooltip.ts              # Shared hover, focus, and click tooltip for data-tip elements
         hint-tooltip.css             # Hint tooltip styles
+        character/                   # Character tab shared by the desktop panel and the phone settings view
+          character-tab.ts           # Tab shell: the rows the caller picks, their subscriptions, open and close hooks
+          character-html.ts          # Tab markup per row set and surface
+          gain-row.ts                # Mouth-gain slider with its live preview
+          viewpoint-row.ts           # Camera view reset button
+          vrm-list.ts                # VRM radiogroup: render, rename, import, swap, keyboard
+          idle-motion-section.ts     # Per-variant switches for the ambient idle pool
+          express-motion-section.ts  # Category accordion curating the agent-selectable motion vocabulary
+          vrm-list.css               # VRM list styles
+          express-motion-section.css # Express-motion accordion styles
         sections/                    # The tab sections the shell mounts and the list helpers only they use
           agent-section.ts           # Locale segment, reasoning-effort segment, and instructions textarea
           endpoints-section.ts       # Endpoint URL fields, API-key rows, chat-API picker, and resets
@@ -388,20 +398,15 @@ YUI/
           reactions-section.ts       # Agent-port, presence, pacer-gap, and rate-limit cap inputs
           history-section.ts         # History tab session accordion over the persisted transcript
           workflows-section.ts       # Workflow entry list editing
-          express-motion-section.ts  # Category accordion curating the agent-selectable motion vocabulary
-          idle-motion-section.ts     # Per-variant switches for the ambient idle pool
           filler-tool-lines.ts       # Textarea round-trip for the filler pool's tool tier
           speaker-list.ts            # Speaker radiogroup with reference-voice refresh and audition
-          vrm-list.ts                # VRM radiogroup: render, rename, import, swap, keyboard
           user-asset-list.ts         # Shared scaffolding for the VRM and speaker asset radiogroups
           endpoints-section.css      # Endpoints section and yui-select dropdown styles
           monitors-section.css       # Monitors section styles
           session-section.css        # Session context-occupancy readout and meter styles
           history-section.css        # Session history accordion styles
           workflows-section.css      # Workflows section styles
-          express-motion-section.css # Express-motion accordion styles
           speaker-list.css           # Speaker list styles
-          vrm-list.css               # VRM list styles
           user-asset-list.css        # Radio row, tick, and state styles shared by the monitor, VRM, and speaker lists
       i18n/                          # Locale catalogs
         en.ts                        # English strings, the source of truth for the key set
@@ -434,7 +439,7 @@ YUI/
       witness.rs                     # Transition-only log of frontmost app and idle state
       turn_log.rs                    # Appends one opaque JSON line per turn record
       log_rotation.rs                # Calendar-date log rotation with a retention window
-      import_fs.rs                   # Shared import filesystem helpers: sanitize, hash, collision, signature sniff
+      import_fs.rs                   # Shared import filesystem helpers: sanitize, hash, dest stem candidates, bounded streamed copy, signature sniff
       vrm_import.rs                  # Native copy of a user-picked .vrm into app data
       voice_import.rs                # Native copy of a user-picked reference clip into app data
       tray.rs                        # System tray menu and its show and hide actions

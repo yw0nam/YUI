@@ -14,12 +14,12 @@ import type {
   IdleVariantPool,
 } from "../../../settings/avatar/idle-motion-settings";
 import type { createLipsyncSettings } from "../../../settings/avatar/lipsync-settings";
-import { createExpressMotionList } from "../sections/express-motion-section";
-import { createIdleMotionList } from "../sections/idle-motion-section";
-import { createVrmList } from "../sections/vrm-list";
 import { type CharacterRows, type CharacterVariant, characterHtml } from "./character-html";
+import { createExpressMotionList } from "./express-motion-section";
 import { createGainRow } from "./gain-row";
+import { createIdleMotionList } from "./idle-motion-section";
 import { bindViewpointReset } from "./viewpoint-row";
+import { createVrmList } from "./vrm-list";
 
 export type { CharacterRows } from "./character-html";
 

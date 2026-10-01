@@ -16,7 +16,8 @@ import { createMessageWindowSettings } from "../../settings/panels/message-windo
 import { createFlagSettings } from "../../settings/persisted-store";
 import { createVadSettings, VAD_SILENCE_DEFAULT } from "../../settings/voice/vad-settings";
 import { setLocale, t } from "../i18n";
-import { createQuickControls, PREVIEW_PEAK_RMS } from "./quick-controls";
+import { PREVIEW_PEAK_RMS } from "./character/gain-row";
+import { createQuickControls } from "./quick-controls";
 import {
   defaultQcArgs,
   inMemoryAgentStorage,
