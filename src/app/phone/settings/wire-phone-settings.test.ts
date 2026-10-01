@@ -14,6 +14,7 @@ import {
 } from "../../../renderer/geometry/camera-fit";
 import { CAMERA_ZOOM_DEFAULT } from "../../../settings/avatar/camera-settings";
 import { createSettingsStores } from "../../../settings/settings-stores";
+import { createVoiceMode } from "../../../settings/voice/voice-mode";
 import { setLocale } from "../../../ui/i18n";
 import { createConversationStores } from "../../settings/conversation-stores";
 import { createPhoneSettings } from "./wire-phone-settings";
@@ -56,6 +57,7 @@ describe("createPhoneSettings", () => {
     });
     const stageBackground = createStageBackground();
     const importStageImage = vi.fn(async () => {});
+    const selectVoiceMode = vi.fn();
     const phoneSettings = createPhoneSettings({
       mount,
       stores,
@@ -63,6 +65,8 @@ describe("createPhoneSettings", () => {
       removeUserVrm: async () => {},
       stageBackground,
       importStageImage,
+      voiceMode: createVoiceMode({ storage: { load: () => null, save: () => {} } }),
+      selectVoiceMode,
       conversation: createConversationStores(),
       pushSocket,
       stopTurn: () => {},
@@ -77,6 +81,7 @@ describe("createPhoneSettings", () => {
       vrmSelection,
       stageBackground,
       importStageImage,
+      selectVoiceMode,
     };
   }
 
@@ -151,16 +156,21 @@ describe("createPhoneSettings", () => {
     phoneSettings.dispose();
   });
 
-  it("the General tab drives the stage, the import and the bubble switch", () => {
-    const { stores, mount, phoneSettings, stageBackground, importStageImage } = setup({
-      get() {
-        throw new Error("config not loaded");
-      },
-    });
+  it("the General tab drives the voice mode port, the stage, the import and the bubble switch", () => {
+    const { stores, mount, phoneSettings, stageBackground, importStageImage, selectVoiceMode } =
+      setup({
+        get() {
+          throw new Error("config not loaded");
+        },
+      });
     stageBackground.setImage({ id: "beach.jpg", path: "/data/stage/beach.jpg" });
     phoneSettings.open("general");
 
     expect(mount.querySelector<HTMLElement>("#yui-panel-general")!.hidden).toBe(false);
+    mount
+      .querySelector<HTMLButtonElement>('.yui-voice-seg .yui-seg__btn[data-mode="always"]')!
+      .click();
+    expect(selectVoiceMode).toHaveBeenCalledWith("always");
     mount.querySelector<HTMLButtonElement>('.yui-seg__btn[data-mode="default"]')!.click();
     expect(stageBackground.get().mode).toBe("default");
     mount.querySelector<HTMLButtonElement>(".yui-stage-choose")!.click();

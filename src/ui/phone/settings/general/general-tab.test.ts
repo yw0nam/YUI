@@ -2,6 +2,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createStageBackground } from "../../../../io/assets/stage/stage-background";
 import { createFlagSettings } from "../../../../settings/persisted-store";
+import { createVoiceMode } from "../../../../settings/voice/voice-mode";
 import { setLocale, t } from "../../../i18n";
 import { createGeneralTab } from "./general-tab";
 
@@ -11,11 +12,20 @@ const log = { debug: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn() };
 function build(importStageImage: () => Promise<void> = async () => {}) {
   const stageBackground = createStageBackground();
   const bubblePersistSettings = createFlagSettings(false);
-  const tab = createGeneralTab({ stageBackground, importStageImage, bubblePersistSettings, log });
+  const voiceMode = createVoiceMode({ storage: { load: () => null, save: () => {} } });
+  const selectVoiceMode = vi.fn();
+  const tab = createGeneralTab({
+    stageBackground,
+    importStageImage,
+    bubblePersistSettings,
+    voiceMode,
+    selectVoiceMode,
+    log,
+  });
   document.body.append(tab.el);
   const q = <T extends HTMLElement>(sel: string): T => tab.el.querySelector<T>(sel)!;
   const mode = (m: string): HTMLButtonElement => q(`.yui-seg__btn[data-mode="${m}"]`);
-  return { tab, stageBackground, bubblePersistSettings, q, mode };
+  return { tab, stageBackground, bubblePersistSettings, voiceMode, selectVoiceMode, q, mode };
 }
 
 function key(el: HTMLElement, k: string): void {
@@ -33,16 +43,32 @@ describe("createGeneralTab", () => {
     document.body.innerHTML = "";
   });
 
-  it("renders the Stage and Speech bubble sections with the segment, the row and the switch", () => {
+  it("renders the Voice input, Stage and Speech bubble sections with the segments, the row and the switch", () => {
     const { tab, q, mode } = build();
     const titles = Array.from(tab.el.querySelectorAll(".yui-sec__title")).map((n) => n.textContent);
-    expect(titles).toEqual([t("phone.general.stage_section"), t("phone.general.bubble_section")]);
+    expect(titles).toEqual([
+      t("phone.voice.section"),
+      t("phone.general.stage_section"),
+      t("phone.general.bubble_section"),
+    ]);
     expect(q(".yui-stage-seg").getAttribute("role")).toBe("radiogroup");
     expect(mode("default").getAttribute("role")).toBe("radio");
     expect(mode("default").textContent).toBe("Default");
     expect(mode("image").textContent).toBe("Image");
     expect(q(".yui-stage-choose").textContent).toBe("Choose");
     expect(q(".yui-bubble-persist-switch").getAttribute("role")).toBe("switch");
+  });
+
+  it("the voice segment hands its choice to selectVoiceMode and follows the mode store", () => {
+    const { voiceMode, selectVoiceMode, q } = build();
+
+    q('.yui-voice-seg .yui-seg__btn[data-mode="always"]').click();
+    expect(selectVoiceMode).toHaveBeenCalledWith("always");
+
+    voiceMode.set("always");
+    expect(q('.yui-voice-seg .yui-seg__btn[data-mode="always"]').getAttribute("aria-checked")).toBe(
+      "true",
+    );
   });
 
   it("Image is disabled until an image is stored, and Default is selected", () => {
