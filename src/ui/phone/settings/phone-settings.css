@@ -135,3 +135,41 @@
   width: var(--yui-touch);
   height: var(--yui-touch);
 }
+
+/* Character tab: the VRM rows, the import row and the reset button reach the touch target, and the
+   rename/remove buttons grow to it and stay visible — there is no hover on a phone. */
+.yui-phone-settings .yui-vrm,
+.yui-phone-settings .yui-vrm--add,
+.yui-phone-settings .yui-viewpoint-reset {
+  min-width: var(--yui-touch);
+  min-height: var(--yui-touch);
+}
+
+/* The 48px buttons already fill a user row's height. */
+.yui-phone-settings .yui-vrm {
+  padding-block: 0;
+}
+
+.yui-phone-settings .yui-vrm__rename,
+.yui-phone-settings .yui-vrm__remove {
+  width: var(--yui-touch);
+  height: var(--yui-touch);
+  opacity: 0.7;
+}
+
+/* The two action buttons leave the name little room: it truncates, and the filled radio marks the
+   selected row without the badge. */
+.yui-phone-settings .yui-vrm__badge {
+  display: none;
+}
+
+.yui-phone-settings .yui-vrm__body {
+  min-width: 0;
+}
+
+.yui-phone-settings .yui-vrm__name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
