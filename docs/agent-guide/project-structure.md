@@ -75,6 +75,8 @@ YUI/
           wire-phone-stage.ts        # Upper-body fit band, the tap source and the stage touch gesture composed for the phone
           touch-camera.ts            # Binds orbit, pinch and tap callbacks to the camera store and the tap
           stage-tap.ts               # Hands a tap to the tap source in stage-local px
+        voice/                       # The phone's voice input
+          voice-controller.ts        # Capture intent over the mic button, the voice mode, the foreground and the STT setting
     logger.ts                        # Namespaced frontend logger with a runtime level
     tauri-env.ts                     # Tauri runtime detection
     windows/                         # One entry file per window, loaded by the matching HTML file
@@ -227,6 +229,7 @@ YUI/
       voice/                         # Filler speech and voice activity detection
         filler-settings.ts           # Filler phrase pools and behaviour flags
         vad-settings.ts              # VAD silence window
+        voice-mode.ts                # The phone's mic mode: tap to toggle or keep listening
       panels/                        # Panel and window state
         delegation-chip-settings.ts  # Per-device fold state of the delegation chip
         message-window-settings.ts   # Message-window mode and last outer position
@@ -248,6 +251,7 @@ YUI/
       voice/
         deadline.ts                    # Per-request deadline and the body-read race that settle a stalled fetch
         stt-vad.ts                     # Voice input pipeline: VAD segmentation then STT upload
+        mic-error.ts                   # The mic failure cause codes the voice status carries
         filler/                        # TTFT filler phrases spoken while a turn is thinking
           filler-loop.ts               # Bounded, event-aware TTFT filler scheduler
           filler-pool.ts               # Resolves the effective filler pool per language and tier
@@ -335,6 +339,7 @@ YUI/
         surfaces.css                 # Speech bubble and text input styles
       input/                         # Text entry and its supporting transforms
         text-input.ts                # Text input: submit, busy, error, and feet anchoring
+        action-button.ts             # The composer's stop, send and mic button
         image-resize.ts              # Downscales and re-encodes user-attached images
         format-accel.ts              # Renders an accelerator string for display
       message/                       # Message-window plate, bubble, and cue-list rendering
