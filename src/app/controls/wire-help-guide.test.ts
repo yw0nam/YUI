@@ -27,12 +27,12 @@ function setup() {
   const settingsBridge = createSettingsBridge(transport, { windowKind: "settings" });
   const userInput = { submitGuide: vi.fn() };
   const disposers: Array<() => void> = [];
-  const ask = wireHelpGuide({
+  const { ask, bindInteraction } = wireHelpGuide({
     userInput,
     bridge: petBridge,
     register: (fn) => disposers.push(fn),
   });
-  return { settingsBridge, userInput, disposers, ask };
+  return { settingsBridge, userInput, disposers, ask, bindInteraction };
 }
 
 describe("wireHelpGuide", () => {
@@ -65,5 +65,16 @@ describe("wireHelpGuide", () => {
     for (const dispose of disposers) dispose();
     settingsBridge.emitHelpGuide({ guide: "controls", text: "late" });
     expect(userInput.submitGuide).toHaveBeenCalledTimes(1);
+  });
+
+  it("a press from either window counts as a user interaction once the hook is bound", () => {
+    const { settingsBridge, ask, bindInteraction } = setup();
+    const noteInteraction = vi.fn();
+    bindInteraction(noteInteraction);
+
+    ask("controls", "How do I control YUI?");
+    settingsBridge.emitHelpGuide({ guide: "capabilities", text: "hi" });
+
+    expect(noteInteraction).toHaveBeenCalledTimes(2);
   });
 });
