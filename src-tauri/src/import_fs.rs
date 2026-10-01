@@ -222,8 +222,15 @@ pub(crate) fn short_hash(s: &str) -> String {
     format!("{:x}", h & 0xffffff)
 }
 
+/// `base` plus `-suffix`, with `base` shortened on a char boundary so the whole stays within
+/// `MAX_STEM_BYTES`.
+fn suffixed(base: &str, suffix: &str) -> String {
+    let room = MAX_STEM_BYTES.saturating_sub(suffix.len() + 1);
+    format!("{}-{suffix}", truncate_at_char_boundary(base, room))
+}
+
 /// Candidate dest stems in claim order: the sanitized name, the name with a hash of the source
-/// identity, then a numeric walk. Reserved ids are skipped; the caller claims a stem by creating
+/// identity, then a numeric walk. Every candidate stays within `MAX_STEM_BYTES`. Reserved ids are skipped; the caller claims a stem by creating
 /// its file and moves to the next candidate when it already exists.
 pub(crate) fn dest_stem_candidates<'a>(
     name_stem: &str,
@@ -231,10 +238,10 @@ pub(crate) fn dest_stem_candidates<'a>(
     reserved: &'a [String],
 ) -> impl Iterator<Item = String> + 'a {
     let base = sanitize_stem(name_stem);
-    let hashed = format!("{base}-{}", short_hash(identity));
+    let hashed = suffixed(&base, &short_hash(identity));
     let numbered = {
         let base = base.clone();
-        (2..).map(move |n| format!("{base}-{n}"))
+        (2..).map(move |n| suffixed(&base, &n.to_string()))
     };
     [base, hashed]
         .into_iter()

@@ -81,7 +81,7 @@ export async function importStageImage(
 
   const previous = store.get().image;
   store.setImage({ id, path: destPath });
-  if (previous) {
+  if (previous && previous.id !== id) {
     await removeOrphanImport(previous.id, remove, (e) =>
       d.log.warn("stage_image_remove_failed", { error: String(e) }),
     );
