@@ -12,6 +12,7 @@ import "../styles.css";
 import "../ui/phone/phone.css";
 import { createDisposers } from "../app/disposers";
 import { createPhoneBootstrap } from "../app/phone/bootstrap-phone";
+import { pushOnlyEndpoints } from "../app/phone/endpoints/push-only";
 import { wirePhoneStage } from "../app/phone/stage/wire-phone-stage";
 import { createPhoneTopRow } from "../app/phone/top-row/create-phone-top-row";
 import { createWindowStores } from "../app/settings/window-stores";
@@ -60,6 +61,8 @@ async function bootstrap(): Promise<{ dispose(): void }> {
 
   const { settingsStores, conversationStores } = createWindowStores(register);
   const petConfig = createPetConfig({ ...settingsStores, log });
+  // The phone speaks the push transport only; every reader sees chat_api push.
+  const getEndpoints = pushOnlyEndpoints(petConfig.getEndpoints);
   const config = petConfig.config;
   const { renderer } = createStageRenderer({ stage, settings: settingsStores, register });
 
@@ -80,7 +83,7 @@ async function bootstrap(): Promise<{ dispose(): void }> {
 
   const { vrm, speaker } = wireAvatarSelection({
     renderer,
-    getEndpoints: petConfig.getEndpoints,
+    getEndpoints,
     getTtsKey: () => config.secrets.get(TTS_API_KEY_SECRET),
     endpointsSettings: settingsStores.endpointsSettings,
     log,
@@ -90,7 +93,7 @@ async function bootstrap(): Promise<{ dispose(): void }> {
   });
 
   const push = createPushStores({
-    getEndpoints: petConfig.getEndpoints,
+    getEndpoints,
     getChatKey: () => config.secrets.get(CHAT_API_KEY_SECRET),
     register,
   });
@@ -141,7 +144,7 @@ async function bootstrap(): Promise<{ dispose(): void }> {
       delegations: push.delegations,
       delegationHistory: push.delegationHistory,
       reasoning: push.reasoning,
-      getEndpoints: petConfig.getEndpoints,
+      getEndpoints,
       getGuardrails: petConfig.getGuardrails,
       isDisposed,
     });
@@ -152,7 +155,7 @@ async function bootstrap(): Promise<{ dispose(): void }> {
       wirePushMode({
         socket: push.pushSocket,
         chip: topRow.chip,
-        getEndpoints: petConfig.getEndpoints,
+        getEndpoints,
         endpointsSettings: settingsStores.endpointsSettings,
         chatKeySettings: settingsStores.chatKeySettings,
         suspended: visibility,

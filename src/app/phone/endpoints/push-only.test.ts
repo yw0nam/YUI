@@ -4,6 +4,8 @@ import { pushOnlyEndpoints } from "./push-only";
 
 const base = (patch: Partial<EndpointsConfig> = {}): EndpointsConfig => ({
   chat_base_url: "ws://gateway.test",
+  stt_base_url: "",
+  tts_base_url: "",
   chat_api: "responses",
   ...patch,
 });
@@ -19,7 +21,8 @@ describe("pushOnlyEndpoints", () => {
     // neither is the source, so the wrapped accessor cannot observe it.
     let stored: EndpointsConfig = base({ chat_api: "push" });
     const get = pushOnlyEndpoints(() => stored);
-    stored = base({ chat_api: "" });
+    // The reset clears the override to "no override" — the merged config carries no chat_api.
+    stored = base({ chat_api: undefined });
     expect(get().chat_api).toBe("push");
   });
 
