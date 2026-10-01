@@ -6,6 +6,7 @@
  */
 
 import type { Usage } from "../../contract";
+import { renderGuideBlock } from "../guide/guide-docs";
 import type { ChatHistoryEntry } from "./chat-history-store";
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -45,6 +46,12 @@ export function buildCCMessages(opts: BuildCCMessagesOpts): CCMessage[] {
     messages.push({ role: "system", content: opts.instructions });
   }
   for (const entry of opts.transcript) {
+    if (entry.guide) {
+      messages.push({
+        role: "system",
+        content: `client_context:\n${renderGuideBlock(entry.guide)}`,
+      });
+    }
     messages.push({ role: entry.role, content: entry.text });
   }
   // After the transcript: it changes every turn, and provider prompt caches reuse only the unchanged prefix.

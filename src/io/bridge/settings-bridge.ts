@@ -12,9 +12,11 @@
  * All transport calls are wrapped in try/catch and never throw.
  */
 
+import type { GuideKey } from "../../contract";
 import { createLogger } from "../../logger";
 import { isTauri } from "../../tauri-env";
 import type { DelegationItem, PushSocketState } from "../chat/push-socket";
+import { isGuideKey } from "../guide/guide-docs";
 import type { VoiceInputState } from "../voice/stt-vad";
 import type { ReasoningState } from "./reasoning-store";
 
@@ -32,9 +34,16 @@ const CH_DELEGATIONS = "yui://delegations";
 const CH_DELEGATIONS_ASK = "yui://delegations-ask";
 const CH_REASONING = "yui://reasoning";
 const CH_REASONING_ASK = "yui://reasoning-ask";
+const CH_HELP_GUIDE = "yui://help-guide";
 
 interface VoiceStateSnapshot {
   state: VoiceInputState;
+}
+
+/** A Help-section press: the guide asked for and the request text in the pressing window's language. */
+export interface HelpGuideRequest {
+  guide: GuideKey;
+  text: string;
 }
 
 export type WindowKind = "pet" | "settings" | "devtools" | "message";
@@ -78,6 +87,9 @@ export interface SettingsBridge {
   /** A window with no socket of its own asking the owner to send the current reasoning state. */
   emitReasoningAsk(): void;
   onReasoningAsk(cb: () => void): () => void;
+  /** A window with no input source of its own asking the pet window to submit a guide request. */
+  emitHelpGuide(request: HelpGuideRequest): void;
+  onHelpGuide(cb: (request: HelpGuideRequest) => void): () => void;
   dispose(): void;
 }
 
@@ -315,6 +327,15 @@ export function createSettingsBridge(
     },
     onReasoningAsk(cb) {
       return on<unknown>(CH_REASONING_ASK, () => cb());
+    },
+    emitHelpGuide(request) {
+      safeEmit(CH_HELP_GUIDE, request);
+    },
+    onHelpGuide(cb) {
+      return on<unknown>(CH_HELP_GUIDE, (request) => {
+        const r = (request ?? {}) as Partial<HelpGuideRequest>;
+        if (isGuideKey(r.guide) && typeof r.text === "string") cb({ guide: r.guide, text: r.text });
+      });
     },
     dispose: core.dispose,
   };

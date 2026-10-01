@@ -7,6 +7,7 @@
 import "./quick-controls.css";
 import "./controls.css";
 import type { AvatarOption } from "../../config/load";
+import type { GuideKey } from "../../contract";
 import type { createVrmSelection } from "../../io/assets/vrm-selection";
 import type { createChatHistoryStore } from "../../io/chat/chat-history-store";
 import type { DelegationItem } from "../../io/chat/push-socket";
@@ -65,6 +66,7 @@ import { createPopover } from "./popover";
 import { createReflect } from "./reflect";
 import { createAgentSection } from "./sections/agent-section";
 import { parseToolLines, serializeToolLines } from "./sections/filler-tool-lines";
+import { bindHelpSection } from "./sections/help-section";
 import { createMonitorsSection } from "./sections/monitors-section";
 import { createReactionsSection } from "./sections/reactions-section";
 import { createScreenSection } from "./sections/screen-section";
@@ -145,6 +147,8 @@ interface QuickControlsOptions {
   /** Opens the text input. Renders the header button when set. */
   onMessage?: () => void;
   onOpenDevtools?: () => void;
+  /** Asks the character to explain from a bundled guide. Renders the Help section when set. */
+  onGuide?: (guide: GuideKey, text: string) => void;
   variant?: "popover" | "window";
   /** In window variant, path for Escape to close OS window (host injected). Without it, Escape is no-op. */
   onCloseWindow?: () => void;
@@ -254,6 +258,7 @@ export function createQuickControls({
   onPopOut,
   onMessage,
   onOpenDevtools,
+  onGuide,
   variant = "popover",
   onCloseWindow,
   getDefaultInstructions,
@@ -328,6 +333,7 @@ export function createQuickControls({
     showPacerGap: !!pacerGapSettings,
     showRateLimits: !!rateLimitSettings,
     showDevtools: !isWindow && !!onOpenDevtools,
+    showHelp: !!onGuide,
     showMessage: !!onMessage,
     showHistory: !!transcript,
   });
@@ -836,6 +842,14 @@ export function createQuickControls({
   popOutBtn?.addEventListener("click", handlePopOut);
   messageBtn?.addEventListener("click", handleMessage);
   devtoolsBtn?.addEventListener("click", () => onOpenDevtools?.());
+  // The popover closes first, as for the message button, so the reply is what the user sees next.
+  // The separate settings window stays open.
+  const unbindHelp = onGuide
+    ? bindHelpSection(el, (guide, text) => {
+        if (!isWindow) popover.close();
+        onGuide(guide, text);
+      })
+    : undefined;
   closeBtn?.addEventListener("click", popover.close);
   // window variant is always visible, so open it immediately.
   if (isWindow) popover.open();
@@ -889,6 +903,7 @@ export function createQuickControls({
     spkAddBtn.removeEventListener("click", speakerList.handleAddClick);
     popOutBtn?.removeEventListener("click", handlePopOut);
     messageBtn?.removeEventListener("click", handleMessage);
+    unbindHelp?.();
     closeBtn?.removeEventListener("click", popover.close);
     el.remove();
     scrimEl.remove();

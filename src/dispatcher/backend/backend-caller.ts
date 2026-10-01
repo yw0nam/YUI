@@ -526,7 +526,12 @@ export function createBackendCaller(deps: BackendCallerDeps): BackendCaller {
       if (deps.transcript) {
         if (deps.transcript.sessionToken() === startSessionToken) {
           if (ctx.user_text !== undefined) {
-            deps.transcript.append({ role: "user", text: ctx.user_text, ts: Date.now() });
+            deps.transcript.append({
+              role: "user",
+              text: ctx.user_text,
+              ts: Date.now(),
+              ...(clientContext.trigger.guide ? { guide: clientContext.trigger.guide } : {}),
+            });
           }
           if (envelope.speech_text) {
             deps.transcript.append({

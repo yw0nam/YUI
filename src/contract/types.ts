@@ -250,9 +250,14 @@ export type SignalEnvelope = {
 
 export type SignalGroup = { envelope?: SignalEnvelope; items: SignalItem[] };
 
+/** A bundled guide doc the backend answers from. */
+export type GuideKey = "controls" | "capabilities";
+
 /** trigger envelope describing what fired this backend turn. */
 export interface TriggerMeta {
   kind: "user" | "schedule" | "proactive" | "agent" | "signals" | "milestone";
+  /** user only: the in-app help button that asked, naming the guide that answers it. */
+  guide?: GuideKey;
   cue?: CueMeta;
   /** time_milestone.* — a once-per-day client clock fact. */
   milestone?: { name: string; local_time: string };

@@ -6,7 +6,7 @@
  * on the surfaces. Whether there is a reply is the backend's.
  */
 import type { UserQuote } from "../../io/bridge/message-bridge";
-import { userImagesOf, userTextOf } from "../backend/context-builder";
+import { guideKeyOf, userImagesOf, userTextOf } from "../backend/context-builder";
 import { userTurnSourceOf } from "../core/classify";
 import type { Turn, TurnLog } from "./turn";
 
@@ -38,6 +38,7 @@ export function createQuotedTurn(deps: {
     text: string;
     images: string[];
     via: UserQuote["via"];
+    guide: boolean;
     spoke: boolean;
   } | null = null;
 
@@ -58,7 +59,14 @@ export function createQuotedTurn(deps: {
       }
       const text = userTextOf(turn.trigger) ?? "";
       const images = userImagesOf(turn.trigger) ?? [];
-      quoted = { id: turn.id, text, images, via, spoke: false };
+      quoted = {
+        id: turn.id,
+        text,
+        images,
+        via,
+        guide: guideKeyOf(turn.trigger) !== undefined,
+        spoke: false,
+      };
       surfaces.quoteUser({ text, via, images: images.length });
     },
     utteranceStart() {
@@ -72,7 +80,9 @@ export function createQuotedTurn(deps: {
         surfaces.settleQuote();
         return;
       }
-      if (failedQuote.via === "text") surfaces.restoreInput(failedQuote.text, failedQuote.images);
+      // Resending the bare request would lose the guide, so a guide turn restores nothing.
+      if (failedQuote.via === "text" && !failedQuote.guide)
+        surfaces.restoreInput(failedQuote.text, failedQuote.images);
       surfaces.clearQuote();
     },
     dispose() {

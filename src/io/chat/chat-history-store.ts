@@ -6,16 +6,20 @@
  * reads sessions().
  */
 
+import type { GuideKey } from "../../contract";
 import {
   createPersistedStore,
   localStorageStore,
   type PersistedStorage,
 } from "../../settings/persisted-store";
+import { isGuideKey, renderGuideBlock } from "../guide/guide-docs";
 
 export interface ChatHistoryEntry {
   role: "user" | "assistant";
   text: string;
   ts: number;
+  /** A user entry that asked from a help button: the guide the reply answered from. */
+  guide?: GuideKey;
 }
 
 /** Divider between conversation sessions. Replay stops here; the viewer reads past it. */
@@ -58,7 +62,12 @@ function coerceItem(v: unknown): ChatHistoryItem | null {
   if (e.kind === "boundary") return { kind: "boundary", ts: e.ts };
   if (e.role !== "user" && e.role !== "assistant") return null;
   if (typeof e.text !== "string") return null;
-  return { role: e.role, text: e.text, ts: e.ts };
+  return {
+    role: e.role,
+    text: e.text,
+    ts: e.ts,
+    ...(isGuideKey(e.guide) ? { guide: e.guide } : {}),
+  };
 }
 
 function coerce(v: unknown): ChatHistoryItem[] {
@@ -78,7 +87,12 @@ function equalItems(a: ChatHistoryItem[], b: ChatHistoryItem[]): boolean {
     if (isBoundary(item) || isBoundary(other)) {
       return isBoundary(item) && isBoundary(other) && item.ts === other.ts;
     }
-    return item.role === other.role && item.text === other.text && item.ts === other.ts;
+    return (
+      item.role === other.role &&
+      item.text === other.text &&
+      item.ts === other.ts &&
+      item.guide === other.guide
+    );
   });
 }
 
@@ -252,7 +266,8 @@ export function selectSendSuffix(
   let budget = contextWindow;
   let start = entries.length;
   for (let i = entries.length - 1; i >= 0; i--) {
-    const cost = estimateTokens(entries[i].text);
+    const { text, guide } = entries[i];
+    const cost = estimateTokens(text) + (guide ? estimateTokens(renderGuideBlock(guide)) : 0);
     if (cost > budget) break;
     budget -= cost;
     start = i;

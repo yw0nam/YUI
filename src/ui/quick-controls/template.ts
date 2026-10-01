@@ -19,6 +19,7 @@ import {
   TAB_ICON_TALK,
 } from "./constants";
 import { escapeAttr, secHeadHtml } from "./markup";
+import { helpSectionHtml } from "./sections/help-section";
 import type { SwitchRow } from "./switch-row";
 import { tabButtonHtml, tabPanelOpenHtml } from "./tabs/tab-rail";
 
@@ -46,6 +47,8 @@ interface PanelHtmlOptions {
   /** Whether the rate-limit cap rows render — true when the guardrails-override store is injected. */
   showRateLimits: boolean;
   showDevtools: boolean;
+  /** Whether the Help section renders — true when a guide handler is injected. */
+  showHelp: boolean;
   /** Whether the header carries the button that opens the text input. */
   showMessage: boolean;
   /** Whether the History tab renders — true when a transcript store is injected. */
@@ -62,6 +65,7 @@ export function buildPanelHtml(o: PanelHtmlOptions): string {
     showPacerGap,
     showRateLimits,
     showDevtools,
+    showHelp,
     showMessage,
     showHistory,
   } = o;
@@ -442,7 +446,7 @@ ${
                 : ""
             }
           </div>
-        </div>${sessionHtml}
+        </div>${sessionHtml}${showHelp ? helpSectionHtml() : ""}
       </div>
       </div>
     </div>

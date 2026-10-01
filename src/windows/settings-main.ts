@@ -259,6 +259,8 @@ async function bootstrap(): Promise<void> {
       // Renderer in main window, pass gain preview via bridge → main window VRM mouth moves.
       onGainPreview: (mouthOpen) => bridge.emitMouthPreview(mouthOpen),
       onGainPreviewEnd: () => bridge.emitMouthPreview(null),
+      // The pet window owns the input source: the request travels there and is submitted.
+      onGuide: (guide, text) => bridge.emitHelpGuide({ guide, text }),
       onResetViewpoint: () => cameraSettings.resetOrbit(),
       getDefaultInstructions: () => {
         if (!configLoaded) return undefined;

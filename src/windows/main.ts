@@ -15,6 +15,7 @@
 
 import "../styles.css";
 import { createConfiguredBootstrap } from "../app/bootstrap-configured";
+import { wireHelpGuide } from "../app/controls/wire-help-guide";
 import { wirePetControls } from "../app/controls/wire-pet-controls";
 import { wireCrossWindowSync, wireDevGlobals } from "../app/cross-window/wire-cross-window";
 import { wireSettingsReload } from "../app/cross-window/wire-window-sync";
@@ -161,6 +162,13 @@ async function bootstrap(): Promise<BootstrapHandle> {
   });
   publishPushStores(push, windowBridge, register);
 
+  // The bus and input source come first: the settings panel submits its help requests through them.
+  const bus = createEventBus({
+    onDrop: (env, reason) => log.info("drop", { event_name: env.event_name, reason }),
+  });
+  const userInput = createUserInputSource(bus);
+  const askGuide = wireHelpGuide({ userInput, bridge: windowBridge, register });
+
   const controls = wirePetControls({
     root,
     stage,
@@ -177,6 +185,7 @@ async function bootstrap(): Promise<BootstrapHandle> {
     surfaces,
     remoteSurfaces: remote,
     openSettings,
+    onGuide: askGuide,
     openDevtools,
     register,
   });
@@ -186,10 +195,6 @@ async function bootstrap(): Promise<BootstrapHandle> {
   // renderer.applyDirective. user.text_submitted drives this loop.
   // bus/dispatcher safe to create before config load (backend_caller reads endpoints at call time
   // from config). backend_caller needs config store, so wire after config creation.
-  const bus = createEventBus({
-    onDrop: (env, reason) => log.info("drop", { event_name: env.event_name, reason }),
-  });
-  const userInput = createUserInputSource(bus);
 
   register(attachSummonKey(surfaces));
 

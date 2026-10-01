@@ -2,10 +2,12 @@ import type {
   BodyState,
   ClientContext,
   FrontmostState,
+  GuideKey,
   InputContext,
   PreviousTurn,
   TriggerMeta,
 } from "../../contract";
+import { isGuideKey } from "../../io/guide/guide-docs";
 import type { BusEnvelope } from "../core/event-bus";
 
 interface ContextProviders {
@@ -33,6 +35,12 @@ export function userImagesOf(env: BusEnvelope): string[] | undefined {
   return Array.isArray(images) && images.every((url) => typeof url === "string")
     ? (images as string[])
     : undefined;
+}
+
+/** The guide the user's help button named on this turn. */
+export function guideKeyOf(env: BusEnvelope): GuideKey | undefined {
+  const guide = env.payload?.guide;
+  return isGuideKey(guide) ? guide : undefined;
 }
 
 function agentOf(env: BusEnvelope): TriggerMeta["agent"] | undefined {
@@ -228,6 +236,7 @@ export function buildClientContext(
   const milestone = milestoneOf(env);
   const signals = signalsOf(env);
   const screen = screenOf(env);
+  const guide = guideKeyOf(env);
   const screenshot = ctx.screenshot
     ? { enabled: ctx.screenshot.enabled, source: ctx.screenshot.source }
     : undefined;
@@ -245,6 +254,7 @@ export function buildClientContext(
     ...(badEnding ? { previous: badEnding } : {}),
     trigger: {
       kind: triggerKind(env.event_name),
+      ...(guide ? { guide } : {}),
       ...(cue ? { cue } : {}),
       ...(gapMs != null ? { idle_elapsed_min: Math.round(gapMs / 60_000) } : {}),
       ...(agent ? { agent } : {}),

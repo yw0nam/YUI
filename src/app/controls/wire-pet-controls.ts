@@ -4,6 +4,7 @@
  */
 
 import type { ConfigStore } from "../../config/store";
+import type { GuideKey } from "../../contract";
 import { removeUserVrm } from "../../io/assets/vrm-import";
 import type { RemoteSurfaces } from "../../io/bridge/message-remote";
 import { agentTriggerableMotionIds } from "../../io/chat/broker-client";
@@ -56,6 +57,7 @@ export function wirePetControls(deps: {
   surfaces: Pick<Surfaces, "summonInput">;
   remoteSurfaces: Pick<RemoteSurfaces, "onOpenSettings">;
   openSettings: () => void;
+  onGuide: (guide: GuideKey, text: string) => void;
   openDevtools: () => void;
   register: (teardown: () => void) => void;
 }): { get(): QuickControls } {
@@ -75,6 +77,7 @@ export function wirePetControls(deps: {
     surfaces,
     remoteSurfaces: remote,
     openSettings,
+    onGuide,
     openDevtools,
     register,
   } = deps;
@@ -221,6 +224,7 @@ export function wirePetControls(deps: {
       },
       onPopOut: () => openSettings(),
       onMessage: () => surfaces.summonInput(),
+      onGuide,
     });
   // Re-mounted on locale change (see i18n subscriber below); consumers read the live binding.
   let quickControls = buildQuickControls();

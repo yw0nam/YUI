@@ -20,6 +20,7 @@ export type {
   ExpressArgs,
   // Latest frontmost-window sample reported each turn
   FrontmostState,
+  GuideKey,
   InputContext,
   InterruptPolicy,
   // Motion

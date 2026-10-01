@@ -45,6 +45,7 @@ function render(switchRows: readonly SwitchRow[]): HTMLElement {
     showPacerGap: false,
     showRateLimits: false,
     showDevtools: false,
+    showHelp: false,
     showMessage: false,
     showHistory: false,
   });
