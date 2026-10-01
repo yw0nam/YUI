@@ -9,6 +9,7 @@
 import "../styles.css";
 import { wireSettingsWindowSync } from "../app/cross-window/wire-cross-window";
 import { createConversationStores } from "../app/settings/conversation-stores";
+import { devKeyFallback } from "../app/settings/dev-key-fallback";
 import { createEffectiveEndpoints, wireSpeakerSelection } from "../app/settings/wire-avatar";
 import { wireCueLocaleSync } from "../app/settings/wire-cue-locale-sync";
 import { TTS_API_KEY_SECRET } from "../config/load";
@@ -89,7 +90,7 @@ async function bootstrap(): Promise<void> {
   const config = createConfigStore({
     secrets: createSettingsSecretProvider({
       stores: { [TTS_API_KEY_SECRET]: ttsKeySettings },
-      fallback: { [TTS_API_KEY_SECRET]: import.meta.env.VITE_YUI_TTS_KEY },
+      fallback: devKeyFallback(),
     }),
   });
   const getTtsApiKey = (): Promise<string | undefined> => config.secrets.get(TTS_API_KEY_SECRET);

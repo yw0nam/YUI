@@ -40,7 +40,7 @@ pnpm build            # production build
 
 ### Chat auth key
 
-If your chat endpoint requires a key, either paste it into the panel's Chat key field or copy `.env.example` to `.env.local` and set `VITE_YUI_CHAT_KEY`. The key set in the panel wins; `.env.local` (gitignored) is the fallback used when the panel field is empty. It is read at build time, so restart the dev server after editing it.
+If your chat endpoint requires a key, either paste it into the panel's Chat key field or copy `.env.example` to `.env.local` and set `VITE_YUI_CHAT_KEY`. The key set in the panel wins; `.env.local` (gitignored) is the fallback used when the panel field is empty. It is read at build time, so restart the dev server after editing it. This fallback applies to dev runs (`pnpm dev`, `pnpm tauri:dev`) only — a release build carries no key from the environment, so release users enter their keys in the panel's Connection tab, which stores them on the device.
 
 ```bash
 cp .env.example .env.local
@@ -151,7 +151,7 @@ In `configs/endpoints.json`:
 
 The TTS server is the source of truth for the available voice IDs (`GET /v1/audio/voices`) — YUI ships no bundled catalog. The panel's voice section lists them; `tts_speaker` picks the one used until you choose another there. Voices live in the server's `voices/` directory, and the panel uploads imported reference clips with `POST`/`PUT /v1/audio/voices` and removes them with `DELETE /v1/audio/voices/{voice_id}`.
 
-If the server requires auth, set `VITE_YUI_TTS_KEY` in `.env.local` — YUI sends it as `Authorization: Bearer`.
+If the server requires auth, set `VITE_YUI_TTS_KEY` in `.env.local` — YUI sends it as `Authorization: Bearer`. Like all key fallbacks this applies to dev runs only; a release build reads the key entered in the Connection tab.
 
 ---
 
@@ -164,7 +164,7 @@ Serve any OpenAI-compatible transcription server at the configured URL, then set
 "stt_base_url": "http://localhost:5517/v1"
 ```
 
-YUI sends audio to `<stt_base_url>/audio/transcriptions`. If the server requires auth, set `VITE_YUI_STT_KEY` in `.env.local` — YUI sends it as `Authorization: Bearer`. A hosted API such as Groq also needs a model: set `stt_model` in `configs/endpoints.json` (for example `"stt_model": "whisper-large-v3-turbo"`) or in the Connection tab's STT model field, which overrides the file.
+YUI sends audio to `<stt_base_url>/audio/transcriptions`. If the server requires auth, set `VITE_YUI_STT_KEY` in `.env.local` (dev runs; a release build reads the key entered in the Connection tab) — YUI sends it as `Authorization: Bearer`. A hosted API such as Groq also needs a model: set `stt_model` in `configs/endpoints.json` (for example `"stt_model": "whisper-large-v3-turbo"`) or in the Connection tab's STT model field, which overrides the file.
 
 ---
 
