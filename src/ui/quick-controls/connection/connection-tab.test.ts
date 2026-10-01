@@ -148,4 +148,32 @@ describe("createConnectionTab", () => {
     expect(endpointsSettings.get().chat_base_url).toBe("wss://example.test/ws");
     expect(chatKeySettings.get().apiKey).toBe("throwaway-key-7731");
   });
+
+  describe("focusStt", () => {
+    it("scrolls the STT section into view and focuses its URL field", () => {
+      const tab = build({ chat: "push", tts: "url-key", broker: false });
+      document.body.append(tab.el);
+      const scroll = vi.fn();
+      const section = tab.el.querySelector<HTMLElement>('[data-svc="stt"]')!;
+      section.scrollIntoView = scroll;
+
+      tab.focusStt();
+
+      expect(scroll).toHaveBeenCalledTimes(1);
+      expect(document.activeElement).toBe(
+        tab.el.querySelector('[data-ep-field="stt_base_url"] input'),
+      );
+      tab.dispose();
+    });
+
+    it("still focuses where the webview has no scrollIntoView", () => {
+      const tab = build({ chat: "push", tts: "url-key", broker: false });
+      document.body.append(tab.el);
+
+      tab.focusStt();
+
+      expect(document.activeElement?.id).toBe("yui-ep-stt_base_url");
+      tab.dispose();
+    });
+  });
 });

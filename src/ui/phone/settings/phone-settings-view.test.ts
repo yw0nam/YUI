@@ -23,7 +23,12 @@ describe("createPhoneSettingsView", () => {
     // Whatever the phone shows behind the view — stage, top row, composer.
     const background = document.createElement("div");
     mount.appendChild(background);
-    const connection = { el: document.createElement("div"), refresh: vi.fn(), commit: vi.fn() };
+    const connection = {
+      el: document.createElement("div"),
+      refresh: vi.fn(),
+      commit: vi.fn(),
+      focusStt: vi.fn(),
+    };
     const character = { el: document.createElement("div"), refresh: vi.fn() };
     const history = { el: document.createElement("div"), refresh: vi.fn() };
     const general = { el: document.createElement("div"), refresh: vi.fn() };
@@ -55,6 +60,40 @@ describe("createPhoneSettingsView", () => {
     // Focus lands on the selected tab.
     expect(document.activeElement).toBe(view.el.querySelector("#yui-tab-conn"));
 
+    view.dispose();
+  });
+
+  it("open with focus stt selects Connection and focuses the STT field after the refresh", () => {
+    const { connection, view } = build();
+    connection.focusStt.mockImplementation(() => {
+      expect(connection.refresh).toHaveBeenCalledTimes(1);
+      expect(view.el.querySelector<HTMLElement>("#yui-panel-conn")!.hidden).toBe(false);
+    });
+
+    view.open("conn", { focus: "stt" });
+
+    expect(connection.focusStt).toHaveBeenCalledTimes(1);
+    view.dispose();
+  });
+
+  it("open with focus stt on an already open view switches to Connection and focuses the field", () => {
+    const { connection, view } = build();
+    view.open("hist");
+
+    view.open("conn", { focus: "stt" });
+
+    expect(titleOf(view)).toBe(t("tabs.conn"));
+    expect(connection.refresh).toHaveBeenCalledTimes(1);
+    expect(connection.focusStt).toHaveBeenCalledTimes(1);
+    view.dispose();
+  });
+
+  it("open without focus leaves the STT field alone", () => {
+    const { connection, view } = build();
+    view.open("conn");
+    view.open("conn");
+
+    expect(connection.focusStt).not.toHaveBeenCalled();
     view.dispose();
   });
 

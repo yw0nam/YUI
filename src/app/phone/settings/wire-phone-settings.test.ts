@@ -110,6 +110,24 @@ describe("createPhoneSettings", () => {
     phoneSettings.dispose();
   });
 
+  it("open with focus stt lands on the STT URL field, whether the view is closed or open", () => {
+    const { mount, phoneSettings } = setup({
+      get() {
+        throw new Error("config not loaded");
+      },
+    });
+    const sttUrl = (): HTMLElement => mount.querySelector<HTMLElement>("#yui-ep-stt_base_url")!;
+
+    phoneSettings.open("conn", { focus: "stt" });
+    expect(document.activeElement).toBe(sttUrl());
+
+    phoneSettings.open("hist");
+    expect(document.activeElement).not.toBe(sttUrl());
+    phoneSettings.open("conn", { focus: "stt" });
+    expect(document.activeElement).toBe(sttUrl());
+    phoneSettings.dispose();
+  });
+
   it("the Character tab lists the VRMs and its reset button resets the camera view", () => {
     const { stores, mount, phoneSettings, vrmSelection } = setup({
       get() {
