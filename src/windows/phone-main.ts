@@ -13,6 +13,7 @@ import "../ui/phone/phone.css";
 import { createDisposers } from "../app/disposers";
 import { createPhoneBootstrap } from "../app/phone/bootstrap-phone";
 import { pushOnlyEndpoints } from "../app/phone/endpoints/push-only";
+import { createPhoneSettings } from "../app/phone/settings/wire-phone-settings";
 import { wirePhoneStage } from "../app/phone/stage/wire-phone-stage";
 import { createPhoneTopRow } from "../app/phone/top-row/create-phone-top-row";
 import { createWindowStores } from "../app/settings/window-stores";
@@ -64,6 +65,9 @@ async function bootstrap(): Promise<{ dispose(): void }> {
   // The phone speaks the push transport only; every reader sees chat_api push.
   const getEndpoints = pushOnlyEndpoints(petConfig.getEndpoints);
   const config = petConfig.config;
+  // The turn stopper arrives with the configured bootstrap; the view can open before then,
+  // and "Start fresh" before a turn core exists has nothing in flight to stop.
+  let stopTurn: () => void = () => {};
   const { renderer } = createStageRenderer({ stage, settings: settingsStores, register });
 
   // Read before any await so the initial hidden state is known at startup.
@@ -98,11 +102,23 @@ async function bootstrap(): Promise<{ dispose(): void }> {
     register,
   });
 
+  // The settings/history view the top row and the chip's lost-state tap open.
+  const phoneSettings = createPhoneSettings({
+    mount: phone,
+    stores: settingsStores,
+    conversation: conversationStores,
+    pushSocket: push.pushSocket,
+    stopTurn: () => stopTurn(),
+    getEndpoints,
+  });
+  register(phoneSettings.dispose);
+
   const topRow = createPhoneTopRow({
     mount: root,
     voice: voiceInputStatus,
     pushSocket: push.pushSocket,
     delegations: push.delegations,
+    onOpenView: (tab) => phoneSettings.open(tab),
   });
   register(topRow.dispose);
 
@@ -149,6 +165,7 @@ async function bootstrap(): Promise<{ dispose(): void }> {
       isDisposed,
     });
     register(configured.dispose);
+    stopTurn = configured.stopTurn;
     if (isDisposed()) return { dispose };
     push.bind({ vocabulary: configured.broker.vocabulary, stopTurn: configured.stopTurn });
     register(

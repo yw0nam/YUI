@@ -32,8 +32,10 @@ export function createPhoneSettingsView(deps: {
   mount: HTMLElement;
   connection: { el: HTMLElement; refresh(): void; commit(): void };
   history: { el: HTMLElement; refresh(): void };
+  /** Runs after every close, whatever drove it — the wiring releases its back claim here. */
+  onClose?: () => void;
 }): PhoneSettingsView {
-  const { mount, connection, history } = deps;
+  const { mount, connection, history, onClose } = deps;
 
   const el = document.createElement("div");
   el.className = "yui-phone-settings";
@@ -111,6 +113,7 @@ export function createPhoneSettingsView(deps: {
     setBackground(false);
     opener?.focus();
     opener = null;
+    onClose?.();
   }
 
   function handleKeydown(e: KeyboardEvent): void {
