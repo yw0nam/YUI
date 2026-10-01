@@ -347,6 +347,30 @@ describe("createCameraSettings — resetOrbit", () => {
   });
 });
 
+describe("createCameraSettings — resetView", () => {
+  it("restores zoom, azimuth and polar in one notification", () => {
+    const store = createCameraSettings();
+    store.setZoom(2);
+    store.setAzimuth(1.2);
+    store.setPolar(40 * DEG);
+    const cb = vi.fn();
+    store.subscribe(cb);
+    store.resetView();
+    expect(cb).toHaveBeenCalledTimes(1);
+    expect(store.get().zoom).toBe(CAMERA_ZOOM_DEFAULT);
+    expect(store.get().azimuth).toBe(CAMERA_AZIMUTH_DEFAULT);
+    expect(store.get().polar).toBeCloseTo(CAMERA_POLAR_DEFAULT, 12);
+  });
+
+  it("is a no-op (no notify) when already at the defaults", () => {
+    const store = createCameraSettings();
+    const cb = vi.fn();
+    store.subscribe(cb);
+    store.resetView();
+    expect(cb).not.toHaveBeenCalled();
+  });
+});
+
 describe("createCameraSettings — orbit persistence + round-trip", () => {
   it("a new store with the same storage loads persisted azimuth + polar", () => {
     const storage = makeMemStorage();
