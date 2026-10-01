@@ -173,3 +173,8 @@
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+
+/* The armed "Delete?" pill keeps its pill shape instead of growing to the touch height. */
+.yui-phone-settings .yui-vrm__remove.is-armed {
+  height: 2.25rem;
+}
