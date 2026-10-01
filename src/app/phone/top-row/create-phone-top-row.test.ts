@@ -93,6 +93,15 @@ describe("createPhoneTopRow — openers", () => {
     row.dispose();
   });
 
+  it("the delegation chip sits before the openers once it shows", () => {
+    const { mount, row } = build();
+    row.chip.create();
+    emit({ kind: "failed", code: 4401 });
+    const top = mount.querySelector(".yui-phone__top")!;
+    const order = [...top.querySelectorAll(".yui-deleg__chip, .yui-phone__open")];
+    expect(order[0]?.classList.contains("yui-deleg__chip")).toBe(true);
+  });
+
   it("the delegation chip's lost-state tap opens the view on Connection", () => {
     const { mount, onOpenView, row } = build();
     row.chip.create();
