@@ -809,13 +809,13 @@ describe("renderClientContext — guide block", () => {
     expect(text).toContain("trigger: user message\nguide:\n");
     expect(text).toContain("The user pressed the in-app help button.");
     expect(text).toContain("# Controls");
-    expect(text).not.toContain("# Features");
+    expect(text).not.toContain("# What she can do");
   });
 
-  it("the capabilities key renders the feature list", () => {
+  it("the capabilities key renders the capabilities guide", () => {
     const text = renderClientContext(baseContext({ kind: "user", guide: "capabilities" }), NOW);
 
-    expect(text).toContain("# Features");
+    expect(text).toContain("# What she can do");
   });
 
   it("a turn without a guide key renders no guide block", () => {

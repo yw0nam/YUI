@@ -1,7 +1,7 @@
 /** The guide docs bundled with the app, and the block that hands one to the backend. */
 
+import capabilities from "../../../docs/guide/capabilities.md?raw";
 import controls from "../../../docs/guide/controls.md?raw";
-import capabilities from "../../../docs/guide/features.md?raw";
 import type { GuideKey } from "../../contract";
 
 const DOCS: Record<GuideKey, string> = { controls, capabilities };
