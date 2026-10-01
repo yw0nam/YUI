@@ -13,10 +13,8 @@ import type { VoiceInputStatus } from "../../../ui/chips/voice-input-status";
 import { t } from "../../../ui/i18n";
 import { createMessagePlate, type MessagePlate } from "../../../ui/message/message-plate";
 import { bindPlateConnection } from "../../../ui/message/plate-connection";
+import type { PhoneSettingsTab } from "../../../ui/phone/settings/phone-settings-view";
 import { createDelegationChipMount } from "../../turn/wire-push";
-
-/** The tabs the openers can land on — the phone view's tab set. */
-export type PhoneViewTab = "conn" | "hist";
 
 const HISTORY_SVG = `<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 8v4l2.5 2.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><path d="M4.5 12a7.5 7.5 0 1 1 2.2 5.3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><path d="M4.5 17v-4h4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
 const SETTINGS_SVG = `<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><line x1="4" y1="6" x2="20" y2="6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><line x1="4" y1="12" x2="20" y2="12" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><line x1="4" y1="18" x2="20" y2="18" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><circle cx="8" cy="6" r="1.7" fill="var(--yui-scrim-strong)" stroke="currentColor" stroke-width="1.5"/><circle cx="16" cy="12" r="1.7" fill="var(--yui-scrim-strong)" stroke="currentColor" stroke-width="1.5"/><circle cx="10" cy="18" r="1.7" fill="var(--yui-scrim-strong)" stroke="currentColor" stroke-width="1.5"/></svg>`;
@@ -36,7 +34,7 @@ export function createPhoneTopRow(deps: {
   pushSocket: PushSocket;
   delegations: DelegationsStore;
   /** Opens the phone's settings/history view — the buttons and the chip's lost-state tap. */
-  onOpenView?: (tab: PhoneViewTab) => void;
+  onOpenView: (tab: PhoneSettingsTab) => void;
 }): PhoneTopRow {
   const head = document.createElement("div");
   head.className = "yui-phone__head";
@@ -51,7 +49,7 @@ export function createPhoneTopRow(deps: {
     mount: row,
     store: deps.delegations,
     pushState: deps.pushSocket,
-    onOpenSettings: deps.onOpenView ? () => deps.onOpenView?.("conn") : undefined,
+    onOpenSettings: () => deps.onOpenView("conn"),
   });
   const offConnection = bindPlateConnection(plate, deps.pushSocket);
 
@@ -66,7 +64,7 @@ export function createPhoneTopRow(deps: {
     ["hist", t("phone.open_history"), HISTORY_SVG],
     ["conn", t("phone.open_settings"), SETTINGS_SVG],
   ] as const) {
-    const handler = (): void => deps.onOpenView?.(tab);
+    const handler = (): void => deps.onOpenView(tab);
     const btn = document.createElement("button");
     btn.type = "button";
     btn.className = "yui-phone__open";
@@ -90,7 +88,6 @@ export function createPhoneTopRow(deps: {
       openBtns.forEach((btn, i) => {
         btn.removeEventListener("click", openHandlers[i]);
       });
-      spacer.remove();
       head.remove();
     },
   };
