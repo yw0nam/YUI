@@ -41,8 +41,12 @@ pub(crate) fn audio_sniff_kind(ext_lower: &str) -> Option<SniffKind> {
 
 /// Map an image extension (any case) to its stored extension and sniff kind.
 pub(crate) fn image_ext(ext: &str) -> Option<(&'static str, SniffKind)> {
-    let _ = ext;
-    None
+    match ext.to_ascii_lowercase().as_str() {
+        "png" => Some(("png", SniffKind::Png)),
+        "jpg" | "jpeg" => Some(("jpg", SniffKind::Jpeg)),
+        "webp" => Some(("webp", SniffKind::Webp)),
+        _ => None,
+    }
 }
 
 /// True when `header` carries a container signature matching `kind`.
@@ -63,7 +67,11 @@ pub(crate) fn sniff_ok(header: &[u8], kind: SniffKind) -> bool {
                 || (header.len() >= 2 && header[0] == 0xFF && header[1] & 0xF6 == 0xF0)
         }
         SniffKind::Webm => header.starts_with(&[0x1A, 0x45, 0xDF, 0xA3]),
-        SniffKind::Png | SniffKind::Jpeg | SniffKind::Webp => false,
+        SniffKind::Png => header.starts_with(b"\x89PNG\r\n\x1a\n"),
+        SniffKind::Jpeg => header.starts_with(&[0xFF, 0xD8, 0xFF]),
+        SniffKind::Webp => {
+            header.len() >= 12 && &header[0..4] == b"RIFF" && &header[8..12] == b"WEBP"
+        }
     }
 }
 
@@ -247,15 +255,40 @@ pub(crate) struct ClaimTarget<'a> {
 
 /// Copy `reader` into `target.dir` under the first free candidate stem.
 pub(crate) fn claim_and_copy(
-    reader: impl Read,
+    mut reader: impl Read,
     target: &ClaimTarget,
 ) -> Result<(String, PathBuf), String> {
-    let _ = (reader, target);
+    std::fs::create_dir_all(target.dir).map_err(|e| {
+        log::error!("create_dir_failed dest={} error={e}", target.dir.display());
+        "storage unavailable".to_string()
+    })?;
+    for stem in dest_stem_candidates(target.name_stem, target.identity, target.reserved) {
+        let dest = target.dir.join(format!("{stem}.{}", target.ext));
+        ensure_within(target.dir, &dest)?;
+        // create_new claims the stem atomically, so concurrent imports never share a dest.
+        let file = match std::fs::OpenOptions::new()
+            .write(true)
+            .create_new(true)
+            .open(&dest)
+        {
+            Ok(file) => file,
+            Err(e) if e.kind() == std::io::ErrorKind::AlreadyExists => continue,
+            Err(e) => {
+                log::error!("create_dest_failed dest={} error={e}", dest.display());
+                return Err("import failed".to_string());
+            }
+        };
+        if let Err(e) = copy_bounded(&mut reader, file, target.cap, target.kind) {
+            let _ = std::fs::remove_file(&dest);
+            return Err(e);
+        }
+        return Ok((stem, dest));
+    }
     Err("import failed".to_string())
 }
 
-/// Stream a GLB from `reader` into `writer`, reading at most `cap + 1` bytes. The first bytes are
-/// checked for the GLB magic before anything is written; the stream is rejected when it carries
+/// Stream `reader` into `writer`, reading at most `cap + 1` bytes. The first bytes are
+/// checked for the signature of `kind` before anything is written; the stream is rejected when it carries
 /// more than `cap` bytes. Errors are generic; the caller removes the partial destination.
 pub(crate) fn copy_bounded(
     reader: impl Read,
@@ -263,7 +296,6 @@ pub(crate) fn copy_bounded(
     cap: u64,
     kind: SniffKind,
 ) -> Result<u64, String> {
-    let _ = kind;
     let mut reader = reader.take(cap.saturating_add(1));
     let mut header = [0u8; SNIFF_HEADER_LEN];
     let mut filled = 0;
@@ -278,8 +310,8 @@ pub(crate) fn copy_bounded(
             }
         }
     }
-    if !sniff_ok(&header[..filled], SniffKind::Glb) {
-        return Err("not a .vrm file".to_string());
+    if !sniff_ok(&header[..filled], kind) {
+        return Err("unrecognized file type".to_string());
     }
     let fail = |e: std::io::Error| {
         log::error!("copy_failed error={e}");

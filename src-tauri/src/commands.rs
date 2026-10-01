@@ -13,6 +13,8 @@ pub fn handler() -> impl Fn(Invoke) -> bool + Send + Sync + 'static {
         crate::screenshot::capture_screen,
         crate::vrm_import::import_vrm_file,
         crate::vrm_import::remove_user_vrm,
+        crate::stage_image::import_stage_image,
+        crate::stage_image::remove_stage_image,
         crate::voice_import::import_voice_file,
         crate::voice_import::remove_user_voice,
         crate::voice_import::rename_user_voice,

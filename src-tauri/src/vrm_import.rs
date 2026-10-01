@@ -4,9 +4,7 @@
 //! plain path on desktop and a content URI on Android. The source needs no pre-declared scope,
 //! which an OS file picker cannot satisfy.
 
-use crate::import_fs::{
-    copy_bounded, dest_stem_candidates, ensure_within, sanitize_stem, SniffKind,
-};
+use crate::import_fs::{claim_and_copy, ensure_within, sanitize_stem, ClaimTarget, SniffKind};
 use serde::Serialize;
 use std::path::{Path, PathBuf};
 use tauri::{command, AppHandle, Manager};
@@ -32,7 +30,7 @@ fn import_into(
     name: Option<&str>,
     identity: &str,
     reserved: &[String],
-    mut reader: impl std::io::Read,
+    reader: impl std::io::Read,
     cap: u64,
 ) -> Result<ImportedVrm, String> {
     let name = name
@@ -49,40 +47,22 @@ fn import_into(
     }
     let name_stem = name.file_stem().and_then(|s| s.to_str()).unwrap_or("");
 
-    std::fs::create_dir_all(vrms_dir).map_err(|e| {
-        log::error!(
-            "create_vrms_dir_failed dest={} error={e}",
-            vrms_dir.display()
-        );
-        "storage unavailable".to_string()
-    })?;
-
-    for stem in dest_stem_candidates(name_stem, identity, reserved) {
-        let dest = vrms_dir.join(format!("{stem}.vrm"));
-        ensure_within(vrms_dir, &dest)?;
-        // create_new claims the stem atomically, so concurrent imports never share a dest.
-        let file = match std::fs::OpenOptions::new()
-            .write(true)
-            .create_new(true)
-            .open(&dest)
-        {
-            Ok(file) => file,
-            Err(e) if e.kind() == std::io::ErrorKind::AlreadyExists => continue,
-            Err(e) => {
-                log::error!("create_dest_failed dest={} error={e}", dest.display());
-                return Err("import failed".to_string());
-            }
-        };
-        if let Err(e) = copy_bounded(&mut reader, file, cap, SniffKind::Glb) {
-            let _ = std::fs::remove_file(&dest);
-            return Err(e);
-        }
-        return Ok(ImportedVrm {
-            id: stem,
-            dest_path: dest.to_string_lossy().into_owned(),
-        });
-    }
-    Err("import failed".to_string())
+    let (id, dest) = claim_and_copy(
+        reader,
+        &ClaimTarget {
+            dir: vrms_dir,
+            name_stem,
+            identity,
+            ext: "vrm",
+            kind: SniffKind::Glb,
+            cap,
+            reserved,
+        },
+    )?;
+    Ok(ImportedVrm {
+        id,
+        dest_path: dest.to_string_lossy().into_owned(),
+    })
 }
 
 /// Delete `vrms_dir/<sanitized id>.vrm` if present. Idempotent — missing is Ok.

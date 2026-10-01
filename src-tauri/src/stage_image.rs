@@ -3,8 +3,17 @@
 //! Streams a user-picked PNG, JPEG or WebP into `<app_data_dir>/stage/` through the fs plugin
 //! (a plain path on desktop, a content URI on Android) and deletes a stored image by id.
 
+use crate::import_fs::{claim_and_copy, ensure_within, image_ext, sanitize_stem, ClaimTarget};
 use serde::Serialize;
-use std::path::Path;
+use std::path::{Path, PathBuf};
+use tauri::{command, AppHandle, Manager};
+use tauri_plugin_fs::{FilePath, FsExt, OpenOptions as FsOpenOptions};
+
+/// Max accepted source size for a stage image import.
+const MAX_STAGE_IMAGE_BYTES: u64 = 32 * 1024 * 1024;
+
+/// Extensions a stored stage image can carry (`jpeg` is stored as `jpg`).
+const STORED_EXTS: [&str; 3] = ["png", "jpg", "webp"];
 
 /// Imported stage image handle returned to the webview.
 #[derive(Debug, Clone, Serialize)]
@@ -16,6 +25,8 @@ pub struct ImportedStage {
     pub dest_path: String,
 }
 
+/// Stream a validated image into `stage_dir` under the first free stem. `identity` (the source
+/// path or URI) seeds the disambiguating hash; `name` is the source's display name.
 fn import_into(
     stage_dir: &Path,
     name: Option<&str>,
@@ -23,13 +34,103 @@ fn import_into(
     reader: impl std::io::Read,
     cap: u64,
 ) -> Result<ImportedStage, String> {
-    let _ = (stage_dir, name, identity, reader, cap);
-    Err("import failed".to_string())
+    let name = Path::new(
+        name.filter(|n| !n.is_empty())
+            .ok_or_else(|| "source name unavailable".to_string())?,
+    );
+    let (ext, kind) = name
+        .extension()
+        .and_then(|e| e.to_str())
+        .and_then(image_ext)
+        .ok_or_else(|| "unsupported image type".to_string())?;
+    let name_stem = name.file_stem().and_then(|s| s.to_str()).unwrap_or("");
+    let (stem, dest) = claim_and_copy(
+        reader,
+        &ClaimTarget {
+            dir: stage_dir,
+            name_stem,
+            identity,
+            ext,
+            kind,
+            cap,
+            reserved: &[],
+        },
+    )?;
+    Ok(ImportedStage {
+        id: format!("{stem}.{ext}"),
+        dest_path: dest.to_string_lossy().into_owned(),
+    })
 }
 
+/// Delete `stage_dir/<id>` when `id` is a stored file name. Idempotent: a missing file is Ok.
 fn remove_at(stage_dir: &Path, id: &str) -> Result<(), String> {
-    let _ = (stage_dir, id);
-    Ok(())
+    let (stem, ext) = id
+        .rsplit_once('.')
+        .ok_or_else(|| "invalid stage image id".to_string())?;
+    if !STORED_EXTS.contains(&ext) || sanitize_stem(stem) != stem {
+        return Err("invalid stage image id".to_string());
+    }
+    if !stage_dir.exists() {
+        return Ok(());
+    }
+    let dest = stage_dir.join(id);
+    ensure_within(stage_dir, &dest)?;
+    match std::fs::remove_file(&dest) {
+        Ok(()) => Ok(()),
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(()),
+        Err(e) => {
+            log::error!("remove_failed dest={} error={e}", dest.display());
+            Err("remove failed".to_string())
+        }
+    }
+}
+
+fn stage_dir(app: &AppHandle) -> Result<PathBuf, String> {
+    app.path()
+        .app_data_dir()
+        .map(|dir| dir.join("stage"))
+        .map_err(|e| {
+            log::error!("app_data_dir_unavailable error={e}");
+            "storage unavailable".to_string()
+        })
+}
+
+/// Stream a user-picked image (a path or a content URI) into `<app_data_dir>/stage/`, returning
+/// its id + dest path.
+#[command]
+pub async fn import_stage_image(
+    app: AppHandle,
+    src_path: FilePath,
+) -> Result<ImportedStage, String> {
+    let stage_dir = stage_dir(&app)?;
+    tauri::async_runtime::spawn_blocking(move || {
+        let identity = src_path.to_string();
+        let name = app.path().file_name(&identity);
+        let mut opts = FsOpenOptions::new();
+        opts.read(true);
+        let source = app.fs().open(src_path, opts).map_err(|e| {
+            log::error!("open_source_failed error={e}");
+            "source file not found".to_string()
+        })?;
+        import_into(
+            &stage_dir,
+            name.as_deref(),
+            &identity,
+            source,
+            MAX_STAGE_IMAGE_BYTES,
+        )
+    })
+    .await
+    .map_err(|e| {
+        log::error!("import_task_failed error={e}");
+        "import failed".to_string()
+    })?
+}
+
+/// Delete `<app_data_dir>/stage/<id>` if present. Idempotent: missing is Ok.
+#[command]
+pub fn remove_stage_image(app: AppHandle, id: String) -> Result<(), String> {
+    remove_at(&stage_dir(&app)?, &id)
 }
 
 #[cfg(test)]
