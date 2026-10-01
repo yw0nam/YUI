@@ -382,8 +382,8 @@ export function createConnectionTab(deps: {
   }
 
   function focusStt(): void {
-    el.querySelector<HTMLElement>('[data-svc="stt"]')?.scrollIntoView?.({ block: "nearest" });
-    epInputs.get("stt_base_url")?.focus();
+    el.querySelector<HTMLElement>('[data-svc="stt"]')?.scrollIntoView?.({ block: "start" });
+    epInputs.get("stt_base_url")?.focus({ preventScroll: true });
   }
 
   const handleChatStatusAction = (): void => pushSocket?.reconnectNow();

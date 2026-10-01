@@ -159,7 +159,7 @@ describe("createConnectionTab", () => {
 
       tab.focusStt();
 
-      expect(scroll).toHaveBeenCalledTimes(1);
+      expect(scroll).toHaveBeenCalledWith({ block: "start" });
       expect(document.activeElement).toBe(
         tab.el.querySelector('[data-ep-field="stt_base_url"] input'),
       );
