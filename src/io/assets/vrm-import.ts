@@ -7,8 +7,8 @@
  */
 
 import type { AvatarOption } from "../../config/load";
-import type { createVrmSelection } from "./vrm-selection";
 import { loadInvoke, loadOpenDialog, type OpenResult, pickedPath } from "./user-asset-import";
+import type { createVrmSelection } from "./vrm-selection";
 
 export interface VrmImportDeps {
   /** `@tauri-apps/plugin-dialog` open. */

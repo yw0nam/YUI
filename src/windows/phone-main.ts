@@ -25,6 +25,7 @@ import { wirePushMode } from "../app/turn/wire-push";
 import { CHAT_API_KEY_SECRET, TTS_API_KEY_SECRET } from "../config/load";
 import { createEventBus } from "../dispatcher/core/event-bus";
 import { createUserInputSource } from "../dispatcher/sources/user-input-source";
+import { removeUserVrm } from "../io/assets/vrm-import";
 import { watchPageVisibility } from "../io/lifecycle/page-visibility";
 import { excludeOwnOriginFromCorsFetch } from "../io/window/own-origin-fetch";
 import { createLogger, initLogger } from "../logger";
@@ -106,6 +107,8 @@ async function bootstrap(): Promise<{ dispose(): void }> {
   const phoneSettings = createPhoneSettings({
     mount: phone,
     stores: settingsStores,
+    vrm,
+    removeUserVrm,
     conversation: conversationStores,
     pushSocket: push.pushSocket,
     stopTurn: () => stopTurn(),

@@ -8,6 +8,7 @@ import type { DelegationsStore } from "../../../io/bridge/delegations-store";
 import type { PushSocket, PushSocketState } from "../../../io/chat/push-socket";
 import { createVoiceInputStatus } from "../../../ui/chips/voice-input-status";
 import { setLocale, t } from "../../../ui/i18n";
+import type { PhoneSettingsTab } from "../../../ui/phone/settings/phone-settings-view";
 import { createPhoneTopRow } from "./create-phone-top-row";
 
 describe("createPhoneTopRow — openers", () => {
@@ -58,7 +59,7 @@ describe("createPhoneTopRow — openers", () => {
   function build() {
     const mount = document.createElement("div");
     document.body.appendChild(mount);
-    const onOpenView: Mock<(tab: "conn" | "hist") => void> = vi.fn();
+    const onOpenView: Mock<(tab: PhoneSettingsTab) => void> = vi.fn();
     const row = createPhoneTopRow({
       mount,
       voice: createVoiceInputStatus(),

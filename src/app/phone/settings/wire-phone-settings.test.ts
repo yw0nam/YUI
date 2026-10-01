@@ -5,8 +5,8 @@
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { EndpointsConfig } from "../../../contract";
-import type { PushSocket } from "../../../io/chat/push-socket";
 import { createVrmSelection } from "../../../io/assets/vrm-selection";
+import type { PushSocket } from "../../../io/chat/push-socket";
 import { createSettingsStores } from "../../../settings/settings-stores";
 import { setLocale } from "../../../ui/i18n";
 import { createConversationStores } from "../../settings/conversation-stores";

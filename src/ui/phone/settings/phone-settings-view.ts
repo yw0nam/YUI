@@ -1,6 +1,6 @@
 /**
  * Phone settings view — the full-screen sheet inside the phone root over stage and top row:
- * a head with back button and the selected tab's title, an icon rail, and the two tab bodies.
+ * a head with back button and the selected tab's title, an icon rail, and the three tab bodies.
  * Owns open/close, the inert background, and the focus hand-off; the tabs themselves are built
  * by the wiring that mounts this view.
  */
@@ -10,15 +10,15 @@ import "./phone-settings.css";
 import "../../quick-controls/controls.css";
 import "../../quick-controls/quick-controls.css";
 import { t } from "../../i18n";
-import { TAB_ICON_CONN, TAB_ICON_HIST } from "../../quick-controls/constants";
+import { TAB_ICON_CHAR, TAB_ICON_CONN, TAB_ICON_HIST } from "../../quick-controls/constants";
 import { createTabRail, tabButtonHtml } from "../../quick-controls/tabs/tab-rail";
 
-/** The phone's settings tabs of part 1. */
-export type PhoneSettingsTab = "conn" | "hist";
+/** The phone's settings tabs. */
+export type PhoneSettingsTab = "conn" | "char" | "hist";
 
 export interface PhoneSettingsView {
   el: HTMLElement;
-  /** Open on a tab: refresh both tabs, pull the background inert, focus the selected tab. */
+  /** Open on a tab: refresh every tab, pull the background inert, focus the selected tab. */
   open(tab: PhoneSettingsTab): void;
   /** Close: commit the connection tab and hand focus back to the opener. */
   close(): void;
@@ -31,11 +31,12 @@ const BACK_SVG = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" str
 export function createPhoneSettingsView(deps: {
   mount: HTMLElement;
   connection: { el: HTMLElement; refresh(): void; commit(): void };
+  character: { el: HTMLElement; refresh(): void };
   history: { el: HTMLElement; refresh(): void };
   /** Runs after every close, whatever drove it — the wiring releases its back claim here. */
   onClose?: () => void;
 }): PhoneSettingsView {
-  const { mount, connection, history, onClose } = deps;
+  const { mount, connection, character, history, onClose } = deps;
 
   const el = document.createElement("div");
   el.className = "yui-phone-settings";
@@ -46,7 +47,7 @@ export function createPhoneSettingsView(deps: {
         <h2 class="yui-phone-settings__title"></h2>
       </div>
       <div class="yui-phone-settings__body">
-        <div class="yui-phone-settings__rail" role="tablist" aria-label="${t("panel.tablist_label")}" aria-orientation="vertical">${tabButtonHtml("conn", TAB_ICON_CONN, { label: false })}${tabButtonHtml("hist", TAB_ICON_HIST, { label: false })}</div>
+        <div class="yui-phone-settings__rail" role="tablist" aria-label="${t("panel.tablist_label")}" aria-orientation="vertical">${tabButtonHtml("conn", TAB_ICON_CONN, { label: false })}${tabButtonHtml("char", TAB_ICON_CHAR, { label: false })}${tabButtonHtml("hist", TAB_ICON_HIST, { label: false })}</div>
         <div class="yui-phone-settings__tabs"></div>
       </div>`;
 
@@ -55,6 +56,7 @@ export function createPhoneSettingsView(deps: {
   const panels: HTMLElement[] = [];
   for (const [id, tabEl] of [
     ["conn", connection.el],
+    ["char", character.el],
     ["hist", history.el],
   ] as const) {
     const panel = document.createElement("div");
@@ -101,6 +103,7 @@ export function createPhoneSettingsView(deps: {
     el.hidden = false;
     setBackground(true);
     connection.refresh();
+    character.refresh();
     history.refresh();
     rail.select(tab, { focusVisible: false });
   }
