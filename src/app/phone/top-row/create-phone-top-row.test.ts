@@ -60,14 +60,19 @@ describe("createPhoneTopRow — openers", () => {
     const mount = document.createElement("div");
     document.body.appendChild(mount);
     const onOpenView: Mock<(tab: PhoneSettingsTab) => void> = vi.fn();
+    const onFixVoice = vi.fn();
+    const onToggleVoice = vi.fn();
+    const voice = createVoiceInputStatus();
     const row = createPhoneTopRow({
       mount,
-      voice: createVoiceInputStatus(),
+      voice,
       pushSocket: pushSocket() as PushSocket,
       delegations: delegations(),
       onOpenView,
+      onFixVoice,
+      onToggleVoice,
     });
-    return { mount, onOpenView, row };
+    return { mount, onOpenView, onFixVoice, onToggleVoice, voice, row };
   }
 
   it("renders the history and settings icon buttons with their labels", () => {
@@ -91,6 +96,28 @@ describe("createPhoneTopRow — openers", () => {
 
     expect(onOpenView.mock.calls).toEqual([["hist"], ["conn"]]);
 
+    row.dispose();
+  });
+
+  it("the pill's voice button toggles the voice while it listens", () => {
+    const { mount, voice, onToggleVoice, row } = build();
+    voice.set("listening");
+
+    mount.querySelector<HTMLButtonElement>(".yui-status__voice")!.click();
+
+    expect(onToggleVoice).toHaveBeenCalledTimes(1);
+    row.dispose();
+  });
+
+  it("the pill's setup-needed fix goes to the voice fix port and leaves the status alone", () => {
+    const { mount, voice, onFixVoice, onToggleVoice, row } = build();
+    voice.set("error", "not_configured");
+
+    mount.querySelector<HTMLElement>(".yui-status")!.click();
+
+    expect(onFixVoice).toHaveBeenCalledTimes(1);
+    expect(onToggleVoice).not.toHaveBeenCalled();
+    expect(voice.get().state).toBe("error");
     row.dispose();
   });
 
