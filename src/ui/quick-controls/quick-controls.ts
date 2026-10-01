@@ -79,6 +79,7 @@ import { createWorkflowsSection } from "./sections/workflows-section";
 import { handleSegmentKeydown } from "./seg-keyboard";
 import { bindSlider } from "./slider-binding";
 import { createSwitchRows, type SwitchRow } from "./switch-row";
+import { createTabRail } from "./tabs/tab-rail";
 import { buildPanelHtml } from "./template";
 
 type ScreenshotSettingsStore = ReturnType<typeof createScreenshotSettings>;
@@ -786,57 +787,28 @@ export function createQuickControls({
     log,
   );
 
-  // ── Tab switching ──
-  // Toggle aria-selected/hidden + roving tabindex only. Arrows (←/→/Home/End) activate immediately.
-
-  function selectTab(index: number, focus = false): void {
-    const clamped = Math.min(tabButtons.length - 1, Math.max(0, index));
-    tabButtons.forEach((tab, i) => {
-      const on = i === clamped;
-      tab.setAttribute("aria-selected", String(on));
-      tab.tabIndex = on ? 0 : -1;
-      const panel = el.querySelector<HTMLElement>(`#${tab.getAttribute("aria-controls")}`);
-      if (panel) panel.hidden = !on;
-    });
-    if (focus) tabButtons[clamped]?.focus();
-  }
+  // ── Tab rail (selection, ARIA, keyboard) ──
+  const tabRail = createTabRail({
+    rail: tablistEl,
+    buttons: tabButtons,
+    panels: Array.from(el.querySelectorAll<HTMLElement>(".yui-tabpanel")),
+    initial: "talk",
+  });
 
   function openPanel(anchor?: { x: number; y: number }, opts?: { tab?: QuickControlsTab }): void {
-    const index = opts?.tab ? tabButtons.findIndex((tab) => tab.id === `yui-tab-${opts.tab}`) : -1;
+    const tab = opts?.tab;
     // Select before opening so the panel is positioned around the tab the caller asked for.
-    if (index >= 0) selectTab(index);
-    popover.open(anchor);
-    // open() lands focus on the first control; move it to the tab the caller asked for.
-    if (index >= 0) tabButtons[index]?.focus({ focusVisible: false });
+    if (tab && tabRail.select(tab)) {
+      popover.open(anchor);
+      // open() lands focus on the first control; move it to the tab the caller asked for.
+      tabRail.select(tab, true);
+    } else {
+      popover.open(anchor);
+    }
   }
 
   function selectedTab(): QuickControlsTab {
-    const tab = tabButtons.find((b) => b.getAttribute("aria-selected") === "true")!;
-    return tab.id.slice("yui-tab-".length) as QuickControlsTab;
-  }
-
-  function handleTabClick(e: MouseEvent): void {
-    const btn = (e.target as HTMLElement).closest<HTMLButtonElement>(".yui-tab");
-    if (!btn) return;
-    selectTab(tabButtons.indexOf(btn));
-  }
-
-  function handleTabKeydown(e: KeyboardEvent): void {
-    const current = tabButtons.findIndex((t) => t.getAttribute("aria-selected") === "true");
-    const base = current < 0 ? 0 : current;
-    if (e.key === "ArrowRight" || e.key === "ArrowDown") {
-      e.preventDefault();
-      selectTab((base + 1) % tabButtons.length, true);
-    } else if (e.key === "ArrowLeft" || e.key === "ArrowUp") {
-      e.preventDefault();
-      selectTab((base - 1 + tabButtons.length) % tabButtons.length, true);
-    } else if (e.key === "Home") {
-      e.preventDefault();
-      selectTab(0, true);
-    } else if (e.key === "End") {
-      e.preventDefault();
-      selectTab(tabButtons.length - 1, true);
-    }
+    return tabRail.selected() as QuickControlsTab;
   }
 
   // ── Subscriptions ──
@@ -976,8 +948,6 @@ export function createQuickControls({
   fillerToolTextareaEl?.addEventListener("input", handleFillerTextareaInput);
   voiceSwitchBtn.addEventListener("click", handleVoiceSwitchClick);
   // Gain/VAD sliders are wired inside bindSlider() above; disposeGainSlider/disposeVadSlider tear them down.
-  tablistEl.addEventListener("click", handleTabClick);
-  tablistEl.addEventListener("keydown", handleTabKeydown);
   vrmsEl.addEventListener("keydown", vrmList.handleKeydown);
   vrmAddBtn.addEventListener("click", vrmList.handleAddClick);
   spksEl.addEventListener("keydown", speakerList.handleKeydown);
@@ -1046,8 +1016,7 @@ export function createQuickControls({
     voiceSwitchBtn.removeEventListener("click", handleVoiceSwitchClick);
     disposeGainSlider();
     disposeVadSlider();
-    tablistEl.removeEventListener("click", handleTabClick);
-    tablistEl.removeEventListener("keydown", handleTabKeydown);
+    tabRail.dispose();
     vrmsEl.removeEventListener("keydown", vrmList.handleKeydown);
     vrmAddBtn.removeEventListener("click", vrmList.handleAddClick);
     spksEl.removeEventListener("keydown", speakerList.handleKeydown);

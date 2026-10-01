@@ -27,6 +27,7 @@ import {
   TAB_ICON_TALK,
 } from "./constants";
 import type { SwitchRow } from "./switch-row";
+import { tabButtonHtml, tabPanelOpenHtml } from "./tabs/tab-rail";
 
 // Escapes the characters that would otherwise break out of an HTML attribute.
 function escapeAttr(text: string): string {
@@ -440,26 +441,15 @@ ${RATE_LIMIT_FIELDS.map((f) =>
       </span>
     </div>`;
 
-  // A narrow panel hides the label; aria-label and the tooltip name the icon then.
-  function tabHtml(id: string, icon: string, tipKey = `tabs.${id}`): string {
-    const selected = id === "talk";
-    return `
-        <button class="yui-tab" type="button" role="tab" id="yui-tab-${id}" aria-selected="${String(selected)}" aria-controls="yui-panel-${id}" tabindex="${selected ? "0" : "-1"}" data-tip="${t(tipKey)}" aria-label="${t(`tabs.${id}`)}">
-          ${icon}
-          <span class="yui-tab__label">${t(`tabs.${id}`)}</span>
-        </button>`;
-  }
-
-  function panelOpenHtml(id: string): string {
-    return `
-      <div class="yui-tabpanel" role="tabpanel" id="yui-panel-${id}" aria-labelledby="yui-tab-${id}" tabindex="0"${id === "talk" ? "" : " hidden"}>
-        <h1 class="yui-tabpanel__title">${t(`tabs.${id}`)}</h1>`;
-  }
+  // A narrow panel keeps the label; the icon-only rail drops it with the tooltip.
+  const tabHtml = (id: string, icon: string, opts?: { tipKey?: string }): string =>
+    tabButtonHtml(id, icon, { selected: id === "talk", tipKey: opts?.tipKey });
+  const panelOpenHtml = (id: string): string => tabPanelOpenHtml(id, { hidden: id !== "talk" });
 
   return `
     ${headerHtml}
     <div class="yui-quick__cols">
-      <div class="yui-tabs" role="tablist" aria-label="${t("panel.tablist_label")}" aria-orientation="vertical">${tabHtml("conn", TAB_ICON_CONN)}${tabHtml("talk", TAB_ICON_TALK)}${tabHtml("char", TAB_ICON_CHAR)}${tabHtml("input", TAB_ICON_INPUT)}${tabHtml("react", TAB_ICON_REACT, "tabs.react_hint")}${showHistory ? tabHtml("hist", TAB_ICON_HIST) : ""}${tabHtml("general", TAB_ICON_GENERAL)}
+      <div class="yui-tabs" role="tablist" aria-label="${t("panel.tablist_label")}" aria-orientation="vertical">${tabHtml("conn", TAB_ICON_CONN)}${tabHtml("talk", TAB_ICON_TALK)}${tabHtml("char", TAB_ICON_CHAR)}${tabHtml("input", TAB_ICON_INPUT)}${tabHtml("react", TAB_ICON_REACT, { tipKey: "tabs.react_hint" })}${showHistory ? tabHtml("hist", TAB_ICON_HIST) : ""}${tabHtml("general", TAB_ICON_GENERAL)}
       </div>
       <div class="yui-quick__body">
 ${panelOpenHtml("conn")}
