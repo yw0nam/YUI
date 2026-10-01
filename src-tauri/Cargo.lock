@@ -91,6 +91,7 @@ dependencies = [
  "tauri-build",
  "tauri-plugin-cors-fetch",
  "tauri-plugin-dialog",
+ "tauri-plugin-fs",
  "tauri-plugin-global-shortcut",
  "tauri-plugin-log",
  "tauri-plugin-opener",

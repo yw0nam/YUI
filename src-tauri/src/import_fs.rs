@@ -1,7 +1,7 @@
 //! Shared import filesystem helpers — sanitize, hash, derive stem, collision
 //! check, and container-signature sniffing.
 
-use std::io::Read;
+use std::io::{Read, Write};
 use std::path::{Component, Path, PathBuf};
 
 /// Container kinds we content-validate before copying an imported file.
@@ -204,52 +204,62 @@ pub(crate) fn short_hash(s: &str) -> String {
     format!("{:x}", h & 0xffffff)
 }
 
-/// Derive the dest filename stem from a source path, disambiguating on collision.
-/// `taken(stem)` reports whether `stem` is already claimed by an existing dest.
-pub(crate) fn derive_dest_stem(src: &Path, taken: impl Fn(&str) -> bool) -> String {
-    let raw = src.file_stem().and_then(|s| s.to_str()).unwrap_or("");
-    let base = sanitize_stem(raw);
-    if !taken(&base) {
-        return base;
-    }
-    let suffixed = format!("{}-{}", base, short_hash(&src.to_string_lossy()));
-    if !taken(&suffixed) {
-        return suffixed;
-    }
-    // Last resort: numeric walk.
-    for n in 2.. {
-        let candidate = format!("{}-{}", base, n);
-        if !taken(&candidate) {
-            return candidate;
-        }
-    }
-    unreachable!()
-}
-
-/// Stream `reader` into `writer`, bounded to `cap` bytes, after checking the GLB magic.
-pub(crate) fn copy_bounded(
-    reader: impl Read,
-    writer: impl std::io::Write,
-    cap: u64,
-) -> Result<u64, String> {
-    let _ = (reader, writer, cap);
-    unimplemented!()
-}
-
-/// Candidate dest stems in claim order, skipping reserved ids.
+/// Candidate dest stems in claim order: the sanitized name, the name with a hash of the source
+/// identity, then a numeric walk. Reserved ids are skipped; the caller claims a stem by creating
+/// its file and moves to the next candidate when it already exists.
 pub(crate) fn dest_stem_candidates<'a>(
     name_stem: &str,
     identity: &str,
     reserved: &'a [String],
 ) -> impl Iterator<Item = String> + 'a {
-    let _ = (name_stem, identity);
-    reserved.iter().cloned()
+    let base = sanitize_stem(name_stem);
+    let hashed = format!("{base}-{}", short_hash(identity));
+    let numbered = {
+        let base = base.clone();
+        (2..).map(move |n| format!("{base}-{n}"))
+    };
+    [base, hashed]
+        .into_iter()
+        .chain(numbered)
+        .filter(move |c| !reserved.contains(c))
 }
 
-/// True when `dest` already exists — any existing dest is a collision, so the
-/// caller must disambiguate rather than overwrite.
-pub(crate) fn collides(dest: &Path) -> bool {
-    dest.exists()
+/// Stream a GLB from `reader` into `writer`, reading at most `cap + 1` bytes. The first bytes are
+/// checked for the GLB magic before anything is written; the stream is rejected when it carries
+/// more than `cap` bytes. Errors are generic; the caller removes the partial destination.
+pub(crate) fn copy_bounded(
+    reader: impl Read,
+    mut writer: impl Write,
+    cap: u64,
+) -> Result<u64, String> {
+    let mut reader = reader.take(cap.saturating_add(1));
+    let mut header = [0u8; SNIFF_HEADER_LEN];
+    let mut filled = 0;
+    while filled < header.len() {
+        match reader.read(&mut header[filled..]) {
+            Ok(0) => break,
+            Ok(n) => filled += n,
+            Err(e) if e.kind() == std::io::ErrorKind::Interrupted => {}
+            Err(e) => {
+                log::warn!("copy_read_failed error={e}");
+                return Err("source file not found".to_string());
+            }
+        }
+    }
+    if !sniff_ok(&header[..filled], SniffKind::Glb) {
+        return Err("not a .vrm file".to_string());
+    }
+    let fail = |e: std::io::Error| {
+        log::error!("copy_failed error={e}");
+        "import failed".to_string()
+    };
+    writer.write_all(&header[..filled]).map_err(fail)?;
+    let rest = std::io::copy(&mut reader, &mut writer).map_err(fail)?;
+    let total = filled as u64 + rest;
+    if total > cap {
+        return Err("source file too large".to_string());
+    }
+    Ok(total)
 }
 
 #[cfg(test)]
