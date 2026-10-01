@@ -8,6 +8,7 @@
 import type { AttachmentLimits } from "../../config/load";
 import type { InputErrorAction } from "../../io/bridge/message-remote";
 import { subscribe as subscribeLocale, t } from "../i18n";
+import { type ActionButton, createActionButton } from "./action-button";
 import { downscaleToJpeg } from "./image-resize";
 
 interface TextInput {
@@ -85,6 +86,13 @@ export function createTextInput(
   let busy = false;
   // Input bottom offset (px) — updated by setInputAnchor, used to lift the bubble while the input is open.
   let inputBottomPx = DEFAULT_INPUT_BOTTOM_PX;
+  const actionButton: ActionButton = createActionButton({
+    button: sendBtn,
+    busy: () => busy,
+    onStop: () => {
+      for (const cb of stopHandlers) cb();
+    },
+  });
 
   // While the input is open, lift the bubble above it to prevent overlap.
   // Bubble bottom = input bottom + input height + gap. Even if the feet anchor changes each frame,
@@ -277,16 +285,15 @@ export function createTextInput(
     // A turn reaching the backend falsifies a standing error, whatever source started it.
     if (value) clearInputError();
     formEl.classList.toggle("is-running", value);
-    sendBtn.setAttribute("aria-label", value ? t("aria.stop") : t("aria.send"));
+    actionButton.refresh();
   }
 
-  // Single site for these four labels — applied here at construction, and again by
+  // Single site for the static labels — applied here at construction, and again by
   // the same function on locale change (surfaces isn't remounted on locale change).
   function applyLocaleLabels(): void {
     attachBtn.setAttribute("aria-label", t("aria.attach_image"));
     field.placeholder = t("input.placeholder");
     field.setAttribute("aria-label", t("aria.input_field"));
-    sendBtn.setAttribute("aria-label", busy ? t("aria.stop") : t("aria.send"));
   }
   applyLocaleLabels();
   const unsubscribeLocale = subscribeLocale(applyLocaleLabels);
@@ -321,21 +328,9 @@ export function createTextInput(
     fitField();
   }
 
-  // A button takes focus on click in Chromium and the Android WebView, which closes the soft keyboard; the field keeps it.
-  function keepFieldFocus(e: Event): void {
-    e.preventDefault();
-  }
-
   function handleSubmit(e: Event): void {
     e.preventDefault();
     submitCurrent();
-  }
-
-  // Button click while busy = stop (intercepts submit). When idle, passes through as type=submit.
-  function handleSendClick(e: Event): void {
-    if (!busy) return;
-    e.preventDefault();
-    for (const cb of stopHandlers) cb();
   }
 
   function handleFieldKey(e: KeyboardEvent): void {
@@ -398,8 +393,6 @@ export function createTextInput(
   }
 
   formEl.addEventListener("submit", handleSubmit);
-  sendBtn.addEventListener("click", handleSendClick);
-  sendBtn.addEventListener("mousedown", keepFieldFocus);
   field.addEventListener("keydown", handleFieldKey);
   field.addEventListener("input", clearErrorOnInput);
   field.addEventListener("input", fitField);
@@ -413,8 +406,7 @@ export function createTextInput(
   function dispose(): void {
     unsubscribeLocale();
     formEl.removeEventListener("submit", handleSubmit);
-    sendBtn.removeEventListener("click", handleSendClick);
-    sendBtn.removeEventListener("mousedown", keepFieldFocus);
+    actionButton.dispose();
     field.removeEventListener("keydown", handleFieldKey);
     field.removeEventListener("input", clearErrorOnInput);
     field.removeEventListener("input", fitField);
