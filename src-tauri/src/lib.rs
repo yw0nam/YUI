@@ -25,6 +25,9 @@ mod import_fs;
 // Bring-your-own-VRM import (file copy into app-data).
 mod vrm_import;
 
+// Stage background image import (file copy into app-data).
+mod stage_image;
+
 // Bring-your-own-voice import (reference clip copy into app-data).
 mod voice_import;
 

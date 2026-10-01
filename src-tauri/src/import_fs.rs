@@ -16,6 +16,9 @@ pub(crate) enum SniffKind {
     M4a,
     Aac,
     Webm,
+    Png,
+    Jpeg,
+    Webp,
 }
 
 /// Bytes read from the source head to recognize a container signature.
@@ -36,6 +39,12 @@ pub(crate) fn audio_sniff_kind(ext_lower: &str) -> Option<SniffKind> {
     }
 }
 
+/// Map an image extension (any case) to its stored extension and sniff kind.
+pub(crate) fn image_ext(ext: &str) -> Option<(&'static str, SniffKind)> {
+    let _ = ext;
+    None
+}
+
 /// True when `header` carries a container signature matching `kind`.
 pub(crate) fn sniff_ok(header: &[u8], kind: SniffKind) -> bool {
     match kind {
@@ -54,6 +63,7 @@ pub(crate) fn sniff_ok(header: &[u8], kind: SniffKind) -> bool {
                 || (header.len() >= 2 && header[0] == 0xFF && header[1] & 0xF6 == 0xF0)
         }
         SniffKind::Webm => header.starts_with(&[0x1A, 0x45, 0xDF, 0xA3]),
+        SniffKind::Png | SniffKind::Jpeg | SniffKind::Webp => false,
     }
 }
 
@@ -224,6 +234,26 @@ pub(crate) fn dest_stem_candidates<'a>(
         .filter(move |c| !reserved.contains(c))
 }
 
+/// Where and how `claim_and_copy` stores one imported file.
+pub(crate) struct ClaimTarget<'a> {
+    pub dir: &'a Path,
+    pub name_stem: &'a str,
+    pub identity: &'a str,
+    pub ext: &'a str,
+    pub kind: SniffKind,
+    pub cap: u64,
+    pub reserved: &'a [String],
+}
+
+/// Copy `reader` into `target.dir` under the first free candidate stem.
+pub(crate) fn claim_and_copy(
+    reader: impl Read,
+    target: &ClaimTarget,
+) -> Result<(String, PathBuf), String> {
+    let _ = (reader, target);
+    Err("import failed".to_string())
+}
+
 /// Stream a GLB from `reader` into `writer`, reading at most `cap + 1` bytes. The first bytes are
 /// checked for the GLB magic before anything is written; the stream is rejected when it carries
 /// more than `cap` bytes. Errors are generic; the caller removes the partial destination.
@@ -231,7 +261,9 @@ pub(crate) fn copy_bounded(
     reader: impl Read,
     mut writer: impl Write,
     cap: u64,
+    kind: SniffKind,
 ) -> Result<u64, String> {
+    let _ = kind;
     let mut reader = reader.take(cap.saturating_add(1));
     let mut header = [0u8; SNIFF_HEADER_LEN];
     let mut filled = 0;
@@ -570,7 +602,7 @@ mod tests {
     #[test]
     fn copy_bounded_copies_a_glb_stream_under_the_cap() {
         let mut out = Vec::new();
-        let n = copy_bounded(GLB, &mut out, 1024).unwrap();
+        let n = copy_bounded(GLB, &mut out, 1024, SniffKind::Glb).unwrap();
         assert_eq!(n, GLB.len() as u64);
         assert_eq!(out, GLB);
     }
@@ -578,9 +610,9 @@ mod tests {
     #[test]
     fn copy_bounded_accepts_exactly_the_cap_and_rejects_one_over() {
         let mut out = Vec::new();
-        assert!(copy_bounded(GLB, &mut out, GLB.len() as u64).is_ok());
+        assert!(copy_bounded(GLB, &mut out, GLB.len() as u64, SniffKind::Glb).is_ok());
         let mut out = Vec::new();
-        assert!(copy_bounded(GLB, &mut out, GLB.len() as u64 - 1).is_err());
+        assert!(copy_bounded(GLB, &mut out, GLB.len() as u64 - 1, SniffKind::Glb).is_err());
     }
 
     #[test]
@@ -588,34 +620,40 @@ mod tests {
         let mut data = GLB.to_vec();
         data.extend(std::iter::repeat_n(0u8, 10_000));
         let mut out = Vec::new();
-        assert!(copy_bounded(&data[..], &mut out, 64).is_err());
+        assert!(copy_bounded(&data[..], &mut out, 64, SniffKind::Glb).is_err());
         assert!(out.len() <= 65, "wrote {} bytes past the cap", out.len());
     }
 
     #[test]
     fn copy_bounded_rejects_bad_magic_without_writing() {
         let mut out = Vec::new();
-        assert!(copy_bounded(&b"%PDF-1.4 not a vrm at all"[..], &mut out, 1024).is_err());
+        assert!(copy_bounded(
+            &b"%PDF-1.4 not a vrm at all"[..],
+            &mut out,
+            1024,
+            SniffKind::Glb
+        )
+        .is_err());
         assert!(out.is_empty());
     }
 
     #[test]
     fn copy_bounded_rejects_a_stream_shorter_than_the_magic() {
         let mut out = Vec::new();
-        assert!(copy_bounded(&b"gl"[..], &mut out, 1024).is_err());
+        assert!(copy_bounded(&b"gl"[..], &mut out, 1024, SniffKind::Glb).is_err());
     }
 
     #[test]
     fn copy_bounded_handles_one_byte_reads() {
         let mut out = Vec::new();
-        let n = copy_bounded(OneByte(GLB), &mut out, 1024).unwrap();
+        let n = copy_bounded(OneByte(GLB), &mut out, 1024, SniffKind::Glb).unwrap();
         assert_eq!(n, GLB.len() as u64);
         assert_eq!(out, GLB);
     }
 
     #[test]
     fn copy_bounded_surfaces_a_write_error() {
-        assert!(copy_bounded(GLB, FailingWriter, 1024).is_err());
+        assert!(copy_bounded(GLB, FailingWriter, 1024, SniffKind::Glb).is_err());
     }
 
     // ── short_hash ───────────────────────────────────────────────────────────
@@ -728,5 +766,109 @@ mod tests {
         assert!(sniff_file(&path, SniffKind::Glb).unwrap());
         assert!(!sniff_file(&path, SniffKind::Wav).unwrap());
         let _ = std::fs::remove_file(&path);
+    }
+
+    // ── image sniffs and claim_and_copy ─────────────────────────────────────
+
+    const PNG: &[u8] = b"\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDRpixels";
+    const JPEG: &[u8] = b"\xFF\xD8\xFF\xE0\x00\x10JFIFpixels";
+    const WEBP: &[u8] = b"RIFF\x24\x00\x00\x00WEBPVP8 pixels";
+
+    #[test]
+    fn sniff_png_jpeg_and_webp_accept_their_signatures() {
+        assert!(sniff_ok(PNG, SniffKind::Png));
+        assert!(sniff_ok(JPEG, SniffKind::Jpeg));
+        assert!(sniff_ok(WEBP, SniffKind::Webp));
+    }
+
+    #[test]
+    fn sniff_images_reject_each_others_signatures() {
+        assert!(!sniff_ok(JPEG, SniffKind::Png));
+        assert!(!sniff_ok(PNG, SniffKind::Jpeg));
+        assert!(!sniff_ok(b"RIFF\x24\x00\x00\x00WAVEfmt ", SniffKind::Webp));
+        assert!(!sniff_ok(b"RIFF\x24\x00", SniffKind::Webp));
+    }
+
+    #[test]
+    fn image_ext_lowercases_and_stores_jpeg_as_jpg() {
+        assert_eq!(image_ext("PNG"), Some(("png", SniffKind::Png)));
+        assert_eq!(image_ext("jpeg"), Some(("jpg", SniffKind::Jpeg)));
+        assert_eq!(image_ext("JPG"), Some(("jpg", SniffKind::Jpeg)));
+        assert_eq!(image_ext("webp"), Some(("webp", SniffKind::Webp)));
+        assert_eq!(image_ext("gif"), None);
+    }
+
+    #[test]
+    fn copy_bounded_checks_the_given_kind() {
+        let mut out = Vec::new();
+        assert_eq!(
+            copy_bounded(PNG, &mut out, 1024, SniffKind::Png).unwrap(),
+            PNG.len() as u64
+        );
+        let mut out = Vec::new();
+        assert!(copy_bounded(PNG, &mut out, 1024, SniffKind::Jpeg).is_err());
+        assert!(out.is_empty());
+    }
+
+    #[test]
+    fn copy_bounded_errors_name_no_format() {
+        let err = copy_bounded(&b"zzzz"[..], Vec::new(), 1024, SniffKind::Png).unwrap_err();
+        assert!(!err.contains("vrm"), "{err}");
+    }
+
+    fn claim_dir(tag: &str) -> PathBuf {
+        let nanos = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_nanos();
+        std::env::temp_dir()
+            .join(format!("yui_claim_{tag}_{nanos}"))
+            .join("out")
+    }
+
+    fn claim(dir: &Path, stem: &str, bytes: &[u8], cap: u64) -> Result<(String, PathBuf), String> {
+        claim_and_copy(
+            bytes,
+            &ClaimTarget {
+                dir,
+                name_stem: stem,
+                identity: "content://x/1",
+                ext: "png",
+                kind: SniffKind::Png,
+                cap,
+                reserved: &[],
+            },
+        )
+    }
+
+    #[test]
+    fn claim_and_copy_creates_the_dir_and_appends_the_extension() {
+        let dir = claim_dir("ok");
+        let (stem, path) = claim(&dir, "beach", PNG, 1024).unwrap();
+        assert_eq!(stem, "beach");
+        assert_eq!(path, dir.join("beach.png"));
+        assert_eq!(std::fs::read(&path).unwrap(), PNG);
+        std::fs::remove_dir_all(dir.parent().unwrap()).ok();
+    }
+
+    #[test]
+    fn claim_and_copy_moves_to_the_next_stem_when_taken() {
+        let dir = claim_dir("taken");
+        std::fs::create_dir_all(&dir).unwrap();
+        std::fs::write(dir.join("beach.png"), b"old").unwrap();
+        let (stem, path) = claim(&dir, "beach", PNG, 1024).unwrap();
+        assert_ne!(stem, "beach");
+        assert_eq!(std::fs::read(dir.join("beach.png")).unwrap(), b"old");
+        assert_eq!(std::fs::read(path).unwrap(), PNG);
+        std::fs::remove_dir_all(dir.parent().unwrap()).ok();
+    }
+
+    #[test]
+    fn claim_and_copy_leaves_no_file_on_a_bad_signature_or_oversize() {
+        let dir = claim_dir("bad");
+        assert!(claim(&dir, "a", b"not an image at all", 1024).is_err());
+        assert!(claim(&dir, "b", PNG, 4).is_err());
+        assert_eq!(std::fs::read_dir(&dir).unwrap().count(), 0);
+        std::fs::remove_dir_all(dir.parent().unwrap()).ok();
     }
 }

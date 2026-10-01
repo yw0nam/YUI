@@ -4,7 +4,9 @@
 //! plain path on desktop and a content URI on Android. The source needs no pre-declared scope,
 //! which an OS file picker cannot satisfy.
 
-use crate::import_fs::{copy_bounded, dest_stem_candidates, ensure_within, sanitize_stem};
+use crate::import_fs::{
+    copy_bounded, dest_stem_candidates, ensure_within, sanitize_stem, SniffKind,
+};
 use serde::Serialize;
 use std::path::{Path, PathBuf};
 use tauri::{command, AppHandle, Manager};
@@ -71,7 +73,7 @@ fn import_into(
                 return Err("import failed".to_string());
             }
         };
-        if let Err(e) = copy_bounded(&mut reader, file, cap) {
+        if let Err(e) = copy_bounded(&mut reader, file, cap, SniffKind::Glb) {
             let _ = std::fs::remove_file(&dest);
             return Err(e);
         }
