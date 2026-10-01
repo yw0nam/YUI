@@ -1,8 +1,8 @@
 /**
  * Endpoints section — owns endpoint URL fields in the Connection tab, chat/STT/TTS API key rows (secret),
  * the Chat API (chat_api) dropdown, and per-service resets.
- * Same pattern as VRM/speaker sections: explicit deps + wired from shell. reflect (store→DOM) handled by reflect layer;
- * this module owns inputs, handlers, subscriptions, teardown only.
+ * Same pattern as VRM/speaker sections: explicit deps + wired from the connection tab. reflect (store→DOM)
+ * handled by the tab's reflect; this module owns inputs, handlers, teardown only.
  */
 import "./endpoints-section.css";
 
@@ -13,6 +13,7 @@ import {
   type createEndpointsSettings,
   ENDPOINT_FIELD_SPECS,
   type EndpointOverrides,
+  isValidEndpointUrl,
 } from "../../../settings/backend/endpoints-settings";
 import { t } from "../../i18n";
 import {
@@ -23,7 +24,18 @@ import {
   type ChatApi,
   ENDPOINT_FIELDS,
 } from "../constants";
-import { validateEndpointInput } from "../reflect";
+
+// Toggle invalid state for one URL field (empty value = no error). Shared by the tab's
+// endpoint reflect and the section's own input handler.
+export function validateEndpointInput(key: keyof EndpointOverrides, input: HTMLInputElement): void {
+  const def = ENDPOINT_FIELDS.find((f) => f.key === key)!;
+  if (!def.url) return;
+  const invalid = !isValidEndpointUrl(input.value);
+  const row = input.closest<HTMLDivElement>(".yui-input-row");
+  if (!row) return;
+  row.classList.toggle("is-invalid", invalid);
+  input.setAttribute("aria-invalid", invalid ? "true" : "false");
+}
 
 type EndpointsSettingsStore = ReturnType<typeof createEndpointsSettings>;
 
@@ -84,16 +96,17 @@ export function createEndpointsSection(deps: EndpointsSectionDeps): EndpointsSec
     log,
   } = deps;
 
-  // Chat API dropdown (Connection tab).
-  const chatTypeEl = el.querySelector<HTMLSelectElement>(".yui-chat-type")!;
-  const chatPresetEl = el.querySelector<HTMLSelectElement>(".yui-chat-preset")!;
+  // Chat API dropdown (Connection tab) — optional: the push-only rows render no protocol selects.
+  const chatTypeEl = el.querySelector<HTMLSelectElement>(".yui-chat-type");
+  const chatPresetEl = el.querySelector<HTMLSelectElement>(".yui-chat-preset");
 
   // Endpoint fields edited since their last commit — committed on change, panel close, or dispose.
   const dirtyEndpoints = new Set<keyof EndpointOverrides>();
-  // Endpoint inputs — map of input nodes by field key.
+  // Endpoint inputs — built from the rendered rows; fields the rows omit have no node to bind.
   const epInputs = new Map<keyof EndpointOverrides, HTMLInputElement>();
   for (const { key } of ENDPOINT_FIELDS) {
-    epInputs.set(key, el.querySelector<HTMLInputElement>(`#yui-ep-${key}`)!);
+    const input = el.querySelector<HTMLInputElement>(`#yui-ep-${key}`);
+    if (input) epInputs.set(key, input);
   }
   // Per-section reset buttons — map of nodes by data-svc-reset.
   const svcResetBtns = new Map<string, HTMLButtonElement>();
@@ -175,14 +188,15 @@ export function createEndpointsSection(deps: EndpointsSectionDeps): EndpointsSec
   // Endpoint placeholder — fill with bundled-config defaults (greyed) or leave empty if not loaded.
   const epDefaults = getEndpointDefaults?.();
   if (epDefaults) {
-    for (const { key } of ENDPOINT_FIELDS) {
-      epInputs.get(key)!.placeholder = epDefaults[key];
+    for (const [key, input] of epInputs) {
+      input.placeholder = epDefaults[key];
     }
   }
 
   // ── Chat section: Chat API dropdown (chat_api) ──
   // Native select owns keyboard — write to store only on change event.
   function handleChatTypeChange(): void {
+    if (!chatTypeEl) return;
     const api = chatTypeEl.value;
     if (!isChatApi(api)) return;
     endpointsSettings.set({ chat_api: api });
@@ -203,6 +217,7 @@ export function createEndpointsSection(deps: EndpointsSectionDeps): EndpointsSec
   // ── Advanced section: chat provider preset dropdown (chat_base_url autofill) ──
   // Custom autofills nothing — it is the state the dropdown lands in when the URL matches no preset.
   function handleChatPresetChange(): void {
+    if (!chatPresetEl) return;
     const preset = CHAT_PROVIDER_PRESETS.find((p) => p.id === chatPresetEl.value);
     if (!preset) return;
     if (preset.url !== undefined) commitEndpointField("chat_base_url", preset.url);
@@ -278,8 +293,8 @@ export function createEndpointsSection(deps: EndpointsSectionDeps): EndpointsSec
   }
 
   // ── Wiring ──
-  chatTypeEl.addEventListener("change", handleChatTypeChange);
-  chatPresetEl.addEventListener("change", handleChatPresetChange);
+  chatTypeEl?.addEventListener("change", handleChatTypeChange);
+  chatPresetEl?.addEventListener("change", handleChatPresetChange);
   for (const input of epInputs.values()) {
     input.addEventListener("input", handleEndpointInput);
     input.addEventListener("change", handleEndpointChange);
@@ -301,8 +316,8 @@ export function createEndpointsSection(deps: EndpointsSectionDeps): EndpointsSec
   function dispose(): void {
     commitDirtyKeys();
     commitDirtyEndpoints();
-    chatTypeEl.removeEventListener("change", handleChatTypeChange);
-    chatPresetEl.removeEventListener("change", handleChatPresetChange);
+    chatTypeEl?.removeEventListener("change", handleChatTypeChange);
+    chatPresetEl?.removeEventListener("change", handleChatPresetChange);
     for (const input of epInputs.values()) {
       input.removeEventListener("input", handleEndpointInput);
       input.removeEventListener("change", handleEndpointChange);

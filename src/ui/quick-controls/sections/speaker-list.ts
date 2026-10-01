@@ -27,6 +27,30 @@ const SPK_REMOVE_SVG = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColo
 
 const REFRESH_DONE_DWELL_MS = 2400;
 
+/** The picker's wrapper markup — its own group under the TTS section. The host mounts this element
+ * (built over `speakerPickerHtml()`) as the connection tab's `ttsExtra` and roots createSpeakerList on it. */
+export function speakerPickerHtml(): string {
+  return `
+        <div class="yui-group">
+          <div class="yui-spk-scroll">
+            <div class="yui-spks" role="radiogroup" aria-label="${t("speaker.group_aria")}"></div>
+          </div>
+          <div class="yui-spk-foot">
+            <button class="yui-spk yui-spk--add is-ready" type="button">
+              <span class="yui-spk__tick" aria-hidden="true"></span>
+              <span class="yui-spk__body"><span class="yui-spk__name">${t("speaker.add")}</span></span>
+            </button>
+            <p class="yui-spk__import-error" role="status" hidden>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <circle cx="12" cy="12" r="10" />
+                <path d="M12 8v4M12 16h.01" />
+              </svg>
+              <span>${t("speaker.import_error")}</span>
+            </p>
+          </div>
+        </div>`;
+}
+
 interface SpeakerListDeps {
   /** Panel root (el) — query .yui-spks / .yui-spk__import-error from here. */
   root: HTMLElement;

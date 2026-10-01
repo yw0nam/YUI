@@ -9,7 +9,7 @@ import "./controls.css";
 import type { AvatarOption } from "../../config/load";
 import type { createVrmSelection } from "../../io/assets/vrm-selection";
 import type { createChatHistoryStore } from "../../io/chat/chat-history-store";
-import type { DelegationItem, PushSocketState } from "../../io/chat/push-socket";
+import type { DelegationItem } from "../../io/chat/push-socket";
 import type { createSessionDiagnosticsStore } from "../../io/chat/session-diagnostics";
 import type { createSessionStore } from "../../io/chat/session-store";
 import type {
@@ -60,12 +60,12 @@ import { DELEGATION_REFRESH_MS } from "../chips/delegation-rows";
 import type { VoiceInputStatus } from "../chips/voice-input-status";
 import { t } from "../i18n";
 import { type CueListInstance, createCueList } from "../message/cue-list";
+import { createConnectionTab, type PushSocketPanelPort } from "./connection/connection-tab";
 import type { QuickControlsTab } from "./constants";
 import { createHintTooltip } from "./hint-tooltip";
 import { createPopover } from "./popover";
 import { createReflect } from "./reflect";
 import { createAgentSection } from "./sections/agent-section";
-import { createEndpointsSection } from "./sections/endpoints-section";
 import { createExpressMotionList } from "./sections/express-motion-section";
 import { parseToolLines, serializeToolLines } from "./sections/filler-tool-lines";
 import { createHistorySection } from "./sections/history-section";
@@ -73,7 +73,7 @@ import { createIdleMotionList } from "./sections/idle-motion-section";
 import { createMonitorsSection } from "./sections/monitors-section";
 import { createReactionsSection } from "./sections/reactions-section";
 import { createScreenSection } from "./sections/screen-section";
-import { createSpeakerList } from "./sections/speaker-list";
+import { createSpeakerList, speakerPickerHtml } from "./sections/speaker-list";
 import { createVrmList } from "./sections/vrm-list";
 import { createWorkflowsSection } from "./sections/workflows-section";
 import { handleSegmentKeydown } from "./seg-keyboard";
@@ -97,15 +97,6 @@ type SpeakerSelectionStore = ReturnType<typeof createSpeakerSelection>;
 type SessionDiagnosticsStore = ReturnType<typeof createSessionDiagnosticsStore>;
 type SessionStore = ReturnType<typeof createSessionStore>;
 type ChatHistoryStore = ReturnType<typeof createChatHistoryStore>;
-
-/** The push transport as the settings panel uses it: a state to show and a conversation to reset. */
-export interface PushSocketPanelPort {
-  getState(): PushSocketState;
-  onState(cb: (state: PushSocketState) => void): () => void;
-  sendReset(): boolean;
-  /** Drop the backoff wait and open now — what the status line's button asks for. */
-  reconnectNow(): void;
-}
 
 /** The delegations list as the settings window sees it — mirrored over the bridge. */
 export interface DelegationsPanelPort {
@@ -362,7 +353,6 @@ export function createQuickControls({
   const monitorsSection = createMonitorsSection({ root: el, sourceProvider, settings, log });
   const vrmsEl = el.querySelector<HTMLDivElement>(".yui-vrms")!;
   const vrmAddBtn = el.querySelector<HTMLButtonElement>(".yui-vrm--add")!;
-  const spksEl = el.querySelector<HTMLDivElement>(".yui-spks")!;
   const gainSlider = el.querySelector<HTMLInputElement>(".yui-lipsync-gain__slider")!;
   const vadSlider = el.querySelector<HTMLInputElement>(".yui-vad__slider")!;
   const tablistEl = el.querySelector<HTMLDivElement>(".yui-tabs")!;
@@ -372,7 +362,6 @@ export function createQuickControls({
   const messageBtn = el.querySelector<HTMLButtonElement>(".yui-iconbtn--message");
   const devtoolsBtn = el.querySelector<HTMLButtonElement>(".yui-devtools-open");
   const closeBtn = el.querySelector<HTMLButtonElement>(".yui-iconbtn--close");
-  const spkAddBtn = el.querySelector<HTMLButtonElement>(".yui-spk--add")!;
   // Viewpoint reset button — exists only when onResetViewpoint is injected (null otherwise).
   const viewpointResetBtn = el.querySelector<HTMLButtonElement>(".yui-viewpoint-reset");
   // Thinking filler section node — exists only when fillerSettings is injected (null otherwise).
@@ -395,18 +384,27 @@ export function createQuickControls({
     ? Array.from(fillerLangSegEl.querySelectorAll<HTMLButtonElement>(".yui-seg__btn"))
     : [];
 
-  // ── Endpoints section (URL fields · API key rows · TTS/Chat dropdowns · per-service resets) ──
-  const endpoints = createEndpointsSection({
-    root: el,
+  // ── Speaker picker — the shell keeps its lifecycle; the connection tab mounts the element. ──
+  const ttsExtra = document.createElement("div");
+  ttsExtra.innerHTML = speakerPickerHtml();
+  const spksEl = ttsExtra.querySelector<HTMLDivElement>(".yui-spks")!;
+  const spkAddBtn = ttsExtra.querySelector<HTMLButtonElement>(".yui-spk--add")!;
+
+  // ── Connection tab (URL fields · API key rows · TTS/Chat dropdowns · status line · resets) ──
+  const connectionTab = createConnectionTab({
     endpointsSettings,
     chatKeySettings,
     sttKeySettings,
     ttsKeySettings,
     getEndpointDefaults,
-    reflectEndpoints: () => reflect.reflectEndpoints(),
+    getDefaultChatApi,
+    rows: { chat: "full", stt: true, tts: "full", broker: true },
+    pushSocket,
     isOpen: () => popover.isOpen(),
+    ttsExtra,
     log,
   });
+  el.querySelector("#yui-panel-conn")!.append(connectionTab.el);
   const workflows = createWorkflowsSection({ root: el, store: workflowSettings, log });
   const hintTooltip = createHintTooltip({ root: el });
 
@@ -416,7 +414,6 @@ export function createQuickControls({
     : null;
 
   // Start-fresh footer nodes in the History tab (null when the reset stores are absent).
-  const chatStatusActionBtn = el.querySelector<HTMLButtonElement>(".yui-chat-status__action")!;
   const sessionResetBtn = el.querySelector<HTMLButtonElement>(".yui-session__reset");
   // Cue rows also use the .yui-confirm pattern, so scope the session's specifically.
   const sessionConfirmEl = el.querySelector<HTMLDivElement>(".yui-hist__action .yui-confirm");
@@ -445,12 +442,11 @@ export function createQuickControls({
     vad,
     agentSettings,
     fillerSettings,
-    endpointsSettings,
     sessionDiagnostics,
-    keyRows: endpoints.keyRows,
-    getEndpointDefaults,
-    getDefaultChatApi,
-    ...(pushSocket ? { getPushState: () => pushSocket.getState() } : {}),
+    // The session section's lost line follows the socket only while push chat is effective.
+    ...(pushSocket
+      ? { getPushState: () => (isPushMode() ? pushSocket.getState() : undefined) }
+      : {}),
     ...(delegations ? { delegations } : {}),
     presenceSettings,
     pacerGapSettings,
@@ -548,10 +544,7 @@ export function createQuickControls({
       reflect.reflectAgent();
       reflect.reflectFiller();
       reflect.reflectLanguage();
-      reflect.reflectEndpoints();
-      reflect.reflectKeyRows();
-      reflect.reflectChatType();
-      reflect.reflectChatPreset();
+      connectionTab.refresh();
       reflect.reflectSession();
       syncDelegations();
       // The confirm is static markup — disarm it so a reopen never lands on the destructive pill.
@@ -573,8 +566,7 @@ export function createQuickControls({
         gainPreviewing = false;
       }
       speakerList.stopAudition();
-      endpoints.commitDirtyKeys();
-      endpoints.commitDirtyEndpoints();
+      connectionTab.commit();
     },
   });
 
@@ -882,20 +874,10 @@ export function createQuickControls({
       reflect.reflectVad();
     }
   });
-  const unsubscribeEndpoints = endpointsSettings.subscribe(() => {
-    if (popover.isOpen()) {
-      reflect.reflectEndpoints();
-      reflect.reflectChatType();
-      reflect.reflectChatPreset();
-    }
-  });
-  // The socket moves on its own — its line and the session section's rows follow whether or not
-  // a setting changed.
+  // The socket moves on its own — the session section's rows follow whether or not a setting
+  // changed. (The Connection tab keeps its own subscription for the status line.)
   const unsubscribePushState = pushSocket?.onState(() => {
-    if (popover.isOpen()) {
-      reflect.reflectChatStatus();
-      reflect.reflectDelegations();
-    }
+    if (popover.isOpen()) reflect.reflectDelegations();
   });
   // Reflect thinking-filler store updates to section (includes other-window reloadFromStorage).
   const unsubscribeFiller = fillerSettings?.subscribe(() => {
@@ -953,8 +935,6 @@ export function createQuickControls({
   spksEl.addEventListener("keydown", speakerList.handleKeydown);
   spkAddBtn.addEventListener("click", speakerList.handleAddClick);
   viewpointResetBtn?.addEventListener("click", handleResetViewpoint);
-  const handleChatStatusAction = (): void => pushSocket?.reconnectNow();
-  chatStatusActionBtn.addEventListener("click", handleChatStatusAction);
   sessionResetBtn?.addEventListener("click", showSessionConfirm);
   sessionConfirmBtn?.addEventListener("click", handleSessionReset);
   sessionCancelBtn?.addEventListener("click", hideSessionConfirm);
@@ -967,7 +947,7 @@ export function createQuickControls({
 
   function dispose(): void {
     disposed = true;
-    endpoints.dispose();
+    connectionTab.dispose();
     workflows.dispose();
     screen.dispose();
     reactions.dispose();
@@ -987,7 +967,6 @@ export function createQuickControls({
     unsubscribeVoice();
     unsubscribeLipsync();
     unsubscribeVad();
-    unsubscribeEndpoints();
     unsubscribePushState?.();
     unsubscribeFiller?.();
     unsubscribeVrm();
@@ -1022,7 +1001,6 @@ export function createQuickControls({
     spksEl.removeEventListener("keydown", speakerList.handleKeydown);
     spkAddBtn.removeEventListener("click", speakerList.handleAddClick);
     viewpointResetBtn?.removeEventListener("click", handleResetViewpoint);
-    chatStatusActionBtn.removeEventListener("click", handleChatStatusAction);
     sessionResetBtn?.removeEventListener("click", showSessionConfirm);
     sessionConfirmBtn?.removeEventListener("click", handleSessionReset);
     sessionCancelBtn?.removeEventListener("click", hideSessionConfirm);

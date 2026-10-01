@@ -167,7 +167,7 @@ describe("quick-controls.css — holds no control rules", () => {
 // reflect.ts setting `hidden` on either leaves it painted in the layout.
 describe("endpoints-section.css — components with a display rule honour [hidden]", () => {
   it(".yui-chat-status and .yui-session__deleg-lost set display:none under [hidden]", () => {
-    const css = read("../quick-controls/sections/endpoints-section.css");
+    const css = read("../quick-controls/connection/endpoints-section.css");
     expect(extractBlock(css, ".yui-chat-status,\n.yui-session__deleg-lost")).toMatch(/display:/);
     expect(
       extractBlock(css, ".yui-chat-status[hidden],\n.yui-session__deleg-lost[hidden]"),
