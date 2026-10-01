@@ -114,6 +114,7 @@ describe("voice controller — tap mode", () => {
   it("goes off in the background and stays off on return", () => {
     const s = setup();
     s.controller.toggle();
+    s.controller.onCaptureStarted();
 
     s.setHidden(true);
     expect(s.controller.wanted()).toBe(false);
@@ -147,14 +148,40 @@ describe("voice controller — always mode", () => {
 
   it("stops in the background and listens again on every return", () => {
     const s = setup({ mode: "always" });
+    s.controller.onCaptureStarted();
 
     s.setHidden(true);
     expect(s.status.get().state).toBe("idle");
     s.setHidden(false);
     expect(s.status.get().state).toBe("listening");
+    s.controller.onCaptureStarted();
     s.setHidden(true);
     s.setHidden(false);
     expect(s.controller.wanted()).toBe(true);
+  });
+
+  it("keeps a starting capture through the background change a permission prompt causes", () => {
+    const s = setup();
+    s.controller.toggle();
+
+    s.setHidden(true);
+    expect(s.controller.wanted()).toBe(true);
+    s.setHidden(false);
+    s.controller.onCaptureStarted();
+
+    expect(s.controller.wanted()).toBe(true);
+    expect(s.status.get().state).toBe("listening");
+  });
+
+  it("turns a capture off that starts while the app is still in the background", () => {
+    const s = setup();
+    s.controller.toggle();
+    s.setHidden(true);
+
+    s.controller.onCaptureStarted();
+
+    expect(s.controller.wanted()).toBe(false);
+    expect(s.status.get().state).toBe("idle");
   });
 
   it("pauses on a toggle for this foreground session and resumes on the next return", () => {
