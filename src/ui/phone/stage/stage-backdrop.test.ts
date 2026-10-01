@@ -115,6 +115,27 @@ describe("createStageBackdrop", () => {
     expect(root.classList.contains("has-stage-image")).toBe(false);
   });
 
+  it("an older decode failing after a newer image applied leaves the store alone", async () => {
+    const settle: Array<{ ok: () => void; fail: () => void }> = [];
+    const { root, store } = setup(
+      () =>
+        new Promise<void>((resolve, reject) => {
+          settle.push({ ok: resolve, fail: () => reject(new Error("late")) });
+        }),
+    );
+    const next = { id: "dusk.webp", path: "/data/stage/dusk.webp" };
+    store.setImage(IMAGE);
+    store.setImage(next);
+    await flush();
+    settle[1].ok();
+    await flush();
+    settle[0].fail();
+    await flush();
+    expect(store.get()).toEqual({ mode: "image", image: next });
+    expect(root.classList.contains("has-stage-image")).toBe(true);
+    expect(log.warn).not.toHaveBeenCalled();
+  });
+
   it("dispose stops reacting and clears the stage", async () => {
     const { root, store, backdrop } = setup();
     store.setImage(IMAGE);

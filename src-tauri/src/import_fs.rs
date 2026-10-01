@@ -567,6 +567,18 @@ mod tests {
     }
 
     #[test]
+    fn candidates_stay_within_the_stem_cap_and_stay_safe_for_a_stem_at_the_cap() {
+        let long = "あ".repeat(MAX_STEM_BYTES / 3) + "x";
+        let candidates = first_n(&long, "/x/y", &[], 14);
+        for c in &candidates {
+            assert!(c.len() <= MAX_STEM_BYTES, "{} bytes", c.len());
+            assert_eq!(sanitize_stem(c), *c);
+        }
+        let distinct: std::collections::HashSet<_> = candidates.iter().collect();
+        assert_eq!(distinct.len(), candidates.len());
+    }
+
+    #[test]
     fn candidates_start_with_the_sanitized_name_stem() {
         // Interior spaces are kept by the relaxed sanitize_stem — only traversal/illegal chars are neutralized.
         assert_eq!(first_n("My Avatar", "/x/y", &[], 1), ["My Avatar"]);

@@ -98,4 +98,14 @@ describe("importStageImage", () => {
     expect(store.get().image?.id).toBe("new.jpg");
     expect(deps.log.warn).toHaveBeenCalled();
   });
+
+  it("keeps the file when the native side hands back the previous image's id", async () => {
+    const { store, deps, invoke } = setup();
+    invoke.mockImplementation(async (cmd: string) =>
+      cmd === "import_stage_image" ? { id: "old.png", destPath: "/data/stage/old.png" } : undefined,
+    );
+    await importStageImage(store, deps);
+    expect(store.get().image).toEqual(OLD);
+    expect(invoke).not.toHaveBeenCalledWith("remove_stage_image", expect.anything());
+  });
 });
