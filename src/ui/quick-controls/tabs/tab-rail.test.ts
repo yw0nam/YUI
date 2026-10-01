@@ -48,7 +48,7 @@ describe("createTabRail", () => {
     rail
       .querySelector("#yui-tab-conn")!
       .dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowRight", bubbles: true }));
-    expect(focus).toHaveBeenLastCalledWith();
+    expect(focus).toHaveBeenLastCalledWith({});
 
     tabRail.select("hist", { focusVisible: false });
     expect(focus).toHaveBeenLastCalledWith({ focusVisible: false });

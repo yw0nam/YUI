@@ -64,6 +64,15 @@ describe("createPhoneSettingsView", () => {
     view.dispose();
   });
 
+  it("dispose while open commits the connection tab", () => {
+    const { connection, view } = build();
+    view.open("conn");
+
+    view.dispose();
+
+    expect(connection.commit).toHaveBeenCalledTimes(1);
+  });
+
   it("selecting a tab on the rail moves the panel and updates the title", () => {
     const { view } = build();
     view.open("conn");

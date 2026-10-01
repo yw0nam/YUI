@@ -5,10 +5,11 @@
  */
 
 import { t } from "../../i18n";
+import { escapeAttr } from "../markup";
 
 export interface TabRail {
-  /** Select a tab by id; with focus, moves focus to its button. Unknown ids are ignored. Returns whether one matched. */
-  select(id: string, focus?: boolean): boolean;
+  /** Select a tab by id; with focus options, moves focus to its button with them. Unknown ids are ignored. Returns whether one matched. */
+  select(id: string, focus?: FocusOptions | false): boolean;
   /** The selected tab's id. */
   selected(): string;
   dispose(): void;
@@ -23,11 +24,6 @@ interface TabRailDeps {
   initial: string;
   /** Called on every selection change, whatever drove it. */
   onSelect?: (id: string) => void;
-}
-
-// Escapes the characters that would otherwise break out of an HTML attribute.
-function escapeAttr(text: string): string {
-  return text.replace(/&/g, "&amp;").replace(/"/g, "&quot;");
 }
 
 /**
@@ -81,7 +77,7 @@ export function createTabRail(deps: TabRailDeps): TabRail {
   const buttonOf = (id: string): HTMLButtonElement | undefined =>
     buttons.find((b) => b.id === `yui-tab-${id}`);
 
-  function select(id: string, focus = false): boolean {
+  function select(id: string, focus: FocusOptions | false = false): boolean {
     const target = buttonOf(id);
     if (!target) return false;
     for (const btn of buttons) {
@@ -91,7 +87,7 @@ export function createTabRail(deps: TabRailDeps): TabRail {
       const panel = panelByButton.get(btn);
       if (panel) panel.hidden = !on;
     }
-    if (focus) target.focus({ focusVisible: false });
+    if (focus) target.focus(focus);
     onSelect?.(id);
     return true;
   }
@@ -107,16 +103,16 @@ export function createTabRail(deps: TabRailDeps): TabRail {
     const base = current < 0 ? 0 : current;
     if (e.key === "ArrowRight" || e.key === "ArrowDown") {
       e.preventDefault();
-      select(idOf(buttons[(base + 1) % buttons.length]), true);
+      select(idOf(buttons[(base + 1) % buttons.length]), {});
     } else if (e.key === "ArrowLeft" || e.key === "ArrowUp") {
       e.preventDefault();
-      select(idOf(buttons[(base - 1 + buttons.length) % buttons.length]), true);
+      select(idOf(buttons[(base - 1 + buttons.length) % buttons.length]), {});
     } else if (e.key === "Home") {
       e.preventDefault();
-      select(idOf(buttons[0]), true);
+      select(idOf(buttons[0]), {});
     } else if (e.key === "End") {
       e.preventDefault();
-      select(idOf(buttons[buttons.length - 1]), true);
+      select(idOf(buttons[buttons.length - 1]), {});
     }
   }
 
