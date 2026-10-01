@@ -64,7 +64,7 @@ export interface SttVad {
    * dispose() that landed first has cancelled it; rejects with the failure's detail as the message.
    */
   start(): Promise<void>;
-  /** Pause listening without releasing resources; a transcription still in flight is dropped. */
+  /** Pause listening and release the mic, keeping the loaded model; a transcription still in flight is dropped. */
   stop(): void;
   /** Destroy VAD instance and release ONNX session. */
   dispose(): Promise<void>;

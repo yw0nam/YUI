@@ -1,8 +1,8 @@
 /**
  * The phone's voice capture intent — whether the mic should be on. Tap mode flips it on each press;
  * keep-listening mode holds it on while the app is in the foreground. The intent drives the voice
- * status the engine follows (listening starts capture, idle stops it); the engine's own failures
- * come back through that status and turn the intent off, and nothing retries by itself.
+ * status the engine follows (listening starts capture, idle stops it); a failed start reports back
+ * through onCaptureFailed and turns the intent off, and nothing retries by itself.
  */
 
 import type { EndpointsConfig } from "../../../contract";
@@ -45,7 +45,6 @@ export function createVoiceController(deps: {
   // Keep listening was picked and waits for the capture to start before it is saved.
   let pendingAlways = false;
   let started = false;
-  // A start in flight keeps its intent through a background change: the OS permission prompt causes one.
   const listeners = new Set<() => void>();
 
   const notify = (): void => {
@@ -68,6 +67,7 @@ export function createVoiceController(deps: {
     if (mode.get().mode === "always" && sttConfigured()) setIntent(true, reason);
   }
 
+  // A start in flight keeps its intent through a background change: the OS permission prompt causes one.
   const unsubscribeVisibility = visibility.subscribe(() => {
     if (!started) return;
     if (!visibility.get()) enterForeground("foreground");

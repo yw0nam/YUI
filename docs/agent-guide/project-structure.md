@@ -69,7 +69,7 @@ YUI/
         wire-avatar.ts               # VRM and speaker selection stores, their swap and import flows, the voice-list refresh on override commits, and the avatar config applied at boot
         wire-config.ts               # The config store over the bundled configs, the runtime key stores, the live endpoint/guardrail merges, and the reload/watch wiring
         wire-cue-locale-sync.ts      # Reseeds untouched built-in cues when the display language changes
-      voice/                         # Voice wiring shared by the windows
+      voice/                         # Desktop voice wiring
         voice-fix.ts                 # The desktop pill's setup-needed tap: open Connection, then back to listening
       phone/                         # The phone window's config-derived half
         bootstrap-phone.ts           # Phone window's config-derived bootstrap: starts and connects the turn core under one teardown bag
