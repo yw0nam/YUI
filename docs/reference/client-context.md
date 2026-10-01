@@ -221,6 +221,26 @@ whether to speak (firing ≠ judgment).
 trigger: user message
 ```
 
+### Guide (in-app help button)
+
+The Help section of the settings panel submits a short request as an ordinary user turn
+(`trigger.kind` `user`) and names the bundled guide that answers it in `trigger.guide`
+(`controls` or `capabilities`). The user's message is only the short request; the guide
+text rides in the context block as a `guide:` block after the headline:
+
+```text
+trigger: user message
+guide:
+The user pressed the in-app help button. Answer from the guide below: start with the few most-used items, keep it short, and offer to go on; do not include links.
+
+<the guide's Markdown>
+```
+
+The guide text is expanded when the block is rendered, so the turn records and the context
+history hold only the key. The `controls` guide is `docs/guide/controls.md` and the
+`capabilities` guide is `docs/guide/features.md`, both bundled with the app. Every
+transport sends the same block.
+
 ### Cue (schedule / proactive)
 
 ```text
@@ -611,6 +631,11 @@ the trimmed conversation transcript, a `system` message with
 or background marker alone. The `client_context` message changes every turn, so it
 sits after the transcript: the instructions and transcript stay an identical prefix
 from one turn to the next, which provider prompt caches reuse.
+
+A user turn that carried a guide key stores the key in its transcript entry. When the
+transcript is replayed, a `system` message `client_context:\n<guide block>` with the
+currently bundled guide sits right before that user entry, and the entry's token cost
+includes the guide, so both leave the window together.
 
 ### Client-declared tools
 
