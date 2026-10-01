@@ -125,7 +125,7 @@ async function bootstrap(): Promise<void> {
   // add option with filename stem label, select only. Pet window performs actual load cross-window.
   // Cancel (null) silently ignored.
   const importVrm = async (): Promise<void> => {
-    const option = await importVrmFromFile();
+    const option = await importVrmFromFile(vrmSelection);
     if (option === null) return;
     vrmSelection.addUserOption(option);
     vrmSelection.select(option.id);

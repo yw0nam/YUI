@@ -75,7 +75,7 @@ export function wireVrmSelection(deps: {
   // adding the option (prior selection/renderer stay as-is — no recovery needed since the load
   // fails before currentVrm is replaced).
   const importVrm = async (): Promise<void> => {
-    const option = await importVrmFromFile();
+    const option = await importVrmFromFile(vrmSelection);
     if (option === null) return; // cancel
     let metaName: string | null;
     try {
