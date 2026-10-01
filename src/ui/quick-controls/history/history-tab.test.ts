@@ -37,6 +37,7 @@ describe("createHistoryTab", () => {
       sessionStore: createSessionStore(),
       getChatApi: () => "push",
       isOpen: () => true,
+      log: { debug: () => {}, info: () => {}, warn: () => {}, error: () => {} },
     });
     document.body.append(tab.el);
     const confirmEl = tab.el.querySelector<HTMLElement>(".yui-hist__action .yui-confirm")!;

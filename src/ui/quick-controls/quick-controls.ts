@@ -382,8 +382,10 @@ export function createQuickControls({
     : [];
 
   // ── Speaker picker — the shell keeps its lifecycle; the connection tab mounts the element. ──
-  const ttsExtra = document.createElement("div");
-  ttsExtra.innerHTML = speakerPickerHtml();
+  const speakerHost = document.createElement("div");
+  speakerHost.innerHTML = speakerPickerHtml();
+  // The picker's own .yui-group, so `.yui-group + .yui-group` spaces it under the TTS group.
+  const ttsExtra = speakerHost.firstElementChild as HTMLElement;
   const spksEl = ttsExtra.querySelector<HTMLDivElement>(".yui-spks")!;
   const spkAddBtn = ttsExtra.querySelector<HTMLButtonElement>(".yui-spk--add")!;
 
@@ -413,6 +415,7 @@ export function createQuickControls({
         pushSocket,
         getChatApi: () => (isPushMode() ? "push" : undefined),
         isOpen: () => popover.isOpen(),
+        log,
       })
     : null;
   if (historyTab) el.querySelector("#yui-panel-hist")!.append(historyTab.el);
@@ -764,7 +767,7 @@ export function createQuickControls({
     if (tab && tabRail.select(tab)) {
       popover.open(anchor);
       // open() lands focus on the first control; move it to the tab the caller asked for.
-      tabRail.select(tab, true);
+      tabRail.select(tab, { focusVisible: false });
     } else {
       popover.open(anchor);
     }

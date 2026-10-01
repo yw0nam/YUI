@@ -6,7 +6,7 @@
 import type { createChatHistoryStore } from "../../../io/chat/chat-history-store";
 import type { createSessionDiagnosticsStore } from "../../../io/chat/session-diagnostics";
 import type { createSessionStore } from "../../../io/chat/session-store";
-import { createLogger } from "../../../logger";
+import type { Logger } from "../../../logger";
 import { t } from "../../i18n";
 import type { PushSocketPanelPort } from "../connection/connection-tab";
 import { createHistorySection } from "../sections/history-section";
@@ -54,12 +54,21 @@ export function createHistoryTab(deps: {
   getChatApi: () => string | undefined;
   /** Skip repaints while the tab is closed. */
   isOpen: () => boolean;
+  log: Logger;
 }): HistoryTab {
-  const { transcript, sessionDiagnostics, sessionStore, stopTurn, pushSocket, getChatApi, isOpen } =
-    deps;
-  const log = createLogger("history-tab");
+  const {
+    transcript,
+    sessionDiagnostics,
+    sessionStore,
+    stopTurn,
+    pushSocket,
+    getChatApi,
+    isOpen,
+    log,
+  } = deps;
 
   const el = document.createElement("div");
+  el.className = "yui-tab-stack";
   // Start fresh needs the transcript plus both reset stores; the list alone renders without them.
   const startFresh = !!sessionDiagnostics && !!sessionStore;
   el.innerHTML = `

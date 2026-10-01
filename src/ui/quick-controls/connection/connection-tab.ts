@@ -41,8 +41,9 @@ export interface PushSocketPanelPort {
 export interface ConnectionRows {
   /** full: protocol/provider/model rows + URL/key; push: URL/key and the live status line. */
   chat: "full" | "push";
-  stt: boolean;
-  /** full: protocol dropdown + URL/key; url-key: URL/key alone. */
+  /** The STT section is always rendered; its key row and fields are bound unconditionally. */
+  stt: true;
+  /** full: protocol dropdown + URL/key; url-key: URL/key alone. Also gates the disabled STT type row. */
   tts: "full" | "url-key";
   broker: boolean;
 }
@@ -142,7 +143,7 @@ function chatSectionHtml(rows: ConnectionRows): string {
 function sttSectionHtml(rows: ConnectionRows): string {
   // The disabled type row names the protocol; the desktop rows render it, the phone drops it.
   const typeRow =
-    rows.chat === "full"
+    rows.tts === "full"
       ? selectRowHtml(
           "yui-svc-stt-type",
           "svc.type_label",
@@ -213,7 +214,7 @@ export function createConnectionTab(deps: {
   pushSocket?: PushSocketPanelPort;
   /** Store subscriptions and the status line skip repaints while the tab is closed. */
   isOpen: () => boolean;
-  /** Extra element mounted after the TTS group (the desktop's speaker picker). */
+  /** Extra element mounted after the TTS group (the desktop's speaker picker `.yui-group`). */
   ttsExtra?: HTMLElement;
   log: Logger;
 }): ConnectionTab {
@@ -232,7 +233,8 @@ export function createConnectionTab(deps: {
   } = deps;
 
   const el = document.createElement("div");
-  el.innerHTML = `${chatSectionHtml(rows)}${rows.stt ? sttSectionHtml(rows) : ""}${ttsSectionHtml(rows)}${rows.broker ? brokerSectionHtml() : ""}`;
+  el.className = "yui-tab-stack";
+  el.innerHTML = `${chatSectionHtml(rows)}${sttSectionHtml(rows)}${ttsSectionHtml(rows)}${rows.broker ? brokerSectionHtml() : ""}`;
   if (ttsExtra) {
     el.querySelector<HTMLElement>('.yui-svc[data-svc="tts"]')!.append(ttsExtra);
   }
