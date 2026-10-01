@@ -122,6 +122,11 @@
   gap: 0.375rem;
 }
 
+/* The shared 8rem flex basis is a width in a row; in this column it would be a 128px height. */
+.yui-phone-settings .yui-input-row > .yui-row__main {
+  flex: none;
+}
+
 .yui-phone-settings .yui-row > .yui-input-wrap,
 .yui-phone-settings .yui-row > .yui-select {
   flex: 1 1 auto;
