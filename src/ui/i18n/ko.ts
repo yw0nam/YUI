@@ -277,6 +277,9 @@ const ko: Record<string, string> = {
   "viewpoint.section": "시점",
   "viewpoint.sub": "Shift + 드래그로 회전, 스크롤로 확대",
   "viewpoint.reset": "정면으로 초기화",
+  "viewpoint.reset_view_label": "시점 초기화",
+  "viewpoint.reset_view_sub": "회전과 확대를 처음 상태로 되돌립니다.",
+  "viewpoint.reset_view_button": "초기화",
 
   // screenshot / input tab
   "screenshot.label": "스크린샷 첨부",

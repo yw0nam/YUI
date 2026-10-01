@@ -21,7 +21,7 @@ interface VrmListDeps {
   /** Delete imported VRM app-data file (idempotent). Called separately from store removal. */
   removeUserVrm: (id: string) => Promise<void>;
   log: Logger;
-  refreshTooltip: () => void;
+  refreshTooltip?: () => void;
 }
 
 interface VrmList {
@@ -108,7 +108,7 @@ export function createVrmList(deps: VrmListDeps): VrmList {
             removeBtn.classList.add("is-armed");
             removeBtn.dataset.tip = t("vrm.remove_confirm");
             removeBtn.setAttribute("aria-label", t("vrm.remove_confirm_aria", { name: opt.label }));
-            deps.refreshTooltip();
+            deps.refreshTooltip?.();
           }
           row
             .querySelector<HTMLButtonElement>(".yui-vrm__rename")!

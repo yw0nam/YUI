@@ -7,11 +7,6 @@
 
 import type { DelegationItem, PushSocketState } from "../../io/chat/push-socket";
 import type { createSessionDiagnosticsStore } from "../../io/chat/session-diagnostics";
-import {
-  type createLipsyncSettings,
-  LIPSYNC_GAIN_MAX,
-  LIPSYNC_GAIN_MIN,
-} from "../../settings/avatar/lipsync-settings";
 import type { createAgentNotifySettings } from "../../settings/backend/agent-notify-settings";
 import { type createAgentSettings, REASONING_EFFORTS } from "../../settings/backend/agent-settings";
 import type {
@@ -69,7 +64,6 @@ interface ReflectDeps {
   switchRows: readonly SwitchRow[];
   settings: ReturnType<typeof createScreenshotSettings>;
   agentNotifySettings?: ReturnType<typeof createAgentNotifySettings>;
-  lipsync: ReturnType<typeof createLipsyncSettings>;
   vad: ReturnType<typeof createVadSettings>;
   agentSettings: ReturnType<typeof createAgentSettings>;
   fillerSettings?: ReturnType<typeof createFillerSettings>;
@@ -101,7 +95,6 @@ export interface Reflect {
   reflectPacerGap(): void;
   reflectRateLimits(): void;
   reflectScreen(): void;
-  reflectGain(): void;
   reflectVad(): void;
   reflectAgent(): void;
   reflectFiller(): void;
@@ -117,7 +110,6 @@ export function createReflect(deps: ReflectDeps): Reflect {
     switchRows,
     settings,
     agentNotifySettings,
-    lipsync,
     vad,
     agentSettings,
     fillerSettings,
@@ -138,8 +130,6 @@ export function createReflect(deps: ReflectDeps): Reflect {
     .closest(".yui-row")!
     .querySelector<HTMLSpanElement>(".yui-row__sub")!;
   const voiceSwitchBtn = root.querySelector<HTMLButtonElement>(".yui-voice-switch")!;
-  const gainSlider = root.querySelector<HTMLInputElement>(".yui-lipsync-gain__slider")!;
-  const gainValue = root.querySelector<HTMLSpanElement>(".yui-lipsync-gain__value")!;
   const vadSlider = root.querySelector<HTMLInputElement>(".yui-vad__slider")!;
   const vadValue = root.querySelector<HTMLSpanElement>(".yui-vad__value")!;
   const segEl = root.querySelector<HTMLDivElement>(".yui-effort-seg")!;
@@ -252,16 +242,6 @@ export function createReflect(deps: ReflectDeps): Reflect {
         String((minutes - SCREEN_MIN_GAP_MIN) / (SCREEN_MIN_GAP_MAX - SCREEN_MIN_GAP_MIN)),
       );
     }
-  }
-
-  function reflectGain(): void {
-    const gain = lipsync.get().gain;
-    gainSlider.value = String(gain);
-    gainValue.textContent = `${gain.toFixed(1)}×`;
-    gainSlider.style.setProperty(
-      "--fill",
-      String((gain - LIPSYNC_GAIN_MIN) / (LIPSYNC_GAIN_MAX - LIPSYNC_GAIN_MIN)),
-    );
   }
 
   function reflectVad(): void {
@@ -395,7 +375,6 @@ export function createReflect(deps: ReflectDeps): Reflect {
     reflectPacerGap,
     reflectRateLimits,
     reflectScreen,
-    reflectGain,
     reflectVad,
     reflectAgent,
     reflectFiller,

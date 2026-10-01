@@ -23,11 +23,7 @@ import type {
   IdleMotionSettingsStore,
   IdleVariantPool,
 } from "../../settings/avatar/idle-motion-settings";
-import {
-  type createLipsyncSettings,
-  LIPSYNC_GAIN_MAX,
-  LIPSYNC_GAIN_MIN,
-} from "../../settings/avatar/lipsync-settings";
+import type { createLipsyncSettings } from "../../settings/avatar/lipsync-settings";
 import type { createAgentNotifySettings } from "../../settings/backend/agent-notify-settings";
 import type { createAgentSettings } from "../../settings/backend/agent-settings";
 import type { ApiKeySettingsStore } from "../../settings/backend/api-key-settings";
@@ -60,6 +56,7 @@ import { DELEGATION_REFRESH_MS } from "../chips/delegation-rows";
 import type { VoiceInputStatus } from "../chips/voice-input-status";
 import { t } from "../i18n";
 import { type CueListInstance, createCueList } from "../message/cue-list";
+import { createCharacterTab } from "./character/character-tab";
 import { createConnectionTab, type PushSocketPanelPort } from "./connection/connection-tab";
 import type { QuickControlsTab } from "./constants";
 import { createHintTooltip } from "./hint-tooltip";
@@ -67,14 +64,11 @@ import { createHistoryTab } from "./history/history-tab";
 import { createPopover } from "./popover";
 import { createReflect } from "./reflect";
 import { createAgentSection } from "./sections/agent-section";
-import { createExpressMotionList } from "./sections/express-motion-section";
 import { parseToolLines, serializeToolLines } from "./sections/filler-tool-lines";
-import { createIdleMotionList } from "./sections/idle-motion-section";
 import { createMonitorsSection } from "./sections/monitors-section";
 import { createReactionsSection } from "./sections/reactions-section";
 import { createScreenSection } from "./sections/screen-section";
 import { createSpeakerList, speakerPickerHtml } from "./sections/speaker-list";
-import { createVrmList } from "./sections/vrm-list";
 import { createWorkflowsSection } from "./sections/workflows-section";
 import { handleSegmentKeydown } from "./seg-keyboard";
 import { bindSlider } from "./slider-binding";
@@ -231,8 +225,7 @@ interface QuickControls {
   dispose(): void;
 }
 
-export const PREVIEW_PEAK_RMS = 0.15;
-const previewMouth = (gain: number): number => Math.min(1, Math.max(0, gain * PREVIEW_PEAK_RMS));
+export { PREVIEW_PEAK_RMS } from "./character/gain-row";
 
 export function createQuickControls({
   mount,
@@ -331,9 +324,6 @@ export function createQuickControls({
   el.innerHTML = buildPanelHtml({
     isWindow,
     hasSession,
-    showViewpoint: !!onResetViewpoint,
-    showIdleMotion: !!idleMotionSettings,
-    showExpressMotion: !!expressMotionSettings,
     switchRows: TOGGLE_SPECS,
     showScreen: !!screenSettings && !!screenKnobSettings,
     showPresence: !!presenceSettings,
@@ -348,9 +338,6 @@ export function createQuickControls({
   const cueSectionsMountEl = el.querySelector<HTMLDivElement>(".yui-cue-sections")!;
   const voiceSwitchBtn = el.querySelector<HTMLButtonElement>(".yui-voice-switch")!;
   const monitorsSection = createMonitorsSection({ root: el, sourceProvider, settings, log });
-  const vrmsEl = el.querySelector<HTMLDivElement>(".yui-vrms")!;
-  const vrmAddBtn = el.querySelector<HTMLButtonElement>(".yui-vrm--add")!;
-  const gainSlider = el.querySelector<HTMLInputElement>(".yui-lipsync-gain__slider")!;
   const vadSlider = el.querySelector<HTMLInputElement>(".yui-vad__slider")!;
   const tablistEl = el.querySelector<HTMLDivElement>(".yui-tabs")!;
   const tabButtons = Array.from(el.querySelectorAll<HTMLButtonElement>(".yui-tab"));
@@ -359,8 +346,6 @@ export function createQuickControls({
   const messageBtn = el.querySelector<HTMLButtonElement>(".yui-iconbtn--message");
   const devtoolsBtn = el.querySelector<HTMLButtonElement>(".yui-devtools-open");
   const closeBtn = el.querySelector<HTMLButtonElement>(".yui-iconbtn--close");
-  // Viewpoint reset button — exists only when onResetViewpoint is injected (null otherwise).
-  const viewpointResetBtn = el.querySelector<HTMLButtonElement>(".yui-viewpoint-reset");
   // Thinking filler section node — exists only when fillerSettings is injected (null otherwise).
   const fillerLangSegEl = el.querySelector<HTMLDivElement>(".yui-filler-lang-seg");
   const fillerFirstTextareaEl = el.querySelector<HTMLTextAreaElement>(".yui-filler-first-textarea");
@@ -422,15 +407,10 @@ export function createQuickControls({
   const workflows = createWorkflowsSection({ root: el, store: workflowSettings, log });
   const hintTooltip = createHintTooltip({ root: el });
 
-  gainSlider.min = String(LIPSYNC_GAIN_MIN);
-  gainSlider.max = String(LIPSYNC_GAIN_MAX);
-  gainSlider.step = "0.1";
-
   vadSlider.min = String(VAD_SILENCE_MIN);
   vadSlider.max = String(VAD_SILENCE_MAX);
   vadSlider.step = "50";
 
-  let gainPreviewing = false;
   // After dispose, prevent in-flight refresh from repainting/timering on destroyed DOM.
   let disposed = false;
 
@@ -440,7 +420,6 @@ export function createQuickControls({
     switchRows: TOGGLE_SPECS,
     settings,
     agentNotifySettings,
-    lipsync,
     vad,
     agentSettings,
     fillerSettings,
@@ -477,38 +456,38 @@ export function createQuickControls({
     }
   }
 
-  // ── VRM section ──
-  const vrmList = createVrmList({
-    root: el,
+  // ── Character tab — the tab owns its rows; the shell mounts it and relays open/close. ──
+  const characterTab = createCharacterTab({
+    rows: {
+      vrms: true,
+      gain: true,
+      idleMotion: !!idleMotionSettings,
+      expressMotion: !!expressMotionSettings,
+      viewpoint: !!onResetViewpoint,
+    },
+    variant: "panel",
     vrmSelection,
     swapVrm,
     importVrm,
     removeUserVrm,
+    isOpen: () => popover.isOpen(),
     log,
     refreshTooltip: hintTooltip.refresh,
+    onResetView: onResetViewpoint,
+    gain: { lipsync, onPreview: onGainPreview, onPreviewEnd: onGainPreviewEnd },
+    ...(idleMotionSettings
+      ? { idleMotion: { settings: idleMotionSettings, getPool: () => getIdlePool?.() } }
+      : {}),
+    ...(expressMotionSettings
+      ? {
+          expressMotion: {
+            settings: expressMotionSettings,
+            getVocabulary: () => getExpressMotions?.() ?? [],
+          },
+        }
+      : {}),
   });
-
-  // ── Idle motion section ──
-
-  const idleMotionList = idleMotionSettings
-    ? createIdleMotionList({
-        root: el,
-        settings: idleMotionSettings,
-        getPool: () => getIdlePool?.(),
-        log,
-      })
-    : undefined;
-
-  // ── Express motion section ──
-
-  const expressMotionList = expressMotionSettings
-    ? createExpressMotionList({
-        root: el,
-        settings: expressMotionSettings,
-        getVocabulary: () => getExpressMotions?.() ?? [],
-        log,
-      })
-    : undefined;
+  el.querySelector("#yui-panel-char")!.append(characterTab.el);
 
   // ── Speaker section ──
   const speakerList = createSpeakerList({
@@ -541,7 +520,6 @@ export function createQuickControls({
       reflect.reflectRateLimits();
       reflect.reflectScreen();
       reflect.reflectVoiceStatus(voiceStatus.get());
-      reflect.reflectGain();
       reflect.reflectVad();
       reflect.reflectAgent();
       reflect.reflectFiller();
@@ -550,9 +528,7 @@ export function createQuickControls({
       reflect.reflectSession();
       syncDelegations();
       historyTab?.refresh();
-      vrmList.render();
-      idleMotionList?.render();
-      expressMotionList?.render();
+      characterTab.refresh();
       speakerList.render();
       // Server may have come up after the app — refetch its voice list (store subscription re-renders).
       refreshVoiceList?.();
@@ -561,10 +537,7 @@ export function createQuickControls({
       }
     },
     onClose: () => {
-      if (gainPreviewing) {
-        onGainPreviewEnd();
-        gainPreviewing = false;
-      }
+      characterTab.close();
       speakerList.stopAudition();
       connectionTab.commit();
     },
@@ -707,38 +680,10 @@ export function createQuickControls({
     onMessage?.();
   }
 
-  function handleResetViewpoint(): void {
-    onResetViewpoint?.();
-    log.info("viewpoint_reset");
-  }
-
   // Effective chat protocol: the user's override, else the bundled default.
   function isPushMode(): boolean {
     return (endpointsSettings.get().chat_api || getDefaultChatApi?.()) === "push";
   }
-
-  // ── Gain slider ──
-
-  const disposeGainSlider = bindSlider(
-    {
-      slider: gainSlider,
-      parse: parseFloat,
-      setValue: (v: number) => lipsync.setGain(v), // On value change, lipsync subscription calls reflect.reflectGain to redraw gain row
-      logKey: "mouth_gain_change",
-      logField: "gain",
-      onInputExtra: (v: number) => {
-        gainPreviewing = true;
-        onGainPreview(previewMouth(v));
-      },
-      onEndExtra: () => {
-        if (gainPreviewing) {
-          onGainPreviewEnd();
-          gainPreviewing = false;
-        }
-      },
-    },
-    log,
-  );
 
   // ── Silence threshold (VAD) slider ──
 
@@ -839,9 +784,6 @@ export function createQuickControls({
   mountCueLists();
 
   const unsubscribeVoice = voiceStatus.subscribe(reflect.reflectVoiceStatus);
-  const unsubscribeLipsync = lipsync.subscribe(() => {
-    if (popover.isOpen()) reflect.reflectGain();
-  });
   const unsubscribeVad = vad.subscribe(() => {
     if (popover.isOpen()) {
       reflect.reflectSwitchRows();
@@ -860,11 +802,6 @@ export function createQuickControls({
       reflect.reflectFiller();
     }
   });
-  // Reflect store updates (direct select · other-window reloadFromStorage) to active row.
-  // Skip during swap — finally's renderVrms handles final render after loading.
-  const unsubscribeVrm = vrmSelection.subscribe(() => {
-    if (popover.isOpen() && !vrmList.isSwapping()) vrmList.render();
-  });
   // Reflect speaker store updates (direct select · other-window reloadFromStorage) to active row.
   // Skip during swap — finally's renderSpeakers handles final render after loading.
   const unsubscribeSpk = speakerSelection.subscribe(() => {
@@ -877,14 +814,6 @@ export function createQuickControls({
   // Reflect delegated-work updates to the session section through the same sync that arms
   // its minute refresh.
   const unsubscribeDelegations = delegations?.subscribe(() => syncDelegations());
-  // Reflect idle-motion updates (this window's toggle · other window's reloadFromStorage) to the rows.
-  const unsubscribeIdleMotion = idleMotionSettings?.subscribe(() => {
-    if (popover.isOpen()) idleMotionList?.render();
-  });
-  // Reflect express-motion updates (this window's toggle · other window's reloadFromStorage).
-  const unsubscribeExpressMotion = expressMotionSettings?.subscribe(() => {
-    if (popover.isOpen()) expressMotionList?.render();
-  });
 
   switchBtn.addEventListener("click", handleSwitchClick);
   const toggleButtons = TOGGLE_SPECS.map((spec) =>
@@ -903,12 +832,9 @@ export function createQuickControls({
   fillerUnreachableTextareaEl?.addEventListener("input", handleFillerTextareaInput);
   fillerToolTextareaEl?.addEventListener("input", handleFillerTextareaInput);
   voiceSwitchBtn.addEventListener("click", handleVoiceSwitchClick);
-  // Gain/VAD sliders are wired inside bindSlider() above; disposeGainSlider/disposeVadSlider tear them down.
-  vrmsEl.addEventListener("keydown", vrmList.handleKeydown);
-  vrmAddBtn.addEventListener("click", vrmList.handleAddClick);
+  // The VAD slider is wired inside bindSlider() above; disposeVadSlider tears it down.
   spksEl.addEventListener("keydown", speakerList.handleKeydown);
   spkAddBtn.addEventListener("click", speakerList.handleAddClick);
-  viewpointResetBtn?.addEventListener("click", handleResetViewpoint);
   popOutBtn?.addEventListener("click", handlePopOut);
   messageBtn?.addEventListener("click", handleMessage);
   devtoolsBtn?.addEventListener("click", () => onOpenDevtools?.());
@@ -936,19 +862,14 @@ export function createQuickControls({
     unsubscribeBubblePersist?.();
     unsubscribeMessageWindow?.();
     unsubscribeVoice();
-    unsubscribeLipsync();
     unsubscribeVad();
     unsubscribePushState?.();
     unsubscribeFiller?.();
-    unsubscribeVrm();
     unsubscribeSpk();
     unsubscribeSession?.();
     unsubscribeDelegations?.();
     if (delegationsTimer !== null) clearInterval(delegationsTimer);
-    unsubscribeIdleMotion?.();
-    unsubscribeExpressMotion?.();
-    expressMotionList?.dispose();
-    vrmList.dispose();
+    characterTab.dispose();
     speakerList.dispose();
     popover.dispose();
     switchBtn.removeEventListener("click", handleSwitchClick);
@@ -964,14 +885,10 @@ export function createQuickControls({
     fillerUnreachableTextareaEl?.removeEventListener("input", handleFillerTextareaInput);
     fillerToolTextareaEl?.removeEventListener("input", handleFillerTextareaInput);
     voiceSwitchBtn.removeEventListener("click", handleVoiceSwitchClick);
-    disposeGainSlider();
     disposeVadSlider();
     tabRail.dispose();
-    vrmsEl.removeEventListener("keydown", vrmList.handleKeydown);
-    vrmAddBtn.removeEventListener("click", vrmList.handleAddClick);
     spksEl.removeEventListener("keydown", speakerList.handleKeydown);
     spkAddBtn.removeEventListener("click", speakerList.handleAddClick);
-    viewpointResetBtn?.removeEventListener("click", handleResetViewpoint);
     popOutBtn?.removeEventListener("click", handlePopOut);
     messageBtn?.removeEventListener("click", handleMessage);
     closeBtn?.removeEventListener("click", popover.close);

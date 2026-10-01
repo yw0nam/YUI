@@ -39,7 +39,7 @@ export interface UserAssetListConfig<T extends UserAssetOption> {
   /** Log event key prefix — resolves `${prefix}_rename`, `${prefix}_delete`, `${prefix}_delete_failed`, `${prefix}_fallback_swap_failed`, `${prefix}_import_failed`, `${prefix}_swap`, `${prefix}_swap_failed`. */
   logPrefix: string;
   log: Logger;
-  refreshTooltip: () => void;
+  refreshTooltip?: () => void;
 
   list: () => T[];
   getActiveId: () => string;
@@ -218,7 +218,7 @@ export function createUserAssetList<T extends UserAssetOption>(cfg: UserAssetLis
     if (button) {
       button.dataset.tip = t(`${cfg.i18nNamespace}.remove`);
       button.setAttribute("aria-label", t(`${cfg.i18nNamespace}.remove`));
-      cfg.refreshTooltip();
+      cfg.refreshTooltip?.();
     }
   }
 
