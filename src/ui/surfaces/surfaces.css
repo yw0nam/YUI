@@ -586,9 +586,12 @@
     background var(--yui-dur-fast) var(--yui-ease),
     transform var(--yui-dur-fast) var(--yui-ease);
 }
-.yui-input__btn:hover {
-  color: var(--yui-accent);
-  background: var(--yui-accent-faint);
+/* A touch leaves :hover stuck after the tap, which would read as the live state. */
+@media (hover: hover) {
+  .yui-input__btn:hover {
+    color: var(--yui-accent);
+    background: var(--yui-accent-faint);
+  }
 }
 .yui-input__btn:active {
   transform: scale(0.94);
