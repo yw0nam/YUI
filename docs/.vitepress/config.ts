@@ -38,6 +38,7 @@ export default defineConfig({
           { text: 'Getting Started', link: '/guide/getting-started' },
           { text: 'Features', link: '/guide/features' },
           { text: 'Controls', link: '/guide/controls' },
+          { text: 'What she can do', link: '/guide/capabilities' },
         ],
       },
       {
@@ -63,6 +64,7 @@ export default defineConfig({
           { text: 'Getting Started', link: '/guide/getting-started' },
           { text: 'Features', link: '/guide/features' },
           { text: 'Controls', link: '/guide/controls' },
+          { text: 'What she can do', link: '/guide/capabilities' },
         ],
         },
       ],

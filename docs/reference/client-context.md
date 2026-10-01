@@ -238,7 +238,7 @@ The user pressed the in-app help button. Answer from the guide below: start with
 
 The guide text is expanded when the block is rendered, so the turn records and the context
 history hold only the key. The `controls` guide is `docs/guide/controls.md` and the
-`capabilities` guide is `docs/guide/features.md`, both bundled with the app. Every
+`capabilities` guide is `docs/guide/capabilities.md`, both bundled with the app. Every
 transport sends the same block.
 
 ### Cue (schedule / proactive)
