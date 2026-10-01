@@ -189,3 +189,9 @@
 .yui-phone-settings .yui-stage-choose {
   min-height: var(--yui-touch);
 }
+
+/* The rail keeps its tabs together; the desktop panel's bottom-pinned General tab sits right
+   under History here. */
+.yui-phone-settings #yui-tab-general {
+  margin-top: 0;
+}

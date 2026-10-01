@@ -4,13 +4,14 @@
  * after the tab is gone only cleans up.
  */
 
-import type { StageBackgroundStore } from "../../../../io/assets/stage/stage-background";
+import type { StageBackgroundStore, StageMode } from "../../../../io/assets/stage/stage-background";
 import type { Logger } from "../../../../logger";
 import { t } from "../../../i18n";
 import { secHeadHtml } from "../../../quick-controls/markup";
+import "../../../quick-controls/sections/user-asset-list.css";
 import { handleSegmentKeydown } from "../../../quick-controls/seg-keyboard";
+import "./general-tab.css";
 
-type StageMode = "default" | "image";
 const MODES: readonly StageMode[] = ["default", "image"];
 
 const ERROR_SVG = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10" /><path d="M12 8v4M12 16h.01" /></svg>`;
@@ -31,7 +32,7 @@ const sectionHtml = (): string => `
       </div>
       <button class="yui-link-btn yui-stage-choose" type="button">${t("phone.general.image_choose")}</button>
     </div>
-    <p class="yui-stage__import-error" role="status" hidden>${ERROR_SVG}<span>${t("phone.general.import_error")}</span></p>
+    <div class="yui-stage__foot" role="status" hidden><p class="yui-stage__import-error">${ERROR_SVG}<span>${t("phone.general.import_error")}</span></p></div>
   </div>`;
 
 export function createStageSection(deps: {
@@ -47,7 +48,7 @@ export function createStageSection(deps: {
   const segEl = el.querySelector<HTMLElement>(".yui-stage-seg")!;
   const buttons = Array.from(segEl.querySelectorAll<HTMLButtonElement>(".yui-seg__btn"));
   const chooseBtn = el.querySelector<HTMLButtonElement>(".yui-stage-choose")!;
-  const errorEl = el.querySelector<HTMLElement>(".yui-stage__import-error")!;
+  const errorEl = el.querySelector<HTMLElement>(".yui-stage__foot")!;
   let disposed = false;
   let importing = false;
 

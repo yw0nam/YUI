@@ -6,10 +6,7 @@
 import type { StageBackgroundStore } from "../../../../io/assets/stage/stage-background";
 import type { Logger } from "../../../../logger";
 import type { FlagSettingsStore } from "../../../../settings/persisted-store";
-import { t } from "../../../i18n";
-import { secHeadHtml } from "../../../quick-controls/markup";
-import { createBubblePersistRow } from "../../../quick-controls/switch-row";
-import { bindSwitchRows, switchRowHtml } from "../../../quick-controls/switches/switch-rows";
+import { createBubbleSection } from "./bubble-section";
 import { createStageSection } from "./stage-section";
 
 export interface GeneralTab {
@@ -33,24 +30,18 @@ export function createGeneralTab(deps: {
 
   const stage = createStageSection({ stageBackground, importStageImage, log });
 
-  const bubbleRow = createBubblePersistRow(bubblePersistSettings);
-  const bubbleSec = document.createElement("div");
-  bubbleSec.className = "yui-sec";
-  bubbleSec.innerHTML = `${secHeadHtml(t("phone.general.bubble_section"))}<div class="yui-group">${switchRowHtml(bubbleRow)}</div>`;
-  const switches = bindSwitchRows(bubbleSec, [bubbleRow], log);
-  const unsubscribeBubble = bubblePersistSettings.subscribe(() => switches.reflect());
+  const bubble = createBubbleSection({ bubblePersistSettings, log });
 
-  el.append(stage.el, bubbleSec);
+  el.append(stage.el, bubble.el);
 
   return {
     el,
     refresh(): void {
       stage.refresh();
-      switches.reflect();
+      bubble.refresh();
     },
     dispose(): void {
-      unsubscribeBubble();
-      switches.dispose();
+      bubble.dispose();
       stage.dispose();
       el.remove();
     },

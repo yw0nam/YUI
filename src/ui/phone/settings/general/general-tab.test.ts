@@ -97,7 +97,7 @@ describe("createGeneralTab", () => {
     expect(q<HTMLButtonElement>(".yui-stage-choose").disabled).toBe(true);
     finish();
     await vi.waitFor(() => expect(q<HTMLButtonElement>(".yui-stage-choose").disabled).toBe(false));
-    expect(q(".yui-stage__import-error").hidden).toBe(true);
+    expect(q(".yui-stage__foot").hidden).toBe(true);
   });
 
   it("a failed import shows the error and logs it; the next attempt hides it", async () => {
@@ -107,18 +107,18 @@ describe("createGeneralTab", () => {
       .mockResolvedValueOnce();
     const { q } = build(importStageImage);
     q<HTMLButtonElement>(".yui-stage-choose").click();
-    await vi.waitFor(() => expect(q(".yui-stage__import-error").hidden).toBe(false));
-    expect(q(".yui-stage__import-error").textContent).toContain(t("phone.general.import_error"));
+    await vi.waitFor(() => expect(q(".yui-stage__foot").hidden).toBe(false));
+    expect(q(".yui-stage__foot").textContent).toContain(t("phone.general.import_error"));
     expect(log.error).toHaveBeenCalled();
     q<HTMLButtonElement>(".yui-stage-choose").click();
-    expect(q(".yui-stage__import-error").hidden).toBe(true);
+    expect(q(".yui-stage__foot").hidden).toBe(true);
     await vi.waitFor(() => expect(q<HTMLButtonElement>(".yui-stage-choose").disabled).toBe(false));
   });
 
   it("an import that ends after dispose writes no DOM", async () => {
     let fail: (e: unknown) => void = () => {};
     const { tab, q } = build(() => new Promise<void>((_, rej) => (fail = rej)));
-    const error = q(".yui-stage__import-error");
+    const error = q(".yui-stage__foot");
     q<HTMLButtonElement>(".yui-stage-choose").click();
     tab.dispose();
     fail(new Error("late"));

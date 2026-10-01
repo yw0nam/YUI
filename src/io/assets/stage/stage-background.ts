@@ -12,7 +12,7 @@ import {
 } from "../../../settings/persisted-store";
 import { isSafeSanitizedId } from "../safe-id";
 
-type StageMode = "default" | "image";
+export type StageMode = "default" | "image";
 
 interface StageImage {
   /** The stored file name including its extension. */

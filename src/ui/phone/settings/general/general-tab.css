@@ -1,0 +1,9 @@
+/* General tab, Stage section: the import error closes its group with the group's own spacing. */
+.yui-stage__foot {
+  display: flow-root;
+  padding-top: 0.625rem;
+}
+
+.yui-stage__foot[hidden] {
+  display: none;
+}
