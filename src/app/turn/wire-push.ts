@@ -22,7 +22,7 @@ import {
   createDelegationChipSettings,
   localStorageDelegationChipStorage,
 } from "../../settings/panels/delegation-chip-settings";
-import { type MessageWindowMode } from "../../settings/panels/message-window-settings";
+import type { MessageWindowMode } from "../../settings/panels/message-window-settings";
 import { createDelegationChip } from "../../ui/chips/delegation-chip";
 
 /**
