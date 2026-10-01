@@ -4,16 +4,13 @@
 
 .yui-phone-settings {
   position: absolute;
-  left: 0;
-  right: 0;
-  /* Follow the visual viewport like .yui-phone, so the body scrolls above the soft keyboard. */
-  top: var(--yui-visual-viewport-top, 0px);
-  height: var(--yui-visual-viewport-height, 100%);
+  /* .yui-phone already follows the visual viewport; filling it keeps the body above the soft keyboard. */
+  inset: 0;
   z-index: 5;
   box-sizing: border-box;
   /* The absolute child does not inherit the root's safe-area padding — carry the same values. */
   padding-top: env(safe-area-inset-top);
-  padding-bottom: env(safe-area-inset-bottom);
+  padding-bottom: max(calc(env(safe-area-inset-bottom) - var(--yui-keyboard-overlap, 0px)), 0px);
   background: var(--yui-panel-bg);
   display: flex;
   flex-direction: column;
