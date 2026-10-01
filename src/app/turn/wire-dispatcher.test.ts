@@ -18,6 +18,8 @@ vi.mock("../../dispatcher/core/proactive-pacer", () => ({
   createProactivePacer: mocks.createProactivePacer,
 }));
 
+import type { TurnFailure } from "../../dispatcher/backend/backend-caller";
+import type { Turn } from "../../dispatcher/turn/turn";
 import { wireDispatcher } from "./wire-dispatcher";
 
 describe("wireDispatcher", () => {
@@ -27,7 +29,15 @@ describe("wireDispatcher", () => {
       registered.push(teardown);
     });
 
-    let dispatcherDeps: { peek?: { enter(): Promise<void>; exit(): Promise<void> } } | undefined;
+    let dispatcherDeps:
+      | {
+          peek?: { enter(): Promise<void>; exit(): Promise<void> };
+          onTurnAdmitted?: (turn: Turn) => void;
+          onTurnFailed?: (turn: Turn, reason: TurnFailure) => void;
+        }
+      | undefined;
+    const previousTurn = { callFailed: vi.fn() };
+    const quotedTurn = { admitted: vi.fn(), failed: vi.fn() };
     const busyUnsubscribe = vi.fn();
     const dispatcher = {
       stop: vi.fn(),
@@ -72,7 +82,8 @@ describe("wireDispatcher", () => {
       getFrontmost: () => undefined,
       voice: {} as never,
       turnLog: {} as never,
-      previousTurn: {} as never,
+      previousTurn: previousTurn as never,
+      quotedTurn,
       pushTurns: {} as never,
       pushSocket: null,
       getVocabulary: () => ({}) as never,
@@ -93,6 +104,8 @@ describe("wireDispatcher", () => {
       busyUnsubscribe,
       pacerGapUnsubscribe,
       guardrailsOverrideDisposer,
+      previousTurn,
+      quotedTurn,
     };
   };
 
@@ -111,6 +124,20 @@ describe("wireDispatcher", () => {
     await s.dispatcherDeps.peek!.exit();
     expect(peek.enter).toHaveBeenCalledTimes(1);
     expect(peek.exit).toHaveBeenCalledTimes(1);
+  });
+
+  it("hands the admitted turn to the quoted turn and fans a failure out to both ledgers", () => {
+    const s = setup();
+    const turn: Turn = {
+      id: 7,
+      trigger: { source: "user_input_source", event_name: "user.text_submitted", ts: 0 },
+    };
+
+    expect(s.dispatcherDeps.onTurnAdmitted).toBe(s.quotedTurn.admitted);
+    s.dispatcherDeps.onTurnFailed!(turn, "network_drop");
+
+    expect(s.previousTurn.callFailed).toHaveBeenCalledWith(turn, "network_drop");
+    expect(s.quotedTurn.failed).toHaveBeenCalledWith(turn);
   });
 
   it("registers the teardowns in composition order and they run LIFO", () => {

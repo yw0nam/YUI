@@ -35,7 +35,8 @@ vi.mock("@tauri-apps/api/event", () => ({
 }));
 
 import { invoke } from "@tauri-apps/api/core";
-import { initDrag, invokeDragWindow, type OrbitDelta } from "./drag";
+import type { OrbitDelta } from "../../../settings/avatar/camera-gestures";
+import { initDrag, invokeDragWindow } from "./drag";
 
 const mockInvoke = invoke as ReturnType<typeof vi.fn>;
 

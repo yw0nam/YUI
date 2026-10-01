@@ -28,10 +28,13 @@ export interface StatusPill extends ToolStatus {
 
 interface StatusPillOptions {
   mount: HTMLElement;
-  settings: Pick<ReturnType<typeof createScreenshotSettings>, "get" | "subscribe">;
+  /** The screenshot setting behind the capture segment; without it the segment is absent. */
+  settings?: Pick<ReturnType<typeof createScreenshotSettings>, "get" | "subscribe">;
   voice: VoiceInputStatus;
-  onOpenSettings: () => void;
-  onFixVoice: () => void;
+  /** Opens the settings panel; without it the pill never offers the voice fix. */
+  onOpenSettings?: () => void;
+  /** Hands a settings-fixable voice error to the settings panel; without it the error stays text. */
+  onFixVoice?: () => void;
 }
 
 const TOOL_DONE_HOLD_MS = 1500;
@@ -49,6 +52,9 @@ export function createStatusPill({
   el.setAttribute("aria-live", "polite");
   el.hidden = true;
   el.innerHTML = `
+    ${
+      settings
+        ? `
     <button class="yui-status__capture" type="button" hidden>
       <svg class="yui-status__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor"
         stroke-width="1.5" stroke-linecap="round" aria-hidden="true">
@@ -56,7 +62,9 @@ export function createStatusPill({
         <circle cx="12" cy="12" r="2.4" />
       </svg>
       <span class="yui-status__capture-dot" aria-hidden="true"></span>
-    </button>
+    </button>`
+        : ""
+    }
     <button class="yui-status__voice" type="button" hidden tabindex="-1">
       <svg class="yui-status__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor"
         stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
@@ -73,7 +81,7 @@ export function createStatusPill({
       <path d="M8 1.3v1.9M8 12.8v1.9M14.7 8h-1.9M3.2 8H1.3M12.74 3.26l-1.34 1.34M4.6 11.4l-1.34 1.34M12.74 12.74l-1.34-1.34M4.6 4.6L3.26 3.26" />
     </svg>
   `;
-  const captureBtn = el.querySelector<HTMLButtonElement>(".yui-status__capture")!;
+  const captureBtn = el.querySelector<HTMLButtonElement>(".yui-status__capture");
   const voiceBtn = el.querySelector<HTMLButtonElement>(".yui-status__voice")!;
   const sepEl = el.querySelector<HTMLElement>(".yui-status__sep")!;
   const dotEl = el.querySelector<HTMLElement>(".yui-status__dot")!;
@@ -87,7 +95,7 @@ export function createStatusPill({
   let disposed = false;
 
   function render(): void {
-    const captureOn = settings.get().enabled;
+    const captureOn = settings ? settings.get().enabled : false;
     const snapshot = voice.get();
     const shown = captureOn || snapshot.visible || tool !== null;
     // A leaving pill keeps its last content through the fade, but no longer offers the fix.
@@ -98,17 +106,20 @@ export function createStatusPill({
       return;
     }
     const fixable = snapshot.state === "error" && isSettingsFixable(snapshot.detail);
+    // The fix wording names the destination; without an opener the condition is announced alone.
+    const fixOffered = fixable && onFixVoice !== undefined;
     const voiceLabel = fixable
       ? t("voice.error.not_configured")
       : t(`voice.state.${snapshot.state}`);
 
-    captureBtn.hidden = !captureOn;
-    captureBtn.setAttribute("aria-label", t("capture.watching"));
+    if (captureBtn) {
+      captureBtn.hidden = !captureOn;
+      captureBtn.setAttribute("aria-label", t("capture.watching"));
+    }
 
     voiceBtn.hidden = !snapshot.visible;
     voiceBtn.dataset.voice = snapshot.state;
-    // The fix state announces the destination, not just the condition.
-    const announced = fixable ? t("voice.error.not_configured_fix") : voiceLabel;
+    const announced = fixOffered ? t("voice.error.not_configured_fix") : voiceLabel;
     voiceBtn.setAttribute("aria-label", t("aria.voice_input", { label: announced }));
 
     delete dotEl.dataset.tool;
@@ -128,7 +139,7 @@ export function createStatusPill({
     sepEl.hidden = !segment || !(captureOn || snapshot.visible);
 
     // The fix link only exists while the voice owns the segment.
-    const fixShown = fixable && !tool;
+    const fixShown = fixOffered && !tool;
     if (fixShown) el.dataset.fix = "settings";
     else delete el.dataset.fix;
     voiceBtn.tabIndex = fixShown ? 0 : -1;
@@ -201,18 +212,18 @@ export function createStatusPill({
   }
 
   function handleClick(e: MouseEvent): void {
-    if (captureBtn.contains(e.target as Node)) {
-      onOpenSettings();
+    if (captureBtn?.contains(e.target as Node)) {
+      onOpenSettings?.();
       return;
     }
-    if (el.dataset.fix !== "settings") return;
+    if (el.dataset.fix !== "settings" || !onFixVoice) return;
     onFixVoice();
     // The held error has served its purpose; hand the pill back to the live state.
     voice.set("listening");
   }
 
   render();
-  const unsubscribeSettings = settings.subscribe(render);
+  const unsubscribeSettings = settings?.subscribe(render) ?? ((): void => {});
   const unsubscribeVoice = voice.subscribe(render);
   const unsubscribeLocale = subscribeLocale(render);
   el.addEventListener("click", handleClick);

@@ -56,6 +56,14 @@
   border-color: var(--yui-edge-strong);
 }
 
+/* No opener behind the tap — the chip reports, it does not offer. */
+.yui-deleg__chip[data-action="none"] {
+  cursor: default;
+}
+.yui-deleg__chip[data-action="none"]:hover {
+  border-color: var(--yui-edge);
+}
+
 /* Steady amber dot — backend work is running; the status pill's dot is the window's one pulse. */
 .yui-deleg__dot {
   width: 0.5rem;

@@ -36,6 +36,8 @@ const ja: Record<string, string> = {
   "aria.stop": "停止",
   "aria.remove_attachment": "添付を削除",
   "aria.dismiss_bubble": "吹き出しを閉じる",
+  "bubble.you": "自分",
+  "bubble.quote_attached": "添付 {count}件",
   "aria.dock_message": "吹き出しをキャラクターに戻す",
   "aria.pop_message": "吹き出しをメッセージウィンドウへ",
   "aria.dismiss_error": "エラーを閉じる",
@@ -53,6 +55,8 @@ const ja: Record<string, string> = {
   // message window name plate
   "plate.thinking": "考え中",
   "plate.responding": "応答中",
+  "plate.reconnecting": "再接続中",
+  "plate.key_rejected": "キー拒否",
 
   // chain-break (404) recovery notice
   "chain.reset_notice": "会話コンテキストがリセットされました",

@@ -23,8 +23,8 @@ export interface SpeechBubble {
   finishSpeech(): void;
   /** Hide the bubble immediately (ignoring dwell). */
   hideSpeech(): void;
-  /** Show the bubble for content other than speech, holding off any pending fade; speech is left as it is. */
-  reveal(): void;
+  /** Show the bubble for content other than speech, holding off any pending fade; speech is left as it is unless `clearSpeech` drops it. */
+  reveal(opts?: { clearSpeech?: boolean }): void;
   /**
    * Content other than speech settled. Speech still streaming or awaiting playback keeps its own exit;
    * otherwise a bubble with nothing to show hides, and one with content takes the dwell (or the hold).
@@ -32,6 +32,8 @@ export interface SpeechBubble {
   release(hasContent: boolean): void;
   /** Re-measure the box after content other than speech changed its height. */
   measure(): void;
+  /** While on, no dwell is armed: a turn the user started is still running. Turning it off arms nothing by itself; the caller releases. */
+  holdForTurn(on: boolean): void;
   /** Lift the bubble above the input by totalOffsetPx (input bottom + input height + gap). */
   liftAboveInput(totalOffsetPx: number): void;
   /** Restore the bubble's default (input-closed) position. */
@@ -46,6 +48,8 @@ interface SpeechBubbleElements {
   bubbleEl: HTMLElement;
   /** The scrolling panel inside the wrapper. */
   bubbleBox: HTMLElement;
+  /** The quoted user line, the box's first child; user-quote.ts fills it, the bubble drops it. */
+  bubbleQuote: HTMLElement;
   bubbleText: HTMLElement;
   /** Screen-reader-only announce region — the visual bubble is not live; once speech settles, announce once here. */
   bubbleSr: HTMLElement;
@@ -59,7 +63,15 @@ const SPEECH_RENDER_INTERVAL_MS = 50;
 const SCROLL_PIN_SLACK_PX = 8;
 
 export function createSpeechBubble(
-  { root, bubbleEl, bubbleBox, bubbleText, bubbleSr, bubbleClose }: SpeechBubbleElements,
+  {
+    root,
+    bubbleEl,
+    bubbleBox,
+    bubbleQuote,
+    bubbleText,
+    bubbleSr,
+    bubbleClose,
+  }: SpeechBubbleElements,
   dwellMs?: number,
   /** When it returns true, speech never auto-fades — the bubble holds until dismissed or replaced. */
   keepUntilDismissed?: () => boolean,
@@ -80,7 +92,10 @@ export function createSpeechBubble(
   let dismissed = false;
   // Whether revealed content other than speech is still arriving — the previous reply's end arms no dwell meanwhile.
   let revealHeld = false;
+  // Whether a turn the user started is still running — the bubble arms no dwell meanwhile.
+  let turnHeld = false;
   let cancelFade: (() => void) | null = null;
+  let showFrame: number | null = null;
 
   function clearDwell(): void {
     if (dwellTimer !== null) {
@@ -97,6 +112,21 @@ export function createSpeechBubble(
       dwellArmed = false;
       hideSpeech();
     }, dwell);
+  }
+
+  // Arm the transition on the next frame (won't animate in the same frame right after clearing hidden).
+  function showNextFrame(): void {
+    if (showFrame !== null) cancelAnimationFrame(showFrame);
+    showFrame = requestAnimationFrame(() => {
+      showFrame = null;
+      bubbleEl.classList.add("is-visible");
+    });
+  }
+
+  // A hide landing before that frame must not be undone by it.
+  function cancelShowFrame(): void {
+    if (showFrame !== null) cancelAnimationFrame(showFrame);
+    showFrame = null;
   }
 
   function isPinnedToEnd(): boolean {
@@ -126,29 +156,32 @@ export function createSpeechBubble(
     lastRenderAt = Number.NEGATIVE_INFINITY;
     bubbleText.replaceChildren();
     bubbleSr.textContent = "";
+    if (!turnHeld) bubbleQuote.hidden = true;
     bubbleEl.hidden = false;
     bubbleEl.classList.add("is-streaming");
-    // Arm the transition on the next frame (won't animate in the same frame right after clearing hidden)
-    requestAnimationFrame(() => bubbleEl.classList.add("is-visible"));
+    showNextFrame();
   }
 
-  function reveal(): void {
+  function reveal(opts?: { clearSpeech?: boolean }): void {
     clearDwell();
     dwellArmed = false;
     revealHeld = true;
-    if (cancelFade) {
+    if (cancelFade || opts?.clearSpeech) {
       // The fade was about to drop this speech; drop it now so it doesn't return beside the new content.
-      cancelFade();
+      cancelFade?.();
       cancelFade = null;
       speechRaw = "";
       bubbleText.replaceChildren();
+      bubbleEl.classList.remove("is-streaming");
     }
+    if (!turnHeld) bubbleQuote.hidden = true;
     bubbleEl.hidden = false;
-    requestAnimationFrame(() => bubbleEl.classList.add("is-visible"));
+    showNextFrame();
   }
 
   function release(hasContent: boolean): void {
     revealHeld = false;
+    if (turnHeld) return;
     if (bubbleEl.hidden || cancelFade || deferred) return;
     if (bubbleEl.classList.contains("is-streaming")) return;
     if (!hasContent && speechRaw === "") {
@@ -193,7 +226,7 @@ export function createSpeechBubble(
       return;
     }
     deferred = false;
-    if (hold() || revealHeld) return;
+    if (hold() || revealHeld || turnHeld) return;
     dwellArmed = true;
     armDwell();
   }
@@ -202,7 +235,7 @@ export function createSpeechBubble(
     if (!deferred) return;
     deferred = false;
     if (bubbleEl.hidden) return;
-    if (hold() || revealHeld) return;
+    if (hold() || revealHeld || turnHeld) return;
     dwellArmed = true;
     armDwell();
   }
@@ -218,7 +251,9 @@ export function createSpeechBubble(
     clearDwell();
     dwellArmed = false;
     deferred = false;
+    turnHeld = false;
     lastRenderAt = Number.NEGATIVE_INFINITY;
+    cancelShowFrame();
     bubbleEl.classList.remove("is-visible", "is-streaming", "is-held");
     cancelFade?.();
     cancelFade = afterFadeOut(bubbleEl, () => {
@@ -227,8 +262,13 @@ export function createSpeechBubble(
         bubbleEl.hidden = true;
         speechRaw = "";
         bubbleText.replaceChildren();
+        bubbleQuote.hidden = true;
       }
     });
+  }
+
+  function holdForTurn(on: boolean): void {
+    turnHeld = on;
   }
 
   function liftAboveInput(totalOffsetPx: number): void {
@@ -271,6 +311,7 @@ export function createSpeechBubble(
 
   function dispose(): void {
     clearDwell();
+    cancelShowFrame();
     cancelFade?.();
     cancelFade = null;
     unsubscribeLocale();
@@ -288,6 +329,7 @@ export function createSpeechBubble(
     reveal,
     release,
     measure,
+    holdForTurn,
     liftAboveInput,
     resetPosition,
     dispose,

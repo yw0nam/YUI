@@ -91,6 +91,11 @@ describe("turnErrorFixAction", () => {
     }
   });
 
+  it("offers nothing when the host has no settings opener", () => {
+    expect(turnErrorFixAction("not_configured")).toBeUndefined();
+    expect(turnErrorFixAction("not_configured", () => {})).toBeDefined();
+  });
+
   it("offers nothing for failures the settings panel cannot fix", () => {
     const reasons = [
       "http_4xx_drop",

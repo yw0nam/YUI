@@ -19,13 +19,14 @@ YUI/
   settings.html                      # Settings-window Vite entry
   devtools.html                      # Developer Tools Vite entry
   message.html                       # Message-window Vite entry
+  phone.html                         # Phone-window Vite entry, the Android window
   vite.config.ts                     # Dev port YUI_DEV_PORT|1420, strictPort, host 127.0.0.1
   biome.json                         # Format and lint config (curated rule set)
   .claude/
     hooks/                           # Workflow guards: worktree create, pre-tool bash/read/write, post-edit doc check
     skills/                          # Vendored skills (karpathy-guidelines, yui-dev-workflow)
     agents/                          # Vendored sub-agent definitions
-  scripts/                           # Dev launchers (dev-port.mjs, tauri-dev.mjs, dev-auto.mjs) and their shared package-manager.mjs helper, release.sh, worktree-setup.sh, ci/test-guard.sh
+  scripts/                           # Dev launchers (dev-port.mjs, tauri-dev.mjs for tauri:dev and android:dev, dev-auto.mjs) and their shared package-manager.mjs helper, release.sh, worktree-setup.sh, ci/test-guard.sh
   configs/                           # Runtime-loaded config (no hardcoding)
     endpoints.json                   # chat/stt/tts/broker base urls + chat_instructions, chat_api, chat_model_context_window + stt_model/tts_model/tts_speaker/tts_max_inflight; the shipped configs/endpoints.json omits the url and speaker keys, and the settings panel overrides per device
     emotion_registry.json            # emotion id -> vrm_expression + fallback
@@ -39,16 +40,19 @@ YUI/
   public/motions/                    # VRMA motion assets
   src/
     app/                             # Composes the pet window from the layers below
-      bootstrap-configured.ts        # Config-derived bootstrap: calls the wire functions in order and drains their teardowns
+      bootstrap-configured.ts        # Pet window's config-derived bootstrap: runs the turn core and the pet-only wirings in order and drains their teardowns
       bootstrap-disposal.ts          # Registers the renderer's dispose and the Tier 1 engine's stop as bootstrap teardowns
       disposers.ts                   # Shared teardown bag: registers teardowns at creation sites and drains them LIFO
       turn/                          # The path of a turn: sources, voice, and push
+        turn-core.ts                 # The chat turn every backend-facing window runs: voice, dispatcher, STT, VRM load, broker, push transport, stop, and submit
         wire-dispatcher.ts           # Turn feed, backend caller, guardrails, pacer, and the dispatcher
         wire-sources.ts              # Tauri window sources and the dispatcher's paced proactive sources
         wire-voice.ts                # Expression broker client and the voice-input and turn-voice wiring
         wire-voice-pipeline.ts       # Wires filler, TTS, and speech playback to the turn lifecycle
-        wire-push.ts                 # Push socket frames into turns, the shared push stores, and the push mode chip
+        wire-push.ts                 # Push socket frames into turns, the stop button, and the push mode chip
+        push-stores.ts               # The push socket, its chat id, and the delegations and reasoning stores its frames feed
       stage/                         # What is bound to the pet window's stage and overlay
+        stage-renderer.ts            # The renderer on the stage with its persisted camera and idle throttle, plus Tier 1 liveliness, for the pet and phone windows
         wire-gestures.ts             # Pointer gestures on the stage: taps, pats, the window drag, and the camera orbit
         wire-locomotion.ts           # Travel frame, the five locomotion loops, and the window sources composed into one handle
         wire-pet-stage.ts            # Stage wheel zoom, the persisted camera and throttle flow, and the feet-follow input anchor
@@ -61,9 +65,16 @@ YUI/
         wire-pet-controls.ts         # Quick-controls panel, remounted on locale change, and the stage context menu
       settings/                      # Selections and conversation state applied to the running app
         conversation-stores.ts       # Constructs the four shared io/chat conversation stores each window owns and disposes
-        wire-avatar.ts               # VRM and speaker selection stores, their swap and import flows, and the avatar config applied at boot
+        window-stores.ts             # Creates the settings and conversation store bags of the pet and phone windows and registers each store's teardown
+        wire-avatar.ts               # VRM and speaker selection stores, their swap and import flows, the voice-list refresh on override commits, and the avatar config applied at boot
         wire-config.ts               # The config store over the bundled configs, the runtime key stores, the live endpoint/guardrail merges, and the reload/watch wiring
         wire-cue-locale-sync.ts      # Reseeds untouched built-in cues when the display language changes
+      phone/                         # The phone window's config-derived half
+        bootstrap-phone.ts           # Phone window's config-derived bootstrap: starts and connects the turn core under one teardown bag
+        stage/                       # The phone stage's touch camera and tap
+          wire-phone-stage.ts        # Upper-body fit band, the tap source and the stage touch gesture composed for the phone
+          touch-camera.ts            # Binds orbit, pinch and tap callbacks to the camera store and the tap
+          stage-tap.ts               # Hands a tap to the tap source in stage-local px
     logger.ts                        # Namespaced frontend logger with a runtime level
     tauri-env.ts                     # Tauri runtime detection
     windows/                         # One entry file per window, loaded by the matching HTML file
@@ -71,6 +82,7 @@ YUI/
       settings-main.ts               # Settings window
       devtools-main.ts               # Developer Tools window
       message-main.ts                # Message window
+      phone-main.ts                  # Phone window: stage, persistent composer, and push chat
     styles.css                       # Pet-window base stylesheet
     vite-env.d.ts                    # Vite client types and build-time env declarations
     contract/                        # TS contract types — the wire schema source of truth
@@ -104,6 +116,7 @@ YUI/
         body-yaw.ts                  # Pure easing math for the root yaw a stroll turns by
         bone-pitch.ts                # Sign that turns a downward head pitch into a normalized bone's local rotation.x
         camera-fit.ts                # Pure fit-to-bounds framing math
+        fit-band.ts                  # Pure height-bound fit of a vertical band of the model box
         frame-gate.ts                # Pure idle and active frame-throttle decision
         gaze-tracker.ts              # Pure cursor-gaze zone curve and angle damping
         hit-test.ts                  # Pure helpers for the alpha silhouette predicate
@@ -145,6 +158,7 @@ YUI/
         turn.ts                      # Turn identity ledger and the single definition of over
         turn-output.ts               # Speech lifecycle port between the backend caller and the voice pipeline
         push-turn.ts                 # Push-turn ids the user stopped, so their late frames drop whole, and the wait for a sent turn to finish
+        quoted-turn.ts               # The admitted user turn the bubble quotes, and what was observed of it
         render-turn.ts               # Plays a finished backend turn that arrived as a render frame on the push socket
         turn-feed.ts                 # Shared tool-status and reasoning consumer for every transport
       backend/
@@ -206,6 +220,7 @@ YUI/
         screenshot-settings.ts       # Screenshot enabled state and source
       avatar/                        # Camera, motion, and lip-sync
         camera-settings.ts           # Camera zoom and orbit viewpoint
+        camera-gestures.ts           # Maps orbit moves and pinch ratios onto the camera store
         express-motion-settings.ts   # Curates the motion vocabulary the agent may choose from
         idle-motion-settings.ts      # Selects which ambient idle variants may play
         lipsync-settings.ts          # Lip-sync gain
@@ -253,6 +268,11 @@ YUI/
           voice-list-refresh.ts        # Refetches the TTS server's voice list into a speaker manifest
           reference-clip.ts            # Reference-clip URL resolution and transport selection
           speaker-selection.ts         # Owns the active TTS speaker selection
+      stage/                           # What every stage surface shares for pointer gestures
+        press-travel.ts                # Pointer travel past which a press is a drag
+        touch/                         # Touch gestures on the stage
+          touch-gesture.ts             # Pure orbit, pinch and tap recognizer over pointer ids
+          stage-touch.ts               # Feeds the stage's pointer events into the recognizer
       window/
         tauri-listen.ts                # Shared os_event channel payload shape and listen resolver
         frontmost-tracker.ts           # Latest frontmost-window sample off the os_event channel
@@ -319,7 +339,8 @@ YUI/
         format-accel.ts              # Renders an accelerator string for display
       message/                       # Message-window plate, bubble, and cue-list rendering
         speech-bubble.ts             # Speech bubble: dwell, scroll, markdown, and aria for streamed speech
-        reasoning-disclosure.ts      # Backend reasoning folded at the top of the message window's bubble
+        user-quote.ts                # The user's message quoted on the bubble's first line
+        reasoning-disclosure.ts      # Backend reasoning folded under the quoted line at the top of the bubble in the message and phone windows
         message-plate.ts             # Message-window name plate and OS drag handle
         markdown.ts                  # Speech markdown rendering through marked and DOMPurify
         cue-list.ts                  # Reusable cue-list section for schedule and proactive cues
@@ -343,6 +364,9 @@ YUI/
         ingress-dead-notice.ts       # One-off notice when the Rust agent ingress listener dies
         first-run-hint.ts            # First-run controls hint through the speech bubble
         boot-error.css               # Boot-failure notice styles
+      phone/                         # Phone-window layout
+        phone-viewport.ts            # Sizes the phone root to the visual viewport and writes the keyboard overlap
+        phone.css                    # Phone root, safe area, stage background, and touch-sized composer and bubble
       quick-controls/                # Quick-controls shell parts and sections
         quick-controls.ts            # Quick-controls panel: header, tab rail, and tab body
         quick-controls.css           # Quick-controls shell, tab rail, sections, groups, and rows
@@ -392,9 +416,16 @@ YUI/
         motion-preview.css           # Motion-preview styles
   src-tauri/
     tauri.conf.json                  # Transparent always-on-top pet window
+    tauri.android.conf.json          # Android overrides: com.yui.mobile identifier, bundled configs and the default VRM only
+    capabilities/                    # Per-window permissions; desktop.json holds the desktop-only plugin permissions
+    gen/android/                     # Android Studio project generated by `tauri android init`
     src/                             # Rust shell
       main.rs                        # Binary entry that calls into lib.rs
-      lib.rs                         # Tauri builder: plugins, commands, windows, and the watcher startup
+      lib.rs                         # Module declarations and run(), which chains plugins, setup, and commands
+      plugins.rs                     # Plugin registration
+      setup.rs                       # Startup work: log sink, turn-record log, import sweep, OS watcher, tray
+      commands.rs                    # IPC command table
+      app_log.rs                     # Log plugin sink, timezone, line format, and log directory
       drag.rs                        # OS-native window drag with multi-monitor and DPI correction
       window_frame.rs                # Lifts AppKit frame constraining and applies logical window frames
       passthrough.rs                 # Click-through toggle over the transparent overlay

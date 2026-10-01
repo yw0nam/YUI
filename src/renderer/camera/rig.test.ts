@@ -16,6 +16,7 @@ import {
   computeCameraFit,
   orbitPosition,
 } from "../geometry/camera-fit";
+import { computeBandFit } from "../geometry/fit-band";
 import { type CameraRig, createCameraRig } from "./rig";
 
 const W = 800;
@@ -24,7 +25,7 @@ const DEG = Math.PI / 180;
 
 /** Humanoid-sized stand-in: (−0.3, 0, −0.2)–(0.3, 1.6, 0.2). */
 const BOX = new THREE.Box3(new THREE.Vector3(-0.3, 0, -0.2), new THREE.Vector3(0.3, 1.6, 0.2));
-const FRAMING = { fov: 30, margin: 0.1 };
+const FRAMING = { fov: 30, margin: 0.1, upper_body: { from_frac: 0.4, to_frac: 1 } };
 
 /** Polar (from +Y) of the camera position on its orbit sphere around `target`. */
 function polarOf(camera: THREE.PerspectiveCamera, target: THREE.Vector3): number {
@@ -158,7 +159,7 @@ describe("createCameraRig", () => {
     const { camera, rig } = makeFixture();
 
     // setFraming re-fits immediately — no extra fit() call.
-    rig.setFraming({ fov: 20, margin: 0.1 });
+    rig.setFraming({ fov: 20, margin: 0.1, upper_body: { from_frac: 0.4, to_frac: 1 } });
     expect(camera.fov).toBe(20);
     const fit20 = expectedFit(camera, 20);
     expectPosition(
@@ -240,5 +241,28 @@ describe("createCameraRig", () => {
     rig.setOrbit({ azimuth: Number.NaN, polar: Number.NaN });
     expect(rig.isConverging()).toBe(false);
     expect(camera.position.equals(settled)).toBe(true);
+  });
+
+  it("setFitBand frames the band and keeps the zoom and orbit", () => {
+    const { camera, rig } = makeFixture();
+    const band = { from_frac: 0.4, to_frac: 1 };
+    const angles = { azimuth: 0.5, polar: Math.PI / 3 };
+    rig.fit();
+    rig.setZoom(2);
+    rig.setOrbit(angles);
+    stepUntilSettled(rig);
+    const fullFit = expectedFit(camera);
+    const bandFit = computeBandFit(BOX, band, FRAMING);
+    if (!bandFit) throw new Error("fixture box must fit the band");
+
+    rig.setFitBand(band);
+    expectPosition(camera, orbitPosition(bandFit.target, bandFit.distance / 2, angles));
+
+    // A later framing application keeps the band.
+    rig.setFraming(FRAMING);
+    expectPosition(camera, orbitPosition(bandFit.target, bandFit.distance / 2, angles));
+
+    rig.setFitBand(null);
+    expectPosition(camera, orbitPosition(fullFit.target, fullFit.distance / 2, angles));
   });
 });

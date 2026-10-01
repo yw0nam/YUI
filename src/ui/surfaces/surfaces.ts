@@ -14,13 +14,14 @@
 
 import "./surfaces.css";
 import type { AttachmentLimits } from "../../config/load";
+import type { UserQuote } from "../../io/bridge/message-bridge";
 import type { InputErrorAction } from "../../io/bridge/message-remote";
-import { isTauri } from "../../tauri-env";
 import type { ToolStatus } from "../chips/status-pill";
 import { subscribe as subscribeLocale, t } from "../i18n";
 import { createTextInput } from "../input/text-input";
 import { createReasoningDisclosure, type ReasoningSource } from "../message/reasoning-disclosure";
 import { createSpeechBubble } from "../message/speech-bubble";
+import { createUserQuote } from "../message/user-quote";
 
 // Arrows-out: moves speech into the message window. Stroke width comes from each button's CSS.
 const POP_ICON = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round"
@@ -44,6 +45,12 @@ export interface Surfaces {
   finishSpeech(): void;
   /** Hide the bubble immediately (ignoring dwell). */
   hideSpeech(): void;
+  /** A turn the user started was admitted: the bubble opens with the message quoted on its first line and holds through the turn. */
+  quoteUser(quote: UserQuote): void;
+  /** The quoted turn is over: the line stays and the bubble takes its dwell, or hides when it shows nothing else. */
+  settleQuote(): void;
+  /** The quoted turn ended before any reply: the line goes and the bubble hides when it shows nothing else. */
+  clearQuote(): void;
 
   // ── tool status (observing backend tools), forwarded to the ToolStatus the surfaces were given ──
   showTool(toolId: string): void;
@@ -70,6 +77,8 @@ export interface Surfaces {
   showInputError(message: string, action?: InputErrorAction): void;
   /** Apply the configured attach-time caps (configs/guardrails.json → attachments). */
   setAttachmentLimits(limits: AttachmentLimits): void;
+  /** Puts a sent message back into an open, empty composer, attachments included; a closed composer or one holding a draft is left alone. */
+  restoreInput(text: string, images: string[]): void;
   /** Toggle the input disabled (e.g. while processing). When disabled, field disabled + pending dimming. */
   setInputEnabled(enabled: boolean): void;
   /**
@@ -90,12 +99,14 @@ interface SurfacesOptions {
   dwellMs?: number;
   /** When it returns true, speech holds until the bubble's close button (or new speech) dismisses it. */
   keepBubbleUntilDismissed?: () => boolean;
-  /** Called when a pop-out button — on the bubble or on the input row — is pressed. */
+  /** Called when a pop-out button — on the bubble or on the input row — is pressed; without it both are hidden. */
   onPop?: () => void;
   /** Called whenever the input's open state settles. */
   onInputOpenChange?: (open: boolean) => void;
-  /** The backend's reasoning, folded at the top of the bubble; only the message window passes it. */
+  /** The backend's reasoning, folded at the top of the bubble under the quoted line. */
   reasoning?: ReasoningSource;
+  /** The input stays open from construction; the send button sends and Enter is a newline. */
+  persistentInput?: boolean;
 }
 
 export function createSurfaces({
@@ -106,6 +117,7 @@ export function createSurfaces({
   onPop,
   onInputOpenChange,
   reasoning,
+  persistentInput,
 }: SurfacesOptions): Surfaces {
   const el = document.createElement("div");
   el.className = "yui-ui";
@@ -119,9 +131,7 @@ export function createSurfaces({
           </svg>
         </button>
       </div>
-      <div class="yui-bubble__box">
-        <span class="yui-bubble__text"></span><span class="yui-bubble__caret" aria-hidden="true">|</span>
-      </div>
+      <div class="yui-bubble__box"><div class="yui-bubble__quote" hidden></div><span class="yui-bubble__text"></span><span class="yui-bubble__caret" aria-hidden="true">|</span></div>
     </div>
     <span class="yui-bubble__sr" role="status" aria-live="polite"></span>
     <form class="yui-input" novalidate hidden>
@@ -159,6 +169,7 @@ export function createSurfaces({
 
   const bubbleEl = el.querySelector<HTMLDivElement>(".yui-bubble")!;
   const bubbleBox = el.querySelector<HTMLDivElement>(".yui-bubble__box")!;
+  const bubbleQuote = el.querySelector<HTMLDivElement>(".yui-bubble__quote")!;
   const bubbleText = el.querySelector<HTMLSpanElement>(".yui-bubble__text")!;
   const bubbleSr = el.querySelector<HTMLSpanElement>(".yui-bubble__sr")!;
   const bubbleClose = el.querySelector<HTMLButtonElement>(".yui-bubble__close")!;
@@ -173,25 +184,25 @@ export function createSurfaces({
   const sendBtn = el.querySelector<HTMLButtonElement>(".yui-input__send")!;
 
   const bubble = createSpeechBubble(
-    { root: el, bubbleEl, bubbleBox, bubbleText, bubbleSr, bubbleClose },
+    { root: el, bubbleEl, bubbleBox, bubbleQuote, bubbleText, bubbleSr, bubbleClose },
     dwellMs,
     keepBubbleUntilDismissed,
   );
   // A reasoning cycle's first delta shows the bubble and holds off its fade until the cycle ends; the end hands
   // a bubble with no speech in flight to the dwell, or hides it when nothing is left to show.
   const think = reasoning
-    ? createReasoningDisclosure({ mount: bubbleBox, source: reasoning, bubble })
+    ? createReasoningDisclosure({ before: bubbleText, source: reasoning, bubble })
     : null;
+  const quote = createUserQuote({ el: bubbleQuote, bubble });
   const input = createTextInput(
     { formEl, field, errorEl, trayEl, attachBtn, picker, sendBtn },
     { liftAboveInput: bubble.liftAboveInput, resetPosition: bubble.resetPosition },
     onInputOpenChange,
+    { persistentInput },
   );
 
-  // Both exits lead to the same window; without a second OS window there is nowhere
-  // to pop into, so the browser build hides them.
   const popButtons = [bubblePop, inputPop];
-  for (const button of popButtons) button.hidden = !isTauri();
+  for (const button of popButtons) button.hidden = onPop === undefined;
 
   // Surfaces aren't remounted on locale change, so the labels are (re)applied here.
   function applyLocaleLabels(): void {
@@ -210,6 +221,7 @@ export function createSurfaces({
     unsubscribeLocale();
     for (const button of popButtons) button.removeEventListener("click", onPopClick);
     think?.dispose();
+    quote.dispose();
     bubble.dispose();
     input.dispose();
     el.remove();
@@ -222,6 +234,9 @@ export function createSurfaces({
     endSpeech: bubble.endSpeech,
     finishSpeech: bubble.finishSpeech,
     hideSpeech: bubble.hideSpeech,
+    quoteUser: quote.show,
+    settleQuote: quote.settle,
+    clearQuote: quote.clear,
     showTool: tool.showTool,
     finishTool: tool.finishTool,
     hideTool: tool.hideTool,
@@ -233,6 +248,7 @@ export function createSurfaces({
     setBusy: input.setBusy,
     showInputError: input.showInputError,
     setAttachmentLimits: input.setAttachmentLimits,
+    restoreInput: input.restoreInput,
     setInputEnabled: input.setInputEnabled,
     setInputAnchor: input.setInputAnchor,
     dispose,

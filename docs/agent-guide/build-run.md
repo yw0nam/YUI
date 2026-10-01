@@ -18,6 +18,52 @@ cd src-tauri && cargo check # Rust compile check
 cd src-tauri && cargo test  # Rust unit tests
 ```
 
+## Android
+
+`src-tauri/gen/android/` holds the Android Studio project that `tauri android init` generates. `src-tauri/tauri.android.conf.json` overrides the desktop config for Android: the identifier is `com.yui.mobile` (debug builds install as `com.yui.mobile.debug`), the one window opens `phone.html`, and the bundled resources are `configs/` plus the default VRM. The generated project carries two hand edits a fresh `tauri android init` would lose: `MainActivity.kt` enables edge-to-edge with transparent dark-style system bars (light status-bar icons over the dark stage), and the manifest's main activity pins `android:screenOrientation="portrait"`.
+
+The phone window's bootstrap is `src/windows/phone-main.ts`. Chat on the phone is the push transport, selected by the effective endpoints: `configs/endpoints.json` merged with the `yui.endpoints` override store, with `chat_api` set to `push` and `chat_base_url` to the gateway. The chat key comes from `VITE_YUI_CHAT_KEY` (the process environment or `.env.local`) or the key store. The phone applies the config once per launch, so an edit to `configs/endpoints.json` takes an app restart. The emulator reaches a host-local gateway at `http://10.0.2.2:<port>`, for example `VITE_YUI_CHAT_KEY=<key> pnpm android:dev` with `"chat_base_url": "http://10.0.2.2:<port>"`.
+
+### Toolchain
+
+1. JDK 21. Gradle 8.14 rejects the JDK 25 that Android Studio bundles with `Unsupported class file major version 69`. `brew install openjdk@21` provides JDK 21.
+2. Android SDK and NDK, installed from Android Studio's SDK Manager.
+3. Rust Android targets: `rustup target add aarch64-linux-android armv7-linux-androideabi i686-linux-android x86_64-linux-android`.
+
+The Tauri CLI reads the SDK, NDK, and JDK locations from the environment:
+
+```bash
+export ANDROID_HOME="$HOME/Library/Android/sdk"
+export NDK_HOME="$ANDROID_HOME/ndk/<version>"
+export JAVA_HOME="/opt/homebrew/opt/openjdk@21/libexec/openjdk.jdk/Contents/Home"
+```
+
+### Run
+
+```bash
+pnpm android:dev                                         # tauri android dev on the attached device or running emulator; picks the dev port like tauri:dev
+pnpm tauri android build --debug --target aarch64 --apk  # Standalone debug APK
+```
+
+`pnpm android:dev` runs with `--no-watch`, so a Rust change needs a restart. With one device attached the CLI picks it; `adb devices` lists it. The CLI forwards the dev server's `127.0.0.1` port to the device, and the app loads configs, VRMs, and motions from Vite.
+
+The standalone APK stops at config loading. `resolveAssetUrl` turns a bundled path into an asset-protocol URL, the asset protocol opens files on disk, and Android keeps bundled resources inside the APK.
+
+On the emulator, WebGL output appears only when the AVD runs on the host GPU (`hw.gpu.enabled=yes`, `hw.gpu.mode=host`). The emulator reaches the host at `10.0.2.2`, over cleartext HTTP in debug builds only.
+
+### Desktop-only parts
+
+| Part | Gate | Android error without the gate |
+|---|---|---|
+| `xcap` and the screen-capture commands (`list_screen_sources`, `capture_screen`) | Non-mobile Cargo target table, `#[cfg(desktop)] mod screenshot` and its commands | E0433 in `xcap`: no `platform` module |
+| `tauri-plugin-global-shortcut` | Non-mobile Cargo target table, `#[cfg(desktop)]` registration in `plugins.rs`, permissions in `capabilities/desktop.json` | The crate compiles empty, and capability validation fails with `Permission global-shortcut:allow-register not found` |
+| `drag_window` | `#[cfg(desktop)] mod drag` and its command | E0599: no method `start_dragging` |
+| `set_click_through` | `#[cfg(desktop)] mod passthrough` and its command | E0599: no method `set_ignore_cursor_events` |
+| System tray | `#[cfg(desktop)] mod tray` and its call in `setup.rs` | Tauri defines its `tray` module for desktop only |
+| Repo `logs/` directory in debug builds | Desktop-only branch in `app_log::log_dir` | `Read-only file system (os error 30)` on every log write |
+
+The phone window invokes none of the gated commands and plugins, and its logs go to the app's private `logs/` directory (see Logs).
+
 ## Release
 
 `bundle.targets` in `src-tauri/tauri.conf.json` is `["dmg", "msi", "nsis"]` — the installers that get shipped. The Tauri bundler intersects that list with what the host platform can build, so macOS produces the `.dmg` and Windows produces `.msi` + NSIS `-setup.exe`.
@@ -49,11 +95,11 @@ Dev updates reload the whole page. No `import.meta.hot.accept()` boundary exists
 
 ## Logs
 
-Frontend (`src/logger.ts` → `[YUI][namespace] …`) and Rust (`log` crate) lines are written to per-day files `YUI_YYYY-MM-DD.log`, rotated at midnight in the `YUI_LOG_TZ` timezone and retained 14 days (older dated files are pruned on rotation). Dev (`pnpm tauri dev`): `<repo>/logs/` (gitignored) — tail with `tail -f logs/*.log`. Release (macOS): `~/Library/Logs/com.yui.desktop/`. Levels: dev `debug`, release `warn`; override frontend via `VITE_YUI_LOG_LEVEL` (`debug|info|warn|error`).
+Frontend (`src/logger.ts` → `[YUI][namespace] …`) and Rust (`log` crate) lines are written to per-day files `YUI_YYYY-MM-DD.log`, rotated at midnight in the `YUI_LOG_TZ` timezone and retained 14 days (older dated files are pruned on rotation). Dev (`pnpm tauri dev`): `<repo>/logs/` (gitignored) — tail with `tail -f logs/*.log`. Release (macOS): `~/Library/Logs/com.yui.desktop/`. Android: the app's private `logs/` directory, read with `adb shell run-as com.yui.mobile.debug cat logs/YUI_YYYY-MM-DD.log`; `adb logcat` also carries the webview console under the `Tauri/Console` tag. Levels: dev `debug`, release `warn`; override frontend via `VITE_YUI_LOG_LEVEL` (`debug|info|warn|error`).
 
 ### Turn records
 
-Alongside the app log, `turns_YYYY-MM-DD.jsonl` accumulates one JSON line per completed backend turn and one per fire skipped before becoming a turn — the long-horizon source for speak-rate/suppression measurement, readable with `jq` while the app runs. Same directory, rotation, and 14-day retention as the app log: dev `<repo>/logs/`, release `~/Library/Logs/com.yui.desktop/` (macOS). Written via the Rust `append_turn_record(line)` command; `src/io/chat/turn-record-log.ts` builds each line and calls it fire-and-forget, so a failed write never breaks the turn or the fire path.
+Alongside the app log, `turns_YYYY-MM-DD.jsonl` accumulates one JSON line per completed backend turn and one per fire skipped before becoming a turn — the long-horizon source for speak-rate/suppression measurement, readable with `jq` while the app runs. Same directory, rotation, and 14-day retention as the app log: dev `<repo>/logs/`, release `~/Library/Logs/com.yui.desktop/` (macOS), Android the app's private `logs/`. Written via the Rust `append_turn_record(line)` command; `src/io/chat/turn-record-log.ts` builds each line and calls it fire-and-forget, so a failed write never breaks the turn or the fire path.
 
 Two record shapes, distinguished by `type`:
 

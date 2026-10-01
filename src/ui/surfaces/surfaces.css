@@ -253,6 +253,47 @@
   }
 }
 
+/* ── Quoted user line — the message the turn answers, first in the box ── */
+.yui-bubble__quote {
+  display: flex;
+  gap: 0.4rem;
+  align-items: baseline;
+  margin: -0.1rem 0 0.45rem;
+  padding-bottom: 0.45rem;
+  border-bottom: 1px solid var(--yui-edge);
+  color: var(--yui-text-mute);
+  font-size: 0.9em; /* a step under the speech size the box sets */
+  line-height: 1.4;
+}
+/* display: flex beats the UA's [hidden] rule, so hide it explicitly. */
+.yui-bubble__quote[hidden] {
+  display: none;
+}
+.yui-bubble__quote-who {
+  flex: none;
+  font-weight: 600;
+  color: var(--yui-text-dim);
+}
+.yui-bubble__quote-who svg {
+  width: 0.75rem;
+  height: 0.75rem;
+  vertical-align: -1px;
+  margin-right: 1px;
+}
+.yui-bubble__quote-text {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+/* Alone in the box, the line has nothing to divide from. */
+.yui-bubble__box:has(.yui-bubble__text:empty):not(:has(.yui-bubble__think:not([hidden])))
+.yui-bubble__quote {
+  margin-bottom: 0;
+  padding-bottom: 0;
+  border-bottom: 0;
+}
+
 /* ── Reasoning disclosure — the backend's reasoning folded above the speech (message window only) ── */
 .yui-bubble__think {
   margin: -0.15rem 0 0.4rem;
@@ -326,6 +367,13 @@
 .yui-bubble:hover .yui-bubble__tools,
 .yui-bubble__tools:focus-within {
   opacity: 1;
+}
+
+/* Touch has no hover to reveal them, so the tools stay on screen. */
+@media (hover: none) {
+  .yui-bubble__tools {
+    opacity: 1;
+  }
 }
 
 /* Held speech has no auto-fade, so its only exit stays on screen. */

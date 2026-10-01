@@ -92,6 +92,8 @@ interface DispatcherDeps {
    * superseded_by_user returns early and never reaches this.
    */
   onTurnFailed?: (turn: Turn, reason: TurnFailure) => void;
+  /** The dispatcher admitted a trigger: the turn it opened, reported before its backend call starts. */
+  onTurnAdmitted?: (turn: Turn) => void;
   /** Structured logging (defaults to the dispatcher namespace logger). */
   logger?: Logger;
 }
@@ -320,6 +322,7 @@ export function createDispatcher(deps: DispatcherDeps): Dispatcher {
     closeTurn();
     const turn = deps.turnLog.begin(env);
     openTurn = { id: turn.id, trigger: env.event_name, started_at, outcome: null };
+    deps.onTurnAdmitted?.(turn);
     void backendCaller
       .call(turn, abort.signal)
       .then((outcome) => {

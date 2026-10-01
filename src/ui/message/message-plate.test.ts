@@ -79,6 +79,10 @@ describe("createMessagePlate", () => {
     expect(stateLabel().textContent).toBe(t("plate.thinking"));
   });
 
+  it("marks the plate draggable when the drag starts from it", () => {
+    expect(el().hasAttribute("data-draggable")).toBe(true);
+  });
+
   it("reports a dock request when the button is clicked", () => {
     dock().click();
     expect(onDock).toHaveBeenCalledTimes(1);
@@ -97,5 +101,54 @@ describe("createMessagePlate", () => {
   it("removes itself and stops responding once disposed", () => {
     plate.dispose();
     expect(mount.querySelector(".yui-plate")).toBeNull();
+  });
+
+  it("shows the reconnecting label over the turn state", () => {
+    plate.setBusy(true);
+    plate.setConnection("reconnecting");
+    expect(el().getAttribute("data-conn")).toBe("reconnecting");
+    expect(stateLabel().textContent).toBe(t("plate.reconnecting"));
+
+    plate.setLive(true);
+    expect(stateLabel().textContent).toBe(t("plate.reconnecting"));
+  });
+
+  it("shows the key-rejected label over responding and thinking", () => {
+    plate.setBusy(true);
+    plate.setLive(true);
+    plate.setConnection("failed");
+    expect(el().getAttribute("data-conn")).toBe("failed");
+    expect(stateLabel().textContent).toBe(t("plate.key_rejected"));
+  });
+
+  it("hands the label back to the turn state once the connection is up", () => {
+    plate.setLive(true);
+    plate.setConnection("failed");
+    plate.setConnection("up");
+    expect(el().getAttribute("data-conn")).toBe("up");
+    expect(stateLabel().textContent).toBe(t("plate.responding"));
+  });
+
+  it("re-applies the connection label on locale change", () => {
+    plate.setConnection("failed");
+    setLocale("ko");
+    expect(stateLabel().textContent).toBe(t("plate.key_rejected"));
+  });
+});
+
+describe("createMessagePlate without the window options", () => {
+  let mount: HTMLElement;
+
+  beforeEach(() => {
+    mount = document.createElement("div");
+    document.body.appendChild(mount);
+  });
+
+  const el = (): HTMLElement => mount.querySelector(".yui-plate") as HTMLElement;
+
+  it("renders no dock button and no drag handle", () => {
+    createMessagePlate({ mount });
+    expect(mount.querySelector(".yui-plate__dock")).toBeNull();
+    expect(el().hasAttribute("data-draggable")).toBe(false);
   });
 });

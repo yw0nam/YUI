@@ -824,8 +824,4 @@ describe("pop-out button — moving speech to the message window", () => {
     popBtn().click();
     expect(onPop).toHaveBeenCalledTimes(1);
   });
-
-  it("stays hidden outside Tauri, where there is no second window to pop into", () => {
-    expect(popBtn().hidden).toBe(true);
-  });
 });

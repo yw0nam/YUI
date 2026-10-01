@@ -28,11 +28,23 @@ export function createSurfacesRouter({
 }: SurfacesRouterOptions): Surfaces {
   const speech = (): Pick<
     Surfaces,
-    "beginSpeech" | "pushSpeech" | "endSpeech" | "finishSpeech" | "hideSpeech"
+    | "beginSpeech"
+    | "pushSpeech"
+    | "endSpeech"
+    | "finishSpeech"
+    | "hideSpeech"
+    | "quoteUser"
+    | "settleQuote"
+    | "clearQuote"
   > => (getMode() === "popped" ? remote : local);
   const input = (): Pick<
     Surfaces,
-    "summonInput" | "dismissInput" | "isInputOpen" | "setInputEnabled" | "showInputError"
+    | "summonInput"
+    | "dismissInput"
+    | "isInputOpen"
+    | "setInputEnabled"
+    | "showInputError"
+    | "restoreInput"
   > => (getMode() === "popped" ? remote : local);
 
   // Speech left behind on the side being abandoned would hang there with nothing to dismiss it,
@@ -60,6 +72,9 @@ export function createSurfacesRouter({
     endSpeech: (opts) => speech().endSpeech(opts),
     finishSpeech: () => speech().finishSpeech(),
     hideSpeech: () => speech().hideSpeech(),
+    quoteUser: (quote) => speech().quoteUser(quote),
+    settleQuote: () => speech().settleQuote(),
+    clearQuote: () => speech().clearQuote(),
 
     showTool: local.showTool,
     finishTool: local.finishTool,
@@ -75,6 +90,7 @@ export function createSurfacesRouter({
       remote.setBusy(busy);
     },
     showInputError: (message, action) => input().showInputError(message, action),
+    restoreInput: (text, images) => input().restoreInput(text, images),
     setAttachmentLimits(limits) {
       local.setAttachmentLimits(limits);
       remote.setAttachmentLimits(limits);

@@ -56,7 +56,7 @@ The bundled `Sendagaya_Shino.vrm` is what `configs/avatar.json` → `vrm_url` lo
 - **In the Tauri app** — open the panel's VRM section and import the file with the OS picker. The file is copied into the app data directory and added to the model list; nothing in the repo changes.
 - **From the repo (`pnpm dev` or `pnpm tauri dev`)** — drop the file into `resources/vrms/` (gitignored except the bundled default; Vite serves `/vrms/*` from there) and point `configs/avatar.json` at it: set `vrm_url` to `/vrms/<file>.vrm` and add a matching entry to `available` (`{ "id", "label", "url", "source": "bundled" }`; `id` is limited to `[A-Za-z0-9._-]`).
 
-Per-model framing (`framing.margin`, `framing.fov`) and the hit-test alpha threshold (`hit_test.alpha_threshold`) live in `configs/avatar.json`.
+Per-model framing (`framing.margin`, `framing.fov`, and `framing.upper_body`, the vertical band of the model the phone frames by height as fractions of the model height from the feet) and the hit-test alpha threshold (`hit_test.alpha_threshold`) live in `configs/avatar.json`.
 Every tunable section in that file is required — the client reads each value from it and fails the load naming any key the file leaves out.
 
 ---

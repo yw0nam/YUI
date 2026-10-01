@@ -103,6 +103,16 @@ describe("createDelegationChip", () => {
     return { store, collapsed, chip, pushState, onOpenSettings };
   }
 
+  /** The phone's build: no settings window behind the chip. */
+  function buildWithoutOpener(pushState = fakePushState()) {
+    const store = createDelegationsStore({ now: () => clock });
+    const collapsed = createDelegationChipSettings({
+      storage: localStorageDelegationChipStorage(STORAGE_KEY),
+    });
+    const chip = createDelegationChip({ mount, store, collapsed, pushState, now: () => clock });
+    return { store, collapsed, chip, pushState };
+  }
+
   function chipEl(): HTMLElement {
     return mount.querySelector<HTMLElement>(".yui-deleg")!;
   }
@@ -491,6 +501,7 @@ describe("createDelegationChip", () => {
       chipButton().click();
 
       expect(onOpenSettings).toHaveBeenCalledTimes(1);
+      expect(chipButton().dataset.action).toBe("settings");
       expect(listEl().hidden).toBe(true);
     });
 
@@ -498,6 +509,33 @@ describe("createDelegationChip", () => {
       build(localStorageDelegationChipStorage(STORAGE_KEY), fakePushState({ kind: "connecting" }));
 
       expect(chipButton().hasAttribute("aria-expanded")).toBe(false);
+    });
+
+    it("marks the chip inert when nothing owns the lost tap", () => {
+      buildWithoutOpener(fakePushState({ kind: "failed", code: 4401 }));
+
+      expect(chipButton().dataset.action).toBe("none");
+      expect(chipButton().getAttribute("aria-label")).toBeNull();
+      expect(mount.querySelector<HTMLElement>(".yui-deleg__label")!.textContent).toBe(
+        t("deleg.chip_lost"),
+      );
+    });
+
+    it("keeps the lost tap a no-op when nothing owns it", () => {
+      const { chip } = buildWithoutOpener(fakePushState({ kind: "reconnecting", delay_ms: 1_000 }));
+
+      chipButton().click();
+
+      expect(chip.el.querySelector<HTMLElement>(".yui-deleg__list")!.hidden).toBe(true);
+      expect(chipButton().dataset.action).toBe("none");
+    });
+
+    it("marks the tap back on the list once the socket is ready again", () => {
+      const { pushState } = buildWithoutOpener(fakePushState({ kind: "failed", code: 4401 }));
+
+      pushState.set({ kind: "ready", chat_id: "yui-3f9a2c1d" });
+
+      expect(chipButton().dataset.action).toBeUndefined();
     });
 
     it("folds to the dot on a long-press, with no count badge", () => {

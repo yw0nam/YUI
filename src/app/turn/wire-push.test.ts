@@ -9,9 +9,7 @@ import { makeTurnOutput } from "../../dispatcher/test-helpers";
 import { createPushTurns } from "../../dispatcher/turn/push-turn";
 import { createTurnFeed, type TurnFeed } from "../../dispatcher/turn/turn-feed";
 import { createDelegationsStore } from "../../io/bridge/delegations-store";
-import type { ReasoningState } from "../../io/bridge/reasoning-store";
 import { createReasoningStore } from "../../io/bridge/reasoning-store";
-import type { BrokerPayload } from "../../io/chat/broker-client";
 import type { ChatHistoryEntry } from "../../io/chat/chat-history-store";
 import type {
   DelegationItem,
@@ -22,23 +20,18 @@ import type {
   ToolStatusFrame,
   TurnEndFrame,
 } from "../../io/chat/push-socket";
-import type {
-  MessageWindowMode,
-  MessageWindowSettings,
+import {
+  createMessageWindowSettings,
+  type MessageWindowMode,
 } from "../../settings/panels/message-window-settings";
 
-const { createPushSocket } = vi.hoisted(() => ({ createPushSocket: vi.fn() }));
 const { createDelegationChip } = vi.hoisted(() => ({ createDelegationChip: vi.fn() }));
-vi.mock("../../io/chat/push-socket", async (importOriginal) => ({
-  ...(await importOriginal<typeof import("../../io/chat/push-socket")>()),
-  createPushSocket,
-}));
 vi.mock("../../ui/chips/delegation-chip", () => ({ createDelegationChip }));
 
 import {
   createDelegationChipMount,
+  messageWindowSuppression,
   wirePushMode,
-  wirePushStores,
   wirePushTransport,
   wireStopButton,
 } from "./wire-push";
@@ -697,13 +690,37 @@ describe("wirePushMode", () => {
   let endpointsSettings: ReturnType<typeof fakeMotionSettings>;
   let chatKeySettings: ReturnType<typeof fakeMotionSettings>;
 
-  function wireMode() {
+  /** A suspension port a test can flip, like the page going under and coming back. */
+  function hiddenPort(initial: boolean) {
+    let hidden = initial;
+    const subs = new Set<() => void>();
+    return {
+      get: () => hidden,
+      subscribe: (cb: () => void) => {
+        subs.add(cb);
+        return () => {
+          subs.delete(cb);
+        };
+      },
+      hide() {
+        hidden = true;
+        for (const cb of [...subs]) cb();
+      },
+      show() {
+        hidden = false;
+        for (const cb of [...subs]) cb();
+      },
+    };
+  }
+
+  function wireMode(suspended?: { get(): boolean; subscribe(cb: () => void): () => void }) {
     return wirePushMode({
       socket: { connect, disconnect },
       chip: { create: chipCreate, dispose: chipDispose },
       getEndpoints: () => endpoints as never,
       endpointsSettings,
       chatKeySettings,
+      ...(suspended ? { suspended } : {}),
     });
   }
 
@@ -883,117 +900,53 @@ describe("wirePushMode", () => {
     expect(endpointsSettings.count()).toBe(0);
     expect(chatKeySettings.count()).toBe(0);
   });
-});
 
-describe("wirePushStores", () => {
-  const PAYLOAD: BrokerPayload = {
-    emotionIds: ["happy"],
-    motionIds: ["wave"],
-    emotionText: { mode: "enum", table: { happy: "joy" } },
-  };
+  it("stays down from the start while the page is hidden", () => {
+    wireMode(hiddenPort(true));
 
-  function fakeBridge() {
-    const cbs: Record<string, Array<(arg?: never) => void>> = {};
-    const on =
-      <T>(name: string) =>
-      (cb: (arg: T) => void) => {
-        (cbs[name] ??= []).push(cb as (arg?: never) => void);
-        return () => {
-          cbs[name] = cbs[name].filter((f) => f !== cb);
-        };
-      };
-    return {
-      cbs,
-      emitPushState: vi.fn(),
-      onPushState: on<PushSocketState>("pushState"),
-      emitPushStateAsk: vi.fn(),
-      onPushStateAsk: on<void>("pushStateAsk"),
-      emitPushReset: vi.fn(),
-      onPushReset: on<void>("pushReset"),
-      emitPushReconnect: vi.fn(),
-      onPushReconnect: on<void>("pushReconnect"),
-      emitDelegations: vi.fn(),
-      onDelegations: on<DelegationItem[]>("delegations"),
-      emitDelegationsAsk: vi.fn(),
-      onDelegationsAsk: on<void>("delegationsAsk"),
-      emitReasoning: vi.fn(),
-      onReasoning: on<ReasoningState>("reasoning"),
-      emitReasoningAsk: vi.fn(),
-      onReasoningAsk: on<void>("reasoningAsk"),
-    };
-  }
-
-  function wireStores() {
-    createPushSocket.mockReset();
-    createPushSocket.mockImplementation(() => ({
-      dispose: vi.fn(),
-      connect: vi.fn(),
-      disconnect: vi.fn(),
-      reconnectNow: vi.fn(),
-      sendReset: vi.fn(() => true),
-      getState: vi.fn(() => ({ kind: "disconnected" as const })),
-      onState: vi.fn(() => () => {}),
-    }));
-    const bridge = fakeBridge();
-    const register = vi.fn();
-    const callsBefore = createPushSocket.mock.calls.length;
-    const stores = wirePushStores({
-      getEndpoints: () => ({ chat_base_url: "http://localhost:8646" }),
-      getChatKey: async () => undefined,
-      bridge,
-      register,
-    });
-    return {
-      stores,
-      register,
-      bridge,
-      socketDeps: createPushSocket.mock.calls[callsBefore][0],
-    };
-  }
-
-  it("serves an empty vocabulary until bind, then the bound one", () => {
-    const { stores, socketDeps } = wireStores();
-
-    expect(socketDeps.vocabulary()).toEqual({
-      emotion_ids: [],
-      motion_ids: [],
-      emotion_text_mode: "free",
-      emotion_text_map: {},
-    });
-
-    stores.bind({ vocabulary: () => PAYLOAD, stopTurn: () => {} });
-    expect(socketDeps.vocabulary()).toEqual({
-      emotion_ids: ["happy"],
-      motion_ids: ["wave"],
-      emotion_text_mode: "enum",
-      emotion_text_map: { happy: "joy" },
-    });
+    expect(connect).not.toHaveBeenCalled();
+    expect(disconnect).not.toHaveBeenCalled();
   });
 
-  it("stops through the bridge's reset ask only once the stop is bound", () => {
-    const { stores, bridge } = wireStores();
-    const stop = vi.fn();
+  it("keeps the chip mounted while the page is hidden", () => {
+    const dispose = wireMode(hiddenPort(true));
 
-    expect(() => stores.stopTurn()).not.toThrow();
-    for (const cb of bridge.cbs.pushReset ?? []) cb();
-    expect(stop).not.toHaveBeenCalled();
+    expect(chipCreate).toHaveBeenCalledTimes(1);
+    expect(chipDispose).not.toHaveBeenCalled();
 
-    stores.bind({ vocabulary: () => PAYLOAD, stopTurn: stop });
-    bridge.cbs.pushReset![0]();
-    expect(stop).toHaveBeenCalledOnce();
+    dispose();
+    expect(chipDispose).toHaveBeenCalledTimes(1);
   });
 
-  it("registers the socket, chat id, history, and the three publishers", () => {
-    const { register } = wireStores();
+  it("disconnects on hide and reconnects on show", () => {
+    const port = hiddenPort(false);
+    wireMode(port);
 
-    expect(register).toHaveBeenCalledTimes(6);
+    port.hide();
+    expect(disconnect).toHaveBeenCalledTimes(1);
+
+    port.show();
+    expect(connect).toHaveBeenCalledTimes(2);
+  });
+
+  it("ignores an endpoint or key edit while hidden, then opens on the current target on show", () => {
+    const port = hiddenPort(true);
+    wireMode(port);
+
+    endpoints.chat_base_url = "https://agent.example:9000";
+    endpointsSettings.change();
+    chatKeySettings.change();
+    expect(connect).not.toHaveBeenCalled();
+
+    port.show();
+    expect(connect).toHaveBeenCalledTimes(1);
   });
 });
 
 describe("createDelegationChipMount", () => {
-  function setup(mode: MessageWindowMode) {
-    let modeNow: MessageWindowMode = mode;
-    const subs = new Set<(s: MessageWindowSettings) => void>();
+  function setup(suppressed: boolean | undefined) {
+    let hidden = suppressed;
+    const subs = new Set<() => void>();
     const chip = {
       el: {},
       setSuppressed: vi.fn(),
@@ -1006,28 +959,34 @@ describe("createDelegationChipMount", () => {
       store: delegations,
       pushState: { getState: () => ({ kind: "disconnected" }), onState: () => () => {} },
       onOpenSettings: () => {},
-      getMode: () => modeNow,
-      subscribeMode: (cb: (s: MessageWindowSettings) => void) => {
-        subs.add(cb);
-        return () => {
-          subs.delete(cb);
-        };
-      },
+      ...(suppressed === undefined
+        ? {}
+        : {
+            suppression: {
+              get: () => hidden!,
+              subscribe: (cb: () => void) => {
+                subs.add(cb);
+                return () => {
+                  subs.delete(cb);
+                };
+              },
+            },
+          }),
     });
     return {
       mount,
       chip,
       delegations,
       subs,
-      setMode(next: MessageWindowMode) {
-        modeNow = next;
-        for (const cb of subs) cb({ mode: modeNow, x: null, y: null });
+      setSuppressed(next: boolean) {
+        hidden = next;
+        for (const cb of subs) cb();
       },
     };
   }
 
-  it("begins suppressed while the mode is popped", () => {
-    const { mount, chip, delegations } = setup("popped");
+  it("begins suppressed while the port reads hidden", () => {
+    const { mount, chip, delegations } = setup(true);
 
     mount.create();
 
@@ -1037,19 +996,30 @@ describe("createDelegationChipMount", () => {
     expect(chip.setSuppressed).not.toHaveBeenCalled();
   });
 
-  it("follows the message-window mode once created", () => {
-    const { mount, chip, setMode } = setup("docked");
+  it("follows the suppression port once created", () => {
+    const { mount, chip, setSuppressed } = setup(false);
     mount.create();
 
-    setMode("popped");
+    setSuppressed(true);
     expect(chip.setSuppressed).toHaveBeenLastCalledWith(true);
 
-    setMode("docked");
+    setSuppressed(false);
     expect(chip.setSuppressed).toHaveBeenLastCalledWith(false);
   });
 
-  it("removes the mode subscription and the resources on dispose, idempotently", () => {
-    const { mount, chip, subs } = setup("docked");
+  it("never suppresses when the host passes no port", () => {
+    const { mount, chip } = setup(undefined);
+    mount.create();
+
+    const created = (createDelegationChip.mock.lastCall as unknown[])[0] as {
+      suppressed?: boolean;
+    };
+    expect(created.suppressed).toBeUndefined();
+    expect(chip.setSuppressed).not.toHaveBeenCalled();
+  });
+
+  it("removes the suppression subscription and the resources on dispose, idempotently", () => {
+    const { mount, chip, subs } = setup(false);
     mount.create();
 
     mount.dispose();
@@ -1058,5 +1028,32 @@ describe("createDelegationChipMount", () => {
 
     mount.dispose();
     expect(chip.dispose).toHaveBeenCalledOnce();
+  });
+
+  it("builds the pet's suppression port from the pet's own mode reader", () => {
+    const store = createMessageWindowSettings();
+    // The pet's reader carries the isTauri guard — outside Tauri it answers docked.
+    let readerMode: MessageWindowMode = "docked";
+    const subs = new Set<() => void>();
+    const port = messageWindowSuppression({
+      getMode: () => readerMode,
+      subscribe: (cb: () => void) => {
+        subs.add(cb);
+        return () => {
+          subs.delete(cb);
+        };
+      },
+    });
+
+    store.setMode("popped");
+    expect(port.get()).toBe(false);
+
+    readerMode = "popped";
+    expect(port.get()).toBe(true);
+
+    let notified = 0;
+    port.subscribe(() => notified++);
+    for (const cb of [...subs]) cb();
+    expect(notified).toBe(1);
   });
 });

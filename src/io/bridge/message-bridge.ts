@@ -13,6 +13,13 @@ import { type BridgeTransport, createBridgeCore, type WindowKind } from "./setti
 const CH_MESSAGE_SURFACE = "yui://message-surface";
 const CH_MESSAGE_CONTROL = "yui://message-control";
 
+/** The user's own turn as the bubble quotes it: the message, how it was given, how many images came with it. */
+export interface UserQuote {
+  text: string;
+  via: "text" | "voice";
+  images: number;
+}
+
 /** Pet → message: one call on the message window's local `Surfaces`. */
 export type MessageSurfaceOp =
   | { op: "begin" }
@@ -25,7 +32,11 @@ export type MessageSurfaceOp =
   | { op: "busy"; busy: boolean }
   | { op: "input-enabled"; enabled: boolean }
   | { op: "input-error"; message: string; action?: { label: string } }
-  | { op: "attachment-limits"; limits: AttachmentLimits };
+  | { op: "attachment-limits"; limits: AttachmentLimits }
+  | { op: "quote"; quote: UserQuote }
+  | { op: "settle-quote" }
+  | { op: "clear-quote" }
+  | { op: "restore-input"; text: string; images: string[] };
 
 /** Message → pet: what the user did, plus the mount handshake. */
 export type MessageControlOp =

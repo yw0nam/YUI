@@ -11,7 +11,7 @@ import type { AvatarConfig, ConfigReader, GuardrailsConfig } from "./load";
 export function avatarFixture(): AvatarConfig {
   return {
     vrm_url: "/vrms/carlotta.vrm",
-    framing: { margin: 0.1, fov: 30 },
+    framing: { margin: 0.1, fov: 30, upper_body: { from_frac: 0.4, to_frac: 1 } },
     hit_test: {
       hysteresis_margin_px: 8,
       poll_interval_ms: 33,

@@ -37,6 +37,8 @@ const en: Record<string, string> = {
   "aria.stop": "Stop",
   "aria.remove_attachment": "Remove attachment",
   "aria.dismiss_bubble": "Dismiss speech bubble",
+  "bubble.you": "You",
+  "bubble.quote_attached": "{count} attached",
   "aria.dock_message": "Move speech back to the character",
   "aria.pop_message": "Move speech to the message window",
   "aria.dismiss_error": "Dismiss error",
@@ -54,6 +56,8 @@ const en: Record<string, string> = {
   // message window name plate
   "plate.thinking": "Thinking",
   "plate.responding": "Responding",
+  "plate.reconnecting": "Reconnecting",
+  "plate.key_rejected": "Key rejected",
 
   // chain-break (404) recovery notice
   "chain.reset_notice": "Conversation context was reset",

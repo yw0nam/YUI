@@ -48,8 +48,8 @@ describe("opener capability wiring", () => {
     expect(line).toBeDefined();
   });
 
-  it("initializes the opener plugin in lib.rs", () => {
-    const lib = readFileSync(join(ROOT, "src-tauri/src/lib.rs"), "utf8");
-    expect(lib).toContain("tauri_plugin_opener::init()");
+  it("initializes the opener plugin in plugins.rs", () => {
+    const plugins = readFileSync(join(ROOT, "src-tauri/src/plugins.rs"), "utf8");
+    expect(plugins).toContain("tauri_plugin_opener::init()");
   });
 });

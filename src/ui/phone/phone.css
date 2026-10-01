@@ -1,0 +1,142 @@
+/* Phone window: the stage fills the visual viewport inside the safe area; the composer and the
+   bubble sit at its bottom with touch-sized targets. Tokens in ../tokens.css. */
+
+/* Phone page: the WebView shows the stage color under the keyboard while it animates. */
+body {
+  background: var(--yui-stage);
+}
+
+.yui-phone {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: var(--yui-visual-viewport-top, 0px);
+  height: var(--yui-visual-viewport-height, 100%);
+  box-sizing: border-box;
+  padding-top: env(safe-area-inset-top);
+  padding-bottom: max(calc(env(safe-area-inset-bottom) - var(--yui-keyboard-overlap, 0px)), 0px);
+  background: radial-gradient(60% 45% at 50% 40%, var(--yui-stage-lift), var(--yui-stage) 70%);
+  --yui-bubble-max-h: calc(0.3 * var(--yui-visual-viewport-height, 100vh));
+}
+
+/* The stage owns every touch: the WebView neither scrolls nor zooms the page from it. */
+.yui-phone .yui-stage {
+  touch-action: none;
+}
+
+/* ── Top row — plate, delegation chip, and the pill centred beneath; inside the safe area
+   `.yui-root` already provides. Sits above the absolute stage and surfaces. ── */
+.yui-phone__head {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  pointer-events: none;
+}
+
+.yui-phone__top {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  padding: 4px 8px 0 12px;
+}
+
+/* The pill drops its character-window placing and centres in the column. */
+.yui-phone .yui-status {
+  position: static;
+  align-self: center;
+  transform: none;
+}
+
+/* The chip rides the row instead of the character's shoulder; the absolute list anchors to the
+   head, which spans the screen and holds it on screen. */
+.yui-phone .yui-deleg {
+  position: static;
+  min-width: 0;
+  padding-left: 0;
+  transform: none;
+}
+
+/* Plate label and chip text give way before the 360px row overflows. */
+.yui-phone .yui-plate {
+  min-width: 0;
+}
+.yui-phone .yui-plate__state {
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.yui-phone .yui-deleg__chip {
+  position: relative;
+  min-width: 0;
+}
+.yui-phone .yui-deleg__label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* 48px touch target around the chip button, without resizing it. */
+.yui-phone .yui-deleg__chip::after {
+  content: "";
+  position: absolute;
+  inset: -11px;
+}
+
+.yui-phone .yui-input {
+  width: calc(100% - 20px);
+  border-radius: 24px;
+  padding: 4px;
+}
+
+.yui-phone .yui-input__btn {
+  width: var(--yui-touch);
+  height: var(--yui-touch);
+  margin-bottom: 0;
+}
+
+.yui-phone .yui-input__field {
+  font-size: 1rem;
+  line-height: 1.5;
+  padding: 12px 4px;
+  min-height: 48px;
+  max-height: calc(6 * 1.5rem + 24px);
+}
+
+.yui-phone .yui-bubble {
+  max-width: calc(100% - 32px);
+}
+
+/* The enlarged dismiss stays on the bubble's corner. */
+.yui-phone .yui-bubble__tools {
+  top: -1.5rem;
+  right: -0.5rem;
+}
+
+.yui-phone .yui-bubble__tools button {
+  width: var(--yui-touch);
+  height: var(--yui-touch);
+}
+
+/* Press feedback stands in for the hover color. */
+.yui-phone .yui-input__btn:active,
+.yui-phone .yui-bubble__tools button:active {
+  background: var(--yui-accent-faint);
+  color: var(--yui-accent);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  /* The reduced-motion !important transform is a character-window placing. */
+  .yui-phone .yui-status,
+  .yui-phone .yui-status.is-visible {
+    transform: none !important;
+  }
+}
+
+.yui-phone .yui-input__btn,
+.yui-phone .yui-bubble__tools button {
+  -webkit-tap-highlight-color: transparent;
+}

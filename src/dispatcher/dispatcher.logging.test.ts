@@ -264,7 +264,7 @@ describe("dispatcher — onUserTurnFailed seam (issue #274)", () => {
     d.stop();
   });
 
-  // A proactive/schedule turn failing must never reach speakFailure — bootstrap-configured.ts
+  // A proactive/schedule turn failing must never reach speakFailure — app/turn/wire-dispatcher.ts
   // calls voice.speakFailure(reason) unconditionally from this same sink, and nothing there
   // re-checks the trigger kind, so the gate has to hold here.
   it("does NOT fire for a proactive turn (window_sit), even on failure — speakFailure must never see it", async () => {

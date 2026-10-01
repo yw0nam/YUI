@@ -30,6 +30,9 @@ function makeLocal(): Surfaces {
     endSpeech: vi.fn(),
     finishSpeech: vi.fn(),
     hideSpeech: vi.fn(),
+    quoteUser: vi.fn(),
+    settleQuote: vi.fn(),
+    clearQuote: vi.fn(),
     showTool: vi.fn(),
     finishTool: vi.fn(),
     hideTool: vi.fn(),
@@ -41,6 +44,7 @@ function makeLocal(): Surfaces {
     setBusy: vi.fn(),
     showInputError: vi.fn(),
     setAttachmentLimits: vi.fn(),
+    restoreInput: vi.fn(),
     setInputEnabled: vi.fn(),
     setInputAnchor: vi.fn(),
     dispose: vi.fn(),
@@ -54,6 +58,9 @@ function makeRemote(): RemoteSurfaces {
     endSpeech: vi.fn(),
     finishSpeech: vi.fn(),
     hideSpeech: vi.fn(),
+    quoteUser: vi.fn(),
+    settleQuote: vi.fn(),
+    clearQuote: vi.fn(),
     summonInput: vi.fn(),
     dismissInput: vi.fn(),
     isInputOpen: vi.fn(() => false),
@@ -61,6 +68,7 @@ function makeRemote(): RemoteSurfaces {
     setBusy: vi.fn(),
     showInputError: vi.fn(),
     setAttachmentLimits: vi.fn(),
+    restoreInput: vi.fn(),
     onSubmit: vi.fn(),
     onStop: vi.fn(),
     onDock: vi.fn(),
@@ -132,6 +140,35 @@ describe("createSurfacesRouter", () => {
     expect(local.beginSpeech).not.toHaveBeenCalled();
     expect(local.pushSpeech).not.toHaveBeenCalled();
     expect(local.hideSpeech).not.toHaveBeenCalled();
+  });
+
+  it("quoteUser, settleQuote and clearQuote reach the side the mode names", () => {
+    const quote = { text: "hi", via: "text" as const, images: 0 };
+    router.quoteUser(quote);
+    router.settleQuote();
+    router.clearQuote();
+    expect(local.quoteUser).toHaveBeenCalledWith(quote);
+    expect(local.settleQuote).toHaveBeenCalledTimes(1);
+    expect(local.clearQuote).toHaveBeenCalledTimes(1);
+
+    setMode("popped");
+    router.quoteUser(quote);
+    router.settleQuote();
+    router.clearQuote();
+    expect(remote.quoteUser).toHaveBeenCalledWith(quote);
+    expect(remote.settleQuote).toHaveBeenCalledTimes(1);
+    expect(remote.clearQuote).toHaveBeenCalledTimes(1);
+    expect(local.quoteUser).toHaveBeenCalledTimes(1);
+  });
+
+  it("restoreInput reaches the input side the mode names", () => {
+    router.restoreInput("hi", []);
+    expect(local.restoreInput).toHaveBeenCalledWith("hi", []);
+
+    setMode("popped");
+    router.restoreInput("again", ["data:image/png;base64,AAAA"]);
+    expect(remote.restoreInput).toHaveBeenCalledWith("again", ["data:image/png;base64,AAAA"]);
+    expect(local.restoreInput).toHaveBeenCalledTimes(1);
   });
 
   it("sends the input ops to the side the mode names", () => {

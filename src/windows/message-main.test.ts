@@ -193,3 +193,24 @@ it("keeps the reasoning when the transport disconnects, and hides the delegation
 
   expect(thinkEl().hidden).toBe(false);
 });
+
+it("draws the quote op and restores a sent message into the summoned input", async () => {
+  const petMessageBridge = createMessageBridge(undefined, { windowKind: "pet" });
+  await boot();
+
+  petMessageBridge.emitSurface({ op: "quote", quote: { text: "hi", via: "text", images: 0 } });
+  await vi.waitFor(() =>
+    expect(document.querySelector(".yui-bubble__quote-text")!.textContent).toBe("hi"),
+  );
+  expect(bubbleEl().classList.contains("is-visible")).toBe(true);
+
+  petMessageBridge.emitSurface({ op: "summon-input" });
+  const form = document.querySelector<HTMLFormElement>(".yui-input")!;
+  await vi.waitFor(() => expect(form.classList.contains("is-open")).toBe(true));
+  petMessageBridge.emitSurface({ op: "restore-input", text: "hi", images: [] });
+
+  await vi.waitFor(() =>
+    expect(document.querySelector<HTMLTextAreaElement>(".yui-input__field")!.value).toBe("hi"),
+  );
+  petMessageBridge.dispose();
+});

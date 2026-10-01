@@ -1,6 +1,6 @@
 /** Public types of the renderer: its options, the per-frame tick context, and the Renderer surface. */
 import type { VRM } from "@pixiv/three-vrm";
-import type { FramingConfig, GazeKnobs } from "../config/load";
+import type { FitBandConfig, FramingConfig, GazeKnobs } from "../config/load";
 import type { ControlEnvelope, EmotionRegistry, MotionRegistry } from "../contract";
 import type { RenderEmotionSignal } from "./expression/emotion-resolver";
 import type { OrbitAngles } from "./geometry/camera-fit";
@@ -100,6 +100,8 @@ export interface Renderer {
   setIdleVariants(paths: readonly string[]): void;
   /** Replace the fit-to-bounds framing; refits at once when a VRM is loaded. */
   setFraming(framing: FramingConfig): void;
+  /** Frames this vertical band of the model by height with the orbit pivot at its centre; null returns to the full-body fit. */
+  setFitBand(band: FitBandConfig | null): void;
   /**
    * Draw the reference-size framing — the window size at travel start — at canvas
    * offset `(x, y)`; null draws it to fill the whole canvas. A travel parks the OS

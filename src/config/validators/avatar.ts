@@ -4,6 +4,7 @@ import type {
   ClimbConfig,
   DescendConfig,
   FallConfig,
+  FitBandConfig,
   FramingConfig,
   GazeKnobs,
   GestureCueConfig,
@@ -178,6 +179,22 @@ export function validateAvatar(file: string, raw: unknown): AvatarConfig {
       (v) => v > 0 && v < 180,
       "a finite number in (0, 180)",
     );
+    const rawBand = rawFraming.upper_body;
+    if (!isObject(rawBand)) {
+      issues.push(`framing.upper_body must be an object (got: ${JSON.stringify(rawBand)})`);
+    } else {
+      const band: Partial<FitBandConfig> = {};
+      for (const key of ["from_frac", "to_frac"] as const) {
+        band[key] = num(rawBand, "framing.upper_body", key, unit, "a finite number in [0, 1]");
+      }
+      const { from_frac, to_frac } = band;
+      if (from_frac !== undefined && to_frac !== undefined && from_frac >= to_frac) {
+        issues.push(
+          `framing.upper_body.from_frac must be < framing.upper_body.to_frac (got: ${from_frac} >= ${to_frac})`,
+        );
+      }
+      framing.upper_body = band as FitBandConfig;
+    }
   }
 
   // hit_test — click-through polling and the silhouette alpha cut.

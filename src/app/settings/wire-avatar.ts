@@ -25,7 +25,10 @@ import {
   renameUserVoice,
 } from "../../io/voice/voices/voice-import";
 import { createVoiceImportFlow } from "../../io/voice/voices/voice-import-flow";
-import { createVoiceListRefresh } from "../../io/voice/voices/voice-list-refresh";
+import {
+  createVoiceListRefresh,
+  wireVoiceListAutoRefresh,
+} from "../../io/voice/voices/voice-list-refresh";
 import type { Logger } from "../../logger";
 import type { Renderer, VrmLoadResult } from "../../renderer";
 import { enabledIdleVariants } from "../../settings/avatar/idle-motion-settings";
@@ -207,6 +210,40 @@ export function wireSpeakerSelection(deps: {
         log,
       }),
   };
+}
+
+/** VRM and speaker selection with their teardowns, and the voice-list refresh on endpoint-override commits. */
+export function wireAvatarSelection(deps: {
+  renderer: Renderer;
+  getEndpoints: () => EndpointsConfig;
+  getTtsKey: () => Promise<string | undefined>;
+  endpointsSettings: Pick<SettingsStores["endpointsSettings"], "subscribe">;
+  log: Logger;
+  broadcastSettings: () => void;
+  register: (dispose: () => void) => void;
+}): {
+  vrm: ReturnType<typeof wireVrmSelection>;
+  speaker: ReturnType<typeof wireSpeakerSelection>;
+} {
+  const { renderer, getEndpoints, log, broadcastSettings, register } = deps;
+  const vrm = wireVrmSelection({ renderer, log, broadcastSettings });
+  register(() => vrm.vrmSelection.dispose());
+  const speaker = wireSpeakerSelection({
+    getEndpoints,
+    getApiKey: deps.getTtsKey,
+    log,
+    broadcastSettings,
+  });
+  register(() => speaker.speakerSelection.dispose());
+  // Config-file edits refresh via onConfigChange; this covers the panel's override commits.
+  register(
+    wireVoiceListAutoRefresh({
+      subscribe: deps.endpointsSettings.subscribe,
+      getEndpoints,
+      refresh: speaker.refreshVoiceList,
+    }),
+  );
+  return { vrm, speaker };
 }
 
 export function applyAvatarConfig(deps: {

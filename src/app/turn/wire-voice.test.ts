@@ -377,9 +377,15 @@ describe("wireTurnVoice", () => {
   const setup = () => {
     wireVoicePipeline.mockImplementation(() => ({ dispose: vi.fn() }));
     const submitVoice = vi.fn();
+    const surfaces = {
+      quoteUser: vi.fn(),
+      settleQuote: vi.fn(),
+      clearQuote: vi.fn(),
+      restoreInput: vi.fn(),
+    };
     const handle = wireTurnVoice({
       renderer: {} as never,
-      surfaces: {} as never,
+      surfaces: surfaces as never,
       voiceInputStatus: createVoiceInputStatus(),
       sttSettings: { get: () => ({ enabled: false }), setEnabled: vi.fn() } as never,
       ttsSettings: { get: () => ({ enabled: true }) } as never,
@@ -393,7 +399,7 @@ describe("wireTurnVoice", () => {
       submitVoice,
       register: vi.fn(),
     });
-    return { handle, deps: wireVoicePipeline.mock.calls[0][0], submitVoice };
+    return { handle, deps: wireVoicePipeline.mock.calls[0][0], submitVoice, surfaces };
   };
 
   it("setStrolling reaches the pipeline's stroll query", () => {
@@ -403,6 +409,23 @@ describe("wireTurnVoice", () => {
 
     s.handle.setStrolling({ isStrolling: () => true });
     expect(s.deps.isStrolling()).toBe(true);
+  });
+
+  it("an utterance start reaches the previous-turn slot and the quoted turn", () => {
+    const s = setup();
+    const turn = s.handle.turnLog.begin({
+      source: "user_input_source",
+      event_name: "user.text_submitted",
+      ts: 0,
+      payload: { text: "hi" },
+    });
+    s.handle.quotedTurn.admitted(turn);
+
+    s.deps.onUtteranceStart();
+    s.handle.quotedTurn.failed(turn);
+
+    expect(s.surfaces.settleQuote).toHaveBeenCalledTimes(1);
+    expect(s.surfaces.restoreInput).not.toHaveBeenCalled();
   });
 
   it("onVoiceSegment submits the text and notes the interaction once the source is set", () => {

@@ -192,12 +192,20 @@ export interface GestureCuesConfig {
   dropped: GestureCueConfig;
 }
 
+/** Vertical band of the model box, as fractions of its height measured from the feet. */
+export interface FitBandConfig {
+  from_frac: number;
+  to_frac: number;
+}
+
 /** Full-body fit-to-bounds camera knob. */
 export interface FramingConfig {
   /** Padding around the model bounds, as a fraction of the fitted size. */
   margin: number;
   /** Vertical field of view (degrees) the fit solves against. */
   fov: number;
+  /** The band the phone frames by height, with the orbit pivot at its centre. */
+  upper_body: FitBandConfig;
 }
 
 /** Click-through hit-test knob. */

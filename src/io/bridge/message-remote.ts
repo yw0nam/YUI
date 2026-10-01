@@ -10,7 +10,7 @@
 
 import type { AttachmentLimits } from "../../config/load";
 import { createLogger } from "../../logger";
-import type { MessageBridge } from "./message-bridge";
+import type { MessageBridge, UserQuote } from "./message-bridge";
 
 /** In-place fix offered next to an inline error (e.g. "Open Advanced" on an unconfigured backend). */
 export interface InputErrorAction {
@@ -25,6 +25,12 @@ export interface RemoteSurfaces {
   endSpeech(opts?: { defer?: boolean }): void;
   finishSpeech(): void;
   hideSpeech(): void;
+  /** Opens the message window's bubble with the user's message quoted on its first line. */
+  quoteUser(quote: UserQuote): void;
+  /** Hands the quoted turn's bubble to its dwell. */
+  settleQuote(): void;
+  /** Drops the quoted line from the message window's bubble. */
+  clearQuote(): void;
   summonInput(): void;
   dismissInput(): void;
   /** The last open state the message window reported. */
@@ -33,6 +39,8 @@ export interface RemoteSurfaces {
   setBusy(busy: boolean): void;
   showInputError(message: string, action?: InputErrorAction): void;
   setAttachmentLimits(limits: AttachmentLimits): void;
+  /** Puts a sent message back into the message window's composer when it is open and empty. */
+  restoreInput(text: string, images: string[]): void;
   onSubmit(cb: (text: string, images: string[]) => void): void;
   onStop(cb: () => void): void;
   /** The dock button on the message window's plate. */
@@ -100,6 +108,15 @@ export function createRemoteSurfaces(bridge: MessageBridge): RemoteSurfaces {
     hideSpeech() {
       bridge.emitSurface({ op: "hide" });
     },
+    quoteUser(quote) {
+      bridge.emitSurface({ op: "quote", quote });
+    },
+    settleQuote() {
+      bridge.emitSurface({ op: "settle-quote" });
+    },
+    clearQuote() {
+      bridge.emitSurface({ op: "clear-quote" });
+    },
     summonInput() {
       bridge.emitSurface({ op: "summon-input" });
     },
@@ -128,6 +145,9 @@ export function createRemoteSurfaces(bridge: MessageBridge): RemoteSurfaces {
     setAttachmentLimits(next) {
       limits = next;
       bridge.emitSurface({ op: "attachment-limits", limits: next });
+    },
+    restoreInput(text, images) {
+      bridge.emitSurface({ op: "restore-input", text, images });
     },
     onSubmit(cb) {
       submitHandlers.push(cb);

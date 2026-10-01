@@ -55,8 +55,8 @@ export default defineConfig(() => ({
     strictPort: true,
     host: "127.0.0.1",
     watch: {
-      // Rust rebuilds replace locked DLLs under this directory on Windows.
-      ignored: ["**/src-tauri/target/**"],
+      // Rust rebuilds replace locked DLLs under target/ on Windows; Gradle writes build reports under gen/.
+      ignored: ["**/src-tauri/target/**", "**/src-tauri/gen/**"],
     },
     // Same-origin /__hermes → dev proxy to the Responses backend (avoids web chat CORS preflight, SSE streaming).
     // :8643 stays in sync with chat_base_url in configs/endpoints.json.
@@ -86,6 +86,7 @@ export default defineConfig(() => ({
         settings: resolve(__dirname, "settings.html"),
         message: resolve(__dirname, "message.html"),
         devtools: resolve(__dirname, "devtools.html"),
+        phone: resolve(__dirname, "phone.html"),
       },
     },
   },

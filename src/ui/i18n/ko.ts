@@ -36,6 +36,8 @@ const ko: Record<string, string> = {
   "aria.stop": "멈추기",
   "aria.remove_attachment": "첨부 제거",
   "aria.dismiss_bubble": "말풍선 닫기",
+  "bubble.you": "나",
+  "bubble.quote_attached": "첨부 {count}장",
   "aria.dock_message": "말풍선을 캐릭터 창으로 되돌리기",
   "aria.pop_message": "말풍선을 메시지 창으로 분리",
   "aria.dismiss_error": "오류 닫기",
@@ -53,6 +55,8 @@ const ko: Record<string, string> = {
   // message window name plate
   "plate.thinking": "생각 중",
   "plate.responding": "응답 중",
+  "plate.reconnecting": "재연결 중",
+  "plate.key_rejected": "키 거부됨",
 
   // chain-break (404) recovery notice
   "chain.reset_notice": "대화 컨텍스트가 초기화되었습니다",
