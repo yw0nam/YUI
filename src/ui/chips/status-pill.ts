@@ -32,7 +32,7 @@ interface StatusPillOptions {
   /** The screenshot setting behind the capture segment; without it the segment is absent. */
   settings?: Pick<ReturnType<typeof createScreenshotSettings>, "get" | "subscribe">;
   voice: VoiceInputStatus;
-  /** Opens the settings panel; without it the pill never offers the voice fix. */
+  /** Opens the settings panel from the capture button. */
   onOpenSettings?: () => void;
   /** Hands a settings-fixable voice error to the settings panel. */
   onFixVoice: () => void;
