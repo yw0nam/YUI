@@ -28,7 +28,7 @@ const SPK_REMOVE_SVG = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColo
 const REFRESH_DONE_DWELL_MS = 2400;
 
 /** The picker's markup — one `.yui-group` under the TTS section. The host mounts that group element
- * (the first child of `speakerPickerHtml()`) as the connection tab's `ttsExtra` and roots createSpeakerList on it. */
+ * (the first child of `speakerPickerHtml()`) as the connection tab's `ttsExtra`. */
 export function speakerPickerHtml(): string {
   return `
         <div class="yui-group">

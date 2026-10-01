@@ -30,7 +30,7 @@ import { resolveScreenSourceProvider } from "../io/window/capture/tauri-screen";
 import { closeSettingsWindow, titleSettingsWindow } from "../io/window/openers/settings-window";
 import { excludeOwnOriginFromCorsFetch } from "../io/window/own-origin-fetch";
 import { createLogger, initLogger } from "../logger";
-import { endpointDefaultsFromConfig } from "../settings/backend/endpoints-settings";
+import { endpointDefaultsOf } from "../settings/backend/endpoints-settings";
 import { rateLimitDefaultsFromConfig } from "../settings/backend/guardrails-settings";
 import { screenDefaultsFromConfig } from "../settings/capture/screen-settings";
 import { createSettingsStores } from "../settings/settings-stores";
@@ -272,14 +272,7 @@ async function bootstrap(): Promise<void> {
       chatKeySettings,
       sttKeySettings,
       ttsKeySettings,
-      getEndpointDefaults: () => {
-        if (!configLoaded) return undefined;
-        try {
-          return endpointDefaultsFromConfig(config.get().endpoints);
-        } catch {
-          return undefined;
-        }
-      },
+      getEndpointDefaults: () => (configLoaded ? endpointDefaultsOf(config) : undefined),
       getDefaultChatApi: () => {
         if (!configLoaded) return undefined;
         try {

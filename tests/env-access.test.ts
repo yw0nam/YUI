@@ -19,7 +19,7 @@ function sourceFiles(dir: string): string[] {
 
 describe("import.meta.env access", () => {
   it("is never read as a whole object in src", () => {
-    const wholeObject = /import\.meta\.env(?!\s*\??\.)/;
+    const wholeObject = /import\.meta\.env(?!\s*\??\.[A-Za-z_$])/;
     const offenders = sourceFiles(SRC).filter((f) => wholeObject.test(readFileSync(f, "utf-8")));
     expect(offenders).toEqual([]);
   });

@@ -10,7 +10,7 @@ import { agentTriggerableMotionIds } from "../../io/chat/broker-client";
 import type { PushSocket } from "../../io/chat/push-socket";
 import type { ScreenSourceProvider } from "../../io/window/capture/screen-source-provider";
 import type { Renderer } from "../../renderer";
-import { endpointDefaultsFromConfig } from "../../settings/backend/endpoints-settings";
+import { endpointDefaultsOf } from "../../settings/backend/endpoints-settings";
 import { rateLimitDefaultsFromConfig } from "../../settings/backend/guardrails-settings";
 import { screenDefaultsFromConfig } from "../../settings/capture/screen-settings";
 import type { SettingsStores } from "../../settings/settings-stores";
@@ -195,13 +195,7 @@ export function wirePetControls(deps: {
       chatKeySettings,
       sttKeySettings,
       ttsKeySettings,
-      getEndpointDefaults: () => {
-        try {
-          return endpointDefaultsFromConfig(config.get().endpoints);
-        } catch {
-          return undefined;
-        }
-      },
+      getEndpointDefaults: () => endpointDefaultsOf(config),
       getDefaultChatApi: () => {
         try {
           return config.get().endpoints.chat_api;

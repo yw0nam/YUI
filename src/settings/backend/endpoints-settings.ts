@@ -178,8 +178,7 @@ export function mergeEndpoints(base: EndpointsConfig, ov: EndpointOverrides): En
 
 /**
  * Projects a bundled EndpointsConfig onto the EndpointOverrides shape for use as UI placeholder
- * defaults ("" when a field is unset). Both main.ts and settings-main.ts call this instead of
- * hand-writing the same field-by-field literal.
+ * defaults ("" when a field is unset).
  */
 export function endpointDefaultsFromConfig(e: EndpointsConfig): EndpointOverrides {
   const src = e as unknown as Record<string, unknown>;
@@ -187,6 +186,17 @@ export function endpointDefaultsFromConfig(e: EndpointsConfig): EndpointOverride
     const raw = src[key];
     return raw === undefined || raw === null ? "" : String(raw);
   });
+}
+
+/** The bundled config's endpoints as placeholders, or undefined while the config has not loaded. */
+export function endpointDefaultsOf(config: {
+  get(): { endpoints: EndpointsConfig };
+}): EndpointOverrides | undefined {
+  try {
+    return endpointDefaultsFromConfig(config.get().endpoints);
+  } catch {
+    return undefined;
+  }
 }
 
 export function createEndpointsSettings(opts?: { storage?: EndpointsStorage }) {

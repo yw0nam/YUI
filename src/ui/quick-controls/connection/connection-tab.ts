@@ -41,8 +41,6 @@ export interface PushSocketPanelPort {
 export interface ConnectionRows {
   /** full: protocol/provider/model rows + URL/key; push: URL/key and the live status line. */
   chat: "full" | "push";
-  /** The STT section is always rendered; its key row and fields are bound unconditionally. */
-  stt: true;
   /** full: protocol dropdown + URL/key; url-key: URL/key alone. Also gates the disabled STT type row. */
   tts: "full" | "url-key";
   broker: boolean;

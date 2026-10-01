@@ -8,7 +8,7 @@ import type { EndpointsConfig } from "../../../contract";
 import type { PushSocket } from "../../../io/chat/push-socket";
 import { createBackButtonClaim } from "../../../io/lifecycle/back-button";
 import { createLogger } from "../../../logger";
-import { endpointDefaultsFromConfig } from "../../../settings/backend/endpoints-settings";
+import { endpointDefaultsOf } from "../../../settings/backend/endpoints-settings";
 import type { SettingsStores } from "../../../settings/settings-stores";
 import {
   createPhoneSettingsView,
@@ -27,7 +27,7 @@ export interface PhoneSettings {
 }
 
 /** The phone's tab rows: push chat (URL/key/status), STT URL/model/key, TTS URL/key. */
-const PHONE_ROWS = { chat: "push", stt: true, tts: "url-key", broker: false } as const;
+const PHONE_ROWS = { chat: "push", tts: "url-key", broker: false } as const;
 
 export function createPhoneSettings(deps: {
   /** The phone root the view overlays. */
@@ -53,13 +53,7 @@ export function createPhoneSettings(deps: {
     chatKeySettings: stores.chatKeySettings,
     sttKeySettings: stores.sttKeySettings,
     ttsKeySettings: stores.ttsKeySettings,
-    getEndpointDefaults: () => {
-      try {
-        return endpointDefaultsFromConfig(config.get().endpoints);
-      } catch {
-        return undefined;
-      }
-    },
+    getEndpointDefaults: () => endpointDefaultsOf(config),
     rows: PHONE_ROWS,
     pushSocket,
     isOpen: () => view.isOpen(),

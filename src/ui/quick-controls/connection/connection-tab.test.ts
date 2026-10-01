@@ -19,8 +19,8 @@ import {
   type PushSocketPanelPort,
 } from "./connection-tab";
 
-const DESKTOP_ROWS: ConnectionRows = { chat: "full", stt: true, tts: "full", broker: true };
-const PHONE_ROWS: ConnectionRows = { chat: "push", stt: true, tts: "url-key", broker: false };
+const DESKTOP_ROWS: ConnectionRows = { chat: "full", tts: "full", broker: true };
+const PHONE_ROWS: ConnectionRows = { chat: "push", tts: "url-key", broker: false };
 
 describe("createConnectionTab", () => {
   let endpointsSettings: ReturnType<typeof createEndpointsSettings>;

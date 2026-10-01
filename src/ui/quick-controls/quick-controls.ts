@@ -397,7 +397,7 @@ export function createQuickControls({
     ttsKeySettings,
     getEndpointDefaults,
     getDefaultChatApi,
-    rows: { chat: "full", stt: true, tts: "full", broker: true },
+    rows: { chat: "full", tts: "full", broker: true },
     pushSocket,
     isOpen: () => popover.isOpen(),
     ttsExtra,
