@@ -46,6 +46,15 @@ const ko: Record<string, string> = {
   // phone top-row openers
   "phone.open_history": "대화 기록",
   "phone.open_settings": "설정",
+  "phone.general.stage_section": "무대",
+  "phone.general.bubble_section": "말풍선",
+  "phone.general.stage_aria": "무대 배경",
+  "phone.general.stage_default": "기본",
+  "phone.general.stage_image": "이미지",
+  "phone.general.image_label": "배경 이미지",
+  "phone.general.image_sub": "어둡게 덮어 글자 대비를 유지합니다.",
+  "phone.general.image_choose": "선택",
+  "phone.general.import_error": "이 이미지를 쓸 수 없습니다. PNG, JPEG, WebP 파일을 골라 주세요.",
 
   "input.placeholder": "말 걸기…",
   "input.error_auth": "인증 실패 · API 키 확인",

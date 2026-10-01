@@ -19,6 +19,15 @@ body {
   --yui-bubble-max-h: calc(0.3 * var(--yui-visual-viewport-height, 100vh));
 }
 
+/* A user stage image: dim over the image over the stage colour. The canvas is transparent, so the
+   character and the surfaces draw above it undimmed. */
+.yui-phone.has-stage-image {
+  background:
+    linear-gradient(var(--yui-stage-dim), var(--yui-stage-dim)),
+    var(--yui-stage-image) center / cover no-repeat,
+    var(--yui-stage);
+}
+
 /* The stage owns every touch: the WebView neither scrolls nor zooms the page from it. */
 .yui-phone .yui-stage {
   touch-action: none;

@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createStageBackground } from "../../../io/assets/stage/stage-background";
 import { createStageBackdrop } from "./stage-backdrop";
 
@@ -21,6 +21,10 @@ function setup(decodeImage: (url: string) => Promise<void> = async () => {}) {
 }
 
 describe("createStageBackdrop", () => {
+  beforeEach(() => {
+    localStorage.clear();
+  });
+
   afterEach(() => {
     vi.clearAllMocks();
   });

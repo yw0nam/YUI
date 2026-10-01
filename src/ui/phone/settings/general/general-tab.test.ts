@@ -25,6 +25,7 @@ function key(el: HTMLElement, k: string): void {
 describe("createGeneralTab", () => {
   beforeEach(() => {
     setLocale("en");
+    localStorage.clear();
     vi.clearAllMocks();
   });
 

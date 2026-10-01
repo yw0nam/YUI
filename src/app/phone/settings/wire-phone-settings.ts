@@ -1,17 +1,19 @@
 /**
- * The phone's settings view wiring — the connection, character and history tabs over the phone's
- * stores, the full-screen view that shows them, and the Android back claim that closes the view
- * while it is open. The entry routes its openers here.
+ * The phone's settings view wiring — the connection, character, history and general tabs over the
+ * phone's stores, the full-screen view that shows them, and the Android back claim that closes the
+ * view while it is open. The entry routes its openers here.
  */
 
 import type { AvatarOption } from "../../../config/load";
 import type { EndpointsConfig } from "../../../contract";
+import type { StageBackgroundStore } from "../../../io/assets/stage/stage-background";
 import type { createVrmSelection } from "../../../io/assets/vrm-selection";
 import type { PushSocket } from "../../../io/chat/push-socket";
 import { createBackButtonClaim } from "../../../io/lifecycle/back-button";
 import { createLogger } from "../../../logger";
 import { endpointDefaultsOf } from "../../../settings/backend/endpoints-settings";
 import type { SettingsStores } from "../../../settings/settings-stores";
+import { createGeneralTab } from "../../../ui/phone/settings/general/general-tab";
 import {
   createPhoneSettingsView,
   type PhoneSettingsTab,
@@ -52,6 +54,9 @@ export function createPhoneSettings(deps: {
     importVrm: () => Promise<void>;
   };
   removeUserVrm: (id: string) => Promise<void>;
+  /** The stage backdrop's store and the flow that picks its image. */
+  stageBackground: StageBackgroundStore;
+  importStageImage: () => Promise<void>;
   conversation: Pick<
     ConversationStores,
     "sessionStore" | "sessionDiagnostics" | "chatHistoryStore"
@@ -69,6 +74,8 @@ export function createPhoneSettings(deps: {
     stores,
     vrm,
     removeUserVrm,
+    stageBackground,
+    importStageImage,
     conversation,
     pushSocket,
     stopTurn,
@@ -110,6 +117,13 @@ export function createPhoneSettings(deps: {
     log,
   });
 
+  const general = createGeneralTab({
+    stageBackground,
+    importStageImage,
+    bubblePersistSettings: stores.bubblePersistSettings,
+    log,
+  });
+
   // The system back gesture closes the view while it is open and keeps its default otherwise.
   const back = createBackButtonClaim();
   const view = createPhoneSettingsView({
@@ -117,6 +131,7 @@ export function createPhoneSettings(deps: {
     connection,
     character,
     history,
+    general,
     onClose: () => back.release(),
   });
 
@@ -133,6 +148,7 @@ export function createPhoneSettings(deps: {
       connection.dispose();
       character.dispose();
       history.dispose();
+      general.dispose();
       back.dispose();
     },
   };

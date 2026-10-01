@@ -108,7 +108,10 @@ describe("createStageBackground", () => {
   });
 
   it("keeps a Windows drive path and a stem with dots", () => {
-    const image = { id: "my.photo.v2.webp", path: "C:\\Users\\me\\AppData\\stage\\my.photo.v2.webp" };
+    const image = {
+      id: "my.photo.v2.webp",
+      path: "C:\\Users\\me\\AppData\\stage\\my.photo.v2.webp",
+    };
     const store = createStageBackground({ storage: memory({ mode: "image", image }) });
     expect(store.get().image).toEqual(image);
   });

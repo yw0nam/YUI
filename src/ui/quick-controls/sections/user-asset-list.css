@@ -418,7 +418,8 @@
 
 /* ── Load/import error — inline, below add row. muted danger. ── */
 .yui-vrm__import-error,
-.yui-spk__import-error {
+.yui-spk__import-error,
+.yui-stage__import-error {
   display: flex;
   align-items: flex-start;
   gap: 0.4rem;
@@ -432,12 +433,14 @@
 }
 
 .yui-vrm__import-error[hidden],
-.yui-spk__import-error[hidden] {
+.yui-spk__import-error[hidden],
+.yui-stage__import-error[hidden] {
   display: none;
 }
 
 .yui-vrm__import-error svg,
-.yui-spk__import-error svg {
+.yui-spk__import-error svg,
+.yui-stage__import-error svg {
   width: 0.85rem;
   height: 0.85rem;
   flex: 0 0 auto;

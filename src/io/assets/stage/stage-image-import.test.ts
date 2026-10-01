@@ -8,9 +8,7 @@ function setup(over: Partial<StageImportDeps> = {}, initial = true) {
   const store = createStageBackground();
   if (initial) store.setImage(OLD);
   const invoke = vi.fn(async (cmd: string) =>
-    cmd === "import_stage_image"
-      ? { id: "new.jpg", destPath: "/data/stage/new.jpg" }
-      : undefined,
+    cmd === "import_stage_image" ? { id: "new.jpg", destPath: "/data/stage/new.jpg" } : undefined,
   );
   const deps: StageImportDeps = {
     openDialog: vi.fn(async () => "content://picked/1"),

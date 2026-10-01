@@ -47,6 +47,15 @@ const en: Record<string, string> = {
   // phone top-row openers
   "phone.open_history": "Conversation history",
   "phone.open_settings": "Settings",
+  "phone.general.stage_section": "Stage",
+  "phone.general.bubble_section": "Speech bubble",
+  "phone.general.stage_aria": "Stage background",
+  "phone.general.stage_default": "Default",
+  "phone.general.stage_image": "Image",
+  "phone.general.image_label": "Background image",
+  "phone.general.image_sub": "Dimmed so text stays readable.",
+  "phone.general.image_choose": "Choose",
+  "phone.general.import_error": "Could not use this image. Pick a PNG, JPEG or WebP file.",
 
   "input.placeholder": "Say something…",
   "input.error_auth": "Auth failed · check API key",

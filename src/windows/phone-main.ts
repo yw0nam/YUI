@@ -1,7 +1,7 @@
 /**
  * Phone bootstrap — phone.html entry point, the Android window.
  *
- * Graph: stores + config → createStageRenderer (renderer, camera, Tier 1) → top row (plate, chip,
+ * Graph: stores + config → createStageRenderer (renderer, camera, Tier 1) → stage backdrop → top row (plate, chip,
  * pill) → createSurfaces (persistent composer, plate-wrapped) → push stores → visibility port
  *   → config.load() → wirePhoneStage (fit band, touch camera, tap)
  *   → createPhoneBootstrap (turn core) → wirePushMode (socket, suspended by visibility).
@@ -25,6 +25,8 @@ import { wirePushMode } from "../app/turn/wire-push";
 import { CHAT_API_KEY_SECRET, TTS_API_KEY_SECRET } from "../config/load";
 import { createEventBus } from "../dispatcher/core/event-bus";
 import { createUserInputSource } from "../dispatcher/sources/user-input-source";
+import { createStageBackground } from "../io/assets/stage/stage-background";
+import { importStageImage } from "../io/assets/stage/stage-image-import";
 import { removeUserVrm } from "../io/assets/vrm-import";
 import { watchPageVisibility } from "../io/lifecycle/page-visibility";
 import { excludeOwnOriginFromCorsFetch } from "../io/window/own-origin-fetch";
@@ -33,6 +35,7 @@ import { createVoiceInputStatus } from "../ui/chips/voice-input-status";
 import { withPlate } from "../ui/message/plate-surfaces";
 import { showBootError } from "../ui/notices/boot-error";
 import { attachVisualViewport, PHONE_INPUT_BOTTOM_PX } from "../ui/phone/phone-viewport";
+import { createStageBackdrop } from "../ui/phone/stage/stage-backdrop";
 import { createSurfaces } from "../ui/surfaces/surfaces";
 
 const log = createLogger("phone-bootstrap");
@@ -103,12 +106,18 @@ async function bootstrap(): Promise<{ dispose(): void }> {
     register,
   });
 
+  const stageBackground = createStageBackground();
+  register(stageBackground.dispose);
+  register(createStageBackdrop({ root: phone, store: stageBackground, log }).dispose);
+
   // The settings/history view the top row and the chip's lost-state tap open.
   const phoneSettings = createPhoneSettings({
     mount: phone,
     stores: settingsStores,
     vrm,
     removeUserVrm,
+    stageBackground,
+    importStageImage: () => importStageImage(stageBackground),
     conversation: conversationStores,
     pushSocket: push.pushSocket,
     stopTurn: () => stopTurn(),

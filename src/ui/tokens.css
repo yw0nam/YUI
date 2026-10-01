@@ -80,6 +80,7 @@
   /* ── Phone stage ── */
   --yui-stage: oklch(0.15 0.012 70); /* Warm ink stage behind the character */
   --yui-stage-lift: oklch(0.23 0.016 72); /* Soft radial lift behind the character */
+  --yui-stage-dim: oklch(0.12 0.01 70 / 0.55); /* Flat dim over a user stage image */
   --yui-touch: 48px; /* Minimum touch target */
 
   /* ── Motion: responsive, ease-out exponential curve (quint). No bounce/elastic. ── */
