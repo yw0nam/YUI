@@ -1,0 +1,15 @@
+/* General tab, Voice input section: the note sits between the title and the segment. */
+.yui-voice-note {
+  margin: 0 0 0.625rem;
+  color: var(--yui-text-mute);
+  font-size: var(--yui-fs-sub);
+}
+
+/* The segment spans its row and its buttons reach the touch target. */
+.yui-phone-settings .yui-row > .yui-voice-seg {
+  flex: 1 1 auto;
+}
+
+.yui-phone-settings .yui-voice-seg .yui-seg__btn {
+  min-height: var(--yui-touch);
+}

@@ -4,7 +4,7 @@ import { noopScreenCapturer } from "../../io/window/capture/screen-source-provid
 import { createLogger } from "../../logger";
 import { createDisposers } from "../disposers";
 import { type TurnCorePhase1, wireTurnCore } from "../turn/turn-core";
-import type { wireBroker } from "../turn/wire-voice";
+import type { VoiceHost, wireBroker } from "../turn/wire-voice";
 import type { VoicePipeline } from "../turn/wire-voice-pipeline";
 
 const log = createLogger("phone-bootstrap");
@@ -20,7 +20,7 @@ export interface PhoneBootstrapHandles {
 /** The phone's chat turn, started and connected under one teardown bag once the config has loaded. */
 export async function createPhoneBootstrap(
   cfg: AppConfig,
-  phase1: TurnCorePhase1 & { isDisposed(): boolean },
+  phase1: TurnCorePhase1 & { isDisposed(): boolean; voiceHost: VoiceHost },
 ): Promise<PhoneBootstrapHandles> {
   const disposers = createDisposers();
   const ensureActive = (): void => {
@@ -30,6 +30,7 @@ export async function createPhoneBootstrap(
     const core = await wireTurnCore(cfg, phase1, {
       getFrontmost: () => undefined,
       screenCapturer: noopScreenCapturer,
+      voiceHost: phase1.voiceHost,
       register: disposers.register,
       ensureActive,
     });

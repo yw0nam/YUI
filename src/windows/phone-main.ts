@@ -1,8 +1,8 @@
 /**
  * Phone bootstrap — phone.html entry point, the Android window.
  *
- * Graph: stores + config → createStageRenderer (renderer, camera, Tier 1) → stage backdrop → top row (plate, chip,
- * pill) → createSurfaces (persistent composer, plate-wrapped) → push stores → visibility port
+ * Graph: stores + config → createStageRenderer (renderer, camera, Tier 1) → stage backdrop → voice controller →
+ * top row (plate, chip, pill) → createSurfaces (persistent composer with the mic, plate-wrapped) → push stores → visibility port
  *   → config.load() → wirePhoneStage (fit band, touch camera, tap)
  *   → createPhoneBootstrap (turn core) → wirePushMode (socket, suspended by visibility).
  * The root follows the visual viewport, so the soft keyboard shortens the stage.
@@ -16,6 +16,7 @@ import { pushOnlyEndpoints } from "../app/phone/endpoints/push-only";
 import { createPhoneSettings } from "../app/phone/settings/wire-phone-settings";
 import { wirePhoneStage } from "../app/phone/stage/wire-phone-stage";
 import { createPhoneTopRow } from "../app/phone/top-row/create-phone-top-row";
+import { createVoiceController } from "../app/phone/voice/voice-controller";
 import { createWindowStores } from "../app/settings/window-stores";
 import { wireAvatarSelection } from "../app/settings/wire-avatar";
 import { createPetConfig } from "../app/settings/wire-config";
@@ -31,6 +32,7 @@ import { removeUserVrm } from "../io/assets/vrm-import";
 import { watchPageVisibility } from "../io/lifecycle/page-visibility";
 import { excludeOwnOriginFromCorsFetch } from "../io/window/own-origin-fetch";
 import { createLogger, initLogger } from "../logger";
+import { createVoiceMode } from "../settings/voice/voice-mode";
 import { createVoiceInputStatus } from "../ui/chips/voice-input-status";
 import { withPlate } from "../ui/message/plate-surfaces";
 import { showBootError } from "../ui/notices/boot-error";
@@ -80,6 +82,18 @@ async function bootstrap(): Promise<{ dispose(): void }> {
 
   const voiceInputStatus = createVoiceInputStatus();
   register(() => voiceInputStatus.dispose());
+  const voiceMode = createVoiceMode();
+  register(voiceMode.dispose);
+  // Capture intent: the mic button, the General tab's mode and the foreground all drive it.
+  const voiceController = createVoiceController({
+    status: voiceInputStatus,
+    mode: voiceMode,
+    visibility,
+    getEndpoints,
+    openSttSettings: () => openSttSettings(),
+    log,
+  });
+  register(voiceController.dispose);
 
   register(
     attachVisualViewport({
@@ -118,6 +132,8 @@ async function bootstrap(): Promise<{ dispose(): void }> {
     removeUserVrm,
     stageBackground,
     importStageImage: () => importStageImage(stageBackground),
+    voiceMode,
+    selectVoiceMode: voiceController.selectMode,
     conversation: conversationStores,
     pushSocket: push.pushSocket,
     stopTurn: () => stopTurn(),
@@ -125,6 +141,7 @@ async function bootstrap(): Promise<{ dispose(): void }> {
     config,
   });
   register(phoneSettings.dispose);
+  const openSttSettings = (): void => phoneSettings.open("conn", { focus: "stt" });
 
   const topRow = createPhoneTopRow({
     mount: root,
@@ -132,6 +149,8 @@ async function bootstrap(): Promise<{ dispose(): void }> {
     pushSocket: push.pushSocket,
     delegations: push.delegations,
     onOpenView: (tab) => phoneSettings.open(tab),
+    onFixVoice: openSttSettings,
+    onToggleVoice: voiceController.toggle,
   });
   register(topRow.dispose);
 
@@ -141,6 +160,7 @@ async function bootstrap(): Promise<{ dispose(): void }> {
     keepBubbleUntilDismissed: () => settingsStores.bubblePersistSettings.get().enabled,
     reasoning: push.reasoning,
     persistentInput: true,
+    mic: voiceController,
   });
   register(() => surfaces.dispose());
   surfaces.setInputAnchor(PHONE_INPUT_BOTTOM_PX);
@@ -157,6 +177,7 @@ async function bootstrap(): Promise<{ dispose(): void }> {
       wirePhoneStage({ stage, renderer, cfg, bus, cameraSettings: settingsStores.cameraSettings }),
     );
     surfaces.setAttachmentLimits(cfg.guardrails.attachments);
+    voiceController.start();
     const plateSurfaces = withPlate(surfaces, topRow.plate);
     const configured = await createPhoneBootstrap(cfg, {
       config,
@@ -167,6 +188,7 @@ async function bootstrap(): Promise<{ dispose(): void }> {
       bus,
       userInput,
       voiceInputStatus,
+      voiceHost: voiceController,
       vrm,
       speaker,
       pushSocket: push.pushSocket,

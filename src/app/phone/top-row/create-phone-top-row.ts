@@ -35,6 +35,10 @@ export function createPhoneTopRow(deps: {
   delegations: DelegationsStore;
   /** Opens the phone's settings/history view — the buttons and the chip's lost-state tap. */
   onOpenView: (tab: PhoneSettingsTab) => void;
+  /** Takes the pill's "setup needed" tap and shows where the voice setup lives. */
+  onFixVoice: () => void;
+  /** Takes the pill's mic button, which stops the listening. */
+  onToggleVoice: () => void;
 }): PhoneTopRow {
   const head = document.createElement("div");
   head.className = "yui-phone__head";
@@ -44,7 +48,12 @@ export function createPhoneTopRow(deps: {
   head.appendChild(row);
 
   const plate = createMessagePlate({ mount: row });
-  const pill = createStatusPill({ mount: head, voice: deps.voice });
+  const pill = createStatusPill({
+    mount: head,
+    voice: deps.voice,
+    onFixVoice: deps.onFixVoice,
+    onToggleVoice: deps.onToggleVoice,
+  });
   // The chip mounts on first show; its slot keeps it beside the plate, left of the openers.
   const chipSlot = document.createElement("span");
   chipSlot.className = "yui-phone__chip-slot";

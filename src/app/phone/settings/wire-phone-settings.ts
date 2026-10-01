@@ -13,6 +13,7 @@ import { createBackButtonClaim } from "../../../io/lifecycle/back-button";
 import { createLogger } from "../../../logger";
 import { endpointDefaultsOf } from "../../../settings/backend/endpoints-settings";
 import type { SettingsStores } from "../../../settings/settings-stores";
+import type { VoiceMode, VoiceModeStore } from "../../../settings/voice/voice-mode";
 import { createGeneralTab } from "../../../ui/phone/settings/general/general-tab";
 import {
   createPhoneSettingsView,
@@ -58,6 +59,9 @@ export function createPhoneSettings(deps: {
   /** The stage backdrop's store and the flow that picks its image. */
   stageBackground: StageBackgroundStore;
   importStageImage: () => Promise<void>;
+  /** The voice mode store and the port that applies a choice from the General tab. */
+  voiceMode: VoiceModeStore;
+  selectVoiceMode: (mode: VoiceMode) => void;
   conversation: Pick<
     ConversationStores,
     "sessionStore" | "sessionDiagnostics" | "chatHistoryStore"
@@ -77,6 +81,8 @@ export function createPhoneSettings(deps: {
     removeUserVrm,
     stageBackground,
     importStageImage,
+    voiceMode,
+    selectVoiceMode,
     conversation,
     pushSocket,
     stopTurn,
@@ -122,6 +128,8 @@ export function createPhoneSettings(deps: {
     stageBackground,
     importStageImage,
     bubblePersistSettings: stores.bubblePersistSettings,
+    voiceMode,
+    selectVoiceMode,
     log,
   });
 
