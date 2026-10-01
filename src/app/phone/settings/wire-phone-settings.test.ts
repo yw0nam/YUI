@@ -58,6 +58,7 @@ describe("createPhoneSettings", () => {
     // Typed but never blurred — only a commit on dispose lands it.
     const sttUrl = mount.querySelector<HTMLInputElement>("#yui-ep-stt_base_url")!;
     sttUrl.value = "http://stt.test/v1";
+    sttUrl.dispatchEvent(new Event("input", { bubbles: true }));
 
     phoneSettings.dispose();
 

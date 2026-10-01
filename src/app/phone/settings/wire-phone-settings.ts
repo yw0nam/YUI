@@ -8,6 +8,7 @@ import type { EndpointsConfig } from "../../../contract";
 import type { PushSocket } from "../../../io/chat/push-socket";
 import { createBackButtonClaim } from "../../../io/lifecycle/back-button";
 import { createLogger } from "../../../logger";
+import { endpointDefaultsFromConfig } from "../../../settings/backend/endpoints-settings";
 import type { SettingsStores } from "../../../settings/settings-stores";
 import {
   createPhoneSettingsView,
@@ -41,8 +42,10 @@ export function createPhoneSettings(deps: {
   stopTurn: () => void;
   /** The phone's effective endpoints — push-only, so History's reset frames the backend. */
   getEndpoints: () => EndpointsConfig;
+  /** The bundled config — its endpoints are the fields' placeholders once it has loaded. */
+  config: { get(): { endpoints: EndpointsConfig } };
 }): PhoneSettings {
-  const { mount, stores, conversation, pushSocket, stopTurn, getEndpoints } = deps;
+  const { mount, stores, conversation, pushSocket, stopTurn, getEndpoints, config } = deps;
   const log = createLogger("phone-settings");
 
   const connection = createConnectionTab({
@@ -50,6 +53,13 @@ export function createPhoneSettings(deps: {
     chatKeySettings: stores.chatKeySettings,
     sttKeySettings: stores.sttKeySettings,
     ttsKeySettings: stores.ttsKeySettings,
+    getEndpointDefaults: () => {
+      try {
+        return endpointDefaultsFromConfig(config.get().endpoints);
+      } catch {
+        return undefined;
+      }
+    },
     rows: PHONE_ROWS,
     pushSocket,
     isOpen: () => view.isOpen(),
@@ -64,6 +74,7 @@ export function createPhoneSettings(deps: {
     pushSocket,
     getChatApi: () => getEndpoints().chat_api,
     isOpen: () => view.isOpen(),
+    log,
   });
 
   // The system back gesture closes the view while it is open and keeps its default otherwise.
@@ -84,6 +95,9 @@ export function createPhoneSettings(deps: {
     isOpen: view.isOpen,
     dispose(): void {
       view.dispose();
+      // The connection tab commits typed input before it lets go of its subscriptions.
+      connection.dispose();
+      history.dispose();
       back.dispose();
     },
   };

@@ -102,7 +102,7 @@ export function createPhoneSettingsView(deps: {
     setBackground(true);
     connection.refresh();
     history.refresh();
-    rail.select(tab, true);
+    rail.select(tab, { focusVisible: false });
   }
 
   function close(): void {
@@ -135,6 +135,7 @@ export function createPhoneSettingsView(deps: {
     dispose(): void {
       if (openState) {
         openState = false;
+        connection.commit();
         el.hidden = true;
         setBackground(false);
         opener = null;

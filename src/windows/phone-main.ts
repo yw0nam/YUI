@@ -110,6 +110,7 @@ async function bootstrap(): Promise<{ dispose(): void }> {
     pushSocket: push.pushSocket,
     stopTurn: () => stopTurn(),
     getEndpoints,
+    config,
   });
   register(phoneSettings.dispose);
 
