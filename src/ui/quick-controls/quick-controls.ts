@@ -63,12 +63,12 @@ import { type CueListInstance, createCueList } from "../message/cue-list";
 import { createConnectionTab, type PushSocketPanelPort } from "./connection/connection-tab";
 import type { QuickControlsTab } from "./constants";
 import { createHintTooltip } from "./hint-tooltip";
+import { createHistoryTab } from "./history/history-tab";
 import { createPopover } from "./popover";
 import { createReflect } from "./reflect";
 import { createAgentSection } from "./sections/agent-section";
 import { createExpressMotionList } from "./sections/express-motion-section";
 import { parseToolLines, serializeToolLines } from "./sections/filler-tool-lines";
-import { createHistorySection } from "./sections/history-section";
 import { createIdleMotionList } from "./sections/idle-motion-section";
 import { createMonitorsSection } from "./sections/monitors-section";
 import { createReactionsSection } from "./sections/reactions-section";
@@ -301,8 +301,6 @@ export function createQuickControls({
   const isWindow = variant === "window";
   // Context-occupancy readout renders only in the settings window, when both stores are injected.
   const hasSession = isWindow && !!sessionDiagnostics && !!sessionStore;
-  // Start fresh lives under the History tab's session list — both variants get it once the stores are there.
-  const showSessionReset = !!transcript && !!sessionDiagnostics && !!sessionStore;
   // Use variant tag to distinguish which window created logs (Tauri merges both window logs to one file).
   const log = createLogger(isWindow ? "settings-ui" : "quick-ui");
 
@@ -333,7 +331,6 @@ export function createQuickControls({
   el.innerHTML = buildPanelHtml({
     isWindow,
     hasSession,
-    showSessionReset,
     showViewpoint: !!onResetViewpoint,
     showIdleMotion: !!idleMotionSettings,
     showExpressMotion: !!expressMotionSettings,
@@ -405,20 +402,22 @@ export function createQuickControls({
     log,
   });
   el.querySelector("#yui-panel-conn")!.append(connectionTab.el);
+
+  // ── History tab (session accordion + start fresh) — only with a transcript store. ──
+  const historyTab = transcript
+    ? createHistoryTab({
+        transcript,
+        sessionDiagnostics,
+        sessionStore,
+        stopTurn,
+        pushSocket,
+        getChatApi: () => (isPushMode() ? "push" : undefined),
+        isOpen: () => popover.isOpen(),
+      })
+    : null;
+  if (historyTab) el.querySelector("#yui-panel-hist")!.append(historyTab.el);
   const workflows = createWorkflowsSection({ root: el, store: workflowSettings, log });
   const hintTooltip = createHintTooltip({ root: el });
-
-  // History tab (transcript viewer) — rendered only when a transcript store is injected.
-  const history = transcript
-    ? createHistorySection({ root: el, transcript, isOpen: () => popover.isOpen() })
-    : null;
-
-  // Start-fresh footer nodes in the History tab (null when the reset stores are absent).
-  const sessionResetBtn = el.querySelector<HTMLButtonElement>(".yui-session__reset");
-  // Cue rows also use the .yui-confirm pattern, so scope the session's specifically.
-  const sessionConfirmEl = el.querySelector<HTMLDivElement>(".yui-hist__action .yui-confirm");
-  const sessionConfirmBtn = el.querySelector<HTMLButtonElement>(".yui-session__confirm");
-  const sessionCancelBtn = el.querySelector<HTMLButtonElement>(".yui-session__cancel");
 
   gainSlider.min = String(LIPSYNC_GAIN_MIN);
   gainSlider.max = String(LIPSYNC_GAIN_MAX);
@@ -547,9 +546,7 @@ export function createQuickControls({
       connectionTab.refresh();
       reflect.reflectSession();
       syncDelegations();
-      // The confirm is static markup — disarm it so a reopen never lands on the destructive pill.
-      hideSessionConfirm();
-      history?.render();
+      historyTab?.refresh();
       vrmList.render();
       idleMotionList?.render();
       expressMotionList?.render();
@@ -712,35 +709,9 @@ export function createQuickControls({
     log.info("viewpoint_reset");
   }
 
-  // ── Session section: start fresh (reset) ──
-
-  function showSessionConfirm(): void {
-    if (sessionConfirmEl) sessionConfirmEl.hidden = false;
-    if (sessionResetBtn) sessionResetBtn.hidden = true;
-  }
-
-  function hideSessionConfirm(): void {
-    if (sessionConfirmEl) sessionConfirmEl.hidden = true;
-    if (sessionResetBtn) sessionResetBtn.hidden = false;
-  }
-
-  // Closes the running conversation: the id pointer and diagnostics reset, the transcript keeps
-  // its turns behind a session boundary so the History tab can still read them.
   // Effective chat protocol: the user's override, else the bundled default.
   function isPushMode(): boolean {
     return (endpointsSettings.get().chat_api || getDefaultChatApi?.()) === "push";
-  }
-
-  function handleSessionReset(): void {
-    // A turn still running stops with the conversation, before the reset frame goes out.
-    stopTurn?.();
-    sessionStore?.clear();
-    sessionDiagnostics?.clear();
-    transcript?.startNewSession();
-    // Push mode keeps its conversation on the backend — it ends only when the frame lands.
-    if (isPushMode()) pushSocket?.sendReset();
-    hideSessionConfirm();
-    log.info("session_reset");
   }
 
   // ── Gain slider ──
@@ -935,9 +906,6 @@ export function createQuickControls({
   spksEl.addEventListener("keydown", speakerList.handleKeydown);
   spkAddBtn.addEventListener("click", speakerList.handleAddClick);
   viewpointResetBtn?.addEventListener("click", handleResetViewpoint);
-  sessionResetBtn?.addEventListener("click", showSessionConfirm);
-  sessionConfirmBtn?.addEventListener("click", handleSessionReset);
-  sessionCancelBtn?.addEventListener("click", hideSessionConfirm);
   popOutBtn?.addEventListener("click", handlePopOut);
   messageBtn?.addEventListener("click", handleMessage);
   devtoolsBtn?.addEventListener("click", () => onOpenDevtools?.());
@@ -953,7 +921,7 @@ export function createQuickControls({
     reactions.dispose();
     agent.dispose();
     hintTooltip.dispose();
-    history?.dispose();
+    historyTab?.dispose();
     scheduleCueList?.destroy();
     proactiveCueList?.destroy();
     unsubscribe();
@@ -1001,9 +969,6 @@ export function createQuickControls({
     spksEl.removeEventListener("keydown", speakerList.handleKeydown);
     spkAddBtn.removeEventListener("click", speakerList.handleAddClick);
     viewpointResetBtn?.removeEventListener("click", handleResetViewpoint);
-    sessionResetBtn?.removeEventListener("click", showSessionConfirm);
-    sessionConfirmBtn?.removeEventListener("click", handleSessionReset);
-    sessionCancelBtn?.removeEventListener("click", hideSessionConfirm);
     popOutBtn?.removeEventListener("click", handlePopOut);
     messageBtn?.removeEventListener("click", handleMessage);
     closeBtn?.removeEventListener("click", popover.close);

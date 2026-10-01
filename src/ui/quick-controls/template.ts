@@ -38,8 +38,6 @@ interface PanelHtmlOptions {
   isWindow: boolean;
   /** Whether the window-only context-occupancy readout renders. */
   hasSession: boolean;
-  /** Whether the History tab carries the start-fresh action — needs the transcript and reset stores. */
-  showSessionReset: boolean;
   showViewpoint: boolean;
   /** Whether the idle-motion section renders — true when the idle-motion store is injected. */
   showIdleMotion: boolean;
@@ -63,7 +61,6 @@ export function buildPanelHtml(o: PanelHtmlOptions): string {
   const {
     isWindow,
     hasSession,
-    showSessionReset,
     showViewpoint,
     showIdleMotion,
     showExpressMotion,
@@ -237,25 +234,6 @@ ${RATE_LIMIT_FIELDS.map((f) =>
           </div>
         </div>
       </div>`
-    : "";
-
-  // Start-fresh row under the session list. Reset is race-safe via pet window thunk.
-  const sessionResetHtml = showSessionReset
-    ? `
-        <div class="yui-group yui-hist__action">
-          <div class="yui-row">
-            <div class="yui-row__main">
-              <span class="yui-session__action-label">${t("session.action_label")}</span>
-              <span class="yui-session__action-sub">${t("session.action_sub")}</span>
-            </div>
-            <button class="yui-link-btn yui-session__reset" type="button">${t("session.reset")}</button>
-          </div>
-          <div class="yui-confirm" hidden>
-            <span class="yui-confirm__q">${t("session.confirm_q")}</span>
-            <button class="yui-pill yui-pill--go yui-session__confirm" type="button">${t("session.confirm_go")}</button>
-            <button class="yui-pill yui-session__cancel" type="button">${t("session.confirm_cancel")}</button>
-          </div>
-        </div>`
     : "";
 
   const talkRowsHtml = switchRowsHtml("talk");
@@ -517,10 +495,6 @@ ${panelOpenHtml("react")}${screenHtml}
 ${
   showHistory
     ? `${panelOpenHtml("hist")}
-        <div class="yui-sec">
-          <div class="yui-group yui-hist"></div>
-          <p class="yui-hist__foot">${t("history.foot")}</p>
-        </div>${sessionResetHtml}
       </div>
 `
     : ""

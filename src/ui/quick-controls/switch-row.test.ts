@@ -39,7 +39,6 @@ function render(switchRows: readonly SwitchRow[]): HTMLElement {
   root.innerHTML = buildPanelHtml({
     isWindow: false,
     hasSession: false,
-    showSessionReset: false,
     showViewpoint: false,
     showIdleMotion: false,
     showExpressMotion: false,
