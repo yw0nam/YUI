@@ -45,8 +45,12 @@ export function createPhoneTopRow(deps: {
 
   const plate = createMessagePlate({ mount: row });
   const pill = createStatusPill({ mount: head, voice: deps.voice });
+  // The chip mounts on first show; its slot keeps it beside the plate, left of the openers.
+  const chipSlot = document.createElement("span");
+  chipSlot.className = "yui-phone__chip-slot";
+  row.appendChild(chipSlot);
   const chip = createDelegationChipMount({
-    mount: row,
+    mount: chipSlot,
     store: deps.delegations,
     pushState: deps.pushSocket,
     onOpenSettings: () => deps.onOpenView("conn"),

@@ -49,6 +49,11 @@ body {
   flex: 1;
 }
 
+/* The chip's slot lays its chip out as a row item. */
+.yui-phone__chip-slot {
+  display: contents;
+}
+
 .yui-phone__open {
   pointer-events: auto;
   width: var(--yui-touch);
