@@ -34,10 +34,6 @@ const ko: Record<string, string> = {
   "aria.attach_image": "이미지 첨부",
   "aria.input_field": "YUI에게 말 걸기",
   "aria.send": "보내기",
-
-  // phone top-row openers
-  "phone.open_history": "대화 기록",
-  "phone.open_settings": "설정",
   "aria.stop": "멈추기",
   "aria.remove_attachment": "첨부 제거",
   "aria.dismiss_bubble": "말풍선 닫기",
@@ -46,6 +42,11 @@ const ko: Record<string, string> = {
   "aria.dock_message": "말풍선을 캐릭터 창으로 되돌리기",
   "aria.pop_message": "말풍선을 메시지 창으로 분리",
   "aria.dismiss_error": "오류 닫기",
+
+  // phone top-row openers
+  "phone.open_history": "대화 기록",
+  "phone.open_settings": "설정",
+
   "input.placeholder": "말 걸기…",
   "input.error_auth": "인증 실패 · API 키 확인",
   "input.error_network": "응답 없음 · 연결 확인",

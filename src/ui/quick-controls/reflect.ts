@@ -245,8 +245,8 @@ export function createReflect(deps: ReflectDeps): Reflect {
     }
     if (screenGapSlider && screenGapValue) {
       const minutes = Math.round(effective("min_gap_ms") / 60_000);
-      screenGapValue.textContent = t("screen.min_gap_value", { n: minutes });
       screenGapSlider.value = String(minutes);
+      screenGapValue.textContent = t("screen.min_gap_value", { n: minutes });
       screenGapSlider.style.setProperty(
         "--fill",
         String((minutes - SCREEN_MIN_GAP_MIN) / (SCREEN_MIN_GAP_MAX - SCREEN_MIN_GAP_MIN)),

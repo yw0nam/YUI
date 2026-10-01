@@ -34,10 +34,6 @@ const ja: Record<string, string> = {
   "aria.attach_image": "画像を添付",
   "aria.input_field": "YUI に話しかける",
   "aria.send": "送信",
-
-  // phone top-row openers
-  "phone.open_history": "会話履歴",
-  "phone.open_settings": "設定",
   "aria.stop": "停止",
   "aria.remove_attachment": "添付を削除",
   "aria.dismiss_bubble": "吹き出しを閉じる",
@@ -46,6 +42,11 @@ const ja: Record<string, string> = {
   "aria.dock_message": "吹き出しをキャラクターに戻す",
   "aria.pop_message": "吹き出しをメッセージウィンドウへ",
   "aria.dismiss_error": "エラーを閉じる",
+
+  // phone top-row openers
+  "phone.open_history": "会話履歴",
+  "phone.open_settings": "設定",
+
   "input.placeholder": "話しかけてみて…",
   "input.error_auth": "認証失敗 · APIキー確認",
   "input.error_network": "応答なし · 接続確認",

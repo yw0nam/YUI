@@ -35,10 +35,6 @@ const en: Record<string, string> = {
   "aria.attach_image": "Attach image",
   "aria.input_field": "Talk to YUI",
   "aria.send": "Send",
-
-  // phone top-row openers
-  "phone.open_history": "Conversation history",
-  "phone.open_settings": "Settings",
   "aria.stop": "Stop",
   "aria.remove_attachment": "Remove attachment",
   "aria.dismiss_bubble": "Dismiss speech bubble",
@@ -47,6 +43,11 @@ const en: Record<string, string> = {
   "aria.dock_message": "Move speech back to the character",
   "aria.pop_message": "Move speech to the message window",
   "aria.dismiss_error": "Dismiss error",
+
+  // phone top-row openers
+  "phone.open_history": "Conversation history",
+  "phone.open_settings": "Settings",
+
   "input.placeholder": "Say something…",
   "input.error_auth": "Auth failed · check API key",
   "input.error_network": "No response · check connection",
