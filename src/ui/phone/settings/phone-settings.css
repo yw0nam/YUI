@@ -19,6 +19,11 @@
   flex-direction: column;
 }
 
+/* The class display would otherwise beat the UA [hidden] rule and cover the closed phone. */
+.yui-phone-settings[hidden] {
+  display: none;
+}
+
 .yui-phone-settings__head {
   flex: none;
   display: flex;
