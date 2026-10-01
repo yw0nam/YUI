@@ -137,6 +137,18 @@ export async function wireBroker(deps: {
   return { onConfigChange, vocabulary, dispose };
 }
 
+/** Whether voice input was left on, kept across runs; a window that resumes nothing passes none. */
+export interface VoicePersistence {
+  get(): boolean;
+  set(on: boolean): void;
+}
+
+/** A window that owns capture intent: the dwell reverts to its wish, and it hears when capture runs. */
+export interface VoiceHost {
+  wanted(): boolean;
+  onCaptureStarted(): void;
+}
+
 export function wireTurnVoice(deps: {
   renderer: Renderer;
   surfaces: Pick<
@@ -151,7 +163,8 @@ export function wireTurnVoice(deps: {
     | "restoreInput"
   >;
   voiceInputStatus: VoiceInputStatus;
-  sttSettings: { get(): { enabled: boolean }; setEnabled(enabled: boolean): void };
+  voicePersistence?: VoicePersistence;
+  voiceHost?: VoiceHost;
   ttsSettings: { get(): { enabled: boolean } };
   lipsyncSettings: { get(): { gain: number } };
   fillerSettings: SettingsStores["fillerSettings"];
@@ -177,7 +190,8 @@ export function wireTurnVoice(deps: {
     renderer,
     surfaces,
     voiceInputStatus,
-    sttSettings,
+    voicePersistence,
+    voiceHost,
     ttsSettings,
     lipsyncSettings,
     fillerSettings,
@@ -190,13 +204,13 @@ export function wireTurnVoice(deps: {
     register,
   } = deps;
 
-  const voiceErrorDwell = createVoiceErrorDwell(voiceInputStatus);
+  const voiceErrorDwell = createVoiceErrorDwell(voiceInputStatus, voiceHost);
   register(() => voiceErrorDwell.dispose());
 
   // Voice creation precedes sources, so interaction notes stay late-bound across that cycle.
   let proactiveSourceRef: { noteInteraction(ts?: number): void } | null = null;
 
-  const voiceInput = wireVoiceInput({ voiceInputStatus, sttSettings });
+  const voiceInput = wireVoiceInput({ voiceInputStatus, voicePersistence, voiceHost });
   register(voiceInput.dispose);
   const turnLog = createTurnLog();
   const previousTurn = createPreviousTurn({ currentTurn: () => turnLog.current() });
@@ -252,18 +266,20 @@ export function wireTurnVoice(deps: {
 
 /**
  * STT/VAD voice-input lifecycle: start/stop driven by the voiceInputStatus store, on/off intent
- * persisted to sttSettings for next-run auto-resume, and the STT engine bound post-config via setStt
- * (which also auto-resumes if voice was left on last session). The engine's submit/barge-in callbacks
- * are wired at the createSttVad call site, not here — this seam only owns the lifecycle.
+ * persisted through the persistence port for next-run auto-resume, and the STT engine bound
+ * post-config via setStt (which also auto-resumes if voice was left on last session). The engine's
+ * submit/barge-in callbacks are wired at the createSttVad call site, not here — this seam only owns
+ * the lifecycle.
  */
 export function wireVoiceInput(deps: {
   voiceInputStatus: VoiceInputStatus;
-  sttSettings: { get(): { enabled: boolean }; setEnabled(enabled: boolean): void };
+  voicePersistence?: VoicePersistence;
+  voiceHost?: VoiceHost;
 }): {
   setStt: (stt: SttVad) => void;
   dispose: () => void;
 } {
-  const { voiceInputStatus, sttSettings } = deps;
+  const { voiceInputStatus, voicePersistence, voiceHost } = deps;
   let sttVad: SttVad | null = null;
   let ready = false;
   let startRequested = false;
@@ -276,7 +292,10 @@ export function wireVoiceInput(deps: {
     } catch (err) {
       const detail = err instanceof Error ? err.message : "Voice input failed";
       voiceInputStatus.set("error", detail);
+      return;
     }
+    // A stop() that landed while the capture started cancels it, and there is nothing to report.
+    if (startRequested) voiceHost?.onCaptureStarted();
   }
   function stopVoiceInput(): void {
     startRequested = false;
@@ -291,15 +310,15 @@ export function wireVoiceInput(deps: {
       void startVoiceInput();
     }
   });
-  // Persist voice input on/off intent — enabled if not idle. Used for auto-resume on next run.
+  // Persist voice input on/off intent — on if not idle. Used for auto-resume on next run.
   const unsubscribePersist = voiceInputStatus.subscribe((snapshot) => {
-    sttSettings.setEnabled(snapshot.state !== "idle");
+    voicePersistence?.set(snapshot.state !== "idle");
   });
   // Bind the STT engine once config is loaded; mark ready then auto-resume if left on last session.
   const setStt = (stt: SttVad): void => {
     sttVad = stt;
     ready = true;
-    if (startRequested || voiceInputStatus.get().state !== "idle" || sttSettings.get().enabled) {
+    if (startRequested || voiceInputStatus.get().state !== "idle" || voicePersistence?.get()) {
       void startVoiceInput();
     }
   };

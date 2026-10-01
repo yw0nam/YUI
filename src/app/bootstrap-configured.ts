@@ -100,6 +100,10 @@ const realFactories: ConfiguredBootstrapFactories = {
       getFrontmost: () => frontmostTracker.get(),
       screenCapturer: phase1.screenCapturer,
       openQuickControls: (tab) => getQuickControls().open(undefined, { tab }),
+      voicePersistence: {
+        get: () => settings.sttSettings.get().enabled,
+        set: settings.sttSettings.setEnabled,
+      },
       register,
       ensureActive,
     });

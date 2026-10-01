@@ -18,7 +18,14 @@ interface VoiceErrorDwell {
   dispose(): void;
 }
 
-export function createVoiceErrorDwell(status: VoiceInputStatus): VoiceErrorDwell {
+/**
+ * With a host that owns capture intent the hold ends where the host wants the mic (listening or
+ * idle); without one it ends listening.
+ */
+export function createVoiceErrorDwell(
+  status: VoiceInputStatus,
+  host?: { wanted(): boolean },
+): VoiceErrorDwell {
   let timer: ReturnType<typeof setTimeout> | null = null;
 
   function cancel(): void {
@@ -36,7 +43,9 @@ export function createVoiceErrorDwell(status: VoiceInputStatus): VoiceErrorDwell
       timer = setTimeout(() => {
         timer = null;
         // Only revert what is still the error we posted; the user may have moved on.
-        if (status.get().state === "error") status.set("listening");
+        if (status.get().state === "error") {
+          status.set(host === undefined || host.wanted() ? "listening" : "idle");
+        }
       }, holdMs);
     },
 

@@ -26,7 +26,7 @@ import {
 } from "../settings/wire-avatar";
 import { wireDispatcher } from "./wire-dispatcher";
 import { wirePushTransport, wireStopButton } from "./wire-push";
-import { wireBroker, wireTurnVoice } from "./wire-voice";
+import { type VoiceHost, type VoicePersistence, wireBroker, wireTurnVoice } from "./wire-voice";
 import type { VoicePipeline } from "./wire-voice-pipeline";
 
 const log = createLogger("bootstrap");
@@ -85,6 +85,10 @@ export async function wireTurnCore(
     getFrontmost: DispatcherDeps["getFrontmost"];
     screenCapturer: DispatcherDeps["screenCapturer"];
     openQuickControls?: DispatcherDeps["openQuickControls"];
+    /** Where voice-on intent is kept across runs; a window that passes none starts every run silent. */
+    voicePersistence?: VoicePersistence;
+    /** A window that owns capture intent itself. */
+    voiceHost?: VoiceHost;
     register: (dispose: () => void) => void;
     ensureActive: () => void;
   },
@@ -118,7 +122,8 @@ export async function wireTurnCore(
     renderer,
     surfaces,
     voiceInputStatus,
-    sttSettings: settings.sttSettings,
+    voicePersistence: deps.voicePersistence,
+    voiceHost: deps.voiceHost,
     ttsSettings: settings.ttsSettings,
     lipsyncSettings: settings.lipsyncSettings,
     fillerSettings: settings.fillerSettings,
