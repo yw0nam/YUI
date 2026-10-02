@@ -19,8 +19,8 @@ milestone, which tells the agent that the user has just started their day.
 `$SKILL_DIR` below is this skill's directory, and `$YUI_BRIEFING_SPOOL` is the spool
 directory chosen in step 6 of Install. Every `briefing.py` command reads the spool from
 `YUI_BRIEFING_SPOOL`, or from `--spool <dir>` placed before the subcommand. With neither
-set, it prints `set YUI_BRIEFING_SPOOL or pass --spool` and exits 2; settle the
-environment as in step 6 of Install.
+set, with a relative path, or, for `pending` and `mark-spoken`, with no directory at that
+path, it prints one line on stderr and exits 2.
 
 ## Speak a briefing
 
@@ -40,9 +40,16 @@ python3 "$SKILL_DIR/scripts/briefing.py" pending
 ```
 
 It prints every briefing not yet spoken, oldest day first, each under a line
-`=== <path> ===`. No output means the briefing has nothing to add. Answer the turn as
-usual then: a `first_activity` turn is also an ordinary start-of-day greeting, and
-whether to speak on it stays your call.
+`=== <path> ===`.
+
+1. No output means the briefing has nothing to add. Answer the turn as usual then: a
+   `first_activity` turn is also an ordinary start-of-day greeting, and whether to speak
+   on it stays your call.
+2. On a `first_activity` turn with briefings printed, the greeting and the briefing go in
+   one reply.
+3. Exit 2 means the spool is misconfigured. On a `first_activity` turn, greet as usual and
+   mention the misconfiguration once. Settle the environment, as in step 6 of Install,
+   only when the user asks.
 
 Done when: you hold the text and the path of every file `pending` printed.
 
@@ -56,7 +63,7 @@ Done when: every action in the reply traces back to the user or to a step of thi
 
 ### 3. Say it
 
-How much to say, how to group it, and in what voice is your call as the persona. Five
+How much to say, how to group it, and in what voice is your call as the persona. Six
 rules are fixed:
 
 1. Briefings are told grouped by the `date` in their front matter, oldest day first. Every
@@ -68,9 +75,15 @@ rules are fixed:
    the speech bubble. Items you leave out get a count ("and 4 more").
 4. A briefing with no items whose sources all read `ok` adds nothing to say. It still
    counts as covered in step 4.
-5. When the context carries a `previous:` line reading `interrupted` and the transcript
-   holds a briefing you were telling, say in one clause that it was cut off, read the same
-   paths again, and pick up from the items that went unspoken.
+5. When `pending` covers more than three days, the newest day is told in full. Each older
+   day gets its date and its item count only, with an offer to read it. Every listed path
+   still counts as covered in step 4.
+6. When the context carries a `previous:` line reading `interrupted` and the transcript
+   holds a briefing you were telling, say in one clause that it was cut off. Read
+   `$YUI_BRIEFING_SPOOL/<path>` directly for the paths of that earlier turn, without
+   running `pending` or `mark-spoken` again. The line's `spoken:` and `unspoken:` text
+   (see `docs/reference/client-context.md` in the YUI checkout) shows where the user
+   stopped hearing; pick up from there.
 
 Done when: each mentioned item carries exactly one link and each day other than today is
 named.
@@ -174,7 +187,8 @@ as `<workspace>/yui-briefing-spool`, so the briefing archive sits with the rest 
 files. Its absolute path is `YUI_BRIEFING_SPOOL`. Set `YUI_BRIEFING_SPOOL` and `SKILL_DIR`
 in the environment your own shell commands run in, the one the Speak section runs
 `briefing.py` from, so they hold in every later session. The scheduler's jobs get the same
-values in step 7.
+values in step 7. Producers run as the same OS user as you: the helper creates files and
+folders readable by their owner only.
 
 Write one gather script per schedule the user wants: one script can gather every source
 from step 3, or each group of sources with its own time gets its own script. Each pipes
@@ -203,7 +217,8 @@ variable set by hand, prints it.
 
 ### 7. Schedule it
 
-Put every producer on the scheduler from step 4 at its time. On cron:
+Put every producer on the scheduler from step 4 at its time, in the scheduler of the OS
+user you run as, so the jobs and you read the same files. On cron:
 
 ```crontab
 SKILL_DIR=/absolute/path/to/YUI/integrations/skills/yui-daily-briefing
@@ -254,8 +269,8 @@ An agent that already runs briefing producers checks its schedule against steps 
 5. The user has switched "Scheduled greeting" on, as in step 2.
 
 A spool's dated folders can hold `.json` and `.sent.json` files. `pending` reads only
-`.md` files, so they stay out of every briefing. Tell the user they can stay as an archive
-or be deleted.
+`.md` files, so they stay out of every briefing. A `.json` file without `.sent` in its name
+was never delivered. Tell the user they can stay as an archive or be deleted.
 
 Rewrite every entry that fails a point to the shape in step 7, then work through the Done
 when of step 7.

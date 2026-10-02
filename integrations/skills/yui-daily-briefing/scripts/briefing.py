@@ -19,14 +19,15 @@ KIND_MAX = 40
 TITLE_MAX = 200
 EXCERPT_MAX = 280
 URL_MAX = 2048
+TIME_MAX = 64
 STATUSES = ("ok", "stale", "failed", "disabled")
 LEDGER = "spoken.json"
 BRIEFING_PATH = re.compile(r"\d{4}-\d{2}-\d{2}/[^./\\][^/\\]*\.md")
 
 
 def unwritable(char):
-    # Control characters and lone surrogates break YAML and UTF-8.
-    return unicodedata.category(char) in ("Cc", "Cs")
+    # Control characters, lone surrogates, and U+FFFE/U+FFFF break YAML or UTF-8.
+    return unicodedata.category(char) in ("Cc", "Cs") or char in "￾￿"
 
 
 def one_line(value):
@@ -50,7 +51,7 @@ def source_entry(raw):
     if not entry["name"]:
         raise ValueError("source without a name")
     if raw.get("last_ok"):
-        entry["last_ok"] = one_line(raw["last_ok"])
+        entry["last_ok"] = clip(raw["last_ok"], TIME_MAX)
     if http_url(raw.get("run_url")):
         entry["run_url"] = raw["run_url"]
     return entry
@@ -63,7 +64,7 @@ def ref_entry(raw, now_iso):
         "kind": clip(raw.get("kind"), KIND_MAX) or "other",
         "title": clip(raw.get("title"), TITLE_MAX) or clip(raw["url"], TITLE_MAX),
         "url": raw["url"],
-        "at": one_line(raw.get("at") or now_iso),
+        "at": clip(raw.get("at") or now_iso, TIME_MAX),
         "excerpt": clip(raw.get("excerpt"), EXCERPT_MAX),
     }
 
@@ -148,7 +149,7 @@ def write(spool, source):
     except Exception as caught:
         briefing, error = failed(source, caught), caught
     with lock(spool):
-        spoken = load_ledger(spool, set_aside=True)
+        spoken = load_ledger(spool, set_aside=False)
         day = os.path.join(spool, date)
         existing = glob.glob(os.path.join(day, f"{source}.md")) + glob.glob(os.path.join(day, f"{source}.{'[0-9]' * 12}.md"))
         # Each source keeps at most one unspoken briefing per day; a spoken one never changes.
@@ -169,7 +170,7 @@ def pending(spool):
         relative = os.path.relpath(path, spool)
         if relative in spoken or not BRIEFING_PATH.fullmatch(relative):
             continue
-        with open(path, encoding="utf-8") as file:
+        with open(path, encoding="utf-8", errors="replace") as file:
             print(f"=== {relative} ===\n{file.read()}")
     return 0
 
@@ -197,11 +198,17 @@ def main():
     mark_parser = commands.add_parser("mark-spoken", help="record briefings as spoken")
     mark_parser.add_argument("paths", nargs="+", metavar="PATH", help="path relative to the spool, as pending prints it")
     args = parser.parse_args()
-    if not args.spool:
+    spool = args.spool
+    if not spool:
         print("set YUI_BRIEFING_SPOOL or pass --spool", file=sys.stderr)
         return 2
+    if not os.path.isabs(spool):
+        print(f"the spool path must be absolute: {spool}", file=sys.stderr)
+        return 2
+    if args.command != "write" and not os.path.isdir(spool):
+        print(f"no spool directory at {spool}", file=sys.stderr)
+        return 2
     os.umask(0o077)
-    spool = os.path.expanduser(args.spool)
     if args.command == "write":
         if not re.fullmatch(r"[A-Za-z0-9_-]{1,40}", args.source):
             write_parser.error("--source takes 1 to 40 letters, digits, '_' or '-'")

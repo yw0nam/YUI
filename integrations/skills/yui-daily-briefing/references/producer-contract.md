@@ -40,19 +40,19 @@ file states the input, the file the helper writes, the ledger, and the helper's 
 | `sources[]` | 10 entries |
 | `sources[].name` | 40 characters, not empty |
 | `sources[].status` | One of `ok`, `stale`, `failed`, `disabled` |
-| `sources[].last_ok` | Timestamp, optional |
+| `sources[].last_ok` | Timestamp, 64 characters, optional |
 | `sources[].run_url` | `http` or `https` scheme, 2048 characters, optional |
 | `refs[]` | 30 entries, newest first, one entry per distinct `url` |
 | `refs[].kind` | Producer-defined label, 40 characters; `other` when absent |
 | `refs[].title` | 200 characters; the `url` when absent |
 | `refs[].url` | `http` or `https` scheme, 2048 characters |
-| `refs[].at` | Timestamp; the moment of the run when absent |
+| `refs[].at` | Timestamp, 64 characters; the moment of the run when absent |
 | `refs[].excerpt` | 280 characters, possibly the empty string |
 
 The gather script emits `refs` newest first; the helper keeps the first 30. A ref whose
 `url` misses the `http` or `https` scheme, runs past 2048 characters, or holds a control
-character drops out. Text fields collapse to one line, control characters and lone
-surrogates become spaces, and a field over its cap ends in `…`. A source with a `run_url`
+character drops out. Text fields collapse to one line, control characters, U+FFFE,
+U+FFFF, and lone surrogates become spaces, and a field over its cap ends in `…`. A source with a `run_url`
 outside the rule keeps its other fields.
 
 ## Briefing file
@@ -89,39 +89,44 @@ sources:
 Each source has at most one unspoken briefing per day. A run replaces it, whether it is
 `<source>.md` or a stamped file. When every briefing of that source and day is spoken, the
 run writes `<source>.<HHMMSSffffff>.md` beside them, stamped with the local time of the run
-to the microsecond. A
-spoken file stays as written, with one exception: a `write` that finds the ledger
-unreadable reads every file as unspoken. Only `write` creates or replaces briefing files.
+to the microsecond. A spoken file stays as written, with one exception: a `write` that
+finds the ledger unreadable reads every file as unspoken. Only `write` creates or replaces
+briefing files.
 
 ## Ledger
 
 `<spool>/spoken.json` is a JSON object that maps each spoken file's path, relative to the
 spool (`2026-10-02/world-news.md`), to the local ISO-8601 time `mark-spoken` recorded it.
 `write` and `mark-spoken` hold an exclusive lock on `<spool>/.lock` while they read and
-write it, and the ledger is written through a temporary file and a rename. An unreadable
-ledger is renamed `spoken.json.bad` with one line on stderr and read as empty. `pending`
-reads the ledger unlocked and leaves an unreadable one in place, reading it as empty with
-one line on stderr.
+write it, and the ledger is written through a temporary file and a rename. `pending`
+reads it unlocked. `mark-spoken` renames an unreadable ledger `spoken.json.bad` with one
+line on stderr and reads it as empty. `write` and `pending` read an unreadable ledger as
+empty with one line on stderr and leave it in place.
 
-The helper creates files readable by their owner only.
+The ledger keys paths, so a run that replaces an unspoken briefing between the agent's
+`pending` and `mark-spoken` is recorded as spoken with text the agent never read; the
+contract accepts that gap.
+
+The helper creates files and folders readable by their owner only, so producers run as
+the same OS user as the agent.
 
 ## Commands
 
 | Flag | Default |
 |---|---|
-| `--spool <dir>` | `$YUI_BRIEFING_SPOOL`; required when that variable is unset or empty. It goes before the subcommand |
+| `--spool <dir>` | `$YUI_BRIEFING_SPOOL`; required when that variable is unset or empty. An absolute path; `pending` and `mark-spoken` need the directory to exist, `write` creates it. It goes before the subcommand |
 
 | Command | Does |
 |---|---|
 | `write --source <name>` | Reads the gather input on stdin and writes the briefing file. `<name>` is 1 to 40 letters, digits, `_`, or `-` |
-| `pending` | Prints every `<YYYY-MM-DD>/<file>.md` file missing from the ledger, oldest day first, then by file name, each under a line `=== <path relative to the spool> ===`. Prints nothing when every file is spoken |
+| `pending` | Prints every `<YYYY-MM-DD>/<file>.md` file missing from the ledger, oldest day first, then by file name, each under a line `=== <path relative to the spool> ===`, with bytes that are not UTF-8 shown as U+FFFD. Prints nothing when every file is spoken |
 | `mark-spoken PATH...` | Records each path in the ledger. Each path reads `<YYYY-MM-DD>/<file>.md`, exactly as `pending` prints it, and names an existing file |
 
 | Exit | Output | Meaning |
 |---|---|---|
 | 0 | none from `write` and `mark-spoken`; the briefings from `pending` | Done |
 | 1 | the reason on stderr | `write` read malformed input; the error path below applies |
-| 2 | the reason on stderr | No spool (`set YUI_BRIEFING_SPOOL or pass --spool`), a `--source` outside the rule, a `mark-spoken` path that is absolute, holds `..`, or names no briefing in the spool (nothing is recorded), or an unknown flag |
+| 2 | the reason on stderr | No spool (`set YUI_BRIEFING_SPOOL or pass --spool`), a relative spool path, a missing spool directory for `pending` or `mark-spoken`, a `--source` outside the rule, a `mark-spoken` path that is absolute, holds `..`, or names no briefing in the spool (nothing is recorded), or an unknown flag |
 
 ## Run time
 
