@@ -5,7 +5,7 @@ import { join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
-const HOOKS = resolve(fileURLToPath(new URL(".", import.meta.url)), "../../.claude/hooks");
+const HOOKS = resolve(fileURLToPath(new URL(".", import.meta.url)), "../hooks");
 
 type HookResult = { status: number | null; stdout: string; stderr: string };
 

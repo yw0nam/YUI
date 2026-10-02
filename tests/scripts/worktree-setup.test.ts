@@ -15,7 +15,6 @@ import { afterEach, describe, expect, it } from "vitest";
 
 const ROOT = resolve(fileURLToPath(new URL(".", import.meta.url)), "../..");
 const SETUP = join(ROOT, "scripts/worktree-setup.sh");
-const HOOKS = join(ROOT, ".claude/hooks");
 
 const cleanups: Array<() => void> = [];
 afterEach(() => {
@@ -63,6 +62,20 @@ describe("scripts/worktree-setup.sh", () => {
     expect(readFileSync(join(wt, ".env.local"), "utf8")).toContain("VITE_YUI_CHAT_KEY");
   });
 
+  it("links the main checkout's local .claude/ when it exists and skips it otherwise", () => {
+    const main = makeMainCheckout();
+    const bare = tmp("yui-wt-");
+    expect(spawnSync("bash", [SETUP, bare, main]).status).toBe(0);
+    expect(existsSync(join(bare, ".claude"))).toBe(false);
+
+    mkdirSync(join(main, ".claude"));
+    writeFileSync(join(main, ".claude/settings.json"), "{}");
+    const wt = tmp("yui-wt-");
+    expect(spawnSync("bash", [SETUP, wt, main]).status).toBe(0);
+    expect(lstatSync(join(wt, ".claude")).isSymbolicLink()).toBe(true);
+    expect(readFileSync(join(wt, ".claude/settings.json"), "utf8")).toBe("{}");
+  });
+
   it("is idempotent — a second run succeeds and keeps the links", () => {
     const main = makeMainCheckout();
     const wt = tmp("yui-wt-");
@@ -94,67 +107,5 @@ describe("scripts/worktree-setup.sh", () => {
     const r = spawnSync("bash", [SETUP], { encoding: "utf8" });
     expect(r.status).not.toBe(0);
     expect(r.stderr).toMatch(/usage/i);
-  });
-});
-
-describe(".claude/hooks/worktree-create.sh", () => {
-  it("creates a worktree for the requested branch and prints its path", () => {
-    const repo = tmp("yui-repo-");
-    execFileSync("git", ["-C", repo, "init", "-q", "-b", "main"]);
-    writeFileSync(join(repo, "README.md"), "x");
-    execFileSync("git", ["-C", repo, "add", "."], { env: gitEnv() });
-    execFileSync("git", ["-C", repo, "commit", "-q", "-m", "init"], { env: gitEnv() });
-
-    const r = spawnSync("bash", [join(HOOKS, "worktree-create.sh")], {
-      input: JSON.stringify({ cwd: repo, branch: "feat/hook-made" }),
-      encoding: "utf8",
-      env: { ...process.env, CLAUDE_PROJECT_DIR: repo },
-    });
-    expect(r.status).toBe(0);
-
-    const path = r.stdout.trim().split("\n").pop() ?? "";
-    cleanups.push(() => rmSync(path, { recursive: true, force: true }));
-    expect(existsSync(path)).toBe(true);
-    const branch = execFileSync("git", ["-C", path, "branch", "--show-current"], {
-      encoding: "utf8",
-    }).trim();
-    expect(branch).toBe("feat/hook-made");
-  });
-
-  it("fails (non-zero) when the project is not a git repository", () => {
-    const dir = tmp("yui-norepo-");
-    const r = spawnSync("bash", [join(HOOKS, "worktree-create.sh")], {
-      input: JSON.stringify({ cwd: dir }),
-      encoding: "utf8",
-      env: { ...process.env, CLAUDE_PROJECT_DIR: dir },
-    });
-    expect(r.status).not.toBe(0);
-  });
-});
-
-describe(".claude/settings.json wiring", () => {
-  const settings = JSON.parse(readFileSync(join(ROOT, ".claude/settings.json"), "utf8"));
-
-  it("registers the hook portfolio events", () => {
-    expect(Object.keys(settings.hooks)).toEqual(
-      expect.arrayContaining(["WorktreeCreate", "PreToolUse", "PostToolUse"]),
-    );
-  });
-
-  it("carries no Stop hook (verify-guard is retired in favor of the PR evidence gate)", () => {
-    expect(settings.hooks.Stop).toBeUndefined();
-  });
-
-  it("routes every registered hook to an existing script", () => {
-    const entries = Object.values(settings.hooks).flat() as Array<{
-      hooks: Array<{ command: string }>;
-    }>;
-    for (const entry of entries) {
-      for (const h of entry.hooks) {
-        const m = h.command.match(/\.claude\/hooks\/([a-z-]+\.sh)/);
-        expect(m, `unparseable hook command: ${h.command}`).toBeTruthy();
-        expect(existsSync(join(HOOKS, m![1]))).toBe(true);
-      }
-    }
   });
 });
