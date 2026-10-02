@@ -130,11 +130,11 @@ describe("briefing.py write", () => {
 
     const [rerun, original] = spoolFiles(spool);
     expect(original).toBe(path);
-    expect(rerun).toMatch(/^\d{4}-\d{2}-\d{2}\/news\.\d{6}\.md$/);
+    expect(rerun).toMatch(/^\d{4}-\d{2}-\d{2}\/news\.\d{12}\.md$/);
     expect(read(spool, path)).toBe(spoken);
     expect(read(spool, rerun)).toContain('summary: "second run"');
     // Later runs, in any second, replace or keep that unspoken rerun.
-    const earlier = rerun.replace(/\d{6}\.md$/, "000001.md");
+    const earlier = rerun.replace(/\d{12}\.md$/, "000001000000.md");
     renameSync(join(spool, rerun), join(spool, earlier));
     expect(write(spool, "news", "{").status).toBe(1);
     expect(write(spool, "news", { ...GATHER, summary: "third run" }).status).toBe(0);
@@ -208,6 +208,16 @@ describe("briefing.py pending and mark-spoken", () => {
     expect(run(spool, ["mark-spoken", "2026-10-01/arxiv.md", "2026-10-01/news.md"]).status).toBe(0);
     expect(run(spool, ["pending"]).stdout).toBe("");
     expect(run(join(tempDir(), "absent"), ["pending"]).stdout).toBe("");
+  });
+
+  it("exits 2 when neither --spool nor YUI_BRIEFING_SPOOL names the spool", () => {
+    const env = { ...process.env };
+    delete env.YUI_BRIEFING_SPOOL;
+    const result = spawnSync("python3", [SCRIPT, "pending"], { encoding: "utf8", env });
+    expect(result.status).toBe(2);
+    expect(result.stderr.trim().split("\n")).toEqual([
+      expect.stringContaining("set YUI_BRIEFING_SPOOL or pass --spool"),
+    ]);
   });
 
   it("records each path with a local timestamp and rejects a path outside the spool's briefings", () => {
