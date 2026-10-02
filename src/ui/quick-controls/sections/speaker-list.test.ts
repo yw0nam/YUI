@@ -80,6 +80,20 @@ describe("speaker list — paste-a-voice-id field", () => {
     expect(input.getAttribute("aria-invalid")).toBe("false");
   });
 
+  it("refuses a URL that is not a voice page, selecting nothing", () => {
+    for (const url of ["https://fish.audio/app/text-to-speech/", "https://fish.audio/"]) {
+      const { el, speakerSelection } = buildList(() => true);
+      const input = el.querySelector<HTMLInputElement>(".yui-spk-manual input")!;
+
+      input.value = url;
+      input.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true }));
+
+      expect(input.getAttribute("aria-invalid"), url).toBe("true");
+      expect(speakerSelection.listUser(), url).toEqual([]);
+      expect(speakerSelection.getActiveId(), url).toBe("natsume");
+    }
+  });
+
   it("ignores an empty field", () => {
     const { el, speakerSelection } = buildList(() => true);
     const input = el.querySelector<HTMLInputElement>(".yui-spk-manual input")!;
