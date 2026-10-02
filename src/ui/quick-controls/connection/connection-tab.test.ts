@@ -10,7 +10,11 @@ import {
   createTtsKeySettings,
 } from "../../../settings/backend/api-key-settings";
 import { createChatKeySettings } from "../../../settings/backend/chat-key-settings";
-import { createEndpointsSettings } from "../../../settings/backend/endpoints-settings";
+import {
+  createEndpointsSettings,
+  type EndpointOverrides,
+  endpointDefaultsFromConfig,
+} from "../../../settings/backend/endpoints-settings";
 import { setLocale } from "../../i18n";
 import { inMemoryApiKeyStorage } from "../test-helpers";
 import {
@@ -20,7 +24,7 @@ import {
 } from "./connection-tab";
 
 const DESKTOP_ROWS: ConnectionRows = { chat: "full", tts: "full", broker: true };
-const PHONE_ROWS: ConnectionRows = { chat: "push", tts: "url-key", broker: false };
+const PHONE_ROWS: ConnectionRows = { chat: "push", tts: "provider-url-key", broker: false };
 
 describe("createConnectionTab", () => {
   let endpointsSettings: ReturnType<typeof createEndpointsSettings>;
@@ -42,7 +46,13 @@ describe("createConnectionTab", () => {
     vi.restoreAllMocks();
   });
 
-  function build(rows: ConnectionRows, extra?: { pushSocket?: PushSocketPanelPort }) {
+  function build(
+    rows: ConnectionRows,
+    extra?: {
+      pushSocket?: PushSocketPanelPort;
+      getEndpointDefaults?: () => EndpointOverrides | undefined;
+    },
+  ) {
     return createConnectionTab({
       endpointsSettings,
       chatKeySettings,
@@ -71,7 +81,7 @@ describe("createConnectionTab", () => {
 
   // ── Phone rows (push chat, no protocol/provider/model/broker rows) ────────────────────────
 
-  it("with the phone rows, renders and binds only push URL/key/status, STT URL/model/key, TTS URL/key", () => {
+  it("with the phone rows, renders and binds only push URL/key/status, STT URL/model/key, TTS provider/URL/key", () => {
     // Constructing alone must not throw, even though fields like chat_model have no node here.
     const tab = build(PHONE_ROWS);
 
@@ -81,6 +91,7 @@ describe("createConnectionTab", () => {
     expect(tab.el.querySelector("#yui-ep-stt_base_url")).not.toBeNull();
     expect(tab.el.querySelector("#yui-ep-stt_model")).not.toBeNull();
     expect(tab.el.querySelector('[data-key-prefix="sttkey"]')).not.toBeNull();
+    expect(tab.el.querySelector("#yui-svc-tts-provider")).not.toBeNull();
     expect(tab.el.querySelector("#yui-ep-tts_base_url")).not.toBeNull();
     expect(tab.el.querySelector('[data-key-prefix="ttskey"]')).not.toBeNull();
 
@@ -88,9 +99,9 @@ describe("createConnectionTab", () => {
     expect(tab.el.querySelector(".yui-chat-preset")).toBeNull();
     expect(tab.el.querySelector('[data-ep-field="chat_model"]')).toBeNull();
     expect(tab.el.querySelector('[data-svc="broker"]')).toBeNull();
-    // The disabled type rows are desktop-only.
+    expect(tab.el.querySelector('[data-ep-field="tts_model"]')).toBeNull();
+    // The disabled type row is desktop-only.
     expect(tab.el.querySelector("#yui-svc-stt-type")).toBeNull();
-    expect(tab.el.querySelector("#yui-svc-tts-type")).toBeNull();
 
     // A rendered field binds; the old all-fields reflection would have thrown on the missing ones.
     const url = tab.el.querySelector<HTMLInputElement>("#yui-ep-chat_base_url")!;
@@ -110,6 +121,74 @@ describe("createConnectionTab", () => {
     const status = tab.el.querySelector<HTMLElement>(".yui-chat-status")!;
     expect(status.hidden).toBe(false);
     expect(status.textContent).toContain("yui-7731");
+
+    tab.dispose();
+  });
+
+  // ── TTS provider ──────────────────────────────────────────────────────────────────────────
+
+  it("offers Irodori and OpenAI as TTS providers, never Fish, above a model field (desktop rows)", () => {
+    const tab = build(DESKTOP_ROWS);
+
+    const select = tab.el.querySelector<HTMLSelectElement>("#yui-svc-tts-provider")!;
+    expect(select.disabled).toBe(false);
+    expect([...select.options].map((o) => o.value)).toEqual(["irodori", "openai"]);
+    expect(tab.el.querySelector("#yui-ep-tts_model")).not.toBeNull();
+
+    tab.dispose();
+  });
+
+  it("selecting OpenAI writes the provider, its URL and default model in one store write", () => {
+    const tab = build(DESKTOP_ROWS);
+    const writes = vi.fn();
+    endpointsSettings.subscribe(writes);
+
+    const select = tab.el.querySelector<HTMLSelectElement>("#yui-svc-tts-provider")!;
+    select.value = "openai";
+    select.dispatchEvent(new Event("change", { bubbles: true }));
+
+    expect(writes).toHaveBeenCalledOnce();
+    expect(endpointsSettings.get()).toMatchObject({
+      tts_provider: "openai",
+      tts_base_url: "https://api.openai.com",
+      tts_model: "gpt-4o-mini-tts",
+    });
+    expect(tab.el.querySelector<HTMLInputElement>("#yui-ep-tts_base_url")!.value).toBe(
+      "https://api.openai.com",
+    );
+    expect(tab.el.querySelector<HTMLInputElement>("#yui-ep-tts_model")!.value).toBe(
+      "gpt-4o-mini-tts",
+    );
+
+    tab.dispose();
+  });
+
+  it("selecting a provider on the phone also sets the model it shows no field for", () => {
+    const tab = build(PHONE_ROWS);
+
+    const select = tab.el.querySelector<HTMLSelectElement>("#yui-svc-tts-provider")!;
+    select.value = "openai";
+    select.dispatchEvent(new Event("change", { bubbles: true }));
+
+    expect(endpointsSettings.get().tts_model).toBe("gpt-4o-mini-tts");
+
+    tab.dispose();
+  });
+
+  it("the provider select shows the override, else the bundled default", () => {
+    const defaults = endpointDefaultsFromConfig({
+      chat_base_url: "",
+      stt_base_url: "",
+      tts_base_url: "",
+      tts_provider: "openai",
+    });
+    const tab = build(DESKTOP_ROWS, { getEndpointDefaults: () => defaults });
+    tab.refresh();
+    const select = tab.el.querySelector<HTMLSelectElement>("#yui-svc-tts-provider")!;
+    expect(select.value).toBe("openai");
+
+    endpointsSettings.set({ tts_provider: "irodori" });
+    expect(select.value).toBe("irodori");
 
     tab.dispose();
   });
@@ -151,7 +230,7 @@ describe("createConnectionTab", () => {
 
   describe("focusStt", () => {
     it("scrolls the STT section into view and focuses its URL field", () => {
-      const tab = build({ chat: "push", tts: "url-key", broker: false });
+      const tab = build(PHONE_ROWS);
       document.body.append(tab.el);
       const scroll = vi.fn();
       const section = tab.el.querySelector<HTMLElement>('[data-svc="stt"]')!;
@@ -167,7 +246,7 @@ describe("createConnectionTab", () => {
     });
 
     it("still focuses where the webview has no scrollIntoView", () => {
-      const tab = build({ chat: "push", tts: "url-key", broker: false });
+      const tab = build(PHONE_ROWS);
       document.body.append(tab.el);
 
       tab.focusStt();

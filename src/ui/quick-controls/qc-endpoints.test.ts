@@ -137,13 +137,11 @@ describe("createQuickControls — endpoints + API keys", () => {
     for (const s of sections) {
       expect(s.querySelector(".yui-select")).not.toBeNull();
     }
-    // Chat is the only interactive dropdown (chat_api); STT/TTS/broker are inert (--single).
-    expect(sections[0].querySelector(".yui-select")!.classList.contains("yui-select--single")).toBe(
-      false,
+    // Chat (chat_api) and TTS (tts_provider) lead with live dropdowns; STT/broker are inert (--single).
+    const single = sections.map((s) =>
+      s.querySelector(".yui-select")!.classList.contains("yui-select--single"),
     );
-    for (const s of sections.slice(1)) {
-      expect(s.querySelector(".yui-select")!.classList.contains("yui-select--single")).toBe(true);
-    }
+    expect(single).toEqual([false, true, false, true]);
 
     // each section carries its own URL field(s) inside it.
     const fieldIn = (svc: string, key: string): boolean =>
@@ -152,6 +150,7 @@ describe("createQuickControls — endpoints + API keys", () => {
     expect(fieldIn("chat", "chat_model")).toBe(true);
     expect(fieldIn("stt", "stt_base_url")).toBe(true);
     expect(fieldIn("tts", "tts_base_url")).toBe(true);
+    expect(fieldIn("tts", "tts_model")).toBe(true);
     expect(fieldIn("broker", "broker_base_url")).toBe(true);
 
     qc.dispose();
@@ -268,16 +267,18 @@ describe("createQuickControls — endpoints + API keys", () => {
     qc.dispose();
   });
 
-  it("the tts reset clears tts_base_url + the tts key", () => {
+  it("the tts reset clears tts_base_url + tts_model + tts_provider + the tts key", () => {
     const ttsKeySettings = createTtsKeySettings({ storage: inMemoryApiKeyStorage() });
     ttsKeySettings.setApiKey("sk-tts-1");
     const qc = buildQc({ ttsKeySettings });
     qc.open();
 
-    endpointsSettings.set({ tts_base_url: "http://t" });
+    endpointsSettings.set({ tts_base_url: "http://t", tts_model: "m", tts_provider: "openai" });
 
     qc.el.querySelector<HTMLButtonElement>('.yui-svc-reset[data-svc-reset="tts"]')!.click();
     expect(endpointsSettings.get().tts_base_url).toBe("");
+    expect(endpointsSettings.get().tts_model).toBe("");
+    expect(endpointsSettings.get().tts_provider).toBe("");
     expect(ttsKeySettings.get().apiKey).toBe("");
 
     qc.dispose();
@@ -676,9 +677,9 @@ describe("createQuickControls — endpoints + API keys", () => {
     qc.dispose();
   });
 
-  // ── TTS section: one flat OpenAI-compatible path ───────────────────────────
+  // ── TTS section: one provider select over shared fields ───────────────────
 
-  it("carries no engine dropdown and no irodori/openai sub-views", () => {
+  it("carries no per-provider sub-views", () => {
     const qc = buildQc();
     qc.open();
 
