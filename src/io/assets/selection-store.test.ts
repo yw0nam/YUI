@@ -231,6 +231,25 @@ describe("createSelectionStore", () => {
     expect(store.getActiveId()).toBe("mine");
   });
 
+  it("refuses a user option whose id another owner's user option holds", () => {
+    const store = createSelectionStore<TestOption>({
+      defaultValue: "",
+      synthesize,
+      coerceUser,
+      isDefault,
+      ownerKey: "owner",
+      owner: "x",
+    });
+    store.addUserOption({ id: "mine", url: "asset://mine.res" });
+    store.setOwner("y");
+
+    store.addUserOption({ id: "mine", url: "asset://other.res" });
+
+    expect(store.listUser()).toEqual([
+      { id: "mine", url: "asset://mine.res", source: "user", owner: "x" },
+    ]);
+  });
+
   // A user option wiped from memory by a setManifest bundled-id collision is not lost: the
   // persisted record survives (setManifest never writes userStorage), so once a later manifest
   // no longer collides, reloadFromStorage's mergeUserOptions picks it back up unassisted.

@@ -5,13 +5,17 @@
  * doesn't carry it.
  */
 
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { createSpeakerSelection } from "../../../io/voice/voices/speaker-selection";
+import { setLocale } from "../../i18n";
 import { createSpeakerList, speakerPickerHtml } from "./speaker-list";
 
 const noopLog = { debug: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn() };
 
-function buildList(canPasteVoiceId: () => boolean) {
+function buildList(
+  canPasteVoiceId: () => boolean,
+  overrides: Partial<Parameters<typeof createSpeakerList>[0]> = {},
+) {
   const el = document.createElement("div");
   el.innerHTML = speakerPickerHtml();
   const speakerSelection = createSpeakerSelection({
@@ -32,6 +36,7 @@ function buildList(canPasteVoiceId: () => boolean) {
     log: noopLog,
     refreshTooltip: () => {},
     isDisposed: () => false,
+    ...overrides,
   });
   list.render();
   return { el, speakerSelection, list };
@@ -103,5 +108,57 @@ describe("speaker list — paste-a-voice-id field", () => {
 
     expect(speakerSelection.listUser().filter((o) => o.id === "lib-voice")).toHaveLength(1);
     expect(speakerSelection.getActiveId()).toBe("lib-voice");
+  });
+});
+
+describe("speaker list — ids another provider's voice holds", () => {
+  beforeEach(() => setLocale("en"));
+
+  it("refuses pasting an id another provider's voice holds, leaving that voice intact", () => {
+    const { el, speakerSelection } = buildList(() => true);
+    const natsume = {
+      id: "natsume",
+      label: "Natsume",
+      ref_url: "asset://x/natsume.wav",
+      source: "user" as const,
+      provider: "irodori" as const,
+    };
+    speakerSelection.addUserOption(natsume);
+    speakerSelection.setOwner("fish");
+    const input = el.querySelector<HTMLInputElement>(".yui-spk-manual input")!;
+
+    input.value = "natsume";
+    input.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true }));
+
+    expect(input.getAttribute("aria-invalid")).toBe("true");
+    expect(el.querySelector(".yui-spk-manual__error")!.textContent).toBe(
+      "Another provider's voice already uses this id",
+    );
+    expect(speakerSelection.listUser()).toEqual([natsume]);
+    expect(speakerSelection.getActiveId()).not.toBe("natsume");
+  });
+
+  it("an import naming row refuses a name whose id another provider's voice holds", async () => {
+    const commitVoiceImport = vi.fn(async () => {});
+    const { el, speakerSelection, list } = buildList(() => false, {
+      pickVoiceImport: vi.fn(async () => ({ srcPath: "/tmp/natsume.wav", seedName: "natsume" })),
+      commitVoiceImport,
+    });
+    speakerSelection.addUserOption({
+      id: "natsume",
+      ref_url: "",
+      source: "user",
+      provider: "fish",
+    });
+    document.body.append(el);
+
+    list.handleAddClick();
+    await vi.waitFor(() => expect(el.querySelector(".yui-spk .yui-ep-input")).not.toBeNull());
+    const input = el.querySelector<HTMLInputElement>(".yui-spk .yui-ep-input")!;
+
+    expect(el.textContent).toContain("another provider's voice uses this name");
+    input.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true }));
+    expect(commitVoiceImport).not.toHaveBeenCalled();
+    el.remove();
   });
 });
