@@ -22,10 +22,6 @@ YUI/
   phone.html                         # Phone-window Vite entry, the Android window
   vite.config.ts                     # Dev port YUI_DEV_PORT|1420, strictPort, host 127.0.0.1
   biome.json                         # Format and lint config (curated rule set)
-  .claude/
-    hooks/                           # Workflow guards: worktree create, pre-tool bash/read/write, post-edit doc check
-    skills/                          # Vendored skills (karpathy-guidelines, yui-dev-workflow)
-    agents/                          # Vendored sub-agent definitions
   scripts/                           # Dev launchers (dev-port.mjs, tauri-dev.mjs for tauri:dev and android:dev, dev-auto.mjs) and their shared package-manager.mjs helper, release.sh, worktree-setup.sh, ci/test-guard.sh
   configs/                           # Runtime-loaded config (no hardcoding)
     endpoints.json                   # chat/stt/tts/broker base urls + chat_instructions, chat_api, chat_model_context_window + stt_model/tts_model/tts_speaker/tts_max_inflight; the shipped configs/endpoints.json omits the url and speaker keys, and the settings panel overrides per device

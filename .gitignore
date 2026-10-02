@@ -34,8 +34,8 @@ resources/vrma/
 .env
 .env.local
 
-# verify-guard runtime counter (machine-local)
-.claude/.verify-attempts
+# Local-only Claude Code setup: a directory in the main checkout, a symlink in worktrees
+/.claude
 
 # Playwright MCP run artifacts
 .playwright-mcp/

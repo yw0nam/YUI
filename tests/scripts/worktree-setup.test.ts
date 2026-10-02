@@ -1,4 +1,4 @@
-import { execFileSync, spawnSync } from "node:child_process";
+import { spawnSync } from "node:child_process";
 import {
   existsSync,
   lstatSync,
@@ -25,16 +25,6 @@ function tmp(prefix: string): string {
   const dir = mkdtempSync(join(tmpdir(), prefix));
   cleanups.push(() => rmSync(dir, { recursive: true, force: true }));
   return dir;
-}
-
-function gitEnv() {
-  return {
-    ...process.env,
-    GIT_AUTHOR_NAME: "t",
-    GIT_AUTHOR_EMAIL: "t@t",
-    GIT_COMMITTER_NAME: "t",
-    GIT_COMMITTER_EMAIL: "t@t",
-  };
 }
 
 /** Main-checkout fixture carrying the gitignored runtime assets. */
