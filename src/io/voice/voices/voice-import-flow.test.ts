@@ -4,7 +4,7 @@ const { listVoices, upsertVoice } = vi.hoisted(() => ({
   listVoices: vi.fn().mockResolvedValue([]),
   upsertVoice: vi.fn().mockResolvedValue(undefined),
 }));
-vi.mock("./tts-voices", () => ({ listVoices, upsertVoice }));
+vi.mock("./tts-voices", () => ({ listVoices, upsertVoice, deleteVoice: vi.fn() }));
 
 const { selectFetch } = vi.hoisted(() => ({ selectFetch: vi.fn().mockResolvedValue(undefined) }));
 vi.mock("../../chat/chat-client", () => ({ selectFetch }));
@@ -32,6 +32,7 @@ vi.mock("./voice-import", () => ({
   },
 }));
 
+import type { TtsProviderName } from "../../../contract";
 import { createSpeakerSelection, type SpeakerOption } from "./speaker-selection";
 import { createVoiceImportFlow } from "./voice-import-flow";
 
@@ -49,10 +50,10 @@ function fakeStore() {
 }
 
 // Explicit arg, no default — build(undefined) must mean "no base url", not "fall back to one".
-function build(baseUrl: string | undefined) {
+function build(baseUrl: string | undefined, provider?: TtsProviderName) {
   const speakerSelection = fakeStore();
   const flow = createVoiceImportFlow({
-    getTtsBaseUrl: () => baseUrl,
+    getEndpoints: () => ({ tts_base_url: baseUrl, tts_provider: provider }),
     speakerSelection,
     log: noopLog,
   });
@@ -110,7 +111,7 @@ describe("createVoiceImportFlow", () => {
     it("hands upsertVoice the TTS key resolver so a gated server still accepts the upload", async () => {
       const getApiKey = vi.fn().mockResolvedValue("sk-tts");
       const { commitVoiceImport } = createVoiceImportFlow({
-        getTtsBaseUrl: () => "http://localhost:8091",
+        getEndpoints: () => ({ tts_base_url: "http://localhost:8091" }),
         getApiKey,
         speakerSelection: fakeStore(),
         log: noopLog,
@@ -177,6 +178,16 @@ describe("createVoiceImportFlow", () => {
       expect(speakerSelection.addUserOption).not.toHaveBeenCalled();
     });
 
+    it("refuses an import under a provider that takes no uploaded voices, and cleans up", async () => {
+      const { commitVoiceImport, speakerSelection } = build("https://api.openai.com", "openai");
+
+      await expect(commitVoiceImport("/tmp/MyVoice.wav", "My Voice")).rejects.toThrow("openai");
+
+      expect(upsertVoice).not.toHaveBeenCalled();
+      expect(removeUserVoice).toHaveBeenCalledWith("myvoice");
+      expect(speakerSelection.addUserOption).not.toHaveBeenCalled();
+    });
+
     // fakeStore() above doesn't exercise createSelectionStore's own notify logic, so it can't
     // catch a regression there — this uses the real store to pin the #506 scenario: re-importing
     // the voice that is already the active selection.
@@ -185,7 +196,7 @@ describe("createVoiceImportFlow", () => {
       speakerSelection.addUserOption(IMPORTED);
       speakerSelection.select(IMPORTED.id);
       const { commitVoiceImport } = createVoiceImportFlow({
-        getTtsBaseUrl: () => "http://localhost:8091",
+        getEndpoints: () => ({ tts_base_url: "http://localhost:8091" }),
         speakerSelection,
         log: noopLog,
       });

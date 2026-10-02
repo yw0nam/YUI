@@ -5,7 +5,7 @@ const { listVoices, selectFetch } = vi.hoisted(() => ({
   listVoices: vi.fn<(o: unknown) => Promise<string[] | null>>().mockResolvedValue([]),
   selectFetch: vi.fn().mockResolvedValue(undefined),
 }));
-vi.mock("./tts-voices", () => ({ listVoices }));
+vi.mock("./tts-voices", () => ({ listVoices, upsertVoice: vi.fn(), deleteVoice: vi.fn() }));
 vi.mock("../../chat/chat-client", () => ({ selectFetch }));
 
 import { createVoiceListRefresh, wireVoiceListAutoRefresh } from "./voice-list-refresh";
@@ -159,6 +159,42 @@ describe("createVoiceListRefresh", () => {
   });
 });
 
+describe("createVoiceListRefresh — openai", () => {
+  it("lists the built-in voices without a request and re-uploads no local clip", async () => {
+    listVoices.mockClear();
+    const reuploadUserVoice = vi.fn();
+    const store = fakeStore([
+      { id: "myvoice", label: "My Voice", ref_url: "asset://x/clip.mp3", source: "user" },
+    ]);
+    const refresh = createVoiceListRefresh({
+      getEndpoints: () => ({ tts_base_url: "https://api.openai.com", tts_provider: "openai" }),
+      speakerSelection: store,
+      reuploadUserVoice,
+      log: noopLog,
+    });
+
+    await refresh();
+
+    expect(listVoices).not.toHaveBeenCalled();
+    expect(store._manifest().available.map((o: SpeakerOption) => o.id)).toEqual([
+      "alloy",
+      "ash",
+      "ballad",
+      "coral",
+      "echo",
+      "fable",
+      "nova",
+      "onyx",
+      "sage",
+      "shimmer",
+      "verse",
+      "marin",
+      "cedar",
+    ]);
+    expect(reuploadUserVoice).not.toHaveBeenCalled();
+  });
+});
+
 describe("createVoiceListRefresh — re-uploading user voices the server lost", () => {
   beforeEach(() => {
     listVoices.mockReset().mockResolvedValue([]);
@@ -271,7 +307,11 @@ describe("createVoiceListRefresh — re-uploading user voices the server lost", 
 });
 
 describe("wireVoiceListAutoRefresh — endpoints override edits refetch the voice list", () => {
-  function fakeSettings(initial: { tts_base_url?: string; tts_speaker?: string }) {
+  function fakeSettings(initial: {
+    tts_base_url?: string;
+    tts_speaker?: string;
+    tts_provider?: "irodori" | "openai";
+  }) {
     let value = initial;
     const subs = new Set<() => void>();
     return {
@@ -313,6 +353,21 @@ describe("wireVoiceListAutoRefresh — endpoints override edits refetch the voic
     settings.set({ tts_base_url: "http://a", tts_speaker: "y" });
 
     expect(refresh).toHaveBeenCalledOnce();
+  });
+
+  it("refreshes on each provider switch while the URL stays the same", () => {
+    const settings = fakeSettings({ tts_base_url: "http://a", tts_provider: "irodori" });
+    const refresh = vi.fn().mockResolvedValue(undefined);
+    wireVoiceListAutoRefresh({
+      subscribe: settings.subscribe,
+      getEndpoints: settings.get,
+      refresh,
+    });
+
+    settings.set({ tts_base_url: "http://a", tts_provider: "openai" });
+    settings.set({ tts_base_url: "http://a", tts_provider: "irodori" });
+
+    expect(refresh).toHaveBeenCalledTimes(2);
   });
 
   it("ignores a commit that leaves the TTS fields unchanged", () => {

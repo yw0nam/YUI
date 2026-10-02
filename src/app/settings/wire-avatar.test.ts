@@ -44,6 +44,7 @@ vi.mock("../../io/assets/user-asset-import", async (importOriginal) => ({
 }));
 
 import type { EndpointsConfig } from "../../contract";
+import { createTtsProvider } from "../../io/voice/tts/tts-synth";
 import { createVoiceListRefresh } from "../../io/voice/voices/voice-list-refresh";
 import type { EndpointOverrides } from "../../settings/backend/endpoints-settings";
 import { createEffectiveEndpoints, wireSpeakerSelection } from "./wire-avatar";
@@ -718,6 +719,60 @@ describe("wireSpeakerSelection — swapSpeaker / refreshSpeaker", () => {
     await expect(removeVoice("myvoice")).rejects.toThrow("server down");
 
     expect(removeUserVoiceMock).not.toHaveBeenCalled();
+    speakerSelection.dispose();
+  });
+});
+
+describe("wireSpeakerSelection — openai", () => {
+  const OPENAI: EndpointsConfig = {
+    chat_base_url: "",
+    stt_base_url: "",
+    tts_base_url: "https://api.openai.com",
+    tts_provider: "openai",
+    tts_model: "gpt-4o-mini-tts",
+  };
+
+  beforeEach(() => {
+    deleteVoice.mockReset().mockResolvedValue(undefined);
+    listVoices.mockReset().mockResolvedValue([]);
+    upsertVoice.mockReset().mockResolvedValue(undefined);
+  });
+
+  it("lists the built-in voices and makes synthesis ready without a voices request", async () => {
+    const { refreshVoiceList, speakerSelection } = wireSpeakerSelection({
+      getEndpoints: () => OPENAI,
+      log: noopLog,
+      broadcastSettings: () => {},
+    });
+
+    await refreshVoiceList();
+
+    expect(listVoices).not.toHaveBeenCalled();
+    expect(speakerSelection.list()).toHaveLength(13);
+    const provider = createTtsProvider({
+      getEndpoints: () => OPENAI,
+      getActiveSpeaker: () => speakerSelection.getActive(),
+      selectFetch: async () => undefined,
+    });
+    expect(provider.isReady()).toBe(true);
+    speakerSelection.dispose();
+  });
+
+  it("turns voice import, delete and re-upload off", async () => {
+    let eps: EndpointsConfig = { ...OPENAI, tts_provider: "irodori" };
+    const { canManageVoices, removeVoice, refreshSpeaker, speakerSelection } =
+      wireSpeakerSelection({ getEndpoints: () => eps, log: noopLog, broadcastSettings: () => {} });
+    expect(canManageVoices()).toBe(true);
+
+    eps = OPENAI;
+
+    expect(canManageVoices()).toBe(false);
+    await expect(removeVoice("alloy")).rejects.toThrow("openai");
+    await expect(
+      refreshSpeaker({ id: "myvoice", ref_url: "asset://x/clip.wav", source: "user" }),
+    ).rejects.toThrow("openai");
+    expect(deleteVoice).not.toHaveBeenCalled();
+    expect(upsertVoice).not.toHaveBeenCalled();
     speakerSelection.dispose();
   });
 });
