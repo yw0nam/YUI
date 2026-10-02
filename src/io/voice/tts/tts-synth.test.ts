@@ -1,11 +1,13 @@
 /**
  * tts-synth.test.ts — the single TTS path: per-sentence HTTP call + the provider adapter.
  *
- * createTtsSynth({ baseUrl, fetch?, model?, voice?, getApiKey? }) → (input, signal?) => ArrayBuffer.
- * POST {tts_base_url}/v1/audio/speech, body { input, response_format:"wav", ...model/voice }.
+ * createTtsSynth({ provider, baseUrl, fetch?, model?, voice?, getApiKey? }) → (input, signal?, opts?) => ArrayBuffer.
+ * POST {tts_base_url}/v1/audio/speech, body { input, response_format:"wav", ...model/voice, ...direction }.
+ * The provider decides how emotion_text and caption ride: Irodori prefixes the emoji onto `input`
+ * and sends `irodori.caption`; OpenAI joins both into `instructions`.
  * On non-2xx, throws an Error including status + (when JSON) error.message. On success, response.arrayBuffer().
  *
- * createTtsProvider binds that call to the live endpoints + the active speaker id.
+ * createTtsProvider binds that call to the live endpoints' provider + the active speaker id.
  */
 
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -29,6 +31,7 @@ describe("createTtsSynth", () => {
     const buf = new ArrayBuffer(8);
     const fetchMock = vi.fn<FetchFn>(async () => okResponse(buf));
     const synth = createTtsSynth({
+      provider: "irodori",
       baseUrl: BASE_URL,
       fetch: fetchMock as unknown as typeof fetch,
     });
@@ -47,6 +50,7 @@ describe("createTtsSynth", () => {
   it("includes model/voice when configured, omits them otherwise", async () => {
     const fetchMock = vi.fn<FetchFn>(async () => okResponse(new ArrayBuffer(4)));
     const synth = createTtsSynth({
+      provider: "irodori",
       baseUrl: BASE_URL,
       fetch: fetchMock as unknown as typeof fetch,
       model: "irodori-tts",
@@ -61,6 +65,7 @@ describe("createTtsSynth", () => {
   it("omits model/voice keys entirely when not configured", async () => {
     const fetchMock = vi.fn<FetchFn>(async () => okResponse(new ArrayBuffer(4)));
     const synth = createTtsSynth({
+      provider: "irodori",
       baseUrl: BASE_URL,
       fetch: fetchMock as unknown as typeof fetch,
     });
@@ -73,6 +78,7 @@ describe("createTtsSynth", () => {
   it("adds irodori.caption to the body when a caption is passed per call", async () => {
     const fetchMock = vi.fn<FetchFn>(async () => okResponse(new ArrayBuffer(4)));
     const synth = createTtsSynth({
+      provider: "irodori",
       baseUrl: BASE_URL,
       fetch: fetchMock as unknown as typeof fetch,
     });
@@ -84,6 +90,7 @@ describe("createTtsSynth", () => {
   it("omits the irodori key entirely when no caption is passed", async () => {
     const fetchMock = vi.fn<FetchFn>(async () => okResponse(new ArrayBuffer(4)));
     const synth = createTtsSynth({
+      provider: "irodori",
       baseUrl: BASE_URL,
       fetch: fetchMock as unknown as typeof fetch,
     });
@@ -94,10 +101,23 @@ describe("createTtsSynth", () => {
     }
   });
 
+  it("prefixes the emotion_text tag onto the Irodori input", async () => {
+    const fetchMock = vi.fn<FetchFn>(async () => okResponse(new ArrayBuffer(4)));
+    const synth = createTtsSynth({
+      provider: "irodori",
+      baseUrl: BASE_URL,
+      fetch: fetchMock as unknown as typeof fetch,
+    });
+    await synth("やったー！", undefined, { emotion_text: "😆😆" });
+    const body = JSON.parse(fetchMock.mock.calls[0][1].body as string);
+    expect(body.input).toBe("😆😆 やったー！");
+  });
+
   // The emoji voice tag rides inline in the spoken text — nothing may strip or relocate it.
   it("passes an emoji-prefixed input through to `input` untouched", async () => {
     const fetchMock = vi.fn<FetchFn>(async () => okResponse(new ArrayBuffer(4)));
     const synth = createTtsSynth({
+      provider: "irodori",
       baseUrl: BASE_URL,
       fetch: fetchMock as unknown as typeof fetch,
     });
@@ -116,6 +136,7 @@ describe("createTtsSynth", () => {
         }) as unknown as Response,
     );
     const synth = createTtsSynth({
+      provider: "irodori",
       baseUrl: BASE_URL,
       fetch: fetchMock as unknown as typeof fetch,
     });
@@ -136,6 +157,7 @@ describe("createTtsSynth", () => {
         }) as unknown as Response,
     );
     const synth = createTtsSynth({
+      provider: "irodori",
       baseUrl: BASE_URL,
       fetch: fetchMock as unknown as typeof fetch,
     });
@@ -153,6 +175,7 @@ describe("createTtsSynth", () => {
         }),
     );
     const synth = createTtsSynth({
+      provider: "irodori",
       baseUrl: BASE_URL,
       fetch: fetchMock as unknown as typeof fetch,
     });
@@ -180,6 +203,7 @@ describe("createTtsSynth", () => {
           }),
       );
       const synth = createTtsSynth({
+        provider: "irodori",
         baseUrl: BASE_URL,
         fetch: fetchMock as unknown as typeof fetch,
       });
@@ -194,6 +218,7 @@ describe("createTtsSynth", () => {
       vi.useFakeTimers();
       const fetchMock = vi.fn<FetchFn>(async () => okResponse(new ArrayBuffer(4)));
       const synth = createTtsSynth({
+        provider: "irodori",
         baseUrl: BASE_URL,
         fetch: fetchMock as unknown as typeof fetch,
       });
@@ -214,6 +239,7 @@ describe("createTtsSynth", () => {
           }),
       );
       const synth = createTtsSynth({
+        provider: "irodori",
         baseUrl: BASE_URL,
         fetch: fetchMock as unknown as typeof fetch,
       });
@@ -237,6 +263,7 @@ describe("createTtsSynth", () => {
           }),
       );
       const synth = createTtsSynth({
+        provider: "irodori",
         baseUrl: BASE_URL,
         fetch: fetchMock as unknown as typeof fetch,
       });
@@ -262,6 +289,7 @@ describe("createTtsSynth", () => {
         } as unknown as Response;
       });
       const synth = createTtsSynth({
+        provider: "irodori",
         baseUrl: BASE_URL,
         fetch: fetchMock as unknown as typeof fetch,
       });
@@ -286,6 +314,7 @@ describe("createTtsSynth", () => {
         } as unknown as Response;
       });
       const synth = createTtsSynth({
+        provider: "irodori",
         baseUrl: BASE_URL,
         fetch: fetchMock as unknown as typeof fetch,
       });
@@ -310,6 +339,7 @@ describe("createTtsSynth", () => {
         } as unknown as Response;
       });
       const synth = createTtsSynth({
+        provider: "irodori",
         baseUrl: BASE_URL,
         fetch: fetchMock as unknown as typeof fetch,
       });
@@ -334,6 +364,7 @@ describe("createTtsSynth", () => {
         } as unknown as Response;
       });
       const synth = createTtsSynth({
+        provider: "irodori",
         baseUrl: BASE_URL,
         fetch: fetchMock as unknown as typeof fetch,
       });
@@ -348,6 +379,7 @@ describe("createTtsSynth", () => {
   it("adds Authorization: Bearer when getApiKey resolves a key, keeping Content-Type", async () => {
     const fetchMock = vi.fn<FetchFn>(async () => okResponse(new ArrayBuffer(2)));
     const synth = createTtsSynth({
+      provider: "irodori",
       baseUrl: BASE_URL,
       fetch: fetchMock as unknown as typeof fetch,
       getApiKey: async () => "sk-tts",
@@ -362,6 +394,7 @@ describe("createTtsSynth", () => {
     const fetchMock = vi.fn<FetchFn>(async () => okResponse(new ArrayBuffer(2)));
     for (const getApiKey of [undefined, async () => "", async () => "   "]) {
       const synth = createTtsSynth({
+        provider: "irodori",
         baseUrl: BASE_URL,
         fetch: fetchMock as unknown as typeof fetch,
         getApiKey,
@@ -371,6 +404,57 @@ describe("createTtsSynth", () => {
     for (const call of fetchMock.mock.calls) {
       expect("Authorization" in (call[1].headers as object)).toBe(false);
     }
+  });
+});
+
+describe("createTtsSynth — openai", () => {
+  const openaiSynth = (fetchMock: ReturnType<typeof vi.fn<FetchFn>>) =>
+    createTtsSynth({
+      provider: "openai",
+      baseUrl: "https://api.openai.com",
+      fetch: fetchMock as unknown as typeof fetch,
+      model: "gpt-4o-mini-tts",
+      voice: "coral",
+      getApiKey: async () => "sk-openai",
+    });
+
+  it("sends the plain input with emotion_text and caption joined into instructions", async () => {
+    const fetchMock = vi.fn<FetchFn>(async () => okResponse(new ArrayBuffer(4)));
+    await openaiSynth(fetchMock)("やったー！", undefined, {
+      emotion_text: "😆😆",
+      caption: "明るく弾んだ声で。",
+    });
+    const [url, init] = fetchMock.mock.calls[0];
+    expect(url).toBe("https://api.openai.com/v1/audio/speech");
+    expect(JSON.parse(init.body as string)).toEqual({
+      input: "やったー！",
+      response_format: "wav",
+      model: "gpt-4o-mini-tts",
+      voice: "coral",
+      instructions: "😆😆 明るく弾んだ声で。",
+    });
+    expect((init.headers as Record<string, string>).Authorization).toBe("Bearer sk-openai");
+  });
+
+  it("sends whichever direction is present on its own", async () => {
+    const fetchMock = vi.fn<FetchFn>(async () => okResponse(new ArrayBuffer(4)));
+    const synth = openaiSynth(fetchMock);
+    await synth("a", undefined, { emotion_text: "👂" });
+    await synth("b", undefined, { caption: "落ち着いた低めの声で。" });
+    const bodies = fetchMock.mock.calls.map((c) => JSON.parse(c[1].body as string));
+    expect(bodies.map((b) => b.instructions)).toEqual(["👂", "落ち着いた低めの声で。"]);
+  });
+
+  it("omits instructions when the sentence carries no direction", async () => {
+    const fetchMock = vi.fn<FetchFn>(async () => okResponse(new ArrayBuffer(4)));
+    await openaiSynth(fetchMock)("plain");
+    const body = JSON.parse(fetchMock.mock.calls[0][1].body as string);
+    expect(body).toEqual({
+      input: "plain",
+      response_format: "wav",
+      model: "gpt-4o-mini-tts",
+      voice: "coral",
+    });
   });
 });
 
@@ -396,7 +480,16 @@ describe("createTtsProvider", () => {
     expect(build(endpoints(), "ナツメ").isReady()).toBe(true);
   });
 
-  it("paramsKey joins tts_base_url, tts_model and the active speaker id", () => {
+  it("isReady stays false for a provider with no synth", () => {
+    const provider = createTtsProvider({
+      getEndpoints: () => endpoints({ tts_provider: "fish" }),
+      getActiveSpeaker: () => ({ id: "ナツメ", ref_url: "" }),
+      selectFetch: async () => undefined,
+    });
+    expect(provider.isReady()).toBe(false);
+  });
+
+  it("paramsKey joins the provider, tts_base_url, tts_model and the active speaker id", () => {
     let eps = endpoints();
     let speakerId = "ナツメ";
     const provider = createTtsProvider({
@@ -405,13 +498,35 @@ describe("createTtsProvider", () => {
       selectFetch: async () => undefined,
     });
 
-    expect(provider.paramsKey()).toBe("http://localhost:8092::irodori-tts::ナツメ");
+    expect(provider.paramsKey()).toBe("irodori::http://localhost:8092::irodori-tts::ナツメ");
 
     speakerId = "ムラサメ";
-    expect(provider.paramsKey()).toBe("http://localhost:8092::irodori-tts::ムラサメ");
+    expect(provider.paramsKey()).toBe("irodori::http://localhost:8092::irodori-tts::ムラサメ");
 
     eps = endpoints({ tts_model: "other" });
-    expect(provider.paramsKey()).toBe("http://localhost:8092::other::ムラサメ");
+    expect(provider.paramsKey()).toBe("irodori::http://localhost:8092::other::ムラサメ");
+
+    eps = endpoints({ tts_model: "other", tts_provider: "openai" });
+    expect(provider.paramsKey()).toBe("openai::http://localhost:8092::other::ムラサメ");
+  });
+
+  it("synth speaks the provider the live endpoints select", async () => {
+    let eps = endpoints();
+    const fetchMock = vi.fn<FetchFn>(async () => okResponse(new ArrayBuffer(4)));
+    const provider = createTtsProvider({
+      getEndpoints: () => eps,
+      getActiveSpeaker: () => ({ id: "coral", ref_url: "" }),
+      selectFetch: async () => fetchMock as unknown as typeof fetch,
+    });
+
+    await provider.synth("hi", undefined, { caption: "囁くように。" });
+    eps = endpoints({ tts_provider: "openai", tts_model: "gpt-4o-mini-tts" });
+    await provider.synth("hi", undefined, { caption: "囁くように。" });
+
+    const [irodori, openai] = fetchMock.mock.calls.map((c) => JSON.parse(c[1].body as string));
+    expect(irodori.irodori).toEqual({ caption: "囁くように。" });
+    expect(openai).toMatchObject({ model: "gpt-4o-mini-tts", instructions: "囁くように。" });
+    expect("irodori" in openai).toBe(false);
   });
 
   it("synth resolves fetch via selectFetch and posts model + the active speaker as voice", async () => {

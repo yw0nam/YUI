@@ -22,6 +22,7 @@ const VOICE = "ナツメ";
 
 function liveSynth() {
   return createTtsSynth({
+    provider: "irodori",
     baseUrl: endpoints.tts_base_url,
     model: endpoints.tts_model,
     voice: VOICE,
@@ -44,7 +45,7 @@ describe.skipIf(!LIVE)("tts-synth — LIVE :8088", () => {
   }, 60_000);
 
   it("emotion_text 이모지가 붙은 input도 합성된다", async () => {
-    const wav = await liveSynth()("👂 Can you hear me?");
+    const wav = await liveSynth()("Can you hear me?", undefined, { emotion_text: "👂" });
     expect(isWav(wav)).toBe(true);
   }, 60_000);
 

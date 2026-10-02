@@ -3,7 +3,7 @@
  *
  * Core guarantees:
  *  - synths run concurrently, but playback stays strictly in submission-index order even when responses arrive out of order.
- *  - emotion_text is snapshotted at sentence-emit time and prepended as a prefix (verbatim free text, never invented).
+ *  - emotion_text is snapshotted at sentence-emit time and handed to synth beside the sentence (verbatim free text, never invented).
  *  - a synth error skips that index without deadlocking the queue.
  *
  * Verified with a fake synth (controllable promise) + fake AudioSink (records playback order) — no real audio/network.
@@ -31,13 +31,13 @@ function deferredSynth() {
   }> = [];
   const inputs: string[] = [];
   const signals: Array<AbortSignal | undefined> = [];
-  const synthOpts: Array<{ caption?: string } | undefined> = [];
+  const synthOpts: Array<{ caption?: string; emotion_text?: string } | undefined> = [];
   let inFlight = 0;
   let maxConcurrent = 0;
   const synth = (
     input: string,
     signal?: AbortSignal,
-    opts?: { caption?: string },
+    opts?: { caption?: string; emotion_text?: string },
   ): Promise<ArrayBuffer> => {
     inputs.push(input);
     signals.push(signal);
@@ -305,31 +305,33 @@ describe("createTtsPipeline — synth concurrency cap", () => {
   });
 });
 
-describe("createTtsPipeline — emotion_text voice tag baking", () => {
-  it("prepends cue emotion_text to the sentence sent to synth", async () => {
-    const { synth, inputs, resolvers } = deferredSynth();
+describe("createTtsPipeline — emotion_text voice tag", () => {
+  it("passes cue emotion_text to synth as opts.emotion_text, leaving the sentence plain", async () => {
+    const { synth, inputs, synthOpts, resolvers } = deferredSynth();
     const { sink } = recordingSink();
     const pipe = createTtsPipeline({ synth, sink });
 
     pipe.setCue({ emotion_text: "[whisper]" });
     pipe.pushTextDelta("Can you hear me?", true);
     await tick();
-    expect(inputs).toEqual(["[whisper] Can you hear me?"]);
+    expect(inputs).toEqual(["Can you hear me?"]);
+    expect(synthOpts[0]?.emotion_text).toBe("[whisper]");
     resolvers[0].resolve(bufFor(0));
   });
 
-  it("sends plain text when no cue is set", async () => {
-    const { synth, inputs } = deferredSynth();
+  it("sends plain text and no options when no cue is set", async () => {
+    const { synth, inputs, synthOpts } = deferredSynth();
     const { sink } = recordingSink();
     const pipe = createTtsPipeline({ synth, sink });
 
     pipe.pushTextDelta("Plain sentence.", true);
     await tick();
     expect(inputs).toEqual(["Plain sentence."]);
+    expect(synthOpts).toEqual([undefined]);
   });
 
-  it("each sentence gets its own cue: different emotion_texts bake per-sentence (maxInflight: 3)", async () => {
-    const { synth, inputs } = deferredSynth();
+  it("each sentence gets its own cue: different emotion_texts per sentence (maxInflight: 3)", async () => {
+    const { synth, synthOpts } = deferredSynth();
     const { sink } = recordingSink();
     const pipe = createTtsPipeline({ synth, sink, maxInflight: 3 });
 
@@ -338,7 +340,7 @@ describe("createTtsPipeline — emotion_text voice tag baking", () => {
     pipe.setCue({ emotion_text: "[sad]" });
     pipe.pushTextDelta("Two. ", true);
     await tick();
-    expect(inputs).toEqual(["[happy] One.", "[sad] Two."]);
+    expect(synthOpts.map((o) => o?.emotion_text)).toEqual(["[happy]", "[sad]"]);
   });
 });
 
@@ -395,8 +397,8 @@ describe("createTtsPipeline — caption voice direction", () => {
     pipe.pushTextDelta("Good night.", true);
     await tick();
 
-    expect(inputs).toEqual(["👂 Good night."]);
-    expect(synthOpts[0]?.caption).toBe("囁くような小さな声で。");
+    expect(inputs).toEqual(["Good night."]);
+    expect(synthOpts[0]).toEqual({ emotion_text: "👂", caption: "囁くような小さな声で。" });
   });
 
   it("sends no caption when the cue carries none", async () => {
