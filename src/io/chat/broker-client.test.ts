@@ -872,11 +872,10 @@ describe("deriveBrokerPayload", () => {
     expect(p.emotionText).toEqual({ mode: "enum", table });
   });
 
-  it("a null table → free + null + warn (no crash)", () => {
-    const logger = silentLogger();
-    const p = deriveBrokerPayload(baseConfig(), null, { ...NONE_DESELECTED, logger });
+  // A provider without a tag table derives this on every turn, so it is not a warning.
+  it("a null table → free + null, without a warning", () => {
+    const p = deriveBrokerPayload(baseConfig(), null, NONE_DESELECTED);
     expect(p.emotionText).toEqual({ mode: "free", table: null });
-    expect(logger.warn).toHaveBeenCalled();
   });
 
   // The user's expression-motion selection narrows the published vocabulary at this one derive

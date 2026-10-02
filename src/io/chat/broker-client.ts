@@ -357,28 +357,23 @@ export function agentTriggerableMotionIds(motions: MotionRegistry): string[] {
  * expression-motion selection — the one seam both vocabulary consumers read, so the broker publish
  * and the Chat-Completions tool schema always carry the same list. The selection is required, so
  * no caller can publish the unfiltered catalog by leaving it out.
- * emotion_text is the emoji enum table (docs/reference/tts-emotion); a missing table falls back to
- * free/null with a warn rather than crashing.
+ * emotion_text is the emoji enum table (docs/reference/tts-emotion); no table (a provider without
+ * one, or a failed load the loader already logged) publishes free mode.
  */
 export function deriveBrokerPayload(
   cfg: AppConfig,
   emotionTextTable: Record<string, string> | null,
-  opts: { expressMotions: ExpressMotionSettings; logger?: Logger },
+  opts: { expressMotions: ExpressMotionSettings },
 ): BrokerPayload {
-  const log = opts.logger ?? createLogger("broker-client");
   const emotionIds = Object.keys(cfg.emotionRegistry);
   const motionIds = enabledExpressMotions(
     agentTriggerableMotionIds(cfg.motions),
     opts.expressMotions,
   );
 
-  let emotionText: BrokerPayload["emotionText"];
-  if (emotionTextTable) {
-    emotionText = { mode: "enum", table: emotionTextTable };
-  } else {
-    log.warn("emotion_text_table_missing", { fallback: "free" });
-    emotionText = { mode: "free", table: null };
-  }
+  const emotionText: BrokerPayload["emotionText"] = emotionTextTable
+    ? { mode: "enum", table: emotionTextTable }
+    : { mode: "free", table: null };
 
   return { emotionIds, motionIds, emotionText };
 }

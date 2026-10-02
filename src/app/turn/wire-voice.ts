@@ -5,6 +5,7 @@ import {
   STT_API_KEY_SECRET,
   TTS_API_KEY_SECRET,
 } from "../../config/load";
+import { ttsProviderOf } from "../../config/tts-provider";
 import type { EndpointsConfig } from "../../contract";
 import { createPreviousTurn, type PreviousTurnSlot } from "../../dispatcher/backend/previous-turn";
 import { createPushTurns, type PushTurns } from "../../dispatcher/turn/push-turn";
@@ -32,7 +33,7 @@ import { type VoicePipeline, wireVoicePipeline } from "./wire-voice-pipeline";
 /**
  * Expression Broker publish (D6). Resolves the CORS-bypass fetch once, does the fire-and-forget
  * initial publish when broker_base_url is present (never blocks boot), and wires the override
- * reconciler so a live broker-URL edit retargets the client. `onConfigChange` is
+ * reconciler so a live broker-URL edit retargets the client and a tts_provider edit reloads the vocabulary. `onConfigChange` is
  * called from the caller's config.subscribe to re-publish on disk edits that change renderable
  * vocab; effective (override-merged) endpoints are used so disk edits don't clobber user overrides.
  */
@@ -65,10 +66,14 @@ export async function wireBroker(deps: {
     createBrokerClient({ baseUrl, ...(brokerFetch ? { fetch: brokerFetch } : {}) });
   // Latest emotion_text table, kept current by every load so vocabulary() reflects it.
   let table: Record<string, string> | null = null;
-  // Best-effort load of the emoji enum table; on failure the broker degrades to free mode.
+  // Best-effort load of the emoji enum table, which only Irodori speaks; any other provider and a
+  // failed load both leave the vocabulary in free mode.
   const loadBrokerTable = async (): Promise<Record<string, string> | null> => {
     try {
-      table = await loadEmotionTextTable({ provider: "irodori" });
+      table =
+        ttsProviderOf(getEndpoints()) === "irodori"
+          ? await loadEmotionTextTable({ provider: "irodori" })
+          : null;
     } catch (err) {
       log.warn("emotion_text_load_failed", { fallback: "free", error: String(err) });
       table = null;
