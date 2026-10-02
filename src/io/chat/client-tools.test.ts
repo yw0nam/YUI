@@ -48,10 +48,14 @@ describe("createGenerateExpressTool — definition", () => {
     expect("required" in params).toBe(false);
   });
 
-  it("free-mode emotion_text is plain text", () => {
+  // With no tag set, the provider reads emotion_text as prose, so the schema asks for words.
+  it("free-mode emotion_text asks for a few plain words, not emoji", () => {
     const props = createGenerateExpressTool(vocab()).definition.function.parameters.properties;
-    expect(props.emotion_text).toMatchObject({ type: "string" });
-    expect((props.emotion_text as Record<string, unknown>).enum).toBeUndefined();
+    const emotionText = props.emotion_text as Record<string, unknown>;
+    expect(emotionText).toMatchObject({ type: "string" });
+    expect(emotionText.enum).toBeUndefined();
+    expect(String(emotionText.description)).toMatch(/words/);
+    expect(String(emotionText.description)).toMatch(/no emoji/);
   });
 
   it("enum-mode emotion_text enumerates the provider's tags and carries their meanings", () => {

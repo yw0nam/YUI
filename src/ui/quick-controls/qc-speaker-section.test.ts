@@ -289,6 +289,8 @@ describe("createQuickControls — speaker section", () => {
 
     const add = qc.el.querySelector<HTMLButtonElement>(".yui-spk--add")!;
     expect(add.disabled).toBe(true);
+    // Without is-ready the row takes the inert add-row look: muted label, no hover accent.
+    expect(add.classList.contains("is-ready")).toBe(false);
     add.click();
     expect(pickVoiceImport).not.toHaveBeenCalled();
     expect(qc.el.querySelector(".yui-spk__remove")).toBeNull();

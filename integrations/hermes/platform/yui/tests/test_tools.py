@@ -84,6 +84,12 @@ def test_free_mode_leaves_the_tag_open():
     assert "enum" not in fields["properties"]["emotion_text"]
 
 
+def test_free_mode_asks_for_a_few_plain_words_not_emoji():
+    description = cues_property(Vocabulary())["items"]["properties"]["emotion_text"]["description"]
+    assert "words" in description
+    assert "no emoji" in description
+
+
 def test_the_handler_buffers_every_gated_cue_with_its_sentence():
     state.set_vocabulary("yui", Vocabulary(emotion_ids=["happy"], motion_ids=["idle"]))
     tools.handler({"cues": [{"emotion_id": "happy", "sentence": "One"}, {"motion_id": "idle"}]})
