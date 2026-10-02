@@ -787,7 +787,7 @@ describe("streamChat — Responses mode regression (chat_api unset/'responses')"
     // client.responses is undefined on this mock -> the Responses branch's own
     // try/catch surfaces it as an error event rather than silently falling
     // through to the CC branch (which would have called ccCreateMock instead).
-    expect(events[0]?.type).toBe("error");
+    expect(events).toEqual([{ type: "error", message: expect.any(String) }]);
     expect(ccCreateMock).not.toHaveBeenCalled();
   });
 

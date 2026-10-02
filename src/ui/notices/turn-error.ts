@@ -17,7 +17,7 @@ import type { QuickControlsTab } from "../quick-controls/constants";
 const SERVER_MESSAGE_MAX_CHARS = 200;
 
 /** Server error text → one line of at most 200 characters, ending with an ellipsis when cut. */
-export function collapseServerMessage(message: string): string {
+function collapseServerMessage(message: string): string {
   const oneLine = message.replace(/\s+/g, " ").trim();
   return oneLine.length > SERVER_MESSAGE_MAX_CHARS
     ? `${oneLine.slice(0, SERVER_MESSAGE_MAX_CHARS - 1)}…`

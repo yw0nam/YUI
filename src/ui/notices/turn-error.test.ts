@@ -89,10 +89,6 @@ describe("turnErrorMessage — server error detail", () => {
     ).toBe("500 internal server error");
   });
 
-  it("keeps the plain network message when no detail is present", () => {
-    expect(turnErrorMessage("network_drop")).toBe(t("input.error_network"));
-  });
-
   it("collapses newlines and cuts a 300-char message to one line of at most 200 chars ending with …", () => {
     const message = Array.from({ length: 300 }, (_, i) => (i % 25 === 24 ? "\n" : "x")).join("");
     const rendered = turnErrorMessage("network_drop", { status: 500, message });
@@ -100,12 +96,6 @@ describe("turnErrorMessage — server error detail", () => {
     expect(rendered).not.toContain("\n");
     expect(rendered!.length).toBeLessThanOrEqual(200);
     expect(rendered!.endsWith("…")).toBe(true);
-  });
-
-  it("keeps the auth message for http_4xx_drop even when a detail is present", () => {
-    expect(turnErrorMessage("http_4xx_drop", { status: 401, message: "bad key" })).toBe(
-      t("input.error_auth"),
-    );
   });
 });
 

@@ -408,7 +408,7 @@ export function createBackendCaller(deps: BackendCallerDeps): BackendCaller {
           return "network_stall";
         }
 
-        if (streamError) {
+        if (streamError !== undefined) {
           // If delta arrived, clean up speech bubble/audio — prevent getting stuck forever without next turn.
           if (streamedAny) deps.turnOutput?.abort();
           // Distinguish auth-ish (401/403) status as http_4xx_drop — keep other 4xx/5xx/no-status as network_drop.
