@@ -1,11 +1,13 @@
 #!/usr/bin/env python3
-"""Spools a briefing item read from stdin under its day, then posts every pending item to YUI."""
+"""Spools a briefing item read from stdin under its day, then posts the pending items to YUI as one group."""
 import argparse
 import datetime
 import fcntl
 import glob
+import http.client
 import json
 import os
+import re
 import sys
 import time
 import urllib.error
@@ -96,23 +98,41 @@ def failed_item(date, source, error):
             "sources": [{"name": clip(source, NAME_MAX), "status": "failed"}], "refs": []}
 
 
-def pending(spool):
-    paths = sorted(path for path in glob.glob(os.path.join(spool, "????-??-??", "*.json")) if not path.endswith(".sent.json"))
-    entries = []
-    for path in paths:
+def load_item(path):
+    try:
         with open(path, encoding="utf-8") as file:
-            entries.append((path, json.load(file)))
+            item = json.load(file)
+    except (OSError, ValueError):
+        return None
+    return item if isinstance(item, dict) and isinstance(item.get("date"), str) else None
+
+
+def pending(spool, dry_run):
+    entries = []
+    for path in sorted(glob.glob(os.path.join(spool, "????-??-??", "*.json"))):
+        if path.endswith(".sent.json"):
+            continue
+        item = load_item(path)
+        if item is not None:
+            entries.append((path, item))
+            continue
+        # A file that holds no briefing item is set aside so it never blocks the rest.
+        print(f"not a briefing item, set aside as {path}.bad", file=sys.stderr)
+        if not dry_run:
+            os.rename(path, path + ".bad")
     return entries
 
 
-def groups(entries, source, now_ms):
-    packed = []
-    for path, item in entries:
-        if packed and fits([queued for _, queued in packed[-1]] + [item], source, now_ms):
-            packed[-1].append((path, item))
-        else:
-            packed.append([(path, item)])
-    return packed
+def pack(entries, source, now_ms):
+    # YUI's away buffer keeps five groups, so a flush posts one, trimming refs from the oldest items first.
+    group = [(path, dict(item, refs=list(item.get("refs") or []))) for path, item in entries]
+    items = [item for _, item in group]
+    for item in items:
+        while item["refs"] and not fits(items, source, now_ms):
+            item["refs"].pop()
+    while len(group) > 1 and not fits([item for _, item in group], source, now_ms):
+        group.pop()
+    return group
 
 
 def post(url, payload):
@@ -123,19 +143,21 @@ def post(url, payload):
 
 def deliver(url, entries, source, quiet):
     now_ms = int(time.time() * 1000)
-    for group in groups(entries, source, now_ms):
-        try:
-            post(url, body([item for _, item in group], source, now_ms))
-        except urllib.error.HTTPError as error:
-            print(f"yui answered {error.code}", file=sys.stderr)
-            return 1
-        except OSError:
-            if not quiet:
-                print("yui unreachable", file=sys.stderr)
-            return 0
-        stamp = datetime.datetime.now().strftime("%H%M%S%f")[:9]
-        for path, _ in group:
-            os.rename(path, f"{path[: -len('.json')]}.{stamp}.sent.json")
+    group = pack(entries, source, now_ms)
+    if not group:
+        return 0
+    try:
+        post(url, body([item for _, item in group], source, now_ms))
+    except urllib.error.HTTPError as error:
+        print(f"yui answered {error.code}", file=sys.stderr)
+        return 1
+    except (OSError, http.client.HTTPException):
+        if not quiet:
+            print("yui unreachable", file=sys.stderr)
+        return 0
+    stamp = datetime.datetime.now().strftime("%H%M%S%f")[:9]
+    for path, _ in group:
+        os.rename(path, f"{path[: -len('.json')]}.{stamp}.sent.json")
     return 0
 
 
@@ -157,13 +179,16 @@ def write_item(path, item):
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Spool a YUI daily briefing item read from stdin and post every pending item.")
+    parser = argparse.ArgumentParser(description="Spool a YUI daily briefing item read from stdin and post the pending items.")
     parser.add_argument("--url", default=os.environ.get("YUI_SIGNALS_URL") or "http://127.0.0.1:8770", help="signals ingress base URL")
-    parser.add_argument("--source", default="cron", help="producer name: the spool file name and the envelope source")
+    parser.add_argument("--source", default="cron", help="producer name of 1-40 letters, digits, '_' or '-': the spool file name and the envelope source")
     parser.add_argument("--spool", default=SPOOL, help="spool directory; default $YUI_BRIEFING_SPOOL")
     parser.add_argument("--flush", action="store_true", help="read no stdin; post the pending items only")
-    parser.add_argument("--dry-run", action="store_true", help="print the request bodies; write and post nothing")
+    parser.add_argument("--dry-run", action="store_true", help="print the request body; write and post nothing")
     args = parser.parse_args()
+    if not re.fullmatch(r"[A-Za-z0-9_-]{1,40}", args.source):
+        parser.error("--source takes 1 to 40 letters, digits, '_' or '-'")
+    os.umask(0o077)
     url = args.url.rstrip("/") + "/signals"
     spool = os.path.expanduser(args.spool)
     date = datetime.date.today().isoformat()
@@ -172,18 +197,21 @@ def main():
     reason = None
     if not args.flush:
         try:
-            item = compose(json.load(sys.stdin), date, args.source, int(time.time() * 1000))
+            entries = [(path, compose(json.load(sys.stdin), date, args.source, int(time.time() * 1000)))]
         except Exception as error:
             reason = f"{type(error).__name__}: {error}"
-            item = failed_item(date, args.source, error)
-        entries = [(path, item)]
+            # A valid pending item from an earlier run of the day outranks a failed one.
+            if load_item(path) is None:
+                entries = [(path, failed_item(date, args.source, error))]
     if args.dry_run:
         if reason:
             print(reason, file=sys.stderr)
             return 1
         now_ms = int(time.time() * 1000)
-        entries = sorted([entry for entry in pending(spool) if entry[0] != path or args.flush] + entries)
-        for group in groups(entries, args.source, now_ms):
+        fresh = {entry_path for entry_path, _ in entries}
+        entries = sorted([entry for entry in pending(spool, True) if entry[0] not in fresh] + entries)
+        group = pack(entries, args.source, now_ms)
+        if group:
             print(body([item for _, item in group], args.source, now_ms))
         return 0
     # A run waits for the lock so a flush never marks sent an item the run rewrote meanwhile.
@@ -192,7 +220,7 @@ def main():
         return 0
     for entry_path, item in entries:
         write_item(entry_path, item)
-    status = deliver(url, pending(spool), args.source, quiet=args.flush or bool(reason))
+    status = deliver(url, pending(spool, False), args.source, quiet=args.flush or bool(reason))
     if reason:
         print(reason, file=sys.stderr)
         return 1
