@@ -14,14 +14,16 @@ The model behind the active chat endpoint produces `emotion_text` via a
 `/v1/responses` stream in Responses mode, or identically from
 `chat.completion.chunk` tool-call deltas in Chat Completions mode — and hands
 it to the TTS provider beside the segment, never shown in the speech bubble.
-Irodori prepends it to the spoken text; OpenAI puts it in `instructions`. In push mode the cue arrives in the `segments[].cues` of `render` and
+Irodori prepends it to the spoken text; OpenAI puts it in `instructions`; Fish
+wraps it in `[...]` ahead of the spoken text (S2 inline direction). In push mode the cue arrives in the `segments[].cues` of `render` and
 `speech` frames, and the client sends the vocabulary in its `hello` and
 `vocabulary` frames ([push transport](../push-transport.md)).
 
 `generate_express` carries a second, independent voice channel alongside it:
 `caption`, a free-text voice direction that travels out-of-band in the synthesis
 request: `irodori.caption` for Irodori, joined after `emotion_text` in
-`instructions` for OpenAI. It has
+`instructions` for OpenAI, wrapped in its own `[...]` bracket after the
+`emotion_text` bracket for Fish. It has
 no vocabulary and no enum gate — the broker truncates it to 200 characters
 (with a warning) but never blocks on it. The
 `generate_express` cue contract that carries both is described in

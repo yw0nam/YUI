@@ -138,7 +138,7 @@ The broker publishes YUI's renderable emotion/motion/`emotion_text` vocabulary s
 
 ## 5. TTS — Voice Output (optional)
 
-Without TTS, YUI displays text in the speech bubble but produces no audio. `tts_provider` names the engine at `tts_base_url`: `irodori` (the shipped default) or `openai`. Both take `POST <tts_base_url>/v1/audio/speech`, and the provider decides how the cue's `emotion_text` and `caption` ride in that request and where the voice list comes from. The **Provider** select in the Connection tab's TTS section sets the provider and fills in its server URL and default model.
+Without TTS, YUI displays text in the speech bubble but produces no audio. `tts_provider` names the engine at `tts_base_url`: `irodori` (the shipped default), `openai`, or `fish`. Each provider has its own endpoint shape and decides how the cue's `emotion_text` and `caption` ride in the request and where the voice list comes from. The **Provider** select in the Connection tab's TTS section sets the provider and fills in its server URL and default model.
 
 If the server requires auth, set `VITE_YUI_TTS_KEY` in `.env.local`. YUI sends it as `Authorization: Bearer`. Like all key fallbacks this applies to dev runs only; a release build reads the key entered in the Connection tab.
 
@@ -167,6 +167,16 @@ The TTS server is the source of truth for the available voice IDs (`GET /v1/audi
 3. Paste the key into the TTS API key field.
 
 The voice section lists OpenAI's 13 built-in voices: `alloy`, `ash`, `ballad`, `coral`, `echo`, `fable`, `nova`, `onyx`, `sage`, `shimmer`, `verse`, `marin`, `cedar`. Importing, deleting, and re-uploading voices is off for this provider. YUI sends the spoken text as `input` and joins `emotion_text` and `caption` into `instructions`. The `tts-1` and `tts-1-hd` models ignore `instructions` and speak only `alloy`, `ash`, `coral`, `echo`, `fable`, `nova`, `onyx`, `sage`, and `shimmer`.
+
+### Fish
+
+Fish Audio is a hosted service. Sign in at [https://fish.audio/](https://fish.audio/), create an API key, pick **Fish Audio** as the provider in the Connection tab's TTS section (the server URL becomes `https://api.fish.audio` and the model `s2.1-pro-free`), and paste the key into the TTS API key field.
+
+The model field takes any S2-family model id (`s1`, `s2-pro`, `s2.1-pro`, `s2.1-pro-free`, `drama-3-preview`); an unknown id falls back to `s2.1-pro` on Fish's side.
+
+The voice section lists the models in your Fish account (`GET /model?self=true`) by their titles. Importing an audio file uploads it as a new voice model (`POST /model`, fast training) and selects the model Fish creates; deleting a voice removes the model from your account. A voice from Fish's public library that is not in your list can still be used: paste its voice id into the field under the voice list and it becomes the active voice.
+
+YUI sends the spoken text as `text` to `POST <tts_base_url>/v1/tts` and the model as a `model` HTTP header. `emotion_text` and `caption` each ride as their own `[...]` bracket ahead of the sentence (S2 inline direction).
 
 ---
 
@@ -200,9 +210,9 @@ Key reference:
 | `chat_instructions` | expression prompt | System-level nudge on how to use `generate_express`; sent as `instructions` (Responses) or a system message (Chat Completions) |
 | `stt_base_url` | unset | STT server base URL |
 | `stt_model` | unset | `model` sent to the STT server; omitted when unset |
-| `tts_provider` | `irodori` | TTS engine at `tts_base_url`: `irodori` or `openai` |
+| `tts_provider` | `irodori` | TTS engine at `tts_base_url`: `irodori`, `openai`, or `fish` |
 | `tts_base_url` | unset | TTS server root without `/v1` |
-| `tts_model` | `irodori-tts` | `model` sent to the TTS server; must match its configured name |
+| `tts_model` | `irodori-tts` | Model sent to the TTS server — Irodori/OpenAI as the request's `model` field (must match the server's configured name), Fish as a `model` HTTP header (an S2-family id) |
 | `tts_speaker` | unset | Default voice id, until another is picked in the panel |
 | `tts_max_inflight` | `1` | Concurrent TTS synthesis requests |
 | `broker_base_url` | unset | Expression broker MCP URL |
