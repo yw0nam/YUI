@@ -205,6 +205,29 @@ describe("createSelectionStore", () => {
     expect(userStorage._data.map((o) => o.id)).toEqual(["alloy", "other"]);
   });
 
+  // The owner decides which user options list() returns, so a new owner is a list change even
+  // when the active id stays put.
+  it("notifies on a move to a new owner with the active id unchanged, and not on the same owner", () => {
+    const store = createSelectionStore<TestOption>({
+      available: SAMPLE,
+      defaultValue: "/a.res",
+      synthesize,
+      coerceUser,
+      isDefault,
+      ownerKey: "owner",
+      owner: "x",
+    });
+    const cb = vi.fn();
+    store.subscribe(cb);
+
+    store.setOwner("y");
+    expect(store.getActiveId()).toBe("a");
+    expect(cb).toHaveBeenCalledOnce();
+
+    store.setOwner("y");
+    expect(cb).toHaveBeenCalledOnce();
+  });
+
   it("lists and resolves only the active owner's user options, and restores the selection when its owner returns", () => {
     const store = createSelectionStore<TestOption>({
       available: SAMPLE,
