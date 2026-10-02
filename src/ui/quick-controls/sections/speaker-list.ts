@@ -198,6 +198,8 @@ export function createSpeakerList(deps: SpeakerListDeps): SpeakerList {
   function renderSpeakers(): void {
     const managed = canManageVoices();
     spkAddBtn.disabled = !managed;
+    // is-ready carries the interactive look; without it the add row renders muted and inert.
+    spkAddBtn.classList.toggle("is-ready", managed);
     const activeId = speakerSelection.getActiveId();
     // Roving tabindex prioritizes last roved row — falls back to active if none.
     const ids = speakerSelection.list().map((o) => o.id);

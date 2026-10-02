@@ -43,7 +43,10 @@ def _description(vocab: Vocabulary) -> str:
 
 def _emotion_text_schema(vocab: Vocabulary) -> dict:
     if vocab.emotion_text_mode != "enum" or not vocab.emotion_text_map:
-        return {"type": "string", "description": "voice tone tag"}
+        return {
+            "type": "string",
+            "description": 'voice tone in a few plain words (e.g. "warm, teasing"), no emoji or symbols',
+        }
     meanings = "; ".join(f"{tag} = {meaning}" for tag, meaning in vocab.emotion_text_map.items())
     return {
         "type": "string",
