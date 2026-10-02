@@ -229,12 +229,12 @@ export function createSelectionStore<T extends SelectionOption>(opts: {
       notify();
     },
 
-    /** Moves the active owner: its user options are listed and resolvable, every other owner's are not. */
+    /** Moves the active owner: its user options are listed and resolvable, every other owner's are
+     *  not — a list change even when the active id stays put, so it always notifies. */
     setOwner(next: string): void {
       if (next === owner) return;
-      const before = resolve().id;
       owner = next;
-      if (resolve().id !== before) notify();
+      notify();
     },
 
     // Config hot-reload: replace manifest + default. Preserve user override, but
