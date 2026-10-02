@@ -29,7 +29,7 @@ describe("speaker selection domain preset", () => {
     ]);
   });
 
-  it("rejects unsafe ids and entries missing id or ref_url", () => {
+  it("rejects unsafe ids and entries missing an id", () => {
     vi.stubGlobal("localStorage", {
       getItem: () =>
         JSON.stringify([
@@ -39,11 +39,32 @@ describe("speaker selection domain preset", () => {
           { id: "a\\b", ref_url: "/x.mp3" },
           { id: "", ref_url: "/x.mp3" },
           { ref_url: "/x.mp3" },
-          { id: "safe" },
         ]),
     });
 
     expect(localStorageUserSpeakerStorage().load()).toEqual([]);
+  });
+
+  it("accepts a clip-less entry — a pasted library voice id has no local clip", () => {
+    vi.stubGlobal("localStorage", {
+      getItem: () => JSON.stringify([{ id: "lib-voice", label: "lib-voice", ref_url: "" }]),
+    });
+
+    expect(localStorageUserSpeakerStorage().load()).toEqual([
+      { id: "lib-voice", label: "lib-voice", ref_url: "", source: "user" },
+    ]);
+  });
+
+  it("selects a pasted library id that is absent from the manifest", () => {
+    const selection = createSpeakerSelection({
+      defaultValue: "natsume",
+      available: [{ id: "natsume", label: "Natsume", ref_url: "" }],
+    });
+
+    selection.addUserOption({ id: "lib-voice", label: "lib-voice", ref_url: "", source: "user" });
+    selection.select("lib-voice");
+
+    expect(selection.getActiveId()).toBe("lib-voice");
   });
 
   it("keeps the default localStorage keys", () => {

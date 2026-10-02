@@ -1,10 +1,17 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const { listVoices, upsertVoice } = vi.hoisted(() => ({
+const { listVoices, upsertVoice, listFishVoices, upsertFishVoice } = vi.hoisted(() => ({
   listVoices: vi.fn().mockResolvedValue([]),
   upsertVoice: vi.fn().mockResolvedValue(undefined),
+  listFishVoices: vi.fn().mockResolvedValue([]),
+  upsertFishVoice: vi.fn().mockResolvedValue(undefined),
 }));
 vi.mock("./tts-voices", () => ({ listVoices, upsertVoice, deleteVoice: vi.fn() }));
+vi.mock("./fish-voices", () => ({
+  listFishVoices,
+  upsertFishVoice,
+  deleteFishVoice: vi.fn(),
+}));
 
 const { selectFetch } = vi.hoisted(() => ({ selectFetch: vi.fn().mockResolvedValue(undefined) }));
 vi.mock("../../chat/chat-client", () => ({ selectFetch }));
@@ -64,11 +71,49 @@ describe("createVoiceImportFlow", () => {
   beforeEach(() => {
     listVoices.mockReset().mockResolvedValue([]);
     upsertVoice.mockReset().mockResolvedValue(undefined);
+    listFishVoices.mockReset().mockResolvedValue([]);
+    upsertFishVoice.mockReset().mockResolvedValue(undefined);
     copyVoiceFile.mockReset().mockResolvedValue(IMPORTED);
     pickVoiceFile.mockReset();
     removeOrphanImport.mockClear();
     removeUserVoice.mockReset().mockResolvedValue(undefined);
     noopLog.error.mockClear();
+  });
+
+  describe("fish", () => {
+    it("uploads the multipart import and selects the server-assigned _id, not the filename-derived id", async () => {
+      upsertFishVoice.mockResolvedValue("model_9");
+      const { commitVoiceImport, speakerSelection } = build("https://api.fish.audio", "fish");
+
+      await commitVoiceImport("/tmp/MyVoice.wav", "My Voice");
+
+      expect(upsertFishVoice).toHaveBeenCalledOnce();
+      expect(upsertFishVoice.mock.calls[0][0]).toMatchObject({
+        baseUrl: "https://api.fish.audio",
+        name: "My Voice",
+        refUrl: IMPORTED.ref_url,
+      });
+      expect(upsertVoice).not.toHaveBeenCalled();
+      expect(speakerSelection.addUserOption).toHaveBeenCalledWith({
+        ...IMPORTED,
+        id: "model_9",
+        revision: 1,
+      });
+      expect(speakerSelection.select).toHaveBeenCalledWith("model_9");
+    });
+
+    it("cleans up the orphan copy and rethrows when the upload fails", async () => {
+      upsertFishVoice.mockRejectedValue(new Error("HTTP 400: invalid audio"));
+      const { commitVoiceImport, speakerSelection } = build("https://api.fish.audio", "fish");
+
+      await expect(commitVoiceImport("/tmp/MyVoice.wav", "My Voice")).rejects.toThrow(
+        "invalid audio",
+      );
+
+      expect(removeUserVoice).toHaveBeenCalledWith("myvoice");
+      expect(speakerSelection.addUserOption).not.toHaveBeenCalled();
+      expect(speakerSelection.select).not.toHaveBeenCalled();
+    });
   });
 
   describe("pickVoiceImport", () => {

@@ -176,5 +176,6 @@ export function defaultQcArgs(mount: HTMLElement) {
     commitVoiceImport: vi.fn(async () => {}),
     removeVoice: vi.fn(async () => {}),
     canManageVoices: () => true,
+    canPasteVoiceId: () => false,
   };
 }

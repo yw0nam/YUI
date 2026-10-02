@@ -127,13 +127,35 @@ describe("createConnectionTab", () => {
 
   // ── TTS provider ──────────────────────────────────────────────────────────────────────────
 
-  it("offers Irodori and OpenAI as TTS providers, never Fish, above a model field (desktop rows)", () => {
+  it("offers Irodori, OpenAI and Fish as TTS providers above a model field (desktop rows)", () => {
     const tab = build(DESKTOP_ROWS);
 
     const select = tab.el.querySelector<HTMLSelectElement>("#yui-svc-tts-provider")!;
     expect(select.disabled).toBe(false);
-    expect([...select.options].map((o) => o.value)).toEqual(["irodori", "openai"]);
+    expect([...select.options].map((o) => o.value)).toEqual(["irodori", "openai", "fish"]);
     expect(tab.el.querySelector("#yui-ep-tts_model")).not.toBeNull();
+
+    tab.dispose();
+  });
+
+  it("selecting Fish writes the provider, its URL and default model in one store write", () => {
+    const tab = build(DESKTOP_ROWS);
+
+    const select = tab.el.querySelector<HTMLSelectElement>("#yui-svc-tts-provider")!;
+    select.value = "fish";
+    select.dispatchEvent(new Event("change", { bubbles: true }));
+
+    expect(endpointsSettings.get()).toMatchObject({
+      tts_provider: "fish",
+      tts_base_url: "https://api.fish.audio",
+      tts_model: "s2.1-pro-free",
+    });
+    expect(tab.el.querySelector<HTMLInputElement>("#yui-ep-tts_base_url")!.value).toBe(
+      "https://api.fish.audio",
+    );
+    expect(tab.el.querySelector<HTMLInputElement>("#yui-ep-tts_model")!.value).toBe(
+      "s2.1-pro-free",
+    );
 
     tab.dispose();
   });

@@ -4,7 +4,8 @@
  * createTtsSynth({ provider, baseUrl, fetch?, model?, voice?, getApiKey? }) → (input, signal?, opts?) => ArrayBuffer.
  * POST {tts_base_url}/v1/audio/speech, body { input, response_format:"wav", ...model/voice, ...direction }.
  * The provider decides how emotion_text and caption ride: Irodori prefixes the emoji onto `input`
- * and sends `irodori.caption`; OpenAI joins both into `instructions`.
+ * and sends `irodori.caption`; OpenAI joins both into `instructions`; Fish wraps each in brackets
+ * and prepends them to `text` (POST /v1/tts, model as a header).
  * On non-2xx, throws an Error including status + (when JSON) error.message. On success, response.arrayBuffer().
  *
  * createTtsProvider binds that call to the live endpoints' provider + the active speaker id.
@@ -458,6 +459,70 @@ describe("createTtsSynth — openai", () => {
   });
 });
 
+describe("createTtsSynth — fish", () => {
+  const fishSynth = (
+    fetchMock: ReturnType<typeof vi.fn<FetchFn>>,
+    overrides: Partial<Parameters<typeof createTtsSynth>[0]> = {},
+  ) =>
+    createTtsSynth({
+      provider: "fish",
+      baseUrl: "https://api.fish.audio",
+      fetch: fetchMock as unknown as typeof fetch,
+      model: "s2.1-pro-free",
+      voice: "abc123",
+      getApiKey: async () => "fish-key",
+      ...overrides,
+    });
+
+  it("POSTs {baseUrl}/v1/tts with the model header and the text/reference_id/format body", async () => {
+    const fetchMock = vi.fn<FetchFn>(async () => okResponse(new ArrayBuffer(4)));
+    await fishSynth(fetchMock)("やったー！", undefined, {
+      emotion_text: "😆😆",
+      caption: "明るく弾んだ声で。",
+    });
+
+    expect(fetchMock).toHaveBeenCalledOnce();
+    const [url, init] = fetchMock.mock.calls[0];
+    expect(url).toBe("https://api.fish.audio/v1/tts");
+    expect(init.method).toBe("POST");
+    const headers = init.headers as Record<string, string>;
+    expect(headers.model).toBe("s2.1-pro-free");
+    expect(headers["Content-Type"]).toBe("application/json");
+    expect(headers.Authorization).toBe("Bearer fish-key");
+    expect(JSON.parse(init.body as string)).toEqual({
+      text: "[😆😆] [明るく弾んだ声で。] やったー！",
+      reference_id: "abc123",
+      format: "wav",
+    });
+  });
+
+  it("wraps only whichever cue is present into the text", async () => {
+    const fetchMock = vi.fn<FetchFn>(async () => okResponse(new ArrayBuffer(4)));
+    const synth = fishSynth(fetchMock);
+    await synth("a", undefined, { emotion_text: "👂" });
+    await synth("b", undefined, { caption: "落ち着いた低めの声で。" });
+    await synth("c");
+    await synth("d", undefined, {});
+
+    const texts = fetchMock.mock.calls.map((c) => JSON.parse(c[1].body as string).text);
+    expect(texts).toEqual(["[👂] a", "[落ち着いた低めの声で。] b", "c", "d"]);
+  });
+
+  it("omits reference_id when no voice is set", async () => {
+    const fetchMock = vi.fn<FetchFn>(async () => okResponse(new ArrayBuffer(4)));
+    await fishSynth(fetchMock, { voice: undefined })("hi");
+    const body = JSON.parse(fetchMock.mock.calls[0][1].body as string);
+    expect(body).toEqual({ text: "hi", format: "wav" });
+  });
+
+  it("omits the model header when no model is set", async () => {
+    const fetchMock = vi.fn<FetchFn>(async () => okResponse(new ArrayBuffer(4)));
+    await fishSynth(fetchMock, { model: undefined })("hi");
+    const headers = fetchMock.mock.calls[0][1].headers as Record<string, string>;
+    expect("model" in headers).toBe(false);
+  });
+});
+
 describe("createTtsProvider", () => {
   const endpoints = (overrides: Partial<EndpointsConfig> = {}): EndpointsConfig => ({
     chat_base_url: "http://localhost:8643/v1",
@@ -480,13 +545,13 @@ describe("createTtsProvider", () => {
     expect(build(endpoints(), "ナツメ").isReady()).toBe(true);
   });
 
-  it("isReady stays false for a provider with no synth", () => {
+  it("isReady holds for fish once tts_base_url and a speaker id are set", () => {
     const provider = createTtsProvider({
       getEndpoints: () => endpoints({ tts_provider: "fish" }),
-      getActiveSpeaker: () => ({ id: "ナツメ", ref_url: "" }),
+      getActiveSpeaker: () => ({ id: "abc123", ref_url: "" }),
       selectFetch: async () => undefined,
     });
-    expect(provider.isReady()).toBe(false);
+    expect(provider.isReady()).toBe(true);
   });
 
   it("paramsKey joins the provider, tts_base_url, tts_model and the active speaker id", () => {

@@ -1,11 +1,19 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { SpeakerOption } from "./speaker-selection";
 
-const { listVoices, selectFetch } = vi.hoisted(() => ({
+const { listVoices, listFishVoices, selectFetch } = vi.hoisted(() => ({
   listVoices: vi.fn<(o: unknown) => Promise<string[] | null>>().mockResolvedValue([]),
+  listFishVoices:
+    vi.fn<(o: unknown) => Promise<Array<{ id: string; label?: string }> | null>>()
+      .mockResolvedValue([]),
   selectFetch: vi.fn().mockResolvedValue(undefined),
 }));
 vi.mock("./tts-voices", () => ({ listVoices, upsertVoice: vi.fn(), deleteVoice: vi.fn() }));
+vi.mock("./fish-voices", () => ({
+  listFishVoices,
+  upsertFishVoice: vi.fn(),
+  deleteFishVoice: vi.fn(),
+}));
 vi.mock("../../chat/chat-client", () => ({ selectFetch }));
 
 import { createVoiceListRefresh, wireVoiceListAutoRefresh } from "./voice-list-refresh";
@@ -323,6 +331,45 @@ describe("createVoiceListRefresh — re-uploading user voices the server lost", 
       "voice_reupload_failed",
       expect.objectContaining({ id: "myvoice" }),
     );
+  });
+});
+
+describe("createVoiceListRefresh — fish", () => {
+  it("maps the model list's _id/title entries into the manifest", async () => {
+    listFishVoices.mockResolvedValue([
+      { id: "m1", label: "ナツメ" },
+      { id: "m2", label: "ムラサメ" },
+    ]);
+    const store = fakeStore();
+    const refresh = createVoiceListRefresh({
+      getEndpoints: () => ({ tts_base_url: "https://api.fish.audio", tts_provider: "fish" }),
+      speakerSelection: store,
+      log: noopLog,
+    });
+
+    await refresh();
+
+    expect(listFishVoices).toHaveBeenCalledWith(
+      expect.objectContaining({ baseUrl: "https://api.fish.audio" }),
+    );
+    expect(store._manifest().available).toEqual([
+      { id: "m1", label: "ナツメ", ref_url: "" },
+      { id: "m2", label: "ムラサメ", ref_url: "" },
+    ]);
+  });
+
+  it("offers no manifest while the provider has no voice API", async () => {
+    listFishVoices.mockClear();
+    const store = fakeStore();
+    const refresh = createVoiceListRefresh({
+      getEndpoints: () => ({ tts_base_url: "https://x", tts_provider: "not-a-provider" as never }),
+      speakerSelection: store,
+      log: noopLog,
+    });
+
+    await refresh();
+
+    expect(store.setManifest).not.toHaveBeenCalled();
   });
 });
 
