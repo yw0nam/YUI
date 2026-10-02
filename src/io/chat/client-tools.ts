@@ -121,7 +121,7 @@ export function createGenerateExpressTool(vocab: BrokerPayload): ClientTool {
             caption: {
               type: "string",
               description:
-                "voice direction in natural language (Japanese reads best), applied to the " +
+                "voice direction in natural language, applied to the " +
                 "speech around this call — independent of emotion_text, and omitted when the " +
                 "default voice fits",
             },

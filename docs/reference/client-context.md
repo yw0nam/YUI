@@ -477,10 +477,11 @@ While `body:` is `sitting` or `peeking`, the client drops `motion_id` and keeps 
 All fields are optional. Include only the fields that should change.
 
 `emotion_text` and `caption` are two separate voice channels and combine freely.
-`emotion_text` is a tag from the published emoji set, prepended to the spoken
-segment. `caption` is a free sentence describing how the voice should sound —
-Japanese reads best — carried beside the audio request rather than in the
-speech. Neither is ever spoken aloud or shown in the speech bubble.
+`emotion_text` is a voice tone tag: a tag from the published set when the
+vocabulary is in enum mode, a few words naming the tone in free mode. `caption`
+is a free sentence describing how the voice should sound. Both travel beside the
+spoken text to the TTS provider, which renders them in its own way. Neither is
+ever spoken aloud or shown in the speech bubble.
 
 ## Basic Pattern
 

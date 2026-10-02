@@ -70,7 +70,7 @@ def _cue_schema(vocab: Vocabulary) -> dict:
     properties["caption"] = {
         "type": "string",
         "description": (
-            "voice direction in natural language (Japanese reads best), applied to the sentence "
+            "voice direction in natural language, applied to the sentence "
             "this cue sits on — independent of emotion_text, and omitted when the default voice fits"
         ),
     }
