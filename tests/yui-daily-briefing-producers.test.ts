@@ -177,10 +177,11 @@ describe("post-briefing.py", () => {
     const [pending] = spoolFiles(spool);
     expect(pending).toMatch(/^\d{4}-\d{2}-\d{2}\/papers\.json$/);
 
+    // The scheduled flush stays quiet so a scheduler that mails output sends nothing while YUI is closed.
     await withSilentHangup(async (base) => {
       const hungUp = await runScript(base, "", ["--flush"], spool);
       expect(hungUp.status).toBe(0);
-      expect(hungUp.stderr).toContain("yui unreachable");
+      expect(hungUp.stderr).toBe("");
     });
     expect(spoolFiles(spool)).toEqual([pending]);
 
@@ -229,6 +230,29 @@ describe("post-briefing.py", () => {
       "2026-09-10/news.sent.json",
       "2026-09-11/papers.sent.json",
     ]);
+  });
+
+  it("leaves the spool alone when another flush holds the lock", async () => {
+    const spool = tempDir();
+    mkdirSync(join(spool, "2026-09-10"));
+    writeFileSync(join(spool, "2026-09-10", "news.json"), JSON.stringify({ date: "2026-09-10" }));
+    const holder = spawn("python3", [
+      "-c",
+      "import fcntl, sys, time; f = open(sys.argv[1], 'w'); fcntl.flock(f, fcntl.LOCK_EX); print('held', flush=True); time.sleep(5)",
+      join(spool, ".lock"),
+    ]);
+    await new Promise((held) => holder.stdout.once("data", held));
+    try {
+      await withIngress(200, async (base, received) => {
+        const result = await runScript(base, "", ["--flush"], spool);
+        expect(result.status).toBe(0);
+        expect(result.stderr).toBe("");
+        expect(received).toHaveLength(0);
+      });
+      expect(spoolFiles(spool)).toEqual(["2026-09-10/news.json"]);
+    } finally {
+      holder.kill();
+    }
   });
 
   it("names the rejected status, exits 1, and keeps the item pending on a non-2xx answer", async () => {
