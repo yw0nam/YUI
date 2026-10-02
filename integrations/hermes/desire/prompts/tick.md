@@ -62,9 +62,10 @@ If that exits 1, the frustration is real state and will surface on the next turn
 
 Progress one open want by a concrete step and update `$DESIRE_STATE_DIR/wants.md`. A step is an issue or a new
 skill under your own profile built with `skill_manage`. The monitor sees the artefact on the next tick and scores
-`progressed` for it; when the issue is closed it scores `shipped`. Running tests, re-running checks, editing an existing skill, reading the cursor, audit, or outbox,
-writing progress or feedback logs, and noticing that a bucket changed are not steps. Signals are governed by
-section 2 and are not steps either. When no step is available, claim none; an empty tick is fine.
+`progressed` for it; when the issue is closed it scores `shipped`. Running tests, re-running checks, editing an
+existing skill, reading the cursor, audit, or outbox, writing progress or feedback logs, and noticing that a bucket
+changed are not steps. Signals are governed by section 2 and are not steps either. When no step is available, claim
+none; an empty tick is fine.
 
 When `curiosity` is high, read first — recent YUI commits, pull requests, or issues; a file under `docs/`; a memory
 search; or the web on a topic one of your wants is about — then save what you learned to your memory, with the text
