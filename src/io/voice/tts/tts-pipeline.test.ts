@@ -13,6 +13,7 @@ import { describe, expect, it, vi } from "vitest";
 import type { Logger } from "../../../logger";
 import type { AudioSink } from "./audio-player";
 import { createTtsPipeline } from "./tts-pipeline";
+import { createTtsProvider } from "./tts-synth";
 
 /** A 1-byte ArrayBuffer identifiable by its index. */
 function bufFor(n: number): ArrayBuffer {
@@ -1274,5 +1275,45 @@ describe("createTtsPipeline — spokenSplit", () => {
     pipe.dispose();
 
     expect(pipe.spokenSplit()).toEqual({ spoken: "", unspoken: "" });
+  });
+});
+
+// The Irodori wire format is fixed: every cue combination must serialize byte-for-byte as below.
+describe("createTtsPipeline — Irodori request bodies", () => {
+  it("serializes each emotion_text / caption combination unchanged", async () => {
+    const fetchMock = vi.fn(
+      async (_url: string, _init: RequestInit) =>
+        ({ ok: true, status: 200, arrayBuffer: async () => new ArrayBuffer(1) }) as Response,
+    );
+    const provider = createTtsProvider({
+      getEndpoints: () => ({
+        chat_base_url: "",
+        stt_base_url: "",
+        tts_base_url: "http://tts.test",
+        tts_model: "irodori-tts",
+      }),
+      getActiveSpeaker: () => ({ id: "ナツメ" }),
+      selectFetch: async () => fetchMock as unknown as typeof fetch,
+    });
+    const sink: AudioSink = { play: async () => {}, stop: vi.fn() };
+    const pipe = createTtsPipeline({ synth: provider.synth, sink, maxInflight: 4 });
+
+    pipe.setCue(null);
+    pipe.pushTextDelta("おはよう。", true);
+    pipe.setCue({ emotion_text: "😆😆" });
+    pipe.pushTextDelta("やったー！", true);
+    pipe.setCue({ caption: "囁くような小さな声で。" });
+    pipe.pushTextDelta("おやすみ。", true);
+    pipe.setCue({ emotion_text: "👂", caption: "落ち着いた低めの声で、丁寧に。" });
+    pipe.pushTextDelta("ここにいるよ。", true);
+    pipe.end();
+    await vi.waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(4));
+
+    expect(fetchMock.mock.calls.map(([, init]) => init.body)).toEqual([
+      '{"input":"おはよう。","response_format":"wav","model":"irodori-tts","voice":"ナツメ"}',
+      '{"input":"😆😆 やったー！","response_format":"wav","model":"irodori-tts","voice":"ナツメ"}',
+      '{"input":"おやすみ。","response_format":"wav","model":"irodori-tts","voice":"ナツメ","irodori":{"caption":"囁くような小さな声で。"}}',
+      '{"input":"👂 ここにいるよ。","response_format":"wav","model":"irodori-tts","voice":"ナツメ","irodori":{"caption":"落ち着いた低めの声で、丁寧に。"}}',
+    ]);
   });
 });
