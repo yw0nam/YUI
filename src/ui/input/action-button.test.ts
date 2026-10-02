@@ -160,7 +160,7 @@ describe("action button — with a mic port", () => {
     expect(ui.button().dataset.mode).toBe("mic");
   });
 
-  it("is send while an attachment is still being read", () => {
+  it("is send while an attachment is still being read", async () => {
     const mic = fakeMic();
     ui = setup({ mic });
     const file = new File([new Uint8Array([1])], "a.png", { type: "image/png" });
@@ -173,6 +173,8 @@ describe("action button — with a mic port", () => {
 
     expect(ui.tray().children.length).toBe(0);
     expect(ui.button().dataset.mode).toBe("send");
+    // A read still running after the file's jsdom teardown throws an uncaught error.
+    while (ui.tray().children.length === 0) await new Promise((r) => setTimeout(r, 0));
   });
 
   it("returns to the mic after a submit empties the composer", () => {
