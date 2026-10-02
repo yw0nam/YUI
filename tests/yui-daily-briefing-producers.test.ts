@@ -12,6 +12,9 @@ const LOOPBACK = "127.0.0.1";
 const ISO = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/;
 const DAY = /^\d{4}-\d{2}-\d{2}$/;
 const BODY_LIMIT = 49152;
+// A delivered file carries its local delivery time, HHMMSS plus milliseconds.
+const sent = (prefix: string) =>
+  expect.stringMatching(new RegExp(`^${prefix}\\.\\d{9}\\.sent\\.json$`));
 
 type Received = { path: string; contentType: string; payload: string };
 type Result = { status: number | null; stdout: string; stderr: string };
@@ -158,8 +161,9 @@ describe("post-briefing.py", () => {
         event_id: `daily-briefing:${item.date}`,
         occurred_at: expect.any(Number),
       });
-      expect(spoolFiles(spool)).toEqual([`${item.date}/papers.sent.json`]);
-      const archived = readFileSync(join(spool, item.date, "papers.sent.json"), "utf8");
+      const [archive] = spoolFiles(spool);
+      expect(archive).toEqual(sent(`${item.date}/papers`));
+      const archived = readFileSync(join(spool, archive), "utf8");
       expect(JSON.parse(archived)).toEqual(item);
     });
   });
@@ -192,7 +196,7 @@ describe("post-briefing.py", () => {
       expect(received).toHaveLength(1);
       expect(JSON.parse(received[0].payload).signals[0].refs[0].url).toBe("https://example.com/a");
     });
-    expect(spoolFiles(spool)).toEqual([pending.replace(".json", ".sent.json")]);
+    expect(spoolFiles(spool)).toEqual([sent(pending.replace(".json", ""))]);
   });
 
   it("flushes every pending day in one group, oldest first, under the newest day's id", async () => {
@@ -227,9 +231,19 @@ describe("post-briefing.py", () => {
     });
     expect(spoolFiles(spool)).toEqual([
       "2026-09-09/news.sent.json",
-      "2026-09-10/news.sent.json",
-      "2026-09-11/papers.sent.json",
+      sent("2026-09-10/news"),
+      sent("2026-09-11/papers"),
     ]);
+  });
+
+  it("keeps every delivery when a source runs again on the same day", async () => {
+    const spool = tempDir();
+    await withIngress(200, async (base) => {
+      expect((await runScript(base, ONE_REF, ["--source", "papers"], spool)).status).toBe(0);
+      expect((await runScript(base, ONE_REF, ["--source", "papers"], spool)).status).toBe(0);
+    });
+    const [day] = spoolFiles(spool)[0].split("/");
+    expect(spoolFiles(spool)).toEqual([sent(`${day}/papers`), sent(`${day}/papers`)]);
   });
 
   it("leaves the spool alone when another flush holds the lock", async () => {
@@ -280,7 +294,7 @@ describe("post-briefing.py", () => {
       expect(item.summary).toMatch(/^morning run failed: ValueError: /);
       expect(item.sources).toEqual([{ name: "morning", status: "failed" }]);
       expect(item.refs).toEqual([]);
-      expect(spoolFiles(spool)).toEqual([`${item.date}/morning.sent.json`]);
+      expect(spoolFiles(spool)).toEqual([sent(`${item.date}/morning`)]);
     });
   });
 
