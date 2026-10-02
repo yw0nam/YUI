@@ -1,6 +1,6 @@
 # YUI — Install and Wiring Guide
 
-YUI is the frontend (head): VRM character rendering, desktop-pet behavior, and I/O surfaces. The brain and voice services — backend agent, broker, TTS, STT — run as separate, config-swappable processes that YUI points at via `configs/endpoints.json` or the in-app panel (right-click the character → **Connection**).
+YUI is the frontend (head): VRM character rendering, desktop-pet behavior, and I/O surfaces. The brain and voice services — backend agent, broker, TTS, STT — run as separate, config-swappable processes that YUI points at via `configs/endpoints.json` or the in-app panel (right-click the character → Settings → **Connection** tab).
 
 ## What you need
 
