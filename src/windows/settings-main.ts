@@ -162,6 +162,7 @@ async function bootstrap(): Promise<void> {
   void refreshVoiceList();
   const unsubscribeVoiceRefresh = wireVoiceListAutoRefresh({
     subscribe: endpointsSettings.subscribe,
+    subscribeKey: ttsKeySettings.subscribe,
     getEndpoints,
     refresh: refreshVoiceList,
   });

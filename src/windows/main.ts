@@ -145,6 +145,7 @@ async function bootstrap(): Promise<BootstrapHandle> {
     getEndpoints: petConfig.getEndpoints,
     getTtsKey: () => config.secrets.get(TTS_API_KEY_SECRET),
     endpointsSettings: settingsStores.endpointsSettings,
+    ttsKeySettings: settingsStores.ttsKeySettings,
     config,
     log,
     broadcastSettings,

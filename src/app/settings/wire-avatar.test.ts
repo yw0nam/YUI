@@ -748,6 +748,7 @@ describe("wireAvatarSelection — voice list refresh", () => {
       getEndpoints: () => eps,
       getTtsKey: async () => undefined,
       endpointsSettings: { subscribe: () => () => {} },
+      ttsKeySettings: { subscribe: () => () => {} },
       config: {
         subscribe: (cb) => {
           notifyConfig = () => cb({} as never, new Set(["endpoints"]));

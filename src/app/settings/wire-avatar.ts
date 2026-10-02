@@ -255,13 +255,14 @@ export function wireSpeakerSelection(deps: {
 
 /**
  * VRM and speaker selection with their teardowns, and the voice-list refresh on endpoint-override
- * and config-file edits.
+ * and config-file edits and on a TTS key change.
  */
 export function wireAvatarSelection(deps: {
   renderer: Renderer;
   getEndpoints: () => EndpointsConfig;
   getTtsKey: () => Promise<string | undefined>;
   endpointsSettings: Pick<SettingsStores["endpointsSettings"], "subscribe">;
+  ttsKeySettings: Pick<SettingsStores["ttsKeySettings"], "subscribe">;
   config: Pick<ConfigStore, "subscribe">;
   log: Logger;
   broadcastSettings: () => void;
@@ -291,6 +292,7 @@ export function wireAvatarSelection(deps: {
           unsubscribeConfig();
         };
       },
+      subscribeKey: deps.ttsKeySettings.subscribe,
       getEndpoints,
       refresh: speaker.refreshVoiceList,
     }),

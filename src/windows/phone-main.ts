@@ -108,6 +108,7 @@ async function bootstrap(): Promise<{ dispose(): void }> {
     getEndpoints,
     getTtsKey: () => config.secrets.get(TTS_API_KEY_SECRET),
     endpointsSettings: settingsStores.endpointsSettings,
+    ttsKeySettings: settingsStores.ttsKeySettings,
     config,
     log,
     // A single window has no other window to broadcast a selection to.

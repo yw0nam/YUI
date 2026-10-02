@@ -110,11 +110,13 @@ export function createVoiceListRefresh(deps: {
 
 /**
  * Refetches the voice list when an endpoints-override commit changes the TTS URL, speaker or
- * provider. The override store notifies on every field's commit, so non-TTS edits (chat URL etc)
+ * provider, or the TTS key changes. The override store notifies on every field's commit, so non-TTS edits (chat URL etc)
  * are filtered out here.
  */
 export function wireVoiceListAutoRefresh(deps: {
   subscribe: (cb: () => void) => () => void;
+  /** The TTS key store's subscription; a server that refused the list may accept the new key. */
+  subscribeKey?: (cb: () => void) => () => void;
   getEndpoints: () => VoiceListEndpoints;
   refresh: () => Promise<void>;
 }): () => void {
@@ -129,10 +131,15 @@ export function wireVoiceListAutoRefresh(deps: {
     }
   };
   let last = key();
-  return deps.subscribe(() => {
+  const unsubscribe = deps.subscribe(() => {
     const next = key();
     if (next === null || next === last) return;
     last = next;
     void deps.refresh();
   });
+  const unsubscribeKey = deps.subscribeKey?.(() => void deps.refresh());
+  return () => {
+    unsubscribe();
+    unsubscribeKey?.();
+  };
 }

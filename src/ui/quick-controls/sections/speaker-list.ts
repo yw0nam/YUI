@@ -115,6 +115,17 @@ export function createSpeakerList(deps: SpeakerListDeps): SpeakerList {
   const spkManualErrorEl =
     spkManualEl.querySelector<HTMLParagraphElement>(".yui-spk-manual__error")!;
 
+  // A pasted voice page URL names the voice in its last path segment; anything else is the id itself.
+  function pastedVoiceId(text: string): string {
+    const trimmed = text.trim();
+    if (!/^https?:\/\//i.test(trimmed)) return trimmed;
+    try {
+      return new URL(trimmed).pathname.split("/").filter(Boolean).at(-1) ?? "";
+    } catch {
+      return trimmed;
+    }
+  }
+
   // An id one of another provider's voices holds — it is not taken over.
   const heldElsewhere = (id: string): boolean =>
     speakerSelection.listUser().some((o) => o.id === id) &&
@@ -123,7 +134,7 @@ export function createSpeakerList(deps: SpeakerListDeps): SpeakerList {
   // Enter on the paste field selects the id even when the list does not carry it. An id the store
   // cannot keep (path-ish characters) or another provider's voice holds marks the field invalid.
   function commitPastedVoiceId(): void {
-    const id = spkManualInputEl.value.trim();
+    const id = pastedVoiceId(spkManualInputEl.value);
     if (!id) return;
     const reason = !isSafeSanitizedId(id)
       ? "speaker.manual_invalid"
