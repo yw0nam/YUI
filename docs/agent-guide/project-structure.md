@@ -24,7 +24,7 @@ YUI/
   biome.json                         # Format and lint config (curated rule set)
   scripts/                           # Dev launchers (dev-port.mjs, tauri-dev.mjs for tauri:dev and android:dev, dev-auto.mjs) and their shared package-manager.mjs helper, release.sh, worktree-setup.sh, ci/test-guard.sh
   configs/                           # Runtime-loaded config (no hardcoding)
-    endpoints.json                   # chat/stt/tts/broker base urls + chat_instructions, chat_api, chat_model_context_window + stt_model/tts_model/tts_speaker/tts_max_inflight; the shipped configs/endpoints.json omits the url and speaker keys, and the settings panel overrides per device
+    endpoints.json                   # chat/stt/tts/broker base urls + chat_instructions, chat_api, chat_model_context_window + stt_model/tts_provider/tts_model/tts_speaker/tts_max_inflight; the shipped configs/endpoints.json omits the url and speaker keys, and the settings panel overrides per device
     emotion_registry.json            # emotion id -> vrm_expression + fallback
     motions.json                     # Motion registry
     avatar.json                      # VRM avatar config
@@ -32,7 +32,7 @@ YUI/
     guardrails.json                  # Dispatcher cooldown/suppression + attachment caps (max_count, max_image_bytes)
     hotkeys.json                     # Global summon accelerator (empty = disabled)
     screen.json                      # Frontmost-transition detector thresholds (dwell/settle/session/gap/quiet)
-    emotion_text/                    # Emoji voice-tag vocabulary (emotion_text/irodori.json)
+    emotion_text/                    # Emoji voice-tag vocabulary, loaded only when tts_provider is irodori (emotion_text/irodori.json)
   public/motions/                    # VRMA motion assets
   src/
     app/                             # Composes the pet window from the layers below
@@ -93,6 +93,7 @@ YUI/
       asset-url.ts                   # Bundled asset paths and imported user files to runtime-fetchable URLs
       store.ts                       # Reactive config snapshot with hot-reload and change subscriptions
       emotion-text.ts                # Per-provider emotion_text emoji table loader
+      tts-provider.ts                # The tts_provider values and the Irodori default for an unset one
       validators/
         avatar.ts                    # Validates avatar.json
         emotion-registry.ts          # Validates the emotion registry against the emotion enum
@@ -260,11 +261,12 @@ YUI/
           strip-emoji.ts               # Stateful emoji stripper for spoken text deltas
           strip-links.ts               # Stateful markdown-link stripper for spoken text deltas
           tts-pipeline.ts              # Sentence-level TTS synthesis with in-order playback
-          tts-synth.ts                 # Single-sentence speech synthesis request
+          tts-synth.ts                 # Single-sentence speech synthesis request, shaped per TTS provider
           audio-player.ts              # Web Audio sink that plays a wav clip and reports mouth-open amplitude
           speech-playback.ts           # Glue between TTS playback, the renderer mouth, and bubble lifetime
         voices/                        # The speaker catalogue: selection, the voices API, and voice import
-          tts-voices.ts                # Lists, uploads, and deletes reference voices on the TTS server
+          tts-voices.ts                # Lists, uploads, and deletes reference voices on Irodori's voices API
+          voice-apis.ts                # Voice list, upload, and delete per TTS provider; OpenAI's fixed built-in list
           voice-import.ts              # Voice import: OS picker, native copy, speaker registration
           voice-import-flow.ts         # Two-step voice import so a naming row sits between pick and copy
           voice-list-refresh.ts        # Refetches the TTS server's voice list into a speaker manifest

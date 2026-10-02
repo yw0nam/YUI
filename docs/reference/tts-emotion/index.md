@@ -12,15 +12,16 @@ independent channel from `emotion_id` (the VRM face blendshape). A happy face
 The model behind the active chat endpoint produces `emotion_text` via a
 `generate_express` tool call; YUI consumes whatever arrives — from the
 `/v1/responses` stream in Responses mode, or identically from
-`chat.completion.chunk` tool-call deltas in Chat Completions mode — and
-prepends it to the TTS segment (prefix-only — never shown in the speech
-bubble). In push mode the cue arrives in the `segments[].cues` of `render` and
+`chat.completion.chunk` tool-call deltas in Chat Completions mode — and hands
+it to the TTS provider beside the segment, never shown in the speech bubble.
+Irodori prepends it to the spoken text; OpenAI puts it in `instructions`. In push mode the cue arrives in the `segments[].cues` of `render` and
 `speech` frames, and the client sends the vocabulary in its `hello` and
 `vocabulary` frames ([push transport](../push-transport.md)).
 
 `generate_express` carries a second, independent voice channel alongside it:
 `caption`, a free-text voice direction that travels out-of-band in the synthesis
-request as `irodori.caption` rather than as a prefix on the spoken text. It has
+request: `irodori.caption` for Irodori, joined after `emotion_text` in
+`instructions` for OpenAI. It has
 no vocabulary and no enum gate — the broker truncates it to 200 characters
 (with a warning) but never blocks on it. The
 `generate_express` cue contract that carries both is described in
@@ -30,14 +31,17 @@ the control envelope shape lives in
 
 ## Broker gate
 
-The vocabulary is the **emoji enum table** — canonical machine copy in
+With `tts_provider` `irodori`, the vocabulary is the **emoji enum table** — canonical machine copy in
 [`configs/emotion_text/irodori.json`](https://github.com/yw0nam/YUI/blob/main/configs/emotion_text/irodori.json),
 documented in [`irodori.md`](./irodori.md). YUI publishes it as
 `update_emotion_text("enum", <emoji table>)`. In `enum` mode the broker greedily
 tokenizes `emotion_text` by table keys and drops unknown tokens (with a
 warning) — speech is never blocked. If the table cannot be loaded, YUI publishes
 `update_emotion_text("free", null)` instead, so a missing file degrades to
-pass-through rather than silencing the channel.
+pass-through rather than silencing the channel. Every other provider publishes
+`free` mode, and a `tts_provider` change reloads the table and publishes the new
+mode to the broker, the Chat Completions tool schema, and push `vocabulary`
+frames without a restart.
 
 The broker keeps this state in-memory and ephemeral, so YUI re-publishes on
 every boot and on every broker reconnect. The publish is gated only on

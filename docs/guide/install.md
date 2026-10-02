@@ -49,7 +49,7 @@ Otherwise collect what the user has. Every URL starts with `http://` or `https:/
 | Chat protocol | `chat_api`: keep `chat_completions` for any tool-calling OpenAI-compatible endpoint, `responses` for a backend agent on the Responses API, `push` for a backend that speaks the [push transport](../reference/push-transport.md) |
 | Chat API key | `.env.local` → `VITE_YUI_CHAT_KEY` |
 | Expression Broker MCP URL | `broker_base_url` (`http://localhost:3201/mcp`) |
-| TTS URL, model, speaker, key | `tts_base_url` without `/v1` (`http://localhost:8088`), `tts_model`, `tts_speaker`, `.env.local` → `VITE_YUI_TTS_KEY` |
+| TTS provider, URL, model, speaker, key | `tts_provider` (`irodori` or `openai`), `tts_base_url` without `/v1` (`http://localhost:8088` for Irodori, `https://api.openai.com` for OpenAI), `tts_model` (`irodori-tts`, or `gpt-4o-mini-tts` for OpenAI), `tts_speaker`, `.env.local` → `VITE_YUI_TTS_KEY` |
 | STT URL, model, key | `stt_base_url` with `/v1` (`http://localhost:5517/v1`), `stt_model`, `.env.local` → `VITE_YUI_STT_KEY` |
 
 Create `.env.local` with `cp -n .env.example .env.local` and set only the keys the user gave. The `VITE_YUI_*_KEY` values in it apply to dev runs only; a release build carries no key and reads the keys entered in the Connection tab. Merge the answered keys into `configs/endpoints.json` and leave the rest out; an unset URL keeps that feature off. `pnpm tauri dev` reloads `configs/` on change; a change to `.env.local` needs a restart.

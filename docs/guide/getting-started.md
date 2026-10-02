@@ -138,14 +138,19 @@ The broker publishes YUI's renderable emotion/motion/`emotion_text` vocabulary s
 
 ## 5. TTS — Voice Output (optional)
 
-Without TTS, YUI displays text in the speech bubble but produces no audio. Any server implementing the OpenAI `/v1/audio/speech` endpoint works.
+Without TTS, YUI displays text in the speech bubble but produces no audio. `tts_provider` names the engine at `tts_base_url`: `irodori` (the shipped default) or `openai`. Both take `POST <tts_base_url>/v1/audio/speech`, and the provider decides how the cue's `emotion_text` and `caption` ride in that request and where the voice list comes from. The **Provider** select in the Connection tab's TTS section sets the provider and fills in its server URL and default model.
 
-The reference deployment is [Irodori TTS Server](https://github.com/Aratako/Irodori-TTS-Server) — it also understands the emoji `emotion_text` tags inline in the spoken text. Follow that repo's README to run it (default port 8088).
+If the server requires auth, set `VITE_YUI_TTS_KEY` in `.env.local`. YUI sends it as `Authorization: Bearer`. Like all key fallbacks this applies to dev runs only; a release build reads the key entered in the Connection tab.
+
+### Irodori
+
+[Irodori TTS Server](https://github.com/Aratako/Irodori-TTS-Server) is the reference deployment. Follow that repo's README to run it (default port 8088). YUI prepends the emoji `emotion_text` tag to the spoken text and sends `caption` as `irodori.caption`.
 
 **Caveat: Irodori serves Japanese only.** When using it, instruct your backend agent to respond in Japanese.
 
 In `configs/endpoints.json`:
 ```json
+"tts_provider": "irodori",
 "tts_base_url": "http://localhost:8088",
 "tts_model": "irodori-tts",
 "tts_speaker": "<voice-id>"
@@ -153,9 +158,15 @@ In `configs/endpoints.json`:
 
 `tts_model` must match the name the server is configured under, or the server answers 400.
 
-The TTS server is the source of truth for the available voice IDs (`GET /v1/audio/voices`) — YUI ships no bundled catalog. The panel's voice section lists them; `tts_speaker` picks the one used until you choose another there. Voices live in the server's `voices/` directory, and the panel uploads imported reference clips with `POST`/`PUT /v1/audio/voices` and removes them with `DELETE /v1/audio/voices/{voice_id}`.
+The TTS server is the source of truth for the available voice IDs (`GET /v1/audio/voices`), and YUI ships no bundled catalog. The panel's voice section lists them; `tts_speaker` picks the one used until you choose another there. Voices live in the server's `voices/` directory, and the panel uploads imported reference clips with `POST`/`PUT /v1/audio/voices` and removes them with `DELETE /v1/audio/voices/{voice_id}`. When the server lists no voice a local clip was imported under, the voice list refresh uploads that clip again.
 
-If the server requires auth, set `VITE_YUI_TTS_KEY` in `.env.local` — YUI sends it as `Authorization: Bearer`. Like all key fallbacks this applies to dev runs only; a release build reads the key entered in the Connection tab.
+### OpenAI
+
+1. Create a key at [https://platform.openai.com/api-keys](https://platform.openai.com/api-keys).
+2. In the Connection tab's TTS section, pick **OpenAI** as the provider. The server URL becomes `https://api.openai.com` and the model `gpt-4o-mini-tts`.
+3. Paste the key into the TTS API key field.
+
+The voice section lists OpenAI's 13 built-in voices: `alloy`, `ash`, `ballad`, `coral`, `echo`, `fable`, `nova`, `onyx`, `sage`, `shimmer`, `verse`, `marin`, `cedar`. Importing, deleting, and re-uploading voices is off for this provider. YUI sends the spoken text as `input` and joins `emotion_text` and `caption` into `instructions`. The `tts-1` and `tts-1-hd` models ignore `instructions` and speak only `alloy`, `ash`, `coral`, `echo`, `fable`, `nova`, `onyx`, `sage`, and `shimmer`.
 
 ---
 
@@ -189,7 +200,8 @@ Key reference:
 | `chat_instructions` | expression prompt | System-level nudge on how to use `generate_express`; sent as `instructions` (Responses) or a system message (Chat Completions) |
 | `stt_base_url` | unset | STT server base URL |
 | `stt_model` | unset | `model` sent to the STT server; omitted when unset |
-| `tts_base_url` | unset | OpenAI-compatible TTS server |
+| `tts_provider` | `irodori` | TTS engine at `tts_base_url`: `irodori` or `openai` |
+| `tts_base_url` | unset | TTS server root without `/v1` |
 | `tts_model` | `irodori-tts` | `model` sent to the TTS server; must match its configured name |
 | `tts_speaker` | unset | Default voice id, until another is picked in the panel |
 | `tts_max_inflight` | `1` | Concurrent TTS synthesis requests |
