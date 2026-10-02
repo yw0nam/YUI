@@ -64,6 +64,12 @@ describe("scripts/worktree-setup.sh", () => {
     expect(spawnSync("bash", [SETUP, wt, main]).status).toBe(0);
     expect(lstatSync(join(wt, ".claude")).isSymbolicLink()).toBe(true);
     expect(readFileSync(join(wt, ".claude/settings.json"), "utf8")).toBe("{}");
+
+    const tracked = tmp("yui-wt-");
+    mkdirSync(join(tracked, ".claude"));
+    expect(spawnSync("bash", [SETUP, tracked, main]).status).toBe(0);
+    expect(lstatSync(join(tracked, ".claude")).isDirectory()).toBe(true);
+    expect(existsSync(join(tracked, ".claude/.claude"))).toBe(false);
   });
 
   it("is idempotent — a second run succeeds and keeps the links", () => {

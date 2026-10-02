@@ -13,5 +13,4 @@ Mandatory rules have an enforcement point — the gate, not memory, is the sourc
 | Rust format + clippy + test | `rust` CI job; on pull requests, `dorny/paths-filter` runs `cargo fmt --check`, `cargo clippy -D warnings`, and `cargo test` when `src-tauri/**` or `.github/workflows/ci.yml` changes, otherwise the job reports green without the heavy steps |
 | Windows-only Rust sources compile | `rust-windows` CI job (`cargo check` on a Windows runner, gated by the same `paths-filter` as `rust`) |
 | Runtime verification of UI/DOM/runtime change | PR template Runtime-evidence section |
-| Worktree runtime assets linked | `scripts/worktree-setup.sh` |
-| TDD ordering, UI mock approval, current-state docs | Working style (no machine gate) |
+| TDD ordering, UI mock approval, current-state docs, worktree runtime assets (`scripts/worktree-setup.sh`) | Working style (no machine gate) |
