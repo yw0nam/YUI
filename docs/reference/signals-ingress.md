@@ -103,8 +103,9 @@ shape:
 
 The serialized request runs to at most 49,152 bytes of UTF-8. The producer measures each
 item alone in a request and drops its oldest refs until that request fits the cap. A group
-of several items that runs over the cap drops refs from the oldest item first, then the next
-oldest; every item keeps its `date`, `summary`, and `sources`.
+of several items that runs over the cap drops the oldest ref of whichever item holds the
+most refs, the older item on a tie, until it fits. Every item keeps its `date`, `summary`,
+`sources`, and its newest refs.
 
 An item whose `refs` is `[]` says that run brought nothing new. A day with no item means
 the producer skipped its run.

@@ -155,7 +155,7 @@ changes: on macOS, a launchd agent with `KeepAlive` running
 user service with `Restart=always` running the same command.
 
 Compare the time zone of the producer's machine with the user's. When they differ, the jobs
-in step 7 carry `TZ=<user zone>`, which sets each item's `date` to the user's day, and the
+in step 7 carry `TZ=<user zone>` (for example `TZ=Asia/Seoul`), which sets each item's `date` to the user's day, and the
 schedule is written in the machine's time, or under `CRON_TZ=<user zone>` where the cron
 supports it.
 
@@ -190,8 +190,9 @@ gather.py | python3 "$SKILL_DIR/scripts/post-briefing.py" --source <producer nam
 `post-briefing.py` reads `{"summary": ..., "sources": [...], "refs": [...]}` on stdin,
 applies every cap in the contract, writes the item to
 `$YUI_BRIEFING_SPOOL/<YYYY-MM-DD>/<producer name>.json`, then posts every pending item in
-the spool as one request, oldest day first, dropping refs from the oldest items when the
-request runs over the size cap. A delivered file is renamed
+the spool as one request, oldest day first. When the request runs over the size cap, it
+drops the oldest refs of whichever item holds the most, so every producer keeps its newest
+refs. A delivered file is renamed
 `<producer name>.<HHMMSSmmm>.sent.json`, stamped with the delivery time, and stays as the
 archive with its full refs; a later run never overwrites it. `--flush` posts the pending
 items without reading stdin. `--dry-run` prints the request and writes and posts nothing. `--help` lists the rest, and `references/producer-contract.md` states
@@ -225,13 +226,13 @@ YUI_BRIEFING_SPOOL=/absolute/path/to/workspace/yui-briefing-spool
 ```
 
 One line per producer, each with its own `--source`, and one flush line. Cron sets the
-three variables without expanding `$` or `~` inside them, so they hold absolute paths;
+variables without expanding `$` or `~` inside them, so they hold absolute paths;
 `$SKILL_DIR` in the command lines expands, since cron runs them through `sh`. Cron's
 `PATH` holds `/usr/bin:/bin`, so a gather script that calls tools from elsewhere needs a
 `PATH=` line above the jobs. On macOS, cron reads nothing under `~/Desktop`, `~/Documents`,
 or `~/Downloads` without Full Disk Access, so keep the checkout and the spool outside them
 or schedule with launchd. When step 4 found the machine's time zone differs from the
-user's, add `TZ=<user zone>` beside the other variables. Another scheduler (launchd,
+user's, add `TZ=<user zone>` beside the other variables, for example `TZ=Asia/Seoul`. Another scheduler (launchd,
 systemd timers, n8n, your own) runs the same commands with the same variables set on every
 job.
 
@@ -243,7 +244,7 @@ The poster prints nothing on success, the flush prints nothing while YUI is unre
 and anything else writes a one-line reason to stderr, so a scheduler that mails or
 messages output stays quiet on good mornings.
 
-Done when: a manual run of each producer line, with the three variables set, leaves
+Done when: a manual run of each producer line, with the variables set, leaves
 `$YUI_BRIEFING_SPOOL/<today>/<producer name>.json` or `<producer name>.<HHMMSSmmm>.sent.json`; within
 five minutes of YUI being reachable,
 `find "$YUI_BRIEFING_SPOOL" -name '*.json' ! -name '*.sent.json'` prints nothing and the
@@ -269,8 +270,11 @@ List the scheduler's entries (`crontab -l` on cron) and confirm each point:
 3. No entry passes `--event-id`; the poster takes no such flag and exits 2 on it, which
    loses that run.
 4. One entry runs `post-briefing.py --flush` every five minutes.
-5. The jobs carry `TZ=<user zone>` when the machine's time zone differs from the user's.
-6. A producer on another machine has the tunnel from step 4 up.
+5. The jobs carry `TZ=<user zone>`, such as `TZ=Asia/Seoul`, when the machine's time zone
+   differs from the user's.
+6. At most five producer runs fall between the user's sessions; otherwise merge producers
+   into one gather script, as step 6 allows.
+7. A producer on another machine has the tunnel from step 4 up.
 
 When `~/.local/state/yui-daily-briefing/backlog.json` exists on the producer's machine,
 delete it and tell the user that the refs it holds are not carried into the spool.

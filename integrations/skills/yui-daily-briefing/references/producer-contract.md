@@ -67,8 +67,9 @@ and an `envelope`. Each item comes from one producer run.
 
 `refs[].at` is an ISO-8601 timestamp. The producer measures each item serialized alone in a
 request and drops its oldest refs until that request fits the body cap. A request carrying
-several items drops refs from the oldest item first, then the next oldest, until it fits;
-every item keeps its `date`, `summary`, and `sources`.
+several items drops the oldest ref of whichever item holds the most refs, the older item on
+a tie (earlier `date`, then source name), until it fits. Every item keeps its `date`,
+`summary`, `sources`, and its newest refs.
 
 ## Reference producer
 
@@ -99,7 +100,7 @@ A flush takes an exclusive lock on `<spool>/.lock`, collects every pending
 `<YYYY-MM-DD>/<source>.json` oldest day first, and posts them as one request. YUI's away
 buffer keeps the five newest groups, so one group per flush keeps a backlog of several days
 from pushing older groups out. When the items run over the body cap, the posted copy drops
-refs from the oldest item first, then the next oldest; the spool files keep their full refs.
+refs by the rule under Caps; the spool files keep their full refs.
 The newest items that still run over the cap with every ref dropped wait for the next flush.
 The envelope reads `event_id: "daily-briefing:<newest date in the request>"`. A 2xx answer
 renames every file in the request to `<source>.<HHMMSSmmm>.sent.json`, stamped with the
