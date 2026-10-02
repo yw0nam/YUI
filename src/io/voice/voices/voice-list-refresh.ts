@@ -62,7 +62,7 @@ export function createVoiceListRefresh(deps: {
       }
       const mine = ++generation;
       const f = await selectFetch();
-      const ids = await api.list({
+      const voices = await api.list({
         baseUrl: eps.tts_base_url,
         fetch: f,
         getApiKey,
@@ -70,18 +70,20 @@ export function createVoiceListRefresh(deps: {
       });
       if (mine !== generation) return; // superseded by a later refresh
       // A failed list is not an empty server — keep the current manifest and user clips as they are.
-      if (ids === null) return;
+      if (voices === null) return;
+      const listedIds = voices.map((v) => v.id);
       // A configured default the server doesn't (yet) have must not be conjured into existence.
-      const defaultId = eps.tts_speaker && ids.includes(eps.tts_speaker) ? eps.tts_speaker : "";
+      const defaultId =
+        eps.tts_speaker && listedIds.includes(eps.tts_speaker) ? eps.tts_speaker : "";
       // A user-imported voice is uploaded to the server under its own id — once relisted it would
       // collide as a "bundled" entry and the store's bundled-wins rule would strip the user's
       // richer option (label + asset:// ref_url). Exclude user-owned ids from the bundled manifest
       // instead. Read after the fetch, so an import that landed mid-flight is respected.
       const userIds = new Set(takesUploads ? speakerSelection.listUser().map((o) => o.id) : []);
       speakerSelection.setManifest({
-        available: ids
-          .filter((id) => !userIds.has(id))
-          .map((id) => ({ id, label: id, ref_url: "" })),
+        available: voices
+          .filter((v) => !userIds.has(v.id))
+          .map((v) => ({ id: v.id, label: v.label ?? v.id, ref_url: "" })),
         defaultValue: defaultId,
         hideUser: !takesUploads,
       });
@@ -93,7 +95,7 @@ export function createVoiceListRefresh(deps: {
       if (reuploadUserVoice && takesUploads) {
         const lost = speakerSelection
           .listUser()
-          .filter((o) => o.ref_url.length > 0 && !ids.includes(o.id));
+          .filter((o) => o.ref_url.length > 0 && !listedIds.includes(o.id));
         for (const option of lost) {
           try {
             await reuploadUserVoice(option);

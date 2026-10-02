@@ -139,6 +139,8 @@ export function wireSpeakerSelection(deps: {
   refreshVoiceList: () => Promise<void>;
   /** Whether the current TTS provider takes imported voices — import, delete and re-upload. */
   canManageVoices: () => boolean;
+  /** Whether the current provider can speak any voice id — the panel shows a paste-id field. */
+  canPasteVoiceId: () => boolean;
   /** Moves imported voices whose id the TTS server rejects to an ASCII id. */
   migrateVoiceIds: () => Promise<void>;
 } {
@@ -170,18 +172,33 @@ export function wireSpeakerSelection(deps: {
     const eps = getEndpoints();
     return Boolean(eps && VOICE_APIS[ttsProviderOf(eps)]?.upsert);
   };
+  // Whether the provider can speak any voice id (Fish's library) — the panel's paste-id field shows.
+  const canPasteVoiceId = (): boolean => {
+    const eps = getEndpoints();
+    return Boolean(eps && VOICE_APIS[ttsProviderOf(eps)]?.manualId);
+  };
   // Re-upload the reference clip — server-side force-refresh only, does not change the selection.
   const refreshSpeaker = async (option: SpeakerOption): Promise<void> => {
     const { baseUrl, upsert } = voiceServer("refresh");
     const f = await selectFetch();
-    await upsert({
+    const serverId = await upsert({
       baseUrl,
       id: option.id,
+      name: option.label ?? option.id,
       refUrl: option.ref_url,
       fetch: f,
       getApiKey,
       logger: log,
     });
+    if (serverId && serverId !== option.id) {
+      // The upload trained a new model id (Fish) — move the option, and an active selection, onto it.
+      const wasActive = speakerSelection.getActiveId() === option.id;
+      const revision = nextRevision(speakerSelection.list(), option.id);
+      speakerSelection.removeUserOption(option.id);
+      speakerSelection.addUserOption({ ...option, id: serverId, source: "user", revision });
+      if (wasActive) speakerSelection.select(serverId);
+      return;
+    }
     // The clip behind an unchanged id was replaced — bump the persisted revision so every
     // window's filler cache key moves with it.
     speakerSelection.addUserOption({
@@ -224,6 +241,7 @@ export function wireSpeakerSelection(deps: {
     removeVoice,
     refreshVoiceList,
     canManageVoices,
+    canPasteVoiceId,
     migrateVoiceIds: () =>
       migrateUserVoiceIds({
         speakerSelection,

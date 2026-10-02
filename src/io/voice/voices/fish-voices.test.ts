@@ -62,11 +62,10 @@ describe("listFishVoices", () => {
     });
 
     expect(fetchMock).toHaveBeenCalledOnce();
-    expect(fetchMock.mock.calls[0][0]).toBe(`${BASE_URL}/model?self=true&page_size=100&page_number=1`);
-    expect(voices).toEqual([
-      { id: "m1", label: "ナツメ" },
-      { id: "m2", label: "m2" },
-    ]);
+    expect(fetchMock.mock.calls[0][0]).toBe(
+      `${BASE_URL}/model?self=true&page_size=100&page_number=1`,
+    );
+    expect(voices).toEqual([{ id: "m1", label: "ナツメ" }, { id: "m2" }]);
   });
 
   it("sends Authorization: Bearer when a key is configured and omits it otherwise", async () => {
@@ -126,7 +125,13 @@ describe("listFishVoices", () => {
     const fetchMock = vi
       .fn<FetchFn>()
       .mockResolvedValueOnce(
-        jsonResponse({ total: 3, items: [{ _id: "a", title: "A" }, { _id: "b", title: "B" }] }),
+        jsonResponse({
+          total: 3,
+          items: [
+            { _id: "a", title: "A" },
+            { _id: "b", title: "B" },
+          ],
+        }),
       )
       .mockResolvedValueOnce(jsonResponse({ total: 3, items: [{ _id: "c", title: "C" }] }));
 
@@ -328,7 +333,9 @@ describe("upsertFishVoice", () => {
 
 describe("deleteFishVoice", () => {
   it("DELETEs the percent-encoded model id with Bearer", async () => {
-    const fetchMock = vi.fn<FetchFn>(async () => ({ ok: true, status: 200 }) as unknown as Response);
+    const fetchMock = vi.fn<FetchFn>(
+      async () => ({ ok: true, status: 200 }) as unknown as Response,
+    );
 
     await deleteFishVoice({
       baseUrl: BASE_URL,
@@ -348,9 +355,7 @@ describe("deleteFishVoice", () => {
   });
 
   it("throws with the server's message on failure", async () => {
-    const fetchMock = vi.fn<FetchFn>(async () =>
-      errorResponse(403, { message: "not your model" }),
-    );
+    const fetchMock = vi.fn<FetchFn>(async () => errorResponse(403, { message: "not your model" }));
 
     await expect(
       deleteFishVoice({

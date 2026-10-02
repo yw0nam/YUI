@@ -69,15 +69,18 @@ export function createVoiceImportFlow(deps: {
       const upsert = VOICE_APIS[provider]?.upsert;
       if (!upsert) throw new Error(`TTS provider "${provider}" takes no imported voices`);
       const f = await selectFetch();
-      // ref_url is an asset:// URL that reference-clip reads through the webview fetch.
-      await upsert({
+      // ref_url is an asset:// URL that reference-clip reads through the webview fetch. A server
+      // that names its own models (Fish) hands back the id the option must carry from here on.
+      const serverId = await upsert({
         baseUrl: eps.tts_base_url,
         id: option.id,
+        name: option.label,
         refUrl: option.ref_url,
         fetch: f,
         getApiKey,
         logger: log,
       });
+      if (typeof serverId === "string" && serverId) option.id = serverId;
     } catch (err) {
       // Surface a cleanup failure as a warning rather than swallowing it (the original still throws).
       await removeOrphanImport(option.id, removeUserVoiceFile, (e) =>

@@ -8,7 +8,13 @@ export const VOICES_REQUEST_TIMEOUT_MS = 10_000;
 /** One budget for the clip read, the POST and the PUT fallback; the server may embed the clip before answering. */
 export const VOICE_UPLOAD_TIMEOUT_MS = 30_000;
 
-interface VoicesRequestOptions {
+/** One listed voice — the server-side voice id plus its visible label when the list carries one. */
+export interface VoiceEntry {
+  id: string;
+  label?: string;
+}
+
+export interface VoicesRequestOptions {
   baseUrl: string;
   fetch?: typeof fetch;
   /** Resolves the TTS server key (Bearer) per request. Omitted/empty → no auth header. */
@@ -70,15 +76,17 @@ export async function listVoices(opts: VoicesRequestOptions): Promise<string[] |
 }
 
 /** The server validates the uploaded filename's extension, so it follows the imported clip. */
-function extensionOf(refUrl: string): string {
+export function clipExtensionOf(refUrl: string): string {
   const path = refUrl.split(/[?#]/)[0];
   const ext = /\.([A-Za-z0-9]+)$/.exec(path)?.[1];
   if (!ext) throw new Error(`reference clip has no file extension: ${refUrl}`);
   return ext.toLowerCase();
 }
 
-interface UpsertVoiceOptions extends VoicesRequestOptions {
+export interface UpsertVoiceOptions extends VoicesRequestOptions {
   id: string;
+  /** The name typed in the import naming row — Fish's model title; Irodori ignores it. */
+  name?: string;
   /** asset:// URL of the reference clip (e.g. "asset://localhost/app-data/references/myvoice/clip.wav"). */
   refUrl: string;
 }
@@ -87,7 +95,7 @@ interface UpsertVoiceOptions extends VoicesRequestOptions {
  * Create-or-replace: POSTs the clip, and on 409 (the id already exists) PUTs over it. Callers
  * therefore never branch on whether the server already knows the voice.
  */
-export async function upsertVoice(opts: UpsertVoiceOptions): Promise<void> {
+export async function upsertVoice(opts: UpsertVoiceOptions): Promise<string | undefined> {
   const log = opts.logger ?? createLogger("tts-voices");
   if (!opts.refUrl) {
     throw new Error("upsertVoice requires a reference clip");
@@ -95,7 +103,7 @@ export async function upsertVoice(opts: UpsertVoiceOptions): Promise<void> {
   const deadline = createDeadlineSignal(VOICE_UPLOAD_TIMEOUT_MS, "TTS voice upload timed out");
   try {
     const fetchImpl = opts.fetch ?? globalThis.fetch;
-    const filename = `${opts.id}.${extensionOf(opts.refUrl)}`;
+    const filename = `${opts.id}.${clipExtensionOf(opts.refUrl)}`;
     const blob = await untilAborted(
       fetchReferenceClip(opts.refUrl, { fetch: fetchImpl, signal: deadline.signal }),
       deadline.signal,
@@ -135,6 +143,8 @@ export async function upsertVoice(opts: UpsertVoiceOptions): Promise<void> {
   } finally {
     deadline.clear();
   }
+  // The server keeps the caller's id — there is no server-assigned one to adopt.
+  return undefined;
 }
 
 export async function deleteVoice(opts: VoicesRequestOptions & { id: string }): Promise<void> {

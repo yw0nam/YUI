@@ -45,15 +45,16 @@ function synthesizeOption(defaultValue: string): SpeakerOption {
   return { id: defaultValue, label: defaultValue, ref_url: "" };
 }
 
-/** Coerces one imported option into a safe source:"user" SpeakerOption (null if incomplete). */
+/** Coerces one imported option into a safe source:"user" SpeakerOption (null if incomplete).
+ *  ref_url may be empty — a pasted library voice id carries no local clip. */
 function coerceUserSpeaker(v: unknown): SpeakerOption | null {
   if (typeof v !== "object" || v === null) return null;
   const o = v as Record<string, unknown>;
   if (typeof o.id !== "string" || !isSafeSanitizedId(o.id)) return null;
-  if (typeof o.ref_url !== "string" || o.ref_url.length === 0) return null;
+  const refUrl = typeof o.ref_url === "string" ? o.ref_url : "";
   const label = typeof o.label === "string" && o.label.length > 0 ? o.label : o.id;
   const revision = typeof o.revision === "number" ? o.revision : undefined;
-  return { id: o.id, label, ref_url: o.ref_url, source: "user", revision };
+  return { id: o.id, label, ref_url: refUrl, source: "user", revision };
 }
 
 export function createSpeakerSelection(opts: {
