@@ -49,6 +49,7 @@ export function wirePetControls(deps: {
     | "commitVoiceImport"
     | "removeVoice"
     | "refreshVoiceList"
+    | "canManageVoices"
   >;
   pushSocket: Pick<PushSocket, "getState" | "onState" | "sendReset" | "reconnectNow">;
   stopTurn: () => void;
@@ -90,6 +91,7 @@ export function wirePetControls(deps: {
     commitVoiceImport,
     removeVoice,
     refreshVoiceList,
+    canManageVoices,
   } = speaker;
   const {
     screenshotSettings,
@@ -181,6 +183,7 @@ export function wirePetControls(deps: {
       commitVoiceImport,
       removeVoice,
       refreshVoiceList,
+      canManageVoices,
       onGainPreview: (mouthOpen) => renderer.setMouthOpen(mouthOpen),
       onGainPreviewEnd: () => renderer.stopMouth(),
       onOpenDevtools: openDevtools,

@@ -6,13 +6,19 @@
  * settings window on boot / panel open), so it lives here rather than being written twice.
  */
 
+import { ttsProviderOf } from "../../../config/tts-provider";
+import type { TtsProviderName } from "../../../contract";
 import type { Logger } from "../../../logger";
 import { selectFetch } from "../../chat/chat-client";
 import type { SpeakerOption } from "./speaker-selection";
-import { listVoices } from "./tts-voices";
+import { VOICE_APIS } from "./voice-apis";
 
 /** The endpoints fields this needs, or null when config is not loaded yet. */
-type VoiceListEndpoints = { tts_base_url?: string; tts_speaker?: string } | null;
+type VoiceListEndpoints = {
+  tts_base_url?: string;
+  tts_speaker?: string;
+  tts_provider?: TtsProviderName;
+} | null;
 
 /** The slice of the speaker store the refresher touches. */
 interface SpeakerManifestTarget {
@@ -39,9 +45,11 @@ export function createVoiceListRefresh(deps: {
     try {
       const eps = getEndpoints();
       if (!eps?.tts_base_url) return;
+      const api = VOICE_APIS[ttsProviderOf(eps)];
+      if (!api) return;
       const mine = ++generation;
       const f = await selectFetch();
-      const ids = await listVoices({
+      const ids = await api.list({
         baseUrl: eps.tts_base_url,
         fetch: f,
         getApiKey,
@@ -71,7 +79,8 @@ export function createVoiceListRefresh(deps: {
       // Self-heal: a user-imported voice lives on the server as a reference clip, and a server
       // restart or swap loses it — every synth then 400s ("Unknown voice"). The local clip is the
       // source of truth, so push it back up instead of leaving the selection silently broken.
-      if (reuploadUserVoice) {
+      // Only a provider that takes uploads gets one, so a provider switch never carries clips elsewhere.
+      if (reuploadUserVoice && api.upsert) {
         const lost = speakerSelection
           .list()
           .filter((o) => o.source === "user" && o.ref_url.length > 0 && !ids.includes(o.id));
@@ -91,8 +100,9 @@ export function createVoiceListRefresh(deps: {
 }
 
 /**
- * Refetches the voice list when an endpoints-override commit changes a TTS field. The override
- * store notifies on every field's commit, so non-TTS edits (chat URL etc) are filtered out here.
+ * Refetches the voice list when an endpoints-override commit changes the TTS URL, speaker or
+ * provider. The override store notifies on every field's commit, so non-TTS edits (chat URL etc)
+ * are filtered out here.
  */
 export function wireVoiceListAutoRefresh(deps: {
   subscribe: (cb: () => void) => () => void;
@@ -104,7 +114,7 @@ export function wireVoiceListAutoRefresh(deps: {
   const key = (): string | null => {
     try {
       const eps = deps.getEndpoints();
-      return `${eps?.tts_base_url ?? ""}\u0000${eps?.tts_speaker ?? ""}`;
+      return [eps?.tts_base_url, eps?.tts_speaker, eps?.tts_provider].join("\u0000");
     } catch {
       return null;
     }

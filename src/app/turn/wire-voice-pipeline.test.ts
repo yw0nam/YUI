@@ -88,7 +88,11 @@ vi.mock("../../io/voice/tts/speech-playback", () => ({
 vi.mock("../../io/voice/filler/filler-loop", () => ({ createFillerLoop: mocks.createFillerLoop }));
 vi.mock("../../io/voice/stt-vad", () => ({ createSttVad: mocks.createSttVad }));
 vi.mock("../../io/voice/tts/tts-pipeline", () => ({ TTS_SKIP: mocks.ttsSkip }));
-vi.mock("../../io/voice/voices/tts-voices", () => ({ upsertVoice: mocks.upsertVoice }));
+vi.mock("../../io/voice/voices/tts-voices", () => ({
+  upsertVoice: mocks.upsertVoice,
+  listVoices: vi.fn(),
+  deleteVoice: vi.fn(),
+}));
 vi.mock("../../io/voice/tts/audio-player", () => ({
   createWebAudioSink: mocks.createWebAudioSink,
 }));
@@ -610,7 +614,7 @@ describe("wireVoicePipeline", () => {
         source: "user",
       });
       const { commitVoiceImport: commitOnWindowA } = createVoiceImportFlow({
-        getTtsBaseUrl: () => "http://tts.test",
+        getEndpoints: () => ({ tts_base_url: "http://tts.test" }),
         speakerSelection: windowA,
         log: noopLog,
       });

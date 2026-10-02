@@ -138,6 +138,8 @@ interface QuickControlsOptions {
   commitVoiceImport: (srcPath: string, name: string) => Promise<void>;
   /** Delete imported voice's app-data file (idempotent). Called separately from store removal. */
   removeVoice: (id: string) => Promise<void>;
+  /** Whether the TTS provider takes imported voices — gates import, delete and re-upload. */
+  canManageVoices: () => boolean;
   /** Refetches the TTS server's voice list on panel open (the server may come up after the app). Fire-and-forget. */
   refreshVoiceList?: () => void;
   onGainPreview: (mouthOpen: number) => void;
@@ -252,6 +254,7 @@ export function createQuickControls({
   pickVoiceImport,
   commitVoiceImport,
   removeVoice,
+  canManageVoices,
   refreshVoiceList,
   onGainPreview,
   onGainPreviewEnd,
@@ -503,6 +506,7 @@ export function createQuickControls({
     pickVoiceImport,
     commitVoiceImport,
     removeVoice,
+    canManageVoices,
     log,
     refreshTooltip: hintTooltip.refresh,
     isDisposed: () => disposed,

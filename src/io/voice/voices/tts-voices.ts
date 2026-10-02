@@ -1,4 +1,4 @@
-/** OpenAI-compatible voices API — lists, uploads, and deletes reference voices. */
+/** Irodori's `/v1/audio/voices` API — lists, uploads, and deletes reference voices. */
 
 import { createLogger, type Logger } from "../../../logger";
 import { createDeadlineSignal, untilAborted } from "../deadline";

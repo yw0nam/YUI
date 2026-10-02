@@ -7,11 +7,13 @@
  * TTS server directly — so it lives here rather than being written twice.
  */
 
+import { ttsProviderOf } from "../../../config/tts-provider";
+import type { TtsProviderName } from "../../../contract";
 import type { Logger } from "../../../logger";
 import { removeOrphanImport } from "../../assets/user-asset-import";
 import { selectFetch } from "../../chat/chat-client";
 import { nextRevision, type SpeakerOption } from "./speaker-selection";
-import { upsertVoice } from "./tts-voices";
+import { VOICE_APIS } from "./voice-apis";
 import {
   copyVoiceFile,
   fileStemFromPath,
@@ -33,7 +35,8 @@ interface SpeakerImportTarget {
 }
 
 export function createVoiceImportFlow(deps: {
-  getTtsBaseUrl: () => string | undefined;
+  /** The endpoints fields the upload needs, or null when config is not loaded yet. */
+  getEndpoints: () => { tts_base_url?: string; tts_provider?: TtsProviderName } | null;
   /** Resolves the TTS server key (Bearer). Omitted/empty → no auth header. */
   getApiKey?: () => Promise<string | undefined>;
   speakerSelection: SpeakerImportTarget;
@@ -42,7 +45,7 @@ export function createVoiceImportFlow(deps: {
   pickVoiceImport: () => Promise<PickedVoiceImport | null>;
   commitVoiceImport: (srcPath: string, name: string) => Promise<void>;
 } {
-  const { getTtsBaseUrl, getApiKey, speakerSelection, log } = deps;
+  const { getEndpoints, getApiKey, speakerSelection, log } = deps;
 
   const pickVoiceImport = async (): Promise<PickedVoiceImport | null> => {
     const srcPath = await pickVoiceFile();
@@ -50,7 +53,7 @@ export function createVoiceImportFlow(deps: {
     return { srcPath, seedName: fileStemFromPath(srcPath) };
   };
 
-  // Copy under the typed name, then upload. upsertVoice is create-or-replace, so this is one
+  // Copy under the typed name, then upload. The upload is create-or-replace, so this is one
   // unconditional call: a duplicate name is an intentional overwrite and a first import is a
   // create. On failure, delete the orphan copy and rethrow without touching the store, leaving
   // the prior selection intact.
@@ -60,12 +63,15 @@ export function createVoiceImportFlow(deps: {
     // the existing cross-window settings sync carries the change into other windows' filler cache key.
     const option = { ...copied, revision: nextRevision(speakerSelection.list(), copied.id) };
     try {
-      const baseUrl = getTtsBaseUrl();
-      if (!baseUrl) throw new Error("voice import requires tts_base_url");
+      const eps = getEndpoints();
+      if (!eps?.tts_base_url) throw new Error("voice import requires tts_base_url");
+      const provider = ttsProviderOf(eps);
+      const upsert = VOICE_APIS[provider]?.upsert;
+      if (!upsert) throw new Error(`TTS provider "${provider}" takes no imported voices`);
       const f = await selectFetch();
       // ref_url is an asset:// URL that reference-clip reads through the webview fetch.
-      await upsertVoice({
-        baseUrl,
+      await upsert({
+        baseUrl: eps.tts_base_url,
         id: option.id,
         refUrl: option.ref_url,
         fetch: f,

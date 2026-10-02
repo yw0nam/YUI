@@ -760,8 +760,9 @@ describe("wireSpeakerSelection — openai", () => {
 
   it("turns voice import, delete and re-upload off", async () => {
     let eps: EndpointsConfig = { ...OPENAI, tts_provider: "irodori" };
-    const { canManageVoices, removeVoice, refreshSpeaker, speakerSelection } =
-      wireSpeakerSelection({ getEndpoints: () => eps, log: noopLog, broadcastSettings: () => {} });
+    const { canManageVoices, removeVoice, refreshSpeaker, speakerSelection } = wireSpeakerSelection(
+      { getEndpoints: () => eps, log: noopLog, broadcastSettings: () => {} },
+    );
     expect(canManageVoices()).toBe(true);
 
     eps = OPENAI;
