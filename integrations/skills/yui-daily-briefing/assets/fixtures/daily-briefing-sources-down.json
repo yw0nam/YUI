@@ -2,6 +2,7 @@
   "signals": [
     {
       "skill": "yui-daily-briefing",
+      "date": "2026-09-14",
       "summary": "nothing new since 2026-09-13 18:00",
       "sources": [
         { "name": "repo-status", "status": "failed", "last_ok": "2026-09-12T06:00:00+09:00" },

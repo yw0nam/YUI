@@ -2,6 +2,7 @@
   "signals": [
     {
       "skill": "yui-daily-briefing",
+      "date": "2026-09-14",
       "summary": "cron run failed: ValueError: stdin must hold a JSON object with sources[] and refs[]",
       "sources": [
         { "name": "cron", "status": "failed", "run_url": "https://scheduler.example.com/runs/231" }
@@ -11,9 +12,9 @@
   ],
   "envelope": {
     "source": "cron",
-    "event_type": "source_health",
+    "event_type": "daily_briefing",
     "delivery": "immediate",
-    "event_id": "source-health:cron:231",
+    "event_id": "daily-briefing:2026-09-14",
     "occurred_at": 1789340400000
   }
 }

@@ -1,7 +1,9 @@
 #!/usr/bin/env python3
-"""Reads a briefing item from stdin, applies the contract's caps, and posts it to YUI."""
+"""Spools a briefing item read from stdin under its day, then posts every pending item to YUI."""
 import argparse
 import datetime
+import fcntl
+import glob
 import json
 import os
 import sys
@@ -19,7 +21,7 @@ EXCERPT_MAX = 280
 URL_MAX = 2048
 BODY_MAX_BYTES = 48 * 1024
 STATUSES = ("ok", "stale", "failed", "disabled")
-BACKLOG = os.path.expanduser("~/.local/state/yui-daily-briefing/backlog.json")
+SPOOL = os.environ.get("YUI_BRIEFING_SPOOL") or "~/.local/state/yui-daily-briefing/spool"
 
 
 def clip(value, cap):
@@ -27,18 +29,18 @@ def clip(value, cap):
     return cleaned[: cap - 1] + "…" if len(cleaned) > cap else cleaned
 
 
-def iso(ms):
-    moment = datetime.datetime(1970, 1, 1, tzinfo=datetime.timezone.utc) + datetime.timedelta(milliseconds=ms)
-    return moment.strftime("%Y-%m-%dT%H:%M:%S.") + f"{ms % 1000:03d}Z"
-
-
 def http_url(value):
     return isinstance(value, str) and value.startswith(("http://", "https://")) and len(value) <= URL_MAX
 
 
-def serialize(summary, sources, refs, envelope):
-    item = {"skill": "yui-daily-briefing", "summary": summary, "sources": sources, "refs": refs}
-    return json.dumps({"signals": [item], "envelope": envelope}, ensure_ascii=False, separators=(",", ":"))
+def body(items, source, now_ms):
+    envelope = {"source": source, "event_type": "daily_briefing", "delivery": "immediate",
+                "event_id": "daily-briefing:" + max(item["date"] for item in items), "occurred_at": now_ms}
+    return json.dumps({"signals": items, "envelope": envelope}, ensure_ascii=False, separators=(",", ":"))
+
+
+def fits(items, source, now_ms):
+    return len(body(items, source, now_ms).encode("utf-8")) <= BODY_MAX_BYTES
 
 
 def source_entry(raw):
@@ -54,112 +56,143 @@ def source_entry(raw):
     return entry
 
 
-def ref_entry(raw, now_ms):
+def ref_entry(raw, now_iso):
     if not isinstance(raw, dict) or not http_url(raw.get("url")):
         return None
     return {
         "kind": clip(raw.get("kind"), KIND_MAX) or "other",
         "title": clip(raw.get("title"), TITLE_MAX) or clip(raw["url"], TITLE_MAX),
         "url": raw["url"],
-        "at": str(raw.get("at") or iso(now_ms)),
+        "at": str(raw.get("at") or now_iso),
         "excerpt": clip(raw.get("excerpt"), EXCERPT_MAX),
     }
 
 
-def compose(item, source, event_id, now_ms):
-    if not isinstance(item, dict) or not isinstance(item.get("sources"), list) or not isinstance(item.get("refs"), list):
+def compose(raw, date, source, now_ms):
+    if not isinstance(raw, dict) or not isinstance(raw.get("sources"), list) or not isinstance(raw.get("refs"), list):
         raise ValueError("stdin must hold a JSON object with sources[] and refs[]")
-    sources = [source_entry(raw) for raw in item["sources"][:SOURCES_MAX]]
+    now_iso = datetime.datetime.now(datetime.timezone.utc).isoformat(timespec="milliseconds").replace("+00:00", "Z")
+    sources = [source_entry(entry) for entry in raw["sources"][:SOURCES_MAX]]
     refs = []
     seen = set()
-    for raw in item["refs"]:
-        ref = ref_entry(raw, now_ms)
+    for entry in raw["refs"]:
+        ref = ref_entry(entry, now_iso)
         if ref is None or ref["url"] in seen:
             continue
         seen.add(ref["url"])
         refs.append(ref)
-    summary = clip(item.get("summary"), SUMMARY_MAX) or f"{len(refs)} items"
-    refs = refs[:REFS_MAX]
-    envelope = {"source": source, "event_type": "daily_briefing", "delivery": "immediate",
-                "event_id": event_id, "occurred_at": now_ms}
-    body = serialize(summary, sources, refs, envelope)
-    while len(body.encode("utf-8")) > BODY_MAX_BYTES and refs:
-        refs.pop()
-        body = serialize(summary, sources, refs, envelope)
-    if len(body.encode("utf-8")) > BODY_MAX_BYTES:
+    summary = clip(raw.get("summary"), SUMMARY_MAX) or f"{len(refs)} items"
+    item = {"skill": "yui-daily-briefing", "date": date, "summary": summary, "sources": sources, "refs": refs[:REFS_MAX]}
+    while not fits([item], source, now_ms) and item["refs"]:
+        item["refs"].pop()
+    if not fits([item], source, now_ms):
         raise ValueError("briefing body stays over the size cap with no refs left to drop")
-    return body
+    return item
 
 
-def load_backlog():
-    try:
-        with open(BACKLOG, encoding="utf-8") as file:
-            refs = json.load(file)
-    except (OSError, ValueError):
-        return []
-    return refs if isinstance(refs, list) else []
+def failed_item(date, source, error):
+    return {"skill": "yui-daily-briefing", "date": date,
+            "summary": clip(f"{source} run failed: {type(error).__name__}: {error}", SUMMARY_MAX),
+            "sources": [{"name": clip(source, NAME_MAX), "status": "failed"}], "refs": []}
 
 
-def save_backlog(body):
-    os.makedirs(os.path.dirname(BACKLOG), exist_ok=True)
-    with open(BACKLOG, "w", encoding="utf-8") as file:
-        json.dump(json.loads(body)["signals"][0]["refs"], file, ensure_ascii=False)
+def pending(spool):
+    paths = sorted(path for path in glob.glob(os.path.join(spool, "????-??-??", "*.json")) if not path.endswith(".sent.json"))
+    entries = []
+    for path in paths:
+        with open(path, encoding="utf-8") as file:
+            entries.append((path, json.load(file)))
+    return entries
 
 
-def post(url, body):
-    request = urllib.request.Request(url, data=body.encode("utf-8"), headers={"content-type": "application/json"}, method="POST")
+def groups(entries, source, now_ms):
+    packed = []
+    for path, item in entries:
+        if packed and fits([queued for _, queued in packed[-1]] + [item], source, now_ms):
+            packed[-1].append((path, item))
+        else:
+            packed.append([(path, item)])
+    return packed
+
+
+def post(url, payload):
+    request = urllib.request.Request(url, data=payload.encode("utf-8"), headers={"content-type": "application/json"}, method="POST")
     with urllib.request.urlopen(request, timeout=10):
         pass
 
 
-def post_error(url, source, error):
-    # A raised run reports itself as a failed source; a failed report still exits 1.
+def deliver(url, entries, source):
     now_ms = int(time.time() * 1000)
-    summary = clip(f"{source} run failed: {type(error).__name__}: {error}", SUMMARY_MAX)
-    envelope = {"source": source, "event_type": "source_health", "delivery": "immediate",
-                "event_id": f"source-health:{source}:{now_ms}", "occurred_at": now_ms}
+    for group in groups(entries, source, now_ms):
+        try:
+            post(url, body([item for _, item in group], source, now_ms))
+        except urllib.error.HTTPError as error:
+            print(f"yui answered {error.code}", file=sys.stderr)
+            return 1
+        except OSError:
+            print("yui unreachable", file=sys.stderr)
+            return 0
+        for path, _ in group:
+            os.replace(path, path[: -len(".json")] + ".sent.json")
+    return 0
+
+
+def lock(spool, wait):
+    os.makedirs(spool, exist_ok=True)
+    handle = open(os.path.join(spool, ".lock"), "w")
     try:
-        post(url, serialize(summary, [{"name": clip(source, NAME_MAX), "status": "failed"}], [], envelope))
-    except Exception:
-        pass
+        fcntl.flock(handle, fcntl.LOCK_EX if wait else fcntl.LOCK_EX | fcntl.LOCK_NB)
+    except BlockingIOError:
+        return None
+    return handle
+
+
+def write_item(path, item):
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    with open(path + ".tmp", "w", encoding="utf-8") as file:
+        json.dump(item, file, ensure_ascii=False)
+    os.replace(path + ".tmp", path)
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Post a YUI daily briefing item read from stdin.")
+    parser = argparse.ArgumentParser(description="Spool a YUI daily briefing item read from stdin and post every pending item.")
     parser.add_argument("--url", default=os.environ.get("YUI_SIGNALS_URL") or "http://127.0.0.1:8770", help="signals ingress base URL")
-    parser.add_argument("--source", default="cron", help="producer name for the envelope")
-    parser.add_argument("--event-id", default=None, help="envelope event id; default daily-briefing:<today>")
-    parser.add_argument("--dry-run", action="store_true", help="print the request instead of posting it")
+    parser.add_argument("--source", default="cron", help="producer name: the spool file name and the envelope source")
+    parser.add_argument("--spool", default=SPOOL, help="spool directory; default $YUI_BRIEFING_SPOOL")
+    parser.add_argument("--flush", action="store_true", help="read no stdin; post the pending items only")
+    parser.add_argument("--dry-run", action="store_true", help="print the request bodies; write and post nothing")
     args = parser.parse_args()
     url = args.url.rstrip("/") + "/signals"
-    now_ms = int(time.time() * 1000)
-    event_id = args.event_id or "daily-briefing:" + datetime.datetime.fromtimestamp(now_ms // 1000).strftime("%Y-%m-%d")
-    try:
-        item = json.load(sys.stdin)
-        if isinstance(item, dict) and isinstance(item.get("refs"), list):
-            # Undelivered refs are older than today's, so they follow them and drop first at the cap.
-            item["refs"] = item["refs"] + load_backlog()
-        body = compose(item, args.source, event_id, now_ms)
-        if args.dry_run:
-            print(body)
-            return 0
-        post(url, body)
-    except urllib.error.HTTPError as error:
-        save_backlog(body)
-        print(f"yui answered {error.code}", file=sys.stderr)
-        return 1
-    except (urllib.error.URLError, TimeoutError):
-        save_backlog(body)
-        print("yui unreachable", file=sys.stderr)
+    spool = os.path.expanduser(args.spool)
+    date = datetime.date.today().isoformat()
+    path = os.path.join(spool, date, args.source + ".json")
+    error = None
+    entries = []
+    if not args.flush:
+        try:
+            item = compose(json.load(sys.stdin), date, args.source, int(time.time() * 1000))
+        except Exception as raised:
+            error = raised
+            item = failed_item(date, args.source, raised)
+        entries = [(path, item)]
+    if args.dry_run and error is None:
+        now_ms = int(time.time() * 1000)
+        entries = sorted([entry for entry in pending(spool) if entry[0] != path] + entries, key=lambda entry: entry[0])
+        for group in groups(entries, args.source, now_ms):
+            print(body([item for _, item in group], args.source, now_ms))
         return 0
-    except Exception as error:
-        if not args.dry_run:
-            post_error(url, args.source, error)
-        print(f"{type(error).__name__}: {error}", file=sys.stderr)
-        return 1
-    if os.path.exists(BACKLOG):
-        os.remove(BACKLOG)
-    return 0
+    if not args.dry_run:
+        # A run waits for the lock so a flush never marks sent an item the run rewrote meanwhile.
+        held = lock(spool, wait=not args.flush)
+        if held is None:
+            return 0
+        for entry_path, item in entries:
+            write_item(entry_path, item)
+        status = deliver(url, pending(spool), args.source)
+        if error is None:
+            return status
+    print(f"{type(error).__name__}: {error}", file=sys.stderr)
+    return 1
 
 
 if __name__ == "__main__":
