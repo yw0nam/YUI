@@ -41,6 +41,8 @@ function runScript(base: string, stdin: string, args: string[], spool: string): 
       stderr += chunk;
     });
     child.on("close", (status) => done({ status, stdout, stderr }));
+    // A run that exits before reading stdin closes the pipe under a pending write.
+    child.stdin.on("error", () => {});
     child.stdin.end(stdin);
   });
 }
@@ -245,7 +247,7 @@ describe("post-briefing.py", () => {
     ]);
   });
 
-  it("posts one group, trimming refs from the oldest items until it fits the body cap", async () => {
+  it("posts one group, trimming refs from the fullest items until it fits the body cap", async () => {
     const spool = tempDir();
     for (const date of ["2026-09-09", "2026-09-10", "2026-09-11"]) {
       spoolItem(spool, date, "news.json", JSON.stringify(briefing(date, "news", 30)));
@@ -255,11 +257,39 @@ describe("post-briefing.py", () => {
       expect(received).toHaveLength(1);
       expect(Buffer.byteLength(received[0].payload)).toBeLessThanOrEqual(BODY_LIMIT);
       const counts = JSON.parse(received[0].payload).signals.map((s: any) => s.refs.length);
-      expect(counts[0]).toBeLessThan(30);
-      expect(counts.slice(1)).toEqual([30, 30]);
+      expect(Math.max(...counts) - Math.min(...counts)).toBeLessThanOrEqual(1);
     });
     const archived = JSON.parse(readFileSync(join(spool, spoolFiles(spool)[0]), "utf8"));
     expect(archived.refs).toHaveLength(30);
+  });
+
+  it("leaves the newest items pending when the items overrun the cap with no refs left", async () => {
+    const spool = tempDir();
+    const sources = Array.from({ length: 10 }, (_, index) => ({
+      name: `source-${index}`,
+      status: "ok",
+      run_url: `https://example.com/${index}/${"r".repeat(2000)}`,
+    }));
+    const days = ["2026-09-09", "2026-09-10", "2026-09-11"];
+    for (const date of days) {
+      spoolItem(
+        spool,
+        date,
+        "news.json",
+        JSON.stringify({ ...briefing(date, "news", 0), sources }),
+      );
+    }
+    await withIngress(200, async (base, received) => {
+      expect((await runScript(base, "", ["--flush"], spool)).status).toBe(0);
+      expect(spoolFiles(spool)).toEqual([
+        sent("2026-09-09/news"),
+        sent("2026-09-10/news"),
+        "2026-09-11/news.json",
+      ]);
+      expect((await runScript(base, "", ["--flush"], spool)).status).toBe(0);
+      const posted = received.map((r) => JSON.parse(r.payload).signals.map((s: any) => s.date));
+      expect(posted).toEqual([days.slice(0, 2), days.slice(2)]);
+    });
   });
 
   it("sets a corrupt spool file aside and still delivers the rest", async () => {
@@ -368,9 +398,7 @@ describe("post-briefing.py", () => {
 
     await withIngress(200, async (base, received) => {
       const stdin = JSON.stringify({ sources: [], refs });
-      expect((await runScript(base, stdin, ["--dry-run", "--source", "../x"], spool)).status).toBe(
-        2,
-      );
+      expect((await runScript(base, "", ["--dry-run", "--source", "../x"], spool)).status).toBe(2);
       const result = await runScript(base, stdin, ["--dry-run"], spool);
       expect(result.status).toBe(0);
       expect(received).toHaveLength(0);
