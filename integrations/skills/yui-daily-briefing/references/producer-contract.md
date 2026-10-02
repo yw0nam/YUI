@@ -88,7 +88,8 @@ sources:
 
 Each source has at most one unspoken briefing per day. A run replaces it, whether it is
 `<source>.md` or a stamped file. When every briefing of that source and day is spoken, the
-run writes `<source>.<HHMMSS>.md` beside them, stamped with the local time of the run. A
+run writes `<source>.<HHMMSSffffff>.md` beside them, stamped with the local time of the run
+to the microsecond. A
 spoken file stays as written, with one exception: a `write` that finds the ledger
 unreadable reads every file as unspoken. Only `write` creates or replaces briefing files.
 
@@ -106,8 +107,9 @@ The helper creates files readable by their owner only.
 
 ## Commands
 
-`--spool <dir>` goes before the subcommand. Its default is `$YUI_BRIEFING_SPOOL`, else
-`~/.local/state/yui-daily-briefing/spool`.
+| Flag | Default |
+|---|---|
+| `--spool <dir>` | `$YUI_BRIEFING_SPOOL`; required when that variable is unset or empty. It goes before the subcommand |
 
 | Command | Does |
 |---|---|
@@ -119,7 +121,7 @@ The helper creates files readable by their owner only.
 |---|---|---|
 | 0 | none from `write` and `mark-spoken`; the briefings from `pending` | Done |
 | 1 | the reason on stderr | `write` read malformed input; the error path below applies |
-| 2 | the reason on stderr | A `--source` outside the rule, a `mark-spoken` path that is absolute, holds `..`, or names no briefing in the spool (nothing is recorded), or an unknown flag |
+| 2 | the reason on stderr | No spool (`set YUI_BRIEFING_SPOOL or pass --spool`), a `--source` outside the rule, a `mark-spoken` path that is absolute, holds `..`, or names no briefing in the spool (nothing is recorded), or an unknown flag |
 
 ## Run time
 

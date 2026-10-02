@@ -150,10 +150,10 @@ def write(spool, source):
     with lock(spool):
         spoken = load_ledger(spool, set_aside=True)
         day = os.path.join(spool, date)
-        existing = glob.glob(os.path.join(day, f"{source}.md")) + glob.glob(os.path.join(day, f"{source}.{'[0-9]' * 6}.md"))
+        existing = glob.glob(os.path.join(day, f"{source}.md")) + glob.glob(os.path.join(day, f"{source}.{'[0-9]' * 12}.md"))
         # Each source keeps at most one unspoken briefing per day; a spoken one never changes.
         unspoken = [path for path in existing if os.path.relpath(path, spool) not in spoken]
-        path = unspoken[0] if unspoken else os.path.join(day, f"{source}.{now:%H%M%S}.md" if existing else f"{source}.md")
+        path = unspoken[0] if unspoken else os.path.join(day, f"{source}.{now:%H%M%S%f}.md" if existing else f"{source}.md")
         # An unspoken briefing from an earlier run of the day outranks a failed one.
         if error is None or not unspoken:
             write_file(path, render(briefing, source, date, now_iso))
@@ -189,8 +189,7 @@ def mark_spoken(spool, paths):
 
 def main():
     parser = argparse.ArgumentParser(description="Keep YUI daily briefings as dated markdown files.")
-    parser.add_argument("--spool", default=os.environ.get("YUI_BRIEFING_SPOOL") or "~/.local/state/yui-daily-briefing/spool",
-                        help="spool directory; default $YUI_BRIEFING_SPOOL")
+    parser.add_argument("--spool", default=os.environ.get("YUI_BRIEFING_SPOOL"), help="spool directory; default $YUI_BRIEFING_SPOOL")
     commands = parser.add_subparsers(dest="command", required=True)
     write_parser = commands.add_parser("write", help="write today's briefing from the gather JSON on stdin")
     write_parser.add_argument("--source", required=True, help="producer name of 1-40 letters, digits, '_' or '-'")
@@ -198,6 +197,9 @@ def main():
     mark_parser = commands.add_parser("mark-spoken", help="record briefings as spoken")
     mark_parser.add_argument("paths", nargs="+", metavar="PATH", help="path relative to the spool, as pending prints it")
     args = parser.parse_args()
+    if not args.spool:
+        print("set YUI_BRIEFING_SPOOL or pass --spool", file=sys.stderr)
+        return 2
     os.umask(0o077)
     spool = os.path.expanduser(args.spool)
     if args.command == "write":

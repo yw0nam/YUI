@@ -19,8 +19,8 @@ milestone, which tells the agent that the user has just started their day.
 `$SKILL_DIR` below is this skill's directory, and `$YUI_BRIEFING_SPOOL` is the spool
 directory chosen in step 6 of Install. Every `briefing.py` command reads the spool from
 `YUI_BRIEFING_SPOOL`, or from `--spool <dir>` placed before the subcommand. With neither
-set, it reads `~/.local/state/yui-daily-briefing/spool`, so a shell that misses the
-variable reads another spool and `pending` prints nothing.
+set, it prints `set YUI_BRIEFING_SPOOL or pass --spool` and exits 2; settle the
+environment as in step 6 of Install.
 
 ## Speak a briefing
 
@@ -171,8 +171,10 @@ Done when: every source has a window or a reason to differ.
 
 Ask the user where the spool lives. Suggest a directory inside your own workspace, such
 as `<workspace>/yui-briefing-spool`, so the briefing archive sits with the rest of your
-files. Its absolute path is `YUI_BRIEFING_SPOOL`. Keep that path and `$SKILL_DIR` in your
-own persistent notes or environment, since the Speak section runs `briefing.py` with them.
+files. Its absolute path is `YUI_BRIEFING_SPOOL`. Set `YUI_BRIEFING_SPOOL` and `SKILL_DIR`
+in the environment your own shell commands run in, the one the Speak section runs
+`briefing.py` from, so they hold in every later session. The scheduler's jobs get the same
+values in step 7.
 
 Write one gather script per schedule the user wants: one script can gather every source
 from step 3, or each group of sources with its own time gets its own script. Each pipes
@@ -186,8 +188,9 @@ gather.py | python3 "$SKILL_DIR/scripts/briefing.py" write --source <producer na
 `write` reads `{"summary": ..., "sources": [...], "refs": [...]}` on stdin, applies every
 cap in the contract, and writes `$YUI_BRIEFING_SPOOL/<YYYY-MM-DD>/<producer name>.md`.
 A second run on the same day replaces the producer's unspoken briefing. Once every
-briefing of that producer and day is spoken, the run writes `<producer name>.<HHMMSS>.md`
-beside them, so a spoken file stays as it was spoken.
+briefing of that producer and day is spoken, the run writes
+`<producer name>.<HHMMSSffffff>.md` beside them, stamped to the microsecond, so a spoken
+file stays as it was spoken.
 
 A gather step that raises inside your own script leaves `write` with no input, and the
 helper writes a failed briefing naming the producer alone. Mark that source `failed` in
@@ -195,7 +198,8 @@ helper writes a failed briefing naming the producer alone. Mark that source `fai
 
 Done when: a manual run with `YUI_BRIEFING_SPOOL` set prints nothing, exits 0,
 `$YUI_BRIEFING_SPOOL/<today>/<producer name>.md` exists, and
-`python3 "$SKILL_DIR/scripts/briefing.py" pending` prints it.
+`python3 "$SKILL_DIR/scripts/briefing.py" pending`, run from a new shell of yours with no
+variable set by hand, prints it.
 
 ### 7. Schedule it
 
@@ -243,8 +247,8 @@ An agent that already runs briefing producers checks its schedule against steps 
    listener port, stay only while another job uses them; ask the user before removing
    either.
 3. Every job sees `YUI_BRIEFING_SPOOL`, and the path is absolute and the one the user
-   chose. When no spool was chosen yet, settle it as in step 6. Your own notes or
-   environment hold the same path for the Speak section.
+   chose. When no spool was chosen yet, settle it as in step 6. The environment your
+   own shell commands run in holds the same value, as in step 6.
 4. The jobs carry `TZ=<user zone>`, such as `TZ=Europe/Berlin`, when the machine's time
    zone differs from the user's.
 5. The user has switched "Scheduled greeting" on, as in step 2.
