@@ -69,6 +69,17 @@ describe("speaker list — paste-a-voice-id field", () => {
     expect(input.value).toBe("");
   });
 
+  it("takes the voice id from a pasted voice page URL", () => {
+    const { el, speakerSelection } = buildList(() => true);
+    const input = el.querySelector<HTMLInputElement>(".yui-spk-manual input")!;
+
+    input.value = "https://fish.audio/m/513e5fc83b424eac998e38bb25ee39d7/";
+    input.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true }));
+
+    expect(speakerSelection.getActiveId()).toBe("513e5fc83b424eac998e38bb25ee39d7");
+    expect(input.getAttribute("aria-invalid")).toBe("false");
+  });
+
   it("ignores an empty field", () => {
     const { el, speakerSelection } = buildList(() => true);
     const input = el.querySelector<HTMLInputElement>(".yui-spk-manual input")!;

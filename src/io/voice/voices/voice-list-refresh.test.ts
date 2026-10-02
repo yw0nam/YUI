@@ -525,6 +525,25 @@ describe("wireVoiceListAutoRefresh — endpoints override edits refetch the voic
     expect(refresh).toHaveBeenCalledTimes(2);
   });
 
+  it("refreshes once per TTS key change", () => {
+    const settings = fakeSettings({ tts_base_url: "http://a" });
+    let notifyKey: () => void = () => {};
+    const refresh = vi.fn().mockResolvedValue(undefined);
+    wireVoiceListAutoRefresh({
+      subscribe: settings.subscribe,
+      subscribeKey: (cb) => {
+        notifyKey = cb;
+        return () => {};
+      },
+      getEndpoints: settings.get,
+      refresh,
+    });
+
+    notifyKey();
+
+    expect(refresh).toHaveBeenCalledOnce();
+  });
+
   it("ignores a commit that leaves the TTS fields unchanged", () => {
     const settings = fakeSettings({ tts_base_url: "http://a" });
     const refresh = vi.fn();

@@ -58,6 +58,7 @@ vi.mock("../../io/assets/user-asset-import", async (importOriginal) => ({
 import type { EndpointsConfig } from "../../contract";
 import { createTtsProvider } from "../../io/voice/tts/tts-synth";
 import { createVoiceListRefresh } from "../../io/voice/voices/voice-list-refresh";
+import { createTtsKeySettings } from "../../settings/backend/api-key-settings";
 import type { EndpointOverrides } from "../../settings/backend/endpoints-settings";
 import { createEffectiveEndpoints, wireAvatarSelection, wireSpeakerSelection } from "./wire-avatar";
 
@@ -766,6 +767,41 @@ describe("wireAvatarSelection — voice list refresh", () => {
     eps = { ...eps, tts_base_url: "http://tts2.test" };
     notifyConfig();
     await vi.waitFor(() => expect(listVoices).toHaveBeenCalledOnce());
+  });
+
+  it("refetches once when the TTS key is entered after a list the server refused", async () => {
+    const ttsKeySettings = createTtsKeySettings({ storage: { load: () => null, save: () => {} } });
+    listFishVoices
+      .mockReset()
+      .mockImplementation(async (opts: { getApiKey: () => Promise<string | undefined> }) =>
+        (await opts.getApiKey()) ? [{ id: "own1", label: "Own" }] : null,
+      );
+    const { speaker } = wireAvatarSelection({
+      renderer: {} as never,
+      getEndpoints: () => ({
+        chat_base_url: "",
+        stt_base_url: "",
+        tts_base_url: "https://api.fish.audio",
+        tts_provider: "fish",
+      }),
+      getTtsKey: async () => ttsKeySettings.get().apiKey || undefined,
+      endpointsSettings: { subscribe: () => () => {} },
+      ttsKeySettings,
+      config: { subscribe: () => () => {} },
+      log: noopLog,
+      broadcastSettings: () => {},
+      register: () => {},
+    });
+    await speaker.refreshVoiceList();
+    expect(speaker.speakerSelection.list()).toEqual([]);
+
+    ttsKeySettings.setApiKey("fish-key");
+
+    await vi.waitFor(() =>
+      expect(speaker.speakerSelection.list().map((o) => o.id)).toEqual(["own1"]),
+    );
+    expect(listFishVoices).toHaveBeenCalledTimes(2);
+    speaker.speakerSelection.dispose();
   });
 });
 
