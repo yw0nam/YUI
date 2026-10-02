@@ -115,14 +115,15 @@ export function createSpeakerList(deps: SpeakerListDeps): SpeakerList {
   const spkManualErrorEl =
     spkManualEl.querySelector<HTMLParagraphElement>(".yui-spk-manual__error")!;
 
-  // A pasted voice page URL names the voice in its last path segment; anything else is the id itself.
-  function pastedVoiceId(text: string): string {
+  // A voice page URL (`/m/<id>`) names the voice; any other URL names none (undefined). Anything
+  // that is not a URL is the id itself.
+  function pastedVoiceId(text: string): string | undefined {
     const trimmed = text.trim();
     if (!/^https?:\/\//i.test(trimmed)) return trimmed;
     try {
-      return new URL(trimmed).pathname.split("/").filter(Boolean).at(-1) ?? "";
+      return /^\/m\/([^/]+)\/?$/.exec(new URL(trimmed).pathname)?.[1];
     } catch {
-      return trimmed;
+      return undefined;
     }
   }
 
@@ -131,22 +132,27 @@ export function createSpeakerList(deps: SpeakerListDeps): SpeakerList {
     speakerSelection.listUser().some((o) => o.id === id) &&
     !speakerSelection.list().some((o) => o.id === id);
 
-  // Enter on the paste field selects the id even when the list does not carry it. An id the store
-  // cannot keep (path-ish characters) or another provider's voice holds marks the field invalid.
-  function commitPastedVoiceId(): void {
-    const id = pastedVoiceId(spkManualInputEl.value);
-    if (!id) return;
-    const reason = !isSafeSanitizedId(id)
-      ? "speaker.manual_invalid"
-      : heldElsewhere(id)
-        ? "speaker.manual_taken"
-        : null;
+  function showPasteError(reason: string | null): void {
     spkManualEl.classList.toggle("is-invalid", reason !== null);
     spkManualInputEl.setAttribute("aria-invalid", String(reason !== null));
-    if (reason !== null) {
-      spkManualErrorEl.textContent = t(reason);
+    if (reason !== null) spkManualErrorEl.textContent = t(reason);
+  }
+
+  // Enter on the paste field selects the id even when the list does not carry it. A URL that is not
+  // a voice page, an id the store cannot keep (path-ish characters), or one another provider's
+  // voice holds marks the field invalid.
+  function commitPastedVoiceId(): void {
+    const id = pastedVoiceId(spkManualInputEl.value);
+    if (id === "") return;
+    if (id === undefined || !isSafeSanitizedId(id)) {
+      showPasteError("speaker.manual_invalid");
       return;
     }
+    if (heldElsewhere(id)) {
+      showPasteError("speaker.manual_taken");
+      return;
+    }
+    showPasteError(null);
     if (!speakerSelection.list().some((o) => o.id === id)) {
       speakerSelection.addUserOption({ id, label: id, ref_url: "", source: "user" });
     }
