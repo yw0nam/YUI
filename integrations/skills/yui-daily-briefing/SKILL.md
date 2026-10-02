@@ -258,9 +258,11 @@ An agent that already runs briefing producers checks its schedule against steps 
    `briefing.py write --source <producer name>`, each producer under a distinct name that
    follows the rule in step 6.
 2. No entry calls `post-briefing.py`, passes `--flush`, or posts the briefing to
-   `/signals`. Delete a flush entry. A `YUI_SIGNALS_URL=` line, and a tunnel to YUI's
-   listener port, stay only while another job uses them; ask the user before removing
-   either.
+   `/signals`. Delete a flush entry. A variable line reaches only the entries of its own
+   schedule, so a `YUI_SIGNALS_URL=` line stays only while another entry of that schedule
+   uses it; other software reading a variable of the same name elsewhere does not count.
+   A tunnel to YUI's listener port can serve other software on the machine; ask the user
+   before removing it.
 3. Every job sees `YUI_BRIEFING_SPOOL`, and the path is absolute and the one the user
    chose. When no spool was chosen yet, settle it as in step 6. The environment your
    own shell commands run in holds the same value, as in step 6.
