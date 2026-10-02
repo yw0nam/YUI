@@ -154,10 +154,15 @@ changes: on macOS, a launchd agent with `KeepAlive` running
 `ssh -N -o ServerAliveInterval=30 -o ExitOnForwardFailure=yes -R ...`; on Linux, a systemd
 user service with `Restart=always` running the same command.
 
+Compare the time zone of the producer's machine with the user's. When they differ, the jobs
+in step 7 carry `TZ=<user zone>`, which sets each item's `date` to the user's day, and the
+schedule is written in the machine's time, or under `CRON_TZ=<user zone>` where the cron
+supports it.
+
 Pick the scheduler yourself from what that machine already has (cron, launchd, systemd
 timers, n8n, this agent's own scheduler).
 
-Done when: time, machine, tunnel need, and scheduler are settled.
+Done when: time, machine, time zone, tunnel need, and scheduler are settled.
 
 ### 5. Confirm the stale rule
 
@@ -175,7 +180,8 @@ files. Its absolute path is `YUI_BRIEFING_SPOOL`.
 
 Write one producer script per schedule the user wants: one script can gather every source
 from step 3, or each group of sources with its own time gets its own script. Each pipes
-its item to the poster under a name of its own:
+its item to the poster under a name of its own, 1 to 40 letters, digits, `_`, or `-` (the
+poster exits 2 on any other name):
 
 ```bash
 gather.py | python3 "$SKILL_DIR/scripts/post-briefing.py" --source <producer name>
@@ -184,11 +190,11 @@ gather.py | python3 "$SKILL_DIR/scripts/post-briefing.py" --source <producer nam
 `post-briefing.py` reads `{"summary": ..., "sources": [...], "refs": [...]}` on stdin,
 applies every cap in the contract, writes the item to
 `$YUI_BRIEFING_SPOOL/<YYYY-MM-DD>/<producer name>.json`, then posts every pending item in
-the spool, oldest day first, packed into as few requests as the size cap allows. A
-delivered file is renamed `<producer name>.<HHMMSSmmm>.sent.json`, stamped with the
-delivery time, and stays as the archive; a later run never overwrites it. `--flush`
-posts the pending items without reading stdin. `--dry-run` prints the requests and writes
-and posts nothing. `--help` lists the rest, and `references/producer-contract.md` states
+the spool as one request, oldest day first, dropping refs from the oldest items when the
+request runs over the size cap. A delivered file is renamed
+`<producer name>.<HHMMSSmmm>.sent.json`, stamped with the delivery time, and stays as the
+archive with its full refs; a later run never overwrites it. `--flush` posts the pending
+items without reading stdin. `--dry-run` prints the request and writes and posts nothing. `--help` lists the rest, and `references/producer-contract.md` states
 the flush rules.
 
 A gather step that raises inside your own script leaves `post-briefing.py` with no input,
@@ -224,8 +230,14 @@ three variables without expanding `$` or `~` inside them, so they hold absolute 
 `PATH` holds `/usr/bin:/bin`, so a gather script that calls tools from elsewhere needs a
 `PATH=` line above the jobs. On macOS, cron reads nothing under `~/Desktop`, `~/Documents`,
 or `~/Downloads` without Full Disk Access, so keep the checkout and the spool outside them
-or schedule with launchd. Another scheduler (launchd, systemd timers, n8n, your own) runs
-the same commands with the same three variables set on every job.
+or schedule with launchd. When step 4 found the machine's time zone differs from the
+user's, add `TZ=<user zone>` beside the other variables. Another scheduler (launchd,
+systemd timers, n8n, your own) runs the same commands with the same variables set on every
+job.
+
+While the user is away or a turn runs, YUI keeps only the five newest groups, and each
+producer run that reaches YUI posts its own group. Schedule the producers so that at most
+five runs fall between the user's sessions.
 
 The poster prints nothing on success, the flush prints nothing while YUI is unreachable,
 and anything else writes a one-line reason to stderr, so a scheduler that mails or
@@ -240,8 +252,8 @@ turn log holds a line carrying `event_id` `daily-briefing:<today>`.
 ### 8. Watch one morning
 
 Done when, the following morning: the turn log shows a line carrying
-`event_id` `daily-briefing:<today>`, the speech bubble shows a link, and every file in the
-spool ends in `.sent.json`.
+`event_id` `daily-briefing:<today>`, the speech bubble shows a link, and every `.json` file
+under the spool's dated folders ends in `.sent.json`.
 
 ### Check an existing schedule
 
@@ -249,12 +261,19 @@ An agent that already runs briefing producers checks its schedule against steps 
 List the scheduler's entries (`crontab -l` on cron) and confirm each point:
 
 1. Every job sees `YUI_SIGNALS_URL` and `YUI_BRIEFING_SPOOL`, and the spool path is
-   absolute and the one the user chose.
+   absolute and the one the user chose. When no spool was chosen yet, settle it as in
+   step 6 and set the same value on every job, the flush included.
 2. Every producer entry pipes its gather output into
-   `post-briefing.py --source <producer name>`, each producer under a distinct name.
-   Nothing posts the briefing to `/signals` another way.
-3. One entry runs `post-briefing.py --flush` every five minutes.
-4. A producer on another machine has the tunnel from step 4 up.
+   `post-briefing.py --source <producer name>`, each producer under a distinct name that
+   follows the rule in step 6. Nothing posts the briefing to `/signals` another way.
+3. No entry passes `--event-id`; the poster takes no such flag and exits 2 on it, which
+   loses that run.
+4. One entry runs `post-briefing.py --flush` every five minutes.
+5. The jobs carry `TZ=<user zone>` when the machine's time zone differs from the user's.
+6. A producer on another machine has the tunnel from step 4 up.
+
+When `~/.local/state/yui-daily-briefing/backlog.json` exists on the producer's machine,
+delete it and tell the user that the refs it holds are not carried into the spool.
 
 Rewrite every entry that fails a point to the shape in step 7, then work through the Done
 when of step 7.

@@ -67,7 +67,8 @@ and an `envelope`. Each item comes from one producer run.
 
 `refs[].at` is an ISO-8601 timestamp. The producer measures each item serialized alone in a
 request and drops its oldest refs until that request fits the body cap. A request carrying
-several items holds as many as fit under the cap; the next item starts another request.
+several items drops refs from the oldest item first, then the next oldest, until it fits;
+every item keeps its `date`, `summary`, and `sources`.
 
 ## Reference producer
 
@@ -95,31 +96,37 @@ same day overwrites that file and leaves it pending.
 ③ Flush the spool.
 
 A flush takes an exclusive lock on `<spool>/.lock`, collects every pending
-`<YYYY-MM-DD>/<source>.json` oldest day first, and packs the items into as few requests as
-the body cap allows. Each request's envelope reads `event_id: "daily-briefing:<newest date in
-the request>"`. A 2xx answer renames each of the request's files to `<source>.<HHMMSSmmm>.sent.json`,
-stamped with the local delivery time, so the dated directories keep every delivered item,
-including each delivery of a source that ran again on the same day. The first refused
-connection, reset, hang-up, or timeout ends the flush and leaves the remaining files
-pending. `--flush` runs that step alone, so a scheduler that calls it every few minutes
-delivers the spool within minutes of YUI becoming reachable. A `--flush` prints nothing
-while YUI is unreachable and exits 0 at once when it finds the lock held; a run from stdin
-waits for the lock.
+`<YYYY-MM-DD>/<source>.json` oldest day first, and posts them as one request. YUI's away
+buffer keeps the five newest groups, so one group per flush keeps a backlog of several days
+from pushing older groups out. When the items run over the body cap, the posted copy drops
+refs from the oldest item first, then the next oldest; the spool files keep their full refs.
+The newest items that still run over the cap with every ref dropped wait for the next flush.
+The envelope reads `event_id: "daily-briefing:<newest date in the request>"`. A 2xx answer
+renames every file in the request to `<source>.<HHMMSSmmm>.sent.json`, stamped with the
+local delivery time, so the dated directories keep every delivered item, including each
+delivery of a source that ran again on the same day. A refused connection, reset, hang-up,
+or timeout leaves the files pending. A file that holds no briefing item is renamed
+`<source>.json.bad` with one line on stderr, and the flush goes on without it. `--flush`
+runs that step alone, so a scheduler that calls it every few minutes delivers the spool
+within minutes of YUI becoming reachable. A `--flush` prints nothing while YUI is
+unreachable and exits 0 at once when it finds the lock held; a run from stdin waits for the
+lock. The poster creates files readable by their owner only.
 
 | Flag | Default |
 |---|---|
 | `--url` | `$YUI_SIGNALS_URL`, else YUI's loopback listener on its default port |
-| `--source` | `cron`; names the spool file and the envelope `source` of every request the run posts |
+| `--source` | `cron`; 1 to 40 letters, digits, `_`, or `-`; names the spool file and the envelope `source` of the request the run posts |
 | `--spool` | `$YUI_BRIEFING_SPOOL`, else `~/.local/state/yui-daily-briefing/spool` |
 | `--flush` | Flushes the spool without reading stdin |
-| `--dry-run` | Prints the request bodies the flush would post, the stdin item included, and writes and posts nothing |
+| `--dry-run` | Prints the request body the flush would post, the stdin item included, and writes and posts nothing |
 
 | Exit | Output | Meaning |
 |---|---|---|
 | 0 | none | Every pending item was delivered, another flush holds the lock, or a `--flush` found the ingress unreachable |
-| 0 | `yui unreachable` on stderr | A run from stdin found the ingress refusing the connection, hanging up, or timing out; the remaining items stay pending |
-| 1 | `yui answered <code>` on stderr | The ingress answered outside 2xx; the remaining items stay pending |
-| 1 | the reason on stderr | The input was malformed; the error path below spooled a failed item and flushed, unless `--dry-run` |
+| 0 | `yui unreachable` on stderr | A run from stdin found the ingress refusing the connection, hanging up, or timing out; the items stay pending |
+| 1 | `yui answered <code>` on stderr | The ingress answered outside 2xx; the items stay pending |
+| 1 | the reason on stderr | The input was malformed; the error path below applies, and nothing is written under `--dry-run` |
+| 2 | usage on stderr | An unknown flag or a `--source` outside the rule above |
 
 ## Run time
 
@@ -154,8 +161,9 @@ A run that raises spools a failed item under the producer's name: `summary` read
 `<producer> run failed: <error>`, `sources[]` holds one entry named after the producer with
 `status: "failed"` and `last_ok` absent, and `refs` is `[]`. It travels like any other item.
 `run_url` points at the failed run when the scheduler has a page for it; the reference
-producer writes `name` and `status` only. A refused ingress connection leaves the spool as
-it is.
+producer writes `name` and `status` only. When a valid pending item from an earlier run of
+the same source and day sits in the spool, the reference producer keeps it, writes no failed
+item, prints the reason, and exits 1. A refused ingress connection leaves the spool as it is.
 
 ## Retry
 
@@ -164,6 +172,8 @@ mornings missed on the next delivery, each item under its own `date`.
 
 A refused connection exits 0, since YUI being closed at run time is an ordinary morning.
 An answer outside 2xx exits 1, which leaves the failure in the scheduler's own record.
+
+A 2xx means YUI's ingress accepted the group; a client with signals switched off drops it.
 
 A producer that reads its sources from a queue of rows keeps those rows pending and marks
 them sent on a 2xx answer.

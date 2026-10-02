@@ -60,8 +60,8 @@ Each buffer retains at most five groups and drops its oldest group on overflow.
 
 The client keeps every signal item opaque. A producer of the daily briefing builds one item
 per scheduled run, one run per local day, keeps it in a dated spool until the ingress
-answers 2xx, and posts every pending item packed into as few groups as the body cap allows,
-oldest day first. Each item has this shape:
+answers 2xx, and posts every pending item in one group, oldest day first. Each item has this
+shape:
 
 ```json
 {
@@ -102,8 +102,9 @@ oldest day first. Each item has this shape:
 | `refs[].excerpt` | At most 280 characters, possibly the empty string |
 
 The serialized request runs to at most 49,152 bytes of UTF-8. The producer measures each
-item alone in a request and drops its oldest refs until that request fits the cap; a group
-holds as many items as fit under it.
+item alone in a request and drops its oldest refs until that request fits the cap. A group
+of several items that runs over the cap drops refs from the oldest item first, then the next
+oldest; every item keeps its `date`, `summary`, and `sources`.
 
 An item whose `refs` is `[]` says that run brought nothing new. A day with no item means
 the producer skipped its run.
@@ -120,8 +121,10 @@ The group travels under this envelope:
 
 The client delivers every group it receives. Each group becomes its own turn when it
 arrives while the user is present and the pipeline is idle; groups that wait in a buffer
-share the next turn that drains the buffers. Packing the pending items into few groups
-keeps several days of pending items inside the away buffer's five-group cap.
+share the next turn that drains the buffers. While the user is away or a turn runs, YUI
+keeps only the five newest groups, so producers that each post separately can lose the
+oldest. Each producer run posts at once when the ingress answers, so scheduling producers
+so that at most five runs fall between the user's sessions keeps every group.
 
 A run that raises yields an item of the same shape, naming the producer in its own
 `sources[]` entry:
