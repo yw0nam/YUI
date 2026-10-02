@@ -758,6 +758,55 @@ describe("wireSpeakerSelection — openai", () => {
     speakerSelection.dispose();
   });
 
+  it("hides user imports under openai, so the synth speaks a built-in voice, and shows them again on irodori", async () => {
+    const IRODORI: EndpointsConfig = {
+      ...OPENAI,
+      tts_provider: "irodori",
+      tts_model: "irodori-tts",
+    };
+    let eps = IRODORI;
+    const { refreshVoiceList, speakerSelection } = wireSpeakerSelection({
+      getEndpoints: () => eps,
+      log: noopLog,
+      broadcastSettings: () => {},
+    });
+    const myVoice = { id: "myvoice", label: "My Voice", ref_url: "asset://x/clip.wav" };
+    speakerSelection.addUserOption(myVoice);
+    // The server lists the import under its own id.
+    listVoices.mockResolvedValue(["natsume", "myvoice"]);
+    await refreshVoiceList();
+    speakerSelection.select("myvoice");
+    expect(speakerSelection.getActiveId()).toBe("myvoice");
+
+    eps = OPENAI;
+    await refreshVoiceList();
+
+    const ids = speakerSelection.list().map((o) => o.id);
+    expect(ids).toHaveLength(13);
+    expect(ids).not.toContain("myvoice");
+    const fetchMock = vi.fn(
+      async (_url: string, _init: RequestInit) =>
+        ({ ok: true, status: 200, arrayBuffer: async () => new ArrayBuffer(1) }) as Response,
+    );
+    const provider = createTtsProvider({
+      getEndpoints: () => eps,
+      getActiveSpeaker: () => speakerSelection.getActive(),
+      selectFetch: async () => fetchMock as unknown as typeof fetch,
+    });
+    await provider.synth("hi");
+    const voice = JSON.parse(fetchMock.mock.calls[0][1].body as string).voice;
+    expect(ids).toContain(voice);
+
+    eps = IRODORI;
+    await refreshVoiceList();
+
+    expect(speakerSelection.list().find((o) => o.id === "myvoice")).toMatchObject({
+      label: "My Voice",
+      source: "user",
+    });
+    speakerSelection.dispose();
+  });
+
   it("turns voice import, delete and re-upload off", async () => {
     let eps: EndpointsConfig = { ...OPENAI, tts_provider: "irodori" };
     const { canManageVoices, removeVoice, refreshSpeaker, speakerSelection } = wireSpeakerSelection(
