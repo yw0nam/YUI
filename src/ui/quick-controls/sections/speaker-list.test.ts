@@ -116,36 +116,36 @@ describe("speaker list — ids another provider's voice holds", () => {
 
   it("refuses pasting an id another provider's voice holds, leaving that voice intact", () => {
     const { el, speakerSelection } = buildList(() => true);
-    const natsume = {
-      id: "natsume",
-      label: "Natsume",
-      ref_url: "asset://x/natsume.wav",
+    const ayase = {
+      id: "ayase",
+      label: "Ayase",
+      ref_url: "asset://x/ayase.wav",
       source: "user" as const,
       provider: "irodori" as const,
     };
-    speakerSelection.addUserOption(natsume);
+    speakerSelection.addUserOption(ayase);
     speakerSelection.setOwner("fish");
     const input = el.querySelector<HTMLInputElement>(".yui-spk-manual input")!;
 
-    input.value = "natsume";
+    input.value = "ayase";
     input.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true }));
 
     expect(input.getAttribute("aria-invalid")).toBe("true");
     expect(el.querySelector(".yui-spk-manual__error")!.textContent).toBe(
       "Another provider's voice already uses this id",
     );
-    expect(speakerSelection.listUser()).toEqual([natsume]);
-    expect(speakerSelection.getActiveId()).not.toBe("natsume");
+    expect(speakerSelection.listUser()).toEqual([ayase]);
+    expect(speakerSelection.getActiveId()).not.toBe("ayase");
   });
 
   it("an import naming row refuses a name whose id another provider's voice holds", async () => {
     const commitVoiceImport = vi.fn(async () => {});
     const { el, speakerSelection, list } = buildList(() => false, {
-      pickVoiceImport: vi.fn(async () => ({ srcPath: "/tmp/natsume.wav", seedName: "natsume" })),
+      pickVoiceImport: vi.fn(async () => ({ srcPath: "/tmp/ayase.wav", seedName: "ayase" })),
       commitVoiceImport,
     });
     speakerSelection.addUserOption({
-      id: "natsume",
+      id: "ayase",
       ref_url: "",
       source: "user",
       provider: "fish",

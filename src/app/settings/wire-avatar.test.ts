@@ -353,11 +353,8 @@ describe("wireSpeakerSelection — pickVoiceImport / commitVoiceImport", () => {
     });
 
     await expect(commitVoiceImport("/tmp/MyVoice.wav", "myvoice")).rejects.toThrow("tts_base_url");
-    expect(removeOrphanImport).toHaveBeenCalledWith(
-      "myvoice",
-      expect.any(Function),
-      expect.any(Function),
-    );
+    expect(copyVoiceFile).not.toHaveBeenCalled();
+    expect(removeOrphanImport).not.toHaveBeenCalled();
     speakerSelection.dispose();
   });
 

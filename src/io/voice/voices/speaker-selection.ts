@@ -50,8 +50,8 @@ function synthesizeOption(defaultValue: string): SpeakerOption {
 }
 
 /** Coerces one imported option into a safe source:"user" SpeakerOption (null if incomplete).
- *  ref_url may be empty — a pasted library voice id carries no local clip. A stored option naming
- *  no provider came from Irodori, the only provider that imported voices before providers existed. */
+ *  ref_url may be empty — a pasted library voice id carries no local clip. A stored voice with no
+ *  provider belongs to the default provider. */
 function coerceUserSpeaker(v: unknown): SpeakerOption | null {
   if (typeof v !== "object" || v === null) return null;
   const o = v as Record<string, unknown>;

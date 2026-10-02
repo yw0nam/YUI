@@ -112,16 +112,30 @@ export function createSpeakerList(deps: SpeakerListDeps): SpeakerList {
   const spkImportErrorEl = deps.root.querySelector<HTMLParagraphElement>(".yui-spk__import-error")!;
   const spkManualEl = deps.root.querySelector<HTMLDivElement>(".yui-spk-manual")!;
   const spkManualInputEl = spkManualEl.querySelector<HTMLInputElement>(".yui-ep-input")!;
+  const spkManualErrorEl =
+    spkManualEl.querySelector<HTMLParagraphElement>(".yui-spk-manual__error")!;
+
+  // An id one of another provider's voices holds — it is not taken over.
+  const heldElsewhere = (id: string): boolean =>
+    speakerSelection.listUser().some((o) => o.id === id) &&
+    !speakerSelection.list().some((o) => o.id === id);
 
   // Enter on the paste field selects the id even when the list does not carry it. An id the store
-  // cannot keep (path-ish characters) marks the field invalid instead.
+  // cannot keep (path-ish characters) or another provider's voice holds marks the field invalid.
   function commitPastedVoiceId(): void {
     const id = spkManualInputEl.value.trim();
     if (!id) return;
-    const valid = isSafeSanitizedId(id);
-    spkManualEl.classList.toggle("is-invalid", !valid);
-    spkManualInputEl.setAttribute("aria-invalid", String(!valid));
-    if (!valid) return;
+    const reason = !isSafeSanitizedId(id)
+      ? "speaker.manual_invalid"
+      : heldElsewhere(id)
+        ? "speaker.manual_taken"
+        : null;
+    spkManualEl.classList.toggle("is-invalid", reason !== null);
+    spkManualInputEl.setAttribute("aria-invalid", String(reason !== null));
+    if (reason !== null) {
+      spkManualErrorEl.textContent = t(reason);
+      return;
+    }
     if (!speakerSelection.list().some((o) => o.id === id)) {
       speakerSelection.addUserOption({ id, label: id, ref_url: "", source: "user" });
     }
@@ -158,6 +172,9 @@ export function createSpeakerList(deps: SpeakerListDeps): SpeakerList {
     },
     swap: swapSpeaker,
     deriveId: voiceIdFromName,
+    // A provider that keeps the caller's id (the one re-upload needs) files the clip under the
+    // name-derived id, so that id must not be another provider's voice.
+    isImportBlocked: (id) => canReuploadVoices() && heldElsewhere(id),
     pickImport: pickVoiceImport,
     commitImport: commitVoiceImport,
     render: () => renderSpeakers(),

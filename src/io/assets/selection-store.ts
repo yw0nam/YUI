@@ -153,11 +153,12 @@ export function createSelectionStore<T extends SelectionOption>(opts: {
     },
 
     /** Add/update imported user option. Reject bundled id collisions; force source to "user".
-     *  An option naming no owner belongs to the active one. */
+     *  An option naming no owner belongs to the active one, and an id another owner holds is refused. */
     addUserOption(opt: T): void {
       const next = { ...opt, source: "user" } as T;
-      if (ownerKey !== undefined && next[ownerKey] === undefined) {
-        (next as Record<string, unknown>)[ownerKey] = owner;
+      if (ownerKey !== undefined) {
+        if (next[ownerKey] === undefined) (next as Record<string, unknown>)[ownerKey] = owner;
+        if (userOptions.some((u) => u.id === next.id && u[ownerKey] !== next[ownerKey])) return;
       }
       if (isListedUser(next) && isBundledId(next.id)) return; // a listed bundled id always wins
       const idx = userOptions.findIndex((o) => o.id === next.id);
