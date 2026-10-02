@@ -133,8 +133,9 @@ def deliver(url, entries, source, quiet):
             if not quiet:
                 print("yui unreachable", file=sys.stderr)
             return 0
+        stamp = datetime.datetime.now().strftime("%H%M%S%f")[:9]
         for path, _ in group:
-            os.replace(path, path[: -len(".json")] + ".sent.json")
+            os.rename(path, f"{path[: -len('.json')]}.{stamp}.sent.json")
     return 0
 
 
