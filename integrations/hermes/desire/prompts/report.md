@@ -3,8 +3,8 @@
 This job runs at 21:00 KST and its response is delivered over the channel configured on this cron job. Follow
 `SOUL.md` for your voice and language.
 
-Read today's KST entries in `$DESIRE_STATE_DIR/audit.jsonl` — the `issue_filed`, `self_comment_filed`, `pr_filed`,
-and `drive_satisfied` events for `shipped` and `progressed` — together with `$DESIRE_STATE_DIR/wants.md`.
+Read today's KST entries in `$DESIRE_STATE_DIR/audit.jsonl` — the `issue_filed` and `self_comment_filed` events
+and the `drive_satisfied` events for `shipped` and `progressed` — together with `$DESIRE_STATE_DIR/wants.md`.
 
 Then read how often anything loaded the skills you made:
 

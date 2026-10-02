@@ -46,7 +46,6 @@ Read these when the trigger applies; they are not loaded by default.
 - **Adding a Mod / Mods CI rules** → `docs/agent-guide/mods.md` — per-mod uv-project layout, router registration, the two-loop CI, ruff
 - **Agent desire system (Hermes-side)** → `integrations/hermes/desire/README.md`
 - **Connecting Hermes Agent as the backend (Responses mode, dev proxy, auth)** → `integrations/hermes/README.md`
-- **Handing a `ready-for-agent` issue to the backend agent for headless implementation** → `integrations/hermes/skills/yui-dispatch/SKILL.md`
 - **Setting up or speaking the daily briefing (any backend)** → `integrations/skills/yui-daily-briefing/SKILL.md`
 - **Runtime evidence for a yui platform plugin change (live Hermes gateway, throwaway profile)** → `integrations/hermes/platform/yui/skills/yui-platform-smoke-test/SKILL.md`
 - **IO or backend work (chat/STT/TTS/broker)** → `docs/agent-guide/backend-integration.md`

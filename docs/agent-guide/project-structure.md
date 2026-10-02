@@ -468,7 +468,6 @@ YUI/
       README.md                      # Hermes Agent adapter setup (Responses mode, dev proxy, auth)
       desire/                        # Agent desire middleware, state helpers, monitor, and prompts (Python/uv)
       platform/                      # Hermes gateway push-transport plugin: one WebSocket carrying turns in and finished replies out (Python/uv)
-      skills/                        # Backend-agent skills (yui-dispatch)
     skills/
       yui-daily-briefing/            # Backend-agnostic skill: speak the daily briefing, and build the scheduled producer that posts it
   docs/                              # Design source of truth

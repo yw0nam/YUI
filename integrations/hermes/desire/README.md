@@ -47,9 +47,9 @@ The state directory contains:
   `probe` stays. The monitor
   refreshes it every tick with an HTTP GET to `YUI_SIGNALS_URL`, treating any HTTP response as reachable, and every signal delivery
   outcome updates it too. Absent until the first tick or delivery.
-- `budget.json` — KST daily counters for signals, issues, self-initiated comments, pull requests, dispatches, and
-  satisfaction events, plus pending issue, comment, pull-request, and dispatch reservations. Fresh counters are
-  zero and `pending` is empty.
+- `budget.json` — KST daily counters for signals, issues, self-initiated comments, pull requests, and
+  satisfaction events, plus pending issue, comment, and pull-request reservations. Fresh counters are zero and
+  `pending` is empty.
 - `artefacts.json` — what has already been scored: `bootstrapped_at` (when the record was created),
   `bootstrapped` (the sources that have answered at least once and are therefore scored from now on), `seen` (the
   refs the monitor has counted, one list per kind: pull-request and issue URLs, and skill paths),
@@ -186,7 +186,7 @@ Hermes injects a changed monitor summary into the tick prompt. An unchanged summ
 summary is one line:
 
 ```text
-social:<bucket> curiosity:<bucket> accomplishment:<bucket> outbox:<n>[/<stage>] transport:<up|down> budget:<s>/3sig <i>/2iss <c>/1cmt <p>/1pr day:<YYYY-MM-DD> rises:<r> starved:<social>/<curiosity>/<accomplishment>
+social:<bucket> curiosity:<bucket> accomplishment:<bucket> outbox:<n>[/<stage>] transport:<up|down> budget:<s>/3sig <i>/2iss <c>/1cmt <p>/0pr day:<YYYY-MM-DD> rises:<r> starved:<social>/<curiosity>/<accomplishment>
 ```
 
 Buckets are `low` (below 40), `mid` (below 70), and `high`, and the three drive tokens print the latched buckets
@@ -206,8 +206,9 @@ drive has sat at 100 for another three hours, and once every morning. Run the on
 
 ## Action budgets
 
-`act.py` enforces caps that reset at KST midnight: three signals, two issues, one self-initiated comment, one pull
-request, and one dispatch. Replies to the user's comments are not routed through this helper and are uncapped.
+`act.py` enforces caps that reset at KST midnight: three signals, two issues, one self-initiated comment, and zero
+pull requests, so `pr --reserve` always refuses and the agent opens no pull requests. Replies to the user's
+comments are not routed through this helper and are uncapped.
 `signal --note` posts a new note; `outbox --send <id>` posts an existing pent-up note and shares the same budget.
 Signal reservations are refunded after a delivery failure; a failed new note enters the outbox with `attempts` 1,
 and a failed resend increments the existing item's `attempts` instead of adding another item. `outbox --list`
@@ -221,12 +222,11 @@ One pent-up note takes one disposition: `outbox --repeat <id>` keeps it as it is
 [--until <hours>]` hides it until then (default 24, from more than 0 up to 8760), and `outbox --release <id>`
 drops it. All four take a required
 `--why`, act on active items, append an `outbox_disposition` audit event, exit 2 when `--why` (or `--note` with
-`--reword`) is missing, and exit 3 for an unknown id. Issue, comment, pull-request, and dispatch actions use
-reserve, commit, and release commands so external `gh` and `claude` calls do not hold the state lock.
+`--reword`) is missing, and exit 3 for an unknown id. Issue, comment, and pull-request actions use
+reserve, commit, and release commands so external `gh` calls do not hold the state lock.
 `<kind> --reserve` prints a reservation id and takes the slot, `<kind> --commit <id> --url <url>` audits
-`issue_filed`, `self_comment_filed`, `pr_filed`, or `dispatch_started`, and `<kind> --release <id>` gives the slot
-back. `dispatch --commit` also takes `--model <name>` and records it. Pending reservations survive midnight; the
-monitor prunes reservations older than seven days.
+`issue_filed`, `self_comment_filed`, or `pr_filed`, and `<kind> --release <id>` gives the slot back. Pending
+reservations survive midnight; the monitor prunes reservations older than seven days.
 
 `report --note "<text>"` posts the daily report to the same ingress, with `report` as the signal kind and
 `desire.report` as the event type. It takes no budget, never enters the outbox, records the transport outcome

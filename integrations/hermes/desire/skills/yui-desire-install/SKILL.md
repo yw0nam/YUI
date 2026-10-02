@@ -79,7 +79,7 @@ chmod +x ~/.hermes/scripts/<agent>-desire-monitor.sh
 ```
 
 Check: the last command prints one summary line (for example
-`social:low curiosity:mid accomplishment:mid outbox:0 transport:up budget:3/3sig 2/2iss 1/1cmt 1/1pr day:2026-09-01 rises:0 starved:0/0/0`).
+`social:low curiosity:mid accomplishment:mid outbox:0 transport:up budget:3/3sig 2/2iss 1/1cmt 0/0pr day:2026-09-01 rises:0 starved:0/0/0`).
 The monitor checks transport with an HTTP GET to `YUI_SIGNALS_URL`; any HTTP response counts as up. The
 monitor's fail-safe fallback prints the same shape with `transport:down`, so a `down` line proves nothing on its
 own. The real check is the state directory it bootstraps:
@@ -191,8 +191,8 @@ Check: `~/.hermes/profiles/<profile>/logs/gateway.log` gains `api_server connect
 ## Helper commands
 
 `python3 $YUI/integrations/hermes/desire/act.py --help` lists the actions the prompts use: `signal`, `issue`,
-`comment`, `pr`, `dispatch`, `report`, `satisfy`, `feedback`, `outbox`. Daily caps, reset at KST midnight: three
-signals, two issues, one self-initiated comment, one pull request, one dispatch, and the four satisfaction events
+`comment`, `pr`, `report`, `satisfy`, `feedback`, `outbox`. Daily caps, reset at KST midnight: three signals, two
+issues, one self-initiated comment, zero pull requests (the agent opens none), and the four satisfaction events
 (`learned` 6, `progressed` 6, `shipped` 4, `praised` 4 — see the README's Action budgets table for their drive
 doses). `satisfy` accepts `learned` and `praised`; the monitor derives the other two. `report --note` carries the
 daily report to YUI and has no budget; `report --skills` prints the load counts of the skills the agent made and

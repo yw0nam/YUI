@@ -28,4 +28,3 @@ The chat model row is not part of this mode — the plugin picks the model. The 
 
 - Protocol-level chat/STT/TTS/broker wiring: [docs/agent-guide/backend-integration.md](../../docs/agent-guide/backend-integration.md)
 - Hermes-side desire system: [desire/README.md](desire/README.md)
-- Dispatch skill: [skills/yui-dispatch/SKILL.md](skills/yui-dispatch/SKILL.md)
