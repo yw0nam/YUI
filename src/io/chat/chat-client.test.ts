@@ -673,7 +673,7 @@ describe("streamChat — create() rejection carries HTTP status", () => {
     expect(events).toEqual([
       {
         type: "error",
-        message: "chat request failed: 401 Incorrect API key provided",
+        message: "Incorrect API key provided",
         status: 401,
       },
     ]);
@@ -684,9 +684,7 @@ describe("streamChat — create() rejection carries HTTP status", () => {
 
     const events = await collect(streamChat(CONFIG, req()));
 
-    expect(events).toEqual([
-      { type: "error", message: "chat request failed: 403 Forbidden", status: 403 },
-    ]);
+    expect(events).toEqual([{ type: "error", message: "Forbidden", status: 403 }]);
   });
 
   it("a plain error with no status field → error event omits status (back-compat)", async () => {
@@ -694,7 +692,7 @@ describe("streamChat — create() rejection carries HTTP status", () => {
 
     const events = await collect(streamChat(CONFIG, req()));
 
-    expect(events).toEqual([{ type: "error", message: "chat request failed: ECONNREFUSED" }]);
+    expect(events).toEqual([{ type: "error", message: "ECONNREFUSED" }]);
     expect(events[0] && "status" in events[0]).toBe(false);
   });
 });
@@ -722,7 +720,7 @@ describe("streamChat — mid-stream thrown error (SDK stream drop)", () => {
     const events = await collect(streamChat(CONFIG, req({ previous_response_id: "resp_dead" })));
 
     expect(events).toEqual([
-      { type: "error", message: "chat stream failed: Previous response not found", status: 404 },
+      { type: "error", message: "Previous response not found", status: 404 },
     ]);
   });
 
@@ -738,7 +736,7 @@ describe("streamChat — mid-stream thrown error (SDK stream drop)", () => {
 
     expect(events).toContainEqual({
       type: "error",
-      message: "chat stream failed: Previous response not found",
+      message: "Previous response not found",
       status: 404,
     });
   });

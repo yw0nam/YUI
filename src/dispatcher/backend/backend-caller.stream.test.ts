@@ -376,6 +376,29 @@ describe("backend_caller — streaming speech deltas (incremental TTS)", () => {
   });
 });
 
+// ── server error detail (onErrorDetail) ──────────────────────────────────────
+
+describe("backend_caller — server error detail (onErrorDetail)", () => {
+  it("stream error with status 400 → resolves network_drop and hands {status, message} to onErrorDetail", async () => {
+    const onErrorDetail = vi.fn();
+    script.events = [{ type: "error", message: "model does not support tools", status: 400 }];
+    const res = await caller.call(turnOf(userEnv()), undefined, onErrorDetail);
+    expect(res).toBe("network_drop");
+    expect(onErrorDetail).toHaveBeenCalledWith({
+      status: 400,
+      message: "model does not support tools",
+    });
+  });
+
+  it("no-status stream error → network_drop, onErrorDetail never fires", async () => {
+    const onErrorDetail = vi.fn();
+    script.events = [{ type: "error", message: "boom" }];
+    const res = await caller.call(turnOf(userEnv()), undefined, onErrorDetail);
+    expect(res).toBe("network_drop");
+    expect(onErrorDetail).not.toHaveBeenCalled();
+  });
+});
+
 // ── per-beat cue ownership: streaming pipeline applies cues audio-timed ─────────
 
 describe("backend_caller — per-beat cue application (pipeline ownership)", () => {

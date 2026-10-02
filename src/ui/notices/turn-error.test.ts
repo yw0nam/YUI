@@ -70,6 +70,45 @@ describe("turnErrorMessage", () => {
   });
 });
 
+describe("turnErrorMessage — server error detail", () => {
+  beforeEach(() => setLocale("en"));
+  afterEach(() => setLocale("en"));
+
+  it("renders status + server message when a 400 detail rides a network_drop", () => {
+    expect(
+      turnErrorMessage("network_drop", {
+        status: 400,
+        message: "model does not support tools",
+      }),
+    ).toBe("400 model does not support tools");
+  });
+
+  it("renders status + server message for a 500 detail", () => {
+    expect(
+      turnErrorMessage("network_drop", { status: 500, message: "internal server error" }),
+    ).toBe("500 internal server error");
+  });
+
+  it("keeps the plain network message when no detail is present", () => {
+    expect(turnErrorMessage("network_drop")).toBe(t("input.error_network"));
+  });
+
+  it("collapses newlines and cuts a 300-char message to one line of at most 200 chars ending with …", () => {
+    const message = Array.from({ length: 300 }, (_, i) => (i % 25 === 24 ? "\n" : "x")).join("");
+    const rendered = turnErrorMessage("network_drop", { status: 500, message });
+    expect(rendered).toBeDefined();
+    expect(rendered).not.toContain("\n");
+    expect(rendered!.length).toBeLessThanOrEqual(200);
+    expect(rendered!.endsWith("…")).toBe(true);
+  });
+
+  it("keeps the auth message for http_4xx_drop even when a detail is present", () => {
+    expect(turnErrorMessage("http_4xx_drop", { status: 401, message: "bad key" })).toBe(
+      t("input.error_auth"),
+    );
+  });
+});
+
 describe("turnErrorFixAction", () => {
   beforeEach(() => setLocale("en"));
   afterEach(() => setLocale("en"));

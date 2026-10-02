@@ -660,7 +660,7 @@ describe("streamChat — Chat Completions tool-call round trip", () => {
 
     expect(events.at(-1)).toEqual({
       type: "error",
-      message: "chat request failed: 429 rate limited",
+      message: "rate limited",
       status: 429,
     });
     expect(events.some((e) => e.type === "completed")).toBe(false);
@@ -750,7 +750,7 @@ describe("streamChat — Chat Completions error handling", () => {
   it("create() rejecting (non-abort) -> error event", async () => {
     ccCreateMock.mockRejectedValueOnce(new Error("401 unauthorized"));
     const events = await collect(streamChat(CONFIG, req()));
-    expect(events).toEqual([{ type: "error", message: "chat request failed: 401 unauthorized" }]);
+    expect(events).toEqual([{ type: "error", message: "401 unauthorized" }]);
   });
 
   it("create() rejecting with an APIError status -> error event carries status", async () => {
@@ -761,7 +761,7 @@ describe("streamChat — Chat Completions error handling", () => {
     expect(events).toEqual([
       {
         type: "error",
-        message: "chat request failed: 401 Incorrect API key provided",
+        message: "Incorrect API key provided",
         status: 401,
       },
     ]);
@@ -787,12 +787,7 @@ describe("streamChat — Responses mode regression (chat_api unset/'responses')"
     // client.responses is undefined on this mock -> the Responses branch's own
     // try/catch surfaces it as an error event rather than silently falling
     // through to the CC branch (which would have called ccCreateMock instead).
-    expect(events).toEqual([
-      {
-        type: "error",
-        message: expect.stringContaining("chat request failed"),
-      },
-    ]);
+    expect(events[0]?.type).toBe("error");
     expect(ccCreateMock).not.toHaveBeenCalled();
   });
 
