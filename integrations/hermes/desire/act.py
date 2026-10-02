@@ -22,7 +22,6 @@ RESERVATIONS = {
     "issue": ("issues", "issue_filed"),
     "comment": ("self_comments", "self_comment_filed"),
     "pr": ("prs", "pr_filed"),
-    "dispatch": ("dispatches", "dispatch_started"),
 }
 
 
@@ -231,7 +230,7 @@ def _outbox_send(item_id, now, opener):
     return 1
 
 
-def _reservation_action(kind, operation, reservation_id, url, now, model=None):
+def _reservation_action(kind, operation, reservation_id, url, now):
     state_dir = desire_state.resolve_state_dir()
     counter, filed_event = RESERVATIONS[kind]
     with desire_state.state_lock(state_dir):
@@ -259,8 +258,7 @@ def _reservation_action(kind, operation, reservation_id, url, now, model=None):
             budget[counter] = max(0, budget[counter] - 1)
         desire_state.write_json_atomic(state_dir / "budget.json", budget)
         if operation == "commit":
-            named = {"model": model} if model is not None else {}
-            _audit(state_dir, now, filed_event, url=url, **named, reservation_id=reservation_id)
+            _audit(state_dir, now, filed_event, url=url, reservation_id=reservation_id)
         else:
             _audit(state_dir, now, "reservation_released", kind=kind, reservation_id=reservation_id)
         return 0
@@ -349,8 +347,6 @@ def _parser():
         group.add_argument("--commit", metavar="ID")
         group.add_argument("--release", metavar="ID")
         action.add_argument("--url")
-        if name == "dispatch":
-            action.add_argument("--model")
 
     satisfy = commands.add_parser("satisfy")
     satisfy.add_argument("event", choices=["learned", "praised"])
@@ -401,13 +397,9 @@ def _run(argv, now, opener):
             if not args.url:
                 print("--url is required with --commit", file=sys.stderr)
                 return 1
-            if args.command == "dispatch" and not args.model:
-                print("--model is required with --commit", file=sys.stderr)
-                return 1
         else:
             operation, reservation_id = "release", args.release
-        model = getattr(args, "model", None)
-        return _reservation_action(args.command, operation, reservation_id, args.url, now, model)
+        return _reservation_action(args.command, operation, reservation_id, args.url, now)
     if args.command == "satisfy":
         try:
             reward = desire_state.satisfy(args.event, args.ref, now)

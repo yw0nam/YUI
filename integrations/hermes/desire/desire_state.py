@@ -22,7 +22,7 @@ SOCIAL_RATE = 15.0
 OUTBOX_EXPIRY = timedelta(hours=48)
 PENT_UP_HEAVY = timedelta(hours=6)
 PENT_UP_BURSTING = timedelta(hours=18)
-CAPS = {"signals": 3, "issues": 2, "self_comments": 1, "prs": 1, "dispatches": 1}
+CAPS = {"signals": 3, "issues": 2, "self_comments": 1, "prs": 0}
 DRIVES = ("social", "curiosity", "accomplishment")
 BUCKETS = ("low", "mid", "high")
 ARTEFACT_KINDS = ("pr", "issue", "skill")
@@ -405,7 +405,6 @@ def _default_budget(now: datetime) -> dict:
         "issues": 0,
         "self_comments": 0,
         "prs": 0,
-        "dispatches": 0,
         "events": {},
         "pending": {},
     }
@@ -550,9 +549,7 @@ def _validate_budget(value: object) -> dict:
         not isinstance(event, str) or not isinstance(count, int) for event, count in events.items()
     ):
         events = {}
-    # dispatches is defaulted rather than demanded, so a budget written without it is rewritten
-    # with it instead of quarantined.
-    return {**value, "dispatches": int(value.get("dispatches", 0)), "events": copy.deepcopy(events)}
+    return {**value, "events": copy.deepcopy(events)}
 
 
 def _normalize_cursor(value: object) -> dict:
@@ -676,7 +673,6 @@ def normalize_budget(budget: dict, now: datetime) -> dict:
             "issues": 0,
             "self_comments": 0,
             "prs": 0,
-            "dispatches": 0,
             "events": {},
             "pending": copy.deepcopy(pending),
         }
@@ -687,7 +683,6 @@ def normalize_budget(budget: dict, now: datetime) -> dict:
         "issues": int(budget.get("issues", 0)),
         "self_comments": int(budget.get("self_comments", 0)),
         "prs": int(budget.get("prs", 0)),
-        "dispatches": int(budget.get("dispatches", 0)),
         "events": {str(event): max(0, int(count)) for event, count in events.items()},
         "pending": copy.deepcopy(pending),
     }

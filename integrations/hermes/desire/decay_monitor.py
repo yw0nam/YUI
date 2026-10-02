@@ -393,7 +393,7 @@ def run(now: datetime) -> str:
             f"outbox:{outbox_summary} "
             f"transport:{transport['state']} "
             f"budget:{remaining_signals}/3sig {remaining_issues}/2iss {remaining_comments}/1cmt "
-            f"{remaining_prs}/1pr "
+            f"{remaining_prs}/{desire_state.CAPS['prs']}pr "
             f"day:{desire_state.wake_day(now)} "
             f"rises:{rises} "
             f"starved:{starved['social']}/{starved['curiosity']}/{starved['accomplishment']}\n"
@@ -409,7 +409,7 @@ def _fallback_summary() -> str:
         day = "unknown"
     return (
         "social:low curiosity:mid accomplishment:mid outbox:0 transport:down "
-        f"budget:3/3sig 2/2iss 1/1cmt 1/1pr day:{day} rises:0 starved:0/0/0\n"
+        f"budget:3/3sig 2/2iss 1/1cmt 0/0pr day:{day} rises:0 starved:0/0/0\n"
     )
 
 
