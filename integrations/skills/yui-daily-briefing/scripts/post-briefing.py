@@ -121,7 +121,7 @@ def post(url, payload):
         pass
 
 
-def deliver(url, entries, source):
+def deliver(url, entries, source, quiet):
     now_ms = int(time.time() * 1000)
     for group in groups(entries, source, now_ms):
         try:
@@ -130,7 +130,8 @@ def deliver(url, entries, source):
             print(f"yui answered {error.code}", file=sys.stderr)
             return 1
         except OSError:
-            print("yui unreachable", file=sys.stderr)
+            if not quiet:
+                print("yui unreachable", file=sys.stderr)
             return 0
         for path, _ in group:
             os.replace(path, path[: -len(".json")] + ".sent.json")
@@ -166,33 +167,35 @@ def main():
     spool = os.path.expanduser(args.spool)
     date = datetime.date.today().isoformat()
     path = os.path.join(spool, date, args.source + ".json")
-    error = None
     entries = []
+    reason = None
     if not args.flush:
         try:
             item = compose(json.load(sys.stdin), date, args.source, int(time.time() * 1000))
-        except Exception as raised:
-            error = raised
-            item = failed_item(date, args.source, raised)
+        except Exception as error:
+            reason = f"{type(error).__name__}: {error}"
+            item = failed_item(date, args.source, error)
         entries = [(path, item)]
-    if args.dry_run and error is None:
+    if args.dry_run:
+        if reason:
+            print(reason, file=sys.stderr)
+            return 1
         now_ms = int(time.time() * 1000)
-        entries = sorted([entry for entry in pending(spool) if entry[0] != path] + entries, key=lambda entry: entry[0])
+        entries = sorted([entry for entry in pending(spool) if entry[0] != path or args.flush] + entries)
         for group in groups(entries, args.source, now_ms):
             print(body([item for _, item in group], args.source, now_ms))
         return 0
-    if not args.dry_run:
-        # A run waits for the lock so a flush never marks sent an item the run rewrote meanwhile.
-        held = lock(spool, wait=not args.flush)
-        if held is None:
-            return 0
-        for entry_path, item in entries:
-            write_item(entry_path, item)
-        status = deliver(url, pending(spool), args.source)
-        if error is None:
-            return status
-    print(f"{type(error).__name__}: {error}", file=sys.stderr)
-    return 1
+    # A run waits for the lock so a flush never marks sent an item the run rewrote meanwhile.
+    held = lock(spool, wait=not args.flush)
+    if held is None:
+        return 0
+    for entry_path, item in entries:
+        write_item(entry_path, item)
+    status = deliver(url, pending(spool), args.source, quiet=args.flush)
+    if reason:
+        print(reason, file=sys.stderr)
+        return 1
+    return status
 
 
 if __name__ == "__main__":
