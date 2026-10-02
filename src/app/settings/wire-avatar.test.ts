@@ -561,7 +561,7 @@ describe("createEffectiveEndpoints", () => {
     });
     const refreshVoiceList = createVoiceListRefresh({
       getEndpoints,
-      speakerSelection: { list: () => [], setManifest: () => {} },
+      speakerSelection: { listUser: () => [], setManifest: () => {} },
       log: noopLog,
     });
 

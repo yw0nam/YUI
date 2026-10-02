@@ -59,6 +59,8 @@ export function createSelectionStore<T extends SelectionOption>(opts: {
     return bundled.some((o) => o.id === id);
   }
   let userOptions: T[] = [];
+  // Set by the manifest: hidden user options stay stored but are neither listed nor resolvable.
+  let userHidden = false;
 
   // Union-merge userStorage list into in-memory userOptions — discard bundled id collisions,
   // dedupe by id (reloaded entries win). Prevents lost updates from other windows.
@@ -82,7 +84,7 @@ export function createSelectionStore<T extends SelectionOption>(opts: {
 
   // Full list of candidates to resolve: user entries after bundled (no duplicate ids).
   function options(): T[] {
-    return [...bundled, ...userOptions];
+    return userHidden ? [...bundled] : [...bundled, ...userOptions];
   }
 
   function hasId(id: string): boolean {
@@ -129,6 +131,11 @@ export function createSelectionStore<T extends SelectionOption>(opts: {
   return {
     list(): T[] {
       return options().map((o) => ({ ...o }));
+    },
+
+    /** Every imported user option, listed or hidden. */
+    listUser(): T[] {
+      return userOptions.map((o) => ({ ...o }));
     },
 
     /** Add/update imported user option. Reject bundled id collisions; force source to "user". */
@@ -205,12 +212,14 @@ export function createSelectionStore<T extends SelectionOption>(opts: {
 
     // Config hot-reload: replace manifest + default. Preserve user override, but
     // fall back to default resolution if absent in new manifest. Notify only if active id actually changes.
-    setManifest(next: { available?: T[]; defaultValue: string }): void {
+    // hideUser keeps the user options stored and takes them out of the list until a manifest without it.
+    setManifest(next: { available?: T[]; defaultValue: string; hideUser?: boolean }): void {
       const before = resolve().id;
       defaultValue = next.defaultValue;
       bundled = normalize(next.available, defaultValue);
-      // Drop user options colliding with new bundled ids (bundled wins).
-      userOptions = userOptions.filter((u) => !isBundledId(u.id));
+      userHidden = next.hideUser ?? false;
+      // Drop listed user options colliding with new bundled ids (bundled wins).
+      if (!userHidden) userOptions = userOptions.filter((u) => !isBundledId(u.id));
       if (override !== null && !hasId(override)) override = null;
       if (resolve().id === before) return;
       notify();

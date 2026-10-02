@@ -16,7 +16,7 @@ const noopLog = { debug: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn() }
 function fakeStore(userOptions: SpeakerOption[] = []) {
   const setManifest = vi.fn();
   return {
-    list: () => userOptions,
+    listUser: () => userOptions,
     setManifest,
     _manifest: () => setManifest.mock.calls.at(-1)?.[0],
   };
@@ -66,6 +66,7 @@ describe("createVoiceListRefresh", () => {
         { id: "あやせ", label: "あやせ", ref_url: "" },
       ],
       defaultValue: "ナツメ",
+      hideUser: false,
     });
   });
 
@@ -239,7 +240,7 @@ describe("createVoiceListRefresh — re-uploading user voices the server lost", 
 
     await refresh();
 
-    expect(store._manifest()).toEqual({ available: [], defaultValue: "" });
+    expect(store._manifest()).toEqual({ available: [], defaultValue: "", hideUser: false });
     expect(reuploadUserVoice).toHaveBeenCalledWith(userOpt);
   });
 
