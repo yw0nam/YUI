@@ -17,6 +17,7 @@ describe("loadConfig — endpoints TTS", () => {
       chat_base_url: "http://localhost:8642",
       stt_base_url: "http://localhost:5517",
       tts_base_url: "http://localhost:8092",
+      tts_provider: "irodori",
       tts_model: "irodori-tts",
       tts_speaker: "ナツメ",
       tts_max_inflight: 1,
@@ -26,6 +27,7 @@ describe("loadConfig — endpoints TTS", () => {
       chat_base_url: "http://localhost:8642",
       stt_base_url: "http://localhost:5517",
       tts_base_url: "http://localhost:8092",
+      tts_provider: "irodori",
       tts_model: "irodori-tts",
       tts_speaker: "ナツメ",
       tts_max_inflight: 1,
@@ -40,6 +42,7 @@ describe("loadConfig — endpoints TTS", () => {
       tts_base_url: "http://localhost:8092",
     };
     const cfg = await loadConfig({ read: readerOf(map) });
+    expect(cfg.endpoints.tts_provider).toBeUndefined();
     expect(cfg.endpoints.tts_model).toBeUndefined();
     expect(cfg.endpoints.tts_speaker).toBeUndefined();
   });

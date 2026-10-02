@@ -43,6 +43,7 @@ describe("validateEndpoints — happy path", () => {
         chat_instructions: "use generate_express",
         chat_api: "responses",
         stt_model: "whisper-large-v3-turbo",
+        tts_provider: "openai",
         tts_model: "irodori-tts",
         tts_speaker: "ナツメ",
         chat_model_context_window: 128000,
@@ -53,6 +54,7 @@ describe("validateEndpoints — happy path", () => {
     expect(out.chat_instructions).toBe("use generate_express");
     expect(out.chat_api).toBe("responses");
     expect(out.stt_model).toBe("whisper-large-v3-turbo");
+    expect(out.tts_provider).toBe("openai");
     expect(out.tts_model).toBe("irodori-tts");
     expect(out.tts_speaker).toBe("ナツメ");
     expect(out.chat_model_context_window).toBe(128000);
@@ -143,6 +145,22 @@ describe("validateEndpoints — chat_model / chat_instructions / chat_api", () =
 
   it("rejects an unknown chat_api", () => {
     expectIssue(baseRaw({ chat_api: "graphql" }), "chat_api must be");
+  });
+});
+
+describe("validateEndpoints — tts_provider", () => {
+  it("accepts every provider, fish included", () => {
+    for (const p of ["irodori", "openai", "fish"]) {
+      expect(validateEndpoints(FILE, baseRaw({ tts_provider: p })).tts_provider).toBe(p);
+    }
+  });
+
+  it("rejects an unknown tts_provider", () => {
+    expectIssue(baseRaw({ tts_provider: "azure" }), "tts_provider must be");
+  });
+
+  it("omits tts_provider when unset", () => {
+    expect(validateEndpoints(FILE, baseRaw()).tts_provider).toBeUndefined();
   });
 });
 

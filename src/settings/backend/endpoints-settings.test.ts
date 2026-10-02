@@ -26,10 +26,12 @@ const EMPTY: EndpointOverrides = {
   stt_base_url: "",
   stt_model: "",
   tts_base_url: "",
+  tts_model: "",
   broker_base_url: "",
   chat_model: "",
   chat_model_context_window: "",
   chat_api: "",
+  tts_provider: "",
 };
 
 function baseConfig(): EndpointsConfig {
@@ -38,6 +40,7 @@ function baseConfig(): EndpointsConfig {
     chat_model: "natsume",
     stt_base_url: "http://localhost:5517",
     tts_base_url: "http://localhost:8092",
+    tts_provider: "irodori",
     tts_model: "irodori-tts",
     tts_speaker: "ナツメ",
   };
@@ -429,6 +432,22 @@ describe("mergeEndpoints", () => {
     const out = mergeEndpoints(base, { ...EMPTY, chat_api: "graphql" });
     expect(out.chat_api).toBe("responses");
   });
+
+  // ── tts_provider / tts_model override ──
+
+  it("applies a tts_provider and tts_model override", () => {
+    const out = mergeEndpoints(baseConfig(), {
+      ...EMPTY,
+      tts_provider: "openai",
+      tts_model: "gpt-4o-mini-tts",
+    });
+    expect(out.tts_provider).toBe("openai");
+    expect(out.tts_model).toBe("gpt-4o-mini-tts");
+  });
+
+  it("ignores an empty tts_provider override (keeps base default)", () => {
+    expect(mergeEndpoints(baseConfig(), EMPTY).tts_provider).toBe("irodori");
+  });
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -556,9 +575,9 @@ describe("ENDPOINT_FIELD_SPECS", () => {
     );
   });
 
-  it("assigns kind 'string' to chat_model and stt_model", () => {
+  it("assigns kind 'string' to stt_model, tts_model and chat_model", () => {
     const stringKeys = ENDPOINT_FIELD_SPECS.filter((s) => s.kind === "string").map((s) => s.key);
-    expect(stringKeys).toEqual(["stt_model", "chat_model"]);
+    expect(stringKeys).toEqual(["stt_model", "tts_model", "chat_model"]);
   });
 
   it("assigns kind 'posInt' to chat_model_context_window only", () => {
@@ -570,6 +589,12 @@ describe("ENDPOINT_FIELD_SPECS", () => {
     const chatApi = ENDPOINT_FIELD_SPECS.find((s) => s.key === "chat_api")!;
     expect(chatApi.kind).toBe("enum");
     expect(chatApi.enum).toEqual(["responses", "chat_completions", "push"]);
+  });
+
+  it("assigns kind 'enum' to tts_provider with every provider", () => {
+    const provider = ENDPOINT_FIELD_SPECS.find((s) => s.key === "tts_provider")!;
+    expect(provider.kind).toBe("enum");
+    expect(provider.enum).toEqual(["irodori", "openai", "fish"]);
   });
 });
 
@@ -591,8 +616,8 @@ describe("ENDPOINT_FIELD_SPECS — resetGroup (endpoints-section.ts per-service 
     expect(bySvc("stt")).toEqual(["stt_base_url", "stt_model"].sort());
   });
 
-  it("tts reset group is tts_base_url only", () => {
-    expect(bySvc("tts")).toEqual(["tts_base_url"]);
+  it("tts reset group is tts_base_url + tts_model + tts_provider", () => {
+    expect(bySvc("tts")).toEqual(["tts_base_url", "tts_model", "tts_provider"].sort());
   });
 
   it("broker reset group is broker_base_url only", () => {
@@ -652,10 +677,12 @@ describe("endpointDefaultsFromConfig", () => {
       stt_base_url: "http://localhost:5517",
       stt_model: "",
       tts_base_url: "http://localhost:8092",
+      tts_model: "irodori-tts",
       broker_base_url: "",
       chat_model: "natsume",
       chat_model_context_window: "",
       chat_api: "",
+      tts_provider: "irodori",
     });
   });
 

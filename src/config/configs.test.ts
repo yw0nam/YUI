@@ -29,6 +29,10 @@ describe("configs/endpoints.json", () => {
     expect(ep.tts_model).toBe("irodori-tts");
   });
 
+  it("selects Irodori as the TTS provider", () => {
+    expect(ep.tts_provider).toBe("irodori");
+  });
+
   it("carries the chat protocol selection", () => {
     expect(ep.chat_api).toBe("chat_completions");
   });
