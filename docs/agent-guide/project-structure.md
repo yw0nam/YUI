@@ -469,6 +469,6 @@ YUI/
       desire/                        # Agent desire middleware, state helpers, monitor, and prompts (Python/uv)
       platform/                      # Hermes gateway push-transport plugin: one WebSocket carrying turns in and finished replies out (Python/uv)
     skills/
-      yui-daily-briefing/            # Backend-agnostic skill: speak the daily briefing, and build the scheduled producer that posts it
+      yui-daily-briefing/            # Backend-agnostic skill: scheduled producers write dated markdown briefings (scripts/briefing.py) that the backend agent speaks on first activity
   docs/                              # Design source of truth
 ```

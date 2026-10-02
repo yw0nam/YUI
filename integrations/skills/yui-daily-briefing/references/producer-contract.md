@@ -1,145 +1,132 @@
 # Daily briefing producer contract
 
-A producer of the daily briefing builds one briefing item per scheduled run and posts it to
-YUI's `POST /signals` ingress. This file states everything the request has to satisfy. The
-reference producer is `scripts/post-briefing.py`. The envelope's `source` field names the
-run that posted the group; each item's own `sources[]` names what it reports on.
+A producer of the daily briefing gathers its sources once per scheduled run and pipes one
+JSON object into `scripts/briefing.py write`. The helper writes one markdown file per run
+into a dated spool on the backend agent's machine. The agent lists the unspoken files with
+`briefing.py pending`, speaks them, and records them with `briefing.py mark-spoken`. This
+file states the input, the file the helper writes, the ledger, and the helper's commands.
 
-## Request
-
-The body is JSON: a `signals` array holding one or more briefing items, oldest day first,
-and an `envelope`. Each item comes from one producer run.
+## Gather input
 
 ```json
 {
-  "signals": [
+  "summary": "World news roundup: 2 items from 2 live feeds",
+  "sources": [
+    { "name": "example-wire", "status": "ok", "last_ok": "2026-10-02T04:05:21Z" },
     {
-      "skill": "yui-daily-briefing",
-      "date": "2026-09-11",
-      "summary": "1 paper, 1 pull request since 2026-09-10 18:00",
-      "sources": [
-        { "name": "arxiv", "status": "ok", "last_ok": "2026-09-11T06:00:00+09:00" },
-        { "name": "repo-status", "status": "stale", "last_ok": "2026-09-09T22:10:00+09:00" }
-      ],
-      "refs": [
-        {
-          "kind": "paper",
-          "title": "Diffusion policies for dexterous manipulation",
-          "url": "https://arxiv.org/abs/2609.01234",
-          "at": "2026-09-11T05:24:26Z",
-          "excerpt": "One policy learns twelve tasks from forty demonstrations."
-        },
-        {
-          "kind": "pull_request",
-          "title": "feat: open speech-bubble links in the default browser",
-          "url": "https://github.com/yw0nam/YUI/pull/887",
-          "at": "2026-09-11T04:02:00Z",
-          "excerpt": ""
-        }
-      ]
+      "name": "example-feed",
+      "status": "stale",
+      "last_ok": "2026-09-28T22:10:00Z",
+      "run_url": "https://scheduler.example.com/runs/231"
     }
   ],
-  "envelope": {
-    "source": "cron",
-    "event_type": "daily_briefing",
-    "delivery": "immediate",
-    "event_id": "daily-briefing:2026-09-11",
-    "occurred_at": 1789077600000
-  }
+  "refs": [
+    {
+      "kind": "news",
+      "title": "Rates [update] rise again",
+      "url": "https://news.example.com/story_(rates)",
+      "at": "Thu, 01 Oct 2026 19:41:01 GMT",
+      "excerpt": "Homebuilders and prospective buyers continue to face higher costs."
+    }
+  ]
 }
 ```
 
-## Caps
+`assets/fixtures/gather.json` holds this sample in full.
 
 | Field | Cap |
 |---|---|
-| `date` | The local day of the run, `YYYY-MM-DD` |
-| `summary` | One line, 200 characters |
+| `summary` | Optional; one line, 200 characters; `<n> items` when absent, where `<n>` counts every distinct ref, including those the cap drops |
 | `sources[]` | 10 entries |
-| `sources[].name` | 40 characters |
+| `sources[].name` | 40 characters, not empty |
+| `sources[].status` | One of `ok`, `stale`, `failed`, `disabled` |
+| `sources[].last_ok` | Timestamp, optional |
 | `sources[].run_url` | `http` or `https` scheme, 2048 characters, optional |
 | `refs[]` | 30 entries, newest first, one entry per distinct `url` |
-| `refs[].kind` | Producer-defined label, at most 40 characters |
-| `refs[].title` | 200 characters |
+| `refs[].kind` | Producer-defined label, 40 characters; `other` when absent |
+| `refs[].title` | 200 characters; the `url` when absent |
 | `refs[].url` | `http` or `https` scheme, 2048 characters |
+| `refs[].at` | Timestamp; the moment of the run when absent |
 | `refs[].excerpt` | 280 characters, possibly the empty string |
-| Whole body | At most 49,152 bytes of UTF-8 |
 
-`refs[].at` is an ISO-8601 timestamp. The producer measures each item serialized alone in a
-request and drops its oldest refs until that request fits the body cap. A request carrying
-several items drops the oldest ref of whichever item holds the most refs, the older item on
-a tie (earlier `date`, then source name), until it fits. Every item keeps its `date`,
-`summary`, `sources`, and its newest refs.
+The gather script emits `refs` newest first; the helper keeps the first 30. A ref whose
+`url` misses the `http` or `https` scheme or runs past 2048 characters drops out. Text
+fields collapse to one line, and a field over its cap ends in `…`. A source with a
+`run_url` outside the rule keeps its other fields.
 
-## Reference producer
+## Briefing file
 
-`scripts/post-briefing.py` keeps every run in a spool directory, split by day, and posts what
-is pending whenever YUI answers. A producer script gathers its sources, prints one JSON
-object on stdout, and pipes it in:
+`write` names the file `<spool>/<YYYY-MM-DD>/<source>.md`, dated by the local day of the
+run (the job's `TZ`), and writes it through a temporary file and a rename:
 
-```json
-{ "summary": "…", "sources": [ … ], "refs": [ … ] }
+```markdown
+---
+source: "world-news"
+date: "2026-10-02"
+generated_at: "2026-10-02T08:20:03+02:00"
+summary: "World news roundup: 2 items from 2 live feeds"
+sources:
+  - {name: "example-wire", status: "ok", last_ok: "2026-10-02T04:05:21Z"}
+  - {name: "example-feed", status: "stale", last_ok: "2026-09-28T22:10:00Z", run_url: "https://scheduler.example.com/runs/231"}
+---
+
+# World news roundup: 2 items from 2 live feeds
+
+1. [Rates \[update\] rise again](<https://news.example.com/story_(rates)>)
+   news · Thu, 01 Oct 2026 19:41:01 GMT
+   Homebuilders and prospective buyers continue to face higher costs.
 ```
 
-The gather script emits `refs` newest first; the poster keeps the first 30 and drops from the
-tail when the item runs over the size cap. `summary` is optional and reads `<n> items` when it
-is absent, where `<n>` counts every distinct ref, including those the cap drops. A ref whose `url` misses
-the `http` or `https` scheme or runs past 2048 characters drops out; `kind` defaults to
-`other`, `title` to the `url`, `at` to the moment of the run.
+1. The front matter is YAML. Every string value is a JSON-encoded double-quoted string.
+   `sources` holds one flow mapping per source, or reads `sources: []`.
+2. The body opens with the summary as a heading, then one numbered item per ref: a link
+   line, a `kind · at` line, and an excerpt line when the excerpt carries text.
+3. A title escapes `[`, `]`, and `\`. A url sits inside `<…>`, with whitespace, `<`, and
+   `>` percent-encoded.
 
-A run goes through three steps:
+A run whose `<source>.md` for the day is unspoken replaces that file. A run whose
+`<source>.md` is already spoken writes `<source>.<HHMMSS>.md` beside it, stamped with the
+local time of the run. A spoken file stays as written. Only `write` creates or replaces
+briefing files.
 
-① Compose the item with every cap above and `date` set to the local day.
+## Ledger
 
-② Write it to `<spool>/<YYYY-MM-DD>/<source>.json`. A second run of the same source on the
-same day overwrites that file and leaves it pending.
+`<spool>/spoken.json` is a JSON object that maps each spoken file's path, relative to the
+spool (`2026-10-02/world-news.md`), to the local ISO-8601 time `mark-spoken` recorded it.
+`write` and `mark-spoken` hold an exclusive lock on `<spool>/.lock` while they read and
+write it, and the ledger is written through a temporary file and a rename. An unreadable
+ledger is renamed `spoken.json.bad` with one line on stderr and read as empty. `pending`
+reads the ledger unlocked and leaves an unreadable one in place, reading it as empty with
+one line on stderr.
 
-③ Flush the spool.
+The helper creates files readable by their owner only.
 
-A flush takes an exclusive lock on `<spool>/.lock`, collects every pending
-`<YYYY-MM-DD>/<source>.json` oldest day first, and posts them as one request. YUI's away
-buffer keeps the five newest groups, so one group per flush keeps a backlog of several days
-from pushing older groups out. When the items run over the body cap, the posted copy drops
-refs by the rule under Caps; the spool files keep their full refs.
-The newest items that still run over the cap with every ref dropped wait for the next flush.
-The envelope reads `event_id: "daily-briefing:<newest date in the request>"`. A 2xx answer
-renames every file in the request to `<source>.<HHMMSSmmm>.sent.json`, stamped with the
-local delivery time, so the dated directories keep every delivered item, including each
-delivery of a source that ran again on the same day. A refused connection, reset, hang-up,
-or timeout leaves the files pending. A file that holds no briefing item is renamed
-`<source>.json.bad` with one line on stderr, and the flush goes on without it. `--flush`
-runs that step alone, so a scheduler that calls it every few minutes delivers the spool
-within minutes of YUI becoming reachable. A `--flush` prints nothing while YUI is
-unreachable and exits 0 at once when it finds the lock held; a run from stdin waits for the
-lock. The poster creates files readable by their owner only.
+## Commands
 
-| Flag | Default |
+`--spool <dir>` goes before the subcommand. Its default is `$YUI_BRIEFING_SPOOL`, else
+`~/.local/state/yui-daily-briefing/spool`.
+
+| Command | Does |
 |---|---|
-| `--url` | `$YUI_SIGNALS_URL`, else YUI's loopback listener on its default port |
-| `--source` | `cron`; 1 to 40 letters, digits, `_`, or `-`; names the spool file and the envelope `source` of the request the run posts |
-| `--spool` | `$YUI_BRIEFING_SPOOL`, else `~/.local/state/yui-daily-briefing/spool` |
-| `--flush` | Flushes the spool without reading stdin |
-| `--dry-run` | Prints the request body the flush would post, the stdin item included, and writes and posts nothing |
+| `write --source <name>` | Reads the gather input on stdin and writes the briefing file. `<name>` is 1 to 40 letters, digits, `_`, or `-` |
+| `pending` | Prints every `<YYYY-MM-DD>/*.md` file missing from the ledger, oldest day first, then by file name, each under a line `=== <path relative to the spool> ===`. Prints nothing when every file is spoken |
+| `mark-spoken PATH...` | Records each path in the ledger. Each path reads `<YYYY-MM-DD>/<file>.md`, exactly as `pending` prints it, and names an existing file |
 
 | Exit | Output | Meaning |
 |---|---|---|
-| 0 | none | Every pending item was delivered, another flush holds the lock, or a `--flush` found the ingress unreachable |
-| 0 | `yui unreachable` on stderr | A run from stdin found the ingress refusing the connection, hanging up, or timing out; the items stay pending |
-| 1 | `yui answered <code>` on stderr | The ingress answered outside 2xx; the items stay pending |
-| 1 | the reason on stderr | The input was malformed; the error path below applies, and nothing is written under `--dry-run` |
-| 2 | usage on stderr | An unknown flag or a `--source` outside the rule above |
+| 0 | none from `write` and `mark-spoken`; the briefings from `pending` | Done |
+| 1 | the reason on stderr | `write` read malformed input; the error path below applies |
+| 2 | the reason on stderr | A `--source` outside the rule, a `mark-spoken` path that is absolute, holds `..`, or names no briefing in the spool (nothing is recorded), or an unknown flag |
 
 ## Run time
 
-The producer fires at a fixed local time ahead of the user's usual first activity, once
-per local day. Its item's `date` reads that day.
+A producer fires at a fixed local time ahead of the user's usual first activity. YUI sends
+`trigger: milestone first_activity` once per local day, on the first tick that finds the
+user present with the "Scheduled greeting" switch on, and the agent speaks what `pending`
+prints on that turn. A day with several producers yields one file per producer.
 
-The client delivers every group it receives, so a manual re-run makes YUI speak a second
-time on the same day.
-
-A quiet day still gets its run. The item then carries `refs: []`. The backend keeps the
-turn silent when every item has empty `refs` and every source reads `ok`, and otherwise
-speaks the health sentence alone.
+A quiet day still gets its run. Its file carries no items, and a briefing whose sources
+all read `ok` adds nothing to say.
 
 ## Source health
 
@@ -153,28 +140,13 @@ the source's own rule yields:
 | `failed` | The last read raised an error |
 | `disabled` | The source is switched off on this machine |
 
-`last_ok` is an ISO-8601 timestamp and may be absent. `run_url` points at the execution
-or delivery record behind the observation and may be absent.
+`run_url` points at the execution or delivery record behind the observation.
 
 ## Error path
 
-A run that raises spools a failed item under the producer's name: `summary` reads
-`<producer> run failed: <error>`, `sources[]` holds one entry named after the producer with
-`status: "failed"` and `last_ok` absent, and `refs` is `[]`. It travels like any other item.
-`run_url` points at the failed run when the scheduler has a page for it; the reference
-producer writes `name` and `status` only. When a valid pending item from an earlier run of
-the same source and day sits in the spool, the reference producer keeps it, writes no failed
-item, prints the reason, and exits 1. A refused ingress connection leaves the spool as it is.
-
-## Retry
-
-A producer keeps every item until the ingress answers 2xx, so the user hears what earlier
-mornings missed on the next delivery, each item under its own `date`.
-
-A refused connection exits 0, since YUI being closed at run time is an ordinary morning.
-An answer outside 2xx exits 1, which leaves the failure in the scheduler's own record.
-
-A 2xx means YUI's ingress accepted the group; a client with signals switched off drops it.
-
-A producer that reads its sources from a queue of rows keeps those rows pending and marks
-them sent on a 2xx answer.
+Input that fails to parse or breaks the shape above makes `write` write a failed briefing
+under the producer's name: `summary` reads `<source> run failed: <error type>: <message>`,
+`sources` holds one entry named after the producer with `status: "failed"`, and the body
+holds no items. When an unspoken `<source>.md` from an earlier run of the same day exists,
+`write` keeps it and writes nothing. Either way it prints the reason on one stderr line and
+exits 1, which leaves the failure in the scheduler's own record.

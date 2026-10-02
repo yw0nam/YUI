@@ -83,7 +83,7 @@ as `generate_express` cues beside the reply text.
 <img src="docs/public/yui-feature-proactive.png" alt="The Proactive settings tab: screen watch, loop reactions after 5, 10, and 30 minutes of inactivity, scheduled greetings at 09:00, 12:00, 18:00, and 23:00, a 10-minute proactive gap, and hourly limits of 24 cues and 40 self-started turns" width="400">
 
 Scheduled greetings, idle check-ins, screen-watch cues, the first activity of the
-day, external `/signals`, and a daily briefing each open a turn. Debounce, hourly
+day, and external `/signals` each open a turn. Debounce, hourly
 caps, and a quiet gap after each turn pace them, and the backend answers any cue
 with silence when it chooses.
 
