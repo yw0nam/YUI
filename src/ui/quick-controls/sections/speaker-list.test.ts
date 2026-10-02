@@ -27,6 +27,7 @@ function buildList(canPasteVoiceId: () => boolean) {
     commitVoiceImport: vi.fn(async () => {}),
     removeVoice: vi.fn(async () => {}),
     canManageVoices: () => true,
+    canReuploadVoices: () => true,
     canPasteVoiceId,
     log: noopLog,
     refreshTooltip: () => {},
@@ -57,6 +58,7 @@ describe("speaker list — paste-a-voice-id field", () => {
       label: "lib-voice",
       ref_url: "",
       source: "user",
+      provider: "irodori",
     });
     expect(speakerSelection.getActiveId()).toBe("lib-voice");
     expect(input.value).toBe("");
@@ -81,6 +83,13 @@ describe("speaker list — paste-a-voice-id field", () => {
 
     expect(speakerSelection.listUser()).toEqual([]);
     expect(speakerSelection.getActiveId()).toBe("natsume");
+    expect(input.getAttribute("aria-invalid")).toBe("true");
+    expect(el.querySelector(".yui-spk-manual")!.classList.contains("is-invalid")).toBe(true);
+
+    input.value = "lib-voice";
+    input.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true }));
+    expect(input.getAttribute("aria-invalid")).toBe("false");
+    expect(el.querySelector(".yui-spk-manual")!.classList.contains("is-invalid")).toBe(false);
   });
 
   it("re-committing an id that is already listed selects it without duplicating the option", () => {

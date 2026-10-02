@@ -16,12 +16,8 @@ const { fetchReferenceClip } = vi.hoisted(() => ({
 }));
 vi.mock("./reference-clip", () => ({ fetchReferenceClip }));
 
-import {
-  deleteFishVoice,
-  listFishVoices,
-  upsertFishVoice,
-  VOICE_REQUEST_TIMEOUT_MS,
-} from "./fish-voices";
+import { deleteFishVoice, listFishVoices, upsertFishVoice } from "./fish-voices";
+import { VOICES_REQUEST_TIMEOUT_MS } from "./tts-voices";
 
 type FetchFn = (url: string, init?: RequestInit) => Promise<Response>;
 
@@ -149,20 +145,21 @@ describe("listFishVoices", () => {
     expect(fetchMock).toHaveBeenCalledTimes(2);
   });
 
-  it("lists public voices when self is false", async () => {
-    const fetchMock = vi.fn<FetchFn>(async () =>
-      jsonResponse({ total: 1, items: [{ _id: "pub", title: "Public" }] }),
-    );
+  it("trusts a boolean has_more over total", async () => {
+    const fetchMock = vi
+      .fn<FetchFn>()
+      .mockResolvedValueOnce(
+        jsonResponse({ total: 5, items: [{ _id: "a", title: "A" }], has_more: false }),
+      );
 
     const voices = await listFishVoices({
       baseUrl: BASE_URL,
-      self: false,
       fetch: fetchMock as unknown as typeof fetch,
       logger: noopLog,
     });
 
-    expect(fetchMock.mock.calls[0][0]).toBe(`${BASE_URL}/model?page_size=100&page_number=1`);
-    expect(voices).toEqual([{ id: "pub", label: "Public" }]);
+    expect(voices).toEqual([{ id: "a", label: "A" }]);
+    expect(fetchMock).toHaveBeenCalledOnce();
   });
 
   it("resolves to null and warns on a non-2xx response", async () => {
@@ -206,7 +203,7 @@ describe("listFishVoices", () => {
         fetch: fetchMock as unknown as typeof fetch,
         logger: noopLog,
       });
-      await vi.advanceTimersByTimeAsync(VOICE_REQUEST_TIMEOUT_MS + 10);
+      await vi.advanceTimersByTimeAsync(VOICES_REQUEST_TIMEOUT_MS + 10);
       await expect(pending).resolves.toBeNull();
       expect(noopLog.warn).toHaveBeenCalledWith("voice_list_failed", {
         error: expect.stringContaining("voice list timed out"),

@@ -19,6 +19,7 @@ interface TestOption {
   label?: string;
   source?: "bundled" | "user";
   url: string;
+  owner?: string;
 }
 
 const SAMPLE: TestOption[] = [
@@ -36,7 +37,8 @@ function coerceUser(v: unknown): TestOption | null {
   if (typeof o.id !== "string" || !/^[A-Za-z0-9_-]+$/.test(o.id)) return null;
   if (typeof o.url !== "string" || o.url.length === 0) return null;
   const label = typeof o.label === "string" && o.label.length > 0 ? o.label : o.id;
-  return { id: o.id, label, url: o.url, source: "user" };
+  const owner = typeof o.owner === "string" ? { owner: o.owner } : {};
+  return { id: o.id, label, url: o.url, source: "user", ...owner };
 }
 
 function isDefault(o: TestOption, defaultValue: string): boolean {
@@ -176,7 +178,7 @@ describe("createSelectionStore", () => {
     expect(store.getActiveId()).toBe("mine");
   });
 
-  it("keeps a hidden user option whose id a listed option also uses, through a reload and a later save", () => {
+  it("keeps another owner's user option whose id a listed option also uses, through a reload and a later save", () => {
     const userStorage = makeMemUserStorage();
     const store = createSelectionStore<TestOption>({
       defaultValue: "",
@@ -184,22 +186,49 @@ describe("createSelectionStore", () => {
       synthesize,
       coerceUser,
       isDefault,
+      ownerKey: "owner",
+      owner: "b",
     });
     store.setManifest({
       available: [{ id: "alloy", label: "alloy", url: "", source: "bundled" }],
       defaultValue: "",
-      hideUser: true,
     });
-    // Another window wrote both imports to storage.
+    // Another window wrote both of owner a's imports to storage.
     userStorage._data = [
-      { id: "alloy", label: "Mine", url: "asset://alloy.res" },
-      { id: "other", label: "Other", url: "asset://other.res" },
+      { id: "alloy", label: "Mine", url: "asset://alloy.res", owner: "a" },
+      { id: "other", label: "Other", url: "asset://other.res", owner: "a" },
     ];
 
     store.reloadFromStorage();
     store.renameUserOption("other", "Renamed");
 
     expect(userStorage._data.map((o) => o.id)).toEqual(["alloy", "other"]);
+  });
+
+  it("lists and resolves only the active owner's user options, and restores the selection when its owner returns", () => {
+    const store = createSelectionStore<TestOption>({
+      available: SAMPLE,
+      defaultValue: "/a.res",
+      synthesize,
+      coerceUser,
+      isDefault,
+      ownerKey: "owner",
+      owner: "x",
+    });
+    store.addUserOption({ id: "mine", url: "asset://mine.res" });
+    store.select("mine");
+    expect(store.listUser()).toEqual([
+      { id: "mine", url: "asset://mine.res", source: "user", owner: "x" },
+    ]);
+
+    store.setOwner("y");
+    expect(store.list().map((o) => o.id)).toEqual(["a", "b"]);
+    expect(store.getActiveId()).toBe("a");
+    store.select("mine");
+    expect(store.getActiveId()).toBe("a");
+
+    store.setOwner("x");
+    expect(store.getActiveId()).toBe("mine");
   });
 
   // A user option wiped from memory by a setManifest bundled-id collision is not lost: the

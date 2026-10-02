@@ -299,6 +299,19 @@ describe("createQuickControls — speaker section", () => {
     qc.dispose();
   });
 
+  it("with a provider whose upload names a new voice, user rows delete but never re-upload", () => {
+    speakerSelection = makeSpeakerSelection();
+    speakerSelection.addUserOption(USER_VOICE);
+    const qc = buildQc({ canReuploadVoices: () => false });
+    qc.open();
+
+    const row = qc.el.querySelector<HTMLElement>(`.yui-spk[data-spk-id="${USER_VOICE.id}"]`)!;
+    expect(row.querySelector(".yui-spk__remove")).not.toBeNull();
+    expect(row.querySelector(".yui-spk__refresh")).toBeNull();
+
+    qc.dispose();
+  });
+
   // ── Speaker: user (imported) voice management — mirrors the VRM section ──────
 
   function withUserVoice() {

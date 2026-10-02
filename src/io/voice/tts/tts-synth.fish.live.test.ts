@@ -22,19 +22,16 @@ function isWav(buf: ArrayBuffer): boolean {
 }
 
 describe.skipIf(!LIVE)("tts-synth — LIVE Fish Audio", () => {
-  it("synthesizes one line through the default model into wav bytes", async () => {
-    const own = await listFishVoices({ baseUrl: BASE_URL, getApiKey });
-    const voices =
-      own && own.length > 0
-        ? own
-        : await listFishVoices({ baseUrl: BASE_URL, self: false, getApiKey });
+  it("synthesizes one line through the default model into wav bytes", async ({ skip }) => {
+    const voices = await listFishVoices({ baseUrl: BASE_URL, getApiKey });
     const referenceId = voices?.[0]?.id;
+    if (!referenceId) skip("the account has no voice models");
 
     const wav = await createTtsSynth({
       provider: "fish",
       baseUrl: BASE_URL,
       model: MODEL,
-      ...(referenceId ? { voice: referenceId } : {}),
+      voice: referenceId,
       getApiKey,
     })("Hello, can you hear me?");
 

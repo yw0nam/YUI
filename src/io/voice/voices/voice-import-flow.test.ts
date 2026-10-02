@@ -16,14 +16,16 @@ vi.mock("./fish-voices", () => ({
 const { selectFetch } = vi.hoisted(() => ({ selectFetch: vi.fn().mockResolvedValue(undefined) }));
 vi.mock("../../chat/chat-client", () => ({ selectFetch }));
 
-const { copyVoiceFile, pickVoiceFile, removeOrphanImport, removeUserVoice } = vi.hoisted(() => ({
-  copyVoiceFile: vi.fn(),
-  pickVoiceFile: vi.fn(),
-  removeOrphanImport: vi.fn(async (id: string, remove: (id: string) => Promise<void>) => {
-    await remove(id);
-  }),
-  removeUserVoice: vi.fn().mockResolvedValue(undefined),
-}));
+const { copyVoiceFile, pickVoiceFile, removeOrphanImport, removeUserVoice, renameUserVoice } =
+  vi.hoisted(() => ({
+    copyVoiceFile: vi.fn(),
+    renameUserVoice: vi.fn(),
+    pickVoiceFile: vi.fn(),
+    removeOrphanImport: vi.fn(async (id: string, remove: (id: string) => Promise<void>) => {
+      await remove(id);
+    }),
+    removeUserVoice: vi.fn().mockResolvedValue(undefined),
+  }));
 vi.mock("../../assets/user-asset-import", async (importOriginal) => ({
   ...(await importOriginal<typeof import("../../assets/user-asset-import")>()),
   removeOrphanImport,
@@ -32,6 +34,7 @@ vi.mock("./voice-import", () => ({
   copyVoiceFile,
   pickVoiceFile,
   removeUserVoice,
+  renameUserVoice,
   fileStemFromPath: (path: string) => {
     const base = path.split(/[\\/]/).pop() ?? path;
     const dot = base.lastIndexOf(".");
@@ -59,12 +62,13 @@ function fakeStore() {
 // Explicit arg, no default — build(undefined) must mean "no base url", not "fall back to one".
 function build(baseUrl: string | undefined, provider?: TtsProviderName) {
   const speakerSelection = fakeStore();
+  const endpoints = { tts_base_url: baseUrl, tts_provider: provider };
   const flow = createVoiceImportFlow({
-    getEndpoints: () => ({ tts_base_url: baseUrl, tts_provider: provider }),
+    getEndpoints: () => endpoints,
     speakerSelection,
     log: noopLog,
   });
-  return { ...flow, speakerSelection };
+  return { ...flow, speakerSelection, endpoints };
 }
 
 describe("createVoiceImportFlow", () => {
@@ -74,6 +78,7 @@ describe("createVoiceImportFlow", () => {
     listFishVoices.mockReset().mockResolvedValue([]);
     upsertFishVoice.mockReset().mockResolvedValue(undefined);
     copyVoiceFile.mockReset().mockResolvedValue(IMPORTED);
+    renameUserVoice.mockReset();
     pickVoiceFile.mockReset();
     removeOrphanImport.mockClear();
     removeUserVoice.mockReset().mockResolvedValue(undefined);
@@ -81,8 +86,9 @@ describe("createVoiceImportFlow", () => {
   });
 
   describe("fish", () => {
-    it("uploads the multipart import and selects the server-assigned _id, not the filename-derived id", async () => {
+    it("uploads the multipart import, moves the clip to the server-assigned _id and selects it", async () => {
       upsertFishVoice.mockResolvedValue("model_9");
+      renameUserVoice.mockResolvedValue("asset://localhost/app-data/references/model_9/clip.wav");
       const { commitVoiceImport, speakerSelection } = build("https://api.fish.audio", "fish");
 
       await commitVoiceImport("/tmp/MyVoice.wav", "My Voice");
@@ -94,12 +100,32 @@ describe("createVoiceImportFlow", () => {
         refUrl: IMPORTED.ref_url,
       });
       expect(upsertVoice).not.toHaveBeenCalled();
+      expect(renameUserVoice).toHaveBeenCalledWith("myvoice", "model_9");
       expect(speakerSelection.addUserOption).toHaveBeenCalledWith({
         ...IMPORTED,
         id: "model_9",
+        ref_url: "asset://localhost/app-data/references/model_9/clip.wav",
         revision: 1,
+        provider: "fish",
       });
       expect(speakerSelection.select).toHaveBeenCalledWith("model_9");
+    });
+
+    it("adds and selects nothing when the provider changed while the upload ran", async () => {
+      const { commitVoiceImport, speakerSelection, endpoints } = build(
+        "https://api.fish.audio",
+        "fish",
+      );
+      upsertFishVoice.mockImplementation(async () => {
+        endpoints.tts_provider = "irodori";
+        return "model_9";
+      });
+
+      await commitVoiceImport("/tmp/MyVoice.wav", "My Voice");
+
+      expect(speakerSelection.addUserOption).not.toHaveBeenCalled();
+      expect(speakerSelection.select).not.toHaveBeenCalled();
+      expect(renameUserVoice).not.toHaveBeenCalled();
     });
 
     it("cleans up the orphan copy and rethrows when the upload fails", async () => {
@@ -149,7 +175,11 @@ describe("createVoiceImportFlow", () => {
         id: "myvoice",
         refUrl: IMPORTED.ref_url,
       });
-      expect(speakerSelection.addUserOption).toHaveBeenCalledWith({ ...IMPORTED, revision: 1 });
+      expect(speakerSelection.addUserOption).toHaveBeenCalledWith({
+        ...IMPORTED,
+        revision: 1,
+        provider: "irodori",
+      });
       expect(speakerSelection.select).toHaveBeenCalledWith("myvoice");
     });
 
@@ -173,7 +203,11 @@ describe("createVoiceImportFlow", () => {
 
       await commitVoiceImport("/tmp/Replacement.wav", "My Voice");
 
-      expect(speakerSelection.addUserOption).toHaveBeenCalledWith({ ...IMPORTED, revision: 4 });
+      expect(speakerSelection.addUserOption).toHaveBeenCalledWith({
+        ...IMPORTED,
+        revision: 4,
+        provider: "irodori",
+      });
     });
 
     // upsertVoice is itself create-or-replace, so the flow has nothing to branch on — a flaked
