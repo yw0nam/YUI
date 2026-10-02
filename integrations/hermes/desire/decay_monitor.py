@@ -396,7 +396,7 @@ def run(now: datetime) -> str:
 
 
 def _budget_tokens(used: dict) -> str:
-    """Print each cap as remaining over its daily total."""
+    """Format each cap as remaining over its daily total."""
 
     caps = desire_state.CAPS
     units = (("signals", "sig"), ("issues", "iss"), ("self_comments", "cmt"), ("prs", "pr"))
