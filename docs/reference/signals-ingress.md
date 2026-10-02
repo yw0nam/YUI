@@ -125,7 +125,7 @@ arrives while the user is present and the pipeline is idle; groups that wait in 
 share the next turn that drains the buffers. While the user is away or a turn runs, YUI
 keeps only the five newest groups, so producers that each post separately can lose the
 oldest. Each producer run posts at once when the ingress answers, so scheduling producers
-so that at most five runs fall between the user's sessions keeps every group.
+so that at most five runs fall inside any stretch where YUI is open and the user is away keeps every group.
 
 A run that raises yields an item of the same shape, naming the producer in its own
 `sources[]` entry:

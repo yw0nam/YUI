@@ -92,6 +92,8 @@ curl -sS -o /dev/null -w '%{http_code}\n' -X POST "$YUI_SIGNALS_URL/signals" \
 
 Done when: the command prints `200`. A connection error here means YUI is closed, or, for a
 producer on another machine, the tunnel from step 4 is down; settle step 4 first in that case.
+Through a tunnel, a reset connection means the tunnel is up and YUI is closed, and a refused
+connection means the tunnel is down.
 
 ### 2. Confirm the loop with a fixture
 
@@ -157,7 +159,7 @@ changes: on macOS, a launchd agent with `KeepAlive` running
 user service with `Restart=always` running the same command.
 
 Compare the time zone of the producer's machine with the user's. When they differ, the jobs
-in step 7 carry `TZ=<user zone>` (for example `TZ=Asia/Seoul`), which sets each item's `date` to the user's day, and the
+in step 7 carry `TZ=<user zone>` (for example `TZ=Europe/Berlin`), which sets each item's `date` to the user's day, and the
 schedule is written in the machine's time, or under `CRON_TZ=<user zone>` where the cron
 supports it.
 
@@ -234,13 +236,13 @@ variables without expanding `$` or `~` inside them, so they hold absolute paths;
 `PATH=` line above the jobs. On macOS, cron reads nothing under `~/Desktop`, `~/Documents`,
 or `~/Downloads` without Full Disk Access, so keep the checkout and the spool outside them
 or schedule with launchd. When step 4 found the machine's time zone differs from the
-user's, add `TZ=<user zone>` beside the other variables, for example `TZ=Asia/Seoul`. Another scheduler (launchd,
+user's, add `TZ=<user zone>` beside the other variables, for example `TZ=Europe/Berlin`. Another scheduler (launchd,
 systemd timers, n8n, your own) runs the same commands with the same variables set on every
 job.
 
 While the user is away or a turn runs, YUI keeps only the five newest groups, and each
 producer run that reaches YUI posts its own group. Schedule the producers so that at most
-five runs fall between the user's sessions.
+five runs fall inside any stretch where YUI is open and the user is away.
 
 The poster prints nothing on success, the flush prints nothing while YUI is unreachable,
 and anything else writes a one-line reason to stderr, so a scheduler that mails or
@@ -272,9 +274,10 @@ List the scheduler's entries (`crontab -l` on cron) and confirm each point:
 3. No entry passes `--event-id`; the poster takes no such flag and exits 2 on it, which
    loses that run.
 4. One entry runs `post-briefing.py --flush` every five minutes.
-5. The jobs carry `TZ=<user zone>`, such as `TZ=Asia/Seoul`, when the machine's time zone
+5. The jobs carry `TZ=<user zone>`, such as `TZ=Europe/Berlin`, when the machine's time zone
    differs from the user's.
-6. At most five producer runs fall between the user's sessions. When more fall, ask the
+6. At most five producer runs fall inside any stretch where YUI is open and the user is
+   away. When more fall, ask the
    user whether to merge producers into one gather script, as step 6 allows, or to move
    runs, and leave the schedule as it is until they answer.
 7. The user has said which machine runs YUI. When it is not the producer's machine,
