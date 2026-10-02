@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# Links gitignored runtime assets (VRM, purchased motions) and copies .env.local
-# from the main checkout into a worktree. Idempotent; missing sources are
+# Links gitignored runtime assets (VRM, purchased motions, a local .claude/) and
+# copies .env.local from the main checkout into a worktree. Idempotent; missing sources are
 # skipped with a warning. Runs automatically via the WorktreeCreate hook;
 # after a manual `git worktree add`, run it directly:
 #   bash scripts/worktree-setup.sh <worktree-path> [main-checkout-path]
@@ -66,6 +66,11 @@ if [ -d "$MAIN/public/purchased_motions" ]; then
   for f in "$MAIN/public/purchased_motions"/*.vrma; do
     [ -e "$f" ] && link_asset "$f" "$WT/public/purchased_motions/$(basename "$f")"
   done
+fi
+
+# Local-only Claude Code setup; a checkout that still tracks .claude/ keeps its own.
+if [ -d "$MAIN/.claude" ] && { [ ! -e "$WT/.claude" ] || [ -L "$WT/.claude" ]; }; then
+  link_asset "$MAIN/.claude" "$WT/.claude"
 fi
 
 if [ -f "$MAIN/.env.local" ]; then
