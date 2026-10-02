@@ -185,7 +185,8 @@ gather.py | python3 "$SKILL_DIR/scripts/post-briefing.py" --source <producer nam
 applies every cap in the contract, writes the item to
 `$YUI_BRIEFING_SPOOL/<YYYY-MM-DD>/<producer name>.json`, then posts every pending item in
 the spool, oldest day first, packed into as few requests as the size cap allows. A
-delivered file is renamed `<producer name>.sent.json` and stays as the archive. `--flush`
+delivered file is renamed `<producer name>.<HHMMSSmmm>.sent.json`, stamped with the
+delivery time, and stays as the archive; a later run never overwrites it. `--flush`
 posts the pending items without reading stdin. `--dry-run` prints the requests and writes
 and posts nothing. `--help` lists the rest, and `references/producer-contract.md` states
 the flush rules.
@@ -198,7 +199,7 @@ Run it with `--dry-run` first and read the request against the contract. Then ru
 live with `YUI_SIGNALS_URL` and `YUI_BRIEFING_SPOOL` set and YUI open.
 
 Done when: the live run prints nothing, exits 0,
-`$YUI_BRIEFING_SPOOL/<today>/<producer name>.sent.json` exists, and the turn log gains the
+`$YUI_BRIEFING_SPOOL/<today>/<producer name>.<HHMMSSmmm>.sent.json` exists, and the turn log gains the
 line from step 2 with today's `event_id`.
 
 ### 7. Schedule it
@@ -231,7 +232,7 @@ and anything else writes a one-line reason to stderr, so a scheduler that mails 
 messages output stays quiet on good mornings.
 
 Done when: a manual run of each producer line, with the three variables set, leaves
-`$YUI_BRIEFING_SPOOL/<today>/<producer name>.json` or `<producer name>.sent.json`; within
+`$YUI_BRIEFING_SPOOL/<today>/<producer name>.json` or `<producer name>.<HHMMSSmmm>.sent.json`; within
 five minutes of YUI being reachable,
 `find "$YUI_BRIEFING_SPOOL" -name '*.json' ! -name '*.sent.json'` prints nothing and the
 turn log holds a line carrying `event_id` `daily-briefing:<today>`.

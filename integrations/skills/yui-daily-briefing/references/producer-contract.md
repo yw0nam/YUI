@@ -97,8 +97,9 @@ same day overwrites that file and leaves it pending.
 A flush takes an exclusive lock on `<spool>/.lock`, collects every pending
 `<YYYY-MM-DD>/<source>.json` oldest day first, and packs the items into as few requests as
 the body cap allows. Each request's envelope reads `event_id: "daily-briefing:<newest date in
-the request>"`. A 2xx answer renames the request's files to `<source>.sent.json`, so the
-dated directories keep the latest delivered item of each source and day. The first refused
+the request>"`. A 2xx answer renames each of the request's files to `<source>.<HHMMSSmmm>.sent.json`,
+stamped with the local delivery time, so the dated directories keep every delivered item,
+including each delivery of a source that ran again on the same day. The first refused
 connection, reset, hang-up, or timeout ends the flush and leaves the remaining files
 pending. `--flush` runs that step alone, so a scheduler that calls it every few minutes
 delivers the spool within minutes of YUI becoming reachable. A `--flush` prints nothing
