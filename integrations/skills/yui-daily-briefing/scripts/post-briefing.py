@@ -117,19 +117,23 @@ def pending(spool, dry_run):
             entries.append((path, item))
             continue
         # A file that holds no briefing item is set aside so it never blocks the rest.
+        if dry_run:
+            print(f"not a briefing item, would set aside as {path}.bad", file=sys.stderr)
+            continue
         print(f"not a briefing item, set aside as {path}.bad", file=sys.stderr)
-        if not dry_run:
-            os.rename(path, path + ".bad")
+        os.rename(path, path + ".bad")
     return entries
 
 
 def pack(entries, source, now_ms):
-    # YUI's away buffer keeps five groups, so a flush posts one, trimming refs from the oldest items first.
+    # YUI's away buffer keeps five groups, so a flush posts one, trimming the fullest item's oldest ref first.
     group = [(path, dict(item, refs=list(item.get("refs") or []))) for path, item in entries]
     items = [item for _, item in group]
-    for item in items:
-        while item["refs"] and not fits(items, source, now_ms):
-            item["refs"].pop()
+    while not fits(items, source, now_ms):
+        fullest = max(items, key=lambda item: len(item["refs"]))
+        if not fullest["refs"]:
+            break
+        fullest["refs"].pop()
     while len(group) > 1 and not fits([item for _, item in group], source, now_ms):
         group.pop()
     return group
