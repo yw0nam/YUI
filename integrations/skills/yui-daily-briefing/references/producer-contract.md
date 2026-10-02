@@ -2,8 +2,8 @@
 
 A producer of the daily briefing builds one briefing item per scheduled run and posts it to
 YUI's `POST /signals` ingress. This file states everything the request has to satisfy. The
-reference producer is `scripts/post-briefing.py`, and the envelope's `source` field names
-whichever producer posted the group.
+reference producer is `scripts/post-briefing.py`. The envelope's `source` field names the
+run that posted the group; each item's own `sources[]` names what it reports on.
 
 ## Request
 
@@ -97,26 +97,27 @@ same day overwrites that file and leaves it pending.
 A flush takes an exclusive lock on `<spool>/.lock`, collects every pending
 `<YYYY-MM-DD>/<source>.json` oldest day first, and packs the items into as few requests as
 the body cap allows. Each request's envelope reads `event_id: "daily-briefing:<newest date in
-the request>"`. A 2xx answer renames the request's files to `<source>.sent.json`; the dated
-directories keep every delivered item. The first refused connection, reset, hang-up, or
-timeout ends the flush and leaves the remaining files pending. `--flush` runs that step alone,
-so a scheduler that calls it every few minutes delivers the spool within minutes of YUI
-becoming reachable. A `--flush` that finds the lock held exits 0 at once; a run from stdin
+the request>"`. A 2xx answer renames the request's files to `<source>.sent.json`, so the
+dated directories keep the latest delivered item of each source and day. The first refused
+connection, reset, hang-up, or timeout ends the flush and leaves the remaining files
+pending. `--flush` runs that step alone, so a scheduler that calls it every few minutes
+delivers the spool within minutes of YUI becoming reachable. A `--flush` prints nothing
+while YUI is unreachable and exits 0 at once when it finds the lock held; a run from stdin
 waits for the lock.
 
 | Flag | Default |
 |---|---|
 | `--url` | `$YUI_SIGNALS_URL`, else YUI's loopback listener on its default port |
-| `--source` | `cron`; names the spool file and the envelope `source` |
+| `--source` | `cron`; names the spool file and the envelope `source` of every request the run posts |
 | `--spool` | `$YUI_BRIEFING_SPOOL`, else `~/.local/state/yui-daily-briefing/spool` |
 | `--flush` | Flushes the spool without reading stdin |
 | `--dry-run` | Prints the request bodies the flush would post, the stdin item included, and writes and posts nothing |
 
 | Exit | Output | Meaning |
 |---|---|---|
-| 0 | none | Every pending item was delivered, or another flush holds the lock |
-| 0 | `yui unreachable` on stderr | The ingress refused the connection, hung up, or timed out; the items stay pending |
-| 1 | `yui answered <code>` on stderr | The ingress answered outside 2xx; the items stay pending |
+| 0 | none | Every pending item was delivered, another flush holds the lock, or a `--flush` found the ingress unreachable |
+| 0 | `yui unreachable` on stderr | A run from stdin found the ingress refusing the connection, hanging up, or timing out; the remaining items stay pending |
+| 1 | `yui answered <code>` on stderr | The ingress answered outside 2xx; the remaining items stay pending |
 | 1 | the reason on stderr | The input was malformed; the error path below spooled a failed item and flushed, unless `--dry-run` |
 
 ## Run time

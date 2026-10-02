@@ -149,8 +149,8 @@ ssh -N -R 127.0.0.1:<remote port>:localhost:<listener port> <producer host>
 
 `YUI_SIGNALS_URL` on the producer's machine then reads `http://127.0.0.1:<remote port>`.
 The tunnel has to be up whenever the flush from step 7 runs. A tunnel started by the YUI
-machine's service manager and restarted when it drops stays up across sleep: on macOS, a
-launchd agent with `KeepAlive` running
+machine's service manager and restarted when it drops comes back after sleep and network
+changes: on macOS, a launchd agent with `KeepAlive` running
 `ssh -N -o ServerAliveInterval=30 -o ExitOnForwardFailure=yes -R ...`; on Linux, a systemd
 user service with `Restart=always` running the same command.
 
@@ -219,12 +219,16 @@ YUI_BRIEFING_SPOOL=/absolute/path/to/workspace/yui-briefing-spool
 
 One line per producer, each with its own `--source`, and one flush line. Cron sets the
 three variables without expanding `$` or `~` inside them, so they hold absolute paths;
-`$SKILL_DIR` in the command lines expands, since cron runs them through `sh`. Another
-scheduler (launchd, systemd timers, n8n, your own) runs the same commands with the same
-three variables set on every job.
+`$SKILL_DIR` in the command lines expands, since cron runs them through `sh`. Cron's
+`PATH` holds `/usr/bin:/bin`, so a gather script that calls tools from elsewhere needs a
+`PATH=` line above the jobs. On macOS, cron reads nothing under `~/Desktop`, `~/Documents`,
+or `~/Downloads` without Full Disk Access, so keep the checkout and the spool outside them
+or schedule with launchd. Another scheduler (launchd, systemd timers, n8n, your own) runs
+the same commands with the same three variables set on every job.
 
-The poster prints nothing on success and writes a one-line reason to stderr otherwise, so a
-scheduler that mails or messages output stays quiet on good mornings.
+The poster prints nothing on success, the flush prints nothing while YUI is unreachable,
+and anything else writes a one-line reason to stderr, so a scheduler that mails or
+messages output stays quiet on good mornings.
 
 Done when: a manual run of each producer line, with the three variables set, leaves
 `$YUI_BRIEFING_SPOOL/<today>/<producer name>.json` or `<producer name>.sent.json`; within

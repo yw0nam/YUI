@@ -112,7 +112,7 @@ The group travels under this envelope:
 
 | Field | Value |
 |---|---|
-| `source` | The producer's own name |
+| `source` | Name of the producer run that posted the group; each item's `sources[]` names what it reports on |
 | `event_type` | `daily_briefing` |
 | `delivery` | `immediate` |
 | `event_id` | `daily-briefing:<newest date among the group's items>` |
