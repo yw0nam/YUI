@@ -161,6 +161,10 @@ Ask the user when they usually start their day. Every producer runs before that 
 its file waits in the spool when the `first_activity` turn arrives. A producer that runs
 later is spoken when the user asks for the briefing or on the next day's first activity.
 
+All producers share one run time. Each writes its own file and the briefing is read at the
+first activity, so spacing them apart only delays the last file. A job a producer depends
+on, such as a `git pull` of a repository it reads, runs before that time.
+
 Producers run on your own machine, or write into a directory you read. Compare that
 machine's time zone with the user's. When they differ, the jobs in step 7 carry
 `TZ=<user zone>` (for example `TZ=Europe/Berlin`), which dates each file by the user's
@@ -225,7 +229,7 @@ SKILL_DIR=/absolute/path/to/YUI/integrations/skills/yui-daily-briefing
 YUI_BRIEFING_SPOOL=/absolute/path/to/workspace/yui-briefing-spool
 TZ=Europe/Berlin
 0 7 * * * /absolute/path/to/news-gather.py | python3 "$SKILL_DIR/scripts/briefing.py" write --source news
-10 7 * * 1 /absolute/path/to/repos-gather.py | python3 "$SKILL_DIR/scripts/briefing.py" write --source repos
+0 7 * * 1 /absolute/path/to/repos-gather.py | python3 "$SKILL_DIR/scripts/briefing.py" write --source repos
 ```
 
 One line per producer, each with its own `--source`. The `TZ=` line is there only when
@@ -251,7 +255,7 @@ links, and `$YUI_BRIEFING_SPOOL/spoken.json` records every path of that day.
 
 ### Check an existing schedule
 
-An agent that already runs briefing producers checks its schedule against steps 2, 6, and
+An agent that already runs briefing producers checks its schedule against steps 2, 4, 6, and
 7. List the scheduler's entries (`crontab -l` on cron) and confirm each point:
 
 1. Every producer entry pipes its gather output into
@@ -270,6 +274,10 @@ An agent that already runs briefing producers checks its schedule against steps 
 4. The jobs carry `TZ=<user zone>`, such as `TZ=Europe/Berlin`, when the machine's time
    zone differs from the user's.
 5. The user has switched "Scheduled greeting" on, as in step 2.
+6. Every producer entry runs at one time, as in step 4, with each job it depends on ahead
+   of it. A schedule whose producers run at different times moves them all to the earliest
+   of those times. A comment in the schedule that no longer matches it is updated or
+   removed.
 
 A spool's dated folders can hold `.json` and `.sent.json` files. `pending` reads only
 `.md` files, so they stay out of every briefing. A `.json` file without `.sent` in its name
