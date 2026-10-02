@@ -51,7 +51,7 @@ function read(spool: string, path: string): string {
   return readFileSync(join(spool, path), "utf8");
 }
 
-function seed(spool: string, path: string, text: string): void {
+function seed(spool: string, path: string, text: string | Buffer): void {
   mkdirSync(join(spool, path, ".."), { recursive: true });
   writeFileSync(join(spool, path), text);
 }
@@ -148,18 +148,30 @@ describe("briefing.py write", () => {
     expect(read(fresh, spoolFiles(fresh)[0])).toContain('summary: "second run"');
   });
 
-  it("turns control characters and lone surrogates in the input into spaces", () => {
+  it("turns control characters, noncharacters, and lone surrogates in the input into spaces", () => {
     const spool = tempDir();
     const input = {
-      summary: "a\u0080b\u007fc",
+      summary: "a\u0080b\u007fc￿d￾e",
       sources: [{ name: "wire", status: "ok", last_ok: "2026-10-02\u0085" }],
       refs: [{ title: "emoji \ud83d", url: "https://example.com/a" }],
     };
     expect(write(spool, "news", input)).toEqual({ status: 0, stdout: "", stderr: "" });
     const text = read(spool, spoolFiles(spool)[0]);
-    expect(text).toContain('summary: "a b c"');
+    expect(text).toContain('summary: "a b c d e"');
     expect(text).toContain('  - {name: "wire", status: "ok", last_ok: "2026-10-02"}');
     expect(text).toContain("1. [emoji](<https://example.com/a>)");
+  });
+
+  it("caps last_ok and at at 64 characters", () => {
+    const spool = tempDir();
+    const input = {
+      sources: [{ name: "wire", status: "stale", last_ok: "8".repeat(100) }],
+      refs: [{ kind: "news", url: "https://example.com/a", at: "9".repeat(100) }],
+    };
+    expect(write(spool, "news", input).status).toBe(0);
+    const text = read(spool, spoolFiles(spool)[0]);
+    expect(text).toContain(`last_ok: "${"8".repeat(63)}…"`);
+    expect(text).toContain(`   news · ${"9".repeat(63)}…\n`);
   });
 
   it("writes a failed briefing for malformed input unless an unspoken one is already there", () => {
@@ -190,6 +202,7 @@ describe("briefing.py pending and mark-spoken", () => {
     seed(spool, "2026-10-01/arxiv.md", "arxiv\n");
     seed(spool, "2026-09-29/news.sent.json", "{}");
     seed(spool, "abcd-ef-gh/news.md", "not a day\n");
+    seed(spool, "2026-10-01/zz.md", Buffer.from([0x7a, 0xff, 0x0a]));
     seed(
       spool,
       "spoken.json",
@@ -202,12 +215,13 @@ describe("briefing.py pending and mark-spoken", () => {
     const spool = seeded();
     expect(run(spool, ["pending"])).toEqual({
       status: 0,
-      stdout: "=== 2026-10-01/arxiv.md ===\narxiv\n\n=== 2026-10-01/news.md ===\nnews\n\n",
+      stdout:
+        "=== 2026-10-01/arxiv.md ===\narxiv\n\n=== 2026-10-01/news.md ===\nnews\n\n=== 2026-10-01/zz.md ===\nz�\n\n",
       stderr: "",
     });
-    expect(run(spool, ["mark-spoken", "2026-10-01/arxiv.md", "2026-10-01/news.md"]).status).toBe(0);
+    const all = ["2026-10-01/arxiv.md", "2026-10-01/news.md", "2026-10-01/zz.md"];
+    expect(run(spool, ["mark-spoken", ...all]).status).toBe(0);
     expect(run(spool, ["pending"]).stdout).toBe("");
-    expect(run(join(tempDir(), "absent"), ["pending"]).stdout).toBe("");
   });
 
   it("exits 2 when neither --spool nor YUI_BRIEFING_SPOOL names the spool", () => {
@@ -218,6 +232,16 @@ describe("briefing.py pending and mark-spoken", () => {
     expect(result.stderr.trim().split("\n")).toEqual([
       expect.stringContaining("set YUI_BRIEFING_SPOOL or pass --spool"),
     ]);
+  });
+
+  it("exits 2 on a relative spool path, and on a missing spool when reading it", () => {
+    expect(run("relative/spool", ["pending"]).status).toBe(2);
+    const absent = join(tempDir(), "absent");
+    for (const args of [["pending"], ["mark-spoken", "2026-10-01/news.md"]]) {
+      const result = run(absent, args);
+      expect(result.status).toBe(2);
+      expect(result.stderr.trim().split("\n")).toHaveLength(1);
+    }
   });
 
   it("records each path with a local timestamp and rejects a path outside the spool's briefings", () => {
@@ -240,9 +264,12 @@ describe("briefing.py pending and mark-spoken", () => {
     }
   });
 
-  it("sets a corrupt ledger aside and treats it as empty", () => {
+  it("reads a corrupt ledger as empty, and mark-spoken alone sets it aside", () => {
     const spool = seeded();
     writeFileSync(join(spool, "spoken.json"), "{");
+    expect(write(spool, "news", GATHER).status).toBe(0);
+    expect(read(spool, "spoken.json")).toBe("{");
+    expect(existsSync(join(spool, "spoken.json.bad"))).toBe(false);
     const result = run(spool, ["mark-spoken", "2026-10-01/news.md"]);
     expect(result.status).toBe(0);
     expect(result.stderr.trim().split("\n")).toHaveLength(1);
