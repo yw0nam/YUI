@@ -85,7 +85,7 @@ Signing and notarization are driven entirely by environment variables read by th
 | `APPLE_SIGNING_IDENTITY` | Optional. Cross-checks the identity of the imported certificate. |
 | `APPLE_ID` + `APPLE_PASSWORD` + `APPLE_TEAM_ID` | Notarizes and staples the signed `.app`. All three are required together. |
 
-With none of them registered the workflow succeeds and ships an unsigned, un-notarized `.dmg`; users open it via Finder's right-click → **Open**. Registering the secrets turns signing on without touching the workflow.
+With none of them registered the workflow succeeds and ships an unsigned, un-notarized `.dmg`; macOS gates the first launch behind **System Settings → Privacy & Security → Open Anyway**. Registering the secrets turns signing on without touching the workflow.
 
 `bundle.yml` is a separate smoke check: it bundles macOS on every push to `main` and uploads the `.dmg` as a workflow artifact. It never touches releases.
 

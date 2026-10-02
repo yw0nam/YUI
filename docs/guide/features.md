@@ -75,5 +75,5 @@ Everything YUI does today, grouped by area. The README shows the three headline 
 | Languages | English, Japanese, and Korean UI, with the OS language as the first-run default |
 | Configuration | Runtime settings in `configs/`, validated at load, with hot-reload in development |
 | Logs | One log file per day shared by frontend and Rust lines ([location](https://github.com/yw0nam/YUI/blob/main/docs/agent-guide/build-run.md#logs), [convention](../reference/logging.md)) |
-| Platforms | macOS on Apple Silicon, and experimental Windows x64 builds |
+| Platforms | macOS on Apple Silicon (official) and experimental Windows x64 builds; Intel Mac and Linux are not officially supported |
 

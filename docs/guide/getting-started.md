@@ -63,6 +63,10 @@ Every tunable section in that file is required — the client reads each value f
 
 ## 3. Chat backend
 
+The shortest path to a first chat needs no config file: right-click the character → **Connection** and pick a **Provider** preset in the Chat section, fill in **Chat model** and **Chat API key**, close the panel, and send a message from the text input.
+The preset — OpenAI, Ollama, LM Studio, or Groq — autofills the endpoint URL; the prerequisite is a running Ollama or LM Studio, or an OpenAI or Groq key.
+Chat Completions, the shipped default, needs a tool-calling model because the client always declares its `generate_express` tool (`src/io/chat/chat-client.ts`): [`gpt-5-mini`](https://platform.openai.com/docs/models/gpt-5-mini) on OpenAI, [`qwen3`](https://ollama.com/library/qwen3) on Ollama (pull it first with `ollama pull qwen3`), [`llama-3.3-70b-versatile`](https://console.groq.com/docs/tool-use) on Groq.
+
 YUI supports three chat protocols, selected by `chat_api` in `configs/endpoints.json`. Options A and B work with any server that speaks the corresponding OpenAI API; `push` is a WebSocket contract for backends that deliver without a request, described in [push-transport.md](../reference/push-transport.md). The shipped file sets `chat_completions`; if the key is removed the client behaves as `responses`.
 
 ### Option A — Chat Completions mode (`"chat_api": "chat_completions"`, shipped default)

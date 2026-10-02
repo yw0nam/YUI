@@ -68,7 +68,7 @@ jobs:
               'The Windows bundles are built by CI on a platform the maintainers do not test on.',
               'Treat them as experimental and report breakage in the issue tracker.',
               '',
-              'If macOS refuses to open the app, right-click it in Finder and choose **Open**.',
+              'If macOS refuses to open the app, allow it once under System Settings → Privacy & Security → **Open Anyway**.',
             ].join('\n')
 
             const { data } = await github.rest.repos.createRelease({

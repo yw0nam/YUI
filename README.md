@@ -57,7 +57,11 @@ Install https://github.com/yw0nam/YUI following https://raw.githubusercontent.co
 
 The agent installs the toolchain, clones the repo, wires the backend you name, and hands you `pnpm tauri dev`.
 
-No agent at hand? Grab the macOS (Apple Silicon) `.dmg` or the experimental Windows x64 installer from the [latest release](https://github.com/yw0nam/YUI/releases/latest). The builds are unsigned, so on macOS right-click the app → **Open** on first launch. Then right-click the character → **Connection** and point her at any OpenAI-compatible endpoint.
+No agent at hand? Grab the macOS (Apple Silicon) `.dmg` or the experimental Windows x64 installer from the [latest release](https://github.com/yw0nam/YUI/releases/latest). The builds are unsigned, so macOS gates the first launch behind **System Settings → Privacy & Security → Open Anyway** — the Finder override is gone in macOS 15. Official builds target macOS on Apple Silicon; Intel Macs and Linux are not officially supported.
+
+**First chat:** right-click the character → **Connection** and pick a **Provider** preset in the Chat section, fill in **Chat model** and **Chat API key**, close the panel, and send a message.
+The preset — OpenAI, Ollama, LM Studio, or Groq — autofills the endpoint URL; the prerequisite is a running [Ollama](https://ollama.com) or [LM Studio](https://lmstudio.ai), or an OpenAI or Groq API key.
+The default Chat Completions mode needs a model with tool calling, since YUI always declares its `generate_express` tool (`src/io/chat/chat-client.ts`): [`gpt-5-mini`](https://platform.openai.com/docs/models/gpt-5-mini) on OpenAI, [`qwen3`](https://ollama.com/library/qwen3) on Ollama (pull it first with `ollama pull qwen3`), [`llama-3.3-70b-versatile`](https://console.groq.com/docs/tool-use) on Groq.
 
 ## Features
 
@@ -108,6 +112,7 @@ respond.
 - [Project structure and stack](docs/agent-guide/project-structure.md)
 - [`generate_express` cue contract](docs/reference/client-context.md)
 - [`AGENTS.md`](AGENTS.md): orientation for coding agents working on this repo
+- [`CONTEXT.md`](CONTEXT.md): glossary — the canonical vocabulary (head / brain, firing, cues)
 - [`CONTRIBUTING.md`](CONTRIBUTING.md)
 
 ## Credits
