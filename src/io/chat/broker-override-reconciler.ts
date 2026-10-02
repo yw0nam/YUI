@@ -51,9 +51,10 @@ export function createBrokerOverrideReconciler(
   let lastBrokerUrl = brokerUrlOf(initial);
   let lastProvider = ttsProviderOf(initial);
 
-  async function republish(eff: EndpointsConfig, broker: BrokerClient): Promise<void> {
+  // Publishes against the endpoints live once the table load settles, never a stale snapshot.
+  async function republish(broker: BrokerClient | null): Promise<void> {
     const table = await opts.loadTable();
-    await broker.publish(opts.derivePayload(eff, table));
+    await broker?.publish(opts.derivePayload(opts.getEffectiveEndpoints(), table));
   }
 
   async function onChange(): Promise<void> {
@@ -64,9 +65,7 @@ export function createBrokerOverrideReconciler(
       const providerChanged = provider !== lastProvider;
       lastProvider = provider;
       if (url === lastBrokerUrl) {
-        if (!providerChanged) return;
-        const table = await opts.loadTable();
-        await opts.getBroker()?.publish(opts.derivePayload(eff, table));
+        if (providerChanged) await republish(opts.getBroker());
         return;
       }
 
@@ -74,10 +73,12 @@ export function createBrokerOverrideReconciler(
       old?.dispose();
       if (url === "") {
         opts.setBroker(null);
+        // The reload still announces the provider's vocabulary to the consumers other than the broker.
+        if (providerChanged) await opts.loadTable();
       } else {
         const next = opts.createBroker(url);
         opts.setBroker(next);
-        await republish(eff, next);
+        await republish(next);
         next.start();
       }
       lastBrokerUrl = url;

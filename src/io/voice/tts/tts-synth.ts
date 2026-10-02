@@ -33,7 +33,7 @@ const SPEECH_REQUEST = {
 type SynthProvider = keyof typeof SPEECH_REQUEST;
 
 function isSynthProvider(p: string): p is SynthProvider {
-  return p in SPEECH_REQUEST;
+  return Object.hasOwn(SPEECH_REQUEST, p);
 }
 
 export type TtsSynth = (

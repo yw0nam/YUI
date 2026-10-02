@@ -145,12 +145,13 @@ async function bootstrap(): Promise<BootstrapHandle> {
     getEndpoints: petConfig.getEndpoints,
     getTtsKey: () => config.secrets.get(TTS_API_KEY_SECRET),
     endpointsSettings: settingsStores.endpointsSettings,
+    config,
     log,
     broadcastSettings,
     register,
   });
   const { vrmSelection, loadVrmSerialized } = vrm;
-  const { speakerSelection, refreshVoiceList } = speaker;
+  const { speakerSelection } = speaker;
   wireSettingsReload({
     onRemoteChange,
     vrmSelection,
@@ -287,7 +288,6 @@ async function bootstrap(): Promise<BootstrapHandle> {
         getGuardrails: petConfig.getGuardrails,
         configured,
         vrm,
-        refreshVoiceList,
         log,
       }),
     );

@@ -6,7 +6,7 @@ import {
   TTS_API_KEY_SECRET,
 } from "../../config/load";
 import { ttsProviderOf } from "../../config/tts-provider";
-import type { EndpointsConfig } from "../../contract";
+import type { EndpointsConfig, TtsProviderName } from "../../contract";
 import { createPreviousTurn, type PreviousTurnSlot } from "../../dispatcher/backend/previous-turn";
 import { createPushTurns, type PushTurns } from "../../dispatcher/turn/push-turn";
 import { createQuotedTurn, type QuotedTurn } from "../../dispatcher/turn/quoted-turn";
@@ -66,18 +66,22 @@ export async function wireBroker(deps: {
     createBrokerClient({ baseUrl, ...(brokerFetch ? { fetch: brokerFetch } : {}) });
   // Latest emotion_text table, kept current by every load so vocabulary() reflects it.
   let table: Record<string, string> | null = null;
+  // The provider of the newest load; a load that settles after a newer one started is dropped.
+  let tableProvider: TtsProviderName | undefined;
+  let loads = 0;
   // Best-effort load of the emoji enum table, which only Irodori speaks; any other provider and a
   // failed load both leave the vocabulary in free mode.
   const loadBrokerTable = async (): Promise<Record<string, string> | null> => {
+    const mine = ++loads;
+    tableProvider = ttsProviderOf(getEndpoints());
+    let next: Record<string, string> | null = null;
     try {
-      table =
-        ttsProviderOf(getEndpoints()) === "irodori"
-          ? await loadEmotionTextTable({ provider: "irodori" })
-          : null;
+      if (tableProvider === "irodori") next = await loadEmotionTextTable({ provider: "irodori" });
     } catch (err) {
       log.warn("emotion_text_load_failed", { fallback: "free", error: String(err) });
-      table = null;
     }
+    if (mine !== loads) return table;
+    table = next;
     announce();
     return table;
   };
@@ -123,13 +127,15 @@ export async function wireBroker(deps: {
   });
 
   const onConfigChange = (cfg: AppConfig, changed: ReadonlySet<ConfigSection>): void => {
-    if (!(changed.has("emotionRegistry") || changed.has("motions") || changed.has("endpoints"))) {
-      return;
-    }
-    const eff = getEndpoints();
+    // Of the endpoints, only the TTS provider moves the vocabulary.
+    const vocabMoved =
+      changed.has("emotionRegistry") ||
+      changed.has("motions") ||
+      (changed.has("endpoints") && ttsProviderOf(getEndpoints()) !== tableProvider);
+    if (!vocabMoved) return;
     // The table reload announces the change; the broker only hears about it when it is configured.
     void loadBrokerTable().then((loaded) => {
-      if (broker) void broker.publish(derive(cfg, eff, loaded));
+      if (broker) void broker.publish(derive(cfg, getEndpoints(), loaded));
     });
   };
 

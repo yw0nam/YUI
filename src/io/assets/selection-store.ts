@@ -74,7 +74,7 @@ export function createSelectionStore<T extends SelectionOption>(opts: {
     }
     for (const raw of persisted) {
       const opt = coerceUser(raw);
-      if (!opt || isBundledId(opt.id)) continue;
+      if (!opt || (!userHidden && isBundledId(opt.id))) continue;
       const idx = userOptions.findIndex((u) => u.id === opt.id);
       if (idx >= 0) userOptions[idx] = opt;
       else userOptions.push(opt);
@@ -89,6 +89,11 @@ export function createSelectionStore<T extends SelectionOption>(opts: {
 
   function hasId(id: string): boolean {
     return options().some((o) => o.id === id);
+  }
+
+  // An override survives while it names a listed option or a hidden user option, so unhiding restores it.
+  function keepsOverride(id: string): boolean {
+    return hasId(id) || userOptions.some((u) => u.id === id);
   }
 
   // Load stored override, treat stale/removed ids as absent.
@@ -140,7 +145,7 @@ export function createSelectionStore<T extends SelectionOption>(opts: {
 
     /** Add/update imported user option. Reject bundled id collisions; force source to "user". */
     addUserOption(opt: T): void {
-      if (isBundledId(opt.id)) return; // bundled always wins
+      if (!userHidden && isBundledId(opt.id)) return; // a listed bundled id always wins
       const next = { ...opt, source: "user" } as T;
       const idx = userOptions.findIndex((o) => o.id === next.id);
       if (idx >= 0) userOptions[idx] = next;
@@ -220,7 +225,7 @@ export function createSelectionStore<T extends SelectionOption>(opts: {
       userHidden = next.hideUser ?? false;
       // Drop listed user options colliding with new bundled ids (bundled wins).
       if (!userHidden) userOptions = userOptions.filter((u) => !isBundledId(u.id));
-      if (override !== null && !hasId(override)) override = null;
+      if (override !== null && !keepsOverride(override)) override = null;
       if (resolve().id === before) return;
       notify();
     },
@@ -237,7 +242,7 @@ export function createSelectionStore<T extends SelectionOption>(opts: {
         } catch {
           loaded = override;
         }
-        override = loaded !== null && hasId(loaded) ? loaded : null;
+        override = loaded !== null && keepsOverride(loaded) ? loaded : null;
       }
       if (resolve().id === before) return;
       notify();

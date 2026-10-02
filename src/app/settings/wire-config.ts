@@ -65,8 +65,8 @@ export function createPetConfig(deps: {
 
 /**
  * Config hot-reload → live surfaces: per-section re-apply of emotions, motions, guardrails,
- * hotkeys, endpoints, and the avatar. Returns the subscription's own disposer for the composer
- * to register.
+ * hotkeys, the broker vocabulary, and the avatar. Returns the subscription's own disposer for the
+ * composer to register.
  */
 export function wireConfigReload(deps: {
   config: Pick<ConfigStore, "subscribe">;
@@ -88,7 +88,6 @@ export function wireConfigReload(deps: {
     broker: Pick<ConfiguredBootstrapHandles["broker"], "onConfigChange">;
   };
   vrm: Pick<ReturnType<typeof wireVrmSelection>, "vrmSelection" | "loadVrmSerialized">;
-  refreshVoiceList: () => Promise<void>;
   log: Pick<Logger, "error">;
 }): () => void {
   return deps.config.subscribe((cfg, changed) => {
@@ -107,7 +106,6 @@ export function wireConfigReload(deps: {
       deps.surfaces.setAttachmentLimits(cfg.guardrails.attachments);
     }
     if (changed.has("hotkeys")) void deps.configured.summonHotkey.apply(cfg.hotkeys.summon_global);
-    if (changed.has("endpoints")) void deps.refreshVoiceList();
     deps.configured.broker.onConfigChange(cfg, changed);
     if (!changed.has("avatar")) return;
     deps.renderer.setFraming(cfg.avatar.framing);

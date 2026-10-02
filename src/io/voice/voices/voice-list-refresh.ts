@@ -44,13 +44,22 @@ export function createVoiceListRefresh(deps: {
   // Discards a stale (out-of-order) resolution so it can't clobber a newer manifest — the triggers
   // (boot, endpoints hot-reload, panel open) fire with no sequencing between them.
   let generation = 0;
+  // The provider whose voices the manifest holds; its voices must not outlive a switch to another.
+  let listedProvider: TtsProviderName | undefined;
 
   return async function refreshVoiceList(): Promise<void> {
     try {
       const eps = getEndpoints();
       if (!eps?.tts_base_url) return;
-      const api = VOICE_APIS[ttsProviderOf(eps)];
+      const provider = ttsProviderOf(eps);
+      const api = VOICE_APIS[provider];
       if (!api) return;
+      // A provider that takes no uploads cannot speak a user import, so imports stay stored but unlisted.
+      const takesUploads = api.upsert !== undefined;
+      if (listedProvider !== undefined && provider !== listedProvider) {
+        speakerSelection.setManifest({ available: [], defaultValue: "", hideUser: !takesUploads });
+        listedProvider = provider;
+      }
       const mine = ++generation;
       const f = await selectFetch();
       const ids = await api.list({
@@ -64,8 +73,6 @@ export function createVoiceListRefresh(deps: {
       if (ids === null) return;
       // A configured default the server doesn't (yet) have must not be conjured into existence.
       const defaultId = eps.tts_speaker && ids.includes(eps.tts_speaker) ? eps.tts_speaker : "";
-      // A provider that takes no uploads cannot speak a user import, so imports stay stored but unlisted.
-      const takesUploads = api.upsert !== undefined;
       // A user-imported voice is uploaded to the server under its own id — once relisted it would
       // collide as a "bundled" entry and the store's bundled-wins rule would strip the user's
       // richer option (label + asset:// ref_url). Exclude user-owned ids from the bundled manifest
@@ -78,6 +85,7 @@ export function createVoiceListRefresh(deps: {
         defaultValue: defaultId,
         hideUser: !takesUploads,
       });
+      listedProvider = provider;
       // Self-heal: a user-imported voice lives on the server as a reference clip, and a server
       // restart or swap loses it — every synth then 400s ("Unknown voice"). The local clip is the
       // source of truth, so push it back up instead of leaving the selection silently broken.

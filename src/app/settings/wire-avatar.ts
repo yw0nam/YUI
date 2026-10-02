@@ -2,6 +2,7 @@
 
 import { resolveAssetUrl, resolveUserFileSrc } from "../../config/asset-url";
 import type { AppConfig } from "../../config/load";
+import type { ConfigStore } from "../../config/store";
 import { ttsProviderOf } from "../../config/tts-provider";
 import type { EndpointsConfig, TtsProviderName } from "../../contract";
 import { removeOrphanImport } from "../../io/assets/user-asset-import";
@@ -233,12 +234,16 @@ export function wireSpeakerSelection(deps: {
   };
 }
 
-/** VRM and speaker selection with their teardowns, and the voice-list refresh on endpoint-override commits. */
+/**
+ * VRM and speaker selection with their teardowns, and the voice-list refresh on endpoint-override
+ * and config-file edits.
+ */
 export function wireAvatarSelection(deps: {
   renderer: Renderer;
   getEndpoints: () => EndpointsConfig;
   getTtsKey: () => Promise<string | undefined>;
   endpointsSettings: Pick<SettingsStores["endpointsSettings"], "subscribe">;
+  config: Pick<ConfigStore, "subscribe">;
   log: Logger;
   broadcastSettings: () => void;
   register: (dispose: () => void) => void;
@@ -256,10 +261,17 @@ export function wireAvatarSelection(deps: {
     broadcastSettings,
   });
   register(() => speaker.speakerSelection.dispose());
-  // Config-file edits refresh via onConfigChange; this covers the panel's override commits.
+  // Both the panel's override commits and config-file edits; only a TTS field change refetches.
   register(
     wireVoiceListAutoRefresh({
-      subscribe: deps.endpointsSettings.subscribe,
+      subscribe: (cb) => {
+        const unsubscribeOverrides = deps.endpointsSettings.subscribe(cb);
+        const unsubscribeConfig = deps.config.subscribe(() => cb());
+        return () => {
+          unsubscribeOverrides();
+          unsubscribeConfig();
+        };
+      },
       getEndpoints,
       refresh: speaker.refreshVoiceList,
     }),
