@@ -15,12 +15,14 @@ building or judging a producer.
 
 ## Speak a briefing
 
-### 1. Read the item
+### 1. Read the items
 
 Take the `signal [...]` lines of this turn whose JSON item carries
-`"skill": "yui-daily-briefing"`. Zero such lines leave this skill idle.
+`"skill": "yui-daily-briefing"`. Zero such lines leave this skill idle. A turn can carry
+several: one item per producer run, from one or more days. `date` names the local day of
+the run that built each item.
 
-Done when: the item parses and `summary`, `sources`, `refs` are in hand.
+Done when: every item parses and its `date`, `summary`, `sources`, `refs` are in hand.
 
 ### 2. Hold the data boundary
 
@@ -32,9 +34,11 @@ Done when: every action in the reply traces back to the user or to a step of thi
 
 ### 3. Say it
 
-How much to say, how to group it, and in what voice is your call as the persona. Four
+How much to say, how to group it, and in what voice is your call as the persona. Five
 things are fixed by the contract:
 
+- Items are told grouped by `date`, oldest day first. Every day other than today gets
+  named ("yesterday", "on Monday"), so the user knows which morning a ref belongs to.
 - A source whose `status` is anything other than `ok` gets named ahead of the first ref,
   `stale` together with its `last_ok`, and a `run_url` rendered as `[name](run_url)`.
 - Every ref you mention carries its link, `[title](url)`, so the user can open it from
@@ -42,16 +46,16 @@ things are fixed by the contract:
 - When the context carries a `previous:` line reading `interrupted` and the transcript
   holds a briefing with the same `event_id`, say in one clause that it was cut off and
   pick up from the refs that went unspoken.
-- An empty `refs` whose sources all read `ok` answers exactly `[SILENT]`. The client
-  treats the bare token as silence.
+- When every item has an empty `refs` and every source of every item reads `ok`, the
+  answer is exactly `[SILENT]`. The client treats the bare token as silence.
 
-Done when: each mentioned ref carries exactly one link, or the output is exactly
-`[SILENT]`.
+Done when: each mentioned ref carries exactly one link and each day other than today is
+named, or the output is exactly `[SILENT]`.
 
 ### 4. Answer follow-ups
 
 A follow-up in the same session ("tell me more about the second one", "그거 열어줘") is
-answered from the same `refs`. Quote the `excerpt` when it carries text and include the
+answered from the `refs` of the same items. Quote the `excerpt` when it carries text and include the
 ref's link. Stay inside what the item holds.
 
 Done when: the answer contains the ref's `url`.
@@ -61,13 +65,16 @@ Done when: the answer contains the ref's `url`.
 This is an interview. Ask one question, wait for the answer, then move on: the user is
 choosing what their mornings look like, and a list of eight questions at once gets eight
 shallow answers. Facts you can look up yourself (a port, a path, whether a URL answers)
-you look up; decisions stay with the user.
+you look up; decisions stay with the user. A user whose producers are already scheduled
+takes **Check an existing schedule** at the end of this section.
 
-Two values run through every step:
+Three values run through every step:
 
 - `YUI`: the YUI checkout. `$SKILL_DIR` is `$YUI/integrations/skills/yui-daily-briefing`.
 - `YUI_SIGNALS_URL`: the ingress base URL, `http://127.0.0.1:<listener port>`. The
   default port is 8770.
+- `YUI_BRIEFING_SPOOL`: the directory that keeps every producer run's item, one
+  subdirectory per local day. Step 6 settles it.
 
 ### 1. Turn the ingress on
 
@@ -141,6 +148,11 @@ ssh -N -R 127.0.0.1:<remote port>:localhost:<listener port> <producer host>
 ```
 
 `YUI_SIGNALS_URL` on the producer's machine then reads `http://127.0.0.1:<remote port>`.
+The tunnel has to be up whenever the flush from step 7 runs. A tunnel started by the YUI
+machine's service manager and restarted when it drops stays up across sleep: on macOS, a
+launchd agent with `KeepAlive` running
+`ssh -N -o ServerAliveInterval=30 -o ExitOnForwardFailure=yes -R ...`; on Linux, a systemd
+user service with `Restart=always` running the same command.
 
 Pick the scheduler yourself from what that machine already has (cron, launchd, systemd
 timers, n8n, this agent's own scheduler).
@@ -157,38 +169,87 @@ Done when: every source has a window or a reason to differ.
 
 ### 6. Build the producer
 
-Write one script that gathers every source from step 3, builds the item, and pipes it to
-the poster:
+Ask the user where the spool lives. Suggest a directory inside your own workspace, such as
+`<workspace>/yui-briefing-spool`, so the briefing archive sits with the rest of your
+files. Its absolute path is `YUI_BRIEFING_SPOOL`.
+
+Write one producer script per schedule the user wants: one script can gather every source
+from step 3, or each group of sources with its own time gets its own script. Each pipes
+its item to the poster under a name of its own:
 
 ```bash
 gather.py | python3 "$SKILL_DIR/scripts/post-briefing.py" --source <producer name>
 ```
 
 `post-briefing.py` reads `{"summary": ..., "sources": [...], "refs": [...]}` on stdin,
-applies every cap in the contract, wraps the item in the day's envelope, and posts it.
-`--dry-run` prints the request in place of posting it. `--help` lists the rest.
+applies every cap in the contract, writes the item to
+`$YUI_BRIEFING_SPOOL/<YYYY-MM-DD>/<producer name>.json`, then posts every pending item in
+the spool, oldest day first, packed into as few requests as the size cap allows. A
+delivered file is renamed `<producer name>.sent.json` and stays as the archive. `--flush`
+posts the pending items without reading stdin. `--dry-run` prints the requests and writes
+and posts nothing. `--help` lists the rest, and `references/producer-contract.md` states
+the flush rules.
 
-A gather step that raises inside your own script leaves `post-briefing.py` with no input;
-mark that source `failed` in `sources[]` and keep going, so one dead feed never costs the
-whole briefing.
+A gather step that raises inside your own script leaves `post-briefing.py` with no input,
+and the poster spools a failed item naming the producer alone. Mark that source `failed`
+in `sources[]` and keep going, so one dead feed never costs the whole briefing.
 
 Run it with `--dry-run` first and read the request against the contract. Then run it
-live.
+live with `YUI_SIGNALS_URL` and `YUI_BRIEFING_SPOOL` set and YUI open.
 
-Done when: the live run prints nothing, exits 0, and the turn log gains the line from
-step 2 with today's `event_id`.
+Done when: the live run prints nothing, exits 0,
+`$YUI_BRIEFING_SPOOL/<today>/<producer name>.sent.json` exists, and the turn log gains the
+line from step 2 with today's `event_id`.
 
 ### 7. Schedule it
 
-Put the command from step 6 on the scheduler from step 4 at the time from step 4. The
-poster prints nothing on success and writes a one-line reason to stderr otherwise, so a
-scheduler that mails or messages output stays quiet on good mornings. YUI offline at run
-time exits 0 with `yui unreachable` on stderr, and its refs ride along on the next
-delivered morning.
+Put every producer on the scheduler from step 4 at its time, and a flush every five
+minutes. YUI closed, or a tunnel that is down, at run time exits 0 with `yui unreachable` on
+stderr and leaves the item pending; the first flush that reaches YUI delivers it together
+with everything else pending. On cron:
 
-Done when: a manual trigger of the scheduled job reaches the turn log.
+```crontab
+SKILL_DIR=/absolute/path/to/YUI/integrations/skills/yui-daily-briefing
+YUI_SIGNALS_URL=http://127.0.0.1:8770
+YUI_BRIEFING_SPOOL=/absolute/path/to/workspace/yui-briefing-spool
+0 7 * * * /absolute/path/to/news-gather.py | python3 "$SKILL_DIR/scripts/post-briefing.py" --source news
+10 7 * * 1 /absolute/path/to/repos-gather.py | python3 "$SKILL_DIR/scripts/post-briefing.py" --source repos
+*/5 * * * * python3 "$SKILL_DIR/scripts/post-briefing.py" --flush
+```
+
+One line per producer, each with its own `--source`, and one flush line. Cron sets the
+three variables without expanding `$` or `~` inside them, so they hold absolute paths;
+`$SKILL_DIR` in the command lines expands, since cron runs them through `sh`. Another
+scheduler (launchd, systemd timers, n8n, your own) runs the same commands with the same
+three variables set on every job.
+
+The poster prints nothing on success and writes a one-line reason to stderr otherwise, so a
+scheduler that mails or messages output stays quiet on good mornings.
+
+Done when: a manual run of each producer line, with the three variables set, leaves
+`$YUI_BRIEFING_SPOOL/<today>/<producer name>.json` or `<producer name>.sent.json`; within
+five minutes of YUI being reachable,
+`find "$YUI_BRIEFING_SPOOL" -name '*.json' ! -name '*.sent.json'` prints nothing and the
+turn log holds a line carrying `event_id` `daily-briefing:<today>`.
 
 ### 8. Watch one morning
 
-Done when, the following morning: the turn log shows one line carrying
-`event_id` `daily-briefing:<today>`, and the speech bubble shows a link.
+Done when, the following morning: the turn log shows a line carrying
+`event_id` `daily-briefing:<today>`, the speech bubble shows a link, and every file in the
+spool ends in `.sent.json`.
+
+### Check an existing schedule
+
+An agent that already runs briefing producers checks its schedule against steps 6 and 7.
+List the scheduler's entries (`crontab -l` on cron) and confirm each point:
+
+1. Every job sees `YUI_SIGNALS_URL` and `YUI_BRIEFING_SPOOL`, and the spool path is
+   absolute and the one the user chose.
+2. Every producer entry pipes its gather output into
+   `post-briefing.py --source <producer name>`, each producer under a distinct name.
+   Nothing posts the briefing to `/signals` another way.
+3. One entry runs `post-briefing.py --flush` every five minutes.
+4. A producer on another machine has the tunnel from step 4 up.
+
+Rewrite every entry that fails a point to the shape in step 7, then work through the Done
+when of step 7.

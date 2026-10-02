@@ -58,12 +58,15 @@ Each buffer retains at most five groups and drops its oldest group on overflow.
 
 ## Daily briefing items
 
-The client keeps every signal item opaque. A producer of the daily briefing posts one
-group per scheduled run, one run per local day, carrying a single item of this shape:
+The client keeps every signal item opaque. A producer of the daily briefing builds one item
+per scheduled run, one run per local day, keeps it in a dated spool until the ingress
+answers 2xx, and posts every pending item packed into as few groups as the body cap allows,
+oldest day first. Each item has this shape:
 
 ```json
 {
   "skill": "yui-daily-briefing",
+  "date": "2026-09-11",
   "summary": "3 pull requests, 1 issue, 2 mails since 2026-09-10 18:00",
   "sources": [
     { "name": "repo-status", "status": "ok", "last_ok": "2026-09-11T06:00:00+09:00" },
@@ -84,6 +87,7 @@ group per scheduled run, one run per local day, carrying a single item of this s
 | Field | Rule |
 |---|---|
 | `skill` | Name of the skill the backend loads for the item |
+| `date` | Local day of the run that built the item, `YYYY-MM-DD` |
 | `summary` | One line, at most 200 characters |
 | `sources[]` | One entry per source the producer reads, at most 10 entries |
 | `sources[].name` | At most 40 characters |
@@ -97,35 +101,35 @@ group per scheduled run, one run per local day, carrying a single item of this s
 | `refs[].at` | ISO-8601 timestamp |
 | `refs[].excerpt` | At most 280 characters, possibly the empty string |
 
-The serialized request runs to at most 49,152 bytes of UTF-8. The producer measures the
-body and drops its oldest refs until the body fits that cap.
+The serialized request runs to at most 49,152 bytes of UTF-8. The producer measures each
+item alone in a request and drops its oldest refs until that request fits the cap; a group
+holds as many items as fit under it.
 
-A group whose `refs` is `[]` says the day brought nothing new. A morning that receives
-zero groups means the producer skipped its run.
+An item whose `refs` is `[]` says that run brought nothing new. A day with no item means
+the producer skipped its run.
 
 The group travels under this envelope:
 
 | Field | Value |
 |---|---|
 | `source` | The producer's own name |
-| `event_type` | `daily_briefing` \| `source_health` |
+| `event_type` | `daily_briefing` |
 | `delivery` | `immediate` |
-| `event_id` | `daily-briefing:<YYYY-MM-DD>` \| `source-health:<producer>:<run id>` |
+| `event_id` | `daily-briefing:<newest date among the group's items>` |
 | `occurred_at` | Epoch milliseconds |
 
-The `source-health` run id reads the scheduler's own execution id, and the epoch
-milliseconds of the failure when the scheduler keeps no run record for it.
+The client delivers every group it receives. Each group becomes its own turn when it
+arrives while the user is present and the pipeline is idle; groups that wait in a buffer
+share the next turn that drains the buffers. Packing the pending items into few groups
+keeps several days of pending items inside the away buffer's five-group cap.
 
-The client delivers every group it receives, so two runs on one day produce two groups.
-Each group becomes its own turn when it arrives while the user is present and the
-pipeline is idle; groups that wait in a buffer share the next turn that drains the buffers.
-
-A producer's error path posts a group of the same item shape, naming the run that raised
-in its own `sources[]` entry:
+A run that raises yields an item of the same shape, naming the producer in its own
+`sources[]` entry:
 
 ```json
 {
   "skill": "yui-daily-briefing",
+  "date": "2026-09-14",
   "summary": "cron run failed: ValueError: stdin must hold a JSON object with sources[] and refs[]",
   "sources": [
     {
@@ -138,24 +142,22 @@ in its own `sources[]` entry:
 }
 ```
 
-That group's envelope reads `event_type: "source_health"` and
-`event_id: "source-health:<producer>:<run id>"`. The `run_url` entry is present when
-the scheduler has a run page; the bundled `post-briefing.py` error path posts the failed
-source with `name` and `status` only.
+The `run_url` entry is present when the scheduler has a run page; the bundled
+`post-briefing.py` error path writes the failed source with `name` and `status` only.
 
 ### Health observations
 
 | Observation | Where it shows |
 |---|---|
 | Collection failure | `sources[].status` reads `failed` |
-| No data | A group with `refs: []` whose sources all read `ok` |
+| No data | An item with `refs: []` whose sources all read `ok` |
 | Stale data | `sources[].status` reads `stale`, with `last_ok` |
 | Intentional inactivity | `sources[].status` reads `disabled` |
-| Run that raised | A `source_health` group from the producer's error path, carrying `run_url` when the scheduler has a run page |
-| Missed run (the producer never fired: automation down or the workflow unpublished) | Zero groups on that day; nothing posts on the producer's behalf |
-| Receiver offline | The ingress refuses the connection; the producer keeps its rows pending and the following run carries them; no health group is posted |
-| Delivery acceptance | HTTP 2xx from the ingress; the producer marks its rows sent |
-| Duplicate delivery | Every group the ingress accepts is delivered as its own `signal [...]` line; groups that wait in a buffer together arrive in one catch-up turn, and groups that each find the pipeline idle arrive in one turn apiece |
+| Run that raised | An item from the producer's error path whose single source, named after the producer, reads `failed`, carrying `run_url` when the scheduler has a run page |
+| Missed run (the producer never fired: automation down or the workflow unpublished) | No item for that producer and day; nothing posts on the producer's behalf |
+| Receiver offline | The ingress refuses the connection, or a tunnel with no listener behind it hangs up; the producer keeps its items pending and the next flush that reaches the ingress carries them |
+| Delivery acceptance | HTTP 2xx from the ingress; the producer marks the group's items sent |
+| Duplicate delivery | Every item the ingress accepts renders as its own `signal [...]` line; groups that wait in a buffer together arrive in one catch-up turn, and groups that each find the pipeline idle arrive in one turn apiece |
 | Backend handling | One line in `logs/turns_<date>.jsonl` carrying the group |
 | Completed output | The `[backend-caller] speech` line in the app log |
 | Interrupted playback | The following turn's `previous:` line reads `interrupted` (see `docs/reference/client-context.md`) |

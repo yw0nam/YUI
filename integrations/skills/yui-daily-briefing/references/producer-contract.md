@@ -1,19 +1,21 @@
 # Daily briefing producer contract
 
-A producer of the daily briefing posts one signal group per scheduled run to YUI's
-`POST /signals` ingress. This file states everything the request has to satisfy. The
+A producer of the daily briefing builds one briefing item per scheduled run and posts it to
+YUI's `POST /signals` ingress. This file states everything the request has to satisfy. The
 reference producer is `scripts/post-briefing.py`, and the envelope's `source` field names
 whichever producer posted the group.
 
 ## Request
 
-The body is JSON: a `signals` array holding one item, and an `envelope`.
+The body is JSON: a `signals` array holding one or more briefing items, oldest day first,
+and an `envelope`. Each item comes from one producer run.
 
 ```json
 {
   "signals": [
     {
       "skill": "yui-daily-briefing",
+      "date": "2026-09-11",
       "summary": "1 paper, 1 pull request since 2026-09-10 18:00",
       "sources": [
         { "name": "arxiv", "status": "ok", "last_ok": "2026-09-11T06:00:00+09:00" },
@@ -51,6 +53,7 @@ The body is JSON: a `signals` array holding one item, and an `envelope`.
 
 | Field | Cap |
 |---|---|
+| `date` | The local day of the run, `YYYY-MM-DD` |
 | `summary` | One line, 200 characters |
 | `sources[]` | 10 entries |
 | `sources[].name` | 40 characters |
@@ -62,49 +65,71 @@ The body is JSON: a `signals` array holding one item, and an `envelope`.
 | `refs[].excerpt` | 280 characters, possibly the empty string |
 | Whole body | At most 49,152 bytes of UTF-8 |
 
-`refs[].at` is an ISO-8601 timestamp. The producer measures the serialized body and drops
-its oldest refs until the body fits that cap.
+`refs[].at` is an ISO-8601 timestamp. The producer measures each item serialized alone in a
+request and drops its oldest refs until that request fits the body cap. A request carrying
+several items holds as many as fit under the cap; the next item starts another request.
 
 ## Reference producer
 
-`scripts/post-briefing.py` applies every cap above, wraps the item in the envelope, and
-posts it. A producer script gathers its sources, prints one JSON object on stdout, and
-pipes it in:
+`scripts/post-briefing.py` keeps every run in a spool directory, split by day, and posts what
+is pending whenever YUI answers. A producer script gathers its sources, prints one JSON
+object on stdout, and pipes it in:
 
 ```json
 { "summary": "…", "sources": [ … ], "refs": [ … ] }
 ```
 
 The gather script emits `refs` newest first; the poster keeps the first 30 and drops from the
-tail when the body runs over the size cap. `summary` is optional and reads `<n> items` when it
+tail when the item runs over the size cap. `summary` is optional and reads `<n> items` when it
 is absent, where `<n>` counts every distinct ref, including those the cap drops. A ref whose `url` misses
 the `http` or `https` scheme or runs past 2048 characters drops out; `kind` defaults to
 `other`, `title` to the `url`, `at` to the moment of the run.
 
+A run goes through three steps:
+
+① Compose the item with every cap above and `date` set to the local day.
+
+② Write it to `<spool>/<YYYY-MM-DD>/<source>.json`. A second run of the same source on the
+same day overwrites that file and leaves it pending.
+
+③ Flush the spool.
+
+A flush takes an exclusive lock on `<spool>/.lock`, collects every pending
+`<YYYY-MM-DD>/<source>.json` oldest day first, and packs the items into as few requests as
+the body cap allows. Each request's envelope reads `event_id: "daily-briefing:<newest date in
+the request>"`. A 2xx answer renames the request's files to `<source>.sent.json`; the dated
+directories keep every delivered item. The first refused connection, reset, hang-up, or
+timeout ends the flush and leaves the remaining files pending. `--flush` runs that step alone,
+so a scheduler that calls it every few minutes delivers the spool within minutes of YUI
+becoming reachable. A `--flush` that finds the lock held exits 0 at once; a run from stdin
+waits for the lock.
+
 | Flag | Default |
 |---|---|
 | `--url` | `$YUI_SIGNALS_URL`, else YUI's loopback listener on its default port |
-| `--source` | `cron` |
-| `--event-id` | `daily-briefing:<local YYYY-MM-DD>` |
-| `--dry-run` | Prints the request body and posts nothing |
+| `--source` | `cron`; names the spool file and the envelope `source` |
+| `--spool` | `$YUI_BRIEFING_SPOOL`, else `~/.local/state/yui-daily-briefing/spool` |
+| `--flush` | Flushes the spool without reading stdin |
+| `--dry-run` | Prints the request bodies the flush would post, the stdin item included, and writes and posts nothing |
 
 | Exit | Output | Meaning |
 |---|---|---|
-| 0 | none | The ingress accepted the group |
-| 0 | `yui unreachable` on stderr | The ingress refused the connection or never answered; the refs wait for the next run |
-| 1 | `yui answered <code>` on stderr | The ingress answered outside 2xx; the refs wait for the next run |
-| 1 | the reason on stderr | The input was malformed; the error path below posted, unless `--dry-run` |
+| 0 | none | Every pending item was delivered, or another flush holds the lock |
+| 0 | `yui unreachable` on stderr | The ingress refused the connection, hung up, or timed out; the items stay pending |
+| 1 | `yui answered <code>` on stderr | The ingress answered outside 2xx; the items stay pending |
+| 1 | the reason on stderr | The input was malformed; the error path below spooled a failed item and flushed, unless `--dry-run` |
 
 ## Run time
 
 The producer fires at a fixed local time ahead of the user's usual first activity, once
-per local day. `envelope.event_id` reads `daily-briefing:<YYYY-MM-DD>` for that day.
+per local day. Its item's `date` reads that day.
 
 The client delivers every group it receives, so a manual re-run makes YUI speak a second
 time on the same day.
 
-A quiet day still gets its run. The group then carries `refs: []`. The backend keeps the
-turn silent when every source reads `ok`, and otherwise speaks the health sentence alone.
+A quiet day still gets its run. The item then carries `refs: []`. The backend keeps the
+turn silent when every item has empty `refs` and every source reads `ok`, and otherwise
+speaks the health sentence alone.
 
 ## Source health
 
@@ -123,24 +148,20 @@ or delivery record behind the observation and may be absent.
 
 ## Error path
 
-A run that raises posts a group of the same item shape, carrying one `sources[]` entry
-named after the producer, `status: "failed"`, `last_ok` absent, and `refs: []`. The
-envelope reads `event_type: "source_health"` and `event_id:
-"source-health:<producer>:<run id>"`, where the run id is the scheduler's execution id, or
-the epoch milliseconds of the failure when the scheduler keeps no run record. `run_url`
-points at the failed run when the scheduler has a page for it. A refused ingress
-connection is no such failure and posts nothing.
+A run that raises spools a failed item under the producer's name: `summary` reads
+`<producer> run failed: <error>`, `sources[]` holds one entry named after the producer with
+`status: "failed"` and `last_ok` absent, and `refs` is `[]`. It travels like any other item.
+`run_url` points at the failed run when the scheduler has a page for it; the reference
+producer writes `name` and `status` only. A refused ingress connection leaves the spool as
+it is.
 
 ## Retry
 
-A producer keeps every ref it gathered until the ingress answers 2xx. The next run puts
-them after its own refs, so the user hears on the next delivered morning what earlier
-mornings missed. The `refs[]` cap still applies, and the oldest refs drop first.
+A producer keeps every item until the ingress answers 2xx, so the user hears what earlier
+mornings missed on the next delivery, each item under its own `date`.
 
 A refused connection exits 0, since YUI being closed at run time is an ordinary morning.
 An answer outside 2xx exits 1, which leaves the failure in the scheduler's own record.
 
-The reference producer keeps the undelivered refs in
-`~/.local/state/yui-daily-briefing/backlog.json` and deletes the file after a 2xx answer.
 A producer that reads its sources from a queue of rows keeps those rows pending and marks
 them sent on a 2xx answer.
