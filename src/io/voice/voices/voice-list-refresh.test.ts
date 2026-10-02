@@ -196,6 +196,25 @@ describe("createVoiceListRefresh — openai", () => {
   });
 });
 
+describe("createVoiceListRefresh — provider switch", () => {
+  it("clears the previous provider's voices when the new provider's list fails", async () => {
+    let provider: "irodori" | "openai" = "openai";
+    const store = fakeStore();
+    const refresh = createVoiceListRefresh({
+      getEndpoints: () => ({ tts_base_url: "http://a", tts_provider: provider }),
+      speakerSelection: store,
+      log: noopLog,
+    });
+    await refresh();
+
+    provider = "irodori";
+    listVoices.mockResolvedValue(null);
+    await refresh();
+
+    expect(store._manifest()).toEqual({ available: [], defaultValue: "", hideUser: false });
+  });
+});
+
 describe("createVoiceListRefresh — re-uploading user voices the server lost", () => {
   beforeEach(() => {
     listVoices.mockReset().mockResolvedValue([]);

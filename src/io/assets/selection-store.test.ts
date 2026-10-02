@@ -176,6 +176,32 @@ describe("createSelectionStore", () => {
     expect(store.getActiveId()).toBe("mine");
   });
 
+  it("keeps a hidden user option whose id a listed option also uses, through a reload and a later save", () => {
+    const userStorage = makeMemUserStorage();
+    const store = createSelectionStore<TestOption>({
+      defaultValue: "",
+      userStorage,
+      synthesize,
+      coerceUser,
+      isDefault,
+    });
+    store.setManifest({
+      available: [{ id: "alloy", label: "alloy", url: "", source: "bundled" }],
+      defaultValue: "",
+      hideUser: true,
+    });
+    // Another window wrote both imports to storage.
+    userStorage._data = [
+      { id: "alloy", label: "Mine", url: "asset://alloy.res" },
+      { id: "other", label: "Other", url: "asset://other.res" },
+    ];
+
+    store.reloadFromStorage();
+    store.renameUserOption("other", "Renamed");
+
+    expect(userStorage._data.map((o) => o.id)).toEqual(["alloy", "other"]);
+  });
+
   // A user option wiped from memory by a setManifest bundled-id collision is not lost: the
   // persisted record survives (setManifest never writes userStorage), so once a later manifest
   // no longer collides, reloadFromStorage's mergeUserOptions picks it back up unassisted.

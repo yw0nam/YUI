@@ -47,7 +47,7 @@ import type { EndpointsConfig } from "../../contract";
 import { createTtsProvider } from "../../io/voice/tts/tts-synth";
 import { createVoiceListRefresh } from "../../io/voice/voices/voice-list-refresh";
 import type { EndpointOverrides } from "../../settings/backend/endpoints-settings";
-import { createEffectiveEndpoints, wireSpeakerSelection } from "./wire-avatar";
+import { createEffectiveEndpoints, wireAvatarSelection, wireSpeakerSelection } from "./wire-avatar";
 
 const noopLog = { info: () => {}, warn: () => {}, error: () => {}, debug: () => {} } as never;
 
@@ -723,6 +723,41 @@ describe("wireSpeakerSelection — swapSpeaker / refreshSpeaker", () => {
   });
 });
 
+describe("wireAvatarSelection — voice list refresh", () => {
+  it("refreshes on a disk config change only when a TTS field moves", async () => {
+    let eps: EndpointsConfig = {
+      chat_base_url: "http://chat.test",
+      stt_base_url: "",
+      tts_base_url: "http://tts.test",
+    };
+    let notifyConfig: () => void = () => {};
+    wireAvatarSelection({
+      renderer: {} as never,
+      getEndpoints: () => eps,
+      getTtsKey: async () => undefined,
+      endpointsSettings: { subscribe: () => () => {} },
+      config: {
+        subscribe: (cb) => {
+          notifyConfig = () => cb({} as never, new Set(["endpoints"]));
+          return () => {};
+        },
+      },
+      log: noopLog,
+      broadcastSettings: () => {},
+      register: () => {},
+    });
+    listVoices.mockClear();
+
+    eps = { ...eps, chat_base_url: "http://other.test" };
+    notifyConfig();
+    expect(listVoices).not.toHaveBeenCalled();
+
+    eps = { ...eps, tts_base_url: "http://tts2.test" };
+    notifyConfig();
+    await vi.waitFor(() => expect(listVoices).toHaveBeenCalledOnce());
+  });
+});
+
 describe("wireSpeakerSelection — openai", () => {
   const OPENAI: EndpointsConfig = {
     chat_base_url: "",
@@ -804,6 +839,7 @@ describe("wireSpeakerSelection — openai", () => {
       label: "My Voice",
       source: "user",
     });
+    expect(speakerSelection.getActiveId()).toBe("myvoice");
     speakerSelection.dispose();
   });
 

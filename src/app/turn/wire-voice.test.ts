@@ -254,6 +254,58 @@ describe("wireBroker", () => {
     expect(onVocabularyChange).toHaveBeenCalledTimes(1);
   });
 
+  it("drops a table load the provider has moved past, so the vocabulary follows the live provider", async () => {
+    const endpoints: Record<string, unknown> = { broker_base_url: "", tts_provider: "irodori" };
+    vi.mocked(loadEmotionTextTable).mockResolvedValueOnce({ "😆": "Laugh" });
+    const { deps } = makeDeps(endpoints);
+    const handle = await wireBroker(deps);
+    const [reconcilerOpts] = createReconciler.mock.calls.at(-1) as unknown as [
+      { loadTable: () => Promise<unknown> },
+    ];
+
+    endpoints.tts_provider = "openai";
+    await reconcilerOpts.loadTable();
+    let release: (table: Record<string, string>) => void = () => {};
+    vi.mocked(loadEmotionTextTable).mockReturnValueOnce(
+      new Promise((resolve) => {
+        release = resolve;
+      }),
+    );
+    endpoints.tts_provider = "irodori";
+    const late = reconcilerOpts.loadTable();
+    endpoints.tts_provider = "openai";
+    await reconcilerOpts.loadTable();
+    release({ "😆": "Laugh" });
+
+    expect(await late).toBeNull();
+    deriveBrokerPayload.mockClear();
+    handle.vocabulary();
+    expect(deriveBrokerPayload).toHaveBeenCalledWith(expect.anything(), null, expect.anything());
+  });
+
+  it("reloads the table on a disk endpoints change only when the provider moves", async () => {
+    const endpoints: Record<string, unknown> = {
+      broker_base_url: "http://localhost:3201",
+      tts_provider: "irodori",
+    };
+    const { deps } = makeDeps(endpoints);
+    const handle = await wireBroker(deps);
+    await flush();
+    vi.mocked(loadEmotionTextTable).mockClear();
+    brokerClient.publish.mockClear();
+    const cfg = { emotionRegistry: {}, motions: {}, endpoints: {} } as never;
+
+    handle.onConfigChange(cfg, new Set(["endpoints"]) as never);
+    await flush();
+    expect(vi.mocked(loadEmotionTextTable)).not.toHaveBeenCalled();
+    expect(brokerClient.publish).not.toHaveBeenCalled();
+
+    endpoints.tts_provider = "openai";
+    handle.onConfigChange(cfg, new Set(["endpoints"]) as never);
+    await flush();
+    expect(brokerClient.publish).toHaveBeenCalledTimes(1);
+  });
+
   it("tells them even with no broker configured — the vocabulary has other consumers", async () => {
     const { deps, onVocabularyChange } = makeDeps({ broker_base_url: "" });
     const handle = await wireBroker(deps);
