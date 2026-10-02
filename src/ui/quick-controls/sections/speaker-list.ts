@@ -36,6 +36,9 @@ export function speakerPickerHtml(): string {
             <div class="yui-spks" role="radiogroup" aria-label="${t("speaker.group_aria")}"></div>
           </div>
           <div class="yui-spk-foot">
+            <div class="yui-spk-manual" hidden>
+              <span class="yui-input-wrap"><input class="yui-ep-input" type="text" aria-label="${t("speaker.manual_aria")}" placeholder="${t("speaker.manual_placeholder")}" spellcheck="false" autocomplete="off" /></span>
+            </div>
             <button class="yui-spk yui-spk--add is-ready" type="button">
               <span class="yui-spk__tick" aria-hidden="true"></span>
               <span class="yui-spk__body"><span class="yui-spk__name">${t("speaker.add")}</span></span>
@@ -67,6 +70,8 @@ interface SpeakerListDeps {
   removeVoice: (id: string) => Promise<void>;
   /** Whether the TTS provider takes imported voices — off hides delete/re-upload and disables import. */
   canManageVoices: () => boolean;
+  /** Whether the provider speaks any voice id — on shows the paste-a-voice-id field. */
+  canPasteVoiceId: () => boolean;
   log: Logger;
   refreshTooltip: () => void;
   /** After dispose, prevent in-flight refresh from re-rendering/timering on torn-down DOM. */
@@ -94,12 +99,32 @@ export function createSpeakerList(deps: SpeakerListDeps): SpeakerList {
     commitVoiceImport,
     removeVoice,
     canManageVoices,
+    canPasteVoiceId,
     log,
     isDisposed,
   } = deps;
   const spksEl = deps.root.querySelector<HTMLDivElement>(".yui-spks")!;
   const spkAddBtn = deps.root.querySelector<HTMLButtonElement>(".yui-spk--add")!;
   const spkImportErrorEl = deps.root.querySelector<HTMLParagraphElement>(".yui-spk__import-error")!;
+  const spkManualEl = deps.root.querySelector<HTMLDivElement>(".yui-spk-manual")!;
+  const spkManualInputEl = spkManualEl.querySelector<HTMLInputElement>(".yui-ep-input")!;
+
+  // Enter on the paste field — any library voice id synthesizes even when absent from the list.
+  function commitPastedVoiceId(): void {
+    const id = spkManualInputEl.value.trim();
+    if (!id) return;
+    if (!speakerSelection.list().some((o) => o.id === id)) {
+      speakerSelection.addUserOption({ id, label: id, ref_url: "", source: "user" });
+    }
+    speakerSelection.select(id);
+    spkManualInputEl.value = "";
+  }
+  spkManualInputEl.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      commitPastedVoiceId();
+    }
+  });
 
   const list = createUserAssetList<SpeakerOption>({
     containerEl: spksEl,
@@ -200,6 +225,7 @@ export function createSpeakerList(deps: SpeakerListDeps): SpeakerList {
     spkAddBtn.disabled = !managed;
     // is-ready carries the interactive look; without it the add row renders muted and inert.
     spkAddBtn.classList.toggle("is-ready", managed);
+    spkManualEl.hidden = !canPasteVoiceId();
     const activeId = speakerSelection.getActiveId();
     // Roving tabindex prioritizes last roved row — falls back to active if none.
     const ids = speakerSelection.list().map((o) => o.id);

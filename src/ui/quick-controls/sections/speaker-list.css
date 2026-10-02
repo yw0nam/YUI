@@ -119,6 +119,15 @@
   color: var(--yui-accent);
 }
 
+/* ── Paste-a-voice-id field — providers that speak any id (Fish library voices) ── */
+.yui-spk-manual {
+  margin: 0 0.875rem 0.625rem;
+}
+
+.yui-spk-manual .yui-input-wrap {
+  display: block;
+}
+
 /* ── Motion gated behind prefers-reduced-motion ── */
 @media (prefers-reduced-motion: no-preference) {
   .yui-spk[aria-busy="true"] .yui-spk__tick::after {

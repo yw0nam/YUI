@@ -203,6 +203,7 @@ interface TtsProviderPreset {
 export const TTS_PROVIDER_PRESETS: readonly TtsProviderPreset[] = [
   { id: "irodori", name: "Irodori", url: "http://localhost:8088", model: "irodori-tts" },
   { id: "openai", name: "OpenAI", url: "https://api.openai.com", model: "gpt-4o-mini-tts" },
+  { id: "fish", name: "Fish Audio", url: "https://api.fish.audio", model: "s2.1-pro-free" },
 ];
 
 // Tab icons — same line-icon vocabulary as other icon buttons (1.5 stroke, 24x24 viewBox).

@@ -151,6 +151,7 @@ async function bootstrap(): Promise<void> {
     removeVoice,
     refreshVoiceList,
     canManageVoices,
+    canPasteVoiceId,
   } = wireSpeakerSelection({
     getEndpoints,
     getApiKey: getTtsApiKey,
@@ -258,6 +259,7 @@ async function bootstrap(): Promise<void> {
       removeVoice,
       refreshVoiceList,
       canManageVoices,
+      canPasteVoiceId,
       // Renderer in main window, pass gain preview via bridge → main window VRM mouth moves.
       onGainPreview: (mouthOpen) => bridge.emitMouthPreview(mouthOpen),
       onGainPreviewEnd: () => bridge.emitMouthPreview(null),

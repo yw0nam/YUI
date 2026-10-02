@@ -1,3 +1,4 @@
+// @vitest-environment jsdom
 /**
  * speaker-list.test.ts — the paste-a-voice-id field under providers that accept any voice id
  * (Fish's library voices): hidden otherwise, Enter selects the pasted id even when the list
@@ -38,12 +39,10 @@ function buildList(canPasteVoiceId: () => boolean) {
 describe("speaker list — paste-a-voice-id field", () => {
   it("shows the field only when the provider accepts a pasted id", () => {
     const without = buildList(() => false);
-    expect(without.el.querySelector<HTMLInputElement>(".yui-spk-manual input")!.hidden).toBe(true);
+    expect(without.el.querySelector<HTMLDivElement>(".yui-spk-manual")!.hidden).toBe(true);
 
     const withField = buildList(() => true);
-    expect(withField.el.querySelector<HTMLInputElement>(".yui-spk-manual input")!.hidden).toBe(
-      false,
-    );
+    expect(withField.el.querySelector<HTMLDivElement>(".yui-spk-manual")!.hidden).toBe(false);
   });
 
   it("Enter selects a pasted library id that is absent from the list", () => {
@@ -82,9 +81,7 @@ describe("speaker list — paste-a-voice-id field", () => {
     input.value = "lib-voice";
     input.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true }));
 
-    expect(
-      speakerSelection.listUser().filter((o) => o.id === "lib-voice"),
-    ).toHaveLength(1);
+    expect(speakerSelection.listUser().filter((o) => o.id === "lib-voice")).toHaveLength(1);
     expect(speakerSelection.getActiveId()).toBe("lib-voice");
   });
 });

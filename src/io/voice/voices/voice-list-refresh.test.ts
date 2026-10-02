@@ -3,9 +3,9 @@ import type { SpeakerOption } from "./speaker-selection";
 
 const { listVoices, listFishVoices, selectFetch } = vi.hoisted(() => ({
   listVoices: vi.fn<(o: unknown) => Promise<string[] | null>>().mockResolvedValue([]),
-  listFishVoices:
-    vi.fn<(o: unknown) => Promise<Array<{ id: string; label?: string }> | null>>()
-      .mockResolvedValue([]),
+  listFishVoices: vi
+    .fn<(o: unknown) => Promise<Array<{ id: string; label?: string }> | null>>()
+    .mockResolvedValue([]),
   selectFetch: vi.fn().mockResolvedValue(undefined),
 }));
 vi.mock("./tts-voices", () => ({ listVoices, upsertVoice: vi.fn(), deleteVoice: vi.fn() }));

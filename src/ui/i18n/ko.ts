@@ -246,6 +246,8 @@ const ko: Record<string, string> = {
   "speaker.rename_hint_save": "저장",
   "speaker.rename_hint_cancel": "취소",
   "speaker.import_overwrite_warn": "같은 이름의 기존 음성을 덮어써요",
+  "speaker.manual_aria": "음성 ID 붙여넣기",
+  "speaker.manual_placeholder": "음성 ID 붙여넣기…",
   "speaker.loading": "불러오는 중…",
   "speaker.swapping": "바꾸는 중…",
   "speaker.refreshing": "갱신 중…",

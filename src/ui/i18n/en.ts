@@ -246,6 +246,8 @@ const en: Record<string, string> = {
   "speaker.rename_hint_save": "save",
   "speaker.rename_hint_cancel": "cancel",
   "speaker.import_overwrite_warn": "replaces the existing voice of this name",
+  "speaker.manual_aria": "Paste a voice id",
+  "speaker.manual_placeholder": "Paste a voice id…",
   "speaker.loading": "Loading…",
   "speaker.swapping": "Switching…",
   "speaker.refreshing": "Refreshing…",

@@ -249,6 +249,8 @@ const ja: Record<string, string> = {
   "speaker.rename_hint_save": "保存",
   "speaker.rename_hint_cancel": "キャンセル",
   "speaker.import_overwrite_warn": "同じ名前の既存の音声を上書きします",
+  "speaker.manual_aria": "ボイスIDを貼り付け",
+  "speaker.manual_placeholder": "ボイスIDを貼り付け…",
   "speaker.loading": "読み込み中…",
   "speaker.swapping": "切り替え中…",
   "speaker.refreshing": "更新中…",
