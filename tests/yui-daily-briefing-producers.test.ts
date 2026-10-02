@@ -98,6 +98,23 @@ function spoolFiles(spool: string): string[] {
     .sort();
 }
 
+function briefing(date: string, name: string, refCount: number) {
+  const refs = Array.from({ length: refCount }, (_, index) => ({
+    kind: "news",
+    title: "t".repeat(200),
+    url: `https://example.com/${date}/${index}`,
+    at: `${date}T04:00:00.000Z`,
+    excerpt: "e".repeat(280),
+  }));
+  const item = { skill: "yui-daily-briefing", date, summary: `${name} on ${date}`, refs };
+  return { ...item, sources: [{ name, status: "ok" }] };
+}
+
+function spoolItem(spool: string, date: string, file: string, content: string): void {
+  mkdirSync(join(spool, date), { recursive: true });
+  writeFileSync(join(spool, date, file), content);
+}
+
 const ONE_REF = JSON.stringify({
   sources: [{ name: "papers", status: "ok" }],
   refs: [{ kind: "paper", title: "a ref", url: "https://example.com/a" }],
@@ -201,20 +218,12 @@ describe("post-briefing.py", () => {
 
   it("flushes every pending day in one group, oldest first, under the newest day's id", async () => {
     const spool = tempDir();
-    const item = (date: string, name: string) => ({
-      skill: "yui-daily-briefing",
-      date,
-      summary: `${name} on ${date}`,
-      sources: [{ name, status: "ok" }],
-      refs: [],
-    });
     for (const [date, file] of [
       ["2026-09-09", "news.sent.json"],
       ["2026-09-10", "news.json"],
       ["2026-09-11", "papers.json"],
     ]) {
-      mkdirSync(join(spool, date), { recursive: true });
-      writeFileSync(join(spool, date, file), JSON.stringify(item(date, file.split(".")[0])));
+      spoolItem(spool, date, file, JSON.stringify(briefing(date, file.split(".")[0], 0)));
     }
 
     await withIngress(200, async (base, received) => {
@@ -234,6 +243,55 @@ describe("post-briefing.py", () => {
       sent("2026-09-10/news"),
       sent("2026-09-11/papers"),
     ]);
+  });
+
+  it("posts one group, trimming refs from the oldest items until it fits the body cap", async () => {
+    const spool = tempDir();
+    for (const date of ["2026-09-09", "2026-09-10", "2026-09-11"]) {
+      spoolItem(spool, date, "news.json", JSON.stringify(briefing(date, "news", 30)));
+    }
+    await withIngress(200, async (base, received) => {
+      expect((await runScript(base, "", ["--flush"], spool)).status).toBe(0);
+      expect(received).toHaveLength(1);
+      expect(Buffer.byteLength(received[0].payload)).toBeLessThanOrEqual(BODY_LIMIT);
+      const counts = JSON.parse(received[0].payload).signals.map((s: any) => s.refs.length);
+      expect(counts[0]).toBeLessThan(30);
+      expect(counts.slice(1)).toEqual([30, 30]);
+    });
+    const archived = JSON.parse(readFileSync(join(spool, spoolFiles(spool)[0]), "utf8"));
+    expect(archived.refs).toHaveLength(30);
+  });
+
+  it("sets a corrupt spool file aside and still delivers the rest", async () => {
+    const spool = tempDir();
+    spoolItem(spool, "2026-09-09", "news.json", "");
+    spoolItem(
+      spool,
+      "2026-09-10",
+      "papers.json",
+      JSON.stringify(briefing("2026-09-10", "papers", 0)),
+    );
+    await withIngress(200, async (base, received) => {
+      const result = await runScript(base, "", ["--flush"], spool);
+      expect(result.status).toBe(0);
+      expect(result.stderr.trim().split("\n")).toHaveLength(1);
+      expect(JSON.parse(received[0].payload).signals.map((s: any) => s.date)).toEqual([
+        "2026-09-10",
+      ]);
+    });
+    expect(spoolFiles(spool)).toEqual(["2026-09-09/news.json.bad", sent("2026-09-10/papers")]);
+  });
+
+  it("keeps a valid pending item when a malformed re-run meets an unreachable YUI", async () => {
+    const spool = tempDir();
+    const base = `http://${LOOPBACK}:${await closedPort()}`;
+    expect((await runScript(base, ONE_REF, ["--source", "papers"], spool)).status).toBe(0);
+    const [pending] = spoolFiles(spool);
+    const result = await runScript(base, "{", ["--source", "papers"], spool);
+    expect(result.status).toBe(1);
+    expect(result.stderr.trim().split("\n")).toEqual([expect.stringContaining("JSONDecodeError")]);
+    expect(spoolFiles(spool)).toEqual([pending]);
+    expect(JSON.parse(readFileSync(join(spool, pending), "utf8")).refs).toHaveLength(1);
   });
 
   it("keeps every delivery when a source runs again on the same day", async () => {
@@ -310,6 +368,9 @@ describe("post-briefing.py", () => {
 
     await withIngress(200, async (base, received) => {
       const stdin = JSON.stringify({ sources: [], refs });
+      expect((await runScript(base, stdin, ["--dry-run", "--source", "../x"], spool)).status).toBe(
+        2,
+      );
       const result = await runScript(base, stdin, ["--dry-run"], spool);
       expect(result.status).toBe(0);
       expect(received).toHaveLength(0);
