@@ -14,7 +14,7 @@ A feature lives in the shared consumer; a transport's wiring only turns that tra
 
 ## Development work
 
-Any code change — feature · bugfix · refactor · UI · schema · or any chore beyond a trivial single-file edit — load the **`yui-dev-workflow`** skill first. It carries the mandatory work rules (worktree → PR, tests, English tracker), delegation rules and the review/verification gates, and the client-side anti-patterns.
+Any code change — feature · bugfix · refactor · UI · schema · or any chore beyond a trivial single-file edit — follows [`CONTRIBUTING.md`](CONTRIBUTING.md). It carries the mandatory work rules (worktree → PR, tests, English tracker) and the client-side anti-patterns.
 
 ## Tracker & commit conventions
 

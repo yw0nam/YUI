@@ -1,10 +1,10 @@
 <!-- Title in English, conventional-commit format (becomes the squash-merge subject). e.g. "feat: VRM load + hot-swap" -->
 
 ## Summary
-<!-- What and why -->
+<!-- What and why. For every new constant, threshold, or special-cased status, add a line: why this value / branch and not the alternative. -->
 
 ## Related issues
-<!-- Closes #__ -->
+<!-- `Closes #N` or `Part of #N`, on its own line -->
 
 ## Related decisions / docs
 <!-- Touched docs: docs/reference/client-context.md -->
