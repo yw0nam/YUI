@@ -390,10 +390,12 @@ describe("createEffectiveEndpoints", () => {
     stt_base_url: "",
     stt_model: "",
     tts_base_url: "",
+    tts_model: "",
     broker_base_url: "",
     chat_model: "",
     chat_model_context_window: "",
     chat_api: "",
+    tts_provider: "",
     ...patch,
   });
   const bundled = (patch: Partial<EndpointsConfig> = {}): EndpointsConfig => ({

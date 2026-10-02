@@ -1,4 +1,5 @@
-import type { EndpointsConfig } from "../../contract";
+import type { EndpointsConfig, TtsProviderName } from "../../contract";
+import { TTS_PROVIDERS } from "../tts-provider";
 import { assertValid, ConfigError, isObject } from "./shared";
 
 /** 미설정 판정 — 키가 없거나 빈 문자열이면 그 기능은 꺼진 것으로 본다. */
@@ -44,6 +45,16 @@ export function validateEndpoints(file: string, raw: unknown): EndpointsConfig {
     );
   }
   const chat_api: EndpointsConfig["chat_api"] = isChatApi(rawChatApi) ? rawChatApi : undefined;
+  // tts_provider: optional enum, irodori when unset (resolved by ttsProviderOf).
+  const rawTtsProvider = raw.tts_provider;
+  const isTtsProvider = (v: unknown): v is TtsProviderName =>
+    (TTS_PROVIDERS as readonly unknown[]).includes(v);
+  if (rawTtsProvider !== undefined && !isTtsProvider(rawTtsProvider)) {
+    issues.push(
+      `tts_provider must be one of ${TTS_PROVIDERS.map((p) => `"${p}"`).join(" | ")} (got: ${JSON.stringify(rawTtsProvider)})`,
+    );
+  }
+  const tts_provider = isTtsProvider(rawTtsProvider) ? rawTtsProvider : undefined;
   // stt_model / tts_model / tts_speaker: optional. The service default applies when unset.
   const optStr = (k: "stt_model" | "tts_model" | "tts_speaker"): string | undefined => {
     const v = raw[k];
@@ -97,6 +108,7 @@ export function validateEndpoints(file: string, raw: unknown): EndpointsConfig {
     stt_base_url,
     ...(stt_model !== undefined ? { stt_model } : {}),
     tts_base_url,
+    ...(tts_provider !== undefined ? { tts_provider } : {}),
     ...(tts_model !== undefined ? { tts_model } : {}),
     ...(tts_speaker !== undefined ? { tts_speaker } : {}),
     ...(typeof tts_max_inflight === "number" ? { tts_max_inflight } : {}),

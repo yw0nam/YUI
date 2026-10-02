@@ -41,6 +41,7 @@ export type {
   ToolStatus,
   // Dispatcher-layer metadata
   TriggerMeta,
+  TtsProviderName,
   TurnEnded,
   Usage,
   WindowRect,

@@ -342,6 +342,9 @@ export interface ClientContext {
 // Endpoint config
 // ─────────────────────────────────────────────────────────────────────────────
 
+/** TTS engines YUI speaks to. */
+export type TtsProviderName = "irodori" | "openai" | "fish";
+
 /**
  * configs/endpoints.json. The three base URLs (chat/stt/tts) are separate processes.
  * Every service address is optional: `""` means "not configured" — STT/TTS/broker stay off and a
@@ -375,9 +378,11 @@ export interface EndpointsConfig {
   stt_base_url: string;
   /** /audio/transcriptions `model`. Omitted from the request when unset. */
   stt_model?: string;
-  /** Separate TTS service (OpenAI-compatible) → /audio/speech. `""` = TTS off. */
+  /** TTS server root, without `/v1` — the synth appends `/v1/audio/speech`. `""` = TTS off. */
   tts_base_url: string;
-  /** /v1/audio/speech `model`. Must match the name the TTS server is configured under. */
+  /** Which TTS engine sits at tts_base_url; it decides the request shape and the voice list. Unset = `irodori`. */
+  tts_provider?: TtsProviderName;
+  /** /v1/audio/speech `model`. Must match the name the TTS server (or provider) knows. */
   tts_model?: string;
   /** Default speaker id, used until the user picks another in the panel. */
   tts_speaker?: string;

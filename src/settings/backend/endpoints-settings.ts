@@ -4,6 +4,7 @@
  * storage on change and notifies subscribers. Never mutates the checked-in configs/endpoints.json.
  */
 
+import { TTS_PROVIDERS } from "../../config/tts-provider";
 import type { EndpointsConfig } from "../../contract";
 import {
   createOverrideRecordSettings,
@@ -17,17 +18,19 @@ export const ENDPOINT_VALUE_MAX_LEN = 2048;
 
 /**
  * Editable override fields. Empty string = no override. URL fields are validated by isValidEndpointUrl.
- * chat_api is valid only as "responses"|"chat_completions"|"push" — anything else (including empty) means no override.
+ * chat_api and tts_provider are valid only as one of their enum values — anything else (including empty) means no override.
  */
 export interface EndpointOverrides {
   chat_base_url: string;
   stt_base_url: string;
   stt_model: string;
   tts_base_url: string;
+  tts_model: string;
   broker_base_url: string;
   chat_model: string;
   chat_model_context_window: string;
   chat_api: string;
+  tts_provider: string;
 }
 
 export type EndpointsStorage = PersistedStorage<EndpointOverrides>;
@@ -76,6 +79,7 @@ export const ENDPOINT_FIELD_SPECS = [
   { key: "stt_base_url", kind: "url", labelKey: "endpoints.stt_base_url.label", resetGroup: "stt" },
   { key: "stt_model", kind: "string", labelKey: "endpoints.stt_model.label", resetGroup: "stt" },
   { key: "tts_base_url", kind: "url", labelKey: "endpoints.tts_base_url.label", resetGroup: "tts" },
+  { key: "tts_model", kind: "string", labelKey: "endpoints.tts_model.label", resetGroup: "tts" },
   {
     key: "broker_base_url",
     kind: "url",
@@ -87,6 +91,7 @@ export const ENDPOINT_FIELD_SPECS = [
   // chat_base_url/chat_model/chat_api) — see endpoints-settings.test.ts's resetGroup pin test.
   { key: "chat_model_context_window", kind: "posInt", resetGroup: undefined },
   { key: "chat_api", kind: "enum", enum: VALID_CHAT_APIS, resetGroup: "chat" },
+  { key: "tts_provider", kind: "enum", enum: TTS_PROVIDERS, resetGroup: "tts" },
 ] as const satisfies readonly EndpointFieldSpec[];
 
 /** Literal union of every key declared above — a key of EndpointOverrides missing here fails EMPTY's annotation. */
@@ -153,9 +158,9 @@ function isOneOf<T extends string>(list: readonly T[], v: string): v is T {
 
 /**
  * Builds a new EndpointsConfig by layering overrides onto the base EndpointsConfig (base unchanged).
- * URL fields apply only when non-empty + isValidEndpointUrl, chat_model only when non-empty, and
- * chat_api only when a valid enum ("responses"|"chat_completions"|"push"). Applied values are trimmed.
- * An invalid URL/chat_api is ignored (effective keeps the base default) — the UI surfaces the error separately.
+ * URL fields apply only when non-empty + isValidEndpointUrl, model fields only when non-empty, and
+ * enum fields (chat_api, tts_provider) only when a valid value. Applied values are trimmed.
+ * An invalid URL/enum is ignored (effective keeps the base default) — the UI surfaces the error separately.
  */
 export function mergeEndpoints(base: EndpointsConfig, ov: EndpointOverrides): EndpointsConfig {
   const out: EndpointsConfig = { ...base };
