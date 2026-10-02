@@ -14,7 +14,7 @@ const FIXTURE_DIR = `${SKILL_DIR}/assets/fixtures`;
 const DEFAULT_FIXTURE = `${FIXTURE_DIR}/daily-briefing.json`;
 const EMPTY_FIXTURE = `${FIXTURE_DIR}/daily-briefing-empty.json`;
 const SOURCES_DOWN_FIXTURE = `${FIXTURE_DIR}/daily-briefing-sources-down.json`;
-const RUN_FAILED_FIXTURE = `${FIXTURE_DIR}/source-health-run-failed.json`;
+const RUN_FAILED_FIXTURE = `${FIXTURE_DIR}/daily-briefing-run-failed.json`;
 const CONTRACT = `${SKILL_DIR}/references/producer-contract.md`;
 const POSTER = `${SKILL_DIR}/scripts/post-briefing.py`;
 const FIXTURE_SCRIPT = `${SKILL_DIR}/scripts/post-fixture.sh`;
@@ -63,6 +63,7 @@ describe("daily briefing fixtures", () => {
       expect(request.signals).toHaveLength(1);
       const item = request.signals[0];
       expect(item.skill).toBe(RUNTIME_SKILL);
+      expect(item.date).toMatch(/^\d{4}-\d{2}-\d{2}$/);
 
       expect(typeof item.summary).toBe("string");
       expect(item.summary.length).toBeLessThanOrEqual(200);
@@ -103,12 +104,8 @@ describe("daily briefing fixtures", () => {
         ["delivery", "event_id", "event_type", "occurred_at", "source"].sort(),
       );
       expect(envelope.delivery).toBe("immediate");
-      expect(["daily_briefing", "source_health"]).toContain(envelope.event_type);
-      expect(
-        envelope.event_id.startsWith(
-          `${envelope.event_type === "daily_briefing" ? "daily-briefing" : "source-health"}:`,
-        ),
-      ).toBe(true);
+      expect(envelope.event_type).toBe("daily_briefing");
+      expect(envelope.event_id).toBe(`daily-briefing:${item.date}`);
       expect(Number.isFinite(envelope.occurred_at)).toBe(true);
       expect(Math.abs(envelope.occurred_at)).toBeLessThanOrEqual(8.64e15);
 
@@ -132,15 +129,16 @@ describe("daily briefing fixtures", () => {
     expect("last_ok" in disabled).toBe(false);
   });
 
-  it("the run-failed fixture carries a single failed source and a source_health envelope", () => {
+  it("the run-failed fixture carries a single failed source named after the producer", () => {
     const request = readJson(RUN_FAILED_FIXTURE);
     const item = request.signals[0];
     expect(item.refs).toEqual([]);
     expect(item.sources).toHaveLength(1);
+    expect(item.sources[0].name).toBe(request.envelope.source);
     expect(item.sources[0].status).toBe("failed");
     expect(typeof item.sources[0].run_url).toBe("string");
     expect("last_ok" in item.sources[0]).toBe(false);
-    expect(request.envelope.event_type).toBe("source_health");
+    expect(item.summary.startsWith(`${item.sources[0].name} run failed: `)).toBe(true);
   });
 });
 
@@ -263,12 +261,21 @@ describe("skill bodies", () => {
     expect(fields.description.length).toBeLessThan(1024);
   });
 
-  it("the producer contract states the day key, the size bound, and the poster", () => {
+  it("the producer contract states the day key, the size bound, the spool, and the poster", () => {
     const text = readText(CONTRACT);
     expect(text).toContain("daily-briefing:");
     expect(text).toMatch(/49,?152/);
-    expect(text).toContain("source_health");
     expect(text).toContain("run_url");
     expect(text).toContain("post-briefing.py");
+    expect(text).toContain("YUI_BRIEFING_SPOOL");
+    expect(text).toContain("--flush");
+    expect(text).toContain(".sent.json");
+  });
+
+  it("the install section schedules the producers and the flush against one spool", () => {
+    const text = readText(SKILL_BODY);
+    expect(text).toContain("YUI_BRIEFING_SPOOL=");
+    expect(text).toContain("YUI_SIGNALS_URL=");
+    expect(text).toContain('*/5 * * * * python3 "$SKILL_DIR/scripts/post-briefing.py" --flush');
   });
 });
