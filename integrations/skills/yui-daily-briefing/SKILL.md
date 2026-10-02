@@ -18,7 +18,9 @@ milestone, which tells the agent that the user has just started their day.
 
 `$SKILL_DIR` below is this skill's directory, and `$YUI_BRIEFING_SPOOL` is the spool
 directory chosen in step 6 of Install. Every `briefing.py` command reads the spool from
-`YUI_BRIEFING_SPOOL`, or from `--spool <dir>` placed before the subcommand.
+`YUI_BRIEFING_SPOOL`, or from `--spool <dir>` placed before the subcommand. With neither
+set, it reads `~/.local/state/yui-daily-briefing/spool`, so a shell that misses the
+variable reads another spool and `pending` prints nothing.
 
 ## Speak a briefing
 
@@ -183,9 +185,9 @@ gather.py | python3 "$SKILL_DIR/scripts/briefing.py" write --source <producer na
 
 `write` reads `{"summary": ..., "sources": [...], "refs": [...]}` on stdin, applies every
 cap in the contract, and writes `$YUI_BRIEFING_SPOOL/<YYYY-MM-DD>/<producer name>.md`.
-A second run on the same day replaces that file while it is unspoken. Once it is spoken,
-the run writes `<producer name>.<HHMMSS>.md` beside it, so a spoken file stays as it was
-spoken.
+A second run on the same day replaces the producer's unspoken briefing. Once every
+briefing of that producer and day is spoken, the run writes `<producer name>.<HHMMSS>.md`
+beside them, so a spoken file stays as it was spoken.
 
 A gather step that raises inside your own script leaves `write` with no input, and the
 helper writes a failed briefing naming the producer alone. Mark that source `failed` in
@@ -237,8 +239,9 @@ An agent that already runs briefing producers checks its schedule against steps 
    `briefing.py write --source <producer name>`, each producer under a distinct name that
    follows the rule in step 6.
 2. No entry calls `post-briefing.py`, passes `--flush`, or posts the briefing to
-   `/signals`. Delete a flush entry and a `YUI_SIGNALS_URL=` line. When a tunnel to YUI's
-   listener port ran only for the briefing, ask the user whether to remove it.
+   `/signals`. Delete a flush entry. A `YUI_SIGNALS_URL=` line, and a tunnel to YUI's
+   listener port, stay only while another job uses them; ask the user before removing
+   either.
 3. Every job sees `YUI_BRIEFING_SPOOL`, and the path is absolute and the one the user
    chose. When no spool was chosen yet, settle it as in step 6. Your own notes or
    environment hold the same path for the Speak section.

@@ -8,6 +8,7 @@ import json
 import os
 import re
 import sys
+import unicodedata
 import urllib.parse
 
 SUMMARY_MAX = 200
@@ -20,20 +21,26 @@ EXCERPT_MAX = 280
 URL_MAX = 2048
 STATUSES = ("ok", "stale", "failed", "disabled")
 LEDGER = "spoken.json"
-BRIEFING_PATH = re.compile(r"\d{4}-\d{2}-\d{2}/[^/\\]+\.md")
+BRIEFING_PATH = re.compile(r"\d{4}-\d{2}-\d{2}/[^./\\][^/\\]*\.md")
 
 
-def clip(value, cap):
-    cleaned = " ".join(str(value if value is not None else "").split())
-    return cleaned[: cap - 1] + "…" if len(cleaned) > cap else cleaned
+def unwritable(char):
+    # Control characters and lone surrogates break YAML and UTF-8.
+    return unicodedata.category(char) in ("Cc", "Cs")
 
 
 def one_line(value):
-    return " ".join(str(value).split())
+    return " ".join("".join(" " if unwritable(char) else char for char in str(value)).split())
+
+
+def clip(value, cap):
+    cleaned = one_line(value if value is not None else "")
+    return cleaned[: cap - 1] + "…" if len(cleaned) > cap else cleaned
 
 
 def http_url(value):
-    return isinstance(value, str) and value.startswith(("http://", "https://")) and len(value) <= URL_MAX
+    return (isinstance(value, str) and value.startswith(("http://", "https://")) and len(value) <= URL_MAX
+            and not any(unwritable(char) for char in value))
 
 
 def source_entry(raw):
@@ -92,7 +99,7 @@ def render(briefing, source, date, now_iso):
     lines += ["---", "", f"# {briefing['summary']}", ""]
     for number, ref in enumerate(briefing["refs"], 1):
         title = re.sub(r"([\[\]\\])", r"\\\1", ref["title"])
-        url = re.sub(r"[\s<>]", lambda match: urllib.parse.quote(match.group()), ref["url"])
+        url = re.sub(r"[\s<>\\]", lambda match: urllib.parse.quote(match.group()), ref["url"])
         lines += [f"{number}. [{title}](<{url}>)", f"   {ref['kind']} · {ref['at']}"]
         if ref["excerpt"]:
             lines.append(f"   {ref['excerpt']}")
@@ -133,22 +140,23 @@ def write_file(path, text):
 
 
 def write(spool, source):
+    stdin = sys.stdin.buffer.read()
     now = datetime.datetime.now().astimezone()
-    date = now.date().isoformat()
-    error = None
+    date, now_iso = now.date().isoformat(), now.isoformat(timespec="seconds")
     try:
-        briefing = compose(json.load(sys.stdin), now.isoformat(timespec="seconds"))
+        briefing, error = compose(json.loads(stdin), now_iso), None
     except Exception as caught:
-        error = caught
-        briefing = failed(source, caught)
+        briefing, error = failed(source, caught), caught
     with lock(spool):
-        name = f"{source}.md"
-        if f"{date}/{name}" in load_ledger(spool, set_aside=True):
-            name = f"{source}.{now:%H%M%S}.md"
-        path = os.path.join(spool, date, name)
+        spoken = load_ledger(spool, set_aside=True)
+        day = os.path.join(spool, date)
+        existing = glob.glob(os.path.join(day, f"{source}.md")) + glob.glob(os.path.join(day, f"{source}.{'[0-9]' * 6}.md"))
+        # Each source keeps at most one unspoken briefing per day; a spoken one never changes.
+        unspoken = [path for path in existing if os.path.relpath(path, spool) not in spoken]
+        path = unspoken[0] if unspoken else os.path.join(day, f"{source}.{now:%H%M%S}.md" if existing else f"{source}.md")
         # An unspoken briefing from an earlier run of the day outranks a failed one.
-        if error is None or not os.path.exists(path):
-            write_file(path, render(briefing, source, date, now.isoformat(timespec="seconds")))
+        if error is None or not unspoken:
+            write_file(path, render(briefing, source, date, now_iso))
     if error is not None:
         print(f"{type(error).__name__}: {error}", file=sys.stderr)
         return 1
@@ -159,7 +167,7 @@ def pending(spool):
     spoken = load_ledger(spool, set_aside=False)
     for path in sorted(glob.glob(os.path.join(spool, "????-??-??", "*.md"))):
         relative = os.path.relpath(path, spool)
-        if relative in spoken:
+        if relative in spoken or not BRIEFING_PATH.fullmatch(relative):
             continue
         with open(path, encoding="utf-8") as file:
             print(f"=== {relative} ===\n{file.read()}")

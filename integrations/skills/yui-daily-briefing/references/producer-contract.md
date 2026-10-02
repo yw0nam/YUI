@@ -50,14 +50,16 @@ file states the input, the file the helper writes, the ledger, and the helper's 
 | `refs[].excerpt` | 280 characters, possibly the empty string |
 
 The gather script emits `refs` newest first; the helper keeps the first 30. A ref whose
-`url` misses the `http` or `https` scheme or runs past 2048 characters drops out. Text
-fields collapse to one line, and a field over its cap ends in `…`. A source with a
-`run_url` outside the rule keeps its other fields.
+`url` misses the `http` or `https` scheme, runs past 2048 characters, or holds a control
+character drops out. Text fields collapse to one line, control characters and lone
+surrogates become spaces, and a field over its cap ends in `…`. A source with a `run_url`
+outside the rule keeps its other fields.
 
 ## Briefing file
 
-`write` names the file `<spool>/<YYYY-MM-DD>/<source>.md`, dated by the local day of the
-run (the job's `TZ`), and writes it through a temporary file and a rename:
+`write` names the file `<spool>/<YYYY-MM-DD>/<source>.md`, dated by the local day (the
+job's `TZ`) at the moment stdin closes, and writes it through a temporary file and a
+rename:
 
 ```markdown
 ---
@@ -81,13 +83,14 @@ sources:
    `sources` holds one flow mapping per source, or reads `sources: []`.
 2. The body opens with the summary as a heading, then one numbered item per ref: a link
    line, a `kind · at` line, and an excerpt line when the excerpt carries text.
-3. A title escapes `[`, `]`, and `\`. A url sits inside `<…>`, with whitespace, `<`, and
-   `>` percent-encoded.
+3. A title escapes `[`, `]`, and `\`. A url sits inside `<…>`, with whitespace, `<`,
+   `>`, and `\` percent-encoded.
 
-A run whose `<source>.md` for the day is unspoken replaces that file. A run whose
-`<source>.md` is already spoken writes `<source>.<HHMMSS>.md` beside it, stamped with the
-local time of the run. A spoken file stays as written. Only `write` creates or replaces
-briefing files.
+Each source has at most one unspoken briefing per day. A run replaces it, whether it is
+`<source>.md` or a stamped file. When every briefing of that source and day is spoken, the
+run writes `<source>.<HHMMSS>.md` beside them, stamped with the local time of the run. A
+spoken file stays as written, with one exception: a `write` that finds the ledger
+unreadable reads every file as unspoken. Only `write` creates or replaces briefing files.
 
 ## Ledger
 
@@ -109,7 +112,7 @@ The helper creates files readable by their owner only.
 | Command | Does |
 |---|---|
 | `write --source <name>` | Reads the gather input on stdin and writes the briefing file. `<name>` is 1 to 40 letters, digits, `_`, or `-` |
-| `pending` | Prints every `<YYYY-MM-DD>/*.md` file missing from the ledger, oldest day first, then by file name, each under a line `=== <path relative to the spool> ===`. Prints nothing when every file is spoken |
+| `pending` | Prints every `<YYYY-MM-DD>/<file>.md` file missing from the ledger, oldest day first, then by file name, each under a line `=== <path relative to the spool> ===`. Prints nothing when every file is spoken |
 | `mark-spoken PATH...` | Records each path in the ledger. Each path reads `<YYYY-MM-DD>/<file>.md`, exactly as `pending` prints it, and names an existing file |
 
 | Exit | Output | Meaning |
@@ -147,6 +150,6 @@ the source's own rule yields:
 Input that fails to parse or breaks the shape above makes `write` write a failed briefing
 under the producer's name: `summary` reads `<source> run failed: <error type>: <message>`,
 `sources` holds one entry named after the producer with `status: "failed"`, and the body
-holds no items. When an unspoken `<source>.md` from an earlier run of the same day exists,
-`write` keeps it and writes nothing. Either way it prints the reason on one stderr line and
+holds no items. When an unspoken briefing of the same source and day exists, `write` keeps
+it and writes nothing. Either way it prints the reason on one stderr line and
 exits 1, which leaves the failure in the scheduler's own record.
