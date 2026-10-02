@@ -1,12 +1,39 @@
 /** Single-sentence input → POST {tts_base_url}/v1/audio/speech → wav ArrayBuffer. */
 
+import { ttsProviderOf } from "../../../config/tts-provider";
 import type { EndpointsConfig } from "../../../contract";
 import { createDeadlineSignal, untilAborted } from "../deadline";
 
 /** Per-call synthesis direction that is not part of the spoken text. */
 export interface TtsSynthCallOptions {
-  /** Natural-language voice direction, sent as `irodori.caption`. */
+  /** Voice tag from the cue (emoji for Irodori). */
+  emotion_text?: string;
+  /** Natural-language voice direction. */
   caption?: string;
+}
+
+/** The spoken input and the provider's own direction keys for one request. */
+interface SpeechRequest {
+  input: string;
+  direction?: Record<string, unknown>;
+}
+
+/** How each provider carries the cue's direction; a provider absent here has no synth. */
+const SPEECH_REQUEST = {
+  irodori: (input: string, call?: TtsSynthCallOptions): SpeechRequest => ({
+    input: call?.emotion_text ? `${call.emotion_text} ${input}` : input,
+    ...(call?.caption ? { direction: { irodori: { caption: call.caption } } } : {}),
+  }),
+  openai: (input: string, call?: TtsSynthCallOptions): SpeechRequest => {
+    const instructions = [call?.emotion_text, call?.caption].filter(Boolean).join(" ");
+    return { input, ...(instructions ? { direction: { instructions } } : {}) };
+  },
+};
+
+type SynthProvider = keyof typeof SPEECH_REQUEST;
+
+function isSynthProvider(p: string): p is SynthProvider {
+  return p in SPEECH_REQUEST;
 }
 
 export type TtsSynth = (
@@ -29,6 +56,7 @@ interface TtsProvider {
 export const TTS_SYNTH_TIMEOUT_MS = 10_000;
 
 interface TtsSynthOptions {
+  provider: SynthProvider;
   baseUrl: string;
   fetch?: typeof fetch;
   model?: string;
@@ -42,10 +70,11 @@ export function createTtsSynth(opts: TtsSynthOptions): TtsSynth {
   const url = `${opts.baseUrl}/v1/audio/speech`;
 
   return async (input, signal, call) => {
-    const body: Record<string, unknown> = { input, response_format: "wav" };
+    const request = SPEECH_REQUEST[opts.provider](input, call);
+    const body: Record<string, unknown> = { input: request.input, response_format: "wav" };
     if (opts.model !== undefined) body.model = opts.model;
     if (opts.voice !== undefined) body.voice = opts.voice;
-    if (call?.caption) body.irodori = { caption: call.caption };
+    Object.assign(body, request.direction);
 
     const key = (await opts.getApiKey?.())?.trim() || undefined;
     const deadline = createDeadlineSignal(TTS_SYNTH_TIMEOUT_MS, "TTS request timed out");
@@ -99,8 +128,11 @@ export function createTtsProvider(deps: TtsProviderDeps): TtsProvider {
   return {
     synth: async (input, signal, call) => {
       const eps = deps.getEndpoints();
+      const provider = ttsProviderOf(eps);
+      if (!isSynthProvider(provider)) throw new Error(`no TTS synth for provider "${provider}"`);
       const fetchImpl = await deps.selectFetch();
       return createTtsSynth({
+        provider,
         baseUrl: eps.tts_base_url,
         fetch: fetchImpl,
         model: eps.tts_model,
@@ -110,8 +142,15 @@ export function createTtsProvider(deps: TtsProviderDeps): TtsProvider {
     },
     paramsKey: () => {
       const eps = deps.getEndpoints();
-      return [eps.tts_base_url, eps.tts_model, deps.getActiveSpeaker().id].join("::");
+      return [ttsProviderOf(eps), eps.tts_base_url, eps.tts_model, deps.getActiveSpeaker().id].join(
+        "::",
+      );
     },
-    isReady: () => Boolean(deps.getEndpoints().tts_base_url && deps.getActiveSpeaker().id),
+    isReady: () => {
+      const eps = deps.getEndpoints();
+      return Boolean(
+        isSynthProvider(ttsProviderOf(eps)) && eps.tts_base_url && deps.getActiveSpeaker().id,
+      );
+    },
   };
 }

@@ -52,7 +52,8 @@ export function createFillerAudioCache(deps: FillerAudioCacheDeps): FillerAudioC
   return {
     synth: async (input, signal, opts) => {
       const { key, submissions } = sync();
-      if (!submissions.has(input)) return deps.synth(input, signal, opts);
+      // The key carries no voice tag, so a tagged sentence is never served from or stored in the cache.
+      if (!submissions.has(input) || opts?.emotion_text) return deps.synth(input, signal, opts);
 
       const hit = audio.get(input);
       if (hit) return hit.slice(0);

@@ -734,8 +734,8 @@ describe("createTtsPipeline — setCue / onCuePlay", () => {
     await tick();
   });
 
-  it("synth input contains voice tag only for cued sentence; uncued sentence has no tag", async () => {
-    const { synth, inputs, resolvers } = deferredSynth();
+  it("synth gets the voice tag only for the cued sentence; the uncued sentence has none", async () => {
+    const { synth, synthOpts, resolvers } = deferredSynth();
     const { sink } = recordingSink();
     const pipe = createTtsPipeline({ synth, sink, maxInflight: 2 });
 
@@ -743,8 +743,8 @@ describe("createTtsPipeline — setCue / onCuePlay", () => {
     pipe.pushTextDelta("Cued.", true);
     pipe.pushTextDelta(" Uncued.", true);
     await tick();
-    expect(inputs[0]).toBe("😆 Cued.");
-    expect(inputs[1]).toBe("Uncued.");
+    expect(synthOpts[0]?.emotion_text).toBe("😆");
+    expect(synthOpts[1]).toBeUndefined();
     resolvers[0].resolve(bufFor(0));
     resolvers[1].resolve(bufFor(1));
   });

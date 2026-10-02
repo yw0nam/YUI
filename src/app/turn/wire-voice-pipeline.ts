@@ -95,7 +95,8 @@ export function wireVoicePipeline(deps: VoicePipelineDeps): VoicePipeline {
   const fillerCache = createFillerAudioCache({
     synth: (input, signal, opts) => provider.synth(input, signal, opts),
     // Filler is spoken under motion-hold, which withholds cues from the pipeline, so a filler
-    // submission never carries a voice tag and matching the plain sentences is enough.
+    // submission never carries a voice tag and matching the plain sentences is enough; a tagged
+    // response sentence bypasses the cache.
     submissions: () => fillerSubmissions(effectiveFiller()),
     // Only what changes the rendered audio — a change here stales every entry. Editing the pool
     // leaves the key alone and evicts per phrase instead.

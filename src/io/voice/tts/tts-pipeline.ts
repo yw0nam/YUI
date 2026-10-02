@@ -7,7 +7,7 @@ import type { ExpressArgs } from "../../../contract";
 import { createLogger, type Logger } from "../../../logger";
 import { type AudioSink, createWebAudioSink } from "./audio-player";
 import { createSentenceSegmenter } from "./sentence-segmenter";
-import type { TtsSynth } from "./tts-synth";
+import type { TtsSynth, TtsSynthCallOptions } from "./tts-synth";
 
 /** When synth rejects with this value it's a silent skip — takes the failed-skip path with no error log. */
 export const TTS_SKIP: unique symbol = Symbol("TTS_SKIP");
@@ -71,7 +71,7 @@ export function createTtsPipeline(options: TtsPipelineOptions): TtsPipeline {
   let tailTracked = false;
   const failed = new Set<number>();
   const cues = new Map<number, ExpressArgs | null>();
-  const pending: Array<{ index: number; input: string; caption?: string }> = [];
+  const pending: Array<{ index: number; input: string; opts?: TtsSynthCallOptions }> = [];
   let inFlight = 0;
   let submitted = 0;
   let nextToPlay = 0;
@@ -139,9 +139,9 @@ export function createTtsPipeline(options: TtsPipelineOptions): TtsPipeline {
   // Dispatch queued items to synth, but only up to the cap.
   function drainSynth(): void {
     while (inFlight < resolveMaxInflight() && pending.length > 0) {
-      const { index, input, caption } = pending.shift()!;
+      const { index, input, opts } = pending.shift()!;
       inFlight++;
-      synth(input, abort.signal, caption ? { caption } : undefined).then(
+      synth(input, abort.signal, opts).then(
         (wav) => {
           inFlight--;
           if (disposed) return;
@@ -173,15 +173,21 @@ export function createTtsPipeline(options: TtsPipelineOptions): TtsPipeline {
     if (!trimmed) return;
     const cue = pendingCue;
     pendingCue = null;
-    const voiceTag = cue?.emotion_text?.trim() || null;
-    const input = voiceTag ? `${voiceTag} ${trimmed}` : trimmed;
-    // The caption is a direction for the voice, not words to speak — it rides beside the input.
+    // The voice tag and caption direct the voice, not words to speak — they ride beside the input.
+    const emotionText = cue?.emotion_text?.trim() || undefined;
     const caption = cue?.caption?.trim() || undefined;
+    const opts: TtsSynthCallOptions | undefined =
+      emotionText || caption
+        ? {
+            ...(emotionText ? { emotion_text: emotionText } : {}),
+            ...(caption ? { caption } : {}),
+          }
+        : undefined;
     const index = submitted++;
     cues.set(index, cue);
     entries.set(index, { text: trimmed, tracked, played: false });
     log.debug("synth", { index, chars: trimmed.length });
-    pending.push({ index, input, ...(caption ? { caption } : {}) });
+    pending.push({ index, input: trimmed, opts });
     drainSynth();
   }
 

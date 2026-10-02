@@ -24,15 +24,18 @@ import type { TtsSynth } from "../../io/voice/tts/tts-synth";
 /** A synth the test releases one sentence at a time; the wav names its own index. */
 function controlledSynth() {
   const inputs: string[] = [];
+  // The voice tag each sentence was handed beside its input.
+  const tags: Array<string | undefined> = [];
   const releases: Array<() => void> = [];
-  const synth: TtsSynth = (input) => {
+  const synth: TtsSynth = (input, _signal, opts) => {
     const index = inputs.length;
     inputs.push(input);
+    tags.push(opts?.emotion_text);
     return new Promise<ArrayBuffer>((resolve) => {
       releases.push(() => resolve(new Uint8Array([index]).buffer));
     });
   };
-  return { synth, inputs, deliver: (index: number) => releases[index]!() };
+  return { synth, inputs, tags, deliver: (index: number) => releases[index]!() };
 }
 
 /** A sink that holds each buffer mid-playback until the pipeline is stopped, or the test lets it end. */
@@ -278,7 +281,8 @@ describe("a reply that lands while the turn's thinking bridge is still up", () =
       ],
     });
 
-    expect(seq.synth.inputs).toEqual(["\u{1F606} All green.", "\u{1F442} Want the list?"]);
+    expect(seq.synth.inputs).toEqual(["All green.", "Want the list?"]);
+    expect(seq.synth.tags).toEqual(["\u{1F606}", "\u{1F442}"]);
 
     seq.synth.deliver(0);
     await vi.waitFor(() => expect(seq.played).toEqual(["play:0"]));
@@ -320,11 +324,8 @@ describe("a reply that lands while a filler line is playing", () => {
       ],
     });
 
-    expect(seq.synth.inputs).toEqual([
-      "Let me check.",
-      "\u{1F606} All green.",
-      "\u{1F442} Want the list?",
-    ]);
+    expect(seq.synth.inputs).toEqual(["Let me check.", "All green.", "Want the list?"]);
+    expect(seq.synth.tags).toEqual([undefined, "\u{1F606}", "\u{1F442}"]);
     expect(seq.played).toEqual(["play:0"]);
 
     seq.synth.deliver(1);
@@ -359,7 +360,8 @@ describe("a reply for another turn, arriving while a bridge is up", () => {
 
     seq.renderTurn.render({ type: "render", turn_id: turnId, source: "hermes", segments: REPLY });
 
-    expect(seq.synth.inputs).toEqual(["\u{1F606} All green.", "\u{1F442} Want the list?"]);
+    expect(seq.synth.inputs).toEqual(["All green.", "Want the list?"]);
+    expect(seq.synth.tags).toEqual(["\u{1F606}", "\u{1F442}"]);
 
     seq.synth.deliver(0);
     await vi.waitFor(() => expect(seq.played).toEqual(["play:0"]));
