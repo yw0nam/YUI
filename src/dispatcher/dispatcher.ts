@@ -34,7 +34,12 @@ import { buildPacerSkipRecord, type PacerSkipRecord } from "../io/chat/turn-reco
 import type { Logger, LogLevel } from "../logger";
 import { createLogger } from "../logger";
 import type { Renderer } from "../renderer";
-import type { BackendCaller, TurnFailure, TurnOutcome } from "./backend/backend-caller";
+import type {
+  BackendCaller,
+  TurnErrorDetail,
+  TurnFailure,
+  TurnOutcome,
+} from "./backend/backend-caller";
 import { classify, PACED_SOURCES, type UserTurnSource, userTurnSourceOf } from "./core/classify";
 import type { BusEnvelope, EventBus } from "./core/event-bus";
 import type { Guardrails } from "./core/guardrails";
@@ -79,13 +84,15 @@ interface DispatcherDeps {
   /**
    * Report a backend call failure of a user-initiated turn (user.text_submitted /
    * user.voice_segment_ready) along with its source (which trigger it was) —
-   * superseded_by_user is excluded since it is not an error.
+   * superseded_by_user is excluded since it is not an error. detail rides when the backend
+   * answered the call with an HTTP error (status + bare server message).
    * main.ts wires this to the UI error surface (showInputError / the status pill's voice segment).
    * proactive/schedule/agent turn failures are only logged and never surface here (silent by design).
    */
   onUserTurnFailed?: (
     reason: Exclude<TurnFailure, "superseded_by_user">,
     source: UserTurnSource,
+    detail?: TurnErrorDetail,
   ) => void;
   /**
    * A backend call of any turn settled in a failure, reported with the turn it belonged to.
@@ -323,8 +330,13 @@ export function createDispatcher(deps: DispatcherDeps): Dispatcher {
     const turn = deps.turnLog.begin(env);
     openTurn = { id: turn.id, trigger: env.event_name, started_at, outcome: null };
     deps.onTurnAdmitted?.(turn);
+    // Server-side HTTP error detail, kept per call so a superseded turn's late detail
+    // can never bleed into the next one.
+    let errorDetail: TurnErrorDetail | undefined;
     void backendCaller
-      .call(turn, abort.signal)
+      .call(turn, abort.signal, (detail) => {
+        errorDetail = detail;
+      })
       .then((outcome) => {
         if (openTurn?.id === turn.id) openTurn.outcome = outcome;
         if (outcome === "ok") {
@@ -336,7 +348,7 @@ export function createDispatcher(deps: DispatcherDeps): Dispatcher {
         deps.onTurnFailed?.(turn, outcome);
         noteCallFailure();
         const source = userTurnSourceOf(env);
-        if (source) deps.onUserTurnFailed?.(outcome, source);
+        if (source) deps.onUserTurnFailed?.(outcome, source, errorDetail);
       })
       .catch((err) => {
         if (openTurn?.id === turn.id) openTurn.outcome = "network_drop";
@@ -345,7 +357,7 @@ export function createDispatcher(deps: DispatcherDeps): Dispatcher {
         deps.onTurnFailed?.(turn, "network_drop");
         noteCallFailure();
         const source = userTurnSourceOf(env);
-        if (source) deps.onUserTurnFailed?.("network_drop", source);
+        if (source) deps.onUserTurnFailed?.("network_drop", source, errorDetail);
       })
       .finally(() => {
         // Release the slot only if this call is still the current in-flight (leave it if replaced by an abort).

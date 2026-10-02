@@ -220,7 +220,7 @@ describe("dispatcher — onUserTurnFailed seam (issue #274)", () => {
     callDeferred[0].resolve("network_drop");
     await vi.advanceTimersByTimeAsync(20);
     expect(sink).toHaveBeenCalledTimes(1);
-    expect(sink).toHaveBeenCalledWith("network_drop", "text");
+    expect(sink).toHaveBeenCalledWith("network_drop", "text", undefined);
     d.stop();
   });
 
@@ -232,7 +232,7 @@ describe("dispatcher — onUserTurnFailed seam (issue #274)", () => {
     callDeferred[0].resolve("parse_error");
     await vi.advanceTimersByTimeAsync(20);
     expect(sink).toHaveBeenCalledTimes(1);
-    expect(sink).toHaveBeenCalledWith("parse_error", "voice");
+    expect(sink).toHaveBeenCalledWith("parse_error", "voice", undefined);
     d.stop();
   });
 
@@ -243,7 +243,7 @@ describe("dispatcher — onUserTurnFailed seam (issue #274)", () => {
     await vi.advanceTimersByTimeAsync(20);
     callDeferred[0].resolve("http_4xx_drop");
     await vi.advanceTimersByTimeAsync(20);
-    expect(sink).toHaveBeenCalledWith("http_4xx_drop", "text");
+    expect(sink).toHaveBeenCalledWith("http_4xx_drop", "text", undefined);
     d.stop();
   });
 

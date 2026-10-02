@@ -132,6 +132,18 @@ function httpStatusOf(err: unknown): number | undefined {
   return typeof status === "number" ? status : undefined;
 }
 
+/**
+ * Server-side error text: the SDK's APIError message leads with "<status> " — strip it so
+ * the bare body message remains. Errors without a status keep their text unchanged.
+ */
+function serverMessageOf(err: unknown): string {
+  const raw = err instanceof Error ? err.message : String(err);
+  const status = httpStatusOf(err);
+  return status !== undefined && raw.startsWith(`${status} `)
+    ? raw.slice(String(status).length + 1)
+    : raw;
+}
+
 /** Parses express arguments JSON string. On failure, returns error message without throwing. */
 function parseExpressArgs(raw: unknown): { args: ExpressArgs } | { error: string } {
   try {
@@ -310,7 +322,7 @@ export async function* streamChat(
       const status = httpStatusOf(err);
       yield {
         type: "error",
-        message: `chat request failed: ${err instanceof Error ? err.message : String(err)}`,
+        message: serverMessageOf(err),
         ...(status !== undefined ? { status } : {}),
       };
     }
@@ -461,11 +473,7 @@ export async function* streamChat(
     // previous_response_id) → surface so the caller can react (chain-break retry etc).
     const status = httpStatusOf(err);
     if (status !== undefined) {
-      yield {
-        type: "error",
-        message: `chat stream failed: ${err instanceof Error ? err.message : String(err)}`,
-        status,
-      };
+      yield { type: "error", message: serverMessageOf(err), status };
       return;
     }
     // Status-less network reject mid-stream → terminate silently.
@@ -593,7 +601,7 @@ async function* streamChatCompletions(
         const status = httpStatusOf(err);
         yield {
           type: "error",
-          message: `chat request failed: ${err instanceof Error ? err.message : String(err)}`,
+          message: serverMessageOf(err),
           ...(status !== undefined ? { status } : {}),
         };
       }

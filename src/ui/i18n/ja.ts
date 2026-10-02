@@ -70,6 +70,7 @@ const ja: Record<string, string> = {
   "input.placeholder": "話しかけてみて…",
   "input.error_auth": "認証失敗 · APIキー確認",
   "input.error_network": "応答なし · 接続確認",
+  "input.error_http": "{status} {message}",
   "input.error_stall": "バックエンドが応答しなくなりました",
   "input.error_parse": "応答処理に失敗",
   "input.error_not_configured": "バックエンド未設定",

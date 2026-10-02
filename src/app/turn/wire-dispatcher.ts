@@ -200,9 +200,9 @@ export function wireDispatcher(deps: {
       previousTurn.callFailed(turn, reason);
       quotedTurn.failed(turn);
     },
-    onUserTurnFailed: (reason, source) => {
+    onUserTurnFailed: (reason, source, detail) => {
       voice.speakFailure(reason);
-      const message = turnErrorMessage(reason);
+      const message = turnErrorMessage(reason, detail);
       if (!message) return;
       const action = routeTurnFailure(source, surfaces.isInputOpen());
       if (action.kind === "show_input_error") {
