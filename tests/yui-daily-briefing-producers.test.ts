@@ -5,6 +5,7 @@ import {
   mkdtempSync,
   readdirSync,
   readFileSync,
+  renameSync,
   writeFileSync,
 } from "node:fs";
 import { tmpdir } from "node:os";
@@ -25,14 +26,10 @@ function tempDir(): string {
   return mkdtempSync(join(tmpdir(), "yui-briefing-"));
 }
 
-// A temp HOME keeps the default spool out of the real home directory.
 function run(spool: string, args: string[], stdin = ""): Result {
-  const env: NodeJS.ProcessEnv = { ...process.env, HOME: tempDir() };
-  delete env.YUI_BRIEFING_SPOOL;
   const result = spawnSync("python3", [SCRIPT, "--spool", spool, ...args], {
     input: stdin,
     encoding: "utf8",
-    env,
   });
   return { status: result.status, stdout: result.stdout, stderr: result.stderr };
 }
@@ -136,12 +133,33 @@ describe("briefing.py write", () => {
     expect(rerun).toMatch(/^\d{4}-\d{2}-\d{2}\/news\.\d{6}\.md$/);
     expect(read(spool, path)).toBe(spoken);
     expect(read(spool, rerun)).toContain('summary: "second run"');
+    // Later runs, in any second, replace or keep that unspoken rerun.
+    const earlier = rerun.replace(/\d{6}\.md$/, "000001.md");
+    renameSync(join(spool, rerun), join(spool, earlier));
+    expect(write(spool, "news", "{").status).toBe(1);
+    expect(write(spool, "news", { ...GATHER, summary: "third run" }).status).toBe(0);
+    expect(spoolFiles(spool)).toEqual([earlier, path]);
+    expect(read(spool, earlier)).toContain('summary: "third run"');
 
     const fresh = tempDir();
     write(fresh, "news", GATHER);
     write(fresh, "news", { ...GATHER, summary: "second run" });
     expect(spoolFiles(fresh)).toHaveLength(1);
     expect(read(fresh, spoolFiles(fresh)[0])).toContain('summary: "second run"');
+  });
+
+  it("turns control characters and lone surrogates in the input into spaces", () => {
+    const spool = tempDir();
+    const input = {
+      summary: "a\u0080b\u007fc",
+      sources: [{ name: "wire", status: "ok", last_ok: "2026-10-02\u0085" }],
+      refs: [{ title: "emoji \ud83d", url: "https://example.com/a" }],
+    };
+    expect(write(spool, "news", input)).toEqual({ status: 0, stdout: "", stderr: "" });
+    const text = read(spool, spoolFiles(spool)[0]);
+    expect(text).toContain('summary: "a b c"');
+    expect(text).toContain('  - {name: "wire", status: "ok", last_ok: "2026-10-02"}');
+    expect(text).toContain("1. [emoji](<https://example.com/a>)");
   });
 
   it("writes a failed briefing for malformed input unless an unspoken one is already there", () => {
@@ -171,6 +189,7 @@ describe("briefing.py pending and mark-spoken", () => {
     seed(spool, "2026-10-01/news.md", "news\n");
     seed(spool, "2026-10-01/arxiv.md", "arxiv\n");
     seed(spool, "2026-09-29/news.sent.json", "{}");
+    seed(spool, "abcd-ef-gh/news.md", "not a day\n");
     seed(
       spool,
       "spoken.json",
