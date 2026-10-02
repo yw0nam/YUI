@@ -22,6 +22,7 @@ import {
   CHATKEY_EYE_SVG,
   type ChatApi,
   ENDPOINT_FIELDS,
+  TTS_PROVIDER_PRESETS,
 } from "../constants";
 import { secHeadHtml } from "../markup";
 import { createEndpointsSection, validateEndpointInput } from "./endpoints-section";
@@ -41,8 +42,8 @@ export interface PushSocketPanelPort {
 export interface ConnectionRows {
   /** full: protocol/provider/model rows + URL/key; push: URL/key and the live status line. */
   chat: "full" | "push";
-  /** full: protocol dropdown + URL/key; url-key: URL/key alone. Also gates the disabled STT type row. */
-  tts: "full" | "url-key";
+  /** full: provider dropdown + URL/model/key; provider-url-key: no model row. Also gates the disabled STT type row. */
+  tts: "full" | "provider-url-key";
   broker: boolean;
 }
 
@@ -164,21 +165,16 @@ function sttSectionHtml(rows: ConnectionRows): string {
 }
 
 function ttsSectionHtml(rows: ConnectionRows): string {
-  const full = rows.tts === "full";
-  // The disabled type row names the protocol; the desktop rows render it, the phone drops it.
-  const typeRow = full
-    ? selectRowHtml(
-        "yui-svc-tts-type",
-        "svc.type_label",
-        `<select class="yui-select yui-select--single" id="yui-svc-tts-type" disabled><option>${t("svc.tts_type")}</option></select>`,
-      )
-    : "";
+  const providerOptionsHtml = TTS_PROVIDER_PRESETS.map(
+    (p) => `<option value="${p.id}">${p.name}</option>`,
+  ).join("");
   return `
         <section class="yui-sec yui-endpoints yui-svc" data-svc="tts">
           ${secHeadHtml(t("svc.tts"), `<span class="yui-endpoints__hint">${t("svc.tts_hint")}</span>`)}
           <div class="yui-group">
-            ${typeRow}
+            ${selectRowHtml("yui-svc-tts-provider", "svc.tts_type", `<select class="yui-select yui-tts-provider" id="yui-svc-tts-provider" aria-label="${t("svc.tts_preset_aria")}">${providerOptionsHtml}</select>`)}
             ${endpointRowHtml("tts_base_url")}
+            ${rows.tts === "full" ? endpointRowHtml("tts_model") : ""}
             ${keyRowHtml("ttskey", "ttskey")}
             ${svcResetRowHtml("tts")}
           </div>
@@ -255,6 +251,7 @@ export function createConnectionTab(deps: {
   const chatTypeEl = el.querySelector<HTMLSelectElement>(".yui-chat-type");
   const chatSummaryHintEl = el.querySelector<HTMLSpanElement>(".yui-chat-summary-hint");
   const chatPresetEl = el.querySelector<HTMLSelectElement>(".yui-chat-preset");
+  const ttsProviderEl = el.querySelector<HTMLSelectElement>(".yui-tts-provider")!;
   const chatModelRowEl = el.querySelector<HTMLDivElement>(
     '.yui-input-row[data-ep-field="chat_model"]',
   );
@@ -316,6 +313,15 @@ export function createConnectionTab(deps: {
     if (chatPresetEl.value !== next) chatPresetEl.value = next;
   }
 
+  // TTS provider dropdown — the override, else the bundled default.
+  function reflectTtsProvider(): void {
+    const next =
+      endpointsSettings.get().tts_provider ||
+      getEndpointDefaults?.()?.tts_provider ||
+      TTS_PROVIDER_PRESETS[0].id;
+    if (ttsProviderEl.value !== next) ttsProviderEl.value = next;
+  }
+
   // One line under the key row: where the push socket stands, and the button that opens the
   // socket without waiting. Hidden in the request-shaped modes.
   function reflectChatStatus(): void {
@@ -374,6 +380,7 @@ export function createConnectionTab(deps: {
     for (const r of endpointsSection.keyRows) r.reflect();
     reflectChatType();
     reflectChatPreset();
+    reflectTtsProvider();
   }
 
   function commit(): void {
@@ -394,6 +401,7 @@ export function createConnectionTab(deps: {
       reflectEndpoints();
       reflectChatType();
       reflectChatPreset();
+      reflectTtsProvider();
     }
   });
   // The socket moves on its own — its status line follows whether or not a setting changed.

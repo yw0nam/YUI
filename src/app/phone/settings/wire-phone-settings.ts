@@ -33,8 +33,8 @@ export interface PhoneSettings {
   dispose(): void;
 }
 
-/** The phone's connection rows: push chat (URL/key/status), STT URL/model/key, TTS URL/key. */
-const CONNECTION_ROWS = { chat: "push", tts: "url-key", broker: false } as const;
+/** The phone's connection rows: push chat (URL/key/status), STT URL/model/key, TTS provider/URL/key. */
+const CONNECTION_ROWS = { chat: "push", tts: "provider-url-key", broker: false } as const;
 
 /** The phone's character rows: the VRM list and the view reset. */
 const CHARACTER_ROWS = {

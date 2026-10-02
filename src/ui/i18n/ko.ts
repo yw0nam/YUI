@@ -368,6 +368,7 @@ const ko: Record<string, string> = {
   "endpoints.stt_base_url.label": "음성 인식(STT) 서버 URL",
   "endpoints.stt_model.label": "STT 모델",
   "endpoints.tts_base_url.label": "음성 합성(TTS) 서버 URL",
+  "endpoints.tts_model.label": "TTS 모델",
   "endpoints.broker_base_url.label": "표현 브로커(Broker) URL",
   "endpoints.chat_model.label": "채팅 모델",
 
@@ -393,7 +394,8 @@ const ko: Record<string, string> = {
   "svc.stt_type": "OpenAI 호환",
   "svc.tts": "TTS",
   "svc.tts_hint": "OpenAI 호환",
-  "svc.tts_type": "OpenAI 호환",
+  "svc.tts_type": "제공자",
+  "svc.tts_preset_aria": "TTS 제공자 프리셋",
   "svc.broker": "Broker",
   "svc.broker_hint": "MCP streamable-http",
   "svc.broker_type": "MCP streamable-http",

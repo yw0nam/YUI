@@ -1,4 +1,5 @@
 /** Quick-controls display constants shared by the entry panel + its sub-modules. */
+import type { TtsProviderName } from "../../contract";
 import type { ReasoningEffort } from "../../settings/backend/agent-settings";
 import {
   ENDPOINT_FIELD_SPECS,
@@ -188,6 +189,20 @@ export const CHAT_PROVIDER_PRESETS: readonly ChatProviderPreset[] = [
   { id: "lmstudio", name: "LM Studio", url: "http://localhost:1234/v1" },
   { id: "groq", name: "Groq", url: "https://api.groq.com/openai/v1" },
   { id: "hermes", name: "Hermes Agent", chatApi: "push" },
+];
+
+// TTS provider presets (Connection tab, TTS section) — selecting one sets tts_provider and autofills
+// tts_base_url and tts_model. Brand names are display-as-is, never localized. Only providers with a
+// synth are listed.
+interface TtsProviderPreset {
+  id: TtsProviderName;
+  name: string;
+  url: string;
+  model: string;
+}
+export const TTS_PROVIDER_PRESETS: readonly TtsProviderPreset[] = [
+  { id: "irodori", name: "Irodori", url: "http://localhost:8088", model: "irodori-tts" },
+  { id: "openai", name: "OpenAI", url: "https://api.openai.com", model: "gpt-4o-mini-tts" },
 ];
 
 // Tab icons — same line-icon vocabulary as other icon buttons (1.5 stroke, 24x24 viewBox).

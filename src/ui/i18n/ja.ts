@@ -371,6 +371,7 @@ const ja: Record<string, string> = {
   "endpoints.stt_base_url.label": "音声認識 (STT) サーバー URL",
   "endpoints.stt_model.label": "STTモデル",
   "endpoints.tts_base_url.label": "音声合成 (TTS) サーバー URL",
+  "endpoints.tts_model.label": "TTSモデル",
   "endpoints.broker_base_url.label": "表現ブローカー URL",
   "endpoints.chat_model.label": "チャットモデル",
 
@@ -396,7 +397,8 @@ const ja: Record<string, string> = {
   "svc.stt_type": "OpenAI 互換",
   "svc.tts": "TTS",
   "svc.tts_hint": "OpenAI 互換",
-  "svc.tts_type": "OpenAI 互換",
+  "svc.tts_type": "プロバイダー",
+  "svc.tts_preset_aria": "TTSプロバイダーのプリセット",
   "svc.broker": "Broker",
   "svc.broker_hint": "MCP streamable-http",
   "svc.broker_type": "MCP streamable-http",

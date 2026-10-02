@@ -369,6 +369,7 @@ const en: Record<string, string> = {
   "endpoints.stt_base_url.label": "Speech recognition (STT) server URL",
   "endpoints.stt_model.label": "STT model",
   "endpoints.tts_base_url.label": "Speech synthesis (TTS) server URL",
+  "endpoints.tts_model.label": "TTS model",
   "endpoints.broker_base_url.label": "Expression broker URL",
   "endpoints.chat_model.label": "Chat model",
 
@@ -394,7 +395,8 @@ const en: Record<string, string> = {
   "svc.stt_type": "OpenAI-compatible",
   "svc.tts": "TTS",
   "svc.tts_hint": "OpenAI-compatible",
-  "svc.tts_type": "OpenAI-compatible",
+  "svc.tts_type": "Provider",
+  "svc.tts_preset_aria": "TTS provider preset",
   "svc.broker": "Broker",
   "svc.broker_hint": "MCP streamable-http",
   "svc.broker_type": "MCP streamable-http",

@@ -1,6 +1,6 @@
 /**
  * Endpoints section — owns endpoint URL fields in the Connection tab, chat/STT/TTS API key rows (secret),
- * the Chat API (chat_api) dropdown, and per-service resets.
+ * the Chat API (chat_api) and TTS provider (tts_provider) dropdowns, and per-service resets.
  * Same pattern as VRM/speaker sections: explicit deps + wired from the connection tab. reflect (store→DOM)
  * handled by the tab's reflect; this module owns inputs, handlers, teardown only.
  */
@@ -23,6 +23,7 @@ import {
   CHATKEY_EYE_SVG,
   type ChatApi,
   ENDPOINT_FIELDS,
+  TTS_PROVIDER_PRESETS,
 } from "../constants";
 
 // Toggle invalid state for one URL field (empty value = no error). Shared by the tab's
@@ -99,6 +100,7 @@ export function createEndpointsSection(deps: EndpointsSectionDeps): EndpointsSec
   // Chat API dropdown (Connection tab) — optional: the push-only rows render no protocol selects.
   const chatTypeEl = el.querySelector<HTMLSelectElement>(".yui-chat-type");
   const chatPresetEl = el.querySelector<HTMLSelectElement>(".yui-chat-preset");
+  const ttsProviderEl = el.querySelector<HTMLSelectElement>(".yui-tts-provider")!;
 
   // Endpoint fields edited since their last commit — committed on change, panel close, or dispose.
   const dirtyEndpoints = new Set<keyof EndpointOverrides>();
@@ -226,6 +228,27 @@ export function createEndpointsSection(deps: EndpointsSectionDeps): EndpointsSec
     // Store subscription (unsubscribeEndpoints) calls reflect.reflectChatPreset to re-derive the selected preset.
   }
 
+  // ── TTS section: provider dropdown (tts_provider + tts_base_url/tts_model autofill) ──
+  // One store write, so the voice list and vocabulary reload once for the switch. A row the
+  // section does not render (the phone's model) still takes the preset's value.
+  function handleTtsProviderChange(): void {
+    const preset = TTS_PROVIDER_PRESETS.find((p) => p.id === ttsProviderEl.value);
+    if (!preset) return;
+    endpointsSettings.set({
+      tts_provider: preset.id,
+      tts_base_url: preset.url,
+      tts_model: preset.model,
+    });
+    for (const key of ["tts_base_url", "tts_model"] as const) {
+      const input = epInputs.get(key);
+      if (!input) continue;
+      input.value = endpointsSettings.get()[key];
+      dirtyEndpoints.delete(key);
+      validateEndpointInput(key, input);
+    }
+    log.info("tts_provider_select", { provider: preset.id });
+  }
+
   // ── Endpoints section ──
 
   function endpointKeyOf(e: Event): keyof EndpointOverrides | null {
@@ -295,6 +318,7 @@ export function createEndpointsSection(deps: EndpointsSectionDeps): EndpointsSec
   // ── Wiring ──
   chatTypeEl?.addEventListener("change", handleChatTypeChange);
   chatPresetEl?.addEventListener("change", handleChatPresetChange);
+  ttsProviderEl.addEventListener("change", handleTtsProviderChange);
   for (const input of epInputs.values()) {
     input.addEventListener("input", handleEndpointInput);
     input.addEventListener("change", handleEndpointChange);
@@ -318,6 +342,7 @@ export function createEndpointsSection(deps: EndpointsSectionDeps): EndpointsSec
     commitDirtyEndpoints();
     chatTypeEl?.removeEventListener("change", handleChatTypeChange);
     chatPresetEl?.removeEventListener("change", handleChatPresetChange);
+    ttsProviderEl.removeEventListener("change", handleTtsProviderChange);
     for (const input of epInputs.values()) {
       input.removeEventListener("input", handleEndpointInput);
       input.removeEventListener("change", handleEndpointChange);
