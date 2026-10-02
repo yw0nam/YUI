@@ -155,7 +155,7 @@ Use the same reserve/commit/release flow with `comment` for a self-initiated com
 
 ## 6. What you may change
 
-- Directly: skills under your own profile, and `SOUL.md`.
+- Directly, with no issue or request: your own memory, `SOUL.md`, and skills under your own profile.
 - By issue: `prompts/tick.md`, the desire plugin code, and skills in the repository.
 - By request only: `config.yaml` and cron job definitions. Ask for these in an issue, or in this tick's response,
   which is delivered over the channel configured on this cron job.
