@@ -113,6 +113,37 @@ describe("wireBroker", () => {
     expect(vi.mocked(loadEmotionTextTable)).toHaveBeenCalledWith({ provider: "irodori" });
   });
 
+  it("loads no emoji table for a provider other than irodori — the vocabulary is free", async () => {
+    const { deps, onVocabularyChange } = makeDeps({ broker_base_url: "", tts_provider: "openai" });
+    const handle = await wireBroker(deps);
+    deriveBrokerPayload.mockClear();
+
+    handle.vocabulary();
+
+    expect(vi.mocked(loadEmotionTextTable)).not.toHaveBeenCalled();
+    expect(deriveBrokerPayload).toHaveBeenCalledWith(expect.anything(), null, expect.anything());
+    expect(onVocabularyChange).toHaveBeenCalled();
+  });
+
+  // The reconciler reloads through this loader on a provider switch, so it reads the live provider.
+  it("hands the reconciler a loader that follows the live provider", async () => {
+    const endpoints: Record<string, unknown> = { broker_base_url: "", tts_provider: "irodori" };
+    const { deps } = makeDeps(endpoints);
+    await wireBroker(deps);
+    const [reconcilerOpts] = createReconciler.mock.calls.at(-1) as unknown as [
+      { loadTable: () => Promise<unknown> },
+    ];
+    vi.mocked(loadEmotionTextTable).mockClear();
+
+    endpoints.tts_provider = "openai";
+    expect(await reconcilerOpts.loadTable()).toBeNull();
+    expect(vi.mocked(loadEmotionTextTable)).not.toHaveBeenCalled();
+
+    vi.mocked(loadEmotionTextTable).mockResolvedValueOnce({ "😆": "Laugh" });
+    endpoints.tts_provider = "irodori";
+    expect(await reconcilerOpts.loadTable()).toEqual({ "😆": "Laugh" });
+  });
+
   it("degrades to a null table when the emotion_text load fails, without throwing into boot", async () => {
     vi.mocked(loadEmotionTextTable).mockRejectedValueOnce(new Error("missing file"));
     const { deps } = makeDeps({ broker_base_url: "http://localhost:3201" });

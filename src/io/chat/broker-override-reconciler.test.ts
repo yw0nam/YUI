@@ -147,3 +147,75 @@ describe("createBrokerOverrideReconciler — broker_base_url change", () => {
     await expect(reconciler.onChange()).resolves.toBeUndefined();
   });
 });
+
+describe("createBrokerOverrideReconciler — tts_provider change", () => {
+  // Mirrors the real loader: the emoji table exists only for Irodori.
+  const loadFor = (eff: () => EndpointsConfig) =>
+    vi.fn(async () => (eff().tts_provider === "openai" ? null : { "😆": "Laugh" }));
+  const modeOf = (_eff: EndpointsConfig, table: Record<string, string> | null): BrokerPayload => ({
+    emotionIds: [],
+    motionIds: [],
+    emotionText: table ? { mode: "enum", table } : { mode: "free", table: null },
+  });
+
+  it("republishes enum → free → enum across irodori → openai → irodori with the URL unchanged", async () => {
+    const broker = fakeBroker();
+    let provider: EndpointsConfig["tts_provider"] = "irodori";
+    const eff = () => endpoints({ tts_provider: provider });
+    const reconciler = createBrokerOverrideReconciler({
+      getEffectiveEndpoints: eff,
+      getBroker: () => broker,
+      setBroker: vi.fn(),
+      createBroker: vi.fn(),
+      loadTable: loadFor(eff),
+      derivePayload: modeOf,
+    });
+
+    provider = "openai";
+    await reconciler.onChange();
+    provider = "irodori";
+    await reconciler.onChange();
+
+    const modes = broker.publish.mock.calls.map(([p]) => (p as BrokerPayload).emotionText.mode);
+    expect(modes).toEqual(["free", "enum"]);
+    expect(broker.dispose).not.toHaveBeenCalled();
+  });
+
+  it("reloads the table on a provider change with no broker configured", async () => {
+    let provider: EndpointsConfig["tts_provider"] = "irodori";
+    const eff = () => endpoints({ broker_base_url: "", tts_provider: provider });
+    const loadTable = loadFor(eff);
+    const reconciler = createBrokerOverrideReconciler({
+      getEffectiveEndpoints: eff,
+      getBroker: () => null,
+      setBroker: vi.fn(),
+      createBroker: vi.fn(),
+      loadTable,
+      derivePayload: modeOf,
+    });
+
+    provider = "openai";
+    await reconciler.onChange();
+
+    expect(loadTable).toHaveBeenCalledOnce();
+  });
+
+  it("leaves the table alone when an endpoints change moves neither the URL nor the provider", async () => {
+    const eff = () => endpoints({ tts_provider: "openai", tts_model: "gpt-4o-mini-tts" });
+    const loadTable = loadFor(eff);
+    const broker = fakeBroker();
+    const reconciler = createBrokerOverrideReconciler({
+      getEffectiveEndpoints: eff,
+      getBroker: () => broker,
+      setBroker: vi.fn(),
+      createBroker: vi.fn(),
+      loadTable,
+      derivePayload: modeOf,
+    });
+
+    await reconciler.onChange();
+
+    expect(loadTable).not.toHaveBeenCalled();
+    expect(broker.publish).not.toHaveBeenCalled();
+  });
+});
