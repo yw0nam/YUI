@@ -90,7 +90,8 @@ curl -sS -o /dev/null -w '%{http_code}\n' -X POST "$YUI_SIGNALS_URL/signals" \
   -H 'content-type: application/json' --data '{"signals":[]}'
 ```
 
-Done when: the command prints `200`.
+Done when: the command prints `200`. A connection error here means YUI is closed, or, for a
+producer on another machine, the tunnel from step 4 is down; settle step 4 first in that case.
 
 ### 2. Confirm the loop with a fixture
 
@@ -139,7 +140,8 @@ Done when: the list holds every source the user named, each with all four answer
 Ask the delivery time. The group waits in the away buffer, so a run ahead of the user's
 first activity arrives with their first present tick.
 
-Ask which machine runs the producer. YUI listens on loopback only, so a producer on
+Ask the user which machine runs YUI, and settle which machine runs the producer. The
+machine the agent itself runs on is not necessarily YUI's. YUI listens on loopback only, so a producer on
 another machine needs a tunnel that forwards a loopback port there to YUI's listener
 port, opened from the YUI machine:
 
@@ -272,9 +274,13 @@ List the scheduler's entries (`crontab -l` on cron) and confirm each point:
 4. One entry runs `post-briefing.py --flush` every five minutes.
 5. The jobs carry `TZ=<user zone>`, such as `TZ=Asia/Seoul`, when the machine's time zone
    differs from the user's.
-6. At most five producer runs fall between the user's sessions; otherwise merge producers
-   into one gather script, as step 6 allows.
-7. A producer on another machine has the tunnel from step 4 up.
+6. At most five producer runs fall between the user's sessions. When more fall, ask the
+   user whether to merge producers into one gather script, as step 6 allows, or to move
+   runs, and leave the schedule as it is until they answer.
+7. The user has said which machine runs YUI. When it is not the producer's machine,
+   `YUI_SIGNALS_URL` points at the tunnel's loopback port and the tunnel from step 4 is
+   up. A `YUI_SIGNALS_URL` port that differs from the Listener port in YUI's settings marks
+   this setup.
 
 When `~/.local/state/yui-daily-briefing/backlog.json` exists on the producer's machine,
 delete it and tell the user that the refs it holds are not carried into the spool.
