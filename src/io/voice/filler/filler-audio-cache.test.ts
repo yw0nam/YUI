@@ -46,6 +46,17 @@ describe("createFillerAudioCache", () => {
     expect(new Uint8Array(second)).toEqual(new Uint8Array(first));
   });
 
+  // The voice tag rides beside the input and the cache key carries none, so a tagged sentence
+  // that matches a filler phrase is synthesized live, tag included, and never stored.
+  it("synthesizes a voice-tagged filler sentence live with its tag", async () => {
+    const { synth, cache, cached } = setup();
+
+    await cached("음...", undefined, { emotion_text: "😆" });
+
+    expect(synth).toHaveBeenCalledWith("음...", undefined, { emotion_text: "😆" });
+    expect(cache.has("음...")).toBe(false);
+  });
+
   it("forwards the abort signal on a miss", async () => {
     const { synth, cached } = setup();
     const signal = new AbortController().signal;
