@@ -37,7 +37,8 @@ export function speakerPickerHtml(): string {
           </div>
           <div class="yui-spk-foot">
             <div class="yui-spk-manual" hidden>
-              <span class="yui-input-wrap"><input class="yui-ep-input" type="text" aria-label="${t("speaker.manual_aria")}" placeholder="${t("speaker.manual_placeholder")}" spellcheck="false" autocomplete="off" /></span>
+              <span class="yui-input-wrap"><input class="yui-ep-input" type="text" aria-label="${t("speaker.manual_aria")}" placeholder="${t("speaker.manual_placeholder")}" spellcheck="false" autocomplete="off" aria-invalid="false" /></span>
+              <p class="yui-spk-manual__error" role="status">${t("speaker.manual_invalid")}</p>
             </div>
             <button class="yui-spk yui-spk--add is-ready" type="button">
               <span class="yui-spk__tick" aria-hidden="true"></span>
@@ -70,7 +71,9 @@ interface SpeakerListDeps {
   removeVoice: (id: string) => Promise<void>;
   /** Whether the TTS provider takes imported voices — off hides delete/re-upload and disables import. */
   canManageVoices: () => boolean;
-  /** Whether the provider speaks any voice id — on shows the paste-a-voice-id field. */
+  /** Whether the TTS provider takes a clip again under the voice's own id — off hides re-upload. */
+  canReuploadVoices: () => boolean;
+  /** On shows the paste-a-voice-id field. */
   canPasteVoiceId: () => boolean;
   log: Logger;
   refreshTooltip: () => void;
@@ -99,6 +102,7 @@ export function createSpeakerList(deps: SpeakerListDeps): SpeakerList {
     commitVoiceImport,
     removeVoice,
     canManageVoices,
+    canReuploadVoices,
     canPasteVoiceId,
     log,
     isDisposed,
@@ -109,11 +113,15 @@ export function createSpeakerList(deps: SpeakerListDeps): SpeakerList {
   const spkManualEl = deps.root.querySelector<HTMLDivElement>(".yui-spk-manual")!;
   const spkManualInputEl = spkManualEl.querySelector<HTMLInputElement>(".yui-ep-input")!;
 
-  // Enter on the paste field — any library voice id synthesizes even when absent from the list.
-  // Ids the store cannot keep (path-ish characters) are refused outright.
+  // Enter on the paste field selects the id even when the list does not carry it. An id the store
+  // cannot keep (path-ish characters) marks the field invalid instead.
   function commitPastedVoiceId(): void {
     const id = spkManualInputEl.value.trim();
-    if (!id || !isSafeSanitizedId(id)) return;
+    if (!id) return;
+    const valid = isSafeSanitizedId(id);
+    spkManualEl.classList.toggle("is-invalid", !valid);
+    spkManualInputEl.setAttribute("aria-invalid", String(!valid));
+    if (!valid) return;
     if (!speakerSelection.list().some((o) => o.id === id)) {
       speakerSelection.addUserOption({ id, label: id, ref_url: "", source: "user" });
     }
@@ -265,9 +273,10 @@ export function createSpeakerList(deps: SpeakerListDeps): SpeakerList {
       const removeHtml = managed
         ? `<button class="yui-spk__remove" type="button" data-tip="${t("speaker.remove")}" aria-label="${t("speaker.remove")}">${SPK_REMOVE_SVG}<span class="yui-spk__remove-confirm">${t("speaker.remove_confirm")}</span></button>`
         : "";
-      const refreshHtml = managed
-        ? `<button class="yui-spk__refresh" type="button" data-tip="${t("speaker.refresh")}" ${hasClip ? "" : "disabled"}>${SPK_REFRESH_SVG}</button>`
-        : "";
+      const refreshHtml =
+        managed && canReuploadVoices()
+          ? `<button class="yui-spk__refresh" type="button" data-tip="${t("speaker.refresh")}" ${hasClip ? "" : "disabled"}>${SPK_REFRESH_SVG}</button>`
+          : "";
       row.innerHTML = `
         <span class="yui-spk__tick" aria-hidden="true"></span>
         <span class="yui-spk__body"><span class="yui-spk__name"></span></span>

@@ -119,12 +119,30 @@
   color: var(--yui-accent);
 }
 
-/* ── Paste-a-voice-id field — providers that speak any id (Fish library voices) ── */
+/* ── Paste-a-voice-id field ── */
 .yui-spk-manual {
   margin: 0 0.875rem 0.625rem;
 }
 
 .yui-spk-manual .yui-input-wrap {
+  display: block;
+}
+
+/* invalid — the field rows' warm-red border and wash, with the reason underneath */
+.yui-spk-manual.is-invalid .yui-input-wrap {
+  border-color: var(--yui-danger);
+  background: var(--yui-danger-faint);
+}
+
+.yui-spk-manual__error {
+  display: none;
+  margin: 0.375rem 0 0;
+  font-size: var(--yui-fs-sub);
+  line-height: 1.4;
+  color: var(--yui-danger);
+}
+
+.yui-spk-manual.is-invalid .yui-spk-manual__error {
   display: block;
 }
 

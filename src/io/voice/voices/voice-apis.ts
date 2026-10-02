@@ -15,12 +15,14 @@ import {
  * One list/import/delete bundle per provider. `upsert` resolves the server-assigned voice id when
  * the server names its own (Fish's trained models) and nothing otherwise.
  */
-interface VoiceApi {
+export interface VoiceApi {
   list: (opts: VoicesRequestOptions) => Promise<VoiceEntry[] | null>;
   /** Absent: the provider takes no uploaded voices, so import, delete and re-upload are off. */
   upsert?: (opts: UpsertVoiceOptions) => Promise<string | undefined>;
   remove?: typeof deleteVoice;
-  /** true: any voice id is synthesizable, not just listed ones — the panel offers a paste-id field. */
+  /** true: an upload keeps the caller's voice id, so a lost clip can be uploaded again under it. */
+  keepsId?: boolean;
+  /** true: the provider speaks any voice id, not just listed ones — the panel offers a paste-id field. */
   manualId?: boolean;
 }
 
@@ -47,6 +49,7 @@ export const VOICE_APIS: Partial<Record<TtsProviderName, VoiceApi>> = {
     list: async (opts) => (await listVoices(opts))?.map((id) => ({ id })) ?? null,
     upsert: upsertVoice,
     remove: deleteVoice,
+    keepsId: true,
   },
   openai: { list: async () => OPENAI_VOICES.map((id) => ({ id })) },
   fish: { list: listFishVoices, upsert: upsertFishVoice, remove: deleteFishVoice, manualId: true },

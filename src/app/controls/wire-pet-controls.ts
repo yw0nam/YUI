@@ -50,6 +50,7 @@ export function wirePetControls(deps: {
     | "removeVoice"
     | "refreshVoiceList"
     | "canManageVoices"
+    | "canReuploadVoices"
     | "canPasteVoiceId"
   >;
   pushSocket: Pick<PushSocket, "getState" | "onState" | "sendReset" | "reconnectNow">;
@@ -93,6 +94,7 @@ export function wirePetControls(deps: {
     removeVoice,
     refreshVoiceList,
     canManageVoices,
+    canReuploadVoices,
     canPasteVoiceId,
   } = speaker;
   const {
@@ -186,6 +188,7 @@ export function wirePetControls(deps: {
       removeVoice,
       refreshVoiceList,
       canManageVoices,
+      canReuploadVoices,
       canPasteVoiceId,
       onGainPreview: (mouthOpen) => renderer.setMouthOpen(mouthOpen),
       onGainPreviewEnd: () => renderer.stopMouth(),

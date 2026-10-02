@@ -248,6 +248,7 @@ const en: Record<string, string> = {
   "speaker.import_overwrite_warn": "replaces the existing voice of this name",
   "speaker.manual_aria": "Paste a voice id",
   "speaker.manual_placeholder": "Paste a voice id…",
+  "speaker.manual_invalid": "Not a usable voice id",
   "speaker.loading": "Loading…",
   "speaker.swapping": "Switching…",
   "speaker.refreshing": "Refreshing…",

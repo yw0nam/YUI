@@ -172,9 +172,9 @@ The voice section lists OpenAI's 13 built-in voices: `alloy`, `ash`, `ballad`, `
 
 Fish Audio is a hosted service. Sign in at [https://fish.audio/](https://fish.audio/), create an API key, pick **Fish Audio** as the provider in the Connection tab's TTS section (the server URL becomes `https://api.fish.audio` and the model `s2.1-pro-free`), and paste the key into the TTS API key field.
 
-The model field takes any S2-family model id (`s1`, `s2-pro`, `s2.1-pro`, `s2.1-pro-free`, `drama-3-preview`); an unknown id falls back to `s2.1-pro` on Fish's side.
+The model field takes any S2-family model id (`s2-pro`, `s2.1-pro`, `s2.1-pro-free`, `drama-3-preview`); an unknown id falls back to `s2.1-pro` on Fish's side.
 
-The voice section lists the models in your Fish account (`GET /model?self=true`) by their titles. Importing an audio file uploads it as a new voice model (`POST /model`, fast training) and selects the model Fish creates; deleting a voice removes the model from your account. A voice from Fish's public library that is not in your list can still be used: paste its voice id into the field under the voice list and it becomes the active voice.
+The voice section lists the models in your Fish account (`GET /model?self=true`) by their titles. Importing an audio file uploads it as a new voice model (`POST /model`, fast training) and selects the model Fish creates; deleting a voice removes the model from your account. A voice from Fish's public library that is not in your list can still be used: paste its voice id into the field under the voice list and it becomes the active voice. Deleting a pasted voice only takes it off the list. Imported and pasted voices belong to the provider they were added under, so they are listed only while that provider is selected.
 
 YUI sends the spoken text as `text` to `POST <tts_base_url>/v1/tts` and the model as a `model` HTTP header. `emotion_text` and `caption` each ride as their own `[...]` bracket ahead of the sentence (S2 inline direction).
 

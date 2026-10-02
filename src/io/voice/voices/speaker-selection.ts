@@ -5,6 +5,8 @@
  * and resolves the active option.
  */
 
+import { TTS_PROVIDERS, ttsProviderOf } from "../../../config/tts-provider";
+import type { TtsProviderName } from "../../../contract";
 import { isSafeSanitizedId } from "../../assets/safe-id";
 import {
   createSelectionStore,
@@ -23,6 +25,8 @@ export interface SpeakerOption {
   /** Times this id's clip has been replaced by a same-name re-import — carried by the settings
    *  sync so other windows' filler cache invalidates. Absent for bundled/never-reimported voices. */
   revision?: number;
+  /** The TTS provider a user voice belongs to; only the active provider's user voices are listed. */
+  provider?: TtsProviderName;
 }
 
 /**
@@ -46,7 +50,8 @@ function synthesizeOption(defaultValue: string): SpeakerOption {
 }
 
 /** Coerces one imported option into a safe source:"user" SpeakerOption (null if incomplete).
- *  ref_url may be empty — a pasted library voice id carries no local clip. */
+ *  ref_url may be empty — a pasted library voice id carries no local clip. A stored option naming
+ *  no provider came from Irodori, the only provider that imported voices before providers existed. */
 function coerceUserSpeaker(v: unknown): SpeakerOption | null {
   if (typeof v !== "object" || v === null) return null;
   const o = v as Record<string, unknown>;
@@ -54,7 +59,10 @@ function coerceUserSpeaker(v: unknown): SpeakerOption | null {
   const refUrl = typeof o.ref_url === "string" ? o.ref_url : "";
   const label = typeof o.label === "string" && o.label.length > 0 ? o.label : o.id;
   const revision = typeof o.revision === "number" ? o.revision : undefined;
-  return { id: o.id, label, ref_url: refUrl, source: "user", revision };
+  const provider = (TTS_PROVIDERS as readonly unknown[]).includes(o.provider)
+    ? (o.provider as TtsProviderName)
+    : ttsProviderOf({});
+  return { id: o.id, label, ref_url: refUrl, source: "user", revision, provider };
 }
 
 export function createSpeakerSelection(opts: {
@@ -71,6 +79,9 @@ export function createSpeakerSelection(opts: {
     synthesize: synthesizeOption,
     coerceUser: coerceUserSpeaker,
     isDefault: (o, id) => o.id === id,
+    ownerKey: "provider",
+    // The live provider takes over once the voice list refresh reads the endpoints.
+    owner: ttsProviderOf({}),
   });
 }
 

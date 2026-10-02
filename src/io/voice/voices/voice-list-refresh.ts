@@ -23,11 +23,8 @@ type VoiceListEndpoints = {
 /** The slice of the speaker store the refresher touches. */
 interface SpeakerManifestTarget {
   listUser: () => SpeakerOption[];
-  setManifest: (manifest: {
-    available: SpeakerOption[];
-    defaultValue: string;
-    hideUser: boolean;
-  }) => void;
+  setOwner: (provider: TtsProviderName) => void;
+  setManifest: (manifest: { available: SpeakerOption[]; defaultValue: string }) => void;
 }
 
 export function createVoiceListRefresh(deps: {
@@ -54,10 +51,10 @@ export function createVoiceListRefresh(deps: {
       const provider = ttsProviderOf(eps);
       const api = VOICE_APIS[provider];
       if (!api) return;
-      // A provider that takes no uploads cannot speak a user import, so imports stay stored but unlisted.
-      const takesUploads = api.upsert !== undefined;
+      // User voices belong to the provider that made them; only the live provider's are listed.
+      speakerSelection.setOwner(provider);
       if (listedProvider !== undefined && provider !== listedProvider) {
-        speakerSelection.setManifest({ available: [], defaultValue: "", hideUser: !takesUploads });
+        speakerSelection.setManifest({ available: [], defaultValue: "" });
         listedProvider = provider;
       }
       const mine = ++generation;
@@ -79,24 +76,24 @@ export function createVoiceListRefresh(deps: {
       // collide as a "bundled" entry and the store's bundled-wins rule would strip the user's
       // richer option (label + asset:// ref_url). Exclude user-owned ids from the bundled manifest
       // instead. Read after the fetch, so an import that landed mid-flight is respected.
-      const userIds = new Set(takesUploads ? speakerSelection.listUser().map((o) => o.id) : []);
+      const own = speakerSelection.listUser().filter((o) => o.provider === provider);
+      const userIds = new Set(own.map((o) => o.id));
       speakerSelection.setManifest({
         available: voices
           .filter((v) => !userIds.has(v.id))
           .map((v) => ({ id: v.id, label: v.label ?? v.id, ref_url: "" })),
         defaultValue: defaultId,
-        hideUser: !takesUploads,
       });
       listedProvider = provider;
       // Self-heal: a user-imported voice lives on the server as a reference clip, and a server
       // restart or swap loses it — every synth then 400s ("Unknown voice"). The local clip is the
       // source of truth, so push it back up instead of leaving the selection silently broken.
-      // Only a provider that takes uploads gets one, so a provider switch never carries clips elsewhere.
-      if (reuploadUserVoice && takesUploads) {
-        const lost = speakerSelection
-          .listUser()
-          .filter((o) => o.ref_url.length > 0 && !listedIds.includes(o.id));
+      // Only the provider's own clips, and only where an upload keeps the id — anywhere else it
+      // would create a new voice each time.
+      if (reuploadUserVoice && api.keepsId) {
+        const lost = own.filter((o) => o.ref_url.length > 0 && !listedIds.includes(o.id));
         for (const option of lost) {
+          if (mine !== generation) break; // a later refresh owns the store now
           try {
             await reuploadUserVoice(option);
             log.info("voice_reuploaded", { id: option.id });

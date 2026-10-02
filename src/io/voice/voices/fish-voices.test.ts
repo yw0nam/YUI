@@ -222,6 +222,7 @@ describe("upsertFishVoice", () => {
 
     const id = await upsertFishVoice({
       baseUrl: BASE_URL,
+      id: "myvoice",
       name: "My Voice",
       refUrl: REF_URL,
       fetch: fetchMock as unknown as typeof fetch,
@@ -259,6 +260,7 @@ describe("upsertFishVoice", () => {
 
     await upsertFishVoice({
       baseUrl: BASE_URL,
+      id: "myvoice",
       name: "My Voice",
       refUrl: REF_URL,
       fetch: fetchMock as unknown as typeof fetch,
@@ -276,6 +278,7 @@ describe("upsertFishVoice", () => {
     await expect(
       upsertFishVoice({
         baseUrl: BASE_URL,
+        id: "myvoice",
         name: "My Voice",
         refUrl: REF_URL,
         fetch: fetchMock as unknown as typeof fetch,
@@ -290,6 +293,7 @@ describe("upsertFishVoice", () => {
     await expect(
       upsertFishVoice({
         baseUrl: BASE_URL,
+        id: "myvoice",
         name: "My Voice",
         refUrl: REF_URL,
         fetch: fetchMock as unknown as typeof fetch,
@@ -304,6 +308,7 @@ describe("upsertFishVoice", () => {
     await expect(
       upsertFishVoice({
         baseUrl: BASE_URL,
+        id: "myvoice",
         name: "My Voice",
         refUrl: REF_URL,
         fetch: fetchMock as unknown as typeof fetch,
@@ -318,6 +323,7 @@ describe("upsertFishVoice", () => {
     await expect(
       upsertFishVoice({
         baseUrl: BASE_URL,
+        id: "myvoice",
         name: "My Voice",
         refUrl: "",
         fetch: fetchMock as unknown as typeof fetch,

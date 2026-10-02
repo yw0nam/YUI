@@ -2,10 +2,10 @@
  * tts-synth.test.ts — the single TTS path: per-sentence HTTP call + the provider adapter.
  *
  * createTtsSynth({ provider, baseUrl, fetch?, model?, voice?, getApiKey? }) → (input, signal?, opts?) => ArrayBuffer.
- * POST {tts_base_url}/v1/audio/speech, body { input, response_format:"wav", ...model/voice, ...direction }.
- * The provider decides how emotion_text and caption ride: Irodori prefixes the emoji onto `input`
- * and sends `irodori.caption`; OpenAI joins both into `instructions`; Fish wraps each in brackets
- * and prepends them to `text` (POST /v1/tts, model as a header).
+ * The provider shapes the request. Irodori and OpenAI POST {tts_base_url}/v1/audio/speech with
+ * { input, response_format:"wav", model?, voice? }: Irodori prefixes the emoji onto `input` and sends
+ * `irodori.caption`; OpenAI joins both into `instructions`. Fish POSTs {tts_base_url}/v1/tts with
+ * the model as a header and { text, reference_id?, format:"wav" }, each cue in brackets ahead of `text`.
  * On non-2xx, throws an Error including status + (when JSON) error.message. On success, response.arrayBuffer().
  *
  * createTtsProvider binds that call to the live endpoints' provider + the active speaker id.

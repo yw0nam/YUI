@@ -132,6 +132,7 @@ describe("wireSpeakerSelection — refreshVoiceList", () => {
       label: "My Voice",
       ref_url: "asset://localhost/app-data/references/myvoice/clip.mp3",
       source: "user",
+      provider: "irodori",
     });
     // Untouched server-only id still lands as a normal server entry.
     expect(speakerSelection.list().find((o) => o.id === "ナツメ")).toEqual({
@@ -392,6 +393,7 @@ describe("wireSpeakerSelection — pickVoiceImport / commitVoiceImport", () => {
       ref_url: "asset://localhost/app-data/references/myvoice/clip.wav",
       source: "user",
       revision: 1,
+      provider: "irodori",
     });
     speakerSelection.dispose();
   });
@@ -573,7 +575,7 @@ describe("createEffectiveEndpoints", () => {
     });
     const refreshVoiceList = createVoiceListRefresh({
       getEndpoints,
-      speakerSelection: { listUser: () => [], setManifest: () => {} },
+      speakerSelection: { listUser: () => [], setManifest: () => {}, setOwner: () => {} },
       log: noopLog,
     });
 

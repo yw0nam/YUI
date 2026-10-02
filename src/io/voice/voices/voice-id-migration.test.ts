@@ -63,6 +63,7 @@ describe("migrateUserVoiceIds", () => {
         ref_url: `asset://localhost/app-data/references/${newId}/clip.wav`,
         source: "user",
         revision: 2,
+        provider: "irodori",
       },
     ]);
     expect(store.getActiveId()).toBe(newId);
@@ -87,7 +88,7 @@ describe("migrateUserVoiceIds", () => {
     await migrate(store, deps);
 
     expect(calls).toEqual([{ cmd: "remove_user_voice", args: { id: "芳乃" } }]);
-    expect(persisted()).toEqual([current]);
+    expect(persisted()).toEqual([{ ...current, provider: "irodori" }]);
     expect(override()).toBe(newId);
   });
 

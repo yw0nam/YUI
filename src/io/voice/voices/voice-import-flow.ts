@@ -19,6 +19,7 @@ import {
   fileStemFromPath,
   pickVoiceFile,
   removeUserVoice as removeUserVoiceFile,
+  renameUserVoice,
 } from "./voice-import";
 
 /** A picked-but-not-yet-copied import: the source file plus what to seed the naming row with. */
@@ -61,29 +62,43 @@ export function createVoiceImportFlow(deps: {
     const copied = await copyVoiceFile(srcPath, name);
     // A same-name re-import keeps the id but replaces the clip — bump the persisted revision so
     // the existing cross-window settings sync carries the change into other windows' filler cache key.
-    const option = { ...copied, revision: nextRevision(speakerSelection.list(), copied.id) };
+    let option: SpeakerOption & { source: "user" } = {
+      ...copied,
+      revision: nextRevision(speakerSelection.list(), copied.id),
+    };
     try {
       const eps = getEndpoints();
       if (!eps?.tts_base_url) throw new Error("voice import requires tts_base_url");
+      const baseUrl = eps.tts_base_url;
       const provider = ttsProviderOf(eps);
       const upsert = VOICE_APIS[provider]?.upsert;
       if (!upsert) throw new Error(`TTS provider "${provider}" takes no imported voices`);
       const f = await selectFetch();
-      // ref_url is an asset:// URL that reference-clip reads through the webview fetch. A server
-      // that names its own models (Fish) hands back the id the option must carry from here on.
+      // ref_url is an asset:// URL that reference-clip reads through the webview fetch.
       const serverId = await upsert({
-        baseUrl: eps.tts_base_url,
-        id: option.id,
-        name: option.label,
-        refUrl: option.ref_url,
+        baseUrl,
+        id: copied.id,
+        name: copied.label,
+        refUrl: copied.ref_url,
         fetch: f,
         getApiKey,
         logger: log,
       });
-      if (typeof serverId === "string" && serverId) option.id = serverId;
+      // The voice now lives on the server it was uploaded to; a switch away during the upload
+      // leaves the store to the new server.
+      const live = getEndpoints();
+      if (!live || ttsProviderOf(live) !== provider || live.tts_base_url !== baseUrl) {
+        log.warn("voice_import_superseded", { provider, id: serverId ?? copied.id });
+        return;
+      }
+      option = { ...option, provider };
+      // A server that names its own models (Fish) gets the clip folder moved to that id.
+      if (serverId && serverId !== copied.id) {
+        option = { ...option, id: serverId, ref_url: await renameUserVoice(copied.id, serverId) };
+      }
     } catch (err) {
       // Surface a cleanup failure as a warning rather than swallowing it (the original still throws).
-      await removeOrphanImport(option.id, removeUserVoiceFile, (e) =>
+      await removeOrphanImport(copied.id, removeUserVoiceFile, (e) =>
         log.warn("orphan_voice_cleanup_failed", { error: String(e) }),
       );
       log.error("imported_voice_upload_failed", { error: String(err) });

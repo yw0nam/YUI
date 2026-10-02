@@ -22,7 +22,7 @@ export interface VoicesRequestOptions {
   logger?: Logger;
 }
 
-async function authHeaders(
+export async function authHeaders(
   getApiKey: (() => Promise<string | undefined>) | undefined,
 ): Promise<Record<string, string>> {
   const key = (await getApiKey?.())?.trim() || undefined;

@@ -14,18 +14,20 @@ describe("speaker selection domain preset", () => {
     ]);
   });
 
-  it("coerces valid imports and forces source user", () => {
+  it("coerces valid imports, forces source user and reads a missing provider as irodori", () => {
     vi.stubGlobal("localStorage", {
       getItem: () =>
         JSON.stringify([
           { id: "a.b", ref_url: "/a.mp3", source: "bundled" },
           { id: "ナツメ", label: "Natsume", ref_url: "/n.mp3" },
+          { id: "model9", ref_url: "/m.mp3", provider: "fish" },
         ]),
     });
 
     expect(localStorageUserSpeakerStorage().load()).toEqual([
-      { id: "a.b", label: "a.b", ref_url: "/a.mp3", source: "user" },
-      { id: "ナツメ", label: "Natsume", ref_url: "/n.mp3", source: "user" },
+      { id: "a.b", label: "a.b", ref_url: "/a.mp3", source: "user", provider: "irodori" },
+      { id: "ナツメ", label: "Natsume", ref_url: "/n.mp3", source: "user", provider: "irodori" },
+      { id: "model9", label: "model9", ref_url: "/m.mp3", source: "user", provider: "fish" },
     ]);
   });
 
@@ -51,7 +53,7 @@ describe("speaker selection domain preset", () => {
     });
 
     expect(localStorageUserSpeakerStorage().load()).toEqual([
-      { id: "lib-voice", label: "lib-voice", ref_url: "", source: "user" },
+      { id: "lib-voice", label: "lib-voice", ref_url: "", source: "user", provider: "irodori" },
     ]);
   });
 
