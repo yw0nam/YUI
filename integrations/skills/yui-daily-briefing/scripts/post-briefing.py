@@ -191,7 +191,7 @@ def main():
         return 0
     for entry_path, item in entries:
         write_item(entry_path, item)
-    status = deliver(url, pending(spool), args.source, quiet=args.flush)
+    status = deliver(url, pending(spool), args.source, quiet=args.flush or bool(reason))
     if reason:
         print(reason, file=sys.stderr)
         return 1
