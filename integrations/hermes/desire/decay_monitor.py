@@ -382,22 +382,25 @@ def run(now: datetime) -> str:
 
         score_artefacts(state_dir, now, observed)
 
-        remaining_signals = max(0, desire_state.CAPS["signals"] - budget["signals"])
-        remaining_issues = max(0, desire_state.CAPS["issues"] - budget["issues"])
-        remaining_comments = max(0, desire_state.CAPS["self_comments"] - budget["self_comments"])
-        remaining_prs = max(0, desire_state.CAPS["prs"] - budget["prs"])
         return (
             f"social:{latched['social']} "
             f"curiosity:{latched['curiosity']} "
             f"accomplishment:{latched['accomplishment']} "
             f"outbox:{outbox_summary} "
             f"transport:{transport['state']} "
-            f"budget:{remaining_signals}/3sig {remaining_issues}/2iss {remaining_comments}/1cmt "
-            f"{remaining_prs}/{desire_state.CAPS['prs']}pr "
+            f"budget:{_budget_tokens(budget)} "
             f"day:{desire_state.wake_day(now)} "
             f"rises:{rises} "
             f"starved:{starved['social']}/{starved['curiosity']}/{starved['accomplishment']}\n"
         )
+
+
+def _budget_tokens(used: dict) -> str:
+    """Print each cap as remaining over its daily total."""
+
+    caps = desire_state.CAPS
+    units = (("signals", "sig"), ("issues", "iss"), ("self_comments", "cmt"), ("prs", "pr"))
+    return " ".join(f"{max(0, caps[key] - used.get(key, 0))}/{caps[key]}{unit}" for key, unit in units)
 
 
 def _fallback_summary() -> str:
@@ -409,7 +412,7 @@ def _fallback_summary() -> str:
         day = "unknown"
     return (
         "social:low curiosity:mid accomplishment:mid outbox:0 transport:down "
-        f"budget:3/3sig 2/2iss 1/1cmt 0/0pr day:{day} rises:0 starved:0/0/0\n"
+        f"budget:{_budget_tokens({})} day:{day} rises:0 starved:0/0/0\n"
     )
 
 
