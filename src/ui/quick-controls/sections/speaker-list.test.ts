@@ -72,6 +72,17 @@ describe("speaker list — paste-a-voice-id field", () => {
     expect(speakerSelection.listUser()).toEqual([]);
   });
 
+  it("refuses an id the store cannot keep", () => {
+    const { el, speakerSelection } = buildList(() => true);
+    const input = el.querySelector<HTMLInputElement>(".yui-spk-manual input")!;
+
+    input.value = "a/b";
+    input.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true }));
+
+    expect(speakerSelection.listUser()).toEqual([]);
+    expect(speakerSelection.getActiveId()).toBe("natsume");
+  });
+
   it("re-committing an id that is already listed selects it without duplicating the option", () => {
     const { el, speakerSelection } = buildList(() => true);
     const input = el.querySelector<HTMLInputElement>(".yui-spk-manual input")!;

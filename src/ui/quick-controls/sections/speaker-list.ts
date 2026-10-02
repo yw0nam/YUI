@@ -7,7 +7,7 @@
  */
 import "./speaker-list.css";
 
-import { voiceIdFromName } from "../../../io/assets/safe-id";
+import { isSafeSanitizedId, voiceIdFromName } from "../../../io/assets/safe-id";
 import { resolveReferenceClipUrl } from "../../../io/voice/voices/reference-clip";
 import type {
   createSpeakerSelection,
@@ -110,9 +110,10 @@ export function createSpeakerList(deps: SpeakerListDeps): SpeakerList {
   const spkManualInputEl = spkManualEl.querySelector<HTMLInputElement>(".yui-ep-input")!;
 
   // Enter on the paste field — any library voice id synthesizes even when absent from the list.
+  // Ids the store cannot keep (path-ish characters) are refused outright.
   function commitPastedVoiceId(): void {
     const id = spkManualInputEl.value.trim();
-    if (!id) return;
+    if (!id || !isSafeSanitizedId(id)) return;
     if (!speakerSelection.list().some((o) => o.id === id)) {
       speakerSelection.addUserOption({ id, label: id, ref_url: "", source: "user" });
     }
