@@ -84,6 +84,13 @@ describe("createGenerateExpressTool — definition", () => {
     expect(description).toMatch(/omit/i);
   });
 
+  // Every TTS provider reads the caption, so it names no provider's preferred language.
+  it("caption's description names no language", () => {
+    const caption = createGenerateExpressTool(vocab()).definition.function.parameters.properties
+      .caption as Record<string, unknown>;
+    expect(String(caption.description)).not.toMatch(/japanese/i);
+  });
+
   it("enum mode with no table falls back to free text", () => {
     const tool = createGenerateExpressTool(vocab({ emotionText: { mode: "enum", table: null } }));
     const props = tool.definition.function.parameters.properties;

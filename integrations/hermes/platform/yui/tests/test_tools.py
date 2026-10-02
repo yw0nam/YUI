@@ -46,6 +46,11 @@ def test_a_cue_names_the_sentence_it_is_placed_before():
     assert "opening words" in fields["properties"]["sentence"]["description"]
 
 
+def test_the_caption_description_names_no_language():
+    caption = cues_property(Vocabulary())["items"]["properties"]["caption"]
+    assert "japanese" not in caption["description"].lower()
+
+
 def test_the_description_asks_for_one_call_per_reply():
     description = tools.build_schema(Vocabulary())["description"]
     assert "once per reply" in description

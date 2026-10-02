@@ -46,6 +46,10 @@ describe("configs/endpoints.json", () => {
     expect(ep.chat_instructions).toContain("emotion_text");
   });
 
+  it("keeps chat_instructions provider-neutral: no preferred caption language", () => {
+    expect(ep.chat_instructions).not.toMatch(/japanese/i);
+  });
+
   it("passes the real endpoints config through validation", () => {
     expect(() => validateEndpoints("configs/endpoints.json", ep)).not.toThrow();
   });
