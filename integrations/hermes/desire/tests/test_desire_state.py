@@ -78,7 +78,6 @@ def test_bootstrap_creates_all_defaults(state_dir, at, state_helpers):
         "issues": 0,
         "self_comments": 0,
         "prs": 0,
-        "dispatches": 0,
         "events": {},
         "pending": {},
     }

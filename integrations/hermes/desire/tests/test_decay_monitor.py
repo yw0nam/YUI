@@ -46,7 +46,7 @@ def test_bootstrap_stdout_is_golden_and_has_one_newline(state_dir, at):
     output = decay_monitor.run(at("2026-08-25T09:00:00+09:00"))
     assert output.encode() == (
         b"social:low curiosity:mid accomplishment:mid outbox:0 transport:down "
-        b"budget:3/3sig 2/2iss 1/1cmt 1/1pr day:2026-08-25 rises:0 starved:0/0/0\n"
+        b"budget:3/3sig 2/2iss 1/1cmt 0/0pr day:2026-08-25 rises:0 starved:0/0/0\n"
     )
     assert output.endswith("\n")
     assert not output.endswith("\n\n")
@@ -86,7 +86,7 @@ def test_normal_stdout_is_golden_and_persists_reanchored_levels(state_dir, at, s
 
     assert (
         output == "social:high curiosity:mid accomplishment:high outbox:1/fresh transport:down "
-        "budget:2/3sig 1/2iss 0/1cmt 1/1pr day:2026-08-25 rises:2 starved:0/0/0\n"
+        "budget:2/3sig 1/2iss 0/1cmt 0/0pr day:2026-08-25 rises:2 starved:0/0/0\n"
     )
     drives = read_json(state_dir / "drives.json")
     assert drives["curiosity"] == {"level": 43.0, "anchor_at": now.isoformat()}
@@ -108,7 +108,7 @@ def test_boundary_stdout_bytes(state_dir, at, state_helpers):
     )
     assert decay_monitor.run(now) == (
         "social:mid curiosity:mid accomplishment:high outbox:0 transport:down "
-        "budget:3/3sig 2/2iss 1/1cmt 1/1pr day:2026-08-25 rises:2 starved:0/0/0\n"
+        "budget:3/3sig 2/2iss 1/1cmt 0/0pr day:2026-08-25 rises:2 starved:0/0/0\n"
     )
 
 
@@ -429,7 +429,7 @@ def test_used_budget_midnight_reset_changes_stdout(state_dir, at, state_helpers)
     before_output = decay_monitor.run(before)
     after_output = decay_monitor.run(at("2026-08-26T00:00:00+09:00"))
     assert before_output != after_output
-    assert after_output.endswith("budget:3/3sig 2/2iss 1/1cmt 1/1pr day:2026-08-25 rises:0 starved:0/0/0\n")
+    assert after_output.endswith("budget:3/3sig 2/2iss 1/1cmt 0/0pr day:2026-08-25 rises:0 starved:0/0/0\n")
     assert read_json(state_dir / "budget.json")["date"] == "2026-08-26"
 
 
@@ -576,7 +576,7 @@ def test_monitor_reaps_outbox_item_with_invalid_surfaced_at(state_dir, at, state
 
     assert output == (
         "social:low curiosity:mid accomplishment:mid outbox:1/fresh transport:down "
-        "budget:3/3sig 2/2iss 1/1cmt 1/1pr day:2026-08-25 rises:0 starved:0/0/0\n"
+        "budget:3/3sig 2/2iss 1/1cmt 0/0pr day:2026-08-25 rises:0 starved:0/0/0\n"
     )
     assert [value["id"] for value in read_jsonl(state_dir / "outbox.jsonl")] == ["valid"]
     assert read_jsonl(state_dir / "audit.jsonl")[-1] == {
@@ -597,7 +597,7 @@ def test_monitor_main_emits_valid_fallback_summary_on_unexpected_failure(monkeyp
     captured = capsys.readouterr()
     assert re.fullmatch(
         r"social:low curiosity:mid accomplishment:mid outbox:0 transport:down "
-        r"budget:3/3sig 2/2iss 1/1cmt 1/1pr day:\d{4}-\d{2}-\d{2} rises:0 starved:0/0/0\n",
+        r"budget:3/3sig 2/2iss 1/1cmt 0/0pr day:\d{4}-\d{2}-\d{2} rises:0 starved:0/0/0\n",
         captured.out,
     )
 
@@ -613,7 +613,7 @@ def test_monitor_main_falls_back_when_clock_read_fails(monkeypatch, capsys):
     assert decay_monitor.main() is None
     assert capsys.readouterr().out == (
         "social:low curiosity:mid accomplishment:mid outbox:0 transport:down "
-        "budget:3/3sig 2/2iss 1/1cmt 1/1pr day:unknown rises:0 starved:0/0/0\n"
+        "budget:3/3sig 2/2iss 1/1cmt 0/0pr day:unknown rises:0 starved:0/0/0\n"
     )
 
 
@@ -1503,7 +1503,7 @@ def test_monitor_run_derives_from_the_profile_and_prints_the_summary_when_a_sour
 
     assert output == (
         "social:low curiosity:mid accomplishment:mid outbox:0 transport:down "
-        "budget:3/3sig 2/2iss 1/1cmt 1/1pr day:2026-08-25 rises:0 starved:0/0/0\n"
+        "budget:3/3sig 2/2iss 1/1cmt 0/0pr day:2026-08-25 rises:0 starved:0/0/0\n"
     )
     assert [event["source"] for event in audited(state_dir, "derive_failed")] == ["pr", "issue"]
     assert read_json(state_dir / "artefacts.json")["seen"]["skill"] == ["mcp/known"]
