@@ -261,8 +261,9 @@ An agent that already runs briefing producers checks its schedule against steps 
    `/signals`. Delete a flush entry. A variable line reaches only the entries of its own
    schedule, so a `YUI_SIGNALS_URL=` line stays only while another entry of that schedule
    uses it; other software reading a variable of the same name elsewhere does not count.
-   A tunnel to YUI's listener port can serve other software on the machine; ask the user
-   before removing it.
+   The line and a tunnel to YUI's listener port are independent: removing the line leaves
+   the tunnel running. The tunnel can serve other software on the machine; ask the user
+   before removing the tunnel.
 3. Every job sees `YUI_BRIEFING_SPOOL`, and the path is absolute and the one the user
    chose. When no spool was chosen yet, settle it as in step 6. The environment your
    own shell commands run in holds the same value, as in step 6.
