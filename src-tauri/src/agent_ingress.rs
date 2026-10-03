@@ -599,15 +599,6 @@ mod tests {
     }
 
     #[test]
-    fn parse_request_agent_done_route_removed_returns_400() {
-        // /agent-done is deleted, not aliased — no backward compat.
-        assert_eq!(
-            parse_request("POST", "/agent-done", valid_body()).unwrap_err(),
-            400
-        );
-    }
-
-    #[test]
     fn parse_request_malformed_json_returns_400() {
         assert_eq!(
             parse_request("POST", "/agent-event", "not json").unwrap_err(),
@@ -762,7 +753,7 @@ mod tests {
     #[test]
     fn parse_signals_request_wrong_path_returns_400() {
         assert_eq!(
-            parse_signals_request("POST", "/agent-done", valid_signals_body()).unwrap_err(),
+            parse_signals_request("POST", "/other", valid_signals_body()).unwrap_err(),
             400
         );
     }
