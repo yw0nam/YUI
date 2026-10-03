@@ -5,7 +5,6 @@
  * The Connection tab reflects its own endpoints; this layer covers the rest of the panel.
  */
 
-import { FILLER_LANGS } from "../../config/load";
 import type { DelegationItem, PushSocketState } from "../../io/chat/push-socket";
 import type { createSessionDiagnosticsStore } from "../../io/chat/session-diagnostics";
 import type { createAgentNotifySettings } from "../../settings/backend/agent-notify-settings";
@@ -20,7 +19,6 @@ import type {
 } from "../../settings/capture/screen-settings";
 import type { createScreenshotSettings } from "../../settings/capture/screenshot-settings";
 import type { ClampedIntSettingsStore } from "../../settings/persisted-store";
-import type { createFillerSettings } from "../../settings/voice/filler-settings";
 import {
   type createVadSettings,
   VAD_SILENCE_MAX,
@@ -38,7 +36,6 @@ import {
   SCREEN_MIN_GAP_MIN,
   type ScreenKnobFieldDef,
 } from "./constants";
-import { serializeToolLines } from "./sections/filler/filler-tool-lines";
 import type { SwitchRow } from "./switch-row";
 import { reflectSwitchRows } from "./switches/switch-rows";
 
@@ -59,7 +56,6 @@ interface ReflectDeps {
   agentNotifySettings?: ReturnType<typeof createAgentNotifySettings>;
   vad: ReturnType<typeof createVadSettings>;
   agentSettings: ReturnType<typeof createAgentSettings>;
-  fillerSettings?: ReturnType<typeof createFillerSettings>;
   sessionDiagnostics?: ReturnType<typeof createSessionDiagnosticsStore>;
   /** Push socket state while push chat is the effective mode; undefined otherwise. */
   getPushState?: () => PushSocketState | undefined;
@@ -90,7 +86,6 @@ export interface Reflect {
   reflectScreen(): void;
   reflectVad(): void;
   reflectAgent(): void;
-  reflectFiller(): void;
   reflectLanguage(): void;
   reflectSession(): void;
   reflectDelegations(): void;
@@ -105,7 +100,6 @@ export function createReflect(deps: ReflectDeps): Reflect {
     agentNotifySettings,
     vad,
     agentSettings,
-    fillerSettings,
     sessionDiagnostics,
     getPushState,
     delegations,
@@ -128,26 +122,6 @@ export function createReflect(deps: ReflectDeps): Reflect {
   const segEl = root.querySelector<HTMLDivElement>(".yui-effort-seg")!;
   const segButtons = Array.from(segEl.querySelectorAll<HTMLButtonElement>(".yui-seg__btn"));
   const instructionsEl = root.querySelector<HTMLTextAreaElement>(".yui-textarea")!;
-  const fillerLangSegEl = root.querySelector<HTMLDivElement>(".yui-filler-lang-seg");
-  const fillerLangBtns = fillerLangSegEl
-    ? Array.from(fillerLangSegEl.querySelectorAll<HTMLButtonElement>(".yui-seg__btn"))
-    : [];
-  const fillerFirstTextareaEl = root.querySelector<HTMLTextAreaElement>(
-    ".yui-filler-first-textarea",
-  );
-  const fillerRepeatTextareaEl = root.querySelector<HTMLTextAreaElement>(
-    ".yui-filler-repeat-textarea",
-  );
-  const fillerLongWaitTextareaEl = root.querySelector<HTMLTextAreaElement>(
-    ".yui-filler-long-wait-textarea",
-  );
-  const fillerTimeoutTextareaEl = root.querySelector<HTMLTextAreaElement>(
-    ".yui-filler-timeout-textarea",
-  );
-  const fillerUnreachableTextareaEl = root.querySelector<HTMLTextAreaElement>(
-    ".yui-filler-unreachable-textarea",
-  );
-  const fillerToolTextareaEl = root.querySelector<HTMLTextAreaElement>(".yui-filler-tool-textarea");
   const langSegEl = root.querySelector<HTMLDivElement>(".yui-lang-seg")!;
   const langSegButtons = Array.from(langSegEl.querySelectorAll<HTMLButtonElement>(".yui-seg__btn"));
   const sessionStatEl = root.querySelector<HTMLDivElement>(".yui-session__stat");
@@ -264,29 +238,6 @@ export function createReflect(deps: ReflectDeps): Reflect {
     }
   }
 
-  // Thinking filler section — reflects store state onto UI.
-  function reflectFiller(): void {
-    if (!fillerSettings || !fillerLangSegEl || !fillerFirstTextareaEl || !fillerRepeatTextareaEl)
-      return;
-    const s = fillerSettings.get();
-    const idx = Math.max(0, FILLER_LANGS.indexOf(s.language));
-    fillerLangBtns.forEach((btn, i) => {
-      const selected = i === idx;
-      btn.setAttribute("aria-checked", String(selected));
-      btn.tabIndex = selected ? 0 : -1;
-    });
-    // Show current language's customPool, one tier per textarea (empty if not set).
-    const pool = s.customPools[s.language];
-    fillerFirstTextareaEl.value = (pool?.first ?? []).join("\n");
-    fillerRepeatTextareaEl.value = (pool?.repeat ?? []).join("\n");
-    if (fillerLongWaitTextareaEl)
-      fillerLongWaitTextareaEl.value = (pool?.long_wait ?? []).join("\n");
-    if (fillerTimeoutTextareaEl) fillerTimeoutTextareaEl.value = (pool?.timeout ?? []).join("\n");
-    if (fillerUnreachableTextareaEl)
-      fillerUnreachableTextareaEl.value = (pool?.unreachable ?? []).join("\n");
-    if (fillerToolTextareaEl) fillerToolTextareaEl.value = serializeToolLines(pool?.tool ?? {});
-  }
-
   // Language picker — reflects current display language onto selected seg.
   function reflectLanguage(): void {
     const idx = Math.max(0, LANG_PICKER_ORDER.indexOf(getLocale()));
@@ -369,7 +320,6 @@ export function createReflect(deps: ReflectDeps): Reflect {
     reflectScreen,
     reflectVad,
     reflectAgent,
-    reflectFiller,
     reflectLanguage,
     reflectSession,
     reflectDelegations,

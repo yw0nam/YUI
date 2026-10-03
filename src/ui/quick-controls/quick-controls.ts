@@ -6,7 +6,7 @@
 
 import "./quick-controls.css";
 import "./controls.css";
-import { type AvatarOption, FILLER_LANGS } from "../../config/load";
+import type { AvatarOption } from "../../config/load";
 import type { GuideKey } from "../../contract";
 import type { createVrmSelection } from "../../io/assets/vrm-selection";
 import type { createChatHistoryStore } from "../../io/chat/chat-history-store";
@@ -65,14 +65,13 @@ import { createHistoryTab } from "./history/history-tab";
 import { createPopover } from "./popover";
 import { createReflect } from "./reflect";
 import { createAgentSection } from "./sections/agent-section";
-import { parseToolLines, serializeToolLines } from "./sections/filler/filler-tool-lines";
+import { createFillerSection } from "./sections/filler/filler-section";
 import { bindHelpSection } from "./sections/help-section";
 import { createMonitorsSection } from "./sections/monitors-section";
 import { createReactionsSection } from "./sections/reactions-section";
 import { createScreenSection } from "./sections/screen-section";
 import { createSpeakerList, speakerPickerHtml } from "./sections/speaker-list";
 import { createWorkflowsSection } from "./sections/workflows-section";
-import { handleSegmentKeydown } from "./seg-keyboard";
 import { bindSlider } from "./slider-binding";
 import { createSwitchRows } from "./switch-row";
 import { bindSwitchRows } from "./switches/switch-rows";
@@ -360,25 +359,6 @@ export function createQuickControls({
   const messageBtn = el.querySelector<HTMLButtonElement>(".yui-iconbtn--message");
   const devtoolsBtn = el.querySelector<HTMLButtonElement>(".yui-devtools-open");
   const closeBtn = el.querySelector<HTMLButtonElement>(".yui-iconbtn--close");
-  // Thinking filler section node — exists only when fillerSettings is injected (null otherwise).
-  const fillerLangSegEl = el.querySelector<HTMLDivElement>(".yui-filler-lang-seg");
-  const fillerFirstTextareaEl = el.querySelector<HTMLTextAreaElement>(".yui-filler-first-textarea");
-  const fillerRepeatTextareaEl = el.querySelector<HTMLTextAreaElement>(
-    ".yui-filler-repeat-textarea",
-  );
-  const fillerLongWaitTextareaEl = el.querySelector<HTMLTextAreaElement>(
-    ".yui-filler-long-wait-textarea",
-  );
-  const fillerTimeoutTextareaEl = el.querySelector<HTMLTextAreaElement>(
-    ".yui-filler-timeout-textarea",
-  );
-  const fillerUnreachableTextareaEl = el.querySelector<HTMLTextAreaElement>(
-    ".yui-filler-unreachable-textarea",
-  );
-  const fillerToolTextareaEl = el.querySelector<HTMLTextAreaElement>(".yui-filler-tool-textarea");
-  const fillerLangBtns = fillerLangSegEl
-    ? Array.from(fillerLangSegEl.querySelectorAll<HTMLButtonElement>(".yui-seg__btn"))
-    : [];
 
   // ── Speaker picker — the shell keeps its lifecycle; the connection tab mounts the element. ──
   const speakerHost = document.createElement("div");
@@ -436,7 +416,6 @@ export function createQuickControls({
     agentNotifySettings,
     vad,
     agentSettings,
-    fillerSettings,
     sessionDiagnostics,
     // The session section's lost line follows the socket only while push chat is effective.
     ...(pushSocket
@@ -539,7 +518,7 @@ export function createQuickControls({
       reflect.reflectVoiceStatus(voiceStatus.get());
       reflect.reflectVad();
       reflect.reflectAgent();
-      reflect.reflectFiller();
+      filler.reflect();
       reflect.reflectLanguage();
       connectionTab.refresh();
       reflect.reflectSession();
@@ -596,6 +575,9 @@ export function createQuickControls({
     log,
   });
 
+  // ── Thinking filler section (language segment · phrase-pool textareas) ──
+  const filler = createFillerSection({ root: el, fillerSettings });
+
   // ── Event handlers ──
 
   function handleSwitchClick(): void {
@@ -605,71 +587,6 @@ export function createQuickControls({
     if (!current && !monitorsSection.isLoaded()) {
       void monitorsSection.load();
     }
-  }
-
-  // ── Thinking filler event handlers ──
-
-  // Parse textarea rows line-by-line (trim + remove empty lines).
-  function parseFillerLines(el: HTMLTextAreaElement | null): string[] {
-    if (!el) return [];
-    return el.value
-      .split("\n")
-      .map((l) => l.trim())
-      .filter((l) => l.length > 0);
-  }
-
-  // Move segment selection + focus. aria/tabindex updated by store subscription (reflectFiller).
-  function selectFillerLang(index: number, focus = false): void {
-    if (!fillerSettings) return;
-    const clamped = Math.min(FILLER_LANGS.length - 1, Math.max(0, index));
-    const lang = FILLER_LANGS[clamped];
-    fillerSettings.setLanguage(lang);
-    // When language changes, immediately update every textarea to new language's pool (before store subscription).
-    const pool = fillerSettings.get().customPools[lang];
-    if (fillerFirstTextareaEl) fillerFirstTextareaEl.value = (pool?.first ?? []).join("\n");
-    if (fillerRepeatTextareaEl) fillerRepeatTextareaEl.value = (pool?.repeat ?? []).join("\n");
-    if (fillerLongWaitTextareaEl)
-      fillerLongWaitTextareaEl.value = (pool?.long_wait ?? []).join("\n");
-    if (fillerTimeoutTextareaEl) fillerTimeoutTextareaEl.value = (pool?.timeout ?? []).join("\n");
-    if (fillerUnreachableTextareaEl)
-      fillerUnreachableTextareaEl.value = (pool?.unreachable ?? []).join("\n");
-    if (fillerToolTextareaEl) fillerToolTextareaEl.value = serializeToolLines(pool?.tool ?? {});
-    if (focus) fillerLangBtns[clamped]?.focus();
-  }
-
-  function handleFillerLangClick(e: MouseEvent): void {
-    const btn = (e.target as HTMLElement).closest<HTMLButtonElement>(".yui-seg__btn");
-    if (!btn) return;
-    const idx = fillerLangBtns.indexOf(btn);
-    if (idx < 0) return;
-    selectFillerLang(idx);
-  }
-
-  // Roving-focus keyboard like reasoning-effort segment. Arrows select+focus, Space/Enter selects target.
-  function handleFillerLangKeydown(e: KeyboardEvent): void {
-    handleSegmentKeydown(e, fillerLangBtns, {
-      length: FILLER_LANGS.length,
-      getBaseIndex: () => {
-        const current = fillerLangBtns.findIndex((b) => b.getAttribute("aria-checked") === "true");
-        return current < 0 ? 0 : current;
-      },
-      onNavigate: (index, focus) => selectFillerLang(index, focus),
-      onCommit: (index) => selectFillerLang(index, true),
-    });
-  }
-
-  // When editing any one field, write every field's current value together so none clobbers another.
-  function handleFillerTextareaInput(): void {
-    if (!fillerSettings) return;
-    const lang = fillerSettings.get().language;
-    fillerSettings.setCustomPool(lang, {
-      first: parseFillerLines(fillerFirstTextareaEl),
-      repeat: parseFillerLines(fillerRepeatTextareaEl),
-      long_wait: parseFillerLines(fillerLongWaitTextareaEl),
-      timeout: parseFillerLines(fillerTimeoutTextareaEl),
-      unreachable: parseFillerLines(fillerUnreachableTextareaEl),
-      tool: parseToolLines(fillerToolTextareaEl?.value ?? ""),
-    });
   }
 
   function handleVoiceSwitchClick(): void {
@@ -807,7 +724,7 @@ export function createQuickControls({
   const unsubscribeFiller = fillerSettings?.subscribe(() => {
     if (popover.isOpen()) {
       reflect.reflectSwitchRows();
-      reflect.reflectFiller();
+      filler.reflect();
     }
   });
   // Reflect speaker store updates (direct select · other-window reloadFromStorage) to active row.
@@ -825,14 +742,6 @@ export function createQuickControls({
 
   switchBtn.addEventListener("click", handleSwitchClick);
   const switchRows = bindSwitchRows(el, TOGGLE_SPECS, log);
-  fillerLangSegEl?.addEventListener("click", handleFillerLangClick);
-  fillerLangSegEl?.addEventListener("keydown", handleFillerLangKeydown);
-  fillerFirstTextareaEl?.addEventListener("input", handleFillerTextareaInput);
-  fillerRepeatTextareaEl?.addEventListener("input", handleFillerTextareaInput);
-  fillerLongWaitTextareaEl?.addEventListener("input", handleFillerTextareaInput);
-  fillerTimeoutTextareaEl?.addEventListener("input", handleFillerTextareaInput);
-  fillerUnreachableTextareaEl?.addEventListener("input", handleFillerTextareaInput);
-  fillerToolTextareaEl?.addEventListener("input", handleFillerTextareaInput);
   voiceSwitchBtn.addEventListener("click", handleVoiceSwitchClick);
   // The VAD slider is wired inside bindSlider() above; disposeVadSlider tears it down.
   spksEl.addEventListener("keydown", speakerList.handleKeydown);
@@ -859,6 +768,7 @@ export function createQuickControls({
     screen.dispose();
     reactions.dispose();
     agent.dispose();
+    filler.dispose();
     hintTooltip.dispose();
     historyTab?.dispose();
     scheduleCueList?.destroy();
@@ -884,14 +794,6 @@ export function createQuickControls({
     popover.dispose();
     switchBtn.removeEventListener("click", handleSwitchClick);
     switchRows.dispose();
-    fillerLangSegEl?.removeEventListener("click", handleFillerLangClick);
-    fillerLangSegEl?.removeEventListener("keydown", handleFillerLangKeydown);
-    fillerFirstTextareaEl?.removeEventListener("input", handleFillerTextareaInput);
-    fillerRepeatTextareaEl?.removeEventListener("input", handleFillerTextareaInput);
-    fillerLongWaitTextareaEl?.removeEventListener("input", handleFillerTextareaInput);
-    fillerTimeoutTextareaEl?.removeEventListener("input", handleFillerTextareaInput);
-    fillerUnreachableTextareaEl?.removeEventListener("input", handleFillerTextareaInput);
-    fillerToolTextareaEl?.removeEventListener("input", handleFillerTextareaInput);
     voiceSwitchBtn.removeEventListener("click", handleVoiceSwitchClick);
     disposeVadSlider();
     tabRail.dispose();

@@ -404,6 +404,7 @@ YUI/
           history-section.ts         # History tab session accordion over the persisted transcript
           workflows-section.ts       # Workflow entry list editing
           filler/                    # Thinking-filler section
+            filler-section.ts        # Language segment and phrase-pool textareas, with their store reflect
             filler-tool-lines.ts     # Textarea round-trip for the filler pool's tool tier
           speaker-list.ts            # Speaker radiogroup with reference-voice refresh and audition
           user-asset-list.ts         # Shared scaffolding for the VRM and speaker asset radiogroups
