@@ -124,7 +124,7 @@ or send a PR.
 
 | Provider | Hosting | Setup |
 | --- | --- | --- |
-| OpenAI-compatible transcription server (`/audio/transcriptions`) | Self-hosted | `stt_base_url` |
+| Any OpenAI-compatible transcription endpoint (`/audio/transcriptions`) | Local or hosted | `stt_base_url` |
 | Groq | Hosted, API key | `stt_base_url` and `stt_model`, for example `whisper-large-v3-turbo` |
 
 ## How it works
