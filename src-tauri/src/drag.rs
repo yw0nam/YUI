@@ -1,19 +1,17 @@
-//! Drag + multi-monitor / DPI support.
+//! Window drag command.
 //!
 //! # Responsibilities
-//! - `drag_window` command: called from webview `pointerdown` to initiate OS-native window drag.
+//! - `drag_window` command: the webview calls it once `src/io/window/pet/drag.ts` decides a
+//!   press has become a drag (the pointer travelled past its threshold). The command starts the
+//!   OS-native window drag. A press-release below that threshold is a click and never reaches
+//!   this command.
+//! - After the drag starts on macOS and Windows, it spawns a probe that emits
+//!   `window_drop_release` when the pointer is released.
 //!
 //! # Multi-monitor / DPI correctness
 //! Tauri v2 `Window::start_dragging()` is OS-native and moves the window in *physical* pixels
 //! internally. The OS DWM / Quartz Compositor handles the physical-to-logical remapping when
 //! the window crosses a monitor boundary; we do NOT need to manually reposition after a drag.
-//!
-//! The `onScaleChanged` JS listener (see `src/io/window/pet/drag.ts`) is the seam for reacting to DPI changes
-//! (e.g., snapping or re-centering).
-//!
-//! # Dispatcher seam
-//! Click/pet-gesture events on the character region belong to the dispatcher. `src/io/window/pet/drag.ts` emits
-//! a placeholder `"__yui_gesture_stub"` custom event at the drag-start site as the gesture seam.
 
 use tauri::{command, Runtime, WebviewWindow};
 // `Manager` is only needed for `app_handle()` in the drop-release probe below,
