@@ -290,7 +290,7 @@ export function createConnectionTab(deps: {
     return isPush() ? pushSocket?.getState() : undefined;
   }
 
-  // Chat API dropdown value + summary hint, matching effective chat_api (no subview).
+  // Chat API dropdown value + summary hint, matching effective chat_api.
   // The model row belongs to the request-shaped modes — push carries no model of its own.
   function reflectChatType(): void {
     const eff = effectiveChatApi();

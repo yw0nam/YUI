@@ -61,12 +61,7 @@ const SEAT_DROP = SEAT_DROP_DEFAULT;
 const IDLE_FPS = 30;
 
 export type { RenderEmotionSignal } from "./expression/emotion-resolver";
-export type { MouthLipsync, MouthLipsyncOptions } from "./expression/mouth-lipsync";
-export {
-  createMouthLipsync,
-  describeExpressions,
-  MOUTH_EXPRESSION_KEY,
-} from "./expression/mouth-lipsync";
+export type { MouthLipsync } from "./expression/mouth-lipsync";
 export { downPitchSign } from "./geometry/bone-pitch";
 export type { RenderMotionSignal } from "./motion/motion-controller";
 export type { Renderer, RendererOptions, TickContext, TickFn, VrmLoadResult } from "./types";

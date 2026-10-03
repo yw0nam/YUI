@@ -1,6 +1,6 @@
 import { spawn } from "node:child_process";
 
-export function quoteWindowsShellArg(value) {
+function quoteWindowsShellArg(value) {
   return `"${String(value).replaceAll('"', '\\"')}"`;
 }
 

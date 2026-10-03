@@ -231,7 +231,6 @@ const ko: Record<string, string> = {
   "vrm.swap_error": "이 모델을 불러오지 못했어요. 이전 모델로 되돌렸어요.",
 
   // speaker section
-  "speaker.section": "음성",
   "speaker.group_aria": "화자",
   "speaker.add": "파일에서 추가…",
   "speaker.import_error": "이 음성을 업로드하지 못했어요. 오디오 파일과 TTS 서버를 확인해 주세요.",
@@ -329,7 +328,6 @@ const ko: Record<string, string> = {
   // voice input
   "voice_input.label": "음성 입력",
   "voice_input.sub": "말이 끝나면 STT 후 사용자 입력으로 보내요",
-  "voice_input.aria": "음성 입력",
   "voice_input.silence_label": "침묵 기준",
   "voice_input.silence_sub": "말이 끝난 뒤 이만큼 기다렸다가 전송해요",
   "voice_input.silence_aria": "침묵 기준",
@@ -365,9 +363,7 @@ const ko: Record<string, string> = {
   "cue.proactive_add": "반응 추가",
 
   // endpoints
-  "endpoints.section": "엔드포인트",
   "endpoints.field_sub": "비우면 기본값을 사용해요",
-  "endpoints.reset": "기본값으로 되돌리기",
   "endpoints.url_error": "올바른 URL이 아니에요 (http:// 또는 https://)",
   "endpoints.chat_base_url.label": "채팅 서버 URL",
   "endpoints.stt_base_url.label": "음성 인식(STT) 서버 URL",
@@ -410,7 +406,6 @@ const ko: Record<string, string> = {
   "svc.reset_broker": "Broker 되돌리기",
 
   // chat API key
-  "chatkey.section": "채팅 API 키",
   "chatkey.label": "채팅 API 키",
   "chatkey.sub_default": "기본값 사용 중: 비워두면 빌드 시 설정한 키를 써요",
   "chatkey.sub_override": "이 기기에 저장됨. 비우면 원래 키로 돌아가요",

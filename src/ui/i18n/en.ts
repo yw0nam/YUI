@@ -231,7 +231,6 @@ const en: Record<string, string> = {
   "vrm.swap_error": "Could not load this model. Reverted to the previous one.",
 
   // speaker section
-  "speaker.section": "Voice",
   "speaker.group_aria": "Speaker",
   "speaker.add": "Add from file…",
   "speaker.import_error": "Could not upload this voice. Check the audio file and the TTS server.",
@@ -330,7 +329,6 @@ const en: Record<string, string> = {
   // voice input
   "voice_input.label": "Voice input",
   "voice_input.sub": "When you stop speaking, STT runs and sends it as user input",
-  "voice_input.aria": "Voice input",
   "voice_input.silence_label": "Silence threshold",
   "voice_input.silence_sub": "Waits this long after speech ends before sending",
   "voice_input.silence_aria": "Silence threshold",
@@ -366,9 +364,7 @@ const en: Record<string, string> = {
   "cue.proactive_add": "Add reaction",
 
   // endpoints
-  "endpoints.section": "Endpoints",
   "endpoints.field_sub": "Leave empty to use the default",
-  "endpoints.reset": "Reset to default",
   "endpoints.url_error": "Not a valid URL (http:// or https://)",
   "endpoints.chat_base_url.label": "Chat server URL",
   "endpoints.stt_base_url.label": "Speech recognition (STT) server URL",
@@ -411,7 +407,6 @@ const en: Record<string, string> = {
   "svc.reset_broker": "Reset Broker",
 
   // chat API key
-  "chatkey.section": "Chat API key",
   "chatkey.label": "Chat API key",
   "chatkey.sub_default": "Using the default: leave empty to use the build-time key",
   "chatkey.sub_override": "Saved on this device. Clear to return to the original key",

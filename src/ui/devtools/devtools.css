@@ -9,8 +9,6 @@ body,
 }
 
 .devtools {
-  --devtools-panel: oklch(0.19 0.014 70);
-  --devtools-raised: oklch(0.23 0.014 70);
   display: grid;
   grid-template-rows: 2.8rem minmax(0, 1fr);
   width: 100%;

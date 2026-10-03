@@ -8,7 +8,7 @@
  */
 
 import { describe, expect, it } from "vitest";
-import { describeExpressions, MOUTH_EXPRESSION_KEY } from "./index";
+import { describeExpressions, MOUTH_EXPRESSION_KEY } from "./expression/mouth-lipsync";
 
 describe("describeExpressions — MOUTH_EXPRESSION_KEY", () => {
   it("is 'aa'", () => {

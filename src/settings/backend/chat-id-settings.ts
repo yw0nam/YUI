@@ -54,8 +54,6 @@ export function createChatIdSettings(opts: { storage?: ChatIdStorage } = {}) {
   };
 }
 
-export type ChatIdSettingsStore = ReturnType<typeof createChatIdSettings>;
-
 /** localStorage adapter holding the raw id string under `yui.chat-id`. */
 export function localStorageChatIdStorage(key = "yui.chat-id"): ChatIdStorage {
   return localStorageStore<string>(key);

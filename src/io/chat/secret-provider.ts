@@ -1,6 +1,6 @@
 /**
  * Runtime SecretProvider — resolves each key from the matching runtime store, or
- * falls back to build-time fallback. Injected by main.ts to replace plainSecretProvider.
+ * falls back to the build-time fallback. Wired into the config store by wire-config.ts.
  *
  * Resolution rule (by name): matching store (non-empty) → fallback (non-empty) → undefined.
  * Empty/whitespace values normalize to undefined (prevents sending `Authorization: Bearer `).

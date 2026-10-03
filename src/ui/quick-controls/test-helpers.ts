@@ -77,13 +77,13 @@ export function makeSettings() {
   };
 }
 
-export function makeSourceProvider() {
+function makeSourceProvider() {
   return {
     listMonitors: async () => [],
   };
 }
 
-export function makeVoiceStatus() {
+function makeVoiceStatus() {
   return {
     get: () => ({
       state: "idle" as const,

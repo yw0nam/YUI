@@ -47,11 +47,7 @@ export interface EmotionCrossfade {
   easeToNeutral(durationMs?: number): void;
   /** Inject/replace the registry, then recompute the has-expression predicate + resolver. */
   setRegistry(registry: EmotionRegistry): void;
-  /**
-   * VRM load hook — recomputes the per-model predicate + resolver, but only when a
-   * registry is present (matches the original `if (emotionRegistry) recompute()` gate;
-   * with no registry the predicate is left untouched, exactly as before).
-   */
+  /** VRM load hook — recomputes the per-model predicate + resolver when a registry is present; otherwise leaves the predicate untouched. */
   onVrmLoaded(): void;
   /** Drop the in-flight crossfade (hotswap/dispose) so it can't write to a disposed VRM. */
   reset(): void;
@@ -212,7 +208,7 @@ export function createEmotionCrossfade(deps: EmotionCrossfadeDeps): EmotionCross
     easeToNeutral,
     setRegistry,
     onVrmLoaded() {
-      // Original gate: recompute only when a registry is present.
+      // Recompute only when a registry is present.
       if (emotionRegistry) recompute();
     },
     reset() {

@@ -27,7 +27,7 @@ export interface DelegationHistory {
 }
 
 /** localStorage-backed adapter. Gracefully no-ops where localStorage is absent. */
-export function localStorageDelegationHistoryStorage(
+function localStorageDelegationHistoryStorage(
   key = "yui.delegation_history",
 ): DelegationHistoryStorage {
   return localStorageStore<DelegationItem[]>(key);

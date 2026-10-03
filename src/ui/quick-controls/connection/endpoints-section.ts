@@ -290,7 +290,6 @@ export function createEndpointsSection(deps: EndpointsSectionDeps): EndpointsSec
     chat: chatKeySettings,
     stt: sttKeySettings,
     tts: ttsKeySettings,
-    broker: undefined,
   };
 
   function handleSvcReset(svc: string): void {

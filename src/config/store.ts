@@ -51,7 +51,7 @@ export interface ConfigStore {
 }
 
 interface ConfigStoreOptions extends LoadConfigOptions {
-  /** Secret lookup for api keys etc. — empty plainSecretProvider when unspecified. */
+  /** Secret lookup for api keys etc. — resolves nothing when unspecified. */
   secrets?: SecretProvider;
 }
 

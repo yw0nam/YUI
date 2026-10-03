@@ -74,10 +74,9 @@ interface VrmParticipantSubControllers {
 
 /**
  * Build the fixed-order VrmParticipant array — pins/gaze (bones) before
- * emotion/mouth (expression weights), matching animate()'s original
- * pins.step → gaze.step → emotion.step → mouth.step order (all before
- * vrm.update). Each sub-controller's methods are closures (no `this`), so
- * referencing them unbound (`pins.onVrmLoaded` rather than
+ * emotion/mouth (expression weights): pins.step → gaze.step →
+ * emotion.step → mouth.step, all before vrm.update. Each sub-controller's methods are closures
+ * (no `this`), so referencing them unbound (`pins.onVrmLoaded` rather than
  * `(v) => pins.onVrmLoaded(v)`) is safe.
  */
 export function buildVrmParticipants(deps: VrmParticipantSubControllers): VrmParticipant[] {

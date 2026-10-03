@@ -28,7 +28,7 @@ export interface TouchGesture {
 }
 
 /** A press released later than this is no tap: Android's default long-press timeout. */
-export const TAP_MAX_MS = 400;
+const TAP_MAX_MS = 400;
 /** Below this spread (CSS px) two fingers hold the pinch unarmed. */
 const PINCH_MIN_SPREAD_PX = 1;
 

@@ -4,8 +4,7 @@
  * Always on, **backend-independent** (no network). Via the renderer.onTick(rAF) hook, every frame
  * it writes bone (head/spine/chest) rotations + the blink expression just before vrm.update.
  * Ambient "owns" these channels (head/spine/chest rotation, blink) — it overwrites them with
- * absolute values every frame. While backend motion plays, the renderer takes over weight blending
- * (idle_sway weight 0.3→0.1 during motion playback).
+ * absolute values every frame.
  *
  * Cue table:
  *  - blink         : random 3~6s, 150ms pulse

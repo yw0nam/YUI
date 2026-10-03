@@ -8,7 +8,6 @@ export type {
   // Flat system-message context (client → backend each turn)
   ClientContext,
   ControlEnvelope,
-  CueMeta,
   // Emotion
   EmotionId,
   EmotionRegistry,

@@ -233,7 +233,6 @@ const ja: Record<string, string> = {
   "vrm.swap_error": "このモデルを読み込めませんでした。前のモデルに戻しました。",
 
   // speaker section
-  "speaker.section": "音声",
   "speaker.group_aria": "話者",
   "speaker.add": "ファイルから追加…",
   "speaker.import_error":
@@ -332,7 +331,6 @@ const ja: Record<string, string> = {
   // voice input
   "voice_input.label": "音声入力",
   "voice_input.sub": "話し終わると STT を実行し、ユーザー入力として送ります",
-  "voice_input.aria": "音声入力",
   "voice_input.silence_label": "無音のしきい値",
   "voice_input.silence_sub": "話し終わってからこの時間だけ待ってから送信します",
   "voice_input.silence_aria": "無音のしきい値",
@@ -368,9 +366,7 @@ const ja: Record<string, string> = {
   "cue.proactive_add": "リアクションを追加",
 
   // endpoints
-  "endpoints.section": "エンドポイント",
   "endpoints.field_sub": "空欄にするとデフォルトを使います",
-  "endpoints.reset": "デフォルトに戻す",
   "endpoints.url_error": "正しい URL ではありません (http:// または https://)",
   "endpoints.chat_base_url.label": "チャットサーバー URL",
   "endpoints.stt_base_url.label": "音声認識 (STT) サーバー URL",
@@ -413,7 +409,6 @@ const ja: Record<string, string> = {
   "svc.reset_broker": "Broker を戻す",
 
   // chat API key
-  "chatkey.section": "チャット API キー",
   "chatkey.label": "チャット API キー",
   "chatkey.sub_default": "デフォルトを使用中：空欄にするとビルド時のキーを使います",
   "chatkey.sub_override": "この端末に保存済み。空欄にすると元のキーに戻ります",

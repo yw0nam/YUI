@@ -233,7 +233,7 @@ export function createCueList<C extends CueBase, S extends SettingsBase<C>>(
     // Cue switch
     const cueSwitch = document.createElement("button");
     cueSwitch.type = "button";
-    cueSwitch.className = "yui-switch yui-switch--sm";
+    cueSwitch.className = "yui-switch";
     cueSwitch.setAttribute("role", "switch");
     cueSwitch.setAttribute("aria-checked", String(cue.enabled));
     cueSwitch.setAttribute(

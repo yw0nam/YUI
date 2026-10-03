@@ -49,19 +49,12 @@ export function tabButtonHtml(
         </button>`;
 }
 
-/** A tabpanel's opening tag pair: the panel div plus its in-panel title (dropped where a head owns the title). */
-export function tabPanelOpenHtml(
-  id: string,
-  opts: { hidden?: boolean; title?: boolean } = {},
-): string {
-  const { hidden = true, title = true } = opts;
+/** A tabpanel's opening tag pair: the panel div plus its in-panel title. */
+export function tabPanelOpenHtml(id: string, opts: { hidden?: boolean } = {}): string {
+  const { hidden = true } = opts;
   return `
-      <div class="yui-tabpanel" role="tabpanel" id="yui-panel-${id}" aria-labelledby="yui-tab-${id}" tabindex="0"${hidden ? " hidden" : ""}>${
-        title
-          ? `
-        <h1 class="yui-tabpanel__title">${t(`tabs.${id}`)}</h1>`
-          : ""
-      }`;
+      <div class="yui-tabpanel" role="tabpanel" id="yui-panel-${id}" aria-labelledby="yui-tab-${id}" tabindex="0"${hidden ? " hidden" : ""}>
+        <h1 class="yui-tabpanel__title">${t(`tabs.${id}`)}</h1>`;
 }
 
 export function createTabRail(deps: TabRailDeps): TabRail {

@@ -1,6 +1,6 @@
 /**
  * Quick-controls panel — settings panel summoned by right-click.
- * Comprises draggable header + tab rail (connection · talk · character · input · proactive · history · general) + tab panel body.
+ * Comprises a draggable header (popover variant only; the window variant uses the native titlebar) + tab rail (connection · talk · character · input · proactive · history · general) + tab panel body.
  * variant: "popover" (default, docked in pet window + draggable) | "window" (separate OS window, full fill).
  */
 
