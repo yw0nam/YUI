@@ -103,7 +103,6 @@ export function createScreenSource(deps: ScreenSourceDeps): ScreenSource {
   let markedAt: number | undefined;
   let lastFireTs: number | undefined;
   let lastTurnTs: number | undefined;
-  let away = false;
   /** app_switched transitions held back by the pacer, oldest first. Shipped on the next fire. */
   let recent: RecentTransition[] = [];
 
@@ -173,8 +172,6 @@ export function createScreenSource(deps: ScreenSourceDeps): ScreenSource {
     // lowered mid-hold takes effect even if no further switch happens before the next fire.
     while (recent.length > Math.max(0, cfg.recent_cap)) recent.shift();
 
-    if (present && away) away = false;
-
     // App identity only; the window title never enters the comparison.
     if (present && app !== undefined && app !== currentApp) {
       pending =
@@ -224,10 +221,7 @@ export function createScreenSource(deps: ScreenSourceDeps): ScreenSource {
       }
     }
 
-    if (!present) {
-      away = true;
-      resetClocks();
-    }
+    if (!present) resetClocks();
     // Both invalidating conditions in one place: disabled or away, checked every tick, not only
     // when a candidate happened to be evaluated this tick.
     if (!isEnabled() || !present) recent = [];

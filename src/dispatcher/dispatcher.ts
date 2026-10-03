@@ -79,8 +79,6 @@ interface DispatcherDeps {
   pacer?: Pick<ProactivePacer, "isHolding" | "noteTurnStart">;
   /** Skip-record JSONL sink — best-effort disk log of the fires the pacer held back. */
   appendSkipRecord?: (record: PacerSkipRecord) => void;
-  /** pump interval (ms). default 16 (roughly rAF). Tests advance with a fake timer. */
-  pumpIntervalMs?: number;
   /**
    * Report a backend call failure of a user-initiated turn (user.text_submitted /
    * user.voice_segment_ready) along with its source (which trigger it was) —
@@ -155,8 +153,6 @@ export interface Dispatcher {
   noteAvatarMoved(): void;
   /** Abort the in-progress call + drop deferred tier2/3 (client-only). Does not sweep the bus or touch tier1. */
   cancel(): void;
-  /** Subscribe to state transitions. Callback runs on every transition; returns an unsubscribe fn. */
-  subscribeState(cb: (s: DispatcherState) => void): () => void;
   /** Subscribe to busy (= in-flight presence) transitions. Runs only at the idle⟷busy boundary; returns an unsubscribe fn. */
   subscribeBusy(cb: (busy: boolean) => void): () => void;
   /** Whether the pipeline is busy — in-flight call OR speech still playing. Separate from subscribeBusy (in-flight-only). */
@@ -172,7 +168,6 @@ const DEGRADED_FAILURE_THRESHOLD = 3;
 
 export function createDispatcher(deps: DispatcherDeps): Dispatcher {
   const { bus, renderer, backendCaller, guardrails } = deps;
-  const pumpMs = deps.pumpIntervalMs ?? DEFAULT_PUMP_MS;
   const log = deps.logger ?? baseLog;
 
   let state: DispatcherState = "booting";
@@ -201,7 +196,6 @@ export function createDispatcher(deps: DispatcherDeps): Dispatcher {
     log,
   });
 
-  const stateSubscribers = new Set<(s: DispatcherState) => void>();
   const busySubscribers = new Set<(busy: boolean) => void>();
 
   /** Pipeline-busy = the ledger has a live turn (in flight, or settled with audio still owed). */
@@ -234,13 +228,12 @@ export function createDispatcher(deps: DispatcherDeps): Dispatcher {
     if (over) closeTurn();
   });
 
-  /** Single path for state transitions: assign + state_change log + notify subscribers. */
+  /** Single path for state transitions: assign + state_change log. */
   function setState(next: DispatcherState): void {
     if (next === state) return;
     const from = state;
     state = next;
     log.info("state_change", { from, to: next });
-    for (const cb of stateSubscribers) cb(next);
   }
 
   /** Single path for in-flight assignment: notify subscribers only at the idle⟷busy boundary (null↔non-null). */
@@ -498,7 +491,7 @@ export function createDispatcher(deps: DispatcherDeps): Dispatcher {
         timer = null;
       }
       setState("running");
-      timer = setInterval(pump, pumpMs);
+      timer = setInterval(pump, DEFAULT_PUMP_MS);
       // Drain once immediately (handle event pushed before first tick).
       pump();
     },
@@ -547,12 +540,6 @@ export function createDispatcher(deps: DispatcherDeps): Dispatcher {
       while (pending.length > 0) {
         recordDrop(pending.shift()!, "superseded_by_user");
       }
-    },
-    subscribeState(cb) {
-      stateSubscribers.add(cb);
-      return () => {
-        stateSubscribers.delete(cb);
-      };
     },
     subscribeBusy(cb) {
       busySubscribers.add(cb);
