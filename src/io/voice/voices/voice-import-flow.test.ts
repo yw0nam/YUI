@@ -55,6 +55,14 @@ const IMPORTED = {
   source: "user" as const,
 };
 
+// The native copy files the clip under the id the desired name sanitizes to.
+const copyUnder = async (_src: string, desired: string) => ({
+  id: desired,
+  label: desired,
+  ref_url: `asset://localhost/app-data/references/${desired}/clip.wav`,
+  source: "user" as const,
+});
+
 function fakeStore(stored: SpeakerOption[] = []) {
   return {
     list: vi.fn(() => [] as SpeakerOption[]),
@@ -102,14 +110,6 @@ describe("createVoiceImportFlow", () => {
       source: "user",
       provider: "irodori",
     };
-    // The native copy files the clip under the id the desired name sanitizes to.
-    const copyUnder = async (_src: string, desired: string) => ({
-      id: desired,
-      label: desired,
-      ref_url: `asset://localhost/app-data/references/${desired}/clip.wav`,
-      source: "user" as const,
-    });
-
     beforeEach(() => {
       copyVoiceFile.mockImplementation(copyUnder);
     });
@@ -339,6 +339,63 @@ describe("createVoiceImportFlow", () => {
       expect(removeUserVoice).toHaveBeenCalledWith("myvoice");
       expect(speakerSelection.addUserOption).not.toHaveBeenCalled();
       expect(speakerSelection.select).not.toHaveBeenCalled();
+    });
+
+    it("keeps the stored voice's folder when a same-name re-import fails, removing only the staged copy", async () => {
+      copyVoiceFile.mockImplementation(copyUnder);
+      upsertVoice.mockRejectedValue(new Error("server down"));
+      const { commitVoiceImport } = build("http://localhost:8091", "irodori", [
+        { ...IMPORTED, provider: "irodori" },
+      ]);
+
+      await expect(commitVoiceImport("/tmp/Replacement.wav", "myvoice")).rejects.toThrow(
+        "server down",
+      );
+
+      expect(removeUserVoice).not.toHaveBeenCalledWith("myvoice");
+      expect(removeUserVoice.mock.calls).toEqual([[copyVoiceFile.mock.calls[0][1]]]);
+      expect(renameUserVoice).not.toHaveBeenCalled();
+    });
+
+    it("uploads under the name-derived id, then moves the staged clip over that id's folder", async () => {
+      copyVoiceFile.mockImplementation(copyUnder);
+      renameUserVoice.mockResolvedValue("asset://localhost/app-data/references/myvoice/moved.wav");
+      const { commitVoiceImport, speakerSelection } = build("http://localhost:8091", "irodori");
+
+      await commitVoiceImport("/tmp/MyVoice.wav", "myvoice");
+
+      const staged = copyVoiceFile.mock.calls[0][1] as string;
+      expect(staged).not.toBe("myvoice");
+      expect(upsertVoice.mock.calls[0][0]).toMatchObject({
+        id: "myvoice",
+        refUrl: `asset://localhost/app-data/references/${staged}/clip.wav`,
+      });
+      expect(removeUserVoice.mock.calls).toEqual([["myvoice"]]);
+      expect(renameUserVoice).toHaveBeenCalledWith(staged, "myvoice");
+      expect(removeUserVoice.mock.invocationCallOrder[0]).toBeLessThan(
+        renameUserVoice.mock.invocationCallOrder[0],
+      );
+      expect(upsertVoice.mock.invocationCallOrder[0]).toBeLessThan(
+        removeUserVoice.mock.invocationCallOrder[0],
+      );
+      expect(speakerSelection.addUserOption).toHaveBeenCalledWith(
+        expect.objectContaining({
+          id: "myvoice",
+          ref_url: "asset://localhost/app-data/references/myvoice/moved.wav",
+          provider: "irodori",
+        }),
+      );
+      expect(speakerSelection.select).toHaveBeenCalledWith("myvoice");
+    });
+
+    it("refuses a blank name under a provider that keeps the caller's id, copying nothing", async () => {
+      const { commitVoiceImport } = build("http://localhost:8091", "irodori");
+
+      await expect(commitVoiceImport("/tmp/MyVoice.wav", "  ")).rejects.toThrow(
+        "voice name required",
+      );
+
+      expect(copyVoiceFile).not.toHaveBeenCalled();
     });
 
     it("throws without copying when tts_base_url is unset", async () => {
