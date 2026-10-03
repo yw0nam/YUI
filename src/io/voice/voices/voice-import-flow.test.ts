@@ -43,6 +43,7 @@ vi.mock("./voice-import", () => ({
 }));
 
 import type { TtsProviderName } from "../../../contract";
+import { voiceIdFromName } from "../../assets/safe-id";
 import { createSpeakerSelection, type SpeakerOption } from "./speaker-selection";
 import { createVoiceImportFlow } from "./voice-import-flow";
 
@@ -278,6 +279,47 @@ describe("createVoiceImportFlow", () => {
         provider: "irodori",
       });
       expect(speakerSelection.select).toHaveBeenCalledWith("myvoice");
+    });
+
+    it("derives the id from a typed name that is not itself an id, and keeps the name as the label", async () => {
+      const id = voiceIdFromName("My Voice");
+      renameUserVoice.mockResolvedValue(`asset://localhost/app-data/references/${id}/clip.wav`);
+      const { commitVoiceImport, speakerSelection } = build("http://localhost:8091");
+
+      await commitVoiceImport("/tmp/MyVoice.wav", "My Voice");
+
+      const staged = copyVoiceFile.mock.calls[0][1] as string;
+      expect(id).not.toBe("My Voice");
+      expect(upsertVoice.mock.calls[0][0]).toMatchObject({ id, name: "My Voice" });
+      expect(removeUserVoice).toHaveBeenCalledWith(id);
+      expect(renameUserVoice).toHaveBeenCalledWith(staged, id);
+      expect(speakerSelection.addUserOption).toHaveBeenCalledWith(
+        expect.objectContaining({ id, label: "My Voice" }),
+      );
+    });
+
+    it("stores the replaced clip of a same-name re-import when the server changes during the move, selecting nothing", async () => {
+      const stored: SpeakerOption = { ...IMPORTED, provider: "irodori" };
+      const { commitVoiceImport, speakerSelection, endpoints } = build(
+        "http://localhost:8091",
+        "irodori",
+        [stored],
+      );
+      renameUserVoice.mockImplementation(async () => {
+        endpoints.tts_base_url = "http://localhost:9999";
+        return "asset://localhost/app-data/references/myvoice/clip.mp3";
+      });
+
+      await commitVoiceImport("/tmp/Replacement.mp3", "myvoice");
+
+      expect(speakerSelection.addUserOption).toHaveBeenCalledWith(
+        expect.objectContaining({
+          id: "myvoice",
+          ref_url: "asset://localhost/app-data/references/myvoice/clip.mp3",
+        }),
+      );
+      expect(speakerSelection.select).not.toHaveBeenCalled();
+      expect(removeUserVoice).toHaveBeenCalledTimes(1);
     });
 
     it("hands upsertVoice the TTS key resolver so a gated server still accepts the upload", async () => {
