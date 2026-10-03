@@ -22,8 +22,8 @@ jobs:
           node-version: 22
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      - run: pnpm build # tsc 타입체크 + vite build
-      - run: pnpm typecheck:test # tsc 타입체크 (테스트 파일 포함)
+      - run: pnpm build # tsc typecheck + vite build
+      - run: pnpm typecheck:test # tsc typecheck (test files included)
       - run: pnpm test # vitest run
       - run: pnpm docs:build # vitepress build + dead-link check
 
@@ -103,7 +103,7 @@ jobs:
             rust:
               - 'src-tauri/**'
               - '.github/workflows/ci.yml'
-      # Tauri v2 Linux 빌드 의존성 (공식 prerequisites, Ubuntu 24.04).
+      # Tauri v2 Linux build dependencies (official prerequisites, Ubuntu 24.04).
       - name: Install Tauri system deps
         if: github.event_name != 'pull_request' || steps.chg.outputs.rust == 'true'
         run: |
