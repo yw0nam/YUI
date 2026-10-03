@@ -1,7 +1,5 @@
-import type { FillerConfig, FillerLang, FillerPool } from "../load";
+import { FILLER_LANGS, type FillerConfig, type FillerLang, type FillerPool } from "../load";
 import { assertValid, ConfigError, isObject } from "./shared";
-
-const FILLER_LANGS: readonly FillerLang[] = ["ja", "en", "ko"];
 
 /** Validates a string[] filler tier (first, repeat, long_wait, timeout, unreachable). Returns cleaned array or records issues. */
 function validateFillerTier(issues: string[], tier: unknown, path: string): string[] {

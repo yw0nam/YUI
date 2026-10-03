@@ -6,7 +6,7 @@
 
 import "./quick-controls.css";
 import "./controls.css";
-import type { AvatarOption } from "../../config/load";
+import { type AvatarOption, FILLER_LANGS } from "../../config/load";
 import type { GuideKey } from "../../contract";
 import type { createVrmSelection } from "../../io/assets/vrm-selection";
 import type { createChatHistoryStore } from "../../io/chat/chat-history-store";
@@ -617,8 +617,6 @@ export function createQuickControls({
       .map((l) => l.trim())
       .filter((l) => l.length > 0);
   }
-
-  const FILLER_LANGS = ["ja", "en", "ko"] as const;
 
   // Move segment selection + focus. aria/tabindex updated by store subscription (reflectFiller).
   function selectFillerLang(index: number, focus = false): void {

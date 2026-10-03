@@ -5,6 +5,7 @@
  * The Connection tab reflects its own endpoints; this layer covers the rest of the panel.
  */
 
+import { FILLER_LANGS } from "../../config/load";
 import type { DelegationItem, PushSocketState } from "../../io/chat/push-socket";
 import type { createSessionDiagnosticsStore } from "../../io/chat/session-diagnostics";
 import type { createAgentNotifySettings } from "../../settings/backend/agent-notify-settings";
@@ -268,7 +269,6 @@ export function createReflect(deps: ReflectDeps): Reflect {
     if (!fillerSettings || !fillerLangSegEl || !fillerFirstTextareaEl || !fillerRepeatTextareaEl)
       return;
     const s = fillerSettings.get();
-    const FILLER_LANGS = ["ja", "en", "ko"] as const;
     const idx = Math.max(0, FILLER_LANGS.indexOf(s.language));
     fillerLangBtns.forEach((btn, i) => {
       const selected = i === idx;

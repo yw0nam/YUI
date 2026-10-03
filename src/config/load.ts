@@ -308,7 +308,8 @@ export interface GuardrailsConfig {
 }
 
 /** TTFT filler language — closed union, never crosses the backend wire. */
-export type FillerLang = "ja" | "en" | "ko";
+export const FILLER_LANGS = ["ja", "en", "ko"] as const;
+export type FillerLang = (typeof FILLER_LANGS)[number];
 
 /** Per-language filler phrase pool, one list per waiting tier. */
 export interface FillerPool {

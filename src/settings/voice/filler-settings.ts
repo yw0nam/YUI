@@ -5,7 +5,7 @@
  * Priority: stored > defaults (enabled:true, language:the app locale, "ja" without one, customPools:{})
  */
 
-import type { FillerLang, FillerPool } from "../../config/load";
+import { FILLER_LANGS, type FillerLang, type FillerPool } from "../../config/load";
 import { createPersistedStore, localStorageStore, type PersistedStorage } from "../persisted-store";
 
 export interface FillerSettings {
@@ -17,7 +17,6 @@ export interface FillerSettings {
 
 export type FillerStorage = PersistedStorage<FillerSettings>;
 
-const FILLER_LANGS: readonly FillerLang[] = ["ja", "en", "ko"];
 const LIST_TIERS = ["first", "repeat", "long_wait", "timeout", "unreachable"] as const;
 
 function isStringArray(v: unknown): v is string[] {
