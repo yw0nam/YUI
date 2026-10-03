@@ -81,20 +81,20 @@ function endpointRowHtml(key: keyof EndpointOverrides): string {
           </div>`;
 }
 
-// Per-service API key row (secret). Uses idPrefix/i18nPrefix to stamp chat/stt/tts from one template.
+// Per-service API key row (secret). Uses idPrefix to stamp chat/stt/tts from one template.
 // Input always type="password" — toggle reveals plaintext only. value/sublabel filled by reflect.
-function keyRowHtml(idPrefix: string, i18nPrefix: string): string {
+function keyRowHtml(idPrefix: string): string {
   return `
           <div class="yui-row yui-input-row yui-chatkey" data-key-prefix="${idPrefix}">
             <div class="yui-row__main">
-              <label class="yui-input-row__label" for="yui-${idPrefix}-input">${t(`${i18nPrefix}.label`)}</label>
+              <label class="yui-input-row__label" for="yui-${idPrefix}-input">${t(`${idPrefix}.label`)}</label>
               <span class="yui-input-row__sub"></span>
             </div>
             <div class="yui-input-wrap yui-chatkey__wrap">
               <input class="yui-ep-input yui-chatkey__input" id="yui-${idPrefix}-input" type="password"
-                autocomplete="off" autocapitalize="off" spellcheck="false" aria-label="${t(`${i18nPrefix}.label`)}" />
-              <button class="yui-iconbtn yui-chatkey__toggle" type="button" aria-pressed="false" aria-label="${t(`${i18nPrefix}.show`)}" data-tip="${t(`${i18nPrefix}.show`)}">${CHATKEY_EYE_SVG}</button>
-              <button class="yui-iconbtn yui-chatkey__clear" type="button" aria-label="${t(`${i18nPrefix}.clear`)}" data-tip="${t(`${i18nPrefix}.clear`)}">${CHATKEY_CLEAR_SVG}</button>
+                autocomplete="off" autocapitalize="off" spellcheck="false" aria-label="${t(`${idPrefix}.label`)}" />
+              <button class="yui-iconbtn yui-chatkey__toggle" type="button" aria-pressed="false" aria-label="${t(`${idPrefix}.show`)}" data-tip="${t(`${idPrefix}.show`)}">${CHATKEY_EYE_SVG}</button>
+              <button class="yui-iconbtn yui-chatkey__clear" type="button" aria-label="${t(`${idPrefix}.clear`)}" data-tip="${t(`${idPrefix}.clear`)}">${CHATKEY_CLEAR_SVG}</button>
             </div>
           </div>`;
 }
@@ -134,7 +134,7 @@ function chatSectionHtml(rows: ConnectionRows): string {
             ${full ? selectRowHtml("yui-svc-chat-preset", "svc.chat_preset_label", `<select class="yui-select yui-chat-preset" id="yui-svc-chat-preset" aria-label="${t("svc.chat_preset_aria")}">${chatPresetOptionsHtml}</select>`) : ""}
             ${endpointRowHtml("chat_base_url")}
             ${full ? endpointRowHtml("chat_model") : ""}
-            ${keyRowHtml("chatkey", "chatkey")}
+            ${keyRowHtml("chatkey")}
             <p class="yui-chat-status" role="status" hidden><span class="yui-chat-status__dot" aria-hidden="true"></span><span class="yui-chat-status__text"></span><button class="yui-chat-status__action" type="button" hidden></button></p>
             ${svcResetRowHtml("chat")}
           </div>
@@ -158,7 +158,7 @@ function sttSectionHtml(rows: ConnectionRows): string {
             ${typeRow}
             ${endpointRowHtml("stt_base_url")}
             ${endpointRowHtml("stt_model")}
-            ${keyRowHtml("sttkey", "sttkey")}
+            ${keyRowHtml("sttkey")}
             ${svcResetRowHtml("stt")}
           </div>
         </section>`;
@@ -175,7 +175,7 @@ function ttsSectionHtml(rows: ConnectionRows): string {
             ${selectRowHtml("yui-svc-tts-provider", "svc.tts_type", `<select class="yui-select yui-tts-provider" id="yui-svc-tts-provider" aria-label="${t("svc.tts_preset_aria")}">${providerOptionsHtml}</select>`)}
             ${endpointRowHtml("tts_base_url")}
             ${rows.tts === "full" ? endpointRowHtml("tts_model") : ""}
-            ${keyRowHtml("ttskey", "ttskey")}
+            ${keyRowHtml("ttskey")}
             ${svcResetRowHtml("tts")}
           </div>
         </section>`;

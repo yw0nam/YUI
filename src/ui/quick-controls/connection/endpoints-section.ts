@@ -116,7 +116,7 @@ export function createEndpointsSection(deps: EndpointsSectionDeps): EndpointsSec
     svcResetBtns.set(btn.dataset.svcReset ?? "", btn);
   }
 
-  function createKeyRow(idPrefix: string, i18nPrefix: string, store: ApiKeySettingsStore): KeyRow {
+  function createKeyRow(idPrefix: string, store: ApiKeySettingsStore): KeyRow {
     const row = el.querySelector<HTMLDivElement>(`.yui-input-row[data-key-prefix="${idPrefix}"]`)!;
     const input = row.querySelector<HTMLInputElement>(".yui-chatkey__input")!;
     const subEl = row.querySelector<HTMLSpanElement>(".yui-input-row__sub")!;
@@ -130,7 +130,7 @@ export function createEndpointsSection(deps: EndpointsSectionDeps): EndpointsSec
         input.value = key;
         dirty = false;
       }
-      subEl.textContent = key ? t(`${i18nPrefix}.sub_override`) : t(`${i18nPrefix}.sub_default`);
+      subEl.textContent = key ? t(`${idPrefix}.sub_override`) : t(`${idPrefix}.sub_default`);
     }
     function commitIfDirty(): void {
       if (!dirty) return;
@@ -151,7 +151,7 @@ export function createEndpointsSection(deps: EndpointsSectionDeps): EndpointsSec
       toggleBtn.setAttribute("aria-pressed", String(show));
       input.type = show ? "text" : "password";
       toggleBtn.innerHTML = show ? CHATKEY_EYE_OFF_SVG : CHATKEY_EYE_SVG;
-      const label = show ? t(`${i18nPrefix}.hide`) : t(`${i18nPrefix}.show`);
+      const label = show ? t(`${idPrefix}.hide`) : t(`${idPrefix}.show`);
       toggleBtn.setAttribute("aria-label", label);
       toggleBtn.dataset.tip = label;
     }
@@ -182,9 +182,9 @@ export function createEndpointsSection(deps: EndpointsSectionDeps): EndpointsSec
       },
     };
   }
-  const chatKeyRow = createKeyRow("chatkey", "chatkey", chatKeySettings);
-  const sttKeyRow = createKeyRow("sttkey", "sttkey", sttKeySettings);
-  const ttsKeyRow = createKeyRow("ttskey", "ttskey", ttsKeySettings);
+  const chatKeyRow = createKeyRow("chatkey", chatKeySettings);
+  const sttKeyRow = createKeyRow("sttkey", sttKeySettings);
+  const ttsKeyRow = createKeyRow("ttskey", ttsKeySettings);
   const keyRows = [chatKeyRow, sttKeyRow, ttsKeyRow];
 
   // Endpoint placeholder — fill with bundled-config defaults (greyed) or leave empty if not loaded.
