@@ -1,7 +1,7 @@
 /**
  * event-bus.test.ts — Event bus contract.
  *
- * Locks §4.1 envelope, §4.2 queue policy (priority heap key=(tier ASC, ts ASC),
+ * Locks §4.1 envelope, §4.2 queue policy (sorted array key=(priority ASC, ts ASC),
  * capacity 100 lowest-priority drop, bus-drop on schema-invalid / unknown event_name / ts±60s),
  * §4.3 priorities + FIFO within tier.
  */
