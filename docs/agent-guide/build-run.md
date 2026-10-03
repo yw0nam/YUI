@@ -87,7 +87,7 @@ Signing and notarization are driven entirely by environment variables read by th
 
 With none of them registered the workflow succeeds and ships an unsigned, un-notarized `.dmg`; users open it once, and when macOS blocks it, allow it under **System Settings → Privacy & Security → Open Anyway**. Registering the secrets turns signing on without touching the workflow.
 
-`bundle.yml` is a separate smoke check: it bundles macOS on every push to `main` and uploads the `.dmg` as a workflow artifact. It never touches releases.
+`bundle.yml` is a separate smoke check: it bundles macOS on every push to `main` and keeps no artifact. It never touches releases.
 
 ## Dev reload
 
