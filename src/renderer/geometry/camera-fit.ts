@@ -2,9 +2,9 @@
  * camera-fit — pure fit-to-bounds framing math.
  *
  * WebGL-free and deterministic so it runs in vitest node env. Given a VRM's
- * world bounding box, derives the camera distance/target/position that frames
+ * world bounding box, derives the camera distance and target that frame
  * the full body (head→feet) head-on. VRM faces +Z after VRMUtils.rotateVRM0,
- * so the camera sits in front at center + (0,0,distance).
+ * so the camera sits in front at target + (0,0,distance).
  *
  * fov is vertical (degrees); aspect = width/height. Distance is the max of the
  * height-bound and width-bound fits (so arms aren't clipped on narrow windows),
@@ -23,7 +23,6 @@ interface CameraFitOptions {
 }
 
 interface CameraFit {
-  position: THREE.Vector3;
   target: THREE.Vector3;
   distance: number;
 }
@@ -111,8 +110,7 @@ export function computeCameraFit(box: THREE.Box3, opts: CameraFitOptions): Camer
   }
 
   const target = center.clone();
-  const position = new THREE.Vector3(center.x, center.y, center.z + distance);
-  return { position, target, distance };
+  return { target, distance };
 }
 
 /**

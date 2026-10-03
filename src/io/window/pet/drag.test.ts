@@ -19,12 +19,6 @@ vi.mock("@tauri-apps/api/core", () => ({
   invoke: vi.fn(),
 }));
 
-vi.mock("@tauri-apps/api/window", () => ({
-  getCurrentWindow: vi.fn(() => ({
-    onScaleChanged: vi.fn(() => Promise.resolve(() => {})),
-  })),
-}));
-
 // Captures the window_drop_release handler registered by initDrag.
 let capturedDropHandler: (() => void) | undefined;
 vi.mock("@tauri-apps/api/event", () => ({
@@ -131,10 +125,9 @@ describe("initDrag", () => {
     expect(mockInvoke).not.toHaveBeenCalled();
   });
 
-  it("non-Tauri (browser): no-op, never calls getCurrentWindow/invoke, returns cleanup", async () => {
-    // Regression: getCurrentWindow() throws in a plain browser; an unguarded
-    // initDrag crashed bootstrap before renderer/dispatcher init (Vite = PRD G7
-    // screenshot-verification surface). The guard must skip gracefully.
+  it("non-Tauri (browser): no-op, never calls invoke, returns cleanup", async () => {
+    // Regression: an unguarded initDrag crashed bootstrap in a plain browser before
+    // renderer/dispatcher init. The guard must skip gracefully.
     cleanup(); // tear down the Tauri-path instance from beforeEach
     delete (globalThis as { __TAURI_INTERNALS__?: unknown }).__TAURI_INTERNALS__;
     vi.clearAllMocks();

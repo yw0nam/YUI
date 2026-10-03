@@ -355,7 +355,6 @@ describe("createSelectionStore", () => {
     const store = makeStore({ storage });
     expect(() => store.getActiveId()).not.toThrow();
     expect(store.getActiveId()).toBe("a");
-    store.reset();
     expect(storage.save).not.toHaveBeenCalled();
   });
 
@@ -377,7 +376,7 @@ describe("createSelectionStore", () => {
     expect(store.getActive().label).toBe("B");
   });
 
-  it("selects and resets valid ids, persisting and notifying only on actual changes", () => {
+  it("selects valid ids, persisting and notifying only on actual changes", () => {
     const storage = makeMemStorage();
     const store = makeStore({ storage });
     const cb = vi.fn();
@@ -392,12 +391,6 @@ describe("createSelectionStore", () => {
     store.select("b");
     expect(storage._data).toBe("b");
     expect(cb).toHaveBeenCalledTimes(1);
-
-    store.reset();
-    store.reset();
-    expect(storage._data).toBeNull();
-    expect(store.getActiveId()).toBe("a");
-    expect(cb).toHaveBeenCalledTimes(2);
   });
 
   it("reloads an external reset and preserves state when override storage throws", () => {

@@ -8,9 +8,6 @@
  *   `PRESS_TRAVEL_PX` does it fire `opts.onDragStart` (once) and invoke the Rust
  *   `drag_window` command via Tauri IPC — the OS then owns the pointer and moves
  *   the window natively. A sub-threshold press-release fires `opts.onClick`.
- *   Installs an `onScaleChanged` listener that logs DPI changes when the window
- *   moves across monitors, keeping the seam open for re-centering / UI
- *   adjustment at a higher DPI.
  *   Returns a cleanup function that removes all listeners.
  *
  * - `invokeDragWindow()` — thin Tauri IPC wrapper,
@@ -21,14 +18,10 @@
  * native. The OS DWM / Quartz Compositor handles physical↔logical remapping as
  * the window crosses monitor boundaries — we do NOT need to reposition manually
  * after a drag.
- *
- * The `onScaleChanged` listener below is where re-centering or snapping would
- * hook; it is a logged no-op.
  */
 
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
-import { getCurrentWindow } from "@tauri-apps/api/window";
 import { createLogger } from "../../../logger";
 import type { OrbitDelta } from "../../../settings/avatar/camera-gestures";
 import { isTauri } from "../../../tauri-env";
@@ -301,10 +294,10 @@ export async function initDrag(
   const detachOrbit = attachOrbitGesture(el, opts.onOrbit, opts.onOrbitStart, opts.onOrbitEnd);
   const clickGesture = attachClickGesture(el, opts.onClick, opts.pat);
 
-  // Tauri-only: getCurrentWindow() / onScaleChanged / invoke() require the Tauri
-  // runtime. In a plain browser (Vite dev — the AI screenshot-verification surface)
-  // there is no window IPC, and getCurrentWindow() throws. Skip gracefully
-  // so bootstrap (renderer + dispatcher) still runs. Window-move is a no-op in the browser.
+  // Tauri-only: invoke() and listen() require the Tauri runtime. In a plain browser
+  // (Vite dev — the AI screenshot-verification surface) there is no window IPC.
+  // Skip gracefully so bootstrap (renderer + dispatcher) still runs. Window-move is a no-op
+  // in the browser.
   if (!isTauri()) {
     log.debug("drag_disabled", { reason: "non_tauri" });
     return () => {
@@ -312,18 +305,6 @@ export async function initDrag(
       detachOrbit();
     };
   }
-
-  const win = getCurrentWindow();
-
-  // ── scale-change listener (DPI seam) ──────────────────────────────────────
-  // When the window moves to a display with a different scale factor, Tauri
-  // emits this event. Logs only; the seam for re-centering / UI density
-  // adjustments hooks here.
-  const unlistenScale = await win.onScaleChanged(({ payload }) => {
-    log.debug(
-      `scale changed → ${payload.scaleFactor} (size ${payload.size.width}×${payload.size.height})`,
-    );
-  });
 
   // ── threshold gesture detector ─────────────────────────────────────────────
   // A primary press arms; a move past PRESS_TRAVEL_PX promotes it to a drag,
@@ -425,7 +406,6 @@ export async function initDrag(
     detach();
     clickGesture.dispose();
     detachOrbit();
-    unlistenScale();
     unlistenDrop();
   };
 }

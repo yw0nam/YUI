@@ -53,10 +53,6 @@ export function createContextHistory(opts?: { storage?: ContextHistoryStorage })
       core.commit([...core.current(), clone([entry])[0]!].slice(-CONTEXT_HISTORY_CAP));
     },
 
-    clear(): void {
-      core.commit([]);
-    },
-
     reloadFromStorage: core.reloadFromStorage,
     subscribe: core.subscribe,
     dispose: core.dispose,

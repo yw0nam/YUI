@@ -3,11 +3,11 @@ import type { Locale } from "../../ui/i18n";
 import { wireCueLocaleSync } from "./wire-cue-locale-sync";
 
 const unsubscribe = vi.fn();
-let listener: ((locale: Locale, previous: Locale) => void) | undefined;
+let listener: ((locale: Locale) => void) | undefined;
 
 vi.mock("../../ui/i18n", () => ({
   getLocale: vi.fn(() => "en"),
-  subscribe: vi.fn((fn: (locale: Locale, previous: Locale) => void) => {
+  subscribe: vi.fn((fn: (locale: Locale) => void) => {
     listener = fn;
     return unsubscribe;
   }),
@@ -27,7 +27,7 @@ describe("wireCueLocaleSync", () => {
     expect(proactiveSettings.syncLocale).toHaveBeenCalledWith("en");
     expect(scheduleSettings.syncLocale).toHaveBeenCalledWith("en");
 
-    listener?.("ja", "en");
+    listener?.("ja");
 
     expect(proactiveSettings.syncLocale).toHaveBeenLastCalledWith("ja");
     expect(scheduleSettings.syncLocale).toHaveBeenLastCalledWith("ja");

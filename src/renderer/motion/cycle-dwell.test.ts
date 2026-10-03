@@ -30,7 +30,6 @@ describe("createCycleDwell — cycle motion with dwell", () => {
 
     dwell.onFinish(true, 4000, swap);
     expect(swap).not.toHaveBeenCalled();
-    expect(dwell.pending()).toBe(true);
 
     // not yet
     vi.advanceTimersByTime(3999);
@@ -39,7 +38,6 @@ describe("createCycleDwell — cycle motion with dwell", () => {
     // dwell elapsed → exactly one swap
     vi.advanceTimersByTime(1);
     expect(swap).toHaveBeenCalledTimes(1);
-    expect(dwell.pending()).toBe(false);
   });
 
   it("cancel() during the dwell prevents the deferred swap entirely", () => {
@@ -47,11 +45,9 @@ describe("createCycleDwell — cycle motion with dwell", () => {
     const dwell = createCycleDwell();
 
     dwell.onFinish(true, 4000, swap);
-    expect(dwell.pending()).toBe(true);
 
     // an interrupt (new motion play / teardown) cancels before the timer fires
     dwell.cancel();
-    expect(dwell.pending()).toBe(false);
 
     vi.advanceTimersByTime(10000);
     expect(swap).not.toHaveBeenCalled();
@@ -81,7 +77,6 @@ describe("createCycleDwell — immediate (regression: no behavior change)", () =
 
     dwell.onFinish(false, 4000, swap);
     expect(swap).toHaveBeenCalledTimes(1);
-    expect(dwell.pending()).toBe(false);
 
     vi.advanceTimersByTime(10000);
     expect(swap).toHaveBeenCalledTimes(1); // no second fire
@@ -93,7 +88,6 @@ describe("createCycleDwell — immediate (regression: no behavior change)", () =
 
     dwell.onFinish(true, 0, swap);
     expect(swap).toHaveBeenCalledTimes(1);
-    expect(dwell.pending()).toBe(false);
   });
 
   it("cycle motion with absent/undefined dwell runs the swap synchronously", () => {
@@ -102,7 +96,6 @@ describe("createCycleDwell — immediate (regression: no behavior change)", () =
 
     dwell.onFinish(true, undefined, swap);
     expect(swap).toHaveBeenCalledTimes(1);
-    expect(dwell.pending()).toBe(false);
   });
 });
 
@@ -110,6 +103,5 @@ describe("createCycleDwell — cancel() is idempotent and safe with no pending",
   it("cancel() with nothing pending is a no-op and does not throw", () => {
     const dwell = createCycleDwell();
     expect(() => dwell.cancel()).not.toThrow();
-    expect(dwell.pending()).toBe(false);
   });
 });

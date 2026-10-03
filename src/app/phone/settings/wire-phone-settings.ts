@@ -28,8 +28,6 @@ import type { ConversationStores } from "../../settings/conversation-stores";
 export interface PhoneSettings {
   /** Open the view on a tab, optionally focusing a field on it. */
   open(tab: PhoneSettingsTab, opts?: { focus?: PhoneSettingsFocus }): void;
-  close(): void;
-  isOpen(): boolean;
   dispose(): void;
 }
 
@@ -149,8 +147,6 @@ export function createPhoneSettings(deps: {
       back.claim(view.close);
       view.open(tab, opts);
     },
-    close: view.close,
-    isOpen: view.isOpen,
     dispose(): void {
       view.dispose();
       // The connection tab commits typed input before it lets go of its subscriptions.

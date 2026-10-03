@@ -85,52 +85,6 @@ describe("createWorkflowSettings", () => {
     expect(listener).not.toHaveBeenCalled();
   });
 
-  it("updates valid label and URL values, persists, and notifies", () => {
-    const storage = fakeStorage({ entries: [ENTRY] });
-    const store = createWorkflowSettings({ storage });
-    const listener = vi.fn();
-    store.subscribe(listener);
-
-    store.updateWorkflow("morning", {
-      label: "  Daily digest  ",
-      url: "  http://localhost:5678/webhook  ",
-    });
-
-    expect(store.get().entries[0]).toEqual({
-      id: "morning",
-      label: "Daily digest",
-      url: "http://localhost:5678/webhook",
-    });
-    expect(storage.saved).toHaveLength(1);
-    expect(listener).toHaveBeenCalledTimes(1);
-  });
-
-  it("ignores empty labels and invalid URLs", () => {
-    const storage = fakeStorage({ entries: [ENTRY] });
-    const store = createWorkflowSettings({ storage });
-    const listener = vi.fn();
-    store.subscribe(listener);
-
-    store.updateWorkflow("morning", { label: "  ", url: "ftp://example.com" });
-
-    expect(store.get().entries[0]).toEqual(ENTRY);
-    expect(storage.saved).toHaveLength(0);
-    expect(listener).not.toHaveBeenCalled();
-  });
-
-  it("does not notify for unchanged values or an unknown id", () => {
-    const storage = fakeStorage({ entries: [ENTRY] });
-    const store = createWorkflowSettings({ storage });
-    const listener = vi.fn();
-    store.subscribe(listener);
-
-    store.updateWorkflow("morning", { label: ENTRY.label, url: ENTRY.url });
-    store.updateWorkflow("missing", { label: "Other" });
-
-    expect(storage.saved).toHaveLength(0);
-    expect(listener).not.toHaveBeenCalled();
-  });
-
   it("removes a workflow, persists, and notifies", () => {
     const storage = fakeStorage({ entries: [ENTRY] });
     const store = createWorkflowSettings({ storage });

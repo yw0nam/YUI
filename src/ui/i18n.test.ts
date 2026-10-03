@@ -101,14 +101,6 @@ describe("setLocale / getLocale — persistence and side effects", () => {
     expect(calls).toEqual(["ko"]);
   });
 
-  it("passes the previous locale to subscribers", async () => {
-    const { setLocale, subscribe } = await import("./i18n");
-    const calls: Array<[string, string]> = [];
-    subscribe((locale, previous) => calls.push([locale, previous]));
-    setLocale("ko");
-    expect(calls).toEqual([["ko", "en"]]);
-  });
-
   it("unsubscribe stops notifications", async () => {
     const { setLocale, subscribe } = await import("./i18n");
     const calls: string[] = [];

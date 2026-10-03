@@ -19,8 +19,6 @@ interface CycleDwell {
   onFinish(isCycle: boolean, dwellMs: number | undefined, runSwap: () => void): void;
   /** Cancel any pending deferred swap. Idempotent and safe with nothing pending. */
   cancel(): void;
-  /** True while a deferred swap is scheduled. */
-  pending(): boolean;
 }
 
 export function createCycleDwell(): CycleDwell {
@@ -46,8 +44,5 @@ export function createCycleDwell(): CycleDwell {
       }
     },
     cancel,
-    pending() {
-      return timer !== null;
-    },
   };
 }

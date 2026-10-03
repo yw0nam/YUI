@@ -121,10 +121,10 @@ interface HitTestWindow extends WindowStaticsSource {
 export interface HitTestController {
   start(): void;
   stop(): void;
-  /** Stop toggling, force the cursor mode, and assign suspension ownership. */
-  suspend(mode?: "capture" | "passthrough", owner?: string): void;
-  /** Resume normal toggling when the caller owns the suspension. */
-  resume(owner?: string): void;
+  /** Stop toggling and force the window interactive. */
+  suspend(): void;
+  /** Resume normal toggling. */
+  resume(): void;
   /** While the window is being moved by the client, re-read its origin every tick. */
   setMoving(moving: boolean): void;
 }
@@ -190,7 +190,6 @@ export function createHitTestController(opts: HitTestOptions): HitTestController
   let ignore = false;
   let running = false;
   let suspended = false;
-  let suspendedOwner: string | null = null;
   // An ambient stroll moves the window every frame — the cached origin goes stale at once.
   let moving = false;
   let pollHandle: number | null = null;
@@ -322,7 +321,6 @@ export function createHitTestController(opts: HitTestOptions): HitTestController
     ignore = true;
     setIgnore(false);
     suspended = false;
-    suspendedOwner = null;
     pollFailureCount = 0;
     tick = 0;
     statics.invalidate();
@@ -342,20 +340,17 @@ export function createHitTestController(opts: HitTestOptions): HitTestController
     win = null;
   }
 
-  function suspend(mode: "capture" | "passthrough" = "capture", owner = "default"): void {
+  function suspend(): void {
     suspended = true;
-    suspendedOwner = owner;
     state = "capture";
     counter = 0;
     pollFailureCount = 0;
     stopPoll();
-    setIgnore(mode === "passthrough");
+    setIgnore(false);
   }
 
-  function resume(owner = "default"): void {
-    if (suspendedOwner !== owner) return;
+  function resume(): void {
     suspended = false;
-    suspendedOwner = null;
     state = "capture";
     counter = 0;
     pollFailureCount = 0;

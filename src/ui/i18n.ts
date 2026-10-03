@@ -49,20 +49,19 @@ function _hydrate(): Locale {
 
 let _locale: Locale = _hydrate();
 
-const _subscribers = new Set<(l: Locale, previous: Locale) => void>();
+const _subscribers = new Set<(l: Locale) => void>();
 
 export function getLocale(): Locale {
   return _locale;
 }
 
 export function setLocale(l: Locale): void {
-  const previous = _locale;
   _locale = l;
   _storage.save(l);
   if (typeof document !== "undefined") {
     document.documentElement.lang = l;
   }
-  for (const fn of _subscribers) fn(l, previous);
+  for (const fn of _subscribers) fn(l);
 }
 
 /**
@@ -73,12 +72,11 @@ export function setLocale(l: Locale): void {
 export function reloadFromStorage(): void {
   const next = _hydrate();
   if (next === _locale) return;
-  const previous = _locale;
   _locale = next;
   if (typeof document !== "undefined") {
     document.documentElement.lang = next;
   }
-  for (const fn of _subscribers) fn(next, previous);
+  for (const fn of _subscribers) fn(next);
 }
 
 /**
@@ -99,7 +97,7 @@ export function t(key: string, vars?: Record<string, string | number>): string {
  * Registers a subscriber invoked on every setLocale call.
  * Returns an unsubscribe function.
  */
-export function subscribe(fn: (l: Locale, previous: Locale) => void): () => void {
+export function subscribe(fn: (l: Locale) => void): () => void {
   _subscribers.add(fn);
   return () => _subscribers.delete(fn);
 }

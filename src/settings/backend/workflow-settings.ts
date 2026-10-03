@@ -66,33 +66,6 @@ export function createWorkflowSettings(opts?: { storage?: WorkflowStorage }) {
       return structuredClone(entry);
     },
 
-    updateWorkflow(id: string, patch: Partial<Omit<WorkflowEntry, "id">>): void {
-      const current = findWorkflow(id);
-      if (!current) return;
-      const next = { ...current };
-      let changed = false;
-
-      if (typeof patch.label === "string" && patch.label.trim()) {
-        const label = patch.label.trim();
-        if (next.label !== label) {
-          next.label = label;
-          changed = true;
-        }
-      }
-      if (typeof patch.url === "string" && isValidWorkflowUrl(patch.url)) {
-        const url = patch.url.trim();
-        if (next.url !== url) {
-          next.url = url;
-          changed = true;
-        }
-      }
-
-      if (!changed) return;
-      core.commit({
-        entries: core.current().entries.map((entry) => (entry.id === id ? next : entry)),
-      });
-    },
-
     removeWorkflow(id: string): void {
       if (!findWorkflow(id)) return;
       core.commit({ entries: core.current().entries.filter((entry) => entry.id !== id) });

@@ -222,13 +222,6 @@ export function createSelectionStore<T extends SelectionOption>(opts: {
       notify();
     },
 
-    reset(): void {
-      if (override === null) return;
-      override = null;
-      storage?.save(null);
-      notify();
-    },
-
     /** Moves the active owner: its user options are listed and resolvable, every other owner's are
      *  not — a list change even when the active id stays put, so it always notifies. */
     setOwner(next: string): void {

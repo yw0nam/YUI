@@ -413,28 +413,8 @@ describe("createHitTestController — suspend/resume", () => {
     c.stop();
   });
 
-  it('suspend("passthrough") forces click-through through the controller', async () => {
-    const win = fakeWindow();
-    const c = createHitTestController({
-      getWindow: () => win as never,
-      moveTarget: new EventTarget(),
-      isOverInteractive: () => false,
-      getConfig: () => cfg,
-      schedule: () => 0,
-      cancel: () => {},
-      doc: fakeDoc() as never,
-    });
-    await startSynced(c, win);
-    c.suspend("passthrough");
-    await Promise.resolve();
-    expect(win.setIgnoreCursorEvents).toHaveBeenLastCalledWith(true);
-
-    c.resume();
-    await vi.waitFor(() => expect(win.setIgnoreCursorEvents).toHaveBeenLastCalledWith(false));
-    c.stop();
-  });
-
-  it("ignores a stale owner resume and resumes only for the current owner", async () => {
+  it("serializes rapid click-through flips", async () => {
+    let resolveFirst: (() => void) | undefined;
     const win = fakeWindow();
     const target = new EventTarget();
     const c = createHitTestController({
@@ -446,45 +426,13 @@ describe("createHitTestController — suspend/resume", () => {
       cancel: () => {},
       doc: fakeDoc() as never,
     });
-    c.start();
-    c.suspend("passthrough", "peek");
-    await vi.waitFor(() => expect(win.setIgnoreCursorEvents).toHaveBeenLastCalledWith(true));
-
-    c.suspend("capture");
-    await vi.waitFor(() => expect(win.setIgnoreCursorEvents).toHaveBeenLastCalledWith(false));
-    win.setIgnoreCursorEvents.mockClear();
-
-    c.resume("peek");
-    move(target);
-    move(target);
-    await Promise.resolve();
-    expect(win.setIgnoreCursorEvents).not.toHaveBeenCalled();
-
-    c.resume();
-    move(target);
-    move(target);
-    await vi.waitFor(() => expect(win.setIgnoreCursorEvents).toHaveBeenLastCalledWith(true));
-    c.stop();
-  });
-
-  it("serializes rapid passthrough suspend and resume flips", async () => {
-    let resolveFirst: (() => void) | undefined;
-    const win = fakeWindow();
-    const c = createHitTestController({
-      getWindow: () => win as never,
-      moveTarget: new EventTarget(),
-      isOverInteractive: () => false,
-      getConfig: () => cfg,
-      schedule: () => 0,
-      cancel: () => {},
-      doc: fakeDoc() as never,
-    });
     await startSynced(c, win);
     win.setIgnoreCursorEvents
       .mockImplementationOnce(() => new Promise<void>((resolve) => (resolveFirst = resolve)))
       .mockResolvedValue(undefined);
-    c.suspend("passthrough");
-    c.resume();
+    move(target);
+    move(target);
+    c.suspend();
     await Promise.resolve();
     expect(win.setIgnoreCursorEvents).toHaveBeenCalledTimes(1);
     resolveFirst?.();

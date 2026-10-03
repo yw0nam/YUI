@@ -91,7 +91,7 @@ describe("computeCameraFit — distance scaling", () => {
   });
 });
 
-describe("computeCameraFit — target and position", () => {
+describe("computeCameraFit — target", () => {
   it("target equals the box center", () => {
     const fit = computeCameraFit(boxOf([0.2, 1.1, -0.3], [0.6, 1.8, 0.4]), {
       fov: 30,
@@ -101,18 +101,6 @@ describe("computeCameraFit — target and position", () => {
     expect(fit.target.x).toBeCloseTo(0.2, 6);
     expect(fit.target.y).toBeCloseTo(1.1, 6);
     expect(fit.target.z).toBeCloseTo(-0.3, 6);
-  });
-
-  it("position sits in front along +Z at center + (0,0,distance)", () => {
-    // height-bound: distance = 3.35884572681199; center z = -0.3.
-    const fit = computeCameraFit(boxOf([0.2, 1.1, -0.3], [0.6, 1.8, 0.4]), {
-      fov: 30,
-      aspect: 1,
-      margin: 0,
-    })!;
-    expect(fit.position.x).toBeCloseTo(0.2, 6);
-    expect(fit.position.y).toBeCloseTo(1.1, 6);
-    expect(fit.position.z).toBeCloseTo(-0.3 + 3.35884572681199, 6);
   });
 });
 
@@ -205,9 +193,9 @@ describe("orbitPosition — default angles reproduce head-on", () => {
       azimuth: CAMERA_AZIMUTH_DEFAULT,
       polar: CAMERA_POLAR_DEFAULT,
     });
-    expect(pos.x).toBeCloseTo(fit.position.x, 6);
-    expect(pos.y).toBeCloseTo(fit.position.y, 6);
-    expect(pos.z).toBeCloseTo(fit.position.z, 6);
+    expect(pos.x).toBeCloseTo(fit.target.x, 6);
+    expect(pos.y).toBeCloseTo(fit.target.y, 6);
+    expect(pos.z).toBeCloseTo(fit.target.z + fit.distance, 6);
   });
 
   it("preserves the orbit radius (distance from target is `radius` at any angle)", () => {
