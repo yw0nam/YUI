@@ -13,9 +13,9 @@ pub fn run(app: &mut App) -> Result<(), Box<dyn std::error::Error>> {
     let (log_dir, log_offset) = app_log::init(app)?;
     app.manage(turn_log::TurnRecordLog::new(log_dir, log_offset));
 
-    // Recover any `.{id}.import-tmp` / `.{id}.import-backup` left by a process death
-    // mid-import, before the voice picker can read the references dir. Best-effort: an
-    // unresolvable app-data dir must not block launch.
+    // Discard any `.{id}.import-tmp` left by a process death mid-import, before the voice
+    // picker can read the references dir. Best-effort: an unresolvable app-data dir must not
+    // block launch.
     if let Ok(dir) = app.path().app_data_dir() {
         voice_import::sweep_stale_import_artifacts(&dir.join("references"));
     }
