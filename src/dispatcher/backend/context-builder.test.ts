@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import type { InputContext } from "../../contract";
 import type { BusEnvelope } from "../core/event-bus";
+import { renderClientContext } from "./client-context-text";
 import { buildClientContext, buildContext } from "./context-builder";
 
 const ENV: BusEnvelope = {
@@ -401,5 +402,69 @@ describe("context builder — previous turn", () => {
   it("omits the field when no provider is wired", async () => {
     const built = await buildContext(ENV, {});
     expect("previous" in built.clientContext).toBe(false);
+  });
+});
+
+describe("cue turn — complete client_context text at a fixed clock", () => {
+  const NOW = 1_717_000_600_000;
+  const CTX: InputContext = {
+    env: { timestamp: "2026-07-31T09:30:00+09:00", timezone: "Asia/Seoul" },
+    screenshot: { enabled: true, source: { kind: "monitor", index: 0 }, data_url: "data:x" },
+  };
+  const BODY = {
+    posture: { state: "sitting", perched_on: { app: "Cursor" } },
+    since: NOW - 720_000,
+  } as const;
+  const FRONTMOST = { app: "Google Chrome", window_title: "Inbox", since: NOW - 240_000 };
+
+  function text(env: BusEnvelope): string {
+    return renderClientContext(buildClientContext(CTX, env, BODY, FRONTMOST), NOW);
+  }
+
+  it("renders a schedule cue and a proactive cue", () => {
+    const schedule = text({
+      source: "timer_scheduler",
+      event_name: "schedule.morning",
+      ts: NOW,
+      payload: {
+        cue_id: "morning",
+        label: "morning call",
+        context: "say good morning",
+        local_time: "09:30",
+      },
+    });
+    expect(schedule).toBe(
+      [
+        "time: 2026-07-31T09:30:00+09:00 (Asia/Seoul)",
+        'frontmost: Google Chrome — "Inbox" (for 4min)',
+        "screenshot: monitor 0",
+        "body: sitting on Cursor (for 12min)",
+        'trigger: schedule "morning call"',
+        "cue note: say good morning",
+      ].join("\n"),
+    );
+
+    const proactive = text({
+      source: "timer_scheduler",
+      event_name: "proactive.mid_check",
+      ts: NOW,
+      payload: {
+        cue_id: "mid_check",
+        label: "check in",
+        context: "ask how it is going",
+        idle_min: 10,
+        gap_ms: 1_260_000,
+      },
+    });
+    expect(proactive).toBe(
+      [
+        "time: 2026-07-31T09:30:00+09:00 (Asia/Seoul)",
+        'frontmost: Google Chrome — "Inbox" (for 4min)',
+        "screenshot: monitor 0",
+        "body: sitting on Cursor (for 12min)",
+        'trigger: proactive "check in" (user idle 21min)',
+        "cue note: ask how it is going",
+      ].join("\n"),
+    );
   });
 });
