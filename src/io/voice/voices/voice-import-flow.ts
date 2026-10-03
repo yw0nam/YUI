@@ -60,8 +60,9 @@ export function createVoiceImportFlow(deps: {
   // Copy under a unique staging id, then upload. Once the upload succeeds the staged folder moves
   // to its final id: the name-derived id for a provider that keeps the caller's id (replacing a
   // same-name voice's folder), the id the server assigns for any other. The target is read before
-  // the first await, and a switch away from it at any later point leaves the store alone. On
-  // failure, delete the staged copy and rethrow without touching the store or a stored voice's clip.
+  // the first await, and a switch away from it at any later point leaves the store alone, except
+  // for a stored voice whose folder the move already replaced. On failure, delete the staged copy
+  // and rethrow without touching the store or a stored voice's clip.
   const commitVoiceImport = async (srcPath: string, name: string): Promise<void> => {
     const eps = getEndpoints();
     if (!eps?.tts_base_url) throw new Error("voice import requires tts_base_url");
@@ -128,8 +129,13 @@ export function createVoiceImportFlow(deps: {
       throw err;
     }
     if (superseded()) {
-      // A folder a stored voice already owns (a same-name Irodori re-import) is that voice's clip.
-      if (!speakerSelection.listUser().some((o) => o.id === folder)) await cleanUp();
+      // A folder a stored voice already owns (a same-name Irodori re-import) holds that voice's
+      // new clip, so its entry follows the clip; any other folder is an orphan.
+      if (speakerSelection.listUser().some((o) => o.id === folder)) {
+        speakerSelection.addUserOption(option);
+      } else {
+        await cleanUp();
+      }
       log.warn("voice_import_superseded", { provider, server_voice: serverId ?? null });
       return;
     }
