@@ -174,8 +174,6 @@ export async function wireDevGlobals(deps: {
             source: "user_input_source",
             event_name: "user.window_sit_enter",
             ts: Date.now(),
-            hint_tier: 1,
-            dnd_override: true,
           });
         }),
       exit: () =>
@@ -183,8 +181,6 @@ export async function wireDevGlobals(deps: {
           source: "user_input_source",
           event_name: "user.window_sit_exit",
           ts: Date.now(),
-          hint_tier: 1,
-          dnd_override: true,
         }),
       // Compute edge_local_ypx from current window outerPosition/scaleFactor,
       // drive geometry path without real OS window (Tauri: actual values, else 0,0/1 fallback).
@@ -206,8 +202,6 @@ export async function wireDevGlobals(deps: {
           source: "os_event_watcher",
           event_name: "user.window_sit_drop",
           ts: Date.now(),
-          hint_tier: 1,
-          dnd_override: true,
           payload: {
             edge_local_ypx: rect.y - pos.y / sf,
           },
@@ -219,8 +213,6 @@ export async function wireDevGlobals(deps: {
           source: "os_event_watcher",
           event_name: "user.window_sit_exit",
           ts: Date.now(),
-          hint_tier: 1,
-          dnd_override: true,
         }),
     },
     // Step-by-step demo helpers

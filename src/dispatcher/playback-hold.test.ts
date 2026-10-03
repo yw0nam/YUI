@@ -106,7 +106,6 @@ function proactiveEnv(): BusEnvelope {
     source: "os_event_watcher",
     event_name: "proactive.tap_bored",
     ts: NOW + 1,
-    hint_tier: 2,
     dnd_override: false,
     payload: {},
   };

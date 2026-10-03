@@ -15,7 +15,7 @@ describe("wireStrollReflexCancel", () => {
         return vi.fn();
       }),
       inFlight: () => ({
-        trigger: { source: "tap", event_name: trigger, ts: 0, hint_tier: 1, seq_id: 1 } as never,
+        trigger: { source: "tap", event_name: trigger, ts: 0, seq_id: 1 } as never,
         started_at: 0,
       }),
       fire: (busy: boolean) => cb?.(busy),

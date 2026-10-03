@@ -20,8 +20,6 @@ export async function wirePeekExitTriggers(deps: {
       source: "os_event_watcher",
       event_name: "user.peek_exit",
       ts: Date.now(),
-      hint_tier: 1,
-      dnd_override: true,
     });
   };
   const unlistenFocus = await deps.win.onFocusChanged((event) => {
@@ -52,8 +50,6 @@ export async function showAndFocusFromSummon(deps: {
       source: "user_input_source",
       event_name: "user.peek_exit",
       ts: Date.now(),
-      hint_tier: 1,
-      dnd_override: true,
     });
   }
   await deps.win.setFocus();

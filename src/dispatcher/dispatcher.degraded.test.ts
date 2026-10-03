@@ -3,7 +3,7 @@
  *
  * Scope:
  *  - Entering/exiting 'degraded' on consecutive backend_caller failures/successes.
- *  - While degraded: non-user tier2/3 is dropped (degraded_drop), user turns still reach
+ *  - While degraded: non-user tier2 is dropped (degraded_drop), user turns still reach
  *    backend_caller (judgment stays with the backend), and tier1 keeps rendering locally.
  */
 
@@ -113,7 +113,6 @@ describe("dispatcher — degraded state (3 consecutive backend call failures)", 
       source: "os_event_watcher",
       event_name: "proactive.tap_bored",
       ts: NOW,
-      hint_tier: 2,
       dnd_override: false,
       ...over,
     };
@@ -161,7 +160,7 @@ describe("dispatcher — degraded state (3 consecutive backend call failures)", 
     expect(dispatcher.state()).not.toBe("degraded");
   });
 
-  it("while degraded, a non-user tier2/3 event is dropped as degraded_drop without reaching backendCaller", async () => {
+  it("while degraded, a non-user tier2 event is dropped as degraded_drop without reaching backendCaller", async () => {
     dispatcher.start();
     await runOneCall(0, NOW, "network_drop");
     await runOneCall(1, NOW + 1, "network_drop");
@@ -213,7 +212,7 @@ describe("dispatcher — degraded state (3 consecutive backend call failures)", 
     expect(dispatcher.state()).toBe("degraded");
 
     applyDirective.mockClear();
-    bus.push(env({ event_name: "user.drag_start", hint_tier: 1, ts: NOW + 100 }));
+    bus.push(env({ event_name: "user.drag_start", ts: NOW + 100 }));
     await vi.advanceTimersByTimeAsync(20);
     expect(applyDirective).toHaveBeenCalled();
   });

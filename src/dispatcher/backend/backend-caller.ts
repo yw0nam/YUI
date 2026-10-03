@@ -1,7 +1,7 @@
 /**
  * Backend caller — B1–B5 call sequence.
  *
- * Sends tier2/3 events to backend judgment. Backend side of the firing≠judgment boundary:
+ * Sends tier2 events to backend judgment. Backend side of the firing≠judgment boundary:
  * Speech decision is based solely on whether speech_text is empty (no separate flag: silence = empty speech_text).
  *
  *  B1 package_context — Assemble InputContext (user_text + env.timestamp + env.timezone).

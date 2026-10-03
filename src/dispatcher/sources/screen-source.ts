@@ -139,8 +139,6 @@ export function createScreenSource(deps: ScreenSourceDeps): ScreenSource {
       source: "screen_watcher",
       event_name: `proactive.screen_${transition}`,
       ts: t,
-      hint_tier: 2,
-      dnd_override: false,
       payload: { transition, dwell_min, ...fromFields, ...recentFields },
     };
     bus.push(env);

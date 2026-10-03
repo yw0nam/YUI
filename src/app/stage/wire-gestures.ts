@@ -94,8 +94,6 @@ export async function wireStageGestures(deps: {
         source: "os_event_watcher",
         event_name: "user.drag_start",
         ts: Date.now(),
-        hint_tier: 1,
-        dnd_override: true,
       });
       // A cancelled climb or stroll may still be unparking its travel; the native
       // drag waits for this before it can grab the window.
@@ -110,8 +108,6 @@ export async function wireStageGestures(deps: {
         source: "os_event_watcher",
         event_name: "user.drag_end",
         ts: Date.now(),
-        hint_tier: 1,
-        dnd_override: true,
       });
     },
     onOrbitStart: hitTest.suspend,

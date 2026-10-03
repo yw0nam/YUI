@@ -256,8 +256,6 @@ export function createWindowDropSource(deps: WindowDropSourceDeps): WindowDropSo
       source: "os_event_watcher",
       event_name: "user.window_sit_exit",
       ts: Date.now(),
-      hint_tier: 1,
-      dnd_override: true,
     });
   }
 
@@ -267,8 +265,6 @@ export function createWindowDropSource(deps: WindowDropSourceDeps): WindowDropSo
       source: "os_event_watcher",
       event_name: kind === "sit" ? "user.window_sit_exit" : "user.peek_exit",
       ts: Date.now(),
-      hint_tier: 1,
-      dnd_override: true,
     });
   }
 
@@ -426,7 +422,6 @@ export function createWindowDropSource(deps: WindowDropSourceDeps): WindowDropSo
         source: "os_event_watcher",
         event_name: "proactive.window_sit",
         ts: Date.now(),
-        hint_tier: 2,
         payload: {
           cue_id: "window_sit",
           ...cueFields(windowSitCue, dropped.name),
@@ -452,8 +447,6 @@ export function createWindowDropSource(deps: WindowDropSourceDeps): WindowDropSo
       source: "os_event_watcher",
       event_name: "user.window_sit_drop",
       ts: Date.now(),
-      hint_tier: 1,
-      dnd_override: true,
       payload: {
         edge_local_ypx: edgeLocalYpx,
         app: target.ownerName,
@@ -484,7 +477,6 @@ export function createWindowDropSource(deps: WindowDropSourceDeps): WindowDropSo
         source: "os_event_watcher",
         event_name: "proactive.peek",
         ts: Date.now(),
-        hint_tier: 2,
         payload: {
           cue_id: "peek",
           ...cueFields(peekCue, target.name),
@@ -495,8 +487,6 @@ export function createWindowDropSource(deps: WindowDropSourceDeps): WindowDropSo
       source: "os_event_watcher",
       event_name: "user.peek_drop",
       ts: Date.now(),
-      hint_tier: 1,
-      dnd_override: true,
       payload: {
         side,
         target_local_xpx: targetLocalXpx,

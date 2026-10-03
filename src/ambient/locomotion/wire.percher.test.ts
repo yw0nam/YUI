@@ -36,7 +36,7 @@ async function wire() {
   createPercher.mockClear();
   createJumper.mockClear();
   landOn.mockClear();
-  const pushed: Array<{ event_name: string; hint_tier?: number }> = [];
+  const pushed: Array<{ event_name: string }> = [];
   const setHitTestMoving = vi.fn();
   const onTargetLost = vi.fn();
   const onStepOff = vi.fn();
@@ -98,7 +98,6 @@ describe("wirePercher", () => {
     deps.onTakeoff();
 
     expect(pushed.map((env) => env.event_name)).toEqual(["avatar.jump"]);
-    expect(pushed[0].hint_tier).toBe(1);
   });
 
   it("drops the character when the ambient step-off walks her off the edge", async () => {

@@ -85,8 +85,6 @@ describe("createTapSource", () => {
         source: "os_event_watcher",
         event_name: "user.tap",
         ts: 1_000,
-        hint_tier: 1,
-        dnd_override: true,
       },
     ]);
   });
@@ -105,8 +103,6 @@ describe("createTapSource", () => {
         source: "os_event_watcher",
         event_name: "user.tap_region",
         ts: 1_000,
-        hint_tier: 1,
-        dnd_override: true,
         payload: { motion_id: "shy" },
       },
     ]);
@@ -192,7 +188,6 @@ describe("createTapSource", () => {
         source: "os_event_watcher",
         event_name: "proactive.tap_bored",
         ts: 2_500,
-        hint_tier: 2,
         payload: {
           cue_id: "tap_bored",
           label: "wants attention",
@@ -281,7 +276,6 @@ describe("createTapSource", () => {
         source: "os_event_watcher",
         event_name: "proactive.touch_chest",
         ts: 1_000,
-        hint_tier: 2,
         payload: {
           cue_id: "touch_chest",
           label: "chest poked",
@@ -292,8 +286,6 @@ describe("createTapSource", () => {
         source: "os_event_watcher",
         event_name: "user.tap_region",
         ts: 1_000,
-        hint_tier: 1,
-        dnd_override: true,
         payload: { motion_id: "shy" },
       },
     ]);
@@ -436,8 +428,6 @@ describe("createTapSource — head pat", () => {
         source: "os_event_watcher",
         event_name: "user.tap",
         ts: 1_000,
-        hint_tier: 1,
-        dnd_override: true,
       },
     ]);
   });
@@ -463,8 +453,6 @@ describe("createTapSource — head pat", () => {
         source: "os_event_watcher",
         event_name: "user.pat_start",
         ts: 1_000,
-        hint_tier: 1,
-        dnd_override: true,
         payload: { motion_id: "head_pat", emotion_id: "relaxed" },
       },
     ]);
@@ -481,14 +469,11 @@ describe("createTapSource — head pat", () => {
         source: "os_event_watcher",
         event_name: "user.pat_end",
         ts: 3_400,
-        hint_tier: 1,
-        dnd_override: true,
       },
       {
         source: "os_event_watcher",
         event_name: "proactive.head_pat",
         ts: 3_400,
-        hint_tier: 2,
         payload: { cue_id: "head_pat", label: "head patted", context: "held for 2s" },
       },
     ]);
@@ -567,7 +552,7 @@ describe("createTapSource — head pat", () => {
     setTime(4_000);
     source.handlePatEnd();
 
-    expect(pushed.filter((env) => env.hint_tier === 2)).toEqual([
+    expect(pushed.filter((env) => env.event_name.startsWith("proactive."))).toEqual([
       expect.objectContaining({ event_name: "proactive.touch_chest" }),
     ]);
 

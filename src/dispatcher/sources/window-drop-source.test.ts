@@ -134,8 +134,6 @@ describe("window-drop-source — perch hit", () => {
     expect(pushed).toHaveLength(2);
     const env = pushed.find((e) => e.event_name === "user.window_sit_drop")!;
     expect(env.source).toBe("os_event_watcher");
-    expect(env.hint_tier).toBe(1);
-    expect(env.dnd_override).toBe(true);
     expect(env.payload?.app).toBe("Visual Studio Code");
     expect(env.payload?.window_title).toBe("Other");
     // edge_local_ypx = W.y - pos.y/scale = 400 - 740/2 = 400 - 370 = 30.
@@ -162,7 +160,6 @@ describe("window-drop-source — perch hit", () => {
     const env = pushed.find((e) => e.event_name === "proactive.window_sit")!;
     expect(env).toBeDefined();
     expect(env.source).toBe("os_event_watcher");
-    expect(env.hint_tier).toBe(2);
     expect(env.payload).toEqual({
       cue_id: "window_sit",
       label: CUES.window_sit.label,
@@ -495,8 +492,6 @@ describe("window-drop-source — side peek drop", () => {
     expect(pushed.at(-1)).toMatchObject({
       event_name: "user.peek_drop",
       source: "os_event_watcher",
-      hint_tier: 1,
-      dnd_override: true,
       payload: {
         side,
         app: "Visual Studio Code",
@@ -640,7 +635,6 @@ describe("window-drop-source — side peek drop", () => {
     const env = pushed.find((e) => e.event_name === "proactive.peek")!;
     expect(env).toBeDefined();
     expect(env.source).toBe("os_event_watcher");
-    expect(env.hint_tier).toBe(2);
     expect(env.payload).toEqual({ cue_id: "peek", label: CUES.peek.label });
     expect(env.payload).not.toHaveProperty("context");
     vi.useRealTimers();
@@ -1480,8 +1474,6 @@ describe("window-drop-source — programmatic placement (agent-driven gestures)"
     expect(pushed.map((e) => e.event_name)).toEqual(["user.window_sit_drop"]);
     const env = pushed[0];
     expect(env.source).toBe("os_event_watcher");
-    expect(env.hint_tier).toBe(1);
-    expect(env.dnd_override).toBe(true);
     expect(env.payload?.app).toBe("Notes");
     expect(env.payload?.window_title).toBe("Todo");
     // edge_local_ypx = target.y - newPos.y/scale = 400 - 740/2 = 30.

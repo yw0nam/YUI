@@ -9,7 +9,6 @@ const ENV: BusEnvelope = {
   source: "user_input_source",
   event_name: "user.text",
   ts: 1_717_000_000_000,
-  hint_tier: 3,
   payload: { text: "hello" },
 };
 
@@ -125,7 +124,6 @@ describe("buildClientContext — cue forwarding", () => {
       source: "os_event_watcher",
       event_name: "proactive.touch_chest",
       ts: 1_717_000_000_000,
-      hint_tier: 2,
       payload,
     };
   }
@@ -178,7 +176,6 @@ describe("buildClientContext — screen forwarding", () => {
       source: "os_event_watcher",
       event_name: eventName,
       ts: 1_717_000_000_000,
-      hint_tier: 2,
       payload,
     };
   }
@@ -318,7 +315,6 @@ describe("buildClientContext — milestone forwarding", () => {
       source: "timer_scheduler",
       event_name: "time_milestone.first_activity",
       ts: 1_717_000_000_000,
-      hint_tier: 2,
       payload,
     };
   }

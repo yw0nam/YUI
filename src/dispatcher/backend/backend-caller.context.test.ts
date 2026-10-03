@@ -422,7 +422,6 @@ describe("backend_caller — flat client_context envelope", () => {
       source: "timer_scheduler",
       event_name: "proactive.cowork",
       ts: 1_717_000_000_000,
-      hint_tier: 2,
       payload: { os_idle_ms: 65_000, gap_ms: 3_900_000 },
     };
   }
@@ -466,7 +465,6 @@ describe("backend_caller — flat client_context envelope", () => {
       source: "timer_scheduler",
       event_name: "schedule.morning",
       ts: 1_717_000_000_000,
-      hint_tier: 2,
       payload: {},
     };
     await caller.call(turnOf(env));
@@ -483,7 +481,6 @@ describe("backend_caller — flat client_context envelope", () => {
       source: "timer_scheduler",
       event_name: "time_milestone.first_activity",
       ts: 1_717_000_000_000,
-      hint_tier: 2,
       payload: { name: "first_activity", local_time: "08:12" },
     };
     await caller.call(turnOf(env));
@@ -499,7 +496,6 @@ describe("backend_caller — flat client_context envelope", () => {
       source: "user_input_source",
       event_name: "user.voice_segment_ready",
       ts: 1_717_000_000_000,
-      hint_tier: 2,
       dnd_override: true,
       payload: { text: "こんにちは" },
     };

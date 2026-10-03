@@ -29,7 +29,6 @@ export function createUserInputSource(bus: EventBus): UserInputSource {
         event_name: "user.text_submitted",
         ts: Date.now(),
         payload: { text: trimmed, ...(images?.length ? { images } : {}) },
-        hint_tier: 2,
         dnd_override: true,
       };
       bus.push(env);
@@ -43,7 +42,6 @@ export function createUserInputSource(bus: EventBus): UserInputSource {
         event_name: "user.text_submitted",
         ts: Date.now(),
         payload: { text: trimmed, guide },
-        hint_tier: 2,
         dnd_override: true,
       });
     },
@@ -56,7 +54,6 @@ export function createUserInputSource(bus: EventBus): UserInputSource {
         event_name: "user.voice_segment_ready",
         ts: Date.now(),
         payload: { text: trimmed },
-        hint_tier: 2,
         dnd_override: true,
       };
       bus.push(env);

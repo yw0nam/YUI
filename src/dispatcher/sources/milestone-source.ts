@@ -85,8 +85,6 @@ export function createMilestoneSource(deps: MilestoneSourceDeps): MilestoneSourc
       source: "os_event_watcher",
       event_name: `time_milestone.${MILESTONE_NAME}`,
       ts,
-      hint_tier: 2,
-      dnd_override: false,
       payload: {
         name: MILESTONE_NAME,
         local_time: localTime,

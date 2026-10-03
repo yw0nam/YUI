@@ -60,9 +60,7 @@ describe("wirePeekExitTriggers", () => {
     await Promise.resolve();
     expect(s.exit).toHaveBeenCalledTimes(1);
     expect(s.push).toHaveBeenCalledTimes(1);
-    expect(s.push).toHaveBeenCalledWith(
-      expect.objectContaining({ event_name: "user.peek_exit", hint_tier: 1 }),
-    );
+    expect(s.push).toHaveBeenCalledWith(expect.objectContaining({ event_name: "user.peek_exit" }));
     s.dispose();
   });
 

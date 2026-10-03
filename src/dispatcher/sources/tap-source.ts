@@ -80,8 +80,6 @@ export function createTapSource(deps: TapSourceDeps): TapSource {
       source: "os_event_watcher",
       event_name: "user.tap",
       ts,
-      hint_tier: 1,
-      dnd_override: true,
     });
   }
 
@@ -94,8 +92,6 @@ export function createTapSource(deps: TapSourceDeps): TapSource {
         source: "os_event_watcher",
         event_name: "user.pat_end",
         ts,
-        hint_tier: 1,
-        dnd_override: true,
       });
 
       const cue = deps.config.region_cues?.head;
@@ -107,7 +103,6 @@ export function createTapSource(deps: TapSourceDeps): TapSource {
         source: "os_event_watcher",
         event_name: "proactive.head_pat",
         ts,
-        hint_tier: 2,
         payload: {
           cue_id: "head_pat",
           label: cue.label,
@@ -145,7 +140,6 @@ export function createTapSource(deps: TapSourceDeps): TapSource {
               source: "os_event_watcher",
               event_name: "proactive.tap_bored",
               ts,
-              hint_tier: 2,
               payload: {
                 cue_id: "tap_bored",
                 label: deps.config.bored_cue.label,
@@ -172,7 +166,6 @@ export function createTapSource(deps: TapSourceDeps): TapSource {
             source: "os_event_watcher",
             event_name: `proactive.touch_${region}`,
             ts,
-            hint_tier: 2,
             payload: {
               cue_id: `touch_${region}`,
               label: cue.label,
@@ -195,8 +188,6 @@ export function createTapSource(deps: TapSourceDeps): TapSource {
           source: "os_event_watcher",
           event_name: "user.tap_region",
           ts,
-          hint_tier: 1,
-          dnd_override: true,
           payload: { motion_id: motionId, ...(emotionId ? { emotion_id: emotionId } : {}) },
         });
       } catch (error) {
@@ -221,8 +212,6 @@ export function createTapSource(deps: TapSourceDeps): TapSource {
           source: "os_event_watcher",
           event_name: "user.pat_start",
           ts: patStartTs,
-          hint_tier: 1,
-          dnd_override: true,
           payload: {
             motion_id: deps.config.region_motions.head,
             ...(emotionId ? { emotion_id: emotionId } : {}),

@@ -3,7 +3,7 @@
  *
  * Scope:
  *  - §5.2 conflict: user.text_submitted / user.voice_segment_ready arrival aborts an in-flight
- *    backend call (AbortController) and drops queued tier2/3 as superseded_by_user.
+ *    backend call (AbortController) and drops queued tier2 as superseded_by_user.
  *  - §337 playback-gated drain: a queued non-user turn holds behind speech still playing and
  *    drains once playback ends; a user turn still supersedes immediately.
  */
@@ -160,7 +160,6 @@ describe("dispatcher — conflict resolution / supersede (§5.2, §14 ABORT path
         source: "os_event_watcher",
         event_name: "proactive.tap_bored",
         ts: NOW + 1,
-        hint_tier: 2,
         dnd_override: false,
       }),
     );
@@ -202,7 +201,6 @@ describe("dispatcher — conflict resolution / supersede (§5.2, §14 ABORT path
         source: "os_event_watcher",
         event_name: "proactive.tap_bored",
         ts: NOW + 1,
-        hint_tier: 2,
         dnd_override: false,
       }),
     );
@@ -226,7 +224,6 @@ describe("dispatcher — playback-gated drain (§337)", () => {
       source: "os_event_watcher",
       event_name: "proactive.tick",
       ts: NOW + 1,
-      hint_tier: 2,
       dnd_override: false,
       ...over,
     });

@@ -1,13 +1,13 @@
 /** Pure classification of a bus envelope into tier and target, plus the paced-source table. */
 import type { BusEnvelope } from "./event-bus";
 
-export type Tier = 1 | 2 | 3;
+export type Tier = 1 | 2;
 export type Target = "tier1" | "backend_caller" | "drop";
 
-export interface Classification {
-  tier: Tier;
-  target: Target;
-}
+export type Classification =
+  | { tier: 1; target: "tier1" }
+  | { tier: 2; target: "backend_caller" }
+  | { target: "drop" };
 
 /**
  * classify. Only handled events are routed; the rest are dropped (= no-op).
@@ -55,7 +55,7 @@ export function classify(env: BusEnvelope): Classification {
   ) {
     return { tier: 1, target: "tier1" };
   }
-  return { tier: (env.hint_tier ?? 3) as Tier, target: "drop" };
+  return { target: "drop" };
 }
 
 /** Source of a user-initiated turn (typed vs voice) — filters onUserTurnFailed targets and hints routing.

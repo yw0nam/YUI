@@ -174,7 +174,7 @@ export function wireWalker(deps: {
     await deps.travelFrame.ready;
     if (disposed) return;
     const push = (event_name: string): void => {
-      bus.push({ source: "timer_scheduler", event_name, ts: Date.now(), hint_tier: 1 });
+      bus.push({ source: "timer_scheduler", event_name, ts: Date.now() });
     };
     walker = createWalker({
       renderer,
@@ -291,7 +291,6 @@ export function wirePercher(deps: {
         source: "timer_scheduler",
         event_name: "avatar.walk_end",
         ts: Date.now(),
-        hint_tier: 1,
       });
     };
     const getWindow = (): PercherWindow => ({
@@ -330,7 +329,6 @@ export function wirePercher(deps: {
           source: "timer_scheduler",
           event_name: "avatar.walk_start",
           ts: Date.now(),
-          hint_tier: 1,
         });
       },
       onWalkEnd: endWalk,
@@ -344,7 +342,6 @@ export function wirePercher(deps: {
           source: "timer_scheduler",
           event_name: "avatar.jump",
           ts: Date.now(),
-          hint_tier: 1,
         });
       },
       onSit: (target, edgeLocalYpx) => {
@@ -352,8 +349,6 @@ export function wirePercher(deps: {
           source: "os_event_watcher",
           event_name: "avatar.window_sit",
           ts: Date.now(),
-          hint_tier: 1,
-          dnd_override: true,
           payload: {
             edge_local_ypx: edgeLocalYpx,
             app: target.ownerName,
@@ -430,8 +425,6 @@ export function wireFaller(deps: {
             source: "os_event_watcher",
             event_name: "user.fall_land",
             ts: Date.now(),
-            hint_tier: 1,
-            dnd_override: true,
             payload: {
               height_px: Math.round(heightPx),
               landed_on: surface.kind,
@@ -448,7 +441,6 @@ export function wireFaller(deps: {
           source: "os_event_watcher",
           event_name: "proactive.dropped",
           ts: Date.now(),
-          hint_tier: 2,
           payload: {
             cue_id: "dropped",
             label: cue.label,
@@ -536,8 +528,6 @@ export function wireClimber(deps: {
         source: "os_event_watcher",
         event_name,
         ts: Date.now(),
-        hint_tier: 1,
-        dnd_override: true,
         payload,
       });
     };

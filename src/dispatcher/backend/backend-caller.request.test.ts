@@ -208,7 +208,6 @@ describe("backend_caller — cue context forwarding (trigger.cue)", () => {
       source: "timer_scheduler",
       event_name: "schedule.morning",
       ts: 1_717_000_000_000,
-      hint_tier: 2,
       payload: {
         cue_id: "morning",
         label: "아침",
@@ -237,7 +236,6 @@ describe("backend_caller — cue context forwarding (trigger.cue)", () => {
       source: "timer_scheduler",
       event_name: "proactive.cowork",
       ts: 1_717_000_000_000,
-      hint_tier: 2,
       payload: {
         cue_id: "cowork",
         label: "코워킹",
@@ -261,7 +259,6 @@ describe("backend_caller — cue context forwarding (trigger.cue)", () => {
       source: "os_event_watcher",
       event_name: "proactive.touch_chest",
       ts: 1_717_000_000_000,
-      hint_tier: 2,
       payload: { cue_id: "touch_chest", label: "chest poked" },
     };
     await caller.call(turnOf(env));
@@ -278,7 +275,6 @@ describe("backend_caller — cue context forwarding (trigger.cue)", () => {
       source: "os_event_watcher",
       event_name: "proactive.touch_chest",
       ts: 1_717_000_000_000,
-      hint_tier: 2,
       payload: { cue_id: "touch_chest", label: "chest poked", context: "poked" },
     };
     await caller.call(turnOf(env));
@@ -302,7 +298,6 @@ describe("backend_caller — cue context forwarding (trigger.cue)", () => {
       source: "os_event_watcher",
       event_name: eventName,
       ts: 1_717_000_000_000,
-      hint_tier: 2,
       payload: { cue_id: eventName.split(".")[1], label: "label", context: "context" },
     };
     await caller.call(turnOf(env));
@@ -323,7 +318,6 @@ describe("backend_caller — cue context forwarding (trigger.cue)", () => {
       source: "os_event_watcher",
       event_name: eventName,
       ts: 1_717_000_000_000,
-      hint_tier: 2,
       payload: { transition: eventName.replace("proactive.screen_", ""), dwell_min: 45 },
     };
     await caller.call(turnOf(env));
@@ -345,7 +339,6 @@ describe("backend_caller — cue context forwarding (trigger.cue)", () => {
       source: "os_event_watcher",
       event_name: "proactive.tap_bored",
       ts: 1_717_000_000_000,
-      hint_tier: 2,
       payload: {
         cue_id: "tap_bored",
         label: "bored poking",
@@ -395,7 +388,6 @@ describe("backend_caller — agent trigger forwarding", () => {
       source: "timer_scheduler",
       event_name: "agent.done",
       ts: 1_717_000_000_000,
-      hint_tier: 2,
       payload: {
         tool: "claude-code",
         project: "my-widget",
@@ -427,7 +419,6 @@ describe("backend_caller — agent trigger forwarding", () => {
       source: "timer_scheduler",
       event_name: "agent.done",
       ts: 1_717_000_000_000,
-      hint_tier: 2,
       payload: {
         tool: "opencode",
         project: "api",
@@ -452,7 +443,6 @@ describe("backend_caller — agent trigger forwarding", () => {
       source: "timer_scheduler",
       event_name: "agent.catchup",
       ts: 1_717_000_000_000,
-      hint_tier: 2,
       payload: {
         count: 2,
         items: [
@@ -508,7 +498,6 @@ describe("backend_caller — agent trigger forwarding", () => {
       source: "timer_scheduler",
       event_name: "agent.done",
       ts: 1_717_000_000_000,
-      hint_tier: 2,
       payload: { tool: 42 }, // tool is not a string
     };
     await caller.call(turnOf(env));
@@ -530,7 +519,6 @@ describe("backend_caller — agent trigger forwarding", () => {
       source: "timer_scheduler",
       event_name: "agent.needs_input",
       ts: 1_717_000_000_000,
-      hint_tier: 2,
       payload: {
         tool: "claude-code",
         project: "my-widget",
@@ -563,7 +551,6 @@ describe("backend_caller — agent trigger forwarding", () => {
       source: "timer_scheduler",
       event_name: "agent.catchup",
       ts: 1_717_000_000_000,
-      hint_tier: 2,
       payload: {
         count: 2,
         items: [
@@ -599,7 +586,6 @@ describe("backend_caller — agent trigger forwarding", () => {
       source: "timer_scheduler",
       event_name: "agent.catchup",
       ts: 1_717_000_000_000,
-      hint_tier: 2,
       payload: {
         count: 3,
         items: [
@@ -626,7 +612,6 @@ describe("backend_caller — agent trigger forwarding", () => {
       source: "timer_scheduler",
       event_name: "agent.needs_input",
       ts: 1_717_000_000_000,
-      hint_tier: 2,
       payload: { tool: 42 }, // tool is not a string
     };
     await caller.call(turnOf(env));
@@ -646,7 +631,6 @@ describe("backend_caller — agent trigger forwarding", () => {
       source: "timer_scheduler",
       event_name: "agent.catchup",
       ts: 1_717_000_000_000,
-      hint_tier: 2,
       payload: { count: 0, items: [] },
     };
     await caller.call(turnOf(env));
@@ -665,7 +649,6 @@ describe("backend_caller — agent trigger forwarding", () => {
       source: "timer_scheduler",
       event_name: "agent.done",
       ts: 1_717_000_000_000,
-      hint_tier: 2,
       payload: {
         tool: injected,
         project: "yui",
@@ -700,7 +683,6 @@ describe("backend_caller — agent trigger forwarding", () => {
       source: "timer_scheduler",
       event_name: "agent.catchup",
       ts: 1_717_000_000_000,
-      hint_tier: 2,
       payload: {
         count: 2,
         items: [
@@ -734,7 +716,6 @@ describe("backend_caller — signals trigger forwarding", () => {
       source: "timer_scheduler",
       event_name: "signals.push",
       ts: 1_717_000_000_000,
-      hint_tier: 2,
       payload: {
         signals: [{ items: [{ kind: "reminder", payload: { foo: "bar" } }, { kind: "alert" }] }],
         ts: 1_717_000_000_000,
@@ -762,7 +743,6 @@ describe("backend_caller — signals trigger forwarding", () => {
       source: "timer_scheduler",
       event_name: "signals.push",
       ts: 1_717_000_000_000,
-      hint_tier: 2,
       payload: { signals: [{ items: [{ kind: "reminder" }] }], ts: 1_717_000_000_000 },
     };
     await caller.call(turnOf(env));
@@ -790,7 +770,6 @@ describe("backend_caller — signals trigger forwarding", () => {
       source: "timer_scheduler",
       event_name: "signals.catchup",
       ts: 1_717_000_000_000,
-      hint_tier: 2,
       payload: {
         count: 2,
         signals: [{ items: [{ id: 1 }] }, { items: [{ id: 2 }] }],
@@ -822,7 +801,6 @@ describe("backend_caller — signals trigger forwarding", () => {
       source: "timer_scheduler",
       event_name: "signals.push",
       ts: 1_717_000_000_000,
-      hint_tier: 2,
       payload: { signals: [{ items: weird }], ts: 1_717_000_000_000 },
     };
     await caller.call(turnOf(env));
@@ -840,7 +818,6 @@ describe("backend_caller — signals trigger forwarding", () => {
       source: "timer_scheduler",
       event_name: "signals.batch",
       ts: 1_717_000_000_000,
-      hint_tier: 2,
       payload: {
         signals: [
           {
@@ -872,7 +849,6 @@ describe("backend_caller — signals trigger forwarding", () => {
       source: "timer_scheduler",
       event_name: "signals.push",
       ts: 1_717_000_000_000,
-      hint_tier: 2,
       payload: { signals: [{ a: 1 }] },
     };
     await caller.call(turnOf(env));
@@ -889,7 +865,6 @@ describe("backend_caller — signals trigger forwarding", () => {
       source: "timer_scheduler",
       event_name: "signals.push",
       ts: 1_717_000_000_000,
-      hint_tier: 2,
       payload: { signals: "not-an-array", ts: 1_717_000_000_000 },
     };
     await caller.call(turnOf(env));
@@ -1074,7 +1049,6 @@ describe("backend_caller — Chat Completions (CC) mode request shape", () => {
       source: "timer_scheduler",
       event_name: "proactive.cowork",
       ts: 1_717_000_000_000,
-      hint_tier: 2,
       payload: {},
     };
     await caller.call(turnOf(env));
@@ -1101,7 +1075,6 @@ describe("backend_caller — Chat Completions (CC) mode request shape", () => {
       source: "timer_scheduler",
       event_name: "unknown.something",
       ts: 1_717_000_000_000,
-      hint_tier: 2,
       payload: {},
     };
     await caller.call(turnOf(env));

@@ -33,7 +33,6 @@ function turnOf(id: number, event_name: string): Turn {
     source: "user_input_source",
     event_name,
     ts: NOW,
-    hint_tier: 2,
   };
   return { id, trigger };
 }

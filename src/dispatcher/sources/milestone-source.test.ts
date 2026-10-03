@@ -111,8 +111,6 @@ describe("milestone_source — first present tick of the day", () => {
         source: "os_event_watcher",
         event_name: "time_milestone.first_activity",
         ts: t,
-        hint_tier: 2,
-        dnd_override: false,
         payload: {
           name: "first_activity",
           local_time: "08:12",

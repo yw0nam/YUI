@@ -106,8 +106,6 @@ describe("agent_source — present: immediate agent.done (spec §1)", () => {
     const e = pushed[0];
     expect(e.source).toBe("timer_scheduler");
     expect(e.event_name).toBe("agent.done");
-    expect(e.hint_tier).toBe(2);
-    expect(e.dnd_override).toBe(false);
     expect(e.payload).toMatchObject({
       tool: "claude-code",
       project: "widget",
@@ -171,8 +169,6 @@ describe("agent_source — away: buffer + catch-up (spec §2–3)", () => {
     const e = pushed[0];
     expect(e.event_name).toBe("agent.catchup");
     expect(e.source).toBe("timer_scheduler");
-    expect(e.hint_tier).toBe(2);
-    expect(e.dnd_override).toBe(false);
     const p = e.payload as { count: number; items: unknown[] };
     expect(p.count).toBe(2);
     expect(p.items).toHaveLength(2);

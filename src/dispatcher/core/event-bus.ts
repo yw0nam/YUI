@@ -22,8 +22,6 @@ export interface BusEnvelope {
   /** client epoch ms. */
   ts: number;
   payload?: Record<string, unknown>;
-  /** Source-estimated tier. Dispatcher makes final decision. */
-  hint_tier?: 1 | 2 | 3;
   /** True only for user-initiated (DND/debounce bypass). */
   dnd_override?: boolean;
 }

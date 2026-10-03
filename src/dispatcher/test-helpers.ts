@@ -172,7 +172,6 @@ export function userEnv(text = "안녕"): BusEnvelope {
     event_name: "user.text_submitted",
     ts: 1_717_000_000_000,
     payload: { text },
-    hint_tier: 2,
     dnd_override: true,
   };
 }
@@ -184,7 +183,6 @@ export function touchEnv(region: "chest" | "hips" = "chest"): BusEnvelope {
     event_name: `proactive.touch_${region}`,
     ts: 1_717_000_000_000,
     payload: { cue_id: `touch_${region}`, label: `${region} poked` },
-    hint_tier: 2,
   };
 }
 
@@ -195,7 +193,6 @@ export function dragHeldEnv(): BusEnvelope {
     event_name: "proactive.drag_held",
     ts: 1_717_000_000_000,
     payload: { cue_id: "drag_held", label: "dragged around" },
-    hint_tier: 2,
   };
 }
 
@@ -206,7 +203,6 @@ export function headPatEnv(): BusEnvelope {
     event_name: "proactive.head_pat",
     ts: 1_717_000_000_000,
     payload: { cue_id: "head_pat", label: "head patted", context: "held for 2s" },
-    hint_tier: 2,
   };
 }
 
@@ -217,7 +213,6 @@ export function windowSitEnv(): BusEnvelope {
     event_name: "proactive.window_sit",
     ts: 1_717_000_000_000,
     payload: { cue_id: "window_sit", label: "sat on window" },
-    hint_tier: 2,
   };
 }
 
@@ -228,7 +223,6 @@ export function peekEnv(): BusEnvelope {
     event_name: "proactive.peek",
     ts: 1_717_000_000_000,
     payload: { cue_id: "peek", label: "peeking" },
-    hint_tier: 2,
   };
 }
 
@@ -239,7 +233,6 @@ export function droppedEnv(): BusEnvelope {
     event_name: "proactive.dropped",
     ts: 1_717_000_000_000,
     payload: { cue_id: "dropped", label: "dropped from mid-air", height_px: 640 },
-    hint_tier: 2,
   };
 }
 

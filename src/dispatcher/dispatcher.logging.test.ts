@@ -140,7 +140,7 @@ describe("dispatcher — structured logging: state_change events", () => {
 describe("dispatcher — structured logging: fire events", () => {
   it("emits logger.info('fire', {seq_id, event_name, tier}) for a tier1 drag_start", async () => {
     dispatcher.start();
-    bus.push(env({ event_name: "user.drag_start", hint_tier: 1 }));
+    bus.push(env({ event_name: "user.drag_start" }));
     await vi.advanceTimersByTimeAsync(20);
     expect(logger.info).toHaveBeenCalledWith(
       "fire",
@@ -164,7 +164,6 @@ describe("dispatcher — structured logging: fire events", () => {
       env({
         source: "os_event_watcher",
         event_name: "user.window_sit_enter",
-        hint_tier: 1,
         dnd_override: false,
       }),
     );
@@ -398,7 +397,6 @@ describe("dispatcher — structured logging: drop events via logger", () => {
         source: "os_event_watcher",
         event_name: "proactive.tap_bored",
         ts: NOW + 1,
-        hint_tier: 2,
         dnd_override: false,
       }),
     );
@@ -423,7 +421,6 @@ describe("dispatcher — structured logging: drop events via logger", () => {
         source: "os_event_watcher",
         event_name: "proactive.tap_bored",
         ts: NOW + 1,
-        hint_tier: 2,
         dnd_override: false,
       }),
     );
@@ -432,7 +429,6 @@ describe("dispatcher — structured logging: drop events via logger", () => {
         source: "os_event_watcher",
         event_name: "proactive.drag_held",
         ts: NOW + 2,
-        hint_tier: 2,
         dnd_override: false,
       }),
     );
@@ -589,7 +585,6 @@ describe("dispatcher — structured logging: turn events", () => {
         source: "os_event_watcher",
         event_name: "proactive.tap_bored",
         ts: NOW,
-        hint_tier: 2,
         dnd_override: false,
         ...over,
       };

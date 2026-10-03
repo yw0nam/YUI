@@ -7,7 +7,7 @@
  *
  * Sections locked:
  *  - §6.2 Debounce: per-source window (os 5s / user 0).
- *  - §6.3 Rate-limit: tier2 6 / tier3 2 rolling 60min (N pass, N+1 drop, no refund),
+ *  - §6.3 Rate-limit: tier2 6 rolling 60min (N pass, N+1 drop, no refund),
  *    overall 20 → cooldownActive() true then 5min hold → release.
  *  - §6.4 Evaluation order + dnd_override short-circuit (no counter increment).
  */
@@ -75,7 +75,6 @@ describe("guardrails — evaluate dnd_override short-circuit", () => {
     for (let i = 0; i < 50; i++) {
       const r = g.evaluate(
         env({ source: "user_input_source", event_name: "user.text_submitted", dnd_override: true }),
-        2,
       );
       expect(r.pass).toBe(true);
     }
@@ -91,15 +90,15 @@ describe("guardrails — debounce per source (§6.2)", () => {
     const c = clock();
     const g = createGuardrails(config(), { now: c.now });
     expect(
-      g.evaluate(env({ source: "os_event_watcher", event_name: "user.drag_start" }), 3).pass,
+      g.evaluate(env({ source: "os_event_watcher", event_name: "user.drag_start" })).pass,
     ).toBe(true);
     c.advance(4_999);
     expect(
-      g.evaluate(env({ source: "os_event_watcher", event_name: "user.drag_start" }), 3).pass,
+      g.evaluate(env({ source: "os_event_watcher", event_name: "user.drag_start" })).pass,
     ).toBe(false);
     c.advance(1);
     expect(
-      g.evaluate(env({ source: "os_event_watcher", event_name: "user.drag_start" }), 3).pass,
+      g.evaluate(env({ source: "os_event_watcher", event_name: "user.drag_start" })).pass,
     ).toBe(true);
   });
 
@@ -108,7 +107,7 @@ describe("guardrails — debounce per source (§6.2)", () => {
     const g = createGuardrails(config(), { now: c.now });
     for (let i = 0; i < 3; i++) {
       expect(
-        g.evaluate(env({ source: "user_input_source", event_name: "user.text_submitted" }), 2).pass,
+        g.evaluate(env({ source: "user_input_source", event_name: "user.text_submitted" })).pass,
       ).toBe(true);
     }
   });
@@ -116,46 +115,27 @@ describe("guardrails — debounce per source (§6.2)", () => {
   it("debounce state only mutates on a full pass (a dropped event does not move lastFire)", () => {
     const c = clock();
     const g = createGuardrails(config(), { now: c.now });
-    expect(g.evaluate(env({ source: "os_event_watcher" }), 2).pass).toBe(true); // lastFire = t0
+    expect(g.evaluate(env({ source: "os_event_watcher" })).pass).toBe(true); // lastFire = t0
     c.advance(2_000);
-    expect(g.evaluate(env({ source: "os_event_watcher" }), 2).pass).toBe(false); // dropped, lastFire stays t0
+    expect(g.evaluate(env({ source: "os_event_watcher" })).pass).toBe(false); // dropped, lastFire stays t0
     c.advance(3_000); // t0 + 5_000 → window elapsed relative to t0, not the dropped attempt
-    expect(g.evaluate(env({ source: "os_event_watcher" }), 2).pass).toBe(true);
+    expect(g.evaluate(env({ source: "os_event_watcher" })).pass).toBe(true);
   });
 });
 
 // ── Rate-limit (§6.3) ────────────────────────────────────────────────────────────
 
-describe("guardrails — rate-limit per tier rolling 60min (§6.3)", () => {
+describe("guardrails — tier2 rate-limit rolling 60min (§6.3)", () => {
   it("tier2 cap 6: first 6 pass, 7th drops", () => {
     const c = clock();
     const g = createGuardrails(config(), { now: c.now });
     for (let i = 0; i < 6; i++) {
       // distinct sources/time to avoid debounce — drive via user_input (debounce 0).
       expect(
-        g.evaluate(env({ source: "user_input_source", event_name: "user.text_submitted" }), 2).pass,
+        g.evaluate(env({ source: "user_input_source", event_name: "user.text_submitted" })).pass,
       ).toBe(true);
     }
-    const r = g.evaluate(
-      env({ source: "user_input_source", event_name: "user.text_submitted" }),
-      2,
-    );
-    expect(r.pass).toBe(false);
-  });
-
-  it("tier3 cap 2: 2 pass, 3rd drops", () => {
-    const c = clock();
-    const g = createGuardrails(config(), { now: c.now });
-    expect(
-      g.evaluate(env({ source: "user_input_source", event_name: "user.text_submitted" }), 3).pass,
-    ).toBe(true);
-    expect(
-      g.evaluate(env({ source: "user_input_source", event_name: "user.text_submitted" }), 3).pass,
-    ).toBe(true);
-    const r = g.evaluate(
-      env({ source: "user_input_source", event_name: "user.text_submitted" }),
-      3,
-    );
+    const r = g.evaluate(env({ source: "user_input_source", event_name: "user.text_submitted" }));
     expect(r.pass).toBe(false);
   });
 
@@ -164,18 +144,18 @@ describe("guardrails — rate-limit per tier rolling 60min (§6.3)", () => {
     const g = createGuardrails(config(), { now: c.now });
     for (let i = 0; i < 6; i++) {
       expect(
-        g.evaluate(env({ source: "user_input_source", event_name: "user.text_submitted" }), 2).pass,
+        g.evaluate(env({ source: "user_input_source", event_name: "user.text_submitted" })).pass,
       ).toBe(true);
       c.advance(1);
     }
     // immediately full
     expect(
-      g.evaluate(env({ source: "user_input_source", event_name: "user.text_submitted" }), 2).pass,
+      g.evaluate(env({ source: "user_input_source", event_name: "user.text_submitted" })).pass,
     ).toBe(false);
     // advance past window relative to the first fire → one slot prunes, one more passes
     c.advance(3_600_000);
     expect(
-      g.evaluate(env({ source: "user_input_source", event_name: "user.text_submitted" }), 2).pass,
+      g.evaluate(env({ source: "user_input_source", event_name: "user.text_submitted" })).pass,
     ).toBe(true);
   });
 
@@ -184,15 +164,15 @@ describe("guardrails — rate-limit per tier rolling 60min (§6.3)", () => {
     const g = createGuardrails(config(), { now: c.now });
     for (let i = 0; i < 6; i++) {
       expect(
-        g.evaluate(env({ source: "user_input_source", event_name: "user.text_submitted" }), 2).pass,
+        g.evaluate(env({ source: "user_input_source", event_name: "user.text_submitted" })).pass,
       ).toBe(true);
     }
     // two over-cap attempts in the same instant — both drop, no slot is freed by the drops.
     expect(
-      g.evaluate(env({ source: "user_input_source", event_name: "user.text_submitted" }), 2).pass,
+      g.evaluate(env({ source: "user_input_source", event_name: "user.text_submitted" })).pass,
     ).toBe(false);
     expect(
-      g.evaluate(env({ source: "user_input_source", event_name: "user.text_submitted" }), 2).pass,
+      g.evaluate(env({ source: "user_input_source", event_name: "user.text_submitted" })).pass,
     ).toBe(false);
   });
 });
@@ -206,15 +186,12 @@ describe("guardrails — overall cap → cooldown (§6.3)", () => {
     const g = createGuardrails(cfg, { now: c.now });
     for (let i = 0; i < 20; i++) {
       expect(
-        g.evaluate(env({ source: "user_input_source", event_name: "user.text_submitted" }), 2).pass,
+        g.evaluate(env({ source: "user_input_source", event_name: "user.text_submitted" })).pass,
       ).toBe(true);
     }
     expect(g.cooldownActive()).toBe(false);
 
-    const r = g.evaluate(
-      env({ source: "user_input_source", event_name: "user.text_submitted" }),
-      2,
-    );
+    const r = g.evaluate(env({ source: "user_input_source", event_name: "user.text_submitted" }));
     expect(r.pass).toBe(false);
     expect(g.cooldownActive()).toBe(true);
 
@@ -232,13 +209,10 @@ describe("guardrails — overall cap → cooldown (§6.3)", () => {
     cfg.rate_limit.tier2_max = 1000;
     const g = createGuardrails(cfg, { now: c.now });
     for (let i = 0; i < 20; i++) {
-      g.evaluate(env({ source: "user_input_source", event_name: "user.text_submitted" }), 2);
+      g.evaluate(env({ source: "user_input_source", event_name: "user.text_submitted" }));
     }
-    g.evaluate(env({ source: "user_input_source", event_name: "user.text_submitted" }), 2); // enters cooldown
-    const r = g.evaluate(
-      env({ source: "user_input_source", event_name: "user.text_submitted" }),
-      2,
-    );
+    g.evaluate(env({ source: "user_input_source", event_name: "user.text_submitted" })); // enters cooldown
+    const r = g.evaluate(env({ source: "user_input_source", event_name: "user.text_submitted" }));
     expect(r.pass).toBe(false);
   });
 });
@@ -249,7 +223,7 @@ describe("guardrails — eval ordering (§6.4)", () => {
   /** Drives the overall cap with a debounce-free source. */
   function overallDriver(g: Guardrails): () => boolean {
     return () =>
-      g.evaluate(env({ source: "user_input_source", event_name: "user.text_submitted" }), 2).pass;
+      g.evaluate(env({ source: "user_input_source", event_name: "user.text_submitted" })).pass;
   }
 
   /** Cooldown reached via the overall cap, with the tier cap raised out of the way. */
@@ -304,7 +278,6 @@ describe("guardrails — eval ordering (§6.4)", () => {
         event_name: "user.text_submitted",
         dnd_override: true,
       }),
-      2,
     );
     expect(r.pass).toBe(true);
     expect(g.cooldownActive()).toBe(true);

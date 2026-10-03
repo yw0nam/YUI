@@ -138,8 +138,6 @@ describe("screen_source — app_switched", () => {
       source: "screen_watcher",
       event_name: "proactive.screen_app_switched",
       ts: 10 * MIN + 90_000,
-      hint_tier: 2,
-      dnd_override: false,
       payload: {
         transition: "app_switched",
         from_app: "Cursor",

@@ -81,7 +81,6 @@ describe("drag-hold-source", () => {
       source: "os_event_watcher",
       event_name: "proactive.drag_held",
       ts: 1_000,
-      hint_tier: 2,
       payload: { cue_id: "drag_held", label: CUE.label, context: CUE.context },
     });
   });

@@ -54,7 +54,6 @@ export function createDragHoldSource(deps: DragHoldSourceDeps): DragHoldSource {
           source: "os_event_watcher",
           event_name: "proactive.drag_held",
           ts: now(),
-          hint_tier: 2,
           payload: {
             cue_id: "drag_held",
             label: cue.label,

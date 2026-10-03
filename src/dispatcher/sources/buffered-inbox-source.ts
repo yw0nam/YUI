@@ -96,8 +96,6 @@ export function createBufferedInboxSource<TRaw, TItem = TRaw>(
       source: "timer_scheduler",
       event_name: firing.event_name,
       ts: now(),
-      hint_tier: 2,
-      dnd_override: false,
       payload: firing.payload,
     });
   }

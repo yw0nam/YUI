@@ -30,7 +30,6 @@ function scheduleEnv(): BusEnvelope {
     event_name: "schedule.morning",
     ts: 1_717_000_000_000,
     payload: { cue_id: "morning", label: "morning check-in" },
-    hint_tier: 2,
   };
 }
 

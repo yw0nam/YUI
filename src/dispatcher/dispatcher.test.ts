@@ -160,7 +160,6 @@ describe("dispatcher — state machine (§9)", () => {
           ts: NOW + i,
           dnd_override: false,
         }),
-        2,
       );
     }
     // let the running pump interval observe cooldownActive() and sync state.
@@ -203,7 +202,7 @@ describe("dispatcher — state machine (§9)", () => {
 
 describe("dispatcher — posture", () => {
   async function pushPostureEvent(event_name: string, payload?: Record<string, unknown>) {
-    bus.push(env({ event_name, hint_tier: 1, payload }));
+    bus.push(env({ event_name, payload }));
     await vi.advanceTimersByTimeAsync(20);
   }
 
@@ -486,7 +485,6 @@ describe("dispatcher — observable dev APIs (§11)", () => {
         source: "os_event_watcher",
         event_name: "proactive.tap_bored",
         ts: NOW + 1,
-        hint_tier: 2,
         dnd_override: false,
       }),
     );
@@ -508,7 +506,7 @@ describe("dispatcher — cancel() + subscribeBusy (chat stop button)", () => {
     expect(dispatcher.inFlight()).toBeNull();
   });
 
-  it("cancel() drops pending tier2/3 with superseded_by_user", async () => {
+  it("cancel() drops pending tier2 with superseded_by_user", async () => {
     dispatcher.start();
     // occupy in-flight
     bus.push(env({ ts: NOW }));
@@ -519,7 +517,6 @@ describe("dispatcher — cancel() + subscribeBusy (chat stop button)", () => {
         source: "os_event_watcher",
         event_name: "proactive.tap_bored",
         ts: NOW + 1,
-        hint_tier: 2,
         dnd_override: false,
       }),
     );
@@ -570,7 +567,6 @@ describe("dispatcher — cancel() + subscribeBusy (chat stop button)", () => {
       env({
         source: "os_event_watcher",
         event_name: "proactive.tap_bored",
-        hint_tier: 2,
         dnd_override: false,
       }),
     );
@@ -601,7 +597,6 @@ describe("dispatcher — cancel() + subscribeBusy (chat stop button)", () => {
         source: "os_event_watcher",
         event_name: "proactive.tap_bored",
         ts: NOW + 1,
-        hint_tier: 2,
         dnd_override: false,
       }),
     );
@@ -680,7 +675,6 @@ describe("dispatcher — isPipelineBusy/subscribePipelineBusy (busy = ledger not
         source: "os_event_watcher",
         event_name: "proactive.tap_bored",
         ts: NOW + 1,
-        hint_tier: 2,
         dnd_override: false,
       }),
     );
@@ -717,7 +711,6 @@ describe("dispatcher — isPipelineBusy/subscribePipelineBusy (busy = ledger not
         source: "os_event_watcher",
         event_name: "proactive.tap_bored",
         ts: NOW,
-        hint_tier: 2,
         dnd_override: false,
       }),
     );
@@ -726,7 +719,6 @@ describe("dispatcher — isPipelineBusy/subscribePipelineBusy (busy = ledger not
         source: "os_event_watcher",
         event_name: "proactive.drag_held",
         ts: NOW + 1,
-        hint_tier: 2,
         dnd_override: false,
       }),
     );
@@ -797,7 +789,6 @@ describe("dispatcher — the admitted turn and the quoted-turn ledger", () => {
         source: "os_event_watcher",
         event_name: "proactive.tap_bored",
         ts: NOW + 1,
-        hint_tier: 2,
         dnd_override: false,
       }),
     );

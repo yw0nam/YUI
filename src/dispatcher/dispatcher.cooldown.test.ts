@@ -150,7 +150,6 @@ describe("dispatcher — cooldown state mirror (§6.3/§9)", () => {
         source: "user_input_source",
         event_name: "user.drag_start",
         ts: NOW + 100,
-        hint_tier: 1,
         dnd_override: false,
       }),
     );

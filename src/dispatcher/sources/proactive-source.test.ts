@@ -325,8 +325,6 @@ describe("proactive_source — payload shape", () => {
     const e = pushed[0];
     expect(e.source).toBe("timer_scheduler");
     expect(e.event_name).toBe("proactive.mid_check");
-    expect(e.hint_tier).toBe(2);
-    expect(e.dnd_override).toBe(false);
     expect(e.ts).toBe(t);
     expect(e.payload?.cue_id).toBe("mid_check");
     expect(e.payload?.label).toBe("체크");

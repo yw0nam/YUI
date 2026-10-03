@@ -2,11 +2,11 @@
  * Guardrails — debounce / rate-limit.
  *
  * Evaluation order: dnd_override → cooldown → debounce → rate-limit. Dispatcher wiring order is
- * supersede → classify(tier) → evaluate(env, tier) → route. dnd_override short-circuits
+ * supersede → classify → evaluate(env) → route, for tier 2 only. dnd_override short-circuits
  * at top of evaluate — user-initiated turns bypass all gates and don't increment any counter.
  *
  *  - Debounce: per source window. If now() − lastFire[source] < window, drop.
- *  - Rate-limit: per tier rolling window. Slots consumed on fire (=pass), no refund.
+ *  - Rate-limit: tier-2 rolling window. Slots consumed on fire (=pass), no refund.
  *               If overall_max exceeded, set cooldownUntil (entry/exit transition owned by dispatcher).
  *
  * Evaluation functions are pure (return verdict only) — don't mutate dispatcher state, no dispatcher reference.
@@ -23,7 +23,7 @@ type GuardResult = { pass: true } | { pass: false; reason: "guardrail_drop" };
 
 export interface Guardrails {
   /** Evaluate one event in order. If pass=false, drop. Mutate debounce/rate state only if pass. */
-  evaluate(env: BusEnvelope, tier: 1 | 2 | 3): GuardResult;
+  evaluate(env: BusEnvelope): GuardResult;
   /** Whether cooldown entered by overall-cap exceeding is still valid (now < cooldownUntil). */
   cooldownActive(): boolean;
   /** Hot reload: replace only config values (preserve runtime counter state). */
@@ -48,9 +48,8 @@ export function createGuardrails(
   // debounce: last pass time per source.
   const lastFire = new Map<Source, number>();
 
-  // rate-limit: per tier + overall rolling window (pass times epoch ms).
+  // rate-limit: tier 2 + overall rolling window (pass times epoch ms).
   const tier2Window: number[] = [];
-  const tier3Window: number[] = [];
   const overallWindow: number[] = [];
   let cooldownUntil = 0;
 
@@ -60,7 +59,7 @@ export function createGuardrails(
     while (window.length > 0 && window[0] <= cutoff) window.shift();
   }
 
-  function evaluate(env: BusEnvelope, tier: 1 | 2 | 3): GuardResult {
+  function evaluate(env: BusEnvelope): GuardResult {
     // 1) dnd_override: top-level short-circuit. Don't increment any counter/debounce.
     if (env.dnd_override === true) return { pass: true };
 
@@ -78,12 +77,8 @@ export function createGuardrails(
 
     // 4) rate-limit: prune tier window then cap, then overall cap.
     prune(tier2Window);
-    prune(tier3Window);
     prune(overallWindow);
-    if (tier === 2 && tier2Window.length >= config.rate_limit.tier2_max) {
-      return { pass: false, reason: "guardrail_drop" };
-    }
-    if (tier === 3 && tier3Window.length >= config.rate_limit.tier3_max) {
+    if (tier2Window.length >= config.rate_limit.tier2_max) {
       return { pass: false, reason: "guardrail_drop" };
     }
     if (overallWindow.length >= config.rate_limit.overall_max) {
@@ -93,8 +88,7 @@ export function createGuardrails(
 
     // 5) pass: consume slot at fire time (no refund).
     lastFire.set(env.source, now());
-    if (tier === 2) tier2Window.push(now());
-    if (tier === 3) tier3Window.push(now());
+    tier2Window.push(now());
     overallWindow.push(now());
     return { pass: true };
   }

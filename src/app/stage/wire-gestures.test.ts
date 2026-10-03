@@ -142,8 +142,6 @@ describe("wireStageGestures", () => {
       expect.objectContaining({
         source: "os_event_watcher",
         event_name: "user.drag_start",
-        hint_tier: 1,
-        dnd_override: true,
       }),
     );
     // The drag start hands the OS drag the still-unparking travel's abort promise itself.
@@ -161,8 +159,6 @@ describe("wireStageGestures", () => {
       expect.objectContaining({
         source: "os_event_watcher",
         event_name: "user.drag_end",
-        hint_tier: 1,
-        dnd_override: true,
       }),
     );
   });

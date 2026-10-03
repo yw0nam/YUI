@@ -123,7 +123,7 @@ describe("dispatcher — routing (§5.1)", () => {
 
   it("routes user.drag_start (tier1) to renderer with drag motion + clears perch, NOT the backend", async () => {
     dispatcher.start();
-    bus.push(env({ event_name: "user.drag_start", hint_tier: 1 }));
+    bus.push(env({ event_name: "user.drag_start" }));
     await vi.advanceTimersByTimeAsync(20);
     expect(backendCaller.call as ReturnType<typeof vi.fn>).not.toHaveBeenCalled();
     expect(applyDirective).toHaveBeenCalled();
@@ -140,7 +140,7 @@ describe("dispatcher — routing (§5.1)", () => {
 
   it("user.tap is observability-only and leaves the current motion untouched", async () => {
     dispatcher.start();
-    bus.push(env({ event_name: "user.tap", hint_tier: 1 }));
+    bus.push(env({ event_name: "user.tap" }));
     await vi.advanceTimersByTimeAsync(20);
     expect(applyDirective).not.toHaveBeenCalled();
     expect(backendCaller.call as ReturnType<typeof vi.fn>).not.toHaveBeenCalled();
@@ -152,7 +152,6 @@ describe("dispatcher — routing (§5.1)", () => {
       env({
         source: "os_event_watcher",
         event_name: "user.tap_region",
-        hint_tier: 1,
         payload: { motion_id: "embarrassed" },
       }),
     );
@@ -170,7 +169,6 @@ describe("dispatcher — routing (§5.1)", () => {
       env({
         source: "os_event_watcher",
         event_name: "user.pat_start",
-        hint_tier: 1,
         payload: { motion_id: "head_pat", emotion_id: "relaxed" },
       }),
     );
@@ -185,7 +183,7 @@ describe("dispatcher — routing (§5.1)", () => {
 
   it("routes user.pat_end (tier1) back to idle", async () => {
     dispatcher.start();
-    bus.push(env({ source: "os_event_watcher", event_name: "user.pat_end", hint_tier: 1 }));
+    bus.push(env({ source: "os_event_watcher", event_name: "user.pat_end" }));
     await vi.advanceTimersByTimeAsync(20);
     expect(applyDirective).toHaveBeenCalledWith({ speech_text: "", motion: null });
     expect(backendCaller.call as ReturnType<typeof vi.fn>).not.toHaveBeenCalled();
@@ -197,7 +195,6 @@ describe("dispatcher — routing (§5.1)", () => {
       env({
         source: "os_event_watcher",
         event_name: "user.tap_spam",
-        hint_tier: 1,
         payload: { motion_id: "sulk" },
       }),
     );
@@ -217,7 +214,6 @@ describe("dispatcher — routing (§5.1)", () => {
       env({
         source: "os_event_watcher",
         event_name: "user.tap_region",
-        hint_tier: 1,
         payload,
       }),
     );
@@ -232,7 +228,6 @@ describe("dispatcher — routing (§5.1)", () => {
       env({
         source: "os_event_watcher",
         event_name: "user.tap_region",
-        hint_tier: 1,
         payload: { motion_id: "embarrassed", emotion_id: "embarrassed" },
       }),
     );
@@ -254,7 +249,6 @@ describe("dispatcher — routing (§5.1)", () => {
       env({
         source: "os_event_watcher",
         event_name: "user.tap_region",
-        hint_tier: 1,
         payload: { motion_id: "embarrassed", emotion_id: emotionId },
       }),
     );
@@ -271,7 +265,6 @@ describe("dispatcher — routing (§5.1)", () => {
       env({
         source: "os_event_watcher",
         event_name: "proactive.tap_bored",
-        hint_tier: 2,
         dnd_override: false,
       }),
     );
@@ -281,7 +274,7 @@ describe("dispatcher — routing (§5.1)", () => {
 
   it("routes user.window_sit_enter (tier1) to renderer with window_sit motion, NOT the backend", async () => {
     dispatcher.start();
-    bus.push(env({ event_name: "user.window_sit_enter", hint_tier: 1 }));
+    bus.push(env({ event_name: "user.window_sit_enter" }));
     await vi.advanceTimersByTimeAsync(20);
     expect(backendCaller.call as ReturnType<typeof vi.fn>).not.toHaveBeenCalled();
     expect(applyDirective).toHaveBeenCalled();
@@ -291,7 +284,7 @@ describe("dispatcher — routing (§5.1)", () => {
 
   it("routes user.window_sit_exit (tier1) to renderer with motion null, NOT the backend", async () => {
     dispatcher.start();
-    bus.push(env({ event_name: "user.window_sit_exit", hint_tier: 1 }));
+    bus.push(env({ event_name: "user.window_sit_exit" }));
     await vi.advanceTimersByTimeAsync(20);
     expect(backendCaller.call as ReturnType<typeof vi.fn>).not.toHaveBeenCalled();
     expect(applyDirective).toHaveBeenCalled();
@@ -304,7 +297,6 @@ describe("dispatcher — routing (§5.1)", () => {
     bus.push(
       env({
         event_name: "user.peek_drop",
-        hint_tier: 1,
         payload: { side: "right", target_local_xpx: 240 },
       }),
     );
@@ -326,7 +318,7 @@ describe("dispatcher — routing (§5.1)", () => {
       applyDirective.mock.invocationCallOrder[0],
     );
 
-    bus.push(env({ event_name: "user.peek_exit", hint_tier: 1 }));
+    bus.push(env({ event_name: "user.peek_exit" }));
     await vi.advanceTimersByTimeAsync(20);
     expect(peekExit).toHaveBeenCalledTimes(1);
     expect(setPeekTarget).toHaveBeenLastCalledWith(null);
@@ -339,7 +331,6 @@ describe("dispatcher — routing (§5.1)", () => {
     bus.push(
       env({
         event_name: "user.peek_drop",
-        hint_tier: 1,
         payload: { side: "left", target_local_xpx: 80 },
       }),
     );
@@ -369,7 +360,6 @@ describe("dispatcher — routing (§5.1)", () => {
     bus.push(
       env({
         event_name: "user.peek_drop",
-        hint_tier: 1,
         payload: { side: "left", target_local_xpx: 80 },
       }),
     );
@@ -387,7 +377,7 @@ describe("dispatcher — routing (§5.1)", () => {
     { side: "top", target_local_xpx: 20 },
   ])("aborts malformed peek drop payload %j without any side effects", async (payload) => {
     dispatcher.start();
-    bus.push(env({ event_name: "user.peek_drop", hint_tier: 1, payload }));
+    bus.push(env({ event_name: "user.peek_drop", payload }));
     await vi.advanceTimersByTimeAsync(20);
 
     expect(logger.warn).toHaveBeenCalledWith(
@@ -410,7 +400,7 @@ describe("dispatcher — routing (§5.1)", () => {
     ["user.window_sit_drop", { edge_local_ypx: 30 }],
   ] as const)("clears the peek target and mirror on %s", async (event_name, payload) => {
     dispatcher.start();
-    bus.push(env({ event_name, hint_tier: 1, payload }));
+    bus.push(env({ event_name, payload }));
     await vi.advanceTimersByTimeAsync(20);
 
     expect(setPeekTarget).toHaveBeenCalledWith(null);
@@ -422,7 +412,6 @@ describe("dispatcher — routing (§5.1)", () => {
     bus.push(
       env({
         event_name: "user.window_sit_drop",
-        hint_tier: 1,
         payload: { edge_local_ypx: 30 },
       }),
     );
@@ -439,7 +428,6 @@ describe("dispatcher — routing (§5.1)", () => {
       bus.push(
         env({
           event_name,
-          hint_tier: 1,
           payload: event_name === "user.window_sit_drop" ? { edge_local_ypx: 30 } : undefined,
         }),
       );
@@ -465,11 +453,10 @@ describe("dispatcher — routing (§5.1)", () => {
     bus.push(
       env({
         event_name: "user.peek_drop",
-        hint_tier: 1,
         payload: { side: "left", target_local_xpx: 80 },
       }),
     );
-    bus.push(env({ event_name: "user.peek_exit", hint_tier: 1, ts: NOW + 1 }));
+    bus.push(env({ event_name: "user.peek_exit", ts: NOW + 1 }));
     await vi.advanceTimersByTimeAsync(40);
     expect(applyDirective).toHaveBeenCalledTimes(2);
   });
@@ -499,7 +486,6 @@ describe("dispatcher — routing (§5.1)", () => {
         source: "timer_scheduler",
         event_name: "schedule.morning",
         ts: NOW,
-        hint_tier: 2,
         dnd_override: false,
       }),
     );
@@ -514,7 +500,6 @@ describe("dispatcher — routing (§5.1)", () => {
         source: "timer_scheduler",
         event_name: "proactive.mid_check",
         ts: NOW,
-        hint_tier: 2,
         dnd_override: false,
       }),
     );
@@ -610,7 +595,6 @@ describe("dispatcher — routing (§5.1)", () => {
       env({
         source: "os_event_watcher",
         event_name: "user.window_sit_drop",
-        hint_tier: 1,
         payload: { edge_local_ypx: 30 },
       }),
     );
@@ -624,14 +608,14 @@ describe("dispatcher — routing (§5.1)", () => {
 
   it("clears the perch on user.window_sit_exit via setPerchTarget(null)", async () => {
     dispatcher.start();
-    bus.push(env({ event_name: "user.window_sit_exit", hint_tier: 1 }));
+    bus.push(env({ event_name: "user.window_sit_exit" }));
     await vi.advanceTimersByTimeAsync(20);
     expect(setPerchTarget).toHaveBeenCalledWith(null);
   });
 
   it("does NOT set a perch target on user.window_sit_enter (sit in place)", async () => {
     dispatcher.start();
-    bus.push(env({ event_name: "user.window_sit_enter", hint_tier: 1 }));
+    bus.push(env({ event_name: "user.window_sit_enter" }));
     await vi.advanceTimersByTimeAsync(20);
     expect(setPerchTarget).not.toHaveBeenCalled();
   });
@@ -642,7 +626,6 @@ describe("dispatcher — routing (§5.1)", () => {
       env({
         source: "os_event_watcher",
         event_name: "user.window_sit_drop",
-        hint_tier: 1,
         payload: {}, // no edge_local_ypx
       }),
     );
@@ -664,7 +647,6 @@ describe("dispatcher — tap emotion revert (touch_emotion_hold_ms)", () => {
       env({
         source: "os_event_watcher",
         event_name: "user.tap_region",
-        hint_tier: 1,
         ts,
         payload: { motion_id: "embarrassed", emotion_id: "embarrassed" },
       }),
@@ -698,7 +680,6 @@ describe("dispatcher — tap emotion revert (touch_emotion_hold_ms)", () => {
       env({
         source: "os_event_watcher",
         event_name: "user.pat_start",
-        hint_tier: 1,
         payload: { motion_id: "head_pat", emotion_id: "relaxed" },
       }),
     );
@@ -709,7 +690,6 @@ describe("dispatcher — tap emotion revert (touch_emotion_hold_ms)", () => {
       env({
         source: "os_event_watcher",
         event_name: "user.pat_end",
-        hint_tier: 1,
         ts: NOW + 1,
       }),
     );
@@ -727,7 +707,6 @@ describe("dispatcher — tap emotion revert (touch_emotion_hold_ms)", () => {
       env({
         source: "os_event_watcher",
         event_name: "user.pat_start",
-        hint_tier: 1,
         ts: NOW + 20,
         payload: { motion_id: "head_pat", emotion_id: "relaxed" },
       }),
@@ -742,7 +721,6 @@ describe("dispatcher — tap emotion revert (touch_emotion_hold_ms)", () => {
       env({
         source: "os_event_watcher",
         event_name: "user.pat_start",
-        hint_tier: 1,
         payload: { motion_id: "head_pat" },
       }),
     );
@@ -751,7 +729,6 @@ describe("dispatcher — tap emotion revert (touch_emotion_hold_ms)", () => {
       env({
         source: "os_event_watcher",
         event_name: "user.pat_end",
-        hint_tier: 1,
         ts: NOW + 20,
       }),
     );
@@ -762,7 +739,7 @@ describe("dispatcher — tap emotion revert (touch_emotion_hold_ms)", () => {
 
   it("schedules no revert for a release that follows no pat", async () => {
     dispatcher.start();
-    bus.push(env({ source: "os_event_watcher", event_name: "user.pat_end", hint_tier: 1 }));
+    bus.push(env({ source: "os_event_watcher", event_name: "user.pat_end" }));
     await vi.advanceTimersByTimeAsync(20 + TAP_CONFIG.touch_emotion_hold_ms * 2);
     expect(easeEmotionToNeutral).not.toHaveBeenCalled();
   });
@@ -773,7 +750,6 @@ describe("dispatcher — tap emotion revert (touch_emotion_hold_ms)", () => {
       env({
         source: "os_event_watcher",
         event_name: "user.tap_region",
-        hint_tier: 1,
         payload: { motion_id: "embarrassed" },
       }),
     );
@@ -813,7 +789,6 @@ describe("dispatcher — tap emotion revert (touch_emotion_hold_ms)", () => {
       env({
         source: "os_event_watcher",
         event_name: "proactive.tap_bored",
-        hint_tier: 2,
         dnd_override: false,
         ts: NOW + 1,
       }),

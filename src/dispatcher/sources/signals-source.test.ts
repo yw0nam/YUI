@@ -89,8 +89,6 @@ describe("signals_source — present: immediate signals.push (spec §1)", () => 
     const e = pushed[0];
     expect(e.source).toBe("timer_scheduler");
     expect(e.event_name).toBe("signals.push");
-    expect(e.hint_tier).toBe(2);
-    expect(e.dnd_override).toBe(false);
     expect(e.payload).toEqual({ signals: [{ items: [{ kind: "reminder", foo: "bar" }] }] });
 
     src.stop();
@@ -172,8 +170,6 @@ describe("signals_source — away: buffer + catch-up (spec §2–3)", () => {
     const e = pushed[0];
     expect(e.event_name).toBe("signals.catchup");
     expect(e.source).toBe("timer_scheduler");
-    expect(e.hint_tier).toBe(2);
-    expect(e.dnd_override).toBe(false);
     const p = e.payload as { signals: unknown[] };
     expect(p.signals).toEqual([{ items: [{ id: 1 }] }, { items: [{ id: 2 }, { id: 3 }] }]);
 

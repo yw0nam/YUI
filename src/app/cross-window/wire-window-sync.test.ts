@@ -445,10 +445,11 @@ describe("wireGuardrailsOverrides", () => {
   }
 
   const fire = (guardrails: ReturnType<typeof createGuardrails>): boolean =>
-    guardrails.evaluate(
-      { source: "os_event_watcher", event_name: "proactive.head_pat", ts: 1_717_000_000_000 },
-      2,
-    ).pass;
+    guardrails.evaluate({
+      source: "os_event_watcher",
+      event_name: "proactive.head_pat",
+      ts: 1_717_000_000_000,
+    }).pass;
 
   function setup() {
     const config = baseConfig();
