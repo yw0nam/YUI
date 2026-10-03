@@ -3,7 +3,9 @@
 //! Streams a user-picked PNG, JPEG or WebP into `<app_data_dir>/stage/` through the fs plugin
 //! (a plain path on desktop, a content URI on Android) and deletes a stored image by id.
 
-use crate::import_fs::{claim_and_copy, ensure_within, image_ext, sanitize_stem, ClaimTarget};
+use crate::import_fs::{
+    app_data_subdir, claim_and_copy, ensure_within, image_ext, sanitize_stem, ClaimTarget,
+};
 use serde::Serialize;
 use std::path::{Path, PathBuf};
 use tauri::{command, AppHandle, Manager};
@@ -86,13 +88,7 @@ fn remove_at(stage_dir: &Path, id: &str) -> Result<(), String> {
 }
 
 fn stage_dir(app: &AppHandle) -> Result<PathBuf, String> {
-    app.path()
-        .app_data_dir()
-        .map(|dir| dir.join("stage"))
-        .map_err(|e| {
-            log::error!("app_data_dir_unavailable error={e}");
-            "storage unavailable".to_string()
-        })
+    app_data_subdir(app, "stage")
 }
 
 /// Stream a user-picked image (a path or a content URI) into `<app_data_dir>/stage/`, returning

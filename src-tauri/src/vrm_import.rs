@@ -4,7 +4,9 @@
 //! plain path on desktop and a content URI on Android. The source needs no pre-declared scope,
 //! which an OS file picker cannot satisfy.
 
-use crate::import_fs::{claim_and_copy, ensure_within, sanitize_stem, ClaimTarget, SniffKind};
+use crate::import_fs::{
+    app_data_subdir, claim_and_copy, ensure_within, sanitize_stem, ClaimTarget, SniffKind,
+};
 use serde::Serialize;
 use std::path::{Path, PathBuf};
 use tauri::{command, AppHandle, Manager};
@@ -82,13 +84,7 @@ fn remove_user_vrm_at(vrms_dir: &Path, id: &str) -> Result<(), String> {
 }
 
 fn vrms_dir(app: &AppHandle) -> Result<PathBuf, String> {
-    app.path()
-        .app_data_dir()
-        .map(|dir| dir.join("vrms"))
-        .map_err(|e| {
-            log::error!("app_data_dir_unavailable error={e}");
-            "storage unavailable".to_string()
-        })
+    app_data_subdir(app, "vrms")
 }
 
 /// Stream a user-picked `.vrm` (a path or a content URI) into `<app_data_dir>/vrms/`, returning

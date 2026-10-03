@@ -3,6 +3,18 @@
 
 use std::io::{Read, Write};
 use std::path::{Component, Path, PathBuf};
+use tauri::{AppHandle, Manager};
+
+/// `<app_data_dir>/<name>`, or a generic error when the app data directory is unavailable.
+pub(crate) fn app_data_subdir(app: &AppHandle, name: &str) -> Result<PathBuf, String> {
+    app.path()
+        .app_data_dir()
+        .map(|dir| dir.join(name))
+        .map_err(|e| {
+            log::error!("app_data_dir_unavailable error={e}");
+            "storage unavailable".to_string()
+        })
+}
 
 /// Container kinds we content-validate before copying an imported file.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

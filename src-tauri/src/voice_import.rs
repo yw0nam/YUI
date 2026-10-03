@@ -4,11 +4,12 @@
 //! A native `std::fs::copy` reads the arbitrary source with the app's own privileges.
 
 use crate::import_fs::{
-    audio_sniff_kind, ensure_within, sanitize_stem, short_hash, sniff_file, MAX_STEM_BYTES,
+    app_data_subdir, audio_sniff_kind, ensure_within, sanitize_stem, short_hash, sniff_file,
+    MAX_STEM_BYTES,
 };
 use serde::Serialize;
 use std::path::{Path, PathBuf};
-use tauri::{command, AppHandle, Manager};
+use tauri::{command, AppHandle};
 
 /// Allowed audio file extensions (lowercase).
 const AUDIO_EXTS: [&str; 8] = ["mp3", "wav", "ogg", "m4a", "flac", "aac", "opus", "webm"];
@@ -254,14 +255,7 @@ pub fn import_voice_file(
     }
     let ext_lower = ext.to_ascii_lowercase();
 
-    let references_dir = app
-        .path()
-        .app_data_dir()
-        .map_err(|e| {
-            log::error!("app_data_dir_unavailable error={e}");
-            "storage unavailable".to_string()
-        })?
-        .join("references");
+    let references_dir = app_data_subdir(&app, "references")?;
 
     copy_into_references(&references_dir, &src, &ext_lower, &desired_name)
 }
@@ -269,14 +263,7 @@ pub fn import_voice_file(
 /// Delete `<app_data_dir>/references/<id>/` if present. Idempotent — missing is Ok.
 #[command]
 pub fn remove_user_voice(app: AppHandle, id: String) -> Result<(), String> {
-    let references_dir = app
-        .path()
-        .app_data_dir()
-        .map_err(|e| {
-            log::error!("app_data_dir_unavailable error={e}");
-            "storage unavailable".to_string()
-        })?
-        .join("references");
+    let references_dir = app_data_subdir(&app, "references")?;
     remove_user_voice_at(&references_dir, &id)
 }
 
@@ -287,14 +274,7 @@ pub fn rename_user_voice(
     from: String,
     to: String,
 ) -> Result<ImportedVoice, String> {
-    let references_dir = app
-        .path()
-        .app_data_dir()
-        .map_err(|e| {
-            log::error!("app_data_dir_unavailable error={e}");
-            "storage unavailable".to_string()
-        })?
-        .join("references");
+    let references_dir = app_data_subdir(&app, "references")?;
     rename_user_voice_at(&references_dir, &from, &to)
 }
 
