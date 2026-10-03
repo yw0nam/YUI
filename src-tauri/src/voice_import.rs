@@ -437,6 +437,30 @@ mod tests {
     }
 
     #[test]
+    fn copy_into_refuses_a_desired_name_whose_directory_exists() {
+        let dir = unique_dir("existing_dest");
+        let references = dir.join("references");
+        std::fs::create_dir_all(references.join("Cat")).unwrap();
+        std::fs::write(references.join("Cat").join("clip.wav"), b"existing").unwrap();
+        let src = dir.join("New.wav");
+        std::fs::write(&src, b"RIFF\x24\x08\x00\x00WAVEfmt ").unwrap();
+
+        let err = copy_into_references(&references, &src, "wav", "Cat").unwrap_err();
+
+        assert_eq!(err, "storage unavailable");
+        assert_eq!(
+            std::fs::read(references.join("Cat").join("clip.wav")).unwrap(),
+            b"existing",
+            "the existing clip must stay byte-identical"
+        );
+        assert!(
+            !references.join(".Cat.import-tmp").exists(),
+            "the tmp dir must not outlive a refused import"
+        );
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
     fn copy_into_overwrites_an_existing_dest_of_the_same_desired_name() {
         let dir = unique_dir("overwrite");
         let references = dir.join("references");
