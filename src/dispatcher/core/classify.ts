@@ -1,9 +1,6 @@
 /** Pure classification of a bus envelope into tier and target, plus the paced-source table. */
 import type { BusEnvelope } from "./event-bus";
 
-export type Tier = 1 | 2;
-export type Target = "tier1" | "backend_caller" | "drop";
-
 export type Classification =
   | { tier: 1; target: "tier1" }
   | { tier: 2; target: "backend_caller" }
