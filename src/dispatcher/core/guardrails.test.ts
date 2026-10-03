@@ -30,7 +30,6 @@ function config(): GuardrailsConfig {
     rate_limit: {
       window_ms: 3_600_000,
       tier2_max: 6,
-      tier3_max: 2,
       overall_max: 20,
       cooldown_ms: 300_000,
     },

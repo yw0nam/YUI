@@ -46,8 +46,6 @@ export const ENDPOINT_FIELDS: readonly EndpointFieldDef[] = ENDPOINT_FIELD_SPECS
 
 // Reactions tab: the editable rolling-window caps (io/guardrails-settings's RateLimitOverrides).
 // Each row renders as a numeric input; an empty field means "no override, use the config default".
-// tier3_max has no row: classify() never returns tier 3 at the evaluate site, so the cap it would
-// edit is never compared.
 interface RateLimitFieldDef {
   key: keyof RateLimitOverrides;
   id: string;

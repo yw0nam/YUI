@@ -298,8 +298,6 @@ export interface GuardrailsConfig {
     window_ms: number;
     /** tier2 cap. */
     tier2_max: number;
-    /** tier3 cap. */
-    tier3_max: number;
     /** overall cap on backend calls — entering cooldown when exceeded. */
     overall_max: number;
     /** cooldown duration (ms) after overall is exceeded. */

@@ -16,7 +16,6 @@ const CFG = {
     rate_limit: {
       window_ms: 60000,
       tier2_max: 5,
-      tier3_max: 3,
       overall_max: 10,
       cooldown_ms: 1000,
     },
@@ -49,7 +48,7 @@ const emptyEndpointOverrides = {
   chat_api: "",
   tts_provider: "",
 };
-const emptyGuardrailOverrides = { tier2_max: 0, tier3_max: 0, overall_max: 0 };
+const emptyGuardrailOverrides = { tier2_max: 0, overall_max: 0 };
 
 beforeEach(() => {
   vi.stubEnv("VITE_YUI_CHAT_KEY", "");

@@ -825,7 +825,7 @@ describe("deriveBrokerPayload", () => {
           user_input_source: 0,
           screen_watcher: 5000,
         },
-        rate_limit: { window_ms: 0, tier2_max: 0, tier3_max: 0, overall_max: 0, cooldown_ms: 0 },
+        rate_limit: { window_ms: 0, tier2_max: 0, overall_max: 0, cooldown_ms: 0 },
         attachments: guardrailsFixture().attachments,
       },
       filler: {

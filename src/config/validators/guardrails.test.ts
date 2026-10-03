@@ -14,7 +14,6 @@ function baseRaw(overrides: Record<string, unknown> = {}): Record<string, unknow
     rate_limit: {
       window_ms: 3600000,
       tier2_max: 12,
-      tier3_max: 2,
       overall_max: 26,
       cooldown_ms: 300000,
     },
@@ -54,7 +53,7 @@ describe("validateGuardrails — happy path", () => {
         user_input_source: 0,
         screen_watcher: 0,
       },
-      rate_limit: { window_ms: 0, tier2_max: 0, tier3_max: 0, overall_max: 0, cooldown_ms: 0 },
+      rate_limit: { window_ms: 0, tier2_max: 0, overall_max: 0, cooldown_ms: 0 },
     });
     const out = validateGuardrails(FILE, raw);
     expect(out).toEqual(raw);
@@ -130,7 +129,6 @@ describe("validateGuardrails — rate_limit", () => {
         rate_limit: {
           window_ms: 3600000,
           tier2_max: -1,
-          tier3_max: 2,
           overall_max: 26,
           cooldown_ms: 300000,
         },

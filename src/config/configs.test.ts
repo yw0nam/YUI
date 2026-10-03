@@ -187,7 +187,6 @@ describe("configs/guardrails.json", () => {
     expect(g.debounce_ms.screen_watcher).toBe(5000);
     expect(g.rate_limit.window_ms).toBe(3600000);
     expect(g.rate_limit.tier2_max).toBe(24);
-    expect(g.rate_limit.tier3_max).toBe(2);
     expect(g.rate_limit.overall_max).toBe(40);
     expect(g.rate_limit.cooldown_ms).toBe(300000);
   });

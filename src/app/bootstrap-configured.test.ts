@@ -44,7 +44,6 @@ function validConfig(): AppConfig {
       rate_limit: {
         window_ms: 60_000,
         tier2_max: 10,
-        tier3_max: 5,
         overall_max: 20,
         cooldown_ms: 30_000,
       },

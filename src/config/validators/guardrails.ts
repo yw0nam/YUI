@@ -32,7 +32,7 @@ export function validateGuardrails(file: string, raw: unknown): GuardrailsConfig
 
   // rate_limit
   const rawRate = raw.rate_limit;
-  const rate_limit = { window_ms: 0, tier2_max: 0, tier3_max: 0, overall_max: 0, cooldown_ms: 0 };
+  const rate_limit = { window_ms: 0, tier2_max: 0, overall_max: 0, cooldown_ms: 0 };
   if (!isObject(rawRate)) {
     issues.push(`rate_limit must be an object (got: ${JSON.stringify(rawRate)})`);
   } else {
