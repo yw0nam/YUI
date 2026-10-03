@@ -501,7 +501,11 @@ export function createBackendCaller(deps: BackendCallerDeps): BackendCaller {
       // Completed path only: no per-beat cue carried the voice channels, so route them through
       // the same cue channel here — emotion_id/motion_id omitted, applyDirective above already
       // rendered them and re-sending would double-apply.
-      if (!streamedAny && (envelope.emotion_text != null || envelope.caption != null)) {
+      if (
+        !streamedAny &&
+        !cueStreamed &&
+        (envelope.emotion_text != null || envelope.caption != null)
+      ) {
         deps.turnOutput?.cue({
           ...(envelope.emotion_text != null ? { emotion_text: envelope.emotion_text } : {}),
           ...(envelope.caption != null ? { caption: envelope.caption } : {}),

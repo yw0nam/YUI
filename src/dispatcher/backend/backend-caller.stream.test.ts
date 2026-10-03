@@ -431,6 +431,27 @@ describe("backend_caller — per-beat cue application (pipeline ownership)", () 
     expect(applyDirective).toHaveBeenCalledWith(env);
   });
 
+  it("silent streamed voice cue is not forwarded again from completed", async () => {
+    const cue = {
+      emotion_text: "(whisper)",
+      caption: "Speak softly.",
+    };
+
+    script.events = [
+      expressEvent(cue),
+      completedEvent({
+        speech_text: "",
+        ...cue,
+      }),
+    ];
+
+    const res = await caller.call(turnOf(userEnv()));
+
+    expect(res).toBe("ok");
+    expect(turnOutput.cue).toHaveBeenCalledTimes(1);
+    expect(turnOutput.cue).toHaveBeenCalledWith(cue);
+  });
+
   it("silent turn whose envelope carries neither channel → no applyDirective (the body keeps its motion)", async () => {
     script.events = [deltaEvent("[SILENT]"), completedEvent({ speech_text: "[SILENT]" })];
     const res = await caller.call(turnOf(userEnv()));
