@@ -25,6 +25,7 @@ import {
 import { monitorAt, type ScreenMonitor } from "../../io/window/geometry/screen-geometry";
 import { createLogger } from "../../logger";
 import type { TickFn } from "../../renderer";
+import { type Rng, randRange } from "../liveliness/cues";
 import { prefersReducedMotion } from "../liveliness/tier1";
 import { type JumpOutcome, type JumpPlan, pickJumpTarget } from "./jumper";
 import type { Sitter } from "./sitter";
@@ -32,10 +33,8 @@ import { WALK_YAW_EASE_MS } from "./walker";
 
 const log = createLogger("percher");
 
-type Rng = () => number;
-
 export function nextPerchDwell(cfg: PerchWalkConfig, rng: Rng = Math.random): number {
-  return cfg.dwell_min_ms + (cfg.dwell_max_ms - cfg.dwell_min_ms) * rng();
+  return randRange(cfg.dwell_min_ms, cfg.dwell_max_ms, rng);
 }
 
 export function planPerchStroll(opts: {
@@ -59,7 +58,7 @@ export function planPerchStroll(opts: {
   const direction: -1 | 1 = leftOk && rightOk ? (rng() < 0.5 ? -1 : 1) : leftOk ? -1 : 1;
   const room = direction < 0 ? roomLeft : roomRight;
   const max = Math.min(opts.cfg.distance_max_px, room);
-  const distance = opts.cfg.distance_min_px + (max - opts.cfg.distance_min_px) * rng();
+  const distance = randRange(opts.cfg.distance_min_px, max, rng);
   const centerX = Math.min(right, Math.max(left, opts.currentX + direction * distance));
   return { centerX, direction };
 }
