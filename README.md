@@ -93,6 +93,40 @@ with silence when it chooses.
 
 Everything else, from lipsync and touch reactions to Mods and the witness log, is in the [feature list](docs/guide/features.md).
 
+## Supported providers
+
+The Connection tab in Settings selects each provider. The
+[wiring guide](docs/guide/getting-started.md) covers the setup. To request a
+provider the tables leave out, open a
+[feature issue](https://github.com/yw0nam/YUI/issues/new?template=feature_task.md)
+or send a PR.
+
+### Chat
+
+| Provider | Protocol (`chat_api`) | Hosting | Example model |
+| --- | --- | --- | --- |
+| OpenAI | `chat_completions` | Hosted, API key | `gpt-5-mini` |
+| Ollama | `chat_completions` | Local | `qwen3` |
+| LM Studio | `chat_completions` | Local | Any tool-calling model |
+| Groq | `chat_completions` | Hosted, API key | `llama-3.3-70b-versatile` |
+| [Hermes Agent](integrations/hermes/README.md) | `push`, `responses` | Self-hosted | The model the agent runs |
+| Custom endpoint | `chat_completions`, `responses`, `push` | Any server that speaks the protocol | Tool-calling model on `chat_completions` |
+
+### TTS
+
+| Provider | Hosting | Default model | Voices |
+| --- | --- | --- | --- |
+| [Irodori](https://github.com/Aratako/Irodori-TTS-Server) | Self-hosted | `irodori-tts` | The server's voices and imported reference clips, Japanese only |
+| OpenAI | Hosted, API key | `gpt-4o-mini-tts` | 13 built-in voices |
+| [Fish Audio](https://fish.audio/) | Hosted, API key | `s2.1-pro-free` | Your account's voice models, imported clips, and any library voice id |
+
+### STT
+
+| Provider | Hosting | Setup |
+| --- | --- | --- |
+| OpenAI-compatible transcription server (`/audio/transcriptions`) | Self-hosted | `stt_base_url` |
+| Groq | Hosted, API key | `stt_base_url` and `stt_model`, for example `whisper-large-v3-turbo` |
+
 ## How it works
 
 YUI is the body; the backend is the mind. The client never decides *what* to
