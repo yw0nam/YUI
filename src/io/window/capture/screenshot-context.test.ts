@@ -19,9 +19,6 @@ describe("buildScreenshotBlock — disabled", () => {
     expect(buildScreenshotBlock(settings)).toBeUndefined();
     const capture: ScreenCapture = {
       data_url: "data:image/png;base64,abc",
-      captured_at: "2026-06-05T00:00:00.000Z",
-      width: 1920,
-      height: 1080,
     };
     expect(buildScreenshotBlock(settings, capture)).toBeUndefined();
   });
@@ -46,9 +43,6 @@ describe("buildScreenshotBlock — enabled, with capture", () => {
     };
     const capture: ScreenCapture = {
       data_url: "data:image/png;base64,xyz",
-      captured_at: "2026-06-05T12:34:56.789Z",
-      width: 2560,
-      height: 1440,
     };
     const result = buildScreenshotBlock(settings, capture);
     expect(result).toEqual({
@@ -63,9 +57,6 @@ describe("buildScreenshotBlock — enabled, with capture", () => {
     const settings: ScreenshotSettings = { enabled: true, source };
     const capture: ScreenCapture = {
       data_url: "data:image/png;base64,test",
-      captured_at: "2026-06-05T00:00:00.000Z",
-      width: 1280,
-      height: 720,
     };
     const result = buildScreenshotBlock(settings, capture);
     expect(result?.source).toEqual(source);

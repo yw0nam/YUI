@@ -30,8 +30,6 @@ interface ScreenSourceDto {
 
 interface CaptureDto {
   dataUrl: string;
-  width: number;
-  height: number;
 }
 
 // ─── Injectable invoke signature ──────────────────────────────────────────────
@@ -68,12 +66,7 @@ export function createTauriScreenCapturer(
       if (source.kind !== "monitor") return null;
       try {
         const dto = await invoke<CaptureDto>("capture_screen", { index: source.index, maxEdge });
-        return {
-          data_url: dto.dataUrl,
-          captured_at: new Date().toISOString(),
-          width: dto.width,
-          height: dto.height,
-        };
+        return { data_url: dto.dataUrl };
       } catch (err) {
         log.error("screen_capture_failed", { error: String(err) });
         return null;

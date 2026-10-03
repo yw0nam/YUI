@@ -8,9 +8,6 @@ import type { ScreenshotSettings } from "../../../settings/capture/screenshot-se
 
 export interface ScreenCapture {
   data_url: string;
-  captured_at: string;
-  width: number;
-  height: number;
 }
 
 export function buildScreenshotBlock(
@@ -23,6 +20,5 @@ export function buildScreenshotBlock(
     return { enabled: true, source: settings.source };
   }
 
-  // Only the pixels ride along — the capture's timestamp and dimensions have no reader.
   return { enabled: true, source: settings.source, data_url: capture.data_url };
 }

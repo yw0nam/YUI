@@ -3,7 +3,7 @@
  *
  * Verifies:
  *  - createTauriScreenSourceProvider: DTO → MonitorInfo mapping (label fallback when name is null, primary mapping)
- *  - createTauriScreenCapturer: capture_screen DTO → ScreenCapture mapping (data_url/width/height/captured_at)
+ *  - createTauriScreenCapturer: capture_screen DTO → ScreenCapture mapping (data_url)
  *  - createTauriScreenCapturer: passes { index, maxEdge } to invoke
  *  - createTauriScreenCapturer: returns null for a kind !== "monitor" source (invoke not called)
  *  - createTauriScreenCapturer: returns null when invoke rejects (does not throw)
@@ -83,18 +83,12 @@ describe("createTauriScreenCapturer — monitor source", () => {
   it("maps capture_screen DTO to ScreenCapture", async () => {
     const fakeInvoke = vi.fn().mockResolvedValue({
       dataUrl: "data:image/png;base64,iVBORw0KGgo=",
-      width: 1280,
-      height: 800,
     });
     const capturer = createTauriScreenCapturer(1280, fakeInvoke);
     const source: ScreenSource = { kind: "monitor", index: 0 };
     const result = await capturer.capture(source);
     expect(result).not.toBeNull();
     expect(result!.data_url).toBe("data:image/png;base64,iVBORw0KGgo=");
-    expect(result!.width).toBe(1280);
-    expect(result!.height).toBe(800);
-    expect(typeof result!.captured_at).toBe("string");
-    expect(result!.captured_at.length).toBeGreaterThan(0);
   });
 
   it("calls invoke with { index, maxEdge } matching the source and config", async () => {

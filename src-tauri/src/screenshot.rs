@@ -42,10 +42,6 @@ pub struct ScreenSourceDto {
 pub struct CaptureDto {
     /// `data:image/jpeg;base64,<...>` string.
     pub data_url: String,
-    /// Width of the (possibly resized) image in pixels.
-    pub width: u32,
-    /// Height of the (possibly resized) image in pixels.
-    pub height: u32,
 }
 
 fn build_screen_source<E: std::fmt::Display>(
@@ -121,8 +117,6 @@ pub fn encode_capture(
     let b64 = B64.encode(&jpeg_bytes);
     Ok(CaptureDto {
         data_url: format!("data:image/jpeg;base64,{}", b64),
-        width: dst_w,
-        height: dst_h,
     })
 }
 
@@ -270,22 +264,38 @@ mod tests {
 
     // ── encode_capture ────────────────────────────────────────────────────────
 
+    /// The JPEG carried by the DTO's data URL, decoded.
+    fn decoded(dto: &CaptureDto) -> image::RgbImage {
+        let b64 = dto
+            .data_url
+            .strip_prefix("data:image/jpeg;base64,")
+            .unwrap();
+        image::load_from_memory(&B64.decode(b64).unwrap())
+            .unwrap()
+            .to_rgb8()
+    }
+
+    /// Whether every pixel is the source colour, within JPEG loss.
+    fn is_source_colour(img: &image::RgbImage) -> bool {
+        img.pixels()
+            .all(|p| (0..3).all(|c| p.0[c].abs_diff([10, 20, 30][c]) <= 4))
+    }
+
     #[test]
     fn encode_capture_no_resize_preserves_dimensions() {
         let raw = ImageBuffer::<Rgba<u8>, Vec<u8>>::from_pixel(4, 4, Rgba([10, 20, 30, 255]));
-        let dto = encode_capture(raw, 0).unwrap();
-        assert!(dto.data_url.starts_with("data:image/jpeg;base64,"));
-        assert_eq!(dto.width, 4);
-        assert_eq!(dto.height, 4);
+        let img = decoded(&encode_capture(raw, 0).unwrap());
+        assert_eq!(img.dimensions(), (4, 4));
+        assert!(is_source_colour(&img));
     }
 
     #[test]
     fn encode_capture_downscales_to_fit_long_edge() {
         let raw = ImageBuffer::<Rgba<u8>, Vec<u8>>::from_pixel(8, 4, Rgba([10, 20, 30, 255]));
-        let dto = encode_capture(raw, 2).unwrap();
-        assert_eq!((dto.width, dto.height), fit_long_edge(8, 4, 2));
-        assert_eq!((dto.width, dto.height), (2, 1));
-        assert!(dto.data_url.starts_with("data:image/jpeg;base64,"));
+        let img = decoded(&encode_capture(raw, 2).unwrap());
+        assert_eq!(img.dimensions(), fit_long_edge(8, 4, 2));
+        assert_eq!(img.dimensions(), (2, 1));
+        assert!(is_source_colour(&img));
     }
 
     #[test]
@@ -306,13 +316,9 @@ mod tests {
     fn capture_dto_serialises_camel_case() {
         let dto = CaptureDto {
             data_url: "data:image/png;base64,abc".to_string(),
-            width: 1280,
-            height: 720,
         };
         let v = serde_json::to_value(&dto).unwrap();
         assert_eq!(v["dataUrl"], "data:image/png;base64,abc");
-        assert_eq!(v["width"], 1280);
-        assert_eq!(v["height"], 720);
     }
 
     // ── ScreenSourceDto serialisation ─────────────────────────────────────────
