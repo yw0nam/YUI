@@ -1,7 +1,7 @@
 /**
  * filler-tool-lines.test.ts — textarea round-trip for the `tool` tier.
  *
- * Pins the contract for src/ui/quick-controls/sections/filler-tool-lines.ts:
+ * Pins the contract for src/ui/quick-controls/sections/filler/filler-tool-lines.ts:
  *   parseToolLines(text) -> Record<string, string[]>
  *   serializeToolLines(tool) -> text
  */

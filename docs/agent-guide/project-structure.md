@@ -403,7 +403,8 @@ YUI/
           reactions-section.ts       # Agent-port, presence, pacer-gap, and rate-limit cap inputs
           history-section.ts         # History tab session accordion over the persisted transcript
           workflows-section.ts       # Workflow entry list editing
-          filler-tool-lines.ts       # Textarea round-trip for the filler pool's tool tier
+          filler/                    # Thinking-filler section
+            filler-tool-lines.ts     # Textarea round-trip for the filler pool's tool tier
           speaker-list.ts            # Speaker radiogroup with reference-voice refresh and audition
           user-asset-list.ts         # Shared scaffolding for the VRM and speaker asset radiogroups
           endpoints-section.css      # Endpoints section and yui-select dropdown styles

@@ -65,7 +65,7 @@ import { createHistoryTab } from "./history/history-tab";
 import { createPopover } from "./popover";
 import { createReflect } from "./reflect";
 import { createAgentSection } from "./sections/agent-section";
-import { parseToolLines, serializeToolLines } from "./sections/filler-tool-lines";
+import { parseToolLines, serializeToolLines } from "./sections/filler/filler-tool-lines";
 import { bindHelpSection } from "./sections/help-section";
 import { createMonitorsSection } from "./sections/monitors-section";
 import { createReactionsSection } from "./sections/reactions-section";

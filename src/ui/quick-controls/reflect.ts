@@ -38,7 +38,7 @@ import {
   SCREEN_MIN_GAP_MIN,
   type ScreenKnobFieldDef,
 } from "./constants";
-import { serializeToolLines } from "./sections/filler-tool-lines";
+import { serializeToolLines } from "./sections/filler/filler-tool-lines";
 import type { SwitchRow } from "./switch-row";
 import { reflectSwitchRows } from "./switches/switch-rows";
 
