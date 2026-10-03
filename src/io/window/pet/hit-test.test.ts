@@ -395,6 +395,54 @@ describe("createHitTestController — suspend/resume", () => {
     c.stop();
   });
 
+  it("resume() after suspend() lets moves flip to passthrough again", async () => {
+    const win = fakeWindow();
+    const target = new EventTarget();
+    const c = createHitTestController({
+      getWindow: () => win as never,
+      moveTarget: target,
+      isOverInteractive: () => false,
+      getConfig: () => cfg,
+      schedule: () => 0,
+      cancel: () => {},
+      doc: fakeDoc() as never,
+    });
+    await startSynced(c, win);
+    c.suspend();
+    c.resume();
+    move(target);
+    await Promise.resolve();
+    move(target);
+    await vi.waitFor(() => expect(win.setIgnoreCursorEvents).toHaveBeenLastCalledWith(true));
+    c.stop();
+  });
+
+  it("resume() without a suspension leaves a passthrough window in passthrough", async () => {
+    const win = fakeWindow();
+    const target = new EventTarget();
+    const c = createHitTestController({
+      getWindow: () => win as never,
+      moveTarget: target,
+      isOverInteractive: () => false,
+      getConfig: () => cfg,
+      schedule: () => 0,
+      cancel: () => {},
+      doc: fakeDoc() as never,
+    });
+    await startSynced(c, win);
+    move(target);
+    await Promise.resolve();
+    move(target);
+    await vi.waitFor(() => expect(win.setIgnoreCursorEvents).toHaveBeenLastCalledWith(true));
+    win.setIgnoreCursorEvents.mockClear();
+
+    c.resume();
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(win.setIgnoreCursorEvents).not.toHaveBeenCalled();
+    c.stop();
+  });
+
   it("is idempotent — suspend() from the initial CAPTURE state makes no IPC call", async () => {
     const win = fakeWindow();
     const c = createHitTestController({

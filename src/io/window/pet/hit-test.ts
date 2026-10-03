@@ -350,6 +350,7 @@ export function createHitTestController(opts: HitTestOptions): HitTestController
   }
 
   function resume(): void {
+    if (!suspended) return;
     suspended = false;
     state = "capture";
     counter = 0;
