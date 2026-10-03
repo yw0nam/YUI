@@ -97,6 +97,22 @@ git log -S'<token>' --reverse
 Open an issue with the matching template: **bug**, **feature / task**, or
 **spike** (`.github/ISSUE_TEMPLATE/`).
 
+## Taking an issue
+
+Issues labelled
+[`help wanted`](https://github.com/yw0nam/YUI/labels/help%20wanted) are open
+to contributors. Ideas for automation and for the character's desktop behavior
+start in [Ideas](https://github.com/yw0nam/YUI/discussions/categories/ideas);
+an accepted idea becomes a `help wanted` issue.
+
+1. Comment `/take` on an open, unassigned issue. The `Take` workflow assigns
+   the issue to you. GitHub lets only maintainers edit assignees and labels by
+   hand, so the comment is the way to claim one.
+2. On an issue labelled `ready-for-agent`, `/take` also removes that label,
+   which is the one coding agents pick their work from.
+3. Open the PR within 14 days. A maintainer unassigns an issue that has no PR
+   after 14 days, and anyone can take it again.
+
 ## Commits & PRs
 
 - Conventional commits: `feat:`, `fix:`, `test:`, `refactor:`, `docs:`,

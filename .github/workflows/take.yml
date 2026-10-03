@@ -1,0 +1,30 @@
+name: Take
+
+on:
+  issue_comment:
+    types: [created]
+
+jobs:
+  take:
+    name: take (assign the commenter)
+    if: ${{ !github.event.issue.pull_request && github.event.issue.state == 'open' && startsWith(github.event.comment.body, '/take') }}
+    runs-on: ubuntu-latest
+    permissions:
+      issues: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+      ISSUE: ${{ github.event.issue.number }}
+      COMMENTER: ${{ github.event.comment.user.login }}
+      ASSIGNEE: ${{ github.event.issue.assignees[0].login }}
+      AGENT_READY: ${{ contains(github.event.issue.labels.*.name, 'ready-for-agent') }}
+    steps:
+      - run: |
+          if [ -n "$ASSIGNEE" ]; then
+            gh issue comment "$ISSUE" --body "@$COMMENTER this issue is already assigned to $ASSIGNEE."
+            exit 0
+          fi
+          gh issue edit "$ISSUE" --add-assignee "$COMMENTER"
+          if [ "$AGENT_READY" = true ]; then
+            gh issue edit "$ISSUE" --remove-label ready-for-agent
+          fi
