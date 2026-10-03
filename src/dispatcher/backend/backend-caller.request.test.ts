@@ -212,7 +212,6 @@ describe("backend_caller — cue context forwarding (trigger.cue)", () => {
         cue_id: "morning",
         label: "아침",
         context: "아침 인사 + 오늘 일정 리마인드",
-        local_time: "09:00",
       },
     };
     await caller.call(turnOf(env));
@@ -240,7 +239,6 @@ describe("backend_caller — cue context forwarding (trigger.cue)", () => {
         cue_id: "cowork",
         label: "코워킹",
         context: "집중 근무 중 따뜻하게 말 걸기",
-        idle_min: 10,
         gap_ms: 3_600_000,
       },
     };

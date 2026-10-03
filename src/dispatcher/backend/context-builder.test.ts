@@ -426,7 +426,6 @@ describe("cue turn — complete client_context text at a fixed clock", () => {
         cue_id: "morning",
         label: "morning call",
         context: "say good morning",
-        local_time: "09:30",
       },
     });
     expect(schedule).toBe(
@@ -448,7 +447,6 @@ describe("cue turn — complete client_context text at a fixed clock", () => {
         cue_id: "mid_check",
         label: "check in",
         context: "ask how it is going",
-        idle_min: 10,
         gap_ms: 1_260_000,
       },
     });

@@ -7,9 +7,8 @@
  *  - render rule 2: motion present → registry lookup + play; ABSENT or null → idle.
  *  - hold-on-null: `emotion === null` OR absent → NO-OP (hold previous); only explicit
  *    `{id:"neutral"}` transitions to neutral. `setEmotion(null)` is itself a NO-OP hold.
- *  - render rule 6: `_reserved` is ignored in v0.
  *
- * `speech_text` / `tool_status` / `rich_content` are NOT this routing layer's
+ * `speech_text` / `rich_content` are NOT this routing layer's
  * concern (other tracks) — routeDirective must touch only the emotion + motion render channels.
  *
  * Pure routing: no real VRM / GPU. setEmotion & playMotion are vi.fn() spies.
@@ -151,13 +150,11 @@ describe("routeDirective — combined", () => {
 // ─────────────────────────────────────────────────────────────────────────────
 
 describe("routeDirective — ignores non-render fields", () => {
-  it("speech_text / tool_status / _reserved do not affect routing", () => {
+  it("speech_text does not affect routing", () => {
     const { setEmotion, playMotion, route } = makeHarness();
     route(
       env({
         speech_text: "hello there",
-        tool_status: { state: "running", tool_id: "web_search" },
-        _reserved: { visemes: [1, 2, 3] },
         emotion: HAPPY,
         motion: WAVE,
       }),

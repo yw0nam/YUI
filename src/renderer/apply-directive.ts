@@ -10,14 +10,13 @@
  *  - motion present → registry lookup + play; ABSENT or null → idle.
  *  - `emotion === null` OR absent → NO-OP (hold previous); only an explicit
  *    `{id:"neutral"}` transitions to neutral. setEmotion(null) is itself a NO-OP hold.
- *  - `_reserved` ignored.
  *
  * Note the deliberate asymmetry between the two channels:
  *  - emotion ABSENT → *passive* hold: do not touch the expression at all (no setEmotion call).
  *  - motion ABSENT/null → *active* return to idle: call playMotion(null).
  *
  * Out of scope for this layer (other tracks own them):
- * speech_text, tool_status, emotion_text (a TTS voice tag routed via the cue channel,
+ * speech_text, emotion_text (a TTS voice tag routed via the cue channel,
  * not a render channel), caption (a TTS voice direction on the same cue channel).
  */
 

@@ -763,18 +763,6 @@ describe("backend_caller — TTFT thinking lifecycle", () => {
     expect(order).toEqual(["cue", "end", "delta"]);
   });
 
-  it("thinking PERSISTS through tool_status-only completed with no speech (ends via finally)", async () => {
-    // tool_status rides the completed envelope; no speech_delta ever arrives → silent turn.
-    turnOutput.thinkingStart.mockClear();
-    caller = makeCaller(true);
-    const status = { state: "running" as const, tool_id: "web_search" };
-    script.events = [completedEvent({ speech_text: "", tool_status: status })];
-    await caller.call(turnOf(userEnv()));
-    // no delta → endThinking only fired once, via finally.
-    expect(turnOutput.thinkingStart).toHaveBeenCalledTimes(1);
-    expect(turnOutput.thinkingEnd).toHaveBeenCalledTimes(1);
-  });
-
   it("silent turn (completed, empty speech, no deltas) → thinkingEnd once via finally", async () => {
     caller = makeCaller(true);
     script.events = [completedEvent({ speech_text: "" })];

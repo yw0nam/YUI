@@ -36,7 +36,7 @@ The gate a trigger passes before it becomes a turn: cooldown, do-not-disturb, de
 _Avoid_: filter, policy, throttle
 
 **Tier**:
-How a trigger is routed. Tier 1 is performed locally with no backend call; tiers 2 and 3 become turns.
+How a trigger is routed. Tier 1 is performed locally with no backend call; tier 2 becomes a turn.
 
 **Trigger cue**:
 Metadata about a schedule/proactive firing source (label, user-authored context, timing), forwarded client→brain. Includes built-in touch/gesture cues.

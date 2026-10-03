@@ -429,7 +429,6 @@ export async function* streamChat(
           // Normalization (chat-client ONLY): FLAT args → renderer seam shape.
           const envelope: ControlEnvelope = { speech_text };
           normalizeExpressIntoEnvelope(envelope, express);
-          if (tool_status) envelope.tool_status = tool_status;
           yield { type: "completed", envelope, responseId: event.response?.id ?? "" };
           break;
         }

@@ -149,15 +149,6 @@ export interface ControlEnvelope {
   // --- Assembled from text stream (not a tool field) ---
   /** Accumulated response.output_text.delta. Empty string if no utterance. */
   speech_text: string;
-
-  // --- Derived from observation of the backend's native tool function_call items ---
-  tool_status?: ToolStatus | null;
-
-  /** All ignored in v0. */
-  _reserved?: {
-    expression_frames?: unknown[];
-    visemes?: unknown[];
-  };
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -233,8 +224,6 @@ export interface InputContext {
 export interface CueMeta {
   label: string;
   context?: string;
-  local_time?: string;
-  idle_min?: number;
 }
 
 /** one item in a signals.kind burst. heterogeneous by design — taxonomy owned by the signal producers and the backend, client forwards verbatim. */

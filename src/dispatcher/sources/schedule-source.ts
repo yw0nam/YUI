@@ -90,7 +90,6 @@ export function createScheduleSource(deps: ScheduleSourceDeps): ScheduleSource {
           cue_id: cue.id,
           label: cue.label,
           context: cue.context,
-          local_time: currentHHMM,
         },
       };
       bus.push(env);

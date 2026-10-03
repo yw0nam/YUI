@@ -163,7 +163,7 @@ YUI/
         render-turn.ts               # Plays a finished backend turn that arrived as a render frame on the push socket
         turn-feed.ts                 # Shared tool-status and reasoning consumer for every transport
       backend/
-        backend-caller.ts            # Sends a tier-2 or tier-3 event to backend judgment and streams the reply
+        backend-caller.ts            # Sends a tier-2 event to backend judgment and streams the reply
         push-call.ts                 # Push transport path of a turn: frame send and the wait for its turn_end
         request-input.ts             # Pure encoders for a turn's Responses input: client_context block and user item
         turn-outcome.ts              # How a backend call settled

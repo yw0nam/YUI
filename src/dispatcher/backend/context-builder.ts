@@ -226,8 +226,6 @@ export function buildClientContext(
       ? {
           label: payload.label,
           ...(typeof payload.context === "string" ? { context: payload.context } : {}),
-          ...(typeof payload.local_time === "string" ? { local_time: payload.local_time } : {}),
-          ...(typeof payload.idle_min === "number" ? { idle_min: payload.idle_min } : {}),
         }
       : undefined;
   const gapMs = typeof payload?.gap_ms === "number" ? payload.gap_ms : undefined;

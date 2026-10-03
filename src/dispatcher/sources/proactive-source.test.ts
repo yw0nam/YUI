@@ -329,7 +329,6 @@ describe("proactive_source — payload shape", () => {
     expect(e.payload?.cue_id).toBe("mid_check");
     expect(e.payload?.label).toBe("체크");
     expect(e.payload?.context).toBe("ctx");
-    expect(e.payload?.idle_min).toBe(10);
     expect(e.payload?.gap_ms).toBe(12 * MIN);
   });
 });

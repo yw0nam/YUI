@@ -713,12 +713,12 @@ describe("renderClientContext — exhaustiveness", () => {
     ["user", { kind: "user" }, ["trigger: user message"]],
     [
       "schedule",
-      { kind: "schedule", cue: { label: "morning call", local_time: "09:00" } },
+      { kind: "schedule", cue: { label: "morning call" } },
       ['trigger: schedule "morning call"'],
     ],
     [
       "proactive-cue",
-      { kind: "proactive", cue: { label: "cowork", idle_min: 10 }, idle_elapsed_min: 60 },
+      { kind: "proactive", cue: { label: "cowork" }, idle_elapsed_min: 60 },
       ['trigger: proactive "cowork" (user idle 60min)'],
     ],
     [

@@ -82,7 +82,6 @@ export function createProactiveSource(deps: ProactiveSourceDeps): ProactiveSourc
           cue_id: cue.id,
           label: cue.label,
           context: cue.context,
-          idle_min: cue.idle_min,
           gap_ms: gap,
         },
       };

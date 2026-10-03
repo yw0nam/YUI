@@ -468,7 +468,6 @@ describe("schedule_source — payload shape", () => {
     expect(e.payload?.cue_id).toBe("lunch");
     expect(e.payload?.label).toBe("점심");
     expect(e.payload?.context).toBe("밥");
-    expect(e.payload?.local_time).toBe("09:30");
   });
 });
 

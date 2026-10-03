@@ -492,8 +492,6 @@ describe("streamChat — live MCP-namespaced generate_express", () => {
     expect(env.motion).toEqual({ id: "happy" });
     expect(env.emotion_text).toBe("[cheerful warm tone]");
     expect(env.speech_text).toBe("hi");
-    // get_ids drove tool_status; the express tool did not.
-    expect(env.tool_status).toEqual({ state: "done", tool_id: MCP_GET_IDS });
   });
 
   it("does not emit a duplicate express when args arrive in BOTH added and done", async () => {
