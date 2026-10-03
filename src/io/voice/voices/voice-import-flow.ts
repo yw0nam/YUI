@@ -57,11 +57,11 @@ export function createVoiceImportFlow(deps: {
     return { srcPath, seedName: fileStemFromPath(srcPath) };
   };
 
-  // Copy, then upload. A provider that keeps the caller's id gets the clip under the name-derived
-  // id and replaces it on a same-name re-import; any other provider gets it under a unique staging
-  // id that moves to the id the server assigns. The target is read before the first await, and a
-  // switch away from it at any later point leaves the store alone. On failure, delete the orphan
-  // copy and rethrow without touching the store, leaving the prior selection intact.
+  // Copy under a unique staging id, then upload. Once the upload succeeds the staged folder moves
+  // to its final id: the name-derived id for a provider that keeps the caller's id (replacing a
+  // same-name voice's folder), the id the server assigns for any other. The target is read before
+  // the first await, and a switch away from it at any later point leaves the store alone. On
+  // failure, delete the staged copy and rethrow without touching the store or a stored voice's clip.
   const commitVoiceImport = async (srcPath: string, name: string): Promise<void> => {
     const eps = getEndpoints();
     if (!eps?.tts_base_url) throw new Error("voice import requires tts_base_url");
@@ -70,21 +70,21 @@ export function createVoiceImportFlow(deps: {
     const api = VOICE_APIS[provider];
     const upsert = api?.upsert;
     if (!upsert) throw new Error(`TTS provider "${provider}" takes no imported voices`);
+    let finalId: string | undefined;
     if (api.keepsId) {
+      if (!name.trim()) throw new Error("voice name required");
       const id = voiceIdFromName(name);
       if (speakerSelection.listUser().some((o) => o.id === id && o.provider !== provider)) {
         throw new Error(`voice id "${id}" belongs to another TTS provider`);
       }
+      finalId = id;
     }
     const superseded = (): boolean => {
       const live = getEndpoints();
       return !live || ttsProviderOf(live) !== provider || live.tts_base_url !== baseUrl;
     };
 
-    const copied = await copyVoiceFile(
-      srcPath,
-      api.keepsId ? name : `import-${crypto.randomUUID()}`,
-    );
+    const copied = await copyVoiceFile(srcPath, `import-${crypto.randomUUID()}`);
     const label = name.trim() || copied.id;
     // A same-name re-import keeps the id but replaces the clip — bump the persisted revision so
     // the existing cross-window settings sync carries the change into other windows' filler cache key.
@@ -92,7 +92,7 @@ export function createVoiceImportFlow(deps: {
       ...copied,
       label,
       provider,
-      revision: nextRevision(speakerSelection.list(), copied.id),
+      revision: nextRevision(speakerSelection.list(), finalId ?? copied.id),
     };
     let folder = copied.id;
     let serverId: string | undefined;
@@ -107,16 +107,19 @@ export function createVoiceImportFlow(deps: {
         // ref_url is an asset:// URL that reference-clip reads through the webview fetch.
         serverId = await upsert({
           baseUrl,
-          id: copied.id,
+          id: finalId ?? copied.id,
           name: label,
           refUrl: copied.ref_url,
           fetch: f,
           getApiKey,
           logger: log,
         });
-        if (serverId && serverId !== copied.id && !superseded()) {
-          option = { ...option, id: serverId, ref_url: await renameUserVoice(copied.id, serverId) };
-          folder = serverId;
+        const target = finalId ?? serverId;
+        if (target && target !== copied.id && !superseded()) {
+          // The native rename refuses an existing destination, so a same-name voice's folder goes first.
+          if (finalId) await removeUserVoiceFile(finalId);
+          option = { ...option, id: target, ref_url: await renameUserVoice(copied.id, target) };
+          folder = target;
         }
       }
     } catch (err) {

@@ -79,6 +79,7 @@ const mocks = vi.hoisted(() => {
     // settings-window side with the real commitVoiceImport instead of hand-writing its effects.
     upsertVoice: vi.fn().mockResolvedValue(undefined),
     copyVoiceFile: vi.fn(),
+    renameUserVoice: vi.fn(),
   };
 });
 
@@ -100,7 +101,8 @@ vi.mock("../../io/chat/chat-client", () => ({ selectFetch: mocks.selectFetch }))
 vi.mock("../../io/voice/voices/voice-import", () => ({
   copyVoiceFile: mocks.copyVoiceFile,
   pickVoiceFile: vi.fn(),
-  removeVoice: vi.fn().mockResolvedValue(undefined),
+  removeUserVoice: vi.fn().mockResolvedValue(undefined),
+  renameUserVoice: mocks.renameUserVoice,
   fileStemFromPath: (path: string) => path,
 }));
 
@@ -607,12 +609,14 @@ describe("wireVoicePipeline", () => {
         source: "user",
       });
       windowA.select("myvoice");
+      // The clip is staged under a temporary id, then moved over the stored voice's folder.
       mocks.copyVoiceFile.mockResolvedValue({
-        id: "myvoice",
-        label: "My Voice",
-        ref_url: "/myvoice-v2.wav",
+        id: "import-staged",
+        label: "import-staged",
+        ref_url: "/import-staged.wav",
         source: "user",
       });
+      mocks.renameUserVoice.mockResolvedValue("/myvoice-v2.wav");
       const { commitVoiceImport: commitOnWindowA } = createVoiceImportFlow({
         getEndpoints: () => ({ tts_base_url: "http://tts.test" }),
         speakerSelection: windowA,
@@ -677,9 +681,9 @@ describe("wireVoicePipeline", () => {
       await synth("first");
       expect(synthCalls()).toHaveLength(1);
 
-      // Window A re-imports "My Voice" under the same name it is already active under — same id,
+      // Window A re-imports "myvoice" under the same name it is already active under — same id,
       // new clip, no selection change. This is the #506 scenario: re-importing the active voice.
-      await commitOnWindowA("/tmp/MyVoice.wav", "My Voice");
+      await commitOnWindowA("/tmp/MyVoice.wav", "myvoice");
 
       // The store must have notified its own subscribers — without that, nothing wakes window B.
       expect(windowAChanged).toBe(true);

@@ -31,7 +31,13 @@ vi.mock("../../io/voice/voices/fish-voices", () => ({
 const { pickVoiceFile, copyVoiceFile, removeOrphanImport, removeUserVoiceMock } = vi.hoisted(
   () => ({
     pickVoiceFile: vi.fn(),
-    copyVoiceFile: vi.fn(),
+    // The native copy files the clip under the id the desired name sanitizes to.
+    copyVoiceFile: vi.fn(async (_src: string, desired: string) => ({
+      id: desired,
+      label: desired,
+      ref_url: `asset://localhost/app-data/references/${desired}/clip.wav`,
+      source: "user" as const,
+    })),
     removeOrphanImport: vi.fn(async (id: string, remove: (id: string) => Promise<void>) => {
       await remove(id);
     }),
@@ -47,6 +53,8 @@ vi.mock("../../io/voice/voices/voice-import", () => ({
     return dot > 0 ? base.slice(0, dot) : base;
   },
   removeUserVoice: removeUserVoiceMock,
+  renameUserVoice: async (_from: string, to: string) =>
+    `asset://localhost/app-data/references/${to}/clip.wav`,
 }));
 
 // The orphan cleanup itself is shared with the VRM import — fake it where it lives.
@@ -271,12 +279,6 @@ describe("wireSpeakerSelection — pickVoiceImport / commitVoiceImport", () => {
   });
 
   it("commitVoiceImport uploads via upsertVoice and commits the option to the store", async () => {
-    copyVoiceFile.mockResolvedValue({
-      id: "myvoice",
-      label: "myvoice",
-      ref_url: "asset://localhost/app-data/references/myvoice/clip.wav",
-      source: "user",
-    });
     const { commitVoiceImport, speakerSelection } = wireSpeakerSelection({
       getEndpoints: () => ({ tts_base_url: "http://localhost:8091" }),
       log: noopLog,
@@ -285,20 +287,15 @@ describe("wireSpeakerSelection — pickVoiceImport / commitVoiceImport", () => {
 
     await commitVoiceImport("/tmp/MyVoice.wav", "myvoice");
 
-    expect(copyVoiceFile).toHaveBeenCalledWith("/tmp/MyVoice.wav", "myvoice");
+    expect(copyVoiceFile.mock.calls[0][1]).not.toBe("myvoice");
     expect(upsertVoice).toHaveBeenCalledOnce();
+    expect(upsertVoice.mock.calls[0][0]).toMatchObject({ id: "myvoice" });
     expect(speakerSelection.list().map((o) => o.id)).toContain("myvoice");
     expect(speakerSelection.getActiveId()).toBe("myvoice");
     speakerSelection.dispose();
   });
 
   it("commitVoiceImport overwrites via upsertVoice when the server already lists the id (duplicate name)", async () => {
-    copyVoiceFile.mockResolvedValue({
-      id: "natsume",
-      label: "natsume",
-      ref_url: "asset://localhost/app-data/references/natsume/clip.wav",
-      source: "user",
-    });
     listVoices.mockResolvedValue(["natsume"]); // server already has this id — explicit overwrite
     const { commitVoiceImport, speakerSelection } = wireSpeakerSelection({
       getEndpoints: () => ({ tts_base_url: "http://localhost:8091" }),
@@ -315,12 +312,6 @@ describe("wireSpeakerSelection — pickVoiceImport / commitVoiceImport", () => {
   });
 
   it("on registration failure, cleans up the orphan copy and still throws (option never added)", async () => {
-    copyVoiceFile.mockResolvedValue({
-      id: "myvoice",
-      label: "myvoice",
-      ref_url: "asset://localhost/app-data/references/myvoice/clip.wav",
-      source: "user",
-    });
     upsertVoice.mockRejectedValue(new Error("server down"));
     const { commitVoiceImport, speakerSelection } = wireSpeakerSelection({
       getEndpoints: () => ({ tts_base_url: "http://localhost:8091" }),
@@ -330,23 +321,19 @@ describe("wireSpeakerSelection — pickVoiceImport / commitVoiceImport", () => {
 
     await expect(commitVoiceImport("/tmp/MyVoice.wav", "myvoice")).rejects.toThrow("server down");
 
+    const staged = copyVoiceFile.mock.calls[0][1];
     expect(removeOrphanImport).toHaveBeenCalledWith(
-      "myvoice",
+      staged,
       expect.any(Function),
       expect.any(Function),
     );
-    expect(removeUserVoiceMock).toHaveBeenCalledWith("myvoice");
+    expect(removeUserVoiceMock).toHaveBeenCalledWith(staged);
+    expect(removeUserVoiceMock).not.toHaveBeenCalledWith("myvoice");
     expect(speakerSelection.list().map((o) => o.id)).not.toContain("myvoice");
     speakerSelection.dispose();
   });
 
   it("throws without copying when tts_base_url is unset (guard before any upload)", async () => {
-    copyVoiceFile.mockResolvedValue({
-      id: "myvoice",
-      label: "myvoice",
-      ref_url: "asset://localhost/app-data/references/myvoice/clip.wav",
-      source: "user",
-    });
     const { commitVoiceImport, speakerSelection } = wireSpeakerSelection({
       getEndpoints: () => ({}),
       log: noopLog,
@@ -363,12 +350,6 @@ describe("wireSpeakerSelection — pickVoiceImport / commitVoiceImport", () => {
   // manifest) specifically for the new pick/commit flow: a voice just imported via commitVoiceImport
   // must not get clobbered by a refreshVoiceList triggered right after (e.g. the next panel open).
   it("a voice imported via commitVoiceImport survives a refreshVoiceList right after (next panel open)", async () => {
-    copyVoiceFile.mockResolvedValue({
-      id: "myvoice",
-      label: "My Voice",
-      ref_url: "asset://localhost/app-data/references/myvoice/clip.wav",
-      source: "user",
-    });
     listVoices.mockResolvedValue([]); // not registered yet at commit time
     const { commitVoiceImport, refreshVoiceList, speakerSelection } = wireSpeakerSelection({
       getEndpoints: () => ({ tts_base_url: "http://localhost:8091" }),
@@ -376,7 +357,7 @@ describe("wireSpeakerSelection — pickVoiceImport / commitVoiceImport", () => {
       broadcastSettings: () => {},
     });
 
-    await commitVoiceImport("/tmp/MyVoice.wav", "My Voice");
+    await commitVoiceImport("/tmp/MyVoice.wav", "myvoice");
     expect(speakerSelection.list().map((o) => o.id)).toContain("myvoice");
 
     // The server now also lists it (registered at import time) — simulate the next panel open.
@@ -387,7 +368,7 @@ describe("wireSpeakerSelection — pickVoiceImport / commitVoiceImport", () => {
     expect(rows).toHaveLength(1); // not duplicated
     expect(rows[0]).toEqual({
       id: "myvoice",
-      label: "My Voice",
+      label: "myvoice",
       ref_url: "asset://localhost/app-data/references/myvoice/clip.wav",
       source: "user",
       revision: 1,
@@ -508,12 +489,6 @@ describe("createEffectiveEndpoints", () => {
     });
 
     it("commitVoiceImport uploads to the override URL", async () => {
-      copyVoiceFile.mockResolvedValue({
-        id: "myvoice",
-        label: "My Voice",
-        ref_url: "asset://x/clip.wav",
-        source: "user",
-      });
       const { commitVoiceImport, speakerSelection } = wireSpeakerSelection({
         getEndpoints: overrideOnly(),
         log: noopLog,
@@ -534,12 +509,6 @@ describe("createEffectiveEndpoints", () => {
       const notLoaded = createEffectiveEndpoints({
         getBundled: () => null,
         getOverrides: () => overrides(),
-      });
-      copyVoiceFile.mockResolvedValue({
-        id: "myvoice",
-        label: "My Voice",
-        ref_url: "asset://x/clip.wav",
-        source: "user",
       });
       const { refreshVoiceList, refreshSpeaker, commitVoiceImport, speakerSelection } =
         wireSpeakerSelection({
