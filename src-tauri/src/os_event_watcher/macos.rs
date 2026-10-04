@@ -1,7 +1,7 @@
 //! macOS OS polling — idle (CGEventSource FFI), window enumeration
 //! (CGWindowList raw FFI), camera best-effort.
 
-use super::{idle_ms_from_secs, WindowAtPoint};
+use super::{pure_helpers::idle_ms_from_secs, WindowAtPoint};
 use std::ffi::c_void;
 
 // ─── Raw Core Foundation + Core Graphics FFI ─────────────────────────────────
@@ -391,7 +391,7 @@ pub(super) fn platform_idle_ms() -> Option<u64> {
 
 /// Owner app and title of the frontmost user window, `(None, None)` when none.
 pub(super) fn platform_frontmost() -> (Option<String>, Option<String>) {
-    match super::first_user_window(list_all_windows(), process_base_name) {
+    match super::pure_helpers::first_user_window(list_all_windows(), process_base_name) {
         Some(w) => (w.owner_name, w.name),
         None => (None, None),
     }

@@ -41,7 +41,7 @@ pub fn drag_window<R: Runtime>(window: WebviewWindow<R>) -> Result<(), String> {
     // is needed because the OS-modal drag loop does not surface a release to
     // the webview.
     #[cfg(any(target_os = "macos", target_os = "windows"))]
-    crate::os_event_watcher::spawn_drop_release_probe(window.app_handle().clone());
+    crate::os_event_watcher::drop_release::spawn_drop_release_probe(window.app_handle().clone());
 
     Ok(())
 }

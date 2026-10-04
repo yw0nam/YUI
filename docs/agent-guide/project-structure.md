@@ -472,6 +472,8 @@ YUI/
       tray.rs                        # System tray menu and its show and hide actions
       os_event_watcher/
         mod.rs                       # OS polling loop that emits os_event to the webview
+        drop_release.rs              # Drop-release probe that emits window_drop_release
+        pure_helpers.rs              # Idle conversion and frontmost-window pick
         macos.rs                     # macOS idle, window enumeration, and camera polling
         windows.rs                   # Windows idle, foreground window, and window enumeration polling
   fixtures/                          # JSON case tables the TS and Rust sanitizer tests both read

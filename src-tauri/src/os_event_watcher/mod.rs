@@ -14,14 +14,10 @@ use crate::witness::{Sample, WitnessLog};
 use serde::Serialize;
 use std::time::{SystemTime, UNIX_EPOCH};
 #[cfg(any(target_os = "macos", target_os = "windows"))]
-use std::{
-    sync::atomic::{AtomicBool, Ordering},
-    thread,
-    time::Duration,
-};
-use tauri::{command, AppHandle, Emitter};
+use std::{thread, time::Duration};
 #[cfg(any(target_os = "macos", target_os = "windows"))]
-use tauri::{Manager, Runtime};
+use tauri::Manager;
+use tauri::{command, AppHandle, Emitter};
 
 pub const OS_EVENT_CHANNEL: &str = "os_event";
 
@@ -31,10 +27,6 @@ pub const WINDOW_DROP_RELEASE_CHANNEL: &str = "window_drop_release";
 
 #[cfg(any(target_os = "macos", target_os = "windows"))]
 const POLL_INTERVAL: Duration = Duration::from_secs(5);
-#[cfg(any(target_os = "macos", target_os = "windows"))]
-const RELEASE_POLL_INTERVAL: Duration = Duration::from_millis(16);
-#[cfg(any(target_os = "macos", target_os = "windows"))]
-const RELEASE_POLL_TIMEOUT: Duration = Duration::from_secs(10);
 
 /// `os_event` channel payload — "Rust → Webview" handoff.
 #[derive(Debug, Clone, Serialize)]
@@ -66,16 +58,6 @@ pub fn epoch_ms() -> i64 {
         .duration_since(UNIX_EPOCH)
         .map(|d| d.as_millis() as i64)
         .unwrap_or(0)
-}
-
-/// Converts idle seconds (f64) to milliseconds (u64), clamping negative to 0.
-#[allow(dead_code)] // used by the macOS watcher; dead on other targets
-pub fn idle_ms_from_secs(secs: f64) -> u64 {
-    if secs < 0.0 {
-        0
-    } else {
-        (secs * 1000.0) as u64
-    }
 }
 
 /// Sanitises a raw window title: trims, returns None if empty.
@@ -139,35 +121,9 @@ pub fn list_windows() -> Result<Vec<WindowAtPoint>, String> {
     }
 }
 
-/// Executable base names of macOS system helpers that own on-screen layer-0
-/// windows while never being the app the user is looking at. Binary names, not
-/// `kCGWindowOwnerName` — that one is localized and would miss on non-English
-/// systems.
-#[cfg_attr(not(target_os = "macos"), allow(dead_code))]
-const SYSTEM_HELPER_EXECUTABLES: &[&str] = &[
-    "WindowManager",
-    "Dock",
-    "ControlCenter",
-    "NotificationCenter",
-    "Spotlight",
-    "Screenshot",
-    "screencaptureui",
-];
-
-/// The frontmost window a user can be looking at: the topmost window whose
-/// owner executable is not a system helper. `executable` resolves an owner pid
-/// to its binary base name; the pick itself is pure, so it is unit-testable.
-#[cfg_attr(not(target_os = "macos"), allow(dead_code))]
-fn first_user_window(
-    windows: Vec<WindowAtPoint>,
-    executable: impl Fn(i32) -> Option<String>,
-) -> Option<WindowAtPoint> {
-    windows.into_iter().find(|w| {
-        !executable(w.pid)
-            .as_deref()
-            .is_some_and(|exe| SYSTEM_HELPER_EXECUTABLES.contains(&exe))
-    })
-}
+#[cfg(any(target_os = "macos", target_os = "windows"))]
+pub(crate) mod drop_release;
+mod pure_helpers;
 
 // ─── Platform-specific OS polling ────────────────────────────────────────────
 
@@ -182,92 +138,6 @@ use macos::{platform_frontmost, platform_idle_ms, platform_lbutton_is_down};
 
 #[cfg(target_os = "windows")]
 use windows::{platform_frontmost, platform_idle_ms, platform_lbutton_is_down};
-
-#[cfg(any(target_os = "macos", target_os = "windows"))]
-static PROBE_ACTIVE: AtomicBool = AtomicBool::new(false);
-
-#[cfg(any(target_os = "macos", target_os = "windows"))]
-struct ProbeGuard;
-
-#[cfg(any(target_os = "macos", target_os = "windows"))]
-impl ProbeGuard {
-    fn try_acquire() -> Option<Self> {
-        PROBE_ACTIVE
-            .compare_exchange(false, true, Ordering::Acquire, Ordering::Relaxed)
-            .ok()
-            .map(|_| ProbeGuard)
-    }
-}
-
-#[cfg(any(target_os = "macos", target_os = "windows"))]
-impl Drop for ProbeGuard {
-    fn drop(&mut self) {
-        PROBE_ACTIVE.store(false, Ordering::Release);
-    }
-}
-
-/// Given the running state-machine state (`saw_down`) and the current button
-/// reading (`is_down`), returns the new `saw_down` value and whether a
-/// down→up release was just detected.
-///
-/// This is the pure, FFI-free core of the release logic, unit-testable.
-#[cfg(any(target_os = "macos", target_os = "windows"))]
-pub(crate) fn step_release_detector(saw_down: bool, is_down: bool) -> (bool, bool) {
-    if is_down {
-        // Button is held; record that we have seen it down.
-        (true, false)
-    } else if saw_down {
-        // We saw it down before, and now it is up: release detected.
-        (true, true)
-    } else {
-        // Button is up but we have not yet observed it down — stale read.
-        (false, false)
-    }
-}
-
-// Drop-release probe, invoked by drag.rs after start_dragging().
-// Emits `window_drop_release` as a bare signal (no payload).
-#[cfg(any(target_os = "macos", target_os = "windows"))]
-pub fn spawn_drop_release_probe<R: Runtime>(app: AppHandle<R>) {
-    let Some(guard) = ProbeGuard::try_acquire() else {
-        log::debug!("drop_release_probe_skipped reason=already_active");
-        return;
-    };
-
-    thread::Builder::new()
-        .name("yui_drop_release".into())
-        .spawn(move || {
-            // Held for the thread's lifetime so every exit path clears PROBE_ACTIVE.
-            let _guard = guard;
-
-            let start = std::time::Instant::now();
-            let mut saw_down = false;
-
-            loop {
-                if start.elapsed() >= RELEASE_POLL_TIMEOUT {
-                    log::info!("drop_release_timeout");
-                    return;
-                }
-
-                let is_down = platform_lbutton_is_down();
-                let (next_saw_down, released) = step_release_detector(saw_down, is_down);
-                saw_down = next_saw_down;
-
-                if released {
-                    break;
-                }
-
-                thread::sleep(RELEASE_POLL_INTERVAL);
-            }
-
-            log::info!("drop_release_detected");
-
-            if let Err(e) = app.emit(WINDOW_DROP_RELEASE_CHANNEL, ()) {
-                log::warn!("window_drop_release_emit_failed error={e}");
-            }
-        })
-        .expect("failed to spawn yui_drop_release thread");
-}
 
 #[cfg(any(target_os = "macos", target_os = "windows"))]
 fn polling_loop(app: AppHandle) {
@@ -361,119 +231,6 @@ mod tests {
     use super::*;
     use serde_json::json;
 
-    // ── ProbeGuard once-guard ────────────────────────────────────────────────
-
-    #[test]
-    #[cfg(any(target_os = "macos", target_os = "windows"))]
-    fn probe_guard_serialises_acquire_release() {
-        // Clean baseline (process-wide flag shared across tests in this module).
-        PROBE_ACTIVE.store(false, Ordering::Release);
-
-        {
-            let first = ProbeGuard::try_acquire();
-            assert!(first.is_some(), "first acquire must succeed");
-            assert!(PROBE_ACTIVE.load(Ordering::Acquire), "flag set while held");
-
-            // A concurrent acquire is refused while the first is held.
-            let second = ProbeGuard::try_acquire();
-            assert!(
-                second.is_none(),
-                "second concurrent acquire must be refused"
-            );
-        }
-
-        // Drop of first guard at end of scope resets the flag.
-        assert!(
-            !PROBE_ACTIVE.load(Ordering::Acquire),
-            "flag cleared on drop"
-        );
-
-        // A subsequent acquire after release succeeds.
-        let third = ProbeGuard::try_acquire();
-        assert!(third.is_some(), "acquire after release must succeed");
-        drop(third);
-        assert!(
-            !PROBE_ACTIVE.load(Ordering::Acquire),
-            "flag cleared after final drop"
-        );
-    }
-
-    // ── step_release_detector — pure helper ──────────────────────────────────
-
-    #[test]
-    #[cfg(any(target_os = "macos", target_os = "windows"))]
-    fn no_release_before_down_observed() {
-        // Button reads up before we ever see it down: stale up-state, no release.
-        let (saw_down, released) = step_release_detector(false, false);
-        assert!(!saw_down, "saw_down remains false");
-        assert!(!released, "must not release without prior down");
-    }
-
-    #[test]
-    #[cfg(any(target_os = "macos", target_os = "windows"))]
-    fn down_sets_saw_down_no_release() {
-        // Button goes down: saw_down flips to true, no release yet.
-        let (saw_down, released) = step_release_detector(false, true);
-        assert!(saw_down, "saw_down set on first down read");
-        assert!(!released, "no release while button is still down");
-    }
-
-    #[test]
-    #[cfg(any(target_os = "macos", target_os = "windows"))]
-    fn release_fires_exactly_on_down_to_up_transition() {
-        // Already saw the button down (saw_down=true), now it goes up.
-        let (saw_down, released) = step_release_detector(true, false);
-        assert!(saw_down, "saw_down stays true after release");
-        assert!(released, "release detected on down→up transition");
-    }
-
-    #[test]
-    #[cfg(any(target_os = "macos", target_os = "windows"))]
-    fn held_down_does_not_release() {
-        // Button is held down while saw_down is already true.
-        let (saw_down, released) = step_release_detector(true, true);
-        assert!(saw_down, "saw_down stays true while held");
-        assert!(!released, "no release while button is still down");
-    }
-
-    #[test]
-    #[cfg(any(target_os = "macos", target_os = "windows"))]
-    fn release_not_fired_again_after_up_while_up() {
-        // After a release (saw_down=true, is_down=false), if we keep reading
-        // up the detector should not keep emitting releases.  The probe loop
-        // breaks immediately on the first release, but we test the helper
-        // independently: calling it again with (true, false) would yield
-        // another release — the loop's `break` is the guard in practice.
-        // What we verify here is that a (false, false) call (post-reset state)
-        // never fires a spurious release.
-        let (saw_down, released) = step_release_detector(false, false);
-        assert!(!released, "no spurious release from pure up-up state");
-        assert!(!saw_down);
-    }
-
-    #[test]
-    #[cfg(any(target_os = "macos", target_os = "windows"))]
-    fn full_sequence_no_release_then_release() {
-        // Simulate: up (stale), down, down, up (release).
-        let mut saw_down = false;
-
-        let (s, r) = step_release_detector(saw_down, false); // stale up
-        saw_down = s;
-        assert!(!r);
-
-        let (s, r) = step_release_detector(saw_down, true); // first down
-        saw_down = s;
-        assert!(!r);
-        assert!(saw_down);
-
-        let (s, r) = step_release_detector(saw_down, true); // held down
-        saw_down = s;
-        assert!(!r);
-
-        let (_s, r) = step_release_detector(saw_down, false); // release
-        assert!(r, "release detected at down→up");
-    }
-
     // ── existing contract tests (must stay green) ────────────────────────────
 
     #[test]
@@ -522,31 +279,6 @@ mod tests {
         );
     }
 
-    // ── idle_ms_from_secs ────────────────────────────────────────────────────
-
-    #[test]
-    fn idle_ms_rounds_fractional_seconds() {
-        // 1.5s → 1500ms
-        assert_eq!(idle_ms_from_secs(1.5), 1500);
-    }
-
-    #[test]
-    fn idle_ms_clamps_negative_to_zero() {
-        // negative idle is nonsensical — clamp to 0
-        assert_eq!(idle_ms_from_secs(-1.0), 0);
-    }
-
-    #[test]
-    fn idle_ms_zero() {
-        assert_eq!(idle_ms_from_secs(0.0), 0);
-    }
-
-    #[test]
-    fn idle_ms_large_value() {
-        // 3600s = 1h → 3_600_000ms
-        assert_eq!(idle_ms_from_secs(3600.0), 3_600_000);
-    }
-
     // ── sanitise_window_title ───────────────────────────────────────────────
 
     #[test]
@@ -576,121 +308,6 @@ mod tests {
     }
 
     // ── WindowAtPoint serialisation ──────────────────────────────────────────
-
-    // ── frontmost user window ────────────────────────────────────────────────
-
-    fn window(pid: i32, owner: Option<&str>, name: Option<&str>) -> WindowAtPoint {
-        WindowAtPoint {
-            x: 0.0,
-            y: 0.0,
-            width: 100.0,
-            height: 100.0,
-            name: name.map(str::to_string),
-            owner_name: owner.map(str::to_string),
-            pid,
-            window_number: 1,
-        }
-    }
-
-    /// Stand-in for `proc_pidpath`: pid → executable base name.
-    fn executables<'a>(table: &'a [(i32, &'static str)]) -> impl Fn(i32) -> Option<String> + 'a {
-        move |pid| {
-            table
-                .iter()
-                .find(|(p, _)| *p == pid)
-                .map(|(_, exe)| (*exe).to_string())
-        }
-    }
-
-    #[test]
-    fn frontmost_takes_the_topmost_window() {
-        let picked = first_user_window(
-            vec![
-                window(10, Some("Safari"), Some("Start Page")),
-                window(20, Some("Xcode"), Some("main.rs")),
-            ],
-            executables(&[(10, "Safari"), (20, "Xcode")]),
-        );
-        assert_eq!(picked.unwrap().owner_name.as_deref(), Some("Safari"));
-    }
-
-    #[test]
-    fn frontmost_skips_a_system_helper_window() {
-        // Stage Manager's helper floats above the real frontmost app.
-        let picked = first_user_window(
-            vec![
-                window(10, Some("WindowManager"), Some("App Icon Window")),
-                window(20, Some("Safari"), Some("Start Page")),
-            ],
-            executables(&[(10, "WindowManager"), (20, "Safari")]),
-        );
-        assert_eq!(picked.unwrap().owner_name.as_deref(), Some("Safari"));
-    }
-
-    #[test]
-    fn frontmost_skips_a_helper_whose_display_name_is_localised() {
-        // Korean macOS reports Control Center as "제어 센터"; the binary name
-        // behind the pid stays "ControlCenter".
-        let picked = first_user_window(
-            vec![
-                window(10, Some("제어 센터"), None),
-                window(20, Some("사파리"), Some("시작 페이지")),
-            ],
-            executables(&[(10, "ControlCenter"), (20, "Safari")]),
-        );
-        assert_eq!(picked.unwrap().owner_name.as_deref(), Some("사파리"));
-    }
-
-    #[test]
-    fn frontmost_skips_the_screenshot_overlay_process() {
-        // The capture toolbar and selection overlay are drawn by
-        // screencaptureui, not by the Screenshot.app launcher.
-        let picked = first_user_window(
-            vec![
-                window(10, Some("screencaptureui"), None),
-                window(20, Some("메모"), Some("장보기")),
-            ],
-            executables(&[(10, "screencaptureui"), (20, "Notes")]),
-        );
-        assert_eq!(picked.unwrap().name.as_deref(), Some("장보기"));
-    }
-
-    #[test]
-    fn frontmost_keeps_an_app_whose_display_name_looks_like_a_helper() {
-        // Matching is on the binary name, so a third-party app free to call
-        // itself "Dock" is still a user window.
-        let picked = first_user_window(
-            vec![window(10, Some("Dock"), Some("Berth 4"))],
-            executables(&[(10, "Dockyard")]),
-        );
-        assert_eq!(picked.unwrap().name.as_deref(), Some("Berth 4"));
-    }
-
-    #[test]
-    fn frontmost_is_none_when_only_helpers_are_on_screen() {
-        let picked = first_user_window(
-            vec![
-                window(10, Some("WindowManager"), Some("App Icon Window")),
-                window(20, Some("제어 센터"), None),
-                window(30, Some("스크린샷"), None),
-                window(40, Some("screencaptureui"), None),
-            ],
-            executables(&[
-                (10, "WindowManager"),
-                (20, "ControlCenter"),
-                (30, "Screenshot"),
-                (40, "screencaptureui"),
-            ]),
-        );
-        assert!(picked.is_none());
-    }
-
-    #[test]
-    fn frontmost_keeps_a_window_whose_pid_does_not_resolve() {
-        // A dead or unreadable pid must not silently drop the window.
-        let picked = first_user_window(vec![window(10, None, Some("Untitled"))], |_| None);
-        assert_eq!(picked.unwrap().name.as_deref(), Some("Untitled"));
-    }
 
     #[test]
     fn window_at_point_serialises_camel_case() {
