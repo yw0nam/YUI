@@ -154,16 +154,18 @@ YUI/
           project-anchor.ts          # Projects the world feet point into canvas pixels
           screen-probes.ts           # Read-only screen probes of the loaded model: feet anchor, width, seat and tap points, hand anchors, pixels per metre
       motion/                        # Clip scheduling, variant swaps, and clip processing
-        clip-library.ts              # Per-VRM .vrma clip cache: load, mirror, root-lock detrend, dead-clip memo, crossfade clone
-        cycle-dwell.ts               # Single-timer scheduler for a cycle motion's variant swap
-        mirror-clip.ts               # Mirrors a clip across the YZ plane
-        motion-controller.ts         # Pure motion scheduling and variant-resolution state machine
         motion-fallback.ts           # Idle-fallback decision for a motion whose clip fails to load
-        motion-playback.ts           # Mixer-driven motion playback: controller decisions, action crossfade, finish → next, idle baseline
-        motion-start-generation.ts   # Tracks which asynchronous motion start owns mixer playback
-        perch-hold.ts                # Held-posture suppression and baseline rules
-        recenter-root-motion.ts      # Strips baked horizontal drift from VRMA root motion
-        self-crossfade.ts            # Clip-cache key composition and playback clip selection
+        clip/                        # Clip cache, mirroring, and root-motion processing
+          clip-library.ts            # Per-VRM .vrma clip cache: load, mirror, root-lock detrend, dead-clip memo, crossfade clone
+          mirror-clip.ts             # Mirrors a clip across the YZ plane
+          recenter-root-motion.ts    # Strips baked horizontal drift from VRMA root motion
+          self-crossfade.ts          # Clip-cache key composition and playback clip selection
+        playback/                    # Motion scheduling, variant swaps, and mixer playback
+          cycle-dwell.ts             # Single-timer scheduler for a cycle motion's variant swap
+          motion-controller.ts       # Pure motion scheduling and variant-resolution state machine
+          motion-playback.ts         # Mixer-driven motion playback: controller decisions, action crossfade, finish → next, idle baseline
+          motion-start-generation.ts # Tracks which asynchronous motion start owns mixer playback
+          perch-hold.ts              # Held-posture suppression and baseline rules
         yaw/                         # Root-yaw easing math and its per-frame apply
           body-yaw.ts                # Pure easing math for the root yaw a stroll turns by
           root-yaw.ts                # Eased root yaw the ambient stroll turns the character by, written onto the model's base rotation each frame

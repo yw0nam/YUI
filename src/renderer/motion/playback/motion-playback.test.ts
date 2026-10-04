@@ -1,8 +1,8 @@
 import type { VRM } from "@pixiv/three-vrm";
 import * as THREE from "three";
 import { describe, expect, it, vi } from "vitest";
-import type { MotionRegistry } from "../../contract";
-import type { ClipLibrary } from "./clip-library";
+import type { MotionRegistry } from "../../../contract";
+import type { ClipLibrary } from "../clip/clip-library";
 import { createMotionPlayback } from "./motion-playback";
 
 const IDLE_PATH = "/motions/idle.vrma";

@@ -3,10 +3,10 @@ import { type VRM, VRMHumanBoneList, type VRMHumanBoneName } from "@pixiv/three-
 import { createVRMAnimationClip } from "@pixiv/three-vrm-animation";
 import * as THREE from "three";
 import type { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
-import type { MotionRegistry } from "../../contract";
-import type { Logger } from "../../logger";
+import type { MotionRegistry } from "../../../contract";
+import type { Logger } from "../../../logger";
+import { createDeadClipRegistry } from "../motion-fallback";
 import { mirrorClipTracks } from "./mirror-clip";
-import { createDeadClipRegistry } from "./motion-fallback";
 import {
   detrendClipRootY,
   type RootYCurve,

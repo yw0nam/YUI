@@ -5,7 +5,7 @@ import type { ControlEnvelope, EmotionRegistry, MotionRegistry } from "../contra
 import type { OrbitAngles } from "./camera/camera-fit";
 import type { RenderEmotionSignal } from "./expression/emotion-resolver";
 import type { ScreenAnchor } from "./geometry/probe/project-anchor";
-import type { RenderMotionSignal } from "./motion/motion-controller";
+import type { RenderMotionSignal } from "./motion/playback/motion-controller";
 
 export interface RendererOptions {
   /** Canvas element to mount the VRM render. */

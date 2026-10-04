@@ -17,8 +17,8 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, expect, it, vi } from "vitest";
 import type { MotionRegistry } from "../../contract";
-import { createMotionController } from "./motion-controller";
 import { createDeadClipRegistry, resolveBaselineFallback } from "./motion-fallback";
+import { createMotionController } from "./playback/motion-controller";
 
 const realRegistry: MotionRegistry = JSON.parse(
   readFileSync(resolve(process.cwd(), "configs/motions.json"), "utf-8"),

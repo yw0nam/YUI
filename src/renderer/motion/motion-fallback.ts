@@ -15,7 +15,7 @@
  * idle". General to ANY motion, not thinking-specific.
  */
 
-import type { MotionController, ResolvedMotion } from "./motion-controller";
+import type { MotionController, ResolvedMotion } from "./playback/motion-controller";
 
 /**
  * Resolves and force-commits the baseline as recovery for `failedId`'s dead clip.

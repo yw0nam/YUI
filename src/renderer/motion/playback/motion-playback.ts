@@ -1,10 +1,11 @@
 /** Mixer-driven motion playback: controller decisions, action crossfade, finish → next, idle baseline. */
 import type { VRM } from "@pixiv/three-vrm";
 import * as THREE from "three";
-import type { MotionRegistry } from "../../contract";
-import type { Logger } from "../../logger";
-import type { VrmParticipant } from "../vrm-participant";
-import type { ClipLibrary } from "./clip-library";
+import type { MotionRegistry } from "../../../contract";
+import type { Logger } from "../../../logger";
+import type { VrmParticipant } from "../../vrm-participant";
+import type { ClipLibrary } from "../clip/clip-library";
+import { resolveBaselineFallback } from "../motion-fallback";
 import { createCycleDwell } from "./cycle-dwell";
 import {
   createMotionController,
@@ -14,7 +15,6 @@ import {
   type ResolvedMotion,
   shouldRestartIdle,
 } from "./motion-controller";
-import { resolveBaselineFallback } from "./motion-fallback";
 import { createMotionStartGeneration } from "./motion-start-generation";
 import { baselineWhileHeld, suppressWhileHeld } from "./perch-hold";
 

@@ -36,8 +36,8 @@ import { type AlphaHitTest, createAlphaHitTest } from "./geometry/hit/alpha-hit-
 import { clientToStage } from "./geometry/hit/stage-coords";
 import { SEAT_DROP_DEFAULT } from "./geometry/probe/perch-geometry";
 import { createScreenProbes } from "./geometry/probe/screen-probes";
-import { createClipLibrary } from "./motion/clip-library";
-import { createMotionPlayback } from "./motion/motion-playback";
+import { createClipLibrary } from "./motion/clip/clip-library";
+import { createMotionPlayback } from "./motion/playback/motion-playback";
 import { createRootYaw } from "./motion/yaw/root-yaw";
 import { createPinController, type PinController } from "./pin-controller";
 import type { Renderer, RendererOptions, TickFn, VrmLoadResult } from "./types";
@@ -55,7 +55,7 @@ const SEAT_DROP = SEAT_DROP_DEFAULT;
 export type { RenderEmotionSignal } from "./expression/emotion-resolver";
 export { downPitchSign } from "./expression/gaze/bone-pitch";
 export type { MouthLipsync } from "./expression/mouth-lipsync";
-export type { RenderMotionSignal } from "./motion/motion-controller";
+export type { RenderMotionSignal } from "./motion/playback/motion-controller";
 export type { Renderer, RendererOptions, TickContext, TickFn, VrmLoadResult } from "./types";
 
 export function createRenderer(options: RendererOptions): Renderer {
