@@ -9,14 +9,14 @@
 
 import "../styles.css";
 import "../ui/message/message-window.css";
+import { createDisposers } from "../app/disposers";
+import { wireMessageSurfaceOps } from "../app/message/wire-message-surface-ops";
+import { startDragging, wireTauriWindow } from "../app/message/wire-message-tauri-window";
 import { createMirroredDelegations } from "../io/bridge/delegations-bridge";
 import { createMessageBridge } from "../io/bridge/message-bridge";
 import { createMirroredPushSocket } from "../io/bridge/push-socket-bridge";
 import { createMirroredReasoning } from "../io/bridge/reasoning-bridge";
 import { createSettingsBridge } from "../io/bridge/settings-bridge";
-import { attachKeepOnScreen } from "../io/window/geometry/keep-on-screen";
-import { toScreenMonitor } from "../io/window/geometry/screen-geometry";
-import { MESSAGE_WINDOW_WIDTH } from "../io/window/openers/message-window";
 import { excludeOwnOriginFromCorsFetch } from "../io/window/own-origin-fetch";
 import { createLogger, initLogger } from "../logger";
 import {
@@ -94,70 +94,7 @@ async function bootstrap(): Promise<void> {
     onOpenSettings: () => bridge.emitControl({ op: "open-settings" }),
   });
 
-  bridge.onSurface((op) => {
-    switch (op.op) {
-      case "begin":
-        plate.setLive(true);
-        surfaces.beginSpeech();
-        break;
-      case "push":
-        surfaces.pushSpeech(op.delta);
-        break;
-      case "end":
-        plate.setLive(false);
-        surfaces.endSpeech(op.defer ? { defer: true } : undefined);
-        break;
-      case "finish":
-        surfaces.finishSpeech();
-        break;
-      case "hide":
-        plate.setLive(false);
-        surfaces.hideSpeech();
-        break;
-      case "quote":
-        surfaces.quoteUser(op.quote);
-        break;
-      case "settle-quote":
-        surfaces.settleQuote();
-        break;
-      case "clear-quote":
-        surfaces.clearQuote();
-        break;
-      case "summon-input":
-        // A document focus in an unfocused webview leaves the keystrokes with the pet window.
-        void focusWindow().then(() => surfaces.summonInput());
-        break;
-      case "dismiss-input":
-        surfaces.dismissInput();
-        break;
-      case "busy":
-        log.info("busy_recv", { busy: op.busy });
-        plate.setBusy(op.busy);
-        surfaces.setBusy(op.busy);
-        break;
-      case "input-error":
-        surfaces.showInputError(
-          op.message,
-          op.action
-            ? {
-                label: op.action.label,
-                onClick: () => bridge.emitControl({ op: "input-error-action" }),
-              }
-            : undefined,
-        );
-        break;
-      case "attachment-limits":
-        surfaces.setAttachmentLimits(op.limits);
-        break;
-      case "restore-input":
-        surfaces.restoreInput(op.text, op.images);
-        break;
-      default: {
-        const unhandled: never = op;
-        log.warn("unhandled_surface_op", { op: JSON.stringify(unhandled) });
-      }
-    }
-  });
+  wireMessageSurfaceOps({ bridge, surfaces, plate });
 
   const detachSummonKey = attachSummonKey(surfaces);
 
@@ -173,92 +110,33 @@ async function bootstrap(): Promise<void> {
   const unlistenSettings = settingsBridge.onSettingsChanged(reloadShared);
   window.addEventListener("focus", reloadShared);
 
-  const disposeWindowWiring = isTauri() ? await wireTauriWindow(surfaces.el) : () => {};
+  const disposeWindowWiring = isTauri()
+    ? await wireTauriWindow(surfaces.el, messageWindowSettings)
+    : () => {};
 
   // A window created after the turn began has no limits and no busy state until it asks.
   // Sent after the window wiring so the surface listener's own registration hop has landed.
   bridge.emitControl({ op: "ready" });
 
-  window.addEventListener("beforeunload", () => {
-    disposeWindowWiring();
-    detachSummonKey();
-    window.removeEventListener("focus", reloadShared);
-    unlistenSettings();
-    chip.dispose();
-    chipCollapsed.dispose();
-    pushSocket.dispose();
-    delegations.dispose();
-    plate.dispose();
-    plateRow.remove();
-    surfaces.dispose();
-    reasoning.dispose();
-    bridge.dispose();
-    settingsBridge.dispose();
-    messageWindowSettings.dispose();
-    bubblePersistSettings.dispose();
-  });
-
-  /** Take OS focus so typing lands in this window's field. */
-  async function focusWindow(): Promise<void> {
-    if (!isTauri()) return;
-    try {
-      const { getCurrentWindow } = await import("@tauri-apps/api/window");
-      await getCurrentWindow().setFocus();
-    } catch (error) {
-      log.warn("message_window_focus_failed", { error: String(error) });
-    }
-  }
-
-  /** OS-native window drag from the plate. */
-  async function startDragging(): Promise<void> {
-    if (!isTauri()) return;
-    try {
-      const { getCurrentWindow } = await import("@tauri-apps/api/window");
-      await getCurrentWindow().startDragging();
-    } catch (error) {
-      log.warn("message_window_drag_failed", { error: String(error) });
-    }
-  }
-
-  /** Height tracks the content, and every move records the window's outer position. */
-  async function wireTauriWindow(root: HTMLElement): Promise<() => void> {
-    const { availableMonitors, getCurrentWindow } = await import("@tauri-apps/api/window");
-    const { LogicalSize, PhysicalPosition } = await import("@tauri-apps/api/dpi");
-    const win = getCurrentWindow();
-
-    let lastHeight = 0;
-    const observer = new ResizeObserver(() => {
-      const height = Math.ceil(root.getBoundingClientRect().height);
-      if (height <= 0 || height === lastHeight) return;
-      lastHeight = height;
-      void win
-        .setSize(new LogicalSize(MESSAGE_WINDOW_WIDTH, height))
-        .catch((error) => log.warn("message_window_resize_failed", { error: String(error) }));
-    });
-    observer.observe(root);
-
-    const unlistenMoved = await win.onMoved(({ payload }) =>
-      messageWindowSettings.setPosition(payload.x, payload.y),
-    );
-
-    const keepOnScreen = await attachKeepOnScreen(
-      {
-        outerPosition: () => win.outerPosition(),
-        outerSize: () => win.outerSize(),
-        setPositionPhysical: (x, y) => win.setPosition(new PhysicalPosition(x, y)),
-        onMoved: (cb) => win.onMoved(() => cb()),
-        onResized: (cb) => win.onResized(() => cb()),
-      },
-      async () => (await availableMonitors()).map(toScreenMonitor),
-      { wholeWindow: true },
-    );
-
-    return () => {
-      observer.disconnect();
-      unlistenMoved();
-      keepOnScreen.dispose();
-    };
-  }
+  // The bag drains LIFO, so these register in the reverse of the order they run.
+  const disposers = createDisposers();
+  disposers.register(() => bubblePersistSettings.dispose());
+  disposers.register(() => messageWindowSettings.dispose());
+  disposers.register(() => settingsBridge.dispose());
+  disposers.register(() => bridge.dispose());
+  disposers.register(() => reasoning.dispose());
+  disposers.register(() => surfaces.dispose());
+  disposers.register(() => plateRow.remove());
+  disposers.register(() => plate.dispose());
+  disposers.register(() => delegations.dispose());
+  disposers.register(() => pushSocket.dispose());
+  disposers.register(() => chipCollapsed.dispose());
+  disposers.register(() => chip.dispose());
+  disposers.register(unlistenSettings);
+  disposers.register(() => window.removeEventListener("focus", reloadShared));
+  disposers.register(detachSummonKey);
+  disposers.register(disposeWindowWiring);
+  window.addEventListener("beforeunload", disposers.dispose);
 }
 
 void bootstrap().catch((error) => {
