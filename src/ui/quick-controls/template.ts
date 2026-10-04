@@ -5,6 +5,7 @@ import { RATE_LIMIT_MAX } from "../../settings/backend/guardrails-settings";
 import { LOCALE_DISPLAY_NAMES, t } from "../i18n";
 import {
   LANG_PICKER_ORDER,
+  PLUS_SVG,
   RATE_LIMIT_FIELDS,
   SCREEN_KNOB_FIELDS,
   SCREEN_MIN_GAP_MAX,
@@ -32,8 +33,6 @@ function hintDotHtml(textKey: string): string {
   const text = escapeAttr(t(textKey));
   return `<button type="button" class="yui-hint-dot" aria-label="${text}" data-tip="${text}" data-tip-pin>?</button>`;
 }
-
-const PLUS_SVG = `<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>`;
 
 /** Initial flags/states the panel HTML needs — computed by the entry where the stores live. */
 interface PanelHtmlOptions {
