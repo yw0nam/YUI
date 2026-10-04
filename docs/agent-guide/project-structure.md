@@ -66,6 +66,9 @@ YUI/
         wire-avatar.ts               # VRM and speaker selection stores, their swap and import flows, the voice-list refresh on override commits, and the avatar config applied at boot
         wire-config.ts               # The config store over the bundled configs, the runtime key stores, the live endpoint/guardrail merges, and the reload/watch wiring
         wire-cue-locale-sync.ts      # Reseeds untouched built-in cues when the display language changes
+      settings-window/               # The settings window's wiring
+        wire-settings-window.ts      # Stores, config, cross-window sync, and the quick controls remounted on locale change
+        wire-voice-mirror.ts         # Mirrors the voice toggle to the pet window and the pet window's voice state back
       voice/                         # Desktop voice wiring
         voice-fix.ts                 # The desktop pill's setup-needed tap: open Connection, then back to listening
       phone/                         # The phone window's config-derived half
@@ -80,7 +83,7 @@ YUI/
     tauri-env.ts                     # Tauri runtime detection
     windows/                         # One entry file per window, loaded by the matching HTML file
       main.ts                        # Pet window: config load, renderer, dispatcher, and the I/O graph
-      settings-main.ts               # Settings window
+      settings-main.ts               # Settings window: mounts the settings window wiring
       devtools-main.ts               # Developer Tools window
       message-main.ts                # Message window
       phone-main.ts                  # Phone window: stage, persistent composer, and push chat
