@@ -462,7 +462,10 @@ YUI/
       window_frame.rs                # Lifts AppKit frame constraining and applies logical window frames
       passthrough.rs                 # Click-through toggle over the transparent overlay
       screenshot.rs                  # Screen-source enumeration and off-thread display capture
-      agent_ingress.rs               # Loopback HTTP ingress for agent hooks, signals, and the avatar RPC surface
+      agent_ingress/
+        mod.rs                       # Loopback HTTP listener for agent hooks, signals, and the avatar RPC surface
+        payload.rs                   # Request parsing, size caps, and event payload types
+        avatar_rpc.rs                # Avatar RPC bridge between HTTP requests and the webview
       witness.rs                     # Transition-only log of frontmost app and idle state
       turn_log.rs                    # Appends one opaque JSON line per turn record
       log_rotation.rs                # Calendar-date log rotation with a retention window
