@@ -8,15 +8,22 @@ type VoiceStateSnapshot = Parameters<Parameters<SettingsBridge["onVoiceState"]>[
 function setup() {
   const voiceInputStatus = createVoiceInputStatus();
   let remote: (s: VoiceStateSnapshot) => void = () => {};
+  const unsubscribeRemote = vi.fn();
   const bridge = {
     emitVoiceSet: vi.fn(),
     onVoiceState: vi.fn((cb: (s: VoiceStateSnapshot) => void) => {
       remote = cb;
-      return () => {};
+      return unsubscribeRemote;
     }),
   };
   const dispose = wireVoiceMirror({ voiceInputStatus, bridge });
-  return { voiceInputStatus, bridge, dispose, remote: (s: VoiceStateSnapshot) => remote(s) };
+  return {
+    voiceInputStatus,
+    bridge,
+    dispose,
+    unsubscribeRemote,
+    remote: (s: VoiceStateSnapshot) => remote(s),
+  };
 }
 
 it("applies a remote voice state locally without echoing it back", () => {
@@ -38,10 +45,11 @@ it("emits a local change to the bridge", () => {
 });
 
 it("stops emitting after the disposer runs", () => {
-  const { voiceInputStatus, bridge, dispose } = setup();
+  const { voiceInputStatus, bridge, dispose, unsubscribeRemote } = setup();
 
   dispose();
   voiceInputStatus.set("listening");
 
   expect(bridge.emitVoiceSet).not.toHaveBeenCalled();
+  expect(unsubscribeRemote).toHaveBeenCalledOnce();
 });

@@ -33,11 +33,7 @@ export async function wireSettingsWindow(deps: { app: HTMLElement }): Promise<vo
   const { app } = deps;
   const { register, dispose } = createDisposers();
 
-  // The store teardowns are collected to drain as one step at their place in the teardown order.
-  const storeTeardowns: Array<() => void> = [];
-  const { settingsStores, conversationStores } = createWindowStores((fn) =>
-    storeTeardowns.push(fn),
-  );
+  const { settingsStores, conversationStores } = createWindowStores(register);
   const {
     screenshotSettings,
     idleThrottleSettings,
@@ -281,9 +277,6 @@ export async function wireSettingsWindow(deps: { app: HTMLElement }): Promise<vo
   register(() => voiceInputStatus.dispose());
   register(() => speakerSelection.dispose());
   register(() => vrmSelection.dispose());
-  register(() => {
-    for (const teardown of storeTeardowns) teardown();
-  });
   register(() => window.removeEventListener("focus", onWindowFocus));
   register(() => disposeSync());
   register(disposeVoiceMirror);
