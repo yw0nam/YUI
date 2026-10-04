@@ -45,6 +45,7 @@ YUI/
         broker/                      # Expression broker wiring
           wire-broker.ts             # The broker client: boot publish, override retargeting, and the vocabulary loads
         push/                        # Push socket wiring and its stores
+          delegation-chip-mount.ts   # The delegation chip's lazy mount and its suppression port
           wire-push.ts               # Push socket frames into turns, the stop button, and the push mode chip
           push-stores.ts             # The push socket, its chat id, and the delegations and reasoning stores its frames feed
         voice/                       # Voice input and speech playback wiring

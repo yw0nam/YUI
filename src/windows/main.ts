@@ -26,12 +26,12 @@ import { wireAvatarSelection } from "../app/settings/wire-avatar";
 import { createPetConfig, wireConfigReload, wireConfigWatch } from "../app/settings/wire-config";
 import { createStageRenderer } from "../app/stage/stage-renderer";
 import { wireInputAnchor } from "../app/stage/wire-pet-stage";
-import { createPushStores, publishPushStores } from "../app/turn/push/push-stores";
 import {
   createDelegationChipMount,
   messageWindowSuppression,
-  wirePushMode,
-} from "../app/turn/push/wire-push";
+} from "../app/turn/push/delegation-chip-mount";
+import { createPushStores, publishPushStores } from "../app/turn/push/push-stores";
+import { wirePushMode } from "../app/turn/push/wire-push";
 import { createVoiceFix } from "../app/voice/voice-fix";
 import { CHAT_API_KEY_SECRET, TTS_API_KEY_SECRET } from "../config/load";
 import { createEventBus } from "../dispatcher/core/event-bus";

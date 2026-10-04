@@ -14,7 +14,7 @@ import { t } from "../../../ui/i18n";
 import { createMessagePlate, type MessagePlate } from "../../../ui/message/message-plate";
 import { bindPlateConnection } from "../../../ui/message/plate-connection";
 import type { PhoneSettingsTab } from "../../../ui/phone/settings/phone-settings-view";
-import { createDelegationChipMount } from "../../turn/push/wire-push";
+import { createDelegationChipMount } from "../../turn/push/delegation-chip-mount";
 
 const HISTORY_SVG = `<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 8v4l2.5 2.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><path d="M4.5 12a7.5 7.5 0 1 1 2.2 5.3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><path d="M4.5 17v-4h4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
 const SETTINGS_SVG = `<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><line x1="4" y1="6" x2="20" y2="6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><line x1="4" y1="12" x2="20" y2="12" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><line x1="4" y1="18" x2="20" y2="18" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><circle cx="8" cy="6" r="1.7" fill="var(--yui-scrim-strong)" stroke="currentColor" stroke-width="1.5"/><circle cx="16" cy="12" r="1.7" fill="var(--yui-scrim-strong)" stroke="currentColor" stroke-width="1.5"/><circle cx="10" cy="18" r="1.7" fill="var(--yui-scrim-strong)" stroke="currentColor" stroke-width="1.5"/></svg>`;
