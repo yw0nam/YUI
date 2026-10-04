@@ -13,7 +13,7 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, expect, it, vi } from "vitest";
 import type { MotionRegistry } from "../../../contract";
-import { resolveBaselineFallback } from "../motion-fallback";
+import { resolveBaselineFallback } from "./baseline-fallback";
 import {
   createMotionController,
   needsRestartOnPoolChange,

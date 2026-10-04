@@ -5,7 +5,7 @@ import type { MotionRegistry } from "../../../contract";
 import type { Logger } from "../../../logger";
 import type { VrmParticipant } from "../../vrm-participant";
 import type { ClipLibrary } from "../clip/clip-library";
-import { resolveBaselineFallback } from "../motion-fallback";
+import { resolveBaselineFallback } from "./baseline-fallback";
 import { createCycleDwell } from "./cycle-dwell";
 import {
   createMotionController,
@@ -166,7 +166,7 @@ export function createMotionPlayback(deps: {
    * A motion's clip failed to load → repair controller state to idle and (re)play it.
    * playMotion commits before the async load, so a failed clip leaves current +
    * previousStable pinned at the dead id and a later idle blocked by priority;
-   * force-committing idle (motion-fallback) overwrites both. Recursion guard: idle's
+   * force-committing idle (baseline-fallback) overwrites both. Recursion guard: idle's
    * own failure resolves to null and no-ops. Honors public/purchased_motions/AGENTS.md.
    */
   function fallbackToBaseline(failedId: string): void {

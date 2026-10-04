@@ -154,13 +154,14 @@ YUI/
           project-anchor.ts          # Projects the world feet point into canvas pixels
           screen-probes.ts           # Read-only screen probes of the loaded model: feet anchor, width, seat and tap points, hand anchors, pixels per metre
       motion/                        # Clip scheduling, variant swaps, and clip processing
-        motion-fallback.ts           # Idle-fallback decision for a motion whose clip fails to load
         clip/                        # Clip cache, mirroring, and root-motion processing
           clip-library.ts            # Per-VRM .vrma clip cache: load, mirror, root-lock detrend, dead-clip memo, crossfade clone
+          dead-clips.ts              # Warn-once memo of VRMA paths whose load failed for good
           mirror-clip.ts             # Mirrors a clip across the YZ plane
           recenter-root-motion.ts    # Strips baked horizontal drift from VRMA root motion
           self-crossfade.ts          # Clip-cache key composition and playback clip selection
         playback/                    # Motion scheduling, variant swaps, and mixer playback
+          baseline-fallback.ts       # Idle-fallback decision for a motion whose clip fails to load
           cycle-dwell.ts             # Single-timer scheduler for a cycle motion's variant swap
           motion-controller.ts       # Pure motion scheduling and variant-resolution state machine
           motion-playback.ts         # Mixer-driven motion playback: controller decisions, action crossfade, finish → next, idle baseline
