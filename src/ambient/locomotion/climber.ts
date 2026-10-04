@@ -25,6 +25,7 @@
 
 import type { ClimbConfig, DescendConfig, FallConfig, WalkConfig } from "../../config/load";
 import type { MotionKind, WindowRect } from "../../contract";
+import type { WindowDropSource } from "../../dispatcher/sources/gesture/window-drop/window-drop-source";
 import {
   clampToFloorSegments,
   type DescentEdge,
@@ -144,17 +145,7 @@ export interface ClimberDeps {
   faller: { drop(): Promise<void>; cancel(): void };
   /** The seat transitions: the sit onto the ledge, and the stand off it before a descent. */
   sitter: Pick<Sitter, "sitDown" | "standUp" | "cancel">;
-  dropSource: {
-    adoptSit(
-      windowNumber: number,
-      rect: { x: number; y: number },
-      charHpx: number,
-      origin: "commit" | "adopt",
-    ): void;
-    /** The window an armed sit is held on — which wall a descent belongs to. */
-    armedSit(): { windowNumber: number; origin: "commit" | "adopt"; charHpx: number } | null;
-    release(): void;
-  };
+  dropSource: Pick<WindowDropSource, "adoptSit" | "armedSit" | "release">;
   /** A climb began — posture goes climbing and the hit test follows the moving window. */
   onStart(direction: "up" | "down", target: ClimbTarget): void;
   /** The ascent reached the ledge — the character sits on the given window-local edge. */

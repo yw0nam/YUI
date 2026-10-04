@@ -15,6 +15,7 @@
 
 import type { FallConfig, JumpConfig, PerchWalkConfig } from "../../config/load";
 import type { MotionKind, WindowRect } from "../../contract";
+import type { WindowDropSource } from "../../dispatcher/sources/gesture/window-drop/window-drop-source";
 import {
   MOVE_TH,
   PERCH_AMBIGUOUS_LOST_TICKS,
@@ -153,13 +154,6 @@ export interface PercherWindow {
   setPositionPhysical(x: number, y: number): Promise<void>;
 }
 
-interface SuspendedSit {
-  windowNumber: number;
-  origin: "commit" | "adopt";
-  rect: { x: number; y: number };
-  charHpx: number;
-}
-
 export interface PercherDeps {
   renderer: {
     onTick(fn: TickFn): () => void;
@@ -190,19 +184,10 @@ export interface PercherDeps {
   };
   /** The seat transitions: the stand before a walk, the sit before a seat is taken. */
   sitter: Pick<Sitter, "sitDown" | "standUp" | "cancel">;
-  dropSource: {
-    armedSit(): { windowNumber: number; origin: "commit" | "adopt"; charHpx: number } | null;
-    suspendSit(): SuspendedSit | null;
-    resumeSit(edgeLocalYpx: number): void;
-    abandonSit(): void;
-    adoptSit(
-      windowNumber: number,
-      rect: { x: number; y: number },
-      charHpx: number,
-      origin: "commit" | "adopt",
-    ): void;
-    release(): void;
-  };
+  dropSource: Pick<
+    WindowDropSource,
+    "armedSit" | "suspendSit" | "resumeSit" | "abandonSit" | "adoptSit" | "release"
+  >;
   /** The committed motion and its registry kind. null when nothing is playing. */
   currentMotion(): { id: string; kind: MotionKind | null } | null;
   /** A turn is in flight or speech is still playing. */

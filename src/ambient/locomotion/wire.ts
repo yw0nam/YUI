@@ -11,6 +11,7 @@ import type { MotionKind, WindowRect } from "../../contract";
 import { isReflexTurn } from "../../dispatcher/backend/backend-caller";
 import type { EventBus } from "../../dispatcher/core/event-bus";
 import type { Dispatcher } from "../../dispatcher/dispatcher";
+import type { WindowDropSource } from "../../dispatcher/sources/gesture/window-drop/window-drop-source";
 import {
   type DescentEdge,
   type PetWindow,
@@ -240,24 +241,10 @@ export function wirePercher(deps: {
     cancel(): void;
   };
   sitter: Pick<Sitter, "sitDown" | "standUp" | "cancel">;
-  dropSource: {
-    armedSit(): { windowNumber: number; origin: "commit" | "adopt"; charHpx: number } | null;
-    suspendSit(): {
-      windowNumber: number;
-      origin: "commit" | "adopt";
-      rect: { x: number; y: number };
-      charHpx: number;
-    } | null;
-    resumeSit(edgeLocalYpx: number): void;
-    abandonSit(): void;
-    adoptSit(
-      windowNumber: number,
-      rect: { x: number; y: number },
-      charHpx: number,
-      origin: "commit" | "adopt",
-    ): void;
-    release(): void;
-  };
+  dropSource: Pick<
+    WindowDropSource,
+    "armedSit" | "suspendSit" | "resumeSit" | "abandonSit" | "adoptSit" | "release"
+  >;
   /** The perch's host window went away — the character falls from where she stands. */
   onHostLost: () => void;
   /** A jump lost the window it was aimed at — the character falls out of mid-air. */
@@ -480,16 +467,7 @@ export function wireClimber(deps: {
   walker: { walkTo(toX: number): Promise<"arrived" | "lost">; cancel(): void };
   faller: { drop(): Promise<void>; cancel(): void };
   sitter: Pick<Sitter, "sitDown" | "standUp" | "cancel">;
-  dropSource: {
-    adoptSit(
-      windowNumber: number,
-      rect: { x: number; y: number },
-      charHpx: number,
-      origin: "commit" | "adopt",
-    ): void;
-    armedSit(): { windowNumber: number; origin: "commit" | "adopt"; charHpx: number } | null;
-    release(): void;
-  };
+  dropSource: Pick<WindowDropSource, "adoptSit" | "armedSit" | "release">;
   /** Keep the hit-test cursor mapping accurate while the window translates. */
   setHitTestMoving: (moving: boolean) => void;
   log: Logger;
