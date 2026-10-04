@@ -24,13 +24,9 @@ import {
   type wireSpeakerSelection,
   type wireVrmSelection,
 } from "../settings/wire-avatar";
+import { wireBroker } from "./broker/wire-broker";
 import { wirePushTransport, wireStopButton } from "./push/wire-push";
-import {
-  type VoiceHost,
-  type VoicePersistence,
-  wireBroker,
-  wireTurnVoice,
-} from "./voice/wire-voice";
+import { type VoiceHost, type VoicePersistence, wireTurnVoice } from "./voice/wire-voice";
 import type { VoicePipeline } from "./voice/wire-voice-pipeline";
 import { wireDispatcher } from "./wire-dispatcher";
 

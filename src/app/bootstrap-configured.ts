@@ -17,8 +17,8 @@ import { wireStageGestures } from "./stage/wire-gestures";
 import { wireLocomotion } from "./stage/wire-locomotion";
 import { wireGaze, wireHitTest } from "./stage/wire-stage";
 import { wirePeek, wireSummonHotkey } from "./stage/wire-summon";
+import type { wireBroker } from "./turn/broker/wire-broker";
 import { type TurnCorePhase1, wireTurnCore } from "./turn/turn-core";
-import type { wireBroker } from "./turn/voice/wire-voice";
 import type { VoicePipeline } from "./turn/voice/wire-voice-pipeline";
 import { wireDispatcherSources } from "./turn/wire-sources";
 

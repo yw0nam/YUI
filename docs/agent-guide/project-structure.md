@@ -42,11 +42,13 @@ YUI/
         turn-core.ts                 # The chat turn every backend-facing window runs: voice, dispatcher, STT, VRM load, broker, push transport, stop, and submit
         wire-dispatcher.ts           # Turn feed, backend caller, guardrails, pacer, and the dispatcher
         wire-sources.ts              # The dispatcher's utterance sources, built and started
+        broker/                      # Expression broker wiring
+          wire-broker.ts             # The broker client: boot publish, override retargeting, and the vocabulary loads
         push/                        # Push socket wiring and its stores
           wire-push.ts               # Push socket frames into turns, the stop button, and the push mode chip
           push-stores.ts             # The push socket, its chat id, and the delegations and reasoning stores its frames feed
         voice/                       # Voice input and speech playback wiring
-          wire-voice.ts              # Expression broker client and the voice-input and turn-voice wiring
+          wire-voice.ts              # The voice-input and turn-voice wiring
           wire-voice-pipeline.ts     # Wires filler, TTS, and speech playback to the turn lifecycle
       stage/                         # What is bound to the pet window's stage and overlay
         stage-renderer.ts            # The renderer on the stage with its persisted camera and idle throttle, plus Tier 1 liveliness, for the pet and phone windows

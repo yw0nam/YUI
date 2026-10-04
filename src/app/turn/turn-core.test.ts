@@ -16,6 +16,8 @@ vi.mock("./voice/wire-voice", () => ({
     setProactiveSource: () => {},
     setStrolling: () => {},
   }),
+}));
+vi.mock("./broker/wire-broker", () => ({
   wireBroker: async () => ({ vocabulary: () => ({}), dispose: () => {} }),
 }));
 vi.mock("./wire-dispatcher", () => ({

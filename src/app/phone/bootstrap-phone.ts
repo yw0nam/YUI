@@ -2,8 +2,9 @@ import type { AppConfig } from "../../config/load";
 import { noopScreenCapturer } from "../../io/window/capture/screen-source-provider";
 import { createLogger } from "../../logger";
 import { createDisposers } from "../disposers";
+import type { wireBroker } from "../turn/broker/wire-broker";
 import { type TurnCorePhase1, wireTurnCore } from "../turn/turn-core";
-import type { VoiceHost, wireBroker } from "../turn/voice/wire-voice";
+import type { VoiceHost } from "../turn/voice/wire-voice";
 
 const log = createLogger("phone-bootstrap");
 
