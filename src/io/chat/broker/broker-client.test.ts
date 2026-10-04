@@ -14,11 +14,11 @@
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, expect, it, vi } from "vitest";
-import type { AppConfig } from "../../config/load";
-import { avatarFixture, guardrailsFixture } from "../../config/load-test-helpers";
-import { validateMotions } from "../../config/validators/motions";
-import type { MotionRegistry } from "../../contract";
-import type { Logger } from "../../logger";
+import type { AppConfig } from "../../../config/load";
+import { avatarFixture, guardrailsFixture } from "../../../config/load-test-helpers";
+import { validateMotions } from "../../../config/validators/motions";
+import type { MotionRegistry } from "../../../contract";
+import type { Logger } from "../../../logger";
 import {
   agentTriggerableMotionIds,
   type BrokerPayload,

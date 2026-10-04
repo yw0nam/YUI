@@ -6,13 +6,13 @@
  * reads sessions().
  */
 
-import type { GuideKey } from "../../contract";
+import type { GuideKey } from "../../../contract";
 import {
   createPersistedStore,
   localStorageStore,
   type PersistedStorage,
-} from "../../settings/persisted-store";
-import { isGuideKey, renderGuideBlock } from "../guide/guide-docs";
+} from "../../../settings/persisted-store";
+import { isGuideKey, renderGuideBlock } from "../../guide/guide-docs";
 
 export interface ChatHistoryEntry {
   role: "user" | "assistant";

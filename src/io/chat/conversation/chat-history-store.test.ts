@@ -1,7 +1,7 @@
 /**
  * chat-history-store.test.ts — unified conversation transcript store.
  *
- * Pins the contract for src/io/chat/chat-history-store.ts:
+ * Pins the contract for src/io/chat/conversation/chat-history-store.ts:
  *   createChatHistoryStore({ storage? }) store
  *     (append/get/startNewSession/sessionToken/entriesAfterLastBoundary/sessions/subscribe/reload/dispose)
  *   localStorageChatHistoryStorage(key?) localStorage adapter

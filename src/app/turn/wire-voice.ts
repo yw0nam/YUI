@@ -16,9 +16,9 @@ import {
   type BrokerPayload,
   createBrokerClient,
   deriveBrokerPayload,
-} from "../../io/chat/broker-client";
-import { createBrokerOverrideReconciler } from "../../io/chat/broker-override-reconciler";
-import { selectFetch } from "../../io/chat/chat-client";
+} from "../../io/chat/broker/broker-client";
+import { createBrokerOverrideReconciler } from "../../io/chat/broker/broker-override-reconciler";
+import { selectFetch } from "../../io/chat/stream/chat-client";
 import type { SttVad } from "../../io/voice/stt-vad";
 import type { SpeakerOption } from "../../io/voice/voices/speaker-selection";
 import type { Logger } from "../../logger";

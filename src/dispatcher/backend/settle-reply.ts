@@ -1,6 +1,6 @@
 /** Settles a finished reply: renders its directive, routes its cue, applies the speech gate, and reports whether it spoke. */
 import type { ControlEnvelope } from "../../contract";
-import { isSilenceToken } from "../../io/chat/silence-token";
+import { isSilenceToken } from "../../io/chat/stream/silence-token";
 import type { Logger } from "../../logger";
 import type { Renderer } from "../../renderer";
 import type { PushCallDeps } from "./push-call";

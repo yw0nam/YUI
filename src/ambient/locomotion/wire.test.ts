@@ -1,8 +1,8 @@
 import { describe, expect, it, vi } from "vitest";
 
-// wire reaches io/chat/chat-client through dispatcher/backend/backend-caller; keep it mocked.
+// wire reaches io/chat/stream/chat-client through dispatcher/backend/backend-caller; keep it mocked.
 const { selectFetch } = vi.hoisted(() => ({ selectFetch: vi.fn().mockResolvedValue(undefined) }));
-vi.mock("../../io/chat/chat-client", () => ({ selectFetch }));
+vi.mock("../../io/chat/stream/chat-client", () => ({ selectFetch }));
 
 import { wireStrollReflexCancel } from "./wire";
 

@@ -10,7 +10,7 @@
  * the engine emits the moment the call arrives, so execute only acknowledges the call.
  */
 
-import type { BrokerPayload } from "./broker-client";
+import type { BrokerPayload } from "../broker/broker-client";
 
 /** OpenAI function-tool schema. Structural — narrowed to the SDK's type at the request site. */
 interface ClientToolDefinition {

@@ -12,7 +12,7 @@ import {
   type ChatHistoryEntry,
   type ChatHistoryItem,
   createChatHistoryStore,
-} from "../../io/chat/chat-history-store";
+} from "../../io/chat/conversation/chat-history-store";
 import type { Logger } from "../../logger";
 import type { BusEnvelope } from "../core/event-bus";
 import {

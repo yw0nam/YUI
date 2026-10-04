@@ -9,9 +9,9 @@
  * the fire path that produced the record.
  */
 
-import type { ClientContext } from "../../contract";
-import { createLogger } from "../../logger";
-import { isTauri } from "../../tauri-env";
+import type { ClientContext } from "../../../contract";
+import { createLogger } from "../../../logger";
+import { isTauri } from "../../../tauri-env";
 
 const log = createLogger("turn-record-log");
 

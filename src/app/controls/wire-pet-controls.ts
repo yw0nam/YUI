@@ -7,7 +7,7 @@ import type { ConfigStore } from "../../config/store";
 import type { GuideKey } from "../../contract";
 import { removeUserVrm } from "../../io/assets/vrm-import";
 import type { RemoteSurfaces } from "../../io/bridge/message-remote";
-import type { PushSocket } from "../../io/chat/push-socket";
+import type { PushSocket } from "../../io/chat/push/push-socket";
 import type { ScreenSourceProvider } from "../../io/window/capture/screen-source-provider";
 import type { Renderer } from "../../renderer";
 import type { SettingsStores } from "../../settings/settings-stores";

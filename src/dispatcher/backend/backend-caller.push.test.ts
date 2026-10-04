@@ -12,8 +12,8 @@
 
 import { afterEach, beforeEach, describe, expect, it, type Mock, vi } from "vitest";
 import type { EndpointsConfig } from "../../contract";
-import type { ChatHistoryEntry } from "../../io/chat/chat-history-store";
-import type { PushTurnFrame } from "../../io/chat/push-socket";
+import type { ChatHistoryEntry } from "../../io/chat/conversation/chat-history-store";
+import type { PushTurnFrame } from "../../io/chat/push/push-socket";
 import type { Logger } from "../../logger";
 import type { BusEnvelope } from "../core/event-bus";
 import { CONFIG, makeLogger, makeTurnOutput, touchEnv, turnOf, userEnv } from "../test-helpers";

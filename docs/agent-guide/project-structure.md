@@ -264,21 +264,26 @@ YUI/
         message-window-settings.ts   # Message-window mode and last outer position
     io/                              # I/O layer: chat, voice, window and OS seams
       chat/
-        chat-client.ts                 # Adapter over the openai SDK Responses stream
-        chat-completions.ts            # Pure Chat Completions request builders and stream-chunk reducer
-        chat-completions-stream.ts     # Chat Completions streaming loop with its tool round trips
-        stream-helpers.ts              # Express-tool and error helpers both streaming loops use
-        chat-history-store.ts          # Unified conversation transcript with session boundaries
-        client-tools.ts                # Registry of the tools YUI declares and runs itself
-        context-history.ts             # Capped ring of recent client-context entries
-        session-store.ts               # Holds the last Responses response.id for conversation continuation
-        session-diagnostics.ts         # Used tokens and context window for the settings window
         secret-provider.ts             # Resolves each secret from its runtime store, then the build-time fallback
-        broker-client.ts               # Write-only Expression Broker MCP client that publishes the renderable vocabulary
-        broker-override-reconciler.ts  # Applies a broker-URL override to the live broker client
-        turn-record-log.ts             # Appends one JSONL record per completed turn or skipped fire
-        push-socket.ts                 # Single WebSocket the push transport runs turns and replies on
-        silence-token.ts               # Stateful [SILENT] token filter for spoken output_text deltas
+        stream/                        # Streaming model calls, the client-declared tools, and the silence filter
+          chat-client.ts               # Adapter over the openai SDK Responses stream
+          chat-completions.ts          # Pure Chat Completions request builders and stream-chunk reducer
+          chat-completions-stream.ts   # Chat Completions streaming loop with its tool round trips
+          stream-helpers.ts            # Express-tool and error helpers both streaming loops use
+          client-tools.ts              # Registry of the tools YUI declares and runs itself
+          silence-token.ts             # Stateful [SILENT] token filter for spoken output_text deltas
+        push/                          # The push transport's turn and reply WebSocket
+          push-socket.ts               # Single WebSocket the push transport runs turns and replies on
+        broker/                        # The Expression Broker client and its URL override reconciler
+          broker-client.ts             # Write-only Expression Broker MCP client that publishes the renderable vocabulary
+          broker-override-reconciler.ts # Applies a broker-URL override to the live broker client
+        conversation/                  # Transcript, context, and session state for conversation continuation
+          chat-history-store.ts        # Unified conversation transcript with session boundaries
+          context-history.ts           # Capped ring of recent client-context entries
+          session-store.ts             # Holds the last Responses response.id for conversation continuation
+          session-diagnostics.ts       # Used tokens and context window for the settings window
+        record/                        # The turn-record JSONL log
+          turn-record-log.ts           # Appends one JSONL record per completed turn or skipped fire
       voice/
         deadline.ts                    # Per-request deadline and the body-read race that settle a stalled fetch
         stt-vad.ts                     # Voice input pipeline: VAD segmentation then STT upload

@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import type { ChatHistoryEntry } from "../../io/chat/chat-history-store";
+import type { ChatHistoryEntry } from "../../io/chat/conversation/chat-history-store";
 import type { Logger } from "../../logger";
 import type { SentTurn } from "./turn-recording";
 import { recordSentTurn } from "./turn-recording";

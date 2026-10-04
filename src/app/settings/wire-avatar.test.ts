@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 // chat-client fake: wireSpeakerSelection's fetch selection never hits the network.
 const { selectFetch } = vi.hoisted(() => ({ selectFetch: vi.fn().mockResolvedValue(undefined) }));
-vi.mock("../../io/chat/chat-client", () => ({ selectFetch }));
+vi.mock("../../io/chat/stream/chat-client", () => ({ selectFetch }));
 
 // Voices-API fakes — wireSpeakerSelection's refreshVoiceList exercises listVoices;
 // commitVoiceImport and refreshSpeaker (tests below) exercise upsertVoice directly.

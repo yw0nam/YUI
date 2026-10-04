@@ -1,7 +1,7 @@
 /**
  * session-diagnostics.test.ts — cross-window diagnostics store.
  *
- * Pins the contract for src/io/chat/session-diagnostics.ts:
+ * Pins the contract for src/io/chat/conversation/session-diagnostics.ts:
  *   createSessionDiagnosticsStore(storage?)
  *     → { get, setUsage, clear, subscribe, reloadFromStorage, dispose }
  *   localStorageSessionDiagnosticsStorage(key?) localStorage adapter

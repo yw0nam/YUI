@@ -12,7 +12,7 @@ import {
   localStorageUserVrmStorage,
   localStorageVrmStorage,
 } from "../../io/assets/vrm-selection";
-import { selectFetch } from "../../io/chat/chat-client";
+import { selectFetch } from "../../io/chat/stream/chat-client";
 import {
   createSpeakerSelection,
   localStorageSpeakerStorage,

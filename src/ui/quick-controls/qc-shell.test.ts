@@ -2,10 +2,10 @@
 import { afterEach, beforeEach, describe, expect, it, type Mock, vi } from "vitest";
 import type { AvatarOption } from "../../config/load";
 import type { createVrmSelection } from "../../io/assets/vrm-selection";
-import { createChatHistoryStore } from "../../io/chat/chat-history-store";
-import type { DelegationItem } from "../../io/chat/push-socket";
-import { createSessionDiagnosticsStore } from "../../io/chat/session-diagnostics";
-import { createSessionStore } from "../../io/chat/session-store";
+import { createChatHistoryStore } from "../../io/chat/conversation/chat-history-store";
+import { createSessionDiagnosticsStore } from "../../io/chat/conversation/session-diagnostics";
+import { createSessionStore } from "../../io/chat/conversation/session-store";
+import type { DelegationItem } from "../../io/chat/push/push-socket";
 import type {
   createSpeakerSelection,
   SpeakerOption,

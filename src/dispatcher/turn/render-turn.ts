@@ -25,10 +25,10 @@
  */
 
 import type { ExpressArgs } from "../../contract";
-import type { ChatHistoryEntry } from "../../io/chat/chat-history-store";
-import type { RenderFrame, RenderSegment, SpeechFrame } from "../../io/chat/push-socket";
-import { isSilenceToken } from "../../io/chat/silence-token";
-import { buildRenderRecord, type RenderRecord } from "../../io/chat/turn-record-log";
+import type { ChatHistoryEntry } from "../../io/chat/conversation/chat-history-store";
+import type { RenderFrame, RenderSegment, SpeechFrame } from "../../io/chat/push/push-socket";
+import { buildRenderRecord, type RenderRecord } from "../../io/chat/record/turn-record-log";
+import { isSilenceToken } from "../../io/chat/stream/silence-token";
 import { createLogger, type Logger } from "../../logger";
 import { PRE_SPEECH_TIMEOUT_MS } from "../backend/idle-watchdog";
 import type { PushTurns } from "./push-turn";

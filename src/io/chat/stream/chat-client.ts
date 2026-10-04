@@ -68,8 +68,8 @@ import type {
   ExpressArgs,
   ToolStatus,
   Usage,
-} from "../../contract";
-import { isTauri } from "../../tauri-env";
+} from "../../../contract";
+import { isTauri } from "../../../tauri-env";
 import type { CCMessage } from "./chat-completions";
 import { streamChatCompletions } from "./chat-completions-stream";
 import type { ClientToolRegistry } from "./client-tools";

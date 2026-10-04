@@ -1,4 +1,4 @@
-import type { createContextHistory } from "../../io/chat/context-history";
+import type { createContextHistory } from "../../io/chat/conversation/context-history";
 import type { createEndpointsSettings } from "../../settings/backend/endpoints-settings";
 import { t } from "../i18n";
 import { createAdvancedSettings } from "./advanced-settings";

@@ -12,7 +12,7 @@ import type { TtsProviderName } from "../../../contract";
 import type { Logger } from "../../../logger";
 import { voiceIdFromName } from "../../assets/safe-id";
 import { removeOrphanImport } from "../../assets/user-asset-import";
-import { selectFetch } from "../../chat/chat-client";
+import { selectFetch } from "../../chat/stream/chat-client";
 import { nextRevision, type SpeakerOption } from "./speaker-selection";
 import { VOICE_APIS } from "./voice-apis";
 import {

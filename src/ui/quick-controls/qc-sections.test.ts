@@ -4,8 +4,8 @@
  * sections), segments sized by their options, and the screenshot row's state hint.
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { createSessionDiagnosticsStore } from "../../io/chat/session-diagnostics";
-import { createSessionStore } from "../../io/chat/session-store";
+import { createSessionDiagnosticsStore } from "../../io/chat/conversation/session-diagnostics";
+import { createSessionStore } from "../../io/chat/conversation/session-store";
 import { createExpressMotionSettings } from "../../settings/avatar/express-motion-settings";
 import { createIdleMotionSettings } from "../../settings/avatar/idle-motion-settings";
 import { createGuardrailsSettings } from "../../settings/backend/guardrails-settings";

@@ -5,7 +5,7 @@ import type {
   ChatCompletionMessageParam,
 } from "openai/resources/chat/completions";
 
-import type { ControlEnvelope, EndpointsConfig, ExpressArgs } from "../../contract";
+import type { ControlEnvelope, EndpointsConfig, ExpressArgs } from "../../../contract";
 import type { ChatRequest, ChatStreamEvent } from "./chat-client";
 import { type CCMessage, type CCToolCall, createChunkReducer } from "./chat-completions";
 import type { ClientToolRegistry } from "./client-tools";

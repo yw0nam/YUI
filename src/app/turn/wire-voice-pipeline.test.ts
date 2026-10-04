@@ -97,7 +97,7 @@ vi.mock("../../io/voice/voices/tts-voices", () => ({
 vi.mock("../../io/voice/tts/audio-player", () => ({
   createWebAudioSink: mocks.createWebAudioSink,
 }));
-vi.mock("../../io/chat/chat-client", () => ({ selectFetch: mocks.selectFetch }));
+vi.mock("../../io/chat/stream/chat-client", () => ({ selectFetch: mocks.selectFetch }));
 vi.mock("../../io/voice/voices/voice-import", () => ({
   copyVoiceFile: mocks.copyVoiceFile,
   pickVoiceFile: vi.fn(),

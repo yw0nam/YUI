@@ -7,7 +7,7 @@
  * A second socket is never opened: the conversation is one conversation.
  */
 
-import type { DelegationItem } from "../chat/push-socket";
+import type { DelegationItem } from "../chat/push/push-socket";
 import { createStateMirror, publishState } from "./core/state-mirror";
 import type { SettingsBridge } from "./settings-bridge";
 

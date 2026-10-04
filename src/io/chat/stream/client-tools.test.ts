@@ -7,7 +7,7 @@
  */
 
 import { describe, expect, it, vi } from "vitest";
-import type { BrokerPayload } from "./broker-client";
+import type { BrokerPayload } from "../broker/broker-client";
 import {
   type ClientTool,
   createClientToolRegistry,

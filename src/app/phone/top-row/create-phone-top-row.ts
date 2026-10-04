@@ -6,7 +6,7 @@
  */
 
 import type { DelegationsStore } from "../../../io/bridge/delegations-store";
-import type { PushSocket } from "../../../io/chat/push-socket";
+import type { PushSocket } from "../../../io/chat/push/push-socket";
 import type { ToolStatus } from "../../../ui/chips/status-pill";
 import { createStatusPill } from "../../../ui/chips/status-pill";
 import type { VoiceInputStatus } from "../../../ui/chips/voice-input-status";

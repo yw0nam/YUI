@@ -4,7 +4,7 @@
  * push fields; the shared STT model field persists and resets with the service; dispose commits.
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import type { PushSocketState } from "../../../io/chat/push-socket";
+import type { PushSocketState } from "../../../io/chat/push/push-socket";
 import {
   createChatKeySettings,
   createSttKeySettings,

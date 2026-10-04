@@ -4,8 +4,8 @@
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { ExpressArgs } from "../../contract";
-import type { ChatHistoryEntry } from "../../io/chat/chat-history-store";
-import type { RenderFrame, RenderSegment, SpeechFrame } from "../../io/chat/push-socket";
+import type { ChatHistoryEntry } from "../../io/chat/conversation/chat-history-store";
+import type { RenderFrame, RenderSegment, SpeechFrame } from "../../io/chat/push/push-socket";
 import { createSentenceSegmenter } from "../../io/voice/tts/sentence-segmenter";
 import type { Logger } from "../../logger";
 import { PRE_SPEECH_TIMEOUT_MS } from "../backend/idle-watchdog";

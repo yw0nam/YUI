@@ -6,7 +6,7 @@
  */
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import type { Logger } from "../../logger";
+import type { Logger } from "../../../logger";
 import {
   createPushSocket,
   PUSH_FRAME_MAX_BYTES,

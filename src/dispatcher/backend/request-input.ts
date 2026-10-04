@@ -1,6 +1,6 @@
 /** Pure encoders for the Responses input of a turn: the tagged client_context block and the user item. */
 import type { InputContext } from "../../contract";
-import type { ChatRequest } from "../../io/chat/chat-client";
+import type { ChatRequest } from "../../io/chat/stream/chat-client";
 import type { BusEnvelope } from "../core/event-bus";
 import { backgroundMarker } from "./background-marker";
 import { renderClientContext } from "./client-context-text";

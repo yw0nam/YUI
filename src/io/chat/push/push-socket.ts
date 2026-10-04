@@ -6,9 +6,9 @@
  * The socket renders no judgment: it validates shape and hands every frame to its subscribers.
  */
 
-import type { ExpressArgs } from "../../contract";
-import { createLogger, type Logger } from "../../logger";
-import type { BrokerPayload } from "./broker-client";
+import type { ExpressArgs } from "../../../contract";
+import { createLogger, type Logger } from "../../../logger";
+import type { BrokerPayload } from "../broker/broker-client";
 
 const baseLog = createLogger("push-socket");
 

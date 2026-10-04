@@ -3,7 +3,7 @@
  * then every transition.
  */
 
-import type { PushSocket, PushSocketState } from "../../io/chat/push-socket";
+import type { PushSocket, PushSocketState } from "../../io/chat/push/push-socket";
 import type { MessagePlate } from "./message-plate";
 
 function toConnection(state: PushSocketState): "up" | "reconnecting" | "failed" {

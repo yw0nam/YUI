@@ -9,7 +9,7 @@ import { wirePushTransport } from "../../app/turn/wire-push";
 import type { ToolStatus } from "../../contract";
 import { createDelegationsStore } from "../../io/bridge/delegations-store";
 import { createReasoningStore, type ReasoningState } from "../../io/bridge/reasoning-store";
-import type { ReasoningFrame, RenderFrame, ToolStatusFrame } from "../../io/chat/push-socket";
+import type { ReasoningFrame, RenderFrame, ToolStatusFrame } from "../../io/chat/push/push-socket";
 import { createBackendCaller } from "../backend/backend-caller";
 import {
   CONFIG,

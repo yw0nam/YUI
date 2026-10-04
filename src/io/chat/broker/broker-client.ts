@@ -12,13 +12,13 @@
  * JSON string.
  */
 
-import type { AppConfig } from "../../config/load";
-import type { MotionRegistry } from "../../contract";
-import { createLogger, type Logger } from "../../logger";
+import type { AppConfig } from "../../../config/load";
+import type { MotionRegistry } from "../../../contract";
+import { createLogger, type Logger } from "../../../logger";
 import {
   type ExpressMotionSettings,
   enabledExpressMotions,
-} from "../../settings/avatar/express-motion-settings";
+} from "../../../settings/avatar/express-motion-settings";
 
 export interface BrokerVocab {
   emotion_ids: string[];

@@ -3,7 +3,7 @@ import type { EndpointsConfig } from "../../contract";
 import type { TurnFailure } from "../../dispatcher/backend/backend-caller";
 import type { TurnLog } from "../../dispatcher/turn/turn";
 import type { TurnOutput } from "../../dispatcher/turn/turn-output";
-import { selectFetch } from "../../io/chat/chat-client";
+import { selectFetch } from "../../io/chat/stream/chat-client";
 import { createFillerAudioCache } from "../../io/voice/filler/filler-audio-cache";
 import {
   createFillerLoop,

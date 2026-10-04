@@ -10,7 +10,7 @@
  */
 
 import "./delegation-chip.css";
-import type { DelegationItem, PushSocketState } from "../../io/chat/push-socket";
+import type { DelegationItem, PushSocketState } from "../../io/chat/push/push-socket";
 import type { DelegationChipSettingsStore } from "../../settings/panels/delegation-chip-settings";
 import { subscribe as subscribeLocale, t } from "../i18n";
 import { afterFadeOut } from "../notices/fade-out";

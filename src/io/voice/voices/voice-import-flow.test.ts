@@ -14,7 +14,7 @@ vi.mock("./fish-voices", () => ({
 }));
 
 const { selectFetch } = vi.hoisted(() => ({ selectFetch: vi.fn().mockResolvedValue(undefined) }));
-vi.mock("../../chat/chat-client", () => ({ selectFetch }));
+vi.mock("../../chat/stream/chat-client", () => ({ selectFetch }));
 
 const { copyVoiceFile, pickVoiceFile, removeOrphanImport, removeUserVoice, renameUserVoice } =
   vi.hoisted(() => ({

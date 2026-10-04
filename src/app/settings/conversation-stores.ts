@@ -1,13 +1,19 @@
 import {
   createChatHistoryStore,
   localStorageChatHistoryStorage,
-} from "../../io/chat/chat-history-store";
-import { createContextHistory, localStorageContextHistory } from "../../io/chat/context-history";
+} from "../../io/chat/conversation/chat-history-store";
+import {
+  createContextHistory,
+  localStorageContextHistory,
+} from "../../io/chat/conversation/context-history";
 import {
   createSessionDiagnosticsStore,
   localStorageSessionDiagnosticsStorage,
-} from "../../io/chat/session-diagnostics";
-import { createSessionStore, localStorageSessionStorage } from "../../io/chat/session-store";
+} from "../../io/chat/conversation/session-diagnostics";
+import {
+  createSessionStore,
+  localStorageSessionStorage,
+} from "../../io/chat/conversation/session-store";
 
 /** The four io/chat conversation stores every window constructs, syncs, and disposes as one bag. */
 export function createConversationStores() {

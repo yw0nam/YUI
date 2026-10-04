@@ -8,7 +8,7 @@ import type { AvatarOption } from "../../../config/load";
 import type { EndpointsConfig } from "../../../contract";
 import type { StageBackgroundStore } from "../../../io/assets/stage/stage-background";
 import type { createVrmSelection } from "../../../io/assets/vrm-selection";
-import type { PushSocket } from "../../../io/chat/push-socket";
+import type { PushSocket } from "../../../io/chat/push/push-socket";
 import { createBackButtonClaim } from "../../../io/lifecycle/back-button";
 import { createLogger } from "../../../logger";
 import { endpointDefaultsOf } from "../../../settings/backend/endpoints-settings";

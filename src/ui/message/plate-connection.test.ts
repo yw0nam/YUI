@@ -4,7 +4,7 @@
  */
 
 import { describe, expect, it, vi } from "vitest";
-import type { PushSocketState } from "../../io/chat/push-socket";
+import type { PushSocketState } from "../../io/chat/push/push-socket";
 import { bindPlateConnection } from "./plate-connection";
 
 function fakeSocket(initial: PushSocketState) {

@@ -1,7 +1,7 @@
 /**
  * chat-completions.test.ts — pure Chat Completions request builders + streaming chunk reducer.
  *
- * Pins the contract for src/io/chat/chat-completions.ts:
+ * Pins the contract for src/io/chat/stream/chat-completions.ts:
  *   buildCCMessages(opts) -> CC messages array
  *   createChunkReducer() -> { feed(chunk), finish() }
  *
@@ -9,8 +9,8 @@
  */
 
 import { describe, expect, it } from "vitest";
+import type { ChatHistoryEntry } from "../conversation/chat-history-store";
 import { buildCCMessages, createChunkReducer } from "./chat-completions";
-import type { ChatHistoryEntry } from "./chat-history-store";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // buildCCMessages

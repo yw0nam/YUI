@@ -1,7 +1,7 @@
 /**
  * session-store.test.ts — single-scalar last-response-id reactive store.
  *
- * Pins the contract for src/io/chat/session-store.ts:
+ * Pins the contract for src/io/chat/conversation/session-store.ts:
  *   createSessionStore(storage?) store (get/set/clear/reloadFromStorage/subscribe/dispose)
  *   localStorageSessionStorage(key?) localStorage adapter
  *   get() returns the stored response id or null (no minting, no side effects).

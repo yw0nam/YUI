@@ -12,10 +12,10 @@
  * accessor) is injected. Best-effort — never throws on the UI path.
  */
 
-import { ttsProviderOf } from "../../config/tts-provider";
-import type { EndpointsConfig } from "../../contract";
-import { createLogger, type Logger } from "../../logger";
-import { isValidEndpointUrl } from "../../settings/backend/endpoints-settings";
+import { ttsProviderOf } from "../../../config/tts-provider";
+import type { EndpointsConfig } from "../../../contract";
+import { createLogger, type Logger } from "../../../logger";
+import { isValidEndpointUrl } from "../../../settings/backend/endpoints-settings";
 import type { BrokerClient, BrokerPayload } from "./broker-client";
 
 interface BrokerOverrideReconcilerOptions {

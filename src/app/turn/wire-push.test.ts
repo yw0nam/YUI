@@ -10,7 +10,7 @@ import { createPushTurns } from "../../dispatcher/turn/push-turn";
 import { createTurnFeed, type TurnFeed } from "../../dispatcher/turn/turn-feed";
 import { createDelegationsStore } from "../../io/bridge/delegations-store";
 import { createReasoningStore } from "../../io/bridge/reasoning-store";
-import type { ChatHistoryEntry } from "../../io/chat/chat-history-store";
+import type { ChatHistoryEntry } from "../../io/chat/conversation/chat-history-store";
 import type {
   DelegationItem,
   PushSocketState,
@@ -19,7 +19,7 @@ import type {
   SpeechFrame,
   ToolStatusFrame,
   TurnEndFrame,
-} from "../../io/chat/push-socket";
+} from "../../io/chat/push/push-socket";
 import {
   createMessageWindowSettings,
   type MessageWindowMode,

@@ -7,7 +7,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { EndpointsConfig } from "../../../contract";
 import { createStageBackground } from "../../../io/assets/stage/stage-background";
 import { createVrmSelection } from "../../../io/assets/vrm-selection";
-import type { PushSocket } from "../../../io/chat/push-socket";
+import type { PushSocket } from "../../../io/chat/push/push-socket";
 import {
   CAMERA_AZIMUTH_DEFAULT,
   CAMERA_POLAR_DEFAULT,

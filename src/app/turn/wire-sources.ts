@@ -20,7 +20,7 @@ import {
 } from "../../dispatcher/sources/schedule-source";
 import { createScreenSource, type ScreenSource } from "../../dispatcher/sources/screen-source";
 import { createSignalsSource, type SignalsSource } from "../../dispatcher/sources/signals-source";
-import { appendRecord } from "../../io/chat/turn-record-log";
+import { appendRecord } from "../../io/chat/record/turn-record-log";
 import type { AgentNotifySettings } from "../../settings/backend/agent-notify-settings";
 import type { ProactiveSettings } from "../../settings/cues/proactive-settings";
 import type { ScheduleSettings } from "../../settings/cues/schedule-settings";

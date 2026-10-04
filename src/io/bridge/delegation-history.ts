@@ -9,7 +9,7 @@ import {
   localStorageStore,
   type PersistedStorage,
 } from "../../settings/persisted-store";
-import type { DelegationItem } from "../chat/push-socket";
+import type { DelegationItem } from "../chat/push/push-socket";
 import { sanitizeDelegation } from "./delegations-store";
 
 export const DELEGATION_HISTORY_MAX_ITEMS = 200;

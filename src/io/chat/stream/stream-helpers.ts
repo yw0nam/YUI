@@ -1,4 +1,4 @@
-import type { ControlEnvelope, EmotionId, ExpressArgs } from "../../contract";
+import type { ControlEnvelope, EmotionId, ExpressArgs } from "../../../contract";
 
 /**
  * Identifies express tool — when backend registers via MCP, name arrives as `mcp_<server>_generate_express`.

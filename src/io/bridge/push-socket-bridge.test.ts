@@ -5,7 +5,7 @@
  */
 
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { PushSocketState } from "../chat/push-socket";
+import type { PushSocketState } from "../chat/push/push-socket";
 import type { BridgeTransport } from "./core/bridge-core";
 import { createMirroredPushSocket, publishPushSocket } from "./push-socket-bridge";
 import { createSettingsBridge } from "./settings-bridge";

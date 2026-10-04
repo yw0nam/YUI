@@ -5,8 +5,8 @@
  * The Connection tab reflects its own endpoints; this layer covers the rest of the panel.
  */
 
-import type { DelegationItem, PushSocketState } from "../../io/chat/push-socket";
-import type { createSessionDiagnosticsStore } from "../../io/chat/session-diagnostics";
+import type { createSessionDiagnosticsStore } from "../../io/chat/conversation/session-diagnostics";
+import type { DelegationItem, PushSocketState } from "../../io/chat/push/push-socket";
 import type { createAgentNotifySettings } from "../../settings/backend/agent-notify-settings";
 import { type createAgentSettings, REASONING_EFFORTS } from "../../settings/backend/agent-settings";
 import type {

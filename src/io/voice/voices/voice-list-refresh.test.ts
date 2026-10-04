@@ -14,7 +14,7 @@ vi.mock("./fish-voices", () => ({
   upsertFishVoice: vi.fn(),
   deleteFishVoice: vi.fn(),
 }));
-vi.mock("../../chat/chat-client", () => ({ selectFetch }));
+vi.mock("../../chat/stream/chat-client", () => ({ selectFetch }));
 
 import { createVoiceListRefresh, wireVoiceListAutoRefresh } from "./voice-list-refresh";
 

@@ -12,7 +12,7 @@
  */
 
 import { afterEach, describe, expect, it, vi } from "vitest";
-import type { EndpointsConfig } from "../../contract";
+import type { EndpointsConfig } from "../../../contract";
 import {
   type ChatRequest,
   type ChatStreamEvent,

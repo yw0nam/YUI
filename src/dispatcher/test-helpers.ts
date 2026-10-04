@@ -6,7 +6,7 @@ import type {
   ChatStreamEvent,
   StreamChatOptions,
   streamChat,
-} from "../io/chat/chat-client";
+} from "../io/chat/stream/chat-client";
 import type { Logger } from "../logger";
 import type { BackendCaller, TurnOutcome } from "./backend/backend-caller";
 import type { BusEnvelope } from "./core/event-bus";

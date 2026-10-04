@@ -1,9 +1,9 @@
-import type { ClientContext } from "../../contract";
+import type { ClientContext } from "../../../contract";
 import {
   createPersistedStore,
   localStorageStore,
   type PersistedStorage,
-} from "../../settings/persisted-store";
+} from "../../../settings/persisted-store";
 
 export const CONTEXT_HISTORY_CAP = 20;
 

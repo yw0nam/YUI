@@ -31,11 +31,14 @@ import type {
   PreviousTurn,
   Usage,
 } from "../../contract";
-import { type ChatRequest, streamChat } from "../../io/chat/chat-client";
-import { buildCCMessages } from "../../io/chat/chat-completions";
-import { type ChatHistoryEntry, selectSendSuffix } from "../../io/chat/chat-history-store";
-import type { ClientToolRegistry } from "../../io/chat/client-tools";
-import { createSilenceTokenFilter } from "../../io/chat/silence-token";
+import {
+  type ChatHistoryEntry,
+  selectSendSuffix,
+} from "../../io/chat/conversation/chat-history-store";
+import { type ChatRequest, streamChat } from "../../io/chat/stream/chat-client";
+import { buildCCMessages } from "../../io/chat/stream/chat-completions";
+import type { ClientToolRegistry } from "../../io/chat/stream/client-tools";
+import { createSilenceTokenFilter } from "../../io/chat/stream/silence-token";
 import type { Logger } from "../../logger";
 import { createLogger } from "../../logger";
 import type { Turn } from "../turn/turn";

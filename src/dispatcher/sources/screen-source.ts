@@ -38,7 +38,7 @@ import {
   buildSkipRecord,
   type ScreenSkipRecord,
   type SkipReason,
-} from "../../io/chat/turn-record-log";
+} from "../../io/chat/record/turn-record-log";
 import type { OsEventListen, OsEventPayload } from "../../io/window/tauri-listen";
 import { subscribeOsEvent } from "../../io/window/tauri-listen";
 import { createLogger } from "../../logger";

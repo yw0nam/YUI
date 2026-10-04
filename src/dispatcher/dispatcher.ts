@@ -30,7 +30,7 @@
 
 import type { PeekConfig, TapConfig } from "../config/load";
 import type { BodyState, Posture } from "../contract";
-import { buildPacerSkipRecord, type PacerSkipRecord } from "../io/chat/turn-record-log";
+import { buildPacerSkipRecord, type PacerSkipRecord } from "../io/chat/record/turn-record-log";
 import type { Logger, LogLevel } from "../logger";
 import { createLogger } from "../logger";
 import type { Renderer } from "../renderer";

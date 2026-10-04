@@ -7,7 +7,7 @@
  */
 
 import { createLogger } from "../../logger";
-import type { PushSocketState } from "../chat/push-socket";
+import type { PushSocketState } from "../chat/push/push-socket";
 import { createStateMirror, publishState } from "./core/state-mirror";
 import type { SettingsBridge } from "./settings-bridge";
 

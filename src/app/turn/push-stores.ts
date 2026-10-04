@@ -8,8 +8,12 @@ import { createDelegationsStore, type DelegationsStore } from "../../io/bridge/d
 import { publishPushSocket } from "../../io/bridge/push-socket-bridge";
 import { publishReasoning } from "../../io/bridge/reasoning-bridge";
 import { createReasoningStore, type ReasoningStore } from "../../io/bridge/reasoning-store";
-import type { BrokerPayload } from "../../io/chat/broker-client";
-import { createPushSocket, type PushSocket, pushVocabularyOf } from "../../io/chat/push-socket";
+import type { BrokerPayload } from "../../io/chat/broker/broker-client";
+import {
+  createPushSocket,
+  type PushSocket,
+  pushVocabularyOf,
+} from "../../io/chat/push/push-socket";
 import {
   createChatIdSettings,
   localStorageChatIdStorage,

@@ -1,9 +1,9 @@
 import { describe, expect, it, vi } from "vitest";
-import type { BrokerPayload } from "../../io/chat/broker-client";
+import type { BrokerPayload } from "../../io/chat/broker/broker-client";
 
 const { createPushSocket } = vi.hoisted(() => ({ createPushSocket: vi.fn() }));
-vi.mock("../../io/chat/push-socket", async (importOriginal) => ({
-  ...(await importOriginal<typeof import("../../io/chat/push-socket")>()),
+vi.mock("../../io/chat/push/push-socket", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("../../io/chat/push/push-socket")>()),
   createPushSocket,
 }));
 

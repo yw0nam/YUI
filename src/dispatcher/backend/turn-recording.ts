@@ -1,7 +1,7 @@
 /** Records a sent turn into the transcript, the sent-context history, and the turn-record log. */
-import type { ChatHistoryEntry } from "../../io/chat/chat-history-store";
-import type { ContextHistoryEntry } from "../../io/chat/context-history";
-import { buildTurnRecord, type TurnRecord } from "../../io/chat/turn-record-log";
+import type { ChatHistoryEntry } from "../../io/chat/conversation/chat-history-store";
+import type { ContextHistoryEntry } from "../../io/chat/conversation/context-history";
+import { buildTurnRecord, type TurnRecord } from "../../io/chat/record/turn-record-log";
 import type { Logger } from "../../logger";
 import type { buildContext } from "./context-builder";
 

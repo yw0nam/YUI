@@ -10,7 +10,7 @@
  */
 
 import { describe, expect, it, vi } from "vitest";
-import type { EndpointsConfig } from "../../contract";
+import type { EndpointsConfig } from "../../../contract";
 import type { BrokerClient, BrokerPayload } from "./broker-client";
 import { createBrokerOverrideReconciler } from "./broker-override-reconciler";
 

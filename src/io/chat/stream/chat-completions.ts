@@ -5,9 +5,9 @@
  * imports from here).
  */
 
-import type { Usage } from "../../contract";
-import { renderGuideBlock } from "../guide/guide-docs";
-import type { ChatHistoryEntry } from "./chat-history-store";
+import type { Usage } from "../../../contract";
+import { renderGuideBlock } from "../../guide/guide-docs";
+import type { ChatHistoryEntry } from "../conversation/chat-history-store";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Request messages

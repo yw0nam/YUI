@@ -3,7 +3,7 @@
  */
 
 import { describe, expect, it, vi } from "vitest";
-import type { ClientContext } from "../../contract";
+import type { ClientContext } from "../../../contract";
 import {
   appendRecord,
   buildPacerSkipRecord,

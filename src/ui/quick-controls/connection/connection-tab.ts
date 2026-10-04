@@ -4,7 +4,7 @@
  * markup, handlers and reflection, so only rendered fields are bound.
  */
 
-import type { PushSocketState } from "../../../io/chat/push-socket";
+import type { PushSocketState } from "../../../io/chat/push/push-socket";
 import type { Logger } from "../../../logger";
 import type {
   ApiKeySettingsStore,

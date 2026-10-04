@@ -3,9 +3,9 @@
  * and the phone settings view. Read-only viewer over the persisted transcript.
  */
 
-import type { createChatHistoryStore } from "../../../io/chat/chat-history-store";
-import type { createSessionDiagnosticsStore } from "../../../io/chat/session-diagnostics";
-import type { createSessionStore } from "../../../io/chat/session-store";
+import type { createChatHistoryStore } from "../../../io/chat/conversation/chat-history-store";
+import type { createSessionDiagnosticsStore } from "../../../io/chat/conversation/session-diagnostics";
+import type { createSessionStore } from "../../../io/chat/conversation/session-store";
 import type { Logger } from "../../../logger";
 import { t } from "../../i18n";
 import type { PushSocketPanelPort } from "../connection/connection-tab";
