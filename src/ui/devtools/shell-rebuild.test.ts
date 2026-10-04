@@ -143,6 +143,8 @@ it("continues rebuilds after an activate rejects and logs the failure", async ()
   rebuild();
   await vi.waitFor(() => expect(fake.shells).toHaveLength(3));
   await vi.waitFor(() => expect(mount.querySelector("#sel")).not.toBeNull());
+  expect(fake.shells[1]!.activate).toHaveBeenCalledWith("motion");
+  expect(fake.shells[2]!.activate).toHaveBeenCalledWith("motion");
 });
 
 it("serializes rapid rebuilds and keeps one live shell", async () => {
