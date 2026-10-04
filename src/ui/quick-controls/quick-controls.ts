@@ -27,8 +27,10 @@ import type {
 import type { createLipsyncSettings } from "../../settings/avatar/lipsync-settings";
 import type { createAgentNotifySettings } from "../../settings/backend/agent-notify-settings";
 import type { createAgentSettings } from "../../settings/backend/agent-settings";
-import type { ApiKeySettingsStore } from "../../settings/backend/api-key-settings";
-import type { ChatKeySettingsStore } from "../../settings/backend/chat-key-settings";
+import type {
+  ApiKeySettingsStore,
+  ChatKeySettingsStore,
+} from "../../settings/backend/api-key-settings";
 import type {
   createEndpointsSettings,
   EndpointOverrides,

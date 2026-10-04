@@ -135,7 +135,7 @@ describe("surfaces.css — input error uses doctrine tokens", () => {
 // a border on the retention note would stack a second rule right beside it.
 describe("history-section.css — a single separator above the start-fresh footer", () => {
   it(".yui-hist__foot carries no border of its own", () => {
-    const css = read("../quick-controls/sections/history-section.css");
+    const css = read("../quick-controls/history/history-section.css");
     expect(extractBlock(css, ".yui-hist__foot")).not.toMatch(/border-top/);
   });
 });

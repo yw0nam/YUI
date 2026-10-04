@@ -19,10 +19,10 @@ import {
   createAgentSettings,
 } from "../../settings/backend/agent-settings";
 import {
+  createChatKeySettings,
   createSttKeySettings,
   createTtsKeySettings,
 } from "../../settings/backend/api-key-settings";
-import { createChatKeySettings } from "../../settings/backend/chat-key-settings";
 import { createEndpointsSettings } from "../../settings/backend/endpoints-settings";
 import { createWorkflowSettings } from "../../settings/backend/workflow-settings";
 import { createProactiveSettings } from "../../settings/cues/proactive-settings";

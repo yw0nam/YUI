@@ -6,8 +6,12 @@
  */
 
 import { describe, expect, it, vi } from "vitest";
-import { API_KEY_MAX_LEN, createApiKeySettings } from "./api-key-settings";
-import { createChatKeySettings } from "./chat-key-settings";
+import {
+  API_KEY_MAX_LEN,
+  createApiKeySettings,
+  createChatKeySettings,
+  localStorageChatKeyStorage,
+} from "./api-key-settings";
 
 describe("createApiKeySettings", () => {
   it("defaults to an empty key (no override)", () => {
@@ -63,5 +67,21 @@ describe("createChatKeySettings — unchanged behavior over the generic factory"
     expect(chat.get().apiKey.length).toBe(API_KEY_MAX_LEN);
     chat.clear();
     expect(chat.get().apiKey).toBe("");
+  });
+});
+
+describe("localStorageChatKeyStorage", () => {
+  it("default key is 'yui.chat-key'", () => {
+    const written: Array<[string, string]> = [];
+    (globalThis as { localStorage?: unknown }).localStorage = {
+      getItem: () => null,
+      setItem: (k: string, v: string) => written.push([k, v]),
+    };
+
+    const adapter = localStorageChatKeyStorage();
+    adapter.save({ apiKey: "sk-test" });
+    expect(written[0][0]).toBe("yui.chat-key");
+
+    delete (globalThis as { localStorage?: unknown }).localStorage;
   });
 });

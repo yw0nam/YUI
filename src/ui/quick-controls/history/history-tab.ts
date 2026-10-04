@@ -9,7 +9,7 @@ import type { createSessionStore } from "../../../io/chat/session-store";
 import type { Logger } from "../../../logger";
 import { t } from "../../i18n";
 import type { PushSocketPanelPort } from "../connection/connection-tab";
-import { createHistorySection } from "../sections/history-section";
+import { createHistorySection } from "./history-section";
 
 export interface HistoryTab {
   el: HTMLElement;

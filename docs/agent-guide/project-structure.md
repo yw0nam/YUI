@@ -206,7 +206,6 @@ YUI/
         agent-notify-settings.ts     # Agent-notification enabled flag and listener port
         api-key-settings.ts          # Generic API-key override store behind the chat, STT, and TTS key settings
         chat-id-settings.ts          # Conversation id this installation sends in every push hello
-        chat-key-settings.ts         # Chat API key override store
         endpoints-settings.ts        # User-editable endpoint and model overrides
         guardrails-settings.ts       # User-editable guardrail rate-limit caps
         workflow-settings.ts         # Workflow entry list and URL validation
@@ -395,23 +394,25 @@ YUI/
           express-motion-section.ts  # Category accordion curating the agent-selectable motion vocabulary
           vrm-list.css               # VRM list styles
           express-motion-section.css # Express-motion accordion styles
+        connection/                  # Connection tab and its endpoint/API-key section
+          endpoints-section.ts       # Endpoint URL fields, API-key rows, chat-API picker, and resets
+          endpoints-section.css      # Endpoints section and yui-select dropdown styles
+        history/                     # History tab and its session accordion section
+          history-section.ts         # History tab session accordion over the persisted transcript
+          history-section.css        # Session history accordion styles
         sections/                    # The tab sections the shell mounts and the list helpers only they use
           agent-section.ts           # Locale segment, reasoning-effort segment, and instructions textarea
-          endpoints-section.ts       # Endpoint URL fields, API-key rows, chat-API picker, and resets
           monitors-section.ts        # Screen-source list and its load state
           screen-section.ts          # Screen-watch threshold knobs and the min-gap slider
           reactions-section.ts       # Agent-port, presence, pacer-gap, and rate-limit cap inputs
-          history-section.ts         # History tab session accordion over the persisted transcript
           workflows-section.ts       # Workflow entry list editing
           filler/                    # Thinking-filler section
             filler-section.ts        # Language segment and phrase-pool textareas, with their store reflect
             filler-tool-lines.ts     # Textarea round-trip for the filler pool's tool tier
           speaker-list.ts            # Speaker radiogroup with reference-voice refresh and audition
           user-asset-list.ts         # Shared scaffolding for the VRM and speaker asset radiogroups
-          endpoints-section.css      # Endpoints section and yui-select dropdown styles
           monitors-section.css       # Monitors section styles
           session-section.css        # Session context-occupancy readout and meter styles
-          history-section.css        # Session history accordion styles
           workflows-section.css      # Workflows section styles
           speaker-list.css           # Speaker list styles
           user-asset-list.css        # Radio row, tick, and state styles shared by the monitor, VRM, and speaker lists
