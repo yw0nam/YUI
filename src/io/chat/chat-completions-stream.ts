@@ -16,6 +16,7 @@ import {
   serverMessageOf,
 } from "./stream-helpers";
 
+/** Parses a tool call's accumulated arguments. Empty arguments are an empty object (no-arg call). */
 function parseToolArgs(raw: string): { args: Record<string, unknown> } | { error: string } {
   if (raw.trim() === "") return { args: {} };
   try {
@@ -24,6 +25,14 @@ function parseToolArgs(raw: string): { args: Record<string, unknown> } | { error
     return { error: err instanceof Error ? err.message : String(err) };
   }
 }
+
+/** SDK requires model, but model-less mock/backend omit the field itself — locally relax optional. */
+type CCCreateParams = Omit<ChatCompletionCreateParamsStreaming, "model"> & {
+  model?: ChatCompletionCreateParamsStreaming["model"];
+};
+
+/** Tool round trips per turn. */
+const MAX_TOOL_ROUND_TRIPS = 3;
 
 /**
  * Calls Chat Completions API stream — `client.chat.completions.create({ stream: true })`.
@@ -46,14 +55,6 @@ function parseToolArgs(raw: string): { args: Record<string, unknown> } | { error
  * The array is copied on append, so the caller's messages are never mutated and nothing crosses
  * turn boundaries: CC has no previous_response_id and the next turn is rebuilt from the transcript.
  */
-/** SDK requires model, but model-less mock/backend omit the field itself — locally relax optional. */
-type CCCreateParams = Omit<ChatCompletionCreateParamsStreaming, "model"> & {
-  model?: ChatCompletionCreateParamsStreaming["model"];
-};
-
-/** Tool round trips per turn. */
-const MAX_TOOL_ROUND_TRIPS = 3;
-
 export async function* streamChatCompletions(
   client: OpenAI,
   config: EndpointsConfig,

@@ -118,8 +118,6 @@ function expressCallKey(id: unknown, outputIndex: unknown): string {
   return typeof id === "string" && id.length > 0 ? id : String(outputIndex);
 }
 
-/** Extracts openai SDK APIError.status (HTTP status code) — undefined if absent (plain Error etc). */
-
 /** Parses express arguments JSON string. On failure, returns error message without throwing. */
 function parseExpressArgs(raw: unknown): { args: ExpressArgs } | { error: string } {
   try {
@@ -132,10 +130,6 @@ function parseExpressArgs(raw: unknown): { args: ExpressArgs } | { error: string
     };
   }
 }
-
-/** Parses a tool call's accumulated arguments. Empty arguments are an empty object (no-arg call). */
-
-/** FLAT express args → renderer seam shape. Only present fields are normalized (no invention). */
 
 export interface ChatRequest {
   /** OpenAI-compatible input (messages / input items). Includes InputContext encoding. */

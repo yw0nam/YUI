@@ -9,6 +9,7 @@ export function isExpressTool(name: unknown): boolean {
   return typeof name === "string" && name.endsWith("generate_express");
 }
 
+/** Extracts openai SDK APIError.status (HTTP status code) — undefined if absent (plain Error etc). */
 export function httpStatusOf(err: unknown): number | undefined {
   const status = (err as { status?: unknown } | null)?.status;
   return typeof status === "number" ? status : undefined;
@@ -26,6 +27,7 @@ export function serverMessageOf(err: unknown): string {
     : raw;
 }
 
+/** FLAT express args → renderer seam shape. Only present fields are normalized (no invention). */
 export function normalizeExpressIntoEnvelope(
   envelope: ControlEnvelope,
   express: ExpressArgs | undefined,
