@@ -176,8 +176,8 @@ YUI/
         classify.ts                  # Pure tier and target classification of a bus envelope, plus the paced-source table
         event-bus.ts                 # Priority queue collecting every speech-candidate event
         guardrails.ts                # Cooldown, debounce, and rate-limit evaluation
-        proactive-pacer.ts           # The quiet gap after a turn that every proactive source shares
         paced-pipeline-busy.ts       # The pipeline-busy predicate composed with the proactive gap
+        proactive-pacer.ts           # The quiet gap after a turn that every proactive source shares
       tier1/
         directive.ts                 # Pure tier-1 control directive for sit, drop, peek and pat events
         render.ts                    # Tier-1 rendering: local directives, posture ledger, pin targets, and the tap-emotion revert
