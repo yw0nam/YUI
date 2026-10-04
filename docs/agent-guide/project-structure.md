@@ -109,7 +109,9 @@ YUI/
       index.ts                       # three.js and VRM output layer: scene, rAF loop, VRM load and hot-swap
       types.ts                       # Renderer options, per-frame tick context, and the Renderer surface
       apply-directive.ts             # Pure routing of a control envelope into the emotion and motion sinks
+      frame-loop.ts                  # The rAF loop with its clock, hidden-document pause, and idle-throttle gate
       pin-controller.ts              # Stateful perch and peek pin apply layer
+      vrm-loading.ts                 # VRM optimisation of a loaded glTF and the display-name read
       vrm-participant.ts             # The per-frame lifecycle every VRM-bound sub-controller implements
       camera/                        # Camera framing, zoom, and orbit state
         rig.ts                       # Fit-to-bounds framing, wheel zoom, the eased orbit polar, and the travel view window
