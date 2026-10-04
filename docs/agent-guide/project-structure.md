@@ -162,7 +162,7 @@ YUI/
         event-bus.ts                 # Priority queue collecting every speech-candidate event
         guardrails.ts                # Cooldown, debounce, and rate-limit evaluation
         proactive-pacer.ts           # The quiet gap after a turn that every proactive source shares
-      tier1/                         # Tier-1 local rendering (backend-independent)
+      tier1/
         directive.ts                 # Pure tier-1 control directive for sit, drop, peek and pat events
         render.ts                    # Tier-1 rendering: local directives, posture ledger, pin targets, and the tap-emotion revert
       turn/
