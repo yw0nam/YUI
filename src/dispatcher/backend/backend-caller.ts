@@ -35,10 +35,9 @@ import { type ChatRequest, streamChat } from "../../io/chat/chat-client";
 import { buildCCMessages } from "../../io/chat/chat-completions";
 import { type ChatHistoryEntry, selectSendSuffix } from "../../io/chat/chat-history-store";
 import type { ClientToolRegistry } from "../../io/chat/client-tools";
-import { createSilenceTokenFilter, isSilenceToken } from "../../io/chat/silence-token";
+import { createSilenceTokenFilter } from "../../io/chat/silence-token";
 import type { Logger } from "../../logger";
 import { createLogger } from "../../logger";
-import type { Renderer } from "../../renderer";
 import type { Turn } from "../turn/turn";
 import type { TurnFeed } from "../turn/turn-feed";
 import { backgroundMarker } from "./background-marker";
@@ -52,6 +51,7 @@ import {
 } from "./idle-watchdog";
 import { createPushCall, type PushCallDeps } from "./push-call";
 import { encodeInput } from "./request-input";
+import { createReplySettler, type SettleDeps } from "./settle-reply";
 import type { TurnOutcome } from "./turn-outcome";
 import { recordSentTurn } from "./turn-recording";
 
@@ -87,16 +87,14 @@ export type { TurnFailure, TurnOutcome } from "./turn-outcome";
 /** Server-side HTTP error detail for a failed turn — bare body message, no wrapper. */
 export type TurnErrorDetail = { status: number; message: string };
 
-/** Adds the streaming path's own deps to the set the push path declares, so each field is declared once. */
-interface BackendCallerDeps extends PushCallDeps {
+/** Adds the streaming path's own deps to the sets the push path and the reply settle declare, so each field is declared once. */
+interface BackendCallerDeps extends PushCallDeps, SettleDeps {
   /** CC mode replays the current session from the transcript. */
   transcript?: NonNullable<PushCallDeps["transcript"]> & {
     entriesAfterLastBoundary(): ChatHistoryEntry[];
   };
   /** chat endpoint config. */
   config: EndpointsConfig;
-  /** render directive sink (applyDirective). */
-  renderer: Pick<Renderer, "applyDirective">;
   /** Chat backend auth key resolution (SecretProvider). Unauthenticated placeholder if absent. */
   getApiKey: () => Promise<string | undefined>;
   /** Transport fetch selection (selectFetch). Tauri=cors-fetch, dev=undefined. */
@@ -151,6 +149,7 @@ export function createBackendCaller(deps: BackendCallerDeps): BackendCaller {
   const log = deps.logger ?? baseLog;
   const stream = deps.stream ?? streamChat;
   const pushCall = createPushCall(deps, log);
+  const replySettler = createReplySettler(deps, log);
 
   async function call(
     turn: Turn,
@@ -474,60 +473,12 @@ export function createBackendCaller(deps: BackendCallerDeps): BackendCaller {
         streamedAny = true;
       }
 
-      // B5 (render half): when per-beat cue streamed and speech present (streamedAny), TTS pipeline
-      //   applies cue audio-timed at sentence playback — don't double-apply here.
-      //   Otherwise (no cue, or cue but silent turn), apply once at completed:
-      //   firing≠judgment — silent-turn-with-cue still renders emotion/motion,
-      //   and completed-only backend without express streaming is preserved.
-      //   An envelope carrying neither channel renders nothing: expression and motion stay as they are.
-      const pipelineOwnsCues = cueStreamed && streamedAny;
-      const carriesChannel = "emotion" in envelope || "motion" in envelope;
-      if (pipelineOwnsCues || !carriesChannel) {
-        log.debug("dispatch_to_renderer", {
-          owner: pipelineOwnsCues ? "pipeline" : "none",
-          emotion: envelope.emotion ?? null,
-          motion: envelope.motion ?? null,
-        });
-      } else {
-        try {
-          deps.renderer.applyDirective(envelope);
-          log.debug("dispatch_to_renderer", {
-            owner: "completed",
-            emotion: envelope.emotion ?? null,
-            motion: envelope.motion ?? null,
-          });
-        } catch (err) {
-          // Renderer error → ambient fallback is renderer's responsibility, dispatcher continues.
-          log.error("dispatch_to_renderer.error", { error: String(err) });
-        }
-      }
-
-      // Completed path only: no per-beat cue carried the voice channels, so route them through
-      // the same cue channel here — emotion_id/motion_id omitted, applyDirective above already
-      // rendered them and re-sending would double-apply.
-      if (!streamedAny && (envelope.emotion_text != null || envelope.caption != null)) {
-        deps.turnOutput?.cue({
-          ...(envelope.emotion_text != null ? { emotion_text: envelope.emotion_text } : {}),
-          ...(envelope.caption != null ? { caption: envelope.caption } : {}),
-        });
-      }
-
-      // B4 (speech gate): speak only when speech_text has non-whitespace text and is not the [SILENT] token.
-      //   Whitespace-only text or a bare [SILENT] = silence — no separate flag/decision, no failure outcome.
-      const silentToken = isSilenceToken(envelope.speech_text);
-      if (streamedAny) {
-        // Streaming path: delta already drove speech, only signal end (don't call speak).
-        deps.turnOutput?.end();
-        log.debug("speech", { text: envelope.speech_text });
-      } else if (envelope.speech_text?.trim() && !silentToken) {
-        // Legacy fallback: backend that only provides completed without delta.
-        deps.turnOutput?.speak(envelope.speech_text);
-        log.debug("speech", { text: envelope.speech_text });
-      } else {
-        log.info("empty_speech", { trigger: env.event_name });
-      }
-      const spokeText = streamedAny || (Boolean(envelope.speech_text?.trim()) && !silentToken);
-      deps.reportSpokeText?.(spokeText);
+      const spokeText = replySettler.settle({
+        envelope,
+        streamedAny,
+        cueStreamed,
+        getEventName: () => env.event_name,
+      });
 
       // Conversation state progress (Responses only): persist only at this point after passing all
       // post-stream guards (abort / streamError / !envelope). Only when start-time id unchanged —

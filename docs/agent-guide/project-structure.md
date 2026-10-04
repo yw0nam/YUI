@@ -174,6 +174,7 @@ YUI/
       backend/
         backend-caller.ts            # Sends a tier-2 event to backend judgment and streams the reply
         push-call.ts                 # Push transport path of a turn: frame send and the wait for its turn_end
+        settle-reply.ts              # Settles a finished reply: directive render, cue routing, speech gate
         turn-recording.ts            # Records a sent turn into the transcript, the context history, and the turn-record log
         request-input.ts             # Pure encoders for a turn's Responses input: client_context block and user item
         turn-outcome.ts              # How a backend call settled
