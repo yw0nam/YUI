@@ -7,6 +7,9 @@ const win = vi.hoisted(() => ({
   onMoved: vi.fn(),
   unlistenMoved: vi.fn(),
 }));
+const warn = vi.hoisted(() => vi.fn());
+
+vi.mock("../../logger", () => ({ createLogger: () => ({ warn }) }));
 
 vi.mock("../../tauri-env", () => ({ isTauri: () => true }));
 vi.mock("@tauri-apps/api/window", () => ({
@@ -40,6 +43,7 @@ it("focuses and drags the current window, and swallows a failure", async () => {
 
   win.setFocus.mockRejectedValueOnce(new Error("denied"));
   await expect(focusWindow()).resolves.toBeUndefined();
+  expect(warn).toHaveBeenCalledWith("message_window_focus_failed", { error: "Error: denied" });
 });
 
 it("records the window's moved position and unlistens on dispose", async () => {
