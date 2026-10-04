@@ -143,7 +143,7 @@ YUI/
         pixel-ratio.ts               # Pure devicePixelRatio clamp
         rig.ts                       # Fit-to-bounds framing, wheel zoom, the eased orbit polar, and the travel view window
         view-window.ts               # Draws the reference-size framing at an offset inside a parked canvas
-      geometry/                      # Pure math and pixel sampling with no three.js state
+      geometry/                      # Silhouette hit-testing and read-only model probes
         hit/                         # Alpha-silhouette hit-testing, stage coordinates, and tap regions
           alpha-hit-test.ts          # CPU-side low-res silhouette grab and sampling
           hit-test.ts                # Pure helpers for the alpha silhouette predicate
