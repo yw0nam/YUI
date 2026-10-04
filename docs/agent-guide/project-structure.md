@@ -37,7 +37,6 @@ YUI/
   src/
     app/                             # Composes the pet window from the layers below
       bootstrap-configured.ts        # Pet window's config-derived bootstrap: runs the turn core and the pet-only wirings in order and drains their teardowns
-      bootstrap-disposal.ts          # Registers the renderer's dispose and the Tier 1 engine's stop as bootstrap teardowns
       disposers.ts                   # Shared teardown bag: registers teardowns at creation sites and drains them LIFO
       turn/                          # The path of a turn: sources, voice, and push
         turn-core.ts                 # The chat turn every backend-facing window runs: voice, dispatcher, STT, VRM load, broker, push transport, stop, and submit
@@ -54,8 +53,10 @@ YUI/
         wire-pet-stage.ts            # Stage wheel zoom, the persisted camera and throttle flow, and the feet-follow input anchor
         wire-summon.ts               # Peek state and exit triggers, tray summon, and the global summon hotkey
         wire-stage.ts                # Click-through hit-test and cursor-gaze wiring over the stage
+      dev/                           # DEV-only console handles
+        wire-dev-globals.ts          # The DEV console and global handles for inspection and firing dispatcher events
       cross-window/                  # State the windows share
-        wire-cross-window.ts         # Per-window sync for the pet, settings, and devtools windows plus the DEV globals including speech playback
+        wire-cross-window.ts         # Per-window sync for the pet, settings, and devtools windows
         wire-window-sync.ts          # Settings broadcast, guardrail overrides, and the shared cross-window sync core
       controls/                      # The pet window's summonable control surfaces
         wire-pet-controls.ts         # Quick-controls panel, remounted on locale change, and the stage context menu
