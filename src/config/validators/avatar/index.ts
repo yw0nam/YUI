@@ -41,7 +41,7 @@ export function validateAvatar(file: string, raw: unknown): AvatarConfig {
     ]);
   }
   const issues: string[] = [];
-  const ctx = { file, issues };
+  const ctx = { issues };
 
   let available: AvatarOption[] | undefined;
   const rawAvailable = raw.available;
