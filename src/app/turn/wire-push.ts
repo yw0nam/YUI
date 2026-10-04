@@ -3,8 +3,8 @@ import type { PushTurns } from "../../dispatcher/turn/push-turn";
 import { createRenderTurn } from "../../dispatcher/turn/render-turn";
 import type { TurnFeed } from "../../dispatcher/turn/turn-feed";
 import type { TurnOutput } from "../../dispatcher/turn/turn-output";
-import type { DelegationHistory } from "../../io/bridge/delegation-history";
-import type { DelegationsStore } from "../../io/bridge/delegations-store";
+import type { DelegationHistory } from "../../io/bridge/delegations/delegation-history";
+import type { DelegationsStore } from "../../io/bridge/delegations/delegations-store";
 import type { ChatHistoryEntry } from "../../io/chat/conversation/chat-history-store";
 import type {
   DelegationItem,

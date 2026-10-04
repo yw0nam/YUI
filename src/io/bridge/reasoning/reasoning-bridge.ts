@@ -7,9 +7,9 @@
  * The whole state crosses on every change, so a missed event cannot corrupt the text.
  */
 
-import { createStateMirror, publishState } from "./core/state-mirror";
+import { createStateMirror, publishState } from "../core/state-mirror";
+import type { SettingsBridge } from "../settings-bridge";
 import type { ReasoningState, ReasoningStore } from "./reasoning-store";
-import type { SettingsBridge } from "./settings-bridge";
 
 type ReasoningBridge = Pick<
   SettingsBridge,

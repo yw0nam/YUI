@@ -9,7 +9,7 @@
 
 import type { TurnErrorDetail, TurnFailure } from "../../dispatcher/backend/backend-caller";
 import type { UserTurnSource } from "../../dispatcher/core/classify";
-import type { InputErrorAction } from "../../io/bridge/message-remote";
+import type { InputErrorAction } from "../../io/bridge/message/message-remote";
 import { t } from "../i18n";
 import type { QuickControlsTab } from "../quick-controls/constants";
 

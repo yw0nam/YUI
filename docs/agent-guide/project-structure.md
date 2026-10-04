@@ -348,14 +348,18 @@ YUI/
         core/                          # The cross-window bus every bridge here is built on
           bridge-core.ts               # Transports, message envelope and listener bookkeeping shared by every bridge
           state-mirror.ts              # One window's value published to the others and mirrored back
-        message-bridge.ts              # Cross-window bus linking the pet window and the message window
-        message-remote.ts              # The message window's bubble and input as a remote Surfaces half
-        push-socket-bridge.ts          # Push socket state as seen from a window that does not own it
-        delegations-store.ts           # Background work the backend reports on the push socket
-        delegations-bridge.ts          # Delegations list as seen from a window that does not own the push socket
-        delegation-history.ts          # Every delegation the client has seen, persisted for the settings window's Session section
-        reasoning-store.ts             # Backend reasoning text as the current turn writes it
-        reasoning-bridge.ts            # Reasoning text as seen from a window that does not own the push socket
+        message/                       # The pet ↔ message window bus and its remote half
+          message-bridge.ts            # Cross-window bus linking the pet window and the message window
+          message-remote.ts            # The message window's bubble and input as a remote Surfaces half
+        delegations/                   # The backend's background-work list, live and persisted
+          delegations-store.ts         # Background work the backend reports on the push socket
+          delegations-bridge.ts        # Delegations list as seen from a window that does not own the push socket
+          delegation-history.ts        # Every delegation the client has seen, persisted for the settings window's Session section
+        reasoning/                     # The backend's reasoning text as written and as mirrored
+          reasoning-store.ts           # Backend reasoning text as the current turn writes it
+          reasoning-bridge.ts          # Reasoning text as seen from a window that does not own the push socket
+        push/                          # Push socket state mirrored to windows that do not own it
+          push-socket-bridge.ts        # Push socket state as seen from a window that does not own it
         inbox/                         # The Tauri inbox seam and the channels read through it
           avatar-rpc.ts                # Webview end of the loopback avatar RPC surface
           avatar-executor.ts           # Answers the bridged avatar RPCs from live client state

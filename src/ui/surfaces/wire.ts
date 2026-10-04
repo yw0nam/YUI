@@ -1,7 +1,7 @@
 /** One Surfaces for every consumer — local DOM plus the message window over the bridge, routed by the stored mode. */
 
-import { createMessageBridge } from "../../io/bridge/message-bridge";
-import { createRemoteSurfaces, type RemoteSurfaces } from "../../io/bridge/message-remote";
+import { createMessageBridge } from "../../io/bridge/message/message-bridge";
+import { createRemoteSurfaces, type RemoteSurfaces } from "../../io/bridge/message/message-remote";
 import {
   createMessageWindowController,
   listenTrayToggle,

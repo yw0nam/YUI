@@ -21,8 +21,8 @@ const {
 
 vi.mock("./surfaces", () => ({ createSurfaces }));
 vi.mock("./surfaces-router", () => ({ createSurfacesRouter }));
-vi.mock("../../io/bridge/message-bridge", () => ({ createMessageBridge }));
-vi.mock("../../io/bridge/message-remote", () => ({ createRemoteSurfaces }));
+vi.mock("../../io/bridge/message/message-bridge", () => ({ createMessageBridge }));
+vi.mock("../../io/bridge/message/message-remote", () => ({ createRemoteSurfaces }));
 vi.mock("../../io/window/openers/message-window", () => ({
   createMessageWindowController,
   listenTrayToggle,

@@ -5,7 +5,7 @@
  * settings/history view. No dock, no drag, no capture segment.
  */
 
-import type { DelegationsStore } from "../../../io/bridge/delegations-store";
+import type { DelegationsStore } from "../../../io/bridge/delegations/delegations-store";
 import type { PushSocket } from "../../../io/chat/push/push-socket";
 import type { ToolStatus } from "../../../ui/chips/status-pill";
 import { createStatusPill } from "../../../ui/chips/status-pill";

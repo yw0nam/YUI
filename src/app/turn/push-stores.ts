@@ -2,12 +2,18 @@ import type { EndpointsConfig } from "../../contract";
 import {
   createDelegationHistory,
   type DelegationHistory,
-} from "../../io/bridge/delegation-history";
-import { publishDelegations } from "../../io/bridge/delegations-bridge";
-import { createDelegationsStore, type DelegationsStore } from "../../io/bridge/delegations-store";
-import { publishPushSocket } from "../../io/bridge/push-socket-bridge";
-import { publishReasoning } from "../../io/bridge/reasoning-bridge";
-import { createReasoningStore, type ReasoningStore } from "../../io/bridge/reasoning-store";
+} from "../../io/bridge/delegations/delegation-history";
+import { publishDelegations } from "../../io/bridge/delegations/delegations-bridge";
+import {
+  createDelegationsStore,
+  type DelegationsStore,
+} from "../../io/bridge/delegations/delegations-store";
+import { publishPushSocket } from "../../io/bridge/push/push-socket-bridge";
+import { publishReasoning } from "../../io/bridge/reasoning/reasoning-bridge";
+import {
+  createReasoningStore,
+  type ReasoningStore,
+} from "../../io/bridge/reasoning/reasoning-store";
 import type { BrokerPayload } from "../../io/chat/broker/broker-client";
 import {
   createPushSocket,

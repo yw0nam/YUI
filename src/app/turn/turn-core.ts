@@ -6,9 +6,9 @@ import type { Guardrails, GuardrailsConfig } from "../../dispatcher/core/guardra
 import type { ProactivePacer } from "../../dispatcher/core/proactive-pacer";
 import type { Dispatcher } from "../../dispatcher/dispatcher";
 import type { UserInputSource } from "../../dispatcher/sources/user-input-source";
-import type { DelegationHistory } from "../../io/bridge/delegation-history";
-import type { DelegationsStore } from "../../io/bridge/delegations-store";
-import type { ReasoningStore } from "../../io/bridge/reasoning-store";
+import type { DelegationHistory } from "../../io/bridge/delegations/delegation-history";
+import type { DelegationsStore } from "../../io/bridge/delegations/delegations-store";
+import type { ReasoningStore } from "../../io/bridge/reasoning/reasoning-store";
 import type { PushSocket } from "../../io/chat/push/push-socket";
 import { appendRecord } from "../../io/chat/record/turn-record-log";
 import { selectFetch } from "../../io/chat/stream/chat-client";

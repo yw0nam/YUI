@@ -6,7 +6,7 @@
  */
 
 import type { AttachmentLimits } from "../../config/load";
-import type { InputErrorAction } from "../../io/bridge/message-remote";
+import type { InputErrorAction } from "../../io/bridge/message/message-remote";
 import { subscribe as subscribeLocale, t } from "../i18n";
 import { type ActionButton, createActionButton, type MicPort } from "./action-button";
 import { downscaleToJpeg } from "./image-resize";

@@ -9,7 +9,7 @@
  * whichever side the user typed on.
  */
 
-import type { RemoteSurfaces } from "../../io/bridge/message-remote";
+import type { RemoteSurfaces } from "../../io/bridge/message/message-remote";
 import type { MessageWindowMode } from "../../settings/panels/message-window-settings";
 import type { Surfaces } from "./surfaces";
 

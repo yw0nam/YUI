@@ -14,8 +14,8 @@
 
 import "./surfaces.css";
 import type { AttachmentLimits } from "../../config/load";
-import type { UserQuote } from "../../io/bridge/message-bridge";
-import type { InputErrorAction } from "../../io/bridge/message-remote";
+import type { UserQuote } from "../../io/bridge/message/message-bridge";
+import type { InputErrorAction } from "../../io/bridge/message/message-remote";
 import type { ToolStatus } from "../chips/status-pill";
 import { subscribe as subscribeLocale, t } from "../i18n";
 import type { MicPort } from "../input/action-button";

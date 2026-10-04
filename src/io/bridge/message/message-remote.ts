@@ -8,8 +8,8 @@
  * `ready` and catch up.
  */
 
-import type { AttachmentLimits } from "../../config/load";
-import { createLogger } from "../../logger";
+import type { AttachmentLimits } from "../../../config/load";
+import { createLogger } from "../../../logger";
 import type { MessageBridge, UserQuote } from "./message-bridge";
 
 /** In-place fix offered next to an inline error (e.g. "Open Advanced" on an unconfigured backend). */

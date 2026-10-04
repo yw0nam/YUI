@@ -6,7 +6,7 @@
  * toggles it. The text is never spoken and never stored.
  */
 
-import type { ReasoningStore } from "../../io/bridge/reasoning-store";
+import type { ReasoningStore } from "../../io/bridge/reasoning/reasoning-store";
 import { subscribe as subscribeLocale, t } from "../i18n";
 import type { SpeechBubble } from "./speech-bubble";
 

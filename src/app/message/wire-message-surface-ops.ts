@@ -1,4 +1,4 @@
-import type { MessageBridge } from "../../io/bridge/message-bridge";
+import type { MessageBridge } from "../../io/bridge/message/message-bridge";
 import { createLogger } from "../../logger";
 import type { MessagePlate } from "../../ui/message/message-plate";
 import type { Surfaces } from "../../ui/surfaces/surfaces";

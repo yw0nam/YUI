@@ -8,8 +8,8 @@
  */
 
 import { describe, expect, it, vi } from "vitest";
-import { guardrailsFixture } from "../../config/load-test-helpers";
-import type { BridgeTransport } from "./core/bridge-core";
+import { guardrailsFixture } from "../../../config/load-test-helpers";
+import type { BridgeTransport } from "../core/bridge-core";
 import {
   createMessageBridge,
   type MessageControlOp,

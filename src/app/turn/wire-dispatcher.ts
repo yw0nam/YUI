@@ -15,7 +15,7 @@ import type { PushTurns } from "../../dispatcher/turn/push-turn";
 import type { QuotedTurn } from "../../dispatcher/turn/quoted-turn";
 import type { TurnLog } from "../../dispatcher/turn/turn";
 import { createTurnFeed, type TurnFeed } from "../../dispatcher/turn/turn-feed";
-import type { ReasoningStore } from "../../io/bridge/reasoning-store";
+import type { ReasoningStore } from "../../io/bridge/reasoning/reasoning-store";
 import type { BrokerPayload } from "../../io/chat/broker/broker-client";
 import type { PushSocket } from "../../io/chat/push/push-socket";
 import type { PacerSkipRecord, TurnRecord } from "../../io/chat/record/turn-record-log";

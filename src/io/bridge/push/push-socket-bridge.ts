@@ -6,10 +6,10 @@
  * A second socket is never opened: the conversation is one conversation.
  */
 
-import { createLogger } from "../../logger";
-import type { PushSocketState } from "../chat/push/push-socket";
-import { createStateMirror, publishState } from "./core/state-mirror";
-import type { SettingsBridge } from "./settings-bridge";
+import { createLogger } from "../../../logger";
+import type { PushSocketState } from "../../chat/push/push-socket";
+import { createStateMirror, publishState } from "../core/state-mirror";
+import type { SettingsBridge } from "../settings-bridge";
 
 const log = createLogger("push-socket-bridge");
 

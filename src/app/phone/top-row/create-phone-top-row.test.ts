@@ -4,7 +4,7 @@
  * buttons open the view on their tabs, and the delegation chip's lost-state tap opens Connection.
  */
 import { afterEach, beforeEach, describe, expect, it, type Mock, vi } from "vitest";
-import type { DelegationsStore } from "../../../io/bridge/delegations-store";
+import type { DelegationsStore } from "../../../io/bridge/delegations/delegations-store";
 import type { PushSocket, PushSocketState } from "../../../io/chat/push/push-socket";
 import { createVoiceInputStatus } from "../../../ui/chips/voice-input-status";
 import { setLocale, t } from "../../../ui/i18n";

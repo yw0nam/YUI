@@ -8,8 +8,8 @@ import { PRE_SPEECH_TIMEOUT_MS } from "../../dispatcher/backend/idle-watchdog";
 import { makeTurnOutput } from "../../dispatcher/test-helpers";
 import { createPushTurns } from "../../dispatcher/turn/push-turn";
 import { createTurnFeed, type TurnFeed } from "../../dispatcher/turn/turn-feed";
-import { createDelegationsStore } from "../../io/bridge/delegations-store";
-import { createReasoningStore } from "../../io/bridge/reasoning-store";
+import { createDelegationsStore } from "../../io/bridge/delegations/delegations-store";
+import { createReasoningStore } from "../../io/bridge/reasoning/reasoning-store";
 import type { ChatHistoryEntry } from "../../io/chat/conversation/chat-history-store";
 import type {
   DelegationItem,

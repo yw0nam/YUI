@@ -8,10 +8,10 @@
  */
 
 import { beforeEach, describe, expect, it } from "vitest";
-import type { BridgeTransport } from "./core/bridge-core";
+import type { BridgeTransport } from "../core/bridge-core";
+import { createSettingsBridge } from "../settings-bridge";
 import { createMirroredReasoning, publishReasoning } from "./reasoning-bridge";
 import type { ReasoningState } from "./reasoning-store";
-import { createSettingsBridge } from "./settings-bridge";
 
 /** In-memory pub/sub shared by two bridges — one per window. */
 function createFakeTransport(): BridgeTransport {

@@ -10,7 +10,7 @@ import type { DelegationItem, PushSocketState } from "../chat/push/push-socket";
 import { isGuideKey } from "../guide/guide-docs";
 import type { VoiceInputState } from "../voice/stt-vad";
 import { type BridgeTransport, createBridgeCore, type WindowKind } from "./core/bridge-core";
-import type { ReasoningState } from "./reasoning-store";
+import type { ReasoningState } from "./reasoning/reasoning-store";
 
 const CH_SETTINGS_CHANGED = "yui://settings-changed";
 const CH_MOUTH_PREVIEW = "yui://mouth-preview";

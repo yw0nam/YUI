@@ -4,7 +4,7 @@
  * Pure renderer — firing ≠ judgment: it draws the message the dispatcher admitted and holds the
  * bubble open while that turn runs. What the reply is, and whether there is one, is the backend's.
  */
-import type { UserQuote } from "../../io/bridge/message-bridge";
+import type { UserQuote } from "../../io/bridge/message/message-bridge";
 import { subscribe as subscribeLocale, t } from "../i18n";
 import type { SpeechBubble } from "./speech-bubble";
 

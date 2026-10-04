@@ -13,7 +13,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 vi.mock("./surfaces.css", () => ({}));
 vi.mock("../tokens.css", () => ({}));
 
-import { createReasoningStore } from "../../io/bridge/reasoning-store";
+import { createReasoningStore } from "../../io/bridge/reasoning/reasoning-store";
 import { createSurfaces } from "./surfaces";
 import { noTool } from "./test-helpers";
 

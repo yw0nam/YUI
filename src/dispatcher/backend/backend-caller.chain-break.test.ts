@@ -13,7 +13,7 @@
 
 import { beforeEach, describe, expect, it, type Mock, vi } from "vitest";
 import type { ToolStatus, Usage } from "../../contract";
-import { createReasoningStore } from "../../io/bridge/reasoning-store";
+import { createReasoningStore } from "../../io/bridge/reasoning/reasoning-store";
 import type { Logger } from "../../logger";
 import {
   CONFIG,

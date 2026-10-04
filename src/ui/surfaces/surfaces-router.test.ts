@@ -11,8 +11,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { guardrailsFixture } from "../../config/load-test-helpers";
 import type { BridgeTransport } from "../../io/bridge/core/bridge-core";
-import { createMessageBridge } from "../../io/bridge/message-bridge";
-import { createRemoteSurfaces, type RemoteSurfaces } from "../../io/bridge/message-remote";
+import { createMessageBridge } from "../../io/bridge/message/message-bridge";
+import { createRemoteSurfaces, type RemoteSurfaces } from "../../io/bridge/message/message-remote";
 import type { MessageWindowMode } from "../../settings/panels/message-window-settings";
 import { createMessagePlate } from "../message/message-plate";
 import { createSurfaces, type Surfaces } from "./surfaces";

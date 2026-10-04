@@ -7,7 +7,7 @@ import type {
   MessageWindowMode,
   MessageWindowSettingsStore,
 } from "../../../settings/panels/message-window-settings";
-import type { RemoteSurfaces } from "../../bridge/message-remote";
+import type { RemoteSurfaces } from "../../bridge/message/message-remote";
 
 interface MessageWindowModeDeps {
   store: Pick<MessageWindowSettingsStore, "setMode" | "subscribe">;

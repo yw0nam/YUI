@@ -1,5 +1,5 @@
 import { expect, it, vi } from "vitest";
-import type { MessageBridge, MessageSurfaceOp } from "../../io/bridge/message-bridge";
+import type { MessageBridge, MessageSurfaceOp } from "../../io/bridge/message/message-bridge";
 import type { MessagePlate } from "../../ui/message/message-plate";
 import type { Surfaces } from "../../ui/surfaces/surfaces";
 import { wireMessageSurfaceOps } from "./wire-message-surface-ops";

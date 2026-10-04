@@ -6,9 +6,9 @@ import {
   localStorageUserVrmStorage,
   localStorageVrmStorage,
 } from "../../io/assets/vrm-selection";
-import { createDelegationHistory } from "../../io/bridge/delegation-history";
-import { createMirroredDelegations } from "../../io/bridge/delegations-bridge";
-import { createMirroredPushSocket } from "../../io/bridge/push-socket-bridge";
+import { createDelegationHistory } from "../../io/bridge/delegations/delegation-history";
+import { createMirroredDelegations } from "../../io/bridge/delegations/delegations-bridge";
+import { createMirroredPushSocket } from "../../io/bridge/push/push-socket-bridge";
 import { createSettingsSecretProvider } from "../../io/chat/secret-provider";
 import { wireVoiceListAutoRefresh } from "../../io/voice/voices/voice-list-refresh";
 import { resolveScreenSourceProvider } from "../../io/window/capture/tauri-screen";

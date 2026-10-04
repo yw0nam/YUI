@@ -5,7 +5,7 @@
  * reports the utterance it opened, the turn log reports settlement, and each fact becomes one call
  * on the surfaces. Whether there is a reply is the backend's.
  */
-import type { UserQuote } from "../../io/bridge/message-bridge";
+import type { UserQuote } from "../../io/bridge/message/message-bridge";
 import { guideKeyOf, userImagesOf, userTextOf } from "../backend/context-builder";
 import { userTurnSourceOf } from "../core/classify";
 import type { Turn, TurnLog } from "./turn";

@@ -4,7 +4,7 @@
 
 import { beforeEach, describe, expect, it, type Mock, vi } from "vitest";
 import type { ToolStatus } from "../../contract";
-import { createReasoningStore } from "../../io/bridge/reasoning-store";
+import { createReasoningStore } from "../../io/bridge/reasoning/reasoning-store";
 import { createTurnFeed } from "./turn-feed";
 
 let sink: Mock<(status: ToolStatus) => void>;
