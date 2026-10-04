@@ -8,6 +8,7 @@
 
 import "../styles.css";
 import { wireSettingsWindowSync } from "../app/cross-window/wire-cross-window";
+import { quickControlsConfigDefaults } from "../app/settings/config-defaults";
 import { createConversationStores } from "../app/settings/conversation-stores";
 import { devKeyFallback } from "../app/settings/dev-key-fallback";
 import { createEffectiveEndpoints, wireSpeakerSelection } from "../app/settings/wire-avatar";
@@ -23,16 +24,12 @@ import {
 import { createDelegationHistory } from "../io/bridge/delegation-history";
 import { createMirroredDelegations } from "../io/bridge/delegations-bridge";
 import { createMirroredPushSocket } from "../io/bridge/push-socket-bridge";
-import { agentTriggerableMotionIds } from "../io/chat/broker-client";
 import { createSettingsSecretProvider } from "../io/chat/secret-provider";
 import { wireVoiceListAutoRefresh } from "../io/voice/voices/voice-list-refresh";
 import { resolveScreenSourceProvider } from "../io/window/capture/tauri-screen";
 import { closeSettingsWindow, titleSettingsWindow } from "../io/window/openers/settings-window";
 import { excludeOwnOriginFromCorsFetch } from "../io/window/own-origin-fetch";
 import { createLogger, initLogger } from "../logger";
-import { endpointDefaultsOf } from "../settings/backend/endpoints-settings";
-import { rateLimitDefaultsFromConfig } from "../settings/backend/guardrails-settings";
-import { screenDefaultsFromConfig } from "../settings/capture/screen-settings";
 import { createSettingsStores } from "../settings/settings-stores";
 import { createVoiceInputStatus } from "../ui/chips/voice-input-status";
 import { getLocale, subscribe as subscribeLocale, t } from "../ui/i18n";
@@ -225,24 +222,8 @@ async function bootstrap(): Promise<void> {
       presenceSettings,
       pacerGapSettings,
       rateLimitSettings: guardrailsSettings,
-      getRateLimitDefaults: () => {
-        if (!configLoaded) return undefined;
-        try {
-          return rateLimitDefaultsFromConfig(config.get().guardrails);
-        } catch {
-          return undefined;
-        }
-      },
       screenSettings,
       screenKnobSettings,
-      getScreenDefaults: () => {
-        if (!configLoaded) return undefined;
-        try {
-          return screenDefaultsFromConfig(config.get().screen);
-        } catch {
-          return undefined;
-        }
-      },
       sourceProvider,
       voiceStatus: voiceInputStatus,
       lipsync: lipsyncSettings,
@@ -269,45 +250,13 @@ async function bootstrap(): Promise<void> {
       // The pet window owns the input source: the request travels there and is submitted.
       onGuide: (guide, text) => bridge.emitHelpGuide({ guide, text }),
       onResetViewpoint: () => cameraSettings.resetOrbit(),
-      getDefaultInstructions: () => {
-        if (!configLoaded) return undefined;
-        try {
-          return config.get().endpoints.chat_instructions;
-        } catch {
-          return undefined;
-        }
-      },
       endpointsSettings,
       chatKeySettings,
       sttKeySettings,
       ttsKeySettings,
-      getEndpointDefaults: () => (configLoaded ? endpointDefaultsOf(config) : undefined),
-      getDefaultChatApi: () => {
-        if (!configLoaded) return undefined;
-        try {
-          return config.get().endpoints.chat_api;
-        } catch {
-          return undefined;
-        }
-      },
+      ...quickControlsConfigDefaults(config),
       idleMotionSettings,
-      getIdlePool: () => {
-        if (!configLoaded) return undefined;
-        try {
-          return config.get().motions.idle;
-        } catch {
-          return undefined;
-        }
-      },
       expressMotionSettings,
-      getExpressMotions: () => {
-        if (!configLoaded) return [];
-        try {
-          return agentTriggerableMotionIds(config.get().motions);
-        } catch {
-          return [];
-        }
-      },
       sessionDiagnostics,
       sessionStore,
       transcript: chatHistoryStore,

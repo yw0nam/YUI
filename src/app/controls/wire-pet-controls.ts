@@ -7,18 +7,15 @@ import type { ConfigStore } from "../../config/store";
 import type { GuideKey } from "../../contract";
 import { removeUserVrm } from "../../io/assets/vrm-import";
 import type { RemoteSurfaces } from "../../io/bridge/message-remote";
-import { agentTriggerableMotionIds } from "../../io/chat/broker-client";
 import type { PushSocket } from "../../io/chat/push-socket";
 import type { ScreenSourceProvider } from "../../io/window/capture/screen-source-provider";
 import type { Renderer } from "../../renderer";
-import { endpointDefaultsOf } from "../../settings/backend/endpoints-settings";
-import { rateLimitDefaultsFromConfig } from "../../settings/backend/guardrails-settings";
-import { screenDefaultsFromConfig } from "../../settings/capture/screen-settings";
 import type { SettingsStores } from "../../settings/settings-stores";
 import type { VoiceInputStatus } from "../../ui/chips/voice-input-status";
 import { subscribe as subscribeLocale } from "../../ui/i18n";
 import { createQuickControls } from "../../ui/quick-controls/quick-controls";
 import type { Surfaces } from "../../ui/surfaces/surfaces";
+import { quickControlsConfigDefaults } from "../settings/config-defaults";
 import type { ConversationStores } from "../settings/conversation-stores";
 import type { wireSpeakerSelection, wireVrmSelection } from "../settings/wire-avatar";
 import { wireCueLocaleSync } from "../settings/wire-cue-locale-sync";
@@ -149,22 +146,8 @@ export function wirePetControls(deps: {
       presenceSettings,
       pacerGapSettings,
       rateLimitSettings: guardrailsSettings,
-      getRateLimitDefaults: () => {
-        try {
-          return rateLimitDefaultsFromConfig(config.get().guardrails);
-        } catch {
-          return undefined;
-        }
-      },
       screenSettings,
       screenKnobSettings,
-      getScreenDefaults: () => {
-        try {
-          return screenDefaultsFromConfig(config.get().screen);
-        } catch {
-          return undefined;
-        }
-      },
       transcript: chatHistoryStore,
       // Same instances the dispatcher reads through, so "start fresh" takes effect on the next turn.
       sessionStore,
@@ -195,42 +178,13 @@ export function wirePetControls(deps: {
       onOpenDevtools: openDevtools,
       // Reset the camera viewpoint to head-on (store drives renderer.setOrbit).
       onResetViewpoint: () => cameraSettings.resetOrbit(),
-      // Default instructions to show as placeholder when empty (ignored if config not loaded).
-      getDefaultInstructions: () => {
-        try {
-          return config.get().endpoints.chat_instructions;
-        } catch {
-          return undefined;
-        }
-      },
       endpointsSettings,
       chatKeySettings,
       sttKeySettings,
       ttsKeySettings,
-      getEndpointDefaults: () => endpointDefaultsOf(config),
-      getDefaultChatApi: () => {
-        try {
-          return config.get().endpoints.chat_api;
-        } catch {
-          return undefined;
-        }
-      },
+      ...quickControlsConfigDefaults(config),
       idleMotionSettings,
-      getIdlePool: () => {
-        try {
-          return config.get().motions.idle;
-        } catch {
-          return undefined;
-        }
-      },
       expressMotionSettings,
-      getExpressMotions: () => {
-        try {
-          return agentTriggerableMotionIds(config.get().motions);
-        } catch {
-          return [];
-        }
-      },
       onPopOut: () => openSettings(),
       onMessage: () => surfaces.summonInput(),
       onGuide,

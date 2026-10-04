@@ -60,6 +60,7 @@ YUI/
       controls/                      # The pet window's summonable control surfaces
         wire-pet-controls.ts         # Quick-controls panel, remounted on locale change, and the stage context menu
       settings/                      # Selections and conversation state applied to the running app
+        config-defaults.ts           # The quick-controls getters over the bundled config, shared by the pet and settings windows
         conversation-stores.ts       # Constructs the four shared io/chat conversation stores each window owns and disposes
         window-stores.ts             # Creates the settings and conversation store bags of the pet and phone windows and registers each store's teardown
         wire-avatar.ts               # VRM and speaker selection stores, their swap and import flows, the voice-list refresh on override commits, and the avatar config applied at boot
