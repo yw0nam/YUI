@@ -1,16 +1,11 @@
 # Logs
 logs
 *.log
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
 pnpm-debug.log*
-lerna-debug.log*
 
 node_modules
 .pnpm-store/
 dist
-dist-ssr
 *.local
 
 # Editor directories and files
@@ -18,10 +13,6 @@ dist-ssr
 !.vscode/extensions.json
 .idea
 .DS_Store
-*.suo
-*.ntvs*
-*.njsproj
-*.sln
 *.sw?
 resources/vrms/*
 !resources/vrms/.gitkeep
@@ -32,7 +23,6 @@ public/purchased_motions/*
 !public/purchased_motions/AGENTS.md
 resources/vrma/
 .env
-.env.local
 
 # Local-only Claude Code setup: a directory in the main checkout, a symlink in worktrees
 /.claude

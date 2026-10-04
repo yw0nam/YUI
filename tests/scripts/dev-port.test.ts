@@ -6,7 +6,7 @@ import {
   resolvePort,
   resolveVitePort,
   tauriConfigArg,
-} from "../scripts/dev-port.mjs";
+} from "../../scripts/dev-port.mjs";
 
 describe("isValidPort", () => {
   it("accepts the integer boundaries 1 and 65535", () => {

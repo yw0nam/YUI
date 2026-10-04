@@ -1,6 +1,6 @@
 # Mods
 
-Standalone MCP servers ("Mods") that expose host capabilities to the remote backend agent (Hermes). Each Mod is an independent process, decoupled from the YUI app — the agent attaches them as tool sources alongside the Expression Broker. They live under [`Mods/`](https://github.com/yw0nam/YUI/tree/main/Mods) in the repository root. Mods are optional: YUI runs without any of them.
+Standalone MCP servers ("Mods") that expose host capabilities to the remote backend agent. Each Mod is an independent process, decoupled from the YUI app — the agent attaches them as tool sources alongside the Expression Broker. They live under [`Mods/`](https://github.com/yw0nam/YUI/tree/main/Mods) in the repository root. Mods are optional: YUI runs without any of them.
 
 ## Convention
 

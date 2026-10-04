@@ -59,7 +59,6 @@ export default defineConfig(() => ({
       ignored: ["**/src-tauri/target/**", "**/src-tauri/gen/**"],
     },
     // Same-origin /__hermes → dev proxy to the Responses backend (avoids web chat CORS preflight, SSE streaming).
-    // :8643 stays in sync with chat_base_url in configs/endpoints.json.
     proxy: {
       "/__hermes": {
         target: "http://localhost:8643",

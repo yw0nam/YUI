@@ -1,7 +1,7 @@
 import { spawn } from "node:child_process";
 import { describe, expect, it } from "vitest";
 
-import { packageManagerCommand } from "../scripts/package-manager.mjs";
+import { packageManagerCommand } from "../../scripts/package-manager.mjs";
 
 describe("package manager launcher", () => {
   it("uses a shell only on Windows", () => {
