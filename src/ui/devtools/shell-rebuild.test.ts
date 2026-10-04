@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 
 import { afterEach, expect, it, type Mock, vi } from "vitest";
+import type { createDevtoolsShell } from "./shell";
 import { createLocaleRebuilder } from "./shell-rebuild";
 
 type Section = "context" | "advanced" | "motion";
@@ -18,10 +19,10 @@ const mount = document.createElement("div");
 const log = { error: vi.fn() };
 let rebuilder: ReturnType<typeof createLocaleRebuilder> | undefined;
 
-interface FakeShell {
-  readonly active: Section;
-  activate: Mock<(section: Section) => Promise<void>>;
-  dispose: Mock<() => void>;
+type Shell = ReturnType<typeof createDevtoolsShell>;
+interface FakeShell extends Shell {
+  activate: Mock<Shell["activate"]>;
+  dispose: Mock<Shell["dispose"]>;
 }
 
 /** Fake shells render a nav button per section and an advanced input; the motion section adds a select. */
@@ -62,7 +63,7 @@ function fakeShells(motionLoad?: (build: number) => Promise<void>) {
 
 function start(fake: ReturnType<typeof fakeShells>) {
   document.body.append(mount);
-  rebuilder = createLocaleRebuilder({ mount, build: fake.build as never, log });
+  rebuilder = createLocaleRebuilder({ mount, build: fake.build, log });
   return rebuilder;
 }
 

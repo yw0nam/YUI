@@ -57,11 +57,6 @@ vi.mock("../app/settings/conversation-stores", async (importOriginal) => {
   return { ...actual, createConversationStores: vi.fn(actual.createConversationStores) };
 });
 
-import { createConversationStores } from "../app/settings/conversation-stores";
-import { createSettingsStores } from "../settings/settings-stores";
-import { createDevtoolsShell } from "../ui/devtools/shell";
-import { setLocale } from "../ui/i18n";
-
 type CorsFetchGlobal = { CORSFetch?: { config: (c: { exclude: RegExp[] }) => void } };
 
 // jsdom lacks CSS.escape, which the nav focus restore needs.
@@ -77,30 +72,14 @@ afterEach(async () => {
   window.dispatchEvent(new Event("beforeunload"));
   // The shell disposes a mounted preview asynchronously; let it land before the counters reset.
   await new Promise<void>((resolve) => setTimeout(resolve, 0));
+  const { setLocale } = await import("../ui/i18n");
   setLocale("en");
-  mountMotionPreview.mockClear();
+  vi.clearAllMocks();
   motionPreviewState.calls = 0;
   motionPreviewState.disposes = 0;
   motionPreviewState.blockSecondLoad = false;
   motionPreviewState.releaseSecondLoad = () => {};
   delete (globalThis as CorsFetchGlobal).CORSFetch;
-});
-
-it("passes both store bags and their devtools stores through bootstrap by identity", async () => {
-  document.body.innerHTML = '<div id="app"></div>';
-
-  await import("./devtools-main");
-  await vi.waitFor(() => expect(wireDevtoolsSync).toHaveBeenCalledOnce());
-
-  const bag = vi.mocked(createSettingsStores).mock.results[0]!.value;
-  const conversation = vi.mocked(createConversationStores).mock.results[0]!.value;
-  expect(wireDevtoolsSync).toHaveBeenCalledWith({ stores: bag, conversation, log });
-  expect(createDevtoolsShell).toHaveBeenCalledWith(
-    expect.objectContaining({
-      history: conversation.contextHistory,
-      endpointsSettings: bag.endpointsSettings,
-    }),
-  );
 });
 
 /** Boots a fresh entry module; the locale setter must come from the same module graph. */
@@ -112,6 +91,24 @@ async function bootFresh() {
   await vi.waitFor(() => expect(document.querySelector(".devtools-nav")).not.toBeNull());
   return setLocale;
 }
+
+it("passes both store bags and their devtools stores through bootstrap by identity", async () => {
+  await bootFresh();
+  await vi.waitFor(() => expect(wireDevtoolsSync).toHaveBeenCalledOnce());
+
+  const { createSettingsStores } = await import("../settings/settings-stores");
+  const { createConversationStores } = await import("../app/settings/conversation-stores");
+  const { createDevtoolsShell } = await import("../ui/devtools/shell");
+  const bag = vi.mocked(createSettingsStores).mock.results.at(-1)!.value;
+  const conversation = vi.mocked(createConversationStores).mock.results.at(-1)!.value;
+  expect(wireDevtoolsSync).toHaveBeenCalledWith({ stores: bag, conversation, log });
+  expect(createDevtoolsShell).toHaveBeenCalledWith(
+    expect.objectContaining({
+      history: conversation.contextHistory,
+      endpointsSettings: bag.endpointsSettings,
+    }),
+  );
+});
 
 it("keeps the focused advanced input and its in-progress text across a locale rebuild", async () => {
   const setLocale = await bootFresh();
@@ -210,10 +207,7 @@ it("serializes rapid locale rebuilds until the final motion preview mounts", asy
 it("keeps its own origin off the cors-fetch proxy", async () => {
   const config = vi.fn();
   (globalThis as CorsFetchGlobal).CORSFetch = { config };
-  document.body.innerHTML = '<div id="app"></div>';
-
-  vi.resetModules();
-  await import("./devtools-main");
+  await bootFresh();
 
   await vi.waitFor(() => expect(config).toHaveBeenCalledOnce());
   const { exclude } = config.mock.calls[0][0];
