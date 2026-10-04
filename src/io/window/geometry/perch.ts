@@ -1,6 +1,6 @@
 /** Perch values, the perch-target and placement types, and the host-edge span that the drop source, the avatar RPC and the locomotion loops share. */
 import type { ScreenRect, WindowRect } from "../../../contract";
-import type { ScreenPoint } from "../../../renderer/geometry/perch-geometry";
+import type { ScreenPoint } from "../../../renderer/geometry/probe/perch-geometry";
 
 /** Registry id of the clip that holds the character in place for as long as she is perched. */
 export const PERCH_MOTION_ID = "window_sit";

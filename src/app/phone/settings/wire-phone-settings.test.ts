@@ -8,10 +8,7 @@ import type { EndpointsConfig } from "../../../contract";
 import { createStageBackground } from "../../../io/assets/stage/stage-background";
 import { createVrmSelection } from "../../../io/assets/vrm-selection";
 import type { PushSocket } from "../../../io/chat/push/push-socket";
-import {
-  CAMERA_AZIMUTH_DEFAULT,
-  CAMERA_POLAR_DEFAULT,
-} from "../../../renderer/geometry/camera-fit";
+import { CAMERA_AZIMUTH_DEFAULT, CAMERA_POLAR_DEFAULT } from "../../../renderer/camera/camera-fit";
 import { CAMERA_ZOOM_DEFAULT } from "../../../settings/avatar/camera-settings";
 import { createSettingsStores } from "../../../settings/settings-stores";
 import { createVoiceMode } from "../../../settings/voice/voice-mode";

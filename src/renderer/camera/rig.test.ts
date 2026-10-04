@@ -15,8 +15,8 @@ import {
   clampPolar,
   computeCameraFit,
   orbitPosition,
-} from "../geometry/camera-fit";
-import { computeBandFit } from "../geometry/fit-band";
+} from "./camera-fit";
+import { computeBandFit } from "./fit-band";
 import { type CameraRig, createCameraRig } from "./rig";
 
 const W = 800;

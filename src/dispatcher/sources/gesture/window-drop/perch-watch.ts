@@ -19,8 +19,8 @@ import {
   PERCH_POLL_MS,
 } from "../../../../io/window/geometry/perch";
 import { createLogger } from "../../../../logger";
-import type { ScreenPoint } from "../../../../renderer/geometry/perch-geometry";
-import { petPxToGlobalPoints } from "../../../../renderer/geometry/perch-geometry";
+import type { ScreenPoint } from "../../../../renderer/geometry/probe/perch-geometry";
+import { petPxToGlobalPoints } from "../../../../renderer/geometry/probe/perch-geometry";
 import type { EventBus } from "../../../core/event-bus";
 
 const log = createLogger("window-drop");

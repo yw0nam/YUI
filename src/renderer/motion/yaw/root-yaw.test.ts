@@ -1,6 +1,6 @@
 import type { VRM } from "@pixiv/three-vrm";
 import { describe, expect, it } from "vitest";
-import { yawAt } from "../geometry/body-yaw";
+import { yawAt } from "./body-yaw";
 import { createRootYaw } from "./root-yaw";
 
 describe("createRootYaw", () => {

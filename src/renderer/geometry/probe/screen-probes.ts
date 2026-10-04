@@ -1,7 +1,7 @@
 /** Read-only screen probes of the loaded model: feet anchor, width, seat and tap points, hand anchors, pixels per metre. */
 import type { VRM } from "@pixiv/three-vrm";
 import * as THREE from "three";
-import type { Renderer } from "../types";
+import type { Renderer } from "../../types";
 import {
   characterScreenHeight,
   projectToScreen,

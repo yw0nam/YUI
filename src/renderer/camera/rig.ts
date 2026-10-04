@@ -8,9 +8,9 @@ import {
   computeCameraFit,
   type OrbitAngles,
   orbitPosition,
-} from "../geometry/camera-fit";
-import { computeBandFit } from "../geometry/fit-band";
-import { applyViewWindow, type ViewWindow } from "../geometry/view-window";
+} from "./camera-fit";
+import { computeBandFit } from "./fit-band";
+import { applyViewWindow, type ViewWindow } from "./view-window";
 
 /**
  * Per-frame ease rate for the effective orbit polar (proportional step). Drag nudges

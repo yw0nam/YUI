@@ -12,7 +12,7 @@
 
 import * as THREE from "three";
 import { describe, expect, it } from "vitest";
-import { computeCameraFit } from "./camera-fit";
+import { computeCameraFit } from "../../camera/camera-fit";
 import { projectBoxWidthPx, projectFeetAnchor } from "./project-anchor";
 
 /** Box spanning [cx±sx/2, cy±sy/2, cz±sz/2]. */

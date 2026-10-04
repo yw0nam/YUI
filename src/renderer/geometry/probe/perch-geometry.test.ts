@@ -11,7 +11,7 @@
 
 import * as THREE from "three";
 import { describe, expect, it } from "vitest";
-import { clampPolar, orbitPosition } from "./camera-fit";
+import { clampPolar, orbitPosition } from "../../camera/camera-fit";
 import {
   CATCH_D,
   CATCH_U,

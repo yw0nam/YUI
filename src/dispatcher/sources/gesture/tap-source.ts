@@ -6,7 +6,7 @@ import {
   classifyTapRegion,
   type TapRegion,
   type TapRegionBones,
-} from "../../../renderer/geometry/tap-region";
+} from "../../../renderer/geometry/hit/tap-region";
 import type { EventBus } from "../../core/event-bus";
 
 const log = createLogger("tap-source");

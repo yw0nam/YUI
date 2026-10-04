@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, expect, it, vi } from "vitest";
-import { nextZoom } from "../../renderer/geometry/camera-fit";
+import { nextZoom } from "../../renderer/camera/camera-fit";
 import {
   CAMERA_WHEEL_SENSITIVITY,
   CAMERA_ZOOM_MAX,

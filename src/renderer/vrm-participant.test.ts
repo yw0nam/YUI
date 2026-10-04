@@ -10,8 +10,8 @@
 import type { VRM } from "@pixiv/three-vrm";
 import type { PerspectiveCamera } from "three";
 import { describe, expect, it, vi } from "vitest";
-import type { CursorGaze } from "./expression/cursor-gaze";
 import type { EmotionCrossfade } from "./expression/emotion-crossfade";
+import type { CursorGaze } from "./expression/gaze/cursor-gaze";
 import type { MouthLipsync } from "./expression/mouth-lipsync";
 import type { PinController } from "./pin-controller";
 import {

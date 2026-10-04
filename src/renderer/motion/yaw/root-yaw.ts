@@ -1,7 +1,7 @@
 /** Root yaw: the eased facing the ambient stroll turns the character by, written onto the model's base rotation each frame. */
 import type { VRM } from "@pixiv/three-vrm";
-import { yawAt } from "../geometry/body-yaw";
-import type { VrmParticipant } from "../vrm-participant";
+import type { VrmParticipant } from "../../vrm-participant";
+import { yawAt } from "./body-yaw";
 
 export interface RootYaw extends VrmParticipant {
   onVrmLoaded(vrm: VRM): void;

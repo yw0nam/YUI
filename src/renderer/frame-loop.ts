@@ -6,7 +6,7 @@
 import type { VRM } from "@pixiv/three-vrm";
 import * as THREE from "three";
 import type { Logger } from "../logger";
-import { isActive, shouldRenderFrame } from "./geometry/frame-gate";
+import { isActive, shouldRenderFrame } from "./frame-gate";
 import type { TickContext, TickFn } from "./types";
 import { anyConverging, stepParticipants, type VrmParticipant } from "./vrm-participant";
 

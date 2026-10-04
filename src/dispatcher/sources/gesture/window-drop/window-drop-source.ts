@@ -35,12 +35,12 @@ import type {
 } from "../../../../io/window/geometry/perch";
 import { containsSeat } from "../../../../io/window/geometry/perch";
 import { createLogger } from "../../../../logger";
-import type { ScreenPoint } from "../../../../renderer/geometry/perch-geometry";
+import type { ScreenPoint } from "../../../../renderer/geometry/probe/perch-geometry";
 import {
   inCatchZone,
   inSideCatchZone,
   peekTargetPx,
-} from "../../../../renderer/geometry/perch-geometry";
+} from "../../../../renderer/geometry/probe/perch-geometry";
 import type { EventBus } from "../../../core/event-bus";
 import {
   createPerchWatch,

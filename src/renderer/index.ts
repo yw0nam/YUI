@@ -20,25 +20,25 @@ import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import type { EmotionRegistry, MotionRegistry } from "../contract";
 import { createLogger } from "../logger";
 import { routeDirective } from "./apply-directive";
+import { clampPixelRatio } from "./camera/pixel-ratio";
 import { createCameraRig } from "./camera/rig";
-import { type CursorGaze, createCursorGaze } from "./expression/cursor-gaze";
+import type { ViewWindow } from "./camera/view-window";
 import { createEmotionCrossfade, type EmotionCrossfade } from "./expression/emotion-crossfade";
 import type { RenderEmotionSignal } from "./expression/emotion-resolver";
+import { type CursorGaze, createCursorGaze } from "./expression/gaze/cursor-gaze";
 import {
   createMouthLipsync,
   describeExpressions,
   MOUTH_EXPRESSION_KEY,
 } from "./expression/mouth-lipsync";
 import { createFrameLoop, type FrameLoop } from "./frame-loop";
-import { type AlphaHitTest, createAlphaHitTest } from "./geometry/alpha-hit-test";
-import { SEAT_DROP_DEFAULT } from "./geometry/perch-geometry";
-import { clampPixelRatio } from "./geometry/pixel-ratio";
-import { createScreenProbes } from "./geometry/screen-probes";
-import { clientToStage } from "./geometry/stage-coords";
-import type { ViewWindow } from "./geometry/view-window";
+import { type AlphaHitTest, createAlphaHitTest } from "./geometry/hit/alpha-hit-test";
+import { clientToStage } from "./geometry/hit/stage-coords";
+import { SEAT_DROP_DEFAULT } from "./geometry/probe/perch-geometry";
+import { createScreenProbes } from "./geometry/probe/screen-probes";
 import { createClipLibrary } from "./motion/clip-library";
 import { createMotionPlayback } from "./motion/motion-playback";
-import { createRootYaw } from "./motion/root-yaw";
+import { createRootYaw } from "./motion/yaw/root-yaw";
 import { createPinController, type PinController } from "./pin-controller";
 import type { Renderer, RendererOptions, TickFn, VrmLoadResult } from "./types";
 import { prepareVrm, readVrmMetaName } from "./vrm-loading";
@@ -53,8 +53,8 @@ const log = createLogger("renderer");
 const SEAT_DROP = SEAT_DROP_DEFAULT;
 
 export type { RenderEmotionSignal } from "./expression/emotion-resolver";
+export { downPitchSign } from "./expression/gaze/bone-pitch";
 export type { MouthLipsync } from "./expression/mouth-lipsync";
-export { downPitchSign } from "./geometry/bone-pitch";
 export type { RenderMotionSignal } from "./motion/motion-controller";
 export type { Renderer, RendererOptions, TickContext, TickFn, VrmLoadResult } from "./types";
 

@@ -9,8 +9,8 @@
 
 import * as THREE from "three";
 import { describe, expect, it } from "vitest";
+import { projectBoxWidthPx, projectFeetAnchor } from "../geometry/probe/project-anchor";
 import { computeCameraFit } from "./camera-fit";
-import { projectBoxWidthPx, projectFeetAnchor } from "./project-anchor";
 import { applyViewWindow, type ViewWindow } from "./view-window";
 
 /** Box spanning [cx±sx/2, cy±sy/2, cz±sz/2]. */

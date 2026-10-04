@@ -2,9 +2,9 @@
 import type { VRM } from "@pixiv/three-vrm";
 import type { FitBandConfig, FramingConfig, GazeKnobs } from "../config/load";
 import type { ControlEnvelope, EmotionRegistry, MotionRegistry } from "../contract";
+import type { OrbitAngles } from "./camera/camera-fit";
 import type { RenderEmotionSignal } from "./expression/emotion-resolver";
-import type { OrbitAngles } from "./geometry/camera-fit";
-import type { ScreenAnchor } from "./geometry/project-anchor";
+import type { ScreenAnchor } from "./geometry/probe/project-anchor";
 import type { RenderMotionSignal } from "./motion/motion-controller";
 
 export interface RendererOptions {

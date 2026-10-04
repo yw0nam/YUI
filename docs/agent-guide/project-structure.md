@@ -132,28 +132,27 @@ YUI/
       index.ts                       # three.js and VRM output layer: scene, rAF loop, VRM load and hot-swap
       types.ts                       # Renderer options, per-frame tick context, and the Renderer surface
       apply-directive.ts             # Pure routing of a control envelope into the emotion and motion sinks
+      frame-gate.ts                  # Pure idle and active frame-throttle decision
       frame-loop.ts                  # The rAF loop with its clock, hidden-document pause, and idle-throttle gate
       pin-controller.ts              # Stateful perch and peek pin apply layer
       vrm-loading.ts                 # VRM optimisation of a loaded glTF and the display-name read
       vrm-participant.ts             # The per-frame lifecycle every VRM-bound sub-controller implements
       camera/                        # Camera framing, zoom, and orbit state
-        rig.ts                       # Fit-to-bounds framing, wheel zoom, the eased orbit polar, and the travel view window
-      geometry/                      # Pure math and pixel sampling with no three.js state
-        alpha-hit-test.ts            # CPU-side low-res silhouette grab and sampling
-        body-yaw.ts                  # Pure easing math for the root yaw a stroll turns by
-        bone-pitch.ts                # Sign that turns a downward head pitch into a normalized bone's local rotation.x
         camera-fit.ts                # Pure fit-to-bounds framing math
         fit-band.ts                  # Pure height-bound fit of a vertical band of the model box
-        frame-gate.ts                # Pure idle and active frame-throttle decision
-        gaze-tracker.ts              # Pure cursor-gaze zone curve and angle damping
-        hit-test.ts                  # Pure helpers for the alpha silhouette predicate
-        perch-geometry.ts            # Pure math for the window-sit perch
         pixel-ratio.ts               # Pure devicePixelRatio clamp
-        project-anchor.ts            # Projects the world feet point into canvas pixels
-        screen-probes.ts             # Read-only screen probes of the loaded model: feet anchor, width, seat and tap points, hand anchors, pixels per metre
-        stage-coords.ts              # Client CSS px to stage-local coordinate conversion
-        tap-region.ts                # Classifies a tap point into a body region
+        rig.ts                       # Fit-to-bounds framing, wheel zoom, the eased orbit polar, and the travel view window
         view-window.ts               # Draws the reference-size framing at an offset inside a parked canvas
+      geometry/                      # Pure math and pixel sampling with no three.js state
+        hit/                         # Alpha-silhouette hit-testing, stage coordinates, and tap regions
+          alpha-hit-test.ts          # CPU-side low-res silhouette grab and sampling
+          hit-test.ts                # Pure helpers for the alpha silhouette predicate
+          stage-coords.ts            # Client CSS px to stage-local coordinate conversion
+          tap-region.ts              # Classifies a tap point into a body region
+        probe/                       # Read-only model probes, anchor projection, and perch math
+          perch-geometry.ts          # Pure math for the window-sit perch
+          project-anchor.ts          # Projects the world feet point into canvas pixels
+          screen-probes.ts           # Read-only screen probes of the loaded model: feet anchor, width, seat and tap points, hand anchors, pixels per metre
       motion/                        # Clip scheduling, variant swaps, and clip processing
         clip-library.ts              # Per-VRM .vrma clip cache: load, mirror, root-lock detrend, dead-clip memo, crossfade clone
         cycle-dwell.ts               # Single-timer scheduler for a cycle motion's variant swap
@@ -164,14 +163,19 @@ YUI/
         motion-start-generation.ts   # Tracks which asynchronous motion start owns mixer playback
         perch-hold.ts                # Held-posture suppression and baseline rules
         recenter-root-motion.ts      # Strips baked horizontal drift from VRMA root motion
-        root-yaw.ts                  # Eased root yaw the ambient stroll turns the character by, written onto the model's base rotation each frame
         self-crossfade.ts            # Clip-cache key composition and playback clip selection
+        yaw/                         # Root-yaw easing math and its per-frame apply
+          body-yaw.ts                # Pure easing math for the root yaw a stroll turns by
+          root-yaw.ts                # Eased root yaw the ambient stroll turns the character by, written onto the model's base rotation each frame
       expression/                    # Emotion, mouth, and gaze apply layers over the face
-        cursor-gaze.ts               # Stateful three.js apply layer for cursor head and eye tracking
         ease-emotion.ts              # Eases the expression back to neutral when playback ends
         emotion-crossfade.ts         # Stateful VRM-expression crossfade apply layer
         emotion-resolver.ts          # Pure expression lookup and fallback-chain traversal
         mouth-lipsync.ts             # Amplitude-only mouth state machine and expression describe helper
+        gaze/                        # Cursor-gaze math and its three.js apply layer
+          bone-pitch.ts              # Sign that turns a downward head pitch into a normalized bone's local rotation.x
+          cursor-gaze.ts             # Stateful three.js apply layer for cursor head and eye tracking
+          gaze-tracker.ts            # Pure cursor-gaze zone curve and angle damping
     dispatcher/                      # Event bus + classify, guardrail, route
       dispatcher.ts                  # The router that enforces the firing-is-not-judgment boundary
       core/

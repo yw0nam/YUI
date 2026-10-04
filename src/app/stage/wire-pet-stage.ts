@@ -1,7 +1,7 @@
 /** The stage's camera wiring — wheel zoom, persisted camera/throttle flow, and the feet-follow input anchor. */
 
 import type { Renderer } from "../../renderer";
-import { nextZoom } from "../../renderer/geometry/camera-fit";
+import { nextZoom } from "../../renderer/camera/camera-fit";
 import {
   CAMERA_WHEEL_SENSITIVITY,
   CAMERA_ZOOM_MAX,
