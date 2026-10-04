@@ -302,7 +302,10 @@ YUI/
           cursor-tracker.ts            # Forwards the OS cursor position to the gaze apply layer
           hit-test.ts                  # Click-through hit-test controller for the transparent window
           peek-state.ts                # Holds the current peek side and its lifecycle
-          drag.ts                      # Main-window drag gesture detection and OS-native drag handoff
+          gesture/                     # The three pointer-gesture detectors the stage wires
+            orbit-gesture.ts           # Shift + left-drag camera orbit gesture detector
+            click-gesture.ts           # Sub-threshold click and press-and-hold pat detectors
+            window-drag.ts             # Threshold-gated OS-native drag handoff for the main window
           window-resize-source.ts      # Ctrl+wheel over the character resizes the pet window
           summon-hotkey.ts             # Registers the OS-wide summon accelerator and summons the input
       bridge/

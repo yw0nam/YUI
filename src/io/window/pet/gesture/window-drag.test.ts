@@ -1,12 +1,13 @@
 /**
- * Tests for src/io/window/pet/drag.ts — drag + multi-monitor / DPI.
+ * Tests for src/io/window/pet/gesture/window-drag.ts — threshold-gated OS-native
+ * window drag, plus the orbit / click / pat behaviour that only the composed
+ * initDrag surface can exercise.
  *
  * Environment: node (vitest default — no jsdom dependency).
  *
  * Strategy:
- * - `invokeDragWindow` / `invokeGetMonitorsInfo` are thin wrappers around
- *   `@tauri-apps/api/core` `invoke`.  We mock invoke so tests run without a
- *   real Tauri runtime.
+ * - `invokeDragWindow` is a thin wrapper around `@tauri-apps/api/core` `invoke`.
+ *   We mock invoke so tests run without a real Tauri runtime.
  * - `initDrag` attaches a `pointerdown` listener to an EventTarget.  We use a
  *   plain `EventTarget` (available in Node 18+) to test the listener contract
  *   without a full DOM / jsdom.
@@ -14,7 +15,7 @@
 
 import { afterEach, beforeEach, describe, expect, it, type Mock, vi } from "vitest";
 
-// ─── Mock @tauri-apps/api/core before importing drag.ts ─────────────────────
+// ─── Mock @tauri-apps/api/core before importing window-drag.ts ──────────────
 vi.mock("@tauri-apps/api/core", () => ({
   invoke: vi.fn(),
 }));
@@ -29,8 +30,8 @@ vi.mock("@tauri-apps/api/event", () => ({
 }));
 
 import { invoke } from "@tauri-apps/api/core";
-import type { OrbitDelta } from "../../../settings/avatar/camera-gestures";
-import { initDrag, invokeDragWindow } from "./drag";
+import type { OrbitDelta } from "../../../../settings/avatar/camera-gestures";
+import { initDrag, invokeDragWindow } from "./window-drag";
 
 const mockInvoke = invoke as ReturnType<typeof vi.fn>;
 
@@ -390,21 +391,6 @@ describe.each([
     vi.clearAllMocks();
   });
 
-  it("fires once for a sub-threshold primary press-release using pointerup viewport coordinates", () => {
-    pointer("pointerdown", { clientX: 10, clientY: 20 });
-    pointer("pointermove", { clientX: 12, clientY: 21 });
-    pointer("pointerup", { clientX: 13, clientY: 22 });
-    expect(onClick).toHaveBeenCalledTimes(1);
-    expect(onClick).toHaveBeenCalledWith({ x: 13, y: 22 });
-  });
-
-  it("does not fire after crossing the drag threshold", () => {
-    pointer("pointerdown");
-    pointer("pointermove", { clientX: 10 });
-    pointer("pointerup", { clientX: 10 });
-    expect(onClick).not.toHaveBeenCalled();
-  });
-
   it("does not fire after the Windows drag-release fallback ends a drag", () => {
     if (!tauri) return;
     pointer("pointerdown");
@@ -431,28 +417,6 @@ describe.each([
     expect(onClick).not.toHaveBeenCalled();
   });
 
-  it("does not arm for a non-primary press", () => {
-    pointer("pointerdown", { buttons: 2, button: 2 });
-    pointer("pointerup", { button: 2 });
-    expect(onClick).not.toHaveBeenCalled();
-  });
-
-  it("pointercancel aborts without firing", () => {
-    pointer("pointerdown");
-    pointer("pointercancel");
-    pointer("pointerup");
-    expect(onClick).not.toHaveBeenCalled();
-  });
-
-  it("an unrelated pointerup neither fires nor terminates the armed gesture", () => {
-    pointer("pointerdown", { clientX: 1, clientY: 2, pointerId: 7 });
-    pointer("pointerup", { clientX: 30, clientY: 40, pointerId: 8 });
-    expect(onClick).not.toHaveBeenCalled();
-    pointer("pointerup", { clientX: 3, clientY: 4, pointerId: 7 });
-    expect(onClick).toHaveBeenCalledOnce();
-    expect(onClick).toHaveBeenCalledWith({ x: 3, y: 4 });
-  });
-
   it("re-arms a stale gesture when the same pointer starts a fresh press", () => {
     pointer("pointerdown", { clientX: 1, clientY: 2, pointerId: 7 });
     pointer("pointermove", { clientX: 20, clientY: 2, pointerId: 7 });
@@ -462,14 +426,6 @@ describe.each([
     pointer("pointerup", { clientX: 11, clientY: 21, pointerId: 7 });
     expect(onClick).toHaveBeenCalledOnce();
     expect(onClick).toHaveBeenCalledWith({ x: 11, y: 21 });
-  });
-
-  it("a non-primary pointerup neither fires nor terminates the armed gesture", () => {
-    pointer("pointerdown", { pointerId: 7 });
-    pointer("pointerup", { pointerId: 7, button: 2 });
-    expect(onClick).not.toHaveBeenCalled();
-    pointer("pointerup", { clientX: 5, clientY: 6, pointerId: 7, button: 0 });
-    expect(onClick).toHaveBeenCalledWith({ x: 5, y: 6 });
   });
 });
 
@@ -726,13 +682,9 @@ describe("initDrag — window_drop_release", () => {
   });
 });
 
-// ─── initDrag — orbit gesture (Shift + left-drag) ─────────────────────────
-// Shift + left-drag rotates the camera (azimuth/polar deltas) instead of
-// moving the OS window. The modifier branch fully consumes the gesture: it
-// preventDefaults + captures the pointer, never fires onDragStart, and never
-// invokes drag_window. It works WITHOUT the Tauri runtime (pure JS callback) so
-// the browser screenshot-verification surface can drive it too. Plain left-drag is
-// unchanged.
+// ─── initDrag — orbit composition cases ────────────────────────────────────────
+// These orbit cases assert against the window-move path (onDragStart / drag_window),
+// so they drive the composed initDrag rather than the bare orbit detector.
 
 describe("initDrag — orbit gesture (Shift + left-drag)", () => {
   let el: EventTarget;
@@ -764,12 +716,6 @@ describe("initDrag — orbit gesture (Shift + left-drag)", () => {
     el.dispatchEvent(ev);
   }
 
-  function up(): void {
-    const ev = new Event("pointerup") as Event & { pointerId: number };
-    Object.assign(ev, { pointerId: 1 });
-    el.dispatchEvent(ev);
-  }
-
   beforeEach(async () => {
     el = new EventTarget();
     onDragStart = vi.fn();
@@ -796,31 +742,6 @@ describe("initDrag — orbit gesture (Shift + left-drag)", () => {
     expect(mockInvoke).not.toHaveBeenCalled();
   });
 
-  it("accumulates deltas relative to the previous move (not the start point)", async () => {
-    down(0, 0, 1, true);
-    move(10, 0, true);
-    move(25, 0, true); // dx from previous = 15
-    await Promise.resolve();
-    expect(onOrbit).toHaveBeenNthCalledWith(1, { dx: 10, dy: 0 });
-    expect(onOrbit).toHaveBeenNthCalledWith(2, { dx: 15, dy: 0 });
-  });
-
-  it("consumes the gesture: preventDefault on the modifier pointerdown", () => {
-    const ev = down(0, 0, 1, true);
-    expect(ev.defaultPrevented).toBe(true);
-  });
-
-  it("ends on pointerup: a later move fires no further onOrbit", async () => {
-    down(0, 0, 1, true);
-    move(20, 0, true);
-    await Promise.resolve();
-    expect(onOrbit).toHaveBeenCalledTimes(1);
-    up();
-    move(80, 0, true);
-    await Promise.resolve();
-    expect(onOrbit).toHaveBeenCalledTimes(1);
-  });
-
   it("plain left-drag (no Shift) does NOT orbit — window-move still engages", async () => {
     down(0, 0, 1, false);
     move(100, 0, false);
@@ -828,21 +749,6 @@ describe("initDrag — orbit gesture (Shift + left-drag)", () => {
     expect(onOrbit).not.toHaveBeenCalled();
     expect(onDragStart).toHaveBeenCalledTimes(1);
     expect(mockInvoke).toHaveBeenCalledWith("drag_window");
-  });
-
-  it("Shift + non-primary button does not orbit", async () => {
-    down(0, 0, 2, true); // right button + Shift
-    move(50, 0, true);
-    await Promise.resolve();
-    expect(onOrbit).not.toHaveBeenCalled();
-  });
-
-  it("after cleanup() an Shift+left drag no longer orbits", async () => {
-    cleanup();
-    down(0, 0, 1, true);
-    move(50, 0, true);
-    await Promise.resolve();
-    expect(onOrbit).not.toHaveBeenCalled();
   });
 });
 
@@ -881,97 +787,9 @@ describe("initDrag — orbit gesture works without the Tauri runtime (browser)",
   });
 });
 
-// ─── initDrag — onOrbitStart / onOrbitEnd lifecycle ────────────────────────────
-// onOrbitStart fires once when a Shift+left orbit gesture commits (pointerdown with
-// shiftKey + buttons=1). onOrbitEnd fires once on pointerup and also once on
-// pointercancel. Neither fires for a plain (non-Shift) left-drag.
-
-describe("initDrag — onOrbitStart / onOrbitEnd", () => {
-  let el: EventTarget;
-  let cleanup: () => void;
-  let onOrbitStart: Mock<() => void>;
-  let onOrbitEnd: Mock<() => void>;
-
-  function down(clientX = 0, clientY = 0, buttons = 1, shiftKey = false): void {
-    const ev = new Event("pointerdown", { cancelable: true }) as Event & {
-      buttons: number;
-      clientX: number;
-      clientY: number;
-      pointerId: number;
-      shiftKey: boolean;
-    };
-    Object.assign(ev, { buttons, clientX, clientY, pointerId: 1, shiftKey });
-    el.dispatchEvent(ev);
-  }
-
-  function up(): void {
-    const ev = new Event("pointerup") as Event & { pointerId: number };
-    Object.assign(ev, { pointerId: 1 });
-    el.dispatchEvent(ev);
-  }
-
-  function cancel(): void {
-    const ev = new Event("pointercancel") as Event & { pointerId: number };
-    Object.assign(ev, { pointerId: 1 });
-    el.dispatchEvent(ev);
-  }
-
-  beforeEach(async () => {
-    el = new EventTarget();
-    onOrbitStart = vi.fn();
-    onOrbitEnd = vi.fn();
-    mockInvoke.mockResolvedValue(undefined);
-    (globalThis as { __TAURI_INTERNALS__?: unknown }).__TAURI_INTERNALS__ = {};
-    cleanup = await initDrag(el, { onOrbitStart, onOrbitEnd });
-  });
-
-  afterEach(() => {
-    cleanup();
-    delete (globalThis as { __TAURI_INTERNALS__?: unknown }).__TAURI_INTERNALS__;
-    vi.clearAllMocks();
-  });
-
-  it("Shift+left pointerdown fires onOrbitStart exactly once", async () => {
-    down(0, 0, 1, true);
-    await Promise.resolve();
-    expect(onOrbitStart).toHaveBeenCalledTimes(1);
-  });
-
-  it("pointerup after Shift+left pointerdown fires onOrbitEnd exactly once", async () => {
-    down(0, 0, 1, true);
-    up();
-    await Promise.resolve();
-    expect(onOrbitEnd).toHaveBeenCalledTimes(1);
-  });
-
-  it("pointercancel after Shift+left pointerdown fires onOrbitEnd exactly once", async () => {
-    down(0, 0, 1, true);
-    cancel();
-    await Promise.resolve();
-    expect(onOrbitEnd).toHaveBeenCalledTimes(1);
-  });
-
-  it("plain left-drag (no shiftKey) fires neither onOrbitStart nor onOrbitEnd", async () => {
-    down(0, 0, 1, false);
-    up();
-    await Promise.resolve();
-    expect(onOrbitStart).not.toHaveBeenCalled();
-    expect(onOrbitEnd).not.toHaveBeenCalled();
-  });
-
-  it("cleanup() during an active orbit fires onOrbitEnd exactly once", async () => {
-    down(0, 0, 1, true); // orbit starts
-    cleanup();
-    await Promise.resolve();
-    expect(onOrbitEnd).toHaveBeenCalledTimes(1);
-  });
-});
-
-// ─── initDrag — pat gesture (press and hold on the head) ──────────────────────
-// A primary press that lands on the head region and is held past holdMs becomes a
-// pat: the press no longer converts to a window drag, and its release ends the pat
-// instead of firing a click. A release or a threshold-crossing move before holdMs
-// leaves the click / drag gestures untouched.
+// ─── initDrag — pat gesture through initDrag ───────────────────────────────────
+// These pat cases assert against the window-drag path (onDragStart / drag_window),
+// so they drive the composed initDrag rather than the bare click detector.
 
 const PAT_HOLD_MS = 300;
 
@@ -1033,42 +851,6 @@ describe.each([
     vi.clearAllMocks();
   });
 
-  it("starts the pat once the press is held past holdMs", () => {
-    pointer("pointerdown", { clientX: 10, clientY: 20 });
-    expect(isPatPoint).toHaveBeenCalledWith({ x: 10, y: 20 });
-    expect(onStart).not.toHaveBeenCalled();
-    vi.advanceTimersByTime(PAT_HOLD_MS);
-    expect(onStart).toHaveBeenCalledTimes(1);
-    expect(onEnd).not.toHaveBeenCalled();
-  });
-
-  it("ends the pat on release and fires no click", () => {
-    pointer("pointerdown");
-    vi.advanceTimersByTime(PAT_HOLD_MS);
-    pointer("pointerup");
-    expect(onEnd).toHaveBeenCalledTimes(1);
-    expect(onClick).not.toHaveBeenCalled();
-  });
-
-  it("keeps a short head press a plain click", () => {
-    pointer("pointerdown", { clientX: 10, clientY: 20 });
-    vi.advanceTimersByTime(PAT_HOLD_MS - 1);
-    pointer("pointerup", { clientX: 10, clientY: 20 });
-    vi.advanceTimersByTime(PAT_HOLD_MS);
-    expect(onStart).not.toHaveBeenCalled();
-    expect(onEnd).not.toHaveBeenCalled();
-    expect(onClick).toHaveBeenCalledWith({ x: 10, y: 20 });
-  });
-
-  it("never arms the pat for a press away from the head", () => {
-    isPatPoint.mockReturnValue(false);
-    pointer("pointerdown", { clientX: 10, clientY: 20 });
-    vi.advanceTimersByTime(PAT_HOLD_MS);
-    expect(onStart).not.toHaveBeenCalled();
-    pointer("pointerup", { clientX: 10, clientY: 20 });
-    expect(onClick).toHaveBeenCalledWith({ x: 10, y: 20 });
-  });
-
   it("cancels the pat when the press crosses the drag threshold first", async () => {
     pointer("pointerdown");
     pointer("pointermove", { clientX: 10 });
@@ -1092,61 +874,5 @@ describe.each([
     pointer("pointerup", { clientX: 40, clientY: 40 });
     expect(onEnd).toHaveBeenCalledTimes(1);
     expect(onClick).not.toHaveBeenCalled();
-  });
-
-  it("ends the pat on pointercancel", () => {
-    pointer("pointerdown");
-    vi.advanceTimersByTime(PAT_HOLD_MS);
-    pointer("pointercancel");
-    expect(onEnd).toHaveBeenCalledTimes(1);
-    expect(onClick).not.toHaveBeenCalled();
-  });
-
-  it("ends an in-progress pat on cleanup without offering the release cue", () => {
-    pointer("pointerdown");
-    vi.advanceTimersByTime(PAT_HOLD_MS);
-    cleanup();
-    expect(onAbort).toHaveBeenCalledTimes(1);
-    expect(onEnd).not.toHaveBeenCalled();
-  });
-
-  it("releases a pat stranded by a lost pointer capture", () => {
-    pointer("pointerdown");
-    vi.advanceTimersByTime(PAT_HOLD_MS);
-    pointer("lostpointercapture");
-    expect(onEnd).toHaveBeenCalledTimes(1);
-    expect(onClick).not.toHaveBeenCalled();
-
-    // The gesture is disarmed, so the stale pointerup neither re-ends it nor fires a click.
-    pointer("pointerup");
-    expect(onEnd).toHaveBeenCalledTimes(1);
-    expect(onClick).not.toHaveBeenCalled();
-  });
-
-  it("leaves a pat untouched when another pointer loses capture", () => {
-    pointer("pointerdown", { pointerId: 1 });
-    vi.advanceTimersByTime(PAT_HOLD_MS);
-    pointer("lostpointercapture", { pointerId: 2 });
-    expect(onEnd).not.toHaveBeenCalled();
-    pointer("pointerup", { pointerId: 1 });
-    expect(onEnd).toHaveBeenCalledTimes(1);
-  });
-
-  it("arms the gesture even when the hold length cannot be read", () => {
-    cleanup();
-    const holdMs = vi.fn(() => {
-      throw new Error("config unavailable");
-    });
-    el = new EventTarget();
-    return initDrag(el, {
-      onClick,
-      pat: { isPatPoint, holdMs, onStart, onEnd, onAbort },
-    }).then((dispose) => {
-      cleanup = dispose;
-      expect(() => pointer("pointerdown", { clientX: 10, clientY: 20 })).not.toThrow();
-      pointer("pointerup", { clientX: 10, clientY: 20 });
-      expect(onStart).not.toHaveBeenCalled();
-      expect(onClick).toHaveBeenCalledWith({ x: 10, y: 20 });
-    });
   });
 });

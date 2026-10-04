@@ -21,7 +21,7 @@
  * entering CAPTURE uses the tight box. Plus debounce_samples agreeing samples
  * and idempotent setIgnoreCursorEvents (skip if already in the desired state).
  *
- * Tauri-only: inert in a plain browser (mirrors src/io/window/pet/drag.ts's guard).
+ * Tauri-only: inert in a plain browser (mirrors src/io/window/pet/gesture/window-drag.ts's guard).
  */
 
 import { invoke } from "@tauri-apps/api/core";
@@ -170,7 +170,7 @@ export function createTauriHitTestWindow(): HitTestWindow {
 }
 
 export function createHitTestController(opts: HitTestOptions): HitTestController {
-  // Mirror drag.ts: inert in a plain browser so Vite/browser dev still boots.
+  // Mirror window-drag.ts: inert in a plain browser so Vite/browser dev still boots.
   if (!isTauri()) {
     log.debug("hit_test_disabled", { reason: "non_tauri" });
     return { start() {}, stop() {}, suspend() {}, resume() {}, setMoving() {} };

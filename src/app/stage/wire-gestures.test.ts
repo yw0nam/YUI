@@ -5,7 +5,7 @@ import { CAMERA_ORBIT_SENSITIVITY } from "../../settings/avatar/camera-settings"
 // assert the disposer it returns is registered.
 const { initDrag } = vi.hoisted(() => ({ initDrag: vi.fn() }));
 
-vi.mock("../../io/window/pet/drag", () => ({ initDrag }));
+vi.mock("../../io/window/pet/gesture/window-drag", () => ({ initDrag }));
 
 import { createPatGesture, wireStageGestures } from "./wire-gestures";
 
