@@ -424,6 +424,7 @@ YUI/
         ko.ts                        # Korean strings
       devtools/                      # Developer Tools window views
         shell.ts                     # Developer Tools window shell and section navigation
+        shell-rebuild.ts             # Locale-driven shell rebuild that keeps focus
         context-inspector.ts         # Client-context inspector view
         advanced-settings.ts         # Advanced settings view
         motion-preview.ts            # Motion and emotion preview, lazy-loaded

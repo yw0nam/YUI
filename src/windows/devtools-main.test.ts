@@ -2,23 +2,26 @@
 
 import { afterEach, expect, it, vi } from "vitest";
 
-const { wireDevtoolsSync, createDevtoolsShell, createConfigStore, initLogger, createLogger, log } =
-  await vi.hoisted(async () => {
-    const { makeDevtoolsMainMocks } = await import("./devtools-main.test-helpers");
-    return {
-      ...makeDevtoolsMainMocks(),
-      createDevtoolsShell: vi.fn(() => ({
-        active: "context" as const,
-        activate: vi.fn(),
-        dispose: vi.fn(),
-      })),
-    };
-  });
+const { wireDevtoolsSync, createConfigStore, initLogger, createLogger, log } = vi.hoisted(() => {
+  const log = { info: vi.fn(), warn: vi.fn(), error: vi.fn(), debug: vi.fn() };
+  return {
+    wireDevtoolsSync: vi.fn(() => ({ reload: vi.fn(), dispose: vi.fn() })),
+    createConfigStore: vi.fn(() => ({
+      load: vi.fn().mockResolvedValue({ endpoints: { chat_model_context_window: 1 } }),
+    })),
+    initLogger: vi.fn().mockResolvedValue(undefined),
+    createLogger: vi.fn(() => log),
+    log,
+  };
+});
 
 vi.mock("../app/cross-window/wire-cross-window", () => ({ wireDevtoolsSync }));
-vi.mock("../ui/devtools/shell", () => ({ createDevtoolsShell }));
 vi.mock("../config/store", () => ({ createConfigStore }));
 vi.mock("../logger", () => ({ initLogger, createLogger }));
+vi.mock("../ui/devtools/shell", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../ui/devtools/shell")>();
+  return { ...actual, createDevtoolsShell: vi.fn(actual.createDevtoolsShell) };
+});
 vi.mock("../settings/settings-stores", async (importOriginal) => {
   const actual = await importOriginal<typeof import("../settings/settings-stores")>();
   return { ...actual, createSettingsStores: vi.fn(actual.createSettingsStores) };
@@ -30,12 +33,14 @@ vi.mock("../app/settings/conversation-stores", async (importOriginal) => {
 
 import { createConversationStores } from "../app/settings/conversation-stores";
 import { createSettingsStores } from "../settings/settings-stores";
-import { resetDevtoolsMain } from "./devtools-main.test-helpers";
+import { createDevtoolsShell } from "../ui/devtools/shell";
+import { setLocale } from "../ui/i18n";
 
 type CorsFetchGlobal = { CORSFetch?: { config: (c: { exclude: RegExp[] }) => void } };
 
 afterEach(() => {
-  resetDevtoolsMain();
+  window.dispatchEvent(new Event("beforeunload"));
+  setLocale("en");
   delete (globalThis as CorsFetchGlobal).CORSFetch;
 });
 
@@ -68,4 +73,39 @@ it("keeps its own origin off the cors-fetch proxy", async () => {
   const { exclude } = config.mock.calls[0][0];
   expect(exclude).toHaveLength(1);
   expect(exclude[0].test(`${location.origin}/x`)).toBe(true);
+});
+
+it("rebuilds the real shell on a locale change and commits the focused advanced input", async () => {
+  document.body.innerHTML = '<div id="app"></div>';
+
+  vi.resetModules();
+  await import("./devtools-main");
+  const { createSettingsStores } = await import("../settings/settings-stores");
+  const { setLocale } = await import("../ui/i18n");
+  await vi.waitFor(() => expect(document.querySelector(".devtools-nav")).not.toBeNull());
+
+  document.querySelector<HTMLButtonElement>('[data-section="advanced"]')!.click();
+  const input = document.querySelector<HTMLInputElement>("#devtools-context-window")!;
+  input.focus();
+  input.value = "64000";
+  input.dispatchEvent(new Event("input"));
+
+  setLocale("ja");
+  await vi.waitFor(() => {
+    // The pre-rebuild input already satisfies activeElement === querySelector(...), so the
+    // wait must also require a fresh node, otherwise it resolves before the rebuild runs.
+    const current = document.querySelector("#devtools-context-window");
+    expect(current).not.toBe(input);
+    expect(document.activeElement).toBe(current);
+  });
+
+  const rebuilt = document.querySelector<HTMLInputElement>("#devtools-context-window")!;
+  expect(document.querySelector<HTMLElement>('[data-panel="advanced"]')!.hidden).toBe(false);
+  expect(rebuilt.value).toBe("64000");
+
+  // Blur resyncs from the store, so the restored text survives only if it committed.
+  const stores = vi.mocked(createSettingsStores).mock.results.at(-1)!.value;
+  expect(stores.endpointsSettings.get().chat_model_context_window).toBe("64000");
+  rebuilt.blur();
+  expect(rebuilt.value).toBe("64000");
 });
