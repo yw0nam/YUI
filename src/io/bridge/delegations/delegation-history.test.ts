@@ -4,7 +4,7 @@
  */
 
 import { describe, expect, it } from "vitest";
-import type { DelegationItem } from "../../chat/push/push-socket";
+import type { DelegationItem } from "../../chat/push/push-frames";
 import {
   createDelegationHistory,
   DELEGATION_HISTORY_MAX_ITEMS,

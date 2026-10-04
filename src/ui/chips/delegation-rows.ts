@@ -6,7 +6,7 @@
  */
 
 import "./delegation-rows.css";
-import type { DelegationItem } from "../../io/chat/push/push-socket";
+import type { DelegationItem } from "../../io/chat/push/push-frames";
 import { t } from "../i18n";
 import { HIST_CHEVRON_SVG } from "../quick-controls/constants";
 

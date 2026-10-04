@@ -6,7 +6,8 @@
  */
 
 import type { createSessionDiagnosticsStore } from "../../io/chat/conversation/session-diagnostics";
-import type { DelegationItem, PushSocketState } from "../../io/chat/push/push-socket";
+import type { DelegationItem } from "../../io/chat/push/push-frames";
+import type { PushSocketState } from "../../io/chat/push/push-socket";
 import type { createAgentNotifySettings } from "../../settings/backend/agent-notify-settings";
 import { type createAgentSettings, REASONING_EFFORTS } from "../../settings/backend/agent-settings";
 import type {

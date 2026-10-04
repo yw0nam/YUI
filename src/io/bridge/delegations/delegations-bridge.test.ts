@@ -5,7 +5,7 @@
  */
 
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { DelegationItem } from "../../chat/push/push-socket";
+import type { DelegationItem } from "../../chat/push/push-frames";
 import type { BridgeTransport } from "../core/bridge-core";
 import { createSettingsBridge } from "../settings-bridge";
 import { createMirroredDelegations, publishDelegations } from "./delegations-bridge";

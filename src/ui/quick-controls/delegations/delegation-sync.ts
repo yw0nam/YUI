@@ -1,4 +1,4 @@
-import type { DelegationItem } from "../../../io/chat/push/push-socket";
+import type { DelegationItem } from "../../../io/chat/push/push-frames";
 import { DELEGATION_REFRESH_MS } from "../../chips/delegation-rows";
 
 interface DelegationSyncDeps {

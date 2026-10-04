@@ -284,6 +284,7 @@ YUI/
           client-tools.ts              # Registry of the tools YUI declares and runs itself
           silence-token.ts             # Stateful [SILENT] token filter for spoken output_text deltas
         push/                          # The push transport's turn and reply WebSocket
+          push-frames.ts               # Push frame wire types and the unreadable-frame checks
           push-socket.ts               # Single WebSocket the push transport runs turns and replies on
         broker/                        # The Expression Broker client and its URL override reconciler
           broker-client.ts             # Write-only Expression Broker MCP client that publishes the renderable vocabulary

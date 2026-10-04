@@ -6,7 +6,7 @@
  */
 
 import { afterEach, describe, expect, it } from "vitest";
-import type { DelegationItem } from "../../io/chat/push/push-socket";
+import type { DelegationItem } from "../../io/chat/push/push-frames";
 import { type Locale, setLocale } from "../i18n";
 import {
   formatDelegationDuration,

@@ -13,7 +13,7 @@
 
 import { describe, expect, it, vi } from "vitest";
 import type { ControlEnvelope } from "../../contract";
-import type { RenderFrame } from "../../io/chat/push/push-socket";
+import type { RenderFrame } from "../../io/chat/push/push-frames";
 import type { AudioSink } from "../../io/voice/tts/audio-player";
 import { createSpeechPlayback } from "../../io/voice/tts/speech-playback";
 import type { TtsSynth } from "../../io/voice/tts/tts-synth";

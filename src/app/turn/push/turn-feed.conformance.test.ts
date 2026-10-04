@@ -29,7 +29,7 @@ import type {
   ReasoningFrame,
   RenderFrame,
   ToolStatusFrame,
-} from "../../../io/chat/push/push-socket";
+} from "../../../io/chat/push/push-frames";
 import { wirePushTransport } from "./wire-push";
 
 const RUNNING: ToolStatus = { state: "running", tool_id: "web_search" };

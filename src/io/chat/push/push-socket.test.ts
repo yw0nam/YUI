@@ -7,6 +7,7 @@
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { Logger } from "../../../logger";
+import type { ReasoningFrame, RenderFrame } from "./push-frames";
 import {
   createPushSocket,
   PUSH_FRAME_MAX_BYTES,
@@ -14,8 +15,6 @@ import {
   type PushVocabulary,
   pushSocketUrl,
   pushVocabularyOf,
-  type ReasoningFrame,
-  type RenderFrame,
 } from "./push-socket";
 
 interface Frame {

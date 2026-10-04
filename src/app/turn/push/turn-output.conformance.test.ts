@@ -27,7 +27,7 @@ import { createPushTurns } from "../../../dispatcher/turn/push-turn";
 import { createTurnFeed } from "../../../dispatcher/turn/turn-feed";
 import { createDelegationsStore } from "../../../io/bridge/delegations/delegations-store";
 import { createReasoningStore } from "../../../io/bridge/reasoning/reasoning-store";
-import type { RenderFrame } from "../../../io/chat/push/push-socket";
+import type { RenderFrame } from "../../../io/chat/push/push-frames";
 import type { ChatStreamEvent } from "../../../io/chat/stream/chat-client";
 import { wirePushTransport } from "./wire-push";
 

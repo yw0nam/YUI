@@ -12,7 +12,7 @@ import type { createVrmSelection } from "../../io/assets/vrm-selection";
 import type { createChatHistoryStore } from "../../io/chat/conversation/chat-history-store";
 import type { createSessionDiagnosticsStore } from "../../io/chat/conversation/session-diagnostics";
 import type { createSessionStore } from "../../io/chat/conversation/session-store";
-import type { DelegationItem } from "../../io/chat/push/push-socket";
+import type { DelegationItem } from "../../io/chat/push/push-frames";
 import type {
   createSpeakerSelection,
   SpeakerOption,

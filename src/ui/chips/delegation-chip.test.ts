@@ -12,7 +12,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 vi.mock("./delegation-chip.css", () => ({}));
 
 import { createDelegationsStore } from "../../io/bridge/delegations/delegations-store";
-import type { DelegationItem, PushSocketState } from "../../io/chat/push/push-socket";
+import type { DelegationItem } from "../../io/chat/push/push-frames";
+import type { PushSocketState } from "../../io/chat/push/push-socket";
 import {
   createDelegationChipSettings,
   localStorageDelegationChipStorage,

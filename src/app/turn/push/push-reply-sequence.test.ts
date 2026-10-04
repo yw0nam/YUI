@@ -16,7 +16,7 @@ import { makeLogger } from "../../../dispatcher/test-helpers";
 import { createPushTurns } from "../../../dispatcher/turn/push-turn";
 import { createRenderTurn } from "../../../dispatcher/turn/render-turn";
 import type { TurnOutput } from "../../../dispatcher/turn/turn-output";
-import type { RenderFrame, SpeechFrame } from "../../../io/chat/push/push-socket";
+import type { RenderFrame, SpeechFrame } from "../../../io/chat/push/push-frames";
 import type { AudioSink } from "../../../io/voice/tts/audio-player";
 import { createSpeechPlayback } from "../../../io/voice/tts/speech-playback";
 import type { TtsSynth } from "../../../io/voice/tts/tts-synth";

@@ -6,7 +6,8 @@
  */
 
 import type { GuideKey } from "../../contract";
-import type { DelegationItem, PushSocketState } from "../chat/push/push-socket";
+import type { DelegationItem } from "../chat/push/push-frames";
+import type { PushSocketState } from "../chat/push/push-socket";
 import { isGuideKey } from "../guide/guide-docs";
 import type { VoiceInputState } from "../voice/stt-vad";
 import { type BridgeTransport, createBridgeCore, type WindowKind } from "./core/bridge-core";

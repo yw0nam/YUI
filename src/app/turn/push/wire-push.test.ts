@@ -13,13 +13,13 @@ import { createReasoningStore } from "../../../io/bridge/reasoning/reasoning-sto
 import type { ChatHistoryEntry } from "../../../io/chat/conversation/chat-history-store";
 import type {
   DelegationItem,
-  PushSocketState,
   ReasoningFrame,
   RenderFrame,
   SpeechFrame,
   ToolStatusFrame,
   TurnEndFrame,
-} from "../../../io/chat/push/push-socket";
+} from "../../../io/chat/push/push-frames";
+import type { PushSocketState } from "../../../io/chat/push/push-socket";
 import {
   createMessageWindowSettings,
   type MessageWindowMode,

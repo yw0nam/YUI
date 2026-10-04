@@ -3,7 +3,7 @@
  */
 
 import { describe, expect, it, vi } from "vitest";
-import type { DelegationItem } from "../../chat/push/push-socket";
+import type { DelegationItem } from "../../chat/push/push-frames";
 import {
   createDelegationsStore,
   DELEGATION_DONE_TTL_MS,

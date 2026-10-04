@@ -5,7 +5,7 @@
  * user can still see what just completed, then leaves on its own; a running item never expires.
  */
 
-import type { DelegationItem } from "../../chat/push/push-socket";
+import type { DelegationItem } from "../../chat/push/push-frames";
 
 /** How long a `done` item stays in the list after `ended_at`. */
 export const DELEGATION_DONE_TTL_MS = 30 * 60 * 1000;

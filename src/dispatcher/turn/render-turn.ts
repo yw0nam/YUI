@@ -26,7 +26,7 @@
 
 import type { ExpressArgs } from "../../contract";
 import type { ChatHistoryEntry } from "../../io/chat/conversation/chat-history-store";
-import type { RenderFrame, RenderSegment, SpeechFrame } from "../../io/chat/push/push-socket";
+import type { RenderFrame, RenderSegment, SpeechFrame } from "../../io/chat/push/push-frames";
 import { buildRenderRecord, type RenderRecord } from "../../io/chat/record/turn-record-log";
 import { isSilenceToken } from "../../io/chat/stream/silence-token";
 import { createLogger, type Logger } from "../../logger";

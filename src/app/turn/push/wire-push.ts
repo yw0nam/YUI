@@ -8,14 +8,13 @@ import type { DelegationsStore } from "../../../io/bridge/delegations/delegation
 import type { ChatHistoryEntry } from "../../../io/chat/conversation/chat-history-store";
 import type {
   DelegationItem,
-  PushSocket,
-  PushSocketState,
   ReasoningFrame,
   RenderFrame,
   SpeechFrame,
   ToolStatusFrame,
   TurnEndFrame,
-} from "../../../io/chat/push/push-socket";
+} from "../../../io/chat/push/push-frames";
+import type { PushSocket, PushSocketState } from "../../../io/chat/push/push-socket";
 import type { RenderRecord } from "../../../io/chat/record/turn-record-log";
 import type { Logger } from "../../../logger";
 import {

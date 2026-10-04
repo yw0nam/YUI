@@ -1,6 +1,6 @@
 /** Push transport path of a turn: send the frame on the socket and hold the call open until that turn ends. */
 import type { InputContext } from "../../contract";
-import type { PushTurnFrame } from "../../io/chat/push/push-socket";
+import type { PushTurnFrame } from "../../io/chat/push/push-frames";
 import type { Logger } from "../../logger";
 import type { BusEnvelope } from "../core/event-bus";
 import type { PushTurns } from "../turn/push-turn";

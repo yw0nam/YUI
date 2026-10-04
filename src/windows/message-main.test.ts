@@ -20,7 +20,8 @@ vi.mock("../ui/chips/delegation-rows.css", () => ({}));
 import { createMessageBridge, type MessageControlOp } from "../io/bridge/message/message-bridge";
 import type { ReasoningState } from "../io/bridge/reasoning/reasoning-store";
 import { createSettingsBridge, type SettingsBridge } from "../io/bridge/settings-bridge";
-import type { DelegationItem, PushSocketState } from "../io/chat/push/push-socket";
+import type { DelegationItem } from "../io/chat/push/push-frames";
+import type { PushSocketState } from "../io/chat/push/push-socket";
 import { setLocale, t } from "../ui/i18n";
 
 const NOW = 1_789_365_900_000;
