@@ -102,7 +102,20 @@ YUI/
       emotion-text.ts                # Per-provider emotion_text emoji table loader
       tts-provider.ts                # The tts_provider values and the Irodori default for an unset one
       validators/
-        avatar.ts                    # Validates avatar.json
+        avatar/                      # Validates avatar.json, one file per section
+          index.ts                   # Router: the early throws, section calls in order, and the result
+          helpers.ts                 # Shared issue-recording field readers and unknown-key check
+          available.ts               # The available VRM manifest
+          framing.ts                 # The fit-to-bounds camera
+          hit-test.ts                # Click-through polling and the alpha cut
+          tap.ts                     # Tap regions and touch cues
+          peek.ts                    # Side-peek geometry
+          walk.ts                    # Floor stroll and window-top stroll
+          fall.ts                    # Drag-release fall and monitor descent
+          climb.ts                   # Ambient window climb
+          jump.ts                    # Window-to-window flight
+          gestures.ts                # Drag-hold duration and gesture cues
+          gaze.ts                    # Cursor tracking angles and damping
         emotion-registry.ts          # Validates the emotion registry against the emotion enum
         endpoints.ts                 # Validates endpoint URLs and models; an empty value leaves the feature off
         filler.ts                    # Validates the filler phrase tiers

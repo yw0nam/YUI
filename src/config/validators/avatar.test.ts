@@ -1,3 +1,5 @@
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 import { avatarFixture } from "../load-test-helpers";
 import { validateAvatar } from "./avatar";
@@ -1004,5 +1006,318 @@ describe("validateAvatar — gaze", () => {
 
   it("rejects a non-finite gaze value", () => {
     expectIssue(avatarWith({ gaze: { eyeMaxDeg: Number.NaN } }), "gaze.eyeMaxDeg must be");
+  });
+});
+
+/** Valid vrm_url and an array-valued available, with at least one fault in every section. */
+const BROKEN_EVERYWHERE = {
+  vrm_url: "/vrms/x.vrm",
+  available: [
+    "not-an-object",
+    { id: "bad id", label: "", url: "u", source: "cloud" },
+    { id: "dup", label: "A", url: "u" },
+    { id: "dup", label: "B", url: "u", source: "user" },
+  ],
+  framing: { margin: -1, fov: 180, upper_body: { from_frac: 0.9, to_frac: 0.5 } },
+  hit_test: {
+    hysteresis_margin_px: -1,
+    poll_interval_ms: 0,
+    debounce_samples: 1.5,
+    alpha_threshold: 0,
+  },
+  tap: {
+    spam_count: 1,
+    spam_window_ms: 70000,
+    region_radius_frac: 0,
+    touch_cue_cooldown_ms: -1,
+    touch_emotion_hold_ms: 0,
+    pat_hold_ms: "x",
+    region_motions: { head: "", extra: "m" },
+    bored_cue: { label: "", context: "" },
+    region_emotions: { foo: "x", head: "" },
+    region_cues: { head: "str", chest: { label: 1 }, bar: {} },
+  },
+  peek: { side_out_frac: 0, side_in_frac: 3, inset_frac: 2, mirror_side: "up" },
+  walk: {
+    interval_min_ms: 5,
+    interval_max_ms: 1,
+    distance_min_px: 9,
+    distance_max_px: 3,
+    floor_tolerance_px: -1,
+  },
+  perch_walk: {
+    dwell_min_ms: 10,
+    dwell_max_ms: 5,
+    distance_min_px: 9,
+    distance_max_px: 3,
+    edge_margin_frac: 2,
+    level_tolerance_px: -1,
+  },
+  fall: {
+    gravity_px_s2: 0,
+    max_speed_px_s: -1,
+    land_room_frac: "a",
+    min_drop_frac: 2,
+    cue_cooldown_ms: -1,
+    step_off_probability: 2,
+  },
+  descend: { chance: 2, climb_down_chance: "x" },
+  climb: {
+    interval_min_ms: 9,
+    interval_max_ms: 1,
+    perch_dwell_min_ms: 9,
+    perch_dwell_max_ms: 1,
+    max_height_frac: 0,
+    hang_frac: 1,
+    wall_offset_frac: 1,
+    descent_wall_offset_frac: 1,
+    ledge_walk_min_frac: 2,
+    ledge_walk_max_frac: 1,
+  },
+  jump: {
+    probability: 2,
+    takeoff_frac: 0.8,
+    land_frac: 0.5,
+    height_up_max_frac: 0,
+    height_down_max_frac: 1,
+    gap_max_width_frac: 1,
+    apex_lift_frac: 1,
+    flight_timeout_ms: 0,
+  },
+  drag_hold_ms: 0,
+  gesture_cues: {
+    drag_held: { label: "" },
+    window_sit: "x",
+    peek: { label: "p", context: "" },
+    extra: {},
+  },
+  gaze: { deadDeg: -1, headEngageDeg: 0, sensitivity: 181, maxHeadYaw: "x" },
+};
+
+describe("validateAvatar — characterization", () => {
+  it("reports every section's issues in section order", () => {
+    let issues: string[] = [];
+    try {
+      validateAvatar(FILE, BROKEN_EVERYWHERE);
+    } catch (e) {
+      issues = (e as ConfigError).issues;
+    }
+    expect(issues).toEqual([
+      "available[0]: entry is not an object",
+      'available[1].label must be a non-empty string (got: "")',
+      'available[1].id must contain only [A-Za-z0-9._-] (got: "bad id")',
+      'available[1].source must be one of bundled|file|user (got: "cloud")',
+      'available[2].id is a duplicate (got: "dup")',
+      "framing.margin must be a finite number >= 0 (got: -1)",
+      "framing.fov must be a finite number in (0, 180) (got: 180)",
+      "framing.upper_body.from_frac must be < framing.upper_body.to_frac (got: 0.9 >= 0.5)",
+      "hit_test.hysteresis_margin_px must be a finite number >= 0 (got: -1)",
+      "hit_test.poll_interval_ms must be a finite number > 0 (got: 0)",
+      "hit_test.debounce_samples must be an integer >= 1 (got: 1.5)",
+      "hit_test.alpha_threshold must be a finite number in (0, 1] (got: 0)",
+      "tap.spam_count must be an integer >= 2 (got: 1)",
+      "tap.spam_window_ms must be an integer in [1, 60000] (got: 70000)",
+      "tap.region_radius_frac must be a finite number in (0, 1] (got: 0)",
+      "tap.touch_cue_cooldown_ms must be an integer >= 0 (got: -1)",
+      "tap.touch_emotion_hold_ms must be an integer >= 1 (got: 0)",
+      'tap.pat_hold_ms must be an integer >= 1 (got: "x")',
+      "tap.region_motions.extra is an unknown key",
+      'tap.region_motions.head must be a non-empty string (got: "")',
+      "tap.region_motions.chest must be a non-empty string (got: undefined)",
+      "tap.region_motions.hips must be a non-empty string (got: undefined)",
+      'tap.bored_cue.label must be a non-empty string (got: "")',
+      'tap.bored_cue.context must be a non-empty string (got: "")',
+      "tap.region_emotions.foo is an unknown key",
+      'tap.region_emotions.head must be a non-empty string (got: "")',
+      "tap.region_cues.bar is an unknown key",
+      'tap.region_cues.head must be an object (got: "str")',
+      "tap.region_cues.chest.label must be a non-empty string (got: 1)",
+      "peek.side_out_frac must be a finite number in (0, 2] (got: 0)",
+      "peek.side_in_frac must be a finite number in (0, 2] (got: 3)",
+      "peek.inset_frac must be a finite number in [0, 1] (got: 2)",
+      'peek.mirror_side must be one of left|right|none (got: "up")',
+      "walk.floor_tolerance_px must be a finite number >= 0 (got: -1)",
+      "walk.interval_min_ms must be <= walk.interval_max_ms (got: 5 > 1)",
+      "walk.distance_min_px must be <= walk.distance_max_px (got: 9 > 3)",
+      "perch_walk.edge_margin_frac must be a finite number in [0, 1] (got: 2)",
+      "perch_walk.level_tolerance_px must be a finite number >= 0 (got: -1)",
+      "perch_walk.dwell_min_ms must be <= perch_walk.dwell_max_ms (got: 10 > 5)",
+      "perch_walk.distance_min_px must be <= perch_walk.distance_max_px (got: 9 > 3)",
+      "fall.gravity_px_s2 must be a finite number > 0 (got: 0)",
+      "fall.max_speed_px_s must be a finite number > 0 (got: -1)",
+      'fall.land_room_frac must be a finite number > 0 (got: "a")',
+      "fall.min_drop_frac must be a finite number in [0, 1] (got: 2)",
+      "fall.cue_cooldown_ms must be an integer >= 0 (got: -1)",
+      "fall.step_off_probability must be a finite number in [0, 1] (got: 2)",
+      "descend.chance must be a finite number in [0, 1] (got: 2)",
+      'descend.climb_down_chance must be a finite number in [0, 1] (got: "x")',
+      "climb.max_height_frac must be a finite number > 0 (got: 0)",
+      "climb.interval_min_ms must be <= climb.interval_max_ms (got: 9 > 1)",
+      "climb.perch_dwell_min_ms must be <= climb.perch_dwell_max_ms (got: 9 > 1)",
+      "climb.ledge_walk_min_frac must be <= climb.ledge_walk_max_frac (got: 2 > 1)",
+      "jump.probability must be a finite number in [0, 1] (got: 2)",
+      "jump.height_up_max_frac must be a finite number > 0 (got: 0)",
+      "jump.flight_timeout_ms must be an integer > 0 (got: 0)",
+      "jump.takeoff_frac must be < jump.land_frac (got: 0.8 >= 0.5)",
+      "drag_hold_ms must be an integer >= 1 (got: 0)",
+      "gesture_cues.extra is an unknown key",
+      'gesture_cues.drag_held.label must be a non-empty string (got: "")',
+      'gesture_cues.window_sit must be an object (got: "x")',
+      'gesture_cues.peek.context must be a non-empty string (got: "")',
+      "gesture_cues.dropped must be an object (got: undefined)",
+      "gaze.deadDeg must be a finite number in [0, 180] (got: -1)",
+      "gaze.headEngageDeg must be a finite number in (0, 180] (got: 0)",
+      "gaze.disengageDeg must be a finite number in (0, 180] (got: undefined)",
+      "gaze.sensitivity must be a finite number in (0, 180] (got: 181)",
+      'gaze.maxHeadYaw must be a finite number in (0, 90] (got: "x")',
+      "gaze.maxHeadPitch must be a finite number in (0, 90] (got: undefined)",
+      "gaze.eyeMaxDeg must be a finite number in (0, 90] (got: undefined)",
+      "gaze.headNeckSplit must be a finite number in [0, 1] (got: undefined)",
+      "gaze.smooth must be a finite number in (0, 1000] (got: undefined)",
+    ]);
+  });
+
+  it("returns the shipped configs/avatar.json in full", () => {
+    const shipped = JSON.parse(
+      readFileSync(resolve(__dirname, "../../../configs/avatar.json"), "utf8"),
+    );
+    expect(validateAvatar(FILE, shipped)).toEqual({
+      vrm_url: "/vrms/Sendagaya_Shino.vrm",
+      framing: {
+        margin: 0.1,
+        fov: 30,
+        upper_body: {
+          from_frac: 0.4,
+          to_frac: 1,
+        },
+      },
+      hit_test: {
+        hysteresis_margin_px: 8,
+        poll_interval_ms: 33,
+        debounce_samples: 2,
+        alpha_threshold: 0.1,
+      },
+      tap: {
+        spam_count: 4,
+        spam_window_ms: 3000,
+        region_radius_frac: 0.18,
+        touch_cue_cooldown_ms: 60000,
+        touch_emotion_hold_ms: 4000,
+        pat_hold_ms: 300,
+        region_motions: {
+          head: "head_pat",
+          chest: "embarrassed",
+          hips: "embarrassed",
+        },
+        bored_cue: {
+          label: "bored poking",
+        },
+        region_emotions: {
+          head: "relaxed",
+          chest: "embarrassed",
+          hips: "embarrassed",
+        },
+        region_cues: {
+          head: {
+            label: "head patted",
+          },
+          chest: {
+            label: "chest poked",
+          },
+          hips: {
+            label: "butt poked",
+          },
+        },
+      },
+      peek: {
+        side_out_frac: 0.28,
+        side_in_frac: 0.23,
+        inset_frac: 0.12,
+        mirror_side: "right",
+      },
+      walk: {
+        interval_min_ms: 30000,
+        interval_max_ms: 60000,
+        distance_min_px: 200,
+        distance_max_px: 600,
+        floor_tolerance_px: 24,
+      },
+      perch_walk: {
+        dwell_min_ms: 45000,
+        dwell_max_ms: 120000,
+        distance_min_px: 80,
+        distance_max_px: 400,
+        edge_margin_frac: 0.2,
+        level_tolerance_px: 8,
+      },
+      fall: {
+        gravity_px_s2: 1600,
+        max_speed_px_s: 1200,
+        land_room_frac: 0.5,
+        min_drop_frac: 0.2,
+        cue_cooldown_ms: 60000,
+        step_off_probability: 0.1,
+      },
+      descend: {
+        chance: 0.5,
+        climb_down_chance: 0.5,
+      },
+      climb: {
+        interval_min_ms: 90000,
+        interval_max_ms: 180000,
+        perch_dwell_min_ms: 60000,
+        perch_dwell_max_ms: 120000,
+        max_height_frac: 4,
+        hang_frac: 0.3,
+        wall_offset_frac: 0.17,
+        descent_wall_offset_frac: 0.3,
+        ledge_walk_min_frac: 0.5,
+        ledge_walk_max_frac: 1.5,
+      },
+      jump: {
+        probability: 0.3,
+        takeoff_frac: 0.4,
+        land_frac: 0.67,
+        height_up_max_frac: 0.5,
+        height_down_max_frac: 1,
+        gap_max_width_frac: 1.5,
+        apex_lift_frac: 0.15,
+        flight_timeout_ms: 4000,
+      },
+      drag_hold_ms: 5000,
+      gesture_cues: {
+        drag_held: {
+          label: "dragged around",
+        },
+        window_sit: {
+          label: "sat on window",
+        },
+        peek: {
+          label: "peeking",
+        },
+        dropped: {
+          label: "dropped from mid-air",
+        },
+      },
+      gaze: {
+        deadDeg: 2,
+        headEngageDeg: 6,
+        disengageDeg: 45,
+        sensitivity: 30,
+        maxHeadYaw: 50,
+        maxHeadPitch: 30,
+        eyeMaxDeg: 25,
+        headNeckSplit: 0.6,
+        smooth: 10,
+      },
+      available: [
+        {
+          id: "sendagaya_shino",
+          label: "Sendagaya Shino",
+          url: "/vrms/Sendagaya_Shino.vrm",
+          source: "bundled",
+        },
+      ],
+    });
   });
 });
