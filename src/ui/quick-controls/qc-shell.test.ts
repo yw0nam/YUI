@@ -2,6 +2,8 @@
 import { afterEach, beforeEach, describe, expect, it, type Mock, vi } from "vitest";
 import type { AvatarOption } from "../../config/load";
 import type { createVrmSelection } from "../../io/assets/vrm-selection";
+import { createChatHistoryStore } from "../../io/chat/chat-history-store";
+import type { DelegationItem } from "../../io/chat/push-socket";
 import { createSessionDiagnosticsStore } from "../../io/chat/session-diagnostics";
 import { createSessionStore } from "../../io/chat/session-store";
 import type {
@@ -16,12 +18,15 @@ import { createEndpointsSettings } from "../../settings/backend/endpoints-settin
 import { createGuardrailsSettings } from "../../settings/backend/guardrails-settings";
 import { createProactiveSettings } from "../../settings/cues/proactive-settings";
 import { createScheduleSettings } from "../../settings/cues/schedule-settings";
+import { createMessageWindowSettings } from "../../settings/panels/message-window-settings";
 import { createPacerGapStore, createPresenceStore } from "../../settings/settings-stores";
+import { createVoiceInputStatus } from "../chips/voice-input-status";
 import { getLocale, subscribe as i18nSubscribe, LOCALE_DISPLAY_NAMES, setLocale } from "../i18n";
 import { createQuickControls } from "./quick-controls";
 import {
   defaultQcArgs,
   inMemoryAgentStorage,
+  makeSettings,
   makeSpeakerSelection,
   makeVrmSelection,
 } from "./test-helpers";
@@ -1249,5 +1254,227 @@ describe("createQuickControls — monitor picker error/empty state", () => {
     expect(qc.el.querySelectorAll(".yui-mon[role=radio]")).toHaveLength(1);
 
     qc.dispose();
+  });
+});
+
+// Order and teardown around the two blocks the shell hands to its helpers: the cue-list mount and
+// the delegation refresh timer.
+describe("createQuickControls — cue-list mount and delegation timer boundaries", () => {
+  const NOW = 1_789_365_900_000;
+  const MINUTE = 60_000;
+  let mount: HTMLElement;
+  let log: string[];
+
+  beforeEach(() => {
+    let rafId = 0;
+    vi.spyOn(globalThis, "requestAnimationFrame").mockImplementation((cb) => {
+      cb(0);
+      return ++rafId;
+    });
+    vi.spyOn(globalThis, "cancelAnimationFrame").mockImplementation(() => {});
+    vi.useFakeTimers({
+      now: NOW,
+      toFake: ["setTimeout", "clearTimeout", "setInterval", "clearInterval", "Date"],
+    });
+    mount = document.createElement("div");
+    document.body.appendChild(mount);
+    log = [];
+  });
+
+  afterEach(() => {
+    vi.clearAllTimers();
+    document.body.innerHTML = "";
+    vi.restoreAllMocks();
+    vi.useRealTimers();
+  });
+
+  type Traceable = { subscribe(cb: never): () => void };
+
+  /** Logs `sub:<label>` on subscribe and `unsub:<label>` on unsubscribe; a label in `failing` throws there. */
+  function trace(store: Traceable, label: string, failing: ReadonlySet<string>): void {
+    const real = store.subscribe.bind(store) as (cb: unknown) => () => void;
+    vi.spyOn(store, "subscribe").mockImplementation(((cb: unknown) => {
+      log.push(`sub:${label}`);
+      const off = real(cb);
+      return () => {
+        log.push(`unsub:${label}`);
+        if (failing.has(label)) throw new Error(`${label} unsubscribe failed`);
+        off();
+      };
+    }) as never);
+  }
+
+  function makeDelegations(initial: DelegationItem[]) {
+    const subs = new Set<(items: DelegationItem[]) => void>();
+    return {
+      get: () => initial,
+      subscribe(cb: (items: DelegationItem[]) => void) {
+        subs.add(cb);
+        return () => {
+          subs.delete(cb);
+        };
+      },
+      refresh: vi.fn(),
+    };
+  }
+
+  const RUNNING: DelegationItem = {
+    id: "d-1",
+    title: "work d-1",
+    started_at: NOW - MINUTE,
+    state: "running",
+  };
+
+  function build(
+    opts: {
+      variant?: "popover" | "window";
+      delegations?: ReturnType<typeof makeDelegations>;
+      failing?: ReadonlySet<string>;
+      refreshVoiceList?: () => void;
+    } = {},
+  ) {
+    const failing = opts.failing ?? new Set<string>();
+    watchDelegationTimer();
+    // A plain subscribe, so the trace wraps it instead of the mock's own implementation.
+    const settings = { ...makeSettings(), subscribe: () => () => {} };
+    const base = defaultQcArgs(mount);
+    const scheduleSettings = createScheduleSettings();
+    const proactiveSettings = createProactiveSettings();
+    const messageWindowSettings = createMessageWindowSettings();
+    const voiceStatus = createVoiceInputStatus();
+    trace(settings, "settings", failing);
+    trace(base.idleThrottleSettings, "idleThrottle", failing);
+    trace(messageWindowSettings, "messageWindow", failing);
+    trace(scheduleSettings, "schedule", failing);
+    trace(proactiveSettings, "proactive", failing);
+    trace(voiceStatus, "voice", failing);
+    if (opts.delegations) trace(opts.delegations, "delegations", failing);
+    return createQuickControls({
+      ...base,
+      settings,
+      scheduleSettings,
+      proactiveSettings,
+      messageWindowSettings,
+      voiceStatus,
+      variant: opts.variant ?? "popover",
+      transcript: createChatHistoryStore(),
+      sessionStore: createSessionStore(),
+      sessionDiagnostics: createSessionDiagnosticsStore(),
+      ...(opts.delegations ? { delegations: opts.delegations } : {}),
+      ...(opts.refreshVoiceList ? { refreshVoiceList: opts.refreshVoiceList } : {}),
+    });
+  }
+
+  /** The handle of the delegation refresh interval, and the clearInterval calls seen after it. */
+  function watchDelegationTimer() {
+    let handle: unknown;
+    const realSet = globalThis.setInterval;
+    vi.spyOn(globalThis, "setInterval").mockImplementation(((fn: () => void, ms?: number) => {
+      const id = realSet(fn, ms);
+      if (ms === MINUTE) handle = id;
+      return id;
+    }) as never);
+    const realClear = globalThis.clearInterval;
+    vi.spyOn(globalThis, "clearInterval").mockImplementation(((id?: never) => {
+      if (id !== undefined && id === handle) log.push("clearInterval:delegations");
+      realClear(id);
+    }) as never);
+  }
+
+  it("subscribes messageWindow, then schedule, then proactive, then voice", () => {
+    const qc = build();
+
+    expect(log.filter((l) => /^sub:(messageWindow|schedule|proactive|voice)$/.test(l))).toEqual([
+      "sub:messageWindow",
+      "sub:schedule",
+      "sub:proactive",
+      "sub:voice",
+    ]);
+
+    qc.dispose();
+  });
+
+  it("window variant opens the panel only after both cue lists have mounted", () => {
+    const seen: { log: string[]; cueSections: number }[] = [];
+    const qc = build({
+      variant: "window",
+      refreshVoiceList: () =>
+        seen.push({
+          log: [...log],
+          cueSections: mount.querySelectorAll('[data-testid="cue-section"]').length,
+        }),
+    });
+
+    expect(seen).toHaveLength(1);
+    expect(seen[0]!.cueSections).toBe(2);
+    expect(seen[0]!.log).toEqual(
+      expect.arrayContaining(["sub:schedule", "sub:proactive", "sub:voice"]),
+    );
+
+    qc.dispose();
+  });
+
+  describe("teardown", () => {
+    it("without a throw: schedule list, proactive list, shell stores, delegations, then the timer", () => {
+      const delegations = makeDelegations([RUNNING]);
+      const qc = build({ variant: "window", delegations });
+      log.length = 0;
+
+      qc.dispose();
+
+      const at = (l: string) => log.indexOf(l);
+      expect(at("clearInterval:delegations")).toBeGreaterThan(-1);
+      expect(at("unsub:schedule")).toBeGreaterThan(-1);
+      expect(at("unsub:schedule")).toBeLessThan(at("unsub:proactive"));
+      expect(at("unsub:proactive")).toBeLessThan(at("unsub:settings"));
+      expect(at("unsub:proactive")).toBeLessThan(at("unsub:idleThrottle"));
+      expect(at("unsub:proactive")).toBeLessThan(at("unsub:voice"));
+      expect(at("unsub:delegations")).toBeGreaterThan(at("unsub:voice"));
+      expect(at("unsub:delegations")).toBeLessThan(at("clearInterval:delegations"));
+    });
+
+    it("a throw at the settings unsubscribe leaves later cleanup undone and the timer running", () => {
+      const delegations = makeDelegations([RUNNING]);
+      const qc = build({ variant: "window", delegations, failing: new Set(["settings"]) });
+      log.length = 0;
+
+      expect(() => qc.dispose()).toThrow("settings unsubscribe failed");
+
+      expect(log).toContain("unsub:schedule");
+      expect(log).toContain("unsub:proactive");
+      expect(log).toContain("unsub:settings");
+      expect(log).not.toContain("unsub:idleThrottle");
+      expect(log).not.toContain("unsub:voice");
+      expect(log).not.toContain("unsub:delegations");
+      expect(log).not.toContain("clearInterval:delegations");
+    });
+
+    it("a throw at the schedule cue list skips the proactive cue list and all later cleanup", () => {
+      const delegations = makeDelegations([RUNNING]);
+      const qc = build({ variant: "window", delegations, failing: new Set(["schedule"]) });
+      log.length = 0;
+
+      expect(() => qc.dispose()).toThrow("schedule unsubscribe failed");
+
+      expect(log).toContain("unsub:schedule");
+      expect(log).not.toContain("unsub:proactive");
+      expect(log).not.toContain("unsub:settings");
+      expect(log).not.toContain("clearInterval:delegations");
+    });
+
+    it("a throw at the delegations unsubscribe leaves the timer ticking", () => {
+      const delegations = makeDelegations([RUNNING]);
+      const qc = build({ variant: "window", delegations, failing: new Set(["delegations"]) });
+      log.length = 0;
+
+      expect(() => qc.dispose()).toThrow("delegations unsubscribe failed");
+
+      expect(log).toContain("unsub:voice");
+      expect(log).toContain("unsub:delegations");
+      expect(log).not.toContain("clearInterval:delegations");
+      expect(delegations.refresh).not.toHaveBeenCalled();
+      vi.advanceTimersByTime(MINUTE);
+      expect(delegations.refresh).toHaveBeenCalledOnce();
+    });
   });
 });

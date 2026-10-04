@@ -433,6 +433,10 @@ YUI/
         connection/                  # Connection tab and its endpoint/API-key section
           endpoints-section.ts       # Endpoint URL fields, API-key rows, chat-API picker, and resets
           endpoints-section.css      # Endpoints section and yui-select dropdown styles
+        cue-lists/                   # Schedule and proactive cue lists of the Reactions tab
+          cue-lists.ts               # Mounts and tears down the two cue lists
+        delegations/                 # Delegated-work refresh for the session section
+          delegation-sync.ts         # Minute refresh timer that follows the running delegated items
         history/                     # History tab and its session accordion section
           history-section.ts         # History tab session accordion over the persisted transcript
           history-section.css        # Session history accordion styles

@@ -55,13 +55,13 @@ import {
   VAD_SILENCE_MAX,
   VAD_SILENCE_MIN,
 } from "../../settings/voice/vad-settings";
-import { DELEGATION_REFRESH_MS } from "../chips/delegation-rows";
 import type { VoiceInputStatus } from "../chips/voice-input-status";
 import { t } from "../i18n";
-import { type CueListInstance, createCueList } from "../message/cue-list";
 import { createCharacterTab } from "./character/character-tab";
 import { createConnectionTab, type PushSocketPanelPort } from "./connection/connection-tab";
 import type { QuickControlsTab } from "./constants";
+import { mountCueLists } from "./cue-lists/cue-lists";
+import { createDelegationSync } from "./delegations/delegation-sync";
 import { createHintTooltip } from "./hint-tooltip";
 import { createHistoryTab } from "./history/history-tab";
 import { createPopover } from "./popover";
@@ -433,23 +433,10 @@ export function createQuickControls({
     getScreenDefaults,
   });
 
-  // The session section's delegated list re-renders on every list change; a once-a-minute refresh keeps
-  // the elapsed text current while something is running.
-  let delegationsTimer: ReturnType<typeof setInterval> | null = null;
-  function syncDelegations(): void {
-    reflect.reflectDelegations();
-    if (!delegations) return;
-    const has = delegations.get().some((item) => item.state === "running");
-    if (has && delegationsTimer === null) {
-      delegationsTimer = setInterval(() => {
-        delegations.refresh?.();
-        reflect.reflectDelegations();
-      }, DELEGATION_REFRESH_MS);
-    } else if (!has && delegationsTimer !== null) {
-      clearInterval(delegationsTimer);
-      delegationsTimer = null;
-    }
-  }
+  const delegationSync = createDelegationSync({
+    delegations,
+    reflectDelegations: () => reflect.reflectDelegations(),
+  });
 
   // ── Character tab — the tab owns its rows; the shell mounts it and relays open/close. ──
   const characterTab = createCharacterTab({
@@ -524,7 +511,7 @@ export function createQuickControls({
       reflect.reflectLanguage();
       connectionTab.refresh();
       reflect.reflectSession();
-      syncDelegations();
+      delegationSync.sync();
       historyTab?.refresh();
       characterTab.refresh();
       speakerList.render();
@@ -682,33 +669,12 @@ export function createQuickControls({
   // Cue-list components — both in the Proactive tab: proactive in .yui-loop-cue-section, schedule in .yui-cue-sections.
   const loopCueMountEl = el.querySelector<HTMLDivElement>(".yui-loop-cue-section")!;
 
-  let scheduleCueList: CueListInstance | null = null;
-  let proactiveCueList: CueListInstance | null = null;
-
-  function mountCueLists(): void {
-    cueSectionsMountEl.innerHTML = "";
-    scheduleCueList = createCueList({
-      mount: cueSectionsMountEl,
-      store: scheduleSettings,
-      title: t("cue.schedule_title"),
-      sub: t("cue.schedule_sub"),
-      icon: "clock",
-      trigger: { kind: "time", field: "time" },
-      addLabel: t("cue.schedule_add"),
-    });
-    loopCueMountEl.innerHTML = "";
-    proactiveCueList = createCueList({
-      mount: loopCueMountEl,
-      store: proactiveSettings,
-      title: t("cue.proactive_title"),
-      sub: t("cue.proactive_sub"),
-      icon: "sparkle",
-      trigger: { kind: "minutes", field: "idle_min" },
-      addLabel: t("cue.proactive_add"),
-    });
-  }
-
-  mountCueLists();
+  const cueLists = mountCueLists({
+    scheduleMount: cueSectionsMountEl,
+    proactiveMount: loopCueMountEl,
+    scheduleSettings,
+    proactiveSettings,
+  });
 
   const unsubscribeVoice = voiceStatus.subscribe(reflect.reflectVoiceStatus);
   const unsubscribeVad = vad.subscribe(() => {
@@ -740,7 +706,7 @@ export function createQuickControls({
   });
   // Reflect delegated-work updates to the session section through the same sync that arms
   // its minute refresh.
-  const unsubscribeDelegations = delegations?.subscribe(() => syncDelegations());
+  const unsubscribeDelegations = delegations?.subscribe(() => delegationSync.sync());
 
   switchBtn.addEventListener("click", handleSwitchClick);
   const switchRows = bindSwitchRows(el, TOGGLE_SPECS, log);
@@ -773,8 +739,7 @@ export function createQuickControls({
     filler.dispose();
     hintTooltip.dispose();
     historyTab?.dispose();
-    scheduleCueList?.destroy();
-    proactiveCueList?.destroy();
+    cueLists.destroy();
     unsubscribe();
     unsubscribeIdleThrottle();
     unsubscribeTts?.();
@@ -790,7 +755,7 @@ export function createQuickControls({
     unsubscribeSpk();
     unsubscribeSession?.();
     unsubscribeDelegations?.();
-    if (delegationsTimer !== null) clearInterval(delegationsTimer);
+    delegationSync.stop();
     characterTab.dispose();
     speakerList.dispose();
     popover.dispose();
