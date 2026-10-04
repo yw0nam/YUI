@@ -19,7 +19,7 @@ import type { Logger } from "../../logger";
 import type { Renderer } from "../../renderer";
 import type { createAgentNotifySettings } from "../../settings/backend/agent-notify-settings";
 import type { FlagSettingsStore } from "../../settings/persisted-store";
-import { wireWindowSources } from "../turn/wire-sources";
+import { wireWindowSources } from "./wire-window-sources";
 
 /** With the fall off, a perched stroll never steps off the ledge: nothing would catch her. */
 export function fallConfigFor(fall: FallConfig, enabled: boolean): FallConfig {

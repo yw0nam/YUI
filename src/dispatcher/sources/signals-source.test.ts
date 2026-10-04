@@ -8,10 +8,10 @@
  */
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { composePacedPipelineBusy } from "../../app/turn/wire-sources";
 import type { SignalsBatch } from "../../io/bridge/inbox/signals-inbox";
 import type { OsEventListen, OsEventPayload } from "../../io/window/tauri-listen";
 import type { BusEnvelope, EventBus } from "../core/event-bus";
+import { composePacedPipelineBusy } from "../core/paced-pipeline-busy";
 import { createSignalsSource } from "./signals-source";
 
 const PRESENT_MAX = 10_000;

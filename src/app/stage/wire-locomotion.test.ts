@@ -27,7 +27,7 @@ vi.mock("../../ambient/locomotion/wire", () => ({
 
 vi.mock("../../ambient/locomotion/sitter", () => ({ createSitter: mocks.createSitter }));
 
-vi.mock("../turn/wire-sources", () => ({ wireWindowSources: mocks.wireWindowSources }));
+vi.mock("./wire-window-sources", () => ({ wireWindowSources: mocks.wireWindowSources }));
 
 import {
   createSitLossFall,

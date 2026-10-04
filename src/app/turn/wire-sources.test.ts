@@ -46,23 +46,7 @@ vi.mock("../../dispatcher/sources/milestone-source", () => ({
 }));
 
 import { createScreenKnobSettings, mergeScreen } from "../../settings/capture/screen-settings";
-import { wireSummonHotkey } from "../stage/wire-summon";
-import { wireDispatcherSources, wireWindowSources } from "./wire-sources";
-
-describe("configured platform wiring", () => {
-  it("returns stable no-op handles outside Tauri", async () => {
-    const windowSources = wireWindowSources({} as never);
-    const summonHotkey = wireSummonHotkey({ accelerator: "CmdOrCtrl+Shift+Y" } as never);
-
-    expect(() => {
-      windowSources.noteUserDrag();
-      windowSources.noteUserDragEnd();
-      windowSources.dispose();
-    }).not.toThrow();
-    await expect(summonHotkey.apply("CmdOrCtrl+Shift+U")).resolves.toBeUndefined();
-    await expect(summonHotkey.dispose()).resolves.toBeUndefined();
-  });
-});
+import { wireDispatcherSources } from "./wire-sources";
 
 describe("wireDispatcherSources", () => {
   beforeEach(() => {

@@ -41,7 +41,7 @@ YUI/
       turn/                          # The path of a turn: sources, voice, and push
         turn-core.ts                 # The chat turn every backend-facing window runs: voice, dispatcher, STT, VRM load, broker, push transport, stop, and submit
         wire-dispatcher.ts           # Turn feed, backend caller, guardrails, pacer, and the dispatcher
-        wire-sources.ts              # Tauri window sources and the dispatcher's paced proactive sources
+        wire-sources.ts              # The dispatcher's utterance sources, built and started
         wire-voice.ts                # Expression broker client and the voice-input and turn-voice wiring
         wire-voice-pipeline.ts       # Wires filler, TTS, and speech playback to the turn lifecycle
         wire-push.ts                 # Push socket frames into turns, the stop button, and the push mode chip
@@ -49,6 +49,7 @@ YUI/
       stage/                         # What is bound to the pet window's stage and overlay
         stage-renderer.ts            # The renderer on the stage with its persisted camera and idle throttle, plus Tier 1 liveliness, for the pet and phone windows
         wire-gestures.ts             # Pointer gestures on the stage: taps, pats, the window drag, and the camera orbit
+        wire-window-sources.ts       # The Tauri window drop and resize sources, the avatar RPC executor, and keep-on-screen
         wire-locomotion.ts           # Travel frame, the five locomotion loops, and the window sources composed into one handle
         wire-pet-stage.ts            # Stage wheel zoom, the persisted camera and throttle flow, and the feet-follow input anchor
         wire-summon.ts               # Peek state and exit triggers, tray summon, and the global summon hotkey
@@ -176,6 +177,7 @@ YUI/
         event-bus.ts                 # Priority queue collecting every speech-candidate event
         guardrails.ts                # Cooldown, debounce, and rate-limit evaluation
         proactive-pacer.ts           # The quiet gap after a turn that every proactive source shares
+        paced-pipeline-busy.ts       # The pipeline-busy predicate composed with the proactive gap
       tier1/
         directive.ts                 # Pure tier-1 control directive for sit, drop, peek and pat events
         render.ts                    # Tier-1 rendering: local directives, posture ledger, pin targets, and the tap-emotion revert
