@@ -4,6 +4,7 @@
 use std::io::{Read, Write};
 use std::path::{Component, Path, PathBuf};
 use tauri::{AppHandle, Manager};
+use tauri_plugin_fs::{FilePath, FsExt, OpenOptions as FsOpenOptions};
 
 /// `<app_data_dir>/<name>`, or a generic error when the app data directory is unavailable.
 pub(crate) fn app_data_subdir(app: &AppHandle, name: &str) -> Result<PathBuf, String> {
@@ -14,6 +15,30 @@ pub(crate) fn app_data_subdir(app: &AppHandle, name: &str) -> Result<PathBuf, St
             log::error!("app_data_dir_unavailable error={e}");
             "storage unavailable".to_string()
         })
+}
+
+/// Open `src_path` through the fs plugin and run `import(name, identity, source)` on a blocking thread.
+pub(crate) async fn open_and_import<T: Send + 'static>(
+    app: AppHandle,
+    src_path: FilePath,
+    import: impl FnOnce(Option<String>, String, std::fs::File) -> Result<T, String> + Send + 'static,
+) -> Result<T, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        let identity = src_path.to_string();
+        let name = app.path().file_name(&identity);
+        let mut opts = FsOpenOptions::new();
+        opts.read(true);
+        let source = app.fs().open(src_path, opts).map_err(|e| {
+            log::error!("open_source_failed error={e}");
+            "source file not found".to_string()
+        })?;
+        import(name, identity, source)
+    })
+    .await
+    .map_err(|e| {
+        log::error!("import_task_failed error={e}");
+        "import failed".to_string()
+    })?
 }
 
 /// Container kinds we content-validate before copying an imported file.

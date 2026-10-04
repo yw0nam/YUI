@@ -4,12 +4,13 @@
 //! (a plain path on desktop, a content URI on Android) and deletes a stored image by id.
 
 use crate::import_fs::{
-    app_data_subdir, claim_and_copy, ensure_within, image_ext, sanitize_stem, ClaimTarget,
+    app_data_subdir, claim_and_copy, ensure_within, image_ext, open_and_import, sanitize_stem,
+    ClaimTarget,
 };
 use serde::Serialize;
 use std::path::{Path, PathBuf};
-use tauri::{command, AppHandle, Manager};
-use tauri_plugin_fs::{FilePath, FsExt, OpenOptions as FsOpenOptions};
+use tauri::{command, AppHandle};
+use tauri_plugin_fs::FilePath;
 
 /// Max accepted source size for a stage image import.
 const MAX_STAGE_IMAGE_BYTES: u64 = 32 * 1024 * 1024;
@@ -99,15 +100,7 @@ pub async fn import_stage_image(
     src_path: FilePath,
 ) -> Result<ImportedStage, String> {
     let stage_dir = stage_dir(&app)?;
-    tauri::async_runtime::spawn_blocking(move || {
-        let identity = src_path.to_string();
-        let name = app.path().file_name(&identity);
-        let mut opts = FsOpenOptions::new();
-        opts.read(true);
-        let source = app.fs().open(src_path, opts).map_err(|e| {
-            log::error!("open_source_failed error={e}");
-            "source file not found".to_string()
-        })?;
+    open_and_import(app, src_path, move |name, identity, source| {
         import_into(
             &stage_dir,
             name.as_deref(),
@@ -117,10 +110,6 @@ pub async fn import_stage_image(
         )
     })
     .await
-    .map_err(|e| {
-        log::error!("import_task_failed error={e}");
-        "import failed".to_string()
-    })?
 }
 
 /// Delete `<app_data_dir>/stage/<id>` if present. Idempotent: missing is Ok.

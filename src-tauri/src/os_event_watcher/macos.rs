@@ -1,9 +1,8 @@
 //! macOS OS polling — idle (CGEventSource FFI), window enumeration
 //! (CGWindowList raw FFI), camera best-effort.
 
-use super::{idle_ms_from_secs, polling_loop, WindowAtPoint};
-use std::{ffi::c_void, thread};
-use tauri::AppHandle;
+use super::{idle_ms_from_secs, WindowAtPoint};
+use std::ffi::c_void;
 
 // ─── Raw Core Foundation + Core Graphics FFI ─────────────────────────────────
 
@@ -396,15 +395,6 @@ pub(super) fn platform_frontmost() -> (Option<String>, Option<String>) {
         Some(w) => (w.owner_name, w.name),
         None => (None, None),
     }
-}
-
-// ─── Background polling loop ──────────────────────────────────────────────────
-
-pub fn start_polling(app: AppHandle) {
-    thread::Builder::new()
-        .name("os_event_watcher".into())
-        .spawn(move || polling_loop(app))
-        .expect("failed to spawn os_event_watcher thread");
 }
 
 // ─── Tests ────────────────────────────────────────────────────────────────────

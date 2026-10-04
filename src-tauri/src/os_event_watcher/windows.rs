@@ -2,7 +2,6 @@
 //! (GetForegroundWindow), window enumeration (EnumWindows) for `list_windows`.
 //!
 //! Implements:
-//!   - `start_polling`: starts the shared background polling loop.
 //!   - left-button state reads for the shared drop-release probe.
 //!   - `platform_frontmost`: foreground window title + owning process name.
 //!   - `list_all_windows`: enumerates foreign on-screen top-level windows for
@@ -10,9 +9,8 @@
 //!
 //! All functions must not panic; degrade gracefully.
 
-use super::{polling_loop, sanitise_window_title, WindowAtPoint};
-use std::{ffi::c_void, thread};
-use tauri::AppHandle;
+use super::{sanitise_window_title, WindowAtPoint};
+use std::ffi::c_void;
 use windows::core::PWSTR;
 use windows::Win32::{
     Foundation::{CloseHandle, HWND, LPARAM, RECT},
@@ -338,15 +336,6 @@ fn enumerate_windows() -> Vec<PhysicalWindow> {
         log::debug!("enum_windows_failed skipped=true");
     }
     collected
-}
-
-// ─── Background polling loop ──────────────────────────────────────────────────
-
-pub fn start_polling(app: AppHandle) {
-    thread::Builder::new()
-        .name("os_event_watcher_win".into())
-        .spawn(move || polling_loop(app))
-        .expect("failed to spawn os_event_watcher_win thread");
 }
 
 // ─── Tests ────────────────────────────────────────────────────────────────────

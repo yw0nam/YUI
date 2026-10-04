@@ -178,10 +178,10 @@ mod macos;
 mod windows;
 
 #[cfg(target_os = "macos")]
-use macos::{platform_frontmost, platform_idle_ms, platform_lbutton_is_down, start_polling};
+use macos::{platform_frontmost, platform_idle_ms, platform_lbutton_is_down};
 
 #[cfg(target_os = "windows")]
-use windows::{platform_frontmost, platform_idle_ms, platform_lbutton_is_down, start_polling};
+use windows::{platform_frontmost, platform_idle_ms, platform_lbutton_is_down};
 
 #[cfg(any(target_os = "macos", target_os = "windows"))]
 static PROBE_ACTIVE: AtomicBool = AtomicBool::new(false);
@@ -316,14 +316,23 @@ fn polling_loop(app: AppHandle) {
 
 // ─── start() — spawns background polling loop ─────────────────────────────────
 
+#[cfg(target_os = "macos")]
+const POLL_THREAD_NAME: &str = "os_event_watcher";
+#[cfg(target_os = "windows")]
+const POLL_THREAD_NAME: &str = "os_event_watcher_win";
+
+#[cfg(any(target_os = "macos", target_os = "windows"))]
+fn start_polling(app: AppHandle) {
+    thread::Builder::new()
+        .name(POLL_THREAD_NAME.into())
+        .spawn(move || polling_loop(app))
+        .unwrap_or_else(|e| panic!("failed to spawn {POLL_THREAD_NAME} thread: {e}"));
+}
+
 /// Starts the OS event polling loop as a background thread.
 /// Called once from Tauri `setup`.
-#[allow(unused_variables)]
 pub fn start(app: &AppHandle) {
-    #[cfg(target_os = "macos")]
-    start_polling(app.clone());
-
-    #[cfg(target_os = "windows")]
+    #[cfg(any(target_os = "macos", target_os = "windows"))]
     start_polling(app.clone());
 
     #[cfg(not(any(target_os = "macos", target_os = "windows")))]

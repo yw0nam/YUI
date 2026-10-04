@@ -5,12 +5,13 @@
 //! which an OS file picker cannot satisfy.
 
 use crate::import_fs::{
-    app_data_subdir, claim_and_copy, ensure_within, sanitize_stem, ClaimTarget, SniffKind,
+    app_data_subdir, claim_and_copy, ensure_within, open_and_import, sanitize_stem, ClaimTarget,
+    SniffKind,
 };
 use serde::Serialize;
 use std::path::{Path, PathBuf};
-use tauri::{command, AppHandle, Manager};
-use tauri_plugin_fs::{FilePath, FsExt, OpenOptions as FsOpenOptions};
+use tauri::{command, AppHandle};
+use tauri_plugin_fs::FilePath;
 
 /// Max accepted source size for a VRM import.
 const MAX_VRM_BYTES: u64 = 512 * 1024 * 1024;
@@ -96,15 +97,7 @@ pub async fn import_vrm_file(
     reserved_ids: Vec<String>,
 ) -> Result<ImportedVrm, String> {
     let vrms_dir = vrms_dir(&app)?;
-    tauri::async_runtime::spawn_blocking(move || {
-        let identity = src_path.to_string();
-        let name = app.path().file_name(&identity);
-        let mut opts = FsOpenOptions::new();
-        opts.read(true);
-        let source = app.fs().open(src_path, opts).map_err(|e| {
-            log::error!("open_source_failed error={e}");
-            "source file not found".to_string()
-        })?;
+    open_and_import(app, src_path, move |name, identity, source| {
         import_into(
             &vrms_dir,
             name.as_deref(),
@@ -115,10 +108,6 @@ pub async fn import_vrm_file(
         )
     })
     .await
-    .map_err(|e| {
-        log::error!("import_task_failed error={e}");
-        "import failed".to_string()
-    })?
 }
 
 /// Delete `<app_data_dir>/vrms/<id>.vrm` if present. Idempotent — missing is Ok.
