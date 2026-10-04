@@ -8,6 +8,7 @@
  */
 
 import type { DelegationItem } from "../chat/push-socket";
+import { createStateMirror, publishState } from "./core/state-mirror";
 import type { SettingsBridge } from "./settings-bridge";
 
 type DelegationsBridge = Pick<
@@ -36,13 +37,12 @@ export function publishDelegations(deps: {
   };
   bridge: DelegationsBridge;
 }): () => void {
-  const unsubscribes = [
-    deps.store.subscribe((items) => deps.bridge.emitDelegations(items)),
-    deps.bridge.onDelegationsAsk(() => deps.bridge.emitDelegations(deps.store.get())),
-  ];
-  return () => {
-    for (const off of unsubscribes) off();
-  };
+  return publishState({
+    get: deps.store.get,
+    subscribe: deps.store.subscribe,
+    emit: deps.bridge.emitDelegations,
+    onAsk: deps.bridge.onDelegationsAsk,
+  });
 }
 
 /**
@@ -50,36 +50,14 @@ export function publishDelegations(deps: {
  * after the pet window settled still shows where the work stands.
  */
 export function createMirroredDelegations(deps: { bridge: DelegationsBridge }): DelegationsMirror {
-  const subscribers = new Set<(items: DelegationItem[]) => void>();
-  let items: DelegationItem[] = [];
-
-  const off = deps.bridge.onDelegations((next) => {
-    items = next;
-    for (const cb of subscribers) cb(next);
+  const mirror = createStateMirror<DelegationItem[]>({
+    initial: [],
+    on: deps.bridge.onDelegations,
+    ask: deps.bridge.emitDelegationsAsk,
   });
-  deps.bridge.emitDelegationsAsk();
 
   return {
-    get: () => items,
-
-    runningCount(): number {
-      return items.filter((item) => item.state === "running").length;
-    },
-
-    subscribe(cb): () => void {
-      subscribers.add(cb);
-      return () => {
-        subscribers.delete(cb);
-      };
-    },
-
-    refresh(): void {
-      deps.bridge.emitDelegationsAsk();
-    },
-
-    dispose(): void {
-      off();
-      subscribers.clear();
-    },
+    ...mirror,
+    runningCount: () => mirror.get().filter((item) => item.state === "running").length,
   };
 }

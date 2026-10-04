@@ -8,7 +8,7 @@
  */
 
 import type { AttachmentLimits } from "../../config/load";
-import { type BridgeTransport, createBridgeCore, type WindowKind } from "./settings-bridge";
+import { type BridgeTransport, createBridgeCore, type WindowKind } from "./core/bridge-core";
 
 const CH_MESSAGE_SURFACE = "yui://message-surface";
 const CH_MESSAGE_CONTROL = "yui://message-control";

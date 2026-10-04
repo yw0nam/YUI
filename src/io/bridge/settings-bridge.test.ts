@@ -13,7 +13,8 @@
  */
 
 import { describe, expect, it, vi } from "vitest";
-import { type BridgeTransport, createSettingsBridge } from "./settings-bridge";
+import type { BridgeTransport } from "./core/bridge-core";
+import { createSettingsBridge } from "./settings-bridge";
 
 // In-memory pub/sub transport shared by two bridges (= two windows).
 function createFakeTransport(): BridgeTransport & {

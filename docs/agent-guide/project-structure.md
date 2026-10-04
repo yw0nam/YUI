@@ -307,6 +307,9 @@ YUI/
           summon-hotkey.ts             # Registers the OS-wide summon accelerator and summons the input
       bridge/
         settings-bridge.ts             # Typed cross-window settings bus over Tauri emit and listen
+        core/                          # The cross-window bus every bridge here is built on
+          bridge-core.ts               # Transports, message envelope and listener bookkeeping shared by every bridge
+          state-mirror.ts              # One window's value published to the others and mirrored back
         message-bridge.ts              # Cross-window bus linking the pet window and the message window
         message-remote.ts              # The message window's bubble and input as a remote Surfaces half
         push-socket-bridge.ts          # Push socket state as seen from a window that does not own it
