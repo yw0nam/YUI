@@ -10,7 +10,7 @@
  */
 
 import { describe, expect, it, vi } from "vitest";
-import { wirePushTransport } from "../../app/turn/wire-push";
+import { wirePushTransport } from "../../app/turn/push/wire-push";
 import type { ControlEnvelope, ExpressArgs } from "../../contract";
 import { createDelegationsStore } from "../../io/bridge/delegations/delegations-store";
 import { createReasoningStore } from "../../io/bridge/reasoning/reasoning-store";

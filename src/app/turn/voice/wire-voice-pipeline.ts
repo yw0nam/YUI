@@ -1,31 +1,31 @@
-import type { AppConfig } from "../../config/load";
-import type { EndpointsConfig } from "../../contract";
-import type { TurnFailure } from "../../dispatcher/backend/backend-caller";
-import type { TurnLog } from "../../dispatcher/turn/turn";
-import type { TurnOutput } from "../../dispatcher/turn/turn-output";
-import { selectFetch } from "../../io/chat/stream/chat-client";
-import { createFillerAudioCache } from "../../io/voice/filler/filler-audio-cache";
+import type { AppConfig } from "../../../config/load";
+import type { EndpointsConfig } from "../../../contract";
+import type { TurnFailure } from "../../../dispatcher/backend/backend-caller";
+import type { TurnLog } from "../../../dispatcher/turn/turn";
+import type { TurnOutput } from "../../../dispatcher/turn/turn-output";
+import { selectFetch } from "../../../io/chat/stream/chat-client";
+import { createFillerAudioCache } from "../../../io/voice/filler/filler-audio-cache";
 import {
   createFillerLoop,
   DEFAULT_TOOL_KEY,
   type FillerLoop,
-} from "../../io/voice/filler/filler-loop";
+} from "../../../io/voice/filler/filler-loop";
 import {
   effectiveFillerPool,
   fillerSubmissions,
   phraseSentences,
-} from "../../io/voice/filler/filler-pool";
-import { createShuffleBag } from "../../io/voice/filler/shuffle-bag";
-import type { SttVad } from "../../io/voice/stt-vad";
-import { createWebAudioSink } from "../../io/voice/tts/audio-player";
-import { createSpeechPlayback, type SpeechPlayback } from "../../io/voice/tts/speech-playback";
-import { type SpokenSplit, TTS_SKIP } from "../../io/voice/tts/tts-pipeline";
-import { createTtsProvider, type TtsSynthCallOptions } from "../../io/voice/tts/tts-synth";
-import type { SpeakerOption } from "../../io/voice/voices/speaker-selection";
-import type { Renderer } from "../../renderer";
-import type { FillerSettings } from "../../settings/voice/filler-settings";
-import type { VoiceInputStatus } from "../../ui/chips/voice-input-status";
-import type { Surfaces } from "../../ui/surfaces/surfaces";
+} from "../../../io/voice/filler/filler-pool";
+import { createShuffleBag } from "../../../io/voice/filler/shuffle-bag";
+import type { SttVad } from "../../../io/voice/stt-vad";
+import { createWebAudioSink } from "../../../io/voice/tts/audio-player";
+import { createSpeechPlayback, type SpeechPlayback } from "../../../io/voice/tts/speech-playback";
+import { type SpokenSplit, TTS_SKIP } from "../../../io/voice/tts/tts-pipeline";
+import { createTtsProvider, type TtsSynthCallOptions } from "../../../io/voice/tts/tts-synth";
+import type { SpeakerOption } from "../../../io/voice/voices/speaker-selection";
+import type { Renderer } from "../../../renderer";
+import type { FillerSettings } from "../../../settings/voice/filler-settings";
+import type { VoiceInputStatus } from "../../../ui/chips/voice-input-status";
+import type { Surfaces } from "../../../ui/surfaces/surfaces";
 
 type VoiceRenderer = Pick<
   Renderer,
@@ -282,7 +282,7 @@ export function wireVoicePipeline(deps: VoicePipelineDeps): VoicePipeline {
   }
 
   async function createSttEngine(): Promise<SttVad> {
-    const { createSttVad } = await import("../../io/voice/stt-vad");
+    const { createSttVad } = await import("../../../io/voice/stt-vad");
     return createSttVad({
       config: deps.getEndpoints,
       fetch: await selectFetch(),

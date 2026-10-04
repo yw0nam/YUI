@@ -1,11 +1,11 @@
-import type { EndpointsConfig } from "../../contract";
-import type { PushTurns } from "../../dispatcher/turn/push-turn";
-import { createRenderTurn } from "../../dispatcher/turn/render-turn";
-import type { TurnFeed } from "../../dispatcher/turn/turn-feed";
-import type { TurnOutput } from "../../dispatcher/turn/turn-output";
-import type { DelegationHistory } from "../../io/bridge/delegations/delegation-history";
-import type { DelegationsStore } from "../../io/bridge/delegations/delegations-store";
-import type { ChatHistoryEntry } from "../../io/chat/conversation/chat-history-store";
+import type { EndpointsConfig } from "../../../contract";
+import type { PushTurns } from "../../../dispatcher/turn/push-turn";
+import { createRenderTurn } from "../../../dispatcher/turn/render-turn";
+import type { TurnFeed } from "../../../dispatcher/turn/turn-feed";
+import type { TurnOutput } from "../../../dispatcher/turn/turn-output";
+import type { DelegationHistory } from "../../../io/bridge/delegations/delegation-history";
+import type { DelegationsStore } from "../../../io/bridge/delegations/delegations-store";
+import type { ChatHistoryEntry } from "../../../io/chat/conversation/chat-history-store";
 import type {
   DelegationItem,
   PushSocket,
@@ -15,15 +15,15 @@ import type {
   SpeechFrame,
   ToolStatusFrame,
   TurnEndFrame,
-} from "../../io/chat/push/push-socket";
-import type { RenderRecord } from "../../io/chat/record/turn-record-log";
-import type { Logger } from "../../logger";
+} from "../../../io/chat/push/push-socket";
+import type { RenderRecord } from "../../../io/chat/record/turn-record-log";
+import type { Logger } from "../../../logger";
 import {
   createDelegationChipSettings,
   localStorageDelegationChipStorage,
-} from "../../settings/panels/delegation-chip-settings";
-import type { MessageWindowMode } from "../../settings/panels/message-window-settings";
-import { createDelegationChip } from "../../ui/chips/delegation-chip";
+} from "../../../settings/panels/delegation-chip-settings";
+import type { MessageWindowMode } from "../../../settings/panels/message-window-settings";
+import { createDelegationChip } from "../../../ui/chips/delegation-chip";
 
 /**
  * Routes an open push socket into the client: a `render` frame plays as a turn and closes the

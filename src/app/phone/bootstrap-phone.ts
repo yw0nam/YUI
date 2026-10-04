@@ -3,7 +3,7 @@ import { noopScreenCapturer } from "../../io/window/capture/screen-source-provid
 import { createLogger } from "../../logger";
 import { createDisposers } from "../disposers";
 import { type TurnCorePhase1, wireTurnCore } from "../turn/turn-core";
-import type { VoiceHost, wireBroker } from "../turn/wire-voice";
+import type { VoiceHost, wireBroker } from "../turn/voice/wire-voice";
 
 const log = createLogger("phone-bootstrap");
 

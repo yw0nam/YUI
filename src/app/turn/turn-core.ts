@@ -24,10 +24,15 @@ import {
   type wireSpeakerSelection,
   type wireVrmSelection,
 } from "../settings/wire-avatar";
+import { wirePushTransport, wireStopButton } from "./push/wire-push";
+import {
+  type VoiceHost,
+  type VoicePersistence,
+  wireBroker,
+  wireTurnVoice,
+} from "./voice/wire-voice";
+import type { VoicePipeline } from "./voice/wire-voice-pipeline";
 import { wireDispatcher } from "./wire-dispatcher";
-import { wirePushTransport, wireStopButton } from "./wire-push";
-import { type VoiceHost, type VoicePersistence, wireBroker, wireTurnVoice } from "./wire-voice";
-import type { VoicePipeline } from "./wire-voice-pipeline";
 
 const log = createLogger("bootstrap");
 

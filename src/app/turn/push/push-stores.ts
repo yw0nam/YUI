@@ -1,29 +1,29 @@
-import type { EndpointsConfig } from "../../contract";
+import type { EndpointsConfig } from "../../../contract";
 import {
   createDelegationHistory,
   type DelegationHistory,
-} from "../../io/bridge/delegations/delegation-history";
-import { publishDelegations } from "../../io/bridge/delegations/delegations-bridge";
+} from "../../../io/bridge/delegations/delegation-history";
+import { publishDelegations } from "../../../io/bridge/delegations/delegations-bridge";
 import {
   createDelegationsStore,
   type DelegationsStore,
-} from "../../io/bridge/delegations/delegations-store";
-import { publishPushSocket } from "../../io/bridge/push/push-socket-bridge";
-import { publishReasoning } from "../../io/bridge/reasoning/reasoning-bridge";
+} from "../../../io/bridge/delegations/delegations-store";
+import { publishPushSocket } from "../../../io/bridge/push/push-socket-bridge";
+import { publishReasoning } from "../../../io/bridge/reasoning/reasoning-bridge";
 import {
   createReasoningStore,
   type ReasoningStore,
-} from "../../io/bridge/reasoning/reasoning-store";
-import type { BrokerPayload } from "../../io/chat/broker/broker-client";
+} from "../../../io/bridge/reasoning/reasoning-store";
+import type { BrokerPayload } from "../../../io/chat/broker/broker-client";
 import {
   createPushSocket,
   type PushSocket,
   pushVocabularyOf,
-} from "../../io/chat/push/push-socket";
+} from "../../../io/chat/push/push-socket";
 import {
   createChatIdSettings,
   localStorageChatIdStorage,
-} from "../../settings/backend/chat-id-settings";
+} from "../../../settings/backend/chat-id-settings";
 
 /**
  * The push protocol's shared stores — the socket, the chat id it identifies with, and the

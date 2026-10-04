@@ -21,20 +21,23 @@ const { brokerClient, createBrokerClient, deriveBrokerPayload, createReconciler,
       selectFetch: vi.fn().mockResolvedValue(undefined),
     };
   });
-vi.mock("../../io/chat/broker/broker-client", () => ({ createBrokerClient, deriveBrokerPayload }));
+vi.mock("../../../io/chat/broker/broker-client", () => ({
+  createBrokerClient,
+  deriveBrokerPayload,
+}));
 
-vi.mock("../../io/chat/broker/broker-override-reconciler", () => ({
+vi.mock("../../../io/chat/broker/broker-override-reconciler", () => ({
   createBrokerOverrideReconciler: createReconciler,
 }));
 
-vi.mock("../../io/chat/stream/chat-client", () => ({ selectFetch }));
+vi.mock("../../../io/chat/stream/chat-client", () => ({ selectFetch }));
 
-vi.mock("../../config/emotion-text", () => ({
+vi.mock("../../../config/emotion-text", () => ({
   loadEmotionTextTable: vi.fn().mockResolvedValue(null),
 }));
 
-import { loadEmotionTextTable } from "../../config/emotion-text";
-import { createVoiceInputStatus } from "../../ui/chips/voice-input-status";
+import { loadEmotionTextTable } from "../../../config/emotion-text";
+import { createVoiceInputStatus } from "../../../ui/chips/voice-input-status";
 import { wireBroker, wireTurnVoice, wireVoiceInput } from "./wire-voice";
 
 const noopLog = { info: () => {}, warn: () => {}, error: () => {}, debug: () => {} } as never;

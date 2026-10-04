@@ -28,15 +28,15 @@ const mocks = vi.hoisted(() => {
   };
 });
 
-vi.mock("../../io/voice/tts/audio-player", () => ({
+vi.mock("../../../io/voice/tts/audio-player", () => ({
   createWebAudioSink: mocks.createWebAudioSink,
 }));
-vi.mock("../../io/chat/stream/chat-client", () => ({ selectFetch: mocks.selectFetch }));
+vi.mock("../../../io/chat/stream/chat-client", () => ({ selectFetch: mocks.selectFetch }));
 
-import type { FillerPool } from "../../config/load";
-import { createTurnLog } from "../../dispatcher/turn/turn";
-import { fillerPool } from "../../io/voice/filler/filler-test-helpers";
-import type { SpeakerOption } from "../../io/voice/voices/speaker-selection";
+import type { FillerPool } from "../../../config/load";
+import { createTurnLog } from "../../../dispatcher/turn/turn";
+import { fillerPool } from "../../../io/voice/filler/filler-test-helpers";
+import type { SpeakerOption } from "../../../io/voice/voices/speaker-selection";
 import { type VoicePipeline, wireVoicePipeline } from "./wire-voice-pipeline";
 
 // Custom pool phrases as a user writes them: emoji around the text and a sentence break inside it.

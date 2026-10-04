@@ -1,33 +1,36 @@
-import { loadEmotionTextTable } from "../../config/emotion-text";
+import { loadEmotionTextTable } from "../../../config/emotion-text";
 import {
   type AppConfig,
   type ConfigSection,
   STT_API_KEY_SECRET,
   TTS_API_KEY_SECRET,
-} from "../../config/load";
-import { ttsProviderOf } from "../../config/tts-provider";
-import type { EndpointsConfig, TtsProviderName } from "../../contract";
-import { createPreviousTurn, type PreviousTurnSlot } from "../../dispatcher/backend/previous-turn";
-import { createPushTurns, type PushTurns } from "../../dispatcher/turn/push-turn";
-import { createQuotedTurn, type QuotedTurn } from "../../dispatcher/turn/quoted-turn";
-import { createTurnLog, type TurnLog } from "../../dispatcher/turn/turn";
+} from "../../../config/load";
+import { ttsProviderOf } from "../../../config/tts-provider";
+import type { EndpointsConfig, TtsProviderName } from "../../../contract";
+import {
+  createPreviousTurn,
+  type PreviousTurnSlot,
+} from "../../../dispatcher/backend/previous-turn";
+import { createPushTurns, type PushTurns } from "../../../dispatcher/turn/push-turn";
+import { createQuotedTurn, type QuotedTurn } from "../../../dispatcher/turn/quoted-turn";
+import { createTurnLog, type TurnLog } from "../../../dispatcher/turn/turn";
 import {
   type BrokerClient,
   type BrokerPayload,
   createBrokerClient,
   deriveBrokerPayload,
-} from "../../io/chat/broker/broker-client";
-import { createBrokerOverrideReconciler } from "../../io/chat/broker/broker-override-reconciler";
-import { selectFetch } from "../../io/chat/stream/chat-client";
-import type { SttVad } from "../../io/voice/stt-vad";
-import type { SpeakerOption } from "../../io/voice/voices/speaker-selection";
-import type { Logger } from "../../logger";
-import type { Renderer } from "../../renderer";
-import type { ExpressMotionSettings } from "../../settings/avatar/express-motion-settings";
-import type { SettingsStores } from "../../settings/settings-stores";
-import { createVoiceErrorDwell } from "../../ui/chips/voice-error-dwell";
-import type { VoiceInputStatus } from "../../ui/chips/voice-input-status";
-import type { Surfaces } from "../../ui/surfaces/surfaces";
+} from "../../../io/chat/broker/broker-client";
+import { createBrokerOverrideReconciler } from "../../../io/chat/broker/broker-override-reconciler";
+import { selectFetch } from "../../../io/chat/stream/chat-client";
+import type { SttVad } from "../../../io/voice/stt-vad";
+import type { SpeakerOption } from "../../../io/voice/voices/speaker-selection";
+import type { Logger } from "../../../logger";
+import type { Renderer } from "../../../renderer";
+import type { ExpressMotionSettings } from "../../../settings/avatar/express-motion-settings";
+import type { SettingsStores } from "../../../settings/settings-stores";
+import { createVoiceErrorDwell } from "../../../ui/chips/voice-error-dwell";
+import type { VoiceInputStatus } from "../../../ui/chips/voice-input-status";
+import type { Surfaces } from "../../../ui/surfaces/surfaces";
 import { type VoicePipeline, wireVoicePipeline } from "./wire-voice-pipeline";
 
 /**

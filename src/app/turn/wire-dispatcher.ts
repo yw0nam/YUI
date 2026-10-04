@@ -37,7 +37,7 @@ import type { QuickControlsTab } from "../../ui/quick-controls/constants";
 import type { Surfaces } from "../../ui/surfaces/surfaces";
 import { wireGuardrailsOverrides } from "../cross-window/wire-window-sync";
 import type { ConversationStores } from "../settings/conversation-stores";
-import type { VoicePipeline } from "./wire-voice-pipeline";
+import type { VoicePipeline } from "./voice/wire-voice-pipeline";
 
 export function wireDispatcher(deps: {
   bus: EventBus;

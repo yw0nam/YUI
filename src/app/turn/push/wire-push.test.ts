@@ -3,14 +3,14 @@
  */
 
 import { afterEach, beforeEach, describe, expect, it, type Mock, vi } from "vitest";
-import type { ToolStatus } from "../../contract";
-import { PRE_SPEECH_TIMEOUT_MS } from "../../dispatcher/backend/idle-watchdog";
-import { makeTurnOutput } from "../../dispatcher/test-helpers";
-import { createPushTurns } from "../../dispatcher/turn/push-turn";
-import { createTurnFeed, type TurnFeed } from "../../dispatcher/turn/turn-feed";
-import { createDelegationsStore } from "../../io/bridge/delegations/delegations-store";
-import { createReasoningStore } from "../../io/bridge/reasoning/reasoning-store";
-import type { ChatHistoryEntry } from "../../io/chat/conversation/chat-history-store";
+import type { ToolStatus } from "../../../contract";
+import { PRE_SPEECH_TIMEOUT_MS } from "../../../dispatcher/backend/idle-watchdog";
+import { makeTurnOutput } from "../../../dispatcher/test-helpers";
+import { createPushTurns } from "../../../dispatcher/turn/push-turn";
+import { createTurnFeed, type TurnFeed } from "../../../dispatcher/turn/turn-feed";
+import { createDelegationsStore } from "../../../io/bridge/delegations/delegations-store";
+import { createReasoningStore } from "../../../io/bridge/reasoning/reasoning-store";
+import type { ChatHistoryEntry } from "../../../io/chat/conversation/chat-history-store";
 import type {
   DelegationItem,
   PushSocketState,
@@ -19,14 +19,14 @@ import type {
   SpeechFrame,
   ToolStatusFrame,
   TurnEndFrame,
-} from "../../io/chat/push/push-socket";
+} from "../../../io/chat/push/push-socket";
 import {
   createMessageWindowSettings,
   type MessageWindowMode,
-} from "../../settings/panels/message-window-settings";
+} from "../../../settings/panels/message-window-settings";
 
 const { createDelegationChip } = vi.hoisted(() => ({ createDelegationChip: vi.fn() }));
-vi.mock("../../ui/chips/delegation-chip", () => ({ createDelegationChip }));
+vi.mock("../../../ui/chips/delegation-chip", () => ({ createDelegationChip }));
 
 import {
   createDelegationChipMount,

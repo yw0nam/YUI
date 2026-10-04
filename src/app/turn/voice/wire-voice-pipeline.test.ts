@@ -83,22 +83,24 @@ const mocks = vi.hoisted(() => {
   };
 });
 
-vi.mock("../../io/voice/tts/speech-playback", () => ({
+vi.mock("../../../io/voice/tts/speech-playback", () => ({
   createSpeechPlayback: mocks.createSpeechPlayback,
 }));
-vi.mock("../../io/voice/filler/filler-loop", () => ({ createFillerLoop: mocks.createFillerLoop }));
-vi.mock("../../io/voice/stt-vad", () => ({ createSttVad: mocks.createSttVad }));
-vi.mock("../../io/voice/tts/tts-pipeline", () => ({ TTS_SKIP: mocks.ttsSkip }));
-vi.mock("../../io/voice/voices/tts-voices", () => ({
+vi.mock("../../../io/voice/filler/filler-loop", () => ({
+  createFillerLoop: mocks.createFillerLoop,
+}));
+vi.mock("../../../io/voice/stt-vad", () => ({ createSttVad: mocks.createSttVad }));
+vi.mock("../../../io/voice/tts/tts-pipeline", () => ({ TTS_SKIP: mocks.ttsSkip }));
+vi.mock("../../../io/voice/voices/tts-voices", () => ({
   upsertVoice: mocks.upsertVoice,
   listVoices: vi.fn(),
   deleteVoice: vi.fn(),
 }));
-vi.mock("../../io/voice/tts/audio-player", () => ({
+vi.mock("../../../io/voice/tts/audio-player", () => ({
   createWebAudioSink: mocks.createWebAudioSink,
 }));
-vi.mock("../../io/chat/stream/chat-client", () => ({ selectFetch: mocks.selectFetch }));
-vi.mock("../../io/voice/voices/voice-import", () => ({
+vi.mock("../../../io/chat/stream/chat-client", () => ({ selectFetch: mocks.selectFetch }));
+vi.mock("../../../io/voice/voices/voice-import", () => ({
   copyVoiceFile: mocks.copyVoiceFile,
   pickVoiceFile: vi.fn(),
   removeUserVoice: vi.fn().mockResolvedValue(undefined),
@@ -106,20 +108,20 @@ vi.mock("../../io/voice/voices/voice-import", () => ({
   fileStemFromPath: (path: string) => path,
 }));
 
-import type { FillerConfig, FillerPool } from "../../config/load";
-import type { EndpointsConfig } from "../../contract";
-import type { BusEnvelope } from "../../dispatcher/core/event-bus";
-import { createTurnLog } from "../../dispatcher/turn/turn";
-import type { FillerLoopDeps } from "../../io/voice/filler/filler-loop";
-import type { SttVadOptions } from "../../io/voice/stt-vad";
-import type { SpeechPlaybackOptions } from "../../io/voice/tts/speech-playback";
+import type { FillerConfig, FillerPool } from "../../../config/load";
+import type { EndpointsConfig } from "../../../contract";
+import type { BusEnvelope } from "../../../dispatcher/core/event-bus";
+import { createTurnLog } from "../../../dispatcher/turn/turn";
+import type { FillerLoopDeps } from "../../../io/voice/filler/filler-loop";
+import type { SttVadOptions } from "../../../io/voice/stt-vad";
+import type { SpeechPlaybackOptions } from "../../../io/voice/tts/speech-playback";
 import {
   createSpeakerSelection,
   localStorageSpeakerStorage,
   localStorageUserSpeakerStorage,
   type SpeakerOption,
-} from "../../io/voice/voices/speaker-selection";
-import { createVoiceImportFlow } from "../../io/voice/voices/voice-import-flow";
+} from "../../../io/voice/voices/speaker-selection";
+import { createVoiceImportFlow } from "../../../io/voice/voices/voice-import-flow";
 import { wireVoicePipeline } from "./wire-voice-pipeline";
 
 const noopLog = { debug: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn() };
@@ -733,7 +735,7 @@ describe("wireVoicePipeline", () => {
     const state = setup();
     const pipeline = playbackOptions().pipeline!;
     const sinkOptions = mocks.captured.audioSink as NonNullable<
-      Parameters<typeof import("../../io/voice/tts/audio-player").createWebAudioSink>[0]
+      Parameters<typeof import("../../../io/voice/tts/audio-player").createWebAudioSink>[0]
     >;
 
     expect(typeof pipeline.maxInflight).toBe("function");

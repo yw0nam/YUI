@@ -6,7 +6,7 @@ const { dispatcher, pushTurns, speechPlayback } = vi.hoisted(() => ({
   speechPlayback: { interrupt: vi.fn() },
 }));
 
-vi.mock("./wire-voice", () => ({
+vi.mock("./voice/wire-voice", () => ({
   wireTurnVoice: () => ({
     voice: { speechPlayback, createSttEngine: async () => ({}) },
     voiceInput: { setStt: () => {} },
