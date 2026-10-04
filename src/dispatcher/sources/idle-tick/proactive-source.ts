@@ -15,11 +15,11 @@
  * whether/what to speak.
  */
 
-import type { OsEventListen, OsEventPayload } from "../../io/window/tauri-listen";
-import { subscribeOsEvent } from "../../io/window/tauri-listen";
-import { createLogger } from "../../logger";
-import type { ProactiveCue } from "../../settings/cues/proactive-settings";
-import type { BusEnvelope, EventBus } from "../core/event-bus";
+import type { OsEventListen, OsEventPayload } from "../../../io/window/tauri-listen";
+import { subscribeOsEvent } from "../../../io/window/tauri-listen";
+import { createLogger } from "../../../logger";
+import type { ProactiveCue } from "../../../settings/cues/proactive-settings";
+import type { BusEnvelope, EventBus } from "../../core/event-bus";
 
 const log = createLogger("proactive-source");
 

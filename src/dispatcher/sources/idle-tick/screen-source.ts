@@ -33,16 +33,16 @@
  * whether/what to speak.
  */
 
-import type { ScreenConfig } from "../../config/load";
+import type { ScreenConfig } from "../../../config/load";
 import {
   buildSkipRecord,
   type ScreenSkipRecord,
   type SkipReason,
-} from "../../io/chat/record/turn-record-log";
-import type { OsEventListen, OsEventPayload } from "../../io/window/tauri-listen";
-import { subscribeOsEvent } from "../../io/window/tauri-listen";
-import { createLogger } from "../../logger";
-import type { BusEnvelope, EventBus } from "../core/event-bus";
+} from "../../../io/chat/record/turn-record-log";
+import type { OsEventListen, OsEventPayload } from "../../../io/window/tauri-listen";
+import { subscribeOsEvent } from "../../../io/window/tauri-listen";
+import { createLogger } from "../../../logger";
+import type { BusEnvelope, EventBus } from "../../core/event-bus";
 
 const log = createLogger("screen-source");
 

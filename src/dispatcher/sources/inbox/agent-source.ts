@@ -17,11 +17,11 @@
  * speak. No speak/don't-speak gate and no persona state live here.
  */
 
-import type { AgentEvent } from "../../io/bridge/inbox/agent-inbox";
-import { onAgentInbox } from "../../io/bridge/inbox/agent-inbox";
-import type { OsEventListen } from "../../io/window/tauri-listen";
-import { createLogger } from "../../logger";
-import type { EventBus } from "../core/event-bus";
+import type { AgentEvent } from "../../../io/bridge/inbox/agent-inbox";
+import { onAgentInbox } from "../../../io/bridge/inbox/agent-inbox";
+import type { OsEventListen } from "../../../io/window/tauri-listen";
+import { createLogger } from "../../../logger";
+import type { EventBus } from "../../core/event-bus";
 import { createBufferedInboxSource, type InboxFiring } from "./buffered-inbox-source";
 
 const log = createLogger("agent-source");

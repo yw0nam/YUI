@@ -203,20 +203,23 @@ YUI/
         client-context-text.ts       # Renders a client context into the plain-line prompt block
         previous-turn.ts             # Persisted record of how the last turn that tried to speak ended
       sources/
-        buffered-inbox-source.ts     # Shared presence-gated core for the inbox-push firing sources
-        agent-source.ts              # Agent-lifecycle firing source
-        signals-source.ts            # Grouped signals-ingress firing source
-        proactive-source.ts          # Idle-gap proactive firing source
-        schedule-source.ts           # Clock-time schedule firing source
-        milestone-source.ts          # Once-per-day first-activity milestone firing source
-        screen-source.ts             # Frontmost-app transition firing source with a dwell state machine
         user-input-source.ts         # Normalises typed text and STT results into bus envelopes
-        tap-source.ts                # Turns taps on the character into bus envelopes
-        drag-hold-source.ts          # Fires one proactive.drag_held candidate per sustained drag
-        window-drop/                 # Drag-release perch settle, armed-perch poll, and placement
-          window-drop-source.ts      # Drag-release settle composing the perch watch and placement
-          perch-watch.ts             # Armed perch and peek state with the occlusion-aware detach poll
-          placement.ts               # Programmatic placement of the character on a named window
+        inbox/                       # The inbox-push firing sources
+          buffered-inbox-source.ts   # Shared presence-gated core for the inbox-push firing sources
+          agent-source.ts            # Agent-lifecycle firing source
+          signals-source.ts          # Grouped signals-ingress firing source
+        idle-tick/                   # Idle-gap, clock-time, milestone, and screen firing sources
+          proactive-source.ts        # Idle-gap proactive firing source
+          schedule-source.ts         # Clock-time schedule firing source
+          milestone-source.ts        # Once-per-day first-activity milestone firing source
+          screen-source.ts           # Frontmost-app transition firing source with a dwell state machine
+        gesture/                     # Tap, drag-hold, and window-drop firing sources
+          tap-source.ts              # Turns taps on the character into bus envelopes
+          drag-hold-source.ts        # Fires one proactive.drag_held candidate per sustained drag
+          window-drop/               # Drag-release perch settle, armed-perch poll, and placement
+            window-drop-source.ts    # Drag-release settle composing the perch watch and placement
+            perch-watch.ts           # Armed perch and peek state with the occlusion-aware detach poll
+            placement.ts             # Programmatic placement of the character on a named window
     ambient/                         # Backend-independent local liveliness and movement
       liveliness/                    # Tier 1 idle-life engine and its cue math
         tier1.ts                     # Tier 1 ambient engine: blink, idle sway, breath, look-around

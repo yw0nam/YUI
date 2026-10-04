@@ -1,8 +1,8 @@
 /** Shared fixtures for the window-drop tests. */
 
 import { vi } from "vitest";
-import type { WindowRect } from "../../../contract";
-import type { BusEnvelope, EventBus } from "../../core/event-bus";
+import type { WindowRect } from "../../../../contract";
+import type { BusEnvelope, EventBus } from "../../../core/event-bus";
 
 /** Minimal in-memory bus capturing pushes. */
 export function makeBus(): { bus: EventBus; pushed: BusEnvelope[] } {

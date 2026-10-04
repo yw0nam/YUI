@@ -14,9 +14,9 @@
  */
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { avatarFixture } from "../../../config/load-test-helpers";
-import type { WindowRect } from "../../../contract";
-import type { BusEnvelope, EventBus } from "../../core/event-bus";
+import { avatarFixture } from "../../../../config/load-test-helpers";
+import type { WindowRect } from "../../../../contract";
+import type { BusEnvelope, EventBus } from "../../../core/event-bus";
 import { DEFAULT_POLL_MS, makeBus, makePerchSource, makeWindow, tick, win } from "./test-helpers";
 import {
   createWindowDropSource as createWindowDropSourceImpl,

@@ -25,23 +25,23 @@
  * degrade to a warn log.
  */
 
-import type { GestureCueConfig, GestureCuesConfig, PeekConfig } from "../../../config/load";
-import type { WindowRect } from "../../../contract";
+import type { GestureCueConfig, GestureCuesConfig, PeekConfig } from "../../../../config/load";
+import type { WindowRect } from "../../../../contract";
 import type {
   PerchTargets,
   PlacementOptions,
   PlacementRequest,
   PlacementResult,
-} from "../../../io/window/geometry/perch";
-import { containsSeat } from "../../../io/window/geometry/perch";
-import { createLogger } from "../../../logger";
-import type { ScreenPoint } from "../../../renderer/geometry/perch-geometry";
+} from "../../../../io/window/geometry/perch";
+import { containsSeat } from "../../../../io/window/geometry/perch";
+import { createLogger } from "../../../../logger";
+import type { ScreenPoint } from "../../../../renderer/geometry/perch-geometry";
 import {
   inCatchZone,
   inSideCatchZone,
   peekTargetPx,
-} from "../../../renderer/geometry/perch-geometry";
-import type { EventBus } from "../../core/event-bus";
+} from "../../../../renderer/geometry/perch-geometry";
+import type { EventBus } from "../../../core/event-bus";
 import {
   createPerchWatch,
   type DropInvoke,

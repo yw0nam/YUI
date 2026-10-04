@@ -11,10 +11,10 @@
  */
 
 import { describe, expect, it, vi } from "vitest";
-import type { SignalGroup } from "../../contract";
-import type { OsEventListen, OsEventPayload } from "../../io/window/tauri-listen";
-import type { PersistedStorage } from "../../settings/persisted-store";
-import type { BusEnvelope, EventBus } from "../core/event-bus";
+import type { SignalGroup } from "../../../contract";
+import type { OsEventListen, OsEventPayload } from "../../../io/window/tauri-listen";
+import type { PersistedStorage } from "../../../settings/persisted-store";
+import type { BusEnvelope, EventBus } from "../../core/event-bus";
 import { createMilestoneSource } from "./milestone-source";
 
 /** `accepts` answers per push, so a test can make the bus reject the first candidate. */

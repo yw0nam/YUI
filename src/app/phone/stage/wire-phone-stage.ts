@@ -1,6 +1,6 @@
 import type { AppConfig } from "../../../config/load";
 import type { EventBus } from "../../../dispatcher/core/event-bus";
-import { createTapSource } from "../../../dispatcher/sources/tap-source";
+import { createTapSource } from "../../../dispatcher/sources/gesture/tap-source";
 import { attachStageTouch } from "../../../io/stage/touch/stage-touch";
 import { createTouchGesture } from "../../../io/stage/touch/touch-gesture";
 import type { Renderer } from "../../../renderer";

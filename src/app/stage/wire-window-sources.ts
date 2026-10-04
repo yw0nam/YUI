@@ -1,7 +1,7 @@
 import type { GestureCuesConfig, PeekConfig } from "../../config/load";
 import type { Posture, WindowRect } from "../../contract";
 import type { EventBus } from "../../dispatcher/core/event-bus";
-import { createWindowDropSource } from "../../dispatcher/sources/window-drop/window-drop-source";
+import { createWindowDropSource } from "../../dispatcher/sources/gesture/window-drop/window-drop-source";
 import { type AvatarExecutor, createAvatarExecutor } from "../../io/bridge/inbox/avatar-executor";
 import { onAvatarRpc, respondAvatarRpc } from "../../io/bridge/inbox/avatar-rpc";
 import {

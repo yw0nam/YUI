@@ -6,12 +6,12 @@
  * batched-delivery timer. Signal item contents remain opaque.
  */
 
-import type { SignalEnvelope, SignalGroup } from "../../contract";
-import type { SignalsBatch } from "../../io/bridge/inbox/signals-inbox";
-import { onSignalsInbox } from "../../io/bridge/inbox/signals-inbox";
-import type { OsEventListen } from "../../io/window/tauri-listen";
-import { createLogger } from "../../logger";
-import type { EventBus } from "../core/event-bus";
+import type { SignalEnvelope, SignalGroup } from "../../../contract";
+import type { SignalsBatch } from "../../../io/bridge/inbox/signals-inbox";
+import { onSignalsInbox } from "../../../io/bridge/inbox/signals-inbox";
+import type { OsEventListen } from "../../../io/window/tauri-listen";
+import { createLogger } from "../../../logger";
+import type { EventBus } from "../../core/event-bus";
 import { createBufferedInboxSource, type InboxFiring } from "./buffered-inbox-source";
 
 const log = createLogger("signals-source");

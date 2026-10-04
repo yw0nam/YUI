@@ -5,21 +5,27 @@ import {
   type PacedPipelineBusy,
 } from "../../dispatcher/core/paced-pipeline-busy";
 import type { ProactivePacer } from "../../dispatcher/core/proactive-pacer";
-import { createAgentSource } from "../../dispatcher/sources/agent-source";
 import {
   createMilestoneSource,
   type MilestoneSource,
-} from "../../dispatcher/sources/milestone-source";
+} from "../../dispatcher/sources/idle-tick/milestone-source";
 import {
   createProactiveSource,
   type ProactiveSource,
-} from "../../dispatcher/sources/proactive-source";
+} from "../../dispatcher/sources/idle-tick/proactive-source";
 import {
   createScheduleSource,
   type ScheduleSource,
-} from "../../dispatcher/sources/schedule-source";
-import { createScreenSource, type ScreenSource } from "../../dispatcher/sources/screen-source";
-import { createSignalsSource, type SignalsSource } from "../../dispatcher/sources/signals-source";
+} from "../../dispatcher/sources/idle-tick/schedule-source";
+import {
+  createScreenSource,
+  type ScreenSource,
+} from "../../dispatcher/sources/idle-tick/screen-source";
+import { createAgentSource } from "../../dispatcher/sources/inbox/agent-source";
+import {
+  createSignalsSource,
+  type SignalsSource,
+} from "../../dispatcher/sources/inbox/signals-source";
 import { appendRecord } from "../../io/chat/record/turn-record-log";
 import type { AgentNotifySettings } from "../../settings/backend/agent-notify-settings";
 import type { ProactiveSettings } from "../../settings/cues/proactive-settings";

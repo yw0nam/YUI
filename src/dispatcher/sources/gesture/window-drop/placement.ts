@@ -6,16 +6,16 @@
  * peek commit a real drop uses. Never throws to the caller beyond what `invoke` does.
  */
 
-import type { PeekConfig } from "../../../config/load";
-import type { WindowRect } from "../../../contract";
+import type { PeekConfig } from "../../../../config/load";
+import type { WindowRect } from "../../../../contract";
 import type {
   PlacementOptions,
   PlacementRequest,
   PlacementResult,
-} from "../../../io/window/geometry/perch";
-import { containsSeat } from "../../../io/window/geometry/perch";
-import { createLogger } from "../../../logger";
-import type { ScreenPoint } from "../../../renderer/geometry/perch-geometry";
+} from "../../../../io/window/geometry/perch";
+import { containsSeat } from "../../../../io/window/geometry/perch";
+import { createLogger } from "../../../../logger";
+import type { ScreenPoint } from "../../../../renderer/geometry/perch-geometry";
 import {
   type DropInvoke,
   type DropWindow,

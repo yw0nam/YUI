@@ -11,16 +11,16 @@
  * whether/what to speak.
  */
 
-import type { OsEventListen, OsEventPayload } from "../../io/window/tauri-listen";
-import { subscribeOsEvent } from "../../io/window/tauri-listen";
-import { createLogger } from "../../logger";
-import type { ScheduledCue } from "../../settings/cues/schedule-settings";
+import type { OsEventListen, OsEventPayload } from "../../../io/window/tauri-listen";
+import { subscribeOsEvent } from "../../../io/window/tauri-listen";
+import { createLogger } from "../../../logger";
+import type { ScheduledCue } from "../../../settings/cues/schedule-settings";
 import {
   isPlainObject,
   localStorageStore,
   type PersistedStorage,
-} from "../../settings/persisted-store";
-import type { BusEnvelope, EventBus } from "../core/event-bus";
+} from "../../../settings/persisted-store";
+import type { BusEnvelope, EventBus } from "../../core/event-bus";
 
 const log = createLogger("schedule-source");
 

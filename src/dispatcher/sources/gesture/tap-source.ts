@@ -1,17 +1,17 @@
-import type { TapConfig } from "../../config/load";
-import type { SignalGroup } from "../../contract";
-import { createLogger } from "../../logger";
+import type { TapConfig } from "../../../config/load";
+import type { SignalGroup } from "../../../contract";
+import { createLogger } from "../../../logger";
 import {
   type CssPoint,
   classifyTapRegion,
   type TapRegion,
   type TapRegionBones,
-} from "../../renderer/geometry/tap-region";
-import type { EventBus } from "../core/event-bus";
+} from "../../../renderer/geometry/tap-region";
+import type { EventBus } from "../../core/event-bus";
 
 const log = createLogger("tap-source");
 
-export type { TapConfig } from "../../config/load";
+export type { TapConfig } from "../../../config/load";
 
 export interface TapPoints extends TapRegionBones {
   charHpx: number;

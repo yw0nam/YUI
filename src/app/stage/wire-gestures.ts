@@ -2,8 +2,8 @@
 import type { AppConfig } from "../../config/load";
 import type { SignalGroup } from "../../contract";
 import type { EventBus } from "../../dispatcher/core/event-bus";
-import { createDragHoldSource } from "../../dispatcher/sources/drag-hold-source";
-import { createTapSource, type TapSource } from "../../dispatcher/sources/tap-source";
+import { createDragHoldSource } from "../../dispatcher/sources/gesture/drag-hold-source";
+import { createTapSource, type TapSource } from "../../dispatcher/sources/gesture/tap-source";
 import type { PatGesture } from "../../io/window/pet/gesture/click-gesture";
 import { initDrag } from "../../io/window/pet/gesture/window-drag";
 import type { HitTestController } from "../../io/window/pet/hit-test";

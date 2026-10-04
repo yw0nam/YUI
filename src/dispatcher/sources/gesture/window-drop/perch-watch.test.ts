@@ -5,7 +5,7 @@
  */
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import type { BusEnvelope, EventBus } from "../../core/event-bus";
+import type { BusEnvelope, EventBus } from "../../../core/event-bus";
 import { createPerchWatch } from "./perch-watch";
 import { makeBus, makePerchSource, makeWindow, tick, win } from "./test-helpers";
 

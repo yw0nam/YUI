@@ -5,8 +5,8 @@
  */
 
 import { describe, expect, it, vi } from "vitest";
-import { avatarFixture } from "../../../config/load-test-helpers";
-import type { WindowRect } from "../../../contract";
+import { avatarFixture } from "../../../../config/load-test-helpers";
+import type { WindowRect } from "../../../../contract";
 import { createPlacement } from "./placement";
 import { makeWindow, win } from "./test-helpers";
 
