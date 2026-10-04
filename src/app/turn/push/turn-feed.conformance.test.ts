@@ -5,15 +5,8 @@
  */
 
 import { describe, expect, it, vi } from "vitest";
-import { wirePushTransport } from "../../app/turn/push/wire-push";
-import type { ToolStatus } from "../../contract";
-import { createDelegationsStore } from "../../io/bridge/delegations/delegations-store";
-import {
-  createReasoningStore,
-  type ReasoningState,
-} from "../../io/bridge/reasoning/reasoning-store";
-import type { ReasoningFrame, RenderFrame, ToolStatusFrame } from "../../io/chat/push/push-socket";
-import { createBackendCaller } from "../backend/backend-caller";
+import type { ToolStatus } from "../../../contract";
+import { createBackendCaller } from "../../../dispatcher/backend/backend-caller";
 import {
   CONFIG,
   completedEvent,
@@ -24,9 +17,20 @@ import {
   toolStatusEvent,
   turnOf,
   userEnv,
-} from "../test-helpers";
-import { createPushTurns } from "./push-turn";
-import { createTurnFeed } from "./turn-feed";
+} from "../../../dispatcher/test-helpers";
+import { createPushTurns } from "../../../dispatcher/turn/push-turn";
+import { createTurnFeed } from "../../../dispatcher/turn/turn-feed";
+import { createDelegationsStore } from "../../../io/bridge/delegations/delegations-store";
+import {
+  createReasoningStore,
+  type ReasoningState,
+} from "../../../io/bridge/reasoning/reasoning-store";
+import type {
+  ReasoningFrame,
+  RenderFrame,
+  ToolStatusFrame,
+} from "../../../io/chat/push/push-socket";
+import { wirePushTransport } from "./wire-push";
 
 const RUNNING: ToolStatus = { state: "running", tool_id: "web_search" };
 const DONE: ToolStatus = { state: "done", tool_id: "web_search" };

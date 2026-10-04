@@ -10,13 +10,8 @@
  */
 
 import { describe, expect, it, vi } from "vitest";
-import { wirePushTransport } from "../../app/turn/push/wire-push";
-import type { ControlEnvelope, ExpressArgs } from "../../contract";
-import { createDelegationsStore } from "../../io/bridge/delegations/delegations-store";
-import { createReasoningStore } from "../../io/bridge/reasoning/reasoning-store";
-import type { RenderFrame } from "../../io/chat/push/push-socket";
-import type { ChatStreamEvent } from "../../io/chat/stream/chat-client";
-import { createBackendCaller } from "../backend/backend-caller";
+import type { ControlEnvelope, ExpressArgs } from "../../../contract";
+import { createBackendCaller } from "../../../dispatcher/backend/backend-caller";
 import {
   CONFIG,
   completedEvent,
@@ -27,9 +22,14 @@ import {
   makeTurnOutput,
   turnOf,
   userEnv,
-} from "../test-helpers";
-import { createPushTurns } from "./push-turn";
-import { createTurnFeed } from "./turn-feed";
+} from "../../../dispatcher/test-helpers";
+import { createPushTurns } from "../../../dispatcher/turn/push-turn";
+import { createTurnFeed } from "../../../dispatcher/turn/turn-feed";
+import { createDelegationsStore } from "../../../io/bridge/delegations/delegations-store";
+import { createReasoningStore } from "../../../io/bridge/reasoning/reasoning-store";
+import type { RenderFrame } from "../../../io/chat/push/push-socket";
+import type { ChatStreamEvent } from "../../../io/chat/stream/chat-client";
+import { wirePushTransport } from "./wire-push";
 
 const CUE_A: ExpressArgs = { emotion_id: "happy", motion_id: "nod" };
 const CUE_B: ExpressArgs = {
