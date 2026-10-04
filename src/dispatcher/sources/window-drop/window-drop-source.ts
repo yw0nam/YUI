@@ -215,7 +215,7 @@ export function createWindowDropSource(deps: WindowDropSourceDeps): WindowDropSo
     invoke,
     getWindow,
     peekActive: deps.peekActive ?? (() => false),
-    onSitLost: deps.onSitLost,
+    onSitLost: () => deps.onSitLost?.(),
     setInterval: deps.setInterval ?? setInterval,
     clearInterval: deps.clearInterval ?? clearInterval,
   });

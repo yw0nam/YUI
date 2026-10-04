@@ -1851,6 +1851,46 @@ describe("window-drop-source — adoptSit", () => {
     vi.useRealTimers();
   });
 
+  it("routes the sit lifecycle through the composed source", async () => {
+    const { renderer } = makePerchSource();
+    const armed = win({ name: "Armed", windowNumber: 42 });
+    const invoke = vi.fn(async () => [armed]);
+    const source = createWindowDropSource({
+      bus,
+      renderer,
+      invoke,
+      getWindow: () => makeWindow({ x: 520, y: 740 }, 2),
+      listen: makeListen().listen,
+    });
+    const seat = { windowNumber: 42, origin: "adopt", charHpx: 200 } as const;
+
+    source.adoptSit(42, { x: armed.x, y: armed.y }, 200, "adopt");
+    expect(source.armedSit()).toEqual(seat);
+
+    expect(source.suspendSit()).toEqual({ ...seat, rect: { x: 300, y: 400 } });
+    expect(renderer.setPerchTarget).toHaveBeenLastCalledWith(null);
+    invoke.mockClear();
+    await tick();
+    expect(invoke).not.toHaveBeenCalled();
+
+    source.resumeSit(420);
+    expect(renderer.setPerchTarget).toHaveBeenLastCalledWith({ edgeLocalYpx: 420 });
+    await tick();
+    expect(invoke).toHaveBeenCalled();
+
+    source.suspendSit();
+    source.abandonSit();
+    renderer.setPerchTarget.mockClear();
+    source.resumeSit(420);
+    expect(renderer.setPerchTarget).not.toHaveBeenCalled();
+    expect(source.armedSit()).toBeNull();
+
+    source.adoptSit(42, { x: armed.x, y: armed.y }, 200, "adopt");
+    source.release();
+    expect(pushed.map((e) => e.event_name)).toEqual(["user.window_sit_exit"]);
+    expect(source.armedSit()).toBeNull();
+  });
+
   it("names no armed sit before anything is armed, or while a peek holds", async () => {
     const { renderer } = makePerchSource();
     let pos = { x: 520, y: 740 };
