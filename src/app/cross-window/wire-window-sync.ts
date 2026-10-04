@@ -1,10 +1,7 @@
 import type { Guardrails, GuardrailsConfig } from "../../dispatcher/core/guardrails";
 import type { createVrmSelection } from "../../io/assets/vrm-selection";
-import {
-  createSettingsBridge,
-  type SettingsBridge,
-  type WindowKind,
-} from "../../io/bridge/settings-bridge";
+import type { WindowKind } from "../../io/bridge/core/bridge-core";
+import { createSettingsBridge, type SettingsBridge } from "../../io/bridge/settings-bridge";
 import type { createSpeakerSelection } from "../../io/voice/voices/speaker-selection";
 import { wireStorageSync } from "../../io/window/openers/settings-window";
 import type { Logger } from "../../logger";

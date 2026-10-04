@@ -9,10 +9,10 @@ import type {
 import { createLipsyncSettings } from "../../settings/avatar/lipsync-settings";
 import { createAgentSettings } from "../../settings/backend/agent-settings";
 import {
+  createChatKeySettings,
   createSttKeySettings,
   createTtsKeySettings,
 } from "../../settings/backend/api-key-settings";
-import { createChatKeySettings } from "../../settings/backend/chat-key-settings";
 import { createEndpointsSettings } from "../../settings/backend/endpoints-settings";
 import { createProactiveSettings } from "../../settings/cues/proactive-settings";
 import { createScheduleSettings } from "../../settings/cues/schedule-settings";

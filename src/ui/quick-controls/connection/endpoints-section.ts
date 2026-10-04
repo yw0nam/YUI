@@ -7,8 +7,10 @@
 import "./endpoints-section.css";
 
 import type { Logger } from "../../../logger";
-import type { ApiKeySettingsStore } from "../../../settings/backend/api-key-settings";
-import type { ChatKeySettingsStore } from "../../../settings/backend/chat-key-settings";
+import type {
+  ApiKeySettingsStore,
+  ChatKeySettingsStore,
+} from "../../../settings/backend/api-key-settings";
 import {
   type createEndpointsSettings,
   ENDPOINT_FIELD_SPECS,

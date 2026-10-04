@@ -6,10 +6,10 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { PushSocketState } from "../../../io/chat/push-socket";
 import {
+  createChatKeySettings,
   createSttKeySettings,
   createTtsKeySettings,
 } from "../../../settings/backend/api-key-settings";
-import { createChatKeySettings } from "../../../settings/backend/chat-key-settings";
 import {
   createEndpointsSettings,
   type EndpointOverrides,

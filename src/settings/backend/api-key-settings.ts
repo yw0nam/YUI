@@ -71,6 +71,19 @@ export function localStorageApiKeyStorage(key: string): ApiKeyStorage {
   return localStorageStore<ApiKeySettings>(key);
 }
 
+/** Chat API key override store; it persists only through an injected storage (settings-stores passes localStorageChatKeyStorage()). */
+export function createChatKeySettings(opts?: { storage?: ApiKeyStorage }) {
+  return createApiKeySettings(opts);
+}
+
+/** Chat-key store instance type (SecretProvider injection). */
+export type ChatKeySettingsStore = ReturnType<typeof createChatKeySettings>;
+
+/** localStorage adapter for the chat-key store. */
+export function localStorageChatKeyStorage(key = "yui.chat-key"): ApiKeyStorage {
+  return localStorageApiKeyStorage(key);
+}
+
 /** STT server key store (OpenAI-compatible Bearer). */
 export function createSttKeySettings(opts?: { storage?: ApiKeyStorage }) {
   return createApiKeySettings({ storageKey: "yui.stt-key", ...opts });

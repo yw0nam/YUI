@@ -6,8 +6,9 @@
 
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { DelegationItem } from "../chat/push-socket";
+import type { BridgeTransport } from "./core/bridge-core";
 import { createMirroredDelegations, publishDelegations } from "./delegations-bridge";
-import { type BridgeTransport, createSettingsBridge } from "./settings-bridge";
+import { createSettingsBridge } from "./settings-bridge";
 
 /** In-memory pub/sub shared by two bridges — one per window. */
 function createFakeTransport(): BridgeTransport {

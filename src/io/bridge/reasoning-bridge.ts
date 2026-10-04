@@ -7,6 +7,7 @@
  * The whole state crosses on every change, so a missed event cannot corrupt the text.
  */
 
+import { createStateMirror, publishState } from "./core/state-mirror";
 import type { ReasoningState, ReasoningStore } from "./reasoning-store";
 import type { SettingsBridge } from "./settings-bridge";
 
@@ -32,13 +33,12 @@ export function publishReasoning(deps: {
   store: Pick<ReasoningStore, "get" | "subscribe">;
   bridge: ReasoningBridge;
 }): () => void {
-  const unsubscribes = [
-    deps.store.subscribe((state) => deps.bridge.emitReasoning(state)),
-    deps.bridge.onReasoningAsk(() => deps.bridge.emitReasoning(deps.store.get())),
-  ];
-  return () => {
-    for (const off of unsubscribes) off();
-  };
+  return publishState({
+    get: deps.store.get,
+    subscribe: deps.store.subscribe,
+    emit: deps.bridge.emitReasoning,
+    onAsk: deps.bridge.onReasoningAsk,
+  });
 }
 
 /**
@@ -46,32 +46,9 @@ export function publishReasoning(deps: {
  * long after the pet window settled still shows where the reasoning stands.
  */
 export function createMirroredReasoning(deps: { bridge: ReasoningBridge }): ReasoningMirror {
-  const subscribers = new Set<(s: ReasoningState) => void>();
-  let state: ReasoningState = { text: "", live: false };
-
-  const off = deps.bridge.onReasoning((next) => {
-    state = next;
-    for (const cb of subscribers) cb(next);
+  return createStateMirror<ReasoningState>({
+    initial: { text: "", live: false },
+    on: deps.bridge.onReasoning,
+    ask: deps.bridge.emitReasoningAsk,
   });
-  deps.bridge.emitReasoningAsk();
-
-  return {
-    get: () => state,
-
-    subscribe(cb): () => void {
-      subscribers.add(cb);
-      return () => {
-        subscribers.delete(cb);
-      };
-    },
-
-    refresh(): void {
-      deps.bridge.emitReasoningAsk();
-    },
-
-    dispose(): void {
-      off();
-      subscribers.clear();
-    },
-  };
 }

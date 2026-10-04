@@ -7,10 +7,10 @@ import {
   type WorkflowEntry,
 } from "../../../settings/backend/workflow-settings";
 import { t } from "../../i18n";
+import { CROSS_SVG } from "../constants";
 
 const PLAY_SVG = `<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M8 5.5v13l11-6.5-11-6.5z" fill="currentColor"/></svg>`;
 const CHECK_SVG = `<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M5 13l4 4L19 7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
-const CROSS_SVG = `<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>`;
 
 interface WorkflowsSectionDeps {
   root: HTMLElement;

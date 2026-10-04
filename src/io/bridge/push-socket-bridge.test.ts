@@ -6,8 +6,9 @@
 
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { PushSocketState } from "../chat/push-socket";
+import type { BridgeTransport } from "./core/bridge-core";
 import { createMirroredPushSocket, publishPushSocket } from "./push-socket-bridge";
-import { type BridgeTransport, createSettingsBridge } from "./settings-bridge";
+import { createSettingsBridge } from "./settings-bridge";
 
 /** In-memory pub/sub shared by two bridges — one per window. */
 function createFakeTransport(): BridgeTransport {

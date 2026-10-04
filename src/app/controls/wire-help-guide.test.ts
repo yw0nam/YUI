@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
-import { type BridgeTransport, createSettingsBridge } from "../../io/bridge/settings-bridge";
+import type { BridgeTransport } from "../../io/bridge/core/bridge-core";
+import { createSettingsBridge } from "../../io/bridge/settings-bridge";
 import { wireHelpGuide } from "./wire-help-guide";
 
 /** In-memory pub/sub shared by two bridges — one per window. */

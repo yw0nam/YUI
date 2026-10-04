@@ -11,7 +11,7 @@ import type {
 import { createLipsyncSettings } from "../../settings/avatar/lipsync-settings";
 import { createAgentNotifySettings } from "../../settings/backend/agent-notify-settings";
 import { createAgentSettings } from "../../settings/backend/agent-settings";
-import { createChatKeySettings } from "../../settings/backend/chat-key-settings";
+import { createChatKeySettings } from "../../settings/backend/api-key-settings";
 import { createEndpointsSettings } from "../../settings/backend/endpoints-settings";
 import { createGuardrailsSettings } from "../../settings/backend/guardrails-settings";
 import { createProactiveSettings } from "../../settings/cues/proactive-settings";

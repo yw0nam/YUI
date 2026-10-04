@@ -8,6 +8,7 @@
 
 import { createLogger } from "../../logger";
 import type { PushSocketState } from "../chat/push-socket";
+import { createStateMirror, publishState } from "./core/state-mirror";
 import type { SettingsBridge } from "./settings-bridge";
 
 const log = createLogger("push-socket-bridge");
@@ -51,9 +52,13 @@ export function publishPushSocket(deps: {
   stopTurn: () => void;
   bridge: PushBridge;
 }): () => void {
+  const stopState = publishState({
+    get: () => deps.socket.getState(),
+    subscribe: (cb) => deps.socket.onState(cb),
+    emit: deps.bridge.emitPushState,
+    onAsk: deps.bridge.onPushStateAsk,
+  });
   const unsubscribes = [
-    deps.socket.onState((state) => deps.bridge.emitPushState(state)),
-    deps.bridge.onPushStateAsk(() => deps.bridge.emitPushState(deps.socket.getState())),
     deps.bridge.onPushReset(() => {
       log.info("reset_requested");
       // A turn still running stops with the conversation, before the reset frame goes out.
@@ -66,6 +71,7 @@ export function publishPushSocket(deps: {
     }),
   ];
   return () => {
+    stopState();
     for (const off of unsubscribes) off();
   };
 }
@@ -75,24 +81,17 @@ export function publishPushSocket(deps: {
  * asks at once, so a window opened long after the socket settled still shows where it stands.
  */
 export function createMirroredPushSocket(deps: { bridge: PushBridge }): PushSocketMirror {
-  const subscribers = new Set<(state: PushSocketState) => void>();
-  let state: PushSocketState = { kind: "disconnected" };
-
-  const off = deps.bridge.onPushState((next) => {
-    state = next;
-    for (const cb of subscribers) cb(next);
+  const mirror = createStateMirror<PushSocketState>({
+    initial: { kind: "disconnected" },
+    on: deps.bridge.onPushState,
+    ask: deps.bridge.emitPushStateAsk,
   });
-  deps.bridge.emitPushStateAsk();
 
   return {
-    getState: () => state,
-
-    onState(cb): () => void {
-      subscribers.add(cb);
-      return () => {
-        subscribers.delete(cb);
-      };
-    },
+    getState: mirror.get,
+    onState: mirror.subscribe,
+    refresh: mirror.refresh,
+    dispose: mirror.dispose,
 
     // The owner window performs it; a request that reaches no owner changes nothing.
     sendReset(): boolean {
@@ -102,15 +101,6 @@ export function createMirroredPushSocket(deps: { bridge: PushBridge }): PushSock
 
     reconnectNow(): void {
       deps.bridge.emitPushReconnect();
-    },
-
-    refresh(): void {
-      deps.bridge.emitPushStateAsk();
-    },
-
-    dispose(): void {
-      off();
-      subscribers.clear();
     },
   };
 }

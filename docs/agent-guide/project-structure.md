@@ -69,6 +69,9 @@ YUI/
       message/                       # The message window's wiring
         wire-message-surface-ops.ts  # Draws each surface op from the pet window onto the surfaces and the plate
         wire-message-tauri-window.ts # Window focus, the OS drag, the content-height resize, and the moved-position record
+      settings-window/               # The settings window's wiring
+        wire-settings-window.ts      # Stores, config, cross-window sync, and the quick controls remounted on locale change
+        wire-voice-mirror.ts         # Mirrors the voice toggle to the pet window and the pet window's voice state back
       voice/                         # Desktop voice wiring
         voice-fix.ts                 # The desktop pill's setup-needed tap: open Connection, then back to listening
       phone/                         # The phone window's config-derived half
@@ -83,7 +86,7 @@ YUI/
     tauri-env.ts                     # Tauri runtime detection
     windows/                         # One entry file per window, loaded by the matching HTML file
       main.ts                        # Pet window: config load, renderer, dispatcher, and the I/O graph
-      settings-main.ts               # Settings window
+      settings-main.ts               # Settings window: mounts the settings window wiring
       devtools-main.ts               # Developer Tools window
       message-main.ts                # Message window
       phone-main.ts                  # Phone window: stage, persistent composer, and push chat
@@ -112,7 +115,9 @@ YUI/
       index.ts                       # three.js and VRM output layer: scene, rAF loop, VRM load and hot-swap
       types.ts                       # Renderer options, per-frame tick context, and the Renderer surface
       apply-directive.ts             # Pure routing of a control envelope into the emotion and motion sinks
+      frame-loop.ts                  # The rAF loop with its clock, hidden-document pause, and idle-throttle gate
       pin-controller.ts              # Stateful perch and peek pin apply layer
+      vrm-loading.ts                 # VRM optimisation of a loaded glTF and the display-name read
       vrm-participant.ts             # The per-frame lifecycle every VRM-bound sub-controller implements
       camera/                        # Camera framing, zoom, and orbit state
         rig.ts                       # Fit-to-bounds framing, wheel zoom, the eased orbit polar, and the travel view window
@@ -211,7 +216,6 @@ YUI/
         agent-notify-settings.ts     # Agent-notification enabled flag and listener port
         api-key-settings.ts          # Generic API-key override store behind the chat, STT, and TTS key settings
         chat-id-settings.ts          # Conversation id this installation sends in every push hello
-        chat-key-settings.ts         # Chat API key override store
         endpoints-settings.ts        # User-editable endpoint and model overrides
         guardrails-settings.ts       # User-editable guardrail rate-limit caps
         workflow-settings.ts         # Workflow entry list and URL validation
@@ -241,6 +245,8 @@ YUI/
       chat/
         chat-client.ts                 # Adapter over the openai SDK Responses stream
         chat-completions.ts            # Pure Chat Completions request builders and stream-chunk reducer
+        chat-completions-stream.ts     # Chat Completions streaming loop with its tool round trips
+        stream-helpers.ts              # Express-tool and error helpers both streaming loops use
         chat-history-store.ts          # Unified conversation transcript with session boundaries
         client-tools.ts                # Registry of the tools YUI declares and runs itself
         context-history.ts             # Capped ring of recent client-context entries
@@ -310,6 +316,9 @@ YUI/
           summon-hotkey.ts             # Registers the OS-wide summon accelerator and summons the input
       bridge/
         settings-bridge.ts             # Typed cross-window settings bus over Tauri emit and listen
+        core/                          # The cross-window bus every bridge here is built on
+          bridge-core.ts               # Transports, message envelope and listener bookkeeping shared by every bridge
+          state-mirror.ts              # One window's value published to the others and mirrored back
         message-bridge.ts              # Cross-window bus linking the pet window and the message window
         message-remote.ts              # The message window's bubble and input as a remote Surfaces half
         push-socket-bridge.ts          # Push socket state as seen from a window that does not own it
@@ -401,23 +410,25 @@ YUI/
           express-motion-section.ts  # Category accordion curating the agent-selectable motion vocabulary
           vrm-list.css               # VRM list styles
           express-motion-section.css # Express-motion accordion styles
+        connection/                  # Connection tab and its endpoint/API-key section
+          endpoints-section.ts       # Endpoint URL fields, API-key rows, chat-API picker, and resets
+          endpoints-section.css      # Endpoints section and yui-select dropdown styles
+        history/                     # History tab and its session accordion section
+          history-section.ts         # History tab session accordion over the persisted transcript
+          history-section.css        # Session history accordion styles
         sections/                    # The tab sections the shell mounts and the list helpers only they use
           agent-section.ts           # Locale segment, reasoning-effort segment, and instructions textarea
-          endpoints-section.ts       # Endpoint URL fields, API-key rows, chat-API picker, and resets
           monitors-section.ts        # Screen-source list and its load state
           screen-section.ts          # Screen-watch threshold knobs and the min-gap slider
           reactions-section.ts       # Agent-port, presence, pacer-gap, and rate-limit cap inputs
-          history-section.ts         # History tab session accordion over the persisted transcript
           workflows-section.ts       # Workflow entry list editing
           filler/                    # Thinking-filler section
             filler-section.ts        # Language segment and phrase-pool textareas, with their store reflect
             filler-tool-lines.ts     # Textarea round-trip for the filler pool's tool tier
           speaker-list.ts            # Speaker radiogroup with reference-voice refresh and audition
           user-asset-list.ts         # Shared scaffolding for the VRM and speaker asset radiogroups
-          endpoints-section.css      # Endpoints section and yui-select dropdown styles
           monitors-section.css       # Monitors section styles
           session-section.css        # Session context-occupancy readout and meter styles
-          history-section.css        # Session history accordion styles
           workflows-section.css      # Workflows section styles
           speaker-list.css           # Speaker list styles
           user-asset-list.css        # Radio row, tick, and state styles shared by the monitor, VRM, and speaker lists

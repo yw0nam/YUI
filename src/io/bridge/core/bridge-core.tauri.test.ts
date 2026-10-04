@@ -6,11 +6,11 @@ const { log, tauriEmit } = vi.hoisted(() => ({
   log: { debug: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn() },
   tauriEmit: vi.fn(async (_name: string, _payload?: unknown) => {}),
 }));
-vi.mock("../../logger", () => ({ createLogger: () => log }));
-vi.mock("../../tauri-env", () => ({ isTauri: () => true }));
+vi.mock("../../../logger", () => ({ createLogger: () => log }));
+vi.mock("../../../tauri-env", () => ({ isTauri: () => true }));
 vi.mock("@tauri-apps/api/event", () => ({ emit: tauriEmit }));
 
-import { createSettingsBridge } from "./settings-bridge";
+import { createBridgeCore } from "./bridge-core";
 
 function deferred(): {
   promise: Promise<void>;
@@ -28,7 +28,7 @@ function deferred(): {
 
 const settle = (): Promise<void> => new Promise((r) => setTimeout(r, 0));
 
-describe("createSettingsBridge — Tauri transport", () => {
+describe("createBridgeCore — Tauri transport", () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
@@ -36,10 +36,10 @@ describe("createSettingsBridge — Tauri transport", () => {
   it("starts the next Tauri emit only after the previous one resolves", async () => {
     const first = deferred();
     tauriEmit.mockReturnValueOnce(first.promise);
-    const bridge = createSettingsBridge(undefined, { windowKind: "pet" });
+    const bridge = createBridgeCore(undefined, "pet");
 
-    bridge.emitVoiceSet(true);
-    bridge.emitVoiceSet(false);
+    bridge.emit("yui://voice-set", true);
+    bridge.emit("yui://voice-set", false);
     await vi.waitFor(() => expect(tauriEmit).toHaveBeenCalled());
     await settle();
     expect(tauriEmit).toHaveBeenCalledTimes(1);
@@ -59,10 +59,10 @@ describe("createSettingsBridge — Tauri transport", () => {
   it("logs a rejected Tauri emit and then starts the next one", async () => {
     const first = deferred();
     tauriEmit.mockReturnValueOnce(first.promise);
-    const bridge = createSettingsBridge(undefined, { windowKind: "pet" });
+    const bridge = createBridgeCore(undefined, "pet");
 
-    bridge.emitVoiceSet(true);
-    bridge.emitVoiceSet(false);
+    bridge.emit("yui://voice-set", true);
+    bridge.emit("yui://voice-set", false);
     await vi.waitFor(() => expect(tauriEmit).toHaveBeenCalled());
     await settle();
     expect(tauriEmit).toHaveBeenCalledTimes(1);
