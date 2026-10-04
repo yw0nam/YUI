@@ -3,7 +3,7 @@
  * via the SecretProvider path. Not run in CI (depends on network/backend) — only when `YUI_LIVE=1`.
  *
  * Run:
- *   YUI_LIVE=1 YUI_CHAT_KEY=<API_SERVER_KEY> pnpm exec vitest run src/io/chat/chat-client.live.test.ts
+ *   YUI_LIVE=1 YUI_CHAT_KEY=<API_SERVER_KEY> pnpm exec vitest run src/io/chat/stream/chat-client.live.test.ts
  *
  * What it proves: passing the key resolved from the config's SecretProvider into streamChat({ apiKey })
  * authenticates against the key-enforcing backend and the streaming response maps to ChatStreamEvent —
