@@ -1,9 +1,6 @@
 /** Push transport path of a turn: send the frame on the socket and hold the call open until that turn ends. */
 import type { InputContext } from "../../contract";
-import type { ChatHistoryEntry } from "../../io/chat/chat-history-store";
-import type { ContextHistoryEntry } from "../../io/chat/context-history";
 import type { PushTurnFrame } from "../../io/chat/push-socket";
-import type { TurnRecord } from "../../io/chat/turn-record-log";
 import type { Logger } from "../../logger";
 import type { BusEnvelope } from "../core/event-bus";
 import type { PushTurns } from "../turn/push-turn";
@@ -13,22 +10,12 @@ import type { buildContext } from "./context-builder";
 import { PRE_SPEECH_TIMEOUT_MS } from "./idle-watchdog";
 import { contextBlock } from "./request-input";
 import type { TurnOutcome } from "./turn-outcome";
-import { recordSentTurn } from "./turn-recording";
+import { recordSentTurn, type TurnRecordingDeps } from "./turn-recording";
 
 /** The subset of `createBackendCaller`'s deps the push path reads. */
-export interface PushCallDeps {
+export interface PushCallDeps extends TurnRecordingDeps {
   /** B4 speech-gate outcome sink — whether the turn returned speech text, independent of TTS. */
   reportSpokeText?: (spoke: boolean) => void;
-  /** Integrated conversation transcript — append after completely successful turn in both protocol modes, unless a reset opened a new session meanwhile (sessionToken). CC mode replays the current session from here. */
-  transcript?: {
-    entriesAfterLastBoundary(): ChatHistoryEntry[];
-    append(e: ChatHistoryEntry): void;
-    sessionToken(): string;
-  };
-  /** Local sent-context history, appended only after the turn is confirmed successful. */
-  contextHistory?: { append(entry: ContextHistoryEntry): void };
-  /** Turn-record JSONL sink — best-effort disk log for speak-rate/suppression analysis. */
-  appendTurnRecord?: (record: TurnRecord) => void;
   /** Push transport sender — present in push mode; false means the socket was not ready. */
   pushTurn?: (frame: PushTurnFrame) => boolean;
   /** The socket accepted this turn's frame. */

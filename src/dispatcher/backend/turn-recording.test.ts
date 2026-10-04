@@ -19,11 +19,14 @@ function turnOf(over: Partial<SentTurn> = {}, guide?: "controls"): SentTurn {
   return {
     eventName: "user.text",
     userText: "hi",
-    clientContext: { trigger: { kind: "user", ...(guide ? { guide } : {}) } },
+    // Narrow cast: the real client context is large and only the trigger is read.
+    clientContext: {
+      trigger: { kind: "user", ...(guide ? { guide } : {}) },
+    } as SentTurn["clientContext"],
     startSessionToken: "s1",
     spokeText: true,
     ...over,
-  } as SentTurn;
+  };
 }
 
 describe("recordSentTurn", () => {
@@ -65,6 +68,13 @@ describe("recordSentTurn", () => {
     const b = setup("s2");
     recordSentTurn(b.deps, b.log, turnOf({ userText: undefined, userHalfOnly: true }));
     expect(b.log.info).not.toHaveBeenCalled();
+  });
+
+  it("records only the user half and logs nothing for a push-style turn on a matching token", () => {
+    const a = setup();
+    recordSentTurn(a.deps, a.log, turnOf({ userHalfOnly: true, spokeText: false }));
+    expect(a.entries.map((e) => e.role)).toEqual(["user"]);
+    expect(a.log.info).not.toHaveBeenCalled();
   });
 
   it("swallows a throwing appendTurnRecord and logs it", () => {

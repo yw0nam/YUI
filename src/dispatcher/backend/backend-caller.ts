@@ -33,7 +33,7 @@ import type {
 } from "../../contract";
 import { type ChatRequest, streamChat } from "../../io/chat/chat-client";
 import { buildCCMessages } from "../../io/chat/chat-completions";
-import { selectSendSuffix } from "../../io/chat/chat-history-store";
+import { type ChatHistoryEntry, selectSendSuffix } from "../../io/chat/chat-history-store";
 import type { ClientToolRegistry } from "../../io/chat/client-tools";
 import { createSilenceTokenFilter, isSilenceToken } from "../../io/chat/silence-token";
 import type { Logger } from "../../logger";
@@ -89,6 +89,10 @@ export type TurnErrorDetail = { status: number; message: string };
 
 /** Adds the streaming path's own deps to the set the push path declares, so each field is declared once. */
 interface BackendCallerDeps extends PushCallDeps {
+  /** CC mode replays the current session from the transcript. */
+  transcript?: NonNullable<PushCallDeps["transcript"]> & {
+    entriesAfterLastBoundary(): ChatHistoryEntry[];
+  };
   /** chat endpoint config. */
   config: EndpointsConfig;
   /** render directive sink (applyDirective). */
