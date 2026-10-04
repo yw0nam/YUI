@@ -185,7 +185,10 @@ YUI/
         user-input-source.ts         # Normalises typed text and STT results into bus envelopes
         tap-source.ts                # Turns taps on the character into bus envelopes
         drag-hold-source.ts          # Fires one proactive.drag_held candidate per sustained drag
-        window-drop-source.ts        # Drag-release perch decision plus the occlusion-aware detach poll
+        window-drop/                 # Drag-release perch settle, armed-perch poll, and placement
+          window-drop-source.ts      # Drag-release settle composing the perch watch and placement
+          perch-watch.ts             # Armed perch and peek state with the occlusion-aware detach poll
+          placement.ts               # Programmatic placement of the character on a named window
     ambient/                         # Backend-independent local liveliness and movement
       liveliness/                    # Tier 1 idle-life engine and its cue math
         tier1.ts                     # Tier 1 ambient engine: blink, idle sway, breath, look-around

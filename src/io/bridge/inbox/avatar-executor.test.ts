@@ -6,7 +6,7 @@
  * where to go, it moves where it is told and reports what happened.
  *
  * Only the OS seams (Tauri window, monitors) and the placement call are faked; the
- * placement geometry itself is covered in window-drop-source.test.ts.
+ * placement geometry itself is covered in window-drop/window-drop-source.test.ts.
  */
 
 import { describe, expect, it, vi } from "vitest";

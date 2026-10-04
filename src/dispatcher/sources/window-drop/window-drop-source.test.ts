@@ -14,9 +14,10 @@
  */
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { avatarFixture } from "../../config/load-test-helpers";
-import type { WindowRect } from "../../contract";
-import type { BusEnvelope, EventBus } from "../core/event-bus";
+import { avatarFixture } from "../../../config/load-test-helpers";
+import type { WindowRect } from "../../../contract";
+import type { BusEnvelope, EventBus } from "../../core/event-bus";
+import { DEFAULT_POLL_MS, makeBus, makePerchSource, makeWindow, tick, win } from "./test-helpers";
 import {
   createWindowDropSource as createWindowDropSourceImpl,
   type WindowDropSourceDeps,
@@ -52,32 +53,6 @@ const AUTHORED_CUES = {
   dropped: { label: "dropped from mid-air", context: "say something startled" },
 };
 
-/** Minimal in-memory bus capturing pushes. */
-function makeBus(): { bus: EventBus; pushed: BusEnvelope[] } {
-  const pushed: BusEnvelope[] = [];
-  const bus: EventBus = {
-    push(env) {
-      pushed.push(env);
-      return true;
-    },
-    pop() {
-      return null;
-    },
-    snapshot() {
-      return [...pushed];
-    },
-  };
-  return { bus, pushed };
-}
-
-/** A fake Tauri window with controllable outer position + scale factor. */
-function makeWindow(pos: { x: number; y: number }, scale: number) {
-  return {
-    outerPosition: vi.fn(async () => ({ x: pos.x, y: pos.y })),
-    scaleFactor: vi.fn(async () => scale),
-  };
-}
-
 /** A fake Tauri `listen` that captures the handler so the test can fire releases. */
 function makeListen() {
   const handlers: Array<(e: { payload: unknown }) => void> = [];
@@ -91,18 +66,6 @@ function makeListen() {
   }
   return { listen, fire, unlisten, handlers };
 }
-
-const win = (over: Partial<WindowRect> = {}): WindowRect => ({
-  x: 300,
-  y: 400,
-  width: 520,
-  height: 320,
-  name: "Other",
-  ownerName: "Visual Studio Code",
-  pid: 999,
-  windowNumber: 7,
-  ...over,
-});
 
 let bus: EventBus;
 let pushed: BusEnvelope[];
@@ -774,27 +737,6 @@ describe("window-drop-source — lifecycle + degrade", () => {
 // seatPx (40,30) · pos (520,740) · scale 2 → seatGlobal (300,400), which is the
 // top-left corner of the default win() — so the default window contains the seat.
 
-/** A perch probe source whose isPerched() is controllable per tick. */
-function makePerchSource(perched = true) {
-  const state = { perched };
-  return {
-    state,
-    renderer: {
-      getPerchProbe: vi.fn(() => ({ seatPx: { x: 40, y: 30 }, charHpx: 200 })),
-      isPerched: vi.fn(() => state.perched),
-      setPerchTarget: vi.fn(),
-    },
-  };
-}
-
-/** Default poll cadence in ms (≈1.4 Hz). */
-const DEFAULT_POLL_MS = 700;
-
-/** Advance one poll tick and let all queued microtasks (the await chain) settle. */
-async function tick(): Promise<void> {
-  await vi.advanceTimersByTimeAsync(DEFAULT_POLL_MS);
-}
-
 /** Fire a release and flush the onRelease async chain (outerPosition/scaleFactor/invoke + arm). */
 async function settleRelease(): Promise<void> {
   for (let i = 0; i < 12; i++) await Promise.resolve();
@@ -1454,18 +1396,6 @@ describe("window-drop-source — programmatic placement (agent-driven gestures)"
     return { bus, renderer, invoke, getWindow: () => pet.window, listen };
   }
 
-  it("moves the pet window so the seat lands on the named window's top edge", async () => {
-    const pet = makePlaceWindow();
-    const source = createWindowDropSource(makeDeps([win({ ownerName: "Notes" })], pet));
-
-    const result = await source.placeOn({ kind: "sit", app: "Notes" });
-
-    // Desired seat = top-edge center (560, 400); seat is at (300, 400) → delta (260, 0) points.
-    // New physical origin = (520 + 260*2, 740 + 0).
-    expect(pet.setPositionPhysical).toHaveBeenCalledWith(1040, 740);
-    expect(result).toEqual({ ok: true, kind: "sit" });
-  });
-
   it("pushes the same tier1 perch envelope the drag flow pushes, against the new position", async () => {
     const source = createWindowDropSource(makeDeps([win({ ownerName: "Notes", name: "Todo" })]));
 
@@ -1701,26 +1631,6 @@ describe("window-drop-source — programmatic placement (agent-driven gestures)"
     expect(env.payload?.window_title).toBe("Front");
   });
 
-  it("reports not_found for a peek when no window is on screen", async () => {
-    const source = createWindowDropSource(makeDeps([]));
-
-    expect(await source.placeOn({ kind: "peek", side: "left" })).toEqual({
-      ok: false,
-      reason: "not_found",
-    });
-  });
-
-  it("reports unsupported when there is no perch probe", async () => {
-    const deps = makeDeps([win({ ownerName: "Notes" })]);
-    deps.renderer.getPerchProbe = vi.fn(() => null);
-    const source = createWindowDropSource(deps);
-
-    expect(await source.placeOn({ kind: "sit", app: "Notes" })).toEqual({
-      ok: false,
-      reason: "unsupported",
-    });
-  });
-
   it("commits against where the window actually landed, not where it was asked to go", async () => {
     // The window manager clamps the move (menu bar / screen bounds).
     let pos = { x: 520, y: 740 };
@@ -1758,18 +1668,6 @@ describe("window-drop-source — programmatic placement (agent-driven gestures)"
     pushed.length = 0;
     source.release();
     expect(pushed.map((e) => e.event_name)).toEqual(["user.window_sit_exit"]);
-  });
-
-  it("reports unsupported when the window cannot be moved", async () => {
-    const source = createWindowDropSource({
-      ...makeDeps([win({ ownerName: "Notes" })]),
-      getWindow: () => makeWindow({ x: 520, y: 740 }, 2),
-    });
-
-    expect(await source.placeOn({ kind: "sit", app: "Notes" })).toEqual({
-      ok: false,
-      reason: "unsupported",
-    });
   });
 });
 
@@ -1951,110 +1849,6 @@ describe("window-drop-source — adoptSit", () => {
   });
   afterEach(() => {
     vi.useRealTimers();
-  });
-
-  function adopted(origin: "commit" | "adopt" = "adopt") {
-    const { renderer } = makePerchSource();
-    const armed = win({ name: "Armed", windowNumber: 42 });
-    const invoke = vi.fn(async () => [armed]);
-    const source = createWindowDropSource({
-      bus,
-      renderer,
-      invoke,
-      getWindow: () => makeWindow({ x: 520, y: 740 }, 2),
-      listen: makeListen().listen,
-    });
-    source.adoptSit(42, { x: armed.x, y: armed.y }, 200, origin);
-    return { source, invoke, armed, renderer };
-  }
-
-  it.each(["adopt", "commit"] as const)("arms the seat under its %s origin", (origin) => {
-    expect(adopted(origin).source.armedSit()).toEqual({ windowNumber: 42, origin, charHpx: 200 });
-  });
-
-  it("arms the poll and pushes nothing", async () => {
-    const { invoke } = adopted();
-    expect(pushed).toEqual([]);
-
-    await tick();
-    expect(pushed).toEqual([]);
-
-    // The adopted window vanishing detaches through the sit exit a drop would push.
-    invoke.mockImplementation(async () => []);
-    await tick();
-    expect(pushed.map((e) => e.event_name)).toEqual(["user.window_sit_exit"]);
-  });
-
-  it("releases an adopted sit through the sit exit", () => {
-    const { source } = adopted();
-    source.release();
-    expect(pushed.map((e) => e.event_name)).toEqual(["user.window_sit_exit"]);
-  });
-
-  it("names the armed sit window, and nothing once it is released", () => {
-    const { source } = adopted();
-    expect(source.armedSit()).toEqual({ windowNumber: 42, origin: "adopt", charHpx: 200 });
-    source.release();
-    expect(source.armedSit()).toBeNull();
-  });
-
-  it("stops polling while suspended and re-arms host-loss polling on resume", async () => {
-    const { source, renderer, invoke } = adopted();
-
-    expect(source.suspendSit()).toEqual({
-      windowNumber: 42,
-      origin: "adopt",
-      rect: { x: 300, y: 400 },
-      charHpx: 200,
-    });
-    expect(renderer.setPerchTarget).toHaveBeenCalledWith(null);
-    expect(source.armedSit()).toEqual({ windowNumber: 42, origin: "adopt", charHpx: 200 });
-    expect(pushed).toEqual([]);
-
-    invoke.mockClear();
-    await tick();
-    await tick();
-    expect(invoke).not.toHaveBeenCalled();
-
-    source.resumeSit(420);
-
-    expect(renderer.setPerchTarget).toHaveBeenLastCalledWith({ edgeLocalYpx: 420 });
-    expect(source.armedSit()).toEqual({ windowNumber: 42, origin: "adopt", charHpx: 200 });
-    expect(pushed).toEqual([]);
-
-    invoke.mockImplementation(async () => []);
-    await tick();
-    await tick();
-    expect(pushed.map((event) => event.event_name)).toEqual(["user.window_sit_exit"]);
-  });
-
-  it("leaves a live sit and its poll alone when nothing is suspended", async () => {
-    const { source, renderer, invoke } = adopted();
-    renderer.setPerchTarget.mockClear();
-    invoke.mockClear();
-
-    source.abandonSit();
-
-    expect(source.armedSit()).toEqual({ windowNumber: 42, origin: "adopt", charHpx: 200 });
-    expect(renderer.setPerchTarget).not.toHaveBeenCalled();
-    await tick();
-    expect(invoke).toHaveBeenCalled();
-    expect(pushed).toEqual([]);
-  });
-
-  it("quietly abandons a suspended sit and prevents a later resume", async () => {
-    const { source, renderer, invoke } = adopted();
-    source.suspendSit();
-    renderer.setPerchTarget.mockClear();
-
-    source.abandonSit();
-    source.resumeSit(420);
-    await tick();
-
-    expect(source.armedSit()).toBeNull();
-    expect(renderer.setPerchTarget).not.toHaveBeenCalled();
-    expect(invoke).not.toHaveBeenCalled();
-    expect(pushed).toEqual([]);
   });
 
   it("names no armed sit before anything is armed, or while a peek holds", async () => {

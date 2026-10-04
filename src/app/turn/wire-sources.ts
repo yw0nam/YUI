@@ -17,7 +17,7 @@ import {
 } from "../../dispatcher/sources/schedule-source";
 import { createScreenSource, type ScreenSource } from "../../dispatcher/sources/screen-source";
 import { createSignalsSource, type SignalsSource } from "../../dispatcher/sources/signals-source";
-import { createWindowDropSource } from "../../dispatcher/sources/window-drop-source";
+import { createWindowDropSource } from "../../dispatcher/sources/window-drop/window-drop-source";
 import { type AvatarExecutor, createAvatarExecutor } from "../../io/bridge/inbox/avatar-executor";
 import { onAvatarRpc, respondAvatarRpc } from "../../io/bridge/inbox/avatar-rpc";
 import { appendRecord } from "../../io/chat/turn-record-log";
