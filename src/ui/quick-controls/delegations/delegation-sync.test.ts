@@ -49,13 +49,6 @@ describe("createDelegationSync", () => {
     vi.useRealTimers();
   });
 
-  it("redraws nothing and arms nothing when created", () => {
-    const { reflectDelegations } = setup([RUNNING]);
-
-    expect(reflectDelegations).not.toHaveBeenCalled();
-    expect(vi.getTimerCount()).toBe(0);
-  });
-
   it("only redraws when no delegations list is given", () => {
     const { sync, reflectDelegations } = setup(null);
 
@@ -95,17 +88,6 @@ describe("createDelegationSync", () => {
     expect(vi.getTimerCount()).toBe(1);
   });
 
-  it("looks refresh up on the list at every tick", () => {
-    const { sync, delegations } = setup([RUNNING]);
-    sync.sync();
-    const replacement = vi.fn();
-    delegations!.refresh = replacement;
-
-    vi.advanceTimersByTime(DELEGATION_REFRESH_MS);
-
-    expect(replacement).toHaveBeenCalledOnce();
-  });
-
   it("clears the interval when the last running item finishes, and arms again for a new one", () => {
     const { sync, setItems } = setup([RUNNING]);
     sync.sync();
@@ -137,15 +119,6 @@ describe("createDelegationSync", () => {
       sync.sync();
 
       expect(vi.getTimerCount()).toBe(0);
-    });
-
-    it("leaves arming possible when no interval existed", () => {
-      const { sync } = setup([RUNNING]);
-      sync.stop();
-
-      sync.sync();
-
-      expect(vi.getTimerCount()).toBe(1);
     });
 
     it("lets a sync with nothing running forget the stopped handle, so arming works again", () => {

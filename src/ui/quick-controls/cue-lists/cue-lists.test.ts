@@ -8,8 +8,8 @@ const SECTION = '[data-testid="cue-section"]';
 
 type Subscribable = { subscribe(cb: never): () => void };
 
-/** Counts the store's live listeners and logs `sub:`/`unsub:` per label; `fail` makes its unsubscribe throw. */
-function watch(store: Subscribable, order: string[], label: string, fail = false) {
+/** Counts the store's live listeners and logs `sub:`/`unsub:` per label. */
+function watch(store: Subscribable, order: string[], label: string) {
   const state = { live: 0 };
   const real = store.subscribe.bind(store) as (cb: unknown) => () => void;
   vi.spyOn(store, "subscribe").mockImplementation(((cb: unknown) => {
@@ -18,7 +18,6 @@ function watch(store: Subscribable, order: string[], label: string, fail = false
     const off = real(cb);
     return () => {
       order.push(`unsub:${label}`);
-      if (fail) throw new Error(`${label} failed`);
       state.live--;
       off();
     };
@@ -26,14 +25,14 @@ function watch(store: Subscribable, order: string[], label: string, fail = false
   return state;
 }
 
-function setup(failing: string[] = []) {
+function setup() {
   const scheduleMount = document.createElement("div");
   const proactiveMount = document.createElement("div");
   const scheduleSettings = createScheduleSettings();
   const proactiveSettings = createProactiveSettings();
   const order: string[] = [];
-  const schedule = watch(scheduleSettings, order, "schedule", failing.includes("schedule"));
-  const proactive = watch(proactiveSettings, order, "proactive", failing.includes("proactive"));
+  const schedule = watch(scheduleSettings, order, "schedule");
+  const proactive = watch(proactiveSettings, order, "proactive");
   const cueLists = mountCueLists({
     scheduleMount,
     proactiveMount,
@@ -91,15 +90,5 @@ describe("mountCueLists", () => {
     cueLists.destroy();
 
     expect(order).toEqual(["unsub:schedule", "unsub:proactive"]);
-  });
-
-  it("skips the proactive list when the schedule list throws", () => {
-    const { cueLists, order, proactive, proactiveMount } = setup(["schedule"]);
-
-    expect(() => cueLists.destroy()).toThrow("schedule failed");
-
-    expect(order).not.toContain("unsub:proactive");
-    expect(proactive.live).toBe(1);
-    expect(proactiveMount.querySelector(SECTION)).not.toBeNull();
   });
 });

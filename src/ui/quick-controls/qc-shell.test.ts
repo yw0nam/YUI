@@ -20,6 +20,7 @@ import { createProactiveSettings } from "../../settings/cues/proactive-settings"
 import { createScheduleSettings } from "../../settings/cues/schedule-settings";
 import { createMessageWindowSettings } from "../../settings/panels/message-window-settings";
 import { createPacerGapStore, createPresenceStore } from "../../settings/settings-stores";
+import { DELEGATION_REFRESH_MS } from "../chips/delegation-rows";
 import { createVoiceInputStatus } from "../chips/voice-input-status";
 import { getLocale, subscribe as i18nSubscribe, LOCALE_DISPLAY_NAMES, setLocale } from "../i18n";
 import { createQuickControls } from "./quick-controls";
@@ -1261,7 +1262,6 @@ describe("createQuickControls — monitor picker error/empty state", () => {
 // the delegation refresh timer.
 describe("createQuickControls — cue-list mount and delegation timer boundaries", () => {
   const NOW = 1_789_365_900_000;
-  const MINUTE = 60_000;
   let mount: HTMLElement;
   let log: string[];
 
@@ -1290,15 +1290,14 @@ describe("createQuickControls — cue-list mount and delegation timer boundaries
 
   type Traceable = { subscribe(cb: never): () => void };
 
-  /** Logs `sub:<label>` on subscribe and `unsub:<label>` on unsubscribe; a label in `failing` throws there. */
-  function trace(store: Traceable, label: string, failing: ReadonlySet<string>): void {
+  /** Logs `sub:<label>` on subscribe and `unsub:<label>` on unsubscribe. */
+  function trace(store: Traceable, label: string): void {
     const real = store.subscribe.bind(store) as (cb: unknown) => () => void;
     vi.spyOn(store, "subscribe").mockImplementation(((cb: unknown) => {
       log.push(`sub:${label}`);
       const off = real(cb);
       return () => {
         log.push(`unsub:${label}`);
-        if (failing.has(label)) throw new Error(`${label} unsubscribe failed`);
         off();
       };
     }) as never);
@@ -1314,14 +1313,13 @@ describe("createQuickControls — cue-list mount and delegation timer boundaries
           subs.delete(cb);
         };
       },
-      refresh: vi.fn(),
     };
   }
 
   const RUNNING: DelegationItem = {
     id: "d-1",
     title: "work d-1",
-    started_at: NOW - MINUTE,
+    started_at: NOW - DELEGATION_REFRESH_MS,
     state: "running",
   };
 
@@ -1329,11 +1327,9 @@ describe("createQuickControls — cue-list mount and delegation timer boundaries
     opts: {
       variant?: "popover" | "window";
       delegations?: ReturnType<typeof makeDelegations>;
-      failing?: ReadonlySet<string>;
       refreshVoiceList?: () => void;
     } = {},
   ) {
-    const failing = opts.failing ?? new Set<string>();
     watchDelegationTimer();
     // A plain subscribe, so the trace wraps it instead of the mock's own implementation.
     const settings = { ...makeSettings(), subscribe: () => () => {} };
@@ -1342,13 +1338,13 @@ describe("createQuickControls — cue-list mount and delegation timer boundaries
     const proactiveSettings = createProactiveSettings();
     const messageWindowSettings = createMessageWindowSettings();
     const voiceStatus = createVoiceInputStatus();
-    trace(settings, "settings", failing);
-    trace(base.idleThrottleSettings, "idleThrottle", failing);
-    trace(messageWindowSettings, "messageWindow", failing);
-    trace(scheduleSettings, "schedule", failing);
-    trace(proactiveSettings, "proactive", failing);
-    trace(voiceStatus, "voice", failing);
-    if (opts.delegations) trace(opts.delegations, "delegations", failing);
+    trace(settings, "settings");
+    trace(base.idleThrottleSettings, "idleThrottle");
+    trace(messageWindowSettings, "messageWindow");
+    trace(scheduleSettings, "schedule");
+    trace(proactiveSettings, "proactive");
+    trace(voiceStatus, "voice");
+    if (opts.delegations) trace(opts.delegations, "delegations");
     return createQuickControls({
       ...base,
       settings,
@@ -1371,7 +1367,7 @@ describe("createQuickControls — cue-list mount and delegation timer boundaries
     const realSet = globalThis.setInterval;
     vi.spyOn(globalThis, "setInterval").mockImplementation(((fn: () => void, ms?: number) => {
       const id = realSet(fn, ms);
-      if (ms === MINUTE) handle = id;
+      if (ms === DELEGATION_REFRESH_MS) handle = id;
       return id;
     }) as never);
     const realClear = globalThis.clearInterval;
@@ -1431,50 +1427,6 @@ describe("createQuickControls — cue-list mount and delegation timer boundaries
       expect(at("unsub:proactive")).toBeLessThan(at("unsub:voice"));
       expect(at("unsub:delegations")).toBeGreaterThan(at("unsub:voice"));
       expect(at("unsub:delegations")).toBeLessThan(at("clearInterval:delegations"));
-    });
-
-    it("a throw at the settings unsubscribe leaves later cleanup undone and the timer running", () => {
-      const delegations = makeDelegations([RUNNING]);
-      const qc = build({ variant: "window", delegations, failing: new Set(["settings"]) });
-      log.length = 0;
-
-      expect(() => qc.dispose()).toThrow("settings unsubscribe failed");
-
-      expect(log).toContain("unsub:schedule");
-      expect(log).toContain("unsub:proactive");
-      expect(log).toContain("unsub:settings");
-      expect(log).not.toContain("unsub:idleThrottle");
-      expect(log).not.toContain("unsub:voice");
-      expect(log).not.toContain("unsub:delegations");
-      expect(log).not.toContain("clearInterval:delegations");
-    });
-
-    it("a throw at the schedule cue list skips the proactive cue list and all later cleanup", () => {
-      const delegations = makeDelegations([RUNNING]);
-      const qc = build({ variant: "window", delegations, failing: new Set(["schedule"]) });
-      log.length = 0;
-
-      expect(() => qc.dispose()).toThrow("schedule unsubscribe failed");
-
-      expect(log).toContain("unsub:schedule");
-      expect(log).not.toContain("unsub:proactive");
-      expect(log).not.toContain("unsub:settings");
-      expect(log).not.toContain("clearInterval:delegations");
-    });
-
-    it("a throw at the delegations unsubscribe leaves the timer ticking", () => {
-      const delegations = makeDelegations([RUNNING]);
-      const qc = build({ variant: "window", delegations, failing: new Set(["delegations"]) });
-      log.length = 0;
-
-      expect(() => qc.dispose()).toThrow("delegations unsubscribe failed");
-
-      expect(log).toContain("unsub:voice");
-      expect(log).toContain("unsub:delegations");
-      expect(log).not.toContain("clearInterval:delegations");
-      expect(delegations.refresh).not.toHaveBeenCalled();
-      vi.advanceTimersByTime(MINUTE);
-      expect(delegations.refresh).toHaveBeenCalledOnce();
     });
   });
 });

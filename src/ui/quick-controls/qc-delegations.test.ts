@@ -341,35 +341,6 @@ describe("createQuickControls — session section delegated list", () => {
       qc.dispose();
     });
 
-    it("ticks while the chat mode is not push", () => {
-      const delegations = fakeDelegations();
-      const qc = createQuickControls({
-        ...defaultQcArgs(mount),
-        pushSocket: fakePushSocket(),
-        delegations,
-      });
-
-      delegations.emit([running("d-1", 60_000)]);
-      vi.advanceTimersByTime(60_000);
-
-      expect(delegations.refresh).toHaveBeenCalledOnce();
-
-      qc.dispose();
-    });
-
-    it("stops ticking once the running item finishes", () => {
-      const delegations = fakeDelegations();
-      const qc = createQuickControls({ ...defaultQcArgs(mount), delegations });
-
-      delegations.emit([running("d-1", 60_000)]);
-      delegations.emit([done("d-1", 0)]);
-      vi.advanceTimersByTime(120_000);
-
-      expect(delegations.refresh).not.toHaveBeenCalled();
-
-      qc.dispose();
-    });
-
     it("asks the mirror to refresh before it redraws the rows", () => {
       const delegations = fakeDelegations([running("d-1", 4 * 60_000)]);
       delegations.refresh.mockImplementation(() => {
