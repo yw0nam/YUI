@@ -1,10 +1,10 @@
 //! Window drag command.
 //!
 //! # Responsibilities
-//! - `drag_window` command: the webview calls it once `src/io/window/pet/drag.ts` decides a
-//!   press has become a drag (the pointer travelled past its threshold). The command starts the
-//!   OS-native window drag. A press-release below that threshold is a click and never reaches
-//!   this command.
+//! - `drag_window` command: the webview calls it
+//!   once `src/io/window/pet/gesture/window-drag.ts` decides a press has become a drag (the
+//!   pointer travelled past its threshold). The command starts the OS-native window drag. A
+//!   press-release below that threshold is a click and never reaches this command.
 //! - After the drag starts on macOS and Windows, it spawns a probe that emits
 //!   `window_drop_release` when the pointer is released.
 //!
