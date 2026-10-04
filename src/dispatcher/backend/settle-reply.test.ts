@@ -8,13 +8,17 @@ function makeLog(): Logger {
   return { debug: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn() };
 }
 
+// Narrow cast: the settle step reads only cue, end and speak.
+function outputOf(members: Pick<TurnOutput, "cue" | "end" | "speak">): TurnOutput {
+  return members as TurnOutput;
+}
+
 function makeOutput(calls: string[]): TurnOutput {
-  // Narrow cast: the settle step only calls cue, end and speak.
-  return {
+  return outputOf({
     cue: () => calls.push("cue"),
     end: () => calls.push("end"),
     speak: () => calls.push("speak"),
-  } as unknown as TurnOutput;
+  });
 }
 
 describe("createReplySettler", () => {
@@ -65,11 +69,13 @@ describe("createReplySettler", () => {
 
     const failing: SettleDeps = {
       renderer: { applyDirective: () => {} },
-      turnOutput: {
+      turnOutput: outputOf({
+        cue: () => {},
+        end: () => {},
         speak: () => {
           throw new Error("speak failed");
         },
-      } as unknown as TurnOutput,
+      }),
       reportSpokeText: (spoke) => calls.push(`late:${spoke}`),
     };
     expect(() => createReplySettler(failing, makeLog()).settle(args)).toThrow("speak failed");
