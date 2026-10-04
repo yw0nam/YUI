@@ -3,14 +3,14 @@ import type { PeekConfig, TapConfig } from "../../config/load";
 import type { BodyState, Posture } from "../../contract";
 import type { Logger } from "../../logger";
 import type { Renderer } from "../../renderer";
-import type { BusEnvelope } from "./event-bus";
+import type { BusEnvelope } from "../core/event-bus";
 import {
   isSitDrop,
   type PeekDropPayload,
   parsePeekDropPayload,
   samePosture,
   tier1Directive,
-} from "./tier1-directive";
+} from "./directive";
 
 export interface Tier1RenderDeps {
   renderer: Pick<

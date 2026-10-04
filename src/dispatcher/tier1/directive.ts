@@ -2,7 +2,7 @@
 import type { ControlEnvelope, EmotionId, Posture } from "../../contract";
 import { PERCH_MOTION_ID } from "../../io/window/geometry/perch";
 import type { Logger } from "../../logger";
-import type { BusEnvelope } from "./event-bus";
+import type { BusEnvelope } from "../core/event-bus";
 
 /** A sit that pins the perch target: the drag drop and the ambient climb's ledge sit. */
 export function isSitDrop(eventName: string): boolean {

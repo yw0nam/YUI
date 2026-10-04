@@ -44,7 +44,7 @@ import { classify, PACED_SOURCES, type UserTurnSource, userTurnSourceOf } from "
 import type { BusEnvelope, EventBus } from "./core/event-bus";
 import type { Guardrails } from "./core/guardrails";
 import type { ProactivePacer } from "./core/proactive-pacer";
-import { createTier1Render } from "./core/tier1-render";
+import { createTier1Render } from "./tier1/render";
 import type { Turn, TurnLog } from "./turn/turn";
 
 const baseLog = createLogger("dispatcher");
