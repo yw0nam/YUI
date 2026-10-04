@@ -36,7 +36,6 @@ import { buildCCMessages } from "../../io/chat/chat-completions";
 import { selectSendSuffix } from "../../io/chat/chat-history-store";
 import type { ClientToolRegistry } from "../../io/chat/client-tools";
 import { createSilenceTokenFilter, isSilenceToken } from "../../io/chat/silence-token";
-import { buildTurnRecord } from "../../io/chat/turn-record-log";
 import type { Logger } from "../../logger";
 import { createLogger } from "../../logger";
 import type { Renderer } from "../../renderer";
@@ -54,6 +53,7 @@ import {
 import { createPushCall, type PushCallDeps } from "./push-call";
 import { encodeInput } from "./request-input";
 import type { TurnOutcome } from "./turn-outcome";
+import { recordSentTurn } from "./turn-recording";
 
 const baseLog = createLogger("backend-caller");
 
@@ -533,51 +533,15 @@ export function createBackendCaller(deps: BackendCallerDeps): BackendCaller {
         deps.onResponseId?.(newResponseId);
       }
 
-      // Transcript appended here in both modes only (successful turn passing all post-stream guards),
-      // and only while the session that started the turn is still running — speech from a turn the
-      // user reset away from still plays out, but its turns stay out of the new session's replay.
-      // contextHistory below stays ungated on purpose: it is a capped diagnostic log of what was
-      // sent, with no session concept and no replay.
-      if (deps.transcript) {
-        if (deps.transcript.sessionToken() === startSessionToken) {
-          if (ctx.user_text !== undefined) {
-            deps.transcript.append({
-              role: "user",
-              text: ctx.user_text,
-              ts: Date.now(),
-              ...(clientContext.trigger.guide ? { guide: clientContext.trigger.guide } : {}),
-            });
-          }
-          if (envelope.speech_text) {
-            deps.transcript.append({
-              role: "assistant",
-              text: envelope.speech_text,
-              ts: Date.now(),
-            });
-          }
-        } else {
-          log.info("transcript_skipped", { reason: "session_reset", event_name: env.event_name });
-        }
-      }
-      deps.contextHistory?.append({
-        ts: Date.now(),
-        event_name: env.event_name,
-        trigger_kind: clientContext.trigger.kind,
-        client_context: clientContext,
+      // Recorded in both modes only (successful turn passing all post-stream guards).
+      recordSentTurn(deps, log, {
+        eventName: env.event_name,
+        userText: ctx.user_text,
+        clientContext,
+        startSessionToken,
+        assistantText: envelope.speech_text,
+        spokeText,
       });
-      try {
-        deps.appendTurnRecord?.(
-          buildTurnRecord({
-            ts: Date.now(),
-            event_name: env.event_name,
-            trigger_kind: clientContext.trigger.kind,
-            client_context: clientContext,
-            spoke_text: spokeText,
-          }),
-        );
-      } catch (err) {
-        log.debug("turn_record_append_failed", { error: String(err) });
-      }
 
       return "ok";
     } finally {
