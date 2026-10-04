@@ -238,6 +238,8 @@ YUI/
       chat/
         chat-client.ts                 # Adapter over the openai SDK Responses stream
         chat-completions.ts            # Pure Chat Completions request builders and stream-chunk reducer
+        chat-completions-stream.ts     # Chat Completions streaming loop with its tool round trips
+        stream-helpers.ts              # Express-tool and error helpers both streaming loops use
         chat-history-store.ts          # Unified conversation transcript with session boundaries
         client-tools.ts                # Registry of the tools YUI declares and runs itself
         context-history.ts             # Capped ring of recent client-context entries
