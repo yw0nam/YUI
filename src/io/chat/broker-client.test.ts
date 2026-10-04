@@ -11,9 +11,12 @@
  * Tests use only an injected fake fetch — no real broker connection.
  */
 
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
 import { describe, expect, it, vi } from "vitest";
 import type { AppConfig } from "../../config/load";
 import { avatarFixture, guardrailsFixture } from "../../config/load-test-helpers";
+import { validateMotions } from "../../config/validators/motions";
 import type { MotionRegistry } from "../../contract";
 import type { Logger } from "../../logger";
 import {
@@ -747,6 +750,13 @@ describe("agentTriggerableMotionIds", () => {
 
   it("returns an empty array for an empty registry", () => {
     expect(agentTriggerableMotionIds({})).toEqual([]);
+  });
+
+  it("keeps walk out of the agent-triggerable vocabulary the broker publishes", () => {
+    const m = JSON.parse(readFileSync(resolve(process.cwd(), "configs/motions.json"), "utf-8"));
+    expect(agentTriggerableMotionIds(validateMotions("configs/motions.json", m))).not.toContain(
+      "walk",
+    );
   });
 });
 

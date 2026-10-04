@@ -335,6 +335,7 @@ YUI/
         summon-key.ts                # Binds the focused window's "/" key to open the text input
         anchor.ts                    # Pure mapping from the on-screen feet to the input's bottom offset
         reflect-unless-editing.ts    # Writes a store value onto an input unless the user is editing it
+        interactive-overlay.ts       # Overlay selectors that must take OS pointer events while shown — everything else stays click-through
         mock.ts                      # Mock driver that replays every surface state from seed data
         surfaces.css                 # Speech bubble and text input styles
       input/                         # Text entry and its supporting transforms

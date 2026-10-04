@@ -21,7 +21,8 @@ vi.mock("../../io/window/pet/hit-test", () => ({ createHitTestController }));
 vi.mock("../../io/window/pet/cursor-tracker", () => ({ createCursorTracker }));
 
 import type { HitTestKnobs } from "../../config/load";
-import { INTERACTIVE_OVERLAY_SELECTORS, wireGaze, wireHitTest } from "./wire-stage";
+import { INTERACTIVE_OVERLAY_SELECTORS } from "../../ui/surfaces/interactive-overlay";
+import { wireGaze, wireHitTest } from "./wire-stage";
 
 const rectOf = (left: number, top: number, right: number, bottom: number): DOMRect =>
   ({ left, top, right, bottom }) as DOMRect;

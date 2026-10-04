@@ -21,7 +21,7 @@ vi.mock("./markdown", async (importOriginal) => {
   };
 });
 
-import { INTERACTIVE_OVERLAY_SELECTORS } from "../../app/stage/wire-stage";
+import { INTERACTIVE_OVERLAY_SELECTORS } from "../surfaces/interactive-overlay";
 import { createSurfaces } from "../surfaces/surfaces";
 import { noTool } from "../surfaces/test-helpers";
 import { renderMarkdownInline } from "./markdown";

@@ -8,9 +8,9 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("./status-pill.css", () => ({}));
 
-import { INTERACTIVE_OVERLAY_SELECTORS } from "../../app/stage/wire-stage";
 import { createScreenshotSettings } from "../../settings/capture/screenshot-settings";
 import { setLocale, t } from "../i18n";
+import { INTERACTIVE_OVERLAY_SELECTORS } from "../surfaces/interactive-overlay";
 import { createStatusPill } from "./status-pill";
 import { createVoiceInputStatus } from "./voice-input-status";
 

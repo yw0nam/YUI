@@ -11,7 +11,6 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("./delegation-chip.css", () => ({}));
 
-import { INTERACTIVE_OVERLAY_SELECTORS } from "../../app/stage/wire-stage";
 import { createDelegationsStore } from "../../io/bridge/delegations-store";
 import type { DelegationItem, PushSocketState } from "../../io/chat/push-socket";
 import {
@@ -19,6 +18,7 @@ import {
   localStorageDelegationChipStorage,
 } from "../../settings/panels/delegation-chip-settings";
 import { setLocale, t } from "../i18n";
+import { INTERACTIVE_OVERLAY_SELECTORS } from "../surfaces/interactive-overlay";
 import { createDelegationChip } from "./delegation-chip";
 
 const NOW = 1_789_365_900_000;

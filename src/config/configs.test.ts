@@ -1,7 +1,6 @@
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
-import { agentTriggerableMotionIds } from "../io/chat/broker-client";
 import { validateAvatar } from "./validators/avatar";
 import { validateEndpoints } from "./validators/endpoints";
 import { validateGuardrails } from "./validators/guardrails";
@@ -443,12 +442,6 @@ describe("configs/motions.json", () => {
     expect(published).not.toContain("walk");
     expect(published).not.toContain("climb_up_done");
     expect(published).not.toContain("climb_down_landing");
-  });
-
-  it("keeps walk out of the agent-triggerable vocabulary the broker publishes", () => {
-    expect(agentTriggerableMotionIds(validateMotions("configs/motions.json", m))).not.toContain(
-      "walk",
-    );
   });
 
   it("keeps falling below the drag clip so a pickup takes the body mid-fall", () => {
