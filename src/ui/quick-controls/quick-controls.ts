@@ -50,11 +50,7 @@ import type { createScheduleSettings } from "../../settings/cues/schedule-settin
 import type { MessageWindowSettingsStore } from "../../settings/panels/message-window-settings";
 import type { ClampedIntSettingsStore, FlagSettingsStore } from "../../settings/persisted-store";
 import type { createFillerSettings } from "../../settings/voice/filler-settings";
-import {
-  type createVadSettings,
-  VAD_SILENCE_MAX,
-  VAD_SILENCE_MIN,
-} from "../../settings/voice/vad-settings";
+import type { createVadSettings } from "../../settings/voice/vad-settings";
 import type { VoiceInputStatus } from "../chips/voice-input-status";
 import { t } from "../i18n";
 import { createCharacterTab } from "./character/character-tab";
@@ -73,8 +69,8 @@ import { createMonitorsSection } from "./sections/monitors-section";
 import { createReactionsSection } from "./sections/reactions/reactions-section";
 import { createScreenSection } from "./sections/screen/screen-section";
 import { createSpeakerList, speakerPickerHtml } from "./sections/speaker-list";
+import { createVoiceInputSection } from "./sections/voice-input/voice-input-section";
 import { createWorkflowsSection } from "./sections/workflows-section";
-import { bindSlider } from "./slider-binding";
 import { createSwitchRows } from "./switch-row";
 import { bindSwitchRows } from "./switches/switch-rows";
 import { createTabRail } from "./tabs/tab-rail";
@@ -351,9 +347,7 @@ export function createQuickControls({
 
   const switchBtn = el.querySelector<HTMLButtonElement>(".yui-screenshot-switch")!;
   const cueSectionsMountEl = el.querySelector<HTMLDivElement>(".yui-cue-sections")!;
-  const voiceSwitchBtn = el.querySelector<HTMLButtonElement>(".yui-voice-switch")!;
   const monitorsSection = createMonitorsSection({ root: el, sourceProvider, settings, log });
-  const vadSlider = el.querySelector<HTMLInputElement>(".yui-vad__slider")!;
   const tablistEl = el.querySelector<HTMLDivElement>(".yui-tabs")!;
   const tabButtons = Array.from(el.querySelectorAll<HTMLButtonElement>(".yui-tab"));
   const barEl = el.querySelector<HTMLDivElement>(".yui-quick__bar");
@@ -403,10 +397,6 @@ export function createQuickControls({
   const workflows = createWorkflowsSection({ root: el, store: workflowSettings, log });
   const hintTooltip = createHintTooltip({ root: el });
 
-  vadSlider.min = String(VAD_SILENCE_MIN);
-  vadSlider.max = String(VAD_SILENCE_MAX);
-  vadSlider.step = "50";
-
   // After dispose, prevent in-flight refresh from repainting/timering on destroyed DOM.
   let disposed = false;
 
@@ -415,7 +405,6 @@ export function createQuickControls({
     root: el,
     switchRows: TOGGLE_SPECS,
     settings,
-    vad,
     sessionDiagnostics,
     // The session section's lost line follows the socket only while push chat is effective.
     ...(pushSocket
@@ -492,8 +481,7 @@ export function createQuickControls({
       reflect.reflectSwitchRows();
       reactions.reflect();
       screen.reflect();
-      reflect.reflectVoiceStatus(voiceStatus.get());
-      reflect.reflectVad();
+      voiceInput.reflect();
       agent.reflect();
       filler.reflect();
       agent.reflectLanguage();
@@ -555,6 +543,16 @@ export function createQuickControls({
     reflectSwitchRows: reflect.reflectSwitchRows,
   });
 
+  // ── Voice input section (voice switch · silence threshold slider) ──
+  const voiceInput = createVoiceInputSection({
+    root: el,
+    voiceStatus,
+    vad,
+    reflectSwitchRows: reflect.reflectSwitchRows,
+    isOpen: popover.isOpen,
+    log,
+  });
+
   // ── Event handlers ──
 
   function handleSwitchClick(): void {
@@ -564,12 +562,6 @@ export function createQuickControls({
     if (!current && !monitorsSection.isLoaded()) {
       void monitorsSection.load();
     }
-  }
-
-  function handleVoiceSwitchClick(): void {
-    const current = voiceStatus.get().state !== "idle";
-    log.info("voice_input_toggle", { on: !current });
-    voiceStatus.set(current ? "idle" : "listening");
   }
 
   function handlePopOut(): void {
@@ -586,19 +578,6 @@ export function createQuickControls({
   function isPushMode(): boolean {
     return (endpointsSettings.get().chat_api || getDefaultChatApi?.()) === "push";
   }
-
-  // ── Silence threshold (VAD) slider ──
-
-  const disposeVadSlider = bindSlider(
-    {
-      slider: vadSlider,
-      parse: (raw: string) => parseInt(raw, 10),
-      setValue: (v: number) => vad.setSilenceMs(v), // Store subscription calls reflect.reflectVad to redraw value row
-      logKey: "vad_silence_change",
-      logField: "silenceMs",
-    },
-    log,
-  );
 
   // ── Tab rail (selection, ARIA, keyboard) ──
   const tabRail = createTabRail({
@@ -664,13 +643,6 @@ export function createQuickControls({
     proactiveSettings,
   });
 
-  const unsubscribeVoice = voiceStatus.subscribe(reflect.reflectVoiceStatus);
-  const unsubscribeVad = vad.subscribe(() => {
-    if (popover.isOpen()) {
-      reflect.reflectSwitchRows();
-      reflect.reflectVad();
-    }
-  });
   // The socket moves on its own — the session section's rows follow whether or not a setting
   // changed. (The Connection tab keeps its own subscription for the status line.)
   const unsubscribePushState = pushSocket?.onState(() => {
@@ -691,8 +663,6 @@ export function createQuickControls({
 
   switchBtn.addEventListener("click", handleSwitchClick);
   const switchRows = bindSwitchRows(el, TOGGLE_SPECS, log);
-  voiceSwitchBtn.addEventListener("click", handleVoiceSwitchClick);
-  // The VAD slider is wired inside bindSlider() above; disposeVadSlider tears it down.
   spksEl.addEventListener("keydown", speakerList.handleKeydown);
   spkAddBtn.addEventListener("click", speakerList.handleAddClick);
   popOutBtn?.addEventListener("click", handlePopOut);
@@ -718,6 +688,7 @@ export function createQuickControls({
     reactions.dispose();
     agent.dispose();
     filler.dispose();
+    voiceInput.dispose();
     hintTooltip.dispose();
     historyTab?.dispose();
     cueLists.destroy();
@@ -729,8 +700,6 @@ export function createQuickControls({
     unsubscribeFall?.();
     unsubscribeBubblePersist?.();
     unsubscribeMessageWindow?.();
-    unsubscribeVoice();
-    unsubscribeVad();
     unsubscribePushState?.();
     unsubscribeSpk();
     unsubscribeSession?.();
@@ -741,8 +710,6 @@ export function createQuickControls({
     popover.dispose();
     switchBtn.removeEventListener("click", handleSwitchClick);
     switchRows.dispose();
-    voiceSwitchBtn.removeEventListener("click", handleVoiceSwitchClick);
-    disposeVadSlider();
     tabRail.dispose();
     spksEl.removeEventListener("keydown", speakerList.handleKeydown);
     spkAddBtn.removeEventListener("click", speakerList.handleAddClick);

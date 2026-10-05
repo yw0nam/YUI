@@ -488,6 +488,8 @@ YUI/
           reactions/                 # Reactions section
             reactions-section.ts     # Agent-port, presence, pacer-gap, and rate-limit cap inputs and their redraw
           workflows-section.ts       # Workflow entry list editing
+          voice-input/               # Voice input switch and silence slider
+            voice-input-section.ts   # Voice switch, VAD slider binding, their subscriptions and redraw
           filler/                    # Thinking-filler section
             filler-section.ts        # Language segment and phrase-pool textareas, with their store subscription and reflect
             filler-tool-lines.ts     # Textarea round-trip for the filler pool's tool tier
