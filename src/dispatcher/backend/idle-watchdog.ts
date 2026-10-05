@@ -42,8 +42,12 @@ export async function* withIdleWatchdog<T>(
         lastWasSpeech ? budgets.speechIdle : budgets.preSpeech,
       );
     });
-    const race = await Promise.race([next.then((r) => ({ done: r.done, value: r.value })), idle]);
-    clearTimeout(timer!);
+    let race: "idle" | { done?: boolean; value: unknown };
+    try {
+      race = await Promise.race([next.then((r) => ({ done: r.done, value: r.value })), idle]);
+    } finally {
+      clearTimeout(timer!);
+    }
     if (race === "idle") {
       onIdle(lastWasSpeech ? "speech_idle_timeout" : "pre_speech_timeout");
       // the abandoned `next` will settle once the aborted stream unwinds — swallow it
