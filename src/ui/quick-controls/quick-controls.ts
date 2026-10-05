@@ -499,6 +499,9 @@ export function createQuickControls({
     },
   });
 
+  // ── Switch rows (click binding · store following while open) ──
+  const switchRows = bindSwitchRows(el, TOGGLE_SPECS, log, popover.isOpen);
+
   // ── Screen section (screen-watch threshold knobs · min-gap slider) ──
   const screen = createScreenSection({
     root: el,
@@ -600,27 +603,6 @@ export function createQuickControls({
 
   // ── Subscriptions ──
 
-  const unsubscribeIdleThrottle = idleThrottleSettings.subscribe(() => {
-    if (popover.isOpen()) reflect.reflectSwitchRows();
-  });
-  const unsubscribeTts = ttsSettings?.subscribe(() => {
-    if (popover.isOpen()) reflect.reflectSwitchRows();
-  });
-  const unsubscribeGaze = gazeSettings?.subscribe(() => {
-    if (popover.isOpen()) reflect.reflectSwitchRows();
-  });
-  const unsubscribeClimb = climbSettings?.subscribe(() => {
-    if (popover.isOpen()) reflect.reflectSwitchRows();
-  });
-  const unsubscribeFall = fallSettings?.subscribe(() => {
-    if (popover.isOpen()) reflect.reflectSwitchRows();
-  });
-  const unsubscribeBubblePersist = bubblePersistSettings?.subscribe(() => {
-    if (popover.isOpen()) reflect.reflectSwitchRows();
-  });
-  const unsubscribeMessageWindow = messageWindowSettings?.subscribe(() => {
-    if (popover.isOpen()) reflect.reflectSwitchRows();
-  });
   // Cue-list components — both in the Proactive tab: proactive in .yui-loop-cue-section, schedule in .yui-cue-sections.
   const loopCueMountEl = el.querySelector<HTMLDivElement>(".yui-loop-cue-section")!;
 
@@ -649,7 +631,6 @@ export function createQuickControls({
   // its minute refresh.
   const unsubscribeDelegations = delegations?.subscribe(() => delegationSync.sync());
 
-  const switchRows = bindSwitchRows(el, TOGGLE_SPECS, log);
   spksEl.addEventListener("keydown", speakerList.handleKeydown);
   spkAddBtn.addEventListener("click", speakerList.handleAddClick);
   popOutBtn?.addEventListener("click", handlePopOut);
@@ -680,13 +661,6 @@ export function createQuickControls({
     hintTooltip.dispose();
     historyTab?.dispose();
     cueLists.destroy();
-    unsubscribeIdleThrottle();
-    unsubscribeTts?.();
-    unsubscribeGaze?.();
-    unsubscribeClimb?.();
-    unsubscribeFall?.();
-    unsubscribeBubblePersist?.();
-    unsubscribeMessageWindow?.();
     unsubscribePushState?.();
     unsubscribeSpk();
     unsubscribeSession?.();

@@ -58,6 +58,30 @@ describe("switch rows", () => {
     expect(settings.get().enabled).toBe(false);
   });
 
+  it("with isOpen true, a store change repaints the switch", () => {
+    const { root, row, button, settings } = mount();
+    const binding = bindSwitchRows(root, [row], log, () => true);
+    settings.setEnabled(true);
+    expect(button.getAttribute("aria-checked")).toBe("true");
+    binding.dispose();
+  });
+
+  it("with isOpen false, a store change does not repaint the switch", () => {
+    const { root, row, button, settings } = mount();
+    const binding = bindSwitchRows(root, [row], log, () => false);
+    settings.setEnabled(true);
+    expect(button.getAttribute("aria-checked")).toBe("false");
+    binding.dispose();
+  });
+
+  it("after dispose(), a store change does not repaint the switch", () => {
+    const { root, row, button, settings } = mount();
+    const binding = bindSwitchRows(root, [row], log, () => true);
+    binding.dispose();
+    settings.setEnabled(true);
+    expect(button.getAttribute("aria-checked")).toBe("false");
+  });
+
   it("reflectSwitchRows skips a hidden row", () => {
     const { root, row, button, settings } = mount();
     settings.setEnabled(true);

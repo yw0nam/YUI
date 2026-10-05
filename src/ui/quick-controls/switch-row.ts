@@ -22,6 +22,8 @@ export interface SwitchRow {
   getEnabled: () => boolean;
   setEnabled: (value: boolean) => void;
   logKey?: string;
+  /** Follows the row's store, for a store that feeds nothing else on the panel. */
+  subscribe?: (onChange: () => void) => () => void;
 }
 
 type VadSettingsStore = ReturnType<typeof createVadSettings>;
@@ -58,6 +60,7 @@ export function createBubblePersistRow(bubblePersistSettings?: FlagSettingsStore
     getEnabled: () => bubblePersistSettings!.get().enabled,
     setEnabled: (v) => bubblePersistSettings!.setEnabled(v),
     logKey: "bubble_persist_toggle",
+    subscribe: bubblePersistSettings ? (cb) => bubblePersistSettings.subscribe(cb) : undefined,
   };
 }
 
@@ -104,6 +107,7 @@ export function createSwitchRows({
       getEnabled: () => idleThrottleSettings.get().enabled,
       setEnabled: (v) => idleThrottleSettings.setEnabled(v),
       logKey: "idle_throttle_toggle",
+      subscribe: (cb) => idleThrottleSettings.subscribe(cb),
     },
     {
       selector: ".yui-tts-switch",
@@ -122,6 +126,7 @@ export function createSwitchRows({
       getEnabled: () => ttsSettings!.get().enabled,
       setEnabled: (v) => ttsSettings!.setEnabled(v),
       logKey: "tts_output_toggle",
+      subscribe: ttsSettings ? (cb) => ttsSettings.subscribe(cb) : undefined,
     },
     {
       selector: ".yui-bargein-switch",
@@ -151,6 +156,7 @@ export function createSwitchRows({
       getEnabled: () => messageWindowSettings!.get().mode === "popped",
       setEnabled: (v) => messageWindowSettings!.setMode(v ? "popped" : "docked"),
       logKey: "message_window_toggle",
+      subscribe: messageWindowSettings ? (cb) => messageWindowSettings.subscribe(cb) : undefined,
     },
     {
       selector: ".yui-gaze-switch",
@@ -164,6 +170,7 @@ export function createSwitchRows({
       getEnabled: () => gazeSettings!.get().enabled,
       setEnabled: (v) => gazeSettings!.setEnabled(v),
       logKey: "gaze_toggle",
+      subscribe: gazeSettings ? (cb) => gazeSettings.subscribe(cb) : undefined,
     },
     {
       selector: ".yui-climb-switch",
@@ -177,6 +184,7 @@ export function createSwitchRows({
       getEnabled: () => climbSettings!.get().enabled,
       setEnabled: (v) => climbSettings!.setEnabled(v),
       logKey: "climb_toggle",
+      subscribe: climbSettings ? (cb) => climbSettings.subscribe(cb) : undefined,
     },
     {
       selector: ".yui-fall-switch",
@@ -190,6 +198,7 @@ export function createSwitchRows({
       getEnabled: () => fallSettings!.get().enabled,
       setEnabled: (v) => fallSettings!.setEnabled(v),
       logKey: "fall_toggle",
+      subscribe: fallSettings ? (cb) => fallSettings.subscribe(cb) : undefined,
     },
     {
       selector: ".yui-agentnotify-switch",

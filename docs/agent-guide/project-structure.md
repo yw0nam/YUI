@@ -454,7 +454,7 @@ YUI/
         popover.ts                   # Popover shell: positioning, dragging, open and close lifecycle
         reflect.ts                   # Store to DOM reflection for the panel parts without their own
         constants.ts                 # Display constants shared by the panel, its sections, and the chips that reuse its glyphs
-        switch-row.ts                # Switch-row element contract and the row table filling it
+        switch-row.ts                # Switch-row element contract, the row table filling it, and each row's store follower
         seg-keyboard.ts              # Arrow, Home, End and commit keyboard handling shared by the segmented controls
         slider-binding.ts            # Input and release wiring shared by the range sliders
         hint-tooltip.ts              # Shared hover, focus, and click tooltip for data-tip elements
@@ -502,6 +502,8 @@ YUI/
           workflows-section.css      # Workflows section styles
           speaker-list.css           # Speaker list styles
           user-asset-list.css        # Radio row, tick, and state styles shared by the monitor, VRM, and speaker lists
+        switches/                    # Switch rows shared with the phone settings view
+          switch-rows.ts             # Row markup, click binding, repaint, and the store following while open
       i18n/                          # Locale catalogs
         en.ts                        # English strings, the source of truth for the key set
         ja.ts                        # Japanese strings

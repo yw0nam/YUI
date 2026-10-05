@@ -1,6 +1,7 @@
 /**
  * Switch rows shared by the desktop panel and the phone settings view: the row markup, the click
- * binding that flips a row's store and logs it, and the repaint from the stores.
+ * binding that flips a row's store and logs it, the repaint from the stores, and, given an open
+ * state, the store following that repaints while the panel is open.
  */
 
 import type { Logger } from "../../../logger";
@@ -31,11 +32,15 @@ export function reflectSwitchRows(root: HTMLElement, rows: readonly SwitchRow[])
   }
 }
 
-/** Bind each row's switch under `root`; a click flips the row's store and logs its `logKey`. */
+/**
+ * Bind each row's switch under `root`; a click flips the row's store and logs its `logKey`.
+ * With `isOpen`, each row that has `subscribe` repaints the rows on a store change while open.
+ */
 export function bindSwitchRows(
   root: HTMLElement,
   rows: readonly SwitchRow[],
   log: Logger,
+  isOpen?: () => boolean,
 ): { reflect(): void; dispose(): void } {
   const handleClick = (row: SwitchRow): void => {
     if (!row.isAvailable) return;
@@ -49,10 +54,22 @@ export function bindSwitchRows(
     button?.addEventListener("click", onClick);
     return () => button?.removeEventListener("click", onClick);
   });
+  const followed = isOpen
+    ? rows.flatMap((row) =>
+        row.subscribe
+          ? [
+              row.subscribe(() => {
+                if (isOpen()) reflectSwitchRows(root, rows);
+              }),
+            ]
+          : [],
+      )
+    : [];
   return {
     reflect: () => reflectSwitchRows(root, rows),
     dispose: () => {
       for (const unbind of bound) unbind();
+      for (const unsubscribe of followed) unsubscribe();
     },
   };
 }
