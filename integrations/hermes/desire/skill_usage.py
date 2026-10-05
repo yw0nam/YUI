@@ -7,7 +7,7 @@ import sqlite3
 from datetime import datetime, timedelta
 from pathlib import Path
 
-import desire_state
+import desire_config
 
 WINDOW = timedelta(days=7)
 UNUSED_AFTER = timedelta(days=14)
@@ -21,7 +21,7 @@ UNUSED = " — unused: archive it or say why it stays"
 def _tick_prefix(profile: Path) -> str:
     """Return the session-id prefix Hermes gives every run of the desire tick job."""
 
-    tick_job = desire_state.cron_job_name("tick")
+    tick_job = desire_config.cron_job_name("tick")
     payload = json.loads((profile / "cron" / "jobs.json").read_text(encoding="utf-8"))
     jobs = payload.get("jobs") if isinstance(payload, dict) else payload
     for job in jobs if isinstance(jobs, list) else []:
@@ -94,7 +94,7 @@ def _stamp(value: object) -> str:
     if value is None:
         return "never"
     try:
-        return desire_state.parse_timestamp(value).strftime("%Y-%m-%d %H:%M")
+        return desire_config.parse_timestamp(value).strftime("%Y-%m-%d %H:%M")
     except (TypeError, ValueError):
         return "unknown"
 
@@ -103,7 +103,7 @@ def _older_than(value: object, age: timedelta, now: datetime) -> bool:
     """Report whether a stamp is that old, withholding the verdict on a stamp it cannot read."""
 
     try:
-        return now - desire_state.parse_timestamp(value) >= age
+        return now - desire_config.parse_timestamp(value) >= age
     except (TypeError, ValueError):
         return False
 
@@ -130,8 +130,8 @@ def section(
 ) -> tuple[str, str | None]:
     """Render the report section for the skills the agent made, and why loads went uncounted."""
 
-    now = desire_state.normalize_now(now)
-    profile = Path(profile) if profile is not None else desire_state.profile_root()
+    now = desire_config.normalize_now(now)
+    profile = Path(profile) if profile is not None else desire_config.profile_root()
     usage = _usage(profile)
     made = [
         (ref, usage.get(ref.rsplit("/", 1)[-1], usage.get(ref, {})))

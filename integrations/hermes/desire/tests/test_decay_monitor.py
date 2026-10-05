@@ -9,7 +9,9 @@ import pytest
 from conftest import AGENT_NAME, PROFILE_NAME
 
 import decay_monitor
+import desire_config
 import desire_state
+import desire_store
 
 BRANCH = f"{AGENT_NAME}/"
 MARKER = f"<!-- from-{AGENT_NAME} -->"
@@ -793,7 +795,7 @@ def test_probe_falls_back_to_default_url_when_env_is_empty(monkeypatch):
     from tests.conftest import free_port
 
     monkeypatch.setenv("YUI_SIGNALS_URL", "")
-    monkeypatch.setattr(desire_state, "DEFAULT_SIGNALS_URL", f"http://127.0.0.1:{free_port()}/signals")
+    monkeypatch.setattr(desire_config, "DEFAULT_SIGNALS_URL", f"http://127.0.0.1:{free_port()}/signals")
 
     assert decay_monitor.probe_transport() is False
 
@@ -1467,7 +1469,7 @@ def test_sources_are_read_before_the_tick_takes_the_state_lock(state_dir, at, is
 
     def probe_lock(args):
         def take():
-            with desire_state.state_lock(state_dir):
+            with desire_store.state_lock(state_dir):
                 acquired.append(args[0])
 
         worker = threading.Thread(target=take, daemon=True)

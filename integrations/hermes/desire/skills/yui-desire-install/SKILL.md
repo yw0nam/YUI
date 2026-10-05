@@ -178,7 +178,7 @@ The line never contains the desire block, drive levels, want text, or user conte
 
 ## 9. Gateway restart (plugin code changed)
 
-The gateway process imports the middleware, so a pull that touches `__init__.py` or `desire_state.py` takes effect
+The gateway process imports the middleware, so a pull that touches `__init__.py` or any `desire_*.py` module takes effect
 only after a restart. Prompts, the monitor script, and `act.py` run as subprocesses and need none. The restart ends
 every running turn, including the one that issues it, so answer first and issue it detached:
 

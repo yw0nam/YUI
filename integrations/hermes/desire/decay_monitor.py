@@ -11,7 +11,11 @@ from pathlib import Path
 from urllib import error as urllib_error
 from urllib import request as urllib_request
 
+import desire_config
+import desire_drives
+import desire_outbox
 import desire_state
+import desire_store
 
 PROBE_TIMEOUT = 2
 GH_TIMEOUT = 60
@@ -26,7 +30,7 @@ _GITHUB_SLUG = re.compile(r"(?:^|[@/.])github\.com[:/](?P<owner>[^/]+)/(?P<name>
 def probe_transport() -> bool:
     """Report whether the YUI signals ingress returns an HTTP response right now."""
 
-    target = os.environ.get("YUI_SIGNALS_URL") or desire_state.DEFAULT_SIGNALS_URL
+    target = os.environ.get("YUI_SIGNALS_URL") or desire_config.DEFAULT_SIGNALS_URL
     try:
         with urllib_request.urlopen(urllib_request.Request(target, method="GET"), timeout=PROBE_TIMEOUT):
             return True
@@ -90,7 +94,7 @@ def repo_pull_requests(repo: str, run_gh) -> list[dict]:
             "number,url,headRefName,state,mergedAt",
         ]
     )
-    prefix = desire_state.branch_prefix()
+    prefix = desire_config.branch_prefix()
     return [
         pull
         for pull in json.loads(payload)
@@ -117,7 +121,7 @@ def repo_issues(repo: str, run_gh) -> list[dict]:
             "number,url,state,closedAt,body",
         ]
     )
-    marker = desire_state.issue_marker()
+    marker = desire_config.issue_marker()
     return [
         issue
         for issue in json.loads(payload)
@@ -136,7 +140,7 @@ def profile_skills(skills_root: Path) -> list[str]:
 
 def _derive_failed(state_dir: Path, now: datetime, source: str, repo: str | None, message: str, ref=None):
     named = {"ref": ref} if ref is not None else {}
-    desire_state.append_jsonl(
+    desire_store.append_jsonl(
         state_dir / "audit.jsonl",
         {
             "at": now.isoformat(),
@@ -176,11 +180,11 @@ def collect_artefacts(state_dir, now, *, workspace_root, skills_root, run_gh) ->
     read from each pending artefact's own view instead of waiting for it to appear in that window.
     """
 
-    now = desire_state.normalize_now(now)
+    now = desire_config.normalize_now(now)
     state_dir = Path(state_dir)
-    record = desire_state.read_artefacts(state_dir)
+    record = desire_store.read_artefacts(state_dir)
     bootstrapped = set(record["bootstrapped"]) if record else set()
-    observed = {kind: [] for kind in desire_state.ARTEFACT_KINDS}
+    observed = {kind: [] for kind in desire_store.ARTEFACT_KINDS}
     for repo in workspace_repos(workspace_root):
         pulls = _read_source(state_dir, now, "pr", repo, lambda name=repo: repo_pull_requests(name, run_gh))
         observed["pr"] = _extend(observed["pr"], pulls, "url", "mergedAt", "pr" in bootstrapped)
@@ -240,13 +244,13 @@ def score_artefacts(state_dir, now, observed: dict) -> None:
     existed is recorded as seen rather than dosed however late that source starts answering.
     """
 
-    now = desire_state.normalize_now(now)
+    now = desire_config.normalize_now(now)
     state_dir = Path(state_dir)
-    with desire_state.state_lock(state_dir):
-        record = desire_state.read_artefacts(state_dir) or desire_state.default_artefacts(now)
+    with desire_store.state_lock(state_dir):
+        record = desire_store.read_artefacts(state_dir) or desire_store.default_artefacts(now)
         scored = set(record["bootstrapped"])
         candidates = []
-        for kind in desire_state.ARTEFACT_KINDS:
+        for kind in desire_store.ARTEFACT_KINDS:
             if observed[kind] is None:
                 continue
             for ref, delivered_at in observed[kind]:
@@ -277,10 +281,10 @@ def score_artefacts(state_dir, now, observed: dict) -> None:
         finally:
             # `satisfy` records reported sources in the same file, so those come from a fresh read
             # rather than from the snapshot this scoring pass started with.
-            fresh = desire_state.read_artefacts(state_dir)
+            fresh = desire_store.read_artefacts(state_dir)
             if fresh is not None:
                 record["learned"] = fresh["learned"]
-            desire_state.write_json_atomic(state_dir / "artefacts.json", record)
+            desire_store.write_json_atomic(state_dir / "artefacts.json", record)
 
 
 def _starved(since: str | None, now: datetime) -> int:
@@ -288,45 +292,45 @@ def _starved(since: str | None, now: datetime) -> int:
 
     if since is None:
         return 0
-    return max(0, (now - desire_state.parse_timestamp(since)) // SATURATION_STEP)
+    return max(0, (now - desire_config.parse_timestamp(since)) // SATURATION_STEP)
 
 
 def run(now: datetime) -> str:
-    now = desire_state.normalize_now(now)
-    profile = desire_state.profile_root()
+    now = desire_config.normalize_now(now)
+    profile = desire_config.profile_root()
     reachable = probe_transport()
     observed = collect_artefacts(
-        desire_state.resolve_state_dir(),
+        desire_config.resolve_state_dir(),
         now,
         workspace_root=profile / "workspace",
         skills_root=profile / "skills",
         run_gh=run_gh,
     )
-    with desire_state.state_lock() as state_dir:
+    with desire_store.state_lock() as state_dir:
         state = desire_state.bootstrap_locked(state_dir, now)
 
         drives = state["drives"]
-        levels = desire_state.drive_levels(drives, now)
+        levels = desire_drives.drive_levels(drives, now)
         for name in ("curiosity", "accomplishment"):
             drives[name] = {"level": levels[name], "anchor_at": now.isoformat()}
-        desire_state.write_json_atomic(state_dir / "drives.json", drives)
+        desire_store.write_json_atomic(state_dir / "drives.json", drives)
 
         # A fallen bucket keeps its latched token, so a drive the agent just satisfied does not
         # wake the next tick; a rise re-snapshots every token and counts.
         monitor = state["monitor"]
-        natural = {name: desire_state.bucket(levels[name]) for name in desire_state.DRIVES}
+        natural = {name: desire_drives.bucket(levels[name]) for name in desire_drives.DRIVES}
         rises = monitor["rises"] + sum(
-            desire_state.BUCKETS.index(natural[name]) > desire_state.BUCKETS.index(monitor["natural"][name])
-            for name in desire_state.DRIVES
+            desire_drives.BUCKETS.index(natural[name]) > desire_drives.BUCKETS.index(monitor["natural"][name])
+            for name in desire_drives.DRIVES
         )
         latched = dict(natural) if rises > monitor["rises"] else monitor["latched"]
         # A drive pinned at the ceiling keeps its stamp, so its own starved count climbs every step.
         saturated = {
             name: (monitor["saturated_since"][name] or now.isoformat()) if levels[name] >= 100 else None
-            for name in desire_state.DRIVES
+            for name in desire_drives.DRIVES
         }
         starved = {name: _starved(since, now) for name, since in saturated.items()}
-        desire_state.write_json_atomic(
+        desire_store.write_json_atomic(
             state_dir / "monitor.json",
             {"latched": latched, "natural": natural, "rises": rises, "saturated_since": saturated},
         )
@@ -338,36 +342,36 @@ def run(now: datetime) -> str:
             for reservation_id, reservation in budget["pending"].items()
             if not desire_state.reservation_is_older_than(reservation, cutoff)
         }
-        desire_state.write_json_atomic(state_dir / "budget.json", budget)
+        desire_store.write_json_atomic(state_dir / "budget.json", budget)
 
         outbox_path = state_dir / "outbox.jsonl"
-        outbox, dropped = desire_state.read_jsonl_with_dropped(outbox_path)
-        valid = [item for item in outbox if desire_state.valid_outbox_item(item)]
+        outbox, dropped = desire_store.read_jsonl_with_dropped(outbox_path)
+        valid = [item for item in outbox if desire_outbox.valid_outbox_item(item)]
         dropped += len(outbox) - len(valid)
-        active = desire_state.active_outbox(valid, now)
+        active = desire_outbox.active_outbox(valid, now)
         active_ids = {id(item) for item in active}
         expired = [item for item in valid if id(item) not in active_ids]
-        desire_state.write_jsonl_atomic(outbox_path, active)
+        desire_store.write_jsonl_atomic(outbox_path, active)
 
         for item in expired:
-            desire_state.append_jsonl(
+            desire_store.append_jsonl(
                 state_dir / "audit.jsonl",
                 {"at": now.isoformat(), "event": "outbox_expired", "item": item},
             )
         if dropped:
-            desire_state.append_jsonl(
+            desire_store.append_jsonl(
                 state_dir / "audit.jsonl",
                 {"at": now.isoformat(), "event": "jsonl_lines_dropped", "count": dropped},
             )
 
-        transport = desire_state.record_transport(state_dir, reachable, now)
-        visible = desire_state.visible_outbox(active, now)
+        transport = desire_store.record_transport(state_dir, reachable, now)
+        visible = desire_outbox.visible_outbox(active, now)
         outbox_summary = str(len(visible))
         if visible:
-            oldest = min(desire_state.parse_timestamp(item["created_at"]) for item in visible)
-            outbox_summary += f"/{desire_state.pent_up_stage(oldest, now)}"
+            oldest = min(desire_config.parse_timestamp(item["created_at"]) for item in visible)
+            outbox_summary += f"/{desire_outbox.pent_up_stage(oldest, now)}"
 
-        desire_state.append_jsonl(
+        desire_store.append_jsonl(
             state_dir / "ticks.jsonl",
             {
                 "at": now.isoformat(),
@@ -389,7 +393,7 @@ def run(now: datetime) -> str:
             f"outbox:{outbox_summary} "
             f"transport:{transport['state']} "
             f"budget:{_budget_tokens(budget)} "
-            f"day:{desire_state.wake_day(now)} "
+            f"day:{desire_config.wake_day(now)} "
             f"rises:{rises} "
             f"starved:{starved['social']}/{starved['curiosity']}/{starved['accomplishment']}\n"
         )
@@ -407,7 +411,7 @@ def _fallback_summary() -> str:
     """Name the wake day so a sustained failure still wakes the tick once a day."""
 
     try:
-        day = desire_state.wake_day(datetime.now(desire_state.KST))
+        day = desire_config.wake_day(datetime.now(desire_config.KST))
     except Exception:  # noqa: BLE001 - an unreadable clock still owes the cron a summary
         day = "unknown"
     return (
@@ -419,12 +423,12 @@ def _fallback_summary() -> str:
 def main() -> None:
     # A missing identity is a misconfiguration the fail-safe summary must not hide.
     try:
-        desire_state.agent_name()
-        desire_state.hermes_profile()
-    except desire_state.ConfigurationError as error:
+        desire_config.agent_name()
+        desire_config.hermes_profile()
+    except desire_config.ConfigurationError as error:
         raise SystemExit(str(error)) from error
     try:
-        now = datetime.now(desire_state.KST)
+        now = datetime.now(desire_config.KST)
         summary = run(now)
     except Exception:  # noqa: BLE001 - the hash-gated cron must always receive a valid summary
         summary = _fallback_summary()

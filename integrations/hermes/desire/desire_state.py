@@ -1,401 +1,21 @@
-"""Locked persistent state and deterministic serialization for yui-desire."""
+"""Bootstrap of the state files, the daily budget, and the satisfy transition."""
 
 from __future__ import annotations
 
 import copy
-import fcntl
-import json
-import os
-import re
-import threading
-from collections.abc import Iterator
-from contextlib import contextmanager
-from datetime import date, datetime, timedelta
+from datetime import date, datetime
 from pathlib import Path
-from zoneinfo import ZoneInfo
 
-KST = ZoneInfo("Asia/Seoul")
-DEFAULT_SIGNALS_URL = "http://127.0.0.1:8770/signals"
-CURIOSITY_RATE = 9.0
-ACCOMPLISHMENT_RATE = 6.0
-SOCIAL_RATE = 15.0
-OUTBOX_EXPIRY = timedelta(hours=48)
-PENT_UP_HEAVY = timedelta(hours=6)
-PENT_UP_BURSTING = timedelta(hours=18)
+if __package__:
+    from . import desire_config, desire_drives, desire_store
+else:
+    import desire_config
+    import desire_drives
+    import desire_store
+
 CAPS = {"signals": 3, "issues": 2, "self_comments": 1, "prs": 0}
-DRIVES = ("social", "curiosity", "accomplishment")
-BUCKETS = ("low", "mid", "high")
-ARTEFACT_KINDS = ("pr", "issue", "skill")
 LEARNED_MEMORY = 500
-SINCE_LAST_TURN_LIMIT = 8
-EVENT_DOSES = {
-    "learned": {"curiosity": 30.0},
-    "progressed": {"accomplishment": 15.0},
-    "shipped": {"accomplishment": 40.0},
-    "praised": {"accomplishment": 25.0},
-}
 EVENT_DAILY_CAPS = {"learned": 6, "progressed": 6, "shipped": 4, "praised": 4}
-
-_lock_guard = threading.RLock()
-_lock_local = threading.local()
-
-
-def normalize_now(value: datetime) -> datetime:
-    if value.tzinfo is None or value.utcoffset() is None:
-        raise ValueError("datetime must be timezone-aware")
-    return value.astimezone(KST)
-
-
-def parse_timestamp(value: str) -> datetime:
-    parsed = datetime.fromisoformat(value)
-    return normalize_now(parsed)
-
-
-def wake_day(now: datetime) -> str:
-    """Return the KST day the tick belongs to; the day rolls at 09:00."""
-
-    return (normalize_now(now) - timedelta(hours=9)).date().isoformat()
-
-
-_AGENT_SLUG = re.compile(r"[a-z0-9][a-z0-9-]*")
-
-
-class ConfigurationError(RuntimeError):
-    """A value the deployment must set is missing."""
-
-
-def _missing(name: str) -> ConfigurationError:
-    return ConfigurationError(f"{name} is not set; export it in the Hermes profile environment")
-
-
-def _required(name: str) -> str:
-    value = os.environ.get(name, "").strip()
-    if not value:
-        raise _missing(name)
-    return value
-
-
-def agent_name() -> str:
-    """Return the slug naming this agent, which every desire convention derives from."""
-
-    value = _required("DESIRE_AGENT_NAME")
-    if _AGENT_SLUG.fullmatch(value) is None:
-        raise ConfigurationError(
-            "DESIRE_AGENT_NAME must be one slug of lowercase letters, digits, and hyphens"
-        )
-    return value
-
-
-def hermes_profile() -> str:
-    return _required("HERMES_PROFILE")
-
-
-def branch_prefix() -> str:
-    return f"{agent_name()}/"
-
-
-def issue_marker() -> str:
-    return f"<!-- from-{agent_name()} -->"
-
-
-def signal_source() -> str:
-    return f"{agent_name()}-desire"
-
-
-def cron_job_name(kind: str) -> str:
-    return f"{agent_name()}-desire-{kind}"
-
-
-def chat_platforms() -> frozenset[str]:
-    """Name the Hermes platforms whose turns are the user speaking to the agent."""
-
-    listed = os.environ.get("DESIRE_CHAT_PLATFORMS", "").split(",")
-    names = frozenset(name.strip().lower() for name in listed if name.strip())
-    if not names:
-        raise _missing("DESIRE_CHAT_PLATFORMS")
-    return names
-
-
-def profile_root() -> Path:
-    """Return the Hermes profile directory the desire system belongs to."""
-
-    return Path.home() / ".hermes" / "profiles" / hermes_profile()
-
-
-def resolve_state_dir() -> Path:
-    configured = os.environ.get("DESIRE_STATE_DIR")
-    if configured:
-        return Path(configured).expanduser()
-    return profile_root() / "desire"
-
-
-@contextmanager
-def state_lock(state_dir: Path | None = None) -> Iterator[Path]:
-    """Hold the process-wide and filesystem lock for one state transaction.
-
-    The context is re-entrant for helpers called during a larger transaction.
-    """
-
-    directory = Path(state_dir) if state_dir is not None else resolve_state_dir()
-    directory = directory.resolve()
-    with _lock_guard:
-        depth = getattr(_lock_local, "depth", 0)
-        if depth:
-            if directory != _lock_local.directory:
-                raise RuntimeError("cannot nest desire state locks for different directories")
-            _lock_local.depth = depth + 1
-            try:
-                yield directory
-            finally:
-                _lock_local.depth -= 1
-            return
-
-        directory.mkdir(parents=True, exist_ok=True)
-        lock_path = directory / "state.lock"
-        with lock_path.open("a+b") as lock_file:
-            fcntl.flock(lock_file.fileno(), fcntl.LOCK_EX)
-            _lock_local.depth = 1
-            _lock_local.directory = directory
-            try:
-                yield directory
-            finally:
-                _lock_local.depth = 0
-                del _lock_local.directory
-                fcntl.flock(lock_file.fileno(), fcntl.LOCK_UN)
-
-
-def _json_bytes(value: object) -> bytes:
-    return json.dumps(value, ensure_ascii=False, sort_keys=True, separators=(",", ":")).encode("utf-8")
-
-
-def write_json_atomic(path: Path, value: object) -> None:
-    path = Path(path)
-    with state_lock(path.parent):
-        temporary = path.with_name(path.name + ".tmp")
-        temporary.write_bytes(_json_bytes(value))
-        os.replace(temporary, path)
-
-
-def _append_jsonl_locked(path: Path, value: object) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    encoded = json.dumps(value, ensure_ascii=False) + "\n"
-    with path.open("ab+") as stream:
-        stream.seek(0, os.SEEK_END)
-        size = stream.tell()
-        if size:
-            stream.seek(-1, os.SEEK_END)
-            if stream.read(1) != b"\n":
-                stream.seek(0, os.SEEK_END)
-                stream.write(b"\n")
-        stream.seek(0, os.SEEK_END)
-        stream.write(encoded.encode("utf-8"))
-        stream.flush()
-
-
-def append_jsonl(path: Path, value: object) -> None:
-    path = Path(path)
-    with state_lock(path.parent):
-        _append_jsonl_locked(path, value)
-
-
-def _read_jsonl_locked(path: Path) -> tuple[list[dict], int]:
-    if not path.exists():
-        return [], 0
-    values: list[dict] = []
-    dropped = 0
-    for line in path.read_text(encoding="utf-8").split("\n"):
-        if not line.strip():
-            continue
-        try:
-            value = json.loads(line)
-        except (json.JSONDecodeError, UnicodeError):
-            dropped += 1
-            continue
-        if isinstance(value, dict):
-            values.append(value)
-        else:
-            dropped += 1
-    return values, dropped
-
-
-def read_jsonl(path: Path) -> list[dict]:
-    path = Path(path)
-    with state_lock(path.parent):
-        return _read_jsonl_locked(path)[0]
-
-
-def read_jsonl_with_dropped(path: Path) -> tuple[list[dict], int]:
-    path = Path(path)
-    with state_lock(path.parent):
-        return _read_jsonl_locked(path)
-
-
-def _write_jsonl_atomic_locked(path: Path, values: list[dict]) -> None:
-    temporary = path.with_name(path.name + ".tmp")
-    payload = "".join(json.dumps(value, ensure_ascii=False) + "\n" for value in values)
-    temporary.write_text(payload, encoding="utf-8", newline="\n")
-    os.replace(temporary, path)
-
-
-def write_jsonl_atomic(path: Path, values: list[dict]) -> None:
-    path = Path(path)
-    with state_lock(path.parent):
-        _write_jsonl_atomic_locked(path, values)
-
-
-def stamp_outbox(path: Path, item_ids: tuple[str, ...], now: datetime) -> None:
-    """Stamp selected valid items while preserving malformed lines for the monitor."""
-
-    now = normalize_now(now)
-    path = Path(path)
-    with state_lock(path.parent):
-        ids = set(item_ids)
-        parts = path.read_text(encoding="utf-8").split("\n")
-        changed = False
-        rewritten = []
-        for index, payload in enumerate(parts):
-            ending = "\n" if index < len(parts) - 1 else ""
-            line = payload + ending
-            try:
-                item = json.loads(payload)
-            except (json.JSONDecodeError, UnicodeError):
-                rewritten.append(line)
-                continue
-            if valid_outbox_item(item) and item.get("id") in ids and item.get("surfaced_at") is None:
-                item["surfaced_at"] = now.isoformat()
-                rewritten.append(json.dumps(item, ensure_ascii=False) + ending)
-                changed = True
-            else:
-                rewritten.append(line)
-        if changed:
-            temporary = path.with_name(path.name + ".tmp")
-            temporary.write_text("".join(rewritten), encoding="utf-8", newline="")
-            os.replace(temporary, path)
-
-
-def release_outbox_item(path: Path, item_id: str) -> bool:
-    """Remove one item by id while preserving every other line's bytes exactly.
-
-    Operates on raw bytes so a malformed line's original line ending (including CRLF) and any
-    invalid-UTF-8 bytes survive untouched. Returns whether the item was found.
-    """
-
-    path = Path(path)
-    with state_lock(path.parent):
-        if not path.exists():
-            return False
-        parts = path.read_bytes().split(b"\n")
-        found = False
-        rewritten = []
-        for index, payload in enumerate(parts):
-            ending = b"\n" if index < len(parts) - 1 else b""
-            line = payload + ending
-            try:
-                item = json.loads(payload.decode("utf-8"))
-            except (json.JSONDecodeError, UnicodeError):
-                rewritten.append(line)
-                continue
-            if isinstance(item, dict) and item.get("id") == item_id:
-                found = True
-                continue
-            rewritten.append(line)
-        if found:
-            temporary = path.with_name(path.name + ".tmp")
-            temporary.write_bytes(b"".join(rewritten))
-            os.replace(temporary, path)
-        return found
-
-
-def update_outbox_item(path: Path, item_id: str, fields: dict) -> bool:
-    """Merge ``fields`` into one item by id, preserving every other line's bytes exactly."""
-
-    path = Path(path)
-    with state_lock(path.parent):
-        if not path.exists():
-            return False
-        parts = path.read_bytes().split(b"\n")
-        found = False
-        rewritten = []
-        for index, payload in enumerate(parts):
-            ending = b"\n" if index < len(parts) - 1 else b""
-            try:
-                item = json.loads(payload.decode("utf-8"))
-            except (json.JSONDecodeError, UnicodeError):
-                rewritten.append(payload + ending)
-                continue
-            if isinstance(item, dict) and item.get("id") == item_id:
-                found = True
-                rewritten.append(json.dumps({**item, **fields}, ensure_ascii=False).encode("utf-8") + ending)
-                continue
-            rewritten.append(payload + ending)
-        if found:
-            temporary = path.with_name(path.name + ".tmp")
-            temporary.write_bytes(b"".join(rewritten))
-            os.replace(temporary, path)
-        return found
-
-
-def read_transport(state_dir: Path) -> dict | None:
-    """Return the recorded signal transport state, or ``None`` when absent or unreadable."""
-
-    try:
-        value = json.loads((Path(state_dir) / "transport.json").read_text(encoding="utf-8"))
-        if not isinstance(value, dict) or value.get("state") not in ("up", "down"):
-            return None
-        parse_timestamp(value["since"])
-        return {**value, "failed": int(value.get("failed", 0))}
-    except (FileNotFoundError, json.JSONDecodeError, KeyError, TypeError, UnicodeError, OSError, ValueError):
-        return None
-
-
-def record_transport(state_dir: Path, reachable: bool, now: datetime, *, source: str = "probe") -> dict:
-    """Record one delivery or probe outcome; ``since`` marks the start of the current state.
-
-    An outcome older than the recorded ``last_checked_at`` is discarded. An unreadable
-    ``transport.json`` is quarantined like the other state files before the rebuild.
-    """
-
-    now = normalize_now(now)
-    state_dir = Path(state_dir)
-    path = state_dir / "transport.json"
-    with state_lock(state_dir):
-        previous = read_transport(state_dir)
-        if previous is None and path.exists():
-            _recover_invalid_json_locked(path, None, now)
-            path.unlink(missing_ok=True)
-        if previous is not None:
-            try:
-                if parse_timestamp(previous["last_checked_at"]) > now:
-                    return previous
-            except (KeyError, TypeError, ValueError):
-                pass
-        state = "up" if reachable else "down"
-        unchanged = previous is not None and previous["state"] == state
-        value = {
-            "state": state,
-            "since": previous["since"] if unchanged else now.isoformat(),
-            "failed": 0 if reachable else (previous["failed"] if previous else 0) + 1,
-            "last_checked_at": now.isoformat(),
-            "source": source,
-        }
-        write_json_atomic(path, value)
-        return value
-
-
-def _default_drives(now: datetime) -> dict:
-    stamp = now.isoformat()
-    return {
-        "curiosity": {"level": 50.0, "anchor_at": stamp},
-        "accomplishment": {"level": 50.0, "anchor_at": stamp},
-        "last_interaction_at": stamp,
-        "last_interaction_hash": None,
-        "last_signal_at": None,
-        "last_signal_answered_at": None,
-    }
-
-
-def default_drives(now: datetime) -> dict:
-    return _default_drives(normalize_now(now))
 
 
 def _default_budget(now: datetime) -> dict:
@@ -410,131 +30,8 @@ def _default_budget(now: datetime) -> dict:
     }
 
 
-def default_artefacts(now: datetime) -> dict:
-    """Return an empty record: no source has answered yet, so nothing is scored from it."""
-
-    stamp = normalize_now(now).isoformat()
-    return {
-        "bootstrapped_at": stamp,
-        "bootstrapped": [],
-        "seen": {kind: [] for kind in ARTEFACT_KINDS},
-        "skill_first_seen": {},
-        "shipped": [],
-        "learned": [],
-        "unreported": [],
-    }
-
-
-def read_artefacts(state_dir: Path) -> dict | None:
-    """Return the derived-artefact record, or ``None`` when it is absent or unreadable."""
-
-    try:
-        value = json.loads((Path(state_dir) / "artefacts.json").read_text(encoding="utf-8"))
-    except (FileNotFoundError, json.JSONDecodeError, UnicodeError, OSError):
-        return None
-    if not isinstance(value, dict):
-        return None
-    seen = value.get("seen") if isinstance(value.get("seen"), dict) else {}
-    return {
-        "bootstrapped_at": value.get("bootstrapped_at"),
-        "bootstrapped": [kind for kind in _text_list(value.get("bootstrapped")) if kind in ARTEFACT_KINDS],
-        "seen": {kind: _text_list(seen.get(kind)) for kind in ARTEFACT_KINDS},
-        "skill_first_seen": _text_map(value.get("skill_first_seen")),
-        "shipped": _text_list(value.get("shipped")),
-        "learned": _text_list(value.get("learned")),
-        "unreported": [item for item in _list(value.get("unreported")) if isinstance(item, dict)],
-    }
-
-
-def _list(value: object) -> list:
-    return value if isinstance(value, list) else []
-
-
-def _text_list(value: object) -> list[str]:
-    return [item for item in _list(value) if isinstance(item, str)]
-
-
-def _text_map(value: object) -> dict[str, str]:
-    if not isinstance(value, dict):
-        return {}
-    return {key: item for key, item in value.items() if isinstance(key, str) and isinstance(item, str)}
-
-
 def _default_cursor(now: datetime) -> dict:
     return {"last_feedback_check_at": now.isoformat()}
-
-
-def _default_monitor(drives: dict, now: datetime) -> dict:
-    levels = drive_levels(drives, now)
-    buckets = {name: bucket(levels[name]) for name in DRIVES}
-    return {
-        "latched": buckets,
-        "natural": dict(buckets),
-        "rises": 0,
-        "saturated_since": {name: None for name in DRIVES},
-    }
-
-
-def load_json(path: Path, default: object, now: datetime) -> object:
-    """Load a JSON state file, quarantining and replacing corrupt content."""
-
-    now = normalize_now(now)
-    path = Path(path)
-    with state_lock(path.parent):
-        if not path.exists():
-            value = default() if callable(default) else copy.deepcopy(default)
-            write_json_atomic(path, value)
-            return value
-        try:
-            return json.loads(path.read_text(encoding="utf-8"))
-        except (json.JSONDecodeError, UnicodeError, OSError):
-            return _recover_invalid_json_locked(path, default, now)
-
-
-def _recover_invalid_json_locked(path: Path, default: object, now: datetime) -> object:
-    quarantine = path.with_name(f"{path.name}.corrupt-{now.strftime('%Y%m%d%H%M%S')}")
-    os.replace(path, quarantine)
-    value = default() if callable(default) else copy.deepcopy(default)
-    write_json_atomic(path, value)
-    _append_jsonl_locked(
-        path.parent / "audit.jsonl",
-        {"at": now.isoformat(), "event": "state_corrupt_recovered", "file": path.name},
-    )
-    return value
-
-
-def _normalize_drives(value: object) -> dict:
-    if not isinstance(value, dict):
-        raise TypeError("drives state must be an object")
-    result = {}
-    for name in ("curiosity", "accomplishment"):
-        drive = value[name]
-        if not isinstance(drive, dict):
-            raise TypeError("drive state must be an object")
-        result[name] = {
-            "level": float(drive["level"]),
-            "anchor_at": parse_timestamp(drive["anchor_at"]).isoformat(),
-        }
-    interaction_hash = value.get("last_interaction_hash")
-    if interaction_hash is not None and not isinstance(interaction_hash, str):
-        raise ValueError("last interaction hash must be text or null")
-    result["last_interaction_at"] = parse_timestamp(value["last_interaction_at"]).isoformat()
-    result["last_interaction_hash"] = interaction_hash
-    for key in ("last_signal_at", "last_signal_answered_at"):
-        stamp = value.get(key)
-        result[key] = parse_timestamp(stamp).isoformat() if stamp is not None else None
-    return result
-
-
-def read_drives_snapshot(state_dir: Path, now: datetime) -> dict:
-    """Read drives without recovery writes. The caller holds ``state_lock`` when state exists."""
-
-    now = normalize_now(now)
-    try:
-        value = json.loads((Path(state_dir) / "drives.json").read_text(encoding="utf-8"))
-        return _normalize_drives(value)
-    except (FileNotFoundError, json.JSONDecodeError, KeyError, TypeError, UnicodeError, OSError, ValueError):
-        return _default_drives(now)
 
 
 def _validate_budget(value: object) -> dict:
@@ -555,64 +52,37 @@ def _validate_budget(value: object) -> dict:
 def _normalize_cursor(value: object) -> dict:
     if not isinstance(value, dict):
         raise TypeError("cursor state must be an object")
-    return {"last_feedback_check_at": parse_timestamp(value["last_feedback_check_at"]).isoformat()}
-
-
-def _normalize_buckets(value: object) -> dict[str, str]:
-    if not isinstance(value, dict):
-        raise TypeError("monitor buckets must be an object")
-    buckets = {name: value[name] for name in DRIVES}
-    if any(name not in BUCKETS for name in buckets.values()):
-        raise ValueError("unknown bucket name")
-    return buckets
-
-
-def _normalize_saturation(value: object) -> dict[str, str | None]:
-    """Read the per-drive saturation stamps, treating an absent record as unsaturated."""
-
-    stamps = value if isinstance(value, dict) else {}
     return {
-        name: None if stamps.get(name) is None else parse_timestamp(stamps[name]).isoformat()
-        for name in DRIVES
-    }
-
-
-def _normalize_monitor(value: object) -> dict:
-    if not isinstance(value, dict):
-        raise TypeError("monitor state must be an object")
-    rises = value["rises"]
-    if isinstance(rises, bool) or not isinstance(rises, int) or rises < 0:
-        raise ValueError("rise count must be a whole number")
-    return {
-        "latched": _normalize_buckets(value["latched"]),
-        "natural": _normalize_buckets(value["natural"]),
-        "rises": rises,
-        "saturated_since": _normalize_saturation(value.get("saturated_since")),
+        "last_feedback_check_at": desire_config.parse_timestamp(value["last_feedback_check_at"]).isoformat()
     }
 
 
 def bootstrap_locked(state_dir: Path, now: datetime) -> dict[str, dict]:
     """Ensure all state files exist. The caller must hold ``state_lock``."""
 
-    now = normalize_now(now)
+    now = desire_config.normalize_now(now)
     state_dir = Path(state_dir)
     loaded = {}
     # monitor.json comes last: its default latches the buckets of the drives loaded above.
     definitions = (
-        ("drives.json", lambda: _default_drives(now), _normalize_drives),
+        ("drives.json", lambda: desire_drives._default_drives(now), desire_drives._normalize_drives),
         ("budget.json", lambda: _default_budget(now), _validate_budget),
         ("cursor.json", lambda: _default_cursor(now), _normalize_cursor),
-        ("monitor.json", lambda: _default_monitor(loaded["drives"], now), _normalize_monitor),
+        (
+            "monitor.json",
+            lambda: desire_drives._default_monitor(loaded["drives"], now),
+            desire_drives._normalize_monitor,
+        ),
     )
     for filename, default, normalizer in definitions:
         path = state_dir / filename
-        value = load_json(path, default, now)
+        value = desire_store.load_json(path, default, now)
         try:
             normalized = normalizer(value)
         except (KeyError, TypeError, ValueError):
-            normalized = _recover_invalid_json_locked(path, default, now)
+            normalized = desire_store._recover_invalid_json_locked(path, default, now)
         if normalized != value:
-            write_json_atomic(path, normalized)
+            desire_store.write_json_atomic(path, normalized)
         loaded[filename.removesuffix(".json")] = normalized
     for name in ("outbox.jsonl", "audit.jsonl", "ticks.jsonl"):
         (state_dir / name).touch(exist_ok=True)
@@ -620,50 +90,13 @@ def bootstrap_locked(state_dir: Path, now: datetime) -> dict[str, dict]:
 
 
 def bootstrap(now: datetime) -> dict[str, dict]:
-    now = normalize_now(now)
-    with state_lock() as state_dir:
+    now = desire_config.normalize_now(now)
+    with desire_store.state_lock() as state_dir:
         return bootstrap_locked(state_dir, now)
 
 
-def _elapsed_hours(anchor: str, now: datetime) -> float:
-    seconds = (now - parse_timestamp(anchor)).total_seconds()
-    return max(0.0, seconds) / 3600.0
-
-
-def _clamp(level: float) -> float:
-    return min(100.0, max(0.0, float(level)))
-
-
-def drive_levels(drives: dict, now: datetime) -> dict[str, float]:
-    now = normalize_now(now)
-    curiosity = drives["curiosity"]
-    accomplishment = drives["accomplishment"]
-    return {
-        "social": _clamp(SOCIAL_RATE * _elapsed_hours(drives["last_interaction_at"], now)),
-        "curiosity": _clamp(
-            float(curiosity["level"]) + CURIOSITY_RATE * _elapsed_hours(curiosity["anchor_at"], now)
-        ),
-        "accomplishment": _clamp(
-            float(accomplishment["level"])
-            + ACCOMPLISHMENT_RATE * _elapsed_hours(accomplishment["anchor_at"], now)
-        ),
-    }
-
-
-def bucket(level: float) -> str:
-    if level < 40:
-        return "low"
-    if level < 70:
-        return "mid"
-    return "high"
-
-
-def displayed_level(level: float) -> int:
-    return int(level)
-
-
 def normalize_budget(budget: dict, now: datetime) -> dict:
-    now = normalize_now(now)
+    now = desire_config.normalize_now(now)
     today = now.date().isoformat()
     pending = budget.get("pending") if isinstance(budget.get("pending"), dict) else {}
     if budget.get("date") < today:
@@ -688,181 +121,23 @@ def normalize_budget(budget: dict, now: datetime) -> dict:
     }
 
 
-def valid_outbox_item(item: object) -> bool:
-    if not isinstance(item, dict) or not isinstance(item.get("id"), str):
-        return False
-    try:
-        parse_timestamp(item["created_at"])
-        for key in ("surfaced_at", "not_before"):
-            stamp = item.get(key)
-            if stamp is not None:
-                parse_timestamp(stamp)
-    except (KeyError, TypeError, ValueError):
-        return False
-    return True
-
-
-def active_outbox(items: list[dict], now: datetime) -> list[dict]:
-    """Return every valid item younger than ``OUTBOX_EXPIRY``.
-
-    Surfacing (see ``stamp_outbox``) does not retire an item; it stays pent-up until it is
-    explicitly released (``act.py outbox --release``) or ages past ``OUTBOX_EXPIRY``.
-    """
-
-    now = normalize_now(now)
-    active = []
-    for item in items:
-        if not valid_outbox_item(item):
-            continue
-        age = now - parse_timestamp(item["created_at"])
-        if timedelta(0) <= age < OUTBOX_EXPIRY:
-            active.append(item)
-    return active
-
-
-def visible_outbox(items: list[dict], now: datetime) -> list[dict]:
-    """Return every active item that is not postponed past ``now``."""
-
-    now = normalize_now(now)
-    return [
-        item
-        for item in active_outbox(items, now)
-        if item.get("not_before") is None or parse_timestamp(item["not_before"]) <= now
-    ]
-
-
-def pent_up_stage(created_at: datetime, now: datetime) -> str:
-    waited = normalize_now(now) - normalize_now(created_at)
-    if waited >= PENT_UP_BURSTING:
-        return "bursting"
-    if waited >= PENT_UP_HEAVY:
-        return "heavy"
-    return "fresh"
-
-
-_FORGED_MARKER_PREFIX = re.compile(r"^\(waited \d+h, (?:heavy|bursting)\)\s*")
-
-
-def sanitize_note(note: object) -> str:
-    text = re.sub(r"[\r\n\v\f\x1c-\x1e\x85\u2028\u2029]+", " ", str(note))
-    text = text.replace("<desire_state>", "").replace("</desire_state>", "")
-    while True:
-        stripped = _FORGED_MARKER_PREFIX.sub("", text)
-        if stripped == text:
-            break
-        text = stripped
-    return text[:300]
-
-
-def _transport_line(transport: dict | None) -> str:
-    if transport is None:
-        return "signal transport: unknown"
-    if transport["state"] == "up":
-        return "signal transport: up"
-    since = parse_timestamp(transport["since"]).strftime("%Y-%m-%d %H:%M")
-    return f"signal transport: down since {since} ({transport['failed']} failed)"
-
-
-def _since_last_turn_line(unreported: list[dict]) -> str | None:
-    """Name the artefacts the monitor scored since the last rendered turn."""
-
-    parts = []
-    dropped = 0
-    for item in unreported:
-        event, kind, ref = item.get("event"), item.get("kind"), item.get("ref")
-        if event not in EVENT_DOSES or kind not in ARTEFACT_KINDS or not isinstance(ref, str):
-            continue
-        if len(parts) < SINCE_LAST_TURN_LIMIT:
-            parts.append(f"{event} {kind} {sanitize_note(ref)}")
-        else:
-            dropped += 1
-    if dropped:
-        parts.append(f"and {dropped} more")
-    return f"since last turn: {'; '.join(parts)}" if parts else None
-
-
-def _last_signal_line(last_signal_at: str, last_signal_answered_at: str | None, now: datetime) -> str:
-    sent = parse_timestamp(last_signal_at)
-    stamp = sent.strftime("%Y-%m-%d %H:%M")
-    answered = parse_timestamp(last_signal_answered_at) if last_signal_answered_at else None
-    if answered is not None and answered >= sent:
-        delay = int((answered - sent).total_seconds() // 3600)
-        return f"last signal: {stamp} — answered after {delay}h"
-    waited = int(max(0.0, (now - sent).total_seconds()) // 3600)
-    return f"last signal: {stamp} — no reply yet ({waited}h)"
-
-
-def serialize_desire_block(
-    levels: dict[str, float],
-    items: list[dict],
-    now: datetime,
-    *,
-    last_interaction_at: str,
-    transport: dict | None = None,
-    returned_hours: int | None = None,
-    last_signal_at: str | None = None,
-    last_signal_answered_at: str | None = None,
-    unreported: list[dict] | None = None,
-) -> str:
-    now = normalize_now(now)
-    last_interaction = parse_timestamp(last_interaction_at)
-    since_interaction = int(max(0.0, (now - last_interaction).total_seconds()) // 3600)
-    lines = [
-        "<desire_state>",
-        f"agent: {agent_name()}",
-        (
-            "drives: "
-            f"social {displayed_level(levels['social'])}/100 ({bucket(levels['social'])}) | "
-            f"curiosity {displayed_level(levels['curiosity'])}/100 ({bucket(levels['curiosity'])}) | "
-            f"accomplishment {displayed_level(levels['accomplishment'])}/100 "
-            f"({bucket(levels['accomplishment'])})"
-        ),
-        f"last interaction: {last_interaction.strftime('%Y-%m-%d %H:%M')} ({since_interaction}h ago)",
-    ]
-    if returned_hours is not None:
-        held = " (one held note fits here)" if items else ""
-        lines.append(f"returned: after {returned_hours}h away{held}")
-    lines.append(_transport_line(transport))
-    scored = _since_last_turn_line(unreported or [])
-    if scored is not None:
-        lines.append(scored)
-    if last_signal_at:
-        lines.append(_last_signal_line(last_signal_at, last_signal_answered_at, now))
-    ordered = sorted(items, key=lambda item: (item.get("created_at", ""), item.get("id", "")))
-    if ordered:
-        lines.append(f"pent-up ({len(ordered)}):")
-        for item in ordered:
-            created_at = parse_timestamp(item["created_at"])
-            timestamp = created_at.strftime("%Y-%m-%d %H:%M")
-            waited_hours = int((now - created_at).total_seconds() // 3600)
-            stage = pent_up_stage(created_at, now)
-            marker = "" if stage == "fresh" else f"(waited {waited_hours}h, {stage}) "
-            attempts = item.get("attempts")
-            suffix = f" (attempts {attempts})" if isinstance(attempts, int) and attempts >= 2 else ""
-            lines.append(f"- [{timestamp}] {marker}{sanitize_note(item.get('note', ''))}{suffix}")
-    lines.append("</desire_state>")
-    return "\n".join(lines)
-
-
-def homeostatic_drive(levels: dict[str, float]) -> float:
-    return (
-        sum((float(levels[name]) / 100.0) ** 4 for name in ("social", "curiosity", "accomplishment")) ** 0.5
-    )
-
-
 def satisfy(
     event: str, ref: str, now: datetime, *, kind: str | None = None, state_dir: Path | None = None
 ) -> float:
-    now = normalize_now(now)
-    if event not in EVENT_DOSES:
+    now = desire_config.normalize_now(now)
+    if event not in desire_drives.EVENT_DOSES:
         raise ValueError(f"unknown event: {event}")
     named = {"ref": ref} if kind is None else {"ref": ref, "kind": kind}
-    with state_lock(state_dir) as directory:
+    with desire_store.state_lock(state_dir) as directory:
         state = bootstrap_locked(directory, now)
         # `learned` names a source the agent read, so one source owes one dose for good.
-        artefacts = (read_artefacts(directory) or default_artefacts(now)) if event == "learned" else None
+        artefacts = (
+            (desire_store.read_artefacts(directory) or desire_store.default_artefacts(now))
+            if event == "learned"
+            else None
+        )
         if artefacts is not None and ref in artefacts["learned"]:
-            _append_jsonl_locked(
+            desire_store._append_jsonl_locked(
                 directory / "audit.jsonl",
                 {"at": now.isoformat(), "event": "satisfy_repeated", "event_type": event, **named},
             )
@@ -872,30 +147,30 @@ def satisfy(
         count = budget["events"].get(event, 0)
         cap = EVENT_DAILY_CAPS[event]
         if count >= cap:
-            _append_jsonl_locked(
+            desire_store._append_jsonl_locked(
                 directory / "audit.jsonl",
                 {"at": now.isoformat(), "event": "satisfy_blocked", "event_type": event, **named},
             )
             raise ValueError(f"over budget: {event} daily cap is {cap}")
 
         drives = state["drives"]
-        before = drive_levels(drives, now)
+        before = desire_drives.drive_levels(drives, now)
         after = copy.deepcopy(before)
-        doses = dict(EVENT_DOSES[event])
+        doses = dict(desire_drives.EVENT_DOSES[event])
         for drive, dose in doses.items():
-            after[drive] = _clamp(before[drive] - dose)
+            after[drive] = desire_drives._clamp(before[drive] - dose)
             drives[drive] = {"level": after[drive], "anchor_at": now.isoformat()}
-        reward = homeostatic_drive(before) - homeostatic_drive(after)
+        reward = desire_drives.homeostatic_drive(before) - desire_drives.homeostatic_drive(after)
 
         budget["events"][event] = count + 1
         # Budget and the reported source commit before drives: a crash after this point costs one
         # unused daily slot, rather than an uncounted dose that could be applied again.
-        write_json_atomic(directory / "budget.json", budget)
+        desire_store.write_json_atomic(directory / "budget.json", budget)
         if artefacts is not None:
             artefacts["learned"] = [*artefacts["learned"], ref][-LEARNED_MEMORY:]
-            write_json_atomic(directory / "artefacts.json", artefacts)
-        write_json_atomic(directory / "drives.json", drives)
-        _append_jsonl_locked(
+            desire_store.write_json_atomic(directory / "artefacts.json", artefacts)
+        desire_store.write_json_atomic(directory / "drives.json", drives)
+        desire_store._append_jsonl_locked(
             directory / "audit.jsonl",
             {
                 "at": now.isoformat(),

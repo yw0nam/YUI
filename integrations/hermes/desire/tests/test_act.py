@@ -6,7 +6,9 @@ import pytest
 from conftest import AGENT_NAME
 
 import act
+import desire_drives
 import desire_state
+import desire_store
 
 
 class Response:
@@ -99,7 +101,7 @@ def test_satisfy_prints_event_and_reward(state_dir, at, capsys):
 def test_satisfy_learned_lowers_curiosity_by_its_dose(state_dir, at, state_helpers, capsys):
     _, _, read_json, _ = state_helpers
     now = at("2026-08-25T12:00:00+09:00")
-    before = desire_state.default_drives(now)["curiosity"]["level"]
+    before = desire_drives.default_drives(now)["curiosity"]["level"]
 
     result = act.main(["satisfy", "learned", "--ref", "https://github.com/x/y/commit/abc"], now=now)
 
@@ -108,7 +110,7 @@ def test_satisfy_learned_lowers_curiosity_by_its_dose(state_dir, at, state_helpe
     assert captured.out.startswith("satisfied learned reward=")
     assert captured.err == ""
     curiosity = read_json(state_dir / "drives.json")["curiosity"]["level"]
-    assert curiosity == before - desire_state.EVENT_DOSES["learned"]["curiosity"]
+    assert curiosity == before - desire_drives.EVENT_DOSES["learned"]["curiosity"]
 
 
 def test_satisfy_learned_refuses_a_source_reported_twice(state_dir, at, capsys):
@@ -604,7 +606,7 @@ def test_outbox_release_removes_item_and_audits(state_dir, at, state_helpers):
 
     assert act.main(["outbox", "--release", "gone", "--why", "no longer true"], now=now) == 0
 
-    remaining = desire_state.read_jsonl(state_dir / "outbox.jsonl")
+    remaining = desire_store.read_jsonl(state_dir / "outbox.jsonl")
     assert [item["id"] for item in remaining] == ["keep"]
     assert read_jsonl(state_dir / "audit.jsonl")[-1] == {
         "at": now.isoformat(),

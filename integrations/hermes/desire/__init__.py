@@ -13,7 +13,7 @@ import re
 from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
 
-from . import desire_state
+from . import desire_config, desire_drives, desire_outbox, desire_render, desire_state, desire_store
 
 logger = logging.getLogger(__name__)
 
@@ -94,13 +94,13 @@ def _already_injected(text):
     lines = stripped[opening + 1 :].split("\n")
     if len(lines) < 6 or lines[0] != "<desire_state>" or lines[-1] != "</desire_state>":
         return False
-    if lines[1] != f"agent: {desire_state.agent_name()}":
+    if lines[1] != f"agent: {desire_config.agent_name()}":
         return False
     drives = _DRIVES_LINE.fullmatch(lines[2])
     if drives is None:
         return False
     for name in ("social", "curiosity", "accomplishment"):
-        if desire_state.bucket(int(drives[name])) != drives[f"{name}_bucket"]:
+        if desire_drives.bucket(int(drives[name])) != drives[f"{name}_bucket"]:
             return False
     if _LAST_INTERACTION_LINE.fullmatch(lines[3]) is None:
         return False
@@ -139,9 +139,9 @@ def _trigger_kind(text):
 
 
 def _build_desire_block(drives, outbox, transport, now, *, returned_hours=None, unreported=()):
-    levels = desire_state.drive_levels(drives, now)
-    visible = desire_state.visible_outbox(outbox, now)
-    block = desire_state.serialize_desire_block(
+    levels = desire_drives.drive_levels(drives, now)
+    visible = desire_outbox.visible_outbox(outbox, now)
+    block = desire_render.serialize_desire_block(
         levels,
         visible,
         now,
@@ -159,7 +159,9 @@ def _returned(transport, last_interaction):
     """Report whether the ingress was unreachable at any point since the last exchange."""
     if transport is None:
         return False
-    return transport["state"] == "down" or desire_state.parse_timestamp(transport["since"]) > last_interaction
+    return (
+        transport["state"] == "down" or desire_config.parse_timestamp(transport["since"]) > last_interaction
+    )
 
 
 def _answers_signal(drives):
@@ -168,7 +170,7 @@ def _answers_signal(drives):
     if not signal_at:
         return False
     answered_at = drives.get("last_signal_answered_at")
-    return answered_at is None or desire_state.parse_timestamp(answered_at) < desire_state.parse_timestamp(
+    return answered_at is None or desire_config.parse_timestamp(answered_at) < desire_config.parse_timestamp(
         signal_at
     )
 
@@ -180,7 +182,7 @@ def _whole_hours(since, now):
 def _rewrite(kwargs, event):
     global _turn_cache
     request = kwargs["request"]
-    now = desire_state.normalize_now(kwargs.get("now") or datetime.now(KST))
+    now = desire_config.normalize_now(kwargs.get("now") or datetime.now(KST))
     key = "messages" if isinstance(request.get("messages"), list) else "input"
     messages = request.get(key)
     if not isinstance(messages, list):
@@ -207,7 +209,7 @@ def _rewrite(kwargs, event):
         event["reason"] = "already-injected"
         return None
 
-    state_dir = desire_state.resolve_state_dir()
+    state_dir = desire_config.resolve_state_dir()
     text_hash = hashlib.sha256(original_text.encode("utf-8")).hexdigest()
     cache_key = (str(state_dir.resolve()), text_hash)
 
@@ -215,13 +217,13 @@ def _rewrite(kwargs, event):
         (state_dir / name).exists() for name in _STATE_FILES
     )
     if initialized:
-        with desire_state.state_lock(state_dir):
-            drives = desire_state.read_drives_snapshot(state_dir, now)
-            outbox = desire_state.read_jsonl(state_dir / "outbox.jsonl")
-            transport = desire_state.read_transport(state_dir)
-            artefacts = desire_state.read_artefacts(state_dir)
+        with desire_store.state_lock(state_dir):
+            drives = desire_drives.read_drives_snapshot(state_dir, now)
+            outbox = desire_store.read_jsonl(state_dir / "outbox.jsonl")
+            transport = desire_store.read_transport(state_dir)
+            artefacts = desire_store.read_artefacts(state_dir)
     else:
-        drives = desire_state.default_drives(now)
+        drives = desire_drives.default_drives(now)
         outbox = []
         transport = None
         artefacts = None
@@ -230,7 +232,7 @@ def _rewrite(kwargs, event):
     staged_drives = copy.deepcopy(drives)
     trigger = _trigger_kind(original_text)
     event["trigger"] = trigger
-    platforms = desire_state.chat_platforms()
+    platforms = desire_config.chat_platforms()
     platform = str(kwargs.get("platform") or "").strip().lower()
     interaction = trigger == "user message" or platform in platforms
     event["interaction"] = interaction
@@ -238,7 +240,7 @@ def _rewrite(kwargs, event):
     returned_hours = None
     if interaction and drives.get("last_interaction_hash") != text_hash:
         staged_drives["last_interaction_hash"] = text_hash
-        last_interaction = desire_state.parse_timestamp(drives["last_interaction_at"])
+        last_interaction = desire_config.parse_timestamp(drives["last_interaction_at"])
         interaction_changed = True
         if _returned(transport, last_interaction):
             returned_hours = _whole_hours(last_interaction, now)
@@ -264,14 +266,14 @@ def _rewrite(kwargs, event):
     carrier, carrier_key = _last_text_carrier(rewritten_messages[user_index])
     carrier[carrier_key] += "\n\n" + block
 
-    with desire_state.state_lock(state_dir):
+    with desire_store.state_lock(state_dir):
         committed_state = desire_state.bootstrap_locked(state_dir, now)
         if interaction_changed:
             current_drives = committed_state["drives"]
             if current_drives.get("last_interaction_hash") != text_hash:
                 answers = _answers_signal(current_drives)
-                current_transport = desire_state.read_transport(state_dir)
-                last_interaction = desire_state.parse_timestamp(current_drives["last_interaction_at"])
+                current_transport = desire_store.read_transport(state_dir)
+                last_interaction = desire_config.parse_timestamp(current_drives["last_interaction_at"])
                 returns = returned_hours is not None and _returned(current_transport, last_interaction)
                 drives_to_write = copy.deepcopy(current_drives)
                 drives_to_write["last_interaction_hash"] = text_hash
@@ -279,10 +281,10 @@ def _rewrite(kwargs, event):
                     drives_to_write["last_interaction_at"] = now.isoformat()
                 if answers:
                     drives_to_write["last_signal_answered_at"] = now.isoformat()
-                desire_state.write_json_atomic(state_dir / "drives.json", drives_to_write)
+                desire_store.write_json_atomic(state_dir / "drives.json", drives_to_write)
                 if answers:
-                    signal_at = desire_state.parse_timestamp(current_drives["last_signal_at"])
-                    desire_state.append_jsonl(
+                    signal_at = desire_config.parse_timestamp(current_drives["last_signal_at"])
+                    desire_store.append_jsonl(
                         state_dir / "audit.jsonl",
                         {
                             "at": now.isoformat(),
@@ -293,8 +295,8 @@ def _rewrite(kwargs, event):
                     )
                 if returns:
                     if current_transport["state"] == "down":
-                        desire_state.record_transport(state_dir, True, now, source="user-turn")
-                    desire_state.append_jsonl(
+                        desire_store.record_transport(state_dir, True, now, source="user-turn")
+                    desire_store.append_jsonl(
                         state_dir / "audit.jsonl",
                         {
                             "at": now.isoformat(),
@@ -305,7 +307,7 @@ def _rewrite(kwargs, event):
                         },
                     )
 
-        desire_state.stamp_outbox(state_dir / "outbox.jsonl", included_ids, now)
+        desire_outbox.stamp_outbox(state_dir / "outbox.jsonl", included_ids, now)
 
         _turn_cache = {
             "key": cache_key,
@@ -319,7 +321,7 @@ def _rewrite(kwargs, event):
 
         if new_turn:
             try:
-                desire_state.append_jsonl(
+                desire_store.append_jsonl(
                     state_dir / "audit.jsonl",
                     {
                         "at": now.isoformat(),
@@ -337,12 +339,12 @@ def _rewrite(kwargs, event):
 
 def _clear_unreported(state_dir, rendered):
     """Drop the entries this turn's block reported, keeping anything the monitor added since."""
-    current = desire_state.read_artefacts(state_dir)
+    current = desire_store.read_artefacts(state_dir)
     if current is None:
         return
     remaining = [item for item in current["unreported"] if item not in rendered]
     if remaining != current["unreported"]:
-        desire_state.write_json_atomic(state_dir / "artefacts.json", {**current, "unreported": remaining})
+        desire_store.write_json_atomic(state_dir / "artefacts.json", {**current, "unreported": remaining})
 
 
 def _safe_id(value):
@@ -387,7 +389,7 @@ def _inject(**kwargs):
     except Exception as exc:  # noqa: BLE001 - middleware must fail open for every plugin failure
         event["outcome"] = "error"
         event["reason"] = type(exc).__name__
-        if isinstance(exc, desire_state.ConfigurationError):
+        if isinstance(exc, desire_config.ConfigurationError):
             logger.error("yui-desire %s", exc)
         return None
     finally:

@@ -103,6 +103,16 @@ def state_helpers():
     return write_json, write_jsonl, read_json, read_jsonl
 
 
+DESIRE_MODULES = (
+    "desire_config",
+    "desire_store",
+    "desire_drives",
+    "desire_state",
+    "desire_outbox",
+    "desire_render",
+)
+
+
 @pytest.fixture
 def desire_plugin():
     path = Path(__file__).parents[1] / "__init__.py"
@@ -118,13 +128,12 @@ def desire_plugin():
     module.__path__ = [str(plugin_dir)]
     sys.modules[module_name] = module
     assert spec.loader is not None
-    direct_module = sys.modules.pop("desire_state", None)
+    direct_modules = {name: sys.modules.pop(name) for name in DESIRE_MODULES if name in sys.modules}
     original_path = sys.path[:]
     sys.path[:] = [entry for entry in sys.path if Path(entry).resolve() != plugin_dir.resolve()]
     try:
         spec.loader.exec_module(module)
     finally:
         sys.path[:] = original_path
-        if direct_module is not None:
-            sys.modules["desire_state"] = direct_module
+        sys.modules.update(direct_modules)
     return module

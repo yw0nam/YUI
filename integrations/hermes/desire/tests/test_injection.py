@@ -10,6 +10,7 @@ import pytest
 from conftest import AGENT_NAME
 
 import desire_state
+import desire_store
 
 
 def context(trigger="trigger: proactive", tail="hello", *, closed=True):
@@ -215,14 +216,14 @@ def test_request_copy_and_block_append_happen_outside_state_lock(desire_plugin, 
 
     class ObservedText(str):
         def __add__(self, other):
-            append_depths.append(getattr(desire_plugin.desire_state._lock_local, "depth", 0))
+            append_depths.append(getattr(desire_plugin.desire_store._lock_local, "depth", 0))
             return super().__add__(other)
 
     request = request_with(ObservedText("hello"))
 
     def observe_deepcopy(value, memo=None):
         if value is request:
-            copy_depths.append(getattr(desire_plugin.desire_state._lock_local, "depth", 0))
+            copy_depths.append(getattr(desire_plugin.desire_store._lock_local, "depth", 0))
         return original_deepcopy(value, memo)
 
     monkeypatch.setattr(desire_plugin.copy, "deepcopy", observe_deepcopy)
@@ -275,7 +276,7 @@ def test_act_queued_unicode_separator_survives_and_is_sanitized(
 
     assert act.main(["signal", "--note", "first\u2028second"], now=now) == 1
     assert capsys.readouterr().err.strip() == "over budget"
-    stored = desire_state.read_jsonl(state_dir / "outbox.jsonl")
+    stored = desire_store.read_jsonl(state_dir / "outbox.jsonl")
     assert len(stored) == 1
     assert stored[0]["note"] == "first second"
 
@@ -383,7 +384,7 @@ def test_surface_stamp_preserves_malformed_outbox_lines(desire_plugin, state_dir
     desire_plugin._inject(request=request_with("turn"), now=now)
 
     assert (state_dir / "outbox.jsonl").read_text(encoding="utf-8").startswith("{malformed}\n")
-    assert desire_state.read_jsonl(state_dir / "outbox.jsonl")[0]["surfaced_at"] == now.isoformat()
+    assert desire_store.read_jsonl(state_dir / "outbox.jsonl")[0]["surfaced_at"] == now.isoformat()
 
 
 def test_cache_reuses_bytes_despite_state_changes(desire_plugin, state_dir, at, state_helpers):
@@ -917,7 +918,7 @@ def transport_file(state_dir, state_helpers, state, since, *, source="probe"):
 
 def audit_events(state_dir, name):
     return [
-        value for value in desire_state.read_jsonl(state_dir / "audit.jsonl") if value.get("event") == name
+        value for value in desire_store.read_jsonl(state_dir / "audit.jsonl") if value.get("event") == name
     ]
 
 
@@ -1129,8 +1130,8 @@ def test_a_concurrent_user_turn_commits_the_return_only_once(
         persisted["last_interaction_at"] = build_now.isoformat()
         persisted["last_interaction_hash"] = "another turn"
         write_json(state_dir / "drives.json", persisted)
-        desire_state.record_transport(state_dir, True, build_now, source="user-turn")
-        desire_state.append_jsonl(
+        desire_store.record_transport(state_dir, True, build_now, source="user-turn")
+        desire_store.append_jsonl(
             state_dir / "audit.jsonl",
             {
                 "at": build_now.isoformat(),

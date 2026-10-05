@@ -8,7 +8,9 @@ import pytest
 from conftest import AGENT_NAME
 
 import act
+import desire_config
 import desire_state
+import desire_store
 import skill_usage
 
 TICK_JOB_ID = "47f1361de4db"
@@ -77,7 +79,7 @@ def other_session(stamp: str = "20260909_210000") -> str:
 
 @pytest.fixture
 def profile(isolated_profile) -> Path:
-    root = desire_state.profile_root()
+    root = desire_config.profile_root()
     root.mkdir(parents=True, exist_ok=True)
     write_jobs(root)
     (root / "skills").mkdir(parents=True, exist_ok=True)
@@ -268,9 +270,9 @@ def test_an_unreadable_last_used_stamp_renders_unknown_and_withholds_the_verdict
 def test_the_state_lock_is_free_while_the_loads_are_counted(profile, state_dir, at, monkeypatch):
     now = at("2026-09-09T21:00:00+09:00")
     desire_state.bootstrap(now)
-    record = desire_state.default_artefacts(now)
+    record = desire_store.default_artefacts(now)
     record["skill_first_seen"] = {"mcp/quiet": "2026-09-08T09:00:00+09:00"}
-    desire_state.write_json_atomic(state_dir / "artefacts.json", record)
+    desire_store.write_json_atomic(state_dir / "artefacts.json", record)
     write_skill(profile, "mcp/quiet")
     write_state_db(profile, [])
     original = skill_usage.section
@@ -279,7 +281,7 @@ def test_the_state_lock_is_free_while_the_loads_are_counted(profile, state_dir, 
         taken = []
 
         def take():
-            with desire_state.state_lock(state_dir):
+            with desire_store.state_lock(state_dir):
                 taken.append(True)
 
         worker = threading.Thread(target=take, daemon=True)
@@ -308,9 +310,9 @@ def test_a_skill_without_a_usage_entry_is_aged_from_its_first_sight(profile, at)
 def test_report_skills_prints_the_section_and_delivers_nothing(profile, state_dir, at, capsys):
     now = at("2026-09-09T21:00:00+09:00")
     desire_state.bootstrap(now)
-    record = desire_state.default_artefacts(now)
+    record = desire_store.default_artefacts(now)
     record["skill_first_seen"] = {"mcp/quiet": "2026-09-08T09:00:00+09:00"}
-    desire_state.write_json_atomic(state_dir / "artefacts.json", record)
+    desire_store.write_json_atomic(state_dir / "artefacts.json", record)
     write_skill(profile, "mcp/quiet")
     write_usage(profile, {"quiet": usage_entry("2026-09-08T00:00:00+00:00")})
     write_state_db(profile, [(tick_session(), (now - timedelta(hours=1)).timestamp(), ["quiet"])])
@@ -327,9 +329,9 @@ def test_report_skills_prints_the_section_and_delivers_nothing(profile, state_di
 def test_report_skills_audits_a_failed_load_count(profile, state_dir, at, capsys):
     now = at("2026-09-09T21:00:00+09:00")
     desire_state.bootstrap(now)
-    record = desire_state.default_artefacts(now)
+    record = desire_store.default_artefacts(now)
     record["skill_first_seen"] = {"mcp/quiet": "2026-09-08T09:00:00+09:00"}
-    desire_state.write_json_atomic(state_dir / "artefacts.json", record)
+    desire_store.write_json_atomic(state_dir / "artefacts.json", record)
     write_skill(profile, "mcp/quiet")
 
     assert act.main(["report", "--skills"], now=now) == 0
