@@ -21,6 +21,7 @@ Verify locally before the PR: `cd Mods/<name> && uv run pytest && uv run ruff fo
 - `web (tsc + vitest)`, `lint (biome)` — the app (TS); `rust (cargo test)` — `src-tauri/`; `rust-windows (cargo check)` compiles `src-tauri/` on a Windows runner.
 - `test-guard` — source changes under `src/` / `src-tauri/` must ship a test (`skip-tests` label bypasses); it does **not** scope the standalone Python projects.
 - `pr-title` — Conventional-Commit type + **printable-ASCII subject** (English; no em-dash or emoji in the title).
-- `mods (uv + pytest)` and `mods-lint (ruff)` run on every PR over every tracked `pyproject.toml` folder. They are not required checks in the repository rulesets.
+
+`mods (uv + pytest)` and `mods-lint (ruff)` run on every PR over every tracked `pyproject.toml` folder. They are not required checks in the repository rulesets.
 
 Ruff is the only Python linter (`format --check` + `check`, `line-length = 110`) for the Python projects covered by that job.
