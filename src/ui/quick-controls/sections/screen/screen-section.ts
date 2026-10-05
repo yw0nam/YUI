@@ -4,15 +4,15 @@
  * this module owns inputs, handlers, subscriptions, teardown only.
  */
 
-import type { ScreenKnobSettingsStore } from "../../../settings/capture/screen-settings";
-import type { FlagSettingsStore } from "../../../settings/persisted-store";
-import { t } from "../../i18n";
+import type { ScreenKnobSettingsStore } from "../../../../settings/capture/screen-settings";
+import type { FlagSettingsStore } from "../../../../settings/persisted-store";
+import { t } from "../../../i18n";
 import {
   SCREEN_KNOB_FIELDS,
   SCREEN_MIN_GAP_MAX,
   SCREEN_MIN_GAP_MIN,
   type ScreenKnobFieldDef,
-} from "../constants";
+} from "../../constants";
 
 interface ScreenSectionDeps {
   /** Panel root (el) — query the knob inputs and the gap slider here. */

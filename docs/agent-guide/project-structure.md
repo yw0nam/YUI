@@ -476,8 +476,10 @@ YUI/
         sections/                    # The tab sections the shell mounts and the list helpers only they use
           agent-section.ts           # Locale segment, reasoning-effort segment, and instructions textarea
           monitors-section.ts        # Screen-source list and its load state
-          screen-section.ts          # Screen-watch threshold knobs and the min-gap slider
-          reactions-section.ts       # Agent-port, presence, pacer-gap, and rate-limit cap inputs
+          screen/                    # Screen section
+            screen-section.ts        # Screen-watch threshold knobs and the min-gap slider
+          reactions/                 # Reactions section
+            reactions-section.ts     # Agent-port, presence, pacer-gap, and rate-limit cap inputs
           workflows-section.ts       # Workflow entry list editing
           filler/                    # Thinking-filler section
             filler-section.ts        # Language segment and phrase-pool textareas, with their store reflect
