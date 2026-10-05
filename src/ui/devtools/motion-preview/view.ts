@@ -10,9 +10,7 @@ export interface MotionPreviewView {
   registryList: HTMLDivElement;
   cbLoop: HTMLInputElement;
   slSpeed: HTMLInputElement;
-  valSpeed: HTMLSpanElement;
   slFade: HTMLInputElement;
-  valFade: HTMLSpanElement;
   selCrossfade: HTMLSelectElement;
   btnPlay: HTMLButtonElement;
   btnStop: HTMLButtonElement;
@@ -25,9 +23,7 @@ export interface MotionPreviewView {
   viewportStatus: HTMLSpanElement;
   emotionList: HTMLDivElement;
   slIntensity: HTMLInputElement;
-  valIntensity: HTMLSpanElement;
   slTransition: HTMLInputElement;
-  valTransition: HTMLSpanElement;
   btnNeutral: HTMLButtonElement;
   btnHold: HTMLButtonElement;
   initialFpsLast: number;
@@ -124,9 +120,7 @@ export function createMotionPreviewView(mount: HTMLElement): MotionPreviewView {
     registryList,
     cbLoop,
     slSpeed,
-    valSpeed,
     slFade,
-    valFade,
     selCrossfade,
     btnPlay,
     btnStop,
@@ -139,9 +133,7 @@ export function createMotionPreviewView(mount: HTMLElement): MotionPreviewView {
     viewportStatus,
     emotionList,
     slIntensity,
-    valIntensity,
     slTransition,
-    valTransition,
     btnNeutral,
     btnHold,
     initialFpsLast,

@@ -7,7 +7,7 @@ export function wireMotionControls(
 ): (id: string) => void {
   const { cbLoop, slSpeed, slFade, selCrossfade, btnPlay, btnStop, btnIdle } = view;
 
-  // ─── Playback helpers (close over registry + renderer) ──────────────────
+  // ─── Playback helpers ──────────────────────────────────────────────────
 
   function currentSignalOverrides(): Partial<RenderMotionSignal> {
     return {
@@ -21,7 +21,7 @@ export function wireMotionControls(
     const overrides = currentSignalOverrides();
     const signal: RenderMotionSignal = { id, ...overrides };
     renderer.playMotion(signal);
-    // Row highlight / status bar follow via syncLiveMotion polling in rafLoop.
+    // Row highlight / status bar follow via the per-frame syncLiveMotion polling in live-status.ts.
   }
 
   function doIdleReturn(): void {
