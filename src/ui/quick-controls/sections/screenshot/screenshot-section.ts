@@ -7,7 +7,7 @@ import type { ScreenSourceProvider } from "../../../../io/window/capture/screen-
 import type { Logger } from "../../../../logger";
 import type { createScreenshotSettings } from "../../../../settings/capture/screenshot-settings";
 import { t } from "../../../i18n";
-import { createMonitorsSection } from "../monitors-section";
+import { createMonitorsSection } from "../monitors/monitors-section";
 
 type ScreenshotSettingsStore = ReturnType<typeof createScreenshotSettings>;
 

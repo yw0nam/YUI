@@ -1,9 +1,9 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, describe, expect, it, type Mock, vi } from "vitest";
-import type { GuideKey } from "../../contract";
-import { setLocale } from "../i18n";
-import { createQuickControls } from "./quick-controls";
-import { defaultQcArgs } from "./test-helpers";
+import type { GuideKey } from "../../../../contract";
+import { setLocale } from "../../../i18n";
+import { createQuickControls } from "../../quick-controls";
+import { defaultQcArgs } from "../../test-helpers";
 
 describe("createQuickControls — help section", () => {
   let mount: HTMLElement;

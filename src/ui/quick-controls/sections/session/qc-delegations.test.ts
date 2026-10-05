@@ -7,15 +7,15 @@
  */
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { createChatHistoryStore } from "../../io/chat/conversation/chat-history-store";
-import { createSessionDiagnosticsStore } from "../../io/chat/conversation/session-diagnostics";
-import { createSessionStore } from "../../io/chat/conversation/session-store";
-import type { DelegationItem } from "../../io/chat/push/push-frames";
-import type { PushSocketState } from "../../io/chat/push/push-socket";
-import { createEndpointsSettings } from "../../settings/backend/endpoints-settings";
-import { setLocale, t } from "../i18n";
-import { createQuickControls } from "./quick-controls";
-import { defaultQcArgs } from "./test-helpers";
+import { createChatHistoryStore } from "../../../../io/chat/conversation/chat-history-store";
+import { createSessionDiagnosticsStore } from "../../../../io/chat/conversation/session-diagnostics";
+import { createSessionStore } from "../../../../io/chat/conversation/session-store";
+import type { DelegationItem } from "../../../../io/chat/push/push-frames";
+import type { PushSocketState } from "../../../../io/chat/push/push-socket";
+import { createEndpointsSettings } from "../../../../settings/backend/endpoints-settings";
+import { setLocale, t } from "../../../i18n";
+import { createQuickControls } from "../../quick-controls";
+import { defaultQcArgs } from "../../test-helpers";
 
 const NOW = 1_789_365_900_000;
 

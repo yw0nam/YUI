@@ -483,16 +483,23 @@ YUI/
         sections/                    # The tab sections the shell mounts and the list helpers only they use
           agent/                     # Locale, reasoning-effort, and instructions controls
             agent-section.ts         # Locale segment, reasoning-effort segment, instructions textarea, and their redraw
-          monitors-section.ts        # Screen-source list and its load state
+          help/                      # Help section of the General tab
+            help-section.ts          # One Ask button per bundled guide
+          monitors/                  # Screen-source radiogroup of the screenshot section
+            monitors-section.ts      # Screen-source list and its load state
+            monitors-section.css     # Monitors section styles
           session/                   # Settings-window context readout and delegated-work list
             session-section.ts       # Readout, delegated list, their subscriptions, redraws and minute refresh
+            session-section.css      # Session context-occupancy readout and meter styles
           screenshot/                # Screenshot-attach switch and when the monitor list loads
             screenshot-section.ts    # Attach switch, its subscription and redraw, and the monitor-list load
           screen/                    # Screen section
             screen-section.ts        # Screen-watch threshold knobs, the min-gap slider, and their redraw
           reactions/                 # Reactions section
             reactions-section.ts     # Agent-port, presence, pacer-gap, and rate-limit cap inputs and their redraw
-          workflows-section.ts       # Workflow entry list editing
+          workflows/                 # Saved webhook workflows of the Reactions tab
+            workflows-section.ts     # Workflow entry list editing
+            workflows-section.css    # Workflows section styles
           voice-input/               # Voice input switch and silence slider
             voice-input-section.ts   # Voice switch, VAD slider binding, their subscriptions and redraw
           filler/                    # Thinking-filler section
@@ -502,9 +509,6 @@ YUI/
             speaker-list.ts          # Speaker radiogroup with reference-voice refresh and audition
             speaker-list.css         # Speaker list styles
           user-asset-list.ts         # Shared scaffolding for the VRM and speaker asset radiogroups
-          monitors-section.css       # Monitors section styles
-          session-section.css        # Session context-occupancy readout and meter styles
-          workflows-section.css      # Workflows section styles
           user-asset-list.css        # Radio row, tick, and state styles shared by the monitor, VRM, and speaker lists
         switches/                    # Switch rows shared with the phone settings view
           switch-rows.ts             # Row markup, click binding, repaint, and the store following while open

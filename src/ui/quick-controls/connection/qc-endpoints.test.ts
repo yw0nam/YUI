@@ -1,30 +1,30 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, describe, expect, it, type Mock, vi } from "vitest";
-import type { AvatarOption } from "../../config/load";
-import type { createVrmSelection } from "../../io/assets/vrm-selection";
+import type { AvatarOption } from "../../../config/load";
+import type { createVrmSelection } from "../../../io/assets/vrm-selection";
 import type {
   createSpeakerSelection,
   SpeakerOption,
-} from "../../io/voice/voices/speaker-selection";
-import { createLipsyncSettings } from "../../settings/avatar/lipsync-settings";
-import { createAgentSettings } from "../../settings/backend/agent-settings";
+} from "../../../io/voice/voices/speaker-selection";
+import { createLipsyncSettings } from "../../../settings/avatar/lipsync-settings";
+import { createAgentSettings } from "../../../settings/backend/agent-settings";
 import {
   createChatKeySettings,
   createSttKeySettings,
   createTtsKeySettings,
-} from "../../settings/backend/api-key-settings";
-import { createEndpointsSettings } from "../../settings/backend/endpoints-settings";
-import { createProactiveSettings } from "../../settings/cues/proactive-settings";
-import { createScheduleSettings } from "../../settings/cues/schedule-settings";
-import { setLocale, t } from "../i18n";
-import { createQuickControls } from "./quick-controls";
+} from "../../../settings/backend/api-key-settings";
+import { createEndpointsSettings } from "../../../settings/backend/endpoints-settings";
+import { createProactiveSettings } from "../../../settings/cues/proactive-settings";
+import { createScheduleSettings } from "../../../settings/cues/schedule-settings";
+import { setLocale, t } from "../../i18n";
+import { createQuickControls } from "../quick-controls";
 import {
   defaultQcArgs,
   inMemoryAgentStorage,
   inMemoryApiKeyStorage,
   makeSpeakerSelection,
   makeVrmSelection,
-} from "./test-helpers";
+} from "../test-helpers";
 
 describe("createQuickControls — endpoints + API keys", () => {
   let mount: HTMLElement;

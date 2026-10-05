@@ -1,13 +1,13 @@
 // @vitest-environment jsdom
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import type { Logger } from "../../../logger";
+import type { Logger } from "../../../../logger";
 import {
   createWorkflowSettings,
   type WorkflowSettings,
   type WorkflowStorage,
-} from "../../../settings/backend/workflow-settings";
-import { setLocale } from "../../i18n";
+} from "../../../../settings/backend/workflow-settings";
+import { setLocale } from "../../../i18n";
 import { createWorkflowsSection } from "./workflows-section";
 
 const ENTRY = { id: "morning", label: "Morning digest", url: "https://example.com/hook" };

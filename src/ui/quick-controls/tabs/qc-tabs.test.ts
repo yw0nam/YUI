@@ -1,13 +1,13 @@
 // @vitest-environment jsdom
 import { readFileSync } from "node:fs";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { createChatHistoryStore } from "../../io/chat/conversation/chat-history-store";
-import { createFillerSettings, type FillerSettings } from "../../settings/voice/filler-settings";
-import { createVadSettings, VAD_SILENCE_DEFAULT } from "../../settings/voice/vad-settings";
-import { setLocale } from "../i18n";
-import type { QuickControlsTab } from "./constants";
-import { createQuickControls } from "./quick-controls";
-import { defaultQcArgs } from "./test-helpers";
+import { createChatHistoryStore } from "../../../io/chat/conversation/chat-history-store";
+import { createFillerSettings, type FillerSettings } from "../../../settings/voice/filler-settings";
+import { createVadSettings, VAD_SILENCE_DEFAULT } from "../../../settings/voice/vad-settings";
+import { setLocale } from "../../i18n";
+import type { QuickControlsTab } from "../constants";
+import { createQuickControls } from "../quick-controls";
+import { defaultQcArgs } from "../test-helpers";
 
 /** A filler store hydrated from storage with the given settings. */
 function seededFiller(settings: FillerSettings) {

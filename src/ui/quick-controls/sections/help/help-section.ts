@@ -1,9 +1,9 @@
 /** Help section of the General tab: one Ask button per bundled guide. */
 
-import type { GuideKey } from "../../../contract";
-import { isGuideKey } from "../../../io/guide/guide-docs";
-import { t } from "../../i18n";
-import { secHeadHtml } from "../markup";
+import type { GuideKey } from "../../../../contract";
+import { isGuideKey } from "../../../../io/guide/guide-docs";
+import { t } from "../../../i18n";
+import { secHeadHtml } from "../../markup";
 
 const GUIDES: readonly GuideKey[] = ["controls", "capabilities"];
 

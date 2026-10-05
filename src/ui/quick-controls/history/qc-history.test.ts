@@ -4,13 +4,13 @@
  * Input-tab "keep bubble until dismissed" switch.
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { createChatHistoryStore } from "../../io/chat/conversation/chat-history-store";
-import { createSessionDiagnosticsStore } from "../../io/chat/conversation/session-diagnostics";
-import { createSessionStore } from "../../io/chat/conversation/session-store";
-import { createFlagSettings } from "../../settings/persisted-store";
-import { setLocale } from "../i18n";
-import { createQuickControls } from "./quick-controls";
-import { defaultQcArgs } from "./test-helpers";
+import { createChatHistoryStore } from "../../../io/chat/conversation/chat-history-store";
+import { createSessionDiagnosticsStore } from "../../../io/chat/conversation/session-diagnostics";
+import { createSessionStore } from "../../../io/chat/conversation/session-store";
+import { createFlagSettings } from "../../../settings/persisted-store";
+import { setLocale } from "../../i18n";
+import { createQuickControls } from "../quick-controls";
+import { defaultQcArgs } from "../test-helpers";
 
 function seedStore() {
   const store = createChatHistoryStore();

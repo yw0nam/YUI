@@ -1,13 +1,13 @@
 import "./workflows-section.css";
 
-import type { Logger } from "../../../logger";
+import type { Logger } from "../../../../logger";
 import {
   type createWorkflowSettings,
   isValidWorkflowUrl,
   type WorkflowEntry,
-} from "../../../settings/backend/workflow-settings";
-import { t } from "../../i18n";
-import { CROSS_SVG } from "../constants";
+} from "../../../../settings/backend/workflow-settings";
+import { t } from "../../../i18n";
+import { CROSS_SVG } from "../../constants";
 
 const PLAY_SVG = `<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M8 5.5v13l11-6.5-11-6.5z" fill="currentColor"/></svg>`;
 const CHECK_SVG = `<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M5 13l4 4L19 7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>`;

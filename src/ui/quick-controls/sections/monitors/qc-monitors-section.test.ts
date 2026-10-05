@@ -1,10 +1,10 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import type { ScreenSource } from "../../../contract";
-import type { ScreenSourceProvider } from "../../../io/window/capture/screen-source-provider";
-import type { Logger } from "../../../logger";
-import type { createScreenshotSettings } from "../../../settings/capture/screenshot-settings";
-import { setLocale } from "../../i18n";
+import type { ScreenSource } from "../../../../contract";
+import type { ScreenSourceProvider } from "../../../../io/window/capture/screen-source-provider";
+import type { Logger } from "../../../../logger";
+import type { createScreenshotSettings } from "../../../../settings/capture/screenshot-settings";
+import { setLocale } from "../../../i18n";
 import { createMonitorsSection } from "./monitors-section";
 
 type ScreenshotSettingsStore = ReturnType<typeof createScreenshotSettings>;

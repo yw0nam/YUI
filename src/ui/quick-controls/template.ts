@@ -1,5 +1,5 @@
 /** Quick-controls panel markup — pure string construction (no DOM, no state). */
-import "./sections/session-section.css";
+import "./sections/session/session-section.css";
 import { INSTRUCTIONS_MAX_LEN, REASONING_EFFORTS } from "../../settings/backend/agent-settings";
 import { RATE_LIMIT_MAX } from "../../settings/backend/guardrails-settings";
 import { LOCALE_DISPLAY_NAMES, t } from "../i18n";
@@ -20,7 +20,7 @@ import {
   TAB_ICON_TALK,
 } from "./constants";
 import { escapeAttr, secHeadHtml } from "./markup";
-import { helpSectionHtml } from "./sections/help-section";
+import { helpSectionHtml } from "./sections/help/help-section";
 import type { SwitchRow } from "./switch-row";
 import { switchButtonHtml, switchRowHtml } from "./switches/switch-rows";
 import { tabButtonHtml, tabPanelOpenHtml } from "./tabs/tab-rail";
