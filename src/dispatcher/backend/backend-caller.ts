@@ -24,12 +24,10 @@
 
 import type {
   BodyState,
-  ControlEnvelope,
   EndpointsConfig,
   FrontmostState,
   InputContext,
   PreviousTurn,
-  Usage,
 } from "../../contract";
 import {
   type ChatHistoryEntry,
@@ -38,23 +36,16 @@ import {
 import { type ChatRequest, streamChat } from "../../io/chat/stream/chat-client";
 import { buildCCMessages } from "../../io/chat/stream/chat-completions";
 import type { ClientToolRegistry } from "../../io/chat/stream/client-tools";
-import { createSilenceTokenFilter } from "../../io/chat/stream/silence-token";
 import type { Logger } from "../../logger";
 import { createLogger } from "../../logger";
 import type { Turn } from "../turn/turn";
-import type { TurnFeed } from "../turn/turn-feed";
 import { backgroundMarker } from "./background-marker";
 import { renderClientContext } from "./client-context-text";
 import { buildContext, imageDataUrlsOf, userTextOf } from "./context-builder";
-import {
-  PRE_SPEECH_TIMEOUT_MS,
-  SPEECH_IDLE_TIMEOUT_MS,
-  type StallStage,
-  withIdleWatchdog,
-} from "./idle-watchdog";
 import { createPushCall, type PushCallDeps } from "./push-call";
 import { encodeInput } from "./request-input";
 import { createReplySettler, type SettleDeps } from "./settle-reply";
+import { type AttemptResult, createStreamAttempt, type StreamAttemptDeps } from "./stream-attempt";
 import type { TurnOutcome } from "./turn-outcome";
 import { recordSentTurn } from "./turn-recording";
 
@@ -91,13 +82,11 @@ export type { TurnFailure, TurnOutcome } from "./turn-outcome";
 export type TurnErrorDetail = { status: number; message: string };
 
 /** Adds the streaming path's own deps to the sets the push path and the reply settle declare, so each field is declared once. */
-interface BackendCallerDeps extends PushCallDeps, SettleDeps {
+interface BackendCallerDeps extends PushCallDeps, SettleDeps, StreamAttemptDeps {
   /** CC mode replays the current session from the transcript. */
   transcript?: NonNullable<PushCallDeps["transcript"]> & {
     entriesAfterLastBoundary(): ChatHistoryEntry[];
   };
-  /** chat endpoint config. */
-  config: EndpointsConfig;
   /** Chat backend auth key resolution (SecretProvider). Unauthenticated placeholder if absent. */
   getApiKey: () => Promise<string | undefined>;
   /** Transport fetch selection (selectFetch). Tauri=cors-fetch, dev=undefined. */
@@ -110,8 +99,6 @@ interface BackendCallerDeps extends PushCallDeps, SettleDeps {
   getFrontmost?: () => FrontmostState | undefined;
   /** Previous-turn slot lookup — read after the pre-turn interrupt, so a superseded turn is already recorded. */
   getPrevious?: () => PreviousTurn | undefined;
-  /** The shared tool-status/reasoning consumer — the streaming path feeds it under this turn's owner. */
-  turnFeed?: TurnFeed;
   /** Previous response id lookup — when present, included in request to continue conversation. Called per turn (reflects reset/rotation). */
   getPreviousResponseId?: () => string | undefined;
   /** New response id persist — called only after a completely successful turn (conversation state progress). */
@@ -120,8 +107,6 @@ interface BackendCallerDeps extends PushCallDeps, SettleDeps {
   onResponseIdInvalid?: () => void;
   /** Chain-break UI notice sink — called once alongside onResponseIdInvalid so the user sees the context reset. */
   onChainReset?: () => void;
-  /** usage (token occupancy) sink — called only when present. Diagnostic channel independent of ControlEnvelope. */
-  onUsage?: (usage: Usage) => void;
   /** Current agent setting (reasoning effort + instructions override) snapshot. Reflected in request only when present. */
   getAgentSettings?: () => import("../../settings/backend/agent-settings").AgentSettings;
   /** Client-declared tool registry, resolved per turn so vocabulary edits land on the next call. */
@@ -151,6 +136,7 @@ export interface BackendCaller {
 export function createBackendCaller(deps: BackendCallerDeps): BackendCaller {
   const log = deps.logger ?? baseLog;
   const stream = deps.stream ?? streamChat;
+  const streamAttempt = createStreamAttempt(deps, log, stream);
   const pushCall = createPushCall(deps, log);
   const replySettler = createReplySettler(deps, log);
 
@@ -298,145 +284,40 @@ export function createBackendCaller(deps: BackendCallerDeps): BackendCaller {
       // Tools declared for this turn (CC mode; the Responses branch ignores them).
       const clientTools = deps.clientTools?.();
 
-      // B3: Receive ControlEnvelope from chat-client's completed event (no SSE re-parsing).
-      let envelope: ControlEnvelope | undefined;
-      let newResponseId: string | undefined;
-      // Streaming speech: did at least one delta arrive (completion drives turnOutput.end branching).
-      let streamedAny = false;
-      // Did at least one express cue arrive during stream (completion drives pipeline ownership branching).
-      let cueStreamed = false;
-      // Holds back the stream head until a bare [SILENT] token can be ruled out — re-created per attempt.
-      let silenceFilter = createSilenceTokenFilter();
       // Chain-break 404 recovery: retry at most once, so this flips true before the retry attempt.
       let chainBreakRetried = false;
+      let attempted: AttemptResult;
       // Attempt loop: body runs once, `continue`s exactly once on a 404 chain-break, then always exits via break/return.
       while (true) {
-        envelope = undefined;
-        newResponseId = undefined;
-        streamedAny = false;
-        cueStreamed = false;
-        silenceFilter = createSilenceTokenFilter();
-        // The previous attempt's cycle and running tool die before this one streams.
-        deps.turnFeed?.ended(owner);
-        let streamError: string | undefined;
-        // HTTP status carried by stream error event (openai SDK APIError.status) — distinguish
-        // 401/403 as http_4xx_drop (auth-ish) instead of network_drop.
-        let streamErrorStatus: number | undefined;
-        // Which watchdog budget expired and aborted, if any (undefined = no stall).
-        let stallStage: StallStage | undefined;
-        try {
-          for await (const ev of withIdleWatchdog(
-            stream(deps.config, request, {
-              apiKey,
-              fetch: fetchImpl,
-              ...(clientTools ? { tools: clientTools } : {}),
-            }),
-            { preSpeech: PRE_SPEECH_TIMEOUT_MS, speechIdle: SPEECH_IDLE_TIMEOUT_MS },
-            (stage) => {
-              stallStage = stage;
-              ac.abort();
-            },
-            (ev) => ev.type === "speech_delta" || ev.type === "speech_done",
-          )) {
-            if (externalSignal?.aborted) break;
-            switch (ev.type) {
-              case "speech_delta": {
-                // Actual response speech start — end thinking only here (thinkingDone ensures only first delta).
-                // usage/express/tool_status before don't break thinking.
-                endThinking();
-                // A bare [SILENT] token stays held in the filter — only real speech reaches the bubble.
-                const speech = silenceFilter.push(ev.text);
-                if (speech) {
-                  deps.turnOutput?.delta(speech);
-                  streamedAny = true;
-                }
-                break;
-              }
-              case "express":
-                // Pass the entire cue as-is — TTS pipeline applies audio-timed at sentence playback.
-                deps.turnOutput?.cue(ev.args);
-                deps.turnOutput?.activity(turn.id);
-                cueStreamed = true;
-                break;
-              case "usage":
-                // Diagnostic channel independent of ControlEnvelope/renderer — passes to sink only.
-                deps.onUsage?.(ev.usage);
-                break;
-              case "tool_status":
-                // Native tool observation result — pass immediately on streaming to show running chip.
-                // Do not call endThinking: tool_status does not break thinking.
-                log.debug("tool_status", { state: ev.status.state, tool_id: ev.status.tool_id });
-                deps.turnFeed?.toolStatus(owner, ev.status.state, ev.status.tool_id);
-                deps.turnOutput?.toolStatus(turn.id, ev.status.state, ev.status.tool_id);
-                break;
-              case "reasoning":
-                deps.turnFeed?.reasoning(owner, ev.delta);
-                break;
-              case "completed":
-                envelope = ev.envelope;
-                newResponseId = ev.responseId || undefined;
-                deps.turnFeed?.replied(owner);
-                break;
-              case "error":
-                streamError = ev.message;
-                streamErrorStatus = ev.status;
-                break;
-              default:
-                break;
-            }
-          }
-        } catch (err) {
-          // If abort, supersede (next turn cleans up), otherwise network drop — if delta arrived, clean up speech bubble/audio.
-          if (externalSignal?.aborted) {
-            return "superseded_by_user";
-          }
-          if (streamedAny) deps.turnOutput?.abort();
-          log.warn("network_drop", { stage: "stream_threw", error: String(err) });
-          return "network_drop";
-        }
-
-        // Ahead of the stall branch: a superseded turn whose stream hangs rather than rejecting
-        // would otherwise tear down the pipeline the next turn already owns.
-        if (externalSignal?.aborted) {
-          return "superseded_by_user";
-        }
-
-        if (stallStage) {
-          // Nothing landed inside the budget for this phase — stalled.
-          if (streamedAny) deps.turnOutput?.abort();
-          log.warn("network_stall", {
-            stage: stallStage,
-            idle_ms:
-              stallStage === "pre_speech_timeout" ? PRE_SPEECH_TIMEOUT_MS : SPEECH_IDLE_TIMEOUT_MS,
-          });
-          return "network_stall";
-        }
-
-        if (streamError !== undefined) {
-          // If delta arrived, clean up speech bubble/audio — prevent getting stuck forever without next turn.
-          if (streamedAny) deps.turnOutput?.abort();
-          // Distinguish auth-ish (401/403) status as http_4xx_drop — keep other 4xx/5xx/no-status as network_drop.
-          if (streamErrorStatus === 401 || streamErrorStatus === 403) {
-            log.warn("http_4xx_drop", {
-              stage: "stream_error",
-              status: streamErrorStatus,
-              message: streamError,
-            });
-            return "http_4xx_drop";
-          }
+        attempted = await streamAttempt.run({
+          turn,
+          owner,
+          externalSignal,
+          abort: () => ac.abort(),
+          request,
+          // Built per attempt: a stream may keep or mutate its options object.
+          streamOpts: {
+            apiKey,
+            fetch: fetchImpl,
+            ...(clientTools ? { tools: clientTools } : {}),
+          },
+          endThinking,
+        });
+        if (attempted.kind === "drop") return attempted.outcome;
+        if (attempted.kind === "stream_error") {
           // Chain break: previous_response_id points at a response the backend no longer holds
           // (server-side conversation state lost/expired). Retry once without it, but only if
           // nothing streamed yet this attempt — a partial reply already rendered can't be resent.
           if (
             !chainBreakRetried &&
-            streamErrorStatus === 404 &&
+            attempted.status === 404 &&
             startPreviousResponseId &&
-            !streamedAny
+            !attempted.streamedAny
           ) {
             chainBreakRetried = true;
             log.warn("chain_break_404", {
-              status: streamErrorStatus,
-              message: streamError,
+              status: attempted.status,
+              message: attempted.message,
               previous_response_id: startPreviousResponseId,
             });
             deps.onResponseIdInvalid?.();
@@ -447,34 +328,18 @@ export function createBackendCaller(deps: BackendCallerDeps): BackendCaller {
           }
           log.warn("network_drop", {
             stage: "stream_error",
-            message: streamError,
-            status: streamErrorStatus,
+            message: attempted.message,
+            status: attempted.status,
           });
           // Server answered with an HTTP error — carry its status + message to the UI surface.
-          if (streamErrorStatus !== undefined) {
-            onErrorDetail?.({ status: streamErrorStatus, message: streamError });
+          if (attempted.status !== undefined) {
+            onErrorDetail?.({ status: attempted.status, message: attempted.message });
           }
           return "network_drop";
         }
-
-        if (!envelope) {
-          // No completed received = broken/empty response.
-          // If delta arrived, clean up speech bubble/audio — a half-spoken turn would otherwise stay open.
-          if (streamedAny) deps.turnOutput?.abort();
-          log.warn("parse_error", { event_name: env.event_name });
-          return "parse_error";
-        }
-
         break;
       }
-
-      // A head the stream ended on before it could diverge is either a bare [SILENT]
-      // (dropped) or a partial prefix cut short (spoken as-is).
-      const rest = silenceFilter.flush();
-      if (rest) {
-        deps.turnOutput?.delta(rest);
-        streamedAny = true;
-      }
+      const { envelope, newResponseId, streamedAny, cueStreamed } = attempted;
 
       const spokeText = replySettler.settle({
         envelope,
