@@ -55,7 +55,11 @@ export function wirePushTransport(deps: {
     pushTurns: deps.pushTurns,
     appendTurnRecord: deps.appendTurnRecord,
     appendTranscript: deps.appendTranscript,
-    reportSpokeText: (turnId, spoke) => deps.reportSpokeText(Number(turnId), spoke),
+    reportSpokeText: (turnId, spoke) => {
+      // Only the id the client sent, `String(turn.id)`, names a ledger turn.
+      const id = Number(turnId);
+      if (String(id) === turnId) deps.reportSpokeText(id, spoke);
+    },
   });
   const unsubscribes = [
     deps.socket.onRender((frame) => {

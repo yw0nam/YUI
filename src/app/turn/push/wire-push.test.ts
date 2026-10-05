@@ -196,6 +196,28 @@ describe("wirePushTransport", () => {
     expect(turnLog.didSpeakText()).toBe(true);
   });
 
+  it("leaves the turn's flag alone for a render whose id names no ledger turn", () => {
+    const turn = turnLog.begin(userEnv());
+    wire();
+    socket.pushRender({ ...RENDER, turn_id: "hermes-3" });
+    socket.pushRender({ ...RENDER, turn_id: ` ${turn.id}` });
+
+    expect(turnLog.didSpeakText()).toBe(false);
+  });
+
+  it("keeps the flag when a silent frame follows a spoken one in the same turn", () => {
+    const turn = turnLog.begin(userEnv());
+    wire();
+    socket.pushRender({ ...RENDER, turn_id: String(turn.id) });
+    socket.pushRender({
+      ...RENDER,
+      turn_id: String(turn.id),
+      segments: [{ cues: [{ emotion_id: "sad" }], speech: "[SILENT]" }],
+    });
+
+    expect(turnLog.didSpeakText()).toBe(true);
+  });
+
   it("puts a spoken reply in the transcript it was given", () => {
     wire();
     socket.pushRender(RENDER);
