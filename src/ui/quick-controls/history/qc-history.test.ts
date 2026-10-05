@@ -1,13 +1,10 @@
 // @vitest-environment jsdom
-/**
- * History tab — session accordion over the persisted transcript, plus the
- * Input-tab "keep bubble until dismissed" switch.
- */
+// History tab session accordion over the persisted transcript.
+
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createChatHistoryStore } from "../../../io/chat/conversation/chat-history-store";
 import { createSessionDiagnosticsStore } from "../../../io/chat/conversation/session-diagnostics";
 import { createSessionStore } from "../../../io/chat/conversation/session-store";
-import { createFlagSettings } from "../../../settings/persisted-store";
 import { setLocale } from "../../i18n";
 import { createQuickControls } from "../quick-controls";
 import { defaultQcArgs } from "../test-helpers";
@@ -508,65 +505,6 @@ describe("createQuickControls — start fresh keeps the transcript", () => {
     expect(store.entriesAfterLastBoundary()).toEqual([]);
     expect(store.sessions()).toHaveLength(2);
     expect(store.sessions()[1].entries[0].text).toBe("keep me");
-
-    qc.dispose();
-  });
-});
-
-describe("createQuickControls — keep bubble until dismissed switch", () => {
-  let mount: HTMLElement;
-
-  beforeEach(() => {
-    let rafId = 0;
-    vi.spyOn(globalThis, "requestAnimationFrame").mockImplementation((cb) => {
-      cb(0);
-      return ++rafId;
-    });
-    vi.spyOn(globalThis, "cancelAnimationFrame").mockImplementation(() => {});
-    mount = document.createElement("div");
-    document.body.appendChild(mount);
-    setLocale("en");
-  });
-
-  afterEach(() => {
-    document.body.innerHTML = "";
-    vi.restoreAllMocks();
-  });
-
-  it("is absent when no store is injected", () => {
-    const qc = createQuickControls(defaultQcArgs(mount));
-    qc.open();
-    expect(qc.el.querySelector(".yui-bubble-persist-switch")).toBeNull();
-    qc.dispose();
-  });
-
-  it("renders in the Input tab, off by default, and toggles the store", () => {
-    const bubblePersistSettings = createFlagSettings(false);
-    const qc = createQuickControls({ ...defaultQcArgs(mount), bubblePersistSettings });
-    qc.open();
-
-    const sw = qc.el.querySelector<HTMLButtonElement>(".yui-bubble-persist-switch")!;
-    expect(qc.el.querySelector<HTMLElement>("#yui-panel-input")!.contains(sw)).toBe(true);
-    expect(sw.getAttribute("aria-checked")).toBe("false");
-
-    sw.click();
-    expect(bubblePersistSettings.get().enabled).toBe(true);
-    expect(sw.getAttribute("aria-checked")).toBe("true");
-
-    qc.dispose();
-  });
-
-  it("reflects an external store change while open", () => {
-    const bubblePersistSettings = createFlagSettings(false);
-    const qc = createQuickControls({ ...defaultQcArgs(mount), bubblePersistSettings });
-    qc.open();
-
-    bubblePersistSettings.setEnabled(true);
-    expect(
-      qc.el
-        .querySelector<HTMLButtonElement>(".yui-bubble-persist-switch")!
-        .getAttribute("aria-checked"),
-    ).toBe("true");
 
     qc.dispose();
   });
