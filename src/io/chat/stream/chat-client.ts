@@ -171,12 +171,10 @@ export async function selectFetch(): Promise<typeof globalThis.fetch | undefined
 }
 
 /**
- * Selects baseURL. Tauri uses absolute URLs directly via cors-fetch. Dev web rewrites to the same-origin
- * `/__hermes` dev-proxy mount (vite.config.ts) to avoid CORS preflight. Prod web/no origin pass through unchanged.
- *
- * Chat Completions mode (chatApi==="chat_completions") always skips this rewrite — `/__hermes` is
- * hard-proxied to Responses backend, preventing CC requests silently going to wrong server instead of
- * user-configured chat_base_url (CC servers provide own CORS or local dev options).
+ * Selects baseURL. Tauri uses absolute URLs directly via cors-fetch. Dev web sends the request through
+ * the dev server's `/__backend` mount (scripts/dev-backend-proxy.mjs), which forwards it to the configured
+ * host and port without CORS preflight. Prod web passes the URL through unchanged. Chat Completions mode
+ * returns the configured URL in every environment.
  */
 export function selectChatBaseUrl(
   configuredBaseUrl: string,
@@ -192,12 +190,8 @@ export function selectChatBaseUrl(
 
   if (tauriRuntime) return configuredBaseUrl;
   if (isDev && origin) {
-    let path = configuredBaseUrl;
-    if (/^[a-z]+:\/\//i.test(configuredBaseUrl)) {
-      path = new URL(configuredBaseUrl).pathname;
-    }
-    if (!path.startsWith("/")) path = `/${path}`;
-    return `${origin}/__hermes${path}`;
+    const { protocol, host, pathname } = new URL(configuredBaseUrl);
+    return `${origin}/__backend/${protocol.slice(0, -1)}/${host}${pathname}`;
   }
   return configuredBaseUrl;
 }

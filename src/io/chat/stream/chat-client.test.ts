@@ -1098,7 +1098,7 @@ describe("selectChatBaseUrl", () => {
         isDev: true,
         origin: "http://127.0.0.1:1420",
       }),
-    ).toBe("http://127.0.0.1:1420/__hermes/v1");
+    ).toBe("http://127.0.0.1:1420/__backend/http/localhost:8643/v1");
   });
 
   it("returns the configured URL unchanged in prod web", () => {
@@ -1111,15 +1111,18 @@ describe("selectChatBaseUrl", () => {
     ).toBe(CONFIGURED);
   });
 
-  it("handles a bare-path configured value in dev web", () => {
+  it("uses the configured host, port and scheme in the dev mount path", () => {
     expect(
-      selectChatBaseUrl("/v1", { isTauri: false, isDev: true, origin: "http://127.0.0.1:1420" }),
-    ).toBe("http://127.0.0.1:1420/__hermes/v1");
+      selectChatBaseUrl("https://chat.example:9443/api/v1", {
+        isTauri: false,
+        isDev: true,
+        origin: "http://127.0.0.1:1420",
+      }),
+    ).toBe("http://127.0.0.1:1420/__backend/https/chat.example:9443/api/v1");
   });
 
-  // Chat Completions mode: the /__hermes dev-web proxy mount is hardcoded to the Responses
-  // backend — CC must never be silently rewritten onto it, in any environment.
-  it("chat_completions + dev web: returns the configured URL as-is (no /__hermes rewrite)", () => {
+  // Chat Completions mode never goes through the dev mount, in any environment.
+  it("chat_completions + dev web: returns the configured URL as-is", () => {
     expect(
       selectChatBaseUrl(
         CONFIGURED,
@@ -1156,7 +1159,7 @@ describe("selectChatBaseUrl", () => {
         isDev: true,
         origin: "http://127.0.0.1:1420",
       }),
-    ).toBe("http://127.0.0.1:1420/__hermes/v1");
+    ).toBe("http://127.0.0.1:1420/__backend/http/localhost:8643/v1");
   });
 
   it("responses mode (chat_api explicit 'responses') is unaffected — still rewrites in dev web", () => {
@@ -1166,6 +1169,6 @@ describe("selectChatBaseUrl", () => {
         { isTauri: false, isDev: true, origin: "http://127.0.0.1:1420" },
         "responses",
       ),
-    ).toBe("http://127.0.0.1:1420/__hermes/v1");
+    ).toBe("http://127.0.0.1:1420/__backend/http/localhost:8643/v1");
   });
 });

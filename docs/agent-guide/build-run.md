@@ -18,6 +18,8 @@ cd src-tauri && cargo check # Rust compile check
 cd src-tauri && cargo test  # Rust unit tests
 ```
 
+In `pnpm dev` (browser only), chat in Responses mode goes through the dev server's `/__backend/<scheme>/<host>/<path>` mount (`scripts/dev-backend-proxy.mjs`), which forwards to the configured `chat_base_url`. The mount is a local forwarder, not an authenticated service: it rejects a cross-site request (`Sec-Fetch-Site` other than `same-origin`, or a foreign `Origin` when that header is absent), removes `Cookie`, `Origin` and hop-by-hop headers, and forwards `Authorization`. The proxy sends no `Origin`, so a backend must accept server-side API clients without one. Tauri builds call the backend directly.
+
 ## Android
 
 `src-tauri/gen/android/` holds the Android Studio project that `tauri android init` generates. `src-tauri/tauri.android.conf.json` overrides the desktop config for Android: the identifier is `com.yui.mobile` (debug builds install as `com.yui.mobile.debug`), the one window opens `phone.html`, and the bundled resources are `configs/` plus the default VRM. The generated project carries three hand edits a fresh `tauri android init` would lose: `MainActivity.kt` enables edge-to-edge with transparent dark-style system bars (light status-bar icons over the dark stage), the manifest's main activity pins `android:screenOrientation="portrait"`, and the manifest declares the `RECORD_AUDIO` and `MODIFY_AUDIO_SETTINGS` permissions the WebView needs to grant microphone capture.

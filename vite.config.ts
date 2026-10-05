@@ -2,6 +2,7 @@ import { createReadStream, existsSync, statSync } from "node:fs";
 import { extname, normalize, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { defineConfig, type Plugin } from "vite";
+import { backendProxy } from "./scripts/dev-backend-proxy.mjs";
 import { resolveVitePort } from "./scripts/dev-port.mjs";
 
 // Dev static serving: /vrms/* → resources/vrms/, /configs/* → configs/.
@@ -58,22 +59,9 @@ export default defineConfig(() => ({
       // Rust rebuilds replace locked DLLs under target/ on Windows; Gradle writes build reports under gen/.
       ignored: ["**/src-tauri/target/**", "**/src-tauri/gen/**"],
     },
-    // Same-origin /__hermes → dev proxy to the Responses backend (avoids web chat CORS preflight, SSE streaming).
-    proxy: {
-      "/__hermes": {
-        target: "http://localhost:8643",
-        changeOrigin: true,
-        rewrite: (p) => p.replace(/^\/__hermes/, ""),
-        // A backend may allowlist-check the Origin → worktree dev ports other than 1420 get 403.
-        // changeOrigin only changes Host, so overwrite Origin with an allowed value to let any port through.
-        configure: (proxy) => {
-          const origin = process.env.YUI_HERMES_ORIGIN ?? "http://localhost:1420";
-          proxy.on("proxyReq", (proxyReq) => proxyReq.setHeader("origin", origin));
-        },
-      },
-    },
   },
   plugins: [
+    backendProxy(),
     serveDir("/vrms", "resources/vrms"),
     serveDir("/configs", "configs"),
     serveDir("/vad", "public/vad"),
