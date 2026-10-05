@@ -68,7 +68,7 @@ import { createReactionsSection } from "./sections/reactions/reactions-section";
 import { createScreenSection } from "./sections/screen/screen-section";
 import { createScreenshotSection } from "./sections/screenshot/screenshot-section";
 import { createSessionSection } from "./sections/session/session-section";
-import { createSpeakerList, speakerPickerHtml } from "./sections/speaker-list";
+import { createSpeakerList, speakerPickerHtml } from "./sections/speaker/speaker-list";
 import { createVoiceInputSection } from "./sections/voice-input/voice-input-section";
 import { createWorkflowsSection } from "./sections/workflows-section";
 import { createSwitchRows } from "./switch-row";

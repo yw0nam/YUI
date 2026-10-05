@@ -6,8 +6,8 @@
  */
 
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { createSpeakerSelection } from "../../../io/voice/voices/speaker-selection";
-import { setLocale } from "../../i18n";
+import { createSpeakerSelection } from "../../../../io/voice/voices/speaker-selection";
+import { setLocale } from "../../../i18n";
 import { createSpeakerList, speakerPickerHtml } from "./speaker-list";
 
 const noopLog = { debug: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn() };

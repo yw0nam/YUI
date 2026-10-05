@@ -497,12 +497,13 @@ YUI/
           filler/                    # Thinking-filler section
             filler-section.ts        # Language segment and phrase-pool textareas, with their store subscription and reflect
             filler-tool-lines.ts     # Textarea round-trip for the filler pool's tool tier
-          speaker-list.ts            # Speaker radiogroup with reference-voice refresh and audition
+          speaker/                   # TTS speaker picker of the Connection tab
+            speaker-list.ts          # Speaker radiogroup with reference-voice refresh and audition
+            speaker-list.css         # Speaker list styles
           user-asset-list.ts         # Shared scaffolding for the VRM and speaker asset radiogroups
           monitors-section.css       # Monitors section styles
           session-section.css        # Session context-occupancy readout and meter styles
           workflows-section.css      # Workflows section styles
-          speaker-list.css           # Speaker list styles
           user-asset-list.css        # Radio row, tick, and state styles shared by the monitor, VRM, and speaker lists
         switches/                    # Switch rows shared with the phone settings view
           switch-rows.ts             # Row markup, click binding, repaint, and the store following while open
