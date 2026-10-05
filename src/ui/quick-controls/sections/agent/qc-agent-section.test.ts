@@ -14,7 +14,12 @@ import {
 import { createEndpointsSettings } from "../../../../settings/backend/endpoints-settings";
 import { createProactiveSettings } from "../../../../settings/cues/proactive-settings";
 import { createScheduleSettings } from "../../../../settings/cues/schedule-settings";
-import { setLocale } from "../../../i18n";
+import {
+  getLocale,
+  subscribe as i18nSubscribe,
+  LOCALE_DISPLAY_NAMES,
+  setLocale,
+} from "../../../i18n";
 import { createQuickControls } from "../../quick-controls";
 import {
   countSubscriptions,
@@ -307,5 +312,156 @@ describe("createQuickControls — agent section", () => {
 
     expect(counts.taken).toBeGreaterThan(0);
     expect(counts.released).toBe(counts.taken);
+  });
+});
+
+describe("createQuickControls — language picker", () => {
+  let mount: HTMLElement;
+
+  beforeEach(() => {
+    let rafId = 0;
+    vi.spyOn(globalThis, "requestAnimationFrame").mockImplementation((cb) => {
+      cb(0);
+      return ++rafId;
+    });
+    vi.spyOn(globalThis, "cancelAnimationFrame").mockImplementation(() => {});
+    mount = document.createElement("div");
+    document.body.appendChild(mount);
+    try {
+      globalThis.localStorage?.clear();
+    } catch {
+      /* Ignore environments without localStorage */
+    }
+    setLocale("en");
+  });
+
+  afterEach(() => {
+    document.body.innerHTML = "";
+    setLocale("en");
+    vi.restoreAllMocks();
+  });
+
+  function buildQc(extra?: Partial<Parameters<typeof createQuickControls>[0]>) {
+    return createQuickControls({
+      ...defaultQcArgs(mount),
+      ...extra,
+    });
+  }
+
+  it("renders a 3-way language segmented control with display names", () => {
+    const qc = buildQc();
+    qc.open();
+    const seg = qc.el.querySelector<HTMLElement>(".yui-lang-seg")!;
+    expect(seg).not.toBeNull();
+    const btns = Array.from(seg.querySelectorAll<HTMLButtonElement>(".yui-seg__btn"));
+    const locales = btns.map((b) => b.dataset.locale);
+    expect(locales).toEqual(["ja", "en", "ko"]);
+    const labels = btns.map((b) => b.textContent);
+    expect(labels).toEqual([
+      LOCALE_DISPLAY_NAMES.ja,
+      LOCALE_DISPLAY_NAMES.en,
+      LOCALE_DISPLAY_NAMES.ko,
+    ]);
+    qc.dispose();
+  });
+
+  it("reflects the current locale as the checked segment on render", () => {
+    setLocale("ko");
+    const qc = buildQc();
+    qc.open();
+    const checked = qc.el.querySelector<HTMLButtonElement>(
+      ".yui-lang-seg .yui-seg__btn[aria-checked='true']",
+    )!;
+    expect(checked.dataset.locale).toBe("ko");
+    qc.dispose();
+  });
+
+  it("clicking a language segment calls setLocale with that locale", () => {
+    const qc = buildQc();
+    qc.open();
+    expect(getLocale()).toBe("en");
+    const koBtn = qc.el.querySelector<HTMLButtonElement>(
+      ".yui-lang-seg .yui-seg__btn[data-locale='ko']",
+    )!;
+    koBtn.click();
+    expect(getLocale()).toBe("ko");
+    qc.dispose();
+  });
+
+  it("renders panel text via t() in the active locale", () => {
+    setLocale("ko");
+    const qc = buildQc();
+    qc.open();
+    // The reasoning-effort field label is keyed; ko renders the Korean copy.
+    const label = qc.el.querySelector<HTMLElement>("#yui-panel-talk .yui-row__label")!;
+    expect(label.textContent).toBe("추론 강도");
+    qc.dispose();
+  });
+
+  it("arrow keys on the language seg move roving focus only — locale is NOT committed", () => {
+    setLocale("en"); // en = index 1
+    const qc = buildQc();
+    qc.open();
+
+    // Watch whether arrow keys call setLocale (subscription notifies on each setLocale).
+    let commits = 0;
+    const unsub = i18nSubscribe(() => {
+      commits += 1;
+    });
+
+    const seg = qc.el.querySelector<HTMLElement>(".yui-lang-seg")!;
+    const btns = Array.from(seg.querySelectorAll<HTMLButtonElement>(".yui-seg__btn"));
+    expect(btns[1].getAttribute("aria-checked")).toBe("true"); // en
+    btns[1].focus();
+
+    btns[1].dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowRight", bubbles: true }));
+
+    // No commit: locale and aria-checked stay put, only focus and roving tabindex move to ko.
+    expect(commits).toBe(0);
+    expect(getLocale()).toBe("en");
+    expect(btns[1].getAttribute("aria-checked")).toBe("true");
+    expect(btns[2].getAttribute("aria-checked")).toBe("false");
+    expect(document.activeElement).toBe(btns[2]);
+    expect(btns[2].tabIndex).toBe(0);
+    expect(btns[1].tabIndex).toBe(-1);
+
+    // ArrowLeft moves focus back to en button only (still no commit).
+    btns[2].dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowLeft", bubbles: true }));
+    expect(commits).toBe(0);
+    expect(getLocale()).toBe("en");
+    expect(document.activeElement).toBe(btns[1]);
+    expect(btns[1].tabIndex).toBe(0);
+
+    unsub();
+    qc.dispose();
+  });
+
+  it("Space on the focused locale button commits setLocale exactly once", () => {
+    setLocale("en");
+    const qc = buildQc();
+    qc.open();
+
+    let commits = 0;
+    const unsub = i18nSubscribe(() => {
+      commits += 1;
+    });
+
+    const seg = qc.el.querySelector<HTMLElement>(".yui-lang-seg")!;
+    const btns = Array.from(seg.querySelectorAll<HTMLButtonElement>(".yui-seg__btn"));
+    // Move focus to ko using arrow keys (no commit).
+    btns[1].focus();
+    btns[1].dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowRight", bubbles: true }));
+    expect(commits).toBe(0);
+    expect(getLocale()).toBe("en");
+
+    // Space on focused button → commit (exactly once).
+    btns[2].dispatchEvent(new KeyboardEvent("keydown", { key: " ", bubbles: true }));
+    expect(commits).toBe(1);
+    expect(getLocale()).toBe("ko");
+    expect(btns[2].getAttribute("aria-checked")).toBe("true");
+    expect(btns[1].getAttribute("aria-checked")).toBe("false");
+
+    unsub();
+    qc.dispose();
   });
 });

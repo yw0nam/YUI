@@ -1,10 +1,5 @@
 // @vitest-environment jsdom
-/**
- * qc-delegations.test.ts — the session section's delegated-work list (window variant only):
- * hidden when the mirrored list is empty, rows running-first with the same times as the chip's
- * popover, the one lost-connection line that stands in for the rows while the socket is not
- * ready, a once-a-minute refresh while items are held, and teardown.
- */
+// Session context readout and delegated-work list through the whole panel.
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createChatHistoryStore } from "../../../../io/chat/conversation/chat-history-store";
@@ -369,5 +364,117 @@ describe("createQuickControls — session section delegated list", () => {
 
       expect(delegations.refresh).not.toHaveBeenCalled();
     });
+  });
+});
+
+describe("createQuickControls — session section", () => {
+  let mount: HTMLElement;
+  let sessionDiagnostics: ReturnType<typeof createSessionDiagnosticsStore>;
+  let sessionStore: ReturnType<typeof createSessionStore>;
+
+  beforeEach(() => {
+    let rafId = 0;
+    vi.spyOn(globalThis, "requestAnimationFrame").mockImplementation((cb) => {
+      cb(0);
+      return ++rafId;
+    });
+    vi.spyOn(globalThis, "cancelAnimationFrame").mockImplementation(() => {});
+    mount = document.createElement("div");
+    document.body.appendChild(mount);
+    sessionDiagnostics = createSessionDiagnosticsStore();
+    sessionStore = createSessionStore();
+    try {
+      globalThis.localStorage?.clear();
+    } catch {
+      /* Ignore environments without localStorage */
+    }
+    // Existing assertions pin Korean copy/selectors; render the panel in ko.
+    setLocale("ko");
+  });
+
+  afterEach(() => {
+    document.body.innerHTML = "";
+    vi.restoreAllMocks();
+  });
+
+  function buildQc(extra?: Partial<Parameters<typeof createQuickControls>[0]>) {
+    return createQuickControls({
+      ...defaultQcArgs(mount),
+      sessionDiagnostics,
+      sessionStore,
+      ...extra,
+    });
+  }
+
+  it("renders the session section in the window variant", () => {
+    const qc = buildQc({ variant: "window" });
+    qc.open();
+    expect(qc.el.querySelector(".yui-session")).not.toBeNull();
+    qc.dispose();
+  });
+
+  it("keeps only the occupancy stat — the start-fresh action left for the History tab", () => {
+    const qc = buildQc({ variant: "window" });
+    qc.open();
+
+    const section = qc.el.querySelector<HTMLElement>(".yui-session")!;
+    expect(section.querySelector(".yui-session__stat")).not.toBeNull();
+    expect(section.querySelector(".yui-session__action")).toBeNull();
+    expect(section.querySelector(".yui-session__reset")).toBeNull();
+    expect(section.querySelector(".yui-confirm")).toBeNull();
+
+    qc.dispose();
+  });
+
+  it("does NOT render the session section in the popover (pet) variant", () => {
+    const qc = buildQc({ variant: "popover" });
+    qc.open();
+    expect(qc.el.querySelector(".yui-session")).toBeNull();
+    qc.dispose();
+  });
+
+  it("renders used/max and percent from the diagnostics store", () => {
+    sessionDiagnostics.setUsage(18200, 200000);
+    const qc = buildQc({ variant: "window" });
+    qc.open();
+
+    const value = qc.el.querySelector<HTMLElement>(".yui-session__value")!;
+    expect(value.textContent).toContain("18.2K");
+    expect(value.textContent).toContain("200K");
+    const pct = qc.el.querySelector<HTMLElement>(".yui-session__value .pct")!;
+    expect(pct.textContent).toContain("9%");
+    const fill = qc.el.querySelector<HTMLElement>(".yui-meter__fill")!;
+    expect(fill.style.width).toBe("9%");
+
+    qc.dispose();
+  });
+
+  it("handles a null contextWindow gracefully (no bar, muted readout)", () => {
+    sessionDiagnostics.setUsage(18200, null);
+    const qc = buildQc({ variant: "window" });
+    qc.open();
+
+    expect(qc.el.querySelector(".yui-meter")).toBeNull();
+    const value = qc.el.querySelector<HTMLElement>(".yui-session__value")!;
+    expect(value.querySelector(".pct")).toBeNull();
+    // still shows the used count formatted
+    expect(value.textContent).toContain("18.2K");
+
+    qc.dispose();
+  });
+
+  it("live-updates the readout when the diagnostics store notifies while open", () => {
+    const qc = buildQc({ variant: "window" });
+    qc.open();
+
+    sessionDiagnostics.setUsage(100000, 200000);
+
+    const value = qc.el.querySelector<HTMLElement>(".yui-session__value")!;
+    expect(value.textContent).toContain("100K");
+    expect(qc.el.querySelector<HTMLElement>(".yui-session__value .pct")!.textContent).toContain(
+      "50%",
+    );
+
+    qc.dispose();
   });
 });
