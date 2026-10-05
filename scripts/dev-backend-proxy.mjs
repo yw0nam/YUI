@@ -78,7 +78,8 @@ export function createBackendProxy(logError = console.error) {
     let upstreamRes;
     const upstream = send(target, { method: req.method, path, headers }, (up) => {
       upstreamRes = up;
-      res.writeHead(up.statusCode ?? 502, forwardable(up.headers));
+      // Cookies ignore ports, so a backend cookie would reach every dev server on this host.
+      res.writeHead(up.statusCode ?? 502, forwardable(up.headers, ["set-cookie", "set-cookie2"]));
       up.pipe(res);
       // A response cut short must not look complete downstream.
       up.on("error", () => res.destroy());

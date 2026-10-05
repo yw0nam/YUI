@@ -18,7 +18,7 @@ cd src-tauri && cargo check # Rust compile check
 cd src-tauri && cargo test  # Rust unit tests
 ```
 
-In `pnpm dev` (browser only), chat in Responses mode goes through the dev server's `/__backend/<scheme>/<host>/<path>` mount (`scripts/dev-backend-proxy.mjs`), which forwards to the configured `chat_base_url`. The mount is a local forwarder, not an authenticated service: it rejects a cross-site request (`Sec-Fetch-Site` other than `same-origin`, or a foreign `Origin` when that header is absent), removes `Cookie`, `Origin` and hop-by-hop headers, and forwards `Authorization`. The proxy sends no `Origin`, so a backend must accept server-side API clients without one. Tauri builds call the backend directly.
+In `pnpm dev` (browser only), chat in Responses mode goes through the dev server's `/__backend/<scheme>/<host>/<path>` mount (`scripts/dev-backend-proxy.mjs`), which forwards to the configured `chat_base_url`. The mount is a local forwarder, not an authenticated service: it rejects a cross-site request (`Sec-Fetch-Site` other than `same-origin`, or a foreign `Origin` when that header is absent), removes `Cookie`, `Origin`, `Set-Cookie` and hop-by-hop headers, and forwards `Authorization`. The proxy sends no `Origin`, so a backend must accept server-side API clients without one. Tauri builds call the backend directly.
 
 ## Android
 

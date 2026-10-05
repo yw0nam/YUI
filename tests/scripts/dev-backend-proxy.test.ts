@@ -116,8 +116,9 @@ describe("createBackendProxy", () => {
     expect(seen["x-hop"]).toBeUndefined();
   });
 
-  it("drops hop-by-hop response headers", async () => {
+  it("drops hop-by-hop and Set-Cookie response headers", async () => {
     const upstreamPort = await listen((_req, res) => {
+      res.setHeader("set-cookie", "s=1");
       res.setHeader("connection", "x-resp-hop");
       res.setHeader("x-resp-hop", "1");
       res.setHeader("x-resp-keep", "2");
@@ -139,6 +140,7 @@ describe("createBackendProxy", () => {
 
     expect(headers["x-resp-keep"]).toBe("2");
     expect(headers["x-resp-hop"]).toBeUndefined();
+    expect(headers["set-cookie"]).toBeUndefined();
   });
 
   it("stops the upstream request when the client disconnects mid-stream", async () => {
