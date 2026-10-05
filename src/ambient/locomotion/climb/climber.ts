@@ -923,11 +923,11 @@ export function createClimber(deps: ClimberDeps): Climber {
     endClimb();
   }
 
-  function launch(run: () => Promise<void>): Promise<void> {
+  function launch(start: () => Promise<void>): Promise<void> {
     running = true;
     nextWatchAtMs = nowMs + TARGET_WATCH_MS;
     nextGeoAtMs = nowMs;
-    return run()
+    return start()
       .catch((err) => log.warn("climb_failed", { degrade: true, error: String(err) }))
       .finally(() => {
         running = false;
