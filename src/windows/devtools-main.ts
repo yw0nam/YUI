@@ -40,7 +40,7 @@ async function bootstrap(): Promise<void> {
       endpointsSettings,
       defaultContextWindow,
       loadMotionPreview: async (section) => {
-        const { mountMotionPreview } = await import("../ui/devtools/motion-preview");
+        const { mountMotionPreview } = await import("../ui/devtools/motion-preview/motion-preview");
         return mountMotionPreview(section);
       },
     });

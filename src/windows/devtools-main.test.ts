@@ -43,7 +43,7 @@ const { mountMotionPreview, motionPreviewState } = vi.hoisted(() => {
   return { mountMotionPreview, motionPreviewState };
 });
 
-vi.mock("../ui/devtools/motion-preview", () => ({ mountMotionPreview }));
+vi.mock("../ui/devtools/motion-preview/motion-preview", () => ({ mountMotionPreview }));
 vi.mock("../ui/devtools/shell", async (importOriginal) => {
   const actual = await importOriginal<typeof import("../ui/devtools/shell")>();
   return { ...actual, createDevtoolsShell: vi.fn(actual.createDevtoolsShell) };

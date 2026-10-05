@@ -494,9 +494,17 @@ YUI/
         shell-rebuild.ts             # Locale-driven shell rebuild that keeps focus
         context-inspector.ts         # Client-context inspector view
         advanced-settings.ts         # Advanced settings view
-        motion-preview.ts            # Motion and emotion preview, lazy-loaded
+        motion-preview/              # Motion and emotion preview, lazy-loaded
+          motion-preview.ts          # Mounts the preview and routes its parts
+          view.ts                    # Preview markup, element references, and slider readouts
+          variants.ts                # Pooled-variant expansion into playable entries
+          registry-list.ts           # Motion registry list and crossfade options
+          motion-controls.ts         # Playback overrides and the play, stop, and idle buttons
+          emotion-panel.ts           # Emotion rows, sliders, and the neutral and hold buttons
+          live-status.ts             # Per-frame current-motion sync, fps, and elapsed time
+          perch-hook.ts              # Dev-only perch globals for the console
+          motion-preview.css         # Motion-preview styles
         devtools.css                 # Developer Tools shell styles
-        motion-preview.css           # Motion-preview styles
   src-tauri/
     tauri.conf.json                  # Transparent always-on-top pet window
     tauri.android.conf.json          # Android overrides: com.yui.mobile identifier, bundled configs and the default VRM only
