@@ -57,7 +57,6 @@ import { createCharacterTab } from "./character/character-tab";
 import { createConnectionTab, type PushSocketPanelPort } from "./connection/connection-tab";
 import type { QuickControlsTab } from "./constants";
 import { mountCueLists } from "./cue-lists/cue-lists";
-import { createDelegationSync } from "./delegations/delegation-sync";
 import { createHintTooltip } from "./hint-tooltip";
 import { createHistoryTab } from "./history/history-tab";
 import { createPopover } from "./popover";
@@ -68,6 +67,7 @@ import { bindHelpSection } from "./sections/help-section";
 import { createReactionsSection } from "./sections/reactions/reactions-section";
 import { createScreenSection } from "./sections/screen/screen-section";
 import { createScreenshotSection } from "./sections/screenshot/screenshot-section";
+import { createSessionSection } from "./sections/session/session-section";
 import { createSpeakerList, speakerPickerHtml } from "./sections/speaker-list";
 import { createVoiceInputSection } from "./sections/voice-input/voice-input-section";
 import { createWorkflowsSection } from "./sections/workflows-section";
@@ -402,17 +402,6 @@ export function createQuickControls({
   const reflect = createReflect({
     root: el,
     switchRows: TOGGLE_SPECS,
-    sessionDiagnostics,
-    // The session section's lost line follows the socket only while push chat is effective.
-    ...(pushSocket
-      ? { getPushState: () => (isPushMode() ? pushSocket.getState() : undefined) }
-      : {}),
-    ...(delegations ? { delegations } : {}),
-  });
-
-  const delegationSync = createDelegationSync({
-    delegations,
-    reflectDelegations: () => reflect.reflectDelegations(),
   });
 
   // ── Character tab — the tab owns its rows; the shell mounts it and relays open/close. ──
@@ -483,8 +472,7 @@ export function createQuickControls({
       filler.reflect();
       agent.reflectLanguage();
       connectionTab.refresh();
-      reflect.reflectSession();
-      delegationSync.sync();
+      session.reflect();
       historyTab?.refresh();
       characterTab.refresh();
       speakerList.render();
@@ -551,6 +539,16 @@ export function createQuickControls({
     log,
   });
 
+  // ── Session section (context readout · delegated-work list and its minute refresh) ──
+  const session = createSessionSection({
+    root: el,
+    sessionDiagnostics,
+    pushSocket,
+    isPushMode,
+    delegations,
+    isOpen: popover.isOpen,
+  });
+
   // ── Screenshot section (attach switch · monitor list) ──
   const screenshot = createScreenshotSection({
     root: el,
@@ -613,23 +611,11 @@ export function createQuickControls({
     proactiveSettings,
   });
 
-  // The socket moves on its own — the session section's rows follow whether or not a setting
-  // changed. (The Connection tab keeps its own subscription for the status line.)
-  const unsubscribePushState = pushSocket?.onState(() => {
-    if (popover.isOpen()) reflect.reflectDelegations();
-  });
   // Reflect speaker store updates (direct select · other-window reloadFromStorage) to active row.
   // Skip during swap — finally's renderSpeakers handles final render after loading.
   const unsubscribeSpk = speakerSelection.subscribe(() => {
     if (popover.isOpen() && !speakerList.isSwapping()) speakerList.render();
   });
-  // Reflect session diagnostics updates (this window's reset · pet window's reloadFromStorage) to readout.
-  const unsubscribeSession = sessionDiagnostics?.subscribe(() => {
-    if (popover.isOpen()) reflect.reflectSession();
-  });
-  // Reflect delegated-work updates to the session section through the same sync that arms
-  // its minute refresh.
-  const unsubscribeDelegations = delegations?.subscribe(() => delegationSync.sync());
 
   spksEl.addEventListener("keydown", speakerList.handleKeydown);
   spkAddBtn.addEventListener("click", speakerList.handleAddClick);
@@ -658,14 +644,11 @@ export function createQuickControls({
     agent.dispose();
     filler.dispose();
     voiceInput.dispose();
+    session.dispose();
     hintTooltip.dispose();
     historyTab?.dispose();
     cueLists.destroy();
-    unsubscribePushState?.();
     unsubscribeSpk();
-    unsubscribeSession?.();
-    unsubscribeDelegations?.();
-    delegationSync.stop();
     characterTab.dispose();
     speakerList.dispose();
     popover.dispose();
