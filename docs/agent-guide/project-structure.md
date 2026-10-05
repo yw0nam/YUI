@@ -235,12 +235,16 @@ YUI/
         tier1.ts                     # Tier 1 ambient engine: blink, idle sway, breath, look-around
         cues.ts                      # Pure, side-effect-free cue math for Tier 1
       locomotion/                    # Movement loops: stroll, perch, climb, jump, fall, and sit transitions
-        walker.ts                    # Floor stroll along the monitor's work-area bottom
-        percher.ts                   # Perched dwell, stroll, and sit-back-down on a foreign window top
-        climber.ts                   # Climb up a window or screen edge, dwell, and climb back down
-        climb-geometry.ts            # Pure wall geometry and the climb and descent target picks
-        jumper.ts                    # Jump across to an adjacent window top
-        faller.ts                    # Fall to the first surface below a character left in mid-air
+        walk/                        # Floor stroll
+          walker.ts                  # Floor stroll along the monitor's work-area bottom
+        perch/                       # Window-top perch and jump
+          percher.ts                 # Perched dwell, stroll, and sit-back-down on a foreign window top
+          jumper.ts                  # Jump across to an adjacent window top
+        climb/                       # Window and screen-edge climb
+          climber.ts                 # Climb up a window or screen edge, dwell, and climb back down
+          climb-geometry.ts          # Pure wall geometry and the climb and descent target picks
+        fall/                        # Fall to the surface below
+          faller.ts                  # Fall to the first surface below a character left in mid-air
         sitter.ts                    # Sit-down and stand-up seat transitions
         clip-leg.ts                  # A window leg paced by an in-place clip
         wire.ts                      # Travel frame plus the walk, perch, fall, and climb ambient loops

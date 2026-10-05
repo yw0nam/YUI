@@ -3,12 +3,13 @@ import { describe, expect, it, vi } from "vitest";
 const { log } = vi.hoisted(() => ({
   log: { info: vi.fn(), warn: vi.fn(), error: vi.fn(), debug: vi.fn() },
 }));
-vi.mock("../../logger", () => ({ createLogger: () => log }));
+vi.mock("../../../logger", () => ({ createLogger: () => log }));
 
-import type { DescendConfig, FallConfig, WalkConfig } from "../../config/load";
-import type { MotionKind, WindowRect } from "../../contract";
-import type { DescentEdge, ScreenMonitor } from "../../io/window/geometry/screen-geometry";
-import type { RenderMotionSignal, TickContext, TickFn } from "../../renderer";
+import type { DescendConfig, FallConfig, WalkConfig } from "../../../config/load";
+import type { MotionKind, WindowRect } from "../../../contract";
+import type { DescentEdge, ScreenMonitor } from "../../../io/window/geometry/screen-geometry";
+import type { RenderMotionSignal, TickContext, TickFn } from "../../../renderer";
+import { WALK_MOTION_ID } from "../walk/walker";
 import { type ClimbTarget, wallStandX } from "./climb-geometry";
 import {
   CLIMB_DOWN_LANDING_MOTION_ID,
@@ -31,7 +32,6 @@ import {
   TARGET_WINDOW,
   win,
 } from "./test-helpers";
-import { WALK_MOTION_ID } from "./walker";
 
 const WALK_CFG: WalkConfig = {
   interval_min_ms: 30_000,

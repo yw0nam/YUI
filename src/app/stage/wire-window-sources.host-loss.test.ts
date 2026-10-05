@@ -13,7 +13,7 @@ const { createPercher, createWindowDropSource } = vi.hoisted(() => ({
     stop: () => {},
   })),
 }));
-vi.mock("../../ambient/locomotion/percher", () => ({ createPercher }));
+vi.mock("../../ambient/locomotion/perch/percher", () => ({ createPercher }));
 vi.mock("../../dispatcher/sources/gesture/window-drop/window-drop-source", () => ({
   createWindowDropSource,
 }));

@@ -23,9 +23,9 @@
  * timers, the async window reads, and the per-frame translation.
  */
 
-import type { ClimbConfig, DescendConfig, FallConfig, WalkConfig } from "../../config/load";
-import type { MotionKind, WindowRect } from "../../contract";
-import type { WindowDropSource } from "../../dispatcher/sources/gesture/window-drop/window-drop-source";
+import type { ClimbConfig, DescendConfig, FallConfig, WalkConfig } from "../../../config/load";
+import type { MotionKind, WindowRect } from "../../../contract";
+import type { WindowDropSource } from "../../../dispatcher/sources/gesture/window-drop/window-drop-source";
 import {
   clampToFloorSegments,
   type DescentEdge,
@@ -37,12 +37,22 @@ import {
   monitorAt,
   type PetWindow,
   type ScreenMonitor,
-} from "../../io/window/geometry/screen-geometry";
-import type { Travel } from "../../io/window/geometry/travel-frame";
-import { createLogger } from "../../logger";
-import type { Renderer } from "../../renderer";
-import { type Rng, randRange } from "../liveliness/cues";
-import { prefersReducedMotion } from "../liveliness/tier1";
+} from "../../../io/window/geometry/screen-geometry";
+import type { Travel } from "../../../io/window/geometry/travel-frame";
+import { createLogger } from "../../../logger";
+import type { Renderer } from "../../../renderer";
+import { type Rng, randRange } from "../../liveliness/cues";
+import { prefersReducedMotion } from "../../liveliness/tier1";
+import { createLegRunner } from "../clip-leg";
+import type { SeatWindow, Sitter } from "../sitter";
+import {
+  canStartStroll,
+  MAX_STEP_DT_S,
+  onFloor,
+  WALK_MOTION_ID,
+  type WalkerDoc,
+  walkSpeedPxPerSec,
+} from "../walk/walker";
 import {
   type Box,
   type ClimbTarget,
@@ -57,16 +67,6 @@ import {
   sameDescentEdge,
   wallStandX,
 } from "./climb-geometry";
-import { createLegRunner } from "./clip-leg";
-import type { SeatWindow, Sitter } from "./sitter";
-import {
-  canStartStroll,
-  MAX_STEP_DT_S,
-  onFloor,
-  WALK_MOTION_ID,
-  type WalkerDoc,
-  walkSpeedPxPerSec,
-} from "./walker";
 
 const log = createLogger("climber");
 

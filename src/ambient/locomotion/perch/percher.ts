@@ -13,24 +13,24 @@
  * fall that comes down on a window top hands it back through landOn().
  */
 
-import type { FallConfig, JumpConfig, PerchWalkConfig } from "../../config/load";
-import type { MotionKind, WindowRect } from "../../contract";
-import type { WindowDropSource } from "../../dispatcher/sources/gesture/window-drop/window-drop-source";
+import type { FallConfig, JumpConfig, PerchWalkConfig } from "../../../config/load";
+import type { MotionKind, WindowRect } from "../../../contract";
+import type { WindowDropSource } from "../../../dispatcher/sources/gesture/window-drop/window-drop-source";
 import {
   MOVE_TH,
   PERCH_AMBIGUOUS_LOST_TICKS,
   PERCH_MOTION_ID,
   PERCH_POLL_MS,
   uncoveredSpan,
-} from "../../io/window/geometry/perch";
-import { monitorAt, type ScreenMonitor } from "../../io/window/geometry/screen-geometry";
-import { createLogger } from "../../logger";
-import type { TickFn } from "../../renderer";
-import { type Rng, randRange } from "../liveliness/cues";
-import { prefersReducedMotion } from "../liveliness/tier1";
+} from "../../../io/window/geometry/perch";
+import { monitorAt, type ScreenMonitor } from "../../../io/window/geometry/screen-geometry";
+import { createLogger } from "../../../logger";
+import type { TickFn } from "../../../renderer";
+import { type Rng, randRange } from "../../liveliness/cues";
+import { prefersReducedMotion } from "../../liveliness/tier1";
+import type { Sitter } from "../sitter";
+import { WALK_YAW_EASE_MS } from "../walk/walker";
 import { type JumpOutcome, type JumpPlan, pickJumpTarget } from "./jumper";
-import type { Sitter } from "./sitter";
-import { WALK_YAW_EASE_MS } from "./walker";
 
 const log = createLogger("percher");
 

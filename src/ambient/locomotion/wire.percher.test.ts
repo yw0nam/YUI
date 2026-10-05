@@ -18,8 +18,8 @@ const { createPercher, createJumper, landOn } = vi.hoisted(() => {
     })),
   };
 });
-vi.mock("./percher", () => ({ createPercher }));
-vi.mock("./jumper", () => ({ createJumper }));
+vi.mock("./perch/percher", () => ({ createPercher }));
+vi.mock("./perch/jumper", () => ({ createJumper }));
 vi.mock("@tauri-apps/api/core", () => ({ invoke: vi.fn() }));
 vi.mock("@tauri-apps/api/window", () => ({
   availableMonitors: vi.fn(async () => []),

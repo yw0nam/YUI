@@ -14,7 +14,7 @@ const { createFaller, fallerDrop } = vi.hoisted(() => {
     })),
   };
 });
-vi.mock("./faller", () => ({ createFaller }));
+vi.mock("./fall/faller", () => ({ createFaller }));
 vi.mock("@tauri-apps/api/core", () => ({ invoke: vi.fn(async () => []) }));
 vi.mock("@tauri-apps/api/window", () => ({
   availableMonitors: vi.fn(async () => []),

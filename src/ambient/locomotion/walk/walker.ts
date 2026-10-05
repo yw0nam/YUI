@@ -21,8 +21,8 @@
  * the async window reads, and the per-frame translation.
  */
 
-import type { DescendConfig, WalkConfig } from "../../config/load";
-import type { MotionKind } from "../../contract";
+import type { DescendConfig, WalkConfig } from "../../../config/load";
+import type { MotionKind } from "../../../contract";
 import {
   clampToFloorSegments,
   clampToWorkArea,
@@ -34,12 +34,12 @@ import {
   monitorAt,
   type PetWindow,
   type ScreenMonitor,
-} from "../../io/window/geometry/screen-geometry";
-import type { Travel } from "../../io/window/geometry/travel-frame";
-import { createLogger } from "../../logger";
-import type { Renderer } from "../../renderer";
-import { type Rng, randRange } from "../liveliness/cues";
-import { prefersReducedMotion } from "../liveliness/tier1";
+} from "../../../io/window/geometry/screen-geometry";
+import type { Travel } from "../../../io/window/geometry/travel-frame";
+import { createLogger } from "../../../logger";
+import type { Renderer } from "../../../renderer";
+import { type Rng, randRange } from "../../liveliness/cues";
+import { prefersReducedMotion } from "../../liveliness/tier1";
 
 const log = createLogger("walker");
 

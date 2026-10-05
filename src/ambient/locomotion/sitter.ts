@@ -11,7 +11,7 @@ import type { MotionKind } from "../../contract";
 import { createLogger } from "../../logger";
 import type { Renderer } from "../../renderer";
 import { createLegRunner, type LegWindow } from "./clip-leg";
-import type { WalkerDoc } from "./walker";
+import type { WalkerDoc } from "./walk/walker";
 
 const log = createLogger("sitter");
 

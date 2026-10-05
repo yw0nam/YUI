@@ -25,13 +25,13 @@ import {
 import type { Logger } from "../../logger";
 import type { Renderer } from "../../renderer";
 import { isTauri } from "../../tauri-env";
-import type { ClimbTarget } from "./climb-geometry";
-import { type Climber, createClimber } from "./climber";
-import { createFaller, type DropOptions, type Faller } from "./faller";
-import { createJumper } from "./jumper";
-import { createPercher, type Percher, type PercherWindow } from "./percher";
+import type { ClimbTarget } from "./climb/climb-geometry";
+import { type Climber, createClimber } from "./climb/climber";
+import { createFaller, type DropOptions, type Faller } from "./fall/faller";
+import { createJumper } from "./perch/jumper";
+import { createPercher, type Percher, type PercherWindow } from "./perch/percher";
 import type { Sitter } from "./sitter";
-import { createWalker, type Walker } from "./walker";
+import { createWalker, type Walker } from "./walk/walker";
 
 /**
  * The shared travel frame: parks the real pet window once for a seam crossing (the
