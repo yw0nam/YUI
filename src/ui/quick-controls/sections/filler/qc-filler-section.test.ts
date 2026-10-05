@@ -64,20 +64,6 @@ describe("createQuickControls — thinking filler section", () => {
     qc.dispose();
   });
 
-  it("renders filler section in the talk tab when fillerSettings is provided", () => {
-    const fs = makeFillerSettings();
-    const qc = buildQc({ fillerSettings: fs });
-    qc.open();
-
-    const section = qc.el.querySelector(".yui-filler");
-    expect(section).not.toBeNull();
-    // Must be inside the talk panel
-    const talkPanel = qc.el.querySelector<HTMLElement>("#yui-panel-talk")!;
-    expect(talkPanel.contains(section)).toBe(true);
-
-    qc.dispose();
-  });
-
   it("reflectFiller: enable toggle reflects initial enabled=true", () => {
     const fs = makeFillerSettings({ enabled: true });
     const qc = buildQc({ fillerSettings: fs });

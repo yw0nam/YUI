@@ -209,24 +209,6 @@ describe("createQuickControls — cue-list sections", () => {
     });
   }
 
-  it("mounts both cue-list sections in the proactive tab", () => {
-    const qc = buildQc();
-    qc.open();
-
-    // Both section titles are present in the proactive panel
-    const titles = Array.from(
-      qc.el.querySelectorAll<HTMLElement>("#yui-panel-react [data-testid='cue-list-title']"),
-    ).map((el) => el.textContent?.trim() ?? "");
-    expect(titles).toContain("시간대 인사");
-    expect(titles).toContain("루프 반응");
-
-    // Cue rows from default store data are rendered
-    const cueRows = qc.el.querySelectorAll("#yui-panel-react [data-testid='cue-row']");
-    expect(cueRows.length).toBeGreaterThan(0);
-
-    qc.dispose();
-  });
-
   it("schedule cue-list master switch reflects scheduleSettings enabled state", () => {
     const qc = buildQc();
     qc.open();

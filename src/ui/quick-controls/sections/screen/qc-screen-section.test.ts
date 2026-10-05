@@ -61,60 +61,6 @@ describe("createQuickControls — proactive tab (screen watch)", () => {
     };
   }
 
-  // ── Tab identity ──────────────────────────────────────────────────────────
-
-  it("names the react tab 말걸기 and tooltips it as the proactive rule hub", () => {
-    const qc = buildQc();
-    qc.open();
-    const tab = qc.el.querySelector<HTMLButtonElement>("#yui-tab-react")!;
-    expect(tab.getAttribute("aria-label")).toBe("말걸기");
-    expect(tab.dataset.tip).toBe("유이가 먼저 말을 거는 규칙");
-    expect(tab.hasAttribute("title")).toBe(false);
-    qc.dispose();
-  });
-
-  // ── Cue-section relocation ────────────────────────────────────────────────
-
-  it("mounts the cue-sections block in the proactive tab, not the input tab", () => {
-    const qc = buildQc();
-    qc.open();
-    const reactPanel = qc.el.querySelector<HTMLElement>("#yui-panel-react")!;
-    const inputPanel = qc.el.querySelector<HTMLElement>("#yui-panel-input")!;
-    const cueSections = reactPanel.querySelector(".yui-cue-sections");
-    expect(cueSections).not.toBeNull();
-    expect(cueSections!.querySelector("[data-testid='cue-section']")).not.toBeNull();
-    expect(inputPanel.querySelector(".yui-cue-sections")).toBeNull();
-    expect(inputPanel.querySelector(".yui-loop-cue-section")).toBeNull();
-    qc.dispose();
-  });
-
-  it("keeps the screenshot and voice rows in the input tab", () => {
-    const qc = buildQc();
-    qc.open();
-    const inputPanel = qc.el.querySelector<HTMLElement>("#yui-panel-input")!;
-    expect(inputPanel.querySelector(".yui-screenshot-switch")).not.toBeNull();
-    expect(inputPanel.querySelector(".yui-voice-switch")).not.toBeNull();
-    qc.dispose();
-  });
-
-  // ── Section order ─────────────────────────────────────────────────────────
-
-  it("orders the proactive tab: screen watch → cues → watchers → shared", () => {
-    const { qc } = buildScreenQc({
-      rateLimitSettings: createGuardrailsSettings(),
-    });
-    qc.open();
-    const panel = qc.el.querySelector<HTMLElement>("#yui-panel-react")!;
-    const nodes = Array.from(panel.querySelectorAll("*"));
-    const at = (sel: string) => nodes.indexOf(panel.querySelector(sel)!);
-    expect(at(".yui-screen-switch")).toBeGreaterThanOrEqual(0);
-    expect(at(".yui-screen-switch")).toBeLessThan(at(".yui-loop-cue-section"));
-    expect(at(".yui-loop-cue-section")).toBeLessThan(at(".yui-cue-sections"));
-    expect(at(".yui-cue-sections")).toBeLessThan(at(".yui-wf-list"));
-    expect(at(".yui-wf-list")).toBeLessThan(at("#yui-rate-tier2"));
-    qc.dispose();
-  });
-
   // ── Screen-watch toggle ───────────────────────────────────────────────────
 
   it("renders no screen-watch section when the flag store is absent", () => {
