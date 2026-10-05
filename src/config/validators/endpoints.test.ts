@@ -120,6 +120,12 @@ describe("validateEndpoints — base urls", () => {
     );
   });
 
+  it("rejects a chat_base_url the URL parser cannot read", () => {
+    for (const v of ["http://", "http://a b/v1", "http://[x/v1", "https://:9/v1"]) {
+      expectIssue(baseRaw({ chat_base_url: v }), "chat_base_url must be an http(s) URL");
+    }
+  });
+
   it("accepts a missing stt_base_url as unset", () => {
     expect(validateEndpoints(FILE, baseRaw({ stt_base_url: undefined })).stt_base_url).toBe("");
   });

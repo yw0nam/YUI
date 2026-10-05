@@ -14,11 +14,16 @@ export function validateEndpoints(file: string, raw: unknown): EndpointsConfig {
   }
   const httpUrl = (k: string): string => {
     const v = raw[k];
-    if (typeof v !== "string" || !/^https?:\/\//.test(v)) {
-      issues.push(`${k} must be an http(s) URL (got: ${JSON.stringify(v)})`);
-      return "";
+    if (typeof v === "string" && /^https?:\/\//.test(v)) {
+      try {
+        new URL(v);
+        return v;
+      } catch {
+        // 파서가 못 읽는 URL은 요청 시점에 터지므로 설정 시점에 거른다.
+      }
     }
-    return v;
+    issues.push(`${k} must be an http(s) URL (got: ${JSON.stringify(v)})`);
+    return "";
   };
   // 서비스 URL은 선택 — 미설정이면 해당 기능 off. 값이 있으면 http(s)여야 함.
   const optHttpUrl = (k: string): string => (unset(raw[k]) ? "" : httpUrl(k));
