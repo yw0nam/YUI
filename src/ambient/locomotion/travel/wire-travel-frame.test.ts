@@ -18,7 +18,7 @@ const { createTravelFrame, fakeTravel } = vi.hoisted(() => {
     createTravelFrame: vi.fn((_deps: Record<string, unknown>) => fakeTravel),
   };
 });
-vi.mock("../../io/window/geometry/travel-frame", () => ({ createTravelFrame }));
+vi.mock("../../../io/window/geometry/travel-frame", () => ({ createTravelFrame }));
 vi.mock("@tauri-apps/api/core", () => ({ invoke: vi.fn(async () => {}) }));
 vi.mock("@tauri-apps/api/window", () => ({
   availableMonitors: vi.fn(async () => []),
@@ -32,7 +32,7 @@ vi.mock("@tauri-apps/api/window", () => ({
 vi.mock("@tauri-apps/api/dpi", () => ({ LogicalPosition: class {} }));
 
 import { invoke } from "@tauri-apps/api/core";
-import { wireTravelFrame } from "./wire";
+import { wireTravelFrame } from "./wire-travel-frame";
 
 const noopLog = { info: () => {}, warn: () => {}, error: () => {}, debug: () => {} } as never;
 

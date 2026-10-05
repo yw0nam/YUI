@@ -16,12 +16,24 @@ const mocks = vi.hoisted(() => ({
   wireWindowSources: vi.fn(),
 }));
 
-vi.mock("../../ambient/locomotion/wire", () => ({
+vi.mock("../../ambient/locomotion/travel/wire-travel-frame", () => ({
   wireTravelFrame: mocks.wireTravelFrame,
+}));
+
+vi.mock("../../ambient/locomotion/walk/wire-walk", () => ({
   wireWalker: mocks.wireWalker,
   wireStrollReflexCancel: mocks.wireStrollReflexCancel,
+}));
+
+vi.mock("../../ambient/locomotion/fall/wire-fall", () => ({
   wireFaller: mocks.wireFaller,
+}));
+
+vi.mock("../../ambient/locomotion/perch/wire-perch", () => ({
   wirePercher: mocks.wirePercher,
+}));
+
+vi.mock("../../ambient/locomotion/climb/wire-climb", () => ({
   wireClimber: mocks.wireClimber,
 }));
 

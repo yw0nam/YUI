@@ -1,26 +1,28 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import type { WindowRect } from "../../contract";
+import type { WindowRect } from "../../../contract";
 
 // wireFaller only builds the loop under Tauri, so capture the deps it hands createFaller
 // and drive the landing callback directly.
-const { createFaller, fallerDrop } = vi.hoisted(() => {
+const { createFaller, fallerDrop, fallerStop } = vi.hoisted(() => {
   const fallerDrop = vi.fn(async () => {});
+  const fallerStop = vi.fn();
   return {
     fallerDrop,
+    fallerStop,
     createFaller: vi.fn((_deps: Record<string, (arg: never) => void>) => ({
       drop: fallerDrop,
       cancel: () => {},
-      stop: () => {},
+      stop: fallerStop,
     })),
   };
 });
-vi.mock("./fall/faller", () => ({ createFaller }));
+vi.mock("./faller", () => ({ createFaller }));
 vi.mock("@tauri-apps/api/core", () => ({ invoke: vi.fn(async () => []) }));
 vi.mock("@tauri-apps/api/window", () => ({
   availableMonitors: vi.fn(async () => []),
 }));
 
-import { wireFaller } from "./wire";
+import { wireFaller } from "./wire-fall";
 
 const noopLog = { info: () => {}, warn: () => {}, error: () => {}, debug: () => {} } as never;
 
@@ -39,6 +41,7 @@ async function wire(opts: { isEnabled?: () => boolean; ready?: Promise<void> } =
   vi.stubGlobal("__TAURI_INTERNALS__", {});
   createFaller.mockClear();
   fallerDrop.mockClear();
+  fallerStop.mockClear();
   const pushed: Array<{ event_name: string; payload?: Record<string, unknown> }> = [];
   const onWindowLand = vi.fn();
   const handle = wireFaller({
@@ -90,6 +93,8 @@ describe("wireFaller — fall toggle", () => {
     enabled = true;
     handle.drop();
     expect(fallerDrop).toHaveBeenCalledTimes(2);
+    handle.dispose();
+    expect(fallerStop).toHaveBeenCalledTimes(1);
   });
 
   it("places the character after the loop is built even when falling is disabled", async () => {

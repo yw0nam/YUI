@@ -237,17 +237,22 @@ YUI/
       locomotion/                    # Movement loops: stroll, perch, climb, jump, fall, and sit transitions
         walk/                        # Floor stroll
           walker.ts                  # Floor stroll along the monitor's work-area bottom
+          wire-walk.ts               # Walker start and teardown, and the reflex-turn stroll cancel
         perch/                       # Window-top perch and jump
           percher.ts                 # Perched dwell, stroll, and sit-back-down on a foreign window top
           jumper.ts                  # Jump across to an adjacent window top
+          wire-perch.ts              # Percher and jumper start and teardown
         climb/                       # Window and screen-edge climb
           climber.ts                 # Climb up a window or screen edge, dwell, and climb back down
           climb-geometry.ts          # Pure wall geometry and the climb and descent target picks
+          wire-climb.ts              # Climber start, enable latch, and teardown
         fall/                        # Fall to the surface below
           faller.ts                  # Fall to the first surface below a character left in mid-air
+          wire-fall.ts               # Faller start, the fall switch, and landing events
+        travel/                      # Travel frame shared by the stroll, fall, and climb
+          wire-travel-frame.ts       # Real-window travel frame wiring
         sitter.ts                    # Sit-down and stand-up seat transitions
         clip-leg.ts                  # A window leg paced by an in-place clip
-        wire.ts                      # Travel frame plus the walk, perch, fall, and climb ambient loops
     settings/                        # Persisted user settings, one store per setting, grouped by the part of the app they configure
       persisted-store.ts             # Shared bootstrap, notify, reload, and localStorage core for the settings stores
       settings-stores.ts             # Constructs and synchronises the persisted user-setting stores

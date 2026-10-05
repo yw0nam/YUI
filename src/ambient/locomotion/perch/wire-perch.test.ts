@@ -2,14 +2,16 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 // wirePercher only builds the loop under Tauri, so capture the deps it hands createPercher
 // and createJumper, and drive the cue callbacks directly.
-const { createPercher, createJumper, landOn } = vi.hoisted(() => {
+const { createPercher, createJumper, landOn, percherStop } = vi.hoisted(() => {
   const landOn = vi.fn();
+  const percherStop = vi.fn();
   return {
     landOn,
+    percherStop,
     createPercher: vi.fn((_deps: Record<string, () => void>) => ({
       start: () => {},
       cancel: () => {},
-      stop: () => {},
+      stop: percherStop,
       landOn,
     })),
     createJumper: vi.fn((_deps: Record<string, () => void>) => ({
@@ -18,8 +20,8 @@ const { createPercher, createJumper, landOn } = vi.hoisted(() => {
     })),
   };
 });
-vi.mock("./perch/percher", () => ({ createPercher }));
-vi.mock("./perch/jumper", () => ({ createJumper }));
+vi.mock("./percher", () => ({ createPercher }));
+vi.mock("./jumper", () => ({ createJumper }));
 vi.mock("@tauri-apps/api/core", () => ({ invoke: vi.fn() }));
 vi.mock("@tauri-apps/api/window", () => ({
   availableMonitors: vi.fn(async () => []),
@@ -27,7 +29,7 @@ vi.mock("@tauri-apps/api/window", () => ({
 }));
 vi.mock("@tauri-apps/api/dpi", () => ({ PhysicalPosition: class {} }));
 
-import { wirePercher } from "./wire";
+import { wirePercher } from "./wire-perch";
 
 const noopLog = { info: () => {}, warn: () => {}, error: () => {}, debug: () => {} } as never;
 
@@ -36,6 +38,7 @@ async function wire() {
   createPercher.mockClear();
   createJumper.mockClear();
   landOn.mockClear();
+  percherStop.mockClear();
   const pushed: Array<{ event_name: string }> = [];
   const setHitTestMoving = vi.fn();
   const onTargetLost = vi.fn();
@@ -75,12 +78,14 @@ describe("wirePercher", () => {
   });
 
   it("ends the walk on a cancelled stroll, the same as on an arrival", async () => {
-    const { deps, pushed, setHitTestMoving } = await wire();
+    const { handle, deps, pushed, setHitTestMoving } = await wire();
 
     deps.onWalkCancel();
 
     expect(pushed.map((env) => env.event_name)).toEqual(["avatar.walk_end"]);
     expect(setHitTestMoving).toHaveBeenCalledWith(false);
+    handle.dispose();
+    expect(percherStop).toHaveBeenCalledTimes(1);
   });
 
   it("drops the character when a jump loses the window it was aiming at", async () => {

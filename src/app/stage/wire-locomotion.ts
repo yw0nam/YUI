@@ -1,13 +1,10 @@
 /** Composes the travel frame, the five locomotion loops and the window sources into one handle. */
+import { wireClimber } from "../../ambient/locomotion/climb/wire-climb";
+import { wireFaller } from "../../ambient/locomotion/fall/wire-fall";
+import { wirePercher } from "../../ambient/locomotion/perch/wire-perch";
 import { createSitter, type Sitter } from "../../ambient/locomotion/sitter";
-import {
-  wireClimber,
-  wireFaller,
-  wirePercher,
-  wireStrollReflexCancel,
-  wireTravelFrame,
-  wireWalker,
-} from "../../ambient/locomotion/wire";
+import { wireTravelFrame } from "../../ambient/locomotion/travel/wire-travel-frame";
+import { wireStrollReflexCancel, wireWalker } from "../../ambient/locomotion/walk/wire-walk";
 import type { AppConfig, DescendConfig, FallConfig } from "../../config/load";
 import type { WindowRect } from "../../contract";
 import type { EventBus } from "../../dispatcher/core/event-bus";

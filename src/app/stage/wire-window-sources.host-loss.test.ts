@@ -39,7 +39,7 @@ vi.mock("@tauri-apps/api/dpi", () => ({
   PhysicalPosition: class {},
 }));
 
-import { wirePercher } from "../../ambient/locomotion/wire";
+import { wirePercher } from "../../ambient/locomotion/perch/wire-perch";
 import { wireWindowSources } from "./wire-window-sources";
 
 const noopLog = { info: () => {}, warn: () => {}, error: () => {}, debug: () => {} } as never;
