@@ -342,6 +342,7 @@ export function createBackendCaller(deps: BackendCallerDeps): BackendCaller {
       const { envelope, newResponseId, streamedAny, cueStreamed } = attempted;
 
       const spokeText = replySettler.settle({
+        turnId: turn.id,
         envelope,
         streamedAny,
         cueStreamed,

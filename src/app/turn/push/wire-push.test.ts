@@ -5,8 +5,9 @@
 import { afterEach, beforeEach, describe, expect, it, type Mock, vi } from "vitest";
 import type { ToolStatus } from "../../../contract";
 import { PRE_SPEECH_TIMEOUT_MS } from "../../../dispatcher/backend/idle-watchdog";
-import { makeTurnOutput } from "../../../dispatcher/test-helpers";
+import { makeTurnOutput, userEnv } from "../../../dispatcher/test-helpers";
 import { createPushTurns } from "../../../dispatcher/turn/push-turn";
+import { createTurnLog, type TurnLog } from "../../../dispatcher/turn/turn";
 import { createTurnFeed, type TurnFeed } from "../../../dispatcher/turn/turn-feed";
 import { createDelegationsStore } from "../../../io/bridge/delegations/delegations-store";
 import { createReasoningStore } from "../../../io/bridge/reasoning/reasoning-store";
@@ -144,6 +145,7 @@ let transcript: ChatHistoryEntry[];
 let log: ReturnType<typeof fakeLog>;
 let toolStatusSink: Mock<(status: ToolStatus) => void>;
 let turnFeed: TurnFeed;
+let turnLog: TurnLog;
 
 function wire(feed: TurnFeed = turnFeed) {
   return wirePushTransport({
@@ -155,6 +157,7 @@ function wire(feed: TurnFeed = turnFeed) {
     turnFeed: feed,
     appendTurnRecord: (record) => records.push(record),
     appendTranscript: (entry) => transcript.push(entry),
+    reportSpokeText: (turnId, spoke) => turnLog.setSpokeText(turnId, spoke),
     log,
   });
 }
@@ -171,6 +174,7 @@ beforeEach(() => {
   log = fakeLog();
   toolStatusSink = vi.fn();
   turnFeed = createTurnFeed({ onToolStatus: toolStatusSink, reasoning });
+  turnLog = createTurnLog();
 });
 
 describe("wirePushTransport", () => {
@@ -182,6 +186,14 @@ describe("wirePushTransport", () => {
     // The trailing newline is the segment boundary render-turn closes each segment with.
     expect(turnOutput.delta).toHaveBeenCalledWith("All green.\n");
     expect(records).toHaveLength(1);
+  });
+
+  it("marks the turn the render belongs to as having spoken text", () => {
+    const turn = turnLog.begin(userEnv());
+    wire();
+    socket.pushRender({ ...RENDER, turn_id: String(turn.id) });
+
+    expect(turnLog.didSpeakText()).toBe(true);
   });
 
   it("puts a spoken reply in the transcript it was given", () => {

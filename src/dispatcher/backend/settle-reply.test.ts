@@ -27,7 +27,7 @@ describe("createReplySettler", () => {
     const deps: SettleDeps = {
       renderer: { applyDirective: () => calls.push("render") },
       turnOutput: makeOutput(calls),
-      reportSpokeText: (spoke) => calls.push(`report:${spoke}`),
+      reportSpokeText: (_turnId, spoke) => calls.push(`report:${spoke}`),
     };
     const envelope: ControlEnvelope = {
       emotion: { id: "happy" },
@@ -35,6 +35,7 @@ describe("createReplySettler", () => {
       speech_text: "hello",
     };
     const spoke = createReplySettler(deps, makeLog()).settle({
+      turnId: 1,
       envelope,
       streamedAny: false,
       cueStreamed: false,
@@ -58,9 +59,15 @@ describe("createReplySettler", () => {
         },
       },
       turnOutput: makeOutput(calls),
-      reportSpokeText: (spoke) => calls.push(`report:${spoke}`),
+      reportSpokeText: (_turnId, spoke) => calls.push(`report:${spoke}`),
     };
-    const args = { envelope, streamedAny: false, cueStreamed: false, getEventName: () => "e" };
+    const args = {
+      turnId: 1,
+      envelope,
+      streamedAny: false,
+      cueStreamed: false,
+      getEventName: () => "e",
+    };
     expect(createReplySettler(deps, log).settle(args)).toBe(true);
     expect(log.error).toHaveBeenCalledWith("dispatch_to_renderer.error", {
       error: "Error: boom",
@@ -76,7 +83,7 @@ describe("createReplySettler", () => {
           throw new Error("speak failed");
         },
       }),
-      reportSpokeText: (spoke) => calls.push(`late:${spoke}`),
+      reportSpokeText: (_turnId, spoke) => calls.push(`late:${spoke}`),
     };
     expect(() => createReplySettler(failing, makeLog()).settle(args)).toThrow("speak failed");
     expect(calls).not.toContain("late:true");
@@ -90,12 +97,12 @@ describe("createReplySettler", () => {
       renderer: {
         applyDirective: () => {
           deps.turnOutput = makeOutput(second);
-          deps.reportSpokeText = (spoke) => second.push(`report:${spoke}`);
+          deps.reportSpokeText = (_turnId, spoke) => second.push(`report:${spoke}`);
           eventName = "after";
         },
       },
       turnOutput: makeOutput(first),
-      reportSpokeText: (spoke) => first.push(`report:${spoke}`),
+      reportSpokeText: (_turnId, spoke) => first.push(`report:${spoke}`),
     };
     const log = makeLog();
     const envelope: ControlEnvelope = {
@@ -104,6 +111,7 @@ describe("createReplySettler", () => {
       speech_text: "",
     };
     createReplySettler(deps, log).settle({
+      turnId: 1,
       envelope,
       streamedAny: false,
       cueStreamed: false,

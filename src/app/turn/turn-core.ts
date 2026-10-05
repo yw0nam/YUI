@@ -222,6 +222,7 @@ export async function wireTurnCore(
             turnFeed,
             appendTurnRecord: (record) => appendRecord(record),
             appendTranscript: (entry) => chatHistoryStore.append(entry),
+            reportSpokeText: (turnId, spoke) => turnLog.setSpokeText(turnId, spoke),
             log,
           }),
         );

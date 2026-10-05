@@ -37,7 +37,7 @@ let applyDirective: ReturnType<typeof vi.fn>;
 let turnOutput: ReturnType<typeof makeTurnOutput>;
 let toolStatusSink: Mock<(status: ToolStatus) => void>;
 let usageSink: Mock<(usage: Usage) => void>;
-let spokeTextSink: Mock<(spoke: boolean) => void>;
+let spokeTextSink: Mock<(turnId: number, spoke: boolean) => void>;
 let reasoning: Record<"append" | "finish" | "interrupt", Mock>;
 let caller: BackendCaller;
 let logger: Logger;
@@ -94,19 +94,19 @@ describe("backend_caller — B4 speech gate (speech_text only)", () => {
   it("reports spoke text true for non-empty speech_text on the completed-only path", async () => {
     script.events = [completedEvent({ speech_text: "응 듣고 있어" })];
     await caller.call(turnOf(userEnv()));
-    expect(spokeTextSink).toHaveBeenCalledWith(true);
+    expect(spokeTextSink).toHaveBeenCalledWith(1, true);
   });
 
   it("reports spoke text true for a streamed reply", async () => {
     script.events = [deltaEvent("안녕"), completedEvent({ speech_text: "안녕" })];
     await caller.call(turnOf(userEnv()));
-    expect(spokeTextSink).toHaveBeenCalledWith(true);
+    expect(spokeTextSink).toHaveBeenCalledWith(1, true);
   });
 
   it("reports spoke text false for empty speech_text", async () => {
     script.events = [completedEvent({ speech_text: "" })];
     await caller.call(turnOf(userEnv()));
-    expect(spokeTextSink).toHaveBeenCalledWith(false);
+    expect(spokeTextSink).toHaveBeenCalledWith(1, false);
   });
 });
 
@@ -119,7 +119,7 @@ describe("backend_caller — [SILENT] token silence", () => {
     expect(turnOutput.delta).not.toHaveBeenCalled();
     expect(turnOutput.speak).not.toHaveBeenCalled();
     expect(turnOutput.end).not.toHaveBeenCalled();
-    expect(spokeTextSink).toHaveBeenCalledWith(false);
+    expect(spokeTextSink).toHaveBeenCalledWith(1, false);
     // silent turn still renders emotion/motion on the completed path (firing≠judgment).
     expect(applyDirective).toHaveBeenCalledWith(env);
   });
@@ -129,7 +129,7 @@ describe("backend_caller — [SILENT] token silence", () => {
     const res = await caller.call(turnOf(userEnv()));
     expect(res).toBe("ok");
     expect(turnOutput.speak).not.toHaveBeenCalled();
-    expect(spokeTextSink).toHaveBeenCalledWith(false);
+    expect(spokeTextSink).toHaveBeenCalledWith(1, false);
   });
 
   it("token turning into a reply streams the held text as one delta, spokeText true", async () => {
@@ -140,7 +140,7 @@ describe("backend_caller — [SILENT] token silence", () => {
     ];
     await caller.call(turnOf(userEnv()));
     expect(turnOutput.delta.mock.calls.map((c) => c[0])).toEqual(["[SILENT] is what I would say"]);
-    expect(spokeTextSink).toHaveBeenCalledWith(true);
+    expect(spokeTextSink).toHaveBeenCalledWith(1, true);
   });
 
   it("whitespace-only streamed reply → no delta, no speak, no end, spokeText false", async () => {
@@ -150,7 +150,7 @@ describe("backend_caller — [SILENT] token silence", () => {
     expect(turnOutput.delta).not.toHaveBeenCalled();
     expect(turnOutput.speak).not.toHaveBeenCalled();
     expect(turnOutput.end).not.toHaveBeenCalled();
-    expect(spokeTextSink).toHaveBeenCalledWith(false);
+    expect(spokeTextSink).toHaveBeenCalledWith(1, false);
   });
 
   it("streamed [SILENT] with an express cue → completed-path applyDirective, no delta, no end", async () => {
@@ -172,7 +172,7 @@ describe("backend_caller — [SILENT] token silence", () => {
     await caller.call(turnOf(userEnv()));
     expect(turnOutput.delta.mock.calls.map((c) => c[0])).toEqual(["[SIL"]);
     expect(turnOutput.end).toHaveBeenCalledTimes(1);
-    expect(spokeTextSink).toHaveBeenCalledWith(true);
+    expect(spokeTextSink).toHaveBeenCalledWith(1, true);
   });
 });
 

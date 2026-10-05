@@ -19,8 +19,9 @@ export interface TurnLog {
   settle(id: number): void;
   /** speech-playback reports whether audio is still owed. Always describes the current turn. */
   setAudioOwed(owed: boolean): void;
-  /** backend-caller reports the speech gate: the backend returned non-empty speech text. Reset by begin(). */
-  setSpokeText(spoke: boolean): void;
+  /** The reply settler or render-turn reports the speech gate: the backend returned non-empty speech text.
+   * Ignored when `id` is not the current turn. Reset by begin(). */
+  setSpokeText(id: number, spoke: boolean): void;
   /** The most recent turn, settled or not. Null only before the first `begin`. */
   current(): Turn | null;
   /** Audio was owed at some point during the current turn. Reset by begin(). */
@@ -81,7 +82,8 @@ export function createTurnLog(): TurnLog {
       if (owed) owedAudioEver = true;
       notifyIfFlipped(wasOver);
     },
-    setSpokeText(spoke) {
+    setSpokeText(id, spoke) {
+      if (current?.id !== id) return;
       spokeText = spoke;
     },
     current() {

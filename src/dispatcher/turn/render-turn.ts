@@ -43,6 +43,8 @@ export interface RenderTurnDeps {
   /** Conversation transcript — the reply half of a push turn lands here. */
   appendTranscript?: (entry: ChatHistoryEntry) => void;
   appendTurnRecord?: (record: RenderRecord) => void;
+  /** Speech-gate sink — a frame of the turn spoke text, independent of TTS. */
+  reportSpokeText?: (turnId: string, spoke: boolean) => void;
   logger?: Logger;
 }
 
@@ -136,6 +138,8 @@ export function createRenderTurn(deps: RenderTurnDeps): RenderTurn {
         applyCue();
       }
     }
+    // Only a frame that spoke reports: a later silent frame of the same turn leaves it standing.
+    if (spokeText) deps.reportSpokeText?.(turnId, true);
     return { spokeText, said, queuedBehind };
   }
 

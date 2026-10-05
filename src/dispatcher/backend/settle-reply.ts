@@ -6,12 +6,16 @@ import type { Renderer } from "../../renderer";
 import type { PushCallDeps } from "./push-call";
 
 /** The subset of `createBackendCaller`'s deps that settling a reply reads. */
-export interface SettleDeps extends Pick<PushCallDeps, "turnOutput" | "reportSpokeText"> {
+export interface SettleDeps extends Pick<PushCallDeps, "turnOutput"> {
+  /** B4 speech-gate outcome sink — whether the turn returned speech text, independent of TTS. */
+  reportSpokeText?: (turnId: number, spoke: boolean) => void;
   /** render directive sink (applyDirective). */
   renderer: Pick<Renderer, "applyDirective">;
 }
 
 export interface SettleArgs {
+  /** The turn the reply belongs to. */
+  turnId: number;
   envelope: ControlEnvelope;
   /** Post-flush value. */
   streamedAny: boolean;
@@ -82,7 +86,7 @@ export function createReplySettler(deps: SettleDeps, log: Logger): ReplySettler 
       log.info("empty_speech", { trigger: args.getEventName() });
     }
     const spokeText = streamedAny || (Boolean(envelope.speech_text?.trim()) && !silentToken);
-    deps.reportSpokeText?.(spokeText);
+    deps.reportSpokeText?.(args.turnId, spokeText);
     return spokeText;
   }
 

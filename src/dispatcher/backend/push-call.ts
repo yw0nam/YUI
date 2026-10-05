@@ -14,8 +14,6 @@ import { recordSentTurn, type TurnRecordingDeps } from "./turn-recording";
 
 /** The subset of `createBackendCaller`'s deps the push path reads. */
 export interface PushCallDeps extends TurnRecordingDeps {
-  /** B4 speech-gate outcome sink — whether the turn returned speech text, independent of TTS. */
-  reportSpokeText?: (spoke: boolean) => void;
   /** Push transport sender — present in push mode; false means the socket was not ready. */
   pushTurn?: (frame: PushTurnFrame) => boolean;
   /** The socket accepted this turn's frame. */
@@ -162,7 +160,6 @@ export function createPushCall(deps: PushCallDeps, log: Logger): PushCall {
     deps.onPushTurnSent?.(String(turn.id));
     // The reply speaks from its own render frame, so this call never speaks.
     log.info("push_turn", { event_name: env.event_name, turn_id: String(turn.id) });
-    deps.reportSpokeText?.(false);
     // The reply arrives on its own later and is appended there; this half is the user's.
     recordSentTurn(deps, log, {
       eventName: env.event_name,

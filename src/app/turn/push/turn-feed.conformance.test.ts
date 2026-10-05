@@ -101,6 +101,7 @@ function runPush(): Run {
     turnFeed: createTurnFeed({ onToolStatus: (s) => tool.push(s), reasoning: store }),
     appendTurnRecord: () => {},
     appendTranscript: () => {},
+    reportSpokeText: () => {},
     log: makeLogger(),
   });
   onToolStatus!({

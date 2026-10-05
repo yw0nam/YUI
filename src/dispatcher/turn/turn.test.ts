@@ -163,8 +163,8 @@ describe("turn — didSpeakText (speech-gate record)", () => {
 
   it("records the speech gate independently of audio", () => {
     const log = createTurnLog();
-    log.begin(userEnv());
-    log.setSpokeText(true);
+    const turn = log.begin(userEnv());
+    log.setSpokeText(turn.id, true);
     expect(log.didSpeakText()).toBe(true);
     expect(log.didOweAudio()).toBe(false);
   });
@@ -172,9 +172,18 @@ describe("turn — didSpeakText (speech-gate record)", () => {
   it("is reset to false by the next begin()", () => {
     const log = createTurnLog();
     const first = log.begin(userEnv());
-    log.setSpokeText(true);
+    log.setSpokeText(first.id, true);
     log.settle(first.id);
     log.begin(userEnv());
+    expect(log.didSpeakText()).toBe(false);
+  });
+
+  it("ignores a late report from a finished turn once the next one began", () => {
+    const log = createTurnLog();
+    const first = log.begin(userEnv());
+    log.settle(first.id);
+    log.begin(userEnv());
+    log.setSpokeText(first.id, true);
     expect(log.didSpeakText()).toBe(false);
   });
 });

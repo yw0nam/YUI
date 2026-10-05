@@ -488,7 +488,7 @@ describe("dispatcher — structured logging: turn events", () => {
     bus.push(env());
     await vi.advanceTimersByTimeAsync(20);
     // The speech gate passed, but no audio was ever owed (TTS off).
-    turnLog.setSpokeText(true);
+    turnLog.setSpokeText(turnLog.current()!.id, true);
     callDeferred[0].resolve("ok");
     await vi.advanceTimersByTimeAsync(20);
 
@@ -502,7 +502,7 @@ describe("dispatcher — structured logging: turn events", () => {
     dispatcher.start();
     bus.push(env());
     await vi.advanceTimersByTimeAsync(20);
-    turnLog.setSpokeText(false);
+    turnLog.setSpokeText(turnLog.current()!.id, false);
     callDeferred[0].resolve("ok");
     await vi.advanceTimersByTimeAsync(20);
 

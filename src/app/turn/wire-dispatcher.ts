@@ -152,7 +152,7 @@ export function wireDispatcher(deps: {
       );
     },
     turnOutput: voice.turnOutput,
-    reportSpokeText: (spoke) => turnLog.setSpokeText(spoke),
+    reportSpokeText: (turnId, spoke) => turnLog.setSpokeText(turnId, spoke),
     turnFeed,
     getScreenshot: async () => {
       const screenshot = screenshotSettings.get();

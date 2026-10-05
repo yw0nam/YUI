@@ -144,6 +144,7 @@ function runPush(frame: RenderFrame): Entry[] {
     turnFeed: createTurnFeed({ onToolStatus: () => {}, reasoning: createReasoningStore() }),
     appendTurnRecord: () => {},
     appendTranscript: () => {},
+    reportSpokeText: () => {},
     log: makeLogger(),
   });
   onRender!(frame);

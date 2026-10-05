@@ -147,7 +147,7 @@ function callerWith(accepted: boolean, config: EndpointsConfig = PUSH_CONFIG) {
     },
     onPushSocketNotReady: (cb) => socket.subscribe(cb),
     turnFeed: createTurnFeed({ onToolStatus: () => {}, reasoning }),
-    reportSpokeText: (v) => spoke.push(v),
+    reportSpokeText: (_turnId, v) => spoke.push(v),
     contextHistory: { append: (entry) => contexts.push(entry) },
     appendTurnRecord: (record) => records.push(record),
     logger,
@@ -179,7 +179,7 @@ describe("backend_caller — push transport", () => {
     expect(turnOutput.speak).not.toHaveBeenCalled();
     expect(turnOutput.delta).not.toHaveBeenCalled();
     expect(turnOutput.abort).not.toHaveBeenCalled();
-    expect(spoke).toEqual([false]);
+    expect(spoke).toEqual([]);
   });
 
   it("a turn the user typed stops the speech and the outstanding turns, before the context is built", async () => {
@@ -466,7 +466,7 @@ describe("backend_caller — push transport, the turn stays open", () => {
 
     expect(turn.settled()).toBeNull();
     expect(sentIds).toEqual(["7"]);
-    expect(spoke).toEqual([false]);
+    expect(spoke).toEqual([]);
     expect(transcript).toEqual([{ role: "user", text: "안녕", ts: expect.any(Number) }]);
     expect(contexts).toHaveLength(1);
     expect(records).toHaveLength(1);
