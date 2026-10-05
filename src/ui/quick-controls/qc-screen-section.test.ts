@@ -6,7 +6,7 @@ import { createFlagSettings } from "../../settings/persisted-store";
 import { setLocale } from "../i18n";
 import ko from "../i18n/ko";
 import { createQuickControls } from "./quick-controls";
-import { defaultQcArgs } from "./test-helpers";
+import { countSubscriptions, defaultQcArgs } from "./test-helpers";
 
 const SCREEN_DEFAULTS = {
   prev_dwell_ms: 600_000,
@@ -188,6 +188,14 @@ describe("createQuickControls — proactive tab (screen watch)", () => {
     qc.dispose();
   });
 
+  it("reflects an external knob edit while open", () => {
+    const { screenKnobSettings, qc } = buildScreenQc();
+    qc.open();
+    screenKnobSettings.set({ settle_ms: 30_000 });
+    expect(qc.el.querySelector<HTMLInputElement>("#yui-screen-settle")!.value).toBe("30");
+    qc.dispose();
+  });
+
   it("shows recent_cap as a bare count and commits it unconverted", () => {
     const { screenKnobSettings, qc } = buildScreenQc();
     qc.open();
@@ -364,5 +372,19 @@ describe("createQuickControls — proactive tab (screen watch)", () => {
     slider.dispatchEvent(new Event("change", { bubbles: true }));
     expect(screenKnobSettings.get().settle_ms).toBe(0);
     expect(screenKnobSettings.get().min_gap_ms).toBe(0);
+  });
+
+  it("releases every flag and knob subscription on dispose", () => {
+    const screenSettings = createFlagSettings(false);
+    const screenKnobSettings = createScreenKnobSettings();
+    const counts = [screenSettings, screenKnobSettings].map(countSubscriptions);
+    const { qc } = buildScreenQc({ screenSettings, screenKnobSettings });
+
+    qc.dispose();
+
+    for (const { taken, released } of counts) {
+      expect(taken).toBeGreaterThan(0);
+      expect(released).toBe(taken);
+    }
   });
 });

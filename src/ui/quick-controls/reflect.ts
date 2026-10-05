@@ -2,24 +2,14 @@
  * Reflect (store→DOM synchronization) layer — reflects all store state onto the panel DOM.
  * Each reflect function reads one section's store and renders it to the corresponding DOM node (switches, sliders, segs, inputs, session readout).
  * DOM nodes are queried directly from deps.root (entry handlers querying the same node yields the same node, so no harm).
- * The Connection tab reflects its own endpoints; this layer covers the rest of the panel.
+ * The Connection tab and the screen, reactions and filler sections reflect their own nodes; this layer covers the rest of the panel.
  */
 
 import type { createSessionDiagnosticsStore } from "../../io/chat/conversation/session-diagnostics";
 import type { DelegationItem } from "../../io/chat/push/push-frames";
 import type { PushSocketState } from "../../io/chat/push/push-socket";
-import type { createAgentNotifySettings } from "../../settings/backend/agent-notify-settings";
 import { type createAgentSettings, REASONING_EFFORTS } from "../../settings/backend/agent-settings";
-import type {
-  GuardrailsSettingsStore,
-  RateLimitOverrides,
-} from "../../settings/backend/guardrails-settings";
-import type {
-  ScreenKnobSettingsStore,
-  ScreenOverrides,
-} from "../../settings/capture/screen-settings";
 import type { createScreenshotSettings } from "../../settings/capture/screenshot-settings";
-import type { ClampedIntSettingsStore } from "../../settings/persisted-store";
 import {
   type createVadSettings,
   VAD_SILENCE_MAX,
@@ -28,15 +18,7 @@ import {
 import { renderDelegationRows } from "../chips/delegation-rows";
 import type { VoiceInputStatusSnapshot } from "../chips/voice-input-status";
 import { getLocale, t } from "../i18n";
-import { reflectUnlessEditing } from "../surfaces/reflect-unless-editing";
-import {
-  LANG_PICKER_ORDER,
-  RATE_LIMIT_FIELDS,
-  SCREEN_KNOB_FIELDS,
-  SCREEN_MIN_GAP_MAX,
-  SCREEN_MIN_GAP_MIN,
-  type ScreenKnobFieldDef,
-} from "./constants";
+import { LANG_PICKER_ORDER } from "./constants";
 import type { SwitchRow } from "./switch-row";
 import { reflectSwitchRows } from "./switches/switch-rows";
 
@@ -54,7 +36,6 @@ interface ReflectDeps {
   root: HTMLElement;
   switchRows: readonly SwitchRow[];
   settings: ReturnType<typeof createScreenshotSettings>;
-  agentNotifySettings?: ReturnType<typeof createAgentNotifySettings>;
   vad: ReturnType<typeof createVadSettings>;
   agentSettings: ReturnType<typeof createAgentSettings>;
   sessionDiagnostics?: ReturnType<typeof createSessionDiagnosticsStore>;
@@ -65,26 +46,11 @@ interface ReflectDeps {
     get(): DelegationItem[];
     subscribe(cb: (items: DelegationItem[]) => void): () => void;
   };
-  presenceSettings?: ClampedIntSettingsStore;
-  pacerGapSettings?: ClampedIntSettingsStore;
-  rateLimitSettings?: GuardrailsSettingsStore;
-  /** Bundled config caps a field falls back to when it carries no override (undefined if not loaded). */
-  getRateLimitDefaults?: () => RateLimitOverrides | undefined;
-  /** Screen-watch on/off — gates the knob group's visibility. */
-  screenSettings?: { get(): { enabled: boolean } };
-  screenKnobSettings?: ScreenKnobSettingsStore;
-  /** Bundled config thresholds a knob falls back to when it carries no override (undefined if not loaded). */
-  getScreenDefaults?: () => ScreenOverrides | undefined;
 }
 
 export interface Reflect {
   reflectSettings(): void;
   reflectSwitchRows(): void;
-  reflectAgentNotify(): void;
-  reflectPresence(): void;
-  reflectPacerGap(): void;
-  reflectRateLimits(): void;
-  reflectScreen(): void;
   reflectVad(): void;
   reflectAgent(): void;
   reflectLanguage(): void;
@@ -98,19 +64,11 @@ export function createReflect(deps: ReflectDeps): Reflect {
     root,
     switchRows,
     settings,
-    agentNotifySettings,
     vad,
     agentSettings,
     sessionDiagnostics,
     getPushState,
     delegations,
-    presenceSettings,
-    pacerGapSettings,
-    rateLimitSettings,
-    getRateLimitDefaults,
-    screenSettings,
-    screenKnobSettings,
-    getScreenDefaults,
   } = deps;
 
   const switchBtn = root.querySelector<HTMLButtonElement>(".yui-screenshot-switch")!;
@@ -130,24 +88,6 @@ export function createReflect(deps: ReflectDeps): Reflect {
   const sessionDelegEl = root.querySelector<HTMLDivElement>(".yui-session__deleg");
   const sessionDelegRowsEl = root.querySelector<HTMLDivElement>(".yui-session__deleg-rows");
   const sessionDelegLostEl = root.querySelector<HTMLParagraphElement>(".yui-session__deleg-lost");
-  const screenKnobsEl = root.querySelector<HTMLDivElement>(".yui-screen-knobs");
-  const screenGapSlider = root.querySelector<HTMLInputElement>(".yui-screen-gap__slider");
-  const screenGapValue = root.querySelector<HTMLSpanElement>(".yui-screen-gap__value");
-  // Screen-watch threshold inputs — map of input nodes by field key (empty when the store is absent).
-  const screenKnobInputs = new Map<ScreenKnobFieldDef["key"], HTMLInputElement>();
-  for (const field of SCREEN_KNOB_FIELDS) {
-    const input = root.querySelector<HTMLInputElement>(`#${field.id}`);
-    if (input) screenKnobInputs.set(field.key, input);
-  }
-  // Reactions tab numeric inputs — null or empty when the row is not rendered.
-  const agentPortInput = root.querySelector<HTMLInputElement>("#yui-agent-port");
-  const presenceInput = root.querySelector<HTMLInputElement>("#yui-presence");
-  const pacerGapInput = root.querySelector<HTMLInputElement>("#yui-pacer-gap");
-  const rateLimitInputs = new Map<keyof RateLimitOverrides, HTMLInputElement>();
-  for (const field of RATE_LIMIT_FIELDS) {
-    const input = root.querySelector<HTMLInputElement>(`#${field.id}`);
-    if (input) rateLimitInputs.set(field.key, input);
-  }
 
   function reflectSettings(): void {
     const s = settings.get();
@@ -158,59 +98,6 @@ export function createReflect(deps: ReflectDeps): Reflect {
   }
 
   const reflectSwitchRowsFromDeps = (): void => reflectSwitchRows(root, switchRows);
-
-  function reflectAgentNotify(): void {
-    if (!agentNotifySettings) return;
-    if (agentPortInput) agentPortInput.value = String(agentNotifySettings.get().port);
-  }
-
-  function reflectPresence(): void {
-    if (!presenceInput || !presenceSettings) return;
-    const next = String(presenceSettings.get().value / 1000);
-    reflectUnlessEditing(presenceInput, next);
-  }
-
-  function reflectPacerGap(): void {
-    if (!pacerGapInput || !pacerGapSettings) return;
-    reflectUnlessEditing(pacerGapInput, String(pacerGapSettings.get().value / 60_000));
-  }
-
-  // Each field shows its effective cap: the override when set, the bundled config default otherwise.
-  function reflectRateLimits(): void {
-    if (!rateLimitSettings) return;
-    const overrides = rateLimitSettings.get();
-    const defaults = getRateLimitDefaults?.();
-    for (const [key, input] of rateLimitInputs) {
-      const effective = overrides[key] > 0 ? overrides[key] : (defaults?.[key] ?? 0);
-      reflectUnlessEditing(input, effective > 0 ? String(effective) : "");
-    }
-  }
-
-  // The knob group follows the master toggle; each knob shows its override when set, else the config default.
-  function reflectScreen(): void {
-    if (!screenKnobsEl || !screenSettings) return;
-    screenKnobsEl.hidden = !screenSettings.get().enabled;
-    if (!screenKnobSettings) return;
-    const overrides = screenKnobSettings.get();
-    const defaults = getScreenDefaults?.();
-    const effective = (key: keyof ScreenOverrides): number =>
-      overrides[key] > 0 ? overrides[key] : (defaults?.[key] ?? 0);
-    for (const field of SCREEN_KNOB_FIELDS) {
-      const input = screenKnobInputs.get(field.key);
-      if (!input) continue;
-      const value = effective(field.key);
-      reflectUnlessEditing(input, value > 0 ? String(Math.round(value / field.unitMs)) : "");
-    }
-    if (screenGapSlider && screenGapValue) {
-      const minutes = Math.round(effective("min_gap_ms") / 60_000);
-      screenGapSlider.value = String(minutes);
-      screenGapValue.textContent = t("screen.min_gap_value", { n: minutes });
-      screenGapSlider.style.setProperty(
-        "--fill",
-        String((minutes - SCREEN_MIN_GAP_MIN) / (SCREEN_MIN_GAP_MAX - SCREEN_MIN_GAP_MIN)),
-      );
-    }
-  }
 
   function reflectVad(): void {
     const ms = vad.get().silenceMs;
@@ -314,11 +201,6 @@ export function createReflect(deps: ReflectDeps): Reflect {
   return {
     reflectSettings,
     reflectSwitchRows: reflectSwitchRowsFromDeps,
-    reflectAgentNotify,
-    reflectPresence,
-    reflectPacerGap,
-    reflectRateLimits,
-    reflectScreen,
     reflectVad,
     reflectAgent,
     reflectLanguage,

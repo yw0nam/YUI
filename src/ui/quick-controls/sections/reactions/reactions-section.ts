@@ -1,7 +1,7 @@
 /**
  * Reactions section — owns the agent-port, presence, pacer-gap, and rate-limit cap inputs.
- * Same pattern as sibling sections: explicit deps + wired from shell. reflect (store→DOM) handled by reflect layer;
- * this module owns inputs, handlers, subscriptions, teardown only.
+ * Same pattern as sibling sections: explicit deps + wired from shell.
+ * This module owns inputs, handlers, subscriptions, redraws, teardown.
  */
 import type { createAgentNotifySettings } from "../../../../settings/backend/agent-notify-settings";
 import type {
@@ -9,6 +9,7 @@ import type {
   RateLimitOverrides,
 } from "../../../../settings/backend/guardrails-settings";
 import type { ClampedIntSettingsStore } from "../../../../settings/persisted-store";
+import { reflectUnlessEditing } from "../../../surfaces/reflect-unless-editing";
 import { RATE_LIMIT_FIELDS } from "../../constants";
 
 type AgentNotifySettingsStore = ReturnType<typeof createAgentNotifySettings>;
@@ -24,14 +25,8 @@ interface ReactionsSectionDeps {
   pacerGapSettings?: ClampedIntSettingsStore;
   /** Guardrail rate-limit overrides. Absent when the cap rows aren't rendered. */
   rateLimitSettings?: GuardrailsSettingsStore;
-  /** Reflect layer's agent-notify redraw (reflectAgentNotify). */
-  reflectAgentNotify: () => void;
-  /** Reflect layer's presence redraw (reflectPresence) — the store subscription and blur both call it. */
-  reflectPresence: () => void;
-  /** Reflect layer's pacer-gap redraw (reflectPacerGap) — the store subscription and blur both call it. */
-  reflectPacerGap: () => void;
-  /** Reflect layer's rate-limit redraw (reflectRateLimits) — the store subscription and blur both call it. */
-  reflectRateLimits: () => void;
+  /** Bundled config caps a field falls back to when it carries no override (undefined if not loaded). */
+  getRateLimitDefaults?: () => RateLimitOverrides | undefined;
   /** Reflect layer's switch-row redraw — the agent-notify subscription calls both. */
   reflectSwitchRows: () => void;
   /** Popover open state — store subscriptions redraw only while the panel is open. */
@@ -39,6 +34,8 @@ interface ReactionsSectionDeps {
 }
 
 interface ReactionsSection {
+  /** Render the agent port, presence, pacer gap and rate-limit caps from their stores. */
+  reflect(): void;
   /** Permanent teardown — unsubscribe stores and remove all listeners. */
   dispose(): void;
 }
@@ -50,10 +47,7 @@ export function createReactionsSection(deps: ReactionsSectionDeps): ReactionsSec
     presenceSettings,
     pacerGapSettings,
     rateLimitSettings,
-    reflectAgentNotify,
-    reflectPresence,
-    reflectPacerGap,
-    reflectRateLimits,
+    getRateLimitDefaults,
     reflectSwitchRows,
     isOpen,
   } = deps;
@@ -65,6 +59,33 @@ export function createReactionsSection(deps: ReactionsSectionDeps): ReactionsSec
   for (const field of RATE_LIMIT_FIELDS) {
     const input = el.querySelector<HTMLInputElement>(`#${field.id}`);
     if (input) rateLimitInputs.set(field.key, input);
+  }
+
+  function reflectAgentNotify(): void {
+    if (!agentNotifySettings) return;
+    if (agentPortInput) agentPortInput.value = String(agentNotifySettings.get().port);
+  }
+
+  function reflectPresence(): void {
+    if (!presenceInput || !presenceSettings) return;
+    const next = String(presenceSettings.get().value / 1000);
+    reflectUnlessEditing(presenceInput, next);
+  }
+
+  function reflectPacerGap(): void {
+    if (!pacerGapInput || !pacerGapSettings) return;
+    reflectUnlessEditing(pacerGapInput, String(pacerGapSettings.get().value / 60_000));
+  }
+
+  // Each field shows its effective cap: the override when set, the bundled config default otherwise.
+  function reflectRateLimits(): void {
+    if (!rateLimitSettings) return;
+    const overrides = rateLimitSettings.get();
+    const defaults = getRateLimitDefaults?.();
+    for (const [key, input] of rateLimitInputs) {
+      const effective = overrides[key] > 0 ? overrides[key] : (defaults?.[key] ?? 0);
+      reflectUnlessEditing(input, effective > 0 ? String(effective) : "");
+    }
   }
 
   const unsubscribeAgentNotify = agentNotifySettings?.subscribe(() => {
@@ -122,6 +143,12 @@ export function createReactionsSection(deps: ReactionsSectionDeps): ReactionsSec
   }
 
   return {
+    reflect(): void {
+      reflectAgentNotify();
+      reflectPresence();
+      reflectPacerGap();
+      reflectRateLimits();
+    },
     dispose(): void {
       unsubscribeAgentNotify?.();
       unsubscribePresence?.();

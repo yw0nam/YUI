@@ -446,7 +446,7 @@ YUI/
         controls.css                 # Switch, segment, field, text-button, disclosure, slider, and confirm styles
         template.ts                  # Panel markup as pure string construction
         popover.ts                   # Popover shell: positioning, dragging, open and close lifecycle
-        reflect.ts                   # Store to DOM reflection for every panel section
+        reflect.ts                   # Store to DOM reflection for the panel parts without their own
         constants.ts                 # Display constants shared by the panel, its sections, and the chips that reuse its glyphs
         switch-row.ts                # Switch-row element contract and the row table filling it
         seg-keyboard.ts              # Arrow, Home, End and commit keyboard handling shared by the segmented controls
@@ -477,9 +477,9 @@ YUI/
           agent-section.ts           # Locale segment, reasoning-effort segment, and instructions textarea
           monitors-section.ts        # Screen-source list and its load state
           screen/                    # Screen section
-            screen-section.ts        # Screen-watch threshold knobs and the min-gap slider
+            screen-section.ts        # Screen-watch threshold knobs, the min-gap slider, and their redraw
           reactions/                 # Reactions section
-            reactions-section.ts     # Agent-port, presence, pacer-gap, and rate-limit cap inputs
+            reactions-section.ts     # Agent-port, presence, pacer-gap, and rate-limit cap inputs and their redraw
           workflows-section.ts       # Workflow entry list editing
           filler/                    # Thinking-filler section
             filler-section.ts        # Language segment and phrase-pool textareas, with their store reflect

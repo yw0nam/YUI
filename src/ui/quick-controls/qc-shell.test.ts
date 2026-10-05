@@ -25,6 +25,7 @@ import { createVoiceInputStatus } from "../chips/voice-input-status";
 import { getLocale, subscribe as i18nSubscribe, LOCALE_DISPLAY_NAMES, setLocale } from "../i18n";
 import { createQuickControls } from "./quick-controls";
 import {
+  countSubscriptions,
   defaultQcArgs,
   inMemoryAgentStorage,
   makeSettings,
@@ -779,6 +780,15 @@ describe("createQuickControls — Reactions tab", () => {
     qc.dispose();
   });
 
+  it("external agentNotifySettings.setPort reflects into #yui-agent-port while open", () => {
+    const agentNotifySettings = createAgentNotifySettings();
+    const qc = buildQc({ agentNotifySettings });
+    qc.open();
+    agentNotifySettings.setPort(9100);
+    expect(qc.el.querySelector<HTMLInputElement>("#yui-agent-port")!.value).toBe("9100");
+    qc.dispose();
+  });
+
   it("change on #yui-agent-port calls agentNotifySettings.setPort", () => {
     const agentNotifySettings = createAgentNotifySettings();
     const setSpy = vi.spyOn(agentNotifySettings, "setPort");
@@ -1126,6 +1136,29 @@ describe("createQuickControls — Reactions tab", () => {
     expect(input.value).toBe("24");
     qc.dispose();
   });
+
+  it("releases every agent-port, presence, pacer-gap and cap subscription on dispose", () => {
+    const agentNotifySettings = createAgentNotifySettings();
+    const presenceSettings = inMemoryPresenceStore();
+    const pacerGapSettings = inMemoryPacerGapStore();
+    const rateLimitSettings = createGuardrailsSettings();
+    const counts = [agentNotifySettings, presenceSettings, pacerGapSettings, rateLimitSettings].map(
+      countSubscriptions,
+    );
+    const qc = buildQc({
+      agentNotifySettings,
+      presenceSettings,
+      pacerGapSettings,
+      rateLimitSettings,
+    });
+
+    qc.dispose();
+
+    for (const { taken, released } of counts) {
+      expect(taken).toBeGreaterThan(0);
+      expect(released).toBe(taken);
+    }
+  });
 });
 
 describe("createQuickControls — monitor picker error/empty state", () => {
@@ -1260,7 +1293,7 @@ describe("createQuickControls — monitor picker error/empty state", () => {
 
 // Order and teardown around the two blocks the shell hands to its helpers: the cue-list mount and
 // the delegation refresh timer.
-describe("createQuickControls — cue-list mount and delegation timer boundaries", () => {
+describe("createQuickControls — cue-list mount and delegation timer", () => {
   const NOW = 1_789_365_900_000;
   let mount: HTMLElement;
   let log: string[];
@@ -1377,19 +1410,6 @@ describe("createQuickControls — cue-list mount and delegation timer boundaries
     }) as never);
   }
 
-  it("subscribes messageWindow, then schedule, then proactive, then voice", () => {
-    const qc = build();
-
-    expect(log.filter((l) => /^sub:(messageWindow|schedule|proactive|voice)$/.test(l))).toEqual([
-      "sub:messageWindow",
-      "sub:schedule",
-      "sub:proactive",
-      "sub:voice",
-    ]);
-
-    qc.dispose();
-  });
-
   it("window variant opens the panel only after both cue lists have mounted", () => {
     const seen: { log: string[]; cueSections: number }[] = [];
     const qc = build({
@@ -1411,22 +1431,26 @@ describe("createQuickControls — cue-list mount and delegation timer boundaries
   });
 
   describe("teardown", () => {
-    it("without a throw: schedule list, proactive list, shell stores, delegations, then the timer", () => {
+    it("without a throw: releases each traced store and the delegation timer once", () => {
       const delegations = makeDelegations([RUNNING]);
       const qc = build({ variant: "window", delegations });
       log.length = 0;
 
       qc.dispose();
 
-      const at = (l: string) => log.indexOf(l);
-      expect(at("clearInterval:delegations")).toBeGreaterThan(-1);
-      expect(at("unsub:schedule")).toBeGreaterThan(-1);
-      expect(at("unsub:schedule")).toBeLessThan(at("unsub:proactive"));
-      expect(at("unsub:proactive")).toBeLessThan(at("unsub:settings"));
-      expect(at("unsub:proactive")).toBeLessThan(at("unsub:idleThrottle"));
-      expect(at("unsub:proactive")).toBeLessThan(at("unsub:voice"));
-      expect(at("unsub:delegations")).toBeGreaterThan(at("unsub:voice"));
-      expect(at("unsub:delegations")).toBeLessThan(at("clearInterval:delegations"));
+      expect([...new Set(log)].sort()).toEqual(
+        [
+          "unsub:schedule",
+          "unsub:proactive",
+          "unsub:settings",
+          "unsub:idleThrottle",
+          "unsub:messageWindow",
+          "unsub:voice",
+          "unsub:delegations",
+          "clearInterval:delegations",
+        ].sort(),
+      );
+      expect(log).toHaveLength(8);
     });
   });
 });

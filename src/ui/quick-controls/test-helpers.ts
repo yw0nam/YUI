@@ -40,6 +40,24 @@ if (typeof (globalThis as { CSS?: { escape?: unknown } }).CSS?.escape !== "funct
   };
 }
 
+// Counts the subscriptions a store hands out and how many of them are released.
+export function countSubscriptions(store: { subscribe(cb: never): () => void }): {
+  taken: number;
+  released: number;
+} {
+  const counts = { taken: 0, released: 0 };
+  const real = store.subscribe.bind(store) as (cb: unknown) => () => void;
+  vi.spyOn(store, "subscribe").mockImplementation(((cb: unknown) => {
+    counts.taken += 1;
+    const off = real(cb);
+    return () => {
+      counts.released += 1;
+      off();
+    };
+  }) as never);
+  return counts;
+}
+
 // In-memory AgentStorage so each test starts from a clean store.
 export function inMemoryAgentStorage(): AgentStorage {
   let value: AgentSettings | null = null;

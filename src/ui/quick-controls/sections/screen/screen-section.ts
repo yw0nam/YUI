@@ -1,12 +1,16 @@
 /**
  * Screen section — owns the screen-watch threshold knob rows and the min-gap slider.
- * Same pattern as sibling sections: explicit deps + wired from shell. reflect (store→DOM) handled by reflect layer;
- * this module owns inputs, handlers, subscriptions, teardown only.
+ * Same pattern as sibling sections: explicit deps + wired from shell.
+ * This module owns inputs, handlers, subscriptions, redraws, teardown.
  */
 
-import type { ScreenKnobSettingsStore } from "../../../../settings/capture/screen-settings";
+import type {
+  ScreenKnobSettingsStore,
+  ScreenOverrides,
+} from "../../../../settings/capture/screen-settings";
 import type { FlagSettingsStore } from "../../../../settings/persisted-store";
 import { t } from "../../../i18n";
+import { reflectUnlessEditing } from "../../../surfaces/reflect-unless-editing";
 import {
   SCREEN_KNOB_FIELDS,
   SCREEN_MIN_GAP_MAX,
@@ -21,8 +25,8 @@ interface ScreenSectionDeps {
   screenSettings?: FlagSettingsStore;
   /** Screen-watch threshold overrides store. Absent when the section isn't rendered. */
   screenKnobSettings?: ScreenKnobSettingsStore;
-  /** Reflect layer's knob-group redraw (reflectScreen). */
-  reflectScreen: () => void;
+  /** Bundled config thresholds a knob falls back to when it carries no override (undefined if not loaded). */
+  getScreenDefaults?: () => ScreenOverrides | undefined;
   /** Reflect layer's switch-row redraw — the flag subscription calls both. */
   reflectSwitchRows: () => void;
   /** Popover open state — store subscriptions redraw only while the panel is open. */
@@ -30,6 +34,8 @@ interface ScreenSectionDeps {
 }
 
 interface ScreenSection {
+  /** Render the knob group's visibility, the knobs and the gap slider from their stores. */
+  reflect(): void;
   /** Permanent teardown — unsubscribe stores and remove all listeners. */
   dispose(): void;
 }
@@ -39,7 +45,7 @@ export function createScreenSection(deps: ScreenSectionDeps): ScreenSection {
     root: el,
     screenSettings,
     screenKnobSettings,
-    reflectScreen,
+    getScreenDefaults,
     reflectSwitchRows,
     isOpen,
   } = deps;
@@ -51,6 +57,33 @@ export function createScreenSection(deps: ScreenSectionDeps): ScreenSection {
   }
   const screenGapSlider = el.querySelector<HTMLInputElement>(".yui-screen-gap__slider");
   const screenGapValue = el.querySelector<HTMLSpanElement>(".yui-screen-gap__value");
+  const screenKnobsEl = el.querySelector<HTMLDivElement>(".yui-screen-knobs");
+
+  // The knob group follows the master toggle; each knob shows its override when set, else the config default.
+  function reflectScreen(): void {
+    if (!screenKnobsEl || !screenSettings) return;
+    screenKnobsEl.hidden = !screenSettings.get().enabled;
+    if (!screenKnobSettings) return;
+    const overrides = screenKnobSettings.get();
+    const defaults = getScreenDefaults?.();
+    const effective = (key: keyof ScreenOverrides): number =>
+      overrides[key] > 0 ? overrides[key] : (defaults?.[key] ?? 0);
+    for (const field of SCREEN_KNOB_FIELDS) {
+      const input = screenKnobInputs.get(field.key);
+      if (!input) continue;
+      const value = effective(field.key);
+      reflectUnlessEditing(input, value > 0 ? String(Math.round(value / field.unitMs)) : "");
+    }
+    if (screenGapSlider && screenGapValue) {
+      const minutes = Math.round(effective("min_gap_ms") / 60_000);
+      screenGapSlider.value = String(minutes);
+      screenGapValue.textContent = t("screen.min_gap_value", { n: minutes });
+      screenGapSlider.style.setProperty(
+        "--fill",
+        String((minutes - SCREEN_MIN_GAP_MIN) / (SCREEN_MIN_GAP_MAX - SCREEN_MIN_GAP_MIN)),
+      );
+    }
+  }
 
   const unsubscribeScreen = screenSettings?.subscribe(() => {
     if (isOpen()) {
@@ -105,6 +138,7 @@ export function createScreenSection(deps: ScreenSectionDeps): ScreenSection {
   screenGapSlider?.addEventListener("change", handleScreenGapChange);
 
   return {
+    reflect: reflectScreen,
     dispose(): void {
       unsubscribeScreen?.();
       unsubscribeScreenKnobs?.();
