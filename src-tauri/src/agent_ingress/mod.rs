@@ -96,13 +96,14 @@ fn handle_request(app: &AppHandle, mut request: tiny_http::Request) {
             let payload = cap_detail(cap_summary(payload));
             emit_agent_event(app, payload);
         }),
-        "/signals" => parse_signals_request(&method, &url, &body).map(|request| {
+        "/signals" => parse_signals_request(&method, &url, &body).and_then(|request| {
             let payload = SignalsPayload {
                 signals: request.signals,
-                envelope: request.envelope,
+                envelope: request.envelope.ok_or(400u16)?,
                 ts: epoch_ms(),
             };
             emit_signals_event(app, payload);
+            Ok(())
         }),
         _ => Err(400),
     };

@@ -51,23 +51,11 @@ pub struct SignalsPayload {
     pub ts: i64, // server epoch ms — n8n does not send a timestamp
 }
 
-/// An absent `envelope` is a missing field and an explicit `null` is rejected here.
-fn non_null_envelope<'de, D: serde::Deserializer<'de>>(
-    deserializer: D,
-) -> Result<serde_json::Value, D::Error> {
-    use serde::de::Error;
-    match serde_json::Value::deserialize(deserializer)? {
-        serde_json::Value::Null => Err(D::Error::custom("envelope must not be null")),
-        value => Ok(value),
-    }
-}
-
 /// Wire shape of a `/signals` POST body, before the server stamps `ts`.
 #[derive(Deserialize, Debug)]
 pub(super) struct SignalsRequest {
     pub(super) signals: Vec<serde_json::Value>,
-    #[serde(deserialize_with = "non_null_envelope")]
-    pub(super) envelope: serde_json::Value,
+    pub(super) envelope: Option<serde_json::Value>,
 }
 
 /// Side of a window the avatar peeks from.
@@ -183,7 +171,9 @@ pub(super) fn parse_signals_request(
     if path_only != "/signals" {
         return Err(400);
     }
-    serde_json::from_str::<SignalsRequest>(body).map_err(|_| 400u16)
+    let request = serde_json::from_str::<SignalsRequest>(body).map_err(|_| 400u16)?;
+    request.envelope.as_ref().ok_or(400u16)?;
+    Ok(request)
 }
 
 /// Validates and parses a raw HTTP request into an `AvatarRoute`.
@@ -436,7 +426,7 @@ mod tests {
         assert_eq!(request.signals.len(), 2);
         assert_eq!(request.signals[0]["kind"], "reminder");
         assert_eq!(request.signals[1]["kind"], "alert");
-        assert_eq!(request.envelope["source"], "n8n");
+        assert_eq!(request.envelope.unwrap()["source"], "n8n");
     }
 
     #[test]
@@ -498,7 +488,7 @@ mod tests {
         )
         .unwrap();
         assert_eq!(
-            request.envelope,
+            request.envelope.unwrap(),
             serde_json::json!({
                 "source": "n8n",
                 "event_type": "workflow_done",
@@ -518,7 +508,7 @@ mod tests {
             r#"{"signals":[{"id":1}],"envelope":"bad"}"#,
         )
         .unwrap();
-        assert_eq!(request.envelope, serde_json::json!("bad"));
+        assert_eq!(request.envelope.unwrap(), serde_json::json!("bad"));
     }
 
     #[test]
@@ -545,7 +535,7 @@ mod tests {
         let request = parse_signals_request("POST", "/signals", valid_signals_body()).unwrap();
         let payload = SignalsPayload {
             signals: request.signals,
-            envelope: request.envelope,
+            envelope: request.envelope.unwrap(),
             ts: epoch_ms(),
         };
         assert_eq!(payload.signals.len(), 2);

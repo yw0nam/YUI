@@ -617,9 +617,12 @@ describe("signals_source — delivery envelopes", () => {
     const s = setup();
     await s.src.start();
     s.emitIdle(idleTick(LOW_IDLE));
-    s.emitInbox(batch([{ kept: true }], 1, invalid));
+    s.emitInbox(batch([{ kept: true }, { more: true }], 1, invalid));
     expect(s.pushed).toHaveLength(0);
     expect(warn).toHaveBeenCalledTimes(1);
+    expect(warn).toHaveBeenCalledWith("[YUI][signals-source] envelope_invalid", {
+      dropped_items: 2,
+    });
     warn.mockRestore();
   });
 
