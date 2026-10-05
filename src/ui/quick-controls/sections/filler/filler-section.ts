@@ -1,7 +1,7 @@
 /**
  * Thinking-filler section — owns the language segment and the six phrase-pool textareas: element
- * queries, handlers, listeners, and the store→DOM reflect. The shell wires the store subscription
- * and calls reflect(); the enable toggle is a generic switch row outside this module.
+ * queries, handlers, listeners, the store subscription, and the store→DOM reflect. The shell calls
+ * reflect() on open; the enable toggle is a generic switch row outside this module.
  */
 
 import { FILLER_LANGS } from "../../../../config/load";
@@ -16,6 +16,10 @@ interface FillerSectionDeps {
   root: HTMLElement;
   /** Thinking filler settings store. Absent when the section is not rendered. */
   fillerSettings?: FillerSettingsStore;
+  /** Popover open state — the store subscription redraws only while the panel is open. */
+  isOpen: () => boolean;
+  /** Reflect layer's switch-row redraw — the store subscription calls it before reflect(). */
+  reflectSwitchRows: () => void;
 }
 
 interface FillerSection {
@@ -35,7 +39,7 @@ function parseFillerLines(el: HTMLTextAreaElement | null): string[] {
 }
 
 export function createFillerSection(deps: FillerSectionDeps): FillerSection {
-  const { root: el, fillerSettings } = deps;
+  const { root: el, fillerSettings, isOpen, reflectSwitchRows } = deps;
   if (!fillerSettings) return { reflect() {}, dispose() {} };
   const store = fillerSettings;
 
@@ -62,6 +66,14 @@ export function createFillerSection(deps: FillerSectionDeps): FillerSection {
     unreachableTextareaEl,
     toolTextareaEl,
   ];
+
+  // Reflect thinking-filler store updates to section (includes other-window reloadFromStorage).
+  const unsubscribe = store.subscribe(() => {
+    if (isOpen()) {
+      reflectSwitchRows();
+      reflect();
+    }
+  });
 
   function reflect(): void {
     if (!langSegEl || !firstTextareaEl || !repeatTextareaEl) return;
@@ -130,6 +142,7 @@ export function createFillerSection(deps: FillerSectionDeps): FillerSection {
   return {
     reflect,
     dispose(): void {
+      unsubscribe();
       langSegEl?.removeEventListener("click", handleLangClick);
       langSegEl?.removeEventListener("keydown", handleLangKeydown);
       for (const textareaEl of textareaEls) {

@@ -481,7 +481,7 @@ YUI/
           history-section.css        # Session history accordion styles
         sections/                    # The tab sections the shell mounts and the list helpers only they use
           agent/                     # Locale, reasoning-effort, and instructions controls
-            agent-section.ts         # Locale segment, reasoning-effort segment, and instructions textarea
+            agent-section.ts         # Locale segment, reasoning-effort segment, instructions textarea, and their redraw
           monitors-section.ts        # Screen-source list and its load state
           screen/                    # Screen section
             screen-section.ts        # Screen-watch threshold knobs, the min-gap slider, and their redraw
@@ -489,7 +489,7 @@ YUI/
             reactions-section.ts     # Agent-port, presence, pacer-gap, and rate-limit cap inputs and their redraw
           workflows-section.ts       # Workflow entry list editing
           filler/                    # Thinking-filler section
-            filler-section.ts        # Language segment and phrase-pool textareas, with their store reflect
+            filler-section.ts        # Language segment and phrase-pool textareas, with their store subscription and reflect
             filler-tool-lines.ts     # Textarea round-trip for the filler pool's tool tier
           speaker-list.ts            # Speaker radiogroup with reference-voice refresh and audition
           user-asset-list.ts         # Shared scaffolding for the VRM and speaker asset radiogroups

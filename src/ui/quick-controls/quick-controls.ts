@@ -416,7 +416,6 @@ export function createQuickControls({
     switchRows: TOGGLE_SPECS,
     settings,
     vad,
-    agentSettings,
     sessionDiagnostics,
     // The session section's lost line follows the socket only while push chat is effective.
     ...(pushSocket
@@ -495,9 +494,9 @@ export function createQuickControls({
       screen.reflect();
       reflect.reflectVoiceStatus(voiceStatus.get());
       reflect.reflectVad();
-      reflect.reflectAgent();
+      agent.reflect();
       filler.reflect();
-      reflect.reflectLanguage();
+      agent.reflectLanguage();
       connectionTab.refresh();
       reflect.reflectSession();
       delegationSync.sync();
@@ -544,14 +543,17 @@ export function createQuickControls({
     root: el,
     agentSettings,
     getDefaultInstructions,
-    reflectAgent: reflect.reflectAgent,
-    reflectLanguage: reflect.reflectLanguage,
     isOpen: popover.isOpen,
     log,
   });
 
   // ── Thinking filler section (language segment · phrase-pool textareas) ──
-  const filler = createFillerSection({ root: el, fillerSettings });
+  const filler = createFillerSection({
+    root: el,
+    fillerSettings,
+    isOpen: popover.isOpen,
+    reflectSwitchRows: reflect.reflectSwitchRows,
+  });
 
   // ── Event handlers ──
 
@@ -674,13 +676,6 @@ export function createQuickControls({
   const unsubscribePushState = pushSocket?.onState(() => {
     if (popover.isOpen()) reflect.reflectDelegations();
   });
-  // Reflect thinking-filler store updates to section (includes other-window reloadFromStorage).
-  const unsubscribeFiller = fillerSettings?.subscribe(() => {
-    if (popover.isOpen()) {
-      reflect.reflectSwitchRows();
-      filler.reflect();
-    }
-  });
   // Reflect speaker store updates (direct select · other-window reloadFromStorage) to active row.
   // Skip during swap — finally's renderSpeakers handles final render after loading.
   const unsubscribeSpk = speakerSelection.subscribe(() => {
@@ -737,7 +732,6 @@ export function createQuickControls({
     unsubscribeVoice();
     unsubscribeVad();
     unsubscribePushState?.();
-    unsubscribeFiller?.();
     unsubscribeSpk();
     unsubscribeSession?.();
     unsubscribeDelegations?.();

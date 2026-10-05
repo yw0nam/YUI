@@ -1,7 +1,7 @@
 /**
  * Agent section — owns the locale picker segment, the reasoning-effort segment, and the chat
  * instructions textarea. Same pattern as sibling sections: explicit deps + wired from shell.
- * reflect (store→DOM) handled by reflect layer; this module owns handlers, subscriptions, teardown only.
+ * This module owns handlers, subscriptions, redraws, teardown.
  */
 
 import type { Logger } from "../../../../logger";
@@ -9,7 +9,8 @@ import {
   type createAgentSettings,
   REASONING_EFFORTS,
 } from "../../../../settings/backend/agent-settings";
-import { type Locale, setLocale, t } from "../../../i18n";
+import { getLocale, type Locale, setLocale, t } from "../../../i18n";
+import { LANG_PICKER_ORDER } from "../../constants";
 import { handleSegmentKeydown } from "../../seg-keyboard";
 
 type AgentSettingsStore = ReturnType<typeof createAgentSettings>;
@@ -21,10 +22,6 @@ interface AgentSectionDeps {
   agentSettings: AgentSettingsStore;
   /** Default instructions shown as textarea placeholder while the value is empty (undefined if not loaded). */
   getDefaultInstructions?: () => string | undefined;
-  /** Reflect layer's redraw of the effort segment + instructions textarea. */
-  reflectAgent: () => void;
-  /** Reflect layer's redraw of the locale segment. */
-  reflectLanguage: () => void;
   /** Popover open state — the store subscription redraws only while the panel is open. */
   isOpen: () => boolean;
   /** Logger — section-scoped changes report here. */
@@ -32,20 +29,16 @@ interface AgentSectionDeps {
 }
 
 interface AgentSection {
+  /** Render the reasoning-effort segment and the instructions textarea from the store. */
+  reflect(): void;
+  /** Render the locale segment from the current display language. */
+  reflectLanguage(): void;
   /** Permanent teardown — unsubscribe the store and remove all listeners. */
   dispose(): void;
 }
 
 export function createAgentSection(deps: AgentSectionDeps): AgentSection {
-  const {
-    root: el,
-    agentSettings,
-    getDefaultInstructions,
-    reflectAgent,
-    reflectLanguage,
-    isOpen,
-    log,
-  } = deps;
+  const { root: el, agentSettings, getDefaultInstructions, isOpen, log } = deps;
 
   const segEl = el.querySelector<HTMLDivElement>(".yui-effort-seg")!;
   const segButtons = Array.from(segEl.querySelectorAll<HTMLButtonElement>(".yui-seg__btn"));
@@ -59,6 +52,33 @@ export function createAgentSection(deps: AgentSectionDeps): AgentSection {
   const defaultInstr = getDefaultInstructions?.();
   instructionsEl.placeholder =
     defaultInstr && defaultInstr.length > 0 ? defaultInstr : t("instructions.placeholder_default");
+
+  function reflectAgent(): void {
+    const a = agentSettings.get();
+    const idx = Math.max(0, REASONING_EFFORTS.indexOf(a.reasoning_effort));
+    segButtons.forEach((btn, i) => {
+      const selected = i === idx;
+      btn.setAttribute("aria-checked", String(selected));
+      btn.tabIndex = selected ? 0 : -1;
+    });
+    // Do not overwrite textarea while typing (remote changes apply on blur).
+    if (
+      (!document.hasFocus() || document.activeElement !== instructionsEl) &&
+      instructionsEl.value !== a.instructions
+    ) {
+      instructionsEl.value = a.instructions;
+    }
+  }
+
+  // Language picker — reflects current display language onto selected seg.
+  function reflectLanguage(): void {
+    const idx = Math.max(0, LANG_PICKER_ORDER.indexOf(getLocale()));
+    langSegButtons.forEach((btn, i) => {
+      const selected = i === idx;
+      btn.setAttribute("aria-checked", String(selected));
+      btn.tabIndex = selected ? 0 : -1;
+    });
+  }
 
   const unsubscribeAgent = agentSettings.subscribe(() => {
     if (isOpen()) reflectAgent();
@@ -123,7 +143,7 @@ export function createAgentSection(deps: AgentSectionDeps): AgentSection {
     const effort = REASONING_EFFORTS[clamped];
     agentSettings.setReasoningEffort(effort);
     log.info("reasoning_effort_change", { effort });
-    // Store subscription will call reflect.reflectAgent to update visuals/aria.
+    // Store subscription will call reflectAgent to update visuals/aria.
     if (focus) segButtons[clamped]?.focus();
   }
 
@@ -172,6 +192,8 @@ export function createAgentSection(deps: AgentSectionDeps): AgentSection {
   resetBtn.addEventListener("click", handleResetInstructions);
 
   return {
+    reflect: reflectAgent,
+    reflectLanguage,
     dispose(): void {
       unsubscribeAgent();
       langSegEl.removeEventListener("click", handleLangSegClick);

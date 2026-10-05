@@ -96,7 +96,12 @@ describe("createFillerSection", () => {
   it("a click on a language button persists it, moves aria-checked/tabindex and writes the six textareas", () => {
     const fs = seededFiller({ customPools: { ja: { first: ["うーん"] }, en: EN_POOL } });
     const root = buildRoot(fs);
-    const section = createFillerSection({ root, fillerSettings: fs });
+    const section = createFillerSection({
+      root,
+      fillerSettings: fs,
+      isOpen: () => true,
+      reflectSwitchRows: () => {},
+    });
     section.reflect();
     const btns = langButtons(root);
     expect(btns.map((b) => b.getAttribute("aria-checked"))).toEqual(["true", "false", "false"]);
@@ -114,7 +119,12 @@ describe("createFillerSection", () => {
   it("an arrow key on the language segment does the same and moves focus", () => {
     const fs = seededFiller({ customPools: { en: EN_POOL } });
     const root = buildRoot(fs);
-    const section = createFillerSection({ root, fillerSettings: fs });
+    const section = createFillerSection({
+      root,
+      fillerSettings: fs,
+      isOpen: () => true,
+      reflectSwitchRows: () => {},
+    });
     section.reflect();
     const btns = langButtons(root);
 
@@ -132,7 +142,12 @@ describe("createFillerSection", () => {
   it("textarea input persists the parsed pool for the current language, tool lines included", () => {
     const fs = seededFiller({ language: "ko" });
     const root = buildRoot(fs);
-    const section = createFillerSection({ root, fillerSettings: fs });
+    const section = createFillerSection({
+      root,
+      fillerSettings: fs,
+      isOpen: () => true,
+      reflectSwitchRows: () => {},
+    });
     section.reflect();
 
     textarea(root, "first").value = "음…\n\n  글쎄…  \n";
@@ -160,7 +175,12 @@ describe("createFillerSection", () => {
   it("reflect() shows the store's values after a change made outside the section", () => {
     const fs = seededFiller();
     const root = buildRoot(fs);
-    const section = createFillerSection({ root, fillerSettings: fs });
+    const section = createFillerSection({
+      root,
+      fillerSettings: fs,
+      isOpen: () => false,
+      reflectSwitchRows: () => {},
+    });
     section.reflect();
 
     fs.setCustomPool("en", EN_POOL);
@@ -176,13 +196,38 @@ describe("createFillerSection", () => {
     section.dispose();
   });
 
+  it("a store change while open repaints the switch rows and redraws the segment and textareas", () => {
+    const fs = seededFiller({ customPools: { en: EN_POOL } });
+    const root = buildRoot(fs);
+    const reflectSwitchRows = vi.fn();
+    const section = createFillerSection({
+      root,
+      fillerSettings: fs,
+      isOpen: () => true,
+      reflectSwitchRows,
+    });
+    section.reflect();
+
+    fs.setLanguage("en");
+
+    expect(reflectSwitchRows).toHaveBeenCalledTimes(1);
+    expect(langButtons(root).map((b) => b.getAttribute("aria-checked"))).toEqual([
+      "false",
+      "true",
+      "false",
+    ]);
+    expect(values(root)).toEqual(EN_VALUES);
+
+    section.dispose();
+  });
+
   it("is inert without a store: no listener, no throw", () => {
     const root = buildRoot(seededFiller());
     const seg = root.querySelector<HTMLDivElement>(".yui-filler-lang-seg")!;
     const segSpy = vi.spyOn(seg, "addEventListener");
     const textareaSpy = vi.spyOn(textarea(root, "first"), "addEventListener");
 
-    const section = createFillerSection({ root });
+    const section = createFillerSection({ root, isOpen: () => true, reflectSwitchRows: () => {} });
     section.reflect();
     langButtons(root)[1].click();
     section.dispose();
@@ -199,7 +244,12 @@ describe("createFillerSection", () => {
     const root = buildRoot();
     expect(root.querySelector(".yui-filler")).toBeNull();
 
-    const section = createFillerSection({ root, fillerSettings: fs });
+    const section = createFillerSection({
+      root,
+      fillerSettings: fs,
+      isOpen: () => true,
+      reflectSwitchRows: () => {},
+    });
     section.reflect();
     section.dispose();
 
@@ -209,7 +259,12 @@ describe("createFillerSection", () => {
   it("dispose() removes the click, keydown and input listeners", () => {
     const fs = seededFiller();
     const root = buildRoot(fs);
-    const section = createFillerSection({ root, fillerSettings: fs });
+    const section = createFillerSection({
+      root,
+      fillerSettings: fs,
+      isOpen: () => true,
+      reflectSwitchRows: () => {},
+    });
     section.reflect();
     const setLanguage = vi.spyOn(fs, "setLanguage");
     const setCustomPool = vi.spyOn(fs, "setCustomPool");
@@ -225,5 +280,9 @@ describe("createFillerSection", () => {
 
     expect(setLanguage).not.toHaveBeenCalled();
     expect(setCustomPool).not.toHaveBeenCalled();
+
+    fs.setLanguage("en");
+    expect(fs.get().language).toBe("en");
+    expect(btns.map((b) => b.getAttribute("aria-checked"))).toEqual(["true", "false", "false"]);
   });
 });

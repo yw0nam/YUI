@@ -14,6 +14,7 @@ import { createScheduleSettings } from "../../settings/cues/schedule-settings";
 import { setLocale } from "../i18n";
 import { createQuickControls } from "./quick-controls";
 import {
+  countSubscriptions,
   defaultQcArgs,
   inMemoryAgentStorage,
   makeSpeakerSelection,
@@ -318,5 +319,15 @@ describe("createQuickControls — agent section", () => {
     expect(ta.value).toBe("remote value");
 
     qc.dispose();
+  });
+
+  it("releases every agent settings subscription on dispose", () => {
+    const counts = countSubscriptions(agentSettings);
+    const qc = buildQc();
+
+    qc.dispose();
+
+    expect(counts.taken).toBeGreaterThan(0);
+    expect(counts.released).toBe(counts.taken);
   });
 });
