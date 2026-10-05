@@ -57,6 +57,7 @@ describe("backend_caller — reply settle timing", () => {
     expect(order).toEqual(["delta", "first", "end", "second"]);
   });
 
+  // Guards against an abort re-check after the attempt: a verdict already reached stays the outcome.
   it("an abort landing in that hop does not undo the verdict already reached", async () => {
     const ac = new AbortController();
     turnOutput.delta.mockImplementation(() => queueMicrotask(() => ac.abort()));
