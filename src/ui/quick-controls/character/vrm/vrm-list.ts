@@ -1,16 +1,16 @@
 /** VRM list cluster — VRM radiogroup in Character tab: render, rename, import, swap, keyboard. */
 import "./vrm-list.css";
-import type { AvatarOption } from "../../../config/validators/avatar/types";
-import { sanitizeStem } from "../../../io/assets/safe-id";
-import type { createVrmSelection } from "../../../io/assets/vrm-selection";
-import type { Logger } from "../../../logger";
-import { t } from "../../i18n";
+import type { AvatarOption } from "../../../../config/validators/avatar/types";
+import { sanitizeStem } from "../../../../io/assets/safe-id";
+import type { createVrmSelection } from "../../../../io/assets/vrm-selection";
+import type { Logger } from "../../../../logger";
+import { t } from "../../../i18n";
 import {
   createUserAssetList,
   REMOVE_SVG,
   RENAME_SVG,
   resolveRovedId,
-} from "../sections/user-asset-list";
+} from "../../sections/user-asset-list";
 
 interface VrmListDeps {
   /** Panel root (el) — query .yui-vrms / .yui-vrm__import-error from here. */

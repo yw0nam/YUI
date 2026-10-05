@@ -1,25 +1,25 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, describe, expect, it, type Mock, vi } from "vitest";
-import type { AvatarOption } from "../../../config/validators/avatar/types";
-import type { createVrmSelection } from "../../../io/assets/vrm-selection";
+import type { AvatarOption } from "../../../../config/validators/avatar/types";
+import type { createVrmSelection } from "../../../../io/assets/vrm-selection";
 import type {
   createSpeakerSelection,
   SpeakerOption,
-} from "../../../io/voice/voices/speaker-selection";
-import { createLipsyncSettings } from "../../../settings/avatar/lipsync-settings";
-import { createAgentSettings } from "../../../settings/backend/agent-settings";
-import { createEndpointsSettings } from "../../../settings/backend/endpoints-settings";
-import { createProactiveSettings } from "../../../settings/cues/proactive-settings";
-import { createScheduleSettings } from "../../../settings/cues/schedule-settings";
-import { createVadSettings, VAD_SILENCE_DEFAULT } from "../../../settings/voice/vad-settings";
-import { setLocale } from "../../i18n";
-import { createQuickControls } from "../quick-controls";
+} from "../../../../io/voice/voices/speaker-selection";
+import { createLipsyncSettings } from "../../../../settings/avatar/lipsync-settings";
+import { createAgentSettings } from "../../../../settings/backend/agent-settings";
+import { createEndpointsSettings } from "../../../../settings/backend/endpoints-settings";
+import { createProactiveSettings } from "../../../../settings/cues/proactive-settings";
+import { createScheduleSettings } from "../../../../settings/cues/schedule-settings";
+import { createVadSettings, VAD_SILENCE_DEFAULT } from "../../../../settings/voice/vad-settings";
+import { setLocale } from "../../../i18n";
+import { createQuickControls } from "../../quick-controls";
 import {
   defaultQcArgs,
   inMemoryAgentStorage,
   makeSpeakerSelection,
   makeVrmSelection,
-} from "../test-helpers";
+} from "../../test-helpers";
 import { PREVIEW_PEAK_RMS } from "./gain-row";
 
 describe("createQuickControls — gain row", () => {

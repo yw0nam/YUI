@@ -500,16 +500,21 @@ YUI/
         slider-binding.ts            # Input and release wiring shared by the range sliders
         hint-tooltip.ts              # Shared hover, focus, and click tooltip for data-tip elements
         hint-tooltip.css             # Hint tooltip styles
-        character/                   # Character tab shared by the desktop panel and the phone settings view
-          character-tab.ts           # Tab shell: the rows the caller picks, their subscriptions, open and close hooks
-          character-html.ts          # Tab markup per row set and surface
-          gain-row.ts                # Mouth-gain slider with its live preview
-          viewpoint-row.ts           # Camera view reset button
-          vrm-list.ts                # VRM radiogroup: render, rename, import, swap, keyboard
-          idle-motion-section.ts     # Per-variant switches for the ambient idle pool
-          express-motion-section.ts  # Category accordion curating the agent-selectable motion vocabulary
-          vrm-list.css               # VRM list styles
-          express-motion-section.css # Express-motion accordion styles
+        character/                   # Character tab
+          character-tab.ts           # Character tab shell
+          character-html.ts          # Character tab markup
+          vrm/                       # VRM list
+            vrm-list.ts              # VRM asset list
+            vrm-list.css             # VRM list styles
+          idle-motion/               # Ambient idle pool
+            idle-motion-section.ts   # Idle variant switches
+          express-motion/            # Express motion vocabulary
+            express-motion-section.ts  # Express motion categories
+            express-motion-section.css # Express motion styles
+          gain/                      # Mouth gain
+            gain-row.ts              # Mouth gain preview
+          viewpoint/                 # Camera view reset
+            viewpoint-row.ts         # Camera view reset button
         connection/                  # Connection tab and its endpoint/API-key section
           connection-tab.ts          # The Connection tab the desktop panel and the phone settings view share
           endpoints-section.ts       # Endpoint URL fields, API-key rows, chat-API picker, and resets

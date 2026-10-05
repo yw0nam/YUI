@@ -15,11 +15,11 @@ import type {
 } from "../../../settings/avatar/idle-motion-settings";
 import type { createLipsyncSettings } from "../../../settings/avatar/lipsync-settings";
 import { type CharacterRows, type CharacterVariant, characterHtml } from "./character-html";
-import { createExpressMotionList } from "./express-motion-section";
-import { createGainRow } from "./gain-row";
-import { createIdleMotionList } from "./idle-motion-section";
-import { bindViewpointReset } from "./viewpoint-row";
-import { createVrmList } from "./vrm-list";
+import { createExpressMotionList } from "./express-motion/express-motion-section";
+import { createGainRow } from "./gain/gain-row";
+import { createIdleMotionList } from "./idle-motion/idle-motion-section";
+import { bindViewpointReset } from "./viewpoint/viewpoint-row";
+import { createVrmList } from "./vrm/vrm-list";
 
 export type { CharacterRows } from "./character-html";
 

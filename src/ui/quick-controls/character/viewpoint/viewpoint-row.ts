@@ -1,6 +1,6 @@
 /** View-reset row — the button that returns the camera to its default view. */
 
-import type { Logger } from "../../../logger";
+import type { Logger } from "../../../../logger";
 
 /** Bind the reset button under `root`; returns the unbind. */
 export function bindViewpointReset(deps: {

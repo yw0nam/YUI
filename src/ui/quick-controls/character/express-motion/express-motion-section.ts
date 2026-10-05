@@ -1,12 +1,12 @@
 /** Express motion cluster — a category accordion curating the agent-selectable motion vocabulary. */
 import "./express-motion-section.css";
-import type { Logger } from "../../../logger";
+import type { Logger } from "../../../../logger";
 import {
   type ExpressMotionSettingsStore,
   enabledExpressMotions,
-} from "../../../settings/avatar/express-motion-settings";
-import { t } from "../../i18n";
-import { HIST_CHEVRON_SVG } from "../constants";
+} from "../../../../settings/avatar/express-motion-settings";
+import { t } from "../../../i18n";
+import { HIST_CHEVRON_SVG } from "../../constants";
 
 /** Static display grouping. Ids the table does not name fall into the trailing `other` group. */
 export const EXPRESS_MOTION_GROUPS: ReadonlyArray<{ id: string; ids: readonly string[] }> = [

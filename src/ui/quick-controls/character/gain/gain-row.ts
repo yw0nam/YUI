@@ -1,12 +1,12 @@
 /** Mouth-gain row — the lipsync gain slider, its live preview on the avatar, and its repaint. */
 
-import type { Logger } from "../../../logger";
+import type { Logger } from "../../../../logger";
 import {
   type createLipsyncSettings,
   LIPSYNC_GAIN_MAX,
   LIPSYNC_GAIN_MIN,
-} from "../../../settings/avatar/lipsync-settings";
-import { bindSlider } from "../slider-binding";
+} from "../../../../settings/avatar/lipsync-settings";
+import { bindSlider } from "../../slider-binding";
 
 /** RMS a full-volume reply peaks at — gain times this is the mouth opening the preview shows. */
 export const PREVIEW_PEAK_RMS = 0.15;

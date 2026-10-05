@@ -1,10 +1,10 @@
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
-import type { MotionRegistry } from "../../../contract";
-import en from "../../i18n/en";
-import ja from "../../i18n/ja";
-import ko from "../../i18n/ko";
+import type { MotionRegistry } from "../../../../contract";
+import en from "../../../i18n/en";
+import ja from "../../../i18n/ja";
+import ko from "../../../i18n/ko";
 import { idleMotionKeyStem } from "./idle-motion-section";
 
 const registry: MotionRegistry = JSON.parse(
