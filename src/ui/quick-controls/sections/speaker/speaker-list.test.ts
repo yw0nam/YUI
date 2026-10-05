@@ -2,12 +2,13 @@
 /**
  * speaker-list.test.ts — the paste-a-voice-id field under providers that accept any voice id
  * (Fish's library voices): hidden otherwise, Enter selects the pasted id even when the list
- * doesn't carry it.
+ * doesn't carry it. Also the store subscription's open and mid-swap guards, and teardown.
  */
 
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createSpeakerSelection } from "../../../../io/voice/voices/speaker-selection";
 import { setLocale } from "../../../i18n";
+import "../../test-helpers";
 import { createSpeakerList, speakerPickerHtml } from "./speaker-list";
 
 const noopLog = { debug: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn() };
@@ -36,6 +37,7 @@ function buildList(
     log: noopLog,
     refreshTooltip: () => {},
     isDisposed: () => false,
+    isOpen: () => true,
     ...overrides,
   });
   list.render();
@@ -185,5 +187,82 @@ describe("speaker list — ids another provider's voice holds", () => {
     input.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true }));
     expect(commitVoiceImport).not.toHaveBeenCalled();
     el.remove();
+  });
+});
+
+describe("speaker list — store subscription and teardown", () => {
+  function build({
+    open = true,
+    swapSpeaker = vi.fn(async () => {}),
+  }: {
+    open?: boolean;
+    swapSpeaker?: () => Promise<void>;
+  } = {}) {
+    const el = document.createElement("div");
+    el.innerHTML = speakerPickerHtml();
+    document.body.append(el);
+    const speakerSelection = createSpeakerSelection({
+      defaultValue: "natsume",
+      available: [
+        { id: "natsume", label: "Natsume", ref_url: "" },
+        { id: "ayase", label: "Ayase", ref_url: "" },
+      ],
+    });
+    const pickVoiceImport = vi.fn(async () => null);
+    const list = createSpeakerList({
+      root: el,
+      speakerSelection,
+      swapSpeaker,
+      refreshSpeaker: vi.fn(async () => {}),
+      pickVoiceImport,
+      commitVoiceImport: vi.fn(async () => {}),
+      removeVoice: vi.fn(async () => {}),
+      canManageVoices: () => true,
+      canReuploadVoices: () => true,
+      canPasteVoiceId: () => false,
+      log: noopLog,
+      refreshTooltip: () => {},
+      isDisposed: () => false,
+      isOpen: () => open,
+    });
+    list.render();
+    const rows = () => Array.from(el.querySelectorAll<HTMLElement>(".yui-spk[role=radio]"));
+    return { el, speakerSelection, list, swapSpeaker, pickVoiceImport, rows };
+  }
+
+  afterEach(() => {
+    document.body.innerHTML = "";
+  });
+
+  it("a store change re-renders the rows while open, not while closed and not mid-swap", () => {
+    const closed = build({ open: false });
+    const closedRow = closed.rows()[0];
+    closed.speakerSelection.select("ayase");
+    expect(closed.rows()[0]).toBe(closedRow);
+
+    const opened = build();
+    const openedRow = opened.rows()[0];
+    opened.speakerSelection.select("ayase");
+    expect(opened.rows()[0]).not.toBe(openedRow);
+
+    const swapping = build({ swapSpeaker: () => new Promise<void>(() => {}) });
+    swapping.rows()[1].click();
+    const busyRow = swapping.rows()[0];
+    swapping.speakerSelection.select("ayase");
+    expect(swapping.rows()[0]).toBe(busyRow);
+  });
+
+  it("after dispose(), a store change does not re-render and the keydown and add click do nothing", () => {
+    const { el, speakerSelection, list, swapSpeaker, pickVoiceImport, rows } = build();
+    const firstRow = rows()[0];
+
+    list.dispose();
+    rows()[1].dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true }));
+    el.querySelector<HTMLButtonElement>(".yui-spk--add")!.click();
+    speakerSelection.select("ayase");
+
+    expect(swapSpeaker).not.toHaveBeenCalled();
+    expect(pickVoiceImport).not.toHaveBeenCalled();
+    expect(rows()[0]).toBe(firstRow);
   });
 });

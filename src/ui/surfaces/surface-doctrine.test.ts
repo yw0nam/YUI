@@ -164,7 +164,7 @@ describe("quick-controls.css — holds no control rules", () => {
 
 // Same rule on the quick-controls endpoints section: the chat-status line and the
 // session lost line both carry `display: flex`, so without their own [hidden] rule
-// reflect.ts setting `hidden` on either leaves it painted in the layout.
+// setting `hidden` on either leaves it painted in the layout.
 describe("endpoints-section.css — components with a display rule honour [hidden]", () => {
   it(".yui-chat-status and .yui-session__deleg-lost set display:none under [hidden]", () => {
     const css = read("../quick-controls/connection/endpoints-section.css");

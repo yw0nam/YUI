@@ -27,7 +27,7 @@ interface ScreenSectionDeps {
   screenKnobSettings?: ScreenKnobSettingsStore;
   /** Bundled config thresholds a knob falls back to when it carries no override (undefined if not loaded). */
   getScreenDefaults?: () => ScreenOverrides | undefined;
-  /** Reflect layer's switch-row redraw — the flag subscription calls both. */
+  /** Switch-row redraw — the flag subscription calls both. */
   reflectSwitchRows: () => void;
   /** Popover open state — store subscriptions redraw only while the panel is open. */
   isOpen: () => boolean;

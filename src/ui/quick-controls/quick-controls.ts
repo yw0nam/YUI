@@ -57,10 +57,10 @@ import { createCharacterTab } from "./character/character-tab";
 import { createConnectionTab, type PushSocketPanelPort } from "./connection/connection-tab";
 import type { QuickControlsTab } from "./constants";
 import { mountCueLists } from "./cue-lists/cue-lists";
+import { createHeaderButtons } from "./header/header-buttons";
 import { createHintTooltip } from "./hint-tooltip";
 import { createHistoryTab } from "./history/history-tab";
 import { createPopover } from "./popover";
-import { createReflect } from "./reflect";
 import { createAgentSection } from "./sections/agent/agent-section";
 import { createFillerSection } from "./sections/filler/filler-section";
 import { bindHelpSection } from "./sections/help-section";
@@ -349,18 +349,12 @@ export function createQuickControls({
   const tablistEl = el.querySelector<HTMLDivElement>(".yui-tabs")!;
   const tabButtons = Array.from(el.querySelectorAll<HTMLButtonElement>(".yui-tab"));
   const barEl = el.querySelector<HTMLDivElement>(".yui-quick__bar");
-  const popOutBtn = el.querySelector<HTMLButtonElement>(".yui-iconbtn--popout");
-  const messageBtn = el.querySelector<HTMLButtonElement>(".yui-iconbtn--message");
-  const devtoolsBtn = el.querySelector<HTMLButtonElement>(".yui-devtools-open");
-  const closeBtn = el.querySelector<HTMLButtonElement>(".yui-iconbtn--close");
 
   // ── Speaker picker — the shell keeps its lifecycle; the connection tab mounts the element. ──
   const speakerHost = document.createElement("div");
   speakerHost.innerHTML = speakerPickerHtml();
   // The picker's own .yui-group, so `.yui-group + .yui-group` spaces it under the TTS group.
   const ttsExtra = speakerHost.firstElementChild as HTMLElement;
-  const spksEl = ttsExtra.querySelector<HTMLDivElement>(".yui-spks")!;
-  const spkAddBtn = ttsExtra.querySelector<HTMLButtonElement>(".yui-spk--add")!;
 
   // ── Connection tab (URL fields · API key rows · TTS/Chat dropdowns · status line · resets) ──
   const connectionTab = createConnectionTab({
@@ -397,12 +391,6 @@ export function createQuickControls({
 
   // After dispose, prevent in-flight refresh from repainting/timering on destroyed DOM.
   let disposed = false;
-
-  // ── reflect (store→DOM sync) layer ──
-  const reflect = createReflect({
-    root: el,
-    switchRows: TOGGLE_SPECS,
-  });
 
   // ── Character tab — the tab owns its rows; the shell mounts it and relays open/close. ──
   const characterTab = createCharacterTab({
@@ -452,6 +440,7 @@ export function createQuickControls({
     log,
     refreshTooltip: hintTooltip.refresh,
     isDisposed: () => disposed,
+    isOpen: () => popover.isOpen(),
   });
 
   // ── popover shell (position/drag/open-close lifecycle) ──
@@ -464,7 +453,7 @@ export function createQuickControls({
     closeWindow: onCloseWindow,
     onOpen: () => {
       screenshot.reflect();
-      reflect.reflectSwitchRows();
+      switchRows.reflect();
       reactions.reflect();
       screen.reflect();
       voiceInput.reflect();
@@ -496,7 +485,7 @@ export function createQuickControls({
     screenSettings,
     screenKnobSettings,
     getScreenDefaults,
-    reflectSwitchRows: reflect.reflectSwitchRows,
+    reflectSwitchRows: () => switchRows.reflect(),
     isOpen: popover.isOpen,
   });
 
@@ -508,7 +497,7 @@ export function createQuickControls({
     pacerGapSettings,
     rateLimitSettings,
     getRateLimitDefaults,
-    reflectSwitchRows: reflect.reflectSwitchRows,
+    reflectSwitchRows: () => switchRows.reflect(),
     isOpen: popover.isOpen,
   });
 
@@ -526,7 +515,7 @@ export function createQuickControls({
     root: el,
     fillerSettings,
     isOpen: popover.isOpen,
-    reflectSwitchRows: reflect.reflectSwitchRows,
+    reflectSwitchRows: () => switchRows.reflect(),
   });
 
   // ── Voice input section (voice switch · silence threshold slider) ──
@@ -534,7 +523,7 @@ export function createQuickControls({
     root: el,
     voiceStatus,
     vad,
-    reflectSwitchRows: reflect.reflectSwitchRows,
+    reflectSwitchRows: () => switchRows.reflect(),
     isOpen: popover.isOpen,
     log,
   });
@@ -557,18 +546,6 @@ export function createQuickControls({
     log,
     isOpen: popover.isOpen,
   });
-
-  // ── Event handlers ──
-
-  function handlePopOut(): void {
-    onPopOut?.();
-  }
-
-  // Close first: the panel restores focus on close, and the text input must take it after.
-  function handleMessage(): void {
-    popover.close();
-    onMessage?.();
-  }
 
   // Effective chat protocol: the user's override, else the bundled default.
   function isPushMode(): boolean {
@@ -599,8 +576,6 @@ export function createQuickControls({
     return tabRail.selected() as QuickControlsTab;
   }
 
-  // ── Subscriptions ──
-
   // Cue-list components — both in the Proactive tab: proactive in .yui-loop-cue-section, schedule in .yui-cue-sections.
   const loopCueMountEl = el.querySelector<HTMLDivElement>(".yui-loop-cue-section")!;
 
@@ -611,17 +586,14 @@ export function createQuickControls({
     proactiveSettings,
   });
 
-  // Reflect speaker store updates (direct select · other-window reloadFromStorage) to active row.
-  // Skip during swap — finally's renderSpeakers handles final render after loading.
-  const unsubscribeSpk = speakerSelection.subscribe(() => {
-    if (popover.isOpen() && !speakerList.isSwapping()) speakerList.render();
+  // ── Header buttons (pop-out · message · devtools · close) ──
+  const headerButtons = createHeaderButtons({
+    root: el,
+    close: popover.close,
+    onPopOut,
+    onMessage,
+    onOpenDevtools,
   });
-
-  spksEl.addEventListener("keydown", speakerList.handleKeydown);
-  spkAddBtn.addEventListener("click", speakerList.handleAddClick);
-  popOutBtn?.addEventListener("click", handlePopOut);
-  messageBtn?.addEventListener("click", handleMessage);
-  devtoolsBtn?.addEventListener("click", () => onOpenDevtools?.());
   // The popover closes first, as for the message button, so the reply is what the user sees next.
   // The separate settings window stays open.
   const unbindHelp = onGuide
@@ -630,7 +602,6 @@ export function createQuickControls({
         onGuide(guide, text);
       })
     : undefined;
-  closeBtn?.addEventListener("click", popover.close);
   // window variant is always visible, so open it immediately.
   if (isWindow) popover.open();
 
@@ -648,18 +619,13 @@ export function createQuickControls({
     hintTooltip.dispose();
     historyTab?.dispose();
     cueLists.destroy();
-    unsubscribeSpk();
+    switchRows.dispose();
     characterTab.dispose();
     speakerList.dispose();
-    popover.dispose();
-    switchRows.dispose();
-    tabRail.dispose();
-    spksEl.removeEventListener("keydown", speakerList.handleKeydown);
-    spkAddBtn.removeEventListener("click", speakerList.handleAddClick);
-    popOutBtn?.removeEventListener("click", handlePopOut);
-    messageBtn?.removeEventListener("click", handleMessage);
+    headerButtons.dispose();
     unbindHelp?.();
-    closeBtn?.removeEventListener("click", popover.close);
+    popover.dispose();
+    tabRail.dispose();
     el.remove();
     scrimEl.remove();
   }

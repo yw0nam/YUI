@@ -452,7 +452,6 @@ YUI/
         controls.css                 # Switch, segment, field, text-button, disclosure, slider, and confirm styles
         template.ts                  # Panel markup as pure string construction
         popover.ts                   # Popover shell: positioning, dragging, open and close lifecycle
-        reflect.ts                   # Store to DOM reflection for the panel parts without their own
         constants.ts                 # Display constants shared by the panel, its sections, and the chips that reuse its glyphs
         switch-row.ts                # Switch-row element contract, the row table filling it, and each row's store follower
         seg-keyboard.ts              # Arrow, Home, End and commit keyboard handling shared by the segmented controls
@@ -476,6 +475,8 @@ YUI/
           cue-lists.ts               # Mounts and tears down the two cue lists
         delegations/                 # Delegated-work refresh for the session section
           delegation-sync.ts         # Minute refresh timer that follows the running delegated items
+        header/                      # Popover header bar buttons
+          header-buttons.ts          # Pop-out, message, devtools and close buttons with their listeners
         history/                     # History tab and its session accordion section
           history-section.ts         # History tab session accordion over the persisted transcript
           history-section.css        # Session history accordion styles

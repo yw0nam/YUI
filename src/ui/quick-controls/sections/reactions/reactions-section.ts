@@ -27,7 +27,7 @@ interface ReactionsSectionDeps {
   rateLimitSettings?: GuardrailsSettingsStore;
   /** Bundled config caps a field falls back to when it carries no override (undefined if not loaded). */
   getRateLimitDefaults?: () => RateLimitOverrides | undefined;
-  /** Reflect layer's switch-row redraw — the agent-notify subscription calls both. */
+  /** Switch-row redraw — the agent-notify subscription calls both. */
   reflectSwitchRows: () => void;
   /** Popover open state — store subscriptions redraw only while the panel is open. */
   isOpen: () => boolean;

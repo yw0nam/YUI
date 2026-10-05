@@ -21,7 +21,7 @@ interface VoiceInputSectionDeps {
   voiceStatus: VoiceInputStatus;
   /** STT silence threshold (ms) store — the slider drives it. */
   vad: VadSettingsStore;
-  /** Reflect layer's switch-row redraw — the vad subscription calls it before the slider redraw. */
+  /** Switch-row redraw — the vad subscription calls it before the slider redraw. */
   reflectSwitchRows: () => void;
   /** Popover open state — the vad subscription redraws only while the panel is open. */
   isOpen: () => boolean;

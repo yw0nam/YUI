@@ -1452,5 +1452,32 @@ describe("createQuickControls — cue-list mount and delegation timer", () => {
       );
       expect(log).toHaveLength(8);
     });
+
+    it("releases the speaker store and detaches the header buttons", () => {
+      const base = defaultQcArgs(mount);
+      const counts = countSubscriptions(base.speakerSelection);
+      const onPopOut = vi.fn();
+      const qc = createQuickControls({ ...base, onPopOut });
+      const popOut = qc.el.querySelector<HTMLButtonElement>(".yui-iconbtn--popout")!;
+
+      qc.dispose();
+      popOut.click();
+
+      expect(counts.taken).toBeGreaterThan(0);
+      expect(counts.released).toBe(counts.taken);
+      expect(onPopOut).not.toHaveBeenCalled();
+    });
+
+    it("stops at the first cleanup that throws: dispose() throws and the panel stays mounted", () => {
+      const base = defaultQcArgs(mount);
+      vi.spyOn(base.workflowSettings, "subscribe").mockImplementation((() => () => {
+        throw new Error("workflows unsubscribe failed");
+      }) as never);
+      const qc = createQuickControls({ ...base, variant: "window" });
+      expect(qc.el.isConnected).toBe(true);
+
+      expect(() => qc.dispose()).toThrow("workflows unsubscribe failed");
+      expect(qc.el.isConnected).toBe(true);
+    });
   });
 });

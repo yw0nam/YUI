@@ -18,7 +18,7 @@ interface FillerSectionDeps {
   fillerSettings?: FillerSettingsStore;
   /** Popover open state — the store subscription redraws only while the panel is open. */
   isOpen: () => boolean;
-  /** Reflect layer's switch-row redraw — the store subscription calls it before reflect(). */
+  /** Switch-row redraw — the store subscription calls it before reflect(). */
   reflectSwitchRows: () => void;
 }
 
