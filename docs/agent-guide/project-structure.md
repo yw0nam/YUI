@@ -135,8 +135,8 @@ YUI/
           gaze.ts                    # Cursor tracking angles and damping
         emotion-registry.ts          # Validates the emotion registry against the emotion enum
         endpoints.ts                 # Validates endpoint URLs and models; an empty value leaves the feature off
-        filler.ts                    # The filler.json types — phrase pools and loop timing — and their validation
-        guardrails.ts                # The guardrails.json types — debounce, rate-limit, and attachment caps — and their validation
+        filler.ts                    # The filler.json phrase-pool and loop-timing types and their validation
+        guardrails.ts                # The guardrails.json debounce, rate-limit, and attachment-cap types and their validation
         hotkeys.ts                   # The hotkeys.json summon-accelerator type and its validation
         motions.ts                   # Validates the motion registry
         screen.ts                    # The screen.json type and the validation of its frontmost-transition thresholds
@@ -343,7 +343,7 @@ YUI/
           fish-voices.ts               # Fish Audio's /model API: the account's voice models, import from a clip, and delete
           voice-import.ts              # Voice import: OS picker, native copy, speaker registration
           voice-import-flow.ts         # Two-step voice import so a naming row sits between pick and copy
-          voice-id-migration.ts        # Moves imported voices whose stored ids the TTS server would reject onto today's import ids
+          voice-id-migration.ts        # Moves imported voices whose stored ids the TTS server would reject onto the ids an import of the same label produces
           voice-list-refresh.ts        # Refetches the TTS server's voice list into a speaker manifest
           reference-clip.ts            # Reference-clip URL resolution and transport selection
           speaker-selection.ts         # Owns the active TTS speaker selection
@@ -481,7 +481,7 @@ YUI/
               bubble-section.ts      # The keep-until-dismissed switch bound to its flag store
             stage/                   # The stage background's Default/Image pick and its image import
               stage-section.ts       # The Default/Image segment over the background store and the Choose row that runs the import
-              stage-section.css      # Stage-section import-row styles
+              stage-section.css      # The stage section's import-error foot styles
             voice/                   # The voice-input mode segment
               voice-section.ts       # The Tap to toggle / Keep listening segment that follows the mode store
               voice-section.css      # Voice-input-section note and touch-sized segment styles
