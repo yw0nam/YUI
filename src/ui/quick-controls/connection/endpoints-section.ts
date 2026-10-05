@@ -54,7 +54,7 @@ interface EndpointsSectionDeps {
   ttsKeySettings: ApiKeySettingsStore;
   /** Default bundled-config endpoints to show as placeholder (undefined if not loaded). */
   getEndpointDefaults?: () => EndpointOverrides | undefined;
-  /** On blur, reflect pending remote changes to input (reflectEndpoints from reflect layer). */
+  /** On blur, reflect pending remote changes to input (the connection tab's reflectEndpoints). */
   reflectEndpoints: () => void;
   /** Key row store subscription checks open state before redrawing (popover.isOpen). */
   isOpen: () => boolean;
@@ -72,7 +72,7 @@ interface KeyRow {
 }
 
 interface EndpointsSection {
-  /** Per-service key rows — reflect layer's reflectKeyRows calls each row's reflect(). */
+  /** Per-service key rows — the connection tab's refresh calls each row's reflect(). */
   keyRows: readonly KeyRow[];
   /** Commit pending key inputs to store (on panel close). */
   commitDirtyKeys(): void;
@@ -205,7 +205,7 @@ export function createEndpointsSection(deps: EndpointsSectionDeps): EndpointsSec
     if (!isChatApi(api)) return;
     endpointsSettings.set({ chat_api: api });
     log.info("chat_api_change", { api });
-    // Store subscription (unsubscribeEndpoints) calls reflect.reflectChatType to update value/summary hint.
+    // The connection tab's store subscription (unsubscribeEndpoints) calls reflectChatType to update value/summary hint.
   }
 
   // Single write path for endpoint text fields — typing and the chat provider preset both land here.
@@ -227,7 +227,7 @@ export function createEndpointsSection(deps: EndpointsSectionDeps): EndpointsSec
     if (preset.url !== undefined) commitEndpointField("chat_base_url", preset.url);
     if (preset.chatApi !== undefined) endpointsSettings.set({ chat_api: preset.chatApi });
     log.info("chat_preset_select", { preset: preset.id });
-    // Store subscription (unsubscribeEndpoints) calls reflect.reflectChatPreset to re-derive the selected preset.
+    // The connection tab's store subscription (unsubscribeEndpoints) calls reflectChatPreset to re-derive the selected preset.
   }
 
   // ── TTS section: provider dropdown (tts_provider + tts_base_url/tts_model autofill) ──
@@ -304,7 +304,7 @@ export function createEndpointsSection(deps: EndpointsSectionDeps): EndpointsSec
     for (const key of fields) patch[key] = "";
     endpointsSettings.set(patch);
     // Only url/string-kind fields have a DOM input (epInputs); the dropdown-enum field (chat_api)
-    // is re-rendered by reflect.reflectChatType on store change.
+    // is re-rendered by the connection tab's reflectChatType on store change.
     for (const key of fields) {
       const input = epInputs.get(key);
       if (!input) continue;

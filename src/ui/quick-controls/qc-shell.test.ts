@@ -20,6 +20,7 @@ import { createProactiveSettings } from "../../settings/cues/proactive-settings"
 import { createScheduleSettings } from "../../settings/cues/schedule-settings";
 import { createMessageWindowSettings } from "../../settings/panels/message-window-settings";
 import { createPacerGapStore, createPresenceStore } from "../../settings/settings-stores";
+import { createFillerSettings } from "../../settings/voice/filler-settings";
 import { DELEGATION_REFRESH_MS } from "../chips/delegation-rows";
 import { createVoiceInputStatus } from "../chips/voice-input-status";
 import { getLocale, subscribe as i18nSubscribe, LOCALE_DISPLAY_NAMES, setLocale } from "../i18n";
@@ -1466,6 +1467,43 @@ describe("createQuickControls — cue-list mount and delegation timer", () => {
       expect(counts.taken).toBeGreaterThan(0);
       expect(counts.released).toBe(counts.taken);
       expect(onPopOut).not.toHaveBeenCalled();
+    });
+
+    it("releases the filler and transcript stores and detaches the panel, scrim and every root listener", () => {
+      const base = defaultQcArgs(mount);
+      const fillerSettings = createFillerSettings();
+      const transcript = createChatHistoryStore();
+      const fillerCounts = countSubscriptions(fillerSettings);
+      const transcriptCounts = countSubscriptions(transcript);
+      const onGuide = vi.fn();
+      const qc = createQuickControls({
+        ...base,
+        fillerSettings,
+        transcript,
+        onGuide,
+        rateLimitSettings: createGuardrailsSettings(),
+      });
+      qc.open();
+      const scrim = mount.querySelector(".yui-quick-scrim");
+      expect(scrim).not.toBeNull();
+      const tabBefore = qc.selectedTab();
+
+      qc.dispose();
+      qc.el.querySelector<HTMLButtonElement>("#yui-tab-general")!.click();
+      qc.el.querySelector<HTMLButtonElement>(".yui-help-btn")!.click();
+      qc.el.querySelector<HTMLButtonElement>(".yui-hint-dot")!.click();
+      document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
+
+      expect(qc.el.isConnected).toBe(false);
+      expect(scrim!.isConnected).toBe(false);
+      expect(fillerCounts.taken).toBeGreaterThan(0);
+      expect(fillerCounts.released).toBe(fillerCounts.taken);
+      expect(transcriptCounts.taken).toBeGreaterThan(0);
+      expect(transcriptCounts.released).toBe(transcriptCounts.taken);
+      expect(qc.selectedTab()).toBe(tabBefore);
+      expect(onGuide).not.toHaveBeenCalled();
+      expect(document.getElementById("yui-hint-tip")).toBeNull();
+      expect(qc.isOpen()).toBe(true);
     });
 
     it("stops at the first cleanup that throws: dispose() throws and the panel stays mounted", () => {
