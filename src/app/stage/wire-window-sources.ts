@@ -1,7 +1,10 @@
 import type { GestureCuesConfig, PeekConfig } from "../../config/load";
 import type { Posture, WindowRect } from "../../contract";
 import type { EventBus } from "../../dispatcher/core/event-bus";
-import { createWindowDropSource } from "../../dispatcher/sources/gesture/window-drop/window-drop-source";
+import {
+  createWindowDropSource,
+  type WindowDropSource,
+} from "../../dispatcher/sources/gesture/window-drop/window-drop-source";
 import { type AvatarExecutor, createAvatarExecutor } from "../../io/bridge/inbox/avatar-executor";
 import { onAvatarRpc, respondAvatarRpc } from "../../io/bridge/inbox/avatar-rpc";
 import {
@@ -45,24 +48,12 @@ export function wireWindowSources(deps: {
   /** The sit-down a drop plays in place before the seat is taken. */
   sitDown: () => Promise<"done" | "lost">;
   log: Logger;
-}): {
+}): Pick<
+  WindowDropSource,
+  "adoptSit" | "armedSit" | "suspendSit" | "resumeSit" | "abandonSit" | "release"
+> & {
   noteUserDrag(): void;
   noteUserDragEnd(): void;
-  /** Track a sit the character climbed to herself, without pushing a drop envelope. */
-  adoptSit(
-    windowNumber: number,
-    rect: { x: number; y: number },
-    charHpx: number,
-    origin: "commit" | "adopt",
-  ): void;
-  /** The window an armed sit is held on. null when nothing, or a peek, is armed. */
-  armedSit(): { windowNumber: number; origin: "commit" | "adopt"; charHpx: number } | null;
-  suspendSit(): ReturnType<ReturnType<typeof createWindowDropSource>["suspendSit"]>;
-  resumeSit(edgeLocalYpx: number): void;
-  /** Drop a suspended sit for good, without publishing an exit. */
-  abandonSit(): void;
-  /** Release the armed perch and push the sit exit. */
-  release(): void;
   /** Pause the keep-on-screen guard while a travel parks the window itself. */
   setKeepOnScreenPaused(paused: boolean): void;
   dispose(): void;
@@ -80,7 +71,7 @@ export function wireWindowSources(deps: {
     noteAgentMove,
     log,
   } = deps;
-  let windowDropSource: ReturnType<typeof createWindowDropSource> | null = null;
+  let windowDropSource: WindowDropSource | null = null;
   let windowResizeSource: ReturnType<typeof createWindowResizeSource> | null = null;
   let avatarExecutor: AvatarExecutor | null = null;
   let keepOnScreen: KeepOnScreenHandle | null = null;
