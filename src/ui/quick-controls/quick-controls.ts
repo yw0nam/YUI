@@ -65,9 +65,9 @@ import { createReflect } from "./reflect";
 import { createAgentSection } from "./sections/agent/agent-section";
 import { createFillerSection } from "./sections/filler/filler-section";
 import { bindHelpSection } from "./sections/help-section";
-import { createMonitorsSection } from "./sections/monitors-section";
 import { createReactionsSection } from "./sections/reactions/reactions-section";
 import { createScreenSection } from "./sections/screen/screen-section";
+import { createScreenshotSection } from "./sections/screenshot/screenshot-section";
 import { createSpeakerList, speakerPickerHtml } from "./sections/speaker-list";
 import { createVoiceInputSection } from "./sections/voice-input/voice-input-section";
 import { createWorkflowsSection } from "./sections/workflows-section";
@@ -345,9 +345,7 @@ export function createQuickControls({
     showHistory: !!transcript,
   });
 
-  const switchBtn = el.querySelector<HTMLButtonElement>(".yui-screenshot-switch")!;
   const cueSectionsMountEl = el.querySelector<HTMLDivElement>(".yui-cue-sections")!;
-  const monitorsSection = createMonitorsSection({ root: el, sourceProvider, settings, log });
   const tablistEl = el.querySelector<HTMLDivElement>(".yui-tabs")!;
   const tabButtons = Array.from(el.querySelectorAll<HTMLButtonElement>(".yui-tab"));
   const barEl = el.querySelector<HTMLDivElement>(".yui-quick__bar");
@@ -404,7 +402,6 @@ export function createQuickControls({
   const reflect = createReflect({
     root: el,
     switchRows: TOGGLE_SPECS,
-    settings,
     sessionDiagnostics,
     // The session section's lost line follows the socket only while push chat is effective.
     ...(pushSocket
@@ -477,7 +474,7 @@ export function createQuickControls({
     isWindow,
     closeWindow: onCloseWindow,
     onOpen: () => {
-      reflect.reflectSettings();
+      screenshot.reflect();
       reflect.reflectSwitchRows();
       reactions.reflect();
       screen.reflect();
@@ -493,9 +490,7 @@ export function createQuickControls({
       speakerList.render();
       // Server may have come up after the app — refetch its voice list (store subscription re-renders).
       refreshVoiceList?.();
-      if (settings.get().enabled && !monitorsSection.isLoaded()) {
-        void monitorsSection.load();
-      }
+      screenshot.loadMonitorsIfEnabled();
     },
     onClose: () => {
       characterTab.close();
@@ -553,16 +548,16 @@ export function createQuickControls({
     log,
   });
 
-  // ── Event handlers ──
+  // ── Screenshot section (attach switch · monitor list) ──
+  const screenshot = createScreenshotSection({
+    root: el,
+    settings,
+    sourceProvider,
+    log,
+    isOpen: popover.isOpen,
+  });
 
-  function handleSwitchClick(): void {
-    const current = settings.get().enabled;
-    settings.setEnabled(!current);
-    log.info("screenshot_attach_toggle", { enabled: !current });
-    if (!current && !monitorsSection.isLoaded()) {
-      void monitorsSection.load();
-    }
-  }
+  // ── Event handlers ──
 
   function handlePopOut(): void {
     onPopOut?.();
@@ -605,13 +600,6 @@ export function createQuickControls({
 
   // ── Subscriptions ──
 
-  const unsubscribe = settings.subscribe((s) => {
-    if (!popover.isOpen()) return;
-    reflect.reflectSettings();
-    if (s.enabled && !monitorsSection.isLoaded()) {
-      void monitorsSection.load();
-    }
-  });
   const unsubscribeIdleThrottle = idleThrottleSettings.subscribe(() => {
     if (popover.isOpen()) reflect.reflectSwitchRows();
   });
@@ -661,7 +649,6 @@ export function createQuickControls({
   // its minute refresh.
   const unsubscribeDelegations = delegations?.subscribe(() => delegationSync.sync());
 
-  switchBtn.addEventListener("click", handleSwitchClick);
   const switchRows = bindSwitchRows(el, TOGGLE_SPECS, log);
   spksEl.addEventListener("keydown", speakerList.handleKeydown);
   spkAddBtn.addEventListener("click", speakerList.handleAddClick);
@@ -684,6 +671,7 @@ export function createQuickControls({
     disposed = true;
     connectionTab.dispose();
     workflows.dispose();
+    screenshot.dispose();
     screen.dispose();
     reactions.dispose();
     agent.dispose();
@@ -692,7 +680,6 @@ export function createQuickControls({
     hintTooltip.dispose();
     historyTab?.dispose();
     cueLists.destroy();
-    unsubscribe();
     unsubscribeIdleThrottle();
     unsubscribeTts?.();
     unsubscribeGaze?.();
@@ -708,7 +695,6 @@ export function createQuickControls({
     characterTab.dispose();
     speakerList.dispose();
     popover.dispose();
-    switchBtn.removeEventListener("click", handleSwitchClick);
     switchRows.dispose();
     tabRail.dispose();
     spksEl.removeEventListener("keydown", speakerList.handleKeydown);

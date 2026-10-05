@@ -483,6 +483,8 @@ YUI/
           agent/                     # Locale, reasoning-effort, and instructions controls
             agent-section.ts         # Locale segment, reasoning-effort segment, instructions textarea, and their redraw
           monitors-section.ts        # Screen-source list and its load state
+          screenshot/                # Screenshot-attach switch and when the monitor list loads
+            screenshot-section.ts    # Attach switch, its subscription and redraw, and the monitor-list load
           screen/                    # Screen section
             screen-section.ts        # Screen-watch threshold knobs, the min-gap slider, and their redraw
           reactions/                 # Reactions section
