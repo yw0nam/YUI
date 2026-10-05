@@ -42,7 +42,8 @@ ln -sfn $YUI/integrations/hermes/desire ~/.hermes/plugins/yui-desire
 hermes -p <profile> plugins enable yui-desire
 ```
 
-Check: `hermes -p <profile> plugins list` shows `yui-desire` enabled. Do not grant the plugin built-in tool
+Check: `hermes -p <profile> plugins list` shows `yui-desire` enabled. The list is configuration state only and does not
+prove the plugin loaded; the load check is step 9, after the gateway restarts. Do not grant the plugin built-in tool
 override permission; the middleware needs none.
 
 ## 3. Environment
@@ -186,7 +187,10 @@ every running turn, including the one that issues it, so answer first and issue 
 setsid nohup sh -c 'sleep 30; hermes -p <profile> gateway restart' >/dev/null 2>&1 &
 ```
 
-Check: `~/.hermes/profiles/<profile>/logs/gateway.log` gains `api_server connected` after the restart.
+Check: `~/.hermes/profiles/<profile>/logs/gateway.log` gains `api_server connected` after the restart, and
+`grep -E "Failed to load plugin|No module named" ~/.hermes/profiles/<profile>/logs/agent.log` prints nothing for
+`yui-desire` — a failed load writes a `Failed to load plugin 'yui-desire'` WARNING to that log, and
+`HERMES_PLUGINS_DEBUG=1` on the gateway process adds the traceback.
 
 ## Helper commands
 
