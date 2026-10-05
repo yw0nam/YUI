@@ -6,8 +6,8 @@
  * Pure load + validation only (no side effects, reader injectable → testable). fail-loud ConfigError.
  */
 
-import { type AssetUrlResolver, ConfigError, type ConfigReader, fetchReader } from "./load";
-import { isObject } from "./validators/shared";
+import { type AssetUrlResolver, type ConfigReader, fetchReader } from "./load";
+import { ConfigError, isObject } from "./validators/shared";
 
 interface LoadEmotionTextOptions {
   /** provider key in configs/emotion_text/<provider>.json (e.g. "irodori"). */

@@ -1,7 +1,7 @@
 /** Pure height-bound fit of a vertical band of the model box. */
 
 import * as THREE from "three";
-import type { FitBandConfig } from "../../config/load";
+import type { FitBandConfig } from "../../config/validators/avatar/types";
 
 /** Frames the band of the box between from_frac and to_frac of its height, bound by height alone. */
 export function computeBandFit(

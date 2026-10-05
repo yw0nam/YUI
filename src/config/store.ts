@@ -17,14 +17,8 @@
  * leave the subscribe/snapshot contract as is and just change the trigger.
  */
 
-import {
-  type AppConfig,
-  type ConfigSection,
-  type LoadConfigOptions,
-  loadConfig,
-  plainSecretProvider,
-  type SecretProvider,
-} from "./load";
+import { type AppConfig, type ConfigSection, type LoadConfigOptions, loadConfig } from "./load";
+import { plainSecretProvider, type SecretProvider } from "./secrets";
 
 /** Default polling interval (ms). Too frequent wastes fetches, too slow delays edit propagation. */
 const DEFAULT_POLL_MS = 1500;

@@ -1,6 +1,6 @@
-import type { FitBandConfig, FramingConfig } from "../../load";
 import { isObject } from "../shared";
 import { nonNegative, num, type SectionContext, unit } from "./helpers";
+import type { FitBandConfig, FramingConfig } from "./types";
 
 // framing — fit-to-bounds camera.
 export function validateFraming(

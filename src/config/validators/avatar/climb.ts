@@ -1,6 +1,6 @@
-import type { ClimbConfig } from "../../load";
 import { isObject } from "../shared";
 import { int, nonNegative, num, positive, requireOrder, type SectionContext } from "./helpers";
+import type { ClimbConfig } from "./types";
 
 // climb — ambient window climb.
 export function validateClimb(

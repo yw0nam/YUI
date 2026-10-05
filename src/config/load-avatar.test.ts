@@ -4,8 +4,9 @@
  */
 
 import { describe, expect, it } from "vitest";
-import { CONFIG_FILES, ConfigError, loadConfig } from "./load";
+import { CONFIG_FILES, loadConfig } from "./load";
 import { avatarFixture, goodFixture, readerOf } from "./load-test-helpers";
+import { ConfigError } from "./validators/shared";
 
 /** rejects → ConfigError on avatar.json with non-empty issues. */
 async function expectAvatarError(p: Promise<unknown>): Promise<void> {

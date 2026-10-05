@@ -5,7 +5,7 @@
  * Priority: stored > defaults (enabled:true, language:the app locale, "ja" without one, customPools:{})
  */
 
-import { FILLER_LANGS, type FillerLang, type FillerPool } from "../../config/load";
+import { FILLER_LANGS, type FillerLang, type FillerPool } from "../../config/validators/filler";
 import { createPersistedStore, localStorageStore, type PersistedStorage } from "../persisted-store";
 
 export interface FillerSettings {

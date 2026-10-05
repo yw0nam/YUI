@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import type { GuardrailsConfig } from "../../config/load";
+import type { GuardrailsConfig } from "../../config/validators/guardrails";
 import {
   createGuardrailsSettings,
   type GuardrailsStorage,

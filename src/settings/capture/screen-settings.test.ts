@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import type { ScreenConfig } from "../../config/load";
+import type { ScreenConfig } from "../../config/validators/screen";
 import {
   createScreenKnobSettings,
   mergeScreen,

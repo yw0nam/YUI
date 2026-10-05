@@ -7,7 +7,7 @@
  * that API's arguments and nothing more — no judgment crosses the wire.
  */
 
-import type { AttachmentLimits } from "../../../config/load";
+import type { AttachmentLimits } from "../../../config/validators/guardrails";
 import { type BridgeTransport, createBridgeCore, type WindowKind } from "../core/bridge-core";
 
 const CH_MESSAGE_SURFACE = "yui://message-surface";

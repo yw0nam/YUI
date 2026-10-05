@@ -1,4 +1,4 @@
-import type { FallConfig, GestureCuesConfig } from "../../../config/load";
+import type { FallConfig, GestureCuesConfig } from "../../../config/validators/avatar/types";
 import type { MotionKind, WindowRect } from "../../../contract";
 import type { EventBus } from "../../../dispatcher/core/event-bus";
 import { toScreenMonitor } from "../../../io/window/geometry/screen-geometry";

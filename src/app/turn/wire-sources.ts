@@ -1,4 +1,4 @@
-import type { ScreenConfig } from "../../config/load";
+import type { ScreenConfig } from "../../config/validators/screen";
 import type { EventBus } from "../../dispatcher/core/event-bus";
 import {
   composePacedPipelineBusy,

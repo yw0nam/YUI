@@ -6,7 +6,7 @@
 
 import "./quick-controls.css";
 import "./controls.css";
-import type { AvatarOption } from "../../config/load";
+import type { AvatarOption } from "../../config/validators/avatar/types";
 import type { GuideKey } from "../../contract";
 import type { createVrmSelection } from "../../io/assets/vrm-selection";
 import type { createChatHistoryStore } from "../../io/chat/conversation/chat-history-store";

@@ -4,8 +4,9 @@
  */
 
 import { describe, expect, it } from "vitest";
-import { ConfigError, loadConfig } from "./load";
+import { loadConfig } from "./load";
 import { goodFixture, readerOf } from "./load-test-helpers";
+import { ConfigError } from "./validators/shared";
 
 // ── motions.variants / variant_policy (D-MOTION-VARIANTS) ───────────────────────
 

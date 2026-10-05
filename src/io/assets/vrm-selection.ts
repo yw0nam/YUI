@@ -4,7 +4,7 @@
  * It does not perform the renderer swap. It only holds the selection state, persists it, and resolves the active option.
  */
 
-import type { AvatarOption } from "../../config/load";
+import type { AvatarOption } from "../../config/validators/avatar/types";
 import { isSafeSanitizedId } from "./safe-id";
 import {
   createSelectionStore,

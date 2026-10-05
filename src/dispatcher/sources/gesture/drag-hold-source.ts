@@ -6,7 +6,7 @@
  * no repeat while sustained, no cooldown. noteDragEnd disarms; the next noteDragStart re-arms.
  */
 
-import type { GestureCueConfig } from "../../../config/load";
+import type { GestureCueConfig } from "../../../config/validators/avatar/types";
 import type { EventBus } from "../../core/event-bus";
 
 interface DragHoldSourceDeps {

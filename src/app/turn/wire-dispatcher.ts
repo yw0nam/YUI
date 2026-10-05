@@ -1,5 +1,6 @@
 /** Wires the turn feed, the backend caller, guardrails, the pacer and the dispatcher. */
-import { type AppConfig, CHAT_API_KEY_SECRET } from "../../config/load";
+import type { AppConfig } from "../../config/load";
+import { CHAT_API_KEY_SECRET } from "../../config/secrets";
 import type { EndpointsConfig, FrontmostState, ToolStatus } from "../../contract";
 import { createBackendCaller } from "../../dispatcher/backend/backend-caller";
 import type { PreviousTurnSlot } from "../../dispatcher/backend/previous-turn";

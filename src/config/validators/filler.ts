@@ -1,5 +1,41 @@
-import { FILLER_LANGS, type FillerConfig, type FillerLang, type FillerPool } from "../load";
 import { assertValid, ConfigError, isObject } from "./shared";
+
+/** TTFT filler language — closed union, never crosses the backend wire. */
+export const FILLER_LANGS = ["ja", "en", "ko"] as const;
+export type FillerLang = (typeof FILLER_LANGS)[number];
+
+/** Per-language filler phrase pool, one list per waiting tier. */
+export interface FillerPool {
+  /** Phrases for the first filler utterance (immediate acknowledgment). */
+  first: string[];
+  /** Phrases for subsequent filler utterances (still-thinking backchannels). */
+  repeat: string[];
+  /** Phrase for the single utterance once repeats are exhausted and the wait keeps going. */
+  long_wait: string[];
+  /** Per-tool_id acknowledgment phrases; `_default` covers an id with no specific entry. */
+  tool: Record<string, string[]>;
+  /** Phrases spoken when a user turn fails with network_stall. */
+  timeout: string[];
+  /** Phrases spoken when a user turn fails with network_drop. */
+  unreachable: string[];
+}
+
+/** configs/filler.json — TTFT filler phrases + loop timing. */
+export interface FillerConfig {
+  /** Silence (ms) between filler utterances — base. */
+  gap_ms: number;
+  /** Random ± jitter (ms) added to gap_ms each repeat. */
+  gap_jitter_ms: number;
+  /** Repeats allowed after the first phrase before falling back to long_wait. */
+  max_repeats: number;
+  /** Multiplier applied to gap_ms per repeat (exponential backoff). */
+  gap_growth: number;
+  /** Silence (ms) after the last spoken filler/tool utterance or activity event before the
+   * single long_wait phrase fires — once per turn, un-jittered. */
+  long_wait_ms: number;
+  /** Per-language filler phrase pools. */
+  pools: Partial<Record<FillerLang, FillerPool>>;
+}
 
 /** Validates a string[] filler tier (first, repeat, long_wait, timeout, unreachable). Returns cleaned array or records issues. */
 function validateFillerTier(issues: string[], tier: unknown, path: string): string[] {

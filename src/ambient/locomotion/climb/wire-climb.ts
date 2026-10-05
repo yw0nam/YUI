@@ -1,4 +1,9 @@
-import type { ClimbConfig, DescendConfig, FallConfig, WalkConfig } from "../../../config/load";
+import type {
+  ClimbConfig,
+  DescendConfig,
+  FallConfig,
+  WalkConfig,
+} from "../../../config/validators/avatar/types";
 import type { MotionKind, WindowRect } from "../../../contract";
 import type { EventBus } from "../../../dispatcher/core/event-bus";
 import type { WindowDropSource } from "../../../dispatcher/sources/gesture/window-drop/window-drop-source";

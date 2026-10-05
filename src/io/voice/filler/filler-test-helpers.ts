@@ -3,7 +3,7 @@
  * even when it only cares about one or two, so it starts from the production empty pool.
  */
 
-import type { FillerPool } from "../../../config/load";
+import type { FillerPool } from "../../../config/validators/filler";
 import { emptyFillerPool } from "./filler-pool";
 
 export function fillerPool(overrides: Partial<FillerPool> = {}): FillerPool {

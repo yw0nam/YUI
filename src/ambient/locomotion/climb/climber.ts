@@ -23,7 +23,12 @@
  * timers, the async window reads, and the per-frame translation.
  */
 
-import type { ClimbConfig, DescendConfig, FallConfig, WalkConfig } from "../../../config/load";
+import type {
+  ClimbConfig,
+  DescendConfig,
+  FallConfig,
+  WalkConfig,
+} from "../../../config/validators/avatar/types";
 import type { MotionKind, WindowRect } from "../../../contract";
 import type { WindowDropSource } from "../../../dispatcher/sources/gesture/window-drop/window-drop-source";
 import {

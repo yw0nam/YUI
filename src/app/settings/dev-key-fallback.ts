@@ -4,7 +4,7 @@
  * keys from the Connection tab's stores alone.
  */
 
-import { CHAT_API_KEY_SECRET, STT_API_KEY_SECRET, TTS_API_KEY_SECRET } from "../../config/load";
+import { CHAT_API_KEY_SECRET, STT_API_KEY_SECRET, TTS_API_KEY_SECRET } from "../../config/secrets";
 
 /** Secret name → build-time key. Empty in a production build. */
 export function devKeyFallback(): Record<string, string | undefined> {

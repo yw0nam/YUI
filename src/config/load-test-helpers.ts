@@ -3,7 +3,9 @@
  * known-good file bundle + in-memory ConfigReader. Mirrors the real configs/*.json shape.
  */
 
-import type { AvatarConfig, ConfigReader, GuardrailsConfig } from "./load";
+import type { ConfigReader } from "./load";
+import type { AvatarConfig } from "./validators/avatar/types";
+import type { GuardrailsConfig } from "./validators/guardrails";
 
 // ── fixtures (mirror the real configs/*.json) ─────────────────────────────────
 

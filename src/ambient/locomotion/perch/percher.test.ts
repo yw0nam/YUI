@@ -1,5 +1,9 @@
 import { describe, expect, it, vi } from "vitest";
-import type { FallConfig, JumpConfig, PerchWalkConfig } from "../../../config/load";
+import type {
+  FallConfig,
+  JumpConfig,
+  PerchWalkConfig,
+} from "../../../config/validators/avatar/types";
 import type { MotionKind, WindowRect } from "../../../contract";
 import type { ScreenMonitor } from "../../../io/window/geometry/screen-geometry";
 import type { TickContext, TickFn } from "../../../renderer";

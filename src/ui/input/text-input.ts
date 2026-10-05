@@ -5,7 +5,7 @@
  * user typed/attached. No brain, persona, or mode branching lives here.
  */
 
-import type { AttachmentLimits } from "../../config/load";
+import type { AttachmentLimits } from "../../config/validators/guardrails";
 import type { InputErrorAction } from "../../io/bridge/message/message-remote";
 import { subscribe as subscribeLocale, t } from "../i18n";
 import { type ActionButton, createActionButton, type MicPort } from "./action-button";

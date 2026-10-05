@@ -1,6 +1,6 @@
-import type { AvatarOption } from "../../load";
 import { isObject } from "../shared";
 import type { SectionContext } from "./helpers";
+import type { AvatarOption } from "./types";
 
 const AVATAR_SOURCES: readonly NonNullable<AvatarOption["source"]>[] = ["bundled", "file", "user"];
 /** Allowed chars for AvatarOption.id — a persistence key and the CSS selector `[data-vrm-id="…"]` value, so no whitespace/special chars. */

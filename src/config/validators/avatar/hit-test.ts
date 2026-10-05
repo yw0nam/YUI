@@ -1,6 +1,6 @@
-import type { HitTestKnobs } from "../../load";
 import { isObject } from "../shared";
 import { int, nonNegative, num, positive, type SectionContext } from "./helpers";
+import type { HitTestKnobs } from "./types";
 
 // hit_test — click-through polling and the silhouette alpha cut.
 export function validateHitTest(

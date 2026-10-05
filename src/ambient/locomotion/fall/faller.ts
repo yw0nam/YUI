@@ -18,7 +18,7 @@
  * frame hook, the async window reads and the window translation.
  */
 
-import type { FallConfig } from "../../../config/load";
+import type { FallConfig } from "../../../config/validators/avatar/types";
 import type { MotionKind, WindowRect } from "../../../contract";
 import { PERCH_POLL_MS, uncoveredSpan } from "../../../io/window/geometry/perch";
 import {

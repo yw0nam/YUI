@@ -5,8 +5,9 @@
 
 import { describe, expect, it } from "vitest";
 import type { EndpointsConfig } from "../contract";
-import { CONFIG_FILES, ConfigError, loadConfig } from "./load";
+import { CONFIG_FILES, loadConfig } from "./load";
 import { goodFixture, readerOf } from "./load-test-helpers";
+import { ConfigError } from "./validators/shared";
 
 // ── TTS (single OpenAI-compatible path) ───────────────────────────────────────
 

@@ -10,7 +10,7 @@
  * travel, and the two reads of the target window that bracket the flight.
  */
 
-import type { JumpConfig, PerchWalkConfig } from "../../../config/load";
+import type { JumpConfig, PerchWalkConfig } from "../../../config/validators/avatar/types";
 import type { WindowRect } from "../../../contract";
 import { MOVE_TH, uncoveredSpan } from "../../../io/window/geometry/perch";
 import { createLogger } from "../../../logger";

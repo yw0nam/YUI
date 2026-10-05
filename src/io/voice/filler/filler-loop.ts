@@ -22,7 +22,7 @@
  * follows until the next start().
  */
 
-import type { FillerPool } from "../../../config/load";
+import type { FillerPool } from "../../../config/validators/filler";
 import { createLogger, type Logger } from "../../../logger";
 import { createShuffleBag, type ShuffleBag } from "./shuffle-bag";
 

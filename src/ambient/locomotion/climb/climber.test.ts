@@ -5,7 +5,11 @@ const { log } = vi.hoisted(() => ({
 }));
 vi.mock("../../../logger", () => ({ createLogger: () => log }));
 
-import type { DescendConfig, FallConfig, WalkConfig } from "../../../config/load";
+import type {
+  DescendConfig,
+  FallConfig,
+  WalkConfig,
+} from "../../../config/validators/avatar/types";
 import type { MotionKind, WindowRect } from "../../../contract";
 import type { DescentEdge, ScreenMonitor } from "../../../io/window/geometry/screen-geometry";
 import type { RenderMotionSignal, TickContext, TickFn } from "../../../renderer";

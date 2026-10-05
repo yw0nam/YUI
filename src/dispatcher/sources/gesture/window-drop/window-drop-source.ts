@@ -25,7 +25,11 @@
  * degrade to a warn log.
  */
 
-import type { GestureCueConfig, GestureCuesConfig, PeekConfig } from "../../../../config/load";
+import type {
+  GestureCueConfig,
+  GestureCuesConfig,
+  PeekConfig,
+} from "../../../../config/validators/avatar/types";
 import type { WindowRect } from "../../../../contract";
 import type {
   PerchTargets,

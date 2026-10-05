@@ -6,7 +6,7 @@
  * peek commit a real drop uses. Never throws to the caller beyond what `invoke` does.
  */
 
-import type { PeekConfig } from "../../../../config/load";
+import type { PeekConfig } from "../../../../config/validators/avatar/types";
 import type { WindowRect } from "../../../../contract";
 import type {
   PlacementOptions,

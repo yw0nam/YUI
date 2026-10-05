@@ -1,3 +1,14 @@
+import { assertValid, ConfigError, isObject } from "../shared";
+import { validateAvailable } from "./available";
+import { validateClimb } from "./climb";
+import { validateDescend, validateFall } from "./fall";
+import { validateFraming } from "./framing";
+import { validateGaze } from "./gaze";
+import { validateDragHoldMs, validateGestureCues } from "./gestures";
+import { validateHitTest } from "./hit-test";
+import { validateJump } from "./jump";
+import { validatePeek } from "./peek";
+import { validateTap } from "./tap";
 import type {
   AvatarConfig,
   AvatarOption,
@@ -13,18 +24,7 @@ import type {
   PerchWalkConfig,
   TapConfig,
   WalkConfig,
-} from "../../load";
-import { assertValid, ConfigError, isObject } from "../shared";
-import { validateAvailable } from "./available";
-import { validateClimb } from "./climb";
-import { validateDescend, validateFall } from "./fall";
-import { validateFraming } from "./framing";
-import { validateGaze } from "./gaze";
-import { validateDragHoldMs, validateGestureCues } from "./gestures";
-import { validateHitTest } from "./hit-test";
-import { validateJump } from "./jump";
-import { validatePeek } from "./peek";
-import { validateTap } from "./tap";
+} from "./types";
 import { validatePerchWalk, validateWalk } from "./walk";
 
 /**

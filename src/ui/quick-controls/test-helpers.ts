@@ -6,7 +6,7 @@
  */
 
 import { vi } from "vitest";
-import type { AvatarOption } from "../../config/load";
+import type { AvatarOption } from "../../config/validators/avatar/types";
 import { createVrmSelection } from "../../io/assets/vrm-selection";
 import {
   createSpeakerSelection,

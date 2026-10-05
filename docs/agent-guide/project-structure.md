@@ -108,9 +108,11 @@ YUI/
       store.ts                       # Reactive config snapshot with hot-reload and change subscriptions
       emotion-text.ts                # Per-provider emotion_text emoji table loader
       tts-provider.ts                # The tts_provider values and the Irodori default for an unset one
+      secrets.ts                     # The secret provider and the key-name constants
       validators/
         avatar/                      # Validates avatar.json, one file per section
           index.ts                   # Router: the early throws, section calls in order, and the result
+          types.ts                   # The avatar.json config types
           helpers.ts                 # Shared issue-recording field readers and unknown-key check
           available.ts               # The available VRM manifest
           framing.ts                 # The fit-to-bounds camera
@@ -125,11 +127,11 @@ YUI/
           gaze.ts                    # Cursor tracking angles and damping
         emotion-registry.ts          # Validates the emotion registry against the emotion enum
         endpoints.ts                 # Validates endpoint URLs and models; an empty value leaves the feature off
-        filler.ts                    # Validates the filler phrase tiers
-        guardrails.ts                # Validates cooldown, suppression, and attachment caps
-        hotkeys.ts                   # Validates the summon accelerator; empty is disabled
+        filler.ts                    # The filler config types and their validation
+        guardrails.ts                # The guardrails config types and their validation
+        hotkeys.ts                   # The hotkeys config type and its validation
         motions.ts                   # Validates the motion registry
-        screen.ts                    # Validates the frontmost-transition detector thresholds
+        screen.ts                    # The screen config type and its validation
         shared.ts                    # Shared ConfigError plus issue-recording helpers
     renderer/                        # three.js + VRM rendering
       index.ts                       # three.js and VRM output layer: scene, rAF loop, VRM load and hot-swap

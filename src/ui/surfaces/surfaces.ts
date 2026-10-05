@@ -13,7 +13,7 @@
  */
 
 import "./surfaces.css";
-import type { AttachmentLimits } from "../../config/load";
+import type { AttachmentLimits } from "../../config/validators/guardrails";
 import type { UserQuote } from "../../io/bridge/message/message-bridge";
 import type { InputErrorAction } from "../../io/bridge/message/message-remote";
 import type { ToolStatus } from "../chips/status-pill";

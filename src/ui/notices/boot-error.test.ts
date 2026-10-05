@@ -12,7 +12,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("./boot-error.css", () => ({}));
 
-import { ConfigError } from "../../config/load";
+import { ConfigError } from "../../config/validators/shared";
 import { setLocale, t } from "../i18n";
 import { bootErrorContent, showBootError } from "./boot-error";
 

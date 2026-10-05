@@ -4,7 +4,7 @@
  * view while it is open. The entry routes its openers here.
  */
 
-import type { AvatarOption } from "../../../config/load";
+import type { AvatarOption } from "../../../config/validators/avatar/types";
 import type { EndpointsConfig } from "../../../contract";
 import type { StageBackgroundStore } from "../../../io/assets/stage/stage-background";
 import type { createVrmSelection } from "../../../io/assets/vrm-selection";

@@ -1,6 +1,6 @@
-import type { GazeKnobs } from "../../load";
 import { isObject } from "../shared";
 import { num, type SectionContext } from "./helpers";
+import type { GazeKnobs } from "./types";
 
 // gaze — cursor tracking angles and damping.
 export function validateGaze(

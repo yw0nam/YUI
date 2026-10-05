@@ -1,4 +1,4 @@
-import type { DescendConfig, WalkConfig } from "../../../config/load";
+import type { DescendConfig, WalkConfig } from "../../../config/validators/avatar/types";
 import type { MotionKind } from "../../../contract";
 import { isReflexTurn } from "../../../dispatcher/backend/backend-caller";
 import type { EventBus } from "../../../dispatcher/core/event-bus";

@@ -33,7 +33,7 @@ vi.mock("../../../io/voice/tts/audio-player", () => ({
 }));
 vi.mock("../../../io/chat/stream/chat-client", () => ({ selectFetch: mocks.selectFetch }));
 
-import type { FillerPool } from "../../../config/load";
+import type { FillerPool } from "../../../config/validators/filler";
 import { createTurnLog } from "../../../dispatcher/turn/turn";
 import { fillerPool } from "../../../io/voice/filler/filler-test-helpers";
 import type { SpeakerOption } from "../../../io/voice/voices/speaker-selection";

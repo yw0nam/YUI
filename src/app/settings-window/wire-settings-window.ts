@@ -1,4 +1,4 @@
-import { TTS_API_KEY_SECRET } from "../../config/load";
+import { TTS_API_KEY_SECRET } from "../../config/secrets";
 import { createConfigStore } from "../../config/store";
 import { importVrmFromFile, removeUserVrm } from "../../io/assets/vrm-import";
 import {

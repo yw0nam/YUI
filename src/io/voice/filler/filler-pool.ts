@@ -10,7 +10,7 @@
  * filler.json or a settings change takes effect on the next turn.
  */
 
-import type { FillerConfig, FillerPool } from "../../../config/load";
+import type { FillerConfig, FillerPool } from "../../../config/validators/filler";
 import type { FillerSettings } from "../../../settings/voice/filler-settings";
 import { createSentenceSegmenter } from "../tts/sentence-segmenter";
 import { createEmojiStripper } from "../tts/strip-emoji";

@@ -1,13 +1,9 @@
 /** The pet window's config store — bundled configs, runtime key overrides, and the live merges. */
 
-import {
-  CHAT_API_KEY_SECRET,
-  type GuardrailsConfig,
-  STT_API_KEY_SECRET,
-  TTS_API_KEY_SECRET,
-} from "../../config/load";
+import { CHAT_API_KEY_SECRET, STT_API_KEY_SECRET, TTS_API_KEY_SECRET } from "../../config/secrets";
 import type { ConfigStore } from "../../config/store";
 import { createConfigStore } from "../../config/store";
+import type { GuardrailsConfig } from "../../config/validators/guardrails";
 import type { EndpointsConfig } from "../../contract";
 import { createSettingsSecretProvider } from "../../io/chat/secret-provider";
 import type { Logger } from "../../logger";

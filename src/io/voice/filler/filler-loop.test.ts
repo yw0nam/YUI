@@ -10,7 +10,7 @@
  */
 
 import { describe, expect, it, vi } from "vitest";
-import type { FillerPool } from "../../../config/load";
+import type { FillerPool } from "../../../config/validators/filler";
 import { createFillerLoop, type FillerLoopDeps } from "./filler-loop";
 
 // ─────────────────────────────────────────────────────────────────────────────

@@ -4,7 +4,7 @@
  * Persists to storage on change and notifies subscribers. Never mutates the checked-in config.
  */
 
-import type { GuardrailsConfig } from "../../config/load";
+import type { GuardrailsConfig } from "../../config/validators/guardrails";
 import {
   applyPositiveOverrides,
   createOverrideRecordSettings,

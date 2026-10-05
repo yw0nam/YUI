@@ -108,7 +108,7 @@ vi.mock("../../../io/voice/voices/voice-import", () => ({
   fileStemFromPath: (path: string) => path,
 }));
 
-import type { FillerConfig, FillerPool } from "../../../config/load";
+import type { FillerConfig, FillerPool } from "../../../config/validators/filler";
 import type { EndpointsConfig } from "../../../contract";
 import type { BusEnvelope } from "../../../dispatcher/core/event-bus";
 import { createTurnLog } from "../../../dispatcher/turn/turn";

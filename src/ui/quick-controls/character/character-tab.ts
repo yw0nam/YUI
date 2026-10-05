@@ -5,7 +5,7 @@
  * rows are bound.
  */
 
-import type { AvatarOption } from "../../../config/load";
+import type { AvatarOption } from "../../../config/validators/avatar/types";
 import type { createVrmSelection } from "../../../io/assets/vrm-selection";
 import type { Logger } from "../../../logger";
 import type { ExpressMotionSettingsStore } from "../../../settings/avatar/express-motion-settings";

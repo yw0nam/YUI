@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { CHAT_API_KEY_SECRET } from "../../config/load";
+import { CHAT_API_KEY_SECRET } from "../../config/secrets";
 import { devKeyFallback } from "./dev-key-fallback";
 
 describe("devKeyFallback", () => {

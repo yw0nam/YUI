@@ -33,7 +33,7 @@
  * whether/what to speak.
  */
 
-import type { ScreenConfig } from "../../../config/load";
+import type { ScreenConfig } from "../../../config/validators/screen";
 import {
   buildSkipRecord,
   type ScreenSkipRecord,

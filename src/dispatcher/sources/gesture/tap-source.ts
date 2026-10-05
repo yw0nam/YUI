@@ -1,4 +1,4 @@
-import type { TapConfig } from "../../../config/load";
+import type { TapConfig } from "../../../config/validators/avatar/types";
 import type { SignalGroup } from "../../../contract";
 import { createLogger } from "../../../logger";
 import {
@@ -10,8 +10,6 @@ import {
 import type { EventBus } from "../../core/event-bus";
 
 const log = createLogger("tap-source");
-
-export type { TapConfig } from "../../../config/load";
 
 export interface TapPoints extends TapRegionBones {
   charHpx: number;

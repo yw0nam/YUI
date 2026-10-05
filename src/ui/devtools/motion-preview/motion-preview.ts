@@ -13,8 +13,8 @@
 
 import "./motion-preview.css";
 import { resolveAssetUrl } from "../../../config/asset-url";
-import type { AvatarConfig } from "../../../config/load";
 import { createConfigStore } from "../../../config/store";
+import type { AvatarConfig } from "../../../config/validators/avatar/types";
 import type { EmotionRegistry, MotionRegistry } from "../../../contract";
 import { createLogger } from "../../../logger";
 import { createRenderer } from "../../../renderer";

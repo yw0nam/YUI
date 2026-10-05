@@ -10,8 +10,8 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 import { loadEmotionTextTable } from "./emotion-text";
-import { ConfigError } from "./load";
 import { readerOf } from "./load-test-helpers";
+import { ConfigError } from "./validators/shared";
 
 const REPO_ROOT = resolve(__dirname, "../..");
 

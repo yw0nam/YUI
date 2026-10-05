@@ -13,7 +13,11 @@
  * fall that comes down on a window top hands it back through landOn().
  */
 
-import type { FallConfig, JumpConfig, PerchWalkConfig } from "../../../config/load";
+import type {
+  FallConfig,
+  JumpConfig,
+  PerchWalkConfig,
+} from "../../../config/validators/avatar/types";
 import type { MotionKind, WindowRect } from "../../../contract";
 import type { WindowDropSource } from "../../../dispatcher/sources/gesture/window-drop/window-drop-source";
 import {

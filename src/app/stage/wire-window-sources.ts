@@ -1,4 +1,4 @@
-import type { GestureCuesConfig, PeekConfig } from "../../config/load";
+import type { GestureCuesConfig, PeekConfig } from "../../config/validators/avatar/types";
 import type { Posture, WindowRect } from "../../contract";
 import type { EventBus } from "../../dispatcher/core/event-bus";
 import {

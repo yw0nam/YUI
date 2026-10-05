@@ -9,8 +9,8 @@
  */
 
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { PeekConfig, TapConfig } from "../config/load";
 import { guardrailsFixture } from "../config/load-test-helpers";
+import type { PeekConfig, TapConfig } from "../config/validators/avatar/types";
 import type { AudioSink } from "../io/voice/tts/audio-player";
 import { createSpeechPlayback, type SpeechPlayback } from "../io/voice/tts/speech-playback";
 import type { TtsSynth } from "../io/voice/tts/tts-synth";

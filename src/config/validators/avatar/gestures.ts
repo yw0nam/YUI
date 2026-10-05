@@ -1,6 +1,6 @@
-import type { GestureCuesConfig } from "../../load";
 import { isObject } from "../shared";
 import { cue, rejectUnknownKeys, type SectionContext } from "./helpers";
+import type { GestureCuesConfig } from "./types";
 
 /** Gesture cues, in the order their issues are reported. */
 const GESTURE_CUE_KEYS = ["drag_held", "window_sit", "peek", "dropped"] as const;

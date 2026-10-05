@@ -28,7 +28,7 @@
  * observable: queue() / recentDrops(n) / inFlight().
  */
 
-import type { PeekConfig, TapConfig } from "../config/load";
+import type { PeekConfig, TapConfig } from "../config/validators/avatar/types";
 import type { BodyState, Posture } from "../contract";
 import { buildPacerSkipRecord, type PacerSkipRecord } from "../io/chat/record/turn-record-log";
 import type { Logger, LogLevel } from "../logger";

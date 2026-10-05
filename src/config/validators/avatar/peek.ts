@@ -1,6 +1,6 @@
-import type { PeekConfig } from "../../load";
 import { isObject } from "../shared";
 import { num, type SectionContext, unit } from "./helpers";
+import type { PeekConfig } from "./types";
 
 // peek — side-peek geometry and mirroring.
 export function validatePeek(

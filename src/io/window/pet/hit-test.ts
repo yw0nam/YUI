@@ -26,7 +26,7 @@
 
 import { invoke } from "@tauri-apps/api/core";
 import { cursorPosition, getCurrentWindow, primaryMonitor } from "@tauri-apps/api/window";
-import type { HitTestKnobs } from "../../../config/load";
+import type { HitTestKnobs } from "../../../config/validators/avatar/types";
 import { createLogger } from "../../../logger";
 import { isTauri } from "../../../tauri-env";
 import {

@@ -20,7 +20,7 @@ const { createHitTestController, createCursorTracker } = vi.hoisted(() => ({
 vi.mock("../../io/window/pet/hit-test", () => ({ createHitTestController }));
 vi.mock("../../io/window/pet/cursor-tracker", () => ({ createCursorTracker }));
 
-import type { HitTestKnobs } from "../../config/load";
+import type { HitTestKnobs } from "../../config/validators/avatar/types";
 import { INTERACTIVE_OVERLAY_SELECTORS } from "../../ui/surfaces/interactive-overlay";
 import { wireGaze, wireHitTest } from "./wire-stage";
 

@@ -1,4 +1,5 @@
-import { type AppConfig, STT_API_KEY_SECRET, TTS_API_KEY_SECRET } from "../../../config/load";
+import type { AppConfig } from "../../../config/load";
+import { STT_API_KEY_SECRET, TTS_API_KEY_SECRET } from "../../../config/secrets";
 import type { EndpointsConfig } from "../../../contract";
 import {
   createPreviousTurn,

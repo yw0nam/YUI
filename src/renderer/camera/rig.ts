@@ -1,6 +1,6 @@
 /** Camera rig: fit-to-bounds framing, wheel zoom, the eased orbit polar, and the travel view window. */
 import type * as THREE from "three";
-import type { FitBandConfig, FramingConfig } from "../../config/load";
+import type { FitBandConfig, FramingConfig } from "../../config/validators/avatar/types";
 import {
   CAMERA_AZIMUTH_DEFAULT,
   CAMERA_POLAR_DEFAULT,

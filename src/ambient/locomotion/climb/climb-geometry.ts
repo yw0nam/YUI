@@ -7,7 +7,7 @@
  * field says otherwise.
  */
 
-import type { ClimbConfig } from "../../../config/load";
+import type { ClimbConfig } from "../../../config/validators/avatar/types";
 import type { WindowRect } from "../../../contract";
 import { MOVE_TH } from "../../../io/window/geometry/perch";
 import {

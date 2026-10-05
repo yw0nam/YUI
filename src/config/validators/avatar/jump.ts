@@ -1,6 +1,6 @@
-import type { JumpConfig } from "../../load";
 import { isObject } from "../shared";
 import { int, num, positive, type SectionContext, unit } from "./helpers";
+import type { JumpConfig } from "./types";
 
 // jump — window-to-window flight.
 export function validateJump(

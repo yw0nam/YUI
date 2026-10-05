@@ -1,4 +1,4 @@
-import type { GestureCueConfig } from "../../load";
+import type { GestureCueConfig } from "./types";
 
 /** What every section validator receives besides its raw input. */
 export interface SectionContext {

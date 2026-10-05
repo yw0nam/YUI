@@ -6,7 +6,7 @@
  * Tauri APIs are lazily imported (non-Tauri/test envs never load them).
  */
 
-import type { AvatarOption } from "../../config/load";
+import type { AvatarOption } from "../../config/validators/avatar/types";
 import { loadInvoke, loadOpenDialog, type OpenResult, pickedPath } from "./user-asset-import";
 import type { createVrmSelection } from "./vrm-selection";
 

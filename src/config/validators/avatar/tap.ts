@@ -1,6 +1,6 @@
-import type { TapConfig } from "../../load";
 import { isObject } from "../shared";
 import { cue, int, nonNegative, num, rejectUnknownKeys, type SectionContext, str } from "./helpers";
+import type { TapConfig } from "./types";
 
 /** Tap regions, in the order their issues are reported. */
 const TAP_REGIONS = ["head", "chest", "hips"] as const;

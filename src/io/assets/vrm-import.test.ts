@@ -7,7 +7,7 @@
  */
 
 import { describe, expect, it, vi } from "vitest";
-import type { AvatarOption } from "../../config/load";
+import type { AvatarOption } from "../../config/validators/avatar/types";
 import { importVrmFromFile, removeUserVrm, type VrmImportDeps } from "./vrm-import";
 
 /** The selection store as the import reads it: bundled options plus one imported one. */

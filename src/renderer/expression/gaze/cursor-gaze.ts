@@ -14,7 +14,7 @@
 
 import type { VRM } from "@pixiv/three-vrm";
 import * as THREE from "three";
-import type { GazeKnobs } from "../../../config/load";
+import type { GazeKnobs } from "../../../config/validators/avatar/types";
 import { downPitchSign } from "./bone-pitch";
 import { advanceGaze, type GazeState, NEUTRAL_GAZE, splitHeadNeck } from "./gaze-tracker";
 

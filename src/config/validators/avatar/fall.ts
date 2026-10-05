@@ -1,6 +1,6 @@
-import type { DescendConfig, FallConfig } from "../../load";
 import { isObject } from "../shared";
 import { int, nonNegative, num, positive, type SectionContext, unit } from "./helpers";
+import type { DescendConfig, FallConfig } from "./types";
 
 // fall — drag-release dynamics and the surfaces a fall stops on.
 export function validateFall(

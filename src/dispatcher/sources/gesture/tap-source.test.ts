@@ -1,8 +1,9 @@
 import { describe, expect, it, vi } from "vitest";
+import type { TapConfig } from "../../../config/validators/avatar/types";
 import type { SignalGroup } from "../../../contract";
 import type { BusEnvelope, EventBus } from "../../core/event-bus";
 import { SIGNAL_ENVELOPE } from "../../test-helpers";
-import { createTapSource, type TapConfig, type TapPoints } from "./tap-source";
+import { createTapSource, type TapPoints } from "./tap-source";
 
 const config: TapConfig = {
   spam_count: 4,

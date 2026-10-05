@@ -1,6 +1,6 @@
 /** Wiring bound to the stage element and the renderer's view of it. */
 
-import type { HitTestKnobs } from "../../config/load";
+import type { HitTestKnobs } from "../../config/validators/avatar/types";
 import { createCursorTracker } from "../../io/window/pet/cursor-tracker";
 import { createHitTestController, type HitTestController } from "../../io/window/pet/hit-test";
 import type { Renderer } from "../../renderer";

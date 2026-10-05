@@ -7,7 +7,7 @@
  * Values are secrets — never log them.
  */
 
-import type { SecretProvider } from "../../config/load";
+import type { SecretProvider } from "../../config/secrets";
 import type { ApiKeySettingsStore } from "../../settings/backend/api-key-settings";
 
 interface SettingsSecretProviderOptions {

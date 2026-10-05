@@ -1,7 +1,7 @@
 /**
  * load-core.test.ts — unit tests for loadConfig core contract.
  * happy path, guardrails, cross-section validation failures, reader rejection propagation,
- * default fetch reader, filler, hotkeys, plainSecretProvider.
+ * default fetch reader, filler, hotkeys.
  *
  * Principle: never hit network/fetch/fs. Inject fake ConfigReader and validate
  * against in-memory map only. Fail-loud contract: schema violations throw ConfigError with
@@ -9,8 +9,9 @@
  */
 
 import { describe, expect, it } from "vitest";
-import { CONFIG_FILES, ConfigError, loadConfig, plainSecretProvider } from "./load";
+import { CONFIG_FILES, loadConfig } from "./load";
 import { avatarFixture, goodFixture, guardrailsFixture, readerOf } from "./load-test-helpers";
+import { ConfigError } from "./validators/shared";
 
 // ── happy path ─────────────────────────────────────────────────────────────────
 
@@ -743,20 +744,5 @@ describe("loadConfig — hotkeys (reject)", () => {
     await expect(
       loadConfig({ read: readerOf(hotkeysFixture({ summon_global: 7 })) }),
     ).rejects.toBeInstanceOf(ConfigError);
-  });
-});
-
-// ── plainSecretProvider ─────────────────────────────────────────────────────────
-
-describe("plainSecretProvider", () => {
-  it("값이 있으면 반환, 모르는 키는 undefined, 절대 throw 안 함", async () => {
-    const sp = plainSecretProvider({ chat_api_key: "sk-123" });
-    await expect(sp.get("chat_api_key")).resolves.toBe("sk-123");
-    await expect(sp.get("nope")).resolves.toBeUndefined();
-  });
-
-  it("빈 레코드(기본값)에서도 undefined만 반환한다", async () => {
-    const sp = plainSecretProvider();
-    await expect(sp.get("anything")).resolves.toBeUndefined();
   });
 });

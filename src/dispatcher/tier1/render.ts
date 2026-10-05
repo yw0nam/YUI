@@ -1,5 +1,5 @@
 /** Tier-1 rendering: local directives, posture ledger, pin targets and the tap-emotion revert, with no backend involved. */
-import type { PeekConfig, TapConfig } from "../../config/load";
+import type { PeekConfig, TapConfig } from "../../config/validators/avatar/types";
 import type { BodyState, Posture } from "../../contract";
 import type { Logger } from "../../logger";
 import type { Renderer } from "../../renderer";

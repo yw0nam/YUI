@@ -9,7 +9,7 @@
  */
 
 import { describe, expect, it, vi } from "vitest";
-import type { FillerPool } from "../../config/load";
+import type { FillerPool } from "../../config/validators/filler";
 import type { FillerSettings, FillerStorage } from "./filler-settings";
 import { createFillerSettings, localStorageFillerStorage } from "./filler-settings";
 

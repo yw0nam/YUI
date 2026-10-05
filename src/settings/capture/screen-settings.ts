@@ -4,7 +4,7 @@
  * Persists to storage on change and notifies subscribers. Never mutates the checked-in config.
  */
 
-import type { ScreenConfig } from "../../config/load";
+import type { ScreenConfig } from "../../config/validators/screen";
 import {
   applyPositiveOverrides,
   createOverrideRecordSettings,

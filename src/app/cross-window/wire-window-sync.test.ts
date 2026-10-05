@@ -32,7 +32,7 @@ const { wireStorageSyncDispose, wireStorageSync } = vi.hoisted(() => {
 
 vi.mock("../../io/window/openers/settings-window", () => ({ wireStorageSync }));
 
-import type { GuardrailsConfig } from "../../config/load";
+import type { GuardrailsConfig } from "../../config/validators/guardrails";
 import { createGuardrails } from "../../dispatcher/core/guardrails";
 import type { BridgeTransport } from "../../io/bridge/core/bridge-core";
 import {

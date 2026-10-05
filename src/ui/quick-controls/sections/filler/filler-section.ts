@@ -4,7 +4,7 @@
  * reflect() on open; the enable toggle is a generic switch row outside this module.
  */
 
-import { FILLER_LANGS } from "../../../../config/load";
+import { FILLER_LANGS } from "../../../../config/validators/filler";
 import type { createFillerSettings } from "../../../../settings/voice/filler-settings";
 import { handleSegmentKeydown } from "../../seg-keyboard";
 import { parseToolLines, serializeToolLines } from "./filler-tool-lines";

@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, describe, expect, it, type Mock, vi } from "vitest";
-import type { AvatarOption } from "../../../config/load";
+import type { AvatarOption } from "../../../config/validators/avatar/types";
 import type { createVrmSelection } from "../../../io/assets/vrm-selection";
 import type {
   createSpeakerSelection,

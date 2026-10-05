@@ -21,7 +21,7 @@
  * the async window reads, and the per-frame translation.
  */
 
-import type { DescendConfig, WalkConfig } from "../../../config/load";
+import type { DescendConfig, WalkConfig } from "../../../config/validators/avatar/types";
 import type { MotionKind } from "../../../contract";
 import {
   clampToFloorSegments,

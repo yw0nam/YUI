@@ -4,7 +4,7 @@
  * Rendering only; no judgment or recovery logic lives here.
  */
 
-import { ConfigError } from "../../config/load";
+import { ConfigError } from "../../config/validators/shared";
 import "./boot-error.css";
 import { t } from "../i18n";
 

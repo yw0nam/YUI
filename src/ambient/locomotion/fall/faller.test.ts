@@ -5,7 +5,7 @@ const { log } = vi.hoisted(() => ({
 }));
 vi.mock("../../../logger", () => ({ createLogger: () => log }));
 
-import type { FallConfig } from "../../../config/load";
+import type { FallConfig } from "../../../config/validators/avatar/types";
 import type { MotionKind, WindowRect } from "../../../contract";
 import type { ScreenMonitor } from "../../../io/window/geometry/screen-geometry";
 import type { RenderMotionSignal, TickContext, TickFn } from "../../../renderer";

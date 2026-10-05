@@ -1,6 +1,6 @@
 /** Public types of the renderer: its options, the per-frame tick context, and the Renderer surface. */
 import type { VRM } from "@pixiv/three-vrm";
-import type { FitBandConfig, FramingConfig, GazeKnobs } from "../config/load";
+import type { FitBandConfig, FramingConfig, GazeKnobs } from "../config/validators/avatar/types";
 import type { ControlEnvelope, EmotionRegistry, MotionRegistry } from "../contract";
 import type { OrbitAngles } from "./camera/camera-fit";
 import type { RenderEmotionSignal } from "./expression/emotion-resolver";

@@ -23,7 +23,7 @@ import { createPetConfig } from "../app/settings/wire-config";
 import { createStageRenderer } from "../app/stage/stage-renderer";
 import { createPushStores } from "../app/turn/push/push-stores";
 import { wirePushMode } from "../app/turn/push/wire-push";
-import { CHAT_API_KEY_SECRET, TTS_API_KEY_SECRET } from "../config/load";
+import { CHAT_API_KEY_SECRET, TTS_API_KEY_SECRET } from "../config/secrets";
 import { createEventBus } from "../dispatcher/core/event-bus";
 import { createUserInputSource } from "../dispatcher/sources/user-input-source";
 import { createStageBackground } from "../io/assets/stage/stage-background";

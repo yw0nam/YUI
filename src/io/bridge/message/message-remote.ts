@@ -8,7 +8,7 @@
  * `ready` and catch up.
  */
 
-import type { AttachmentLimits } from "../../../config/load";
+import type { AttachmentLimits } from "../../../config/validators/guardrails";
 import { createLogger } from "../../../logger";
 import type { MessageBridge, UserQuote } from "./message-bridge";
 

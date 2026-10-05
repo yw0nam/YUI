@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { AppConfig } from "../../config/load";
-import { CHAT_API_KEY_SECRET, STT_API_KEY_SECRET, TTS_API_KEY_SECRET } from "../../config/load";
+import { CHAT_API_KEY_SECRET, STT_API_KEY_SECRET, TTS_API_KEY_SECRET } from "../../config/secrets";
 
 const { createConfigStore } = vi.hoisted(() => ({ createConfigStore: vi.fn() }));
 vi.mock("../../config/store", () => ({ createConfigStore }));

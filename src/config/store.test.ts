@@ -7,8 +7,9 @@
  */
 
 import { describe, expect, it, vi } from "vitest";
-import { type ConfigReader, plainSecretProvider } from "./load";
+import type { ConfigReader } from "./load";
 import { goodFixture } from "./load-test-helpers";
+import { plainSecretProvider } from "./secrets";
 import { createConfigStore } from "./store";
 
 // ── mutable fake reader ──────────────────────────────────────────────────────

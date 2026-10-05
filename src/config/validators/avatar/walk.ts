@@ -1,4 +1,3 @@
-import type { PerchWalkConfig, WalkConfig } from "../../load";
 import { isObject } from "../shared";
 import {
   int,
@@ -9,6 +8,7 @@ import {
   type SectionContext,
   unit,
 } from "./helpers";
+import type { PerchWalkConfig, WalkConfig } from "./types";
 
 // walk — ambient floor stroll.
 export function validateWalk(

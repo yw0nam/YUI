@@ -23,7 +23,7 @@ vi.mock("@tauri-apps/api/core", () => ({
 
 import { invoke } from "@tauri-apps/api/core";
 import { getCurrentWindow } from "@tauri-apps/api/window";
-import type { HitTestKnobs } from "../../../config/load";
+import type { HitTestKnobs } from "../../../config/validators/avatar/types";
 import {
   createHitTestController,
   createTauriHitTestWindow,

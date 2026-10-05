@@ -1,5 +1,10 @@
-import type { HotkeysConfig } from "../load";
 import { assertValid, ConfigError, isObject } from "./shared";
+
+/** configs/hotkeys.json — OS global-hotkey accelerators. */
+export interface HotkeysConfig {
+  /** Global summon input (e.g. "CmdOrCtrl+Shift+Y"). Empty string / no key = disabled. */
+  summon_global: string;
+}
 
 export function validateHotkeys(file: string, raw: unknown): HotkeysConfig {
   if (!isObject(raw)) throw new ConfigError(file, ["not an object"]);
