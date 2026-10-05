@@ -43,20 +43,31 @@ pub struct AgentEventPayload {
 
 /// `signals-inbox` event payload — fired when the remote n8n workflow posts to
 /// `/signals`. `signals` is treated as opaque JSON; the client does not
-/// interpret its contents.
+/// interpret its contents. An `envelope` is required.
 #[derive(Deserialize, Serialize, Clone, Debug)]
 pub struct SignalsPayload {
     pub signals: Vec<serde_json::Value>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub envelope: Option<serde_json::Value>,
+    pub envelope: serde_json::Value,
     pub ts: i64, // server epoch ms — n8n does not send a timestamp
+}
+
+/// An absent `envelope` is a missing field and an explicit `null` is rejected here.
+fn non_null_envelope<'de, D: serde::Deserializer<'de>>(
+    deserializer: D,
+) -> Result<serde_json::Value, D::Error> {
+    use serde::de::Error;
+    match serde_json::Value::deserialize(deserializer)? {
+        serde_json::Value::Null => Err(D::Error::custom("envelope must not be null")),
+        value => Ok(value),
+    }
 }
 
 /// Wire shape of a `/signals` POST body, before the server stamps `ts`.
 #[derive(Deserialize, Debug)]
 pub(super) struct SignalsRequest {
     pub(super) signals: Vec<serde_json::Value>,
-    pub(super) envelope: Option<serde_json::Value>,
+    #[serde(deserialize_with = "non_null_envelope")]
+    pub(super) envelope: serde_json::Value,
 }
 
 /// Side of a window the avatar peeks from.
@@ -153,12 +164,13 @@ pub(super) fn parse_request(
     serde_json::from_str(body).map_err(|_| 400u16)
 }
 
-/// Validates and parses a raw HTTP request into a `signals` array.
+/// Validates and parses a raw HTTP request into a `signals` array. An `envelope`
+/// is required.
 ///
 /// Returns `Err(405)` when the method is not POST, and `Err(400)` when the path
-/// (before any query string) is not `/signals` or the body is not valid JSON
-/// shaped `{"signals": [...]}`. Each element of `signals` is passed through as
-/// opaque JSON.
+/// (before any query string) is not `/signals`, the body is not valid JSON
+/// shaped `{"signals": [...]}`, or the `envelope` is missing or null. Each
+/// element of `signals` is passed through as opaque JSON.
 pub(super) fn parse_signals_request(
     method: &str,
     path: &str,
@@ -415,7 +427,7 @@ mod tests {
     // ── parse_signals_request ─────────────────────────────────────────────────
 
     fn valid_signals_body() -> &'static str {
-        r#"{"signals":[{"kind":"reminder","payload":{"foo":"bar"}},{"kind":"alert"}]}"#
+        r#"{"signals":[{"kind":"reminder","payload":{"foo":"bar"}},{"kind":"alert"}],"envelope":{"source":"n8n","event_type":"workflow_done","delivery":"immediate","event_id":"run-1","occurred_at":1787449000000}}"#
     }
 
     #[test]
@@ -424,7 +436,7 @@ mod tests {
         assert_eq!(request.signals.len(), 2);
         assert_eq!(request.signals[0]["kind"], "reminder");
         assert_eq!(request.signals[1]["kind"], "alert");
-        assert!(request.envelope.is_none());
+        assert_eq!(request.envelope["source"], "n8n");
     }
 
     #[test]
@@ -468,7 +480,12 @@ mod tests {
 
     #[test]
     fn parse_signals_request_empty_array_is_accepted() {
-        let request = parse_signals_request("POST", "/signals", r#"{"signals":[]}"#).unwrap();
+        let request = parse_signals_request(
+            "POST",
+            "/signals",
+            r#"{"signals":[],"envelope":{"source":"n8n","event_type":"workflow_done","delivery":"immediate","event_id":"run-1","occurred_at":1787449000000}}"#,
+        )
+        .unwrap();
         assert!(request.signals.is_empty());
     }
 
@@ -481,7 +498,7 @@ mod tests {
         )
         .unwrap();
         assert_eq!(
-            request.envelope.unwrap(),
+            request.envelope,
             serde_json::json!({
                 "source": "n8n",
                 "event_type": "workflow_done",
@@ -501,22 +518,24 @@ mod tests {
             r#"{"signals":[{"id":1}],"envelope":"bad"}"#,
         )
         .unwrap();
-        assert_eq!(request.envelope, Some(serde_json::json!("bad")));
+        assert_eq!(request.envelope, serde_json::json!("bad"));
     }
 
     #[test]
-    fn parse_signals_request_absent_and_null_envelopes_are_omitted() {
-        for body in [r#"{"signals":[]}"#, r#"{"signals":[],"envelope":null}"#] {
-            let request = parse_signals_request("POST", "/signals", body).unwrap();
-            assert!(request.envelope.is_none());
-            let payload = SignalsPayload {
-                signals: request.signals,
-                envelope: request.envelope,
-                ts: 1,
-            };
-            let json = serde_json::to_value(payload).unwrap();
-            assert!(!json.as_object().unwrap().contains_key("envelope"));
-        }
+    fn parse_signals_request_absent_envelope_returns_400() {
+        assert_eq!(
+            parse_signals_request("POST", "/signals", r#"{"signals":[]}"#).unwrap_err(),
+            400u16
+        );
+    }
+
+    #[test]
+    fn parse_signals_request_null_envelope_returns_400() {
+        assert_eq!(
+            parse_signals_request("POST", "/signals", r#"{"signals":[],"envelope":null}"#)
+                .unwrap_err(),
+            400u16
+        );
     }
 
     // ── handle_request routing (/signals emits signals-inbox) ────────────────

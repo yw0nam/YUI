@@ -132,10 +132,6 @@ function renderTrigger(trigger: TriggerMeta, nowMs: number): string[] {
 
   if (trigger.signals) {
     for (const group of trigger.signals) {
-      if (!group.envelope) {
-        for (const item of group.items) lines.push(`signal: ${JSON.stringify(item)}`);
-        continue;
-      }
       const envelope = group.envelope;
       const prefix = `signal [${oneLine(envelope.source)}/${oneLine(envelope.event_type)} @${new Date(envelope.occurred_at).toISOString()}, id ${oneLine(envelope.event_id)}]:`;
       if (group.items.length === 0) {

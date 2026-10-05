@@ -237,7 +237,7 @@ export type SignalEnvelope = {
   occurred_at: number;
 };
 
-export type SignalGroup = { envelope?: SignalEnvelope; items: SignalItem[] };
+export type SignalGroup = { envelope: SignalEnvelope; items: SignalItem[] };
 
 /** A bundled guide doc the backend answers from. */
 export type GuideKey = "controls" | "capabilities";

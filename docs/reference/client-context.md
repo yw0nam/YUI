@@ -343,9 +343,8 @@ evict other sessions' buffered events out of the per-tool cap.
 ### Signals
 
 ```text
-trigger: signals (2 signals)
+trigger: signals (1 signal)
 signal [github/push @2026-08-23T01:36:40.000Z, id delivery-42]: {"repo":"acme/yui","branch":"main"}
-signal: {"source":"heartbeat","ts":1781000000000}
 signal [calendar/sync @2026-08-23T01:36:40.000Z, id delivery-43]: (no payload)
 ```
 
@@ -355,10 +354,11 @@ occurrence time, and normalized event id. An enveloped group with no items rende
 `(no payload)` line and contributes zero to the headline count. Envelope `delivery` is
 not rendered.
 
-Legacy groups retain the `signal: {json}` format. Signal items remain opaque,
-heterogeneous objects with no client-known shape, so JSON preserves their structure.
-Signal lines are independent of the headline and also appear alongside a cue headline:
-`proactive.tap_bored` turns carry both their configured cue and drained signal groups.
+Signal items remain opaque, heterogeneous objects with no client-known shape, so JSON
+preserves their structure. Signal lines are independent of the headline and also appear
+alongside a cue headline: `proactive.tap_bored` turns carry both their configured cue
+and drained signal groups. Every group carries the ingress envelope; the required
+request contract lives in [Signals ingress](./signals-ingress.md).
 
 ### Milestone
 

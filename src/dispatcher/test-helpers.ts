@@ -1,6 +1,12 @@
 import { type Mock, vi } from "vitest";
 import { guardrailsFixture } from "../config/load-test-helpers";
-import type { ControlEnvelope, EndpointsConfig, ExpressArgs, ToolStatus } from "../contract";
+import type {
+  ControlEnvelope,
+  EndpointsConfig,
+  ExpressArgs,
+  SignalEnvelope,
+  ToolStatus,
+} from "../contract";
 import type {
   ChatRequest,
   ChatStreamEvent,
@@ -92,6 +98,15 @@ export const CONFIG: EndpointsConfig = {
   chat_base_url: "http://localhost:8643/v1",
   stt_base_url: "http://localhost:5517",
   tts_base_url: "http://localhost:8092",
+};
+
+/** Valid /signals ingress envelope for fixture groups. */
+export const SIGNAL_ENVELOPE: SignalEnvelope = {
+  source: "n8n",
+  event_type: "workflow_done",
+  delivery: "immediate",
+  event_id: "run-8812",
+  occurred_at: 1_787_449_000_000,
 };
 
 /** Wraps a trigger in a Turn for BackendCaller.call — id defaults to 1 (irrelevant to most tests). */

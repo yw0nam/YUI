@@ -1,7 +1,7 @@
 # Signals ingress
 
 External producers send signal groups to the loopback HTTP ingress with `POST /signals`.
-The request body always contains a `signals` array and may contain a delivery envelope:
+The request body contains a `signals` array and a delivery envelope:
 
 ```json
 {
@@ -16,7 +16,7 @@ The request body always contains a `signals` array and may contain a delivery en
 }
 ```
 
-Signal items are opaque JSON objects. The client transports and renders them without
+Signal items are arbitrary opaque JSON values. The client transports and renders them without
 interpreting their meaning.
 
 ## Envelope fields
@@ -29,13 +29,10 @@ interpreting their meaning.
 | `event_id` | Non-empty opaque string; duplicate values remain separate groups |
 | `occurred_at` | Finite epoch-millisecond number in the inclusive range `-8.64e15` through `8.64e15`, representable as an ISO-8601 date |
 
-An absent envelope and an explicit `"envelope": null` are equivalent. Both requests
-use legacy delivery and produce no envelope warning.
-
 ## Delivery
 
 An `immediate` group fires at once while the user is present and the pipeline is idle.
-Otherwise it waits in the away buffer. A legacy group follows the same behavior.
+Otherwise it waits in the away buffer.
 
 A `batched` group always waits in the batch buffer. The first group starts a five-minute
 delivery interval. At the interval boundary, all pending batched groups fire together
@@ -56,22 +53,21 @@ batch buffer together.
 
 Each buffer retains at most five groups and drops its oldest group on overflow.
 
-## Validation and legacy behavior
+## Validation
 
-The HTTP ingress requires `POST /signals`, valid JSON, and a `signals` array. A request
-with another method on `/signals` receives HTTP 405. Invalid JSON or a missing `signals`
-array receives HTTP 400. It forwards a present, non-null envelope without validating
-or rewriting it and stamps the emitted batch with server time.
+The HTTP ingress requires `POST /signals`, valid JSON, a `signals` array, and a
+non-null `envelope`. A request with another method on `/signals` receives HTTP 405.
+Invalid JSON, a missing `signals` array, a missing `envelope`, or an explicit
+`"envelope": null` receives HTTP 400. A request whose `envelope` is any other JSON
+value receives HTTP 200.
 
-The signal source validates the envelope fields. An invalid envelope is discarded and
-the group follows legacy delivery. Its signal items are still delivered, and one warning
-is logged for the downgraded batch. There is no fallback timestamp and no event-id
-deduplication.
+HTTP 200 means that the ingress accepted the wire shape and attempted to emit the
+batch to the client. It does not confirm receipt or delivery. A non-null envelope is
+forwarded unchanged and stamped with server time.
 
-A legacy request is:
+While signals are enabled, a group whose envelope is not an object or fails the field
+rules is dropped as a whole and one warning is logged with the item count. While
+signals are disabled, the source drops incoming batches before envelope validation and
+logs no envelope warning.
 
-```json
-{
-  "signals": [{ "source": "heartbeat", "healthy": true }]
-}
-```
+There is no fallback timestamp and no event-id deduplication.

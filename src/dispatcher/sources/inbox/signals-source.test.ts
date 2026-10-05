@@ -1,9 +1,9 @@
 /**
  * signals-source.test.ts — grouped signal delivery and buffering.
  *
- * Covers legacy and enveloped groups, immediate and batched routing, independent
+ * Covers enveloped groups, immediate and batched routing, independent
  * drop-oldest buffers, arrival-ordered catch-up and drain, lazy timer behavior,
- * envelope downgrade, and enable/presence/busy/lifecycle transitions. Signal item
+ * envelope drop, and enable/presence/busy/lifecycle transitions. Signal item
  * contents remain opaque. All dependencies are injected; tests use no network or Tauri.
  */
 
@@ -61,8 +61,16 @@ const ENVELOPE = {
   occurred_at: 1_787_449_000_000,
 };
 
-function batch(items: Array<Record<string, unknown>>, ts = 1000, envelope?: unknown): SignalsBatch {
-  return { signals: items, ts, ...(envelope !== undefined ? { envelope } : {}) } as SignalsBatch;
+function batch(
+  items: Array<Record<string, unknown>>,
+  ts = 1000,
+  ...envelope: [unknown?]
+): SignalsBatch {
+  return {
+    signals: items,
+    ts,
+    envelope: envelope.length > 0 ? envelope[0] : ENVELOPE,
+  } satisfies SignalsBatch;
 }
 
 describe("signals_source — present: immediate signals.push (spec §1)", () => {
@@ -89,7 +97,9 @@ describe("signals_source — present: immediate signals.push (spec §1)", () => 
     const e = pushed[0];
     expect(e.source).toBe("timer_scheduler");
     expect(e.event_name).toBe("signals.push");
-    expect(e.payload).toEqual({ signals: [{ items: [{ kind: "reminder", foo: "bar" }] }] });
+    expect(e.payload).toEqual({
+      signals: [{ envelope: ENVELOPE, items: [{ kind: "reminder", foo: "bar" }] }],
+    });
 
     src.stop();
   });
@@ -112,7 +122,9 @@ describe("signals_source — present: immediate signals.push (spec §1)", () => 
     const weird = [{ a: 1 }, { nested: { b: [1, 2, 3] } }, { c: null }];
     emitInbox(batch(weird, 1));
 
-    expect((pushed[0].payload as { signals: unknown[] }).signals).toEqual([{ items: weird }]);
+    expect((pushed[0].payload as { signals: unknown[] }).signals).toEqual([
+      { envelope: ENVELOPE, items: weird },
+    ]);
 
     src.stop();
   });
@@ -136,7 +148,10 @@ describe("signals_source — away: buffer + catch-up (spec §2–3)", () => {
     emitInbox(batch([{ id: 1 }]));
     emitInbox(batch([{ id: 2 }, { id: 3 }]));
 
-    expect(src.drain()).toEqual([{ items: [{ id: 1 }] }, { items: [{ id: 2 }, { id: 3 }] }]);
+    expect(src.drain()).toEqual([
+      { envelope: ENVELOPE, items: [{ id: 1 }] },
+      { envelope: ENVELOPE, items: [{ id: 2 }, { id: 3 }] },
+    ]);
     expect(src.drain()).toEqual([]);
     emitIdle(idleTick(LOW_IDLE));
     expect(pushed).toEqual([]);
@@ -171,7 +186,10 @@ describe("signals_source — away: buffer + catch-up (spec §2–3)", () => {
     expect(e.event_name).toBe("signals.catchup");
     expect(e.source).toBe("timer_scheduler");
     const p = e.payload as { signals: unknown[] };
-    expect(p.signals).toEqual([{ items: [{ id: 1 }] }, { items: [{ id: 2 }, { id: 3 }] }]);
+    expect(p.signals).toEqual([
+      { envelope: ENVELOPE, items: [{ id: 1 }] },
+      { envelope: ENVELOPE, items: [{ id: 2 }, { id: 3 }] },
+    ]);
 
     // Buffer cleared — another present tick emits nothing further.
     emitIdle(idleTick(LOW_IDLE));
@@ -295,7 +313,7 @@ describe("signals_source — isEnabled gate (spec §6)", () => {
     emitIdle(idleTick(LOW_IDLE));
     expect(pushed).toHaveLength(1);
     const p = pushed[0].payload as { signals: Array<{ items: Array<{ id: number }> }> };
-    expect(p.signals[0]).toEqual({ items: [{ id: 3 }] });
+    expect(p.signals[0]).toEqual({ envelope: ENVELOPE, items: [{ id: 3 }] });
 
     src.stop();
   });
@@ -375,7 +393,10 @@ describe("signals_source — pipeline-busy buffering (spec §2b/#451)", () => {
     const e = pushed[0];
     expect(e.event_name).toBe("signals.catchup");
     const p = e.payload as { signals: unknown[] };
-    expect(p.signals).toEqual([{ items: [{ id: 1 }] }, { items: [{ id: 2 }, { id: 3 }] }]);
+    expect(p.signals).toEqual([
+      { envelope: ENVELOPE, items: [{ id: 1 }] },
+      { envelope: ENVELOPE, items: [{ id: 2 }, { id: 3 }] },
+    ]);
 
     // A second busy→idle edge with an empty buffer fires nothing further.
     pipelineBusy.setBusy(true);
@@ -483,7 +504,10 @@ describe("signals_source — global pacer composed into the busy predicate (#689
     expect(s.pushed).toHaveLength(1);
     expect(s.pushed[0].event_name).toBe("signals.catchup");
     const p = s.pushed[0].payload as { signals: unknown[] };
-    expect(p.signals).toEqual([{ items: [{ id: 1 }] }, { items: [{ id: 2 }] }]);
+    expect(p.signals).toEqual([
+      { envelope: ENVELOPE, items: [{ id: 1 }] },
+      { envelope: ENVELOPE, items: [{ id: 2 }] },
+    ]);
     s.src.stop();
   });
 
@@ -579,13 +603,33 @@ describe("signals_source — delivery envelopes", () => {
     return { src, pushed, emitIdle, emitInbox, onInbox };
   }
 
-  it("an explicit null envelope follows the legacy path without warning", async () => {
+  it.each([
+    ["missing field", { ...ENVELOPE, source: undefined }],
+    ["wrong type", { ...ENVELOPE, event_id: 7 }],
+    ["unknown delivery", { ...ENVELOPE, delivery: "later" }],
+    ["non-object", "bad"],
+    ["non-finite occurred_at", { ...ENVELOPE, occurred_at: Number.POSITIVE_INFINITY }],
+    ["out-of-range occurred_at", { ...ENVELOPE, occurred_at: 8.64e15 + 1 }],
+    ["null", null],
+    ["absent", undefined],
+  ])("%s envelope drops the group and warns once", async (_name, invalid) => {
     const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
     const s = setup();
     await s.src.start();
     s.emitIdle(idleTick(LOW_IDLE));
-    s.emitInbox(batch([{ id: 1 }], 1, null));
-    expect(s.pushed[0].payload).toEqual({ signals: [{ items: [{ id: 1 }] }] });
+    s.emitInbox(batch([{ kept: true }], 1, invalid));
+    expect(s.pushed).toHaveLength(0);
+    expect(warn).toHaveBeenCalledTimes(1);
+    warn.mockRestore();
+  });
+
+  it("a disabled source drops an invalid envelope without a warning", async () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const s = setup({ enabled: () => false });
+    await s.src.start();
+    s.emitIdle(idleTick(LOW_IDLE));
+    s.emitInbox(batch([{ a: 1 }], 1, "bad"));
+    expect(s.pushed).toHaveLength(0);
     expect(warn).not.toHaveBeenCalled();
     warn.mockRestore();
   });
@@ -682,24 +726,6 @@ describe("signals_source — delivery envelopes", () => {
     expect(s.pushed.map((e) => e.event_name)).toEqual(["signals.catchup"]);
     await vi.advanceTimersByTimeAsync(300_000);
     expect(s.pushed).toHaveLength(1);
-  });
-
-  it.each([
-    ["missing field", { ...ENVELOPE, source: undefined }],
-    ["wrong type", { ...ENVELOPE, event_id: 7 }],
-    ["unknown delivery", { ...ENVELOPE, delivery: "later" }],
-    ["non-object", "bad"],
-    ["non-finite occurred_at", { ...ENVELOPE, occurred_at: Number.POSITIVE_INFINITY }],
-    ["out-of-range occurred_at", { ...ENVELOPE, occurred_at: 8.64e15 + 1 }],
-  ])("%s envelope downgrades once and never loses items", async (_name, invalid) => {
-    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
-    const s = setup();
-    await s.src.start();
-    s.emitIdle(idleTick(LOW_IDLE));
-    s.emitInbox(batch([{ kept: true }], 1, invalid));
-    expect(s.pushed[0].payload).toEqual({ signals: [{ items: [{ kept: true }] }] });
-    expect(warn).toHaveBeenCalledTimes(1);
-    warn.mockRestore();
   });
 
   it("an empty enveloped batch remains a content-less group", async () => {

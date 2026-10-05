@@ -7,11 +7,18 @@ import { describe, expect, expectTypeOf, it } from "vitest";
 import type { SignalEnvelope, SignalGroup, SignalItem, TriggerMeta } from "./types";
 
 describe("TriggerMeta kind=signals", () => {
-  it("AC1: trigger.signals stores opaque items in legacy groups", () => {
+  it("AC1: trigger.signals stores opaque items in enveloped groups", () => {
     const trigger: TriggerMeta = {
       kind: "signals",
       signals: [
         {
+          envelope: {
+            source: "n8n",
+            event_type: "workflow_done",
+            delivery: "immediate",
+            event_id: "run-1",
+            occurred_at: 1_787_449_000_000,
+          },
           items: [
             { source: "github", repo: "acme/yui", event: "push" },
             { source: "notion", page_id: "abc123", title: "Task" },

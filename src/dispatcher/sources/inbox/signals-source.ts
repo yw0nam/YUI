@@ -38,7 +38,7 @@ export interface SignalsSource {
 
 type RoutedGroup = {
   group: SignalGroup;
-  delivery: SignalEnvelope["delivery"] | "legacy";
+  delivery: SignalEnvelope["delivery"];
 };
 
 type BufferedGroup = { sequence: number; group: SignalGroup };
@@ -94,10 +94,9 @@ export function createSignalsSource(deps: SignalsSourceDeps): SignalsSource {
       return undefined;
     }
     const envelope = (raw as SignalsBatch).envelope;
-    if (envelope == null) return { group: { items: raw.signals }, delivery: "legacy" };
     if (!validEnvelope(envelope)) {
-      log.warn("envelope_invalid", { degrade: true });
-      return { group: { items: raw.signals }, delivery: "legacy" };
+      log.warn("envelope_invalid", { dropped_items: raw.signals.length });
+      return undefined;
     }
     return { group: { envelope, items: raw.signals }, delivery: envelope.delivery };
   }

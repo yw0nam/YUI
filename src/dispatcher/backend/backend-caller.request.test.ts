@@ -23,6 +23,7 @@ import {
   deltaEvent,
   makeLogger,
   makeTurnOutput,
+  SIGNAL_ENVELOPE,
   turnOf,
   userEnv,
 } from "../test-helpers";
@@ -330,7 +331,10 @@ describe("backend_caller — cue context forwarding (trigger.cue)", () => {
   it("proactive.tap_bored forwards its cue and drained signals", async () => {
     script.events = [completedEvent({ speech_text: "" })];
     const signals = [
-      { items: [{ kind: "reminder", payload: { title: "Stretch" } }, { kind: "alert" }] },
+      {
+        envelope: SIGNAL_ENVELOPE,
+        items: [{ kind: "reminder", payload: { title: "Stretch" } }, { kind: "alert" }],
+      },
     ];
     const env: BusEnvelope = {
       seq_id: 12,
@@ -350,7 +354,9 @@ describe("backend_caller — cue context forwarding (trigger.cue)", () => {
     expect(text).toContain('trigger: proactive "bored poking"');
     expect(text).toContain("cue note: The user wants attention.");
     for (const item of signals[0].items) {
-      expect(text).toContain(`signal: ${JSON.stringify(item)}`);
+      expect(text).toContain(
+        `signal [n8n/workflow_done @2026-08-23T01:36:40.000Z, id run-8812]: ${JSON.stringify(item)}`,
+      );
     }
     const userMsg = (request.input as Array<{ role: string; content: unknown }>).find(
       (m) => m.role === "user",
@@ -715,7 +721,12 @@ describe("backend_caller — signals trigger forwarding", () => {
       event_name: "signals.push",
       ts: 1_717_000_000_000,
       payload: {
-        signals: [{ items: [{ kind: "reminder", payload: { foo: "bar" } }, { kind: "alert" }] }],
+        signals: [
+          {
+            envelope: SIGNAL_ENVELOPE,
+            items: [{ kind: "reminder", payload: { foo: "bar" } }, { kind: "alert" }],
+          },
+        ],
         ts: 1_717_000_000_000,
       },
     };
@@ -725,9 +736,11 @@ describe("backend_caller — signals trigger forwarding", () => {
     const lines = text.split("\n");
     expect(lines).toContain("trigger: signals (2 signals)");
     expect(lines).toContain(
-      `signal: ${JSON.stringify({ kind: "reminder", payload: { foo: "bar" } })}`,
+      `signal [n8n/workflow_done @2026-08-23T01:36:40.000Z, id run-8812]: ${JSON.stringify({ kind: "reminder", payload: { foo: "bar" } })}`,
     );
-    expect(lines).toContain(`signal: ${JSON.stringify({ kind: "alert" })}`);
+    expect(lines).toContain(
+      `signal [n8n/workflow_done @2026-08-23T01:36:40.000Z, id run-8812]: ${JSON.stringify({ kind: "alert" })}`,
+    );
     const userMsg = (request.input as Array<{ role: string; content: unknown }>).find(
       (m) => m.role === "user",
     )!;
@@ -741,7 +754,10 @@ describe("backend_caller — signals trigger forwarding", () => {
       source: "timer_scheduler",
       event_name: "signals.push",
       ts: 1_717_000_000_000,
-      payload: { signals: [{ items: [{ kind: "reminder" }] }], ts: 1_717_000_000_000 },
+      payload: {
+        signals: [{ envelope: SIGNAL_ENVELOPE, items: [{ kind: "reminder" }] }],
+        ts: 1_717_000_000_000,
+      },
     };
     await caller.call(turnOf(env));
     const [, request] = script.spy.mock.calls[0];
@@ -757,7 +773,10 @@ describe("backend_caller — signals trigger forwarding", () => {
     );
     const text = clientContextTextOf(items[0]!.content);
     expect(text.split("\n")).toEqual(
-      expect.arrayContaining(["trigger: signals (1 signal)", 'signal: {"kind":"reminder"}']),
+      expect.arrayContaining([
+        "trigger: signals (1 signal)",
+        'signal [n8n/workflow_done @2026-08-23T01:36:40.000Z, id run-8812]: {"kind":"reminder"}',
+      ]),
     );
   });
 
@@ -770,7 +789,10 @@ describe("backend_caller — signals trigger forwarding", () => {
       ts: 1_717_000_000_000,
       payload: {
         count: 2,
-        signals: [{ items: [{ id: 1 }] }, { items: [{ id: 2 }] }],
+        signals: [
+          { envelope: SIGNAL_ENVELOPE, items: [{ id: 1 }] },
+          { envelope: SIGNAL_ENVELOPE, items: [{ id: 2 }] },
+        ],
       },
     };
     await caller.call(turnOf(env));
@@ -778,8 +800,12 @@ describe("backend_caller — signals trigger forwarding", () => {
     const text = clientContextOf(request.input);
     const lines = text.split("\n");
     expect(lines).toContain("trigger: signals (2 signals)");
-    expect(lines).toContain('signal: {"id":1}');
-    expect(lines).toContain('signal: {"id":2}');
+    expect(lines).toContain(
+      'signal [n8n/workflow_done @2026-08-23T01:36:40.000Z, id run-8812]: {"id":1}',
+    );
+    expect(lines).toContain(
+      'signal [n8n/workflow_done @2026-08-23T01:36:40.000Z, id run-8812]: {"id":2}',
+    );
     const userMsg = (request.input as Array<{ role: string; content: unknown }>).find(
       (m) => m.role === "user",
     )!;
@@ -799,13 +825,15 @@ describe("backend_caller — signals trigger forwarding", () => {
       source: "timer_scheduler",
       event_name: "signals.push",
       ts: 1_717_000_000_000,
-      payload: { signals: [{ items: weird }], ts: 1_717_000_000_000 },
+      payload: { signals: [{ envelope: SIGNAL_ENVELOPE, items: weird }], ts: 1_717_000_000_000 },
     };
     await caller.call(turnOf(env));
     const [, request] = script.spy.mock.calls[0];
     const text = clientContextOf(request.input);
     for (const item of weird) {
-      expect(text).toContain(`signal: ${JSON.stringify(item)}`);
+      expect(text).toContain(
+        `signal [n8n/workflow_done @2026-08-23T01:36:40.000Z, id run-8812]: ${JSON.stringify(item)}`,
+      );
     }
   });
 
