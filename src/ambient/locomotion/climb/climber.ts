@@ -181,6 +181,17 @@ const CLIMB_MOTION_IDS = new Set([
 /** The wall clips, which hold the body until something takes it back. */
 const LOOPING_MOTION_IDS = new Set([CLIMB_UP_MOTION_ID, CLIMB_DOWN_MOTION_ID]);
 
+/** What a running sequence was planned against; absent between sequences. */
+interface ClimbRun {
+  direction: "up" | "down";
+  target: ClimbTarget;
+  /** Character height and floor line the sequence was planned against. */
+  charHpx: number;
+  floorY: number;
+  /** The wall the sequence measures itself against. */
+  geo: { side: "left" | "right"; edgeX: number; topY: number; scale: number };
+}
+
 export function createClimber(deps: ClimberDeps): Climber {
   const { renderer } = deps;
   const rng = deps.rng ?? Math.random;
@@ -193,19 +204,13 @@ export function createClimber(deps: ClimberDeps): Climber {
   let generation = 0;
   /** A sequence is between onStart and onEnd. */
   let running = false;
-  let direction: "up" | "down" | null = null;
-  let target: ClimbTarget | null = null;
-  /** Character height and floor line the running sequence was planned against. */
-  let charHpx = 0;
-  let floorY = 0;
+  let run: ClimbRun | null = null;
   /** Frame-clock deadlines (ms); negative = needs arming. */
   let nextUpAtMs = -1;
   let dwellAtMs = -1;
   let nextWatchAtMs = -1;
   let nextGeoAtMs = -1;
   let watching = false;
-  /** The wall the running sequence measures itself against. */
-  let geo: { side: "left" | "right"; edgeX: number; topY: number; scale: number } | null = null;
   /** Parks the real window for a running monitor-wall climb; null the rest of the time. */
   let travel: Travel | null = null;
   let fallInFlight = false;
@@ -215,17 +220,25 @@ export function createClimber(deps: ClimberDeps): Climber {
   /** A descent waiting for the perch it released to actually clear. */
   let releaseWait: { until: number; settle: (cleared: boolean) => void } | null = null;
 
+  function begin(next: ClimbRun): void {
+    run = next;
+  }
+
+  function end(): ClimbRun | null {
+    const ended = run;
+    run = null;
+    return ended;
+  }
+
   function alive(startedAt: number): boolean {
     return !stopped && generation === startedAt;
   }
 
   /** End the sequence where it stands. Idempotent — a cancel and its unwind share it. */
   function endClimb(): void {
-    if (!direction) return;
-    const dir = direction;
-    direction = null;
-    target = null;
-    geo = null;
+    const ended = end();
+    if (!ended) return;
+    const dir = ended.direction;
     fallInFlight = false;
     // A looping wall clip never ends by itself, and some exits play nothing after it —
     // the faller's silent snap, a drop the hang covered whole. Hand the body back, and
@@ -265,7 +278,7 @@ export function createClimber(deps: ClimberDeps): Climber {
     dwellAtMs = -1;
     legs.finish("lost");
     // The sitter is shared: only a climb of our own has a transition to cut short.
-    if (direction !== null) deps.sitter.cancel();
+    if (run !== null) deps.sitter.cancel();
     settleReleaseWait(false);
     if (fallInFlight) deps.faller.cancel();
     const current = renderer.getCurrentMotion();
@@ -280,7 +293,7 @@ export function createClimber(deps: ClimberDeps): Climber {
   // on the wall — take her off it the same way a lost target does.
   const onVisibilityChange = (): void => {
     if (doc?.visibilityState !== "hidden") return;
-    const onWall = direction !== null;
+    const onWall = run !== null;
     const alreadyFalling = fallInFlight;
     cancel();
     if (onWall && !alreadyFalling) void deps.faller.drop();
@@ -367,7 +380,7 @@ export function createClimber(deps: ClimberDeps): Climber {
    * only: the stand-off distance is tuned from these numbers, nothing reads them back.
    */
   function logGeometry(phase: string, winPhysical: { x: number; y: number }): void {
-    const g = geo;
+    const g = run?.geo;
     if (!g) return;
     const feet = renderer.getCharacterAnchor();
     const hands = renderer.getHandAnchors();
@@ -452,11 +465,13 @@ export function createClimber(deps: ClimberDeps): Climber {
     }, null);
     if (!picked) return;
 
-    target = picked;
-    charHpx = w.charHpx;
-    floorY = w.floor;
-    direction = "up";
-    geo = { side: picked.side, edgeX: picked.edgeX, topY: picked.topY, scale: w.scale };
+    begin({
+      direction: "up",
+      target: picked,
+      charHpx: w.charHpx,
+      floorY: w.floor,
+      geo: { side: picked.side, edgeX: picked.edgeX, topY: picked.topY, scale: w.scale },
+    });
 
     // Stand a hand's reach outside the window's face: the feet on the edge line would
     // straddle it and put the hands inside the window.
@@ -727,11 +742,13 @@ export function createClimber(deps: ClimberDeps): Climber {
       return;
     }
 
-    target = picked;
-    charHpx = standingHpx;
-    floorY = w.floor;
-    direction = "down";
-    geo = { side: picked.side, edgeX: picked.edgeX, topY: picked.topY, scale: w.scale };
+    begin({
+      direction: "down",
+      target: picked,
+      charHpx: standingHpx,
+      floorY: w.floor,
+      geo: { side: picked.side, edgeX: picked.edgeX, topY: picked.topY, scale: w.scale },
+    });
     deps.dropSource.release();
     deps.onStart("down", picked);
 
@@ -833,11 +850,13 @@ export function createClimber(deps: ClimberDeps): Climber {
       app: null,
       title: null,
     };
-    target = picked;
-    charHpx = w.charHpx;
-    floorY = edge.bottomY;
-    direction = "down";
-    geo = { side: edge.side, edgeX: edge.edgeX, topY: edge.topY, scale: w.scale };
+    begin({
+      direction: "down",
+      target: picked,
+      charHpx: w.charHpx,
+      floorY: edge.bottomY,
+      geo: { side: edge.side, edgeX: edge.edgeX, topY: edge.topY, scale: w.scale },
+    });
     deps.onStart("down", picked);
 
     const win = travel.win;
@@ -918,23 +937,26 @@ export function createClimber(deps: ClimberDeps): Climber {
   /** Re-read the stack while the character is committed to a wall she cannot see. */
   function pumpWatch(): void {
     // A monitor wall can never be lost, so there is nothing worth polling the stack for.
-    if (!target || target.kind === "monitor" || watching || nowMs < nextWatchAtMs) return;
+    const current = run;
+    if (!current || current.target.kind === "monitor" || watching || nowMs < nextWatchAtMs) return;
     nextWatchAtMs = nowMs + TARGET_WATCH_MS;
     watching = true;
     const startedAt = generation;
     void deps
       .listWindows()
       .then((windows) => {
-        if (!alive(startedAt) || !target || !direction) return;
+        const active = run;
+        if (!alive(startedAt) || !active) return;
         const lost = climbTargetLost({
           windows,
-          target,
-          charHpx,
-          floor: floorY,
+          target: active.target,
+          charHpx: active.charHpx,
+          floor: active.floorY,
           cfg: deps.getConfig(),
-          direction,
+          direction: active.direction,
         });
         if (!lost) return;
+        const { target } = active;
         log.debug("target.lost", { kind: target.kind, side: target.side, edgeX: target.edgeX });
         cancel();
         void deps.faller.drop();
@@ -1007,7 +1029,7 @@ export function createClimber(deps: ClimberDeps): Climber {
         return;
       }
       // Switching off while she hangs strands her on the wall — take her off it.
-      const onWall = direction !== null;
+      const onWall = run !== null;
       const alreadyFalling = fallInFlight;
       handle.stop();
       if (onWall && !alreadyFalling) void deps.faller.drop();
