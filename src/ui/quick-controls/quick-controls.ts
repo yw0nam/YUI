@@ -66,7 +66,7 @@ import { createHintTooltip } from "./hint-tooltip";
 import { createHistoryTab } from "./history/history-tab";
 import { createPopover } from "./popover";
 import { createReflect } from "./reflect";
-import { createAgentSection } from "./sections/agent-section";
+import { createAgentSection } from "./sections/agent/agent-section";
 import { createFillerSection } from "./sections/filler/filler-section";
 import { bindHelpSection } from "./sections/help-section";
 import { createMonitorsSection } from "./sections/monitors-section";

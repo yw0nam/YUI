@@ -4,13 +4,13 @@
  * reflect (store→DOM) handled by reflect layer; this module owns handlers, subscriptions, teardown only.
  */
 
-import type { Logger } from "../../../logger";
+import type { Logger } from "../../../../logger";
 import {
   type createAgentSettings,
   REASONING_EFFORTS,
-} from "../../../settings/backend/agent-settings";
-import { type Locale, setLocale, t } from "../../i18n";
-import { handleSegmentKeydown } from "../seg-keyboard";
+} from "../../../../settings/backend/agent-settings";
+import { type Locale, setLocale, t } from "../../../i18n";
+import { handleSegmentKeydown } from "../../seg-keyboard";
 
 type AgentSettingsStore = ReturnType<typeof createAgentSettings>;
 

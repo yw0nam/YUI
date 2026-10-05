@@ -480,7 +480,8 @@ YUI/
           history-section.ts         # History tab session accordion over the persisted transcript
           history-section.css        # Session history accordion styles
         sections/                    # The tab sections the shell mounts and the list helpers only they use
-          agent-section.ts           # Locale segment, reasoning-effort segment, and instructions textarea
+          agent/                     # Locale, reasoning-effort, and instructions controls
+            agent-section.ts         # Locale segment, reasoning-effort segment, and instructions textarea
           monitors-section.ts        # Screen-source list and its load state
           screen/                    # Screen section
             screen-section.ts        # Screen-watch threshold knobs, the min-gap slider, and their redraw
