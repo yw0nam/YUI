@@ -115,6 +115,25 @@ describe("perch-watch — adopted sit", () => {
     expect(pushed).toEqual([]);
   });
 
+  it("holds while armed or suspended, and not once idle or abandoned", () => {
+    const { source } = adopted();
+    expect(source.isHeld()).toBe(true);
+    source.suspendSit();
+    expect(source.isHeld()).toBe(true);
+    source.abandonSit();
+    expect(source.isHeld()).toBe(false);
+  });
+
+  it("pushes nothing on a release with nothing held", () => {
+    const { source } = adopted();
+    source.release();
+    pushed.length = 0;
+
+    source.release();
+
+    expect(pushed).toEqual([]);
+  });
+
   it("quietly abandons a suspended sit and prevents a later resume", async () => {
     const { source, renderer, invoke } = adopted();
     source.suspendSit();

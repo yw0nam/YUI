@@ -375,6 +375,8 @@ describe("window-drop-source — no perch", () => {
 
     const source = createWindowDropSource({ bus, renderer, invoke, getWindow, listen });
     await source.start();
+    source.adoptSit(1, { x: 0, y: 0 }, 200, "adopt");
+    source.notePickup();
     fire({ point: { x: 0, y: 0 } });
     await Promise.resolve();
     await Promise.resolve();
@@ -397,6 +399,8 @@ describe("window-drop-source — no perch", () => {
 
     const source = createWindowDropSource({ bus, renderer, invoke, getWindow, listen });
     await source.start();
+    source.adoptSit(1, { x: 0, y: 0 }, 200, "adopt");
+    source.notePickup();
     fire({ point: { x: 0, y: 0 } });
     await Promise.resolve();
     await Promise.resolve();
@@ -415,6 +419,8 @@ describe("window-drop-source — no perch", () => {
 
     const source = createWindowDropSource({ bus, renderer, invoke, getWindow, listen });
     await source.start();
+    source.adoptSit(1, { x: 0, y: 0 }, 200, "adopt");
+    source.notePickup();
     fire({ point: { x: 0, y: 0 } });
     await Promise.resolve();
     await Promise.resolve();
@@ -423,6 +429,39 @@ describe("window-drop-source — no perch", () => {
     expect(pushed).toHaveLength(1);
     expect(pushed[0].event_name).toBe("user.window_sit_exit");
     expect(pushed[0].payload).toBeUndefined();
+  });
+
+  it("pushes nothing when the seat is over no window and nothing was held at pickup", async () => {
+    const renderer = {
+      getPerchProbe: vi.fn(() => ({ seatPx: { x: 40, y: 30 }, charHpx: 200 })),
+      isPerched: vi.fn(() => false),
+    };
+    const invoke = vi.fn(async () => [win({ x: 5000, y: 5000 })]);
+    const getWindow = () => makeWindow({ x: 0, y: 0 }, 1);
+    const { listen, fire } = makeListen();
+    const onDragMiss = vi.fn();
+
+    const source = createWindowDropSource({ bus, renderer, invoke, getWindow, listen, onDragMiss });
+    await source.start();
+    fire({ point: { x: 0, y: 0 } });
+    await settleRelease();
+
+    expect(pushed).toEqual([]);
+    expect(onDragMiss).toHaveBeenCalledTimes(1);
+  });
+
+  it("pushes nothing when getPerchProbe() is null and nothing was held at pickup", async () => {
+    const renderer = { getPerchProbe: vi.fn(() => null), isPerched: vi.fn(() => false) };
+    const invoke = vi.fn(async () => [win()]);
+    const getWindow = () => makeWindow({ x: 0, y: 0 }, 1);
+    const { listen, fire } = makeListen();
+
+    const source = createWindowDropSource({ bus, renderer, invoke, getWindow, listen });
+    await source.start();
+    fire({ point: { x: 0, y: 0 } });
+    await settleRelease();
+
+    expect(pushed).toEqual([]);
   });
 });
 
@@ -492,6 +531,8 @@ describe("window-drop-source — side peek drop", () => {
     });
 
     await source.start();
+    source.adoptSit(1, { x: 0, y: 0 }, 200, "adopt");
+    source.notePickup();
     fire({});
     await settleRelease();
     expect(pushed.at(-1)?.event_name).toBe("user.window_sit_exit");
@@ -657,6 +698,8 @@ describe("window-drop-source — side peek drop", () => {
     });
 
     await source.start();
+    source.adoptSit(1, { x: 0, y: 0 }, 200, "adopt");
+    source.notePickup();
     fire({});
     await settleRelease();
     expect(pushed).toHaveLength(1);
@@ -863,6 +906,7 @@ describe("window-drop-source — peek loss poll", () => {
     (tickCb as (() => void) | null)?.();
     await Promise.resolve();
     await Promise.resolve();
+    source.notePickup();
     fire({});
     await settleRelease();
     expect(pushed.filter((e) => e.event_name.endsWith("_exit"))).toHaveLength(1);
@@ -1048,6 +1092,8 @@ describe("window-drop-source — occlusion poll lifecycle + races (J3)", () => {
     const { listen, fire } = makeListen();
     const source = createWindowDropSource({ bus, renderer, invoke, getWindow, listen });
     await source.start();
+    source.adoptSit(1, { x: 0, y: 0 }, 200, "adopt");
+    source.notePickup();
     fire({ point: { x: 0, y: 0 } });
     await settleRelease();
     expect(pushed.filter((e) => e.event_name === "user.window_sit_exit")).toHaveLength(1);
@@ -1057,6 +1103,64 @@ describe("window-drop-source — occlusion poll lifecycle + races (J3)", () => {
     await tick();
     // not armed → poll does nothing.
     expect(pushed.filter((e) => e.event_name === "user.window_sit_exit")).toHaveLength(1);
+  });
+
+  it("a miss after a pickup from a sit pushes the exit though the poll disarmed meanwhile", async () => {
+    const probe = makePerchSource();
+    const armed = win({ name: "Armed", windowNumber: 42 });
+    const invoke = vi.fn(async () => [armed]);
+    const getWindow = () => makeWindow({ x: 520, y: 740 }, 2);
+    const { listen, fire } = makeListen();
+    const source = createWindowDropSource({
+      bus,
+      renderer: probe.renderer,
+      invoke,
+      getWindow,
+      listen,
+    });
+    await source.start();
+    source.adoptSit(42, { x: armed.x, y: armed.y }, 200, "adopt");
+
+    source.notePickup();
+    probe.state.perched = false;
+    await tick();
+    expect(source.armedSit()).toBeNull();
+    expect(pushed).toEqual([]);
+
+    invoke.mockImplementation(async () => [win({ x: 5000, y: 5000 })]);
+    fire({ point: { x: 0, y: 0 } });
+    await settleRelease();
+    expect(pushed.map((e) => e.event_name)).toEqual(["user.window_sit_exit"]);
+
+    // The capture belongs to one release; the next miss without a pickup stays silent.
+    fire({ point: { x: 0, y: 0 } });
+    await settleRelease();
+    expect(pushed.map((e) => e.event_name)).toEqual(["user.window_sit_exit"]);
+  });
+
+  it("a miss after a pickup from a suspended sit pushes the exit", async () => {
+    const probe = makePerchSource();
+    const armed = win({ name: "Armed", windowNumber: 42 });
+    const invoke = vi.fn(async () => [win({ x: 5000, y: 5000 })]);
+    const getWindow = () => makeWindow({ x: 520, y: 740 }, 2);
+    const { listen, fire } = makeListen();
+    const source = createWindowDropSource({
+      bus,
+      renderer: probe.renderer,
+      invoke,
+      getWindow,
+      listen,
+    });
+    await source.start();
+    source.adoptSit(42, { x: armed.x, y: armed.y }, 200, "adopt");
+    source.suspendSit();
+
+    source.notePickup();
+    source.abandonSit();
+    fire({ point: { x: 0, y: 0 } });
+    await settleRelease();
+
+    expect(pushed.map((e) => e.event_name)).toEqual(["user.window_sit_exit"]);
   });
 
   it("a fresh drop re-arms with the new windowNumber", async () => {
@@ -1418,8 +1522,7 @@ describe("window-drop-source — programmatic placement (agent-driven gestures)"
     pushed.length = 0;
     source.release();
 
-    // A sit-armed source releases through the sit exit; an unarmed one would too,
-    // so pair this with the peek case below where the armed kind is observable.
+    // A sit-armed source releases through the sit exit.
     expect(pushed.map((e) => e.event_name)).toEqual(["user.window_sit_exit"]);
   });
 
@@ -1667,7 +1770,7 @@ describe("window-drop-source — programmatic placement (agent-driven gestures)"
     expect(pushed).toHaveLength(0);
     pushed.length = 0;
     source.release();
-    expect(pushed.map((e) => e.event_name)).toEqual(["user.window_sit_exit"]);
+    expect(pushed).toEqual([]);
   });
 });
 
@@ -1697,7 +1800,7 @@ describe("window-drop-source — perch targets + release", () => {
     });
   });
 
-  it("release pushes the sit exit when nothing is armed", () => {
+  it("release pushes nothing when nothing is armed", () => {
     const renderer = {
       getPerchProbe: vi.fn(() => null),
       isPerched: vi.fn(() => false),
@@ -1709,7 +1812,7 @@ describe("window-drop-source — perch targets + release", () => {
     const source = createWindowDropSource({ bus, renderer, invoke, getWindow, listen });
     source.release();
 
-    expect(pushed.map((e) => e.event_name)).toEqual(["user.window_sit_exit"]);
+    expect(pushed).toEqual([]);
   });
 });
 

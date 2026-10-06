@@ -107,7 +107,9 @@ export interface PerchWatch {
    * does nothing. Silent — the caller that suspended the sit owns whatever it publishes.
    */
   abandonSit(): void;
-  /** Release any armed perch/peek and push the matching exit. */
+  /** Whether a perch/peek is armed or a sit is suspended. */
+  isHeld(): boolean;
+  /** Release any armed perch/peek and push the matching exit; a release with nothing held is silent. */
   release(): void;
 }
 
@@ -145,6 +147,10 @@ export function createPerchWatch(deps: PerchWatchDeps): PerchWatch {
       event_name: kind === "sit" ? "user.window_sit_exit" : "user.peek_exit",
       ts: Date.now(),
     });
+  }
+
+  function isHeld(): boolean {
+    return armedKind !== null || sitSuspended;
   }
 
   function stopPoll(): void {
@@ -324,7 +330,9 @@ export function createPerchWatch(deps: PerchWatchDeps): PerchWatch {
       if (!sitSuspended) return;
       disarm();
     },
+    isHeld,
     release() {
+      if (!isHeld()) return;
       if (armedKind !== null) {
         pushArmedExit(armedKind);
         return;

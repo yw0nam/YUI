@@ -87,10 +87,10 @@ export async function wireStageGestures(deps: {
     }),
     onDragStart: () => {
       locomotion.setDragging(true);
+      locomotion.dropSource.noteUserDrag();
       locomotion.cancel();
       hitTest.suspend();
       dragHold.noteDragStart();
-      locomotion.dropSource.noteUserDrag();
       bus.push({
         source: "os_event_watcher",
         event_name: "user.drag_start",

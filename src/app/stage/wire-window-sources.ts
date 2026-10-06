@@ -79,7 +79,10 @@ export function wireWindowSources(deps: {
   let pendingKeepOnScreenPaused = false;
   let disposed = false;
   const handle = {
-    noteUserDrag: () => avatarExecutor?.noteUserDrag(),
+    noteUserDrag: () => {
+      avatarExecutor?.noteUserDrag();
+      windowDropSource?.notePickup();
+    },
     noteUserDragEnd: () => avatarExecutor?.noteUserDragEnd(),
     adoptSit: (
       windowNumber: number,

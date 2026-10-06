@@ -136,7 +136,7 @@ describe("wireStageGestures", () => {
 
     const result = s.dragOpts.onDragStart!();
 
-    expect(s.order).toEqual(["setDragging:true", "cancel", "suspend", "noteUserDrag"]);
+    expect(s.order).toEqual(["setDragging:true", "noteUserDrag", "cancel", "suspend"]);
     expect(s.bus.push).toHaveBeenCalledTimes(1);
     expect(s.bus.push).toHaveBeenCalledWith(
       expect.objectContaining({

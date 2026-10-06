@@ -8,13 +8,14 @@
  *
  * Flow on each release:
  *   1. probe = renderer.getPerchProbe(). null (no VRM / projection failed) →
- *      push user.window_sit_exit and stop.
+ *      push user.window_sit_exit when something was held at pickup, and stop.
  *   2. seatGlobal = petPxToGlobalPoints(seatPx, outerPosition, scaleFactor).
  *   3. windows = invoke("list_windows")  (front-to-back, topmost first).
  *   4. target = first window whose catch zone contains the seat (topmost wins).
  *   5. hit → proactive.window_sit at once, the sit-down plays in place, then
  *      user.window_sit_drop { edge_local_ypx } + arm the poll on target.windowNumber,
- *      both read off the host as it is when the sit lands; miss → user.window_sit_exit.
+ *      both read off the host as it is when the sit lands; miss → user.window_sit_exit
+ *      when the character was sitting or peeking at pickup.
  *
  * A mover that seated the character itself adopts the same poll through `adoptSit`,
  * which arms on a window without pushing anything. The armed state and its detach
@@ -141,8 +142,10 @@ export interface WindowDropSource {
    * does nothing. Silent — the caller that suspended the sit owns whatever it publishes.
    */
   abandonSit(): void;
-  /** Release any armed perch/peek and push the matching exit. */
+  /** Release any armed perch/peek and push the matching exit; a release with nothing held is silent. */
   release(): void;
+  /** Record at drag start whether a perch/peek is held, for the release that follows. */
+  notePickup(): void;
 }
 
 /**
@@ -212,6 +215,7 @@ export function createWindowDropSource(deps: WindowDropSourceDeps): WindowDropSo
   const getGestureCues = deps.getGestureCues;
 
   let unlisten: (() => void) | undefined;
+  let heldAtPickup = false;
 
   const perch: PerchWatch = createPerchWatch({
     bus,
@@ -322,12 +326,15 @@ export function createWindowDropSource(deps: WindowDropSourceDeps): WindowDropSo
 
   /** The drag-release pass: infer the target from where the seat landed, then commit. */
   async function settle(): Promise<SettleOutcome> {
-    const probe = renderer.getPerchProbe();
-    // No VRM / projection unavailable → nothing to perch; leave to idle.
-    if (!probe) {
-      perch.pushExit();
+    const held = heldAtPickup;
+    heldAtPickup = false;
+    function miss(): SettleOutcome {
+      if (held) perch.pushExit();
       return { kind: "none" };
     }
+    const probe = renderer.getPerchProbe();
+    // No VRM / projection unavailable → nothing to perch; leave to idle.
+    if (!probe) return miss();
 
     const win = getWindow();
     const [pos, scale, windows] = await Promise.all([
@@ -346,21 +353,14 @@ export function createWindowDropSource(deps: WindowDropSourceDeps): WindowDropSo
       const sideTargetIdx = windows.findIndex(
         (w) => inSideCatchZone(seatGlobal, w, probe.charHpx, sideOpts) !== null,
       );
-      if (sideTargetIdx < 0) {
-        perch.pushExit();
-        return { kind: "none" };
-      }
+      if (sideTargetIdx < 0) return miss();
       const sideTarget = windows[sideTargetIdx];
       if (windows.some((w, i) => i < sideTargetIdx && containsSeat(w, seatGlobal))) {
         log.debug("peek.drop_covered", { targetWindowNumber: sideTarget.windowNumber });
-        perch.pushExit();
-        return { kind: "none" };
+        return miss();
       }
       const side = inSideCatchZone(seatGlobal, sideTarget, probe.charHpx, sideOpts);
-      if (side === null) {
-        perch.pushExit();
-        return { kind: "none" };
-      }
+      if (side === null) return miss();
       return commitPeek(sideTarget, side, pos, scale, probe.charHpx, peekConfig, false);
     }
     const target = windows[targetIdx];
@@ -369,8 +369,7 @@ export function createWindowDropSource(deps: WindowDropSourceDeps): WindowDropSo
     // that window's surface, not on the matched top edge — miss, no perch.
     if (windows.some((w, i) => i < targetIdx && containsSeat(w, seatGlobal))) {
       log.debug("perch.drop_covered", { targetWindowNumber: target.windowNumber });
-      perch.pushExit();
-      return { kind: "none" };
+      return miss();
     }
 
     return commitSit(target, pos, scale, probe.charHpx, false);
@@ -406,6 +405,9 @@ export function createWindowDropSource(deps: WindowDropSourceDeps): WindowDropSo
     resumeSit: perch.resumeSit,
     abandonSit: perch.abandonSit,
     release: perch.release,
+    notePickup() {
+      heldAtPickup = perch.isHeld();
+    },
     async start() {
       if (unlisten) return;
       try {

@@ -11,6 +11,7 @@ const { createPercher, createWindowDropSource } = vi.hoisted(() => ({
   createWindowDropSource: vi.fn((_deps: Record<string, () => void>) => ({
     start: async () => {},
     stop: () => {},
+    notePickup: vi.fn(),
   })),
 }));
 vi.mock("../../ambient/locomotion/perch/percher", () => ({ createPercher }));
@@ -21,7 +22,7 @@ vi.mock("../../io/window/pet/window-resize-source", () => ({
   createWindowResizeSource: () => ({ start: () => {}, stop: () => {} }),
 }));
 vi.mock("../../io/bridge/inbox/avatar-executor", () => ({
-  createAvatarExecutor: () => ({ start: () => {}, stop: () => {} }),
+  createAvatarExecutor: () => ({ start: () => {}, stop: () => {}, noteUserDrag: () => {} }),
 }));
 vi.mock("../../io/bridge/inbox/avatar-rpc", () => ({
   onAvatarRpc: () => () => {},
@@ -104,5 +105,38 @@ describe("host loss reaches the faller", () => {
     createWindowDropSource.mock.calls[0][0].onSitLost();
 
     expect(faller.drop).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("drag start reaches the drop source", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it("records the pickup on the drop source when a user drag starts", async () => {
+    vi.stubGlobal("__TAURI_INTERNALS__", {});
+    createWindowDropSource.mockClear();
+
+    const handle = wireWindowSources({
+      bus: { push: () => {} } as never,
+      renderer: {} as never,
+      peekActive: () => false,
+      getPeekConfig: () => ({}) as never,
+      getGestureCues: () => ({}) as never,
+      agentNotifySettings: { get: () => ({ enabled: false }) } as never,
+      getPosture: () => ({}) as never,
+      getVrm: () => null,
+      noteAvatarMoved: () => {},
+      noteAgentMove: () => {},
+      onDragMiss: () => {},
+      onSitLost: () => {},
+      sitDown: async () => "done" as const,
+      log: noopLog,
+    });
+    await vi.waitFor(() => expect(createWindowDropSource).toHaveBeenCalled());
+
+    handle.noteUserDrag();
+
+    expect(createWindowDropSource.mock.results[0].value.notePickup).toHaveBeenCalledTimes(1);
   });
 });
