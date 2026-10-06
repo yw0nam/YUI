@@ -293,16 +293,16 @@ async function bootstrap(): Promise<BootstrapHandle> {
         log,
       }),
     );
+    const configWatch = wireConfigWatch({ config, log, register });
+    // DEV-only: polling watcher runs — edits to configs/*.json reflected immediately.
+    if (import.meta.env.DEV) {
+      configWatch.startDev();
+    }
   } catch (err) {
     if (isDisposed()) return { dispose };
     log.error("config_or_vrm_load_failed", { error: String(err) });
-    // Boot failure = empty transparent window. Preserve cause (ConfigError vs VRM) visible to user (#316).
+    // The boot error card names the cause, ConfigError or VRM.
     if (!isDisposed()) showBootError(root, err);
-  }
-  const configWatch = wireConfigWatch({ config, log, register });
-  // DEV-only: polling watcher runs — edits to configs/*.json reflected immediately.
-  if (import.meta.env.DEV) {
-    configWatch.startDev();
   }
   return { dispose };
 }
