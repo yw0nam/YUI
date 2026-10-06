@@ -18,7 +18,7 @@ const REPO_ROOT = resolve(__dirname, "../..");
 // ── loader happy path ────────────────────────────────────────────────────────
 
 describe("loadEmotionTextTable — happy path", () => {
-  it("provider 파일을 읽어 Record<string,string>로 반환한다", async () => {
+  it("reads the provider file and returns Record<string,string>", async () => {
     const table = { "👂": "Whisper", "😮‍💨": "Breath, sigh" };
     const out = await loadEmotionTextTable({
       provider: "irodori",
@@ -27,7 +27,7 @@ describe("loadEmotionTextTable — happy path", () => {
     expect(out).toEqual(table);
   });
 
-  it("provider별 파일명을 읽는다(<provider>.json)", async () => {
+  it("reads the per-provider file name (<provider>.json)", async () => {
     const table = { "😀": "Grin" };
     let requested = "";
     const out = await loadEmotionTextTable({
@@ -52,7 +52,7 @@ describe("loadEmotionTextTable — fail-loud ConfigError", () => {
     expect((err as ConfigError).issues.length).toBeGreaterThan(0);
   }
 
-  it("객체가 아니면 실패", async () => {
+  it("fails when not an object", async () => {
     await expectError(
       loadEmotionTextTable({
         provider: "irodori",
@@ -61,7 +61,7 @@ describe("loadEmotionTextTable — fail-loud ConfigError", () => {
     );
   });
 
-  it("빈 객체면 실패", async () => {
+  it("fails on an empty object", async () => {
     await expectError(
       loadEmotionTextTable({
         provider: "irodori",
@@ -70,7 +70,7 @@ describe("loadEmotionTextTable — fail-loud ConfigError", () => {
     );
   });
 
-  it("값이 문자열이 아니면 실패", async () => {
+  it("fails when a value is not a string", async () => {
     await expectError(
       loadEmotionTextTable({
         provider: "irodori",
@@ -83,7 +83,7 @@ describe("loadEmotionTextTable — fail-loud ConfigError", () => {
 // ── default fetch reader: asset-url resolver wiring ───────────────────────────
 
 describe("loadEmotionTextTable — default fetch reader routes through asset resolver", () => {
-  it("dev(passthrough resolver)는 baseUrl/파일 URL 그대로 fetch한다", async () => {
+  it("dev (passthrough resolver) fetches the baseUrl/file URL as-is", async () => {
     let fetched = "";
     const fetchMock = async (url: string) => {
       fetched = url;
@@ -99,7 +99,7 @@ describe("loadEmotionTextTable — default fetch reader routes through asset res
     expect(out).toEqual({ "👂": "Whisper" });
   });
 
-  it("Tauri(변환 resolver)는 변환된 URL로 fetch한다", async () => {
+  it("Tauri (converting resolver) fetches the converted URL", async () => {
     let fetched = "";
     const fetchMock = async (url: string) => {
       fetched = url;
@@ -134,7 +134,7 @@ describe("irodori emotion_text drift-guard", () => {
     return out;
   }
 
-  it("JSON 키 집합 === md 이모지 집합 (정확히 39, 누락/잉여 없음)", () => {
+  it("JSON key set === md emoji set (exactly 39, none missing or extra)", () => {
     const json = JSON.parse(
       readFileSync(resolve(REPO_ROOT, "configs/emotion_text/irodori.json"), "utf8"),
     ) as Record<string, string>;

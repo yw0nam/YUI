@@ -28,7 +28,7 @@ function mutableReader(map: Record<string, unknown>): ConfigReader {
 // ── tests ────────────────────────────────────────────────────────────────────
 
 describe("createConfigStore — load / get", () => {
-  it("load() 후 get()이 스냅샷을 반환하고, load() 전 get()은 throw", async () => {
+  it("get() returns the snapshot after load() and throws before load()", async () => {
     const store = createConfigStore({ read: mutableReader(goodFixture()) });
     expect(() => store.get()).toThrow(/before load/);
 
@@ -39,7 +39,7 @@ describe("createConfigStore — load / get", () => {
 });
 
 describe("createConfigStore — reload", () => {
-  it("변경 없으면 reload()는 false, 구독자에게 통지하지 않는다", async () => {
+  it("with no change, reload() returns false and does not notify subscribers", async () => {
     const store = createConfigStore({ read: mutableReader(goodFixture()) });
     await store.load();
 
@@ -50,7 +50,7 @@ describe("createConfigStore — reload", () => {
     expect(sub).not.toHaveBeenCalled();
   });
 
-  it("avatar.vrm_url 변경 → reload() true, 구독자 1회 호출(avatar만 changed)", async () => {
+  it("an avatar.vrm_url change → reload() true, subscriber called once (only avatar changed)", async () => {
     const map = goodFixture();
     const store = createConfigStore({ read: mutableReader(map) });
     await store.load();
@@ -71,7 +71,7 @@ describe("createConfigStore — reload", () => {
     expect(store.get().avatar.vrm_url).toBe("/vrms/other.vrm");
   });
 
-  it("잘못된 편집 → reload() false, 스냅샷 보존, onError가 ConfigError 수신(앱 throw 안 함)", async () => {
+  it("a bad edit → reload() false, snapshot preserved, onError receives the ConfigError (the app does not throw)", async () => {
     const map = goodFixture();
     const store = createConfigStore({ read: mutableReader(map) });
     await store.load();
@@ -128,7 +128,7 @@ describe("createConfigStore — section diff", () => {
       expected: 2000,
       otherSection: "avatar",
     },
-  ])("$section 변경 → reload() true, changed.has('$section')", async ({
+  ])("$section change → reload() true, changed.has('$section')", async ({
     mutate,
     readBack,
     expected,
@@ -154,7 +154,7 @@ describe("createConfigStore — section diff", () => {
 });
 
 describe("createConfigStore — subscribe lifecycle", () => {
-  it("unsubscribe 후에는 통지가 멈춘다", async () => {
+  it("stops notifying after unsubscribe", async () => {
     const map = goodFixture();
     const store = createConfigStore({ read: mutableReader(map) });
     await store.load();
@@ -175,7 +175,7 @@ describe("createConfigStore — subscribe lifecycle", () => {
 });
 
 describe("createConfigStore — secrets", () => {
-  it("opts.secrets로 넘긴 plainSecretProvider를 store.secrets로 노출한다", async () => {
+  it("exposes the plainSecretProvider passed via opts.secrets as store.secrets", async () => {
     const store = createConfigStore({
       read: mutableReader(goodFixture()),
       secrets: plainSecretProvider({ chat_api_key: "sk-xyz" }),

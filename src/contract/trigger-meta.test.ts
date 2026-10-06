@@ -31,7 +31,7 @@ describe("TriggerMeta kind=signals", () => {
     expectTypeOf<TriggerMeta["signals"]>().toEqualTypeOf<SignalGroup[] | undefined>();
   });
 
-  it("signals 항목은 구조가 서로 달라도 타입 에러 없이 공존한다", () => {
+  it("signals entries coexist without type errors even when their shapes differ", () => {
     const items: SignalItem[] = [{ a: 1 }, { b: "x", c: [1, 2, 3] }, {}];
     expect(items).toHaveLength(3);
   });

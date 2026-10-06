@@ -10,7 +10,7 @@ import { describe, expect, expectTypeOf, it } from "vitest";
 import type { ScreenRect, WindowRect } from "./types";
 
 describe("ScreenRect", () => {
-  it("x/y/width/height를 points로 담는다", () => {
+  it("carries x/y/width/height as points", () => {
     const rect: ScreenRect = { x: 10, y: 20, width: 800, height: 600 };
     expect(rect.x + rect.width).toBe(810);
     expectTypeOf<ScreenRect["height"]>().toEqualTypeOf<number>();
@@ -18,7 +18,7 @@ describe("ScreenRect", () => {
 });
 
 describe("WindowRect", () => {
-  it("ScreenRect를 확장하고 name(null 허용)·pid·windowNumber를 더한다", () => {
+  it("extends ScreenRect, adding name(null allowed)·pid·windowNumber", () => {
     const win: WindowRect = {
       x: 0,
       y: 0,
@@ -36,7 +36,7 @@ describe("WindowRect", () => {
     expectTypeOf<WindowRect["name"]>().toEqualTypeOf<string | null>();
   });
 
-  it("name은 null일 수 있다", () => {
+  it("name can be null", () => {
     const win: WindowRect = {
       x: 0,
       y: 0,

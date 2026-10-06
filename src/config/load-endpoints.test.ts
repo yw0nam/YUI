@@ -12,7 +12,7 @@ import { ConfigError } from "./validators/shared";
 // ── TTS (single OpenAI-compatible path) ───────────────────────────────────────
 
 describe("loadConfig — endpoints TTS", () => {
-  it("완전한 TTS endpoints는 모든 필드를 보존한다", async () => {
+  it("a complete TTS endpoints object preserves every field", async () => {
     const map = goodFixture();
     map["endpoints.json"] = {
       chat_base_url: "http://localhost:8642",
@@ -35,7 +35,7 @@ describe("loadConfig — endpoints TTS", () => {
     });
   });
 
-  it("tts_model / tts_speaker 생략은 통과한다", async () => {
+  it("omitting tts_model / tts_speaker passes", async () => {
     const map = goodFixture();
     map["endpoints.json"] = {
       chat_base_url: "http://localhost:8642",
@@ -74,21 +74,21 @@ describe("loadConfig — endpoints broker_base_url", () => {
     };
   }
 
-  it("유효한 broker_base_url을 출력에 보존한다", async () => {
+  it("preserves a valid broker_base_url in the output", async () => {
     const map = goodFixture();
     map["endpoints.json"] = { ...baseEndpoints(), broker_base_url: "http://localhost:3201/mcp" };
     const cfg = await loadConfig({ read: readerOf(map) });
     expect(cfg.endpoints.broker_base_url).toBe("http://localhost:3201/mcp");
   });
 
-  it("broker_base_url이 없으면 undefined(선택)", async () => {
+  it("undefined when broker_base_url is missing (optional)", async () => {
     const map = goodFixture();
     map["endpoints.json"] = baseEndpoints();
     const cfg = await loadConfig({ read: readerOf(map) });
     expect(cfg.endpoints.broker_base_url).toBeUndefined();
   });
 
-  it("broker_base_url이 http(s) URL이 아니면 실패", async () => {
+  it("fails when broker_base_url is not an http(s) URL", async () => {
     const map = goodFixture();
     map["endpoints.json"] = { ...baseEndpoints(), broker_base_url: "localhost:3201/mcp" };
     const p = loadConfig({ read: readerOf(map) });
@@ -110,35 +110,35 @@ describe("loadConfig — endpoints chat_api", () => {
     };
   }
 
-  it("chat_api: responses를 그대로 보존한다", async () => {
+  it("chat_api: preserves responses as-is", async () => {
     const map = goodFixture();
     map["endpoints.json"] = { ...baseEndpoints(), chat_api: "responses" };
     const cfg = await loadConfig({ read: readerOf(map) });
     expect(cfg.endpoints.chat_api).toBe("responses");
   });
 
-  it("chat_api: chat_completions를 그대로 보존한다", async () => {
+  it("chat_api: preserves chat_completions as-is", async () => {
     const map = goodFixture();
     map["endpoints.json"] = { ...baseEndpoints(), chat_api: "chat_completions" };
     const cfg = await loadConfig({ read: readerOf(map) });
     expect(cfg.endpoints.chat_api).toBe("chat_completions");
   });
 
-  it("chat_api: push를 그대로 보존한다", async () => {
+  it("chat_api: preserves push as-is", async () => {
     const map = goodFixture();
     map["endpoints.json"] = { ...baseEndpoints(), chat_api: "push" };
     const cfg = await loadConfig({ read: readerOf(map) });
     expect(cfg.endpoints.chat_api).toBe("push");
   });
 
-  it("chat_api이 없으면 undefined(선택, default는 상위 레이어 소관)", async () => {
+  it("undefined when chat_api is missing (optional; the default belongs to the layer above)", async () => {
     const map = goodFixture();
     map["endpoints.json"] = baseEndpoints();
     const cfg = await loadConfig({ read: readerOf(map) });
     expect(cfg.endpoints.chat_api).toBeUndefined();
   });
 
-  it("chat_api가 enum 밖이면 실패", async () => {
+  it("fails when chat_api is outside the enum", async () => {
     const map = goodFixture();
     map["endpoints.json"] = { ...baseEndpoints(), chat_api: "sse_v2" };
     const p = loadConfig({ read: readerOf(map) });
@@ -171,7 +171,7 @@ describe("loadConfig — endpoints context window", () => {
     expect((err as ConfigError).issues.length).toBeGreaterThan(0);
   }
 
-  it("chat_model_context_window를 명시하면 그대로 보존한다", async () => {
+  it("preserves chat_model_context_window as-is when given", async () => {
     const cfg = await loadConfig({
       read: readerOf({
         ...goodFixture(),
@@ -184,17 +184,17 @@ describe("loadConfig — endpoints context window", () => {
     expect(cfg.endpoints.chat_model_context_window).toBe(128000);
   });
 
-  it("chat_model_context_window는 없으면 undefined(선택)", async () => {
+  it("chat_model_context_window is undefined when missing (optional)", async () => {
     const cfg = await loadWith(baseEndpoints());
     const ep = (cfg as { endpoints: EndpointsConfig }).endpoints;
     expect(ep.chat_model_context_window).toBeUndefined();
   });
 
-  it("chat_model_context_window가 0 이하면 실패", async () => {
+  it("fails when chat_model_context_window is 0 or less", async () => {
     await expectEndpointsError(loadWith({ ...baseEndpoints(), chat_model_context_window: 0 }));
   });
 
-  it("chat_model_context_window가 비유한(Infinity)이면 실패", async () => {
+  it("fails when chat_model_context_window is non-finite (Infinity)", async () => {
     await expectEndpointsError(
       loadWith({ ...baseEndpoints(), chat_model_context_window: Infinity }),
     );
@@ -214,7 +214,7 @@ describe("loadConfig — endpoints validation failures", () => {
     expect((err as ConfigError).issues.length).toBeGreaterThan(0);
   }
 
-  it("tts_base_url이 http(s) URL이 아니면 실패", async () => {
+  it("fails when tts_base_url is not an http(s) URL", async () => {
     await expectEndpointsError(
       loadWith({
         chat_base_url: "http://localhost:8642",
@@ -224,7 +224,7 @@ describe("loadConfig — endpoints validation failures", () => {
     );
   });
 
-  it("tts_model이 빈 문자열이면 실패", async () => {
+  it("fails when tts_model is an empty string", async () => {
     await expectEndpointsError(
       loadWith({
         chat_base_url: "http://localhost:8642",
@@ -235,7 +235,7 @@ describe("loadConfig — endpoints validation failures", () => {
     );
   });
 
-  it("tts_speaker가 빈 문자열이면 실패", async () => {
+  it("fails when tts_speaker is an empty string", async () => {
     await expectEndpointsError(
       loadWith({
         chat_base_url: "http://localhost:8642",
@@ -246,7 +246,7 @@ describe("loadConfig — endpoints validation failures", () => {
     );
   });
 
-  it("tts_max_inflight가 1 미만이면 실패", async () => {
+  it("fails when tts_max_inflight is below 1", async () => {
     await expectEndpointsError(
       loadWith({
         chat_base_url: "http://localhost:8642",

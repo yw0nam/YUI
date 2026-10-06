@@ -198,7 +198,7 @@ describe("createQuickControls — thinking filler section", () => {
     qc.dispose();
   });
 
-  it("editing 첫 대사 calls setCustomPool with split first lines, preserving repeat", () => {
+  it("editing the first-lines textarea calls setCustomPool with split first lines, preserving repeat", () => {
     const fs = seededFiller({
       enabled: true,
       language: "ja",
@@ -227,7 +227,7 @@ describe("createQuickControls — thinking filler section", () => {
     qc.dispose();
   });
 
-  it("editing 반복 대사 calls setCustomPool with split repeat lines, preserving first", () => {
+  it("editing the repeat-lines textarea calls setCustomPool with split repeat lines, preserving first", () => {
     const fs = seededFiller({
       enabled: true,
       language: "ja",

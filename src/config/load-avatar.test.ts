@@ -33,13 +33,13 @@ function avatarWith(overrides: Record<string, unknown>): Record<string, unknown>
 // ── avatar.available manifest (VRM swap) ────────────────────────────────────────
 
 describe("loadConfig — avatar.available", () => {
-  it("available가 없으면 vrm_url만 담고 available는 undefined", async () => {
+  it("carries only vrm_url and leaves available undefined when available is missing", async () => {
     const cfg = await loadConfig({ read: readerOf(goodFixture()) });
     expect(cfg.avatar).toEqual(avatarFixture());
     expect(cfg.avatar.available).toBeUndefined();
   });
 
-  it("available 배열을 순서대로 보존하고 source를 그대로 담는다", async () => {
+  it("preserves the available array order and carries source as-is", async () => {
     const cfg = await loadWithAvatar(
       avatarWith({
         available: [
@@ -55,7 +55,7 @@ describe("loadConfig — avatar.available", () => {
     ]);
   });
 
-  it("서로 다른 단순 id([A-Za-z0-9._-])는 모두 통과한다", async () => {
+  it("distinct simple ids ([A-Za-z0-9._-]) all pass", async () => {
     const cfg = await loadWithAvatar(
       avatarWith({
         available: [
@@ -72,50 +72,50 @@ describe("loadConfig — avatar.available", () => {
 // ── avatar.framing fit-to-bounds ────────────────────────────────────────────────
 
 describe("loadConfig — avatar.framing", () => {
-  it("유효한 framing {margin, fov}를 그대로 보존한다", async () => {
+  it("preserves a valid framing {margin, fov} as-is", async () => {
     const cfg = await loadWithAvatar(
       avatarWith({ framing: { margin: 0.2, fov: 45, upper_body: UPPER_BODY } }),
     );
     expect(cfg.avatar.framing).toEqual({ margin: 0.2, fov: 45, upper_body: UPPER_BODY });
   });
 
-  it("framing이 없으면 실패", async () => {
+  it("fails when framing is missing", async () => {
     const avatar = avatarWith({});
     delete avatar.framing;
     await expectAvatarError(loadWithAvatar(avatar));
   });
 
-  it("fov: 0 (열린구간 밖)이면 실패", async () => {
+  it("fails on fov: 0 (outside the open interval)", async () => {
     await expectAvatarError(
       loadWithAvatar(avatarWith({ framing: { margin: 0.1, fov: 0, upper_body: UPPER_BODY } })),
     );
   });
 
-  it("fov: 180 (열린구간 밖)이면 실패", async () => {
+  it("fails on fov: 180 (outside the open interval)", async () => {
     await expectAvatarError(
       loadWithAvatar(avatarWith({ framing: { margin: 0.1, fov: 180, upper_body: UPPER_BODY } })),
     );
   });
 
-  it("fov: -5 (음수)이면 실패", async () => {
+  it("fails on fov: -5 (negative)", async () => {
     await expectAvatarError(
       loadWithAvatar(avatarWith({ framing: { margin: 0.1, fov: -5, upper_body: UPPER_BODY } })),
     );
   });
 
-  it('fov: "30" (문자열)이면 실패', async () => {
+  it('fails on fov: "30" (string)', async () => {
     await expectAvatarError(
       loadWithAvatar(avatarWith({ framing: { margin: 0.1, fov: "30", upper_body: UPPER_BODY } })),
     );
   });
 
-  it("margin: -0.1 (음수)이면 실패", async () => {
+  it("fails on margin: -0.1 (negative)", async () => {
     await expectAvatarError(
       loadWithAvatar(avatarWith({ framing: { margin: -0.1, fov: 30, upper_body: UPPER_BODY } })),
     );
   });
 
-  it("margin: NaN (비유한)이면 실패", async () => {
+  it("fails on margin: NaN (non-finite)", async () => {
     await expectAvatarError(
       loadWithAvatar(
         avatarWith({ framing: { margin: Number.NaN, fov: 30, upper_body: UPPER_BODY } }),
@@ -131,7 +131,7 @@ describe("loadConfig — avatar.hit_test", () => {
   const hitTestWith = (overrides: Record<string, unknown>): Record<string, unknown> =>
     avatarWith({ hit_test: { ...avatarFixture().hit_test, ...overrides } });
 
-  it("유효한 hit_test 전체 블록을 그대로 보존한다", async () => {
+  it("preserves a valid full hit_test block as-is", async () => {
     const cfg = await loadWithAvatar(hitTestWith({ poll_interval_ms: 200 }));
     expect(cfg.avatar.hit_test).toEqual({
       hysteresis_margin_px: 8,
@@ -141,43 +141,43 @@ describe("loadConfig — avatar.hit_test", () => {
     });
   });
 
-  it("hit_test이 없으면 실패", async () => {
+  it("fails when hit_test is missing", async () => {
     const avatar = avatarWith({});
     delete avatar.hit_test;
     await expectAvatarError(loadWithAvatar(avatar));
   });
 
-  it("hit_test 키 하나가 없으면 실패", async () => {
+  it("fails when one hit_test key is missing", async () => {
     const hit_test = { ...avatarFixture().hit_test } as Record<string, unknown>;
     delete hit_test.poll_interval_ms;
     await expectAvatarError(loadWithAvatar(avatarWith({ hit_test })));
   });
 
-  it("hit_test이 객체가 아니면 실패", async () => {
+  it("fails when hit_test is not an object", async () => {
     await expectAvatarError(loadWithAvatar(avatarWith({ hit_test: 5 })));
   });
 
-  it("hysteresis_margin_px: 음수면 실패", async () => {
+  it("fails on negative hysteresis_margin_px", async () => {
     await expectAvatarError(loadWithAvatar(hitTestWith({ hysteresis_margin_px: -1 })));
   });
 
-  it("hysteresis_margin_px: 비유한이면 실패", async () => {
+  it("fails on non-finite hysteresis_margin_px", async () => {
     await expectAvatarError(loadWithAvatar(hitTestWith({ hysteresis_margin_px: Number.NaN })));
   });
 
-  it("poll_interval_ms: 0 이하면 실패", async () => {
+  it("fails on poll_interval_ms of 0 or less", async () => {
     await expectAvatarError(loadWithAvatar(hitTestWith({ poll_interval_ms: 0 })));
   });
 
-  it("debounce_samples: 정수가 아니면 실패", async () => {
+  it("fails when debounce_samples is not an integer", async () => {
     await expectAvatarError(loadWithAvatar(hitTestWith({ debounce_samples: 1.5 })));
   });
 
-  it("debounce_samples: 1 미만이면 실패", async () => {
+  it("fails on debounce_samples below 1", async () => {
     await expectAvatarError(loadWithAvatar(hitTestWith({ debounce_samples: 0 })));
   });
 
-  it("alpha_threshold: (0,1] 밖이면 실패", async () => {
+  it("fails on alpha_threshold outside (0,1]", async () => {
     await expectAvatarError(loadWithAvatar(hitTestWith({ alpha_threshold: 1.5 })));
   });
 });
@@ -189,7 +189,7 @@ describe("loadConfig — avatar.gaze", () => {
   const gazeWith = (overrides: Record<string, unknown>): Record<string, unknown> =>
     avatarWith({ gaze: { ...avatarFixture().gaze, ...overrides } });
 
-  it("유효한 gaze 전체 블록을 그대로 보존한다", async () => {
+  it("preserves a valid full gaze block as-is", async () => {
     const fullGaze = {
       deadDeg: 3,
       headEngageDeg: 20,
@@ -205,43 +205,43 @@ describe("loadConfig — avatar.gaze", () => {
     expect(cfg.avatar.gaze).toEqual(fullGaze);
   });
 
-  it("gaze가 없으면 실패", async () => {
+  it("fails when gaze is missing", async () => {
     const avatar = avatarWith({});
     delete avatar.gaze;
     await expectAvatarError(loadWithAvatar(avatar));
   });
 
-  it("gaze 키 하나가 없으면 실패", async () => {
+  it("fails when one gaze key is missing", async () => {
     const gaze = { ...avatarFixture().gaze } as Record<string, unknown>;
     delete gaze.disengageDeg;
     await expectAvatarError(loadWithAvatar(avatarWith({ gaze })));
   });
 
-  it("gaze가 객체가 아니면 실패", async () => {
+  it("fails when gaze is not an object", async () => {
     await expectAvatarError(loadWithAvatar(avatarWith({ gaze: 5 })));
   });
 
-  it("deadDeg 음수면 실패", async () => {
+  it("fails on negative deadDeg", async () => {
     await expectAvatarError(loadWithAvatar(gazeWith({ deadDeg: -1 })));
   });
 
-  it("disengageDeg > 180이면 실패", async () => {
+  it("fails on disengageDeg > 180", async () => {
     await expectAvatarError(loadWithAvatar(gazeWith({ disengageDeg: 181 })));
   });
 
-  it("eyeMaxDeg > 90이면 실패", async () => {
+  it("fails on eyeMaxDeg > 90", async () => {
     await expectAvatarError(loadWithAvatar(gazeWith({ eyeMaxDeg: 91 })));
   });
 
-  it("headNeckSplit이 [0,1] 밖이면 실패", async () => {
+  it("fails when headNeckSplit is outside [0,1]", async () => {
     await expectAvatarError(loadWithAvatar(gazeWith({ headNeckSplit: 1.2 })));
   });
 
-  it("smooth가 0 이하면 실패", async () => {
+  it("fails on smooth of 0 or less", async () => {
     await expectAvatarError(loadWithAvatar(gazeWith({ smooth: 0 })));
   });
 
-  it("maxHeadYaw가 NaN이면 실패", async () => {
+  it("fails when maxHeadYaw is NaN", async () => {
     await expectAvatarError(loadWithAvatar(gazeWith({ maxHeadYaw: Number.NaN })));
   });
 });

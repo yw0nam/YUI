@@ -184,7 +184,7 @@ describe("createQuickControls — agent section", () => {
     qc.dispose();
   });
 
-  it("기본값으로 되돌리기 sets instructions to '' and clears the textarea", () => {
+  it("reset-to-defaults sets instructions to '' and clears the textarea", () => {
     agentSettings.setInstructions("custom note");
     const qc = buildQc();
     qc.open();

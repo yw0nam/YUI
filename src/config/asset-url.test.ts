@@ -18,7 +18,7 @@ function mockTauri(): TauriAssetApi {
 }
 
 describe("resolveAssetUrl — dev/browser passthrough", () => {
-  it("Tauri가 아니면 입력 경로를 그대로 반환한다", async () => {
+  it("returns the input path as-is when not in Tauri", async () => {
     const out = await resolveAssetUrl("/configs/endpoints.json", {
       isTauri: () => false,
       tauri: async () => mockTauri(),
@@ -26,7 +26,7 @@ describe("resolveAssetUrl — dev/browser passthrough", () => {
     expect(out).toBe("/configs/endpoints.json");
   });
 
-  it("Tauri가 아니면 Tauri API를 절대 부르지 않는다", async () => {
+  it("never calls the Tauri API when not in Tauri", async () => {
     const api = mockTauri();
     await resolveAssetUrl("/vrms/carlotta.vrm", {
       isTauri: () => false,
@@ -36,7 +36,7 @@ describe("resolveAssetUrl — dev/browser passthrough", () => {
     expect(api.convertFileSrc).not.toHaveBeenCalled();
   });
 
-  it("쿼리스트링이 붙은 경로도 그대로 통과시킨다(dev 캐시버스트 보존)", async () => {
+  it("passes a path with a query string through as-is (dev cache-bust preserved)", async () => {
     const out = await resolveAssetUrl("/configs/endpoints.json?t=123", {
       isTauri: () => false,
     });
@@ -45,7 +45,7 @@ describe("resolveAssetUrl — dev/browser passthrough", () => {
 });
 
 describe("resolveAssetUrl — Tauri bundle resolution", () => {
-  it("선행 슬래시를 떼고 resolveResource → convertFileSrc로 절대 URL을 만든다", async () => {
+  it("strips the leading slash and builds an absolute URL via resolveResource → convertFileSrc", async () => {
     const api = mockTauri();
     const out = await resolveAssetUrl("/configs/endpoints.json", {
       isTauri: () => true,
@@ -57,7 +57,7 @@ describe("resolveAssetUrl — Tauri bundle resolution", () => {
     expect(out).toBe(`asset://localhost/${encodeURI("/app/resources/configs/endpoints.json")}`);
   });
 
-  it("VRM 경로도 동일하게 resource-relative로 변환한다", async () => {
+  it("converts a VRM path resource-relative the same way", async () => {
     const api = mockTauri();
     const out = await resolveAssetUrl("/vrms/carlotta.vrm", {
       isTauri: () => true,
@@ -68,7 +68,7 @@ describe("resolveAssetUrl — Tauri bundle resolution", () => {
     expect(out).toContain("vrms/carlotta.vrm");
   });
 
-  it("reference 경로(유니코드 디렉토리)도 변환한다", async () => {
+  it("converts a reference path (unicode directory) too", async () => {
     const api = mockTauri();
     const out = await resolveAssetUrl("/references/ナツメ/merged_audio.mp3", {
       isTauri: () => true,
@@ -79,7 +79,7 @@ describe("resolveAssetUrl — Tauri bundle resolution", () => {
     expect(out).toContain(encodeURI("references/ナツメ/merged_audio.mp3"));
   });
 
-  it("쿼리스트링은 변환된 URL 뒤에 보존된다(캐시버스트)", async () => {
+  it("preserves the query string after the converted URL (cache-bust)", async () => {
     const api = mockTauri();
     const out = await resolveAssetUrl("/configs/endpoints.json?t=999", {
       isTauri: () => true,
@@ -91,7 +91,7 @@ describe("resolveAssetUrl — Tauri bundle resolution", () => {
     expect(out.endsWith("?t=999")).toBe(true);
   });
 
-  it("이미 절대 URL(http/asset)이면 변환 없이 그대로 반환한다", async () => {
+  it("returns an already-absolute URL (http/asset) as-is without converting", async () => {
     const api = mockTauri();
     const out = await resolveAssetUrl("https://cdn.example/x.vrm", {
       isTauri: () => true,
@@ -103,8 +103,8 @@ describe("resolveAssetUrl — Tauri bundle resolution", () => {
   });
 });
 
-describe("resolveAssetUrl — dev-Tauri 라이브 서빙 바이패스", () => {
-  it("Tauri여도 dev면 입력 경로를 그대로 반환한다(vite 라이브 서빙 → 핫리로드)", async () => {
+describe("resolveAssetUrl — dev-Tauri live-serving bypass", () => {
+  it("returns the input path as-is even in Tauri when dev (vite live serving → hot reload)", async () => {
     const out = await resolveAssetUrl("/configs/hotkeys.json", {
       isTauri: () => true,
       isDev: () => true,
@@ -113,7 +113,7 @@ describe("resolveAssetUrl — dev-Tauri 라이브 서빙 바이패스", () => {
     expect(out).toBe("/configs/hotkeys.json");
   });
 
-  it("dev면 resolveResource/convertFileSrc를 부르지 않는다(번들 복사본 미참조)", async () => {
+  it("does not call resolveResource/convertFileSrc in dev (never touches the bundled copy)", async () => {
     const api = mockTauri();
     await resolveAssetUrl("/vrms/carlotta.vrm", {
       isTauri: () => true,
@@ -124,7 +124,7 @@ describe("resolveAssetUrl — dev-Tauri 라이브 서빙 바이패스", () => {
     expect(api.convertFileSrc).not.toHaveBeenCalled();
   });
 
-  it("dev 바이패스에서도 캐시버스트 쿼리를 보존한다", async () => {
+  it("preserves the cache-bust query on the dev bypass too", async () => {
     const out = await resolveAssetUrl("/configs/hotkeys.json?t=123", {
       isTauri: () => true,
       isDev: () => true,
@@ -137,8 +137,8 @@ describe("resolveAssetUrl — dev-Tauri 라이브 서빙 바이패스", () => {
 // resolveUserFileSrc — imported app-data absolute file path → webview URL
 // ─────────────────────────────────────────────────────────────────────────────
 
-describe("resolveUserFileSrc — Tauri app-data 절대 경로", () => {
-  it("절대 fs 경로를 convertFileSrc로 webview URL로 만든다 (resolveResource 미사용)", async () => {
+describe("resolveUserFileSrc — Tauri app-data absolute path", () => {
+  it("turns an absolute fs path into a webview URL via convertFileSrc (no resolveResource)", async () => {
     const api = mockTauri();
     const out = await resolveUserFileSrc("/Users/me/Library/.../com.yui/vrms/Cat.vrm", {
       isTauri: () => true,
@@ -151,7 +151,7 @@ describe("resolveUserFileSrc — Tauri app-data 절대 경로", () => {
     );
   });
 
-  it("resource-relative 경로(resolveResource)와는 다른 변환 경로를 탄다", async () => {
+  it("takes a different conversion path than resource-relative paths (resolveResource)", async () => {
     const api = mockTauri();
     const resourceOut = await resolveAssetUrl("/vrms/carlotta.vrm", {
       isTauri: () => true,
@@ -166,7 +166,7 @@ describe("resolveUserFileSrc — Tauri app-data 절대 경로", () => {
     expect(userOut).not.toContain("/app/resources/");
   });
 
-  it("이미 asset:// URL이면 그대로 통과시킨다 (재변환 금지)", async () => {
+  it("passes an already-asset:// URL through as-is (no re-conversion)", async () => {
     const api = mockTauri();
     const out = await resolveUserFileSrc("asset://localhost/x.vrm", {
       isTauri: () => true,
@@ -176,7 +176,7 @@ describe("resolveUserFileSrc — Tauri app-data 절대 경로", () => {
     expect(out).toBe("asset://localhost/x.vrm");
   });
 
-  it("dev/브라우저(비-Tauri)에서는 입력 경로를 그대로 통과시킨다", async () => {
+  it("passes the input path through as-is in dev/browser (non-Tauri)", async () => {
     const api = mockTauri();
     const out = await resolveUserFileSrc("/abs/whatever.vrm", {
       isTauri: () => false,

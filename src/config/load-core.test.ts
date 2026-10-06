@@ -16,7 +16,7 @@ import { ConfigError } from "./validators/shared";
 // ── happy path ─────────────────────────────────────────────────────────────────
 
 describe("loadConfig — happy path", () => {
-  it("known-good fixture 전체를 7개 섹션의 AppConfig로 조립한다", async () => {
+  it("assembles the whole known-good fixture into the 7-section AppConfig", async () => {
     const cfg = await loadConfig({ read: readerOf(goodFixture()) });
 
     expect(cfg.endpoints).toEqual({
@@ -42,7 +42,7 @@ describe("loadConfig — happy path", () => {
 // ── guardrails.json ────────────────────────────────
 
 describe("loadConfig — guardrails", () => {
-  it("SOT 모양을 그대로 보존한다", async () => {
+  it("preserves the SOT shape as-is", async () => {
     const cfg = await loadConfig({ read: readerOf(goodFixture()) });
     expect(cfg.guardrails).toEqual({
       debounce_ms: {
@@ -60,13 +60,13 @@ describe("loadConfig — guardrails", () => {
     });
   });
 
-  it("객체가 아니면 ConfigError", async () => {
+  it("ConfigError when not an object", async () => {
     const map = goodFixture();
     map["guardrails.json"] = 42;
     await expect(loadConfig({ read: readerOf(map) })).rejects.toBeInstanceOf(ConfigError);
   });
 
-  it("음수 debounce window는 ConfigError", async () => {
+  it("ConfigError on a negative debounce window", async () => {
     const map = goodFixture();
     (
       map["guardrails.json"] as { debounce_ms: Record<string, number> }
@@ -74,7 +74,7 @@ describe("loadConfig — guardrails", () => {
     await expect(loadConfig({ read: readerOf(map) })).rejects.toBeInstanceOf(ConfigError);
   });
 
-  it("음수 rate_limit 수치는 ConfigError", async () => {
+  it("ConfigError on a negative rate_limit number", async () => {
     const map = goodFixture();
     (map["guardrails.json"] as { rate_limit: Record<string, number> }).rate_limit.tier2_max = -3;
     await expect(loadConfig({ read: readerOf(map) })).rejects.toBeInstanceOf(ConfigError);
@@ -100,7 +100,7 @@ describe("loadConfig — validation failures throw ConfigError", () => {
     expect((err as ConfigError).issues.length).toBeGreaterThan(0);
   }
 
-  it("endpoints: chat_base_url이 http URL이 아니면 실패", async () => {
+  it("endpoints: fails when chat_base_url is not an http URL", async () => {
     await expectConfigError(
       loadWith(CONFIG_FILES.endpoints, {
         chat_base_url: "localhost:8642", // missing scheme
@@ -111,7 +111,7 @@ describe("loadConfig — validation failures throw ConfigError", () => {
     );
   });
 
-  it("endpoints: chat_instructions가 문자열이 아니면 실패", async () => {
+  it("endpoints: fails when chat_instructions is not a string", async () => {
     await expectConfigError(
       loadWith(CONFIG_FILES.endpoints, {
         chat_base_url: "http://localhost:8642",
@@ -123,11 +123,11 @@ describe("loadConfig — validation failures throw ConfigError", () => {
     );
   });
 
-  it("avatar: vrm_url 누락 시 실패", async () => {
+  it("avatar: fails when vrm_url is missing", async () => {
     await expectConfigError(loadWith(CONFIG_FILES.avatar, {}), "avatar.json");
   });
 
-  it("avatar: available 항목이 객체가 아니면 실패", async () => {
+  it("avatar: fails when an available entry is not an object", async () => {
     await expectConfigError(
       loadWith(CONFIG_FILES.avatar, {
         vrm_url: "/vrms/carlotta.vrm",
@@ -137,7 +137,7 @@ describe("loadConfig — validation failures throw ConfigError", () => {
     );
   });
 
-  it("avatar: available가 배열이 아니면 실패", async () => {
+  it("avatar: fails when available is not an array", async () => {
     await expectConfigError(
       loadWith(CONFIG_FILES.avatar, {
         vrm_url: "/vrms/carlotta.vrm",
@@ -147,7 +147,7 @@ describe("loadConfig — validation failures throw ConfigError", () => {
     );
   });
 
-  it("avatar: available 항목에 id/label/url이 없으면 실패", async () => {
+  it("avatar: fails when an available entry lacks id/label/url", async () => {
     await expectConfigError(
       loadWith(CONFIG_FILES.avatar, {
         vrm_url: "/vrms/carlotta.vrm",
@@ -157,7 +157,7 @@ describe("loadConfig — validation failures throw ConfigError", () => {
     );
   });
 
-  it("avatar: available 항목의 id/label/url이 문자열이 아니면 실패", async () => {
+  it("avatar: fails when an available entry's id/label/url is not a string", async () => {
     await expectConfigError(
       loadWith(CONFIG_FILES.avatar, {
         vrm_url: "/vrms/carlotta.vrm",
@@ -167,7 +167,7 @@ describe("loadConfig — validation failures throw ConfigError", () => {
     );
   });
 
-  it("avatar: available 항목의 source가 enum 밖이면 실패", async () => {
+  it("avatar: fails when an available entry's source is outside the enum", async () => {
     await expectConfigError(
       loadWith(CONFIG_FILES.avatar, {
         vrm_url: "/vrms/carlotta.vrm",
@@ -179,7 +179,7 @@ describe("loadConfig — validation failures throw ConfigError", () => {
     );
   });
 
-  it("avatar: available에 id가 중복되면 실패(영속화 키 충돌 — 두 번째가 영구 unreachable)", async () => {
+  it("avatar: fails on a duplicate id in available (persistence key collision — the second stays unreachable forever)", async () => {
     await expectConfigError(
       loadWith(CONFIG_FILES.avatar, {
         vrm_url: "/vrms/carlotta.vrm",
@@ -192,7 +192,7 @@ describe("loadConfig — validation failures throw ConfigError", () => {
     );
   });
 
-  it("avatar: id에 CSS-selector 특수문자(따옴표)가 있으면 실패", async () => {
+  it("avatar: fails when id contains a CSS-selector special character (quote)", async () => {
     await expectConfigError(
       loadWith(CONFIG_FILES.avatar, {
         vrm_url: "/vrms/carlotta.vrm",
@@ -204,7 +204,7 @@ describe("loadConfig — validation failures throw ConfigError", () => {
     );
   });
 
-  it("avatar: id에 공백이 있으면 실패(localStorage 키/selector 깨짐)", async () => {
+  it("avatar: fails when id contains whitespace (breaks the localStorage key/selector)", async () => {
     await expectConfigError(
       loadWith(CONFIG_FILES.avatar, {
         vrm_url: "/vrms/carlotta.vrm",
@@ -216,7 +216,7 @@ describe("loadConfig — validation failures throw ConfigError", () => {
     );
   });
 
-  it("motions: kind가 enum 밖이면 실패", async () => {
+  it("motions: fails when kind is outside the enum", async () => {
     await expectConfigError(
       loadWith(CONFIG_FILES.motions, {
         idle: {
@@ -231,7 +231,7 @@ describe("loadConfig — validation failures throw ConfigError", () => {
     );
   });
 
-  it("motions: vrma_path가 .vrma로 끝나지 않으면 실패", async () => {
+  it("motions: fails when vrma_path does not end in .vrma", async () => {
     await expectConfigError(
       loadWith(CONFIG_FILES.motions, {
         idle: {
@@ -246,11 +246,11 @@ describe("loadConfig — validation failures throw ConfigError", () => {
     );
   });
 
-  it("motions: 빈 객체면(0개 모션) 실패", async () => {
+  it("motions: fails on an empty object (0 motions)", async () => {
     await expectConfigError(loadWith(CONFIG_FILES.motions, {}), "motions.json");
   });
 
-  it("motions: priority가 0~100 범위 밖(또는 비유한)이면 실패", async () => {
+  it("motions: fails when priority is outside 0-100 (or non-finite)", async () => {
     // typeof number passes but must be filtered by range/finiteness (protects dispatcher priority queue).
     await expectConfigError(
       loadWith(CONFIG_FILES.motions, {
@@ -266,7 +266,7 @@ describe("loadConfig — validation failures throw ConfigError", () => {
     );
   });
 
-  it("motions: broker_publish가 boolean이 아니면 실패", async () => {
+  it("motions: fails when broker_publish is not a boolean", async () => {
     await expectConfigError(
       loadWith(CONFIG_FILES.motions, {
         idle: {
@@ -282,7 +282,7 @@ describe("loadConfig — validation failures throw ConfigError", () => {
     );
   });
 
-  it("motions: variants에 .vrma 아닌 항목이 있으면 실패", async () => {
+  it("motions: fails when variants contains a non-.vrma entry", async () => {
     await expectConfigError(
       loadWith(CONFIG_FILES.motions, {
         idle: {
@@ -298,7 +298,7 @@ describe("loadConfig — validation failures throw ConfigError", () => {
     );
   });
 
-  it("motions: variants가 1개뿐이면 실패(단일 풀은 무의미)", async () => {
+  it("motions: fails when variants has only 1 entry (a single pool is pointless)", async () => {
     await expectConfigError(
       loadWith(CONFIG_FILES.motions, {
         idle: {
@@ -314,7 +314,7 @@ describe("loadConfig — validation failures throw ConfigError", () => {
     );
   });
 
-  it("motions: variant_policy가 enum 밖이면 실패", async () => {
+  it("motions: fails when variant_policy is outside the enum", async () => {
     await expectConfigError(
       loadWith(CONFIG_FILES.motions, {
         idle: {
@@ -331,7 +331,7 @@ describe("loadConfig — validation failures throw ConfigError", () => {
     );
   });
 
-  it("motions: variant_policy만 있고 variants가 없으면 실패(dead 필드)", async () => {
+  it("motions: fails when variant_policy exists without variants (dead field)", async () => {
     await expectConfigError(
       loadWith(CONFIG_FILES.motions, {
         idle: {
@@ -347,7 +347,7 @@ describe("loadConfig — validation failures throw ConfigError", () => {
     );
   });
 
-  it("emotion_registry: contract enum 밖의 키면 실패(오탈자 fail-loud)", async () => {
+  it("emotion_registry: fails on a key outside the contract enum (a typo fails loud)", async () => {
     await expectConfigError(
       loadWith(CONFIG_FILES.emotionRegistry, {
         hapy: { vrm_expression: "happy", fallback: "neutral" }, // typo
@@ -360,7 +360,7 @@ describe("loadConfig — validation failures throw ConfigError", () => {
 // ── reader rejection ────────────────────────────────────────────────────────────
 
 describe("loadConfig — reader rejection", () => {
-  it("파일 누락(reader reject)은 그대로 전파된다", async () => {
+  it("a missing file (reader reject) propagates as-is", async () => {
     const map = goodFixture();
     delete map["avatar.json"]; // reader rejects
     await expect(loadConfig({ read: readerOf(map) })).rejects.toThrow(/missing avatar\.json/);
@@ -370,7 +370,7 @@ describe("loadConfig — reader rejection", () => {
 // ── default fetch reader: asset-url resolver wiring ───────────────────────────
 
 describe("loadConfig — default fetch reader routes through asset resolver", () => {
-  it("dev(passthrough resolver)에서는 baseUrl/파일 URL을 그대로 fetch한다", async () => {
+  it("in dev (passthrough resolver) fetches the baseUrl/file URL as-is", async () => {
     const fetched: string[] = [];
     const fetchMock = async (url: string) => {
       fetched.push(url);
@@ -386,7 +386,7 @@ describe("loadConfig — default fetch reader routes through asset resolver", ()
     expect(fetched).toContain("/configs/avatar.json");
   });
 
-  it("Tauri(resolver가 asset URL로 변환)면 변환된 URL로 fetch한다", async () => {
+  it("in Tauri (resolver converts to an asset URL) fetches the converted URL", async () => {
     const fetched: string[] = [];
     const fetchMock = async (url: string) => {
       fetched.push(url);
@@ -443,7 +443,7 @@ function fillerFixture(overrides: Record<string, unknown> = {}): Record<string, 
 }
 
 describe("loadConfig — filler (accept)", () => {
-  it("known-good filler fixture를 그대로 보존한다", async () => {
+  it("preserves the known-good filler fixture as-is", async () => {
     const cfg = await loadConfig({ read: readerOf(fillerFixture()) });
     expect(cfg.filler.gap_ms).toBe(1000);
     expect(cfg.filler.gap_jitter_ms).toBe(300);
@@ -462,7 +462,7 @@ describe("loadConfig — filler (accept)", () => {
     );
   });
 
-  it("pools에 ja만 있어도 통과한다", async () => {
+  it("passes with only ja in pools", async () => {
     const map = goodFixture();
     map["filler.json"] = {
       gap_ms: 1000,
@@ -477,32 +477,32 @@ describe("loadConfig — filler (accept)", () => {
     expect(cfg.filler.pools.en).toBeUndefined();
   });
 
-  it("gap_jitter_ms: 0은 통과한다(지터 없음 허용)", async () => {
+  it("accepts gap_jitter_ms: 0 (no jitter is allowed)", async () => {
     const cfg = await loadConfig({ read: readerOf(fillerFixture({ gap_jitter_ms: 0 })) });
     expect(cfg.filler.gap_jitter_ms).toBe(0);
   });
 
-  it("gap_ms: 0은 통과한다(지연 없음 허용)", async () => {
+  it("accepts gap_ms: 0 (no delay is allowed)", async () => {
     const cfg = await loadConfig({ read: readerOf(fillerFixture({ gap_ms: 0 })) });
     expect(cfg.filler.gap_ms).toBe(0);
   });
 
-  it("max_repeats: 0은 통과한다(반복 없음 허용)", async () => {
+  it("accepts max_repeats: 0 (no repetition is allowed)", async () => {
     const cfg = await loadConfig({ read: readerOf(fillerFixture({ max_repeats: 0 })) });
     expect(cfg.filler.max_repeats).toBe(0);
   });
 
-  it("gap_growth: 1은 통과한다(성장 없음 허용)", async () => {
+  it("accepts gap_growth: 1 (no growth is allowed)", async () => {
     const cfg = await loadConfig({ read: readerOf(fillerFixture({ gap_growth: 1 })) });
     expect(cfg.filler.gap_growth).toBe(1);
   });
 
-  it("long_wait_ms: 0은 통과한다(대기 없음 허용)", async () => {
+  it("accepts long_wait_ms: 0 (no wait is allowed)", async () => {
     const cfg = await loadConfig({ read: readerOf(fillerFixture({ long_wait_ms: 0 })) });
     expect(cfg.filler.long_wait_ms).toBe(0);
   });
 
-  it("모든 리스트 tier가 빈 배열이고 tool이 빈 객체여도 통과한다(풀에서 선택 안 함)", async () => {
+  it("passes with every list tier an empty array and tool an empty object (nothing is picked from the pool)", async () => {
     const map = goodFixture();
     map["filler.json"] = {
       gap_ms: 500,
@@ -534,91 +534,91 @@ describe("loadConfig — filler (accept)", () => {
 });
 
 describe("loadConfig — filler (reject)", () => {
-  it("객체가 아니면 ConfigError", async () => {
+  it("ConfigError when not an object", async () => {
     const map = goodFixture();
     map["filler.json"] = 42;
     await expect(loadConfig({ read: readerOf(map) })).rejects.toBeInstanceOf(ConfigError);
   });
 
-  it("gap_ms가 없으면 ConfigError", async () => {
+  it("ConfigError when gap_ms is missing", async () => {
     const map = goodFixture();
     map["filler.json"] = { ...goodFillerFixture(), gap_ms: undefined };
     await expect(loadConfig({ read: readerOf(map) })).rejects.toBeInstanceOf(ConfigError);
   });
 
-  it("gap_ms가 음수이면 ConfigError", async () => {
+  it("ConfigError when gap_ms is negative", async () => {
     await expect(
       loadConfig({ read: readerOf(fillerFixture({ gap_ms: -1 })) }),
     ).rejects.toBeInstanceOf(ConfigError);
   });
 
-  it("gap_ms가 비유한(Infinity)이면 ConfigError", async () => {
+  it("ConfigError when gap_ms is non-finite (Infinity)", async () => {
     await expect(
       loadConfig({ read: readerOf(fillerFixture({ gap_ms: Infinity })) }),
     ).rejects.toBeInstanceOf(ConfigError);
   });
 
-  it("gap_ms가 문자열이면 ConfigError", async () => {
+  it("ConfigError when gap_ms is a string", async () => {
     await expect(
       loadConfig({ read: readerOf(fillerFixture({ gap_ms: "1000" })) }),
     ).rejects.toBeInstanceOf(ConfigError);
   });
 
-  it("gap_jitter_ms가 음수이면 ConfigError", async () => {
+  it("ConfigError when gap_jitter_ms is negative", async () => {
     await expect(
       loadConfig({ read: readerOf(fillerFixture({ gap_jitter_ms: -1 })) }),
     ).rejects.toBeInstanceOf(ConfigError);
   });
 
-  it("max_repeats가 없으면 ConfigError", async () => {
+  it("ConfigError when max_repeats is missing", async () => {
     const map = goodFixture();
     map["filler.json"] = { ...goodFillerFixture(), max_repeats: undefined };
     await expect(loadConfig({ read: readerOf(map) })).rejects.toBeInstanceOf(ConfigError);
   });
 
-  it("max_repeats가 음수이면 ConfigError", async () => {
+  it("ConfigError when max_repeats is negative", async () => {
     await expect(
       loadConfig({ read: readerOf(fillerFixture({ max_repeats: -1 })) }),
     ).rejects.toBeInstanceOf(ConfigError);
   });
 
-  it("max_repeats가 정수가 아니면 ConfigError", async () => {
+  it("ConfigError when max_repeats is not an integer", async () => {
     await expect(
       loadConfig({ read: readerOf(fillerFixture({ max_repeats: 1.5 })) }),
     ).rejects.toBeInstanceOf(ConfigError);
   });
 
-  it("gap_growth가 없으면 ConfigError", async () => {
+  it("ConfigError when gap_growth is missing", async () => {
     const map = goodFixture();
     map["filler.json"] = { ...goodFillerFixture(), gap_growth: undefined };
     await expect(loadConfig({ read: readerOf(map) })).rejects.toBeInstanceOf(ConfigError);
   });
 
-  it("gap_growth가 1 미만이면 ConfigError", async () => {
+  it("ConfigError when gap_growth is below 1", async () => {
     await expect(
       loadConfig({ read: readerOf(fillerFixture({ gap_growth: 0.5 })) }),
     ).rejects.toBeInstanceOf(ConfigError);
   });
 
-  it("long_wait_ms가 없으면 ConfigError", async () => {
+  it("ConfigError when long_wait_ms is missing", async () => {
     const map = goodFixture();
     map["filler.json"] = { ...goodFillerFixture(), long_wait_ms: undefined };
     await expect(loadConfig({ read: readerOf(map) })).rejects.toBeInstanceOf(ConfigError);
   });
 
-  it("long_wait_ms가 음수이면 ConfigError", async () => {
+  it("ConfigError when long_wait_ms is negative", async () => {
     await expect(
       loadConfig({ read: readerOf(fillerFixture({ long_wait_ms: -1 })) }),
     ).rejects.toBeInstanceOf(ConfigError);
   });
 
-  it("long_wait_ms가 비유한(Infinity)이면 ConfigError", async () => {
+  it("ConfigError when long_wait_ms is non-finite (Infinity)", async () => {
     await expect(
       loadConfig({ read: readerOf(fillerFixture({ long_wait_ms: Infinity })) }),
     ).rejects.toBeInstanceOf(ConfigError);
   });
 
-  it("pools가 없으면 ConfigError", async () => {
+  it("ConfigError when pools is missing", async () => {
     const map = goodFixture();
     map["filler.json"] = {
       gap_ms: 1000,
@@ -630,19 +630,19 @@ describe("loadConfig — filler (reject)", () => {
     await expect(loadConfig({ read: readerOf(map) })).rejects.toBeInstanceOf(ConfigError);
   });
 
-  it("pools가 객체가 아니면 ConfigError", async () => {
+  it("ConfigError when pools is not an object", async () => {
     await expect(
       loadConfig({ read: readerOf(fillerFixture({ pools: "ja" })) }),
     ).rejects.toBeInstanceOf(ConfigError);
   });
 
-  it("pools가 빈 객체이면 ConfigError (최소 한 개 언어 필요)", async () => {
+  it("ConfigError when pools is an empty object (at least one language is required)", async () => {
     await expect(
       loadConfig({ read: readerOf(fillerFixture({ pools: {} })) }),
     ).rejects.toBeInstanceOf(ConfigError);
   });
 
-  it("pools에 알 수 없는 키(fr)가 있으면 ConfigError", async () => {
+  it("ConfigError on an unknown pools key (fr)", async () => {
     await expect(
       loadConfig({
         read: readerOf(fillerFixture({ pools: { ja: goodFillerPool(), fr: goodFillerPool() } })),
@@ -650,7 +650,7 @@ describe("loadConfig — filler (reject)", () => {
     ).rejects.toBeInstanceOf(ConfigError);
   });
 
-  it("pools[ja]가 배열(旧 shape)이면 ConfigError — 객체가 아님", async () => {
+  it("ConfigError when pools[ja] is an array (the old shape) — not an object", async () => {
     await expect(
       loadConfig({
         read: readerOf(fillerFixture({ pools: { ja: ["うーん…", "そうだね…"] } })),
@@ -658,7 +658,7 @@ describe("loadConfig — filler (reject)", () => {
     ).rejects.toBeInstanceOf(ConfigError);
   });
 
-  it("pools[ja].first가 string[]이 아닌 number[]이면 ConfigError", async () => {
+  it("ConfigError when pools[ja].first is number[] instead of string[]", async () => {
     await expect(
       loadConfig({
         read: readerOf(fillerFixture({ pools: { ja: goodFillerPool({ first: [1, 2] }) } })),
@@ -666,7 +666,7 @@ describe("loadConfig — filler (reject)", () => {
     ).rejects.toBeInstanceOf(ConfigError);
   });
 
-  it("pools[ja].repeat가 string[]이 아닌 number[]이면 ConfigError", async () => {
+  it("ConfigError when pools[ja].repeat is number[] instead of string[]", async () => {
     await expect(
       loadConfig({
         read: readerOf(fillerFixture({ pools: { ja: goodFillerPool({ repeat: [1] }) } })),
@@ -674,7 +674,7 @@ describe("loadConfig — filler (reject)", () => {
     ).rejects.toBeInstanceOf(ConfigError);
   });
 
-  it("pools[ja]에 long_wait tier가 없으면 ConfigError — config는 우리 소유, tier 생략 불가", async () => {
+  it("ConfigError when pools[ja] lacks the long_wait tier — the config is ours, no tier may be omitted", async () => {
     const pool = goodFillerPool();
     delete (pool as Record<string, unknown>).long_wait;
     await expect(
@@ -682,7 +682,7 @@ describe("loadConfig — filler (reject)", () => {
     ).rejects.toBeInstanceOf(ConfigError);
   });
 
-  it("pools[ja]에 tool tier가 없으면 ConfigError", async () => {
+  it("ConfigError when pools[ja] lacks the tool tier", async () => {
     const pool = goodFillerPool();
     delete (pool as Record<string, unknown>).tool;
     await expect(
@@ -690,7 +690,7 @@ describe("loadConfig — filler (reject)", () => {
     ).rejects.toBeInstanceOf(ConfigError);
   });
 
-  it("pools[ja].tool의 값이 string[]이 아니면 ConfigError", async () => {
+  it("ConfigError when a pools[ja].tool value is not string[]", async () => {
     await expect(
       loadConfig({
         read: readerOf(
@@ -710,22 +710,22 @@ function hotkeysFixture(hotkeys: unknown): Record<string, unknown> {
 }
 
 describe("loadConfig — hotkeys (accept)", () => {
-  it("유효한 accelerator 문자열을 그대로 보존한다", async () => {
+  it("preserves a valid accelerator string as-is", async () => {
     const cfg = await loadConfig({ read: readerOf(goodFixture()) });
     expect(cfg.hotkeys.summon_global).toBe("CmdOrCtrl+Shift+Y");
   });
 
-  it("summon_global 키가 없으면 빈 문자열(비활성)", async () => {
+  it("an empty string when the summon_global key is missing (inactive)", async () => {
     const cfg = await loadConfig({ read: readerOf(hotkeysFixture({})) });
     expect(cfg.hotkeys.summon_global).toBe("");
   });
 
-  it("summon_global이 빈 문자열이면 그대로 비활성", async () => {
+  it("an empty summon_global string stays inactive as-is", async () => {
     const cfg = await loadConfig({ read: readerOf(hotkeysFixture({ summon_global: "" })) });
     expect(cfg.hotkeys.summon_global).toBe("");
   });
 
-  it("문법이 이상한 문자열도 통과한다 — 유효성은 등록 시점 플러그인이 판정(fail-soft)", async () => {
+  it("passes even a syntactically odd string — the plugin judges validity at registration time (fail-soft)", async () => {
     const cfg = await loadConfig({
       read: readerOf(hotkeysFixture({ summon_global: "NotAKey+++" })),
     });
@@ -734,13 +734,13 @@ describe("loadConfig — hotkeys (accept)", () => {
 });
 
 describe("loadConfig — hotkeys (reject)", () => {
-  it("객체가 아니면 ConfigError", async () => {
+  it("ConfigError when not an object", async () => {
     await expect(loadConfig({ read: readerOf(hotkeysFixture(42)) })).rejects.toBeInstanceOf(
       ConfigError,
     );
   });
 
-  it("summon_global이 문자열이 아니면 ConfigError", async () => {
+  it("ConfigError when summon_global is not a string", async () => {
     await expect(
       loadConfig({ read: readerOf(hotkeysFixture({ summon_global: 7 })) }),
     ).rejects.toBeInstanceOf(ConfigError);

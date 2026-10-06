@@ -56,7 +56,7 @@ async function flush(): Promise<void> {
 }
 
 describe("createSummonHotkey — apply", () => {
-  it("apply(accel)가 설정된 accelerator로 register를 호출한다", async () => {
+  it("apply(accel) calls register with the configured accelerator", async () => {
     const f = fakeDeps();
     const hotkey = createSummonHotkey(f.deps);
     await hotkey.apply("CmdOrCtrl+Shift+Y");
@@ -65,7 +65,7 @@ describe("createSummonHotkey — apply", () => {
     expect(hotkey.current()).toBe("CmdOrCtrl+Shift+Y");
   });
 
-  it("같은 accelerator 재적용은 no-op(이중 등록 방지)", async () => {
+  it("re-applying the same accelerator is a no-op (prevents double registration)", async () => {
     const f = fakeDeps();
     const hotkey = createSummonHotkey(f.deps);
     await hotkey.apply("CmdOrCtrl+Shift+Y");
@@ -74,7 +74,7 @@ describe("createSummonHotkey — apply", () => {
     expect(f.deps.unregister).not.toHaveBeenCalled();
   });
 
-  it("accelerator 변경: 이전 unregister 후 새로 register", async () => {
+  it("on an accelerator change, unregisters the previous one then registers the new one", async () => {
     const f = fakeDeps();
     const hotkey = createSummonHotkey(f.deps);
     await hotkey.apply("CmdOrCtrl+Shift+Y");
@@ -84,7 +84,7 @@ describe("createSummonHotkey — apply", () => {
     expect(hotkey.current()).toBe("Alt+Space");
   });
 
-  it("빈 문자열 → 기존 등록 해제 + 새 등록 없음(비활성)", async () => {
+  it("an empty string unregisters the existing registration and makes no new one (inactive)", async () => {
     const f = fakeDeps();
     const hotkey = createSummonHotkey(f.deps);
     await hotkey.apply("CmdOrCtrl+Shift+Y");
@@ -94,7 +94,7 @@ describe("createSummonHotkey — apply", () => {
     expect(hotkey.current()).toBeNull();
   });
 
-  it("등록된 게 없을 때 빈 문자열은 아무 호출도 하지 않는다", async () => {
+  it("an empty string makes no calls when nothing is registered", async () => {
     const f = fakeDeps();
     const hotkey = createSummonHotkey(f.deps);
     await hotkey.apply("");
@@ -111,7 +111,7 @@ describe("createSummonHotkey — stale registration", () => {
     return promise;
   }
 
-  it("이전 페이지가 같은 accelerator를 남겨도 새 핸들러로 등록된다", async () => {
+  it("registers with the new handler even when the previous page left the same accelerator", async () => {
     const f = fakeDeps();
     const stale = vi.fn();
     await f.deps.register("CmdOrCtrl+Shift+Y", stale);
@@ -132,7 +132,7 @@ describe("createSummonHotkey — stale registration", () => {
     expect(stale).not.toHaveBeenCalled();
   });
 
-  it("이전 페이지가 다른 accelerator를 남겼으면 그 등록도 해제된다", async () => {
+  it("unregisters the previous page's leftover registration too when it left a different accelerator", async () => {
     const f = fakeDeps();
     const stale = vi.fn();
     await f.deps.register("Alt+Space", stale);
@@ -150,7 +150,7 @@ describe("createSummonHotkey — stale registration", () => {
     expect(hotkey.current()).toBe("CmdOrCtrl+Shift+Y");
   });
 
-  it("unregisterAll이 거부돼도 register를 시도한다", async () => {
+  it("attempts register even when unregisterAll rejects", async () => {
     const f = fakeDeps();
     f.deps.unregisterAll.mockRejectedValueOnce(new Error("not allowed"));
     const hotkey = createSummonHotkey(f.deps);
@@ -161,7 +161,7 @@ describe("createSummonHotkey — stale registration", () => {
 });
 
 describe("createSummonHotkey — trigger", () => {
-  it("Pressed → focusWindow 후 summonInput 순서로 호출한다", async () => {
+  it("on Pressed, calls focusWindow then summonInput in that order", async () => {
     const f = fakeDeps();
     const hotkey = createSummonHotkey(f.deps);
     await hotkey.apply("CmdOrCtrl+Shift+Y");
@@ -172,7 +172,7 @@ describe("createSummonHotkey — trigger", () => {
     expect(f.calls).toEqual(["focus", "summon"]);
   });
 
-  it("Released는 무시한다", async () => {
+  it("ignores Released", async () => {
     const f = fakeDeps();
     const hotkey = createSummonHotkey(f.deps);
     await hotkey.apply("CmdOrCtrl+Shift+Y");
@@ -182,7 +182,7 @@ describe("createSummonHotkey — trigger", () => {
     expect(f.deps.summonInput).not.toHaveBeenCalled();
   });
 
-  it("focusWindow 실패해도 summonInput은 호출된다", async () => {
+  it("still calls summonInput when focusWindow fails", async () => {
     const f = fakeDeps();
     f.deps.focusWindow.mockRejectedValueOnce(new Error("focus denied"));
     const hotkey = createSummonHotkey(f.deps);
@@ -192,7 +192,7 @@ describe("createSummonHotkey — trigger", () => {
     expect(f.deps.summonInput).toHaveBeenCalledTimes(1);
   });
 
-  it("사이클 진행 중 도착한 연타(키 리핏)는 흘려 이중 소환하지 않는다", async () => {
+  it("lets key-repeat presses arriving mid-cycle pass without summoning twice", async () => {
     const f = fakeDeps();
     // Hold focusWindow open to keep the first cycle in-flight.
     let releaseFocus!: () => void;
@@ -214,7 +214,7 @@ describe("createSummonHotkey — trigger", () => {
 });
 
 describe("retryOnReject", () => {
-  it("중간에 성공하면 남은 시도를 하지 않는다", async () => {
+  it("stops attempting once a try succeeds", async () => {
     const op = vi
       .fn<() => Promise<void>>()
       .mockRejectedValueOnce(new Error("busy"))
@@ -224,7 +224,7 @@ describe("retryOnReject", () => {
     expect(op).toHaveBeenCalledTimes(3);
   });
 
-  it("시도를 모두 소진하면 마지막 거부 사유로 reject한다", async () => {
+  it("rejects with the last rejection reason after exhausting every attempt", async () => {
     const op = vi.fn<() => Promise<void>>().mockRejectedValue(new Error("still held"));
     await expect(retryOnReject(op, 3, 0)).rejects.toThrow("still held");
     expect(op).toHaveBeenCalledTimes(3);
@@ -238,7 +238,7 @@ describe("createSummonHotkey — fail-soft", () => {
     return promise;
   }
 
-  it("OS가 아직 이전 프로세스 키를 붙들고 있어도 재시도로 등록된다", async () => {
+  it("registers via retry even while the OS still holds the key for the previous process", async () => {
     vi.useFakeTimers();
     try {
       const f = fakeDeps();
@@ -256,7 +256,7 @@ describe("createSummonHotkey — fail-soft", () => {
     }
   });
 
-  it("register 거부(무효 accelerator) → throw 없이 비활성 유지", async () => {
+  it("a rejected register (invalid accelerator) keeps it inactive without throwing", async () => {
     vi.useFakeTimers();
     try {
       const f = fakeDeps();
@@ -269,7 +269,7 @@ describe("createSummonHotkey — fail-soft", () => {
     }
   });
 
-  it("register 거부 후 다음 apply(유효 accelerator)로 복구된다", async () => {
+  it("recovers on the next apply (valid accelerator) after a rejected register", async () => {
     vi.useFakeTimers();
     try {
       const f = fakeDeps();
@@ -285,7 +285,7 @@ describe("createSummonHotkey — fail-soft", () => {
     }
   });
 
-  it("unregister 거부여도 apply는 계속 진행된다(새 등록 시도)", async () => {
+  it("apply keeps going even when unregister rejects (attempts the new registration)", async () => {
     const f = fakeDeps();
     const hotkey = createSummonHotkey(f.deps);
     await hotkey.apply("CmdOrCtrl+Shift+Y");
@@ -296,7 +296,7 @@ describe("createSummonHotkey — fail-soft", () => {
 });
 
 describe("createSummonHotkey — dispose", () => {
-  it("dispose()가 현재 등록을 해제한다", async () => {
+  it("dispose() releases the current registration", async () => {
     const f = fakeDeps();
     const hotkey = createSummonHotkey(f.deps);
     await hotkey.apply("CmdOrCtrl+Shift+Y");
@@ -305,7 +305,7 @@ describe("createSummonHotkey — dispose", () => {
     expect(hotkey.current()).toBeNull();
   });
 
-  it("등록 없이 dispose()해도 아무 호출 없이 완료된다", async () => {
+  it("dispose() without a registration completes without any calls", async () => {
     const f = fakeDeps();
     const hotkey = createSummonHotkey(f.deps);
     await hotkey.dispose();
@@ -320,7 +320,7 @@ describe("createSummonHotkey — onRegisterFailed", () => {
     return promise;
   }
 
-  it("등록이 모든 재시도를 소진하면 onRegisterFailed(accelerator)를 호출한다", async () => {
+  it("calls onRegisterFailed(accelerator) when registration exhausts every retry", async () => {
     vi.useFakeTimers();
     try {
       const f = fakeDeps();
@@ -334,7 +334,7 @@ describe("createSummonHotkey — onRegisterFailed", () => {
     }
   });
 
-  it("등록 성공 시에는 호출하지 않는다", async () => {
+  it("does not call it when registration succeeds", async () => {
     const f = fakeDeps();
     const onRegisterFailed = vi.fn();
     const hotkey = createSummonHotkey({ ...f.deps, onRegisterFailed });

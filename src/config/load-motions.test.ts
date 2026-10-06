@@ -11,7 +11,7 @@ import { ConfigError } from "./validators/shared";
 // ── motions.variants / variant_policy (D-MOTION-VARIANTS) ───────────────────────
 
 describe("loadConfig — motions.variants", () => {
-  it("variants/variant_policy를 검증 후 그대로 보존한다", async () => {
+  it("validates then preserves variants/variant_policy as-is", async () => {
     const map = goodFixture();
     map["motions.json"] = {
       idle: {
@@ -29,13 +29,13 @@ describe("loadConfig — motions.variants", () => {
     expect(cfg.motions.idle.variant_policy).toBe("random");
   });
 
-  it("variants 없는 항목은 통과하고 variants는 undefined", async () => {
+  it("an entry without variants passes with variants undefined", async () => {
     const cfg = await loadConfig({ read: readerOf(goodFixture()) });
     expect(cfg.motions.idle.variants).toBeUndefined();
     expect(cfg.motions.idle.variant_policy).toBeUndefined();
   });
 
-  it("broker_publish:false를 검증 후 그대로 보존한다", async () => {
+  it("validates then preserves broker_publish:false as-is", async () => {
     const map = goodFixture();
     map["motions.json"] = {
       idle: {
@@ -51,12 +51,12 @@ describe("loadConfig — motions.variants", () => {
     expect(cfg.motions.idle.broker_publish).toBe(false);
   });
 
-  it("broker_publish 없는 항목은 통과하고 broker_publish는 undefined", async () => {
+  it("an entry without broker_publish passes with broker_publish undefined", async () => {
     const cfg = await loadConfig({ read: readerOf(goodFixture()) });
     expect(cfg.motions.idle.broker_publish).toBeUndefined();
   });
 
-  it("reactive 루프 + broker_publish:false 항목(falling)을 그대로 보존한다", async () => {
+  it("preserves a reactive loop + broker_publish:false entry (falling) as-is", async () => {
     const map = goodFixture();
     map["motions.json"] = {
       falling: {
@@ -97,35 +97,35 @@ function cycleMotionFixture(dwell?: number): Record<string, unknown> {
 }
 
 describe("loadConfig — motions.cycle_dwell_ms", () => {
-  it("유효한 cycle_dwell_ms를 검증 후 그대로 보존한다", async () => {
+  it("validates then preserves a valid cycle_dwell_ms as-is", async () => {
     const cfg = await loadConfig({ read: readerOf(cycleMotionFixture(4000)) });
     expect(cfg.motions.perch.cycle_dwell_ms).toBe(4000);
   });
 
-  it("cycle_dwell_ms 없는 항목은 통과하고 cycle_dwell_ms는 undefined", async () => {
+  it("an entry without cycle_dwell_ms passes with cycle_dwell_ms undefined", async () => {
     const cfg = await loadConfig({ read: readerOf(cycleMotionFixture()) });
     expect(cfg.motions.perch.cycle_dwell_ms).toBeUndefined();
   });
 
-  it("정수가 아니면 ConfigError", async () => {
+  it("ConfigError when not an integer", async () => {
     await expect(loadConfig({ read: readerOf(cycleMotionFixture(1000.5)) })).rejects.toBeInstanceOf(
       ConfigError,
     );
   });
 
-  it("음수면 ConfigError", async () => {
+  it("ConfigError when negative", async () => {
     await expect(loadConfig({ read: readerOf(cycleMotionFixture(-1)) })).rejects.toBeInstanceOf(
       ConfigError,
     );
   });
 
-  it("60000 초과면 ConfigError", async () => {
+  it("ConfigError above 60000", async () => {
     await expect(loadConfig({ read: readerOf(cycleMotionFixture(60001)) })).rejects.toBeInstanceOf(
       ConfigError,
     );
   });
 
-  it("cycle 모션(variants>1 + loop)이 아닌데 cycle_dwell_ms가 있으면 ConfigError", async () => {
+  it("ConfigError when cycle_dwell_ms is present on a non-cycle motion (variants>1 + loop)", async () => {
     const map = goodFixture();
     map["motions.json"] = {
       idle: {
@@ -162,7 +162,7 @@ function pingpongMotionFixture(over: Record<string, unknown>): Record<string, un
 }
 
 describe("loadConfig — motions.pingpong / loop_cycles", () => {
-  it("유효한 pingpong:true + loop_cycles:[1,3]을 검증 후 그대로 보존한다", async () => {
+  it("validates then preserves pingpong:true + loop_cycles:[1,3] as-is", async () => {
     const cfg = await loadConfig({
       read: readerOf(pingpongMotionFixture({ pingpong: true, loop_cycles: [1, 3] })),
     });
@@ -170,25 +170,25 @@ describe("loadConfig — motions.pingpong / loop_cycles", () => {
     expect(cfg.motions.idle.loop_cycles).toEqual([1, 3]);
   });
 
-  it("pingpong/loop_cycles 없는 항목은 통과하고 둘 다 undefined", async () => {
+  it("an entry without pingpong/loop_cycles passes with both undefined", async () => {
     const cfg = await loadConfig({ read: readerOf(goodFixture()) });
     expect(cfg.motions.idle.pingpong).toBeUndefined();
     expect(cfg.motions.idle.loop_cycles).toBeUndefined();
   });
 
-  it("pingpong이 boolean이 아니면 ConfigError", async () => {
+  it("ConfigError when pingpong is not a boolean", async () => {
     await expect(
       loadConfig({ read: readerOf(pingpongMotionFixture({ pingpong: "yes" })) }),
     ).rejects.toBeInstanceOf(ConfigError);
   });
 
-  it("pingpong:true + loop:false면 ConfigError", async () => {
+  it("ConfigError on pingpong:true + loop:false", async () => {
     await expect(
       loadConfig({ read: readerOf(pingpongMotionFixture({ pingpong: true, loop: false })) }),
     ).rejects.toBeInstanceOf(ConfigError);
   });
 
-  it("pingpong:true + crossfade_loop:true면 ConfigError(상호 배타)", async () => {
+  it("ConfigError on pingpong:true + crossfade_loop:true (mutually exclusive)", async () => {
     await expect(
       loadConfig({
         read: readerOf(pingpongMotionFixture({ pingpong: true, crossfade_loop: true })),
@@ -196,19 +196,19 @@ describe("loadConfig — motions.pingpong / loop_cycles", () => {
     ).rejects.toBeInstanceOf(ConfigError);
   });
 
-  it("loop_cycles가 pingpong:true 없이 있으면 ConfigError(dead 필드)", async () => {
+  it("ConfigError when loop_cycles exists without pingpong:true (dead field)", async () => {
     await expect(
       loadConfig({ read: readerOf(pingpongMotionFixture({ loop_cycles: [1, 3] })) }),
     ).rejects.toBeInstanceOf(ConfigError);
   });
 
-  it("loop_cycles가 2-요소가 아니면 ConfigError", async () => {
+  it("ConfigError when loop_cycles is not 2-element", async () => {
     await expect(
       loadConfig({ read: readerOf(pingpongMotionFixture({ pingpong: true, loop_cycles: [1] })) }),
     ).rejects.toBeInstanceOf(ConfigError);
   });
 
-  it("loop_cycles의 lo>hi면 ConfigError", async () => {
+  it("ConfigError when loop_cycles has lo>hi", async () => {
     await expect(
       loadConfig({
         read: readerOf(pingpongMotionFixture({ pingpong: true, loop_cycles: [3, 1] })),
@@ -216,7 +216,7 @@ describe("loadConfig — motions.pingpong / loop_cycles", () => {
     ).rejects.toBeInstanceOf(ConfigError);
   });
 
-  it("loop_cycles에 0이 있으면 ConfigError(양의 정수)", async () => {
+  it("ConfigError when loop_cycles contains 0 (positive integers)", async () => {
     await expect(
       loadConfig({
         read: readerOf(pingpongMotionFixture({ pingpong: true, loop_cycles: [0, 2] })),
@@ -224,7 +224,7 @@ describe("loadConfig — motions.pingpong / loop_cycles", () => {
     ).rejects.toBeInstanceOf(ConfigError);
   });
 
-  it("loop_cycles에 정수가 아닌 값이 있으면 ConfigError", async () => {
+  it("ConfigError when loop_cycles contains a non-integer", async () => {
     await expect(
       loadConfig({
         read: readerOf(pingpongMotionFixture({ pingpong: true, loop_cycles: [1, 2.5] })),
@@ -252,29 +252,29 @@ function fadeMotionFixture(fade?: number): Record<string, unknown> {
 }
 
 describe("loadConfig — motions.fade_ms", () => {
-  it("유효한 fade_ms를 검증 후 그대로 보존한다", async () => {
+  it("validates then preserves a valid fade_ms as-is", async () => {
     const cfg = await loadConfig({ read: readerOf(fadeMotionFixture(700)) });
     expect(cfg.motions.perch.fade_ms).toBe(700);
   });
 
-  it("fade_ms 없는 항목은 통과하고 fade_ms는 undefined", async () => {
+  it("an entry without fade_ms passes with fade_ms undefined", async () => {
     const cfg = await loadConfig({ read: readerOf(fadeMotionFixture()) });
     expect(cfg.motions.perch.fade_ms).toBeUndefined();
   });
 
-  it("정수가 아니면 ConfigError", async () => {
+  it("ConfigError when not an integer", async () => {
     await expect(loadConfig({ read: readerOf(fadeMotionFixture(700.5)) })).rejects.toBeInstanceOf(
       ConfigError,
     );
   });
 
-  it("음수면 ConfigError", async () => {
+  it("ConfigError when negative", async () => {
     await expect(loadConfig({ read: readerOf(fadeMotionFixture(-1)) })).rejects.toBeInstanceOf(
       ConfigError,
     );
   });
 
-  it("5000 초과면 ConfigError", async () => {
+  it("ConfigError above 5000", async () => {
     await expect(loadConfig({ read: readerOf(fadeMotionFixture(5001)) })).rejects.toBeInstanceOf(
       ConfigError,
     );

@@ -23,8 +23,8 @@ const endpoints: EndpointsConfig = {
   tts_base_url: "http://localhost:8092",
 };
 
-describe.skipIf(!LIVE)("streamChat — LIVE Hermes (SecretProvider 경로)", () => {
-  it("SecretProvider 키 → streamChat → 스트리밍 응답을 ChatStreamEvent로 매핑한다", async () => {
+describe.skipIf(!LIVE)("streamChat — LIVE Hermes (SecretProvider path)", () => {
+  it("SecretProvider key → streamChat → maps the streamed response onto ChatStreamEvent", async () => {
     // dev SecretProvider: the real app swaps in a keychain implementation. Here it's injected from env.
     const secrets = plainSecretProvider({
       [CHAT_API_KEY_SECRET]: process.env.YUI_CHAT_KEY,
@@ -59,7 +59,7 @@ describe.skipIf(!LIVE)("streamChat — LIVE Hermes (SecretProvider 경로)", () 
     expect(types).toContain("speech_done");
   }, 60_000);
 
-  it("틀린 키 → 401이 무음이 아니라 error 이벤트로 노출된다", async () => {
+  it("a wrong key surfaces the 401 as an error event, not as silence", async () => {
     const events: ChatStreamEvent[] = [];
     for await (const ev of streamChat(
       endpoints,
@@ -91,8 +91,8 @@ async function runTurn(
   return { speech_text, responseId };
 }
 
-describe.skipIf(!LIVE)("streamChat — LIVE previous_response_id 대화 스레딩", () => {
-  it("completed가 resp_ id를 싣고, 그 id를 previous_response_id로 넘기면 직전 턴 맥락을 회상한다", async () => {
+describe.skipIf(!LIVE)("streamChat — LIVE previous_response_id conversation threading", () => {
+  it("completed carries a resp_ id, and passing it back as previous_response_id recalls the previous turn", async () => {
     const apiKey = process.env.YUI_CHAT_KEY;
     expect(apiKey, "YUI_CHAT_KEY env가 있어야 함").toBeTruthy();
 
@@ -116,11 +116,11 @@ describe.skipIf(!LIVE)("streamChat — LIVE previous_response_id 대화 스레�
   }, 90_000);
 });
 
-describe.skipIf(!LIVE)("streamChat — LIVE reasoning.effort 수용", () => {
+describe.skipIf(!LIVE)("streamChat — LIVE reasoning.effort acceptance", () => {
   it.each([
     "none",
     "minimal",
-  ] as const)("reasoning_effort '%s' 요청을 error 없이 completed로 수용한다", async (effort) => {
+  ] as const)("accepts reasoning_effort '%s' through to completed without error", async (effort) => {
     const apiKey = process.env.YUI_CHAT_KEY;
     expect(apiKey, "YUI_CHAT_KEY env가 있어야 함").toBeTruthy();
     const events: ChatStreamEvent[] = [];

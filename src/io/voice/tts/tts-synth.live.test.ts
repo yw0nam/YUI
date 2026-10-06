@@ -38,18 +38,18 @@ function isWav(buf: ArrayBuffer): boolean {
 }
 
 describe.skipIf(!LIVE)("tts-synth — LIVE :8088", () => {
-  it("plain input → wav 바이너리", async () => {
+  it("plain input → wav binary", async () => {
     const wav = await liveSynth()("Hello, can you hear me?");
     expect(wav.byteLength).toBeGreaterThan(1000);
     expect(isWav(wav), "RIFF/WAVE 헤더여야 함").toBe(true);
   }, 60_000);
 
-  it("emotion_text 이모지가 붙은 input도 합성된다", async () => {
+  it("synthesizes an input that carries an emotion_text emoji too", async () => {
     const wav = await liveSynth()("Can you hear me?", undefined, { emotion_text: "👂" });
     expect(isWav(wav)).toBe(true);
   }, 60_000);
 
-  it("pipeline: 다문장 → 분절 → 실 synth → ordered playback(submission 순서)", async () => {
+  it("pipeline: multi-sentence → segmentation → real synth → ordered playback (submission order)", async () => {
     const playedBytes: number[] = [];
     const fakeSink: AudioSink = {
       async play(wav) {

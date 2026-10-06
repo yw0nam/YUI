@@ -9,7 +9,7 @@ import { describe, expect, expectTypeOf, it } from "vitest";
 import type { Usage } from "./types";
 
 describe("Usage", () => {
-  it("response.completed usage 모양(input/output/total)을 담는다", () => {
+  it("carries the response.completed usage shape (input/output/total)", () => {
     const usage: Usage = { input_tokens: 120, output_tokens: 30, total_tokens: 150 };
     expect(usage.total_tokens).toBe(usage.input_tokens + usage.output_tokens);
     expectTypeOf<Usage["input_tokens"]>().toEqualTypeOf<number>();
