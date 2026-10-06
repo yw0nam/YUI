@@ -76,6 +76,7 @@ describe("canStartStroll", () => {
     perched: false,
     peeking: false,
     dragging: false,
+    panelOpen: false,
     bodyFree: true,
     reducedMotion: false,
   };
@@ -93,6 +94,7 @@ describe("canStartStroll", () => {
     ["perched", { perched: true }],
     ["peeking", { peeking: true }],
     ["dragging", { dragging: true }],
+    ["the quick-controls panel is open", { panelOpen: true }],
     ["a clip other than idle, thinking or walk holds the body", { bodyFree: false }],
     ["reduced motion", { reducedMotion: true }],
   ])("blocks on %s", (_label, blocker) => {
@@ -196,6 +198,7 @@ function makeHarness(
     perched?: boolean;
     peeking?: boolean;
     dragging?: boolean;
+    panelOpen?: boolean;
     /** Duration (s) the walk clip loops on. null models a clip still loading. */
     clipDuration?: number | null;
     /** Models playMotion silently dropping the walk request (perch suppression, dead clip). */
@@ -311,6 +314,7 @@ function makeHarness(
     currentMotionKind: over.motionKind ?? (() => "ambient"),
     isPeeking: () => over.peeking ?? false,
     isDragging: () => over.dragging ?? false,
+    isPanelOpen: () => over.panelOpen ?? false,
     doc,
     onStart: starts,
     onEnd: ends,
@@ -769,6 +773,7 @@ describe("createWalker", () => {
     ["perched", { perched: true }],
     ["peeking", { peeking: true }],
     ["dragging", { dragging: true }],
+    ["the quick-controls panel is open", { panelOpen: true }],
     [
       "a reactive motion holds the body",
       {

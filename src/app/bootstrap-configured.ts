@@ -167,6 +167,7 @@ const realFactories: ConfiguredBootstrapFactories = {
       dispatcher,
       hitTest,
       peekActive: () => peekState?.active() ?? false,
+      isPanelOpen: () => getQuickControls().isOpen(),
       fallSettings,
       climbSettings,
       agentNotifySettings,

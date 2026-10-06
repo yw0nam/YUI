@@ -50,6 +50,7 @@ export function wireLocomotion(deps: {
   dispatcher: Dispatcher;
   hitTest: Pick<HitTestController, "setMoving">;
   peekActive: () => boolean;
+  isPanelOpen: () => boolean;
   fallSettings: FlagSettingsStore;
   climbSettings: FlagSettingsStore;
   agentNotifySettings: ReturnType<typeof createAgentNotifySettings>;
@@ -105,6 +106,7 @@ export function wireLocomotion(deps: {
     getMotionKind: (id) => getConfig().motions[id]?.kind,
     isPeeking: () => peekActive(),
     isDragging: () => dragging,
+    isPanelOpen: deps.isPanelOpen,
     setHitTestMoving: (moving) => hitTest.setMoving(moving),
     onStrollEnd,
     onDescend: (edge) => climberRef?.descend(edge),
