@@ -75,6 +75,7 @@ function harness(over: Partial<AvatarExecutorDeps> = {}) {
   const posture: Posture = { state: "sitting" };
   const noteAvatarMoved = vi.fn();
   const noteAgentMove = vi.fn();
+  const onRelocated = vi.fn(async () => {});
 
   const deps: AvatarExecutorDeps = {
     subscribe: (cb) => {
@@ -97,6 +98,7 @@ function harness(over: Partial<AvatarExecutorDeps> = {}) {
     getVrm: () => ({ id: "carlotta", label: "Carlotta" }),
     noteAvatarMoved,
     noteAgentMove,
+    onRelocated,
     ...over,
   };
 
@@ -136,6 +138,7 @@ function harness(over: Partial<AvatarExecutorDeps> = {}) {
     unsubscribe,
     noteAvatarMoved,
     noteAgentMove,
+    onRelocated,
   };
 }
 
@@ -466,6 +469,41 @@ describe("avatar-executor — move_to", () => {
 
     expect(result).toEqual({ ok: true });
     expect(h.noteAvatarMoved).toHaveBeenCalledTimes(1);
+  });
+
+  it("starts the relocate fall once the window has moved and answers without awaiting it", async () => {
+    const order: string[] = [];
+    const fall = deferred<void>();
+    const h = harness();
+    h.setPositionLogical.mockImplementation(async () => {
+      order.push("setPositionLogical");
+    });
+    h.onRelocated.mockImplementation(() => {
+      order.push("onRelocated");
+      return fall.promise;
+    });
+
+    const result = await h.call("command", { action: "move_to", spot: "center" });
+
+    // The answer leaves the fall running — the same way a drag miss does not await it.
+    expect(result).toEqual({ ok: true });
+    expect(h.onRelocated).toHaveBeenCalledTimes(1);
+    expect(order).toEqual(["setPositionLogical", "onRelocated"]);
+  });
+
+  it("does not start the relocate fall when the move is interrupted before the window moves", async () => {
+    const { promise, resolve } = deferred<void>();
+    const h = harness({ noteAgentMove: vi.fn(() => promise) });
+
+    const id = h.fire("command", { action: "move_to", spot: "center" });
+    await flush();
+    h.executor.noteUserDrag();
+    resolve();
+    await flush();
+
+    expect(h.answerOf(id)).toEqual({ ok: false, reason: "interrupted" });
+    expect(h.setPositionLogical).not.toHaveBeenCalled();
+    expect(h.onRelocated).not.toHaveBeenCalled();
   });
 
   it("waits for noteAgentMove to settle before move_to reads the window", async () => {

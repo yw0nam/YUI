@@ -43,6 +43,8 @@ export function wireWindowSources(deps: {
   noteAgentMove: () => void | Promise<void>;
   /** A drag release that caught nothing — the character falls from where she hangs. */
   onDragMiss: () => void;
+  /** A move_to left the window mid-air — the character falls from where the spot put her. */
+  onRelocated: () => Promise<void>;
   /** An armed sit lost its host — the character falls from where the seat was. */
   onSitLost: () => void;
   /** The sit-down a drop plays in place before the seat is taken. */
@@ -69,6 +71,7 @@ export function wireWindowSources(deps: {
     getVrm,
     noteAvatarMoved,
     noteAgentMove,
+    onRelocated,
     log,
   } = deps;
   let windowDropSource: WindowDropSource | null = null;
@@ -180,6 +183,7 @@ export function wireWindowSources(deps: {
       getVrm,
       noteAvatarMoved,
       noteAgentMove,
+      onRelocated,
     });
     if (disposed) {
       windowDropSource.stop();

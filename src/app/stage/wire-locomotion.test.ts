@@ -112,6 +112,7 @@ describe("wireLocomotion", () => {
     let travelFrameDeps: { setKeepOnScreenPaused(paused: boolean): void } | undefined;
     let walkerDeps: { onDescend(edge: DescentEdge): void; isPanelOpen(): boolean } | undefined;
     let fallerDeps: { onWindowLand(target: WindowRect): void } | undefined;
+    let windowSourcesDeps: { onRelocated(): Promise<void> } | undefined;
     mocks.wireTravelFrame.mockImplementation((deps) => {
       travelFrameDeps = deps;
       return travelFrame;
@@ -128,7 +129,10 @@ describe("wireLocomotion", () => {
       fallerDeps = deps;
       return faller;
     });
-    mocks.wireWindowSources.mockImplementation(() => windowSources);
+    mocks.wireWindowSources.mockImplementation((deps) => {
+      windowSourcesDeps = deps;
+      return windowSources;
+    });
     mocks.wirePercher.mockImplementation(() => percher);
     mocks.wireClimber.mockImplementation(() => climber);
 
@@ -172,6 +176,7 @@ describe("wireLocomotion", () => {
       travelFrameDeps: travelFrameDeps!,
       walkerDeps: walkerDeps!,
       fallerDeps: fallerDeps!,
+      windowSourcesDeps: windowSourcesDeps!,
       cancelOrder,
       teardowns,
       registered,
@@ -230,6 +235,14 @@ describe("wireLocomotion", () => {
 
     s.travelFrameDeps.setKeepOnScreenPaused(false);
     expect(s.windowSources.setKeepOnScreenPaused).toHaveBeenLastCalledWith(false);
+  });
+
+  it("answers the relocate callback with a seam-landing faller drop", () => {
+    const s = setup();
+
+    void s.windowSourcesDeps.onRelocated();
+
+    expect(s.faller.drop).toHaveBeenCalledWith({ landOnSeam: true });
   });
 
   it("cancels walker, faller, climber, percher and sitter in that order", () => {

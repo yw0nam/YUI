@@ -168,6 +168,7 @@ export function wireLocomotion(deps: {
       return travelFrame.abort();
     },
     onDragMiss: () => faller.drop({ landOnSeam: true }),
+    onRelocated: () => faller.drop({ landOnSeam: true }),
     onSitLost: createSitLossFall({ getClimber: () => climberRef, faller }),
     sitDown: () => sitter.sitDown(null),
     log,

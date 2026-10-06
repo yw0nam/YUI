@@ -66,6 +66,8 @@ export interface AvatarExecutorDeps {
   getVrm(): { id: string; label: string } | null;
   /** Record that the avatar just relocated on its own — a successful move_to restamps posture. */
   noteAvatarMoved(): void;
+  /** A successful move_to can leave the window mid-air — start the fall, fire-and-forget. */
+  onRelocated: () => Promise<void>;
   /** An agent command is about to move the avatar — ambient motion yields to it. Its
    *  return value, when a promise, resolves once a travel that motion parked has settled. */
   noteAgentMove(): void | Promise<void>;
@@ -227,6 +229,10 @@ export function createAvatarExecutor(deps: AvatarExecutorDeps): AvatarExecutor {
     await win.setPositionLogical(Math.round(origin.x), Math.round(origin.y));
     if (aborted()) return fail("interrupted");
     noteAvatarMoved();
+    // The answer does not wait for the fall — the same way a drag miss does not await its drop.
+    void deps
+      .onRelocated()
+      .catch((err) => log.warn("relocate_fall_failed", { error: String(err) }));
     return { ok: true };
   }
 
