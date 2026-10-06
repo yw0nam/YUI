@@ -14,7 +14,8 @@
   sends then leaves as a `render` frame carrying the sentences not yet sent, each with the cues that
   landed on it, and cues left over after streamed speech still play. A reply that does not continue
   the streamed text renders whole. A turn the agent answers with `[SILENT]`, or with nothing, closes
-  with no speech, and the cues it placed still play.
+  with no speech, and the cues it placed still play. Every turn reaches the gateway with
+  `reply_expected=False`, so the gateway leaves a bare `[SILENT]` silent on a turn the user typed too.
 - Logs and never renders the text the gateway writes for itself: the busy acknowledgement when
   a turn lands mid-run, every status notice, and the restart, startup and shutdown pings, which
   the plugin turns off for this platform. What the agent writes before a tool call, its final

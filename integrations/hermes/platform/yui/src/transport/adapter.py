@@ -335,6 +335,8 @@ class YuiAdapter(BasePlatformAdapter):
             message_type=MessageType.TEXT,
             message_id=turn_id,
             allow_gateway_control=False,
+            # Silence is the agent's call on every turn; unmarked, the gateway speaks a warning in its place.
+            reply_expected=False,
             source=self._source(chat_id),
         )
         # A busy session may take this text into the turn it runs; the mark goes down before the
