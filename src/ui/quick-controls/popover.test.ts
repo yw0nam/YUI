@@ -58,6 +58,30 @@ describe("createPopover — focus management", () => {
     };
   }
 
+  it("window variant: Escape runs onClose and closeWindow once and stays open", () => {
+    const onClose = vi.fn();
+    const closeWindow = vi.fn();
+    const pop = createPopover({
+      mount,
+      root: buildRoot(),
+      scrim: document.createElement("div"),
+      bar: null,
+      isWindow: true,
+      closeWindow,
+      onOpen: () => {},
+      onClose,
+    });
+    pop.open();
+
+    document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
+
+    expect(closeWindow).toHaveBeenCalledTimes(1);
+    expect(onClose).toHaveBeenCalledTimes(1);
+    expect(pop.isOpen()).toBe(true);
+
+    pop.dispose();
+  });
+
   it("open() moves focus to the first focusable control inside root", () => {
     const trigger = document.createElement("button");
     trigger.type = "button";

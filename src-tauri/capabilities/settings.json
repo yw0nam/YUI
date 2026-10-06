@@ -7,6 +7,7 @@
     "core:default",
     "core:window:allow-start-dragging",
     "core:window:allow-set-title",
+    "core:window:allow-close",
     "log:default",
     "cors-fetch:default",
     "dialog:allow-open"

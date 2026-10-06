@@ -42,6 +42,13 @@ describe("opener capability wiring", () => {
     expect(openerEntries(DEFAULT_CAPABILITY)).toHaveLength(0);
   });
 
+  it("settings window grants core:window:allow-close", () => {
+    const parsed = JSON.parse(
+      readFileSync(join(ROOT, "src-tauri/capabilities/settings.json"), "utf8"),
+    ) as { permissions: unknown[] };
+    expect(parsed.permissions).toContain("core:window:allow-close");
+  });
+
   it("declares the tauri-plugin-opener dependency in Cargo.toml", () => {
     const cargo = readFileSync(join(ROOT, "src-tauri/Cargo.toml"), "utf8");
     const line = cargo.split("\n").find((l) => l.startsWith("tauri-plugin-opener ="));

@@ -280,7 +280,7 @@ export function createPopover(deps: PopoverDeps): Popover {
         // In the window variant, internal close() doesn't remove the panel (always shown) — closing the OS window is the host's job.
         if (!closeWindow) return;
         e.preventDefault();
-        close(); // Run cleanup (key commit, audition abort) first.
+        onClose(); // Run cleanup (key commit, audition abort) first.
         closeWindow();
         return;
       }
