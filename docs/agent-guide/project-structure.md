@@ -603,7 +603,6 @@ YUI/
         mod.rs                       # Loopback HTTP listener for agent hooks, signals, and the avatar RPC surface
         payload.rs                   # Request parsing, size caps, and event payload types
         avatar_rpc.rs                # Avatar RPC bridge between HTTP requests and the webview
-      witness.rs                     # Transition-only log of frontmost app and idle state
       turn_log.rs                    # Appends one opaque JSON line per turn record
       log_rotation.rs                # Calendar-date log rotation with a retention window
       import_fs.rs                   # Shared import filesystem helpers: sanitize, hash, dest stem candidates, bounded streamed copy, signature sniff
@@ -612,6 +611,7 @@ YUI/
       tray.rs                        # System tray menu and its show and hide actions
       os_event_watcher/
         mod.rs                       # OS polling loop that emits os_event to the webview
+        witness.rs                   # Transition-only log of frontmost app and idle state
         drop_release.rs              # Drop-release probe that emits window_drop_release
         pure_helpers.rs              # Idle conversion and frontmost-window pick
         macos.rs                     # macOS idle, window enumeration, and camera polling

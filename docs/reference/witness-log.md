@@ -1,6 +1,6 @@
 # Witness Log
 
-A local, transition-only record of which app the user has in front and when the machine goes idle. Written by the Rust OS event watcher (`src-tauri/src/witness.rs`) on its 5-second poll.
+A local, transition-only record of which app the user has in front and when the machine goes idle. Written by the Rust OS event watcher (`src-tauri/src/os_event_watcher/witness.rs`) on its 5-second poll.
 
 ## Location
 

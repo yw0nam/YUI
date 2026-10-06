@@ -9,8 +9,6 @@
 //!   Android — cfg-gated no-op degrade
 //!   other  — idle-source error emitted, no panic
 
-#[cfg(any(target_os = "macos", target_os = "windows"))]
-use crate::witness::{Sample, WitnessLog};
 use serde::Serialize;
 use std::time::{SystemTime, UNIX_EPOCH};
 #[cfg(any(target_os = "macos", target_os = "windows"))]
@@ -18,6 +16,8 @@ use std::{thread, time::Duration};
 #[cfg(any(target_os = "macos", target_os = "windows"))]
 use tauri::Manager;
 use tauri::{command, AppHandle, Emitter};
+#[cfg(any(target_os = "macos", target_os = "windows"))]
+use witness::{Sample, WitnessLog};
 
 pub const OS_EVENT_CHANNEL: &str = "os_event";
 
@@ -121,6 +121,9 @@ pub fn list_windows() -> Result<Vec<WindowAtPoint>, String> {
     }
 }
 
+#[cfg_attr(not(any(target_os = "macos", target_os = "windows")), allow(dead_code))]
+mod witness;
+
 #[cfg(any(target_os = "macos", target_os = "windows"))]
 pub(crate) mod drop_release;
 mod pure_helpers;
@@ -154,8 +157,8 @@ fn polling_loop(app: AppHandle) {
         let idle = platform_idle_ms();
         let (frontmost_app, frontmost_title) = platform_frontmost();
         // Cap at the sampler so the IPC payload and the witness log share one bound.
-        let frontmost_app = crate::witness::cap_text(frontmost_app);
-        let frontmost_title = crate::witness::cap_text(frontmost_title);
+        let frontmost_app = witness::cap_text(frontmost_app);
+        let frontmost_title = witness::cap_text(frontmost_title);
         let sample = Sample {
             app: frontmost_app.clone(),
             window_title: frontmost_title.clone(),

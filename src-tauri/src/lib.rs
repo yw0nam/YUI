@@ -15,10 +15,6 @@ mod log_rotation;
 // Turn-record JSONL append command — speak-rate/suppression analysis source.
 mod turn_log;
 
-// Witness log — frontmost-app and idle transitions recorded to disk.
-#[cfg_attr(not(any(target_os = "macos", target_os = "windows")), allow(dead_code))]
-mod witness;
-
 // Shared import filesystem helpers (sanitize/collision).
 mod import_fs;
 
