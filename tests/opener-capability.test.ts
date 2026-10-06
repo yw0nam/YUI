@@ -38,8 +38,15 @@ describe("opener capability wiring", () => {
     ]);
   });
 
-  it("main window capability grants no opener:allow-open-url entry", () => {
-    expect(openerEntries(DEFAULT_CAPABILITY)).toHaveLength(0);
+  it("main window grants exactly one opener:allow-open-url scoped to http/https/mailto/tel", () => {
+    const entries = openerEntries(DEFAULT_CAPABILITY);
+    expect(entries).toHaveLength(1);
+    expect(entries[0].allow).toEqual([
+      { url: "http://*" },
+      { url: "https://*" },
+      { url: "mailto:*" },
+      { url: "tel:*" },
+    ]);
   });
 
   it("settings window grants core:window:allow-close", () => {
