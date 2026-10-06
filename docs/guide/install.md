@@ -41,7 +41,7 @@ Done when `pnpm install` exits 0 and `resources/vrms/Sendagaya_Shino.vrm` exists
 
 Ask once: "Do you want to connect a chat backend, TTS, or STT now, or set them later in the app (right-click the character → Connection)?" On "later", go to step 4.
 
-Otherwise collect what the user has. Every URL starts with `http://` or `https://`; the config validator rejects anything else at launch, which shows as an empty transparent window.
+Otherwise collect what the user has. Every URL starts with `http://` or `https://`; the config validator rejects anything else at launch, and the window shows an error card that names the file and the key.
 
 | Value | Where it goes |
 |---|---|
