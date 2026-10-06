@@ -21,10 +21,10 @@ tauri-build = { version = "2.6.2", features = [] }
 serde_json = "1.0"
 serde = { version = "1.0", features = ["derive"] }
 log = "0.4"
-# 로그 타임스탬프 타임존 변환용(UtcOffset / OffsetDateTime). local-offset feature는 불필요.
+# Converts log timestamps to the configured timezone (UtcOffset / OffsetDateTime); the local-offset feature is not needed.
 time = "0.3"
-# macos-private-api: tauri.conf.json app.macOSPrivateApi=true (투명 창) 필수 feature.
-# protocol-asset: app.security.assetProtocol.enable=true (번들 리소스 convertFileSrc) 필수 feature.
+# macos-private-api: required by app.macOSPrivateApi=true in tauri.conf.json (transparent window).
+# protocol-asset: required by app.security.assetProtocol.enable=true (bundled resources via convertFileSrc).
 tauri = { version = "2.11.2", features = ["macos-private-api", "protocol-asset", "tray-icon", "image-png"] }
 tauri-plugin-log = "2"
 tauri-plugin-cors-fetch = "5.0.0"

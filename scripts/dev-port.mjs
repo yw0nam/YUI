@@ -1,8 +1,7 @@
 import { createServer } from "node:net";
 
-// 워크트리별 dev 포트 해석: YUI_DEV_PORT(설정 시) 우선, 아니면 base부터 빈 포트 스캔.
-// 순수 로직(resolvePort/isValidPort/buildDevUrl/tauriConfigArg)과 실제 소켓 프로브
-// (findFreePort)를 분리 — 프로브는 런타임에 resolvePort로 주입, 테스트는 fake를 넣는다.
+// Per-worktree dev port: YUI_DEV_PORT when set, otherwise the first free port from the base.
+// The pure logic stays apart from the socket probe (findFreePort), which resolvePort receives as an argument so tests pass a fake.
 
 export function isValidPort(n) {
   return Number.isInteger(n) && n >= 1 && n <= 65535;

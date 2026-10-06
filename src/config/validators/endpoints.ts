@@ -2,7 +2,7 @@ import type { EndpointsConfig, TtsProviderName } from "../../contract";
 import { TTS_PROVIDERS } from "../tts-provider";
 import { assertValid, ConfigError, isObject } from "./shared";
 
-/** 미설정 판정 — 키가 없거나 빈 문자열이면 그 기능은 꺼진 것으로 본다. */
+/** A missing or empty key means the feature is off. */
 function unset(v: unknown): boolean {
   return v === undefined || v === "";
 }
