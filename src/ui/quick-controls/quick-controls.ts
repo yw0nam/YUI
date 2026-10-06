@@ -156,6 +156,8 @@ interface QuickControlsOptions {
   variant?: "popover" | "window";
   /** In window variant, path for Escape to close OS window (host injected). Without it, Escape is no-op. */
   onCloseWindow?: () => void;
+  /** Popover variant: the on-screen height of the pet window, re-read before each open; the panel stays inside it. */
+  visibleViewport?: { get(): number; refresh(): Promise<void> };
   /** Default instructions to show as placeholder when instructions are empty (config.chat_instructions). */
   getDefaultInstructions?: () => string | undefined;
   /** User-edited endpoint overrides store. Empty value = fallback. */
@@ -268,6 +270,7 @@ export function createQuickControls({
   onGuide,
   variant = "popover",
   onCloseWindow,
+  visibleViewport,
   getDefaultInstructions,
   endpointsSettings,
   chatKeySettings,
@@ -451,6 +454,7 @@ export function createQuickControls({
     bar: barEl,
     isWindow,
     closeWindow: onCloseWindow,
+    visibleHeight: visibleViewport ? () => visibleViewport.get() : undefined,
     onOpen: () => {
       screenshot.reflect();
       switchRows.reflect();
@@ -561,7 +565,16 @@ export function createQuickControls({
   });
 
   function openPanel(anchor?: { x: number; y: number }, opts?: { tab?: QuickControlsTab }): void {
-    const tab = opts?.tab;
+    if (!visibleViewport) {
+      openNow(anchor, opts?.tab);
+      return;
+    }
+    void visibleViewport.refresh().then(() => {
+      if (!disposed) openNow(anchor, opts?.tab);
+    });
+  }
+
+  function openNow(anchor?: { x: number; y: number }, tab?: QuickControlsTab): void {
     // Select before opening so the panel is positioned around the tab the caller asked for.
     if (tab && tabRail.select(tab)) {
       popover.open(anchor);

@@ -210,6 +210,26 @@ describe("createQuickControls — shell", () => {
     qc.dispose();
   });
 
+  it("with a visible viewport, open() waits for its refresh before opening", async () => {
+    let finishRefresh: () => void = () => {};
+    const refresh = vi.fn(
+      () =>
+        new Promise<void>((resolve) => {
+          finishRefresh = resolve;
+        }),
+    );
+    const qc = buildQc({ visibleViewport: { get: () => 300, refresh } });
+
+    qc.open({ x: 10, y: 10 });
+    expect(refresh).toHaveBeenCalledTimes(1);
+    expect(qc.isOpen()).toBe(false);
+
+    finishRefresh();
+    await vi.waitFor(() => expect(qc.isOpen()).toBe(true));
+
+    qc.dispose();
+  });
+
   // ── drag persistence ──────────────────────────────────────────────────────
 
   it("dragging the header persists position to localStorage and moves the panel", () => {

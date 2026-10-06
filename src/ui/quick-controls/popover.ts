@@ -43,6 +43,8 @@ interface PopoverDeps {
   isWindow: boolean;
   /** Window variant only — injected by the host when Escape must close the OS window. Without it, Escape is a no-op. */
   closeWindow?: () => void;
+  /** Height in CSS px of the window part that is on screen; the panel stays inside it. */
+  visibleHeight?: () => number;
   /** Refresh content on open (reflect/render/monitor load). Called before positioning so dimensions are settled. */
   onOpen: () => void;
   /** Cleanup on close (gain preview, audition, key commit). Called before openState=false. */
@@ -57,7 +59,7 @@ interface Popover {
 }
 
 export function createPopover(deps: PopoverDeps): Popover {
-  const { mount, root, scrim, bar, isWindow, closeWindow, onOpen, onClose } = deps;
+  const { mount, root, scrim, bar, isWindow, closeWindow, visibleHeight, onOpen, onClose } = deps;
 
   let openState = false;
   let closeRafId: number | null = null;
@@ -95,10 +97,14 @@ export function createPopover(deps: PopoverDeps): Popover {
 
   // ── Positioning (popover variant) ──
 
+  function viewportHeight(): number {
+    return Math.min(window.innerHeight, visibleHeight?.() ?? Number.POSITIVE_INFINITY);
+  }
+
   function clampToViewport(x: number, y: number): { x: number; y: number } {
     const rect = root.getBoundingClientRect();
     const vw = window.innerWidth;
-    const vh = window.innerHeight;
+    const vh = viewportHeight();
     let nx = x;
     let ny = y;
     if (nx + rect.width > vw - VIEWPORT_MARGIN) nx = vw - VIEWPORT_MARGIN - rect.width;
@@ -117,6 +123,14 @@ export function createPopover(deps: PopoverDeps): Popover {
   }
 
   function placeFallback(): void {
+    if (viewportHeight() < window.innerHeight) {
+      const rect = root.getBoundingClientRect();
+      placeAt(
+        (window.innerWidth - rect.width) / 2,
+        viewportHeight() - VIEWPORT_MARGIN - rect.height,
+      );
+      return;
+    }
     root.style.removeProperty("left");
     root.style.removeProperty("top");
     root.style.left = "50%";
@@ -125,6 +139,14 @@ export function createPopover(deps: PopoverDeps): Popover {
   }
 
   function positionPopover(anchor?: { x: number; y: number }): void {
+    if (visibleHeight) {
+      root.style.setProperty(
+        "--yui-quick-visible-h",
+        `${viewportHeight() - 2 * VIEWPORT_MARGIN}px`,
+      );
+    } else {
+      root.style.removeProperty("--yui-quick-visible-h");
+    }
     // Priority: saved position > cursor anchor > bottom-center fallback.
     const saved = loadSavedPos();
     if (saved) {
@@ -134,7 +156,7 @@ export function createPopover(deps: PopoverDeps): Popover {
     if (anchor) {
       // Open below the anchor, but flip above it when there's no room below (preserving existing behavior).
       const rect = root.getBoundingClientRect();
-      const vh = window.innerHeight;
+      const vh = viewportHeight();
       let y = anchor.y;
       if (y + rect.height > vh - VIEWPORT_MARGIN) y = anchor.y - rect.height;
       placeAt(anchor.x, y);

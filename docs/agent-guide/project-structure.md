@@ -365,6 +365,7 @@ YUI/
           keep-on-screen.ts            # Pushes a window back until its centre lands on a monitor
           travel-frame.ts              # Parks the real window once for a scale-seam crossing
           perch.ts                     # Perch values, perch-target and placement types, and the host-edge span shared by the drop source, avatar RPC and locomotion
+          visible-viewport.ts          # Cached height of the pet window part above the work-area bottom
         openers/                       # Openers and placement of the message, settings, and devtools windows
           settings-window.ts           # Settings window opener and cross-window settings sync
           devtools-window.ts           # Developer Tools window opener

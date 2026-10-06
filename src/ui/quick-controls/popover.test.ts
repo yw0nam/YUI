@@ -39,6 +39,7 @@ describe("createPopover — focus management", () => {
   afterEach(() => {
     document.body.innerHTML = "";
     vi.restoreAllMocks();
+    vi.unstubAllGlobals();
   });
 
   function makePopover(isWindow = false) {
@@ -78,6 +79,32 @@ describe("createPopover — focus management", () => {
     expect(closeWindow).toHaveBeenCalledTimes(1);
     expect(onClose).toHaveBeenCalledTimes(1);
     expect(pop.isOpen()).toBe(true);
+
+    pop.dispose();
+  });
+
+  it("open(anchor) keeps the panel inside the visible height and exposes it to CSS", () => {
+    localStorage.removeItem("yui.quick.pos");
+    vi.stubGlobal("innerHeight", 600);
+    const root = buildRoot();
+    vi.spyOn(root, "getBoundingClientRect").mockReturnValue(
+      DOMRect.fromRect({ x: 0, y: 0, width: 300, height: 200 }),
+    );
+    const pop = createPopover({
+      mount,
+      root,
+      scrim: document.createElement("div"),
+      bar: null,
+      isWindow: false,
+      visibleHeight: () => 300,
+      onOpen: () => {},
+      onClose: () => {},
+    });
+
+    pop.open({ x: 50, y: 500 });
+
+    expect(parseFloat(root.style.top) + 200).toBeLessThanOrEqual(300 - 12);
+    expect(root.style.getPropertyValue("--yui-quick-visible-h")).toBe("276px");
 
     pop.dispose();
   });

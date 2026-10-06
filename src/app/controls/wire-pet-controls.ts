@@ -3,14 +3,18 @@
  * language changes, and the stage context menu.
  */
 
+import { availableMonitors, getCurrentWindow } from "@tauri-apps/api/window";
 import type { ConfigStore } from "../../config/store";
 import type { GuideKey } from "../../contract";
 import { removeUserVrm } from "../../io/assets/vrm-import";
 import type { RemoteSurfaces } from "../../io/bridge/message/message-remote";
 import type { PushSocket } from "../../io/chat/push/push-socket";
 import type { ScreenSourceProvider } from "../../io/window/capture/screen-source-provider";
+import { toScreenMonitor } from "../../io/window/geometry/screen-geometry";
+import { createVisibleViewport } from "../../io/window/geometry/visible-viewport";
 import type { Renderer } from "../../renderer";
 import type { SettingsStores } from "../../settings/settings-stores";
+import { isTauri } from "../../tauri-env";
 import type { VoiceInputStatus } from "../../ui/chips/voice-input-status";
 import { subscribe as subscribeLocale } from "../../ui/i18n";
 import { createQuickControls } from "../../ui/quick-controls/quick-controls";
@@ -127,6 +131,13 @@ export function wirePetControls(deps: {
   // The quick-controls session reset writes the same instances the dispatcher reads through.
   const { sessionStore, sessionDiagnostics, chatHistoryStore } = conversation;
 
+  // The pet window exists only under Tauri; a plain browser bounds the panel by the webview.
+  const visibleViewport = isTauri()
+    ? createVisibleViewport(getCurrentWindow(), async () =>
+        (await availableMonitors()).map(toScreenMonitor),
+      )
+    : undefined;
+
   const buildQuickControls = (): ReturnType<typeof createQuickControls> =>
     createQuickControls({
       mount: root,
@@ -188,6 +199,7 @@ export function wirePetControls(deps: {
       onPopOut: () => openSettings(),
       onMessage: () => surfaces.summonInput(),
       onGuide,
+      visibleViewport,
     });
   // Re-mounted on locale change (see i18n subscriber below); consumers read the live binding.
   let quickControls = buildQuickControls();
