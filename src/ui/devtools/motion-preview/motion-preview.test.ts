@@ -2,6 +2,7 @@
 
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { avatarFixture } from "../../../config/load-test-helpers";
+import type { AvatarConfig } from "../../../config/validators/avatar/types";
 import type { EmotionRegistry, MotionRegistry } from "../../../contract";
 
 const { load, resolveAssetUrl, createRenderer, rendererStub } = vi.hoisted(() => {
@@ -143,5 +144,28 @@ describe("mountMotionPreview", () => {
     handle.dispose();
     expect(order).toEqual(["cancel", "dispose"]);
     expect(frames.size).toBe(0);
+  });
+
+  describe("with a stored VRM selection", () => {
+    afterEach(() => localStorage.removeItem("yui.vrm"));
+
+    it("loads the selected option's url instead of the configured default", async () => {
+      localStorage.setItem("yui.vrm", "shino");
+      const avatar = {
+        ...avatarFixture(),
+        available: [
+          { id: "carlotta", label: "Carlotta", url: "/vrms/carlotta.vrm", source: "bundled" },
+          { id: "shino", label: "Shino", url: "/vrms/shino.vrm", source: "bundled" },
+        ],
+      } satisfies AvatarConfig;
+      load.mockResolvedValue({ motions, emotionRegistry, avatar });
+      resolveAssetUrl.mockImplementation(async (url: string) => `resolved:${url}`);
+      rendererStub.loadVRM.mockResolvedValue(undefined);
+
+      const handle = await mountMotionPreview(document.createElement("div"));
+
+      expect(rendererStub.loadVRM).toHaveBeenCalledWith("resolved:/vrms/shino.vrm");
+      handle.dispose();
+    });
   });
 });

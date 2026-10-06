@@ -3,7 +3,7 @@
  *
  * Architecture:
  *   - Loads validated runtime config through createConfigStore.
- *   - Resolves the configured VRM through resolveAssetUrl.
+ *   - Resolves the selected VRM (stored selection, else the configured default) through resolveAssetUrl.
  *   - Registry list is grouped by MotionKind.
  *   - Playback controls compose RenderMotionSignal overrides passed to renderer.playMotion().
  *
@@ -16,6 +16,11 @@ import { resolveAssetUrl } from "../../../config/asset-url";
 import { createConfigStore } from "../../../config/store";
 import type { AvatarConfig } from "../../../config/validators/avatar/types";
 import type { EmotionRegistry, MotionRegistry } from "../../../contract";
+import {
+  createVrmSelection,
+  localStorageUserVrmStorage,
+  localStorageVrmStorage,
+} from "../../../io/assets/vrm-selection";
 import { createLogger } from "../../../logger";
 import { createRenderer } from "../../../renderer";
 import { type ActiveEmotion, mountEmotionPanel } from "./emotion-panel";
@@ -50,7 +55,13 @@ export async function mountMotionPreview(mount: HTMLElement): Promise<{ dispose(
     motionsRegistry = config.motions;
     emotionsRegistry = config.emotionRegistry;
     avatar = config.avatar;
-    vrmUrl = await resolveAssetUrl(config.avatar.vrm_url);
+    const selection = createVrmSelection({
+      available: config.avatar.available,
+      defaultValue: config.avatar.vrm_url,
+      storage: localStorageVrmStorage(),
+      userStorage: localStorageUserVrmStorage(),
+    });
+    vrmUrl = await resolveAssetUrl(selection.getActive().url);
   } catch (err) {
     log.error("registry_load_failed", { error: String(err) });
     throw err;
