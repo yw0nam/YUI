@@ -79,6 +79,7 @@ class MessageEvent:
     internal: bool = False
     allow_gateway_control: bool = True
     metadata: dict = field(default_factory=dict)
+    reply_expected: bool | None = None
     _gateway_accepted: bool = field(default=False, init=False, repr=False)
 
     def is_command(self) -> bool:

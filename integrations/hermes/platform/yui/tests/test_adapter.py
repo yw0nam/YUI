@@ -291,6 +291,7 @@ async def test_a_turn_reaches_the_gateway_as_context_then_utterance(client, adap
         "<client_context>\ntrigger: user message\n</client_context>\n\nHow did the tests go?"
     )
     assert event.allow_gateway_control is False
+    assert event.reply_expected is False
     assert event.source.chat_id == CHAT
     assert event.source.chat_type == "dm"
     assert event.message_id == "1789365854947"
