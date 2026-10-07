@@ -90,6 +90,8 @@ export function createBedScene(deps: BedSceneDeps): BedScene {
   let asleepS = 0;
   /** Seconds into the bed's fade; null until the wake clip has ended. */
   let fadeS: number | null = null;
+  /** What the bed is shown at; its fade starts from here. */
+  let opacity = 0;
 
   async function finish(reason: EndReason): Promise<void> {
     if (state === "done") return;
@@ -97,23 +99,28 @@ export function createBedScene(deps: BedSceneDeps): BedScene {
     generation += 1;
     unsub?.();
     unsub = null;
-    liveliness.setAsleep(false);
-    renderer.setGazeEnabled(deps.gazeEnabled());
-    renderer.setOrbit(deps.camera.get());
-    prop?.dispose();
-    prop = null;
+    try {
+      liveliness.setAsleep(false);
+      renderer.setGazeEnabled(deps.gazeEnabled());
+      renderer.setOrbit(deps.camera.get());
+      prop?.dispose();
+      prop = null;
+    } catch (err) {
+      log.warn("bed_scene_restore_failed", { degrade: true, error: String(err) });
+    }
     try {
       await frame?.release();
     } catch (err) {
       log.warn("frame_release_failed", { degrade: true, error: String(err) });
+    } finally {
+      // The hold outlasts the frame release, so no mover takes the body in the wide window.
+      renderer.setMotionHold(null);
+      // No current motion is a registry reload whose replayed idle the hold dropped.
+      const current = renderer.getCurrentMotion();
+      if (!current || BED_MOTION_IDS.includes(current.id)) renderer.playMotion(null);
+      log.info("bed_scene_end", { reason, cause });
+      deps.onDone();
     }
-    // The hold outlasts the frame release, so no mover takes the body in the wide window.
-    renderer.setMotionHold(null);
-    // No current motion is a registry reload whose replayed idle the hold dropped.
-    const current = renderer.getCurrentMotion();
-    if (!current || BED_MOTION_IDS.includes(current.id)) renderer.playMotion(null);
-    log.info("bed_scene_end", { reason, cause });
-    deps.onDone();
   }
 
   async function run(): Promise<void> {
@@ -166,6 +173,8 @@ export function createBedScene(deps: BedSceneDeps): BedScene {
       }
       if (generation !== startedAt) return;
     }
+    if (fadeS !== null) return;
+    opacity = 1;
     loaded.setOpacity(1);
   }
 
@@ -191,7 +200,11 @@ export function createBedScene(deps: BedSceneDeps): BedScene {
     }
     // Anything but a bed clip, or no motion at all, is one the hold did not keep out.
     const id = renderer.getCurrentMotion()?.id;
-    if (id === undefined || !BED_MOTION_IDS.includes(id)) {
+    const lost =
+      state === "waking"
+        ? id !== BED_WAKE_MOTION_ID
+        : id === undefined || !BED_MOTION_IDS.includes(id);
+    if (lost) {
       void finish("lost");
       return;
     }
@@ -208,7 +221,7 @@ export function createBedScene(deps: BedSceneDeps): BedScene {
       return;
     }
     fadeS += ctx.dt;
-    prop?.setOpacity(Math.max(0, 1 - fadeS / PROP_FADE_S));
+    prop?.setOpacity(opacity * Math.max(0, 1 - fadeS / PROP_FADE_S));
     if (fadeS >= PROP_FADE_S) void finish("ended");
   }
 
@@ -217,7 +230,7 @@ export function createBedScene(deps: BedSceneDeps): BedScene {
       if (state !== "idle") return;
       state = "starting";
       unsub = renderer.onTick(onTick);
-      void run();
+      void run().catch(() => finish("skipped"));
     },
     wake,
     cancel() {
