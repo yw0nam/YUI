@@ -88,7 +88,7 @@ async function bootstrap(): Promise<BootstrapHandle> {
   const { settingsStores, conversationStores } = createWindowStores(register);
   const petConfig = createPetConfig({ ...settingsStores, log });
   const config = petConfig.config;
-  // Bound once the configured bootstrap has built whatever holds the body.
+  // The configured bootstrap points it at whatever holds the body once that exists.
   const cameraLock = { locked: () => false };
   const { renderer, ambient, applyCamera } = createStageRenderer({
     stage,
@@ -222,6 +222,7 @@ async function bootstrap(): Promise<BootstrapHandle> {
       renderer,
       ambient,
       applyCamera,
+      cameraLock,
       surfaces,
       settings: settingsStores,
       conversation: conversationStores,
@@ -243,7 +244,6 @@ async function bootstrap(): Promise<BootstrapHandle> {
       isDisposed,
     });
     register(configured.dispose);
-    cameraLock.locked = configured.isBodyHeld;
     if (isDisposed()) return { dispose };
     help.bindInteraction(configured.noteInteraction);
     push.bind({

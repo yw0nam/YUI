@@ -35,6 +35,8 @@ interface Phase1Handles extends TurnCorePhase1 {
   stage: HTMLElement;
   getQuickControls(): ReturnType<typeof createQuickControls>;
   isDisposed(): boolean;
+  /** Pointed at the bed scene's hold as soon as it exists. */
+  cameraLock: { locked: () => boolean };
 }
 
 export interface ConfiguredBootstrapHandles {
@@ -49,8 +51,6 @@ export interface ConfiguredBootstrapHandles {
   stopTurn: () => void;
   /** Resets the proactive gap, the way a typed submit does. */
   noteInteraction: () => void;
-  /** True while a scene holds the body and the window. */
-  isBodyHeld: () => boolean;
   dispose(): void;
 }
 
@@ -110,6 +110,7 @@ const realFactories: ConfiguredBootstrapFactories = {
       register,
       log,
     });
+    phase1.cameraLock.locked = bedScene.isHeld;
 
     const core = await wireTurnCore(cfg, phase1, {
       getFrontmost: () => frontmostTracker.get(),
@@ -248,7 +249,6 @@ const realFactories: ConfiguredBootstrapFactories = {
       sitter: locomotion.sitter,
       stopTurn,
       noteInteraction: () => proactiveSource.noteInteraction(),
-      isBodyHeld: bedScene.isHeld,
     };
   },
 };
