@@ -96,6 +96,15 @@ describe("wireBedScene", () => {
     expect(h.calls).toEqual(["applyCamera", "drop:held=false"]);
   });
 
+  it("releases a hold that was never started when the bootstrap tears down", () => {
+    const h = setup();
+    expect(h.bedScene.isHeld()).toBe(true);
+
+    for (const teardown of h.teardowns) teardown();
+
+    expect(h.bedScene.isHeld()).toBe(false);
+  });
+
   it("forwards a wake and a drag end to the scene", () => {
     const h = setup();
     h.bedScene.wake();
