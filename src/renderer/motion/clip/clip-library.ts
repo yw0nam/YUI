@@ -19,7 +19,11 @@ export interface ClipLibrary {
   onVrmLoaded(vrm: VRM): void;
   onVrmDisposed(): void;
   /** vrma_path → AnimationClip for the loaded VRM, mirrored per the current mirror flag; null on failure or when overtaken by a VRM swap. */
-  load(vrmaPath: string, rootLockY?: boolean): Promise<THREE.AnimationClip | null>;
+  load(
+    vrmaPath: string,
+    rootLockY?: boolean,
+    rootKeepXz?: boolean,
+  ): Promise<THREE.AnimationClip | null>;
   /** The clip an action should play: `clip` itself, or its crossfade clone for a same-clip re-trigger with a fade. */
   playbackClip(
     clip: THREE.AnimationClip,
@@ -61,7 +65,7 @@ export function createClipLibrary(deps: {
   function registryClipKey(id: string): string | null {
     const entry = getRegistry()?.[id];
     if (!entry) return null;
-    return clipCacheKey(entry.vrma_path, motionMirror, !!entry.root_lock_y);
+    return clipCacheKey(entry.vrma_path, motionMirror, !!entry.root_lock_y, !!entry.root_keep_xz);
   }
 
   /**
@@ -73,19 +77,20 @@ export function createClipLibrary(deps: {
     vrmaPath: string,
     mirrored: boolean,
     rootLockY = false,
+    rootKeepXz = false,
   ): Promise<THREE.AnimationClip | null> {
-    const cacheKey = clipCacheKey(vrmaPath, mirrored, rootLockY);
+    const cacheKey = clipCacheKey(vrmaPath, mirrored, rootLockY, rootKeepXz);
     const cached = clipCache.get(cacheKey);
     if (cached) return cached;
     if (!vrm) return null;
 
     if (mirrored) {
-      const upright = await loadClip(vrmaPath, false, rootLockY);
+      const upright = await loadClip(vrmaPath, false, rootLockY, rootKeepXz);
       if (!upright) return null;
       const clip = mirrorClipTracks(upright, boneNameSwap);
       clipCache.set(cacheKey, clip);
       // Mirroring swaps left/right bones; the vertical travel and its curve are the upright clip's.
-      const uprightKey = clipCacheKey(vrmaPath, false, rootLockY);
+      const uprightKey = clipCacheKey(vrmaPath, false, rootLockY, rootKeepXz);
       clipTravelY.set(cacheKey, clipTravelY.get(uprightKey) ?? 0);
       const curve = clipRootCurve.get(uprightKey);
       if (curve) clipRootCurve.set(cacheKey, curve);
@@ -113,7 +118,7 @@ export function createClipLibrary(deps: {
       return null;
     }
     const clip = createVRMAnimationClip(vrmAnimation as never, vrm);
-    recenterClipRootMotion(clip); // strip baked horizontal root drift so the pet stays centered.
+    if (!rootKeepXz) recenterClipRootMotion(clip); // strip baked horizontal root drift so the pet stays centered.
     // A clip whose rise IS the movement plays in place; the mover supplies the travel,
     // following the curve the clip had rather than a straight line through it.
     if (rootLockY) {
@@ -166,8 +171,8 @@ export function createClipLibrary(deps: {
       boneNameSwap.clear();
       vrm = undefined;
     },
-    load(vrmaPath, rootLockY = false) {
-      return loadClip(vrmaPath, motionMirror, rootLockY);
+    load(vrmaPath, rootLockY = false, rootKeepXz = false) {
+      return loadClip(vrmaPath, motionMirror, rootLockY, rootKeepXz);
     },
     playbackClip(clip, prevClip, fadeMs) {
       return playbackClip(clip, prevClip, fadeMs, xfadeClones);
@@ -194,7 +199,7 @@ export function createClipLibrary(deps: {
     async preload(id) {
       const entry = getRegistry()?.[id];
       if (!entry) return;
-      await loadClip(entry.vrma_path, motionMirror, !!entry.root_lock_y);
+      await loadClip(entry.vrma_path, motionMirror, !!entry.root_lock_y, !!entry.root_keep_xz);
     },
   };
 }

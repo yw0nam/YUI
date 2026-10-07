@@ -93,6 +93,16 @@ export function validateMotions(file: string, raw: unknown): MotionRegistry {
         root_lock_y = rawRootLockY;
       }
     }
+    // root_keep_xz: keep the clip's horizontal hips translation instead of mean-centring it.
+    const rawRootKeepXz = entry.root_keep_xz;
+    let root_keep_xz: boolean | undefined;
+    if (rawRootKeepXz !== undefined) {
+      if (typeof rawRootKeepXz !== "boolean") {
+        issues.push(`${id}.root_keep_xz must be a boolean`);
+      } else {
+        root_keep_xz = rawRootKeepXz;
+      }
+    }
     // cycle_dwell_ms: ms to hold the settled frame before a cycle motion swaps to the next variant.
     const rawCycleDwell = entry.cycle_dwell_ms;
     let cycle_dwell_ms: number | undefined;
@@ -186,6 +196,7 @@ export function validateMotions(file: string, raw: unknown): MotionRegistry {
       ...(fade_ms !== undefined ? { fade_ms } : {}),
       ...(broker_publish !== undefined ? { broker_publish } : {}),
       ...(root_lock_y !== undefined ? { root_lock_y } : {}),
+      ...(root_keep_xz !== undefined ? { root_keep_xz } : {}),
       kind: entry.kind as MotionKind,
       loop: entry.loop as boolean,
       priority: entry.priority as number,

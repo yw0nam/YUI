@@ -88,6 +88,8 @@ export interface MotionRegistryEntry {
    * replays that curve by moving the window, so anything left in the track plays twice.
    */
   root_lock_y?: boolean;
+  /** Keeps the clip's horizontal hips translation instead of mean-centring it — for a clip whose frame is shared with a prop. */
+  root_keep_xz?: boolean;
   kind: MotionKind;
   loop: boolean;
   /** 0~100, higher is higher priority. */

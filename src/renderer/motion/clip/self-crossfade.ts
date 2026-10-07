@@ -1,12 +1,17 @@
 import type { AnimationClip } from "three";
 
 /**
- * vrma_path + mirror + root-lock flags → clip-cache key. Must match loadClip's key
- * composition. The root lock belongs to the registry entry while the cache is keyed by
- * path, so it has to be in the key: two entries can share one .vrma and disagree on it.
+ * vrma_path + mirror + root-motion flags → clip-cache key. Must match loadClip's key
+ * composition. The root flags belong to the registry entry while the cache is keyed by
+ * path, so they have to be in the key: two entries can share one .vrma and disagree on them.
  */
-export function clipCacheKey(vrmaPath: string, mirrored: boolean, rootLockY = false): string {
-  return `${vrmaPath}${mirrored ? "#mirror" : ""}${rootLockY ? "#ylock" : ""}`;
+export function clipCacheKey(
+  vrmaPath: string,
+  mirrored: boolean,
+  rootLockY = false,
+  rootKeepXz = false,
+): string {
+  return `${vrmaPath}${mirrored ? "#mirror" : ""}${rootLockY ? "#ylock" : ""}${rootKeepXz ? "#keepxz" : ""}`;
 }
 
 /**

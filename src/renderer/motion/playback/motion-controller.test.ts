@@ -1023,6 +1023,7 @@ describe("needsRestartOnPoolChange()", () => {
     priority: 0,
     interrupt_policy: "replace",
     root_lock_y: false,
+    root_keep_xz: false,
     ...over,
   });
 
@@ -1083,6 +1084,7 @@ describe("shouldRestartIdle()", () => {
     priority: 0,
     interrupt_policy: "replace",
     root_lock_y: false,
+    root_keep_xz: false,
     ...over,
   });
   const before = ["/motions/calm.vrma"];

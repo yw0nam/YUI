@@ -105,7 +105,7 @@ export function createMotionPlayback(deps: {
     cycleDwell.cancel();
     if (!vrm || !mixer) return;
     try {
-      let clip = await deps.clips.load(motion.vrma_path, motion.root_lock_y);
+      let clip = await deps.clips.load(motion.vrma_path, motion.root_lock_y, motion.root_keep_xz);
       if (!motionStartGeneration.isCurrent(startToken)) return;
       if (!clip) {
         // Real load failure (clip missing/invalid for the live VRM) → fall back to idle.
