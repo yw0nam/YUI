@@ -75,7 +75,14 @@ export function createLiveStatus(
     if (subLine && cur && cur.id === "idle" && variants) {
       const idx = variants.indexOf(cur.vrma_path);
       if (idx >= 0) {
-        subLine.innerHTML = `variant <span>${idx + 1}/${variants.length}</span> &middot; ${variantName(cur.vrma_path)}`;
+        const count = document.createElement("span");
+        count.textContent = `${idx + 1}/${variants.length}`;
+        subLine.replaceChildren(
+          document.createTextNode("variant "),
+          count,
+          document.createTextNode(" · "),
+          document.createTextNode(variantName(cur.vrma_path)),
+        );
       }
     }
     return cur;
