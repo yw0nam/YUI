@@ -55,13 +55,14 @@ describe("wireLocomotion", () => {
     for (const mock of Object.values(mocks)) mock.mockReset();
   });
 
-  const setup = (over: { isPanelOpen?: () => boolean } = {}) => {
+  const setup = (over: { isPanelOpen?: () => boolean; isHeld?: () => boolean } = {}) => {
     const cancelOrder: string[] = [];
     const teardowns: string[] = [];
     const registered: Array<() => void> = [];
 
     const travelFrame = {
       getWindow: vi.fn(),
+      frameWindow: vi.fn(),
       travel: { begin: vi.fn(), current: vi.fn(() => null) },
       abort: vi.fn(async () => {}),
       ready: Promise.resolve(),
@@ -82,6 +83,7 @@ describe("wireLocomotion", () => {
     };
     const faller = {
       drop: vi.fn(async () => {}),
+      placed: Promise.resolve(),
       cancel: () => cancelOrder.push("faller.cancel"),
       dispose: () => teardowns.push("faller.dispose"),
     };
@@ -110,9 +112,12 @@ describe("wireLocomotion", () => {
     };
 
     let travelFrameDeps: { setKeepOnScreenPaused(paused: boolean): void } | undefined;
-    let walkerDeps: { onDescend(edge: DescentEdge): void; isPanelOpen(): boolean } | undefined;
-    let fallerDeps: { onWindowLand(target: WindowRect): void } | undefined;
-    let windowSourcesDeps: { onRelocated(): Promise<void> } | undefined;
+    let walkerDeps:
+      | { onDescend(edge: DescentEdge): void; isPanelOpen(): boolean; isDragging(): boolean }
+      | undefined;
+    let fallerDeps: { onWindowLand(target: WindowRect): void; isEnabled(): boolean } | undefined;
+    let windowSourcesDeps: { onRelocated(): Promise<void>; isHeld(): boolean } | undefined;
+    let climberDeps: { isDragging(): boolean } | undefined;
     mocks.wireTravelFrame.mockImplementation((deps) => {
       travelFrameDeps = deps;
       return travelFrame;
@@ -134,7 +139,10 @@ describe("wireLocomotion", () => {
       return windowSources;
     });
     mocks.wirePercher.mockImplementation(() => percher);
-    mocks.wireClimber.mockImplementation(() => climber);
+    mocks.wireClimber.mockImplementation((deps) => {
+      climberDeps = deps;
+      return climber;
+    });
 
     let climbEnabled = true;
     const climbSubscribers: Array<(state: { enabled: boolean }) => void> = [];
@@ -160,6 +168,7 @@ describe("wireLocomotion", () => {
       hitTest: { setMoving: vi.fn() },
       peekActive: () => false,
       isPanelOpen: over.isPanelOpen ?? (() => false),
+      isHeld: over.isHeld ?? (() => false),
       fallSettings: { get: () => ({ enabled: true }) } as never,
       climbSettings: climbSettings as never,
       agentNotifySettings: { get: () => ({ enabled: false, port: 8770 }) } as never,
@@ -177,6 +186,7 @@ describe("wireLocomotion", () => {
       walkerDeps: walkerDeps!,
       fallerDeps: fallerDeps!,
       windowSourcesDeps: windowSourcesDeps!,
+      climberDeps: climberDeps!,
       cancelOrder,
       teardowns,
       registered,
@@ -235,6 +245,35 @@ describe("wireLocomotion", () => {
 
     s.travelFrameDeps.setKeepOnScreenPaused(false);
     expect(s.windowSources.setKeepOnScreenPaused).toHaveBeenLastCalledWith(false);
+  });
+
+  it("composes the scene hold into the movers' predicates, read live", () => {
+    let held = true;
+    const s = setup({ isHeld: () => held });
+
+    expect(s.walkerDeps.isDragging()).toBe(true);
+    expect(s.climberDeps.isDragging()).toBe(true);
+    expect(s.fallerDeps.isEnabled()).toBe(false);
+    expect(s.windowSourcesDeps.isHeld()).toBe(true);
+
+    held = false;
+    expect(s.walkerDeps.isDragging()).toBe(false);
+    expect(s.climberDeps.isDragging()).toBe(false);
+    expect(s.fallerDeps.isEnabled()).toBe(true);
+    expect(s.windowSourcesDeps.isHeld()).toBe(false);
+  });
+
+  it("hands out the real frame window, the keep-on-screen pause, the placement and a drop", () => {
+    const s = setup();
+
+    expect(s.locomotion.frame.ready).toBe(s.travelFrame.ready);
+    s.locomotion.frame.frameWindow();
+    expect(s.travelFrame.frameWindow).toHaveBeenCalledOnce();
+    s.locomotion.setKeepOnScreenPaused(true);
+    expect(s.windowSources.setKeepOnScreenPaused).toHaveBeenCalledWith(true);
+    expect(s.locomotion.placed).toBe(s.faller.placed);
+    s.locomotion.drop();
+    expect(s.faller.drop).toHaveBeenCalledWith();
   });
 
   it("answers the relocate callback with a seam-landing faller drop", () => {

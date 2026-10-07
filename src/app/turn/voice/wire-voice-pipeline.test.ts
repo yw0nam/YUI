@@ -213,6 +213,7 @@ function setup(over: { isStrolling?: () => boolean } = {}) {
   const onUtteranceStart = vi.fn();
   const onUtteranceEnd = vi.fn();
   const onBargeIn = vi.fn();
+  const onSpeechActive = vi.fn();
   const voiceInputStatus = { set: vi.fn() };
   const turnLog = createTurnLog();
 
@@ -234,6 +235,7 @@ function setup(over: { isStrolling?: () => boolean } = {}) {
     onUtteranceStart,
     onUtteranceEnd,
     onBargeIn,
+    onSpeechActive,
     isStrolling: over.isStrolling ?? (() => false),
   });
 
@@ -247,6 +249,7 @@ function setup(over: { isStrolling?: () => boolean } = {}) {
     onUtteranceStart,
     onUtteranceEnd,
     onBargeIn,
+    onSpeechActive,
     voiceInputStatus,
     setEndpoints: (next: EndpointsConfig) => {
       currentEndpoints = next;
@@ -923,6 +926,16 @@ describe("wireVoicePipeline", () => {
     state.voice.turnOutput.end();
     onSpeechActive();
     expect(mocks.speechPlayback.interrupt).toHaveBeenCalledWith({ muteCurrentTurn: true });
+  });
+
+  it("reports the start of a voice turn even with barge-in off", async () => {
+    const state = setup();
+    await state.voice.createSttEngine();
+
+    (mocks.captured.sttVad as SttVadOptions).onSpeechActive!();
+
+    expect(state.onSpeechActive).toHaveBeenCalledOnce();
+    expect(mocks.speechPlayback.interrupt).not.toHaveBeenCalled();
   });
 
   it("barges in on speech a render started, with no turn on the ledger", async () => {

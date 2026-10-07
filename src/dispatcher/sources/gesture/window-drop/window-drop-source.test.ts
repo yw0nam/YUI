@@ -465,6 +465,42 @@ describe("window-drop-source — no perch", () => {
   });
 });
 
+describe("window-drop-source — held by a scene", () => {
+  it("ignores a release and blocks a placement while held", async () => {
+    const renderer = {
+      getPerchProbe: vi.fn(() => ({ seatPx: { x: 40, y: 30 }, charHpx: 200 })),
+      isPerched: vi.fn(() => false),
+    };
+    const invoke = vi.fn(async () => [win({ x: 5000, y: 5000 })]);
+    const getWindow = () => makeWindow({ x: 0, y: 0 }, 1);
+    const { listen, fire } = makeListen();
+    const onDragMiss = vi.fn();
+
+    const source = createWindowDropSource({
+      bus,
+      renderer,
+      invoke,
+      getWindow,
+      listen,
+      onDragMiss,
+      isHeld: () => true,
+    });
+    await source.start();
+    fire({ point: { x: 0, y: 0 } });
+    await Promise.resolve();
+    await Promise.resolve();
+    await Promise.resolve();
+
+    await expect(source.placeOn({ kind: "sit", app: "Visual Studio Code" })).resolves.toEqual({
+      ok: false,
+      reason: "blocked",
+    });
+    expect(renderer.getPerchProbe).not.toHaveBeenCalled();
+    expect(onDragMiss).not.toHaveBeenCalled();
+    expect(pushed).toEqual([]);
+  });
+});
+
 describe("window-drop-source — side peek drop", () => {
   it.each([
     ["left", 200, 200],
