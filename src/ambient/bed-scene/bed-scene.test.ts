@@ -93,6 +93,7 @@ function makeHarness(
       getCharacterAnchor: () => ANCHOR,
       setGazeEnabled: (enabled) => calls.push(`gaze:${enabled}`),
       setOrbit: (o) => calls.push(`orbit:${o.azimuth},${o.polar}`),
+      setSpringBonesHeld: (held) => calls.push(`spring:${held}`),
     },
     liveliness: { setAsleep: (asleep) => calls.push(`asleep:${asleep}`) },
     gazeEnabled: () => true,
@@ -176,6 +177,7 @@ describe("createBedScene", () => {
       HOLD,
       `play:${BED_SLEEP_MOTION_ID}`,
       "asleep:true",
+      "spring:true",
       "gaze:false",
       `orbit:0,${STORED_ORBIT.polar}`,
       `prop.scale:${REST_HIPS_M / CLIP_REST_HIPS_M}`,
@@ -198,7 +200,12 @@ describe("createBedScene", () => {
     await h.startAsleep();
     h.scene.wake("user");
     expect(h.scene.state()).toBe("waking");
-    expect(h.calls.slice(-3)).toEqual(["asleep:false", "gaze:true", `play:${BED_WAKE_MOTION_ID}`]);
+    expect(h.calls.slice(-4)).toEqual([
+      "asleep:false",
+      "spring:false",
+      "gaze:true",
+      `play:${BED_WAKE_MOTION_ID}`,
+    ]);
     const before = h.calls.length;
     h.scene.wake("timeout");
     expect(h.calls).toHaveLength(before);
@@ -230,6 +237,7 @@ describe("createBedScene", () => {
     expect(h.calls.slice(h.calls.lastIndexOf("prop.opacity:0"))).toEqual([
       "prop.opacity:0",
       "asleep:false",
+      "spring:false",
       "gaze:true",
       `orbit:${STORED_ORBIT.azimuth},${STORED_ORBIT.polar}`,
       "prop.dispose",
@@ -311,6 +319,7 @@ describe("createBedScene", () => {
       await h.frame();
       expect(h.scene.state()).toBe("done");
       expect(h.hold()).toBeNull();
+      expect(h.calls.filter((c) => c.startsWith("spring:")).at(-1)).toBe("spring:false");
       expect(h.count("prop.dispose")).toBe(1);
       expect(h.count("frame.release")).toBe(1);
       expect(h.calls.slice(-2)).toEqual(["play:null", "onDone"]);

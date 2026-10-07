@@ -35,6 +35,7 @@ function setup(): Harness {
       order.push("vrm.update");
       dts.push(dt);
     },
+    springBoneManager: { reset: () => order.push("spring.reset") },
   } as unknown as VRM;
   const participants: VrmParticipant[] = [
     { step: () => order.push("participant"), isConverging: () => converging },
@@ -91,6 +92,23 @@ describe("createFrameLoop", () => {
       "vrm.update",
       "render",
     ]);
+    h.loop.dispose();
+  });
+
+  it("resets the spring bones after vrm.update while held, until the VRM is disposed", () => {
+    const h = setup();
+    h.setConverging(true);
+    h.loop.setSpringBonesHeld(true);
+    h.loop.start();
+    vi.advanceTimersByTime(FRAME_MS);
+    expect(h.order.slice(-3)).toEqual(["vrm.update", "spring.reset", "render"]);
+    expect(h.order.filter((e) => e === "spring.reset")).toHaveLength(2);
+
+    h.loop.onVrmDisposed();
+    h.order.length = 0;
+    vi.advanceTimersByTime(FRAME_MS);
+    expect(h.order).toContain("vrm.update");
+    expect(h.order).not.toContain("spring.reset");
     h.loop.dispose();
   });
 
