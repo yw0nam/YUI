@@ -50,6 +50,7 @@ describe("createSettingsStores", () => {
       "guardrailsSettings",
       "idleMotionSettings",
       "expressMotionSettings",
+      "bedSceneSettings",
     ]);
   });
 

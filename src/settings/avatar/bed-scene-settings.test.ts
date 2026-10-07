@@ -7,6 +7,7 @@
  */
 
 import { describe, expect, it, vi } from "vitest";
+import { localStorageStore } from "../persisted-store";
 import type { BedSceneSettings } from "./bed-scene-settings";
 import {
   BED_SCENE_STORAGE_KEY,
@@ -98,7 +99,7 @@ describe("BED_SCENE_STORAGE_KEY", () => {
       setItem: (k: string, v: string) => written.push([k, v]),
     };
 
-    createBedSceneSettings().setEnabled(false);
+    createBedSceneSettings({ storage: localStorageStore(BED_SCENE_STORAGE_KEY) }).setEnabled(false);
     expect(written[0]?.[0]).toBe(BED_SCENE_STORAGE_KEY);
     expect(BED_SCENE_STORAGE_KEY).toBe("yui.bed-scene");
 
