@@ -1,7 +1,11 @@
 /** Character tab markup — the rows the tab renders, in panel order. */
 
+import {
+  WAKE_TIMEOUT_MAX_S,
+  WAKE_TIMEOUT_MIN_S,
+} from "../../../settings/avatar/bed-scene-settings";
 import { t } from "../../i18n";
-import { secHeadHtml } from "../markup";
+import { numRowHtml, secHeadHtml } from "../markup";
 
 /** Which rows the Character tab renders — and binds, and refreshes. */
 export interface CharacterRows {
@@ -11,6 +15,8 @@ export interface CharacterRows {
   gain: boolean;
   idleMotion: boolean;
   expressMotion: boolean;
+  /** The launch bed scene switch with its wake-timeout row. */
+  bedScene: boolean;
   /** The camera view reset. */
   viewpoint: boolean;
 }
@@ -78,6 +84,28 @@ const expressMotionHtml = (): string => `
           <div class="yui-group yui-express" role="group" aria-label="${t("express_motion.group_aria")}"></div>
         </div>`;
 
+const bedSceneHtml = (): string => `
+        <div class="yui-sec yui-bed-scene">
+          <div class="yui-group">
+            <div class="yui-row">
+              <div class="yui-row__main">
+                <span class="yui-row__label">${t("bed_scene.label")}</span>
+                <span class="yui-row__sub">${t("bed_scene.sub")}</span>
+              </div>
+              <button class="yui-switch yui-bed-scene__switch" type="button" role="switch" aria-label="${t("bed_scene.aria")}" aria-checked="true"></button>
+            </div>
+            <div class="yui-bed-scene__timeout" hidden>
+              ${numRowHtml({
+                id: "yui-bed-wake-timeout",
+                labelKey: "bed_scene.timeout_label",
+                min: WAKE_TIMEOUT_MIN_S,
+                max: WAKE_TIMEOUT_MAX_S,
+                suffixKey: "reactions.seconds_suffix",
+              })}
+            </div>
+          </div>
+        </div>`;
+
 // The panel keeps a link in the section head; the phone shows a labelled row with a touch button.
 const viewpointHtml = (variant: CharacterVariant): string =>
   variant === "phone"
@@ -106,6 +134,7 @@ export function characterHtml(rows: CharacterRows, variant: CharacterVariant): s
     rows.gain ? gainHtml() : "",
     rows.idleMotion ? idleMotionHtml() : "",
     rows.expressMotion ? expressMotionHtml() : "",
+    rows.bedScene ? bedSceneHtml() : "",
     rows.viewpoint ? viewpointHtml(variant) : "",
   ].join("");
 }

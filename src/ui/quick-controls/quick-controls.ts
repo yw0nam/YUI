@@ -19,6 +19,7 @@ import type {
 } from "../../io/voice/voices/speaker-selection";
 import type { ScreenSourceProvider } from "../../io/window/capture/screen-source-provider";
 import { createLogger } from "../../logger";
+import type { BedSceneSettingsStore } from "../../settings/avatar/bed-scene-settings";
 import type { ExpressMotionSettingsStore } from "../../settings/avatar/express-motion-settings";
 import type {
   IdleMotionSettingsStore,
@@ -222,6 +223,8 @@ interface QuickControlsOptions {
   expressMotionSettings?: ExpressMotionSettingsStore;
   /** Agent-triggerable motion ids backing that section (empty until configs load). */
   getExpressMotions?: () => readonly string[];
+  /** Launch bed scene on/off + wake timeout store. If absent, that section won't render. */
+  bedSceneSettings?: BedSceneSettingsStore;
 }
 
 interface QuickControls {
@@ -303,6 +306,7 @@ export function createQuickControls({
   getIdlePool,
   expressMotionSettings,
   getExpressMotions,
+  bedSceneSettings,
 }: QuickControlsOptions): QuickControls {
   const isWindow = variant === "window";
   // Context-occupancy readout renders only in the settings window, when both stores are injected.
@@ -402,6 +406,7 @@ export function createQuickControls({
       gain: true,
       idleMotion: !!idleMotionSettings,
       expressMotion: !!expressMotionSettings,
+      bedScene: !!bedSceneSettings,
       viewpoint: !!onResetViewpoint,
     },
     variant: "panel",
@@ -425,6 +430,7 @@ export function createQuickControls({
           },
         }
       : {}),
+    ...(bedSceneSettings ? { bedScene: { settings: bedSceneSettings } } : {}),
   });
   el.querySelector("#yui-panel-char")!.append(characterTab.el);
 

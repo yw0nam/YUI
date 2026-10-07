@@ -19,7 +19,7 @@ import {
   TAB_ICON_REACT,
   TAB_ICON_TALK,
 } from "./constants";
-import { escapeAttr, secHeadHtml } from "./markup";
+import { escapeAttr, numRowHtml, secHeadHtml } from "./markup";
 import { helpSectionHtml } from "./sections/help/help-section";
 import type { SwitchRow } from "./switch-row";
 import { switchButtonHtml, switchRowHtml } from "./switches/switch-rows";
@@ -101,32 +101,6 @@ export function buildPanelHtml(o: PanelHtmlOptions): string {
     (l) =>
       `<button class="yui-seg__btn" type="button" role="radio" data-locale="${l}" aria-checked="false" tabindex="-1">${LOCALE_DISPLAY_NAMES[l]}</button>`,
   ).join("");
-
-  // Numeric input row: label+sub(+hint) on the left, number input with its unit on the right.
-  function numRowHtml(opts: {
-    id: string;
-    labelKey: string;
-    subKey: string;
-    min: number;
-    max: number;
-    suffixKey?: string;
-    hintKey?: string;
-  }): string {
-    const { id, labelKey, subKey, min, max, suffixKey, hintKey } = opts;
-    const suffixHtml = suffixKey ? `<span class="yui-cue__suffix">${t(suffixKey)}</span>` : "";
-    const hintHtml = hintKey ? `<span class="yui-row__sub">${t(hintKey)}</span>` : "";
-    return `
-          <div class="yui-row">
-            <div class="yui-row__main">
-              <label class="yui-input-row__label" for="${id}">${t(labelKey)}</label>
-              <span class="yui-input-row__sub">${t(subKey)}</span>${hintHtml}
-            </div>
-            <div class="yui-num">
-              <input class="yui-num-input" id="${id}" type="number" min="${min}" max="${max}" inputmode="numeric" />
-              ${suffixHtml}
-            </div>
-          </div>`;
-  }
 
   // Screen-watch section (Proactive tab) — master toggle plus the knob group it reveals.
   // The min-gap slider carries the .yui-gain markup; the four thresholds are numeric rows.

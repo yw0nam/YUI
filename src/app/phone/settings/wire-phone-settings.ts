@@ -40,6 +40,7 @@ const CHARACTER_ROWS = {
   gain: false,
   idleMotion: false,
   expressMotion: false,
+  bedScene: false,
   viewpoint: true,
 } as const;
 

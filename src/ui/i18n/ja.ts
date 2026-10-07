@@ -306,6 +306,12 @@ const ja: Record<string, string> = {
   "express_motion.dance.label": "ダンス",
   "express_motion.dance.sub": "短いステップから長い振り付けまでランダム",
 
+  // launch bed scene (Character tab)
+  "bed_scene.label": "ベッドで目覚める",
+  "bed_scene.sub": "起動時にベッドで眠っています",
+  "bed_scene.aria": "ベッドで目覚める",
+  "bed_scene.timeout_label": "自分で起きるまでの時間",
+
   // viewpoint (camera orbit)
   "viewpoint.section": "視点",
   "viewpoint.sub": "Shift + ドラッグで回転、スクロールでズーム",

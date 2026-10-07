@@ -8,12 +8,14 @@
 import type { AvatarOption } from "../../../config/validators/avatar/types";
 import type { createVrmSelection } from "../../../io/assets/vrm-selection";
 import type { Logger } from "../../../logger";
+import type { BedSceneSettingsStore } from "../../../settings/avatar/bed-scene-settings";
 import type { ExpressMotionSettingsStore } from "../../../settings/avatar/express-motion-settings";
 import type {
   IdleMotionSettingsStore,
   IdleVariantPool,
 } from "../../../settings/avatar/idle-motion-settings";
 import type { createLipsyncSettings } from "../../../settings/avatar/lipsync-settings";
+import { createBedSceneSection } from "./bed-scene/bed-scene-section";
 import { type CharacterRows, type CharacterVariant, characterHtml } from "./character-html";
 import { createExpressMotionList } from "./express-motion/express-motion-section";
 import { createGainRow } from "./gain/gain-row";
@@ -66,6 +68,10 @@ export function createCharacterTab(deps: {
     settings: ExpressMotionSettingsStore;
     getVocabulary: () => readonly string[];
   };
+  /** Required with `rows.bedScene`. */
+  bedScene?: {
+    settings: BedSceneSettingsStore;
+  };
 }): CharacterTab {
   const { rows, vrmSelection, isOpen, log } = deps;
 
@@ -109,6 +115,11 @@ export function createCharacterTab(deps: {
     if (isOpen()) expressMotionList?.render();
   });
 
+  const bedScene = rows.bedScene ? required(deps.bedScene, "bedScene") : null;
+  const bedSceneSection = bedScene
+    ? createBedSceneSection({ root: el, settings: bedScene.settings, isOpen, log })
+    : null;
+
   const unbindViewpoint = rows.viewpoint
     ? bindViewpointReset({ root: el, onReset: required(deps.onResetView, "viewpoint"), log })
     : null;
@@ -120,6 +131,7 @@ export function createCharacterTab(deps: {
       vrmList.render();
       idleMotionList?.render();
       expressMotionList?.render();
+      bedSceneSection?.refresh();
     },
     close(): void {
       gainRow?.endPreview();
@@ -130,6 +142,7 @@ export function createCharacterTab(deps: {
       unsubscribeExpressMotion?.();
       gainRow?.dispose();
       expressMotionList?.dispose();
+      bedSceneSection?.dispose();
       unbindViewpoint?.();
       vrmList.dispose();
       vrmsEl.removeEventListener("keydown", vrmList.handleKeydown);

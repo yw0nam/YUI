@@ -63,6 +63,7 @@ export async function wireSettingsWindow(deps: { app: HTMLElement }): Promise<vo
     messageWindowSettings,
     idleMotionSettings,
     expressMotionSettings,
+    bedSceneSettings,
   } = settingsStores;
   // Quick Controls' session reset and History tab read the same instances the sync reloads.
   const { sessionStore, sessionDiagnostics, chatHistoryStore } = conversationStores;
@@ -244,6 +245,7 @@ export async function wireSettingsWindow(deps: { app: HTMLElement }): Promise<vo
       ...quickControlsConfigDefaults(config),
       idleMotionSettings,
       expressMotionSettings,
+      bedSceneSettings,
       sessionDiagnostics,
       sessionStore,
       transcript: chatHistoryStore,

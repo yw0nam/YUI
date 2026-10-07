@@ -13,6 +13,7 @@ const PHONE_ROWS: CharacterRows = {
   gain: false,
   idleMotion: false,
   expressMotion: false,
+  bedScene: false,
   viewpoint: true,
 };
 

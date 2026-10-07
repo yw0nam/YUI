@@ -127,6 +127,7 @@ export function wirePetControls(deps: {
     messageWindowSettings,
     idleMotionSettings,
     expressMotionSettings,
+    bedSceneSettings,
   } = stores;
   // The quick-controls session reset writes the same instances the dispatcher reads through.
   const { sessionStore, sessionDiagnostics, chatHistoryStore } = conversation;
@@ -196,6 +197,7 @@ export function wirePetControls(deps: {
       ...quickControlsConfigDefaults(config),
       idleMotionSettings,
       expressMotionSettings,
+      bedSceneSettings,
       onPopOut: () => openSettings(),
       onMessage: () => surfaces.summonInput(),
       onGuide,

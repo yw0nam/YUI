@@ -303,6 +303,12 @@ const ko: Record<string, string> = {
   "express_motion.dance.label": "춤",
   "express_motion.dance.sub": "짧은 스텝부터 긴 안무까지 무작위",
 
+  // launch bed scene (Character tab)
+  "bed_scene.label": "침대에서 일어나기",
+  "bed_scene.sub": "앱을 켜면 침대에서 자고 있어요",
+  "bed_scene.aria": "침대에서 일어나기",
+  "bed_scene.timeout_label": "스스로 일어나는 시간",
+
   // viewpoint (camera orbit)
   "viewpoint.section": "시점",
   "viewpoint.sub": "Shift + 드래그로 회전, 스크롤로 확대",
