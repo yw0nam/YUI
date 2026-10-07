@@ -4,8 +4,9 @@
  * Subscribes to the shared `os_event` channel, reads bare `os_idle_tick`, and fires
  * `time_milestone.first_activity` (tier2) on the first tick of the local day that finds
  * the user "present" (OS idle within `present_max_idle_ms`). The day key is persisted
- * across restarts; `isEnabled()` gates firing only, without stopping the subscription.
- * Buffered `/signals` groups ride the same candidate event.
+ * across restarts; `isEnabled()` and `isHeld()` gate firing only, without stopping the
+ * subscription. Buffered `/signals` groups ride the same candidate event. Another source can
+ * carry the owed first activity itself through `owed()` and `latch()`.
  *
  * firing ≠ judgment: this only produces a candidate event; the backend decides
  * whether/what to speak.
@@ -24,13 +25,15 @@ import type { BusEnvelope, EventBus } from "../../core/event-bus";
 
 const log = createLogger("milestone-source");
 
-const MILESTONE_NAME = "first_activity";
+const MILESTONE_NAME = "first_activity" as const;
 
 interface MilestoneSourceDeps {
   bus: Pick<EventBus, "push">;
   present_max_idle_ms: number;
   /** Read inside the tick handler — gates firing without stopping the source. */
   isEnabled: () => boolean;
+  /** True while the candidate waits; the day stays owed. */
+  isHeld?: () => boolean;
   /** Takes every buffered `/signals` group and empties the buffers. */
   drainSignals: () => SignalGroup[];
   /** Injectable channel listen; defaults to the resolved Tauri `listen`. */
@@ -41,9 +44,22 @@ interface MilestoneSourceDeps {
   firedStorage?: PersistedStorage<Record<string, string>>;
 }
 
+export interface FirstActivity {
+  name: typeof MILESTONE_NAME;
+  local_time: string;
+}
+
 export interface MilestoneSource {
   start(): Promise<void>;
   stop(): void;
+  /** The day's first activity at `ts` while it is enabled and not yet latched, whatever the hold. */
+  owed(ts: number): FirstActivity | null;
+  /** Marks the day of `ts` as fired. */
+  latch(ts: number): void;
+}
+
+function dayKeyOf(d: Date): string {
+  return `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
 }
 
 export function createMilestoneSource(deps: MilestoneSourceDeps): MilestoneSource {
@@ -58,20 +74,30 @@ export function createMilestoneSource(deps: MilestoneSourceDeps): MilestoneSourc
 
   let unlisten: (() => void) | undefined;
 
+  function owed(ts: number): FirstActivity | null {
+    if (!isEnabled()) return null;
+    const d = new Date(ts);
+    if (fired[MILESTONE_NAME] === dayKeyOf(d)) return null;
+    const localTime = `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
+    return { name: MILESTONE_NAME, local_time: localTime };
+  }
+
+  function latch(ts: number): void {
+    fired[MILESTONE_NAME] = dayKeyOf(new Date(ts));
+    firedStorage.save({ ...fired });
+  }
+
   function onTick(payload: OsEventPayload): void {
     if (payload.event_name !== "os_idle_tick") return;
     const idle = payload.data.os_idle_ms;
     // Null idle (e.g. Windows) carries no presence signal — ignore entirely.
     if (idle == null) return;
     if (idle > present_max_idle_ms) return;
-    if (!isEnabled()) return;
+    if (deps.isHeld?.()) return;
 
     const ts = now();
-    const d = new Date(ts);
-    const dayKey = `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
-    if (fired[MILESTONE_NAME] === dayKey) return;
-
-    const localTime = `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
+    const first = owed(ts);
+    if (!first) return;
     let signals: SignalGroup[] = [];
     try {
       signals = drainSignals();
@@ -86,8 +112,7 @@ export function createMilestoneSource(deps: MilestoneSourceDeps): MilestoneSourc
       event_name: `time_milestone.${MILESTONE_NAME}`,
       ts,
       payload: {
-        name: MILESTONE_NAME,
-        local_time: localTime,
+        ...first,
         ...(signals.length > 0 ? { signals } : {}),
       },
     };
@@ -95,9 +120,8 @@ export function createMilestoneSource(deps: MilestoneSourceDeps): MilestoneSourc
       log.warn("push rejected", { name: MILESTONE_NAME });
       return;
     }
-    log.info("fire", { name: MILESTONE_NAME, local_time: localTime });
-    fired[MILESTONE_NAME] = dayKey;
-    firedStorage.save({ ...fired });
+    log.info("fire", first);
+    latch(ts);
   }
 
   async function start(): Promise<void> {
@@ -110,5 +134,5 @@ export function createMilestoneSource(deps: MilestoneSourceDeps): MilestoneSourc
     unlisten = undefined;
   }
 
-  return { start, stop };
+  return { start, stop, owed, latch };
 }

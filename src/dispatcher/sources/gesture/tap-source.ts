@@ -34,6 +34,8 @@ interface TapSourceDeps {
   };
   config: TapConfig;
   drainSignals?: () => SignalGroup[];
+  /** True while the touch, head-pat and bored cues are dropped; the tier-1 reactions still go out. */
+  isHeld?: () => boolean;
   now?: () => number;
 }
 
@@ -93,7 +95,14 @@ export function createTapSource(deps: TapSourceDeps): TapSource {
       });
 
       const cue = deps.config.region_cues?.head;
-      if (!withCue || !cue || ts - lastTouchCueTs < deps.config.touch_cue_cooldown_ms) return;
+      if (
+        !withCue ||
+        !cue ||
+        deps.isHeld?.() ||
+        ts - lastTouchCueTs < deps.config.touch_cue_cooldown_ms
+      ) {
+        return;
+      }
       lastTouchCueTs = ts;
       // A pat is at least pat_hold_ms long — never report the hold as no time at all.
       const held = `held for ${Math.max(1, Math.round(heldMs / 1000))}s`;
@@ -127,7 +136,7 @@ export function createTapSource(deps: TapSourceDeps): TapSource {
 
         if (clicks.length >= deps.config.spam_count) {
           clicks.length = 0;
-          if (!region) {
+          if (!region && !deps.isHeld?.()) {
             let signals: SignalGroup[] = [];
             try {
               signals = deps.drainSignals?.() ?? [];
@@ -158,7 +167,7 @@ export function createTapSource(deps: TapSourceDeps): TapSource {
 
         // ponytail: one cooldown shared across all regions — go per-region if it bites.
         const cue = deps.config.region_cues?.[region];
-        if (cue && ts - lastTouchCueTs >= deps.config.touch_cue_cooldown_ms) {
+        if (cue && !deps.isHeld?.() && ts - lastTouchCueTs >= deps.config.touch_cue_cooldown_ms) {
           lastTouchCueTs = ts;
           deps.bus.push({
             source: "os_event_watcher",

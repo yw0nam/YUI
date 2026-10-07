@@ -1,11 +1,12 @@
 /**
- * Launch bed scene — she starts asleep on a bed, wakes on a user wake or the wake timeout,
+ * Launch bed scene — she starts asleep on a bed, wakes on a click, a message or the wake timeout,
  * plays one wake clip that ends standing, and the bed fades out. The scene holds the body
  * on its two clips from the moment she lies down until the frame is back to its normal
  * size. Every path out goes through one exit, so the hold, the bed and the widened frame
  * never outlive it. All timing runs on the renderer tick, which pauses with a hidden document.
  */
 
+import type { WakeCause } from "../../contract";
 import type { createStationaryFrame } from "../../io/window/geometry/stationary-frame";
 import type { Logger } from "../../logger";
 import type { PropHandle, Renderer } from "../../renderer";
@@ -29,7 +30,6 @@ export const FRAME_MARGIN_M = 0.1;
 const BED_MOTION_IDS: readonly string[] = [BED_SLEEP_MOTION_ID, BED_WAKE_MOTION_ID];
 
 type BedSceneState = "idle" | "starting" | "asleep" | "waking" | "done";
-type WakeCause = "user" | "timeout";
 type EndReason = "ended" | "skipped" | "lost" | "swapped" | "cancelled";
 
 export interface BedSceneDeps {
@@ -62,6 +62,8 @@ export interface BedSceneDeps {
   wakeTimeoutS: number;
   /** Called once, after the hold is released. */
   onDone: () => void;
+  /** Called as the wake clip starts, for a wake no message brought. */
+  onWake: (cause: Exclude<WakeCause, "message">) => void;
   log: Logger;
 }
 
@@ -70,6 +72,8 @@ export interface BedScene {
   start(): void;
   /** Wake her. Before she has lain down it skips the scene; once waking it is ignored. */
   wake(cause: WakeCause): void;
+  /** True once, after a message woke her. */
+  takeMessageWake(): boolean;
   /** End the scene now. */
   cancel(): void;
   /** After a native drag of the widened window. */
@@ -85,6 +89,7 @@ export function createBedScene(deps: BedSceneDeps): BedScene {
   let unsub: (() => void) | null = null;
   let prop: PropHandle | null = null;
   let cause: WakeCause | null = null;
+  let messageWakeOwed = false;
   /** The model the scene started on; another one on the tick is a hot-swap. */
   let vrmSeen: unknown = null;
   let asleepS = 0;
@@ -193,6 +198,8 @@ export function createBedScene(deps: BedSceneDeps): BedScene {
     renderer.setSpringBonesHeld(false);
     renderer.setGazeEnabled(deps.gazeEnabled());
     renderer.playMotion({ id: BED_WAKE_MOTION_ID });
+    if (by === "message") messageWakeOwed = true;
+    else deps.onWake(by);
   }
 
   function onTick(ctx: { vrm: unknown; dt: number }): void {
@@ -237,6 +244,11 @@ export function createBedScene(deps: BedSceneDeps): BedScene {
       void run().catch(() => finish("skipped"));
     },
     wake,
+    takeMessageWake() {
+      const owed = messageWakeOwed;
+      messageWakeOwed = false;
+      return owed;
+    },
     cancel() {
       void finish("cancelled");
     },

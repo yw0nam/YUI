@@ -5,7 +5,7 @@
  * model, not machine-parseable.
  */
 
-import type { ClientContext, TriggerMeta } from "../../contract";
+import type { ClientContext, TriggerMeta, WakeCause } from "../../contract";
 import { renderGuideBlock } from "../../io/guide/guide-docs";
 
 /** Collapses embedded newlines/whitespace runs to a single space and strips any
@@ -74,6 +74,12 @@ function renderPrevious(previous: ClientContext["previous"], nowMs: number): str
   return `previous: ${oneLine(previous.event_name)} ${previous.ended} (${minutesSince(previous.ts, nowMs)}min ago)${heard}`;
 }
 
+const WAKE_UNTIL: Record<WakeCause, string> = {
+  click: "the user's click",
+  timeout: "the wake timeout",
+  message: "this message",
+};
+
 function renderTrigger(trigger: TriggerMeta, nowMs: number): string[] {
   const lines: string[] = [];
   const idleClause =
@@ -119,6 +125,8 @@ function renderTrigger(trigger: TriggerMeta, nowMs: number): string[] {
   } else if (trigger.milestone) {
     const m = trigger.milestone;
     lines.push(`trigger: milestone ${oneLine(m.name)} (${oneLine(m.local_time)})`);
+  } else if (trigger.wake && trigger.kind !== "user") {
+    lines.push("trigger: wake");
   } else if (trigger.kind === "user") {
     lines.push(`trigger: user message${idleClause}`);
   } else if (trigger.kind === "signals") {
@@ -129,6 +137,8 @@ function renderTrigger(trigger: TriggerMeta, nowMs: number): string[] {
     // that failed validation, or a bare idle proactive turn without a configured cue).
     lines.push(`trigger: ${trigger.kind}${idleClause}`);
   }
+
+  if (trigger.wake) lines.push(`wake: asleep on the bed until ${WAKE_UNTIL[trigger.wake.cause]}`);
 
   if (trigger.signals) {
     for (const group of trigger.signals) {

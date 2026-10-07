@@ -71,6 +71,8 @@ export function wireDispatcher(deps: {
   screenshotSettings: SettingsStores["screenshotSettings"];
   screenCapturer: ScreenCapturer;
   getFrontmost: () => FrontmostState | undefined;
+  /** True once, for the user turn whose message woke the character on the launch bed. */
+  takeMessageWake?: () => boolean;
   voice: Pick<VoicePipeline, "turnOutput" | "speakFailure">;
   turnLog: TurnLog;
   previousTurn: PreviousTurnSlot;
@@ -110,6 +112,7 @@ export function wireDispatcher(deps: {
     screenshotSettings,
     screenCapturer,
     getFrontmost,
+    takeMessageWake,
     voice,
     turnLog,
     previousTurn,
@@ -163,6 +166,7 @@ export function wireDispatcher(deps: {
     getBodyState: () => dispatcher.getBodyState(),
     getFrontmost,
     getPrevious: previousTurn.get,
+    takeMessageWake,
     contextHistory,
     appendTurnRecord,
     getAgentSettings: () => agentSettings.get(),

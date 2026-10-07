@@ -16,6 +16,8 @@ interface ContextProviders {
   getBodyState?: () => BodyState | undefined;
   getFrontmost?: () => FrontmostState | undefined;
   getPrevious?: () => PreviousTurn | undefined;
+  /** True once, for the user turn whose message woke the character on the launch bed. */
+  takeMessageWake?: () => boolean;
 }
 
 interface BuiltContext {
@@ -105,8 +107,12 @@ function agentCatchupOf(env: BusEnvelope): TriggerMeta["agent_catchup"] | undefi
   };
 }
 
+const WAKE_EVENT_NAME = "proactive.wake";
+
 function milestoneOf(env: BusEnvelope): TriggerMeta["milestone"] | undefined {
-  if (!env.event_name.startsWith("time_milestone.")) return undefined;
+  if (!env.event_name.startsWith("time_milestone.") && env.event_name !== WAKE_EVENT_NAME) {
+    return undefined;
+  }
   const payload = env.payload;
   if (typeof payload?.name !== "string" || typeof payload?.local_time !== "string") {
     return undefined;
@@ -118,7 +124,8 @@ function signalsOf(env: BusEnvelope): TriggerMeta["signals"] | undefined {
   if (
     !env.event_name.startsWith("signals.") &&
     !env.event_name.startsWith("time_milestone.") &&
-    env.event_name !== "proactive.tap_bored"
+    env.event_name !== "proactive.tap_bored" &&
+    env.event_name !== WAKE_EVENT_NAME
   ) {
     return undefined;
   }
@@ -131,6 +138,13 @@ function signalsOf(env: BusEnvelope): TriggerMeta["signals"] | undefined {
       Array.isArray((group as { items?: unknown }).items),
   );
   return grouped ? (signals as TriggerMeta["signals"]) : undefined;
+}
+
+function wakeOf(env: BusEnvelope, messageWake: boolean): TriggerMeta["wake"] | undefined {
+  if (messageWake) return { cause: "message" };
+  if (env.event_name !== WAKE_EVENT_NAME) return undefined;
+  const cause = env.payload?.cause;
+  return cause === "click" || cause === "timeout" ? { cause } : undefined;
 }
 
 type RecentTransition = { from_app: string; to_app: string; dwell_min: number };
@@ -219,6 +233,7 @@ export function buildClientContext(
   bodyState?: BodyState,
   frontmost?: FrontmostState,
   previous?: PreviousTurn,
+  messageWake = false,
 ): ClientContext {
   const payload = env.payload;
   const cue =
@@ -234,6 +249,7 @@ export function buildClientContext(
   const milestone = milestoneOf(env);
   const signals = signalsOf(env);
   const screen = screenOf(env);
+  const wake = wakeOf(env, messageWake);
   const guide = guideKeyOf(env);
   const screenshot = ctx.screenshot
     ? { enabled: ctx.screenshot.enabled, source: ctx.screenshot.source }
@@ -260,6 +276,7 @@ export function buildClientContext(
       ...(milestone ? { milestone } : {}),
       ...(signals ? { signals } : {}),
       ...(screen ? { screen } : {}),
+      ...(wake ? { wake } : {}),
     },
   };
 }
@@ -297,6 +314,7 @@ export async function buildContext(
       providers.getBodyState?.(),
       providers.getFrontmost?.(),
       providers.getPrevious?.(),
+      triggerKind(env.event_name) === "user" && providers.takeMessageWake?.() === true,
     ),
   };
 }

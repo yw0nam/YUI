@@ -26,6 +26,7 @@ import {
   createSignalsSource,
   type SignalsSource,
 } from "../../dispatcher/sources/inbox/signals-source";
+import { createWakeSource, type WakeSource } from "../../dispatcher/sources/wake/wake-source";
 import { appendRecord } from "../../io/chat/record/turn-record-log";
 import type { AgentNotifySettings } from "../../settings/backend/agent-notify-settings";
 import type { ProactiveSettings } from "../../settings/cues/proactive-settings";
@@ -36,7 +37,7 @@ import type { ClampedIntSettingsStore } from "../../settings/persisted-store";
  * tier2 utterance candidate sources: proactive.<id> (idle dramatization) + schedule.<id>
  * (time-of-day greeting) + agent.done/needs_input/catchup + signals.push/batch/catchup +
  * time_milestone.first_activity (first present tick of the local day), all over the
- * presence gate.
+ * presence gate, plus proactive.wake (the character getting out of the launch bed).
  * Created and started; the started refs are returned for interaction-notes and teardown.
  */
 export function wireDispatcherSources(deps: {
@@ -61,6 +62,7 @@ export function wireDispatcherSources(deps: {
   signalsSource: SignalsSource;
   milestoneSource: MilestoneSource;
   screenSource: ScreenSource;
+  wakeSource: WakeSource;
 } {
   const {
     bus,
@@ -108,10 +110,16 @@ export function wireDispatcherSources(deps: {
   const milestoneSource = createMilestoneSource({
     bus,
     present_max_idle_ms: presenceSettings.get().value,
-    isEnabled: () => scheduleSettings.get().enabled && !deps.isFirstActivityHeld(),
+    isEnabled: () => scheduleSettings.get().enabled,
+    isHeld: deps.isFirstActivityHeld,
     drainSignals: () => signalsSource.drain(),
   });
   void milestoneSource.start();
+  const wakeSource = createWakeSource({
+    bus,
+    firstActivity: milestoneSource,
+    drainSignals: () => signalsSource.drain(),
+  });
   const screenSource = createScreenSource({
     bus,
     present_max_idle_ms: presenceSettings.get().value,
@@ -130,5 +138,6 @@ export function wireDispatcherSources(deps: {
     signalsSource,
     milestoneSource,
     screenSource,
+    wakeSource,
   };
 }

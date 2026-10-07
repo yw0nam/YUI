@@ -120,7 +120,8 @@ const realFactories: ConfiguredBootstrapFactories = {
         get: () => settings.sttSettings.get().enabled,
         set: settings.sttSettings.setEnabled,
       },
-      onVoiceTurnStart: bedScene.wake,
+      takeMessageWake: bedScene.takeMessageWake,
+      onVoiceTurnStart: () => bedScene.wake("message"),
       register,
       ensureActive,
     });
@@ -146,6 +147,7 @@ const realFactories: ConfiguredBootstrapFactories = {
       signalsSource,
       milestoneSource,
       screenSource,
+      wakeSource,
     } = wireDispatcherSources({
       bus,
       presenceSettings,
@@ -198,7 +200,7 @@ const realFactories: ConfiguredBootstrapFactories = {
       log,
     });
     core.setStrolling(locomotion.walker);
-    bedScene.start(locomotion);
+    bedScene.start(locomotion, wakeSource.fire);
 
     await wireStageGestures({
       stage,
@@ -209,9 +211,10 @@ const realFactories: ConfiguredBootstrapFactories = {
       hitTest,
       locomotion,
       cameraSettings: settings.cameraSettings,
-      onTap: bedScene.wake,
+      onTap: () => bedScene.wake("click"),
       onDragEnd: bedScene.onDragEnd,
       isCameraLocked: bedScene.isHeld,
+      isCueHeld: bedScene.isHeld,
       register,
     });
     ensureActive();
@@ -236,7 +239,7 @@ const realFactories: ConfiguredBootstrapFactories = {
     const { broker, stopTurn } = await core.connect({
       onSubmit: () => {
         proactiveSource.noteInteraction();
-        bedScene.wake();
+        bedScene.wake("message");
       },
     });
 

@@ -99,6 +99,8 @@ interface BackendCallerDeps extends PushCallDeps, SettleDeps, StreamAttemptDeps 
   getFrontmost?: () => FrontmostState | undefined;
   /** Previous-turn slot lookup — read after the pre-turn interrupt, so a superseded turn is already recorded. */
   getPrevious?: () => PreviousTurn | undefined;
+  /** True once, for the user turn whose message woke the character on the launch bed. */
+  takeMessageWake?: () => boolean;
   /** Previous response id lookup — when present, included in request to continue conversation. Called per turn (reflects reset/rotation). */
   getPreviousResponseId?: () => string | undefined;
   /** New response id persist — called only after a completely successful turn (conversation state progress). */
@@ -205,6 +207,7 @@ export function createBackendCaller(deps: BackendCallerDeps): BackendCaller {
         getBodyState: deps.getBodyState,
         getFrontmost: deps.getFrontmost,
         getPrevious: deps.getPrevious,
+        takeMessageWake: deps.takeMessageWake,
         onScreenshotError: (error) => log.warn("screenshot.failed", { error: String(error) }),
       });
       // Single "now" snapshot reused for every duration computed into this turn's rendered

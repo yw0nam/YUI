@@ -246,6 +246,8 @@ YUI/
             window-drop-source.ts    # Drag-release settle composing the perch watch and placement
             perch-watch.ts           # Armed perch and peek state with the occlusion-aware detach poll
             placement.ts             # Programmatic placement of the character on a named window
+        wake/                        # The launch-bed wake firing source
+          wake-source.ts             # Fires the wake candidate as she gets out of bed, carrying the day's first activity while it is owed
     ambient/                         # Backend-independent local liveliness and movement
       bed-scene/                     # Launch bed scene
         bed-scene.ts                 # Asleep on a bed at launch, the wake, the bed's fade, and the one exit that releases the hold and the frame

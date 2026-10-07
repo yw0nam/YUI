@@ -43,5 +43,6 @@ export type {
   TtsProviderName,
   TurnEnded,
   Usage,
+  WakeCause,
   WindowRect,
 } from "./types";

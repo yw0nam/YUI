@@ -60,10 +60,11 @@ export function wireBedScene(deps: {
   /** True from construction until the scene has ended and the window is back to its size. */
   isHeld(): boolean;
   /** The user woke her. */
-  wake(): void;
+  wake(cause: "click" | "message"): void;
+  takeMessageWake(): boolean;
   onDragEnd(): void;
   /** Starts the scene, when it runs at this launch. */
-  start(locomotion: Locomotion): void;
+  start(locomotion: Locomotion, onWake: BedSceneDeps["onWake"]): void;
 } {
   const { enabled, wakeTimeoutS } = deps.settings.bedSceneSettings.get();
   const { hold } = deps;
@@ -74,9 +75,10 @@ export function wireBedScene(deps: {
   let scene: BedScene | null = null;
   return {
     isHeld: hold.isHeld,
-    wake: () => scene?.wake("user"),
+    wake: (cause) => scene?.wake(cause),
+    takeMessageWake: () => scene?.takeMessageWake() ?? false,
     onDragEnd: () => scene?.onDragEnd(),
-    start(locomotion) {
+    start(locomotion, onWake) {
       if (!hold.isHeld()) return;
       scene = createBedScene({
         renderer: deps.renderer,
@@ -92,6 +94,7 @@ export function wireBedScene(deps: {
           // A window dragged into mid-air while she slept falls now.
           locomotion.drop();
         },
+        onWake,
         log: deps.log,
       });
       deps.register(scene.cancel);
