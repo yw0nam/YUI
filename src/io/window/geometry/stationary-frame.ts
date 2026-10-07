@@ -11,7 +11,7 @@ import type { Renderer } from "../../../renderer";
 import type { FrameWindow } from "./travel-frame";
 
 /** Extents either side of the character's canvas x, in logical px. */
-export interface FrameExtents {
+interface FrameExtents {
   leftPx: number;
   rightPx: number;
   anchorX: number;
@@ -39,7 +39,6 @@ export function createStationaryFrame(deps: {
   refit(): Promise<void>;
   /** Back to the normal-size window where the parked one is now. Idempotent. */
   release(): Promise<void>;
-  isParked(): boolean;
 } {
   let parked: { left: number; width: number; height: number; parkedWidth: number } | null = null;
   /** The last park() call — `release()` awaits it so a park in flight is unparked too. */
@@ -117,6 +116,5 @@ export function createStationaryFrame(deps: {
       })();
       return releasing;
     },
-    isParked: () => parked !== null,
   };
 }

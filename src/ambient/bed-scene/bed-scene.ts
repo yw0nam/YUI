@@ -22,14 +22,14 @@ export const CLIP_REST_HIPS_M = 0.9;
 /** The bed fades out over this long after the wake clip ends. */
 export const PROP_FADE_S = 0.6;
 /** Within this of the wake clip's end counts as ended; one frame at 30 fps is 0.033 s. */
-export const WAKE_END_S = 0.05;
+const WAKE_END_S = 0.05;
 /** Frame margin around the bed, in metres so it scales with the model. */
 export const FRAME_MARGIN_M = 0.1;
 
 const BED_MOTION_IDS: readonly string[] = [BED_SLEEP_MOTION_ID, BED_WAKE_MOTION_ID];
 
-export type BedSceneState = "idle" | "starting" | "asleep" | "waking" | "done";
-export type WakeCause = "user" | "timeout";
+type BedSceneState = "idle" | "starting" | "asleep" | "waking" | "done";
+type WakeCause = "user" | "timeout";
 type EndReason = "ended" | "skipped" | "lost" | "swapped" | "cancelled";
 
 export interface BedSceneDeps {
@@ -75,7 +75,6 @@ export interface BedScene {
   /** After a native drag of the widened window. */
   onDragEnd(): void;
   state(): BedSceneState;
-  isDone(): boolean;
 }
 
 export function createBedScene(deps: BedSceneDeps): BedScene {
@@ -246,6 +245,5 @@ export function createBedScene(deps: BedSceneDeps): BedScene {
       if (state !== "done") void frame?.refit();
     },
     state: () => state,
-    isDone: () => state === "done",
   };
 }

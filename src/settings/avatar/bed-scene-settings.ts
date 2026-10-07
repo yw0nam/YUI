@@ -16,7 +16,7 @@ export interface BedSceneSettings {
   wakeTimeoutS: number;
 }
 
-export type BedSceneStorage = PersistedStorage<BedSceneSettings>;
+type BedSceneStorage = PersistedStorage<BedSceneSettings>;
 
 function isValidSettings(v: unknown): v is BedSceneSettings {
   if (v === null || typeof v !== "object") return false;

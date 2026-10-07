@@ -76,7 +76,6 @@ describe("createStationaryFrame", () => {
       height: 600,
     });
     expect(setKeepOnScreenPaused).toHaveBeenCalledExactlyOnceWith(true);
-    expect(frame.isParked()).toBe(true);
   });
 
   it("releases the normal-size window at the live origin plus the left padding and clears the view", async () => {
@@ -90,7 +89,6 @@ describe("createStationaryFrame", () => {
     expect(setFrameLogical).toHaveBeenLastCalledWith(650, 400, 400, 600);
     expect(setViewWindow).toHaveBeenLastCalledWith(null);
     expect(setKeepOnScreenPaused).toHaveBeenLastCalledWith(false);
-    expect(frame.isParked()).toBe(false);
   });
 
   it("unparks a park still in flight once it lands", async () => {
@@ -157,7 +155,6 @@ describe("createStationaryFrame", () => {
     await refitting;
 
     expect(setViewWindow).toHaveBeenLastCalledWith(null);
-    expect(frame.isParked()).toBe(false);
   });
 
   it("parks again only after a release in flight has landed", async () => {
@@ -184,7 +181,6 @@ describe("createStationaryFrame", () => {
     expect(setFrameLogical).toHaveBeenLastCalledWith(150, 517, 600, 600);
     expect(setViewWindow).toHaveBeenLastCalledWith({ x: 150, y: 0, width: 400, height: 600 });
     expect(setKeepOnScreenPaused).toHaveBeenLastCalledWith(true);
-    expect(frame.isParked()).toBe(true);
   });
 
   it("resumes keep-on-screen and rethrows when the park's frame call is rejected", async () => {
@@ -195,6 +191,5 @@ describe("createStationaryFrame", () => {
 
     expect(setKeepOnScreenPaused).toHaveBeenLastCalledWith(false);
     expect(setViewWindow).not.toHaveBeenCalled();
-    expect(frame.isParked()).toBe(false);
   });
 });

@@ -233,7 +233,7 @@ describe("createBedScene", () => {
     await h.frame(PROP_FADE_S / 2);
     expect(h.calls.at(-1)).toBe("prop.opacity:0.5");
     await h.frame(PROP_FADE_S / 2);
-    expect(h.scene.isDone()).toBe(true);
+    expect(h.scene.state()).toBe("done");
     expect(h.calls.slice(h.calls.lastIndexOf("prop.opacity:0"))).toEqual([
       "prop.opacity:0",
       "asleep:false",
@@ -256,7 +256,7 @@ describe("createBedScene", () => {
     expect(h.calls.filter((c) => c === "frame.refit")).toHaveLength(1);
     h.scene.cancel();
     await h.runFrames(2);
-    expect(h.scene.isDone()).toBe(true);
+    expect(h.scene.state()).toBe("done");
     h.scene.onDragEnd();
     expect(h.calls.filter((c) => c === "frame.refit")).toHaveLength(1);
   });
