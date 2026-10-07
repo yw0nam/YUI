@@ -224,6 +224,40 @@ describe("resolve() — registry defaults applied", () => {
   });
 });
 
+describe("resolve() — root_keep_xz carried", () => {
+  const keepRegistry: MotionRegistry = {
+    idle: {
+      vrma_path: "/motions/idle_01.vrma",
+      kind: "ambient",
+      loop: true,
+      priority: 0,
+      interrupt_policy: "replace",
+    },
+    anchored: {
+      vrma_path: "/motions/anchored.vrma",
+      kind: "oneshot",
+      loop: true,
+      priority: 90,
+      interrupt_policy: "replace",
+      root_keep_xz: true,
+    },
+  };
+
+  it("carries root_keep_xz true when the entry sets it", () => {
+    const mc = createMotionController(keepRegistry);
+    const r = mc.resolve({ id: "anchored" });
+    expect(r).not.toBeNull();
+    expect(r!.root_keep_xz).toBe(true);
+  });
+
+  it("resolves root_keep_xz false when the entry omits it", () => {
+    const mc = createMotionController(keepRegistry);
+    const r = mc.resolve({ id: "idle" });
+    expect(r).not.toBeNull();
+    expect(r!.root_keep_xz).toBe(false);
+  });
+});
+
 // ─────────────────────────────────────────────────────────────────────────────
 // §1b  resolve() — entry-level fade_ms fallback
 // ─────────────────────────────────────────────────────────────────────────────

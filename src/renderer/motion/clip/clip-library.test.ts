@@ -5,7 +5,12 @@ import { describe, expect, it, vi } from "vitest";
 import { createClipLibrary } from "./clip-library";
 
 vi.mock("@pixiv/three-vrm-animation", () => ({
-  createVRMAnimationClip: () => new THREE.AnimationClip("clip", 1, []),
+  // One hips.position track whose X/Z mean is not zero (mean X = 2), so the
+  // default recentring has something to move and root_keep_xz has something to keep.
+  createVRMAnimationClip: () =>
+    new THREE.AnimationClip("clip", 1, [
+      new THREE.VectorKeyframeTrack("hips.position", [0, 1], [1, 2, 0, 3, 4, 0]),
+    ]),
 }));
 
 function makeVrm(): VRM {
@@ -47,6 +52,21 @@ describe("clip-library", () => {
     expect(await clips.load("a.vrma")).toBeNull();
     expect(await clips.load("a.vrma")).toBeNull();
     expect(loader.loadAsync).toHaveBeenCalledTimes(1);
+  });
+
+  it("root_keep_xz keeps the authored hips X/Z; the default recentres from a second cache entry", async () => {
+    const { clips, loader } = makeLibrary();
+    loader.loadAsync.mockResolvedValue({ userData: { vrmAnimations: [{}] } });
+    clips.onVrmLoaded(makeVrm());
+
+    const kept = await clips.load("a.vrma", false, true);
+    const recentred = await clips.load("a.vrma", false, false);
+
+    // Two cache keys → both loads call the loader.
+    expect(loader.loadAsync).toHaveBeenCalledTimes(2);
+    expect(kept!.tracks[0]!.values).toEqual(new Float32Array([1, 2, 0, 3, 4, 0]));
+    // X/Z centred on their own mean (2 / 0), Y kept.
+    expect(recentred!.tracks[0]!.values).toEqual(new Float32Array([-1, 2, 0, 1, 4, 0]));
   });
 
   it("a load overtaken by a VRM swap returns null", async () => {

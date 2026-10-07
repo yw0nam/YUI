@@ -71,6 +71,13 @@ describe("clipCacheKey", () => {
     expect(clipCacheKey("calm.vrma", false, true)).toBe("calm.vrma#ylock");
     expect(clipCacheKey("calm.vrma", true, true)).toBe("calm.vrma#mirror#ylock");
   });
+
+  it("appends #keepxz only when the horizontal root motion is kept", () => {
+    // Same key rule as #ylock: a kept clip and a recentred one must not share a cache entry.
+    expect(clipCacheKey("calm.vrma", false, false, false)).toBe("calm.vrma");
+    expect(clipCacheKey("calm.vrma", false, false, true)).toBe("calm.vrma#keepxz");
+    expect(clipCacheKey("calm.vrma", true, true, true)).toBe("calm.vrma#mirror#ylock#keepxz");
+  });
 });
 
 describe("playbackClip", () => {

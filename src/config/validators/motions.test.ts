@@ -310,6 +310,22 @@ describe("validateMotions — root_lock_y", () => {
   });
 });
 
+describe("validateMotions — root_keep_xz", () => {
+  it("passes root_keep_xz through", () => {
+    const out = validateMotions(FILE, { idle: baseEntry({ root_keep_xz: true }) });
+    expect(out.idle.root_keep_xz).toBe(true);
+  });
+
+  it("leaves root_keep_xz absent when the entry omits it", () => {
+    const out = validateMotions(FILE, { idle: baseEntry({}) });
+    expect(out.idle.root_keep_xz).toBeUndefined();
+  });
+
+  it("rejects a non-boolean root_keep_xz", () => {
+    expectIssue({ idle: baseEntry({ root_keep_xz: "true" }) }, "root_keep_xz must be a boolean");
+  });
+});
+
 describe("validateMotions — crossfade_loop", () => {
   it("passes crossfade_loop through when loop:true", () => {
     const entry = baseEntry({ loop: true, crossfade_loop: true });
