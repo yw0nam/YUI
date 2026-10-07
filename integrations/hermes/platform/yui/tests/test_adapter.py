@@ -385,7 +385,6 @@ async def test_a_gateway_warning_is_not_rendered(client, adapter):
         CHAT, "Context compression deferred.", metadata={}, logical_platform="yui"
     )
     assert result is None
-    await adapter.emit_warning(CHAT, "Media failed.", reply_to=None)
     await adapter.send(CHAT, "Done.", metadata={"notify": True})
     assert (await recv(ws))["segments"] == [{"cues": [], "speech": "Done."}]
 

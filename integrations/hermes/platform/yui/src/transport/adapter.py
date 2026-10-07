@@ -624,7 +624,7 @@ class YuiAdapter(BasePlatformAdapter):
         metadata: dict | None = None,
         logical_platform: str | None = None,
     ) -> None:
-        """Every warning the gateway writes lands here, and none of it is speech."""
+        """A warning the gateway raises during a turn lands here, and none of it is speech."""
         logger.info("yui: warning not spoken chat=%s", chat_id)
 
     async def send(
