@@ -301,8 +301,6 @@ const en: Record<string, string> = {
   "express_motion.sulk.sub": "A pouting, turned-away gesture",
   "express_motion.idle_lively.label": "Lively fidget",
   "express_motion.idle_lively.sub": "A brief burst of livelier movement",
-  "express_motion.sleeping.label": "Sleeping",
-  "express_motion.sleeping.sub": "Lies down on her side and sleeps",
   "express_motion.dance.label": "Dance",
   "express_motion.dance.sub": "Random, from a short step to a full routine",
 

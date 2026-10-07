@@ -5,7 +5,7 @@ import { setLocale } from "../../../i18n";
 import { createQuickControls } from "../../quick-controls";
 import { defaultQcArgs } from "../../test-helpers";
 
-const VOCAB = ["happy", "laugh", "embarrassed", "sheepish", "calm", "sulk", "sleeping", "dance"];
+const VOCAB = ["happy", "laugh", "embarrassed", "sheepish", "calm", "sulk", "idle_lively", "dance"];
 
 describe("createQuickControls — express motion section", () => {
   let mount: HTMLElement;
@@ -154,7 +154,7 @@ describe("createQuickControls — express motion section", () => {
     qc = build();
     qc.open();
     masters()[1]!.click();
-    expect(expressMotionSettings.get().disabled).toEqual(["sleeping", "dance"]);
+    expect(expressMotionSettings.get().disabled).toEqual(["idle_lively", "dance"]);
     expect(masters()[1]!.getAttribute("aria-checked")).toBe("false");
   });
 

@@ -509,12 +509,6 @@ describe("configs/motions.json", () => {
     expect(m.thinking.broker_publish).toBe(false);
   });
 
-  it("sleeping is a looping oneshot p70", () => {
-    expect(m.sleeping.kind).toBe("oneshot");
-    expect(m.sleeping.loop).toBe(true);
-    expect(m.sleeping.priority).toBe(70);
-  });
-
   it("dropped duplicates/mislabels are ABSENT (pose_sit_*, lean_*, hover_reaction, old ids)", () => {
     for (const id of [
       "pose_sit_1",

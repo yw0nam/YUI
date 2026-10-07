@@ -167,13 +167,6 @@
     "interrupt_policy": "replace",
     "broker_publish": false
   },
-  "sleeping": {
-    "vrma_path": "/motions/sleeping.vrma",
-    "kind": "oneshot",
-    "loop": true,
-    "priority": 70,
-    "interrupt_policy": "replace"
-  },
   "thinking": {
     "vrma_path": "/purchased_motions/thinking.vrma",
     "fade_ms": 200,

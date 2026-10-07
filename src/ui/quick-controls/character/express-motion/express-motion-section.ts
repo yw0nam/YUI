@@ -11,7 +11,7 @@ import { HIST_CHEVRON_SVG } from "../../constants";
 /** Static display grouping. Ids the table does not name fall into the trailing `other` group. */
 export const EXPRESS_MOTION_GROUPS: ReadonlyArray<{ id: string; ids: readonly string[] }> = [
   { id: "reaction", ids: ["happy", "laugh", "embarrassed", "sheepish", "calm", "sulk"] },
-  { id: "action", ids: ["idle_lively", "sleeping", "dance"] },
+  { id: "action", ids: ["idle_lively", "dance"] },
 ];
 
 const OTHER_GROUP = "other";

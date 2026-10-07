@@ -303,8 +303,6 @@ const ja: Record<string, string> = {
   "express_motion.sulk.sub": "拗ねてつんとする仕草",
   "express_motion.idle_lively.label": "元気な仕草",
   "express_motion.idle_lively.sub": "ひとしきり元気に動く仕草",
-  "express_motion.sleeping.label": "寝る",
-  "express_motion.sleeping.sub": "床で横になって眠る動き",
   "express_motion.dance.label": "ダンス",
   "express_motion.dance.sub": "短いステップから長い振り付けまでランダム",
 

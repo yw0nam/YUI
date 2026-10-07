@@ -15,9 +15,9 @@ const vocabulary = agentTriggerableMotionIds(registry);
 
 describe("groupExpressMotions", () => {
   it("orders known ids by the static table, group by group", () => {
-    expect(groupExpressMotions(["dance", "happy", "sulk", "sleeping"])).toEqual([
+    expect(groupExpressMotions(["dance", "happy", "sulk", "idle_lively"])).toEqual([
       { id: "reaction", ids: ["happy", "sulk"] },
-      { id: "action", ids: ["sleeping", "dance"] },
+      { id: "action", ids: ["idle_lively", "dance"] },
     ]);
   });
 

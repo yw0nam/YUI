@@ -300,8 +300,6 @@ const ko: Record<string, string> = {
   "express_motion.sulk.sub": "토라져서 새침한 몸짓",
   "express_motion.idle_lively.label": "활발한 몸짓",
   "express_motion.idle_lively.sub": "잠깐 활기차게 움직이는 동작",
-  "express_motion.sleeping.label": "잠들기",
-  "express_motion.sleeping.sub": "바닥에 옆으로 누워 자는 동작",
   "express_motion.dance.label": "춤",
   "express_motion.dance.sub": "짧은 스텝부터 긴 안무까지 무작위",
 
