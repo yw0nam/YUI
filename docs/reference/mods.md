@@ -19,7 +19,7 @@ Not a mod, but lives here: [browser-cdp](https://github.com/yw0nam/YUI/blob/main
 
 ## Exposure
 
-Every mod binds `127.0.0.1` only — there is no transport auth, so any local process that can reach the port gets the mod's full capability. Reach a mod from the remote agent over an SSH reverse tunnel, never by binding `0.0.0.0`. The [router](#router) collapses all mods onto one tunnel (`8080`), so you forward one port instead of one per mod:
+Every mod binds `127.0.0.1` only — there is no transport auth, so any local process that can reach the port gets the mod's full capability. Reach a mod from the remote agent over an SSH reverse tunnel, never by binding `0.0.0.0`. Over HTTP, every mod and the router refuse a request whose `Host` is not a loopback name (`127.0.0.1`, `localhost`, `::1`) with 421 and a request with a non-loopback `Origin` with 403, while a local process that sends no browser headers can still use them. The [router](#router) collapses all mods onto one tunnel (`8080`), so you forward one port instead of one per mod:
 
 ```bash
 ssh -R 8080:localhost:8080 <remote-host>      # all mods, via the router
@@ -36,7 +36,7 @@ One HTTP front door that path-routes to every mod, so a single SSH reverse tunne
 http://host:8080/<prefix>/mcp  ->  127.0.0.1:<mod port>/mcp
 ```
 
-It runs host-native as a thin proxy — MCP's Streamable HTTP transport is SSE, so responses stream through unbuffered. The routing table is the `UPSTREAMS` dict in `router/router/server.py`; its keys are the route prefixes: `desktop` (desktop-control), `shell` (shell-sandbox), and `avatar`. An unregistered prefix returns **404**; a registered-but-unreachable mod returns **502**. `GET /_mods` lists the registered mods so a client can discover them without reading the code.
+It runs host-native as a thin proxy — MCP's Streamable HTTP transport is SSE, so responses stream through unbuffered. The routing table is the `UPSTREAMS` dict in `router/router/server.py`; its keys are the route prefixes: `desktop` (desktop-control), `shell` (shell-sandbox), and `avatar`. An unregistered prefix returns **404**; a registered-but-unreachable mod returns **502**. A request whose `Host` is not a loopback name returns **421** and one with a non-loopback `Origin` returns **403**, both before any mod is contacted. `GET /_mods` lists the registered mods so a client can discover them without reading the code.
 
 ## desktop-control
 

@@ -8,16 +8,23 @@ from starlette.responses import PlainTextResponse
 LOOPBACK_NAMES = {"127.0.0.1", "localhost", "::1"}
 
 
+def _hostname(url: str) -> str | None:
+    try:
+        return urlsplit(url).hostname
+    except ValueError:
+        return None
+
+
 def is_loopback_host(hostport: str) -> bool:
     """True when `host[:port]` (or `[v6]:port`) names a loopback host."""
-    return urlsplit(f"//{hostport}").hostname in LOOPBACK_NAMES
+    return _hostname(f"//{hostport}") in LOOPBACK_NAMES
 
 
 def _refusal(headers: Headers) -> PlainTextResponse | None:
     if not is_loopback_host(headers.get("host", "")):
         return PlainTextResponse("Misdirected Request", status_code=421)
     origin = headers.get("origin")
-    if origin is not None and urlsplit(origin).hostname not in LOOPBACK_NAMES:
+    if origin is not None and _hostname(origin) not in LOOPBACK_NAMES:
         return PlainTextResponse("Forbidden Origin", status_code=403)
     return None
 
