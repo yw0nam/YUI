@@ -11,8 +11,11 @@ import httpx
 from loguru import logger
 from starlette.applications import Starlette
 from starlette.background import BackgroundTask
+from starlette.middleware import Middleware
 from starlette.responses import JSONResponse, Response, StreamingResponse
 from starlette.routing import Route
+
+from router.guard import HostOriginGuard
 
 # mod name -> upstream base. Add a mod = add a line; the external port stays one.
 UPSTREAMS = {
@@ -106,7 +109,8 @@ app = Starlette(
     routes=[
         Route("/_mods", mods_catalog, methods=["GET"]),
         Route("/{path:path}", proxy, methods=["GET", "POST", "DELETE"]),
-    ]
+    ],
+    middleware=[Middleware(HostOriginGuard)],
 )
 
 

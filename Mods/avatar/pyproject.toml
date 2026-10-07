@@ -4,7 +4,7 @@ version = "0.1.0"
 description = "YUI Mod — query the avatar's own body state and move it with semantic verbs"
 requires-python = ">=3.12"
 dependencies = [
-    "fastmcp>=3.2.4",
+    "fastmcp>=3.4.3",
     "loguru>=0.7",
 ]
 

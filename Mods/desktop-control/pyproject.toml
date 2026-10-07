@@ -4,7 +4,7 @@ version = "0.1.0"
 description = "YUI Mod — see the screen and open/close apps on the macOS host"
 requires-python = ">=3.12"
 dependencies = [
-    "fastmcp>=3.2.4",
+    "fastmcp>=3.4.3",
     "loguru>=0.7",
     "pyobjc-framework-Cocoa>=10; sys_platform == 'darwin'",
     "pyobjc-framework-Quartz>=10; sys_platform == 'darwin'",

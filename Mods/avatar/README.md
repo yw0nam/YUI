@@ -19,7 +19,7 @@ The avatar is the user's desktop pet: these tools move a visible window on their
 
 - **Movement only.** No emotion, motion, speech, or screen capture — expression travels on the `generate_express` stream, and screens belong to [desktop-control](../desktop-control/). This mod cannot see anything the YUI client does not already know.
 - **The user always wins.** Dragging the avatar aborts an agent-driven move, and a command arriving while the user is still holding it is refused outright — both report `interrupted`. One gesture runs at a time; a second concurrent command reports `busy`.
-- **The HTTP transport has no auth**, and neither does the client ingress it calls. Any local process that can reach `127.0.0.1:9002` (or the ingress port) can move the avatar. That is acceptable for personal-desktop use with both bound to loopback and reached over the SSH reverse tunnel below.
+- **The HTTP transport has no auth**, and neither does the client ingress it calls. Any local process that can reach `127.0.0.1:9002` (or the ingress port) can move the avatar. That is acceptable for personal-desktop use with both bound to loopback and reached over the SSH reverse tunnel below. A request whose `Host` is not a loopback name is refused with 421 and a request with a non-loopback `Origin` with 403, while a local process that sends no browser headers can still use the mod.
 
 ## Expose to the remote agent
 

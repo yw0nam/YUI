@@ -203,4 +203,4 @@ Any `POST localhost:8770/agent-event` on the remote side reaches the local YUI i
 
 ## Security
 
-The endpoint binds to `127.0.0.1` only and carries no authentication. Do not expose the listener port beyond localhost or your own SSH tunnel.
+The endpoint binds to `127.0.0.1` only and carries no authentication. Do not expose the listener port beyond localhost or your own SSH tunnel. A request whose `Host` is not `127.0.0.1`, `localhost` or `::1` is refused with 421 and a request whose `Origin` names another host with 403, while a hook that sends no browser headers passes.

@@ -1,6 +1,7 @@
 # Signals ingress
 
 External producers send signal groups to the loopback HTTP ingress with `POST /signals`.
+The ingress refuses a request whose `Host` is not `127.0.0.1`, `localhost` or `::1` with 421 and a request whose `Origin` names another host with 403.
 The request body contains a `signals` array and a delivery envelope:
 
 ```json

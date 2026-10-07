@@ -11,3 +11,5 @@ Each mod is a self-contained `uv` project in its own folder (`Mods/<mod>/`), wit
 ## Exposure
 
 Every mod binds `127.0.0.1` only; reach it from the remote agent over an SSH reverse tunnel. The [router](router/) collapses all mods onto one tunnel (`8080`) so you don't forward a port per mod.
+
+Over HTTP, every mod and the router refuse a request whose `Host` is not a loopback name (`127.0.0.1`, `localhost`, `::1`) with 421 and a request with a non-loopback `Origin` with 403, while a local process that sends no browser headers can still use them.

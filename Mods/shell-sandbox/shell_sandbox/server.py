@@ -285,7 +285,7 @@ def main() -> None:
     """Run the shell-sandbox MCP Server."""
     parser = argparse.ArgumentParser(description="shell-sandbox MCP Server")
     parser.add_argument(
-        "--transport", choices=["stdio", "http", "sse"], default="stdio", help="transport (default: stdio)"
+        "--transport", choices=["stdio", "http"], default="stdio", help="transport (default: stdio)"
     )
     parser.add_argument("--host", default="127.0.0.1", help="HTTP bind host")
     parser.add_argument("--port", type=int, default=9001, help="HTTP bind port")
@@ -295,6 +295,7 @@ def main() -> None:
     if args.transport != "stdio":
         kwargs["host"] = args.host
         kwargs["port"] = args.port
+        kwargs["host_origin_protection"] = True
 
     mcp.run(**kwargs)
 

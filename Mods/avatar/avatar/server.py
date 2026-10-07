@@ -150,7 +150,7 @@ def main() -> None:
     parser = argparse.ArgumentParser(description="Avatar MCP Server")
     parser.add_argument(
         "--transport",
-        choices=["stdio", "http", "sse"],
+        choices=["stdio", "http"],
         default="stdio",
         help="transport (default: stdio)",
     )
@@ -164,6 +164,7 @@ def main() -> None:
     if args.transport != "stdio":
         kwargs["host"] = args.host
         kwargs["port"] = args.port
+        kwargs["host_origin_protection"] = True
 
     mcp.run(**kwargs)
 

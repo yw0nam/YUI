@@ -47,7 +47,7 @@ Without these, calls fail closed in different ways — `screenshot` silently ret
 The allowlist **is** the safety boundary — there is no client-side config. desktop-control is a separate process with no capability in the YUI app, so the operator who sets the env owns the risk:
 
 - Keep `DESKTOP_CONTROL_ALLOWED_APPS` as narrow as possible — only the apps you intend the agent to control. An empty allowlist rejects everything; there are no silent defaults.
-- **The HTTP transport has no auth.** Any local process that can reach `127.0.0.1:9000` gets full screen capture + app control. This is acceptable for personal-desktop use and is mitigated by the SSH reverse-tunnel model below, but the local-process exposure is real — keep the bind on loopback.
+- **The HTTP transport has no auth.** Any local process that can reach `127.0.0.1:9000` gets full screen capture + app control. This is acceptable for personal-desktop use and is mitigated by the SSH reverse-tunnel model below, but the local-process exposure is real — keep the bind on loopback. A request whose `Host` is not a loopback name is refused with 421 and a request with a non-loopback `Origin` with 403, while a local process that sends no browser headers can still use the mod.
 
 ## Expose to the remote agent
 

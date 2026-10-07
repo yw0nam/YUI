@@ -18,7 +18,7 @@ Env (all optional): `SHELL_SANDBOX_WORKDIR` (default `/work`), `SHELL_SANDBOX_TI
 The shell is unrestricted by design, so isolation comes entirely from the container and what you mount:
 
 - **The mounted directory is the only host state reachable, and it is writable.** `rm -rf /work/*` deletes the host files there for real. Mount a copy or a dedicated scratch directory if you don't want the agent to mutate originals; everything outside the mount is unreachable.
-- **The HTTP transport has no auth** (same as desktop-control). Keep the publish on `127.0.0.1` and reach it from the remote agent via SSH reverse tunnel — never publish to `0.0.0.0` on the host.
+- **The HTTP transport has no auth** (same as desktop-control). Keep the publish on `127.0.0.1` and reach it from the remote agent via SSH reverse tunnel — never publish to `0.0.0.0` on the host. A request whose `Host` is not a loopback name is refused with 421 and a request with a non-loopback `Origin` with 403, while a local process that sends no browser headers can still use the mod.
 - **Network egress is open** (needed for `pnpm`/`pip` installs), so `--network=none` is not used. The container can reach the internet.
 - The container runs as root with `--cap-drop ALL` and `no-new-privileges`. Standard `runc` shares the host kernel; for genuinely untrusted input, run under gVisor (`--runtime=runsc`) or a microVM (Kata) — that's the upgrade path, not the default.
 

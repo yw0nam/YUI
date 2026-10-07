@@ -40,7 +40,7 @@ The router splits the path as `<mod>/<rest>` and forwards to `UPSTREAMS[<mod>]/<
 | `http://localhost:8080/shell/mcp` | `http://127.0.0.1:9001/mcp` |
 | `http://localhost:8080/avatar/mcp` | `http://127.0.0.1:9002/mcp` |
 
-An unregistered prefix returns **404**; a registered-but-unreachable mod returns **502**.
+An unregistered prefix returns **404**; a registered-but-unreachable mod returns **502**. A request whose `Host` is not a loopback name (`127.0.0.1`, `localhost`, `::1`) returns **421** and one whose `Origin` is not a loopback name returns **403**, both before any mod is contacted.
 
 `GET /_mods` is a router meta endpoint (not proxied) that returns the registered mods so a client can discover them without reading the code. `endpoint` is the agent-facing source URL to attach (built from the request, so it reflects however you reached the router); `upstream` is the internal address the router forwards to (operator/debug only — the remote agent can't reach it):
 
