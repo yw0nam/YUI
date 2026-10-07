@@ -379,6 +379,17 @@ async def test_a_gateway_status_notice_is_not_rendered(client, adapter):
     assert (await recv(ws))["segments"] == [{"cues": [], "speech": "Done."}]
 
 
+async def test_a_gateway_warning_is_not_rendered(client, adapter):
+    ws = await ready(client)
+    result = await adapter.emit_warning(
+        CHAT, "Context compression deferred.", metadata={}, logical_platform="yui"
+    )
+    assert result is None
+    await adapter.emit_warning(CHAT, "Media failed.", reply_to=None)
+    await adapter.send(CHAT, "Done.", metadata={"notify": True})
+    assert (await recv(ws))["segments"] == [{"cues": [], "speech": "Done."}]
+
+
 def test_the_gateway_says_nothing_to_this_platform_when_it_restarts():
     """The home-channel ping and the restart and shutdown notices share this one gate."""
     config = FakeConfig(key=KEY)

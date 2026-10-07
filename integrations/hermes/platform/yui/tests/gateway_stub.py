@@ -220,6 +220,18 @@ class BasePlatformAdapter:
         """The gateway's busy path calls this; the real base retries around the same send()."""
         return await self.send(chat_id=chat_id, content=content, reply_to=reply_to, metadata=metadata)
 
+    async def emit_warning(
+        self,
+        chat_id: str,
+        content: str,
+        *,
+        reply_to=None,
+        metadata=None,
+        logical_platform=None,
+    ) -> SendResult | None:
+        """The real base gates this on warning notifications, then sends the warning as text."""
+        return await self.send(chat_id, content, reply_to=reply_to, metadata=metadata)
+
     def _mark_connected(self) -> None:
         self.connected = True
 
