@@ -9,7 +9,9 @@ const { renderer, ambient, cameraDispose } = vi.hoisted(() => ({
 
 vi.mock("../../renderer", () => ({ createRenderer: () => renderer }));
 vi.mock("../../ambient/liveliness/tier1", () => ({ createTier1Engine: () => ambient }));
-vi.mock("./wire-pet-stage", () => ({ wireCamera: () => cameraDispose }));
+vi.mock("./wire-pet-stage", () => ({
+  wireCamera: () => ({ dispose: cameraDispose, apply: vi.fn() }),
+}));
 
 import { createStageRenderer } from "./stage-renderer";
 

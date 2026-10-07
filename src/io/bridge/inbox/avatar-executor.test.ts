@@ -435,6 +435,17 @@ describe("avatar-executor — move_to", () => {
     expect(h.setPositionLogical).not.toHaveBeenCalled();
   });
 
+  it("reports blocked and leaves the window alone while a scene holds it", async () => {
+    const h = harness({ isHeld: () => true });
+
+    expect(await h.call("command", { action: "move_to", spot: "center" })).toEqual({
+      ok: false,
+      reason: "blocked",
+    });
+    expect(h.release).not.toHaveBeenCalled();
+    expect(h.setPositionLogical).not.toHaveBeenCalled();
+  });
+
   it("reports unsupported when no monitor is enumerable", async () => {
     const h = harness({ listMonitors: async () => [] });
 
