@@ -263,16 +263,33 @@ describe("wireLocomotion", () => {
     expect(s.windowSourcesDeps.isHeld()).toBe(false);
   });
 
-  it("hands out the real frame window, the keep-on-screen pause, the placement and a drop", () => {
+  it("hands out the real frame window", () => {
     const s = setup();
 
     expect(s.locomotion.frame.ready).toBe(s.travelFrame.ready);
     s.locomotion.frame.frameWindow();
     expect(s.travelFrame.frameWindow).toHaveBeenCalledOnce();
+  });
+
+  it("hands out the keep-on-screen pause", () => {
+    const s = setup();
+
     s.locomotion.setKeepOnScreenPaused(true);
+
     expect(s.windowSources.setKeepOnScreenPaused).toHaveBeenCalledWith(true);
+  });
+
+  it("hands out the faller's placement", () => {
+    const s = setup();
+
     expect(s.locomotion.placed).toBe(s.faller.placed);
+  });
+
+  it("hands out a drop", () => {
+    const s = setup();
+
     s.locomotion.drop();
+
     expect(s.faller.drop).toHaveBeenCalledWith();
   });
 
