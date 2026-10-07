@@ -71,6 +71,8 @@ export interface AvatarExecutorDeps {
   /** An agent command is about to move the avatar — ambient motion yields to it. Its
    *  return value, when a promise, resolves once a travel that motion parked has settled. */
   noteAgentMove(): void | Promise<void>;
+  /** True while a scene holds the window — a move_to answers `blocked`. */
+  isHeld?: () => boolean;
 }
 
 export interface AvatarExecutor {
@@ -200,6 +202,7 @@ export function createAvatarExecutor(deps: AvatarExecutorDeps): AvatarExecutor {
   }
 
   async function moveTo(spot: AvatarSpot, monitor?: number): Promise<AvatarCommandResult> {
+    if (deps.isHeld?.()) return fail("blocked");
     const monitors = await listMonitors();
     if (monitors.length === 0) return fail("unsupported");
     const win = getWindow();

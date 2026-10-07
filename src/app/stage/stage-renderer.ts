@@ -9,22 +9,21 @@ export function createStageRenderer(deps: {
   settings: Pick<SettingsStores, "cameraSettings" | "idleThrottleSettings">;
   isCameraLocked?: () => boolean;
   register: (dispose: () => void) => void;
-}): { renderer: Renderer; ambient: Tier1Engine } {
+}): { renderer: Renderer; ambient: Tier1Engine; applyCamera(): void } {
   const renderer = createRenderer({ mount: deps.stage });
-  deps.register(
-    wireCamera({
-      stage: deps.stage,
-      renderer,
-      cameraSettings: deps.settings.cameraSettings,
-      idleThrottleSettings: deps.settings.idleThrottleSettings,
-      isLocked: deps.isCameraLocked,
-    }),
-  );
+  const camera = wireCamera({
+    stage: deps.stage,
+    renderer,
+    cameraSettings: deps.settings.cameraSettings,
+    idleThrottleSettings: deps.settings.idleThrottleSettings,
+    isLocked: deps.isCameraLocked,
+  });
+  deps.register(camera.dispose);
   // Tier 1 ambient: backend-independent, always on. tick fires after VRM loads, so
   // starting before loadVRM is safe (frames without VRM are no-op).
   const ambient = createTier1Engine(renderer);
   ambient.start();
   deps.register(() => renderer.dispose());
   deps.register(() => ambient.stop());
-  return { renderer, ambient };
+  return { renderer, ambient, applyCamera: camera.apply };
 }

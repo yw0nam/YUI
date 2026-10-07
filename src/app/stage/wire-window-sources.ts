@@ -188,6 +188,7 @@ export function wireWindowSources(deps: {
       noteAvatarMoved,
       noteAgentMove,
       onRelocated,
+      isHeld: deps.isHeld,
     });
     if (disposed) {
       windowDropSource.stop();

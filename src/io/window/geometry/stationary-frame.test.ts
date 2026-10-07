@@ -23,6 +23,10 @@ describe("framePadding", () => {
       left: 0,
       right: 0,
     });
+    expect(framePadding({ leftPx: 350.4, rightPx: 250.2, anchorX: 200 }, 400)).toEqual({
+      left: 151,
+      right: 51,
+    });
   });
 });
 
@@ -132,5 +136,65 @@ describe("createStationaryFrame", () => {
 
     expect(setFrameLogical).toHaveBeenLastCalledWith(1000, 800, 600, 600);
     expect(setViewWindow).toHaveBeenLastCalledWith({ x: 150, y: 0, width: 400, height: 600 });
+  });
+
+  it("leaves the view cleared when a release lands during a refit's re-issue", async () => {
+    const frame = make();
+    await frame.park(EXTENTS);
+    live = { ...live, width: 1200, height: 1200, scale: 1 };
+    let land!: () => void;
+    setFrameLogical.mockImplementationOnce(
+      () =>
+        new Promise<void>((resolve) => {
+          land = resolve;
+        }),
+    );
+
+    const refitting = frame.refit();
+    await vi.waitFor(() => expect(setFrameLogical).toHaveBeenCalledTimes(2));
+    await frame.release();
+    land();
+    await refitting;
+
+    expect(setViewWindow).toHaveBeenLastCalledWith(null);
+    expect(frame.isParked()).toBe(false);
+  });
+
+  it("parks again only after a release in flight has landed", async () => {
+    const frame = make();
+    await frame.park(EXTENTS);
+    let land!: () => void;
+    setFrameLogical.mockImplementationOnce(
+      (x, y, width, height) =>
+        new Promise<void>((resolve) => {
+          land = () => {
+            live = { ...live, x, y, width, height };
+            resolve();
+          };
+        }),
+    );
+
+    const releasing = frame.release();
+    await vi.waitFor(() => expect(setFrameLogical).toHaveBeenCalledTimes(2));
+    const parking = frame.park(EXTENTS);
+    land();
+    await releasing;
+    await parking;
+
+    expect(setFrameLogical).toHaveBeenLastCalledWith(150, 517, 600, 600);
+    expect(setViewWindow).toHaveBeenLastCalledWith({ x: 150, y: 0, width: 400, height: 600 });
+    expect(setKeepOnScreenPaused).toHaveBeenLastCalledWith(true);
+    expect(frame.isParked()).toBe(true);
+  });
+
+  it("resumes keep-on-screen and rethrows when the park's frame call is rejected", async () => {
+    setFrameLogical.mockRejectedValueOnce(new Error("denied"));
+    const frame = make();
+
+    await expect(frame.park(EXTENTS)).rejects.toThrow("denied");
+
+    expect(setKeepOnScreenPaused).toHaveBeenLastCalledWith(false);
+    expect(setViewWindow).not.toHaveBeenCalled();
+    expect(frame.isParked()).toBe(false);
   });
 });

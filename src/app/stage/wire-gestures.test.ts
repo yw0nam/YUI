@@ -99,6 +99,8 @@ describe("wireStageGestures", () => {
     };
     const bus = { push: vi.fn() };
     const onTap = vi.fn();
+    const onDragEnd = vi.fn();
+    const isCameraLocked = vi.fn(() => false);
 
     await wireStageGestures({
       stage: {} as HTMLElement,
@@ -107,7 +109,12 @@ describe("wireStageGestures", () => {
       getConfig: () =>
         ({
           avatar: {
-            tap: { pat_hold_ms: 300, spam_window_ms: 1000, spam_count: 5 },
+            tap: {
+              pat_hold_ms: 300,
+              spam_window_ms: 1000,
+              spam_count: 5,
+              region_motions: { head: "head_pat", chest: "embarrassed", hips: "embarrassed" },
+            },
             drag_hold_ms: 500,
             gesture_cues: { drag_held: {} },
           },
@@ -117,6 +124,8 @@ describe("wireStageGestures", () => {
       locomotion,
       cameraSettings: cameraSettings as never,
       onTap,
+      onDragEnd,
+      isCameraLocked,
       register: (teardown: () => void) => {
         registered.push(teardown);
       },
@@ -133,6 +142,8 @@ describe("wireStageGestures", () => {
       cameraSettings,
       travelAbort,
       onTap,
+      onDragEnd,
+      isCameraLocked,
     };
   };
 
@@ -150,6 +161,9 @@ describe("wireStageGestures", () => {
 
     s.dragOpts.pat!.onStart();
 
+    expect(s.bus.push).toHaveBeenCalledWith(
+      expect.objectContaining({ event_name: "user.pat_start" }),
+    );
     expect(s.onTap).toHaveBeenCalledOnce();
   });
 
@@ -183,6 +197,24 @@ describe("wireStageGestures", () => {
         event_name: "user.drag_end",
       }),
     );
+  });
+
+  it("reports the drag end to the drag-end seam", async () => {
+    const s = await setup();
+
+    s.dragOpts.onDragEnd!();
+
+    expect(s.onDragEnd).toHaveBeenCalledOnce();
+  });
+
+  it("ignores the orbit while the camera is locked", async () => {
+    const s = await setup();
+    s.isCameraLocked.mockReturnValue(true);
+
+    s.dragOpts.onOrbit!({ dx: 20, dy: -10 });
+
+    expect(s.cameraSettings.setAzimuth).not.toHaveBeenCalled();
+    expect(s.cameraSettings.setPolar).not.toHaveBeenCalled();
   });
 
   it("orbits the camera by the pointer delta times the sensitivity", async () => {
