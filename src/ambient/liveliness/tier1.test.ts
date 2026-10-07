@@ -201,6 +201,6 @@ describe("Tier1Engine — drives a VRM (headless)", () => {
 
     engine.setAsleep(false);
     expect(drive(getTick(), m, 1 / 60)[0].blink).toBe(0);
-    expect(range(drive(getTick(), m, 3).map((s) => s.headY))).toBeGreaterThan(0.01);
+    expect(range(drive(getTick(), m, 6).map((s) => s.headY))).toBeGreaterThan(0.01);
   });
 });

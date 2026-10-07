@@ -65,7 +65,12 @@ describe("createStationaryFrame", () => {
     await frame.park(EXTENTS);
 
     expect(setFrameLogical).toHaveBeenCalledExactlyOnceWith(150, 517, 600, 600);
-    expect(setViewWindow).toHaveBeenCalledExactlyOnceWith({ x: 150, y: 0, width: 400, height: 600 });
+    expect(setViewWindow).toHaveBeenCalledExactlyOnceWith({
+      x: 150,
+      y: 0,
+      width: 400,
+      height: 600,
+    });
     expect(setKeepOnScreenPaused).toHaveBeenCalledExactlyOnceWith(true);
     expect(frame.isParked()).toBe(true);
   });

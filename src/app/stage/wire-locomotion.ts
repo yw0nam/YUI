@@ -12,6 +12,7 @@ import type { EventBus } from "../../dispatcher/core/event-bus";
 import type { Dispatcher } from "../../dispatcher/dispatcher";
 import type { createVrmSelection } from "../../io/assets/vrm-selection";
 import type { DescentEdge } from "../../io/window/geometry/screen-geometry";
+import type { FrameWindow } from "../../io/window/geometry/travel-frame";
 import type { HitTestController } from "../../io/window/pet/hit-test";
 import type { Logger } from "../../logger";
 import type { Renderer } from "../../renderer";
@@ -51,6 +52,8 @@ export function wireLocomotion(deps: {
   hitTest: Pick<HitTestController, "setMoving">;
   peekActive: () => boolean;
   isPanelOpen: () => boolean;
+  /** A scene holds the body and the window. */
+  isHeld: () => boolean;
   fallSettings: FlagSettingsStore;
   climbSettings: FlagSettingsStore;
   agentNotifySettings: ReturnType<typeof createAgentNotifySettings>;
@@ -66,6 +69,12 @@ export function wireLocomotion(deps: {
   /** Cancels the five loops in the order a drag start and an agent move cancel them. */
   cancel(): void;
   abortTravel(): Promise<void>;
+  frame: { ready: Promise<void>; frameWindow(): FrameWindow };
+  setKeepOnScreenPaused(paused: boolean): void;
+  /** Resolves once the boot placement has settled. */
+  placed: Promise<void>;
+  /** Drops a character left mid-air. */
+  drop(): void;
 } {
   const {
     bus,
@@ -74,6 +83,7 @@ export function wireLocomotion(deps: {
     dispatcher,
     hitTest,
     peekActive,
+    isHeld,
     fallSettings,
     climbSettings,
     agentNotifySettings,
@@ -105,7 +115,7 @@ export function wireLocomotion(deps: {
     getDescendConfig: () => getConfig().avatar.descend,
     getMotionKind: (id) => getConfig().motions[id]?.kind,
     isPeeking: () => peekActive(),
-    isDragging: () => dragging,
+    isDragging: () => dragging || isHeld(),
     isPanelOpen: deps.isPanelOpen,
     setHitTestMoving: (moving) => hitTest.setMoving(moving),
     onStrollEnd,
@@ -134,7 +144,7 @@ export function wireLocomotion(deps: {
     bus,
     renderer,
     travelFrame,
-    isEnabled: () => fallSettings.get().enabled,
+    isEnabled: () => fallSettings.get().enabled && !isHeld(),
     getFallConfig: () => getConfig().avatar.fall,
     getMotionKind: (id) => getConfig().motions[id]?.kind,
     getFloorTolerancePx: () => getConfig().avatar.walk.floor_tolerance_px,
@@ -171,6 +181,7 @@ export function wireLocomotion(deps: {
     onRelocated: () => faller.drop({ landOnSeam: true }),
     onSitLost: createSitLossFall({ getClimber: () => climberRef, faller }),
     sitDown: () => sitter.sitDown(null),
+    isHeld,
     log,
   });
   windowSourcesRef = windowSources;
@@ -210,7 +221,7 @@ export function wireLocomotion(deps: {
     getWalkConfig: () => getConfig().avatar.walk,
     getMotionKind: (id) => getConfig().motions[id]?.kind,
     isPeeking: () => peekActive(),
-    isDragging: () => dragging,
+    isDragging: () => dragging || isHeld(),
     isBusy: dispatcher.isPipelineBusy,
     walker,
     faller,
@@ -239,5 +250,9 @@ export function wireLocomotion(deps: {
       sitter.cancel();
     },
     abortTravel: () => travelFrame.abort(),
+    frame: { ready: travelFrame.ready, frameWindow: travelFrame.frameWindow },
+    setKeepOnScreenPaused: windowSources.setKeepOnScreenPaused,
+    placed: faller.placed,
+    drop: () => void faller.drop(),
   };
 }

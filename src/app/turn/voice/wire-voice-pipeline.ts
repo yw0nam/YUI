@@ -58,6 +58,8 @@ interface VoicePipelineDeps {
   onUtteranceEnd: (ended: "complete" | "interrupted", split?: SpokenSplit) => void;
   /** The user talked over the reply — the renders still to come for it are dropped. */
   onBargeIn?: () => void;
+  /** A sustained user utterance began, barge-in or not. */
+  onSpeechActive?: () => void;
   /** An ambient stroll is moving the window — thinking and cue-less speech leave the body to it. */
   isStrolling: () => boolean;
 }
@@ -291,6 +293,7 @@ export function wireVoicePipeline(deps: VoicePipelineDeps): VoicePipeline {
       onVoiceSegment: deps.onVoiceSegment,
       onState: (state, detail) => deps.voiceInputStatus.set(state, detail),
       onSpeechActive: () => {
+        deps.onSpeechActive?.();
         if (deps.vadSettings.get().bargeIn && speechPlayback.hasOutstandingSpeech()) {
           deps.onBargeIn?.();
           speechPlayback.interrupt({ muteCurrentTurn: true });

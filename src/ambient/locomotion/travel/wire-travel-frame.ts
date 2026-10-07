@@ -21,6 +21,8 @@ import { isTauri } from "../../../tauri-env";
  */
 export interface TravelFrameHandle {
   getWindow(): PetWindow;
+  /** The real window itself, whatever travel is running. */
+  frameWindow(): FrameWindow;
   travel: {
     begin(end: { x: number; y: number }, via?: Array<{ x: number; y: number }>): Promise<Travel>;
     current(): PetWindow | null;
@@ -49,6 +51,10 @@ export function wireTravelFrame(deps: {
     getWindow: (): PetWindow => {
       if (!travel || !realWindow) throw new Error("wireTravelFrame: not ready");
       return travel.current() ?? realWindow;
+    },
+    frameWindow: (): FrameWindow => {
+      if (!realWindow) throw new Error("wireTravelFrame: not ready");
+      return realWindow;
     },
     travel: {
       begin: (
