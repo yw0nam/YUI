@@ -133,7 +133,8 @@ the same OS user as the agent.
 A producer fires at a fixed local time ahead of the user's usual first activity. YUI sends
 `trigger: milestone first_activity` once per local day, on the first tick that finds the
 user present with the "Scheduled greeting" switch on, or on the launch wake when the bed
-scene is on, and the agent speaks what `pending` prints on that turn. A day with several producers yields one file per producer.
+scene is on, and the agent speaks what `pending` prints on that turn. A day with several
+producers yields one file per producer.
 
 A quiet day still gets its run. Its file carries no items, and a briefing whose sources
 all read `ok` adds nothing to say.

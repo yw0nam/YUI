@@ -102,6 +102,7 @@ export function createBedScene(deps: BedSceneDeps): BedScene {
     if (state === "done") return;
     state = "done";
     generation += 1;
+    messageWakeOwed = false;
     unsub?.();
     unsub = null;
     try {

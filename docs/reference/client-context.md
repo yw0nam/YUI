@@ -257,8 +257,8 @@ built-in touch and gesture cues (`touch_*`, `tap_bored`, `head_pat`, `drag_held`
 for them in `configs/avatar.json`, so most of those turns render just the headline. A
 proactive turn with `idle_elapsed_min` but no cue at all (no configured label) falls back
 to a bare `trigger: proactive (user idle Xmin)`. While the launch bed scene runs, the
-client drops the touch, head-pat and tap-bored cues, and the [wake](#wake) reports the
-click that woke her.
+client drops the touch, head-pat, tap-bored and drag-held cues, and the [wake](#wake)
+reports the click that woke her.
 
 ### Screen transition
 
