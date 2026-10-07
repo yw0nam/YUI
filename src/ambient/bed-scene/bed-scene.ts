@@ -42,6 +42,7 @@ export interface BedSceneDeps {
     | "getMotionDuration"
     | "preloadMotion"
     | "setMotionHold"
+    | "setSpringBonesHeld"
     | "loadProp"
     | "getModelRestHipsHeight"
     | "getPxPerMetre"
@@ -101,6 +102,7 @@ export function createBedScene(deps: BedSceneDeps): BedScene {
     unsub = null;
     try {
       liveliness.setAsleep(false);
+      renderer.setSpringBonesHeld(false);
       renderer.setGazeEnabled(deps.gazeEnabled());
       renderer.setOrbit(deps.camera.get());
       prop?.dispose();
@@ -136,6 +138,8 @@ export function createBedScene(deps: BedSceneDeps): BedScene {
     renderer.setMotionHold(BED_MOTION_IDS);
     renderer.playMotion({ id: BED_SLEEP_MOTION_ID });
     liveliness.setAsleep(true);
+    // Lying on her side, the spring simulation pushes the long hair off the body colliders.
+    renderer.setSpringBonesHeld(true);
     renderer.setGazeEnabled(false);
     // The frame extents are measured head-on.
     renderer.setOrbit({ azimuth: 0, polar: deps.camera.get().polar });
@@ -187,6 +191,7 @@ export function createBedScene(deps: BedSceneDeps): BedScene {
     cause = by;
     state = "waking";
     liveliness.setAsleep(false);
+    renderer.setSpringBonesHeld(false);
     renderer.setGazeEnabled(deps.gazeEnabled());
     renderer.playMotion({ id: BED_WAKE_MOTION_ID });
   }

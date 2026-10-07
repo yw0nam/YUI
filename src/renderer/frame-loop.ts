@@ -36,6 +36,10 @@ export interface FrameLoop {
   dispose(): void;
   /** Idle 30fps cap toggle (runtime). Disabled ⇒ idle frames render at full refresh. */
   setIdleThrottleEnabled(enabled: boolean): void;
+  /** While held, every frame puts the spring bones back in their rest shape. */
+  setSpringBonesHeld(held: boolean): void;
+  /** Clears the spring bone hold, so the next model starts with normal physics. */
+  onVrmDisposed(): void;
   /** Time accumulated by frames stepped with a VRM loaded, in ms. */
   elapsedMs(): number;
 }
@@ -52,6 +56,7 @@ export function createFrameLoop(deps: FrameLoopDeps): FrameLoop {
   // True while the rAF loop is paused because the document is hidden/minimized.
   let paused = false;
   let idleThrottleEnabled = true;
+  let springBonesHeld = false;
 
   function animate(): void {
     rafId = requestAnimationFrame(animate);
@@ -96,6 +101,8 @@ export function createFrameLoop(deps: FrameLoopDeps): FrameLoop {
       // vrm.update so expressionManager.update()/spring bones see this frame's writes.
       stepParticipants(participants, ctx);
       currentVrm.update(dt);
+      // After the update, so the rest shape is what this frame draws.
+      if (springBonesHeld) currentVrm.springBoneManager?.reset();
     }
     render();
   }
@@ -130,6 +137,12 @@ export function createFrameLoop(deps: FrameLoopDeps): FrameLoop {
     },
     setIdleThrottleEnabled(enabled) {
       idleThrottleEnabled = enabled;
+    },
+    setSpringBonesHeld(held) {
+      springBonesHeld = held;
+    },
+    onVrmDisposed() {
+      springBonesHeld = false;
     },
     elapsedMs: () => elapsed * 1000,
   };

@@ -103,6 +103,8 @@ export interface Renderer {
   playMotion(motion: RenderMotionSignal | null): void;
   /** While set, only these motion ids play and their finish stays on the last frame; null releases. */
   setMotionHold(ids: readonly string[] | null): void;
+  /** While held, the spring bones (hair, clothes) stay in their rest shape; releasing resumes physics. */
+  setSpringBonesHeld(held: boolean): void;
   /** Currently committed motion (variant-resolved) — null before any playback. */
   getCurrentMotion(): { id: string; vrma_path: string } | null;
   /**

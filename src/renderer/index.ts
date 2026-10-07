@@ -222,6 +222,7 @@ export function createRenderer(options: RendererOptions): Renderer {
   function disposeCurrent(): void {
     motion.onVrmDisposed();
     clips.onVrmDisposed();
+    frameLoop.onVrmDisposed();
     // Drop each participant's VRM-bound state (reset in-flight fade/bone refs/damped
     // state) so nothing carries to the next VRM or writes to the disposed one.
     notifyVrmDisposed(participants);
@@ -312,6 +313,7 @@ export function createRenderer(options: RendererOptions): Renderer {
     },
     playMotion: motion.playMotion,
     setMotionHold: motion.setMotionHold,
+    setSpringBonesHeld: frameLoop.setSpringBonesHeld,
     getCurrentMotion() {
       const cur = motion.current();
       return cur ? { id: cur.id, vrma_path: cur.vrma_path } : null;
