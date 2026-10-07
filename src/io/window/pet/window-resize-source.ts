@@ -90,6 +90,8 @@ interface WindowResizeSourceDeps {
   renderer: { isPerched(): boolean };
   /** Resolve the pet window (lazily — `getCurrentWindow()` throws off-Tauri). */
   getWindow: () => ResizeWindow;
+  /** True while the resize gesture is ignored. */
+  isLocked?: () => boolean;
   /** Event target (injectable for tests). */
   target?: WheelTarget;
 }
@@ -152,6 +154,7 @@ export function createWindowResizeSource(deps: WindowResizeSourceDeps): WindowRe
     // must never fire, perched or not.
     e.preventDefault();
     if (renderer.isPerched()) return;
+    if (deps.isLocked?.()) return;
     if (e.deltaY === 0) return;
     pendingFactor *= stepFactor(e.deltaY);
     void flush();

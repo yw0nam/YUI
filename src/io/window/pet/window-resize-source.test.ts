@@ -178,6 +178,24 @@ describe("window-resize-source — wheel handler", () => {
     expect(setBoundsLogical).not.toHaveBeenCalled();
   });
 
+  it("still preventDefaults but does not resize while locked", async () => {
+    const { win, setBoundsLogical } = makeWindow(1, { x: 0, y: 0 }, { width: 400, height: 600 });
+    const { target, fire } = makeTarget();
+    const source = createWindowResizeSource({
+      renderer,
+      getWindow: () => win,
+      target,
+      isLocked: () => true,
+    });
+    source.start();
+
+    const e = fire({ ctrlKey: true, deltaY: -100 });
+    await settle();
+
+    expect(e.defaultPrevented).toBe(true);
+    expect(setBoundsLogical).not.toHaveBeenCalled();
+  });
+
   it("coalesces rapid wheel events — both steps land on the final size", async () => {
     const { win, state } = makeWindow(1, { x: 0, y: 0 }, { width: 400, height: 600 });
     const { target, fire } = makeTarget();

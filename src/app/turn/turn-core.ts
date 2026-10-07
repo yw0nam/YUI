@@ -90,6 +90,8 @@ export async function wireTurnCore(
     voicePersistence?: VoicePersistence;
     /** A window that owns capture intent itself. */
     voiceHost?: VoiceHost;
+    /** A sustained user utterance began. */
+    onVoiceTurnStart?: () => void;
     register: (dispose: () => void) => void;
     ensureActive: () => void;
   },
@@ -134,6 +136,7 @@ export async function wireTurnCore(
     getConfig: () => config.get(),
     getSecret: (name) => config.secrets.get(name),
     submitVoice: (text) => userInput.submitVoice(text),
+    onVoiceTurnStart: deps.onVoiceTurnStart,
     register,
   });
   const { voice, voiceInput, voiceErrorDwell, turnLog, previousTurn, quotedTurn, pushTurns } =

@@ -28,6 +28,8 @@ export interface Tier1Engine {
   start(): void;
   /** Trigger a one-shot cue (idle_returned). */
   trigger(cue: AmbientCue): void;
+  /** Asleep keeps the eyes shut and leaves head/spine/chest to the playing clip. */
+  setAsleep(asleep: boolean): void;
   /** Unregister the hook + stop. */
   stop(): void;
 }
@@ -73,13 +75,14 @@ export function prefersReducedMotion(): boolean {
 export function createTier1Engine(renderer: Renderer): Tier1Engine {
   let unsub: (() => void) | null = null;
   let started = false;
+  let asleep = false;
 
   // Per-VRM cache
   let capsVrm: VRM | null = null;
   let caps: Caps | null = null;
 
-  // blink state (in ms, ctx.elapsed*1000)
-  let nextBlinkAtMs = cues.nextBlinkDelay();
+  // blink state (in ms, ctx.elapsed*1000). A null next time is scheduled on the next tick.
+  let nextBlinkAtMs: number | null = cues.nextBlinkDelay();
   let blinkStartMs: number | null = null;
 
   // look_around state
@@ -133,7 +136,15 @@ export function createTier1Engine(renderer: Renderer): Tier1Engine {
     }
     const c = caps!;
 
+    if (asleep) {
+      if (vrm.expressionManager) {
+        for (const name of c.blinkNames) vrm.expressionManager.setValue(name, 1);
+      }
+      return;
+    }
+
     // ── blink (kept even under reduced-motion — blinking is not vestibular stimulation) ──
+    nextBlinkAtMs ??= tMs + cues.nextBlinkDelay();
     if (blinkStartMs === null && tMs >= nextBlinkAtMs) {
       blinkStartMs = tMs;
     }
@@ -218,6 +229,13 @@ export function createTier1Engine(renderer: Renderer): Tier1Engine {
       // Queue one-shots only (periodic cues are automatic). startMs is fixed on the next tick (-1 sentinel).
       if (cue === "idle_returned") oneShots.push({ startMs: -1 });
       // blink/idle_sway/breath/look_around are handled by the periodic engine — no-op.
+    },
+    setAsleep(next) {
+      asleep = next;
+      if (!next) {
+        blinkStartMs = null;
+        nextBlinkAtMs = null;
+      }
     },
     stop() {
       started = false;

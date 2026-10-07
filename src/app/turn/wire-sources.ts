@@ -52,6 +52,8 @@ export function wireDispatcherSources(deps: {
   pipelineBusy: PacedPipelineBusy;
   /** Global proactive gap — a hold reads as a skip to the screen source and as busy to the inboxes. */
   pacer: Pick<ProactivePacer, "isHolding" | "subscribe">;
+  /** True while the day's first-activity candidate waits. */
+  isFirstActivityHeld: () => boolean;
 }): {
   proactiveSource: ProactiveSource;
   scheduleSource: ScheduleSource;
@@ -106,7 +108,7 @@ export function wireDispatcherSources(deps: {
   const milestoneSource = createMilestoneSource({
     bus,
     present_max_idle_ms: presenceSettings.get().value,
-    isEnabled: () => scheduleSettings.get().enabled,
+    isEnabled: () => scheduleSettings.get().enabled && !deps.isFirstActivityHeld(),
     drainSignals: () => signalsSource.drain(),
   });
   void milestoneSource.start();

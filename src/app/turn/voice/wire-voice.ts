@@ -56,6 +56,8 @@ export function wireTurnVoice(deps: {
   getConfig: () => AppConfig;
   getSecret: (name: string) => Promise<string | undefined>;
   submitVoice: (text: string) => void;
+  /** A sustained user utterance began. */
+  onVoiceTurnStart?: () => void;
   register: (teardown: () => void) => void;
 }): {
   voice: VoicePipeline;
@@ -126,6 +128,7 @@ export function wireTurnVoice(deps: {
     },
     onUtteranceEnd: previousTurn.utteranceEnd,
     onBargeIn: () => pushTurns.cut(),
+    onSpeechActive: deps.onVoiceTurnStart,
   });
   register(voice.dispose);
 

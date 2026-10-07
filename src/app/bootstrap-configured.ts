@@ -143,6 +143,7 @@ const realFactories: ConfiguredBootstrapFactories = {
         subscribe: dispatcher.subscribePipelineBusy,
       },
       pacer,
+      isFirstActivityHeld: () => false,
     });
     core.setProactiveSource(proactiveSource);
     register(proactiveSource.stop);
@@ -168,6 +169,7 @@ const realFactories: ConfiguredBootstrapFactories = {
       hitTest,
       peekActive: () => peekState?.active() ?? false,
       isPanelOpen: () => getQuickControls().isOpen(),
+      isHeld: () => false,
       fallSettings,
       climbSettings,
       agentNotifySettings,

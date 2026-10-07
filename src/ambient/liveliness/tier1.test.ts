@@ -185,4 +185,22 @@ describe("Tier1Engine — drives a VRM (headless)", () => {
     const samples = drive(getTick(), m, 3);
     expect(range(samples.map((s) => s.headY))).toBeGreaterThan(0.01);
   });
+
+  it("asleep holds the eyes shut and leaves the body alone; waking opens them and resumes the sway", () => {
+    const { renderer, getTick } = makeRenderer();
+    const m = makeVrm();
+    const engine = createTier1Engine(renderer);
+    engine.start();
+    drive(getTick(), m, 1);
+    const headY = m.bones.head.rotation.y;
+
+    engine.setAsleep(true);
+    const asleep = drive(getTick(), m, 2);
+    expect(asleep.every((s) => s.blink === 1)).toBe(true);
+    expect(asleep.every((s) => s.headY === headY)).toBe(true);
+
+    engine.setAsleep(false);
+    expect(drive(getTick(), m, 1 / 60)[0].blink).toBe(0);
+    expect(range(drive(getTick(), m, 6).map((s) => s.headY))).toBeGreaterThan(0.01);
+  });
 });

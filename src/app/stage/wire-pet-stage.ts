@@ -21,12 +21,15 @@ export function wireCamera(deps: {
   renderer: Pick<Renderer, "setZoom" | "setOrbit" | "setIdleThrottleEnabled">;
   cameraSettings: Pick<SettingsStores["cameraSettings"], "get" | "setZoom" | "subscribe">;
   idleThrottleSettings: Pick<SettingsStores["idleThrottleSettings"], "get" | "subscribe">;
+  /** True while the wheel zoom is ignored. */
+  isLocked?: () => boolean;
 }): () => void {
   // Character scale via mouse wheel: clamp bounds and sensitivity are io constants, persist is owned by store.
   // Drag uses pointerdown only, so no conflict with wheel (gesture/window-drag.ts).
   const onWheelZoom = (e: WheelEvent): void => {
     if (e.ctrlKey) return; // ctrl+wheel is window-resize gesture (window-resize-source).
     e.preventDefault();
+    if (deps.isLocked?.()) return;
     const next = nextZoom(deps.cameraSettings.get().zoom, e.deltaY, {
       min: CAMERA_ZOOM_MIN,
       max: CAMERA_ZOOM_MAX,

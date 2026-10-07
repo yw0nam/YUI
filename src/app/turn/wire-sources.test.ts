@@ -98,6 +98,7 @@ describe("wireDispatcherSources", () => {
       subscribeBusy,
       pipelineBusy,
       pacer: fakePacer(),
+      isFirstActivityHeld: () => false,
     });
 
     expect(Object.keys(result).sort()).toEqual([
@@ -146,6 +147,7 @@ describe("wireDispatcherSources", () => {
       subscribeBusy: vi.fn(() => vi.fn()),
       pipelineBusy: { isBusy: () => false, subscribe: vi.fn(() => vi.fn()) },
       pacer: fakePacer(),
+      isFirstActivityHeld: () => false,
     });
 
     const milestone = created.milestone as {
@@ -155,6 +157,28 @@ describe("wireDispatcherSources", () => {
     expect(milestone.present_max_idle_ms).toBe(5000);
     expect(milestone.isEnabled()).toBe(false);
     schedule.enabled = true;
+    expect(milestone.isEnabled()).toBe(true);
+  });
+
+  it("holds the milestone source while the first activity is held, and lets it fire once released", () => {
+    let held = true;
+    wireDispatcherSources({
+      bus: {} as never,
+      presenceSettings: { get: () => ({ value: 5000 }) },
+      proactiveSettings: { get: () => ({ enabled: true, entries: [] }) },
+      scheduleSettings: { get: () => ({ enabled: true, entries: [] }) },
+      agentNotifySettings: { get: () => ({ enabled: true, port: 8770 }) },
+      screenSettings: { get: () => ({ enabled: false }) },
+      getScreenConfig: () => screenConfig,
+      subscribeBusy: vi.fn(() => vi.fn()),
+      pipelineBusy: { isBusy: () => false, subscribe: vi.fn(() => vi.fn()) },
+      pacer: fakePacer(),
+      isFirstActivityHeld: () => held,
+    });
+
+    const milestone = created.milestone as { isEnabled: () => boolean };
+    expect(milestone.isEnabled()).toBe(false);
+    held = false;
     expect(milestone.isEnabled()).toBe(true);
   });
 
@@ -170,6 +194,7 @@ describe("wireDispatcherSources", () => {
       subscribeBusy: vi.fn(() => vi.fn()),
       pipelineBusy: { isBusy: () => false, subscribe: vi.fn(() => vi.fn()) },
       pacer: fakePacer(),
+      isFirstActivityHeld: () => false,
     });
 
     const group = { items: [{ skill: "yui-daily-briefing" }] };
@@ -194,6 +219,7 @@ describe("wireDispatcherSources", () => {
       subscribeBusy,
       pipelineBusy: { isBusy: () => false, subscribe: vi.fn(() => vi.fn()) },
       pacer: fakePacer(),
+      isFirstActivityHeld: () => false,
     });
 
     const screen = created.screen as {
@@ -226,6 +252,7 @@ describe("wireDispatcherSources", () => {
       subscribeBusy: vi.fn(() => vi.fn()),
       pipelineBusy: { isBusy: () => false, subscribe: vi.fn(() => vi.fn()) },
       pacer: fakePacer(),
+      isFirstActivityHeld: () => false,
     });
 
     const screen = created.screen as { getConfig: () => typeof screenConfig };
@@ -248,6 +275,7 @@ describe("wireDispatcherSources", () => {
       subscribeBusy: vi.fn(() => vi.fn()),
       pipelineBusy: { isBusy: () => false, subscribe: vi.fn(() => vi.fn()) },
       pacer,
+      isFirstActivityHeld: () => false,
     });
   }
 

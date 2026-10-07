@@ -49,6 +49,8 @@ export function wireWindowSources(deps: {
   onSitLost: () => void;
   /** The sit-down a drop plays in place before the seat is taken. */
   sitDown: () => Promise<"done" | "lost">;
+  /** A scene holds the body and the window — no perch, no peek, no resize. */
+  isHeld: () => boolean;
   log: Logger;
 }): Pick<
   WindowDropSource,
@@ -144,6 +146,7 @@ export function wireWindowSources(deps: {
       onDragMiss: deps.onDragMiss,
       onSitLost: deps.onSitLost,
       sitDown: deps.sitDown,
+      isHeld: deps.isHeld,
     });
     windowResizeSource = createWindowResizeSource({
       renderer,
@@ -159,6 +162,7 @@ export function wireWindowSources(deps: {
           },
         };
       },
+      isLocked: deps.isHeld,
     });
     // Avatar RPC: the loopback ingress bridges `/avatar/*` here, where the state
     // lives and the movement happens. Perch gestures go through the drop source's

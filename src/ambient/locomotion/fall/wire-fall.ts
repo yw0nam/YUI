@@ -30,10 +30,20 @@ export function wireFaller(deps: {
   /** She came down on a foreign window top — the perch loop takes it from there. */
   onWindowLand: (target: WindowRect) => void;
   log: Logger;
-}): { drop(opts?: DropOptions): Promise<void>; cancel(): void; dispose(): void } {
+}): {
+  drop(opts?: DropOptions): Promise<void>;
+  cancel(): void;
+  dispose(): void;
+  /** Resolves once the boot placement has settled, or at once where none runs. */
+  placed: Promise<void>;
+} {
   const { bus, renderer, log } = deps;
   let faller: Faller | null = null;
   let disposed = false;
+  let resolvePlaced!: () => void;
+  const placed = new Promise<void>((resolve) => {
+    resolvePlaced = resolve;
+  });
   const handle = {
     drop: async (opts?: DropOptions) => {
       if (deps.isEnabled()) await faller?.drop(opts);
@@ -43,8 +53,12 @@ export function wireFaller(deps: {
       disposed = true;
       faller?.stop();
     },
+    placed,
   };
-  if (!isTauri()) return handle;
+  if (!isTauri()) {
+    resolvePlaced();
+    return handle;
+  }
   void (async () => {
     const { invoke } = await import("@tauri-apps/api/core");
     const { availableMonitors } = await import("@tauri-apps/api/window");
@@ -99,6 +113,8 @@ export function wireFaller(deps: {
     faller = createdFaller;
     // The OS chooses the initial position; placement is not a user-controlled fall.
     await createdFaller.drop({ place: true });
-  })().catch((err) => log.warn("faller_start_failed", { degrade: true, error: String(err) }));
+  })()
+    .catch((err) => log.warn("faller_start_failed", { degrade: true, error: String(err) }))
+    .finally(resolvePlaced);
   return handle;
 }
