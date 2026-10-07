@@ -29,7 +29,8 @@ path, it prints one line on stderr and exits 2.
 Two turns start this section:
 
 1. A turn whose context carries `trigger: milestone first_activity`. YUI sends it once per
-   local day, on the first tick that finds the user at their desk.
+   local day, on the first tick that finds the user at their desk, or on the launch wake
+   when the bed scene is on.
 2. A user asking for the briefing, in any wording ("what's new this morning?",
    "브리핑 해줘").
 

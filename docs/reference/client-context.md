@@ -44,7 +44,7 @@ above. Otherwise it is plain text.
 Everything between the header line and the closing tag is a sequence of `key: value`
 plain-text lines built by `renderClientContext` (`src/dispatcher/backend/client-context-text.ts`).
 One line per fact, in this fixed order — `time`, `frontmost`, `screenshot`, `body`,
-`previous`, then one or more `trigger:`/`cue note:`/`agent note:`/`agent event:`/
+`previous`, then one or more `trigger:`/`wake:`/`cue note:`/`agent note:`/`agent event:`/
 `agent detail:`/`signal:`/`recent:` lines depending on what fired. A line is omitted
 outright when its underlying field is absent (e.g. no `screenshot:` line when screen
 capture is off).
@@ -202,7 +202,7 @@ is one of `user` \| `schedule` \| `proactive` \| `agent` \| `signals` \| `milest
 |---|---|---|
 | `user` | User spoke or typed | The user's message text |
 | `schedule` | A user-configured time-of-day cue fired | Background marker |
-| `proactive` | A configured engagement cue, tap-bored cue, region-touch cue, or screen transition fired | Background marker |
+| `proactive` | A configured engagement cue, tap-bored cue, region-touch cue, or screen transition fired, or the character woke on the launch bed | Background marker |
 | `agent` | An external coding-agent lifecycle hook posted a completion or needs-input signal | Background marker |
 | `signals` | An external producer POSTed a burst to the `/signals` ingress | Background marker |
 | `milestone` | A once-per-day client clock fact fired on the first present tick of the local day | Background marker |
@@ -256,7 +256,9 @@ built-in touch and gesture cues (`touch_*`, `tap_bored`, `head_pat`, `drag_held`
 `window_sit`, `peek`, `dropped`) send a label alone unless the user authored a `context`
 for them in `configs/avatar.json`, so most of those turns render just the headline. A
 proactive turn with `idle_elapsed_min` but no cue at all (no configured label) falls back
-to a bare `trigger: proactive (user idle Xmin)`.
+to a bare `trigger: proactive (user idle Xmin)`. While the launch bed scene runs, the
+client drops the touch, head-pat and tap-bored cues, and the [wake](#wake) reports the
+click that woke her.
 
 ### Screen transition
 
@@ -372,7 +374,42 @@ that finds the user present with the schedule setting enabled. The headline name
 milestone and the local clock time it fired at. The day key is latched in
 `yui.milestone-fired`, so a same-day restart fires nothing and an app left running
 overnight fires again on the first present tick after midnight. Buffered `/signals`
-groups drain into the same turn and render as `signal` lines under the headline.
+groups drain into the same turn and render as `signal` lines under the headline. While
+the launch bed scene runs, the milestone waits; a wake turn carries it when it is still
+owed (see [Wake](#wake)).
+
+### Wake
+
+```text
+trigger: wake
+wake: asleep on the bed until the user's click
+```
+
+```text
+trigger: milestone first_activity (08:12)
+wake: asleep on the bed until the wake timeout
+```
+
+```text
+trigger: user message
+wake: asleep on the bed until this message
+```
+
+With the launch bed scene on, the character starts asleep on a bed. `proactive.wake`
+fires once, at the moment her wake clip starts, when a click on her or the bed or the
+press that starts a head pat woke her (`the user's click`) or she slept until the wake
+timeout set in the Character tab (`the wake timeout`). The `wake:` line follows the
+headline.
+
+When the day's `time_milestone.first_activity` is still owed and the schedule setting is
+on, the wake turn carries it: the headline is the milestone, buffered `/signals` groups
+drain into the turn, and the day key is latched, so the wake turn is that day's
+first-activity turn.
+
+A chat or voice message that wakes her is reported on that message's own turn, as
+`wake: asleep on the bed until this message` under `trigger: user message`. The `wake:`
+line appears only for a wake from the bed: a wake before she has lain down skips the
+scene, and a launch with the scene off starts her standing.
 
 ## Deliberately omitted fields
 
@@ -405,6 +442,8 @@ all situational detail still lives in the trigger lines above.
 | `proactive.dropped` | `(I just dropped you from mid-air)` |
 | `proactive.screen_app_switched` | `(I just moved over to something else on my screen)` |
 | `proactive.screen_long_session` | `(I've been in the same thing on my screen for a while)` |
+| `proactive.wake`, cause `click` | `(I just woke you up)` |
+| `proactive.wake`, cause `timeout` | `(you just woke up)` |
 | `proactive.*` (other) | `(I've gone quiet for a while)` |
 | `schedule.*` | `(it's the time of day you check in on me)` |
 | `agent.done` | `(my claude-code task just finished)` |
