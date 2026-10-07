@@ -15,8 +15,7 @@ the license wherever the model is distributed.
 - Scaled to 2.41 m long, centred on the origin, legs on the ground plane.
 - The orange round cushion sits on the far side of the pillow area.
 - The two blanket meshes (`Plane.001_Material_0`, `Plane.003_Material_0`) are
-  subdivided and carry an `occupied` morph target: at weight 0 the blanket has
-  its original flat shape, at weight 1 it bulges over a character lying under
-  it for the whole length of `public/motions/sleeping.vrma`.
+  subdivided.
 - An empty node `anchor_lie` marks where the character's root sits while she
-  lies in the bed: 0.66 m above the ground plane, on the mattress top.
+  lies on top of the blanket: 0.97 m above the ground plane, on the near side
+  of the bed with her head towards the pillows.
