@@ -20,8 +20,8 @@ export interface FrameExtents {
 /** The padding each side needs for the extents to fit a view `viewWidth` wide. */
 export function framePadding(e: FrameExtents, viewWidth: number): { left: number; right: number } {
   return {
-    left: Math.max(0, e.leftPx - e.anchorX),
-    right: Math.max(0, e.anchorX + e.rightPx - viewWidth),
+    left: Math.ceil(Math.max(0, e.leftPx - e.anchorX)),
+    right: Math.ceil(Math.max(0, e.anchorX + e.rightPx - viewWidth)),
   };
 }
 
@@ -67,8 +67,10 @@ export function createStationaryFrame(deps: {
 
   return {
     park(e) {
+      const pending = releasing;
       releasing = null;
       parking = (async () => {
+        await pending?.catch(() => {});
         const live = await liveRect();
         const { left, right } = framePadding(e, live.width);
         const parkedWidth = live.width + left + right;
@@ -95,6 +97,7 @@ export function createStationaryFrame(deps: {
         Math.abs(live.height - p.height) > SIZE_DRIFT_PX
       ) {
         await deps.frame.setFrameLogical(live.x, live.y, p.parkedWidth, p.height);
+        if (parked !== p) return;
       }
       applyView(p);
     },

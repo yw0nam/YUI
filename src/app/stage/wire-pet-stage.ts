@@ -21,9 +21,13 @@ export function wireCamera(deps: {
   renderer: Pick<Renderer, "setZoom" | "setOrbit" | "setIdleThrottleEnabled">;
   cameraSettings: Pick<SettingsStores["cameraSettings"], "get" | "setZoom" | "subscribe">;
   idleThrottleSettings: Pick<SettingsStores["idleThrottleSettings"], "get" | "subscribe">;
-  /** True while the wheel zoom is ignored. */
+  /** True while the wheel zoom and the store's camera changes are ignored. */
   isLocked?: () => boolean;
-}): () => void {
+}): {
+  dispose(): void;
+  /** Apply the stored zoom and orbit to the renderer. */
+  apply(): void;
+} {
   // Character scale via mouse wheel: clamp bounds and sensitivity are io constants, persist is owned by store.
   // Drag uses pointerdown only, so no conflict with wheel (gesture/window-drag.ts).
   const onWheelZoom = (e: WheelEvent): void => {
@@ -39,19 +43,19 @@ export function wireCamera(deps: {
   };
   deps.stage.addEventListener("wheel", onWheelZoom, { passive: false });
   // Camera zoom: apply the persisted zoom ratio at boot, flow to the renderer on each change (wheel/cross-window).
-  deps.renderer.setZoom(deps.cameraSettings.get().zoom);
-  deps.renderer.setOrbit({
-    azimuth: deps.cameraSettings.get().azimuth,
-    polar: deps.cameraSettings.get().polar,
-  });
-  deps.cameraSettings.subscribe((s) => {
+  const apply = (): void => {
+    const s = deps.cameraSettings.get();
     deps.renderer.setZoom(s.zoom);
     deps.renderer.setOrbit({ azimuth: s.azimuth, polar: s.polar });
+  };
+  apply();
+  deps.cameraSettings.subscribe(() => {
+    if (!deps.isLocked?.()) apply();
   });
   deps.renderer.setIdleThrottleEnabled(deps.idleThrottleSettings.get().enabled);
   deps.idleThrottleSettings.subscribe((s) => deps.renderer.setIdleThrottleEnabled(s.enabled));
   // Only the wheel listener is ours — the store subscribers die with the stores' own disposal.
-  return () => deps.stage.removeEventListener("wheel", onWheelZoom);
+  return { dispose: () => deps.stage.removeEventListener("wheel", onWheelZoom), apply };
 }
 
 export function wireInputAnchor(deps: {
