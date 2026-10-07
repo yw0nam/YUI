@@ -22,6 +22,7 @@ use std::time::Duration;
 use tauri::{AppHandle, Emitter};
 
 pub(crate) mod avatar_rpc;
+mod guard;
 mod payload;
 
 // ─── Emit helper ──────────────────────────────────────────────────────────────

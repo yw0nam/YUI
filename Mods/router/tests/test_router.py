@@ -43,7 +43,7 @@ class TestListMods:
             assert set(m) == {"mod_name", "endpoint", "upstream"}
 
     def test_mods_endpoint_returns_json_with_request_base(self):
-        r = TestClient(server.app).get("/_mods")
+        r = TestClient(server.app, base_url="http://127.0.0.1:8080").get("/_mods")
         assert r.status_code == 200
         shell = next(m for m in r.json() if m["mod_name"] == "shell")
         assert shell["endpoint"].endswith("/shell/mcp")
@@ -68,7 +68,7 @@ class TestProxy:
         transport = httpx.ASGITransport(app=_fake_upstream())
         monkeypatch.setitem(server.UPSTREAMS, "echo", "http://up")
         monkeypatch.setattr(server, "_client", lambda: httpx.AsyncClient(transport=transport, timeout=None))
-        return TestClient(server.app)
+        return TestClient(server.app, base_url="http://127.0.0.1:8080")
 
     def test_forwards_path_method_body_to_upstream(self, client):
         r = client.post("/echo/mcp", content="hello")
@@ -87,4 +87,4 @@ class TestProxy:
         client = httpx.AsyncClient()
         monkeypatch.setattr(client, "send", fake_send)
         monkeypatch.setattr(server, "_client", lambda: client)
-        assert TestClient(server.app).get("/down/mcp").status_code == 502
+        assert TestClient(server.app, base_url="http://127.0.0.1:8080").get("/down/mcp").status_code == 502
