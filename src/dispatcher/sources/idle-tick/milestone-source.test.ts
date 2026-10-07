@@ -329,6 +329,32 @@ describe("milestone_source — enable gate", () => {
     expect(drainSignals).not.toHaveBeenCalled();
     expect(save).not.toHaveBeenCalled();
   });
+
+  it("isHeld() true → no fire and no latch; the first present tick after the hold fires", async () => {
+    const { bus, pushed } = fakeBus();
+    const { listen, emit } = fakeListen();
+    const { storage, save } = fakeFiredStorage();
+    let held = true;
+    const src = createMilestoneSource({
+      bus,
+      present_max_idle_ms: PRESENT_MAX,
+      isEnabled: () => true,
+      isHeld: () => held,
+      drainSignals: () => [],
+      firedStorage: storage,
+      listen,
+      now: () => at(2026, 5, 15, 8, 12),
+    });
+    await src.start();
+
+    emit(idleTick(500));
+    expect(pushed).toHaveLength(0);
+    expect(save).not.toHaveBeenCalled();
+
+    held = false;
+    emit(idleTick(500));
+    expect(pushed.map((e) => e.event_name)).toEqual(["time_milestone.first_activity"]);
+  });
 });
 
 describe("milestone_source — lifecycle", () => {

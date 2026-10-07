@@ -27,6 +27,7 @@ function harness(
     | null
     | (() => { id: string; vrma_path: string } | null) = null,
   configOverride: TapConfig = config,
+  isHeld?: () => boolean,
 ) {
   const pushed: BusEnvelope[] = [];
   const bus = {
@@ -48,6 +49,7 @@ function harness(
     config: configOverride,
     now: () => time,
     drainSignals,
+    isHeld,
   });
   return { source, pushed, renderer, setTime: (next: number) => (time = next) };
 }
@@ -572,5 +574,31 @@ describe("createTapSource — head pat", () => {
     source.handlePatEnd();
 
     expect(pushed.filter((env) => env.event_name === "proactive.head_pat")).toHaveLength(1);
+  });
+});
+
+describe("createTapSource — held cues", () => {
+  it("pushes the tier1 reactions and none of the cues while held, and the cues once released", () => {
+    let held = true;
+    const cues: TapConfig = {
+      ...config,
+      region_cues: { ...touchConfig().region_cues, ...patConfig().region_cues },
+    };
+    const { source, pushed, setTime } = harness(headPoints(), undefined, null, cues, () => held);
+    source.handleClick({ x: 50, y: 60 });
+    source.handlePatStart();
+    setTime(2_000);
+    source.handlePatEnd();
+
+    expect(pushed.map((e) => e.event_name)).toEqual([
+      "user.tap_region",
+      "user.pat_start",
+      "user.pat_end",
+    ]);
+
+    held = false;
+    pushed.length = 0;
+    source.handleClick({ x: 50, y: 60 });
+    expect(pushed.map((e) => e.event_name)).toEqual(["proactive.touch_chest", "user.tap_region"]);
   });
 });

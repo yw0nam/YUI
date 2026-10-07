@@ -16,6 +16,8 @@ const { created, started, drainQueue, makeSource } = vi.hoisted(() => {
       stop: () => {},
       noteInteraction: () => {},
       drain: () => drainQueue.splice(0),
+      owed: () => null,
+      latch: () => {},
     };
   };
   return { created, started, drainQueue, makeSource };
@@ -108,6 +110,7 @@ describe("wireDispatcherSources", () => {
       "scheduleSource",
       "screenSource",
       "signalsSource",
+      "wakeSource",
     ]);
     // Each source is started (fire-and-forget) so candidate events flow once wired.
     expect(started.sort()).toEqual([
@@ -160,10 +163,11 @@ describe("wireDispatcherSources", () => {
     expect(milestone.isEnabled()).toBe(true);
   });
 
-  it("holds the milestone source while the first activity is held, and lets it fire once released", () => {
+  it("hands the milestone source the first-activity hold, and fires the wake on the shared bus", () => {
     let held = true;
-    wireDispatcherSources({
-      bus: {} as never,
+    const push = vi.fn(() => true);
+    const result = wireDispatcherSources({
+      bus: { push } as never,
       presenceSettings: { get: () => ({ value: 5000 }) },
       proactiveSettings: { get: () => ({ enabled: true, entries: [] }) },
       scheduleSettings: { get: () => ({ enabled: true, entries: [] }) },
@@ -176,10 +180,16 @@ describe("wireDispatcherSources", () => {
       isFirstActivityHeld: () => held,
     });
 
-    const milestone = created.milestone as { isEnabled: () => boolean };
-    expect(milestone.isEnabled()).toBe(false);
-    held = false;
+    const milestone = created.milestone as { isEnabled: () => boolean; isHeld: () => boolean };
     expect(milestone.isEnabled()).toBe(true);
+    expect(milestone.isHeld()).toBe(true);
+    held = false;
+    expect(milestone.isHeld()).toBe(false);
+
+    result.wakeSource.fire("click");
+    expect(push).toHaveBeenCalledExactlyOnceWith(
+      expect.objectContaining({ event_name: "proactive.wake", payload: { cause: "click" } }),
+    );
   });
 
   it("hands the milestone source a drain that empties the signals buffers", () => {

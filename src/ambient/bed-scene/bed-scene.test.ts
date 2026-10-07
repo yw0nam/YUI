@@ -32,6 +32,8 @@ function makeHarness(
 ) {
   /** Every observable effect in the order it happened. */
   const calls: string[] = [];
+  /** Each onWake with the effect that came right before it. */
+  const woke: Array<{ cause: string; after: string | undefined }> = [];
   let tick: TickFn | null = null;
   let vrm = {};
   let hold: readonly string[] | null = null;
@@ -115,6 +117,7 @@ function makeHarness(
     placed: new Promise((resolve) => (place = resolve)),
     wakeTimeoutS: WAKE_TIMEOUT_S,
     onDone: () => calls.push("onDone"),
+    onWake: (cause) => woke.push({ cause, after: calls.at(-1) }),
     log,
   };
   const flush = async (): Promise<void> => {
@@ -131,6 +134,7 @@ function makeHarness(
   return {
     scene,
     calls,
+    woke,
     log,
     prop,
     propUrls,
@@ -195,10 +199,10 @@ describe("createBedScene", () => {
     ]);
   });
 
-  it("wakes on a user wake once: eyes open, gaze restored, the wake clip plays", async () => {
+  it("wakes on a click once: eyes open, gaze restored, the wake clip plays, then onWake names the click", async () => {
     const h = makeHarness();
     await h.startAsleep();
-    h.scene.wake("user");
+    h.scene.wake("click");
     expect(h.scene.state()).toBe("waking");
     expect(h.calls.slice(-4)).toEqual([
       "asleep:false",
@@ -206,9 +210,22 @@ describe("createBedScene", () => {
       "gaze:true",
       `play:${BED_WAKE_MOTION_ID}`,
     ]);
+    expect(h.woke).toEqual([{ cause: "click", after: `play:${BED_WAKE_MOTION_ID}` }]);
     const before = h.calls.length;
     h.scene.wake("timeout");
     expect(h.calls).toHaveLength(before);
+    expect(h.woke).toHaveLength(1);
+  });
+
+  it("wakes on a message without onWake, and reports the message wake once", async () => {
+    const h = makeHarness();
+    await h.startAsleep();
+    expect(h.scene.takeMessageWake()).toBe(false);
+    h.scene.wake("message");
+    expect(h.calls.at(-1)).toBe(`play:${BED_WAKE_MOTION_ID}`);
+    expect(h.woke).toEqual([]);
+    expect(h.scene.takeMessageWake()).toBe(true);
+    expect(h.scene.takeMessageWake()).toBe(false);
   });
 
   it("wakes by itself once the tick clock passes the wake timeout", async () => {
@@ -218,6 +235,7 @@ describe("createBedScene", () => {
     expect(h.scene.state()).toBe("asleep");
     await h.frame(1);
     expect(h.scene.state()).toBe("waking");
+    expect(h.woke).toEqual([{ cause: "timeout", after: `play:${BED_WAKE_MOTION_ID}` }]);
     await h.runFrames(2, 1);
     await h.frame(PROP_FADE_S);
     expect(h.log.info).toHaveBeenCalledWith("bed_scene_end", { reason: "ended", cause: "timeout" });
@@ -226,7 +244,7 @@ describe("createBedScene", () => {
   it("ends in order: the clip ends, the bed fades, then dispose, frame release, hold release, idle, onDone", async () => {
     const h = makeHarness();
     await h.startAsleep();
-    h.scene.wake("user");
+    h.scene.wake("click");
     await h.runFrames(20);
     expect(h.scene.state()).toBe("waking");
     expect(h.calls.at(-1)).toBe(`play:${BED_WAKE_MOTION_ID}`);
@@ -246,7 +264,7 @@ describe("createBedScene", () => {
       "play:null",
       "onDone",
     ]);
-    expect(h.log.info).toHaveBeenCalledWith("bed_scene_end", { reason: "ended", cause: "user" });
+    expect(h.log.info).toHaveBeenCalledWith("bed_scene_end", { reason: "ended", cause: "click" });
   });
 
   it("refits the frame on a drag end while the scene runs, and not after it has finished", async () => {
@@ -311,10 +329,10 @@ describe("createBedScene", () => {
     for (const waking of [false, true]) {
       const h = makeHarness();
       await h.startAsleep();
-      if (waking) h.scene.wake("user");
+      if (waking) h.scene.wake("click");
       h.scene.cancel();
       // The frame release is in flight: nothing arriving now restarts or re-ends the scene.
-      h.scene.wake("user");
+      h.scene.wake("click");
       h.scene.cancel();
       await h.frame();
       expect(h.scene.state()).toBe("done");
@@ -361,7 +379,7 @@ describe("createBedScene", () => {
   it("does not pop the bed in when she wakes before the frame is parked", async () => {
     const h = makeHarness({ park: "pending" });
     await h.startAsleep();
-    h.scene.wake("user");
+    h.scene.wake("click");
     await h.runFrames(21);
     h.resolvePark();
     await h.flush();
@@ -369,19 +387,19 @@ describe("createBedScene", () => {
     expect(new Set(h.calls.filter((c) => c.startsWith("prop.opacity:")))).toEqual(
       new Set(["prop.opacity:0"]),
     );
-    expect(h.log.info).toHaveBeenCalledWith("bed_scene_end", { reason: "ended", cause: "user" });
+    expect(h.log.info).toHaveBeenCalledWith("bed_scene_end", { reason: "ended", cause: "click" });
   });
 
   it("ends as lost when another motion has the body, asleep or waking", async () => {
     for (const waking of [false, true]) {
       const h = makeHarness();
       await h.startAsleep();
-      if (waking) h.scene.wake("user");
+      if (waking) h.scene.wake("click");
       h.setCurrent(waking ? BED_SLEEP_MOTION_ID : "idle");
       await h.frame();
       expect(h.log.info).toHaveBeenCalledWith("bed_scene_end", {
         reason: "lost",
-        cause: waking ? "user" : null,
+        cause: waking ? "click" : null,
       });
       expect(h.hold()).toBeNull();
       expect(h.count("onDone")).toBe(1);
@@ -391,9 +409,10 @@ describe("createBedScene", () => {
   it("skips when woken or when the start fails before she has lain down", async () => {
     const woken = makeHarness();
     woken.scene.start();
-    woken.scene.wake("user");
+    woken.scene.wake("click");
     await woken.flush();
     expect(woken.calls).not.toContain(HOLD);
+    expect(woken.woke).toEqual([]);
     expect(woken.count("onDone")).toBe(1);
     expect(woken.log.info).toHaveBeenCalledWith("bed_scene_end", {
       reason: "skipped",

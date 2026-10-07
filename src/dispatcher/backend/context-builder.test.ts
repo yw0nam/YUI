@@ -462,3 +462,52 @@ describe("cue turn — complete client_context text at a fixed clock", () => {
     );
   });
 });
+
+describe("context builder — wake", () => {
+  const CTX: InputContext = { env: { timestamp: "2026-09-11T08:12:00+09:00", timezone: "UTC" } };
+
+  function wakeEnv(payload: Record<string, unknown>): BusEnvelope {
+    return {
+      seq_id: 5,
+      source: "os_event_watcher",
+      event_name: "proactive.wake",
+      ts: 1_717_000_000_000,
+      payload,
+    };
+  }
+
+  it("maps a wake to kind 'proactive' with its cause", () => {
+    const client = buildClientContext(CTX, wakeEnv({ cause: "click" }));
+
+    expect(client.trigger).toEqual({ kind: "proactive", wake: { cause: "click" } });
+  });
+
+  it("carries the first activity and the drained groups a wake brings", () => {
+    const signals = [{ items: [{ skill: "yui-daily-briefing" }] }];
+    const client = buildClientContext(
+      CTX,
+      wakeEnv({ cause: "timeout", name: "first_activity", local_time: "08:12", signals }),
+    );
+
+    expect(client.trigger).toEqual({
+      kind: "proactive",
+      wake: { cause: "timeout" },
+      milestone: { name: "first_activity", local_time: "08:12" },
+      signals,
+    });
+  });
+
+  it("marks a user turn woken by its message, and leaves the take to user turns", async () => {
+    const takeMessageWake = vi.fn(() => true);
+    const user = await buildContext(
+      { ...ENV, event_name: "user.text_submitted" },
+      { takeMessageWake },
+    );
+    expect(user.clientContext.trigger.wake).toEqual({ cause: "message" });
+
+    takeMessageWake.mockClear();
+    const wake = await buildContext(wakeEnv({ cause: "click" }), { takeMessageWake });
+    expect(takeMessageWake).not.toHaveBeenCalled();
+    expect(wake.clientContext.trigger.wake).toEqual({ cause: "click" });
+  });
+});

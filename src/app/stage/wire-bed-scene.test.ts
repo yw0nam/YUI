@@ -4,7 +4,14 @@ import type { BedSceneDeps } from "../../ambient/bed-scene/bed-scene";
 const mocks = vi.hoisted(() => ({
   isTauri: vi.fn(() => false),
   sceneDeps: [] as unknown[],
-  scene: { start: vi.fn(), wake: vi.fn(), cancel: vi.fn(), onDragEnd: vi.fn() },
+  scene: {
+    start: vi.fn(),
+    wake: vi.fn(),
+    cancel: vi.fn(),
+    onDragEnd: vi.fn(),
+    takeMessageWake: vi.fn(() => true),
+  },
+  onWake: vi.fn(),
 }));
 
 vi.mock("../../tauri-env", () => ({ isTauri: mocks.isTauri }));
@@ -37,25 +44,28 @@ function setup(over: { enabled?: boolean; ready?: Promise<void>; frameWindow?: (
     log: { debug: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn() },
   });
   const start = (): BedSceneDeps => {
-    bedScene.start({
-      frame: {
-        ready: over.ready ?? Promise.resolve(),
-        frameWindow:
-          over.frameWindow ??
-          (() => ({
-            outerPosition: async () => ({ x: 500, y: 300 }),
-            outerSize: async () => ({ width: 400, height: 600 }),
-            scaleFactor: async () => 1,
-            setPositionLogical: async () => {},
-            setFrameLogical: async (...frame) => {
-              frameCalls.push(frame);
-            },
-          })),
+    bedScene.start(
+      {
+        frame: {
+          ready: over.ready ?? Promise.resolve(),
+          frameWindow:
+            over.frameWindow ??
+            (() => ({
+              outerPosition: async () => ({ x: 500, y: 300 }),
+              outerSize: async () => ({ width: 400, height: 600 }),
+              scaleFactor: async () => 1,
+              setPositionLogical: async () => {},
+              setFrameLogical: async (...frame) => {
+                frameCalls.push(frame);
+              },
+            })),
+        },
+        placed: Promise.resolve(),
+        setKeepOnScreenPaused: () => {},
+        drop: () => calls.push(`drop:held=${bedScene.isHeld()}`),
       },
-      placed: Promise.resolve(),
-      setKeepOnScreenPaused: () => {},
-      drop: () => calls.push(`drop:held=${bedScene.isHeld()}`),
-    });
+      mocks.onWake,
+    );
     return mocks.sceneDeps.at(-1) as BedSceneDeps;
   };
   return { bedScene, start, calls, frameCalls, setViewWindow, teardowns };
@@ -79,6 +89,7 @@ describe("wireBedScene", () => {
     expect(mocks.sceneDeps).toEqual([]);
     expect(off.bedScene.isHeld()).toBe(false);
     expect(reduced.bedScene.isHeld()).toBe(false);
+    expect(off.bedScene.takeMessageWake()).toBe(false);
     expect(off.teardowns).toEqual([]);
   });
 
@@ -107,16 +118,20 @@ describe("wireBedScene", () => {
     expect(h.bedScene.isHeld()).toBe(false);
   });
 
-  it("forwards a wake and a drag end to the scene", () => {
+  it("forwards a wake with its cause, the message-wake take and a drag end to the scene", () => {
     const h = setup();
-    h.bedScene.wake();
+    h.bedScene.wake("click");
     expect(mocks.scene.wake).not.toHaveBeenCalled();
-    h.start();
-    h.bedScene.wake();
+    expect(h.bedScene.takeMessageWake()).toBe(false);
+    const deps = h.start();
+    h.bedScene.wake("click");
+    h.bedScene.wake("message");
     h.bedScene.onDragEnd();
 
-    expect(mocks.scene.wake).toHaveBeenCalledExactlyOnceWith("user");
+    expect(mocks.scene.wake.mock.calls).toEqual([["click"], ["message"]]);
+    expect(h.bedScene.takeMessageWake()).toBe(true);
     expect(mocks.scene.onDragEnd).toHaveBeenCalledOnce();
+    expect(deps.onWake).toBe(mocks.onWake);
   });
 
   it("unparks a park that was still waiting for the real window when the release came", async () => {

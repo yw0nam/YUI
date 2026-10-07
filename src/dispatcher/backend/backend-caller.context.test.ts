@@ -621,3 +621,51 @@ describe("backend_caller — previous-turn line", () => {
     expect(text).not.toContain("previous:");
   });
 });
+
+describe("backend_caller — wake", () => {
+  function userItemOf(input: unknown): string {
+    const items = input as Array<{ role: string; content: string }>;
+    return items.find((m) => m.role === "user")!.content;
+  }
+
+  it("gives a click wake and a timeout wake their own markers", async () => {
+    for (const [cause, marker] of [
+      ["click", "(I just woke you up)"],
+      ["timeout", "(you just woke up)"],
+    ]) {
+      script.reset();
+      script.events = [completedEvent({ speech_text: "" })];
+      await caller.call(
+        turnOf({
+          seq_id: 8,
+          source: "os_event_watcher",
+          event_name: "proactive.wake",
+          ts: 1_717_000_000_000,
+          payload: { cause },
+        }),
+      );
+      const [, request] = script.spy.mock.calls[0];
+      expect(userItemOf(request.input)).toContain(marker);
+    }
+  });
+
+  it("sends the woken-by-message line on the user turn whose message woke her", async () => {
+    const woke = createBackendCaller({
+      config: CONFIG,
+      renderer: { applyDirective } as never,
+      getApiKey: async () => "k",
+      getFetch: async () => undefined,
+      stream: script.stream,
+      turnOutput,
+      turnFeed: createTurnFeed({ onToolStatus: toolStatusSink, reasoning: createReasoningStore() }),
+      takeMessageWake: () => true,
+      logger,
+    });
+    script.events = [completedEvent({ speech_text: "" })];
+    await woke.call(turnOf(userEnv("good morning")));
+    const [, request] = script.spy.mock.calls[0];
+    expect(clientContextTextOf(userItemOf(request.input))).toContain(
+      "trigger: user message\nwake: asleep on the bed until this message",
+    );
+  });
+});
