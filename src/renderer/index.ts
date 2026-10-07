@@ -299,6 +299,7 @@ export function createRenderer(options: RendererOptions): Renderer {
       mouth.stop();
     },
     playMotion: motion.playMotion,
+    setMotionHold: motion.setMotionHold,
     getCurrentMotion() {
       const cur = motion.current();
       return cur ? { id: cur.id, vrma_path: cur.vrma_path } : null;

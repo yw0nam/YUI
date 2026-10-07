@@ -25,6 +25,22 @@ const registry: MotionRegistry = {
     interrupt_policy: "replace",
     fade_ms: 0,
   },
+  bed_sleep: {
+    vrma_path: "/motions/bed_sleep.vrma",
+    kind: "oneshot",
+    loop: false,
+    priority: 60,
+    interrupt_policy: "replace",
+    fade_ms: 0,
+  },
+  bed_wake: {
+    vrma_path: "/motions/bed_wake.vrma",
+    kind: "oneshot",
+    loop: false,
+    priority: 60,
+    interrupt_policy: "replace",
+    fade_ms: 0,
+  },
 };
 
 /** Lets startMotion's async clip loads settle before asserting. */
@@ -90,5 +106,48 @@ describe("createMotionPlayback", () => {
       "motion_fallback_to_idle",
       expect.objectContaining({ failed_id: "wave" }),
     );
+  });
+
+  it("a hold keeps its motion against outside requests until released", async () => {
+    const { motion, clips, vrm } = makePlayback();
+    const idleLoads = (): number =>
+      clips.load.mock.calls.filter(([path]) => path === IDLE_PATH).length;
+    motion.onVrmLoaded(vrm);
+    await flush();
+
+    motion.setMotionHold(["bed_sleep", "bed_wake"]);
+    motion.playMotion({ id: "bed_sleep" });
+    await flush();
+    expect(motion.current()?.id).toBe("bed_sleep");
+
+    motion.playMotion({ id: "wave" });
+    motion.playMotion(null);
+    await flush();
+    expect(motion.current()?.id).toBe("bed_sleep");
+
+    // Past the 1s clip end — the held oneshot's "finished" is not chained to idle.
+    const before = idleLoads();
+    motion.step({ dt: 1.5 });
+    await flush();
+    expect(motion.current()?.id).toBe("bed_sleep");
+    expect(idleLoads()).toBe(before);
+
+    motion.setMotionHold(null);
+    motion.playMotion(null);
+    await flush();
+    expect(motion.current()?.id).toBe("idle");
+  });
+
+  it("a VRM swap releases the hold so the new model plays idle", async () => {
+    const { motion, vrm } = makePlayback();
+    motion.onVrmLoaded(vrm);
+    await flush();
+    motion.setMotionHold(["bed_sleep", "bed_wake"]);
+
+    motion.onVrmDisposed();
+    motion.onVrmLoaded(vrm);
+    await flush();
+
+    expect(motion.current()?.id).toBe("idle");
   });
 });

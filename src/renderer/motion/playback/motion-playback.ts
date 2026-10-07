@@ -15,6 +15,7 @@ import {
   type ResolvedMotion,
   shouldRestartIdle,
 } from "./motion-controller";
+import { clampUnderHold, dropUnderHold } from "./motion-hold";
 import { createMotionStartGeneration } from "./motion-start-generation";
 import { baselineWhileHeld, suppressWhileHeld } from "./perch-hold";
 
@@ -28,6 +29,8 @@ export interface MotionPlayback extends VrmParticipant {
   /** True while a non-baseline motion clip is actively playing. */
   isConverging(): boolean;
   playMotion(motion: RenderMotionSignal | null): void;
+  /** While set, only these ids play and their finish stays on the last frame; null releases. */
+  setMotionHold(ids: readonly string[] | null): void;
   current(): ResolvedMotion | null;
   /** Clip-local playhead (s) of the committed motion; null when the running action is not its own. */
   currentTime(): number | null;
@@ -67,6 +70,7 @@ export function createMotionPlayback(deps: {
   let currentAction: THREE.AnimationAction | undefined;
   let currentActionId: string | undefined;
   let lastStateMotionId: string | null = null;
+  let motionHold: readonly string[] | null = null;
   /** mixer "finished" event → AnimationAction → motion id reverse lookup. */
   const actionToId = new Map<THREE.AnimationAction, string>();
   const motionStartGeneration = createMotionStartGeneration();
@@ -79,6 +83,10 @@ export function createMotionPlayback(deps: {
       const id = actionToId.get(e.action);
       actionToId.delete(e.action);
       if (!controller || !id) return;
+      if (clampUnderHold(id, motionHold)) {
+        log.debug("motion_hold_clamped", { id });
+        return;
+      }
       // if cycle motion, hold settling final frame for cycle_dwell_ms then swap.
       const isCycle = controller.current()?.cycle ?? false;
       const dwell = motionRegistry?.[id]?.cycle_dwell_ms;
@@ -200,6 +208,10 @@ export function createMotionPlayback(deps: {
       }
       return;
     }
+    if (dropUnderHold(motion, motionHold)) {
+      log.debug("motion_dropped_hold", { id: motion?.id });
+      return;
+    }
     try {
       const decision = controller.request(motion);
       controller.commit(decision);
@@ -257,6 +269,7 @@ export function createMotionPlayback(deps: {
       actionToId.clear();
       currentAction = undefined;
       currentActionId = undefined;
+      motionHold = null; // VRM-bound like the clips, so the next model's idle baseline plays.
       // Controller has no simple no-op reset, so recreate to empty current/queue.
       // (Clips are VRM-specific so idle baseline must be replayed on next VRM anyway.)
       if (motionRegistry) controller = newMotionController(motionRegistry);
@@ -277,6 +290,9 @@ export function createMotionPlayback(deps: {
       return id != null && id !== controller?.baseline();
     },
     playMotion,
+    setMotionHold(ids) {
+      motionHold = ids;
+    },
     current() {
       return controller?.current() ?? null;
     },
