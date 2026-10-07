@@ -2,3 +2,5 @@ strictDepBuilds: false
 allowBuilds:
   esbuild: true
   protobufjs: false
+overrides:
+  vitepress>vite: 6.4.3
