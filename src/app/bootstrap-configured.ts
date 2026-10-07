@@ -1,3 +1,4 @@
+import type { Tier1Engine } from "../ambient/liveliness/tier1";
 import type { Sitter } from "../ambient/locomotion/sitter";
 import type { AppConfig } from "../config/load";
 import { isChatConfigured } from "../dispatcher/backend/backend-caller";
@@ -13,6 +14,7 @@ import { t } from "../ui/i18n";
 import { maybeShowFirstRunHint } from "../ui/notices/first-run-hint";
 import { wireIngressDeadNotice } from "../ui/notices/ingress-dead-notice";
 import type { createQuickControls } from "../ui/quick-controls/quick-controls";
+import { wireBedScene } from "./stage/wire-bed-scene";
 import { wireStageGestures } from "./stage/wire-gestures";
 import { wireLocomotion } from "./stage/wire-locomotion";
 import { wireGaze, wireHitTest } from "./stage/wire-stage";
@@ -26,6 +28,8 @@ const log = createLogger("bootstrap");
 
 /** The pet window's own handles, on top of what the chat turn reads. */
 interface Phase1Handles extends TurnCorePhase1 {
+  ambient: Tier1Engine;
+  applyCamera(): void;
   screenCapturer: ScreenCapturer;
   root: HTMLElement;
   stage: HTMLElement;
@@ -45,6 +49,8 @@ export interface ConfiguredBootstrapHandles {
   stopTurn: () => void;
   /** Resets the proactive gap, the way a typed submit does. */
   noteInteraction: () => void;
+  /** True while a scene holds the body and the window. */
+  isBodyHeld: () => boolean;
   dispose(): void;
 }
 
@@ -96,6 +102,15 @@ const realFactories: ConfiguredBootstrapFactories = {
     const unlistenFrontmost = await subscribeOsEvent({ onTick: frontmostTracker.onTick, log });
     if (unlistenFrontmost) register(unlistenFrontmost);
 
+    const bedScene = wireBedScene({
+      renderer,
+      ambient: phase1.ambient,
+      settings,
+      applyCamera: phase1.applyCamera,
+      register,
+      log,
+    });
+
     const core = await wireTurnCore(cfg, phase1, {
       getFrontmost: () => frontmostTracker.get(),
       screenCapturer: phase1.screenCapturer,
@@ -104,6 +119,7 @@ const realFactories: ConfiguredBootstrapFactories = {
         get: () => settings.sttSettings.get().enabled,
         set: settings.sttSettings.setEnabled,
       },
+      onVoiceTurnStart: bedScene.wake,
       register,
       ensureActive,
     });
@@ -143,7 +159,7 @@ const realFactories: ConfiguredBootstrapFactories = {
         subscribe: dispatcher.subscribePipelineBusy,
       },
       pacer,
-      isFirstActivityHeld: () => false,
+      isFirstActivityHeld: bedScene.isHeld,
     });
     core.setProactiveSource(proactiveSource);
     register(proactiveSource.stop);
@@ -169,7 +185,7 @@ const realFactories: ConfiguredBootstrapFactories = {
       hitTest,
       peekActive: () => peekState?.active() ?? false,
       isPanelOpen: () => getQuickControls().isOpen(),
-      isHeld: () => false,
+      isHeld: bedScene.isHeld,
       fallSettings,
       climbSettings,
       agentNotifySettings,
@@ -181,6 +197,7 @@ const realFactories: ConfiguredBootstrapFactories = {
       log,
     });
     core.setStrolling(locomotion.walker);
+    bedScene.start(locomotion);
 
     await wireStageGestures({
       stage,
@@ -191,6 +208,9 @@ const realFactories: ConfiguredBootstrapFactories = {
       hitTest,
       locomotion,
       cameraSettings: settings.cameraSettings,
+      onTap: bedScene.wake,
+      onDragEnd: bedScene.onDragEnd,
+      isCameraLocked: bedScene.isHeld,
       register,
     });
     ensureActive();
@@ -213,7 +233,10 @@ const realFactories: ConfiguredBootstrapFactories = {
     register(() => void summonHotkey.dispose());
     register(wireIngressDeadNotice({ surfaces, t }));
     const { broker, stopTurn } = await core.connect({
-      onSubmit: () => proactiveSource.noteInteraction(),
+      onSubmit: () => {
+        proactiveSource.noteInteraction();
+        bedScene.wake();
+      },
     });
 
     return {
@@ -225,6 +248,7 @@ const realFactories: ConfiguredBootstrapFactories = {
       sitter: locomotion.sitter,
       stopTurn,
       noteInteraction: () => proactiveSource.noteInteraction(),
+      isBodyHeld: bedScene.isHeld,
     };
   },
 };

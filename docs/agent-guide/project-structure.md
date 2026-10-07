@@ -53,6 +53,7 @@ YUI/
           wire-voice-pipeline.ts     # Wires filler, TTS, and speech playback to the turn lifecycle
       stage/                         # What is bound to the pet window's stage and overlay
         stage-renderer.ts            # The renderer on the stage with its persisted camera and idle throttle, plus Tier 1 liveliness, for the pet and phone windows
+        wire-bed-scene.ts            # The launch bed scene: whether it runs, the hold the rest of the window reads, and its window frame
         wire-gestures.ts             # Pointer gestures on the stage: taps, pats, the window drag, and the camera orbit
         wire-window-sources.ts       # The Tauri window drop and resize sources, the avatar RPC executor, and keep-on-screen
         wire-locomotion.ts           # Travel frame, the five locomotion loops, and the window sources composed into one handle
@@ -176,6 +177,7 @@ YUI/
         playback/                    # Motion scheduling, variant swaps, and mixer playback
           baseline-fallback.ts       # Idle-fallback decision for a motion whose clip fails to load
           cycle-dwell.ts             # Single-timer scheduler for a cycle motion's variant swap
+          motion-hold.ts             # Rules for a hold that keeps the body on a set of motion ids
           motion-controller.ts       # Pure motion scheduling and variant-resolution state machine
           motion-playback.ts         # Mixer-driven motion playback: controller decisions, action crossfade, finish → next, idle baseline
           motion-start-generation.ts # Tracks which asynchronous motion start owns mixer playback
@@ -192,6 +194,8 @@ YUI/
           bone-pitch.ts              # Sign that turns a downward head pitch into a normalized bone's local rotation.x
           cursor-gaze.ts             # Stateful three.js apply layer for cursor head and eye tracking
           gaze-tracker.ts            # Pure cursor-gaze zone curve and angle damping
+      props/                         # Furniture drawn in the character's scene
+        props.ts                     # Prop loading, scale, fade, bounds, and the per-frame follow of the character's position
     dispatcher/                      # Event bus + classify, guardrail, route
       dispatcher.ts                  # The router that enforces the firing-is-not-judgment boundary
       core/
@@ -242,6 +246,8 @@ YUI/
             perch-watch.ts           # Armed perch and peek state with the occlusion-aware detach poll
             placement.ts             # Programmatic placement of the character on a named window
     ambient/                         # Backend-independent local liveliness and movement
+      bed-scene/                     # Launch bed scene
+        bed-scene.ts                 # Asleep on a bed at launch, the wake, the bed's fade, and the one exit that releases the hold and the frame
       liveliness/                    # Tier 1 idle-life engine and its cue math
         tier1.ts                     # Tier 1 ambient engine: blink, idle sway, breath, look-around
         cues.ts                      # Pure, side-effect-free cue math for Tier 1
@@ -285,6 +291,7 @@ YUI/
         screen-settings.ts           # User-editable screen-watch thresholds
         screenshot-settings.ts       # Screenshot enabled state and source
       avatar/                        # Camera, motion, and lip-sync
+        bed-scene-settings.ts        # Launch bed scene on/off and its wake timeout
         camera-settings.ts           # Camera zoom and orbit viewpoint
         camera-gestures.ts           # Maps orbit moves and pinch ratios onto the camera store
         express-motion-settings.ts   # Curates the motion vocabulary the agent may choose from
@@ -364,6 +371,7 @@ YUI/
           screen-geometry.ts           # Monitor containment, work-area floor math, and window clamping shared by every window mover
           keep-on-screen.ts            # Pushes a window back until its centre lands on a monitor
           travel-frame.ts              # Parks the real window once for a scale-seam crossing
+          stationary-frame.ts          # Widens the real window around a character that stays where she is
           perch.ts                     # Perch values, perch-target and placement types, and the host-edge span shared by the drop source, avatar RPC and locomotion
           visible-viewport.ts          # Cached height of the pet window part above the work-area bottom
         openers/                       # Openers and placement of the message, settings, and devtools windows
@@ -512,6 +520,8 @@ YUI/
           express-motion/            # Express motion vocabulary
             express-motion-section.ts  # Express motion categories
             express-motion-section.css # Express motion styles
+          bed-scene/                 # Launch bed scene
+            bed-scene-section.ts     # Bed scene switch and wake timeout
           gain/                      # Mouth gain
             gain-row.ts              # Mouth gain preview
           viewpoint/                 # Camera view reset

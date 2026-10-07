@@ -244,5 +244,23 @@
     "loop": false,
     "priority": 70,
     "interrupt_policy": "replace"
+  },
+  "bed_sleep": {
+    "vrma_path": "/motions/bed_sleep.vrma",
+    "kind": "oneshot",
+    "loop": true,
+    "priority": 90,
+    "interrupt_policy": "replace",
+    "root_keep_xz": true,
+    "broker_publish": false
+  },
+  "bed_wake": {
+    "vrma_path": "/motions/bed_wake.vrma",
+    "kind": "oneshot",
+    "loop": false,
+    "priority": 90,
+    "interrupt_policy": "replace",
+    "root_keep_xz": true,
+    "broker_publish": false
   }
 }

@@ -88,7 +88,14 @@ async function bootstrap(): Promise<BootstrapHandle> {
   const { settingsStores, conversationStores } = createWindowStores(register);
   const petConfig = createPetConfig({ ...settingsStores, log });
   const config = petConfig.config;
-  const { renderer, ambient } = createStageRenderer({ stage, settings: settingsStores, register });
+  // Bound once the configured bootstrap has built whatever holds the body.
+  const cameraLock = { locked: () => false };
+  const { renderer, ambient, applyCamera } = createStageRenderer({
+    stage,
+    settings: settingsStores,
+    isCameraLocked: () => cameraLock.locked(),
+    register,
+  });
 
   const voiceInputStatus = createVoiceInputStatus();
   register(() => voiceInputStatus.dispose());
@@ -213,6 +220,8 @@ async function bootstrap(): Promise<BootstrapHandle> {
     const configured = await createConfiguredBootstrap(cfg, {
       config,
       renderer,
+      ambient,
+      applyCamera,
       surfaces,
       settings: settingsStores,
       conversation: conversationStores,
@@ -234,6 +243,7 @@ async function bootstrap(): Promise<BootstrapHandle> {
       isDisposed,
     });
     register(configured.dispose);
+    cameraLock.locked = configured.isBodyHeld;
     if (isDisposed()) return { dispose };
     help.bindInteraction(configured.noteInteraction);
     push.bind({
