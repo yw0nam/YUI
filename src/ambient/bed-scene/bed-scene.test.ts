@@ -103,7 +103,9 @@ function makeHarness(
         calls.push("frame.park");
         if (over.park === "pending") await new Promise<void>((resolve) => (resolvePark = resolve));
       },
-      refit: async () => {},
+      refit: async () => {
+        calls.push("frame.refit");
+      },
       release: async () => {
         calls.push("frame.release");
         if (over.release === "reject") throw new Error("release");
@@ -237,6 +239,18 @@ describe("createBedScene", () => {
       "onDone",
     ]);
     expect(h.log.info).toHaveBeenCalledWith("bed_scene_end", { reason: "ended", cause: "user" });
+  });
+
+  it("refits the frame on a drag end while the scene runs, and not after it has finished", async () => {
+    const h = makeHarness();
+    await h.startAsleep();
+    h.scene.onDragEnd();
+    expect(h.calls.filter((c) => c === "frame.refit")).toHaveLength(1);
+    h.scene.cancel();
+    await h.runFrames(2);
+    expect(h.scene.isDone()).toBe(true);
+    h.scene.onDragEnd();
+    expect(h.calls.filter((c) => c === "frame.refit")).toHaveLength(1);
   });
 
   it("skips without a hold or a prop when a clip is missing or the prop load rejects", async () => {
