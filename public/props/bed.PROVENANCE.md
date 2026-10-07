@@ -12,10 +12,14 @@ the license wherever the model is distributed.
 
 `bed.glb` is a modified version of the original model.
 
-- Scaled to 2.41 m long, centred on the origin, legs on the ground plane.
+- Scaled to 2.41 m long, then lowered to 0.64 of its height so that the top of
+  the blanket at the near edge is 0.52 m above the floor, the seat height of
+  `public/motions/bed_wake.vrma`.
 - The orange round cushion sits on the far side of the pillow area.
 - The two blanket meshes (`Plane.001_Material_0`, `Plane.003_Material_0`) are
   subdivided.
-- An empty node `anchor_lie` marks where the character's root sits while she
-  lies on top of the blanket: 0.97 m above the ground plane, on the near side
-  of the bed with her head towards the pillows.
+- The origin is the spot on the floor where the character stands at the end of
+  `bed_wake`, in front of the near edge. `bed_sleep` and `bed_wake` keep their
+  horizontal root motion in this same frame, so the bed is placed at the
+  character's position with no further alignment. Sizes are for a character
+  whose rest hips height is 0.9 m.
