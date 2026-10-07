@@ -1,8 +1,8 @@
 /**
  * VrmParticipant — the shared per-frame lifecycle every VRM-bound sub-controller
- * (perch/peek pins, cursor gaze, emotion crossfade, mouth lipsync) implements, so
+ * (perch/peek pins, cursor gaze, emotion crossfade, mouth lipsync, props) implements, so
  * animate()/loadVRM/disposeCurrent/the frame gate hand-sequence one fixed-order
- * array instead of four mismatched vocabularies (onVrmLoaded/onVrmDisposed/reset;
+ * array instead of mismatched vocabularies (onVrmLoaded/onVrmDisposed/reset;
  * step; isConverging/isFading/openValue).
  *
  * Pure orchestration only — no DOM/GL state. buildVrmParticipants adapts each
@@ -17,6 +17,7 @@ import type { CursorGaze } from "./expression/gaze/cursor-gaze";
 import type { MouthLipsync } from "./expression/mouth-lipsync";
 import { isMouthConverging } from "./frame-gate";
 import type { PinController } from "./pin-controller";
+import type { Props } from "./props/props";
 
 /** Per-frame context passed to every participant's step, before vrm.update(dt). */
 interface VrmParticipantContext {
@@ -62,12 +63,13 @@ export function anyConverging(participants: readonly VrmParticipant[]): boolean 
   return false;
 }
 
-/** The four sub-controllers a renderer instance owns, adapted into one VrmParticipant array. */
+/** The five sub-controllers a renderer instance owns, adapted into one VrmParticipant array. */
 interface VrmParticipantSubControllers {
   pins: PinController;
   gaze: CursorGaze;
   emotion: EmotionCrossfade;
   mouth: MouthLipsync;
+  props: Props;
   /** Not a participant itself — pins.step needs it and it's stable for the renderer's lifetime. */
   camera: PerspectiveCamera;
 }
@@ -75,12 +77,13 @@ interface VrmParticipantSubControllers {
 /**
  * Build the fixed-order VrmParticipant array — pins/gaze (bones) before
  * emotion/mouth (expression weights): pins.step → gaze.step →
- * emotion.step → mouth.step, all before vrm.update. Each sub-controller's methods are closures
+ * emotion.step → mouth.step, then props.step once the pins have placed the model,
+ * all before vrm.update. Each sub-controller's methods are closures
  * (no `this`), so referencing them unbound (`pins.onVrmLoaded` rather than
  * `(v) => pins.onVrmLoaded(v)`) is safe.
  */
 export function buildVrmParticipants(deps: VrmParticipantSubControllers): VrmParticipant[] {
-  const { pins, gaze, emotion, mouth, camera } = deps;
+  const { pins, gaze, emotion, mouth, props, camera } = deps;
 
   const pinsParticipant: VrmParticipant = {
     onVrmLoaded: pins.onVrmLoaded,
@@ -107,5 +110,10 @@ export function buildVrmParticipants(deps: VrmParticipantSubControllers): VrmPar
     isConverging: () => isMouthConverging(mouth.openValue()),
   };
 
-  return [pinsParticipant, gazeParticipant, emotionParticipant, mouthParticipant];
+  // No VRM lifecycle hooks: a prop outlives a model hot-swap.
+  const propsParticipant: VrmParticipant = {
+    step: (ctx) => props.step(ctx.vrm),
+  };
+
+  return [pinsParticipant, gazeParticipant, emotionParticipant, mouthParticipant, propsParticipant];
 }
