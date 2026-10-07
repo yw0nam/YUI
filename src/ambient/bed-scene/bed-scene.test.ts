@@ -228,6 +228,16 @@ describe("createBedScene", () => {
     expect(h.scene.takeMessageWake()).toBe(false);
   });
 
+  it("drops a message wake nobody took once the scene ends", async () => {
+    const h = makeHarness();
+    await h.startAsleep();
+    h.scene.wake("message");
+    await h.runFrames(20);
+    await h.frame(PROP_FADE_S);
+    expect(h.scene.state()).toBe("done");
+    expect(h.scene.takeMessageWake()).toBe(false);
+  });
+
   it("wakes by itself once the tick clock passes the wake timeout", async () => {
     const h = makeHarness();
     await h.startAsleep();

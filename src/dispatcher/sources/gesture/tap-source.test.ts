@@ -596,6 +596,15 @@ describe("createTapSource — held cues", () => {
       "user.pat_end",
     ]);
 
+    pushed.length = 0;
+    for (let i = 0; i < 4; i++) source.handleClick({ x: 300, y: 500 });
+    expect(pushed.map((e) => e.event_name)).toEqual([
+      "user.tap",
+      "user.tap",
+      "user.tap",
+      "user.tap",
+    ]);
+
     held = false;
     pushed.length = 0;
     source.handleClick({ x: 50, y: 60 });

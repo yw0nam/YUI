@@ -55,6 +55,20 @@ describe("createWakeSource", () => {
     expect(drainSignals).not.toHaveBeenCalled();
   });
 
+  it("leaves the first activity owed when the bus rejects the wake", () => {
+    const latch = vi.fn();
+    const wake = createWakeSource({
+      bus: { push: () => false },
+      firstActivity: { owed: () => ({ name: "first_activity", local_time: "08:12" }), latch },
+      drainSignals: () => [],
+      now: () => T,
+    });
+
+    wake.fire("click");
+
+    expect(latch).not.toHaveBeenCalled();
+  });
+
   it("carries the held first activity, so the day's first launch reaches the bus once", async () => {
     const { bus, pushed } = fakeBus();
     let emit: (payload: OsEventPayload) => void = () => {};
