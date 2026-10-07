@@ -20,7 +20,16 @@ const BOUNDS = { min: { x: -1, y: 0, z: -2 }, max: { x: 1.5, y: 0.6, z: 0 } };
 const STORED_ORBIT = { azimuth: 0.7, polar: 1.4 };
 const WAKE_TIMEOUT_S = 10;
 
-function makeHarness(over: { missing?: string; prop?: "pending" | "reject" } = {}) {
+function makeHarness(
+  over: {
+    missing?: string;
+    preload?: "reject";
+    prop?: "pending" | "reject";
+    dispose?: "throw";
+    park?: "pending";
+    release?: "reject";
+  } = {},
+) {
   /** Every observable effect in the order it happened. */
   const calls: string[] = [];
   let tick: TickFn | null = null;
@@ -38,9 +47,13 @@ function makeHarness(over: { missing?: string; prop?: "pending" | "reject" } = {
     setScale: (s) => calls.push(`prop.scale:${s}`),
     setOpacity: (a) => calls.push(`prop.opacity:${a}`),
     bounds: () => BOUNDS,
-    dispose: () => calls.push("prop.dispose"),
+    dispose: () => {
+      calls.push("prop.dispose");
+      if (over.dispose === "throw") throw new Error("dispose");
+    },
   };
   let resolveProp: (p: PropHandle) => void = () => {};
+  let resolvePark: () => void = () => {};
   let place: () => void = () => {};
   const log = { debug: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn() };
   const deps: BedSceneDeps = {
@@ -62,6 +75,7 @@ function makeHarness(over: { missing?: string; prop?: "pending" | "reject" } = {
       getCurrentMotionTime: () => (current ? Math.min(clipT, MOTION_S[current.id] ?? clipT) : null),
       getMotionDuration: (id) => (cached.has(id) ? (MOTION_S[id] ?? null) : null),
       preloadMotion: async (id) => {
+        if (over.preload === "reject") throw new Error("preload");
         if (id !== over.missing) cached.add(id);
       },
       setMotionHold: (ids) => {
@@ -87,10 +101,12 @@ function makeHarness(over: { missing?: string; prop?: "pending" | "reject" } = {
       park: async (e) => {
         parked.push(e);
         calls.push("frame.park");
+        if (over.park === "pending") await new Promise<void>((resolve) => (resolvePark = resolve));
       },
       refit: async () => {},
       release: async () => {
         calls.push("frame.release");
+        if (over.release === "reject") throw new Error("release");
       },
     },
     placed: new Promise((resolve) => (place = resolve)),
@@ -129,6 +145,12 @@ function makeHarness(over: { missing?: string; prop?: "pending" | "reject" } = {
     },
     place: () => place(),
     resolveProp: () => resolveProp(prop),
+    resolvePark: () => resolvePark(),
+    /** Another motion took the body: a request the hold let through, or a failed clip load. */
+    setCurrent: (id: string) => {
+      current = { id, vrma_path: "" };
+    },
+    ticking: () => tick !== null,
     /** A hot-swap: the renderer clears the hold and plays idle on the new model. */
     swapVrm: () => {
       vrm = {};
@@ -290,5 +312,98 @@ describe("createBedScene", () => {
     await h.frame();
     expect(h.log.info).toHaveBeenCalledWith("bed_scene_end", { reason: "swapped", cause: null });
     expect(h.calls.slice(-4)).toEqual(["prop.dispose", "frame.release", "hold:null", "onDone"]);
+  });
+
+  it("never parks when cancelled between the prop load and the placement", async () => {
+    const h = makeHarness();
+    h.scene.start();
+    await h.flush();
+    h.scene.cancel();
+    h.place();
+    await h.flush();
+    expect(h.calls).not.toContain("frame.park");
+    expect(h.calls).not.toContain("prop.opacity:1");
+  });
+
+  it("never shows the bed when cancelled while the frame is parking", async () => {
+    const h = makeHarness({ park: "pending" });
+    await h.startAsleep();
+    expect(h.calls.at(-1)).toBe("frame.park");
+    h.scene.cancel();
+    h.resolvePark();
+    await h.flush();
+    expect(h.calls).not.toContain("prop.opacity:1");
+  });
+
+  it("does not pop the bed in when she wakes before the frame is parked", async () => {
+    const h = makeHarness({ park: "pending" });
+    await h.startAsleep();
+    h.scene.wake("user");
+    await h.runFrames(21);
+    h.resolvePark();
+    await h.flush();
+    await h.frame(PROP_FADE_S);
+    expect(new Set(h.calls.filter((c) => c.startsWith("prop.opacity:")))).toEqual(
+      new Set(["prop.opacity:0"]),
+    );
+    expect(h.log.info).toHaveBeenCalledWith("bed_scene_end", { reason: "ended", cause: "user" });
+  });
+
+  it("ends as lost when another motion has the body, asleep or waking", async () => {
+    for (const waking of [false, true]) {
+      const h = makeHarness();
+      await h.startAsleep();
+      if (waking) h.scene.wake("user");
+      h.setCurrent(waking ? BED_SLEEP_MOTION_ID : "idle");
+      await h.frame();
+      expect(h.log.info).toHaveBeenCalledWith("bed_scene_end", {
+        reason: "lost",
+        cause: waking ? "user" : null,
+      });
+      expect(h.hold()).toBeNull();
+      expect(h.count("onDone")).toBe(1);
+    }
+  });
+
+  it("skips when woken or when the start fails before she has lain down", async () => {
+    const woken = makeHarness();
+    woken.scene.start();
+    woken.scene.wake("user");
+    await woken.flush();
+    expect(woken.calls).not.toContain(HOLD);
+    expect(woken.count("onDone")).toBe(1);
+    expect(woken.log.info).toHaveBeenCalledWith("bed_scene_end", {
+      reason: "skipped",
+      cause: null,
+    });
+
+    const failed = makeHarness({ preload: "reject" });
+    failed.scene.start();
+    await failed.flush();
+    expect(failed.log.info).toHaveBeenCalledWith("bed_scene_end", {
+      reason: "skipped",
+      cause: null,
+    });
+    expect(failed.count("onDone")).toBe(1);
+  });
+
+  it("unregisters its tick hook at the end", async () => {
+    const h = makeHarness();
+    await h.startAsleep();
+    expect(h.ticking()).toBe(true);
+    h.scene.cancel();
+    expect(h.ticking()).toBe(false);
+  });
+
+  it("releases the hold and reports done although the frame release or the prop dispose fails", async () => {
+    for (const over of [{ release: "reject" }, { dispose: "throw" }] as const) {
+      const h = makeHarness(over);
+      await h.startAsleep();
+      h.scene.cancel();
+      await h.flush();
+      expect(h.hold()).toBeNull();
+      expect(h.count("frame.release")).toBe(1);
+      expect(h.calls.slice(-2)).toEqual(["play:null", "onDone"]);
+    }
   });
 });
