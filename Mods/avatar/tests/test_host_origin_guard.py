@@ -42,10 +42,6 @@ def test_request_without_browser_headers_reaches_the_server():
     assert _post(_guarded(), host=LOOPBACK).status_code not in (421, 403)
 
 
-def test_default_app_lets_a_foreign_host_through():
-    assert _post(server.mcp.http_app(transport="http"), host="evil.example").status_code not in (421, 403)
-
-
 def test_main_enables_the_guard_for_http_only(monkeypatch):
     calls = []
     monkeypatch.setattr(server.mcp, "run", lambda **kwargs: calls.append(kwargs))

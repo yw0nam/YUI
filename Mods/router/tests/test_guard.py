@@ -40,3 +40,9 @@ def test_foreign_host_never_reaches_the_upstream(monkeypatch):
     r = TestClient(server.app).post("/echo/mcp", content="hello", headers={"host": "evil.example"})
     assert r.status_code == 421
     assert hits == []
+
+
+def test_unparsable_host_or_origin_is_refused():
+    client = TestClient(server.app, raise_server_exceptions=False)
+    assert client.get("/_mods", headers={"host": "[::1"}).status_code == 421
+    assert client.get("/_mods", headers={"host": "127.0.0.1:8080", "origin": "http://[x"}).status_code == 403
