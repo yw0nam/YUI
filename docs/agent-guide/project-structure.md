@@ -53,6 +53,7 @@ YUI/
           wire-voice-pipeline.ts     # Wires filler, TTS, and speech playback to the turn lifecycle
       stage/                         # What is bound to the pet window's stage and overlay
         stage-renderer.ts            # The renderer on the stage with its persisted camera and idle throttle, plus Tier 1 liveliness, for the pet and phone windows
+        bed-scene-hold.ts            # The flag the launch bed scene takes while it holds the body; the camera lock and the movers read it
         wire-bed-scene.ts            # The launch bed scene: whether it runs, the hold the rest of the window reads, and its window frame
         wire-gestures.ts             # Pointer gestures on the stage: taps, pats, the window drag, and the camera orbit
         wire-window-sources.ts       # The Tauri window drop and resize sources, the avatar RPC executor, and keep-on-screen

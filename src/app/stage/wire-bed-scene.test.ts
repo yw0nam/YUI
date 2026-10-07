@@ -15,6 +15,7 @@ vi.mock("../../ambient/bed-scene/bed-scene", () => ({
   },
 }));
 
+import { createBedSceneHold } from "./bed-scene-hold";
 import { wireBedScene } from "./wire-bed-scene";
 
 function setup(over: { enabled?: boolean; ready?: Promise<void>; frameWindow?: () => never } = {}) {
@@ -31,6 +32,7 @@ function setup(over: { enabled?: boolean; ready?: Promise<void>; frameWindow?: (
       cameraSettings: { get: () => ({ zoom: 1, azimuth: 0.7, polar: 1.4 }) },
     } as never,
     applyCamera: () => calls.push("applyCamera"),
+    hold: createBedSceneHold(),
     register: (teardown) => teardowns.push(teardown),
     log: { debug: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn() },
   });
@@ -88,7 +90,7 @@ describe("wireBedScene", () => {
     expect(mocks.scene.start).toHaveBeenCalledOnce();
     expect(deps.wakeTimeoutS).toBe(45);
     expect(deps.frame).toBeNull();
-    expect(h.teardowns).toEqual([mocks.scene.cancel]);
+    expect(h.teardowns).toContain(mocks.scene.cancel);
     expect(h.bedScene.isHeld()).toBe(true);
 
     deps.onDone();

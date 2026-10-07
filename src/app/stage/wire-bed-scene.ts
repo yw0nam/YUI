@@ -10,6 +10,7 @@ import type { Logger } from "../../logger";
 import type { Renderer } from "../../renderer";
 import type { SettingsStores } from "../../settings/settings-stores";
 import { isTauri } from "../../tauri-env";
+import type { BedSceneHold } from "./bed-scene-hold";
 import type { wireLocomotion } from "./wire-locomotion";
 
 type Locomotion = Pick<
@@ -51,6 +52,8 @@ export function wireBedScene(deps: {
   settings: Pick<SettingsStores, "bedSceneSettings" | "gazeSettings" | "cameraSettings">;
   /** Applies the stored zoom and orbit, which the hold kept out. */
   applyCamera: () => void;
+  /** Taken here when the scene will run, and released by its end or by the teardown. */
+  hold: BedSceneHold;
   register: (teardown: () => void) => void;
   log: Logger;
 }): {
@@ -63,14 +66,18 @@ export function wireBedScene(deps: {
   start(locomotion: Locomotion): void;
 } {
   const { enabled, wakeTimeoutS } = deps.settings.bedSceneSettings.get();
-  let held = enabled && !prefersReducedMotion();
+  const { hold } = deps;
+  if (enabled && !prefersReducedMotion()) {
+    hold.take();
+    deps.register(hold.release);
+  }
   let scene: BedScene | null = null;
   return {
-    isHeld: () => held,
+    isHeld: hold.isHeld,
     wake: () => scene?.wake("user"),
     onDragEnd: () => scene?.onDragEnd(),
     start(locomotion) {
-      if (!held) return;
+      if (!hold.isHeld()) return;
       scene = createBedScene({
         renderer: deps.renderer,
         liveliness: deps.ambient,
@@ -80,7 +87,7 @@ export function wireBedScene(deps: {
         placed: locomotion.placed,
         wakeTimeoutS,
         onDone: () => {
-          held = false;
+          hold.release();
           deps.applyCamera();
           // A window dragged into mid-air while she slept falls now.
           locomotion.drop();

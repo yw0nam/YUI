@@ -14,6 +14,7 @@ import { t } from "../ui/i18n";
 import { maybeShowFirstRunHint } from "../ui/notices/first-run-hint";
 import { wireIngressDeadNotice } from "../ui/notices/ingress-dead-notice";
 import type { createQuickControls } from "../ui/quick-controls/quick-controls";
+import type { BedSceneHold } from "./stage/bed-scene-hold";
 import { wireBedScene } from "./stage/wire-bed-scene";
 import { wireStageGestures } from "./stage/wire-gestures";
 import { wireLocomotion } from "./stage/wire-locomotion";
@@ -35,8 +36,7 @@ interface Phase1Handles extends TurnCorePhase1 {
   stage: HTMLElement;
   getQuickControls(): ReturnType<typeof createQuickControls>;
   isDisposed(): boolean;
-  /** Pointed at the bed scene's hold as soon as it exists. */
-  cameraLock: { locked: () => boolean };
+  bedSceneHold: BedSceneHold;
 }
 
 export interface ConfiguredBootstrapHandles {
@@ -98,19 +98,19 @@ const realFactories: ConfiguredBootstrapFactories = {
     } = settings;
     const { vrmSelection } = phase1.vrm;
 
-    const frontmostTracker = createFrontmostTracker();
-    const unlistenFrontmost = await subscribeOsEvent({ onTick: frontmostTracker.onTick, log });
-    if (unlistenFrontmost) register(unlistenFrontmost);
-
     const bedScene = wireBedScene({
       renderer,
       ambient: phase1.ambient,
       settings,
       applyCamera: phase1.applyCamera,
+      hold: phase1.bedSceneHold,
       register,
       log,
     });
-    phase1.cameraLock.locked = bedScene.isHeld;
+
+    const frontmostTracker = createFrontmostTracker();
+    const unlistenFrontmost = await subscribeOsEvent({ onTick: frontmostTracker.onTick, log });
+    if (unlistenFrontmost) register(unlistenFrontmost);
 
     const core = await wireTurnCore(cfg, phase1, {
       getFrontmost: () => frontmostTracker.get(),
