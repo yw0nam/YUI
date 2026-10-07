@@ -67,19 +67,34 @@ describe("createBedSceneSettings", () => {
   // ───────────────────────────────────────────────────────────────────────────
 
   it("a stored out-of-range timeout is clamped on load", () => {
-    const store = createBedSceneSettings({
+    const stored = (wakeTimeoutS: number) => ({
       storage: {
-        load: () => ({ enabled: true, wakeTimeoutS: 99999 }) as BedSceneSettings,
+        load: () => ({ enabled: true, wakeTimeoutS }) as BedSceneSettings,
         save: vi.fn(),
       },
     });
-    expect(store.get().wakeTimeoutS).toBe(WAKE_TIMEOUT_MAX_S);
+    expect(createBedSceneSettings(stored(99999)).get().wakeTimeoutS).toBe(WAKE_TIMEOUT_MAX_S);
+    expect(createBedSceneSettings(stored(1)).get().wakeTimeoutS).toBe(WAKE_TIMEOUT_MIN_S);
+    expect(createBedSceneSettings(stored(120.6)).get().wakeTimeoutS).toBe(121);
   });
 
-  it("a stored wrong-typed blob falls back to the defaults", () => {
+  it("a stored blob with one wrong-typed field falls back to the defaults", () => {
+    const stored = (s: unknown) => ({
+      storage: {
+        load: () => ({ enabled: true, wakeTimeoutS: s }) as unknown as BedSceneSettings,
+        save: vi.fn(),
+      },
+    });
+    const defaults = { enabled: true, wakeTimeoutS: WAKE_TIMEOUT_DEFAULT_S };
+    // wakeTimeoutS wrong, enabled right — the whole blob is rejected.
+    expect(createBedSceneSettings(stored("120")).get()).toEqual(defaults);
+    expect(createBedSceneSettings(stored(NaN)).get()).toEqual(defaults);
+  });
+
+  it("a stored blob with a wrong-typed enabled falls back to the defaults", () => {
     const store = createBedSceneSettings({
       storage: {
-        load: () => ({ enabled: "yes", wakeTimeoutS: "120" }) as unknown as BedSceneSettings,
+        load: () => ({ enabled: "yes", wakeTimeoutS: 300 }) as unknown as BedSceneSettings,
         save: vi.fn(),
       },
     });
@@ -99,10 +114,14 @@ describe("BED_SCENE_STORAGE_KEY", () => {
       setItem: (k: string, v: string) => written.push([k, v]),
     };
 
-    createBedSceneSettings({ storage: localStorageStore(BED_SCENE_STORAGE_KEY) }).setEnabled(false);
-    expect(written[0]?.[0]).toBe(BED_SCENE_STORAGE_KEY);
-    expect(BED_SCENE_STORAGE_KEY).toBe("yui.bed-scene");
-
-    delete (globalThis as { localStorage?: unknown }).localStorage;
+    try {
+      createBedSceneSettings({ storage: localStorageStore(BED_SCENE_STORAGE_KEY) }).setEnabled(
+        false,
+      );
+      expect(written[0]?.[0]).toBe(BED_SCENE_STORAGE_KEY);
+      expect(BED_SCENE_STORAGE_KEY).toBe("yui.bed-scene");
+    } finally {
+      delete (globalThis as { localStorage?: unknown }).localStorage;
+    }
   });
 });

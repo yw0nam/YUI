@@ -161,7 +161,6 @@ export function createSettingsStores(opts?: { locale?: CueLocale }) {
   const expressMotionSettings = createExpressMotionSettings({
     storage: localStorageExpressMotionStorage(),
   });
-  // Launch bed scene on/off + wake timeout. The scene reads the store once at launch.
   const bedSceneSettings = createBedSceneSettings({
     storage: localStorageStore(BED_SCENE_STORAGE_KEY),
   });
