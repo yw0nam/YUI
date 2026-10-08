@@ -124,13 +124,18 @@ Where the avatar body is. Always present.
 body: peeking on Orca (for 2min)
 body: walking (for 0min)
 body: climbing (for 0min)
+body: lying (for 12min)
 body: standing (for 12min)
 ```
 
 The state is `body_state.posture.state` (`standing` \| `sitting` \| `peeking` \|
-`dragging` \| `walking` \| `climbing`); the `on <label>` clause names `posture.perched_on.app` (falling back to
+`dragging` \| `walking` \| `climbing` \| `lying`); the `on <label>` clause names `posture.perched_on.app` (falling back to
 `window_title` when the app didn't resolve) and is omitted when there's no window
-under the avatar — `standing`, `walking` and `climbing` never carry one. `walking` holds for the
+under the avatar — `standing`, `walking`, `climbing` and `lying` never carry one.
+`lying` holds while she is on the bed, whether the launch bed scene or a `go_to_bed`
+command put her there: it starts when she lies down and ends when her wake clip starts,
+and a drag in between reads `dragging` and returns to `lying` on release. The bed
+fires no turn on its own, so the state is visible on whatever turn comes next. `walking` holds for the
 length of one ambient stroll along the work-area bottom and returns to `standing`
 when the stroll ends; the stroll itself fires no turn, so the state is visible on
 whatever turn comes next. `climbing` holds for the length of one ambient climb up or
@@ -411,6 +416,13 @@ A chat or voice message that wakes her is reported on that message's own turn, a
 `wake: asleep on the bed until this message` under `trigger: user message`. The `wake:`
 line appears only for a wake from the bed: a wake before she has lain down skips the
 scene, and a launch with the scene off starts her standing.
+
+The bed also takes her on command: a `go_to_bed` avatar command lies her on a bed at the
+spot she stands on, and she sleeps until the backend's `stand_down` or the user wakes her.
+The same wake rules apply to the user: a click wakes her with `proactive.wake` and a
+message wakes her on its own turn. A `stand_down` that gets her up fires no
+`proactive.wake`, since the backend sent it and already knows; the wake timeout applies
+only to the launch scene.
 
 ## Deliberately omitted fields
 
