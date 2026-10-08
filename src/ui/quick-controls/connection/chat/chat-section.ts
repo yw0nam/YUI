@@ -26,6 +26,7 @@ import {
 } from "../../markup";
 import { chatTypeRowHtml, createChatTypeView } from "../chat-type";
 import { createChatStatus } from "./chat-status";
+import { createModelCombobox } from "./model-combobox";
 import { createModelRead } from "./model-read";
 import { type ModelStatusPhase, modelStatusView } from "./model-status";
 
@@ -115,6 +116,17 @@ export function createChatSection(deps: {
 
   const status = createChatStatus(el, { onAction: () => pushSocket?.reconnectNow() });
 
+  // The pick persists through the input's own commit path — the store is not written here.
+  const combobox = modelInput
+    ? createModelCombobox({
+        input: modelInput,
+        onPick: (id) => {
+          modelInput.value = id;
+          modelInput.dispatchEvent(new Event("change", { bubbles: true }));
+        },
+      })
+    : undefined;
+
   let disposed = false;
   // The model-list phase the line shows; null = nothing (cleared, or the push state owns the line).
   let modelPhase: ModelStatusPhase | null = null;
@@ -125,6 +137,11 @@ export function createChatSection(deps: {
     onPhase(phase) {
       if (disposed) return;
       modelPhase = phase.phase === "cleared" ? null : phase;
+      if (phase.phase === "done" && phase.result.kind === "ok") {
+        combobox?.setOptions(phase.result.ids);
+      } else if (phase.phase !== "reading") {
+        combobox?.setOptions([]);
+      }
       if (isOpen()) renderStatus();
     },
   });
@@ -221,6 +238,8 @@ export function createChatSection(deps: {
     if (isPush()) {
       // Switching to push: the model list has no owner here — clear the line for the socket state.
       read.abort();
+      combobox?.setOptions([]);
+      combobox?.closeList();
       modelPhase = null;
       renderStatus();
       return;
@@ -253,6 +272,7 @@ export function createChatSection(deps: {
     dispose(): void {
       disposed = true;
       read.abort();
+      combobox?.dispose();
       unsubscribePushState?.();
       status.dispose();
     },

@@ -412,6 +412,7 @@ const en: Record<string, string> = {
   "svc.chat_models_http": "The server returned an error ({status})",
   "svc.chat_models_no_list": "No model list at this URL",
   "svc.chat_models_malformed": "The server returned an invalid model list",
+  "svc.chat_models_no_match": "No match. The typed name is kept.",
   "svc.chat_preset_label": "Provider",
   "svc.chat_preset_aria": "Chat provider preset",
   "svc.chat_preset_custom": "Custom",

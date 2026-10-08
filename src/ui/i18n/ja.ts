@@ -414,6 +414,7 @@ const ja: Record<string, string> = {
   "svc.chat_models_http": "サーバーがエラーを返しました ({status})",
   "svc.chat_models_no_list": "この URL にモデル一覧はありません",
   "svc.chat_models_malformed": "サーバーが不正なモデル一覧を返しました",
+  "svc.chat_models_no_match": "一致なし。入力した名前をそのまま使います。",
   "svc.chat_preset_label": "プロバイダー",
   "svc.chat_preset_aria": "チャットプロバイダーのプリセット",
   "svc.chat_preset_custom": "カスタム",

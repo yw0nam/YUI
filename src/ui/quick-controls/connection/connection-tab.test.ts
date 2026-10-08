@@ -388,6 +388,26 @@ describe("createConnectionTab", () => {
       tab.dispose();
     });
 
+    it("picking from the combobox commits the id through the model input", async () => {
+      const deps = modelReadDeps();
+      const tab = build(DESKTOP_ROWS, { ...deps, getEndpointDefaults: () => defaults });
+      document.body.append(tab.el);
+      tab.entered();
+      await tick();
+      await tick();
+      deps.settle();
+      await tick();
+
+      const model = tab.el.querySelector<HTMLInputElement>("#yui-ep-chat_model")!;
+      model.focus();
+      model.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowDown", bubbles: true }));
+      model.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true }));
+
+      expect(model.value).toBe("m1");
+      expect(endpointsSettings.get().chat_model).toBe("m1");
+      tab.dispose();
+    });
+
     it("clears an invalid URL instead of reading", async () => {
       const deps = modelReadDeps();
       const tab = build(DESKTOP_ROWS, { ...deps, getEndpointDefaults: () => defaults });

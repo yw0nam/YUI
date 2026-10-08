@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it } from "vitest";
-import { setLocale, t } from "../../../i18n";
+import { t } from "../../../i18n";
 import { createModelCombobox } from "./model-combobox";
 
 function mountRow() {
@@ -76,9 +76,7 @@ describe("createModelCombobox", () => {
 
     input.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowDown", bubbles: true }));
     expect(input.getAttribute("aria-activedescendant")).toBe(`${list.id}-opt-0`);
-    expect(
-      list.querySelector('[aria-selected="true"]')?.textContent,
-    ).toBe("m1");
+    expect(list.querySelector('[aria-selected="true"]')?.textContent).toBe("m1");
 
     input.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowDown", bubbles: true }));
     input.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowUp", bubbles: true }));
@@ -142,9 +140,7 @@ describe("createModelCombobox", () => {
 
     combobox.setOptions(["m1"]);
     input.focus();
-    input.dispatchEvent(
-      new KeyboardEvent("keydown", { key: "ArrowDown", bubbles: true }),
-    );
+    input.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowDown", bubbles: true }));
     input.dispatchEvent(
       new KeyboardEvent("keydown", { key: "Enter", isComposing: true, bubbles: true }),
     );
