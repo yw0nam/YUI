@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { avatarFixture } from "../../config/load-test-helpers";
 import type { WindowRect } from "../../contract";
+import type { AvatarBed } from "../../io/bridge/inbox/avatar-executor";
 import type { DescentEdge } from "../../io/window/geometry/screen-geometry";
 
 // The five loops, the travel frame, the sitter and the window sources are faked so each
@@ -55,7 +56,9 @@ describe("wireLocomotion", () => {
     for (const mock of Object.values(mocks)) mock.mockReset();
   });
 
-  const setup = (over: { isPanelOpen?: () => boolean; isHeld?: () => boolean } = {}) => {
+  const setup = (
+    over: { isPanelOpen?: () => boolean; isHeld?: () => boolean; bed?: AvatarBed } = {},
+  ) => {
     const cancelOrder: string[] = [];
     const teardowns: string[] = [];
     const registered: Array<() => void> = [];
@@ -83,6 +86,7 @@ describe("wireLocomotion", () => {
     };
     const faller = {
       drop: vi.fn(async () => {}),
+      place: vi.fn(async () => {}),
       placed: Promise.resolve(),
       cancel: () => cancelOrder.push("faller.cancel"),
       dispose: () => teardowns.push("faller.dispose"),
@@ -116,7 +120,9 @@ describe("wireLocomotion", () => {
       | { onDescend(edge: DescentEdge): void; isPanelOpen(): boolean; isDragging(): boolean }
       | undefined;
     let fallerDeps: { onWindowLand(target: WindowRect): void; isEnabled(): boolean } | undefined;
-    let windowSourcesDeps: { onRelocated(): Promise<void>; isHeld(): boolean } | undefined;
+    let windowSourcesDeps:
+      | { onRelocated(): Promise<void>; isHeld(): boolean; bed: AvatarBed }
+      | undefined;
     let climberDeps: { isDragging(): boolean } | undefined;
     mocks.wireTravelFrame.mockImplementation((deps) => {
       travelFrameDeps = deps;
@@ -169,6 +175,7 @@ describe("wireLocomotion", () => {
       peekActive: () => false,
       isPanelOpen: over.isPanelOpen ?? (() => false),
       isHeld: over.isHeld ?? (() => false),
+      bed: over.bed ?? { phase: () => "off", lieDown: async () => true, getUp: () => {} },
       fallSettings: { get: () => ({ enabled: true }) } as never,
       climbSettings: climbSettings as never,
       agentNotifySettings: { get: () => ({ enabled: false, port: 8770 }) } as never,
@@ -283,6 +290,21 @@ describe("wireLocomotion", () => {
     const s = setup();
 
     expect(s.locomotion.placed).toBe(s.faller.placed);
+  });
+
+  it("hands out the faller's placement on the floor", async () => {
+    const s = setup();
+
+    await s.locomotion.place();
+
+    expect(s.faller.place).toHaveBeenCalledOnce();
+  });
+
+  it("hands the window sources the bed the avatar commands lay her on", () => {
+    const bed = { phase: () => "off", lieDown: async () => true, getUp: () => {} } as const;
+    const s = setup({ bed });
+
+    expect(s.windowSourcesDeps.bed).toBe(bed);
   });
 
   it("hands out a drop", () => {

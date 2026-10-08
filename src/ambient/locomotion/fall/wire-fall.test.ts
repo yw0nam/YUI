@@ -113,6 +113,21 @@ describe("wireFaller — fall toggle", () => {
   });
 });
 
+describe("wireFaller — placement on request", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it("puts her on the floor where she stands, whatever the fall switch says", async () => {
+    const { handle } = await wire({ isEnabled: () => false });
+    fallerDrop.mockClear();
+
+    await handle.place();
+
+    expect(fallerDrop).toHaveBeenCalledWith({ place: true });
+  });
+});
+
 describe("wireFaller — placement completion", () => {
   afterEach(() => {
     vi.unstubAllGlobals();
