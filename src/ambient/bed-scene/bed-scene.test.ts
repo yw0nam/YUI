@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import type { PropHandle, TickContext, TickFn } from "../../renderer";
 import {
+  BED_LIE_MOTION_ID,
   BED_PROP_URL,
   BED_SLEEP_MOTION_ID,
   BED_WAKE_MOTION_ID,
@@ -11,8 +12,9 @@ import {
   PROP_FADE_S,
 } from "./bed-scene";
 
-const MOTION_S: Record<string, number> = { bed_sleep: 8, bed_wake: 2 };
+const MOTION_S: Record<string, number> = { bed_lie: 3, bed_sleep: 8, bed_wake: 2 };
 const HOLD = `hold:${BED_SLEEP_MOTION_ID},${BED_WAKE_MOTION_ID}`;
+const BED_HOLD = `hold:${BED_LIE_MOTION_ID},${BED_SLEEP_MOTION_ID},${BED_WAKE_MOTION_ID}`;
 const REST_HIPS_M = 1.8;
 const PX_PER_METRE = 200;
 const ANCHOR = { x: 150, y: 400 };
@@ -34,6 +36,8 @@ function makeHarness(
   const calls: string[] = [];
   /** Each onWake with the effect that came right before it. */
   const woke: Array<{ cause: string; after: string | undefined }> = [];
+  /** Each posture change the scene reported. */
+  const lying: boolean[] = [];
   let tick: TickFn | null = null;
   let vrm = {};
   let hold: readonly string[] | null = null;
@@ -118,6 +122,7 @@ function makeHarness(
     wakeTimeoutS: WAKE_TIMEOUT_S,
     onDone: () => calls.push("onDone"),
     onWake: (cause) => woke.push({ cause, after: calls.at(-1) }),
+    onLying: (isLying) => lying.push(isLying),
     log,
   };
   const flush = async (): Promise<void> => {
@@ -135,6 +140,7 @@ function makeHarness(
     scene,
     calls,
     woke,
+    lying,
     log,
     prop,
     propUrls,
@@ -151,6 +157,13 @@ function makeHarness(
       await flush();
     },
     place: () => place(),
+    /** Lie down on command, land the placement and let the start sequence settle. */
+    lieDown: async (): Promise<boolean> => {
+      const lay = scene.lieDown();
+      place();
+      await flush();
+      return lay;
+    },
     resolveProp: () => resolveProp(prop),
     resolvePark: () => resolvePark(),
     /** Another motion took the body: a request the hold let through, or a failed clip load. */
@@ -457,5 +470,150 @@ describe("createBedScene", () => {
       expect(h.count("frame.release")).toBe(1);
       expect(h.calls.slice(-2)).toEqual(["play:null", "onDone"]);
     }
+  });
+
+  it("reports the posture as lying from the sleep clip until the wake clip starts", async () => {
+    const h = makeHarness();
+    await h.startAsleep();
+    expect(h.lying).toEqual([true]);
+    h.scene.wake("click");
+    expect(h.lying).toEqual([true, false]);
+  });
+});
+
+describe("createBedScene — lying down on command", () => {
+  it("shows the bed first, then plays the lying-down clip and answers true once she lies", async () => {
+    const h = makeHarness();
+    const lay = h.scene.lieDown();
+    let answered: boolean | undefined;
+    void lay.then((ok) => {
+      answered = ok;
+    });
+    await h.flush();
+    expect(h.scene.state()).toBe("starting");
+    expect(answered).toBeUndefined();
+    expect(h.lying).toEqual([]);
+    h.place();
+    await h.flush();
+
+    expect(answered).toBe(true);
+    expect(h.scene.state()).toBe("asleep");
+    expect(h.propUrls).toEqual([BED_PROP_URL]);
+    expect(h.calls).toEqual([
+      BED_HOLD,
+      "gaze:false",
+      `orbit:0,${STORED_ORBIT.polar}`,
+      `prop.scale:${REST_HIPS_M / CLIP_REST_HIPS_M}`,
+      "prop.opacity:0",
+      "frame.park",
+      "prop.opacity:1",
+      `play:${BED_LIE_MOTION_ID}`,
+      "asleep:true",
+      "spring:true",
+    ]);
+    expect(h.lying).toEqual([true]);
+  });
+
+  it("holds the sleep loop once the lying-down clip ends, and never wakes by the timeout", async () => {
+    const h = makeHarness();
+    await h.lieDown();
+    await h.runFrames(2);
+    expect(h.calls.at(-1)).not.toBe(`play:${BED_SLEEP_MOTION_ID}`);
+    await h.runFrames(4);
+    expect(h.calls.at(-1)).toBe(`play:${BED_SLEEP_MOTION_ID}`);
+    expect(h.count(`play:${BED_SLEEP_MOTION_ID}`)).toBe(1);
+
+    await h.runFrames(WAKE_TIMEOUT_S * 3, 1);
+    expect(h.scene.state()).toBe("asleep");
+    expect(h.woke).toEqual([]);
+  });
+
+  it("wakes on a click, a message or the backend, each starting the wake clip", async () => {
+    for (const cause of ["click", "message", "agent"] as const) {
+      const h = makeHarness();
+      await h.lieDown();
+      await h.runFrames(40);
+      h.scene.wake(cause);
+      expect(h.scene.state()).toBe("waking");
+      expect(h.calls.at(-1)).toBe(`play:${BED_WAKE_MOTION_ID}`);
+      expect(h.lying).toEqual([true, false]);
+      expect(h.woke.map((w) => w.cause)).toEqual(cause === "message" ? [] : [cause]);
+    }
+  });
+
+  it("wakes while the lying-down clip still plays", async () => {
+    const h = makeHarness();
+    await h.lieDown();
+    h.scene.wake("agent");
+    expect(h.scene.state()).toBe("waking");
+    expect(h.calls.at(-1)).toBe(`play:${BED_WAKE_MOTION_ID}`);
+  });
+
+  it("answers false and leaves the scene alone while a scene already runs", async () => {
+    const h = makeHarness();
+    await h.startAsleep();
+    const before = h.calls.length;
+
+    expect(await h.lieDown()).toBe(false);
+    expect(h.calls).toHaveLength(before);
+    expect(h.scene.state()).toBe("asleep");
+  });
+
+  it("answers false when a clip is missing, the bed does not load, or a click comes first", async () => {
+    const missing = makeHarness({ missing: BED_LIE_MOTION_ID });
+    expect(await missing.lieDown()).toBe(false);
+    expect(missing.calls).not.toContain(BED_HOLD);
+    expect(missing.lying).toEqual([]);
+    expect(missing.count("onDone")).toBe(1);
+
+    const noBed = makeHarness({ prop: "reject" });
+    expect(await noBed.lieDown()).toBe(false);
+    expect(noBed.hold()).toBeNull();
+    expect(noBed.calls).not.toContain(`play:${BED_LIE_MOTION_ID}`);
+
+    const clicked = makeHarness({ prop: "pending" });
+    const lay = clicked.scene.lieDown();
+    await clicked.flush();
+    clicked.scene.wake("click");
+    expect(await lay).toBe(false);
+    expect(clicked.woke).toEqual([]);
+    expect(clicked.hold()).toBeNull();
+  });
+
+  it("does not fire the wake clip or the posture again after a cancel", async () => {
+    const h = makeHarness();
+    await h.lieDown();
+    h.scene.cancel();
+    await h.flush();
+    expect(h.lying).toEqual([true, false]);
+    expect(h.hold()).toBeNull();
+    expect(h.count("onDone")).toBe(1);
+  });
+
+  it("runs again after it ended, on either entry, with a fresh timeout and a fresh bed", async () => {
+    const h = makeHarness();
+    await h.lieDown();
+    h.scene.wake("agent");
+    await h.runFrames(40);
+    await h.frame(PROP_FADE_S);
+    expect(h.scene.state()).toBe("done");
+    expect(h.count("onDone")).toBe(1);
+    expect(h.lying).toEqual([true, false]);
+
+    expect(await h.lieDown()).toBe(true);
+    expect(h.scene.state()).toBe("asleep");
+    expect(h.count("prop.dispose")).toBe(1);
+    expect(h.propUrls).toHaveLength(2);
+    expect(h.lying).toEqual([true, false, true]);
+    h.scene.wake("click");
+    await h.runFrames(40);
+    await h.frame(PROP_FADE_S);
+    expect(h.scene.state()).toBe("done");
+
+    h.scene.start();
+    await h.flush();
+    await h.runFrames(WAKE_TIMEOUT_S + 1, 1);
+    expect(h.scene.state()).toBe("waking");
+    expect(h.woke.at(-1)?.cause).toBe("timeout");
   });
 });
