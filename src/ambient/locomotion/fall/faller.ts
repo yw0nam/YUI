@@ -211,8 +211,12 @@ function pickFallMonitor(args: {
 }
 
 export interface Faller {
-  /** Drop from where the character hangs. Ignored while a fall is already running. */
-  drop(opts?: DropOptions): Promise<void>;
+  /**
+   * Drop from where the character hangs. Ignored while a fall is already running. Settles true
+   * when she was put on a surface or found standing on one, false when the drop was ignored,
+   * skipped or cancelled, and false for a fall (its landing is reported through `onLand`).
+   */
+  drop(opts?: DropOptions): Promise<boolean>;
   /** End a running fall now. */
   cancel(): void;
   stop(): void;
@@ -377,7 +381,10 @@ export function createFaller(deps: FallerDeps): Faller {
     deps.onEnd();
   }
 
-  async function begin(settle: () => void, opts: DropOptions): Promise<boolean> {
+  /** What a drop's setup came to: a fall under way, her put on a surface, or nothing done. */
+  type Begun = "falling" | "settled" | "skipped";
+
+  async function begin(settle: () => void, opts: DropOptions): Promise<Begun> {
     const startedAt = generation;
     const cfg = deps.getConfig();
     // Feet in canvas-local logical px; the window bottom sits well below them.
@@ -393,8 +400,8 @@ export function createFaller(deps: FallerDeps): Faller {
       deps.listMonitors(),
       roomPx === null ? Promise.resolve([]) : deps.listWindows(),
     ]);
-    if (stopped || generation !== startedAt) return false;
-    if (!feet || !probe) return false;
+    if (stopped || generation !== startedAt) return "skipped";
+    if (!feet || !probe) return "skipped";
     const scale = sf > 0 ? sf : 1;
     // The feet are what stands on a surface, and a window straddling a screen edge has its
     // origin off every monitor while the character is fully on one.
@@ -417,7 +424,7 @@ export function createFaller(deps: FallerDeps): Faller {
         x: Math.round(feetPhysicalX),
         y: Math.round(feetPhysicalY),
       });
-      return false;
+      return "skipped";
     }
     const floorY = floorPx(monitor);
     const minStandingTop = logicalWorkArea(monitor).y + feet.y;
@@ -437,7 +444,7 @@ export function createFaller(deps: FallerDeps): Faller {
       cfg,
       tolerancePx: deps.getFloorTolerancePx(),
     });
-    if (plan.kind === "none") return false;
+    if (plan.kind === "none") return "settled";
     log.debug("fall_surface", {
       kind: surface.kind,
       windowNumber: surface.kind === "window" ? surface.target.windowNumber : null,
@@ -451,7 +458,7 @@ export function createFaller(deps: FallerDeps): Faller {
       if (!opts.place && (plan.kind === "fall" || surface.kind === "window")) {
         reportLanding(plan.heightPx, surface, plan.kind === "fall");
       }
-      return false;
+      return "settled";
     }
     // The pickup clip may still hold the body this early after the release; the descent
     // starts anyway and step() takes the clip once the body is back on the baseline.
@@ -481,19 +488,21 @@ export function createFaller(deps: FallerDeps): Faller {
     };
     unsub = renderer.onTick((ctx) => step(ctx.dt));
     deps.onStart();
-    return true;
+    return "falling";
   }
 
   return {
     async drop(opts = {}) {
-      if (stopped || fall || starting) return;
+      if (stopped || fall || starting) return false;
       let settle!: () => void;
       const done = new Promise<void>((resolve) => {
         settle = resolve;
       });
       starting = true;
+      let begun: Begun = "skipped";
       try {
-        if (!(await begin(settle, opts))) settle();
+        begun = await begin(settle, opts);
+        if (begun !== "falling") settle();
       } catch (err) {
         log.warn("fall_start_failed", { degrade: true, error: String(err) });
         settle();
@@ -501,6 +510,7 @@ export function createFaller(deps: FallerDeps): Faller {
         starting = false;
       }
       await done;
+      return begun === "settled";
     },
     cancel() {
       endFall();

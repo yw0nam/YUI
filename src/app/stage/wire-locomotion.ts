@@ -76,8 +76,8 @@ export function wireLocomotion(deps: {
   setKeepOnScreenPaused(paused: boolean): void;
   /** Resolves once the boot placement has settled. */
   placed: Promise<void>;
-  /** Puts her on the floor where she stands. */
-  place(): Promise<void>;
+  /** Puts her on the floor where she stands; false when that did not happen. */
+  place(): Promise<boolean>;
   /** Drops a character left mid-air. */
   drop(): void;
 } {

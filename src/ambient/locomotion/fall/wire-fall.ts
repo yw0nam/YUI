@@ -32,8 +32,11 @@ export function wireFaller(deps: {
   log: Logger;
 }): {
   drop(opts?: DropOptions): Promise<void>;
-  /** Puts her on the floor line where she stands, whatever the fall switch says. */
-  place(): Promise<void>;
+  /**
+   * Puts her on the floor line where she stands, whatever the fall switch says, once the boot
+   * placement has settled. True when she is down; false when the faller was busy or is not there.
+   */
+  place(): Promise<boolean>;
   cancel(): void;
   dispose(): void;
   /** Resolves once the boot placement has settled, or at once where none runs. */
@@ -50,7 +53,12 @@ export function wireFaller(deps: {
     drop: async (opts?: DropOptions) => {
       if (deps.isEnabled()) await faller?.drop(opts);
     },
-    place: async () => faller?.drop({ place: true }),
+    place: async () => {
+      // Without a window there is nothing to put on a floor.
+      if (!isTauri()) return true;
+      await placed;
+      return (await faller?.drop({ place: true })) ?? false;
+    },
     cancel: () => faller?.cancel(),
     dispose: () => {
       disposed = true;
