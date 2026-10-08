@@ -87,7 +87,7 @@ function fakeFactories(disposalOrder: string[] = []): ConfiguredBootstrapFactori
         dispatcher: { name: "dispatcher" },
         guardrails: { name: "guardrails" },
         summonHotkey: { name: "summonHotkey" },
-        broker: { name: "broker" },
+        vocabulary: { name: "vocabulary" },
       } as never;
     }),
   };
@@ -102,7 +102,7 @@ describe("createConfiguredBootstrap", () => {
     expect(configured.dispatcher).toBeTruthy();
     expect(configured.guardrails).toBeTruthy();
     expect(configured.summonHotkey).toBeTruthy();
-    expect(configured.broker).toBeTruthy();
+    expect(configured.vocabulary).toBeTruthy();
     expect(factories.create).toHaveBeenCalledWith(validConfig(), {}, expect.any(Function));
   });
 

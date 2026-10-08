@@ -17,8 +17,13 @@ vi.mock("./voice/wire-voice", () => ({
     setStrolling: () => {},
   }),
 }));
-vi.mock("./broker/wire-broker", () => ({
-  wireBroker: async () => ({ vocabulary: () => ({}), dispose: () => {} }),
+vi.mock("./broker/wire-broker", () => ({ wireBroker: async () => ({ dispose: () => {} }) }));
+vi.mock("./vocabulary/wire-vocabulary", () => ({
+  wireVocabulary: async () => ({
+    vocabulary: () => ({}),
+    subscribe: () => () => {},
+    dispose: () => {},
+  }),
 }));
 vi.mock("./wire-dispatcher", () => ({
   wireDispatcher: () => ({ dispatcher, setPeek: () => {} }),

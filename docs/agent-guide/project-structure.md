@@ -39,11 +39,13 @@ YUI/
       bootstrap-configured.ts        # Pet window's config-derived bootstrap: runs the turn core and the pet-only wirings in order and drains their teardowns
       disposers.ts                   # Shared teardown bag: registers teardowns at creation sites and drains them LIFO
       turn/                          # The path of a turn: sources, voice, and push
-        turn-core.ts                 # The chat turn every backend-facing window runs: voice, dispatcher, STT, VRM load, broker, push transport, stop, and submit
+        turn-core.ts                 # The chat turn every backend-facing window runs: voice, dispatcher, STT, VRM load, vocabulary, broker, push transport, stop, and submit
         wire-dispatcher.ts           # Turn feed, backend caller, guardrails, pacer, and the dispatcher
         wire-sources.ts              # The dispatcher's utterance sources, built and started
         broker/                      # Expression broker wiring
-          wire-broker.ts             # The broker client: boot publish, override retargeting, and the vocabulary loads
+          wire-broker.ts             # The broker client: boot publish, override retargeting, and republish when the vocabulary moves
+        vocabulary/                  # The express vocabulary every consumer declares
+          wire-vocabulary.ts         # The emotion_text table load, the derived vocabulary, and its change announcements
         push/                        # Push socket wiring and its stores
           delegation-chip-mount.ts   # The delegation chip's lazy mount and its suppression port
           wire-push.ts               # Push socket frames into turns, the stop button, and the push mode chip

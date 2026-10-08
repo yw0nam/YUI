@@ -26,6 +26,7 @@ import {
 } from "../settings/wire-avatar";
 import { wireBroker } from "./broker/wire-broker";
 import { wirePushTransport, wireStopButton } from "./push/wire-push";
+import { wireVocabulary } from "./vocabulary/wire-vocabulary";
 import { type VoiceHost, type VoicePersistence, wireTurnVoice } from "./voice/wire-voice";
 import type { VoicePipeline } from "./voice/wire-voice-pipeline";
 import { wireDispatcher } from "./wire-dispatcher";
@@ -33,7 +34,7 @@ import { wireDispatcher } from "./wire-dispatcher";
 const log = createLogger("bootstrap");
 
 type DispatcherDeps = Parameters<typeof wireDispatcher>[0];
-type Broker = Awaited<ReturnType<typeof wireBroker>>;
+type Vocabulary = Awaited<ReturnType<typeof wireVocabulary>>;
 
 /** The handles a window that hosts the chat turn built before its config loaded. */
 export interface TurnCorePhase1 {
@@ -70,8 +71,10 @@ export interface TurnCore {
   setStrolling(walker: { isStrolling(): boolean }): void;
   /** Starts the dispatcher on the bus. */
   start(): void;
-  /** Publishes the broker, routes the push socket, and wires the stop button and the submit path. */
-  connect(hooks: { onSubmit: () => void }): Promise<{ broker: Broker; stopTurn: () => string[] }>;
+  /** Loads the vocabulary, publishes the broker, routes the push socket, and wires the stop button and the submit path. */
+  connect(hooks: {
+    onSubmit: () => void;
+  }): Promise<{ vocabulary: Vocabulary; stopTurn: () => string[] }>;
 }
 
 /**
@@ -120,7 +123,7 @@ export async function wireTurnCore(
   const { vrmSelection, loadVrmSerialized } = vrm;
   const { speakerSelection, refreshVoiceList, migrateVoiceIds } = speaker;
   // Published by connect(); a turn reads it when it builds its client tools.
-  let broker: Broker | undefined;
+  let vocabulary: Vocabulary | undefined;
 
   const turnVoice = wireTurnVoice({
     renderer,
@@ -170,7 +173,7 @@ export async function wireTurnCore(
     quotedTurn,
     pushTurns,
     pushSocket: pushSocket ?? null,
-    getVocabulary: () => broker!.vocabulary(),
+    getVocabulary: () => vocabulary!.vocabulary(),
     openQuickControls: deps.openQuickControls,
     showVoiceError: voiceErrorDwell.show,
     appendTurnRecord: (record) => appendRecord(record),
@@ -205,17 +208,26 @@ export async function wireTurnCore(
     setStrolling: turnVoice.setStrolling,
     start: () => dispatcher.start(),
     async connect(hooks) {
-      const published = await wireBroker({
+      const published = await wireVocabulary({
         getConfig: config.get,
         getEndpoints,
-        endpointsSettings: settings.endpointsSettings,
         expressMotionSettings: settings.expressMotionSettings,
-        // The socket advertises the same vocabulary the broker publishes; it diffs before it sends.
-        onVocabularyChange: () => pushSocket?.sendVocabulary(),
         log,
       });
-      broker = published;
+      vocabulary = published;
       register(published.dispose);
+      // The socket advertises the same vocabulary the tools declare; it diffs before it sends.
+      register(published.subscribe(() => pushSocket?.sendVocabulary()));
+      register(
+        (
+          await wireBroker({
+            getEndpoints,
+            endpointsSettings: settings.endpointsSettings,
+            vocabulary: published,
+            log,
+          })
+        ).dispose,
+      );
       if (pushSocket) {
         register(
           wirePushTransport({
@@ -245,7 +257,7 @@ export async function wireTurnCore(
         userInput.submit(text, images);
         hooks.onSubmit();
       });
-      return { broker: published, stopTurn };
+      return { vocabulary: published, stopTurn };
     },
   };
 }

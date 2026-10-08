@@ -2,14 +2,14 @@ import type { AppConfig } from "../../config/load";
 import { noopScreenCapturer } from "../../io/window/capture/screen-source-provider";
 import { createLogger } from "../../logger";
 import { createDisposers } from "../disposers";
-import type { wireBroker } from "../turn/broker/wire-broker";
 import { type TurnCorePhase1, wireTurnCore } from "../turn/turn-core";
+import type { wireVocabulary } from "../turn/vocabulary/wire-vocabulary";
 import type { VoiceHost } from "../turn/voice/wire-voice";
 
 const log = createLogger("phone-bootstrap");
 
 export interface PhoneBootstrapHandles {
-  broker: Awaited<ReturnType<typeof wireBroker>>;
+  vocabulary: Awaited<ReturnType<typeof wireVocabulary>>;
   stopTurn: () => string[];
   dispose(): void;
 }
@@ -33,9 +33,9 @@ export async function createPhoneBootstrap(
     });
     core.start();
     // The phone has no proactive source to tell about a submit.
-    const { broker, stopTurn } = await core.connect({ onSubmit: () => {} });
+    const { vocabulary, stopTurn } = await core.connect({ onSubmit: () => {} });
     return {
-      broker,
+      vocabulary,
       stopTurn,
       dispose: disposers.dispose,
     };

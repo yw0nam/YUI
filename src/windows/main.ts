@@ -247,7 +247,7 @@ async function bootstrap(): Promise<BootstrapHandle> {
     if (isDisposed()) return { dispose };
     help.bindInteraction(configured.noteInteraction);
     push.bind({
-      vocabulary: configured.broker.vocabulary,
+      vocabulary: configured.vocabulary.vocabulary,
       stopTurn: configured.stopTurn,
     });
     register(

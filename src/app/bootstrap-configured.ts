@@ -20,8 +20,8 @@ import { wireStageGestures } from "./stage/wire-gestures";
 import { wireLocomotion } from "./stage/wire-locomotion";
 import { wireGaze, wireHitTest } from "./stage/wire-stage";
 import { wirePeek, wireSummonHotkey } from "./stage/wire-summon";
-import type { wireBroker } from "./turn/broker/wire-broker";
 import { type TurnCorePhase1, wireTurnCore } from "./turn/turn-core";
+import type { wireVocabulary } from "./turn/vocabulary/wire-vocabulary";
 import type { VoicePipeline } from "./turn/voice/wire-voice-pipeline";
 import { wireDispatcherSources } from "./turn/wire-sources";
 
@@ -44,7 +44,7 @@ export interface ConfiguredBootstrapHandles {
   dispatcher: Dispatcher;
   guardrails: Guardrails;
   summonHotkey: SummonHotkey;
-  broker: Awaited<ReturnType<typeof wireBroker>>;
+  vocabulary: Awaited<ReturnType<typeof wireVocabulary>>;
   /** The seat transitions — the dev perch plays its sit-down through it. */
   sitter: Pick<Sitter, "sitDown">;
   /** Cancels the in-flight turn, cuts the outstanding push turns and stops the queued speech. */
@@ -236,7 +236,7 @@ const realFactories: ConfiguredBootstrapFactories = {
     });
     register(() => void summonHotkey.dispose());
     register(wireIngressDeadNotice({ surfaces, t }));
-    const { broker, stopTurn } = await core.connect({
+    const { vocabulary, stopTurn } = await core.connect({
       onSubmit: () => {
         proactiveSource.noteInteraction();
         bedScene.wake("message");
@@ -248,7 +248,7 @@ const realFactories: ConfiguredBootstrapFactories = {
       dispatcher,
       guardrails,
       summonHotkey,
-      broker,
+      vocabulary,
       sitter: locomotion.sitter,
       stopTurn,
       noteInteraction: () => proactiveSource.noteInteraction(),
