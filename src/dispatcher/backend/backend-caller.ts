@@ -104,7 +104,7 @@ interface BackendCallerDeps extends PushCallDeps, SettleDeps, StreamAttemptDeps 
   getFrontmost?: () => FrontmostState | undefined;
   /** Previous-turn slot lookup — read after the pre-turn interrupt, so a superseded turn is already recorded. */
   getPrevious?: () => PreviousTurn | undefined;
-  /** True once, for the user turn whose message woke the character on the launch bed. */
+  /** True once, for the user turn whose message woke the character on the bed. */
   takeMessageWake?: () => boolean;
   /** Previous response id lookup — when present, included in request to continue conversation. Called per turn (reflects reset/rotation). */
   getPreviousResponseId?: () => string | undefined;

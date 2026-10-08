@@ -1,5 +1,5 @@
 /**
- * wake_source — the character got out of the launch bed.
+ * wake_source — the character got out of the bed.
  *
  * Fires one `proactive.wake` candidate per click or timeout wake, naming its cause. While the
  * day's first activity is owed, the same candidate carries it with the drained `/signals`

@@ -35,8 +35,9 @@ mcp = FastMCP(
     instructions=(
         "The avatar's own body on the user's desktop. Use get_body_state to see where it is "
         "and what it is doing, list_perch_targets to see which windows it can perch on, then "
-        "sit_on_window / peek / move_to / stand to move it, or go_to_bed to lay it down. Movement only — expression "
-        "and speech travel on their own channel."
+        "sit_on_window / peek / move_to to move it, stand to bring it back to the standing "
+        "position (it also gets it out of bed), or go_to_bed to lay it down. Movement only: "
+        "expression and speech travel on their own channel."
     ),
 )
 
@@ -138,10 +139,11 @@ def move_to(spot: str, monitor: int | None = None) -> dict[str, Any]:
 
 @mcp.tool
 def stand() -> dict[str, Any]:
-    """Release any perch or peek and return the avatar to its normal standing position.
+    """Return the avatar to the standing position: leaves a perch or a peek, and gets it out of bed.
 
-    While the avatar lies on its bed this wakes it: it sits up, stretches and stands, and the
-    call answers as soon as the wake starts.
+    In bed this starts the wake clip (it sits up, stretches and stands, about 22 s) and the call
+    answers as that clip starts; the posture reads standing from then. sit_on_window / peek /
+    move_to keep answering busy until it is up.
     """
     logger.info("➡️ stand")
     result = _command({"action": "stand"})
@@ -153,9 +155,10 @@ def stand() -> dict[str, Any]:
 def go_to_bed() -> dict[str, Any]:
     """Lay the avatar down on a bed at the spot it stands on, leaving any perch first.
 
-    It comes down to the floor, a bed appears there, and it lies down and sleeps until
-    stand or the user wakes it with a click. The call answers once it is lying down.
-    While it is on the bed, sit_on_window / peek / move_to answer busy; call stand first.
+    It comes down to the floor, a bed appears there, and it lies down. The call answers ok
+    when the lie-down clip starts, and the posture reads lying from that moment. It sleeps until
+    the client's wake timeout (a user setting, no duration is passed here), a click or message
+    from the user, or stand. While it is on the bed, sit_on_window / peek / move_to answer busy.
     """
     logger.info("➡️ go_to_bed")
     result = _command({"action": "go_to_bed"})

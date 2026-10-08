@@ -1,4 +1,4 @@
-/** Whether the launch bed scene holds the body; the camera and the movers read it. */
+/** Whether the bed scene holds the body; the camera and the movers read it. */
 export interface BedSceneHold {
   isHeld(): boolean;
   take(): void;

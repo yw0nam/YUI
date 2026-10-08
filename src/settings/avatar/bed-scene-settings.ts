@@ -1,5 +1,5 @@
 /**
- * Reactive settings store for the launch bed scene: on/off and the wake timeout in seconds.
+ * Reactive settings store for the bed scene: the launch on/off and the wake timeout in seconds, which wakes her on either entry.
  * On change, persists to storage and notifies subscribers.
  */
 

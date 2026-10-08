@@ -56,8 +56,9 @@ YUI/
       stage/                         # What is bound to the pet window's stage and overlay
         stage-renderer.ts            # The renderer on the stage with its persisted camera and idle throttle, plus Tier 1 liveliness, for the pet and phone windows
         bed-scene-hold.ts            # The flag the bed scene takes while it holds the body; the camera lock and the movers read it
+        create-avatar-bed.ts         # The bed as the avatar commands see it: phase, the lie-down sequence with the hold, floor placement and perch pins, and getting up
         scene-frame.ts               # The bed scene's window frame over the real window, which is wired later than the scene starts
-        wire-bed-scene.ts            # The bed scene: the launch entry, the lie-down on command, the hold the rest of the window reads, the posture events and the wake signal
+        wire-bed-scene.ts            # The bed scene's wiring: builds the scene, starts the launch entry, reads the hold and sends the posture events
         wire-gestures.ts             # Pointer gestures on the stage: taps, pats, the window drag, and the camera orbit
         wire-window-sources.ts       # The Tauri window drop and resize sources, the avatar RPC executor, and keep-on-screen
         wire-locomotion.ts           # Travel frame, the five locomotion loops, and the window sources composed into one handle
@@ -249,7 +250,7 @@ YUI/
             window-drop-source.ts    # Drag-release settle composing the perch watch and placement
             perch-watch.ts           # Armed perch and peek state with the occlusion-aware detach poll
             placement.ts             # Programmatic placement of the character on a named window
-        wake/                        # The launch-bed wake firing source
+        wake/                        # The bed wake firing source
           wake-source.ts             # Fires the wake candidate as she gets out of bed, carrying the day's first activity while it is owed
     ambient/                         # Backend-independent local liveliness and movement
       bed-scene/                     # Bed scene

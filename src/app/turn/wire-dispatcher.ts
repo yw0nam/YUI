@@ -72,7 +72,7 @@ export function wireDispatcher(deps: {
   screenshotSettings: SettingsStores["screenshotSettings"];
   screenCapturer: ScreenCapturer;
   getFrontmost: () => FrontmostState | undefined;
-  /** True once, for the user turn whose message woke the character on the launch bed. */
+  /** True once, for the user turn whose message woke the character on the bed. */
   takeMessageWake?: () => boolean;
   voice: Pick<VoicePipeline, "turnOutput" | "speakFailure">;
   turnLog: TurnLog;
