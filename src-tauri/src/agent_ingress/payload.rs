@@ -609,8 +609,7 @@ mod tests {
     #[test]
     fn parse_avatar_command_requires_post() {
         assert_eq!(
-            parse_avatar_request("GET", "/avatar/command", r#"{"action":"stand"}"#)
-                .unwrap_err(),
+            parse_avatar_request("GET", "/avatar/command", r#"{"action":"stand"}"#).unwrap_err(),
             405
         );
     }
