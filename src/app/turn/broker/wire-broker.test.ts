@@ -102,6 +102,53 @@ describe("wireBroker", () => {
     expect(brokerClient.start).toHaveBeenCalledTimes(1);
   });
 
+  describe("deprecation warning", () => {
+    const DEPRECATED = {
+      what: "broker_base_url",
+      removed_in: "v0.6.0",
+      use: "client-declared tools",
+    };
+    const warnings = (log: { warn: ReturnType<typeof vi.fn> }) =>
+      log.warn.mock.calls.filter(([event]) => event === "deprecated");
+
+    it("warns once at boot when a broker URL is configured", async () => {
+      const { deps } = makeDeps({ broker_base_url: "http://localhost:3201" });
+      const log = { ...(noopLog as object), warn: vi.fn() };
+      await wireBroker({ ...deps, log: log as never });
+      expect(warnings(log)).toEqual([["deprecated", DEPRECATED]]);
+    });
+
+    it("warns once per launch even when a later URL edit creates another client", async () => {
+      const { deps } = makeDeps({ broker_base_url: "http://localhost:3201" });
+      const log = { ...(noopLog as object), warn: vi.fn() };
+      await wireBroker({ ...deps, log: log as never });
+      const [reconcilerOpts] = createReconciler.mock.calls.at(-1) as unknown as [
+        { createBroker: (url: string) => unknown },
+      ];
+      reconcilerOpts.createBroker("http://localhost:3202");
+      expect(warnings(log)).toHaveLength(1);
+    });
+
+    it("warns when the first URL arrives after boot", async () => {
+      const { deps } = makeDeps({ broker_base_url: "" });
+      const log = { ...(noopLog as object), warn: vi.fn() };
+      await wireBroker({ ...deps, log: log as never });
+      expect(warnings(log)).toHaveLength(0);
+      const [reconcilerOpts] = createReconciler.mock.calls.at(-1) as unknown as [
+        { createBroker: (url: string) => unknown },
+      ];
+      reconcilerOpts.createBroker("http://localhost:3201");
+      expect(warnings(log)).toEqual([["deprecated", DEPRECATED]]);
+    });
+
+    it("never warns without a broker URL", async () => {
+      const { deps } = makeDeps({ broker_base_url: "" });
+      const log = { ...(noopLog as object), warn: vi.fn() };
+      await wireBroker({ ...deps, log: log as never });
+      expect(warnings(log)).toHaveLength(0);
+    });
+  });
+
   // The emoji enum table is the only emotion_text vocabulary — nothing gates its load.
   it("always loads the emoji emotion_text table", async () => {
     const { deps } = makeDeps({ broker_base_url: "http://localhost:3201" });
