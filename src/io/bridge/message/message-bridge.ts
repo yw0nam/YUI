@@ -31,6 +31,7 @@ export type MessageSurfaceOp =
   | { op: "dismiss-input" }
   | { op: "busy"; busy: boolean }
   | { op: "input-error"; message: string; action?: { label: string } }
+  | { op: "speech-action"; action?: { label: string } }
   | { op: "attachment-limits"; limits: AttachmentLimits }
   | { op: "quote"; quote: UserQuote }
   | { op: "settle-quote" }
@@ -43,6 +44,7 @@ export type MessageControlOp =
   | { op: "stop" }
   | { op: "input-open"; open: boolean }
   | { op: "input-error-action" }
+  | { op: "speech-action" }
   | { op: "dock" }
   | { op: "open-settings" }
   | { op: "ready" };

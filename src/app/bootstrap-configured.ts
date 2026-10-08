@@ -133,6 +133,7 @@ const realFactories: ConfiguredBootstrapFactories = {
       hotkey: cfg.hotkeys.summon_global,
       isMac: /Mac/.test(navigator.platform || navigator.userAgent),
       chatConfigured: isChatConfigured(phase1.getEndpoints()),
+      openSettings: (tab) => getQuickControls().open(undefined, { tab }),
       t,
     });
 

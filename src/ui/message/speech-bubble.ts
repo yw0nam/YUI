@@ -5,6 +5,7 @@
  * Judgment (whether/what to speak) is the backend's.
  */
 
+import type { SpeechAction } from "../../io/bridge/message/message-remote";
 import { subscribe as subscribeLocale, t } from "../i18n";
 import { afterFadeOut } from "../notices/fade-out";
 import { renderMarkdownInline } from "./markdown";
@@ -23,6 +24,8 @@ export interface SpeechBubble {
   finishSpeech(): void;
   /** Hide the bubble immediately (ignoring dwell). */
   hideSpeech(): void;
+  /** Offers an in-place fix under the current speech; without an action, drops the one shown. */
+  showSpeechAction(action?: SpeechAction): void;
   /** Show the bubble for content other than speech, holding off any pending fade; speech is left as it is unless `clearSpeech` drops it. */
   reveal(opts?: { clearSpeech?: boolean }): void;
   /**
@@ -51,6 +54,8 @@ interface SpeechBubbleElements {
   /** The quoted user line, the box's first child; user-quote.ts fills it, the bubble drops it. */
   bubbleQuote: HTMLElement;
   bubbleText: HTMLElement;
+  /** The in-place fix button's slot, under the speech text; empty and hidden unless an action is offered. */
+  bubbleAction: HTMLElement;
   /** Screen-reader-only announce region — the visual bubble is not live; once speech settles, announce once here. */
   bubbleSr: HTMLElement;
   /** Hover-revealed dismiss button on the bubble's edge. The bubble is pointer-events:none, so this is its own pointer target. */
@@ -69,6 +74,7 @@ export function createSpeechBubble(
     bubbleBox,
     bubbleQuote,
     bubbleText,
+    bubbleAction,
     bubbleSr,
     bubbleClose,
   }: SpeechBubbleElements,
@@ -96,6 +102,8 @@ export function createSpeechBubble(
   let turnHeld = false;
   let cancelFade: (() => void) | null = null;
   let showFrame: number | null = null;
+  // The current speech action's click — nulled with the slot so a stale button click does nothing.
+  let speechActionClick: (() => void) | null = null;
 
   function clearDwell(): void {
     if (dwellTimer !== null) {
@@ -156,6 +164,7 @@ export function createSpeechBubble(
     lastRenderAt = Number.NEGATIVE_INFINITY;
     bubbleText.replaceChildren();
     bubbleSr.textContent = "";
+    clearSpeechAction();
     if (!turnHeld) bubbleQuote.hidden = true;
     bubbleEl.hidden = false;
     bubbleEl.classList.add("is-streaming");
@@ -172,6 +181,7 @@ export function createSpeechBubble(
       cancelFade = null;
       speechRaw = "";
       bubbleText.replaceChildren();
+      clearSpeechAction();
       bubbleEl.classList.remove("is-streaming");
     }
     if (!turnHeld) bubbleQuote.hidden = true;
@@ -188,9 +198,7 @@ export function createSpeechBubble(
       hideSpeech();
       return;
     }
-    if (hold()) return;
-    dwellArmed = true;
-    armDwell();
+    settleIntoDwell();
   }
 
   function pushSpeech(delta: string): void {
@@ -226,25 +234,37 @@ export function createSpeechBubble(
       return;
     }
     deferred = false;
-    if (hold() || revealHeld || turnHeld) return;
-    dwellArmed = true;
-    armDwell();
+    settleIntoDwell();
   }
 
   function finishSpeech(): void {
     if (!deferred) return;
     deferred = false;
     if (bubbleEl.hidden) return;
-    if (hold() || revealHeld || turnHeld) return;
-    dwellArmed = true;
-    armDwell();
+    settleIntoDwell();
   }
 
   // Held speech never fades — mark it so the close button (its only exit) stays visible.
+  // A shown speech action holds the bubble the same way.
   function hold(): boolean {
-    const on = holdOpen();
+    const on = holdOpen() || speechActionClick !== null;
     bubbleEl.classList.toggle("is-held", on);
     return on;
+  }
+
+  // A settled, visible bubble takes its dwell — unless something holds it open or speech is still in flight.
+  function settleIntoDwell(): void {
+    if (
+      hold() ||
+      deferred ||
+      revealHeld ||
+      turnHeld ||
+      bubbleEl.classList.contains("is-streaming")
+    ) {
+      return;
+    }
+    dwellArmed = true;
+    armDwell();
   }
 
   function hideSpeech(): void {
@@ -255,6 +275,7 @@ export function createSpeechBubble(
     lastRenderAt = Number.NEGATIVE_INFINITY;
     cancelShowFrame();
     bubbleEl.classList.remove("is-visible", "is-streaming", "is-held");
+    clearSpeechAction();
     cancelFade?.();
     cancelFade = afterFadeOut(bubbleEl, () => {
       cancelFade = null;
@@ -269,6 +290,35 @@ export function createSpeechBubble(
 
   function holdForTurn(on: boolean): void {
     turnHeld = on;
+  }
+
+  function clearSpeechAction(): void {
+    speechActionClick = null;
+    bubbleAction.replaceChildren();
+    bubbleAction.hidden = true;
+    measure();
+  }
+
+  function showSpeechAction(action?: SpeechAction): void {
+    const wasShown = speechActionClick !== null;
+    clearSpeechAction();
+    // The action holds the bubble — a pending dwell must not drop it under the button.
+    clearDwell();
+    dwellArmed = false;
+    if (action) {
+      const button = document.createElement("button");
+      button.type = "button";
+      button.textContent = action.label;
+      button.addEventListener("click", () => speechActionClick?.());
+      speechActionClick = action.onClick;
+      bubbleAction.append(button);
+      bubbleAction.hidden = false;
+      measure();
+      hold();
+      return;
+    }
+    // The hold leaves with the action — the bubble takes its normal dwell again.
+    if (wasShown) settleIntoDwell();
   }
 
   function liftAboveInput(totalOffsetPx: number): void {
@@ -314,6 +364,7 @@ export function createSpeechBubble(
     cancelShowFrame();
     cancelFade?.();
     cancelFade = null;
+    clearSpeechAction();
     unsubscribeLocale();
     bubbleEl.removeEventListener("pointerenter", onBubbleEnter);
     bubbleEl.removeEventListener("pointerleave", onBubbleLeave);
@@ -326,6 +377,7 @@ export function createSpeechBubble(
     endSpeech,
     finishSpeech,
     hideSpeech,
+    showSpeechAction,
     reveal,
     release,
     measure,
