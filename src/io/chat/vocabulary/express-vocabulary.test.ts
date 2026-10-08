@@ -67,6 +67,15 @@ describe("agentTriggerableMotionIds", () => {
     expect(agentTriggerableMotionIds({})).toEqual([]);
   });
 
+  it("keeps the three bed clips out of the agent-triggerable vocabulary", () => {
+    const m = JSON.parse(readFileSync(resolve(process.cwd(), "configs/motions.json"), "utf-8"));
+    const motions = validateMotions("configs/motions.json", m);
+    for (const id of ["bed_lie", "bed_sleep", "bed_wake"]) {
+      expect(motions[id]?.broker_publish, id).toBe(false);
+      expect(agentTriggerableMotionIds(motions), id).not.toContain(id);
+    }
+  });
+
   it("keeps walk out of the agent-triggerable vocabulary the broker publishes", () => {
     const m = JSON.parse(readFileSync(resolve(process.cwd(), "configs/motions.json"), "utf-8"));
     expect(agentTriggerableMotionIds(validateMotions("configs/motions.json", m))).not.toContain(

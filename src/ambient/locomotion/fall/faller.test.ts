@@ -893,6 +893,32 @@ describe("createFaller", () => {
     );
   });
 
+  it("says whether she was put on a surface: placed or already down is true, ignored or skipped is false", async () => {
+    expect(await makeHarness().faller.drop({ place: true })).toBe(true);
+
+    const grounded = makeHarness({ position: { x: 500, y: GROUNDED_Y - 10 } });
+    expect(await grounded.faller.drop({ place: true })).toBe(true);
+
+    const noMonitor = makeHarness({ position: { x: -3000, y: WINDOW_POS.y } });
+    expect(await noMonitor.faller.drop({ place: true })).toBe(false);
+
+    const falling = makeHarness();
+    const { done } = await falling.beginFall();
+    expect(await falling.faller.drop({ place: true })).toBe(false);
+    falling.faller.cancel();
+    await done;
+
+    const reading = makeHarness();
+    const first = reading.faller.drop({ place: true });
+    expect(await reading.faller.drop({ place: true })).toBe(false);
+    expect(await first).toBe(true);
+
+    const cancelled = makeHarness();
+    const pending = cancelled.faller.drop({ place: true });
+    cancelled.faller.cancel();
+    expect(await pending).toBe(false);
+  });
+
   it("stop() ends a running fall and refuses further drops", async () => {
     const h = makeHarness();
     const { done } = await h.beginFall();

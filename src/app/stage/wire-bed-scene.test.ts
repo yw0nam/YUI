@@ -6,8 +6,9 @@ const mocks = vi.hoisted(() => ({
   sceneDeps: [] as unknown[],
   scene: {
     start: vi.fn(),
-    lieDown: vi.fn(async () => true),
+    lieDown: vi.fn(async () => "lying"),
     state: vi.fn(() => "idle"),
+    cancelStart: vi.fn(),
     wake: vi.fn(),
     cancel: vi.fn(),
     onDragEnd: vi.fn(),
@@ -67,6 +68,7 @@ function setup(over: { enabled?: boolean; ready?: Promise<void>; frameWindow?: (
         placed: Promise.resolve(),
         place: async () => {
           calls.push(`place:held=${bedScene.isHeld()}`);
+          return true;
         },
         setKeepOnScreenPaused: () => {},
         drop: () => calls.push(`drop:held=${bedScene.isHeld()}`),
@@ -82,24 +84,28 @@ afterEach(() => {
   vi.unstubAllGlobals();
   vi.clearAllMocks();
   mocks.sceneDeps.length = 0;
-  mocks.scene.lieDown.mockImplementation(async () => true);
+  mocks.scene.lieDown.mockImplementation(async () => "lying");
   mocks.scene.state.mockReturnValue("idle");
   mocks.isTauri.mockReturnValue(false);
 });
 
 describe("wireBedScene", () => {
-  it("builds no scene and holds nothing with the setting off or reduced motion on", () => {
+  it("holds nothing and starts no scene with the setting off, and builds none with reduced motion on", () => {
     const off = setup({ enabled: false });
     off.start();
+    expect(mocks.sceneDeps).toHaveLength(1);
+    expect(mocks.scene.start).not.toHaveBeenCalled();
+    expect(off.bedScene.isHeld()).toBe(false);
+    expect(off.teardowns).toEqual([mocks.scene.cancel]);
+
+    mocks.sceneDeps.length = 0;
     vi.stubGlobal("matchMedia", () => ({ matches: true }));
     const reduced = setup();
     reduced.start();
-
     expect(mocks.sceneDeps).toEqual([]);
-    expect(off.bedScene.isHeld()).toBe(false);
     expect(reduced.bedScene.isHeld()).toBe(false);
-    expect(off.bedScene.takeMessageWake()).toBe(false);
-    expect(off.teardowns).toEqual([]);
+    expect(reduced.bedScene.takeMessageWake()).toBe(false);
+    expect(reduced.bedScene.bed.phase()).toBe("unsupported");
   });
 
   it("holds from construction until the scene is done, then re-applies the camera and drops once", () => {
@@ -110,6 +116,7 @@ describe("wireBedScene", () => {
     expect(mocks.scene.start).toHaveBeenCalledOnce();
     expect(deps.wakeTimeoutS).toBe(45);
     expect(deps.frame).toBeNull();
+    expect(deps.onWake).toBe(mocks.onWake);
     expect(h.teardowns).toContain(mocks.scene.cancel);
     expect(h.bedScene.isHeld()).toBe(true);
 
@@ -140,17 +147,6 @@ describe("wireBedScene", () => {
     expect(mocks.scene.wake.mock.calls).toEqual([["click"], ["message"]]);
     expect(h.bedScene.takeMessageWake()).toBe(true);
     expect(mocks.scene.onDragEnd).toHaveBeenCalledOnce();
-  });
-
-  it("signals a user's wake and the timeout, and keeps the backend's own wake quiet", () => {
-    const h = setup();
-    const deps = h.start();
-
-    deps.onWake("click");
-    deps.onWake("timeout");
-    deps.onWake("agent");
-
-    expect(mocks.onWake.mock.calls).toEqual([["click"], ["timeout"]]);
   });
 
   it("reports lying and getting up as the bed's posture events", () => {
@@ -200,84 +196,29 @@ describe("wireBedScene", () => {
   });
 
   describe("on command", () => {
-    it("holds, places her on the floor, then lies her down, and lets go when the scene is done", async () => {
+    it("lies her down through the bed with the hold taken first, and lets go when the scene is done", async () => {
       const h = setup({ enabled: false });
-      expect(h.bedScene.isHeld()).toBe(false);
       h.start();
       mocks.scene.lieDown.mockImplementation(async () => {
         h.calls.push("lieDown");
-        return true;
+        return "lying";
       });
-      expect(mocks.sceneDeps).toEqual([]);
-      expect(h.bedScene.bed.phase()).toBe("off");
 
-      expect(await h.bedScene.bed.lieDown()).toBe(true);
+      expect(await h.bedScene.bed.lieDown()).toEqual({ ok: true });
       expect(h.calls).toEqual(["place:held=true", "lieDown"]);
       expect(mocks.scene.start).not.toHaveBeenCalled();
-      expect(h.teardowns).toContain(mocks.scene.cancel);
+      expect(mocks.sceneDeps).toHaveLength(1);
 
       (mocks.sceneDeps.at(-1) as BedSceneDeps).onDone();
       expect(h.bedScene.isHeld()).toBe(false);
       expect(h.calls.slice(-2)).toEqual(["applyCamera", "drop:held=false"]);
     });
 
-    it("reuses one scene for the next lie-down and releases the hold when it fails to start", async () => {
+    it("answers unsupported before the stage is wired", async () => {
       const h = setup({ enabled: false });
-      h.start();
-      mocks.scene.lieDown.mockImplementation(async () => {
-        (mocks.sceneDeps.at(-1) as BedSceneDeps).onDone();
-        return false;
-      });
 
-      expect(await h.bedScene.bed.lieDown()).toBe(false);
-      expect(await h.bedScene.bed.lieDown()).toBe(false);
-
-      expect(mocks.sceneDeps).toHaveLength(1);
+      expect(await h.bedScene.bed.lieDown()).toEqual({ ok: false, reason: "unsupported" });
       expect(h.bedScene.isHeld()).toBe(false);
-    });
-
-    it("gets her up by waking her as the backend", async () => {
-      const h = setup({ enabled: false });
-      h.start();
-      await h.bedScene.bed.lieDown();
-
-      h.bedScene.bed.getUp();
-
-      expect(mocks.scene.wake).toHaveBeenCalledWith("agent");
-    });
-
-    it("maps the scene's state onto the phase the avatar commands read", async () => {
-      const h = setup({ enabled: false });
-      h.start();
-      await h.bedScene.bed.lieDown();
-      const phaseOf = (state: string) => {
-        mocks.scene.state.mockReturnValue(state);
-        return h.bedScene.bed.phase();
-      };
-
-      expect(phaseOf("starting")).toBe("starting");
-      expect(phaseOf("asleep")).toBe("lying");
-      expect(phaseOf("waking")).toBe("waking");
-      // Done with the hold still on is the exit's tail, so she is not yet free.
-      expect(phaseOf("done")).toBe("starting");
-    });
-
-    it("cannot run before the stage is wired, or with reduced motion on", async () => {
-      const early = setup({ enabled: false });
-      expect(early.bedScene.bed.phase()).toBe("unsupported");
-
-      vi.stubGlobal("matchMedia", () => ({ matches: true }));
-      const reduced = setup({ enabled: false });
-      reduced.start();
-      expect(reduced.bedScene.bed.phase()).toBe("unsupported");
-      expect(await reduced.bedScene.bed.lieDown()).toBe(false);
-      expect(mocks.sceneDeps).toEqual([]);
-      expect(reduced.bedScene.isHeld()).toBe(false);
-    });
-
-    it("reports the launch hold as a scene starting before it has begun", () => {
-      const h = setup();
-      expect(h.bedScene.bed.phase()).toBe("starting");
     });
   });
 });

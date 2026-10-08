@@ -103,7 +103,12 @@ describe("host loss reaches the faller", () => {
       onRelocated: async () => {},
       sitDown: async () => "done" as const,
       isHeld: () => false,
-      bed: { phase: () => "off", lieDown: async () => true, getUp: () => {} },
+      bed: {
+        phase: () => "off",
+        lieDown: async () => ({ ok: true }),
+        getUp: () => {},
+        interrupt: () => {},
+      },
       log: noopLog,
     });
     await vi.waitFor(() => expect(createWindowDropSource).toHaveBeenCalled());
@@ -134,7 +139,12 @@ describe("host loss reaches the faller", () => {
       onRelocated,
       sitDown: async () => "done" as const,
       isHeld: () => false,
-      bed: { phase: () => "off", lieDown: async () => true, getUp: () => {} },
+      bed: {
+        phase: () => "off",
+        lieDown: async () => ({ ok: true }),
+        getUp: () => {},
+        interrupt: () => {},
+      },
       log: noopLog,
     });
     await vi.waitFor(() => expect(createAvatarExecutor).toHaveBeenCalled());
@@ -168,7 +178,12 @@ describe("drag start reaches the drop source", () => {
       onRelocated: async () => {},
       sitDown: async () => "done" as const,
       isHeld: () => false,
-      bed: { phase: () => "off", lieDown: async () => true, getUp: () => {} },
+      bed: {
+        phase: () => "off",
+        lieDown: async () => ({ ok: true }),
+        getUp: () => {},
+        interrupt: () => {},
+      },
       log: noopLog,
     });
     await vi.waitFor(() => expect(createWindowDropSource).toHaveBeenCalled());

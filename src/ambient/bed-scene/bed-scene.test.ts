@@ -30,6 +30,8 @@ function makeHarness(
     dispose?: "throw";
     park?: "pending";
     release?: "reject";
+    /** The renderer drops a request for this clip, as a held posture does. */
+    refuse?: string;
   } = {},
 ) {
   /** Every observable effect in the order it happened. */
@@ -39,6 +41,7 @@ function makeHarness(
   /** Each posture change the scene reported. */
   const lying: boolean[] = [];
   let tick: TickFn | null = null;
+  let subscribed = 0;
   let vrm = {};
   let hold: readonly string[] | null = null;
   let current: { id: string; vrma_path: string } | null = {
@@ -65,6 +68,7 @@ function makeHarness(
   const deps: BedSceneDeps = {
     renderer: {
       onTick: (fn) => {
+        subscribed += 1;
         tick = fn;
         return () => {
           tick = null;
@@ -73,6 +77,7 @@ function makeHarness(
       // A hold drops every request outside its ids, as the renderer does.
       playMotion: (m) => {
         if (hold && !(m && hold.includes(m.id))) return;
+        if (m && m.id === over.refuse) return;
         calls.push(`play:${m?.id ?? "null"}`);
         current = { id: m?.id ?? "idle", vrma_path: "" };
         clipT = 0;
@@ -158,7 +163,7 @@ function makeHarness(
     },
     place: () => place(),
     /** Lie down on command, land the placement and let the start sequence settle. */
-    lieDown: async (): Promise<boolean> => {
+    lieDown: async () => {
       const lay = scene.lieDown();
       place();
       await flush();
@@ -171,6 +176,7 @@ function makeHarness(
       current = { id, vrma_path: "" };
     },
     ticking: () => tick !== null,
+    subscribed: () => subscribed,
     /** A hot-swap: the renderer clears the hold and plays idle on the new model. */
     swapVrm: () => {
       vrm = {};
@@ -261,7 +267,11 @@ describe("createBedScene", () => {
     expect(h.woke).toEqual([{ cause: "timeout", after: `play:${BED_WAKE_MOTION_ID}` }]);
     await h.runFrames(2, 1);
     await h.frame(PROP_FADE_S);
-    expect(h.log.info).toHaveBeenCalledWith("bed_scene_end", { reason: "ended", cause: "timeout" });
+    expect(h.log.info).toHaveBeenCalledWith("bed_scene_end", {
+      entry: "launch",
+      reason: "ended",
+      cause: "timeout",
+    });
   });
 
   it("ends in order: the clip ends, the bed fades, then dispose, frame release, hold release, idle, onDone", async () => {
@@ -287,7 +297,11 @@ describe("createBedScene", () => {
       "play:null",
       "onDone",
     ]);
-    expect(h.log.info).toHaveBeenCalledWith("bed_scene_end", { reason: "ended", cause: "click" });
+    expect(h.log.info).toHaveBeenCalledWith("bed_scene_end", {
+      entry: "launch",
+      reason: "ended",
+      cause: "click",
+    });
   });
 
   it("refits the frame on a drag end while the scene runs, and not after it has finished", async () => {
@@ -309,6 +323,7 @@ describe("createBedScene", () => {
     expect(missing.propUrls).toEqual([]);
     expect(missing.count("onDone")).toBe(1);
     expect(missing.log.info).toHaveBeenCalledWith("bed_scene_end", {
+      entry: "launch",
       reason: "skipped",
       cause: null,
     });
@@ -320,6 +335,7 @@ describe("createBedScene", () => {
     expect(rejected.calls.at(-2)).toBe("play:null");
     expect(rejected.count("onDone")).toBe(1);
     expect(rejected.log.info).toHaveBeenCalledWith("bed_scene_end", {
+      entry: "launch",
       reason: "skipped",
       cause: null,
     });
@@ -374,7 +390,11 @@ describe("createBedScene", () => {
     await h.frame();
     h.swapVrm();
     await h.frame();
-    expect(h.log.info).toHaveBeenCalledWith("bed_scene_end", { reason: "swapped", cause: null });
+    expect(h.log.info).toHaveBeenCalledWith("bed_scene_end", {
+      entry: "launch",
+      reason: "swapped",
+      cause: null,
+    });
     expect(h.calls.slice(-4)).toEqual(["prop.dispose", "frame.release", "hold:null", "onDone"]);
   });
 
@@ -410,7 +430,11 @@ describe("createBedScene", () => {
     expect(new Set(h.calls.filter((c) => c.startsWith("prop.opacity:")))).toEqual(
       new Set(["prop.opacity:0"]),
     );
-    expect(h.log.info).toHaveBeenCalledWith("bed_scene_end", { reason: "ended", cause: "click" });
+    expect(h.log.info).toHaveBeenCalledWith("bed_scene_end", {
+      entry: "launch",
+      reason: "ended",
+      cause: "click",
+    });
   });
 
   it("ends as lost when another motion has the body, asleep or waking", async () => {
@@ -421,6 +445,7 @@ describe("createBedScene", () => {
       h.setCurrent(waking ? BED_SLEEP_MOTION_ID : "idle");
       await h.frame();
       expect(h.log.info).toHaveBeenCalledWith("bed_scene_end", {
+        entry: "launch",
         reason: "lost",
         cause: waking ? "click" : null,
       });
@@ -438,6 +463,7 @@ describe("createBedScene", () => {
     expect(woken.woke).toEqual([]);
     expect(woken.count("onDone")).toBe(1);
     expect(woken.log.info).toHaveBeenCalledWith("bed_scene_end", {
+      entry: "launch",
       reason: "skipped",
       cause: null,
     });
@@ -446,6 +472,7 @@ describe("createBedScene", () => {
     failed.scene.start();
     await failed.flush();
     expect(failed.log.info).toHaveBeenCalledWith("bed_scene_end", {
+      entry: "launch",
       reason: "skipped",
       cause: null,
     });
@@ -482,10 +509,10 @@ describe("createBedScene", () => {
 });
 
 describe("createBedScene — lying down on command", () => {
-  it("shows the bed first, then plays the lying-down clip and answers true once she lies", async () => {
+  it("shows the bed first, then plays the lying-down clip and answers lying once she lies", async () => {
     const h = makeHarness();
     const lay = h.scene.lieDown();
-    let answered: boolean | undefined;
+    let answered: string | undefined;
     void lay.then((ok) => {
       answered = ok;
     });
@@ -496,7 +523,7 @@ describe("createBedScene — lying down on command", () => {
     h.place();
     await h.flush();
 
-    expect(answered).toBe(true);
+    expect(answered).toBe("lying");
     expect(h.scene.state()).toBe("asleep");
     expect(h.propUrls).toEqual([BED_PROP_URL]);
     expect(h.calls).toEqual([
@@ -514,7 +541,7 @@ describe("createBedScene — lying down on command", () => {
     expect(h.lying).toEqual([true]);
   });
 
-  it("holds the sleep loop once the lying-down clip ends, and never wakes by the timeout", async () => {
+  it("holds the sleep loop once the lying-down clip ends, then wakes by the timeout", async () => {
     const h = makeHarness();
     await h.lieDown();
     await h.runFrames(2, 1);
@@ -523,9 +550,19 @@ describe("createBedScene — lying down on command", () => {
     expect(h.calls.at(-1)).toBe(`play:${BED_SLEEP_MOTION_ID}`);
     expect(h.count(`play:${BED_SLEEP_MOTION_ID}`)).toBe(1);
 
-    await h.runFrames(WAKE_TIMEOUT_S * 3, 1);
+    await h.runFrames(WAKE_TIMEOUT_S, 1);
     expect(h.scene.state()).toBe("asleep");
     expect(h.woke).toEqual([]);
+    await h.frame(1);
+    expect(h.scene.state()).toBe("waking");
+    expect(h.woke).toEqual([{ cause: "timeout", after: `play:${BED_WAKE_MOTION_ID}` }]);
+    await h.runFrames(40);
+    await h.frame(PROP_FADE_S);
+    expect(h.log.info).toHaveBeenCalledWith("bed_scene_end", {
+      entry: "command",
+      reason: "ended",
+      cause: "timeout",
+    });
   });
 
   it("wakes on a click, a message or the backend, each starting the wake clip", async () => {
@@ -537,7 +574,9 @@ describe("createBedScene — lying down on command", () => {
       expect(h.scene.state()).toBe("waking");
       expect(h.calls.at(-1)).toBe(`play:${BED_WAKE_MOTION_ID}`);
       expect(h.lying).toEqual([true, false]);
-      expect(h.woke.map((w) => w.cause)).toEqual(cause === "message" ? [] : [cause]);
+      // The user's click is a candidate; a message rides its own turn and the backend's stand is silent.
+      expect(h.woke.map((w) => w.cause)).toEqual(cause === "click" ? ["click"] : []);
+      expect(h.scene.takeMessageWake()).toBe(cause === "message");
     }
   });
 
@@ -549,35 +588,73 @@ describe("createBedScene — lying down on command", () => {
     expect(h.calls.at(-1)).toBe(`play:${BED_WAKE_MOTION_ID}`);
   });
 
-  it("answers false and leaves the scene alone while a scene already runs", async () => {
+  it("answers failed and leaves the scene alone while a scene already runs", async () => {
     const h = makeHarness();
     await h.startAsleep();
     const before = h.calls.length;
 
-    expect(await h.lieDown()).toBe(false);
+    expect(await h.lieDown()).toBe("failed");
     expect(h.calls).toHaveLength(before);
     expect(h.scene.state()).toBe("asleep");
   });
 
-  it("answers false when a clip is missing, the bed does not load, or a click comes first", async () => {
+  it("answers failed when a clip is missing or the bed does not load", async () => {
     const missing = makeHarness({ missing: BED_LIE_MOTION_ID });
-    expect(await missing.lieDown()).toBe(false);
+    expect(await missing.lieDown()).toBe("failed");
     expect(missing.calls).not.toContain(BED_HOLD);
     expect(missing.lying).toEqual([]);
     expect(missing.count("onDone")).toBe(1);
 
     const noBed = makeHarness({ prop: "reject" });
-    expect(await noBed.lieDown()).toBe(false);
+    expect(await noBed.lieDown()).toBe("failed");
     expect(noBed.hold()).toBeNull();
     expect(noBed.calls).not.toContain(`play:${BED_LIE_MOTION_ID}`);
+  });
 
-    const clicked = makeHarness({ prop: "pending" });
-    const lay = clicked.scene.lieDown();
-    await clicked.flush();
-    clicked.scene.wake("click");
-    expect(await lay).toBe(false);
-    expect(clicked.woke).toEqual([]);
-    expect(clicked.hold()).toBeNull();
+  it("answers interrupted when the user's click, a message or a drag comes during the start", async () => {
+    for (const interrupt of [
+      (h: ReturnType<typeof makeHarness>) => h.scene.wake("click"),
+      (h: ReturnType<typeof makeHarness>) => h.scene.wake("message"),
+      (h: ReturnType<typeof makeHarness>) => h.scene.cancelStart(),
+    ]) {
+      const h = makeHarness({ prop: "pending" });
+      const lay = h.scene.lieDown();
+      await h.flush();
+      interrupt(h);
+      expect(await lay).toBe("interrupted");
+      expect(h.woke).toEqual([]);
+      expect(h.hold()).toBeNull();
+      expect(h.lying).toEqual([]);
+      expect(h.count("onDone")).toBe(1);
+    }
+  });
+
+  it("leaves a scene that is lying or on the launch entry alone when a drag cancels a start", async () => {
+    const lying = makeHarness();
+    await lying.lieDown();
+    lying.scene.cancelStart();
+    expect(lying.scene.state()).toBe("asleep");
+
+    const launch = makeHarness();
+    launch.scene.start();
+    launch.scene.cancelStart();
+    expect(launch.scene.state()).toBe("starting");
+  });
+
+  it("answers failed, never reports lying and ends when the renderer refuses the lying-down clip", async () => {
+    const h = makeHarness({ refuse: BED_LIE_MOTION_ID });
+
+    expect(await h.lieDown()).toBe("failed");
+    expect(h.lying).toEqual([]);
+    expect(h.calls).not.toContain("asleep:true");
+    expect(h.scene.state()).toBe("done");
+    expect(h.hold()).toBeNull();
+    expect(h.count("onDone")).toBe(1);
+    expect(h.log.info).toHaveBeenCalledWith("bed_scene_end", {
+      entry: "command",
+      reason: "skipped",
+      cause: null,
+    });
   });
 
   it("does not fire the wake clip or the posture again after a cancel", async () => {
@@ -600,7 +677,7 @@ describe("createBedScene — lying down on command", () => {
     expect(h.count("onDone")).toBe(1);
     expect(h.lying).toEqual([true, false]);
 
-    expect(await h.lieDown()).toBe(true);
+    expect(await h.lieDown()).toBe("lying");
     expect(h.scene.state()).toBe("asleep");
     expect(h.count("prop.dispose")).toBe(1);
     expect(h.propUrls).toHaveLength(2);
@@ -615,5 +692,13 @@ describe("createBedScene — lying down on command", () => {
     await h.runFrames(WAKE_TIMEOUT_S + 1, 1);
     expect(h.scene.state()).toBe("waking");
     expect(h.woke.at(-1)?.cause).toBe("timeout");
+    await h.runFrames(40);
+    await h.frame(PROP_FADE_S);
+    expect(h.scene.state()).toBe("done");
+    expect(h.ticking()).toBe(false);
+    // One tick listener per run, and every park has its release.
+    expect(h.subscribed()).toBe(3);
+    expect(h.count("frame.park")).toBe(3);
+    expect(h.count("frame.release")).toBe(3);
   });
 });

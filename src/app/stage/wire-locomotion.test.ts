@@ -86,7 +86,7 @@ describe("wireLocomotion", () => {
     };
     const faller = {
       drop: vi.fn(async () => {}),
-      place: vi.fn(async () => {}),
+      place: vi.fn(async () => true),
       placed: Promise.resolve(),
       cancel: () => cancelOrder.push("faller.cancel"),
       dispose: () => teardowns.push("faller.dispose"),
@@ -175,7 +175,12 @@ describe("wireLocomotion", () => {
       peekActive: () => false,
       isPanelOpen: over.isPanelOpen ?? (() => false),
       isHeld: over.isHeld ?? (() => false),
-      bed: over.bed ?? { phase: () => "off", lieDown: async () => true, getUp: () => {} },
+      bed: over.bed ?? {
+        phase: () => "off",
+        lieDown: async () => ({ ok: true }),
+        getUp: () => {},
+        interrupt: () => {},
+      },
       fallSettings: { get: () => ({ enabled: true }) } as never,
       climbSettings: climbSettings as never,
       agentNotifySettings: { get: () => ({ enabled: false, port: 8770 }) } as never,
@@ -295,13 +300,18 @@ describe("wireLocomotion", () => {
   it("hands out the faller's placement on the floor", async () => {
     const s = setup();
 
-    await s.locomotion.place();
+    expect(await s.locomotion.place()).toBe(true);
 
     expect(s.faller.place).toHaveBeenCalledOnce();
   });
 
   it("hands the window sources the bed the avatar commands lay her on", () => {
-    const bed: AvatarBed = { phase: () => "off", lieDown: async () => true, getUp: () => {} };
+    const bed: AvatarBed = {
+      phase: () => "off",
+      lieDown: async () => ({ ok: true }),
+      getUp: () => {},
+      interrupt: () => {},
+    };
     const s = setup({ bed });
 
     expect(s.windowSourcesDeps.bed).toBe(bed);
