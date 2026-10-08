@@ -26,7 +26,7 @@ REASONS = {
     "not_found": "not_found — no such window or screen spot to move to.",
     "blocked": "blocked — a window in front covers that spot, so the avatar stayed put.",
     "interrupted": "interrupted — the user is holding the avatar, or grabbed it mid-move.",
-    "busy": "busy — another avatar gesture is still running.",
+    "busy": "busy — another avatar gesture is still running, or the avatar is on its bed.",
     "unsupported": "unsupported — the avatar cannot do that right now.",
 }
 
@@ -35,7 +35,7 @@ mcp = FastMCP(
     instructions=(
         "The avatar's own body on the user's desktop. Use get_body_state to see where it is "
         "and what it is doing, list_perch_targets to see which windows it can perch on, then "
-        "sit_on_window / peek / move_to / stand_down to move it. Movement only — expression "
+        "sit_on_window / peek / move_to / stand_down to move it, or go_to_bed to lay it down. Movement only — expression "
         "and speech travel on their own channel."
     ),
 )
@@ -66,8 +66,8 @@ def get_body_state() -> dict[str, Any]:
     """Where the avatar is and what it is doing right now.
 
     Returns its window position and monitor, its posture (standing / sitting / peeking /
-    dragging / walking, and what it is perched on), the loaded VRM, and whether a move is in
-    progress.
+    dragging / walking / climbing / lying, and what it is perched on), the loaded VRM, and
+    whether a move is in progress.
     """
     logger.info("🔍 get_body_state")
     state = _query("/avatar/state", "get_body_state")
@@ -138,10 +138,28 @@ def move_to(spot: str, monitor: int | None = None) -> dict[str, Any]:
 
 @mcp.tool
 def stand_down() -> dict[str, Any]:
-    """Release any perch or peek and return the avatar to its normal standing position."""
+    """Release any perch or peek and return the avatar to its normal standing position.
+
+    While the avatar lies on its bed this wakes it: it sits up, stretches and stands, and the
+    call answers as soon as the wake starts.
+    """
     logger.info("➡️ stand_down")
     result = _command({"action": "stand_down"})
     logger.info("⬅️ stand_down")
+    return result
+
+
+@mcp.tool
+def go_to_bed() -> dict[str, Any]:
+    """Lay the avatar down on a bed at the spot it stands on, leaving any perch first.
+
+    It comes down to the floor, a bed appears there, and it lies down and sleeps until
+    stand_down or the user wakes it with a click. The call answers once it is lying down.
+    While it is on the bed, sit_on_window / peek / move_to answer busy; call stand_down first.
+    """
+    logger.info("➡️ go_to_bed")
+    result = _command({"action": "go_to_bed"})
+    logger.info("⬅️ go_to_bed")
     return result
 
 

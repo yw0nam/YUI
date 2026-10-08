@@ -36,14 +36,15 @@ The agent then adds the MCP tool source at `http://localhost:9002/mcp` directly,
 
 | Tool | Description |
 |---|---|
-| `get_body_state()` | Window position + monitor, posture (standing / sitting / peeking / dragging / walking / climbing and what it is perched on), loaded VRM, and whether a move is running |
+| `get_body_state()` | Window position + monitor, posture (standing / sitting / peeking / dragging / walking / climbing / lying and what it is perched on), loaded VRM, and whether a move is running |
 | `list_perch_targets()` | The client's tracked perch candidates plus the peek edges. Each window carries `app`, `title` and `rect`; `app` and `title` are `null` when the OS reports no name for that window |
 | `sit_on_window(app)` | Sit on the top edge of that app's window (name matched case-insensitively). With several windows of that app, the frontmost one with a reachable top edge wins — a thumbnail covered by a Stage Manager overlay is skipped for the real window behind it |
 | `peek(side)` | Peek around the `"left"` or `"right"` edge of the frontmost window |
 | `move_to(spot, monitor=None)` | Move to `"center"`, `"top-left"`, `"top-right"`, `"bottom-left"` or `"bottom-right"`; omit `monitor` to stay on the current one |
-| `stand_down()` | Release any perch or peek and return to the normal standing position |
+| `stand_down()` | Release any perch or peek and return to the normal standing position; while she lies on the bed it wakes her (she sits up, stretches and stands) and answers once the wake clip starts |
+| `go_to_bed()` | Lay her on a bed at the spot she stands on: she leaves any perch, comes down to the floor, the bed appears there and she lies down, then sleeps until `stand_down` or the user wakes her with a click. Answers `ok` once she is lying down, and at once when she already lies |
 
-A gesture that did not happen raises a tool error carrying the client's reason — `not_found`, `blocked` (a window in front covers that spot, so nothing moved), `interrupted`, `busy`, or `unsupported`.
+A gesture that did not happen raises a tool error carrying the client's reason — `not_found`, `blocked` (a window in front covers that spot, so nothing moved), `interrupted`, `busy` (another gesture is running, or she is on the bed: `sit_on_window`, `peek` and `move_to` answer `busy` until `stand_down` has got her up), or `unsupported` (`go_to_bed` where the bed scene cannot run, such as with reduced motion on).
 
 ## Test
 
