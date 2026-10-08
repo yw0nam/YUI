@@ -221,6 +221,7 @@ describe("dispatcher — posture", () => {
     ["user.drag_start", undefined, { state: "dragging" }],
     ["avatar.walk_start", undefined, { state: "walking" }],
     ["avatar.climb_start", { direction: "up", app: "Notes" }, { state: "climbing" }],
+    ["avatar.bed_start", undefined, { state: "lying" }],
     [
       "avatar.window_sit",
       { edge_local_ypx: 420, app: "Notes", window_title: "Meeting notes" },
@@ -390,6 +391,24 @@ describe("dispatcher — posture", () => {
     expect(dispatcher.getPosture()).toEqual({ state: "climbing" });
     await pushPostureEvent("avatar.climb_end", { direction: "down", app: "Notes" });
     expect(dispatcher.getPosture()).toEqual({ state: "standing" });
+  });
+
+  it("lies from the bed's start to its end, a drag in between returning to lying", async () => {
+    dispatcher.start();
+    applyDirective.mockClear();
+    await pushPostureEvent("avatar.bed_start");
+    expect(dispatcher.getPosture()).toEqual({ state: "lying" });
+    await pushPostureEvent("user.drag_start");
+    expect(dispatcher.getPosture()).toEqual({ state: "dragging" });
+    await pushPostureEvent("user.drag_end");
+    expect(dispatcher.getPosture()).toEqual({ state: "lying" });
+    await pushPostureEvent("avatar.bed_end");
+    expect(dispatcher.getPosture()).toEqual({ state: "standing" });
+    await pushPostureEvent("user.drag_start");
+    await pushPostureEvent("user.drag_end");
+    expect(dispatcher.getPosture()).toEqual({ state: "standing" });
+    expect(applyDirective.mock.calls.every(([d]) => d.motion?.id === "drag" || d.motion === null)).toBe(true);
+    expect(backendCaller.call).not.toHaveBeenCalled();
   });
 
   it("renders nothing and fires no backend turn for a climb", async () => {
