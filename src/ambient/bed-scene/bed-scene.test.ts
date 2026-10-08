@@ -501,7 +501,6 @@ describe("createBedScene — lying down on command", () => {
     expect(h.propUrls).toEqual([BED_PROP_URL]);
     expect(h.calls).toEqual([
       BED_HOLD,
-      "gaze:false",
       `orbit:0,${STORED_ORBIT.polar}`,
       `prop.scale:${REST_HIPS_M / CLIP_REST_HIPS_M}`,
       "prop.opacity:0",
@@ -510,6 +509,7 @@ describe("createBedScene — lying down on command", () => {
       `play:${BED_LIE_MOTION_ID}`,
       "asleep:true",
       "spring:true",
+      "gaze:false",
     ]);
     expect(h.lying).toEqual([true]);
   });
@@ -517,9 +517,9 @@ describe("createBedScene — lying down on command", () => {
   it("holds the sleep loop once the lying-down clip ends, and never wakes by the timeout", async () => {
     const h = makeHarness();
     await h.lieDown();
-    await h.runFrames(2);
+    await h.runFrames(2, 1);
     expect(h.calls.at(-1)).not.toBe(`play:${BED_SLEEP_MOTION_ID}`);
-    await h.runFrames(4);
+    await h.frame(1);
     expect(h.calls.at(-1)).toBe(`play:${BED_SLEEP_MOTION_ID}`);
     expect(h.count(`play:${BED_SLEEP_MOTION_ID}`)).toBe(1);
 
