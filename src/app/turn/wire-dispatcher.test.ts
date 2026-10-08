@@ -23,7 +23,7 @@ import type { Turn } from "../../dispatcher/turn/turn";
 import { wireDispatcher } from "./wire-dispatcher";
 
 describe("wireDispatcher", () => {
-  const setup = () => {
+  const setup = (isBodyHeld?: () => boolean) => {
     const registered: Array<() => void> = [];
     const register = vi.fn((teardown: () => void) => {
       registered.push(teardown);
@@ -80,6 +80,7 @@ describe("wireDispatcher", () => {
       screenshotSettings: {} as never,
       screenCapturer: {} as never,
       getFrontmost: () => undefined,
+      isBodyHeld,
       voice: {} as never,
       turnLog: {} as never,
       previousTurn: previousTurn as never,
@@ -108,6 +109,19 @@ describe("wireDispatcher", () => {
       quotedTurn,
     };
   };
+
+  it("hands the caller the scene hold, so no turn starts a thinking bridge on the bed", () => {
+    const held = () => true;
+    setup(held);
+
+    expect(mocks.createBackendCaller.mock.calls[0][0].isBodyHeld).toBe(held);
+  });
+
+  it("builds the caller without a scene hold where there is no bed", () => {
+    setup();
+
+    expect(mocks.createBackendCaller.mock.calls[0][0].isBodyHeld).toBeUndefined();
+  });
 
   it("setPeek reaches the dispatcher's peek enter/exit", async () => {
     const s = setup();

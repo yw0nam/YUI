@@ -628,7 +628,7 @@ describe("backend_caller — reasoning store feed", () => {
 // precede speech. Silent/error/abort turns still end thinking via finally.
 
 describe("backend_caller — TTFT thinking lifecycle", () => {
-  function makeCaller(fillerActive = true) {
+  function makeCaller(fillerActive = true, isBodyHeld?: () => boolean) {
     turnOutput.hasFiller.mockReturnValue(fillerActive);
     return createBackendCaller({
       config: CONFIG,
@@ -638,9 +638,63 @@ describe("backend_caller — TTFT thinking lifecycle", () => {
       stream: script.stream,
       turnOutput,
       onUsage: usageSink,
+      isBodyHeld,
       logger,
     });
   }
+
+  const wakeEnv = () => ({
+    ...touchEnv(),
+    event_name: "proactive.wake",
+    payload: { cause: "click" },
+  });
+
+  it("a turn that starts while a scene holds the body shows no thinking bridge and still speaks its reply", async () => {
+    for (const env of [wakeEnv(), userEnv()]) {
+      turnOutput.thinkingStart.mockClear();
+      turnOutput.thinkingEnd.mockClear();
+      turnOutput.delta.mockClear();
+      caller = makeCaller(true, () => true);
+      script.events = [deltaEvent("hello"), completedEvent({ speech_text: "hello" })];
+
+      expect(await caller.call(turnOf(env))).toBe("ok");
+
+      expect(turnOutput.thinkingStart).not.toHaveBeenCalled();
+      expect(turnOutput.thinkingEnd).not.toHaveBeenCalled();
+      expect(turnOutput.delta).toHaveBeenCalledWith("hello");
+    }
+  });
+
+  it("a wake turn shows the thinking bridge when the body is free or no predicate is wired", async () => {
+    for (const held of [() => false, undefined]) {
+      turnOutput.thinkingStart.mockClear();
+      caller = makeCaller(true, held);
+      script.events = [deltaEvent("hi"), completedEvent({ speech_text: "hi" })];
+      await caller.call(turnOf(wakeEnv()));
+      expect(turnOutput.thinkingStart).toHaveBeenCalledTimes(1);
+    }
+  });
+
+  it("decides once, when the call starts: a scene that ends mid-turn does not start the bridge late", async () => {
+    let held = true;
+    caller = makeCaller(true, () => held);
+    script.events = [deltaEvent("hi"), completedEvent({ speech_text: "hi" })];
+    turnOutput.delta.mockImplementation(() => {
+      held = false;
+    });
+
+    await caller.call(turnOf(wakeEnv()));
+
+    expect(turnOutput.thinkingStart).not.toHaveBeenCalled();
+    expect(turnOutput.thinkingEnd).not.toHaveBeenCalled();
+  });
+
+  it("a reflex turn is unchanged by the predicate", async () => {
+    caller = makeCaller(true, () => false);
+    script.events = [deltaEvent("꺅"), completedEvent({ speech_text: "꺅" })];
+    await caller.call(turnOf(touchEnv()));
+    expect(turnOutput.thinkingStart).not.toHaveBeenCalled();
+  });
 
   it("thinkingStart and thinkingEnd both carry the id of the turn passed to call()", async () => {
     caller = makeCaller(true);
