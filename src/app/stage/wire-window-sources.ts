@@ -194,7 +194,6 @@ export function wireWindowSources(deps: {
       noteAvatarMoved,
       noteAgentMove,
       onRelocated,
-      isHeld: deps.isHeld,
       bed: deps.bed,
     });
     if (disposed) {

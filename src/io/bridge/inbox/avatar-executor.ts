@@ -47,14 +47,23 @@ const log = createLogger("avatar-executor");
 /** Inset from the work-area edges for the left/right/top spots (logical px). */
 const EDGE_MARGIN_PX = 24;
 
-/** The bed scene as the avatar commands see it. */
+/**
+ * The bed scene as the avatar commands see it. Every phase but `off` and `unsupported` is her
+ * being on the bed, and `sit_on_window`, `peek` and `move_to` answer `busy` until she is up
+ * (the wake clip runs about 22 s, past a command's deadline, so they do not wait for it).
+ */
 export interface AvatarBed {
-  /** `unsupported` where no scene can run; `starting` and `waking` are a scene in progress. */
+  /** `unsupported`: no scene can start (reduced motion); `starting`: the set-up or the exit tail. */
   phase(): "unsupported" | "off" | "starting" | "lying" | "waking";
-  /** Lays her on a bed at the spot she stands on; true once she is lying down. */
-  lieDown(): Promise<boolean>;
-  /** Starts the wake clip. */
+  /**
+   * Lays her on a bed at the spot she stands on. Answers `ok` when the lying-down clip starts,
+   * and `lying` is reported from that moment.
+   */
+  lieDown(): Promise<AvatarCommandResult>;
+  /** Wakes her with the backend's own stand: the wake clip starts and posture reads standing; a set-up is cancelled. */
   getUp(): void;
+  /** The user grabbed her: a lie-down still starting is cut short. */
+  interrupt(): void;
 }
 
 export interface AvatarExecutorDeps {
@@ -81,8 +90,6 @@ export interface AvatarExecutorDeps {
   /** An agent command is about to move the avatar — ambient motion yields to it. Its
    *  return value, when a promise, resolves once a travel that motion parked has settled. */
   noteAgentMove(): void | Promise<void>;
-  /** True while a scene holds the window — a move_to answers `blocked`. */
-  isHeld?: () => boolean;
   bed: AvatarBed;
 }
 
@@ -215,7 +222,6 @@ export function createAvatarExecutor(deps: AvatarExecutorDeps): AvatarExecutor {
   }
 
   async function moveTo(spot: AvatarSpot, monitor?: number): Promise<AvatarCommandResult> {
-    if (deps.isHeld?.()) return fail("blocked");
     const monitors = await listMonitors();
     if (monitors.length === 0) return fail("unsupported");
     const win = getWindow();
@@ -252,10 +258,9 @@ export function createAvatarExecutor(deps: AvatarExecutorDeps): AvatarExecutor {
     return { ok: true };
   }
 
-  /** Her wake clip outlasts a command's deadline, so a gesture cannot wait for her to get up. */
   function onBed(): boolean {
     const phase = bed.phase();
-    return phase === "lying" || phase === "waking";
+    return phase !== "off" && phase !== "unsupported";
   }
 
   async function goToBed(): Promise<AvatarCommandResult> {
@@ -263,10 +268,9 @@ export function createAvatarExecutor(deps: AvatarExecutorDeps): AvatarExecutor {
     if (phase === "lying") return { ok: true };
     if (phase === "unsupported") return fail("unsupported");
     if (phase !== "off") return fail("busy");
-    perch.release();
     if (aborted()) return fail("interrupted");
-    if (await bed.lieDown()) return { ok: true };
-    return fail(aborted() ? "interrupted" : "unsupported");
+    perch.release();
+    return bed.lieDown();
   }
 
   async function runCommand(command: AvatarCommand): Promise<AvatarCommandResult> {
@@ -281,7 +285,7 @@ export function createAvatarExecutor(deps: AvatarExecutorDeps): AvatarExecutor {
       case "move_to":
         return onBed() ? fail("busy") : moveTo(command.spot, command.monitor);
       case "stand":
-        if (bed.phase() === "lying") bed.getUp();
+        if (onBed()) bed.getUp();
         else perch.release();
         return { ok: true };
       case "go_to_bed":
@@ -369,7 +373,10 @@ export function createAvatarExecutor(deps: AvatarExecutorDeps): AvatarExecutor {
     },
     noteUserDrag() {
       dragging = true;
-      if (moving) interrupted = true;
+      if (moving) {
+        interrupted = true;
+        bed.interrupt();
+      }
     },
     noteUserDragEnd() {
       dragging = false;

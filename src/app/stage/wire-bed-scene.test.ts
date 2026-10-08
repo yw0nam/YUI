@@ -35,7 +35,12 @@ function setup(over: { enabled?: boolean; ready?: Promise<void>; frameWindow?: (
   const setViewWindow = vi.fn();
   const teardowns: Array<() => void> = [];
   const bedScene = wireBedScene({
-    renderer: { setViewWindow } as never,
+    renderer: {
+      setViewWindow,
+      setPerchTarget: vi.fn(),
+      setPeekTarget: vi.fn(),
+      setMotionMirror: vi.fn(),
+    } as never,
     ambient: {} as never,
     settings: {
       bedSceneSettings: { get: () => ({ enabled: over.enabled ?? true, wakeTimeoutS: 45 }) },

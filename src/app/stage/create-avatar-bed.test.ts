@@ -159,8 +159,8 @@ describe("createAvatarBed — lieDown", () => {
       const h = setup();
       h.scene.lieDown.mockResolvedValue(result);
       expect(await h.bed.lieDown()).toEqual({ ok: false, reason });
-      // The scene's own exit lets go of the hold; the adapter lets go too and never holds on.
-      expect(h.hold.isHeld()).toBe(false);
+      // The scene's own exit lets go of the hold, after the window is back to its size.
+      expect(h.hold.isHeld()).toBe(true);
     }
   });
 

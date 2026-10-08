@@ -364,7 +364,7 @@ function makeHarness(
     for (let i = 0; i < 240 && positions.at(-1)?.y !== y; i++) await frame();
   };
   /** Drop, then wait for the fall to settle: either its tick is installed, or it ended without one. */
-  const beginFall = async (): Promise<{ done: Promise<void> }> => {
+  const beginFall = async (): Promise<{ done: Promise<unknown> }> => {
     let ended = false;
     const done = faller.drop().finally(() => {
       ended = true;
