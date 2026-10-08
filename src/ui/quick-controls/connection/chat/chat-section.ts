@@ -4,12 +4,16 @@
  * entry, close and dispose to it.
  */
 
+import type { EndpointsConfig } from "../../../../contract";
 import type { PushSocketState } from "../../../../io/chat/push/push-socket";
 import type {
   createEndpointsSettings,
   EndpointOverrides,
 } from "../../../../settings/backend/endpoints-settings";
-import { isValidEndpointUrl } from "../../../../settings/backend/endpoints-settings";
+import {
+  isValidEndpointUrl,
+  mergeEndpoints,
+} from "../../../../settings/backend/endpoints-settings";
 import { t } from "../../../i18n";
 import {
   CHAT_APIS,
@@ -168,10 +172,12 @@ export function createChatSection(deps: {
     return isPush() ? pushSocket?.getState() : undefined;
   }
 
-  // Effective URL for the read — the override, else the bundled default.
+  // The same effective URL a chat turn reads — bundled defaults under the trimmed overrides.
   function effectiveUrl(): string {
-    const ov = endpointsSettings.get().chat_base_url;
-    return ov !== "" ? ov : (getEndpointDefaults?.()?.chat_base_url ?? "");
+    const base: EndpointsConfig = {
+      chat_base_url: getEndpointDefaults?.()?.chat_base_url ?? "",
+    };
+    return mergeEndpoints(base, endpointsSettings.get()).chat_base_url;
   }
 
   function hostOf(url: string): string {
