@@ -719,6 +719,16 @@ mod tests {
     }
 
     #[test]
+    fn parse_avatar_command_go_to_bed() {
+        let route =
+            parse_avatar_request("POST", "/avatar/command", r#"{"action":"go_to_bed"}"#).unwrap();
+        assert_eq!(route, AvatarRoute::Command(AvatarCommand::GoToBed));
+        let (method, params) = route.into_rpc();
+        assert_eq!(method, "command");
+        assert_eq!(params.unwrap()["action"], "go_to_bed");
+    }
+
+    #[test]
     fn parse_avatar_command_rejects_unknown_action() {
         assert_eq!(
             parse_avatar_request("POST", "/avatar/command", r#"{"action":"dance"}"#).unwrap_err(),
