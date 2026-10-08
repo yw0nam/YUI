@@ -537,6 +537,8 @@ YUI/
             viewpoint-row.ts         # Camera view reset button
         connection/                  # Connection tab and its endpoint/API-key section
           connection-tab.ts          # The Connection tab the desktop panel and the phone settings view share
+          chat-type.ts               # The chat type row: long names in the open list, short name over the closed select, description line
+          chat-type.css              # The overlay, option colours and description line of that row
           endpoints-section.ts       # Endpoint URL fields, API-key rows, chat-API picker, and resets
           endpoints-section.css      # Endpoints section and yui-select dropdown styles
         cue-lists/                   # Schedule and proactive cue lists of the Proactive tab

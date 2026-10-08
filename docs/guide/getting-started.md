@@ -69,6 +69,18 @@ Chat Completions, the shipped default, needs a tool-calling model because the cl
 
 YUI supports three chat protocols, selected by `chat_api` in `configs/endpoints.json`. Options A and B work with any server that speaks the corresponding OpenAI API; `push` is a WebSocket contract for backends that deliver without a request, described in [push-transport.md](../reference/push-transport.md). The shipped file sets `chat_completions`; if the key is removed the client behaves as `responses`.
 
+### Which one to pick
+
+Pick by who keeps the conversation history. With Chat Completions the client sends it every turn. With Responses the server keeps it.
+
+| Server | Mode to pick |
+| --- | --- |
+| A server that only serves a model (Ollama, LM Studio, vLLM, Groq) | Chat Completions (default) |
+| A server that keeps responses (OpenAI, agent servers) | Responses |
+| A backend that speaks first (today: Hermes Agent, through its integration under `integrations/hermes/`) | Push |
+
+On Responses against a server that keeps no responses, every turn after the first answers 404 for the stored `previous_response_id`. The client retries once without the id, the conversation context starts over, and the character says so; choose Chat Completions for such a server.
+
 ### Option A — Chat Completions mode (`"chat_api": "chat_completions"`, shipped default)
 
 Any tool-calling OpenAI-compatible `/v1/chat/completions` endpoint drives expression on its own: the client declares `generate_express` with the emotion/motion/voice vocabulary baked into the tool schema, runs the call locally, returns the result, and keeps the conversation transcript client-side (no `previous_response_id`), trimmed to `chat_model_context_window`.
@@ -107,6 +119,7 @@ Any backend served over the OpenAI Responses API (`/v1/responses`). While `broke
 
 | Feature | `chat_completions` | `responses` | `push` |
 | --- | --- | --- | --- |
+| Who keeps the conversation history | client | server | backend |
 | Speech text and `generate_express` cues | yes | yes | yes |
 | Status pill's tool segment (which tool the backend is running) | yes | yes | yes |
 | Reasoning at the top of the message window's bubble | — | yes, when the backend streams reasoning events | yes |

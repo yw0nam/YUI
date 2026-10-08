@@ -394,7 +394,7 @@ const en: Record<string, string> = {
   "svc.chat_desc_responses":
     "The server keeps earlier responses and YUI sends only the new message. Fits servers that keep responses, such as OpenAI.",
   "svc.chat_desc_push":
-    "The connection stays open, so the backend can speak first. Fits a backend that implements this connection.",
+    "The connection stays open, so the backend can speak first. Hermes Agent supports it today.",
   "svc.chat_status_connected": "Connected · {id}",
   "svc.chat_status_connecting": "Connecting…",
   "svc.chat_status_reconnecting": "Reconnecting in {seconds}s",
