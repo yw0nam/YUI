@@ -490,6 +490,7 @@ export function createQuickControls({
       screenshot.loadMonitorsIfEnabled();
     },
     onClose: () => {
+      hintTooltip.hide();
       characterTab.close();
       speakerList.stopAudition();
       connectionTab.commit();
