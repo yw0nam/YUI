@@ -17,7 +17,7 @@ import type {
   PlacementRequest,
   PlacementResult,
 } from "../../window/geometry/perch";
-import { type AvatarExecutorDeps, createAvatarExecutor } from "./avatar-executor";
+import { type AvatarBed, type AvatarExecutorDeps, createAvatarExecutor } from "./avatar-executor";
 import type { AvatarRpcRequest } from "./avatar-rpc";
 
 const WINDOW_POS = { x: 520, y: 740 };
@@ -76,6 +76,11 @@ function harness(over: Partial<AvatarExecutorDeps> = {}) {
   const noteAvatarMoved = vi.fn();
   const noteAgentMove = vi.fn();
   const onRelocated = vi.fn(async () => {});
+  const bed = {
+    phase: vi.fn<AvatarBed["phase"]>(() => "off"),
+    lieDown: vi.fn<AvatarBed["lieDown"]>(async () => true),
+    getUp: vi.fn(),
+  };
 
   const deps: AvatarExecutorDeps = {
     subscribe: (cb) => {
@@ -99,6 +104,7 @@ function harness(over: Partial<AvatarExecutorDeps> = {}) {
     noteAvatarMoved,
     noteAgentMove,
     onRelocated,
+    bed,
     ...over,
   };
 
@@ -139,6 +145,7 @@ function harness(over: Partial<AvatarExecutorDeps> = {}) {
     noteAvatarMoved,
     noteAgentMove,
     onRelocated,
+    bed,
   };
 }
 
@@ -618,6 +625,117 @@ describe("avatar-executor — stand_down", () => {
 
     expect(await h.call("command", { action: "stand_down" })).toEqual({ ok: true });
     expect(h.release).toHaveBeenCalledOnce();
+  });
+});
+
+describe("avatar-executor — go_to_bed", () => {
+  const goToBed = { action: "go_to_bed" };
+
+  it("leaves the perch, lies her down and reports ok once she is lying", async () => {
+    const h = harness();
+    const order: string[] = [];
+    h.release.mockImplementation(() => order.push("release"));
+    h.bed.lieDown.mockImplementation(async () => {
+      order.push("lieDown");
+      return true;
+    });
+
+    expect(await h.call("command", goToBed)).toEqual({ ok: true });
+    expect(order).toEqual(["release", "lieDown"]);
+    expect(h.noteAgentMove).toHaveBeenCalledOnce();
+  });
+
+  it("reports ok without lying her down again while she already lies", async () => {
+    const h = harness();
+    h.bed.phase.mockReturnValue("lying");
+
+    expect(await h.call("command", goToBed)).toEqual({ ok: true });
+    expect(h.bed.lieDown).not.toHaveBeenCalled();
+    expect(h.release).not.toHaveBeenCalled();
+  });
+
+  it("reports busy while a scene is starting or she is waking", async () => {
+    for (const phase of ["starting", "waking"] as const) {
+      const h = harness();
+      h.bed.phase.mockReturnValue(phase);
+
+      expect(await h.call("command", goToBed)).toEqual({ ok: false, reason: "busy" });
+      expect(h.bed.lieDown).not.toHaveBeenCalled();
+    }
+  });
+
+  it("reports unsupported without leaving the perch where no scene can run", async () => {
+    const h = harness();
+    h.bed.phase.mockReturnValue("unsupported");
+
+    expect(await h.call("command", goToBed)).toEqual({ ok: false, reason: "unsupported" });
+    expect(h.release).not.toHaveBeenCalled();
+  });
+
+  it("reports unsupported when the scene does not start", async () => {
+    const h = harness();
+    h.bed.lieDown.mockResolvedValue(false);
+
+    expect(await h.call("command", goToBed)).toEqual({ ok: false, reason: "unsupported" });
+  });
+
+  it("reports interrupted while the user holds her, and when a drag aborts the start", async () => {
+    const held = harness();
+    held.executor.noteUserDrag();
+    expect(await held.call("command", goToBed)).toEqual({ ok: false, reason: "interrupted" });
+    expect(held.bed.lieDown).not.toHaveBeenCalled();
+
+    const gate = deferred<boolean>();
+    const h = harness();
+    h.bed.lieDown.mockReturnValue(gate.promise);
+    const id = h.fire("command", goToBed);
+    await flush();
+    h.executor.noteUserDrag();
+    gate.resolve(false);
+    await flush();
+    expect(h.answerOf(id)).toEqual({ ok: false, reason: "interrupted" });
+  });
+
+  it("reports busy while another command runs", async () => {
+    const gate = deferred<boolean>();
+    const h = harness();
+    h.bed.lieDown.mockReturnValue(gate.promise);
+    h.fire("command", goToBed);
+    await flush();
+
+    expect(await h.call("command", { action: "stand_down" })).toEqual({
+      ok: false,
+      reason: "busy",
+    });
+    gate.resolve(true);
+    await flush();
+  });
+});
+
+describe("avatar-executor — verbs on the bed", () => {
+  it("gets her up on stand_down while she lies, leaving the perch alone", async () => {
+    const h = harness();
+    h.bed.phase.mockReturnValue("lying");
+
+    expect(await h.call("command", { action: "stand_down" })).toEqual({ ok: true });
+    expect(h.bed.getUp).toHaveBeenCalledOnce();
+    expect(h.release).not.toHaveBeenCalled();
+  });
+
+  it("reports busy for sit_on_window, peek and move_to while she lies or wakes", async () => {
+    for (const phase of ["lying", "waking"] as const) {
+      const h = harness();
+      h.bed.phase.mockReturnValue(phase);
+      for (const command of [
+        { action: "sit_on_window", app: "Notes" },
+        { action: "peek", side: "left" },
+        { action: "move_to", spot: "center" },
+      ]) {
+        expect(await h.call("command", command)).toEqual({ ok: false, reason: "busy" });
+      }
+      expect(h.placeOn).not.toHaveBeenCalled();
+      expect(h.setPositionLogical).not.toHaveBeenCalled();
+    }
   });
 });
 
