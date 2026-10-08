@@ -549,6 +549,53 @@ describe("speech action — in-place fix under the speech text", () => {
   });
 });
 
+describe("speech action — the bubble holds while an action is shown", () => {
+  const DWELL = 5000;
+  let mount: HTMLElement;
+  let s: ReturnType<typeof createSurfaces>;
+
+  beforeEach(() => {
+    vi.useFakeTimers();
+    mount = document.createElement("div");
+    document.body.appendChild(mount);
+    s = createSurfaces({ tool: noTool, mount, dwellMs: DWELL });
+  });
+
+  afterEach(() => {
+    s.dispose();
+    mount.remove();
+    vi.useRealTimers();
+  });
+
+  function bubble(): HTMLElement {
+    return mount.querySelector(".yui-bubble") as HTMLElement;
+  }
+
+  it("is still visible past the dwell while an action is shown", () => {
+    s.beginSpeech();
+    s.pushSpeech("I have no backend yet.");
+    s.endSpeech();
+    s.showSpeechAction({ label: "Open Connection", onClick: vi.fn() });
+
+    vi.advanceTimersByTime(DWELL * 3);
+    expect(bubble().classList.contains("is-visible")).toBe(true);
+    expect(bubble().hidden).toBe(false);
+  });
+
+  it("takes the normal dwell again once the action is dropped", () => {
+    s.beginSpeech();
+    s.pushSpeech("I have no backend yet.");
+    s.endSpeech();
+    s.showSpeechAction({ label: "Open Connection", onClick: vi.fn() });
+    vi.advanceTimersByTime(DWELL * 3);
+    expect(bubble().classList.contains("is-visible")).toBe(true);
+
+    s.showSpeechAction();
+    vi.advanceTimersByTime(DWELL);
+    expect(bubble().classList.contains("is-visible")).toBe(false);
+  });
+});
+
 describe("pushSpeech — full markdown rendering", () => {
   let mount: HTMLElement;
   let s: ReturnType<typeof createSurfaces>;
