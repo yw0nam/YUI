@@ -8,16 +8,14 @@
   width: 100%;
 }
 
-/* WebKit paints select text with -webkit-text-fill-color and ignores a transparent colour. */
-.yui-chat-type {
+/* Two classes outrank .yui-select's colour whatever the stylesheet order. */
+.yui-select.yui-chat-type {
   color: transparent;
-  -webkit-text-fill-color: transparent;
 }
 
 /* The popup inherits the select's colour on Chromium, so the options carry their own. */
-.yui-chat-type option {
+.yui-select.yui-chat-type option {
   color: var(--yui-text);
-  -webkit-text-fill-color: var(--yui-text);
   background-color: var(--yui-panel-bg);
 }
 
