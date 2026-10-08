@@ -1,0 +1,50 @@
+/* ── Chat status line — the push state row and its reconnect action ──
+   The shared line/dot look (and the session's lost line wearing it) stays in ../endpoints-section.css. */
+
+.yui-chat-status {
+  margin: 0;
+  padding: 0.625rem 0.875rem;
+}
+
+.yui-chat-status.is-ready .yui-chat-status__dot {
+  background: var(--yui-ok);
+  box-shadow: 0 0 0 3px var(--yui-ok-soft);
+}
+
+.yui-chat-status.is-waiting .yui-chat-status__dot {
+  background: var(--yui-accent);
+  box-shadow: 0 0 0 3px var(--yui-accent-faint);
+}
+
+/* The way out of a stalled connection, at the row's right end — the panel's text button. */
+.yui-chat-status__action {
+  margin-left: auto;
+  padding: 0.125rem 0.25rem;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--yui-text-dim);
+  font: inherit;
+  font-weight: 500;
+  cursor: pointer;
+  transition: color var(--yui-dur-fast) var(--yui-ease);
+}
+
+.yui-chat-status__action:hover {
+  color: var(--yui-accent);
+}
+
+.yui-chat-status__action:active {
+  transform: translateY(1px);
+}
+
+.yui-chat-status__action:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px var(--yui-accent-soft);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .yui-chat-status__action:active {
+    transform: none;
+  }
+}

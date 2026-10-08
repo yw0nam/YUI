@@ -205,7 +205,7 @@ export function createEndpointsSection(deps: EndpointsSectionDeps): EndpointsSec
     if (!isChatApi(api)) return;
     endpointsSettings.set({ chat_api: api });
     log.info("chat_api_change", { api });
-    // The connection tab's store subscription (unsubscribeEndpoints) calls reflectChatType to update value/summary hint.
+    // The connection tab's store subscription calls the chat section's reflect to update value/summary hint.
   }
 
   // Single write path for endpoint text fields — typing and the chat provider preset both land here.
@@ -227,7 +227,7 @@ export function createEndpointsSection(deps: EndpointsSectionDeps): EndpointsSec
     if (preset.url !== undefined) commitEndpointField("chat_base_url", preset.url);
     if (preset.chatApi !== undefined) endpointsSettings.set({ chat_api: preset.chatApi });
     log.info("chat_preset_select", { preset: preset.id });
-    // The connection tab's store subscription (unsubscribeEndpoints) calls reflectChatPreset to re-derive the selected preset.
+    // The connection tab's store subscription calls the chat section's reflect to re-derive the selected preset.
   }
 
   // ── TTS section: provider dropdown (tts_provider + tts_base_url/tts_model autofill) ──

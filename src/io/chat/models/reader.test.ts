@@ -26,7 +26,12 @@ describe("readModels", () => {
   it("GETs {baseUrl}/models without a double slash and sends the key as a Bearer header", async () => {
     const { fetchImpl, calls } = recordFetch(() => jsonResponse({ data: [] }));
 
-    const result = await readModels({ baseUrl: `${BASE}/`, apiKey: "k-1", signal, fetch: fetchImpl });
+    const result = await readModels({
+      baseUrl: `${BASE}/`,
+      apiKey: "k-1",
+      signal,
+      fetch: fetchImpl,
+    });
 
     expect(result).toEqual({ kind: "ok", ids: [] });
     expect(calls[0]?.url).toBe(`${BASE}/models`);
