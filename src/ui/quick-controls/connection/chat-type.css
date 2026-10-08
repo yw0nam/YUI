@@ -37,6 +37,23 @@
   text-wrap: pretty;
 }
 
+.yui-chat-type__link {
+  border-radius: 2px;
+  color: var(--yui-accent);
+  text-decoration: underline;
+  text-underline-offset: 0.15em;
+  transition: color var(--yui-dur-fast) var(--yui-ease);
+}
+
+.yui-chat-type__link:hover {
+  color: var(--yui-text);
+}
+
+.yui-chat-type__link:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px var(--yui-accent-soft);
+}
+
 .yui-chat-type__desc.is-swapping {
   animation: yui-chat-type-desc-in var(--yui-dur-fast) var(--yui-ease);
 }

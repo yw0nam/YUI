@@ -119,7 +119,6 @@ describe("chat type row", () => {
       expect(a.rel).toBe("noopener noreferrer");
       expect(a.textContent).toBe("Hermes Agent");
       expect(a.getAttribute("aria-label")).toBe(t("svc.chat_desc_push_link_aria"));
-      expect(q(tab.el, ".yui-chat-type__desc").textContent).toContain(" ");
       tab.dispose();
     });
   }

@@ -188,6 +188,9 @@ export const CHAT_PROVIDER_PRESETS: readonly ChatProviderPreset[] = [
   { id: "hermes", name: "Hermes Agent", chatApi: "push" },
 ];
 
+// The Hermes Agent repository, linked from the push description; the settings window's opener grant names it too.
+export const HERMES_AGENT_URL = "https://github.com/NousResearch/hermes-agent";
+
 // TTS provider presets (Connection tab, TTS section) — selecting one sets tts_provider and autofills
 // tts_base_url and tts_model. Brand names are display-as-is, never localized. Only providers with a
 // synth are listed.

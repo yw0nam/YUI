@@ -77,7 +77,7 @@ Pick by who keeps the conversation history. With Chat Completions the client sen
 | --- | --- |
 | A server that only serves a model (Ollama, LM Studio, vLLM, Groq) | Chat Completions (default) |
 | A server that keeps responses (OpenAI, agent servers) | Responses |
-| A backend that speaks first (today: Hermes Agent, through its integration under `integrations/hermes/`) | Push |
+| A backend that speaks first — currently only [Hermes Agent](https://github.com/NousResearch/hermes-agent) supports this | Push |
 
 On Responses against a server that keeps no responses, every turn after the first answers 404 for the stored `previous_response_id`. The client retries once without the id, the conversation context starts over, and the character says so; choose Chat Completions for such a server.
 

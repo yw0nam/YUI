@@ -46,7 +46,7 @@ Otherwise collect what the user has. Every URL starts with `http://` or `https:/
 | Value | Where it goes |
 |---|---|
 | Chat base URL and model id | `configs/endpoints.json` → `chat_base_url`, `chat_model`. In the `chat_completions` and `responses` modes the URL is the API root including `/v1` (`http://localhost:8643/v1`). In `push` mode it is the WebSocket base without `/v1` (`http://localhost:8646`) |
-| Chat protocol | `chat_api`: pick by who keeps the conversation history: keep `chat_completions` (the client sends the history) for any tool-calling OpenAI-compatible endpoint, `responses` (the server keeps it) for a backend agent on the Responses API, `push` for a backend that speaks the [push transport](../reference/push-transport.md) |
+| Chat protocol | `chat_api`: pick by who keeps the conversation history: keep `chat_completions` (the client sends the history) for any tool-calling OpenAI-compatible endpoint, `responses` (the server keeps it) for a backend agent on the Responses API, `push` for a backend that speaks first through the [push transport](../reference/push-transport.md); currently only [Hermes Agent](https://github.com/NousResearch/hermes-agent) supports it |
 | Chat API key | `.env.local` → `VITE_YUI_CHAT_KEY` |
 | Expression Broker MCP URL | Skip it. `broker_base_url` is deprecated and is removed in v0.6.0; the client declares its tools on the request |
 | TTS provider, URL, model, speaker, key | `tts_provider` (`irodori` or `openai`), `tts_base_url` without `/v1` (`http://localhost:8088` for Irodori, `https://api.openai.com` for OpenAI), `tts_model` (`irodori-tts`, or `gpt-4o-mini-tts` for OpenAI), `tts_speaker`, `.env.local` → `VITE_YUI_TTS_KEY` |
