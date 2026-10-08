@@ -22,6 +22,7 @@ export interface FirstRunHintDeps {
     pushSpeech(t: string): void;
     endSpeech(): void;
     showSpeechAction(action?: SpeechAction): void;
+    hideSpeech(): void;
   };
   hotkey: string;
   isMac: boolean;
@@ -57,7 +58,10 @@ export function maybeShowFirstRunHint(deps: FirstRunHintDeps): boolean {
   if (!deps.chatConfigured) {
     deps.surfaces.showSpeechAction({
       label: deps.t("input.error_open_connection"),
-      onClick: () => deps.openSettings("conn"),
+      onClick: () => {
+        deps.openSettings("conn");
+        deps.surfaces.hideSpeech();
+      },
     });
   }
   if (deps.chatConfigured) deps.markSeen();
