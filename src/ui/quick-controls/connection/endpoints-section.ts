@@ -236,7 +236,10 @@ export function createEndpointsSection(deps: EndpointsSectionDeps): EndpointsSec
     const preset = CHAT_PROVIDER_PRESETS.find((p) => p.id === chatPresetEl.value);
     if (!preset) return;
     if (preset.url !== undefined) commitEndpointField("chat_base_url", preset.url);
-    if (preset.chatApi !== undefined) endpointsSettings.set({ chat_api: preset.chatApi });
+    if (preset.chatApi !== undefined) {
+      endpointsSettings.set({ chat_api: preset.chatApi });
+      onChatCommit?.();
+    }
     log.info("chat_preset_select", { preset: preset.id });
     // The connection tab's store subscription calls the chat section's reflect to re-derive the selected preset.
   }
@@ -325,6 +328,7 @@ export function createEndpointsSection(deps: EndpointsSectionDeps): EndpointsSec
     }
     SVC_RESET_KEY[svc]?.clear();
     log.info("svc_reset", { svc });
+    if (svc === "chat") onChatCommit?.();
   }
 
   // ── Wiring ──
