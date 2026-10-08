@@ -198,9 +198,7 @@ export function createSpeechBubble(
       hideSpeech();
       return;
     }
-    if (hold()) return;
-    dwellArmed = true;
-    armDwell();
+    settleIntoDwell();
   }
 
   function pushSpeech(delta: string): void {
@@ -236,25 +234,37 @@ export function createSpeechBubble(
       return;
     }
     deferred = false;
-    if (hold() || revealHeld || turnHeld) return;
-    dwellArmed = true;
-    armDwell();
+    settleIntoDwell();
   }
 
   function finishSpeech(): void {
     if (!deferred) return;
     deferred = false;
     if (bubbleEl.hidden) return;
-    if (hold() || revealHeld || turnHeld) return;
-    dwellArmed = true;
-    armDwell();
+    settleIntoDwell();
   }
 
   // Held speech never fades — mark it so the close button (its only exit) stays visible.
+  // A shown speech action holds the bubble the same way.
   function hold(): boolean {
-    const on = holdOpen();
+    const on = holdOpen() || speechActionClick !== null;
     bubbleEl.classList.toggle("is-held", on);
     return on;
+  }
+
+  // A settled, visible bubble takes its dwell — unless something holds it open or speech is still in flight.
+  function settleIntoDwell(): void {
+    if (
+      hold() ||
+      deferred ||
+      revealHeld ||
+      turnHeld ||
+      bubbleEl.classList.contains("is-streaming")
+    ) {
+      return;
+    }
+    dwellArmed = true;
+    armDwell();
   }
 
   function hideSpeech(): void {
@@ -286,18 +296,29 @@ export function createSpeechBubble(
     speechActionClick = null;
     bubbleAction.replaceChildren();
     bubbleAction.hidden = true;
+    measure();
   }
 
   function showSpeechAction(action?: SpeechAction): void {
+    const wasShown = speechActionClick !== null;
     clearSpeechAction();
-    if (!action) return;
-    const button = document.createElement("button");
-    button.type = "button";
-    button.textContent = action.label;
-    button.addEventListener("click", () => speechActionClick?.());
-    speechActionClick = action.onClick;
-    bubbleAction.append(button);
-    bubbleAction.hidden = false;
+    // The action holds the bubble — a pending dwell must not drop it under the button.
+    clearDwell();
+    dwellArmed = false;
+    if (action) {
+      const button = document.createElement("button");
+      button.type = "button";
+      button.textContent = action.label;
+      button.addEventListener("click", () => speechActionClick?.());
+      speechActionClick = action.onClick;
+      bubbleAction.append(button);
+      bubbleAction.hidden = false;
+      measure();
+      hold();
+      return;
+    }
+    // The hold leaves with the action — the bubble takes its normal dwell again.
+    if (wasShown) settleIntoDwell();
   }
 
   function liftAboveInput(totalOffsetPx: number): void {
