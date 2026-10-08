@@ -17,6 +17,7 @@ import type { QuotedTurn } from "../../dispatcher/turn/quoted-turn";
 import type { TurnLog } from "../../dispatcher/turn/turn";
 import { createTurnFeed, type TurnFeed } from "../../dispatcher/turn/turn-feed";
 import type { ReasoningStore } from "../../io/bridge/reasoning/reasoning-store";
+import { clientToolsUnlessBrokered } from "../../io/chat/broker/broker-tool-owner";
 import type { PushSocket } from "../../io/chat/push/push-socket";
 import type { PacerSkipRecord, TurnRecord } from "../../io/chat/record/turn-record-log";
 import {
@@ -144,7 +145,8 @@ export function wireDispatcher(deps: {
     getApiKey: () => getSecret(CHAT_API_KEY_SECRET),
     getFetch,
     getPreviousResponseId: () => sessionStore.get() ?? undefined,
-    onResponseId: (id) => sessionStore.set(id),
+    getPendingToolOutputs: () => sessionStore.outputs(),
+    onResponseId: (id, outputs) => sessionStore.set(id, outputs),
     onResponseIdInvalid: () => sessionStore.clear(),
     onChainReset: () => showChainResetNotice({ surfaces, t }),
     transcript: chatHistoryStore,
@@ -171,7 +173,11 @@ export function wireDispatcher(deps: {
     appendTurnRecord,
     getAgentSettings: () => agentSettings.get(),
     // Built per turn from the published vocabulary, so a live edit reaches the next tool schema.
-    clientTools: () => createClientToolRegistry([createGenerateExpressTool(getVocabulary())]),
+    clientTools: () =>
+      clientToolsUnlessBrokered(
+        getEndpoints(),
+        createClientToolRegistry([createGenerateExpressTool(getVocabulary())]),
+      ),
     pushTurn: (frame) => pushSocket?.sendTurn(frame) ?? false,
     onPushTurnCut: () => pushTurns.cut(),
     onPushTurnSent: (turnId) => pushTurns.opened(turnId),

@@ -183,7 +183,7 @@ describe("backend_caller — previous_response_id threading", () => {
     script.events = [completedEvent({ speech_text: "hi" }, "resp_123")];
     await caller.call(turnOf(userEnv()));
     expect(onResponseId).toHaveBeenCalledTimes(1);
-    expect(onResponseId).toHaveBeenCalledWith("resp_123");
+    expect(onResponseId).toHaveBeenCalledWith("resp_123", []);
   });
 
   it("aborted turn → onResponseId NOT called", async () => {

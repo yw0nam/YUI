@@ -8,6 +8,7 @@
  */
 
 import { describe, expect, it, vi } from "vitest";
+import type { ToolOutputItem } from "../stream/chat-client";
 import type { SessionStorage } from "./session-store";
 import { createSessionStore, localStorageSessionStorage } from "./session-store";
 
@@ -17,7 +18,7 @@ function makeMemStorage(initial: string | null = null): SessionStorage & {
   _data: string | null;
 } {
   let data: string | null = initial;
-  let outputs: Array<typeof OUT> = [];
+  let outputs: ToolOutputItem[] = [];
   return {
     loadOutputs() {
       return outputs;
@@ -215,6 +216,7 @@ describe("createSessionStore — reloadFromStorage", () => {
         if (throws) throw new Error("boom");
         return null;
       },
+      loadOutputs: () => [],
       save: vi.fn(),
       clear: vi.fn(),
     };

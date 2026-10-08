@@ -1,6 +1,11 @@
 /** One stream attempt of a turn: consumes the backend stream, feeds the speech pipeline, and judges how it ended. */
 import type { ControlEnvelope, EndpointsConfig, Usage } from "../../contract";
-import type { ChatRequest, StreamChatOptions, streamChat } from "../../io/chat/stream/chat-client";
+import type {
+  ChatRequest,
+  StreamChatOptions,
+  streamChat,
+  ToolOutputItem,
+} from "../../io/chat/stream/chat-client";
 import { createSilenceTokenFilter } from "../../io/chat/stream/silence-token";
 import type { Logger } from "../../logger";
 import type { Turn } from "../turn/turn";
@@ -42,6 +47,8 @@ export type AttemptResult =
       kind: "reply";
       envelope: ControlEnvelope;
       newResponseId: string | undefined;
+      /** Outputs of the final response's unanswered calls; persisted with its id. */
+      toolOutputs: ToolOutputItem[] | undefined;
       /** Post-flush value. */
       streamedAny: boolean;
       cueStreamed: boolean;
@@ -70,6 +77,7 @@ export function createStreamAttempt(
     // B3: Receive ControlEnvelope from chat-client's completed event (no SSE re-parsing).
     let envelope: ControlEnvelope | undefined;
     let newResponseId: string | undefined;
+    let toolOutputs: ToolOutputItem[] | undefined;
     // Streaming speech: did at least one delta arrive (completion drives turnOutput.end branching).
     let streamedAny = false;
     // Did at least one express cue arrive during stream (completion drives pipeline ownership branching).
@@ -131,6 +139,7 @@ export function createStreamAttempt(
           case "completed":
             envelope = ev.envelope;
             newResponseId = ev.responseId || undefined;
+            toolOutputs = ev.toolOutputs;
             deps.turnFeed?.replied(owner);
             break;
           case "error":
@@ -204,7 +213,7 @@ export function createStreamAttempt(
       streamedAny = true;
     }
 
-    return { kind: "reply", envelope, newResponseId, streamedAny, cueStreamed };
+    return { kind: "reply", envelope, newResponseId, toolOutputs, streamedAny, cueStreamed };
   }
 
   return { run };

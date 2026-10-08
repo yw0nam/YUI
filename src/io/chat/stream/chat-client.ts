@@ -25,6 +25,13 @@ import { streamChatCompletions } from "./chat-completions-stream";
 import type { ClientToolRegistry } from "./client-tools";
 import { streamResponses } from "./responses-stream";
 
+/** The result of a function call the model never saw answered — the next turn sends it with the response id. */
+export interface ToolOutputItem {
+  type: "function_call_output";
+  call_id: string;
+  output: string;
+}
+
 /** Incremental events streamed to client during parsing. */
 export type ChatStreamEvent =
   | { type: "speech_delta"; text: string }
@@ -34,7 +41,13 @@ export type ChatStreamEvent =
   | { type: "express"; args: ExpressArgs }
   | { type: "tool_status"; status: ToolStatus }
   | { type: "usage"; usage: Usage }
-  | { type: "completed"; envelope: ControlEnvelope; responseId: string }
+  | {
+      type: "completed";
+      envelope: ControlEnvelope;
+      responseId: string;
+      /** Responses only: outputs for the final response's calls that got no round trip. */
+      toolOutputs?: ToolOutputItem[];
+    }
   | { type: "error"; message: string; status?: number }
   /** any wire activity we don't otherwise consume — resets the caller's idle watchdog without ending "thinking". */
   | { type: "keepalive" };

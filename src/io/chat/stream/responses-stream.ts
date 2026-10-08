@@ -66,7 +66,7 @@ import type {
 } from "openai/resources/responses/responses";
 
 import type { ControlEnvelope, EndpointsConfig, ExpressArgs } from "../../../contract";
-import type { ChatRequest, ChatStreamEvent } from "./chat-client";
+import type { ChatRequest, ChatStreamEvent, ToolOutputItem } from "./chat-client";
 import { ownsCall, runClientCall, shouldAnswer } from "./client-tool-run";
 import type { ClientToolRegistry } from "./client-tools";
 import {
@@ -139,7 +139,7 @@ export async function* streamResponses(
   // but is handled once. Different calls each act (per-beat cue).
   let handled = new Set<string>();
   let callIds = new Map<string, string>();
-  let executed: Array<{ call: ResponseInputItem; output: ResponseInputItem; oneWay: boolean }> = [];
+  let executed: Array<{ call: ResponseInputItem; output: ToolOutputItem; oneWay: boolean }> = [];
   let roundText = "";
 
   async function* handleCall(
@@ -197,9 +197,9 @@ export async function* streamResponses(
     callIds = new Map();
     executed = [];
     roundText = "";
-    // The id of this response once it completes; a failed one is never answered.
-    let completedId: string | undefined;
+    // A response that errored is never answered.
     let failed = false;
+    let roundTrip = false;
 
     try {
       for await (const event of stream) {
@@ -252,9 +252,9 @@ export async function* streamResponses(
               if (item.call_id) callIds.set(key, item.call_id);
               if (!ownsCall(tools, item.name)) {
                 yield { type: "tool_status", status: { state: "done", tool_id: item.name } };
-              } else if (item.arguments) {
+              } else {
                 // Backends without function_call_arguments.* events have args only in done item.
-                yield* handleCall(key, item.name, item.arguments);
+                yield* handleCall(key, item.name, item.arguments ?? "");
               }
             }
             break;
@@ -274,8 +274,27 @@ export async function* streamResponses(
                 },
               };
             }
-            completedId = event.response?.id ?? "";
-            break;
+            // Every call of this response precedes its completion, so the round trip is decided here.
+            // The model waits on cue-only calls when its response said nothing.
+            if (
+              !failed &&
+              shouldAnswer(executed, roundText === "") &&
+              trips < MAX_TOOL_ROUND_TRIPS
+            ) {
+              roundTrip = true;
+              break;
+            }
+            // Normalization: FLAT args → renderer seam shape.
+            const envelope: ControlEnvelope = { speech_text };
+            normalizeExpressIntoEnvelope(envelope, express);
+            yield {
+              type: "completed",
+              envelope,
+              responseId: event.response?.id ?? "",
+              // Calls nobody answered leave the response unchainable until their outputs go with its id.
+              ...(executed.length ? { toolOutputs: executed.map((e) => e.output) } : {}),
+            };
+            return;
           }
 
           case "error": {
@@ -311,6 +330,8 @@ export async function* streamResponses(
             yield { type: "keepalive" };
             break;
         }
+        // The decision is made at completion; the rest of this stream carries nothing the turn needs.
+        if (roundTrip) break;
       }
     } catch (err) {
       // Abort mid-stream → terminate silently regardless of any status the error carries.
@@ -328,16 +349,8 @@ export async function* streamResponses(
       return;
     }
 
-    // The model waits on cue-only calls when its response said nothing.
-    if (failed || !shouldAnswer(executed, roundText === "") || trips >= MAX_TOOL_ROUND_TRIPS) {
-      if (completedId !== undefined) {
-        // Normalization FLAT args → renderer seam shape.
-        const envelope: ControlEnvelope = { speech_text };
-        normalizeExpressIntoEnvelope(envelope, express);
-        yield { type: "completed", envelope, responseId: completedId };
-      }
-      return;
-    }
+    // An aborted turn sends no further request.
+    if (!roundTrip || request.signal?.aborted) return;
     trips++;
     // Starting a fresh request: the caller's idle watchdog measures the wait from here.
     yield { type: "keepalive" };
