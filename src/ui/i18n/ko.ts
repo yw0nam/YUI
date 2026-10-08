@@ -402,7 +402,7 @@ const ko: Record<string, string> = {
   "svc.tts_type": "제공자",
   "svc.tts_preset_aria": "TTS 제공자 프리셋",
   "svc.broker": "Broker",
-  "svc.broker_hint": "MCP streamable-http",
+  "svc.broker_hint": "MCP streamable-http, 지원 중단, v0.6.0에서 제거",
   "svc.broker_type": "MCP streamable-http",
   "svc.reset_chat": "채팅 되돌리기",
   "svc.reset_stt": "STT 되돌리기",

@@ -1,3 +1,5 @@
+// Deprecated: removed in v0.6.0. Use client-declared tools (src/io/chat/stream/client-tools.ts).
+
 /**
  * Reconciles endpoint overrides → the live Expression Broker client. The pet window's
  * config.subscribe path only reacts to disk-config edits; this seam reacts to the per-user

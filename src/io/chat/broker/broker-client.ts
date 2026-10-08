@@ -1,3 +1,5 @@
+// Deprecated: removed in v0.6.0. Use client-declared tools (src/io/chat/stream/client-tools.ts).
+
 /**
  * Expression Broker MCP write-only client. YUI publishes its renderable vocabulary;
  * it never subscribes. Stateless + best-effort: never throws to the caller, never blocks boot

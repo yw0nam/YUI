@@ -12,6 +12,7 @@ import {
 import type { Logger } from "../../../logger";
 import type { ExpressMotionSettings } from "../../../settings/avatar/express-motion-settings";
 
+// Deprecated: removed in v0.6.0. Use client-declared tools (src/io/chat/stream/client-tools.ts).
 /**
  * Expression Broker publish (D6). Resolves the CORS-bypass fetch once, does the fire-and-forget
  * initial publish when broker_base_url is present (never blocks boot), and wires the override
@@ -44,8 +45,18 @@ export async function wireBroker(deps: {
   // Resolved once and reused when the client is retargeted.
   const brokerFetch = (await selectFetch()) ?? undefined;
   let broker: BrokerClient | null = null;
-  const makeBroker = (baseUrl: string): BrokerClient =>
-    createBrokerClient({ baseUrl, ...(brokerFetch ? { fetch: brokerFetch } : {}) });
+  let warnedDeprecated = false;
+  const makeBroker = (baseUrl: string): BrokerClient => {
+    if (!warnedDeprecated) {
+      warnedDeprecated = true;
+      log.warn("deprecated", {
+        what: "broker_base_url",
+        removed_in: "v0.6.0",
+        use: "client-declared tools",
+      });
+    }
+    return createBrokerClient({ baseUrl, ...(brokerFetch ? { fetch: brokerFetch } : {}) });
+  };
   // Latest emotion_text table, kept current by every load so vocabulary() reflects it.
   let table: Record<string, string> | null = null;
   // The provider of the newest load; a load that settles after a newer one started is dropped.

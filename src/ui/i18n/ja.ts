@@ -405,7 +405,7 @@ const ja: Record<string, string> = {
   "svc.tts_type": "プロバイダー",
   "svc.tts_preset_aria": "TTSプロバイダーのプリセット",
   "svc.broker": "Broker",
-  "svc.broker_hint": "MCP streamable-http",
+  "svc.broker_hint": "MCP streamable-http、非推奨、v0.6.0 で削除",
   "svc.broker_type": "MCP streamable-http",
   "svc.reset_chat": "チャットを戻す",
   "svc.reset_stt": "STT を戻す",

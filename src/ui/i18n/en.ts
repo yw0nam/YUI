@@ -403,7 +403,7 @@ const en: Record<string, string> = {
   "svc.tts_type": "Provider",
   "svc.tts_preset_aria": "TTS provider preset",
   "svc.broker": "Broker",
-  "svc.broker_hint": "MCP streamable-http",
+  "svc.broker_hint": "MCP streamable-http, deprecated, removed in v0.6.0",
   "svc.broker_type": "MCP streamable-http",
   "svc.reset_chat": "Reset Chat",
   "svc.reset_stt": "Reset STT",

@@ -384,6 +384,7 @@ export interface EndpointsConfig {
   tts_speaker?: string;
   /** Synthesis concurrency limit. Default 1 (serial) — applied by consumer (tts-pipeline), not loader. */
   tts_max_inflight?: number;
+  // Deprecated: removed in v0.6.0. Use client-declared tools (src/io/chat/stream/client-tools.ts).
   /** Expression Broker MCP endpoint (streamable-http, example: `http://localhost:3201/mcp`). Skips vocab publish if not set. */
   broker_base_url?: string;
   /** Maximum context token count for the active chat model. */
