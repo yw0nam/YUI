@@ -164,14 +164,9 @@ export const CHATKEY_CLEAR_SVG = `<svg viewBox="0 0 24 24" fill="none" aria-hidd
 export const PLUS_SVG = `<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>`;
 export const CROSS_SVG = `<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>`;
 
-export const CHAT_APIS = ["responses", "chat_completions", "push"] as const;
+// Option order of the chat type list.
+export const CHAT_APIS = ["chat_completions", "responses", "push"] as const;
 export type ChatApi = (typeof CHAT_APIS)[number];
-// chat_api → i18n key for its dropdown option / summary hint label.
-export const CHAT_API_LABEL_KEYS: Record<ChatApi, string> = {
-  responses: "svc.chat_type_responses",
-  chat_completions: "svc.chat_type_completions",
-  push: "svc.chat_type_push",
-};
 
 // Chat provider presets (Connection tab, chat section) — selecting one autofills chat_base_url with the
 // provider's OpenAI-compatible path, the chat protocol, or both. Brand names are display-as-is,

@@ -184,7 +184,8 @@
 
 /* ── Controls on a row's right — fields hold 15rem, segments hug their options ── */
 .yui-row > .yui-input-wrap,
-.yui-row > .yui-select {
+.yui-row > .yui-select,
+.yui-row > .yui-select-wrap {
   flex: 0 1 15rem;
   min-width: min(10rem, 100%);
 }
@@ -488,6 +489,7 @@
 @container (width < 30rem) {
   .yui-row > .yui-input-wrap,
   .yui-row > .yui-select,
+  .yui-row > .yui-select-wrap,
   .yui-row > .yui-seg {
     flex-grow: 1;
   }

@@ -730,8 +730,8 @@ describe("createQuickControls — endpoints + API keys", () => {
     expect(sel.classList.contains("yui-select--single")).toBe(false);
     expect(sel.disabled).toBe(false);
     expect(Array.from(sel.options).map((o) => o.value)).toEqual([
-      "responses",
       "chat_completions",
+      "responses",
       "push",
     ]);
 
@@ -770,7 +770,7 @@ describe("createQuickControls — endpoints + API keys", () => {
     expect(endpointsSettings.get().chat_api).toBe("chat_completions");
 
     const hint = qc.el.querySelector<HTMLElement>(".yui-chat-summary-hint")!;
-    expect(hint.textContent).toBe(t("svc.chat_type_completions"));
+    expect(hint.textContent).toBe(t("svc.chat_name_chat_completions"));
 
     qc.dispose();
   });

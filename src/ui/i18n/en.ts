@@ -86,7 +86,8 @@ const en: Record<string, string> = {
   "plate.key_rejected": "Key rejected",
 
   // chain-break (404) recovery notice
-  "chain.reset_notice": "Conversation context was reset",
+  "chain.reset_notice":
+    "The server did not find the previous response, so the conversation context was reset. If this happens every turn, choose Chat Completions in the connection settings.",
   "hotkey.register_failed":
     "Summon hotkey {accelerator} could not be registered: another app may hold it",
   "ingress.dead_notice":
@@ -382,9 +383,18 @@ const en: Record<string, string> = {
   "svc.type_label": "Type",
   "svc.chat": "Chat",
   "svc.chat_aria": "Chat API type",
-  "svc.chat_type_responses": "Responses API",
-  "svc.chat_type_completions": "Chat Completions",
-  "svc.chat_type_push": "Push · persistent connection",
+  "svc.chat_name_chat_completions": "Chat Completions",
+  "svc.chat_name_responses": "Responses",
+  "svc.chat_name_push": "Push",
+  "svc.chat_option_chat_completions": "Chat Completions · YUI sends the history",
+  "svc.chat_option_responses": "Responses · the server keeps the history",
+  "svc.chat_option_push": "Push · persistent connection",
+  "svc.chat_desc_chat_completions":
+    "YUI sends the conversation history every turn. Fits model servers such as Ollama, LM Studio and vLLM.",
+  "svc.chat_desc_responses":
+    "The server keeps earlier responses and YUI sends only the new message. Fits servers that keep responses, such as OpenAI.",
+  "svc.chat_desc_push":
+    "The connection stays open, so the backend can speak first. Fits a backend that implements this connection.",
   "svc.chat_status_connected": "Connected · {id}",
   "svc.chat_status_connecting": "Connecting…",
   "svc.chat_status_reconnecting": "Reconnecting in {seconds}s",

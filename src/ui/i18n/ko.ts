@@ -85,7 +85,8 @@ const ko: Record<string, string> = {
   "plate.key_rejected": "키 거부됨",
 
   // chain-break (404) recovery notice
-  "chain.reset_notice": "대화 컨텍스트가 초기화되었습니다",
+  "chain.reset_notice":
+    "서버가 이전 응답을 찾지 못해 대화 맥락이 초기화되었습니다. 매 턴 반복되면 연결 설정에서 Chat Completions를 선택하세요.",
   "hotkey.register_failed": "소환 단축키 {accelerator} 등록 실패: 다른 앱이 사용 중일 수 있어요",
   "ingress.dead_notice":
     "에이전트 이벤트 수신 시작 실패 (포트 {port} 사용 중). 이번 세션에는 에이전트 알림이 꺼져요",
@@ -381,9 +382,18 @@ const ko: Record<string, string> = {
   "svc.type_label": "유형",
   "svc.chat": "채팅",
   "svc.chat_aria": "채팅 API 종류",
-  "svc.chat_type_responses": "Responses API",
-  "svc.chat_type_completions": "Chat Completions",
-  "svc.chat_type_push": "Push · 연결 유지",
+  "svc.chat_name_chat_completions": "Chat Completions",
+  "svc.chat_name_responses": "Responses",
+  "svc.chat_name_push": "Push",
+  "svc.chat_option_chat_completions": "Chat Completions · 기록을 YUI가 보냄",
+  "svc.chat_option_responses": "Responses · 기록을 서버가 보관",
+  "svc.chat_option_push": "Push · 연결 유지",
+  "svc.chat_desc_chat_completions":
+    "YUI가 매 턴 대화 기록을 함께 보냅니다. Ollama, LM Studio, vLLM 같은 모델 서버에 맞습니다.",
+  "svc.chat_desc_responses":
+    "서버가 이전 응답을 보관하고 YUI는 새 메시지만 보냅니다. OpenAI처럼 응답을 보관하는 서버에 맞습니다.",
+  "svc.chat_desc_push":
+    "연결을 유지해서 백엔드가 먼저 말을 걸 수 있습니다. 이 연결 방식을 구현한 백엔드에 맞습니다.",
   "svc.chat_status_connected": "연결됨 · {id}",
   "svc.chat_status_connecting": "연결하는 중…",
   "svc.chat_status_reconnecting": "{seconds}초 뒤 다시 연결",

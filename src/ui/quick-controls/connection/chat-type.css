@@ -1,0 +1,54 @@
+/* ── Chat type row — the closed select shows a short name; the open list shows the long ones ── */
+.yui-select-wrap {
+  position: relative;
+}
+
+.yui-select-wrap > .yui-select {
+  display: block;
+  width: 100%;
+  color: transparent;
+}
+
+/* The popup inherits the select's colour on Chromium, so the options carry their own. */
+.yui-select-wrap > .yui-select option {
+  color: var(--yui-text);
+  background-color: var(--yui-panel-bg);
+}
+
+.yui-chat-type__shown {
+  position: absolute;
+  inset: 0 1.75rem 0 0.625rem;
+  display: flex;
+  align-items: center;
+  overflow: hidden;
+  font-size: var(--yui-fs-body);
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  color: var(--yui-text);
+  pointer-events: none;
+}
+
+.yui-chat-type__desc {
+  flex-basis: 100%;
+  margin: 0;
+  font-size: var(--yui-fs-sub);
+  line-height: 1.45;
+  color: var(--yui-text-mute);
+  text-wrap: pretty;
+}
+
+.yui-chat-type__desc.is-swapping {
+  animation: yui-chat-type-desc-in var(--yui-dur-fast) var(--yui-ease);
+}
+
+@keyframes yui-chat-type-desc-in {
+  from {
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .yui-chat-type__desc.is-swapping {
+    animation: none;
+  }
+}

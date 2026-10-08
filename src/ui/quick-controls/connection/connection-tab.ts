@@ -16,7 +16,6 @@ import type {
 } from "../../../settings/backend/endpoints-settings";
 import { t } from "../../i18n";
 import {
-  CHAT_API_LABEL_KEYS,
   CHAT_APIS,
   CHAT_PRESET_CUSTOM,
   CHAT_PROVIDER_PRESETS,
@@ -27,6 +26,7 @@ import {
   TTS_PROVIDER_PRESETS,
 } from "../constants";
 import { secHeadHtml } from "../markup";
+import { chatTypeRowHtml, createChatTypeView } from "./chat-type";
 import { createEndpointsSection, validateEndpointInput } from "./endpoints-section";
 
 type EndpointsSettingsStore = ReturnType<typeof createEndpointsSettings>;
@@ -121,10 +121,6 @@ function svcResetRowHtml(svc: string): string {
 
 function chatSectionHtml(rows: ConnectionRows): string {
   const full = rows.chat === "full";
-  // Chat API dropdown (yui-select) options — value=chat_api reflects effectiveChatApi.
-  const chatTypeOptionsHtml = CHAT_APIS.map(
-    (a) => `<option value="${a}">${t(CHAT_API_LABEL_KEYS[a])}</option>`,
-  ).join("");
   // Chat provider preset dropdown options — brand names + Custom. value=preset id reflects chat_base_url.
   const chatPresetOptionsHtml = `${CHAT_PROVIDER_PRESETS.map(
     (p) => `<option value="${p.id}">${p.name}</option>`,
@@ -133,7 +129,7 @@ function chatSectionHtml(rows: ConnectionRows): string {
         <section class="yui-sec yui-endpoints yui-svc" data-svc="chat">
           ${secHeadHtml(t("svc.chat"), full ? `<span class="yui-endpoints__hint yui-chat-summary-hint"></span>` : "")}
           <div class="yui-group">
-            ${full ? selectRowHtml("yui-svc-chat-type", "svc.type_label", `<select class="yui-select yui-chat-type" id="yui-svc-chat-type" aria-label="${t("svc.chat_aria")}">${chatTypeOptionsHtml}</select>`) : ""}
+            ${full ? chatTypeRowHtml() : ""}
             ${full ? selectRowHtml("yui-svc-chat-preset", "svc.chat_preset_label", `<select class="yui-select yui-chat-preset" id="yui-svc-chat-preset" aria-label="${t("svc.chat_preset_aria")}">${chatPresetOptionsHtml}</select>`) : ""}
             ${endpointRowHtml("chat_base_url")}
             ${full ? endpointRowHtml("chat_model") : ""}
@@ -253,7 +249,7 @@ export function createConnectionTab(deps: {
 
   // Chat protocol nodes — the push-only rows render none of the selects/hint/model row.
   const chatTypeEl = el.querySelector<HTMLSelectElement>(".yui-chat-type");
-  const chatSummaryHintEl = el.querySelector<HTMLSpanElement>(".yui-chat-summary-hint");
+  const chatTypeView = createChatTypeView(el);
   const chatPresetEl = el.querySelector<HTMLSelectElement>(".yui-chat-preset");
   const ttsProviderEl = el.querySelector<HTMLSelectElement>(".yui-tts-provider")!;
   const chatModelRowEl = el.querySelector<HTMLDivElement>(
@@ -299,7 +295,7 @@ export function createConnectionTab(deps: {
   function reflectChatType(): void {
     const eff = effectiveChatApi();
     if (chatTypeEl && chatTypeEl.value !== eff) chatTypeEl.value = eff;
-    if (chatSummaryHintEl) chatSummaryHintEl.textContent = t(CHAT_API_LABEL_KEYS[eff]);
+    chatTypeView.reflect(eff);
     if (chatModelRowEl) chatModelRowEl.hidden = eff === "push";
     reflectChatStatus();
   }
