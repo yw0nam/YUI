@@ -311,7 +311,8 @@ YUI/
       chat/
         secret-provider.ts             # Resolves each secret from its runtime store, then the build-time fallback
         stream/                        # Streaming model calls, the client-declared tools, and the silence filter
-          chat-client.ts               # Adapter over the openai SDK Responses stream
+          chat-client.ts               # Builds the openai SDK client and routes to the selected transport's stream
+          responses-stream.ts          # Responses streaming loop
           chat-completions.ts          # Pure Chat Completions request builders and stream-chunk reducer
           chat-completions-stream.ts   # Chat Completions streaming loop with its tool round trips
           stream-helpers.ts            # Express-tool and error helpers both streaming loops use
