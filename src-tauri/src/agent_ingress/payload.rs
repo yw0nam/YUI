@@ -93,6 +93,7 @@ pub enum AvatarCommand {
         monitor: Option<u32>,
     },
     StandDown,
+    GoToBed,
 }
 
 /// A parsed `/avatar/*` request, ready to bridge into the webview.
