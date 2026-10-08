@@ -510,9 +510,9 @@ describe("createConnectionTab", () => {
       model.value = "zz9";
       model.dispatchEvent(new Event("input", { bubbles: true }));
 
-      expect(
-        tab.el.querySelector<HTMLElement>(".yui-chat-status__text")!.firstChild,
-      ).toBe(textNode);
+      expect(tab.el.querySelector<HTMLElement>(".yui-chat-status__text")!.firstChild).toBe(
+        textNode,
+      );
       tab.dispose();
     });
 

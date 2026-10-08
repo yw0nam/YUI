@@ -407,7 +407,7 @@ const ja: Record<string, string> = {
   "svc.chat_models_reading": "モデル一覧を読み込み中…",
   "svc.chat_models_read": "モデルを{n}件読み込みました",
   "svc.chat_models_pick": "モデルを{n}件読み込みました · チャットモデルを選んでください",
-  "svc.chat_models_absent": "{model} はこのサーバーの一覧にありません",
+  "svc.chat_models_absent": "このサーバーの一覧にないモデル",
   "svc.chat_models_unreachable": "{host} に接続できません",
   "svc.chat_models_timeout": "{host} が時間内に応答しませんでした",
   "svc.chat_models_refused": "サーバーがキーを拒否しました",

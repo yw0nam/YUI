@@ -404,7 +404,7 @@ const ko: Record<string, string> = {
   "svc.chat_models_reading": "모델 목록을 읽는 중…",
   "svc.chat_models_read": "모델 {n}개를 읽음",
   "svc.chat_models_pick": "모델 {n}개를 읽음 · 채팅 모델을 고르세요",
-  "svc.chat_models_absent": "{model}: 이 서버의 목록에 없는 모델",
+  "svc.chat_models_absent": "이 서버의 목록에 없는 모델",
   "svc.chat_models_unreachable": "{host}에 닿지 못함",
   "svc.chat_models_timeout": "{host}가 제시간에 응답하지 않음",
   "svc.chat_models_refused": "서버가 키를 거절함",

@@ -405,7 +405,7 @@ const en: Record<string, string> = {
   "svc.chat_models_reading": "Reading the model list…",
   "svc.chat_models_read": "Read {n} models",
   "svc.chat_models_pick": "Read {n} models · pick a chat model",
-  "svc.chat_models_absent": "{model} is not in this server's list",
+  "svc.chat_models_absent": "Not in this server's list",
   "svc.chat_models_unreachable": "Could not reach {host}",
   "svc.chat_models_timeout": "{host} did not answer in time",
   "svc.chat_models_refused": "The server refused the key",

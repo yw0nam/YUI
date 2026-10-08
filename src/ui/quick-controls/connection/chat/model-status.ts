@@ -35,7 +35,8 @@ export function modelStatusView(input: {
       if (present) {
         return { text: t("svc.chat_models_read", { n: result.ids.length }), dot: ["is-ready"] };
       }
-      return { text: t("svc.chat_models_absent", { model }), dot: [] };
+      // No model name in the text — a constant string is announced once while typing.
+      return { text: t("svc.chat_models_absent"), dot: [] };
     }
     case "unreachable":
       return { text: t("svc.chat_models_unreachable", { host }), dot: ["is-failed"] };
