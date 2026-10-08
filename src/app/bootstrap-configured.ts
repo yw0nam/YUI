@@ -101,6 +101,7 @@ const realFactories: ConfiguredBootstrapFactories = {
     const bedScene = wireBedScene({
       renderer,
       ambient: phase1.ambient,
+      bus,
       settings,
       applyCamera: phase1.applyCamera,
       hold: phase1.bedSceneHold,
@@ -189,6 +190,7 @@ const realFactories: ConfiguredBootstrapFactories = {
       peekActive: () => peekState?.active() ?? false,
       isPanelOpen: () => getQuickControls().isOpen(),
       isHeld: bedScene.isHeld,
+      bed: bedScene.bed,
       fallSettings,
       climbSettings,
       agentNotifySettings,

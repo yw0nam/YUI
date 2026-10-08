@@ -11,6 +11,7 @@ import type { WindowRect } from "../../contract";
 import type { EventBus } from "../../dispatcher/core/event-bus";
 import type { Dispatcher } from "../../dispatcher/dispatcher";
 import type { createVrmSelection } from "../../io/assets/vrm-selection";
+import type { AvatarBed } from "../../io/bridge/inbox/avatar-executor";
 import type { DescentEdge } from "../../io/window/geometry/screen-geometry";
 import type { FrameWindow } from "../../io/window/geometry/travel-frame";
 import type { HitTestController } from "../../io/window/pet/hit-test";
@@ -54,6 +55,8 @@ export function wireLocomotion(deps: {
   isPanelOpen: () => boolean;
   /** A scene holds the body and the window. */
   isHeld: () => boolean;
+  /** The bed the avatar commands lay her on. */
+  bed: AvatarBed;
   fallSettings: FlagSettingsStore;
   climbSettings: FlagSettingsStore;
   agentNotifySettings: ReturnType<typeof createAgentNotifySettings>;
@@ -73,6 +76,8 @@ export function wireLocomotion(deps: {
   setKeepOnScreenPaused(paused: boolean): void;
   /** Resolves once the boot placement has settled. */
   placed: Promise<void>;
+  /** Puts her on the floor where she stands. */
+  place(): Promise<void>;
   /** Drops a character left mid-air. */
   drop(): void;
 } {
@@ -182,6 +187,7 @@ export function wireLocomotion(deps: {
     onSitLost: createSitLossFall({ getClimber: () => climberRef, faller }),
     sitDown: () => sitter.sitDown(null),
     isHeld,
+    bed: deps.bed,
     log,
   });
   windowSourcesRef = windowSources;
@@ -253,6 +259,7 @@ export function wireLocomotion(deps: {
     frame: { ready: travelFrame.ready, frameWindow: travelFrame.frameWindow },
     setKeepOnScreenPaused: windowSources.setKeepOnScreenPaused,
     placed: faller.placed,
+    place: faller.place,
     drop: () => void faller.drop(),
   };
 }

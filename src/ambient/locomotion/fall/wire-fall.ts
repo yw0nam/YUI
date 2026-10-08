@@ -32,6 +32,8 @@ export function wireFaller(deps: {
   log: Logger;
 }): {
   drop(opts?: DropOptions): Promise<void>;
+  /** Puts her on the floor line where she stands, whatever the fall switch says. */
+  place(): Promise<void>;
   cancel(): void;
   dispose(): void;
   /** Resolves once the boot placement has settled, or at once where none runs. */
@@ -48,6 +50,7 @@ export function wireFaller(deps: {
     drop: async (opts?: DropOptions) => {
       if (deps.isEnabled()) await faller?.drop(opts);
     },
+    place: async () => faller?.drop({ place: true }),
     cancel: () => faller?.cancel(),
     dispose: () => {
       disposed = true;

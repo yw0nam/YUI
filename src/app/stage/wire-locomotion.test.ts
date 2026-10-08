@@ -301,7 +301,7 @@ describe("wireLocomotion", () => {
   });
 
   it("hands the window sources the bed the avatar commands lay her on", () => {
-    const bed = { phase: () => "off", lieDown: async () => true, getUp: () => {} } as const;
+    const bed: AvatarBed = { phase: () => "off", lieDown: async () => true, getUp: () => {} };
     const s = setup({ bed });
 
     expect(s.windowSourcesDeps.bed).toBe(bed);

@@ -5,7 +5,11 @@ import {
   createWindowDropSource,
   type WindowDropSource,
 } from "../../dispatcher/sources/gesture/window-drop/window-drop-source";
-import { type AvatarExecutor, createAvatarExecutor } from "../../io/bridge/inbox/avatar-executor";
+import {
+  type AvatarBed,
+  type AvatarExecutor,
+  createAvatarExecutor,
+} from "../../io/bridge/inbox/avatar-executor";
 import { onAvatarRpc, respondAvatarRpc } from "../../io/bridge/inbox/avatar-rpc";
 import {
   attachKeepOnScreen,
@@ -51,6 +55,8 @@ export function wireWindowSources(deps: {
   sitDown: () => Promise<"done" | "lost">;
   /** A scene holds the body and the window — no perch, no peek, no resize. */
   isHeld: () => boolean;
+  /** The bed the avatar commands lay her on. */
+  bed: AvatarBed;
   log: Logger;
 }): Pick<
   WindowDropSource,
@@ -189,6 +195,7 @@ export function wireWindowSources(deps: {
       noteAgentMove,
       onRelocated,
       isHeld: deps.isHeld,
+      bed: deps.bed,
     });
     if (disposed) {
       windowDropSource.stop();

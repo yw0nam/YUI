@@ -82,6 +82,8 @@ afterEach(() => {
   vi.unstubAllGlobals();
   vi.clearAllMocks();
   mocks.sceneDeps.length = 0;
+  mocks.scene.lieDown.mockImplementation(async () => true);
+  mocks.scene.state.mockReturnValue("idle");
   mocks.isTauri.mockReturnValue(false);
 });
 
@@ -130,7 +132,7 @@ describe("wireBedScene", () => {
     h.bedScene.wake("click");
     expect(mocks.scene.wake).not.toHaveBeenCalled();
     expect(h.bedScene.takeMessageWake()).toBe(false);
-    const deps = h.start();
+    h.start();
     h.bedScene.wake("click");
     h.bedScene.wake("message");
     h.bedScene.onDragEnd();
