@@ -48,8 +48,8 @@ describe("createModelCombobox", () => {
     combobox.dispose();
   });
 
-  it("keeps a typed name outside the list and shows the no-match row", () => {
-    const { input } = mountRow();
+  it("keeps a typed name outside the list and shows the no-match message beside the listbox", () => {
+    const { row, input } = mountRow();
     const combobox = createModelCombobox({ input, onPick: () => {} });
 
     combobox.setOptions(["m1"]);
@@ -57,9 +57,11 @@ describe("createModelCombobox", () => {
     input.value = "zzz";
     input.dispatchEvent(new Event("input"));
     const list = document.getElementById("yui-chat-model-list")!;
+    const none = row.querySelector<HTMLElement>(".yui-model-list__none")!;
 
-    expect(optionTexts(list)).toEqual([]);
-    expect(list.textContent).toContain(t("svc.chat_models_no_match"));
+    expect(list.hidden).toBe(true);
+    expect(none.hidden).toBe(false);
+    expect(none.textContent).toBe(t("svc.chat_models_no_match"));
     expect(input.value).toBe("zzz");
 
     combobox.dispose();
@@ -144,8 +146,42 @@ describe("createModelCombobox", () => {
     input.dispatchEvent(
       new KeyboardEvent("keydown", { key: "Enter", isComposing: true, bubbles: true }),
     );
+    // WKWebView commits the composition with isComposing false but keyCode 229.
+    input.dispatchEvent(
+      new KeyboardEvent("keydown", { key: "Enter", keyCode: 229, bubbles: true }),
+    );
 
     expect(picks).toEqual([]);
+
+    combobox.dispose();
+  });
+
+  it("gives the listbox the model label's name", () => {
+    const { row, input } = mountRow();
+    const label = document.createElement("label");
+    label.setAttribute("for", "yui-ep-chat_model");
+    row.prepend(label);
+    const combobox = createModelCombobox({ input, onPick: () => {} });
+    const list = document.getElementById("yui-chat-model-list")!;
+
+    expect(list.getAttribute("aria-labelledby")).toBe(label.id);
+
+    combobox.dispose();
+  });
+
+  it("ArrowDown reopens a closed, non-empty list", () => {
+    const { input } = mountRow();
+    const combobox = createModelCombobox({ input, onPick: () => {} });
+    combobox.setOptions(["m1"]);
+    input.focus();
+    const list = document.getElementById("yui-chat-model-list")!;
+    input.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
+    expect(list.hidden).toBe(true);
+
+    input.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowDown", bubbles: true }));
+
+    expect(list.hidden).toBe(false);
+    expect(optionTexts(list)).toEqual(["m1"]);
 
     combobox.dispose();
   });

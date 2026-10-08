@@ -408,6 +408,63 @@ describe("createConnectionTab", () => {
       tab.dispose();
     });
 
+    it("choosing the push preset aborts the read and shows the push state", async () => {
+      const deps = modelReadDeps();
+      const tab = build(DESKTOP_ROWS, {
+        ...deps,
+        getEndpointDefaults: () => defaults,
+        pushSocket: fakeSocket({ kind: "ready", chat_id: "yui-7731" }),
+      });
+      tab.entered();
+      await tick();
+
+      const preset = tab.el.querySelector<HTMLSelectElement>(".yui-chat-preset")!;
+      preset.value = "hermes";
+      preset.dispatchEvent(new Event("change", { bubbles: true }));
+      await tick();
+
+      expect((deps.calls[0]?.init.signal as AbortSignal).aborted).toBe(true);
+      const status = statusOf(tab);
+      expect(status.classList.contains("is-ready")).toBe(true);
+      expect(status.textContent).toContain(t("svc.chat_status_connected", { id: "yui-7731" }));
+      tab.dispose();
+    });
+
+    it("resetting the Chat service re-reads against the default URL", async () => {
+      const deps = modelReadDeps();
+      const tab = build(DESKTOP_ROWS, { ...deps, getEndpointDefaults: () => defaults });
+
+      const url = tab.el.querySelector<HTMLInputElement>("#yui-ep-chat_base_url")!;
+      url.value = "https://typed.test/v1";
+      url.dispatchEvent(new Event("change", { bubbles: true }));
+      await tick();
+      await tick();
+      deps.settle();
+      await tick();
+      expect(deps.calls[0]?.url).toBe("https://typed.test/v1/models");
+
+      tab.el.querySelector<HTMLButtonElement>('[data-svc-reset="chat"]')!.click();
+      await tick();
+      await tick();
+
+      expect(deps.calls[1]?.url).toBe("https://def.test/v1/models");
+      tab.dispose();
+    });
+
+    it("reads the trimmed effective URL a chat turn would use", async () => {
+      const deps = modelReadDeps();
+      const tab = build(DESKTOP_ROWS, { ...deps });
+
+      const url = tab.el.querySelector<HTMLInputElement>("#yui-ep-chat_base_url")!;
+      url.value = "https://typed.test/v1 ";
+      url.dispatchEvent(new Event("change", { bubbles: true }));
+      await tick();
+      await tick();
+
+      expect(deps.calls[0]?.url).toBe("https://typed.test/v1/models");
+      tab.dispose();
+    });
+
     it("clears an invalid URL instead of reading", async () => {
       const deps = modelReadDeps();
       const tab = build(DESKTOP_ROWS, { ...deps, getEndpointDefaults: () => defaults });

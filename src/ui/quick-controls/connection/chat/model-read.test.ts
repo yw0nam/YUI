@@ -96,6 +96,61 @@ describe("createModelRead", () => {
     expect(phases).toEqual([{ phase: "reading" }]);
   });
 
+  it("reports a joined read's completion and leaves the read joinable until it settles", async () => {
+    const { fetchImpl, calls, respond } = deferredFetch();
+    const { read, phases } = harness(fetchImpl);
+
+    read.start("https://api.test/v1");
+    await tick();
+    read.start("https://api.test/v1"); // joins the identical in-flight read
+    await tick();
+    respond(0);
+    await tick();
+    await tick();
+
+    expect(calls).toHaveLength(1);
+    expect(phases).toEqual([
+      { phase: "reading" },
+      { phase: "done", result: { kind: "ok", ids: ["m1"] } },
+    ]);
+  });
+
+  it("cancels a start suspended on its key when abort arrives first", async () => {
+    const { fetchImpl, calls } = deferredFetch();
+    let release!: (key: string | undefined) => void;
+    const gate = new Promise<string | undefined>((r) => {
+      release = r;
+    });
+    const { read, phases } = harness(fetchImpl, () => gate);
+
+    read.start("https://api.test/v1");
+    read.abort();
+    release("key-1");
+    await tick();
+    await tick();
+
+    expect(calls).toHaveLength(0);
+    expect(phases).toEqual([]);
+  });
+
+  it("yields only cleared for a clear during the key await, with zero fetches", async () => {
+    const { fetchImpl, calls } = deferredFetch();
+    let release!: (key: string | undefined) => void;
+    const gate = new Promise<string | undefined>((r) => {
+      release = r;
+    });
+    const { read, phases } = harness(fetchImpl, () => gate);
+
+    read.start("https://api.test/v1");
+    read.clear();
+    release("key-1");
+    await tick();
+    await tick();
+
+    expect(calls).toHaveLength(0);
+    expect(phases).toEqual([{ phase: "cleared" }]);
+  });
+
   it("reports nothing for a read aborted on close", async () => {
     const { fetchImpl, calls, respond } = deferredFetch();
     const { read, phases } = harness(fetchImpl);
