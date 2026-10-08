@@ -59,7 +59,7 @@ display:
 ```
 
 `yui` is the only toolset the model needs to place cues, and `no_mcp` keeps an Expression Broker
-out of the turn.
+out of the turn. The broker is deprecated and is removed in v0.6.0.
 
 Check: `grep -A6 '^platforms:' ~/.hermes/profiles/<profile>/config.yaml` prints the `yui` block
 with `<port>`.

@@ -43,7 +43,8 @@ MCP servers reach the platform through the same list. With no MCP server named t
 every enabled one, with any named it gets only those, and `no_mcp` gives it none. The list above
 names none, so a profile that carries the Expression Broker MCP server hands the broker to the
 platform. Name the MCP servers the character uses there, or add `no_mcp` when it uses none, because a
-cue sent through the broker's `generate_express` never reaches a `render` frame.
+cue sent through the broker's `generate_express` never reaches a `render` frame. The Expression
+Broker is deprecated and is removed in v0.6.0; the yui platform carries `generate_express` itself.
 
 | Key | Default | Meaning |
 |---|---|---|

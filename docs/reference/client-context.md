@@ -678,8 +678,11 @@ includes the guide, so both leave the window together.
 
 ## Client-declared tools
 
-Every Responses and every CC request carries the client's registered tools in `tools[]` as
-OpenAI function schemas, and the client executes the calls it gets back.
+Every CC request, and every Responses request while `broker_base_url` is unset, carries the
+client's registered tools in `tools[]` as OpenAI function schemas, and the client executes
+the calls it gets back. While `broker_base_url` is set (deprecated, removed in v0.6.0) the
+Responses request declares none: the broker's backend owns `generate_express`, and the
+client plays its cue without answering it.
 `generate_express` is one of them, so expression works against any
 OpenAI-compatible endpoint whose model supports tool calling — the backend
 behind it needs neither the broker nor prior knowledge of this contract. The
@@ -745,11 +748,19 @@ On Responses the round trip sends a new request whose `input` is the original in
 items, then each executed call as a `{"type":"function_call","call_id","name","arguments"}`
 item, then one `{"type":"function_call_output","call_id","output"}` item per call. It
 keeps the turn's original `previous_response_id` and never chains on the id of the
-tool-calling response, because a server that keeps no responses answers that id with
-404. The same two conditions as above decide it: a tool that answers a question ran, or
+tool-calling response, so the round trip does not depend on the server having kept that
+response. The same two conditions as above decide it: a tool that answers a question ran, or
 only cue-only tools ran and that response carried no speech (Responses has no
 `finish_reason`, so the missing speech is the signal). The `completed` event carries the
 id of the last response of the turn.
+
+A turn can end on a response whose calls got no round trip (a cue-only call beside speech,
+or the round-trip cap). That response is the one the next turn chains on, and a server that
+checks tool pairing rejects a `function_call` that has no output. The `completed` event
+therefore also carries a `function_call_output` item per unanswered call; the client keeps
+them with the stored response id and sends them ahead of the next turn's user message
+whenever it sends that id. They are dropped with the id: a session reset, or the retry
+without `previous_response_id` after a 404, sends none.
 
 The cycle repeats while the model keeps asking. Three round trips per turn is the
 cap; beyond it the client stops returning results and closes the turn with the
@@ -764,7 +775,8 @@ whichever side registered it, and only the exact registered name is answered.
 Tool traffic lives in the in-flight request only. Chat Completions has no
 `previous_response_id`, and its next turn is rebuilt from the stored transcript,
 which holds user and assistant speech text alone. A Responses turn chains the next
-one on the id of the turn's last response, which holds the speech.
+one on the id of the turn's last response, which holds the speech, and a 404 for a stored
+id resets the chain with one retry that sends no id.
 
 One Chat Completions round trip on the wire:
 

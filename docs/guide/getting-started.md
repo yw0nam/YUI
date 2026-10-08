@@ -89,7 +89,7 @@ Backend capability still varies: a plain OpenAI-compatible server (e.g. vLLM) sp
 
 ### Option B — Responses mode (`"chat_api": "responses"`)
 
-Any backend served over the OpenAI Responses API (`/v1/responses`). The client declares `generate_express` on every request with the vocabulary baked into the tool schema, runs the call locally, and sends a follow-up request that re-sends the input items plus the call and its result, so a server that keeps no responses works (a plain OpenAI-compatible server such as vLLM does). The [Hermes Agent](https://github.com/nousresearch/hermes-agent) API server does not pass a request's tools to its model; on Hermes use push mode, or the Expression Broker (§4) on Responses until v0.6.0.
+Any backend served over the OpenAI Responses API (`/v1/responses`). While `broker_base_url` is unset, the client declares `generate_express` on every request with the vocabulary baked into the tool schema, runs the call locally, and sends a follow-up request that re-sends the input items plus the call and its result, so the in-turn round trip does not depend on the server keeping responses (a plain OpenAI-compatible server such as vLLM works). Across turns the client chains on `previous_response_id`; a server that answers 404 for the stored id gets one retry without it, and the conversation context resets. The [Hermes Agent](https://github.com/nousresearch/hermes-agent) API server does not pass a request's tools to its model; on Hermes use push mode, or the Expression Broker (§4) on Responses until v0.6.0.
 
 1. Stand up the backend agent with the Responses API served.
 2. Hand the agent the cue contract so it understands how to drive the character:
