@@ -46,6 +46,7 @@ export interface ConnectionRows {
   chat: "full" | "push";
   /** full: provider dropdown + URL/model/key; provider-url-key: no model row. Also gates the disabled STT type row. */
   tts: "full" | "provider-url-key";
+  // Deprecated: removed in v0.6.0. Use client-declared tools (src/io/chat/stream/client-tools.ts).
   broker: boolean;
 }
 
@@ -183,6 +184,7 @@ function ttsSectionHtml(rows: ConnectionRows): string {
         </section>`;
 }
 
+// Deprecated: removed in v0.6.0. Use client-declared tools (src/io/chat/stream/client-tools.ts).
 function brokerSectionHtml(): string {
   return `
         <section class="yui-sec yui-endpoints yui-svc" data-svc="broker">
