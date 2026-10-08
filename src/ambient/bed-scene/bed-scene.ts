@@ -1,9 +1,10 @@
 /**
- * Launch bed scene — she starts asleep on a bed, wakes on a click, a message or the wake timeout,
- * plays one wake clip that ends standing, and the bed fades out. The scene holds the body
- * on its two clips from the moment she lies down until the frame is back to its normal
- * size. Every path out goes through one exit, so the hold, the bed and the widened frame
- * never outlive it. All timing runs on the renderer tick, which pauses with a hidden document.
+ * Bed scene — she lies asleep on a bed, wakes on a click, a message or the wake timeout, plays
+ * one wake clip that ends standing, and the bed fades out. The scene holds the body on its
+ * clips from the moment she lies down until the frame is back to its normal size. Every path
+ * out goes through one exit, so the hold, the bed and the widened frame never outlive it, and
+ * the scene can run again afterwards. All timing runs on the renderer tick, which pauses with
+ * a hidden document.
  */
 
 import type { WakeCause } from "../../contract";
@@ -68,7 +69,7 @@ export interface BedSceneDeps {
 }
 
 export interface BedScene {
-  /** Lie down asleep. Only the first call starts the scene. */
+  /** Lie down asleep. Ignored while a scene runs. */
   start(): void;
   /** Wake her. Before she has lain down it skips the scene; once waking it is ignored. */
   wake(cause: WakeCause): void;
@@ -97,6 +98,16 @@ export function createBedScene(deps: BedSceneDeps): BedScene {
   let fadeS: number | null = null;
   /** What the bed is shown at; its fade starts from here. */
   let opacity = 0;
+
+  /** Clears what the previous run left, so the scene can start again. */
+  function reset(): void {
+    cause = null;
+    messageWakeOwed = false;
+    vrmSeen = null;
+    asleepS = 0;
+    fadeS = null;
+    opacity = 0;
+  }
 
   async function finish(reason: EndReason): Promise<void> {
     if (state === "done") return;
@@ -130,26 +141,21 @@ export function createBedScene(deps: BedSceneDeps): BedScene {
     }
   }
 
-  async function run(): Promise<void> {
-    const startedAt = generation;
+  /** Loads the clips; the rest hips height when the scene can run, else null after skipping. */
+  async function prepare(startedAt: number): Promise<number | null> {
     await Promise.all(BED_MOTION_IDS.map((id) => renderer.preloadMotion(id)));
-    if (generation !== startedAt) return;
+    if (generation !== startedAt) return null;
     const restHips = renderer.getModelRestHipsHeight();
     // A preload resolves either way; a cached duration is what says the clip loaded.
     if (restHips === null || BED_MOTION_IDS.some((id) => renderer.getMotionDuration(id) === null)) {
       void finish("skipped");
-      return;
+      return null;
     }
-    renderer.setMotionHold(BED_MOTION_IDS);
-    renderer.playMotion({ id: BED_SLEEP_MOTION_ID });
-    liveliness.setAsleep(true);
-    // Lying on her side, the spring simulation pushes the long hair off the body colliders.
-    renderer.setSpringBonesHeld(true);
-    renderer.setGazeEnabled(false);
-    // The frame extents are measured head-on.
-    renderer.setOrbit({ azimuth: 0, polar: deps.camera.get().polar });
-    state = "asleep";
+    return restHips;
+  }
 
+  /** Loads the bed, parks the frame and shows the bed, unless the run is over by then. */
+  async function raiseBed(startedAt: number, restHips: number): Promise<void> {
     let loaded: PropHandle;
     try {
       loaded = await renderer.loadProp(BED_PROP_URL);
@@ -185,6 +191,22 @@ export function createBedScene(deps: BedSceneDeps): BedScene {
     if (fadeS !== null) return;
     opacity = 1;
     loaded.setOpacity(1);
+  }
+
+  async function run(): Promise<void> {
+    const startedAt = generation;
+    const restHips = await prepare(startedAt);
+    if (restHips === null) return;
+    renderer.setMotionHold(BED_MOTION_IDS);
+    renderer.playMotion({ id: BED_SLEEP_MOTION_ID });
+    liveliness.setAsleep(true);
+    // Lying on her side, the spring simulation pushes the long hair off the body colliders.
+    renderer.setSpringBonesHeld(true);
+    renderer.setGazeEnabled(false);
+    // The frame extents are measured head-on.
+    renderer.setOrbit({ azimuth: 0, polar: deps.camera.get().polar });
+    state = "asleep";
+    await raiseBed(startedAt, restHips);
   }
 
   function wake(by: WakeCause): void {
@@ -239,7 +261,8 @@ export function createBedScene(deps: BedSceneDeps): BedScene {
 
   return {
     start() {
-      if (state !== "idle") return;
+      if (state !== "idle" && state !== "done") return;
+      reset();
       state = "starting";
       unsub = renderer.onTick(onTick);
       void run().catch(() => finish("skipped"));
