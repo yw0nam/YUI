@@ -49,6 +49,9 @@ export function createModelCombobox(deps: {
 
   let ids: readonly string[] = [];
   let active = -1;
+  // Set by Escape: a dismissed list stays closed across re-renders until typing,
+  // an arrow, or re-focusing asks for it again.
+  let dismissed = false;
 
   function options(): HTMLLIElement[] {
     return [...list.querySelectorAll<HTMLLIElement>(".yui-model-list__opt")];
@@ -57,6 +60,15 @@ export function createModelCombobox(deps: {
   function filtered(): string[] {
     const q = input.value.toLowerCase();
     return ids.filter((id) => id.toLowerCase().includes(q));
+  }
+
+  function isOpen(): boolean {
+    return !list.hidden || !none.hidden;
+  }
+
+  function dismiss(): void {
+    close();
+    dismissed = true;
   }
 
   function close(): void {
@@ -68,8 +80,8 @@ export function createModelCombobox(deps: {
   }
 
   function render(): void {
-    // Open only while the input holds focus and there is something to offer.
-    if (ids.length === 0 || document.activeElement !== input) {
+    // Open only while the input holds focus, there is something to offer, and the list was not dismissed.
+    if (dismissed || ids.length === 0 || document.activeElement !== input) {
       close();
       return;
     }
@@ -111,22 +123,33 @@ export function createModelCombobox(deps: {
   }
 
   function handleInput(): void {
+    dismissed = false;
     render();
   }
   function handleFocus(): void {
+    dismissed = false;
     render();
   }
   function handleBlur(): void {
     close();
   }
   function handleKeydown(e: KeyboardEvent): void {
+    // Escape closes the suggestions whatever the IME does with the event.
+    if (e.key === "Escape") {
+      if (!isOpen()) return;
+      e.preventDefault();
+      dismiss();
+      // The list owns this Escape — the panel's document handler must not close on it.
+      e.stopPropagation();
+      return;
+    }
     // WKWebView commits an IME composition with isComposing false and keyCode 229.
     if (e.isComposing || e.keyCode === 229) return;
-    const open = !list.hidden;
     if (e.key === "ArrowDown" || e.key === "ArrowUp") {
-      if (!open && ids.length === 0) return; // native caret — there is nothing to offer
+      if (!isOpen() && ids.length === 0) return; // native caret — there is nothing to offer
       e.preventDefault();
-      if (!open) {
+      dismissed = false;
+      if (!isOpen()) {
         // A closed list reopens onto the end the arrow points at.
         render();
         const count = options().length;
@@ -143,16 +166,10 @@ export function createModelCombobox(deps: {
           : active + (e.key === "ArrowDown" ? 1 : -1),
       );
     } else if (e.key === "Enter") {
-      if (!open || active === -1) return;
+      if (!isOpen() || active === -1) return;
       e.preventDefault();
       const id = options()[active]?.textContent;
       if (id) pick(id);
-    } else if (e.key === "Escape") {
-      if (!open) return;
-      e.preventDefault();
-      close();
-      // The list owns this Escape — the panel's document handler must not close on it.
-      e.stopPropagation();
     }
   }
   function handleListMousedown(e: MouseEvent): void {

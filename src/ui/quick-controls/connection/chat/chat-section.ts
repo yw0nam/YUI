@@ -131,6 +131,12 @@ export function createChatSection(deps: {
       })
     : undefined;
 
+  // Typing recomputes the status from the last read's result — no new request.
+  const handleModelInput = (): void => {
+    if (!disposed) renderStatus();
+  };
+  modelInput?.addEventListener("input", handleModelInput);
+
   let disposed = false;
   // The model-list phase the line shows; null = nothing (cleared, or the push state owns the line).
   let modelPhase: ModelStatusPhase | null = null;
@@ -285,6 +291,7 @@ export function createChatSection(deps: {
       disposed = true;
       read.abort();
       combobox?.dispose();
+      modelInput?.removeEventListener("input", handleModelInput);
       unsubscribePushState?.();
       status.dispose();
     },
