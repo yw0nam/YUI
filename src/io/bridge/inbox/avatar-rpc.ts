@@ -26,7 +26,8 @@ export type AvatarCommand =
   | { action: "sit_on_window"; app: string }
   | { action: "peek"; side: "left" | "right" }
   | { action: "move_to"; spot: AvatarSpot; monitor?: number }
-  | { action: "stand_down" };
+  | { action: "stand_down" }
+  | { action: "go_to_bed" };
 
 type AvatarRpcMethod = "state" | "perch_targets" | "command";
 
