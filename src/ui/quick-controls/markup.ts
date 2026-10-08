@@ -11,6 +11,15 @@ export function secHeadHtml(title: string, aside = ""): string {
   return `<div class="yui-sec__head"><h2 class="yui-sec__title">${title}</h2>${aside}</div>`;
 }
 
+// Select row — label on the left, the control markup (a select, its wrapper, a description line) after it.
+export function selectRowHtml(id: string, labelKey: string, controlHtml: string): string {
+  return `
+          <div class="yui-row">
+            <div class="yui-row__main"><label class="yui-input-row__label" for="${id}">${t(labelKey)}</label></div>
+            ${controlHtml}
+          </div>`;
+}
+
 // Numeric input row: label+sub(+hint) on the left, number input with its unit on the right.
 export function numRowHtml(opts: {
   id: string;

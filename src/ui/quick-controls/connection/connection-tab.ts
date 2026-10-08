@@ -25,7 +25,7 @@ import {
   ENDPOINT_FIELDS,
   TTS_PROVIDER_PRESETS,
 } from "../constants";
-import { secHeadHtml } from "../markup";
+import { secHeadHtml, selectRowHtml } from "../markup";
 import { chatTypeRowHtml, createChatTypeView } from "./chat-type";
 import { createEndpointsSection, validateEndpointInput } from "./endpoints-section";
 
@@ -99,15 +99,6 @@ function keyRowHtml(idPrefix: string): string {
               <button class="yui-iconbtn yui-chatkey__toggle" type="button" aria-pressed="false" aria-label="${t(`${idPrefix}.show`)}" data-tip="${t(`${idPrefix}.show`)}">${CHATKEY_EYE_SVG}</button>
               <button class="yui-iconbtn yui-chatkey__clear" type="button" aria-label="${t(`${idPrefix}.clear`)}" data-tip="${t(`${idPrefix}.clear`)}">${CHATKEY_CLEAR_SVG}</button>
             </div>
-          </div>`;
-}
-
-// Type dropdown row — label on the left, the select on the right.
-function selectRowHtml(id: string, labelKey: string, selectHtml: string): string {
-  return `
-          <div class="yui-row">
-            <div class="yui-row__main"><label class="yui-input-row__label" for="${id}">${t(labelKey)}</label></div>
-            ${selectHtml}
           </div>`;
 }
 

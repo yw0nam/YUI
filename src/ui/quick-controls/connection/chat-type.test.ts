@@ -14,7 +14,7 @@ import {
 import { createEndpointsSettings } from "../../../settings/backend/endpoints-settings";
 import { type Locale, setLocale, t } from "../../i18n";
 import en from "../../i18n/en";
-import { HERMES_AGENT_URL } from "../constants";
+import { HERMES_AGENT } from "../constants";
 import { inMemoryApiKeyStorage } from "../test-helpers";
 import { createConnectionTab } from "./connection-tab";
 
@@ -114,6 +114,7 @@ describe("chat type row", () => {
       expect(a.rel).toBe("noopener noreferrer");
       expect(a.textContent).toBe("Hermes Agent");
       expect(a.hasAttribute("aria-label")).toBe(false);
+      expect(a.getAttribute("tabindex")).toBe("0");
       tab.dispose();
     });
   }
@@ -134,7 +135,7 @@ describe("chat type row", () => {
     const tab = build("en");
     const select = q(tab.el, ".yui-chat-type") as HTMLSelectElement;
     const desc = q(tab.el, ".yui-chat-type__desc");
-    select.value = "responses";
+    select.value = "chat_completions";
     select.dispatchEvent(new Event("change", { bubbles: true }));
     expect(desc.classList.contains("is-swapping")).toBe(true);
     desc.dispatchEvent(new Event("animationend"));
@@ -147,6 +148,6 @@ describe("chat type row", () => {
     const grant = cap.permissions.find(
       (p: { identifier?: string }) => p.identifier === "opener:allow-open-url",
     );
-    expect(grant.allow).toEqual([{ url: HERMES_AGENT_URL }]);
+    expect(grant.allow).toEqual([{ url: HERMES_AGENT.url }]);
   });
 });

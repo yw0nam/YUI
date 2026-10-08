@@ -168,6 +168,13 @@ export const CROSS_SVG = `<svg viewBox="0 0 24 24" fill="none" aria-hidden="true
 export const CHAT_APIS = ["chat_completions", "responses", "push"] as const;
 export type ChatApi = (typeof CHAT_APIS)[number];
 
+// The one backend that speaks push today: the preset row's name and the push description's link.
+// The settings window's opener grant names the same URL.
+export const HERMES_AGENT = {
+  name: "Hermes Agent",
+  url: "https://github.com/NousResearch/hermes-agent",
+} as const;
+
 // Chat provider presets (Connection tab, chat section) — selecting one autofills chat_base_url with the
 // provider's OpenAI-compatible path, the chat protocol, or both. Brand names are display-as-is,
 // never localized. "custom" is the no-autofill entry the dropdown falls back to when nothing matches.
@@ -185,11 +192,8 @@ export const CHAT_PROVIDER_PRESETS: readonly ChatProviderPreset[] = [
   { id: "ollama", name: "Ollama", url: "http://localhost:11434/v1" },
   { id: "lmstudio", name: "LM Studio", url: "http://localhost:1234/v1" },
   { id: "groq", name: "Groq", url: "https://api.groq.com/openai/v1" },
-  { id: "hermes", name: "Hermes Agent", chatApi: "push" },
+  { id: "hermes", name: HERMES_AGENT.name, chatApi: "push" },
 ];
-
-// The Hermes Agent repository, linked from the push description; the settings window's opener grant names it too.
-export const HERMES_AGENT_URL = "https://github.com/NousResearch/hermes-agent";
 
 // TTS provider presets (Connection tab, TTS section) — selecting one sets tts_provider and autofills
 // tts_base_url and tts_model. Brand names are display-as-is, never localized. Only providers with a
