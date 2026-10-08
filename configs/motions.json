@@ -254,6 +254,15 @@
     "root_keep_xz": true,
     "broker_publish": false
   },
+  "bed_lie": {
+    "vrma_path": "/motions/bed_lie.vrma",
+    "kind": "oneshot",
+    "loop": false,
+    "priority": 90,
+    "interrupt_policy": "replace",
+    "root_keep_xz": true,
+    "broker_publish": false
+  },
   "bed_wake": {
     "vrma_path": "/motions/bed_wake.vrma",
     "kind": "oneshot",
