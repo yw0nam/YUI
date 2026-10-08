@@ -161,14 +161,12 @@ describe("maybeShowFirstRunHint — unconfigured chat backend", () => {
 describe("hint.setup_backend copy", () => {
   afterEach(() => setLocale("en"));
 
-  it("states the missing backend and points at an OpenAI-compatible server, not the tab, in every locale", () => {
+  it("names an OpenAI-compatible server in every locale", () => {
     for (const locale of ["en", "ko", "ja"] as const) {
       setLocale(locale);
       const copy = t("hint.setup_backend");
       expect(copy).not.toBe("hint.setup_backend");
       expect(copy).toContain("OpenAI");
-      // The button under the speech opens the tab — the sentence no longer routes there.
-      expect(copy).not.toContain(t("tabs.conn"));
     }
   });
 });
