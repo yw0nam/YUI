@@ -43,10 +43,11 @@
  *      · isExpressTool(name) or registered → if call not yet handled and item.arguments present,
  *        parse and act as above (covers backends with no function_call_arguments.* events).
  *      · else → tool_status done.
- *  - response.completed → usage, and the completed event with the assembled ControlEnvelope once
- *    the turn needs no round trip. Normalization happens HERE: emotion_id→emotion{id},
+ *  - response.completed → usage, then either the round trip (the stream is left and the follow-up
+ *    sent) or the completed event with the assembled ControlEnvelope, at once. Calls that got no
+ *    round trip ride on it as toolOutputs. Normalization happens HERE: emotion_id→emotion{id},
  *    motion_id→motion{id}, emotion_text→emotion_text. Silence is an empty speech_text; no
- *    client-side speak gate.
+ *    client-side speak gate. An error event only blocks the round trip.
  *  - error → error event.
  *  - response.failed / response.incomplete → error event (terminal, not liveness).
  *  - any other event → keepalive (wire liveness only; resets the caller's idle watchdog).
