@@ -1,8 +1,8 @@
 /**
- * Client-side tool registry — the tools YUI declares on Chat Completions requests and runs itself.
+ * Client-side tool registry — the tools YUI declares on Responses and Chat Completions requests and runs itself.
  *
- * A tool is {name, definition, execute}. The engine (chat-client's CC branch) declares every
- * definition on the request, looks an incoming call up by name, and hands execute's string back as
+ * A tool is {name, definition, execute}. Each transport's stream (responses-stream, chat-completions-stream)
+ * declares every definition on the request, looks an incoming call up by name, and hands execute's string back as
  * the tool result — so a new tool is a new registration, never an engine edit.
  *
  * generate_express is the first registration. Its schema carries the vocabulary the client has

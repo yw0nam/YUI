@@ -12,27 +12,16 @@ import type { ClientToolRegistry } from "./client-tools";
 import {
   httpStatusOf,
   isExpressTool,
+  MAX_TOOL_ROUND_TRIPS,
   normalizeExpressIntoEnvelope,
+  parseToolArgs,
   serverMessageOf,
 } from "./stream-helpers";
-
-/** Parses a tool call's accumulated arguments. Empty arguments are an empty object (no-arg call). */
-function parseToolArgs(raw: string): { args: Record<string, unknown> } | { error: string } {
-  if (raw.trim() === "") return { args: {} };
-  try {
-    return { args: JSON.parse(raw) as Record<string, unknown> };
-  } catch (err) {
-    return { error: err instanceof Error ? err.message : String(err) };
-  }
-}
 
 /** SDK requires model, but model-less mock/backend omit the field itself — locally relax optional. */
 type CCCreateParams = Omit<ChatCompletionCreateParamsStreaming, "model"> & {
   model?: ChatCompletionCreateParamsStreaming["model"];
 };
-
-/** Tool round trips per turn. */
-const MAX_TOOL_ROUND_TRIPS = 3;
 
 /**
  * Calls Chat Completions API stream — `client.chat.completions.create({ stream: true })`.

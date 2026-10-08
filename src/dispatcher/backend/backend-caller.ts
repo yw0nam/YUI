@@ -284,7 +284,7 @@ export function createBackendCaller(deps: BackendCallerDeps): BackendCaller {
         if (agent?.instructions.trim()) request.instructions = agent.instructions;
       }
 
-      // Tools declared for this turn (CC mode; the Responses branch ignores them).
+      // Tools declared for this turn on both request transports.
       const clientTools = deps.clientTools?.();
 
       // Chain-break 404 recovery: retry at most once, so this flips true before the retry attempt.

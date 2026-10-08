@@ -78,7 +78,7 @@ export interface StreamChatOptions {
   apiKey?: string;
   /** Transport fetch override. Tauri uses cors-fetch's fetchCORS, dev/browser undefined (global fetch). */
   fetch?: typeof globalThis.fetch;
-  /** Client-declared tools (Chat Completions only). Absent/empty ⇒ no tools declared, no round trip. */
+  /** Client-declared tools. Absent/empty ⇒ no tools declared, no round trip. */
   tools?: ClientToolRegistry;
 }
 
@@ -145,5 +145,5 @@ export async function* streamChat(
     yield* streamChatCompletions(client, config, request, opts.tools);
     return;
   }
-  yield* streamResponses(client, config, request);
+  yield* streamResponses(client, config, request, opts.tools);
 }
