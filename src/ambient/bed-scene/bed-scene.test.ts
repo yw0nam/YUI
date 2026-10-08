@@ -218,15 +218,14 @@ describe("createBedScene", () => {
     ]);
   });
 
-  it("wakes on a click once: eyes open, gaze restored, the wake clip plays, then onWake names the click", async () => {
+  it("wakes on a click once: eyes open, the wake clip plays with the gaze still off, then onWake names the click", async () => {
     const h = makeHarness();
     await h.startAsleep();
     h.scene.wake("click");
     expect(h.scene.state()).toBe("waking");
-    expect(h.calls.slice(-4)).toEqual([
+    expect(h.calls.slice(-3)).toEqual([
       "asleep:false",
       "spring:false",
-      "gaze:true",
       `play:${BED_WAKE_MOTION_ID}`,
     ]);
     expect(h.woke).toEqual([{ cause: "click", after: `play:${BED_WAKE_MOTION_ID}` }]);
@@ -700,5 +699,87 @@ describe("createBedScene — lying down on command", () => {
     expect(h.subscribed()).toBe(3);
     expect(h.count("frame.park")).toBe(3);
     expect(h.count("frame.release")).toBe(3);
+  });
+});
+
+describe("createBedScene — the gaze stays off while the scene owns the body", () => {
+  /** The gaze state after the last call: what the head tracking is doing now. */
+  const gazeNow = (h: ReturnType<typeof makeHarness>) =>
+    h.calls.filter((c) => c.startsWith("gaze:")).at(-1);
+
+  type Harness = ReturnType<typeof makeHarness>;
+  const entries: Array<[string, (h: Harness) => Promise<unknown>]> = [
+    ["launch", (h) => h.startAsleep()],
+    ["command", (h) => h.lieDown()],
+  ];
+  const ends: Array<[string, (h: Harness) => Promise<void>]> = [
+    [
+      "ended",
+      async (h) => {
+        h.scene.wake("click");
+        await h.runFrames(40);
+        await h.frame(PROP_FADE_S);
+      },
+    ],
+    [
+      "lost",
+      async (h) => {
+        h.setCurrent("idle");
+        await h.frame();
+      },
+    ],
+    [
+      "swapped",
+      async (h) => {
+        h.swapVrm();
+        await h.frame();
+      },
+    ],
+    [
+      "cancelled",
+      async (h) => {
+        h.scene.cancel();
+        await h.flush();
+      },
+    ],
+  ];
+
+  it.each(
+    entries,
+  )("on the %s entry it is off from lying through the wake clip", async (_name, enter) => {
+    const h = makeHarness();
+    await enter(h);
+    await h.runFrames(40);
+    expect(gazeNow(h)).toBe("gaze:false");
+
+    h.scene.wake("click");
+    await h.runFrames(10);
+    expect(h.scene.state()).toBe("waking");
+    expect(gazeNow(h)).toBe("gaze:false");
+    expect(h.calls).not.toContain("gaze:true");
+  });
+
+  it.each(
+    entries.flatMap(([entry, enter]) =>
+      ends.map(([end, finish]) => [entry, end, enter, finish] as const),
+    ),
+  )("on the %s entry it is back on once the scene ended as %s", async (_entry, _end, enter, finish) => {
+    const h = makeHarness();
+    await enter(h);
+    await h.runFrames(40);
+    expect(gazeNow(h)).toBe("gaze:false");
+
+    await finish(h);
+    expect(h.scene.state()).toBe("done");
+    expect(gazeNow(h)).toBe("gaze:true");
+  });
+
+  it("is never turned off when the scene is skipped before she lies down, and ends on", async () => {
+    const h = makeHarness({ missing: BED_WAKE_MOTION_ID });
+    await h.startAsleep();
+
+    expect(h.scene.state()).toBe("done");
+    expect(h.calls).not.toContain("gaze:false");
+    expect(gazeNow(h)).toBe("gaze:true");
   });
 });
