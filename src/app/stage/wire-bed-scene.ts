@@ -71,7 +71,7 @@ export function wireBedScene(deps: {
         // A window dragged into mid-air while she slept falls now.
         locomotion.drop();
       },
-      // The backend sent its own stand_down and knows she is up; only the user's wake is a candidate.
+      // The backend sent its own stand and knows she is up; only the user's wake is a candidate.
       onWake: (cause) => {
         if (cause !== "agent") onWake(cause);
       },

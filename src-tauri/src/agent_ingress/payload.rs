@@ -92,7 +92,7 @@ pub enum AvatarCommand {
         #[serde(default, skip_serializing_if = "Option::is_none")]
         monitor: Option<u32>,
     },
-    StandDown,
+    Stand,
     GoToBed,
 }
 
@@ -609,7 +609,7 @@ mod tests {
     #[test]
     fn parse_avatar_command_requires_post() {
         assert_eq!(
-            parse_avatar_request("GET", "/avatar/command", r#"{"action":"stand_down"}"#)
+            parse_avatar_request("GET", "/avatar/command", r#"{"action":"stand"}"#)
                 .unwrap_err(),
             405
         );
@@ -712,10 +712,10 @@ mod tests {
     }
 
     #[test]
-    fn parse_avatar_command_stand_down() {
+    fn parse_avatar_command_stand() {
         assert_eq!(
-            parse_avatar_request("POST", "/avatar/command", r#"{"action":"stand_down"}"#).unwrap(),
-            AvatarRoute::Command(AvatarCommand::StandDown)
+            parse_avatar_request("POST", "/avatar/command", r#"{"action":"stand"}"#).unwrap(),
+            AvatarRoute::Command(AvatarCommand::Stand)
         );
     }
 
@@ -790,7 +790,7 @@ mod tests {
         assert_eq!(AvatarRoute::State.timeout(), AVATAR_QUERY_TIMEOUT);
         assert_eq!(AvatarRoute::PerchTargets.timeout(), AVATAR_QUERY_TIMEOUT);
         assert_eq!(
-            AvatarRoute::Command(AvatarCommand::StandDown).timeout(),
+            AvatarRoute::Command(AvatarCommand::Stand).timeout(),
             AVATAR_COMMAND_TIMEOUT
         );
         assert!(AVATAR_QUERY_TIMEOUT < AVATAR_COMMAND_TIMEOUT);

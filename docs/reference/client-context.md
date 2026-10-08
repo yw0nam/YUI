@@ -418,9 +418,9 @@ line appears only for a wake from the bed: a wake before she has lain down skips
 scene, and a launch with the scene off starts her standing.
 
 The bed also takes her on command: a `go_to_bed` avatar command lies her on a bed at the
-spot she stands on, and she sleeps until the backend's `stand_down` or the user wakes her.
+spot she stands on, and she sleeps until the backend's `stand` or the user wakes her.
 The same wake rules apply to the user: a click wakes her with `proactive.wake` and a
-message wakes her on its own turn. A `stand_down` that gets her up fires no
+message wakes her on its own turn. A `stand` that gets her up fires no
 `proactive.wake`, since the backend sent it and already knows; the wake timeout applies
 only to the launch scene.
 

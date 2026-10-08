@@ -132,8 +132,8 @@ function parseCommand(params: unknown): AvatarCommand | null {
         ...(monitor === undefined ? {} : { monitor }),
       };
     }
-    case "stand_down":
-      return { action: "stand_down" };
+    case "stand":
+      return { action: "stand" };
     case "go_to_bed":
       return { action: "go_to_bed" };
     default:
@@ -280,7 +280,7 @@ export function createAvatarExecutor(deps: AvatarExecutorDeps): AvatarExecutor {
         return onBed() ? fail("busy") : place({ kind: "peek", side: command.side });
       case "move_to":
         return onBed() ? fail("busy") : moveTo(command.spot, command.monitor);
-      case "stand_down":
+      case "stand":
         if (bed.phase() === "lying") bed.getUp();
         else perch.release();
         return { ok: true };

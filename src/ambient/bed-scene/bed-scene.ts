@@ -35,7 +35,7 @@ const COMMAND_MOTION_IDS: readonly string[] = [BED_LIE_MOTION_ID, ...LAUNCH_MOTI
 
 type BedSceneState = "idle" | "starting" | "asleep" | "waking" | "done";
 type EndReason = "ended" | "skipped" | "lost" | "swapped" | "cancelled";
-/** Who got her up: the user, the wake timeout, or the backend's own `stand_down`. */
+/** Who got her up: the user, the wake timeout, or the backend's own `stand`. */
 export type BedWakeCause = WakeCause | "agent";
 
 export interface BedSceneDeps {

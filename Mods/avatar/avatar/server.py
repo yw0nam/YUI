@@ -35,7 +35,7 @@ mcp = FastMCP(
     instructions=(
         "The avatar's own body on the user's desktop. Use get_body_state to see where it is "
         "and what it is doing, list_perch_targets to see which windows it can perch on, then "
-        "sit_on_window / peek / move_to / stand_down to move it, or go_to_bed to lay it down. Movement only — expression "
+        "sit_on_window / peek / move_to / stand to move it, or go_to_bed to lay it down. Movement only — expression "
         "and speech travel on their own channel."
     ),
 )
@@ -137,15 +137,15 @@ def move_to(spot: str, monitor: int | None = None) -> dict[str, Any]:
 
 
 @mcp.tool
-def stand_down() -> dict[str, Any]:
+def stand() -> dict[str, Any]:
     """Release any perch or peek and return the avatar to its normal standing position.
 
     While the avatar lies on its bed this wakes it: it sits up, stretches and stands, and the
     call answers as soon as the wake starts.
     """
-    logger.info("➡️ stand_down")
-    result = _command({"action": "stand_down"})
-    logger.info("⬅️ stand_down")
+    logger.info("➡️ stand")
+    result = _command({"action": "stand"})
+    logger.info("⬅️ stand")
     return result
 
 
@@ -154,8 +154,8 @@ def go_to_bed() -> dict[str, Any]:
     """Lay the avatar down on a bed at the spot it stands on, leaving any perch first.
 
     It comes down to the floor, a bed appears there, and it lies down and sleeps until
-    stand_down or the user wakes it with a click. The call answers once it is lying down.
-    While it is on the bed, sit_on_window / peek / move_to answer busy; call stand_down first.
+    stand or the user wakes it with a click. The call answers once it is lying down.
+    While it is on the bed, sit_on_window / peek / move_to answer busy; call stand first.
     """
     logger.info("➡️ go_to_bed")
     result = _command({"action": "go_to_bed"})
