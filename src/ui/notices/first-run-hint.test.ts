@@ -15,6 +15,7 @@ function fakeDeps(overrides: Partial<FirstRunHintDeps> = {}): {
   pushSpeech: ReturnType<typeof vi.fn>;
   endSpeech: ReturnType<typeof vi.fn>;
   showSpeechAction: ReturnType<typeof vi.fn>;
+  hideSpeech: ReturnType<typeof vi.fn>;
   openSettings: ReturnType<typeof vi.fn>;
 } {
   const calls: string[] = [];
@@ -22,6 +23,7 @@ function fakeDeps(overrides: Partial<FirstRunHintDeps> = {}): {
   const pushSpeech = vi.fn(() => calls.push("push"));
   const endSpeech = vi.fn(() => calls.push("end"));
   const showSpeechAction = vi.fn();
+  const hideSpeech = vi.fn();
   const markSeen = vi.fn(() => calls.push("markSeen"));
   const openSettings = vi.fn();
   const t = vi.fn((key: string, vars?: Record<string, string | number>) =>
@@ -31,7 +33,7 @@ function fakeDeps(overrides: Partial<FirstRunHintDeps> = {}): {
   const deps: FirstRunHintDeps = {
     seen: () => false,
     markSeen,
-    surfaces: { beginSpeech, pushSpeech, endSpeech, showSpeechAction },
+    surfaces: { beginSpeech, pushSpeech, endSpeech, showSpeechAction, hideSpeech },
     hotkey: "CmdOrCtrl+Shift+Y",
     isMac: false,
     chatConfigured: true,
@@ -49,6 +51,7 @@ function fakeDeps(overrides: Partial<FirstRunHintDeps> = {}): {
     pushSpeech,
     endSpeech,
     showSpeechAction,
+    hideSpeech,
     openSettings,
   };
 }
@@ -155,6 +158,19 @@ describe("maybeShowFirstRunHint — unconfigured chat backend", () => {
     expect(action.label).toBe("input.error_open_connection");
     action.onClick();
     expect(openSettings).toHaveBeenCalledWith("conn");
+  });
+
+  it("hides the hint once its action opens the settings", () => {
+    const { deps, showSpeechAction, openSettings, hideSpeech } = fakeDeps({
+      chatConfigured: false,
+    });
+
+    maybeShowFirstRunHint(deps);
+
+    showSpeechAction.mock.calls[0][0].onClick();
+    expect(openSettings).toHaveBeenCalledWith("conn");
+    expect(hideSpeech).toHaveBeenCalledTimes(1);
+    expect(hideSpeech).toHaveBeenCalledAfter(openSettings);
   });
 });
 
