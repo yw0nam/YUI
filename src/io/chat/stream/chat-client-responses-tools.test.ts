@@ -204,7 +204,27 @@ describe("streamChat — Responses tool-call round trip", () => {
 
     expect(createMock).toHaveBeenCalledOnce();
     expect(events.some((e) => e.type === "express")).toBe(true);
-    expect(events.at(-1)).toMatchObject({ type: "completed", responseId: "resp_1" });
+    // The response stays chainable: its call gets an output the next turn sends with the id.
+    expect(events.at(-1)).toMatchObject({
+      type: "completed",
+      responseId: "resp_1",
+      toolOutputs: [{ type: "function_call_output", call_id: "call_fc_1", output: "ok" }],
+    });
+  });
+
+  it("carries no tool outputs when every call was answered or none ran", async () => {
+    createMock
+      .mockResolvedValueOnce(streamOf([...call("generate_express", "fc_1"), done("resp_1")]))
+      .mockResolvedValueOnce(streamOf([text("Hi"), done("resp_2")]))
+      .mockResolvedValueOnce(streamOf([text("Plain"), done("resp_3")]));
+
+    const answered = await collect(
+      streamChat(CONFIG, req(), optsFor(oneWayStub("generate_express"))),
+    );
+    const plain = await collect(streamChat(CONFIG, req(), optsFor(oneWayStub("generate_express"))));
+
+    expect(answered.at(-1)).not.toHaveProperty("toolOutputs");
+    expect(plain.at(-1)).not.toHaveProperty("toolOutputs");
   });
 
   it("a tool that answers a question is answered back even when the response spoke first", async () => {
@@ -283,7 +303,10 @@ describe("streamChat — Responses tool-call round trip", () => {
     const events = await collect(streamChat(CONFIG, req(), optsFor(gen)));
 
     expect(createMock).toHaveBeenCalledTimes(4);
-    expect(events.at(-1)).toMatchObject({ type: "completed" });
+    expect(events.at(-1)).toMatchObject({
+      type: "completed",
+      toolOutputs: [{ type: "function_call_output", call_id: "call_fc_4", output: "ok" }],
+    });
   });
 
   it("does not answer a response that failed", async () => {
@@ -300,5 +323,110 @@ describe("streamChat — Responses tool-call round trip", () => {
 
     expect(createMock).toHaveBeenCalledOnce();
     expect(events.at(-1)).toEqual({ type: "error", message: "bad" });
+  });
+
+  it("delivers the turn when the connection drops right after response.completed", async () => {
+    async function* dropAfterCompleted(): AsyncGenerator<any> {
+      yield text("Hi");
+      yield done("resp_1");
+      throw new Error("socket closed");
+    }
+    createMock.mockResolvedValueOnce(dropAfterCompleted());
+
+    const events = await collect(
+      streamChat(CONFIG, req(), optsFor(oneWayStub("generate_express"))),
+    );
+
+    expect(events.at(-1)).toMatchObject({ type: "completed", responseId: "resp_1" });
+  });
+
+  it("an error event does not suppress a later response.completed", async () => {
+    createMock.mockResolvedValueOnce(
+      streamOf([
+        ...call("generate_express", "fc_1"),
+        { type: "error", message: "hiccup" },
+        done("resp_1"),
+      ]),
+    );
+
+    const events = await collect(
+      streamChat(CONFIG, req(), optsFor(oneWayStub("generate_express"))),
+    );
+
+    expect(createMock).toHaveBeenCalledOnce();
+    expect(events.map((e) => e.type)).toContain("error");
+    expect(events.at(-1)).toMatchObject({ type: "completed", responseId: "resp_1" });
+  });
+
+  it("runs a registered tool whose output_item.done carries empty arguments and no arguments.done precedes it", async () => {
+    const ping = toolStub(
+      "ping",
+      vi.fn(async () => "pong"),
+    );
+    createMock
+      .mockResolvedValueOnce(
+        streamOf([added("ping", "fc_1"), itemDone("ping", "fc_1", ""), done("resp_1")]),
+      )
+      .mockResolvedValueOnce(streamOf([text("ok"), done("resp_2")]));
+
+    await collect(streamChat(CONFIG, req(), optsFor(ping)));
+
+    expect(ping.execute).toHaveBeenCalledOnce();
+    expect(ping.execute).toHaveBeenCalledWith({});
+  });
+
+  it("executes id-less calls at the same output_index in consecutive responses separately", async () => {
+    const lookup = toolStub(
+      "lookup",
+      vi.fn(async () => "42"),
+    );
+    const idless = (): any[] => [
+      {
+        type: "response.output_item.done",
+        output_index: 0,
+        item: { type: "function_call", name: "lookup", arguments: "{}" },
+      },
+    ];
+    createMock
+      .mockResolvedValueOnce(streamOf([...idless(), done("resp_1")]))
+      .mockResolvedValueOnce(streamOf([...idless(), done("resp_2")]))
+      .mockResolvedValueOnce(streamOf([text("done"), done("resp_3")]));
+
+    await collect(streamChat(CONFIG, req(), optsFor(lookup)));
+
+    expect(lookup.execute).toHaveBeenCalledTimes(2);
+  });
+
+  it("sends no further request when the turn is aborted between round trips", async () => {
+    const ac = new AbortController();
+    createMock.mockResolvedValueOnce(
+      streamOf([...call("generate_express", "fc_1"), done("resp_1")]),
+    );
+
+    const events: ChatStreamEvent[] = [];
+    for await (const ev of streamChat(
+      CONFIG,
+      req({ signal: ac.signal }),
+      optsFor(oneWayStub("generate_express")),
+    )) {
+      events.push(ev);
+      if (ev.type === "usage") ac.abort();
+    }
+
+    expect(createMock).toHaveBeenCalledOnce();
+    expect(events.some((e) => e.type === "keepalive")).toBe(false);
+  });
+
+  it("a broker-attached backend's plain-name cue is rendered once and never answered when no registry is passed", async () => {
+    createMock.mockResolvedValueOnce(
+      streamOf([...call("generate_express", "fc_1"), done("resp_1")]),
+    );
+
+    const events = await collect(streamChat(CONFIG, req()));
+
+    expect(createMock).toHaveBeenCalledOnce();
+    expect(createMock.mock.calls[0][0]).not.toHaveProperty("tools");
+    expect(events.filter((e) => e.type === "express")).toHaveLength(1);
+    expect(events.at(-1)).not.toHaveProperty("toolOutputs");
   });
 });

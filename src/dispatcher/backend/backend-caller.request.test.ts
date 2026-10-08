@@ -58,6 +58,76 @@ beforeEach(() => {
   });
 });
 
+const PENDING = [{ type: "function_call_output", call_id: "call_1", output: "ok" }] as const;
+
+describe("backend_caller — pending tool outputs", () => {
+  function callerWith(extra: Partial<Parameters<typeof createBackendCaller>[0]>) {
+    return createBackendCaller({
+      config: CONFIG,
+      renderer: { applyDirective } as never,
+      getApiKey: async () => "k",
+      getFetch: async () => undefined,
+      stream: script.stream,
+      turnOutput,
+      ...extra,
+    });
+  }
+
+  it("sends the outputs before the user message together with the id", async () => {
+    script.events = [completedEvent({ speech_text: "" })];
+    await callerWith({}).call(turnOf(userEnv()));
+    const [, plain] = script.spy.mock.calls[0];
+
+    await callerWith({
+      getPreviousResponseId: () => "resp_prev",
+      getPendingToolOutputs: () => [...PENDING],
+    }).call(turnOf(userEnv()));
+    const [, request] = script.spy.mock.calls[1];
+
+    expect(request.previous_response_id).toBe("resp_prev");
+    expect(request.input).toEqual([...PENDING, ...(plain.input as unknown[])]);
+  });
+
+  it("adds nothing when there are no outputs", async () => {
+    script.events = [completedEvent({ speech_text: "" })];
+    await callerWith({}).call(turnOf(userEnv()));
+    await callerWith({
+      getPreviousResponseId: () => "resp_prev",
+      getPendingToolOutputs: () => [],
+    }).call(turnOf(userEnv()));
+
+    const [[, plain], [, request]] = script.spy.mock.calls;
+    expect(request.input).toEqual(plain.input);
+  });
+
+  it("sends none without an id, since they belong to that response", async () => {
+    script.events = [completedEvent({ speech_text: "" })];
+    await callerWith({}).call(turnOf(userEnv()));
+    await callerWith({
+      getPreviousResponseId: () => undefined,
+      getPendingToolOutputs: () => [...PENDING],
+    }).call(turnOf(userEnv()));
+
+    const [[, plain], [, request]] = script.spy.mock.calls;
+    expect(request.input).toEqual(plain.input);
+  });
+
+  it("persists the completed response's unanswered outputs with its id", async () => {
+    const onResponseId = vi.fn();
+    script.events = [
+      {
+        type: "completed",
+        envelope: { speech_text: "" },
+        responseId: "resp_new",
+        toolOutputs: [...PENDING],
+      },
+    ];
+    await callerWith({ onResponseId }).call(turnOf(userEnv()));
+
+    expect(onResponseId).toHaveBeenCalledWith("resp_new", [...PENDING]);
+  });
+});
+
 describe("backend_caller — previous_response_id threading", () => {
   it("getPreviousResponseId present → request.previous_response_id carries it", async () => {
     script.events = [completedEvent({ speech_text: "" })];
