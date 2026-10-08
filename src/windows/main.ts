@@ -190,6 +190,7 @@ async function bootstrap(): Promise<BootstrapHandle> {
     stores: settingsStores,
     conversation: conversationStores,
     config,
+    getChatApiKey: () => config.secrets.get(CHAT_API_KEY_SECRET),
     renderer,
     vrm,
     speaker,

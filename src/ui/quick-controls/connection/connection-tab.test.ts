@@ -285,14 +285,21 @@ describe("createConnectionTab", () => {
 
     function modelReadDeps() {
       const calls: { url: string; init: RequestInit }[] = [];
+      const resolvers: ((res: Response) => void)[] = [];
       const fetchImpl: typeof globalThis.fetch = (url, init) => {
         calls.push({ url: String(url), init: init ?? {} });
-        return Promise.resolve(
-          new Response(JSON.stringify({ data: [{ id: "m1" }, { id: "m2" }] }), { status: 200 }),
-        );
+        return new Promise<Response>((res) => {
+          resolvers.push(res);
+        });
       };
       return {
         calls,
+        settle: () =>
+          resolvers.forEach((r) => {
+            r(
+              new Response(JSON.stringify({ data: [{ id: "m1" }, { id: "m2" }] }), { status: 200 }),
+            );
+          }),
         getFetch: async () => fetchImpl,
         getChatApiKey: async () => "key-1",
       } as const;
@@ -316,6 +323,8 @@ describe("createConnectionTab", () => {
       tab.entered();
       await tick();
       await tick();
+      deps.settle();
+      await tick();
 
       expect(deps.calls).toHaveLength(1);
       expect(deps.calls[0]?.url).toBe("https://def.test/v1/models");
@@ -333,6 +342,8 @@ describe("createConnectionTab", () => {
       url.dispatchEvent(new Event("change", { bubbles: true }));
       await tick();
       await tick();
+      deps.settle();
+      await tick();
 
       expect(deps.calls.map((c) => c.url)).toEqual(["https://typed.test/v1/models"]);
       tab.dispose();
@@ -340,7 +351,12 @@ describe("createConnectionTab", () => {
 
     it("reads after the chat key input commits on blur", async () => {
       const deps = modelReadDeps();
-      const tab = build(DESKTOP_ROWS, { ...deps, getEndpointDefaults: () => defaults });
+      const tab = build(DESKTOP_ROWS, {
+        ...deps,
+        getEndpointDefaults: () => defaults,
+        // The key resolves the way a turn's would: from the key store the SecretProvider reads.
+        getChatApiKey: async () => chatKeySettings.get().apiKey || undefined,
+      });
 
       const key = tab.el.querySelector<HTMLInputElement>("#yui-chatkey-input")!;
       key.value = "typed-key";
@@ -348,9 +364,13 @@ describe("createConnectionTab", () => {
       key.dispatchEvent(new Event("blur"));
       await tick();
       await tick();
+      deps.settle();
+      await tick();
 
       expect(deps.calls).toHaveLength(1);
-      expect(new Headers(deps.calls[0]?.init.headers).get("authorization")).toBe("Bearer typed-key");
+      expect(new Headers(deps.calls[0]?.init.headers).get("authorization")).toBe(
+        "Bearer typed-key",
+      );
       tab.dispose();
     });
 
@@ -391,6 +411,7 @@ describe("createConnectionTab", () => {
       const deps = modelReadDeps();
       const tab = build(DESKTOP_ROWS, {
         ...deps,
+        getEndpointDefaults: () => defaults,
         pushSocket: fakeSocket({ kind: "ready", chat_id: "yui-7731" }),
       });
       tab.entered();

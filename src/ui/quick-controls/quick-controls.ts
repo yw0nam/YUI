@@ -173,6 +173,10 @@ interface QuickControlsOptions {
   getEndpointDefaults?: () => EndpointOverrides | undefined;
   /** Default bundled-config value for Chat API dropdown when no override (undefined if not loaded). */
   getDefaultChatApi?: () => string | undefined;
+  /** Resolves the chat key the chat turn would send, per request (SecretProvider path). */
+  getChatApiKey?: () => Promise<string | undefined>;
+  /** Environment fetch for the model list read (selectFetch()), undefined → globalThis.fetch. */
+  getFetch?: () => Promise<typeof globalThis.fetch | undefined>;
   /** Push transport — the chat section shows its state, and "Start fresh" resets the conversation on it. */
   pushSocket?: PushSocketPanelPort;
   /** Stops the in-flight turn the way the stop button does, before the reset frame goes out. */
@@ -281,6 +285,8 @@ export function createQuickControls({
   ttsKeySettings,
   getEndpointDefaults,
   getDefaultChatApi,
+  getChatApiKey,
+  getFetch,
   pushSocket,
   stopTurn,
   delegations,
@@ -374,6 +380,8 @@ export function createQuickControls({
     rows: { chat: "full", tts: "full", broker: true },
     pushSocket,
     isOpen: () => popover.isOpen(),
+    getChatApiKey,
+    getFetch,
     ttsExtra,
     log,
   });
@@ -471,6 +479,8 @@ export function createQuickControls({
       filler.reflect();
       agent.reflectLanguage();
       connectionTab.refresh();
+      // Opening on the Connection tab counts as entering it — the model list read follows.
+      if (tabRail.selected() === "conn") connectionTab.entered();
       session.reflect();
       historyTab?.refresh();
       characterTab.refresh();
@@ -483,6 +493,7 @@ export function createQuickControls({
       characterTab.close();
       speakerList.stopAudition();
       connectionTab.commit();
+      connectionTab.close();
     },
   });
 
@@ -568,6 +579,9 @@ export function createQuickControls({
     buttons: tabButtons,
     panels: Array.from(el.querySelectorAll<HTMLElement>(".yui-tabpanel")),
     initial: "talk",
+    onSelect: (id) => {
+      if (id === "conn") connectionTab.entered();
+    },
   });
 
   function openPanel(anchor?: { x: number; y: number }, opts?: { tab?: QuickControlsTab }): void {

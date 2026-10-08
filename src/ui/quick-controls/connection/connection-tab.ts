@@ -55,6 +55,10 @@ export interface ConnectionTab {
   commit(): void;
   /** Scroll the STT section into view and focus its URL field. */
   focusStt(): void;
+  /** The Connection tab was entered — the chat section evaluates its model list read. */
+  entered(): void;
+  /** The panel closed — drop work that only matters while it is open. */
+  close(): void;
   dispose(): void;
 }
 
@@ -128,6 +132,10 @@ export function createConnectionTab(deps: {
   pushSocket?: PushSocketPanelPort;
   /** Store subscriptions and the status line skip repaints while the tab is closed. */
   isOpen: () => boolean;
+  /** Resolves the chat key the chat turn would send, per request (SecretProvider path). */
+  getChatApiKey?: () => Promise<string | undefined>;
+  /** Environment fetch for the model list read (selectFetch()), undefined → globalThis.fetch. */
+  getFetch?: () => Promise<typeof globalThis.fetch | undefined>;
   /** Extra element mounted after the TTS group (the desktop's speaker picker `.yui-group`). */
   ttsExtra?: HTMLElement;
   log: Logger;
@@ -142,6 +150,8 @@ export function createConnectionTab(deps: {
     rows,
     pushSocket,
     isOpen,
+    getChatApiKey,
+    getFetch,
     ttsExtra,
     log,
   } = deps;
@@ -151,9 +161,12 @@ export function createConnectionTab(deps: {
   const chatSection = createChatSection({
     chatRows: rows.chat,
     endpointsSettings,
+    getEndpointDefaults,
     getDefaultChatApi,
     pushSocket,
     isOpen,
+    getChatApiKey,
+    getFetch,
   });
   el.append(chatSection.el);
   el.insertAdjacentHTML(
@@ -173,6 +186,7 @@ export function createConnectionTab(deps: {
     getEndpointDefaults,
     reflectEndpoints: () => reflectEndpoints(),
     isOpen,
+    onChatCommit: () => chatSection.onCommit(),
     log,
   });
 
@@ -238,6 +252,8 @@ export function createConnectionTab(deps: {
     refresh,
     commit,
     focusStt,
+    entered: () => chatSection.entered(),
+    close: () => chatSection.close(),
     dispose(): void {
       // Commit first: the locale remount relies on dispose landing typed keys and endpoints.
       commit();

@@ -1,37 +1,36 @@
 import { describe, expect, it } from "vitest";
 import { t } from "../../../i18n";
-import { modelStatusView } from "./model-status";
+import { type ModelStatusPhase, modelStatusView } from "./model-status";
 
 const HOST = "api.test";
 
 // One view input per situation; ok carries three ids.
-function phase(kind: "reading" | "ok" | "unreachable" | "timeout" | "refused" | "http" | "no_list" | "malformed") {
+function phase(
+  kind: "reading" | "ok" | "unreachable" | "timeout" | "refused" | "http" | "no_list" | "malformed",
+): ModelStatusPhase {
   switch (kind) {
     case "reading":
-      return { phase: "reading" } as const;
+      return { phase: "reading" };
     case "ok":
-      return {
-        phase: "done",
-        result: { kind: "ok", ids: ["a", "b:variant", "c"] },
-      } as const;
+      return { phase: "done", result: { kind: "ok", ids: ["a", "b:variant", "c"] } };
     case "unreachable":
-      return { phase: "done", result: { kind: "unreachable" } } as const;
+      return { phase: "done", result: { kind: "unreachable" } };
     case "timeout":
-      return { phase: "done", result: { kind: "timeout" } } as const;
+      return { phase: "done", result: { kind: "timeout" } };
     case "refused":
-      return { phase: "done", result: { kind: "refused" } } as const;
+      return { phase: "done", result: { kind: "refused" } };
     case "http":
-      return { phase: "done", result: { kind: "http", status: 500 } } as const;
+      return { phase: "done", result: { kind: "http", status: 500 } };
     case "no_list":
-      return { phase: "done", result: { kind: "no_list" } } as const;
+      return { phase: "done", result: { kind: "no_list" } };
     case "malformed":
-      return { phase: "done", result: { kind: "malformed" } } as const;
+      return { phase: "done", result: { kind: "malformed" } };
   }
 }
 
 describe("modelStatusView", () => {
   it.each([
-    ["reading", "reading", {}, ["is-waiting", "is-busy"]],
+    ["reading", "reading", { want: t("svc.chat_models_reading") }, ["is-waiting", "is-busy"]],
     [
       "ok with the typed model listed",
       "ok",
@@ -68,19 +67,9 @@ describe("modelStatusView", () => {
       { want: t("svc.chat_models_unreachable", { host: HOST }) },
       ["is-failed"],
     ],
-    [
-      "timeout",
-      "timeout",
-      { want: t("svc.chat_models_timeout", { host: HOST }) },
-      ["is-failed"],
-    ],
+    ["timeout", "timeout", { want: t("svc.chat_models_timeout", { host: HOST }) }, ["is-failed"]],
     ["refused", "refused", { want: t("svc.chat_models_refused") }, ["is-failed"]],
-    [
-      "http",
-      "http",
-      { want: t("svc.chat_models_http", { status: 500 }) },
-      ["is-failed"],
-    ],
+    ["http", "http", { want: t("svc.chat_models_http", { status: 500 }) }, ["is-failed"]],
     ["no_list", "no_list", { want: t("svc.chat_models_no_list") }, []],
     ["malformed", "malformed", { want: t("svc.chat_models_malformed") }, ["is-failed"]],
   ])("maps %s", (_name, kind, ctx, dot) => {

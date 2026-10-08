@@ -1,10 +1,15 @@
 /**
  * Chat section of the Connection tab — the section markup, the chat protocol and provider preset
- * reflection, and the push status line. The tab composes it and routes refresh/dispose to it.
+ * reflection, the model-list read and its status line. The tab composes it and routes refresh,
+ * entry, close and dispose to it.
  */
 
 import type { PushSocketState } from "../../../../io/chat/push/push-socket";
-import type { createEndpointsSettings } from "../../../../settings/backend/endpoints-settings";
+import type {
+  createEndpointsSettings,
+  EndpointOverrides,
+} from "../../../../settings/backend/endpoints-settings";
+import { isValidEndpointUrl } from "../../../../settings/backend/endpoints-settings";
 import { t } from "../../../i18n";
 import {
   CHAT_APIS,
@@ -21,6 +26,8 @@ import {
 } from "../../markup";
 import { chatTypeRowHtml, createChatTypeView } from "../chat-type";
 import { createChatStatus } from "./chat-status";
+import { createModelRead } from "./model-read";
+import { type ModelStatusPhase, modelStatusView } from "./model-status";
 
 type EndpointsSettingsStore = ReturnType<typeof createEndpointsSettings>;
 
@@ -39,7 +46,7 @@ function chatSectionHtml(chatRows: "full" | "push"): string {
             ${endpointRowHtml("chat_base_url")}
             ${full ? endpointRowHtml("chat_model") : ""}
             ${keyRowHtml("chatkey")}
-            <p class="yui-chat-status" role="status" hidden><span class="yui-chat-status__dot" aria-hidden="true"></span><span class="yui-chat-status__text"></span><button class="yui-chat-status__action" type="button" hidden></button></p>
+            <p class="yui-chat-status" hidden><span class="yui-chat-status__dot" aria-hidden="true"></span><span class="yui-chat-status__text" role="status" aria-live="polite" aria-atomic="true"></span><button class="yui-chat-status__action" type="button" hidden></button></p>
             ${svcResetRowHtml("chat")}
           </div>
         </section>`;
@@ -49,6 +56,12 @@ export interface ChatSection {
   el: HTMLElement;
   /** Reflect the stores onto the rendered chat rows — the tab's refresh hook. */
   reflect(): void;
+  /** The Connection tab was entered — evaluate a model list read. */
+  entered(): void;
+  /** A chat URL/key/protocol commit landed — evaluate a model list read. */
+  onCommit(): void;
+  /** The panel closed — drop the in-flight read. */
+  close(): void;
   dispose(): void;
 }
 
@@ -56,6 +69,8 @@ export function createChatSection(deps: {
   /** "full" renders the protocol/preset/model rows; "push" is the phone's URL/key + status line. */
   chatRows: "full" | "push";
   endpointsSettings: EndpointsSettingsStore;
+  /** Default bundled-config endpoints — the effective URL/model when the override is empty. */
+  getEndpointDefaults?: () => EndpointOverrides | undefined;
   /** Default bundled-config value for the chat protocol when no override (undefined if not loaded). */
   getDefaultChatApi?: () => string | undefined;
   /** The slice of the push port the status line needs — a state to show and a way to open now. */
@@ -64,10 +79,24 @@ export function createChatSection(deps: {
     onState(cb: (state: PushSocketState) => void): () => void;
     reconnectNow(): void;
   };
-  /** The status line skips repaints while the tab is closed. */
+  /** The status line skips repaints and entries read nothing while the tab is closed. */
   isOpen: () => boolean;
+  /** Resolves the chat key the chat turn would send, per request (SecretProvider path). */
+  getChatApiKey?: () => Promise<string | undefined>;
+  /** Environment fetch for the read (selectFetch()), undefined → globalThis.fetch. */
+  getFetch?: () => Promise<typeof globalThis.fetch | undefined>;
 }): ChatSection {
-  const { chatRows, endpointsSettings, getDefaultChatApi, pushSocket, isOpen } = deps;
+  const {
+    chatRows,
+    endpointsSettings,
+    getEndpointDefaults,
+    getDefaultChatApi,
+    pushSocket,
+    isOpen,
+    getChatApiKey,
+    getFetch,
+  } = deps;
+  const full = chatRows === "full";
 
   // A <template> parses the section markup without a throwaway wrapper in the DOM.
   const template = document.createElement("template");
@@ -81,8 +110,24 @@ export function createChatSection(deps: {
   const chatModelRowEl = el.querySelector<HTMLDivElement>(
     '.yui-input-row[data-ep-field="chat_model"]',
   );
+  const urlInput = el.querySelector<HTMLInputElement>("#yui-ep-chat_base_url");
+  const modelInput = full ? el.querySelector<HTMLInputElement>("#yui-ep-chat_model") : null;
 
   const status = createChatStatus(el, { onAction: () => pushSocket?.reconnectNow() });
+
+  let disposed = false;
+  // The model-list phase the line shows; null = nothing (cleared, or the push state owns the line).
+  let modelPhase: ModelStatusPhase | null = null;
+
+  const read = createModelRead({
+    getApiKey: getChatApiKey ?? (async () => undefined),
+    getFetch: getFetch ?? (async () => undefined),
+    onPhase(phase) {
+      if (disposed) return;
+      modelPhase = phase.phase === "cleared" ? null : phase;
+      if (isOpen()) renderStatus();
+    },
+  });
 
   function isChatApi(v: string | undefined): v is ChatApi {
     return v !== undefined && (CHAT_APIS as readonly string[]).includes(v);
@@ -106,6 +151,38 @@ export function createChatSection(deps: {
     return isPush() ? pushSocket?.getState() : undefined;
   }
 
+  // Effective URL for the read — the override, else the bundled default.
+  function effectiveUrl(): string {
+    const ov = endpointsSettings.get().chat_base_url;
+    return ov !== "" ? ov : (getEndpointDefaults?.()?.chat_base_url ?? "");
+  }
+
+  function hostOf(url: string): string {
+    try {
+      return new URL(url).host;
+    } catch {
+      return "";
+    }
+  }
+
+  // One line under the key row: the push socket's state in push mode, the model-list read otherwise.
+  function renderStatus(): void {
+    if (isPush()) {
+      status.render(pushState());
+      return;
+    }
+    status.renderModels(
+      modelPhase === null
+        ? null
+        : modelStatusView({
+            phase: modelPhase,
+            typedModel: modelInput?.value ?? "",
+            defaultModel: getEndpointDefaults?.()?.chat_model,
+            host: hostOf(effectiveUrl()),
+          }),
+    );
+  }
+
   // Chat API dropdown value + summary hint, matching effective chat_api.
   // The model row belongs to the request-shaped modes — push carries no model of its own.
   function reflectChatType(): void {
@@ -113,7 +190,7 @@ export function createChatSection(deps: {
     if (chatTypeEl && chatTypeEl.value !== eff) chatTypeEl.value = eff;
     chatTypeView.reflect(eff);
     if (chatModelRowEl) chatModelRowEl.hidden = eff === "push";
-    status.render(pushState());
+    renderStatus();
   }
 
   // Chat provider preset dropdown — the preset the current settings match, else Custom. A preset
@@ -134,15 +211,48 @@ export function createChatSection(deps: {
     reflectChatPreset();
   }
 
+  function canRead(): boolean {
+    return full && getChatApiKey !== undefined && getFetch !== undefined;
+  }
+
+  // After a trigger (tab entry, URL/key/protocol commit): read, or clear when there is nothing to read.
+  function evaluateModels(): void {
+    if (disposed) return;
+    if (isPush()) {
+      // Switching to push: the model list has no owner here — clear the line for the socket state.
+      read.abort();
+      modelPhase = null;
+      renderStatus();
+      return;
+    }
+    if (!canRead()) return;
+    const visible = urlInput?.value ?? "";
+    if (!isValidEndpointUrl(visible) || effectiveUrl() === "") {
+      read.clear();
+      return;
+    }
+    read.start(effectiveUrl());
+  }
+
   // The socket moves on its own — its status line follows whether or not a setting changed.
   const unsubscribePushState = pushSocket?.onState(() => {
-    if (isOpen()) status.render(pushState());
+    if (isOpen() && isPush()) status.render(pushState());
   });
 
   return {
     el,
     reflect,
+    entered(): void {
+      if (!isOpen()) return;
+      evaluateModels();
+    },
+    onCommit: evaluateModels,
+    close(): void {
+      read.abort();
+    },
     dispose(): void {
+      disposed = true;
+      read.abort();
       unsubscribePushState?.();
       status.dispose();
     },

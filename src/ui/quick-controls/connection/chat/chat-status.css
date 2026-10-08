@@ -16,6 +16,23 @@
   box-shadow: 0 0 0 3px var(--yui-accent-faint);
 }
 
+/* A read in flight — the waiting dot pulses. */
+.yui-chat-status.is-busy .yui-chat-status__dot {
+  animation: yui-chat-status-pulse 1.2s ease-in-out infinite;
+}
+
+@keyframes yui-chat-status-pulse {
+  50% {
+    opacity: 0.35;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .yui-chat-status.is-busy .yui-chat-status__dot {
+    animation: none;
+  }
+}
+
 /* The way out of a stalled connection, at the row's right end — the panel's text button. */
 .yui-chat-status__action {
   margin-left: auto;
