@@ -16,6 +16,10 @@ export type ModelListResult =
 
 const DEFAULT_TIMEOUT_MS = 10_000;
 
+// selectFetch()'s native fetch (tauri-plugin-cors-fetch) takes maxRedirections; 0 builds a no-redirect
+// policy the standard RequestInit type doesn't declare.
+type FetchInit = RequestInit & { maxRedirections?: number };
+
 // A 2xx body parses when it is a JSON object whose data lists objects with a nonempty string id;
 // data:null with object:"list" is the empty list. Returns ids in body order, deduplicated, or null.
 function parseModelIds(text: string): string[] | null {
@@ -55,12 +59,14 @@ export async function readModels(input: {
     if (input.apiKey) headers.Authorization = `Bearer ${input.apiKey}`;
     // One budget over connection and body read; the caller's abort passes through as a rejection.
     const requestSignal = AbortSignal.any([input.signal, deadline.signal]);
+    const init: FetchInit = {
+      headers,
+      signal: requestSignal,
+      redirect: "error",
+      maxRedirections: 0,
+    };
     const res = await untilAborted(
-      input.fetch(`${input.baseUrl.replace(/\/+$/, "")}/models`, {
-        headers,
-        signal: requestSignal,
-        redirect: "error",
-      }),
+      input.fetch(`${input.baseUrl.replace(/\/+$/, "")}/models`, init),
       requestSignal,
     );
     if (!res.ok) {
