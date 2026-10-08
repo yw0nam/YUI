@@ -128,6 +128,8 @@ const realFactories: ConfiguredBootstrapFactories = {
       ensureActive,
     });
     const { voice, dispatcher, guardrails, pacer } = core;
+    // The scene taking the body ends a thinking bridge already running, so no filler speaks on the bed.
+    register(phase1.bedSceneHold.onTake(voice.endThinking));
     maybeShowFirstRunHint({
       seen: () => hintSettings.get().enabled,
       markSeen: () => hintSettings.setEnabled(true),

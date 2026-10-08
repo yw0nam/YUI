@@ -73,6 +73,8 @@ export interface VoicePipeline {
   speakFailure: (reason: TurnFailure) => void;
   /** A stroll ended while a turn is still thinking — the thinking loop takes the body back. */
   resumeThinking: () => void;
+  /** Ends the thinking that is running, if any: the filler stops, and the turn's own later end is a no-op. */
+  endThinking: () => void;
   createSttEngine: () => Promise<SttVad>;
   dispose: () => void;
 }
@@ -239,6 +241,10 @@ export function wireVoicePipeline(deps: VoicePipelineDeps): VoicePipeline {
     if (!applied && !deps.isStrolling()) deps.renderer.playMotion(null);
   }
 
+  function endThinking(): void {
+    if (thinkingTurnId !== null) onThinkingEnd(thinkingTurnId);
+  }
+
   const turnOutput: TurnOutput = {
     interrupt: () => speechPlayback.interrupt(),
     hasFiller,
@@ -310,6 +316,7 @@ export function wireVoicePipeline(deps: VoicePipelineDeps): VoicePipeline {
     turnOutput,
     speakFailure,
     resumeThinking,
+    endThinking,
     createSttEngine,
     dispose() {
       fillerLoop?.stop();

@@ -268,7 +268,7 @@ to a bare `trigger: proactive (user idle Xmin)`. While the bed scene runs, the
 client drops the touch, head-pat, tap-bored and drag-held cues, and the [wake](#wake)
 reports the click that woke her. A turn that starts while she is on the bed, the wake
 turn included, speaks no thinking filler before its reply; the reply is spoken when it
-arrives.
+arrives. A thinking filler already running stops when she goes to bed.
 
 ### Screen transition
 
