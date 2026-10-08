@@ -1,7 +1,7 @@
 /**
  * Responses API stream — `client.responses.create({ stream: true })` mapped onto ChatStreamEvent.
  *
- * Client-declared tools: the registry (opts.tools) is declared on every request of the turn in the
+ * Client-declared tools: the registry (`tools`) is declared on every request of the turn in the
  *   flat Responses function shape. A function_call naming a registered tool is executed once, when
  *   its complete arguments are first known (added / arguments.done / output_item.done, whichever
  *   comes first); a call naming an unregistered tool runs on the backend — observed, never answered.
@@ -67,13 +67,12 @@ import type {
 
 import type { ControlEnvelope, EndpointsConfig, ExpressArgs } from "../../../contract";
 import type { ChatRequest, ChatStreamEvent } from "./chat-client";
+import { ownsCall, runClientCall, shouldAnswer } from "./client-tool-run";
 import type { ClientToolRegistry } from "./client-tools";
 import {
   httpStatusOf,
-  isExpressTool,
   MAX_TOOL_ROUND_TRIPS,
   normalizeExpressIntoEnvelope,
-  parseToolArgs,
   serverMessageOf,
 } from "./stream-helpers";
 
@@ -143,45 +142,22 @@ export async function* streamResponses(
   let executed: Array<{ call: ResponseInputItem; output: ResponseInputItem; oneWay: boolean }> = [];
   let roundText = "";
 
-  // A call the client owns: an express cue to play, or a registered tool to run.
-  const owns = (name: string) => isExpressTool(name) || tools?.get(name) !== undefined;
-
   async function* handleCall(
     key: string,
     name: string,
     argsJson: string,
   ): AsyncGenerator<ChatStreamEvent> {
     if (handled.has(key)) return;
-    const parsed = parseToolArgs(argsJson);
-    if ("error" in parsed) {
-      yield { type: "error", message: `${name} arguments JSON parse failed: ${parsed.error}` };
-      return;
-    }
+    const outcome = yield* runClientCall(tools, name, argsJson);
+    if (!outcome) return;
     handled.add(key);
-
-    const express_call = isExpressTool(name);
-    if (express_call) {
-      express = parsed.args as ExpressArgs;
-      yield { type: "express", args: express };
-    }
-
-    const tool = tools?.get(name);
-    if (!tool) return;
-    // The client owns this call, so the chip runs for as long as the call does.
-    if (!express_call) yield { type: "tool_status", status: { state: "running", tool_id: name } };
-    let result: string;
-    try {
-      result = await tool.execute(parsed.args);
-    } catch (err) {
-      // The model owns what a failed tool means — hand it the failure rather than dropping the turn.
-      result = `error: ${err instanceof Error ? err.message : String(err)}`;
-    }
-    if (!express_call) yield { type: "tool_status", status: { state: "done", tool_id: name } };
+    if (outcome.cue) express = outcome.cue;
+    if (!outcome.run) return;
     const call_id = callIds.get(key) ?? `call_${seq++}`;
     executed.push({
       call: { type: "function_call", call_id, name, arguments: argsJson },
-      output: { type: "function_call_output", call_id, output: result },
-      oneWay: tool.oneWay === true,
+      output: { type: "function_call_output", call_id, output: outcome.run.result },
+      oneWay: outcome.run.oneWay,
     });
   }
 
@@ -247,7 +223,7 @@ export async function* streamResponses(
             if (item?.type === "function_call") {
               const key = callKey(item.id, event.output_index);
               if (item.call_id) callIds.set(key, item.call_id);
-              if (!owns(item.name)) {
+              if (!ownsCall(tools, item.name)) {
                 yield { type: "tool_status", status: { state: "running", tool_id: item.name } };
               } else if (item.arguments) {
                 // Live backend embeds complete arguments directly in added/done item.
@@ -259,7 +235,7 @@ export async function* streamResponses(
 
           case "response.function_call_arguments.done": {
             // native tool: completion handled at output_item.done.
-            if (owns(event.name)) {
+            if (ownsCall(tools, event.name)) {
               yield* handleCall(
                 callKey(event.item_id, event.output_index),
                 event.name,
@@ -274,7 +250,7 @@ export async function* streamResponses(
             if (item?.type === "function_call") {
               const key = callKey(item.id, event.output_index);
               if (item.call_id) callIds.set(key, item.call_id);
-              if (!owns(item.name)) {
+              if (!ownsCall(tools, item.name)) {
                 yield { type: "tool_status", status: { state: "done", tool_id: item.name } };
               } else if (item.arguments) {
                 // Backends without function_call_arguments.* events have args only in done item.
@@ -352,13 +328,10 @@ export async function* streamResponses(
       return;
     }
 
-    // A tool that answers a question is always answered back. Cue-only calls are answered only when
-    // the response said nothing — one that already spoke would otherwise be asked to speak it all
-    // over again.
-    const answerable = executed.some((e) => !e.oneWay) || roundText === "";
-    if (failed || executed.length === 0 || !answerable || trips >= MAX_TOOL_ROUND_TRIPS) {
+    // The model waits on cue-only calls when its response said nothing.
+    if (failed || !shouldAnswer(executed, roundText === "") || trips >= MAX_TOOL_ROUND_TRIPS) {
       if (completedId !== undefined) {
-        // Normalization (chat-client ONLY): FLAT args → renderer seam shape.
+        // Normalization FLAT args → renderer seam shape.
         const envelope: ControlEnvelope = { speech_text };
         normalizeExpressIntoEnvelope(envelope, express);
         yield { type: "completed", envelope, responseId: completedId };

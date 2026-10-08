@@ -317,6 +317,7 @@ YUI/
           chat-completions-stream.ts   # Chat Completions streaming loop with its tool round trips
           stream-helpers.ts            # Express-tool and error helpers both streaming loops use
           client-tools.ts              # Registry of the tools YUI declares and runs itself
+          client-tool-run.ts           # Runs a model's tool call on the client and decides when results go back
           silence-token.ts             # Stateful [SILENT] token filter for spoken output_text deltas
         push/                          # The push transport's turn and reply WebSocket
           push-frames.ts               # Push frame wire types and the unreadable-frame checks
