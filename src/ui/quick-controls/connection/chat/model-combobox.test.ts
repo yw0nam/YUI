@@ -156,6 +156,45 @@ describe("createModelCombobox", () => {
     combobox.dispose();
   });
 
+  it("Escape keeps the list closed across re-renders until typing or an arrow reopens it", () => {
+    const { input } = mountRow();
+    const combobox = createModelCombobox({ input, onPick: () => {} });
+    combobox.setOptions(["qwen3:8b", "qwen3:latest"]);
+    input.focus();
+    const list = document.getElementById("yui-chat-model-list")!;
+    expect(list.hidden).toBe(false);
+
+    input.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
+    expect(list.hidden).toBe(true);
+
+    // A re-render with the same ids must not reopen a dismissed list.
+    combobox.setOptions(["qwen3:8b", "qwen3:latest"]);
+    expect(list.hidden).toBe(true);
+
+    // Typing reopens it.
+    input.value = "qwen3";
+    input.dispatchEvent(new Event("input"));
+    expect(list.hidden).toBe(false);
+
+    combobox.dispose();
+  });
+
+  it("Escape closes the list whatever the IME does with the event", () => {
+    const { input } = mountRow();
+    const combobox = createModelCombobox({ input, onPick: () => {} });
+    combobox.setOptions(["m1"]);
+    input.focus();
+    const list = document.getElementById("yui-chat-model-list")!;
+
+    // The IME marks the keydown it lets through; the list must close regardless.
+    input.dispatchEvent(
+      new KeyboardEvent("keydown", { key: "Escape", isComposing: true, bubbles: true }),
+    );
+    expect(list.hidden).toBe(true);
+
+    combobox.dispose();
+  });
+
   it("gives the listbox the model label's name", () => {
     const { row, input } = mountRow();
     const label = document.createElement("label");

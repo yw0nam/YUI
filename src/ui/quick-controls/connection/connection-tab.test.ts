@@ -465,6 +465,30 @@ describe("createConnectionTab", () => {
       tab.dispose();
     });
 
+    it("the status follows the model input while typing, without a new request", async () => {
+      const deps = modelReadDeps();
+      const tab = build(DESKTOP_ROWS, {
+        ...deps,
+        getEndpointDefaults: () => ({ ...defaults, chat_model: "" }),
+      });
+      tab.entered();
+      await tick();
+      await tick();
+      deps.settle();
+      await tick();
+      expect(statusOf(tab).textContent).toContain(t("svc.chat_models_pick", { n: 2 }));
+
+      const model = tab.el.querySelector<HTMLInputElement>("#yui-ep-chat_model")!;
+      model.value = "m1";
+      model.dispatchEvent(new Event("input", { bubbles: true }));
+
+      const text = statusOf(tab).textContent ?? "";
+      expect(text).toContain(t("svc.chat_models_read", { n: 2 }));
+      expect(text).not.toContain(t("svc.chat_models_pick", { n: 2 }));
+      expect(deps.calls).toHaveLength(1);
+      tab.dispose();
+    });
+
     it("clears an invalid URL instead of reading", async () => {
       const deps = modelReadDeps();
       const tab = build(DESKTOP_ROWS, { ...deps, getEndpointDefaults: () => defaults });
