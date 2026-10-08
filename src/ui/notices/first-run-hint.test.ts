@@ -14,12 +14,16 @@ function fakeDeps(overrides: Partial<FirstRunHintDeps> = {}): {
   beginSpeech: ReturnType<typeof vi.fn>;
   pushSpeech: ReturnType<typeof vi.fn>;
   endSpeech: ReturnType<typeof vi.fn>;
+  showSpeechAction: ReturnType<typeof vi.fn>;
+  openSettings: ReturnType<typeof vi.fn>;
 } {
   const calls: string[] = [];
   const beginSpeech = vi.fn(() => calls.push("begin"));
   const pushSpeech = vi.fn(() => calls.push("push"));
   const endSpeech = vi.fn(() => calls.push("end"));
+  const showSpeechAction = vi.fn();
   const markSeen = vi.fn(() => calls.push("markSeen"));
+  const openSettings = vi.fn();
   const t = vi.fn((key: string, vars?: Record<string, string | number>) =>
     vars ? `${key}:${JSON.stringify(vars)}` : key,
   );
@@ -27,15 +31,26 @@ function fakeDeps(overrides: Partial<FirstRunHintDeps> = {}): {
   const deps: FirstRunHintDeps = {
     seen: () => false,
     markSeen,
-    surfaces: { beginSpeech, pushSpeech, endSpeech },
+    surfaces: { beginSpeech, pushSpeech, endSpeech, showSpeechAction },
     hotkey: "CmdOrCtrl+Shift+Y",
     isMac: false,
     chatConfigured: true,
+    openSettings,
     t,
     ...overrides,
   };
 
-  return { deps, calls, markSeen, t, beginSpeech, pushSpeech, endSpeech };
+  return {
+    deps,
+    calls,
+    markSeen,
+    t,
+    beginSpeech,
+    pushSpeech,
+    endSpeech,
+    showSpeechAction,
+    openSettings,
+  };
 }
 
 describe("maybeShowFirstRunHint", () => {
@@ -121,17 +136,39 @@ describe("maybeShowFirstRunHint — unconfigured chat backend", () => {
     expect(pushSpeech).not.toHaveBeenCalledWith("hint.setup_backend");
     expect(markSeen).toHaveBeenCalled();
   });
+
+  it("sends no speech action on the configured controls hint", () => {
+    const { deps, showSpeechAction } = fakeDeps();
+
+    maybeShowFirstRunHint(deps);
+
+    expect(showSpeechAction).not.toHaveBeenCalled();
+  });
+
+  it("carries the Open Connection action on the setup hint, opening the conn tab on click", () => {
+    const { deps, showSpeechAction, openSettings } = fakeDeps({ chatConfigured: false });
+
+    maybeShowFirstRunHint(deps);
+
+    expect(showSpeechAction).toHaveBeenCalledTimes(1);
+    const action = showSpeechAction.mock.calls[0][0];
+    expect(action.label).toBe("input.error_open_connection");
+    action.onClick();
+    expect(openSettings).toHaveBeenCalledWith("conn");
+  });
 });
 
 describe("hint.setup_backend copy", () => {
   afterEach(() => setLocale("en"));
 
-  it("names the Connection tab in every locale", () => {
+  it("states the missing backend and points at an OpenAI-compatible server, not the tab, in every locale", () => {
     for (const locale of ["en", "ko", "ja"] as const) {
       setLocale(locale);
       const copy = t("hint.setup_backend");
       expect(copy).not.toBe("hint.setup_backend");
-      expect(copy).toContain(t("tabs.conn"));
+      expect(copy).toContain("OpenAI");
+      // The button under the speech opens the tab — the sentence no longer routes there.
+      expect(copy).not.toContain(t("tabs.conn"));
     }
   });
 });

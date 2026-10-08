@@ -57,6 +57,7 @@ const SURFACE_OPS: MessageSurfaceOp[] = [
   { op: "dismiss-input" },
   { op: "busy", busy: true },
   { op: "input-error", message: "no backend", action: { label: "Open Advanced" } },
+  { op: "speech-action", action: { label: "Open Connection" } },
   { op: "attachment-limits", limits: LIMITS },
   { op: "quote", quote: { text: "hi", via: "voice", images: 1 } },
   { op: "settle-quote" },
@@ -69,6 +70,7 @@ const CONTROL_OPS: MessageControlOp[] = [
   { op: "stop" },
   { op: "input-open", open: true },
   { op: "input-error-action" },
+  { op: "speech-action" },
   { op: "dock" },
   { op: "ready" },
 ];
@@ -186,6 +188,25 @@ describe("createRemoteSurfaces — the pet-side adapter", () => {
     ]);
 
     message.emitControl({ op: "input-error-action" });
+    expect(onClick).toHaveBeenCalledTimes(1);
+  });
+
+  it("sends only the speech action's label, routes the click back, and drops the callback on replacement", () => {
+    const { pet, message } = pair();
+    const remote = createRemoteSurfaces(pet);
+    const seen: MessageSurfaceOp[] = [];
+    message.onSurface((op) => seen.push(op));
+    const onClick = vi.fn();
+
+    remote.showSpeechAction({ label: "Open Connection", onClick });
+    expect(seen).toEqual([{ op: "speech-action", action: { label: "Open Connection" } }]);
+
+    message.emitControl({ op: "speech-action" });
+    expect(onClick).toHaveBeenCalledTimes(1);
+
+    // New speech replaces the utterance carrying the action — the routed click finds nothing.
+    remote.beginSpeech();
+    message.emitControl({ op: "speech-action" });
     expect(onClick).toHaveBeenCalledTimes(1);
   });
 

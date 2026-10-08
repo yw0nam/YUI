@@ -27,13 +27,14 @@ import { noTool } from "../surfaces/test-helpers";
 import { renderMarkdownInline } from "./markdown";
 
 const TOOLS_SELECTOR = ".yui-bubble.is-visible .yui-bubble__tools button";
+const SPEECH_ACTION_SELECTOR = ".yui-bubble.is-visible .yui-bubble__speech-action button";
 
-// Both edge buttons register through the one tools entry; the pet window hit-tests nothing else of the bubble.
+// The edge buttons and the speech action button take OS pointer events; markdown links do not.
 describe("hit-test registration", () => {
-  it("lists the tools selector and no per-button entry", () => {
+  it("lists the tools selector and the speech action button, no per-link entries", () => {
     expect(INTERACTIVE_OVERLAY_SELECTORS).toContain(TOOLS_SELECTOR);
     const bubbleEntries = INTERACTIVE_OVERLAY_SELECTORS.filter((s) => s.includes("yui-bubble"));
-    expect(bubbleEntries).toEqual([TOOLS_SELECTOR]);
+    expect(bubbleEntries).toEqual([TOOLS_SELECTOR, SPEECH_ACTION_SELECTOR]);
   });
 });
 
@@ -484,6 +485,67 @@ describe("endSpeech — deferred dwell for TTS playback", () => {
   it("finishSpeech() is a no-op when the bubble is already hidden", () => {
     expect(() => s.finishSpeech()).not.toThrow();
     expect(bubble().hidden).toBe(true);
+  });
+});
+
+describe("speech action — in-place fix under the speech text", () => {
+  let mount: HTMLElement;
+  let s: ReturnType<typeof createSurfaces>;
+
+  beforeEach(() => {
+    ({ s, mount } = makeSurfaces());
+  });
+
+  afterEach(() => {
+    s.dispose();
+    mount.remove();
+  });
+
+  function actionButton(): HTMLButtonElement | null {
+    return mount.querySelector<HTMLButtonElement>(".yui-bubble__speech-action button");
+  }
+
+  it("renders the action as a button under the speech and runs it on click", () => {
+    const onClick = vi.fn();
+    s.beginSpeech();
+    s.pushSpeech("I have no backend yet.");
+    s.endSpeech();
+    s.showSpeechAction({ label: "Open Connection", onClick });
+
+    const button = actionButton();
+    expect(button).not.toBeNull();
+    expect(button!.type).toBe("button");
+    expect(button!.textContent).toBe("Open Connection");
+    button!.click();
+    expect(onClick).toHaveBeenCalledTimes(1);
+  });
+
+  it("clears the action when new speech replaces it — a click afterwards does nothing", () => {
+    const onClick = vi.fn();
+    s.beginSpeech();
+    s.pushSpeech("hint");
+    s.endSpeech();
+    s.showSpeechAction({ label: "Open Connection", onClick });
+    const button = actionButton()!;
+
+    s.beginSpeech();
+    s.pushSpeech("a later utterance");
+    s.endSpeech();
+
+    expect(actionButton()).toBeNull();
+    button.click();
+    expect(onClick).not.toHaveBeenCalled();
+  });
+
+  it("clears the action when the speech hides", () => {
+    s.beginSpeech();
+    s.pushSpeech("hint");
+    s.endSpeech();
+    s.showSpeechAction({ label: "Open Connection", onClick: vi.fn() });
+
+    s.hideSpeech();
+
+    expect(actionButton()).toBeNull();
   });
 });
 
