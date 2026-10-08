@@ -563,7 +563,7 @@ describe("avatar-executor — move_to", () => {
     ["move_to", { action: "move_to", spot: "center" }],
     ["sit_on_window", { action: "sit_on_window", app: "Notes" }],
     ["peek", { action: "peek", side: "left" }],
-    ["stand_down", { action: "stand_down" }],
+    ["stand", { action: "stand" }],
   ])("preempts ambient motion before running %s", async (_label, params) => {
     const h = harness();
 
@@ -619,11 +619,11 @@ describe("avatar-executor — move_to", () => {
   });
 });
 
-describe("avatar-executor — stand_down", () => {
+describe("avatar-executor — stand", () => {
   it("releases the perch and reports ok", async () => {
     const h = harness();
 
-    expect(await h.call("command", { action: "stand_down" })).toEqual({ ok: true });
+    expect(await h.call("command", { action: "stand" })).toEqual({ ok: true });
     expect(h.release).toHaveBeenCalledOnce();
   });
 });
@@ -703,7 +703,7 @@ describe("avatar-executor — go_to_bed", () => {
     h.fire("command", goToBed);
     await flush();
 
-    expect(await h.call("command", { action: "stand_down" })).toEqual({
+    expect(await h.call("command", { action: "stand" })).toEqual({
       ok: false,
       reason: "busy",
     });
@@ -713,11 +713,11 @@ describe("avatar-executor — go_to_bed", () => {
 });
 
 describe("avatar-executor — verbs on the bed", () => {
-  it("gets her up on stand_down while she lies, leaving the perch alone", async () => {
+  it("gets her up on stand while she lies, leaving the perch alone", async () => {
     const h = harness();
     h.bed.phase.mockReturnValue("lying");
 
-    expect(await h.call("command", { action: "stand_down" })).toEqual({ ok: true });
+    expect(await h.call("command", { action: "stand" })).toEqual({ ok: true });
     expect(h.bed.getUp).toHaveBeenCalledOnce();
     expect(h.release).not.toHaveBeenCalled();
   });
@@ -752,7 +752,7 @@ describe("avatar-executor — concurrency and interruption", () => {
 
     h.fire("command", { action: "sit_on_window", app: "Notes" });
     await flush();
-    const second = await h.call("command", { action: "stand_down" });
+    const second = await h.call("command", { action: "stand" });
 
     expect(second).toEqual({ ok: false, reason: "busy" });
     gate.resolve({ ok: true, kind: "sit" });
@@ -826,7 +826,7 @@ describe("avatar-executor — concurrency and interruption", () => {
       ok: false,
       reason: "unsupported",
     });
-    expect(await h.call("command", { action: "stand_down" })).toEqual({ ok: true });
+    expect(await h.call("command", { action: "stand" })).toEqual({ ok: true });
   });
 
   it("accepts a new command once the previous one finished", async () => {
@@ -834,7 +834,7 @@ describe("avatar-executor — concurrency and interruption", () => {
 
     await h.call("command", { action: "sit_on_window", app: "Notes" });
 
-    expect(await h.call("command", { action: "stand_down" })).toEqual({ ok: true });
+    expect(await h.call("command", { action: "stand" })).toEqual({ ok: true });
   });
 
   it("answers queries while a command is running", async () => {

@@ -162,10 +162,10 @@ class TestMoveTo:
             server.move_to("center")
 
 
-class TestStandDown:
+class TestStand:
     def test_posts_the_verb(self, stub):
-        assert server.stand_down() == {"ok": True}
-        assert stub.received == [{"action": "stand_down"}]
+        assert server.stand() == {"ok": True}
+        assert stub.received == [{"action": "stand"}]
 
 
 class TestGoToBed:
@@ -190,7 +190,7 @@ class TestToolRegistration:
             "sit_on_window",
             "peek",
             "move_to",
-            "stand_down",
+            "stand",
             "go_to_bed",
         } <= names
 
