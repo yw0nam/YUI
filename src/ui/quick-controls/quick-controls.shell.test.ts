@@ -360,6 +360,20 @@ describe("createQuickControls — shell", () => {
     qc.dispose();
   });
 
+  it("hides an open tooltip when the panel closes via the header close button", () => {
+    const qc = buildQc({ variant: "popover" });
+    qc.open();
+    const tab = qc.el.querySelector<HTMLButtonElement>("#yui-tab-react")!;
+    document.dispatchEvent(new KeyboardEvent("keydown", { key: "Tab", bubbles: true }));
+    tab.focus();
+    expect(document.querySelector(".yui-hint-tip.is-open")).not.toBeNull();
+
+    qc.el.querySelector<HTMLButtonElement>(".yui-iconbtn--close")!.click();
+
+    expect(document.querySelector(".yui-hint-tip.is-open")).toBeNull();
+    qc.dispose();
+  });
+
   it("opens a tooltip when Home or End is the first keyboard-modality key after a pointer click", () => {
     const qc = buildQc({ variant: "popover" });
     qc.open();
