@@ -6,9 +6,9 @@ const signal = new AbortController().signal;
 
 // Fake fetch that records each request and replies with a fresh Response; no network.
 function recordFetch(makeRes: () => Response) {
-  const calls: { url: string; headers: Headers }[] = [];
+  const calls: { url: string; init: RequestInit; headers: Headers }[] = [];
   const fetchImpl: typeof globalThis.fetch = (url, init) => {
-    calls.push({ url: String(url), headers: new Headers(init?.headers) });
+    calls.push({ url: String(url), init: init ?? {}, headers: new Headers(init?.headers) });
     return Promise.resolve(makeRes());
   };
   return { fetchImpl, calls };
@@ -36,6 +36,7 @@ describe("readModels", () => {
     expect(result).toEqual({ kind: "ok", ids: [] });
     expect(calls[0]?.url).toBe(`${BASE}/models`);
     expect(calls[0]?.headers.get("authorization")).toBe("Bearer k-1");
+    expect(calls[0]?.init).toMatchObject({ redirect: "error", maxRedirections: 0 });
   });
 
   it("sends no Authorization header when no key is given", async () => {
