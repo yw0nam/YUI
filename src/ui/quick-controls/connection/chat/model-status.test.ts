@@ -58,7 +58,7 @@ describe("modelStatusView", () => {
     [
       "ok with the typed model absent from the list",
       "ok",
-      { typedModel: "zz", want: t("svc.chat_models_absent", { model: "zz" }) },
+      { typedModel: "zz", want: t("svc.chat_models_absent") },
       [],
     ],
     [
@@ -91,6 +91,6 @@ describe("modelStatusView", () => {
       defaultModel: undefined,
       host: HOST,
     });
-    expect(view.text).toBe(t("svc.chat_models_absent", { model: "A" }));
+    expect(view.text).toBe(t("svc.chat_models_absent"));
   });
 });

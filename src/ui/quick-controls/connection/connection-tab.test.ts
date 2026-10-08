@@ -489,6 +489,33 @@ describe("createConnectionTab", () => {
       tab.dispose();
     });
 
+    it("typing two absent names keeps the status text node untouched (announced once)", async () => {
+      const deps = modelReadDeps();
+      const tab = build(DESKTOP_ROWS, {
+        ...deps,
+        getEndpointDefaults: () => ({ ...defaults, chat_model: "" }),
+      });
+      tab.entered();
+      await tick();
+      await tick();
+      deps.settle();
+      await tick();
+
+      const model = tab.el.querySelector<HTMLInputElement>("#yui-ep-chat_model")!;
+      model.value = "zz";
+      model.dispatchEvent(new Event("input", { bubbles: true }));
+      expect(statusOf(tab).textContent).toBe(t("svc.chat_models_absent"));
+      const textNode = tab.el.querySelector<HTMLElement>(".yui-chat-status__text")!.firstChild;
+
+      model.value = "zz9";
+      model.dispatchEvent(new Event("input", { bubbles: true }));
+
+      expect(
+        tab.el.querySelector<HTMLElement>(".yui-chat-status__text")!.firstChild,
+      ).toBe(textNode);
+      tab.dispose();
+    });
+
     it("clears an invalid URL instead of reading", async () => {
       const deps = modelReadDeps();
       const tab = build(DESKTOP_ROWS, { ...deps, getEndpointDefaults: () => defaults });
