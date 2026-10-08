@@ -4,6 +4,7 @@
  * long names, the closed control and the summary hint show the short name, and the description
  * line follows the selection.
  */
+import { readFileSync } from "node:fs";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import {
   createChatKeySettings,
@@ -12,6 +13,7 @@ import {
 } from "../../../settings/backend/api-key-settings";
 import { createEndpointsSettings } from "../../../settings/backend/endpoints-settings";
 import { type Locale, setLocale, t } from "../../i18n";
+import { HERMES_AGENT_URL } from "../constants";
 import { inMemoryApiKeyStorage } from "../test-helpers";
 import { createConnectionTab } from "./connection-tab";
 
@@ -77,7 +79,7 @@ describe("chat type row", () => {
         expect(q(tab.el, ".yui-chat-type__shown").textContent).toBe(SHORT[api]);
         expect(q(tab.el, ".yui-chat-summary-hint").textContent).toBe(SHORT[api]);
         const desc = q(tab.el, ".yui-chat-type__desc");
-        expect(desc.textContent).toBe(t(`svc.chat_desc_${api}`));
+        expect(desc.textContent).toBe(t(`svc.chat_desc_${api}`, { agent: "Hermes Agent" }));
         expect(desc.textContent).not.toBe("");
         expect(desc.getAttribute("aria-live")).toBe("polite");
       }
@@ -96,5 +98,37 @@ describe("chat type row", () => {
     setLocale("ko");
     expect(t("svc.chat_desc_chat_completions")).toContain("Ollama, LM Studio, vLLM");
     expect(t("svc.chat_desc_responses")).toContain("OpenAI");
+  });
+
+  for (const locale of ["en", "ko", "ja"] as const) {
+    it(`${locale}: only the push description carries the Hermes Agent link`, () => {
+      const tab = build(locale);
+      const select = q(tab.el, ".yui-chat-type") as HTMLSelectElement;
+      const anchors: Record<string, HTMLAnchorElement[]> = {};
+      for (const api of ORDER) {
+        select.value = api;
+        select.dispatchEvent(new Event("change", { bubbles: true }));
+        anchors[api] = [...q(tab.el, ".yui-chat-type__desc").querySelectorAll("a")];
+      }
+      expect(anchors.chat_completions).toEqual([]);
+      expect(anchors.responses).toEqual([]);
+      expect(anchors.push).toHaveLength(1);
+      const [a] = anchors.push;
+      expect(a.getAttribute("href")).toBe("https://github.com/NousResearch/hermes-agent");
+      expect(a.target).toBe("_blank");
+      expect(a.rel).toBe("noopener noreferrer");
+      expect(a.textContent).toBe("Hermes Agent");
+      expect(a.getAttribute("aria-label")).toBe(t("svc.chat_desc_push_link_aria"));
+      expect(q(tab.el, ".yui-chat-type__desc").textContent).toContain(" ");
+      tab.dispose();
+    });
+  }
+
+  it("the settings window may open exactly the link's URL through the opener", () => {
+    const cap = JSON.parse(readFileSync("src-tauri/capabilities/settings.json", "utf8"));
+    const grant = cap.permissions.find(
+      (p: { identifier?: string }) => p.identifier === "opener:allow-open-url",
+    );
+    expect(grant.allow).toEqual([{ url: HERMES_AGENT_URL }]);
   });
 });
