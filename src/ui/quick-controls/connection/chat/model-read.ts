@@ -40,6 +40,8 @@ export function createModelRead(deps: {
   let inFlight: InFlight | undefined;
 
   function drop(reported: boolean): void {
+    // A start suspended on its key must resume stale, whatever is being dropped.
+    seq += 1;
     if (inFlight) {
       inFlight.alive = false;
       inFlight.controller.abort();
@@ -58,6 +60,7 @@ export function createModelRead(deps: {
     const mySeq = ++seq;
     const key = await getApiKey();
     if (mySeq !== seq) return;
+    // An identical read already in flight is joined, not restarted — its completion stays current.
     if (inFlight && inFlight.url === url && inFlight.key === key) return;
     drop(false);
     const controller = new AbortController();
@@ -66,14 +69,15 @@ export function createModelRead(deps: {
     onPhase({ phase: "reading" });
     try {
       const fetchImpl = (await getFetch()) ?? globalThis.fetch;
-      if (!current.alive || mySeq !== seq) return;
+      if (!current.alive) return;
       const result = await readModels({
         baseUrl: url,
         apiKey: key,
         signal: controller.signal,
         fetch: fetchImpl,
       });
-      if (!current.alive || mySeq !== seq) return;
+      // Currency is the read's own liveness — a joiner must not invalidate it.
+      if (!current.alive) return;
       inFlight = undefined;
       onPhase({ phase: "done", result });
     } catch {
