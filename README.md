@@ -61,7 +61,7 @@ No agent at hand? Grab the macOS (Apple Silicon) `.dmg` or the experimental Wind
 
 **First chat:** right-click the character to open Settings, switch to the **Connection** tab (plug icon), and pick a **Provider** preset in the Chat section, fill in **Chat model** (and **Chat API key** for OpenAI or Groq), close the panel, press `/` (or `Cmd/Ctrl+Shift+Y`) to open the text input, and send a message.
 The preset — OpenAI, Ollama, LM Studio, or Groq — autofills the endpoint URL; the prerequisite is a running [Ollama](https://ollama.com) or [LM Studio](https://lmstudio.ai), or an OpenAI or Groq API key.
-The default Chat Completions mode needs a model with tool calling, since YUI always declares its `generate_express` tool (`src/io/chat/stream/chat-client.ts`): [`gpt-5-mini`](https://platform.openai.com/docs/models/gpt-5-mini) on OpenAI, [`qwen3`](https://ollama.com/library/qwen3) on Ollama (pull it first with `ollama pull qwen3`), [`llama-3.3-70b-versatile`](https://console.groq.com/docs/tool-use) on Groq.
+The default Chat Completions mode needs a model with tool calling, since YUI always declares its `generate_express` tool (`src/io/chat/stream/client-tools.ts`): [`gpt-5-mini`](https://platform.openai.com/docs/models/gpt-5-mini) on OpenAI, [`qwen3`](https://ollama.com/library/qwen3) on Ollama (pull it first with `ollama pull qwen3`), [`llama-3.3-70b-versatile`](https://console.groq.com/docs/tool-use) on Groq.
 
 ## Features
 

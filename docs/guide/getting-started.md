@@ -1,6 +1,6 @@
 # YUI — Install and Wiring Guide
 
-YUI is the frontend (head): VRM character rendering, desktop-pet behavior, and I/O surfaces. The brain and voice services — backend agent, broker, TTS, STT — run as separate, config-swappable processes that YUI points at via `configs/endpoints.json` or the in-app panel (right-click the character → Settings → **Connection** tab).
+YUI is the frontend (head): VRM character rendering, desktop-pet behavior, and I/O surfaces. The brain and voice services — backend agent, TTS, STT — run as separate, config-swappable processes that YUI points at via `configs/endpoints.json` or the in-app panel (right-click the character → Settings → **Connection** tab).
 
 ## What you need
 
@@ -11,7 +11,7 @@ One VRM model — and one ships in the repo (`resources/vrms/Sendagaya_Shino.vrm
 | VRM model | **Bundled** — bring your own optional (§2) | — |
 | Chat backend (`chat_base_url`) | Optional | Character appears and idles; a chat turn answers with an inline "Backend not configured" pointer to **Connection** |
 | Chat API key | Optional | Only needed when the endpoint enforces one; set in the panel or `.env.local` |
-| Expression MCP Broker | Optional — Responses mode with a backend agent | Chat Completions mode bakes the vocabulary into the client-declared tool, no broker involved |
+| Expression MCP Broker | Deprecated, removed in v0.6.0 | Both request modes bake the vocabulary into the client-declared tool, no broker involved |
 | TTS | Optional | Speech bubble works; no audio output |
 | STT | Optional | Text input works; no voice input |
 | Screenshot context | Optional | Agent receives no screen context |
@@ -65,7 +65,7 @@ Every tunable section in that file is required — the client reads each value f
 
 The shortest path to a first chat needs no config file: right-click the character to open Settings, switch to the **Connection** tab (plug icon), and pick a **Provider** preset in the Chat section, fill in **Chat model** (and **Chat API key** for OpenAI or Groq), close the panel, press `/` (or `Cmd/Ctrl+Shift+Y`) to open the text input, and send a message.
 The preset — OpenAI, Ollama, LM Studio, or Groq — autofills the endpoint URL; the prerequisite is a running Ollama or LM Studio, or an OpenAI or Groq key.
-Chat Completions, the shipped default, needs a tool-calling model because the client always declares its `generate_express` tool (`src/io/chat/stream/chat-client.ts`): [`gpt-5-mini`](https://platform.openai.com/docs/models/gpt-5-mini) on OpenAI, [`qwen3`](https://ollama.com/library/qwen3) on Ollama (pull it first with `ollama pull qwen3`), [`llama-3.3-70b-versatile`](https://console.groq.com/docs/tool-use) on Groq.
+Chat Completions, the shipped default, needs a tool-calling model because the client always declares its `generate_express` tool (`src/io/chat/stream/client-tools.ts`): [`gpt-5-mini`](https://platform.openai.com/docs/models/gpt-5-mini) on OpenAI, [`qwen3`](https://ollama.com/library/qwen3) on Ollama (pull it first with `ollama pull qwen3`), [`llama-3.3-70b-versatile`](https://console.groq.com/docs/tool-use) on Groq.
 
 YUI supports three chat protocols, selected by `chat_api` in `configs/endpoints.json`. Options A and B work with any server that speaks the corresponding OpenAI API; `push` is a WebSocket contract for backends that deliver without a request, described in [push-transport.md](../reference/push-transport.md). The shipped file sets `chat_completions`; if the key is removed the client behaves as `responses`.
 
@@ -89,19 +89,17 @@ Backend capability still varies: a plain OpenAI-compatible server (e.g. vLLM) sp
 
 ### Option B — Responses mode (`"chat_api": "responses"`)
 
-Any backend served over the OpenAI Responses API (`/v1/responses`); the [Hermes Agent](https://github.com/nousresearch/hermes-agent) gateway is one example. The backend agent reads YUI's vocabulary from the Expression Broker (§4) and emits cues as `generate_express` tool-calls.
+Any backend served over the OpenAI Responses API (`/v1/responses`). The client declares `generate_express` on every request with the vocabulary baked into the tool schema, runs the call locally, and sends a follow-up request that re-sends the input items plus the call and its result, so a server that keeps no responses works (a plain OpenAI-compatible server such as vLLM does). The [Hermes Agent](https://github.com/nousresearch/hermes-agent) API server does not pass a request's tools to its model; on Hermes use push mode, or the Expression Broker (§4) on Responses until v0.6.0.
 
 1. Stand up the backend agent with the Responses API served.
-2. Install the Expression MCP Broker (§4) **into the backend agent** so it can read the published vocabulary.
-3. Hand the agent the cue contract so it understands how to drive the character:
+2. Hand the agent the cue contract so it understands how to drive the character:
    - With Hermes: create a profile, add `docs/reference/client-context.md` to that profile's context, and instruct it to remember the contract.
    - With other agents: include the contents of `docs/reference/client-context.md` in the system prompt or context.
-4. In `configs/endpoints.json`, set:
+3. In `configs/endpoints.json`, set:
    ```json
    "chat_api": "responses",
    "chat_base_url": "http://localhost:8643/v1",
-   "chat_model": "<model id>",
-   "broker_base_url": "http://localhost:3201/mcp"
+   "chat_model": "<model id>"
    ```
    The client appends `/responses` to `chat_base_url` itself.
 
@@ -123,9 +121,9 @@ The in-app agent settings expose reasoning effort (`none` · `minimal` · `low` 
 
 ---
 
-## 4. Expression MCP Broker (optional)
+## 4. Expression MCP Broker (deprecated)
 
-The broker publishes YUI's renderable emotion/motion/`emotion_text` vocabulary so a backend agent learns what the body can express at runtime. YUI publishes in every chat mode whenever `broker_base_url` is set, and silently skips it otherwise; only Responses mode needs the agent to read it back.
+`broker_base_url` is deprecated and is removed in v0.6.0; the client declares its tools on the request, with the vocabulary in the tool schema. While the key is set the broker publishes YUI's renderable emotion/motion/`emotion_text` vocabulary so a backend agent that cannot take request tools (the Hermes API server) learns what the body can express, and the client logs one `deprecated` warning per launch. YUI publishes in every chat mode whenever `broker_base_url` is set, and silently skips it otherwise.
 
 1. Install and serve the broker from [https://github.com/yw0nam/tts_express_broker](https://github.com/yw0nam/tts_express_broker).
 2. The broker listens by default at `http://localhost:3201/mcp` (streamable-http MCP).
@@ -215,7 +213,7 @@ Key reference:
 | `tts_model` | `irodori-tts` | Model sent to the TTS server — Irodori/OpenAI as the request's `model` field (must match the server's configured name), Fish as a `model` HTTP header (an S2-family id) |
 | `tts_speaker` | unset | Default voice id, until another is picked in the panel |
 | `tts_max_inflight` | `1` | Concurrent TTS synthesis requests |
-| `broker_base_url` | unset | Expression broker MCP URL |
+| `broker_base_url` | unset | Expression broker MCP URL. Deprecated, removed in v0.6.0: the client declares its tools on the request |
 
 All service addresses come from this file or the in-app overrides.
 

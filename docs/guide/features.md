@@ -40,7 +40,7 @@ Everything YUI does today, grouped by area. The README shows the three headline 
 | Feature | What it does |
 | --- | --- |
 | Chat protocols | `chat_completions`, `responses`, and `push`, selected by `chat_api` in `configs/endpoints.json` ([push transport](../reference/push-transport.md)) |
-| Expression cues | `generate_express` cues for emotion, motion, voice tag, and caption; the renderable vocabulary travels in the tool schema on Chat Completions, in the `hello` and `vocabulary` frames on push, and to the Expression Broker (MCP) when `broker_base_url` is set ([cue contract](../reference/client-context.md)) |
+| Expression cues | `generate_express` cues for emotion, motion, voice tag, and caption; the renderable vocabulary travels in the tool schema on Responses and Chat Completions, in the `hello` and `vocabulary` frames on push, and to the Expression Broker (MCP) when `broker_base_url` is set, a path deprecated and removed in v0.6.0 ([cue contract](../reference/client-context.md)) |
 | Provider presets | OpenAI, Ollama, LM Studio, Groq, and Hermes Agent presets, plus a custom endpoint |
 | Per-turn context | `client_context` text with local time, frontmost app and window title, an optional screenshot, body posture, and the outcome of the previous turn ([format](../reference/client-context.md)) |
 | Silence | An empty reply or a bare `[SILENT]` token as a silent turn |
