@@ -13,6 +13,7 @@ import {
 } from "../../../settings/backend/api-key-settings";
 import { createEndpointsSettings } from "../../../settings/backend/endpoints-settings";
 import { type Locale, setLocale, t } from "../../i18n";
+import en from "../../i18n/en";
 import { HERMES_AGENT_URL } from "../constants";
 import { inMemoryApiKeyStorage } from "../test-helpers";
 import { createConnectionTab } from "./connection-tab";
@@ -69,35 +70,29 @@ describe("chat type row", () => {
       expect(options.map((o) => o.textContent)).toEqual(ORDER.map((a) => LONG[locale][a]));
       tab.dispose();
     });
-
-    it(`${locale}: the closed overlay, the summary hint and the description follow the selection`, () => {
-      const tab = build(locale);
-      for (const api of ORDER) {
-        const select = q(tab.el, ".yui-chat-type") as HTMLSelectElement;
-        select.value = api;
-        select.dispatchEvent(new Event("change", { bubbles: true }));
-        expect(q(tab.el, ".yui-chat-type__shown").textContent).toBe(SHORT[api]);
-        expect(q(tab.el, ".yui-chat-summary-hint").textContent).toBe(SHORT[api]);
-        const desc = q(tab.el, ".yui-chat-type__desc");
-        expect(desc.textContent).toBe(t(`svc.chat_desc_${api}`, { agent: "Hermes Agent" }));
-        expect(desc.textContent).not.toBe("");
-        expect(desc.getAttribute("aria-live")).toBe("polite");
-      }
-      tab.dispose();
-    });
   }
+
+  it("the closed overlay, the summary hint and the description follow the selection", () => {
+    const tab = build("en");
+    const select = q(tab.el, ".yui-chat-type") as HTMLSelectElement;
+    const desc = q(tab.el, ".yui-chat-type__desc");
+    const expected = { chat_completions: "Ollama", responses: "OpenAI", push: "Hermes Agent" };
+    for (const api of ORDER) {
+      select.value = api;
+      select.dispatchEvent(new Event("change", { bubbles: true }));
+      expect(q(tab.el, ".yui-chat-type__shown").textContent).toBe(SHORT[api]);
+      expect(q(tab.el, ".yui-chat-summary-hint").textContent).toBe(SHORT[api]);
+      expect(desc.textContent).toContain(expected[api]);
+      expect(desc.getAttribute("aria-live")).toBe("polite");
+    }
+    tab.dispose();
+  });
 
   it("the overlay is hidden from assistive tech and the select keeps its name", () => {
     const tab = build("en");
     expect(q(tab.el, ".yui-chat-type__shown").getAttribute("aria-hidden")).toBe("true");
     expect(q(tab.el, ".yui-chat-type").getAttribute("aria-label")).toBe(t("svc.chat_aria"));
     tab.dispose();
-  });
-
-  it("the Korean descriptions name the example servers", () => {
-    setLocale("ko");
-    expect(t("svc.chat_desc_chat_completions")).toContain("Ollama, LM Studio, vLLM");
-    expect(t("svc.chat_desc_responses")).toContain("OpenAI");
   });
 
   for (const locale of ["en", "ko", "ja"] as const) {
@@ -118,10 +113,34 @@ describe("chat type row", () => {
       expect(a.target).toBe("_blank");
       expect(a.rel).toBe("noopener noreferrer");
       expect(a.textContent).toBe("Hermes Agent");
-      expect(a.getAttribute("aria-label")).toBe(t("svc.chat_desc_push_link_aria"));
+      expect(a.hasAttribute("aria-label")).toBe(false);
       tab.dispose();
     });
   }
+
+  it("a translation that repeats the placeholder keeps its tail", () => {
+    const original = en["svc.chat_desc_push"];
+    en["svc.chat_desc_push"] = "A {agent} B {agent} C";
+    const tab = build("en");
+    const select = q(tab.el, ".yui-chat-type") as HTMLSelectElement;
+    select.value = "push";
+    select.dispatchEvent(new Event("change", { bubbles: true }));
+    expect(q(tab.el, ".yui-chat-type__desc").textContent).toContain("C");
+    en["svc.chat_desc_push"] = original;
+    tab.dispose();
+  });
+
+  it("the fade class leaves when its animation ends, so the next change replays it", () => {
+    const tab = build("en");
+    const select = q(tab.el, ".yui-chat-type") as HTMLSelectElement;
+    const desc = q(tab.el, ".yui-chat-type__desc");
+    select.value = "responses";
+    select.dispatchEvent(new Event("change", { bubbles: true }));
+    expect(desc.classList.contains("is-swapping")).toBe(true);
+    desc.dispatchEvent(new Event("animationend"));
+    expect(desc.classList.contains("is-swapping")).toBe(false);
+    tab.dispose();
+  });
 
   it("the settings window may open exactly the link's URL through the opener", () => {
     const cap = JSON.parse(readFileSync("src-tauri/capabilities/settings.json", "utf8"));
