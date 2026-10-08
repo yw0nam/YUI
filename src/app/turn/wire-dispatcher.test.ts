@@ -114,13 +114,13 @@ describe("wireDispatcher", () => {
     const held = () => true;
     setup(held);
 
-    expect(mocks.createBackendCaller.mock.calls[0][0].isBodyHeld).toBe(held);
+    expect(mocks.createBackendCaller.mock.calls.at(-1)?.[0].isBodyHeld).toBe(held);
   });
 
   it("builds the caller without a scene hold where there is no bed", () => {
     setup();
 
-    expect(mocks.createBackendCaller.mock.calls[0][0].isBodyHeld).toBeUndefined();
+    expect(mocks.createBackendCaller.mock.calls.at(-1)?.[0].isBodyHeld).toBeUndefined();
   });
 
   it("setPeek reaches the dispatcher's peek enter/exit", async () => {

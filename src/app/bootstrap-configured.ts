@@ -122,6 +122,7 @@ const realFactories: ConfiguredBootstrapFactories = {
         set: settings.sttSettings.setEnabled,
       },
       takeMessageWake: bedScene.takeMessageWake,
+      isBodyHeld: bedScene.isHeld,
       onVoiceTurnStart: () => bedScene.wake("message"),
       register,
       ensureActive,

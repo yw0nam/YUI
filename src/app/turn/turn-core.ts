@@ -88,6 +88,7 @@ export async function wireTurnCore(
   deps: {
     getFrontmost: DispatcherDeps["getFrontmost"];
     takeMessageWake?: DispatcherDeps["takeMessageWake"];
+    isBodyHeld?: DispatcherDeps["isBodyHeld"];
     screenCapturer: DispatcherDeps["screenCapturer"];
     openQuickControls?: DispatcherDeps["openQuickControls"];
     /** Where voice-on intent is kept across runs; a window that passes none starts every run silent. */
@@ -167,6 +168,7 @@ export async function wireTurnCore(
     screenCapturer: deps.screenCapturer,
     getFrontmost: deps.getFrontmost,
     takeMessageWake: deps.takeMessageWake,
+    isBodyHeld: deps.isBodyHeld,
     voice,
     turnLog,
     previousTurn,

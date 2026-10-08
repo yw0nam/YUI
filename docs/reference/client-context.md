@@ -266,7 +266,9 @@ for them in `configs/avatar.json`, so most of those turns render just the headli
 proactive turn with `idle_elapsed_min` but no cue at all (no configured label) falls back
 to a bare `trigger: proactive (user idle Xmin)`. While the bed scene runs, the
 client drops the touch, head-pat, tap-bored and drag-held cues, and the [wake](#wake)
-reports the click that woke her.
+reports the click that woke her. A turn that starts while she is on the bed, the wake
+turn included, speaks no thinking filler before its reply; the reply is spoken when it
+arrives.
 
 ### Screen transition
 

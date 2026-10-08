@@ -74,6 +74,8 @@ export function wireDispatcher(deps: {
   getFrontmost: () => FrontmostState | undefined;
   /** True once, for the user turn whose message woke the character on the bed. */
   takeMessageWake?: () => boolean;
+  /** True while a scene holds the body: a turn that starts then shows no thinking bridge. */
+  isBodyHeld?: () => boolean;
   voice: Pick<VoicePipeline, "turnOutput" | "speakFailure">;
   turnLog: TurnLog;
   previousTurn: PreviousTurnSlot;
@@ -114,6 +116,7 @@ export function wireDispatcher(deps: {
     screenCapturer,
     getFrontmost,
     takeMessageWake,
+    isBodyHeld,
     voice,
     turnLog,
     previousTurn,
@@ -169,6 +172,7 @@ export function wireDispatcher(deps: {
     getFrontmost,
     getPrevious: previousTurn.get,
     takeMessageWake,
+    isBodyHeld,
     contextHistory,
     appendTurnRecord,
     getAgentSettings: () => agentSettings.get(),

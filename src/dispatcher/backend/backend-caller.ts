@@ -106,6 +106,8 @@ interface BackendCallerDeps extends PushCallDeps, SettleDeps, StreamAttemptDeps 
   getPrevious?: () => PreviousTurn | undefined;
   /** True once, for the user turn whose message woke the character on the bed. */
   takeMessageWake?: () => boolean;
+  /** True while a scene holds the body, which would drop a thinking motion and still speak its filler. Absent means free. */
+  isBodyHeld?: () => boolean;
   /** Previous response id lookup — when present, included in request to continue conversation. Called per turn (reflects reset/rotation). */
   getPreviousResponseId?: () => string | undefined;
   /** Outputs of the stored response's unanswered tool calls — sent with the id, dropped wherever the id is. */
@@ -204,8 +206,9 @@ export function createBackendCaller(deps: BackendCallerDeps): BackendCaller {
         return "not_configured";
       }
       // If filler is active, show first line immediately (synchronous start). Don't start if disabled/pool empty,
-      // or on a reflex turn — a "thinking" bridge before an immediate reaction reads as dissonant.
-      if (deps.turnOutput?.hasFiller() && !isReflexTurn(env.event_name)) {
+      // or on a reflex turn — a "thinking" bridge before an immediate reaction reads as dissonant —
+      // or while a scene holds the body, which drops the motion and leaves only the spoken filler.
+      if (deps.turnOutput?.hasFiller() && !isReflexTurn(env.event_name) && !deps.isBodyHeld?.()) {
         startThinking();
       }
       // B1
