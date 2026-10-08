@@ -31,7 +31,14 @@
 }
 
 .yui-model-list__none {
-  padding: 0.375rem 0.5rem;
+  flex: 1 1 100%;
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0.375rem 0.625rem;
+  border: 1px solid var(--yui-edge-strong);
+  border-radius: var(--yui-radius-control);
+  background: var(--yui-field);
   color: var(--yui-text-mute);
+  font-size: var(--yui-fs-body);
   cursor: default;
 }

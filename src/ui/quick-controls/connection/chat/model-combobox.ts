@@ -32,8 +32,20 @@ export function createModelCombobox(deps: {
   list.id = LIST_ID;
   list.setAttribute("role", "listbox");
   list.hidden = true;
-  // Normal flow directly beneath the input — the row wraps it onto its own line.
-  input.closest<HTMLElement>(".yui-input-row")!.append(list);
+  // The listbox takes the model row's existing label as its accessible name.
+  const label = input.closest<HTMLElement>(".yui-input-row")?.querySelector("label");
+  if (label) {
+    if (label.id === "") label.id = `${LIST_ID}-label`;
+    list.setAttribute("aria-labelledby", label.id);
+  }
+  // The no-match note is no option — a status element beside the listbox, shown while it hides.
+  const none = document.createElement("p");
+  none.className = "yui-model-list__none";
+  none.setAttribute("role", "status");
+  none.textContent = t("svc.chat_models_no_match");
+  none.hidden = true;
+  // Normal flow directly beneath the input — the row wraps them onto their own line.
+  input.closest<HTMLElement>(".yui-input-row")!.append(list, none);
 
   let ids: readonly string[] = [];
   let active = -1;
@@ -49,6 +61,7 @@ export function createModelCombobox(deps: {
 
   function close(): void {
     list.hidden = true;
+    none.hidden = true;
     active = -1;
     input.setAttribute("aria-expanded", "false");
     input.removeAttribute("aria-activedescendant");
@@ -64,12 +77,11 @@ export function createModelCombobox(deps: {
     list.replaceChildren();
     active = -1;
     if (matches.length === 0) {
-      const none = document.createElement("li");
-      none.className = "yui-model-list__none";
-      none.setAttribute("aria-disabled", "true");
-      none.textContent = t("svc.chat_models_no_match");
-      list.append(none);
+      // Nothing matches: the typed name is kept — say so outside the listbox.
+      none.hidden = false;
+      list.hidden = true;
     } else {
+      none.hidden = true;
       for (const [i, id] of matches.entries()) {
         const opt = document.createElement("li");
         opt.className = "yui-model-list__opt";
@@ -79,8 +91,8 @@ export function createModelCombobox(deps: {
         opt.textContent = id;
         list.append(opt);
       }
+      list.hidden = false;
     }
-    list.hidden = false;
     input.setAttribute("aria-expanded", "true");
   }
 
@@ -108,11 +120,19 @@ export function createModelCombobox(deps: {
     close();
   }
   function handleKeydown(e: KeyboardEvent): void {
-    if (e.isComposing) return;
+    // WKWebView commits an IME composition with isComposing false and keyCode 229.
+    if (e.isComposing || e.keyCode === 229) return;
     const open = !list.hidden;
     if (e.key === "ArrowDown" || e.key === "ArrowUp") {
-      if (!open) return;
+      if (!open && ids.length === 0) return; // native caret — there is nothing to offer
       e.preventDefault();
+      if (!open) {
+        // A closed list reopens onto the end the arrow points at.
+        render();
+        const count = options().length;
+        if (count > 0) activate(e.key === "ArrowDown" ? 0 : count - 1);
+        return;
+      }
       const count = options().length;
       if (count === 0) return;
       activate(
@@ -168,6 +188,7 @@ export function createModelCombobox(deps: {
       input.removeAttribute("aria-controls");
       input.removeAttribute("aria-activedescendant");
       list.remove();
+      none.remove();
     },
   };
 }
