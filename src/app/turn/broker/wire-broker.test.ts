@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 // Broker fakes for wireBroker: a single captured client so tests can assert publish/start/dispose.
-const { brokerClient, createBrokerClient, deriveBrokerPayload, createReconciler, selectFetch } =
+const { brokerClient, createBrokerClient, deriveExpressVocabulary, createReconciler, selectFetch } =
   vi.hoisted(() => {
     const brokerClient = {
       publish: vi.fn().mockResolvedValue(undefined),
@@ -11,15 +11,14 @@ const { brokerClient, createBrokerClient, deriveBrokerPayload, createReconciler,
     return {
       brokerClient,
       createBrokerClient: vi.fn(() => brokerClient),
-      deriveBrokerPayload: vi.fn(() => ({ derived: true })),
+      deriveExpressVocabulary: vi.fn(() => ({ derived: true })),
       createReconciler: vi.fn(() => ({ onChange: vi.fn().mockResolvedValue(undefined) })),
       selectFetch: vi.fn().mockResolvedValue(undefined),
     };
   });
-vi.mock("../../../io/chat/broker/broker-client", () => ({
-  createBrokerClient,
-  deriveBrokerPayload,
-}));
+vi.mock("../../../io/chat/broker/broker-client", () => ({ createBrokerClient }));
+
+vi.mock("../../../io/chat/vocabulary/express-vocabulary", () => ({ deriveExpressVocabulary }));
 
 vi.mock("../../../io/chat/broker/broker-override-reconciler", () => ({
   createBrokerOverrideReconciler: createReconciler,
@@ -42,7 +41,7 @@ describe("wireBroker", () => {
     brokerClient.start.mockClear();
     brokerClient.dispose.mockClear();
     createBrokerClient.mockClear();
-    deriveBrokerPayload.mockClear();
+    deriveExpressVocabulary.mockClear();
     vi.mocked(loadEmotionTextTable).mockClear();
   });
 
@@ -113,12 +112,16 @@ describe("wireBroker", () => {
   it("loads no emoji table for a provider other than irodori — the vocabulary is free", async () => {
     const { deps, onVocabularyChange } = makeDeps({ broker_base_url: "", tts_provider: "openai" });
     const handle = await wireBroker(deps);
-    deriveBrokerPayload.mockClear();
+    deriveExpressVocabulary.mockClear();
 
     handle.vocabulary();
 
     expect(vi.mocked(loadEmotionTextTable)).not.toHaveBeenCalled();
-    expect(deriveBrokerPayload).toHaveBeenCalledWith(expect.anything(), null, expect.anything());
+    expect(deriveExpressVocabulary).toHaveBeenCalledWith(
+      expect.anything(),
+      null,
+      expect.anything(),
+    );
     expect(onVocabularyChange).toHaveBeenCalled();
   });
 
@@ -145,11 +148,15 @@ describe("wireBroker", () => {
     vi.mocked(loadEmotionTextTable).mockRejectedValueOnce(new Error("missing file"));
     const { deps } = makeDeps({ broker_base_url: "http://localhost:3201" });
     const handle = await wireBroker(deps);
-    deriveBrokerPayload.mockClear();
+    deriveExpressVocabulary.mockClear();
 
     handle.vocabulary();
 
-    expect(deriveBrokerPayload).toHaveBeenCalledWith(expect.anything(), null, expect.anything());
+    expect(deriveExpressVocabulary).toHaveBeenCalledWith(
+      expect.anything(),
+      null,
+      expect.anything(),
+    );
   });
 
   it("does nothing when broker_base_url is empty", async () => {
@@ -178,11 +185,11 @@ describe("wireBroker", () => {
     vi.mocked(loadEmotionTextTable).mockResolvedValueOnce({ "🤭": "Giggle" });
     const { deps } = makeDeps({ broker_base_url: "http://localhost:3201" });
     const handle = await wireBroker(deps);
-    deriveBrokerPayload.mockClear();
+    deriveExpressVocabulary.mockClear();
 
     handle.vocabulary();
 
-    expect(deriveBrokerPayload).toHaveBeenCalledWith(
+    expect(deriveExpressVocabulary).toHaveBeenCalledWith(
       expect.anything(),
       { "🤭": "Giggle" },
       expect.anything(),
@@ -193,12 +200,12 @@ describe("wireBroker", () => {
     vi.mocked(loadEmotionTextTable).mockResolvedValueOnce({ "🤭": "Giggle" });
     const { deps } = makeDeps({ broker_base_url: "" });
     const handle = await wireBroker(deps);
-    deriveBrokerPayload.mockClear();
+    deriveExpressVocabulary.mockClear();
 
     handle.vocabulary();
 
     expect(vi.mocked(loadEmotionTextTable)).toHaveBeenCalledTimes(1);
-    expect(deriveBrokerPayload).toHaveBeenCalledWith(
+    expect(deriveExpressVocabulary).toHaveBeenCalledWith(
       expect.anything(),
       { "🤭": "Giggle" },
       expect.anything(),
@@ -275,9 +282,13 @@ describe("wireBroker", () => {
     release({ "😆": "Laugh" });
 
     expect(await late).toBeNull();
-    deriveBrokerPayload.mockClear();
+    deriveExpressVocabulary.mockClear();
     handle.vocabulary();
-    expect(deriveBrokerPayload).toHaveBeenCalledWith(expect.anything(), null, expect.anything());
+    expect(deriveExpressVocabulary).toHaveBeenCalledWith(
+      expect.anything(),
+      null,
+      expect.anything(),
+    );
   });
 
   it("reloads the table on a disk endpoints change only when the provider moves", async () => {
@@ -344,11 +355,11 @@ describe("wireBroker", () => {
   it("derives the vocabulary against the live expression-motion selection", async () => {
     const { deps } = makeDeps({ broker_base_url: "http://localhost:3201" });
     const handle = await wireBroker(deps);
-    deriveBrokerPayload.mockClear();
+    deriveExpressVocabulary.mockClear();
 
     handle.vocabulary();
 
-    expect(deriveBrokerPayload).toHaveBeenCalledWith(
+    expect(deriveExpressVocabulary).toHaveBeenCalledWith(
       expect.anything(),
       null,
       expect.objectContaining({ expressMotions: { disabled: [] } }),

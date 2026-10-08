@@ -17,13 +17,13 @@ import type { QuotedTurn } from "../../dispatcher/turn/quoted-turn";
 import type { TurnLog } from "../../dispatcher/turn/turn";
 import { createTurnFeed, type TurnFeed } from "../../dispatcher/turn/turn-feed";
 import type { ReasoningStore } from "../../io/bridge/reasoning/reasoning-store";
-import type { BrokerPayload } from "../../io/chat/broker/broker-client";
 import type { PushSocket } from "../../io/chat/push/push-socket";
 import type { PacerSkipRecord, TurnRecord } from "../../io/chat/record/turn-record-log";
 import {
   createClientToolRegistry,
   createGenerateExpressTool,
 } from "../../io/chat/stream/client-tools";
+import type { ExpressVocabulary } from "../../io/chat/vocabulary/express-vocabulary";
 import type { ScreenCapturer } from "../../io/window/capture/screen-source-provider";
 import { buildScreenshotBlock } from "../../io/window/capture/screenshot-context";
 import type { Renderer } from "../../renderer";
@@ -79,7 +79,7 @@ export function wireDispatcher(deps: {
   quotedTurn: Pick<QuotedTurn, "admitted" | "failed">;
   pushTurns: PushTurns;
   pushSocket: PushSocket | null;
-  getVocabulary: () => BrokerPayload;
+  getVocabulary: () => ExpressVocabulary;
   openQuickControls?: (tab: QuickControlsTab) => void;
   showVoiceError: (reason: string) => void;
   appendTurnRecord: (record: TurnRecord | PacerSkipRecord) => void;

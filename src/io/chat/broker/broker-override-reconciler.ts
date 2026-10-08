@@ -16,7 +16,8 @@ import { ttsProviderOf } from "../../../config/tts-provider";
 import type { EndpointsConfig } from "../../../contract";
 import { createLogger, type Logger } from "../../../logger";
 import { isValidEndpointUrl } from "../../../settings/backend/endpoints-settings";
-import type { BrokerClient, BrokerPayload } from "./broker-client";
+import type { ExpressVocabulary } from "../vocabulary/express-vocabulary";
+import type { BrokerClient } from "./broker-client";
 
 interface BrokerOverrideReconcilerOptions {
   /** Effective (override-merged) endpoints — evaluated at call time. */
@@ -28,7 +29,7 @@ interface BrokerOverrideReconcilerOptions {
   /** Loads the emoji emotion_text table (null when unavailable). */
   loadTable: () => Promise<Record<string, string> | null>;
   /** Effective endpoints + table → publish payload. */
-  derivePayload: (eff: EndpointsConfig, table: Record<string, string> | null) => BrokerPayload;
+  derivePayload: (eff: EndpointsConfig, table: Record<string, string> | null) => ExpressVocabulary;
   logger?: Logger;
 }
 

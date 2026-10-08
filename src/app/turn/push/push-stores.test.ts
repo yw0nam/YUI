@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import type { BrokerPayload } from "../../../io/chat/broker/broker-client";
+import type { ExpressVocabulary } from "../../../io/chat/vocabulary/express-vocabulary";
 
 const { createPushSocket } = vi.hoisted(() => ({ createPushSocket: vi.fn() }));
 vi.mock("../../../io/chat/push/push-socket", async (importOriginal) => ({
@@ -10,7 +10,7 @@ vi.mock("../../../io/chat/push/push-socket", async (importOriginal) => ({
 import { createPushStores } from "./push-stores";
 
 describe("createPushStores", () => {
-  const PAYLOAD: BrokerPayload = {
+  const PAYLOAD: ExpressVocabulary = {
     emotionIds: ["happy"],
     motionIds: ["wave"],
     emotionText: { mode: "enum", table: { happy: "joy" } },

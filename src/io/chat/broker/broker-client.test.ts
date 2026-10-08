@@ -5,27 +5,15 @@
  *   A stateless, best-effort writer. publish() — MCP streamable-http (initialize → notifications/initialized → tools/call).
  *   Responses use SSE framing (`event: message\ndata: {json}`); result.content[0].text is a JSON string (JSON.parse).
  *   D4: no transport failure ever throws (warn, then degrade). D7: publish is idempotent + re-published on liveness poll.
- *
- * deriveBrokerPayload: AppConfig → BrokerPayload (pure, no I/O).
+
  *
  * Tests use only an injected fake fetch — no real broker connection.
  */
 
-import { readFileSync } from "node:fs";
-import { resolve } from "node:path";
 import { describe, expect, it, vi } from "vitest";
-import type { AppConfig } from "../../../config/load";
-import { avatarFixture, guardrailsFixture } from "../../../config/load-test-helpers";
-import { validateMotions } from "../../../config/validators/motions";
-import type { MotionRegistry } from "../../../contract";
 import type { Logger } from "../../../logger";
-import {
-  agentTriggerableMotionIds,
-  type BrokerPayload,
-  type BrokerVocab,
-  createBrokerClient,
-  deriveBrokerPayload,
-} from "./broker-client";
+import type { ExpressVocabulary } from "../vocabulary/express-vocabulary";
+import { type BrokerVocab, createBrokerClient } from "./broker-client";
 
 type FetchFn = (input: unknown, init?: RequestInit) => Promise<Response>;
 
@@ -232,7 +220,7 @@ describe("publish idempotency", () => {
       return sseResponse(toolResult(id, { ok: true, version: state.version }));
     });
     const client = createBrokerClient({ baseUrl: BASE, fetch, logger: silentLogger() });
-    const payload = (motionIds: string[]): BrokerPayload => ({
+    const payload = (motionIds: string[]): ExpressVocabulary => ({
       emotionIds: ["neutral"],
       motionIds,
       emotionText: { mode: "free", table: null },
@@ -344,7 +332,7 @@ describe("liveness poll", () => {
       clearInterval: fakeClearInterval as unknown as typeof clearInterval,
     });
 
-    const payload: BrokerPayload = {
+    const payload: ExpressVocabulary = {
       emotionIds: ["neutral"],
       motionIds: ["idle"],
       emotionText: { mode: "free", table: null },
@@ -386,7 +374,7 @@ describe("liveness poll", () => {
 
 // An outage warns once and recovery logs one info, however many poll cycles it spans.
 describe("outage logging", () => {
-  const payload: BrokerPayload = {
+  const payload: ExpressVocabulary = {
     emotionIds: ["neutral", "happy"],
     motionIds: ["idle", "happy"],
     emotionText: { mode: "free", table: null },
@@ -522,7 +510,7 @@ describe("outage logging", () => {
  * wedged, outlive its client, or carry a payload the poller no longer recognizes as current.
  */
 describe("publish queue", () => {
-  const payload = (motionIds: string[]): BrokerPayload => ({
+  const payload = (motionIds: string[]): ExpressVocabulary => ({
     emotionIds: ["neutral"],
     motionIds,
     emotionText: { mode: "free", table: null },
@@ -689,247 +677,5 @@ describe("publish queue", () => {
     await Promise.all([first, second, polled]);
 
     expect(updatedIds().at(-1)).toEqual(["idle", "dance"]);
-  });
-});
-
-describe("agentTriggerableMotionIds", () => {
-  function motions(): MotionRegistry {
-    return {
-      idle: {
-        vrma_path: "/motions/idle.vrma",
-        kind: "ambient",
-        loop: true,
-        priority: 10,
-        interrupt_policy: "ignore",
-      },
-      drag: {
-        vrma_path: "/motions/drag.vrma",
-        kind: "reactive",
-        loop: false,
-        priority: 50,
-        interrupt_policy: "replace",
-      },
-      happy: {
-        vrma_path: "/motions/happy.vrma",
-        kind: "oneshot",
-        loop: false,
-        priority: 60,
-        interrupt_policy: "replace",
-      },
-      sit: {
-        vrma_path: "/motions/sit.vrma",
-        kind: "oneshot",
-        loop: false,
-        priority: 60,
-        interrupt_policy: "replace",
-        broker_publish: false,
-      },
-      window_sit: {
-        vrma_path: "/motions/sit_01.vrma",
-        kind: "state",
-        loop: true,
-        priority: 55,
-        interrupt_policy: "replace",
-        broker_publish: false,
-      },
-    };
-  }
-
-  it("excludes reactive, ambient, and broker_publish:false motions", () => {
-    const ids = agentTriggerableMotionIds(motions());
-    expect(ids).not.toContain("drag");
-    expect(ids).not.toContain("idle");
-    expect(ids).not.toContain("sit");
-    expect([...ids].sort()).toEqual(["happy"]);
-  });
-
-  it("excludes a kind:state motion solely via broker_publish:false (window_sit)", () => {
-    const ids = agentTriggerableMotionIds(motions());
-    expect(ids).not.toContain("window_sit");
-  });
-
-  it("returns an empty array for an empty registry", () => {
-    expect(agentTriggerableMotionIds({})).toEqual([]);
-  });
-
-  it("keeps walk out of the agent-triggerable vocabulary the broker publishes", () => {
-    const m = JSON.parse(readFileSync(resolve(process.cwd(), "configs/motions.json"), "utf-8"));
-    expect(agentTriggerableMotionIds(validateMotions("configs/motions.json", m))).not.toContain(
-      "walk",
-    );
-  });
-});
-
-/** The selection is a required argument; most cases exercise it deselecting nothing. */
-const NONE_DESELECTED = { expressMotions: { disabled: [] } };
-
-describe("deriveBrokerPayload", () => {
-  function baseConfig(): AppConfig {
-    return {
-      endpoints: {
-        chat_base_url: "http://localhost:8643",
-        stt_base_url: "http://localhost:5517",
-        tts_base_url: "http://localhost:8092",
-      },
-      avatar: avatarFixture(),
-      emotionRegistry: {
-        neutral: { vrm_expression: "neutral", fallback: "neutral" },
-        happy: { vrm_expression: "happy", fallback: "neutral" },
-      },
-      motions: {
-        idle: {
-          vrma_path: "/motions/idle.vrma",
-          kind: "ambient",
-          loop: true,
-          priority: 10,
-          interrupt_policy: "ignore",
-        },
-        drag: {
-          vrma_path: "/motions/drag.vrma",
-          kind: "reactive",
-          loop: false,
-          priority: 50,
-          interrupt_policy: "replace",
-        },
-        happy: {
-          vrma_path: "/motions/happy.vrma",
-          kind: "oneshot",
-          loop: false,
-          priority: 60,
-          interrupt_policy: "replace",
-        },
-        laugh: {
-          vrma_path: "/motions/laugh.vrma",
-          kind: "oneshot",
-          loop: false,
-          priority: 60,
-          interrupt_policy: "replace",
-        },
-        embarrassed: {
-          vrma_path: "/motions/embarrassed.vrma",
-          kind: "oneshot",
-          loop: false,
-          priority: 60,
-          interrupt_policy: "replace",
-        },
-        sit: {
-          vrma_path: "/motions/sit.vrma",
-          kind: "oneshot",
-          loop: false,
-          priority: 60,
-          interrupt_policy: "replace",
-          broker_publish: false,
-        },
-        window_sit: {
-          vrma_path: "/motions/sit_01.vrma",
-          kind: "state",
-          loop: true,
-          priority: 55,
-          interrupt_policy: "replace",
-          broker_publish: false,
-        },
-      },
-      guardrails: {
-        debounce_ms: {
-          os_event_watcher: 0,
-          user_input_source: 0,
-          screen_watcher: 5000,
-        },
-        rate_limit: { window_ms: 0, tier2_max: 0, overall_max: 0, cooldown_ms: 0 },
-        attachments: guardrailsFixture().attachments,
-      },
-      filler: {
-        gap_ms: 0,
-        gap_jitter_ms: 0,
-        max_repeats: 3,
-        gap_growth: 2,
-        long_wait_ms: 40000,
-        pools: {},
-      },
-      hotkeys: { summon_global: "" },
-      screen: {
-        prev_dwell_ms: 600000,
-        settle_ms: 90000,
-        long_session_ms: 2700000,
-        min_gap_ms: 300000,
-        quiet_after_turn_ms: 180000,
-        recent_cap: 5,
-      },
-    };
-  }
-
-  it("derives emotion ids from registry keys", () => {
-    const p = deriveBrokerPayload(baseConfig(), null, NONE_DESELECTED);
-    expect([...p.emotionIds].sort()).toEqual(["happy", "neutral"]);
-  });
-
-  it("excludes reactive, ambient, and broker_publish:false motions (drops drag/idle/sit, keeps happy/laugh/embarrassed)", () => {
-    const p = deriveBrokerPayload(baseConfig(), null, NONE_DESELECTED);
-    expect(p.motionIds).not.toContain("drag");
-    expect(p.motionIds).not.toContain("idle");
-    expect(p.motionIds).not.toContain("sit");
-    expect([...p.motionIds].sort()).toEqual(["embarrassed", "happy", "laugh"]);
-  });
-
-  it("excludes a kind:state motion solely via broker_publish:false (window_sit)", () => {
-    const p = deriveBrokerPayload(baseConfig(), null, NONE_DESELECTED);
-    expect(p.motionIds).not.toContain("window_sit");
-  });
-
-  it("a table → enum + that table", () => {
-    const table = { "😀": "happy", "😢": "sad" };
-    const p = deriveBrokerPayload(baseConfig(), table, NONE_DESELECTED);
-    expect(p.emotionText).toEqual({ mode: "enum", table });
-  });
-
-  // A provider without a tag table derives this on every turn, so it is not a warning.
-  it("a null table → free + null, without a warning", () => {
-    const p = deriveBrokerPayload(baseConfig(), null, NONE_DESELECTED);
-    expect(p.emotionText).toEqual({ mode: "free", table: null });
-  });
-
-  // The user's expression-motion selection narrows the published vocabulary at this one derive
-  // site, so both consumers — the broker publish and the CC generate_express schema — follow it.
-  describe("expression-motion selection", () => {
-    it("publishes the whole agent-triggerable set when nothing is deselected", () => {
-      const p = deriveBrokerPayload(baseConfig(), null, {
-        expressMotions: { disabled: [] },
-      });
-      expect([...p.motionIds].sort()).toEqual(["embarrassed", "happy", "laugh"]);
-    });
-
-    it("drops a deselected motion from motionIds", () => {
-      const p = deriveBrokerPayload(baseConfig(), null, {
-        expressMotions: { disabled: ["laugh"] },
-      });
-      expect(p.motionIds).toEqual(["happy", "embarrassed"]);
-    });
-
-    it("publishes an empty motion list when every motion is deselected", () => {
-      const p = deriveBrokerPayload(baseConfig(), null, {
-        expressMotions: { disabled: ["happy", "laugh", "embarrassed"] },
-      });
-      expect(p.motionIds).toEqual([]);
-    });
-
-    it("keeps a catalog motion the selection has never heard of — additions arrive enabled", () => {
-      const cfg = baseConfig();
-      cfg.motions.wave = {
-        vrma_path: "/motions/wave.vrma",
-        kind: "oneshot",
-        loop: false,
-        priority: 60,
-        interrupt_policy: "replace",
-      };
-      const p = deriveBrokerPayload(cfg, null, { expressMotions: { disabled: ["laugh"] } });
-      expect(p.motionIds).toContain("wave");
-    });
-
-    it("leaves emotion ids untouched — the selection curates motions only", () => {
-      const p = deriveBrokerPayload(baseConfig(), null, {
-        expressMotions: { disabled: ["happy", "laugh", "embarrassed"] },
-      });
-      expect([...p.emotionIds].sort()).toEqual(["happy", "neutral"]);
-    });
   });
 });

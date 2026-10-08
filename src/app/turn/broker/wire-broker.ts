@@ -2,14 +2,13 @@ import { loadEmotionTextTable } from "../../../config/emotion-text";
 import type { AppConfig, ConfigSection } from "../../../config/load";
 import { ttsProviderOf } from "../../../config/tts-provider";
 import type { EndpointsConfig, TtsProviderName } from "../../../contract";
-import {
-  type BrokerClient,
-  type BrokerPayload,
-  createBrokerClient,
-  deriveBrokerPayload,
-} from "../../../io/chat/broker/broker-client";
+import { type BrokerClient, createBrokerClient } from "../../../io/chat/broker/broker-client";
 import { createBrokerOverrideReconciler } from "../../../io/chat/broker/broker-override-reconciler";
 import { selectFetch } from "../../../io/chat/stream/chat-client";
+import {
+  deriveExpressVocabulary,
+  type ExpressVocabulary,
+} from "../../../io/chat/vocabulary/express-vocabulary";
 import type { Logger } from "../../../logger";
 import type { ExpressMotionSettings } from "../../../settings/avatar/express-motion-settings";
 
@@ -35,7 +34,7 @@ export async function wireBroker(deps: {
 }): Promise<{
   onConfigChange: (cfg: AppConfig, changed: ReadonlySet<ConfigSection>) => void;
   /** Renderable vocabulary as published, for consumers that declare it themselves (CC client tools). */
-  vocabulary: () => BrokerPayload;
+  vocabulary: () => ExpressVocabulary;
   dispose: () => void;
 }> {
   const { getConfig, getEndpoints, endpointsSettings, expressMotionSettings, log } = deps;
@@ -73,11 +72,11 @@ export async function wireBroker(deps: {
     cfg: AppConfig,
     eff: EndpointsConfig,
     emotionTable: Record<string, string> | null,
-  ): BrokerPayload =>
-    deriveBrokerPayload({ ...cfg, endpoints: eff }, emotionTable, {
+  ): ExpressVocabulary =>
+    deriveExpressVocabulary({ ...cfg, endpoints: eff }, emotionTable, {
       expressMotions: expressMotionSettings.get(),
     });
-  const vocabulary = (): BrokerPayload => derive(getConfig(), getEndpoints(), table);
+  const vocabulary = (): ExpressVocabulary => derive(getConfig(), getEndpoints(), table);
 
   const bootEps = getEndpoints();
   // Loaded even with no broker: the vocabulary also feeds the client-declared tools.

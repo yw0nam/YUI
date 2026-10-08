@@ -10,7 +10,7 @@
  * the engine emits the moment the call arrives, so execute only acknowledges the call.
  */
 
-import type { BrokerPayload } from "../broker/broker-client";
+import type { ExpressVocabulary } from "../vocabulary/express-vocabulary";
 
 /** OpenAI function-tool schema. Structural — narrowed to the SDK's type at the request site. */
 interface ClientToolDefinition {
@@ -75,7 +75,7 @@ function expressDescription(withMotion: boolean): string {
  * their meanings ride in the schema; free mode asks for a few plain words the provider reads as
  * prose.
  */
-function emotionTextSchema(emotionText: BrokerPayload["emotionText"]): Record<string, unknown> {
+function emotionTextSchema(emotionText: ExpressVocabulary["emotionText"]): Record<string, unknown> {
   const table = emotionText.mode === "enum" ? emotionText.table : null;
   if (!table) {
     return {
@@ -94,10 +94,10 @@ function emotionTextSchema(emotionText: BrokerPayload["emotionText"]): Record<st
 }
 
 /**
- * Built from the same vocabulary the broker publishes (broker-client.deriveBrokerPayload). A
+ * Built from the same vocabulary the broker publishes (deriveExpressVocabulary). A
  * curated-empty motion list drops motion_id rather than declaring an unfillable empty enum.
  */
-export function createGenerateExpressTool(vocab: BrokerPayload): ClientTool {
+export function createGenerateExpressTool(vocab: ExpressVocabulary): ClientTool {
   const withMotion = vocab.motionIds.length > 0;
   return {
     name: "generate_express",

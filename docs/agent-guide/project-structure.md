@@ -321,6 +321,8 @@ YUI/
         push/                          # The push transport's turn and reply WebSocket
           push-frames.ts               # Push frame wire types and the unreadable-frame checks
           push-socket.ts               # Single WebSocket the push transport runs turns and replies on
+        vocabulary/                    # The emotion, motion, and voice-tone ids the agent may cue with
+          express-vocabulary.ts        # Derives the express vocabulary from the loaded config and the motion selection
         broker/                        # The Expression Broker client and its URL override reconciler
           broker-client.ts             # Write-only Expression Broker MCP client that publishes the renderable vocabulary
           broker-override-reconciler.ts # Applies a broker-URL override to the live broker client

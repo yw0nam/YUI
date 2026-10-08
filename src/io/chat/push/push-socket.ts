@@ -7,7 +7,7 @@
  */
 
 import { createLogger, type Logger } from "../../../logger";
-import type { BrokerPayload } from "../broker/broker-client";
+import type { ExpressVocabulary } from "../vocabulary/express-vocabulary";
 import {
   type DelegationItem,
   type PushTurnFrame,
@@ -92,7 +92,7 @@ export function pushSocketUrl(chatBaseUrl: string): string {
 }
 
 /** The published renderable vocabulary in the shape the backend receives. */
-export function pushVocabularyOf(published: BrokerPayload | undefined): PushVocabulary {
+export function pushVocabularyOf(published: ExpressVocabulary | undefined): PushVocabulary {
   return {
     emotion_ids: published?.emotionIds ?? [],
     motion_ids: published?.motionIds ?? [],

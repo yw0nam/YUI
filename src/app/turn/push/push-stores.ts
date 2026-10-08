@@ -14,12 +14,12 @@ import {
   createReasoningStore,
   type ReasoningStore,
 } from "../../../io/bridge/reasoning/reasoning-store";
-import type { BrokerPayload } from "../../../io/chat/broker/broker-client";
 import {
   createPushSocket,
   type PushSocket,
   pushVocabularyOf,
 } from "../../../io/chat/push/push-socket";
+import type { ExpressVocabulary } from "../../../io/chat/vocabulary/express-vocabulary";
 import {
   createChatIdSettings,
   localStorageChatIdStorage,
@@ -42,9 +42,9 @@ export function createPushStores(deps: {
   delegationHistory: DelegationHistory;
   reasoning: ReasoningStore;
   stopTurn(): void;
-  bind(deps: { vocabulary: () => BrokerPayload; stopTurn: () => void }): void;
+  bind(deps: { vocabulary: () => ExpressVocabulary; stopTurn: () => void }): void;
 } {
-  let publishedVocabulary: (() => BrokerPayload) | null = null;
+  let publishedVocabulary: (() => ExpressVocabulary) | null = null;
   // The panel's session reset stops the running turn the way the stop button does; the shared
   // closure exists once the configured bootstrap has wired it.
   let stopTurn: () => void = () => {};
