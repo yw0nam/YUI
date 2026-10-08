@@ -978,4 +978,27 @@ describe("createQuickControls — endpoints + API keys", () => {
 
     qc.dispose();
   });
+
+  it("reads the model list when the Connection tab is selected in the rail", async () => {
+    const tick = () => new Promise<void>((r) => setTimeout(r, 0));
+    const calls: string[] = [];
+    const fetchImpl: typeof globalThis.fetch = (url) => {
+      calls.push(String(url));
+      return Promise.resolve(new Response(JSON.stringify({ data: [] }), { status: 200 }));
+    };
+    const qc = buildQc({
+      getFetch: async () => fetchImpl,
+      getChatApiKey: async () => "key-1",
+    });
+    endpointsSettings.set({ chat_base_url: "http://localhost:8080/v1" });
+    qc.open();
+
+    qc.el.querySelector<HTMLButtonElement>("#yui-tab-conn")!.click();
+    await tick();
+    await tick();
+
+    expect(calls).toEqual(["http://localhost:8080/v1/models"]);
+
+    qc.dispose();
+  });
 });

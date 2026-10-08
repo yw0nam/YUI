@@ -15,7 +15,7 @@ import {
   type EndpointOverrides,
   endpointDefaultsFromConfig,
 } from "../../../settings/backend/endpoints-settings";
-import { setLocale } from "../../i18n";
+import { setLocale, t } from "../../i18n";
 import { inMemoryApiKeyStorage } from "../test-helpers";
 import {
   type ConnectionRows,
@@ -51,6 +51,8 @@ describe("createConnectionTab", () => {
     extra?: {
       pushSocket?: PushSocketPanelPort;
       getEndpointDefaults?: () => EndpointOverrides | undefined;
+      getChatApiKey?: () => Promise<string | undefined>;
+      getFetch?: () => Promise<typeof globalThis.fetch>;
     },
   ) {
     return createConnectionTab({
@@ -274,6 +276,167 @@ describe("createConnectionTab", () => {
       tab.focusStt();
 
       expect(document.activeElement?.id).toBe("yui-ep-stt_base_url");
+      tab.dispose();
+    });
+  });
+
+  describe("model list read", () => {
+    const tick = () => new Promise<void>((r) => setTimeout(r, 0));
+
+    function modelReadDeps() {
+      const calls: { url: string; init: RequestInit }[] = [];
+      const fetchImpl: typeof globalThis.fetch = (url, init) => {
+        calls.push({ url: String(url), init: init ?? {} });
+        return Promise.resolve(
+          new Response(JSON.stringify({ data: [{ id: "m1" }, { id: "m2" }] }), { status: 200 }),
+        );
+      };
+      return {
+        calls,
+        getFetch: async () => fetchImpl,
+        getChatApiKey: async () => "key-1",
+      } as const;
+    }
+
+    const defaults = endpointDefaultsFromConfig({
+      chat_base_url: "https://def.test/v1",
+      chat_model: "m1",
+      stt_base_url: "",
+      tts_base_url: "",
+    });
+
+    function statusOf(tab: { el: HTMLElement }): HTMLElement {
+      return tab.el.querySelector<HTMLElement>(".yui-chat-status")!;
+    }
+
+    it("reads when the tab is entered — effective URL, chat key, status shows the result", async () => {
+      const deps = modelReadDeps();
+      const tab = build(DESKTOP_ROWS, { ...deps, getEndpointDefaults: () => defaults });
+
+      tab.entered();
+      await tick();
+      await tick();
+
+      expect(deps.calls).toHaveLength(1);
+      expect(deps.calls[0]?.url).toBe("https://def.test/v1/models");
+      expect(new Headers(deps.calls[0]?.init.headers).get("authorization")).toBe("Bearer key-1");
+      expect(statusOf(tab).textContent).toContain(t("svc.chat_models_read", { n: 2 }));
+      tab.dispose();
+    });
+
+    it("reads after the URL input commits, with the committed value", async () => {
+      const deps = modelReadDeps();
+      const tab = build(DESKTOP_ROWS, { ...deps, getEndpointDefaults: () => defaults });
+
+      const url = tab.el.querySelector<HTMLInputElement>("#yui-ep-chat_base_url")!;
+      url.value = "https://typed.test/v1";
+      url.dispatchEvent(new Event("change", { bubbles: true }));
+      await tick();
+      await tick();
+
+      expect(deps.calls.map((c) => c.url)).toEqual(["https://typed.test/v1/models"]);
+      tab.dispose();
+    });
+
+    it("reads after the chat key input commits on blur", async () => {
+      const deps = modelReadDeps();
+      const tab = build(DESKTOP_ROWS, { ...deps, getEndpointDefaults: () => defaults });
+
+      const key = tab.el.querySelector<HTMLInputElement>("#yui-chatkey-input")!;
+      key.value = "typed-key";
+      key.dispatchEvent(new Event("input", { bubbles: true }));
+      key.dispatchEvent(new Event("blur"));
+      await tick();
+      await tick();
+
+      expect(deps.calls).toHaveLength(1);
+      expect(new Headers(deps.calls[0]?.init.headers).get("authorization")).toBe("Bearer typed-key");
+      tab.dispose();
+    });
+
+    it("reads when a provider preset commits its URL", async () => {
+      const deps = modelReadDeps();
+      const tab = build(DESKTOP_ROWS, { ...deps });
+
+      const preset = tab.el.querySelector<HTMLSelectElement>(".yui-chat-preset")!;
+      preset.value = "ollama";
+      preset.dispatchEvent(new Event("change", { bubbles: true }));
+      await tick();
+      await tick();
+
+      expect(deps.calls.map((c) => c.url)).toEqual(["http://localhost:11434/v1/models"]);
+      tab.dispose();
+    });
+
+    it("clears an invalid URL instead of reading", async () => {
+      const deps = modelReadDeps();
+      const tab = build(DESKTOP_ROWS, { ...deps, getEndpointDefaults: () => defaults });
+      tab.entered();
+      await tick();
+      await tick();
+      expect(deps.calls).toHaveLength(1);
+
+      const url = tab.el.querySelector<HTMLInputElement>("#yui-ep-chat_base_url")!;
+      url.value = "not-a-url";
+      url.dispatchEvent(new Event("change", { bubbles: true }));
+      await tick();
+      await tick();
+
+      expect(deps.calls).toHaveLength(1);
+      expect(statusOf(tab).hidden).toBe(true);
+      tab.dispose();
+    });
+
+    it("switching to push aborts the read and shows the push state", async () => {
+      const deps = modelReadDeps();
+      const tab = build(DESKTOP_ROWS, {
+        ...deps,
+        pushSocket: fakeSocket({ kind: "ready", chat_id: "yui-7731" }),
+      });
+      tab.entered();
+      await tick();
+
+      const type = tab.el.querySelector<HTMLSelectElement>(".yui-chat-type")!;
+      type.value = "push";
+      type.dispatchEvent(new Event("change", { bubbles: true }));
+      await tick();
+
+      expect(deps.calls[0]?.init.signal).toBeInstanceOf(AbortSignal);
+      expect((deps.calls[0]?.init.signal as AbortSignal).aborted).toBe(true);
+      const status = statusOf(tab);
+      expect(status.classList.contains("is-ready")).toBe(true);
+      expect(status.textContent).toContain(t("svc.chat_status_connected", { id: "yui-7731" }));
+      tab.dispose();
+    });
+
+    it("aborting on panel close drops the in-flight read", async () => {
+      const deps = modelReadDeps();
+      const tab = build(DESKTOP_ROWS, { ...deps, getEndpointDefaults: () => defaults });
+      tab.entered();
+      await tick();
+
+      tab.close();
+
+      expect((deps.calls[0]?.init.signal as AbortSignal).aborted).toBe(true);
+      tab.dispose();
+    });
+
+    it("the phone rows start no read", async () => {
+      const deps = modelReadDeps();
+      const tab = build(PHONE_ROWS, { ...deps, getEndpointDefaults: () => defaults });
+
+      tab.entered();
+      const url = tab.el.querySelector<HTMLInputElement>("#yui-ep-chat_base_url")!;
+      url.value = "https://typed.test/v1";
+      url.dispatchEvent(new Event("change", { bubbles: true }));
+      const key = tab.el.querySelector<HTMLInputElement>("#yui-chatkey-input")!;
+      key.value = "typed-key";
+      key.dispatchEvent(new Event("input", { bubbles: true }));
+      key.dispatchEvent(new Event("blur"));
+      await tick();
+      await tick();
+
+      expect(deps.calls).toHaveLength(0);
       tab.dispose();
     });
   });
