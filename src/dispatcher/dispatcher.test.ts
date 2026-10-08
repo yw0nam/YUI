@@ -407,7 +407,9 @@ describe("dispatcher — posture", () => {
     await pushPostureEvent("user.drag_start");
     await pushPostureEvent("user.drag_end");
     expect(dispatcher.getPosture()).toEqual({ state: "standing" });
-    expect(applyDirective.mock.calls.every(([d]) => d.motion?.id === "drag" || d.motion === null)).toBe(true);
+    expect(
+      applyDirective.mock.calls.every(([d]) => d.motion?.id === "drag" || d.motion === null),
+    ).toBe(true);
     expect(backendCaller.call).not.toHaveBeenCalled();
   });
 

@@ -24,6 +24,7 @@ export function samePosture(a: Posture, b: Posture): boolean {
  *  - pat_end → return to idle (motion null).
  *  - avatar.walk_* → no render; the ambient walker owns the walk clip and only the posture moves.
  *  - avatar.climb_* → no render; the climber owns the climb clips and only the posture moves.
+ *  - avatar.bed_* → no render; the bed scene owns the bed clips and only the posture moves.
  *  - avatar.window_sit → the sit the climber reached on its own, rendered like a drop.
  *  - user.fall_land → no render; the faller owns the falling/landing clips and the posture is unchanged.
  *  - avatar.jump → no render; the jumper owns the jump clip and the posture stays walking.
@@ -51,6 +52,8 @@ export function tier1Directive(env: BusEnvelope, log: Logger): ControlEnvelope |
     case "avatar.jump":
     case "avatar.climb_start":
     case "avatar.climb_end":
+    case "avatar.bed_start":
+    case "avatar.bed_end":
       return null;
     case "user.pat_end":
       return { speech_text: "", motion: null };
