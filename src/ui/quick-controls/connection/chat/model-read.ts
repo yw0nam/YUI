@@ -13,6 +13,22 @@ export type ModelReadPhase =
   | { phase: "done"; result: ModelListResult }
   | { phase: "cleared" };
 
+export type ModelReadAction = "read" | "clear" | "push";
+
+/** One decision for the section's triggers: read, clear, or hand the line to the push state. */
+export function modelReadAction(input: {
+  push: boolean;
+  /** The section can read at all (full rows, key and fetch getters injected). */
+  readable: boolean;
+  /** The visible URL passes the row's own validation. */
+  urlValid: boolean;
+  hasEffectiveUrl: boolean;
+}): ModelReadAction {
+  if (input.push) return "push";
+  if (!input.readable || !input.urlValid || !input.hasEffectiveUrl) return "clear";
+  return "read";
+}
+
 export interface ModelRead {
   /** Starts (or joins) the read for this URL; phases report through onPhase. */
   start(url: string): void;

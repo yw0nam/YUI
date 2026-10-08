@@ -31,7 +31,7 @@ import {
 import { chatTypeRowHtml, createChatTypeView } from "../chat-type";
 import { createChatStatus } from "./chat-status";
 import { createModelCombobox } from "./model-combobox";
-import { createModelRead } from "./model-read";
+import { createModelRead, modelReadAction } from "./model-read";
 import { type ModelStatusPhase, modelStatusView } from "./model-status";
 
 type EndpointsSettingsStore = ReturnType<typeof createEndpointsSettings>;
@@ -176,6 +176,8 @@ export function createChatSection(deps: {
   function effectiveUrl(): string {
     const base: EndpointsConfig = {
       chat_base_url: getEndpointDefaults?.()?.chat_base_url ?? "",
+      stt_base_url: "",
+      tts_base_url: "",
     };
     return mergeEndpoints(base, endpointsSettings.get()).chat_base_url;
   }
@@ -238,10 +240,16 @@ export function createChatSection(deps: {
     return full && getChatApiKey !== undefined && getFetch !== undefined;
   }
 
-  // After a trigger (tab entry, URL/key/protocol commit): read, or clear when there is nothing to read.
+  // After a trigger (tab entry, URL/key/protocol commit): read, clear, or hand over to push.
   function evaluateModels(): void {
     if (disposed) return;
-    if (isPush()) {
+    const action = modelReadAction({
+      push: isPush(),
+      readable: canRead(),
+      urlValid: isValidEndpointUrl(urlInput?.value ?? ""),
+      hasEffectiveUrl: effectiveUrl() !== "",
+    });
+    if (action === "push") {
       // Switching to push: the model list has no owner here — clear the line for the socket state.
       read.abort();
       combobox?.setOptions([]);
@@ -250,9 +258,7 @@ export function createChatSection(deps: {
       renderStatus();
       return;
     }
-    if (!canRead()) return;
-    const visible = urlInput?.value ?? "";
-    if (!isValidEndpointUrl(visible) || effectiveUrl() === "") {
+    if (action === "clear") {
       read.clear();
       return;
     }
