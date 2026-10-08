@@ -1,5 +1,6 @@
 /**
- * Bed scene — she lies asleep on a bed, wakes on a click, a message or the wake timeout, plays
+ * Bed scene — she lies asleep on a bed, wakes on a click, a message, the wake timeout or the
+ * backend's own stand, plays
  * one wake clip that ends standing, and the bed fades out. The scene holds the body on its
  * clips from the moment she lies down until the frame is back to its normal size. Every path
  * out goes through one exit, so the hold, the bed and the widened frame never outlive it, and
@@ -37,6 +38,9 @@ type BedSceneState = "idle" | "starting" | "asleep" | "waking" | "done";
 type EndReason = "ended" | "skipped" | "lost" | "swapped" | "cancelled";
 /** Who got her up: the user, the wake timeout, or the backend's own `stand`. */
 export type BedWakeCause = WakeCause | "agent";
+/** How a lie-down on command came out: lying, cut short by the user, or not startable. */
+export type LieDownResult = "lying" | "interrupted" | "failed";
+type Entry = "launch" | "command";
 
 export interface BedSceneDeps {
   renderer: Pick<
@@ -65,12 +69,12 @@ export interface BedSceneDeps {
   frame: Pick<ReturnType<typeof createStationaryFrame>, "park" | "refit" | "release"> | null;
   /** Settles once the boot placement has put the window where it stays. */
   placed: Promise<void>;
-  /** How long the launch entry sleeps; a scene started on command sleeps until woken. */
+  /** How long she sleeps before the timeout wakes her, on either entry. */
   wakeTimeoutS: number;
   /** Called once, after the hold is released. */
   onDone: () => void;
-  /** Called as the wake clip starts, for a wake no message brought. */
-  onWake: (cause: Exclude<BedWakeCause, "message">) => void;
+  /** Called as the wake clip starts, for a click or the timeout; never for a message or the backend's stand. */
+  onWake: (cause: Exclude<WakeCause, "message">) => void;
   /** Called when she starts lying on the bed and when her wake clip starts or the scene ends. */
   onLying: (lying: boolean) => void;
   log: Logger;
@@ -79,8 +83,10 @@ export interface BedSceneDeps {
 export interface BedScene {
   /** Launch entry: lie down asleep at once, waking on the timeout. Ignored while a scene runs. */
   start(): void;
-  /** Command entry: show the bed at her spot and lie down, sleeping until woken. True once she lies down. */
-  lieDown(): Promise<boolean>;
+  /** Command entry: show the bed at her spot and lie down. Settles once she lies down, or why she did not. */
+  lieDown(): Promise<LieDownResult>;
+  /** Cuts a lie-down on command that is still starting short; anything else is left alone. */
+  cancelStart(): void;
   /** Wake her. Before she has lain down it skips the scene; once waking it is ignored. */
   wake(cause: BedWakeCause): void;
   /** True once, after a message woke her. */
@@ -102,13 +108,14 @@ export function createBedScene(deps: BedSceneDeps): BedScene {
   let cause: BedWakeCause | null = null;
   /** The clips the running entry holds. */
   let ids = LAUNCH_MOTION_IDS;
-  /** Only the launch entry wakes on the timeout. */
-  let timesOut = true;
+  let entry: Entry = "launch";
+  /** Why a lie-down that did not start was cut short, when the user did it. */
+  let startCut: LieDownResult = "failed";
   /** The command entry's lying-down clip is playing; the sleep loop follows it. */
   let lyingDown = false;
   let lying = false;
   /** Answers the pending lieDown() call. */
-  let settleLie: ((lay: boolean) => void) | null = null;
+  let settleLie: ((lay: LieDownResult) => void) | null = null;
   let messageWakeOwed = false;
   /** The model the scene started on; another one on the tick is a hot-swap. */
   let vrmSeen: unknown = null;
@@ -121,6 +128,7 @@ export function createBedScene(deps: BedSceneDeps): BedScene {
   /** Clears what the previous run left, so the scene can start again. */
   function reset(): void {
     cause = null;
+    startCut = "failed";
     lyingDown = false;
     messageWakeOwed = false;
     vrmSeen = null;
@@ -135,10 +143,10 @@ export function createBedScene(deps: BedSceneDeps): BedScene {
     deps.onLying(next);
   }
 
-  function begin(entryIds: readonly string[], launch: boolean): void {
+  function begin(next: Entry): void {
     reset();
-    ids = entryIds;
-    timesOut = launch;
+    entry = next;
+    ids = next === "launch" ? LAUNCH_MOTION_IDS : COMMAND_MOTION_IDS;
     state = "starting";
     unsub = renderer.onTick(onTick);
   }
@@ -149,7 +157,7 @@ export function createBedScene(deps: BedSceneDeps): BedScene {
     generation += 1;
     messageWakeOwed = false;
     setLying(false);
-    settleLie?.(false);
+    settleLie?.(startCut);
     settleLie = null;
     unsub?.();
     unsub = null;
@@ -173,7 +181,7 @@ export function createBedScene(deps: BedSceneDeps): BedScene {
       // No current motion is a registry reload whose replayed idle the hold dropped.
       const current = renderer.getCurrentMotion();
       if (!current || ids.includes(current.id)) renderer.playMotion(null);
-      log.info("bed_scene_end", { reason, cause });
+      log.info("bed_scene_end", { entry, reason, cause });
       deps.onDone();
     }
   }
@@ -265,15 +273,22 @@ export function createBedScene(deps: BedSceneDeps): BedScene {
     faceHeadOn();
     await raiseBed(startedAt, restHips);
     if (generation !== startedAt) return;
-    lyingDown = true;
     renderer.playMotion({ id: BED_LIE_MOTION_ID });
+    // A request the renderer dropped, such as a perch pin still held, leaves nothing to lie in.
+    if (renderer.getCurrentMotion()?.id !== BED_LIE_MOTION_ID) {
+      void finish("skipped");
+      return;
+    }
+    lyingDown = true;
     fallAsleep();
-    settleLie?.(true);
+    settleLie?.("lying");
     settleLie = null;
   }
 
   function wake(by: BedWakeCause): void {
     if (state === "starting") {
+      // A user's click or message during the set-up is the user taking over.
+      if (by !== "agent") startCut = "interrupted";
       void finish("skipped");
       return;
     }
@@ -287,7 +302,7 @@ export function createBedScene(deps: BedSceneDeps): BedScene {
     renderer.setGazeEnabled(deps.gazeEnabled());
     renderer.playMotion({ id: BED_WAKE_MOTION_ID });
     if (by === "message") messageWakeOwed = true;
-    else deps.onWake(by);
+    else if (by !== "agent") deps.onWake(by);
   }
 
   /** The hold keeps an ended clip on its last frame, so its playhead stays at the end. */
@@ -321,7 +336,7 @@ export function createBedScene(deps: BedSceneDeps): BedScene {
         return;
       }
       asleepS += ctx.dt;
-      if (timesOut && asleepS > deps.wakeTimeoutS) wake("timeout");
+      if (asleepS > deps.wakeTimeoutS) wake("timeout");
       return;
     }
     if (fadeS === null) {
@@ -336,13 +351,13 @@ export function createBedScene(deps: BedSceneDeps): BedScene {
   return {
     start() {
       if (state !== "idle" && state !== "done") return;
-      begin(LAUNCH_MOTION_IDS, true);
+      begin("launch");
       void run().catch(() => finish("skipped"));
     },
     lieDown() {
-      if (state !== "idle" && state !== "done") return Promise.resolve(false);
-      begin(COMMAND_MOTION_IDS, false);
-      return new Promise<boolean>((resolve) => {
+      if (state !== "idle" && state !== "done") return Promise.resolve("failed");
+      begin("command");
+      return new Promise<LieDownResult>((resolve) => {
         settleLie = resolve;
         void runLieDown().catch(() => finish("skipped"));
       });
@@ -354,6 +369,11 @@ export function createBedScene(deps: BedSceneDeps): BedScene {
       return owed;
     },
     cancel() {
+      void finish("cancelled");
+    },
+    cancelStart() {
+      if (state !== "starting" || entry !== "command") return;
+      startCut = "interrupted";
       void finish("cancelled");
     },
     onDragEnd() {
