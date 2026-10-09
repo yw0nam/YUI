@@ -9,11 +9,11 @@
  * Vite browser dev testable).
  */
 
-import { cursorPosition, getCurrentWindow, primaryMonitor } from "@tauri-apps/api/window";
 import { createLogger } from "../../../logger";
 import { isTauri } from "../../../tauri-env";
 import { physicalCursorToLocalCss } from "./hit-test";
 import {
+  createTauriStaticsSource,
   createWindowStatics,
   STATIC_REFRESH_TICKS,
   type Vec2,
@@ -40,7 +40,7 @@ interface CursorTrackerController {
 interface CursorTrackerOptions {
   /** Window-local CSS px cursor position; null when unavailable. */
   onCursor: (pos: Vec2 | null) => void;
-  /** Returns the live Tauri window. Default: createTauriCursorWindow(). */
+  /** Returns the live Tauri window. Default: createTauriStaticsSource(). */
   getWindow?: () => CursorTrackerWindow;
   /** setTimeout seam (testability). Default: globalThis.setTimeout. */
   schedule?: (cb: () => void, ms: number) => number;
@@ -50,21 +50,6 @@ interface CursorTrackerOptions {
   moveTarget?: EventTarget;
   /** Document seam for visibility (pauses polling while hidden). Default: document. */
   doc?: Document;
-}
-
-/** Production CursorTrackerWindow — the same 4 reads hit-test's poll uses. */
-function createTauriCursorWindow(): CursorTrackerWindow {
-  const w = getCurrentWindow();
-  return {
-    cursorPosition: () => cursorPosition(),
-    outerPosition: () => w.outerPosition(),
-    scaleFactor: () => w.scaleFactor(),
-    primaryScaleFactor: async () =>
-      (await primaryMonitor())?.scaleFactor ?? (await w.scaleFactor()),
-    onMoved: (cb) => w.onMoved(() => cb()),
-    onResized: (cb) => w.onResized(() => cb()),
-    onScaleChanged: (cb) => w.onScaleChanged(() => cb()),
-  };
 }
 
 /**
@@ -95,7 +80,7 @@ export function createCursorTracker(opts: CursorTrackerOptions): CursorTrackerCo
     };
   }
 
-  const getWindow = opts.getWindow ?? createTauriCursorWindow;
+  const getWindow = opts.getWindow ?? createTauriStaticsSource;
   const schedule =
     opts.schedule ?? ((cb, ms) => globalThis.setTimeout(cb, ms) as unknown as number);
   const cancel = opts.cancel ?? ((h) => globalThis.clearTimeout(h));

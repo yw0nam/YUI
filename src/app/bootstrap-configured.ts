@@ -10,6 +10,7 @@ import type { SummonHotkey } from "../io/window/pet/summon-hotkey";
 import { subscribeOsEvent } from "../io/window/tauri-listen";
 import { createLogger } from "../logger";
 import { mergeScreen } from "../settings/capture/screen-settings";
+import { isMacOS } from "../tauri-env";
 import { t } from "../ui/i18n";
 import { maybeShowFirstRunHint } from "../ui/notices/first-run-hint";
 import { wireIngressDeadNotice } from "../ui/notices/ingress-dead-notice";
@@ -131,7 +132,7 @@ const realFactories: ConfiguredBootstrapFactories = {
       markSeen: () => hintSettings.setEnabled(true),
       surfaces,
       hotkey: cfg.hotkeys.summon_global,
-      isMac: /Mac/.test(navigator.platform || navigator.userAgent),
+      isMac: isMacOS(),
       chatConfigured: isChatConfigured(phase1.getEndpoints()),
       openSettings: (tab) => getQuickControls().open(undefined, { tab }),
       t,
