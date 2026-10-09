@@ -880,6 +880,16 @@ describe("createFaller", () => {
     expect(h.lands).toHaveBeenCalledWith({ heightPx: 1500, surface: LOWER_FLOOR, fell: true });
   });
 
+  it("finds her on the floor of a screen whose work area reaches its bottom edge", async () => {
+    const h = makeHarness({
+      position: { x: WINDOW_POS.x, y: GROUNDED_Y },
+      monitor: UPPER_MONITOR,
+    });
+
+    expect(await h.faller.drop({ place: true })).toBe(true);
+    expect(log.warn).not.toHaveBeenCalled();
+  });
+
   it("says why it skipped a drop whose feet are on no monitor at all", async () => {
     const h = makeHarness({ position: { x: -3000, y: WINDOW_POS.y } });
     await h.faller.drop();
