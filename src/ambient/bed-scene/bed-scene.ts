@@ -297,7 +297,6 @@ export function createBedScene(deps: BedSceneDeps): BedScene {
     setLying(false);
     liveliness.setAsleep(false);
     renderer.setSpringBonesHeld(false);
-    // The gaze nudge rides on the clip's head and neck, which are lying or seated until the scene ends.
     renderer.playMotion({ id: BED_WAKE_MOTION_ID });
     if (by === "message") messageWakeOwed = true;
     else if (by !== "agent") deps.onWake(by);
