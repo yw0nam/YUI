@@ -151,6 +151,17 @@ describe("createAvatarBed — lieDown", () => {
     expect(h.log.warn).toHaveBeenCalled();
   });
 
+  it("answers unsupported and lets go of the hold when a listener on the hold throws", async () => {
+    const h = setup();
+    h.hold.onTake(() => {
+      throw new Error("listener");
+    });
+
+    expect(await h.bed.lieDown()).toEqual({ ok: false, reason: "unsupported" });
+    expect(h.hold.isHeld()).toBe(false);
+    expect(h.place).not.toHaveBeenCalled();
+  });
+
   it("maps a scene that did not start: failed is unsupported, interrupted is interrupted", async () => {
     for (const [result, reason] of [
       ["failed", "unsupported"],
