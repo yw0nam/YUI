@@ -364,7 +364,7 @@ function makeHarness(
     for (let i = 0; i < 240 && positions.at(-1)?.y !== y; i++) await frame();
   };
   /** Drop, then wait for the fall to settle: either its tick is installed, or it ended without one. */
-  const beginFall = async (): Promise<{ done: Promise<void> }> => {
+  const beginFall = async (): Promise<{ done: Promise<unknown> }> => {
     let ended = false;
     const done = faller.drop().finally(() => {
       ended = true;
@@ -880,6 +880,16 @@ describe("createFaller", () => {
     expect(h.lands).toHaveBeenCalledWith({ heightPx: 1500, surface: LOWER_FLOOR, fell: true });
   });
 
+  it("finds her on the floor of a screen whose work area reaches its bottom edge", async () => {
+    const h = makeHarness({
+      position: { x: WINDOW_POS.x, y: GROUNDED_Y },
+      monitor: UPPER_MONITOR,
+    });
+
+    expect(await h.faller.drop({ place: true })).toBe(true);
+    expect(log.warn).not.toHaveBeenCalled();
+  });
+
   it("says why it skipped a drop whose feet are on no monitor at all", async () => {
     const h = makeHarness({ position: { x: -3000, y: WINDOW_POS.y } });
     await h.faller.drop();
@@ -891,6 +901,32 @@ describe("createFaller", () => {
       "fall_skipped",
       expect.objectContaining({ reason: "no_monitor" }),
     );
+  });
+
+  it("says whether she was put on a surface: placed or already down is true, ignored or skipped is false", async () => {
+    expect(await makeHarness().faller.drop({ place: true })).toBe(true);
+
+    const grounded = makeHarness({ position: { x: 500, y: GROUNDED_Y - 10 } });
+    expect(await grounded.faller.drop({ place: true })).toBe(true);
+
+    const noMonitor = makeHarness({ position: { x: -3000, y: WINDOW_POS.y } });
+    expect(await noMonitor.faller.drop({ place: true })).toBe(false);
+
+    const falling = makeHarness();
+    const { done } = await falling.beginFall();
+    expect(await falling.faller.drop({ place: true })).toBe(false);
+    falling.faller.cancel();
+    await done;
+
+    const reading = makeHarness();
+    const first = reading.faller.drop({ place: true });
+    expect(await reading.faller.drop({ place: true })).toBe(false);
+    expect(await first).toBe(true);
+
+    const cancelled = makeHarness();
+    const pending = cancelled.faller.drop({ place: true });
+    cancelled.faller.cancel();
+    expect(await pending).toBe(false);
   });
 
   it("stop() ends a running fall and refuses further drops", async () => {

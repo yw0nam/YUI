@@ -4,7 +4,7 @@ import type { WindowRect } from "../../../contract";
 // wireFaller only builds the loop under Tauri, so capture the deps it hands createFaller
 // and drive the landing callback directly.
 const { createFaller, fallerDrop, fallerStop } = vi.hoisted(() => {
-  const fallerDrop = vi.fn(async () => {});
+  const fallerDrop = vi.fn(async (_opts?: unknown) => true);
   const fallerStop = vi.fn();
   return {
     fallerDrop,
@@ -113,6 +113,61 @@ describe("wireFaller — fall toggle", () => {
   });
 });
 
+describe("wireFaller — placement on request", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it("puts her on the floor where she stands, whatever the fall switch says", async () => {
+    const { handle } = await wire({ isEnabled: () => false });
+    fallerDrop.mockClear();
+
+    expect(await handle.place()).toBe(true);
+
+    expect(fallerDrop).toHaveBeenCalledWith({ place: true });
+  });
+
+  it("reports not placed when the faller ignored the drop", async () => {
+    const { handle } = await wire();
+    fallerDrop.mockResolvedValueOnce(false);
+
+    expect(await handle.place()).toBe(false);
+  });
+
+  it("waits for the boot placement, and reports not placed if the loop never came up", async () => {
+    let ready!: () => void;
+    const { handle } = await wire({ ready: new Promise<void>((resolve) => (ready = resolve)) });
+    let answer: boolean | undefined;
+    void handle.place().then((placed) => (answer = placed));
+    await Promise.resolve();
+    expect(answer).toBeUndefined();
+
+    handle.dispose();
+    ready();
+    await vi.waitFor(() => expect(answer).toBe(false));
+  });
+
+  it("has nothing to place without a window, so it reports placed", async () => {
+    createFaller.mockClear();
+    const handle = wireFaller({
+      isEnabled: () => true,
+      bus: { push: () => {} } as never,
+      renderer: {} as never,
+      travelFrame: { getWindow: () => ({}) as never, ready: Promise.resolve() },
+      getFallConfig: () => ({}) as never,
+      getMotionKind: () => undefined,
+      getFloorTolerancePx: () => 24,
+      getGestureCues: () => ({}) as never,
+      setHitTestMoving: () => {},
+      onWindowLand: () => {},
+      log: noopLog,
+    });
+
+    expect(await handle.place()).toBe(true);
+    expect(createFaller).not.toHaveBeenCalled();
+  });
+});
+
 describe("wireFaller — placement completion", () => {
   afterEach(() => {
     vi.unstubAllGlobals();
@@ -153,7 +208,9 @@ describe("wireFaller — placement completion", () => {
     vi.stubGlobal("__TAURI_INTERNALS__", {});
     fallerDrop.mockClear();
     let land!: () => void;
-    fallerDrop.mockImplementationOnce(() => new Promise<void>((resolve) => (land = resolve)));
+    fallerDrop.mockImplementationOnce(
+      () => new Promise<boolean>((resolve) => (land = () => resolve(true))),
+    );
     let placed = false;
     void wireFaller(deps()).placed.then(() => (placed = true));
     await vi.waitFor(() => expect(fallerDrop).toHaveBeenCalledWith({ place: true }));

@@ -47,6 +47,8 @@ export function createTier1Render(deps: Tier1RenderDeps): Tier1Render {
   let patEmotionHeld = false;
   // Wall clock, not the frame clock — since keeps running while the window is hidden.
   let bodyState: BodyState = { posture: { state: "standing" }, since: Date.now() };
+  /** On the bed: a drag that ends there returns to lying, not standing. */
+  let onBed = false;
   /**
    * Ease a locally applied tap emotion back to neutral after the hold —
    * a silent backend turn never triggers the playback-end revert, so without
@@ -140,9 +142,19 @@ export function createTier1Render(deps: Tier1RenderDeps): Tier1Render {
       case "avatar.climb_start":
         next = { state: "climbing" };
         break;
+      case "avatar.bed_start":
+        onBed = true;
+        next = { state: "lying" };
+        break;
+      case "avatar.bed_end":
+        onBed = false;
+        next = { state: "standing" };
+        break;
+      case "user.drag_end":
+        next = { state: onBed ? "lying" : "standing" };
+        break;
       case "user.window_sit_exit":
       case "user.peek_exit":
-      case "user.drag_end":
       case "avatar.walk_end":
       case "avatar.climb_end":
         next = { state: "standing" };

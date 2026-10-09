@@ -16,7 +16,7 @@ interface ContextProviders {
   getBodyState?: () => BodyState | undefined;
   getFrontmost?: () => FrontmostState | undefined;
   getPrevious?: () => PreviousTurn | undefined;
-  /** True once, for the user turn whose message woke the character on the launch bed. */
+  /** True once, for the user turn whose message woke the character on the bed. */
   takeMessageWake?: () => boolean;
 }
 

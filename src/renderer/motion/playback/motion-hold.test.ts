@@ -8,6 +8,12 @@ describe("dropUnderHold — a hold drops requests from outside its ids", () => {
     expect(dropUnderHold(motion, hold)).toBe(true);
   });
 
+  it("drops an agent's motion cue while the bed scene holds her lying", () => {
+    const lying = ["bed_lie", "bed_sleep", "bed_wake"];
+    expect(dropUnderHold({ id: "happy" }, lying)).toBe(true);
+    expect(dropUnderHold({ id: "bed_lie" }, lying)).toBe(false);
+  });
+
   it("allows a held id while a hold is set", () => {
     expect(dropUnderHold({ id: "bed_wake" }, hold)).toBe(false);
   });

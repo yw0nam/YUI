@@ -411,6 +411,75 @@ describe("wireVoicePipeline", () => {
     expect(renderer.playMotion).not.toHaveBeenCalled();
   });
 
+  describe("endThinking", () => {
+    it("ends the running thinking at once: filler stopped, hold released, nothing more asked of the turn", () => {
+      const { voice, renderer } = setup();
+      voice.turnOutput.thinkingStart(1);
+      renderer.playMotion.mockClear();
+
+      voice.endThinking();
+
+      expect(mocks.fillerLoop.stop).toHaveBeenCalledOnce();
+      expect(mocks.speechPlayback.holdMotion).toHaveBeenLastCalledWith(false);
+      expect(renderer.playMotion).toHaveBeenCalledWith(null);
+
+      renderer.playMotion.mockClear();
+      voice.turnOutput.toolStatus(1, "running", "terminal");
+      voice.turnOutput.toolStatus(1, "done");
+      voice.turnOutput.activity(1);
+      voice.resumeThinking();
+      expect(mocks.fillerLoop.onToolRunning).not.toHaveBeenCalled();
+      expect(mocks.fillerLoop.onActivity).not.toHaveBeenCalled();
+      expect(renderer.playMotion).not.toHaveBeenCalled();
+    });
+
+    it("leaves the turn's own thinkingEnd harmless: no second stop, no second release", () => {
+      const { voice } = setup();
+      voice.turnOutput.thinkingStart(1);
+      voice.endThinking();
+      mocks.fillerLoop.stop.mockClear();
+      mocks.speechPlayback.holdMotion.mockClear();
+
+      expect(() => voice.turnOutput.thinkingEnd(1)).not.toThrow();
+
+      expect(mocks.fillerLoop.stop).not.toHaveBeenCalled();
+      expect(mocks.speechPlayback.holdMotion).not.toHaveBeenCalled();
+    });
+
+    it("keeps the motion a parked cue releases, as the turn's own end does", () => {
+      const { voice, renderer } = setup();
+      voice.turnOutput.thinkingStart(1);
+      renderer.playMotion.mockClear();
+      mocks.speechPlayback.holdMotion.mockReturnValueOnce(true);
+
+      voice.endThinking();
+
+      expect(renderer.playMotion).not.toHaveBeenCalled();
+    });
+
+    it("does nothing when no thinking is running", () => {
+      const { voice, renderer } = setup();
+      mocks.speechPlayback.holdMotion.mockClear();
+
+      voice.endThinking();
+
+      expect(mocks.fillerLoop.stop).not.toHaveBeenCalled();
+      expect(mocks.speechPlayback.holdMotion).not.toHaveBeenCalled();
+      expect(renderer.playMotion).not.toHaveBeenCalled();
+    });
+
+    it("still thinks for a later turn", () => {
+      const { voice } = setup();
+      voice.turnOutput.thinkingStart(1);
+      voice.endThinking();
+      mocks.fillerLoop.start.mockClear();
+
+      voice.turnOutput.thinkingStart(2);
+
+      expect(mocks.fillerLoop.start).toHaveBeenCalledOnce();
+    });
+  });
+
   it("reports whether either effective filler pool is non-empty", () => {
     const state = setup();
     state.setFillerConfig({

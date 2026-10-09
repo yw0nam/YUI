@@ -162,14 +162,26 @@ class TestMoveTo:
             server.move_to("center")
 
 
-class TestStandDown:
+class TestStand:
     def test_posts_the_verb(self, stub):
-        assert server.stand_down() == {"ok": True}
-        assert stub.received == [{"action": "stand_down"}]
+        assert server.stand() == {"ok": True}
+        assert stub.received == [{"action": "stand"}]
+
+
+class TestGoToBed:
+    def test_posts_the_verb(self, stub):
+        assert server.go_to_bed() == {"ok": True}
+        assert stub.received == [{"action": "go_to_bed"}]
+
+    @pytest.mark.parametrize("reason", ["busy", "interrupted", "unsupported"])
+    def test_raises_with_the_client_reason(self, stub, reason):
+        stub.routes["/avatar/command"] = (200, {"ok": False, "reason": reason})
+        with pytest.raises(ToolError, match=reason):
+            server.go_to_bed()
 
 
 class TestToolRegistration:
-    def test_registers_the_six_avatar_tools(self):
+    def test_registers_the_avatar_tools(self):
         tools = asyncio.run(server.mcp.list_tools())
         names = {t.name for t in tools}
         assert {
@@ -178,7 +190,8 @@ class TestToolRegistration:
             "sit_on_window",
             "peek",
             "move_to",
-            "stand_down",
+            "stand",
+            "go_to_bed",
         } <= names
 
     def test_exposes_no_expression_or_screenshot_tools(self):

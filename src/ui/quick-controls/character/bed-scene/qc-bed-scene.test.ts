@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 /**
  * qc-bed-scene.test.ts — the Character tab's bed-scene section through the full panel:
- * presence gating, the switch driving the store and the number row's visibility,
+ * presence gating, the switch driving the store, the number row shown with the switch off,
  * change-only numeric commit, and teardown.
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -52,23 +52,23 @@ describe("createQuickControls — character tab (bed scene)", () => {
     qc.dispose();
   });
 
-  it("the switch writes the store and shows the number row only while on", () => {
+  it("the switch writes the store and leaves the number row shown and editable", () => {
     const { settings, qc } = buildBedQc();
     qc.open();
     const sw = qc.el.querySelector<HTMLButtonElement>(".yui-bed-scene__switch")!;
-    const row = qc.el.querySelector<HTMLElement>(".yui-bed-scene__timeout")!;
+    const input = qc.el.querySelector<HTMLInputElement>("#yui-bed-wake-timeout")!;
     expect(settings.get().enabled).toBe(true);
     expect(sw.getAttribute("aria-checked")).toBe("true");
-    expect(row.hidden).toBe(false);
 
     sw.click();
     expect(settings.get().enabled).toBe(false);
     expect(sw.getAttribute("aria-checked")).toBe("false");
-    expect(row.hidden).toBe(true);
+    expect(input.closest(".yui-bed-scene [hidden]")).toBeNull();
+    expect(input.disabled).toBe(false);
 
-    sw.click();
-    expect(settings.get().enabled).toBe(true);
-    expect(row.hidden).toBe(false);
+    input.value = "300";
+    input.dispatchEvent(new Event("change", { bubbles: true }));
+    expect(settings.get().wakeTimeoutS).toBe(300);
     qc.dispose();
   });
 

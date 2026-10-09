@@ -124,13 +124,20 @@ Where the avatar body is. Always present.
 body: peeking on Orca (for 2min)
 body: walking (for 0min)
 body: climbing (for 0min)
+body: lying (for 12min)
 body: standing (for 12min)
 ```
 
 The state is `body_state.posture.state` (`standing` \| `sitting` \| `peeking` \|
-`dragging` \| `walking` \| `climbing`); the `on <label>` clause names `posture.perched_on.app` (falling back to
+`dragging` \| `walking` \| `climbing` \| `lying`); the `on <label>` clause names `posture.perched_on.app` (falling back to
 `window_title` when the app didn't resolve) and is omitted when there's no window
-under the avatar — `standing`, `walking` and `climbing` never carry one. `walking` holds for the
+under the avatar — `standing`, `walking`, `climbing` and `lying` never carry one.
+`lying` holds while she is on the bed, whether the launch bed scene or a `go_to_bed`
+command put her there: it starts when the lie-down clip (or, at launch, the sleep clip)
+starts and ends when her wake clip starts, after which she reads `standing` while she
+sits up, stretches and stands. A drag in between reads `dragging` and returns to `lying`
+on release. The bed fires no turn on its own, so the state is visible on whatever turn
+comes next. `walking` holds for the
 length of one ambient stroll along the work-area bottom and returns to `standing`
 when the stroll ends; the stroll itself fires no turn, so the state is visible on
 whatever turn comes next. `climbing` holds for the length of one ambient climb up or
@@ -203,7 +210,7 @@ is one of `user` \| `schedule` \| `proactive` \| `agent` \| `signals` \| `milest
 |---|---|---|
 | `user` | User spoke or typed | The user's message text |
 | `schedule` | A user-configured time-of-day cue fired | Background marker |
-| `proactive` | A configured engagement cue, tap-bored cue, region-touch cue, or screen transition fired, or the character woke on the launch bed | Background marker |
+| `proactive` | A configured engagement cue, tap-bored cue, region-touch cue, or screen transition fired, or the character woke on the bed | Background marker |
 | `agent` | An external coding-agent lifecycle hook posted a completion or needs-input signal | Background marker |
 | `signals` | An external producer POSTed a burst to the `/signals` ingress | Background marker |
 | `milestone` | A once-per-day client clock fact fired on the first present tick of the local day | Background marker |
@@ -257,9 +264,12 @@ built-in touch and gesture cues (`touch_*`, `tap_bored`, `head_pat`, `drag_held`
 `window_sit`, `peek`, `dropped`) send a label alone unless the user authored a `context`
 for them in `configs/avatar.json`, so most of those turns render just the headline. A
 proactive turn with `idle_elapsed_min` but no cue at all (no configured label) falls back
-to a bare `trigger: proactive (user idle Xmin)`. While the launch bed scene runs, the
+to a bare `trigger: proactive (user idle Xmin)`. While the bed scene runs, the
 client drops the touch, head-pat, tap-bored and drag-held cues, and the [wake](#wake)
-reports the click that woke her.
+reports the click that woke her. A turn that starts while she is on the bed, the wake
+turn included, speaks no thinking filler before its reply; the reply is spoken when it
+arrives. When she goes to bed while a thinking filler runs, a phrase already submitted
+plays out and no further phrase is spoken.
 
 ### Screen transition
 
@@ -376,8 +386,9 @@ milestone and the local clock time it fired at. The day key is latched in
 `yui.milestone-fired`, so a same-day restart fires nothing and an app left running
 overnight fires again on the first present tick after midnight. Buffered `/signals`
 groups drain into the same turn and render as `signal` lines under the headline. While
-the launch bed scene runs, the milestone waits; a wake turn carries it when it is still
-owed (see [Wake](#wake)).
+she is on the bed, from either entry, the milestone waits; it rides the user's wake turn
+when it is still owed (see [Wake](#wake)), and fires on the next idle tick once she is up
+by any other way.
 
 ### Wake
 
@@ -396,11 +407,16 @@ trigger: user message
 wake: asleep on the bed until this message
 ```
 
-With the launch bed scene on, the character starts asleep on a bed. `proactive.wake`
-fires once, at the moment her wake clip starts, when a click on her or the bed or the
-press that starts a head pat woke her (`the user's click`) or she slept until the wake
-timeout set in the Character tab (`the wake timeout`). The `wake:` line follows the
-headline.
+The bed has two entries. With the launch bed scene on, the character starts asleep on a
+bed; a `go_to_bed` avatar command lies her on a bed at the spot she stands on, while the
+app runs. Both sleep until the wake timeout set in the Character tab, a click on her or
+the bed, the press that starts a head pat, a chat or voice message, or the backend's own
+`stand`. The launch-scene switch governs the launch entry only, and the backend passes no
+duration.
+
+`proactive.wake` fires once, at the moment her wake clip starts, when a click or a head
+pat woke her (`the user's click`) or the timeout did (`the wake timeout`), on either
+entry. The `wake:` line follows the headline.
 
 When the day's `time_milestone.first_activity` is still owed and the schedule setting is
 on, the wake turn carries it: the headline is the milestone, buffered `/signals` groups
@@ -411,6 +427,11 @@ A chat or voice message that wakes her is reported on that message's own turn, a
 `wake: asleep on the bed until this message` under `trigger: user message`. The `wake:`
 line appears only for a wake from the bed: a wake before she has lain down skips the
 scene, and a launch with the scene off starts her standing.
+
+The backend's own `stand` gets her up with the same wake clip and fires no
+`proactive.wake`: the backend sent it and already knows. The scene also ends without a
+wake signal when another motion takes the body, when the VRM is swapped, and when a clip
+or the bed fails to load; those paths leave her standing and say nothing to the backend.
 
 ## Deliberately omitted fields
 
@@ -509,7 +530,7 @@ generate_express({
 | `emotion_text` | voice tone tag |
 | `caption` | voice direction in natural language |
 
-While `body:` is `sitting` or `peeking`, the client drops `motion_id` and keeps the pose;
+While `body:` is `sitting`, `peeking` or `lying`, the client drops `motion_id` and keeps the pose;
 `emotion_id`, `emotion_text` and `caption` still apply.
 
 All fields are optional. Include only the fields that should change.

@@ -24,6 +24,7 @@ import {
   type wireSpeakerSelection,
   type wireVrmSelection,
 } from "../settings/wire-avatar";
+import type { BedSceneHold } from "../stage/bed-scene-hold";
 import { wireBroker } from "./broker/wire-broker";
 import { wirePushTransport, wireStopButton } from "./push/wire-push";
 import { wireVocabulary } from "./vocabulary/wire-vocabulary";
@@ -59,6 +60,8 @@ export interface TurnCorePhase1 {
   getEndpoints(): EndpointsConfig;
   /** Effective guardrails — the editable caps layered on configs/guardrails.json. */
   getGuardrails(): GuardrailsConfig;
+  /** The hold a scene takes on the body, in a window that runs one. */
+  bedSceneHold?: Pick<BedSceneHold, "isHeld" | "onTake">;
 }
 
 export interface TurnCore {
@@ -117,6 +120,7 @@ export async function wireTurnCore(
     reasoning,
     getEndpoints,
     getGuardrails,
+    bedSceneHold,
   } = phase1;
   const { register, ensureActive } = deps;
   const { contextHistory, sessionStore, sessionDiagnostics, chatHistoryStore } = conversation;
@@ -145,6 +149,8 @@ export async function wireTurnCore(
   });
   const { voice, voiceInput, voiceErrorDwell, turnLog, previousTurn, quotedTurn, pushTurns } =
     turnVoice;
+  // The scene taking the body ends a thinking bridge already running, so no filler speaks on the bed.
+  if (bedSceneHold) register(bedSceneHold.onTake(voice.endThinking));
 
   const turnWiring = wireDispatcher({
     bus,
@@ -167,6 +173,7 @@ export async function wireTurnCore(
     screenCapturer: deps.screenCapturer,
     getFrontmost: deps.getFrontmost,
     takeMessageWake: deps.takeMessageWake,
+    isBodyHeld: bedSceneHold?.isHeld,
     voice,
     turnLog,
     previousTurn,

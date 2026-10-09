@@ -83,6 +83,8 @@ export interface CursorGaze {
   setConfig(next: GazeKnobs): void;
   /** Enable/disable head+eye tracking at runtime. Disabled ⇒ eased back to neutral. */
   setEnabled(enabled: boolean): void;
+  /** Hold the tracking at neutral whatever `setEnabled` says, until lifted. */
+  setSuppressed(suppressed: boolean): void;
   /** Latest window-local CSS px cursor position; null = unavailable (eases back to neutral). */
   setCursorCss(pos: { x: number; y: number } | null): void;
 }
@@ -96,6 +98,8 @@ export function createCursorGaze(deps: CursorGazeDeps): CursorGaze {
   let gazeConfig: GazeKnobs | null = deps.gaze;
   // Runtime on/off (persisted by main.ts). Disabled ⇒ eased back to neutral, not snapped.
   let gazeEnabled = true;
+  // A scene that owns the body holds the gaze off over the user's setting.
+  let gazeSuppressed = false;
   // Persistent damped angles (deg) carried frame to frame.
   let gazeState: GazeState = { ...NEUTRAL_GAZE };
   // True while the damped gaze is still easing toward target — gates the idle frame cap.
@@ -138,7 +142,8 @@ export function createCursorGaze(deps: CursorGazeDeps): CursorGaze {
     let residualYawDeg = 0;
     let residualPitchDeg = 0;
     let eccentricityDeg = 0;
-    const trackable = gazeEnabled && gazeHeadBone !== null && gazeCursor !== null;
+    const trackable =
+      gazeEnabled && !gazeSuppressed && gazeHeadBone !== null && gazeCursor !== null;
     if (trackable) {
       try {
         const head = gazeHeadBone as THREE.Object3D;
@@ -234,6 +239,9 @@ export function createCursorGaze(deps: CursorGazeDeps): CursorGaze {
     },
     setEnabled(enabled) {
       gazeEnabled = enabled;
+    },
+    setSuppressed(suppressed) {
+      gazeSuppressed = suppressed;
     },
     setCursorCss(pos) {
       gazeCursor = pos;

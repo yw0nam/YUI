@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import type { PropHandle, TickContext, TickFn } from "../../renderer";
 import {
+  BED_LIE_MOTION_ID,
   BED_PROP_URL,
   BED_SLEEP_MOTION_ID,
   BED_WAKE_MOTION_ID,
@@ -11,8 +12,9 @@ import {
   PROP_FADE_S,
 } from "./bed-scene";
 
-const MOTION_S: Record<string, number> = { bed_sleep: 8, bed_wake: 2 };
+const MOTION_S: Record<string, number> = { bed_lie: 3, bed_sleep: 8, bed_wake: 2 };
 const HOLD = `hold:${BED_SLEEP_MOTION_ID},${BED_WAKE_MOTION_ID}`;
+const BED_HOLD = `hold:${BED_LIE_MOTION_ID},${BED_SLEEP_MOTION_ID},${BED_WAKE_MOTION_ID}`;
 const REST_HIPS_M = 1.8;
 const PX_PER_METRE = 200;
 const ANCHOR = { x: 150, y: 400 };
@@ -28,13 +30,18 @@ function makeHarness(
     dispose?: "throw";
     park?: "pending";
     release?: "reject";
+    /** The renderer drops a request for this clip, as a held posture does. */
+    refuse?: string;
   } = {},
 ) {
   /** Every observable effect in the order it happened. */
   const calls: string[] = [];
   /** Each onWake with the effect that came right before it. */
   const woke: Array<{ cause: string; after: string | undefined }> = [];
+  /** Each posture change the scene reported. */
+  const lying: boolean[] = [];
   let tick: TickFn | null = null;
+  let subscribed = 0;
   let vrm = {};
   let hold: readonly string[] | null = null;
   let current: { id: string; vrma_path: string } | null = {
@@ -57,10 +64,12 @@ function makeHarness(
   let resolveProp: (p: PropHandle) => void = () => {};
   let resolvePark: () => void = () => {};
   let place: () => void = () => {};
+  let wakeTimeoutS = WAKE_TIMEOUT_S;
   const log = { debug: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn() };
   const deps: BedSceneDeps = {
     renderer: {
       onTick: (fn) => {
+        subscribed += 1;
         tick = fn;
         return () => {
           tick = null;
@@ -69,6 +78,7 @@ function makeHarness(
       // A hold drops every request outside its ids, as the renderer does.
       playMotion: (m) => {
         if (hold && !(m && hold.includes(m.id))) return;
+        if (m && m.id === over.refuse) return;
         calls.push(`play:${m?.id ?? "null"}`);
         current = { id: m?.id ?? "idle", vrma_path: "" };
         clipT = 0;
@@ -93,12 +103,12 @@ function makeHarness(
       getModelRestHipsHeight: () => REST_HIPS_M,
       getPxPerMetre: () => PX_PER_METRE,
       getCharacterAnchor: () => ANCHOR,
-      setGazeEnabled: (enabled) => calls.push(`gaze:${enabled}`),
+      // Logged as the gaze the suppression leaves: off while suppressed.
+      setGazeSuppressed: (suppressed) => calls.push(`gaze:${!suppressed}`),
       setOrbit: (o) => calls.push(`orbit:${o.azimuth},${o.polar}`),
       setSpringBonesHeld: (held) => calls.push(`spring:${held}`),
     },
     liveliness: { setAsleep: (asleep) => calls.push(`asleep:${asleep}`) },
-    gazeEnabled: () => true,
     camera: { get: () => STORED_ORBIT },
     frame: {
       park: async (e) => {
@@ -115,9 +125,10 @@ function makeHarness(
       },
     },
     placed: new Promise((resolve) => (place = resolve)),
-    wakeTimeoutS: WAKE_TIMEOUT_S,
+    wakeTimeoutS: () => wakeTimeoutS,
     onDone: () => calls.push("onDone"),
     onWake: (cause) => woke.push({ cause, after: calls.at(-1) }),
+    onLying: (isLying) => lying.push(isLying),
     log,
   };
   const flush = async (): Promise<void> => {
@@ -135,6 +146,7 @@ function makeHarness(
     scene,
     calls,
     woke,
+    lying,
     log,
     prop,
     propUrls,
@@ -151,6 +163,16 @@ function makeHarness(
       await flush();
     },
     place: () => place(),
+    setWakeTimeoutS: (s: number) => {
+      wakeTimeoutS = s;
+    },
+    /** Lie down on command, land the placement and let the start sequence settle. */
+    lieDown: async () => {
+      const lay = scene.lieDown();
+      place();
+      await flush();
+      return lay;
+    },
     resolveProp: () => resolveProp(prop),
     resolvePark: () => resolvePark(),
     /** Another motion took the body: a request the hold let through, or a failed clip load. */
@@ -158,6 +180,7 @@ function makeHarness(
       current = { id, vrma_path: "" };
     },
     ticking: () => tick !== null,
+    subscribed: () => subscribed,
     /** A hot-swap: the renderer clears the hold and plays idle on the new model. */
     swapVrm: () => {
       vrm = {};
@@ -199,15 +222,14 @@ describe("createBedScene", () => {
     ]);
   });
 
-  it("wakes on a click once: eyes open, gaze restored, the wake clip plays, then onWake names the click", async () => {
+  it("wakes on a click once: eyes open, the wake clip plays with the gaze still off, then onWake names the click", async () => {
     const h = makeHarness();
     await h.startAsleep();
     h.scene.wake("click");
     expect(h.scene.state()).toBe("waking");
-    expect(h.calls.slice(-4)).toEqual([
+    expect(h.calls.slice(-3)).toEqual([
       "asleep:false",
       "spring:false",
-      "gaze:true",
       `play:${BED_WAKE_MOTION_ID}`,
     ]);
     expect(h.woke).toEqual([{ cause: "click", after: `play:${BED_WAKE_MOTION_ID}` }]);
@@ -248,7 +270,19 @@ describe("createBedScene", () => {
     expect(h.woke).toEqual([{ cause: "timeout", after: `play:${BED_WAKE_MOTION_ID}` }]);
     await h.runFrames(2, 1);
     await h.frame(PROP_FADE_S);
-    expect(h.log.info).toHaveBeenCalledWith("bed_scene_end", { reason: "ended", cause: "timeout" });
+    expect(h.log.info).toHaveBeenCalledWith("bed_scene_end", {
+      entry: "launch",
+      reason: "ended",
+      cause: "timeout",
+    });
+  });
+
+  it("sleeps for the wake timeout set after the scene was built", async () => {
+    const h = makeHarness();
+    h.setWakeTimeoutS(3);
+    await h.startAsleep();
+    await h.runFrames(4, 1);
+    expect(h.scene.state()).toBe("waking");
   });
 
   it("ends in order: the clip ends, the bed fades, then dispose, frame release, hold release, idle, onDone", async () => {
@@ -274,7 +308,11 @@ describe("createBedScene", () => {
       "play:null",
       "onDone",
     ]);
-    expect(h.log.info).toHaveBeenCalledWith("bed_scene_end", { reason: "ended", cause: "click" });
+    expect(h.log.info).toHaveBeenCalledWith("bed_scene_end", {
+      entry: "launch",
+      reason: "ended",
+      cause: "click",
+    });
   });
 
   it("refits the frame on a drag end while the scene runs, and not after it has finished", async () => {
@@ -296,6 +334,7 @@ describe("createBedScene", () => {
     expect(missing.propUrls).toEqual([]);
     expect(missing.count("onDone")).toBe(1);
     expect(missing.log.info).toHaveBeenCalledWith("bed_scene_end", {
+      entry: "launch",
       reason: "skipped",
       cause: null,
     });
@@ -307,6 +346,7 @@ describe("createBedScene", () => {
     expect(rejected.calls.at(-2)).toBe("play:null");
     expect(rejected.count("onDone")).toBe(1);
     expect(rejected.log.info).toHaveBeenCalledWith("bed_scene_end", {
+      entry: "launch",
       reason: "skipped",
       cause: null,
     });
@@ -361,7 +401,11 @@ describe("createBedScene", () => {
     await h.frame();
     h.swapVrm();
     await h.frame();
-    expect(h.log.info).toHaveBeenCalledWith("bed_scene_end", { reason: "swapped", cause: null });
+    expect(h.log.info).toHaveBeenCalledWith("bed_scene_end", {
+      entry: "launch",
+      reason: "swapped",
+      cause: null,
+    });
     expect(h.calls.slice(-4)).toEqual(["prop.dispose", "frame.release", "hold:null", "onDone"]);
   });
 
@@ -397,7 +441,11 @@ describe("createBedScene", () => {
     expect(new Set(h.calls.filter((c) => c.startsWith("prop.opacity:")))).toEqual(
       new Set(["prop.opacity:0"]),
     );
-    expect(h.log.info).toHaveBeenCalledWith("bed_scene_end", { reason: "ended", cause: "click" });
+    expect(h.log.info).toHaveBeenCalledWith("bed_scene_end", {
+      entry: "launch",
+      reason: "ended",
+      cause: "click",
+    });
   });
 
   it("ends as lost when another motion has the body, asleep or waking", async () => {
@@ -408,6 +456,7 @@ describe("createBedScene", () => {
       h.setCurrent(waking ? BED_SLEEP_MOTION_ID : "idle");
       await h.frame();
       expect(h.log.info).toHaveBeenCalledWith("bed_scene_end", {
+        entry: "launch",
         reason: "lost",
         cause: waking ? "click" : null,
       });
@@ -425,6 +474,7 @@ describe("createBedScene", () => {
     expect(woken.woke).toEqual([]);
     expect(woken.count("onDone")).toBe(1);
     expect(woken.log.info).toHaveBeenCalledWith("bed_scene_end", {
+      entry: "launch",
       reason: "skipped",
       cause: null,
     });
@@ -433,6 +483,7 @@ describe("createBedScene", () => {
     failed.scene.start();
     await failed.flush();
     expect(failed.log.info).toHaveBeenCalledWith("bed_scene_end", {
+      entry: "launch",
       reason: "skipped",
       cause: null,
     });
@@ -457,5 +508,290 @@ describe("createBedScene", () => {
       expect(h.count("frame.release")).toBe(1);
       expect(h.calls.slice(-2)).toEqual(["play:null", "onDone"]);
     }
+  });
+
+  it("reports the posture as lying from the sleep clip until the wake clip starts", async () => {
+    const h = makeHarness();
+    await h.startAsleep();
+    expect(h.lying).toEqual([true]);
+    h.scene.wake("click");
+    expect(h.lying).toEqual([true, false]);
+  });
+});
+
+describe("createBedScene — lying down on command", () => {
+  it("shows the bed first, then plays the lying-down clip and answers lying once she lies", async () => {
+    const h = makeHarness();
+    const lay = h.scene.lieDown();
+    let answered: string | undefined;
+    void lay.then((ok) => {
+      answered = ok;
+    });
+    await h.flush();
+    expect(h.scene.state()).toBe("starting");
+    expect(answered).toBeUndefined();
+    expect(h.lying).toEqual([]);
+    h.place();
+    await h.flush();
+
+    expect(answered).toBe("lying");
+    expect(h.scene.state()).toBe("asleep");
+    expect(h.propUrls).toEqual([BED_PROP_URL]);
+    expect(h.calls).toEqual([
+      BED_HOLD,
+      `orbit:0,${STORED_ORBIT.polar}`,
+      `prop.scale:${REST_HIPS_M / CLIP_REST_HIPS_M}`,
+      "prop.opacity:0",
+      "frame.park",
+      "prop.opacity:1",
+      `play:${BED_LIE_MOTION_ID}`,
+      "asleep:true",
+      "spring:true",
+      "gaze:false",
+    ]);
+    expect(h.lying).toEqual([true]);
+  });
+
+  it("holds the sleep loop once the lying-down clip ends, then wakes by the timeout", async () => {
+    const h = makeHarness();
+    await h.lieDown();
+    await h.runFrames(2, 1);
+    expect(h.calls.at(-1)).not.toBe(`play:${BED_SLEEP_MOTION_ID}`);
+    await h.frame(1);
+    expect(h.calls.at(-1)).toBe(`play:${BED_SLEEP_MOTION_ID}`);
+    expect(h.count(`play:${BED_SLEEP_MOTION_ID}`)).toBe(1);
+
+    await h.runFrames(WAKE_TIMEOUT_S, 1);
+    expect(h.scene.state()).toBe("asleep");
+    expect(h.woke).toEqual([]);
+    await h.frame(1);
+    expect(h.scene.state()).toBe("waking");
+    expect(h.woke).toEqual([{ cause: "timeout", after: `play:${BED_WAKE_MOTION_ID}` }]);
+    await h.runFrames(40);
+    await h.frame(PROP_FADE_S);
+    expect(h.log.info).toHaveBeenCalledWith("bed_scene_end", {
+      entry: "command",
+      reason: "ended",
+      cause: "timeout",
+    });
+  });
+
+  it("wakes on a click, a message or the backend, each starting the wake clip", async () => {
+    for (const cause of ["click", "message", "agent"] as const) {
+      const h = makeHarness();
+      await h.lieDown();
+      await h.runFrames(40);
+      h.scene.wake(cause);
+      expect(h.scene.state()).toBe("waking");
+      expect(h.calls.at(-1)).toBe(`play:${BED_WAKE_MOTION_ID}`);
+      expect(h.lying).toEqual([true, false]);
+      // The user's click is a candidate; a message rides its own turn and the backend's stand is silent.
+      expect(h.woke.map((w) => w.cause)).toEqual(cause === "click" ? ["click"] : []);
+      expect(h.scene.takeMessageWake()).toBe(cause === "message");
+    }
+  });
+
+  it("wakes while the lying-down clip still plays", async () => {
+    const h = makeHarness();
+    await h.lieDown();
+    h.scene.wake("agent");
+    expect(h.scene.state()).toBe("waking");
+    expect(h.calls.at(-1)).toBe(`play:${BED_WAKE_MOTION_ID}`);
+  });
+
+  it("answers failed and leaves the scene alone while a scene already runs", async () => {
+    const h = makeHarness();
+    await h.startAsleep();
+    const before = h.calls.length;
+
+    expect(await h.lieDown()).toBe("failed");
+    expect(h.calls).toHaveLength(before);
+    expect(h.scene.state()).toBe("asleep");
+  });
+
+  it("answers failed when a clip is missing or the bed does not load", async () => {
+    const missing = makeHarness({ missing: BED_LIE_MOTION_ID });
+    expect(await missing.lieDown()).toBe("failed");
+    expect(missing.calls).not.toContain(BED_HOLD);
+    expect(missing.lying).toEqual([]);
+    expect(missing.count("onDone")).toBe(1);
+
+    const noBed = makeHarness({ prop: "reject" });
+    expect(await noBed.lieDown()).toBe("failed");
+    expect(noBed.hold()).toBeNull();
+    expect(noBed.calls).not.toContain(`play:${BED_LIE_MOTION_ID}`);
+  });
+
+  it("answers interrupted when the user's click, a message or a drag comes during the start", async () => {
+    for (const interrupt of [
+      (h: ReturnType<typeof makeHarness>) => h.scene.wake("click"),
+      (h: ReturnType<typeof makeHarness>) => h.scene.wake("message"),
+      (h: ReturnType<typeof makeHarness>) => h.scene.cancelStart(),
+    ]) {
+      const h = makeHarness({ prop: "pending" });
+      const lay = h.scene.lieDown();
+      await h.flush();
+      interrupt(h);
+      expect(await lay).toBe("interrupted");
+      expect(h.woke).toEqual([]);
+      expect(h.hold()).toBeNull();
+      expect(h.lying).toEqual([]);
+      expect(h.count("onDone")).toBe(1);
+    }
+  });
+
+  it("leaves a scene that is lying or on the launch entry alone when a drag cancels a start", async () => {
+    const lying = makeHarness();
+    await lying.lieDown();
+    lying.scene.cancelStart();
+    expect(lying.scene.state()).toBe("asleep");
+
+    const launch = makeHarness();
+    launch.scene.start();
+    launch.scene.cancelStart();
+    expect(launch.scene.state()).toBe("starting");
+  });
+
+  it("answers failed, never reports lying and ends when the renderer refuses the lying-down clip", async () => {
+    const h = makeHarness({ refuse: BED_LIE_MOTION_ID });
+
+    expect(await h.lieDown()).toBe("failed");
+    expect(h.lying).toEqual([]);
+    expect(h.calls).not.toContain("asleep:true");
+    expect(h.scene.state()).toBe("done");
+    expect(h.hold()).toBeNull();
+    expect(h.count("onDone")).toBe(1);
+    expect(h.log.info).toHaveBeenCalledWith("bed_scene_end", {
+      entry: "command",
+      reason: "skipped",
+      cause: null,
+    });
+  });
+
+  it("does not fire the wake clip or the posture again after a cancel", async () => {
+    const h = makeHarness();
+    await h.lieDown();
+    h.scene.cancel();
+    await h.flush();
+    expect(h.lying).toEqual([true, false]);
+    expect(h.hold()).toBeNull();
+    expect(h.count("onDone")).toBe(1);
+  });
+
+  it("runs again after it ended, on either entry, with a fresh timeout and a fresh bed", async () => {
+    const h = makeHarness();
+    await h.lieDown();
+    h.scene.wake("agent");
+    await h.runFrames(40);
+    await h.frame(PROP_FADE_S);
+    expect(h.scene.state()).toBe("done");
+    expect(h.count("onDone")).toBe(1);
+    expect(h.lying).toEqual([true, false]);
+
+    expect(await h.lieDown()).toBe("lying");
+    expect(h.scene.state()).toBe("asleep");
+    expect(h.count("prop.dispose")).toBe(1);
+    expect(h.propUrls).toHaveLength(2);
+    expect(h.lying).toEqual([true, false, true]);
+    h.scene.wake("click");
+    await h.runFrames(40);
+    await h.frame(PROP_FADE_S);
+    expect(h.scene.state()).toBe("done");
+
+    h.scene.start();
+    await h.flush();
+    await h.runFrames(WAKE_TIMEOUT_S + 1, 1);
+    expect(h.scene.state()).toBe("waking");
+    expect(h.woke.at(-1)?.cause).toBe("timeout");
+    await h.runFrames(40);
+    await h.frame(PROP_FADE_S);
+    expect(h.scene.state()).toBe("done");
+    expect(h.ticking()).toBe(false);
+    // One tick listener per run, and every park has its release.
+    expect(h.subscribed()).toBe(3);
+    expect(h.count("frame.park")).toBe(3);
+    expect(h.count("frame.release")).toBe(3);
+  });
+});
+
+describe("createBedScene — the gaze stays off while the scene owns the body", () => {
+  /** The gaze state after the last call: what the head tracking is doing now. */
+  const gazeNow = (h: ReturnType<typeof makeHarness>) =>
+    h.calls.filter((c) => c.startsWith("gaze:")).at(-1);
+
+  type Harness = ReturnType<typeof makeHarness>;
+  const entries: Array<[string, (h: Harness) => Promise<unknown>]> = [
+    ["launch", (h) => h.startAsleep()],
+    ["command", (h) => h.lieDown()],
+  ];
+  const ends: Array<[string, (h: Harness) => Promise<void>]> = [
+    [
+      "ended",
+      async (h) => {
+        h.scene.wake("click");
+        await h.runFrames(40);
+        await h.frame(PROP_FADE_S);
+      },
+    ],
+    [
+      "lost",
+      async (h) => {
+        h.setCurrent("idle");
+        await h.frame();
+      },
+    ],
+    [
+      "swapped",
+      async (h) => {
+        h.swapVrm();
+        await h.frame();
+      },
+    ],
+    [
+      "cancelled",
+      async (h) => {
+        h.scene.cancel();
+        await h.flush();
+      },
+    ],
+  ];
+
+  it.each(
+    entries,
+  )("on the %s entry it is off from lying through the wake clip", async (_name, enter) => {
+    const h = makeHarness();
+    await enter(h);
+    await h.runFrames(40);
+    expect(gazeNow(h)).toBe("gaze:false");
+
+    h.scene.wake("click");
+    await h.runFrames(10);
+    expect(h.scene.state()).toBe("waking");
+    expect(gazeNow(h)).toBe("gaze:false");
+    expect(h.calls).not.toContain("gaze:true");
+  });
+
+  it.each(
+    entries.flatMap(([entry, enter]) =>
+      ends.map(([end, finish]) => [entry, end, enter, finish] as const),
+    ),
+  )("on the %s entry it is back on once the scene ended as %s", async (_entry, _end, enter, finish) => {
+    const h = makeHarness();
+    await enter(h);
+    await h.runFrames(40);
+    expect(gazeNow(h)).toBe("gaze:false");
+
+    await finish(h);
+    expect(h.scene.state()).toBe("done");
+    expect(gazeNow(h)).toBe("gaze:true");
+  });
+
+  it("is never turned off when the scene is skipped before she lies down, and ends on", async () => {
+    const h = makeHarness({ missing: BED_WAKE_MOTION_ID });
+    await h.startAsleep();
+
+    expect(h.scene.state()).toBe("done");
+    expect(h.calls).not.toContain("gaze:false");
+    expect(gazeNow(h)).toBe("gaze:true");
   });
 });

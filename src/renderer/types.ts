@@ -255,6 +255,8 @@ export interface Renderer {
    * gaze eases back to neutral (no snap) and the motion/eyes are left untouched once settled.
    */
   setGazeEnabled(enabled: boolean): void;
+  /** Hold the cursor gaze at neutral over `setGazeEnabled`, until lifted with false. */
+  setGazeSuppressed(suppressed: boolean): void;
   /**
    * Latest window-local client CSS px OS-cursor position — e.g. MouseEvent.
    * clientX/clientY; null = unavailable. Converted internally to stage-local

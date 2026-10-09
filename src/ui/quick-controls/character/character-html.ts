@@ -94,15 +94,13 @@ const bedSceneHtml = (): string => `
               </div>
               <button class="yui-switch yui-bed-scene__switch" type="button" role="switch" aria-label="${t("bed_scene.aria")}" aria-checked="true"></button>
             </div>
-            <div class="yui-bed-scene__timeout" hidden>
-              ${numRowHtml({
-                id: "yui-bed-wake-timeout",
-                labelKey: "bed_scene.timeout_label",
-                min: WAKE_TIMEOUT_MIN_S,
-                max: WAKE_TIMEOUT_MAX_S,
-                suffixKey: "reactions.seconds_suffix",
-              })}
-            </div>
+            ${numRowHtml({
+              id: "yui-bed-wake-timeout",
+              labelKey: "bed_scene.timeout_label",
+              min: WAKE_TIMEOUT_MIN_S,
+              max: WAKE_TIMEOUT_MAX_S,
+              suffixKey: "reactions.seconds_suffix",
+            })}
           </div>
         </div>`;
 

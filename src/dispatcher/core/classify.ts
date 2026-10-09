@@ -46,6 +46,8 @@ export function classify(env: BusEnvelope): Classification {
     n === "avatar.walk_end" ||
     n === "avatar.climb_start" ||
     n === "avatar.climb_end" ||
+    n === "avatar.bed_start" ||
+    n === "avatar.bed_end" ||
     n === "avatar.window_sit" ||
     n === "avatar.jump" ||
     n === "user.fall_land"

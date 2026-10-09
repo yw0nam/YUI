@@ -380,6 +380,9 @@ export function createRenderer(options: RendererOptions): Renderer {
     setGazeEnabled(enabled) {
       gaze.setEnabled(enabled);
     },
+    setGazeSuppressed(suppressed) {
+      gaze.setSuppressed(suppressed);
+    },
     setGazeCursor(pos) {
       gaze.setCursorCss(pos && clientToStage(pos.x, pos.y, mountRect));
     },
