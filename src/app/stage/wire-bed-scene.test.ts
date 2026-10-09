@@ -45,7 +45,6 @@ function setup(over: { enabled?: boolean; ready?: Promise<void>; frameWindow?: (
     ambient: {} as never,
     settings: {
       bedSceneSettings: { get: () => stored },
-      gazeSettings: { get: () => ({ enabled: true }) },
       cameraSettings: { get: () => ({ zoom: 1, azimuth: 0.7, polar: 1.4 }) },
     } as never,
     bus: { push: (env: { event_name: string }) => pushed.push(env.event_name) } as never,

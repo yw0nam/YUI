@@ -22,7 +22,7 @@ export function wireBedScene(deps: {
   renderer: Renderer;
   ambient: Tier1Engine;
   bus: Pick<EventBus, "push">;
-  settings: Pick<SettingsStores, "bedSceneSettings" | "gazeSettings" | "cameraSettings">;
+  settings: Pick<SettingsStores, "bedSceneSettings" | "cameraSettings">;
   /** Applies the stored zoom and orbit, which the hold kept out. */
   applyCamera: () => void;
   /** Taken here when the launch scene will run, and released by its end or by the teardown. */
@@ -69,7 +69,6 @@ export function wireBedScene(deps: {
       scene = createBedScene({
         renderer: deps.renderer,
         liveliness: deps.ambient,
-        gazeEnabled: () => deps.settings.gazeSettings.get().enabled,
         camera: deps.settings.cameraSettings,
         frame: isTauri() ? createSceneFrame(deps.renderer, locomotion) : null,
         placed: locomotion.placed,

@@ -57,12 +57,10 @@ export interface BedSceneDeps {
     | "getModelRestHipsHeight"
     | "getPxPerMetre"
     | "getCharacterAnchor"
-    | "setGazeEnabled"
+    | "setGazeSuppressed"
     | "setOrbit"
   >;
   liveliness: Pick<Tier1Engine, "setAsleep">;
-  /** The user's gaze setting, restored when she wakes. */
-  gazeEnabled: () => boolean;
   /** The stored orbit: the scene views her head-on and puts this back at its end. */
   camera: { get(): { azimuth: number; polar: number } };
   /** null runs the scene in the window as it is. */
@@ -164,7 +162,7 @@ export function createBedScene(deps: BedSceneDeps): BedScene {
     try {
       liveliness.setAsleep(false);
       renderer.setSpringBonesHeld(false);
-      renderer.setGazeEnabled(deps.gazeEnabled());
+      renderer.setGazeSuppressed(false);
       renderer.setOrbit(deps.camera.get());
       prop?.dispose();
       prop = null;
@@ -243,7 +241,7 @@ export function createBedScene(deps: BedSceneDeps): BedScene {
     liveliness.setAsleep(true);
     // Lying on her side, the spring simulation pushes the long hair off the body colliders.
     renderer.setSpringBonesHeld(true);
-    renderer.setGazeEnabled(false);
+    renderer.setGazeSuppressed(true);
     state = "asleep";
     setLying(true);
   }

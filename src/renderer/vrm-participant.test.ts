@@ -136,6 +136,7 @@ describe("buildVrmParticipants", () => {
       isConverging: vi.fn(() => false),
       setConfig: vi.fn(),
       setEnabled: vi.fn(),
+      setSuppressed: vi.fn(),
       setCursorCss: vi.fn(),
     };
     const emotion: EmotionCrossfade = {
