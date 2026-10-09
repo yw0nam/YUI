@@ -34,6 +34,7 @@ function setup(over: { enabled?: boolean; ready?: Promise<void>; frameWindow?: (
   const frameCalls: number[][] = [];
   const setViewWindow = vi.fn();
   const teardowns: Array<() => void> = [];
+  const stored = { enabled: over.enabled ?? true, wakeTimeoutS: 45 };
   const bedScene = wireBedScene({
     renderer: {
       setViewWindow,
@@ -43,7 +44,7 @@ function setup(over: { enabled?: boolean; ready?: Promise<void>; frameWindow?: (
     } as never,
     ambient: {} as never,
     settings: {
-      bedSceneSettings: { get: () => ({ enabled: over.enabled ?? true, wakeTimeoutS: 45 }) },
+      bedSceneSettings: { get: () => stored },
       gazeSettings: { get: () => ({ enabled: true }) },
       cameraSettings: { get: () => ({ zoom: 1, azimuth: 0.7, polar: 1.4 }) },
     } as never,
@@ -82,7 +83,7 @@ function setup(over: { enabled?: boolean; ready?: Promise<void>; frameWindow?: (
     );
     return mocks.sceneDeps.at(-1) as BedSceneDeps;
   };
-  return { bedScene, start, calls, pushed, frameCalls, setViewWindow, teardowns };
+  return { bedScene, start, stored, calls, pushed, frameCalls, setViewWindow, teardowns };
 }
 
 afterEach(() => {
@@ -119,7 +120,9 @@ describe("wireBedScene", () => {
     const deps = h.start();
 
     expect(mocks.scene.start).toHaveBeenCalledOnce();
-    expect(deps.wakeTimeoutS).toBe(45);
+    expect(deps.wakeTimeoutS()).toBe(45);
+    h.stored.wakeTimeoutS = 10;
+    expect(deps.wakeTimeoutS()).toBe(10);
     expect(deps.frame).toBeNull();
     expect(deps.onWake).toBe(mocks.onWake);
     expect(h.teardowns).toContain(mocks.scene.cancel);

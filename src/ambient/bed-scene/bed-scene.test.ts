@@ -64,6 +64,7 @@ function makeHarness(
   let resolveProp: (p: PropHandle) => void = () => {};
   let resolvePark: () => void = () => {};
   let place: () => void = () => {};
+  let wakeTimeoutS = WAKE_TIMEOUT_S;
   const log = { debug: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn() };
   const deps: BedSceneDeps = {
     renderer: {
@@ -124,7 +125,7 @@ function makeHarness(
       },
     },
     placed: new Promise((resolve) => (place = resolve)),
-    wakeTimeoutS: WAKE_TIMEOUT_S,
+    wakeTimeoutS: () => wakeTimeoutS,
     onDone: () => calls.push("onDone"),
     onWake: (cause) => woke.push({ cause, after: calls.at(-1) }),
     onLying: (isLying) => lying.push(isLying),
@@ -162,6 +163,9 @@ function makeHarness(
       await flush();
     },
     place: () => place(),
+    setWakeTimeoutS: (s: number) => {
+      wakeTimeoutS = s;
+    },
     /** Lie down on command, land the placement and let the start sequence settle. */
     lieDown: async () => {
       const lay = scene.lieDown();
@@ -271,6 +275,14 @@ describe("createBedScene", () => {
       reason: "ended",
       cause: "timeout",
     });
+  });
+
+  it("sleeps for the wake timeout set after the scene was built", async () => {
+    const h = makeHarness();
+    h.setWakeTimeoutS(3);
+    await h.startAsleep();
+    await h.runFrames(4, 1);
+    expect(h.scene.state()).toBe("waking");
   });
 
   it("ends in order: the clip ends, the bed fades, then dispose, frame release, hold release, idle, onDone", async () => {
