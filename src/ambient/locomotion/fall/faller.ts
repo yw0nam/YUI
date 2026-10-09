@@ -185,7 +185,8 @@ export interface DropOptions {
 
 /**
  * The monitor a fall happens on: the one under the feet, or with `landOnSeam` the monitor
- * whose floor line the feet hang just below, when there is one over them.
+ * whose floor line the feet hang just below, when there is one over them. Feet under no
+ * monitor that stand on the bottom edge of one are on that one.
  */
 function pickFallMonitor(args: {
   monitors: ScreenMonitor[];
@@ -197,6 +198,8 @@ function pickFallMonitor(args: {
   feetY: number;
   /** How far below a floor line the feet may hang and still land on it (logical px). */
   seamSnapPx: number | null;
+  /** How far past a screen's bottom edge feet standing on its floor may read (physical px). */
+  groundedPhysicalPx: number;
 }): ScreenMonitor | null {
   const { monitors, feetPhysicalX, feetPhysicalY, feetX, feetY, seamSnapPx } = args;
   if (seamSnapPx !== null) {
@@ -207,7 +210,11 @@ function pickFallMonitor(args: {
     });
     if (above) return above;
   }
-  return monitorAt(monitors, feetPhysicalX, feetPhysicalY);
+  // A floor line on the screen's bottom edge lies one past the monitor's bounds.
+  return (
+    monitorAt(monitors, feetPhysicalX, feetPhysicalY) ??
+    monitorAt(monitors, feetPhysicalX, feetPhysicalY - args.groundedPhysicalPx)
+  );
 }
 
 export interface Faller {
@@ -417,6 +424,7 @@ export function createFaller(deps: FallerDeps): Faller {
       feetX,
       feetY,
       seamSnapPx: opts.landOnSeam ? probe.charHpx * cfg.min_drop_frac : null,
+      groundedPhysicalPx: deps.getFloorTolerancePx() * scale,
     });
     if (!monitor) {
       log.warn("fall_skipped", {
