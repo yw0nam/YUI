@@ -1,5 +1,5 @@
 /**
- * Bed scene section — the launch-bed switch and the wake-timeout row it reveals.
+ * Bed scene section — the launch-bed switch and the wake-timeout row.
  * This module owns the store subscription, repaints and teardown; the shell only constructs it.
  */
 
@@ -28,13 +28,11 @@ export function createBedSceneSection(deps: BedSceneSectionDeps): {
 
   const sectionEl = root.querySelector<HTMLElement>(".yui-bed-scene")!;
   const switchEl = sectionEl.querySelector<HTMLButtonElement>(".yui-bed-scene__switch")!;
-  const timeoutRow = sectionEl.querySelector<HTMLElement>(".yui-bed-scene__timeout")!;
   const timeoutInput = sectionEl.querySelector<HTMLInputElement>("#yui-bed-wake-timeout")!;
 
   function refresh(): void {
     const s = settings.get();
     switchEl.setAttribute("aria-checked", String(s.enabled));
-    timeoutRow.hidden = !s.enabled;
     reflectUnlessEditing(timeoutInput, String(s.wakeTimeoutS));
   }
 
