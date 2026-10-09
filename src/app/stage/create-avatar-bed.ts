@@ -56,12 +56,12 @@ export function createAvatarBed(deps: {
       renderer.setPerchTarget(null);
       renderer.setPeekTarget(null);
       renderer.setMotionMirror(false);
-      hold.take();
       starting = true;
       interrupted = false;
       // Once the scene has the hold, its own exit lets go after the window is back to its size.
       let handedOver = false;
       try {
+        hold.take();
         const placed = await deps.place();
         if (interrupted) return fail("interrupted");
         if (!placed) return fail("busy");
