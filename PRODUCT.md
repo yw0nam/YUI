@@ -6,7 +6,7 @@ product
 
 ## Users
 
-Personal use first (currently the developer), with future OSS release in mind.
+Personal use first (currently the developer). The source is public under a noncommercial license.
 
 Usage context: in front of a computer all day. The YUI character **lives on the desktop** as a transparent, always-on-top overlay — the main experience is a presence in a corner of the workspace, while settings open in a separate utility window. On Android the same companion fills a phone: the character on a dark stage that fills the screen, chat over the push transport, and the same speech bubble, status pill and composer — a presence that leaves the desk with you rather than a messenger app.
 

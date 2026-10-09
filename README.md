@@ -10,6 +10,9 @@
 ![Tauri v2](https://img.shields.io/badge/Tauri-v2-24C8DB?logo=tauri&logoColor=white)
 ![TypeScript](https://img.shields.io/badge/TypeScript-3178C6?logo=typescript&logoColor=white)
 ![three.js](https://img.shields.io/badge/three.js-000000?logo=three.js&logoColor=white)
+[![License: PolyForm Noncommercial 1.0.0](https://img.shields.io/badge/license-PolyForm%20Noncommercial%201.0.0-blue)](LICENSE)
+
+English | [日本語](README.ja.md)
 
 <a href="https://youtu.be/dIOQdoAp0GE"><img src="docs/public/yui-hero.gif" alt="YUI — a VRM character standing over a browser window as a transparent, always-on-top overlay: her head and eyes follow the mouse cursor, then she answers a typed question about what is on screen in a speech bubble" width="820">
 
@@ -181,7 +184,7 @@ for the full notice.
 
 ## License
 
-YUI's source code is licensed under the
+YUI is source-available. Its source code is licensed under the
 [PolyForm Noncommercial License 1.0.0](LICENSE) — free for noncommercial use,
 modification, and redistribution with attribution. **Commercial use requires
 permission from the author** ([https://github.com/yw0nam](https://github.com/yw0nam)).
