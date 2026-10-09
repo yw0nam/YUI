@@ -41,7 +41,7 @@ export function wireBedScene(deps: {
   /** Builds the scene, and starts it when the launch scene runs at this launch. */
   start(locomotion: Locomotion, onWake: (cause: Exclude<WakeCause, "message">) => void): void;
 } {
-  const { enabled, wakeTimeoutS } = deps.settings.bedSceneSettings.get();
+  const { enabled } = deps.settings.bedSceneSettings.get();
   const { hold } = deps;
   if (enabled && !prefersReducedMotion()) {
     hold.take();
@@ -73,7 +73,7 @@ export function wireBedScene(deps: {
         camera: deps.settings.cameraSettings,
         frame: isTauri() ? createSceneFrame(deps.renderer, locomotion) : null,
         placed: locomotion.placed,
-        wakeTimeoutS,
+        wakeTimeoutS: () => deps.settings.bedSceneSettings.get().wakeTimeoutS,
         onDone: () => {
           hold.release();
           deps.applyCamera();

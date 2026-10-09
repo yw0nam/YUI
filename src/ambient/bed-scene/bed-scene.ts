@@ -69,8 +69,8 @@ export interface BedSceneDeps {
   frame: Pick<ReturnType<typeof createStationaryFrame>, "park" | "refit" | "release"> | null;
   /** Settles once the boot placement has put the window where it stays. */
   placed: Promise<void>;
-  /** How long she sleeps before the timeout wakes her, on either entry. */
-  wakeTimeoutS: number;
+  /** How long she sleeps before the timeout wakes her, on either entry; read while she sleeps. */
+  wakeTimeoutS: () => number;
   /** Called once, after the hold is released. */
   onDone: () => void;
   /** Called as the wake clip starts, for a click or the timeout; never for a message or the backend's stand. */
@@ -336,7 +336,7 @@ export function createBedScene(deps: BedSceneDeps): BedScene {
         return;
       }
       asleepS += ctx.dt;
-      if (asleepS > deps.wakeTimeoutS) wake("timeout");
+      if (asleepS > deps.wakeTimeoutS()) wake("timeout");
       return;
     }
     if (fadeS === null) {
