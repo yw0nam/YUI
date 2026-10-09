@@ -264,6 +264,35 @@ describe("createCursorGaze — step()", () => {
     expect(easingAngle).toBeLessThan(engagedAngle);
   });
 
+  it("a suppressed gaze stays neutral whatever the enabled flag is set to, and tracks once lifted", () => {
+    const { vrm, head, camera } = makeFixture();
+    const gaze = createCursorGaze({
+      camera,
+      getVrm: () => vrm,
+      gaze: GAZE,
+      log: noopLog,
+      mountWidth: () => 800,
+      mountHeight: () => 600,
+    });
+    gaze.onVrmLoaded(vrm);
+    gaze.setCursorCss({ x: 2000, y: -900 });
+    const settle = (): number => {
+      for (let i = 0; i < 120; i++) {
+        head.quaternion.identity();
+        gaze.step(0.05);
+      }
+      return quaternionAngleDeg(head.quaternion);
+    };
+
+    gaze.setSuppressed(true);
+    gaze.setEnabled(false);
+    gaze.setEnabled(true);
+    expect(settle()).toBeCloseTo(0, 3);
+
+    gaze.setSuppressed(false);
+    expect(settle()).toBeGreaterThan(5);
+  });
+
   it("a held neutral gaze makes no bone writes (settled no-op)", () => {
     const { vrm, head, neck, camera } = makeFixture();
     const gaze = createCursorGaze({

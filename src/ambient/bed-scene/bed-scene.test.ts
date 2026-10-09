@@ -103,12 +103,12 @@ function makeHarness(
       getModelRestHipsHeight: () => REST_HIPS_M,
       getPxPerMetre: () => PX_PER_METRE,
       getCharacterAnchor: () => ANCHOR,
-      setGazeEnabled: (enabled) => calls.push(`gaze:${enabled}`),
+      // Logged as the gaze the suppression leaves: off while suppressed.
+      setGazeSuppressed: (suppressed) => calls.push(`gaze:${!suppressed}`),
       setOrbit: (o) => calls.push(`orbit:${o.azimuth},${o.polar}`),
       setSpringBonesHeld: (held) => calls.push(`spring:${held}`),
     },
     liveliness: { setAsleep: (asleep) => calls.push(`asleep:${asleep}`) },
-    gazeEnabled: () => true,
     camera: { get: () => STORED_ORBIT },
     frame: {
       park: async (e) => {
