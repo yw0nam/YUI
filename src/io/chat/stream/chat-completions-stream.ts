@@ -132,6 +132,9 @@ export async function* streamChatCompletions(
               roundText += item.text;
               yield { type: "speech_delta", text: item.text };
               break;
+            case "reasoning":
+              yield { type: "reasoning", delta: item.text };
+              break;
             case "tool_call":
               yield* handleToolCall(item);
               break;

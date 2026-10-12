@@ -76,6 +76,7 @@ export function buildCCMessages(opts: BuildCCMessagesOpts): CCMessage[] {
 
 type ReducerItem =
   | { kind: "text"; text: string }
+  | { kind: "reasoning"; text: string }
   | { kind: "tool_call"; id: string | undefined; name: string; argsJson: string }
   | { kind: "usage"; usage: Partial<Usage> }
   | { kind: "finish"; reason: string };
@@ -151,8 +152,13 @@ export function createChunkReducer() {
         if (delta !== null && typeof delta === "object") {
           const d = delta as Record<string, unknown>;
 
-          // Only delta.content is speech — reasoning_content/reasoning/thinking
-          // are ignored by construction (never read).
+          // Only delta.content is speech; reasoning_content/reasoning are display-only reasoning.
+          if (typeof d.reasoning_content === "string" && d.reasoning_content.length > 0) {
+            items.push({ kind: "reasoning", text: d.reasoning_content });
+          }
+          if (typeof d.reasoning === "string" && d.reasoning.length > 0) {
+            items.push({ kind: "reasoning", text: d.reasoning });
+          }
           if (typeof d.content === "string" && d.content.length > 0) {
             items.push({ kind: "text", text: d.content });
           }
