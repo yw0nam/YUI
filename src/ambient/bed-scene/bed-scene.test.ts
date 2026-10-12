@@ -510,11 +510,16 @@ describe("createBedScene", () => {
     }
   });
 
-  it("reports the posture as lying from the sleep clip until the wake clip starts", async () => {
+  it("reports the posture as lying from the sleep clip, through the wake clip, until the scene ends", async () => {
     const h = makeHarness();
     await h.startAsleep();
     expect(h.lying).toEqual([true]);
     h.scene.wake("click");
+    await h.runFrames(20);
+    expect(h.scene.state()).toBe("waking");
+    expect(h.lying).toEqual([true]);
+    await h.frame(PROP_FADE_S);
+    expect(h.scene.state()).toBe("done");
     expect(h.lying).toEqual([true, false]);
   });
 });
@@ -584,7 +589,7 @@ describe("createBedScene — lying down on command", () => {
       h.scene.wake(cause);
       expect(h.scene.state()).toBe("waking");
       expect(h.calls.at(-1)).toBe(`play:${BED_WAKE_MOTION_ID}`);
-      expect(h.lying).toEqual([true, false]);
+      expect(h.lying).toEqual([true]);
       // The user's click is a candidate; a message rides its own turn and the backend's stand is silent.
       expect(h.woke.map((w) => w.cause)).toEqual(cause === "click" ? ["click"] : []);
       expect(h.scene.takeMessageWake()).toBe(cause === "message");
