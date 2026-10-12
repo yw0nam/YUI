@@ -8,7 +8,7 @@
  */
 
 import { describe, expect, it } from "vitest";
-import { createBrowserScreenSourceProvider } from "./screen-source-provider";
+import { createBrowserScreenSourceProvider, noopScreenCapturer } from "./screen-source-provider";
 
 describe("createBrowserScreenSourceProvider — with injected screen", () => {
   it("returns a single monitor with injected width/height", async () => {
@@ -47,4 +47,8 @@ describe("createBrowserScreenSourceProvider — structure", () => {
     expect(m.label).toBe("This screen");
     expect(m.primary).toBe(true);
   });
+});
+
+it("the noop capturer resolves null for a point", async () => {
+  await expect(noopScreenCapturer.captureAt({ x: 10, y: 20 })).resolves.toBeNull();
 });

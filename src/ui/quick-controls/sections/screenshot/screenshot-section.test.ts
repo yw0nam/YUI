@@ -110,3 +110,45 @@ describe("createScreenshotSection", () => {
     expect(settings.get().enabled).toBe(false);
   });
 });
+
+describe("screenshot request switch", () => {
+  afterEach(() => {
+    document.body.innerHTML = "";
+    setLocale("en");
+    vi.restoreAllMocks();
+  });
+  it.each([
+    "en",
+    "ja",
+    "ko",
+  ] as const)("mirrors the enabled row and reflects localized permission in %s", (locale) => {
+    setLocale(locale);
+    const { root, settings, section, switchBtn, listMonitors } = build();
+    const request = root.querySelector<HTMLButtonElement>(".yui-screenshot-requests-switch");
+    expect(request).not.toBeNull();
+    const button = request!;
+    expect(button.classList.contains("yui-switch")).toBe(true);
+    expect(button.getAttribute("role")).toBe("switch");
+    expect(button.getAttribute("type")).toBe("button");
+    const row = button.closest(".yui-row")!;
+    expect(row.className).toBe(switchBtn.closest(".yui-row")!.className);
+    expect(row.querySelector(".yui-row__main .yui-row__label")?.textContent?.trim()).toBe(
+      button.getAttribute("aria-label"),
+    );
+    expect(button.getAttribute("aria-label")).not.toMatch(/^screenshot\./);
+    section.reflect();
+    expect(button.getAttribute("aria-checked")).toBe("false");
+    const footOff = row.querySelector(".yui-row__sub")!.textContent;
+    button.click();
+    expect(settings.get().allowRequests).toBe(true);
+    expect(settings.get().enabled).toBe(false);
+    expect(button.getAttribute("aria-checked")).toBe("true");
+    expect(row.querySelector(".yui-row__sub")!.textContent).not.toBe(footOff);
+    expect(listMonitors).not.toHaveBeenCalled();
+    settings.setAllowRequests(false);
+    expect(button.getAttribute("aria-checked")).toBe("false");
+    section.dispose();
+    button.click();
+    expect(settings.get().allowRequests).toBe(false);
+  });
+});

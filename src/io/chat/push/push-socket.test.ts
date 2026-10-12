@@ -1370,3 +1370,46 @@ describe("createPushSocket — tool calls", () => {
     expect(FakeSocket.last().frames().at(-1)).toEqual(frame);
   });
 });
+
+describe("push socket image result cap", () => {
+  it("admits an image tool_result under ready max_turn_bytes and retains the text cap", async () => {
+    await connected();
+    FakeSocket.last().push({
+      type: "ready",
+      chat_id: "yui-3f9a2c1d",
+      max_turn_bytes: PUSH_FRAME_MAX_BYTES * 2,
+    });
+    const image = {
+      type: "tool_result" as const,
+      id: "c1",
+      turn_id: "t",
+      result: "screen",
+      images: ["a".repeat(PUSH_FRAME_MAX_BYTES)],
+    };
+    expect(socket.sendToolResult(image)).toBe(true);
+    expect(FakeSocket.last().frames().at(-1)).toEqual(image);
+    expect(
+      socket.sendToolResult({
+        type: "tool_result",
+        id: "c2",
+        turn_id: "t",
+        result: "a".repeat(PUSH_FRAME_MAX_BYTES),
+      }),
+    ).toBe(false);
+    expect(
+      socket.sendToolResult({ ...image, images: ["a".repeat(PUSH_FRAME_MAX_BYTES * 2)] }),
+    ).toBe(false);
+  });
+  it("uses 256 KiB for image results without an advertised turn cap", async () => {
+    await connected();
+    expect(
+      socket.sendToolResult({
+        type: "tool_result",
+        id: "c1",
+        turn_id: "t",
+        result: "screen",
+        images: ["a".repeat(PUSH_FRAME_MAX_BYTES)],
+      }),
+    ).toBe(false);
+  });
+});

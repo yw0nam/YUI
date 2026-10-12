@@ -977,3 +977,31 @@ describe("streamChat — Responses mode regression (chat_api unset/'responses')"
     expect(ccCreateMock).not.toHaveBeenCalled();
   });
 });
+
+it("image results keep adjacent tool texts before a trailing user image message", async () => {
+  const image = "data:image/jpeg;base64,YQ==";
+  const screen = {
+    ...toolStub("look"),
+    failed: () => false,
+    execute: vi.fn(async () => ({ text: "screenshot of display 0", images: [image] })),
+  };
+  ccCreateMock
+    .mockResolvedValueOnce(
+      streamOf([
+        toolCallStart(0, "screen_call", "look", '{"at":"screen"}'),
+        toolCallStart(1, "text_call", "lookup", "{}"),
+        finishChunk("tool_calls"),
+      ]),
+    )
+    .mockResolvedValueOnce(streamOf([textChunk("Seen."), finishChunk("stop")]));
+  await collect(
+    streamChat(CONFIG, req(), {
+      tools: createClientToolRegistry([screen, toolStub("lookup", "42")]),
+    }),
+  );
+  expect(ccCreateMock.mock.calls[1]?.[0].messages.slice(-3)).toEqual([
+    { role: "tool", tool_call_id: "screen_call", content: "screenshot of display 0" },
+    { role: "tool", tool_call_id: "text_call", content: "42" },
+    { role: "user", content: [{ type: "image_url", image_url: { url: image } }] },
+  ]);
+});

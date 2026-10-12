@@ -257,3 +257,37 @@ async def test_a_call_that_waited_on_the_lock_does_not_send_after_the_client_is_
 
     assert await asyncio.wait_for(task, 2.0) == "error: client disconnected"
     assert sends == []
+
+
+@pytest.mark.parametrize("images", [None, [], ["data:image/jpeg;base64,YQ==", "data:image/png;base64,Yg=="]])
+async def test_screen_tool_result_images_reach_the_handler_inline(monkeypatch, images):
+    made = made_adapter(monkeypatch, answers=False)
+    handler.set_sink(made)
+    STUB_ENV["HERMES_SESSION_CHAT_ID"] = CHAT
+
+    async def answer(chat_id, frame):
+        result = {
+            "type": "tool_result",
+            "id": frame["id"],
+            "turn_id": frame["turn_id"],
+            "result": "screenshot of display 1",
+        }
+        if images is not None:
+            result["images"] = images
+        await made._on_frame(chat_id, result)
+        return True
+
+    monkeypatch.setattr(made, "_send_frame", answer)
+    result = await asyncio.to_thread(handler.handle("look"), {"at": "screen"})
+    expected = (
+        {
+            "_multimodal": True,
+            "content": [
+                {"type": "text", "text": "screenshot of display 1"},
+                *[{"type": "image_url", "image_url": {"url": url}} for url in images],
+            ],
+        }
+        if images
+        else "screenshot of display 1"
+    )
+    assert result == expected

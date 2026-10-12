@@ -88,3 +88,8 @@ describe("executeClientTool", () => {
     released?.("late ok");
   });
 });
+
+it("passes an image result through unchanged", async () => {
+  const result = { text: "screenshot of display 0", images: ["data:image/jpeg;base64,YQ=="] };
+  await expect(executeClientTool(tool({ execute: async () => result }), {})).resolves.toBe(result);
+});

@@ -592,3 +592,28 @@ describe("streamChat — Responses tool-call round trip", () => {
     expect(events.at(-1)).not.toHaveProperty("toolOutputs");
   });
 });
+
+it("image results encode SDK function_call_output input_text and input_image parts", async () => {
+  const image = "data:image/jpeg;base64,YQ==";
+  const screen = {
+    ...toolStub("look"),
+    failed: () => false,
+    execute: vi.fn(async () => ({ text: "screenshot of display 0", images: [image] })),
+  };
+  createMock
+    .mockResolvedValueOnce(
+      streamOf([...call("look", "fc_screen", '{"at":"screen"}'), done("resp_1")]),
+    )
+    .mockResolvedValueOnce(streamOf([text("Seen."), done("resp_2")]));
+  await collect(streamChat(CONFIG, req(), optsFor(screen)));
+  const expected: import("openai/resources/responses/responses").ResponseInputItem.FunctionCallOutput =
+    {
+      type: "function_call_output",
+      call_id: "call_fc_screen",
+      output: [
+        { type: "input_text", text: "screenshot of display 0" },
+        { type: "input_image", image_url: image, detail: "auto" },
+      ],
+    };
+  expect(createMock.mock.calls[1]?.[0].input.at(-1)).toEqual(expected);
+});

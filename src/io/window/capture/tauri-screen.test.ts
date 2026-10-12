@@ -144,3 +144,20 @@ describe("createTauriScreenCapturer — invoke failure", () => {
     await expect(capturer.capture(source)).resolves.toBeNull();
   });
 });
+
+describe("Tauri point capture", () => {
+  it("passes logical desktop coordinates to capture_screen_at with the existing default edge", async () => {
+    const invoke = vi.fn().mockResolvedValue({ dataUrl: "data:image/jpeg;base64,YQ==" });
+    const capturer = createTauriScreenCapturer(undefined, invoke);
+    await expect(capturer.captureAt({ x: -600, y: -100 })).resolves.toEqual({
+      data_url: "data:image/jpeg;base64,YQ==",
+    });
+    expect(invoke).toHaveBeenCalledWith("capture_screen_at", { x: -600, y: -100, maxEdge: 1280 });
+  });
+  it("point capture resolves null when invoke rejects", async () => {
+    const invoke = vi.fn().mockRejectedValue(new Error("capture denied"));
+    await expect(
+      createTauriScreenCapturer(1280, invoke).captureAt({ x: 10, y: 20 }),
+    ).resolves.toBeNull();
+  });
+});

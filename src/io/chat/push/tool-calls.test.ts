@@ -9,9 +9,12 @@ import { describe, expect, it, vi } from "vitest";
 import type { Logger } from "../../../logger";
 import type { ClientTool } from "../tools/client-tools";
 import { createClientToolRegistry } from "../tools/client-tools";
+import { fitTurnImages } from "./fit-turn-images";
 import type { ToolCallFrame } from "./push-frames";
 import { PUSH_FRAME_MAX_BYTES } from "./push-socket";
 import { createPushToolCalls } from "./tool-calls";
+
+vi.mock("./fit-turn-images", () => ({ fitTurnImages: vi.fn(async (images: string[]) => images) }));
 
 function tool(
   name: string,
@@ -189,6 +192,90 @@ describe("createPushToolCalls", () => {
     h.calls.handle(call("c1", "t", "look"));
     await flush();
 
+    expect(h.sent).toEqual([
+      { type: "tool_result", id: "c1", turn_id: "t", result: "error: result too large" },
+    ]);
+  });
+});
+
+describe("push image results", () => {
+  async function imageResult(text: string, images: string[], cap?: number, id = "c1") {
+    const screen = { ...tool("look", async () => ""), execute: async () => ({ text, images }) };
+    const h = harness({ tools: createClientToolRegistry([screen]), getMaxTurnBytes: () => cap });
+    h.calls.handle(call(id, "t", "look"));
+    await flush();
+    return h.sent[0];
+  }
+  it("sends images above the text cap under the advertised turn cap", async () => {
+    const images = [`data:image/jpeg;base64,${"a".repeat(PUSH_FRAME_MAX_BYTES)}`];
+    vi.mocked(fitTurnImages).mockImplementation(async (value) => value);
+    expect(await imageResult("screen", images, PUSH_FRAME_MAX_BYTES * 2)).toEqual({
+      type: "tool_result",
+      id: "c1",
+      turn_id: "t",
+      result: "screen",
+      images,
+    });
+  });
+  it("uses the turn fitter and sends its fitted images within the serialized budget", async () => {
+    const images = [`data:image/jpeg;base64,${"a".repeat(1000)}`];
+    const fitted = ["data:image/jpeg;base64,YQ=="];
+    vi.mocked(fitTurnImages).mockClear().mockResolvedValueOnce(fitted);
+    const frame = await imageResult("화면", images, 150, "識別子");
+    const emptyFrame = {
+      type: "tool_result",
+      id: "識別子",
+      turn_id: "t",
+      result: "화면",
+      images: [],
+    };
+    const budget = 150 - new TextEncoder().encode(JSON.stringify(emptyFrame)).length;
+    expect(fitTurnImages).toHaveBeenCalledWith(images, budget);
+    expect(frame).toEqual({
+      type: "tool_result",
+      id: "識別子",
+      turn_id: "t",
+      result: "화면",
+      images: fitted,
+    });
+    expect(new TextEncoder().encode(JSON.stringify(frame)).length).toBeLessThanOrEqual(150);
+  });
+  it("removes images and returns a small error when the fitter cannot fit", async () => {
+    vi.mocked(fitTurnImages).mockImplementation(async (value) => value);
+    expect(await imageResult("screen", ["a".repeat(1000)], 100)).toEqual({
+      type: "tool_result",
+      id: "c1",
+      turn_id: "t",
+      result: "error: result too large",
+    });
+  });
+  it("uses the text cap when no turn cap is advertised", async () => {
+    vi.mocked(fitTurnImages).mockImplementation(async (value) => value);
+    expect(await imageResult("screen", ["a".repeat(PUSH_FRAME_MAX_BYTES)])).toEqual({
+      type: "tool_result",
+      id: "c1",
+      turn_id: "t",
+      result: "error: result too large",
+    });
+  });
+  it("counts UTF-8 ids and text against the final image frame size", async () => {
+    vi.mocked(fitTurnImages).mockImplementation(async (value) => value);
+    expect(
+      await imageResult("한".repeat(30), ["data:image/jpeg;base64,YQ=="], 150, "識別子"),
+    ).toEqual({
+      type: "tool_result",
+      id: "識別子",
+      turn_id: "t",
+      result: "error: result too large",
+    });
+  });
+  it("keeps text-only results under 256 KiB even with a larger turn cap", async () => {
+    const h = harness({
+      tools: createClientToolRegistry([tool("look", async () => "a".repeat(PUSH_FRAME_MAX_BYTES))]),
+      getMaxTurnBytes: () => PUSH_FRAME_MAX_BYTES * 2,
+    });
+    h.calls.handle(call("c1", "t", "look"));
+    await flush();
     expect(h.sent).toEqual([
       { type: "tool_result", id: "c1", turn_id: "t", result: "error: result too large" },
     ]);

@@ -94,3 +94,26 @@ describe("runClientCall — tool_status state", () => {
     expect(events.some((e) => e.type === "express")).toBe(true);
   });
 });
+
+describe("runClientCall — image result status", () => {
+  it.each([
+    ["screenshot of display 0", "done"],
+    ["error: capture denied", "failed"],
+  ])("classifies object text %s as %s", async (text, state) => {
+    const registry = createClientToolRegistry([
+      tool({
+        name: "look",
+        execute: async () => ({ text, images: ["data:image/jpeg;base64,YQ=="] }),
+      }),
+    ]);
+    expect(statusesOf(await collect(registry, "look", "{}"))).toEqual(["running", state]);
+  });
+  it("passes object text to the custom failed predicate", async () => {
+    const failed = vi.fn((text: string) => text === "nope");
+    const registry = createClientToolRegistry([
+      tool({ failed, execute: async () => ({ text: "nope", images: [] }) }),
+    ]);
+    expect(statusesOf(await collect(registry, "body_action", "{}"))).toEqual(["running", "failed"]);
+    expect(failed).toHaveBeenCalledWith("nope");
+  });
+});

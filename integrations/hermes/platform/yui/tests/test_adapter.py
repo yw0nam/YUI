@@ -2116,3 +2116,17 @@ async def test_a_turn_reads_the_ids_its_own_chat_published(client, adapter, decl
 async def test_a_turn_on_a_chat_that_never_published_leaves_the_schema_alone(adapter, declared):
     await adapter.on_processing_start(user_turn(adapter, "t1"))
     assert declared == []
+
+
+@pytest.mark.parametrize("images", [None, [], [17], "not-a-list", ["data:image/jpeg;base64,YQ=="]])
+def test_tool_result_larger_cap_is_only_for_nonempty_string_images(images):
+    from yui.src.transport.adapter import _fits
+
+    frame = {"type": "tool_result", "result": "screen"}
+    if images is not None:
+        frame["images"] = images
+    has_images = isinstance(images, list) and bool(images) and all(isinstance(url, str) for url in images)
+    assert _fits(frame, MAX_FRAME_BYTES) is True
+    assert _fits(frame, MAX_FRAME_BYTES + 1) is has_images
+    assert _fits(frame, MAX_TURN_BYTES) is has_images
+    assert _fits(frame, MAX_TURN_BYTES + 1) is False

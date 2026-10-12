@@ -123,3 +123,39 @@ describe("createScreenshotSettings — setSource", () => {
     expect(cb).not.toHaveBeenCalled();
   });
 });
+
+describe("screenshot request permission", () => {
+  it("defaults request permission off", () => {
+    expect(createScreenshotSettings().get().allowRequests).toBe(false);
+  });
+  it("defaults permission off and preserves a legacy enabled/source record", () => {
+    const source = { kind: "monitor" as const, index: 1, label: "External" };
+
+    const store = createScreenshotSettings({ storage: fakeStorage({ enabled: true, source }) });
+    expect(store.get()).toEqual({ enabled: true, source, allowRequests: false });
+  });
+
+  it("persists and reloads request permission independently of automatic attachment", () => {
+    let saved: ScreenshotSettings = { enabled: false, source: DEFAULT_SOURCE };
+    const storage = {
+      load: () => saved,
+      save: (value: ScreenshotSettings) => {
+        saved = value;
+      },
+    };
+    const store = createScreenshotSettings({ storage });
+    const changed = vi.fn();
+    store.subscribe(changed);
+    store.setAllowRequests(true);
+    expect(store.get()).toEqual({ enabled: false, source: DEFAULT_SOURCE, allowRequests: true });
+    store.setAllowRequests(true);
+    expect(changed).toHaveBeenCalledTimes(1);
+    store.setEnabled(true);
+    expect(store.get().allowRequests).toBe(true);
+    const reloaded = createScreenshotSettings({ storage });
+    expect(reloaded.get()).toEqual(store.get());
+    reloaded.setAllowRequests(false);
+    store.reloadFromStorage();
+    expect(store.get()).toEqual({ enabled: true, source: DEFAULT_SOURCE, allowRequests: false });
+  });
+});

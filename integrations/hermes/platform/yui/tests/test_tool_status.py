@@ -92,3 +92,19 @@ def test_with_no_chat_and_no_connected_client_nothing_reaches_the_sink():
     tool_status.on_pre_tool_call(tool_name="read_file", task_id="", session_id="")
     tool_status.on_post_tool_call(tool_name="read_file", task_id="", session_id="")
     assert taken == []
+
+
+@pytest.mark.parametrize(
+    "text, expected", [("screenshot of display 0", "done"), ("error: capture denied", "failed")]
+)
+def test_look_multimodal_status_reads_the_envelope_text(text, expected):
+    taken = collect()
+    result = {
+        "_multimodal": True,
+        "content": [
+            {"type": "text", "text": text},
+            {"type": "image_url", "image_url": {"url": "data:image/jpeg;base64,YQ=="}},
+        ],
+    }
+    tool_status.on_post_tool_call(tool_name="look", task_id="", session_id="", status="ok", result=result)
+    assert taken == [(CHAT, expected, "look")]
