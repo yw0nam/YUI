@@ -956,3 +956,63 @@ describe("avatar-executor — malformed input and lifecycle", () => {
     expect(h.unsubscribe).toHaveBeenCalledOnce();
   });
 });
+
+describe("avatar-executor — public entry", () => {
+  it("command() runs the same flow the RPC command takes", async () => {
+    const h = harness();
+
+    await expect(h.executor.command({ action: "move_to", spot: "center" })).resolves.toEqual({
+      ok: true,
+    });
+    expect(h.setPositionLogical).toHaveBeenCalledOnce();
+  });
+
+  it("command() names the absent required field and the RPC path keeps answering unsupported", async () => {
+    const h = harness();
+
+    await expect(h.executor.command({ action: "sit_on_window" })).resolves.toEqual({
+      error: "missing field app",
+    });
+    await expect(h.call("command", { action: "sit_on_window" })).resolves.toEqual({
+      ok: false,
+      reason: "unsupported",
+    });
+  });
+
+  it("command() hands the failure words through and refuses while a command runs", async () => {
+    const gate = deferred<PlacementResult>();
+    const h = harness({
+      perch: {
+        placeOn: vi.fn(() => gate.promise),
+        perchTargets: async () => TARGETS,
+        release: vi.fn(),
+      },
+    });
+
+    void h.executor.command({ action: "sit_on_window", app: "Notes" });
+    await flush();
+    await expect(h.executor.command({ action: "stand" })).resolves.toEqual({
+      ok: false,
+      reason: "busy",
+    });
+    gate.resolve({ ok: false, kind: "sit", reason: "not_found" });
+    await flush();
+    await expect(h.executor.command({ action: "stand" })).resolves.toEqual({ ok: true });
+  });
+
+  it("command() answers unsupported for a command nothing parses", async () => {
+    const h = harness();
+
+    await expect(h.executor.command({ action: "fly" })).resolves.toEqual({
+      ok: false,
+      reason: "unsupported",
+    });
+  });
+
+  it("state() and perchTargets() answer what the RPC queries answer", async () => {
+    const h = harness();
+
+    await expect(h.executor.state()).resolves.toEqual(await h.call("state"));
+    await expect(h.executor.perchTargets()).resolves.toEqual(TARGETS);
+  });
+});
