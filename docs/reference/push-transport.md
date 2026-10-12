@@ -16,7 +16,7 @@ The client renders what arrives and judges nothing. Everything the backend must 
 | Server error text on a failed user turn | Status and server text of an HTTP error on the request, 401 and 403 excepted. Generic text for an error inside the stream | Status and server text of an HTTP error, 401 and 403 excepted. Generic text for an `error`, `response.failed` or `response.incomplete` event | Generic text |
 | Token usage readout | Usage chunk of each request | `usage` of `response.completed` | None |
 | Model, `reasoning_effort` and instructions sent with the turn | All three | All three | None |
-| Reasoning display | None | Reasoning and reasoning-summary deltas | `reasoning` frames and the `render` frame's `reasoning` |
+| Reasoning display | `reasoning_content` and `reasoning` deltas | Reasoning and reasoning-summary deltas | `reasoning` frames and the `render` frame's `reasoning` |
 | Tool progress status | `done` for a tool the backend runs | `running` and `done` | `tool_status` frames |
 | Stop | Request aborted | Request aborted | `stop` frame |
 | Session reset | Transcript boundary on the client | Stored response id cleared on the client | `reset` frame |
