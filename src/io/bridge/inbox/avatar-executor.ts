@@ -136,7 +136,8 @@ function parseCommand(params: unknown): AvatarCommand | AvatarCommandParse | nul
     case "sit_on_window": {
       // An empty app name would match every window, so it counts as absent.
       const app = typeof p.app === "string" ? p.app.trim() : "";
-      return app.length > 0 ? { action: "sit_on_window", app } : { error: "missing field app" };
+      if (app.length > 0) return { action: "sit_on_window", app };
+      return { error: typeof p.app === "string" ? "missing field app" : fieldError("app", p.app) };
     }
     case "peek":
       if (p.side === "left" || p.side === "right") return { action: "peek", side: p.side };
