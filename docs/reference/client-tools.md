@@ -81,7 +81,7 @@ Chat Completions appends the assistant message carrying the response's spoken te
 {"choices":[{"index":0,"delta":{},"finish_reason":"stop"}]}
 ```
 
-Responses sends a new request whose `input` is the original input items, then an assistant message item carrying the response's spoken text (omitted when the response said nothing), then each executed call as a `function_call` item, then one `function_call_output` item per call. The request keeps the turn's original `previous_response_id`, so the round trip works on a server that has dropped the tool-calling response. The `completed` event carries the id of the last response of the turn.
+Responses sends a new request whose `input` is the original input items, then an assistant message item carrying the response's spoken text (omitted when the response said nothing), then the tool-calling response's `reasoning` output items as received before the `function_call` items they precede, then one `function_call_output` item per call. The request keeps the turn's original `previous_response_id`, so the round trip works on a server that has dropped the tool-calling response. The `completed` event carries the id of the last response of the turn.
 
 ```jsonc
 // request 1: input items + tools[]
@@ -91,6 +91,7 @@ Responses sends a new request whose `input` is the original input items, then an
 
 // request 2: the same tools[] and previous_response_id, input = the original items plus
 {"role":"assistant","content":"Let me check."}
+{"type":"reasoning","id":"rs_1","summary":[]}
 {"type":"function_call","call_id":"call_1","name":"lookup","arguments":"{\"q\":\"answer\"}"}
 {"type":"function_call_output","call_id":"call_1","output":"42"}
 
