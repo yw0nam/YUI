@@ -138,7 +138,7 @@ export function createPushCall(deps: PushCallDeps, log: Logger): PushCall {
         );
       }
       const outcome = await Promise.race(ends);
-      if (outcome === "network_stall" || outcome === "network_drop") {
+      if (failure === undefined && (outcome === "network_stall" || outcome === "network_drop")) {
         log.warn(outcome, { stage: "push_wait", event_name: eventName, turn_id: turnId });
       }
       return outcome;

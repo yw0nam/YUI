@@ -468,6 +468,7 @@ describe("backend_caller — push transport, the turn stays open", () => {
 
     expect(turn.settled()).toBe("network_drop");
     expect(details).toEqual([{ message: "rate limit reached" }]);
+    expect(logger.warn).not.toHaveBeenCalledWith("network_drop", expect.anything());
   });
 
   it("settles network_drop without a detail when the error frame's message is blank", async () => {
