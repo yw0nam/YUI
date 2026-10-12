@@ -207,6 +207,17 @@ describe("status pill — voice error with the server's message", () => {
     expect(p.dot().dataset.voice).toBe("error");
     expect(p.label().textContent).toBe("rate limit reached");
     expect(p.root().dataset.fix).toBeUndefined();
+    expect(p.root().dataset.message).toBe("true");
+  });
+
+  it("marks only the message label, not the state labels", () => {
+    const p = setup();
+    p.voice.set("error", "network_drop");
+    expect(p.root().dataset.message).toBeUndefined();
+
+    p.voice.set("error", "network_drop", "rate limit reached");
+    p.voice.set("listening");
+    expect(p.root().dataset.message).toBeUndefined();
   });
 
   it("goes back to the state label when the next state carries no message", () => {

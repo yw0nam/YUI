@@ -171,6 +171,7 @@ describe("createPushSocket — handshake", () => {
         type: "hello",
         key: "secret-key",
         chat_id: "yui-3f9a2c1d",
+        accepts: ["error"],
         vocabulary: VOCAB,
       },
     ]);

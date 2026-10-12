@@ -530,7 +530,10 @@ describe("wirePushTransport — error frames", () => {
 
     expect(onError).toHaveBeenCalledWith("rate limit reached");
     await expect(ended).resolves.toBe("ended");
-    expect(log.info).toHaveBeenCalledWith("push.error", { turn_id: "7" });
+    expect(log.info).toHaveBeenCalledWith("push.error", {
+      turn_id: "7",
+      message: "rate limit reached",
+    });
   });
 
   it("leaves another turn's waiter alone", () => {
