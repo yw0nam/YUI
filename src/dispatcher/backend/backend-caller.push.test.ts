@@ -13,6 +13,7 @@
 import { afterEach, beforeEach, describe, expect, it, type Mock, vi } from "vitest";
 import type { EndpointsConfig, InputContext } from "../../contract";
 import type { ChatHistoryEntry } from "../../io/chat/conversation/chat-history-store";
+import { fitTurnImages } from "../../io/chat/push/fit-turn-images";
 import type { PushTurnFrame } from "../../io/chat/push/push-frames";
 import type { Logger } from "../../logger";
 import type { BusEnvelope } from "../core/event-bus";
@@ -22,6 +23,10 @@ import { createRenderTurn } from "../turn/render-turn";
 import { createTurnFeed } from "../turn/turn-feed";
 import { createBackendCaller, type TurnOutcome } from "./backend-caller";
 import { PRE_SPEECH_TIMEOUT_MS } from "./idle-watchdog";
+
+vi.mock("../../io/chat/push/fit-turn-images", () => ({ fitTurnImages: vi.fn() }));
+
+const fitImages = vi.mocked(fitTurnImages);
 
 function scheduleEnv(): BusEnvelope {
   return {
@@ -80,6 +85,7 @@ function callerWith(
   accepted: boolean,
   config: EndpointsConfig = PUSH_CONFIG,
   getScreenshot?: () => Promise<InputContext["screenshot"] | undefined>,
+  pushMaxTurnBytes?: () => number | undefined,
 ) {
   sent = [];
   records = [];
@@ -116,6 +122,7 @@ function callerWith(
     },
     turnOutput,
     ...(getScreenshot ? { getScreenshot } : {}),
+    ...(pushMaxTurnBytes ? { pushMaxTurnBytes } : {}),
     getPrevious: () => {
       order.push("context");
       onContextBuilt?.();
@@ -163,6 +170,7 @@ beforeEach(() => {
   turnOutput = makeTurnOutput();
   logger = makeLogger();
   autoRender = true;
+  fitImages.mockReset();
 });
 
 describe("backend_caller — push transport", () => {
@@ -245,6 +253,36 @@ describe("backend_caller — push transport", () => {
     await callerWith(true).call(turnOf(userEnv("look"), 7));
 
     expect(sent[0]!.images).toBeUndefined();
+  });
+
+  it("hands pushTurn the shrunk images when a stated size cannot hold them", async () => {
+    fitImages.mockResolvedValue(["data:image/jpeg;base64,shrunk"]);
+    const caller = callerWith(
+      true,
+      PUSH_CONFIG,
+      async () => ({
+        enabled: true,
+        source: { kind: "monitor", index: 0 },
+        data_url: "data:image/png;base64,AAA",
+      }),
+      () => 4096,
+    );
+
+    await caller.call(
+      turnOf(
+        {
+          ...userEnv("look"),
+          payload: { text: "look", images: ["data:image/png;base64,BBB"] },
+        },
+        7,
+      ),
+    );
+
+    expect(fitImages).toHaveBeenCalledWith(
+      ["data:image/png;base64,AAA", "data:image/png;base64,BBB"],
+      expect.any(Number),
+    );
+    expect(sent[0]!.images).toEqual(["data:image/jpeg;base64,shrunk"]);
   });
 
   it("reports the turn id the socket accepted", async () => {
