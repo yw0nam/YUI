@@ -6,9 +6,11 @@ The tools the client exposes to the backend model.
 |---|---|---|---|---|---|
 | `generate_express` | Places an expression cue (face, body motion, voice tone) on the speech around the call | Arguments `emotion_id`, `motion_id`, `emotion_text`, `caption`, each optional ([cue contract](client-context.md#tool-arguments)). Result: the string `ok` | Responses and Chat Completions as a declared tool. Push as cues inside `render` and `speech` segments | `createGenerateExpressTool` in `src/io/chat/tools/express.ts` | `runClientCall` in `src/io/chat/stream/client-tool-run.ts` |
 | `body_action` | Moves the body: sit on a window's top edge, peek around its edge, move to a named spot, stand up, or lie down on a bed | Arguments `action` plus the field it needs: `app` for `sit_on_window`, `side` for `peek`, `spot` and an optional `monitor` for `move_to`; `stand` and `go_to_bed` need none. Result: `ok`, or one word — `not_found`, `blocked`, `interrupted`, `busy`, `unsupported`, `timeout` | Responses, Chat Completions, and Push (`tool_call`/`tool_result`) | `createAvatarTools` in `src/io/chat/tools/avatar.ts` | `runClientCall` in `src/io/chat/stream/client-tool-run.ts`; on Push the consumer in `src/io/chat/push/tool-calls.ts` |
-| `look` | Reads the character's body state, or the windows she can sit on and the screen edges she can peek from | Argument `at`: `body` or `perch_targets`. Result: the answer as a JSON string | Responses, Chat Completions, and Push (`tool_call`/`tool_result`) | `createAvatarTools` in `src/io/chat/tools/avatar.ts` | `runClientCall` in `src/io/chat/stream/client-tool-run.ts`; on Push the consumer in `src/io/chat/push/tool-calls.ts` |
+| `look` | Reads the character's body state, perch targets, or a display screenshot | Argument `at`: `body`, `perch_targets`, or `screen`; optional integer `monitor` for `screen`, using the same display number as `body_action.monitor`. Omitted `monitor` selects the character's display; other targets ignore it. Body and perch results are JSON strings. Screen success is `{ text: "screenshot of display <n>", images: [dataUrl] }`; refusal is `error: screen capture is off`, and an invalid monitor is `error: invalid field monitor` | Responses, Chat Completions, and Push (`tool_call`/`tool_result`) | `createAvatarTools` in `src/io/chat/tools/avatar.ts` | `runClientCall` in `src/io/chat/stream/client-tool-run.ts`; on Push the consumer in `src/io/chat/push/tool-calls.ts` |
 
 `createClientTools` in `src/io/chat/tools/client-tools.ts` lists `generate_express` followed by the avatar tools a window hands it. The pet window under Tauri, the only window that creates the avatar executor, hands it `body_action` and `look`; the phone window and the browser build hand it none and declare neither. `src/app/turn/wire-dispatcher.ts` builds the registry from that list for each turn, as the `clientTools` dependency of the backend caller. The registry reads the vocabulary loaded at that moment, so a vocabulary edit (a new emotion, a new motion, a different voice engine, a changed motion selection) reaches the schema on the next turn.
+
+`look` declaration is independent of both screenshot settings. The phone window and browser build declare no `look`, so a push call there answers `error: unknown tool`. A declared `look` whose executor is not yet available answers `error: unsupported`.
 
 ## Declaration per transport
 
@@ -101,6 +103,8 @@ Responses sends a new request whose `input` is the original input items, then an
 {"type":"response.output_text.delta","delta":"It is 42."}
 ```
 
+An image result carries its `text` in the Chat Completions tool message, followed by one image-only user message after all tool messages of that round, with `image_url` parts. Responses carries an array in `function_call_output.output`: an `input_text` part followed by `input_image` parts with `image_url` and `detail: "auto"`; string results keep string output. Push carries the text in `tool_result.result` and the data URLs in `tool_result.images`.
+
 ### Calls left unanswered on Responses
 
 A Responses turn ends on a response with unanswered calls in two cases: a cue-only call beside speech, and the round-trip cap. The next turn chains on that response, and a server that checks tool pairing rejects a `function_call` that has no output. The `completed` event therefore carries a `function_call_output` item per unanswered call. The client stores them with the response id and sends them ahead of the next turn's user message whenever it sends that id. They are dropped with the id, on a session reset and on the retry that follows a 404.
@@ -116,6 +120,8 @@ Any tool name ending in `generate_express` plays its cue, whichever side registe
 Tool traffic lives in the in-flight request. The next Chat Completions turn is rebuilt from the stored transcript, which holds user and assistant speech text. A Responses turn chains on the id of the previous turn's last response. A 404 for a stored id resets the chain with one retry that sends no id.
 
 ## Backend capability
+
+`look at: screen` requires an image-capable model and provider on the backend.
 
 Cue delivery over a request transport needs an endpoint that serves the declared tool back as a call. A plain OpenAI-compatible server (e.g. vLLM) does: on Chat Completions as `delta.tool_calls` fragments, on Responses as `function_call` output items.
 

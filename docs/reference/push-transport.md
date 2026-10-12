@@ -33,7 +33,7 @@ The client renders what arrives and judges nothing. Everything the backend must 
 | Reconnect delay, cap | 30 s |
 | `hello` reply wait | 10 s |
 | Frame wait, per turn | 240 s |
-| Text frame size, either direction, every frame but `turn` | 256 KiB |
+| Text frame size, either direction, every frame but `turn` and `tool_result` with images | 256 KiB |
 | `turn` frame size | 256 KiB, or the `max_turn_bytes` value the backend stated in `ready` |
 | Delegation item `title` | 120 characters |
 | Delegation item `summary` | 2,000 characters |
@@ -43,7 +43,8 @@ The client renders what arrives and judges nothing. Everything the backend must 
 | `done` or `failed` state held in the status pill's tool segment before it clears | 1.5 s |
 | `tool_call` wait, body action | 15 s on the client, 20 s on the backend adapter |
 | `tool_call` wait, query | 2 s on the client, 7 s on the backend adapter |
-| `tool_result.result` | The text frame size |
+| Text-only `tool_result` frame size | 256 KiB |
+| `tool_result` frame size with a non-empty list of image data URLs | `max_turn_bytes` from `ready`, or 256 KiB when absent |
 
 The backend cuts `title` and `summary` to their limits, counting Unicode code points.
 
@@ -73,11 +74,12 @@ The client reconnects with the delay schedule in the limits table on every close
       "type": "function",
       "function": {
         "name": "look",
-        "description": "Read the character's body state, or the windows she can sit on",
+        "description": "Read body state, perch targets, or a display screenshot; screen requests require user permission",
         "parameters": {
           "type": "object",
           "properties": {
-            "at": { "type": "string", "enum": ["body", "perch_targets"] }
+            "at": { "type": "string", "enum": ["body", "perch_targets", "screen"] },
+            "monitor": { "type": "integer", "description": "For screen: the display number used by body_action.monitor; omit for the character's display" }
           },
           "required": ["at"],
           "additionalProperties": false
@@ -271,6 +273,7 @@ A call against a tool the client declared in `hello.tools`.
 |---|---|
 | `id` | The `tool_call` id this result answers |
 | `turn_id` | The `tool_call`'s `turn_id` |
+| `images` | Optional non-empty array of image data URLs beside the result text |
 | `result` | The tool's answer, a string |
 
 The client's rules:
@@ -278,9 +281,11 @@ The client's rules:
 1. Calls of one chat run one at a time, in arrival order; the client's wait starts when the call starts running.
 2. A `tool_call` whose `name` is not in the declared set, whose `arguments` lack a field the action needs or carry a value it does not accept, or whose `turn_id` names a turn the client has stopped is answered at once with `error: <reason>` — `error: unknown tool`, `error: missing field <name>`, `error: invalid field <name>`, or `error: turn stopped`.
 3. A `tool_call` whose `id` repeats one queued or running is dropped with a log line and not answered; an answer would resolve the original call's waiter.
-4. A result whose frame would pass the text frame size is answered `error: result too large` instead. A result the client cannot send (the socket is not ready) is logged and dropped.
+4. A result whose frame would pass its applicable size limit is answered `error: result too large` instead. A result the client cannot send (the socket is not ready) is logged and dropped.
 5. A `tool_call` the client cannot read, such as a field of the wrong type, is dropped with a `frame_malformed` log line and gets no `tool_result`; the backend's wait answers it.
 6. The status pill takes its tool state from the backend's `tool_status` frames; the client emits no `tool_status` of its own for these calls.
+
+For an image result the client fits the images into the remaining frame budget with the same JPEG fitter used for `turn.images`. The final serialized frame, including ids and text, must fit the limit. When nothing fits, the result is `error: result too large` with no images. Text-only results keep the text frame cap.
 
 The backend adapter's rules:
 

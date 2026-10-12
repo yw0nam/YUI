@@ -102,7 +102,9 @@ longer clear is a real absence and stamps a fresh `since`.
 
 ### `screenshot`
 
-Present only when screen capture is enabled (`screenshot.enabled`); the pixels
+The `yui.screenshot` settings hold two independent booleans, both defaulting to false: `enabled` attaches the selected source automatically at the start of a turn; `allowRequests` permits backend `look at: screen` requests. The selected `source` governs automatic attachment only.
+
+Present only when automatic attachment is enabled (`screenshot.enabled`); the pixels
 themselves never ride in this line — they arrive as a separate `input_image`
 content-part alongside the text. On push they arrive in the `turn` frame's
 `images` field when the backend states `max_turn_bytes`; otherwise the line

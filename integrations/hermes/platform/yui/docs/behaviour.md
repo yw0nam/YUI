@@ -4,7 +4,8 @@
   vocabulary it can render; the plugin answers `ready` and keeps the socket open.
 - States `max_turn_bytes` of 4 MiB in `ready`, so the client may put the turn's screenshot and the
   user's attached images on the `turn` frame. It accepts a `turn` frame up to that size and every
-  other frame up to 256 KiB, stores each turn image as a cached file and hands its path to the
+  other frame up to 256 KiB, except a `tool_result` with a non-empty list of image data URLs,
+  which also has the 4 MiB cap. It stores each turn image as a cached file and hands its path to the
   gateway with the turn; an image it cannot decode or store is left out and the turn is still
   handled.
 - Turns the `turn` frame into a gateway message: the rendered `client_context` block, a blank
@@ -104,3 +105,9 @@
   `error: no reply from the client within <n> s`. The `post_tool_call` hook sends `tool_status`
   `failed` instead of `done` when the call errored, when a `body_action` result is not `ok`, or
   when a `look` result starts with `error:`.
+
+- Returns a client tool result with images as Hermes's `_multimodal` envelope: a text part followed
+  by `image_url` parts carrying the data URLs inline, without file caching. A result without images
+  is a string. The tool-status hook reads the envelope's text for failure classification.
+  `look at: screen` needs an image-capable model and provider; Hermes substitutes a text summary
+  when the model has no vision or the provider rejects list content.
