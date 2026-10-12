@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import type { ControlEnvelope } from "../../../contract";
 import {
   boundarySeparator,
+  errorEventOf,
   httpStatusOf,
   isExpressTool,
   normalizeExpressIntoEnvelope,
@@ -23,6 +24,17 @@ describe("stream-helpers", () => {
     expect(serverMessageOf(err)).toBe("bad key");
     expect(httpStatusOf(new Error("x"))).toBeUndefined();
     expect(serverMessageOf(new Error("boom"))).toBe("boom");
+  });
+
+  it("errorEventOf carries the status only when the error has one", () => {
+    expect(errorEventOf(Object.assign(new Error("502 bad gateway"), { status: 502 }))).toEqual({
+      type: "error",
+      message: "bad gateway",
+      status: 502,
+    });
+    const statusless = errorEventOf(new Error("ECONNRESET"));
+    expect(statusless).toEqual({ type: "error", message: "ECONNRESET" });
+    expect("status" in statusless).toBe(false);
   });
 
   it("normalizeExpressIntoEnvelope writes only present fields", () => {

@@ -27,6 +27,20 @@ export function serverMessageOf(err: unknown): string {
     : raw;
 }
 
+/** The error event for a thrown error: the server's text, with the HTTP status when the error carries one. */
+export function errorEventOf(err: unknown): {
+  type: "error";
+  message: string;
+  status?: number;
+} {
+  const status = httpStatusOf(err);
+  return {
+    type: "error",
+    message: serverMessageOf(err),
+    ...(status !== undefined ? { status } : {}),
+  };
+}
+
 /** FLAT express args → renderer seam shape. Only present fields are normalized (no invention). */
 export function normalizeExpressIntoEnvelope(
   envelope: ControlEnvelope,

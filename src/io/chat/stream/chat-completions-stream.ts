@@ -12,10 +12,9 @@ import { ownsCall, runClientCall, shouldAnswer } from "./client-tool-run";
 import type { ClientToolRegistry } from "./client-tools";
 import {
   boundarySeparator,
-  httpStatusOf,
+  errorEventOf,
   MAX_TOOL_ROUND_TRIPS,
   normalizeExpressIntoEnvelope,
-  serverMessageOf,
 } from "./stream-helpers";
 
 /** SDK requires model, but model-less mock/backend omit the field itself — locally relax optional. */
@@ -107,12 +106,7 @@ export async function* streamChatCompletions(
       });
     } catch (err) {
       if (!request.signal?.aborted) {
-        const status = httpStatusOf(err);
-        yield {
-          type: "error",
-          message: serverMessageOf(err),
-          ...(status !== undefined ? { status } : {}),
-        };
+        yield errorEventOf(err);
       }
       return;
     }
@@ -173,12 +167,7 @@ export async function* streamChatCompletions(
     } catch (err) {
       // Abort mid-stream → terminate silently; any other failure surfaces as the error event.
       if (!request.signal?.aborted) {
-        const status = httpStatusOf(err);
-        yield {
-          type: "error",
-          message: serverMessageOf(err),
-          ...(status !== undefined ? { status } : {}),
-        };
+        yield errorEventOf(err);
       }
       return;
     }

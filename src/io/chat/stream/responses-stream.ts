@@ -73,10 +73,9 @@ import { ownsCall, runClientCall, shouldAnswer } from "./client-tool-run";
 import type { ClientToolRegistry } from "./client-tools";
 import {
   boundarySeparator,
-  httpStatusOf,
+  errorEventOf,
   MAX_TOOL_ROUND_TRIPS,
   normalizeExpressIntoEnvelope,
-  serverMessageOf,
 } from "./stream-helpers";
 
 /**
@@ -186,12 +185,7 @@ export async function* streamResponses(
       // as error event without silencing — prevent trap where placeholder key 401 disappears as "empty stream".
       // status: pass through HTTP status (401/403 etc) from openai SDK APIError as-is — only if present.
       if (!request.signal?.aborted) {
-        const status = httpStatusOf(err);
-        yield {
-          type: "error",
-          message: serverMessageOf(err),
-          ...(status !== undefined ? { status } : {}),
-        };
+        yield errorEventOf(err);
       }
       return;
     }
@@ -347,12 +341,7 @@ export async function* streamResponses(
     } catch (err) {
       // Abort mid-stream → terminate silently regardless of any status the error carries.
       if (request.signal?.aborted) return;
-      const status = httpStatusOf(err);
-      yield {
-        type: "error",
-        message: serverMessageOf(err),
-        ...(status !== undefined ? { status } : {}),
-      };
+      yield errorEventOf(err);
       return;
     }
 
