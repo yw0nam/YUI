@@ -35,6 +35,14 @@ Any code change — feature · bugfix · refactor · UI · schema · or any chor
 - Prefer proven, maintained libraries when they lower overall complexity or raise stability. Check already-installed dependencies before implementing something yourself or adding a package — and never claim "this library can't do that" without checking its docs and types.
 - Make architecture decisions with a long-term view. Reject stopgaps that only get past today and must be replaced later.
 
+## Finding code
+
+State a location, a caller, or a behaviour only from a lookup made in this session. What no lookup returned is reported as unverified.
+
+- **Callers and usages of a symbol** → the language server's reference lookup, when the agent has one; TypeScript, Python and Rust each have a server. A text search matches letters, so it misses an aliased import and a re-export.
+- **Whether something exists** → an exact text search. A language server that has just started answers "no references" while it is still indexing: ask again before reporting none.
+- **Where a concept lives, with no name to search for** → a semantic or indexed search gives candidates. It also returns results for things that do not exist, so open the file before stating what it does.
+
 ## On-demand — read before the task
 
 Code is the source of truth for client behavior, TS contract shapes, and config schemas. The docs below cover what the code cannot state for itself: the contract handed to the backend agent, and human-facing catalogs/conventions.
