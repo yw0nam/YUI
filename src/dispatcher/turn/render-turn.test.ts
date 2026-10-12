@@ -806,3 +806,19 @@ describe("render_turn — a streamed reply the user stopped", () => {
     expect(turnOutput.end).not.toHaveBeenCalled();
   });
 });
+
+describe("render-turn — playback identity", () => {
+  it.each([
+    "render",
+    "stream",
+  ] as const)("%s passes a backend frame identity to the output", (method) => {
+    const r = turn();
+    if (method === "render") r.render(frame([{ speech: "Report." }], { turn_id: "hermes-1" }));
+    else r.stream(speech([{ speech: "Report." }], { turn_id: "hermes-1" }));
+    expect(turnOutput.delta).toHaveBeenCalledWith("Report.\n", {
+      turn_id: "hermes-1",
+      event_name: "backend",
+    });
+    r.dispose();
+  });
+});

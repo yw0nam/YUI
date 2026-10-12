@@ -1910,3 +1910,64 @@ describe("createSpeechPlayback — what the user heard of a cut-off reply", () =
     expect(sp.hasOutstandingSpeech()).toBe(true);
   });
 });
+
+describe("playback — per-utterance identity", () => {
+  function tracked() {
+    const stub = stubPipelineFactory();
+    const start = vi.fn();
+    const end = vi.fn();
+    const playback = createSpeechPlayback({
+      renderer: spyRenderer(),
+      surfaces: spySurfaces(),
+      pipeline: NO_PIPELINE,
+      createPipeline: stub.factory,
+      isStrolling: () => false,
+      onUtteranceStart: start,
+      onUtteranceEnd: end,
+    });
+    return { stub, playback, start, end };
+  }
+
+  it("reports A identity at its boundary while B is queued", () => {
+    const { playback, stub, start, end } = tracked();
+    const a = { turn_id: "7", event_name: "agent.done" };
+    const b = { turn_id: "8", event_name: "user.text_submitted" };
+    playback.onSpeechDelta("A.", a);
+    playback.onSpeechEnd();
+    playback.onSpeechDelta("B.", b);
+    playback.onSpeechEnd();
+    stub.emitPlaybackEnd();
+    expect(end).toHaveBeenNthCalledWith(1, "complete", undefined, a);
+    stub.emitPlaybackEnd();
+    expect(end).toHaveBeenNthCalledWith(2, "complete", undefined, b);
+    expect(start.mock.calls).toEqual([[a], [b]]);
+  });
+
+  it.each([
+    "interrupt",
+    "abort",
+  ] as const)("%s retains the cut utterance identity with B queued", (method) => {
+    const { playback, stub, end } = tracked();
+    const a = { turn_id: "7", event_name: "agent.done" };
+    const b = { turn_id: "8", event_name: "user.text_submitted" };
+    playback.onSpeechDelta("A.", a);
+    playback.onSpeechEnd();
+    playback.onSpeechDelta("B.", b);
+    playback.onSpeechEnd();
+    stub.setSpokenSplit({ spoken: "A.", unspoken: "B." });
+    playback[method]();
+    expect(end).toHaveBeenCalledWith("interrupted", { spoken: "A.", unspoken: "B." }, a);
+    stub.emitPlaybackEnd();
+    expect(end).toHaveBeenCalledTimes(1);
+  });
+
+  it("reports a backend-minted id and the literal backend event name", () => {
+    const { playback, stub, start, end } = tracked();
+    const identity = { turn_id: "hermes-1", event_name: "backend" };
+    playback.onSpeechDelta("A report.", identity);
+    playback.onSpeechEnd();
+    stub.emitPlaybackEnd();
+    expect(start).toHaveBeenCalledWith(identity);
+    expect(end).toHaveBeenCalledWith("complete", undefined, identity);
+  });
+});

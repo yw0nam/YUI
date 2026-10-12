@@ -3,7 +3,7 @@
  */
 
 import { afterEach, beforeEach, describe, expect, it, type Mock, vi } from "vitest";
-import type { ToolStatus } from "../../../contract";
+import type { PreviousTurn, ToolStatus } from "../../../contract";
 import { PRE_SPEECH_TIMEOUT_MS } from "../../../dispatcher/backend/idle-watchdog";
 import { makeTurnOutput, userEnv } from "../../../dispatcher/test-helpers";
 import { createPushTurns } from "../../../dispatcher/turn/push-turn";
@@ -38,6 +38,8 @@ function fakeSocket() {
   let toolCallCb: ((frame: ToolCallFrame) => void) | null = null;
   return {
     sendVocabulary: vi.fn(),
+    sendPlayback: vi.fn(() => true),
+    getState: vi.fn<() => PushSocketState>(() => ({ kind: "ready", chat_id: "yui-3f9a2c1d" })),
     onRender(cb: (frame: RenderFrame) => void) {
       renderCb = cb;
       return () => {
@@ -161,9 +163,14 @@ let toolStatusSink: Mock<(status: ToolStatus) => void>;
 let turnFeed: TurnFeed;
 let turnLog: TurnLog;
 
-function wire(feed: TurnFeed = turnFeed, tools: readonly ClientTool[] = []) {
+function wire(
+  feed: TurnFeed = turnFeed,
+  tools: readonly ClientTool[] = [],
+  previousTurn?: { subscribe(cb: (record: PreviousTurn) => void): () => void },
+) {
   return wirePushTransport({
     socket,
+    previousTurn,
     tools: createClientToolRegistry(tools),
     turnOutput,
     pushTurns,
@@ -1020,5 +1027,83 @@ describe("wirePushMode", () => {
 
     port.show();
     expect(connect).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("push wiring — playback records", () => {
+  function recordsSource() {
+    const listeners = new Set<(record: PreviousTurn) => void>();
+    return {
+      subscribe(cb: (record: PreviousTurn) => void) {
+        listeners.add(cb);
+        return () => {
+          listeners.delete(cb);
+        };
+      },
+      save(record: PreviousTurn) {
+        for (const cb of listeners) cb(record);
+      },
+      count: () => listeners.size,
+    };
+  }
+  const record = {
+    turn_id: "7",
+    event_name: "agent.done",
+    ended: "interrupted" as const,
+    ts: 123,
+    spoken: "Heard.",
+    unspoken: "Owed.",
+  };
+
+  it("one store save sends one playback frame and dispose unsubscribes", () => {
+    const previousTurn = recordsSource();
+    const dispose = wire(turnFeed, [], previousTurn);
+    previousTurn.save(record);
+    expect(socket.sendPlayback).toHaveBeenCalledExactlyOnceWith({
+      type: "playback",
+      turn_id: "7",
+      ended: "interrupted",
+      spoken: "Heard.",
+      unspoken: "Owed.",
+    });
+    dispose();
+    expect(previousTurn.count()).toBe(0);
+    previousTurn.save(record);
+    expect(socket.sendPlayback).toHaveBeenCalledTimes(1);
+  });
+
+  it("drops disconnected saves without reconnect replay and omits records without identity", () => {
+    const previousTurn = recordsSource();
+    const dispose = wire(turnFeed, [], previousTurn);
+    expect(previousTurn.count()).toBe(1);
+    socket.getState.mockReturnValue({ kind: "disconnected" });
+    previousTurn.save(record);
+    expect(socket.sendPlayback).not.toHaveBeenCalled();
+    socket.getState.mockReturnValue({ kind: "ready", chat_id: "yui-3f9a2c1d" });
+    socket.pushState({ kind: "ready", chat_id: "yui-3f9a2c1d" });
+    previousTurn.save({ event_name: "agent.done", ended: "failed", ts: 123 });
+    expect(socket.sendPlayback).not.toHaveBeenCalled();
+    previousTurn.save({ ...record, ended: "complete", spoken: undefined, unspoken: undefined });
+    expect(socket.sendPlayback).toHaveBeenCalledExactlyOnceWith({
+      type: "playback",
+      turn_id: "7",
+      ended: "complete",
+    });
+    dispose();
+  });
+
+  it("a silent backend turn_end leaves an unmatched client turn and output untouched", () => {
+    const dispose = wire();
+    pushTurns.opened("7");
+    const ended = vi.spyOn(turnFeed, "ended");
+    const before = reasoning.get();
+    socket.pushTurnEnd({ type: "turn_end", turn_id: "hermes-1" });
+    expect(pushTurns.cut()).toEqual(["7"]);
+    expect(turnOutput.end).not.toHaveBeenCalled();
+    expect(turnOutput.delta).not.toHaveBeenCalled();
+    expect(toolStatusSink).not.toHaveBeenCalled();
+    expect(reasoning.get()).toEqual(before);
+    expect(ended).toHaveBeenCalledWith("push:turn:hermes-1");
+    dispose();
   });
 });

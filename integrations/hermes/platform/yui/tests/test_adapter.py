@@ -2116,3 +2116,57 @@ async def test_a_turn_reads_the_ids_its_own_chat_published(client, adapter, decl
 async def test_a_turn_on_a_chat_that_never_published_leaves_the_schema_alone(adapter, declared):
     await adapter.on_processing_start(user_turn(adapter, "t1"))
     assert declared == []
+
+
+@pytest.mark.parametrize("ended", ["interrupted", "failed"])
+async def test_playback_starts_one_internal_event(ended, client, adapter, monkeypatch):
+    from unittest.mock import AsyncMock
+
+    await ready(client)
+    handle = AsyncMock()
+    monkeypatch.setattr(adapter, "handle_message", handle)
+    await adapter._on_frame(
+        CHAT,
+        {
+            "type": "playback",
+            "turn_id": "hermes-1",
+            "ended": ended,
+            "spoken": 'Heard "this".\nNext.',
+            "unspoken": "Owed.\r\nMore.",
+        },
+    )
+    handle.assert_awaited_once()
+    event = handle.call_args.args[0]
+    assert event.internal is True
+    assert event.reply_expected is False
+    assert event.allow_gateway_control is False
+    assert event.source == adapter._source(CHAT)
+    assert event.text.startswith(f"[playback] {ended} turn=hermes-1")
+    assert len(event.text.splitlines()) == 1
+    assert "Heard" in event.text and "Owed" in event.text
+    assert reports.take(CHAT) == ([], 0)
+
+
+async def test_playback_complete_logs_once_without_an_event(client, adapter, monkeypatch, caplog):
+    from unittest.mock import AsyncMock
+
+    await ready(client)
+    handle = AsyncMock()
+    monkeypatch.setattr(adapter, "handle_message", handle)
+    with caplog.at_level(logging.INFO):
+        await adapter._on_frame(CHAT, {"type": "playback", "turn_id": "7", "ended": "complete"})
+    handle.assert_not_awaited()
+    lines = [record.getMessage() for record in caplog.records if "playback" in record.getMessage()]
+    assert len(lines) == 1
+    assert "complete" in lines[0] and "7" in lines[0]
+
+
+async def test_silent_internal_playback_completion_sends_only_turn_end(client, adapter):
+    ws = await ready(client)
+    event = internal_event(adapter, "[playback] interrupted turn=7")
+    event.reply_expected = False
+    await adapter.on_processing_start(event)
+    turn_id = state.turn_id(CHAT)
+    assert turn_id.startswith("hermes-")
+    await adapter.on_processing_complete(event, ProcessingOutcome.SUCCESS)
+    assert await recv(ws) == {"type": "turn_end", "turn_id": turn_id}

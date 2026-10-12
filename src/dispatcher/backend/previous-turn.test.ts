@@ -314,3 +314,90 @@ describe("createPreviousTurn — the stored split at creation", () => {
     });
   });
 });
+
+describe("playback records — utterance identity", () => {
+  it("retains A identity when B opens before A completes", () => {
+    const { slot, storage } = makeSlot(turnOf(99, "user.text_submitted"));
+    const a = { turn_id: "7", event_name: "agent.done" };
+    const b = { turn_id: "8", event_name: "user.text_submitted" };
+    slot.utteranceStart(a);
+    slot.utteranceStart(b);
+    slot.utteranceEnd("complete", undefined, a);
+    expect(storage.saved).toEqual([{ ...a, ended: "complete", ts: NOW }]);
+  });
+
+  it.each([
+    null,
+    turnOf(99, "user.text_submitted"),
+  ])("records backend identity independently of the dispatcher turn %j", (current) => {
+    const { slot } = makeSlot(current);
+    const identity = { turn_id: "hermes-1", event_name: "backend" };
+    slot.utteranceStart(identity);
+    slot.utteranceEnd("interrupted", { spoken: "heard", unspoken: "owed" }, identity);
+    expect(slot.get()).toEqual({
+      ...identity,
+      ended: "interrupted",
+      ts: NOW,
+      spoken: "heard",
+      unspoken: "owed",
+    });
+  });
+
+  it("records the exact failing client turn id", () => {
+    const { slot } = makeSlot(turnOf(8, "user.text_submitted"));
+    slot.callFailed(turnOf(7, "agent.done"), "network_drop");
+    expect(slot.get()).toEqual({
+      turn_id: "7",
+      event_name: "agent.done",
+      ended: "failed",
+      ts: NOW,
+    });
+  });
+
+  it("round trips persisted identity and Unicode slices", () => {
+    const record = {
+      turn_id: "hermes-1",
+      event_name: "backend",
+      ended: "interrupted",
+      ts: NOW,
+      spoken: "😀".repeat(50),
+      unspoken: "🌙".repeat(50),
+    };
+    expect(makeSlot(null, record).slot.get()).toEqual(record);
+  });
+
+  it("loads a legacy record without turn_id", () => {
+    const record = { event_name: "agent.done", ended: "failed", ts: NOW };
+    expect(makeSlot(null, record).slot.get()).toEqual(record);
+  });
+
+  it("notifies complete, interrupted and failed saves and stops after unsubscribe", () => {
+    const { slot } = makeSlot(turnOf(7, "agent.done"));
+    const records: PreviousTurn[] = [];
+    const off = slot.subscribe((record) => records.push(record));
+    const identity = { turn_id: "7", event_name: "agent.done" };
+    slot.utteranceStart(identity);
+    slot.utteranceEnd("complete", undefined, identity);
+    slot.utteranceStart(identity);
+    slot.utteranceEnd(
+      "interrupted",
+      { spoken: "😀".repeat(51), unspoken: "🌙".repeat(51) },
+      identity,
+    );
+    slot.callFailed(turnOf(8, "user.text_submitted"), "network_drop");
+    expect(records).toEqual([
+      { ...identity, ended: "complete", ts: NOW },
+      {
+        ...identity,
+        ended: "interrupted",
+        ts: NOW,
+        spoken: "😀".repeat(50),
+        unspoken: "🌙".repeat(50),
+      },
+      { turn_id: "8", event_name: "user.text_submitted", ended: "failed", ts: NOW },
+    ]);
+    off();
+    slot.callFailed(turnOf(9, "agent.done"), "network_drop");
+    expect(records).toHaveLength(3);
+  });
+});

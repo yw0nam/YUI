@@ -243,3 +243,31 @@ describe("turn-output conformance", () => {
     expect(normalize(push)).toEqual([]);
   });
 });
+
+describe("request reply — playback identity", () => {
+  it.each([
+    "streamed",
+    "completed",
+  ])("%s reply passes the exact client turn identity", async (mode) => {
+    const turnOutput = makeTurnOutput();
+    const script = createScriptedStream();
+    script.events =
+      mode === "streamed"
+        ? [deltaEvent("Reply."), completedEvent({ speech_text: "Reply." })]
+        : [completedEvent({ speech_text: "Reply." })];
+    const caller = createBackendCaller({
+      config: CONFIG,
+      renderer: { applyDirective: vi.fn() },
+      getApiKey: async () => "k",
+      getFetch: async () => undefined,
+      stream: script.stream,
+      turnOutput,
+      logger: makeLogger(),
+    });
+    const turn = turnOf(userEnv(), 7);
+    await caller.call(turn);
+    const identity = { turn_id: "7", event_name: turn.trigger.event_name };
+    if (mode === "streamed") expect(turnOutput.delta).toHaveBeenCalledWith("Reply.", identity);
+    else expect(turnOutput.speak).toHaveBeenCalledWith("Reply.", identity);
+  });
+});
