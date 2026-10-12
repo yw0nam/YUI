@@ -192,26 +192,49 @@ describe("streamChat — Chat Completions reasoning deltas", () => {
     ]);
   });
 
-  it("carries no reasoning text in the round-trip messages", async () => {
-    const weather = toolStub("get_weather", "22C");
-    const registry = createClientToolRegistry([weather]);
+  it("counts a reasoning-only cue response as silent — round-trips, no reasoning in the follow-up", async () => {
+    const express = oneWayStub("generate_express");
+    const registry = createClientToolRegistry([express]);
     ccCreateMock
       .mockResolvedValueOnce(
         streamOf([
           reasoningChunk("reasoning_content", "secret thoughts"),
-          toolCallStart(0, "call_w", "get_weather", '{"city":"seoul"}'),
+          toolCallStart(0, "call_1", "generate_express", GEN_EXPRESS_ARGS),
           finishChunk("tool_calls"),
         ]),
       )
-      .mockResolvedValueOnce(streamOf([textChunk("warm"), finishChunk("stop")]));
+      .mockResolvedValueOnce(
+        streamOf([reasoningChunk("reasoning", "Now"), textChunk("warm"), finishChunk("stop")]),
+      );
 
     const events = await collect(streamChat(CONFIG, req(), { tools: registry }));
 
+    // the reasoning-only first response still counts as silent, so the result went out
     expect(ccCreateMock).toHaveBeenCalledTimes(2);
     for (const m of ccCreateMock.mock.calls[1][0].messages) {
       expect(JSON.stringify(m)).not.toContain("secret thoughts");
     }
-    expect(events.at(-1)).toMatchObject({ envelope: { speech_text: "warm" } });
+    expect(events).toEqual([
+      { type: "reasoning", delta: "secret thoughts" },
+      {
+        type: "express",
+        args: { emotion_id: "happy", motion_id: "embarrassed", emotion_text: "[whisper]" },
+      },
+      { type: "keepalive" },
+      { type: "reasoning", delta: "Now" },
+      { type: "speech_delta", text: "warm" },
+      { type: "speech_done", text: "warm" },
+      {
+        type: "completed",
+        envelope: {
+          speech_text: "warm",
+          emotion: { id: "happy" },
+          motion: { id: "embarrassed" },
+          emotion_text: "[whisper]",
+        },
+        responseId: "",
+      },
+    ]);
   });
 });
 
