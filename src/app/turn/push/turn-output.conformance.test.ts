@@ -150,6 +150,7 @@ function runPush(frame: RenderFrame): Entry[] {
     appendTurnRecord: () => {},
     appendTranscript: () => {},
     reportSpokeText: () => {},
+    onUsage: () => {},
     log: makeLogger(),
   });
   onRender!(frame);

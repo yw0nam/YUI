@@ -1,4 +1,4 @@
-import type { EndpointsConfig } from "../../../contract";
+import type { EndpointsConfig, Usage } from "../../../contract";
 import type { PushTurns } from "../../../dispatcher/turn/push-turn";
 import { createRenderTurn } from "../../../dispatcher/turn/render-turn";
 import type { TurnFeed } from "../../../dispatcher/turn/turn-feed";
@@ -28,8 +28,8 @@ import type { Logger } from "../../../logger";
  * Routes an open push socket into the client: a `render` frame plays as a turn and closes the
  * live reasoning cycle, a `speech` frame plays into the utterance its turn's `render` closes, a
  * `reasoning` frame appends to the cycle, a `tool_status` frame names the tool to the chip and to
- * the turn's own waiter, an `error` frame hands its text to the turn's waiter, and a `delegations`
- * frame replaces the tracked list. The socket itself
+ * the turn's own waiter, an `error` frame hands its text to the turn's waiter, a `turn_end` frame's
+ * usage feeds the session readout, and a `delegations` frame replaces the tracked list. The socket
  * is created and connected by the host, which owns its lifetime.
  */
 export function wirePushTransport(deps: {
@@ -60,6 +60,8 @@ export function wirePushTransport(deps: {
   appendTranscript: (entry: ChatHistoryEntry) => void;
   /** Speech-gate sink keyed by the dispatcher's turn id; a backend-minted id names no such turn. */
   reportSpokeText: (turnId: number, spoke: boolean) => void;
+  /** The shared usage consumer — a `turn_end` frame's usage reaches it as a request's does. */
+  onUsage: (usage: Usage) => void;
   log: Logger;
 }): () => void {
   const renderTurn = createRenderTurn({
@@ -95,6 +97,7 @@ export function wirePushTransport(deps: {
       // The frame the running state was waiting for: the turn is forgotten, whatever it held.
       deps.pushTurns.ended(frame.turn_id);
       deps.log.info("push.turn_end", { turn_id: frame.turn_id });
+      if (frame.usage) deps.onUsage(frame.usage);
       deps.turnFeed.ended(`push:turn:${frame.turn_id}`);
     }),
     deps.socket.onToolStatus((frame) => {

@@ -527,6 +527,8 @@ export function createQuickControls({
   const agent = createAgentSection({
     root: el,
     agentSettings,
+    endpointsSettings,
+    isPushMode,
     getDefaultInstructions,
     isOpen: popover.isOpen,
     log,

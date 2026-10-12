@@ -1,6 +1,6 @@
 /** The wire shape of the frames the push socket carries and the checks that tell an unreadable one. */
 
-import type { ExpressArgs } from "../../../contract";
+import type { ExpressArgs, Usage } from "../../../contract";
 
 /** One ordered piece of a reply: its cues render, then its speech is spoken. */
 export interface RenderSegment {
@@ -40,6 +40,8 @@ export interface DelegationItem {
 export interface TurnEndFrame {
   type: "turn_end";
   turn_id: string;
+  /** The usage of the turn's last LLM call; absent when the backend has none. */
+  usage?: Usage;
 }
 
 /** The turn failed; the backend's own failure text, sent before the turn's `turn_end`. */
@@ -127,6 +129,15 @@ export function renderFrameFault(v: Record<string, unknown>): string | null {
   if (typeof v.source !== "string") return "source";
   if (typeof v.turn_id !== "string") return "turn_id";
   return null;
+}
+
+/** A `usage` whose three token counts are all finite numbers. */
+export function usageReadable(usage: unknown): usage is Usage {
+  if (usage === null || typeof usage !== "object") return false;
+  const { input_tokens, output_tokens, total_tokens } = usage as Record<string, unknown>;
+  return [input_tokens, output_tokens, total_tokens].every(
+    (count) => typeof count === "number" && Number.isFinite(count),
+  );
 }
 
 /** The field that makes a speech frame unreadable, or null: readable segments and a string turn id. */

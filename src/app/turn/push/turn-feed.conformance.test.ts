@@ -107,6 +107,7 @@ function runPush(): Run {
     appendTurnRecord: () => {},
     appendTranscript: () => {},
     reportSpokeText: () => {},
+    onUsage: () => {},
     log: makeLogger(),
   });
   onToolStatus!({

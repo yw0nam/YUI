@@ -1,6 +1,7 @@
 /**
  * Agent section — owns the locale picker segment, the reasoning-effort segment, and the chat
- * instructions textarea. Same pattern as sibling sections: explicit deps + wired from shell.
+ * instructions textarea. The effort segment and the textarea show on the request transports only.
+ * Same pattern as sibling sections: explicit deps + wired from shell.
  * This module owns handlers, subscriptions, redraws, teardown.
  */
 
@@ -9,17 +10,23 @@ import {
   type createAgentSettings,
   REASONING_EFFORTS,
 } from "../../../../settings/backend/agent-settings";
+import type { createEndpointsSettings } from "../../../../settings/backend/endpoints-settings";
 import { getLocale, type Locale, setLocale, t } from "../../../i18n";
 import { LANG_PICKER_ORDER } from "../../constants";
 import { handleSegmentKeydown } from "../../seg-keyboard";
 
 type AgentSettingsStore = ReturnType<typeof createAgentSettings>;
+type EndpointsSettingsStore = Pick<ReturnType<typeof createEndpointsSettings>, "subscribe">;
 
 interface AgentSectionDeps {
   /** Panel root (el) — query the locale segment, effort segment, and instructions textarea here. */
   root: HTMLElement;
   /** Reasoning-effort + instructions store — its subscription redraws the segment and textarea. */
   agentSettings: AgentSettingsStore;
+  /** Endpoint overrides store — its subscription re-evaluates which transport is selected. */
+  endpointsSettings: EndpointsSettingsStore;
+  /** Whether push chat is the effective mode; the effort segment and the textarea are hidden then. */
+  isPushMode: () => boolean;
   /** Default instructions shown as textarea placeholder while the value is empty (undefined if not loaded). */
   getDefaultInstructions?: () => string | undefined;
   /** Popover open state — the store subscription redraws only while the panel is open. */
@@ -29,7 +36,7 @@ interface AgentSectionDeps {
 }
 
 interface AgentSection {
-  /** Render the reasoning-effort segment and the instructions textarea from the store. */
+  /** Render the effort segment and textarea from the store and show them on request transports only. */
   reflect(): void;
   /** Render the locale segment from the current display language. */
   reflectLanguage(): void;
@@ -38,12 +45,22 @@ interface AgentSection {
 }
 
 export function createAgentSection(deps: AgentSectionDeps): AgentSection {
-  const { root: el, agentSettings, getDefaultInstructions, isOpen, log } = deps;
+  const {
+    root: el,
+    agentSettings,
+    endpointsSettings,
+    isPushMode,
+    getDefaultInstructions,
+    isOpen,
+    log,
+  } = deps;
 
   const segEl = el.querySelector<HTMLDivElement>(".yui-effort-seg")!;
   const segButtons = Array.from(segEl.querySelectorAll<HTMLButtonElement>(".yui-seg__btn"));
   const instructionsEl = el.querySelector<HTMLTextAreaElement>(".yui-textarea")!;
   const resetBtn = el.querySelector<HTMLButtonElement>(".yui-reset")!;
+  const effortSecEl = segEl.closest<HTMLElement>(".yui-sec")!;
+  const instructionsSecEl = instructionsEl.closest<HTMLElement>(".yui-sec")!;
   // Language picker segment (3 buttons) node.
   const langSegEl = el.querySelector<HTMLDivElement>(".yui-lang-seg")!;
   const langSegButtons = Array.from(langSegEl.querySelectorAll<HTMLButtonElement>(".yui-seg__btn"));
@@ -54,6 +71,9 @@ export function createAgentSection(deps: AgentSectionDeps): AgentSection {
     defaultInstr && defaultInstr.length > 0 ? defaultInstr : t("instructions.placeholder_default");
 
   function reflectAgent(): void {
+    const push = isPushMode();
+    effortSecEl.hidden = push;
+    instructionsSecEl.hidden = push;
     const a = agentSettings.get();
     const idx = Math.max(0, REASONING_EFFORTS.indexOf(a.reasoning_effort));
     segButtons.forEach((btn, i) => {
@@ -81,6 +101,9 @@ export function createAgentSection(deps: AgentSectionDeps): AgentSection {
   }
 
   const unsubscribeAgent = agentSettings.subscribe(() => {
+    if (isOpen()) reflectAgent();
+  });
+  const unsubscribeEndpoints = endpointsSettings.subscribe(() => {
     if (isOpen()) reflectAgent();
   });
 
@@ -196,6 +219,7 @@ export function createAgentSection(deps: AgentSectionDeps): AgentSection {
     reflectLanguage,
     dispose(): void {
       unsubscribeAgent();
+      unsubscribeEndpoints();
       langSegEl.removeEventListener("click", handleLangSegClick);
       langSegEl.removeEventListener("keydown", handleLangSegKeydown);
       segEl.removeEventListener("click", handleSegClick);
