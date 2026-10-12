@@ -69,7 +69,12 @@ export function createPushToolCalls(deps: PushToolCallsDeps): PushToolCalls {
         return;
       }
       held.add(frame.id);
-      tail = tail.then(() => run(frame, tool));
+      // A call that throws is logged so the calls queued behind it still run.
+      tail = tail
+        .then(() => run(frame, tool))
+        .catch((err) =>
+          deps.log.warn("tool_call_failed", { id: frame.id, name: frame.name, error: String(err) }),
+        );
     },
   };
 }
