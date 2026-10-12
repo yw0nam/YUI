@@ -129,7 +129,7 @@ export interface Usage {
 
 /** Derived from client observation of function_call items from the backend's native tools (not express). */
 export interface ToolStatus {
-  state: "idle" | "running" | "done" | "error";
+  state: "idle" | "running" | "done" | "failed" | "error";
   /** function_call name. */
   tool_id?: string;
 }

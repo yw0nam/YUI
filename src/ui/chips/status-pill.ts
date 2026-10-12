@@ -17,8 +17,8 @@ import type { VoiceInputStatus, VoiceInputStatusSnapshot } from "./voice-input-s
 export interface ToolStatus {
   /** Show the running tool segment for tool_id (label from tool-labels lookup, humanized if unmapped). */
   showTool(toolId: string): void;
-  /** Turn the running segment to done (check), then clear it after the hold. Ignored if none. */
-  finishTool(): void;
+  /** Turn the running segment to done (check) or failed, then clear it after the hold. Ignored if none. */
+  finishTool(failed?: boolean): void;
   /** Clear the tool segment immediately. */
   hideTool(): void;
 }
@@ -100,7 +100,7 @@ export function createStatusPill({
   const labelEl = el.querySelector<HTMLElement>(".yui-status__label")!;
   mount.appendChild(el);
 
-  let tool: { state: "running" | "done"; label: string } | null = null;
+  let tool: { state: "running" | "done" | "failed"; label: string } | null = null;
   let toolHoldTimer: ReturnType<typeof setTimeout> | null = null;
   let showFrame: number | null = null;
   let cancelFade: (() => void) | null = null;
@@ -203,10 +203,10 @@ export function createStatusPill({
     render();
   }
 
-  function finishTool(): void {
+  function finishTool(failed?: boolean): void {
     if (disposed || !tool) return;
     clearToolHold();
-    tool.state = "done";
+    tool.state = failed === true ? "failed" : "done";
     render();
     toolHoldTimer = setTimeout(() => {
       toolHoldTimer = null;

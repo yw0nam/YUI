@@ -11,7 +11,7 @@ import type { WindowRect } from "../../contract";
 import type { EventBus } from "../../dispatcher/core/event-bus";
 import type { Dispatcher } from "../../dispatcher/dispatcher";
 import type { createVrmSelection } from "../../io/assets/vrm-selection";
-import type { AvatarBed } from "../../io/bridge/inbox/avatar-executor";
+import type { AvatarBed, AvatarExecutor } from "../../io/bridge/inbox/avatar-executor";
 import type { DescentEdge, ScreenMonitor } from "../../io/window/geometry/screen-geometry";
 import type { FrameWindow } from "../../io/window/geometry/travel-frame";
 import type { HitTestController } from "../../io/window/pet/hit-test";
@@ -84,6 +84,8 @@ export function wireLocomotion(deps: {
   place(): Promise<boolean>;
   /** Drops a character left mid-air. */
   drop(): void;
+  /** The avatar RPC executor once the stage created it, null until then. */
+  getAvatarExecutor(): AvatarExecutor | null;
 } {
   const {
     bus,
@@ -269,5 +271,6 @@ export function wireLocomotion(deps: {
     placed: faller.placed,
     place: faller.place,
     drop: () => void faller.drop(),
+    getAvatarExecutor: () => windowSources.getAvatarExecutor(),
   };
 }

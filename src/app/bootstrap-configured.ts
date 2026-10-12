@@ -4,6 +4,7 @@ import type { AppConfig } from "../config/load";
 import { isChatConfigured } from "../dispatcher/backend/backend-caller";
 import type { Guardrails } from "../dispatcher/core/guardrails";
 import type { Dispatcher } from "../dispatcher/dispatcher";
+import type { AvatarExecutor } from "../io/bridge/inbox/avatar-executor";
 import type { ScreenCapturer } from "../io/window/capture/screen-source-provider";
 import { createFrontmostTracker } from "../io/window/frontmost-tracker";
 import type { SummonHotkey } from "../io/window/pet/summon-hotkey";
@@ -48,6 +49,8 @@ export interface ConfiguredBootstrapHandles {
   vocabulary: Awaited<ReturnType<typeof wireVocabulary>>;
   /** The seat transitions — the dev perch plays its sit-down through it. */
   sitter: Pick<Sitter, "sitDown">;
+  /** The avatar executor once the stage wiring created it, null until then. */
+  getAvatarExecutor: () => AvatarExecutor | null;
   /** Cancels the in-flight turn, cuts the outstanding push turns and stops the queued speech. */
   stopTurn: () => void;
   /** Resets the proactive gap, the way a typed submit does. */
@@ -114,10 +117,14 @@ const realFactories: ConfiguredBootstrapFactories = {
     const unlistenFrontmost = await subscribeOsEvent({ onTick: frontmostTracker.onTick, log });
     if (unlistenFrontmost) register(unlistenFrontmost);
 
+    // The stage is wired after the turn core, so the executor getter stays late-bound and
+    // reads null until wireLocomotion has run.
+    let locomotion: ReturnType<typeof wireLocomotion> | null = null;
     const core = await wireTurnCore(cfg, phase1, {
       getFrontmost: () => frontmostTracker.get(),
       screenCapturer: phase1.screenCapturer,
       openQuickControls: (tab) => getQuickControls().open(undefined, { tab }),
+      getAvatarExecutor: () => locomotion?.getAvatarExecutor() ?? null,
       voicePersistence: {
         get: () => settings.sttSettings.get().enabled,
         set: settings.sttSettings.setEnabled,
@@ -183,7 +190,7 @@ const realFactories: ConfiguredBootstrapFactories = {
     register(hitTest.stop);
     wireGaze({ renderer, gazeSettings, register });
 
-    const locomotion = wireLocomotion({
+    locomotion = wireLocomotion({
       bus,
       renderer,
       getConfig: () => config.get(),
@@ -254,6 +261,7 @@ const realFactories: ConfiguredBootstrapFactories = {
       summonHotkey,
       vocabulary,
       sitter: locomotion.sitter,
+      getAvatarExecutor: () => locomotion?.getAvatarExecutor() ?? null,
       stopTurn,
       noteInteraction: () => proactiveSource.noteInteraction(),
     };

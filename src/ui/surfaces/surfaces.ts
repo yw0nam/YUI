@@ -57,7 +57,7 @@ export interface Surfaces {
 
   // ── tool status (observing backend tools), forwarded to the ToolStatus the surfaces were given ──
   showTool(toolId: string): void;
-  finishTool(): void;
+  finishTool(failed?: boolean): void;
   hideTool(): void;
 
   // ── text input ──

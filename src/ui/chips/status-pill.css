@@ -146,6 +146,11 @@
   transform: translateY(-0.06rem) rotate(45deg);
 }
 
+/* failed — the dot reads in the error colour where the check would sit. */
+.yui-status__dot[data-tool="failed"] {
+  background: var(--yui-danger);
+}
+
 @keyframes yui-status-pulse {
   0%,
   100% {

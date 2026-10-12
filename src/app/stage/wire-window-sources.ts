@@ -64,6 +64,8 @@ export function wireWindowSources(deps: {
 > & {
   noteUserDrag(): void;
   noteUserDragEnd(): void;
+  /** The avatar RPC executor once the asynchronous Tauri init created it, null until then. */
+  getAvatarExecutor(): AvatarExecutor | null;
   /** Pause the keep-on-screen guard while a travel parks the window itself. */
   setKeepOnScreenPaused(paused: boolean): void;
   dispose(): void;
@@ -95,6 +97,7 @@ export function wireWindowSources(deps: {
       windowDropSource?.notePickup();
     },
     noteUserDragEnd: () => avatarExecutor?.noteUserDragEnd(),
+    getAvatarExecutor: (): AvatarExecutor | null => avatarExecutor,
     adoptSit: (
       windowNumber: number,
       rect: { x: number; y: number },

@@ -8,6 +8,7 @@ import type { Dispatcher } from "../../dispatcher/dispatcher";
 import type { UserInputSource } from "../../dispatcher/sources/user-input-source";
 import type { DelegationHistory } from "../../io/bridge/delegations/delegation-history";
 import type { DelegationsStore } from "../../io/bridge/delegations/delegations-store";
+import type { AvatarExecutor } from "../../io/bridge/inbox/avatar-executor";
 import type { ReasoningStore } from "../../io/bridge/reasoning/reasoning-store";
 import type { PushSocket } from "../../io/chat/push/push-socket";
 import { appendRecord } from "../../io/chat/record/turn-record-log";
@@ -69,6 +70,8 @@ export interface TurnCore {
   dispatcher: Dispatcher;
   guardrails: Guardrails;
   pacer: ProactivePacer;
+  /** The avatar executor once the stage wiring created it, null until then. */
+  getAvatarExecutor: () => AvatarExecutor | null;
   setPeek(peek: { enter(): Promise<void>; exit(): Promise<void> }): void;
   setProactiveSource(source: { noteInteraction(ts?: number): void }): void;
   setStrolling(walker: { isStrolling(): boolean }): void;
@@ -99,6 +102,8 @@ export async function wireTurnCore(
     voiceHost?: VoiceHost;
     /** A sustained user utterance began. */
     onVoiceTurnStart?: () => void;
+    /** The avatar executor once the stage wiring created it, null until then. */
+    getAvatarExecutor?: DispatcherDeps["getAvatarExecutor"];
     register: (dispose: () => void) => void;
     ensureActive: () => void;
   },
@@ -181,6 +186,7 @@ export async function wireTurnCore(
     pushTurns,
     pushSocket: pushSocket ?? null,
     getVocabulary: () => vocabulary!.vocabulary(),
+    getAvatarExecutor: deps.getAvatarExecutor,
     openQuickControls: deps.openQuickControls,
     showVoiceError: voiceErrorDwell.show,
     appendTurnRecord: (record) => appendRecord(record),
@@ -210,6 +216,7 @@ export async function wireTurnCore(
     dispatcher,
     guardrails,
     pacer,
+    getAvatarExecutor: () => deps.getAvatarExecutor?.() ?? null,
     setPeek: turnWiring.setPeek,
     setProactiveSource: turnVoice.setProactiveSource,
     setStrolling: turnVoice.setStrolling,
