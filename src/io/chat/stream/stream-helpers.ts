@@ -39,6 +39,17 @@ export function normalizeExpressIntoEnvelope(
   if (express.caption !== undefined) envelope.caption = express.caption;
 }
 
+/**
+ * Whitespace between consecutive responses' speech — none when either side already carries the
+ * break: trailing whitespace, a leading whitespace, or a CJK terminator.
+ */
+export function boundarySeparator(previous: string, next: string): "" | " " {
+  if (previous === "" || /\s$/.test(previous) || /^\s/.test(next) || /[。！？]$/.test(previous)) {
+    return "";
+  }
+  return " ";
+}
+
 /** Tool round trips per turn, on either request transport. */
 export const MAX_TOOL_ROUND_TRIPS = 3;
 

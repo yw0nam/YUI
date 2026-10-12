@@ -11,6 +11,7 @@ import { type CCMessage, type CCToolCall, createChunkReducer } from "./chat-comp
 import { ownsCall, runClientCall, shouldAnswer } from "./client-tool-run";
 import type { ClientToolRegistry } from "./client-tools";
 import {
+  boundarySeparator,
   httpStatusOf,
   MAX_TOOL_ROUND_TRIPS,
   normalizeExpressIntoEnvelope,
@@ -32,8 +33,9 @@ type CCCreateParams = Omit<ChatCompletionCreateParamsStreaming, "model"> & {
  * cue (before any round trip), any other call yields tool_status done, and a call naming a
  * registered tool is executed locally.
  *
- * Round trip: the assistant tool_calls message and one role:"tool" result per call are appended to
- * the in-turn message array and the whole array is sent again. It happens whenever a tool that
+ * Round trip: the assistant tool_calls message (content: the response's spoken text, null when it
+ * said none) and one role:"tool" result per call are appended to the in-turn message array and the
+ * whole array is sent again. It happens whenever a tool that
  * answers a question ran, and — for cue-only (oneWay) tools, whose result says nothing — only when
  * the model stopped to wait for it: finish_reason "tool_calls" with no speech in that response.
  * A response that already spoke its cues is a finished turn; answering it would make the model say
@@ -128,6 +130,14 @@ export async function* streamChatCompletions(
         for (const item of reducer.feed(chunk)) {
           switch (item.kind) {
             case "text":
+              // First speech of this response when an earlier response already spoke — join at the boundary.
+              if (roundText === "" && speech_text !== "") {
+                const sep = boundarySeparator(speech_text, item.text);
+                if (sep !== "") {
+                  speech_text += sep;
+                  yield { type: "speech_delta", text: sep };
+                }
+              }
               speech_text += item.text;
               roundText += item.text;
               yield { type: "speech_delta", text: item.text };
@@ -168,7 +178,11 @@ export async function* streamChatCompletions(
     yield { type: "keepalive" };
     messages = [
       ...messages,
-      { role: "assistant", content: null, tool_calls: executed.map((e) => e.call) },
+      {
+        role: "assistant",
+        content: roundText === "" ? null : roundText,
+        tool_calls: executed.map((e) => e.call),
+      },
       ...executed.map(
         (e): CCMessage => ({ role: "tool", tool_call_id: e.call.id, content: e.result }),
       ),

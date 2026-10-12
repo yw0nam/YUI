@@ -8,8 +8,9 @@
  *   The round trip happens when a tool that answers a question ran, or when only cue-only (oneWay)
  *   tools ran and the response said nothing; a response that already spoke is a finished turn.
  *   Bounded by MAX_TOOL_ROUND_TRIPS. The follow-up request keeps the turn's original
- *   previous_response_id and re-sends the input items plus each call and its output, so it never
- *   depends on the server having kept the tool-calling response.
+ *   previous_response_id and re-sends the input items, the response's spoken text as an assistant
+ *   message, and each call with its output, so it never depends on the server having kept the
+ *   tool-calling response.
  *
  * express tool naming: the tool is matched by SUFFIX (`name.endsWith("generate_express")`),
  *   so it recognizes both the plain `generate_express` and the MCP-namespaced
@@ -71,6 +72,7 @@ import type { ChatRequest, ChatStreamEvent, ToolOutputItem } from "./chat-client
 import { ownsCall, runClientCall, shouldAnswer } from "./client-tool-run";
 import type { ClientToolRegistry } from "./client-tools";
 import {
+  boundarySeparator,
   httpStatusOf,
   MAX_TOOL_ROUND_TRIPS,
   normalizeExpressIntoEnvelope,
@@ -208,6 +210,14 @@ export async function* streamResponses(
 
         switch (event.type) {
           case "response.output_text.delta": {
+            // First speech of this response when an earlier response already spoke — join at the boundary.
+            if (event.delta !== "" && roundText === "" && speech_text !== "") {
+              const sep = boundarySeparator(speech_text, event.delta);
+              if (sep !== "") {
+                speech_text += sep;
+                yield { type: "speech_delta", text: sep };
+              }
+            }
             speech_text += event.delta;
             roundText += event.delta;
             yield { type: "speech_delta", text: event.delta };
@@ -355,6 +365,13 @@ export async function* streamResponses(
     trips++;
     // Starting a fresh request: the caller's idle watchdog measures the wait from here.
     yield { type: "keepalive" };
-    input = [...inputItems(input), ...executed.flatMap((e) => [e.call, e.output])];
+    const spoken: ResponseInputItem | undefined = roundText
+      ? { role: "assistant", content: roundText }
+      : undefined;
+    input = [
+      ...inputItems(input),
+      ...(spoken ? [spoken] : []),
+      ...executed.flatMap((e) => [e.call, e.output]),
+    ];
   }
 }

@@ -253,7 +253,10 @@ describe("streamChat — Responses tool-call round trip", () => {
   });
 
   it("joins consecutive responses' speech with one space and puts the spoken text before the call items in the follow-up", async () => {
-    const lookup = toolStub("lookup", vi.fn(async () => "42"));
+    const lookup = toolStub(
+      "lookup",
+      vi.fn(async () => "42"),
+    );
     createMock
       .mockResolvedValueOnce(
         streamOf([text("Let me check."), ...call("lookup", "fc_1"), done("resp_1")]),
@@ -263,7 +266,9 @@ describe("streamChat — Responses tool-call round trip", () => {
     const events = await collect(streamChat(CONFIG, req(), optsFor(lookup)));
 
     const deltas = events
-      .filter((e): e is Extract<ChatStreamEvent, { type: "speech_delta" }> => e.type === "speech_delta")
+      .filter(
+        (e): e is Extract<ChatStreamEvent, { type: "speech_delta" }> => e.type === "speech_delta",
+      )
       .map((e) => e.text)
       .join("");
     expect(deltas).toBe("Let me check. It is 42.");

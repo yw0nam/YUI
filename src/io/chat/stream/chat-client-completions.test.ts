@@ -483,7 +483,9 @@ describe("streamChat — Chat Completions tool-call round trip", () => {
     const events = await collect(streamChat(CONFIG, req(), { tools: registry }));
 
     const deltas = events
-      .filter((e): e is Extract<ChatStreamEvent, { type: "speech_delta" }> => e.type === "speech_delta")
+      .filter(
+        (e): e is Extract<ChatStreamEvent, { type: "speech_delta" }> => e.type === "speech_delta",
+      )
       .map((e) => e.text)
       .join("");
     expect(deltas).toBe("Let me check. It is 42.");
