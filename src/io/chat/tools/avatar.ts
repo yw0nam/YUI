@@ -71,6 +71,7 @@ function createBodyActionTool(getExecutor: () => AvatarExecutor | null): ClientT
     },
     waitMs: 15000,
     timeoutResult: "timeout",
+    failed: (result) => result !== "ok",
   };
 }
 

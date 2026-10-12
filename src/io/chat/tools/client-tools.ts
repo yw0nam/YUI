@@ -39,6 +39,8 @@ export interface ClientTool {
   oneWay?: boolean;
   /** A wait that passes resolves the bare word `timeout` instead of an error string. */
   timeoutResult?: "timeout";
+  /** Whether a result reads as a failure; the status pill shows it as failed. Unset: the result starts with `error:`. */
+  failed?(result: string): boolean;
 }
 
 export interface ClientToolRegistry {
