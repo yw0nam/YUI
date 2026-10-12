@@ -401,6 +401,17 @@ const ko: Record<string, string> = {
   "svc.chat_status_reconnect": "다시 연결",
   "svc.chat_status_connect_now": "지금 연결",
   "svc.chat_status_offline": "연결 안 됨",
+  "svc.chat_models_reading": "모델 목록을 읽는 중…",
+  "svc.chat_models_read": "모델 {n}개를 읽음",
+  "svc.chat_models_pick": "모델 {n}개를 읽음 · 채팅 모델을 고르세요",
+  "svc.chat_models_absent": "이 서버의 목록에 없는 모델",
+  "svc.chat_models_unreachable": "{host}에 닿지 못함",
+  "svc.chat_models_timeout": "{host}가 제시간에 응답하지 않음",
+  "svc.chat_models_refused": "서버가 키를 거절함",
+  "svc.chat_models_http": "서버가 오류를 돌려줌 ({status})",
+  "svc.chat_models_no_list": "이 URL에는 모델 목록이 없음",
+  "svc.chat_models_malformed": "서버가 잘못된 형식의 모델 목록을 돌려줌",
+  "svc.chat_models_no_match": "일치하는 모델 없음. 입력한 이름을 그대로 씁니다.",
   "svc.chat_preset_label": "제공자",
   "svc.chat_preset_aria": "채팅 제공자 프리셋",
   "svc.chat_preset_custom": "직접 입력",
@@ -465,8 +476,7 @@ const ko: Record<string, string> = {
   // first-run onboarding hint
   "hint.first_run": "우클릭하면 컨트롤이 열려요 · {hotkey}로 말 걸 수 있어요",
   "hint.first_run_no_hotkey": "우클릭하면 컨트롤이 열려요",
-  "hint.setup_backend":
-    "아직 생각할 백엔드가 없어요 · 우클릭해서 연결 탭을 열고 OpenAI 호환 서버를 지정해 주세요",
+  "hint.setup_backend": "아직 생각할 백엔드가 없어요 · OpenAI 호환 서버를 지정해 주세요",
 
   // reactions tab
   "reactions.watchers_title": "감시",

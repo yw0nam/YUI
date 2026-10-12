@@ -11,10 +11,20 @@ import {
 import { tmpdir } from "node:os";
 import { basename, dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { BASH } from "../command-paths";
+
+vi.setConfig({ testTimeout: 15_000 });
 
 const ROOT = resolve(fileURLToPath(new URL(".", import.meta.url)), "../..");
 const SETUP = join(ROOT, "scripts/worktree-setup.sh");
+
+function expectLinkOrWindowsCopy(path: string): void {
+  const stat = lstatSync(path);
+  if (stat.isSymbolicLink()) return;
+  expect(process.platform).toBe("win32");
+  expect(stat.isFile()).toBe(true);
+}
 
 const cleanups: Array<() => void> = [];
 afterEach(() => {
@@ -42,11 +52,11 @@ describe("scripts/worktree-setup.sh", () => {
   it("links the VRM and copies .env.local", () => {
     const main = makeMainCheckout();
     const wt = tmp("yui-wt-");
-    const r = spawnSync("bash", [SETUP, wt, main], { encoding: "utf8" });
+    const r = spawnSync(BASH, [SETUP, wt, main], { encoding: "utf8" });
     expect(r.status).toBe(0);
 
     const vrm = join(wt, "resources/vrms/carlotta.vrm");
-    expect(lstatSync(vrm).isSymbolicLink()).toBe(true);
+    expectLinkOrWindowsCopy(vrm);
     expect(readFileSync(vrm, "utf8")).toBe("vrm-bytes");
 
     expect(readFileSync(join(wt, ".env.local"), "utf8")).toContain("VITE_YUI_CHAT_KEY");
@@ -55,19 +65,20 @@ describe("scripts/worktree-setup.sh", () => {
   it("links the main checkout's local .claude/ when it exists and skips it otherwise", () => {
     const main = makeMainCheckout();
     const bare = tmp("yui-wt-");
-    expect(spawnSync("bash", [SETUP, bare, main]).status).toBe(0);
+    expect(spawnSync(BASH, [SETUP, bare, main]).status).toBe(0);
     expect(existsSync(join(bare, ".claude"))).toBe(false);
 
     mkdirSync(join(main, ".claude"));
     writeFileSync(join(main, ".claude/settings.json"), "{}");
     const wt = tmp("yui-wt-");
-    expect(spawnSync("bash", [SETUP, wt, main]).status).toBe(0);
-    expect(lstatSync(join(wt, ".claude")).isSymbolicLink()).toBe(true);
+    expect(spawnSync(BASH, [SETUP, wt, main]).status).toBe(0);
+    if (process.platform !== "win32")
+      expect(lstatSync(join(wt, ".claude")).isSymbolicLink()).toBe(true);
     expect(readFileSync(join(wt, ".claude/settings.json"), "utf8")).toBe("{}");
 
     const tracked = tmp("yui-wt-");
     mkdirSync(join(tracked, ".claude"));
-    expect(spawnSync("bash", [SETUP, tracked, main]).status).toBe(0);
+    expect(spawnSync(BASH, [SETUP, tracked, main]).status).toBe(0);
     expect(lstatSync(join(tracked, ".claude")).isDirectory()).toBe(true);
     expect(existsSync(join(tracked, ".claude/.claude"))).toBe(false);
   });
@@ -75,15 +86,15 @@ describe("scripts/worktree-setup.sh", () => {
   it("is idempotent — a second run succeeds and keeps the links", () => {
     const main = makeMainCheckout();
     const wt = tmp("yui-wt-");
-    expect(spawnSync("bash", [SETUP, wt, main]).status).toBe(0);
-    expect(spawnSync("bash", [SETUP, wt, main]).status).toBe(0);
-    expect(lstatSync(join(wt, "resources/vrms/carlotta.vrm")).isSymbolicLink()).toBe(true);
+    expect(spawnSync(BASH, [SETUP, wt, main]).status).toBe(0);
+    expect(spawnSync(BASH, [SETUP, wt, main]).status).toBe(0);
+    expectLinkOrWindowsCopy(join(wt, "resources/vrms/carlotta.vrm"));
   });
 
   it("succeeds when .env.local is absent in the main checkout", () => {
     const main = makeMainCheckout({ envLocal: false });
     const wt = tmp("yui-wt-");
-    const r = spawnSync("bash", [SETUP, wt, main], { encoding: "utf8" });
+    const r = spawnSync(BASH, [SETUP, wt, main], { encoding: "utf8" });
     expect(r.status).toBe(0);
     expect(existsSync(join(wt, ".env.local"))).toBe(false);
   });
@@ -91,7 +102,7 @@ describe("scripts/worktree-setup.sh", () => {
   it("resolves relative arguments so symlinks survive any caller cwd", () => {
     const main = makeMainCheckout();
     const wt = tmp("yui-wt-");
-    const r = spawnSync("bash", [SETUP, basename(wt), basename(main)], {
+    const r = spawnSync(BASH, [SETUP, basename(wt), basename(main)], {
       encoding: "utf8",
       cwd: dirname(wt),
     });
@@ -100,7 +111,7 @@ describe("scripts/worktree-setup.sh", () => {
   });
 
   it("exits non-zero with usage when called without arguments", () => {
-    const r = spawnSync("bash", [SETUP], { encoding: "utf8" });
+    const r = spawnSync(BASH, [SETUP], { encoding: "utf8" });
     expect(r.status).not.toBe(0);
     expect(r.stderr).toMatch(/usage/i);
   });

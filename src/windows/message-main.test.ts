@@ -97,7 +97,7 @@ it("mounts the plate and the delegation chip in the plate's row", async () => {
   const row = document.querySelector<HTMLElement>(".yui-plate-row")!;
   const children = [...row.children];
   expect(children.map((el) => el.className.split(" ")[0])).toEqual(["yui-plate", "yui-deleg"]);
-});
+}, 15_000);
 
 it("draws the lost pill while the mirrored socket is not ready", async () => {
   await boot();

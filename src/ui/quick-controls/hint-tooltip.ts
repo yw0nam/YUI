@@ -28,6 +28,7 @@ interface HintTooltipDeps {
 
 export interface HintTooltip {
   refresh(): void;
+  hide(): void;
   dispose(): void;
 }
 
@@ -72,7 +73,8 @@ export function createHintTooltip(deps: HintTooltipDeps): HintTooltip {
   }
 
   function show(target: HTMLElement): void {
-    if (!root.contains(target)) return;
+    // A detached root still contains its targets, so render-state needs its own check.
+    if (!root.contains(target) || !target.isConnected) return;
     cancelPendingOpen();
     if (openTarget && openTarget !== target) hide();
     cancelFade?.();
@@ -240,5 +242,5 @@ export function createHintTooltip(deps: HintTooltipDeps): HintTooltip {
     tip.remove();
   }
 
-  return { refresh, dispose };
+  return { refresh, hide, dispose };
 }

@@ -402,6 +402,17 @@ const en: Record<string, string> = {
   "svc.chat_status_reconnect": "Reconnect",
   "svc.chat_status_connect_now": "Connect now",
   "svc.chat_status_offline": "Not connected",
+  "svc.chat_models_reading": "Reading the model list…",
+  "svc.chat_models_read": "Read {n} models",
+  "svc.chat_models_pick": "Read {n} models · pick a chat model",
+  "svc.chat_models_absent": "Not in this server's list",
+  "svc.chat_models_unreachable": "Could not reach {host}",
+  "svc.chat_models_timeout": "{host} did not answer in time",
+  "svc.chat_models_refused": "The server refused the key",
+  "svc.chat_models_http": "The server returned an error ({status})",
+  "svc.chat_models_no_list": "No model list at this URL",
+  "svc.chat_models_malformed": "The server returned an invalid model list",
+  "svc.chat_models_no_match": "No match. The typed name is kept.",
   "svc.chat_preset_label": "Provider",
   "svc.chat_preset_aria": "Chat provider preset",
   "svc.chat_preset_custom": "Custom",
@@ -467,7 +478,7 @@ const en: Record<string, string> = {
   "hint.first_run": "Right-click me for controls · press {hotkey} to talk",
   "hint.first_run_no_hotkey": "Right-click me for controls",
   "hint.setup_backend":
-    "I have no backend to think with yet. Right-click me, open Connection, and point me at an OpenAI-compatible server",
+    "I have no backend to think with yet · point me at an OpenAI-compatible server",
 
   // reactions tab
   "reactions.watchers_title": "Watchers",

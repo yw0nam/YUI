@@ -15,6 +15,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("@tauri-apps/api/window", () => ({
   getCurrentWindow: vi.fn(),
+  cursorPosition: vi.fn(),
+  primaryMonitor: vi.fn(),
 }));
 
 vi.mock("@tauri-apps/api/core", () => ({
@@ -22,7 +24,7 @@ vi.mock("@tauri-apps/api/core", () => ({
 }));
 
 import { invoke } from "@tauri-apps/api/core";
-import { getCurrentWindow } from "@tauri-apps/api/window";
+import { cursorPosition, getCurrentWindow, primaryMonitor } from "@tauri-apps/api/window";
 import type { HitTestKnobs } from "../../../config/validators/avatar/types";
 import {
   createHitTestController,
@@ -31,6 +33,7 @@ import {
   type HitTestState,
   physicalCursorToLocalCss,
 } from "./hit-test";
+import { createWindowStatics } from "./window-statics";
 
 // ─── physicalCursorToLocalCss ──────────────────────────────────────────────────
 
@@ -1029,5 +1032,44 @@ describe("createTauriHitTestWindow — routes setIgnoreCursorEvents through set_
     const w = createTauriHitTestWindow();
     await w.setIgnoreCursorEvents(false);
     expect(invoke).toHaveBeenCalledWith("set_click_through", { ignore: false });
+  });
+});
+
+// ─── createTauriHitTestWindow — cursor scale per platform ─────────────────────
+
+describe("createTauriHitTestWindow — the scale the polled cursor is converted with", () => {
+  function stubWindow(origin: { x: number; y: number }, scale: number, primaryScale: number): void {
+    vi.mocked(getCurrentWindow).mockReturnValue({
+      outerPosition: vi.fn(async () => origin),
+      scaleFactor: vi.fn(async () => scale),
+    } as never);
+    vi.mocked(primaryMonitor).mockResolvedValue({ scaleFactor: primaryScale } as never);
+  }
+
+  async function polledLocal(cursor: { x: number; y: number }): Promise<{ x: number; y: number }> {
+    vi.mocked(cursorPosition).mockResolvedValue(cursor as never);
+    const statics = createWindowStatics();
+    const read = await statics.readCursor(createTauriHitTestWindow(), true);
+    return physicalCursorToLocalCss(read, statics.origin!, statics.scale, statics.cursorScale);
+  }
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  // Readings from a 1.25× primary (3440×1440) with the window on a 1× monitor to its left:
+  // GetCursorPos and the window rect are one physical px space there.
+  it("Windows — converts the cursor and the window origin with the window scale alone", async () => {
+    vi.stubGlobal("navigator", { platform: "Win32" });
+    stubWindow({ x: -973, y: 1008 }, 1, 1.25);
+    expect(await polledLocal({ x: -771, y: 1259 })).toEqual({ x: 202, y: 251 });
+  });
+
+  it("macOS — divides the cursor by the primary scale", async () => {
+    vi.stubGlobal("navigator", { platform: "MacIntel" });
+    stubWindow({ x: -28, y: -726 }, 1, 2);
+    const local = await polledLocal({ x: 329.84375, y: -937.0390625 });
+    expect(local.x).toBeCloseTo(192.92, 1);
+    expect(local.y).toBeCloseTo(257.48, 1);
   });
 });

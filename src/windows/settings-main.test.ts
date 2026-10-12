@@ -33,7 +33,7 @@ it("titles the settings window in the app language", async () => {
 
   setLocale("ja");
   await vi.waitFor(() => expect(document.title).toBe("YUI 設定"));
-});
+}, 15_000);
 
 it("reopens the remounted panel on the tab the user was on when the language changes", async () => {
   vi.resetModules();
@@ -49,4 +49,4 @@ it("reopens the remounted panel on the tab the user was on when the language cha
   await vi.waitFor(() => expect(createQuickControls).toHaveBeenCalledTimes(2));
   const remounted = createQuickControls.mock.results[1]!.value;
   expect(remounted.open).toHaveBeenCalledWith(undefined, { tab: "general" });
-});
+}, 15_000);

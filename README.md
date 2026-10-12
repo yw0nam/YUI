@@ -57,7 +57,7 @@ Install https://github.com/yw0nam/YUI following https://raw.githubusercontent.co
 
 The agent installs the toolchain, clones the repo, wires the backend you name, and hands you `pnpm tauri dev`.
 
-No agent at hand? Grab the macOS (Apple Silicon) `.dmg` or the experimental Windows x64 installer from the [latest release](https://github.com/yw0nam/YUI/releases/latest). The builds are unsigned: open the app once, and when macOS blocks it, allow it under **System Settings → Privacy & Security → Open Anyway**. Official builds target macOS on Apple Silicon; Intel Macs and Linux are not officially supported.
+No agent at hand? Grab the macOS (Apple Silicon) `.dmg` or the Windows x64 installer from the [latest release](https://github.com/yw0nam/YUI/releases/latest). The builds are unsigned: open the app once, and when macOS blocks it, allow it under **System Settings → Privacy & Security → Open Anyway**. Official builds target macOS on Apple Silicon and Windows x64; Intel Macs and Linux are not officially supported.
 
 **First chat:** right-click the character to open Settings, switch to the **Connection** tab (plug icon), and pick a **Provider** preset in the Chat section, fill in **Chat model** (and **Chat API key** for OpenAI or Groq), close the panel, press `/` (or `Cmd/Ctrl+Shift+Y`) to open the text input, and send a message.
 The preset — OpenAI, Ollama, LM Studio, or Groq — autofills the endpoint URL; the prerequisite is a running [Ollama](https://ollama.com) or [LM Studio](https://lmstudio.ai), or an OpenAI or Groq API key.

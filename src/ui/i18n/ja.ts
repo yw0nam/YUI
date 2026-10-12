@@ -404,6 +404,17 @@ const ja: Record<string, string> = {
   "svc.chat_status_reconnect": "再接続",
   "svc.chat_status_connect_now": "今すぐ接続",
   "svc.chat_status_offline": "未接続",
+  "svc.chat_models_reading": "モデル一覧を読み込み中…",
+  "svc.chat_models_read": "モデルを{n}件読み込みました",
+  "svc.chat_models_pick": "モデルを{n}件読み込みました · チャットモデルを選んでください",
+  "svc.chat_models_absent": "このサーバーの一覧にないモデル",
+  "svc.chat_models_unreachable": "{host} に接続できません",
+  "svc.chat_models_timeout": "{host} が時間内に応答しませんでした",
+  "svc.chat_models_refused": "サーバーがキーを拒否しました",
+  "svc.chat_models_http": "サーバーがエラーを返しました ({status})",
+  "svc.chat_models_no_list": "この URL にモデル一覧はありません",
+  "svc.chat_models_malformed": "サーバーが不正なモデル一覧を返しました",
+  "svc.chat_models_no_match": "一致なし。入力した名前をそのまま使います。",
   "svc.chat_preset_label": "プロバイダー",
   "svc.chat_preset_aria": "チャットプロバイダーのプリセット",
   "svc.chat_preset_custom": "カスタム",
@@ -468,8 +479,7 @@ const ja: Record<string, string> = {
   // first-run onboarding hint
   "hint.first_run": "右クリックでコントロール · {hotkey}で話しかけてね",
   "hint.first_run_no_hotkey": "右クリックでコントロール",
-  "hint.setup_backend":
-    "考えるためのバックエンドがまだないの · 右クリックして接続タブを開いて、OpenAI 互換サーバーを指定してね",
+  "hint.setup_backend": "考えるためのバックエンドがまだないの · OpenAI 互換サーバーを指定してね",
 
   // reactions tab
   "reactions.watchers_title": "ウォッチャー",

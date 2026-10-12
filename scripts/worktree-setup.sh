@@ -40,7 +40,11 @@ link_asset() {
   fi
   mkdir -p "$(dirname "$dst")"
   ln -sfn "$src" "$dst"
-  echo "worktree-setup: linked $dst -> $src"
+  if [ -L "$dst" ]; then
+    echo "worktree-setup: linked $dst -> $src"
+  else
+    echo "worktree-setup: copied $src to $dst (symbolic links are unavailable)"
+  fi
 }
 
 # Link every bundled VRM (configs/avatar.json lists several; a worktree missing any

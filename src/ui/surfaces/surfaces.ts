@@ -15,7 +15,7 @@
 import "./surfaces.css";
 import type { AttachmentLimits } from "../../config/validators/guardrails";
 import type { UserQuote } from "../../io/bridge/message/message-bridge";
-import type { InputErrorAction } from "../../io/bridge/message/message-remote";
+import type { InputErrorAction, SpeechAction } from "../../io/bridge/message/message-remote";
 import type { ToolStatus } from "../chips/status-pill";
 import { subscribe as subscribeLocale, t } from "../i18n";
 import type { MicPort } from "../input/action-button";
@@ -46,6 +46,8 @@ export interface Surfaces {
   finishSpeech(): void;
   /** Hide the bubble immediately (ignoring dwell). */
   hideSpeech(): void;
+  /** Offers an in-place fix under the current speech; without an action, drops the one shown. */
+  showSpeechAction(action?: SpeechAction): void;
   /** A turn the user started was admitted: the bubble opens with the message quoted on its first line and holds through the turn. */
   quoteUser(quote: UserQuote): void;
   /** The quoted turn is over: the line stays and the bubble takes its dwell, or hides when it shows nothing else. */
@@ -133,7 +135,7 @@ export function createSurfaces({
           </svg>
         </button>
       </div>
-      <div class="yui-bubble__box"><div class="yui-bubble__quote" hidden></div><span class="yui-bubble__text"></span><span class="yui-bubble__caret" aria-hidden="true">|</span></div>
+      <div class="yui-bubble__box"><div class="yui-bubble__quote" hidden></div><span class="yui-bubble__text"></span><span class="yui-bubble__caret" aria-hidden="true">|</span><span class="yui-bubble__speech-action" hidden></span></div>
     </div>
     <span class="yui-bubble__sr" role="status" aria-live="polite"></span>
     <form class="yui-input" novalidate hidden>
@@ -177,6 +179,7 @@ export function createSurfaces({
   const bubbleBox = el.querySelector<HTMLDivElement>(".yui-bubble__box")!;
   const bubbleQuote = el.querySelector<HTMLDivElement>(".yui-bubble__quote")!;
   const bubbleText = el.querySelector<HTMLSpanElement>(".yui-bubble__text")!;
+  const bubbleAction = el.querySelector<HTMLSpanElement>(".yui-bubble__speech-action")!;
   const bubbleSr = el.querySelector<HTMLSpanElement>(".yui-bubble__sr")!;
   const bubbleClose = el.querySelector<HTMLButtonElement>(".yui-bubble__close")!;
   const bubblePop = el.querySelector<HTMLButtonElement>(".yui-bubble__pop")!;
@@ -190,7 +193,7 @@ export function createSurfaces({
   const sendBtn = el.querySelector<HTMLButtonElement>(".yui-input__send")!;
 
   const bubble = createSpeechBubble(
-    { root: el, bubbleEl, bubbleBox, bubbleQuote, bubbleText, bubbleSr, bubbleClose },
+    { root: el, bubbleEl, bubbleBox, bubbleQuote, bubbleText, bubbleAction, bubbleSr, bubbleClose },
     dwellMs,
     keepBubbleUntilDismissed,
   );
@@ -240,6 +243,7 @@ export function createSurfaces({
     endSpeech: bubble.endSpeech,
     finishSpeech: bubble.finishSpeech,
     hideSpeech: bubble.hideSpeech,
+    showSpeechAction: bubble.showSpeechAction,
     quoteUser: quote.show,
     settleQuote: quote.settle,
     clearQuote: quote.clear,
