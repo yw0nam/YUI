@@ -59,8 +59,7 @@ export function createAgentSection(deps: AgentSectionDeps): AgentSection {
   const segButtons = Array.from(segEl.querySelectorAll<HTMLButtonElement>(".yui-seg__btn"));
   const instructionsEl = el.querySelector<HTMLTextAreaElement>(".yui-textarea")!;
   const resetBtn = el.querySelector<HTMLButtonElement>(".yui-reset")!;
-  const effortRowEl = segEl.closest<HTMLElement>(".yui-row")!;
-  const effortSecEl = effortRowEl.closest<HTMLElement>(".yui-sec")!;
+  const effortSecEl = segEl.closest<HTMLElement>(".yui-sec")!;
   const instructionsSecEl = instructionsEl.closest<HTMLElement>(".yui-sec")!;
   // Language picker segment (3 buttons) node.
   const langSegEl = el.querySelector<HTMLDivElement>(".yui-lang-seg")!;
@@ -73,11 +72,7 @@ export function createAgentSection(deps: AgentSectionDeps): AgentSection {
 
   function reflectAgent(): void {
     const push = isPushMode();
-    effortRowEl.hidden = push;
-    // A section whose rows are all hidden would still take its gap.
-    effortSecEl.hidden = Array.from(effortSecEl.querySelectorAll<HTMLElement>(".yui-row")).every(
-      (row) => row.hidden,
-    );
+    effortSecEl.hidden = push;
     instructionsSecEl.hidden = push;
     const a = agentSettings.get();
     const idx = Math.max(0, REASONING_EFFORTS.indexOf(a.reasoning_effort));

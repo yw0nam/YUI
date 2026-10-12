@@ -316,12 +316,12 @@ describe("createQuickControls — agent section", () => {
 
   describe("transport-dependent controls", () => {
     function agentControls(qc: ReturnType<typeof buildQc>) {
-      const effortRow = qc.el.querySelector(".yui-effort-seg")!.closest<HTMLElement>(".yui-row")!;
+      const effortSec = qc.el.querySelector(".yui-effort-seg")!.closest<HTMLElement>(".yui-sec")!;
       const instructionsSec = qc.el
         .querySelector(".yui-textarea")!
         .closest<HTMLElement>(".yui-sec")!;
       const localeRow = qc.el.querySelector(".yui-lang-seg")!.closest<HTMLElement>(".yui-row")!;
-      return { effortRow, instructionsSec, localeRow };
+      return { effortSec, instructionsSec, localeRow };
     }
 
     it("hides the effort segment and the instructions textarea on the push transport, keeps the locale picker", () => {
@@ -329,26 +329,10 @@ describe("createQuickControls — agent section", () => {
       const qc = buildQc();
       qc.open();
 
-      const { effortRow, instructionsSec, localeRow } = agentControls(qc);
-      expect(effortRow.hidden).toBe(true);
+      const { effortSec, instructionsSec, localeRow } = agentControls(qc);
+      expect(effortSec.hidden).toBe(true);
       expect(instructionsSec.hidden).toBe(true);
       expect(localeRow.hidden).toBe(false);
-
-      qc.dispose();
-    });
-
-    it("hides the effort section when no row in it stays visible, and shows it again", () => {
-      endpointsSettings.set({ chat_api: "push" });
-      const qc = buildQc();
-      qc.open();
-      const effortSec = qc.el.querySelector(".yui-effort-seg")!.closest<HTMLElement>(".yui-sec")!;
-      const rows = Array.from(effortSec.querySelectorAll<HTMLElement>(".yui-row"));
-
-      expect(rows.every((row) => row.hidden)).toBe(effortSec.hidden);
-      expect(effortSec.hidden).toBe(true);
-
-      endpointsSettings.set({ chat_api: "responses" });
-      expect(effortSec.hidden).toBe(false);
 
       qc.dispose();
     });
@@ -360,8 +344,8 @@ describe("createQuickControls — agent section", () => {
 
       endpointsSettings.set({ chat_api: "responses" });
 
-      const { effortRow, instructionsSec } = agentControls(qc);
-      expect(effortRow.hidden).toBe(false);
+      const { effortSec, instructionsSec } = agentControls(qc);
+      expect(effortSec.hidden).toBe(false);
       expect(instructionsSec.hidden).toBe(false);
 
       qc.dispose();
@@ -371,8 +355,8 @@ describe("createQuickControls — agent section", () => {
       const qc = buildQc({ getDefaultChatApi: () => "push" });
       qc.open();
 
-      const { effortRow, instructionsSec } = agentControls(qc);
-      expect(effortRow.hidden).toBe(true);
+      const { effortSec, instructionsSec } = agentControls(qc);
+      expect(effortSec.hidden).toBe(true);
       expect(instructionsSec.hidden).toBe(true);
 
       qc.dispose();
