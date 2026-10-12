@@ -33,6 +33,7 @@ from ..express import tools
 from ..express.gate import Vocabulary
 from ..express.segments import build_segments, place_matched
 from ..speech import speech
+from ..tools import handler, pending, registry
 from ..turns import state
 from .frames import MAX_FRAME_BYTES, MAX_TURN_BYTES, encoded, fit_frame
 from .turn_images import cache_turn_images
@@ -54,6 +55,8 @@ CLOSE_REPLACED = 4409
 
 # A run the gateway starts on its own still names a turn; the client's ids are decimal digits only.
 _TURN_IDS = itertools.count(1)
+# One tool_call frame write; past it the client counts as gone.
+TOOL_SEND_WAIT_S = 5.0
 # Drive paths only: a UNC candidate would make os.path.isfile open an SMB session on Windows.
 _WINDOWS_PATH_RE = re.compile(r"(?<!\S)[A-Za-z]:\\(?:(?!\s[A-Za-z]:\\)[^\r\n])*")
 
@@ -168,6 +171,7 @@ class YuiAdapter(BasePlatformAdapter):
         reasoning.set_sink(self.push_reasoning)
         speech.set_sink(self.push_speech)
         tool_status.set_sink(self.push_tool_status)
+        handler.set_sink(self)
         self._runner = web.AppRunner(self.build_app())
         await self._runner.setup()
         try:
@@ -195,6 +199,7 @@ class YuiAdapter(BasePlatformAdapter):
         reasoning.set_sink(None)
         speech.set_sink(None)
         tool_status.set_sink(None)
+        handler.set_sink(None)
         for task in (*self._closings, *self._confirmations, *self._sends):
             task.cancel()
         self._reasoning.close()
@@ -264,8 +269,11 @@ class YuiAdapter(BasePlatformAdapter):
         state.set_connected(chat_id, True)
         if replaced is not None:
             self._speaker.stop(chat_id)
+            # The replaced socket's pending tool calls wait on a client that is gone.
+            pending.fail(chat_id, pending.DISCONNECTED)
         self._adopt_home_channel(chat_id)
         self._publish_vocabulary(chat_id, frame.get("vocabulary"))
+        registry.declare(frame.get("tools"), chat_id)
         await self._send_frame(
             chat_id, {"type": "ready", "chat_id": chat_id, "max_turn_bytes": MAX_TURN_BYTES}
         )
@@ -295,6 +303,8 @@ class YuiAdapter(BasePlatformAdapter):
             await self._on_reset(chat_id)
         elif kind == "stop":
             await self._on_stop(chat_id, frame)
+        elif kind == "tool_result":
+            self._on_tool_result(chat_id, frame)
         else:
             logger.debug("yui: ignoring frame type %r", kind)
 
@@ -303,6 +313,7 @@ class YuiAdapter(BasePlatformAdapter):
             del self._sockets[chat_id]
             state.set_connected(chat_id, False)
             self._speaker.stop(chat_id)
+            pending.fail(chat_id, pending.DISCONNECTED)
             # Client turn ids restart at 1 per process, so a mark left here would name a new turn.
             state.forget_joined(chat_id)
             logger.info("yui: client gone chat=%s", chat_id)
@@ -403,6 +414,8 @@ class YuiAdapter(BasePlatformAdapter):
             return
         # The client asked for the stop, so its acknowledgement is not worth speaking.
         state.set_muted(chat_id, True)
+        # A tool call of a named turn waits on a turn the client has stopped.
+        pending.fail(chat_id, pending.TURN_STOPPED, set(turn_ids))
         logger.info("yui: stop chat=%s turns=%s", chat_id, ",".join(open_ids))
         await self.handle_message(
             MessageEvent(
@@ -570,6 +583,29 @@ class YuiAdapter(BasePlatformAdapter):
             and encoded(frame)[1] <= MAX_FRAME_BYTES
             and await self._send_frame(chat_id, frame)
         )
+
+    # -- tool calls ---------------------------------------------------------------------------
+
+    def _on_tool_result(self, chat_id: str, frame: dict) -> None:
+        """The client's answer to one tool_call; an id the pending table does not hold is ignored."""
+        call_id = str(frame.get("id") or "")
+        if not call_id:
+            logger.debug("yui: tool_result without an id chat=%s", chat_id)
+            return
+        if not pending.resolve(chat_id, call_id, str(frame.get("result") or "")):
+            logger.debug("yui: tool_result for an unknown call chat=%s id=%s", chat_id, call_id)
+
+    def send_tool_call(self, chat_id: str, frame: dict) -> bool:
+        """The tool handler's worker thread asks for one tool_call write; blocks until it is on the wire."""
+        loop = self._loop
+        if loop is None or not state.is_connected(chat_id):
+            return False
+        try:
+            sent = asyncio.run_coroutine_threadsafe(self._send_frame(chat_id, frame), loop)
+            return bool(sent.result(timeout=TOOL_SEND_WAIT_S))
+        except (concurrent.futures.TimeoutError, RuntimeError) as e:
+            logger.warning("yui: tool_call send failed chat=%s — %s", chat_id, e)
+            return False
 
     # -- tool status --------------------------------------------------------------------------
 

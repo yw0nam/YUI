@@ -1,0 +1,67 @@
+"""The blocking handler Hermes worker threads run for a client-declared tool."""
+
+from __future__ import annotations
+
+import concurrent.futures
+import logging
+import uuid
+from typing import Any
+
+from ..turns import session, state
+from . import pending
+
+logger = logging.getLogger(__name__)
+
+# The client bounds its own execution (15 s body action, 2 s query); the adapter waits 5 s past each.
+WAITS_S = {"body_action": 20.0, "look": 7.0}
+DEFAULT_WAIT_S = 20.0
+
+_sink: Any = None
+
+
+def set_sink(sink: Any) -> None:
+    """Who can put a frame on a client socket; the adapter sets itself at connect()."""
+    global _sink
+    _sink = sink
+
+
+def handle(name: str):
+    """The handler for one declared tool name; it blocks its caller's thread."""
+
+    def run(args: dict, **_kwargs: Any) -> str:
+        return _call(name, args)
+
+    return run
+
+
+def _call(name: str, args: object) -> str:
+    chat_id = session.current_chat_id()
+    if not chat_id or not state.is_connected(chat_id):
+        return pending.DISCONNECTED
+    with pending.chat_lock(chat_id):
+        return _one(chat_id, name, args)
+
+
+def _one(chat_id: str, name: str, args: object) -> str:
+    wait = WAITS_S.get(name, DEFAULT_WAIT_S)
+    call_id = uuid.uuid4().hex
+    turn_id = state.turn_id(chat_id) or ""
+    future = pending.register(chat_id, call_id, turn_id)
+    try:
+        sink = _sink
+        frame = {
+            "type": "tool_call",
+            "id": call_id,
+            "turn_id": turn_id,
+            "name": name,
+            "arguments": args if isinstance(args, dict) else {},
+        }
+        if sink is None or not sink.send_tool_call(chat_id, frame):
+            return pending.DISCONNECTED
+        try:
+            return future.result(timeout=wait)
+        except concurrent.futures.TimeoutError:
+            logger.info("yui: tool_call %s got no reply in %s s chat=%s", name, int(wait), chat_id)
+            return f"error: no reply from the client within {int(wait)} s"
+    finally:
+        pending.discard(chat_id, call_id)

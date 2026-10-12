@@ -46,8 +46,10 @@ def register(ctx) -> None:
     from .src.express import tools
     from .src.express.gate import Vocabulary
     from .src.speech import speech
+    from .src.tools import registry
 
     tools.set_context(ctx)
+    registry.set_context(ctx)
     try:
         tools.declare(Vocabulary())
     except Exception:

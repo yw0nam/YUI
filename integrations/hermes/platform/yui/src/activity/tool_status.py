@@ -27,10 +27,33 @@ def on_pre_tool_call(
 
 
 def on_post_tool_call(
-    tool_name: object = None, task_id: object = None, session_id: object = None, **_kwargs: object
+    tool_name: object = None,
+    task_id: object = None,
+    session_id: object = None,
+    result: object = None,
+    status: object = None,
+    **_kwargs: object,
 ) -> None:
     """A tool call came back."""
-    _report("done", tool_name, task_id, session_id)
+    _report(
+        "failed" if _failed(tool_name, result, status) else "done",
+        tool_name,
+        task_id,
+        session_id,
+    )
+
+
+def _failed(tool_name: object, result: object, status: object) -> bool:
+    """The client's own verdicts read as failures: any non-ok body action, any error string."""
+    if status == "error":
+        return True
+    name = str(tool_name or "")
+    text = result if isinstance(result, str) else ""
+    if name == "body_action":
+        return text != "ok"
+    if name == "look":
+        return text.startswith("error:")
+    return False
 
 
 def _report(state: str, tool_name: object, task_id: object, session_id: object) -> None:

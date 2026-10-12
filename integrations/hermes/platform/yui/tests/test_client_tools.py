@@ -13,9 +13,12 @@ from yui.src.tools import handler, pending, registry
 from yui.src.transport.adapter import YuiAdapter
 from yui.src.turns import state
 
-from gateway_stub import FakeConfig
-
 CHAT = "yui-3f9a2c1d"
+
+
+class FakeConfig:
+    def __init__(self, **extra):
+        self.extra = extra
 
 LOOK_TOOL = {
     "type": "function",
@@ -44,7 +47,7 @@ def clean():
     STUB_ENV.pop("HERMES_SESSION_CHAT_ID", None)
 
 
-def made_adapter(monkeypatch, sends: list[dict] | None = None) -> YuiAdapter:
+def made_adapter(monkeypatch, sends: list[dict] | None = None, *, answers: bool = True) -> YuiAdapter:
     """An adapter on this loop whose frame writes are recorded instead of put on a socket."""
     made = YuiAdapter(FakeConfig(key="k"))
     made._loop = asyncio.get_running_loop()
@@ -52,7 +55,7 @@ def made_adapter(monkeypatch, sends: list[dict] | None = None) -> YuiAdapter:
     async def fake_send(chat_id: str, frame: dict) -> bool:
         if sends is not None:
             sends.append(frame)
-        if chat_id == CHAT and frame.get("type") == "tool_call":
+        if answers and chat_id == CHAT and frame.get("type") == "tool_call":
             pending.resolve(chat_id, str(frame["id"]), "ok")
         return True
 
@@ -118,8 +121,7 @@ async def test_the_handler_answers_disconnected_with_no_ready_socket(monkeypatch
 
 
 async def test_a_wait_that_passes_answers_no_reply(monkeypatch):
-    sends: list[dict] = []
-    made = made_adapter(monkeypatch, sends)
+    made = made_adapter(monkeypatch, answers=False)
     handler.set_sink(made)
     STUB_ENV["HERMES_SESSION_CHAT_ID"] = CHAT
     monkeypatch.setitem(handler.WAITS_S, "look", 1.0)
@@ -131,8 +133,7 @@ async def test_a_wait_that_passes_answers_no_reply(monkeypatch):
 
 
 async def test_a_stop_fails_the_named_turns_calls(monkeypatch):
-    sends: list[dict] = []
-    made = made_adapter(monkeypatch, sends)
+    made = made_adapter(monkeypatch, answers=False)
     handler.set_sink(made)
     state.open_turn(CHAT, "t1")
     STUB_ENV["HERMES_SESSION_CHAT_ID"] = CHAT
@@ -145,8 +146,7 @@ async def test_a_stop_fails_the_named_turns_calls(monkeypatch):
 
 
 async def test_a_close_fails_every_pending_call_of_the_chat(monkeypatch):
-    sends: list[dict] = []
-    made = made_adapter(monkeypatch, sends)
+    made = made_adapter(monkeypatch, answers=False)
     handler.set_sink(made)
     STUB_ENV["HERMES_SESSION_CHAT_ID"] = CHAT
     ws = SimpleNamespace(closed=False)
@@ -160,8 +160,7 @@ async def test_a_close_fails_every_pending_call_of_the_chat(monkeypatch):
 
 
 async def test_a_replacement_fails_the_replaced_sockets_pending_calls(monkeypatch):
-    sends: list[dict] = []
-    made = made_adapter(monkeypatch, sends)
+    made = made_adapter(monkeypatch, answers=False)
     handler.set_sink(made)
     STUB_ENV["HERMES_SESSION_CHAT_ID"] = CHAT
     old_ws = SimpleNamespace(closed=False)
