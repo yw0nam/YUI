@@ -55,7 +55,7 @@ describe("createStationaryFrame", () => {
     setKeepOnScreenPaused = vi.fn<(paused: boolean) => void>(() => {});
   });
 
-  function make() {
+  function make(monitors: ScreenMonitor[] = [SCREEN]) {
     return createStationaryFrame({
       frame: {
         outerPosition: async () => ({ x: live.x * live.scale, y: live.y * live.scale }),
@@ -68,7 +68,7 @@ describe("createStationaryFrame", () => {
         setFrameLogical,
       },
       renderer: { setViewWindow },
-      listMonitors: async () => [SCREEN],
+      listMonitors: async () => monitors,
       setKeepOnScreenPaused,
     });
   }
@@ -106,6 +106,26 @@ describe("createStationaryFrame", () => {
     await frame.release();
 
     expect(setFrameLogical).toHaveBeenLastCalledWith(990, 517, 400, 600);
+  });
+
+  it("clamps to the bounds of the monitor the window is on when it is not at the origin", async () => {
+    const right: ScreenMonitor = { ...SCREEN, position: { x: 2560, y: 0 } };
+    // Logical 1280..2720; the window's right edge sits at 2700.
+    live = { ...live, x: 2300 };
+    const frame = make([SCREEN, right]);
+
+    await frame.park(EXTENTS);
+
+    // Unclamped 2150..2750 overflows the 2720 edge by 30.
+    expect(setFrameLogical).toHaveBeenCalledExactlyOnceWith(2120, 517, 600, 600);
+  });
+
+  it("leaves the frame unclamped when the window center is on no monitor", async () => {
+    const frame = make([]);
+
+    await frame.park(EXTENTS);
+
+    expect(setFrameLogical).toHaveBeenCalledExactlyOnceWith(150, 517, 600, 600);
   });
 
   it("pulls the widened frame inside the screen at the left edge", async () => {
