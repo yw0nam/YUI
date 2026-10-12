@@ -74,11 +74,11 @@ export function createStationaryFrame(deps: {
       releasing = null;
       parking = (async () => {
         await pending?.catch(() => {});
-        const live = await liveRect();
+        const [live, monitors] = await Promise.all([liveRect(), deps.listMonitors()]);
         const { left, right } = framePadding(e, live.width);
         const parkedWidth = live.width + left + right;
         const monitor = monitorAtLogical(
-          await deps.listMonitors(),
+          monitors,
           live.x + live.width / 2,
           live.y + live.height / 2,
         );
