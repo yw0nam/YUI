@@ -152,12 +152,15 @@ export function createChunkReducer() {
         if (delta !== null && typeof delta === "object") {
           const d = delta as Record<string, unknown>;
 
-          // Only delta.content is speech; reasoning_content/reasoning are display-only reasoning.
+          // Only delta.content is speech; one reasoning item per chunk — mirrored fields show once.
+          let reasoning: string | undefined;
           if (typeof d.reasoning_content === "string" && d.reasoning_content.length > 0) {
-            items.push({ kind: "reasoning", text: d.reasoning_content });
+            reasoning = d.reasoning_content;
+          } else if (typeof d.reasoning === "string" && d.reasoning.length > 0) {
+            reasoning = d.reasoning;
           }
-          if (typeof d.reasoning === "string" && d.reasoning.length > 0) {
-            items.push({ kind: "reasoning", text: d.reasoning });
+          if (reasoning !== undefined) {
+            items.push({ kind: "reasoning", text: reasoning });
           }
           if (typeof d.content === "string" && d.content.length > 0) {
             items.push({ kind: "text", text: d.content });
