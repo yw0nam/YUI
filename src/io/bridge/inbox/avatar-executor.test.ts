@@ -979,6 +979,23 @@ describe("avatar-executor — public entry", () => {
     });
   });
 
+  it("command() names a side or spot that is present but invalid, and one that is absent", async () => {
+    const h = harness();
+
+    await expect(h.executor.command({ action: "peek", side: "up" })).resolves.toEqual({
+      error: "invalid field side",
+    });
+    await expect(h.executor.command({ action: "peek" })).resolves.toEqual({
+      error: "missing field side",
+    });
+    await expect(h.executor.command({ action: "move_to", spot: "middle" })).resolves.toEqual({
+      error: "invalid field spot",
+    });
+    await expect(h.executor.command({ action: "move_to" })).resolves.toEqual({
+      error: "missing field spot",
+    });
+  });
+
   it("command() hands the failure words through and refuses while a command runs", async () => {
     const gate = deferred<PlacementResult>();
     const h = harness({

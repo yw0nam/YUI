@@ -130,6 +130,19 @@ describe("look — schema and execute", () => {
     expect(JSON.parse(result)).toEqual(await exec.perchTargets());
   });
 
+  it("answers error: missing field at when at is absent", async () => {
+    const tool = createLookTool(() => executor());
+    await expect(tool.execute({})).resolves.toBe("error: missing field at");
+  });
+
+  it("answers error: invalid field at for a target it does not know", async () => {
+    const exec = executor();
+    const tool = createLookTool(() => exec);
+    await expect(tool.execute({ at: "screen" })).resolves.toBe("error: invalid field at");
+    expect(exec.state).not.toHaveBeenCalled();
+    expect(exec.perchTargets).not.toHaveBeenCalled();
+  });
+
   it("answers error: unsupported when no executor exists yet", async () => {
     const tool = createLookTool(() => null);
     await expect(tool.execute({ at: "body" })).resolves.toBe("error: unsupported");
