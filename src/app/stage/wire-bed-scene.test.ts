@@ -58,6 +58,7 @@ function setup(over: { enabled?: boolean; ready?: Promise<void>; frameWindow?: (
       {
         frame: {
           ready: over.ready ?? Promise.resolve(),
+          listMonitors: async () => [],
           frameWindow:
             over.frameWindow ??
             (() => ({

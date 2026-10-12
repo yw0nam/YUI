@@ -1,4 +1,8 @@
-import { type PetWindow, toScreenMonitor } from "../../../io/window/geometry/screen-geometry";
+import {
+  type PetWindow,
+  type ScreenMonitor,
+  toScreenMonitor,
+} from "../../../io/window/geometry/screen-geometry";
 import {
   createTravelFrame,
   type FrameWindow,
@@ -23,6 +27,7 @@ export interface TravelFrameHandle {
   getWindow(): PetWindow;
   /** The real window itself, whatever travel is running. */
   frameWindow(): FrameWindow;
+  listMonitors(): Promise<ScreenMonitor[]>;
   travel: {
     begin(end: { x: number; y: number }, via?: Array<{ x: number; y: number }>): Promise<Travel>;
     current(): PetWindow | null;
@@ -56,6 +61,10 @@ export function wireTravelFrame(deps: {
       if (!realWindow) throw new Error("wireTravelFrame: not ready");
       return realWindow;
     },
+    listMonitors: async (): Promise<ScreenMonitor[]> => {
+      const { availableMonitors } = await import("@tauri-apps/api/window");
+      return (await availableMonitors()).map(toScreenMonitor);
+    },
     travel: {
       begin: (
         end: { x: number; y: number },
@@ -78,7 +87,7 @@ export function wireTravelFrame(deps: {
   }
   void (async () => {
     const { invoke } = await import("@tauri-apps/api/core");
-    const { availableMonitors, getCurrentWindow } = await import("@tauri-apps/api/window");
+    const { getCurrentWindow } = await import("@tauri-apps/api/window");
     const { LogicalPosition } = await import("@tauri-apps/api/dpi");
     if (disposed) {
       resolveReady();
@@ -95,7 +104,7 @@ export function wireTravelFrame(deps: {
     travel = createTravelFrame({
       frame: realWindow,
       renderer: deps.renderer,
-      listMonitors: async () => (await availableMonitors()).map(toScreenMonitor),
+      listMonitors: handle.listMonitors,
       setKeepOnScreenPaused: deps.setKeepOnScreenPaused,
     });
     resolveReady();

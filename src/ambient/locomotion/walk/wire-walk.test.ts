@@ -84,6 +84,7 @@ function startWalker(isPanelOpen: () => boolean = () => false) {
   const travelFrame: TravelFrameHandle = {
     getWindow: () => ({}) as never,
     frameWindow: () => ({}) as never,
+    listMonitors: async () => [],
     travel: {} as never,
     abort: async () => {},
     dispose: () => {},

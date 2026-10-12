@@ -4,10 +4,13 @@
  * A scene wider than the window parks the real window once with padding on either side
  * and draws the reference-size framing at the left padding inside it
  * (`Renderer.setViewWindow`), so the bottom edge and the character's place on screen do
- * not move. A release reads the live origin, so a drag of the parked window is kept.
+ * not move. The widened frame is pulled inside the monitor that holds the window, so the
+ * whole scene is on screen; a character at the edge moves in by the overflow. A release
+ * reads the live origin, so a drag of the parked window is kept.
  */
 
 import type { Renderer } from "../../../renderer";
+import { monitorAtLogical, type ScreenMonitor } from "./screen-geometry";
 import type { FrameWindow } from "./travel-frame";
 
 /** Extents either side of the character's canvas x, in logical px. */
@@ -31,6 +34,7 @@ const SIZE_DRIFT_PX = 1;
 export function createStationaryFrame(deps: {
   frame: FrameWindow;
   renderer: Pick<Renderer, "setViewWindow">;
+  listMonitors(): Promise<ScreenMonitor[]>;
   setKeepOnScreenPaused(paused: boolean): void;
 }): {
   /** Widen the real window by the padding the extents need and offset the view by the left one. */
@@ -73,9 +77,20 @@ export function createStationaryFrame(deps: {
         const live = await liveRect();
         const { left, right } = framePadding(e, live.width);
         const parkedWidth = live.width + left + right;
+        const monitor = monitorAtLogical(
+          await deps.listMonitors(),
+          live.x + live.width / 2,
+          live.y + live.height / 2,
+        );
+        let x = live.x - left;
+        if (monitor) {
+          const screenLeft = monitor.position.x / monitor.scaleFactor;
+          const screenRight = screenLeft + monitor.size.width / monitor.scaleFactor;
+          x = Math.max(screenLeft, Math.min(x, screenRight - parkedWidth));
+        }
         deps.setKeepOnScreenPaused(true);
         try {
-          await deps.frame.setFrameLogical(live.x - left, live.y, parkedWidth, live.height);
+          await deps.frame.setFrameLogical(x, live.y, parkedWidth, live.height);
         } catch (err) {
           deps.setKeepOnScreenPaused(false);
           throw err;

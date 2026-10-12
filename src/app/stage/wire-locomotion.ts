@@ -12,7 +12,7 @@ import type { EventBus } from "../../dispatcher/core/event-bus";
 import type { Dispatcher } from "../../dispatcher/dispatcher";
 import type { createVrmSelection } from "../../io/assets/vrm-selection";
 import type { AvatarBed } from "../../io/bridge/inbox/avatar-executor";
-import type { DescentEdge } from "../../io/window/geometry/screen-geometry";
+import type { DescentEdge, ScreenMonitor } from "../../io/window/geometry/screen-geometry";
 import type { FrameWindow } from "../../io/window/geometry/travel-frame";
 import type { HitTestController } from "../../io/window/pet/hit-test";
 import type { Logger } from "../../logger";
@@ -72,7 +72,11 @@ export function wireLocomotion(deps: {
   /** Cancels the five loops in the order a drag start and an agent move cancel them. */
   cancel(): void;
   abortTravel(): Promise<void>;
-  frame: { ready: Promise<void>; frameWindow(): FrameWindow };
+  frame: {
+    ready: Promise<void>;
+    frameWindow(): FrameWindow;
+    listMonitors(): Promise<ScreenMonitor[]>;
+  };
   setKeepOnScreenPaused(paused: boolean): void;
   /** Resolves once the boot placement has settled. */
   placed: Promise<void>;
@@ -256,7 +260,11 @@ export function wireLocomotion(deps: {
       sitter.cancel();
     },
     abortTravel: () => travelFrame.abort(),
-    frame: { ready: travelFrame.ready, frameWindow: travelFrame.frameWindow },
+    frame: {
+      ready: travelFrame.ready,
+      frameWindow: travelFrame.frameWindow,
+      listMonitors: travelFrame.listMonitors,
+    },
     setKeepOnScreenPaused: windowSources.setKeepOnScreenPaused,
     placed: faller.placed,
     place: faller.place,

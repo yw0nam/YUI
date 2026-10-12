@@ -18,6 +18,7 @@ export function createSceneFrame(
         frame = createStationaryFrame({
           frame: locomotion.frame.frameWindow(),
           renderer,
+          listMonitors: locomotion.frame.listMonitors,
           setKeepOnScreenPaused: locomotion.setKeepOnScreenPaused,
         });
         return frame.park(e);
