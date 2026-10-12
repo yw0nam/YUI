@@ -14,6 +14,7 @@ import { createReasoningStore } from "../../../io/bridge/reasoning/reasoning-sto
 import type { ChatHistoryEntry } from "../../../io/chat/conversation/chat-history-store";
 import type {
   DelegationItem,
+  ErrorFrame,
   ReasoningFrame,
   RenderFrame,
   SpeechFrame,
@@ -36,6 +37,7 @@ function fakeSocket() {
   let stateCb: ((state: PushSocketState) => void) | null = null;
   let toolStatusCb: ((frame: ToolStatusFrame) => void) | null = null;
   let toolCallCb: ((frame: ToolCallFrame) => void) | null = null;
+  let errorCb: ((frame: ErrorFrame) => void) | null = null;
   return {
     sendVocabulary: vi.fn(),
     onRender(cb: (frame: RenderFrame) => void) {
@@ -86,7 +88,16 @@ function fakeSocket() {
         toolCallCb = null;
       };
     },
+    onError(cb: (frame: ErrorFrame) => void) {
+      errorCb = cb;
+      return () => {
+        errorCb = null;
+      };
+    },
     sendToolResult: vi.fn((_frame: ToolResultFrame) => true),
+    pushError(frame: ErrorFrame): void {
+      errorCb?.(frame);
+    },
     pushToolCall(frame: ToolCallFrame): void {
       toolCallCb?.(frame);
     },
@@ -118,6 +129,7 @@ function fakeSocket() {
     hasReasoningSubscriber: () => reasoningCb !== null,
     hasStateSubscriber: () => stateCb !== null,
     hasToolStatusSubscriber: () => toolStatusCb !== null,
+    hasErrorSubscriber: () => errorCb !== null,
   };
 }
 
@@ -483,6 +495,47 @@ describe("wirePushTransport", () => {
     expect(socket.hasReasoningSubscriber()).toBe(false);
     expect(socket.hasStateSubscriber()).toBe(false);
     expect(socket.hasToolStatusSubscriber()).toBe(false);
+    expect(socket.hasErrorSubscriber()).toBe(false);
+  });
+});
+
+describe("wirePushTransport — error frames", () => {
+  it("hands the frame's message to the turn's waiter, which still ends on the turn_end", async () => {
+    wire();
+    const onError = vi.fn();
+    pushTurns.opened("7");
+    const ended = pushTurns.awaitTurnEnd("7", { onError });
+
+    socket.pushError({ type: "error", turn_id: "7", message: "rate limit reached" });
+    socket.pushTurnEnd({ type: "turn_end", turn_id: "7" });
+
+    expect(onError).toHaveBeenCalledWith("rate limit reached");
+    await expect(ended).resolves.toBe("ended");
+    expect(log.info).toHaveBeenCalledWith("push.error", { turn_id: "7" });
+  });
+
+  it("leaves another turn's waiter alone", () => {
+    wire();
+    const onError = vi.fn();
+    pushTurns.opened("7");
+    void pushTurns.awaitTurnEnd("7", { onError });
+
+    socket.pushError({ type: "error", turn_id: "hermes-1", message: "boom" });
+
+    expect(onError).not.toHaveBeenCalled();
+  });
+
+  it("drops the frame of a turn the user stopped", () => {
+    wire();
+    const onError = vi.fn();
+    pushTurns.opened("7");
+    void pushTurns.awaitTurnEnd("7", { onError });
+    pushTurns.cut();
+
+    socket.pushError({ type: "error", turn_id: "7", message: "boom" });
+
+    expect(onError).not.toHaveBeenCalled();
+    expect(log.info).not.toHaveBeenCalledWith("push.error", expect.anything());
   });
 });
 

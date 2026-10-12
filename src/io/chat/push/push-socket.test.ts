@@ -1159,6 +1159,28 @@ describe("createPushSocket — inbound frames", () => {
     });
   });
 
+  it("hands an error frame to every subscriber", async () => {
+    await connected();
+    const seen: unknown[] = [];
+    socket.onError((frame) => seen.push(frame));
+    FakeSocket.last().push({ type: "error", turn_id: "7", message: "rate limit reached" });
+
+    expect(seen).toEqual([{ type: "error", turn_id: "7", message: "rate limit reached" }]);
+  });
+
+  it.each([
+    ["turn_id", { type: "error", turn_id: 7, message: "boom" }],
+    ["message", { type: "error", turn_id: "7", message: { text: "boom" } }],
+  ])("warns and drops an error frame whose %s is not a string", async (field, frame) => {
+    await connected();
+    const seen: unknown[] = [];
+    socket.onError((f) => seen.push(f));
+    FakeSocket.last().push(frame);
+
+    expect(seen).toEqual([]);
+    expect(logger.warn).toHaveBeenCalledWith("frame_malformed", { type: "error", field });
+  });
+
   it("carries a render frame's reasoning field through to subscribers", async () => {
     await connected();
     const seen: unknown[] = [];
