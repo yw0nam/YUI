@@ -114,22 +114,18 @@ describe("wireCamera", () => {
     );
   });
 
-  it("ignores the wheel zoom while locked", () => {
+  it("changes wheel zoom while the body is held", () => {
     const { stage, cameraSettings } = setup(() => true);
 
     wheelOn(stage, { deltaY: -240 });
 
-    expect(cameraSettings.setZoom).not.toHaveBeenCalled();
+    expect(cameraSettings.setZoom).toHaveBeenCalledOnce();
   });
 
-  it("holds a store change back while locked and applies it on apply()", () => {
-    const { renderer, cameraSettings, apply } = setup(() => true);
+  it("applies a store change immediately while the body is held", () => {
+    const { renderer, cameraSettings } = setup(() => true);
 
     cameraSettings.change({ zoom: 2, azimuth: 0.5, polar: 1.3 });
-    expect(renderer.setZoom).toHaveBeenCalledExactlyOnceWith(1.2);
-    expect(renderer.setOrbit).toHaveBeenCalledExactlyOnceWith({ azimuth: 0.3, polar: 1.1 });
-
-    apply();
     expect(renderer.setZoom).toHaveBeenLastCalledWith(2);
     expect(renderer.setOrbit).toHaveBeenLastCalledWith({ azimuth: 0.5, polar: 1.3 });
   });

@@ -88,6 +88,48 @@ describe("createStationaryFrame", () => {
     expect(setKeepOnScreenPaused).toHaveBeenCalledExactlyOnceWith(true);
   });
 
+  it("reparks larger and smaller extents around the base view and releases at the latest padding", async () => {
+    const frame = make();
+    await frame.park(EXTENTS);
+
+    await frame.repark({ leftPx: 450, rightPx: 350, anchorX: 350 });
+    expect(setFrameLogical).toHaveBeenLastCalledWith(50, 517, 800, 600);
+    expect(setViewWindow).toHaveBeenLastCalledWith({ x: 250, y: 0, width: 400, height: 600 });
+
+    await frame.repark({ leftPx: 250, rightPx: 200, anchorX: 450 });
+    expect(setFrameLogical).toHaveBeenLastCalledWith(250, 517, 450, 600);
+    expect(setViewWindow).toHaveBeenLastCalledWith({ x: 50, y: 0, width: 400, height: 600 });
+    expect(setFrameLogical).toHaveBeenCalledTimes(3);
+    expect(setKeepOnScreenPaused).toHaveBeenCalledExactlyOnceWith(true);
+
+    live.x += 30;
+    await frame.release();
+    expect(setFrameLogical).toHaveBeenLastCalledWith(330, 517, 400, 600);
+  });
+
+  it("clamps a repark at the right edge and releases the base size at its adjusted origin", async () => {
+    live.x = 1040;
+    const frame = make();
+    await frame.park(EXTENTS);
+
+    await frame.repark({ leftPx: 450, rightPx: 350, anchorX: 350 });
+    expect(setFrameLogical).toHaveBeenLastCalledWith(640, 517, 800, 600);
+    expect(setViewWindow).toHaveBeenLastCalledWith({ x: 250, y: 0, width: 400, height: 600 });
+    await frame.release();
+    expect(setFrameLogical).toHaveBeenLastCalledWith(890, 517, 400, 600);
+  });
+
+  it("does not repark a released frame", async () => {
+    const frame = make();
+    await frame.repark(EXTENTS);
+    expect(setFrameLogical).not.toHaveBeenCalled();
+    await frame.park(EXTENTS);
+    await frame.release();
+    await frame.repark(EXTENTS);
+    expect(setFrameLogical).toHaveBeenCalledTimes(2);
+    expect(setViewWindow).toHaveBeenLastCalledWith(null);
+  });
+
   it("pulls the widened frame inside the screen at the right edge and keeps the view offset", async () => {
     live = { ...live, x: 1040 };
     const frame = make();
