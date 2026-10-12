@@ -59,7 +59,9 @@
   name when the turn ends. A turn the gateway runs inside a turn it interrupted ends first, and the
   interrupted turn ends behind it. A turn whose text the gateway takes into a turn already running
   on the same chat ends when that turn ends, and every frame the plugin sends after that turn
-  arrives names its id. A turn the gateway started on its own, such as a cron result, carries an
+  arrives names its id. Only a text-only turn is taken into a running turn: a turn that carries
+  images waits for the running turn or interrupts it, by the gateway's busy-input setting. A turn
+  the gateway started on its own, such as a cron result, carries an
   id the plugin mints, of the form `hermes-<n>`, counted per gateway process.
 - Sends a `delegations` frame whenever background work starts or finishes, so the client can show
   what is running; each finished item carries its `status` and `summary`. The plugin holds fifty

@@ -10,7 +10,7 @@ The client renders what arrives and judges nothing. Everything the backend must 
 
 | | Chat Completions | Responses | Push |
 |---|---|---|---|
-| Screenshot of the turn | `screenshot:` line and an `image_url` part | `screenshot:` line and an `input_image` part | Pixels in `turn.images` when the backend states `max_turn_bytes`; otherwise the client makes no capture and sends no `screenshot:` line |
+| Screenshot of the turn | `screenshot:` line and an `image_url` part | `screenshot:` line and an `input_image` part | `screenshot:` line, plus the pixels in `turn.images` when the backend states `max_turn_bytes` |
 | Images the user attaches | `image_url` parts | `input_image` parts | In `turn.images`, after the screenshot, when the backend states `max_turn_bytes`; otherwise None |
 | Client-declared tools and their results ([client-tools.md](client-tools.md)) | `tools[]` on every request | `tools[]` on every request while `broker_base_url` is unset | None. Cues arrive in `render` and `speech` segments |
 | Server error text on a failed user turn | Status and server text of an HTTP error on the request, 401 and 403 excepted. Generic text for an error inside the stream | Status and server text of an HTTP error, 401 and 403 excepted. Generic text for an `error`, `response.failed` or `response.incomplete` event | Generic text |
@@ -107,7 +107,7 @@ The `vocabulary` object from `hello`, sent again whenever the renderable set cha
 
 `client_context` is the block described in [client-context.md](client-context.md), exactly as the other modes send it. `text` is the user utterance, or `""` on a turn no user typed or spoke.
 
-The frame may carry `images`, an array of `data:image/<subtype>;base64,<data>` strings: the turn's screenshot first when the turn has one, then the images the user attached. The client sends the field only to a backend whose `ready` carried `max_turn_bytes`, and omits it when the turn has no image.
+The frame may carry `images`, an array of `data:image/<subtype>;base64,<data>` strings: the turn's screenshot first when the turn has one, then the images the user attached. The client sends the field only to a backend whose `ready` carried `max_turn_bytes`, and omits it when the turn has no image. When the images would take the frame over the stated size, the client re-encodes the images that exceed an equal share of the room as smaller JPEGs before it sends.
 
 Every frame the backend sends for the turn carries the same `turn_id`, and a `turn_end` frame closes it.
 
