@@ -46,4 +46,25 @@ describe("fitTurnImages", () => {
     expect(canvas.width).toBeGreaterThan(0);
     expect(canvas.width).toBeLessThan(1000);
   });
+
+  it("leaves an image as it was when the canvas yields no JPEG", async () => {
+    vi.stubGlobal(
+      "createImageBitmap",
+      vi.fn().mockResolvedValue({ width: 1000, height: 1000, close() {} }),
+    );
+    const realCreate = document.createElement.bind(document);
+    const canvas = {
+      width: 0,
+      height: 0,
+      getContext: () => ({ drawImage() {} }),
+      toDataURL: () => "data:,",
+    };
+    vi.spyOn(document, "createElement").mockImplementation((tag: string) => {
+      if (tag === "canvas") return canvas as unknown as HTMLCanvasElement;
+      return realCreate(tag);
+    });
+    const large = `data:image/png;base64,${"A".repeat(1000)}`;
+
+    expect(await fitTurnImages([large], 200)).toEqual([large]);
+  });
 });

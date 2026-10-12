@@ -12,6 +12,8 @@ export async function fitTurnImages(images: string[], budgetBytes: number): Prom
   if (total <= budgetBytes) return images;
   // A data URL is ASCII, so its byte size is its length.
   const share = Math.floor(budgetBytes / images.length) - JSON_OVERHEAD_BYTES;
+  // The text alone fills the frame, so no image size fits.
+  if (share <= 0) return images;
   return Promise.all(images.map((image) => (image.length > share ? fitOne(image, share) : image)));
 }
 
@@ -41,9 +43,9 @@ async function reencode(image: string, share: number): Promise<string | null> {
     canvas.width = width;
     canvas.height = height;
     const ctx = canvas.getContext("2d");
-    if (!ctx) return null;
-    ctx.drawImage(bitmap, 0, 0, width, height);
+    ctx?.drawImage(bitmap, 0, 0, width, height);
     bitmap.close();
+    if (!ctx) return null;
     const url = canvas.toDataURL("image/jpeg", JPEG_QUALITY);
     // A canvas with no backing store returns "data:," with no exception.
     return url.startsWith("data:image/jpeg;base64,") ? url : null;
