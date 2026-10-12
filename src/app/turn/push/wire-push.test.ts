@@ -17,11 +17,13 @@ import type {
   ReasoningFrame,
   RenderFrame,
   SpeechFrame,
+  ToolCallFrame,
+  ToolResultFrame,
   ToolStatusFrame,
   TurnEndFrame,
 } from "../../../io/chat/push/push-frames";
 import type { PushSocketState } from "../../../io/chat/push/push-socket";
-import { createClientToolRegistry } from "../../../io/chat/tools/client-tools";
+import { type ClientTool, createClientToolRegistry } from "../../../io/chat/tools/client-tools";
 
 import { wirePushMode, wirePushTransport, wireStopButton } from "./wire-push";
 
@@ -33,6 +35,7 @@ function fakeSocket() {
   let reasoningCb: ((frame: ReasoningFrame) => void) | null = null;
   let stateCb: ((state: PushSocketState) => void) | null = null;
   let toolStatusCb: ((frame: ToolStatusFrame) => void) | null = null;
+  let toolCallCb: ((frame: ToolCallFrame) => void) | null = null;
   return {
     sendVocabulary: vi.fn(),
     onRender(cb: (frame: RenderFrame) => void) {
@@ -77,8 +80,16 @@ function fakeSocket() {
         toolStatusCb = null;
       };
     },
-    onToolCall: () => () => {},
-    sendToolResult: () => false,
+    onToolCall(cb: (frame: ToolCallFrame) => void) {
+      toolCallCb = cb;
+      return () => {
+        toolCallCb = null;
+      };
+    },
+    sendToolResult: vi.fn((_frame: ToolResultFrame) => true),
+    pushToolCall(frame: ToolCallFrame): void {
+      toolCallCb?.(frame);
+    },
     pushRender(frame: RenderFrame): void {
       renderCb?.(frame);
     },
@@ -150,10 +161,10 @@ let toolStatusSink: Mock<(status: ToolStatus) => void>;
 let turnFeed: TurnFeed;
 let turnLog: TurnLog;
 
-function wire(feed: TurnFeed = turnFeed) {
+function wire(feed: TurnFeed = turnFeed, tools: readonly ClientTool[] = []) {
   return wirePushTransport({
     socket,
-    tools: createClientToolRegistry([]),
+    tools: createClientToolRegistry(tools),
     turnOutput,
     pushTurns,
     delegations,
@@ -472,6 +483,57 @@ describe("wirePushTransport", () => {
     expect(socket.hasReasoningSubscriber()).toBe(false);
     expect(socket.hasStateSubscriber()).toBe(false);
     expect(socket.hasToolStatusSubscriber()).toBe(false);
+  });
+});
+
+describe("wirePushTransport — tool calls", () => {
+  const look: ClientTool = {
+    name: "look",
+    definition: {
+      type: "function",
+      function: {
+        name: "look",
+        description: "dummy",
+        parameters: { type: "object", properties: {}, additionalProperties: false },
+      },
+    },
+    execute: async () => '{"moving":false}',
+    waitMs: 2000,
+  };
+  const frame = (id: string, turnId: string): ToolCallFrame => ({
+    type: "tool_call",
+    id,
+    turn_id: turnId,
+    name: "look",
+    arguments: { at: "body" },
+  });
+
+  it("runs a tool_call from the socket and sends its tool_result", async () => {
+    wire(turnFeed, [look]);
+    socket.pushToolCall(frame("c1", "7"));
+
+    await vi.waitFor(() =>
+      expect(socket.sendToolResult).toHaveBeenCalledWith({
+        type: "tool_result",
+        id: "c1",
+        turn_id: "7",
+        result: '{"moving":false}',
+      }),
+    );
+  });
+
+  it("refuses a tool_call of a turn the user cut", () => {
+    wire(turnFeed, [look]);
+    pushTurns.opened("9");
+    pushTurns.cut();
+    socket.pushToolCall(frame("c2", "9"));
+
+    expect(socket.sendToolResult).toHaveBeenCalledWith({
+      type: "tool_result",
+      id: "c2",
+      turn_id: "9",
+      result: "error: turn stopped",
+    });
   });
 });
 
