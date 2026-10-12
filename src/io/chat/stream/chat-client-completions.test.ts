@@ -221,6 +221,7 @@ describe("streamChat — Chat Completions reasoning deltas", () => {
         args: { emotion_id: "happy", motion_id: "embarrassed", emotion_text: "[whisper]" },
       },
       { type: "keepalive" },
+      { type: "reasoning", delta: "\n\n" },
       { type: "reasoning", delta: "Now" },
       { type: "speech_delta", text: "warm" },
       { type: "speech_done", text: "warm" },

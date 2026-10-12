@@ -119,6 +119,7 @@ export async function* streamChatCompletions(
     // Speech from this response alone, and how it ended — together they say whether the model is
     // waiting on results or has finished the turn.
     let roundText = "";
+    let roundReasoning = false;
     let finishReason: string | undefined;
     const reducer = createChunkReducer();
 
@@ -133,6 +134,11 @@ export async function* streamChatCompletions(
               yield { type: "speech_delta", text: item.text };
               break;
             case "reasoning":
+              // Later rounds open with a blank line, as Responses separates summary parts.
+              if (trips > 0 && !roundReasoning) {
+                roundReasoning = true;
+                yield { type: "reasoning", delta: "\n\n" };
+              }
               yield { type: "reasoning", delta: item.text };
               break;
             case "tool_call":
