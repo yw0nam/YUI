@@ -25,8 +25,8 @@ export function fitLongEdge(width: number, height: number, maxLongEdge = MAX_LON
   return { width: Math.round(width * scale), height: Math.round(height * scale) };
 }
 
-// Decode → downscale → JPEG data URL. Falls back to the original data URL on
-// any decode/encode failure so the attachment is never dropped silently.
+// Decode → downscale → JPEG data URL. Rejects when any step fails — a broken
+// image has nothing to send — and when the canvas yields no JPEG data.
 export async function downscaleToJpeg(file: File): Promise<string> {
   try {
     const bitmap = await createImageBitmap(file);
@@ -38,18 +38,12 @@ export async function downscaleToJpeg(file: File): Promise<string> {
     if (!ctx) throw new Error("no 2d context");
     ctx.drawImage(bitmap, 0, 0, width, height);
     bitmap.close();
-    return canvas.toDataURL("image/jpeg", JPEG_QUALITY);
+    const url = canvas.toDataURL("image/jpeg", JPEG_QUALITY);
+    // A canvas with no backing store returns "data:," with no exception.
+    if (!url.startsWith("data:image/jpeg;base64,")) throw new Error("no jpeg data");
+    return url;
   } catch (err) {
     log.warn("downscale_failed", { name: file.name, error: String(err) });
-    return readAsDataUrl(file);
+    throw err;
   }
-}
-
-function readAsDataUrl(file: File): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => resolve(reader.result as string);
-    reader.onerror = () => reject(reader.error);
-    reader.readAsDataURL(file);
-  });
 }

@@ -6,7 +6,7 @@ import type { BusEnvelope } from "../core/event-bus";
 import type { PushTurns } from "../turn/push-turn";
 import type { Turn } from "../turn/turn";
 import type { TurnOutput } from "../turn/turn-output";
-import type { buildContext } from "./context-builder";
+import { type buildContext, imageDataUrlsOf } from "./context-builder";
 import { PRE_SPEECH_TIMEOUT_MS } from "./idle-watchdog";
 import { contextBlock } from "./request-input";
 import type { TurnOutcome } from "./turn-outcome";
@@ -148,10 +148,13 @@ export function createPushCall(deps: PushCallDeps, log: Logger): PushCall {
     externalSignal,
   }: PushCallArgs): Promise<TurnOutcome> {
     if (externalSignal?.aborted) return "superseded_by_user";
+    const images = imageDataUrlsOf(ctx);
     const accepted = deps.pushTurn?.({
       turn_id: String(turn.id),
       client_context: contextBlock(clientContext, nowMs),
       text: ctx.user_text ?? "",
+      // The screenshot first, then the attachments — the order the backend reads them in.
+      ...(images.length ? { images } : {}),
     });
     if (!accepted) {
       log.warn("network_drop", { stage: "push", event_name: env.event_name });

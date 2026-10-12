@@ -8,6 +8,8 @@ import logging
 logger = logging.getLogger(__name__)
 
 MAX_FRAME_BYTES = 262_144
+# The cap `ready` states for `turn` frames; its presence also tells the client the frame takes images.
+MAX_TURN_BYTES = 4 * 1024 * 1024
 
 
 def encoded(frame: dict) -> tuple[str, int]:

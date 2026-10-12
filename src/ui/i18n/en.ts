@@ -78,6 +78,7 @@ const en: Record<string, string> = {
   "input.attach_too_many": "Too many images · up to {max} per turn",
   "input.attach_too_large": "Image too large · up to {max}MB each",
   "input.attach_not_ready": "Can't attach yet · loading limits",
+  "input.attach_failed": "Couldn't prepare the image",
 
   // message window name plate
   "plate.thinking": "Thinking",

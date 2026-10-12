@@ -248,6 +248,10 @@ export function createTextInput(
           attachments.push(url);
           addChip(url);
         })
+        .catch(() => {
+          if (batch !== epoch) return;
+          showInputError(t("input.attach_failed"));
+        })
         .finally(() => {
           if (batch !== epoch) return;
           inFlight--;

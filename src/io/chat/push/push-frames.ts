@@ -57,12 +57,22 @@ export interface ReasoningFrame {
   delta: string;
 }
 
+/** The backend accepted the handshake; the conversation runs under its chat id. */
+export interface ReadyFrame {
+  type: "ready";
+  chat_id: string;
+  /** Largest `turn` frame accepted, in UTF-8 bytes; its presence also says `turn` takes `images`. */
+  max_turn_bytes?: number;
+}
+
 export interface PushTurnFrame {
   turn_id: string;
   /** The `<client_context>` block text, exactly as the other transports send it. */
   client_context: string;
   /** The user utterance; `""` on a turn no user typed or spoke. */
   text: string;
+  /** `data:image/<subtype>;base64,<data>` strings: the screenshot first, then the attachments. */
+  images?: string[];
 }
 
 /** An ordered list of objects whose speech is text and whose cues are objects. */

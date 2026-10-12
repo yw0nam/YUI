@@ -11,6 +11,7 @@ import type { ExpressVocabulary } from "../vocabulary/express-vocabulary";
 import {
   type DelegationItem,
   type PushTurnFrame,
+  type ReadyFrame,
   type ReasoningFrame,
   type RenderFrame,
   renderFrameFault,
@@ -71,6 +72,8 @@ export interface PushSocket {
   dispose(): void;
   /** True when the frame went out; false when the socket is not ready or the frame is too large. */
   sendTurn(turn: PushTurnFrame): boolean;
+  /** The `turn` size the backend stated in `ready`; undefined also means it takes no `images`. */
+  maxTurnBytes(): number | undefined;
   sendReset(): boolean;
   sendStop(turnIds: string[]): boolean;
   /** Sends the current vocabulary when it differs from the one the backend last received. */
@@ -119,6 +122,8 @@ export function createPushSocket(deps: PushSocketDeps): PushSocket {
 
   let ws: WebSocket | null = null;
   let ready = false;
+  /** The `turn` size the backend last stated, where its `images` yes lives too. */
+  let maxTurnBytes: number | undefined;
   let disposed = false;
   /** Between connect() and disconnect()/dispose() — only then does a close earn a reconnect. */
   let active = false;
@@ -146,11 +151,11 @@ export function createPushSocket(deps: PushSocketDeps): PushSocket {
     reconnectTimer = null;
   }
 
-  function sendFrame(frame: Record<string, unknown>): boolean {
+  function sendFrame(frame: Record<string, unknown>, cap: number = PUSH_FRAME_MAX_BYTES): boolean {
     if (!ws) return false;
     const text = JSON.stringify(frame);
     const bytes = byteLength(text);
-    if (bytes > PUSH_FRAME_MAX_BYTES) {
+    if (bytes > cap) {
       log.warn("frame_oversize", { type: frame.type, bytes, direction: "out" });
       return false;
     }
@@ -198,6 +203,9 @@ export function createPushSocket(deps: PushSocketDeps): PushSocket {
         if (readyTimer) clearTimeout(readyTimer);
         readyTimer = null;
         ready = true;
+        const stated = (frame as unknown as ReadyFrame).max_turn_bytes;
+        maxTurnBytes =
+          typeof stated === "number" && Number.isInteger(stated) && stated > 0 ? stated : undefined;
         delayMs = RECONNECT_MIN_MS;
         const chatId = typeof frame.chat_id === "string" ? frame.chat_id : deps.chatId();
         log.info("ws_ready", { chat_id: chatId });
@@ -360,6 +368,7 @@ export function createPushSocket(deps: PushSocketDeps): PushSocket {
       readyTimer = null;
       ws = null;
       ready = false;
+      maxTurnBytes = undefined;
       sentVocabulary = null;
       log.info("ws_close", { code: ev.code });
       if (disposed || !active) {
@@ -406,6 +415,7 @@ export function createPushSocket(deps: PushSocketDeps): PushSocket {
       active = false;
       clearTimers();
       ready = false;
+      maxTurnBytes = undefined;
       sentVocabulary = null;
       const socket = ws;
       ws = null;
@@ -436,6 +446,7 @@ export function createPushSocket(deps: PushSocketDeps): PushSocket {
       ws?.close(NORMAL_CLOSE_CODE);
       ws = null;
       ready = false;
+      maxTurnBytes = undefined;
       setState({ kind: "disconnected" });
       stateSubs.clear();
     },
@@ -445,8 +456,16 @@ export function createPushSocket(deps: PushSocketDeps): PushSocket {
         log.warn("turn_not_ready", { turn_id: turn.turn_id, state: state.kind });
         return false;
       }
-      return sendFrame({ type: "turn", ...turn });
+      const frame: Record<string, unknown> = { type: "turn", ...turn };
+      // Images ride only to a backend that stated a turn size; they would burst the 256 KiB cap.
+      if (maxTurnBytes === undefined && turn.images?.length) {
+        delete frame.images;
+        log.warn("images_unsupported", { turn_id: turn.turn_id, count: turn.images.length });
+      }
+      return sendFrame(frame, maxTurnBytes);
     },
+
+    maxTurnBytes: () => maxTurnBytes,
 
     sendReset(): boolean {
       if (!ready) {

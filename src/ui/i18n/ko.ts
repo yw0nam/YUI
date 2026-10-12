@@ -77,6 +77,7 @@ const ko: Record<string, string> = {
   "input.attach_too_many": "이미지가 너무 많음 · 한 턴에 {max}장까지",
   "input.attach_too_large": "이미지가 너무 큼 · 장당 {max}MB까지",
   "input.attach_not_ready": "아직 첨부할 수 없음 · 상한을 불러오는 중",
+  "input.attach_failed": "이미지를 준비하지 못함",
 
   // message window name plate
   "plate.thinking": "생각 중",

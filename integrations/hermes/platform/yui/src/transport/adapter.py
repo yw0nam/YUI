@@ -34,7 +34,8 @@ from ..express.gate import Vocabulary
 from ..express.segments import build_segments, place_matched
 from ..speech import speech
 from ..turns import state
-from .frames import MAX_FRAME_BYTES, encoded, fit_frame
+from .frames import MAX_FRAME_BYTES, MAX_TURN_BYTES, encoded, fit_frame
+from .turn_images import cache_turn_images
 
 logger = logging.getLogger(__name__)
 
@@ -59,6 +60,15 @@ _WINDOWS_PATH_RE = re.compile(r"(?<!\S)[A-Za-z]:\\(?:(?!\s[A-Za-z]:\\)[^\r\n])*"
 
 def _mint_turn_id() -> str:
     return f"hermes-{next(_TURN_IDS)}"
+
+
+def _fits(frame: dict, size: int) -> bool:
+    """Every frame but `turn` keeps the 256 KiB cap; `ready` states the larger turn size."""
+    cap = MAX_TURN_BYTES if frame.get("type") == "turn" else MAX_FRAME_BYTES
+    if size <= cap:
+        return True
+    logger.warning("yui: dropped an oversize %s frame (%d bytes)", frame.get("type"), size)
+    return False
 
 
 def build_message_text(client_context: str, text: str) -> str:
@@ -209,7 +219,7 @@ class YuiAdapter(BasePlatformAdapter):
         """One client connection: the handshake, then turns until it goes away."""
         self._loop = asyncio.get_running_loop()
         # aiohttp refuses an uncompressed frame at max_msg_size, so the cap sits one over the contract's.
-        ws = web.WebSocketResponse(max_msg_size=MAX_FRAME_BYTES + 1, heartbeat=30)
+        ws = web.WebSocketResponse(max_msg_size=MAX_TURN_BYTES + 1, heartbeat=30)
         await ws.prepare(request)
         chat_id = ""
         try:
@@ -218,6 +228,8 @@ class YuiAdapter(BasePlatformAdapter):
                     continue
                 frame = self._parse(message.data)
                 if frame is None:
+                    continue
+                if not _fits(frame, len(message.data.encode("utf-8"))):
                     continue
                 if not chat_id:
                     chat_id = await self._greet(ws, frame)
@@ -254,7 +266,9 @@ class YuiAdapter(BasePlatformAdapter):
             self._speaker.stop(chat_id)
         self._adopt_home_channel(chat_id)
         self._publish_vocabulary(chat_id, frame.get("vocabulary"))
-        await self._send_frame(chat_id, {"type": "ready", "chat_id": chat_id})
+        await self._send_frame(
+            chat_id, {"type": "ready", "chat_id": chat_id, "max_turn_bytes": MAX_TURN_BYTES}
+        )
         if replaced is not None and replaced is not ws:
             # A peer that is gone takes the whole close timeout, and the frames below cannot wait.
             task = asyncio.create_task(self._close_replaced(replaced))
@@ -330,6 +344,7 @@ class YuiAdapter(BasePlatformAdapter):
             await self._send_frame(chat_id, {"type": "turn_end", "turn_id": turn_id})
             return
         logger.info("yui: turn accepted chat=%s turn_id=%s chars=%d", chat_id, turn_id, len(text))
+        media_urls, media_types = await cache_turn_images(frame.get("images"))
         event = MessageEvent(
             text=text,
             message_type=MessageType.TEXT,
@@ -338,6 +353,8 @@ class YuiAdapter(BasePlatformAdapter):
             # Silence is the agent's call on every turn; unmarked, the gateway speaks a warning in its place.
             reply_expected=False,
             source=self._source(chat_id),
+            media_urls=media_urls,
+            media_types=media_types,
         )
         # A busy session may take this text into the turn it runs; the mark goes down before the
         # dispatch because the gateway can run this turn's own hooks inside that call.
