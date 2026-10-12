@@ -12,15 +12,13 @@ import pytest
 
 KST = ZoneInfo("Asia/Seoul")
 AGENT_NAME = "testagent"
-PROFILE_NAME = "test-profile"
 
 
 @pytest.fixture(autouse=True)
 def agent_identity(monkeypatch: pytest.MonkeyPatch) -> None:
-    """Name the agent and the Hermes profile every convention derives from."""
+    """Name the agent every convention derives from."""
 
     monkeypatch.setenv("DESIRE_AGENT_NAME", AGENT_NAME)
-    monkeypatch.setenv("HERMES_PROFILE", PROFILE_NAME)
     monkeypatch.setenv("DESIRE_CHAT_PLATFORMS", "telegram")
 
 
@@ -34,9 +32,9 @@ def state_dir(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
 def isolated_profile(tmp_path_factory, monkeypatch: pytest.MonkeyPatch) -> Path:
     """Point derivation at an empty profile root."""
 
-    home = tmp_path_factory.mktemp("home")
-    monkeypatch.setenv("HOME", str(home))
-    return home
+    root = tmp_path_factory.mktemp("profile")
+    monkeypatch.setenv("HERMES_HOME", str(root))
+    return root
 
 
 def free_port() -> int:

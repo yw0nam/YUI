@@ -1,4 +1,4 @@
-"""Clock, agent identity from the environment, and state-directory paths for yui-desire."""
+"""Clock, agent identity from the profile settings, and state-directory paths for yui-desire."""
 
 from __future__ import annotations
 
@@ -40,8 +40,19 @@ def _missing(name: str) -> ConfigurationError:
     return ConfigurationError(f"{name} is not set; export it in the Hermes profile environment")
 
 
+try:
+    from agent.secret_scope import get_secret as _setting
+    from hermes_constants import get_hermes_home as _profile_dir
+except ImportError:
+    # A script Hermes spawns carries the profile settings and HERMES_HOME in its environment.
+    _setting = os.environ.get
+
+    def _profile_dir() -> Path:
+        return Path(_required("HERMES_HOME"))
+
+
 def _required(name: str) -> str:
-    value = os.environ.get(name, "").strip()
+    value = _setting(name, "").strip()
     if not value:
         raise _missing(name)
     return value
@@ -56,10 +67,6 @@ def agent_name() -> str:
             "DESIRE_AGENT_NAME must be one slug of lowercase letters, digits, and hyphens"
         )
     return value
-
-
-def hermes_profile() -> str:
-    return _required("HERMES_PROFILE")
 
 
 def branch_prefix() -> str:
@@ -81,7 +88,7 @@ def cron_job_name(kind: str) -> str:
 def chat_platforms() -> frozenset[str]:
     """Name the Hermes platforms whose turns are the user speaking to the agent."""
 
-    listed = os.environ.get("DESIRE_CHAT_PLATFORMS", "").split(",")
+    listed = _setting("DESIRE_CHAT_PLATFORMS", "").split(",")
     names = frozenset(name.strip().lower() for name in listed if name.strip())
     if not names:
         raise _missing("DESIRE_CHAT_PLATFORMS")
@@ -91,11 +98,15 @@ def chat_platforms() -> frozenset[str]:
 def profile_root() -> Path:
     """Return the Hermes profile directory the desire system belongs to."""
 
-    return Path.home() / ".hermes" / "profiles" / hermes_profile()
+    return _profile_dir()
+
+
+def signals_url() -> str:
+    return _setting("YUI_SIGNALS_URL") or DEFAULT_SIGNALS_URL
 
 
 def resolve_state_dir() -> Path:
-    configured = os.environ.get("DESIRE_STATE_DIR")
+    configured = _setting("DESIRE_STATE_DIR")
     if configured:
         return Path(configured).expanduser()
     return profile_root() / "desire"

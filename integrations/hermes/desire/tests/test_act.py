@@ -32,15 +32,6 @@ def test_act_reports_a_missing_agent_name_instead_of_signalling(state_dir, at, m
     assert list(state_dir.iterdir()) == []
 
 
-def test_act_reports_a_missing_profile_on_the_skill_report(state_dir, at, monkeypatch, capsys):
-    monkeypatch.delenv("HERMES_PROFILE", raising=False)
-
-    exit_code = act.main(["report", "--skills"], now=at("2026-08-25T21:00:00+09:00"))
-
-    assert exit_code == 1
-    assert "HERMES_PROFILE" in capsys.readouterr().err
-
-
 def test_signal_post_body_matches_ingress_contract(state_dir, at, monkeypatch):
     now = at("2026-08-25T12:34:56+09:00")
     calls = []

@@ -6,7 +6,7 @@ from datetime import timedelta
 from pathlib import Path
 
 import pytest
-from conftest import AGENT_NAME, PROFILE_NAME
+from conftest import AGENT_NAME
 
 import decay_monitor
 import desire_config
@@ -33,14 +33,13 @@ def test_monitor_wrapper_is_self_locating_for_symlink_installation():
     ]
 
 
-@pytest.mark.parametrize("missing", ["DESIRE_AGENT_NAME", "HERMES_PROFILE"])
-def test_monitor_refuses_to_run_without_its_identity(state_dir, monkeypatch, capsys, missing):
-    monkeypatch.delenv(missing, raising=False)
+def test_monitor_refuses_to_run_without_its_identity(state_dir, monkeypatch, capsys):
+    monkeypatch.delenv("DESIRE_AGENT_NAME", raising=False)
 
     with pytest.raises(SystemExit) as failure:
         decay_monitor.main()
 
-    assert missing in str(failure.value)
+    assert "DESIRE_AGENT_NAME" in str(failure.value)
     assert capsys.readouterr().out == ""
 
 
@@ -1269,7 +1268,7 @@ def test_a_source_that_failed_during_bootstrap_bootstraps_when_it_recovers(
 def test_monitor_run_scores_a_new_skill_into_unreported(state_dir, at, isolated_profile, state_helpers):
     _, _, read_json, _ = state_helpers
     now = at("2026-08-25T12:00:00+09:00")
-    skills_root = isolated_profile / ".hermes" / "profiles" / PROFILE_NAME / "skills"
+    skills_root = isolated_profile / "skills"
     skill(skills_root, "mcp/known")
 
     decay_monitor.run(now)
@@ -1462,7 +1461,7 @@ def test_a_malformed_ref_audits_derive_failed_instead_of_vanishing(state_dir, at
 
 def test_sources_are_read_before_the_tick_takes_the_state_lock(state_dir, at, isolated_profile, monkeypatch):
     now = at("2026-08-25T12:00:00+09:00")
-    workspace = isolated_profile / ".hermes" / "profiles" / PROFILE_NAME / "workspace"
+    workspace = isolated_profile / "workspace"
     workspace.mkdir(parents=True)
     git_repo(workspace, "YUI", "https://github.com/owner/YUI.git")
     acquired = []
@@ -1490,7 +1489,7 @@ def test_monitor_run_derives_from_the_profile_and_prints_the_summary_when_a_sour
 ):
     _, _, read_json, _ = state_helpers
     now = at("2026-08-25T12:00:00+09:00")
-    profile = isolated_profile / ".hermes" / "profiles" / PROFILE_NAME
+    profile = isolated_profile
     workspace = profile / "workspace"
     workspace.mkdir(parents=True)
     git_repo(workspace, "YUI", "https://github.com/owner/YUI.git")

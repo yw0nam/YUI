@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import json
-import os
 import re
 import subprocess
 from datetime import datetime, timedelta
@@ -30,7 +29,7 @@ _GITHUB_SLUG = re.compile(r"(?:^|[@/.])github\.com[:/](?P<owner>[^/]+)/(?P<name>
 def probe_transport() -> bool:
     """Report whether the YUI signals ingress returns an HTTP response right now."""
 
-    target = os.environ.get("YUI_SIGNALS_URL") or desire_config.DEFAULT_SIGNALS_URL
+    target = desire_config.signals_url()
     try:
         with urllib_request.urlopen(urllib_request.Request(target, method="GET"), timeout=PROBE_TIMEOUT):
             return True
@@ -424,7 +423,6 @@ def main() -> None:
     # A missing identity is a misconfiguration the fail-safe summary must not hide.
     try:
         desire_config.agent_name()
-        desire_config.hermes_profile()
     except desire_config.ConfigurationError as error:
         raise SystemExit(str(error)) from error
     try:

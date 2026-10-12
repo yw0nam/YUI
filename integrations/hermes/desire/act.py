@@ -5,7 +5,6 @@ from __future__ import annotations
 import argparse
 import json
 import math
-import os
 import sys
 import uuid
 from datetime import datetime, timedelta
@@ -93,7 +92,7 @@ def _deliver(note, now, opener, kind="desire", event_type="desire.impulse"):
             "occurred_at": int(now.timestamp() * 1000),
         },
     }
-    target = os.environ.get("YUI_SIGNALS_URL") or desire_config.DEFAULT_SIGNALS_URL
+    target = desire_config.signals_url()
     outgoing = urllib_request.Request(
         target,
         data=json.dumps(body, ensure_ascii=False, separators=(",", ":")).encode("utf-8"),
@@ -388,7 +387,6 @@ def main(argv=None, *, now=None, opener=urllib_request.urlopen):
 def _run(argv, now, opener):
     # Identity is read before any state transaction, so a missing value costs no budget.
     desire_config.agent_name()
-    desire_config.hermes_profile()
     now = desire_config.normalize_now(now or datetime.now(KST))
     args = _parser().parse_args(argv)
     if args.command == "signal":

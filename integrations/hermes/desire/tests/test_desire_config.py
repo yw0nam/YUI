@@ -7,14 +7,10 @@ import pytest
 import desire_config
 
 
-def test_agent_name_and_profile_are_required(monkeypatch):
+def test_agent_name_is_required(monkeypatch):
     monkeypatch.delenv("DESIRE_AGENT_NAME", raising=False)
     with pytest.raises(desire_config.ConfigurationError, match="DESIRE_AGENT_NAME"):
         desire_config.agent_name()
-
-    monkeypatch.delenv("HERMES_PROFILE", raising=False)
-    with pytest.raises(desire_config.ConfigurationError, match="HERMES_PROFILE"):
-        desire_config.hermes_profile()
 
 
 def test_a_blank_agent_name_is_as_missing_as_an_absent_one(monkeypatch):
@@ -50,13 +46,6 @@ def test_every_convention_derives_from_the_agent_name(monkeypatch):
     assert desire_config.issue_marker() == "<!-- from-demo -->"
     assert desire_config.signal_source() == "demo-desire"
     assert desire_config.cron_job_name("tick") == "demo-desire-tick"
-
-
-def test_state_dir_falls_back_to_profile(monkeypatch, tmp_path):
-    monkeypatch.delenv("DESIRE_STATE_DIR", raising=False)
-    monkeypatch.setenv("HERMES_PROFILE", "test-profile")
-    monkeypatch.setenv("HOME", str(tmp_path))
-    assert desire_config.resolve_state_dir() == tmp_path / ".hermes/profiles/test-profile/desire"
 
 
 def test_state_dir_defaults_to_the_hermes_home(monkeypatch, tmp_path):
