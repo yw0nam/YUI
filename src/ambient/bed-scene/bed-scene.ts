@@ -85,7 +85,7 @@ export interface BedScene {
   lieDown(): Promise<LieDownResult>;
   /** Cuts a lie-down on command that is still starting short; anything else is left alone. */
   cancelStart(): void;
-  /** Wake her. Before she has lain down it skips the scene; once waking it is ignored. */
+  /** Wake her. Before her lying-down clip has ended it ends the scene with no wake clip; once waking it is ignored. */
   wake(cause: BedWakeCause): void;
   /** True once, after a message woke her. */
   takeMessageWake(): boolean;
@@ -118,7 +118,7 @@ export function createBedScene(deps: BedSceneDeps): BedScene {
   /** The model the scene started on; another one on the tick is a hot-swap. */
   let vrmSeen: unknown = null;
   let asleepS = 0;
-  /** Seconds into the bed's fade; null until the wake clip has ended. */
+  /** Seconds into the bed's fade; null until the wake clip has ended or a wake cut the lie-down. */
   let fadeS: number | null = null;
   /** What the bed is shown at; its fade starts from here. */
   let opacity = 0;
@@ -293,7 +293,11 @@ export function createBedScene(deps: BedSceneDeps): BedScene {
     if (state !== "asleep") return;
     cause = by;
     state = "waking";
-    lyingDown = false;
+    if (lyingDown) {
+      // Not asleep yet: the bed fades with no wake clip and no wake signal.
+      fadeS = 0;
+      return;
+    }
     setLying(false);
     liveliness.setAsleep(false);
     renderer.setSpringBonesHeld(false);
@@ -319,7 +323,9 @@ export function createBedScene(deps: BedSceneDeps): BedScene {
     // Anything but a bed clip, or no motion at all, is one the hold did not keep out.
     const id = renderer.getCurrentMotion()?.id;
     const lost =
-      state === "waking" ? id !== BED_WAKE_MOTION_ID : id === undefined || !ids.includes(id);
+      state === "waking" && !lyingDown
+        ? id !== BED_WAKE_MOTION_ID
+        : id === undefined || !ids.includes(id);
     if (lost) {
       void finish("lost");
       return;
@@ -342,7 +348,7 @@ export function createBedScene(deps: BedSceneDeps): BedScene {
     }
     fadeS += ctx.dt;
     prop?.setOpacity(opacity * Math.max(0, 1 - fadeS / PROP_FADE_S));
-    if (fadeS >= PROP_FADE_S) void finish("ended");
+    if (fadeS >= PROP_FADE_S) void finish(lyingDown ? "skipped" : "ended");
   }
 
   return {

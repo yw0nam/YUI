@@ -425,8 +425,9 @@ first-activity turn.
 
 A chat or voice message that wakes her is reported on that message's own turn, as
 `wake: asleep on the bed until this message` under `trigger: user message`. The `wake:`
-line appears only for a wake from the bed: a wake before she has lain down skips the
-scene, and a launch with the scene off starts her standing.
+line appears only for a wake from sleep: a wake before her lie-down clip has ended ends
+the scene with no wake clip and no wake signal, the bed fading out as she returns to
+standing, and a launch with the scene off starts her standing.
 
 The backend's own `stand` gets her up with the same wake clip and fires no
 `proactive.wake`: the backend sent it and already knows. The scene also ends without a
