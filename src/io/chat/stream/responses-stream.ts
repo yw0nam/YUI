@@ -157,6 +157,7 @@ export async function* streamResponses(
     if (handled.has(key)) return;
     const outcome = yield* runClientCall(tools, name, argsJson);
     if (!outcome) return;
+    // Marked handled even when the arguments did not parse: a later event for the key does not retry.
     handled.add(key);
     if (outcome.cue) express = outcome.cue;
     if (!outcome.run) return;

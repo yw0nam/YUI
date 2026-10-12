@@ -41,10 +41,15 @@ export async function* runClientCall(
   const parsed = parseToolArgs(argsJson);
   if ("error" in parsed) {
     if (!tool) return undefined;
-    if (!express_call) yield { type: "tool_status", status: { state: "running", tool_id: name } };
-    if (!express_call) yield { type: "tool_status", status: { state: "failed", tool_id: name } };
+    if (!express_call) {
+      yield { type: "tool_status", status: { state: "running", tool_id: name } };
+      yield { type: "tool_status", status: { state: "failed", tool_id: name } };
+    }
     return {
-      run: { result: `error: arguments JSON parse failed: ${parsed.error}`, oneWay: false },
+      run: {
+        result: `error: arguments JSON parse failed: ${parsed.error}`,
+        oneWay: tool.oneWay === true,
+      },
     };
   }
 
