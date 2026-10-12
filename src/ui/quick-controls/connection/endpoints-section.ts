@@ -58,6 +58,8 @@ interface EndpointsSectionDeps {
   reflectEndpoints: () => void;
   /** Key row store subscription checks open state before redrawing (popover.isOpen). */
   isOpen: () => boolean;
+  /** After a chat URL/key/protocol commit lands — the chat section re-evaluates its model list read. */
+  onChatCommit?: () => void;
   log: Logger;
 }
 
@@ -96,6 +98,7 @@ export function createEndpointsSection(deps: EndpointsSectionDeps): EndpointsSec
     getEndpointDefaults,
     reflectEndpoints,
     isOpen,
+    onChatCommit,
     log,
   } = deps;
 
@@ -118,7 +121,11 @@ export function createEndpointsSection(deps: EndpointsSectionDeps): EndpointsSec
     svcResetBtns.set(btn.dataset.svcReset ?? "", btn);
   }
 
-  function createKeyRow(idPrefix: string, store: ApiKeySettingsStore): KeyRow {
+  function createKeyRow(
+    idPrefix: string,
+    store: ApiKeySettingsStore,
+    onCommit?: () => void,
+  ): KeyRow {
     const row = el.querySelector<HTMLDivElement>(`.yui-input-row[data-key-prefix="${idPrefix}"]`)!;
     const input = row.querySelector<HTMLInputElement>(".yui-chatkey__input")!;
     const subEl = row.querySelector<HTMLSpanElement>(".yui-input-row__sub")!;
@@ -145,8 +152,10 @@ export function createEndpointsSection(deps: EndpointsSectionDeps): EndpointsSec
       dirty = true;
     }
     function handleBlur(): void {
+      const wasDirty = dirty;
       commitIfDirty();
       reflect();
+      if (wasDirty) onCommit?.();
     }
     function handleToggle(): void {
       const show = toggleBtn.getAttribute("aria-pressed") !== "true";
@@ -184,7 +193,7 @@ export function createEndpointsSection(deps: EndpointsSectionDeps): EndpointsSec
       },
     };
   }
-  const chatKeyRow = createKeyRow("chatkey", chatKeySettings);
+  const chatKeyRow = createKeyRow("chatkey", chatKeySettings, onChatCommit);
   const sttKeyRow = createKeyRow("sttkey", sttKeySettings);
   const ttsKeyRow = createKeyRow("ttskey", ttsKeySettings);
   const keyRows = [chatKeyRow, sttKeyRow, ttsKeyRow];
@@ -205,7 +214,8 @@ export function createEndpointsSection(deps: EndpointsSectionDeps): EndpointsSec
     if (!isChatApi(api)) return;
     endpointsSettings.set({ chat_api: api });
     log.info("chat_api_change", { api });
-    // The connection tab's store subscription (unsubscribeEndpoints) calls reflectChatType to update value/summary hint.
+    onChatCommit?.();
+    // The connection tab's store subscription calls the chat section's reflect to update value/summary hint.
   }
 
   // Single write path for endpoint text fields — typing and the chat provider preset both land here.
@@ -216,6 +226,7 @@ export function createEndpointsSection(deps: EndpointsSectionDeps): EndpointsSec
     dirtyEndpoints.delete(key);
     endpointsSettings.set({ [key]: value });
     validateEndpointInput(key, input);
+    if (key === "chat_base_url") onChatCommit?.();
   }
 
   // ── Advanced section: chat provider preset dropdown (chat_base_url autofill) ──
@@ -225,9 +236,12 @@ export function createEndpointsSection(deps: EndpointsSectionDeps): EndpointsSec
     const preset = CHAT_PROVIDER_PRESETS.find((p) => p.id === chatPresetEl.value);
     if (!preset) return;
     if (preset.url !== undefined) commitEndpointField("chat_base_url", preset.url);
-    if (preset.chatApi !== undefined) endpointsSettings.set({ chat_api: preset.chatApi });
+    if (preset.chatApi !== undefined) {
+      endpointsSettings.set({ chat_api: preset.chatApi });
+      onChatCommit?.();
+    }
     log.info("chat_preset_select", { preset: preset.id });
-    // The connection tab's store subscription (unsubscribeEndpoints) calls reflectChatPreset to re-derive the selected preset.
+    // The connection tab's store subscription calls the chat section's reflect to re-derive the selected preset.
   }
 
   // ── TTS section: provider dropdown (tts_provider + tts_base_url/tts_model autofill) ──
@@ -314,6 +328,7 @@ export function createEndpointsSection(deps: EndpointsSectionDeps): EndpointsSec
     }
     SVC_RESET_KEY[svc]?.clear();
     log.info("svc_reset", { svc });
+    if (svc === "chat") onChatCommit?.();
   }
 
   // ── Wiring ──

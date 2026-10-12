@@ -8,14 +8,21 @@
  */
 
 import { describe, expect, it, vi } from "vitest";
+import type { ToolOutputItem } from "../stream/chat-client";
 import type { SessionStorage } from "./session-store";
 import { createSessionStore, localStorageSessionStorage } from "./session-store";
+
+const OUT = { type: "function_call_output", call_id: "call_1", output: "ok" } as const;
 
 function makeMemStorage(initial: string | null = null): SessionStorage & {
   _data: string | null;
 } {
   let data: string | null = initial;
+  let outputs: ToolOutputItem[] = [];
   return {
+    loadOutputs() {
+      return outputs;
+    },
     get _data() {
       return data;
     },
@@ -25,11 +32,13 @@ function makeMemStorage(initial: string | null = null): SessionStorage & {
     load() {
       return data;
     },
-    save(id: string) {
+    save(id: string, saved = []) {
       data = id;
+      outputs = saved;
     },
     clear() {
       data = null;
+      outputs = [];
     },
   };
 }
@@ -207,6 +216,7 @@ describe("createSessionStore — reloadFromStorage", () => {
         if (throws) throw new Error("boom");
         return null;
       },
+      loadOutputs: () => [],
       save: vi.fn(),
       clear: vi.fn(),
     };
@@ -311,5 +321,51 @@ describe("localStorageSessionStorage", () => {
     expect(() => adapter.clear()).not.toThrow();
 
     if (saved !== undefined) (globalThis as any).localStorage = saved;
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// pending tool outputs — ride with the id they belong to
+// ─────────────────────────────────────────────────────────────────────────────
+
+describe("createSessionStore — pending tool outputs", () => {
+  it("holds the outputs set with an id and reloads them from storage", () => {
+    const storage = makeMemStorage();
+    const store = createSessionStore(storage);
+    store.set("resp_a", [OUT]);
+    expect(store.outputs()).toEqual([OUT]);
+    expect(createSessionStore(storage).outputs()).toEqual([OUT]);
+  });
+
+  it("a set without outputs drops the previous ones", () => {
+    const store = createSessionStore(makeMemStorage());
+    store.set("resp_a", [OUT]);
+    store.set("resp_b");
+    expect(store.outputs()).toEqual([]);
+  });
+
+  it("clear drops the outputs with the id", () => {
+    const storage = makeMemStorage();
+    const store = createSessionStore(storage);
+    store.set("resp_a", [OUT]);
+    store.clear();
+    expect(store.outputs()).toEqual([]);
+    expect(storage.loadOutputs()).toEqual([]);
+  });
+
+  it("the localStorage adapter round-trips outputs under their own key", () => {
+    const data = new Map<string, string>();
+    (globalThis as any).localStorage = {
+      getItem: (k: string) => data.get(k) ?? null,
+      setItem: (k: string, v: string) => void data.set(k, v),
+      removeItem: (k: string) => void data.delete(k),
+    };
+    const adapter = localStorageSessionStorage();
+    adapter.save("resp_a", [OUT]);
+    expect(adapter.load()).toBe("resp_a");
+    expect(adapter.loadOutputs()).toEqual([OUT]);
+    adapter.clear();
+    expect(adapter.loadOutputs()).toEqual([]);
+    delete (globalThis as any).localStorage;
   });
 });

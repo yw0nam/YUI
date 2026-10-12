@@ -38,3 +38,16 @@ export function normalizeExpressIntoEnvelope(
   if (express.emotion_text !== undefined) envelope.emotion_text = express.emotion_text;
   if (express.caption !== undefined) envelope.caption = express.caption;
 }
+
+/** Tool round trips per turn, on either request transport. */
+export const MAX_TOOL_ROUND_TRIPS = 3;
+
+/** Parses a tool call's accumulated arguments. Empty arguments are an empty object (no-arg call). */
+export function parseToolArgs(raw: string): { args: Record<string, unknown> } | { error: string } {
+  if (raw.trim() === "") return { args: {} };
+  try {
+    return { args: JSON.parse(raw) as Record<string, unknown> };
+  } catch (err) {
+    return { error: err instanceof Error ? err.message : String(err) };
+  }
+}

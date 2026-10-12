@@ -33,6 +33,7 @@ export function createSurfacesRouter({
     | "endSpeech"
     | "finishSpeech"
     | "hideSpeech"
+    | "showSpeechAction"
     | "quoteUser"
     | "settleQuote"
     | "clearQuote"
@@ -67,6 +68,7 @@ export function createSurfacesRouter({
     endSpeech: (opts) => speech().endSpeech(opts),
     finishSpeech: () => speech().finishSpeech(),
     hideSpeech: () => speech().hideSpeech(),
+    showSpeechAction: (action) => speech().showSpeechAction(action),
     quoteUser: (quote) => speech().quoteUser(quote),
     settleQuote: () => speech().settleQuote(),
     clearQuote: () => speech().clearQuote(),

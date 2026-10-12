@@ -2,7 +2,9 @@
 
 > Human source of truth (SOT) for the `emotion_text` rule. The
 > **Expression Broker MCP** enforces it at runtime via its `emotion_text` gate;
-> the files here are what a human or agent reads to know the rule.
+> the files here are what a human or agent reads to know the rule. The broker is
+> deprecated and is removed in v0.6.0; the client-declared `generate_express` tool
+> carries the same table in its schema.
 
 ## What `emotion_text` is
 
@@ -32,6 +34,9 @@ the control envelope shape lives in
 [`src/contract/types.ts`](https://github.com/yw0nam/YUI/blob/main/src/contract/types.ts).
 
 ## Broker gate
+
+The broker and its gate are deprecated and are removed in v0.6.0. The client-declared
+`generate_express` tool replaces them: its `emotion_text` schema carries the table below.
 
 With `tts_provider` `irodori`, the vocabulary is the **emoji enum table** — canonical machine copy in
 [`configs/emotion_text/irodori.json`](https://github.com/yw0nam/YUI/blob/main/configs/emotion_text/irodori.json),

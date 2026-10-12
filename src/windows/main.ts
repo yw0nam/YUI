@@ -190,6 +190,7 @@ async function bootstrap(): Promise<BootstrapHandle> {
     stores: settingsStores,
     conversation: conversationStores,
     config,
+    getChatApiKey: () => config.secrets.get(CHAT_API_KEY_SECRET),
     renderer,
     vrm,
     speaker,
@@ -247,7 +248,7 @@ async function bootstrap(): Promise<BootstrapHandle> {
     if (isDisposed()) return { dispose };
     help.bindInteraction(configured.noteInteraction);
     push.bind({
-      vocabulary: configured.broker.vocabulary,
+      vocabulary: configured.vocabulary.vocabulary,
       stopTurn: configured.stopTurn,
     });
     register(

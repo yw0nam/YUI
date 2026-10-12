@@ -11,7 +11,8 @@
 
 import { describe, expect, it, vi } from "vitest";
 import type { EndpointsConfig } from "../../../contract";
-import type { BrokerClient, BrokerPayload } from "./broker-client";
+import type { ExpressVocabulary } from "../vocabulary/express-vocabulary";
+import type { BrokerClient } from "./broker-client";
 import { createBrokerOverrideReconciler } from "./broker-override-reconciler";
 
 function fakeBroker(): BrokerClient & {
@@ -37,7 +38,7 @@ function endpoints(over: Partial<EndpointsConfig> = {}): EndpointsConfig {
   };
 }
 
-function payloadFor(_eff: EndpointsConfig): BrokerPayload {
+function payloadFor(_eff: EndpointsConfig): ExpressVocabulary {
   return {
     emotionIds: [],
     motionIds: [],
@@ -152,7 +153,10 @@ describe("createBrokerOverrideReconciler — tts_provider change", () => {
   // Mirrors the real loader: the emoji table exists only for Irodori.
   const loadFor = (eff: () => EndpointsConfig) =>
     vi.fn(async () => (eff().tts_provider === "openai" ? null : { "😆": "Laugh" }));
-  const modeOf = (_eff: EndpointsConfig, table: Record<string, string> | null): BrokerPayload => ({
+  const modeOf = (
+    _eff: EndpointsConfig,
+    table: Record<string, string> | null,
+  ): ExpressVocabulary => ({
     emotionIds: [],
     motionIds: [],
     emotionText: table ? { mode: "enum", table } : { mode: "free", table: null },
@@ -176,7 +180,7 @@ describe("createBrokerOverrideReconciler — tts_provider change", () => {
     provider = "irodori";
     await reconciler.onChange();
 
-    const modes = broker.publish.mock.calls.map(([p]) => (p as BrokerPayload).emotionText.mode);
+    const modes = broker.publish.mock.calls.map(([p]) => (p as ExpressVocabulary).emotionText.mode);
     expect(modes).toEqual(["free", "enum"]);
     expect(broker.dispose).not.toHaveBeenCalled();
   });

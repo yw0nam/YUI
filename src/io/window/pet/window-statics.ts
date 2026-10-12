@@ -7,6 +7,9 @@
  * continuously; the caller decides the refresh cadence and what to do with a stale cache.
  */
 
+import { cursorPosition, getCurrentWindow, primaryMonitor } from "@tauri-apps/api/window";
+import { isMacOS } from "../../../tauri-env";
+
 export interface Vec2 {
   x: number;
   y: number;
@@ -23,7 +26,7 @@ export interface WindowStaticsSource {
   cursorPosition(): Promise<Vec2>;
   outerPosition(): Promise<Vec2>;
   scaleFactor(): Promise<number>;
-  /** Scale factor the cursor reading is expressed in — the primary monitor's. Falls back to scaleFactor(). */
+  /** Scale factor the cursor reading is expressed in, where it differs from the window's. Falls back to scaleFactor(). */
   primaryScaleFactor?(): Promise<number>;
   /** Fires on window move/resize/DPI change — invalidates the cached statics. Non-Tauri: absent. */
   onMoved?(cb: () => void): Promise<Unlisten>;
@@ -46,6 +49,27 @@ interface WindowStatics {
   subscribe(w: WindowStaticsSource): void;
   /** Release the window-event listeners. */
   unsubscribe(): void;
+}
+
+/**
+ * Production WindowStaticsSource backed by the real Tauri window. macOS reports the cursor in
+ * points scaled by the primary monitor's factor; elsewhere the cursor and the window origin are
+ * one physical px space, so the window's own factor converts both.
+ */
+export function createTauriStaticsSource(): WindowStaticsSource {
+  const w = getCurrentWindow();
+  return {
+    cursorPosition: () => cursorPosition(),
+    outerPosition: () => w.outerPosition(),
+    scaleFactor: () => w.scaleFactor(),
+    ...(isMacOS() && {
+      primaryScaleFactor: async () =>
+        (await primaryMonitor())?.scaleFactor ?? (await w.scaleFactor()),
+    }),
+    onMoved: (cb) => w.onMoved(() => cb()),
+    onResized: (cb) => w.onResized(() => cb()),
+    onScaleChanged: (cb) => w.onScaleChanged(() => cb()),
+  };
 }
 
 export function createWindowStatics(): WindowStatics {

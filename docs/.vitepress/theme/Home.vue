@@ -179,8 +179,8 @@ onMounted(() => {
           <div>
             <b>Expression broker</b>
             <span
-              >Publishes the emotion and motion vocabulary the backend reads
-              back.</span
+              >Deprecated, removed in v0.6.0: the client declares its tools
+              on the request.</span
             >
           </div>
           <div>

@@ -1,5 +1,5 @@
 import type { ConfigStore } from "../../config/store";
-import { agentTriggerableMotionIds } from "../../io/chat/broker/broker-client";
+import { agentTriggerableMotionIds } from "../../io/chat/vocabulary/express-vocabulary";
 import { endpointDefaultsOf } from "../../settings/backend/endpoints-settings";
 import { rateLimitDefaultsFromConfig } from "../../settings/backend/guardrails-settings";
 import { screenDefaultsFromConfig } from "../../settings/capture/screen-settings";

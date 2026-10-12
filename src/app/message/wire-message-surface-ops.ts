@@ -68,6 +68,16 @@ export function wireMessageSurfaceOps({
             : undefined,
         );
         break;
+      case "speech-action":
+        surfaces.showSpeechAction(
+          op.action
+            ? {
+                label: op.action.label,
+                onClick: () => bridge.emitControl({ op: "speech-action" }),
+              }
+            : undefined,
+        );
+        break;
       case "attachment-limits":
         surfaces.setAttachmentLimits(op.limits);
         break;

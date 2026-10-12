@@ -1,3 +1,5 @@
+// Deprecated: removed in v0.6.0. Use client-declared tools (src/io/chat/stream/client-tools.ts).
+
 /**
  * Reconciles endpoint overrides → the live Expression Broker client. The pet window's
  * config.subscribe path only reacts to disk-config edits; this seam reacts to the per-user
@@ -16,7 +18,8 @@ import { ttsProviderOf } from "../../../config/tts-provider";
 import type { EndpointsConfig } from "../../../contract";
 import { createLogger, type Logger } from "../../../logger";
 import { isValidEndpointUrl } from "../../../settings/backend/endpoints-settings";
-import type { BrokerClient, BrokerPayload } from "./broker-client";
+import type { ExpressVocabulary } from "../vocabulary/express-vocabulary";
+import type { BrokerClient } from "./broker-client";
 
 interface BrokerOverrideReconcilerOptions {
   /** Effective (override-merged) endpoints — evaluated at call time. */
@@ -28,7 +31,7 @@ interface BrokerOverrideReconcilerOptions {
   /** Loads the emoji emotion_text table (null when unavailable). */
   loadTable: () => Promise<Record<string, string> | null>;
   /** Effective endpoints + table → publish payload. */
-  derivePayload: (eff: EndpointsConfig, table: Record<string, string> | null) => BrokerPayload;
+  derivePayload: (eff: EndpointsConfig, table: Record<string, string> | null) => ExpressVocabulary;
   logger?: Logger;
 }
 

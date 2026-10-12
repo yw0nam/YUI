@@ -9,6 +9,7 @@ import type { GuideKey } from "../../contract";
 import { removeUserVrm } from "../../io/assets/vrm-import";
 import type { RemoteSurfaces } from "../../io/bridge/message/message-remote";
 import type { PushSocket } from "../../io/chat/push/push-socket";
+import { selectFetch } from "../../io/chat/stream/chat-client";
 import type { ScreenSourceProvider } from "../../io/window/capture/screen-source-provider";
 import { toScreenMonitor } from "../../io/window/geometry/screen-geometry";
 import { createVisibleViewport } from "../../io/window/geometry/visible-viewport";
@@ -39,6 +40,8 @@ export function wirePetControls(deps: {
     "sessionStore" | "sessionDiagnostics" | "chatHistoryStore"
   >;
   config: Pick<ConfigStore, "get">;
+  /** Resolves the chat key the chat turn would send, per request (SecretProvider path). */
+  getChatApiKey: () => Promise<string | undefined>;
   renderer: Pick<Renderer, "setMouthOpen" | "stopMouth">;
   vrm: Pick<ReturnType<typeof wireVrmSelection>, "vrmSelection" | "swapVrm" | "importVrm">;
   speaker: Pick<
@@ -71,6 +74,7 @@ export function wirePetControls(deps: {
     stores,
     conversation,
     config,
+    getChatApiKey,
     renderer,
     vrm,
     speaker,
@@ -164,6 +168,8 @@ export function wirePetControls(deps: {
       // Same instances the dispatcher reads through, so "start fresh" takes effect on the next turn.
       sessionStore,
       sessionDiagnostics,
+      getChatApiKey,
+      getFetch: selectFetch,
       sourceProvider: screenSourceProvider,
       voiceStatus: voiceInputStatus,
       lipsync: lipsyncSettings,

@@ -1,4 +1,4 @@
-import { spawnSync } from "node:child_process";
+import { spawn, spawnSync } from "node:child_process";
 import {
   existsSync,
   mkdirSync,
@@ -11,11 +11,14 @@ import {
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { marked } from "marked";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
+
+vi.setConfig({ testTimeout: 15_000 });
 
 const ROOT = resolve(__dirname, "..");
 const SKILL_DIR = join(ROOT, "integrations/skills/yui-daily-briefing");
 const SCRIPT = join(SKILL_DIR, "scripts/briefing.py");
+const PYTHON = process.platform === "win32" ? "py" : "python3";
 const GATHER = JSON.parse(readFileSync(join(SKILL_DIR, "assets/fixtures/gather.json"), "utf8"));
 const DAY = /^\d{4}-\d{2}-\d{2}$/;
 const LOCAL_ISO = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}[+-]\d{2}:\d{2}$/;
@@ -27,11 +30,47 @@ function tempDir(): string {
 }
 
 function run(spool: string, args: string[], stdin = ""): Result {
-  const result = spawnSync("python3", [SCRIPT, "--spool", spool, ...args], {
+  const result = spawnSync(PYTHON, [SCRIPT, "--spool", spool, ...args], {
     input: stdin,
     encoding: "utf8",
   });
   return { status: result.status, stdout: result.stdout, stderr: result.stderr };
+}
+
+function runAsync(spool: string, source: string, input: unknown): Promise<Result> {
+  return new Promise((resolve) => {
+    const child = spawn(PYTHON, [SCRIPT, "--spool", spool, "write", "--source", source]);
+    let stdout = "";
+    let stderr = "";
+    child.stdout.setEncoding("utf8");
+    child.stderr.setEncoding("utf8");
+    child.stdout.on("data", (chunk: string) => (stdout += chunk));
+    child.stderr.on("data", (chunk: string) => (stderr += chunk));
+    child.on("close", (status) => resolve({ status, stdout, stderr }));
+    child.stdin.end(typeof input === "string" ? input : JSON.stringify(input));
+  });
+}
+
+async function holdLockOnWindows(spool: string): Promise<() => void> {
+  if (process.platform !== "win32") return () => {};
+  const probe = [
+    "import importlib.util, sys, time",
+    "spec = importlib.util.spec_from_file_location('briefing', sys.argv[2])",
+    "module = importlib.util.module_from_spec(spec)",
+    "spec.loader.exec_module(module)",
+    "with module.lock(sys.argv[1]):",
+    "    print('locked', flush=True)",
+    "    time.sleep(11)",
+  ].join("\n");
+  const child = spawn(PYTHON, ["-c", probe, spool, SCRIPT]);
+  await new Promise<void>((resolve, reject) => {
+    child.stdout.setEncoding("utf8");
+    child.stdout.on("data", (chunk: string) => {
+      if (chunk.includes("locked")) resolve();
+    });
+    child.on("error", reject);
+  });
+  return () => child.kill();
 }
 
 function write(spool: string, source: string, input: unknown): Result {
@@ -61,6 +100,26 @@ function body(markdown: string): string {
 }
 
 describe("briefing.py write", () => {
+  it("serializes concurrent writers and records both files in one ledger", async () => {
+    const spool = tempDir();
+    const release = await holdLockOnWindows(spool);
+    try {
+      const [first, second] = await Promise.all([
+        runAsync(spool, "alpha", GATHER),
+        runAsync(spool, "beta", GATHER),
+      ]);
+      expect(first.status).toBe(0);
+      expect(second.status).toBe(0);
+
+      const files = spoolFiles(spool);
+      expect(files).toHaveLength(2);
+      expect(run(spool, ["mark-spoken", ...files]).status).toBe(0);
+      expect(Object.keys(JSON.parse(read(spool, "spoken.json")))).toEqual(files);
+    } finally {
+      release();
+    }
+  }, 30_000);
+
   it("writes a dated markdown briefing with front matter and capped, numbered, linked items", () => {
     const bulk = Array.from({ length: 31 }, (_, index) => ({
       kind: "news",
@@ -227,7 +286,7 @@ describe("briefing.py pending and mark-spoken", () => {
   it("exits 2 when neither --spool nor YUI_BRIEFING_SPOOL names the spool", () => {
     const env = { ...process.env };
     delete env.YUI_BRIEFING_SPOOL;
-    const result = spawnSync("python3", [SCRIPT, "pending"], { encoding: "utf8", env });
+    const result = spawnSync(PYTHON, [SCRIPT, "pending"], { encoding: "utf8", env });
     expect(result.status).toBe(2);
     expect(result.stderr.trim().split("\n")).toEqual([
       expect.stringContaining("set YUI_BRIEFING_SPOOL or pass --spool"),

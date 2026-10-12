@@ -8,37 +8,25 @@ import type {
 import type { ControlEnvelope, EndpointsConfig, ExpressArgs } from "../../../contract";
 import type { ChatRequest, ChatStreamEvent } from "./chat-client";
 import { type CCMessage, type CCToolCall, createChunkReducer } from "./chat-completions";
+import { ownsCall, runClientCall, shouldAnswer } from "./client-tool-run";
 import type { ClientToolRegistry } from "./client-tools";
 import {
   httpStatusOf,
-  isExpressTool,
+  MAX_TOOL_ROUND_TRIPS,
   normalizeExpressIntoEnvelope,
   serverMessageOf,
 } from "./stream-helpers";
-
-/** Parses a tool call's accumulated arguments. Empty arguments are an empty object (no-arg call). */
-function parseToolArgs(raw: string): { args: Record<string, unknown> } | { error: string } {
-  if (raw.trim() === "") return { args: {} };
-  try {
-    return { args: JSON.parse(raw) as Record<string, unknown> };
-  } catch (err) {
-    return { error: err instanceof Error ? err.message : String(err) };
-  }
-}
 
 /** SDK requires model, but model-less mock/backend omit the field itself — locally relax optional. */
 type CCCreateParams = Omit<ChatCompletionCreateParamsStreaming, "model"> & {
   model?: ChatCompletionCreateParamsStreaming["model"];
 };
 
-/** Tool round trips per turn. */
-const MAX_TOOL_ROUND_TRIPS = 3;
-
 /**
  * Calls Chat Completions API stream — `client.chat.completions.create({ stream: true })`.
  *
  * The caller (backend-caller) pre-assembles request.messages via chat-completions.ts
- * buildCCMessages; the registry (opts.tools) supplies the tools declared on every request of the
+ * buildCCMessages; the registry (`tools`) supplies the tools declared on every request of the
  * turn. Stream chunks are normalized via chat-completions.createChunkReducer and each tool_call is
  * handled on arrival: an express call yields its cue immediately (cue timing never waits for the
  * round trip), any other call yields tool_status done, and a call naming a registered tool is
@@ -78,45 +66,21 @@ export async function* streamChatCompletions(
     name: string;
     argsJson: string;
   }): AsyncGenerator<ChatStreamEvent> {
-    const tool = tools?.get(item.name);
-    const express_call = isExpressTool(item.name);
     // A call the client did not register runs on the backend — observed, never answered.
-    if (!tool && !express_call) {
+    if (!ownsCall(tools, item.name)) {
       yield { type: "tool_status", status: { state: "done", tool_id: item.name } };
       return;
     }
-
-    const parsed = parseToolArgs(item.argsJson);
-    if ("error" in parsed) {
-      yield { type: "error", message: `${item.name} arguments JSON parse failed: ${parsed.error}` };
-      return;
-    }
-
-    if (express_call) {
-      express = parsed.args as ExpressArgs;
-      yield { type: "express", args: express };
-    }
-
-    if (!tool) return;
-    // The client owns this call, so the chip runs for as long as the call does.
-    if (!express_call)
-      yield { type: "tool_status", status: { state: "running", tool_id: tool.name } };
-    let result: string;
-    try {
-      result = await tool.execute(parsed.args);
-    } catch (err) {
-      // The model owns what a failed tool means — hand it the failure rather than dropping the turn.
-      result = `error: ${err instanceof Error ? err.message : String(err)}`;
-    }
-    if (!express_call) yield { type: "tool_status", status: { state: "done", tool_id: tool.name } };
+    const outcome = yield* runClientCall(tools, item.name, item.argsJson);
+    if (outcome?.cue) express = outcome.cue;
+    if (!outcome?.run) return;
     executed.push({
       call: {
         id: item.id ?? `call_${seq++}`,
         type: "function",
         function: { name: item.name, arguments: item.argsJson },
       },
-      result,
-      oneWay: tool.oneWay === true,
+      ...outcome.run,
     });
   }
 
@@ -196,12 +160,9 @@ export async function* streamChatCompletions(
       if (item.kind === "tool_call") yield* handleToolCall(item);
     }
 
-    // A tool that answers a question is always answered back. Cue-only calls are answered only
-    // when the model stopped to wait for them (finish_reason "tool_calls") and said nothing —
-    // a response that already spoke would otherwise be asked to speak it all over again.
-    const answerable =
-      executed.some((e) => !e.oneWay) || (finishReason === "tool_calls" && roundText === "");
-    if (executed.length === 0 || !answerable || trips >= MAX_TOOL_ROUND_TRIPS) break;
+    // The model waits on cue-only calls when it stopped on them (finish_reason "tool_calls") silently.
+    if (!shouldAnswer(executed, finishReason === "tool_calls" && roundText === "")) break;
+    if (trips >= MAX_TOOL_ROUND_TRIPS) break;
     trips++;
     // Starting a fresh request: the caller's idle watchdog measures the wait from here.
     yield { type: "keepalive" };

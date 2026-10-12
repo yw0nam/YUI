@@ -29,10 +29,11 @@ import { createTurnFeed } from "../turn/turn-feed";
 import { type BackendCaller, createBackendCaller } from "./backend-caller";
 
 const script = createScriptedStream();
+const PENDING_OUTPUT = { type: "function_call_output", call_id: "call_1", output: "ok" } as const;
 
 let applyDirective: ReturnType<typeof vi.fn>;
 let turnOutput: ReturnType<typeof makeTurnOutput>;
-let onResponseId: Mock<(id: string) => void>;
+let onResponseId: Mock<(id: string, outputs?: unknown[]) => void>;
 let onResponseIdInvalid: Mock<() => void>;
 let onChainReset: Mock<() => void>;
 let getPreviousResponseId: Mock<() => string | undefined>;
@@ -66,6 +67,7 @@ function make404(previousResponseId: string | undefined): void {
     turnFeed: createTurnFeed({ onToolStatus: toolStatusSink, reasoning: createReasoningStore() }),
     onUsage: usageSink,
     getPreviousResponseId,
+    getPendingToolOutputs: () => (stored ? [PENDING_OUTPUT] : []),
     onResponseId,
     onResponseIdInvalid,
     onChainReset,
@@ -98,12 +100,25 @@ describe("backend_caller — 404 chain-break recovery", () => {
     expect("previous_response_id" in secondRequest).toBe(false);
 
     expect(onResponseId).toHaveBeenCalledTimes(1);
-    expect(onResponseId).toHaveBeenCalledWith("resp_new");
+    expect(onResponseId).toHaveBeenCalledWith("resp_new", []);
 
     expect(logger.warn).toHaveBeenCalledWith(
       "chain_break_404",
       expect.objectContaining({ status: 404, previous_response_id: "resp_dead" }),
     );
+  });
+
+  it("the retry without the id sends no pending tool outputs either", async () => {
+    script.queue = [
+      [{ type: "error", message: "Previous response not found: resp_dead", status: 404 }],
+      [completedEvent({ speech_text: "hi again" }, "resp_new")],
+    ];
+    await caller.call(turnOf(userEnv()));
+
+    const [, firstRequest] = script.spy.mock.calls[0];
+    const [, secondRequest] = script.spy.mock.calls[1];
+    expect(firstRequest.input[0]).toEqual(PENDING_OUTPUT);
+    expect(JSON.stringify(secondRequest.input)).not.toContain("function_call_output");
   });
 
   it("404 + no previous_response_id → no retry, network_drop, onResponseIdInvalid not called", async () => {

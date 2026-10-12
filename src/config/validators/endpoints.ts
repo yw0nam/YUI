@@ -72,6 +72,7 @@ export function validateEndpoints(file: string, raw: unknown): EndpointsConfig {
   const tts_model = optStr("tts_model");
   const tts_speaker = optStr("tts_speaker");
   const stt_model = optStr("stt_model");
+  // Deprecated: removed in v0.6.0. Use client-declared tools (src/io/chat/stream/client-tools.ts).
   // broker_base_url: optional. If set, must be an http(s) URL (Expression Broker MCP endpoint).
   let broker_base_url: string | undefined;
   if (!unset(raw.broker_base_url)) {

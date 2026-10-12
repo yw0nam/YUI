@@ -1,0 +1,153 @@
+// @vitest-environment jsdom
+/**
+ * chat-type.test.ts — the chat type row tells the three types apart: the open list carries the
+ * long names, the closed control and the summary hint show the short name, and the description
+ * line follows the selection.
+ */
+import { readFileSync } from "node:fs";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import {
+  createChatKeySettings,
+  createSttKeySettings,
+  createTtsKeySettings,
+} from "../../../settings/backend/api-key-settings";
+import { createEndpointsSettings } from "../../../settings/backend/endpoints-settings";
+import { type Locale, setLocale, t } from "../../i18n";
+import en from "../../i18n/en";
+import { HERMES_AGENT } from "../constants";
+import { inMemoryApiKeyStorage } from "../test-helpers";
+import { createConnectionTab } from "./connection-tab";
+
+const ORDER = ["chat_completions", "responses", "push"] as const;
+const LONG = {
+  en: {
+    chat_completions: "Chat Completions · YUI sends the history",
+    responses: "Responses · the server keeps the history",
+    push: "Push · persistent connection",
+  },
+  ko: {
+    chat_completions: "Chat Completions · 기록을 YUI가 보냄",
+    responses: "Responses · 기록을 서버가 보관",
+    push: "Push · 연결 유지",
+  },
+} as const;
+const SHORT = { chat_completions: "Chat Completions", responses: "Responses", push: "Push" };
+
+describe("chat type row", () => {
+  let endpointsSettings: ReturnType<typeof createEndpointsSettings>;
+
+  beforeEach(() => {
+    globalThis.localStorage?.clear();
+    endpointsSettings = createEndpointsSettings();
+  });
+  afterEach(() => {
+    document.body.innerHTML = "";
+  });
+
+  function build(locale: Locale) {
+    setLocale(locale);
+    const tab = createConnectionTab({
+      endpointsSettings,
+      chatKeySettings: createChatKeySettings(),
+      sttKeySettings: createSttKeySettings({ storage: inMemoryApiKeyStorage() }),
+      ttsKeySettings: createTtsKeySettings({ storage: inMemoryApiKeyStorage() }),
+      rows: { chat: "full", tts: "full", broker: false },
+      isOpen: () => true,
+      log: { debug() {}, info() {}, warn() {}, error() {} },
+    });
+    document.body.append(tab.el);
+    tab.refresh();
+    return tab;
+  }
+
+  const q = (el: HTMLElement, sel: string) => el.querySelector<HTMLElement>(sel)!;
+
+  for (const locale of ["en", "ko"] as const) {
+    it(`${locale}: the open list carries the long names in the agreed order`, () => {
+      const tab = build(locale);
+      const options = [...q(tab.el, ".yui-chat-type").querySelectorAll("option")];
+      expect(options.map((o) => o.value)).toEqual(ORDER);
+      expect(options.map((o) => o.textContent)).toEqual(ORDER.map((a) => LONG[locale][a]));
+      tab.dispose();
+    });
+  }
+
+  it("the closed overlay, the summary hint and the description follow the selection", () => {
+    const tab = build("en");
+    const select = q(tab.el, ".yui-chat-type") as HTMLSelectElement;
+    const desc = q(tab.el, ".yui-chat-type__desc");
+    const expected = { chat_completions: "Ollama", responses: "OpenAI", push: "Hermes Agent" };
+    for (const api of ORDER) {
+      select.value = api;
+      select.dispatchEvent(new Event("change", { bubbles: true }));
+      expect(q(tab.el, ".yui-chat-type__shown").textContent).toBe(SHORT[api]);
+      expect(q(tab.el, ".yui-chat-summary-hint").textContent).toBe(SHORT[api]);
+      expect(desc.textContent).toContain(expected[api]);
+      expect(desc.getAttribute("aria-live")).toBe("polite");
+    }
+    tab.dispose();
+  });
+
+  it("the overlay is hidden from assistive tech and the select keeps its name", () => {
+    const tab = build("en");
+    expect(q(tab.el, ".yui-chat-type__shown").getAttribute("aria-hidden")).toBe("true");
+    expect(q(tab.el, ".yui-chat-type").getAttribute("aria-label")).toBe(t("svc.chat_aria"));
+    tab.dispose();
+  });
+
+  for (const locale of ["en", "ko", "ja"] as const) {
+    it(`${locale}: only the push description carries the Hermes Agent link`, () => {
+      const tab = build(locale);
+      const select = q(tab.el, ".yui-chat-type") as HTMLSelectElement;
+      const anchors: Record<string, HTMLAnchorElement[]> = {};
+      for (const api of ORDER) {
+        select.value = api;
+        select.dispatchEvent(new Event("change", { bubbles: true }));
+        anchors[api] = [...q(tab.el, ".yui-chat-type__desc").querySelectorAll("a")];
+      }
+      expect(anchors.chat_completions).toEqual([]);
+      expect(anchors.responses).toEqual([]);
+      expect(anchors.push).toHaveLength(1);
+      const [a] = anchors.push;
+      expect(a.getAttribute("href")).toBe("https://github.com/NousResearch/hermes-agent");
+      expect(a.target).toBe("_blank");
+      expect(a.rel).toBe("noopener noreferrer");
+      expect(a.textContent).toBe("Hermes Agent");
+      expect(a.hasAttribute("aria-label")).toBe(false);
+      expect(a.getAttribute("tabindex")).toBe("0");
+      tab.dispose();
+    });
+  }
+
+  it("a translation that repeats the placeholder keeps its tail", () => {
+    const original = en["svc.chat_desc_push"];
+    en["svc.chat_desc_push"] = "A {agent} B {agent} C";
+    const tab = build("en");
+    const select = q(tab.el, ".yui-chat-type") as HTMLSelectElement;
+    select.value = "push";
+    select.dispatchEvent(new Event("change", { bubbles: true }));
+    expect(q(tab.el, ".yui-chat-type__desc").textContent).toContain("C");
+    en["svc.chat_desc_push"] = original;
+    tab.dispose();
+  });
+
+  it("the fade class leaves when its animation ends, so the next change replays it", () => {
+    const tab = build("en");
+    const select = q(tab.el, ".yui-chat-type") as HTMLSelectElement;
+    const desc = q(tab.el, ".yui-chat-type__desc");
+    select.value = "chat_completions";
+    select.dispatchEvent(new Event("change", { bubbles: true }));
+    expect(desc.classList.contains("is-swapping")).toBe(true);
+    desc.dispatchEvent(new Event("animationend"));
+    expect(desc.classList.contains("is-swapping")).toBe(false);
+    tab.dispose();
+  });
+
+  it("the settings window may open exactly the link's URL through the opener", () => {
+    const cap = JSON.parse(readFileSync("src-tauri/capabilities/settings.json", "utf8"));
+    const grant = cap.permissions.find(
+      (p: { identifier?: string }) => p.identifier === "opener:allow-open-url",
+    );
+    expect(grant.allow).toEqual([{ url: HERMES_AGENT.url }]);
+  });
+});

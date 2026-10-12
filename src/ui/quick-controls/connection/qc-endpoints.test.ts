@@ -730,8 +730,8 @@ describe("createQuickControls — endpoints + API keys", () => {
     expect(sel.classList.contains("yui-select--single")).toBe(false);
     expect(sel.disabled).toBe(false);
     expect(Array.from(sel.options).map((o) => o.value)).toEqual([
-      "responses",
       "chat_completions",
+      "responses",
       "push",
     ]);
 
@@ -770,7 +770,7 @@ describe("createQuickControls — endpoints + API keys", () => {
     expect(endpointsSettings.get().chat_api).toBe("chat_completions");
 
     const hint = qc.el.querySelector<HTMLElement>(".yui-chat-summary-hint")!;
-    expect(hint.textContent).toBe(t("svc.chat_type_completions"));
+    expect(hint.textContent).toBe(t("svc.chat_name_chat_completions"));
 
     qc.dispose();
   });
@@ -975,6 +975,29 @@ describe("createQuickControls — endpoints + API keys", () => {
 
     qc.close();
     expect(endpointsSettings.get().broker_base_url).toBe("http://localhost:3201/mcp");
+
+    qc.dispose();
+  });
+
+  it("reads the model list when the Connection tab is selected in the rail", async () => {
+    const tick = () => new Promise<void>((r) => setTimeout(r, 0));
+    const calls: string[] = [];
+    const fetchImpl: typeof globalThis.fetch = (url) => {
+      calls.push(String(url));
+      return Promise.resolve(new Response(JSON.stringify({ data: [] }), { status: 200 }));
+    };
+    const qc = buildQc({
+      getFetch: async () => fetchImpl,
+      getChatApiKey: async () => "key-1",
+    });
+    endpointsSettings.set({ chat_base_url: "http://localhost:8080/v1" });
+    qc.open();
+
+    qc.el.querySelector<HTMLButtonElement>("#yui-tab-conn")!.click();
+    await tick();
+    await tick();
+
+    expect(calls).toEqual(["http://localhost:8080/v1/models"]);
 
     qc.dispose();
   });

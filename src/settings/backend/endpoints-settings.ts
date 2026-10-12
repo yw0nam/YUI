@@ -80,6 +80,7 @@ export const ENDPOINT_FIELD_SPECS = [
   { key: "stt_model", kind: "string", labelKey: "endpoints.stt_model.label", resetGroup: "stt" },
   { key: "tts_base_url", kind: "url", labelKey: "endpoints.tts_base_url.label", resetGroup: "tts" },
   { key: "tts_model", kind: "string", labelKey: "endpoints.tts_model.label", resetGroup: "tts" },
+  // Deprecated: removed in v0.6.0. Use client-declared tools (src/io/chat/stream/client-tools.ts).
   {
     key: "broker_base_url",
     kind: "url",

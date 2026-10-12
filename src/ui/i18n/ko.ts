@@ -85,7 +85,8 @@ const ko: Record<string, string> = {
   "plate.key_rejected": "키 거부됨",
 
   // chain-break (404) recovery notice
-  "chain.reset_notice": "대화 컨텍스트가 초기화되었습니다",
+  "chain.reset_notice":
+    "서버가 이전 응답을 찾지 못해 대화 맥락이 초기화되었습니다. 매 턴 반복되면 연결 설정에서 Chat Completions를 선택하세요.",
   "hotkey.register_failed": "소환 단축키 {accelerator} 등록 실패: 다른 앱이 사용 중일 수 있어요",
   "ingress.dead_notice":
     "에이전트 이벤트 수신 시작 실패 (포트 {port} 사용 중). 이번 세션에는 에이전트 알림이 꺼져요",
@@ -381,9 +382,18 @@ const ko: Record<string, string> = {
   "svc.type_label": "유형",
   "svc.chat": "채팅",
   "svc.chat_aria": "채팅 API 종류",
-  "svc.chat_type_responses": "Responses API",
-  "svc.chat_type_completions": "Chat Completions",
-  "svc.chat_type_push": "Push · 연결 유지",
+  "svc.chat_name_chat_completions": "Chat Completions",
+  "svc.chat_name_responses": "Responses",
+  "svc.chat_name_push": "Push",
+  "svc.chat_option_chat_completions": "Chat Completions · 기록을 YUI가 보냄",
+  "svc.chat_option_responses": "Responses · 기록을 서버가 보관",
+  "svc.chat_option_push": "Push · 연결 유지",
+  "svc.chat_desc_chat_completions":
+    "YUI가 매 턴 대화 기록을 함께 보냅니다. Ollama, LM Studio, vLLM 같은 모델 서버에 맞습니다.",
+  "svc.chat_desc_responses":
+    "서버가 이전 응답을 보관하고 YUI는 새 메시지만 보냅니다. OpenAI처럼 응답을 보관하는 서버에 맞습니다.",
+  "svc.chat_desc_push":
+    "연결을 유지해서 백엔드가 먼저 말을 걸 수 있습니다. 지금은 {agent}만 이 방식을 지원합니다.",
   "svc.chat_status_connected": "연결됨 · {id}",
   "svc.chat_status_connecting": "연결하는 중…",
   "svc.chat_status_reconnecting": "{seconds}초 뒤 다시 연결",
@@ -391,6 +401,17 @@ const ko: Record<string, string> = {
   "svc.chat_status_reconnect": "다시 연결",
   "svc.chat_status_connect_now": "지금 연결",
   "svc.chat_status_offline": "연결 안 됨",
+  "svc.chat_models_reading": "모델 목록을 읽는 중…",
+  "svc.chat_models_read": "모델 {n}개를 읽음",
+  "svc.chat_models_pick": "모델 {n}개를 읽음 · 채팅 모델을 고르세요",
+  "svc.chat_models_absent": "이 서버의 목록에 없는 모델",
+  "svc.chat_models_unreachable": "{host}에 닿지 못함",
+  "svc.chat_models_timeout": "{host}가 제시간에 응답하지 않음",
+  "svc.chat_models_refused": "서버가 키를 거절함",
+  "svc.chat_models_http": "서버가 오류를 돌려줌 ({status})",
+  "svc.chat_models_no_list": "이 URL에는 모델 목록이 없음",
+  "svc.chat_models_malformed": "서버가 잘못된 형식의 모델 목록을 돌려줌",
+  "svc.chat_models_no_match": "일치하는 모델 없음. 입력한 이름을 그대로 씁니다.",
   "svc.chat_preset_label": "제공자",
   "svc.chat_preset_aria": "채팅 제공자 프리셋",
   "svc.chat_preset_custom": "직접 입력",
@@ -402,7 +423,7 @@ const ko: Record<string, string> = {
   "svc.tts_type": "제공자",
   "svc.tts_preset_aria": "TTS 제공자 프리셋",
   "svc.broker": "Broker",
-  "svc.broker_hint": "MCP streamable-http",
+  "svc.broker_hint": "MCP streamable-http, 지원 중단, v0.6.0에서 제거",
   "svc.broker_type": "MCP streamable-http",
   "svc.reset_chat": "채팅 되돌리기",
   "svc.reset_stt": "STT 되돌리기",
@@ -455,8 +476,7 @@ const ko: Record<string, string> = {
   // first-run onboarding hint
   "hint.first_run": "우클릭하면 컨트롤이 열려요 · {hotkey}로 말 걸 수 있어요",
   "hint.first_run_no_hotkey": "우클릭하면 컨트롤이 열려요",
-  "hint.setup_backend":
-    "아직 생각할 백엔드가 없어요 · 우클릭해서 연결 탭을 열고 OpenAI 호환 서버를 지정해 주세요",
+  "hint.setup_backend": "아직 생각할 백엔드가 없어요 · OpenAI 호환 서버를 지정해 주세요",
 
   // reactions tab
   "reactions.watchers_title": "감시",

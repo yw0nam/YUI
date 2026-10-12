@@ -33,6 +33,9 @@
   .yui-bubble__think svg {
     transition: none;
   }
+  .yui-bubble__speech-action button {
+    transition: none;
+  }
 }
 
 /* ════════════════════════════════════════════════════════════
@@ -292,6 +295,44 @@
   margin-bottom: 0;
   padding-bottom: 0;
   border-bottom: 0;
+}
+
+/* ── Speech action — in-place fix under the speech text (e.g. "Open Connection" on an
+   unconfigured backend). Same inline-link treatment as the bubble's links (treatment A);
+   a click target, so it takes pointer events through the display-only bubble. ── */
+.yui-bubble__speech-action {
+  display: block;
+  margin-top: 0.45em;
+}
+/* display: block beats the UA's [hidden] rule, so hide it explicitly. */
+.yui-bubble__speech-action[hidden] {
+  display: none;
+}
+.yui-bubble__speech-action button {
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  color: var(--yui-text);
+  cursor: pointer;
+  pointer-events: auto;
+  text-decoration: underline;
+  text-decoration-color: var(--yui-accent-soft);
+  text-underline-offset: 0.18em;
+  text-decoration-thickness: 0.08em;
+  border-radius: 3px;
+  transition:
+    color var(--yui-dur-fast) var(--yui-ease),
+    text-decoration-color var(--yui-dur-fast) var(--yui-ease);
+}
+.yui-bubble__speech-action button:hover,
+.yui-bubble__speech-action button:focus-visible {
+  color: var(--yui-accent);
+  text-decoration-color: var(--yui-accent);
+}
+.yui-bubble__speech-action button:focus-visible {
+  outline: 2px solid var(--yui-accent-soft);
+  outline-offset: 2px;
 }
 
 /* ── Reasoning disclosure — the backend's reasoning folded above the speech (message window only) ── */

@@ -72,6 +72,19 @@ describe("createHintTooltip", () => {
     expect(openTip()).toBeNull();
   });
 
+  it("does not open a pending tooltip after a click detaches the root", () => {
+    const button = document.createElement("button");
+    button.dataset.tip = "Close";
+    button.addEventListener("click", () => root.remove());
+    root.appendChild(button);
+
+    button.dispatchEvent(new MouseEvent("mouseover", { bubbles: true }));
+    button.click();
+    vi.advanceTimersByTime(150);
+
+    expect(document.querySelector(".yui-hint-tip")).toBeNull();
+  });
+
   it("closes an open tooltip when the pointer leaves a target that was detached", () => {
     dotA.dispatchEvent(new MouseEvent("mouseover", { bubbles: true }));
     vi.advanceTimersByTime(150);

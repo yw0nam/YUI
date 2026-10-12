@@ -12,7 +12,9 @@ allowed. YUI publishes this exact table to the broker via
 `emotion_text` against it (unknown tokens dropped + warning, speech never
 blocked). The canonical machine copy lives under `configs/`.
 
-This table stays aligned with the broker's 39-entry `DEFAULT_EMOTION_TEXT_MAP`.
+This table stays aligned with the broker's 39-entry `DEFAULT_EMOTION_TEXT_MAP`. The broker
+is deprecated and is removed in v0.6.0; the client-declared `generate_express` tool carries
+this table as its `emotion_text` enum.
 
 ## Emoji table
 

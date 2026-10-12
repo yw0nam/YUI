@@ -86,7 +86,8 @@ const ja: Record<string, string> = {
   "plate.key_rejected": "キー拒否",
 
   // chain-break (404) recovery notice
-  "chain.reset_notice": "会話コンテキストがリセットされました",
+  "chain.reset_notice":
+    "サーバーが前の応答を見つけられず、会話コンテキストがリセットされました。毎ターン繰り返す場合は、接続設定で Chat Completions を選んでください。",
   "hotkey.register_failed":
     "呼び出しショートカット {accelerator} を登録できませんでした。他のアプリが使用中かもしれません",
   "ingress.dead_notice":
@@ -384,9 +385,18 @@ const ja: Record<string, string> = {
   "svc.type_label": "種類",
   "svc.chat": "チャット",
   "svc.chat_aria": "チャット API の種類",
-  "svc.chat_type_responses": "Responses API",
-  "svc.chat_type_completions": "Chat Completions",
-  "svc.chat_type_push": "Push · 継続接続",
+  "svc.chat_name_chat_completions": "Chat Completions",
+  "svc.chat_name_responses": "Responses",
+  "svc.chat_name_push": "Push",
+  "svc.chat_option_chat_completions": "Chat Completions · 履歴を YUI が送信",
+  "svc.chat_option_responses": "Responses · 履歴をサーバーが保管",
+  "svc.chat_option_push": "Push · 継続接続",
+  "svc.chat_desc_chat_completions":
+    "YUI が毎ターン会話履歴を一緒に送ります。Ollama、LM Studio、vLLM などのモデルサーバーに向いています。",
+  "svc.chat_desc_responses":
+    "サーバーが以前の応答を保管し、YUI は新しいメッセージだけを送ります。OpenAI のように応答を保管するサーバーに向いています。",
+  "svc.chat_desc_push":
+    "接続を維持するので、バックエンドから先に話しかけられます。現在対応しているのは {agent} だけです。",
   "svc.chat_status_connected": "接続済み · {id}",
   "svc.chat_status_connecting": "接続中…",
   "svc.chat_status_reconnecting": "{seconds}秒後に再接続",
@@ -394,6 +404,17 @@ const ja: Record<string, string> = {
   "svc.chat_status_reconnect": "再接続",
   "svc.chat_status_connect_now": "今すぐ接続",
   "svc.chat_status_offline": "未接続",
+  "svc.chat_models_reading": "モデル一覧を読み込み中…",
+  "svc.chat_models_read": "モデルを{n}件読み込みました",
+  "svc.chat_models_pick": "モデルを{n}件読み込みました · チャットモデルを選んでください",
+  "svc.chat_models_absent": "このサーバーの一覧にないモデル",
+  "svc.chat_models_unreachable": "{host} に接続できません",
+  "svc.chat_models_timeout": "{host} が時間内に応答しませんでした",
+  "svc.chat_models_refused": "サーバーがキーを拒否しました",
+  "svc.chat_models_http": "サーバーがエラーを返しました ({status})",
+  "svc.chat_models_no_list": "この URL にモデル一覧はありません",
+  "svc.chat_models_malformed": "サーバーが不正なモデル一覧を返しました",
+  "svc.chat_models_no_match": "一致なし。入力した名前をそのまま使います。",
   "svc.chat_preset_label": "プロバイダー",
   "svc.chat_preset_aria": "チャットプロバイダーのプリセット",
   "svc.chat_preset_custom": "カスタム",
@@ -405,7 +426,7 @@ const ja: Record<string, string> = {
   "svc.tts_type": "プロバイダー",
   "svc.tts_preset_aria": "TTSプロバイダーのプリセット",
   "svc.broker": "Broker",
-  "svc.broker_hint": "MCP streamable-http",
+  "svc.broker_hint": "MCP streamable-http、非推奨、v0.6.0 で削除",
   "svc.broker_type": "MCP streamable-http",
   "svc.reset_chat": "チャットを戻す",
   "svc.reset_stt": "STT を戻す",
@@ -458,8 +479,7 @@ const ja: Record<string, string> = {
   // first-run onboarding hint
   "hint.first_run": "右クリックでコントロール · {hotkey}で話しかけてね",
   "hint.first_run_no_hotkey": "右クリックでコントロール",
-  "hint.setup_backend":
-    "考えるためのバックエンドがまだないの · 右クリックして接続タブを開いて、OpenAI 互換サーバーを指定してね",
+  "hint.setup_backend": "考えるためのバックエンドがまだないの · OpenAI 互換サーバーを指定してね",
 
   // reactions tab
   "reactions.watchers_title": "ウォッチャー",

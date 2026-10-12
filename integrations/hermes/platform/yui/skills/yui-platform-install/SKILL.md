@@ -86,6 +86,7 @@ Broker MCP server hands the broker to the yui platform. Name the MCP servers the
 with a vocabulary that differs from the one the client sent in `hello`, and a cue sent through the
 broker's `generate_express` never reaches a `render` frame. Saving this platform's tools from Hermes's
 tool settings removes `no_mcp` and keeps named MCP servers, so run the second check below after that.
+The Expression Broker is deprecated and is removed in v0.6.0; the yui platform carries `generate_express` itself.
 
 The plugin's [`docs/install.md`](../../docs/install.md) carries what each `extra` key means and what
 to change for a host other than loopback.

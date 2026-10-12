@@ -17,13 +17,14 @@ import type { QuotedTurn } from "../../dispatcher/turn/quoted-turn";
 import type { TurnLog } from "../../dispatcher/turn/turn";
 import { createTurnFeed, type TurnFeed } from "../../dispatcher/turn/turn-feed";
 import type { ReasoningStore } from "../../io/bridge/reasoning/reasoning-store";
-import type { BrokerPayload } from "../../io/chat/broker/broker-client";
+import { clientToolsUnlessBrokered } from "../../io/chat/broker/broker-tool-owner";
 import type { PushSocket } from "../../io/chat/push/push-socket";
 import type { PacerSkipRecord, TurnRecord } from "../../io/chat/record/turn-record-log";
 import {
   createClientToolRegistry,
   createGenerateExpressTool,
 } from "../../io/chat/stream/client-tools";
+import type { ExpressVocabulary } from "../../io/chat/vocabulary/express-vocabulary";
 import type { ScreenCapturer } from "../../io/window/capture/screen-source-provider";
 import { buildScreenshotBlock } from "../../io/window/capture/screenshot-context";
 import type { Renderer } from "../../renderer";
@@ -79,7 +80,7 @@ export function wireDispatcher(deps: {
   quotedTurn: Pick<QuotedTurn, "admitted" | "failed">;
   pushTurns: PushTurns;
   pushSocket: PushSocket | null;
-  getVocabulary: () => BrokerPayload;
+  getVocabulary: () => ExpressVocabulary;
   openQuickControls?: (tab: QuickControlsTab) => void;
   showVoiceError: (reason: string) => void;
   appendTurnRecord: (record: TurnRecord | PacerSkipRecord) => void;
@@ -144,7 +145,8 @@ export function wireDispatcher(deps: {
     getApiKey: () => getSecret(CHAT_API_KEY_SECRET),
     getFetch,
     getPreviousResponseId: () => sessionStore.get() ?? undefined,
-    onResponseId: (id) => sessionStore.set(id),
+    getPendingToolOutputs: () => sessionStore.outputs(),
+    onResponseId: (id, outputs) => sessionStore.set(id, outputs),
     onResponseIdInvalid: () => sessionStore.clear(),
     onChainReset: () => showChainResetNotice({ surfaces, t }),
     transcript: chatHistoryStore,
@@ -171,7 +173,11 @@ export function wireDispatcher(deps: {
     appendTurnRecord,
     getAgentSettings: () => agentSettings.get(),
     // Built per turn from the published vocabulary, so a live edit reaches the next tool schema.
-    clientTools: () => createClientToolRegistry([createGenerateExpressTool(getVocabulary())]),
+    clientTools: () =>
+      clientToolsUnlessBrokered(
+        getEndpoints(),
+        createClientToolRegistry([createGenerateExpressTool(getVocabulary())]),
+      ),
     pushTurn: (frame) => pushSocket?.sendTurn(frame) ?? false,
     onPushTurnCut: () => pushTurns.cut(),
     onPushTurnSent: (turnId) => pushTurns.opened(turnId),

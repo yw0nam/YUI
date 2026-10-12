@@ -39,11 +39,13 @@ YUI/
       bootstrap-configured.ts        # Pet window's config-derived bootstrap: runs the turn core and the pet-only wirings in order and drains their teardowns
       disposers.ts                   # Shared teardown bag: registers teardowns at creation sites and drains them LIFO
       turn/                          # The path of a turn: sources, voice, and push
-        turn-core.ts                 # The chat turn every backend-facing window runs: voice, dispatcher, STT, VRM load, broker, push transport, stop, and submit
+        turn-core.ts                 # The chat turn every backend-facing window runs: voice, dispatcher, STT, VRM load, vocabulary, broker, push transport, stop, and submit
         wire-dispatcher.ts           # Turn feed, backend caller, guardrails, pacer, and the dispatcher
         wire-sources.ts              # The dispatcher's utterance sources, built and started
         broker/                      # Expression broker wiring
-          wire-broker.ts             # The broker client: boot publish, override retargeting, and the vocabulary loads
+          wire-broker.ts             # The broker client: boot publish, override retargeting, and republish when the vocabulary moves
+        vocabulary/                  # The express vocabulary every consumer declares
+          wire-vocabulary.ts         # The emotion_text table load, the derived vocabulary, and its change announcements
         push/                        # Push socket wiring and its stores
           delegation-chip-mount.ts   # The delegation chip's lazy mount and its suppression port
           wire-push.ts               # Push socket frames into turns, the stop button, and the push mode chip
@@ -311,15 +313,19 @@ YUI/
       chat/
         secret-provider.ts             # Resolves each secret from its runtime store, then the build-time fallback
         stream/                        # Streaming model calls, the client-declared tools, and the silence filter
-          chat-client.ts               # Adapter over the openai SDK Responses stream
+          chat-client.ts               # Builds the openai SDK client and routes to the selected transport's stream
+          responses-stream.ts          # Responses streaming loop
           chat-completions.ts          # Pure Chat Completions request builders and stream-chunk reducer
           chat-completions-stream.ts   # Chat Completions streaming loop with its tool round trips
           stream-helpers.ts            # Express-tool and error helpers both streaming loops use
           client-tools.ts              # Registry of the tools YUI declares and runs itself
+          client-tool-run.ts           # Runs a model's tool call on the client and decides when results go back
           silence-token.ts             # Stateful [SILENT] token filter for spoken output_text deltas
         push/                          # The push transport's turn and reply WebSocket
           push-frames.ts               # Push frame wire types and the unreadable-frame checks
           push-socket.ts               # Single WebSocket the push transport runs turns and replies on
+        vocabulary/                    # The emotion, motion, and voice-tone ids the agent may cue with
+          express-vocabulary.ts        # Derives the express vocabulary from the loaded config and the motion selection
         broker/                        # The Expression Broker client and its URL override reconciler
           broker-client.ts             # Write-only Expression Broker MCP client that publishes the renderable vocabulary
           broker-override-reconciler.ts # Applies a broker-URL override to the live broker client
@@ -531,6 +537,8 @@ YUI/
             viewpoint-row.ts         # Camera view reset button
         connection/                  # Connection tab and its endpoint/API-key section
           connection-tab.ts          # The Connection tab the desktop panel and the phone settings view share
+          chat-type.ts               # The chat type row: long names in the open list, short name over the closed select, description line
+          chat-type.css              # The overlay, option colours and description line of that row
           endpoints-section.ts       # Endpoint URL fields, API-key rows, chat-API picker, and resets
           endpoints-section.css      # Endpoints section and yui-select dropdown styles
         cue-lists/                   # Schedule and proactive cue lists of the Proactive tab

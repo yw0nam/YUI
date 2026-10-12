@@ -1,0 +1,89 @@
+/* ── Chat type row — the closed select shows a short name; the open list shows the long ones ── */
+.yui-select-wrap {
+  position: relative;
+}
+
+.yui-select-wrap > .yui-select {
+  display: block;
+  width: 100%;
+}
+
+/* Two classes outrank .yui-select's colour whatever the stylesheet order. */
+.yui-select.yui-chat-type {
+  color: transparent;
+}
+
+/* The popup inherits the select's colour on Chromium, so the options carry their own. */
+.yui-select.yui-chat-type option {
+  color: var(--yui-text);
+  background-color: var(--yui-panel-bg);
+}
+
+/* Over the select's content box: 1px border, then the select's own padding. */
+.yui-chat-type__shown {
+  position: absolute;
+  inset: 0 calc(1.75rem + 1px) 0 calc(0.625rem + 1px);
+  overflow: hidden;
+  font-size: var(--yui-fs-body);
+  line-height: 2rem;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  color: var(--yui-text);
+  pointer-events: none;
+}
+
+/* Forced colours override the transparent text, so the select's own text is the visible value. */
+@media (forced-colors: active) {
+  .yui-chat-type__shown {
+    display: none;
+  }
+}
+
+.yui-chat-type__desc {
+  flex-basis: 100%;
+  margin: 0;
+  font-size: var(--yui-fs-sub);
+  line-height: 1.45;
+  color: var(--yui-text-mute);
+  text-wrap: pretty;
+}
+
+/* The bubble link's treatment: body colour on an amber-soft underline, full amber on hover and focus. */
+.yui-chat-type__link {
+  border-radius: 3px;
+  color: var(--yui-text);
+  text-decoration: underline;
+  text-decoration-color: var(--yui-accent-soft);
+  text-underline-offset: 0.18em;
+  text-decoration-thickness: 0.08em;
+  transition:
+    color var(--yui-dur-fast) var(--yui-ease),
+    text-decoration-color var(--yui-dur-fast) var(--yui-ease);
+}
+
+.yui-chat-type__link:hover,
+.yui-chat-type__link:focus-visible {
+  color: var(--yui-accent);
+  text-decoration-color: var(--yui-accent);
+}
+
+.yui-chat-type__link:focus-visible {
+  outline: 2px solid var(--yui-accent-soft);
+  outline-offset: 2px;
+}
+
+.yui-chat-type__desc.is-swapping {
+  animation: yui-chat-type-desc-in var(--yui-dur-fast) var(--yui-ease);
+}
+
+@keyframes yui-chat-type-desc-in {
+  from {
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .yui-chat-type__desc.is-swapping {
+    animation: none;
+  }
+}

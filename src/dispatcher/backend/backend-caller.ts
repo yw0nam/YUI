@@ -33,7 +33,11 @@ import {
   type ChatHistoryEntry,
   selectSendSuffix,
 } from "../../io/chat/conversation/chat-history-store";
-import { type ChatRequest, streamChat } from "../../io/chat/stream/chat-client";
+import {
+  type ChatRequest,
+  streamChat,
+  type ToolOutputItem,
+} from "../../io/chat/stream/chat-client";
 import { buildCCMessages } from "../../io/chat/stream/chat-completions";
 import type { ClientToolRegistry } from "../../io/chat/stream/client-tools";
 import type { Logger } from "../../logger";
@@ -42,6 +46,7 @@ import type { Turn } from "../turn/turn";
 import { backgroundMarker } from "./background-marker";
 import { renderClientContext } from "./client-context-text";
 import { buildContext, imageDataUrlsOf, userTextOf } from "./context-builder";
+import { withPendingOutputs } from "./pending-tool-outputs";
 import { createPushCall, type PushCallDeps } from "./push-call";
 import { encodeInput } from "./request-input";
 import { createReplySettler, type SettleDeps } from "./settle-reply";
@@ -103,8 +108,10 @@ interface BackendCallerDeps extends PushCallDeps, SettleDeps, StreamAttemptDeps 
   takeMessageWake?: () => boolean;
   /** Previous response id lookup — when present, included in request to continue conversation. Called per turn (reflects reset/rotation). */
   getPreviousResponseId?: () => string | undefined;
-  /** New response id persist — called only after a completely successful turn (conversation state progress). */
-  onResponseId?: (id: string) => void;
+  /** Outputs of the stored response's unanswered tool calls — sent with the id, dropped wherever the id is. */
+  getPendingToolOutputs?: () => ToolOutputItem[];
+  /** New response id persist, with the outputs its unanswered calls need — called only after a completely successful turn (conversation state progress). */
+  onResponseId?: (id: string, toolOutputs: ToolOutputItem[]) => void;
   /** Stored previous_response_id invalidation sink — called once when a 404 chain-break is detected, before the retry. */
   onResponseIdInvalid?: () => void;
   /** Chain-break UI notice sink — called once alongside onResponseIdInvalid so the user sees the context reset. */
@@ -112,7 +119,7 @@ interface BackendCallerDeps extends PushCallDeps, SettleDeps, StreamAttemptDeps 
   /** Current agent setting (reasoning effort + instructions override) snapshot. Reflected in request only when present. */
   getAgentSettings?: () => import("../../settings/backend/agent-settings").AgentSettings;
   /** Client-declared tool registry, resolved per turn so vocabulary edits land on the next call. */
-  clientTools?: () => ClientToolRegistry;
+  clientTools?: () => ClientToolRegistry | undefined;
   /** The user typed or spoke, so the push turns still outstanding are stopped with the speech. */
   onPushTurnCut?: () => void;
   /** Structured logging (defaults to backend_caller namespace logger if absent). */
@@ -279,12 +286,15 @@ export function createBackendCaller(deps: BackendCallerDeps): BackendCaller {
         });
       } else {
         startPreviousResponseId = deps.getPreviousResponseId?.();
-        if (startPreviousResponseId) request.previous_response_id = startPreviousResponseId;
+        if (startPreviousResponseId) {
+          request.previous_response_id = startPreviousResponseId;
+          request.input = withPendingOutputs(input, deps.getPendingToolOutputs?.() ?? []);
+        }
         // Empty instructions omitted for config fallback.
         if (agent?.instructions.trim()) request.instructions = agent.instructions;
       }
 
-      // Tools declared for this turn (CC mode; the Responses branch ignores them).
+      // Tools declared for this turn on both request transports.
       const clientTools = deps.clientTools?.();
 
       // Chain-break 404 recovery: retry at most once, so this flips true before the retry attempt.
@@ -326,6 +336,7 @@ export function createBackendCaller(deps: BackendCallerDeps): BackendCaller {
             deps.onResponseIdInvalid?.();
             deps.onChainReset?.();
             delete request.previous_response_id;
+            request.input = input;
             startPreviousResponseId = undefined;
             continue;
           }
@@ -342,7 +353,7 @@ export function createBackendCaller(deps: BackendCallerDeps): BackendCaller {
         }
         break;
       }
-      const { envelope, newResponseId, streamedAny, cueStreamed } = attempted;
+      const { envelope, newResponseId, toolOutputs, streamedAny, cueStreamed } = attempted;
 
       const spokeText = replySettler.settle({
         turnId: turn.id,
@@ -357,7 +368,7 @@ export function createBackendCaller(deps: BackendCallerDeps): BackendCaller {
       // if reset/rotation (R2) occurred in-flight, don't revive that new state from dead response. CC mode
       // skips snapshot/persist entirely.
       if (!isCC && newResponseId && deps.getPreviousResponseId?.() === startPreviousResponseId) {
-        deps.onResponseId?.(newResponseId);
+        deps.onResponseId?.(newResponseId, toolOutputs ?? []);
       }
 
       // Recorded in both modes only (successful turn passing all post-stream guards).

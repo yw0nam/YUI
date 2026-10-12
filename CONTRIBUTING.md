@@ -22,8 +22,9 @@ pnpm tauri dev    # transparent desktop-pet window
 
 A coding agent can walk the setup from
 [`docs/guide/install.md`](docs/guide/install.md). A default VRM ships in the
-repo; the backend agent, Expression Broker, TTS, and STT are **separate
-repositories** and optional — see
+repo; the backend agent, TTS, and STT are **separate
+repositories** and optional (the Expression Broker, also separate, is deprecated
+and removed in v0.6.0) — see
 [`docs/guide/getting-started.md`](docs/guide/getting-started.md).
 
 ## Workflow

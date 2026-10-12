@@ -1,3 +1,5 @@
+// Deprecated: removed in v0.6.0. Use client-declared tools (src/io/chat/stream/client-tools.ts).
+
 /**
  * Expression Broker MCP write-only client. YUI publishes its renderable vocabulary;
  * it never subscribes. Stateless + best-effort: never throws to the caller, never blocks boot
@@ -12,13 +14,8 @@
  * JSON string.
  */
 
-import type { AppConfig } from "../../../config/load";
-import type { MotionRegistry } from "../../../contract";
 import { createLogger, type Logger } from "../../../logger";
-import {
-  type ExpressMotionSettings,
-  enabledExpressMotions,
-} from "../../../settings/avatar/express-motion-settings";
+import type { ExpressVocabulary } from "../vocabulary/express-vocabulary";
 
 export interface BrokerVocab {
   emotion_ids: string[];
@@ -26,12 +23,6 @@ export interface BrokerVocab {
   emotion_text_mode: "free" | "enum";
   emotion_text_map: Record<string, string>;
   version: number;
-}
-
-export interface BrokerPayload {
-  emotionIds: string[];
-  motionIds: string[];
-  emotionText: { mode: "free" | "enum"; table: Record<string, string> | null };
 }
 
 interface BrokerClientOptions {
@@ -44,7 +35,7 @@ interface BrokerClientOptions {
 }
 
 export interface BrokerClient {
-  publish(payload: BrokerPayload): Promise<void>;
+  publish(payload: ExpressVocabulary): Promise<void>;
   start(): void;
   dispose(): void;
 }
@@ -95,7 +86,7 @@ export function createBrokerClient(opts: BrokerClientOptions): BrokerClient {
 
   let nextId = 1;
   let timer: ReturnType<typeof setInterval> | null = null;
-  let lastPayload: BrokerPayload | null = null;
+  let lastPayload: ExpressVocabulary | null = null;
   let lastObservedVersion: number | null = null;
   let inflight: Promise<void> = Promise.resolve();
   let disposed = false;
@@ -239,7 +230,7 @@ export function createBrokerClient(opts: BrokerClientOptions): BrokerClient {
   }
 
   /** Build the tool calls needed to reconcile `current` → `payload`. */
-  function diffCalls(payload: BrokerPayload, current: BrokerVocab | null): ToolCall[] {
+  function diffCalls(payload: ExpressVocabulary, current: BrokerVocab | null): ToolCall[] {
     const calls: ToolCall[] = [];
     if (!current || !sameIds(current.emotion_ids, payload.emotionIds)) {
       calls.push({ name: "update_emotion_ids", arguments: { ids: payload.emotionIds } });
@@ -260,7 +251,7 @@ export function createBrokerClient(opts: BrokerClientOptions): BrokerClient {
     return calls;
   }
 
-  async function publishNow(payload: BrokerPayload): Promise<void> {
+  async function publishNow(payload: ExpressVocabulary): Promise<void> {
     if (disposed) return;
     const current = await getIds();
     if (current) lastObservedVersion = current.version;
@@ -284,7 +275,7 @@ export function createBrokerClient(opts: BrokerClientOptions): BrokerClient {
    * failure never wedges the queue. `lastPayload` is recorded here rather than at execution, so a
    * poll firing while this payload is queued republishes it and not the one still executing.
    */
-  function publish(payload: BrokerPayload): Promise<void> {
+  function publish(payload: ExpressVocabulary): Promise<void> {
     lastPayload = payload;
     const next = inflight.then(() => publishNow(payload));
     inflight = next.catch(() => {});
@@ -335,45 +326,4 @@ export function createBrokerClient(opts: BrokerClientOptions): BrokerClient {
     start,
     dispose,
   };
-}
-
-/**
- * Motion keys the agent may trigger via generate_express/motion cues — excludes reactive, ambient,
- * and `broker_publish:false` entries. Shared by the broker payload and the CC generate_express
- * tool's motion_id enum, so both stay in lockstep with the same registry.
- */
-export function agentTriggerableMotionIds(motions: MotionRegistry): string[] {
-  return Object.entries(motions)
-    .filter(
-      ([, entry]) =>
-        entry.kind !== "reactive" && entry.kind !== "ambient" && entry.broker_publish !== false,
-    )
-    .map(([id]) => id);
-}
-
-/**
- * Pure derivation of the broker payload from loaded config. emotion ids = registry keys; motion ids
- * = agent-triggerable motion keys (see agentTriggerableMotionIds) narrowed by the user's
- * expression-motion selection — the one seam both vocabulary consumers read, so the broker publish
- * and the Chat-Completions tool schema always carry the same list. The selection is required, so
- * no caller can publish the unfiltered catalog by leaving it out.
- * emotion_text is the emoji enum table (docs/reference/tts-emotion); no table (a provider without
- * one, or a failed load the loader already logged) publishes free mode.
- */
-export function deriveBrokerPayload(
-  cfg: AppConfig,
-  emotionTextTable: Record<string, string> | null,
-  opts: { expressMotions: ExpressMotionSettings },
-): BrokerPayload {
-  const emotionIds = Object.keys(cfg.emotionRegistry);
-  const motionIds = enabledExpressMotions(
-    agentTriggerableMotionIds(cfg.motions),
-    opts.expressMotions,
-  );
-
-  const emotionText: BrokerPayload["emotionText"] = emotionTextTable
-    ? { mode: "enum", table: emotionTextTable }
-    : { mode: "free", table: null };
-
-  return { emotionIds, motionIds, emotionText };
 }

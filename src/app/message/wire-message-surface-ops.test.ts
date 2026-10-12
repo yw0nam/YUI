@@ -18,6 +18,7 @@ function setup() {
     endSpeech: vi.fn(),
     setBusy: vi.fn(),
     showInputError: vi.fn(),
+    showSpeechAction: vi.fn(),
   } as unknown as Surfaces;
   const plate = { setLive: vi.fn(), setBusy: vi.fn() } as unknown as MessagePlate;
   wireMessageSurfaceOps({ bridge, surfaces, plate });
@@ -54,4 +55,15 @@ it("routes the input-error action click back as a control op", () => {
   expect(action.label).toBe("Open");
   action.onClick();
   expect(bridge.emitControl).toHaveBeenCalledWith({ op: "input-error-action" });
+});
+
+it("routes the speech-action click back as a control op", () => {
+  const { send, surfaces, bridge } = setup();
+
+  send({ op: "speech-action", action: { label: "Open Connection" } });
+
+  const action = vi.mocked(surfaces.showSpeechAction).mock.calls[0]![0]!;
+  expect(action.label).toBe("Open Connection");
+  action.onClick();
+  expect(bridge.emitControl).toHaveBeenCalledWith({ op: "speech-action" });
 });

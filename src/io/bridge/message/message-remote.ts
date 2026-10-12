@@ -2,8 +2,8 @@
  * The message window as the pet window sees it — the bubble and input half of
  * `Surfaces`, backed by the bridge instead of local DOM.
  *
- * The error action's callback cannot cross the wire, so only its label travels
- * and the click comes back as `input-error-action`. The limits and the busy
+ * An action's callback cannot cross the wire, so only its label travels and the
+ * click comes back as `input-error-action` / `speech-action`. The limits and the busy
  * state are held here so a window created after the fact can ask for them with
  * `ready` and catch up.
  */
@@ -14,6 +14,12 @@ import type { MessageBridge, UserQuote } from "./message-bridge";
 
 /** In-place fix offered next to an inline error (e.g. "Open Advanced" on an unconfigured backend). */
 export interface InputErrorAction {
+  label: string;
+  onClick(): void;
+}
+
+/** In-place fix offered under the speech text (e.g. "Open Connection" on an unconfigured backend). */
+export interface SpeechAction {
   label: string;
   onClick(): void;
 }
@@ -37,6 +43,8 @@ export interface RemoteSurfaces {
   isInputOpen(): boolean;
   setBusy(busy: boolean): void;
   showInputError(message: string, action?: InputErrorAction): void;
+  /** Offers an in-place fix under the current speech; without an action, drops the one shown. */
+  showSpeechAction(action?: SpeechAction): void;
   setAttachmentLimits(limits: AttachmentLimits): void;
   /** Puts a sent message back into the message window's composer when it is open and empty. */
   restoreInput(text: string, images: string[]): void;
@@ -59,6 +67,7 @@ export function createRemoteSurfaces(bridge: MessageBridge): RemoteSurfaces {
   let busy = false;
   let limits: AttachmentLimits | null = null;
   let pendingErrorAction: (() => void) | null = null;
+  let pendingSpeechAction: (() => void) | null = null;
 
   const unlisten = bridge.onControl((op) => {
     switch (op.op) {
@@ -73,6 +82,9 @@ export function createRemoteSurfaces(bridge: MessageBridge): RemoteSurfaces {
         break;
       case "input-error-action":
         pendingErrorAction?.();
+        break;
+      case "speech-action":
+        pendingSpeechAction?.();
         break;
       case "open-settings":
         for (const cb of openSettingsHandlers) cb();
@@ -93,6 +105,7 @@ export function createRemoteSurfaces(bridge: MessageBridge): RemoteSurfaces {
 
   return {
     beginSpeech() {
+      pendingSpeechAction = null;
       bridge.emitSurface({ op: "begin" });
     },
     pushSpeech(delta) {
@@ -105,6 +118,7 @@ export function createRemoteSurfaces(bridge: MessageBridge): RemoteSurfaces {
       bridge.emitSurface({ op: "finish" });
     },
     hideSpeech() {
+      pendingSpeechAction = null;
       bridge.emitSurface({ op: "hide" });
     },
     quoteUser(quote) {
@@ -138,6 +152,12 @@ export function createRemoteSurfaces(bridge: MessageBridge): RemoteSurfaces {
           : { op: "input-error", message },
       );
     },
+    showSpeechAction(action) {
+      pendingSpeechAction = action?.onClick ?? null;
+      bridge.emitSurface(
+        action ? { op: "speech-action", action: { label: action.label } } : { op: "speech-action" },
+      );
+    },
     setAttachmentLimits(next) {
       limits = next;
       bridge.emitSurface({ op: "attachment-limits", limits: next });
@@ -164,6 +184,7 @@ export function createRemoteSurfaces(bridge: MessageBridge): RemoteSurfaces {
       dockHandlers.length = 0;
       openSettingsHandlers.length = 0;
       pendingErrorAction = null;
+      pendingSpeechAction = null;
     },
   };
 }

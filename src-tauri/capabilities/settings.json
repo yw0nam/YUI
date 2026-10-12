@@ -1,7 +1,7 @@
 {
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "settings",
-  "description": "settings pop-out window — hosts voice/VRM management UI with cross-origin fetch to user-configured endpoints and local file-open dialogs; no window creation",
+  "description": "settings pop-out window — hosts voice/VRM management UI with cross-origin fetch to user-configured endpoints and local file-open dialogs, and opens the Hermes Agent repository link in the default browser; no window creation",
   "windows": ["settings"],
   "permissions": [
     "core:default",
@@ -9,6 +9,10 @@
     "core:window:allow-close",
     "log:default",
     "cors-fetch:default",
-    "dialog:allow-open"
+    "dialog:allow-open",
+    {
+      "identifier": "opener:allow-open-url",
+      "allow": [{ "url": "https://github.com/NousResearch/hermes-agent" }]
+    }
   ]
 }

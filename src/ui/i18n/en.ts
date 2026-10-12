@@ -86,7 +86,8 @@ const en: Record<string, string> = {
   "plate.key_rejected": "Key rejected",
 
   // chain-break (404) recovery notice
-  "chain.reset_notice": "Conversation context was reset",
+  "chain.reset_notice":
+    "The server did not find the previous response, so the conversation context was reset. If this happens every turn, choose Chat Completions in the connection settings.",
   "hotkey.register_failed":
     "Summon hotkey {accelerator} could not be registered: another app may hold it",
   "ingress.dead_notice":
@@ -382,9 +383,18 @@ const en: Record<string, string> = {
   "svc.type_label": "Type",
   "svc.chat": "Chat",
   "svc.chat_aria": "Chat API type",
-  "svc.chat_type_responses": "Responses API",
-  "svc.chat_type_completions": "Chat Completions",
-  "svc.chat_type_push": "Push · persistent connection",
+  "svc.chat_name_chat_completions": "Chat Completions",
+  "svc.chat_name_responses": "Responses",
+  "svc.chat_name_push": "Push",
+  "svc.chat_option_chat_completions": "Chat Completions · YUI sends the history",
+  "svc.chat_option_responses": "Responses · the server keeps the history",
+  "svc.chat_option_push": "Push · persistent connection",
+  "svc.chat_desc_chat_completions":
+    "YUI sends the conversation history every turn. Fits model servers such as Ollama, LM Studio and vLLM.",
+  "svc.chat_desc_responses":
+    "The server keeps earlier responses and YUI sends only the new message. Fits servers that keep responses, such as OpenAI.",
+  "svc.chat_desc_push":
+    "The connection stays open, so the backend can speak first. Currently only {agent} supports this.",
   "svc.chat_status_connected": "Connected · {id}",
   "svc.chat_status_connecting": "Connecting…",
   "svc.chat_status_reconnecting": "Reconnecting in {seconds}s",
@@ -392,6 +402,17 @@ const en: Record<string, string> = {
   "svc.chat_status_reconnect": "Reconnect",
   "svc.chat_status_connect_now": "Connect now",
   "svc.chat_status_offline": "Not connected",
+  "svc.chat_models_reading": "Reading the model list…",
+  "svc.chat_models_read": "Read {n} models",
+  "svc.chat_models_pick": "Read {n} models · pick a chat model",
+  "svc.chat_models_absent": "Not in this server's list",
+  "svc.chat_models_unreachable": "Could not reach {host}",
+  "svc.chat_models_timeout": "{host} did not answer in time",
+  "svc.chat_models_refused": "The server refused the key",
+  "svc.chat_models_http": "The server returned an error ({status})",
+  "svc.chat_models_no_list": "No model list at this URL",
+  "svc.chat_models_malformed": "The server returned an invalid model list",
+  "svc.chat_models_no_match": "No match. The typed name is kept.",
   "svc.chat_preset_label": "Provider",
   "svc.chat_preset_aria": "Chat provider preset",
   "svc.chat_preset_custom": "Custom",
@@ -403,7 +424,7 @@ const en: Record<string, string> = {
   "svc.tts_type": "Provider",
   "svc.tts_preset_aria": "TTS provider preset",
   "svc.broker": "Broker",
-  "svc.broker_hint": "MCP streamable-http",
+  "svc.broker_hint": "MCP streamable-http, deprecated, removed in v0.6.0",
   "svc.broker_type": "MCP streamable-http",
   "svc.reset_chat": "Reset Chat",
   "svc.reset_stt": "Reset STT",
@@ -457,7 +478,7 @@ const en: Record<string, string> = {
   "hint.first_run": "Right-click me for controls · press {hotkey} to talk",
   "hint.first_run_no_hotkey": "Right-click me for controls",
   "hint.setup_backend":
-    "I have no backend to think with yet. Right-click me, open Connection, and point me at an OpenAI-compatible server",
+    "I have no backend to think with yet · point me at an OpenAI-compatible server",
 
   // reactions tab
   "reactions.watchers_title": "Watchers",

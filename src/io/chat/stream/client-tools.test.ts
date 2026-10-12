@@ -7,15 +7,15 @@
  */
 
 import { describe, expect, it, vi } from "vitest";
-import type { BrokerPayload } from "../broker/broker-client";
+import type { ExpressVocabulary } from "../vocabulary/express-vocabulary";
 import {
   type ClientTool,
   createClientToolRegistry,
   createGenerateExpressTool,
 } from "./client-tools";
 
-/** The published vocabulary (broker-client.deriveBrokerPayload) is the schema's only source. */
-const vocab = (over: Partial<BrokerPayload> = {}): BrokerPayload => ({
+/** The published vocabulary (deriveExpressVocabulary) is the schema's only source. */
+const vocab = (over: Partial<ExpressVocabulary> = {}): ExpressVocabulary => ({
   emotionIds: ["neutral", "happy", "sad"],
   motionIds: ["dance", "calm"],
   emotionText: { mode: "free", table: null },

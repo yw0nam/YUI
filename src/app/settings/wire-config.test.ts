@@ -172,7 +172,7 @@ describe("wireConfigReload", () => {
       configured: {
         guardrails: { setConfig: vi.fn(() => void calls.push("guardrails.setConfig")) },
         summonHotkey: { apply: vi.fn(() => void calls.push("summonHotkey.apply")) },
-        broker: { onConfigChange: vi.fn(() => void calls.push("broker.onConfigChange")) },
+        vocabulary: { onConfigChange: vi.fn(() => void calls.push("vocabulary.onConfigChange")) },
       },
       vrm: {
         vrmSelection: {
@@ -198,14 +198,14 @@ describe("wireConfigReload", () => {
 
   it("each changed section triggers only its own calls", () => {
     const cases: Array<[string, string[]]> = [
-      ["emotionRegistry", ["setEmotionRegistry", "broker.onConfigChange"]],
-      ["guardrails", ["guardrails.setConfig", "setAttachmentLimits", "broker.onConfigChange"]],
-      ["hotkeys", ["summonHotkey.apply", "broker.onConfigChange"]],
-      ["endpoints", ["broker.onConfigChange"]],
+      ["emotionRegistry", ["setEmotionRegistry", "vocabulary.onConfigChange"]],
+      ["guardrails", ["guardrails.setConfig", "setAttachmentLimits", "vocabulary.onConfigChange"]],
+      ["hotkeys", ["summonHotkey.apply", "vocabulary.onConfigChange"]],
+      ["endpoints", ["vocabulary.onConfigChange"]],
       [
         "avatar",
         [
-          "broker.onConfigChange",
+          "vocabulary.onConfigChange",
           "setFraming",
           "setGaze",
           "setHitTestThreshold",
@@ -221,10 +221,10 @@ describe("wireConfigReload", () => {
     }
   });
 
-  it("sections with no reload wiring reach only the broker", () => {
+  it("sections with no reload wiring reach only the vocabulary", () => {
     const { calls, listeners } = reloadDeps();
     listeners[0]!(RELOAD_CFG, new Set(["screen"]));
-    expect(calls).toEqual(["broker.onConfigChange"]);
+    expect(calls).toEqual(["vocabulary.onConfigChange"]);
   });
 
   it("applies the enabled idle variants before the motion registry", () => {
@@ -232,7 +232,7 @@ describe("wireConfigReload", () => {
 
     listeners[0]!(RELOAD_CFG, new Set(["motions"]));
 
-    expect(calls).toEqual(["setIdleVariants", "setMotionRegistry", "broker.onConfigChange"]);
+    expect(calls).toEqual(["setIdleVariants", "setMotionRegistry", "vocabulary.onConfigChange"]);
     expect(deps.renderer.setIdleVariants).toHaveBeenCalledWith(["/motions/a.vrma"]);
   });
 

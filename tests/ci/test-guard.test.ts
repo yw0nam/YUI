@@ -3,7 +3,10 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { BASH } from "../command-paths";
+
+vi.setConfig({ testTimeout: 15_000 });
 
 const GUARD = resolve(
   fileURLToPath(new URL(".", import.meta.url)),
@@ -47,7 +50,7 @@ function makeBranchedRepo(files: Record<string, string>): string {
 }
 
 function runGuard(repo: string, env: Record<string, string> = {}) {
-  const r = spawnSync("bash", [GUARD, "main"], {
+  const r = spawnSync(BASH, [GUARD, "main"], {
     cwd: repo,
     encoding: "utf8",
     env: { ...process.env, TEST_GUARD_SKIP: "", TEST_GUARD_THRESHOLD: "", ...env },

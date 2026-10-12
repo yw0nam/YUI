@@ -25,11 +25,11 @@
  */
 
 import { invoke } from "@tauri-apps/api/core";
-import { cursorPosition, getCurrentWindow, primaryMonitor } from "@tauri-apps/api/window";
 import type { HitTestKnobs } from "../../../config/validators/avatar/types";
 import { createLogger } from "../../../logger";
 import { isTauri } from "../../../tauri-env";
 import {
+  createTauriStaticsSource,
   createWindowStatics,
   STATIC_REFRESH_TICKS,
   type Vec2,
@@ -45,13 +45,13 @@ export type HitTestState = "capture" | "passthrough";
 /**
  * Convert a screen-global PHYSICAL cursor to window-local CSS/logical px.
  *
- * Both readings describe the same screen-global point space, but each arrives scaled by a
- * different monitor's factor: the cursor by the primary monitor's, the window origin by the
+ * On macOS both readings describe the same screen-global point space, but each arrives scaled by
+ * a different monitor's factor: the cursor by the primary monitor's, the window origin by the
  * factor of the monitor the window sits on. Dividing each by its own factor recovers the shared
- * space — `localLogical = cursorPhys / cursorScaleFactor − windowOuterPhys / scaleFactor`. On a
- * uniform-DPI setup the two factors are equal and this reduces to the single-factor form, so
- * cursorScaleFactor defaults to scaleFactor. Either factor ≤ 0 falls back to 1 (never divide by
- * zero).
+ * space — `localLogical = cursorPhys / cursorScaleFactor − windowOuterPhys / scaleFactor`. Where
+ * the two readings are one physical px space (Windows), or on a uniform-DPI setup, the factors
+ * are equal and this reduces to the single-factor form, so cursorScaleFactor defaults to
+ * scaleFactor. Either factor ≤ 0 falls back to 1 (never divide by zero).
  */
 export function physicalCursorToLocalCss(
   cursorPhys: Vec2,
@@ -155,17 +155,9 @@ interface HitTestOptions {
  * Windows child HWNDs (WebView2) also receive the EXSTYLE update.
  */
 export function createTauriHitTestWindow(): HitTestWindow {
-  const w = getCurrentWindow();
   return {
-    cursorPosition: () => cursorPosition(),
+    ...createTauriStaticsSource(),
     setIgnoreCursorEvents: (ignore: boolean) => invoke<void>("set_click_through", { ignore }),
-    outerPosition: () => w.outerPosition(),
-    scaleFactor: () => w.scaleFactor(),
-    primaryScaleFactor: async () =>
-      (await primaryMonitor())?.scaleFactor ?? (await w.scaleFactor()),
-    onMoved: (cb) => w.onMoved(() => cb()),
-    onResized: (cb) => w.onResized(() => cb()),
-    onScaleChanged: (cb) => w.onScaleChanged(() => cb()),
   };
 }
 

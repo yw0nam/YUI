@@ -204,7 +204,7 @@ async function bootstrap(): Promise<{ dispose(): void }> {
     register(configured.dispose);
     stopTurn = configured.stopTurn;
     if (isDisposed()) return { dispose };
-    push.bind({ vocabulary: configured.broker.vocabulary, stopTurn: configured.stopTurn });
+    push.bind({ vocabulary: configured.vocabulary.vocabulary, stopTurn: configured.stopTurn });
     register(
       wirePushMode({
         socket: push.pushSocket,

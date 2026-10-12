@@ -2,7 +2,7 @@
 """Keeps daily briefings as dated markdown files and records which ones the agent has spoken."""
 import argparse
 import datetime
-import fcntl
+import errno
 import glob
 import json
 import os
@@ -10,6 +10,11 @@ import re
 import sys
 import unicodedata
 import urllib.parse
+
+if os.name == "nt":
+    import msvcrt
+else:
+    import fcntl
 
 SUMMARY_MAX = 200
 SOURCES_MAX = 10
@@ -23,6 +28,10 @@ TIME_MAX = 64
 STATUSES = ("ok", "stale", "failed", "disabled")
 LEDGER = "spoken.json"
 BRIEFING_PATH = re.compile(r"\d{4}-\d{2}-\d{2}/[^./\\][^/\\]*\.md")
+
+
+def spool_relative(path, spool):
+    return os.path.relpath(path, spool).replace(os.sep, "/")
 
 
 def unwritable(char):
@@ -109,8 +118,19 @@ def render(briefing, source, date, now_iso):
 
 def lock(spool):
     os.makedirs(spool, exist_ok=True)
-    handle = open(os.path.join(spool, ".lock"), "w")
-    fcntl.flock(handle, fcntl.LOCK_EX)
+    handle = open(os.path.join(spool, ".lock"), "a+b")
+    if os.name == "nt":
+        handle.seek(0)
+        while True:
+            try:
+                msvcrt.locking(handle.fileno(), msvcrt.LK_LOCK, 1)
+                break
+            except OSError as error:
+                # LK_LOCK gives up after ten one-second tries with EDEADLK.
+                if error.errno != errno.EDEADLK:
+                    raise
+    else:
+        fcntl.flock(handle, fcntl.LOCK_EX)
     return handle
 
 
@@ -135,7 +155,7 @@ def load_ledger(spool, set_aside):
 
 def write_file(path, text):
     os.makedirs(os.path.dirname(path), exist_ok=True)
-    with open(path + ".tmp", "w", encoding="utf-8") as file:
+    with open(path + ".tmp", "w", encoding="utf-8", newline="") as file:
         file.write(text)
     os.replace(path + ".tmp", path)
 
@@ -153,7 +173,7 @@ def write(spool, source):
         day = os.path.join(spool, date)
         existing = glob.glob(os.path.join(day, f"{source}.md")) + glob.glob(os.path.join(day, f"{source}.{'[0-9]' * 12}.md"))
         # Each source keeps at most one unspoken briefing per day; a spoken one never changes.
-        unspoken = [path for path in existing if os.path.relpath(path, spool) not in spoken]
+        unspoken = [path for path in existing if spool_relative(path, spool) not in spoken]
         path = unspoken[0] if unspoken else os.path.join(day, f"{source}.{now:%H%M%S%f}.md" if existing else f"{source}.md")
         # An unspoken briefing from an earlier run of the day outranks a failed one.
         if error is None or not unspoken:
@@ -167,7 +187,7 @@ def write(spool, source):
 def pending(spool):
     spoken = load_ledger(spool, set_aside=False)
     for path in sorted(glob.glob(os.path.join(spool, "????-??-??", "*.md"))):
-        relative = os.path.relpath(path, spool)
+        relative = spool_relative(path, spool)
         if relative in spoken or not BRIEFING_PATH.fullmatch(relative):
             continue
         with open(path, encoding="utf-8", errors="replace") as file:
@@ -189,6 +209,9 @@ def mark_spoken(spool, paths):
 
 
 def main():
+    if os.name == "nt" and hasattr(sys.stdout, "reconfigure"):
+        sys.stdout.reconfigure(encoding="utf-8", newline="\n")
+        sys.stderr.reconfigure(encoding="utf-8", errors="backslashreplace", newline="\n")
     parser = argparse.ArgumentParser(description="Keep YUI daily briefings as dated markdown files.")
     parser.add_argument("--spool", default=os.environ.get("YUI_BRIEFING_SPOOL"), help="spool directory; default $YUI_BRIEFING_SPOOL")
     commands = parser.add_subparsers(dest="command", required=True)

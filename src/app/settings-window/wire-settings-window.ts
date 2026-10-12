@@ -1,4 +1,4 @@
-import { TTS_API_KEY_SECRET } from "../../config/secrets";
+import { CHAT_API_KEY_SECRET, TTS_API_KEY_SECRET } from "../../config/secrets";
 import { createConfigStore } from "../../config/store";
 import { importVrmFromFile, removeUserVrm } from "../../io/assets/vrm-import";
 import {
@@ -10,6 +10,7 @@ import { createDelegationHistory } from "../../io/bridge/delegations/delegation-
 import { createMirroredDelegations } from "../../io/bridge/delegations/delegations-bridge";
 import { createMirroredPushSocket } from "../../io/bridge/push/push-socket-bridge";
 import { createSettingsSecretProvider } from "../../io/chat/secret-provider";
+import { selectFetch } from "../../io/chat/stream/chat-client";
 import { wireVoiceListAutoRefresh } from "../../io/voice/voices/voice-list-refresh";
 import { resolveScreenSourceProvider } from "../../io/window/capture/tauri-screen";
 import { closeSettingsWindow, titleSettingsWindow } from "../../io/window/openers/settings-window";
@@ -74,7 +75,7 @@ export async function wireSettingsWindow(deps: { app: HTMLElement }): Promise<vo
   // The TTS key rides along so this window's voice uploads reach a gated server too.
   const config = createConfigStore({
     secrets: createSettingsSecretProvider({
-      stores: { [TTS_API_KEY_SECRET]: ttsKeySettings },
+      stores: { [CHAT_API_KEY_SECRET]: chatKeySettings, [TTS_API_KEY_SECRET]: ttsKeySettings },
       fallback: devKeyFallback(),
     }),
   });
@@ -237,6 +238,8 @@ export async function wireSettingsWindow(deps: { app: HTMLElement }): Promise<vo
       onGainPreviewEnd: () => bridge.emitMouthPreview(null),
       // The pet window owns the input source: the request travels there and is submitted.
       onGuide: (guide, text) => bridge.emitHelpGuide({ guide, text }),
+      getChatApiKey: () => config.secrets.get(CHAT_API_KEY_SECRET),
+      getFetch: selectFetch,
       onResetViewpoint: () => cameraSettings.resetOrbit(),
       endpointsSettings,
       chatKeySettings,

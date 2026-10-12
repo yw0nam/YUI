@@ -5,10 +5,11 @@ turn's user message. Nothing on either side parses it programmatically; its only
 reader is the backend model, so the format only has to stay stable and readable to a
 model, not machine-parseable. It applies to all three chat protocols YUI supports
 (`chat_api` in `configs/endpoints.json`: Responses, Chat Completions, and push). The sections below describe Responses mode;
-Chat Completions mode carries the same rendered lines and the same `generate_express`
-cue over a different transport, where the client declares the tool itself and answers
-the call — see [CC mode transport](#cc-mode-transport-chat-completions) at the end of
-this doc for the deltas. Push mode sends the same block as the `turn` frame's
+Chat Completions mode carries the same rendered lines in a messages array — see
+[CC mode transport](#cc-mode-transport-chat-completions) at the end of this doc. On
+both request transports (Responses and Chat Completions) the client declares the
+`generate_express` tool itself and answers the call — see
+[Client-declared tools](#client-declared-tools). Push mode sends the same block as the `turn` frame's
 `client_context` field; its frames are in [push-transport.md](push-transport.md).
 
 ## Per-turn client context (client → agent)
@@ -645,9 +646,9 @@ Use it when the sentence needs a face, body motion, or voice tone cue. If the ne
 
 ### What values are valid?
 
-Use the broker tool that returns valid ids before choosing values.
+Take the values from the tool's declared schema, whose `enum`s list the valid ids. A backend attached to the Expression Broker reads the same ids from its `get_ids` tool instead; the broker is deprecated and removed in v0.6.0, and the client-declared tool replaces it.
 
-- Use `get_ids` to check valid `emotion_id`, `motion_id`, and `emotion_text` values.
+- Check valid `emotion_id`, `motion_id`, and `emotion_text` values against the schema or `get_ids`.
 - Do not rely on memorized value lists.
 - The valid set can change.
 - `caption` is free text and has no id list to check.
@@ -675,15 +676,18 @@ transcript is replayed, a `system` message `client_context:\n<guide block>` with
 currently bundled guide sits right before that user entry, and the entry's token cost
 includes the guide, so both leave the window together.
 
-### Client-declared tools
+## Client-declared tools
 
-Every CC request carries the client's registered tools in `tools[]` as standard
-OpenAI function schemas, and the client executes the calls it gets back.
+Every CC request, and every Responses request while `broker_base_url` is unset, carries the
+client's registered tools in `tools[]` as OpenAI function schemas, and the client executes
+the calls it gets back. While `broker_base_url` is set (deprecated, removed in v0.6.0) the
+Responses request declares none: the broker's backend owns `generate_express`, and the
+client plays its cue without answering it.
 `generate_express` is one of them, so expression works against any
 OpenAI-compatible endpoint whose model supports tool calling — the backend
 behind it needs neither the broker nor prior knowledge of this contract. The
 schema is generated from the vocabulary the client has loaded, the same ids it
-publishes to the broker:
+publishes to the broker while `broker_base_url` is set:
 
 | Parameter | Schema |
 |---|---|
@@ -697,6 +701,11 @@ matching the [tool arguments](#tool-arguments) above. A vocabulary edit (a new
 emotion, a new motion, a different voice engine, a changed motion selection)
 reaches the schema on the next turn.
 
+The two transports differ only in how the schema is spelled. Chat Completions nests it
+(`{"type":"function","function":{"name","description","parameters"}}`); Responses
+flattens it (`{"type":"function","name","description","parameters","strict":false}`).
+A request with no registered tool carries no `tools` key.
+
 When the motion selection leaves no motion at all, `motion_id` is dropped from
 the schema entirely rather than declared with an empty `enum`, and the tool
 description drops its mention of body motion — the cue carries expression and
@@ -705,13 +714,19 @@ selection curates what the model may choose, not what the client will play.
 
 ### Tool-call round trip
 
-Cues arrive as `chat.completion.chunk` tool-call deltas
+The rules below hold on both transports; the wire differs. On Chat Completions, cues arrive as `chat.completion.chunk` tool-call deltas
 (`delta.tool_calls[].function.arguments`, accumulated per call index) instead of
 `response.output_item.*` events. Each call naming a registered tool is executed
 locally as it arrives, and `generate_express` plays its cue at that moment — cue
 timing never waits for anything — resolving `ok`.
 
-The round trip appends the assistant message carrying those `tool_calls` and one
+On Responses, a call arrives as a `function_call` output item
+(`call_id`, `name`, `arguments`). Its complete arguments are first known on any of
+`response.output_item.added`, `response.function_call_arguments.done`, or
+`response.output_item.done`, and the call is executed once, when they are. The
+cue plays at that moment, as on Chat Completions.
+
+On Chat Completions the round trip appends the assistant message carrying those `tool_calls` and one
 `role: "tool"` message per call (`tool_call_id` + the result string) to the
 message array of the turn in flight, then sends the whole array again with the
 same `tools[]`. It happens when:
@@ -729,6 +744,24 @@ exactly as in Responses mode — and a cue-only response that ended on
 answering either would only make the model say everything again, and no client-
 side rule pushes a silent turn into speech (firing ≠ judgment).
 
+On Responses the round trip sends a new request whose `input` is the original input
+items, then each executed call as a `{"type":"function_call","call_id","name","arguments"}`
+item, then one `{"type":"function_call_output","call_id","output"}` item per call. It
+keeps the turn's original `previous_response_id` and never chains on the id of the
+tool-calling response, so the round trip does not depend on the server having kept that
+response. The same two conditions as above decide it: a tool that answers a question ran, or
+only cue-only tools ran and that response carried no speech (Responses has no
+`finish_reason`, so the missing speech is the signal). The `completed` event carries the
+id of the last response of the turn.
+
+A turn can end on a response whose calls got no round trip (a cue-only call beside speech,
+or the round-trip cap). That response is the one the next turn chains on, and a server that
+checks tool pairing rejects a `function_call` that has no output. The `completed` event
+therefore also carries a `function_call_output` item per unanswered call; the client keeps
+them with the stored response id and sends them ahead of the next turn's user message
+whenever it sends that id. They are dropped with the id: a session reset, or the retry
+without `previous_response_id` after a 404, sends none.
+
 The cycle repeats while the model keeps asking. Three round trips per turn is the
 cap; beyond it the client stops returning results and closes the turn with the
 text it has.
@@ -739,11 +772,13 @@ under an MCP namespace (`mcp_<server>_generate_express`) is that case with its
 cue still played — any tool name ending in `generate_express` plays its cue,
 whichever side registered it, and only the exact registered name is answered.
 
-Tool traffic lives in the in-flight message array only. Chat Completions has no
-`previous_response_id`, and the next turn is rebuilt from the stored transcript,
-which holds user and assistant speech text alone.
+Tool traffic lives in the in-flight request only. Chat Completions has no
+`previous_response_id`, and its next turn is rebuilt from the stored transcript,
+which holds user and assistant speech text alone. A Responses turn chains the next
+one on the id of the turn's last response, which holds the speech, and a 404 for a stored
+id resets the chain with one retry that sends no id.
 
-One round trip on the wire:
+One Chat Completions round trip on the wire:
 
 ```jsonc
 // request 1 — messages + tools[]
@@ -758,12 +793,28 @@ One round trip on the wire:
 // response 2 — the spoken text
 ```
 
+One Responses round trip on the wire:
+
+```jsonc
+// request 1 — input items + tools[]
+// response 1 — a function_call item, no text
+{"type":"function_call","call_id":"call_1","name":"generate_express","arguments":"{\"emotion_id\":\"happy\"}"}
+
+// request 2 — the same tools[] and previous_response_id, input = the original items plus
+{"type":"function_call","call_id":"call_1","name":"generate_express","arguments":"{\"emotion_id\":\"happy\"}"}
+{"type":"function_call_output","call_id":"call_1","output":"ok"}
+
+// response 2 — the spoken text
+```
+
 ### Backend capability
 
-Cue delivery over Chat Completions needs an endpoint that speaks standard
-tool-call streaming. A plain OpenAI-compatible server (e.g. vLLM) does, and the
-declared `generate_express` comes back as `delta.tool_calls` fragments. The
-Hermes api-server's `/v1/chat/completions` does not surface tool calls at all —
-it emits a custom `hermes.tool.progress` telemetry event (name + status, no
-arguments) instead of `tool_calls` — so Hermes carries the full contract over
-`responses` mode.
+Cue delivery over either request transport needs an endpoint that serves the
+declared tool back as a call. A plain OpenAI-compatible server (e.g. vLLM) does:
+on Chat Completions as `delta.tool_calls` fragments, on Responses as `function_call`
+output items. The Hermes api-server does not pass a request's `tools` to its model on
+either transport, and its `/v1/chat/completions` surfaces no tool calls at all (it emits
+a `hermes.tool.progress` telemetry event with name and status, no arguments). A Hermes
+backend gets expression through the push transport, or through the Expression Broker on
+Responses until v0.6.0, where its own MCP tool arrives as `mcp_<server>_generate_express`
+and plays its cue without being answered.
