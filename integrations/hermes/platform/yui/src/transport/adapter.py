@@ -600,10 +600,14 @@ class YuiAdapter(BasePlatformAdapter):
         loop = self._loop
         if loop is None or not state.is_connected(chat_id):
             return False
+        sent: concurrent.futures.Future | None = None
         try:
             sent = asyncio.run_coroutine_threadsafe(self._send_frame(chat_id, frame), loop)
             return bool(sent.result(timeout=TOOL_SEND_WAIT_S))
         except (concurrent.futures.TimeoutError, RuntimeError) as e:
+            # The caller counts the client as gone, so the frame must not go out later.
+            if sent is not None:
+                sent.cancel()
             logger.warning("yui: tool_call send failed chat=%s — %s", chat_id, e)
             return False
 
