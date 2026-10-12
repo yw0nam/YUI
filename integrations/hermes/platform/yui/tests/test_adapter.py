@@ -1044,7 +1044,7 @@ async def test_a_failed_turn_sends_its_failure_line_as_an_error_frame_then_ends(
     failed = user_turn(adapter, "777")
     await adapter.on_processing_start(failed)
     await adapter.on_processing_complete(failed, ProcessingOutcome.FAILURE)
-    await adapter.send(CHAT, "Sorry, that one broke.", metadata={"notify": True})
+    await adapter.send(CHAT, "Sorry, that one broke.")
     assert await recv(ws) == {"type": "error", "turn_id": "777", "message": "Sorry, that one broke."}
     assert await recv(ws) == {"type": "turn_end", "turn_id": "777"}
 
@@ -1054,7 +1054,7 @@ async def test_the_failure_line_is_one_line_in_the_error_frame(client, adapter):
     failed = user_turn(adapter, "777")
     await adapter.on_processing_start(failed)
     await adapter.on_processing_complete(failed, ProcessingOutcome.FAILURE)
-    await adapter.send(CHAT, "Provider failed:\n  rate limit reached\n", metadata={"notify": True})
+    await adapter.send(CHAT, "Provider failed:\n  rate limit reached\n")
     assert (await recv(ws))["message"] == "Provider failed: rate limit reached"
 
 
@@ -1063,7 +1063,7 @@ async def test_an_oversize_failure_line_is_cut_to_fit_the_error_frame(client, ad
     failed = user_turn(adapter, "777")
     await adapter.on_processing_start(failed)
     await adapter.on_processing_complete(failed, ProcessingOutcome.FAILURE)
-    await adapter.send(CHAT, "x" * (MAX_FRAME_BYTES * 2), metadata={"notify": True})
+    await adapter.send(CHAT, "x" * (MAX_FRAME_BYTES * 2))
     frame = await recv(ws)
     assert frame["type"] == "error"
     assert frame["turn_id"] == "777"
@@ -1079,7 +1079,7 @@ async def test_a_turn_joined_to_a_failed_one_ends_behind_its_error_frame(client,
     await ws.send_json({"type": "turn", "turn_id": "778", "client_context": "", "text": "and the docs?"})
     await wait_for(lambda: adapter.dispatched)
     await adapter.on_processing_complete(failed, ProcessingOutcome.FAILURE)
-    await adapter.send(CHAT, "Sorry, that one broke.", metadata={"notify": True})
+    await adapter.send(CHAT, "Sorry, that one broke.")
     assert await recv(ws) == {"type": "error", "turn_id": "777", "message": "Sorry, that one broke."}
     assert await recv(ws) == {"type": "turn_end", "turn_id": "777"}
     assert await recv(ws) == {"type": "error", "turn_id": "778", "message": "Sorry, that one broke."}
@@ -1092,6 +1092,31 @@ async def test_a_notice_between_the_failure_and_its_line_carries_no_error_text(c
     await adapter.on_processing_start(failed)
     await adapter.on_processing_complete(failed, ProcessingOutcome.FAILURE)
     await adapter.send(CHAT, "Still working on it.", metadata={NOTICE_MARKER: True})
+    assert await recv(ws) == {"type": "turn_end", "turn_id": "777"}
+
+
+async def test_a_reply_sent_while_a_failed_turn_waits_for_its_line_still_renders(client, adapter):
+    ws = await ready(client)
+    failed = user_turn(adapter, "777")
+    await adapter.on_processing_start(failed)
+    await adapter.on_processing_complete(failed, ProcessingOutcome.FAILURE)
+    await adapter.send(CHAT, "The build finished.", metadata={"notify": True})
+    assert await recv(ws) == {
+        "type": "render",
+        "turn_id": "777",
+        "source": "hermes",
+        "segments": [{"cues": [], "speech": "The build finished."}],
+    }
+    assert await recv(ws) == {"type": "turn_end", "turn_id": "777"}
+
+
+async def test_a_muted_acknowledgement_is_not_the_failure_line(client, adapter):
+    ws = await ready(client)
+    failed = user_turn(adapter, "777")
+    await adapter.on_processing_start(failed)
+    await adapter.on_processing_complete(failed, ProcessingOutcome.FAILURE)
+    state.set_muted(CHAT, True)
+    await adapter.send(CHAT, "Stopped.")
     assert await recv(ws) == {"type": "turn_end", "turn_id": "777"}
 
 

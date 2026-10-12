@@ -99,8 +99,10 @@ def _chat_of(event: MessageEvent) -> str:
 
 
 def _failure_line(content: str, meta: dict) -> str:
-    """The gateway's failure text as one line; empty for a send that is a notice or an interim."""
-    if meta.get(NOTICE_MARKER) or any(meta.get(marker) for marker in INTERIM_MARKERS):
+    """The failure line the gateway sends bare, as one line; empty for a reply, a notice or an interim."""
+    if meta.get("notify") or meta.get(NOTICE_MARKER):
+        return ""
+    if any(meta.get(marker) for marker in INTERIM_MARKERS):
         return ""
     return " ".join(content.split())
 
@@ -701,7 +703,8 @@ class YuiAdapter(BasePlatformAdapter):
         """Render a reply, then end the failed turns that were waiting for it; their failure line is
         reported to the client as an `error` frame and not rendered."""
         meta = metadata or {}
-        message = _failure_line(content, meta) if state.is_closing(chat_id) else ""
+        closing = state.is_closing(chat_id) and not state.is_muted(chat_id)
+        message = _failure_line(content, meta) if closing else ""
         if message:
             await self._close_failed(chat_id, message)
             return SendResult(success=True, message_id=_message_id())
