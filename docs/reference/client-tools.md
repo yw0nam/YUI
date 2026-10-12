@@ -57,7 +57,7 @@ The results go back to the model in two cases:
 
 The cycle repeats while the model keeps asking, up to three round trips per turn (`MAX_TOOL_ROUND_TRIPS` in `src/io/chat/stream/stream-helpers.ts`). Past three the client closes the turn with the text it has.
 
-Speech from consecutive responses of a turn is joined with one space, unless the earlier text ends in whitespace or a CJK terminator (`。` `！` `？`) or the later text starts with whitespace.
+Speech from consecutive responses of a turn is joined with one space, unless the earlier text ends in whitespace or one of `。` `！` `？` or the later text starts with whitespace.
 
 A tool whose execution throws returns `error: <message>` as its result. A call whose arguments are unparseable JSON is skipped and the turn ends as a failed turn.
 

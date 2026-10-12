@@ -210,8 +210,8 @@ export async function* streamResponses(
 
         switch (event.type) {
           case "response.output_text.delta": {
-            // First speech of this response when an earlier response already spoke — join at the boundary.
-            if (event.delta !== "" && roundText === "" && speech_text !== "") {
+            // Join consecutive responses' speech at the boundary.
+            if (event.delta !== "" && roundText === "") {
               const sep = boundarySeparator(speech_text, event.delta);
               if (sep !== "") {
                 speech_text += sep;
@@ -365,12 +365,9 @@ export async function* streamResponses(
     trips++;
     // Starting a fresh request: the caller's idle watchdog measures the wait from here.
     yield { type: "keepalive" };
-    const spoken: ResponseInputItem | undefined = roundText
-      ? { role: "assistant", content: roundText }
-      : undefined;
     input = [
       ...inputItems(input),
-      ...(spoken ? [spoken] : []),
+      ...(roundText ? [{ role: "assistant" as const, content: roundText }] : []),
       ...executed.flatMap((e) => [e.call, e.output]),
     ];
   }

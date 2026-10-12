@@ -41,7 +41,7 @@ export function normalizeExpressIntoEnvelope(
 
 /**
  * Whitespace between consecutive responses' speech — none when either side already carries the
- * break: trailing whitespace, a leading whitespace, or a CJK terminator.
+ * break: trailing whitespace, leading whitespace, or a CJK terminator.
  */
 export function boundarySeparator(previous: string, next: string): "" | " " {
   if (previous === "" || /\s$/.test(previous) || /^\s/.test(next) || /[。！？]$/.test(previous)) {

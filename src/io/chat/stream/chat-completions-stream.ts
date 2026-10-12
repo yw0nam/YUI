@@ -35,8 +35,8 @@ type CCCreateParams = Omit<ChatCompletionCreateParamsStreaming, "model"> & {
  *
  * Round trip: the assistant tool_calls message (content: the response's spoken text, null when it
  * said none) and one role:"tool" result per call are appended to the in-turn message array and the
- * whole array is sent again. It happens whenever a tool that
- * answers a question ran, and — for cue-only (oneWay) tools, whose result says nothing — only when
+ * whole array is sent again. It happens whenever a tool that answers a question ran, and — for
+ * cue-only (oneWay) tools, whose result says nothing — only when
  * the model stopped to wait for it: finish_reason "tool_calls" with no speech in that response.
  * A response that already spoke its cues is a finished turn; answering it would make the model say
  * everything again. Bounded by MAX_TOOL_ROUND_TRIPS; past that the client stops returning results
@@ -130,8 +130,8 @@ export async function* streamChatCompletions(
         for (const item of reducer.feed(chunk)) {
           switch (item.kind) {
             case "text":
-              // First speech of this response when an earlier response already spoke — join at the boundary.
-              if (roundText === "" && speech_text !== "") {
+              // Join consecutive responses' speech at the boundary.
+              if (roundText === "") {
                 const sep = boundarySeparator(speech_text, item.text);
                 if (sep !== "") {
                   speech_text += sep;
