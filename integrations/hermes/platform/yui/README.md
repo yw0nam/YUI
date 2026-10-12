@@ -16,6 +16,7 @@ hint and the readiness probes, beside `plugin.yaml` and the uv project files.
 | `src/express/` | The client vocabulary, the `generate_express` tool, and cue placement on sentences |
 | `src/speech/` | The streamed answer, cut into the sentences `speech` frames carry |
 | `src/activity/` | Reasoning, tool status, delegations, and the away-report queue |
+| `src/tools/` | The client-declared tools: registration from `hello.tools`, the blocking handler, and the per-chat pending calls |
 | `skills/` | The install and smoke-test skills |
 | `tests/` | The suite, run against stubbed gateway modules |
 

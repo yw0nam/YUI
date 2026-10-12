@@ -40,7 +40,7 @@ The client renders what arrives and judges nothing. Everything the backend must 
 | Delegation list `items` | 50 entries |
 | `done` item kept in the chip after `ended_at` | 30 min |
 | Delegation history kept by the client | 200 items |
-| `done` state held in the status pill's tool segment before it clears | 1.5 s |
+| `done` or `failed` state held in the status pill's tool segment before it clears | 1.5 s |
 | `tool_call` wait, body action | 15 s on the client, 20 s on the backend adapter |
 | `tool_call` wait, query | 2 s on the client, 7 s on the backend adapter |
 | `tool_result.result` | The text frame size |
@@ -276,10 +276,11 @@ A call against a tool the client declared in `hello.tools`.
 The client's rules:
 
 1. Calls of one chat run one at a time, in arrival order; the client's wait starts when the call starts running.
-2. A `tool_call` whose `name` is not in the declared set, whose `arguments` lack a field the action needs, or whose `turn_id` names a turn the client has stopped is answered at once with `error: <reason>` — `error: unknown tool`, `error: missing field <name>`, or `error: turn stopped`.
+2. A `tool_call` whose `name` is not in the declared set, whose `arguments` lack a field the action needs or carry a value it does not accept, or whose `turn_id` names a turn the client has stopped is answered at once with `error: <reason>` — `error: unknown tool`, `error: missing field <name>`, `error: invalid field <name>`, or `error: turn stopped`.
 3. A `tool_call` whose `id` repeats one queued or running is dropped with a log line and not answered; an answer would resolve the original call's waiter.
-4. A result the client cannot send (the socket is not ready) is logged and dropped.
-5. The status pill takes its tool state from the backend's `tool_status` frames; the client emits no `tool_status` of its own for these calls.
+4. A result whose frame would pass the text frame size is answered `error: result too large` instead. A result the client cannot send (the socket is not ready) is logged and dropped.
+5. A `tool_call` the client cannot read, such as a field of the wrong type, is dropped with a `frame_malformed` log line and gets no `tool_result`; the backend's wait answers it.
+6. The status pill takes its tool state from the backend's `tool_status` frames; the client emits no `tool_status` of its own for these calls.
 
 The backend adapter's rules:
 

@@ -314,18 +314,23 @@ YUI/
     io/                              # I/O layer: chat, voice, window and OS seams
       chat/
         secret-provider.ts             # Resolves each secret from its runtime store, then the build-time fallback
-        stream/                        # Streaming model calls, the client-declared tools, and the silence filter
+        stream/                        # Streaming model calls and the silence filter
           chat-client.ts               # Builds the openai SDK client and routes to the selected transport's stream
           responses-stream.ts          # Responses streaming loop
           chat-completions.ts          # Pure Chat Completions request builders and stream-chunk reducer
           chat-completions-stream.ts   # Chat Completions streaming loop with its tool round trips
           stream-helpers.ts            # Express-tool and error helpers both streaming loops use
-          client-tools.ts              # Registry of the tools YUI declares and runs itself
           client-tool-run.ts           # Runs a model's tool call on the client and decides when results go back
           silence-token.ts             # Stateful [SILENT] token filter for spoken output_text deltas
         push/                          # The push transport's turn and reply WebSocket
           push-frames.ts               # Push frame wire types and the unreadable-frame checks
           push-socket.ts               # Single WebSocket the push transport runs turns and replies on
+          tool-calls.ts                # Validates, queues and answers the backend's tool_call frames
+        tools/                         # The tools YUI declares to the backend and runs itself
+          client-tools.ts              # Registry of the declared tools and the ClientTool type
+          execute.ts                   # The bounded execute both the request transports and the push consumer call
+          express.ts                   # The generate_express tool
+          avatar.ts                    # The body_action and look tools over the avatar executor
         vocabulary/                    # The emotion, motion, and voice-tone ids the agent may cue with
           express-vocabulary.ts        # Derives the express vocabulary from the loaded config and the motion selection
         broker/                        # The Expression Broker client and its URL override reconciler
@@ -654,6 +659,7 @@ YUI/
       README.md                      # Hermes Agent adapter setup (Responses mode, dev proxy, auth)
       desire/                        # Agent desire middleware, state helpers, monitor, and prompts (Python/uv)
       platform/                      # Hermes gateway push-transport plugin: one WebSocket carrying turns in and finished replies out (Python/uv)
+        yui/src/tools/               # The client-declared tools: registration from hello.tools, the blocking handler, and the per-chat pending calls
     skills/
       yui-daily-briefing/            # Backend-agnostic skill: scheduled producers write dated markdown briefings (scripts/briefing.py) that the backend agent speaks on first activity
   docs/                              # Design source of truth

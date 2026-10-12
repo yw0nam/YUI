@@ -62,7 +62,7 @@ Install https://github.com/yw0nam/YUI following https://raw.githubusercontent.co
 
 **はじめての会話:** キャラクターを右クリックして設定を開き、**接続** タブ(プラグのアイコン)に切り替え、チャットセクションで **プロバイダー** のプリセットを選び、**チャットモデル** を入力します(OpenAIまたはGroqの場合は **チャット API キー** も入力します)。パネルを閉じ、`/`(または `Cmd/Ctrl+Shift+Y`)を押してテキスト入力を開き、メッセージを送信してください。
 プリセットはOpenAI、Ollama、LM Studio、Groqの4つで、エンドポイントURLが自動で入力されます。前提として、[Ollama](https://ollama.com)か[LM Studio](https://lmstudio.ai)が起動していること、またはOpenAIかGroqのAPIキーが必要です。
-既定のChat Completionsモードでは、ツール呼び出し(tool calling)に対応したモデルが必要です。YUIは常に `generate_express` ツールを宣言するためです(`src/io/chat/stream/client-tools.ts`)。OpenAIなら[`gpt-5-mini`](https://platform.openai.com/docs/models/gpt-5-mini)、Ollamaなら[`qwen3`](https://ollama.com/library/qwen3)(先に `ollama pull qwen3` で取得してください)、Groqなら[`llama-3.3-70b-versatile`](https://console.groq.com/docs/tool-use)が使えます。
+既定のChat Completionsモードでは、ツール呼び出し(tool calling)に対応したモデルが必要です。YUIは常に `generate_express` ツールを宣言するためです(`src/io/chat/tools/client-tools.ts`)。OpenAIなら[`gpt-5-mini`](https://platform.openai.com/docs/models/gpt-5-mini)、Ollamaなら[`qwen3`](https://ollama.com/library/qwen3)(先に `ollama pull qwen3` で取得してください)、Groqなら[`llama-3.3-70b-versatile`](https://console.groq.com/docs/tool-use)が使えます。
 
 ## 機能
 
