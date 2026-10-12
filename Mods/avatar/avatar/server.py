@@ -142,8 +142,9 @@ def stand() -> dict[str, Any]:
     """Return the avatar to the standing position: leaves a perch or a peek, and gets it out of bed.
 
     In bed this starts the wake clip (it sits up, stretches and stands, about 22 s) and the call
-    answers as that clip starts; the posture reads standing from then. sit_on_window / peek /
-    move_to keep answering busy until it is up.
+    answers as that clip starts; the posture keeps reading lying, and sit_on_window / peek /
+    move_to keep answering busy, until it is up. While its lie-down clip still plays there is no
+    wake clip: the bed fades out and it is standing again within a second.
     """
     logger.info("➡️ stand")
     result = _command({"action": "stand"})

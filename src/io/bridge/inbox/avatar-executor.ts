@@ -60,7 +60,7 @@ export interface AvatarBed {
    * and `lying` is reported from that moment.
    */
   lieDown(): Promise<AvatarCommandResult>;
-  /** Wakes her with the backend's own stand: the wake clip starts and posture reads standing; a set-up is cancelled. */
+  /** Wakes her with the backend's own stand: the wake clip starts and posture reads lying until she is up; a set-up is cancelled. */
   getUp(): void;
   /** The user grabbed her: a lie-down still starting is cut short. */
   interrupt(): void;

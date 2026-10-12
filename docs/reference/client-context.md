@@ -134,10 +134,10 @@ The state is `body_state.posture.state` (`standing` \| `sitting` \| `peeking` \|
 under the avatar — `standing`, `walking`, `climbing` and `lying` never carry one.
 `lying` holds while she is on the bed, whether the launch bed scene or a `go_to_bed`
 command put her there: it starts when the lie-down clip (or, at launch, the sleep clip)
-starts and ends when her wake clip starts, after which she reads `standing` while she
-sits up, stretches and stands. A drag in between reads `dragging` and returns to `lying`
-on release. The bed fires no turn on its own, so the state is visible on whatever turn
-comes next. `walking` holds for the
+starts and holds through her wake clip, while she sits up, stretches and stands, until
+the bed scene ends and she reads `standing`. A drag in between reads `dragging` and
+returns to `lying` on release. The bed fires no turn on its own, so the state is visible
+on whatever turn comes next; a `proactive.wake` turn reads `lying`. `walking` holds for the
 length of one ambient stroll along the work-area bottom and returns to `standing`
 when the stroll ends; the stroll itself fires no turn, so the state is visible on
 whatever turn comes next. `climbing` holds for the length of one ambient climb up or

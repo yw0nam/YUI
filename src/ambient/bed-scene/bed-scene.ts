@@ -73,7 +73,7 @@ export interface BedSceneDeps {
   onDone: () => void;
   /** Called as the wake clip starts, for a click or the timeout; never for a message or the backend's stand. */
   onWake: (cause: Exclude<WakeCause, "message">) => void;
-  /** Called when she starts lying on the bed and when her wake clip starts or the scene ends. */
+  /** Called when she starts lying on the bed and when the scene ends. */
   onLying: (lying: boolean) => void;
   log: Logger;
 }
@@ -298,7 +298,6 @@ export function createBedScene(deps: BedSceneDeps): BedScene {
       fadeS = 0;
       return;
     }
-    setLying(false);
     liveliness.setAsleep(false);
     renderer.setSpringBonesHeld(false);
     renderer.playMotion({ id: BED_WAKE_MOTION_ID });
