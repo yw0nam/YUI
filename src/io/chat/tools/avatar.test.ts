@@ -19,7 +19,9 @@ function executor(over: Partial<AvatarExecutor> = {}): AvatarExecutor {
       moving: false,
     })),
     perchTargets: vi.fn(async () => ({
-      windows: [{ app: "Notes", title: "Shopping", rect: { x: 40, y: 50, width: 300, height: 200 } }],
+      windows: [
+        { app: "Notes", title: "Shopping", rect: { x: 40, y: 50, width: 300, height: 200 } },
+      ],
       edges: ["left", "right"],
     })),
   };
@@ -76,7 +78,7 @@ describe("body_action — execute", () => {
 
   it("resolves the executor's failure word", async () => {
     const tool = createBodyActionTool(() =>
-      executor({ command: vi.fn(async () => ({ ok: false, reason: "busy" })) }),
+      executor({ command: vi.fn(async () => ({ ok: false, reason: "busy" }) as const) }),
     );
     await expect(tool.execute({ action: "move_to", spot: "center" })).resolves.toBe("busy");
   });

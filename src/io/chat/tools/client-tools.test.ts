@@ -13,6 +13,9 @@ import type { ExpressVocabulary } from "../vocabulary/express-vocabulary";
 import { type ClientTool, createClientToolRegistry, createClientTools } from "./client-tools";
 import { createGenerateExpressTool } from "./express";
 
+const tauriEnv = vi.hoisted(() => ({ on: false }));
+vi.mock("../../../tauri-env", () => ({ isTauri: () => tauriEnv.on }));
+
 /** The published vocabulary (deriveExpressVocabulary) is the schema's only source. */
 const vocab = (over: Partial<ExpressVocabulary> = {}): ExpressVocabulary => ({
   emotionIds: ["neutral", "happy", "sad"],
@@ -181,6 +184,22 @@ describe("createClientToolRegistry", () => {
   });
 });
 
+describe("createClientTools", () => {
+  it("declares the avatar tools with generate_express under Tauri", () => {
+    tauriEnv.on = true;
+    expect(createClientTools(vocab()).map((tool) => tool.name)).toEqual([
+      "generate_express",
+      "body_action",
+      "look",
+    ]);
+    tauriEnv.on = false;
+  });
+
+  it("declares generate_express alone off Tauri — no executor exists there", () => {
+    expect(createClientTools(vocab()).map((tool) => tool.name)).toEqual(["generate_express"]);
+  });
+});
+
 // ─────────────────────────────────────────────────────────────────────────────
 // catalog drift-guard
 // ─────────────────────────────────────────────────────────────────────────────
@@ -194,9 +213,11 @@ describe("docs/reference/client-tools.md catalog", () => {
     // The catalog is the table above the first section heading.
     const catalog = doc.slice(0, doc.indexOf("\n## "));
     const rows = new Set([...catalog.matchAll(/^\| `([^`]+)` \|/gm)].map((m) => m[1]));
+    tauriEnv.on = true;
     const names = createClientTools(vocab()).map((tool) => tool.name);
+    tauriEnv.on = false;
 
-    expect(names).not.toEqual([]);
+    expect(names).toEqual(["generate_express", "body_action", "look"]);
     expect(names.filter((name) => !rows.has(name))).toEqual([]);
   });
 });
