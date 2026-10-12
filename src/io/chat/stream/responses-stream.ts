@@ -347,16 +347,12 @@ export async function* streamResponses(
     } catch (err) {
       // Abort mid-stream → terminate silently regardless of any status the error carries.
       if (request.signal?.aborted) return;
-      // APIError-shaped throw (has a numeric HTTP status, e.g. a 404 chain-break on
-      // previous_response_id) → surface so the caller can react (chain-break retry etc).
       const status = httpStatusOf(err);
-      if (status !== undefined) {
-        yield { type: "error", message: serverMessageOf(err), status };
-        return;
-      }
-      // Status-less network reject mid-stream → terminate silently.
-      // Intentional asymmetry: create() catch exposes non-abort errors, but mid-stream
-      //   drop here stays silent because partial output already reached consumer and frequency is low.
+      yield {
+        type: "error",
+        message: serverMessageOf(err),
+        ...(status !== undefined ? { status } : {}),
+      };
       return;
     }
 

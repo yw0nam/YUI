@@ -170,8 +170,16 @@ export async function* streamChatCompletions(
           }
         }
       }
-    } catch {
-      // Abort/network reject mid-stream → terminate silently (same policy as Responses branch).
+    } catch (err) {
+      // Abort mid-stream → terminate silently; any other failure surfaces as the error event.
+      if (!request.signal?.aborted) {
+        const status = httpStatusOf(err);
+        yield {
+          type: "error",
+          message: serverMessageOf(err),
+          ...(status !== undefined ? { status } : {}),
+        };
+      }
       return;
     }
     // When stream ends without finish_reason (abnormal termination) drain incomplete buffer.
