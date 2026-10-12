@@ -323,7 +323,7 @@ describe("streamChat — Chat Completions generate_express capture", () => {
     expect(ccCreateMock).toHaveBeenCalledTimes(1);
   });
 
-  it("malformed generate_express JSON -> error event, one call, messages untouched", async () => {
+  it("malformed generate_express JSON without a registry -> no cue, no error, one call, messages untouched", async () => {
     const messages = [{ role: "user", content: "hi" }] as any;
     ccCreateMock.mockResolvedValueOnce(
       streamOf([
@@ -334,7 +334,7 @@ describe("streamChat — Chat Completions generate_express capture", () => {
 
     const events = await collect(streamChat(CONFIG, req({ messages })));
 
-    expect(events[0].type).toBe("error");
+    expect(events.some((e) => e.type === "error" || e.type === "express")).toBe(false);
     expect(ccCreateMock).toHaveBeenCalledTimes(1);
     // no assistant/tool result appended — same array, same contents.
     expect(messages).toEqual([{ role: "user", content: "hi" }]);
@@ -678,21 +678,30 @@ describe("streamChat — Chat Completions tool-call round trip", () => {
     });
   });
 
-  it("unparseable arguments surface an error event, skip execution, and end the turn", async () => {
+  it("unparseable arguments are answered with an error result and the turn completes", async () => {
     const express = oneWayStub("generate_express");
     const registry = createClientToolRegistry([express]);
-    ccCreateMock.mockResolvedValueOnce(
-      streamOf([
-        toolCallStart(0, "call_1", "generate_express", "{not valid json"),
-        finishChunk("tool_calls"),
-      ]),
-    );
+    ccCreateMock
+      .mockResolvedValueOnce(
+        streamOf([
+          toolCallStart(0, "call_1", "generate_express", "{not valid json"),
+          finishChunk("tool_calls"),
+        ]),
+      )
+      .mockResolvedValueOnce(streamOf([textChunk("sorry"), finishChunk("stop")]));
 
     const events = await collect(streamChat(CONFIG, req(), { tools: registry }));
 
-    expect(events[0].type).toBe("error");
+    expect(events.some((e) => e.type === "error" || e.type === "express")).toBe(false);
     expect(express.execute).not.toHaveBeenCalled();
-    expect(ccCreateMock).toHaveBeenCalledTimes(1);
+    expect(ccCreateMock).toHaveBeenCalledTimes(2);
+    expect(ccCreateMock.mock.calls[1][0].messages.at(-1)).toEqual({
+      role: "tool",
+      tool_call_id: "call_1",
+      content: expect.stringMatching(/^error: arguments JSON parse failed: /),
+    });
+    const done = events.find((e) => e.type === "completed");
+    expect(done?.type === "completed" && done.envelope.speech_text).toBe("sorry");
   });
 
   it("gives an id-less tool call a synthesized tool_call_id shared by both messages", async () => {

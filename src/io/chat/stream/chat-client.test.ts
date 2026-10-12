@@ -636,9 +636,8 @@ describe("streamChat — error handling", () => {
     expect(err).toEqual({ type: "error", message: "Unexpected error occurred." });
   });
 
-  it("malformed generate_express arguments → error event; generator does NOT throw and runs to completion", async () => {
-    // NOTE for implementer: when generate_express arguments are broken JSON — assume it emits error.
-    // (Alternative: silently skip. Update this test when confirmed.) Core guarantee: generator does not throw
+  it("malformed generate_express arguments → no error event; generator does NOT throw and runs to completion", async () => {
+    // Broken express JSON is not a stream error and plays no cue; the generator does not throw
     // and runs normally to completed.
     createMock.mockResolvedValue(
       streamOf([
@@ -654,7 +653,7 @@ describe("streamChat — error handling", () => {
     // resolves synchronously without awaiting the inner promise (vitest 4).
     const events = await collect(streamChat(CONFIG, req()));
 
-    expect(events.some((e) => e.type === "error")).toBe(true);
+    expect(events.some((e) => e.type === "error" || e.type === "express")).toBe(false);
     // Despite broken express, stream runs to completion and emits completed.
     expect(events.some((e) => e.type === "completed")).toBe(true);
   });
