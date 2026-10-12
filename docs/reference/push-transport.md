@@ -44,6 +44,8 @@ The client renders what arrives and judges nothing. Everything the backend must 
 | `tool_call` wait, body action | 15 s on the client, 20 s on the backend adapter |
 | `tool_call` wait, query | 2 s on the client, 7 s on the backend adapter |
 | `tool_result.result` | The text frame size |
+| `playback` frame size | 256 KiB |
+| `playback.spoken`, `playback.unspoken` | 50 Unicode code points each |
 
 The backend cuts `title` and `summary` to their limits, counting Unicode code points.
 
@@ -159,6 +161,21 @@ The backend starts a new conversation under the same `chat_id`. Long-term memory
 ```
 
 The user pressed stop. `turn_ids` are the turns the client just stopped — every turn that was outstanding on the chat at that moment. The backend stops generating for those of them that are still running and sends each its `turn_end`; an id it no longer holds is ignored, and a turn that is not named — one the backend started after the client's stop — keeps running. A backend that cannot stop the named turns without also stopping an unnamed one ignores the frame. A backend that ignores `stop` stays correct: the client drops the stopped turns' frames until their `turn_end`, as it does without it. Whether stopping a turn also ends work that turn delegated is the backend's decision; a delegation it ends is reported through `delegations`. Sent only while the socket is `ready`.
+
+### `playback` (client → backend)
+
+```json
+{ "type": "playback", "turn_id": "1789365854947", "ended": "interrupted", "spoken": "Three logs are left.", "unspoken": "Two are from yesterday." }
+```
+
+| Field | Value |
+|---|---|
+| `turn_id` | The turn whose speech or call ended: the client-sent `turn` id, or the backend-minted id on its `render` or `speech` frame |
+| `ended` | `"complete"`, `"interrupted"`, or `"failed"` |
+| `spoken` | Optional. The last 50 Unicode code points heard from an interrupted reply |
+| `unspoken` | Optional. The first 50 Unicode code points still owed from an interrupted reply |
+
+The client sends one frame per saved playback record, after `ready` and only while connected. Each queued utterance retains its own turn identity through completion or interruption. A failed call names the client turn that failed. A persisted record without `turn_id` sends no frame. Records saved while disconnected are not replayed on reconnect; the next turn's `previous:` line carries an interrupted or failed outcome. A complete outcome is stored and omitted from that line.
 
 ## Replies
 
