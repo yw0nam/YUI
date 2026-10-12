@@ -11,11 +11,16 @@ import type {
   ReasoningFrame,
   RenderFrame,
   SpeechFrame,
+  ToolCallFrame,
+  ToolResultFrame,
   ToolStatusFrame,
   TurnEndFrame,
 } from "../../../io/chat/push/push-frames";
 import type { PushSocket, PushSocketState } from "../../../io/chat/push/push-socket";
+import { createPushToolCalls } from "../../../io/chat/push/tool-calls";
 import type { RenderRecord } from "../../../io/chat/record/turn-record-log";
+import type { ClientToolRegistry } from "../../../io/chat/tools/client-tools";
+import { executeClientTool } from "../../../io/chat/tools/execute";
 import type { Logger } from "../../../logger";
 
 /**
@@ -31,10 +36,14 @@ export function wirePushTransport(deps: {
     onSpeech(cb: (frame: SpeechFrame) => void): () => void;
     onTurnEnd(cb: (frame: TurnEndFrame) => void): () => void;
     onToolStatus(cb: (frame: ToolStatusFrame) => void): () => void;
+    onToolCall(cb: (frame: ToolCallFrame) => void): () => void;
     onDelegations(cb: (items: DelegationItem[]) => void): () => void;
     onReasoning(cb: (frame: ReasoningFrame) => void): () => void;
     onState(cb: (state: PushSocketState) => void): () => void;
+    sendToolResult(frame: ToolResultFrame): boolean;
   };
+  /** The tools the client declared on this connection; a call for any other name is refused. */
+  tools: ClientToolRegistry;
   turnOutput: TurnOutput;
   /** Which push turns the user stopped — a frame of one of them never plays. */
   pushTurns: PushTurns;
@@ -61,7 +70,15 @@ export function wirePushTransport(deps: {
       if (String(id) === turnId) deps.reportSpokeText(id, spoke);
     },
   });
+  const toolCalls = createPushToolCalls({
+    tools: deps.tools,
+    isTurnStopped: (turnId) => deps.pushTurns.isCut(turnId),
+    send: (frame) => deps.socket.sendToolResult(frame),
+    execute: executeClientTool,
+    log: deps.log,
+  });
   const unsubscribes = [
+    deps.socket.onToolCall((frame) => toolCalls.handle(frame)),
     deps.socket.onRender((frame) => {
       // A dropped frame puts no reply in the message window, so its reasoning has nothing to sit
       // under: the cycle it was writing is abandoned, an earlier finished text is left alone.

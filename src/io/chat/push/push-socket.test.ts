@@ -112,6 +112,7 @@ function build(overrides: Partial<Parameters<typeof createPushSocket>[0]> = {}):
     chatId: () => "yui-3f9a2c1d",
     getKey: async () => "secret-key",
     vocabulary: () => vocabulary,
+    tools: () => [],
     WebSocketImpl: FakeSocket as unknown as typeof WebSocket,
     logger,
     ...overrides,

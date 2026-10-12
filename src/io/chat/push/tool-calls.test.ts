@@ -6,13 +6,16 @@
  */
 
 import { describe, expect, it, vi } from "vitest";
-import type { Logger } from "../../logger";
+import type { Logger } from "../../../logger";
 import type { ClientTool } from "../tools/client-tools";
 import { createClientToolRegistry } from "../tools/client-tools";
 import type { ToolCallFrame } from "./push-frames";
 import { createPushToolCalls } from "./tool-calls";
 
-function tool(name: string, execute: (args: Record<string, unknown>) => Promise<string>): ClientTool {
+function tool(
+  name: string,
+  execute: (args: Record<string, unknown>) => Promise<string>,
+): ClientTool {
   return {
     name,
     definition: {
@@ -37,7 +40,10 @@ function harness(over: Partial<Parameters<typeof createPushToolCalls>[0]> = {}) 
   const sent: unknown[] = [];
   const stopped = new Set<string>();
   const deps = {
-    tools: createClientToolRegistry([tool("body_action", async () => "ok"), tool("look", async () => "{}")]),
+    tools: createClientToolRegistry([
+      tool("body_action", async () => "ok"),
+      tool("look", async () => "{}"),
+    ]),
     isTurnStopped: (turnId: string) => stopped.has(turnId),
     send: vi.fn((frame: unknown) => {
       sent.push(frame);
@@ -71,20 +77,23 @@ describe("createPushToolCalls", () => {
     h.stopped.add("t");
     h.calls.handle(call("c1", "t", "look"));
     await flush();
-    expect(h.sent).toEqual([{ type: "tool_result", id: "c1", turn_id: "t", result: "error: turn stopped" }]);
+    expect(h.sent).toEqual([
+      { type: "tool_result", id: "c1", turn_id: "t", result: "error: turn stopped" },
+    ]);
 
     // A turn that is stopped while the call waits in the queue refuses when it starts.
-    const gate = { go: () => {} };
+    const release = { go: () => {} };
     const reached = new Promise<string>((r) => {
-      gate.go = () => r("late");
+      release.go = () => r("late");
     });
     const h2 = harness({
       tools: createClientToolRegistry([tool("look", () => reached)]),
     });
     h2.calls.handle(call("c2", "t2", "look"));
+    await flush();
     h2.calls.handle(call("c3", "t2", "look"));
     h2.stopped.add("t2");
-    gate.go();
+    release.go();
     await flush();
     expect(h2.sent).toEqual([
       { type: "tool_result", id: "c2", turn_id: "t2", result: "late" },
@@ -111,21 +120,20 @@ describe("createPushToolCalls", () => {
 
   it("runs one call at a time in arrival order", async () => {
     const order: string[] = [];
-    const gates = ["c1", "c2"].map((id) => {
-      let release!: (result: string) => void;
-      const wait = new Promise<string>((r) => {
-        release = r;
-      });
-      return { id, wait, release, ran: () => order.push(id) };
+    let release!: (result: string) => void;
+    const first = new Promise<string>((r) => {
+      release = r;
     });
-    let next = 0;
     const h = harness({
       tools: createClientToolRegistry([
         tool("body_action", () => {
-          gates[next]!.ran();
-          return gates[next++]!.wait;
+          order.push("c1");
+          return first;
         }),
-        tool("look", async () => "{}"),
+        tool("look", () => {
+          order.push("c2");
+          return Promise.resolve("{}");
+        }),
       ]),
     });
 
@@ -134,7 +142,7 @@ describe("createPushToolCalls", () => {
     await flush();
     expect(order).toEqual(["c1"]);
 
-    gates[0]!.release("ok");
+    release("ok");
     await flush();
     expect(order).toEqual(["c1", "c2"]);
 

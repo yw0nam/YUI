@@ -13,6 +13,7 @@ import type { ReasoningStore } from "../../io/bridge/reasoning/reasoning-store";
 import type { PushSocket } from "../../io/chat/push/push-socket";
 import { appendRecord } from "../../io/chat/record/turn-record-log";
 import { selectFetch } from "../../io/chat/stream/chat-client";
+import { createClientToolRegistry, createClientTools } from "../../io/chat/tools/client-tools";
 import { createLogger } from "../../logger";
 import type { Renderer } from "../../renderer";
 import type { SettingsStores } from "../../settings/settings-stores";
@@ -246,6 +247,13 @@ export async function wireTurnCore(
         register(
           wirePushTransport({
             socket: pushSocket,
+            // The push-declared half of the same list the per-turn registry builds from.
+            tools: createClientToolRegistry(
+              createClientTools(
+                published.vocabulary(),
+                deps.getAvatarExecutor ?? (() => null),
+              ).filter((tool) => tool.push),
+            ),
             turnOutput: voice.turnOutput,
             pushTurns,
             delegations,

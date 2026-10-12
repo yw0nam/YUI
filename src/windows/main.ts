@@ -250,6 +250,7 @@ async function bootstrap(): Promise<BootstrapHandle> {
     push.bind({
       vocabulary: configured.vocabulary.vocabulary,
       stopTurn: configured.stopTurn,
+      getAvatarExecutor: configured.getAvatarExecutor,
     });
     register(
       wirePushMode({

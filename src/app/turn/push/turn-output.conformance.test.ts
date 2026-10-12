@@ -29,6 +29,7 @@ import { createDelegationsStore } from "../../../io/bridge/delegations/delegatio
 import { createReasoningStore } from "../../../io/bridge/reasoning/reasoning-store";
 import type { RenderFrame } from "../../../io/chat/push/push-frames";
 import type { ChatStreamEvent } from "../../../io/chat/stream/chat-client";
+import { createClientToolRegistry } from "../../../io/chat/tools/client-tools";
 import { wirePushTransport } from "./wire-push";
 
 const CUE_A: ExpressArgs = { emotion_id: "happy", motion_id: "nod" };
@@ -125,6 +126,7 @@ function runPush(frame: RenderFrame): Entry[] {
   const { entries, turnOutput } = recordingSinks();
   let onRender: ((frame: RenderFrame) => void) | null = null;
   const dispose = wirePushTransport({
+    tools: createClientToolRegistry([]),
     socket: {
       onRender(cb) {
         onRender = cb;
@@ -133,6 +135,8 @@ function runPush(frame: RenderFrame): Entry[] {
       onSpeech: () => () => {},
       onTurnEnd: () => () => {},
       onToolStatus: () => () => {},
+      onToolCall: () => () => {},
+      sendToolResult: () => false,
       onDelegations: () => () => {},
       onReasoning: () => () => {},
       onState: () => () => {},

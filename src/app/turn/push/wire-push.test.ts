@@ -21,6 +21,7 @@ import type {
   TurnEndFrame,
 } from "../../../io/chat/push/push-frames";
 import type { PushSocketState } from "../../../io/chat/push/push-socket";
+import { createClientToolRegistry } from "../../../io/chat/tools/client-tools";
 
 import { wirePushMode, wirePushTransport, wireStopButton } from "./wire-push";
 
@@ -76,6 +77,8 @@ function fakeSocket() {
         toolStatusCb = null;
       };
     },
+    onToolCall: () => () => {},
+    sendToolResult: () => false,
     pushRender(frame: RenderFrame): void {
       renderCb?.(frame);
     },
@@ -150,6 +153,7 @@ let turnLog: TurnLog;
 function wire(feed: TurnFeed = turnFeed) {
   return wirePushTransport({
     socket,
+    tools: createClientToolRegistry([]),
     turnOutput,
     pushTurns,
     delegations,

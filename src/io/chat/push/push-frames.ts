@@ -42,12 +42,29 @@ export interface TurnEndFrame {
   turn_id: string;
 }
 
-/** The backend names the tool a turn is using; `running` when the call starts, `done` when it returns. */
+/** The backend names the tool a turn is using; `running` when the call starts, `done` when it returns, `failed` when it failed. */
 export interface ToolStatusFrame {
   type: "tool_status";
   turn_id: string;
-  state: "running" | "done";
+  state: "running" | "done" | "failed";
   tool_id: string;
+}
+
+/** A call against a tool the client declared in `hello.tools`; the client answers with `tool_result`. */
+export interface ToolCallFrame {
+  type: "tool_call";
+  id: string;
+  turn_id: string;
+  name: string;
+  arguments: Record<string, unknown>;
+}
+
+/** The client's answer to one `tool_call`, carrying the same id and turn id. */
+export interface ToolResultFrame {
+  type: "tool_result";
+  id: string;
+  turn_id: string;
+  result: string;
 }
 
 /** The backend's reasoning as it is written, sent while the turn it names runs. */
@@ -109,5 +126,16 @@ export function renderFrameFault(v: Record<string, unknown>): string | null {
 export function speechFrameFault(v: Record<string, unknown>): string | null {
   if (!segmentsReadable(v.segments)) return "segments";
   if (typeof v.turn_id !== "string") return "turn_id";
+  return null;
+}
+
+/** The field that makes a tool_call frame unreadable, or null: string id, turn_id and name, and an arguments object. */
+export function toolCallFrameFault(v: Record<string, unknown>): string | null {
+  if (typeof v.id !== "string") return "id";
+  if (typeof v.turn_id !== "string") return "turn_id";
+  if (typeof v.name !== "string") return "name";
+  if (v.arguments === null || typeof v.arguments !== "object" || Array.isArray(v.arguments)) {
+    return "arguments";
+  }
   return null;
 }

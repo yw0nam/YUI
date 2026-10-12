@@ -30,6 +30,7 @@ import type {
   RenderFrame,
   ToolStatusFrame,
 } from "../../../io/chat/push/push-frames";
+import { createClientToolRegistry } from "../../../io/chat/tools/client-tools";
 import { wirePushTransport } from "./wire-push";
 
 const RUNNING: ToolStatus = { state: "running", tool_id: "web_search" };
@@ -76,6 +77,7 @@ function runPush(): Run {
   let onReasoning: ((frame: ReasoningFrame) => void) | null = null;
   let onToolStatus: ((frame: ToolStatusFrame) => void) | null = null;
   wirePushTransport({
+    tools: createClientToolRegistry([]),
     socket: {
       onRender(cb) {
         onRender = cb;
@@ -87,6 +89,8 @@ function runPush(): Run {
         onToolStatus = cb;
         return () => {};
       },
+      onToolCall: () => () => {},
+      sendToolResult: () => false,
       onDelegations: () => () => {},
       onReasoning(cb) {
         onReasoning = cb;

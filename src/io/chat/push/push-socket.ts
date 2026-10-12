@@ -7,6 +7,7 @@
  */
 
 import { createLogger, type Logger } from "../../../logger";
+import type { ClientToolDefinition } from "../tools/client-tools";
 import type { ExpressVocabulary } from "../vocabulary/express-vocabulary";
 import {
   type DelegationItem,
@@ -17,8 +18,11 @@ import {
   renderFrameFault,
   type SpeechFrame,
   speechFrameFault,
+  type ToolCallFrame,
+  type ToolResultFrame,
   type ToolStatusFrame,
   type TurnEndFrame,
+  toolCallFrameFault,
 } from "./push-frames";
 
 const baseLog = createLogger("push-socket");
@@ -59,6 +63,8 @@ export interface PushSocketDeps {
   getKey: () => Promise<string | undefined>;
   /** The renderable vocabulary as it stands now. */
   vocabulary: () => PushVocabulary;
+  /** The tools the client declares on this connection; sent in `hello` as `tools` when non-empty. */
+  tools: () => ClientToolDefinition[];
   WebSocketImpl?: typeof WebSocket;
   logger?: Logger;
 }
@@ -76,12 +82,15 @@ export interface PushSocket {
   imageRoom(turn: PushTurnFrame): number | undefined;
   sendReset(): boolean;
   sendStop(turnIds: string[]): boolean;
+  /** True when the frame went out; false when the socket is not ready or the frame is too large. */
+  sendToolResult(frame: ToolResultFrame): boolean;
   /** Sends the current vocabulary when it differs from the one the backend last received. */
   sendVocabulary(): void;
   onRender(cb: (frame: RenderFrame) => void): () => void;
   onSpeech(cb: (frame: SpeechFrame) => void): () => void;
   onTurnEnd(cb: (frame: TurnEndFrame) => void): () => void;
   onToolStatus(cb: (frame: ToolStatusFrame) => void): () => void;
+  onToolCall(cb: (frame: ToolCallFrame) => void): () => void;
   onDelegations(cb: (items: DelegationItem[]) => void): () => void;
   onReasoning(cb: (frame: ReasoningFrame) => void): () => void;
   onState(cb: (state: PushSocketState) => void): () => void;
@@ -116,6 +125,7 @@ export function createPushSocket(deps: PushSocketDeps): PushSocket {
   const speechSubs = new Set<(frame: SpeechFrame) => void>();
   const turnEndSubs = new Set<(frame: TurnEndFrame) => void>();
   const toolStatusSubs = new Set<(frame: ToolStatusFrame) => void>();
+  const toolCallSubs = new Set<(frame: ToolCallFrame) => void>();
   const delegationSubs = new Set<(items: DelegationItem[]) => void>();
   const reasoningSubs = new Set<(frame: ReasoningFrame) => void>();
   const stateSubs = new Set<(state: PushSocketState) => void>();
@@ -254,7 +264,7 @@ export function createPushSocket(deps: PushSocketDeps): PushSocket {
         const field =
           typeof frame.turn_id !== "string"
             ? "turn_id"
-            : frame.state !== "running" && frame.state !== "done"
+            : frame.state !== "running" && frame.state !== "done" && frame.state !== "failed"
               ? "state"
               : typeof frame.tool_id !== "string"
                 ? "tool_id"
@@ -264,6 +274,15 @@ export function createPushSocket(deps: PushSocketDeps): PushSocket {
           return;
         }
         dispatch(toolStatusSubs, frame as unknown as ToolStatusFrame);
+        return;
+      }
+      case "tool_call": {
+        const fault = toolCallFrameFault(frame);
+        if (fault !== null) {
+          log.warn("frame_malformed", { type: "tool_call", field: fault });
+          return;
+        }
+        dispatch(toolCallSubs, frame as unknown as ToolCallFrame);
         return;
       }
       case "reasoning": {
@@ -351,7 +370,15 @@ export function createPushSocket(deps: PushSocketDeps): PushSocket {
       log.info("ws_open", { url });
       const vocabulary = deps.vocabulary();
       sentVocabulary = JSON.stringify(vocabulary);
-      sendFrame({ type: "hello", key: key ?? "", chat_id: deps.chatId(), vocabulary });
+      const hello: Record<string, unknown> = {
+        type: "hello",
+        key: key ?? "",
+        chat_id: deps.chatId(),
+        vocabulary,
+      };
+      const tools = deps.tools();
+      if (tools.length > 0) hello.tools = tools;
+      sendFrame(hello);
       readyTimer = setTimeout(() => {
         readyTimer = null;
         log.warn("ws_ready_timeout", { wait_ms: READY_WAIT_MS });
@@ -443,6 +470,7 @@ export function createPushSocket(deps: PushSocketDeps): PushSocket {
       active = false;
       clearTimers();
       renderSubs.clear();
+      toolCallSubs.clear();
       speechSubs.clear();
       turnEndSubs.clear();
       toolStatusSubs.clear();
@@ -493,12 +521,18 @@ export function createPushSocket(deps: PushSocketDeps): PushSocket {
       return sendFrame({ type: "stop", turn_ids: turnIds });
     },
 
+    sendToolResult(frame): boolean {
+      if (!ready) return false;
+      return sendFrame(frame as unknown as Record<string, unknown>);
+    },
+
     sendVocabulary: syncVocabulary,
 
     onRender: (cb) => subscribe(renderSubs, cb),
     onSpeech: (cb) => subscribe(speechSubs, cb),
     onTurnEnd: (cb) => subscribe(turnEndSubs, cb),
     onToolStatus: (cb) => subscribe(toolStatusSubs, cb),
+    onToolCall: (cb) => subscribe(toolCallSubs, cb),
     onDelegations: (cb) => subscribe(delegationSubs, cb),
     onReasoning: (cb) => subscribe(reasoningSubs, cb),
     onState: (cb) => subscribe(stateSubs, cb),

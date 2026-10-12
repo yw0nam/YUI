@@ -26,9 +26,9 @@ it("toolCallFrameFault names the first unreadable field among id, turn_id, name 
   expect(toolCallFrameFault({ id: 7, turn_id: 7, name: 7, arguments: 7 })).toBe("id");
   expect(toolCallFrameFault({ id: "c", turn_id: 7, name: 7, arguments: 7 })).toBe("turn_id");
   expect(toolCallFrameFault({ id: "c", turn_id: "t", name: 7, arguments: 7 })).toBe("name");
-  expect(
-    toolCallFrameFault({ id: "c", turn_id: "t", name: "look", arguments: null }),
-  ).toBe("arguments");
+  expect(toolCallFrameFault({ id: "c", turn_id: "t", name: "look", arguments: null })).toBe(
+    "arguments",
+  );
   expect(
     toolCallFrameFault({ id: "c", turn_id: "t", name: "look", arguments: { at: "body" } }),
   ).toBeNull();
