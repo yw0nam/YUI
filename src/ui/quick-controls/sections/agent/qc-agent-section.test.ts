@@ -362,6 +362,23 @@ describe("createQuickControls — agent section", () => {
       qc.dispose();
     });
 
+    it("applies a transport change made while the panel is closed on the next open", () => {
+      const qc = buildQc();
+      qc.open();
+      qc.close();
+      const { effortSec, instructionsSec } = agentControls(qc);
+
+      endpointsSettings.set({ chat_api: "push" });
+      expect(effortSec.hidden).toBe(false);
+      expect(instructionsSec.hidden).toBe(false);
+
+      qc.open();
+      expect(effortSec.hidden).toBe(true);
+      expect(instructionsSec.hidden).toBe(true);
+
+      qc.dispose();
+    });
+
     it("keeps the stored effort and instructions while the controls are hidden", () => {
       agentSettings.setReasoningEffort("medium");
       agentSettings.setInstructions("keep me");
