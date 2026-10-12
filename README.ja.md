@@ -58,11 +58,11 @@ Install https://github.com/yw0nam/YUI following https://raw.githubusercontent.co
 
 エージェントがツールチェーンをインストールし、リポジトリをクローンし、指定したバックエンドを接続して、`pnpm tauri dev` を実行できる状態にしてくれます。
 
-エージェントが手元にない場合は、[最新リリース](https://github.com/yw0nam/YUI/releases/latest)からmacOS(Apple Silicon)用の `.dmg`、または実験的なWindows x64用インストーラーを入手してください。ビルドは署名されていません。アプリを一度開き、macOSにブロックされたら **システム設定 → プライバシーとセキュリティ → このまま開く** で許可してください。公式ビルドの対象はApple Silicon搭載のmacOSです。Intel MacとLinuxは公式にはサポートしていません。
+エージェントが手元にない場合は、[最新リリース](https://github.com/yw0nam/YUI/releases/latest)からmacOS(Apple Silicon)用の `.dmg`、またはWindows x64用インストーラーを入手してください。ビルドは署名されていません。アプリを一度開き、macOSにブロックされたら **システム設定 → プライバシーとセキュリティ → このまま開く** で許可してください。公式ビルドの対象はApple Silicon搭載のmacOSとWindows x64です。Intel MacとLinuxは公式にはサポートしていません。
 
 **はじめての会話:** キャラクターを右クリックして設定を開き、**接続** タブ(プラグのアイコン)に切り替え、チャットセクションで **プロバイダー** のプリセットを選び、**チャットモデル** を入力します(OpenAIまたはGroqの場合は **チャット API キー** も入力します)。パネルを閉じ、`/`(または `Cmd/Ctrl+Shift+Y`)を押してテキスト入力を開き、メッセージを送信してください。
 プリセットはOpenAI、Ollama、LM Studio、Groqの4つで、エンドポイントURLが自動で入力されます。前提として、[Ollama](https://ollama.com)か[LM Studio](https://lmstudio.ai)が起動していること、またはOpenAIかGroqのAPIキーが必要です。
-既定のChat Completionsモードでは、ツール呼び出し(tool calling)に対応したモデルが必要です。YUIは常に `generate_express` ツールを宣言するためです(`src/io/chat/stream/chat-client.ts`)。OpenAIなら[`gpt-5-mini`](https://platform.openai.com/docs/models/gpt-5-mini)、Ollamaなら[`qwen3`](https://ollama.com/library/qwen3)(先に `ollama pull qwen3` で取得してください)、Groqなら[`llama-3.3-70b-versatile`](https://console.groq.com/docs/tool-use)が使えます。
+既定のChat Completionsモードでは、ツール呼び出し(tool calling)に対応したモデルが必要です。YUIは常に `generate_express` ツールを宣言するためです(`src/io/chat/stream/client-tools.ts`)。OpenAIなら[`gpt-5-mini`](https://platform.openai.com/docs/models/gpt-5-mini)、Ollamaなら[`qwen3`](https://ollama.com/library/qwen3)(先に `ollama pull qwen3` で取得してください)、Groqなら[`llama-3.3-70b-versatile`](https://console.groq.com/docs/tool-use)が使えます。
 
 ## 機能
 
@@ -142,7 +142,7 @@ YUIは体で、バックエンドは心です。クライアントが*何を*話
 - [操作方法](docs/guide/controls.md): キーボード、マウス、トレイ
 - [彼女にできること](docs/guide/capabilities.md)
 - [コーディングエージェントでインストールする](docs/guide/install.md)
-- [インストールと接続のガイド](docs/guide/getting-started.md): チャットバックエンド、Expression Broker、TTS、STT、自分のVRM
+- [インストールと接続のガイド](docs/guide/getting-started.md): チャットバックエンド、Expression Broker(非推奨、v0.6.0で削除)、TTS、STT、自分のVRM
 - [ビルド、実行、ログ](docs/agent-guide/build-run.md)
 - [プロジェクト構成と技術スタック](docs/agent-guide/project-structure.md)
 - [`generate_express` キューの仕様](docs/reference/client-context.md)
