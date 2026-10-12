@@ -5,8 +5,8 @@
  */
 
 import type { ExpressArgs } from "../../../contract";
+import type { ClientToolRegistry } from "../tools/client-tools";
 import type { ChatStreamEvent } from "./chat-client";
-import type { ClientToolRegistry } from "./client-tools";
 import { isExpressTool, parseToolArgs } from "./stream-helpers";
 
 /** Whether the client acts on this call: an express cue to play, or a registered tool to run. */

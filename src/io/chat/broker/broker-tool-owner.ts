@@ -1,6 +1,6 @@
-// Deprecated: removed in v0.6.0. Use client-declared tools (src/io/chat/stream/client-tools.ts).
+// Deprecated: removed in v0.6.0. Use client-declared tools (src/io/chat/tools/client-tools.ts).
 import type { EndpointsConfig } from "../../../contract";
-import type { ClientToolRegistry } from "../stream/client-tools";
+import type { ClientToolRegistry } from "../tools/client-tools";
 
 /**
  * On Responses, a configured broker means the backend owns generate_express, so the client declares

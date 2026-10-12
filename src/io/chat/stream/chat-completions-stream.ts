@@ -6,10 +6,10 @@ import type {
 } from "openai/resources/chat/completions";
 
 import type { ControlEnvelope, EndpointsConfig, ExpressArgs } from "../../../contract";
+import type { ClientToolRegistry } from "../tools/client-tools";
 import type { ChatRequest, ChatStreamEvent } from "./chat-client";
 import { type CCMessage, type CCToolCall, createChunkReducer } from "./chat-completions";
 import { ownsCall, runClientCall, shouldAnswer } from "./client-tool-run";
-import type { ClientToolRegistry } from "./client-tools";
 import {
   boundarySeparator,
   errorEventOf,

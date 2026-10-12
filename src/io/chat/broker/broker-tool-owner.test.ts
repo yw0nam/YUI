@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { EndpointsConfig } from "../../../contract";
-import { createClientToolRegistry } from "../stream/client-tools";
+import { createClientToolRegistry } from "../tools/client-tools";
 import { clientToolsUnlessBrokered } from "./broker-tool-owner";
 
 const registry = createClientToolRegistry([]);

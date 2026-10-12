@@ -20,9 +20,9 @@ import type {
   Usage,
 } from "../../../contract";
 import { isTauri } from "../../../tauri-env";
+import type { ClientToolRegistry } from "../tools/client-tools";
 import type { CCMessage } from "./chat-completions";
 import { streamChatCompletions } from "./chat-completions-stream";
-import type { ClientToolRegistry } from "./client-tools";
 import { streamResponses } from "./responses-stream";
 
 /** The result of a function call the model never saw answered — the next turn sends it with the response id. */

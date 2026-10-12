@@ -39,7 +39,7 @@ import {
   type ToolOutputItem,
 } from "../../io/chat/stream/chat-client";
 import { buildCCMessages } from "../../io/chat/stream/chat-completions";
-import type { ClientToolRegistry } from "../../io/chat/stream/client-tools";
+import type { ClientToolRegistry } from "../../io/chat/tools/client-tools";
 import type { Logger } from "../../logger";
 import { createLogger } from "../../logger";
 import type { Turn } from "../turn/turn";

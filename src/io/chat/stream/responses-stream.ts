@@ -70,9 +70,9 @@ import type {
 } from "openai/resources/responses/responses";
 
 import type { ControlEnvelope, EndpointsConfig, ExpressArgs } from "../../../contract";
+import type { ClientToolRegistry } from "../tools/client-tools";
 import type { ChatRequest, ChatStreamEvent, ToolOutputItem } from "./chat-client";
 import { ownsCall, runClientCall, shouldAnswer } from "./client-tool-run";
-import type { ClientToolRegistry } from "./client-tools";
 import {
   boundarySeparator,
   errorEventOf,

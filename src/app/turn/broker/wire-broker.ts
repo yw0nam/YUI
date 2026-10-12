@@ -1,4 +1,4 @@
-// Deprecated: removed in v0.6.0. Use client-declared tools (src/io/chat/stream/client-tools.ts).
+// Deprecated: removed in v0.6.0. Use client-declared tools (src/io/chat/tools/client-tools.ts).
 import type { EndpointsConfig } from "../../../contract";
 import { type BrokerClient, createBrokerClient } from "../../../io/chat/broker/broker-client";
 import { createBrokerOverrideReconciler } from "../../../io/chat/broker/broker-override-reconciler";

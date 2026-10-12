@@ -10,12 +10,8 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, expect, it, vi } from "vitest";
 import type { ExpressVocabulary } from "../vocabulary/express-vocabulary";
-import {
-  type ClientTool,
-  createClientToolRegistry,
-  createClientTools,
-  createGenerateExpressTool,
-} from "./client-tools";
+import { type ClientTool, createClientToolRegistry, createClientTools } from "./client-tools";
+import { createGenerateExpressTool } from "./express";
 
 /** The published vocabulary (deriveExpressVocabulary) is the schema's only source. */
 const vocab = (over: Partial<ExpressVocabulary> = {}): ExpressVocabulary => ({
