@@ -155,16 +155,61 @@ describe("createChunkReducer — text", () => {
     );
   });
 
-  it("reasoning_content/reasoning/thinking fields never yield text items", () => {
+  it("emits a reasoning item for a delta.reasoning_content chunk, no text item", () => {
     const reducer = createChunkReducer();
     expect(
       reducer.feed({
         choices: [{ delta: { reasoning_content: "thinking..." }, finish_reason: null }],
       }),
-    ).toEqual([]);
+    ).toEqual([{ kind: "reasoning", text: "thinking..." }]);
+  });
+
+  it("emits a reasoning item for a delta.reasoning chunk", () => {
+    const reducer = createChunkReducer();
     expect(
       reducer.feed({ choices: [{ delta: { reasoning: "hmm" }, finish_reason: null }] }),
+    ).toEqual([{ kind: "reasoning", text: "hmm" }]);
+  });
+
+  it("emits reasoning_content before reasoning when one chunk carries both", () => {
+    const reducer = createChunkReducer();
+    expect(
+      reducer.feed({
+        choices: [
+          { delta: { reasoning: "hmm", reasoning_content: "thinking..." }, finish_reason: null },
+        ],
+      }),
+    ).toEqual([
+      { kind: "reasoning", text: "thinking..." },
+      { kind: "reasoning", text: "hmm" },
+    ]);
+  });
+
+  it("ignores empty-string reasoning fields", () => {
+    const reducer = createChunkReducer();
+    expect(
+      reducer.feed({
+        choices: [{ delta: { reasoning_content: "", reasoning: "" }, finish_reason: null }],
+      }),
     ).toEqual([]);
+  });
+
+  it("emits a reasoning item then a text item when one chunk carries both", () => {
+    const reducer = createChunkReducer();
+    expect(
+      reducer.feed({
+        choices: [
+          { delta: { reasoning_content: "thinking...", content: "Hi" }, finish_reason: null },
+        ],
+      }),
+    ).toEqual([
+      { kind: "reasoning", text: "thinking..." },
+      { kind: "text", text: "Hi" },
+    ]);
+  });
+
+  it("thinking field never yields items", () => {
+    const reducer = createChunkReducer();
     expect(
       reducer.feed({ choices: [{ delta: { thinking: "pondering" }, finish_reason: null }] }),
     ).toEqual([]);

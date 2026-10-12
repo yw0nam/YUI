@@ -57,6 +57,10 @@ const textChunk = (content: string): any => ({
   choices: [{ index: 0, delta: { content }, finish_reason: null }],
 });
 
+const reasoningChunk = (field: "reasoning_content" | "reasoning", text: string): any => ({
+  choices: [{ index: 0, delta: { [field]: text }, finish_reason: null }],
+});
+
 const finishChunk = (reason: string): any => ({
   choices: [{ index: 0, delta: {}, finish_reason: reason }],
 });
@@ -159,6 +163,55 @@ describe("streamChat — Chat Completions text streaming", () => {
     const ac = new AbortController();
     await collect(streamChat(CONFIG, req({ signal: ac.signal })));
     expect(ccCreateMock.mock.calls[0][1]?.signal).toBe(ac.signal);
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// reasoning deltas
+// ─────────────────────────────────────────────────────────────────────────────
+
+describe("streamChat — Chat Completions reasoning deltas", () => {
+  it("yields reasoning events before speech_delta and keeps reasoning out of speech_text", async () => {
+    ccCreateMock.mockResolvedValueOnce(
+      streamOf([
+        reasoningChunk("reasoning_content", "thinking..."),
+        reasoningChunk("reasoning", "hmm"),
+        textChunk("Hello"),
+        finishChunk("stop"),
+      ]),
+    );
+
+    const events = await collect(streamChat(CONFIG, req()));
+
+    expect(events).toEqual([
+      { type: "reasoning", delta: "thinking..." },
+      { type: "reasoning", delta: "hmm" },
+      { type: "speech_delta", text: "Hello" },
+      { type: "speech_done", text: "Hello" },
+      { type: "completed", envelope: { speech_text: "Hello" }, responseId: "" },
+    ]);
+  });
+
+  it("carries no reasoning text in the round-trip messages", async () => {
+    const weather = toolStub("get_weather", "22C");
+    const registry = createClientToolRegistry([weather]);
+    ccCreateMock
+      .mockResolvedValueOnce(
+        streamOf([
+          reasoningChunk("reasoning_content", "secret thoughts"),
+          toolCallStart(0, "call_w", "get_weather", '{"city":"seoul"}'),
+          finishChunk("tool_calls"),
+        ]),
+      )
+      .mockResolvedValueOnce(streamOf([textChunk("warm"), finishChunk("stop")]));
+
+    const events = await collect(streamChat(CONFIG, req(), { tools: registry }));
+
+    expect(ccCreateMock).toHaveBeenCalledTimes(2);
+    for (const m of ccCreateMock.mock.calls[1][0].messages) {
+      expect(JSON.stringify(m)).not.toContain("secret thoughts");
+    }
+    expect(events.at(-1)).toMatchObject({ envelope: { speech_text: "warm" } });
   });
 });
 
