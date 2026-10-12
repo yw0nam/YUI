@@ -81,7 +81,7 @@ Chat Completions appends the assistant message carrying the response's spoken te
 {"choices":[{"index":0,"delta":{},"finish_reason":"stop"}]}
 ```
 
-Responses sends a new request whose `input` is the original input items, then an assistant message item carrying the response's spoken text (omitted when the response said nothing), then the tool-calling response's `reasoning` output items as received before the `function_call` items they precede, then one `function_call_output` item per call. The request keeps the turn's original `previous_response_id`, so the round trip works on a server that has dropped the tool-calling response. The `completed` event carries the id of the last response of the turn.
+Responses sends a new request whose `input` is the original input items, then an assistant message item carrying the response's spoken text (omitted when the response said nothing), then the tool-calling response's `reasoning` items and each executed call as a `function_call` item in the order the response produced them, then one `function_call_output` item per call. The request keeps the turn's original `previous_response_id`, so the round trip works on a server that has dropped the tool-calling response. The `completed` event carries the id of the last response of the turn.
 
 ```jsonc
 // request 1: input items + tools[]
