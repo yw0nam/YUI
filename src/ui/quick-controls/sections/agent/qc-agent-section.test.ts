@@ -337,6 +337,22 @@ describe("createQuickControls — agent section", () => {
       qc.dispose();
     });
 
+    it("hides the effort section when no row in it stays visible, and shows it again", () => {
+      endpointsSettings.set({ chat_api: "push" });
+      const qc = buildQc();
+      qc.open();
+      const effortSec = qc.el.querySelector(".yui-effort-seg")!.closest<HTMLElement>(".yui-sec")!;
+      const rows = Array.from(effortSec.querySelectorAll<HTMLElement>(".yui-row"));
+
+      expect(rows.every((row) => row.hidden)).toBe(effortSec.hidden);
+      expect(effortSec.hidden).toBe(true);
+
+      endpointsSettings.set({ chat_api: "responses" });
+      expect(effortSec.hidden).toBe(false);
+
+      qc.dispose();
+    });
+
     it("shows both controls again when the transport changes to a request transport", () => {
       endpointsSettings.set({ chat_api: "push" });
       const qc = buildQc();
