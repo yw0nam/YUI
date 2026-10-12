@@ -44,7 +44,9 @@ async function reencode(image: string, share: number): Promise<string | null> {
     if (!ctx) return null;
     ctx.drawImage(bitmap, 0, 0, width, height);
     bitmap.close();
-    return canvas.toDataURL("image/jpeg", JPEG_QUALITY);
+    const url = canvas.toDataURL("image/jpeg", JPEG_QUALITY);
+    // A canvas with no backing store returns "data:," with no exception.
+    return url.startsWith("data:image/jpeg;base64,") ? url : null;
   } catch {
     return null;
   }

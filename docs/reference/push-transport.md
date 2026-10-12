@@ -33,7 +33,7 @@ The client renders what arrives and judges nothing. Everything the backend must 
 | Reconnect delay, cap | 30 s |
 | `hello` reply wait | 10 s |
 | Frame wait, per turn | 240 s |
-| Text frame size, either direction | 256 KiB |
+| Text frame size, either direction, every frame but `turn` | 256 KiB |
 | `turn` frame size | 256 KiB, or the `max_turn_bytes` value the backend stated in `ready` |
 | Delegation item `title` | 120 characters |
 | Delegation item `summary` | 2,000 characters |
