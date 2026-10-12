@@ -36,6 +36,11 @@ describe("executeClientTool", () => {
     await expect(pending).resolves.toBe("ok");
   });
 
+  it("leaves no timer pending once the tool has answered", async () => {
+    await executeClientTool(tool(), {});
+    expect(vi.getTimerCount()).toBe(0);
+  });
+
   it("resolves the bare word timeout when a tool with timeoutResult outlives its wait", async () => {
     const pending = executeClientTool(
       tool({ timeoutResult: "timeout", execute: () => new Promise<string>(() => {}) }),
