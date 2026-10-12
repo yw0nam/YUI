@@ -49,20 +49,25 @@ export function wireBedScene(deps: {
   }
   let scene: BedScene | null = null;
   let place: () => Promise<boolean> = async () => false;
+  const bed = createAvatarBed({
+    hold,
+    scene: () => scene,
+    canRun: () => !prefersReducedMotion(),
+    place: () => place(),
+    renderer: deps.renderer,
+    log: deps.log,
+  });
 
   return {
     isHeld: hold.isHeld,
-    wake: (cause) => scene?.wake(cause),
+    wake(cause) {
+      scene?.wake(cause);
+      // The scene has not started while she is still being put on the floor.
+      if (cause === "click") bed.interrupt();
+    },
     takeMessageWake: () => scene?.takeMessageWake() ?? false,
     onDragEnd: () => scene?.onDragEnd(),
-    bed: createAvatarBed({
-      hold,
-      scene: () => scene,
-      canRun: () => !prefersReducedMotion(),
-      place: () => place(),
-      renderer: deps.renderer,
-      log: deps.log,
-    }),
+    bed,
     start(locomotion, onWake) {
       if (prefersReducedMotion()) return;
       place = locomotion.place;
