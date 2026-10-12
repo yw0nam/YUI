@@ -7,16 +7,14 @@ import { wireCamera } from "./wire-pet-stage";
 export function createStageRenderer(deps: {
   stage: HTMLElement;
   settings: Pick<SettingsStores, "cameraSettings" | "idleThrottleSettings">;
-  isCameraLocked?: () => boolean;
   register: (dispose: () => void) => void;
-}): { renderer: Renderer; ambient: Tier1Engine; applyCamera(): void } {
+}): { renderer: Renderer; ambient: Tier1Engine } {
   const renderer = createRenderer({ mount: deps.stage });
   const camera = wireCamera({
     stage: deps.stage,
     renderer,
     cameraSettings: deps.settings.cameraSettings,
     idleThrottleSettings: deps.settings.idleThrottleSettings,
-    isLocked: deps.isCameraLocked,
   });
   deps.register(camera.dispose);
   // Tier 1 ambient: backend-independent, always on. tick fires after VRM loads, so
@@ -25,5 +23,5 @@ export function createStageRenderer(deps: {
   ambient.start();
   deps.register(() => renderer.dispose());
   deps.register(() => ambient.stop());
-  return { renderer, ambient, applyCamera: camera.apply };
+  return { renderer, ambient };
 }

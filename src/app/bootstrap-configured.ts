@@ -33,7 +33,6 @@ const log = createLogger("bootstrap");
 /** The pet window's own handles, on top of what the chat turn reads. */
 interface Phase1Handles extends TurnCorePhase1 {
   ambient: Tier1Engine;
-  applyCamera(): void;
   screenCapturer: ScreenCapturer;
   root: HTMLElement;
   stage: HTMLElement;
@@ -108,7 +107,6 @@ const realFactories: ConfiguredBootstrapFactories = {
       ambient: phase1.ambient,
       bus,
       settings,
-      applyCamera: phase1.applyCamera,
       hold: phase1.bedSceneHold,
       register,
       log,

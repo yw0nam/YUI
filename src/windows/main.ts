@@ -90,10 +90,9 @@ async function bootstrap(): Promise<BootstrapHandle> {
   const petConfig = createPetConfig({ ...settingsStores, log });
   const config = petConfig.config;
   const bedSceneHold = createBedSceneHold();
-  const { renderer, ambient, applyCamera } = createStageRenderer({
+  const { renderer, ambient } = createStageRenderer({
     stage,
     settings: settingsStores,
-    isCameraLocked: bedSceneHold.isHeld,
     register,
   });
 
@@ -222,7 +221,6 @@ async function bootstrap(): Promise<BootstrapHandle> {
       config,
       renderer,
       ambient,
-      applyCamera,
       bedSceneHold,
       surfaces,
       settings: settingsStores,

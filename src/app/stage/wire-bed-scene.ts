@@ -23,8 +23,6 @@ export function wireBedScene(deps: {
   ambient: Tier1Engine;
   bus: Pick<EventBus, "push">;
   settings: Pick<SettingsStores, "bedSceneSettings" | "cameraSettings">;
-  /** Applies the stored zoom and orbit, which the hold kept out. */
-  applyCamera: () => void;
   /** Taken here when the launch scene will run, and released by its end or by the teardown. */
   hold: BedSceneHold;
   register: (teardown: () => void) => void;
@@ -80,7 +78,6 @@ export function wireBedScene(deps: {
         wakeTimeoutS: () => deps.settings.bedSceneSettings.get().wakeTimeoutS,
         onDone: () => {
           hold.release();
-          deps.applyCamera();
           // A window dragged into mid-air while she slept falls now.
           locomotion.drop();
         },

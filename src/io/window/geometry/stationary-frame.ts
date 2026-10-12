@@ -39,13 +39,15 @@ export function createStationaryFrame(deps: {
 }): {
   /** Widen the real window by the padding the extents need and offset the view by the left one. */
   park(e: FrameExtents): Promise<void>;
+  /** Recompute padding from canvas extents around the base view; no-op when not parked. */
+  repark(e: FrameExtents): Promise<void>;
   /** After a native drag: restore the parked size if the move changed it, and the view offset. */
   refit(): Promise<void>;
   /** Back to the normal-size window where the parked one is now. Idempotent. */
   release(): Promise<void>;
 } {
   let parked: { left: number; width: number; height: number; parkedWidth: number } | null = null;
-  /** The last park() call — `release()` awaits it so a park in flight is unparked too. */
+  /** The pending frame update; release awaits it before restoring the base view. */
   let parking: Promise<void> | null = null;
   let releasing: Promise<void> | null = null;
 
@@ -68,39 +70,44 @@ export function createStationaryFrame(deps: {
     deps.renderer.setViewWindow({ x: p.left, y: 0, width: p.width, height: p.height });
   }
 
+  function park(e: FrameExtents, repark = false): Promise<void> {
+    if (repark && releasing) return Promise.resolve();
+    const pending = repark ? parking : releasing;
+    if (!repark) releasing = null;
+    parking = (async () => {
+      await pending?.catch(() => {});
+      const p = repark ? parked : null;
+      if (repark && !p) return;
+      const [live, monitors] = await Promise.all([liveRect(), deps.listMonitors()]);
+      const width = p?.width ?? live.width;
+      const height = p?.height ?? live.height;
+      const oldLeft = p?.left ?? 0;
+      // The anchor probe includes the current view's left padding.
+      const { left, right } = framePadding({ ...e, anchorX: e.anchorX - oldLeft }, width);
+      const parkedWidth = width + left + right;
+      const monitor = monitorAtLogical(monitors, live.x + live.width / 2, live.y + live.height / 2);
+      let x = live.x + oldLeft - left;
+      if (monitor) {
+        const screenLeft = monitor.position.x / monitor.scaleFactor;
+        const screenRight = screenLeft + monitor.size.width / monitor.scaleFactor;
+        x = Math.max(screenLeft, Math.min(x, screenRight - parkedWidth));
+      }
+      if (!p) deps.setKeepOnScreenPaused(true);
+      try {
+        await deps.frame.setFrameLogical(x, live.y, parkedWidth, height);
+      } catch (err) {
+        if (!p) deps.setKeepOnScreenPaused(false);
+        throw err;
+      }
+      parked = { left, width, height, parkedWidth };
+      applyView(parked);
+    })();
+    return parking;
+  }
+
   return {
-    park(e) {
-      const pending = releasing;
-      releasing = null;
-      parking = (async () => {
-        await pending?.catch(() => {});
-        const [live, monitors] = await Promise.all([liveRect(), deps.listMonitors()]);
-        const { left, right } = framePadding(e, live.width);
-        const parkedWidth = live.width + left + right;
-        const monitor = monitorAtLogical(
-          monitors,
-          live.x + live.width / 2,
-          live.y + live.height / 2,
-        );
-        let x = live.x - left;
-        if (monitor) {
-          const screenLeft = monitor.position.x / monitor.scaleFactor;
-          const screenRight = screenLeft + monitor.size.width / monitor.scaleFactor;
-          x = Math.max(screenLeft, Math.min(x, screenRight - parkedWidth));
-        }
-        deps.setKeepOnScreenPaused(true);
-        try {
-          await deps.frame.setFrameLogical(x, live.y, parkedWidth, live.height);
-        } catch (err) {
-          deps.setKeepOnScreenPaused(false);
-          throw err;
-        }
-        parked = { left, width: live.width, height: live.height, parkedWidth };
-        // Applied after the frame call resolves, as a travel does.
-        applyView(parked);
-      })();
-      return parking;
-    },
+    park: (e) => park(e),
+    repark: (e) => park(e, true),
     async refit() {
       const p = parked;
       if (!p) return;

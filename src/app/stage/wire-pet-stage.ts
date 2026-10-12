@@ -21,19 +21,14 @@ export function wireCamera(deps: {
   renderer: Pick<Renderer, "setZoom" | "setOrbit" | "setIdleThrottleEnabled">;
   cameraSettings: Pick<SettingsStores["cameraSettings"], "get" | "setZoom" | "subscribe">;
   idleThrottleSettings: Pick<SettingsStores["idleThrottleSettings"], "get" | "subscribe">;
-  /** True while the wheel zoom and the store's camera changes are ignored. */
-  isLocked?: () => boolean;
 }): {
   dispose(): void;
-  /** Apply the stored zoom and orbit to the renderer. */
-  apply(): void;
 } {
   // Character scale via mouse wheel: clamp bounds and sensitivity are io constants, persist is owned by store.
   // Drag uses pointerdown only, so no conflict with wheel (gesture/window-drag.ts).
   const onWheelZoom = (e: WheelEvent): void => {
     if (e.ctrlKey) return; // ctrl+wheel is window-resize gesture (window-resize-source).
     e.preventDefault();
-    if (deps.isLocked?.()) return;
     const next = nextZoom(deps.cameraSettings.get().zoom, e.deltaY, {
       min: CAMERA_ZOOM_MIN,
       max: CAMERA_ZOOM_MAX,
@@ -49,13 +44,11 @@ export function wireCamera(deps: {
     deps.renderer.setOrbit({ azimuth: s.azimuth, polar: s.polar });
   };
   apply();
-  deps.cameraSettings.subscribe(() => {
-    if (!deps.isLocked?.()) apply();
-  });
+  deps.cameraSettings.subscribe(apply);
   deps.renderer.setIdleThrottleEnabled(deps.idleThrottleSettings.get().enabled);
   deps.idleThrottleSettings.subscribe((s) => deps.renderer.setIdleThrottleEnabled(s.enabled));
   // Only the wheel listener is ours — the store subscribers die with the stores' own disposal.
-  return { dispose: () => deps.stage.removeEventListener("wheel", onWheelZoom), apply };
+  return { dispose: () => deps.stage.removeEventListener("wheel", onWheelZoom) };
 }
 
 export function wireInputAnchor(deps: {

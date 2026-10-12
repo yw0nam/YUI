@@ -12,6 +12,7 @@ import {
   INPUT_FEET_GAP_PX,
   inputBottomFromAnchor,
 } from "../../ui/surfaces/anchor";
+import { createBedSceneHold } from "./bed-scene-hold";
 import { wireCamera, wireInputAnchor } from "./wire-pet-stage";
 
 function fakeCameraSettings(initial: { zoom: number; azimuth: number; polar: number }) {
@@ -21,6 +22,7 @@ function fakeCameraSettings(initial: { zoom: number; azimuth: number; polar: num
     get: () => state,
     setZoom: vi.fn((zoom: number) => {
       state = { ...state, zoom };
+      for (const cb of subs) cb(state);
     }),
     subscribe: vi.fn((cb: (s: typeof state) => void) => {
       subs.add(cb);
@@ -56,7 +58,9 @@ function wheelOn(stage: HTMLElement, opts: { deltaY: number; ctrlKey?: boolean }
 }
 
 describe("wireCamera", () => {
-  function setup(isLocked?: () => boolean) {
+  function setup(held = false) {
+    const hold = createBedSceneHold();
+    if (held) hold.take();
     const stage = document.createElement("div");
     const renderer = { setZoom: vi.fn(), setOrbit: vi.fn(), setIdleThrottleEnabled: vi.fn() };
     const cameraSettings = fakeCameraSettings({ zoom: 1.2, azimuth: 0.3, polar: 1.1 });
@@ -66,15 +70,14 @@ describe("wireCamera", () => {
       renderer,
       cameraSettings,
       idleThrottleSettings,
-      isLocked,
     });
     return {
       stage,
       renderer,
       cameraSettings,
       idleThrottleSettings,
+      hold,
       removeWheel: camera.dispose,
-      apply: camera.apply,
     };
   }
 
@@ -115,15 +118,18 @@ describe("wireCamera", () => {
   });
 
   it("changes wheel zoom while the body is held", () => {
-    const { stage, cameraSettings } = setup(() => true);
+    const { stage, renderer, cameraSettings, hold } = setup(true);
+    expect(hold.isHeld()).toBe(true);
 
     wheelOn(stage, { deltaY: -240 });
 
     expect(cameraSettings.setZoom).toHaveBeenCalledOnce();
+    expect(renderer.setZoom).toHaveBeenLastCalledWith(cameraSettings.get().zoom);
   });
 
   it("applies a store change immediately while the body is held", () => {
-    const { renderer, cameraSettings } = setup(() => true);
+    const { renderer, cameraSettings, hold } = setup(true);
+    expect(hold.isHeld()).toBe(true);
 
     cameraSettings.change({ zoom: 2, azimuth: 0.5, polar: 1.3 });
     expect(renderer.setZoom).toHaveBeenLastCalledWith(2);

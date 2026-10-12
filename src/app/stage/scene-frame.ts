@@ -25,6 +25,7 @@ export function createSceneFrame(
       });
       return parking;
     },
+    repark: async (e) => frame?.repark(e),
     refit: async () => frame?.refit(),
     async release() {
       // A park still waiting for the real window lands first, so it is unparked too.

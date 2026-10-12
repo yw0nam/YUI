@@ -48,7 +48,6 @@ function setup(over: { enabled?: boolean; ready?: Promise<void>; frameWindow?: (
       cameraSettings: { get: () => ({ zoom: 1, azimuth: 0.7, polar: 1.4 }) },
     } as never,
     bus: { push: (env: { event_name: string }) => pushed.push(env.event_name) } as never,
-    applyCamera: () => calls.push("applyCamera"),
     hold: createBedSceneHold(),
     register: (teardown) => teardowns.push(teardown),
     log: { debug: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn() },
