@@ -37,9 +37,12 @@ starts with a `model:` block.
 
 ## 3. Configure the platform
 
-In `~/.hermes/profiles/<profile>/config.yaml`, replace `plugins:` / `  enabled: []` with:
+In `~/.hermes/profiles/<profile>/config.yaml`, replace `plugins:` / `  enabled: []` with the block
+below, or add the block at the end when the file has no `plugins:` key:
 
 ```yaml
+gateway:
+  standalone: true
 plugins:
   enabled:
     - yui
@@ -58,8 +61,10 @@ display:
       show_reasoning: false
 ```
 
-`yui` is the only toolset the model needs to place cues, and `no_mcp` keeps an Expression Broker
-out of the turn. The broker is deprecated and is removed in v0.6.0.
+`gateway.standalone` lets this profile run a gateway of its own; without it a Hermes that serves
+every profile from one host gateway refuses step 5. `yui` is the only toolset the model needs to
+place cues, and `no_mcp` keeps an Expression Broker out of the turn. The broker is deprecated and
+is removed in v0.6.0.
 
 Check: `grep -A6 '^platforms:' ~/.hermes/profiles/<profile>/config.yaml` prints the `yui` block
 with `<port>`.
@@ -113,7 +118,9 @@ hermes gateway stop -p <profile>
 hermes profile delete -y <profile>
 ```
 
-Deleting the profile removes the links it holds, never their targets.
+Deleting the profile removes the links it holds, never their targets. When the delete ends with
+`session/routing identity settlement is still pending`, run the command it prints,
+`hermes profile purge-identity <profile>`.
 
 Check: `hermes profile list` omits `<profile>`, `lsof -iTCP:<port> -sTCP:LISTEN -P` prints
 nothing, and `ls ~/.hermes/auth.json` prints the path.
