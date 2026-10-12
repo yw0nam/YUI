@@ -4,9 +4,11 @@ The tools the client exposes to the backend model.
 
 | Name | Purpose | Arguments and result | Transports | Schema built in | Call executed in |
 |---|---|---|---|---|---|
-| `generate_express` | Places an expression cue (face, body motion, voice tone) on the speech around the call | Arguments `emotion_id`, `motion_id`, `emotion_text`, `caption`, each optional ([cue contract](client-context.md#tool-arguments)). Result: the string `ok` | Responses and Chat Completions as a declared tool. Push as cues inside `render` and `speech` segments | `createGenerateExpressTool` in `src/io/chat/stream/client-tools.ts` | `runClientCall` in `src/io/chat/stream/client-tool-run.ts` |
+| `generate_express` | Places an expression cue (face, body motion, voice tone) on the speech around the call | Arguments `emotion_id`, `motion_id`, `emotion_text`, `caption`, each optional ([cue contract](client-context.md#tool-arguments)). Result: the string `ok` | Responses and Chat Completions as a declared tool. Push as cues inside `render` and `speech` segments | `createGenerateExpressTool` in `src/io/chat/tools/express.ts` | `runClientCall` in `src/io/chat/stream/client-tool-run.ts` |
+| `body_action` | Moves the body: sit on a window's top edge, peek around its edge, move to a named spot, stand up, or lie down on a bed | Arguments `action` plus the field it needs: `app` for `sit_on_window`, `side` for `peek`, `spot` and an optional `monitor` for `move_to`; `stand` and `go_to_bed` need none. Result: `ok`, or one word — `not_found`, `blocked`, `interrupted`, `busy`, `unsupported`, `timeout` | Responses, Chat Completions, and Push (`tool_call`/`tool_result`) | `createBodyActionTool` in `src/io/chat/tools/avatar.ts` | `runClientCall` in `src/io/chat/stream/client-tool-run.ts`; on Push the consumer in `src/io/chat/push/tool-calls.ts` |
+| `look` | Reads the character's body state, or the windows she can sit on and the screen edges she can peek from | Argument `at`: `body` or `perch_targets`. Result: the answer as a JSON string | Responses, Chat Completions, and Push (`tool_call`/`tool_result`) | `createLookTool` in `src/io/chat/tools/avatar.ts` | `runClientCall` in `src/io/chat/stream/client-tool-run.ts`; on Push the consumer in `src/io/chat/push/tool-calls.ts` |
 
-`createClientTools` in `src/io/chat/stream/client-tools.ts` lists the declared tools. `src/app/turn/wire-dispatcher.ts` builds the registry from that list for each turn, as the `clientTools` dependency of the backend caller. The registry reads the vocabulary loaded at that moment, so a vocabulary edit (a new emotion, a new motion, a different voice engine, a changed motion selection) reaches the schema on the next turn.
+`createClientTools` in `src/io/chat/tools/client-tools.ts` lists the declared tools. `src/app/turn/wire-dispatcher.ts` builds the registry from that list for each turn, as the `clientTools` dependency of the backend caller. The registry reads the vocabulary loaded at that moment, so a vocabulary edit (a new emotion, a new motion, a different voice engine, a changed motion selection) reaches the schema on the next turn.
 
 ## Declaration per transport
 
@@ -15,7 +17,7 @@ The tools the client exposes to the backend model.
 | Chat Completions | The client, in `tools[]` of every request | `delta.tool_calls` fragments |
 | Responses, `broker_base_url` unset | The client, in `tools[]` of every request | `function_call` output items |
 | Responses, `broker_base_url` set | The broker's backend. The client declares none (`src/io/chat/broker/broker-tool-owner.ts`) | `function_call` output items, played as cues and left unanswered |
-| Push | The backend adapter, from the `vocabulary` the client sends in `hello` and `vocabulary` frames | `cues` of `render` and `speech` segments ([push-transport.md](push-transport.md)) |
+| Push | The client, in `hello.tools` of the connection | `tool_call` frames ([push-transport.md](push-transport.md)). `generate_express` is not declared there: its cues arrive in `render` and `speech` segments |
 
 `broker_base_url` is deprecated and removed in v0.6.0. The client-declared tool replaces it.
 
@@ -117,12 +119,12 @@ Tool traffic lives in the in-flight request. The next Chat Completions turn is r
 
 Cue delivery over a request transport needs an endpoint that serves the declared tool back as a call. A plain OpenAI-compatible server (e.g. vLLM) does: on Chat Completions as `delta.tool_calls` fragments, on Responses as `function_call` output items.
 
-The Hermes api-server does not pass a request's `tools` to its model on either transport. Its `/v1/chat/completions` surfaces no tool calls and emits a `hermes.tool.progress` telemetry event with name and status. A Hermes backend gets expression through the push transport, or through the Expression Broker on Responses until v0.6.0, where its own MCP tool arrives as `mcp_<server>_generate_express`.
+On Chat Completions and Responses every declared schema rides every request, and the model reads it on every turn. The Hermes api-server does not pass a request's `tools` to its model on either transport, so its backend receives `body_action` and `look` on the push transport only. Its `/v1/chat/completions` surfaces no tool calls and emits a `hermes.tool.progress` telemetry event with name and status. A Hermes backend gets expression through the push transport, or through the Expression Broker on Responses until v0.6.0, where its own MCP tool arrives as `mcp_<server>_generate_express`.
 
 ## Adding a tool
 
-① Export a `create<Name>Tool` factory from `src/io/chat/stream/client-tools.ts` that returns a `ClientTool`. Set `oneWay: true` only on a tool whose result tells the model nothing.
+① Export a `create<Name>Tool` factory from `src/io/chat/tools/` — `client-tools.ts` holds the registry and the `ClientTool` type, one file per tool otherwise — that returns a `ClientTool`. Set `oneWay: true` only on a tool whose result tells the model nothing, and `push: true` on a tool the client declares on the push transport.
 
-② Add the tool to the list `createClientTools` returns in the same file. `src/app/turn/wire-dispatcher.ts` declares that list on every turn.
+② Add the tool to the list `createClientTools` returns in `src/io/chat/tools/client-tools.ts`. `src/app/turn/wire-dispatcher.ts` declares that list on every turn, and the push socket declares the `push` tools in `hello.tools`.
 
-③ Add its row to the catalog table at the top of this page. `src/io/chat/stream/client-tools.test.ts` fails while a tool in that list has no row.
+③ Add its row to the catalog table at the top of this page. `src/io/chat/tools/client-tools.test.ts` fails while a tool in that list has no row.

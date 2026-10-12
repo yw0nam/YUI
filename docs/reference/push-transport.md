@@ -12,7 +12,7 @@ The client renders what arrives and judges nothing. Everything the backend must 
 |---|---|---|---|
 | Screenshot of the turn | `screenshot:` line and an `image_url` part | `screenshot:` line and an `input_image` part | `screenshot:` line, plus the pixels in `turn.images` when the backend states `max_turn_bytes` |
 | Images the user attaches | `image_url` parts | `input_image` parts | In `turn.images`, after the screenshot, when the backend states `max_turn_bytes`; otherwise None |
-| Client-declared tools and their results ([client-tools.md](client-tools.md)) | `tools[]` on every request | `tools[]` on every request while `broker_base_url` is unset | None. Cues arrive in `render` and `speech` segments |
+| Client-declared tools and their results ([client-tools.md](client-tools.md)) | `tools[]` on every request | `tools[]` on every request while `broker_base_url` is unset | `tool_call` for a tool the client declared in `hello.tools`, answered with `tool_result`. Cues arrive in `render` and `speech` segments |
 | Server error text on a failed user turn | Status and server text of an HTTP error on the request, 401 and 403 excepted. Status and server text of an error raised while reading the stream when it carries a status; generic text otherwise | Status and server text of an HTTP error, 401 and 403 excepted. Status and server text of an error raised while reading the stream when it carries a status; generic text otherwise. Generic text for an `error`, `response.failed` or `response.incomplete` event | Generic text |
 | Token usage readout | Usage chunk of each request | `usage` of `response.completed` | None |
 | Model, `reasoning_effort` and instructions sent with the turn | All three | All three | None |
@@ -41,6 +41,9 @@ The client renders what arrives and judges nothing. Everything the backend must 
 | `done` item kept in the chip after `ended_at` | 30 min |
 | Delegation history kept by the client | 200 items |
 | `done` state held in the status pill's tool segment before it clears | 1.5 s |
+| `tool_call` wait, body action | 15 s on the client, 20 s on the backend adapter |
+| `tool_call` wait, query | 2 s on the client, 7 s on the backend adapter |
+| `tool_result.result` | The text frame size |
 
 The backend cuts `title` and `summary` to their limits, counting Unicode code points.
 
@@ -64,7 +67,24 @@ The client reconnects with the delay schedule in the limits table on every close
     "motion_ids": ["idle", "happy"],
     "emotion_text_mode": "enum",
     "emotion_text_map": { "😆": "joyfully", "👂": "whisper" }
-  }
+  },
+  "tools": [
+    {
+      "type": "function",
+      "function": {
+        "name": "look",
+        "description": "Read the character's body state, or the windows she can sit on",
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "at": { "type": "string", "enum": ["body", "perch_targets"] }
+          },
+          "required": ["at"],
+          "additionalProperties": false
+        }
+      }
+    }
+  ]
 }
 ```
 
@@ -73,6 +93,7 @@ The client reconnects with the delay schedule in the limits table on every close
 | `key` | The chat API key. It travels in this frame because the browser WebSocket API carries only the URL |
 | `chat_id` | The conversation the backend keeps state under. Generated once per installation, stored in settings, reused on every connection |
 | `vocabulary` | What the client renders right now. `emotion_text_mode` is `"free"` or `"enum"`; `emotion_text_map` is the tag table used in `enum` mode |
+| `tools` | The function schemas the client declares on this connection, in the OpenAI function-tool shape. Absent when the client declares none. Fixed for the connection |
 
 ### `ready` (backend → client)
 
@@ -216,10 +237,59 @@ Sent once per turn after its last `render`; a turn with no `render` sends it alo
 
 | Field | Value |
 |---|---|
-| `state` | `"running"` when the tool call starts, `"done"` when it returns |
+| `state` | `"running"` when the tool call starts, `"done"` when it returns, `"failed"` when it failed |
 | `tool_id` | The tool name as the backend knows it |
 
-Sent while the turn runs, once per state change of a tool call. It counts as a frame of the turn for the frame wait and leaves the running state, the thinking motion and speech as they are. A turn may carry none. A `tool_status` for a turn the client did not send shows the status pill's tool segment and speaks no tool phrase. A running tool that gets no `done` is cleared by the turn's `turn_end`, and by the socket leaving `ready`.
+Sent while the turn runs, once per state change of a tool call. A failed call carries `"failed"` in place of `"done"`. It counts as a frame of the turn for the frame wait and leaves the running state, the thinking motion and speech as they are. A turn may carry none. A `tool_status` for a turn the client did not send shows the status pill's tool segment and speaks no tool phrase. A running tool that gets no `done` is cleared by the turn's `turn_end`, and by the socket leaving `ready`.
+
+### `tool_call` (backend → client) and `tool_result` (client → backend)
+
+A call against a tool the client declared in `hello.tools`.
+
+```json
+{
+  "type": "tool_call",
+  "id": "c-1a2b3c",
+  "turn_id": "1789365854947",
+  "name": "body_action",
+  "arguments": { "action": "sit_on_window", "app": "Notes" }
+}
+```
+
+| Field | Value |
+|---|---|
+| `id` | The call id, minted by the backend; the `tool_result` echoes it |
+| `turn_id` | The turn the call belongs to: a client turn id, or one the backend minted |
+| `name` | The tool name, one of the functions the client declared in `hello.tools` |
+| `arguments` | The call's arguments, a JSON object shaped by the tool's schema |
+
+```json
+{ "type": "tool_result", "id": "c-1a2b3c", "turn_id": "1789365854947", "result": "ok" }
+```
+
+| Field | Value |
+|---|---|
+| `id` | The `tool_call` id this result answers |
+| `turn_id` | The `tool_call`'s `turn_id` |
+| `result` | The tool's answer, a string |
+
+The client's rules:
+
+1. Calls of one chat run one at a time, in arrival order; the client's wait starts when the call starts running.
+2. A `tool_call` whose `name` is not in the declared set, whose `arguments` lack a field the action needs, or whose `turn_id` names a turn the client has stopped is answered at once with `error: <reason>` — `error: unknown tool`, `error: missing field <name>`, or `error: turn stopped`.
+3. A `tool_call` whose `id` repeats one queued or running is dropped with a log line and not answered; an answer would resolve the original call's waiter.
+4. A result the client cannot send (the socket is not ready) is logged and dropped.
+5. The status pill takes its tool state from the backend's `tool_status` frames; the client emits no `tool_status` of its own for these calls.
+
+The backend adapter's rules:
+
+1. The handler of a declared tool sends `tool_call` and blocks on `tool_result` for the wait in the limits table, counted from the send.
+2. The adapter sends one call at a time per chat: a handler whose chat has a call in flight waits for its turn, so the client never holds a queue in practice.
+3. On `stop` naming the turn, on socket close and on socket replacement, every waiting and in-flight call of that chat or turn is answered `error: client disconnected` (or `error: turn stopped`) at once and never sent later.
+4. A `tool_result` whose `id` is absent from the pending table is ignored.
+5. A wait that passes answers `error: no reply from the client within <n> s`.
+
+A client that declares `tools` against a backend that predates them hears nothing: the backend never sends `tool_call`. A backend that speaks `tool_call` against a client that sent no `tools` registers nothing.
 
 ### `reasoning` (backend → client)
 
