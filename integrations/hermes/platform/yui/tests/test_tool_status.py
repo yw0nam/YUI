@@ -39,6 +39,38 @@ def test_a_post_tool_call_hands_done_to_the_sink():
     assert taken == [(CHAT, "done", "read_file")]
 
 
+def test_an_errored_call_hands_failed_to_the_sink():
+    taken = collect()
+    tool_status.on_post_tool_call(
+        tool_name="read_file", task_id="", session_id="", status="error", result="boom"
+    )
+    assert taken == [(CHAT, "failed", "read_file")]
+
+
+def test_a_body_action_that_did_not_answer_ok_hands_failed_to_the_sink():
+    taken = collect()
+    tool_status.on_post_tool_call(
+        tool_name="body_action", task_id="", session_id="", status="ok", result="busy"
+    )
+    assert taken == [(CHAT, "failed", "body_action")]
+    tool_status.on_post_tool_call(
+        tool_name="body_action", task_id="", session_id="", status="ok", result="ok"
+    )
+    assert taken == [(CHAT, "failed", "body_action"), (CHAT, "done", "body_action")]
+
+
+def test_a_look_result_starting_with_error_hands_failed_to_the_sink():
+    taken = collect()
+    tool_status.on_post_tool_call(
+        tool_name="look", task_id="", session_id="", status="ok", result="error: client disconnected"
+    )
+    assert taken == [(CHAT, "failed", "look")]
+    tool_status.on_post_tool_call(
+        tool_name="look", task_id="", session_id="", status="ok", result="{}"
+    )
+    assert taken == [(CHAT, "failed", "look"), (CHAT, "done", "look")]
+
+
 def test_generate_express_hands_nothing():
     taken = collect()
     tool_status.on_pre_tool_call(tool_name="generate_express", task_id="", session_id="")
