@@ -886,6 +886,37 @@ describe("streamChat — Chat Completions error handling", () => {
     ]);
   });
 
+  it("an error thrown while reading the stream -> error event carries the server text, no completed", async () => {
+    ccCreateMock.mockResolvedValueOnce(
+      (async function* () {
+        yield textChunk("Hello");
+        throw Object.assign(new Error("502 stream disconnected"), { status: 502 });
+      })(),
+    );
+
+    const events = await collect(streamChat(CONFIG, req()));
+
+    expect(events).toEqual([
+      { type: "speech_delta", text: "Hello" },
+      { type: "error", message: "stream disconnected", status: 502 },
+    ]);
+  });
+
+  it("an abort landing before the mid-stream throw ends the turn without an error event", async () => {
+    const ac = new AbortController();
+    ccCreateMock.mockResolvedValueOnce(
+      (async function* () {
+        yield textChunk("Hello");
+        ac.abort();
+        throw Object.assign(new Error("502 stream disconnected"), { status: 502 });
+      })(),
+    );
+
+    const events = await collect(streamChat(CONFIG, req({ signal: ac.signal })));
+
+    expect(events.some((e) => e.type === "error")).toBe(false);
+  });
+
   it("already-aborted signal -> generator terminates cleanly without calling create()", async () => {
     const ac = new AbortController();
     ac.abort();

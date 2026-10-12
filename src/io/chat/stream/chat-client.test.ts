@@ -739,12 +739,15 @@ describe("streamChat — mid-stream thrown error (SDK stream drop)", () => {
     });
   });
 
-  it("plain Error with no status field thrown mid-iteration → generator terminates silently (no error event)", async () => {
+  it("plain Error with no status field thrown mid-iteration → error event carries the server text", async () => {
     createMock.mockResolvedValue(streamThatThrows([textDelta("hi")], new Error("ECONNRESET")));
 
     const events = await collect(streamChat(CONFIG, req()));
 
-    expect(events.some((e) => e.type === "error")).toBe(false);
+    expect(events).toEqual([
+      { type: "speech_delta", text: "hi" },
+      { type: "error", message: "ECONNRESET" },
+    ]);
   });
 
   it("signal aborted just before the mid-stream throw → terminates silently regardless of status", async () => {
