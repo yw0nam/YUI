@@ -10,5 +10,8 @@ export type TurnOutcome =
   | "http_4xx_drop"
   | "superseded_by_user";
 
+/** The server's own failure text for a failed turn, with the HTTP status when the failure had one. */
+export type TurnErrorDetail = { status?: number; message: string };
+
 /** Every outcome except success — what a drop record and the UI error surface deal in. */
 export type TurnFailure = Exclude<TurnOutcome, "ok">;

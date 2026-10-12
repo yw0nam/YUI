@@ -90,6 +90,7 @@ function runPush(): Run {
         return () => {};
       },
       onToolCall: () => () => {},
+      onError: () => () => {},
       sendToolResult: () => false,
       onDelegations: () => () => {},
       onReasoning(cb) {

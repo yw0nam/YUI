@@ -94,6 +94,12 @@ def mark_closing(chat_id: str) -> None:
         _closing.add(chat_id)
 
 
+def is_closing(chat_id: str) -> bool:
+    """Whether this chat's open turns are waiting on a failure line."""
+    with _lock:
+        return chat_id in _closing
+
+
 def take_closing(chat_id: str) -> bool:
     """Whether this chat's open turns are waiting on a failure line; clears the mark."""
     with _lock:

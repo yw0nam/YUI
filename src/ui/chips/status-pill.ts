@@ -44,6 +44,7 @@ const TOOL_DONE_HOLD_MS = 1500;
 
 function voiceLabelOf(snapshot: VoiceInputStatusSnapshot, fixable: boolean): string {
   if (fixable) return t("voice.error.not_configured");
+  if (snapshot.state === "error" && snapshot.message) return snapshot.message;
   if (snapshot.state === "error" && isMicErrorCode(snapshot.detail)) {
     return t(`voice.error.${snapshot.detail}`);
   }

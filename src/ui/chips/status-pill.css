@@ -109,6 +109,13 @@
   background: var(--yui-edge-strong);
 }
 
+/* A long server message stays on one line and ends in an ellipsis. */
+.yui-status__label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 .yui-status__dot {
   flex: none;
   width: 0.45rem;

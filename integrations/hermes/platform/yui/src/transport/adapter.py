@@ -98,6 +98,13 @@ def _chat_of(event: MessageEvent) -> str:
     return str(getattr(getattr(event, "source", None), "chat_id", "") or "")
 
 
+def _failure_line(content: str, meta: dict) -> str:
+    """The gateway's failure text as one line; empty for a send that is a notice or an interim."""
+    if meta.get(NOTICE_MARKER) or any(meta.get(marker) for marker in INTERIM_MARKERS):
+        return ""
+    return " ".join(content.split())
+
+
 def _strip_windows_local_files(text: str) -> str:
     """Remove existing Windows paths when the gateway's Unix-only cleaner misses them."""
 
@@ -691,8 +698,14 @@ class YuiAdapter(BasePlatformAdapter):
         reply_to: str | None = None,
         metadata: dict | None = None,
     ) -> SendResult:
-        """Render a reply, then end the failed turns that were waiting for it."""
-        result = await self._deliver(chat_id, content, metadata or {})
+        """Render a reply, then end the failed turns that were waiting for it; their failure line is
+        reported to the client as an `error` frame and not rendered."""
+        meta = metadata or {}
+        message = _failure_line(content, meta) if state.is_closing(chat_id) else ""
+        if message:
+            await self._close_failed(chat_id, message)
+            return SendResult(success=True, message_id=_message_id())
+        result = await self._deliver(chat_id, content, meta)
         await self._close_failed(chat_id)
         return result
 
@@ -822,14 +835,19 @@ class YuiAdapter(BasePlatformAdapter):
     async def get_chat_info(self, chat_id: str) -> dict:
         return {"name": "YUI", "type": "dm", "chat_id": chat_id}
 
-    async def _close_failed(self, chat_id: str) -> None:
-        """A failed turn ends behind the failure line the gateway writes after it."""
+    async def _close_failed(self, chat_id: str, message: str = "") -> None:
+        """A failed turn ends behind the failure line the gateway writes after it; the client gets
+        that line as the turn's `error` frame and nothing renders it."""
         if not state.take_closing(chat_id):
             return
         stream = self._speaker.stream(chat_id)
         async with stream.lock:
             stream.close()
             for turn_id in state.close_turns(chat_id):
+                if message:
+                    await self._send_render(
+                        chat_id, {"type": "error", "turn_id": turn_id, "message": message}
+                    )
                 await self._send_render(chat_id, {"type": "turn_end", "turn_id": turn_id})
 
     async def on_processing_start(self, event: MessageEvent) -> None:

@@ -87,7 +87,7 @@ export function wireDispatcher(deps: {
   /** The avatar tools of a window that has an executor; a window without one passes none. */
   avatarTools?: readonly ClientTool[];
   openQuickControls?: (tab: QuickControlsTab) => void;
-  showVoiceError: (reason: string) => void;
+  showVoiceError: (reason: string, message?: string) => void;
   appendTurnRecord: (record: TurnRecord | PacerSkipRecord) => void;
   t: (key: string, vars?: Record<string, string | number>) => string;
   register: (teardown: () => void) => void;
@@ -232,7 +232,7 @@ export function wireDispatcher(deps: {
       if (action.kind === "show_input_error") {
         surfaces.showInputError(message, turnErrorFixAction(reason, openQuickControls));
       } else if (action.kind === "voice_error") {
-        showVoiceError(reason);
+        showVoiceError(reason, detail ? message : undefined);
       }
     },
   });

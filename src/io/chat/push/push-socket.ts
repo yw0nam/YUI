@@ -11,6 +11,7 @@ import type { ClientToolDefinition } from "../tools/client-tools";
 import type { ExpressVocabulary } from "../vocabulary/express-vocabulary";
 import {
   type DelegationItem,
+  type ErrorFrame,
   type PushTurnFrame,
   type ReadyFrame,
   type ReasoningFrame,
@@ -90,6 +91,7 @@ export interface PushSocket {
   onSpeech(cb: (frame: SpeechFrame) => void): () => void;
   onTurnEnd(cb: (frame: TurnEndFrame) => void): () => void;
   onToolStatus(cb: (frame: ToolStatusFrame) => void): () => void;
+  onError(cb: (frame: ErrorFrame) => void): () => void;
   onToolCall(cb: (frame: ToolCallFrame) => void): () => void;
   onDelegations(cb: (items: DelegationItem[]) => void): () => void;
   onReasoning(cb: (frame: ReasoningFrame) => void): () => void;
@@ -125,6 +127,7 @@ export function createPushSocket(deps: PushSocketDeps): PushSocket {
   const speechSubs = new Set<(frame: SpeechFrame) => void>();
   const turnEndSubs = new Set<(frame: TurnEndFrame) => void>();
   const toolStatusSubs = new Set<(frame: ToolStatusFrame) => void>();
+  const errorSubs = new Set<(frame: ErrorFrame) => void>();
   const toolCallSubs = new Set<(frame: ToolCallFrame) => void>();
   const delegationSubs = new Set<(items: DelegationItem[]) => void>();
   const reasoningSubs = new Set<(frame: ReasoningFrame) => void>();
@@ -258,6 +261,20 @@ export function createPushSocket(deps: PushSocketDeps): PushSocket {
         }
         const turnEnd = frame as unknown as TurnEndFrame;
         dispatch(turnEndSubs, turnEnd);
+        return;
+      }
+      case "error": {
+        const field =
+          typeof frame.turn_id !== "string"
+            ? "turn_id"
+            : typeof frame.message !== "string"
+              ? "message"
+              : null;
+        if (field !== null) {
+          log.warn("frame_malformed", { type: "error", field });
+          return;
+        }
+        dispatch(errorSubs, frame as unknown as ErrorFrame);
         return;
       }
       case "tool_status": {
@@ -532,6 +549,7 @@ export function createPushSocket(deps: PushSocketDeps): PushSocket {
     onSpeech: (cb) => subscribe(speechSubs, cb),
     onTurnEnd: (cb) => subscribe(turnEndSubs, cb),
     onToolStatus: (cb) => subscribe(toolStatusSubs, cb),
+    onError: (cb) => subscribe(errorSubs, cb),
     onToolCall: (cb) => subscribe(toolCallSubs, cb),
     onDelegations: (cb) => subscribe(delegationSubs, cb),
     onReasoning: (cb) => subscribe(reasoningSubs, cb),
