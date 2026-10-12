@@ -213,3 +213,25 @@ async def test_a_result_for_an_unknown_call_is_ignored(monkeypatch):
 
     await made._on_frame(CHAT, {"type": "tool_result", "id": "c1", "result": "{}"})
     assert future.result(timeout=1) == "{}"
+
+
+async def test_a_tool_call_write_that_times_out_never_goes_out_later(monkeypatch):
+    made = YuiAdapter(FakeConfig(key="k"))
+    made._loop = asyncio.get_running_loop()
+    gate = asyncio.Event()
+    wrote: list[dict] = []
+
+    async def slow_send(chat_id: str, frame: dict) -> bool:
+        await gate.wait()
+        wrote.append(frame)
+        return True
+
+    monkeypatch.setattr(made, "_send_frame", slow_send)
+    monkeypatch.setattr("yui.src.transport.adapter.TOOL_SEND_WAIT_S", 0.1)
+
+    sent = await asyncio.to_thread(made.send_tool_call, CHAT, {"type": "tool_call"})
+    gate.set()
+    await asyncio.sleep(0.05)
+
+    assert sent is False
+    assert wrote == []
