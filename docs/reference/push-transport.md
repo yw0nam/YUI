@@ -98,7 +98,7 @@ The client reconnects with the delay schedule in the limits table on every close
 | `vocabulary` | What the client renders right now. `emotion_text_mode` is `"free"` or `"enum"`; `emotion_text_map` is the tag table used in `enum` mode |
 | `tools` | The function schemas the client declares on this connection, in the OpenAI function-tool shape. Absent when the client declares none. Fixed for the connection |
 
-A client that sends `accepts` to a backend that predates the field ignores nothing it needs: the backend never sends a frame outside the base set, and renders its failure line as it always did. A client that sends no `accepts` to a backend that has the field gets that rendered failure line and no `error` frame.
+A backend that predates `accepts` ignores the field, sends no `error` frame and renders its failure line. A client that predates it sends no `accepts` and gets that rendered failure line.
 
 ### `ready` (backend → client)
 
