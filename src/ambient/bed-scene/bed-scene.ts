@@ -295,6 +295,7 @@ export function createBedScene(deps: BedSceneDeps): BedScene {
     state = "waking";
     if (lyingDown) {
       // Not asleep yet: the bed fades with no wake clip and no wake signal.
+      liveliness.setAsleep(false);
       fadeS = 0;
       return;
     }

@@ -63,7 +63,7 @@ export function wireBedScene(deps: {
     wake(cause) {
       scene?.wake(cause);
       // The scene has not started while she is still being put on the floor.
-      if (cause === "click") bed.interrupt();
+      bed.interrupt();
     },
     takeMessageWake: () => scene?.takeMessageWake() ?? false,
     onDragEnd: () => scene?.onDragEnd(),
