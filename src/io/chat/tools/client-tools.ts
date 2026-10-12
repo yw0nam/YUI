@@ -25,11 +25,17 @@ export interface ClientToolDefinition {
   };
 }
 
+export type ClientToolResult = string | { text: string; images: string[] };
+
+export function toolResultText(result: ClientToolResult): string {
+  return typeof result === "string" ? result : result.text;
+}
+
 export interface ClientTool {
   name: string;
   definition: ClientToolDefinition;
-  /** Runs the call; resolves the result string returned to the model. */
-  execute(args: Record<string, unknown>): Promise<string>;
+  /** Runs the call and resolves the text or image result returned to the model. */
+  execute(args: Record<string, unknown>): Promise<ClientToolResult>;
   /** The wait the call's execution is bounded by; the execution keeps running past it. */
   waitMs: number;
   /**

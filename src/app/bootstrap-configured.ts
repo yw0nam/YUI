@@ -120,7 +120,12 @@ const realFactories: ConfiguredBootstrapFactories = {
     // null until wireLocomotion has run.
     let locomotion: ReturnType<typeof wireLocomotion> | null = null;
     const avatarTools = isTauri()
-      ? createAvatarTools(() => locomotion?.getAvatarExecutor() ?? null)
+      ? createAvatarTools(() => locomotion?.getAvatarExecutor() ?? null, {
+          allowRequests: () => settings.screenshotSettings.get().allowRequests,
+          getWindow: () => locomotion?.frame.frameWindow() ?? null,
+          listMonitors: () => locomotion?.frame.listMonitors() ?? Promise.resolve([]),
+          capturer: phase1.screenCapturer,
+        })
       : [];
     const core = await wireTurnCore(cfg, phase1, {
       getFrontmost: () => frontmostTracker.get(),

@@ -44,7 +44,7 @@ function coerceOutputs(v: unknown): ToolOutputItem[] {
     (o): o is ToolOutputItem =>
       o?.type === "function_call_output" &&
       typeof o.call_id === "string" &&
-      typeof o.output === "string",
+      (typeof o.output === "string" || Array.isArray(o.output)),
   );
 }
 

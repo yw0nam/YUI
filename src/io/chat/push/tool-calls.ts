@@ -8,9 +8,14 @@
  */
 
 import type { Logger } from "../../../logger";
-import type { ClientTool, ClientToolRegistry } from "../tools/client-tools";
+import {
+  type ClientTool,
+  type ClientToolRegistry,
+  type ClientToolResult,
+  toolResultText,
+} from "../tools/client-tools";
 import type { ToolCallFrame, ToolResultFrame } from "./push-frames";
-import { byteLength, PUSH_FRAME_MAX_BYTES } from "./push-socket";
+import { imageToolResult, textToolResult } from "./tool-results/encode";
 
 export interface PushToolCalls {
   /** Takes one frame from the socket; answers it at once, queues it, or drops it. */
@@ -25,7 +30,8 @@ export interface PushToolCallsDeps {
   /** The result sink; false when the frame could not go out. */
   send(frame: ToolResultFrame): boolean;
   /** The bounded execute shared with the request transports. */
-  execute(tool: ClientTool, args: Record<string, unknown>): Promise<string>;
+  execute(tool: ClientTool, args: Record<string, unknown>): Promise<ClientToolResult>;
+  getMaxTurnBytes?(): number | undefined;
   log: Logger;
 }
 
@@ -34,18 +40,21 @@ export function createPushToolCalls(deps: PushToolCallsDeps): PushToolCalls {
   const held = new Set<string>();
   let tail: Promise<void> = Promise.resolve();
 
-  function answer(frame: ToolCallFrame, result: string): void {
-    let reply: ToolResultFrame = {
-      type: "tool_result",
-      id: frame.id,
-      turn_id: frame.turn_id,
-      result,
-    };
-    // The socket refuses a frame past the cap, which would leave the backend's wait unanswered.
-    if (byteLength(JSON.stringify(reply)) > PUSH_FRAME_MAX_BYTES)
-      reply = { ...reply, result: "error: result too large" };
+  function send(frame: ToolCallFrame, reply: ToolResultFrame): void {
     if (deps.send(reply)) return;
     deps.log.warn("tool_result_send_failed", { id: frame.id, name: frame.name });
+  }
+
+  function answer(frame: ToolCallFrame, result: string): void {
+    send(frame, textToolResult(frame, result));
+  }
+
+  async function answerResult(frame: ToolCallFrame, result: ClientToolResult): Promise<void> {
+    if (typeof result === "string" || result.images.length === 0) {
+      answer(frame, toolResultText(result));
+      return;
+    }
+    send(frame, await imageToolResult(frame, result, deps.getMaxTurnBytes?.()));
   }
 
   async function run(frame: ToolCallFrame, tool: ClientTool): Promise<void> {
@@ -55,7 +64,7 @@ export function createPushToolCalls(deps: PushToolCallsDeps): PushToolCalls {
         answer(frame, "error: turn stopped");
         return;
       }
-      answer(frame, await deps.execute(tool, frame.arguments));
+      await answerResult(frame, await deps.execute(tool, frame.arguments));
     } finally {
       held.delete(frame.id);
     }

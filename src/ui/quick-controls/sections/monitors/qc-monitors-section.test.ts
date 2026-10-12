@@ -36,8 +36,9 @@ describe("createMonitorsSection", () => {
   function makeSettings(initialSource: ScreenSource): ScreenshotSettingsStore {
     let source = initialSource;
     return {
-      get: () => ({ enabled: true, source }),
+      get: () => ({ enabled: true, allowRequests: false, source }),
       setEnabled: vi.fn(),
+      setAllowRequests: vi.fn(),
       setSource: vi.fn((next: ScreenSource) => {
         source = next;
       }),
@@ -146,8 +147,13 @@ describe("createQuickControls — monitor picker error/empty state", () => {
   // Screenshot attach enabled so open() kicks off loadMonitors immediately.
   function makeEnabledSettings() {
     return {
-      get: () => ({ enabled: true, source: { kind: "monitor" as const, index: 0 } }),
+      get: () => ({
+        enabled: true,
+        allowRequests: false,
+        source: { kind: "monitor" as const, index: 0 },
+      }),
       setEnabled: vi.fn(),
+      setAllowRequests: vi.fn(),
       setSource: vi.fn(),
       reloadFromStorage: vi.fn(),
       subscribe: vi.fn(() => () => {}),

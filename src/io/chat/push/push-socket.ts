@@ -84,6 +84,7 @@ export interface PushSocket {
   sendStop(turnIds: string[]): boolean;
   /** True when the frame went out; false when the socket is not ready or the frame is too large. */
   sendToolResult(frame: ToolResultFrame): boolean;
+  getMaxTurnBytes(): number | undefined;
   /** Sends the current vocabulary when it differs from the one the backend last received. */
   sendVocabulary(): void;
   onRender(cb: (frame: RenderFrame) => void): () => void;
@@ -523,8 +524,13 @@ export function createPushSocket(deps: PushSocketDeps): PushSocket {
 
     sendToolResult(frame): boolean {
       if (!ready) return false;
-      return sendFrame(frame as unknown as Record<string, unknown>);
+      return sendFrame(
+        frame as unknown as Record<string, unknown>,
+        frame.images?.length ? maxTurnBytes : undefined,
+      );
     },
+
+    getMaxTurnBytes: () => maxTurnBytes,
 
     sendVocabulary: syncVocabulary,
 

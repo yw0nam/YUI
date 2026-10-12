@@ -7,6 +7,7 @@ import { invoke as tauriInvoke } from "@tauri-apps/api/core";
 import type { ScreenSource } from "../../../contract";
 import { createLogger } from "../../../logger";
 import { isTauri } from "../../../tauri-env";
+import type { ScreenPoint } from "./screen-point";
 import {
   createBrowserScreenSourceProvider,
   type MonitorInfo,
@@ -62,6 +63,15 @@ export function createTauriScreenCapturer(
   invoke: InvokeFn = tauriInvoke,
 ): ScreenCapturer {
   return {
+    async captureAt(point: ScreenPoint): Promise<ScreenCapture | null> {
+      try {
+        const dto = await invoke<CaptureDto>("capture_screen_at", { ...point, maxEdge });
+        return { data_url: dto.dataUrl };
+      } catch (err) {
+        log.error("screen_capture_failed", { error: String(err) });
+        return null;
+      }
+    },
     async capture(source: ScreenSource): Promise<ScreenCapture | null> {
       if (source.kind !== "monitor") return null;
       try {

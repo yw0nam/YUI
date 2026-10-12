@@ -330,6 +330,9 @@ const ko: Record<string, string> = {
   "screenshot.monitors_empty": "감지된 화면이 없어요.",
   "screenshot.foot_on": "켜져 있는 동안 매 대화에 이 화면이 첨부돼요.",
   "screenshot.foot_off": "기본은 꺼져 있어요. 켜면 화면을 함께 보내요.",
+  "screenshot.request_label": "화면 요청 허용",
+  "screenshot.request_foot_on": "켜져 있는 동안 유이가 원할 때 화면을 볼 수 있어요.",
+  "screenshot.request_foot_off": "기본은 꺼져 있어요. 켜면 유이가 요청할 때 화면을 보여줘요.",
 
   // voice input
   "voice_input.label": "음성 입력",

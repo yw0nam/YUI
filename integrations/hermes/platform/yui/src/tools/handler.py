@@ -9,6 +9,7 @@ from typing import Any
 
 from ..turns import session, state
 from . import pending
+from .image_result import ImageResult, model_result
 
 logger = logging.getLogger(__name__)
 
@@ -28,13 +29,13 @@ def set_sink(sink: Any) -> None:
 def handle(name: str):
     """The handler for one declared tool name; it blocks its caller's thread."""
 
-    def run(args: dict, **_kwargs: Any) -> str:
+    def run(args: dict, **_kwargs: Any) -> str | dict:
         return _call(name, args)
 
     return run
 
 
-def _call(name: str, args: object) -> str:
+def _call(name: str, args: object) -> str | dict:
     chat_id = session.current_chat_id()
     if not chat_id or not state.is_connected(chat_id):
         return pending.DISCONNECTED
@@ -44,7 +45,7 @@ def _call(name: str, args: object) -> str:
     future = pending.register(chat_id, call_id, turn_id)
     try:
         with pending.chat_lock(chat_id):
-            return _send_and_wait(chat_id, call_id, turn_id, name, args, future)
+            return model_result(_send_and_wait(chat_id, call_id, turn_id, name, args, future))
     finally:
         pending.discard(chat_id, call_id)
 
@@ -56,7 +57,7 @@ def _send_and_wait(
     name: str,
     args: object,
     future: concurrent.futures.Future,
-) -> str:
+) -> str | ImageResult:
     # A call that waited long on the lock may find its answer in, or its client gone.
     if future.done():
         return future.result()

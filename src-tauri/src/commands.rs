@@ -11,6 +11,8 @@ pub fn handler() -> impl Fn(Invoke) -> bool + Send + Sync + 'static {
         crate::screenshot::list_screen_sources,
         #[cfg(desktop)]
         crate::screenshot::capture_screen,
+        #[cfg(desktop)]
+        crate::screenshot::capture_screen_at,
         crate::vrm_import::import_vrm_file,
         crate::vrm_import::remove_user_vrm,
         crate::stage_image::import_stage_image,

@@ -1,6 +1,6 @@
 /** The one bounded execute the request transports' runClientCall and the push consumer both call. */
 
-import type { ClientTool } from "./client-tools";
+import type { ClientTool, ClientToolResult } from "./client-tools";
 
 /**
  * Runs the call bounded by the tool's own wait. A wait that passes resolves the tool's timeout
@@ -9,7 +9,7 @@ import type { ClientTool } from "./client-tools";
 export async function executeClientTool(
   tool: ClientTool,
   args: Record<string, unknown>,
-): Promise<string> {
+): Promise<ClientToolResult> {
   let timer: ReturnType<typeof setTimeout> | undefined;
   try {
     return await Promise.race([

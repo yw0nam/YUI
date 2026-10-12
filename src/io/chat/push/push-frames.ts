@@ -65,6 +65,7 @@ export interface ToolResultFrame {
   id: string;
   turn_id: string;
   result: string;
+  images?: string[];
 }
 
 /** The backend's reasoning as it is written, sent while the turn it names runs. */

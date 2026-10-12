@@ -131,12 +131,18 @@ describe("screenshot request permission", () => {
   it("defaults permission off and preserves a legacy enabled/source record", () => {
     const source = { kind: "monitor" as const, index: 1, label: "External" };
 
-    const store = createScreenshotSettings({ storage: fakeStorage({ enabled: true, source }) });
+    const store = createScreenshotSettings({
+      storage: fakeStorage({ enabled: true, source } as unknown as ScreenshotSettings),
+    });
     expect(store.get()).toEqual({ enabled: true, source, allowRequests: false });
   });
 
   it("persists and reloads request permission independently of automatic attachment", () => {
-    let saved: ScreenshotSettings = { enabled: false, source: DEFAULT_SOURCE };
+    let saved: ScreenshotSettings = {
+      enabled: false,
+      allowRequests: false,
+      source: DEFAULT_SOURCE,
+    };
     const storage = {
       load: () => saved,
       save: (value: ScreenshotSettings) => {

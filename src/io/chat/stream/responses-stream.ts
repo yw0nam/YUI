@@ -79,6 +79,7 @@ import {
   MAX_TOOL_ROUND_TRIPS,
   normalizeExpressIntoEnvelope,
 } from "./stream-helpers";
+import { responseToolOutput } from "./tool-results/responses";
 
 /**
  * Per-call dedup key — one function call shares the same function-call item id across
@@ -165,7 +166,11 @@ export async function* streamResponses(
     const call: ResponseInputItem = { type: "function_call", call_id, name, arguments: argsJson };
     replay.push(call);
     executed.push({
-      output: { type: "function_call_output", call_id, output: outcome.run.result },
+      output: {
+        type: "function_call_output",
+        call_id,
+        output: responseToolOutput(outcome.run.result),
+      },
       oneWay: outcome.run.oneWay,
     });
   }

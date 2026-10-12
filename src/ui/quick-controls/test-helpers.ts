@@ -86,8 +86,13 @@ export function inMemoryApiKeyStorage(): import("../../settings/backend/api-key-
 
 export function makeSettings() {
   return {
-    get: () => ({ enabled: false, source: { kind: "monitor" as const, index: 0 } }),
+    get: () => ({
+      enabled: false,
+      allowRequests: false,
+      source: { kind: "monitor" as const, index: 0 },
+    }),
     setEnabled: vi.fn(),
+    setAllowRequests: vi.fn(),
     setSource: vi.fn(),
     reloadFromStorage: vi.fn(),
     subscribe: vi.fn(() => () => {}),

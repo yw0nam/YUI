@@ -12,6 +12,7 @@
 
 import OpenAI from "openai";
 
+import type { ResponseInputItem } from "openai/resources/responses/responses";
 import type {
   ControlEnvelope,
   EndpointsConfig,
@@ -26,11 +27,7 @@ import { streamChatCompletions } from "./chat-completions-stream";
 import { streamResponses } from "./responses-stream";
 
 /** The result of a function call the model never saw answered — the next turn sends it with the response id. */
-export interface ToolOutputItem {
-  type: "function_call_output";
-  call_id: string;
-  output: string;
-}
+export type ToolOutputItem = ResponseInputItem.FunctionCallOutput;
 
 /** Incremental events streamed to client during parsing. */
 export type ChatStreamEvent =

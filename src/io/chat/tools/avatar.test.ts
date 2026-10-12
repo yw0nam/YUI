@@ -130,14 +130,14 @@ describe("look — schema and execute", () => {
     const exec = executor();
     const tool = createLookTool(() => exec);
     const result = await tool.execute({ at: "body" });
-    expect(JSON.parse(result)).toEqual(await exec.state());
+    expect(JSON.parse(result as string)).toEqual(await exec.state());
   });
 
   it("at: perch_targets answers the perch candidates as a JSON string", async () => {
     const exec = executor();
     const tool = createLookTool(() => exec);
     const result = await tool.execute({ at: "perch_targets" });
-    expect(JSON.parse(result)).toEqual(await exec.perchTargets());
+    expect(JSON.parse(result as string)).toEqual(await exec.perchTargets());
   });
 
   it("answers error: missing field at when at is absent", async () => {
@@ -246,7 +246,7 @@ describe("look — screen requests", () => {
     const { tool, capture } = screenTool(false);
     const result = await tool.execute({ at, monitor: "invalid" });
     expect(typeof result).toBe("string");
-    expect(JSON.parse(result)).toBeTruthy();
+    expect(JSON.parse(result as string)).toBeTruthy();
     expect(capture).not.toHaveBeenCalled();
   });
 });

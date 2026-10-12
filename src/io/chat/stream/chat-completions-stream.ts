@@ -6,7 +6,7 @@ import type {
 } from "openai/resources/chat/completions";
 
 import type { ControlEnvelope, EndpointsConfig, ExpressArgs } from "../../../contract";
-import type { ClientToolRegistry } from "../tools/client-tools";
+import type { ClientToolRegistry, ClientToolResult } from "../tools/client-tools";
 import type { ChatRequest, ChatStreamEvent } from "./chat-client";
 import { type CCMessage, type CCToolCall, createChunkReducer } from "./chat-completions";
 import { ownsCall, runClientCall, shouldAnswer } from "./client-tool-run";
@@ -16,6 +16,7 @@ import {
   MAX_TOOL_ROUND_TRIPS,
   normalizeExpressIntoEnvelope,
 } from "./stream-helpers";
+import { completionToolResults } from "./tool-results/chat-completions";
 
 /** SDK requires model, but model-less mock/backend omit the field itself — locally relax optional. */
 type CCCreateParams = Omit<ChatCompletionCreateParamsStreaming, "model"> & {
@@ -57,7 +58,7 @@ export async function* streamChatCompletions(
   let messages: CCMessage[] = request.messages ?? [];
   const toolDefs = tools?.definitions() ?? [];
   // Calls executed in the response being read — the next request's round-trip payload.
-  let executed: Array<{ call: CCToolCall; result: string; oneWay: boolean }> = [];
+  let executed: Array<{ call: CCToolCall; result: ClientToolResult; oneWay: boolean }> = [];
   // Monotonic across the turn: a synthesized id must stay unique in the whole message array.
   let seq = 0;
 
@@ -189,9 +190,7 @@ export async function* streamChatCompletions(
         content: roundText === "" ? null : roundText,
         tool_calls: executed.map((e) => e.call),
       },
-      ...executed.map(
-        (e): CCMessage => ({ role: "tool", tool_call_id: e.call.id, content: e.result }),
-      ),
+      ...completionToolResults(executed),
     ];
   }
 

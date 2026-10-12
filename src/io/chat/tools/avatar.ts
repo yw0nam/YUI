@@ -9,6 +9,7 @@
 
 import type { AvatarExecutor } from "../../bridge/inbox/avatar-executor";
 import type { ClientTool } from "./client-tools";
+import { queryScreen, type ScreenQueryPorts } from "./screen/screen-query";
 
 /** The moves the executor parses, in the words the model reads. */
 const BODY_ACTION_DESCRIPTION =
@@ -75,7 +76,10 @@ function createBodyActionTool(getExecutor: () => AvatarExecutor | null): ClientT
   };
 }
 
-function createLookTool(getExecutor: () => AvatarExecutor | null): ClientTool {
+function createLookTool(
+  getExecutor: () => AvatarExecutor | null,
+  screen?: ScreenQueryPorts,
+): ClientTool {
   return {
     name: "look",
     definition: {
@@ -86,14 +90,20 @@ function createLookTool(getExecutor: () => AvatarExecutor | null): ClientTool {
           "Read the character's state. at: body returns her posture, her window position and " +
           "monitor, the loaded VRM, and whether a move is running. at: perch_targets returns the " +
           "windows she can sit on — each with app, title and rect — and the screen edges she can " +
-          "peek from.",
+          "peek from. at: screen returns a screenshot of the display the character is on, or " +
+          "of monitor when given. Screen requests are refused unless the user allows them.",
         parameters: {
           type: "object",
           properties: {
             at: {
               type: "string",
               description: "what to read",
-              enum: ["body", "perch_targets"],
+              enum: ["body", "perch_targets", "screen"],
+            },
+            monitor: {
+              type: "integer",
+              description:
+                "for screen: the display number body_action.monitor uses; ignored for other targets",
             },
           },
           additionalProperties: false,
@@ -103,9 +113,12 @@ function createLookTool(getExecutor: () => AvatarExecutor | null): ClientTool {
     },
     execute: async (args) => {
       if (args.at === undefined) return "error: missing field at";
-      if (args.at !== "body" && args.at !== "perch_targets") return "error: invalid field at";
+      if (args.at !== "body" && args.at !== "perch_targets" && args.at !== "screen")
+        return "error: invalid field at";
       const executor = getExecutor();
       if (executor === null) return "error: unsupported";
+      if (args.at === "screen")
+        return screen ? queryScreen(screen, args.monitor) : "error: unsupported";
       return JSON.stringify(
         args.at === "perch_targets" ? await executor.perchTargets() : await executor.state(),
       );
@@ -115,6 +128,9 @@ function createLookTool(getExecutor: () => AvatarExecutor | null): ClientTool {
 }
 
 /** The avatar tools, in declaration order, over a late-bound executor getter. */
-export function createAvatarTools(getExecutor: () => AvatarExecutor | null): ClientTool[] {
-  return [createBodyActionTool(getExecutor), createLookTool(getExecutor)];
+export function createAvatarTools(
+  getExecutor: () => AvatarExecutor | null,
+  screen?: ScreenQueryPorts,
+): ClientTool[] {
+  return [createBodyActionTool(getExecutor), createLookTool(getExecutor, screen)];
 }

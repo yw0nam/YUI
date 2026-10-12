@@ -8,6 +8,7 @@ import { createPersistedStore, localStorageStore, type PersistedStorage } from "
 
 export interface ScreenshotSettings {
   enabled: boolean;
+  allowRequests: boolean;
   source: ScreenSource;
 }
 
@@ -15,6 +16,7 @@ export type ScreenshotStorage = PersistedStorage<ScreenshotSettings>;
 
 const DEFAULT_SETTINGS: ScreenshotSettings = {
   enabled: false,
+  allowRequests: false,
   source: { kind: "monitor", index: 0 },
 };
 
@@ -22,6 +24,7 @@ function isValidSettings(v: unknown): v is ScreenshotSettings {
   if (v === null || typeof v !== "object") return false;
   const s = v as Record<string, unknown>;
   if (typeof s.enabled !== "boolean") return false;
+  if (s.allowRequests !== undefined && typeof s.allowRequests !== "boolean") return false;
   if (s.source === null || typeof s.source !== "object") return false;
   return true;
 }
@@ -30,9 +33,11 @@ export function createScreenshotSettings(opts?: { storage?: ScreenshotStorage })
   const core = createPersistedStore<ScreenshotSettings>({
     storage: opts?.storage,
     defaults: { ...DEFAULT_SETTINGS },
-    parse: (v) => (isValidSettings(v) ? v : null),
+    parse: (v) => (isValidSettings(v) ? { ...v, allowRequests: v.allowRequests ?? false } : null),
     equals: (a, b) =>
-      a.enabled === b.enabled && JSON.stringify(a.source) === JSON.stringify(b.source),
+      a.enabled === b.enabled &&
+      a.allowRequests === b.allowRequests &&
+      JSON.stringify(a.source) === JSON.stringify(b.source),
   });
 
   return {
@@ -40,6 +45,10 @@ export function createScreenshotSettings(opts?: { storage?: ScreenshotStorage })
 
     setEnabled(enabled: boolean): void {
       core.commit({ ...core.current(), enabled });
+    },
+
+    setAllowRequests(allowRequests: boolean): void {
+      core.commit({ ...core.current(), allowRequests });
     },
 
     setSource(source: ScreenSource): void {

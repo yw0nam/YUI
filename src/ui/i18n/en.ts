@@ -331,6 +331,10 @@ const en: Record<string, string> = {
   "screenshot.monitors_empty": "No displays found.",
   "screenshot.foot_on": "While on, this screen is attached to every message.",
   "screenshot.foot_off": "Off by default. Turn on to send your screen too.",
+  "screenshot.request_label": "Allow screen requests",
+  "screenshot.request_foot_on": "While on, she can look at your screen when she asks to.",
+  "screenshot.request_foot_off":
+    "Off by default. Turn on to let her look at your screen on request.",
 
   // voice input
   "voice_input.label": "Voice input",

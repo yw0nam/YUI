@@ -1,6 +1,7 @@
 /**
- * Screenshot section — owns the screenshot-attach switch and the monitor list: the switch node and
- * its click handler, the store subscription, the redraw, and when the monitor list loads.
+ * Screenshot section — owns the screenshot-attach and screen-request switches and the monitor list:
+ * the switch nodes and their click handlers, the store subscription, the redraw, and when the
+ * monitor list loads.
  */
 
 import type { ScreenSourceProvider } from "../../../../io/window/capture/screen-source-provider";
@@ -41,6 +42,10 @@ export function createScreenshotSection(deps: ScreenshotSectionDeps): Screenshot
   const switchSubEl = switchBtn
     .closest(".yui-row")!
     .querySelector<HTMLSpanElement>(".yui-row__sub")!;
+  const requestBtn = el.querySelector<HTMLButtonElement>(".yui-screenshot-requests-switch")!;
+  const requestSubEl = requestBtn
+    .closest(".yui-row")!
+    .querySelector<HTMLSpanElement>(".yui-row__sub")!;
 
   function reflectSettings(): void {
     const s = settings.get();
@@ -48,6 +53,11 @@ export function createScreenshotSection(deps: ScreenshotSectionDeps): Screenshot
     switchBtn.setAttribute("aria-checked", String(on));
     switchSubEl.textContent = t(on ? "screenshot.foot_on" : "screenshot.foot_off");
     el.classList.toggle("is-on", on);
+    const allowed = s.allowRequests;
+    requestBtn.setAttribute("aria-checked", String(allowed));
+    requestSubEl.textContent = t(
+      allowed ? "screenshot.request_foot_on" : "screenshot.request_foot_off",
+    );
   }
 
   function loadMonitorsIfEnabled(): void {
@@ -65,6 +75,12 @@ export function createScreenshotSection(deps: ScreenshotSectionDeps): Screenshot
     }
   }
 
+  function handleRequestClick(): void {
+    const allowed = !settings.get().allowRequests;
+    settings.setAllowRequests(allowed);
+    log.info("screenshot_request_toggle", { allowed });
+  }
+
   const unsubscribe = settings.subscribe(() => {
     if (!isOpen()) return;
     reflectSettings();
@@ -72,6 +88,7 @@ export function createScreenshotSection(deps: ScreenshotSectionDeps): Screenshot
   });
 
   switchBtn.addEventListener("click", handleSwitchClick);
+  requestBtn.addEventListener("click", handleRequestClick);
 
   return {
     reflect: reflectSettings,
@@ -79,6 +96,7 @@ export function createScreenshotSection(deps: ScreenshotSectionDeps): Screenshot
     dispose(): void {
       unsubscribe();
       switchBtn.removeEventListener("click", handleSwitchClick);
+      requestBtn.removeEventListener("click", handleRequestClick);
     },
   };
 }

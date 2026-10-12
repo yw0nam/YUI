@@ -4,6 +4,7 @@
  */
 
 import type { ScreenSource } from "../../../contract";
+import type { ScreenPoint } from "./screen-point";
 import type { ScreenCapture } from "./screenshot-context";
 
 export interface MonitorInfo {
@@ -20,9 +21,13 @@ export interface ScreenSourceProvider {
 
 export interface ScreenCapturer {
   capture(source: ScreenSource): Promise<ScreenCapture | null>;
+  captureAt(point: ScreenPoint): Promise<ScreenCapture | null>;
 }
 
 export const noopScreenCapturer: ScreenCapturer = {
+  captureAt(): Promise<ScreenCapture | null> {
+    return Promise.resolve(null);
+  },
   capture(_source: ScreenSource): Promise<ScreenCapture | null> {
     return Promise.resolve(null);
   },

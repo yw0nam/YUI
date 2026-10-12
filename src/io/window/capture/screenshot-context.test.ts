@@ -15,7 +15,11 @@ const BASE_SOURCE = { kind: "monitor" as const, index: 0 };
 
 describe("buildScreenshotBlock — disabled", () => {
   it("returns undefined when enabled=false regardless of capture", () => {
-    const settings: ScreenshotSettings = { enabled: false, source: BASE_SOURCE };
+    const settings: ScreenshotSettings = {
+      enabled: false,
+      allowRequests: false,
+      source: BASE_SOURCE,
+    };
     expect(buildScreenshotBlock(settings)).toBeUndefined();
     const capture: ScreenCapture = {
       data_url: "data:image/png;base64,abc",
@@ -28,6 +32,7 @@ describe("buildScreenshotBlock — enabled, no capture", () => {
   it("returns {enabled:true, source} with no image fields", () => {
     const settings: ScreenshotSettings = {
       enabled: true,
+      allowRequests: false,
       source: { kind: "monitor", index: 1, label: "메인" },
     };
     const result = buildScreenshotBlock(settings);
@@ -39,6 +44,7 @@ describe("buildScreenshotBlock — enabled, with capture", () => {
   it("carries the pixels and drops the capture dimensions no consumer reads", () => {
     const settings: ScreenshotSettings = {
       enabled: true,
+      allowRequests: false,
       source: { kind: "monitor", index: 0 },
     };
     const capture: ScreenCapture = {
@@ -54,7 +60,7 @@ describe("buildScreenshotBlock — enabled, with capture", () => {
 
   it("source in result matches settings.source (not mutated)", () => {
     const source = { kind: "monitor" as const, index: 2, label: "외부" };
-    const settings: ScreenshotSettings = { enabled: true, source };
+    const settings: ScreenshotSettings = { enabled: true, allowRequests: false, source };
     const capture: ScreenCapture = {
       data_url: "data:image/png;base64,test",
     };

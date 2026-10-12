@@ -41,6 +41,7 @@ export function wirePushTransport(deps: {
     onReasoning(cb: (frame: ReasoningFrame) => void): () => void;
     onState(cb: (state: PushSocketState) => void): () => void;
     sendToolResult(frame: ToolResultFrame): boolean;
+    getMaxTurnBytes?(): number | undefined;
   };
   /** The tools the client declared on this connection; a call for any other name is refused. */
   tools: ClientToolRegistry;
@@ -75,6 +76,7 @@ export function wirePushTransport(deps: {
     isTurnStopped: (turnId) => deps.pushTurns.isCut(turnId),
     send: (frame) => deps.socket.sendToolResult(frame),
     execute: executeClientTool,
+    getMaxTurnBytes: deps.socket.getMaxTurnBytes,
     log: deps.log,
   });
   const unsubscribes = [

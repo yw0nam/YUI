@@ -333,6 +333,10 @@ const ja: Record<string, string> = {
   "screenshot.monitors_empty": "画面が見つかりませんでした。",
   "screenshot.foot_on": "オンの間は、すべてのメッセージにこの画面が添付されます。",
   "screenshot.foot_off": "初期設定はオフです。オンにすると画面も一緒に送ります。",
+  "screenshot.request_label": "画面のリクエストを許可",
+  "screenshot.request_foot_on": "オンの間は、ユイが見たいときに画面を見られます。",
+  "screenshot.request_foot_off":
+    "初期設定はオフです。オンにすると、ユイのリクエストに応じて画面を見せます。",
 
   // voice input
   "voice_input.label": "音声入力",

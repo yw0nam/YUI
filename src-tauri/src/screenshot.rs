@@ -171,6 +171,27 @@ pub async fn capture_screen(index: u32, max_edge: u32) -> Result<CaptureDto, Str
     })?
 }
 
+/// Capture the display containing a logical desktop point off the main thread.
+#[command]
+pub async fn capture_screen_at(x: i32, y: i32, max_edge: u32) -> Result<CaptureDto, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        let monitor = xcap::Monitor::from_point(x, y).map_err(|e| {
+            log::error!("monitor_lookup_failed x={x} y={y} error={e}");
+            e.to_string()
+        })?;
+        let raw = monitor.capture_image().map_err(|e| {
+            log::error!("screen_capture_failed x={x} y={y} error={e}");
+            e.to_string()
+        })?;
+        encode_capture(raw, max_edge)
+    })
+    .await
+    .map_err(|e| {
+        log::error!("capture_screen_join_failed error={e}");
+        e.to_string()
+    })?
+}
+
 // ─── Tests ────────────────────────────────────────────────────────────────────
 
 #[cfg(test)]

@@ -6,6 +6,8 @@ import concurrent.futures
 import threading
 from dataclasses import dataclass
 
+from .image_result import ImageResult, client_result
+
 DISCONNECTED = "error: client disconnected"
 TURN_STOPPED = "error: turn stopped"
 
@@ -39,13 +41,13 @@ def register(chat_id: str, call_id: str, turn_id: str) -> concurrent.futures.Fut
     return future
 
 
-def resolve(chat_id: str, call_id: str, result: str) -> bool:
+def resolve(chat_id: str, call_id: str, result: str, images: object = None) -> bool:
     """Complete one pending call with the client's result; False for an unknown id."""
     with _lock:
         call = _calls.get(chat_id, {}).get(call_id)
     if call is None:
         return False
-    _complete(call.future, result)
+    _complete(call.future, client_result(result, images))
     return True
 
 
@@ -78,7 +80,7 @@ def fail(chat_id: str, message: str, turn_ids: set[str] | None = None) -> int:
     return len(calls)
 
 
-def _complete(future: concurrent.futures.Future, result: str) -> None:
+def _complete(future: concurrent.futures.Future, result: str | ImageResult) -> None:
     if future.done():
         return
     try:

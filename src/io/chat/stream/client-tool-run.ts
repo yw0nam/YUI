@@ -5,7 +5,11 @@
  */
 
 import type { ExpressArgs } from "../../../contract";
-import type { ClientToolRegistry } from "../tools/client-tools";
+import {
+  type ClientToolRegistry,
+  type ClientToolResult,
+  toolResultText,
+} from "../tools/client-tools";
 import { executeClientTool } from "../tools/execute";
 import type { ChatStreamEvent } from "./chat-client";
 import { isExpressTool, parseToolArgs } from "./stream-helpers";
@@ -19,7 +23,7 @@ export interface ClientCallOutcome {
   /** The express cue the call played. */
   cue?: ExpressArgs;
   /** Set when a registered tool ran: its result and whether the model needs it back. */
-  run?: { result: string; oneWay: boolean };
+  run?: { result: ClientToolResult; oneWay: boolean };
 }
 
 /**
@@ -66,7 +70,7 @@ export async function* runClientCall(
     yield {
       type: "tool_status",
       status: {
-        state: (tool.failed ?? isErrorResult)(result) ? "failed" : "done",
+        state: (tool.failed ?? isErrorResult)(toolResultText(result)) ? "failed" : "done",
         tool_id: name,
       },
     };
