@@ -7,6 +7,7 @@ vi.mock("../../../io/chat/push/push-socket", async (importOriginal) => ({
   createPushSocket,
 }));
 
+import { createAvatarTools } from "../../../io/chat/tools/avatar";
 import { createPushStores } from "./push-stores";
 
 describe("createPushStores", () => {
@@ -45,6 +46,23 @@ describe("createPushStores", () => {
       emotion_text_mode: "enum",
       emotion_text_map: { happy: "joy" },
     });
+  });
+
+  it("declares no tools until bind, then the schemas of the bound avatar tools", () => {
+    const { stores, socketDeps } = createStores();
+    const avatarTools = createAvatarTools(() => null);
+
+    expect(socketDeps.tools()).toEqual([]);
+
+    stores.bind({ vocabulary: () => PAYLOAD, stopTurn: () => {}, avatarTools });
+    expect(socketDeps.tools()).toEqual(avatarTools.map((tool) => tool.definition));
+  });
+
+  it("declares no tools when bound with none", () => {
+    const { stores, socketDeps } = createStores();
+
+    stores.bind({ vocabulary: () => PAYLOAD, stopTurn: () => {} });
+    expect(socketDeps.tools()).toEqual([]);
   });
 
   it("stops the bound turn only once the stop is bound, with no bridge", () => {

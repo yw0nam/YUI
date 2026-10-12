@@ -20,10 +20,12 @@ vi.mock("../../dispatcher/core/proactive-pacer", () => ({
 
 import type { TurnFailure } from "../../dispatcher/backend/backend-caller";
 import type { Turn } from "../../dispatcher/turn/turn";
+import { createAvatarTools } from "../../io/chat/tools/avatar";
+import type { ClientTool } from "../../io/chat/tools/client-tools";
 import { wireDispatcher } from "./wire-dispatcher";
 
 describe("wireDispatcher", () => {
-  const setup = (isBodyHeld?: () => boolean) => {
+  const setup = (isBodyHeld?: () => boolean, avatarTools?: ClientTool[]) => {
     const registered: Array<() => void> = [];
     const register = vi.fn((teardown: () => void) => {
       registered.push(teardown);
@@ -87,7 +89,12 @@ describe("wireDispatcher", () => {
       quotedTurn,
       pushTurns: {} as never,
       pushSocket: null,
-      getVocabulary: () => ({}) as never,
+      getVocabulary: () => ({
+        emotionIds: [],
+        motionIds: [],
+        emotionText: { mode: "free", table: null },
+      }),
+      avatarTools,
       openQuickControls: vi.fn(),
       showVoiceError: vi.fn(),
       appendTurnRecord: vi.fn(),
@@ -109,6 +116,31 @@ describe("wireDispatcher", () => {
       quotedTurn,
     };
   };
+
+  it("builds each turn's tools from generate_express and the avatar tools it was given", () => {
+    setup(
+      undefined,
+      createAvatarTools(() => null),
+    );
+
+    const { clientTools } = mocks.createBackendCaller.mock.calls.at(-1)![0];
+    expect(
+      clientTools()
+        .definitions()
+        .map((d: { function: { name: string } }) => d.function.name),
+    ).toEqual(["generate_express", "body_action", "look"]);
+  });
+
+  it("builds each turn's tools from generate_express alone when given no avatar tools", () => {
+    setup();
+
+    const { clientTools } = mocks.createBackendCaller.mock.calls.at(-1)![0];
+    expect(
+      clientTools()
+        .definitions()
+        .map((d: { function: { name: string } }) => d.function.name),
+    ).toEqual(["generate_express"]);
+  });
 
   it("hands the caller the scene hold, so no turn starts a thinking bridge on the bed", () => {
     const held = () => true;

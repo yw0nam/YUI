@@ -10,11 +10,9 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, expect, it, vi } from "vitest";
 import type { ExpressVocabulary } from "../vocabulary/express-vocabulary";
+import { createAvatarTools } from "./avatar";
 import { type ClientTool, createClientToolRegistry, createClientTools } from "./client-tools";
 import { createGenerateExpressTool } from "./express";
-
-const tauriEnv = vi.hoisted(() => ({ on: false }));
-vi.mock("../../../tauri-env", () => ({ isTauri: () => tauriEnv.on }));
 
 /** The published vocabulary (deriveExpressVocabulary) is the schema's only source. */
 const vocab = (over: Partial<ExpressVocabulary> = {}): ExpressVocabulary => ({
@@ -152,7 +150,6 @@ const dummyTool = (name: string, result = "done"): ClientTool => ({
   },
   execute: vi.fn(async () => result),
   waitMs: 2000,
-  push: false,
 });
 
 describe("createClientToolRegistry", () => {
@@ -185,17 +182,16 @@ describe("createClientToolRegistry", () => {
 });
 
 describe("createClientTools", () => {
-  it("declares the avatar tools with generate_express under Tauri", () => {
-    tauriEnv.on = true;
-    expect(createClientTools(vocab()).map((tool) => tool.name)).toEqual([
+  it("declares generate_express then the avatar tools it is given", () => {
+    const avatarTools = createAvatarTools(() => null);
+    expect(createClientTools(vocab(), avatarTools).map((tool) => tool.name)).toEqual([
       "generate_express",
       "body_action",
       "look",
     ]);
-    tauriEnv.on = false;
   });
 
-  it("declares generate_express alone off Tauri — no executor exists there", () => {
+  it("declares generate_express alone when given no avatar tools", () => {
     expect(createClientTools(vocab()).map((tool) => tool.name)).toEqual(["generate_express"]);
   });
 });
@@ -213,9 +209,10 @@ describe("docs/reference/client-tools.md catalog", () => {
     // The catalog is the table above the first section heading.
     const catalog = doc.slice(0, doc.indexOf("\n## "));
     const rows = new Set([...catalog.matchAll(/^\| `([^`]+)` \|/gm)].map((m) => m[1]));
-    tauriEnv.on = true;
-    const names = createClientTools(vocab()).map((tool) => tool.name);
-    tauriEnv.on = false;
+    const names = createClientTools(
+      vocab(),
+      createAvatarTools(() => null),
+    ).map((tool) => tool.name);
 
     expect(names).toEqual(["generate_express", "body_action", "look"]);
     expect(names.filter((name) => !rows.has(name))).toEqual([]);

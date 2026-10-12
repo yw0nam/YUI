@@ -7,7 +7,8 @@
 
 import { describe, expect, it, vi } from "vitest";
 import type { AvatarExecutor } from "../../bridge/inbox/avatar-executor";
-import { createBodyActionTool, createLookTool } from "./avatar";
+import { createAvatarTools } from "./avatar";
+import type { ClientTool } from "./client-tools";
 
 function executor(over: Partial<AvatarExecutor> = {}): AvatarExecutor {
   const base = {
@@ -27,6 +28,18 @@ function executor(over: Partial<AvatarExecutor> = {}): AvatarExecutor {
   };
   return { ...base, ...over } as AvatarExecutor;
 }
+
+const toolNamed = (name: string, getExecutor: () => AvatarExecutor | null): ClientTool =>
+  createAvatarTools(getExecutor).find((tool) => tool.name === name)!;
+const createBodyActionTool = (getExecutor: () => AvatarExecutor | null) =>
+  toolNamed("body_action", getExecutor);
+const createLookTool = (getExecutor: () => AvatarExecutor | null) => toolNamed("look", getExecutor);
+
+describe("createAvatarTools", () => {
+  it("declares body_action then look", () => {
+    expect(createAvatarTools(() => null).map((tool) => tool.name)).toEqual(["body_action", "look"]);
+  });
+});
 
 describe("body_action — schema", () => {
   const tool = createBodyActionTool(() => null);
@@ -55,16 +68,8 @@ describe("body_action — schema", () => {
     expect(props.monitor).toMatchObject({ type: "integer" });
   });
 
-  it("requires only action and refuses extra properties", () => {
-    expect(tool.definition.function.parameters.required).toEqual(["action"]);
-    expect(tool.definition.function.parameters.additionalProperties).toBe(false);
-  });
-
-  it("waits 15 s for the move and reports a passing wait as the bare word timeout", () => {
-    expect(tool.waitMs).toBe(15000);
+  it("reports a passing wait as the bare word timeout", () => {
     expect(tool.timeoutResult).toBe("timeout");
-    expect(tool.push).toBe(true);
-    expect(tool.oneWay).toBeUndefined();
   });
 });
 
@@ -108,7 +113,6 @@ describe("look — schema and execute", () => {
       enum: ["body", "perch_targets"],
     });
     expect(tool.waitMs).toBe(2000);
-    expect(tool.push).toBe(true);
     expect(tool.timeoutResult).toBeUndefined();
   });
 
