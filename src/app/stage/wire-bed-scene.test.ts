@@ -221,6 +221,18 @@ describe("wireBedScene", () => {
       expect(h.calls.slice(-2)).toEqual(["applyCamera", "drop:held=false"]);
     });
 
+    it("answers interrupted when a click comes while she is still being put on the floor", async () => {
+      const h = setup({ enabled: false });
+      h.start();
+
+      const lay = h.bedScene.bed.lieDown();
+      h.bedScene.wake("click");
+
+      expect(await lay).toEqual({ ok: false, reason: "interrupted" });
+      expect(mocks.scene.lieDown).not.toHaveBeenCalled();
+      expect(h.bedScene.isHeld()).toBe(false);
+    });
+
     it("answers unsupported before the stage is wired", async () => {
       const h = setup({ enabled: false });
 
