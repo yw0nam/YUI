@@ -20,6 +20,7 @@ class FakeConfig:
     def __init__(self, **extra):
         self.extra = extra
 
+
 LOOK_TOOL = {
     "type": "function",
     "function": {

@@ -65,9 +65,7 @@ def test_a_look_result_starting_with_error_hands_failed_to_the_sink():
         tool_name="look", task_id="", session_id="", status="ok", result="error: client disconnected"
     )
     assert taken == [(CHAT, "failed", "look")]
-    tool_status.on_post_tool_call(
-        tool_name="look", task_id="", session_id="", status="ok", result="{}"
-    )
+    tool_status.on_post_tool_call(tool_name="look", task_id="", session_id="", status="ok", result="{}")
     assert taken == [(CHAT, "failed", "look"), (CHAT, "done", "look")]
 
 

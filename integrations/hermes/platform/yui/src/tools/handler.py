@@ -38,30 +38,40 @@ def _call(name: str, args: object) -> str:
     chat_id = session.current_chat_id()
     if not chat_id or not state.is_connected(chat_id):
         return pending.DISCONNECTED
-    with pending.chat_lock(chat_id):
-        return _one(chat_id, name, args)
-
-
-def _one(chat_id: str, name: str, args: object) -> str:
-    wait = WAITS_S.get(name, DEFAULT_WAIT_S)
     call_id = uuid.uuid4().hex
+    # Entered before the lock, so a stop or a close reaches a call still waiting its turn on it.
     turn_id = state.turn_id(chat_id) or ""
     future = pending.register(chat_id, call_id, turn_id)
     try:
-        sink = _sink
-        frame = {
-            "type": "tool_call",
-            "id": call_id,
-            "turn_id": turn_id,
-            "name": name,
-            "arguments": args if isinstance(args, dict) else {},
-        }
-        if sink is None or not sink.send_tool_call(chat_id, frame):
-            return pending.DISCONNECTED
-        try:
-            return future.result(timeout=wait)
-        except concurrent.futures.TimeoutError:
-            logger.info("yui: tool_call %s got no reply in %s s chat=%s", name, int(wait), chat_id)
-            return f"error: no reply from the client within {int(wait)} s"
+        with pending.chat_lock(chat_id):
+            if future.done():
+                return future.result()
+            return _send_and_wait(chat_id, call_id, turn_id, name, args, future)
     finally:
         pending.discard(chat_id, call_id)
+
+
+def _send_and_wait(
+    chat_id: str,
+    call_id: str,
+    turn_id: str,
+    name: str,
+    args: object,
+    future: concurrent.futures.Future,
+) -> str:
+    wait = WAITS_S.get(name, DEFAULT_WAIT_S)
+    frame = {
+        "type": "tool_call",
+        "id": call_id,
+        "turn_id": turn_id,
+        "name": name,
+        "arguments": args if isinstance(args, dict) else {},
+    }
+    sink = _sink
+    if sink is None or not sink.send_tool_call(chat_id, frame):
+        return pending.DISCONNECTED
+    try:
+        return future.result(timeout=wait)
+    except concurrent.futures.TimeoutError:
+        logger.info("yui: tool_call %s got no reply in %s s chat=%s", name, int(wait), chat_id)
+        return f"error: no reply from the client within {int(wait)} s"

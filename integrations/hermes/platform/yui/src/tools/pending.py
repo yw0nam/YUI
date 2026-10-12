@@ -60,7 +60,7 @@ def discard(chat_id: str, call_id: str) -> None:
 
 
 def fail(chat_id: str, message: str, turn_ids: set[str] | None = None) -> int:
-    """Complete every pending call of the chat — or of the named turns — with the message."""
+    """Complete every pending call of the chat — or of the named turns — with the message, those still waiting on the lock included."""
     with _lock:
         held = _calls.get(chat_id)
         if not held:
