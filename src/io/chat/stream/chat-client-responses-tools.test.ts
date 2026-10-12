@@ -278,6 +278,37 @@ describe("streamChat — Responses tool-call round trip", () => {
     });
   });
 
+  it("answers a malformed cue with an error output only when the response was silent", async () => {
+    const bad = (id: string) => call("generate_express", id, "{not json");
+    createMock
+      .mockResolvedValueOnce(streamOf([...bad("fc_1"), done("resp_1")]))
+      .mockResolvedValueOnce(streamOf([text("Hi"), done("resp_2")]))
+      .mockResolvedValueOnce(streamOf([text("Hi "), ...bad("fc_2"), done("resp_3")]));
+
+    const silent = await collect(
+      streamChat(CONFIG, req(), optsFor(oneWayStub("generate_express"))),
+    );
+    const spoke = await collect(streamChat(CONFIG, req(), optsFor(oneWayStub("generate_express"))));
+
+    expect(createMock).toHaveBeenCalledTimes(3);
+    expect(createMock.mock.calls[1][0].input.at(-1)).toEqual({
+      type: "function_call_output",
+      call_id: "call_fc_1",
+      output: expect.stringMatching(/^error: arguments JSON parse failed: /),
+    });
+    expect(silent.some((e) => e.type === "error" || e.type === "express")).toBe(false);
+    expect(spoke.at(-1)).toMatchObject({
+      type: "completed",
+      toolOutputs: [
+        {
+          type: "function_call_output",
+          call_id: "call_fc_2",
+          output: expect.stringMatching(/^error: arguments JSON parse failed: /),
+        },
+      ],
+    });
+  });
+
   it("carries no tool outputs when every call was answered or none ran", async () => {
     createMock
       .mockResolvedValueOnce(streamOf([...call("generate_express", "fc_1"), done("resp_1")]))
