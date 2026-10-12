@@ -16,12 +16,15 @@ import type { PushTurns } from "../../dispatcher/turn/push-turn";
 import type { QuotedTurn } from "../../dispatcher/turn/quoted-turn";
 import type { TurnLog } from "../../dispatcher/turn/turn";
 import { createTurnFeed, type TurnFeed } from "../../dispatcher/turn/turn-feed";
-import type { AvatarExecutor } from "../../io/bridge/inbox/avatar-executor";
 import type { ReasoningStore } from "../../io/bridge/reasoning/reasoning-store";
 import { clientToolsUnlessBrokered } from "../../io/chat/broker/broker-tool-owner";
 import type { PushSocket } from "../../io/chat/push/push-socket";
 import type { PacerSkipRecord, TurnRecord } from "../../io/chat/record/turn-record-log";
-import { createClientToolRegistry, createClientTools } from "../../io/chat/tools/client-tools";
+import {
+  type ClientTool,
+  createClientToolRegistry,
+  createClientTools,
+} from "../../io/chat/tools/client-tools";
 import type { ExpressVocabulary } from "../../io/chat/vocabulary/express-vocabulary";
 import type { ScreenCapturer } from "../../io/window/capture/screen-source-provider";
 import { buildScreenshotBlock } from "../../io/window/capture/screenshot-context";
@@ -81,8 +84,8 @@ export function wireDispatcher(deps: {
   pushTurns: PushTurns;
   pushSocket: PushSocket | null;
   getVocabulary: () => ExpressVocabulary;
-  /** The avatar executor once the stage created it, null until then and in windows without one. */
-  getAvatarExecutor?: () => AvatarExecutor | null;
+  /** The avatar tools of a window that has an executor; a window without one passes none. */
+  avatarTools?: readonly ClientTool[];
   openQuickControls?: (tab: QuickControlsTab) => void;
   showVoiceError: (reason: string) => void;
   appendTurnRecord: (record: TurnRecord | PacerSkipRecord) => void;
@@ -124,7 +127,7 @@ export function wireDispatcher(deps: {
     pushTurns,
     pushSocket,
     getVocabulary,
-    getAvatarExecutor,
+    avatarTools,
     openQuickControls,
     showVoiceError,
     appendTurnRecord,
@@ -182,9 +185,7 @@ export function wireDispatcher(deps: {
     clientTools: () =>
       clientToolsUnlessBrokered(
         getEndpoints(),
-        createClientToolRegistry(
-          createClientTools(getVocabulary(), getAvatarExecutor ?? (() => null)),
-        ),
+        createClientToolRegistry(createClientTools(getVocabulary(), avatarTools)),
       ),
     pushTurn: (frame) => pushSocket?.sendTurn(frame) ?? false,
     pushImageRoom: (frame) => pushSocket?.imageRoom(frame),

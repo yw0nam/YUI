@@ -28,7 +28,6 @@ function tool(
     },
     execute,
     waitMs: 2000,
-    push: true,
   };
 }
 

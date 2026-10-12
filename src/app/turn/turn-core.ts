@@ -8,12 +8,11 @@ import type { Dispatcher } from "../../dispatcher/dispatcher";
 import type { UserInputSource } from "../../dispatcher/sources/user-input-source";
 import type { DelegationHistory } from "../../io/bridge/delegations/delegation-history";
 import type { DelegationsStore } from "../../io/bridge/delegations/delegations-store";
-import type { AvatarExecutor } from "../../io/bridge/inbox/avatar-executor";
 import type { ReasoningStore } from "../../io/bridge/reasoning/reasoning-store";
 import type { PushSocket } from "../../io/chat/push/push-socket";
 import { appendRecord } from "../../io/chat/record/turn-record-log";
 import { selectFetch } from "../../io/chat/stream/chat-client";
-import { createClientToolRegistry, createClientTools } from "../../io/chat/tools/client-tools";
+import { type ClientTool, createClientToolRegistry } from "../../io/chat/tools/client-tools";
 import { createLogger } from "../../logger";
 import type { Renderer } from "../../renderer";
 import type { SettingsStores } from "../../settings/settings-stores";
@@ -71,8 +70,6 @@ export interface TurnCore {
   dispatcher: Dispatcher;
   guardrails: Guardrails;
   pacer: ProactivePacer;
-  /** The avatar executor once the stage wiring created it, null until then. */
-  getAvatarExecutor: () => AvatarExecutor | null;
   setPeek(peek: { enter(): Promise<void>; exit(): Promise<void> }): void;
   setProactiveSource(source: { noteInteraction(ts?: number): void }): void;
   setStrolling(walker: { isStrolling(): boolean }): void;
@@ -103,8 +100,8 @@ export async function wireTurnCore(
     voiceHost?: VoiceHost;
     /** A sustained user utterance began. */
     onVoiceTurnStart?: () => void;
-    /** The avatar executor once the stage wiring created it, null until then. */
-    getAvatarExecutor?: DispatcherDeps["getAvatarExecutor"];
+    /** The avatar tools of a window that has an executor, declared on every transport; a window without one passes none. */
+    avatarTools?: readonly ClientTool[];
     register: (dispose: () => void) => void;
     ensureActive: () => void;
   },
@@ -187,7 +184,7 @@ export async function wireTurnCore(
     pushTurns,
     pushSocket: pushSocket ?? null,
     getVocabulary: () => vocabulary!.vocabulary(),
-    getAvatarExecutor: deps.getAvatarExecutor,
+    avatarTools: deps.avatarTools,
     openQuickControls: deps.openQuickControls,
     showVoiceError: voiceErrorDwell.show,
     appendTurnRecord: (record) => appendRecord(record),
@@ -217,7 +214,6 @@ export async function wireTurnCore(
     dispatcher,
     guardrails,
     pacer,
-    getAvatarExecutor: () => deps.getAvatarExecutor?.() ?? null,
     setPeek: turnWiring.setPeek,
     setProactiveSource: turnVoice.setProactiveSource,
     setStrolling: turnVoice.setStrolling,
@@ -247,13 +243,7 @@ export async function wireTurnCore(
         register(
           wirePushTransport({
             socket: pushSocket,
-            // The push-declared half of the same list the per-turn registry builds from.
-            tools: createClientToolRegistry(
-              createClientTools(
-                published.vocabulary(),
-                deps.getAvatarExecutor ?? (() => null),
-              ).filter((tool) => tool.push),
-            ),
+            tools: createClientToolRegistry(deps.avatarTools ?? []),
             turnOutput: voice.turnOutput,
             pushTurns,
             delegations,

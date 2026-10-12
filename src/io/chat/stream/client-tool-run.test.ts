@@ -24,7 +24,6 @@ function tool(over: Partial<ClientTool> = {}): ClientTool {
     },
     execute: async () => "ok",
     waitMs: 2000,
-    push: false,
     ...over,
   };
 }

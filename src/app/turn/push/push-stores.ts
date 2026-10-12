@@ -8,7 +8,6 @@ import {
   createDelegationsStore,
   type DelegationsStore,
 } from "../../../io/bridge/delegations/delegations-store";
-import type { AvatarExecutor } from "../../../io/bridge/inbox/avatar-executor";
 import { publishPushSocket } from "../../../io/bridge/push/push-socket-bridge";
 import { publishReasoning } from "../../../io/bridge/reasoning/reasoning-bridge";
 import {
@@ -20,7 +19,7 @@ import {
   type PushSocket,
   pushVocabularyOf,
 } from "../../../io/chat/push/push-socket";
-import { createClientTools } from "../../../io/chat/tools/client-tools";
+import type { ClientTool } from "../../../io/chat/tools/client-tools";
 import type { ExpressVocabulary } from "../../../io/chat/vocabulary/express-vocabulary";
 import {
   createChatIdSettings,
@@ -47,12 +46,12 @@ export function createPushStores(deps: {
   bind(deps: {
     vocabulary: () => ExpressVocabulary;
     stopTurn: () => void;
-    getAvatarExecutor?: () => AvatarExecutor | null;
+    avatarTools?: readonly ClientTool[];
   }): void;
 } {
   let publishedVocabulary: (() => ExpressVocabulary) | null = null;
-  // The avatar executor getter lands with bind(), after the configured bootstrap has wired the stage.
-  let avatarExecutor: (() => AvatarExecutor | null) | null = null;
+  // The avatar tools land with bind(); the socket declares them in `hello.tools`.
+  let avatarTools: readonly ClientTool[] = [];
   // The panel's session reset stops the running turn the way the stop button does; the shared
   // closure exists once the configured bootstrap has wired it.
   let stopTurn: () => void = () => {};
@@ -62,13 +61,7 @@ export function createPushStores(deps: {
     chatId: () => chatIdSettings.get().chat_id,
     getKey: deps.getChatKey,
     vocabulary: () => pushVocabularyOf(publishedVocabulary?.()),
-    // The push-declared half of the same list the per-turn registry builds from.
-    tools: () =>
-      publishedVocabulary === null
-        ? []
-        : createClientTools(publishedVocabulary(), avatarExecutor ?? (() => null))
-            .filter((tool) => tool.push)
-            .map((tool) => tool.definition),
+    tools: () => avatarTools.map((tool) => tool.definition),
   });
   deps.register(pushSocket.dispose);
   deps.register(chatIdSettings.dispose);
@@ -87,11 +80,11 @@ export function createPushStores(deps: {
     bind: (bound: {
       vocabulary: () => ExpressVocabulary;
       stopTurn: () => void;
-      getAvatarExecutor?: () => AvatarExecutor | null;
+      avatarTools?: readonly ClientTool[];
     }) => {
       publishedVocabulary = bound.vocabulary;
       stopTurn = bound.stopTurn;
-      avatarExecutor = bound.getAvatarExecutor ?? null;
+      avatarTools = bound.avatarTools ?? [];
     },
   };
 }

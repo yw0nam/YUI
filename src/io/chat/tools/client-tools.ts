@@ -7,10 +7,7 @@
  * an engine edit.
  */
 
-import { isTauri } from "../../../tauri-env";
-import type { AvatarExecutor } from "../../bridge/inbox/avatar-executor";
 import type { ExpressVocabulary } from "../vocabulary/express-vocabulary";
-import { createBodyActionTool, createLookTool } from "./avatar";
 import { createGenerateExpressTool } from "./express";
 
 /** OpenAI function-tool schema. Structural — narrowed to the SDK's type at the request site. */
@@ -42,8 +39,6 @@ export interface ClientTool {
   oneWay?: boolean;
   /** A wait that passes resolves the bare word `timeout` instead of an error string. */
   timeoutResult?: "timeout";
-  /** Declared on the push transport's `hello.tools` when true. */
-  push: boolean;
 }
 
 export interface ClientToolRegistry {
@@ -62,13 +57,10 @@ export function createClientToolRegistry(tools: readonly ClientTool[]): ClientTo
   };
 }
 
-/** Every tool the client declares, in declaration order. The avatar tools join under Tauri, the only build that creates the avatar executor. */
+/** Every tool a window declares: generate_express, then the avatar tools of a window that has an executor. */
 export function createClientTools(
   vocab: ExpressVocabulary,
-  getExecutor: () => AvatarExecutor | null = () => null,
+  avatarTools: readonly ClientTool[] = [],
 ): ClientTool[] {
-  return [
-    createGenerateExpressTool(vocab),
-    ...(isTauri() ? [createBodyActionTool(getExecutor), createLookTool(getExecutor)] : []),
-  ];
+  return [createGenerateExpressTool(vocab), ...avatarTools];
 }

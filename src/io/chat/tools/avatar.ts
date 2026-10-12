@@ -2,8 +2,8 @@
  * body_action and look — the avatar tools the backend model calls.
  *
  * Thin adapters over the avatar executor: the schema speaks the avatar Mod's words, execute hands
- * the arguments to the executor and renders its verdict as the result string. Both are declared
- * wherever the executor can exist; a call that lands before the stage created it answers
+ * the arguments to the executor and renders its verdict as the result string. The window that
+ * creates the executor builds them once; a call that lands before the stage created it answers
  * unsupported.
  */
 
@@ -23,7 +23,7 @@ const BODY_ACTION_DESCRIPTION =
   "covered), interrupted (the user is holding her), busy (another move runs), unsupported, or " +
   "timeout — the action is still running, and look at: body tells the outcome.";
 
-export function createBodyActionTool(getExecutor: () => AvatarExecutor | null): ClientTool {
+function createBodyActionTool(getExecutor: () => AvatarExecutor | null): ClientTool {
   return {
     name: "body_action",
     definition: {
@@ -71,11 +71,10 @@ export function createBodyActionTool(getExecutor: () => AvatarExecutor | null): 
     },
     waitMs: 15000,
     timeoutResult: "timeout",
-    push: true,
   };
 }
 
-export function createLookTool(getExecutor: () => AvatarExecutor | null): ClientTool {
+function createLookTool(getExecutor: () => AvatarExecutor | null): ClientTool {
   return {
     name: "look",
     definition: {
@@ -109,6 +108,10 @@ export function createLookTool(getExecutor: () => AvatarExecutor | null): Client
       );
     },
     waitMs: 2000,
-    push: true,
   };
+}
+
+/** The avatar tools, in declaration order, over a late-bound executor getter. */
+export function createAvatarTools(getExecutor: () => AvatarExecutor | null): ClientTool[] {
+  return [createBodyActionTool(getExecutor), createLookTool(getExecutor)];
 }

@@ -95,6 +95,5 @@ export function createGenerateExpressTool(vocab: ExpressVocabulary): ClientTool 
     execute: async () => "ok",
     waitMs: 2000,
     oneWay: true,
-    push: false,
   };
 }
