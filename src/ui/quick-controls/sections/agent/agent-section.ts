@@ -36,7 +36,7 @@ interface AgentSectionDeps {
 }
 
 interface AgentSection {
-  /** Render the reasoning-effort segment and the instructions textarea from the store, and show or hide them by transport. */
+  /** Render the effort segment and textarea from the store and show them on request transports only. */
   reflect(): void;
   /** Render the locale segment from the current display language. */
   reflectLanguage(): void;
