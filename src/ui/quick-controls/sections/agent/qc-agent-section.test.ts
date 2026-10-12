@@ -313,6 +313,78 @@ describe("createQuickControls — agent section", () => {
     expect(counts.taken).toBeGreaterThan(0);
     expect(counts.released).toBe(counts.taken);
   });
+
+  describe("transport-dependent controls", () => {
+    function agentControls(qc: ReturnType<typeof buildQc>) {
+      const effortRow = qc.el.querySelector(".yui-effort-seg")!.closest<HTMLElement>(".yui-row")!;
+      const instructionsSec = qc.el
+        .querySelector(".yui-textarea")!
+        .closest<HTMLElement>(".yui-sec")!;
+      const localeRow = qc.el.querySelector(".yui-lang-seg")!.closest<HTMLElement>(".yui-row")!;
+      return { effortRow, instructionsSec, localeRow };
+    }
+
+    it("hides the effort segment and the instructions textarea on the push transport, keeps the locale picker", () => {
+      endpointsSettings.set({ chat_api: "push" });
+      const qc = buildQc();
+      qc.open();
+
+      const { effortRow, instructionsSec, localeRow } = agentControls(qc);
+      expect(effortRow.hidden).toBe(true);
+      expect(instructionsSec.hidden).toBe(true);
+      expect(localeRow.hidden).toBe(false);
+
+      qc.dispose();
+    });
+
+    it("shows both controls again when the transport changes to a request transport", () => {
+      endpointsSettings.set({ chat_api: "push" });
+      const qc = buildQc();
+      qc.open();
+
+      endpointsSettings.set({ chat_api: "responses" });
+
+      const { effortRow, instructionsSec } = agentControls(qc);
+      expect(effortRow.hidden).toBe(false);
+      expect(instructionsSec.hidden).toBe(false);
+
+      qc.dispose();
+    });
+
+    it("hides both controls when the bundled default transport is push", () => {
+      const qc = buildQc({ getDefaultChatApi: () => "push" });
+      qc.open();
+
+      const { effortRow, instructionsSec } = agentControls(qc);
+      expect(effortRow.hidden).toBe(true);
+      expect(instructionsSec.hidden).toBe(true);
+
+      qc.dispose();
+    });
+
+    it("keeps the stored effort and instructions while the controls are hidden", () => {
+      agentSettings.setReasoningEffort("medium");
+      agentSettings.setInstructions("keep me");
+      endpointsSettings.set({ chat_api: "push" });
+      const qc = buildQc();
+      qc.open();
+
+      expect(agentSettings.get().reasoning_effort).toBe("medium");
+      expect(agentSettings.get().instructions).toBe("keep me");
+
+      qc.dispose();
+    });
+
+    it("releases every endpoints settings subscription on dispose", () => {
+      const counts = countSubscriptions(endpointsSettings);
+      const qc = buildQc();
+
+      qc.dispose();
+
+      expect(counts.taken).toBeGreaterThan(0);
+      expect(counts.released).toBe(counts.taken);
+    });
+  });
 });
 
 describe("createQuickControls — language picker", () => {
