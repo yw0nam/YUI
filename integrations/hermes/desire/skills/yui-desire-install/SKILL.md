@@ -52,14 +52,16 @@ Append to the profile `.env` (`~/.hermes/profiles/<profile>/.env`, or `~/.hermes
 
 ```
 DESIRE_AGENT_NAME=<agent>
-HERMES_PROFILE=<profile>
 DESIRE_STATE_DIR=<home>/.hermes/profiles/<profile>/desire
 YUI_SIGNALS_URL=http://127.0.0.1:8770/signals
 DESIRE_CHAT_PLATFORMS=<the chat platforms the user speaks to the agent on>
 ```
 
-`DESIRE_AGENT_NAME`, `HERMES_PROFILE`, and `DESIRE_CHAT_PLATFORMS` are required: without one of them, the
+`DESIRE_AGENT_NAME` and `DESIRE_CHAT_PLATFORMS` are required: without one of them, the
 monitor and the helper stop with an error naming the missing variable and the middleware injects nothing.
+`DESIRE_STATE_DIR` is optional: without it, state lives in `desire/` under the profile directory. The plugin
+reads these settings per profile, so a gateway that serves several profiles from one process gives each profile
+its own values.
 `DESIRE_CHAT_PLATFORMS` is a comma-separated list of Hermes platform names (`telegram`, `discord`, `slack`, …); a
 turn from one of them counts as the user speaking even when it carries no `<client_context>`.
 
@@ -129,16 +131,16 @@ python3 -c "import json,os;d=json.load(open(os.path.expanduser('~/.hermes/profil
 hermes -p <profile> cron create "every 10m" --name <agent>-desire-tick \
   --monitor-script <agent>-desire-monitor.sh \
   --deliver <target> \
-  "Follow the instructions in $YUI/integrations/hermes/desire/prompts/tick.md. The configured environment is HERMES_PROFILE=<profile>, DESIRE_STATE_DIR=<state_dir>, and YUI_SIGNALS_URL=<signals_url>."
+  "Follow the instructions in $YUI/integrations/hermes/desire/prompts/tick.md. The configured environment is DESIRE_STATE_DIR=<state_dir> and YUI_SIGNALS_URL=<signals_url>, on Hermes profile <profile>."
 hermes -p <profile> cron create "0 23 * * 0" --name <agent>-desire-reflection \
-  "Follow the instructions in $YUI/integrations/hermes/desire/prompts/reflection.md. The configured environment is HERMES_PROFILE=<profile>, DESIRE_STATE_DIR=<state_dir>, and YUI_SIGNALS_URL=<signals_url>."
+  "Follow the instructions in $YUI/integrations/hermes/desire/prompts/reflection.md. The configured environment is DESIRE_STATE_DIR=<state_dir> and YUI_SIGNALS_URL=<signals_url>, on Hermes profile <profile>."
 hermes -p <profile> cron create "0 21 * * *" --name <agent>-desire-report \
   --deliver <target> \
-  "Follow the instructions in $YUI/integrations/hermes/desire/prompts/report.md. The configured environment is HERMES_PROFILE=<profile>, DESIRE_STATE_DIR=<state_dir>, and YUI_SIGNALS_URL=<signals_url>."
+  "Follow the instructions in $YUI/integrations/hermes/desire/prompts/report.md. The configured environment is DESIRE_STATE_DIR=<state_dir> and YUI_SIGNALS_URL=<signals_url>, on Hermes profile <profile>."
 ```
 
-The job prompt is the file reference followed by the three values from step 3, nothing else; the prompt file is the
-only place the job's behaviour is written.
+The job prompt is the file reference followed by the two values from step 3 and the profile name, nothing else;
+the prompt file is the only place the job's behaviour is written.
 
 A job that already exists keeps its own schedule and delivery target. Read its id from the job list and set them
 on it:

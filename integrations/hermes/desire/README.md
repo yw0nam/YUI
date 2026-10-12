@@ -13,16 +13,15 @@ The integration is a self-contained Python 3.10+ uv project. Runtime code uses o
 `DESIRE_AGENT_NAME` names the agent — one short lowercase slug — and every convention derives from it: the
 branch prefix `<agent>/`, the issue marker `<!-- from-<agent> -->`, the issue label `from-<agent>`, the
 signal source `<agent>-desire`, and the cron job names `<agent>-desire-tick`, `<agent>-desire-reflection`, and
-`<agent>-desire-report`. `HERMES_PROFILE` names the Hermes profile the agent runs on, and
-`DESIRE_CHAT_PLATFORMS` names the channels the user speaks to the agent on. All three are required and
-have no default: the monitor and the helper stop with an error naming the missing variable, and the middleware
-injects nothing and logs one. The desire block opens with the line `agent: <agent>` so the prompts can refer to
+`<agent>-desire-report`. `DESIRE_CHAT_PLATFORMS` names the channels the user speaks to the agent on. Both are
+required and have no default: the monitor and the helper stop with an error naming the missing variable, and the
+middleware injects nothing and logs one. The desire block opens with the line `agent: <agent>` so the prompts can refer to
 it.
 
 ## State
 
-State lives in `DESIRE_STATE_DIR` when set. Otherwise it resolves to
-`~/.hermes/profiles/$HERMES_PROFILE/desire/`.
+State lives in `DESIRE_STATE_DIR` when set. Otherwise it resolves to `desire/` under the Hermes profile
+directory the turn or job runs in.
 
 The state directory contains:
 
@@ -125,20 +124,21 @@ On the Hermes host, clone the YUI repository and link the plugin directory into 
 
 ```bash
 ln -s <abs>/integrations/hermes/desire ~/.hermes/plugins/yui-desire
-hermes -p "$HERMES_PROFILE" plugins enable yui-desire
+hermes -p <profile> plugins enable yui-desire
 ```
 
 Set the deployment environment for the plugin, cron jobs, monitor, and helper commands:
 
 ```bash
 export DESIRE_AGENT_NAME=<agent>
-export HERMES_PROFILE=<profile>
-export DESIRE_STATE_DIR="$HOME/.hermes/profiles/$HERMES_PROFILE/desire"
+export DESIRE_STATE_DIR="$HOME/.hermes/profiles/<profile>/desire"
 export DESIRE_CHAT_PLATFORMS=<the Hermes chat platforms the user speaks to the agent on>
 ```
 
-`DESIRE_AGENT_NAME`, `HERMES_PROFILE`, and `DESIRE_CHAT_PLATFORMS` are required; `DESIRE_STATE_DIR` is optional
-when the default profile path is appropriate. `DESIRE_CHAT_PLATFORMS` is a comma-separated list of Hermes platform
+`DESIRE_AGENT_NAME` and `DESIRE_CHAT_PLATFORMS` are required; `DESIRE_STATE_DIR` is optional
+when the default profile path is appropriate. The plugin reads the settings in the profile `.env`
+(`~/.hermes/profiles/<profile>/.env`) per profile, so a gateway that serves several profiles from one process
+gives each profile its own values. `DESIRE_CHAT_PLATFORMS` is a comma-separated list of Hermes platform
 names (`telegram`, `discord`, `slack`, …); a turn Hermes attributes to one of them counts as the user speaking
 even when it carries no `<client_context>`.
 
@@ -162,25 +162,25 @@ chmod +x ~/.hermes/scripts/$DESIRE_AGENT_NAME-desire-monitor.sh
 
 Create the tick, weekly reflection, and daily report jobs with these commands, where `<target>` is a delivery
 target Hermes accepts for a channel the profile is connected to, such as `telegram:<chat_id>` for a DM listed in
-`~/.hermes/profiles/$HERMES_PROFILE/channel_directory.json`:
+`~/.hermes/profiles/<profile>/channel_directory.json`:
 
 ```bash
-hermes -p "$HERMES_PROFILE" cron create "every 10m" --name "$DESIRE_AGENT_NAME-desire-tick" \
+hermes -p <profile> cron create "every 10m" --name "$DESIRE_AGENT_NAME-desire-tick" \
   --monitor-script "$DESIRE_AGENT_NAME-desire-monitor.sh" \
   --deliver <target> \
-  "Follow the instructions in <abs>/integrations/hermes/desire/prompts/tick.md. The configured environment is HERMES_PROFILE=$HERMES_PROFILE, DESIRE_STATE_DIR=$DESIRE_STATE_DIR, and YUI_SIGNALS_URL=$YUI_SIGNALS_URL."
-hermes -p "$HERMES_PROFILE" cron create "0 23 * * 0" --name "$DESIRE_AGENT_NAME-desire-reflection" \
-  "Follow the instructions in <abs>/integrations/hermes/desire/prompts/reflection.md. The configured environment is HERMES_PROFILE=$HERMES_PROFILE, DESIRE_STATE_DIR=$DESIRE_STATE_DIR, and YUI_SIGNALS_URL=$YUI_SIGNALS_URL."
-hermes -p "$HERMES_PROFILE" cron create "0 21 * * *" --name "$DESIRE_AGENT_NAME-desire-report" \
+  "Follow the instructions in <abs>/integrations/hermes/desire/prompts/tick.md. The configured environment is DESIRE_STATE_DIR=$DESIRE_STATE_DIR and YUI_SIGNALS_URL=$YUI_SIGNALS_URL, on Hermes profile <profile>."
+hermes -p <profile> cron create "0 23 * * 0" --name "$DESIRE_AGENT_NAME-desire-reflection" \
+  "Follow the instructions in <abs>/integrations/hermes/desire/prompts/reflection.md. The configured environment is DESIRE_STATE_DIR=$DESIRE_STATE_DIR and YUI_SIGNALS_URL=$YUI_SIGNALS_URL, on Hermes profile <profile>."
+hermes -p <profile> cron create "0 21 * * *" --name "$DESIRE_AGENT_NAME-desire-report" \
   --deliver <target> \
-  "Follow the instructions in <abs>/integrations/hermes/desire/prompts/report.md. The configured environment is HERMES_PROFILE=$HERMES_PROFILE, DESIRE_STATE_DIR=$DESIRE_STATE_DIR, and YUI_SIGNALS_URL=$YUI_SIGNALS_URL."
+  "Follow the instructions in <abs>/integrations/hermes/desire/prompts/report.md. The configured environment is DESIRE_STATE_DIR=$DESIRE_STATE_DIR and YUI_SIGNALS_URL=$YUI_SIGNALS_URL, on Hermes profile <profile>."
 ```
 
-`--deliver <target>` sends the tick and report responses there; `hermes -p "$HERMES_PROFILE" cron
+`--deliver <target>` sends the tick and report responses there; `hermes -p <profile> cron
 edit <job_id> --deliver <target>` sets it on a job that already exists. Hermes delivers a failed run
 whatever its response says, so a transient tick failure reaches the target even though a quiet tick answers
-`[SILENT]`. The job prompt is the file reference followed by the three environment values, nothing else; the
-prompt file is the only place a job's behaviour is written.
+`[SILENT]`. The job prompt is the file reference followed by the two environment values and the profile name,
+nothing else; the prompt file is the only place a job's behaviour is written.
 
 Hermes injects a changed monitor summary into the tick prompt. An unchanged summary suppresses the run. The
 summary is one line:
@@ -260,7 +260,7 @@ turn; the scoring runs inside the same state transaction as the drive advance, b
 derived event is appended to `unreported` and audited as `drive_satisfied` with its `kind` (`pr`, `issue`,
 `skill`) and `ref`.
 
-- **Repositories** — every directory one level under `~/.hermes/profiles/$HERMES_PROFILE/workspace/` whose
+- **Repositories** — every directory one level under `~/.hermes/profiles/<profile>/workspace/` whose
   `.git/config` names an `origin` remote on github.com, in both the HTTPS and SSH forms. Two directories cloning the
   same repository count as one. A directory without such a remote is skipped, and so is a checkout that keeps its
   config elsewhere (a linked worktree, `--separate-git-dir`); there is no configured repository list.
@@ -273,7 +273,7 @@ derived event is appended to `unreported` and audited as `drive_satisfied` with 
   `gh pr view <url> --json state,mergedAt` and `gh issue view <url> --json state,closedAt`, once per tick for each
   artefact that is counted but not yet shipped. A set `mergedAt` or `closedAt` scores `shipped` once. A failing view
   audits `derive_failed` for that artefact alone and leaves it for the next tick.
-- **Skills** — every directory under `~/.hermes/profiles/$HERMES_PROFILE/skills/` containing a `SKILL.md`,
+- **Skills** — every directory under `~/.hermes/profiles/<profile>/skills/` containing a `SKILL.md`,
   identified by its path relative to the skills root. First sight scores `progressed`. This is the one source
   the agent can add to alone, and it counts what appears rather than who put it there: a skill installed into the
   profile from outside scores too, and a nested `SKILL.md` inside an existing skill counts as its own directory.
@@ -311,7 +311,7 @@ from the bootstrap tick until the agent writes its first new skill; the skills t
 enter it.
 
 - **Loads** — every `skill_view` tool call in the last seven days, read from the `messages` table of
-  `~/.hermes/profiles/$HERMES_PROFILE/state.db`: an assistant row carries its calls as JSON in `tool_calls`, and
+  `~/.hermes/profiles/<profile>/state.db`: an assistant row carries its calls as JSON in `tool_calls`, and
   `timestamp` is unix seconds. A call counts for a skill when its `arguments.name` is the skill path or the last
   segment of it, which is the name `.usage.json` and `skill_view` both use, so two skills sharing a last segment
   under different categories would each absorb the other's bare-name loads. The database is opened read-only
@@ -319,10 +319,10 @@ enter it.
   monitor never reads it.
 - **Session kind** — Hermes names every cron-started session `cron_<job id>_<timestamp>`, and `sessions.source` is
   `cron` for all of them, so `source` cannot separate the tick from the digest, reflection, report, and other
-  cron jobs. The tick's job id is read by name from `~/.hermes/profiles/$HERMES_PROFILE/cron/jobs.json`, job
+  cron jobs. The tick's job id is read by name from `~/.hermes/profiles/<profile>/cron/jobs.json`, job
   `<agent>-desire-tick`; a `session_id` starting with `cron_<that id>_` is a tick load and everything else — a chat
   platform, the YUI api_server, every other cron job — is an `other` load.
-- **Last used** — `last_used_at` from `~/.hermes/profiles/$HERMES_PROFILE/skills/.usage.json`, an offset-carrying
+- **Last used** — `last_used_at` from `~/.hermes/profiles/<profile>/skills/.usage.json`, an offset-carrying
   ISO stamp, rendered in KST. A skill with no stamp reads `never`, and one whose stamp cannot be parsed reads
   `unknown` and carries no verdict.
 - **Verdict** — a skill created 14 or more days ago with zero `other` loads in the last seven days is marked

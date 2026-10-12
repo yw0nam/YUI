@@ -133,7 +133,7 @@ feature you want, or from an error you find in a log. Replying to the user's com
 The first body line of every issue you open is the marker `<!-- from-<agent> -->`; without it the monitor never
 scores the issue. In repositories owned by the user's own GitHub account — the one `gh` is authenticated as, which
 `gh api user --jq .login` names — follow the marker with the visible line `Opened by <agent>, the autonomous agent
-on profile <profile>.`, where `<profile>` is the `HERMES_PROFILE` value this job's environment carries, add the
+on profile <profile>.`, where `<profile>` is the Hermes profile this job's prompt names, add the
 `from-<agent>` label to the issue, and keep its `needs-triage` label.
 
 An issue body in one of those repositories carries one line `want: <title of the want>`. In every other
