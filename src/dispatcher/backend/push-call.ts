@@ -17,8 +17,8 @@ import { recordSentTurn, type TurnRecordingDeps } from "./turn-recording";
 export interface PushCallDeps extends TurnRecordingDeps {
   /** Push transport sender — present in push mode; false means the socket was not ready. */
   pushTurn?: (frame: PushTurnFrame) => boolean;
-  /** The `turn` size the backend stated in `ready`; the images are fitted to the room it leaves. */
-  pushMaxTurnBytes?: () => number | undefined;
+  /** The byte room the backend's stated turn size leaves for the frame's images. */
+  pushImageRoom?: (frame: PushTurnFrame) => number | undefined;
   /** The socket accepted this turn's frame. */
   onPushTurnSent?: (turnId: string) => void;
   /** Push turn store — the call waits on it for the turn_end that closes its turn. */
@@ -158,15 +158,10 @@ export function createPushCall(deps: PushCallDeps, log: Logger): PushCall {
       client_context: contextBlock(clientContext, nowMs),
       text: ctx.user_text ?? "",
     };
-    const stated = deps.pushMaxTurnBytes?.();
+    const room = deps.pushImageRoom?.(frame);
     if (images.length > 0) {
-      const budget =
-        stated === undefined
-          ? undefined
-          : stated -
-            new TextEncoder().encode(JSON.stringify({ type: "turn", ...frame, images: [] })).length;
-      // Over the stated size the images are re-encoded smaller; with none stated the socket leaves them out.
-      frame.images = budget === undefined ? images : await fitTurnImages(images, budget);
+      // Over the stated room the images are re-encoded smaller; with none stated the socket leaves them out.
+      frame.images = room === undefined ? images : await fitTurnImages(images, room);
     }
     if (externalSignal?.aborted) return "superseded_by_user";
     const accepted = deps.pushTurn?.(frame);

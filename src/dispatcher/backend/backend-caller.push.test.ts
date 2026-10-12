@@ -85,7 +85,7 @@ function callerWith(
   accepted: boolean,
   config: EndpointsConfig = PUSH_CONFIG,
   getScreenshot?: () => Promise<InputContext["screenshot"] | undefined>,
-  pushMaxTurnBytes?: () => number | undefined,
+  pushImageRoom?: (frame: PushTurnFrame) => number | undefined,
 ) {
   sent = [];
   records = [];
@@ -122,7 +122,7 @@ function callerWith(
     },
     turnOutput,
     ...(getScreenshot ? { getScreenshot } : {}),
-    ...(pushMaxTurnBytes ? { pushMaxTurnBytes } : {}),
+    ...(pushImageRoom ? { pushImageRoom } : {}),
     getPrevious: () => {
       order.push("context");
       onContextBuilt?.();

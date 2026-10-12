@@ -180,7 +180,7 @@ export function wireDispatcher(deps: {
         createClientToolRegistry(createClientTools(getVocabulary())),
       ),
     pushTurn: (frame) => pushSocket?.sendTurn(frame) ?? false,
-    pushMaxTurnBytes: () => pushSocket?.maxTurnBytes(),
+    pushImageRoom: (frame) => pushSocket?.imageRoom(frame),
     onPushTurnCut: () => pushTurns.cut(),
     onPushTurnSent: (turnId) => pushTurns.opened(turnId),
     pushTurns,

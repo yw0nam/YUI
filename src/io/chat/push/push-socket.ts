@@ -72,8 +72,8 @@ export interface PushSocket {
   dispose(): void;
   /** True when the frame went out; false when the socket is not ready or the frame is too large. */
   sendTurn(turn: PushTurnFrame): boolean;
-  /** The `turn` size the backend stated in `ready`; undefined also means it takes no `images`. */
-  maxTurnBytes(): number | undefined;
+  /** The byte room the stated turn size leaves for the images; undefined with no stated size. */
+  imageRoom(turn: PushTurnFrame): number | undefined;
   sendReset(): boolean;
   sendStop(turnIds: string[]): boolean;
   /** Sends the current vocabulary when it differs from the one the backend last received. */
@@ -161,6 +161,11 @@ export function createPushSocket(deps: PushSocketDeps): PushSocket {
     }
     ws.send(text);
     return true;
+  }
+
+  /** The frame `sendTurn` puts on the wire; `imageRoom` measures the images' budget from it. */
+  function turnFrame(turn: PushTurnFrame): Record<string, unknown> {
+    return { type: "turn", ...turn };
   }
 
   /** Sends the vocabulary when it differs from the one the backend last received. */
@@ -456,7 +461,7 @@ export function createPushSocket(deps: PushSocketDeps): PushSocket {
         log.warn("turn_not_ready", { turn_id: turn.turn_id, state: state.kind });
         return false;
       }
-      const frame: Record<string, unknown> = { type: "turn", ...turn };
+      const frame = turnFrame(turn);
       // Images ride only to a backend that stated a turn size; they would burst the 256 KiB cap.
       if (maxTurnBytes === undefined && turn.images?.length) {
         delete frame.images;
@@ -465,7 +470,12 @@ export function createPushSocket(deps: PushSocketDeps): PushSocket {
       return sendFrame(frame, maxTurnBytes);
     },
 
-    maxTurnBytes: () => maxTurnBytes,
+    imageRoom(turn): number | undefined {
+      if (maxTurnBytes === undefined) return undefined;
+      const frame = turnFrame(turn);
+      frame.images = [];
+      return maxTurnBytes - byteLength(JSON.stringify(frame));
+    },
 
     sendReset(): boolean {
       if (!ready) {

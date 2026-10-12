@@ -824,7 +824,17 @@ describe("createPushSocket — turn images", () => {
   it("sizes turns by the stated max_turn_bytes", async () => {
     await readyWith(1024);
 
-    expect(socket.maxTurnBytes()).toBe(1024);
+    // The room is the stated size minus the frame serialized with an empty images array.
+    const frame = JSON.stringify({
+      type: "turn",
+      turn_id: "7",
+      client_context: "",
+      text: "",
+      images: [],
+    });
+    expect(socket.imageRoom({ turn_id: "7", client_context: "", text: "" })).toBe(
+      1024 - utf8(frame),
+    );
     expect(socket.sendTurn(turnOfBytes(1024))).toBe(true);
     expect(socket.sendTurn(turnOfBytes(1025))).toBe(false);
     expect(
@@ -856,7 +866,7 @@ describe("createPushSocket — turn images", () => {
   it("sends a turn without its images when no size was stated", async () => {
     await readyWith(undefined);
 
-    expect(socket.maxTurnBytes()).toBeUndefined();
+    expect(socket.imageRoom({ turn_id: "7", client_context: "", text: "" })).toBeUndefined();
     expect(
       socket.sendTurn({
         turn_id: "7",
@@ -882,7 +892,7 @@ describe("createPushSocket — turn images", () => {
     FakeSocket.last().accept();
     FakeSocket.last().push({ type: "ready", chat_id: "yui-3f9a2c1d" });
 
-    expect(socket.maxTurnBytes()).toBeUndefined();
+    expect(socket.imageRoom({ turn_id: "7", client_context: "", text: "" })).toBeUndefined();
   });
 });
 
