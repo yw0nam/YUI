@@ -231,6 +231,27 @@ describe("createBedScene", () => {
     expect(h.repark).toHaveBeenCalledTimes(1);
   });
 
+  it("uses a starting camera change in the first park without reparking", async () => {
+    const h = makeHarness({ prop: "pending" });
+    const lying = h.scene.lieDown();
+    h.place();
+    await h.flush();
+    expect(h.scene.state()).toBe("starting");
+    h.camera.setZoom(2);
+    h.resolveProp();
+    await lying;
+
+    expect(h.parked).toEqual([
+      {
+        leftPx: (-BOUNDS.min.x + FRAME_MARGIN_M) * (PX_PER_METRE * 2),
+        rightPx: (BOUNDS.max.x + FRAME_MARGIN_M) * (PX_PER_METRE * 2),
+        anchorX: ANCHOR.x,
+      },
+    ]);
+    await h.frame();
+    expect(h.repark).not.toHaveBeenCalled();
+  });
+
   it("keeps a zoom pending until the initial park lands", async () => {
     const h = makeHarness({ park: "pending" });
     await h.startAsleep();

@@ -1,7 +1,7 @@
 /**
  * stationary-frame — widens the real window around a character that stays where she is.
  *
- * A scene wider than the window parks the real window once with padding on either side
+ * A scene wider than the window parks and re-parks the real window with padding on either side
  * and draws the reference-size framing at the left padding inside it
  * (`Renderer.setViewWindow`), so the bottom edge and the character's place on screen do
  * not move. The widened frame is pulled inside the monitor that holds the window, so the
@@ -14,7 +14,7 @@ import { monitorAtLogical, type ScreenMonitor } from "./screen-geometry";
 import type { FrameWindow } from "./travel-frame";
 
 /** Extents either side of the character's canvas x, in logical px. */
-interface FrameExtents {
+export interface FrameExtents {
   leftPx: number;
   rightPx: number;
   anchorX: number;
@@ -109,6 +109,7 @@ export function createStationaryFrame(deps: {
     park: (e) => park(e),
     repark: (e) => park(e, true),
     async refit() {
+      await parking?.catch(() => {});
       const p = parked;
       if (!p) return;
       const live = await liveRect();

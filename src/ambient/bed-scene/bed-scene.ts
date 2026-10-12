@@ -9,7 +9,10 @@
  */
 
 import type { WakeCause } from "../../contract";
-import type { createStationaryFrame } from "../../io/window/geometry/stationary-frame";
+import type {
+  createStationaryFrame,
+  FrameExtents,
+} from "../../io/window/geometry/stationary-frame";
 import type { Logger } from "../../logger";
 import type { PropHandle, Renderer } from "../../renderer";
 import type { createCameraSettings } from "../../settings/avatar/camera-settings";
@@ -62,7 +65,7 @@ export interface BedSceneDeps {
     | "setOrbit"
   >;
   liveliness: Pick<Tier1Engine, "setAsleep">;
-  /** Stored zoom drives the bed extents; the head-on orbit is restored at the end. */
+  /** Camera changes keep the scene head-on; the stored orbit returns at the end. */
   camera: Pick<ReturnType<typeof createCameraSettings>, "get" | "subscribe">;
   /** null runs the scene in the window as it is. */
   frame: Pick<
@@ -107,8 +110,8 @@ export function createBedScene(deps: BedSceneDeps): BedScene {
   let generation = 0;
   let unsub: (() => void) | null = null;
   let prop: PropHandle | null = null;
-  let unsubZoom: (() => void) | null = null;
-  let zoomChanged = false;
+  let unsubCamera: (() => void) | null = null;
+  let cameraChanged = false;
   let frameParked = false;
   let reparking = false;
   let cause: BedWakeCause | null = null;
@@ -141,7 +144,7 @@ export function createBedScene(deps: BedSceneDeps): BedScene {
     asleepS = 0;
     fadeS = null;
     opacity = 0;
-    zoomChanged = false;
+    cameraChanged = false;
     frameParked = false;
     reparking = false;
   }
@@ -158,11 +161,9 @@ export function createBedScene(deps: BedSceneDeps): BedScene {
     ids = next === "launch" ? LAUNCH_MOTION_IDS : COMMAND_MOTION_IDS;
     state = "starting";
     unsub = renderer.onTick(onTick);
-    let zoom = deps.camera.get().zoom;
-    unsubZoom = deps.camera.subscribe((camera) => {
-      if (camera.zoom === zoom) return;
-      zoom = camera.zoom;
-      zoomChanged = true;
+    unsubCamera = deps.camera.subscribe(() => {
+      faceHeadOn();
+      cameraChanged = true;
     });
   }
 
@@ -176,8 +177,8 @@ export function createBedScene(deps: BedSceneDeps): BedScene {
     settleLie = null;
     unsub?.();
     unsub = null;
-    unsubZoom?.();
-    unsubZoom = null;
+    unsubCamera?.();
+    unsubCamera = null;
     try {
       liveliness.setAsleep(false);
       renderer.setSpringBonesHeld(false);
@@ -235,6 +236,7 @@ export function createBedScene(deps: BedSceneDeps): BedScene {
 
     await deps.placed;
     if (generation !== startedAt) return;
+    cameraChanged = false;
     const extents = bedExtents();
     if (frame && extents) {
       try {
@@ -250,7 +252,7 @@ export function createBedScene(deps: BedSceneDeps): BedScene {
     loaded.setOpacity(1);
   }
 
-  function bedExtents(): Parameters<NonNullable<BedSceneDeps["frame"]>["park"]>[0] | null {
+  function bedExtents(): FrameExtents | null {
     const pxPerMetre = renderer.getPxPerMetre();
     const anchor = renderer.getCharacterAnchor();
     if (!prop || pxPerMetre === null || !anchor) return null;
@@ -263,17 +265,16 @@ export function createBedScene(deps: BedSceneDeps): BedScene {
   }
 
   function repark(): void {
-    if (!zoomChanged || !frameParked || reparking || !frame) return;
+    if (!cameraChanged || !frameParked || reparking || !frame) return;
     const extents = bedExtents();
     if (!extents) return;
-    zoomChanged = false;
+    cameraChanged = false;
     reparking = true;
-    const startedAt = generation;
     void frame
       .repark(extents)
       .catch((err) => log.warn("frame_repark_failed", { degrade: true, error: String(err) }))
       .finally(() => {
-        if (generation === startedAt) reparking = false;
+        reparking = false;
       });
   }
 

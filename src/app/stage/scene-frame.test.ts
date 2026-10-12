@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { createSceneFrame } from "./scene-frame";
 
-function harness() {
+function harness(ready = Promise.resolve()) {
   const frameCalls: number[][] = [];
   const setViewWindow = vi.fn();
   const paused: boolean[] = [];
@@ -9,7 +9,7 @@ function harness() {
     { setViewWindow } as never,
     {
       frame: {
-        ready: Promise.resolve(),
+        ready,
         listMonitors: async () => [
           {
             position: { x: 0, y: 0 },
@@ -35,6 +35,24 @@ function harness() {
 }
 
 describe("createSceneFrame", () => {
+  it("does not repark before the real window is ready", async () => {
+    let ready!: () => void;
+    const h = harness(
+      new Promise<void>((resolve) => {
+        ready = resolve;
+      }),
+    );
+    const parking = h.frame.park({ leftPx: 250, rightPx: 100, anchorX: 200 });
+
+    await h.frame.repark({ leftPx: 450, rightPx: 350, anchorX: 200 });
+    expect(h.frameCalls).toEqual([]);
+    expect(h.setViewWindow).not.toHaveBeenCalled();
+    expect(h.paused).toEqual([]);
+    ready();
+    await parking;
+    expect(h.frameCalls).toEqual([[450, 300, 450, 600]]);
+  });
+
   it("parks and unparks the window once per scene, however many scenes run", async () => {
     const h = harness();
     const extents = { leftPx: 250, rightPx: 100, anchorX: 200 };
