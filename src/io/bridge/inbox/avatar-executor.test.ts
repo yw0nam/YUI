@@ -979,9 +979,15 @@ describe("avatar-executor — public entry", () => {
     });
   });
 
-  it("command() names a side or spot that is present but invalid, and one that is absent", async () => {
+  it("command() names an app, side or spot that is present but invalid, and one that is absent", async () => {
     const h = harness();
 
+    await expect(h.executor.command({ action: "sit_on_window", app: 7 })).resolves.toEqual({
+      error: "invalid field app",
+    });
+    await expect(h.executor.command({ action: "sit_on_window", app: "  " })).resolves.toEqual({
+      error: "missing field app",
+    });
     await expect(h.executor.command({ action: "peek", side: "up" })).resolves.toEqual({
       error: "invalid field side",
     });
