@@ -10,6 +10,14 @@ function harness() {
     {
       frame: {
         ready: Promise.resolve(),
+        listMonitors: async () => [
+          {
+            position: { x: 0, y: 0 },
+            size: { width: 2000, height: 1200 },
+            workArea: { position: { x: 0, y: 0 }, size: { width: 2000, height: 1200 } },
+            scaleFactor: 1,
+          },
+        ],
         frameWindow: () => ({
           outerPosition: async () => ({ x: 500, y: 300 }),
           outerSize: async () => ({ width: 400, height: 600 }),
