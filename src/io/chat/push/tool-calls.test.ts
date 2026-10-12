@@ -10,6 +10,7 @@ import type { Logger } from "../../../logger";
 import type { ClientTool } from "../tools/client-tools";
 import { createClientToolRegistry } from "../tools/client-tools";
 import type { ToolCallFrame } from "./push-frames";
+import { PUSH_FRAME_MAX_BYTES } from "./push-socket";
 import { createPushToolCalls } from "./tool-calls";
 
 function tool(
@@ -179,5 +180,17 @@ describe("createPushToolCalls", () => {
       name: "look",
       error: "Error: socket gone",
     });
+  });
+
+  it("answers error: result too large for a result past the frame cap, counted in bytes", async () => {
+    // Three bytes a character: under the cap in characters, over it in bytes.
+    const big = "あ".repeat(Math.ceil(PUSH_FRAME_MAX_BYTES / 3));
+    const h = harness({ tools: createClientToolRegistry([tool("look", async () => big)]) });
+    h.calls.handle(call("c1", "t", "look"));
+    await flush();
+
+    expect(h.sent).toEqual([
+      { type: "tool_result", id: "c1", turn_id: "t", result: "error: result too large" },
+    ]);
   });
 });
