@@ -132,6 +132,8 @@ The first two modes work with any server that speaks the corresponding OpenAI AP
 
 The in-app agent settings expose reasoning effort (`none` · `minimal` · `low` · `medium`). Responses mode sends it as `reasoning.effort`; Chat Completions mode as the top-level `reasoning_effort`.
 
+The reasoning-effort control and the instructions box are shown in Chat Completions and Responses modes only. Push mode sends neither, so the settings window hides both there.
+
 ---
 
 ## 4. Expression MCP Broker (deprecated)
