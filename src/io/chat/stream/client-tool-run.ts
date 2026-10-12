@@ -24,8 +24,10 @@ export interface ClientCallOutcome {
 
 /**
  * Parses the call's arguments, plays its express cue on arrival (cue timing never waits for a
- * round trip), and runs the registered tool with a chip for as long as it runs. Returns undefined
- * for a call the client does not own or whose arguments do not parse (an error event is yielded).
+ * round trip), and runs the registered tool with a chip for as long as it runs. Arguments that do
+ * not parse run nothing and play no cue: the call fails with an error result the model reads.
+ * Returns undefined for a call the client does not own, or one with unparseable arguments and no
+ * registered tool.
  */
 export async function* runClientCall(
   tools: ClientToolRegistry | undefined,
@@ -38,8 +40,12 @@ export async function* runClientCall(
 
   const parsed = parseToolArgs(argsJson);
   if ("error" in parsed) {
-    yield { type: "error", message: `${name} arguments JSON parse failed: ${parsed.error}` };
-    return undefined;
+    if (!tool) return undefined;
+    if (!express_call) yield { type: "tool_status", status: { state: "running", tool_id: name } };
+    if (!express_call) yield { type: "tool_status", status: { state: "failed", tool_id: name } };
+    return {
+      run: { result: `error: arguments JSON parse failed: ${parsed.error}`, oneWay: false },
+    };
   }
 
   const outcome: ClientCallOutcome = {};
