@@ -12,7 +12,6 @@ import {
   INPUT_FEET_GAP_PX,
   inputBottomFromAnchor,
 } from "../../ui/surfaces/anchor";
-import { createBedSceneHold } from "./bed-scene-hold";
 import { wireCamera, wireInputAnchor } from "./wire-pet-stage";
 
 function fakeCameraSettings(initial: { zoom: number; azimuth: number; polar: number }) {
@@ -58,9 +57,7 @@ function wheelOn(stage: HTMLElement, opts: { deltaY: number; ctrlKey?: boolean }
 }
 
 describe("wireCamera", () => {
-  function setup(held = false) {
-    const hold = createBedSceneHold();
-    if (held) hold.take();
+  function setup() {
     const stage = document.createElement("div");
     const renderer = { setZoom: vi.fn(), setOrbit: vi.fn(), setIdleThrottleEnabled: vi.fn() };
     const cameraSettings = fakeCameraSettings({ zoom: 1.2, azimuth: 0.3, polar: 1.1 });
@@ -76,7 +73,6 @@ describe("wireCamera", () => {
       renderer,
       cameraSettings,
       idleThrottleSettings,
-      hold,
       removeWheel: camera.dispose,
     };
   }
@@ -115,25 +111,6 @@ describe("wireCamera", () => {
         sensitivity: CAMERA_WHEEL_SENSITIVITY,
       }),
     );
-  });
-
-  it("changes wheel zoom while the body is held", () => {
-    const { stage, renderer, cameraSettings, hold } = setup(true);
-    expect(hold.isHeld()).toBe(true);
-
-    wheelOn(stage, { deltaY: -240 });
-
-    expect(cameraSettings.setZoom).toHaveBeenCalledOnce();
-    expect(renderer.setZoom).toHaveBeenLastCalledWith(cameraSettings.get().zoom);
-  });
-
-  it("applies a store change immediately while the body is held", () => {
-    const { renderer, cameraSettings, hold } = setup(true);
-    expect(hold.isHeld()).toBe(true);
-
-    cameraSettings.change({ zoom: 2, azimuth: 0.5, polar: 1.3 });
-    expect(renderer.setZoom).toHaveBeenLastCalledWith(2);
-    expect(renderer.setOrbit).toHaveBeenLastCalledWith({ azimuth: 0.5, polar: 1.3 });
   });
 
   it("removes only the wheel listener; the store subscribers die with the stores", () => {

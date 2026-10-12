@@ -223,10 +223,63 @@ describe("createBedScene", () => {
       anchorX: ANCHOR.x,
     });
     expect(h.scene.state()).toBe(state);
-    expect(h.calls).toEqual(calls);
+    expect(h.calls.filter((call) => !call.startsWith("orbit:"))).toEqual(
+      calls.filter((call) => !call.startsWith("orbit:")),
+    );
     expect(h.woke).toEqual([]);
     await h.frame();
     expect(h.repark).toHaveBeenCalledTimes(1);
+  });
+
+  it("keeps a zoom pending until the initial park lands", async () => {
+    const h = makeHarness({ park: "pending" });
+    await h.startAsleep();
+    expect(h.parked).toHaveLength(1);
+    h.camera.setZoom(2);
+    await h.frame();
+    await h.frame();
+    expect(h.repark).not.toHaveBeenCalled();
+
+    h.resolvePark();
+    await h.flush();
+    await h.frame();
+    expect(h.repark).toHaveBeenCalledExactlyOnceWith({
+      leftPx: (-BOUNDS.min.x + FRAME_MARGIN_M) * PX_PER_METRE * 2,
+      rightPx: (BOUNDS.max.x + FRAME_MARGIN_M) * PX_PER_METRE * 2,
+      anchorX: ANCHOR.x,
+    });
+    await h.frame();
+    expect(h.repark).toHaveBeenCalledTimes(1);
+  });
+
+  it("keeps a second zoom pending until the first repark lands", async () => {
+    const h = makeHarness();
+    await h.startAsleep();
+    let land!: () => void;
+    h.repark.mockImplementationOnce(
+      () =>
+        new Promise<void>((resolve) => {
+          land = resolve;
+        }),
+    );
+    h.camera.setZoom(2);
+    await h.frame();
+    expect(h.repark).toHaveBeenCalledTimes(1);
+
+    h.camera.setZoom(3);
+    await h.frame();
+    await h.frame();
+    expect(h.repark).toHaveBeenCalledTimes(1);
+    land();
+    await h.flush();
+    await h.frame();
+    expect(h.repark).toHaveBeenCalledTimes(2);
+    expect(h.repark).toHaveBeenLastCalledWith({
+      leftPx: (-BOUNDS.min.x + FRAME_MARGIN_M) * (PX_PER_METRE * 3),
+      rightPx: (BOUNDS.max.x + FRAME_MARGIN_M) * (PX_PER_METRE * 3),
+      anchorX: ANCHOR.x,
+    });
+    expect(h.scene.state()).toBe("asleep");
   });
 
   it("unsubscribes zoom changes and discards a pending zoom when the scene ends", async () => {

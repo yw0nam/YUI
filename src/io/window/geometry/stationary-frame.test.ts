@@ -220,6 +220,83 @@ describe("createStationaryFrame", () => {
     expect(setKeepOnScreenPaused).toHaveBeenLastCalledWith(false);
   });
 
+  function deferFrame() {
+    let land!: () => void;
+    setFrameLogical.mockImplementationOnce(
+      (x, y, width, height) =>
+        new Promise<void>((resolve) => {
+          land = () => {
+            live = { ...live, x, y, width, height };
+            resolve();
+          };
+        }),
+    );
+    return () => land();
+  }
+
+  it("waits for a park in flight before reparking", async () => {
+    const frame = make();
+    const land = deferFrame();
+    const parking = frame.park(EXTENTS);
+    await vi.waitFor(() => expect(setFrameLogical).toHaveBeenCalledTimes(1));
+    const reparking = frame.repark({ leftPx: 450, rightPx: 350, anchorX: 350 });
+    let settled = false;
+    void reparking.then(() => {
+      settled = true;
+    });
+    for (let i = 0; i < 10; i++) await Promise.resolve();
+    const settledDuringPark = settled;
+    const callsDuringPark = setFrameLogical.mock.calls.length;
+
+    land();
+    await parking;
+    await reparking;
+    expect(settledDuringPark).toBe(false);
+    expect(callsDuringPark).toBe(1);
+    expect(setFrameLogical).toHaveBeenCalledTimes(2);
+    expect(setFrameLogical).toHaveBeenLastCalledWith(50, 517, 800, 600);
+    expect(setViewWindow).toHaveBeenLastCalledWith({ x: 250, y: 0, width: 400, height: 600 });
+  });
+
+  it("ignores a repark during a release in flight", async () => {
+    const frame = make();
+    await frame.park(EXTENTS);
+    const land = deferFrame();
+    const releasing = frame.release();
+    await vi.waitFor(() => expect(setFrameLogical).toHaveBeenCalledTimes(2));
+    const reparking = frame.repark({ leftPx: 450, rightPx: 350, anchorX: 350 });
+    for (let i = 0; i < 10; i++) await Promise.resolve();
+    const callsDuringRelease = setFrameLogical.mock.calls.length;
+
+    land();
+    await releasing;
+    await reparking;
+    expect(callsDuringRelease).toBe(2);
+    expect(setFrameLogical).toHaveBeenCalledTimes(2);
+    expect(live).toMatchObject({ x: 300, width: 400, height: 600 });
+    expect(setViewWindow).toHaveBeenLastCalledWith(null);
+  });
+
+  it("waits for a repark in flight before refitting after a native drag", async () => {
+    const frame = make();
+    await frame.park(EXTENTS);
+    const land = deferFrame();
+    const reparking = frame.repark({ leftPx: 450, rightPx: 350, anchorX: 350 });
+    await vi.waitFor(() => expect(setFrameLogical).toHaveBeenCalledTimes(2));
+    live.width = 1200;
+    const refitting = frame.refit();
+    for (let i = 0; i < 10; i++) await Promise.resolve();
+    const callsDuringRepark = setFrameLogical.mock.calls.length;
+
+    land();
+    await reparking;
+    await refitting;
+    expect(callsDuringRepark).toBe(2);
+    expect(setFrameLogical).toHaveBeenCalledTimes(2);
+    expect(live.width).toBe(800);
+    expect(setViewWindow).toHaveBeenLastCalledWith({ x: 250, y: 0, width: 400, height: 600 });
+  });
+
   it("re-issues the parked size on a refit only when the live size drifted", async () => {
     const frame = make();
     await frame.park(EXTENTS);
