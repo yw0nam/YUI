@@ -54,8 +54,8 @@ def test_state_dir_defaults_to_the_hermes_home(monkeypatch, tmp_path):
     assert desire_config.resolve_state_dir() == tmp_path / "desire"
 
     monkeypatch.delenv("HERMES_HOME")
-    with pytest.raises(desire_config.ConfigurationError, match="HERMES_HOME"):
-        desire_config.resolve_state_dir()
+    monkeypatch.setenv("HOME", str(tmp_path))
+    assert desire_config.resolve_state_dir() == tmp_path / ".hermes" / "desire"
 
 
 def test_inside_hermes_settings_come_from_the_profile_scope_and_home(monkeypatch, tmp_path):

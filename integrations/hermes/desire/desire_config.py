@@ -44,11 +44,11 @@ try:
     from agent.secret_scope import get_secret as _setting
     from hermes_constants import get_hermes_home as _profile_dir
 except ImportError:
-    # A script Hermes spawns carries the profile settings and HERMES_HOME in its environment.
+    # A script outside the Hermes interpreter reads what Hermes exports to it.
     _setting = os.environ.get
 
     def _profile_dir() -> Path:
-        return Path(_required("HERMES_HOME"))
+        return Path(os.environ.get("HERMES_HOME", "").strip() or "~/.hermes").expanduser()
 
 
 def _required(name: str) -> str:
