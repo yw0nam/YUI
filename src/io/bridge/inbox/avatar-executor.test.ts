@@ -995,7 +995,7 @@ describe("avatar-executor — public entry", () => {
       ok: false,
       reason: "busy",
     });
-    gate.resolve({ ok: false, kind: "sit", reason: "not_found" });
+    gate.resolve({ ok: false, reason: "not_found" });
     await flush();
     await expect(h.executor.command({ action: "stand" })).resolves.toEqual({ ok: true });
   });

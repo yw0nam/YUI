@@ -98,6 +98,13 @@ export interface AvatarExecutor {
   start(): void;
   /** Unsubscribe. */
   stop(): void;
+  /** Runs one agent command — the same flow the bridged RPC `command` takes. A command whose
+   *  required field is absent answers `{ error: "missing field <name>" }` instead of a verdict. */
+  command(params: unknown): Promise<AvatarCommandResult | AvatarCommandParse>;
+  /** The body-state query the bridged RPC `state` answers. */
+  state(): Promise<AvatarState>;
+  /** The perch-candidates query the bridged RPC `perch_targets` answers. */
+  perchTargets(): Promise<AvatarPerchTargets>;
   /**
    * A user drag beats the agent: abort the running command and refuse further ones
    * until {@link AvatarExecutor.noteUserDragEnd} — the user owns the avatar meanwhile.
@@ -107,22 +114,29 @@ export interface AvatarExecutor {
   noteUserDragEnd(): void;
 }
 
+/** A command whose required field is absent, named so the tool layer can answer `error: missing field <name>`. */
+export interface AvatarCommandParse {
+  error: string;
+}
+
 function fail(reason: AvatarFailure): AvatarCommandResult {
   return { ok: false, reason };
 }
 
-/** Narrow a bridged `command` payload. Rust already validates it; this is the belt. */
-function parseCommand(params: unknown): AvatarCommand | null {
+/** Narrow a bridged `command` payload. The field name rides back so the tool layer can answer `error: missing field <name>`; every parse failure stays `unsupported` on the RPC path. */
+function parseCommand(params: unknown): AvatarCommand | AvatarCommandParse | null {
   if (params === null || typeof params !== "object") return null;
   const p = params as Record<string, unknown>;
   switch (p.action) {
     case "sit_on_window": {
-      // An empty app name would match every window, so it is malformed, not a miss.
+      // An empty app name would match every window, so it counts as absent.
       const app = typeof p.app === "string" ? p.app.trim() : "";
-      return app.length > 0 ? { action: "sit_on_window", app } : null;
+      return app.length > 0 ? { action: "sit_on_window", app } : { error: "missing field app" };
     }
     case "peek":
-      return p.side === "left" || p.side === "right" ? { action: "peek", side: p.side } : null;
+      return p.side === "left" || p.side === "right"
+        ? { action: "peek", side: p.side }
+        : { error: "missing field side" };
     case "move_to": {
       const spots: AvatarSpot[] = [
         "center",
@@ -131,7 +145,7 @@ function parseCommand(params: unknown): AvatarCommand | null {
         "bottom-left",
         "bottom-right",
       ];
-      if (!spots.includes(p.spot as AvatarSpot)) return null;
+      if (!spots.includes(p.spot as AvatarSpot)) return { error: "missing field spot" };
       const monitor = typeof p.monitor === "number" ? p.monitor : undefined;
       return {
         action: "move_to",
@@ -293,9 +307,7 @@ export function createAvatarExecutor(deps: AvatarExecutorDeps): AvatarExecutor {
     }
   }
 
-  async function handleCommand(params: unknown): Promise<AvatarCommandResult> {
-    const command = parseCommand(params);
-    if (!command) return fail("unsupported");
+  async function runParsed(command: AvatarCommand): Promise<AvatarCommandResult> {
     // The user is holding the avatar — the agent does not get to move it out from
     // under them, so refuse rather than queue.
     if (dragging) return fail("interrupted");
@@ -310,6 +322,18 @@ export function createAvatarExecutor(deps: AvatarExecutorDeps): AvatarExecutor {
     } finally {
       moving = false;
     }
+  }
+
+  async function handleCommand(params: unknown): Promise<AvatarCommandResult> {
+    const parsed = parseCommand(params);
+    if (parsed === null || "error" in parsed) return fail("unsupported");
+    return runParsed(parsed);
+  }
+
+  async function command(params: unknown): Promise<AvatarCommandResult | AvatarCommandParse> {
+    const parsed = parseCommand(params);
+    if (parsed === null) return fail("unsupported");
+    return "error" in parsed ? parsed : runParsed(parsed);
   }
 
   async function readPosition(): Promise<AvatarPosition | null> {
@@ -381,5 +405,8 @@ export function createAvatarExecutor(deps: AvatarExecutorDeps): AvatarExecutor {
     noteUserDragEnd() {
       dragging = false;
     },
+    command,
+    state: () => readState(),
+    perchTargets: () => readPerchTargets(),
   };
 }
