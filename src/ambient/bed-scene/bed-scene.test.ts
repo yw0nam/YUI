@@ -602,6 +602,7 @@ describe("createBedScene — lying down on command", () => {
       await h.lieDown();
       await h.frame();
       h.scene.wake(cause);
+      expect(h.calls.at(-1)).toBe("asleep:false");
       expect(h.scene.takeMessageWake()).toBe(false);
       await h.frame(PROP_FADE_S / 2);
       expect(h.scene.state()).toBe("waking");
