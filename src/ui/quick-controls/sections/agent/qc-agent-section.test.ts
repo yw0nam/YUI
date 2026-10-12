@@ -337,14 +337,17 @@ describe("createQuickControls — agent section", () => {
       qc.dispose();
     });
 
-    it("shows both controls again when the transport changes to a request transport", () => {
-      endpointsSettings.set({ chat_api: "push" });
+    it("follows a live transport change in both directions", () => {
+      endpointsSettings.set({ chat_api: "responses" });
       const qc = buildQc();
       qc.open();
+      const { effortSec, instructionsSec } = agentControls(qc);
+
+      endpointsSettings.set({ chat_api: "push" });
+      expect(effortSec.hidden).toBe(true);
+      expect(instructionsSec.hidden).toBe(true);
 
       endpointsSettings.set({ chat_api: "responses" });
-
-      const { effortSec, instructionsSec } = agentControls(qc);
       expect(effortSec.hidden).toBe(false);
       expect(instructionsSec.hidden).toBe(false);
 
