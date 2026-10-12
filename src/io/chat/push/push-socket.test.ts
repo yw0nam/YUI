@@ -1276,3 +1276,96 @@ describe("pushVocabularyOf", () => {
     ).toEqual({});
   });
 });
+
+describe("createPushSocket — tool calls", () => {
+  const LOOK_SCHEMA = {
+    type: "function",
+    function: {
+      name: "look",
+      description: "read the body",
+      parameters: { type: "object", properties: {}, additionalProperties: false },
+    },
+  } as const;
+
+  it("carries the declared tools on hello when there are any", async () => {
+    await connected({ tools: () => [LOOK_SCHEMA] });
+
+    expect(FakeSocket.instances[0]!.frames()[0]).toMatchObject({
+      type: "hello",
+      tools: [LOOK_SCHEMA],
+    });
+  });
+
+  it("dispatches a readable tool_call to onToolCall subscribers", async () => {
+    await connected();
+    const seen: unknown[] = [];
+    socket.onToolCall((frame) => seen.push(frame));
+
+    FakeSocket.last().push({
+      type: "tool_call",
+      id: "c1",
+      turn_id: "1789365854947",
+      name: "look",
+      arguments: { at: "body" },
+    });
+
+    expect(seen).toEqual([
+      {
+        type: "tool_call",
+        id: "c1",
+        turn_id: "1789365854947",
+        name: "look",
+        arguments: { at: "body" },
+      },
+    ]);
+  });
+
+  it("logs a malformed tool_call instead of dispatching it", async () => {
+    await connected();
+    const seen: unknown[] = [];
+    socket.onToolCall((frame) => seen.push(frame));
+
+    FakeSocket.last().push({
+      type: "tool_call",
+      id: "c1",
+      turn_id: 7,
+      name: "look",
+      arguments: { at: "body" },
+    });
+
+    expect(seen).toEqual([]);
+    expect(logger.warn).toHaveBeenCalledWith("frame_malformed", {
+      type: "tool_call",
+      field: "turn_id",
+    });
+  });
+
+  it("accepts failed as a tool_status state", async () => {
+    await connected();
+    const states: string[] = [];
+    socket.onToolStatus((frame) => states.push(frame.state));
+
+    FakeSocket.last().push({
+      type: "tool_status",
+      turn_id: "1789365854947",
+      state: "failed",
+      tool_id: "body_action",
+    });
+
+    expect(states).toEqual(["failed"]);
+  });
+
+  it("sendToolResult sends only while the socket is ready", async () => {
+    socket = build();
+    const frame = { type: "tool_result", id: "c1", turn_id: "t", result: "ok" } as const;
+    socket.connect();
+    await vi.advanceTimersByTimeAsync(0);
+
+    expect(socket.sendToolResult(frame)).toBe(false);
+
+    FakeSocket.last().accept();
+    FakeSocket.last().push({ type: "ready", chat_id: "yui-3f9a2c1d" });
+    expect(socket.sendToolResult(frame)).toBe(true);
+    expect(FakeSocket.last().frames().at(-1)).toEqual(frame);
+  });
+});

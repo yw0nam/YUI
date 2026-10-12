@@ -3,7 +3,7 @@
  */
 
 import { describe, expect, it } from "vitest";
-import { renderFrameFault, speechFrameFault } from "./push-frames";
+import { renderFrameFault, speechFrameFault, toolCallFrameFault } from "./push-frames";
 
 describe("push frame fault checks", () => {
   it("renderFrameFault names source when segments are readable but source is not a string", () => {
@@ -20,4 +20,16 @@ describe("push frame fault checks", () => {
       speechFrameFault({ segments: [], turn_id: "t" } satisfies Record<string, unknown>),
     ).toBeNull();
   });
+});
+
+it("toolCallFrameFault names the first unreadable field among id, turn_id, name and arguments", () => {
+  expect(toolCallFrameFault({ id: 7, turn_id: 7, name: 7, arguments: 7 })).toBe("id");
+  expect(toolCallFrameFault({ id: "c", turn_id: 7, name: 7, arguments: 7 })).toBe("turn_id");
+  expect(toolCallFrameFault({ id: "c", turn_id: "t", name: 7, arguments: 7 })).toBe("name");
+  expect(
+    toolCallFrameFault({ id: "c", turn_id: "t", name: "look", arguments: null }),
+  ).toBe("arguments");
+  expect(
+    toolCallFrameFault({ id: "c", turn_id: "t", name: "look", arguments: { at: "body" } }),
+  ).toBeNull();
 });
