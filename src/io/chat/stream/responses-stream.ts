@@ -144,7 +144,7 @@ export async function* streamResponses(
   // but is handled once. Different calls each act (per-beat cue).
   let handled = new Set<string>();
   let callIds = new Map<string, string>();
-  let executed: Array<{ call: ResponseInputItem; output: ToolOutputItem; oneWay: boolean }> = [];
+  let executed: Array<{ output: ToolOutputItem; oneWay: boolean }> = [];
   // The response's items the follow-up replays, in output order: reasoning items as done
   // delivered them + each executed call.
   let replay: ResponseInputItem[] = [];
@@ -165,7 +165,6 @@ export async function* streamResponses(
     const call: ResponseInputItem = { type: "function_call", call_id, name, arguments: argsJson };
     replay.push(call);
     executed.push({
-      call,
       output: { type: "function_call_output", call_id, output: outcome.run.result },
       oneWay: outcome.run.oneWay,
     });
