@@ -10,6 +10,7 @@
 import type { Logger } from "../../../logger";
 import type { ClientTool, ClientToolRegistry } from "../tools/client-tools";
 import type { ToolCallFrame, ToolResultFrame } from "./push-frames";
+import { byteLength, PUSH_FRAME_MAX_BYTES } from "./push-socket";
 
 export interface PushToolCalls {
   /** Takes one frame from the socket; answers it at once, queues it, or drops it. */
@@ -34,7 +35,16 @@ export function createPushToolCalls(deps: PushToolCallsDeps): PushToolCalls {
   let tail: Promise<void> = Promise.resolve();
 
   function answer(frame: ToolCallFrame, result: string): void {
-    if (deps.send({ type: "tool_result", id: frame.id, turn_id: frame.turn_id, result })) return;
+    let reply: ToolResultFrame = {
+      type: "tool_result",
+      id: frame.id,
+      turn_id: frame.turn_id,
+      result,
+    };
+    // The socket refuses a frame past the cap, which would leave the backend's wait unanswered.
+    if (byteLength(JSON.stringify(reply)) > PUSH_FRAME_MAX_BYTES)
+      reply = { ...reply, result: "error: result too large" };
+    if (deps.send(reply)) return;
     deps.log.warn("tool_result_send_failed", { id: frame.id, name: frame.name });
   }
 

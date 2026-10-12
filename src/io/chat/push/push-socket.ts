@@ -113,7 +113,7 @@ export function pushVocabularyOf(published: ExpressVocabulary | undefined): Push
   };
 }
 
-function byteLength(text: string): number {
+export function byteLength(text: string): number {
   return new TextEncoder().encode(text).length;
 }
 
