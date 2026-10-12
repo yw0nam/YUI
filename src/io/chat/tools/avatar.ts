@@ -101,6 +101,8 @@ function createLookTool(getExecutor: () => AvatarExecutor | null): ClientTool {
       },
     },
     execute: async (args) => {
+      if (args.at === undefined) return "error: missing field at";
+      if (args.at !== "body" && args.at !== "perch_targets") return "error: invalid field at";
       const executor = getExecutor();
       if (executor === null) return "error: unsupported";
       return JSON.stringify(

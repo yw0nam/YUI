@@ -99,7 +99,8 @@ export interface AvatarExecutor {
   /** Unsubscribe. */
   stop(): void;
   /** Runs one agent command — the same flow the bridged RPC `command` takes. A command whose
-   *  required field is absent answers `{ error: "missing field <name>" }` instead of a verdict. */
+   *  required field is absent or invalid answers `{ error: "missing field <name>" }` or
+   *  `{ error: "invalid field <name>" }` instead of a verdict. */
   command(params: unknown): Promise<AvatarCommandResult | AvatarCommandParse>;
   /** The body-state query the bridged RPC `state` answers. */
   state(): Promise<AvatarState>;
@@ -114,7 +115,7 @@ export interface AvatarExecutor {
   noteUserDragEnd(): void;
 }
 
-/** A command whose required field is absent, named so the tool layer can answer `error: missing field <name>`. */
+/** A command whose required field is absent or invalid, named so the tool layer can answer `error: missing field <name>` or `error: invalid field <name>`. */
 export interface AvatarCommandParse {
   error: string;
 }
@@ -123,7 +124,11 @@ function fail(reason: AvatarFailure): AvatarCommandResult {
   return { ok: false, reason };
 }
 
-/** Narrow a bridged `command` payload. The field name rides back so the tool layer can answer `error: missing field <name>`; every parse failure stays `unsupported` on the RPC path. */
+function fieldError(name: string, value: unknown): string {
+  return `${value === undefined ? "missing" : "invalid"} field ${name}`;
+}
+
+/** Narrow a bridged `command` payload. The field name rides back so the tool layer can name it; every parse failure stays `unsupported` on the RPC path. */
 function parseCommand(params: unknown): AvatarCommand | AvatarCommandParse | null {
   if (params === null || typeof params !== "object") return null;
   const p = params as Record<string, unknown>;
@@ -134,9 +139,8 @@ function parseCommand(params: unknown): AvatarCommand | AvatarCommandParse | nul
       return app.length > 0 ? { action: "sit_on_window", app } : { error: "missing field app" };
     }
     case "peek":
-      return p.side === "left" || p.side === "right"
-        ? { action: "peek", side: p.side }
-        : { error: "missing field side" };
+      if (p.side === "left" || p.side === "right") return { action: "peek", side: p.side };
+      return { error: fieldError("side", p.side) };
     case "move_to": {
       const spots: AvatarSpot[] = [
         "center",
@@ -145,7 +149,7 @@ function parseCommand(params: unknown): AvatarCommand | AvatarCommandParse | nul
         "bottom-left",
         "bottom-right",
       ];
-      if (!spots.includes(p.spot as AvatarSpot)) return { error: "missing field spot" };
+      if (!spots.includes(p.spot as AvatarSpot)) return { error: fieldError("spot", p.spot) };
       const monitor = typeof p.monitor === "number" ? p.monitor : undefined;
       return {
         action: "move_to",
