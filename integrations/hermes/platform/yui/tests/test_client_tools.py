@@ -145,6 +145,27 @@ async def test_a_stop_fails_the_named_turns_calls(monkeypatch):
     assert await asyncio.wait_for(task, 2.0) == "error: turn stopped"
 
 
+async def test_a_stop_fails_a_call_still_waiting_on_the_chat_lock_and_it_never_sends(monkeypatch):
+    sends: list[dict] = []
+    made = made_adapter(monkeypatch, sends, answers=False)
+    handler.set_sink(made)
+    state.open_turn(CHAT, "t1")
+    STUB_ENV["HERMES_SESSION_CHAT_ID"] = CHAT
+
+    first = asyncio.create_task(asyncio.to_thread(handler.handle("body_action"), {"action": "stand"}))
+    await asyncio.sleep(0.05)
+    second = asyncio.create_task(asyncio.to_thread(handler.handle("look"), {"at": "body"}))
+    await asyncio.sleep(0.05)
+    assert [frame["name"] for frame in sends] == ["body_action"]
+
+    await made._on_stop(CHAT, {"type": "stop", "turn_ids": ["t1"]})
+
+    assert await asyncio.wait_for(first, 2.0) == "error: turn stopped"
+    assert await asyncio.wait_for(second, 2.0) == "error: turn stopped"
+    assert [frame["name"] for frame in sends] == ["body_action"]
+    assert pending._calls.get(CHAT) is None
+
+
 async def test_a_close_fails_every_pending_call_of_the_chat(monkeypatch):
     made = made_adapter(monkeypatch, answers=False)
     handler.set_sink(made)
