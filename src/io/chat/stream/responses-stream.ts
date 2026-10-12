@@ -9,8 +9,8 @@
  *   tools ran and the response said nothing; a response that already spoke is a finished turn.
  *   Bounded by MAX_TOOL_ROUND_TRIPS. The follow-up request keeps the turn's original
  *   previous_response_id and re-sends the input items, the response's spoken text as an assistant
- *   message, and each call with its output, so it never depends on the server having kept the
- *   tool-calling response.
+ *   message, the response's reasoning output items ahead of its calls, and each call with its
+ *   output, so it never depends on the server having kept the tool-calling response.
  *
  * express tool naming: the tool is matched by SUFFIX (`name.endsWith("generate_express")`),
  *   so it recognizes both the plain `generate_express` and the MCP-namespaced
@@ -44,6 +44,8 @@
  *      · isExpressTool(name) or registered → if call not yet handled and item.arguments present,
  *        parse and act as above (covers backends with no function_call_arguments.* events).
  *      · else → tool_status done.
+ *  - response.output_item.done (reasoning): kept as delivered for the round trip replay, ahead of
+ *    the calls.
  *  - response.completed → usage, then either the round trip (the stream is left and the follow-up
  *    sent) or the completed event with the assembled ControlEnvelope, at once. Calls that got no
  *    round trip ride on it as toolOutputs. Normalization happens HERE: emotion_id→emotion{id},
@@ -143,6 +145,9 @@ export async function* streamResponses(
   let handled = new Set<string>();
   let callIds = new Map<string, string>();
   let executed: Array<{ call: ResponseInputItem; output: ToolOutputItem; oneWay: boolean }> = [];
+  // The response's items the follow-up replays, in output order: reasoning items as done
+  // delivered them + each executed call.
+  let replay: ResponseInputItem[] = [];
   let roundText = "";
 
   async function* handleCall(
@@ -157,8 +162,10 @@ export async function* streamResponses(
     if (outcome.cue) express = outcome.cue;
     if (!outcome.run) return;
     const call_id = callIds.get(key) ?? `call_${seq++}`;
+    const call: ResponseInputItem = { type: "function_call", call_id, name, arguments: argsJson };
+    replay.push(call);
     executed.push({
-      call: { type: "function_call", call_id, name, arguments: argsJson },
+      call,
       output: { type: "function_call_output", call_id, output: outcome.run.result },
       oneWay: outcome.run.oneWay,
     });
@@ -199,6 +206,7 @@ export async function* streamResponses(
     handled = new Set();
     callIds = new Map();
     executed = [];
+    replay = [];
     roundText = "";
     // A response that errored is never answered.
     let failed = false;
@@ -267,6 +275,10 @@ export async function* streamResponses(
                 // Backends without function_call_arguments.* events have args only in done item.
                 yield* handleCall(key, item.name, item.arguments ?? "");
               }
+            } else if (item?.type === "reasoning") {
+              // Reasoning models reject a function_call replayed without the reasoning item that
+              // preceded it.
+              replay.push(item);
             }
             break;
           }
@@ -368,7 +380,8 @@ export async function* streamResponses(
     input = [
       ...inputItems(input),
       ...(roundText ? [{ role: "assistant" as const, content: roundText }] : []),
-      ...executed.flatMap((e) => [e.call, e.output]),
+      ...replay,
+      ...executed.map((e) => e.output),
     ];
   }
 }
