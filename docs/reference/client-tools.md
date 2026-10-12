@@ -57,37 +57,45 @@ The results go back to the model in two cases:
 
 The cycle repeats while the model keeps asking, up to three round trips per turn (`MAX_TOOL_ROUND_TRIPS` in `src/io/chat/stream/stream-helpers.ts`). Past three the client closes the turn with the text it has.
 
+Speech from consecutive responses of a turn is joined with one space, unless the earlier text ends in whitespace or a CJK terminator (`。` `！` `？`) or the later text starts with whitespace.
+
 A tool whose execution throws returns `error: <message>` as its result. A call whose arguments are unparseable JSON is skipped and the turn ends as a failed turn.
 
 ### On the wire
 
-Chat Completions appends the assistant message carrying the `tool_calls` and one `role: "tool"` message per call (`tool_call_id` and the result string) to the message array of the turn in flight. It then sends the whole array again with the same `tools[]`.
+Chat Completions appends the assistant message carrying the response's spoken text as `content` beside the `tool_calls` (`content: null` when the response said nothing), and one `role: "tool"` message per call (`tool_call_id` and the result string), to the message array of the turn in flight. It then sends the whole array again with the same `tools[]`.
 
 ```jsonc
 // request 1: messages + tools[]
-// response 1: tool-call deltas, no text
-{"choices":[{"index":0,"delta":{"tool_calls":[{"index":0,"id":"call_1","type":"function","function":{"name":"generate_express","arguments":"{\"emotion_id\":\"happy\",\"motion_id\":\"dance\"}"}}]},"finish_reason":null}]}
+// response 1: speech deltas, then tool-call deltas
+{"choices":[{"index":0,"delta":{"content":"Let me check."},"finish_reason":null}]}
+{"choices":[{"index":0,"delta":{"tool_calls":[{"index":0,"id":"call_1","type":"function","function":{"name":"lookup","arguments":"{\"q\":\"answer\"}"}}]},"finish_reason":null}]}
 {"choices":[{"index":0,"delta":{},"finish_reason":"tool_calls"}]}
 
 // request 2: the same messages and tools[], with these two appended
-{"role":"assistant","content":null,"tool_calls":[{"id":"call_1","type":"function","function":{"name":"generate_express","arguments":"{\"emotion_id\":\"happy\",\"motion_id\":\"dance\"}"}}]}
-{"role":"tool","tool_call_id":"call_1","content":"ok"}
+{"role":"assistant","content":"Let me check.","tool_calls":[{"id":"call_1","type":"function","function":{"name":"lookup","arguments":"{\"q\":\"answer\"}"}}]}
+{"role":"tool","tool_call_id":"call_1","content":"42"}
 
 // response 2: the spoken text
+{"choices":[{"index":0,"delta":{"content":"It is 42."},"finish_reason":null}]}
+{"choices":[{"index":0,"delta":{},"finish_reason":"stop"}]}
 ```
 
-Responses sends a new request whose `input` is the original input items, then each executed call as a `function_call` item, then one `function_call_output` item per call. The request keeps the turn's original `previous_response_id`, so the round trip works on a server that has dropped the tool-calling response. The `completed` event carries the id of the last response of the turn.
+Responses sends a new request whose `input` is the original input items, then an assistant message item carrying the response's spoken text (omitted when the response said nothing), then each executed call as a `function_call` item, then one `function_call_output` item per call. The request keeps the turn's original `previous_response_id`, so the round trip works on a server that has dropped the tool-calling response. The `completed` event carries the id of the last response of the turn.
 
 ```jsonc
 // request 1: input items + tools[]
-// response 1: a function_call item, no text
-{"type":"function_call","call_id":"call_1","name":"generate_express","arguments":"{\"emotion_id\":\"happy\"}"}
+// response 1: a speech delta, then a function_call item
+{"type":"response.output_text.delta","delta":"Let me check."}
+{"type":"function_call","call_id":"call_1","name":"lookup","arguments":"{\"q\":\"answer\"}"}
 
 // request 2: the same tools[] and previous_response_id, input = the original items plus
-{"type":"function_call","call_id":"call_1","name":"generate_express","arguments":"{\"emotion_id\":\"happy\"}"}
-{"type":"function_call_output","call_id":"call_1","output":"ok"}
+{"role":"assistant","content":"Let me check."}
+{"type":"function_call","call_id":"call_1","name":"lookup","arguments":"{\"q\":\"answer\"}"}
+{"type":"function_call_output","call_id":"call_1","output":"42"}
 
 // response 2: the spoken text
+{"type":"response.output_text.delta","delta":"It is 42."}
 ```
 
 ### Calls left unanswered on Responses
