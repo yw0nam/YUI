@@ -6,7 +6,12 @@
   line, then the user's utterance.
 - Registers `generate_express`, whose enums are the emotion ids, motion ids and voice-tone tags
   the client published. The model calls it once per reply, listing every cue in speaking order
-  and naming the sentence each one belongs before.
+  and naming the sentence each one belongs before. Hermes defers the tool behind its tool search:
+  with `tools.tool_search.enabled` at its default `auto`, a tool that is neither a core Hermes tool
+  nor in a direct-surface toolset leaves the model's tool list, and the `tool_search`,
+  `tool_describe` and `tool_call` bridge tools take its place with a listing of names and
+  descriptions. `generate_express` is in this plugin's `yui` toolset, so the model reaches it
+  through that bridge.
 - Sends the answer while the agent writes it: each finished sentence leaves as a `speech` frame
   carrying every cue whose `sentence` opens it, or else the next cue that names no sentence. A
   sentence goes out as the gateway sends text, with media tags, image links and paths of local

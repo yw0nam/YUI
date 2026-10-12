@@ -28,9 +28,9 @@ type CCCreateParams = Omit<ChatCompletionCreateParamsStreaming, "model"> & {
  * The caller (backend-caller) pre-assembles request.messages via chat-completions.ts
  * buildCCMessages; the registry (`tools`) supplies the tools declared on every request of the
  * turn. Stream chunks are normalized via chat-completions.createChunkReducer and each tool_call is
- * handled on arrival: an express call yields its cue immediately (cue timing never waits for the
- * round trip), any other call yields tool_status done, and a call naming a registered tool is
- * executed locally.
+ * handled when the reducer releases it, on finish_reason or stream end: an express call yields its
+ * cue (before any round trip), any other call yields tool_status done, and a call naming a
+ * registered tool is executed locally.
  *
  * Round trip: the assistant tool_calls message and one role:"tool" result per call are appended to
  * the in-turn message array and the whole array is sent again. It happens whenever a tool that

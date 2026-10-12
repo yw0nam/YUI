@@ -45,6 +45,7 @@ export default defineConfig({
         text: 'Reference',
         items: [
           { text: 'Client Context', link: '/reference/client-context' },
+          { text: 'Client Tools', link: '/reference/client-tools' },
           { text: 'Signals Ingress', link: '/reference/signals-ingress' },
           { text: 'Motions', link: '/reference/motions' },
           { text: 'Logging', link: '/reference/logging' },
@@ -73,6 +74,7 @@ export default defineConfig({
           text: 'Reference',
           items: [
             { text: 'Client Context', link: '/reference/client-context' },
+            { text: 'Client Tools', link: '/reference/client-tools' },
             { text: 'Signals Ingress', link: '/reference/signals-ingress' },
             { text: 'Motions', link: '/reference/motions' },
             { text: 'Logging', link: '/reference/logging' },

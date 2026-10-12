@@ -6,6 +6,24 @@ Push is an optional extension for backends that can deliver without a request. R
 
 The client renders what arrives and judges nothing. Everything the backend must know is in this document; the backend adapter for a specific agent lives under `integrations/<agent>/`.
 
+## What each chat transport carries
+
+| | Chat Completions | Responses | Push |
+|---|---|---|---|
+| Screenshot of the turn | `screenshot:` line and an `image_url` part | `screenshot:` line and an `input_image` part | `screenshot:` line alone |
+| Images the user attaches | `image_url` parts | `input_image` parts | None |
+| Client-declared tools and their results ([client-tools.md](client-tools.md)) | `tools[]` on every request | `tools[]` on every request while `broker_base_url` is unset | None. Cues arrive in `render` and `speech` segments |
+| Server error text on a failed user turn | Status and server text of an HTTP error on the request, 401 and 403 excepted. Generic text for an error inside the stream | Status and server text of an HTTP error, 401 and 403 excepted. Generic text for an `error`, `response.failed` or `response.incomplete` event | Generic text |
+| Token usage readout | Usage chunk of each request | `usage` of `response.completed` | None |
+| Model, `reasoning_effort` and instructions sent with the turn | All three | All three | None |
+| Reasoning display | None | Reasoning and reasoning-summary deltas | `reasoning` frames and the `render` frame's `reasoning` |
+| Tool progress status | `done` for a tool the backend runs | `running` and `done` | `tool_status` frames |
+| Stop | Request aborted | Request aborted | `stop` frame |
+| Session reset | Transcript boundary on the client | Stored response id cleared on the client | `reset` frame |
+| Holder of the conversation | Client transcript, sent with each request | Backend, chained by `previous_response_id` | Backend, under `chat_id` |
+| Speech the backend starts with no request | None | None | `render` under a `turn_id` the backend mints |
+| Delegations list | None | None | `delegations` frames |
+
 ## Limits
 
 | Name | Value |
