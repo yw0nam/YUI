@@ -4,13 +4,13 @@
  * anyway, so we send the small-but-legible payload instead of full-res base64.
  */
 
+import { encodeJpeg } from "../../io/image/jpeg-encode";
 import { createLogger } from "../../logger";
 
 const log = createLogger("image-resize");
 
-// Tunable knobs: long edge cap (px) and JPEG quality.
+// Tunable knob: long edge cap (px).
 export const MAX_LONG_EDGE = 1280;
-const JPEG_QUALITY = 0.72;
 
 interface Dims {
   width: number;
@@ -31,17 +31,7 @@ export async function downscaleToJpeg(file: File): Promise<string> {
   try {
     const bitmap = await createImageBitmap(file);
     const { width, height } = fitLongEdge(bitmap.width, bitmap.height);
-    const canvas = document.createElement("canvas");
-    canvas.width = width;
-    canvas.height = height;
-    const ctx = canvas.getContext("2d");
-    if (!ctx) throw new Error("no 2d context");
-    ctx.drawImage(bitmap, 0, 0, width, height);
-    bitmap.close();
-    const url = canvas.toDataURL("image/jpeg", JPEG_QUALITY);
-    // A canvas with no backing store returns "data:," with no exception.
-    if (!url.startsWith("data:image/jpeg;base64,")) throw new Error("no jpeg data");
-    return url;
+    return encodeJpeg(bitmap, width, height);
   } catch (err) {
     log.warn("downscale_failed", { name: file.name, error: String(err) });
     throw err;
