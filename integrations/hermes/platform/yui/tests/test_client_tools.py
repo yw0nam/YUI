@@ -235,3 +235,25 @@ async def test_a_tool_call_write_that_times_out_never_goes_out_later(monkeypatch
 
     assert sent is False
     assert wrote == []
+
+
+async def test_a_call_that_waited_on_the_lock_does_not_send_after_the_client_is_gone():
+    sends: list[dict] = []
+
+    class Sink:
+        def send_tool_call(self, chat_id: str, frame: dict) -> bool:
+            sends.append(frame)
+            return True
+
+    handler.set_sink(Sink())
+    STUB_ENV["HERMES_SESSION_CHAT_ID"] = CHAT
+    lock = pending.chat_lock(CHAT)
+    lock.acquire()
+
+    task = asyncio.create_task(asyncio.to_thread(handler.handle("look"), {"at": "body"}))
+    await asyncio.sleep(0.05)
+    state.set_connected(CHAT, False)
+    lock.release()
+
+    assert await asyncio.wait_for(task, 2.0) == "error: client disconnected"
+    assert sends == []
