@@ -156,4 +156,28 @@ describe("createPushToolCalls", () => {
     expect(h.sent).toEqual([]);
     expect(h.log.warn).toHaveBeenCalledWith("tool_result_send_failed", { id: "c1", name: "look" });
   });
+
+  it("keeps answering after a call whose send throws", async () => {
+    const sent: unknown[] = [];
+    const send = vi
+      .fn()
+      .mockImplementationOnce(() => {
+        throw new Error("socket gone");
+      })
+      .mockImplementation((frame: unknown) => {
+        sent.push(frame);
+        return true;
+      });
+    const h = harness({ send });
+    h.calls.handle(call("c1", "t", "look"));
+    h.calls.handle(call("c2", "t", "look"));
+    await flush();
+
+    expect(sent).toEqual([{ type: "tool_result", id: "c2", turn_id: "t", result: "{}" }]);
+    expect(h.log.warn).toHaveBeenCalledWith("tool_call_failed", {
+      id: "c1",
+      name: "look",
+      error: "Error: socket gone",
+    });
+  });
 });
