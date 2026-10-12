@@ -21,7 +21,7 @@ from gateway_stub import (
     MessageType,
     ProcessingOutcome,
 )
-from yui.src.activity import delegations, reasoning, reports, tool_status
+from yui.src.activity import delegations, reasoning, reports, tool_status, usage
 from yui.src.express import tools
 from yui.src.speech import speech
 from yui.src.transport.adapter import YuiAdapter, is_loopback
@@ -56,6 +56,7 @@ def clean():
         reports.take_renders(chat)
         delegations.forget(chat)
         reasoning.clear(chat)
+        usage.take(chat)
     delegations.set_notifier(None)
     reasoning.set_sink(None)
     speech.set_sink(None)
@@ -545,6 +546,60 @@ async def test_a_delivered_turn_still_gets_one_turn_end_after_its_render(client,
     event = MessageEvent(text="hi", source=adapter.build_source(chat_id=CHAT))
     await adapter.on_processing_complete(event, ProcessingOutcome.SUCCESS)
     assert await recv(ws) == {"type": "turn_end", "turn_id": "777"}
+
+
+HERMES_USAGE = {
+    "input_tokens": 100,
+    "output_tokens": 20,
+    "prompt_tokens": 1500,
+    "total_tokens": 1520,
+}
+TURN_USAGE = {"input_tokens": 1500, "output_tokens": 20, "total_tokens": 1520}
+
+
+async def test_a_turn_end_carries_the_usage_of_the_calls_the_hook_reported(client, adapter):
+    ws = await ready(client)
+    STUB_ENV["HERMES_SESSION_CHAT_ID"] = CHAT
+    try:
+        await adapter.on_processing_start(user_turn(adapter, "7"))
+        usage.on_post_api_request(platform="yui", usage={**HERMES_USAGE, "prompt_tokens": 900, "total_tokens": 920})
+        usage.on_post_api_request(platform="yui", usage=HERMES_USAGE)
+        event = MessageEvent(text="hi", source=adapter.build_source(chat_id=CHAT))
+        await adapter.on_processing_complete(event, ProcessingOutcome.SUCCESS)
+        assert await recv(ws) == {"type": "turn_end", "turn_id": "7", "usage": TURN_USAGE}
+    finally:
+        STUB_ENV.pop("HERMES_SESSION_CHAT_ID", None)
+
+
+async def test_a_turn_after_one_with_usage_ends_with_no_usage(client, adapter):
+    ws = await ready(client)
+    STUB_ENV["HERMES_SESSION_CHAT_ID"] = CHAT
+    try:
+        await adapter.on_processing_start(user_turn(adapter, "7"))
+        usage.on_post_api_request(platform="yui", usage=HERMES_USAGE)
+        event = MessageEvent(text="hi", source=adapter.build_source(chat_id=CHAT))
+        await adapter.on_processing_complete(event, ProcessingOutcome.SUCCESS)
+        assert (await recv(ws))["usage"] == TURN_USAGE
+        await adapter.on_processing_start(user_turn(adapter, "8"))
+        await adapter.on_processing_complete(event, ProcessingOutcome.SUCCESS)
+        assert await recv(ws) == {"type": "turn_end", "turn_id": "8"}
+    finally:
+        STUB_ENV.pop("HERMES_SESSION_CHAT_ID", None)
+
+
+async def test_a_failed_turn_end_carries_the_usage_of_its_last_call(client, adapter):
+    ws = await ready(client)
+    STUB_ENV["HERMES_SESSION_CHAT_ID"] = CHAT
+    try:
+        failed = user_turn(adapter, "777")
+        await adapter.on_processing_start(failed)
+        usage.on_post_api_request(platform="yui", usage=HERMES_USAGE)
+        await adapter.on_processing_complete(failed, ProcessingOutcome.FAILURE)
+        await adapter.send(CHAT, "Sorry, that one broke.", metadata={"notify": True})
+        assert (await recv(ws))["type"] == "render"
+        assert await recv(ws) == {"type": "turn_end", "turn_id": "777", "usage": TURN_USAGE}
+    finally:
+        STUB_ENV.pop("HERMES_SESSION_CHAT_ID", None)
 
 
 async def test_a_send_with_no_turn_in_flight_ends_the_turn_it_mints(client, adapter):
