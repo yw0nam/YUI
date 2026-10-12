@@ -23,6 +23,7 @@ import type { PacerSkipRecord, TurnRecord } from "../../io/chat/record/turn-reco
 import { createClientToolRegistry, createClientTools } from "../../io/chat/stream/client-tools";
 import type { ExpressVocabulary } from "../../io/chat/vocabulary/express-vocabulary";
 import type { ScreenCapturer } from "../../io/window/capture/screen-source-provider";
+import { buildScreenshotBlock } from "../../io/window/capture/screenshot-context";
 import type { Renderer } from "../../renderer";
 import type { SettingsStores } from "../../settings/settings-stores";
 import { showChainResetNotice } from "../../ui/notices/chain-reset-notice";
@@ -35,7 +36,6 @@ import type { QuickControlsTab } from "../../ui/quick-controls/constants";
 import type { Surfaces } from "../../ui/surfaces/surfaces";
 import { wireGuardrailsOverrides } from "../cross-window/wire-window-sync";
 import type { ConversationStores } from "../settings/conversation-stores";
-import { createScreenshotProvider } from "./screenshot-provider";
 import type { VoicePipeline } from "./voice/wire-voice-pipeline";
 
 export function wireDispatcher(deps: {
@@ -159,11 +159,12 @@ export function wireDispatcher(deps: {
     turnOutput: voice.turnOutput,
     reportSpokeText: (turnId, spoke) => turnLog.setSpokeText(turnId, spoke),
     turnFeed,
-    getScreenshot: createScreenshotProvider({
-      screenshotSettings,
-      screenCapturer,
-      acceptsImages: () => (pushSocket ? pushSocket.maxTurnBytes() !== undefined : true),
-    }),
+    getScreenshot: async () => {
+      const screenshot = screenshotSettings.get();
+      if (!screenshot.enabled) return undefined;
+      const capture = await screenCapturer.capture(screenshot.source);
+      return buildScreenshotBlock(screenshot, capture ?? undefined);
+    },
     getBodyState: () => dispatcher.getBodyState(),
     getFrontmost,
     getPrevious: previousTurn.get,
@@ -179,6 +180,7 @@ export function wireDispatcher(deps: {
         createClientToolRegistry(createClientTools(getVocabulary())),
       ),
     pushTurn: (frame) => pushSocket?.sendTurn(frame) ?? false,
+    pushMaxTurnBytes: () => pushSocket?.maxTurnBytes(),
     onPushTurnCut: () => pushTurns.cut(),
     onPushTurnSent: (turnId) => pushTurns.opened(turnId),
     pushTurns,

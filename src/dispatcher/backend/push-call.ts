@@ -1,5 +1,6 @@
 /** Push transport path of a turn: send the frame on the socket and hold the call open until that turn ends. */
 import type { InputContext } from "../../contract";
+import { fitTurnImages } from "../../io/chat/push/fit-turn-images";
 import type { PushTurnFrame } from "../../io/chat/push/push-frames";
 import type { Logger } from "../../logger";
 import type { BusEnvelope } from "../core/event-bus";
@@ -16,6 +17,8 @@ import { recordSentTurn, type TurnRecordingDeps } from "./turn-recording";
 export interface PushCallDeps extends TurnRecordingDeps {
   /** Push transport sender — present in push mode; false means the socket was not ready. */
   pushTurn?: (frame: PushTurnFrame) => boolean;
+  /** The `turn` size the backend stated in `ready`; the images are fitted to the room it leaves. */
+  pushMaxTurnBytes?: () => number | undefined;
   /** The socket accepted this turn's frame. */
   onPushTurnSent?: (turnId: string) => void;
   /** Push turn store — the call waits on it for the turn_end that closes its turn. */
@@ -148,14 +151,25 @@ export function createPushCall(deps: PushCallDeps, log: Logger): PushCall {
     externalSignal,
   }: PushCallArgs): Promise<TurnOutcome> {
     if (externalSignal?.aborted) return "superseded_by_user";
+    // The screenshot first, then the attachments — the order the backend reads them in.
     const images = imageDataUrlsOf(ctx);
-    const accepted = deps.pushTurn?.({
+    const frame: PushTurnFrame = {
       turn_id: String(turn.id),
       client_context: contextBlock(clientContext, nowMs),
       text: ctx.user_text ?? "",
-      // The screenshot first, then the attachments — the order the backend reads them in.
-      ...(images.length ? { images } : {}),
-    });
+    };
+    const stated = deps.pushMaxTurnBytes?.();
+    if (images.length > 0) {
+      const budget =
+        stated === undefined
+          ? undefined
+          : stated -
+            new TextEncoder().encode(JSON.stringify({ type: "turn", ...frame, images: [] })).length;
+      // Over the stated size the images are re-encoded smaller; with none stated the socket leaves them out.
+      frame.images = budget === undefined ? images : await fitTurnImages(images, budget);
+    }
+    if (externalSignal?.aborted) return "superseded_by_user";
+    const accepted = deps.pushTurn?.(frame);
     if (!accepted) {
       log.warn("network_drop", { stage: "push", event_name: env.event_name });
       return "network_drop";
