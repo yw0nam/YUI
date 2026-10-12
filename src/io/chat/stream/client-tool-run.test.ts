@@ -46,7 +46,7 @@ const statusesOf = (events: ChatStreamEvent[]) =>
 describe("runClientCall — tool_status state", () => {
   it("reports failed instead of done when a body action does not answer ok", async () => {
     const registry = createClientToolRegistry([
-      tool({ timeoutResult: "timeout", execute: async () => "busy" }),
+      tool({ failed: (result) => result !== "ok", execute: async () => "busy" }),
     ]);
     const events = await collect(registry, "body_action", "{}");
 
@@ -65,8 +65,10 @@ describe("runClientCall — tool_status state", () => {
     expect(statusesOf(await collect(okRegistry, "look", "{}"))).toEqual(["running", "done"]);
   });
 
-  it("reports done for a body action that answered ok", async () => {
-    const registry = createClientToolRegistry([tool({ execute: async () => "ok" })]);
+  it("lets a tool say what a failed result is", async () => {
+    const registry = createClientToolRegistry([
+      tool({ failed: (result) => result === "nope", execute: async () => "error: but fine" }),
+    ]);
     expect(statusesOf(await collect(registry, "body_action", "{}"))).toEqual(["running", "done"]);
   });
 

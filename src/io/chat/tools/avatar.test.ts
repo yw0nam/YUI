@@ -68,6 +68,12 @@ describe("body_action — schema", () => {
     expect(props.monitor).toMatchObject({ type: "integer" });
   });
 
+  it("counts any answer but ok as a failure", () => {
+    expect(tool.failed?.("ok")).toBe(false);
+    expect(tool.failed?.("busy")).toBe(true);
+    expect(tool.failed?.("timeout")).toBe(true);
+  });
+
   it("reports a passing wait as the bare word timeout", () => {
     expect(tool.timeoutResult).toBe("timeout");
   });
