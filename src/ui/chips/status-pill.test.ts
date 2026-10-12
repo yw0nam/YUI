@@ -439,6 +439,24 @@ describe("status pill — tool done", () => {
     expect(p.root().hidden).toBe(true);
   });
 
+  it("finishTool(true) marks the segment failed and holds it like done", () => {
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+    const p = setup({ capture: true });
+    p.pill.showTool("body_action");
+    flushFrames();
+    p.pill.finishTool(true);
+
+    expect(p.dot().dataset.tool).toBe("failed");
+    expect(p.label().textContent).toBe("Body action…");
+    vi.advanceTimersByTime(1499);
+    expect(p.dot().dataset.tool).toBe("failed");
+    vi.advanceTimersByTime(1);
+
+    expect(p.root().hidden).toBe(false);
+    expect(p.capture().hidden).toBe(false);
+    expectSegmentHidden(p);
+  });
+
   it("a re-show during the done hold keeps the pill running", () => {
     vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
     const p = setup();
