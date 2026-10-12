@@ -96,6 +96,8 @@ const toolStub = (name: string, execute = vi.fn(async () => "ok")): ClientTool =
     },
   },
   execute,
+  waitMs: 2000,
+  push: false,
 });
 
 const oneWayStub = (name: string): ClientTool => ({ ...toolStub(name), oneWay: true });

@@ -38,20 +38,30 @@ describe("executeClientTool", () => {
   });
 
   it("resolves the bare word timeout when a tool with timeoutResult outlives its wait", async () => {
-    const pending = executeClientTool(tool({ timeoutResult: "timeout" }), {});
+    const pending = executeClientTool(
+      tool({ timeoutResult: "timeout", execute: () => new Promise<string>(() => {}) }),
+      {},
+    );
     await vi.advanceTimersByTimeAsync(2000);
     await expect(pending).resolves.toBe("timeout");
   });
 
   it("resolves an error string naming the seconds when a query outlives its wait", async () => {
-    const pending = executeClientTool(tool({ waitMs: 7000 }), {});
+    const pending = executeClientTool(
+      tool({ waitMs: 7000, execute: () => new Promise<string>(() => {}) }),
+      {},
+    );
     await vi.advanceTimersByTimeAsync(7000);
     await expect(pending).resolves.toBe("error: timed out after 7 s");
   });
 
   it("resolves error: <message> when the tool throws", async () => {
     const pending = executeClientTool(
-      tool({ execute: async () => { throw new Error("no window"); } }),
+      tool({
+        execute: async () => {
+          throw new Error("no window");
+        },
+      }),
       {},
     );
     await expect(pending).resolves.toBe("error: no window");
@@ -60,7 +70,13 @@ describe("executeClientTool", () => {
   it("leaves the underlying execution running past the timeout", async () => {
     let released: ((value: string) => void) | undefined;
     const pending = executeClientTool(
-      tool({ execute: () => new Promise<string>((r) => { released = r; }) }),
+      tool({
+        timeoutResult: "timeout",
+        execute: () =>
+          new Promise<string>((r) => {
+            released = r;
+          }),
+      }),
       {},
     );
     await vi.advanceTimersByTimeAsync(2000);

@@ -93,6 +93,8 @@ export function createGenerateExpressTool(vocab: ExpressVocabulary): ClientTool 
     name: "generate_express",
     definition,
     execute: async () => "ok",
+    waitMs: 2000,
     oneWay: true,
+    push: false,
   };
 }

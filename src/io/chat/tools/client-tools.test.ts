@@ -148,6 +148,8 @@ const dummyTool = (name: string, result = "done"): ClientTool => ({
     },
   },
   execute: vi.fn(async () => result),
+  waitMs: 2000,
+  push: false,
 });
 
 describe("createClientToolRegistry", () => {

@@ -105,6 +105,8 @@ const toolStub = (name: string, result: string | (() => Promise<string>) = "ok")
     },
   },
   execute: vi.fn(typeof result === "function" ? result : async () => result),
+  waitMs: 2000,
+  push: false,
 });
 
 /** A cue-only tool, like the real generate_express: its result says nothing to the model. */

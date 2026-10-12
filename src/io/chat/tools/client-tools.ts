@@ -29,11 +29,17 @@ export interface ClientTool {
   definition: ClientToolDefinition;
   /** Runs the call; resolves the result string returned to the model. */
   execute(args: Record<string, unknown>): Promise<string>;
+  /** The wait the call's execution is bounded by; the execution keeps running past it. */
+  waitMs: number;
   /**
    * Cue-only tool: the result carries nothing the model can use, so a response that already spoke
    * needs no round trip. A tool that answers a question leaves this unset — its result is the point.
    */
   oneWay?: boolean;
+  /** A wait that passes resolves the bare word `timeout` instead of an error string. */
+  timeoutResult?: "timeout";
+  /** Declared on the push transport's `hello.tools` when true. */
+  push: boolean;
 }
 
 export interface ClientToolRegistry {
