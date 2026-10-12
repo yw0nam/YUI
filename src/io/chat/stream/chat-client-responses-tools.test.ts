@@ -210,6 +210,43 @@ describe("streamChat — Responses tool-call round trip", () => {
     ]);
   });
 
+  it("keeps the follow-up's per-response items in output order across two reasoning items and two calls", async () => {
+    const lookup = toolStub(
+      "lookup",
+      vi.fn(async () => "42"),
+    );
+    const reasoningDone = (item: any, index: number): any => ({
+      type: "response.output_item.done",
+      output_index: index,
+      item,
+    });
+    const rs1 = { type: "reasoning", id: "rs_1", summary: [] };
+    const rs2 = { type: "reasoning", id: "rs_2", summary: [] };
+    createMock
+      .mockResolvedValueOnce(
+        streamOf([
+          reasoningDone(rs1, 0),
+          ...call("lookup", "fc_1"),
+          reasoningDone(rs2, 2),
+          ...call("lookup", "fc_2"),
+          done("resp_1"),
+        ]),
+      )
+      .mockResolvedValueOnce(streamOf([text("It is 84."), done("resp_2")]));
+
+    await collect(streamChat(CONFIG, req(), optsFor(lookup)));
+
+    expect(createMock.mock.calls[1][0].input).toEqual([
+      ...INPUT,
+      rs1,
+      { type: "function_call", call_id: "call_fc_1", name: "lookup", arguments: ARGS },
+      rs2,
+      { type: "function_call", call_id: "call_fc_2", name: "lookup", arguments: ARGS },
+      { type: "function_call_output", call_id: "call_fc_1", output: "42" },
+      { type: "function_call_output", call_id: "call_fc_2", output: "42" },
+    ]);
+  });
+
   it("normalises a string input into one user message item for the follow-up", async () => {
     createMock
       .mockResolvedValueOnce(streamOf([...call("generate_express", "fc_1"), done("resp_1")]))
