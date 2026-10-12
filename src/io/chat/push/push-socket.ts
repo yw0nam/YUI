@@ -23,6 +23,7 @@ import {
   type ToolStatusFrame,
   type TurnEndFrame,
   toolCallFrameFault,
+  usageReadable,
 } from "./push-frames";
 
 const baseLog = createLogger("push-socket");
@@ -256,6 +257,7 @@ export function createPushSocket(deps: PushSocketDeps): PushSocket {
           log.warn("frame_malformed", { type: "turn_end", field: "turn_id" });
           return;
         }
+        if (frame.usage !== undefined && !usageReadable(frame.usage)) delete frame.usage;
         const turnEnd = frame as unknown as TurnEndFrame;
         dispatch(turnEndSubs, turnEnd);
         return;

@@ -562,7 +562,9 @@ async def test_a_turn_end_carries_the_usage_of_the_calls_the_hook_reported(clien
     STUB_ENV["HERMES_SESSION_CHAT_ID"] = CHAT
     try:
         await adapter.on_processing_start(user_turn(adapter, "7"))
-        usage.on_post_api_request(platform="yui", usage={**HERMES_USAGE, "prompt_tokens": 900, "total_tokens": 920})
+        usage.on_post_api_request(
+            platform="yui", usage={**HERMES_USAGE, "prompt_tokens": 900, "total_tokens": 920}
+        )
         usage.on_post_api_request(platform="yui", usage=HERMES_USAGE)
         event = MessageEvent(text="hi", source=adapter.build_source(chat_id=CHAT))
         await adapter.on_processing_complete(event, ProcessingOutcome.SUCCESS)

@@ -43,7 +43,9 @@ def test_taking_the_usage_clears_it():
 
 def test_the_latest_call_replaces_the_one_before():
     usage.on_post_api_request(platform="yui", usage=HERMES_USAGE)
-    usage.on_post_api_request(platform="yui", usage={**HERMES_USAGE, "prompt_tokens": 1600, "total_tokens": 1620})
+    usage.on_post_api_request(
+        platform="yui", usage={**HERMES_USAGE, "prompt_tokens": 1600, "total_tokens": 1620}
+    )
     assert usage.take(CHAT) == {"input_tokens": 1600, "output_tokens": 20, "total_tokens": 1620}
 
 
