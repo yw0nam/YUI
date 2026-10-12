@@ -72,6 +72,13 @@
   each tool call of a YUI turn, so the client can show and name the tool in use. A frame for a chat
   with no connected client or no turn held, open or joined, is dropped, never held and never retried.
   `generate_express` sends none, and neither does a tool call a delegated child makes.
+- Carries the token usage of the turn's last LLM call in the `usage` field of its `turn_end` frame,
+  taken from the gateway's `post_api_request` hook. `input_tokens` is the hook's `prompt_tokens`,
+  the whole prompt including cached tokens, so `total_tokens` measures how full the context is.
+  The plugin keeps the latest call per chat, attributes it to the chat of the turn in flight as the
+  reasoning hook does, and clears it when the frame is sent. A turn with no call, a call from
+  another platform or a delegated child, and a call whose usage lacks one of the three figures send
+  no `usage`.
 - Holds reports that arrive while the client is away, up to forty, and delivers them as one
   summary turn when it connects again. A reply that finishes while the client is away is held the
   same way and sent first when it reconnects. Both live in memory, so a gateway restart while the
