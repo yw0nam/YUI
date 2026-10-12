@@ -10,8 +10,8 @@ The client renders what arrives and judges nothing. Everything the backend must 
 
 | | Chat Completions | Responses | Push |
 |---|---|---|---|
-| Screenshot of the turn | `screenshot:` line and an `image_url` part | `screenshot:` line and an `input_image` part | `screenshot:` line alone |
-| Images the user attaches | `image_url` parts | `input_image` parts | None |
+| Screenshot of the turn | `screenshot:` line and an `image_url` part | `screenshot:` line and an `input_image` part | Pixels in `turn.images` when the backend states `max_turn_bytes`; otherwise the client makes no capture and sends no `screenshot:` line |
+| Images the user attaches | `image_url` parts | `input_image` parts | In `turn.images`, after the screenshot, when the backend states `max_turn_bytes`; otherwise None |
 | Client-declared tools and their results ([client-tools.md](client-tools.md)) | `tools[]` on every request | `tools[]` on every request while `broker_base_url` is unset | None. Cues arrive in `render` and `speech` segments |
 | Server error text on a failed user turn | Status and server text of an HTTP error on the request, 401 and 403 excepted. Generic text for an error inside the stream | Status and server text of an HTTP error, 401 and 403 excepted. Generic text for an `error`, `response.failed` or `response.incomplete` event | Generic text |
 | Token usage readout | Usage chunk of each request | `usage` of `response.completed` | None |
@@ -34,6 +34,7 @@ The client renders what arrives and judges nothing. Everything the backend must 
 | `hello` reply wait | 10 s |
 | Frame wait, per turn | 240 s |
 | Text frame size, either direction | 256 KiB |
+| `turn` frame size | 256 KiB, or the `max_turn_bytes` value the backend stated in `ready` |
 | Delegation item `title` | 120 characters |
 | Delegation item `summary` | 2,000 characters |
 | Delegation list `items` | 50 entries |
@@ -79,6 +80,8 @@ The client reconnects with the delay schedule in the limits table on every close
 { "type": "ready", "chat_id": "yui-3f9a2c1d" }
 ```
 
+The frame may carry `max_turn_bytes`, a positive integer naming the largest `turn` frame the backend accepts, in UTF-8 bytes. Its presence also says the backend accepts `images` on a `turn`. When it is absent, `turn` frames are capped at 256 KiB and carry no images.
+
 The backend closes the socket with code `4401` on a wrong key and sends nothing. The client holds that close as a failed state and stops retrying.
 
 ### `vocabulary` (client → backend)
@@ -102,7 +105,11 @@ The `vocabulary` object from `hello`, sent again whenever the renderable set cha
 }
 ```
 
-`client_context` is the block described in [client-context.md](client-context.md), exactly as the other modes send it. `text` is the user utterance, or `""` on a turn no user typed or spoke. Every frame the backend sends for the turn carries the same `turn_id`, and a `turn_end` frame closes it.
+`client_context` is the block described in [client-context.md](client-context.md), exactly as the other modes send it. `text` is the user utterance, or `""` on a turn no user typed or spoke.
+
+The frame may carry `images`, an array of `data:image/<subtype>;base64,<data>` strings: the turn's screenshot first when the turn has one, then the images the user attached. The client sends the field only to a backend whose `ready` carried `max_turn_bytes`, and omits it when the turn has no image.
+
+Every frame the backend sends for the turn carries the same `turn_id`, and a `turn_end` frame closes it.
 
 A backend that takes a new turn's text while it is still running an older one — into that run, or queued behind it — sends every frame that follows under the newer turn's `turn_id`, and closes both turns with their own `turn_end`. The client has stopped the older turn by then and drops frames that name it.
 

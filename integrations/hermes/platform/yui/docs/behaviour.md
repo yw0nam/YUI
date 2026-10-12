@@ -2,6 +2,11 @@
 
 - Serves `ws://<host>:<port>/ws`. The client sends `hello` with its key, its `chat_id` and the
   vocabulary it can render; the plugin answers `ready` and keeps the socket open.
+- States `max_turn_bytes` of 4 MiB in `ready`, so the client may put the turn's screenshot and the
+  user's attached images on the `turn` frame. It accepts a `turn` frame up to that size and every
+  other frame up to 256 KiB, stores each turn image as a cached file and hands its path to the
+  gateway with the turn; an image it cannot decode or store is left out and the turn is still
+  handled.
 - Turns the `turn` frame into a gateway message: the rendered `client_context` block, a blank
   line, then the user's utterance.
 - Registers `generate_express`, whose enums are the emotion ids, motion ids and voice-tone tags

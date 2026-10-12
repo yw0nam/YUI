@@ -10,8 +10,10 @@ Chat Completions mode carries the same rendered lines in a messages array — se
 both request transports (Responses and Chat Completions) the client declares the
 `generate_express` tool itself and answers the call — see
 [client-tools.md](client-tools.md). Push mode sends the same block as the `turn` frame's
-`client_context` field: the `screenshot:` line travels in it and the pixels stay on the client.
-Its frames are in [push-transport.md](push-transport.md).
+`client_context` field: the `screenshot:` line travels in it and the pixels ride in the frame's
+`images` field when the backend states `max_turn_bytes`; a push backend that states none gets no
+`screenshot:` line, and the pixels stay on the client. Its frames are in
+[push-transport.md](push-transport.md).
 
 ## Per-turn client context (client → agent)
 
@@ -103,7 +105,9 @@ longer clear is a real absence and stamps a fresh `since`.
 
 Present only when screen capture is enabled (`screenshot.enabled`); the pixels
 themselves never ride in this line — they arrive as a separate `input_image`
-content-part alongside the text. One line per `ScreenSource` kind:
+content-part alongside the text. On push they arrive in the `turn` frame's
+`images` field instead, and the line is absent on a push backend that states no
+`max_turn_bytes`. One line per `ScreenSource` kind:
 
 ```text
 screenshot: monitor 0 (Built-in Retina Display)
