@@ -61,7 +61,7 @@ The cycle repeats while the model keeps asking, up to three round trips per turn
 
 Speech from consecutive responses of a turn is joined with one space, unless the earlier text ends in whitespace or one of `。` `！` `？` or the later text starts with whitespace.
 
-A tool whose execution throws returns `error: <message>` as its result. A call whose arguments are unparseable JSON is skipped and the turn ends as a failed turn.
+A tool whose execution throws returns `error: <message>` as its result. A call whose arguments are unparseable JSON is not run and returns `error: arguments JSON parse failed: <message>` as its result. Its `generate_express` cue is not played, and the turn continues with the result sent back like any other.
 
 ### On the wire
 
