@@ -467,6 +467,46 @@ describe("streamChat — Chat Completions tool-call round trip", () => {
     });
   });
 
+  it("joins consecutive responses' speech with one space and carries the spoken text on the follow-up request", async () => {
+    const weather = toolStub("get_weather", "22C");
+    const registry = createClientToolRegistry([weather]);
+    ccCreateMock
+      .mockResolvedValueOnce(
+        streamOf([
+          textChunk("Let me check."),
+          toolCallStart(0, "call_w", "get_weather", '{"city":"seoul"}'),
+          finishChunk("tool_calls"),
+        ]),
+      )
+      .mockResolvedValueOnce(streamOf([textChunk("It is 42."), finishChunk("stop")]));
+
+    const events = await collect(streamChat(CONFIG, req(), { tools: registry }));
+
+    const deltas = events
+      .filter((e): e is Extract<ChatStreamEvent, { type: "speech_delta" }> => e.type === "speech_delta")
+      .map((e) => e.text)
+      .join("");
+    expect(deltas).toBe("Let me check. It is 42.");
+    expect(events.at(-1)).toMatchObject({
+      type: "completed",
+      envelope: { speech_text: "Let me check. It is 42." },
+    });
+    expect(ccCreateMock.mock.calls[1][0].messages.slice(-2)).toEqual([
+      {
+        role: "assistant",
+        content: "Let me check.",
+        tool_calls: [
+          {
+            id: "call_w",
+            type: "function",
+            function: { name: "get_weather", arguments: '{"city":"seoul"}' },
+          },
+        ],
+      },
+      { role: "tool", tool_call_id: "call_w", content: "22C" },
+    ]);
+  });
+
   it("caps a model that only ever calls tools at three round trips", async () => {
     const registry = createClientToolRegistry([oneWayStub("generate_express")]);
     // Exactly the four requests the cap allows — a fifth would find the mock empty and fail loudly.

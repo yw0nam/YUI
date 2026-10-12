@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import type { ControlEnvelope } from "../../../contract";
 import {
+  boundarySeparator,
   httpStatusOf,
   isExpressTool,
   normalizeExpressIntoEnvelope,
@@ -28,5 +29,27 @@ describe("stream-helpers", () => {
     const envelope: ControlEnvelope = { speech_text: "hi" };
     normalizeExpressIntoEnvelope(envelope, { motion_id: "wave", emotion_text: "warm" });
     expect(envelope).toEqual({ speech_text: "hi", motion: { id: "wave" }, emotion_text: "warm" });
+  });
+});
+
+describe("boundarySeparator", () => {
+  it("joins two responses' speech with one space", () => {
+    expect(boundarySeparator("Let me check.", "It is 42.")).toBe(" ");
+  });
+
+  it("no separator when the earlier text ends in whitespace", () => {
+    expect(boundarySeparator("Let me check. ", "It is 42.")).toBe("");
+  });
+
+  it("no separator when the later text starts with whitespace", () => {
+    expect(boundarySeparator("Let me check.", "\nIt is 42.")).toBe("");
+  });
+
+  it("no separator after a CJK terminator", () => {
+    expect(boundarySeparator("確認するね。", "42だよ。")).toBe("");
+  });
+
+  it("no separator when the turn has no earlier speech", () => {
+    expect(boundarySeparator("", "Hello")).toBe("");
   });
 });

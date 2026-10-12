@@ -252,6 +252,33 @@ describe("streamChat — Responses tool-call round trip", () => {
     ]);
   });
 
+  it("joins consecutive responses' speech with one space and puts the spoken text before the call items in the follow-up", async () => {
+    const lookup = toolStub("lookup", vi.fn(async () => "42"));
+    createMock
+      .mockResolvedValueOnce(
+        streamOf([text("Let me check."), ...call("lookup", "fc_1"), done("resp_1")]),
+      )
+      .mockResolvedValueOnce(streamOf([text("It is 42."), done("resp_2")]));
+
+    const events = await collect(streamChat(CONFIG, req(), optsFor(lookup)));
+
+    const deltas = events
+      .filter((e): e is Extract<ChatStreamEvent, { type: "speech_delta" }> => e.type === "speech_delta")
+      .map((e) => e.text)
+      .join("");
+    expect(deltas).toBe("Let me check. It is 42.");
+    expect(events.at(-1)).toMatchObject({
+      type: "completed",
+      envelope: { speech_text: "Let me check. It is 42." },
+    });
+    expect(createMock.mock.calls[1][0].input).toEqual([
+      ...INPUT,
+      { role: "assistant", content: "Let me check." },
+      { type: "function_call", call_id: "call_fc_1", name: "lookup", arguments: ARGS },
+      { type: "function_call_output", call_id: "call_fc_1", output: "42" },
+    ]);
+  });
+
   it("a failing execute is returned to the model as an error result", async () => {
     const broken = toolStub(
       "lookup",
