@@ -591,12 +591,29 @@ describe("createBedScene — lying down on command", () => {
     }
   });
 
-  it("wakes while the lying-down clip still plays", async () => {
-    const h = makeHarness();
-    await h.lieDown();
-    h.scene.wake("agent");
-    expect(h.scene.state()).toBe("waking");
-    expect(h.calls.at(-1)).toBe(`play:${BED_WAKE_MOTION_ID}`);
+  it("ends on a wake while the lying-down clip still plays: the bed fades, with no wake clip and no wake signal", async () => {
+    for (const cause of ["click", "message", "agent"] as const) {
+      const h = makeHarness();
+      await h.lieDown();
+      await h.frame();
+      h.scene.wake(cause);
+      expect(h.scene.takeMessageWake()).toBe(false);
+      await h.frame(PROP_FADE_S / 2);
+      expect(h.scene.state()).toBe("waking");
+      expect(h.calls.at(-1)).toBe("prop.opacity:0.5");
+      expect(h.lying).toEqual([true]);
+      await h.frame(PROP_FADE_S / 2);
+      expect(h.scene.state()).toBe("done");
+      expect(h.calls).not.toContain(`play:${BED_WAKE_MOTION_ID}`);
+      expect(h.woke).toEqual([]);
+      expect(h.lying).toEqual([true, false]);
+      expect(h.calls.slice(-3)).toEqual(["hold:null", "play:null", "onDone"]);
+      expect(h.log.info).toHaveBeenCalledWith("bed_scene_end", {
+        entry: "command",
+        reason: "skipped",
+        cause,
+      });
+    }
   });
 
   it("answers failed and leaves the scene alone while a scene already runs", async () => {
