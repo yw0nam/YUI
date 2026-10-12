@@ -284,6 +284,39 @@ describe("streamChat — Responses tool-call round trip", () => {
     ]);
   });
 
+  it("joins speech across a silent cue-only round trip, answering only speaking rounds with an assistant item", async () => {
+    const lookup = toolStub(
+      "lookup",
+      vi.fn(async () => "42"),
+    );
+    createMock
+      .mockResolvedValueOnce(
+        streamOf([text("Let me check."), ...call("lookup", "fc_1"), done("resp_1")]),
+      )
+      .mockResolvedValueOnce(streamOf([...call("generate_express", "fc_2"), done("resp_2")]))
+      .mockResolvedValueOnce(streamOf([text("It is 42."), done("resp_3")]));
+
+    const events = await collect(
+      streamChat(CONFIG, req(), optsFor(lookup, oneWayStub("generate_express"))),
+    );
+
+    const deltas = events
+      .filter(
+        (e): e is Extract<ChatStreamEvent, { type: "speech_delta" }> => e.type === "speech_delta",
+      )
+      .map((e) => e.text)
+      .join("");
+    expect(deltas).toBe("Let me check. It is 42.");
+    expect(createMock.mock.calls[2][0].input).toEqual([
+      ...INPUT,
+      { role: "assistant", content: "Let me check." },
+      { type: "function_call", call_id: "call_fc_1", name: "lookup", arguments: ARGS },
+      { type: "function_call_output", call_id: "call_fc_1", output: "42" },
+      { type: "function_call", call_id: "call_fc_2", name: "generate_express", arguments: ARGS },
+      { type: "function_call_output", call_id: "call_fc_2", output: "ok" },
+    ]);
+  });
+
   it("a failing execute is returned to the model as an error result", async () => {
     const broken = toolStub(
       "lookup",
