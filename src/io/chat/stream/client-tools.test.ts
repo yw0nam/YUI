@@ -6,8 +6,11 @@
  * motion vocabulary — never a hardcoded enum.
  */
 
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
 import { describe, expect, it, vi } from "vitest";
 import type { ExpressVocabulary } from "../vocabulary/express-vocabulary";
+import * as clientTools from "./client-tools";
 import {
   type ClientTool,
   createClientToolRegistry,
@@ -177,5 +180,27 @@ describe("createClientToolRegistry", () => {
 
   it("declares nothing when empty", () => {
     expect(createClientToolRegistry([]).definitions()).toEqual([]);
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// catalog drift-guard
+// ─────────────────────────────────────────────────────────────────────────────
+
+describe("docs/reference/client-tools.md catalog", () => {
+  it("has a row for every tool factory this module exports", () => {
+    const doc = readFileSync(
+      resolve(__dirname, "../../../../docs/reference/client-tools.md"),
+      "utf8",
+    );
+    // The catalog is the table above the first section heading.
+    const catalog = doc.slice(0, doc.indexOf("\n## "));
+    const rows = new Set([...catalog.matchAll(/^\| `([^`]+)` \|/gm)].map((m) => m[1]));
+    const names = Object.entries(clientTools)
+      .filter(([key]) => /^create.+Tool$/.test(key))
+      .map(([, factory]) => (factory as (v: ExpressVocabulary) => ClientTool)(vocab()).name);
+
+    expect(names).not.toEqual([]);
+    expect(names.filter((name) => !rows.has(name))).toEqual([]);
   });
 });
