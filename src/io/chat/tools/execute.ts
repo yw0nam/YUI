@@ -10,14 +10,19 @@ export async function executeClientTool(
   tool: ClientTool,
   args: Record<string, unknown>,
 ): Promise<string> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
   try {
     return await Promise.race([
       tool.execute(args),
-      new Promise<string>((resolve) => setTimeout(() => resolve(timeoutResult(tool)), tool.waitMs)),
+      new Promise<string>((resolve) => {
+        timer = setTimeout(() => resolve(timeoutResult(tool)), tool.waitMs);
+      }),
     ]);
   } catch (err) {
     // The model owns what a failed tool means — hand it the failure rather than dropping the turn.
     return `error: ${err instanceof Error ? err.message : String(err)}`;
+  } finally {
+    clearTimeout(timer);
   }
 }
 
