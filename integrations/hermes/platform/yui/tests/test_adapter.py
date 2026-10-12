@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import base64
 import json
 import logging
 import os
@@ -12,6 +13,7 @@ import aiohttp
 import pytest
 from aiohttp.test_utils import TestClient, TestServer
 from gateway_stub import (
+    CACHED_IMAGES,
     PERSISTED_HOMES,
     SLASH_CONFIRM,
     STUB_ENV,
@@ -23,7 +25,7 @@ from yui.src.activity import delegations, reasoning, reports, tool_status
 from yui.src.express import tools
 from yui.src.speech import speech
 from yui.src.transport.adapter import YuiAdapter, is_loopback
-from yui.src.transport.frames import MAX_FRAME_BYTES, fit_frame
+from yui.src.transport.frames import MAX_FRAME_BYTES, MAX_TURN_BYTES, fit_frame
 from yui.src.turns import state
 
 CHAT = "yui-3f9a2c1d"
@@ -62,6 +64,7 @@ def clean():
     SLASH_CONFIRM.pending.clear()
     SLASH_CONFIRM.resolved.clear()
     STUB_ENV.pop("HERMES_SESSION_CHAT_ID", None)
+    CACHED_IMAGES.clear()
 
 
 @pytest.fixture
@@ -100,10 +103,13 @@ async def hello(client, chat_id=CHAT, key=KEY, vocabulary=VOCABULARY):
     return ws
 
 
+READY_FRAME = {"type": "ready", "chat_id": CHAT, "max_turn_bytes": MAX_TURN_BYTES}
+
+
 async def ready(client, chat_id=CHAT, **kwargs):
     """Open a socket through the handshake and hand back the socket past its ready frame."""
     ws = await hello(client, chat_id=chat_id, **kwargs)
-    assert await recv(ws) == {"type": "ready", "chat_id": chat_id}
+    assert await recv(ws) == {**READY_FRAME, "chat_id": chat_id}
     assert (await recv(ws))["type"] == "delegations"
     return ws
 
@@ -143,7 +149,7 @@ def internal_event(adapter, text):
 
 async def test_a_hello_with_the_right_key_is_answered_with_ready(client):
     ws = await hello(client)
-    assert await recv(ws) == {"type": "ready", "chat_id": CHAT}
+    assert await recv(ws) == READY_FRAME
 
 
 async def test_a_wrong_key_closes_the_socket_and_says_nothing(client):
@@ -172,15 +178,42 @@ async def test_a_frame_of_exactly_the_cap_is_accepted(client):
     body = padded({"type": "hello", "key": KEY, "chat_id": CHAT, "vocabulary": VOCABULARY}, MAX_FRAME_BYTES)
     assert len(body.encode("utf-8")) == MAX_FRAME_BYTES
     await ws.send_str(body)
-    assert await recv(ws) == {"type": "ready", "chat_id": CHAT}
+    assert await recv(ws) == READY_FRAME
 
 
-async def test_an_oversized_frame_closes_the_socket(client):
-    ws = await ready(client)
-    await ws.send_str("x" * (MAX_FRAME_BYTES + 1))
+async def test_an_oversized_frame_closes_the_socket(client, monkeypatch):
+    """A frame past the stated turn size dies at the reader; the cap is shrunk to keep the send small."""
+    import yui.src.transport.adapter as adapter_module
+
+    monkeypatch.setattr(adapter_module, "MAX_TURN_BYTES", 1024)
+    ws = await hello(client)
+    assert await recv(ws) == {"type": "ready", "chat_id": CHAT, "max_turn_bytes": 1024}
+    assert (await recv(ws))["type"] == "delegations"
+
+    await ws.send_str("x" * 2049)
     message = await recv_raw(ws)
     assert message.type is aiohttp.WSMsgType.CLOSE
     assert message.data == 1009
+
+
+async def test_an_oversize_non_turn_frame_is_dropped_and_the_socket_stays_open(client, adapter):
+    ws = await ready(client)
+    await ws.send_str(padded({"type": "vocabulary", "vocabulary": {}}, MAX_FRAME_BYTES + 1))
+
+    # The socket never closed: the next turn still reaches the gateway.
+    await ws.send_json({"type": "turn", "turn_id": "5", "client_context": "", "text": "still there?"})
+    await wait_for(lambda: adapter.dispatched)
+    assert adapter.dispatched[-1].text == "still there?"
+
+
+async def test_a_turn_frame_over_256kib_is_handled(client, adapter):
+    ws = await ready(client)
+    await ws.send_str(
+        padded({"type": "turn", "turn_id": "9", "client_context": "", "text": "big"}, 300 * 1024)
+    )
+
+    await wait_for(lambda: adapter.dispatched)
+    assert adapter.dispatched[-1].message_id == "9"
 
 
 async def test_a_second_hello_for_one_chat_replaces_the_first(client, adapter):
@@ -215,7 +248,7 @@ async def test_a_render_sent_while_the_replaced_socket_closes_reaches_the_new_so
     await adapter.send(CHAT, "The tests passed.", metadata={"notify": True})
     resume.set()
     second = await asyncio.wait_for(opened, 2)
-    assert await recv(second) == {"type": "ready", "chat_id": CHAT}
+    assert await recv(second) == READY_FRAME
     assert (await recv(second))["type"] == "delegations"
     assert (await recv(second))["segments"] == [{"cues": [], "speech": "The tests passed."}]
 
@@ -242,7 +275,7 @@ async def test_the_handshake_does_not_wait_for_the_replaced_socket_to_close(clie
         },
     )
     second = await hello(client)
-    assert await recv(second) == {"type": "ready", "chat_id": CHAT}
+    assert await recv(second) == READY_FRAME
     assert (await recv(second))["type"] == "delegations"
     assert (await recv(second))["turn_id"] == "777"
     resume.set()
@@ -304,6 +337,51 @@ async def test_a_turn_with_no_utterance_still_carries_its_context(client, adapte
     )
     await wait_for(lambda: adapter.dispatched)
     assert adapter.dispatched[-1].text == "<client_context>\n</client_context>"
+
+
+def image_data_url(subtype: str, payload: bytes) -> str:
+    return f"data:image/{subtype};base64,{base64.b64encode(payload).decode()}"
+
+
+async def send_image_turn(client, images) -> None:
+    ws = await ready(client)
+    await ws.send_json(
+        {"type": "turn", "turn_id": "7", "client_context": "", "text": "look", "images": images}
+    )
+
+
+async def test_a_turns_images_reach_the_gateway_as_cached_paths(client, adapter):
+    await send_image_turn(
+        client,
+        [image_data_url("png", b"\x89PNG"), image_data_url("jpeg", b"\xff\xd8\xff")],
+    )
+
+    await wait_for(lambda: adapter.dispatched)
+    event = adapter.dispatched[-1]
+    assert event.media_urls == ["/tmp/yui-img-1.png", "/tmp/yui-img-2.jpg"]
+    assert event.media_types == ["image/png", "image/jpeg"]
+    assert event.message_type is MessageType.TEXT
+
+
+async def test_a_bad_image_is_skipped_and_the_turn_still_runs(client, adapter):
+    await send_image_turn(
+        client,
+        ["data:image/png;base64,not!valid!base64", image_data_url("webp", b"RIFF")],
+    )
+
+    await wait_for(lambda: adapter.dispatched)
+    event = adapter.dispatched[-1]
+    assert event.media_urls == ["/tmp/yui-img-1.webp"]
+    assert event.media_types == ["image/webp"]
+
+
+async def test_a_turn_whose_images_are_not_a_list_is_handled_without_any(client, adapter):
+    await send_image_turn(client, "data:image/png;base64,AAAA")
+
+    await wait_for(lambda: adapter.dispatched)
+    event = adapter.dispatched[-1]
+    assert event.media_urls == []
+    assert event.media_types == []
 
 
 async def test_a_reset_starts_a_new_conversation_through_the_gateway_command(client, adapter):

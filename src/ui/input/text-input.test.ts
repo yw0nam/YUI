@@ -11,11 +11,16 @@ import { afterEach, beforeEach, describe, expect, it, type Mock, vi } from "vite
 // CSS imports are not handled in jsdom — mock them
 vi.mock("../surfaces/surfaces.css", () => ({}));
 vi.mock("../tokens.css", () => ({}));
+// jsdom cannot decode images, so the resize is mocked: success by default, rejection per test.
+vi.mock("./image-resize", () => ({ downscaleToJpeg: vi.fn() }));
 
 import { guardrailsFixture } from "../../config/load-test-helpers";
 import { setLocale, t } from "../i18n";
 import { createSurfaces } from "../surfaces/surfaces";
 import { noTool } from "../surfaces/test-helpers";
+import { downscaleToJpeg } from "./image-resize";
+
+const downscale = vi.mocked(downscaleToJpeg);
 
 const readSrc = (name: string): string => readFileSync(resolve(__dirname, name), "utf-8");
 
@@ -85,6 +90,10 @@ describe("setInputAnchor — --yui-input-bottom on the chat form", () => {
 /** The caps configs/guardrails.json delivers through setAttachmentLimits. */
 const LIMITS = guardrailsFixture().attachments;
 
+beforeEach(() => {
+  downscale.mockResolvedValue("data:image/png;base64,AAA");
+});
+
 describe("image attachments — tray chips + onSubmit images", () => {
   let mount: HTMLElement;
   let s: ReturnType<typeof createSurfaces>;
@@ -110,7 +119,7 @@ describe("image attachments — tray chips + onSubmit images", () => {
   }
 
   // Drive the field paste path with a stubbed clipboard carrying image files,
-  // then await the FileReader → data-URL load (microtask + macrotask flush).
+  // then await the mocked downscale → chip render (microtask + macrotask flush).
   async function pasteImages(...files: File[]): Promise<void> {
     const before = tray().children.length;
     field().dispatchEvent(makePasteEvent(files));
@@ -323,7 +332,7 @@ describe("attachment caps — count + per-image size", () => {
     return mount.querySelector(".yui-input__attach") as HTMLButtonElement;
   }
 
-  // Paste files in one event, then drain the async data-URL reads.
+  // Paste files in one event, then drain the async downscale → chip render.
   async function paste(...files: File[]): Promise<void> {
     field().dispatchEvent(makePasteEvent(files));
     for (let i = 0; i < files.length + 3; i++) await new Promise((r) => setTimeout(r, 0));
@@ -405,6 +414,23 @@ describe("attachment caps — count + per-image size", () => {
     expect(tray().children.length).toBe(1);
     expect(errorEl().textContent).toBe(t("input.attach_too_large", { max: 1 }));
     expect(form().classList.contains("is-error")).toBe(true);
+  });
+
+  it("shows the error and adds no chip when a file cannot be prepared", async () => {
+    const seen: string[][] = [];
+    s.onSubmit((_text, images) => seen.push(images));
+    s.setAttachmentLimits({ max_count: 2, max_image_bytes: 1024 * 1024 });
+    downscale.mockRejectedValueOnce(new Error("decode failed"));
+
+    field().value = "look";
+    await paste(pngFile("broken.png"));
+
+    expect(tray().children.length).toBe(0);
+    expect(errorEl().textContent).toBe(t("input.attach_failed"));
+    expect(form().classList.contains("is-error")).toBe(true);
+
+    form().dispatchEvent(new Event("submit", { bubbles: true, cancelable: true }));
+    expect(seen[0]).toEqual([]);
   });
 
   it("drops in-flight reads when the tray is cleared mid-read", async () => {

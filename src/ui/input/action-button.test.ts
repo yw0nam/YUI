@@ -9,11 +9,14 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("../surfaces/surfaces.css", () => ({}));
 vi.mock("../tokens.css", () => ({}));
+// jsdom cannot decode images, so the resize is mocked to its resolved data URL.
+vi.mock("./image-resize", () => ({ downscaleToJpeg: vi.fn() }));
 
 import { guardrailsFixture } from "../../config/load-test-helpers";
 import { setLocale, t } from "../i18n";
 import { createSurfaces } from "../surfaces/surfaces";
 import { noTool } from "../surfaces/test-helpers";
+import { downscaleToJpeg } from "./image-resize";
 
 function fakeMic() {
   let wanted = false;
@@ -76,7 +79,10 @@ function setup(opts: { mic?: ReturnType<typeof fakeMic>; persistent?: boolean } 
 
 let ui: ReturnType<typeof setup>;
 
-beforeEach(() => setLocale("en"));
+beforeEach(() => {
+  setLocale("en");
+  vi.mocked(downscaleToJpeg).mockResolvedValue("data:image/png;base64,AAA");
+});
 afterEach(() => {
   ui?.s.dispose();
   ui?.mount.remove();

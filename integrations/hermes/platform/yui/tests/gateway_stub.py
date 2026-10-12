@@ -80,6 +80,8 @@ class MessageEvent:
     allow_gateway_control: bool = True
     metadata: dict = field(default_factory=dict)
     reply_expected: bool | None = None
+    media_urls: list[str] = field(default_factory=list)
+    media_types: list[str] = field(default_factory=list)
     _gateway_accepted: bool = field(default=False, init=False, repr=False)
 
     def is_command(self) -> bool:
@@ -96,6 +98,16 @@ class SendResult:
     success: bool
     message_id: str | None = None
     error: str | None = None
+
+
+# What cache_image_from_bytes_async was asked to write; tests read and clear it.
+CACHED_IMAGES: list[tuple[bytes, str]] = []
+
+
+async def cache_image_from_bytes_async(data: bytes, ext: str = ".jpg") -> str:
+    """The real one writes the image cache; here the call itself is the observable."""
+    CACHED_IMAGES.append((data, ext))
+    return f"/tmp/yui-img-{len(CACHED_IMAGES)}{ext}"
 
 
 class BasePlatformAdapter:
@@ -284,6 +296,7 @@ def install_stubs() -> None:
     base = types.ModuleType("gateway.platforms.base")
     base.BasePlatformAdapter = BasePlatformAdapter
     base.SendResult = SendResult
+    base.cache_image_from_bytes_async = cache_image_from_bytes_async
     event = types.ModuleType("gateway.platforms.event")
     event.MessageEvent = MessageEvent
     event.MessageType = MessageType

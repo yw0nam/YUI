@@ -7,7 +7,7 @@
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { Logger } from "../../../logger";
-import type { ReasoningFrame, RenderFrame } from "./push-frames";
+import type { PushTurnFrame, ReasoningFrame, RenderFrame } from "./push-frames";
 import {
   createPushSocket,
   PUSH_FRAME_MAX_BYTES,
@@ -797,6 +797,92 @@ describe("createPushSocket — outbound frames", () => {
       "frame_oversize",
       expect.objectContaining({ type: "turn" }),
     );
+  });
+});
+
+describe("createPushSocket — turn images", () => {
+  const utf8 = (text: string): number => new TextEncoder().encode(text).length;
+
+  /** A `turn` whose frame on the wire is exactly `bytes` UTF-8 bytes long. */
+  function turnOfBytes(bytes: number): PushTurnFrame {
+    const frame = JSON.stringify({ type: "turn", turn_id: "7", client_context: "", text: "" });
+    return { turn_id: "7", client_context: "", text: "x".repeat(bytes - utf8(frame)) };
+  }
+
+  async function readyWith(maxTurnBytes: number | undefined): Promise<void> {
+    socket = build();
+    socket.connect();
+    await vi.advanceTimersByTimeAsync(0);
+    FakeSocket.last().accept();
+    FakeSocket.last().push({
+      type: "ready",
+      chat_id: "yui-3f9a2c1d",
+      ...(maxTurnBytes === undefined ? {} : { max_turn_bytes: maxTurnBytes }),
+    });
+  }
+
+  it("sizes turns by the stated max_turn_bytes", async () => {
+    await readyWith(1024);
+
+    expect(socket.maxTurnBytes()).toBe(1024);
+    expect(socket.sendTurn(turnOfBytes(1024))).toBe(true);
+    expect(socket.sendTurn(turnOfBytes(1025))).toBe(false);
+    expect(
+      FakeSocket.last()
+        .frames()
+        .map((f) => f.type),
+    ).toEqual(["hello", "turn"]);
+    expect(logger.warn).toHaveBeenCalledWith(
+      "frame_oversize",
+      expect.objectContaining({ type: "turn" }),
+    );
+  });
+
+  it("still caps every other frame at 256 KiB", async () => {
+    await readyWith(1024);
+
+    expect(socket.sendStop(["x".repeat(PUSH_FRAME_MAX_BYTES)])).toBe(false);
+    expect(
+      FakeSocket.last()
+        .frames()
+        .map((f) => f.type),
+    ).toEqual(["hello"]);
+    expect(logger.warn).toHaveBeenCalledWith(
+      "frame_oversize",
+      expect.objectContaining({ type: "stop" }),
+    );
+  });
+
+  it("sends a turn without its images when no size was stated", async () => {
+    await readyWith(undefined);
+
+    expect(socket.maxTurnBytes()).toBeUndefined();
+    expect(
+      socket.sendTurn({
+        turn_id: "7",
+        client_context: "",
+        text: "hi",
+        images: ["data:image/png;base64,AAA"],
+      }),
+    ).toBe(true);
+    expect(FakeSocket.last().frames().at(-1)).toEqual({
+      type: "turn",
+      turn_id: "7",
+      client_context: "",
+      text: "hi",
+    });
+    expect(logger.warn).toHaveBeenCalledWith("images_unsupported", { turn_id: "7", count: 1 });
+  });
+
+  it("forgets the stated size once the socket closes and a later ready states none", async () => {
+    await readyWith(1024);
+
+    FakeSocket.last().drop();
+    await vi.advanceTimersByTimeAsync(1_000);
+    FakeSocket.last().accept();
+    FakeSocket.last().push({ type: "ready", chat_id: "yui-3f9a2c1d" });
+
+    expect(socket.maxTurnBytes()).toBeUndefined();
   });
 });
 

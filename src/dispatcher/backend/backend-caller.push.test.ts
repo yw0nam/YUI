@@ -11,7 +11,7 @@
  */
 
 import { afterEach, beforeEach, describe, expect, it, type Mock, vi } from "vitest";
-import type { EndpointsConfig } from "../../contract";
+import type { EndpointsConfig, InputContext } from "../../contract";
 import type { ChatHistoryEntry } from "../../io/chat/conversation/chat-history-store";
 import type { PushTurnFrame } from "../../io/chat/push/push-frames";
 import type { Logger } from "../../logger";
@@ -76,7 +76,11 @@ function fakeSocketState() {
   };
 }
 
-function callerWith(accepted: boolean, config: EndpointsConfig = PUSH_CONFIG) {
+function callerWith(
+  accepted: boolean,
+  config: EndpointsConfig = PUSH_CONFIG,
+  getScreenshot?: () => Promise<InputContext["screenshot"] | undefined>,
+) {
   sent = [];
   records = [];
   contexts = [];
@@ -111,6 +115,7 @@ function callerWith(accepted: boolean, config: EndpointsConfig = PUSH_CONFIG) {
       throw new Error("push mode must not open a chat stream");
     },
     turnOutput,
+    ...(getScreenshot ? { getScreenshot } : {}),
     getPrevious: () => {
       order.push("context");
       onContextBuilt?.();
@@ -214,6 +219,32 @@ describe("backend_caller — push transport", () => {
     expect(outcome).toBe("superseded_by_user");
     expect(sent).toEqual([]);
     expect(sentIds).toEqual([]);
+  });
+
+  it("carries the screenshot and the attachments on the frame's images, in that order", async () => {
+    const caller = callerWith(true, PUSH_CONFIG, async () => ({
+      enabled: true,
+      source: { kind: "monitor", index: 0 },
+      data_url: "data:image/png;base64,AAA",
+    }));
+
+    await caller.call(
+      turnOf(
+        {
+          ...userEnv("look"),
+          payload: { text: "look", images: ["data:image/jpeg;base64,BBB"] },
+        },
+        7,
+      ),
+    );
+
+    expect(sent[0]!.images).toEqual(["data:image/png;base64,AAA", "data:image/jpeg;base64,BBB"]);
+  });
+
+  it("sends no images field on a turn with no image", async () => {
+    await callerWith(true).call(turnOf(userEnv("look"), 7));
+
+    expect(sent[0]!.images).toBeUndefined();
   });
 
   it("reports the turn id the socket accepted", async () => {
