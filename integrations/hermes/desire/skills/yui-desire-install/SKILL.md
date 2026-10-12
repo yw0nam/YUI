@@ -62,6 +62,18 @@ monitor and the helper stop with an error naming the missing variable and the mi
 `DESIRE_STATE_DIR` is optional: without it, state lives in `desire/` under the profile directory. The plugin
 reads these settings per profile, so a gateway that serves several profiles from one process gives each profile
 its own values.
+
+The helper runs in the agent's terminal, and Hermes forwards a profile `.env` value to a terminal command only
+for the names the profile's `config.yaml` lists under `terminal.env_passthrough`. Add the three the helper reads:
+
+```yaml
+terminal:
+  env_passthrough:
+    - DESIRE_AGENT_NAME
+    - DESIRE_STATE_DIR
+    - YUI_SIGNALS_URL
+```
+
 `DESIRE_CHAT_PLATFORMS` is a comma-separated list of Hermes platform names (`telegram`, `discord`, `slack`, …); a
 turn from one of them counts as the user speaking even when it carries no `<client_context>`.
 

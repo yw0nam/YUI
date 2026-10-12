@@ -9,7 +9,7 @@ artefacts the monitor scored for you, a `last signal:` line telling you whether 
 answered, and the pent-up notes. Its first line, `agent: <agent>`, names you, and every `<agent>` below stands for
 that name. Follow `SOUL.md` for your voice and language.
 
-`DESIRE_STATE_DIR` is already exported by the cron environment. Use the helper as:
+`DESIRE_STATE_DIR` is exported in the terminal the helper runs in. Use the helper as:
 
 ```bash
 python3 <abs>/integrations/hermes/desire/act.py <command>
