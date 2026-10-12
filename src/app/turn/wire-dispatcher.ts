@@ -20,10 +20,7 @@ import type { ReasoningStore } from "../../io/bridge/reasoning/reasoning-store";
 import { clientToolsUnlessBrokered } from "../../io/chat/broker/broker-tool-owner";
 import type { PushSocket } from "../../io/chat/push/push-socket";
 import type { PacerSkipRecord, TurnRecord } from "../../io/chat/record/turn-record-log";
-import {
-  createClientToolRegistry,
-  createGenerateExpressTool,
-} from "../../io/chat/stream/client-tools";
+import { createClientToolRegistry, createClientTools } from "../../io/chat/stream/client-tools";
 import type { ExpressVocabulary } from "../../io/chat/vocabulary/express-vocabulary";
 import type { ScreenCapturer } from "../../io/window/capture/screen-source-provider";
 import { buildScreenshotBlock } from "../../io/window/capture/screenshot-context";
@@ -176,7 +173,7 @@ export function wireDispatcher(deps: {
     clientTools: () =>
       clientToolsUnlessBrokered(
         getEndpoints(),
-        createClientToolRegistry([createGenerateExpressTool(getVocabulary())]),
+        createClientToolRegistry(createClientTools(getVocabulary())),
       ),
     pushTurn: (frame) => pushSocket?.sendTurn(frame) ?? false,
     onPushTurnCut: () => pushTurns.cut(),

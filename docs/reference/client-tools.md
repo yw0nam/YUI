@@ -6,7 +6,7 @@ The tools the client exposes to the backend model.
 |---|---|---|---|---|---|
 | `generate_express` | Places an expression cue (face, body motion, voice tone) on the speech around the call | Arguments `emotion_id`, `motion_id`, `emotion_text`, `caption`, each optional ([cue contract](client-context.md#tool-arguments)). Result: the string `ok` | Responses and Chat Completions as a declared tool. Push as cues inside `render` and `speech` segments | `createGenerateExpressTool` in `src/io/chat/stream/client-tools.ts` | `runClientCall` in `src/io/chat/stream/client-tool-run.ts` |
 
-`src/app/turn/wire-dispatcher.ts` composes the registry for each turn, as the `clientTools` dependency of the backend caller. The registry reads the vocabulary loaded at that moment, so a vocabulary edit (a new emotion, a new motion, a different voice engine, a changed motion selection) reaches the schema on the next turn.
+`createClientTools` in `src/io/chat/stream/client-tools.ts` lists the declared tools. `src/app/turn/wire-dispatcher.ts` builds the registry from that list for each turn, as the `clientTools` dependency of the backend caller. The registry reads the vocabulary loaded at that moment, so a vocabulary edit (a new emotion, a new motion, a different voice engine, a changed motion selection) reaches the schema on the next turn.
 
 ## Declaration per transport
 
@@ -114,6 +114,6 @@ The Hermes api-server does not pass a request's `tools` to its model on either t
 
 ① Export a `create<Name>Tool` factory from `src/io/chat/stream/client-tools.ts` that returns a `ClientTool`. Set `oneWay: true` only on a tool whose result tells the model nothing.
 
-② Add the tool to the list passed to `createClientToolRegistry` in `src/app/turn/wire-dispatcher.ts`.
+② Add the tool to the list `createClientTools` returns in the same file. `src/app/turn/wire-dispatcher.ts` declares that list on every turn.
 
-③ Add its row to the catalog table at the top of this page. `src/io/chat/stream/client-tools.test.ts` fails while a `create<Name>Tool` factory has no row.
+③ Add its row to the catalog table at the top of this page. `src/io/chat/stream/client-tools.test.ts` fails while a tool in that list has no row.

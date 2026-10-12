@@ -93,6 +93,11 @@ function emotionTextSchema(emotionText: ExpressVocabulary["emotionText"]): Recor
   };
 }
 
+/** Every tool the client declares, in declaration order. */
+export function createClientTools(vocab: ExpressVocabulary): ClientTool[] {
+  return [createGenerateExpressTool(vocab)];
+}
+
 /**
  * Built from the same vocabulary the broker publishes (deriveExpressVocabulary). A
  * curated-empty motion list drops motion_id rather than declaring an unfillable empty enum.
