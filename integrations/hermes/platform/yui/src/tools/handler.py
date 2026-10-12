@@ -44,8 +44,6 @@ def _call(name: str, args: object) -> str:
     future = pending.register(chat_id, call_id, turn_id)
     try:
         with pending.chat_lock(chat_id):
-            if future.done():
-                return future.result()
             return _send_and_wait(chat_id, call_id, turn_id, name, args, future)
     finally:
         pending.discard(chat_id, call_id)
@@ -59,6 +57,11 @@ def _send_and_wait(
     args: object,
     future: concurrent.futures.Future,
 ) -> str:
+    # A call that waited long on the lock may find its answer in, or its client gone.
+    if future.done():
+        return future.result()
+    if not state.is_connected(chat_id):
+        return pending.DISCONNECTED
     wait = WAITS_S.get(name, DEFAULT_WAIT_S)
     frame = {
         "type": "tool_call",
