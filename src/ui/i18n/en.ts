@@ -340,6 +340,12 @@ const en: Record<string, string> = {
   "screenshot.request_foot_on": "While on, she can look at your screen when she asks to.",
   "screenshot.request_foot_off":
     "Off by default. Turn on to let her look at your screen on request.",
+  "browser.label": "Allow browser use",
+  "browser.sub_off":
+    "Off by default. Turn on to let her open, click, and type on websites in a dedicated Chrome.",
+  "browser.sub_on": "While on, she can open, click, and type on websites in a dedicated Chrome.",
+  "browser.foot":
+    "She can use any account you sign into in the dedicated Chrome. Page content she reads is sent to the connected backend.",
 
   // voice input
   "voice_input.label": "Voice input",

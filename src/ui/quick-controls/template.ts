@@ -20,6 +20,7 @@ import {
   TAB_ICON_TALK,
 } from "./constants";
 import { escapeAttr, numRowHtml, secHeadHtml } from "./markup";
+import { browserSectionHtml } from "./sections/browser/browser-section";
 import { helpSectionHtml } from "./sections/help/help-section";
 import type { SwitchRow } from "./switch-row";
 import { switchButtonHtml, switchRowHtml } from "./switches/switch-rows";
@@ -53,6 +54,8 @@ interface PanelHtmlOptions {
   showMessage: boolean;
   /** Whether the History tab renders — true when a transcript store is injected. */
   showHistory: boolean;
+  /** Whether the browser-use switch renders — true when the browser store is injected. */
+  showBrowser?: boolean;
 }
 
 export function buildPanelHtml(o: PanelHtmlOptions): string {
@@ -68,6 +71,7 @@ export function buildPanelHtml(o: PanelHtmlOptions): string {
     showHelp,
     showMessage,
     showHistory,
+    showBrowser,
   } = o;
   const visibleSwitchRows = switchRows.filter((row) => row.isVisible);
 
@@ -335,7 +339,7 @@ ${panelOpenHtml("input")}
               <button class="yui-switch yui-screenshot-requests-switch" type="button" role="switch" aria-checked="false" aria-label="${t("screenshot.request_label")}"></button>
             </div>
           </div>
-        </div>
+        </div>${showBrowser ? browserSectionHtml() : ""}
         <div class="yui-sec">
           <div class="yui-group">
             <div class="yui-row">

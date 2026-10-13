@@ -63,6 +63,7 @@ import { createHintTooltip } from "./hint-tooltip";
 import { createHistoryTab } from "./history/history-tab";
 import { createPopover } from "./popover";
 import { createAgentSection } from "./sections/agent/agent-section";
+import { createBrowserSection } from "./sections/browser/browser-section";
 import { createFillerSection } from "./sections/filler/filler-section";
 import { bindHelpSection } from "./sections/help/help-section";
 import { createReactionsSection } from "./sections/reactions/reactions-section";
@@ -229,6 +230,8 @@ interface QuickControlsOptions {
   getExpressMotions?: () => readonly string[];
   /** Launch bed scene on/off + wake timeout store. If absent, that section won't render. */
   bedSceneSettings?: BedSceneSettingsStore;
+  /** Browser-use on/off store. If absent, that section won't render. */
+  browserSettings?: FlagSettingsStore;
 }
 
 interface QuickControls {
@@ -313,6 +316,7 @@ export function createQuickControls({
   expressMotionSettings,
   getExpressMotions,
   bedSceneSettings,
+  browserSettings,
 }: QuickControlsOptions): QuickControls {
   const isWindow = variant === "window";
   // Context-occupancy readout renders only in the settings window, when both stores are injected.
@@ -356,6 +360,7 @@ export function createQuickControls({
     showHelp: !!onGuide,
     showMessage: !!onMessage,
     showHistory: !!transcript,
+    showBrowser: !!browserSettings,
   });
 
   const cueSectionsMountEl = el.querySelector<HTMLDivElement>(".yui-cue-sections")!;
@@ -471,6 +476,7 @@ export function createQuickControls({
     visibleHeight: visibleViewport ? () => visibleViewport.get() : undefined,
     onOpen: () => {
       screenshot.reflect();
+      browser?.reflect();
       switchRows.reflect();
       reactions.reflect();
       screen.reflect();
@@ -571,6 +577,11 @@ export function createQuickControls({
     isOpen: popover.isOpen,
   });
 
+  // ── Browser section (browser-use switch) ──
+  const browser = browserSettings
+    ? createBrowserSection({ root: el, settings: browserSettings, log, isOpen: popover.isOpen })
+    : undefined;
+
   // Effective chat protocol: the user's override, else the bundled default.
   function isPushMode(): boolean {
     return (endpointsSettings.get().chat_api || getDefaultChatApi?.()) === "push";
@@ -646,6 +657,7 @@ export function createQuickControls({
     connectionTab.dispose();
     workflows.dispose();
     screenshot.dispose();
+    browser?.dispose();
     screen.dispose();
     reactions.dispose();
     agent.dispose();

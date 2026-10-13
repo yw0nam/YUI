@@ -342,6 +342,12 @@ const ja: Record<string, string> = {
   "screenshot.request_foot_on": "オンの間は、ユイが見たいときに画面を見られます。",
   "screenshot.request_foot_off":
     "初期設定はオフです。オンにすると、ユイのリクエストに応じて画面を見せます。",
+  "browser.label": "ブラウザの使用を許可",
+  "browser.sub_off":
+    "初期設定はオフです。オンにすると、ユイが専用のChromeでWebサイトを開き、クリックし、入力します。",
+  "browser.sub_on": "オンの間は、ユイが専用のChromeでWebサイトを開き、クリックし、入力します。",
+  "browser.foot":
+    "専用のChromeでログインしたアカウントは、ユイも使えます。読み取ったページの内容は、接続中のバックエンドに送られます。",
 
   // voice input
   "voice_input.label": "音声入力",

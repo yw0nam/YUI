@@ -338,6 +338,12 @@ const ko: Record<string, string> = {
   "screenshot.request_label": "화면 요청 허용",
   "screenshot.request_foot_on": "켜져 있는 동안 유이가 원할 때 화면을 볼 수 있어요.",
   "screenshot.request_foot_off": "기본은 꺼져 있어요. 켜면 유이가 요청할 때 화면을 보여줘요.",
+  "browser.label": "브라우저 사용 허용",
+  "browser.sub_off":
+    "기본은 꺼져 있어요. 켜면 유이가 전용 Chrome에서 웹사이트를 열고, 누르고, 입력해요.",
+  "browser.sub_on": "켜져 있는 동안 유이가 전용 Chrome에서 웹사이트를 열고, 누르고, 입력해요.",
+  "browser.foot":
+    "전용 Chrome에 로그인한 계정은 유이도 쓸 수 있어요. 읽은 페이지 내용은 연결된 백엔드로 보내져요.",
 
   // voice input
   "voice_input.label": "음성 입력",

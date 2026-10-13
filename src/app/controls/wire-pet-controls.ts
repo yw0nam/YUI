@@ -132,6 +132,7 @@ export function wirePetControls(deps: {
     idleMotionSettings,
     expressMotionSettings,
     bedSceneSettings,
+    browserSettings,
   } = stores;
   // The quick-controls session reset writes the same instances the dispatcher reads through.
   const { sessionStore, sessionDiagnostics, chatHistoryStore } = conversation;
@@ -204,6 +205,8 @@ export function wirePetControls(deps: {
       idleMotionSettings,
       expressMotionSettings,
       bedSceneSettings,
+      // The browser tool exists only in the pet window under Tauri.
+      browserSettings: isTauri() ? browserSettings : undefined,
       onPopOut: () => openSettings(),
       onMessage: () => surfaces.summonInput(),
       onGuide,

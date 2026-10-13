@@ -29,6 +29,7 @@ import {
   localStorageGuardrailsStorage,
 } from "./backend/guardrails-settings";
 import { createWorkflowSettings, localStorageWorkflowStorage } from "./backend/workflow-settings";
+import { createBrowserSettings } from "./browser/browser-settings";
 import { createScreenKnobSettings, localStorageScreenKnobStorage } from "./capture/screen-settings";
 import {
   createScreenshotSettings,
@@ -164,6 +165,8 @@ export function createSettingsStores(opts?: { locale?: CueLocale }) {
   const bedSceneSettings = createBedSceneSettings({
     storage: localStorageStore(BED_SCENE_STORAGE_KEY),
   });
+  // Browser tool on/off. Default OFF. Edited in either window, read by the pet window's tool.
+  const browserSettings = createBrowserSettings();
 
   return {
     screenshotSettings,
@@ -197,6 +200,7 @@ export function createSettingsStores(opts?: { locale?: CueLocale }) {
     idleMotionSettings,
     expressMotionSettings,
     bedSceneSettings,
+    browserSettings,
   };
 }
 
@@ -244,6 +248,7 @@ export const SYNC_MODE: Record<keyof SettingsStores, SyncMode> = {
   idleMotionSettings: "broadcast",
   expressMotionSettings: "broadcast",
   bedSceneSettings: "broadcast",
+  browserSettings: "broadcast",
 };
 
 /** Stores that reload on a remote signal — the `storage` event and a bridge settings-changed alike. */
