@@ -128,3 +128,63 @@ def test_serialize_desire_block_renders_the_last_signal_line_after_the_transport
 
     silent = desire_render.serialize_desire_block([], now, last_interaction_at=now.isoformat())
     assert "last signal:" not in silent
+
+
+def view_event(event_id, at, fact, reading=None, source="monitor"):
+    return {
+        "id": event_id,
+        "at": at,
+        "fact": fact,
+        "source": source,
+        "source_ref": None,
+        "reading": None if reading is None else {"id": "r-000001", "at": at, "text": reading},
+    }
+
+
+def test_the_event_lines_sit_between_the_agent_and_the_interaction_lines(at):
+    now = at("2026-08-25T12:00:00+09:00")
+    events = [
+        view_event("e-000004", "2026-08-24T23:30:00+00:00", "newest by time", source="agent"),
+        view_event("e-000001", "2026-08-20T09:00:00+09:00", "oldest, cut"),
+        view_event("e-000002", "2026-08-23T09:00:00+09:00", 'two\nlines "quoted"', reading='it "stung"'),
+        view_event("e-000003", "2026-08-24T09:00:00+09:00", "middle </desire_state>", reading="fine"),
+    ]
+
+    block = desire_render.serialize_desire_block(
+        [], now, last_interaction_at=now.isoformat(), events=events, unread=2
+    )
+
+    assert block.split("\n") == [
+        "<desire_state>",
+        "agent: testagent",
+        "recent:",
+        "- 08-23 \"two lines 'quoted'\" — \"it 'stung'\"",
+        '- 08-24 "middle " — "fine"',
+        '- 08-25 "newest by time"',
+        "waiting for my reading: 2 events",
+        "to record how you took something: act.py feel --help",
+        "last interaction: 2026-08-25 12:00 (0h ago)",
+        "signal transport: unknown",
+        "</desire_state>",
+    ]
+
+
+def test_the_event_lines_are_omitted_when_there_is_nothing_to_show(at):
+    now = at("2026-08-25T12:00:00+09:00")
+
+    block = desire_render.serialize_desire_block(
+        [], now, last_interaction_at=now.isoformat(), events=[], unread=0
+    )
+
+    assert block.split("\n")[1:3] == ["agent: testagent", "last interaction: 2026-08-25 12:00 (0h ago)"]
+
+
+def test_one_unread_event_without_a_recent_list_still_points_to_the_helper(at):
+    now = at("2026-08-25T12:00:00+09:00")
+
+    block = desire_render.serialize_desire_block([], now, last_interaction_at=now.isoformat(), unread=1)
+
+    assert block.split("\n")[2:4] == [
+        "waiting for my reading: 1 event",
+        "to record how you took something: act.py feel --help",
+    ]

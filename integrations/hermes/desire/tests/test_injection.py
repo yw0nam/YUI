@@ -1141,3 +1141,76 @@ def test_the_turn_audit_event_names_the_channel(desire_plugin, state_dir, at, st
         ("none", "telegram"),
         ("none", "none"),
     ]
+
+
+def test_golden_block_shows_recent_events_waiting_count_and_the_helper(
+    desire_plugin, state_dir, at, state_helpers
+):
+    _, write_jsonl, _, _ = state_helpers
+    now = at("2026-08-25T12:00:00+09:00")
+    seed_drives(state_dir, now, state_helpers)
+    write_jsonl(
+        state_dir / "events.jsonl",
+        [
+            {"id": "e-000001", "at": "2026-08-23T09:00:00+09:00", "fact": "read", "source": "agent"},
+            {
+                "id": "e-000002",
+                "at": "2026-08-24T09:00:00+09:00",
+                "fact": 'two\nlines "q"',
+                "source": "monitor",
+            },
+            {"id": "e-000003", "at": "2026-08-25T09:00:00+09:00", "fact": "gone", "source": "monitor"},
+            {"retracts": "e-000003", "at": "2026-08-25T10:00:00+09:00", "why": "wrong"},
+        ],
+    )
+    write_jsonl(
+        state_dir / "readings.jsonl",
+        [{"id": "r-000001", "event_id": "e-000001", "at": "2026-08-23T10:00:00+09:00", "text": "good"}],
+    )
+
+    block = appended_block(desire_plugin._inject(request=request_with("hello"), now=now))
+
+    assert block == (
+        "<desire_state>\n"
+        f"agent: {AGENT_NAME}\n"
+        "recent:\n"
+        '- 08-23 "read" — "good"\n'
+        "- 08-24 \"two lines 'q'\"\n"
+        "waiting for my reading: 1 event\n"
+        "to record how you took something: act.py feel --help\n"
+        "last interaction: 2026-08-25 07:12 (4h ago)\n"
+        "signal transport: unknown\n"
+        "</desire_state>"
+    )
+    assert desire_plugin._already_injected("hello\n\n" + block)
+
+
+def test_canonical_block_with_event_lines_is_idempotent(desire_plugin):
+    text = (
+        "hello\n\n<desire_state>\n"
+        f"agent: {AGENT_NAME}\n"
+        "recent:\n"
+        '- 08-23 "a" — "b"\n'
+        '- 08-24 "c"\n'
+        '- 08-25 ""\n'
+        "waiting for my reading: 3 events\n"
+        "to record how you took something: act.py feel --help\n"
+        "last interaction: 2026-08-25 12:00 (0h ago)\n"
+        "returned: after 5h away (one held note fits here)\n"
+        "signal transport: unknown\n"
+        "pent-up (1):\n"
+        "- [2026-08-25 06:00] waiting\n"
+        "</desire_state>"
+    )
+    request = request_with(text)
+    original = copy.deepcopy(request)
+
+    assert desire_plugin._already_injected(text)
+    assert desire_plugin._inject(request=request, now=None) is None
+    assert request == original
+    waiting_only = text.replace("recent:\n", "").replace('- 08-23 "a" — "b"\n', "")
+    waiting_only = waiting_only.replace('- 08-24 "c"\n', "").replace('- 08-25 ""\n', "")
+    assert desire_plugin._already_injected(waiting_only)
+    assert not desire_plugin._already_injected(
+        text.replace("to record how you took something: act.py feel --help\n", "")
+    )
