@@ -17,7 +17,7 @@ OUTBOX_EXPIRY = timedelta(hours=48)
 
 
 def stamp_outbox(path: Path, item_ids: tuple[str, ...], now: datetime) -> None:
-    """Stamp selected valid items while preserving malformed lines for the monitor."""
+    """Stamp selected valid items while preserving malformed lines for the gate."""
 
     now = desire_config.normalize_now(now)
     path = Path(path)

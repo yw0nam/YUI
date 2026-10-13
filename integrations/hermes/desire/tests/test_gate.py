@@ -209,11 +209,13 @@ def test_reading_two_events_leaves_the_batch_due_state_untouched(state_dir, at, 
     gate.run(t0 + timedelta(hours=6))
     gate.run(t0 + timedelta(hours=12))
 
-    lines += [
-        reading_line("r-000001", "e-000000", t0 + timedelta(hours=18)),
-        reading_line("r-000002", "e-000001", t0 + timedelta(hours=18)),
-    ]
-    write_jsonl(state_dir / "events.jsonl", lines)
+    write_jsonl(
+        state_dir / "readings.jsonl",
+        [
+            reading_line("r-000001", "e-000000", t0 + timedelta(hours=18)),
+            reading_line("r-000002", "e-000001", t0 + timedelta(hours=18)),
+        ],
+    )
 
     assert gate.run(t0 + timedelta(hours=18, minutes=1)) == NO_WAKE
     assert read_json(state_dir / "gate.json")["batch"]["ids"] == ["e-000002", "e-000003", "e-000004"]
@@ -228,11 +230,13 @@ def test_a_new_event_starts_a_fresh_batch_with_one_presentation_stamp(state_dir,
     gate.run(t0 + timedelta(hours=6))
     gate.run(t0 + timedelta(hours=12))
 
-    lines += [
-        reading_line("r-000001", "e-000000", t0 + timedelta(hours=18)),
-        reading_line("r-000002", "e-000001", t0 + timedelta(hours=18)),
-    ]
-    write_jsonl(state_dir / "events.jsonl", lines)
+    write_jsonl(
+        state_dir / "readings.jsonl",
+        [
+            reading_line("r-000001", "e-000000", t0 + timedelta(hours=18)),
+            reading_line("r-000002", "e-000001", t0 + timedelta(hours=18)),
+        ],
+    )
     assert gate.run(t0 + timedelta(hours=18)) == NO_WAKE
 
     lines.append(event_line("e-000005", t0 + timedelta(hours=19), "fact 5"))
@@ -252,10 +256,10 @@ def test_a_read_or_retracted_event_is_not_unread(state_dir, at, state_helpers):
         [
             event_line("e-000001", now, "read already"),
             event_line("e-000002", now, "taken back"),
-            reading_line("r-000001", "e-000001", now),
             retraction_line("e-000002", now),
         ],
     )
+    write_jsonl(state_dir / "readings.jsonl", [reading_line("r-000001", "e-000001", now)])
 
     assert gate.run(now) == NO_WAKE
 
@@ -1025,3 +1029,49 @@ def test_an_error_after_the_bookkeeping_leaves_the_presentation_history_unchange
     assert capsys.readouterr().out == NO_WAKE
     assert (state_dir / "gate.json").read_bytes() == before
     assert [value["error"] for value in audited(state_dir, "gate_error")] == ["OSError: log exploded"]
+
+
+def test_an_error_inside_the_decision_leaves_a_presented_batch_unchanged(
+    state_dir, at, capsys, monkeypatch, transport_up, state_helpers
+):
+    _, write_jsonl, _, _ = state_helpers
+    t0 = at("2026-08-25T12:00:00+09:00")
+    write_jsonl(state_dir / "events.jsonl", [event_line("e-000001", t0, "fact")])
+    gate.run(t0)
+    before = (state_dir / "gate.json").read_bytes()
+    assert b'"presented_at":["2026-08-25T12:00:00+09:00"]' in before
+
+    def fail(*_args):
+        raise OSError("notes exploded")
+
+    monkeypatch.setattr(gate, "_held_notes_lines", fail)
+
+    assert gate.main() is None
+    assert capsys.readouterr().out == NO_WAKE
+    assert (state_dir / "gate.json").read_bytes() == before
+    assert [value["error"] for value in audited(state_dir, "gate_error")] == ["OSError: notes exploded"]
+
+
+@pytest.mark.parametrize(
+    "content",
+    [
+        "{broken",
+        '{"batch": {"ids": [], "presented_at": ["nope"]}, "notes_presented_at": null}',
+        '{"batch": {"ids": [], "presented_at": []}}',
+    ],
+)
+def test_an_invalid_gate_state_is_quarantined_and_rebuilt(state_dir, at, state_helpers, content):
+    _, _, read_json, read_jsonl = state_helpers
+    now = at("2026-08-25T12:00:00+09:00")
+    gate.run(now)
+    (state_dir / "gate.json").write_text(content, encoding="utf-8")
+
+    assert gate.run(now + timedelta(minutes=1)) == NO_WAKE
+    assert read_json(state_dir / "gate.json") == {
+        "batch": {"ids": [], "presented_at": []},
+        "notes_presented_at": None,
+    }
+    assert len(list(state_dir.glob("gate.json.corrupt-*"))) == 1
+    assert [
+        e["file"] for e in read_jsonl(state_dir / "audit.jsonl") if e["event"] == "state_corrupt_recovered"
+    ] == ["gate.json"]
