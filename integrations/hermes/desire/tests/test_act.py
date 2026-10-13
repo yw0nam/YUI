@@ -1092,7 +1092,7 @@ def test_judge_usage_errors_exit_two_and_write_nothing(state_dir, at, argv):
     assert not (state_dir / "judgments.jsonl").exists()
 
 
-def test_feel_list_unread_prints_every_event_without_a_reading_in_file_order(state_dir, at, capsys):
+def test_feel_list_unread_prints_every_event_without_a_reading_in_the_list_order(state_dir, at, capsys):
     now = at("2026-08-25T12:00:00+09:00")
     assert act.main(["feel", "--list", "--unread"], now=now) == 0
     assert capsys.readouterr().out == ""
@@ -1108,8 +1108,8 @@ def test_feel_list_unread_prints_every_event_without_a_reading_in_file_order(sta
     assert act.main(["feel", "--list", "--unread"], now=now) == 0
 
     lines = capsys.readouterr().out.splitlines()
-    assert [line.split()[0] for line in lines] == ids[4:]
-    assert lines[0] == f"{ids[4]} 2026-08-25 11:56 [monitor] fact 4, corrected — (no reading)"
+    assert [line.split()[0] for line in lines] == ids[:3:-1]
+    assert lines[-1] == f"{ids[4]} 2026-08-25 11:56 [monitor] fact 4, corrected — (no reading)"
 
 
 def test_judge_list_prints_every_present_judgment_by_toward_then_name(state_dir, at, capsys):

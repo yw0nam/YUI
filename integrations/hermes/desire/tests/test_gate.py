@@ -69,24 +69,29 @@ def git_repo(workspace: Path, name: str, origin: str | None) -> Path:
 
 def gh_runner(payloads: dict, failing: tuple = (), views: dict | None = None, comments=None, calls=None):
     """Answer `gh <kind> list` from a `(command, repo)` table, `gh <kind> view` from a url table,
-    and `gh api` from a per-repository comments table, recording each argv with its cwd in ``calls``."""
+    and `gh api` from a per-repository comments table, recording each argv with its cwd in ``calls``;
+    repositories match without regard to case, as on GitHub."""
+
+    payloads = {(command, repo.lower()): answer for (command, repo), answer in payloads.items()}
+    comments = {repo.lower(): answer for repo, answer in (comments or {}).items()}
+    failing = tuple(item if isinstance(item, str) else (item[0], item[1].lower()) for item in failing)
 
     def run(args: list[str], cwd=None) -> str:
         if calls is not None:
             calls.append((args, cwd))
         command = args[0]
         if command == "api":
-            repo = args[1].removeprefix("repos/").split("/issues/comments")[0]
+            repo = args[1].removeprefix("repos/").split("/issues/comments")[0].lower()
             if "comments" in failing or ("comments", repo) in failing:
                 raise RuntimeError("gh: HTTP 502")
-            answer = (comments or {}).get(repo, [])
+            answer = comments.get(repo, [])
             return answer if isinstance(answer, str) else "".join(json.dumps(item) + "\n" for item in answer)
         if args[1] == "view":
             url = args[2]
             if url in failing:
                 raise RuntimeError("gh: HTTP 404")
             return json.dumps((views or {}).get(url, {}))
-        repo = args[args.index("--repo") + 1]
+        repo = args[args.index("--repo") + 1].lower()
         if command in failing or (command, repo) in failing:
             raise RuntimeError("gh: HTTP 404")
         return json.dumps(payloads.get((command, repo), []))
@@ -362,9 +367,15 @@ def test_the_first_answer_records_everything_seen_and_shipped(state_dir, at, tmp
         tmp_path,
         payloads={
             ("pr", "owner/YUI"): [
-                {"url": "https://github.com/owner/YUI/pull/1", "headRefName": f"{BRANCH}a", "mergedAt": None},
+                {
+                    "url": "https://github.com/owner/YUI/pull/1",
+                    "isCrossRepository": False,
+                    "headRefName": f"{BRANCH}a",
+                    "mergedAt": None,
+                },
                 {
                     "url": "https://github.com/owner/YUI/pull/2",
+                    "isCrossRepository": False,
                     "headRefName": f"{BRANCH}b",
                     "mergedAt": "2026-08-24T00:00:00Z",
                 },
@@ -387,8 +398,8 @@ def test_the_first_answer_records_everything_seen_and_shipped(state_dir, at, tmp
             "issue": ["https://github.com/owner/YUI/issues/9"],
         },
         "shipped": ["https://github.com/owner/YUI/pull/2"],
-        "comments_from": {"owner/YUI": now.isoformat()},
-        "comments_since": {"owner/YUI": now.isoformat()},
+        "comments_from": {"owner/yui": now.isoformat()},
+        "comments_since": {"owner/yui": now.isoformat()},
     }
     assert desire_events.events_view(state_dir) == []
 
@@ -401,7 +412,12 @@ def test_a_new_agent_pull_request_is_recorded_exactly_once(state_dir, at, tmp_pa
 
     payloads = {
         ("pr", "owner/YUI"): [
-            {"url": "https://github.com/owner/YUI/pull/3", "headRefName": f"{BRANCH}c", "mergedAt": None}
+            {
+                "url": "https://github.com/owner/YUI/pull/3",
+                "isCrossRepository": False,
+                "headRefName": f"{BRANCH}c",
+                "mergedAt": None,
+            }
         ]
     }
     derive(state_dir, now, tmp_path, payloads=payloads)
@@ -419,6 +435,7 @@ def test_a_merged_pull_request_is_recorded_shipped_exactly_once(state_dir, at, t
     derive(state_dir, now, tmp_path)
     open_pull = {
         "url": "https://github.com/owner/YUI/pull/4",
+        "isCrossRepository": False,
         "headRefName": f"{BRANCH}d",
         "mergedAt": None,
     }
@@ -433,7 +450,7 @@ def test_a_merged_pull_request_is_recorded_shipped_exactly_once(state_dir, at, t
     assert artefacts["shipped"] == ["https://github.com/owner/YUI/pull/4"]
 
 
-def test_a_pull_request_outside_the_agent_branch_prefix_is_never_recorded(
+def test_a_pull_request_outside_the_agent_branch_prefix_or_from_a_fork_is_never_recorded(
     state_dir, at, tmp_path, state_helpers
 ):
     _, _, read_json, _ = state_helpers
@@ -449,9 +466,16 @@ def test_a_pull_request_outside_the_agent_branch_prefix_is_never_recorded(
             ("pr", "owner/YUI"): [
                 {
                     "url": "https://github.com/owner/YUI/pull/5",
+                    "isCrossRepository": False,
                     "headRefName": "feat/other",
                     "mergedAt": "2026-08-25T11:00:00Z",
-                }
+                },
+                {
+                    "url": "https://github.com/owner/YUI/pull/6",
+                    "isCrossRepository": True,
+                    "headRefName": f"{BRANCH}fork",
+                    "mergedAt": None,
+                },
             ]
         },
     )
@@ -459,7 +483,9 @@ def test_a_pull_request_outside_the_agent_branch_prefix_is_never_recorded(
     assert read_json(state_dir / "artefacts.json")["seen"]["pr"] == []
 
 
-def test_an_issue_without_the_marker_is_never_recorded(state_dir, at, tmp_path, state_helpers):
+def test_an_issue_that_does_not_open_with_the_marker_is_never_recorded(
+    state_dir, at, tmp_path, state_helpers
+):
     _, _, read_json, _ = state_helpers
     now = at("2026-08-25T12:00:00+09:00")
     desire_state.bootstrap(now)
@@ -472,6 +498,11 @@ def test_an_issue_without_the_marker_is_never_recorded(state_dir, at, tmp_path, 
         payloads={
             ("issue", "owner/YUI"): [
                 {"url": "https://github.com/owner/YUI/issues/10", "body": "plain body", "closedAt": None},
+                {
+                    "url": "https://github.com/owner/YUI/issues/12",
+                    "body": f"Quoting:\n{MARKER}",
+                    "closedAt": None,
+                },
                 {
                     "url": "https://github.com/owner/YUI/issues/11",
                     "body": f"{MARKER}\nmarked",
@@ -498,14 +529,19 @@ def test_failing_source_audits_derive_failed_and_leaves_its_cursor(state_dir, at
         tmp_path,
         payloads={
             ("pr", "owner/YUI"): [
-                {"url": "https://github.com/owner/YUI/pull/6", "headRefName": f"{BRANCH}e", "mergedAt": None}
+                {
+                    "url": "https://github.com/owner/YUI/pull/6",
+                    "isCrossRepository": False,
+                    "headRefName": f"{BRANCH}e",
+                    "mergedAt": None,
+                }
             ]
         },
         failing=("issue",),
     )
 
     failures = audited(state_dir, "derive_failed")
-    assert [(event["source"], event["repo"]) for event in failures] == [("issue", "owner/YUI")]
+    assert [(event["source"], event["repo"]) for event in failures] == [("issue", "owner/yui")]
     assert "404" in failures[0]["error"]
     artefacts = read_json(state_dir / "artefacts.json")
     assert artefacts["seen"]["issue"] == []
@@ -520,6 +556,7 @@ def test_a_source_that_failed_during_bootstrap_bootstraps_when_it_recovers(
     desire_state.bootstrap(now)
     existing = {
         "url": "https://github.com/owner/YUI/pull/1",
+        "isCrossRepository": False,
         "headRefName": f"{BRANCH}a",
         "mergedAt": "2026-08-24T00:00:00Z",
     }
@@ -535,7 +572,12 @@ def test_a_source_that_failed_during_bootstrap_bootstraps_when_it_recovers(
     assert artefacts["seen"]["pr"] == [existing["url"]]
     assert artefacts["shipped"] == [existing["url"]]
 
-    fresh = {"url": "https://github.com/owner/YUI/pull/2", "headRefName": f"{BRANCH}b", "mergedAt": None}
+    fresh = {
+        "url": "https://github.com/owner/YUI/pull/2",
+        "isCrossRepository": False,
+        "headRefName": f"{BRANCH}b",
+        "mergedAt": None,
+    }
     derive(state_dir, now, tmp_path, payloads={("pr", "owner/YUI"): [existing, fresh]})
 
     assert read_json(state_dir / "artefacts.json")["seen"]["pr"] == [existing["url"], fresh["url"]]
@@ -558,7 +600,12 @@ def test_two_workspace_directories_sharing_an_origin_record_once(state_dir, at, 
     )
     payloads = {
         ("pr", "owner/YUI"): [
-            {"url": "https://github.com/owner/YUI/pull/7", "headRefName": f"{BRANCH}f", "mergedAt": None}
+            {
+                "url": "https://github.com/owner/YUI/pull/7",
+                "isCrossRepository": False,
+                "headRefName": f"{BRANCH}f",
+                "mergedAt": None,
+            }
         ]
     }
     run_gate(
@@ -581,7 +628,12 @@ def test_a_repository_failing_during_bootstrap_leaves_the_kind_unbootstrapped(
     workspace.mkdir(exist_ok=True)
     git_repo(workspace, "YUI", "https://github.com/owner/YUI.git")
     git_repo(workspace, "YUI-clone", "https://github.com/owner/memory_layer.git")
-    healthy = {"url": "https://github.com/owner/YUI/pull/8", "headRefName": f"{BRANCH}g", "mergedAt": None}
+    healthy = {
+        "url": "https://github.com/owner/YUI/pull/8",
+        "isCrossRepository": False,
+        "headRefName": f"{BRANCH}g",
+        "mergedAt": None,
+    }
 
     run_gate(
         state_dir,
@@ -607,7 +659,12 @@ def test_a_repository_failing_after_bootstrap_still_records_the_healthy_one(
     git_repo(workspace, "YUI", "https://github.com/owner/YUI.git")
     git_repo(workspace, "YUI-clone", "https://github.com/owner/memory_layer.git")
     run_gate(state_dir, now, workspace_root=workspace, run_gh=gh_runner({}))
-    healthy = {"url": "https://github.com/owner/YUI/pull/9", "headRefName": f"{BRANCH}h", "mergedAt": None}
+    healthy = {
+        "url": "https://github.com/owner/YUI/pull/9",
+        "isCrossRepository": False,
+        "headRefName": f"{BRANCH}h",
+        "mergedAt": None,
+    }
 
     run_gate(
         state_dir,
@@ -629,7 +686,7 @@ def test_a_merged_pull_request_outside_the_list_window_is_shipped_from_its_own_v
     now = at("2026-08-25T12:00:00+09:00")
     desire_state.bootstrap(now)
     url = "https://github.com/owner/YUI/pull/10"
-    listed = {"url": url, "headRefName": f"{BRANCH}i", "mergedAt": None}
+    listed = {"url": url, "isCrossRepository": False, "headRefName": f"{BRANCH}i", "mergedAt": None}
     derive(state_dir, now, tmp_path)
     derive(state_dir, now, tmp_path, payloads={("pr", "owner/YUI"): [listed]})
 
@@ -663,7 +720,7 @@ def test_a_failing_view_call_audits_that_artefact_and_leaves_it_for_the_next_run
     now = at("2026-08-25T12:00:00+09:00")
     desire_state.bootstrap(now)
     url = "https://github.com/owner/YUI/pull/11"
-    listed = {"url": url, "headRefName": f"{BRANCH}j", "mergedAt": None}
+    listed = {"url": url, "isCrossRepository": False, "headRefName": f"{BRANCH}j", "mergedAt": None}
     derive(state_dir, now, tmp_path)
     derive(state_dir, now, tmp_path, payloads={("pr", "owner/YUI"): [listed]})
 
@@ -691,8 +748,8 @@ def test_a_malformed_ref_audits_derive_failed_instead_of_vanishing(state_dir, at
         tmp_path,
         payloads={
             ("pr", "owner/YUI"): [
-                {"url": 12, "headRefName": f"{BRANCH}broken", "mergedAt": None},
-                {"url": url, "headRefName": f"{BRANCH}good", "mergedAt": None},
+                {"url": 12, "isCrossRepository": False, "headRefName": f"{BRANCH}broken", "mergedAt": None},
+                {"url": url, "isCrossRepository": False, "headRefName": f"{BRANCH}good", "mergedAt": None},
             ]
         },
     )
@@ -726,7 +783,7 @@ def test_sources_are_read_before_the_gate_takes_the_state_lock(state_dir, at, is
     gate.run(now)
     gate.run(now + timedelta(minutes=5))
 
-    assert acquired == ["pr", "issue", "pr", "issue", "repos/owner/YUI/issues/comments"]
+    assert acquired == ["pr", "issue", "pr", "issue", "repos/owner/yui/issues/comments"]
 
 
 def test_gate_run_derives_from_the_profile_and_stays_silent_when_a_source_fails(
@@ -761,7 +818,7 @@ def test_workspace_repos_reads_github_origins_only(tmp_path):
     (workspace / "notes.md").write_text("loose file", encoding="utf-8")
 
     assert gate.workspace_repos(workspace) == {
-        "owner/YUI": workspace / "YUI",
+        "owner/yui": workspace / "YUI",
         "owner/memory_layer": workspace / "memory_layer",
     }
 
@@ -1106,7 +1163,7 @@ def open_issue(url=ISSUE, closed_at=None):
 
 
 def open_pull(url=PULL, merged_at=None):
-    return {"url": url, "headRefName": f"{BRANCH}x", "mergedAt": merged_at}
+    return {"url": url, "isCrossRepository": False, "headRefName": f"{BRANCH}x", "mergedAt": merged_at}
 
 
 def comment(number, comment_id, author, created, updated=None, *, path="issues", body="looks good"):
@@ -1130,7 +1187,7 @@ def comment_calls(calls):
 
 def cursor(state_dir):
     return json.loads((state_dir / "artefacts.json").read_text(encoding="utf-8"))["comments_since"].get(
-        "owner/YUI"
+        "owner/yui"
     )
 
 
@@ -1208,7 +1265,7 @@ def test_the_first_run_for_a_repository_sets_its_cursor_without_a_comments_call(
 
     assert comment_calls(calls) == []
     artefacts = json.loads((state_dir / "artefacts.json").read_text(encoding="utf-8"))
-    assert artefacts["comments_from"] == artefacts["comments_since"] == {"owner/YUI": t0.isoformat()}
+    assert artefacts["comments_from"] == artefacts["comments_since"] == {"owner/yui": t0.isoformat()}
 
 
 def test_the_cursor_advances_to_the_latest_update_returned(state_dir, at, tmp_path):
@@ -1225,7 +1282,7 @@ def test_the_cursor_advances_to_the_latest_update_returned(state_dir, at, tmp_pa
     assert comment_calls(calls) == [
         [
             "api",
-            "repos/owner/YUI/issues/comments?since=2026-08-25T02:59:00Z&per_page=100",
+            "repos/owner/yui/issues/comments?since=2026-08-25T02:59:00Z&per_page=100",
             "--paginate",
             "--jq",
             ".[]",
@@ -1233,7 +1290,7 @@ def test_the_cursor_advances_to_the_latest_update_returned(state_dir, at, tmp_pa
     ]
     assert desire_config.parse_timestamp(cursor(state_dir)) == at("2026-08-25T05:00:00+00:00")
     assert json.loads((state_dir / "artefacts.json").read_text())["comments_from"] == {
-        "owner/YUI": t0.isoformat()
+        "owner/yui": t0.isoformat()
     }
 
 
@@ -1244,7 +1301,7 @@ def test_a_failing_comments_call_audits_and_keeps_the_cursor(state_dir, at, tmp_
     derive(state_dir, t0 + timedelta(hours=1), tmp_path, failing=("comments",))
 
     assert [(event["source"], event["repo"]) for event in audited(state_dir, "derive_failed")] == [
-        ("comments", "owner/YUI")
+        ("comments", "owner/yui")
     ]
     assert cursor(state_dir) == t0.isoformat()
 
@@ -1415,7 +1472,7 @@ def test_a_repository_keeps_its_cursor_still_while_another_repository_holds_its_
 
     assert read_json(state_dir / "artefacts.json")["comments_since"] == {}
     record = read_json(state_dir / "artefacts.json")
-    record["comments_from"] = record["comments_since"] = {"owner/YUI": t0.isoformat()}
+    record["comments_from"] = record["comments_since"] = {"owner/yui": t0.isoformat()}
     (state_dir / "artefacts.json").write_text(json.dumps(record), encoding="utf-8")
     payloads = {("pr", "owner/YUI"): [open_pull()]}
 
@@ -1483,7 +1540,7 @@ def test_workspace_repos_drops_an_origin_whose_owner_or_name_is_not_a_slug(tmp_p
     git_repo(workspace, "parent", "https://github.com/../YUI.git")
     git_repo(workspace, "dots", "https://github.com/owner/...git")
 
-    assert gate.workspace_repos(workspace) == {"owner/YUI": workspace / "YUI"}
+    assert gate.workspace_repos(workspace) == {"owner/yui": workspace / "YUI"}
 
 
 def test_a_comment_by_a_bot_files_nothing(state_dir, at, tmp_path):
@@ -1569,18 +1626,23 @@ def test_every_gh_call_for_a_repository_runs_inside_its_first_workspace_clone(st
     workspace = tmp_path / "workspace"
     workspace.mkdir()
     first = git_repo(workspace, "YUI", "https://github.com/owner/YUI.git")
-    git_repo(workspace, "YUI-clone", "https://github.com/owner/YUI.git")
+    git_repo(workspace, "YUI-clone", "https://github.com/OWNER/yui.git")
     memory = git_repo(workspace, "memory_layer", "https://github.com/Owner/Memory_Layer.git")
+    issue = "https://github.com/owner/memory_layer/issues/3"
     payloads = {
         ("pr", "owner/YUI"): [open_pull()],
-        ("issue", "Owner/Memory_Layer"): [open_issue("https://github.com/owner/memory_layer/issues/3")],
+        ("issue", "Owner/Memory_Layer"): [open_issue(issue)],
     }
+    views = {issue: {"state": "CLOSED", "closedAt": "2026-08-25T04:00:00Z"}}
     t0 = at("2026-08-25T12:00:00+09:00")
     calls = []
 
     run_gate(state_dir, t0, workspace_root=workspace, run_gh=gh_runner(payloads, calls=calls))
     run_gate(
-        state_dir, t0 + timedelta(hours=1), workspace_root=workspace, run_gh=gh_runner(payloads, calls=calls)
+        state_dir,
+        t0 + timedelta(hours=1),
+        workspace_root=workspace,
+        run_gh=gh_runner(payloads, views=views, calls=calls),
     )
 
     def repo_of(args):
@@ -1601,9 +1663,10 @@ def test_every_gh_call_for_a_repository_runs_inside_its_first_workspace_clone(st
         ("owner/yui", first),
         ("owner/memory_layer", memory),
     }
+    assert monitor_events(state_dir) == [(f"issue {issue} was closed", issue)]
 
 
-def test_a_view_of_an_artefact_whose_repository_left_the_workspace_runs_without_a_cwd(
+def test_a_view_of_an_artefact_whose_repository_has_no_clone_in_the_workspace_runs_without_a_cwd(
     state_dir, at, tmp_path
 ):
     workspace = tmp_path / "workspace"
