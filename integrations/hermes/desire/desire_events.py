@@ -61,12 +61,11 @@ def _event_id_read_by(line: dict) -> str | None:
 def unread_event_ids(state_dir: Path) -> list[str]:
     """Return the ids of valid events that no valid retraction or reading names, in file order."""
 
-    lines = desire_store.read_jsonl(Path(state_dir) / "events.jsonl")
+    state_dir = Path(state_dir)
     events: list[str] = []
     seen: set[str] = set()
     retracted: set[str] = set()
-    read: set[str] = set()
-    for line in lines:
+    for line in desire_store.read_jsonl(state_dir / "events.jsonl"):
         event_id = _event_id_of(line)
         if event_id is not None:
             if event_id not in seen:
@@ -76,8 +75,9 @@ def unread_event_ids(state_dir: Path) -> list[str]:
         retracts = _retracts_of(line)
         if retracts is not None:
             retracted.add(retracts)
-            continue
-        read_by = _event_id_read_by(line)
-        if read_by is not None:
-            read.add(read_by)
+    read = {
+        read_by
+        for read_by in map(_event_id_read_by, desire_store.read_jsonl(state_dir / "readings.jsonl"))
+        if read_by is not None
+    }
     return [event_id for event_id in events if event_id not in retracted and event_id not in read]
