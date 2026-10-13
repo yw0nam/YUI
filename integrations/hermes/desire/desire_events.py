@@ -195,7 +195,7 @@ def _entry(state_dir: Path, event_id: str) -> dict:
     return entry
 
 
-def _require_live(state_dir: Path, event_id: str) -> None:
+def require_live(state_dir: Path, event_id: str) -> None:
     if _entry(state_dir, event_id)["retracted"]:
         raise RetractedEventError(f"event {event_id} is retracted")
 
@@ -237,7 +237,7 @@ def file_reading(state_dir: Path, event_id: str, text: str, now: datetime) -> st
     stamp = desire_config.normalize_now(now).isoformat()
     path = Path(state_dir) / "readings.jsonl"
     with desire_store.state_lock(state_dir):
-        _require_live(state_dir, event_id)
+        require_live(state_dir, event_id)
         reading_id = _new_id(path, "r-")
         desire_store.append_jsonl(path, {"id": reading_id, "event_id": event_id, "at": stamp, "text": text})
     return reading_id
@@ -249,7 +249,7 @@ def correct(state_dir: Path, event_id: str, fact: str, now: datetime) -> None:
     fact = _text(fact, "fact")
     stamp = desire_config.normalize_now(now).isoformat()
     with desire_store.state_lock(state_dir):
-        _require_live(state_dir, event_id)
+        require_live(state_dir, event_id)
         desire_store.append_jsonl(
             Path(state_dir) / "events.jsonl", {"corrects": event_id, "at": stamp, "fact": fact}
         )

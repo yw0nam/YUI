@@ -7,10 +7,11 @@ from datetime import date, datetime
 from pathlib import Path
 
 if __package__:
-    from . import desire_config, desire_drives, desire_store
+    from . import desire_config, desire_drives, desire_judgments, desire_store
 else:
     import desire_config
     import desire_drives
+    import desire_judgments
     import desire_store
 
 CAPS = {"signals": 3, "issues": 2, "self_comments": 1, "prs": 0}
@@ -46,6 +47,7 @@ def bootstrap_locked(state_dir: Path, now: datetime) -> dict[str, dict]:
     definitions = (
         ("drives.json", lambda: desire_drives._default_drives(now), desire_drives._normalize_drives),
         ("budget.json", lambda: _default_budget(now), _validate_budget),
+        ("feelings.json", desire_judgments.default_registry, desire_judgments.normalize_registry),
     )
     for filename, default, normalizer in definitions:
         loaded[filename.removesuffix(".json")] = desire_store.load_normalized_json(
