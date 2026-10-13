@@ -3,26 +3,27 @@
 from __future__ import annotations
 
 import re
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from datetime import datetime
 
 if __package__:
-    from . import desire_config, desire_events
+    from . import desire_config, desire_events, desire_judgments
 else:
     import desire_config
     import desire_events
+    import desire_judgments
 
 
 RECENT_LIMIT = 3
 EVENTS_POINTER = "to record how you took something: act.py feel --help"
 
 
-def sanitize_note(note: object) -> str:
+def sanitize_note(note: object, limit: int = 300) -> str:
     text = re.sub(r"[\r\n\v\f\x1c-\x1e\x85\u2028\u2029]+", " ", str(note))
     stripped = None
     while stripped != text:
         stripped, text = text, text.replace("<desire_state>", "").replace("</desire_state>", "")
-    return text[:300]
+    return text[:limit]
 
 
 def _transport_line(transport: dict | None) -> str:
@@ -67,6 +68,26 @@ def _event_lines(events: Sequence[dict], unread: int) -> list[str]:
     return lines
 
 
+def _judgment(name: str, held: dict) -> str:
+    day = desire_config.parse_timestamp(held["at"]).strftime("%m-%d")
+    return f"{sanitize_note(name)} {held['level']} ({day})"
+
+
+def _judgment_lines(judgments: Mapping[tuple[str, str], dict], how: str) -> list[str]:
+    """Render one line per toward that holds a judgment, then the how-I-am line when it has text."""
+
+    lines = []
+    for toward in desire_judgments.TOWARDS:
+        names = sorted(name for name, held_toward in judgments if held_toward == toward)
+        if names:
+            shown = " | ".join(_judgment(name, judgments[(name, toward)]) for name in names)
+            lines.append(f"toward {toward}: {shown}")
+    how = sanitize_note(how, limit=desire_judgments.HOW_LIMIT)
+    if how.strip():
+        lines.append(f"how I am: {how}")
+    return lines
+
+
 def serialize_desire_block(
     items: list[dict],
     now: datetime,
@@ -78,6 +99,8 @@ def serialize_desire_block(
     last_signal_answered_at: str | None = None,
     events: Sequence[dict] = (),
     unread: int = 0,
+    judgments: Mapping[tuple[str, str], dict] | None = None,
+    how: str = "",
 ) -> str:
     now = desire_config.normalize_now(now)
     last_interaction = desire_config.parse_timestamp(last_interaction_at)
@@ -85,6 +108,7 @@ def serialize_desire_block(
     lines = [
         "<desire_state>",
         f"agent: {desire_config.agent_name()}",
+        *_judgment_lines(judgments or {}, how),
         *_event_lines(events, unread),
         f"last interaction: {last_interaction.strftime('%Y-%m-%d %H:%M')} ({since_interaction}h ago)",
     ]
