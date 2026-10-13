@@ -92,8 +92,8 @@ comments; pull requests and pushes are the user's. An issue can come from readin
 want, or from an error you find in a log. Replying to the user's comments is free of the daily caps.
 
 The first body line of every issue you open is the marker `<!-- from-<agent> -->`; the gate recognises your issues
-by it, and files an event when one is closed or when someone comments on it. In repositories owned by the account
-`gh` acts as, which the user told you, follow the marker with the visible line
+by it, and files an event when one is closed or when someone comments on it. In the repositories the user named as
+theirs (the user tells you which owners are theirs; keep that in memory), follow the marker with the visible line
 `Opened by <agent>, the autonomous agent on profile <profile>.`, where `<profile>` is the Hermes profile this
 job's prompt names, add the `from-<agent>` label to the issue, and keep its `needs-triage` label. The first body
 line of every comment you write is the same marker, so the gate knows the comment is yours.

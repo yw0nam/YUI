@@ -145,20 +145,25 @@ repositories the user wants the agent to work in, and create the `from-<agent>` 
 GitHub account owns:
 
 ```bash
-gh auth status
 mkdir -p ~/.hermes/profiles/<profile>/workspace
 cd ~/.hermes/profiles/<profile>/workspace
 gh repo clone <owner>/<repo>
-gh label create from-<agent> --repo <owner>/<repo>
+cd <repo>
+gh label create from-<agent>
 ```
 
+With a `gh` shim, the installing shell puts the shim's directory first on its own `PATH` before the clone and
+label commands (`export PATH=<dir>:$PATH`, the same directory the wrapper's `PATH=` line names). The clone itself
+is made under the shim's own rule for a directory without an `origin` (the shim's documentation says which
+installation it picks there), and every later command runs inside the clone.
+
 Check: run `gh auth status` from inside a workspace clone, as the gate does; it reports a logged-in account with
-`repo` scope. With a `gh` shim, `gh api user` answering 403 is expected, and
-`gh issue list --repo <owner>/<repo> --limit 1` from inside the clone is the check. Every clone exists in the
-workspace, and `gh label list --repo <owner>/<repo>` shows `from-<agent>` for each repository that account owns.
-A label that already exists makes `gh label create` exit non-zero; that is fine. The gate runs `gh` as the
-gateway user, so that user's `gh auth status` is the one that counts; on a gateway serving several profiles, a
-`GH_TOKEN` in the profile `.env` reaches the gate only when `env_passthrough` lists it.
+`repo` scope. With a `gh` shim, `gh api user` answering 403 is expected, and `gh issue list --limit 1` from
+inside the clone is the check. Every clone exists in the workspace, and `gh label list` inside each clone shows
+`from-<agent>` for each repository that account owns. A label that already exists makes `gh label create` exit
+non-zero; that is fine. The gate runs `gh` as the gateway user, so that user's `gh auth status` is the one that
+counts; on a gateway serving several profiles, a `GH_TOKEN` in the profile `.env` reaches the gate only when
+`env_passthrough` lists it.
 
 ## 6. Cron jobs
 

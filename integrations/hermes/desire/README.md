@@ -167,16 +167,22 @@ The gate files three kinds of event, each once per `source_ref`, so a repeated s
 | --- | --- | --- |
 | `issue <url> was closed` | an issue of the agent (body carries `<!-- from-<agent> -->`) is closed | the issue URL |
 | `pull request <url> was merged` | a pull request of the agent (head branch `<agent>/…`) is merged | the pull request URL |
-| `<login> commented on <url>` | someone other than the agent, and not a bot, comments on one of them | the comment URL |
+| `<login> commented on <url>` | a human comments on one of them, and the comment's first line is not the marker | the comment URL |
 
 Repositories are every directory one level under `~/.hermes/profiles/<profile>/workspace/` whose `.git/config`
 names a github.com origin with a plain `owner/name`. Pull requests and issues come from
-`gh pr list` and `gh issue list`; delivery from `gh pr view` and `gh issue view` of each
-seen artefact; comments from one `gh api repos/<owner>/<name>/issues/comments?since=<cursor − 60 s>` call per
-repository and run, every page. The agent's issues are recognised by the marker in their body and its pull
-requests by the `<agent>/` branch prefix; its comments carry the same marker on their first line, and a bot's
-comment is not an event. Every `gh` call for a repository runs inside the first workspace clone of it, so a `gh`
-shim that picks a GitHub App installation from the clone's `origin` works, and no call needs a viewer identity.
+`gh pr list` and `gh issue list` with `--state all --limit 100`, the hundred newest of each kind in the
+repository; an artefact the agent opened is discovered on the next gate run whose list call succeeds, unless at
+least a hundred newer artefacts of its kind were opened in that repository since. Delivery comes from
+`gh pr view` and `gh issue view` of each seen artefact; comments from one
+`gh api repos/<owner>/<name>/issues/comments?since=<cursor − 60 s>` call per repository and run, every page.
+The agent's issues are recognised by the marker in their body and its pull requests by the `<agent>/` branch
+prefix; its comments carry the same marker on their first non-empty line, and a bot's comment is not an event.
+Every `gh` call for a repository runs inside the first workspace clone of it, in directory-name order, so a `gh`
+shim that picks a GitHub App installation from the clone's `origin` works, and no call needs a viewer identity. A
+view of an artefact whose repository has no clone left in the workspace runs in the gate's own directory,
+whatever that is, so a shim there may find no `origin` or an unrelated one; only an actual failure audits
+`derive_failed`, and the artefact stays pending.
 
 A source's first answer records everything it reports as seen or shipped without filing an event. A repository's
 comment stamps are created on a run where both artefact kinds answered, and advance only on
