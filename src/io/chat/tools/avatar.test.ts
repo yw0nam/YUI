@@ -9,7 +9,7 @@ import { describe, expect, it, vi } from "vitest";
 import type { AvatarExecutor } from "../../bridge/inbox/avatar-executor";
 import type { ScreenCapture } from "../../window/capture/screenshot-context";
 import { createAvatarTools } from "./avatar";
-import type { ClientTool } from "./client-tools";
+import { createClientToolRegistry, type ClientTool } from "./client-tools";
 
 function executor(over: Partial<AvatarExecutor> = {}): AvatarExecutor {
   const base = {
@@ -156,6 +156,35 @@ describe("look — schema and execute", () => {
   it("answers error: unsupported when no executor exists yet", async () => {
     const tool = createLookTool(() => null);
     await expect(tool.execute({ at: "body" })).resolves.toBe("error: unsupported");
+  });
+});
+
+describe("look — switch and declaration", () => {
+  it("reads the switch per call from the registry and keeps the declaration fixed", async () => {
+    let allowRequests = true;
+    const capture = vi.fn();
+    const registry = createClientToolRegistry(
+      createAvatarTools(() => null, {
+        allowRequests: () => allowRequests,
+        getWindow: () => null,
+        listMonitors: async () => [],
+        pointsAreLogical: true,
+        capturer: { captureAt: capture },
+      }),
+    );
+
+    expect(registry.switches()).toEqual([{ id: "look.screen", on: true }]);
+    const declared = registry.definitions();
+
+    allowRequests = false;
+    expect(registry.switches()).toEqual([{ id: "look.screen", on: false }]);
+    expect(registry.definitions()).toEqual(declared);
+    await expect(registry.get("look")!.execute({ at: "screen" })).resolves.toBe(
+      "error: screen capture is off",
+    );
+    expect(capture).not.toHaveBeenCalled();
+
+    expect(createClientToolRegistry(createAvatarTools(() => null)).switches()).toEqual([]);
   });
 });
 
