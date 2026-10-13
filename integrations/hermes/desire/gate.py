@@ -30,6 +30,7 @@ COMMENT_OVERLAP = timedelta(seconds=60)
 _ORIGIN_SECTION = re.compile(r'^\[remote "origin"\]\n(.*?)(?=^\[|\Z)', re.MULTILINE | re.DOTALL)
 _ORIGIN_URL = re.compile(r"^\s*url\s*=\s*(\S+)", re.MULTILINE)
 _GITHUB_SLUG = re.compile(r"(?:^|[@/.])github\.com[:/](?P<owner>[^/]+)/(?P<name>[^/]+?)(?:\.git)?/?$")
+_SLUG_PART = re.compile(r"[A-Za-z0-9_.-]+")
 _ARTEFACT_URL = re.compile(r"^https://github\.com/(?P<repo>[^/]+/[^/]+)/(?:issues|pull)/(?P<number>\d+)$")
 _ISSUE_API_URL = re.compile(r"^https://api\.github\.com/repos/(?P<repo>[^/]+/[^/]+)/issues/(?P<number>\d+)$")
 
@@ -58,7 +59,12 @@ def run_gh(args: list[str]) -> str:
 
 def _github_slug(origin: str) -> str | None:
     match = _GITHUB_SLUG.search(origin)
-    return f"{match['owner']}/{match['name']}" if match is not None else None
+    if match is None:
+        return None
+    parts = (match["owner"], match["name"])
+    if any(_SLUG_PART.fullmatch(part) is None or part in (".", "..") for part in parts):
+        return None
+    return "/".join(parts)
 
 
 def workspace_repos(workspace_root: Path) -> list[str]:
