@@ -308,8 +308,8 @@ _FEEL_MODES = {
     "grounds": ({"grounds", "toward"}, set()),
 }
 _FEEL_USAGE = (
-    "feel --fact TEXT --text TEXT [--source-ref TEXT] | feel --event ID --text TEXT | feel --list [--all | --unread]"
-    " | feel --grounds NAME --toward TOWARD"
+    "feel --fact TEXT --text TEXT [--source-ref TEXT] | feel --event ID --text TEXT"
+    " | feel --list [--all | --unread] | feel --grounds NAME --toward TOWARD"
 )
 
 
@@ -348,10 +348,8 @@ def _feel(args, now):
         print(f"empty {empty}", file=sys.stderr)
         return 2
     state_dir = desire_config.resolve_state_dir()
-    if mode == "list":
-        return _feel_list(state_dir, args.all)
-    if mode == "unread":
-        return _feel_unread(state_dir)
+    if mode in ("list", "unread"):
+        return _feel_list(state_dir, show_all=args.all, unread_only=mode == "unread")
     if mode == "grounds":
         return _feel_grounds(state_dir, args.grounds.strip(), args.toward)
     if mode == "fact":
@@ -379,19 +377,14 @@ def _event_line(event):
     return f"{event['id']} {stamp} [{event['source']}] {fact} — {reading}"
 
 
-def _feel_list(state_dir, show_all):
-    events = desire_events.chronological(desire_events.events_view(state_dir))
-    for event in events if show_all else events[-20:]:
-        print(_event_line(event))
-    return 0
-
-
-def _feel_unread(state_dir):
+def _feel_list(state_dir, *, show_all, unread_only):
     view, unread = desire_events.events_view_and_unread(state_dir)
-    unread = set(unread)
-    for event in view:
-        if event["id"] in unread:
-            print(_event_line(event))
+    if unread_only:
+        unread = set(unread)
+        view = [event for event in view if event["id"] in unread]
+    events = desire_events.chronological(view)
+    for event in events if show_all or unread_only else events[-20:]:
+        print(_event_line(event))
     return 0
 
 
