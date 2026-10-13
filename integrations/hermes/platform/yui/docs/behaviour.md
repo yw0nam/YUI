@@ -116,8 +116,8 @@
 - Registers the tools the client declares in its `hello.tools` frame — once per schema fingerprint,
   under the `yui` toolset — so the model calls `body_action` to move the character and `look` to
   read her state. Each call sends one `tool_call` frame and blocks the handler's worker thread on
-  the `tool_result`: 20 s for `body_action`, 7 s for `look`, counted from the send (the client
-  bounds its own execution 5 s below that). One call runs at a time per chat; a second waits for
+  the `tool_result`: 20 s for `body_action`, 7 s for `look`, 40 s for `browser`, counted from the
+  send (the client bounds its own execution 5 s below the first two and 8 s below `browser`'s). One call runs at a time per chat; a second waits for
   the first. A call answers `error: client disconnected` at once when no ready socket can take it,
   when the socket closes, or when a second hello replaces it, and `error: turn stopped` when the
   client stops the turn the call belongs to; a wait that passes answers

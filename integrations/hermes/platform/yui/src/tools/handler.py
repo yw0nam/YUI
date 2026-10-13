@@ -13,8 +13,9 @@ from .image_result import ImageResult, model_result
 
 logger = logging.getLogger(__name__)
 
-# The client bounds its own execution (15 s body action, 2 s query); the adapter waits 5 s past each.
-WAITS_S = {"body_action": 20.0, "look": 7.0}
+# The client bounds its own execution (15 s body action, 2 s query, 32 s browser); the adapter
+# waits 5 s past the first two and 8 s past the browser's.
+WAITS_S = {"body_action": 20.0, "look": 7.0, "browser": 40.0}
 DEFAULT_WAIT_S = 20.0
 
 _sink: Any = None
