@@ -178,6 +178,7 @@ export function createSpeechPlayback(options: SpeechPlaybackOptions): SpeechPlay
   const stripper = createEmojiStripper();
   const links = createLinkStripper();
 
+  // The disposed pipeline never fires the boundaries it held, so the queue drops with the cut report.
   function closeTracked(split: SpokenSplit): boolean {
     const identity = queued.find((utterance) => utterance.identity)?.identity ?? open?.identity;
     open = null;
