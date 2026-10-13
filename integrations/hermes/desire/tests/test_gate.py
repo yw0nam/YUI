@@ -1457,3 +1457,37 @@ def test_a_repository_keeps_its_cursor_still_while_another_repository_holds_its_
 
     assert "since=2026-08-25T02:59:00Z" in comment_calls(calls)[0][1]
     assert monitor_events(state_dir) == [(f"reviewer commented on {PULL}", f"{PULL}#issuecomment-1")]
+
+
+def test_a_repository_added_later_records_its_closed_issues_silently_on_its_first_run(
+    state_dir, at, tmp_path
+):
+    workspace = tmp_path / "workspace"
+    workspace.mkdir()
+    git_repo(workspace, "YUI", "https://github.com/owner/YUI.git")
+    t0 = at("2026-08-25T12:00:00+09:00")
+    run_gate(state_dir, t0, workspace_root=workspace, run_gh=gh_runner({}))
+    git_repo(workspace, "memory_layer", "https://github.com/owner/memory_layer.git")
+    closed_before = open_issue(
+        "https://github.com/owner/memory_layer/issues/1", closed_at="2026-08-01T00:00:00Z"
+    )
+    still_open = open_issue("https://github.com/owner/memory_layer/issues/2")
+
+    run_gate(
+        state_dir,
+        t0 + timedelta(hours=1),
+        workspace_root=workspace,
+        run_gh=gh_runner({("issue", "owner/memory_layer"): [closed_before, still_open]}),
+    )
+
+    assert monitor_events(state_dir) == []
+    closed_now = {**still_open, "closedAt": "2026-08-25T05:00:00Z"}
+    run_gate(
+        state_dir,
+        t0 + timedelta(hours=2),
+        workspace_root=workspace,
+        run_gh=gh_runner({("issue", "owner/memory_layer"): [closed_before, closed_now]}),
+    )
+
+    url = still_open["url"]
+    assert monitor_events(state_dir) == [(f"issue {url} was closed", url)]
