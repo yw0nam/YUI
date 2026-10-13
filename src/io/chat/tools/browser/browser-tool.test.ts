@@ -111,6 +111,13 @@ describe("browser tool", () => {
     expect(signal?.aborted).toBe(true);
   });
 
+  it("tells the model to have the user sign in in the open Chrome window, then read again", () => {
+    const tool = createBrowserTool({ shell: shell(), enabled: () => true });
+    expect(tool.definition.function.description).toContain(
+      "When a page asks the user to sign in, ask the user to sign in in the open Chrome window, then read the page again.",
+    );
+  });
+
   it("carries its switch as browser, read when the line is built", () => {
     let on = false;
     const registry = createClientToolRegistry([
