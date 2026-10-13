@@ -16,7 +16,9 @@ EVENTS_POINTER = "to record how you took something: act.py feel --help"
 
 def sanitize_note(note: object) -> str:
     text = re.sub(r"[\r\n\v\f\x1c-\x1e\x85\u2028\u2029]+", " ", str(note))
-    text = text.replace("<desire_state>", "").replace("</desire_state>", "")
+    stripped = None
+    while stripped != text:
+        stripped, text = text, text.replace("<desire_state>", "").replace("</desire_state>", "")
     return text[:300]
 
 
