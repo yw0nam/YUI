@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import json
-import os
 from collections.abc import Mapping, Sequence
 from datetime import datetime
 from pathlib import Path
@@ -175,8 +174,4 @@ def write_how(state_dir: Path, text: str) -> None:
     text = text.strip()
     if len(text) > HOW_LIMIT:
         raise ValueError(f"too long: {len(text)} characters (limit {HOW_LIMIT})")
-    path = Path(state_dir) / "how.md"
-    with desire_store.state_lock(state_dir):
-        temporary = path.with_name(path.name + ".tmp")
-        temporary.write_text(text, encoding="utf-8")
-        os.replace(temporary, path)
+    desire_store.write_text_atomic(Path(state_dir) / "how.md", text)

@@ -69,6 +69,14 @@ def write_json_atomic(path: Path, value: object) -> None:
         os.replace(temporary, path)
 
 
+def write_text_atomic(path: Path, text: str) -> None:
+    path = Path(path)
+    with state_lock(path.parent):
+        temporary = path.with_name(path.name + ".tmp")
+        temporary.write_text(text, encoding="utf-8")
+        os.replace(temporary, path)
+
+
 def _append_jsonl_locked(path: Path, value: object) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     encoded = json.dumps(value, ensure_ascii=False) + "\n"
