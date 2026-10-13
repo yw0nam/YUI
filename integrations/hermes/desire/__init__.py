@@ -38,10 +38,11 @@ _CACHE_TTL = timedelta(minutes=10)
 _STATE_FILES = (
     "drives.json",
     "budget.json",
-    "cursor.json",
     "artefacts.json",
     "outbox.jsonl",
     "audit.jsonl",
+    "events.jsonl",
+    "readings.jsonl",
 )
 _turn_cache = None
 

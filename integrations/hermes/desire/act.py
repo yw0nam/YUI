@@ -13,6 +13,7 @@ from urllib import request as urllib_request
 from zoneinfo import ZoneInfo
 
 import desire_config
+import desire_events
 import desire_outbox
 import desire_render
 import desire_state
@@ -251,26 +252,6 @@ def _reservation_action(kind, operation, reservation_id, url, now):
         return 0
 
 
-def _feedback(operation, value, now):
-    state_dir = desire_config.resolve_state_dir()
-    with desire_store.state_lock(state_dir):
-        state = _normalized_state(state_dir, now)
-        if operation == "get":
-            print(state["cursor"]["last_feedback_check_at"])
-            return 0
-        try:
-            parsed = datetime.fromisoformat(value)
-            if parsed.tzinfo is None or parsed.utcoffset() is None:
-                raise ValueError("feedback timestamp must be timezone-aware")
-        except (TypeError, ValueError) as error:
-            print(f"invalid feedback timestamp: {error}", file=sys.stderr)
-            return 1
-        stamp = parsed.astimezone(KST).isoformat()
-        desire_store.write_json_atomic(state_dir / "cursor.json", {"last_feedback_check_at": stamp})
-        _audit(state_dir, now, "feedback_cursor_set", value=stamp)
-        return 0
-
-
 def _listed_item(item, now):
     """Mark an item the block and ``--send`` cannot reach yet."""
 
@@ -318,6 +299,107 @@ def _outbox_disposition(kind, item_id, why, note, until, now):
     return 0
 
 
+_FEEL_MODES = {
+    "fact": ({"fact", "text"}, {"source_ref"}),
+    "event": ({"event", "text"}, set()),
+    "list": ({"list"}, {"all"}),
+}
+_FEEL_USAGE = (
+    "feel --fact TEXT --text TEXT [--source-ref TEXT] | feel --event ID --text TEXT | feel --list [--all]"
+)
+
+
+def _feel_mode(args):
+    """Name the one mode the given options form, or ``None`` for any other combination."""
+
+    given = {name for name in ("fact", "text", "source_ref", "event") if getattr(args, name) is not None}
+    given |= {name for name in ("list", "all") if getattr(args, name)}
+    return next(
+        (mode for mode, (needed, allowed) in _FEEL_MODES.items() if needed <= given <= needed | allowed),
+        None,
+    )
+
+
+def _empty_option(args, names):
+    """Name the first given option that is empty after stripping, as it is spelled on the command line."""
+
+    for name in names:
+        value = getattr(args, name, None)
+        if value is not None and not value.strip():
+            return "--" + name.replace("_", "-")
+    return None
+
+
+def _feel(args, now):
+    mode = _feel_mode(args)
+    if mode is None:
+        print(f"usage: {_FEEL_USAGE}", file=sys.stderr)
+        return 2
+    empty = _empty_option(args, ("fact", "text", "source_ref"))
+    if empty is not None:
+        print(f"empty {empty}", file=sys.stderr)
+        return 2
+    state_dir = desire_config.resolve_state_dir()
+    if mode == "list":
+        return _feel_list(state_dir, args.all)
+    if mode == "fact":
+        event_id, reading_id = desire_events.file_event_with_reading(
+            state_dir, args.fact, args.text, args.source_ref, now
+        )
+        print(f"event {event_id} reading {reading_id}")
+        return 0
+    try:
+        reading_id = desire_events.file_reading(state_dir, args.event, args.text, now)
+    except ValueError:
+        print("unknown event", file=sys.stderr)
+        return 3
+    print(f"reading {reading_id}")
+    return 0
+
+
+def _feel_list(state_dir, show_all):
+    events = sorted(
+        desire_events.events_view(state_dir), key=lambda event: desire_config.parse_timestamp(event["at"])
+    )
+    for event in events if show_all else events[-20:]:
+        stamp = desire_config.parse_timestamp(event["at"]).strftime("%Y-%m-%d %H:%M")
+        fact = desire_render.sanitize_note(event["fact"])
+        reading = (
+            desire_render.sanitize_note(event["reading"]["text"]) if event["reading"] else "(no reading)"
+        )
+        print(f"{event['id']} {stamp} [{event['source']}] {fact} — {reading}")
+    return 0
+
+
+def _correct(event_id, fact, now):
+    if not fact.strip():
+        print("empty --fact", file=sys.stderr)
+        return 2
+    try:
+        desire_events.correct(desire_config.resolve_state_dir(), event_id, fact, now)
+    except desire_events.UnknownEventError:
+        print("unknown event", file=sys.stderr)
+        return 3
+    except ValueError:
+        print("event is retracted", file=sys.stderr)
+        return 1
+    print(f"corrected {event_id}")
+    return 0
+
+
+def _retract(event_id, why, now):
+    if not why.strip():
+        print("empty --why", file=sys.stderr)
+        return 2
+    try:
+        retracted = desire_events.retract(desire_config.resolve_state_dir(), event_id, why, now)
+    except desire_events.UnknownEventError:
+        print("unknown event", file=sys.stderr)
+        return 3
+    print(f"retracted {event_id}" if retracted else f"already retracted {event_id}")
+    return 0
+
+
 def _parser():
     parser = argparse.ArgumentParser(description=__doc__)
     commands = parser.add_subparsers(dest="command", required=True)
@@ -335,10 +417,25 @@ def _parser():
         group.add_argument("--release", metavar="ID")
         action.add_argument("--url")
 
-    feedback = commands.add_parser("feedback")
-    feedback_group = feedback.add_mutually_exclusive_group(required=True)
-    feedback_group.add_argument("--get", action="store_true")
-    feedback_group.add_argument("--set", metavar="ISO")
+    feel = commands.add_parser(
+        "feel",
+        description="Record how you took something that happened, or list what happened.",
+        usage=_FEEL_USAGE,
+    )
+    feel.add_argument("--fact", help="what happened, filed as a new event with your reading of it")
+    feel.add_argument("--text", help="how you took it")
+    feel.add_argument("--source-ref", help="a link or name for where the fact comes from")
+    feel.add_argument("--event", metavar="ID", help="an existing event to add your reading to")
+    feel.add_argument("--list", action="store_true", help="print the twenty most recent events")
+    feel.add_argument("--all", action="store_true", help="with --list, print every event")
+
+    correct = commands.add_parser("correct", description="Correct the fact of an event.")
+    correct.add_argument("event_id", metavar="ID")
+    correct.add_argument("--fact", required=True)
+
+    retract = commands.add_parser("retract", description="Take back an event that did not happen.")
+    retract.add_argument("event_id", metavar="ID")
+    retract.add_argument("--why", required=True)
 
     outbox = commands.add_parser("outbox")
     outbox_group = outbox.add_mutually_exclusive_group(required=True)
@@ -382,8 +479,12 @@ def _run(argv, now, opener):
         else:
             operation, reservation_id = "release", args.release
         return _reservation_action(args.command, operation, reservation_id, args.url, now)
-    if args.command == "feedback":
-        return _feedback("get" if args.get else "set", args.set, now)
+    if args.command == "feel":
+        return _feel(args, now)
+    if args.command == "correct":
+        return _correct(args.event_id, args.fact, now)
+    if args.command == "retract":
+        return _retract(args.event_id, args.why, now)
     if args.list:
         return _outbox_list(now)
     if args.send is not None:

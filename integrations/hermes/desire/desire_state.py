@@ -27,10 +27,6 @@ def _default_budget(now: datetime) -> dict:
     }
 
 
-def _default_cursor(now: datetime) -> dict:
-    return {"last_feedback_check_at": now.isoformat()}
-
-
 def _validate_budget(value: object) -> dict:
     if not isinstance(value, dict) or not isinstance(value.get("pending"), dict):
         raise TypeError("budget state must be an object")
@@ -39,14 +35,6 @@ def _validate_budget(value: object) -> dict:
     if any(not isinstance(count, int) for count in counters.values()):
         raise TypeError("budget counters must be integers")
     return {**counters, "date": value["date"], "pending": copy.deepcopy(value["pending"])}
-
-
-def _normalize_cursor(value: object) -> dict:
-    if not isinstance(value, dict):
-        raise TypeError("cursor state must be an object")
-    return {
-        "last_feedback_check_at": desire_config.parse_timestamp(value["last_feedback_check_at"]).isoformat()
-    }
 
 
 def bootstrap_locked(state_dir: Path, now: datetime) -> dict[str, dict]:
@@ -58,13 +46,12 @@ def bootstrap_locked(state_dir: Path, now: datetime) -> dict[str, dict]:
     definitions = (
         ("drives.json", lambda: desire_drives._default_drives(now), desire_drives._normalize_drives),
         ("budget.json", lambda: _default_budget(now), _validate_budget),
-        ("cursor.json", lambda: _default_cursor(now), _normalize_cursor),
     )
     for filename, default, normalizer in definitions:
         loaded[filename.removesuffix(".json")] = desire_store.load_normalized_json(
             state_dir / filename, default, normalizer, now
         )
-    for name in ("monitor.json", "ticks.jsonl"):
+    for name in ("monitor.json", "ticks.jsonl", "cursor.json"):
         (state_dir / name).unlink(missing_ok=True)
     for name in ("outbox.jsonl", "audit.jsonl"):
         (state_dir / name).touch(exist_ok=True)
