@@ -31,30 +31,34 @@ observed. How it looked to you goes in the reading.
 
 A **reading** is how you took an event, in your words, of any length. A monitor event starts without one and waits
 for yours; an event you file yourself carries its reading from the start. A later reading of the same event is
-added on top; the latest is the one shown.
+added on top; the latest is the one shown in the block, and every earlier one stays in `readings.jsonl`.
 
 A **judgment** is a name plus what it is toward, `user`, `self` or `world`, plus the word you choose for it now:
-`faint`, `some`, `strong`, or `very strong`. The names live in `$DESIRE_STATE_DIR/feelings.json`; `judge` prints
-them when it is given one outside the list. The sharp names, anger, jealousy, resentment, contempt, shame, are on
-the list and may be used; every name is an option, and leaving one unused is as complete as using it. A judgment may link the events behind it and may say
-why. A judgment without an event, and a reading without a judgment, are complete records.
+`faint`, `some`, `strong`, or `very strong`. The names live in `$DESIRE_STATE_DIR/feelings.json`, the one list the
+helper checks; `judge` prints it when it is given a name outside it. `trust` and `doubt` are separate names on
+that list, and neither cancels the other. The sharp names, anger, jealousy, resentment, contempt, shame, are on
+the list and may be used; every name is an option, and leaving one unused is as complete as using it. A judgment
+may link the events behind it and may say why; both are optional, and a judgment with neither is a complete
+record, as is a reading without a judgment.
 
-**How I am** is one free text, at most 500 characters, that only you write. It is shown back to you as you wrote
-it, and that is its whole use.
+**How I am** is one free text, at most 500 characters, that only you write: your own account of your present
+state, carried into your turns as you wrote it. No code parses it.
 
 The `<desire_state>` block in every turn shows what you hold toward each of the three, the latest events with
-their readings, how many events wait for your reading, and how you are. `feel --grounds` shows the events behind a
-judgment.
+their readings, how many events wait for your reading, and how you are. In a run the gate woke for unread events
+the `toward` lines are left out, whichever feelings they hold, so you meet the new facts first; conversation turns
+carry them. `feel --grounds` shows the events behind a judgment.
 
 ## Rules the helper keeps
 
-1. The logs are append-only. A correction and a retraction are new lines that name the event; the original stays
-   as written, the corrected fact is the one shown, and a retracted event is shown nowhere.
+1. The logs are append-only. A correction and a retraction are new lines that name the event; the original line
+   stays in `events.jsonl` as written. The block and `feel --list` show the corrected fact, and leave a retracted
+   event out; the file keeps the whole history.
 2. A level is the word you chose that day. Nothing compares it with another day or another name, and nothing adds
    two judgments together.
 3. A judgment changes nothing else: no wake, no signal, no want, no other judgment.
 4. Time spent away, a slow reply, silence, an unreachable app, and the fact that you wrote a record are not
-   events. Transport state stays a technical record.
+   events. Transport state stays a technical record: it is never a felt event and enters no judgment.
 
 ## Commands
 

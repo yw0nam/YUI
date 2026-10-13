@@ -10,16 +10,15 @@ Work through the steps in order.
 own. Then read the week's record: `act.py feel --list --all` for the events and your readings, `act.py judge --list`
 for every judgment you hold now, and `$DESIRE_STATE_DIR/wants.md`.
 
-② Look at every judgment you hold. For each line `act.py judge --list` prints, decide one of three things and act
-on it:
+② Read the judgments you hold, the lines `act.py judge --list` prints. A judgment you leave as it is stays as it
+is, and that is a complete answer for it. For one you want to change or put down:
 
-1. Keep it. Keeping takes neither a command nor a reason; it is a complete answer.
-2. Change it: `act.py judge <name> --toward <t> --level <l> [--event <id> ...] [--why "<text>"]`.
-3. Put it down: `act.py judge <name> --toward <t> --put-down [--why "<text>"]`.
+1. Change it: `act.py judge <name> --toward <t> --level <l> [--event <id> ...] [--why "<text>"]`.
+2. Put it down: `act.py judge <name> --toward <t> --put-down [--why "<text>"]`.
 
 A level is the word you choose today, and it stands on its own: this week's word and last week's are two
-separate records. Linking an event is optional; a judgment without one is complete. Done when every line has been
-looked at.
+separate records. Linking an event and giving a reason are both optional; a judgment without either is complete.
+Done when you have read the list.
 
 ③ Write how you are, if you want to: `act.py how "<text>"`, at most 500 characters, in your own words. The file
 may also stay as it is.
