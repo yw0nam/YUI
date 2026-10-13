@@ -1046,6 +1046,30 @@ describe("createPushSocket — inbound frames", () => {
     expect(seen).toEqual([{ type: "turn_end", turn_id: "7" }]);
   });
 
+  it("hands a turn_end frame's usage to its subscribers", async () => {
+    await connected();
+    const seen: unknown[] = [];
+    socket.onTurnEnd((frame) => seen.push(frame));
+    const usage = { input_tokens: 1200, output_tokens: 80, total_tokens: 1280 };
+    FakeSocket.last().push({ type: "turn_end", turn_id: "7", usage });
+
+    expect(seen).toEqual([{ type: "turn_end", turn_id: "7", usage }]);
+  });
+
+  it.each([
+    ["a missing figure", { input_tokens: 1, output_tokens: 2 }],
+    ["a figure that is not a number", { input_tokens: 1, output_tokens: "2", total_tokens: 3 }],
+    ["a figure that is null", { input_tokens: 1, output_tokens: null, total_tokens: 3 }],
+    ["a usage that is not an object", 1280],
+  ])("ends the turn with no usage when it carries %s", async (_name, usage) => {
+    await connected();
+    const seen: unknown[] = [];
+    socket.onTurnEnd((frame) => seen.push(frame));
+    FakeSocket.last().push({ type: "turn_end", turn_id: "7", usage });
+
+    expect(seen).toEqual([{ type: "turn_end", turn_id: "7" }]);
+  });
+
   it("drops a turn_end frame whose turn_id is not a string", async () => {
     await connected();
     const seen: unknown[] = [];

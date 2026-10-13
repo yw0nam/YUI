@@ -42,7 +42,7 @@ def is_connected(config) -> bool:
 
 
 def register(ctx) -> None:
-    from .src.activity import delegations, reasoning, tool_status
+    from .src.activity import delegations, reasoning, tool_status, usage
     from .src.express import tools
     from .src.express.gate import Vocabulary
     from .src.speech import speech
@@ -61,6 +61,7 @@ def register(ctx) -> None:
         ("on_stream_delta", speech.on_stream_delta),
         ("pre_tool_call", tool_status.on_pre_tool_call),
         ("post_tool_call", tool_status.on_post_tool_call),
+        ("post_api_request", usage.on_post_api_request),
     ):
         try:
             ctx.register_hook(hook, callback)

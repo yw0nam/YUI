@@ -3,7 +3,7 @@
  */
 
 import { afterEach, beforeEach, describe, expect, it, type Mock, vi } from "vitest";
-import type { ToolStatus } from "../../../contract";
+import type { ToolStatus, Usage } from "../../../contract";
 import { PRE_SPEECH_TIMEOUT_MS } from "../../../dispatcher/backend/idle-watchdog";
 import { makeTurnOutput, userEnv } from "../../../dispatcher/test-helpers";
 import { createPushTurns } from "../../../dispatcher/turn/push-turn";
@@ -160,6 +160,7 @@ let log: ReturnType<typeof fakeLog>;
 let toolStatusSink: Mock<(status: ToolStatus) => void>;
 let turnFeed: TurnFeed;
 let turnLog: TurnLog;
+let onUsage: Mock<(usage: Usage) => void>;
 
 function wire(feed: TurnFeed = turnFeed, tools: readonly ClientTool[] = []) {
   return wirePushTransport({
@@ -173,6 +174,7 @@ function wire(feed: TurnFeed = turnFeed, tools: readonly ClientTool[] = []) {
     appendTurnRecord: (record) => records.push(record),
     appendTranscript: (entry) => transcript.push(entry),
     reportSpokeText: (turnId, spoke) => turnLog.setSpokeText(turnId, spoke),
+    onUsage,
     log,
   });
 }
@@ -190,6 +192,7 @@ beforeEach(() => {
   toolStatusSink = vi.fn();
   turnFeed = createTurnFeed({ onToolStatus: toolStatusSink, reasoning });
   turnLog = createTurnLog();
+  onUsage = vi.fn();
 });
 
 describe("wirePushTransport", () => {
@@ -329,6 +332,22 @@ describe("wirePushTransport", () => {
     socket.pushRender({ ...RENDER, reasoning: "AB" });
 
     expect(reasoning.get()).toEqual({ text: "", live: false });
+  });
+
+  it("hands the usage a turn_end carries to the usage consumer once", () => {
+    wire();
+    const usage = { input_tokens: 1200, output_tokens: 80, total_tokens: 1280 };
+    socket.pushTurnEnd({ type: "turn_end", turn_id: "7", usage });
+
+    expect(onUsage).toHaveBeenCalledTimes(1);
+    expect(onUsage).toHaveBeenCalledWith(usage);
+  });
+
+  it("leaves the usage consumer alone when a turn_end carries none", () => {
+    wire();
+    socket.pushTurnEnd({ type: "turn_end", turn_id: "7" });
+
+    expect(onUsage).not.toHaveBeenCalled();
   });
 
   it("forgets the turn and logs it when its turn_end arrives", () => {
