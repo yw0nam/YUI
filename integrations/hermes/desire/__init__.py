@@ -13,7 +13,15 @@ import re
 from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
 
-from . import desire_config, desire_drives, desire_outbox, desire_render, desire_state, desire_store
+from . import (
+    desire_config,
+    desire_drives,
+    desire_events,
+    desire_outbox,
+    desire_render,
+    desire_state,
+    desire_store,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -34,6 +42,8 @@ _LAST_SIGNAL_LINE = re.compile(
 )
 _PENT_UP_LINE = re.compile(r"pent-up \((?P<count>[1-9]\d*)\):")
 _OUTBOX_LINE = re.compile(r"- \[\d{4}-\d{2}-\d{2} \d{2}:\d{2}\] [^\n]*")
+_RECENT_LINE = re.compile(r'- \d{2}-\d{2} "[^"\n]*"(?: — "[^"\n]*")?')
+_WAITING_LINE = re.compile(r"waiting for my reading: (?:1 event|(?:[2-9]|[1-9]\d+) events)")
 _CACHE_TTL = timedelta(minutes=10)
 _STATE_FILES = (
     "drives.json",
@@ -88,9 +98,12 @@ def _already_injected(text):
         return False
     if lines[1] != f"agent: {desire_config.agent_name()}":
         return False
-    if _LAST_INTERACTION_LINE.fullmatch(lines[2]) is None:
+    index = _after_event_lines(lines, 2)
+    if index is None or _LAST_INTERACTION_LINE.fullmatch(lines[index]) is None:
         return False
-    index = 4 if _RETURNED_LINE.fullmatch(lines[3]) is not None else 3
+    index += 1
+    if _RETURNED_LINE.fullmatch(lines[index]) is not None:
+        index += 1
     if _TRANSPORT_LINE.fullmatch(lines[index]) is None:
         return False
     index += 1
@@ -105,6 +118,22 @@ def _already_injected(text):
         and len(lines) == index + count + 2
         and all(_OUTBOX_LINE.fullmatch(line) is not None for line in lines[index + 1 : -1])
     )
+
+
+def _after_event_lines(lines, index):
+    """Return the index past the optional event lines that start at ``index``, or ``None`` when malformed."""
+    start = index
+    if lines[index] == "recent:":
+        index += 1
+        while index - start <= 3 and _RECENT_LINE.fullmatch(lines[index]) is not None:
+            index += 1
+        if index == start + 1:
+            return None
+    if _WAITING_LINE.fullmatch(lines[index]) is not None:
+        index += 1
+    if index == start:
+        return index
+    return index + 1 if lines[index] == desire_render.EVENTS_POINTER else None
 
 
 def _trigger_kind(text):
@@ -122,7 +151,7 @@ def _trigger_kind(text):
     return "none"
 
 
-def _build_desire_block(drives, outbox, transport, now, *, returned_hours=None):
+def _build_desire_block(drives, outbox, transport, now, *, returned_hours=None, events=(), unread=0):
     visible = desire_outbox.visible_outbox(outbox, now)
     block = desire_render.serialize_desire_block(
         visible,
@@ -132,6 +161,8 @@ def _build_desire_block(drives, outbox, transport, now, *, returned_hours=None):
         returned_hours=returned_hours,
         last_signal_at=drives.get("last_signal_at"),
         last_signal_answered_at=drives.get("last_signal_answered_at"),
+        events=events,
+        unread=unread,
     )
     return block, tuple(item["id"] for item in visible)
 
@@ -202,10 +233,14 @@ def _rewrite(kwargs, event):
             drives = desire_drives.read_drives_snapshot(state_dir, now)
             outbox = desire_store.read_jsonl(state_dir / "outbox.jsonl")
             transport = desire_store.read_transport(state_dir)
+            events = desire_events.events_view(state_dir)
+            unread = len(desire_events.unread_event_ids(state_dir))
     else:
         drives = desire_drives.default_drives(now)
         outbox = []
         transport = None
+        events = []
+        unread = 0
 
     staged_drives = copy.deepcopy(drives)
     trigger = _trigger_kind(original_text)
@@ -236,7 +271,7 @@ def _rewrite(kwargs, event):
         included_ids = cached["included_ids"]
     else:
         block, included_ids = _build_desire_block(
-            staged_drives, outbox, transport, now, returned_hours=returned_hours
+            staged_drives, outbox, transport, now, returned_hours=returned_hours, events=events, unread=unread
         )
 
     rewritten = copy.deepcopy(request)

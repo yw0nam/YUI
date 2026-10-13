@@ -11,6 +11,9 @@ else:
     import desire_config
 
 
+EVENTS_POINTER = "to record how you took something: act.py feel --help"
+
+
 def sanitize_note(note: object) -> str:
     text = re.sub(r"[\r\n\v\f\x1c-\x1e\x85\u2028\u2029]+", " ", str(note))
     text = text.replace("<desire_state>", "").replace("</desire_state>", "")
@@ -37,6 +40,28 @@ def _last_signal_line(last_signal_at: str, last_signal_answered_at: str | None, 
     return f"last signal: {stamp} — no reply yet ({waited}h)"
 
 
+def _quoted(text: object) -> str:
+    return '"' + sanitize_note(text).replace('"', "'") + '"'
+
+
+def _event_lines(events: list[dict], unread: int) -> list[str]:
+    """Render the three most recent events, the unread count, and the helper pointer when either shows."""
+
+    lines = []
+    recent = sorted(events, key=lambda event: desire_config.parse_timestamp(event["at"]))[-3:]
+    if recent:
+        lines.append("recent:")
+    for event in recent:
+        day = desire_config.parse_timestamp(event["at"]).strftime("%m-%d")
+        reading = f" — {_quoted(event['reading']['text'])}" if event["reading"] else ""
+        lines.append(f"- {day} {_quoted(event['fact'])}{reading}")
+    if unread:
+        lines.append(f"waiting for my reading: {unread} {'event' if unread == 1 else 'events'}")
+    if lines:
+        lines.append(EVENTS_POINTER)
+    return lines
+
+
 def serialize_desire_block(
     items: list[dict],
     now: datetime,
@@ -46,6 +71,8 @@ def serialize_desire_block(
     returned_hours: int | None = None,
     last_signal_at: str | None = None,
     last_signal_answered_at: str | None = None,
+    events: list[dict] = (),
+    unread: int = 0,
 ) -> str:
     now = desire_config.normalize_now(now)
     last_interaction = desire_config.parse_timestamp(last_interaction_at)
@@ -53,6 +80,7 @@ def serialize_desire_block(
     lines = [
         "<desire_state>",
         f"agent: {desire_config.agent_name()}",
+        *_event_lines(events, unread),
         f"last interaction: {last_interaction.strftime('%Y-%m-%d %H:%M')} ({since_interaction}h ago)",
     ]
     if returned_hours is not None:
