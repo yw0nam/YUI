@@ -14,7 +14,7 @@ export const VOICE_TURN_ERROR_DISPLAY_MS = 3_000;
 export const VOICE_TURN_FIX_HOLD_MS = 60_000;
 
 interface VoiceErrorDwell {
-  show(reason: string): void;
+  show(reason: string, message?: string): void;
   dispose(): void;
 }
 
@@ -34,9 +34,9 @@ export function createVoiceErrorDwell(
   }
 
   return {
-    show(reason) {
+    show(reason, message) {
       cancel();
-      status.set("error", reason);
+      status.set("error", reason, message);
       const holdMs = isSettingsFixable(reason)
         ? VOICE_TURN_FIX_HOLD_MS
         : VOICE_TURN_ERROR_DISPLAY_MS;

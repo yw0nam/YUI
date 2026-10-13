@@ -4,7 +4,8 @@
  * Delegates to the i18n dictionary. Only the reasons a user-initiated turn can
  * actually fail with (see dispatcher.ts's onUserTurnFailed) map to a message;
  * anything else renders nothing rather than inventing text. A network_drop carrying
- * the server's {status, message} detail renders the status and the server text.
+ * the server's {status, message} detail renders the status and the server text, and one without
+ * a status renders the server text alone.
  */
 
 import type { TurnErrorDetail, TurnFailure } from "../../dispatcher/backend/backend-caller";
@@ -38,7 +39,9 @@ export function turnErrorMessage(
         // One application collapses the message's newlines AND keeps the whole rendered
         // line (status included) inside the 200-character budget.
         return collapseServerMessage(
-          t("input.error_http", { status: detail.status, message: detail.message }),
+          detail.status === undefined
+            ? detail.message
+            : t("input.error_http", { status: detail.status, message: detail.message }),
         );
       }
       return t("input.error_network");

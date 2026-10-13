@@ -24,7 +24,7 @@ from gateway_stub import (
 from yui.src.activity import delegations, reasoning, reports, tool_status, usage
 from yui.src.express import tools
 from yui.src.speech import speech
-from yui.src.transport.adapter import YuiAdapter, is_loopback
+from yui.src.transport.adapter import NOTICE_MARKER, YuiAdapter, is_loopback
 from yui.src.transport.frames import MAX_FRAME_BYTES, MAX_TURN_BYTES, fit_frame
 from yui.src.turns import state
 
@@ -98,9 +98,12 @@ def declared(monkeypatch):
     return schemas
 
 
-async def hello(client, chat_id=CHAT, key=KEY, vocabulary=VOCABULARY):
+async def hello(client, chat_id=CHAT, key=KEY, vocabulary=VOCABULARY, accepts=None):
     ws = await client.ws_connect("/ws")
-    await ws.send_json({"type": "hello", "key": key, "chat_id": chat_id, "vocabulary": vocabulary})
+    frame = {"type": "hello", "key": key, "chat_id": chat_id, "vocabulary": vocabulary}
+    if accepts is not None:
+        frame["accepts"] = accepts
+    await ws.send_json(frame)
     return ws
 
 
@@ -1096,12 +1099,111 @@ async def test_a_turn_that_arrives_on_an_idle_chat_stays_open(client, adapter):
     assert (await recv(ws))["type"] == "delegations"
 
 
-async def test_a_failed_turn_ends_after_its_failure_line_renders(client, adapter):
+async def test_a_failed_turn_sends_its_failure_line_as_an_error_frame_then_ends(client, adapter):
+    ws = await ready(client, accepts=["error"])
+    failed = user_turn(adapter, "777")
+    await adapter.on_processing_start(failed)
+    await adapter.on_processing_complete(failed, ProcessingOutcome.FAILURE)
+    await adapter.send(CHAT, "Sorry, that one broke.")
+    assert await recv(ws) == {"type": "error", "turn_id": "777", "message": "Sorry, that one broke."}
+    assert await recv(ws) == {"type": "turn_end", "turn_id": "777"}
+
+
+async def test_the_failure_line_is_one_line_in_the_error_frame(client, adapter):
+    ws = await ready(client, accepts=["error"])
+    failed = user_turn(adapter, "777")
+    await adapter.on_processing_start(failed)
+    await adapter.on_processing_complete(failed, ProcessingOutcome.FAILURE)
+    await adapter.send(CHAT, "Provider failed:\n  rate limit reached\n")
+    assert (await recv(ws))["message"] == "Provider failed: rate limit reached"
+
+
+async def test_an_oversize_failure_line_is_cut_to_fit_the_error_frame(client, adapter):
+    ws = await ready(client, accepts=["error"])
+    failed = user_turn(adapter, "777")
+    await adapter.on_processing_start(failed)
+    await adapter.on_processing_complete(failed, ProcessingOutcome.FAILURE)
+    await adapter.send(CHAT, "x" * (MAX_FRAME_BYTES * 2))
+    frame = await recv(ws)
+    assert frame["type"] == "error"
+    assert frame["turn_id"] == "777"
+    assert 0 < len(frame["message"].encode()) <= MAX_FRAME_BYTES
+    assert (await recv(ws)) == {"type": "turn_end", "turn_id": "777"}
+
+
+async def test_a_turn_joined_to_a_failed_one_ends_behind_its_error_frame(client, adapter):
+    ws = await ready(client, accepts=["error"])
+    failed = user_turn(adapter, "777")
+    await adapter.on_processing_start(failed)
+    adapter._active_sessions[adapter._event_session_key(failed)] = object()
+    await ws.send_json({"type": "turn", "turn_id": "778", "client_context": "", "text": "and the docs?"})
+    await wait_for(lambda: adapter.dispatched)
+    await adapter.on_processing_complete(failed, ProcessingOutcome.FAILURE)
+    await adapter.send(CHAT, "Sorry, that one broke.")
+    assert await recv(ws) == {"type": "error", "turn_id": "777", "message": "Sorry, that one broke."}
+    assert await recv(ws) == {"type": "turn_end", "turn_id": "777"}
+    assert await recv(ws) == {"type": "error", "turn_id": "778", "message": "Sorry, that one broke."}
+    assert await recv(ws) == {"type": "turn_end", "turn_id": "778"}
+
+
+@pytest.mark.parametrize("marker", [NOTICE_MARKER, "_interim_send"])
+async def test_a_notice_or_interim_before_the_failure_line_leaves_the_turn_waiting_for_it(
+    client, adapter, marker
+):
+    ws = await ready(client, accepts=["error"])
+    failed = user_turn(adapter, "777")
+    await adapter.on_processing_start(failed)
+    await adapter.on_processing_complete(failed, ProcessingOutcome.FAILURE)
+    await adapter.send(CHAT, "Still working on it.", metadata={marker: True})
+    await adapter.send(CHAT, "Sorry, that one broke.")
+    assert await recv(ws) == {"type": "error", "turn_id": "777", "message": "Sorry, that one broke."}
+    assert await recv(ws) == {"type": "turn_end", "turn_id": "777"}
+
+
+async def test_a_failure_while_the_client_is_away_holds_an_error_frame_for_it(client, adapter):
+    ws = await ready(client, accepts=["error"])
+    await ws.close()
+    await wait_for(lambda: not state.is_connected(CHAT))
+    failed = user_turn(adapter, "777")
+    await adapter.on_processing_start(failed)
+    await adapter.on_processing_complete(failed, ProcessingOutcome.FAILURE)
+    await adapter.send(CHAT, "Sorry, that one broke.")
+    back = await ready(client, accepts=["error"])
+    assert await recv(back) == {"type": "error", "turn_id": "777", "message": "Sorry, that one broke."}
+    assert await recv(back) == {"type": "turn_end", "turn_id": "777"}
+
+
+async def test_a_reply_sent_while_a_failed_turn_waits_for_its_line_still_renders(client, adapter):
+    ws = await ready(client, accepts=["error"])
+    failed = user_turn(adapter, "777")
+    await adapter.on_processing_start(failed)
+    await adapter.on_processing_complete(failed, ProcessingOutcome.FAILURE)
+    await adapter.send(CHAT, "The build finished.", metadata={"notify": True})
+    assert await recv(ws) == {
+        "type": "render",
+        "turn_id": "777",
+        "source": "hermes",
+        "segments": [{"cues": [], "speech": "The build finished."}],
+    }
+    assert await recv(ws) == {"type": "turn_end", "turn_id": "777"}
+
+
+async def test_a_muted_acknowledgement_is_not_the_failure_line(client, adapter):
+    ws = await ready(client, accepts=["error"])
+    failed = user_turn(adapter, "777")
+    await adapter.on_processing_start(failed)
+    await adapter.on_processing_complete(failed, ProcessingOutcome.FAILURE)
+    state.set_muted(CHAT, True)
+    await adapter.send(CHAT, "Stopped.")
+    assert await recv(ws) == {"type": "turn_end", "turn_id": "777"}
+
+
+async def test_a_client_that_lists_no_error_gets_the_failure_line_rendered(client, adapter):
     ws = await ready(client)
     failed = user_turn(adapter, "777")
     await adapter.on_processing_start(failed)
     await adapter.on_processing_complete(failed, ProcessingOutcome.FAILURE)
-    await adapter.send(CHAT, "Sorry, that one broke.", metadata={"notify": True})
+    await adapter.send(CHAT, "Sorry, that one broke.")
     assert await recv(ws) == {
         "type": "render",
         "turn_id": "777",
@@ -1111,7 +1213,20 @@ async def test_a_failed_turn_ends_after_its_failure_line_renders(client, adapter
     assert await recv(ws) == {"type": "turn_end", "turn_id": "777"}
 
 
-async def test_a_turn_joined_to_a_failed_one_ends_behind_its_failure_line(client, adapter):
+@pytest.mark.parametrize("accepts", ["error", ["error", 3], {"error": True}, [], ["tool_call"]])
+async def test_an_accepts_that_does_not_list_error_counts_as_none(client, adapter, accepts):
+    ws = await ready(client, accepts=accepts)
+    failed = user_turn(adapter, "777")
+    await adapter.on_processing_start(failed)
+    await adapter.on_processing_complete(failed, ProcessingOutcome.FAILURE)
+    await adapter.send(CHAT, "Sorry, that one broke.")
+    assert (await recv(ws))["type"] == "render"
+    assert await recv(ws) == {"type": "turn_end", "turn_id": "777"}
+
+
+async def test_a_turn_joined_to_a_failed_one_ends_behind_the_failure_line_of_a_client_with_no_error(
+    client, adapter
+):
     ws = await ready(client)
     failed = user_turn(adapter, "777")
     await adapter.on_processing_start(failed)
@@ -1119,13 +1234,8 @@ async def test_a_turn_joined_to_a_failed_one_ends_behind_its_failure_line(client
     await ws.send_json({"type": "turn", "turn_id": "778", "client_context": "", "text": "and the docs?"})
     await wait_for(lambda: adapter.dispatched)
     await adapter.on_processing_complete(failed, ProcessingOutcome.FAILURE)
-    await adapter.send(CHAT, "Sorry, that one broke.", metadata={"notify": True})
-    assert await recv(ws) == {
-        "type": "render",
-        "turn_id": "778",
-        "source": "hermes",
-        "segments": [{"cues": [], "speech": "Sorry, that one broke."}],
-    }
+    await adapter.send(CHAT, "Sorry, that one broke.")
+    assert (await recv(ws))["turn_id"] == "778"
     assert await recv(ws) == {"type": "turn_end", "turn_id": "777"}
     assert await recv(ws) == {"type": "turn_end", "turn_id": "778"}
 

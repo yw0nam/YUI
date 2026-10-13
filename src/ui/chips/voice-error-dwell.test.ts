@@ -25,6 +25,17 @@ describe("createVoiceErrorDwell", () => {
     expect(status.get()).toMatchObject({ state: "error", detail: "network_drop" });
   });
 
+  it("carries the server's message beside the failure reason", () => {
+    const status = createVoiceInputStatus();
+    createVoiceErrorDwell(status).show("network_drop", "rate limit reached");
+
+    expect(status.get()).toMatchObject({
+      state: "error",
+      detail: "network_drop",
+      message: "rate limit reached",
+    });
+  });
+
   it("reverts a transient failure to listening after the display window", () => {
     const status = createVoiceInputStatus();
     createVoiceErrorDwell(status).show("network_drop");

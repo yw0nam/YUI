@@ -18,7 +18,7 @@ vi.mock("../../dispatcher/core/proactive-pacer", () => ({
   createProactivePacer: mocks.createProactivePacer,
 }));
 
-import type { TurnFailure } from "../../dispatcher/backend/backend-caller";
+import type { TurnErrorDetail, TurnFailure } from "../../dispatcher/backend/backend-caller";
 import type { Turn } from "../../dispatcher/turn/turn";
 import { createAvatarTools } from "../../io/chat/tools/avatar";
 import type { ClientTool } from "../../io/chat/tools/client-tools";
@@ -36,11 +36,17 @@ describe("wireDispatcher", () => {
           peek?: { enter(): Promise<void>; exit(): Promise<void> };
           onTurnAdmitted?: (turn: Turn) => void;
           onTurnFailed?: (turn: Turn, reason: TurnFailure) => void;
+          onUserTurnFailed?: (
+            reason: TurnFailure,
+            source: "text" | "voice",
+            detail?: TurnErrorDetail,
+          ) => void;
         }
       | undefined;
     const previousTurn = { callFailed: vi.fn() };
     const quotedTurn = { admitted: vi.fn(), failed: vi.fn() };
     const busyUnsubscribe = vi.fn();
+    const showVoiceError = vi.fn();
     const dispatcher = {
       stop: vi.fn(),
       subscribeBusy: vi.fn(() => busyUnsubscribe),
@@ -60,7 +66,7 @@ describe("wireDispatcher", () => {
     const handle = wireDispatcher({
       bus: {} as never,
       renderer: {} as never,
-      surfaces: {} as never,
+      surfaces: { isInputOpen: () => false } as never,
       reasoning: {} as never,
       getEndpoints: () => ({}) as never,
       getGuardrails: () => ({}) as never,
@@ -83,7 +89,7 @@ describe("wireDispatcher", () => {
       screenCapturer: {} as never,
       getFrontmost: () => undefined,
       isBodyHeld,
-      voice: {} as never,
+      voice: { speakFailure: vi.fn() } as never,
       turnLog: {} as never,
       previousTurn: previousTurn as never,
       quotedTurn,
@@ -96,7 +102,7 @@ describe("wireDispatcher", () => {
       }),
       avatarTools,
       openQuickControls: vi.fn(),
-      showVoiceError: vi.fn(),
+      showVoiceError,
       appendTurnRecord: vi.fn(),
       t: (key: string) => key,
       register,
@@ -114,6 +120,7 @@ describe("wireDispatcher", () => {
       guardrailsOverrideDisposer,
       previousTurn,
       quotedTurn,
+      showVoiceError,
     };
   };
 
@@ -184,6 +191,35 @@ describe("wireDispatcher", () => {
 
     expect(s.previousTurn.callFailed).toHaveBeenCalledWith(turn, "network_drop");
     expect(s.quotedTurn.failed).toHaveBeenCalledWith(turn);
+  });
+
+  it("shows the server's message on the voice error of a failed voice turn", () => {
+    const s = setup();
+
+    s.dispatcherDeps.onUserTurnFailed!("network_drop", "voice", {
+      message: "rate limit\nreached",
+    });
+
+    expect(s.showVoiceError).toHaveBeenCalledWith("network_drop", "rate limit reached");
+  });
+
+  it("shows the status with the server's message on the voice error when the failure has one", () => {
+    const s = setup();
+
+    s.dispatcherDeps.onUserTurnFailed!("network_drop", "voice", {
+      status: 500,
+      message: "internal server error",
+    });
+
+    expect(s.showVoiceError).toHaveBeenCalledWith("network_drop", "500 internal server error");
+  });
+
+  it("keeps the voice error wording of a failure with no server message", () => {
+    const s = setup();
+
+    s.dispatcherDeps.onUserTurnFailed!("network_drop", "voice");
+
+    expect(s.showVoiceError).toHaveBeenCalledWith("network_drop", undefined);
   });
 
   it("registers the teardowns in composition order and they run LIFO", () => {

@@ -32,8 +32,12 @@
   (deferred compression, a failed background task, a stuck run, a failed media send), and the
   restart, startup and shutdown pings, which the plugin turns off for this platform. What the
   agent writes before a tool call, its final reply, and its answer to a delegation report all
-  render as usual, and so does the gateway's notice that a turn failed, which reaches the plugin
-  in the same shape as the agent's words. The failed turn ends behind that notice.
+  render as usual. The gateway's notice that a turn failed depends on the client. A client whose
+  `hello` lists `error` in `accepts` gets it as an `error` frame carrying its text as one line and
+  nothing renders it, and each open turn of the chat ends with its `turn_end`, `error` frame
+  first. A client that lists no `error` gets it rendered in the same shape as the agent's words,
+  and the failed turn ends behind it with no `error` frame. A failed turn that gets no notice
+  ends with `turn_end` alone.
 - Streams the agent's reasoning to the client as `reasoning` frames, coalesced to one frame per
   100 ms. The `render` frame carries the reasoning written so far for its turn, which on the
   reply that ends the turn is the whole text. The gateway offers the live tokens only while

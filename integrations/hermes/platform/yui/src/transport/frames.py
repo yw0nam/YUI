@@ -35,12 +35,13 @@ def fit_frame(frame: dict) -> str | None:
     while size > MAX_FRAME_BYTES and isinstance(segments, list) and segments:
         segments.pop()
         body, size = encoded(frame)
-    if size > MAX_FRAME_BYTES and isinstance(frame.get("delta"), str):
-        logger.debug("yui: reasoning delta cut to fit the frame")
-        raw = frame["delta"].encode("utf-8")
-        budget = max(len(raw) - (size - MAX_FRAME_BYTES), 0)
-        frame["delta"] = raw[:budget].decode("utf-8", "ignore")
-        body, size = encoded(frame)
+    for key in ("delta", "message"):
+        if size > MAX_FRAME_BYTES and isinstance(frame.get(key), str):
+            logger.debug("yui: %s cut to fit the %s frame", key, frame.get("type"))
+            raw = frame[key].encode("utf-8")
+            budget = max(len(raw) - (size - MAX_FRAME_BYTES), 0)
+            frame[key] = raw[:budget].decode("utf-8", "ignore")
+            body, size = encoded(frame)
     items = frame.get("items")
     if size > MAX_FRAME_BYTES and isinstance(items, list):
         # Oldest first; the summary is the least of what a row shows.
