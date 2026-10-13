@@ -85,6 +85,16 @@ def test_an_existing_registry_with_other_names_is_kept(state_dir, now):
         desire_judgments.judge(state_dir, "trust", "user", "some", [], None, now)
 
 
+def test_a_registry_file_with_an_extra_key_is_left_byte_identical(state_dir, now):
+    path = state_dir / "feelings.json"
+    path.write_text('{"names": ["warmth"], "note": "mine"}', encoding="utf-8")
+
+    desire_state.bootstrap(now)
+
+    assert path.read_text(encoding="utf-8") == '{"names": ["warmth"], "note": "mine"}'
+    assert desire_judgments.registry(state_dir) == ["warmth"]
+
+
 def test_an_invalid_registry_is_quarantined_and_rebuilt(state_dir, now, state_helpers):
     _, _, read_json, _ = state_helpers
     (state_dir / "feelings.json").write_text('{"names": ["a", "a", ""]}', encoding="utf-8")
