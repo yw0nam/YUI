@@ -182,11 +182,18 @@ def _read_source(state_dir, now, source, repo, read, ref=None):
         return None
 
 
-def artefact_delivery(kind: str, url: str, run_gh) -> object:
-    """Return when this pull request merged or this issue closed, or ``None`` while it is open."""
+def artefact_delivery(kind: str, url: str, run_gh, repos: dict[str, Path]) -> object:
+    """Return when this pull request merged or this issue closed, or ``None`` while it is open.
+
+    The view runs inside the workspace clone of the URL's repository, matched without regard to case, and in
+    the gate's own directory when no clone of it is left.
+    """
 
     field = "mergedAt" if kind == "pr" else "closedAt"
-    return json.loads(run_gh([kind, "view", url, "--json", f"state,{field}"])).get(field)
+    key = _artefact_key(_ARTEFACT_URL, url)
+    clones = {slug.lower(): clone for slug, clone in repos.items()}
+    cwd = clones.get(key[0].lower()) if key is not None else None
+    return json.loads(run_gh([kind, "view", url, "--json", f"state,{field}"], cwd=cwd)).get(field)
 
 
 def collect_artefacts(state_dir, now, *, workspace_root, run_gh) -> dict:
@@ -230,14 +237,12 @@ def collect_artefacts(state_dir, now, *, workspace_root, run_gh) -> dict:
         }
     for kind in ("pr", "issue"):
         for url in _undelivered(record, kind):
-            key = _artefact_key(_ARTEFACT_URL, url)
-            gh = functools.partial(run_gh, cwd=repos.get(key[0]) if key is not None else None)
             delivered = _read_source(
                 state_dir,
                 now,
                 kind,
                 None,
-                lambda name=kind, target=url, gh=gh: artefact_delivery(name, target, gh),
+                lambda name=kind, target=url: artefact_delivery(name, target, run_gh, repos),
                 url,
             )
             if delivered is not None and observed[kind] is not None:
@@ -327,6 +332,13 @@ def _artefact_key(pattern: re.Pattern, url: object) -> tuple[str, str] | None:
     return (match["repo"], match["number"]) if match is not None else None
 
 
+def _opens_with_marker(body: object, marker: str) -> bool:
+    """Report whether the first non-empty line of a comment body, stripped, is exactly the marker."""
+
+    lines = (line.strip() for line in body.splitlines()) if isinstance(body, str) else ()
+    return next((line for line in lines if line), None) == marker
+
+
 def _record_comments(record: dict, observed: dict, now: datetime) -> list[tuple[str, str]]:
     """Move each repository's comment stamps in ``record`` and return the comments to file."""
 
@@ -361,8 +373,8 @@ def _record_comments(record: dict, observed: dict, now: datetime) -> list[tuple[
             url = entry.get("html_url")
             if created is None or not isinstance(author, str) or not isinstance(url, str):
                 continue
-            # The agent's comments carry the marker, whichever account posts them.
-            if user.get("type") == "Bot" or marker in str(entry.get("body", "")):
+            # The agent's comments open with the marker, whichever account posts them.
+            if user.get("type") == "Bot" or _opens_with_marker(entry.get("body"), marker):
                 continue
             key = _artefact_key(_ISSUE_API_URL, entry.get("issue_url"))
             if created >= start and key is not None and key in seen:
