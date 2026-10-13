@@ -159,13 +159,13 @@ The on/off state of every switchable in-app tool the window declares, rendered e
 `id=state` entry per tool, comma-separated, in declaration order; values are `on` and `off`:
 
 ```text
-tools: look.screen=on
+tools: look.screen=on, browser=off
 ```
 
 The line names the switch state only. The switch gates the tool's execution, read at the moment
 the call runs, so a state line the request outlives can still end in a refusal. The line is
 omitted when the turn declares no switchable tool: the pet window under Tauri declares
-`look.screen`; the phone window and the browser build declare none; and on Responses with
+`look.screen` and `browser`; the phone window and the browser build declare none; and on Responses with
 `broker_base_url` set the client declares no tools. Tool ids carry the same sanitization as the
 other sampled fields.
 
