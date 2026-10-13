@@ -350,8 +350,11 @@ def _feel(args, now):
         return 0
     try:
         reading_id = desire_events.file_reading(state_dir, args.event, args.text, now)
-    except ValueError:
+    except desire_events.UnknownEventError:
         print("unknown event", file=sys.stderr)
+        return 3
+    except desire_events.RetractedEventError:
+        print(f"event {args.event} is retracted", file=sys.stderr)
         return 3
     print(f"reading {reading_id}")
     return 0
@@ -380,8 +383,8 @@ def _correct(event_id, fact, now):
     except desire_events.UnknownEventError:
         print("unknown event", file=sys.stderr)
         return 3
-    except ValueError:
-        print("event is retracted", file=sys.stderr)
+    except desire_events.RetractedEventError:
+        print(f"event {event_id} is retracted", file=sys.stderr)
         return 1
     print(f"corrected {event_id}")
     return 0
