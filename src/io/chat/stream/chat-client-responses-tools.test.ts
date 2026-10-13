@@ -145,7 +145,7 @@ describe("streamChat — Responses tool-call round trip", () => {
     const events = await collect(streamChat(CONFIG, req(), optsFor(gen)));
 
     expect(gen.execute).toHaveBeenCalledOnce();
-    expect(gen.execute).toHaveBeenCalledWith({ emotion_id: "happy" });
+    expect(gen.execute).toHaveBeenCalledWith({ emotion_id: "happy" }, expect.any(AbortSignal));
     expect(events.filter((e) => e.type === "express")).toEqual([
       { type: "express", args: { emotion_id: "happy" } },
     ]);
@@ -534,7 +534,7 @@ describe("streamChat — Responses tool-call round trip", () => {
     await collect(streamChat(CONFIG, req(), optsFor(ping)));
 
     expect(ping.execute).toHaveBeenCalledOnce();
-    expect(ping.execute).toHaveBeenCalledWith({});
+    expect(ping.execute).toHaveBeenCalledWith({}, expect.any(AbortSignal));
   });
 
   it("executes id-less calls at the same output_index in consecutive responses separately", async () => {

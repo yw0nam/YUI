@@ -39,6 +39,7 @@ export function wirePushTransport(deps: {
     onTurnEnd(cb: (frame: TurnEndFrame) => void): () => void;
     onToolStatus(cb: (frame: ToolStatusFrame) => void): () => void;
     onError(cb: (frame: ErrorFrame) => void): () => void;
+    onReset(cb: () => void): () => void;
     onToolCall(cb: (frame: ToolCallFrame) => void): () => void;
     onDelegations(cb: (items: DelegationItem[]) => void): () => void;
     onReasoning(cb: (frame: ReasoningFrame) => void): () => void;
@@ -135,7 +136,11 @@ export function wirePushTransport(deps: {
       deps.pushTurns.failed(frame.turn_id, frame.message);
       deps.log.info("push.error", { turn_id: frame.turn_id, message: frame.message });
     }),
-    deps.pushTurns.onCut((turnId) => renderTurn.drop(turnId)),
+    deps.pushTurns.onCut((turnId) => {
+      renderTurn.drop(turnId);
+      toolCalls.abort([turnId]);
+    }),
+    deps.socket.onReset(() => toolCalls.abort()),
     deps.socket.onDelegations((items) => {
       // The history reaches storage before the live list's bridge emit tells the settings window to reload.
       deps.delegationHistory.merge(items);
@@ -160,10 +165,12 @@ export function wirePushTransport(deps: {
       // Whatever the socket still held — a live cycle, a running tool — dies with the connection.
       deps.turnFeed.sourceLost("push");
       renderTurn.close();
+      toolCalls.abort();
     }),
   ];
   return () => {
     for (const off of unsubscribes) off();
+    toolCalls.abort();
     deps.turnFeed.sourceLost("push");
     renderTurn.dispose();
   };

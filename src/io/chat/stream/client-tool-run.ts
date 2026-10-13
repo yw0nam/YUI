@@ -30,13 +30,14 @@ export interface ClientCallOutcome {
  * Parses the call's arguments, plays its express cue on arrival (cue timing never waits for a
  * round trip), and runs the registered tool with a chip for as long as it runs. Arguments that do
  * not parse run nothing and play no cue: the call fails with an error result the model reads.
- * Returns undefined for a call the client does not own, or one with unparseable arguments and no
+ * The request's signal aborts the running tool's. Returns undefined for a call the client does not own, or one with unparseable arguments and no
  * registered tool.
  */
 export async function* runClientCall(
   tools: ClientToolRegistry | undefined,
   name: string,
   argsJson: string,
+  signal?: AbortSignal,
 ): AsyncGenerator<ChatStreamEvent, ClientCallOutcome | undefined> {
   const tool = tools?.get(name);
   const express_call = isExpressTool(name);
@@ -65,7 +66,7 @@ export async function* runClientCall(
   if (!tool) return outcome;
 
   if (!express_call) yield { type: "tool_status", status: { state: "running", tool_id: name } };
-  const result = await executeClientTool(tool, parsed.args);
+  const result = await executeClientTool(tool, parsed.args, signal);
   if (!express_call)
     yield {
       type: "tool_status",

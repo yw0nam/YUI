@@ -3,8 +3,9 @@
  *
  * It refuses what the client cannot run (an undeclared name, a turn the user stopped), drops
  * duplicates, and runs the rest one at a time in arrival order, each answered with a
- * `tool_result` on the same id and turn id. The status pill takes its tool state from the
- * backend's `tool_status` frames; this consumer emits none of its own.
+ * `tool_result` on the same id and turn id. Each held call carries a signal that abort() aborts.
+ * The status pill takes its tool state from the backend's `tool_status` frames; this consumer
+ * emits none of its own.
  */
 
 import type { Logger } from "../../../logger";
@@ -20,6 +21,8 @@ import { imageToolResult, textToolResult } from "./tool-results/encode";
 export interface PushToolCalls {
   /** Takes one frame from the socket; answers it at once, queues it, or drops it. */
   handle(frame: ToolCallFrame): void;
+  /** Aborts the signal of every held call of the named turns, or of every held call. */
+  abort(turnIds?: readonly string[]): void;
 }
 
 export interface PushToolCallsDeps {
@@ -30,14 +33,18 @@ export interface PushToolCallsDeps {
   /** The result sink; false when the frame could not go out. */
   send(frame: ToolResultFrame): boolean;
   /** The bounded execute shared with the request transports. */
-  execute(tool: ClientTool, args: Record<string, unknown>): Promise<ClientToolResult>;
+  execute(
+    tool: ClientTool,
+    args: Record<string, unknown>,
+    signal?: AbortSignal,
+  ): Promise<ClientToolResult>;
   getMaxTurnBytes(): number | undefined;
   log: Logger;
 }
 
 export function createPushToolCalls(deps: PushToolCallsDeps): PushToolCalls {
-  /** Ids queued or running — the set a duplicate id is checked against. */
-  const held = new Set<string>();
+  /** Calls queued or running by id — the set a duplicate id is checked against. */
+  const held = new Map<string, { turnId: string; abort: AbortController }>();
   let tail: Promise<void> = Promise.resolve();
 
   function send(frame: ToolCallFrame, reply: ToolResultFrame): void {
@@ -57,14 +64,14 @@ export function createPushToolCalls(deps: PushToolCallsDeps): PushToolCalls {
     send(frame, await imageToolResult(frame, result, deps.getMaxTurnBytes()));
   }
 
-  async function run(frame: ToolCallFrame, tool: ClientTool): Promise<void> {
+  async function run(frame: ToolCallFrame, tool: ClientTool, signal: AbortSignal): Promise<void> {
     try {
       // A turn the user stopped while this call waited in the queue still refuses.
       if (deps.isTurnStopped(frame.turn_id)) {
         answer(frame, "error: turn stopped");
         return;
       }
-      await answerResult(frame, await deps.execute(tool, frame.arguments));
+      await answerResult(frame, await deps.execute(tool, frame.arguments, signal));
     } finally {
       held.delete(frame.id);
     }
@@ -87,13 +94,19 @@ export function createPushToolCalls(deps: PushToolCallsDeps): PushToolCalls {
         answer(frame, "error: turn stopped");
         return;
       }
-      held.add(frame.id);
+      const abort = new AbortController();
+      held.set(frame.id, { turnId: frame.turn_id, abort });
       // A call that throws is logged so the calls queued behind it still run.
       tail = tail
-        .then(() => run(frame, tool))
+        .then(() => run(frame, tool, abort.signal))
         .catch((err) =>
           deps.log.warn("tool_call_failed", { id: frame.id, name: frame.name, error: String(err) }),
         );
+    },
+    abort(turnIds) {
+      for (const call of held.values()) {
+        if (!turnIds || turnIds.includes(call.turnId)) call.abort.abort();
+      }
     },
   };
 }

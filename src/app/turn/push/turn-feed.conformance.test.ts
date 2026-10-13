@@ -91,6 +91,7 @@ function runPush(): Run {
       },
       onToolCall: () => () => {},
       onError: () => () => {},
+      onReset: () => () => {},
       sendToolResult: () => false,
       getMaxTurnBytes: () => undefined,
       onDelegations: () => () => {},

@@ -87,6 +87,8 @@ export interface PushSocket {
   /** The byte room the stated turn size leaves for the images; undefined with no stated size. */
   imageRoom(turn: PushTurnFrame): number | undefined;
   sendReset(): boolean;
+  /** Runs the callback each time a reset frame goes out. */
+  onReset(cb: () => void): () => void;
   sendStop(turnIds: string[]): boolean;
   /** True when the frame went out; false when the socket is not ready or the frame is too large. */
   sendToolResult(frame: ToolResultFrame): boolean;
@@ -139,6 +141,7 @@ export function createPushSocket(deps: PushSocketDeps): PushSocket {
   const delegationSubs = new Set<(items: DelegationItem[]) => void>();
   const reasoningSubs = new Set<(frame: ReasoningFrame) => void>();
   const stateSubs = new Set<(state: PushSocketState) => void>();
+  const resetSubs = new Set<() => void>();
 
   let ws: WebSocket | null = null;
   let ready = false;
@@ -502,6 +505,7 @@ export function createPushSocket(deps: PushSocketDeps): PushSocket {
       toolStatusSubs.clear();
       delegationSubs.clear();
       reasoningSubs.clear();
+      resetSubs.clear();
       ws?.close(NORMAL_CLOSE_CODE);
       ws = null;
       ready = false;
@@ -536,8 +540,12 @@ export function createPushSocket(deps: PushSocketDeps): PushSocket {
         log.warn("reset_not_ready", { state: state.kind });
         return false;
       }
-      return sendFrame({ type: "reset" });
+      if (!sendFrame({ type: "reset" })) return false;
+      for (const cb of resetSubs) cb();
+      return true;
     },
+
+    onReset: (cb) => subscribe(resetSubs, cb),
 
     sendStop(turnIds): boolean {
       if (!ready) {
