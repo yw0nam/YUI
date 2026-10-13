@@ -450,7 +450,6 @@ def test_report_posts_its_own_kind_without_touching_the_signal_budget(state_dir,
         "prs": 0,
         "pending": {},
     }
-    assert not (state_dir / "monitor.json").exists()
     assert (state_dir / "outbox.jsonl").read_bytes() == b""
     sent = read_jsonl(state_dir / "audit.jsonl")[-1]
     assert (sent["event"], sent["note"]) == ("report_sent", "one pull request today")

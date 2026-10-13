@@ -994,3 +994,34 @@ def test_probe_falls_back_to_default_url_when_env_is_empty(monkeypatch):
     monkeypatch.setattr(desire_config, "DEFAULT_SIGNALS_URL", f"http://127.0.0.1:{free_port()}/signals")
 
     assert gate.probe_transport() is False
+
+
+def test_an_undecodable_line_in_the_event_log_silences_nothing(state_dir, at, transport_up, state_helpers):
+    _, write_jsonl, _, _ = state_helpers
+    now = at("2026-08-25T12:00:00+09:00")
+    write_jsonl(state_dir / "events.jsonl", [event_line("e-000001", now, "fact")])
+    with (state_dir / "events.jsonl").open("ab") as stream:
+        stream.write(b"\xff not utf-8\n")
+    write_jsonl(state_dir / "outbox.jsonl", [held_note("one", now)])
+
+    assert gate.run(now) == "desire gate: unread events (1)\ndesire gate: held notes (1)\n"
+
+
+def test_an_error_after_the_bookkeeping_leaves_the_presentation_history_unchanged(
+    state_dir, at, capsys, monkeypatch, transport_up, state_helpers
+):
+    _, write_jsonl, _, _ = state_helpers
+    now = at("2026-08-25T12:00:00+09:00")
+    write_jsonl(state_dir / "events.jsonl", [event_line("e-000001", now, "fact")])
+    gate.run(now)
+    before = (state_dir / "gate.json").read_bytes()
+
+    def fail(_state_dir):
+        raise OSError("log exploded")
+
+    monkeypatch.setattr(gate.desire_events, "unread_event_ids", fail)
+
+    assert gate.main() is None
+    assert capsys.readouterr().out == NO_WAKE
+    assert (state_dir / "gate.json").read_bytes() == before
+    assert [value["error"] for value in audited(state_dir, "gate_error")] == ["OSError: log exploded"]
