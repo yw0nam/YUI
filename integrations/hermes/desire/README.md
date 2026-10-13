@@ -156,7 +156,7 @@ Case 2, a held note that can be delivered: the transport is `up`, a signal is le
 note's `not_before` has passed. Held notes wake the agent again only after six hours, except that a note created
 after the last such wake wakes it at once.
 
-The one non-zero exit is a missing `DESIRE_AGENT_NAME`, so the misconfiguration reaches the operator through the
+The one non-zero exit is a missing or invalid `DESIRE_AGENT_NAME`, so the misconfiguration reaches the operator through the
 scheduler's error block.
 
 ### Monitor events

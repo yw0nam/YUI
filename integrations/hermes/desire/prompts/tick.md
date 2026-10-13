@@ -142,5 +142,6 @@ to build. Closing a want is your decision, for your reason, at any time; write t
 
 Your final response for this tick is delivered over the channel configured on this cron job. If this tick opened
 an issue or you have a request under section 5, answer with one or two sentences saying what you opened or what
-you need, with the URL when there is one. Otherwise answer exactly `[SILENT]`.
-Keep budgets, audit entries, and the names and levels of your judgments out of the response.
+you need, with the URL when there is one. If this message opens with a Script Error block, the gate script failed
+before it could decide anything: answer with its error text in one sentence so the user sees it. Otherwise answer
+exactly `[SILENT]`. Keep budgets, audit entries, and the names and levels of your judgments out of the response.

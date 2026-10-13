@@ -25,9 +25,12 @@ Every `hermes` command takes `-p <profile>`; without it the CLI acts on the glob
 
 - First-time install of the desire system for this profile.
 - After `git pull` in the YUI checkout, to confirm nothing on the host went stale (steps 4–9).
-- A profile whose tick job still runs the monitor script (`Monitor:` in `hermes cron list`): step 4 and the
-  "Moving from the monitor" part of step 6.
+- A profile whose tick job still runs the monitor script (`Monitor:` in `hermes cron list`): steps 2b, 3 and 4,
+  then the "Moving from the monitor" part of step 6, right after the pull, since the monitor script the job names
+  is gone from the checkout and Hermes alerts on every tick until the job is edited.
 - When the tick cron stops running or `<desire_state>` stops appearing in requests (step 8).
+
+For the default profile, `~/.hermes/profiles/<profile>/` below stands for `~/.hermes/`.
 
 ## 1. Checkout
 
@@ -47,6 +50,19 @@ hermes -p <profile> plugins enable yui-desire
 Check: `hermes -p <profile> plugins list` shows `yui-desire` enabled. The list is configuration state only and does not
 prove the plugin loaded; the load check is step 9, after the gateway restarts. Do not grant the plugin built-in tool
 override permission; the middleware needs none.
+
+## 2b. Skills directory
+
+The tick and the reflection load the `yui-desire` skill by name. Register the checkout's `skills/` directory in
+the profile `config.yaml`:
+
+```yaml
+skills:
+  external_dirs:
+    - $YUI/integrations/hermes/desire/skills
+```
+
+Check: `hermes -p <profile> skills list` names `yui-desire` and `yui-desire-install`.
 
 ## 3. Environment
 
@@ -97,6 +113,10 @@ chmod +x ~/.hermes/profiles/<profile>/scripts/<agent>-desire-gate.sh
 set -a; . ~/.hermes/profiles/<profile>/.env; set +a
 ~/.hermes/profiles/<profile>/scripts/<agent>-desire-gate.sh
 ```
+
+Run the last line on a fresh install only: on a profile that already holds notes it prints a wake line and stamps
+the notes as presented, which keeps the cron from waking for them for six hours. On a migrating profile, skip it
+and read the state directory after the first cron run instead.
 
 Check: the last command prints `{"wakeAgent": false}` (nothing waits on a fresh state) and
 
@@ -166,7 +186,7 @@ takes the gate with one command. Read its id from the job list:
 ```bash
 hermes -p <profile> cron list
 hermes -p <profile> cron edit <job_id> --script <agent>-desire-gate.sh --monitor-script ""
-rm -f ~/.hermes/scripts/<agent>-desire-monitor.sh
+rm -f ~/.hermes/profiles/<profile>/scripts/<agent>-desire-monitor.sh
 ```
 
 A job that already exists also keeps its own schedule and delivery target when those need changing:

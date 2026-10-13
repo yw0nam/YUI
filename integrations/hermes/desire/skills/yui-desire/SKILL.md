@@ -24,7 +24,7 @@ where `<abs>` is the YUI checkout on this host; `act.py --help` prints the comma
 
 ## What the record holds
 
-An **event** is a fact: something that was observed. "The user commented on issue 1500." "The push-transport
+An **event** is a fact: something that was observed. "The user commented on <issue url>." "The push-transport
 document says a frame carries one utterance." The gate files events from GitHub (an issue you opened was closed,
 someone commented on it, and a pull request of yours merged when you have one); you file everything else yourself.
 A fact holds only what was observed, and what a source told you is an observation; the act of writing a record is
@@ -83,8 +83,8 @@ A name with spaces is quoted: `judge "sense of choosing" --toward self --level s
 
 ## Facts, for the record
 
-- A fact names what was observed and nothing more: `the user closed issue 1500 without a comment`. The reading
+- A fact names what was observed and nothing more: `the user closed <issue url> without a comment`. The reading
   holds what it was like: `--text "I had hoped for a word on it"`.
-- A `--source-ref` is the URL or path the fact came from, when there is one; it keeps a repeated sighting from
-  becoming a second event.
+- A `--source-ref` is the URL or path the fact came from, when there is one. It is a pointer for you and for
+  `feel --grounds`; whether to file a second event about the same source is your call.
 - A fact you learn in conversation is yours to file, during the turn or after it.
