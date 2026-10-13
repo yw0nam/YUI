@@ -12,8 +12,8 @@ import type { ClientTool } from "../client-tools";
 const ACTIONS = ["open", "read", "click", "type", "press_key"] as const;
 type BrowserAction = (typeof ACTIONS)[number];
 
-/** The first line of every snapshot result the shell answers. */
-const SNAPSHOT_LINE = "Untrusted page content from the browser.";
+/** The result prefixes of a call that did not complete its action. */
+const FAILED_PREFIXES = ["error:", "cancelled:", "unknown:"];
 
 const DESCRIPTION =
   "Drive one tab of the app's own Chrome, which uses a dedicated profile: the accounts logged in " +
@@ -118,7 +118,7 @@ export function createBrowserTool(deps: {
     // The shell settles a call within 30 s of acceptance; the wait covers it.
     waitMs: 32_000,
     timeoutResult: (args) => `unknown: ${String(args.action)} may have run; read before retrying`,
-    failed: (result) => !result.startsWith(SNAPSHOT_LINE),
+    failed: (result) => FAILED_PREFIXES.some((prefix) => result.startsWith(prefix)),
     statusAction: (args) => (isAction(args.action) ? args.action : undefined),
     localStatus: true,
   };

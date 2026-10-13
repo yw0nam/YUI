@@ -43,6 +43,7 @@ The client renders what arrives and judges nothing. Everything the backend must 
 | `done` or `failed` state held in the status pill's tool segment before it clears | 1.5 s |
 | `tool_call` wait, body action | 15 s on the client, 20 s on the backend adapter |
 | `tool_call` wait, query | 2 s on the client, 7 s on the backend adapter |
+| `tool_call` wait, browser | 32 s on the client, 40 s on the backend adapter |
 | Text-only `tool_result` frame size | 256 KiB |
 | `tool_result` frame size with a non-empty list of image data URLs | `max_turn_bytes` from `ready`, or 256 KiB when absent |
 | `playback` frame size | The text frame size |
@@ -279,7 +280,7 @@ Sent only to a client whose `hello` lists `error` in `accepts`, when a turn fail
 | `state` | `"running"` when the tool call starts, `"done"` when it returns, `"failed"` when it failed |
 | `tool_id` | The tool name as the backend knows it |
 
-Sent while the turn runs, once per state change of a tool call. A failed call carries `"failed"` in place of `"done"`. It counts as a frame of the turn for the frame wait and leaves the running state, the thinking motion and speech as they are. A turn may carry none. A `tool_status` for a turn the client did not send shows the status pill's tool segment and speaks no tool phrase. A running tool that gets no `done` is cleared by the turn's `turn_end`, and by the socket leaving `ready`. A `tool_status` naming a tool the client declared and runs itself, `browser`, is ignored; that tool's status comes from the client's own run.
+Sent while the turn runs, once per state change of a tool call. A failed call carries `"failed"` in place of `"done"`. It counts as a frame of the turn for the frame wait and leaves the running state, the thinking motion and speech as they are. A turn may carry none. A `tool_status` for a turn the client did not send shows the status pill's tool segment and speaks no tool phrase. A running tool that gets no `done` is cleared by the turn's `turn_end`, and by the socket leaving `ready`. A `tool_status` naming a tool the client declared and runs itself, `browser`, leaves the status pill as it is, since that tool's status comes from the client's own run, and still counts as a frame of the turn for the frame wait.
 
 ### `tool_call` (backend → client) and `tool_result` (client → backend)
 
@@ -320,7 +321,7 @@ The client's rules:
 3. A `tool_call` whose `id` repeats one queued or running is dropped with a log line and not answered; an answer would resolve the original call's waiter.
 4. A result whose frame would pass its applicable size limit is answered `error: result too large` instead. A result the client cannot send (the socket is not ready) is logged and dropped.
 5. A `tool_call` the client cannot read, such as a field of the wrong type, is dropped with a `frame_malformed` log line and gets no `tool_result`; the backend's wait answers it.
-6. The status pill takes its tool state from the backend's `tool_status` frames; the client emits no `tool_status` of its own for these calls. `browser` is the exception: the client runs it itself, shows its running and terminal state locally, and ignores a backend `tool_status` naming it.
+6. The status pill takes its tool state from the backend's `tool_status` frames; the client emits no `tool_status` of its own for these calls. `browser` is the exception: the client runs it itself and shows its running and terminal state locally. A backend `tool_status` naming it does not change the status pill and still counts as a frame of the turn for the frame wait.
 
 For an image result the client fits the images into the remaining frame budget with the same JPEG fitter used for `turn.images`. The final serialized frame, including ids and text, must fit the limit. When nothing fits, the result is `error: result too large` with no images. Text-only results keep the text frame cap.
 
