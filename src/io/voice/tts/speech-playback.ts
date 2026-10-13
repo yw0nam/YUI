@@ -178,22 +178,12 @@ export function createSpeechPlayback(options: SpeechPlaybackOptions): SpeechPlay
   const stripper = createEmojiStripper();
   const links = createLinkStripper();
 
-  // The cut utterance reports last so the persisted previous slot names it.
   function closeTracked(split: SpokenSplit): boolean {
-    const [identity, ...later] = [...queued, open].flatMap((utterance) =>
-      utterance?.identity ? [utterance.identity] : [],
-    );
+    const identity = queued.find((utterance) => utterance.identity)?.identity ?? open?.identity;
     open = null;
     queued.length = 0;
-    if (!identity) return false;
-    const reported = new Set([identity.turn_id]);
-    for (const next of later) {
-      if (reported.has(next.turn_id)) continue;
-      reported.add(next.turn_id);
-      options.onUtteranceEnd?.("interrupted", undefined, next);
-    }
-    options.onUtteranceEnd?.("interrupted", split, identity);
-    return true;
+    if (identity) options.onUtteranceEnd?.("interrupted", split, identity);
+    return identity !== undefined;
   }
 
   // Single call site for the reporting expression — every state change that can flip it calls this.

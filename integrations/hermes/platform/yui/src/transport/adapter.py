@@ -873,7 +873,8 @@ class YuiAdapter(BasePlatformAdapter):
             stream.close()
             token_usage = usage.take(chat_id)
             turn_ids = state.close_turns(chat_id)
-            self._playback.record_closed(chat_id, turn_ids, message)
+            if message:
+                self._playback.record_closed(chat_id, turn_ids)
             for turn_id in turn_ids:
                 if message:
                     await self._send_render(

@@ -177,7 +177,7 @@ The user pressed stop. `turn_ids` are the turns the client just stopped — ever
 | `turn_id` | The client turn whose call failed |
 | `ended` | `"failed"` |
 
-The client sends one frame per saved failed record with a `turn_id`, after `ready` and only while connected. Records saved while disconnected are not replayed on reconnect; the next turn's `previous:` line carries the failed outcome. Interruption and completion are stored in the previous-turn record only. The `previous:` line carries an interrupted outcome and omits a complete outcome. Playback frames carry no spoken or unspoken slices.
+The client sends one frame per saved failed record with a `turn_id`, after `ready` and only while connected. Records saved while disconnected are not replayed on reconnect; the next turn's `previous:` line carries the failed outcome. Interruption and completion are stored in the previous-turn record only. On interruption the `previous:` line names the cut utterance, carrying everything still owed. A complete outcome is omitted from the line.
 
 ## Replies
 

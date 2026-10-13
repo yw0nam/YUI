@@ -18,9 +18,8 @@ class PlaybackNotices:
     def __init__(self) -> None:
         self._error_turns: dict[str, set[str]] = {}
 
-    def record_closed(self, chat_id: str, turn_ids: list[str], error_message: str) -> None:
-        if error_message:
-            self._error_turns[chat_id] = set(turn_ids)
+    def record_closed(self, chat_id: str, turn_ids: list[str]) -> None:
+        self._error_turns[chat_id] = set(turn_ids)
 
     async def handle(
         self,
