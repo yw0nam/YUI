@@ -9,7 +9,7 @@ import { describe, expect, it, vi } from "vitest";
 import type { AvatarExecutor } from "../../bridge/inbox/avatar-executor";
 import type { ScreenCapture } from "../../window/capture/screenshot-context";
 import { createAvatarTools } from "./avatar";
-import { createClientToolRegistry, type ClientTool } from "./client-tools";
+import { type ClientTool, createClientToolRegistry } from "./client-tools";
 
 function executor(over: Partial<AvatarExecutor> = {}): AvatarExecutor {
   const base = {
@@ -164,7 +164,7 @@ describe("look — switch and declaration", () => {
     let allowRequests = true;
     const capture = vi.fn();
     const registry = createClientToolRegistry(
-      createAvatarTools(() => null, {
+      createAvatarTools(executor, {
         allowRequests: () => allowRequests,
         getWindow: () => null,
         listMonitors: async () => [],

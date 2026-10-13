@@ -308,29 +308,20 @@ export async function buildContext(
     }
   }
 
-  return {
-    ctx,
-    clientContext: withToolSwitches(
-      buildClientContext(
-        ctx,
-        env,
-        providers.getBodyState?.(),
-        providers.getFrontmost?.(),
-        providers.getPrevious?.(),
-        triggerKind(env.event_name) === "user" && providers.takeMessageWake?.() === true,
-      ),
-      providers.getToolSwitches?.(),
+  const switches = providers.getToolSwitches?.();
+  const clientContext = {
+    ...buildClientContext(
+      ctx,
+      env,
+      providers.getBodyState?.(),
+      providers.getFrontmost?.(),
+      providers.getPrevious?.(),
+      triggerKind(env.event_name) === "user" && providers.takeMessageWake?.() === true,
     ),
+    ...(switches?.length ? { tool_switches: switches } : {}),
   };
-}
 
-/** Attaches the switch list when the window declares a switchable tool. */
-function withToolSwitches(
-  clientContext: ClientContext,
-  toolSwitches: ClientContext["tool_switches"],
-): ClientContext {
-  if (!toolSwitches || toolSwitches.length === 0) return clientContext;
-  return { ...clientContext, tool_switches: toolSwitches };
+  return { ctx, clientContext };
 }
 
 export function imageDataUrlsOf(ctx: InputContext): string[] {

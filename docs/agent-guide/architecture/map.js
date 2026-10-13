@@ -1342,7 +1342,7 @@ globalThis.YUI_MAP =
       "id": "context-settings",
       "from": "settings",
       "to": "dispatcher/backend",
-      "carries": "agent, screenshot and tool-switch settings read per turn",
+      "carries": "agent and screenshot settings read per turn",
       "kind": "callback",
       "transport": "shared",
       "wiring": "src/app/turn/wire-dispatcher.ts"
@@ -1718,6 +1718,15 @@ globalThis.YUI_MAP =
       "carries": "declared tool schemas of the turn",
       "kind": "callback",
       "transport": "request",
+      "wiring": "src/app/turn/wire-dispatcher.ts"
+    },
+    {
+      "id": "tool-switches-backend",
+      "from": "io/chat/tools",
+      "to": "dispatcher/backend",
+      "carries": "switch states of the declared tools, read per turn",
+      "kind": "callback",
+      "transport": "shared",
       "wiring": "src/app/turn/wire-dispatcher.ts"
     },
     {

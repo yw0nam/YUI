@@ -7,6 +7,7 @@
  * an engine edit.
  */
 
+import type { ClientContext } from "../../../contract";
 import type { ExpressVocabulary } from "../vocabulary/express-vocabulary";
 import { createGenerateExpressTool } from "./express";
 
@@ -38,6 +39,8 @@ export interface ClientTool {
   execute(args: Record<string, unknown>): Promise<ClientToolResult>;
   /** The wait the call's execution is bounded by; the execution keeps running past it. */
   waitMs: number;
+  /** The switch that gates the tool's execution, read when a call runs; absent on unswitched tools. */
+  switch?: { id: string; on(): boolean };
   /**
    * Cue-only tool: the result carries nothing the model can use, so a response that already spoke
    * needs no round trip. A tool that answers a question leaves this unset — its result is the point.
@@ -54,6 +57,8 @@ export interface ClientToolRegistry {
   definitions(): ClientToolDefinition[];
   /** Registered tool by exact name; undefined for a call the client did not declare. */
   get(name: string): ClientTool | undefined;
+  /** Switch state of every registered tool that has a switch, in registration order, each read at the call. */
+  switches(): NonNullable<ClientContext["tool_switches"]>;
 }
 
 export function createClientToolRegistry(tools: readonly ClientTool[]): ClientToolRegistry {
@@ -62,6 +67,8 @@ export function createClientToolRegistry(tools: readonly ClientTool[]): ClientTo
   return {
     definitions: () => definitions,
     get: (name) => byName.get(name),
+    switches: () =>
+      tools.flatMap((tool) => (tool.switch ? [{ id: tool.switch.id, on: tool.switch.on() }] : [])),
   };
 }
 

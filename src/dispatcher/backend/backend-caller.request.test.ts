@@ -1189,7 +1189,7 @@ describe("backend_caller — Chat Completions (CC) mode request shape", () => {
 
   it("clientTools dep → the registry is handed to the stream, resolved per turn", async () => {
     script.events = [completedEvent({ speech_text: "" }, "")];
-    const registry = { definitions: () => [], get: () => undefined };
+    const registry = { definitions: () => [], get: () => undefined, switches: () => [] };
     const clientTools = vi.fn(() => registry);
     caller = createBackendCaller({
       config: CC_CONFIG,

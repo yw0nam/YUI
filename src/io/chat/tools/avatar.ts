@@ -82,6 +82,7 @@ function createLookTool(
 ): ClientTool {
   return {
     name: "look",
+    switch: screen ? { id: "look.screen", on: screen.allowRequests } : undefined,
     definition: {
       type: "function",
       function: {
