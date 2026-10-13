@@ -6,8 +6,8 @@ import logging
 from collections.abc import Callable
 
 from ..express import tools
-from ..turns import session
 from ..tools.image_result import result_text
+from ..turns import session
 
 logger = logging.getLogger(__name__)
 
