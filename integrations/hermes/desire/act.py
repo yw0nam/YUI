@@ -401,8 +401,8 @@ _JUDGE_USAGE = (
 )
 
 
-def _judge_shape(args):
-    """Name the one shape the given arguments form, or ``None`` for any other combination."""
+def _judge_mode(args):
+    """Name the one mode the given arguments form, or ``None`` for any other combination."""
 
     if args.list:
         plain = args.name is None and args.toward is None and args.level is None and not args.put_down
@@ -415,12 +415,12 @@ def _judge_shape(args):
 
 
 def _judge(args, now):
-    shape = _judge_shape(args)
-    if shape is None:
+    mode = _judge_mode(args)
+    if mode is None:
         print(f"usage: {_JUDGE_USAGE}", file=sys.stderr)
         return 2
     state_dir = desire_config.resolve_state_dir()
-    if shape == "list":
+    if mode == "list":
         return _judge_list(state_dir)
     try:
         desire_judgments.judge(state_dir, args.name, args.toward, args.level, args.event or [], args.why, now)
@@ -431,7 +431,7 @@ def _judge(args, now):
         print(str(error), file=sys.stderr)
         return 1
     name = args.name.strip()
-    if shape == "put-down":
+    if mode == "put-down":
         print(f"put down {name} toward {args.toward}")
     else:
         print(f"judged {name} toward {args.toward}: {args.level}")
