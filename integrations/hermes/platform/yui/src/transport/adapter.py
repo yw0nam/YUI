@@ -107,9 +107,14 @@ def _is_interim(meta: dict) -> bool:
     return any(meta.get(marker) for marker in INTERIM_MARKERS)
 
 
+def _is_unspoken(meta: dict) -> bool:
+    """A send the gateway marks as its own notice or as a mid-turn edit; neither is a reply."""
+    return bool(meta.get(NOTICE_MARKER)) or _is_interim(meta)
+
+
 def _failure_line(content: str, meta: dict) -> str:
     """The failure line the gateway sends bare, as one line; empty for a reply, a notice or an interim."""
-    if meta.get("notify") or meta.get(NOTICE_MARKER) or _is_interim(meta):
+    if meta.get("notify") or _is_unspoken(meta):
         return ""
     return " ".join(content.split())
 
@@ -721,6 +726,9 @@ class YuiAdapter(BasePlatformAdapter):
         if message:
             await self._close_failed(chat_id, message)
             return SendResult(success=True, message_id=_message_id())
+        if reports_errors and waiting and _is_unspoken(meta):
+            # Only a reply or the failure line ends the turn; its real failure line is still to come.
+            return await self._deliver(chat_id, content, meta)
         result = await self._deliver(chat_id, content, meta)
         await self._close_failed(chat_id)
         return result

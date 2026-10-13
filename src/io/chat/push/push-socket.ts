@@ -30,7 +30,7 @@ import {
 const baseLog = createLogger("push-socket");
 
 /** The frame types read beyond the base set, as `hello.accepts` names them. */
-const ACCEPTED_FRAMES = ["error"];
+const ACCEPTED_FRAMES: readonly string[] = ["error"];
 
 /** Text frame size cap, either direction. */
 export const PUSH_FRAME_MAX_BYTES = 256 * 1024;
