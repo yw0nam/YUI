@@ -50,6 +50,7 @@ Code is the source of truth for client behavior, TS contract shapes, and config 
 Read these when the trigger applies; they are not loaded by default.
 
 - **Code location / orientation** → `docs/agent-guide/project-structure.md`
+- **How data moves between modules, and placing a new feature** → `docs/agent-guide/architecture/map.js` (viewer: `index.html` beside it; procedure: `CONTRIBUTING.md` § Architecture map)
 - **Standalone Mods (independent MCP servers)** → `Mods/README.md` — not part of the app runtime; own Python/uv toolchain + `mods` and `mods-lint` CI jobs
 - **Adding a Mod / Mods CI rules** → `docs/agent-guide/mods.md` — per-mod uv-project layout, router registration, the two-loop CI, ruff
 - **Agent desire system (Hermes-side)** → `integrations/hermes/desire/README.md`

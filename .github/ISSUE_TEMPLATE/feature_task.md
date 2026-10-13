@@ -12,6 +12,9 @@ labels: ["feature"]
 <!-- Copy the relevant feature acceptance criteria. -->
 - [ ]
 
+## Architecture map
+<!-- The node of docs/agent-guide/architecture/map.js this work goes into, the nodes it touches, and the edges it adds, removes, or changes. "None" for work inside one node. -->
+
 ## Dependencies
 <!-- Prerequisite features/issues, contract deliverables -->
 

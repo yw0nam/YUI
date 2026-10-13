@@ -24,6 +24,7 @@
 
 ## Checklist (YUI principles)
 - [ ] Schema changes update `docs/reference/client-context.md` alongside the code
+- [ ] `docs/agent-guide/architecture/map.js` carries every node and edge this PR adds, removes, or changes (or none changed)
 - [ ] No unverified assumptions (docs first; web/context7 cross-check)
 - [ ] No brain in the client — judgment/persona/mode live in the backend (firing ≠ judgment)
 - [ ] No inline control tags — emotion/motion only via `generate_express` tool-call arguments

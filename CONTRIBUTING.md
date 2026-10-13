@@ -59,6 +59,34 @@ and removed in v0.6.0) — see
   section; ask the user only for what genuinely requires them (audio playback,
   physical input feel).
 
+## Architecture map
+
+[`docs/agent-guide/architecture/map.js`](docs/agent-guide/architecture/map.js)
+is the map of the client. Open `index.html` beside it from disk to view it.
+
+- A node is a feature folder of `src/` or a module of `src-tauri/src`, with a
+  one-sentence role. Backend agents, Mods, and outside services are external
+  nodes that carry only the shape of the exchange.
+- An edge names what crosses between two nodes as the code spells it, its kind
+  (call, callback, Tauri event, Tauri command, HTTP, WebSocket frame,
+  localStorage, cross-window bridge), the transport it belongs to (shared,
+  request, push), and the wiring file that connects the two ends.
+- A flow is a numbered list of steps over those edges.
+
+A change that adds or removes a node or an edge, or changes what crosses an
+edge, follows these steps. A change inside one node skips them.
+
+1. Read the map and name the node the change goes into and the nodes it
+   touches.
+2. Agree the new and changed edges in the issue's **Architecture map** section.
+3. Edit `map.js` in the worktree, run `pnpm map:base`, and open the viewer's
+   Compare view to confirm the difference is the agreed one.
+4. Ship the `map.js` change in the same PR as the code.
+
+`pnpm map:check` fails when a node's path or an edge's wiring file does not
+exist, when a source folder belongs to no node, or when an edge or a flow step
+names a missing id. CI runs it in the `web` job.
+
 ## Code rules
 
 - **Comments: minimal, present-tense only.** One line, only what the code
@@ -169,6 +197,7 @@ Run the same checks CI does — paste the block from the repo root:
 
 ```bash
 pnpm test                     # vitest
+pnpm map:check                # architecture map matches the tree
 pnpm typecheck:test           # tsc over the test files
 pnpm build                    # tsc + vite build
 pnpm docs:build               # vitepress build + dead-link check
