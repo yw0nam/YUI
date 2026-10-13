@@ -2285,65 +2285,65 @@ async def test_a_turn_on_a_chat_that_never_published_leaves_the_schema_alone(ada
     assert declared == []
 
 
-@pytest.mark.parametrize("ended", ["interrupted", "failed"])
-async def test_playback_starts_one_internal_event(ended, client, adapter, monkeypatch):
+async def test_failed_playback_for_a_foreign_turn_starts_one_internal_event(client, adapter, monkeypatch):
     from unittest.mock import AsyncMock
 
-    await ready(client)
+    ws = await ready(client, accepts=["error"])
+    failed = user_turn(adapter, "777")
+    await adapter.on_processing_start(failed)
+    await adapter.on_processing_complete(failed, ProcessingOutcome.FAILURE)
+    await adapter.send(CHAT, "Provider failed.")
+    assert (await recv(ws))["type"] == "error"
+    assert (await recv(ws))["type"] == "turn_end"
     handle = AsyncMock()
     monkeypatch.setattr(adapter, "handle_message", handle)
-    await adapter._on_frame(
-        CHAT,
-        {
-            "type": "playback",
-            "turn_id": "hermes-1",
-            "ended": ended,
-            "spoken": 'Heard "this".\nNext.',
-            "unspoken": "Owed.\r\nMore.",
-        },
-    )
+    await adapter._on_frame(CHAT, {"type": "playback", "turn_id": "hermes-1", "ended": "failed"})
     handle.assert_awaited_once()
     event = handle.call_args.args[0]
     assert event.internal is True
     assert event.reply_expected is False
     assert event.allow_gateway_control is False
     assert event.source == adapter._source(CHAT)
-    assert event.text.startswith(f"[playback] {ended} turn=hermes-1")
-    assert len(event.text.splitlines()) == 1
-    assert "Heard" in event.text and "Owed" in event.text
+    assert event.text == "[playback] failed turn=hermes-1"
     assert reports.take(CHAT) == ([], 0)
 
 
-async def test_playback_complete_logs_once_without_an_event(client, adapter, monkeypatch, caplog):
+@pytest.mark.parametrize("turn_ids", [["777"], ["777", "778"]])
+async def test_failed_playback_for_error_framed_turns_logs_without_an_event(
+    turn_ids, client, adapter, monkeypatch, caplog
+):
     from unittest.mock import AsyncMock
 
-    await ready(client)
+    ws = await ready(client, accepts=["error"])
+    failed = user_turn(adapter, turn_ids[0])
+    await adapter.on_processing_start(failed)
+    adapter._active_sessions[adapter._event_session_key(failed)] = object()
+    for turn_id in turn_ids[1:]:
+        await adapter._on_frame(CHAT, {"type": "turn", "turn_id": turn_id, "text": "and the docs?"})
+    await adapter.on_processing_complete(failed, ProcessingOutcome.FAILURE)
+    await adapter.send(CHAT, "Provider failed.")
+    for turn_id in turn_ids:
+        assert await recv(ws) == {"type": "error", "turn_id": turn_id, "message": "Provider failed."}
+        assert await recv(ws) == {"type": "turn_end", "turn_id": turn_id}
     handle = AsyncMock()
     monkeypatch.setattr(adapter, "handle_message", handle)
     with caplog.at_level(logging.INFO):
-        await adapter._on_frame(CHAT, {"type": "playback", "turn_id": "7", "ended": "complete"})
+        for turn_id in turn_ids:
+            await adapter._on_frame(CHAT, {"type": "playback", "turn_id": turn_id, "ended": "failed"})
     handle.assert_not_awaited()
     lines = [record.getMessage() for record in caplog.records if "playback" in record.getMessage()]
-    assert len(lines) == 1
-    assert "complete" in lines[0] and "7" in lines[0]
-
-
-async def test_silent_internal_playback_completion_sends_only_turn_end(client, adapter):
-    ws = await ready(client)
-    event = internal_event(adapter, "[playback] interrupted turn=7")
-    event.reply_expected = False
-    await adapter.on_processing_start(event)
-    turn_id = state.turn_id(CHAT)
-    assert turn_id.startswith("hermes-")
-    await adapter.on_processing_complete(event, ProcessingOutcome.SUCCESS)
-    assert await recv(ws) == {"type": "turn_end", "turn_id": turn_id}
+    assert len(lines) == len(turn_ids)
+    for turn_id in turn_ids:
+        assert any(turn_id in line for line in lines)
 
 
 @pytest.mark.parametrize(
     "frame",
     [
-        {"type": "playback", "ended": "interrupted"},
-        {"type": "playback", "turn_id": "7", "ended": "unknown"},
+        {"type": "playback", "ended": "failed"},
+        {"type": "playback", "turn_id": "7", "ended": "interrupted"},
+        {"type": "playback", "turn_id": "7", "ended": "complete"},
+        {"type": "playback", "turn_id": "7", "ended": "other"},
     ],
 )
 async def test_malformed_playback_warns_without_an_event(frame, client, adapter, monkeypatch, caplog):

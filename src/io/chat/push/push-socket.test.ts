@@ -1422,9 +1422,7 @@ describe("push socket — playback", () => {
   const frame = {
     type: "playback" as const,
     turn_id: "hermes-1",
-    ended: "interrupted" as const,
-    spoken: "Heard.",
-    unspoken: "Owed.",
+    ended: "failed" as const,
   };
 
   it("sendPlayback sends the exact frame after ready", async () => {
