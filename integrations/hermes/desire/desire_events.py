@@ -1,8 +1,10 @@
-"""The event and reading logs: line validity and the unread-events decision."""
+"""The event and reading logs: their writers, line validity, the shown state and the unread events."""
 
 from __future__ import annotations
 
 import re
+import secrets
+from datetime import datetime
 from pathlib import Path
 
 if __package__:
@@ -13,6 +15,11 @@ else:
 
 _EVENT_ID = re.compile(r"^e-[0-9a-f]{6}$")
 _READING_ID = re.compile(r"^r-[0-9a-f]{6}$")
+SOURCES = ("agent", "monitor")
+
+
+class UnknownEventError(ValueError):
+    """The id names no valid event."""
 
 
 def _stamped(line: dict) -> bool:
@@ -47,6 +54,15 @@ def _retracts_of(line: dict) -> str | None:
     return line["retracts"] if _stamped(line) else None
 
 
+def _corrects_of(line: dict) -> str | None:
+    """Return the corrected id when the line is a valid correction, else ``None``."""
+
+    fact = line.get("fact")
+    if not isinstance(line.get("corrects"), str) or not isinstance(fact, str) or not fact:
+        return None
+    return line["corrects"] if _stamped(line) else None
+
+
 def _event_id_read_by(line: dict) -> str | None:
     """Return the event id when the line is a valid reading, else ``None``."""
 
@@ -58,26 +74,175 @@ def _event_id_read_by(line: dict) -> str | None:
     return line["event_id"] if _stamped(line) else None
 
 
-def unread_event_ids(state_dir: Path) -> list[str]:
-    """Return the ids of valid events that no valid retraction or reading names, in file order."""
+def _read_log(state_dir: Path) -> dict[str, dict]:
+    """Return every valid event by id in file order, with its shown fact, retraction and latest reading."""
 
     state_dir = Path(state_dir)
-    events: list[str] = []
-    seen: set[str] = set()
+    events: dict[str, dict] = {}
+    facts: dict[str, str] = {}
     retracted: set[str] = set()
     for line in desire_store.read_jsonl(state_dir / "events.jsonl"):
         event_id = _event_id_of(line)
         if event_id is not None:
-            if event_id not in seen:
-                seen.add(event_id)
-                events.append(event_id)
+            events.setdefault(event_id, line)
             continue
         retracts = _retracts_of(line)
         if retracts is not None:
             retracted.add(retracts)
-    read = {
-        read_by
-        for read_by in map(_event_id_read_by, desire_store.read_jsonl(state_dir / "readings.jsonl"))
-        if read_by is not None
+            continue
+        corrects = _corrects_of(line)
+        if corrects is not None:
+            facts[corrects] = line["fact"]
+    readings: dict[str, dict] = {}
+    for line in desire_store.read_jsonl(state_dir / "readings.jsonl"):
+        event_id = _event_id_read_by(line)
+        if event_id is not None:
+            readings[event_id] = line
+    return {
+        event_id: {
+            "line": line,
+            "fact": facts.get(event_id, line["fact"]),
+            "retracted": event_id in retracted,
+            "reading": readings.get(event_id),
+        }
+        for event_id, line in events.items()
     }
-    return [event_id for event_id in events if event_id not in retracted and event_id not in read]
+
+
+def _source_ref(line: dict) -> str | None:
+    ref = line.get("source_ref")
+    return ref if isinstance(ref, str) else None
+
+
+def events_view(state_dir: Path) -> list[dict]:
+    """Return the events that are not retracted, in file order, as they are shown."""
+
+    return [
+        {
+            "id": event_id,
+            "at": entry["line"]["at"],
+            "fact": entry["fact"],
+            "source": entry["line"]["source"],
+            "source_ref": _source_ref(entry["line"]),
+            "reading": None
+            if entry["reading"] is None
+            else {key: entry["reading"][key] for key in ("id", "at", "text")},
+        }
+        for event_id, entry in _read_log(state_dir).items()
+        if not entry["retracted"]
+    ]
+
+
+def unread_event_ids(state_dir: Path) -> list[str]:
+    """Return the ids of valid events that no valid retraction or reading names, in file order."""
+
+    return [
+        event_id
+        for event_id, entry in _read_log(state_dir).items()
+        if not entry["retracted"] and entry["reading"] is None
+    ]
+
+
+def monitor_refs(state_dir: Path) -> set[str]:
+    """Return the text refs of every monitor event, retracted or not."""
+
+    return {
+        ref
+        for entry in _read_log(state_dir).values()
+        if entry["line"]["source"] == "monitor" and (ref := _source_ref(entry["line"])) is not None
+    }
+
+
+def _text(value: object, name: str) -> str:
+    text = value.strip() if isinstance(value, str) else ""
+    if not text:
+        raise ValueError(f"empty {name}")
+    return text
+
+
+def _new_id(path: Path, prefix: str) -> str:
+    """Draw an id that no line of the file carries yet. The caller holds ``state_lock``."""
+
+    taken = {line.get("id") for line in desire_store.read_jsonl(path)}
+    candidate = prefix + secrets.token_hex(3)
+    while candidate in taken:
+        candidate = prefix + secrets.token_hex(3)
+    return candidate
+
+
+def _entry(state_dir: Path, event_id: str) -> dict:
+    entry = _read_log(state_dir).get(event_id)
+    if entry is None:
+        raise UnknownEventError(f"unknown event {event_id}")
+    return entry
+
+
+def file_event(state_dir: Path, fact: str, source: str, source_ref: str | None, now: datetime) -> str:
+    """Append an event and return its id."""
+
+    fact = _text(fact, "fact")
+    if source not in SOURCES:
+        raise ValueError(f"unknown source {source!r}")
+    if source_ref is not None:
+        source_ref = _text(source_ref, "source_ref")
+    stamp = desire_config.normalize_now(now).isoformat()
+    path = Path(state_dir) / "events.jsonl"
+    with desire_store.state_lock(state_dir):
+        event_id = _new_id(path, "e-")
+        desire_store.append_jsonl(
+            path, {"id": event_id, "at": stamp, "fact": fact, "source": source, "source_ref": source_ref}
+        )
+    return event_id
+
+
+def file_event_with_reading(
+    state_dir: Path, fact: str, text: str, source_ref: str | None, now: datetime
+) -> tuple[str, str]:
+    """Append an agent event and its reading in one lock, so no reader sees the event alone."""
+
+    fact = _text(fact, "fact")
+    text = _text(text, "text")
+    with desire_store.state_lock(state_dir):
+        event_id = file_event(state_dir, fact, "agent", source_ref, now)
+        return event_id, file_reading(state_dir, event_id, text, now)
+
+
+def file_reading(state_dir: Path, event_id: str, text: str, now: datetime) -> str:
+    """Append a reading of a live event and return its id."""
+
+    text = _text(text, "text")
+    stamp = desire_config.normalize_now(now).isoformat()
+    path = Path(state_dir) / "readings.jsonl"
+    with desire_store.state_lock(state_dir):
+        if _entry(state_dir, event_id)["retracted"]:
+            raise ValueError(f"event {event_id} is retracted")
+        reading_id = _new_id(path, "r-")
+        desire_store.append_jsonl(path, {"id": reading_id, "event_id": event_id, "at": stamp, "text": text})
+    return reading_id
+
+
+def correct(state_dir: Path, event_id: str, fact: str, now: datetime) -> None:
+    """Append a correction of a live event's fact."""
+
+    fact = _text(fact, "fact")
+    stamp = desire_config.normalize_now(now).isoformat()
+    with desire_store.state_lock(state_dir):
+        if _entry(state_dir, event_id)["retracted"]:
+            raise ValueError(f"event {event_id} is retracted")
+        desire_store.append_jsonl(
+            Path(state_dir) / "events.jsonl", {"corrects": event_id, "at": stamp, "fact": fact}
+        )
+
+
+def retract(state_dir: Path, event_id: str, why: str, now: datetime) -> bool:
+    """Append a retraction, or report ``False`` without writing when the event already is retracted."""
+
+    why = _text(why, "why")
+    stamp = desire_config.normalize_now(now).isoformat()
+    with desire_store.state_lock(state_dir):
+        if _entry(state_dir, event_id)["retracted"]:
+            return False
+        desire_store.append_jsonl(
+            Path(state_dir) / "events.jsonl", {"retracts": event_id, "at": stamp, "why": why}
+        )
+    return True
