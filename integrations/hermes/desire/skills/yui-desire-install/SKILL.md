@@ -103,7 +103,10 @@ through an SSH reverse tunnel, use the tunnel endpoint instead of port 8770. Che
 
 A profile's pre-run scripts live under `~/.hermes/profiles/<profile>/scripts/`. Hermes resolves symlinks before
 checking that a script stays under that directory, so a symlink into the checkout is rejected as an escape. Write
-a real file that execs the repository script by absolute path:
+a real file that execs the repository script by absolute path. The gate uses whatever `gh` is first on the
+wrapper's `PATH`; a profile that acts on GitHub as a GitHub App through a `gh` shim puts the shim's directory first
+with an optional `PATH=<dir>:$PATH` line before `exec`, written as `PATH=<dir>:$PATH\n` after `#!/bin/sh\n` in the
+`printf` below:
 
 ```bash
 mkdir -p ~/.hermes/profiles/<profile>/scripts
@@ -149,11 +152,13 @@ gh repo clone <owner>/<repo>
 gh label create from-<agent> --repo <owner>/<repo>
 ```
 
-Check: `gh auth status` reports a logged-in account with `repo` scope, every clone exists in the workspace, and
-`gh label list --repo <owner>/<repo>` shows `from-<agent>` for each repository that account owns. A label that
-already exists makes `gh label create` exit non-zero; that is fine. The gate runs `gh` as the gateway user, so
-that user's `gh auth status` is the one that counts; on a gateway serving several profiles, a `GH_TOKEN` in the
-profile `.env` reaches the gate only when `env_passthrough` lists it.
+Check: run `gh auth status` from inside a workspace clone, as the gate does; it reports a logged-in account with
+`repo` scope. With a `gh` shim, `gh api user` answering 403 is expected, and
+`gh issue list --repo <owner>/<repo> --limit 1` from inside the clone is the check. Every clone exists in the
+workspace, and `gh label list --repo <owner>/<repo>` shows `from-<agent>` for each repository that account owns.
+A label that already exists makes `gh label create` exit non-zero; that is fine. The gate runs `gh` as the
+gateway user, so that user's `gh auth status` is the one that counts; on a gateway serving several profiles, a
+`GH_TOKEN` in the profile `.env` reaches the gate only when `env_passthrough` lists it.
 
 ## 6. Cron jobs
 

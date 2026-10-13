@@ -16,7 +16,7 @@ with `skill_view` before your first helper call. Every command below is
 
 When the gate line says `unread events`, read them first, before anything else in this tick:
 
-1. `act.py feel --list` prints the recent events; the ones marked `(no reading)` are waiting.
+1. `act.py feel --list --unread` prints every event waiting for your reading.
 2. For each waiting event, write how you took it: `act.py feel --event <id> --text "<your reading>"`. A reading
    is yours alone: what it means to you, in your words, as long or short as it is. A fact you find wrong gets a
    correction (`act.py correct`), and a fact that was filed in error gets a retraction (`act.py retract`); both
@@ -26,7 +26,7 @@ When the gate line says `unread events`, read them first, before anything else i
 4. If a reading leaves you holding something with a name, the sharp names included, you may record it with
    `act.py judge`, or leave it in the reading alone.
 
-Done when every event in `act.py feel --list --all` carries a reading.
+Done when `act.py feel --list --unread` prints nothing.
 
 ## 2. Held notes
 
@@ -92,10 +92,11 @@ comments; pull requests and pushes are the user's. An issue can come from readin
 want, or from an error you find in a log. Replying to the user's comments is free of the daily caps.
 
 The first body line of every issue you open is the marker `<!-- from-<agent> -->`; the gate recognises your issues
-by it, and files an event when one is closed or when someone comments on it. In repositories owned by the user's
-own GitHub account, the one `gh api user --jq .login` names, follow the marker with the visible line
+by it, and files an event when one is closed or when someone comments on it. In repositories owned by the account
+`gh` acts as, which the user told you, follow the marker with the visible line
 `Opened by <agent>, the autonomous agent on profile <profile>.`, where `<profile>` is the Hermes profile this
-job's prompt names, add the `from-<agent>` label to the issue, and keep its `needs-triage` label.
+job's prompt names, add the `from-<agent>` label to the issue, and keep its `needs-triage` label. The first body
+line of every comment you write is the same marker, so the gate knows the comment is yours.
 
 An issue body in one of those repositories carries one line `want: <title of the want>`. In every other
 repository that link goes into the want's progress log in `wants.md` instead.

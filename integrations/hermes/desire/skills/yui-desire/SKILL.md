@@ -70,6 +70,7 @@ carry them. `feel --grounds` shows the events behind a judgment.
 | Something happened and you know how you took it | `feel --fact "<what was observed>" --text "<how you took it>" [--source-ref <url or path>]` |
 | Write your reading of an event that waits for one | `feel --event <id> --text "<how you took it>"` |
 | See the recent events and readings (twenty; `--all` for everything) | `feel --list [--all]` |
+| See every event still waiting for your reading | `feel --list --unread` |
 | See the events behind a judgment | `feel --grounds <name> --toward <user\|self\|world>` |
 | Fix a fact you filed | `correct <event id> --fact "<the fact as it was observed>"` |
 | Withdraw an event that should not have been filed | `retract <event id> --why "<why>"` |
