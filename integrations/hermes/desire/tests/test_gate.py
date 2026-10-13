@@ -8,11 +8,13 @@ import pytest
 from conftest import AGENT_NAME
 
 import desire_config
+import desire_events
 import desire_state
 import desire_store
 import gate
 
 BRANCH = f"{AGENT_NAME}/"
+LOGIN = "testagent-bot"
 MARKER = f"<!-- from-{AGENT_NAME} -->"
 NO_WAKE = '{"wakeAgent": false}\n'
 
@@ -65,11 +67,24 @@ def git_repo(workspace: Path, name: str, origin: str | None) -> Path:
     return path
 
 
-def gh_runner(payloads: dict, failing: tuple = (), views: dict | None = None):
-    """Answer `gh <kind> list` from a `(command, repo)` table and `gh <kind> view` from a url table."""
+def gh_runner(payloads: dict, failing: tuple = (), views: dict | None = None, comments=None, calls=None):
+    """Answer `gh <kind> list` from a `(command, repo)` table, `gh <kind> view` from a url table,
+    and `gh api` from the agent login and a per-repository comments table."""
 
     def run(args: list[str]) -> str:
+        if calls is not None:
+            calls.append(args)
         command = args[0]
+        if command == "api":
+            if args[1] == "user":
+                if "login" in failing:
+                    raise RuntimeError("gh: HTTP 401")
+                return f"{LOGIN}\n"
+            repo = args[1].removeprefix("repos/").split("/issues/comments")[0]
+            if "comments" in failing or ("comments", repo) in failing:
+                raise RuntimeError("gh: HTTP 502")
+            answer = (comments or {}).get(repo, [])
+            return answer if isinstance(answer, str) else "".join(json.dumps(item) + "\n" for item in answer)
         if args[1] == "view":
             url = args[2]
             if url in failing:
@@ -91,7 +106,7 @@ def run_gate(state_dir, now, **sources):
     return observed
 
 
-def derive(state_dir, now, tmp_path, *, payloads=None, failing=(), views=None):
+def derive(state_dir, now, tmp_path, *, payloads=None, failing=(), views=None, comments=None, calls=None):
     """Run one derivation over a workspace holding `owner/YUI`."""
 
     workspace = tmp_path / "workspace"
@@ -102,7 +117,7 @@ def derive(state_dir, now, tmp_path, *, payloads=None, failing=(), views=None):
         state_dir,
         now,
         workspace_root=workspace,
-        run_gh=gh_runner(payloads or {}, failing, views),
+        run_gh=gh_runner(payloads or {}, failing, views, comments, calls),
     )
 
 
@@ -303,15 +318,17 @@ def test_a_failed_audit_write_still_prints_the_no_wake_line(state_dir, at, capsy
     assert capsys.readouterr().out == NO_WAKE
 
 
-def test_the_first_run_deletes_the_monitor_leftovers(state_dir, at):
+def test_the_first_run_deletes_the_monitor_and_cursor_leftovers(state_dir, at):
     now = at("2026-08-25T12:00:00+09:00")
     (state_dir / "monitor.json").write_text("{}", encoding="utf-8")
     (state_dir / "ticks.jsonl").write_text('{"at": 1}\n', encoding="utf-8")
+    (state_dir / "cursor.json").write_text("{}", encoding="utf-8")
 
     assert gate.run(now) == NO_WAKE
 
     assert not (state_dir / "monitor.json").exists()
     assert not (state_dir / "ticks.jsonl").exists()
+    assert not (state_dir / "cursor.json").exists()
 
 
 def test_an_installed_drives_file_with_level_objects_is_rewritten_to_the_stamps(state_dir, at, state_helpers):
@@ -374,7 +391,10 @@ def test_the_first_answer_records_everything_seen_and_shipped(state_dir, at, tmp
             "issue": ["https://github.com/owner/YUI/issues/9"],
         },
         "shipped": ["https://github.com/owner/YUI/pull/2"],
+        "comments_from": {"owner/YUI": now.isoformat()},
+        "comments_since": {"owner/YUI": now.isoformat()},
     }
+    assert desire_events.events_view(state_dir) == []
 
 
 def test_a_new_agent_pull_request_is_recorded_exactly_once(state_dir, at, tmp_path, state_helpers):
@@ -697,19 +717,20 @@ def test_sources_are_read_before_the_gate_takes_the_state_lock(state_dir, at, is
     def probe_lock(args):
         def take():
             with desire_store.state_lock(state_dir):
-                acquired.append(args[0])
+                acquired.append(args[0] if args[0] != "api" else args[1].split("?")[0])
 
         worker = threading.Thread(target=take, daemon=True)
         worker.start()
         worker.join(timeout=5)
         assert not worker.is_alive(), "the gate held the state lock while reading a source"
-        return "[]"
+        return LOGIN if args[:2] == ["api", "user"] else "[]" if args[0] != "api" else ""
 
     monkeypatch.setattr(gate, "run_gh", probe_lock)
 
     gate.run(now)
+    gate.run(now + timedelta(minutes=5))
 
-    assert acquired == ["pr", "issue"]
+    assert acquired == ["user", "pr", "issue", "user", "pr", "issue", "repos/owner/YUI/issues/comments"]
 
 
 def test_gate_run_derives_from_the_profile_and_stays_silent_when_a_source_fails(
@@ -729,7 +750,7 @@ def test_gate_run_derives_from_the_profile_and_stays_silent_when_a_source_fails(
 
     assert gate.run(now) == NO_WAKE
 
-    assert [event["source"] for event in audited(state_dir, "derive_failed")] == ["pr", "issue"]
+    assert [event["source"] for event in audited(state_dir, "derive_failed")] == ["login", "pr", "issue"]
     assert read_json(state_dir / "artefacts.json")["seen"] == {"pr": [], "issue": []}
 
 
@@ -1075,3 +1096,322 @@ def test_an_invalid_gate_state_is_quarantined_and_rebuilt(state_dir, at, state_h
     assert [
         e["file"] for e in read_jsonl(state_dir / "audit.jsonl") if e["event"] == "state_corrupt_recovered"
     ] == ["gate.json"]
+
+
+ISSUE = "https://github.com/owner/YUI/issues/9"
+PULL = "https://github.com/owner/YUI/pull/4"
+
+
+def open_issue(url=ISSUE, closed_at=None):
+    return {"url": url, "body": f"{MARKER}\nhello", "closedAt": closed_at}
+
+
+def open_pull(url=PULL, merged_at=None):
+    return {"url": url, "headRefName": f"{BRANCH}x", "mergedAt": merged_at}
+
+
+def comment(number, comment_id, login, created, updated=None, *, path="issues"):
+    return {
+        "html_url": f"https://github.com/owner/YUI/{path}/{number}#issuecomment-{comment_id}",
+        "issue_url": f"https://api.github.com/repos/owner/YUI/issues/{number}",
+        "user": {"login": login},
+        "created_at": created,
+        "updated_at": updated or created,
+    }
+
+
+def monitor_events(state_dir):
+    return [(event["fact"], event["source_ref"]) for event in desire_events.events_view(state_dir)]
+
+
+def comment_calls(calls):
+    return [args for args in calls if args[0] == "api" and args[1] != "user"]
+
+
+def cursor(state_dir):
+    return json.loads((state_dir / "artefacts.json").read_text(encoding="utf-8"))["comments_since"].get(
+        "owner/YUI"
+    )
+
+
+def test_a_closed_issue_files_one_event_and_a_second_run_files_none(state_dir, at, tmp_path):
+    t0 = at("2026-08-25T12:00:00+09:00")
+    derive(state_dir, t0, tmp_path, payloads={("issue", "owner/YUI"): [open_issue()]})
+    closed = {("issue", "owner/YUI"): [open_issue(closed_at="2026-08-25T04:00:00Z")]}
+
+    derive(state_dir, t0 + timedelta(hours=1), tmp_path, payloads=closed)
+    derive(state_dir, t0 + timedelta(hours=2), tmp_path, payloads=closed)
+
+    assert monitor_events(state_dir) == [(f"issue {ISSUE} was closed", ISSUE)]
+    assert desire_events.events_view(state_dir)[0]["source"] == "monitor"
+
+
+def test_a_merged_pull_request_files_one_event_however_many_calls_report_it(state_dir, at, tmp_path):
+    t0 = at("2026-08-25T12:00:00+09:00")
+    shipped_before = open_pull("https://github.com/owner/YUI/pull/2", merged_at="2026-08-24T00:00:00Z")
+    derive(state_dir, t0, tmp_path, payloads={("pr", "owner/YUI"): [open_pull(), shipped_before]})
+    merged = {("pr", "owner/YUI"): [open_pull(merged_at="2026-08-25T04:00:00Z"), shipped_before]}
+    views = {PULL: {"state": "MERGED", "mergedAt": "2026-08-25T04:00:00Z"}}
+
+    derive(state_dir, t0 + timedelta(hours=1), tmp_path, payloads=merged, views=views)
+    derive(state_dir, t0 + timedelta(hours=2), tmp_path, payloads=merged, views=views)
+
+    assert monitor_events(state_dir) == [(f"pull request {PULL} was merged", PULL)]
+
+
+def test_an_issue_first_seen_already_closed_after_bootstrap_files_its_delivery(state_dir, at, tmp_path):
+    t0 = at("2026-08-25T12:00:00+09:00")
+    derive(state_dir, t0, tmp_path)
+
+    derive(
+        state_dir,
+        t0 + timedelta(hours=1),
+        tmp_path,
+        payloads={("issue", "owner/YUI"): [open_issue(closed_at="2026-08-25T04:00:00Z")]},
+    )
+
+    assert monitor_events(state_dir) == [(f"issue {ISSUE} was closed", ISSUE)]
+
+
+def test_a_comment_by_someone_else_on_a_seen_artefact_files_one_event(state_dir, at, tmp_path):
+    t0 = at("2026-08-25T12:00:00+09:00")
+    payloads = {("issue", "owner/YUI"): [open_issue()], ("pr", "owner/YUI"): [open_pull()]}
+    derive(state_dir, t0, tmp_path, payloads=payloads)
+    page = [
+        comment(9, 1, "reviewer", "2026-08-25T03:30:00Z"),
+        comment(9, 2, LOGIN, "2026-08-25T03:31:00Z"),
+        comment(77, 3, "reviewer", "2026-08-25T03:32:00Z"),
+        comment(4, 4, "reviewer", "2026-08-25T03:33:00Z", path="pull"),
+    ]
+
+    derive(state_dir, t0 + timedelta(hours=1), tmp_path, payloads=payloads, comments={"owner/YUI": page})
+    edited = [comment(9, 1, "reviewer", "2026-08-25T03:30:00Z", "2026-08-25T05:00:00Z")]
+    derive(state_dir, t0 + timedelta(hours=2), tmp_path, payloads=payloads, comments={"owner/YUI": edited})
+
+    assert monitor_events(state_dir) == [
+        (f"reviewer commented on {ISSUE}", f"{ISSUE}#issuecomment-1"),
+        (f"reviewer commented on {PULL}", f"{PULL}#issuecomment-4"),
+    ]
+
+
+def test_the_first_run_for_a_repository_sets_its_cursor_without_a_comments_call(state_dir, at, tmp_path):
+    t0 = at("2026-08-25T12:00:00+09:00")
+    calls = []
+
+    derive(
+        state_dir,
+        t0,
+        tmp_path,
+        calls=calls,
+        comments={"owner/YUI": [comment(9, 1, "x", "2026-08-25T03:30:00Z")]},
+    )
+
+    assert comment_calls(calls) == []
+    artefacts = json.loads((state_dir / "artefacts.json").read_text(encoding="utf-8"))
+    assert artefacts["comments_from"] == artefacts["comments_since"] == {"owner/YUI": t0.isoformat()}
+
+
+def test_the_cursor_advances_to_the_latest_update_returned(state_dir, at, tmp_path):
+    t0 = at("2026-08-25T12:00:00+09:00")
+    derive(state_dir, t0, tmp_path)
+    calls = []
+    page = [
+        comment(9, 1, "x", "2026-08-25T03:30:00Z", "2026-08-25T05:00:00Z"),
+        comment(9, 2, "x", "2026-08-25T03:40:00Z", "2026-08-25T04:00:00Z"),
+    ]
+
+    derive(state_dir, t0 + timedelta(hours=3), tmp_path, calls=calls, comments={"owner/YUI": page})
+
+    assert comment_calls(calls) == [
+        [
+            "api",
+            "repos/owner/YUI/issues/comments?since=2026-08-25T02:59:00Z&per_page=100",
+            "--paginate",
+            "--jq",
+            ".[]",
+        ]
+    ]
+    assert desire_config.parse_timestamp(cursor(state_dir)) == at("2026-08-25T05:00:00+00:00")
+    assert json.loads((state_dir / "artefacts.json").read_text())["comments_from"] == {
+        "owner/YUI": t0.isoformat()
+    }
+
+
+def test_a_failing_comments_call_audits_and_keeps_the_cursor(state_dir, at, tmp_path):
+    t0 = at("2026-08-25T12:00:00+09:00")
+    derive(state_dir, t0, tmp_path)
+
+    derive(state_dir, t0 + timedelta(hours=1), tmp_path, failing=("comments",))
+
+    assert [(event["source"], event["repo"]) for event in audited(state_dir, "derive_failed")] == [
+        ("comments", "owner/YUI")
+    ]
+    assert cursor(state_dir) == t0.isoformat()
+
+
+def test_a_failing_login_call_skips_comments_and_keeps_the_cursors(state_dir, at, tmp_path):
+    t0 = at("2026-08-25T12:00:00+09:00")
+    derive(state_dir, t0, tmp_path, payloads={("issue", "owner/YUI"): [open_issue()]})
+    calls = []
+    page = [comment(9, 1, "reviewer", "2026-08-25T03:30:00Z", "2026-08-25T05:00:00Z")]
+
+    derive(
+        state_dir,
+        t0 + timedelta(hours=3),
+        tmp_path,
+        failing=("login",),
+        calls=calls,
+        comments={"owner/YUI": page},
+    )
+
+    assert comment_calls(calls) == []
+    assert [event["source"] for event in audited(state_dir, "derive_failed")] == ["login"]
+    assert cursor(state_dir) == t0.isoformat()
+    assert monitor_events(state_dir) == []
+
+
+def test_a_failing_issue_source_keeps_the_cursor_although_comments_were_returned(state_dir, at, tmp_path):
+    t0 = at("2026-08-25T12:00:00+09:00")
+    derive(state_dir, t0, tmp_path)
+    page = [comment(9, 1, "reviewer", "2026-08-25T03:30:00Z", "2026-08-25T05:00:00Z")]
+
+    derive(state_dir, t0 + timedelta(hours=3), tmp_path, failing=("issue",), comments={"owner/YUI": page})
+
+    assert cursor(state_dir) == t0.isoformat()
+
+
+def test_a_two_page_reply_is_read_whole_and_moves_the_cursor_though_nothing_is_filed(state_dir, at, tmp_path):
+    t0 = at("2026-08-25T12:00:00+09:00")
+    derive(state_dir, t0, tmp_path, payloads={("issue", "owner/YUI"): [open_issue()]})
+    first_page = [comment(9, index, LOGIN, f"2026-08-25T03:{index:02d}:00Z") for index in range(10, 15)]
+    second_page = [
+        comment(9, 20, LOGIN, "2026-08-25T03:30:00Z", "2026-08-25T06:00:00Z"),
+        {"html_url": f"{ISSUE}#issuecomment-21", "created_at": "2026-08-25T03:31:00Z", "updated_at": "nope"},
+        {**comment(9, 22, "reviewer", "2026-08-25T03:32:00Z"), "user": None},
+    ]
+    reply = "".join(json.dumps(item) + "\n" for item in first_page) + "".join(
+        json.dumps(item) + "\n" for item in second_page
+    )
+
+    derive(
+        state_dir,
+        t0 + timedelta(hours=4),
+        tmp_path,
+        payloads={("issue", "owner/YUI"): [open_issue()]},
+        comments={"owner/YUI": reply},
+    )
+
+    assert monitor_events(state_dir) == []
+    assert desire_config.parse_timestamp(cursor(state_dir)) == at("2026-08-25T06:00:00+00:00")
+    assert audited(state_dir, "derive_failed") == []
+
+
+def test_a_comment_on_an_issue_first_seen_on_the_same_run_is_filed(state_dir, at, tmp_path):
+    t0 = at("2026-08-25T12:00:00+09:00")
+    derive(state_dir, t0, tmp_path)
+
+    derive(
+        state_dir,
+        t0 + timedelta(hours=1),
+        tmp_path,
+        payloads={("issue", "owner/YUI"): [open_issue()]},
+        comments={"owner/YUI": [comment(9, 1, "reviewer", "2026-08-25T03:30:00Z")]},
+    )
+
+    assert monitor_events(state_dir) == [(f"reviewer commented on {ISSUE}", f"{ISSUE}#issuecomment-1")]
+
+
+def test_the_creation_stamp_decides_and_an_edit_brings_back_a_missed_comment(state_dir, at, tmp_path):
+    t0 = at("2026-08-25T12:00:00+09:00")
+    payloads = {("issue", "owner/YUI"): [open_issue()]}
+    derive(state_dir, t0, tmp_path, payloads=payloads)
+    before_bootstrap = comment(9, 1, "reviewer", "2026-08-25T02:00:00Z", "2026-08-25T04:00:00Z")
+
+    derive(
+        state_dir,
+        t0 + timedelta(hours=2),
+        tmp_path,
+        payloads=payloads,
+        comments={"owner/YUI": [before_bootstrap]},
+    )
+
+    assert monitor_events(state_dir) == []
+    missed = comment(9, 2, "reviewer", "2026-08-25T03:30:00Z", "2026-08-25T06:00:00Z")
+    derive(state_dir, t0 + timedelta(hours=4), tmp_path, payloads=payloads, comments={"owner/YUI": [missed]})
+
+    assert monitor_events(state_dir) == [(f"reviewer commented on {ISSUE}", f"{ISSUE}#issuecomment-2")]
+
+
+def test_a_repository_bootstraps_its_cursor_only_when_login_and_both_sources_answer(state_dir, at, tmp_path):
+    t0 = at("2026-08-25T12:00:00+09:00")
+
+    for failing in (("login",), ("pr",), ("issue",)):
+        derive(state_dir, t0, tmp_path, failing=failing)
+        assert cursor(state_dir) is None
+
+    later = t0 + timedelta(hours=1)
+    derive(state_dir, later, tmp_path)
+
+    assert cursor(state_dir) == later.isoformat()
+
+
+def test_events_filed_by_a_run_wake_the_agent_in_that_run(state_dir, at, isolated_profile, monkeypatch):
+    t0 = at("2026-08-25T12:00:00+09:00")
+    workspace = isolated_profile / "workspace"
+    workspace.mkdir(parents=True)
+    git_repo(workspace, "YUI", "https://github.com/owner/YUI.git")
+    monkeypatch.setattr(gate, "run_gh", gh_runner({("issue", "owner/YUI"): [open_issue()]}))
+    assert gate.run(t0) == NO_WAKE
+
+    closed = {("issue", "owner/YUI"): [open_issue(closed_at="2026-08-25T04:00:00Z")]}
+    monkeypatch.setattr(gate, "run_gh", gh_runner(closed))
+
+    assert gate.run(t0 + timedelta(hours=1)) == "desire gate: unread events (1)\n"
+
+
+def test_a_crash_between_the_event_and_the_artefact_write_files_once(state_dir, at, tmp_path, monkeypatch):
+    t0 = at("2026-08-25T12:00:00+09:00")
+    derive(state_dir, t0, tmp_path, payloads={("issue", "owner/YUI"): [open_issue()]})
+    closed = {("issue", "owner/YUI"): [open_issue(closed_at="2026-08-25T04:00:00Z")]}
+    real_write = desire_store.write_json_atomic
+
+    def crash_on_artefacts(path, value):
+        if path.name == "artefacts.json":
+            raise OSError("disk gone")
+        real_write(path, value)
+
+    monkeypatch.setattr(desire_store, "write_json_atomic", crash_on_artefacts)
+    with pytest.raises(OSError):
+        derive(state_dir, t0 + timedelta(hours=1), tmp_path, payloads=closed)
+    assert len(monitor_events(state_dir)) == 1
+    monkeypatch.setattr(desire_store, "write_json_atomic", real_write)
+
+    derive(state_dir, t0 + timedelta(hours=2), tmp_path, payloads=closed)
+
+    assert monitor_events(state_dir) == [(f"issue {ISSUE} was closed", ISSUE)]
+    assert json.loads((state_dir / "artefacts.json").read_text())["shipped"] == [ISSUE]
+
+
+def test_a_filed_event_reaches_the_block_on_the_next_turn_not_inside_the_cached_one(
+    desire_plugin, state_dir, at, tmp_path
+):
+    t0 = at("2026-08-25T12:00:00+09:00")
+    derive(state_dir, t0, tmp_path, payloads={("issue", "owner/YUI"): [open_issue()]})
+
+    def turn(text, now):
+        request = {"messages": [{"role": "user", "content": text}]}
+        return desire_plugin._inject(request=request, now=now)["request"]["messages"][0]["content"]
+
+    first = turn("same turn", t0 + timedelta(minutes=1))
+    derive(
+        state_dir,
+        t0 + timedelta(minutes=2),
+        tmp_path,
+        payloads={("issue", "owner/YUI"): [open_issue(closed_at="2026-08-25T03:01:00Z")]},
+    )
+    cached = turn("same turn", t0 + timedelta(minutes=3))
+    fresh = turn("next turn", t0 + timedelta(minutes=4))
+
+    assert cached == first
+    assert "recent:" not in cached
+    assert f'recent:\n- 08-25 "issue {ISSUE} was closed"\nwaiting for my reading: 1 event\n' in fresh

@@ -127,6 +127,8 @@ def test_read_artefacts_reports_absent_state_and_drops_keys_it_does_not_know(sta
             "future_field": ["drop me"],
             "another_unknown": {"a": 1, "b": "t"},
             "yet_another": ["kept once"],
+            "comments_from": {"owner/a": "2026-08-25T12:00:00+09:00", "owner/b": "nope"},
+            "comments_since": ["not", "a", "map"],
         },
     )
     record = desire_store.read_artefacts(state_dir)
@@ -135,6 +137,8 @@ def test_read_artefacts_reports_absent_state_and_drops_keys_it_does_not_know(sta
         "bootstrapped": ["pr"],
         "seen": {"pr": ["u"], "issue": []},
         "shipped": [],
+        "comments_from": {"owner/a": "2026-08-25T12:00:00+09:00"},
+        "comments_since": {},
     }
 
     write_json(state_dir / "artefacts.json", ["not an object"])
@@ -145,4 +149,6 @@ def test_read_artefacts_reports_absent_state_and_drops_keys_it_does_not_know(sta
         "bootstrapped": [],
         "seen": {"pr": [], "issue": []},
         "shipped": [],
+        "comments_from": {},
+        "comments_since": {},
     }
