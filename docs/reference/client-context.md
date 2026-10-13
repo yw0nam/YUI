@@ -47,7 +47,7 @@ above. Otherwise it is plain text.
 Everything between the header line and the closing tag is a sequence of `key: value`
 plain-text lines built by `renderClientContext` (`src/dispatcher/backend/client-context-text.ts`).
 One line per fact, in this fixed order — `time`, `frontmost`, `screenshot`, `body`,
-`previous`, then one or more `trigger:`/`wake:`/`cue note:`/`agent note:`/`agent event:`/
+`tools`, `previous`, then one or more `trigger:`/`wake:`/`cue note:`/`agent note:`/`agent event:`/
 `agent detail:`/`signal:`/`recent:` lines depending on what fired. A line is omitted
 outright when its underlying field is absent (e.g. no `screenshot:` line when screen
 capture is off).
@@ -152,6 +152,25 @@ descent in `standing` on the floor, and neither fires a turn either. The duratio
 last posture change (`body_state.since`), or when an agent-driven `move_to` relocates
 it, which returns it to standing — it moves only when the posture itself changes or
 the avatar relocates, not when the same posture is re-affirmed.
+
+### `tools`
+
+The on/off state of every switchable in-app tool the window declares, rendered every turn. One
+`id=state` entry per tool, comma-separated, in declaration order; values are `on` and `off`:
+
+```text
+tools: look.screen=on
+```
+
+```text
+tools: look.screen=off, browser=on
+```
+
+The line names the switch state only. The switch gates the tool's execution, read at the moment
+the call runs, so a state line the request outlives can still end in a refusal. The line is
+omitted when the window declares no switchable tool: the pet window under Tauri declares
+`look.screen`, and the phone window and the browser build declare none. Tool ids carry the same
+sanitization as the other sampled fields.
 
 ### `previous`
 
