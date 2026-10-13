@@ -10,7 +10,6 @@ import copy
 import hashlib
 import logging
 import re
-from collections import OrderedDict
 from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
 
@@ -18,6 +17,7 @@ from . import (
     desire_config,
     desire_drives,
     desire_events,
+    desire_gate_runs,
     desire_judgments,
     desire_outbox,
     desire_render,
@@ -51,8 +51,6 @@ _TOWARD_LINE = re.compile(
     rf"(?:{'|'.join(desire_judgments.LEVELS)}) \(\d{{2}}-\d{{2}}\)"
 )
 _HOW_LINE = re.compile(r"how I am: .+")
-_GATE_WAKE = re.compile(rf"^{re.escape(desire_config.WAKE_UNREAD_EVENTS)} \(\d+\)$", re.MULTILINE)
-_GATE_TURNS_KEPT = 32
 _CACHE_TTL = timedelta(minutes=10)
 _STATE_FILES = (
     "drives.json",
@@ -67,7 +65,6 @@ _STATE_FILES = (
     "how.md",
 )
 _turn_cache = None
-_gate_turns = OrderedDict()
 
 
 def register(ctx):
@@ -175,18 +172,6 @@ def _trigger_kind(text):
     return "none"
 
 
-def _gate_started(text, turn_id):
-    """Report whether the gate woke this turn for unread events, remembering the turn of a matching request."""
-    if _GATE_WAKE.search(text) is None:
-        return turn_id is not None and turn_id in _gate_turns
-    if turn_id is not None:
-        _gate_turns[turn_id] = None
-        _gate_turns.move_to_end(turn_id)
-        while len(_gate_turns) > _GATE_TURNS_KEPT:
-            _gate_turns.popitem(last=False)
-    return True
-
-
 def _build_desire_block(
     drives, outbox, transport, now, *, returned_hours=None, events=(), unread=0, judgments=None, how=""
 ):
@@ -263,7 +248,7 @@ def _rewrite(kwargs, event):
 
     state_dir = desire_config.resolve_state_dir()
     text_hash = hashlib.sha256(original_text.encode("utf-8")).hexdigest()
-    gate_started = _gate_started(original_text, kwargs.get("turn_id") or None)
+    gate_started = desire_gate_runs.gate_started(original_text, kwargs.get("turn_id") or None)
     cache_key = (str(state_dir.resolve()), text_hash, gate_started)
 
     cached = _turn_cache

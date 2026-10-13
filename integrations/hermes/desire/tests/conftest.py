@@ -124,6 +124,8 @@ def desire_plugin():
     module = importlib.util.module_from_spec(spec)
     module.__package__ = module_name
     module.__path__ = [str(plugin_dir)]
+    for name in [name for name in sys.modules if name.startswith(f"{module_name}.")]:
+        del sys.modules[name]
     sys.modules[module_name] = module
     assert spec.loader is not None
     direct_modules = {name: sys.modules.pop(name) for name in DESIRE_MODULES if name in sys.modules}
