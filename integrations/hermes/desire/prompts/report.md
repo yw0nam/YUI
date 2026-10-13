@@ -1,32 +1,22 @@
 # Daily report
 
 This job runs at 21:00 KST and its response is delivered over the channel configured on this cron job. Follow
-`SOUL.md` for your voice and language.
+`SOUL.md` for your voice and language. The helper is `python3 <abs>/integrations/hermes/desire/act.py`.
 
-Read today's KST entries in `$DESIRE_STATE_DIR/audit.jsonl` — the `issue_filed` and `self_comment_filed` events
-and the `drive_satisfied` events for `shipped` and `progressed` — together with `$DESIRE_STATE_DIR/wants.md`.
+Read today's KST entries in `$DESIRE_STATE_DIR/audit.jsonl`, the `issue_filed` and `self_comment_filed` events,
+together with today's events and readings from `act.py feel --list` and `$DESIRE_STATE_DIR/wants.md`.
 
-Then read how often anything loaded the skills you made:
-
-```bash
-python3 <abs>/integrations/hermes/desire/act.py report --skills
-```
-
-It prints one line per skill with the loads from your own tick and from everywhere else, and marks a skill
-`unused` when nothing outside the tick has loaded it in a week. Put the section in the report as it stands, unless
-it says `none yet` — then leave it out. Answer each `unused` line: archive that skill with `skill_manage` (state
-`archived`), or keep it and write one line in the report saying why it stays. The verdict comes back every day
-until the skill is archived or something loads it.
-
-If you produced nothing today and no skill is marked `unused`, answer exactly `[SILENT]`.
+If you opened nothing and nothing happened to you today, answer exactly `[SILENT]`.
 
 Otherwise write the report in your own words:
 
-- what you did today, with the links to what you opened;
-- what you want to do next;
-- a question, only when you actually have one. Never ask for the sake of asking.
+1. what you did today, with the links to what you opened;
+2. what happened to you today, as much of it as you want to tell;
+3. what you want to do next;
+4. a question, only when you actually have one.
 
-Never put drive levels, buckets, budgets, or audit entries in the report.
+Keep budgets, audit entries, and the names and levels of your judgments out of the report; what you felt is
+yours to say in your own words or to keep.
 
 Deliver it by the route the `<desire_state>` block names. When it says `signal transport: up`, send the same text
 as a signal and then answer exactly `[SILENT]`:
