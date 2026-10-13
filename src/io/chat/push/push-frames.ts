@@ -1,6 +1,6 @@
 /** The wire shape of the frames the push socket carries and the checks that tell an unreadable one. */
 
-import type { ExpressArgs, TurnEnded, Usage } from "../../../contract";
+import type { ExpressArgs, Usage } from "../../../contract";
 
 /** One ordered piece of a reply: its cues render, then its speech is spoken. */
 export interface RenderSegment {
@@ -79,9 +79,7 @@ export interface ToolResultFrame {
 export interface PlaybackFrame {
   type: "playback";
   turn_id: string;
-  ended: TurnEnded;
-  spoken?: string;
-  unspoken?: string;
+  ended: "failed";
 }
 
 /** The backend's reasoning as it is written, sent while the turn it names runs. */

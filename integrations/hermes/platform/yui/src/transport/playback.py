@@ -1,8 +1,7 @@
-"""Playback outcomes from a connected client."""
+"""Failed-call notices from a connected client."""
 
 from __future__ import annotations
 
-import json
 import logging
 from collections.abc import Awaitable, Callable
 from typing import TYPE_CHECKING
@@ -15,40 +14,34 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
-async def handle_playback(
-    frame: dict,
-    source: SessionSource,
-    handle_message: Callable[[MessageEvent], Awaitable[None]],
-) -> None:
-    turn_id = frame.get("turn_id")
-    ended = frame.get("ended")
-    if (
-        not isinstance(turn_id, str)
-        or not turn_id
-        or ended
-        not in (
-            "complete",
-            "interrupted",
-            "failed",
+class PlaybackNotices:
+    def __init__(self) -> None:
+        self._error_turns: dict[str, set[str]] = {}
+
+    def record_closed(self, chat_id: str, turn_ids: list[str], error_message: str) -> None:
+        if error_message:
+            self._error_turns[chat_id] = set(turn_ids)
+
+    async def handle(
+        self,
+        frame: dict,
+        source: SessionSource,
+        handle_message: Callable[[MessageEvent], Awaitable[None]],
+    ) -> None:
+        turn_id = frame.get("turn_id")
+        if not isinstance(turn_id, str) or not turn_id or frame.get("ended") != "failed":
+            logger.warning("yui: malformed playback frame")
+            return
+        if turn_id in self._error_turns.get(source.chat_id, ()):
+            logger.info("yui: playback failed already error-framed turn=%r", turn_id)
+            return
+        await handle_message(
+            MessageEvent(
+                text=f"[playback] failed turn={' '.join(turn_id.split())}",
+                message_type=MessageType.TEXT,
+                internal=True,
+                reply_expected=False,
+                allow_gateway_control=False,
+                source=source,
+            )
         )
-    ):
-        logger.warning("yui: malformed playback frame")
-        return
-    if ended == "complete":
-        logger.info("yui: playback complete turn=%s", turn_id)
-        return
-    text = f"[playback] {ended} turn={' '.join(turn_id.split())}"
-    for field in ("spoken", "unspoken"):
-        part = frame.get(field)
-        if isinstance(part, str) and part:
-            text += f" {field}={json.dumps(' '.join(part.split()), ensure_ascii=False)}"
-    await handle_message(
-        MessageEvent(
-            text=text,
-            message_type=MessageType.TEXT,
-            internal=True,
-            reply_expected=False,
-            allow_gateway_control=False,
-            source=source,
-        )
-    )

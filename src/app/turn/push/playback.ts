@@ -6,13 +6,11 @@ export function wirePlayback(deps: {
   socket: Pick<PushSocket, "sendPlayback">;
 }): () => void {
   return deps.previousTurn.subscribe((record) => {
-    if (!record.turn_id) return;
+    if (!record.turn_id || record.ended !== "failed") return;
     deps.socket.sendPlayback({
       type: "playback",
       turn_id: record.turn_id,
       ended: record.ended,
-      ...(record.spoken ? { spoken: record.spoken } : {}),
-      ...(record.unspoken ? { unspoken: record.unspoken } : {}),
     });
   });
 }
